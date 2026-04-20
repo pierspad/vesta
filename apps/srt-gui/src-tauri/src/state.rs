@@ -8,11 +8,17 @@ use tokio_util::sync::CancellationToken;
 /// Stato per la sincronizzazione sottotitoli
 pub struct SyncState {
     pub engine: Option<SyncEngine>,
+    pub is_auto_syncing: bool,
+    pub auto_sync_cancellation_token: Option<CancellationToken>,
 }
 
 impl Default for SyncState {
     fn default() -> Self {
-        Self { engine: None }
+        Self { 
+            engine: None,
+            is_auto_syncing: false,
+            auto_sync_cancellation_token: None,
+        }
     }
 }
 

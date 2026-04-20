@@ -1,11 +1,18 @@
 <script lang="ts">
   import { invoke } from "@tauri-apps/api/core";
+  import LogPanel, { type LogEntry } from "./LogPanel.svelte";
   import { listen } from "@tauri-apps/api/event";
-  import { open, save } from "@tauri-apps/plugin-dialog";
+  import { guardedOpen, guardedSave } from "./dialogGuard";
   import { onDestroy, onMount } from "svelte";
   import { locale } from "./i18n";
   import { languages as allLanguages } from "./models";
+  import PathPickerField from "./PathPickerField.svelte";
+  import PathPreviewModal from "./PathPreviewModal.svelte";
   import SearchableSelect from "./SearchableSelect.svelte";
+  import Snackbar from "./Snackbar.svelte";
+  import InfoModal from "./InfoModal.svelte";
+  import InfoButton from "./InfoButton.svelte";
+  import { transcribeSections } from "./info";
 
   let { onGoToSettings } = $props<{ onGoToSettings?: () => void }>();
 
@@ -58,19 +65,6 @@
     }, 3500);
   }
 
-  interface LogEntry {
-    id: number;
-    timestamp: string;
-    message: string;
-    type:
-      | "info"
-      | "success"
-      | "warning"
-      | "error"
-      | "progress"
-      | "file"
-      | "download";
-  }
   let logIdCounter = 0;
   let logs = $state<LogEntry[]>([]);
 
@@ -248,68 +242,10 @@
     logIdCounter = 0;
   }
 
-  function logStyle(type: LogEntry["type"]): {
-    bg: string;
-    border: string;
-    text: string;
-    icon: string;
-  } {
-    switch (type) {
-      case "success":
-        return {
-          bg: "bg-green-500/10",
-          border: "border-green-500/30",
-          text: "text-green-300",
-          icon: "✅",
-        };
-      case "warning":
-        return {
-          bg: "bg-amber-500/10",
-          border: "border-amber-500/30",
-          text: "text-amber-300",
-          icon: "⚠️",
-        };
-      case "error":
-        return {
-          bg: "bg-red-500/10",
-          border: "border-red-500/30",
-          text: "text-red-300",
-          icon: "❌",
-        };
-      case "progress":
-        return {
-          bg: "bg-gray-500/5",
-          border: "border-gray-700/30",
-          text: "text-gray-400",
-          icon: "⚙️",
-        };
-      case "file":
-        return {
-          bg: "bg-cyan-500/10",
-          border: "border-cyan-500/30",
-          text: "text-cyan-300",
-          icon: "📁",
-        };
-      case "download":
-        return {
-          bg: "bg-indigo-500/10",
-          border: "border-indigo-500/30",
-          text: "text-indigo-300",
-          icon: "⬇️",
-        };
-      default:
-        return {
-          bg: "bg-gray-500/5",
-          border: "border-gray-700/30",
-          text: "text-gray-400",
-          icon: "ℹ️",
-        };
-    }
-  }
 
   async function selectInputFile() {
     try {
-      const selected = await open({
+      const selected = await guardedOpen({
         multiple: false,
         filters: [
           {
@@ -348,7 +284,7 @@
 
   async function selectOutputFile() {
     try {
-      const selected = await save({
+      const selected = await guardedSave({
         filters: [{ name: "SRT Files", extensions: ["srt"] }],
         defaultPath: outputPath || undefined,
       });
@@ -666,6 +602,17 @@
           {t("transcribe.ffmpegMissingDesc")}
         </p>
       </div>
+      <button
+        type="button"
+        onclick={async () => {
+          const { open } = await import("@tauri-apps/plugin-shell");
+          await open("https://www.ffmpeg.org/download.html");
+        }}
+        class="flex-shrink-0 px-3 py-1.5 rounded-lg bg-amber-500/20 border border-amber-500/40 text-amber-300 text-xs font-semibold hover:bg-amber-500/30 transition-colors flex items-center gap-1.5"
+      >
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+        {t("transcribe.ffmpegDownload")}
+      </button>
     </div>
   {/if}
 
@@ -722,26 +669,7 @@
             />
           </svg>
           {t("transcribe.options")}
-          <button
-            type="button"
-            onclick={() => (helpSection = "options")}
-            class="ml-auto text-gray-500 hover:text-blue-300 transition-colors"
-            title="Info"
-          >
-            <svg
-              class="w-3.5 h-3.5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-              />
-            </svg>
-          </button>
+          <InfoButton onclick={() => (helpSection = "options")} />
         </h3>
         <div class="space-y-4">
           <div>
@@ -794,26 +722,7 @@
             <div class="flex items-center justify-between mb-2">
               <span class="text-sm text-gray-400 flex items-center gap-2">
                 {t("transcribe.maxSegmentLength")}
-                <button
-                  type="button"
-                  onclick={() => (helpSection = "segmentLength")}
-                  class="text-gray-500 hover:text-cyan-300 transition-colors"
-                  title="Info"
-                >
-                  <svg
-                    class="w-3.5 h-3.5"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                    />
-                  </svg>
-                </button>
+                <InfoButton onclick={() => (helpSection = "segmentLength")} />
               </span>
             </div>
             <div class="grid grid-cols-4 gap-2">
@@ -945,106 +854,30 @@
             />
           </svg>
           {t("transcribe.files")}
-          <button
-            type="button"
-            onclick={() => (helpSection = "files")}
-            class="ml-auto text-gray-500 hover:text-indigo-300 transition-colors"
-            title="Info"
-          >
-            <svg
-              class="w-3.5 h-3.5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-              />
-            </svg>
-          </button>
+          <InfoButton onclick={() => (helpSection = "files")} />
         </h3>
         <div class="space-y-3">
-          <div>
-            <span class="block text-sm text-gray-400 mb-1"
-              >{t("transcribe.inputFile")}</span
-            >
-            <div class="flex gap-2">
-              <button
-                onclick={() => (expandedPathField = "input")}
-                class="input-modern flex-1 text-sm text-left cursor-pointer hover:bg-white/10 transition-colors truncate"
-                style="direction: rtl; text-align: left;"
-                title={inputPath || t("transcribe.noInputMediaSelected")}
-              >
-                <span
-                  class={inputPath ? "text-white" : "text-gray-500"}
-                  style="unicode-bidi: plaintext;"
-                >
-                  {inputPath || t("transcribe.noInputMediaSelected")}
-                </span>
-              </button>
-              <button
-                onclick={selectInputFile}
-                class="btn-primary py-2 px-3"
-                title={t("transcribe.selectFile")}
-              >
-                <svg
-                  class="w-5 h-5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"
-                  />
-                </svg>
-              </button>
-            </div>
-          </div>
-          <div>
-            <span class="block text-sm text-gray-400 mb-1"
-              >{t("transcribe.outputFile")}</span
-            >
-            <div class="flex gap-2">
-              <button
-                onclick={() => (expandedPathField = "output")}
-                class="input-modern flex-1 text-sm text-left cursor-pointer hover:bg-white/10 transition-colors truncate"
-                style="direction: rtl; text-align: left;"
-                title={outputPath || t("transcribe.noOutputFileSelected")}
-              >
-                <span
-                  class={outputPath ? "text-white" : "text-gray-500"}
-                  style="unicode-bidi: plaintext;"
-                >
-                  {outputPath || t("transcribe.noOutputFileSelected")}
-                </span>
-              </button>
-              <button
-                onclick={selectOutputFile}
-                class="btn-secondary py-2 px-3"
-                title={t("transcribe.selectDestination")}
-              >
-                <svg
-                  class="w-5 h-5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"
-                  />
-                </svg>
-              </button>
-            </div>
-          </div>
+          <PathPickerField
+            label={t("transcribe.inputFile")}
+            value={inputPath}
+            placeholder={t("transcribe.noInputMediaSelected")}
+            browseTitle={t("transcribe.selectFile")}
+            onexpand={() => (expandedPathField = "input")}
+            onbrowse={selectInputFile}
+            browseButtonClass="btn-primary py-2 px-3"
+            browseIconPath="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"
+          />
+
+          <PathPickerField
+            label={t("transcribe.outputFile")}
+            value={outputPath}
+            placeholder={t("transcribe.noOutputFileSelected")}
+            browseTitle={t("transcribe.selectDestination")}
+            onexpand={() => (expandedPathField = "output")}
+            onbrowse={selectOutputFile}
+            browseButtonClass="btn-secondary py-2 px-3"
+            browseIconPath="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"
+          />
           {#if inputPath}
             <div
               class="p-3 bg-cyan-500/10 border border-cyan-500/30 rounded-lg"
@@ -1241,45 +1074,15 @@
         {/if}
       </div>
     {:else if panelId === "logs"}
-      <div
-        class="glass-card p-4 flex flex-col"
-        style="min-height: 170px; max-height: 360px;"
-      >
-        <div class="flex items-center justify-between mb-2 shrink-0">
-          <h4 class="text-xs font-semibold text-gray-400">
-            {t("transcribe.log")}
-          </h4>
-          {#if logs.length > 0}
-            <button
-              onclick={clearLogs}
-              class="text-xs text-gray-500 hover:text-gray-400"
-              >{t("transcribe.clearLog")}</button
-            >
-          {/if}
-        </div>
-        <div class="flex-1 min-h-0 overflow-y-auto space-y-1.5">
-          {#if logs.length > 0}
-            {#each logs as log (log.id)}
-              {@const style = logStyle(log.type)}
-              <div
-                class="p-2 rounded-lg border {style.bg} {style.border} flex items-start gap-2 animate-fade-in"
-              >
-                <span class="text-xs flex-shrink-0">{style.icon}</span>
-                <p
-                  class="text-xs {style.text} leading-tight break-words whitespace-pre-wrap flex-1 min-w-0"
-                >
-                  {log.message}
-                </p>
-                <span class="text-[10px] text-gray-600 flex-shrink-0"
-                  >{log.timestamp}</span
-                >
-              </div>
-            {/each}
-          {:else}
-            <p class="text-gray-600 text-xs p-2">{t("transcribe.noLog")}</p>
-          {/if}
-        </div>
-      </div>
+      <LogPanel
+        title={t("transcribe.log")}
+        clearLogText={t("transcribe.clearLog")}
+        noLogText={t("translate.noLog")}
+        {logs}
+        onclear={clearLogs}
+        minHeight="170px"
+        maxHeightContent="100%"
+      />
     {/if}
   {/snippet}
 
@@ -1429,160 +1232,35 @@
     </div>
   {/if}
 
-  {#if helpSection}
-    <!-- svelte-ignore a11y_no_static_element_interactions -->
-    <div
-      class="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-6"
-      role="dialog"
-      aria-modal="true"
-      tabindex="-1"
-      onclick={() => (helpSection = null)}
-      onkeydown={(e) => {
-        if (e.key === "Escape") helpSection = null;
-      }}
-    >
-      <!-- svelte-ignore a11y_no_static_element_interactions -->
-      <div
-        class="bg-gray-900 border border-gray-700 rounded-xl w-full max-w-lg p-6"
-        onclick={(e) => e.stopPropagation()}
-        onkeydown={(e) => e.stopPropagation()}
-      >
-        <div class="flex items-center justify-between mb-4">
-          <h2 class="text-lg font-bold text-white">
-            {#if helpSection === "whisperModel"}{t("transcribe.whisperModel")}
-            {:else if helpSection === "options"}{t("transcribe.options")}
-            {:else if helpSection === "files"}{t("transcribe.files")}
-            {:else if helpSection === "segmentLength"}{t(
-                "transcribe.maxSegmentLength",
-              )}
-            {/if}
-          </h2>
-          <button
-            onclick={() => (helpSection = null)}
-            class="text-gray-400 hover:text-white text-xl">✕</button
-          >
-        </div>
-        <div
-          class="text-gray-300 text-sm leading-relaxed max-h-[60vh] overflow-y-auto help-content"
-        >
-          {#if helpSection === "whisperModel"}
-            {@html t("transcribe.whisperModelHelp")}
-          {:else if helpSection === "options"}
-            {@html t("transcribe.optionsHelp")}
-          {:else if helpSection === "files"}
-            {@html t("transcribe.filesHelp")}
-          {:else if helpSection === "segmentLength"}
-            {@html t("transcribe.segmentHelp")}
-          {/if}
-        </div>
-        <div class="mt-4 flex justify-end">
-          <button
-            onclick={() => (helpSection = null)}
-            class="btn-primary py-1.5 px-4 text-sm">OK</button
-          >
-        </div>
-      </div>
-    </div>
-  {/if}
+  <InfoModal 
+    section={helpSection} 
+    sections={transcribeSections} 
+    onclose={() => (helpSection = null)} 
+  />
 
-  {#if expandedPathField}
-    <!-- svelte-ignore a11y_no_static_element_interactions -->
-    <div
-      class="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-6"
-      role="dialog"
-      aria-modal="true"
-      tabindex="-1"
-      onclick={() => (expandedPathField = null)}
-      onkeydown={(e) => {
-        if (e.key === "Escape") expandedPathField = null;
-      }}
-    >
-      <!-- svelte-ignore a11y_no_static_element_interactions -->
-      <div
-        class="bg-gray-900 border border-gray-700 rounded-xl w-full max-w-2xl p-5 animate-fade-in"
-        onclick={(e) => e.stopPropagation()}
-        onkeydown={(e) => e.stopPropagation()}
-      >
-        <div class="flex items-center justify-between mb-3">
-          <h3 class="text-sm font-semibold text-gray-300">
-            {#if expandedPathField === "input"}{t("transcribe.inputFile")}
-            {:else if expandedPathField === "output"}{t(
-                "transcribe.outputFile",
-              )}
-            {/if}
-          </h3>
-          <button
-            onclick={() => (expandedPathField = null)}
-            class="text-gray-400 hover:text-white text-lg leading-none"
-            >✕</button
-          >
-        </div>
-        <div class="bg-gray-800/80 rounded-lg p-3 border border-gray-700/50">
-          <p
-            class="text-sm text-white font-mono break-all select-all leading-relaxed"
-          >
-            {#if expandedPathField === "input"}{inputPath || "—"}
-            {:else if expandedPathField === "output"}{outputPath || "—"}
-            {/if}
-          </p>
-        </div>
-        <div class="mt-3 flex justify-end gap-2">
-          <button
-            onclick={() => {
-              const field = expandedPathField;
-              expandedPathField = null;
-              if (field === "input") openInputPathDialog();
-              else if (field === "output") openOutputPathDialog();
-            }}
-            class="btn-secondary py-1.5 px-4 text-xs"
-          >
-            ✏️ {t("transcribe.editPath")}
-          </button>
-          <button
-            onclick={() => (expandedPathField = null)}
-            class="btn-primary py-1.5 px-4 text-xs">OK</button
-          >
-        </div>
-      </div>
-    </div>
-  {/if}
+  <PathPreviewModal
+    isOpen={!!expandedPathField}
+    title={expandedPathField === "input"
+      ? t("transcribe.inputFile")
+      : t("transcribe.outputFile")}
+    value={expandedPathField === "input" ? inputPath : outputPath}
+    onclose={() => (expandedPathField = null)}
+    secondaryText={`✏️ ${t("transcribe.editPath")}`}
+    onsecondary={() => {
+      const field = expandedPathField;
+      expandedPathField = null;
+      if (field === "input") openInputPathDialog();
+      else if (field === "output") openOutputPathDialog();
+    }}
+  />
 
 
 
   {#if snackbarMessage}
-    <div
-      class="fixed bottom-4 left-1/2 -translate-x-1/2 glass-card bg-green-500/20 border border-green-500/30 text-green-200 px-6 py-3 rounded-xl shadow-xl flex items-center gap-3 animate-fade-in z-50"
-    >
-      <svg
-        class="w-5 h-5 text-green-400 flex-shrink-0"
-        fill="none"
-        stroke="currentColor"
-        viewBox="0 0 24 24"
-        ><path
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          stroke-width="2"
-          d="M5 13l4 4L19 7"
-        /></svg
-      >
-      <span>{snackbarMessage}</span>
-      <button
-        onclick={() => (snackbarMessage = null)}
-        class="text-green-400 hover:text-green-300 ml-2"
-        aria-label="Close"
-        ><svg
-          class="w-4 h-4"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-          ><path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M6 18L18 6M6 6l12 12"
-          /></svg
-        ></button
-      >
-    </div>
+    <Snackbar
+      message={snackbarMessage}
+      variant="success"
+      onclose={() => (snackbarMessage = null)}
+    />
   {/if}
 </div>

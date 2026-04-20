@@ -189,6 +189,7 @@
   ]);
 
   let isDownloading = $state(false);
+  let isCancellingDownload = $state(false);
   let downloadingModelId = $state<string | null>(null);
   let pendingDefaultModelId = $state<string | null>(null);
   let progress = $state(0);
@@ -243,6 +244,7 @@
   async function downloadModel(modelId: string, setAsDefaultAfterDownload = false) {
     if (isDownloading) return;
     isDownloading = true;
+    isCancellingDownload = false;
     downloadingModelId = modelId;
     pendingDefaultModelId = setAsDefaultAfterDownload ? modelId : null;
     try {
@@ -257,14 +259,33 @@
         showSnackbar(`Model ${modelId} downloaded successfully`);
       }
     } catch (e) {
-      showSnackbar(`Failed to download model ${modelId}: ${e}`, "error");
+      const message = String(e).toLowerCase();
+      if (message.includes("cancelled") || message.includes("canceled")) {
+        showSnackbar(
+          t("settings.modelDownloadCancelled", { model: modelId }) || `Download cancelled for model ${modelId}`,
+        );
+      } else {
+        showSnackbar(`Failed to download model ${modelId}: ${e}`, "error");
+      }
     } finally {
       isDownloading = false;
+      isCancellingDownload = false;
       downloadingModelId = null;
       pendingDefaultModelId = null;
       progress = 0;
       progressMessage = "";
       progressStage = "";
+    }
+  }
+
+  async function cancelModelDownload() {
+    if (!isDownloading || isCancellingDownload) return;
+    isCancellingDownload = true;
+    try {
+      await invoke("transcribe_cancel");
+    } catch (e) {
+      showSnackbar(`Failed to cancel download: ${e}`, "error");
+      isCancellingDownload = false;
     }
   }
 
@@ -1060,9 +1081,36 @@
         <h3 class="text-sm font-bold text-white">{t("transcribe.whisperModel")}</h3>
         <p class="text-xs text-gray-500">{t("transcribe.whisperModelDesc") || "Download models for local transcription and auto-sync. Double click to download or set default. Right click to uninstall."}</p>
       </div>
+      {#if isDownloading && downloadingModelId}
+        <button
+          type="button"
+          onclick={cancelModelDownload}
+          disabled={isCancellingDownload}
+          class="px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors
+            {isCancellingDownload
+            ? 'bg-amber-500/10 border-amber-500/30 text-amber-300 cursor-wait'
+            : 'bg-red-500/10 border-red-500/30 text-red-300 hover:bg-red-500/20 hover:border-red-500/50'}"
+          title={t("settings.stopModelDownload") || "Stop download"}
+        >
+          {#if isCancellingDownload}
+            {t("settings.stoppingModelDownload") || "Stopping..."}
+          {:else}
+            {t("settings.stopModelDownload") || "Stop download"}
+          {/if}
+        </button>
+      {/if}
     </div>
+
+    {#if isDownloading && downloadingModelId}
+      <div class="mb-3 text-xs text-gray-400">
+        {t("settings.modelDownloading", { model: downloadingModelId }) || `Downloading model: ${downloadingModelId}`}
+        {#if progress > 0}
+          <span class="text-cyan-300 ml-1">{progress}%</span>
+        {/if}
+      </div>
+    {/if}
     
-    <div class="grid grid-cols-5 gap-2 relative">
+    <div class="grid grid-cols-5 gap-2">
       {#each whisperModels as model}
         <!-- svelte-ignore a11y_no_static_element_interactions -->
         <div
@@ -1075,7 +1123,7 @@
           role="radio"
           aria-checked={defaultWhisperModel === model.id}
           tabindex="0"
-          class="p-3 rounded-lg text-center transition-all duration-200 border cursor-pointer
+          class="relative p-3 rounded-lg text-center transition-all duration-200 border cursor-pointer
             {defaultWhisperModel === model.id && model.downloaded
             ? 'bg-cyan-500/20 border-cyan-500/50 text-white shadow-[0_0_15px_rgba(6,182,212,0.15)]'
             : model.downloaded

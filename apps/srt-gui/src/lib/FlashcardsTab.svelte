@@ -2,7 +2,7 @@
   import { invoke } from "@tauri-apps/api/core";
   import { listen } from "@tauri-apps/api/event";
   import { getCurrentWebview } from "@tauri-apps/api/webview";
-  import { open } from "@tauri-apps/plugin-dialog";
+  import { guardedOpen } from "./dialogGuard";
   import { onDestroy, onMount, tick } from "svelte";
   import { locale } from "./i18n";
   import {
@@ -10,7 +10,12 @@
     languages,
     loadCardTemplates,
   } from "./models";
+  import PathPreviewModal from "./PathPreviewModal.svelte";
   import SearchableSelect from "./SearchableSelect.svelte";
+  import LogPanel, { type LogEntry } from "./LogPanel.svelte";
+  import InfoModal from "./InfoModal.svelte";
+  import InfoButton from "./InfoButton.svelte";
+  import { flashcardsSections } from "./info";
 
   const SUBTITLE_EXTENSIONS = ["srt", "ass", "ssa", "vtt"];
 
@@ -31,6 +36,26 @@
   const OUTPUT_DIR_KEY = "vesta-last-output-dir";
   const NOTE_TYPE_LANGUAGE_KEY = "vesta-flashcards-note-type-language";
   const SERIES_MODE_KEY = "vesta-flashcards-series-mode";
+  const SMART_FILE_MATCHING_KEY = "vesta-flashcards-smart-file-matching";
+
+  function loadSmartFileMatching(): boolean {
+    try {
+      const saved = localStorage.getItem(SMART_FILE_MATCHING_KEY);
+      return saved === null ? true : saved === "true";
+    } catch {
+      return true;
+    }
+  }
+
+  let smartFileMatchingEnabled = $state(loadSmartFileMatching());
+
+  function toggleSmartFileMatching() {
+    smartFileMatchingEnabled = !smartFileMatchingEnabled;
+    localStorage.setItem(
+      SMART_FILE_MATCHING_KEY,
+      String(smartFileMatchingEnabled),
+    );
+  }
 
   // ─── Series Mode State ───────────────────────────────────────────────────
   let seriesMode = $state(loadSeriesMode());
@@ -467,7 +492,7 @@
 
   async function addSeriesMultipleFiles() {
     try {
-      const raw = await open({
+      const raw = await guardedOpen({
         multiple: true,
         filters: [
           {
@@ -772,6 +797,7 @@
   let includeSubs2Field = $state(true);
 
   let deckName = $state("");
+  let deckNameAuto = $state(true);
   let firstEpisode = $state(1);
 
   let isProcessing = $state(false);
@@ -779,22 +805,6 @@
   let progressMessage = $state("");
   let progressStage = $state("");
 
-  interface LogEntry {
-    id: number;
-    timestamp: string;
-    message: string;
-    type:
-      | "info"
-      | "success"
-      | "warning"
-      | "error"
-      | "target-subs"
-      | "native-subs"
-      | "media"
-      | "output"
-      | "progress";
-    details?: string;
-  }
   let logIdCounter = 0;
   let logs = $state<LogEntry[]>([]);
   let error = $state<string | null>(null);
@@ -961,7 +971,7 @@
         if (target) {
           try {
             await loadTargetSubtitle(target);
-            await tryAutoSelectMediaForSubtitle(target);
+            await tryAutoSelectMediaForSubtitle(target, smartFileMatchingEnabled);
           } catch (e) {
             error = `Error parsing subtitles: ${e}`;
           }
@@ -979,16 +989,30 @@
         if (!targetSubsPath) {
           try {
             await loadTargetSubtitle(subPath);
-            await tryAutoSelectCompanionSubtitle(subPath, "target");
-            await tryAutoSelectMediaForSubtitle(subPath);
+            await tryAutoSelectCompanionSubtitle(
+              subPath,
+              "target",
+              smartFileMatchingEnabled,
+            );
+            await tryAutoSelectMediaForSubtitle(
+              subPath,
+              smartFileMatchingEnabled,
+            );
           } catch (e) {
             error = `Error parsing subtitles: ${e}`;
           }
         } else {
           try {
             await loadNativeSubtitle(subPath);
-            await tryAutoSelectCompanionSubtitle(subPath, "native");
-            await tryAutoSelectMediaForSubtitle(subPath);
+            await tryAutoSelectCompanionSubtitle(
+              subPath,
+              "native",
+              smartFileMatchingEnabled,
+            );
+            await tryAutoSelectMediaForSubtitle(
+              subPath,
+              smartFileMatchingEnabled,
+            );
           } catch (e) {
             error = `Error parsing native subtitles: ${e}`;
           }
@@ -1273,8 +1297,9 @@
       filename,
     );
 
-    if (!deckName) {
+    if (deckNameAuto || !deckName.trim()) {
       deckName = generateDefaultDeckName(filename);
+      deckNameAuto = true;
     }
   }
 
@@ -1322,20 +1347,36 @@
     }
   }
 
-  async function tryAutoSelectCompanionSubtitle(path: string, selectedRole: "target" | "native") {
+  async function tryAutoSelectCompanionSubtitle(
+    path: string,
+    selectedRole: "target" | "native",
+    force = false,
+  ) {
+    if (!smartFileMatchingEnabled) return;
     const needsTarget = selectedRole === "native" && !targetSubsPath;
     const needsNative = selectedRole === "target" && !nativeSubsPath;
-    if (!needsTarget && !needsNative) return;
+    if (!force && !needsTarget && !needsNative) return;
 
     try {
       const suggested = await invoke<string | null>("sync_suggest_companion_subtitle_for_srt", {
         srtPath: path,
       });
-      if (!suggested || suggested === path) return;
+      if (!suggested || suggested === path) {
+        if (force) {
+          if (selectedRole === "target") {
+            nativeSubsPath = "";
+            nativeSubsInfo = null;
+          } else {
+            targetSubsPath = "";
+            targetSubsInfo = null;
+          }
+        }
+        return;
+      }
 
-      if (needsNative) {
+      if (selectedRole === "target") {
         await loadNativeSubtitle(suggested);
-      } else if (needsTarget) {
+      } else {
         await loadTargetSubtitle(suggested);
       }
     } catch {
@@ -1343,13 +1384,20 @@
     }
   }
 
-  async function tryAutoSelectMediaForSubtitle(path: string) {
-    if (mediaPath) return;
+  async function tryAutoSelectMediaForSubtitle(path: string, force = false) {
+    if (!smartFileMatchingEnabled) return;
+    if (!force && mediaPath) return;
     try {
       const suggestedPath = await invoke<string | null>("sync_suggest_media_for_srt", {
         srtPath: path,
       });
-      if (!suggestedPath) return;
+      if (!suggestedPath) {
+        if (force) {
+          mediaPath = "";
+          mediaType = "none";
+        }
+        return;
+      }
       applyMediaSelection(suggestedPath, true);
     } catch {
       // Best-effort suggestion only.
@@ -1358,7 +1406,7 @@
 
   async function selectTargetSubs() {
     try {
-      const selected = await open({
+      const selected = await guardedOpen({
         multiple: false,
         filters: [
           {
@@ -1371,8 +1419,15 @@
         try {
           const selectedPath = selected as string;
           await loadTargetSubtitle(selectedPath);
-          await tryAutoSelectCompanionSubtitle(selectedPath, "target");
-          await tryAutoSelectMediaForSubtitle(selectedPath);
+          await tryAutoSelectCompanionSubtitle(
+            selectedPath,
+            "target",
+            smartFileMatchingEnabled,
+          );
+          await tryAutoSelectMediaForSubtitle(
+            selectedPath,
+            smartFileMatchingEnabled,
+          );
         } catch (e) {
           error = `Error parsing subtitles: ${e}`;
         }
@@ -1384,7 +1439,7 @@
 
   async function selectNativeSubs() {
     try {
-      const selected = await open({
+      const selected = await guardedOpen({
         multiple: false,
         filters: [
           {
@@ -1397,8 +1452,15 @@
         try {
           const selectedPath = selected as string;
           await loadNativeSubtitle(selectedPath);
-          await tryAutoSelectCompanionSubtitle(selectedPath, "native");
-          await tryAutoSelectMediaForSubtitle(selectedPath);
+          await tryAutoSelectCompanionSubtitle(
+            selectedPath,
+            "native",
+            smartFileMatchingEnabled,
+          );
+          await tryAutoSelectMediaForSubtitle(
+            selectedPath,
+            smartFileMatchingEnabled,
+          );
         } catch (e) {
           error = `Error parsing native subtitles: ${e}`;
         }
@@ -1429,7 +1491,7 @@
 
   async function selectMedia() {
     try {
-      const selected = await open({
+      const selected = await guardedOpen({
         multiple: false,
         filters: [
           {
@@ -1448,7 +1510,7 @@
 
   async function selectOutputDir() {
     try {
-      const selected = await open({ directory: true });
+      const selected = await guardedOpen({ directory: true });
       if (selected) {
         outputDir = selected as string;
         localStorage.setItem(OUTPUT_DIR_KEY, outputDir);
@@ -1783,80 +1845,11 @@
     nativeSubsPath = "";
     mediaPath = "";
     mediaType = "none";
+    targetSubsInfo = null;
+    nativeSubsInfo = null;
     episodes = [];
-  }
-
-  function logStyle(type: LogEntry["type"]): {
-    bg: string;
-    border: string;
-    text: string;
-    icon: string;
-  } {
-    switch (type) {
-      case "target-subs":
-        return {
-          bg: "bg-emerald-500/10",
-          border: "border-emerald-500/30",
-          text: "text-emerald-300",
-          icon: "📄",
-        };
-      case "native-subs":
-        return {
-          bg: "bg-blue-500/10",
-          border: "border-blue-500/30",
-          text: "text-blue-300",
-          icon: "📄",
-        };
-      case "media":
-        return {
-          bg: "bg-purple-500/10",
-          border: "border-purple-500/30",
-          text: "text-purple-300",
-          icon: "🎬",
-        };
-      case "output":
-        return {
-          bg: "bg-amber-500/10",
-          border: "border-amber-500/30",
-          text: "text-amber-300",
-          icon: "📁",
-        };
-      case "success":
-        return {
-          bg: "bg-green-500/10",
-          border: "border-green-500/30",
-          text: "text-green-300",
-          icon: "✅",
-        };
-      case "warning":
-        return {
-          bg: "bg-amber-500/10",
-          border: "border-amber-500/30",
-          text: "text-amber-300",
-          icon: "⚠️",
-        };
-      case "error":
-        return {
-          bg: "bg-red-500/10",
-          border: "border-red-500/30",
-          text: "text-red-300",
-          icon: "❌",
-        };
-      case "progress":
-        return {
-          bg: "bg-gray-500/5",
-          border: "border-gray-700/30",
-          text: "text-gray-400",
-          icon: "⚙️",
-        };
-      default:
-        return {
-          bg: "bg-gray-500/5",
-          border: "border-gray-700/30",
-          text: "text-gray-400",
-          icon: "ℹ️",
-        };
-    }
+    deckName = "";
+    deckNameAuto = true;
   }
 </script>
 
@@ -1913,9 +1906,20 @@
           d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"
         />
       </svg>
-      <p class="text-amber-300 text-sm">
+      <p class="text-amber-300 text-sm flex-1">
         {t("flashcards.ffmpegMissing")}
       </p>
+      <button
+        type="button"
+        onclick={async () => {
+          const { open } = await import("@tauri-apps/plugin-shell");
+          await open("https://www.ffmpeg.org/download.html");
+        }}
+        class="flex-shrink-0 px-3 py-1.5 rounded-lg bg-amber-500/20 border border-amber-500/40 text-amber-300 text-xs font-semibold hover:bg-amber-500/30 transition-colors flex items-center gap-1.5"
+      >
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+        {t("transcribe.ffmpegDownload")}
+      </button>
     </div>
   {/if}
 
@@ -2134,27 +2138,35 @@
             />
           </svg>
           {t("flashcards.files")}
-          <button
-            type="button"
-            onclick={() => (helpSection = "files")}
-            title="Info"
-            class={`ml-auto ${PANEL_INFO_BUTTON_CLASS}`}
-          >
-            <svg
-              class="w-3.5 h-3.5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-              />
-            </svg>
-          </button>
+          <InfoButton onclick={() => (helpSection = "files")} />
         </h3>
+
+        {#if !seriesMode}
+          <div class="mb-3 flex items-center justify-between rounded-lg border border-emerald-500/20 bg-emerald-500/5 px-3 py-2">
+            <div class="text-xs">
+              <p class="text-emerald-300 font-semibold">Smart file matching</p>
+              <p class="text-[10px] text-gray-400">Auto-load companion subtitle and media on each file selection</p>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={smartFileMatchingEnabled}
+              onclick={toggleSmartFileMatching}
+              class="w-12 h-6 rounded-full transition-all duration-200 relative {smartFileMatchingEnabled
+                ? 'bg-emerald-500/70'
+                : 'bg-gray-700'}"
+              title={smartFileMatchingEnabled
+                ? "Smart matching enabled"
+                : "Smart matching disabled"}
+            >
+              <div
+                class="absolute w-5 h-5 bg-white rounded-full top-0.5 transition-all duration-200 {smartFileMatchingEnabled
+                  ? 'left-6'
+                  : 'left-0.5'}"
+              ></div>
+            </button>
+          </div>
+        {/if}
 
         {#if !seriesMode}
           <div class="space-y-2.5">
@@ -2591,26 +2603,7 @@
               />
             </svg>
           </button>
-          <button
-            type="button"
-            onclick={() => (helpSection = "subtitleOptions")}
-            title="Info"
-            class={`flex-shrink-0 ${PANEL_INFO_BUTTON_CLASS}`}
-          >
-            <svg
-              class="w-3.5 h-3.5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-              />
-            </svg>
-          </button>
+          <InfoButton onclick={() => (helpSection = "subtitleOptions")} />
         </div>
         {#if showSubtitleOptions}
           <div class="mt-3 space-y-2.5 animate-fade-in">
@@ -2784,25 +2777,7 @@
               />
             </svg>
           </button>
-          <button
-            onclick={() => (helpSection = "filters")}
-            class={`flex-shrink-0 ${PANEL_INFO_BUTTON_CLASS}`}
-            title="Info"
-          >
-            <svg
-              class="w-3.5 h-3.5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-              />
-            </svg>
-          </button>
+          <InfoButton onclick={() => (helpSection = "filters")} />
         </div>
 
         {#if showFilters}
@@ -3015,26 +2990,7 @@
               />
             </svg>
           </button>
-          <button
-            type="button"
-            onclick={() => (helpSection = "contextLines")}
-            title="Info"
-            class={`flex-shrink-0 ${PANEL_INFO_BUTTON_CLASS}`}
-          >
-            <svg
-              class="w-3.5 h-3.5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-              />
-            </svg>
-          </button>
+          <InfoButton onclick={() => (helpSection = "contextLines")} />
         </div>
         {#if showContextLines}
           <div class="mt-3 grid grid-cols-3 gap-2 animate-fade-in">
@@ -3107,26 +3063,7 @@
               />
             </svg>
             {t("flashcards.generateAudioClips")}
-            <button
-              type="button"
-              onclick={() => (helpSection = "audioClips")}
-              title="Info"
-              class={PANEL_INFO_BUTTON_CLASS}
-            >
-              <svg
-                class="w-3.5 h-3.5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
-              </svg>
-            </button>
+            <InfoButton onclick={() => (helpSection = "audioClips")} />
           </h3>
           <button
             onclick={() => {
@@ -3235,26 +3172,7 @@
               />
             </svg>
             {t("flashcards.generateSnapshots")}
-            <button
-              type="button"
-              onclick={() => (helpSection = "snapshots")}
-              title="Info"
-              class={PANEL_INFO_BUTTON_CLASS}
-            >
-              <svg
-                class="w-3.5 h-3.5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
-              </svg>
-            </button>
+            <InfoButton onclick={() => (helpSection = "snapshots")} />
           </h3>
           <button
             onclick={() => {
@@ -3348,26 +3266,7 @@
               />
             </svg>
             {t("flashcards.generateVideoClips")}
-            <button
-              type="button"
-              onclick={() => (helpSection = "videoClips")}
-              title="Info"
-              class={PANEL_INFO_BUTTON_CLASS}
-            >
-              <svg
-                class="w-3.5 h-3.5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
-              </svg>
-            </button>
+            <InfoButton onclick={() => (helpSection = "videoClips")} />
           </h3>
           <button
             onclick={() => {
@@ -3513,26 +3412,7 @@
             />
           </svg>
           {t("flashcards.ankiFields")}
-          <button
-            type="button"
-            onclick={() => (helpSection = "ankiFields")}
-            title="Info"
-            class={`ml-auto ${PANEL_INFO_BUTTON_CLASS}`}
-          >
-            <svg
-              class="w-3.5 h-3.5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-              />
-            </svg>
-          </button>
+          <InfoButton onclick={() => (helpSection = "ankiFields")} />
         </h3>
 
         <div class="mb-3">
@@ -3671,26 +3551,7 @@
             />
           </svg>
           {t("flashcards.exportFormat")}
-          <button
-            type="button"
-            onclick={() => (helpSection = "exportFormat")}
-            title="Info"
-            class={`ml-auto ${PANEL_INFO_BUTTON_CLASS}`}
-          >
-            <svg
-              class="w-3.5 h-3.5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-              />
-            </svg>
-          </button>
+          <InfoButton onclick={() => (helpSection = "exportFormat")} />
         </h3>
         <div class="space-y-2">
           <label
@@ -3819,26 +3680,7 @@
             />
           </svg>
           {t("flashcards.naming")}
-          <button
-            type="button"
-            onclick={() => (helpSection = "naming")}
-            title="Info"
-            class={`ml-auto ${PANEL_INFO_BUTTON_CLASS}`}
-          >
-            <svg
-              class="w-3.5 h-3.5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-              />
-            </svg>
-          </button>
+          <InfoButton onclick={() => (helpSection = "naming")} />
         </h3>
 
         <div class="space-y-3">
@@ -3850,6 +3692,10 @@
             <input
               type="text"
               bind:value={deckName}
+              oninput={(event) => {
+                deckNameAuto =
+                  (event.currentTarget as HTMLInputElement).value.trim().length === 0;
+              }}
               class="input-modern w-full text-sm"
               placeholder={t("flashcards.deckNamePlaceholder")}
             />
@@ -3882,26 +3728,7 @@
             />
           </svg>
           {t("flashcards.cpuCores")}
-          <button
-            type="button"
-            onclick={() => (helpSection = "cpuCores")}
-            class={`ml-auto ${PANEL_INFO_BUTTON_CLASS}`}
-            title="Info"
-          >
-            <svg
-              class="w-3.5 h-3.5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-              />
-            </svg>
-          </button>
+          <InfoButton onclick={() => (helpSection = "cpuCores")} />
         </h3>
         <div class="grid grid-cols-4 gap-2 mb-3">
           <button
@@ -4220,68 +4047,15 @@
         {/if}
       </div>
     {:else if panelId === "logs"}
-      <div class="glass-card p-4 flex flex-col min-h-[180px]">
-        <div class="flex items-center justify-between mb-2">
-          <h4
-            class="text-xs font-semibold text-gray-400 flex items-center gap-2"
-          >
-            <svg
-              class="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M4 6h16M4 12h16m-7 6h7"
-              />
-            </svg>
-            {t("flashcards.logs")}
-          </h4>
-          {#if logs.length > 0}
-            <button
-              onclick={clearLogs}
-              class="text-xs text-gray-500 hover:text-gray-400"
-            >
-              {t("flashcards.clearLog")}
-            </button>
-          {/if}
-        </div>
-        <div class="overflow-y-auto space-y-1.5 max-h-64">
-          {#if logs.length > 0}
-            {#each logs as log (log.id)}
-              {@const style = logStyle(log.type)}
-              <div
-                class="p-2 rounded-lg border {style.bg} {style.border} flex items-start gap-2 animate-fade-in"
-              >
-                <span class="text-xs flex-shrink-0">{style.icon}</span>
-                <div class="flex-1 min-w-0">
-                  <p
-                    class="text-xs {style.text} leading-tight break-words whitespace-pre-wrap"
-                  >
-                    {log.message}
-                  </p>
-                  {#if log.details}
-                    <p
-                      class="text-[10px] text-gray-500 break-words whitespace-pre-wrap mt-0.5"
-                      title={log.details}
-                    >
-                      {log.details}
-                    </p>
-                  {/if}
-                </div>
-                <span class="text-[10px] text-gray-600 flex-shrink-0"
-                  >{log.timestamp}</span
-                >
-              </div>
-            {/each}
-          {:else}
-            <p class="text-gray-600 text-xs p-2">{t("flashcards.noLog")}</p>
-          {/if}
-        </div>
-      </div>
+      <LogPanel
+        title={t("flashcards.logs")}
+        clearLogText={t("flashcards.clearLog")}
+        noLogText={t("translate.noLog")}
+        {logs}
+        onclear={clearLogs}
+        minHeight="180px"
+        maxHeightContent="16rem"
+      />
     {/if}
   {/snippet}
 
@@ -4398,154 +4172,28 @@
     {/if}
   </div>
 
-  {#if helpSection}
-    <!-- svelte-ignore a11y_no_static_element_interactions -->
-    <div
-      class="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-6"
-      role="dialog"
-      aria-modal="true"
-      tabindex="-1"
-      onclick={() => (helpSection = null)}
-      onkeydown={(e) => {
-        if (e.key === "Escape") helpSection = null;
-      }}
-    >
-      <!-- svelte-ignore a11y_no_static_element_interactions -->
-      <div
-        class="bg-gray-900 border border-gray-700 rounded-xl w-full max-w-lg p-6"
-        onclick={(e) => e.stopPropagation()}
-        onkeydown={(e) => e.stopPropagation()}
-      >
-        <div class="flex items-center justify-between mb-4">
-          <h2 class="text-lg font-bold text-white">
-            {#if helpSection === "files"}{t("flashcards.files")}
-            {:else if helpSection === "subtitleOptions"}{t(
-                "flashcards.subtitleOptions",
-              )}
-            {:else if helpSection === "filters"}{t("flashcards.filters")}
-            {:else if helpSection === "contextLines"}{t(
-                "flashcards.contextLines",
-              )}
-            {:else if helpSection === "audioClips"}{t(
-                "flashcards.generateAudioClips",
-              )}
-            {:else if helpSection === "snapshots"}{t(
-                "flashcards.generateSnapshots",
-              )}
-            {:else if helpSection === "videoClips"}{t(
-                "flashcards.generateVideoClips",
-              )}
-            {:else if helpSection === "ankiFields"}{t("flashcards.ankiFields")}
-            {:else if helpSection === "exportFormat"}{t(
-                "flashcards.exportFormat",
-              )}
-            {:else if helpSection === "cpuCores"}{t("flashcards.cpuCores")}
-            {:else if helpSection === "naming"}{t("flashcards.naming")}
-            {/if}
-          </h2>
-          <button
-            onclick={() => (helpSection = null)}
-            class="text-gray-400 hover:text-white text-xl">✕</button
-          >
-        </div>
-        <div
-          class="text-gray-300 text-sm leading-relaxed max-h-[60vh] overflow-y-auto help-content"
-        >
-          {#if helpSection === "files"}{@html filesHelpContent}
-          {:else if helpSection === "subtitleOptions"}{@html t(
-              "flashcards.subtitleOptionsHelp",
-            )}
-          {:else if helpSection === "filters"}{@html t(
-              "flashcards.filtersHelp",
-            )}
-          {:else if helpSection === "contextLines"}{@html t(
-              "flashcards.contextLinesHelp",
-            )}
-          {:else if helpSection === "audioClips"}{@html t(
-              "flashcards.generateAudioClipsHelp",
-            )}
-          {:else if helpSection === "snapshots"}{@html t(
-              "flashcards.generateSnapshotsHelp",
-            )}
-          {:else if helpSection === "videoClips"}{@html t(
-              "flashcards.generateVideoClipsHelp",
-            )}
-          {:else if helpSection === "ankiFields"}{@html t(
-              "flashcards.ankiFieldsHelp",
-            )}
-          {:else if helpSection === "exportFormat"}{@html t(
-              "flashcards.exportFormatHelp",
-            )}
-          {:else if helpSection === "cpuCores"}{@html t(
-              "flashcards.cpuCoresHelp",
-            )}
-          {:else if helpSection === "naming"}{@html t("flashcards.namingHelp")}
-          {/if}
-        </div>
-        <div class="mt-4 flex justify-end">
-          <button
-            onclick={() => (helpSection = null)}
-            class="btn-primary py-1.5 px-4 text-sm">OK</button
-          >
-        </div>
-      </div>
-    </div>
-  {/if}
+  <InfoModal 
+    section={helpSection} 
+    sections={flashcardsSections} 
+    onclose={() => (helpSection = null)} 
+  />
 
-  {#if expandedPathField}
-    <!-- svelte-ignore a11y_no_static_element_interactions -->
-    <div
-      class="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-6"
-      role="dialog"
-      aria-modal="true"
-      tabindex="-1"
-      onclick={() => (expandedPathField = null)}
-      onkeydown={(e) => {
-        if (e.key === "Escape") expandedPathField = null;
-      }}
-    >
-      <!-- svelte-ignore a11y_no_static_element_interactions -->
-      <div
-        class="bg-gray-900 border border-gray-700 rounded-xl w-full max-w-2xl p-5 animate-fade-in"
-        onclick={(e) => e.stopPropagation()}
-        onkeydown={(e) => e.stopPropagation()}
-      >
-        <div class="flex items-center justify-between mb-3">
-          <h3 class="text-sm font-semibold text-gray-300">
-            {#if expandedPathField === "targetSubs"}{t(
-                "flashcards.targetLangSubs",
-              )}
-            {:else if expandedPathField === "output"}{t("flashcards.outputDir")}
-            {:else if expandedPathField === "nativeSubs"}{t(
-                "flashcards.nativeLangSubs",
-              )}
-            {:else if expandedPathField === "media"}{t("flashcards.mediaFile")}
-            {/if}
-          </h3>
-          <button
-            onclick={() => (expandedPathField = null)}
-            class="text-gray-400 hover:text-white text-lg leading-none"
-            >✕</button
-          >
-        </div>
-        <div class="bg-gray-800/80 rounded-lg p-3 border border-gray-700/50">
-          <p
-            class="text-sm text-white font-mono break-all select-all leading-relaxed"
-          >
-            {#if expandedPathField === "targetSubs"}{targetSubsPath || "—"}
-            {:else if expandedPathField === "output"}{outputDir || "—"}
-            {:else if expandedPathField === "nativeSubs"}{nativeSubsPath || "—"}
-            {:else if expandedPathField === "media"}{mediaPath || "—"}
-            {/if}
-          </p>
-        </div>
-        <div class="mt-3 flex justify-end">
-          <button
-            onclick={() => (expandedPathField = null)}
-            class="btn-primary py-1.5 px-4 text-xs">OK</button
-          >
-        </div>
-      </div>
-    </div>
-  {/if}
+  <PathPreviewModal
+    isOpen={!!expandedPathField}
+    title={expandedPathField === "targetSubs"
+      ? t("flashcards.targetLangSubs")
+      : expandedPathField === "output"
+        ? t("flashcards.outputDir")
+        : expandedPathField === "nativeSubs"
+          ? t("flashcards.nativeLangSubs")
+          : t("flashcards.mediaFile")}
+    value={expandedPathField === "targetSubs"
+      ? targetSubsPath
+      : expandedPathField === "output"
+        ? outputDir
+        : expandedPathField === "nativeSubs"
+          ? nativeSubsPath
+          : mediaPath}
+    onclose={() => (expandedPathField = null)}
+  />
 </div>

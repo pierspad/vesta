@@ -1,11 +1,13 @@
 <script lang="ts">
   import { invoke } from '@tauri-apps/api/core';
-  import { open, save } from '@tauri-apps/plugin-dialog';
+  import { guardedOpen, guardedSave } from './dialogGuard';
+  import PathPreviewModal from './PathPreviewModal.svelte';
   import { readTextFile, writeTextFile } from '@tauri-apps/plugin-fs';
   import { t } from './i18n';
   import { listen } from '@tauri-apps/api/event';
   import { onMount, onDestroy } from 'svelte';
   import { languages } from './models';
+  import InfoButton from './InfoButton.svelte';
 
   interface Subtitle {
     id: number;
@@ -331,7 +333,7 @@
   }
 
   async function selectTarget() {
-    const selected = await open({
+    const selected = await guardedOpen({
       filters: [{ name: 'Subtitles', extensions: ['srt'] }]
     });
     if (selected && !Array.isArray(selected)) {
@@ -341,7 +343,7 @@
   }
 
   async function selectSource() {
-    const selected = await open({
+    const selected = await guardedOpen({
       filters: [{ name: 'Subtitles', extensions: ['srt'] }]
     });
     if (selected && !Array.isArray(selected)) {
@@ -366,7 +368,7 @@
   async function saveSource() {
     try {
       const defaultPath = sourcePath.replace('.srt', '_aligned.srt');
-      const savePath = await save({
+      const savePath = await guardedSave({
         defaultPath,
         filters: [{ name: 'Subtitles', extensions: ['srt'] }]
       });
@@ -434,16 +436,11 @@
         </h2>
         <p class="text-sm text-gray-500 mt-0.5">{t("nav.revision.desc")}</p>
       </div>
-      <button
+      <InfoButton
         class="text-gray-500 hover:text-teal-300 transition-colors p-1"
         title={t("align.helpTitle")}
-        aria-label={t("align.helpTitle")}
         onclick={() => (helpSection = "overview")}
-      >
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
-      </button>
+      />
     </div>
 
     <!-- Error/Success -->
@@ -467,10 +464,10 @@
     <div class="flex flex-col gap-2 relative z-10 min-w-0">
       <div class="text-sm font-semibold text-gray-300 flex items-center gap-2">
         {#if targetFlag}<span class="text-lg">{targetFlag}</span>{/if}
-        Target SRT (Reference)
+        1st SRT
       </div>
       <div class="flex gap-2 min-w-0">
-        <button onclick={selectTarget} class="btn-secondary whitespace-nowrap px-4 py-2 shrink-0">Select Target</button>
+        <button onclick={selectTarget} class="btn-secondary whitespace-nowrap px-4 py-2 shrink-0">Select 1st SRT</button>
         <button 
           type="button"
           onclick={() => expandedPathField = "target"}
@@ -495,10 +492,11 @@
     <div class="flex items-center justify-center relative z-20 md:px-2 shrink-0 mt-4 md:mt-0">
       <button 
         onclick={swapFiles}
-        class="p-2.5 rounded-full bg-gray-900/70 hover:bg-teal-500/20 text-gray-400 hover:text-teal-300 border border-gray-700 hover:border-teal-500/50 transition-colors group"
-        title="Swap Target and Source files"
+        disabled={!targetPath || !sourcePath}
+        class="p-2.5 rounded-full border transition-colors group {(!targetPath || !sourcePath) ? 'bg-gray-900/40 text-gray-600 border-gray-800 cursor-not-allowed' : 'bg-gray-900/70 hover:bg-teal-500/20 text-gray-400 hover:text-teal-300 border-gray-700 hover:border-teal-500/50'}"
+        title="Swap file order"
       >
-        <svg class="w-6 h-6 group-hover:rotate-180 transition-transform duration-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg class="w-6 h-6 {!targetPath || !sourcePath ? '' : 'group-hover:rotate-180'} transition-transform duration-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
         </svg>
       </button>
@@ -508,14 +506,19 @@
     <div class="flex flex-col gap-2 relative z-10 min-w-0">
       <div class="text-sm font-semibold text-gray-300 flex items-center gap-2">
         {#if sourceFlag}<span class="text-lg">{sourceFlag}</span>{/if}
-        Source SRT (To Fix)
+        2nd SRT
       </div>
       <div class="flex gap-2 min-w-0">
-        <button onclick={selectSource} class="btn-secondary whitespace-nowrap px-4 py-2 shrink-0">Select Source</button>
+        <button 
+          onclick={selectSource} 
+          disabled={!targetPath}
+          class="btn-secondary whitespace-nowrap px-4 py-2 shrink-0 {!targetPath ? 'opacity-50 cursor-not-allowed' : ''}"
+        >Select 2nd SRT</button>
         <button 
           type="button"
-          onclick={() => expandedPathField = "source"}
-          class="input-modern flex-1 text-sm text-left cursor-pointer hover:bg-white/10 transition-colors truncate min-w-0"
+          disabled={!targetPath}
+          onclick={() => targetPath && (expandedPathField = "source")}
+          class="input-modern flex-1 text-sm text-left truncate min-w-0 {!targetPath ? 'opacity-50 cursor-not-allowed bg-transparent' : 'cursor-pointer hover:bg-white/10 transition-colors'}"
           style="direction: rtl; text-align: left;"
           title={sourcePath || "Drag & drop SRT here..."}
         >
@@ -596,10 +599,13 @@
         <!-- Content Grid -->
         <div class="flex-1 overflow-y-auto pr-3 pl-1 space-y-6 custom-scrollbar pb-4 min-w-0">
         {#each currentPageItems as item (item.index)}
-          <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 group min-w-0">
+          {@const isMissingPair =
+            (!!item.source && (!item.source.text || item.source.text.trim() === '')) ||
+            (!!item.target && (!item.target.text || item.target.text.trim() === ''))}
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 group min-w-0 rounded-xl p-1 transition-all {isMissingPair ? 'missing-pair-row' : ''}">
             
             <!-- Target Side (Readonly) -->
-            <div class="flex flex-col h-full rounded-lg border border-gray-800/70 overflow-hidden relative bg-gray-900/40 min-w-0">
+            <div class="flex flex-col h-full rounded-lg border overflow-hidden relative bg-gray-900/40 min-w-0 {isMissingPair ? 'border-orange-500/50' : 'border-gray-800/70'}">
               {#if item.target}
                 <!-- Header part -->
                 <div class="flex justify-between items-center text-xs text-gray-500 bg-gray-900/80 px-3 py-2 border-b border-gray-800/50 font-mono tracking-wider truncate">
@@ -625,7 +631,7 @@
             </div>
 
             <!-- Source Side (Editable) -->
-            <div class="flex flex-col h-full rounded-lg border border-indigo-500/20 bg-indigo-950/10 focus-within:border-indigo-500/50 transition-colors overflow-hidden relative min-w-0">
+            <div class="flex flex-col h-full rounded-lg border bg-indigo-950/10 focus-within:border-indigo-500/50 transition-colors overflow-hidden relative min-w-0 {isMissingPair ? 'border-orange-500/60' : 'border-indigo-500/20'}">
               {#if item.source}
                  <!-- Header part -->
                  <div class="flex justify-between items-center text-xs text-indigo-400/70 bg-indigo-950/40 px-3 py-2 border-b border-indigo-500/20 font-mono tracking-wider truncate">
@@ -658,50 +664,12 @@
     </div>
   </div>
 
-  <!-- Expanded Path Modal -->
-  {#if expandedPathField}
-    <!-- svelte-ignore a11y_no_static_element_interactions -->
-    <div
-      class="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-6"
-      role="dialog"
-      aria-modal="true"
-      tabindex="-1"
-      onclick={() => expandedPathField = null}
-      onkeydown={(e) => { if (e.key === "Escape") expandedPathField = null; }}
-    >
-      <!-- svelte-ignore a11y_no_static_element_interactions -->
-      <div
-        class="bg-gray-900 border border-gray-700 rounded-xl w-full max-w-2xl p-5 animate-fade-in"
-        onclick={(e) => e.stopPropagation()}
-        onkeydown={(e) => e.stopPropagation()}
-      >
-        <div class="flex items-center justify-between mb-3">
-          <h3 class="text-sm font-semibold text-gray-300">
-            {#if expandedPathField === "target"}Target SRT Path
-            {:else if expandedPathField === "source"}Source SRT Path
-            {/if}
-          </h3>
-          <button
-            onclick={() => expandedPathField = null}
-            class="text-gray-400 hover:text-white text-lg leading-none"
-          >✕</button>
-        </div>
-        <div class="bg-gray-800/80 rounded-lg p-3 border border-gray-700/50">
-          <p class="text-sm text-white font-mono break-all select-all leading-relaxed">
-            {#if expandedPathField === "target"}{targetPath || "—"}
-            {:else if expandedPathField === "source"}{sourcePath || "—"}
-            {/if}
-          </p>
-        </div>
-        <div class="mt-3 flex justify-end">
-          <button
-            onclick={() => expandedPathField = null}
-            class="btn-primary py-1.5 px-4 text-xs"
-          >OK</button>
-        </div>
-      </div>
-    </div>
-  {/if}
+  <PathPreviewModal
+    isOpen={!!expandedPathField}
+    title={expandedPathField === "target" ? "1st SRT Path" : "2nd SRT Path"}
+    value={expandedPathField === "target" ? targetPath || "—" : sourcePath || "—"}
+    onclose={() => (expandedPathField = null)}
+  />
 
   {#if helpSection}
     <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -743,6 +711,12 @@
 </div>
 
 <style>
+  .missing-pair-row {
+    border: 1px solid rgba(249, 115, 22, 0.45);
+    box-shadow: 0 0 0 1px rgba(249, 115, 22, 0.15), 0 0 18px rgba(249, 115, 22, 0.12);
+    background: linear-gradient(90deg, rgba(249, 115, 22, 0.07), rgba(249, 115, 22, 0.02));
+  }
+
   .empty-jump-btn:not(:disabled) {
     color: #f97316;
     border-color: rgba(249, 115, 22, 0.4);

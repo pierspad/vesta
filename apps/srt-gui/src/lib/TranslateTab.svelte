@@ -2,7 +2,7 @@
   import { invoke } from "@tauri-apps/api/core";
   import { listen } from "@tauri-apps/api/event";
   import { getCurrentWebview } from "@tauri-apps/api/webview";
-  import { open, save } from "@tauri-apps/plugin-dialog";
+  import { guardedOpen, guardedSave } from "./dialogGuard";
   import { fetch as tauriFetch } from "@tauri-apps/plugin-http";
   import { onDestroy, onMount } from "svelte";
   import { locale } from "./i18n";
@@ -12,7 +12,13 @@
     loadAndValidateApiKeys,
     type ApiKeyConfig,
   } from "./models";
+  import PathPickerField from "./PathPickerField.svelte";
+  import PathPreviewModal from "./PathPreviewModal.svelte";
   import SearchableSelect from "./SearchableSelect.svelte";
+  import LogPanel, { type LogEntry } from "./LogPanel.svelte";
+  import InfoModal from "./InfoModal.svelte";
+  import InfoButton from "./InfoButton.svelte";
+  import { translateSections } from "./info";
 
   // Set of known language codes for smart output filename detection
   const knownLangCodes = new Set(languages.map((l) => l.code));
@@ -100,20 +106,34 @@
     provider: string;
   }
 
+  const LAST_PROVIDER_KEY = "vesta-translate-last-provider";
+  const LAST_MODEL_KEY = "vesta-translate-last-model";
+  const LAST_CUSTOM_PROVIDER_KEY = "vesta-translate-last-custom-provider";
+  const LAST_CUSTOM_MODEL_KEY = "vesta-translate-last-custom-model";
+
+  function loadStoredValue(key: string): string {
+    try {
+      return localStorage.getItem(key) || "";
+    } catch {
+      return "";
+    }
+  }
+
   let inputPath = $state("");
   let outputPath = $state("");
   let targetLang = $state("it");
   let previousTargetLang = "it";
-  let selectedProviderFamily = $state("");
-  let providerConfirmed = $state(false);
-  let selectedCustomProviderId = $state("");
+  const initialProvider = loadStoredValue(LAST_PROVIDER_KEY);
+  let selectedProviderFamily = $state(initialProvider);
+  let providerConfirmed = $state(Boolean(initialProvider));
+  let selectedCustomProviderId = $state(loadStoredValue(LAST_CUSTOM_PROVIDER_KEY));
   let tempSnackbar = $state("");
   let tempSnackbarTimer: ReturnType<typeof setTimeout> | null = null;
-  let localCustomModel = $state("");
+  let localCustomModel = $state(loadStoredValue(LAST_CUSTOM_MODEL_KEY));
   let batchSize = $state(15);
   let resumeOverlap = $state(2);
   let titleContext = $state("");
-  let selectedModel = $state("");
+  let selectedModel = $state(loadStoredValue(LAST_MODEL_KEY));
 
   // Local server URL with persistence
   const LOCAL_SERVER_URL_KEY = "vesta-local-server-url";
@@ -279,7 +299,8 @@
   let fileInfo = $state<SrtFileInfo | null>(null);
   let isTranslating = $state(false);
   let progress = $state<TranslateProgressEvent | null>(null);
-  let logs = $state<string[]>([]);
+  let logs = $state<LogEntry[]>([]);
+  let logIdCounter = 0;
   let error = $state<string | null>(null);
   let result = $state<TranslateResult | null>(null);
   let expandedPathField = $state<string | null>(null);
@@ -302,7 +323,16 @@
   let unlistenDragDrop: (() => void) | null = null;
   let isDraggingOver = $state(false);
 
+  let canUseFilePanel = $derived(providerConfirmed);
+
+  function ensureProviderSelectedForFiles(): boolean {
+    if (providerConfirmed) return true;
+    error = "Select a provider before loading files.";
+    return false;
+  }
+
   async function handleFileDrop(paths: string[]) {
+    if (!ensureProviderSelectedForFiles()) return;
     const srtFile = paths.find(p => p.toLowerCase().endsWith(".srt"));
     if (srtFile) {
       inputPath = srtFile;
@@ -379,6 +409,16 @@
     } else {
       selectedModel = "";
     }
+  });
+
+  $effect(() => {
+    localStorage.setItem(LAST_PROVIDER_KEY, selectedProviderFamily || "");
+    localStorage.setItem(LAST_MODEL_KEY, selectedModel || "");
+    localStorage.setItem(
+      LAST_CUSTOM_PROVIDER_KEY,
+      selectedCustomProviderId || "",
+    );
+    localStorage.setItem(LAST_CUSTOM_MODEL_KEY, localCustomModel || "");
   });
 
 
@@ -655,14 +695,15 @@
     }
   }
 
-  function addLog(message: string) {
+  function addLog(message: string, type: LogEntry["type"] = "info") {
     const timestamp = new Date().toLocaleTimeString();
-    logs = [...logs, `[${timestamp}] ${message}`];
+    logs = [...logs, { id: logIdCounter++, timestamp, message, type }];
   }
 
   async function selectInputFile() {
+    if (!ensureProviderSelectedForFiles()) return;
     try {
-      const selected = await open({
+      const selected = await guardedOpen({
         multiple: false,
         filters: [{ name: "SRT Files", extensions: ["srt"] }],
       });
@@ -683,8 +724,9 @@
   }
 
   async function selectOutputFile() {
+    if (!ensureProviderSelectedForFiles()) return;
     try {
-      const selected = await save({
+      const selected = await guardedSave({
         filters: [{ name: "SRT Files", extensions: ["srt"] }],
         defaultPath: outputPath || undefined,
       });
@@ -1060,26 +1102,7 @@
             />
           </svg>
           {t("translate.options")}
-          <button
-            type="button"
-            onclick={() => (helpSection = "options")}
-            class="ml-auto text-gray-500 hover:text-green-300 transition-colors"
-            title="Info"
-          >
-            <svg
-              class="w-3.5 h-3.5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-              />
-            </svg>
-          </button>
+          <InfoButton onclick={() => (helpSection = "options")} />
         </h3>
         <div class="space-y-4">
           <!-- Provider Selection -->
@@ -1593,7 +1616,11 @@
         </div>
       </div>
     {:else if panelId === "files"}
-      <div class="glass-card p-5">
+      <div
+        inert={!canUseFilePanel}
+        title={!canUseFilePanel ? "Select a provider first" : undefined}
+        class="glass-card p-5 {!canUseFilePanel ? 'opacity-40' : ''}"
+      >
         <h3
           class="text-lg font-semibold mb-4 flex items-center gap-2 text-indigo-400"
         >
@@ -1611,108 +1638,30 @@
             />
           </svg>
           {t("translate.file")}
-          <button
-            type="button"
-            onclick={() => (helpSection = "files")}
-            class="ml-auto text-gray-500 hover:text-indigo-300 transition-colors"
-            title="Info"
-          >
-            <svg
-              class="w-3.5 h-3.5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-              />
-            </svg>
-          </button>
+          <InfoButton onclick={() => (helpSection = "files")} />
         </h3>
         <div class="space-y-3">
-          <div>
-            <label for="input-path" class="block text-sm text-gray-400 mb-1"
-              >{t("translate.inputFile")}</label
-            >
-            <div class="flex gap-2">
-              <button
-                type="button"
-                onclick={() => (expandedPathField = "input")}
-                class="input-modern flex-1 text-sm text-left cursor-pointer hover:bg-white/10 transition-colors truncate"
-                style="direction: rtl; text-align: left;"
-                title={inputPath || t("translate.selectFile")}
-              >
-                <span
-                  class={inputPath ? "text-white" : "text-gray-500"}
-                  style="unicode-bidi: plaintext;"
-                >
-                  {inputPath || t("translate.selectFile")}
-                </span>
-              </button>
-              <button
-                onclick={selectInputFile}
-                class="btn-primary py-2 px-3"
-                title={t("translate.tooltip.upload")}
-              >
-                <svg
-                  class="w-5 h-5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"
-                  />
-                </svg>
-              </button>
-            </div>
-          </div>
-          <div>
-            <label for="output-path" class="block text-sm text-gray-400 mb-1"
-              >{t("translate.outputFile")}</label
-            >
-            <div class="flex gap-2">
-              <button
-                type="button"
-                onclick={() => (expandedPathField = "output")}
-                class="input-modern flex-1 text-sm text-left cursor-pointer hover:bg-white/10 transition-colors truncate"
-                style="direction: rtl; text-align: left;"
-                title={outputPath || t("translate.selectDestination")}
-              >
-                <span
-                  class={outputPath ? "text-white" : "text-gray-500"}
-                  style="unicode-bidi: plaintext;"
-                >
-                  {outputPath || t("translate.selectDestination")}
-                </span>
-              </button>
-              <button
-                onclick={selectOutputFile}
-                class="btn-secondary py-2 px-3"
-                title={t("translate.tooltip.save")}
-              >
-                <svg
-                  class="w-5 h-5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"
-                  />
-                </svg>
-              </button>
-            </div>
-          </div>
+          <PathPickerField
+            label={t("translate.inputFile")}
+            value={inputPath}
+            placeholder={t("translate.selectFile")}
+            browseTitle={t("translate.tooltip.upload")}
+            onexpand={() => (expandedPathField = "input")}
+            onbrowse={selectInputFile}
+            browseButtonClass="btn-primary py-2 px-3"
+            browseIconPath="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"
+          />
+
+          <PathPickerField
+            label={t("translate.outputFile")}
+            value={outputPath}
+            placeholder={t("translate.selectDestination")}
+            browseTitle={t("translate.tooltip.save")}
+            onexpand={() => (expandedPathField = "output")}
+            onbrowse={selectOutputFile}
+            browseButtonClass="btn-secondary py-2 px-3"
+            browseIconPath="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"
+          />
           {#if fileInfo}
             <div
               class="p-3 bg-indigo-500/10 border border-indigo-500/30 rounded-lg"
@@ -2015,45 +1964,15 @@
         </div>
       </div>
     {:else if panelId === "logs"}
-      <div class="glass-card p-4 shrink-0" style="min-height: 190px;">
-        <div class="flex items-center justify-between mb-3">
-          <h4 class="text-sm font-medium text-gray-400 flex items-center gap-2">
-            <svg
-              class="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M4 6h16M4 12h16m-7 6h7"
-              />
-            </svg>
-            {t("translate.logs")}
-          </h4>
-          {#if logs.length > 0}
-            <button
-              onclick={clearLogs}
-              class="text-xs text-gray-500 hover:text-gray-400 transition-colors"
-            >
-              {t("translate.clearLog")}
-            </button>
-          {/if}
-        </div>
-        <div class="max-h-64 overflow-y-auto bg-black/20 rounded-lg p-3">
-          {#if logs.length > 0}
-            <div class="space-y-1">
-              {#each logs as log}
-                <p class="text-gray-500 text-xs font-mono">{log}</p>
-              {/each}
-            </div>
-          {:else}
-            <p class="text-gray-600 text-xs">{t("translate.noLog")}</p>
-          {/if}
-        </div>
-      </div>
+      <LogPanel
+        title={t("translate.logs")}
+        clearLogText={t("translate.clearLog")}
+        noLogText={t("translate.noLog")}
+        {logs}
+        onclear={clearLogs}
+        minHeight="190px"
+        maxHeightContent="16rem"
+      />
     {/if}
   {/snippet}
 
@@ -2087,142 +2006,20 @@
     </div>
   </div>
 
-  {#if helpSection}
-    <!-- svelte-ignore a11y_no_static_element_interactions -->
-    <div
-      class="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-6"
-      role="dialog"
-      aria-modal="true"
-      tabindex="-1"
-      onclick={() => (helpSection = null)}
-      onkeydown={(e) => {
-        if (e.key === "Escape") helpSection = null;
-      }}
-    >
-      <!-- svelte-ignore a11y_no_static_element_interactions -->
-      <div
-        class="bg-gray-900 border border-gray-700 rounded-xl w-full max-w-lg p-6"
-        onclick={(e) => e.stopPropagation()}
-        onkeydown={(e) => e.stopPropagation()}
-      >
-        <div class="flex items-center justify-between mb-4">
-          <h2 class="text-lg font-bold text-white">
-            {#if helpSection === "options"}{t("translate.options")}
-            {:else if helpSection === "files"}{t("translate.file")}
-            {:else if helpSection === "batchSize"}{t("translate.batchSize")}
-            {/if}
-          </h2>
-          <button
-            onclick={() => (helpSection = null)}
-            class="text-gray-400 hover:text-white text-xl">✕</button
-          >
-        </div>
-        <div
-          class="text-gray-300 text-sm leading-relaxed max-h-[60vh] overflow-y-auto"
-        >
-          {#if helpSection === "options"}
-            <div class="space-y-4">
-              <div class="rounded-xl border border-cyan-500/30 bg-cyan-500/10 p-3">
-                <p class="text-cyan-300 text-xs uppercase tracking-wide mb-1">Workflow</p>
-                <p class="text-sm text-gray-200">
-                  1) Select provider and model, 2) confirm target language, 3) tune batch size for speed/quality trade-off.
-                </p>
-              </div>
+  <InfoModal 
+    section={helpSection} 
+    sections={translateSections} 
+    onclose={() => (helpSection = null)} 
+  />
 
-              <div class="rounded-xl border border-indigo-500/25 bg-indigo-500/10 p-3 space-y-2">
-                <p class="text-indigo-300 text-xs uppercase tracking-wide">Provider And Model</p>
-                <p class="text-sm text-gray-200">
-                  Local/Custom providers are best for privacy and experimentation. Managed APIs are typically faster and more stable.
-                </p>
-                <p class="text-xs text-gray-400">
-                  Tip: after changing provider, verify that the selected model matches the provider family.
-                </p>
-              </div>
-
-              <div class="rounded-xl border border-emerald-500/25 bg-emerald-500/10 p-3 space-y-2">
-                <p class="text-emerald-300 text-xs uppercase tracking-wide">Batch Size</p>
-                <p class="text-sm text-gray-200">
-                  Small batches improve consistency and recovery behavior. Larger batches are faster but can amplify errors when retries happen.
-                </p>
-                <p class="text-xs text-gray-400">
-                  Suggested start: Balanced preset, then move to Fast/Turbo only after confirming output quality.
-                </p>
-              </div>
-
-              <div class="rounded-xl border border-amber-500/25 bg-amber-500/10 p-3 space-y-2">
-                <p class="text-amber-300 text-xs uppercase tracking-wide">Resume Overlap</p>
-                <p class="text-sm text-gray-200">
-                  Overlap reprocesses a few lines after interruption to prevent context breaks and duplicated edge artifacts.
-                </p>
-                <p class="text-xs text-gray-400">
-                  Keep it low for speed, increase slightly when subtitle continuity matters.
-                </p>
-              </div>
-            </div>
-          {:else if helpSection === "files"}
-            {@html t("translate.filesHelp")}
-          {:else if helpSection === "batchSize"}
-            {@html t("translate.batchSizeHelp")}
-          {/if}
-        </div>
-        <div class="mt-4 flex justify-end">
-          <button
-            onclick={() => (helpSection = null)}
-            class="btn-primary py-1.5 px-4 text-sm">OK</button
-          >
-        </div>
-      </div>
-    </div>
-  {/if}
-
-  {#if expandedPathField}
-    <!-- svelte-ignore a11y_no_static_element_interactions -->
-    <div
-      class="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-6"
-      role="dialog"
-      aria-modal="true"
-      tabindex="-1"
-      onclick={() => (expandedPathField = null)}
-      onkeydown={(e) => {
-        if (e.key === "Escape") expandedPathField = null;
-      }}
-    >
-      <!-- svelte-ignore a11y_no_static_element_interactions -->
-      <div
-        class="bg-gray-900 border border-gray-700 rounded-xl w-full max-w-2xl p-5 animate-fade-in"
-        onclick={(e) => e.stopPropagation()}
-        onkeydown={(e) => e.stopPropagation()}
-      >
-        <div class="flex items-center justify-between mb-3">
-          <h3 class="text-sm font-semibold text-gray-300">
-            {#if expandedPathField === "input"}{t("translate.inputFile")}
-            {:else if expandedPathField === "output"}{t("translate.outputFile")}
-            {/if}
-          </h3>
-          <button
-            onclick={() => (expandedPathField = null)}
-            class="text-gray-400 hover:text-white text-lg leading-none"
-            >✕</button
-          >
-        </div>
-        <div class="bg-gray-800/80 rounded-lg p-3 border border-gray-700/50">
-          <p
-            class="text-sm text-white font-mono break-all select-all leading-relaxed"
-          >
-            {#if expandedPathField === "input"}{inputPath || "—"}
-            {:else if expandedPathField === "output"}{outputPath || "—"}
-            {/if}
-          </p>
-        </div>
-        <div class="mt-3 flex justify-end">
-          <button
-            onclick={() => (expandedPathField = null)}
-            class="btn-primary py-1.5 px-4 text-xs">OK</button
-          >
-        </div>
-      </div>
-    </div>
-  {/if}
+  <PathPreviewModal
+    isOpen={!!expandedPathField}
+    title={expandedPathField === "input"
+      ? t("translate.inputFile")
+      : t("translate.outputFile")}
+    value={expandedPathField === "input" ? inputPath : outputPath}
+    onclose={() => (expandedPathField = null)}
+  />
 </div>
 
 <style>

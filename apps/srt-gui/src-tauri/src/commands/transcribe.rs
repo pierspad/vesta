@@ -421,7 +421,7 @@ fn run_whisper_rs(
     }
     
     // Configure parameters
-    let mut params = FullParams::new(SamplingStrategy::Greedy { best_of: 5 });
+    let mut params = FullParams::new(SamplingStrategy::Greedy { best_of: 1 });
     
     // Set language
     if config.language != "auto" {

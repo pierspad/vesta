@@ -23,6 +23,22 @@ import ru from './locales/ru.json';
 import tr from './locales/tr.json';
 import zh from './locales/zh.json';
 
+// Info/help content — verbose HTML kept in a parallel folder for cleanliness
+import infoAr from './locales/info/ar.json';
+import infoDe from './locales/info/de.json';
+import infoEn from './locales/info/en.json';
+import infoEs from './locales/info/es.json';
+import infoFr from './locales/info/fr.json';
+import infoHi from './locales/info/hi.json';
+import infoIt from './locales/info/it.json';
+import infoJa from './locales/info/ja.json';
+import infoKo from './locales/info/ko.json';
+import infoPl from './locales/info/pl.json';
+import infoPt from './locales/info/pt.json';
+import infoRu from './locales/info/ru.json';
+import infoTr from './locales/info/tr.json';
+import infoZh from './locales/info/zh.json';
+
 export interface UILanguage {
   code: string;
   name: string;
@@ -48,20 +64,20 @@ export const availableUILanguages: UILanguage[] = [
 ];
 
 const translations: Record<string, Record<string, string>> = {
-  ar: { ...en, ...ar },
-  de: { ...en, ...de },
-  en,
-  es: { ...en, ...es },
-  fr: { ...en, ...fr },
-  hi: { ...en, ...hi },
-  it: { ...en, ...it },
-  ja: { ...en, ...ja },
-  ko: { ...en, ...ko },
-  pl: { ...en, ...pl },
-  pt: { ...en, ...pt },
-  ru: { ...en, ...ru },
-  tr: { ...en, ...tr },
-  zh: { ...en, ...zh },
+  ar: { ...en, ...infoEn, ...ar, ...infoAr },
+  de: { ...en, ...infoEn, ...de, ...infoDe },
+  en: { ...en, ...infoEn },
+  es: { ...en, ...infoEn, ...es, ...infoEs },
+  fr: { ...en, ...infoEn, ...fr, ...infoFr },
+  hi: { ...en, ...infoEn, ...hi, ...infoHi },
+  it: { ...en, ...infoEn, ...it, ...infoIt },
+  ja: { ...en, ...infoEn, ...ja, ...infoJa },
+  ko: { ...en, ...infoEn, ...ko, ...infoKo },
+  pl: { ...en, ...infoEn, ...pl, ...infoPl },
+  pt: { ...en, ...infoEn, ...pt, ...infoPt },
+  ru: { ...en, ...infoEn, ...ru, ...infoRu },
+  tr: { ...en, ...infoEn, ...tr, ...infoTr },
+  zh: { ...en, ...infoEn, ...zh, ...infoZh },
 };
 
 const STORAGE_KEY = 'srt-tools-ui-language';

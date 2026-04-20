@@ -1,7 +1,12 @@
 <script lang="ts">
   import { invoke } from "@tauri-apps/api/core";
   import { getCurrentWebview } from "@tauri-apps/api/webview";
-  import { open, save } from "@tauri-apps/plugin-dialog";
+  import { guardedOpen, guardedSave } from "./dialogGuard";
+  import PathPreviewModal from "./PathPreviewModal.svelte";
+  import Snackbar from "./Snackbar.svelte";
+  import InfoModal from "./InfoModal.svelte";
+  import InfoButton from "./InfoButton.svelte";
+  import { syncSections } from "./info";
   import { onMount } from "svelte";
   import { locale } from "./i18n";
 
@@ -52,11 +57,19 @@
   let error = $state<string | null>(null);
   let audioSrc = $state<string | null>(null);
   let audioError = $state<string | null>(null);
+  let hasAutoPaused = $state(false);
 
   let showResetModal = $state(false);
 
   let snackbarMessage = $state<string | null>(null);
+  let snackbarVariant = $state<"success" | "info" | "warning" | "error">("info");
   let snackbarTimeout = $state<ReturnType<typeof setTimeout> | null>(null);
+
+  let confidenceScore = $derived(
+    status?.total_subtitles
+      ? Math.min(100, Math.round((anchors.length / Math.max(1, status.total_subtitles / 15)) * 100))
+      : 0
+  );
 
   let wizardSubtitle = $state<SubtitleInfo | null>(null);
   let offsetAdjustment = $state(0);
@@ -80,10 +93,9 @@
   let showSaveSuggestion = $state(false);
   let manualGoToId = $state("");
 
-  const PAGE_SIZE = 30;
-  let loadedRangeStart = $state(1);
-  let loadedRangeEnd = $state(0);
-  let isLoadingMore = $state(false);
+  const PAGE_SIZE = 50;
+  let currentPage = $state(1);
+  let totalPages = $derived(status?.total_subtitles ? Math.ceil(status.total_subtitles / PAGE_SIZE) : 0);
   let subtitleListElement = $state<HTMLDivElement | null>(null);
 
   let isDraggingOver = $state(false);
@@ -132,6 +144,110 @@
     syncLogId = 0;
   }
 
+  // ─── Auto-Sync with Whisper ────────────────────────────
+  let isAutoSyncing = $state(false);
+  let isCancellingAutoSync = $state(false);
+  let autoSyncProgress = $state(0);
+  let autoSyncMessage = $state("");
+
+  async function cancelAutoSync() {
+    if (!isAutoSyncing || isCancellingAutoSync) return;
+    isCancellingAutoSync = true;
+    try {
+      await invoke("sync_cancel_auto_sync");
+      autoSyncMessage = t("sync.autoSyncCancelling");
+    } catch (e) {
+      showSnackbar(`Cancel failed: ${e}`, "error");
+      isCancellingAutoSync = false;
+    }
+  }
+  let whisperModelsAvailable = $state<string[]>([]);
+
+  async function checkWhisperModels() {
+    try {
+      const models = await invoke<Array<{ id: string; downloaded: boolean }>>(
+        "transcribe_list_models",
+      );
+      whisperModelsAvailable = models
+        .filter((m) => m.downloaded)
+        .map((m) => m.id);
+    } catch {
+      whisperModelsAvailable = [];
+    }
+  }
+
+  async function startAutoSync() {
+    if (isAutoSyncing) return;
+    if (!status?.is_loaded) {
+      showSnackbar(t("sync.dropSrtFirst"), "warning");
+      return;
+    }
+    if (!status?.video_path && !audioSrc) {
+      showSnackbar(t("sync.needVideoForAnchor"), "warning");
+      return;
+    }
+
+    await checkWhisperModels();
+    if (whisperModelsAvailable.length === 0) {
+      showSnackbar(
+        t("transcribe.noBackendWarning"),
+        "warning"
+      );
+      return;
+    }
+
+    // Prefer small > base > tiny > medium > large
+    const preferredOrder = ["small", "base", "tiny", "medium", "large"];
+    const modelId =
+      preferredOrder.find((m) => whisperModelsAvailable.includes(m)) ??
+      whisperModelsAvailable[0];
+
+    isAutoSyncing = true;
+    autoSyncProgress = 0;
+    autoSyncMessage = t("sync.autoSyncInProgress");
+    addSyncLog(`Auto-sync started with model: ${modelId}`, "info");
+
+    // Listen for progress events
+    const { listen } = await import("@tauri-apps/api/event");
+    const unlisten = await listen<{
+      stage: string;
+      message: string;
+      percentage: number;
+    }>("sync-auto-progress", (event) => {
+      autoSyncProgress = event.payload.percentage;
+      autoSyncMessage = event.payload.message;
+    });
+
+    try {
+      const result = await invoke<{
+        success: boolean;
+        anchors_created: number;
+        segments_analyzed: number;
+        message: string;
+      }>("sync_auto_sync", {
+        modelId,
+        language: null,
+      });
+
+      status = await invoke<SyncStatus>("sync_get_status");
+      await refreshCurrentSubtitles();
+      await loadAnchors();
+
+      showSnackbar(result.message, result.success ? "success" : "warning");
+      addSyncLog(result.message, result.success ? "success" : "warning");
+    } catch (e) {
+      const msg = `Auto-sync failed: ${e}`;
+      showSnackbar(msg, "error");
+      addSyncLog(msg, "error");
+    } finally {
+      isAutoSyncing = false;
+      isCancellingAutoSync = false;
+      autoSyncProgress = 0;
+      autoSyncMessage = "";
+      unlisten();
+    }
+  }
+
   type SyncPanelId = "toolbar" | "wizard" | "status" | "subtitleList";
 
   function syncDebug(message: string, payload?: Record<string, unknown>) {
@@ -157,7 +273,7 @@
       cleanupAudioSrc();
       audioSrc = await loadMediaFile(suggestedPath);
       status = await invoke<SyncStatus>("sync_set_video", { path: suggestedPath });
-      showSnackbar(`Auto-selected media: ${getFileName(suggestedPath)}`);
+      showSnackbar(`Auto-selected media: ${getFileName(suggestedPath)}`, "success");
       addSyncLog(`Auto-selected media: ${getFileName(suggestedPath)}`, "success");
     } catch (e) {
       syncDebug("auto-media-suggestion-failed", { error: String(e) });
@@ -199,7 +315,7 @@
         err.toLowerCase().includes("operation was aborted");
       syncDebug(`${source}: play failed`, { error: err });
       if (!isBenignAbort) {
-        showSnackbar(`Play error: ${err}`);
+        showSnackbar(`Play error: ${err}`, "error");
       }
       return false;
     } finally {
@@ -269,9 +385,10 @@
     return `${sign}${(ms / 1000).toFixed(2)}s`;
   }
 
-  function showSnackbar(message: string) {
+  function showSnackbar(message: string, variant: "success" | "info" | "warning" | "error" = "info") {
     if (snackbarTimeout) clearTimeout(snackbarTimeout);
     snackbarMessage = message;
+    snackbarVariant = variant;
     snackbarTimeout = setTimeout(() => {
       snackbarMessage = null;
     }, 3500);
@@ -343,6 +460,15 @@
     return maxOff - minOff <= OFFSET_TOLERANCE_MS;
   }
 
+  async function skipCheckpoint() {
+    if (wizardSubtitle) {
+      if (!wizardHistory.includes(wizardSubtitle.id)) {
+        wizardHistory = [...wizardHistory, wizardSubtitle.id];
+      }
+    }
+    await advanceWizard();
+  }
+
   async function advanceWizard() {
     console.debug("[SyncTab] advanceWizard called");
     const nextId = computeNextCheckpoint();
@@ -369,6 +495,7 @@
       seekToSubtitleStart(sub);
       await loadSubtitlesAround(id);
       setTimeout(() => scrollToSubtitle(id), 50);
+      void safePlayAudio("goToCheckpoint");
     } catch (e) {
       error = `Error loading subtitle: ${e}`;
     } finally {
@@ -380,6 +507,7 @@
     if (!audioElement) return;
     const startSec = (sub.synced_start_ms + offsetAdjustment) / 1000;
     audioElement.currentTime = Math.max(0, startSec);
+    hasAutoPaused = false;
   }
 
   function replayCurrentSubtitle() {
@@ -390,7 +518,7 @@
 
   async function selectSrtFile() {
     try {
-      const selected = await open({
+      const selected = await guardedOpen({
         multiple: false,
         filters: [{ name: "SRT Files", extensions: ["srt"] }],
       });
@@ -415,7 +543,7 @@
 
   async function selectAudioFile() {
     try {
-      const selected = await open({
+      const selected = await guardedOpen({
         multiple: false,
         filters: [
           {
@@ -457,105 +585,34 @@
     }
   }
 
-  async function loadSubtitles() {
-    console.debug("[SyncTab] loadSubtitles");
+  async function loadPage(page: number) {
+    if (!status || status.total_subtitles === 0) return;
+    if (page < 1) page = 1;
+    if (page > totalPages) page = totalPages;
+    currentPage = page;
+    const startId = (page - 1) * PAGE_SIZE + 1;
     try {
       subtitles = await invoke<SubtitleInfo[]>("sync_get_subtitles_range", {
-        startId: 1,
+        startId,
         count: PAGE_SIZE,
       });
-      if (subtitles.length > 0) {
-        loadedRangeStart = subtitles[0].id;
-        loadedRangeEnd = subtitles[subtitles.length - 1].id;
-      } else {
-        loadedRangeStart = 1;
-        loadedRangeEnd = 0;
+      if (subtitleListElement) {
+        subtitleListElement.scrollTop = 0;
       }
     } catch (e) {
       error = `${t("sync.errorLoadingSrt")} ${e}`;
     }
+  }
+
+  async function loadSubtitles() {
+    console.debug("[SyncTab] loadSubtitles");
+    await loadPage(1);
   }
 
   async function loadSubtitlesAround(targetId: number) {
     console.debug(`[SyncTab] loadSubtitlesAround(${targetId})`);
-    try {
-      isLoadingMore = true;
-      const halfPage = Math.floor(PAGE_SIZE / 2);
-      const startId = Math.max(1, targetId - halfPage);
-      subtitles = await invoke<SubtitleInfo[]>("sync_get_subtitles_range", {
-        startId,
-        count: PAGE_SIZE,
-      });
-      if (subtitles.length > 0) {
-        loadedRangeStart = subtitles[0].id;
-        loadedRangeEnd = subtitles[subtitles.length - 1].id;
-      }
-    } catch (e) {
-      error = `${t("sync.errorLoadingSrt")} ${e}`;
-    } finally {
-      isLoadingMore = false;
-    }
-  }
-
-  async function loadMoreSubtitlesAfter() {
-    if (isLoadingMore || !status || loadedRangeEnd >= status.total_subtitles)
-      return;
-    try {
-      isLoadingMore = true;
-      const newSubs = await invoke<SubtitleInfo[]>("sync_get_subtitles_range", {
-        startId: loadedRangeEnd + 1,
-        count: PAGE_SIZE,
-      });
-      if (newSubs.length > 0) {
-        const maxItems = PAGE_SIZE * 3;
-        let combined = [...subtitles, ...newSubs];
-        if (combined.length > maxItems) {
-          const toRemove = combined.length - maxItems;
-          combined = combined.slice(toRemove);
-          loadedRangeStart = combined[0].id;
-        }
-        subtitles = combined;
-        loadedRangeEnd = combined[combined.length - 1].id;
-      }
-    } catch (e) {
-      error = `${t("sync.errorLoadingSrt")} ${e}`;
-    } finally {
-      isLoadingMore = false;
-    }
-  }
-
-  async function loadMoreSubtitlesBefore() {
-    if (isLoadingMore || loadedRangeStart <= 1) return;
-    try {
-      isLoadingMore = true;
-      const startId = Math.max(1, loadedRangeStart - PAGE_SIZE);
-      const count = loadedRangeStart - startId;
-      if (count <= 0) return;
-      const newSubs = await invoke<SubtitleInfo[]>("sync_get_subtitles_range", {
-        startId,
-        count,
-      });
-      if (newSubs.length > 0) {
-        const maxItems = PAGE_SIZE * 3;
-        let combined = [...newSubs, ...subtitles];
-        if (combined.length > maxItems) combined = combined.slice(0, maxItems);
-        subtitles = combined;
-        loadedRangeStart = combined[0].id;
-        loadedRangeEnd = combined[combined.length - 1].id;
-      }
-    } catch (e) {
-      error = `${t("sync.errorLoadingSrt")} ${e}`;
-    } finally {
-      isLoadingMore = false;
-    }
-  }
-
-  function handleSubtitleListScroll(e: Event) {
-    const target = e.target as HTMLDivElement;
-    if (!target || !status) return;
-    if (target.scrollHeight - target.scrollTop - target.clientHeight < 100)
-      loadMoreSubtitlesAfter();
-    if (target.scrollTop < 100) loadMoreSubtitlesBefore();
+    const page = Math.ceil(targetId / PAGE_SIZE);
+    await loadPage(page);
   }
 
   function scrollToSubtitle(subtitleId: number) {
@@ -577,24 +634,8 @@
   }
 
   async function refreshCurrentSubtitles() {
-    console.debug(`[SyncTab] refreshCurrentSubtitles (range ${loadedRangeStart}-${loadedRangeEnd})`);
-    if (loadedRangeStart > 0 && loadedRangeEnd > 0) {
-      try {
-        const count = loadedRangeEnd - loadedRangeStart + 1;
-        subtitles = await invoke<SubtitleInfo[]>("sync_get_subtitles_range", {
-          startId: loadedRangeStart,
-          count: Math.max(count, PAGE_SIZE),
-        });
-        if (subtitles.length > 0) {
-          loadedRangeStart = subtitles[0].id;
-          loadedRangeEnd = subtitles[subtitles.length - 1].id;
-        }
-      } catch (e) {
-        error = `${t("sync.errorLoadingSrt")} ${e}`;
-      }
-    } else {
-      await loadSubtitles();
-    }
+    console.debug(`[SyncTab] refreshCurrentSubtitles (page ${currentPage})`);
+    await loadPage(currentPage);
   }
 
   async function confirmCurrentCheckpoint() {
@@ -605,11 +646,11 @@
     }
     if (!wizardSubtitle) return;
     if (!audioSrc || audioError) {
-      showSnackbar(t("sync.needAudioForAnchor"));
+      showSnackbar(t("sync.needAudioForAnchor"), "warning");
       return;
     }
 
-    const correctedTime = wizardSubtitle.start_ms + offsetAdjustment;
+    const correctedTime = wizardSubtitle.synced_start_ms + offsetAdjustment;
     isConfirmingCheckpoint = true;
 
     try {
@@ -688,20 +729,20 @@
       setTimeout(() => scrollToSubtitle(id), 50);
       manualGoToId = "";
     } catch (e) {
-      showSnackbar(`Subtitle #${id} not found`);
+      showSnackbar(`Subtitle #${id} not found`, "warning");
     }
   }
 
   async function saveFile() {
     console.debug("[SyncTab] saveFile");
     try {
-      const selected = await save({
+      const selected = await guardedSave({
         filters: [{ name: "SRT Files", extensions: ["srt"] }],
         defaultPath: status?.srt_path?.replace(".srt", ".synced.srt"),
       });
       if (selected) {
         await invoke<string>("sync_save_file", { outputPath: selected });
-        showSnackbar(`${t("sync.fileSaved")} ${selected}`);
+        showSnackbar(`${t("sync.fileSaved")} ${selected}`, "success");
         addSyncLog(`Saved synced file: ${getFileName(selected)}`, "success");
       }
     } catch (e) {
@@ -713,12 +754,12 @@
   async function saveSession() {
     console.debug("[SyncTab] saveSession");
     try {
-      const selected = await save({
+      const selected = await guardedSave({
         filters: [{ name: "Session Files", extensions: ["json"] }],
       });
       if (selected) {
         await invoke<string>("sync_save_session", { sessionPath: selected });
-        showSnackbar(`${t("sync.sessionSaved")} ${selected}`);
+        showSnackbar(`${t("sync.sessionSaved")} ${selected}`, "success");
         addSyncLog(`Session saved: ${getFileName(selected)}`, "success");
       }
     } catch (e) {
@@ -730,7 +771,7 @@
   async function loadSession() {
     console.debug("[SyncTab] loadSession");
     try {
-      const selected = await open({
+      const selected = await guardedOpen({
         filters: [{ name: "Session Files", extensions: ["json"] }],
       });
       if (selected) {
@@ -764,8 +805,7 @@
       currentVideoTime = 0;
       isPlaying = false;
       resetOffset();
-      loadedRangeStart = 1;
-      loadedRangeEnd = 0;
+      currentPage = 1;
       manualGoToId = "";
       if (audioElement) {
         audioElement.pause();
@@ -837,7 +877,7 @@
         }
       } else if (isMediaFile(fileName)) {
         if (!status?.is_loaded) {
-          showSnackbar(t("sync.dropSrtFirst"));
+          showSnackbar(t("sync.dropSrtFirst"), "warning");
           return;
         }
         try {
@@ -1017,12 +1057,12 @@
     ontimeupdate={() => {
       if (audioElement) {
         currentVideoTime = audioElement.currentTime;
-        if (wizardSubtitle && !audioElement.paused) {
+        if (wizardSubtitle && !audioElement.paused && !hasAutoPaused) {
           const endSec =
             (wizardSubtitle.synced_end_ms + offsetAdjustment) / 1000;
-          if (audioElement.currentTime >= endSec + 0.05) {
+          if (audioElement.currentTime >= endSec + 0.5) {
             audioElement.pause();
-            seekToSubtitleStart(wizardSubtitle);
+            hasAutoPaused = true;
           }
         }
       }
@@ -1091,9 +1131,10 @@
 
   {#snippet panelContent(panelId: SyncPanelId)}
     {#if panelId === "toolbar"}
-      <div class="glass-card flex items-center gap-4 p-4 flex-shrink-0">
-        <div class="flex items-center gap-2 flex-1 w-full">
-          <div class="flex-1 min-w-[260px]">
+      <div class="glass-card flex flex-col gap-3 p-4 flex-shrink-0">
+        <!-- Row 1: File inputs -->
+        <div class="flex items-center gap-2 w-full">
+          <div class="flex-1 min-w-0">
             <div class="flex gap-2">
               <button
                 type="button"
@@ -1135,7 +1176,7 @@
             </div>
           </div>
 
-          <div class="text-gray-500 {status?.is_loaded ? 'text-indigo-400' : ''}">
+          <div class="text-gray-500 flex-shrink-0 {status?.is_loaded ? 'text-indigo-400' : ''}">
             <svg
               class="w-5 h-5"
               fill="none"
@@ -1150,7 +1191,7 @@
             >
           </div>
 
-          <div class="flex-1 min-w-[260px]">
+          <div class="flex-1 min-w-0">
             <div class="flex gap-2">
               <button
                 type="button"
@@ -1200,25 +1241,55 @@
           </div>
         </div>
 
-        <div class="flex-1 min-w-[24px]"></div>
-        <div class="relative group">
-          <button
-            type="button"
-            disabled
-            class="hidden lg:flex py-1.5 px-4 rounded-lg bg-indigo-500/10 border border-indigo-500/30 text-indigo-300 font-medium items-center gap-2 opacity-60 cursor-not-allowed transition-all"
-          >
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>
-            Auto-Sync
-          </button>
-          <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 bg-gray-800 border border-white/10 text-xs text-indigo-300 rounded-lg shadow-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
-            Coming soon — requires Whisper model
+        <!-- Row 2: Action buttons -->
+        <div class="flex items-center gap-2 w-full">
+          <div class="relative group flex-1">
+            <button
+              type="button"
+              onclick={startAutoSync}
+              disabled={isAutoSyncing || !status?.is_loaded || !hasAudio}
+              class="w-full h-10 flex items-center justify-center gap-2 rounded-lg border bg-indigo-500/20 border-indigo-500/40 text-indigo-300 hover:bg-indigo-500/30 text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {#if isAutoSyncing}
+                <svg class="animate-spin w-4 h-4 text-indigo-300" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+              {:else}
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>
+              {/if}
+              {t("sync.autoSync")}
+            </button>
+            {#if !status?.is_loaded || !hasAudio}
+              <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 bg-gray-800 border border-white/10 text-xs text-indigo-300 rounded-lg shadow-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
+                {t("sync.autoSyncRequires")}
+              </div>
+            {/if}
           </div>
-        </div>
-        {#if status?.is_loaded || audioSrc}
+
+          {#if status?.is_loaded || audioSrc}
+            <button
+              onclick={() => (showResetModal = true)}
+              class="flex-1 h-10 flex items-center justify-center gap-2 rounded-lg border bg-amber-500/20 border-amber-500/40 text-amber-300 hover:bg-amber-500/30 text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              title={t("sync.newSyncDesc")}
+            >
+              <svg
+                class="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                ><path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                /></svg
+              >
+              {t("sync.newSync")}
+            </button>
+          {/if}
+
           <button
-            onclick={() => (showResetModal = true)}
-            class="py-1.5 px-4 rounded-lg border border-amber-500/30 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 transition-colors text-sm font-medium flex items-center gap-2"
-            title={t("sync.newSyncDesc")}
+            onclick={loadSession}
+            class="flex-1 h-10 flex items-center justify-center gap-2 rounded-lg border bg-cyan-500/20 border-cyan-500/40 text-cyan-300 hover:bg-cyan-500/30 text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            title={t("sync.tooltipLoadSession")}
           >
             <svg
               class="w-4 h-4"
@@ -1229,78 +1300,58 @@
                 stroke-linecap="round"
                 stroke-linejoin="round"
                 stroke-width="2"
-                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"
               /></svg
             >
-            {t("sync.newSync")}
+            {t("sync.loadSession")}
           </button>
-        {/if}
 
-        <button
-          onclick={loadSession}
-          class="btn-secondary py-2 px-4 flex items-center gap-2"
-          title={t("sync.tooltipLoadSession")}
-        >
-          <svg
-            class="w-4 h-4"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-            ><path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"
-            /></svg
+          <button
+            onclick={saveSession}
+            disabled={!status?.is_loaded}
+            class="flex-1 h-10 flex items-center justify-center gap-2 rounded-lg border bg-teal-500/20 border-teal-500/40 text-teal-300 hover:bg-teal-500/30 text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            title={t("sync.tooltipSaveSession")}
           >
-          {t("sync.loadSession")}
-        </button>
-        <button
-          onclick={saveSession}
-          disabled={!status?.is_loaded}
-          class="btn-secondary py-2 px-4 flex items-center gap-2 disabled:opacity-50"
-          title={t("sync.tooltipSaveSession")}
-        >
-          <svg
-            class="w-4 h-4"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-            ><path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"
-            /></svg
+            <svg
+              class="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              ><path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"
+              /></svg
+            >
+            {t("sync.saveSession")}
+          </button>
+
+          <button
+            onclick={saveFile}
+            disabled={!status?.is_loaded}
+            class="flex-1 h-10 flex items-center justify-center gap-2 rounded-lg border bg-green-500/20 border-green-500/40 text-green-300 hover:bg-green-500/30 text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            title={t("sync.tooltipSaveFile")}
           >
-          {t("sync.saveSession")}
-        </button>
-        <button
-          onclick={saveFile}
-          disabled={!status?.is_loaded}
-          class="btn-success py-2 px-4 flex items-center gap-2 disabled:opacity-50"
-          title={t("sync.tooltipSaveFile")}
-        >
-          <svg
-            class="w-4 h-4"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-            ><path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M5 13l4 4L19 7"
-            /></svg
-          >
-          {t("sync.saveFile")}
-        </button>
+            <svg
+              class="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              ><path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M5 13l4 4L19 7"
+              /></svg
+            >
+            {t("sync.saveFile")}
+          </button>
+        </div>
       </div>
     {:else if panelId === "wizard"}
       <div class="glass-card relative flex flex-col h-full overflow-hidden">
-        <div
-          class="p-3 border-b border-white/10 flex items-center gap-2 flex-shrink-0"
-        >
+        <div class="p-3 flex items-center gap-2 flex-shrink-0">
           <svg
             class="w-5 h-5 text-indigo-400"
             fill="none"
@@ -1313,28 +1364,10 @@
               d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
             /></svg
           >
-          <h3 class="text-sm font-semibold text-white">
+          <h3 class="text-sm font-semibold text-indigo-400">
             {t("sync.wizard.title")}
           </h3>
-          <button
-            type="button"
-            onclick={() => (helpSection = "wizard")}
-            class="ml-auto text-gray-500 hover:text-cyan-300 transition-colors"
-            title="Info"
-          >
-            <svg
-              class="w-3.5 h-3.5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-              ><path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-              /></svg
-            >
-          </button>
+          <InfoButton onclick={() => (helpSection = "wizard")} />
         </div>
 
         <div
@@ -1508,7 +1541,7 @@
                       : void safePlayAudio("wizard-play-button"))}
                   disabled={!hasAudio}
                   class="w-14 h-14 flex items-center justify-center rounded-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 shadow-lg shadow-indigo-500/30 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                  title={isPlaying ? "Pause" : "Play"}
+                  title={isPlaying ? t("sync.tooltipPause") : t("sync.tooltipPlay")}
                 >
                   {#if isPlaying}
                     <svg
@@ -1553,14 +1586,14 @@
                 >
                   <button
                     onclick={() => {
-                      updateOffset(-5000);
+                      updateOffset(-3000);
                       replayCurrentSubtitle();
                     }}
                     disabled={!hasAudio}
                     class="w-12 h-8 flex items-center justify-center bg-white/10 hover:bg-white/20 rounded-lg text-[11px] font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                    title="-5s"
+                    title="-3s"
                   >
-                    −5s
+                    −3s
                   </button>
                   <button
                     onclick={() => {
@@ -1622,16 +1655,25 @@
                   </button>
                   <button
                     onclick={() => {
-                      updateOffset(5000);
+                      updateOffset(3000);
                       replayCurrentSubtitle();
                     }}
                     disabled={!hasAudio}
                     class="w-12 h-8 flex items-center justify-center bg-white/10 hover:bg-white/20 rounded-lg text-[11px] font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                    title="+5s"
+                    title="+3s"
                   >
-                    +5s
+                    +3s
                   </button>
                 </div>
+
+                <button
+                  onclick={skipCheckpoint}
+                  class="btn-secondary py-3 px-6 flex items-center gap-2 text-base font-medium"
+                  title={t("sync.wizard.skip")}
+                >
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7" /></svg>
+                  {t("sync.wizard.skip")}
+                </button>
 
                 <button
                   onclick={confirmCurrentCheckpoint}
@@ -1706,28 +1748,10 @@
               d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
             /></svg
           >
-          <h3 class="text-sm font-semibold text-white">
+          <h3 class="text-sm font-semibold text-cyan-400">
             {t("sync.statusTitle")}
           </h3>
-          <button
-            type="button"
-            onclick={() => (helpSection = "status")}
-            class="ml-auto text-gray-500 hover:text-cyan-300 transition-colors"
-            title="Info"
-          >
-            <svg
-              class="w-3.5 h-3.5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-              ><path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-              /></svg
-            >
-          </button>
+          <InfoButton onclick={() => (helpSection = "status")} />
         </div>
 
         {#if status?.is_loaded}
@@ -1763,9 +1787,10 @@
                 style="width: {status.completion_percentage}%"
               ></div>
             </div>
-            <p class="text-xs text-gray-500 text-center">
-              {status.completion_percentage.toFixed(1)}% {t("sync.completed")}
-            </p>
+            <div class="flex justify-between items-center text-xs text-gray-500 px-1">
+              <span>{status.completion_percentage.toFixed(1)}% {t("sync.completed")}</span>
+              <span class="text-indigo-400 font-medium" title={t("sync.confidenceHelp") || "Confidence based on anchors"}>{t("sync.confidence") || "Confidence"}: {confidenceScore}%</span>
+            </div>
           </div>
 
           <div class="flex gap-2 items-center">
@@ -1806,7 +1831,7 @@
                 >
                 {t("sync.anchors")} ({anchors.length})
               </h4>
-              <div class="space-y-2 max-h-32 overflow-y-auto">
+              <div class="space-y-2">
                 {#each anchors as anchor}
                   <div
                     class="flex items-center justify-between text-sm bg-white/5 rounded-lg px-3 py-2"
@@ -1855,7 +1880,7 @@
                 >Clear</button>
               {/if}
             </div>
-            <div class="space-y-1.5 max-h-44 overflow-y-auto pr-1">
+            <div class="space-y-1.5 pr-1">
               {#if syncLogs.length > 0}
                 {#each syncLogs as entry (entry.id)}
                   <div class="rounded-lg border px-2.5 py-1.5 text-xs flex items-start gap-2 {entry.level ===
@@ -1871,7 +1896,7 @@
                   </div>
                 {/each}
               {:else}
-                <p class="text-xs text-gray-500">No sync events yet.</p>
+                <p class="text-xs text-gray-500">{t("sync.noLog")}</p>
               {/if}
             </div>
           </div>
@@ -1883,12 +1908,11 @@
       </div>
     {:else if panelId === "subtitleList"}
       <div
-        class="glass-card flex-1 overflow-hidden flex flex-col"
+        class="glass-card flex flex-col"
         style="min-height: 200px;"
       >
-        <div
-          class="p-4 border-b border-white/10 flex-shrink-0 flex items-center gap-2"
-        >
+        <!-- Header -->
+        <div class="p-4 pb-2 flex-shrink-0 flex items-center gap-2">
           <svg
             class="w-4 h-4 text-purple-400"
             fill="none"
@@ -1904,39 +1928,40 @@
           <h4 class="text-sm font-semibold text-purple-400">
             {t("sync.subtitles")}
             {#if status?.is_loaded}<span class="text-gray-500 font-normal"
-                >({loadedRangeStart}-{loadedRangeEnd} / {status.total_subtitles})</span
+                >(Page {currentPage} of {totalPages})</span
               >{/if}
           </h4>
-          <button
-            type="button"
-            onclick={() => (helpSection = "subtitleList")}
-            class="ml-auto text-gray-500 hover:text-purple-300 transition-colors"
-            title="Info"
-          >
-            <svg
-              class="w-3.5 h-3.5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-              ><path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-              /></svg
-            >
-          </button>
+          <InfoButton onclick={() => (helpSection = "subtitleList")} />
         </div>
-        <div
-          class="flex-1 overflow-y-auto"
-          bind:this={subtitleListElement}
-          onscroll={handleSubtitleListScroll}
-        >
-          {#if isLoadingMore && loadedRangeStart > 1}<div
-              class="text-center py-2"
+
+        <!-- Pagination controls — TOP -->
+        {#if status?.is_loaded && totalPages > 1}
+          <div class="px-3 pb-2 flex items-center justify-between flex-shrink-0">
+            <button
+              onclick={() => loadPage(currentPage - 1)}
+              disabled={currentPage <= 1}
+              class="btn-secondary py-1 px-2.5 text-xs flex items-center gap-1 disabled:opacity-30"
             >
-              <span class="text-xs text-gray-500">{t("sync.loading")}</span>
-            </div>{/if}
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+              {t("sync.pagination.prev") || "Prev"}
+            </button>
+            <span class="text-xs text-gray-400">Page {currentPage} / {totalPages}</span>
+            <button
+              onclick={() => loadPage(currentPage + 1)}
+              disabled={currentPage >= totalPages}
+              class="btn-secondary py-1 px-2.5 text-xs flex items-center gap-1 disabled:opacity-30"
+            >
+              {t("sync.pagination.next") || "Next"}
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+            </button>
+          </div>
+        {/if}
+
+        <!-- Subtitle list -->
+        <div
+          class="flex flex-col overflow-y-auto flex-1 p-2 min-h-0"
+          bind:this={subtitleListElement}
+        >
           {#each subtitles as sub (sub.id)}
             <button
               onclick={() => handleSubtitleClick(sub)}
@@ -1970,24 +1995,30 @@
                       >{/if}
                   </div>
                 </div>
-                {#if sub.is_anchor}<span class="text-green-400 flex-shrink-0"
-                    ><svg
-                      class="w-4 h-4"
-                      fill="currentColor"
-                      viewBox="0 0 24 24"
-                      ><path
-                        d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"
-                      /></svg
-                    ></span
-                  >{/if}
+                {#if sub.is_anchor}
+                  <div
+                    role="button"
+                    tabindex="0"
+                    onclick={(e) => {
+                      e.stopPropagation();
+                      removeAnchor(sub.id);
+                    }}
+                    onkeydown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        removeAnchor(sub.id);
+                      }
+                    }}
+                    class="text-green-400 hover:text-red-400 transition-colors flex-shrink-0 p-1 rounded hover:bg-white/5 cursor-pointer"
+                    title={t("sync.tooltipRemoveAnchor")}
+                  >
+                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/></svg>
+                  </div>
+                {/if}
               </div>
             </button>
           {/each}
-          {#if isLoadingMore && status && loadedRangeEnd < status.total_subtitles}<div
-              class="text-center py-2"
-            >
-              <span class="text-xs text-gray-500">{t("sync.loading")}</span>
-            </div>{/if}
           {#if subtitles.length === 0 && !status?.is_loaded}
             <div class="text-center text-gray-500 py-12">
               <svg
@@ -2015,21 +2046,54 @@
   </div>
 
   <div class="flex-1 grid grid-cols-1 xl:grid-cols-2 gap-6 min-h-0 overflow-hidden">
-    <div class="flex flex-col gap-3 overflow-y-auto min-h-[100px]" role="list">
-      <div class="flex-1 flex flex-col" role="listitem">
+    <!-- Left column: wizard -->
+    <div class="flex flex-col min-h-0 overflow-hidden" role="list">
+      <div class="flex-1 flex flex-col min-h-0" role="listitem">
         {@render panelContent("wizard")}
       </div>
     </div>
 
-    <div class="flex flex-col gap-3 overflow-y-auto min-h-[100px]" role="list">
-      <div role="listitem">
+    <!-- Right column: status + subtitle list (inner scroll per panel) -->
+    <div class="flex flex-col gap-3 min-h-0 overflow-hidden" role="list">
+      <div class="flex-shrink-0" role="listitem">
         {@render panelContent("status")}
       </div>
-      <div class="flex-1 flex flex-col" role="listitem">
+      <div class="flex-1 flex flex-col min-h-0" role="listitem">
         {@render panelContent("subtitleList")}
       </div>
     </div>
   </div>
+
+  {#if isAutoSyncing}
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <div class="fixed inset-0 z-[100] bg-black/80 flex items-center justify-center p-6 backdrop-blur-sm"
+         onclick={(e) => e.stopPropagation()}
+         onkeydown={(e) => e.stopPropagation()}
+    >
+      <div class="glass-card max-w-md w-full p-8 text-center flex flex-col items-center">
+        <svg class="animate-spin w-12 h-12 text-indigo-400 mb-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+        <h3 class="text-xl font-bold text-white mb-2">{t("sync.autoSyncInProgress")}</h3>
+        <p class="text-indigo-300 text-sm mb-6 max-w-[280px] leading-relaxed">{autoSyncMessage}</p>
+        
+        <div class="w-full bg-gray-800 rounded-full h-3 mb-2 overflow-hidden border border-white/5">
+          <div
+            class="bg-indigo-500 h-full rounded-full transition-all duration-300 ease-out relative overflow-hidden"
+            style="width: {autoSyncProgress}%"
+          >
+            <div class="absolute inset-0 bg-white/20 animate-pulse"></div>
+          </div>
+        </div>
+        <p class="text-gray-400 text-xs font-mono">{Math.round(autoSyncProgress)}%</p>
+        <button
+          onclick={cancelAutoSync}
+          disabled={isCancellingAutoSync}
+          class="mt-6 px-4 py-2 border border-red-500/50 text-red-400 hover:bg-red-500/20 rounded-lg text-sm transition-colors disabled:opacity-50"
+        >
+          {isCancellingAutoSync ? t("sync.autoSyncCancelling") : t("sync.autoSyncCancel")}
+        </button>
+      </div>
+    </div>
+  {/if}
 
   {#if subtitleContextMenu}
     <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -2127,40 +2191,11 @@
   {/if}
 
   {#if snackbarMessage}
-    <div
-      class="fixed bottom-4 left-1/2 -translate-x-1/2 glass-card bg-amber-500/20 border border-amber-500/30 text-amber-200 px-6 py-3 rounded-xl shadow-xl flex items-center gap-3 animate-fade-in z-50"
-    >
-      <svg
-        class="w-5 h-5 text-amber-400 flex-shrink-0"
-        fill="none"
-        stroke="currentColor"
-        viewBox="0 0 24 24"
-        ><path
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          stroke-width="2"
-          d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-        /></svg
-      >
-      <span>{snackbarMessage}</span>
-      <button
-        onclick={() => (snackbarMessage = null)}
-        class="text-amber-400 hover:text-amber-300 ml-2"
-        aria-label="Close"
-        ><svg
-          class="w-4 h-4"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-          ><path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M6 18L18 6M6 6l12 12"
-          /></svg
-        ></button
-      >
-    </div>
+    <Snackbar
+      message={snackbarMessage}
+      variant={snackbarVariant}
+      onclose={() => (snackbarMessage = null)}
+    />
   {/if}
 
   {#if showResetModal}
@@ -2189,96 +2224,16 @@
     </div>
   {/if}
 
-  {#if expandedPathField}
-    <!-- svelte-ignore a11y_no_static_element_interactions -->
-    <div
-      class="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-6"
-      role="dialog"
-      aria-modal="true"
-      tabindex="-1"
-      onclick={() => (expandedPathField = null)}
-      onkeydown={(e) => {
-        if (e.key === "Escape") expandedPathField = null;
-      }}
-    >
-      <!-- svelte-ignore a11y_no_static_element_interactions -->
-      <div
-        class="bg-gray-900 border border-gray-700 rounded-xl w-full max-w-2xl p-5 animate-fade-in"
-        onclick={(e) => e.stopPropagation()}
-        onkeydown={(e) => e.stopPropagation()}
-      >
-        <div class="flex items-center justify-between mb-3">
-          <h3 class="text-sm font-semibold text-gray-300">
-            {#if expandedPathField === "srt"}SRT Path
-            {:else}Media Path
-            {/if}
-          </h3>
-          <button
-            onclick={() => (expandedPathField = null)}
-            class="text-gray-400 hover:text-white text-lg leading-none">✕</button
-          >
-        </div>
-        <div class="bg-gray-800/80 rounded-lg p-3 border border-gray-700/50">
-          <p class="text-sm text-white font-mono break-all select-all leading-relaxed">
-            {#if expandedPathField === "srt"}
-              {status?.srt_path || ""}
-            {:else}
-              {status?.video_path || ""}
-            {/if}
-          </p>
-        </div>
-      </div>
-    </div>
-  {/if}
+  <PathPreviewModal
+    isOpen={!!expandedPathField}
+    title={expandedPathField === "srt" ? "SRT Path" : "Media Path"}
+    value={expandedPathField === "srt" ? status?.srt_path || "" : status?.video_path || ""}
+    onclose={() => (expandedPathField = null)}
+  />
 
-  {#if helpSection}
-    <!-- svelte-ignore a11y_no_static_element_interactions -->
-    <div
-      class="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-6"
-      role="dialog"
-      aria-modal="true"
-      tabindex="-1"
-      onclick={() => (helpSection = null)}
-      onkeydown={(e) => {
-        if (e.key === "Escape") helpSection = null;
-      }}
-    >
-      <!-- svelte-ignore a11y_no_static_element_interactions -->
-      <div
-        class="bg-gray-900 border border-gray-700 rounded-xl w-full max-w-2xl p-6"
-        onclick={(e) => e.stopPropagation()}
-        onkeydown={(e) => e.stopPropagation()}
-      >
-        <div class="flex items-center justify-between mb-4">
-          <h2 class="text-lg font-bold text-white">
-            {#if helpSection === "wizard"}{t("sync.wizard.title")}
-            {:else if helpSection === "status"}{t("sync.statusTitle")}
-            {:else if helpSection === "subtitleList"}{t("sync.subtitles")}
-            {/if}
-          </h2>
-          <button
-            onclick={() => (helpSection = null)}
-            class="text-gray-400 hover:text-white text-xl">✕</button
-          >
-        </div>
-        <div
-          class="text-gray-300 text-sm leading-relaxed max-h-[60vh] overflow-y-auto"
-        >
-          {#if helpSection === "wizard"}
-            {@html t("sync.wizardHelp")}
-          {:else if helpSection === "status"}
-            {@html t("sync.statusHelp")}
-          {:else if helpSection === "subtitleList"}
-            {@html t("sync.subtitleListHelp")}
-          {/if}
-        </div>
-        <div class="mt-4 flex justify-end">
-          <button
-            onclick={() => (helpSection = null)}
-            class="btn-primary py-1.5 px-4 text-sm">OK</button
-          >
-        </div>
-      </div>
-    </div>
-  {/if}
+  <InfoModal 
+    section={helpSection} 
+    sections={syncSections} 
+    onclose={() => (helpSection = null)} 
+  />
 </div>

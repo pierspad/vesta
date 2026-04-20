@@ -1,7 +1,13 @@
 {
-  "locales_dir": "/home/ribben/Desktop/Various_Projects/vesta/apps/srt-gui/src/lib/i18n/locales",
-  "english_reference": "en.json",
-  "total_english_keys": 680,
+  "directories": [
+    "/home/ribben/Desktop/Various_Projects/vesta/apps/srt-gui/src/lib/i18n/locales",
+    "/home/ribben/Desktop/Various_Projects/vesta/apps/srt-gui/src/lib/i18n/locales/info"
+  ],
+  "en_keys_per_directory": {
+    "locales": 665,
+    "info": 25
+  },
+  "total_english_keys": 690,
   "checked_locales": [
     "ar",
     "de",
@@ -18,21 +24,23 @@
     "zh"
   ],
   "missing_counts_by_locale": {
-    "ar": 23,
-    "de": 53,
-    "es": 51,
-    "fr": 39,
-    "hi": 23,
+    "ar": 22,
+    "de": 52,
+    "es": 50,
+    "fr": 38,
+    "hi": 22,
     "it": 66,
-    "ja": 23,
-    "ko": 26,
-    "pl": 40,
-    "pt": 42,
-    "ru": 26,
-    "tr": 34,
-    "zh": 22
+    "ja": 22,
+    "ko": 25,
+    "pl": 39,
+    "pt": 41,
+    "ru": 25,
+    "tr": 33,
+    "zh": 21
   },
-  "total_keys_with_issues": 105,
+  "total_keys_with_issues": 104,
+  "orphan_keys_count": 0,
+  "orphan_keys": [],
   "missing_keys": {
     "app.title": {
       "locales": [
@@ -53,55 +61,68 @@
       "details": [
         {
           "locale": "ar",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "de",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "es",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "fr",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "hi",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "it",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "ja",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "ko",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "pl",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "pt",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "ru",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "tr",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "zh",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         }
       ]
     },
@@ -120,39 +141,48 @@
       "details": [
         {
           "locale": "ar",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "de",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "es",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "fr",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "it",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "ko",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "pt",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "ru",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "tr",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         }
       ]
     },
@@ -167,23 +197,28 @@
       "details": [
         {
           "locale": "de",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "es",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "fr",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "it",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "pl",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         }
       ]
     },
@@ -206,55 +241,68 @@
       "details": [
         {
           "locale": "ar",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "de",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "es",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "fr",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "hi",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "it",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "ja",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "ko",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "pl",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "pt",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "ru",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "tr",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "zh",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         }
       ]
     },
@@ -270,27 +318,33 @@
       "details": [
         {
           "locale": "de",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "es",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "fr",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "it",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "pl",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "pt",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         }
       ]
     },
@@ -301,7 +355,8 @@
       "details": [
         {
           "locale": "tr",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         }
       ]
     },
@@ -313,11 +368,13 @@
       "details": [
         {
           "locale": "it",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "pt",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         }
       ]
     },
@@ -332,23 +389,28 @@
       "details": [
         {
           "locale": "de",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "es",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "fr",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "it",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "tr",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         }
       ]
     },
@@ -364,27 +426,33 @@
       "details": [
         {
           "locale": "de",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "es",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "fr",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "it",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "pl",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "tr",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         }
       ]
     },
@@ -395,7 +463,8 @@
       "details": [
         {
           "locale": "de",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         }
       ]
     },
@@ -407,11 +476,13 @@
       "details": [
         {
           "locale": "it",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "pl",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         }
       ]
     },
@@ -424,15 +495,18 @@
       "details": [
         {
           "locale": "es",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "it",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "pl",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         }
       ]
     },
@@ -443,7 +517,8 @@
       "details": [
         {
           "locale": "es",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         }
       ]
     },
@@ -454,7 +529,8 @@
       "details": [
         {
           "locale": "it",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         }
       ]
     },
@@ -467,15 +543,18 @@
       "details": [
         {
           "locale": "de",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "pl",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "pt",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         }
       ]
     },
@@ -498,55 +577,68 @@
       "details": [
         {
           "locale": "ar",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "de",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "es",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "fr",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "hi",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "it",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "ja",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "ko",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "pl",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "pt",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "ru",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "tr",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "zh",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         }
       ]
     },
@@ -557,7 +649,8 @@
       "details": [
         {
           "locale": "ru",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         }
       ]
     },
@@ -580,55 +673,68 @@
       "details": [
         {
           "locale": "ar",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "de",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "es",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "fr",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "hi",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "it",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "ja",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "ko",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "pl",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "pt",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "ru",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "tr",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "zh",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         }
       ]
     },
@@ -651,55 +757,68 @@
       "details": [
         {
           "locale": "ar",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "de",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "es",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "fr",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "hi",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "it",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "ja",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "ko",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "pl",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "pt",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "ru",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "tr",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "zh",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         }
       ]
     },
@@ -722,55 +841,68 @@
       "details": [
         {
           "locale": "ar",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "de",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "es",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "fr",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "hi",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "it",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "ja",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "ko",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "pl",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "pt",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "ru",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "tr",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "zh",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         }
       ]
     },
@@ -784,19 +916,23 @@
       "details": [
         {
           "locale": "de",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "es",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "it",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "tr",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         }
       ]
     },
@@ -819,55 +955,68 @@
       "details": [
         {
           "locale": "ar",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "de",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "es",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "fr",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "hi",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "it",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "ja",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "ko",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "pl",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "pt",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "ru",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "tr",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "zh",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         }
       ]
     },
@@ -878,7 +1027,8 @@
       "details": [
         {
           "locale": "es",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         }
       ]
     },
@@ -889,7 +1039,8 @@
       "details": [
         {
           "locale": "it",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         }
       ]
     },
@@ -900,7 +1051,8 @@
       "details": [
         {
           "locale": "it",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         }
       ]
     },
@@ -923,55 +1075,68 @@
       "details": [
         {
           "locale": "ar",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "de",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "es",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "fr",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "hi",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "it",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "ja",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "ko",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "pl",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "pt",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "ru",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "tr",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "zh",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         }
       ]
     },
@@ -982,7 +1147,8 @@
       "details": [
         {
           "locale": "es",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         }
       ]
     },
@@ -1005,55 +1171,68 @@
       "details": [
         {
           "locale": "ar",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "de",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "es",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "fr",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "hi",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "it",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "ja",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "ko",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "pl",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "pt",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "ru",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "tr",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "zh",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         }
       ]
     },
@@ -1070,31 +1249,38 @@
       "details": [
         {
           "locale": "de",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "hi",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "it",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "ja",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "ko",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "tr",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "zh",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         }
       ]
     },
@@ -1108,19 +1294,23 @@
       "details": [
         {
           "locale": "es",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "ko",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "ru",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "tr",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         }
       ]
     },
@@ -1143,55 +1333,68 @@
       "details": [
         {
           "locale": "ar",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "de",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "es",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "fr",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "hi",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "it",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "ja",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "ko",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "pl",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "pt",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "ru",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "tr",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "zh",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         }
       ]
     },
@@ -1202,7 +1405,8 @@
       "details": [
         {
           "locale": "es",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         }
       ]
     },
@@ -1225,55 +1429,68 @@
       "details": [
         {
           "locale": "ar",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "de",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "es",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "fr",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "hi",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "it",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "ja",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "ko",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "pl",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "pt",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "ru",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "tr",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "zh",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         }
       ]
     },
@@ -1284,7 +1501,8 @@
       "details": [
         {
           "locale": "de",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         }
       ]
     },
@@ -1303,105 +1521,48 @@
       "details": [
         {
           "locale": "ar",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "es",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "fr",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "hi",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "it",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "ja",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "ko",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "pl",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "pt",
-          "reason": "same_as_english"
-        }
-      ]
-    },
-    "settings.customProviderTip": {
-      "locales": [
-        "ar",
-        "de",
-        "es",
-        "fr",
-        "hi",
-        "ja",
-        "ko",
-        "pl",
-        "pt",
-        "ru",
-        "tr",
-        "zh"
-      ],
-      "details": [
-        {
-          "locale": "ar",
-          "reason": "same_as_english"
-        },
-        {
-          "locale": "de",
-          "reason": "same_as_english"
-        },
-        {
-          "locale": "es",
-          "reason": "same_as_english"
-        },
-        {
-          "locale": "fr",
-          "reason": "same_as_english"
-        },
-        {
-          "locale": "hi",
-          "reason": "same_as_english"
-        },
-        {
-          "locale": "ja",
-          "reason": "same_as_english"
-        },
-        {
-          "locale": "ko",
-          "reason": "same_as_english"
-        },
-        {
-          "locale": "pl",
-          "reason": "same_as_english"
-        },
-        {
-          "locale": "pt",
-          "reason": "same_as_english"
-        },
-        {
-          "locale": "ru",
-          "reason": "same_as_english"
-        },
-        {
-          "locale": "tr",
-          "reason": "same_as_english"
-        },
-        {
-          "locale": "zh",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         }
       ]
     },
@@ -1412,7 +1573,8 @@
       "details": [
         {
           "locale": "it",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         }
       ]
     },
@@ -1426,19 +1588,23 @@
       "details": [
         {
           "locale": "de",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "es",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "fr",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "it",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         }
       ]
     },
@@ -1449,7 +1615,8 @@
       "details": [
         {
           "locale": "fr",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         }
       ]
     },
@@ -1460,7 +1627,8 @@
       "details": [
         {
           "locale": "fr",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         }
       ]
     },
@@ -1471,7 +1639,8 @@
       "details": [
         {
           "locale": "it",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         }
       ]
     },
@@ -1484,81 +1653,18 @@
       "details": [
         {
           "locale": "de",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "it",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "tr",
-          "reason": "same_as_english"
-        }
-      ]
-    },
-    "settings.groqProviderTip": {
-      "locales": [
-        "ar",
-        "de",
-        "es",
-        "fr",
-        "hi",
-        "ja",
-        "ko",
-        "pl",
-        "pt",
-        "ru",
-        "tr",
-        "zh"
-      ],
-      "details": [
-        {
-          "locale": "ar",
-          "reason": "same_as_english"
-        },
-        {
-          "locale": "de",
-          "reason": "same_as_english"
-        },
-        {
-          "locale": "es",
-          "reason": "same_as_english"
-        },
-        {
-          "locale": "fr",
-          "reason": "same_as_english"
-        },
-        {
-          "locale": "hi",
-          "reason": "same_as_english"
-        },
-        {
-          "locale": "ja",
-          "reason": "same_as_english"
-        },
-        {
-          "locale": "ko",
-          "reason": "same_as_english"
-        },
-        {
-          "locale": "pl",
-          "reason": "same_as_english"
-        },
-        {
-          "locale": "pt",
-          "reason": "same_as_english"
-        },
-        {
-          "locale": "ru",
-          "reason": "same_as_english"
-        },
-        {
-          "locale": "tr",
-          "reason": "same_as_english"
-        },
-        {
-          "locale": "zh",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         }
       ]
     },
@@ -1569,7 +1675,8 @@
       "details": [
         {
           "locale": "it",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         }
       ]
     },
@@ -1580,7 +1687,8 @@
       "details": [
         {
           "locale": "de",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         }
       ]
     },
@@ -1595,23 +1703,28 @@
       "details": [
         {
           "locale": "es",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "fr",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "it",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "pt",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "ru",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         }
       ]
     },
@@ -1626,23 +1739,28 @@
       "details": [
         {
           "locale": "de",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "es",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "it",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "pl",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "pt",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         }
       ]
     },
@@ -1653,7 +1771,8 @@
       "details": [
         {
           "locale": "de",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         }
       ]
     },
@@ -1664,7 +1783,8 @@
       "details": [
         {
           "locale": "it",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         }
       ]
     },
@@ -1675,7 +1795,8 @@
       "details": [
         {
           "locale": "de",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         }
       ]
     },
@@ -1686,7 +1807,8 @@
       "details": [
         {
           "locale": "it",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         }
       ]
     },
@@ -1709,55 +1831,68 @@
       "details": [
         {
           "locale": "ar",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "de",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "es",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "fr",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "hi",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "it",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "ja",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "ko",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "pl",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "pt",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "ru",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "tr",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "zh",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         }
       ]
     },
@@ -1780,55 +1915,68 @@
       "details": [
         {
           "locale": "ar",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "de",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "es",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "fr",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "hi",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "it",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "ja",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "ko",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "pl",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "pt",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "ru",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "tr",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "zh",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         }
       ]
     },
@@ -1851,55 +1999,68 @@
       "details": [
         {
           "locale": "ar",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "de",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "es",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "fr",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "hi",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "it",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "ja",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "ko",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "pl",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "pt",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "ru",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "tr",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "zh",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         }
       ]
     },
@@ -1922,55 +2083,68 @@
       "details": [
         {
           "locale": "ar",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "de",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "es",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "fr",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "hi",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "it",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "ja",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "ko",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "pl",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "pt",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "ru",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "tr",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "zh",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         }
       ]
     },
@@ -1987,31 +2161,38 @@
       "details": [
         {
           "locale": "de",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "hi",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "it",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "ja",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "ko",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "tr",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "zh",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         }
       ]
     },
@@ -2034,55 +2215,68 @@
       "details": [
         {
           "locale": "ar",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "de",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "es",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "fr",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "hi",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "it",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "ja",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "ko",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "pl",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "pt",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "ru",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "tr",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "zh",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         }
       ]
     },
@@ -2105,55 +2299,68 @@
       "details": [
         {
           "locale": "ar",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "de",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "es",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "fr",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "hi",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "it",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "ja",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "ko",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "pl",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "pt",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "ru",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "tr",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "zh",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         }
       ]
     },
@@ -2165,11 +2372,13 @@
       "details": [
         {
           "locale": "pl",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "tr",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         }
       ]
     },
@@ -2180,7 +2389,8 @@
       "details": [
         {
           "locale": "it",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         }
       ]
     },
@@ -2195,23 +2405,28 @@
       "details": [
         {
           "locale": "de",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "es",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "it",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "pl",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "pt",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         }
       ]
     },
@@ -2226,23 +2441,28 @@
       "details": [
         {
           "locale": "de",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "es",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "it",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "pl",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "pt",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         }
       ]
     },
@@ -2257,23 +2477,28 @@
       "details": [
         {
           "locale": "de",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "es",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "it",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "pl",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "pt",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         }
       ]
     },
@@ -2288,23 +2513,28 @@
       "details": [
         {
           "locale": "de",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "es",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "it",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "pl",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "pt",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         }
       ]
     },
@@ -2316,11 +2546,13 @@
       "details": [
         {
           "locale": "fr",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "pt",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         }
       ]
     },
@@ -2334,19 +2566,23 @@
       "details": [
         {
           "locale": "de",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "es",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "fr",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "pt",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         }
       ]
     },
@@ -2360,19 +2596,23 @@
       "details": [
         {
           "locale": "de",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "es",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "fr",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "pt",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         }
       ]
     },
@@ -2385,15 +2625,18 @@
       "details": [
         {
           "locale": "de",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "es",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "it",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         }
       ]
     },
@@ -2406,15 +2649,18 @@
       "details": [
         {
           "locale": "ar",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "ko",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "tr",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         }
       ]
     },
@@ -2428,19 +2674,23 @@
       "details": [
         {
           "locale": "de",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "it",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "pl",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "pt",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         }
       ]
     },
@@ -2454,19 +2704,23 @@
       "details": [
         {
           "locale": "de",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "it",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "pl",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "pt",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         }
       ]
     },
@@ -2480,19 +2734,23 @@
       "details": [
         {
           "locale": "de",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "es",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "fr",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "pt",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         }
       ]
     },
@@ -2503,7 +2761,8 @@
       "details": [
         {
           "locale": "pt",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         }
       ]
     },
@@ -2515,11 +2774,13 @@
       "details": [
         {
           "locale": "it",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "pl",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         }
       ]
     },
@@ -2531,11 +2792,13 @@
       "details": [
         {
           "locale": "it",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "pt",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         }
       ]
     },
@@ -2548,15 +2811,18 @@
       "details": [
         {
           "locale": "de",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "pl",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "pt",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         }
       ]
     },
@@ -2569,15 +2835,18 @@
       "details": [
         {
           "locale": "de",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "it",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "tr",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         }
       ]
     },
@@ -2589,11 +2858,91 @@
       "details": [
         {
           "locale": "de",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "it",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
+        }
+      ]
+    },
+    "sync.wizard.skip": {
+      "locales": [
+        "ar",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "ja",
+        "ko",
+        "pl",
+        "pt",
+        "ru",
+        "tr",
+        "zh"
+      ],
+      "details": [
+        {
+          "locale": "ar",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "de",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "es",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "fr",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "hi",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "ja",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "ko",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "pl",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "pt",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "ru",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "tr",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "zh",
+          "reason": "missing_key",
+          "directory": "locales"
         }
       ]
     },
@@ -2605,11 +2954,13 @@
       "details": [
         {
           "locale": "it",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "pl",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         }
       ]
     },
@@ -2623,19 +2974,23 @@
       "details": [
         {
           "locale": "es",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "fr",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "it",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "pt",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         }
       ]
     },
@@ -2646,7 +3001,8 @@
       "details": [
         {
           "locale": "it",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         }
       ]
     },
@@ -2657,7 +3013,8 @@
       "details": [
         {
           "locale": "it",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         }
       ]
     },
@@ -2668,7 +3025,8 @@
       "details": [
         {
           "locale": "it",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         }
       ]
     },
@@ -2679,7 +3037,8 @@
       "details": [
         {
           "locale": "it",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         }
       ]
     },
@@ -2690,7 +3049,8 @@
       "details": [
         {
           "locale": "fr",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         }
       ]
     },
@@ -2701,7 +3061,8 @@
       "details": [
         {
           "locale": "fr",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         }
       ]
     },
@@ -2712,7 +3073,8 @@
       "details": [
         {
           "locale": "es",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         }
       ]
     },
@@ -2723,7 +3085,8 @@
       "details": [
         {
           "locale": "es",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         }
       ]
     },
@@ -2734,7 +3097,8 @@
       "details": [
         {
           "locale": "es",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         }
       ]
     },
@@ -2747,15 +3111,18 @@
       "details": [
         {
           "locale": "de",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "fr",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "it",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         }
       ]
     },
@@ -2766,7 +3133,8 @@
       "details": [
         {
           "locale": "es",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         }
       ]
     },
@@ -2777,7 +3145,8 @@
       "details": [
         {
           "locale": "it",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         }
       ]
     },
@@ -2789,11 +3158,13 @@
       "details": [
         {
           "locale": "ru",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "tr",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         }
       ]
     },
@@ -2804,7 +3175,8 @@
       "details": [
         {
           "locale": "ru",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         }
       ]
     },
@@ -2815,7 +3187,8 @@
       "details": [
         {
           "locale": "ru",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         }
       ]
     },
@@ -2832,31 +3205,38 @@
       "details": [
         {
           "locale": "de",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "es",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "fr",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "it",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "pl",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "pt",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "tr",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         }
       ]
     },
@@ -2867,7 +3247,8 @@
       "details": [
         {
           "locale": "de",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         }
       ]
     },
@@ -2882,23 +3263,28 @@
       "details": [
         {
           "locale": "ar",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "hi",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "ja",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "ko",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "zh",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         }
       ]
     },
@@ -2909,7 +3295,8 @@
       "details": [
         {
           "locale": "es",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         }
       ]
     },
@@ -2920,7 +3307,8 @@
       "details": [
         {
           "locale": "it",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         }
       ]
     },
@@ -2932,11 +3320,13 @@
       "details": [
         {
           "locale": "it",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "pl",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         }
       ]
     },
@@ -2948,11 +3338,13 @@
       "details": [
         {
           "locale": "pl",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "tr",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         }
       ]
     },
@@ -2966,19 +3358,23 @@
       "details": [
         {
           "locale": "de",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "es",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "fr",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         },
         {
           "locale": "pt",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         }
       ]
     },
@@ -2989,7 +3385,8 @@
       "details": [
         {
           "locale": "it",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         }
       ]
     },
@@ -3000,7 +3397,8 @@
       "details": [
         {
           "locale": "it",
-          "reason": "same_as_english"
+          "reason": "same_as_english",
+          "directory": "locales"
         }
       ]
     }

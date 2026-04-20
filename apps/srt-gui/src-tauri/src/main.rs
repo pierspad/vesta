@@ -45,6 +45,7 @@ use commands::sync::*;
 use commands::translate::*;
 use commands::flashcards::*;
 use commands::transcribe::*;
+use commands::auto_sync::*;
 use state::{AppSyncState, AppTranslateState, AppFlashcardState, AppTranscribeState, SyncState, TranslateState, FlashcardState, TranscribeState};
 
 /// Determina il MIME type in base all'estensione
@@ -380,6 +381,9 @@ fn main() {
             transcribe_start,
             transcribe_cancel,
             transcribe_check_file_exists,
+            // Comandi auto-sync
+            sync_auto_sync,
+            sync_cancel_auto_sync,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
