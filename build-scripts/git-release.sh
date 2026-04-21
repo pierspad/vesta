@@ -119,11 +119,21 @@ else
     echo -e "${YELLOW}⚠ makepkg non disponibile, skip .SRCINFO${NC}"
 fi
 
+# ── Sincronizza Cargo.lock con le nuove versioni ──────────────
+echo -e "${YELLOW}🔒 Aggiornamento Cargo.lock (cargo update --workspace)...${NC}"
+cd "$PROJECT_ROOT"
+if ! cargo update --workspace 2>&1; then
+    echo -e "${RED}❌ cargo update --workspace fallito${NC}"
+    exit 1
+fi
+echo -e "${GREEN}✅ Cargo.lock sincronizzato${NC}"
+echo ""
+
 # ── Commit e tag ──────────────────────────────────────────────
 echo -e "${YELLOW}📦 Commit e tag...${NC}"
 cd "$PROJECT_ROOT"
 
-# Aggiungi tutti i file modificati dallo script
+# Aggiungi tutti i file modificati dallo script (incluso Cargo.lock)
 git add -A
 
 if git diff --cached --quiet; then
