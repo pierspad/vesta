@@ -15,7 +15,7 @@
   let success = $state<string | null>(null);
   let error = $state<string | null>(null);
   let showResetAllConfirm = $state(false);
-  let filter = $state<"all" | "global" | "translate" | "sync" | "flashcards" | "alignment">(
+  let filter = $state<"all" | "global" | "translate" | "sync" | "flashcards" | "alignment" | "transcribe">(
     "all",
   );
 
@@ -34,6 +34,7 @@
       translate: [],
       sync: [],
       alignment: [],
+      transcribe: [],
     };
     filteredShortcuts.forEach((s) => {
       if (groups[s.category]) {
@@ -59,6 +60,7 @@
     translate: "shortcuts.category.translate",
     sync: "shortcuts.category.sync",
     alignment: "shortcuts.category.alignment",
+    transcribe: "shortcuts.category.transcribe",
   };
 
   const categoryDescriptions: Record<string, string> = {
@@ -67,6 +69,7 @@
     translate: "shortcuts.category.translate.desc",
     sync: "shortcuts.category.sync.desc",
     alignment: "shortcuts.category.alignment.desc",
+    transcribe: "shortcuts.category.transcribe.desc",
   };
 
   onMount(() => {

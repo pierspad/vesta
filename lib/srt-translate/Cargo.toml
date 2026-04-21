@@ -1,6 +1,6 @@
 [package]
 name = "srt-translate"
-version = "0.4.0"
+version = "0.5.0"
 edition = "2021"
 authors = ["Your Name <your.email@example.com>"]
 description = "Library for translating SRT subtitle files using LLM APIs (Gemini, OpenAI, local)"

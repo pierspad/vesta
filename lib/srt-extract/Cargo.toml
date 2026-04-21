@@ -1,6 +1,6 @@
 [package]
 name = "srt-extract"
-version = "0.4.0"
+version = "0.5.0"
 edition = "2021"
 authors = ["Your Name <your.email@example.com>"]
 description = "Library for extracting and formatting SRT subtitle data"

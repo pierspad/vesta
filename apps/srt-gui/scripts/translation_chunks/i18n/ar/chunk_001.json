@@ -1,7 +1,7 @@
 {
   "app.title": "VESTA",
   "app.subtitle": "الترجمة والمزامنة",
-  "app.version": "Tauri + Svelte • GPL-3.0 License",
+  "app.version": "Tauri + Svelte • رخصة GPL-3.0",
   "app.status.ready": "النظام جاهز",
   "nav.translate": "الترجمة",
   "nav.translate.desc": "ترجمة الترجمات بالذكاء الاصطناعي",

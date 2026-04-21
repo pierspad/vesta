@@ -21,5 +21,18 @@
   "sync.autoSyncCancel": "रद्द करें",
   "sync.noLog": "अभी तक कोई सिंक इवेंट नहीं।",
   "sync.pagination.prev": "पिछला",
-  "sync.pagination.next": "अगला"
+  "sync.pagination.next": "अगला",
+  "shortcuts.category.transcribe": "प्रतिलेखन",
+  "shortcuts.category.transcribe.desc": "प्रतिलेखन प्रक्रिया के लिए शॉर्टकट",
+  "shortcuts.action.startTranscription": "प्रतिलेखन प्रारंभ करें",
+  "shortcuts.action.cancelTranscription": "प्रतिलेखन रद्द करें",
+  "sync.autoSyncProgress.analyzingSegments": "खंडों का विश्लेषण कर रहा है ({{count}})...",
+  "sync.autoSyncProgress.transcribingSegment": "{{total}} में से खंड {{current}} को ट्रांसक्राइब किया जा रहा है...",
+  "sync.autoSyncProgress.cancelled": "रद्द कर दिया गया",
+  "sync.autoSyncProgress.doneAnchors": "{{anchors}} एंकर और {{segments}} खंड मिले",
+  "sync.confidence": "आत्मविश्वास (Confidence)",
+  "sync.confidenceHelp": "मिलان गुणवत्ता (0-100%)",
+  "sync.autoSyncResult.cancelled": "ऑটো-सिंक रद्द कर दिया गया",
+  "sync.autoSyncResult.success": "{{count}} खंडوں के लिए सफलतापूर्वक सिंक किया गया",
+  "sync.autoSyncResult.noMatches": "कोई मिलान नहीं मिला"
 }

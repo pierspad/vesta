@@ -20,7 +20,7 @@
     align: "alignment",
     settings: "global",
     shortcuts: "global",
-    transcribe: "global",
+    transcribe: "transcribe",
   };
 
   let contextShortcuts = $derived.by(() => {
@@ -63,7 +63,7 @@
   ></div>
 
   <div
-    class="fixed bottom-4 right-4 z-[9999] w-96 max-h-[70vh] overflow-y-auto bg-gray-900 border border-white/10 rounded-2xl shadow-2xl animate-fade-in"
+    class="fixed bottom-4 right-4 z-[9999] w-[700px] max-w-[90vw] max-h-[85vh] overflow-y-auto bg-gray-900 border border-white/10 rounded-2xl shadow-2xl animate-fade-in"
   >
     <div
       class="sticky top-0 bg-gray-900/95 backdrop-blur-sm border-b border-white/10 p-4 flex items-center justify-between rounded-t-2xl"
@@ -105,10 +105,10 @@
           >
             {t(`shortcuts.category.${contextShortcuts.category}`)}
           </h4>
-          <div class="space-y-1.5">
+          <div class="grid grid-cols-2 gap-2">
             {#each contextShortcuts.contextual as shortcut}
               <div
-                class="flex items-center justify-between py-1.5 px-2 rounded-lg bg-white/5"
+                class="flex items-center justify-between py-1.5 px-3 rounded-lg bg-white/5"
               >
                 <span class="text-xs text-gray-300"
                   >{t(shortcut.description)}</span
@@ -138,10 +138,10 @@
           >
             {t("shortcuts.overlay.global")}
           </h4>
-          <div class="space-y-1.5">
+          <div class="grid grid-cols-2 gap-2">
             {#each contextShortcuts.global as shortcut}
               <div
-                class="flex items-center justify-between py-1.5 px-2 rounded-lg bg-white/5"
+                class="flex items-center justify-between py-1.5 px-3 rounded-lg bg-white/5"
               >
                 <span class="text-xs text-gray-300"
                   >{t(shortcut.description)}</span

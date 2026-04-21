@@ -13,7 +13,7 @@
   "nav.revision.desc": "补全并修正字幕翻译",
   "align.helpTitle": "修订助手",
   "transcribe.ffmpegDownload": "下载 FFmpeg",
-  "sync.wizard.skip": "Skip",
+  "sync.wizard.skip": "跳过",
   "sync.autoSync": "自动同步",
   "sync.autoSyncInProgress": "自动同步进行中...",
   "sync.autoSyncRequires": "需要SRT文件和媒体文件",
@@ -21,5 +21,18 @@
   "sync.autoSyncCancel": "取消",
   "sync.noLog": "暂无同步事件。",
   "sync.pagination.prev": "上一页",
-  "sync.pagination.next": "下一页"
+  "sync.pagination.next": "下一页",
+  "shortcuts.category.transcribe": "转录",
+  "shortcuts.category.transcribe.desc": "转录过程的快捷键",
+  "shortcuts.action.startTranscription": "开始转录",
+  "shortcuts.action.cancelTranscription": "取消转录",
+  "sync.autoSyncProgress.analyzingSegments": "正在分析片段 ({{count}})...",
+  "sync.autoSyncProgress.transcribingSegment": "正在转录第 {{current}} 个片段（共 {{total}} 个）...",
+  "sync.autoSyncProgress.cancelled": "已取消",
+  "sync.autoSyncProgress.doneAnchors": "找到 {{anchors}} 个锚点和 {{segments}} 个片段",
+  "sync.confidence": "置信度",
+  "sync.confidenceHelp": "匹配质量 (0-100%)",
+  "sync.autoSyncResult.cancelled": "自动同步已取消",
+  "sync.autoSyncResult.success": "已成功同步 {{count}} 个片段",
+  "sync.autoSyncResult.noMatches": "未找到匹配项"
 }

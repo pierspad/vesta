@@ -1,7 +1,7 @@
 {
   "app.title": "VESTA",
   "app.subtitle": "Übersetzung & Synchronisation",
-  "app.version": "Tauri + Svelte • GPL-3.0 License",
+  "app.version": "Tauri + Svelte • GPL-3.0-Lizenz",
   "app.status.ready": "System bereit",
   "nav.translate": "Übersetzung",
   "nav.translate.desc": "KI-gestützte Untertitelübersetzung",
@@ -362,7 +362,7 @@
   "flashcards.processing": "Verarbeitung",
   "flashcards.removeNoMatch": "Zeilen ohne Bedeutung-Übereinstimmung entfernen",
   "flashcards.requiredFieldsMissing": "Bitte alle Pflichtfelder ausfüllen",
-  "flashcards.sequenceField": "7. Sequence",
+  "flashcards.sequenceField": "7. Sequenz",
   "flashcards.snapshotField": "4. Snapshot",
   "flashcards.starting": "Karteikarten-Generierung wird gestartet",
   "flashcards.subtitleFiles": "Untertiteldateien",
@@ -671,5 +671,18 @@
   "sync.autoSyncCancel": "Abbrechen",
   "sync.noLog": "Noch keine Synchronisationsereignisse.",
   "sync.pagination.prev": "Zurück",
-  "sync.pagination.next": "Weiter"
+  "sync.pagination.next": "Weiter",
+  "shortcuts.category.transcribe": "Transkribieren",
+  "shortcuts.category.transcribe.desc": "Tastenkombinationen für den Transkriptionsprozess",
+  "shortcuts.action.startTranscription": "Transkription starten",
+  "shortcuts.action.cancelTranscription": "Transkription abbrechen",
+  "sync.autoSyncProgress.analyzingSegments": "Analysiere Segmente ({{count}})...",
+  "sync.autoSyncProgress.transcribingSegment": "Transkribiere Segment {{current}} von {{total}}...",
+  "sync.autoSyncProgress.cancelled": "Abgebrochen",
+  "sync.autoSyncProgress.doneAnchors": "{{anchors}} Anker und {{segments}} Segmente gefunden",
+  "sync.confidence": "Konfidenz",
+  "sync.confidenceHelp": "Qualität der Übereinstimmung (0-100%)",
+  "sync.autoSyncResult.cancelled": "Auto-Sync abgebrochen",
+  "sync.autoSyncResult.success": "Erfolgreich synchronisiert für {{count}} Segmente",
+  "sync.autoSyncResult.noMatches": "Keine Treffer gefunden"
 }

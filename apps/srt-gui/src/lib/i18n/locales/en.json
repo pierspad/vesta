@@ -669,8 +669,20 @@
   "sync.autoSyncRequires": "Requires SRT and Media",
   "sync.autoSyncCancelling": "Cancelling...",
   "sync.autoSyncCancel": "Cancel",
-  "flashcards.removeNoMatch": "Remove lines without Meaning match",
   "sync.noLog": "No sync events yet.",
   "sync.pagination.prev": "Prev",
-  "sync.pagination.next": "Next"
+  "sync.pagination.next": "Next",
+  "shortcuts.category.transcribe": "Transcribe",
+  "shortcuts.category.transcribe.desc": "Shortcuts for the transcription process",
+  "shortcuts.action.startTranscription": "Start Transcription",
+  "shortcuts.action.cancelTranscription": "Cancel Transcription",
+  "sync.autoSyncProgress.analyzingSegments": "Analyzing segments ({{count}})...",
+  "sync.autoSyncProgress.transcribingSegment": "Transcribing segment {{current}} of {{total}}...",
+  "sync.autoSyncProgress.cancelled": "Cancelled",
+  "sync.autoSyncProgress.doneAnchors": "{{anchors}} anchors and {{segments}} segments found",
+  "sync.confidence": "Confidence",
+  "sync.confidenceHelp": "Match quality (0-100%)",
+  "sync.autoSyncResult.cancelled": "Auto-sync cancelled",
+  "sync.autoSyncResult.success": "Successfully synced for {{count}} segments",
+  "sync.autoSyncResult.noMatches": "No matches found"
 }

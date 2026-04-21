@@ -1,7 +1,7 @@
 {
   "app.title": "VESTA",
   "app.subtitle": "번역 및 동기화",
-  "app.version": "Tauri + Svelte • GPL-3.0 License",
+  "app.version": "Tauri + Svelte • GPL-3.0 라이선스",
   "app.status.ready": "시스템 준비됨",
   "nav.translate": "번역",
   "nav.translate.desc": "AI 기반 자막 번역",

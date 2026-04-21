@@ -1,6 +1,6 @@
 [package]
 name = "srt-sync"
-version = "0.4.0"
+version = "0.5.0"
 edition = "2021"
 authors = ["Your Name <your.email@example.com>"]
 description = "Library for synchronizing SRT subtitles with video using anchor points and interpolation"

@@ -44,6 +44,7 @@ pub struct AnchorInfo {
     pub original_time_ms: i64,
     pub corrected_time_ms: i64,
     pub offset_ms: i64,
+    pub is_manual: bool,
 }
 
 /// Carica un file SRT per la sincronizzazione
@@ -254,7 +255,7 @@ pub fn sync_add_anchor(
     let engine = sync_state.engine.as_mut()
         .ok_or("Nessun file SRT caricato")?;
 
-    engine.add_anchor(subtitle_id, corrected_time_ms)
+    engine.add_anchor(subtitle_id, corrected_time_ms, true)
         .map_err(|e| format!("Errore aggiunta ancora: {}", e))?;
 
     Ok(get_status_from_engine(engine))
@@ -293,6 +294,7 @@ pub fn sync_get_anchors(
             original_time_ms: a.original_time_ms,
             corrected_time_ms: a.corrected_time_ms,
             offset_ms: a.offset(),
+            is_manual: a.is_manual,
         })
         .collect();
 

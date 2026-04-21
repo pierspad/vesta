@@ -21,5 +21,18 @@
   "sync.autoSyncCancel": "Anuluj",
   "sync.noLog": "Brak zdarzeń synchronizacji.",
   "sync.pagination.prev": "Poprz",
-  "sync.pagination.next": "Nast"
+  "sync.pagination.next": "Nast",
+  "shortcuts.category.transcribe": "Transkrybuj",
+  "shortcuts.category.transcribe.desc": "Skróty dla procesu transkrypcji",
+  "shortcuts.action.startTranscription": "Rozpocznij transkrypcję",
+  "shortcuts.action.cancelTranscription": "Anuluj transkrypcję",
+  "sync.autoSyncProgress.analyzingSegments": "Analiza segmentów ({{count}})...",
+  "sync.autoSyncProgress.transcribingSegment": "Transkrypcja segmentu {{current}} z {{total}}...",
+  "sync.autoSyncProgress.cancelled": "Anulowano",
+  "sync.autoSyncProgress.doneAnchors": "Znaleziono {{anchors}} kotwic i {{segments}} segmentów",
+  "sync.confidence": "Pewność",
+  "sync.confidenceHelp": "Jakość dopasowania (0-100%)",
+  "sync.autoSyncResult.cancelled": "Auto-synchronizacja anulowana",
+  "sync.autoSyncResult.success": "Pomyślnie zsynchronizowano dla {{count}} segmentów",
+  "sync.autoSyncResult.noMatches": "Nie znaleziono dopasowań"
 }

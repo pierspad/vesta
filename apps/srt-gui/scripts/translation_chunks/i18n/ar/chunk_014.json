@@ -21,5 +21,18 @@
   "sync.autoSyncCancel": "إلغاء",
   "sync.noLog": "لا توجد أحداث مزامنة بعد.",
   "sync.pagination.prev": "السابق",
-  "sync.pagination.next": "التالي"
+  "sync.pagination.next": "التالي",
+  "shortcuts.category.transcribe": "النسخ",
+  "shortcuts.category.transcribe.desc": "اختصارات عملية النسخ",
+  "shortcuts.action.startTranscription": "بدء النسخ",
+  "shortcuts.action.cancelTranscription": "إلغاء النسخ",
+  "sync.autoSyncProgress.analyzingSegments": "تحليل المقاطع ({{count}})...",
+  "sync.autoSyncProgress.transcribingSegment": "نسخ المقطع {{current}} من {{total}}...",
+  "sync.autoSyncProgress.cancelled": "تم الإلغاء",
+  "sync.autoSyncProgress.doneAnchors": "تم العثور على {{anchors}} مرساة و {{segments}} مقطع",
+  "sync.confidence": "الثقة",
+  "sync.confidenceHelp": "جودة المطابقة (0-100٪)",
+  "sync.autoSyncResult.cancelled": "تم إلغاء المزامنة التلقائية",
+  "sync.autoSyncResult.success": "تمت المزامنة بنجاح لـ {{count}} مقاطع",
+  "sync.autoSyncResult.noMatches": "لم يتم العثور على تطابقات"
 }

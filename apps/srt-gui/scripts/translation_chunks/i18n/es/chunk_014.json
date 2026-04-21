@@ -21,5 +21,18 @@
   "sync.autoSyncCancel": "Cancelar",
   "sync.noLog": "Aún no hay eventos de sincronización.",
   "sync.pagination.prev": "Ant",
-  "sync.pagination.next": "Sig"
+  "sync.pagination.next": "Sig",
+  "shortcuts.category.transcribe": "Transcribir",
+  "shortcuts.category.transcribe.desc": "Atajos para el proceso de transcripción",
+  "shortcuts.action.startTranscription": "Iniciar transcripción",
+  "shortcuts.action.cancelTranscription": "Cancelar transcripción",
+  "sync.autoSyncProgress.analyzingSegments": "Analizando segmentos ({{count}})...",
+  "sync.autoSyncProgress.transcribingSegment": "Transcribiendo segmento {{current}} de {{total}}...",
+  "sync.autoSyncProgress.cancelled": "Cancelado",
+  "sync.autoSyncProgress.doneAnchors": "Se encontraron {{anchors}} anclas y {{segments}} segmentos",
+  "sync.confidence": "Confianza",
+  "sync.confidenceHelp": "Calidad de coincidencia (0-100%)",
+  "sync.autoSyncResult.cancelled": "Sincronización automática cancelada",
+  "sync.autoSyncResult.success": "Sincronizado con éxito para {{count}} segmentos",
+  "sync.autoSyncResult.noMatches": "No se encontraron coincidencias"
 }

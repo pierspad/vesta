@@ -1,12 +1,15 @@
 ## Release notes:
 
 ### Additions
-- added a smart way of loading files and compiling the fields based on
+- **Automatic SRT Synchronization**: implemented automatic subtitle synchronization powered by Whisper.
+- **Enhanced Accuracy**: improved Whisper’s synchronization logic to better handle audio-to-text alignment.
+- **Documentation**: updated the README.
 
 ### Removals
+- **Redundancy Cleanup**: reduced internal code redundancies.
 
 ### Fixes
-- fixed resize of the windows 
-- fixed column 
-- improved info clarity
-- fixed missing translations
+- **UI & Layout**: fixed resizing issues for the revision tab and general UI element scaling.
+- **Translations**: resolved issues with missing translations and improved overall localization accuracy.
+- **Subtitle Management**: fixed subtitle rendering bugs and improved field populating logic.
+- **Info Sections**: improved the clarity and layout of information sections.

@@ -178,6 +178,7 @@
   let unlistenProgress: (() => void) | null = null;
 
   onMount(async () => {
+    window.addEventListener("keydown", handleKeydown);
     selectedModel = localStorage.getItem("srt-default-whisper-model") || "base";
 
     window.addEventListener("whisper-model-updated", (e: any) => {
@@ -214,8 +215,40 @@
   });
 
   onDestroy(() => {
+    window.removeEventListener("keydown", handleKeydown);
     unlistenProgress?.();
   });
+
+  function handleKeydown(e: KeyboardEvent) {
+    if (
+      document.activeElement?.tagName === "INPUT" ||
+      document.activeElement?.tagName === "TEXTAREA"
+    )
+      return;
+
+    // Ctrl+O: Open file
+    if (e.key === "o" && (e.ctrlKey || e.metaKey) && !e.shiftKey) {
+      e.preventDefault();
+      selectInputFile();
+      return;
+    }
+    
+    // Ctrl+Enter: Start transcription
+    if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+      e.preventDefault();
+      if (!isTranscribing) startTranscription();
+      return;
+    }
+
+    // Escape: Cancel transcription
+    if (e.key === "Escape") {
+      if (isTranscribing) {
+        e.preventDefault();
+        cancelTranscription();
+      }
+      return;
+    }
+  }
 
   async function refreshModels() {
     try {

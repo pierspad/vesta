@@ -21,5 +21,18 @@
   "sync.autoSyncCancel": "취소",
   "sync.noLog": "동기화 이벤트가 없습니다.",
   "sync.pagination.prev": "이전",
-  "sync.pagination.next": "다음"
+  "sync.pagination.next": "다음",
+  "shortcuts.category.transcribe": "받아쓰기",
+  "shortcuts.category.transcribe.desc": "받아쓰기 프로세스용 단축키",
+  "shortcuts.action.startTranscription": "받아쓰기 시작",
+  "shortcuts.action.cancelTranscription": "받아쓰기 취소",
+  "sync.autoSyncProgress.analyzingSegments": "세그먼트 분석 중 ({{count}})...",
+  "sync.autoSyncProgress.transcribingSegment": "세그먼트 {{current}} / {{total}} 받아쓰기 중...",
+  "sync.autoSyncProgress.cancelled": "취소됨",
+  "sync.autoSyncProgress.doneAnchors": "{{anchors}}개의 앵커와 {{segments}}개의 세그먼트를 찾았습니다",
+  "sync.confidence": "신뢰도",
+  "sync.confidenceHelp": "일치 품질 (0-100%)",
+  "sync.autoSyncResult.cancelled": "자동 동기화가 취소되었습니다",
+  "sync.autoSyncResult.success": "{{count}}개의 세그먼트가 성공적으로 동기화되었습니다",
+  "sync.autoSyncResult.noMatches": "일치하는 항목을 찾을 수 없습니다"
 }

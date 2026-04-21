@@ -1,7 +1,7 @@
 {
   "app.title": "VESTA",
   "app.subtitle": "Çeviri ve Senkronizasyon",
-  "app.version": "Tauri + Svelte • GPL-3.0 License",
+  "app.version": "Tauri + Svelte • GPL-3.0 Lisansı",
   "app.status.ready": "Sistem hazır",
   "nav.translate": "Çeviri",
   "nav.translate.desc": "AI destekli altyazı çevirisi",

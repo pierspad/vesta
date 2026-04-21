@@ -21,5 +21,18 @@
   "sync.autoSyncCancel": "キャンセル",
   "sync.noLog": "同期イベントはまだありません。",
   "sync.pagination.prev": "前へ",
-  "sync.pagination.next": "次へ"
+  "sync.pagination.next": "次へ",
+  "shortcuts.category.transcribe": "文字起こし",
+  "shortcuts.category.transcribe.desc": "文字起こしプロセスのショートカット",
+  "shortcuts.action.startTranscription": "文字起こしを開始",
+  "shortcuts.action.cancelTranscription": "文字起こしをキャンセル",
+  "sync.autoSyncProgress.analyzingSegments": "セグメントを分析中 ({{count}})...",
+  "sync.autoSyncProgress.transcribingSegment": "セグメント {{current}} / {{total}} を文字起こし中...",
+  "sync.autoSyncProgress.cancelled": "キャンセルされました",
+  "sync.autoSyncProgress.doneAnchors": "{{anchors}} 個のアンカーと {{segments}} 個のセグメントが見つかりました",
+  "sync.confidence": "信頼度",
+  "sync.confidenceHelp": "一致の質 (0-100%)",
+  "sync.autoSyncResult.cancelled": "自動同期がキャンセルされました",
+  "sync.autoSyncResult.success": "{{count}} 個のセグメントの同期に成功しました",
+  "sync.autoSyncResult.noMatches": "一致が見つかりませんでした"
 }

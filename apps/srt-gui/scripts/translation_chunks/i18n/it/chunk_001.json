@@ -1,7 +1,7 @@
 {
   "app.title": "VESTA",
   "app.subtitle": "Traduzione & Sincronizzazione",
-  "app.version": "Tauri + Svelte • GPL-3.0 License",
+  "app.version": "Tauri + Svelte • Licenza GPL-3.0",
   "app.status.ready": "Sistema pronto",
   "nav.translate": "Traduzione",
   "nav.translate.desc": "Traduci sottotitoli con AI",
@@ -16,7 +16,7 @@
   "nav.comingSoon": "Presto",
   "nav.settings": "Impostazioni",
   "nav.settings.desc": "Chiavi API e preferenze",
-  "nav.shortcuts": "Shortcuts",
+  "nav.shortcuts": "Scorciatoie",
   "nav.shortcuts.desc": "Scorciatoie da Tastiera",
   "shortcuts.title": "Scorciatoie da Tastiera",
   "shortcuts.subtitle": "Personalizza le shortcuts per velocizzare il tuo workflow",

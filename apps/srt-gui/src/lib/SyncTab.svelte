@@ -46,6 +46,7 @@
     original_time_ms: number;
     corrected_time_ms: number;
     offset_ms: number;
+    is_manual: boolean;
   }
 
   let audioElement = $state<HTMLMediaElement | null>(null);
@@ -124,6 +125,8 @@
   let syncLogId = 0;
   let syncLogs = $state<SyncLogEntry[]>([]);
 
+  let manualAnchors = $derived(anchors.filter((a) => a.is_manual));
+
   function addSyncLog(
     message: string,
     level: SyncLogEntry["level"] = "info",
@@ -145,10 +148,33 @@
   }
 
   // ─── Auto-Sync with Whisper ────────────────────────────
+  interface AutoSyncProgressPayload {
+    stage: string;
+    message: string;
+    percentage: number;
+    message_key?: string | null;
+    params?: Record<string, string> | null;
+  }
+
   let isAutoSyncing = $state(false);
   let isCancellingAutoSync = $state(false);
   let autoSyncProgress = $state(0);
   let autoSyncMessage = $state("");
+
+  function resolveAutoSyncProgressMessage(payload: AutoSyncProgressPayload): string {
+    if (payload.message_key) {
+      const params = payload.params ?? {};
+
+      // Keep compatibility with locale strings that expect {{count}} while
+      // backend progress events provide { total } for segment counts.
+      if (params.total && !params.count) {
+        return t(payload.message_key, { ...params, count: params.total });
+      }
+
+      return t(payload.message_key, params);
+    }
+    return payload.message;
+  }
 
   async function cancelAutoSync() {
     if (!isAutoSyncing || isCancellingAutoSync) return;
@@ -209,18 +235,15 @@
 
     // Listen for progress events
     const { listen } = await import("@tauri-apps/api/event");
-    const unlisten = await listen<{
-      stage: string;
-      message: string;
-      percentage: number;
-    }>("sync-auto-progress", (event) => {
+    const unlisten = await listen<AutoSyncProgressPayload>("sync-auto-progress", (event) => {
       autoSyncProgress = event.payload.percentage;
-      autoSyncMessage = event.payload.message;
+      autoSyncMessage = resolveAutoSyncProgressMessage(event.payload);
     });
 
     try {
       const result = await invoke<{
         success: boolean;
+        cancelled: boolean;
         anchors_created: number;
         segments_analyzed: number;
         message: string;
@@ -233,8 +256,22 @@
       await refreshCurrentSubtitles();
       await loadAnchors();
 
-      showSnackbar(result.message, result.success ? "success" : "warning");
-      addSyncLog(result.message, result.success ? "success" : "warning");
+      let summaryMessage = "";
+      let summaryLevel: SyncLogEntry["level"] = "warning";
+
+      if (result.cancelled) {
+        summaryMessage = t("sync.autoSyncResult.cancelled");
+      } else if (result.success) {
+        summaryMessage = t("sync.autoSyncResult.success", {
+          count: result.anchors_created,
+        });
+        summaryLevel = "success";
+      } else {
+        summaryMessage = t("sync.autoSyncResult.noMatches");
+      }
+
+      showSnackbar(summaryMessage, summaryLevel);
+      addSyncLog(summaryMessage, summaryLevel);
     } catch (e) {
       const msg = `Auto-sync failed: ${e}`;
       showSnackbar(msg, "error");
@@ -412,7 +449,7 @@
 
     if (areOffsetsConsistent()) return null;
 
-    const sortedAnchors = [...anchors].sort(
+    const sortedAnchors = [...manualAnchors].sort(
       (a, b) => a.subtitle_id - b.subtitle_id,
     );
     if (sortedAnchors.length < 2) {
@@ -453,8 +490,8 @@
   }
 
   function areOffsetsConsistent(): boolean {
-    if (anchors.length < 2) return false;
-    const offsets = anchors.map((a) => a.offset_ms);
+    if (manualAnchors.length < 2) return false;
+    const offsets = manualAnchors.map((a) => a.offset_ms);
     const minOff = Math.min(...offsets);
     const maxOff = Math.max(...offsets);
     return maxOff - minOff <= OFFSET_TOLERANCE_MS;
@@ -896,12 +933,86 @@
     }
   }
 
+  async function undoLastAnchor() {
+    if (anchors.length === 0) return;
+    // Remove the most recently *created* anchor? Actually anchors might be sorted by original_time_ms.
+    // Let's just remove the anchor for the last subtitle we visited, or the highest ID anchor if we just advanced.
+    // A simpler approach: find the anchor with the highest subtitle_id that we recently added, or just pop the last anchor.
+    // If wizardHistory has it, pop it.
+    const lastHistoryId = wizardHistory.length > 0 ? wizardHistory[wizardHistory.length - 1] : null;
+    const anchorToRemove = anchors.find(a => a.subtitle_id === lastHistoryId) || anchors[anchors.length - 1];
+    
+    if (!anchorToRemove) return;
+
+    try {
+      status = await invoke<SyncStatus>("sync_remove_anchor", { subtitleId: anchorToRemove.subtitle_id });
+      wizardHistory = wizardHistory.filter(id => id !== anchorToRemove.subtitle_id);
+      
+      await loadAnchors();
+      await refreshCurrentSubtitles();
+      
+      addSyncLog(`Undo: Removed anchor #${anchorToRemove.subtitle_id}`, "warning");
+      
+      // Go back to that subtitle to re-adjust
+      const sub = await invoke<SubtitleInfo>("sync_get_subtitle", { id: anchorToRemove.subtitle_id });
+      wizardSubtitle = sub;
+      resetOffset();
+      seekToSubtitleStart(sub);
+      scrollToSubtitle(sub.id);
+    } catch (e) {
+      error = `Undo failed: ${e}`;
+    }
+  }
+
   function handleKeydown(e: KeyboardEvent) {
     if (
       document.activeElement?.tagName === "INPUT" ||
       document.activeElement?.tagName === "TEXTAREA"
     )
       return;
+
+    // Undo action (Ctrl+Z)
+    if (e.key === "z" && (e.ctrlKey || e.metaKey) && !e.shiftKey) {
+      e.preventDefault();
+      undoLastAnchor();
+      return;
+    }
+
+    // Open SRT action (Ctrl+O)
+    if (e.key === "o" && (e.ctrlKey || e.metaKey) && !e.shiftKey) {
+      e.preventDefault();
+      selectSrtFile();
+      return;
+    }
+
+    // Auto-Sync (Ctrl+A)
+    if (e.key === "a" && (e.ctrlKey || e.metaKey) && !e.shiftKey) {
+      e.preventDefault();
+      if (hasAudio) startAutoSync();
+      return;
+    }
+
+    // New Sync (Ctrl+N)
+    if (e.key === "n" && (e.ctrlKey || e.metaKey) && !e.shiftKey) {
+      e.preventDefault();
+      if (hasAudio) showResetModal = true;
+      return;
+    }
+
+    // Load Session (Ctrl+L)
+    if (e.key === "l" && (e.ctrlKey || e.metaKey) && !e.shiftKey) {
+      e.preventDefault();
+      loadSession();
+      return;
+    }
+
+    // Save Session (Ctrl+Shift+S)
+    if (e.key === "S" && (e.ctrlKey || e.metaKey) && e.shiftKey) {
+      e.preventDefault();
+      if (hasAudio) saveSession();
+      return;
+    }
+
 
     switch (e.key) {
       case " ":
@@ -917,24 +1028,24 @@
       case "ArrowLeft":
         e.preventDefault();
         if (hasAudio && audioElement)
-          audioElement.currentTime -= e.shiftKey ? 1 : 0.1;
+          audioElement.currentTime -= e.shiftKey ? 3 : 0.5;
         break;
       case "ArrowRight":
         e.preventDefault();
         if (hasAudio && audioElement)
-          audioElement.currentTime += e.shiftKey ? 1 : 0.1;
+          audioElement.currentTime += e.shiftKey ? 3 : 0.5;
         break;
       case "ArrowUp":
         if (wizardSubtitle) {
           e.preventDefault();
-          updateOffset(e.altKey ? 5000 : e.shiftKey ? 500 : 100);
+          updateOffset(e.altKey ? 3000 : e.shiftKey ? 500 : 100);
           seekToSubtitleStart(wizardSubtitle);
         }
         break;
       case "ArrowDown":
         if (wizardSubtitle) {
           e.preventDefault();
-          updateOffset(-(e.altKey ? 5000 : e.shiftKey ? 500 : 100));
+          updateOffset(-(e.altKey ? 3000 : e.shiftKey ? 500 : 100));
           seekToSubtitleStart(wizardSubtitle);
         }
         break;
@@ -1734,7 +1845,7 @@
         </div>
       </div>
     {:else if panelId === "status"}
-      <div class="glass-card p-4 space-y-4">
+      <div class="glass-card p-4 h-full min-h-0 overflow-y-auto space-y-4">
         <div class="flex items-center gap-2">
           <svg
             class="w-5 h-5 text-cyan-400"
@@ -1830,8 +1941,11 @@
                   /></svg
                 >
                 {t("sync.anchors")} ({anchors.length})
+                <span class="text-[11px] font-normal text-gray-500">
+                  {manualAnchors.length} manual
+                </span>
               </h4>
-              <div class="space-y-2">
+              <div class="space-y-2 max-h-56 overflow-y-auto pr-1">
                 {#each anchors as anchor}
                   <div
                     class="flex items-center justify-between text-sm bg-white/5 rounded-lg px-3 py-2"
@@ -1846,6 +1960,9 @@
                         ? "text-green-400"
                         : "text-red-400"}>{formatOffset(anchor.offset_ms)}</span
                     >
+                    <span class={anchor.is_manual ? "text-emerald-300 text-[11px]" : "text-amber-300 text-[11px]"}>
+                      {anchor.is_manual ? "manual" : "auto"}
+                    </span>
                     <button
                       onclick={() => removeAnchor(anchor.subtitle_id)}
                       class="text-red-400 hover:text-red-300 p-1 hover:bg-red-500/20 rounded transition-colors"
@@ -1880,7 +1997,7 @@
                 >Clear</button>
               {/if}
             </div>
-            <div class="space-y-1.5 pr-1">
+            <div class="space-y-1.5 pr-1 max-h-52 overflow-y-auto">
               {#if syncLogs.length > 0}
                 {#each syncLogs as entry (entry.id)}
                   <div class="rounded-lg border px-2.5 py-1.5 text-xs flex items-start gap-2 {entry.level ===
@@ -1907,10 +2024,7 @@
         {/if}
       </div>
     {:else if panelId === "subtitleList"}
-      <div
-        class="glass-card flex flex-col"
-        style="min-height: 200px;"
-      >
+      <div class="glass-card flex flex-col h-full min-h-0">
         <!-- Header -->
         <div class="p-4 pb-2 flex-shrink-0 flex items-center gap-2">
           <svg
@@ -2055,10 +2169,10 @@
 
     <!-- Right column: status + subtitle list (inner scroll per panel) -->
     <div class="flex flex-col gap-3 min-h-0 overflow-hidden" role="list">
-      <div class="flex-shrink-0" role="listitem">
+      <div class="flex flex-col min-h-[220px] max-h-[56%]" role="listitem">
         {@render panelContent("status")}
       </div>
-      <div class="flex-1 flex flex-col min-h-0" role="listitem">
+      <div class="flex-1 flex flex-col min-h-[240px] overflow-hidden" role="listitem">
         {@render panelContent("subtitleList")}
       </div>
     </div>
@@ -2070,7 +2184,7 @@
          onclick={(e) => e.stopPropagation()}
          onkeydown={(e) => e.stopPropagation()}
     >
-      <div class="glass-card max-w-md w-full p-8 text-center flex flex-col items-center">
+      <div class="max-w-md w-full p-8 text-center flex flex-col items-center bg-[#0f172a] border border-indigo-300/20 rounded-2xl shadow-2xl opacity-100">
         <svg class="animate-spin w-12 h-12 text-indigo-400 mb-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
         <h3 class="text-xl font-bold text-white mb-2">{t("sync.autoSyncInProgress")}</h3>
         <p class="text-indigo-300 text-sm mb-6 max-w-[280px] leading-relaxed">{autoSyncMessage}</p>

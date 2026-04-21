@@ -103,6 +103,14 @@
   }
 
   function handleKeydown(e: KeyboardEvent) {
+    if (document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA') return;
+
+    // Ctrl+O → open target (1st SRT)
+    if (e.key === 'o' && (e.ctrlKey || e.metaKey) && !e.shiftKey) {
+      e.preventDefault();
+      selectTarget();
+      return;
+    }
     // Ctrl+Z → undo
     if (e.key === 'z' && (e.ctrlKey || e.metaKey) && !e.shiftKey) {
       e.preventDefault();
@@ -208,6 +216,7 @@
   let unlistenFileDrop: () => void;
 
   onMount(async () => {
+    window.addEventListener('keydown', handleKeydown);
     unlistenFileDrop = await listen<{ paths: string[] }>('tauri://file-drop', (event) => {
       const paths = event.payload.paths;
       if (paths && paths.length > 0) {
@@ -217,6 +226,7 @@
   });
 
   onDestroy(() => {
+    window.removeEventListener('keydown', handleKeydown);
     if (unlistenFileDrop) unlistenFileDrop();
     if (undoDebounceTimer) clearTimeout(undoDebounceTimer);
   });

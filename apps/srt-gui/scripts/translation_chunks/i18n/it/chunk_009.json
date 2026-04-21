@@ -46,7 +46,7 @@
   "flashcards.ankiFields": "Tipo di Nota e Campi Anki",
   "flashcards.outputFields": "Campi Output (Colonne TSV)",
   "flashcards.audioField": "3. Audio",
-  "flashcards.snapshotField": "4. Snapshot",
+  "flashcards.snapshotField": "4. Istantanea",
   "flashcards.videoField": "5. Video",
   "flashcards.exportFormat": "Formato Esportazione"
 }

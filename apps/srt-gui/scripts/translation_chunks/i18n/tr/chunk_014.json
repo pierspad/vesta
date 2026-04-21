@@ -21,5 +21,18 @@
   "sync.autoSyncCancel": "İptal",
   "sync.noLog": "Henüz senkronizasyon olayı yok.",
   "sync.pagination.prev": "Önceki",
-  "sync.pagination.next": "Sonraki"
+  "sync.pagination.next": "Sonraki",
+  "shortcuts.category.transcribe": "Deşifre Et",
+  "shortcuts.category.transcribe.desc": "Deşifre işlemi için kısayollar",
+  "shortcuts.action.startTranscription": "Deşifre Başlat",
+  "shortcuts.action.cancelTranscription": "Deşifre İptal",
+  "sync.autoSyncProgress.analyzingSegments": "Segmentler analiz ediliyor ({{count}})...",
+  "sync.autoSyncProgress.transcribingSegment": "Segment {{current}} / {{total}} deşifre ediliyor...",
+  "sync.autoSyncProgress.cancelled": "İptal edildi",
+  "sync.autoSyncProgress.doneAnchors": "{{anchors}} çapa ve {{segments}} segment bulundu",
+  "sync.confidence": "Güven",
+  "sync.confidenceHelp": "Eşleşme kalitesi (%0-100)",
+  "sync.autoSyncResult.cancelled": "Otomatik senkronizasyon iptal edildi",
+  "sync.autoSyncResult.success": "{{count}} segment başarıyla senkronize edildi",
+  "sync.autoSyncResult.noMatches": "Eşleşme bulunamadı"
 }

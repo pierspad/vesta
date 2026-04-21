@@ -229,15 +229,24 @@ impl SyncEngine {
     /// # Argomenti
     /// * `subtitle_id` - ID del sottotitolo (1-based)
     /// * `corrected_time_ms` - Tempo corretto dal video in millisecondi
-    pub fn add_anchor(&mut self, subtitle_id: u32, corrected_time_ms: i64) -> Result<()> {
+    /// * `is_manual` - Specifica se l'ancora è forzata dall'utente (priorità massima)
+    pub fn add_anchor(&mut self, subtitle_id: u32, corrected_time_ms: i64, is_manual: bool) -> Result<()> {
         let subtitle = self.subtitles.get(&subtitle_id)
             .context(format!("Sottotitolo {} non trovato", subtitle_id))?;
 
-        let anchor = AnchorPoint::new(
-            subtitle_id,
-            subtitle.start.milliseconds as i64,
-            corrected_time_ms,
-        );
+        let anchor = if is_manual {
+            AnchorPoint::new_manual(
+                subtitle_id,
+                subtitle.start.milliseconds as i64,
+                corrected_time_ms,
+            )
+        } else {
+            AnchorPoint::new(
+                subtitle_id,
+                subtitle.start.milliseconds as i64,
+                corrected_time_ms,
+            )
+        };
 
         self.time_mapper.add_anchor(anchor);
         self.sampler.mark_checked(subtitle_id);

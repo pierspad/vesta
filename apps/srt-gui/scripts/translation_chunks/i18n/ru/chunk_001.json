@@ -1,7 +1,7 @@
 {
   "app.title": "VESTA",
   "app.subtitle": "Перевод и Синхронизация",
-  "app.version": "Tauri + Svelte • GPL-3.0 License",
+  "app.version": "Tauri + Svelte • Лицензия GPL-3.0",
   "app.status.ready": "Система готова",
   "nav.translate": "Перевод",
   "nav.translate.desc": "ИИ-перевод субтитров",
