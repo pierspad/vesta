@@ -1,7 +1,7 @@
 {
   "flashcards.timeShift": "Desplazamiento temporal",
   "flashcards.generateAudioClips": "Añadir Audio a las Tarjetas",
-  "flashcards.bitrate": "Bitrate",
+  "flashcards.bitrate": "Tasa de bits",
   "flashcards.normalizeAudio": "Normalizar audio",
   "flashcards.padStart": "Relleno inicial",
   "flashcards.padEnd": "Relleno final",
@@ -46,7 +46,7 @@
   "flashcards.exportTSVBadge": "Clásico",
   "shortcuts.overlay.title": "Atajos de teclado",
   "shortcuts.overlay.hint": "Shift+? para mostrar/ocultar",
-  "shortcuts.overlay.global": "Global",
+  "shortcuts.overlay.global": "Globales",
   "shortcuts.editShortcut": "Editar atajo",
   "shortcuts.resetDefault": "Restaurar predeterminado"
 }

@@ -1,7 +1,7 @@
 {
   "flashcards.timeShift": "Deslocamento temporal",
   "flashcards.generateAudioClips": "Adicionar Áudio aos Flashcards",
-  "flashcards.bitrate": "Bitrate",
+  "flashcards.bitrate": "Taxa de bits",
   "flashcards.normalizeAudio": "Normalizar áudio",
   "flashcards.padStart": "Preenchimento inicial",
   "flashcards.padEnd": "Preenchimento final",
@@ -34,7 +34,7 @@
   "comingSoon.badge": "Em Desenvolvimento",
   "settings.modelsList": "Modelos",
   "flashcards.resetLayout": "Redefinir layout",
-  "shortcuts.category.flashcards": "🃏 Flashcards",
+  "shortcuts.category.flashcards": "🃏 Cartões",
   "shortcuts.category.flashcards.desc": "Atalhos para o gerador de flashcards",
   "shortcuts.action.goToFlashcards": "Ir para Flashcards",
   "shortcuts.action.generateFlashcards": "Gerar flashcards",
@@ -46,7 +46,7 @@
   "flashcards.exportTSVBadge": "Clássico",
   "shortcuts.overlay.title": "Atalhos de teclado",
   "shortcuts.overlay.hint": "Shift+? para mostrar/ocultar",
-  "shortcuts.overlay.global": "Global",
+  "shortcuts.overlay.global": "Globais",
   "shortcuts.editShortcut": "Editar atalho",
   "shortcuts.resetDefault": "Restaurar padrão"
 }

@@ -1,5 +1,5 @@
 {
-  "flashcards.cpuMin": "min",
+  "flashcards.cpuMin": "mínimo",
   "flashcards.cpuPerformance": "Rendimiento",
   "flashcards.cpuPerformanceDesc": "75% de los núcleos",
   "flashcards.errorGenerating": "Error al generar tarjetas",
@@ -33,7 +33,7 @@
   "flashcards.maxChars": "Máx. caracteres",
   "flashcards.maxDuration": "Duración máx.",
   "flashcards.maxGap": "Hueco máx.",
-  "flashcards.media": "Media",
+  "flashcards.media": "Multimedia",
   "flashcards.mediaFile": "Archivo multimedia (video o audio)",
   "flashcards.mediaFileDesc": "Vídeo = clips de audio + capturas de pantalla. Audio = solo clips de audio",
   "flashcards.mediaFiles": "Archivos multimedia",
@@ -47,6 +47,6 @@
   "flashcards.noActiveLines": "Sin líneas activas después del filtrado",
   "flashcards.noMediaLoaded": "Carga un archivo multimedia para habilitar la extracción de audio/video",
   "flashcards.noteTypeLanguage": "Idioma",
-  "flashcards.noteTypeLanguagePlaceholder": "Select language...",
+  "flashcards.noteTypeLanguagePlaceholder": "Selecciona un idioma...",
   "flashcards.onlyCjk": "Solo líneas con caracteres CJK/Kana"
 }

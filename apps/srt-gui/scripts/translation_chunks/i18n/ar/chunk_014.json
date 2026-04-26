@@ -13,7 +13,7 @@
   "shortcuts.category.alignment.desc": "اختصارات مراجعة الترجمة",
   "transcribe.whisperModelDesc": "نزّل النماذج للتفريغ المحلي. انقر على نموذج لتنزيله وتعيينه كافتراضي.",
   "transcribe.ffmpegDownload": "تحميل FFmpeg",
-  "sync.wizard.skip": "Skip",
+  "sync.wizard.skip": "تخطّي",
   "sync.autoSync": "مزامنة تلقائية",
   "sync.autoSyncInProgress": "المزامنة التلقائية قيد التقدم...",
   "sync.autoSyncRequires": "يتطلب ملف SRT وملف وسائط",
@@ -34,5 +34,16 @@
   "sync.confidenceHelp": "جودة المطابقة (0-100٪)",
   "sync.autoSyncResult.cancelled": "تم إلغاء المزامنة التلقائية",
   "sync.autoSyncResult.success": "تمت المزامنة بنجاح لـ {{count}} مقاطع",
-  "sync.autoSyncResult.noMatches": "لم يتم العثور على تطابقات"
+  "sync.autoSyncResult.noMatches": "لم يتم العثور على تطابقات",
+  "nav.notifications": "الإشعارات",
+  "nav.notifications.desc": "لا توجد تحديثات",
+  "nav.notifications.update": "يتوفر تحديث",
+  "notifications.title": "الإشعارات",
+  "notifications.checking": "جارٍ التحقق من التحديثات...",
+  "notifications.none": "لا توجد إشعارات",
+  "notifications.offline": "لا يوجد اتصال بالإنترنت أو لا يمكن الوصول إلى GitHub.",
+  "notifications.updateAvailable": "يتوفر Vesta {{version}}",
+  "notifications.updateDesc": "الإصدار الحالي: {{current}}. آخر إصدار: {{latest}}.",
+  "notifications.openReleases": "فتح الإصدارات",
+  "notifications.lastChecked": "آخر تحقق"
 }

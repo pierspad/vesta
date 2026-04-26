@@ -34,5 +34,16 @@
   "sync.confidenceHelp": "匹配质量 (0-100%)",
   "sync.autoSyncResult.cancelled": "自动同步已取消",
   "sync.autoSyncResult.success": "已成功同步 {{count}} 个片段",
-  "sync.autoSyncResult.noMatches": "未找到匹配项"
+  "sync.autoSyncResult.noMatches": "未找到匹配项",
+  "nav.notifications": "通知",
+  "nav.notifications.desc": "没有更新",
+  "nav.notifications.update": "有可用更新",
+  "notifications.title": "通知",
+  "notifications.checking": "正在检查更新...",
+  "notifications.none": "没有通知",
+  "notifications.offline": "没有互联网连接，或无法访问 GitHub。",
+  "notifications.updateAvailable": "Vesta {{version}} 可用",
+  "notifications.updateDesc": "当前版本：{{current}}。最新版本：{{latest}}。",
+  "notifications.openReleases": "打开发布页",
+  "notifications.lastChecked": "上次检查"
 }

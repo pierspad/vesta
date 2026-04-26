@@ -13,7 +13,7 @@
   "nav.revision.desc": "अनूदित उपशीर्षकों को पूरा करें और सुधारें",
   "align.helpTitle": "संशोधन सहायक",
   "transcribe.ffmpegDownload": "FFmpeg डाउनलोड करें",
-  "sync.wizard.skip": "Skip",
+  "sync.wizard.skip": "छोड़ें",
   "sync.autoSync": "ऑटो-सिंक",
   "sync.autoSyncInProgress": "ऑटो-सिंक जारी है...",
   "sync.autoSyncRequires": "SRT और मीडिया फ़ाइल आवश्यक है",
@@ -34,5 +34,16 @@
   "sync.confidenceHelp": "मिलان गुणवत्ता (0-100%)",
   "sync.autoSyncResult.cancelled": "ऑটো-सिंक रद्द कर दिया गया",
   "sync.autoSyncResult.success": "{{count}} खंडوں के लिए सफलतापूर्वक सिंक किया गया",
-  "sync.autoSyncResult.noMatches": "कोई मिलान नहीं मिला"
+  "sync.autoSyncResult.noMatches": "कोई मिलान नहीं मिला",
+  "nav.notifications": "सूचनाएँ",
+  "nav.notifications.desc": "कोई अपडेट नहीं",
+  "nav.notifications.update": "अपडेट उपलब्ध है",
+  "notifications.title": "सूचनाएँ",
+  "notifications.checking": "अपडेट जाँचे जा रहे हैं...",
+  "notifications.none": "कोई सूचना नहीं",
+  "notifications.offline": "इंटरनेट कनेक्शन नहीं है या GitHub उपलब्ध नहीं है।",
+  "notifications.updateAvailable": "Vesta {{version}} उपलब्ध है",
+  "notifications.updateDesc": "मौजूदा संस्करण: {{current}}. नवीनतम रिलीज़: {{latest}}.",
+  "notifications.openReleases": "रिलीज़ खोलें",
+  "notifications.lastChecked": "अंतिम जाँच"
 }

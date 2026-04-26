@@ -13,8 +13,8 @@
   "nav.revision.desc": "Complete e corrija a tradução das legendas",
   "align.helpTitle": "Assistente de revisão",
   "transcribe.ffmpegDownload": "Baixar FFmpeg",
-  "sync.wizard.skip": "Skip",
-  "sync.autoSync": "Auto-Sync",
+  "sync.wizard.skip": "Pular",
+  "sync.autoSync": "Sincronização automática",
   "sync.autoSyncInProgress": "Auto-Sync em andamento...",
   "sync.autoSyncRequires": "Requer SRT e Mídia",
   "sync.autoSyncCancelling": "Cancelando...",
@@ -34,5 +34,16 @@
   "sync.confidenceHelp": "Qualidade da correspondência (0-100%)",
   "sync.autoSyncResult.cancelled": "Sincronização automática cancelada",
   "sync.autoSyncResult.success": "Sincronizado com sucesso para {{count}} segmentos",
-  "sync.autoSyncResult.noMatches": "Nenhum resultado encontrado"
+  "sync.autoSyncResult.noMatches": "Nenhum resultado encontrado",
+  "nav.notifications": "Notificações",
+  "nav.notifications.desc": "Sem atualizações",
+  "nav.notifications.update": "Atualização disponível",
+  "notifications.title": "Notificações",
+  "notifications.checking": "Verificando atualizações...",
+  "notifications.none": "Nenhuma notificação",
+  "notifications.offline": "Sem conexão à internet ou GitHub indisponível.",
+  "notifications.updateAvailable": "Vesta {{version}} está disponível",
+  "notifications.updateDesc": "Versão atual: {{current}}. Última versão: {{latest}}.",
+  "notifications.openReleases": "Abrir lançamentos",
+  "notifications.lastChecked": "Última verificação"
 }

@@ -13,8 +13,8 @@
   "nav.revision.desc": "Uzupełniaj i poprawiaj tłumaczenie napisów",
   "align.helpTitle": "Asystent korekty",
   "transcribe.ffmpegDownload": "Pobierz FFmpeg",
-  "sync.wizard.skip": "Skip",
-  "sync.autoSync": "Auto-Sync",
+  "sync.wizard.skip": "Pomiń",
+  "sync.autoSync": "Automatyczna synchronizacja",
   "sync.autoSyncInProgress": "Auto-Sync w toku...",
   "sync.autoSyncRequires": "Wymaga pliku SRT i multimediów",
   "sync.autoSyncCancelling": "Anulowanie...",
@@ -34,5 +34,16 @@
   "sync.confidenceHelp": "Jakość dopasowania (0-100%)",
   "sync.autoSyncResult.cancelled": "Auto-synchronizacja anulowana",
   "sync.autoSyncResult.success": "Pomyślnie zsynchronizowano dla {{count}} segmentów",
-  "sync.autoSyncResult.noMatches": "Nie znaleziono dopasowań"
+  "sync.autoSyncResult.noMatches": "Nie znaleziono dopasowań",
+  "nav.notifications": "Powiadomienia",
+  "nav.notifications.desc": "Brak aktualizacji",
+  "nav.notifications.update": "Dostępna aktualizacja",
+  "notifications.title": "Powiadomienia",
+  "notifications.checking": "Sprawdzanie aktualizacji...",
+  "notifications.none": "Brak powiadomień",
+  "notifications.offline": "Brak połączenia z internetem albo GitHub jest niedostępny.",
+  "notifications.updateAvailable": "Vesta {{version}} jest dostępna",
+  "notifications.updateDesc": "Obecna wersja: {{current}}. Najnowsze wydanie: {{latest}}.",
+  "notifications.openReleases": "Otwórz wydania",
+  "notifications.lastChecked": "Ostatnio sprawdzono"
 }

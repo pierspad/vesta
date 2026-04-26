@@ -40,13 +40,13 @@
   "flashcards.trailing": "अनुगामी (Trailing)",
   "flashcards.videoCodec": "वीडियो कोडेक",
   "flashcards.videoField": "5. वीडियो",
-  "provider.anthropic": "Anthropic Claude",
+  "provider.anthropic": "Anthropic का Claude",
   "provider.anthropic.desc": "Claude 3.5, Claude 3 (जल्द आ रहा है)",
-  "provider.google": "Google API",
+  "provider.google": "Google API सेवा",
   "provider.custom": "कस्टम प्रदाता",
   "provider.google.desc": "Google API नेटिव API (AIza... की आवश्यकता)",
   "provider.local.desc": "Ollama, LM Studio, स्थानीय मॉडल",
-  "provider.openai": "OpenAI GPT",
+  "provider.openai": "OpenAI GPT मॉडल",
   "provider.openai.desc": "GPT-4, GPT-4o, GPT-3.5 (जल्द आ रहा है)",
   "settings.errorEndpointRequired": "स्थानीय सर्वर के लिए API एंडपॉइंट आवश्यक है"
 }

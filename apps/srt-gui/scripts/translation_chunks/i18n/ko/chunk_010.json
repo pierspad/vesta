@@ -36,17 +36,17 @@
   "flashcards.trailing": "이후 줄 (Trailing)",
   "flashcards.videoCodec": "비디오 코덱",
   "flashcards.videoField": "5. 비디오",
-  "provider.anthropic": "Anthropic Claude",
+  "provider.anthropic": "Anthropic Claude 모델",
   "provider.anthropic.desc": "Claude 3.5, Claude 3 (출시 예정)",
-  "provider.google": "Google API",
+  "provider.google": "Google API 서비스",
   "provider.custom": "사용자 정의 제공자",
   "provider.google.desc": "Google API 네이티브 API (AIza... 키 필요)",
-  "provider.local.desc": "Ollama, LM Studio, local models",
-  "provider.openai": "OpenAI GPT",
+  "provider.local.desc": "Ollama, LM Studio, 로컬 모델",
+  "provider.openai": "OpenAI GPT 모델",
   "provider.openai.desc": "GPT-4, GPT-4o, GPT-3.5 (출시 예정)",
   "settings.errorEndpointRequired": "로컬 서버의 경우 API 엔드포인트가 필요합니다",
   "settings.errorInvalidGoogleKey": "Google API 키는 'AIza...'로 시작해야 합니다",
   "settings.modal.apiKeyHintGoogle": "여기에서 API 키를 받으세요:",
   "settings.modal.modelOptionalHint": "선택 사항. 번역 탭에서 모델을 선택할 수 있습니다. 이것은 기본값일 뿐입니다.",
-  "settings.modal.providerAnthropic": "Anthropic Claude"
+  "settings.modal.providerAnthropic": "Anthropic Claude 모델"
 }

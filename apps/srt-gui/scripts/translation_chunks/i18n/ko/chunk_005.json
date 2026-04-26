@@ -32,7 +32,7 @@
   "sync.completed": "완료",
   "sync.loading": "로딩 중...",
   "sync.resetSync": "동기화 초기화",
-  "sync.keySpace": "Space",
+  "sync.keySpace": "스페이스바",
   "sync.playPause": "재생/일시정지",
   "sync.seek": "탐색 ±0.1초",
   "sync.offsetAdjust": "오프셋 ±100ms",

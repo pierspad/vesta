@@ -24,7 +24,7 @@
   "settings.languageDesc": "Uygulama dilini seçin",
   "settings.toggleVisibility": "API Anahtarını Göster/Gizle",
   "settings.hasSpecialChars": "Uyarı: Anahtar boşluk veya özel karakterler içeriyor",
-  "settings.model": "Model",
+  "settings.model": "Model seçimi",
   "settings.confirmDelete": "Sil",
   "provider.local": "Yerel LLM",
   "provider.openrouter": "OpenRouter",
@@ -45,7 +45,7 @@
   "translate.options": "Çeviri Seçenekleri",
   "translate.provider": "Sağlayıcı",
   "translate.apiKey": "API Anahtarı",
-  "translate.model": "Model",
+  "translate.model": "Model seçimi",
   "translate.targetLang": "Hedef Dil",
   "translate.batchSize": "Grup Boyutu",
   "translate.batchSizeTooltip": "API isteği başına altyazı sayısı. Daha yüksek değerler = daha az çağrı ama daha fazla token."

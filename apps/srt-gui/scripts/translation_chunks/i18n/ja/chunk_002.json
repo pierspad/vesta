@@ -17,7 +17,7 @@
   "settings.default": "デフォルト",
   "settings.setAsDefault": "デフォルトに設定",
   "settings.delete": "削除",
-  "settings.ctx": "ctx",
+  "settings.ctx": "コンテキスト",
   "settings.modal.newKey": "新しいAPIキー",
   "settings.modal.keyName": "名前 (識別子)",
   "settings.modal.keyNamePlaceholder": "例:個人用Google API",

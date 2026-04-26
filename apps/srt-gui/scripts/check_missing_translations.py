@@ -24,6 +24,10 @@ from typing import Any
 
 
 LOCALE_FILE_RE = re.compile(r"^[a-z]{2}\.json$", re.IGNORECASE)
+SAME_AS_ENGLISH_ALLOWED_KEYS = {
+    "app.title",
+    "provider.openrouter",
+}
 
 
 @dataclass
@@ -103,7 +107,7 @@ def audit_single_dir(
                 value_text = normalize_text(data.get(key))
                 if value_text == "":
                     reason = "empty_value"
-                elif value_text == en_text:
+                elif value_text == en_text and key not in SAME_AS_ENGLISH_ALLOWED_KEYS:
                     reason = "same_as_english"
 
             if reason is not None:

@@ -9,28 +9,109 @@
     locale,
     setLanguage,
   } from "./i18n";
+  import SearchableSelect from "./SearchableSelect.svelte";
+  import {
+    fetchModelsFromEndpoint,
+    type DiscoveredModel,
+  } from "./modelDiscovery";
   import {
     CARD_TEMPLATES_UPDATED_EVENT,
     FIELD_NAMES_UPDATED_EVENT,
+    defaultCardTemplates,
+    defaultFieldNames,
     getModelsForProvider,
+    languages,
     limitNoteTypeFieldValue,
     loadAndValidateApiKeys,
     loadCardTemplates,
     loadFieldNames,
     providers,
     resetCardTemplates,
-    resetFieldNames,
     saveCardTemplates,
     saveFieldNames,
     type ApiKeyConfig,
+    type FieldNamesConfig,
     type ModelInfo
   } from "./models";
 
-  const allProviderIds = ["local", "custom", "google", "groq"];
+  const allProviderIds = ["local", "google", "groq", "custom"];
+  const apiKeyProviderIds = ["google", "groq", "custom"];
+  type EndpointStatus = "idle" | "checking" | "online" | "offline";
+  type SettingsSection = "overview" | "llm" | "whisper" | "language" | "anki";
+  type TemplateCodeTab = "front" | "back" | "css";
+  let { requestedSection = "overview" }: { requestedSection?: SettingsSection } = $props();
 
+  const DEFAULT_LLM_PROVIDER_KEY = "vesta-default-llm-provider";
+  const DEFAULT_LLM_MODEL_KEY = "vesta-default-llm-model";
+  const DEFAULT_LLM_CUSTOM_PROVIDER_KEY = "vesta-default-llm-custom-provider";
+  const LOCAL_SERVER_URL_KEY = "vesta-local-server-url";
+  const DEFAULT_LOCAL_URL = "http://localhost:11434/v1";
+  const DEFAULT_TARGET_LANGUAGE_KEY = "vesta-default-target-language";
+  const DEFAULT_TRANSCRIBE_LANGUAGE_KEY = "vesta-default-transcribe-language";
+  const DEFAULT_FLASHCARDS_LANGUAGE_KEY = "vesta-default-flashcards-language";
+  const ANKI_FIELD_PRESETS_KEY = "vesta-anki-field-presets";
+  const ACTIVE_ANKI_FIELD_PRESET_KEY = "vesta-active-anki-field-preset";
+
+  type AnkiFieldKey = keyof FieldNamesConfig;
+  type AnkiFieldPreset = {
+    id: string;
+    name: string;
+    noteTypeName: string;
+    fields: FieldNamesConfig;
+  };
+
+  const ankiFieldDefinitions: {
+    key: AnkiFieldKey;
+    label: string;
+    placeholder: string;
+    variable: string;
+    colorClass: string;
+  }[] = [
+    { key: "expression", label: "Expression", placeholder: "Expression", variable: "{{Expression}}", colorClass: "border-sky-400/30 bg-sky-400/10 text-sky-200 hover:bg-sky-400/15" },
+    { key: "meaning", label: "Meaning", placeholder: "Meaning", variable: "{{Meaning}}", colorClass: "border-emerald-400/30 bg-emerald-400/10 text-emerald-200 hover:bg-emerald-400/15" },
+    { key: "reading", label: "Reading", placeholder: "Reading", variable: "{{Reading}}", colorClass: "border-violet-400/30 bg-violet-400/10 text-violet-200 hover:bg-violet-400/15" },
+    { key: "audio", label: "Audio", placeholder: "Audio", variable: "{{Audio}}", colorClass: "border-rose-400/30 bg-rose-400/10 text-rose-200 hover:bg-rose-400/15" },
+    { key: "snapshot", label: "Snapshot", placeholder: "Snapshot", variable: "{{Snapshot}}", colorClass: "border-amber-400/30 bg-amber-400/10 text-amber-200 hover:bg-amber-400/15" },
+    { key: "video", label: "Video", placeholder: "Video", variable: "{{Video}}", colorClass: "border-orange-400/30 bg-orange-400/10 text-orange-200 hover:bg-orange-400/15" },
+    { key: "tags", label: "Tags", placeholder: "Tags", variable: "{{Tags}}", colorClass: "border-lime-400/30 bg-lime-400/10 text-lime-200 hover:bg-lime-400/15" },
+    {
+      key: "sequenceMarker",
+      label: "Sequence Marker",
+      placeholder: "SequenceMarker",
+      variable: "{{SequenceMarker}}",
+      colorClass: "border-cyan-400/30 bg-cyan-400/10 text-cyan-200 hover:bg-cyan-400/15",
+    },
+    { key: "notes", label: "Notes", placeholder: "Notes", variable: "{{Notes}}", colorClass: "border-fuchsia-400/30 bg-fuchsia-400/10 text-fuchsia-200 hover:bg-fuchsia-400/15" },
+  ];
+
+  function loadStoredValue(key: string, fallback = ""): string {
+    try {
+      return localStorage.getItem(key) || fallback;
+    } catch {
+      return fallback;
+    }
+  }
+
+  let t = $derived($locale);
   let apiKeys = $state<ApiKeyConfig[]>([]);
   let selectedProviderType = $state<string>("google"); // "local", "google", or "custom"
   let selectedFamily = $state<string | null>(null);
+  let activeSettingsSection = $state<SettingsSection>("overview");
+  let lastRequestedSection = $state<SettingsSection>("overview");
+  let defaultLlmProvider = $state(loadStoredValue(DEFAULT_LLM_PROVIDER_KEY, "local"));
+  let defaultLlmModel = $state(loadStoredValue(DEFAULT_LLM_MODEL_KEY, ""));
+  let defaultLlmCustomProviderId = $state(loadStoredValue(DEFAULT_LLM_CUSTOM_PROVIDER_KEY, ""));
+  let defaultLocalServerUrl = $state(loadStoredValue(LOCAL_SERVER_URL_KEY, DEFAULT_LOCAL_URL));
+  let defaultTargetLanguage = $state(loadStoredValue(DEFAULT_TARGET_LANGUAGE_KEY, "it"));
+  let defaultTranscribeLanguage = $state(loadStoredValue(DEFAULT_TRANSCRIBE_LANGUAGE_KEY, "auto"));
+  let defaultFlashcardsLanguage = $state(loadStoredValue(DEFAULT_FLASHCARDS_LANGUAGE_KEY, "it"));
+  let discoveredDefaultModels = $state<DiscoveredModel[]>([]);
+  let isCheckingDefaultEndpoint = $state(false);
+  let defaultEndpointStatus = $state<EndpointStatus>("idle");
+  let defaultEndpointMessage = $state("");
+  let endpointCheckRequestId = 0;
+  let localProviderStatus = $state<EndpointStatus>("idle");
+  let localProviderCheckRequestId = 0;
 
   let showAddKey = $state(false);
   let showAddModel = $state(false);
@@ -52,13 +133,480 @@
     }, 3500);
   }
 
-  let t = $derived($locale);
+  const settingsCopy = {
+    en: {
+      macroArea: "Macro area",
+      overviewKicker: "Settings",
+      overviewTitle: "Organized preferences",
+      overviewDesc: "Choose a section and edit only the options for that area.",
+      llmTitle: "LLM, provider and API key",
+      llmDesc: "Choose the engine used for translation and manage credentials.",
+      whisperTitle: "Whisper",
+      whisperDesc: "Download a local model: without it the Transcribe tab stays disabled.",
+      languageTitle: "Languages",
+      languageDesc: "Set interface language and defaults used by workflow tabs.",
+      ankiTitle: "Anki Templates",
+      ankiDesc: "Control the exported flashcard look, fields and note type.",
+      overviewLlmDesc: "Provider, default model, endpoint and key rotation.",
+      overviewWhisperDesc: "Local transcription model, downloads and default.",
+      overviewLanguageDesc: "Interface language and default workflow languages.",
+      overviewAnkiDesc: "HTML, CSS, fields and note type for flashcards.",
+      statusTitle: "Preference status",
+      apiKeysSaved: "Saved API keys",
+      translationLanguage: "Translation language",
+      quickSetup: "Quick setup",
+      quickSetupTitle: "Complete only what is missing",
+      actionRequired: "Action required",
+      transcription: "Transcription",
+      translation: "Translation",
+      configure: "To configure",
+      llmMissing: "LLM missing",
+      providerCheck: "Check provider",
+      setupWhisperDesc: "Download at least one Whisper model to enable the Transcribe tab.",
+      setupLlmDesc: "Set the provider, key or default model to unlock the Translation tab.",
+      interfaceLanguageDesc: "Choose the interface language.",
+      defaultLanguages: "Default languages",
+      defaultLanguagesDesc: "Used when Translation, Flashcards and Transcription open. Tabs still remember the last choice.",
+      addProviderKicker: "New configuration",
+      addProviderTitle: "Add an LLM provider",
+      addProviderDesc: "Save API keys or OpenAI-compatible endpoints for translation and remote models.",
+      addProviderButton: "Add configuration",
+      fieldPanelKicker: "Fields and note type",
+      fieldPanelTitle: "Anki export field preset",
+      fieldPanelDesc: "Choose a preset, edit names and save it as a reusable template.",
+      savedTemplate: "Saved template",
+      templateName: "Template name",
+      cardPanelKicker: "Card template",
+      cardPanelTitle: "Edit Anki template files",
+      cardPanelDesc: "Choose Front HTML, Back HTML or Style CSS to change the file open in the editor.",
+      clickToCopy: "Click to copy.",
+    },
+    it: {
+      macroArea: "Macro area",
+      overviewKicker: "Settings",
+      overviewTitle: "Preferenze organizzate",
+      overviewDesc: "Scegli una sezione e modifica solo le opzioni relative a quell'area.",
+      llmTitle: "LLM, provider e API key",
+      llmDesc: "Scegli il motore che usera la traduzione e gestisci le credenziali.",
+      whisperTitle: "Whisper",
+      whisperDesc: "Scarica un modello locale: senza questo la tab Trascrizione resta disabilitata.",
+      languageTitle: "Lingue",
+      languageDesc: "Imposta lingua interfaccia e default usati dalle tab operative.",
+      ankiTitle: "Template Anki",
+      ankiDesc: "Controlla aspetto, campi e note type delle flashcard esportate.",
+      overviewLlmDesc: "Provider, modello predefinito, endpoint e rotazione chiavi.",
+      overviewWhisperDesc: "Modello locale di trascrizione, download e default.",
+      overviewLanguageDesc: "Lingua interfaccia e lingue predefinite di lavoro.",
+      overviewAnkiDesc: "HTML, CSS, campi e note type delle flashcard.",
+      statusTitle: "Stato preferenze",
+      apiKeysSaved: "API key salvate",
+      translationLanguage: "Lingua traduzione",
+      quickSetup: "Setup rapido",
+      quickSetupTitle: "Completa solo quello che manca",
+      actionRequired: "Azione richiesta",
+      transcription: "Trascrizione",
+      translation: "Traduzione",
+      configure: "Da configurare",
+      llmMissing: "LLM mancante",
+      providerCheck: "Provider da verificare",
+      setupWhisperDesc: "Scarica almeno un modello Whisper per abilitare la tab Trascrizione.",
+      setupLlmDesc: "Imposta provider, chiave o modello predefinito per sbloccare la tab Traduzione.",
+      interfaceLanguageDesc: "Scegli la lingua dell'interfaccia.",
+      defaultLanguages: "Lingue predefinite",
+      defaultLanguagesDesc: "Usate all'apertura di traduzione, flashcards e trascrizione. Le tab ricordano comunque l'ultima scelta.",
+      addProviderKicker: "Nuova configurazione",
+      addProviderTitle: "Aggiungi un provider LLM",
+      addProviderDesc: "Salva API key o endpoint compatibili OpenAI per traduzione e modelli remoti.",
+      addProviderButton: "Aggiungi configurazione",
+      fieldPanelKicker: "Campi e tipo nota",
+      fieldPanelTitle: "Preset campi esportazione Anki",
+      fieldPanelDesc: "Scegli un preset, modifica i nomi e salvalo come template riutilizzabile.",
+      savedTemplate: "Template salvato",
+      templateName: "Nome template",
+      cardPanelKicker: "Template card",
+      cardPanelTitle: "Modifica i file del template Anki",
+      cardPanelDesc: "Scegli Front HTML, Back HTML o Style CSS per cambiare il file aperto nell'editor.",
+      clickToCopy: "Clicca per copiare.",
+    },
+    zh: {
+      macroArea: "宏区域",
+      overviewKicker: "设置",
+      overviewTitle: "已整理的偏好设置",
+      overviewDesc: "选择一个区域，只编辑该区域相关的选项。",
+      llmTitle: "LLM、提供商和 API key",
+      llmDesc: "选择翻译使用的引擎并管理凭据。",
+      whisperTitle: "Whisper",
+      whisperDesc: "下载本地模型；没有它，转录标签页会保持禁用。",
+      languageTitle: "语言",
+      languageDesc: "设置界面语言以及各工作标签页的默认语言。",
+      ankiTitle: "Anki 模板",
+      ankiDesc: "控制导出闪卡的外观、字段和 note type。",
+      overviewLlmDesc: "提供商、默认模型、端点和 key 轮换。",
+      overviewWhisperDesc: "本地转录模型、下载和默认设置。",
+      overviewLanguageDesc: "界面语言和工作默认语言。",
+      overviewAnkiDesc: "闪卡的 HTML、CSS、字段和 note type。",
+      statusTitle: "偏好状态",
+      apiKeysSaved: "已保存的 API key",
+      translationLanguage: "翻译语言",
+      quickSetup: "快速设置",
+      quickSetupTitle: "只补全缺少的项目",
+      actionRequired: "需要操作",
+      transcription: "转录",
+      translation: "翻译",
+      configure: "待配置",
+      llmMissing: "缺少 LLM",
+      providerCheck: "需要检查提供商",
+      setupWhisperDesc: "下载至少一个 Whisper 模型以启用转录标签页。",
+      setupLlmDesc: "设置提供商、key 或默认模型以解锁翻译标签页。",
+      interfaceLanguageDesc: "选择界面语言。",
+      defaultLanguages: "默认语言",
+      defaultLanguagesDesc: "用于打开翻译、闪卡和转录标签页。各标签页仍会记住上一次选择。",
+      addProviderKicker: "新配置",
+      addProviderTitle: "添加 LLM 提供商",
+      addProviderDesc: "保存 API key 或 OpenAI 兼容端点，用于翻译和远程模型。",
+      addProviderButton: "添加配置",
+      fieldPanelKicker: "字段和 note type",
+      fieldPanelTitle: "Anki 导出字段预设",
+      fieldPanelDesc: "选择预设、编辑名称，并保存为可复用模板。",
+      savedTemplate: "已保存模板",
+      templateName: "模板名称",
+      cardPanelKicker: "卡片模板",
+      cardPanelTitle: "编辑 Anki 模板文件",
+      cardPanelDesc: "选择 Front HTML、Back HTML 或 Style CSS 来切换编辑器中的文件。",
+      clickToCopy: "点击复制。",
+    },
+  } as const;
+
+  let activeUiLanguage = $derived($currentLanguage);
+  function s(key: keyof typeof settingsCopy.en): string {
+    return settingsCopy[activeUiLanguage as keyof typeof settingsCopy]?.[key] || settingsCopy.en[key];
+  }
+  let defaultProviderKeys = $derived(apiKeys.filter((k) => k.apiType === defaultLlmProvider));
+  let savedCustomProviders = $derived(
+    apiKeys.filter((k) => k.apiType === "custom" && k.apiUrl && k.apiUrl.trim().length > 0),
+  );
+  let selectedDefaultCustomProvider = $derived(
+    savedCustomProviders.find((key) => key.id === defaultLlmCustomProviderId),
+  );
+  let activeDefaultEndpointUrl = $derived.by(() => {
+    if (defaultLlmProvider === "local") return defaultLocalServerUrl;
+    if (defaultLlmProvider === "custom") return selectedDefaultCustomProvider?.apiUrl || "";
+    return "";
+  });
+  let activeDefaultEndpointApiKey = $derived(
+    defaultLlmProvider === "custom" ? selectedDefaultCustomProvider?.apiKey || "" : "",
+  );
+  let defaultProviderModels = $derived.by<ModelInfo[]>(() => {
+    if (defaultLlmProvider === "local" || defaultLlmProvider === "custom") {
+      return discoveredDefaultModels.map((model) => ({
+        id: model.id,
+        name: model.name,
+        provider: defaultLlmProvider,
+        family: "Endpoint",
+      }));
+    }
+    return getModelsForProvider(defaultLlmProvider);
+  });
+  let defaultWorkflowLanguageOptions = $derived(
+    languages.map((lang) => ({
+      value: lang.code,
+      label: lang.nameEn === lang.name ? lang.name : `${lang.nameEn} — ${lang.name}`,
+      icon: lang.flag,
+      searchTerms: `${lang.nameEn} ${lang.name}`,
+    })),
+  );
+  let configuredApiKeyCount = $derived(apiKeys.filter((key) => key.apiType !== "local").length);
+  let hasRemoteApiKey = $derived(configuredApiKeyCount > 0);
+  let isDefaultLlmReady = $derived.by(() => {
+    if (!defaultLlmModel) return false;
+    if (defaultLlmProvider === "local") return defaultEndpointStatus !== "offline";
+    if (defaultLlmProvider === "custom") return savedCustomProviders.length > 0;
+    return defaultProviderKeys.length > 0;
+  });
+  type ProviderStatus = "available" | "checking" | "offline" | "requiresKey";
+
+  function getProviderStatus(providerId: string): ProviderStatus {
+    if (providerId === "local") {
+      if (localProviderStatus === "online") return "available";
+      if (localProviderStatus === "checking") return "checking";
+      return "offline";
+    }
+    if (providerId === "custom") {
+      return savedCustomProviders.length > 0 ? "available" : "requiresKey";
+    }
+    return apiKeys.some((key) => key.apiType === providerId) ? "available" : "requiresKey";
+  }
+
+  function getProviderStatusClasses(providerId: string) {
+    const status = getProviderStatus(providerId);
+    if (status === "available") {
+      return "border-indigo-500/30 bg-indigo-500/10 text-indigo-100";
+    }
+    if (status === "checking") {
+      return "border-cyan-500/25 bg-cyan-500/10 text-cyan-200";
+    }
+    if (status === "offline") {
+      return "border-red-500/25 bg-red-500/10 text-red-200";
+    }
+    return "border-white/10 bg-white/5 text-gray-500";
+  }
+
+  function getProviderStatusText(providerId: string): string {
+    return t(`settings.providerStatus.${getProviderStatus(providerId)}`);
+  }
+
+  function getEndpointStatusText(status: EndpointStatus): string {
+    if (status === "checking") return t("settings.endpointStatus.checking");
+    if (status === "online") return t("settings.endpointStatus.online");
+    if (status === "offline") return t("settings.endpointStatus.offline");
+    return t("settings.endpointStatus.idle");
+  }
+  let activeSectionMeta = $derived.by(() => {
+    if (activeSettingsSection === "llm") {
+      return {
+        label: s("macroArea"),
+        title: s("llmTitle"),
+        desc: s("llmDesc"),
+        accent: "text-indigo-300",
+        iconPath: "M9 3h6m-7 4h8a3 3 0 013 3v7a3 3 0 01-3 3H8a3 3 0 01-3-3v-7a3 3 0 013-3zm4 3v4m-2-2h4",
+      };
+    }
+    if (activeSettingsSection === "whisper") {
+      return {
+        label: s("macroArea"),
+        title: s("whisperTitle"),
+        desc: s("whisperDesc"),
+        accent: "text-cyan-300",
+        iconPath: "M12 18a6 6 0 006-6V7a6 6 0 10-12 0v5a6 6 0 006 6zm0 0v3m-4 0h8",
+      };
+    }
+    if (activeSettingsSection === "language") {
+      return {
+        label: s("macroArea"),
+        title: s("languageTitle"),
+        desc: s("languageDesc"),
+        accent: "text-emerald-300",
+        iconPath: "M3 5h12M9 3v2m1 9a18 18 0 01-4-5m7 12l5-10 5 10m-9-4h8",
+      };
+    }
+    return {
+      label: s("macroArea"),
+      title: s("ankiTitle"),
+      desc: s("ankiDesc"),
+      accent: "text-amber-300",
+      iconPath: "M4 5a1 1 0 011-1h14a1 1 0 011 1v4H4V5zm0 8h8v7H5a1 1 0 01-1-1v-6zm12 0h4v6a1 1 0 01-1 1h-3v-7z",
+    };
+  });
+
+  function openSettingsSection(section: SettingsSection) {
+    activeSettingsSection = section;
+  }
+
+  function handleOpenSettingsSectionEvent(event: Event) {
+    const section = (event as CustomEvent<SettingsSection>).detail;
+    if (section) openSettingsSection(section);
+  }
+
+  $effect(() => {
+    if (requestedSection && requestedSection !== lastRequestedSection) {
+      activeSettingsSection = requestedSection;
+      lastRequestedSection = requestedSection;
+    }
+  });
+
+  function persistDefaultLlmSettings() {
+    localStorage.setItem(DEFAULT_LLM_PROVIDER_KEY, defaultLlmProvider);
+    localStorage.setItem(DEFAULT_LLM_MODEL_KEY, defaultLlmModel);
+    localStorage.setItem(DEFAULT_LLM_CUSTOM_PROVIDER_KEY, defaultLlmCustomProviderId);
+    localStorage.setItem(LOCAL_SERVER_URL_KEY, defaultLocalServerUrl);
+    window.dispatchEvent(new CustomEvent("vesta-llm-default-updated"));
+  }
+
+  function hasDefaultProviderAccess(providerId: string) {
+    if (providerId === "local") return true;
+    if (providerId === "custom") return savedCustomProviders.length > 0;
+    return apiKeys.some((key) => key.apiType === providerId);
+  }
+
+  function setDefaultLlmProvider(providerId: string) {
+    if (!hasDefaultProviderAccess(providerId)) {
+      selectedProviderType = providerId;
+      openAddKeyModal(providerId);
+      return;
+    }
+    defaultLlmProvider = providerId;
+    selectedProviderType = providerId;
+    if (providerId !== "custom") {
+      defaultLlmCustomProviderId = "";
+    } else if (!defaultLlmCustomProviderId && savedCustomProviders.length > 0) {
+      defaultLlmCustomProviderId = savedCustomProviders[0].id;
+    }
+    const models = getModelsForProvider(providerId);
+    if (providerId !== "local" && providerId !== "custom" && models.length > 0 && !models.some((model) => model.id === defaultLlmModel)) {
+      defaultLlmModel = models.find((model) => model.recommended)?.id || models[0].id;
+    } else if (providerId === "local" || providerId === "custom") {
+      defaultLlmModel = "";
+    }
+    persistDefaultLlmSettings();
+  }
+
+  async function refreshDefaultEndpointModels() {
+    const provider = defaultLlmProvider;
+    const endpointUrl = activeDefaultEndpointUrl.trim();
+    const endpointApiKey = activeDefaultEndpointApiKey;
+    const requestId = ++endpointCheckRequestId;
+
+    if (provider !== "local" && provider !== "custom") {
+      defaultEndpointStatus = "idle";
+      defaultEndpointMessage = t("settings.endpointStatus.idle");
+      discoveredDefaultModels = [];
+      return;
+    }
+
+    if (!endpointUrl) {
+      defaultEndpointStatus = "offline";
+      defaultEndpointMessage = t("settings.endpointStatus.offline");
+      discoveredDefaultModels = [];
+      return;
+    }
+
+    if (defaultEndpointStatus === "idle") {
+      defaultEndpointStatus = "checking";
+      defaultEndpointMessage = t("settings.endpointStatus.checking");
+    }
+    isCheckingDefaultEndpoint = true;
+
+    try {
+      const models = await fetchModelsFromEndpoint(endpointUrl, endpointApiKey, 6500);
+      if (requestId !== endpointCheckRequestId) return;
+      discoveredDefaultModels = models;
+      defaultEndpointStatus = "online";
+      defaultEndpointMessage = t("settings.modelsAvailable", { count: models.length });
+      if (!defaultLlmModel || !models.some((model) => model.id === defaultLlmModel)) {
+        defaultLlmModel = models[0]?.id || "";
+        persistDefaultLlmSettings();
+      }
+    } catch (error) {
+      if (requestId !== endpointCheckRequestId) return;
+      discoveredDefaultModels = [];
+      defaultEndpointStatus = "offline";
+      defaultEndpointMessage = t("settings.endpointStatus.offline");
+    } finally {
+      if (requestId === endpointCheckRequestId) {
+        isCheckingDefaultEndpoint = false;
+      }
+    }
+  }
+
+  async function refreshLocalProviderStatus() {
+    const endpointUrl = defaultLocalServerUrl.trim();
+    const requestId = ++localProviderCheckRequestId;
+
+    if (!endpointUrl) {
+      localProviderStatus = "offline";
+      return;
+    }
+
+    if (localProviderStatus === "idle") {
+      localProviderStatus = "checking";
+    }
+
+    try {
+      await fetchModelsFromEndpoint(endpointUrl, "", 6500);
+      if (requestId !== localProviderCheckRequestId) return;
+      localProviderStatus = "online";
+    } catch {
+      if (requestId !== localProviderCheckRequestId) return;
+      localProviderStatus = "offline";
+    }
+  }
+
+  $effect(() => {
+    if (!hasDefaultProviderAccess(defaultLlmProvider)) {
+      defaultLlmProvider = "local";
+      defaultLlmCustomProviderId = "";
+      defaultLlmModel = "";
+      persistDefaultLlmSettings();
+    }
+  });
+
+  $effect(() => {
+    if (defaultLlmProvider === "custom" && !defaultLlmCustomProviderId && savedCustomProviders.length > 0) {
+      defaultLlmCustomProviderId = savedCustomProviders[0].id;
+      persistDefaultLlmSettings();
+    }
+  });
+
+  $effect(() => {
+    const provider = defaultLlmProvider;
+    const endpointUrl = activeDefaultEndpointUrl;
+    const endpointApiKey = activeDefaultEndpointApiKey;
+
+    if (provider !== "local" && provider !== "custom") {
+      defaultEndpointStatus = "idle";
+      defaultEndpointMessage = t("settings.endpointStatus.idle");
+      discoveredDefaultModels = [];
+      return;
+    }
+
+    if (provider === "local" && localProviderStatus !== "idle" && localProviderStatus !== "checking") {
+      defaultEndpointStatus = localProviderStatus;
+      defaultEndpointMessage = localProviderStatus === "online" ? t("settings.endpointStatus.online") : t("settings.endpointStatus.offline");
+    }
+
+    const timeout = setTimeout(() => {
+      void refreshDefaultEndpointModels();
+    }, 300);
+    const interval = setInterval(() => {
+      void refreshDefaultEndpointModels();
+    }, 15000);
+
+    return () => {
+      void endpointUrl;
+      void endpointApiKey;
+      clearTimeout(timeout);
+      clearInterval(interval);
+    };
+  });
+
+  $effect(() => {
+    const endpointUrl = defaultLocalServerUrl;
+    const timeout = setTimeout(() => {
+      void refreshLocalProviderStatus();
+    }, 300);
+    const interval = setInterval(() => {
+      void refreshLocalProviderStatus();
+    }, 15000);
+
+    return () => {
+      void endpointUrl;
+      clearTimeout(timeout);
+      clearInterval(interval);
+    };
+  });
+
+  function saveDefaultLanguage(key: string, value: string) {
+    localStorage.setItem(key, value);
+    window.dispatchEvent(new CustomEvent("vesta-language-defaults-updated"));
+  }
+
+  $effect(() => {
+    if (!defaultLlmModel && defaultProviderModels.length > 0) {
+      defaultLlmModel =
+        defaultProviderModels.find((model) => model.recommended)?.id ||
+        defaultProviderModels[0].id;
+      persistDefaultLlmSettings();
+    }
+  });
 
   // Card template editor
-  let showTemplateEditor = $state(false);
-  let showFieldEditor = $state(false);
   let showResetConfirm = $state<"style" | "fields" | null>(null);
-  let helpSection = $state<string | null>(null);
+  let activeTemplateCodeTab = $state<TemplateCodeTab>("front");
+  const templateCodeTabs: { id: TemplateCodeTab; label: string; hint: string }[] = [
+    { id: "front", label: "Front HTML", hint: "Modifica il file front.html di questo template" },
+    { id: "back", label: "Back HTML", hint: "Modifica il file back.html di questo template" },
+    { id: "css", label: "Style CSS", hint: "Modifica il file style.css condiviso da questo template" },
+  ];
   const initTemplates = loadCardTemplates();
   let templateFrontHtml = $state(initTemplates.frontHtml);
   let templateBackHtml = $state(initTemplates.backHtml);
@@ -76,6 +624,23 @@
   let fieldTags = $state(initFieldNames.tags);
   let fieldSequenceMarker = $state(initFieldNames.sequenceMarker);
   let fieldNotes = $state(initFieldNames.notes);
+  const initAnkiFieldPresets = loadAnkiFieldPresets();
+  const initAnkiFieldPresetId = loadStoredValue(ACTIVE_ANKI_FIELD_PRESET_KEY, "default");
+  const initSelectedAnkiFieldPreset = initAnkiFieldPresets.find(
+    (preset) => preset.id === initAnkiFieldPresetId,
+  );
+  let savedAnkiFieldPresets = $state<AnkiFieldPreset[]>(initAnkiFieldPresets);
+  let selectedAnkiFieldPresetId = $state(initSelectedAnkiFieldPreset?.id || "default");
+  let ankiFieldPresetName = $state(initSelectedAnkiFieldPreset?.name || "");
+  let allAnkiFieldPresets = $derived<AnkiFieldPreset[]>([
+    {
+      id: "default",
+      name: "Default Vesta",
+      noteTypeName: defaultCardTemplates.noteTypeName,
+      fields: defaultFieldNames,
+    },
+    ...savedAnkiFieldPresets,
+  ]);
 
   function saveTemplates() {
     saveCardTemplates({
@@ -84,6 +649,148 @@
       css: templateCss,
       noteTypeName: noteTypeName,
     });
+  }
+
+  function getCurrentFieldNames(): FieldNamesConfig {
+    return {
+      expression: fieldExpression,
+      meaning: fieldMeaning,
+      reading: fieldReading,
+      audio: fieldAudio,
+      snapshot: fieldSnapshot,
+      video: fieldVideo,
+      tags: fieldTags,
+      sequenceMarker: fieldSequenceMarker,
+      notes: fieldNotes,
+    };
+  }
+
+  function setCurrentFieldNames(fields: FieldNamesConfig) {
+    fieldExpression = fields.expression;
+    fieldMeaning = fields.meaning;
+    fieldReading = fields.reading;
+    fieldAudio = fields.audio;
+    fieldSnapshot = fields.snapshot;
+    fieldVideo = fields.video;
+    fieldTags = fields.tags;
+    fieldSequenceMarker = fields.sequenceMarker;
+    fieldNotes = fields.notes;
+  }
+
+  function getFieldValue(key: AnkiFieldKey): string {
+    return getCurrentFieldNames()[key];
+  }
+
+  function setFieldValue(key: AnkiFieldKey, value: string) {
+    const fields = getCurrentFieldNames();
+    fields[key] = value;
+    setCurrentFieldNames(fields);
+  }
+
+  function getActiveTemplateCode() {
+    if (activeTemplateCodeTab === "back") return templateBackHtml;
+    if (activeTemplateCodeTab === "css") return templateCss;
+    return templateFrontHtml;
+  }
+
+  function copyActiveTemplateCode() {
+    navigator.clipboard.writeText(getActiveTemplateCode());
+    showSnackbar(t("settings.keyCopied"));
+  }
+
+  function sanitizeAnkiFieldPreset(raw: Partial<AnkiFieldPreset>): AnkiFieldPreset | null {
+    if (!raw.id || !raw.name || !raw.fields) return null;
+    const fields = raw.fields as Partial<FieldNamesConfig>;
+    return {
+      id: raw.id,
+      name: limitNoteTypeFieldValue(raw.name),
+      noteTypeName: limitNoteTypeFieldValue(raw.noteTypeName || defaultCardTemplates.noteTypeName),
+      fields: {
+        expression: limitNoteTypeFieldValue(fields.expression || defaultFieldNames.expression),
+        meaning: limitNoteTypeFieldValue(fields.meaning || defaultFieldNames.meaning),
+        reading: limitNoteTypeFieldValue(fields.reading || defaultFieldNames.reading),
+        audio: limitNoteTypeFieldValue(fields.audio || defaultFieldNames.audio),
+        snapshot: limitNoteTypeFieldValue(fields.snapshot || defaultFieldNames.snapshot),
+        video: limitNoteTypeFieldValue(fields.video || defaultFieldNames.video),
+        tags: limitNoteTypeFieldValue(fields.tags || defaultFieldNames.tags),
+        sequenceMarker: limitNoteTypeFieldValue(fields.sequenceMarker || defaultFieldNames.sequenceMarker),
+        notes: limitNoteTypeFieldValue(fields.notes || defaultFieldNames.notes),
+      },
+    };
+  }
+
+  function loadAnkiFieldPresets(): AnkiFieldPreset[] {
+    try {
+      const raw = localStorage.getItem(ANKI_FIELD_PRESETS_KEY);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return [];
+      return parsed
+        .map((preset) => sanitizeAnkiFieldPreset(preset))
+        .filter((preset): preset is AnkiFieldPreset => Boolean(preset));
+    } catch {
+      return [];
+    }
+  }
+
+  function persistAnkiFieldPresets() {
+    localStorage.setItem(ANKI_FIELD_PRESETS_KEY, JSON.stringify(savedAnkiFieldPresets));
+  }
+
+  function applyAnkiFieldPreset(presetId: string) {
+    const preset = allAnkiFieldPresets.find((item) => item.id === presetId);
+    if (!preset) return;
+    selectedAnkiFieldPresetId = preset.id;
+    ankiFieldPresetName = preset.id === "default" ? "" : preset.name;
+    localStorage.setItem(ACTIVE_ANKI_FIELD_PRESET_KEY, preset.id);
+    noteTypeName = preset.noteTypeName;
+    setCurrentFieldNames(preset.fields);
+    saveTemplates();
+    saveFields();
+  }
+
+  function saveCurrentAnkiFieldPreset() {
+    const existingPreset = savedAnkiFieldPresets.find((preset) => preset.id === selectedAnkiFieldPresetId);
+    const fallbackName = existingPreset?.name || noteTypeName || "Template Anki";
+    const presetName = limitNoteTypeFieldValue((ankiFieldPresetName || fallbackName).trim());
+    const preset: AnkiFieldPreset = {
+      id: existingPreset?.id || `custom-${Date.now().toString(36)}`,
+      name: presetName,
+      noteTypeName: limitNoteTypeFieldValue(noteTypeName || defaultCardTemplates.noteTypeName),
+      fields: getCurrentFieldNames(),
+    };
+
+    if (existingPreset) {
+      savedAnkiFieldPresets = savedAnkiFieldPresets.map((item) =>
+        item.id === existingPreset.id ? preset : item,
+      );
+    } else {
+      savedAnkiFieldPresets = [...savedAnkiFieldPresets, preset];
+    }
+
+    selectedAnkiFieldPresetId = preset.id;
+    ankiFieldPresetName = preset.name;
+    localStorage.setItem(ACTIVE_ANKI_FIELD_PRESET_KEY, preset.id);
+    persistAnkiFieldPresets();
+    showSnackbar("Template campi salvato");
+  }
+
+  function deleteCurrentAnkiFieldPreset() {
+    if (selectedAnkiFieldPresetId === "default") return;
+    savedAnkiFieldPresets = savedAnkiFieldPresets.filter((preset) => preset.id !== selectedAnkiFieldPresetId);
+    persistAnkiFieldPresets();
+    applyAnkiFieldPreset("default");
+    showSnackbar("Template campi eliminato");
+  }
+
+  function resetAnkiFieldsToDefault() {
+    selectedAnkiFieldPresetId = "default";
+    ankiFieldPresetName = "";
+    localStorage.setItem(ACTIVE_ANKI_FIELD_PRESET_KEY, "default");
+    noteTypeName = defaultCardTemplates.noteTypeName;
+    setCurrentFieldNames(defaultFieldNames);
+    saveTemplates();
+    saveFields();
   }
 
   function saveFields() {
@@ -165,8 +872,10 @@
     };
 
     window.addEventListener("keydown", handleKeydown);
+    window.addEventListener("vesta-open-settings-section", handleOpenSettingsSectionEvent);
     return () => {
       window.removeEventListener("keydown", handleKeydown);
+      window.removeEventListener("vesta-open-settings-section", handleOpenSettingsSectionEvent);
       window.removeEventListener(CARD_TEMPLATES_UPDATED_EVENT, syncTemplateStateFromStorage);
       window.removeEventListener(FIELD_NAMES_UPDATED_EVENT, syncFieldStateFromStorage);
       unlistenProgress?.();
@@ -187,6 +896,8 @@
     { id: "medium", name: "Medium", size: "~1.5GB", speed: "~2x", downloaded: false },
     { id: "large", name: "Large", size: "~3GB", speed: "~1x", downloaded: false },
   ]);
+  let downloadedWhisperCount = $derived(whisperModels.filter((model) => model.downloaded).length);
+  let needsQuickSetup = $derived(downloadedWhisperCount === 0 || !isDefaultLlmReady);
 
   let isDownloading = $state(false);
   let isCancellingDownload = $state(false);
@@ -303,17 +1014,29 @@
   let contextMenu = $state<{
     x: number;
     y: number;
-    modelId: string;
-    downloaded: boolean;
+    kind: "model" | "panel";
+    modelId?: string;
+    downloaded?: boolean;
   } | null>(null);
 
   function openContextMenu(e: MouseEvent, model: { id: string; downloaded: boolean }) {
     e.preventDefault();
+    e.stopPropagation();
     contextMenu = {
       x: e.clientX,
       y: e.clientY,
+      kind: "model",
       modelId: model.id,
       downloaded: model.downloaded,
+    };
+  }
+
+  function openWhisperPanelContextMenu(e: MouseEvent) {
+    e.preventDefault();
+    contextMenu = {
+      x: e.clientX,
+      y: e.clientY,
+      kind: "panel",
     };
   }
 
@@ -368,13 +1091,16 @@
 
   function openAddKeyModal(providerId?: string) {
     editKeyId = null;
-    if (providerId) {
-      newKeyType = providerId as ApiKeyConfig["apiType"];
-      newKeyName = providers[providerId]?.name || "";
+    const normalizedProviderId =
+      providerId && apiKeyProviderIds.includes(providerId) ? providerId : "google";
+    if (normalizedProviderId) {
+      newKeyType = normalizedProviderId as ApiKeyConfig["apiType"];
+      newKeyName = providers[normalizedProviderId]?.name || "";
     }
     newKeyValue = "";
     newKeyUrl =
       newKeyType === "local" ? providers.local.defaultApiUrl || "" : "";
+    if (newKeyType === "custom") newKeyName = "";
     showAddKey = true;
   }
 
@@ -456,6 +1182,9 @@
           : k,
       );
       saveApiKeys();
+      if (newKeyType === "custom" && defaultLlmCustomProviderId === editKeyId) {
+        void refreshDefaultEndpointModels();
+      }
       showSnackbar(t("settings.keyUpdated"));
     } else {
       // Add new key
@@ -469,6 +1198,14 @@
       };
       apiKeys = [...apiKeys, newKey];
       saveApiKeys();
+      if (newKey.apiType !== "local") {
+        defaultLlmProvider = newKey.apiType;
+        selectedProviderType = newKey.apiType;
+        defaultLlmCustomProviderId = newKey.apiType === "custom" ? newKey.id : "";
+        const models = getModelsForProvider(newKey.apiType);
+        defaultLlmModel = models.find((model) => model.recommended)?.id || models[0]?.id || "";
+        persistDefaultLlmSettings();
+      }
       showSnackbar(t("settings.keyAdded"));
     }
 
@@ -590,33 +1327,277 @@
 </script>
 
 <div
-  class="h-full flex flex-col p-6 overflow-hidden bg-gradient-to-br from-gray-900 via-gray-900 to-gray-950"
+  class="h-full flex flex-col p-6 overflow-y-auto bg-gradient-to-br from-gray-900 via-gray-900 to-gray-950"
 >
+  {#if activeSettingsSection !== "overview"}
+    <div class="mb-5 flex items-center justify-between gap-4">
+      <button
+        type="button"
+        onclick={() => openSettingsSection("overview")}
+        class="py-2.5 px-4 rounded-xl bg-slate-800/90 border border-cyan-500/30 text-cyan-100 hover:bg-cyan-500/15 hover:border-cyan-400/60 hover:text-white transition-all flex items-center gap-2 text-sm font-semibold shadow-lg shadow-cyan-950/20"
+        title="Torna alla panoramica Settings"
+      >
+        <span class="w-7 h-7 rounded-lg bg-cyan-500/15 border border-cyan-400/20 flex items-center justify-center">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+          </svg>
+        </span>
+        {t("nav.settings")}
+      </button>
+      <div class="flex items-center gap-3 text-right">
+        <div>
+          <p class="text-xs uppercase tracking-wide text-gray-500">{activeSectionMeta.label}</p>
+          <h2 class="text-lg font-semibold text-white">{activeSectionMeta.title}</h2>
+          <p class="text-xs text-gray-500 mt-0.5 max-w-xl">{activeSectionMeta.desc}</p>
+        </div>
+        <div class="w-11 h-11 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center {activeSectionMeta.accent}">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d={activeSectionMeta.iconPath} />
+          </svg>
+        </div>
+      </div>
+    </div>
+  {/if}
+
+  {#if activeSettingsSection === "overview"}
+    <div class="mb-6">
+      <p class="text-xs uppercase tracking-wide text-gray-500 mb-2">{s("overviewKicker")}</p>
+      <h2 class="text-2xl font-bold text-white">{s("overviewTitle")}</h2>
+      <p class="text-sm text-gray-500 mt-1">{s("overviewDesc")}</p>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+      <button
+        type="button"
+        onclick={() => openSettingsSection("llm")}
+        class="glass-card p-5 text-left hover:border-indigo-400/40 hover:bg-indigo-500/10 transition-all group"
+      >
+        <div class="w-11 h-11 rounded-lg bg-indigo-500/20 text-indigo-300 flex items-center justify-center mb-4 group-hover:shadow-[0_0_18px_rgba(99,102,241,0.35)]">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3h6m-7 4h8a3 3 0 013 3v7a3 3 0 01-3 3H8a3 3 0 01-3-3v-7a3 3 0 013-3zm4 3v4m-2-2h4" />
+          </svg>
+        </div>
+        <h3 class="text-base font-bold text-white">{s("llmTitle")}</h3>
+        <p class="text-sm text-gray-500 mt-1">{s("overviewLlmDesc")}</p>
+      </button>
+
+      <button
+        type="button"
+        onclick={() => openSettingsSection("whisper")}
+        class="glass-card p-5 text-left hover:border-cyan-400/40 hover:bg-cyan-500/10 transition-all group"
+      >
+        <div class="w-11 h-11 rounded-lg bg-cyan-500/20 text-cyan-300 flex items-center justify-center mb-4 group-hover:shadow-[0_0_18px_rgba(6,182,212,0.35)]">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18a6 6 0 006-6V7a6 6 0 10-12 0v5a6 6 0 006 6zm0 0v3m-4 0h8" />
+          </svg>
+        </div>
+        <h3 class="text-base font-bold text-white">{s("whisperTitle")}</h3>
+        <p class="text-sm text-gray-500 mt-1">{s("overviewWhisperDesc")}</p>
+      </button>
+
+      <button
+        type="button"
+        onclick={() => openSettingsSection("language")}
+        class="glass-card p-5 text-left hover:border-emerald-400/40 hover:bg-emerald-500/10 transition-all group"
+      >
+        <div class="w-11 h-11 rounded-lg bg-emerald-500/20 text-emerald-300 flex items-center justify-center mb-4 group-hover:shadow-[0_0_18px_rgba(16,185,129,0.35)]">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5h12M9 3v2m1 9a18 18 0 01-4-5m7 12l5-10 5 10m-9-4h8" />
+          </svg>
+        </div>
+        <h3 class="text-base font-bold text-white">{s("languageTitle")}</h3>
+        <p class="text-sm text-gray-500 mt-1">{s("overviewLanguageDesc")}</p>
+      </button>
+
+      <button
+        type="button"
+        onclick={() => openSettingsSection("anki")}
+        class="glass-card p-5 text-left hover:border-amber-400/40 hover:bg-amber-500/10 transition-all group"
+      >
+        <div class="w-11 h-11 rounded-lg bg-amber-500/20 text-amber-300 flex items-center justify-center mb-4 group-hover:shadow-[0_0_18px_rgba(245,158,11,0.35)]">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v4H4V5zm0 8h8v7H5a1 1 0 01-1-1v-6zm12 0h4v6a1 1 0 01-1 1h-3v-7z" />
+          </svg>
+        </div>
+        <h3 class="text-base font-bold text-white">{s("ankiTitle")}</h3>
+        <p class="text-sm text-gray-500 mt-1">{s("overviewAnkiDesc")}</p>
+      </button>
+    </div>
+
+    <div class="mt-6 grid grid-cols-1 {needsQuickSetup ? 'xl:grid-cols-[1.2fr_0.8fr]' : ''} gap-4">
+      {#if needsQuickSetup}
+        <div class="glass-card p-5">
+          <div class="flex items-center justify-between gap-4 mb-4">
+            <div>
+              <p class="text-xs uppercase tracking-wide text-gray-500">{s("quickSetup")}</p>
+              <h3 class="text-lg font-bold text-white">{s("quickSetupTitle")}</h3>
+            </div>
+            <span class="text-xs px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-200">
+              {s("actionRequired")}
+            </span>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {#if downloadedWhisperCount === 0}
+              <button
+                type="button"
+                onclick={() => openSettingsSection("whisper")}
+                class="p-4 rounded-xl border text-left transition-colors bg-amber-500/10 border-amber-500/30 hover:bg-amber-500/15"
+              >
+                <div class="flex items-center justify-between gap-3">
+                  <span class="text-sm font-semibold text-white">{s("transcription")}</span>
+                  <span class="text-xs text-amber-300">{s("configure")}</span>
+                </div>
+                <p class="text-xs text-gray-400 mt-2">
+                  {s("setupWhisperDesc")}
+                </p>
+              </button>
+            {/if}
+
+            {#if !isDefaultLlmReady}
+              <button
+                type="button"
+                onclick={() => openSettingsSection("llm")}
+                class="p-4 rounded-xl border text-left transition-colors bg-amber-500/10 border-amber-500/30 hover:bg-amber-500/15"
+              >
+                <div class="flex items-center justify-between gap-3">
+                  <span class="text-sm font-semibold text-white">{s("translation")}</span>
+                  <span class="text-xs text-amber-300">{defaultLlmModel ? s("providerCheck") : s("llmMissing")}</span>
+                </div>
+                <p class="text-xs text-gray-400 mt-2">
+                  {s("setupLlmDesc")}
+                </p>
+              </button>
+            {/if}
+          </div>
+        </div>
+      {/if}
+
+      <div class="glass-card p-5">
+        <p class="text-xs uppercase tracking-wide text-gray-500 mb-3">{s("statusTitle")}</p>
+        <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-x-8 gap-y-3 text-sm">
+          <div class="grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-4">
+            <span class="text-gray-400">{s("apiKeysSaved")}</span>
+            <span class="font-semibold text-white">{configuredApiKeyCount}</span>
+          </div>
+          <div class="grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-4">
+            <span class="text-gray-400">{t("settings.whisperDefault")}</span>
+            <span class="font-semibold text-white">{defaultWhisperModel}</span>
+          </div>
+          <div class="grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-4">
+            <span class="text-gray-400">{s("translationLanguage")}</span>
+            <span class="font-semibold text-white">{defaultTargetLanguage.toUpperCase()}</span>
+          </div>
+          <div class="grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-4">
+            <span class="text-gray-400">{t("settings.noteType")}</span>
+            <span class="font-semibold text-white truncate max-w-[14rem]">{noteTypeName}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  {/if}
+
+  {#if activeSettingsSection === "language"}
   <div class="mb-6 flex flex-col gap-4">
     <div
-      class="glass-card p-3 flex items-center justify-between gap-4 overflow-x-auto"
+      class="glass-card p-5 flex flex-col xl:flex-row xl:items-start gap-5"
     >
-      <span
-        class="text-xs font-bold text-gray-500 uppercase tracking-wide whitespace-nowrap px-2"
-      >
-        {t("settings.language")}
-      </span>
-      <div class="flex gap-2">
+      <div class="xl:w-56 shrink-0">
+        <span
+          class="text-xs font-bold text-gray-500 uppercase tracking-wide"
+        >
+          {t("settings.language")}
+        </span>
+        <p class="text-sm text-gray-400 mt-2">{s("interfaceLanguageDesc")}</p>
+      </div>
+      <div class="ui-language-grid flex-1">
         {#each availableUILanguages as lang}
           <button
             onclick={() => setLanguage(lang.code)}
-            class="flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all duration-200 border
+            class="ui-language-button min-h-[4.75rem] flex flex-col items-center justify-center gap-2 px-3 py-3 rounded-lg transition-all duration-200 border
               {$currentLanguage === lang.code
               ? 'bg-gradient-to-r from-indigo-500/20 to-purple-500/20 border-indigo-500/50 text-white shadow-sm'
               : 'bg-white/5 hover:bg-white/10 text-gray-400 hover:text-gray-200 border-transparent hover:border-white/10'}"
           >
-            <span class="text-base">{lang.flag}</span>
-            <span class="text-xs font-medium uppercase">{lang.code}</span>
+            <span class="text-3xl leading-none">{lang.flag}</span>
+            <span class="text-sm font-semibold uppercase">{lang.code}</span>
           </button>
         {/each}
       </div>
     </div>
+
+    <div class="glass-card p-6">
+      <div class="flex items-center gap-3 mb-4">
+        <div class="w-9 h-9 rounded-lg bg-emerald-500/20 text-emerald-300 flex items-center justify-center">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5h12M9 3v2m1 9a18 18 0 01-4-5m7 12l5-10 5 10m-9-4h8" />
+          </svg>
+        </div>
+        <div>
+          <h3 class="text-sm font-bold text-white">{s("defaultLanguages")}</h3>
+          <p class="text-xs text-gray-500">{s("defaultLanguagesDesc")}</p>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+        <div class="rounded-xl border border-white/10 bg-white/5 p-5">
+          <div class="flex items-center justify-between gap-3 mb-4">
+            <span class="block text-sm font-semibold text-white">{s("translation")}</span>
+            <span class="text-4xl">{languages.find((lang) => lang.code === defaultTargetLanguage)?.flag || "🌐"}</span>
+          </div>
+          <SearchableSelect
+            className="language-select"
+            noResultsText={t("common.noResults")}
+            options={defaultWorkflowLanguageOptions}
+            value={defaultTargetLanguage}
+            onchange={(v) => {
+              defaultTargetLanguage = v;
+              saveDefaultLanguage(DEFAULT_TARGET_LANGUAGE_KEY, v);
+            }}
+            placeholder={t("translate.targetLang")}
+          />
+        </div>
+        <div class="rounded-xl border border-white/10 bg-white/5 p-5">
+          <div class="flex items-center justify-between gap-3 mb-4">
+            <span class="block text-sm font-semibold text-white">{t("nav.flashcards")}</span>
+            <span class="text-4xl">{languages.find((lang) => lang.code === defaultFlashcardsLanguage)?.flag || "🌐"}</span>
+          </div>
+          <SearchableSelect
+            className="language-select"
+            noResultsText={t("common.noResults")}
+            options={defaultWorkflowLanguageOptions}
+            value={defaultFlashcardsLanguage}
+            onchange={(v) => {
+              defaultFlashcardsLanguage = v;
+              saveDefaultLanguage(DEFAULT_FLASHCARDS_LANGUAGE_KEY, v);
+            }}
+            placeholder={t("flashcards.noteTypeLanguagePlaceholder")}
+          />
+        </div>
+        <div class="rounded-xl border border-white/10 bg-white/5 p-5">
+          <div class="flex items-center justify-between gap-3 mb-4">
+            <span class="block text-sm font-semibold text-white">{s("transcription")}</span>
+            <span class="text-4xl">{defaultTranscribeLanguage === "auto" ? "🌐" : languages.find((lang) => lang.code === defaultTranscribeLanguage)?.flag || "🌐"}</span>
+          </div>
+          <SearchableSelect
+            className="language-select"
+            noResultsText={t("common.noResults")}
+            options={[
+              { value: "auto", label: t("transcribe.autoDetect"), icon: "🌐", searchTerms: "auto detect" },
+              ...defaultWorkflowLanguageOptions,
+            ]}
+            value={defaultTranscribeLanguage}
+            onchange={(v) => {
+              defaultTranscribeLanguage = v;
+              saveDefaultLanguage(DEFAULT_TRANSCRIBE_LANGUAGE_KEY, v);
+            }}
+            placeholder={t("transcribe.sourceLanguage")}
+          />
+        </div>
+      </div>
+    </div>
+
   </div>
+  {/if}
 
   <!-- Snackbar notification at the bottom -->
   {#if snackbarMessage}
@@ -635,174 +1616,213 @@
     </div>
   {/if}
 
-  <div class="grid grid-cols-1 xl:grid-cols-12 gap-6 flex-1 min-h-0">
-    <div class="col-span-1 xl:col-span-4 flex flex-col gap-4">
+  {#if activeSettingsSection === "llm"}
+  <div class="grid grid-cols-1 xl:grid-cols-[0.95fr_1.05fr] gap-5 mb-5">
+    <div class="glass-card p-5 min-h-[10rem] flex flex-col justify-center">
+      <p class="text-xs uppercase tracking-wide text-gray-500">{s("addProviderKicker")}</p>
+      <h3 class="mt-1 text-lg font-bold text-white">{s("addProviderTitle")}</h3>
+      <p class="mt-2 max-w-xl text-sm text-gray-400">
+        {s("addProviderDesc")}
+      </p>
       <button
-        onclick={() => openAddKeyModal(selectedProviderType)}
-        class="btn-primary w-full py-3 flex items-center justify-center gap-2 shadow-lg shadow-indigo-500/20"
+        type="button"
+        onclick={() => openAddKeyModal("custom")}
+        class="mt-5 inline-flex w-fit items-center justify-center gap-2 rounded-lg bg-indigo-500 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-indigo-500/20 hover:bg-indigo-400 transition-colors"
       >
-        <svg
-          class="w-5 h-5"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M12 4v16m8-8H4"
-          />
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
         </svg>
-        <span>{t("settings.addCustomApiKey")}</span>
+        {s("addProviderButton")}
       </button>
+    </div>
 
-      <div class="glass-card flex-1 flex flex-col min-h-0">
-        <div class="p-4 border-b border-white/5">
-          <div class="grid grid-cols-2 gap-2">
-            {#each allProviderIds as pid}
-              {@const provider = providers[pid]}
-              {@const isEnabled = provider?.enabled ?? false}
-              {@const isSelected = selectedProviderType === pid}
-              <button
-                onclick={() => {
-                  if (isEnabled) selectedProviderType = pid;
-                }}
-                disabled={!isEnabled}
-                class="relative py-2 px-3 rounded-lg text-xs font-medium transition-all duration-200 flex items-center gap-2 justify-center
-                  {isSelected && isEnabled
-                  ? 'bg-white/10 text-white shadow-sm border border-white/10'
-                  : isEnabled
-                    ? 'text-gray-500 hover:text-gray-300 hover:bg-white/5 border border-transparent'
-                    : 'text-gray-600 opacity-50 cursor-not-allowed border border-transparent'}"
-              >
-                {#if pid === "local"}
-                  <div class="w-5 h-5 rounded bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white flex-shrink-0">
-                    <svg
-                      class="w-3.5 h-3.5"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        stroke-width="2"
-                        d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
-                      />
-                    </svg>
-                  </div>
-                {:else if pid === "google"}
-                  <div class="w-5 h-5 rounded bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center text-white flex-shrink-0">
-                    <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
-                      <path
-                        d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                      />
-                      <path
-                        d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                      />
-                      <path
-                        d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
-                      />
-                      <path
-                        d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
-                      />
-                    </svg>
-                  </div>
-                {:else if pid === "groq"}
-                  <div class="w-5 h-5 rounded bg-gradient-to-br from-orange-400 to-red-500 flex items-center justify-center text-white flex-shrink-0">
-                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        stroke-width="2"
-                        d="M13 10V3L4 14h7v7l9-11h-7z"
-                      />
-                    </svg>
-                  </div>
-                {:else if pid === "custom"}
-                  <div class="w-5 h-5 rounded bg-gradient-to-br from-gray-500 to-gray-600 flex items-center justify-center text-white flex-shrink-0">
-                    <svg
-                      class="w-3.5 h-3.5"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                      ><path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        stroke-width="2"
-                        d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
-                      /><path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        stroke-width="2"
-                        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                      /></svg
-                    >
-                  </div>
-                {/if}
-                <span class="truncate"
-                  >{t(`provider.${pid}`) || provider?.name || pid}</span
-                >
-                {#if !isEnabled}
-                  <span
-                    class="absolute -top-1 -right-1 text-[8px] bg-amber-500/80 text-white px-1 py-0.5 rounded font-bold"
-                    >{t("settings.soonBadge")}</span
-                  >
-                {/if}
-              </button>
-            {/each}
-          </div>
+    <div class="glass-card p-5">
+      <div class="flex items-center justify-between gap-4 mb-4">
+        <div>
+          <p class="text-xs uppercase tracking-wide text-gray-500">{t("settings.providerStatusTitle")}</p>
+          <h3 class="text-lg font-bold text-white">{t("settings.savedConfigurations", { count: configuredApiKeyCount })}</h3>
         </div>
+        <span class="inline-flex items-center gap-2 text-xs px-3 py-1.5 rounded-full border {hasRemoteApiKey ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300' : 'bg-white/5 border-white/10 text-gray-400'}">
+          <span class="w-2 h-2 rounded-full {hasRemoteApiKey ? 'bg-emerald-400' : 'bg-gray-500'}"></span>
+          {hasRemoteApiKey ? t("settings.remoteLlmUnlocked") : t("settings.localLlmOnly")}
+        </span>
+      </div>
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+        {#each allProviderIds as pid}
+          <div class="rounded-lg border p-3 {getProviderStatusClasses(pid)}">
+            <span class="block font-semibold truncate">{t(`provider.${pid}`) || providers[pid]?.name || pid}</span>
+            <span class="mt-1 block">{getProviderStatusText(pid)}</span>
+          </div>
+        {/each}
+      </div>
+    </div>
+  </div>
 
-        <div class="flex-1 p-4 space-y-3">
-          <h3 class="text-xs font-bold text-gray-500 uppercase tracking-wide">
-            {providers[selectedProviderType]?.name || selectedProviderType}
-          </h3>
-          <p class="text-sm text-gray-500 leading-relaxed">
-            {t(`provider.${selectedProviderType}.desc`) ||
-              providers[selectedProviderType]?.description ||
-              ""}
-          </p>
-          {#if selectedProviderType === "google"}
-            <div
-              class="p-3 bg-indigo-500/10 border border-indigo-500/20 rounded-lg"
-            >
-              <p class="text-xs text-indigo-300">
-                💡 {t("settings.googleProviderTip")}
+  <div class="glass-card p-5 mb-6">
+    <div class="flex items-start justify-between gap-4 mb-4">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-lg bg-indigo-500/20 text-indigo-300 flex items-center justify-center">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3h6m-7 4h8a3 3 0 013 3v7a3 3 0 01-3 3H8a3 3 0 01-3-3v-7a3 3 0 013-3zm4 3v4m-2-2h4" />
+          </svg>
+        </div>
+        <div>
+          <h3 class="text-sm font-bold text-white">{t("settings.defaultLlm")}</h3>
+          <p class="text-xs text-gray-500">{t("settings.defaultLlmDesc")}</p>
+        </div>
+      </div>
+      <div class="text-right text-xs text-gray-500">
+        {#if defaultLlmProvider === "local"}
+          {t("settings.noApiKeyRequired")}
+        {:else if defaultProviderKeys.length > 1}
+          {t("settings.roundRobinActive", { count: defaultProviderKeys.length })}
+        {:else if defaultProviderKeys.length === 1}
+          {t("settings.oneApiKeyConfigured")}
+        {:else}
+          {t("settings.noApiKeyForProvider")}
+        {/if}
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-[1fr_1.2fr] gap-4">
+      <div class="grid grid-cols-2 gap-2 auto-rows-[5.875rem] content-start">
+        {#each allProviderIds as pid}
+          {@const provider = providers[pid]}
+          {@const providerAvailable = hasDefaultProviderAccess(pid)}
+          <button
+            type="button"
+            onclick={() => setDefaultLlmProvider(pid)}
+            aria-disabled={!providerAvailable}
+            class="h-[5.875rem] overflow-hidden flex items-center gap-2 p-3 rounded-lg transition-all border text-left
+              {defaultLlmProvider === pid
+              ? 'bg-indigo-500/20 border-indigo-500/50 text-white'
+              : providerAvailable
+                ? 'bg-white/5 hover:bg-white/10 border-transparent text-gray-400 hover:text-white'
+                : 'bg-white/[0.03] border-white/5 text-gray-600 hover:text-gray-300 hover:border-amber-500/30'}"
+          >
+            <div class="w-8 h-8 rounded-lg bg-gradient-to-br {provider?.color || 'from-gray-500 to-gray-600'} flex items-center justify-center text-white shrink-0 {!providerAvailable ? 'grayscale opacity-35' : ''}">
+              {#if pid === "local"}
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+              {:else if pid === "google"}
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+              {:else if pid === "groq"}
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+              {:else}
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+              {/if}
+            </div>
+            <div class="min-w-0">
+              <span class="block text-sm font-semibold truncate">{t(`provider.${pid}`) || provider?.name || pid}</span>
+              <span class="block text-[10px] opacity-60 truncate">{providerAvailable ? provider?.description : t("settings.addApiKeyToEnable")}</span>
+            </div>
+          </button>
+        {/each}
+      </div>
+
+      <div class="space-y-3">
+        {#if defaultLlmProvider === "local"}
+          <div>
+            <div class="flex items-center justify-between gap-3 mb-1">
+              <label for="default-local-server-url" class="block text-xs text-gray-400">{t("settings.localEndpoint")}</label>
+              <span class="inline-flex items-center gap-2 text-xs {defaultEndpointStatus === 'online' ? 'text-emerald-300' : defaultEndpointStatus === 'checking' ? 'text-cyan-300' : 'text-red-300'}">
+                <span class="w-2 h-2 rounded-full {defaultEndpointStatus === 'online' ? 'bg-emerald-400' : defaultEndpointStatus === 'checking' ? 'bg-cyan-400 animate-pulse' : 'bg-red-400'}"></span>
+                {getEndpointStatusText(defaultEndpointStatus)}
+              </span>
+            </div>
+            <input
+              id="default-local-server-url"
+              type="text"
+              bind:value={defaultLocalServerUrl}
+              oninput={() => {
+                defaultLlmModel = "";
+                persistDefaultLlmSettings();
+              }}
+              placeholder={DEFAULT_LOCAL_URL}
+              class="input-modern w-full text-sm font-mono"
+            />
+            <p class="text-xs mt-2 {defaultEndpointStatus === 'online' ? 'text-emerald-300/80' : 'text-gray-500'}">
+              {defaultEndpointMessage || t("settings.endpointNotChecked")}
+            </p>
+          </div>
+        {/if}
+        {#if defaultLlmProvider === "custom"}
+          {#if savedCustomProviders.length > 0}
+            <div>
+              <div class="flex items-center justify-between gap-3 mb-1">
+                <label for="default-custom-provider" class="block text-xs text-gray-400">{t("settings.customProvider")}</label>
+                <span class="inline-flex items-center gap-2 text-xs {defaultEndpointStatus === 'online' ? 'text-emerald-300' : defaultEndpointStatus === 'checking' ? 'text-cyan-300' : 'text-red-300'}">
+                  <span class="w-2 h-2 rounded-full {defaultEndpointStatus === 'online' ? 'bg-emerald-400' : defaultEndpointStatus === 'checking' ? 'bg-cyan-400 animate-pulse' : 'bg-red-400'}"></span>
+                  {getEndpointStatusText(defaultEndpointStatus)}
+                </span>
+              </div>
+              <select
+                id="default-custom-provider"
+                bind:value={defaultLlmCustomProviderId}
+                onchange={() => {
+                  defaultLlmModel = "";
+                  persistDefaultLlmSettings();
+                }}
+                class="w-full bg-black/40 border border-white/10 rounded-lg px-4 py-2.5 text-sm text-white focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 outline-none transition-all"
+              >
+                {#each savedCustomProviders as key}
+                  <option value={key.id}>{key.name}</option>
+                {/each}
+              </select>
+              <p class="text-xs mt-2 {defaultEndpointStatus === 'online' ? 'text-emerald-300/80' : 'text-gray-500'}">
+                {defaultEndpointMessage || t("settings.endpointNotChecked")}
               </p>
             </div>
-          {:else if selectedProviderType === "local"}
-            <div
-              class="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg"
-            >
-              <p class="text-xs text-emerald-300">
-                💡 {t("settings.localProviderTip")}
-              </p>
+          {:else}
+            <div class="rounded-xl border border-amber-500/25 bg-amber-500/10 p-4">
+              <p class="text-sm font-semibold text-white">{t("settings.noCustomProviderSaved")}</p>
+              <button
+                type="button"
+                onclick={() => openAddKeyModal("custom")}
+                class="mt-3 px-4 py-2 rounded-lg bg-amber-500/20 border border-amber-500/30 text-amber-200 hover:bg-amber-500/30 transition-colors text-sm font-semibold"
+              >
+                {t("settings.addCustom")}
+              </button>
             </div>
-          {:else if selectedProviderType === "groq"}
-            <div
-              class="p-3 bg-orange-500/10 border border-orange-500/20 rounded-lg"
-            >
-              <p class="text-xs text-orange-300">
-                ⚡ {t("settings.groqProviderTip")}
-              </p>
+          {/if}
+        {/if}
+        <div>
+          <label for="default-llm-model-input" class="block text-xs text-gray-400 mb-1">{t("settings.defaultModel")}</label>
+          {#if defaultProviderModels.length > 0}
+            <SearchableSelect
+              noResultsText={t("common.noResults")}
+              options={defaultProviderModels.map((model) => ({
+                value: model.id,
+                label: model.name,
+                searchTerms: `${model.name} ${model.id} ${model.family}`,
+              }))}
+              value={defaultLlmModel}
+              onchange={(v) => {
+                defaultLlmModel = v;
+                persistDefaultLlmSettings();
+              }}
+              placeholder={t("translate.model")}
+            />
+          {:else if defaultLlmProvider === "local" || defaultLlmProvider === "custom"}
+            <div class="rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-xs text-gray-400">
+              {isCheckingDefaultEndpoint ? t("settings.loadingModels") : t("settings.noModelsFromEndpoint")}
             </div>
-          {:else if selectedProviderType === "custom"}
-            <div
-              class="p-3 bg-gray-500/10 border border-gray-500/20 rounded-lg"
-            >
-              <p class="text-xs text-gray-300">
-                ⚙️ {t("settings.customProviderTip")}
-              </p>
-            </div>
+          {/if}
+          {#if defaultProviderModels.length === 0}
+            <input
+              id="default-llm-model-input"
+              type="text"
+              bind:value={defaultLlmModel}
+              oninput={persistDefaultLlmSettings}
+              placeholder="es. gemini-2.5-flash, llama3.2, openai/gpt-oss-20b"
+              class="input-modern w-full text-sm font-mono mt-2"
+            />
           {/if}
         </div>
       </div>
     </div>
+  </div>
 
-    <div class="col-span-1 xl:col-span-8 flex flex-col min-h-0">
-      <div class="glass-card flex-1 flex flex-col min-h-0">
+  <div class="glass-card flex flex-col min-h-[18rem]">
         <div class="p-4 border-b border-white/5">
           <h3
             class="text-sm font-semibold text-gray-400 uppercase tracking-wide"
@@ -952,7 +1972,7 @@
                     <button
                       onclick={() => copyApiKey(key.apiKey)}
                       class="p-1 text-gray-500 hover:text-gray-300 transition-colors flex-shrink-0"
-                      title="Copy"
+                      title={t("common.copy")}
                     >
                       <svg
                         class="w-3 h-3"
@@ -1065,12 +2085,12 @@
             </div>
           {/if}
         </div>
-      </div>
-    </div>
   </div>
+  {/if}
 
   <!-- Whisper Models -->
-  <div class="mt-6 glass-card p-4">
+  {#if activeSettingsSection === "whisper"}
+  <div class="mt-6 glass-card p-5" role="group" oncontextmenu={openWhisperPanelContextMenu}>
     <div class="flex items-center gap-3 mb-4">
       <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-white shadow-lg">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1086,12 +2106,15 @@
           type="button"
           onclick={cancelModelDownload}
           disabled={isCancellingDownload}
-          class="px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors
+          class="px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors inline-flex items-center gap-2
             {isCancellingDownload
             ? 'bg-amber-500/10 border-amber-500/30 text-amber-300 cursor-wait'
             : 'bg-red-500/10 border-red-500/30 text-red-300 hover:bg-red-500/20 hover:border-red-500/50'}"
           title={t("settings.stopModelDownload") || "Stop download"}
         >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 6h12v12H6z" />
+          </svg>
           {#if isCancellingDownload}
             {t("settings.stoppingModelDownload") || "Stopping..."}
           {:else}
@@ -1099,6 +2122,29 @@
           {/if}
         </button>
       {/if}
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-3 mb-4">
+      <div class="p-4 rounded-xl bg-cyan-500/10 border border-cyan-500/25">
+        <p class="text-xs uppercase tracking-wide text-cyan-300/70 mb-1">{t("settings.status")}</p>
+        <p class="text-2xl font-bold text-white">{downloadedWhisperCount}/{whisperModels.length}</p>
+        <p class="text-xs text-gray-400 mt-1">{t("settings.modelsDownloadedLocally")}</p>
+      </div>
+      <div class="p-4 rounded-xl bg-white/5 border border-white/10">
+        <p class="text-xs uppercase tracking-wide text-gray-500 mb-1">{t("settings.activeDefault")}</p>
+        <p class="text-2xl font-bold text-white">{defaultWhisperModel ? (t(`transcribe.model${defaultWhisperModel.charAt(0).toUpperCase()}${defaultWhisperModel.slice(1)}`) || defaultWhisperModel) : ""}</p>
+        <p class="text-xs text-gray-400 mt-1">{t("settings.usedByTranscriptionTab")}</p>
+      </div>
+      <div class="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/25">
+        <p class="text-xs uppercase tracking-wide text-emerald-300/70 mb-1">{t("settings.ready")}</p>
+        <p class="text-2xl font-bold text-white">{downloadedWhisperCount > 0 ? t("common.yes") : t("common.no")}</p>
+        <p class="text-xs text-gray-400 mt-1">{t("settings.atLeastOneModelRequired")}</p>
+      </div>
+      <div class="p-4 rounded-xl bg-white/5 border border-white/10">
+        <p class="text-xs uppercase tracking-wide text-gray-500 mb-1">{t("settings.download")}</p>
+        <p class="text-2xl font-bold text-white">{isDownloading ? `${progress || 0}%` : whisperModels.length - downloadedWhisperCount}</p>
+        <p class="text-xs text-gray-400 mt-1">{isDownloading ? progressStage || t("settings.inProgress") : t("settings.missing")}</p>
+      </div>
     </div>
 
     {#if isDownloading && downloadingModelId}
@@ -1110,7 +2156,7 @@
       </div>
     {/if}
     
-    <div class="grid grid-cols-5 gap-2">
+    <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-3">
       {#each whisperModels as model}
         <!-- svelte-ignore a11y_no_static_element_interactions -->
         <div
@@ -1123,13 +2169,13 @@
           role="radio"
           aria-checked={defaultWhisperModel === model.id}
           tabindex="0"
-          class="relative p-3 rounded-lg text-center transition-all duration-200 border cursor-pointer
+          class="relative min-h-[8.5rem] p-4 rounded-xl text-center transition-all duration-200 border cursor-pointer
             {defaultWhisperModel === model.id && model.downloaded
             ? 'bg-cyan-500/20 border-cyan-500/50 text-white shadow-[0_0_15px_rgba(6,182,212,0.15)]'
             : model.downloaded
               ? 'bg-white/10 hover:bg-white/20 border-white/20 text-gray-200'
               : 'bg-white/5 hover:bg-white/10 border-transparent text-gray-500 opacity-60'}"
-          title={model.downloaded ? "Click to set as default. Right-click to uninstall." : "Click to download and set as default"}
+          title={model.downloaded ? t("settings.whisperDownloadedHint") : t("settings.whisperNotDownloadedHint")}
         >
           <div class="absolute top-1 right-1 pointer-events-none">
             {#if !model.downloaded}
@@ -1150,6 +2196,13 @@
               </button>
             {/if}
           </div>
+          <div class="mx-auto mb-2 w-9 h-9 rounded-lg flex items-center justify-center {model.downloaded ? 'bg-cyan-500/15 text-cyan-300' : 'bg-white/5 text-amber-300'}">
+            {#if model.downloaded}
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+            {:else}
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+            {/if}
+          </div>
           <div class="font-bold text-sm">
             {t(`transcribe.model${model.id.charAt(0).toUpperCase()}${model.id.slice(1)}`) || model.name}
           </div>
@@ -1157,13 +2210,13 @@
           {#if !model.downloaded}
             <div class="text-[9px] text-amber-400/70 mt-0.5">
               {#if downloadingModelId === model.id}
-                Downloading... {progress > 0 ? `${progress}%` : ""}
+                {t("settings.downloading")} {progress > 0 ? `${progress}%` : ""}
               {:else}
-                Not downloaded
+                {t("settings.notDownloaded")}
               {/if}
             </div>
           {:else if defaultWhisperModel === model.id}
-            <div class="text-[9px] text-cyan-400 mt-0.5 font-bold">Default</div>
+            <div class="text-[9px] text-cyan-400 mt-0.5 font-bold">{t("settings.default")}</div>
           {/if}
         </div>
       {/each}
@@ -1178,324 +2231,269 @@
       oncontextmenu={(e) => { e.preventDefault(); closeContextMenu(); }}
     >
       <div
-        class="absolute bg-gray-900 border border-white/10 rounded-lg shadow-2xl py-1 min-w-[160px] animate-fade-in"
+        class="absolute bg-gray-900/98 border border-white/10 rounded-xl shadow-2xl py-1 min-w-[190px] animate-fade-in overflow-hidden"
         style="left: {contextMenu.x}px; top: {contextMenu.y}px;"
         onmousedown={(e) => e.stopPropagation()}
       >
         <div class="px-3 py-1.5 border-b border-white/5 bg-white/5 mb-1">
-          <span class="text-xs font-bold text-gray-400 uppercase tracking-wide">Model: {contextMenu.modelId}</span>
+          <span class="text-xs font-bold text-gray-400 uppercase tracking-wide">
+            {contextMenu.kind === "model" ? `Whisper: ${contextMenu.modelId}` : "Whisper"}
+          </span>
         </div>
-        {#if contextMenu.downloaded}
+        {#if contextMenu.kind === "panel"}
+          <button
+            class="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-white/10 hover:text-white flex items-center gap-2 transition-colors"
+            onclick={() => {
+              void refreshModels();
+              closeContextMenu();
+            }}
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9M20 20v-5h-.581m0 0a8.003 8.003 0 01-15.357-2" /></svg>
+            {t("settings.refreshStatus")}
+          </button>
+          {#if whisperModels.some((model) => !model.downloaded)}
+            <button
+              class="w-full text-left px-4 py-2 text-sm text-cyan-300 hover:bg-cyan-500/10 hover:text-cyan-200 flex items-center gap-2 transition-colors"
+              onclick={() => {
+                const nextModel = whisperModels.find((model) => !model.downloaded);
+                if (nextModel) void downloadModel(nextModel.id, true);
+                closeContextMenu();
+              }}
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+              {t("settings.downloadNext")}
+            </button>
+          {/if}
+        {:else if contextMenu.downloaded && contextMenu.modelId}
+          <button
+            class="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-white/10 hover:text-white flex items-center gap-2 transition-colors"
+            onclick={() => {
+              if (contextMenu?.modelId) setDefaultWhisperModel(contextMenu.modelId);
+              closeContextMenu();
+            }}
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+            {t("settings.setAsDefault")}
+          </button>
           <button
             class="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-red-500/10 hover:text-red-300 flex items-center gap-2 transition-colors"
             onclick={() => {
-              uninstallModel(contextMenu!.modelId);
+              if (contextMenu?.modelId) void uninstallModel(contextMenu.modelId);
               closeContextMenu();
             }}
           >
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-            Uninstall
+            {t("settings.remove")}
           </button>
-        {:else}
-          <div class="px-4 py-2 text-sm text-gray-500 italic">Not downloaded</div>
+        {:else if contextMenu.modelId}
+          <button
+            class="w-full text-left px-4 py-2 text-sm text-cyan-300 hover:bg-cyan-500/10 hover:text-cyan-200 flex items-center gap-2 transition-colors"
+            onclick={() => {
+              if (contextMenu?.modelId) void downloadModel(contextMenu.modelId, true);
+              closeContextMenu();
+            }}
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+            {t("settings.downloadAndSet")}
+          </button>
         {/if}
       </div>
     </div>
   {/if}
+  {/if}
 
   <!-- Card Template Editor -->
-  <div class="mt-6">
-    <div class="glass-card p-4">
-      <div class="flex items-center gap-3 mb-4">
-        <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center text-white shadow-lg">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
-          </svg>
+  {#if activeSettingsSection === "anki"}
+  <div class="mt-6 space-y-4">
+      <div class="rounded-xl border border-emerald-500/20 bg-white/5 p-5">
+        <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 mb-5">
+          <div>
+            <div class="flex items-center gap-2 text-emerald-300/80">
+              <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v4H4V5zm0 8h8v7H5a1 1 0 01-1-1v-6zm12 0h4v6a1 1 0 01-1 1h-3v-7z" />
+              </svg>
+              <p class="text-xs uppercase tracking-wide">{s("fieldPanelKicker")}</p>
+            </div>
+            <h4 class="text-sm font-bold text-white mt-1">{s("fieldPanelTitle")}</h4>
+            <p class="text-xs text-gray-500 mt-1">{s("fieldPanelDesc")}</p>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onclick={saveCurrentAnkiFieldPreset}
+              class="px-3 py-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 text-emerald-200 hover:bg-emerald-500/20 transition-colors text-xs font-semibold flex items-center gap-2"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+              </svg>
+              {t("settings.modal.save")}
+            </button>
+            <button
+              type="button"
+              onclick={deleteCurrentAnkiFieldPreset}
+              disabled={selectedAnkiFieldPresetId === "default"}
+              class="px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-gray-300 hover:text-red-300 hover:border-red-500/30 disabled:opacity-40 disabled:hover:text-gray-300 disabled:hover:border-white/10 transition-colors text-xs font-semibold flex items-center gap-2"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+              {t("settings.delete")}
+            </button>
+            <button
+              type="button"
+              onclick={() => (showResetConfirm = "fields")}
+              class="px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-gray-300 hover:text-amber-300 hover:border-amber-500/30 transition-colors text-xs font-semibold flex items-center gap-2"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              {t("settings.default")}
+            </button>
+          </div>
         </div>
-        <div class="flex-1">
-          <h3 class="text-sm font-bold text-white">{t("settings.cardTemplates")}</h3>
-          <p class="text-xs text-gray-500">{t("settings.cardTemplatesDesc")}</p>
-        </div>
-      </div>
-      <div class="flex gap-3">
-        <button
-          type="button"
-          onclick={() => (showTemplateEditor = true)}
-          class="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg border border-amber-500/30 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 transition-colors text-sm font-medium"
-        >
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
-          </svg>
-          {t("settings.editCardStyle") || "Card Style"}
-        </button>
-        <button
-          type="button"
-          onclick={() => (showFieldEditor = true)}
-          class="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg border border-emerald-500/30 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20 transition-colors text-sm font-medium"
-        >
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7" />
-          </svg>
-          {t("settings.editFields") || "Fields & Note Type"}
-        </button>
-      </div>
-    </div>
 
-    {#if showTemplateEditor}
-      <div
-        class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-6"
-        role="dialog"
-        tabindex="-1"
-        onmousedown={(e) => {
-          if (e.target === e.currentTarget) showTemplateEditor = false;
-        }}
-      >
-        <div
-          class="w-full max-w-5xl max-h-[95vh] overflow-hidden flex flex-col animate-fade-in shadow-2xl border border-white/20 bg-gray-900/98 backdrop-blur-xl rounded-xl"
-          role="presentation"
-          onmousedown={(e) => e.stopPropagation()}
-        >
-          <!-- Modal Header -->
-          <div class="p-6 border-b border-white/5 bg-white/5 flex items-center justify-between shrink-0">
+        <div class="grid grid-cols-1 lg:grid-cols-[0.9fr_1.1fr] gap-4 mb-5">
+          <div>
+            <label for="anki-field-preset-select" class="block text-xs font-semibold text-gray-400 mb-2">{s("savedTemplate")}</label>
+            <select
+              id="anki-field-preset-select"
+              bind:value={selectedAnkiFieldPresetId}
+              onchange={(event) => {
+                const target = event.currentTarget;
+                if (target instanceof HTMLSelectElement) applyAnkiFieldPreset(target.value);
+              }}
+              class="input-modern w-full text-sm"
+            >
+              {#each allAnkiFieldPresets as preset}
+                <option value={preset.id}>{preset.name}</option>
+              {/each}
+            </select>
+          </div>
+          <div>
+            <label for="anki-field-preset-name" class="block text-xs font-semibold text-gray-400 mb-2">{s("templateName")}</label>
+            <input
+              id="anki-field-preset-name"
+              type="text"
+              bind:value={ankiFieldPresetName}
+              maxlength="25"
+              class="input-modern w-full text-sm"
+              placeholder="vesta_modificato"
+            />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
+          <div>
+            <label for="note-type-name-inline" class="block text-xs font-semibold text-gray-400 mb-1">Note type</label>
+            <input
+              id="note-type-name-inline"
+              type="text"
+              bind:value={noteTypeName}
+              maxlength="25"
+              oninput={(event) =>
+                syncLimitedInput(event, (value) => (noteTypeName = value), saveTemplates)}
+              class="input-modern w-full text-sm"
+              placeholder="Vesta_Default"
+            />
+          </div>
+          {#each ankiFieldDefinitions as field}
             <div>
-              <h3 class="text-xl font-bold text-white flex items-center gap-2">
-                {t("settings.editCardStyle") || "Card Style"}
-              </h3>
-              <p class="text-sm text-gray-400 mt-1">{t("settings.cardStyleDesc") || "Edit front, back HTML and CSS styling"}</p>
-            </div>
-            <div class="flex items-center gap-4">
-              <button
-                type="button"
-                onclick={() => (showResetConfirm = "style")}
-                class="btn-secondary py-2 px-4 text-sm flex items-center gap-2 hover:bg-amber-500/10 hover:text-amber-500 hover:border-amber-500/50 transition-colors"
-                title="Ripristina ai valori di default di Vesta"
-              >
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                </svg>
-                {t("settings.resetDefaults")}
-              </button>
-              <button
-                type="button"
-                onclick={() => (showTemplateEditor = false)}
-                class="w-8 h-8 rounded-full flex items-center justify-center hover:bg-white/10 text-gray-400 hover:text-white transition-colors"
-                aria-label={t("common.close") || "Close"}
-              >
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-          </div>
-
-          <!-- Modal Body -->
-          <div class="p-6 overflow-y-auto custom-scrollbar flex-1 space-y-8">
-            <div class="grid grid-cols-2 gap-6">
-              <!-- Front HTML -->
-              <div class="space-y-2">
-                <label for="template-front-html" class="block text-sm font-bold text-amber-500 uppercase tracking-wide flex items-center gap-2">
-                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6z"/></svg>
-                  {t("settings.cardFrontHtml")}
-                  <div class="ml-auto flex items-center gap-1">
-                    <div class="relative group">
-                      <button type="button" class="text-gray-500 hover:text-amber-300 transition-colors" aria-label="Info">
-                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                      </button>
-                  <div class="card-style-tooltip down">{t("settings.cardFrontHtmlInfo")}</div>
-                    </div>
-                  </div>
-                </label>
-                <div class="relative">
-                  <CodeEditor bind:value={templateFrontHtml} language="html" onchange={saveTemplates} />
-                  <button type="button" onclick={() => { navigator.clipboard.writeText(templateFrontHtml); showSnackbar(t("settings.keyCopied")); }} class="absolute top-2 right-2 text-gray-500 hover:text-amber-300 transition-colors bg-gray-800/80 rounded p-0.5 z-10" title="Copy">
-                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
-                  </button>
-                </div>
-              </div>
-
-              <!-- Back HTML -->
-              <div class="space-y-2">
-                <label for="template-back-html" class="block text-sm font-bold text-emerald-500 uppercase tracking-wide flex items-center gap-2">
-                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
-                  {t("settings.cardBackHtml")}
-                  <div class="ml-auto flex items-center gap-1">
-                    <div class="relative group">
-                      <button type="button" class="text-gray-500 hover:text-emerald-300 transition-colors" aria-label="Info">
-                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                      </button>
-                  <div class="card-style-tooltip down">{t("settings.cardBackHtmlInfo")}</div>
-                    </div>
-                  </div>
-                </label>
-                <div class="relative">
-                  <CodeEditor bind:value={templateBackHtml} language="html" onchange={saveTemplates} />
-                  <button type="button" onclick={() => { navigator.clipboard.writeText(templateBackHtml); showSnackbar(t("settings.keyCopied")); }} class="absolute top-2 right-2 text-gray-500 hover:text-emerald-300 transition-colors bg-gray-800/80 rounded p-0.5 z-10" title="Copy">
-                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <!-- CSS -->
-            <div class="space-y-2">
-              <label for="template-css" class="block text-sm font-bold text-blue-500 uppercase tracking-wide flex items-center gap-2">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/></svg>
-                {t("settings.cardCss")}
-                <div class="ml-auto flex items-center gap-1">
-                  <div class="relative group">
-                    <button type="button" class="text-gray-500 hover:text-blue-300 transition-colors" aria-label="Info">
-                      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                    </button>
-                  <div class="card-style-tooltip">{t("settings.cardCssInfo")}</div>
-                  </div>
-                </div>
-              </label>
-              <div class="relative">
-                <CodeEditor bind:value={templateCss} language="css" onchange={saveTemplates} />
-                <button type="button" onclick={() => { navigator.clipboard.writeText(templateCss); showSnackbar(t("settings.keyCopied")); }} class="absolute top-2 right-2 text-gray-500 hover:text-blue-300 transition-colors bg-gray-800/80 rounded p-0.5 z-10" title="Copy">
-                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
-                </button>
-              </div>
-            </div>
-            
-            <div class="p-4 bg-white/5 border border-white/10 rounded-lg">
-              <div class="flex items-center gap-2 mb-2">
-                <h4 class="text-xs font-bold text-gray-400 uppercase">{t("settings.availableVars")}</h4>
-                <div class="relative group">
-                  <button type="button" class="text-gray-500 hover:text-gray-300 transition-colors" aria-label="Info">
-                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                  </button>
-                  <div class="card-style-tooltip">{t("settings.availableVarsInfo")}</div>
-                </div>
-              </div>
-              <p class="text-xs text-gray-500 font-mono leading-relaxed">
-                <code class="text-amber-300">{"{{Expression}}"}</code>, <code class="text-emerald-300">{"{{Reading}}"}</code>, <code class="text-blue-300">{"{{Meaning}}"}</code>, 
-                <code class="text-purple-300">{"{{Audio}}"}</code>, <code class="text-pink-300">{"{{Video}}"}</code>, <code class="text-cyan-300">{"{{Snapshot}}"}</code>, 
-                <code class="text-orange-300">{"{{Tags}}"}</code>, <code class="text-gray-300">{"{{SequenceMarker}}"}</code>, <code class="text-red-300">{"{{Notes}}"}</code>
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-    {/if}
-
-    {#if showFieldEditor}
-      <div
-        class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-6"
-        role="dialog"
-        tabindex="-1"
-        onmousedown={(e) => {
-          if (e.target === e.currentTarget) showFieldEditor = false;
-        }}
-      >
-        <div
-          class="w-full max-w-2xl overflow-hidden flex flex-col animate-fade-in shadow-2xl border border-white/20 bg-gray-900/98 backdrop-blur-xl rounded-xl max-h-[90vh]"
-          role="presentation"
-          onmousedown={(e) => e.stopPropagation()}
-        >
-          <!-- Modal Header -->
-          <div class="p-6 border-b border-white/5 bg-white/5 flex items-center justify-between shrink-0">
-            <div>
-              <h3 class="text-xl font-bold text-white flex items-center gap-2">
-                {t("settings.editFields") || "Fields & Note Type"}
-              </h3>
-              <p class="text-sm text-gray-400 mt-1">{t("settings.fieldsDesc") || "Customize field names and note type"}</p>
-            </div>
-            <div class="flex items-center gap-4">
-              <button
-                type="button"
-                onclick={() => (showResetConfirm = "fields")}
-                class="btn-secondary py-2 px-4 text-sm flex items-center gap-2 hover:bg-amber-500/10 hover:text-amber-500 hover:border-amber-500/50 transition-colors"
-              >
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                </svg>
-                {t("settings.resetDefaults")}
-              </button>
-              <button
-                type="button"
-                onclick={() => (showFieldEditor = false)}
-                class="w-8 h-8 rounded-full flex items-center justify-center hover:bg-white/10 text-gray-400 hover:text-white transition-colors"
-                aria-label={t("common.close") || "Close"}
-              >
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-          </div>
-
-          <!-- Modal Body -->
-          <div class="p-6 overflow-y-auto custom-scrollbar flex-1 space-y-6">
-            <!-- Note Type Name -->
-            <div class="glass-card p-5">
-              <label for="note-type-name" class="block text-sm font-bold text-gray-300 uppercase tracking-wide mb-2 flex items-center gap-2">
-                🏷️ {t("flashcards.noteTypeName") || "Note Type Name"}
-              </label>
+              <label for={`anki-field-${field.key}`} class="block text-xs font-semibold text-gray-400 mb-1">{field.label}</label>
               <input
-                id="note-type-name"
+                id={`anki-field-${field.key}`}
+                aria-label={field.label}
                 type="text"
-                bind:value={noteTypeName}
+                value={getFieldValue(field.key)}
                 maxlength="25"
-                oninput={(event) =>
-                  syncLimitedInput(event, (value) => (noteTypeName = value), saveTemplates)}
+                oninput={(event) => syncLimitedInput(event, (value) => setFieldValue(field.key, value), saveFields)}
                 class="input-modern w-full text-sm"
-                placeholder="es. subs2srs, Vesta Default..."
+                placeholder={field.placeholder}
               />
-              <p class="text-xs text-gray-500 mt-2">
-                {t("settings.noteTypeNameDesc")}
-              </p>
             </div>
+          {/each}
+        </div>
+      </div>
 
-            <!-- Field Names -->
-            <div class="space-y-3">
-              <h4 class="text-sm font-bold text-emerald-400 uppercase tracking-wide flex items-center gap-2">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7" /></svg>
-                {t("settings.fieldNames")}
-              </h4>
-              <div class="grid grid-cols-2 gap-3">
-                <div>
-                  <label for="field-expression" class="block text-xs text-gray-400 mb-1">{t("settings.fieldExpression")}</label>
-                  <input id="field-expression" type="text" bind:value={fieldExpression} maxlength="25" oninput={(event) => syncLimitedInput(event, (value) => (fieldExpression = value), saveFields)} class="input-modern w-full text-sm" placeholder="Expression" />
-                </div>
-                <div>
-                  <label for="field-meaning" class="block text-xs text-gray-400 mb-1">{t("settings.fieldMeaning")}</label>
-                  <input id="field-meaning" type="text" bind:value={fieldMeaning} maxlength="25" oninput={(event) => syncLimitedInput(event, (value) => (fieldMeaning = value), saveFields)} class="input-modern w-full text-sm" placeholder="Meaning" />
-                </div>
-                <div>
-                  <label for="field-reading" class="block text-xs text-gray-400 mb-1">{t("settings.fieldReading")}</label>
-                  <input id="field-reading" type="text" bind:value={fieldReading} maxlength="25" oninput={(event) => syncLimitedInput(event, (value) => (fieldReading = value), saveFields)} class="input-modern w-full text-sm" placeholder="Reading" />
-                </div>
-                <div>
-                  <label for="field-audio" class="block text-xs text-gray-400 mb-1">{t("settings.fieldAudio")}</label>
-                  <input id="field-audio" type="text" bind:value={fieldAudio} maxlength="25" oninput={(event) => syncLimitedInput(event, (value) => (fieldAudio = value), saveFields)} class="input-modern w-full text-sm" placeholder="Audio" />
-                </div>
-                <div>
-                  <label for="field-snapshot" class="block text-xs text-gray-400 mb-1">{t("settings.fieldSnapshot")}</label>
-                  <input id="field-snapshot" type="text" bind:value={fieldSnapshot} maxlength="25" oninput={(event) => syncLimitedInput(event, (value) => (fieldSnapshot = value), saveFields)} class="input-modern w-full text-sm" placeholder="Snapshot" />
-                </div>
-                <div>
-                  <label for="field-video" class="block text-xs text-gray-400 mb-1">{t("settings.fieldVideo")}</label>
-                  <input id="field-video" type="text" bind:value={fieldVideo} maxlength="25" oninput={(event) => syncLimitedInput(event, (value) => (fieldVideo = value), saveFields)} class="input-modern w-full text-sm" placeholder="Video" />
-                </div>
-                <div>
-                  <label for="field-tags" class="block text-xs text-gray-400 mb-1">{t("settings.fieldTags")}</label>
-                  <input id="field-tags" type="text" bind:value={fieldTags} maxlength="25" oninput={(event) => syncLimitedInput(event, (value) => (fieldTags = value), saveFields)} class="input-modern w-full text-sm" placeholder="Tags" />
-                </div>
-                <div>
-                  <label for="field-sequence-marker" class="block text-xs text-gray-400 mb-1">{t("settings.fieldSequenceMarker")}</label>
-                  <input id="field-sequence-marker" type="text" bind:value={fieldSequenceMarker} maxlength="25" oninput={(event) => syncLimitedInput(event, (value) => (fieldSequenceMarker = value), saveFields)} class="input-modern w-full text-sm" placeholder="SequenceMarker" />
-                </div>
-                <div class="col-span-2">
-                  <label for="field-notes" class="block text-xs text-gray-400 mb-1">{t("settings.fieldNotes")}</label>
-                  <input id="field-notes" type="text" bind:value={fieldNotes} maxlength="25" oninput={(event) => syncLimitedInput(event, (value) => (fieldNotes = value), saveFields)} class="input-modern w-full text-sm" placeholder="Notes" />
-                </div>
-              </div>
+      <div class="rounded-xl border border-amber-500/20 bg-amber-500/10 p-5">
+        <div class="flex flex-col xl:flex-row xl:items-start xl:justify-between gap-4 mb-4">
+          <div>
+            <div class="flex items-center gap-2 text-amber-200/80">
+              <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 5h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2z" />
+              </svg>
+              <p class="text-xs uppercase tracking-wide">{s("cardPanelKicker")}</p>
+            </div>
+            <h4 class="text-sm font-bold text-white mt-1">{s("cardPanelTitle")}</h4>
+            <p class="text-xs text-gray-500 mt-1">{s("cardPanelDesc")}</p>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            {#each templateCodeTabs as tab}
+              <button
+                type="button"
+                onclick={() => (activeTemplateCodeTab = tab.id)}
+                title={tab.hint}
+                class="h-9 px-3 rounded-lg border text-xs font-semibold transition-colors {activeTemplateCodeTab === tab.id ? 'bg-amber-500/20 border-amber-400/40 text-amber-100' : 'bg-black/20 border-white/10 text-gray-400 hover:text-white hover:bg-white/10'}"
+              >
+                {tab.label}
+              </button>
+            {/each}
+            <button
+              type="button"
+              onclick={copyActiveTemplateCode}
+              class="h-9 px-3 rounded-lg border border-white/10 bg-black/20 text-gray-300 hover:text-white hover:bg-white/10 transition-colors text-xs font-semibold flex items-center gap-2"
+              title={t("common.copy")}
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+              </svg>
+              {t("common.copy")}
+            </button>
+            <button
+              type="button"
+              onclick={() => (showResetConfirm = "style")}
+              class="h-9 px-3 rounded-lg border border-white/10 bg-white/5 text-gray-300 hover:text-amber-200 hover:border-amber-500/30 transition-colors text-xs font-semibold flex items-center gap-2"
+              title="Ripristina ai valori di default di Vesta"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              {t("settings.resetDefaults")}
+            </button>
+          </div>
+        </div>
+
+        {#if activeTemplateCodeTab === "front"}
+          <CodeEditor bind:value={templateFrontHtml} language="html" onchange={saveTemplates} />
+        {:else if activeTemplateCodeTab === "back"}
+          <CodeEditor bind:value={templateBackHtml} language="html" onchange={saveTemplates} />
+        {:else}
+          <CodeEditor bind:value={templateCss} language="css" onchange={saveTemplates} />
+        {/if}
+
+        <div class="mt-4 rounded-lg border border-white/10 bg-black/20 p-4">
+          <div class="flex flex-col lg:flex-row lg:items-center gap-3">
+            <div class="lg:w-48 shrink-0">
+              <p class="text-xs uppercase tracking-wide text-amber-200/80">{t("settings.availableVars")}</p>
+              <p class="text-xs text-gray-500 mt-1">{s("clickToCopy")}</p>
+            </div>
+            <div class="flex flex-wrap gap-2 text-[11px] font-mono">
+            {#each ankiFieldDefinitions as field}
+              <button
+                type="button"
+                onclick={() => {
+                  navigator.clipboard.writeText(field.variable);
+                  showSnackbar(t("settings.keyCopied"));
+                }}
+                class="px-2.5 py-1.5 rounded-lg border transition-colors {field.colorClass}"
+                title="Copia variabile"
+              >
+                {field.variable}
+              </button>
+            {/each}
             </div>
           </div>
         </div>
       </div>
-    {/if}
 
     <!-- Reset Confirmation Dialog -->
     {#if showResetConfirm}
@@ -1545,19 +2543,7 @@
                   templateCss = defaults.css;
                   noteTypeName = defaults.noteTypeName;
                 } else if (showResetConfirm === "fields") {
-                  const defaults = resetFieldNames();
-                  fieldExpression = defaults.expression;
-                  fieldMeaning = defaults.meaning;
-                  fieldReading = defaults.reading;
-                  fieldAudio = defaults.audio;
-                  fieldSnapshot = defaults.snapshot;
-                  fieldVideo = defaults.video;
-                  fieldTags = defaults.tags;
-                  fieldSequenceMarker = defaults.sequenceMarker;
-                  fieldNotes = defaults.notes;
-                  // Also reset note type name
-                  const templateDefaults = resetCardTemplates();
-                  noteTypeName = templateDefaults.noteTypeName;
+                  resetAnkiFieldsToDefault();
                 }
                 showResetConfirm = null;
               }}
@@ -1570,6 +2556,7 @@
       </div>
     {/if}
   </div>
+  {/if}
 
   {#if showAddKey}
     <div
@@ -1581,7 +2568,7 @@
       }}
     >
       <div
-        class="w-full max-w-lg overflow-hidden animate-fade-in shadow-2xl border border-white/20 bg-gray-900/98 backdrop-blur-xl rounded-xl"
+        class="w-full max-w-2xl h-[620px] overflow-hidden animate-fade-in shadow-2xl border border-white/20 bg-gray-900/98 backdrop-blur-xl rounded-xl flex flex-col"
         role="presentation"
         onmousedown={(e) => e.stopPropagation()}
       >
@@ -1593,13 +2580,14 @@
           </h3>
         </div>
 
-        <div class="p-6 space-y-5">
+        <div class="p-6 flex-1 overflow-hidden flex flex-col">
+          <div class="space-y-5 overflow-y-auto custom-scrollbar pr-1">
           <div>
             <span
               class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2"
               >{t("settings.modal.provider")}</span
             >
-            <div class="grid grid-cols-2 gap-3">
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <!-- Server Locale -->
               <button
                 type="button"
@@ -1609,7 +2597,7 @@
                   newKeyUrl = providers.local.defaultApiUrl || "";
                   newKeyValue = "";
                 }}
-                class="flex items-center gap-3 p-3 rounded-lg transition-all duration-200 border text-left
+                class="hidden items-center gap-3 p-3 rounded-lg transition-all duration-200 border text-left
                   {newKeyType === 'local'
                   ? 'bg-indigo-500/20 border-indigo-500/50 text-white'
                   : 'bg-white/5 hover:bg-white/10 border-transparent text-gray-400'}"
@@ -1792,9 +2780,9 @@
                   id="api-url"
                   type="text"
                   bind:value={newKeyUrl}
-                  placeholder={newKeyType === "local"
-                    ? providers[newKeyType]?.defaultApiUrl || "https://..."
-                    : "https://api.example.com/v1/chat/completions"}
+	                  placeholder={newKeyType === "local"
+	                    ? providers[newKeyType]?.defaultApiUrl || "https://..."
+	                    : "https://api.example.com/v1"}
                   class="w-full bg-black/40 border border-white/10 rounded-lg px-4 py-2.5 text-sm text-white focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 outline-none transition-all placeholder-gray-600 font-mono"
                 />
               </div>
@@ -1919,7 +2907,9 @@
             {/if}
           </div>
 
-          <div class="flex gap-3 pt-4 border-t border-white/5">
+          </div>
+
+          <div class="flex gap-3 pt-4 mt-auto border-t border-white/5 shrink-0">
             <button
               onclick={() => (showAddKey = false)}
               class="flex-1 py-2.5 rounded-lg border border-white/10 text-gray-400 hover:bg-white/5 hover:text-white transition-all text-sm font-medium"
@@ -2045,7 +3035,35 @@
     bottom: auto;
     top: calc(100% + 8px);
   }
-  :global(.group:hover > .card-style-tooltip) {
-    display: block;
+	  :global(.group:hover > .card-style-tooltip) {
+	    display: block;
+	  }
+
+	  .ui-language-grid {
+	    display: flex;
+	    flex-wrap: wrap;
+	    justify-content: center;
+	    gap: 0.75rem;
+	    max-width: calc(7 * 7rem + 6 * 0.75rem);
+	    margin-inline: auto;
+	  }
+
+	  .ui-language-button {
+	    flex: 0 0 7rem;
+	  }
+
+	  :global(.language-select .searchable-select-input) {
+    min-height: 3.25rem;
+    font-size: 1rem;
+    padding-block: 0.95rem;
+  }
+
+  :global(.language-select .searchable-select-option) {
+    min-height: 2.75rem;
+    font-size: 0.95rem;
+  }
+
+  :global(.language-select .searchable-select-option span:first-child) {
+    font-size: 1.35rem;
   }
 </style>

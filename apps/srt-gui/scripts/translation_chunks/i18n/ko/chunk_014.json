@@ -13,7 +13,7 @@
   "nav.revision.desc": "번역 자막을 보완하고 수정",
   "align.helpTitle": "교정 도우미",
   "transcribe.ffmpegDownload": "FFmpeg 다운로드",
-  "sync.wizard.skip": "Skip",
+  "sync.wizard.skip": "건너뛰기",
   "sync.autoSync": "자동 동기화",
   "sync.autoSyncInProgress": "자동 동기화 진행 중...",
   "sync.autoSyncRequires": "SRT와 미디어 파일이 필요합니다",
@@ -34,5 +34,16 @@
   "sync.confidenceHelp": "일치 품질 (0-100%)",
   "sync.autoSyncResult.cancelled": "자동 동기화가 취소되었습니다",
   "sync.autoSyncResult.success": "{{count}}개의 세그먼트가 성공적으로 동기화되었습니다",
-  "sync.autoSyncResult.noMatches": "일치하는 항목을 찾을 수 없습니다"
+  "sync.autoSyncResult.noMatches": "일치하는 항목을 찾을 수 없습니다",
+  "nav.notifications": "알림",
+  "nav.notifications.desc": "업데이트 없음",
+  "nav.notifications.update": "업데이트 있음",
+  "notifications.title": "알림",
+  "notifications.checking": "업데이트 확인 중...",
+  "notifications.none": "알림 없음",
+  "notifications.offline": "인터넷 연결이 없거나 GitHub에 연결할 수 없습니다.",
+  "notifications.updateAvailable": "Vesta {{version}} 사용 가능",
+  "notifications.updateDesc": "현재 버전: {{current}}. 최신 릴리스: {{latest}}.",
+  "notifications.openReleases": "릴리스 열기",
+  "notifications.lastChecked": "마지막 확인"
 }

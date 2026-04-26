@@ -13,7 +13,7 @@
   "translate.error": "خطأ",
   "translate.cancel": "إلغاء",
   "translate.start": "بدء الترجمة",
-  "translate.customEndpointPlaceholder": "https://your-api.example.com/v1/chat/completions",
+  "translate.customEndpointPlaceholder": "https://api.example.com/v1/chat/completions (مثال)",
   "translate.customApiKeyPlaceholder": "مفتاح API (اختياري)",
   "translate.customEndpointHint": "أدخل نقطة نهاية متوافقة مع OpenAI. مفتاح API اختياري إذا كانت نقطة النهاية لا تتطلب مصادقة.",
   "translate.customEndpointRequired": "عنوان URL لنقطة النهاية مطلوب للمزود المخصص",

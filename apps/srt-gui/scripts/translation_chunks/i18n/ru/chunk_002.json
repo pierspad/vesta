@@ -39,7 +39,7 @@
   "settings.modal.openrouterModelHint": "Найдите ID на openrouter.ai/models — Вы можете использовать любую модель, даже если её нет в списке!",
   "settings.modal.localServer": "Локальный сервер",
   "settings.modal.localServerDesc": "Ollama, LM Studio (Ваш ПК)",
-  "settings.modal.cloudApi": "Cloud API (OpenRouter)",
+  "settings.modal.cloudApi": "Облачный API (OpenRouter)",
   "settings.modal.cloudApiDesc": "GPT, Claude, Google API (Онлайн)",
   "settings.modal.notRequiredForLocal": "Не требуется для локального сервера...",
   "settings.modal.localEndpointDefault": "По умолчанию: http://localhost:11434/v1 (Ollama)",

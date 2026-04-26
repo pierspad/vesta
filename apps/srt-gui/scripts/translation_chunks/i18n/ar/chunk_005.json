@@ -34,7 +34,7 @@
   "sync.completed": "مكتمل",
   "sync.loading": "جارٍ التحميل...",
   "sync.resetSync": "إعادة تعيين المزامنة",
-  "sync.keySpace": "Space",
+  "sync.keySpace": "المسافة",
   "sync.playPause": "تشغيل/إيقاف مؤقت",
   "sync.seek": "تقديم/ترجيع ±0.1 ثانية",
   "sync.offsetAdjust": "إزاحة ±100 مللي ثانية",

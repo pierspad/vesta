@@ -432,10 +432,10 @@
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div 
-  class="h-full flex flex-col p-6 overflow-hidden animate-fade-in relative text-gray-200"
+  class="h-full flex flex-col p-6 overflow-y-auto animate-fade-in relative text-gray-200"
   onkeydown={handleKeydown}
 >
-  <div class="flex-1 min-h-0 bg-[#1d2332] rounded-2xl border border-white/5 shadow-2xl p-6 flex flex-col overflow-hidden">
+  <div class="min-h-full bg-[#1d2332] rounded-2xl border border-white/5 shadow-2xl p-6 flex flex-col">
     <div class="mb-6 flex items-start justify-between shrink-0 gap-3">
       <div>
         <h2 class="text-lg font-semibold text-teal-300 flex items-center gap-2">
@@ -474,10 +474,13 @@
     <div class="flex flex-col gap-2 relative z-10 min-w-0">
       <div class="text-sm font-semibold text-gray-300 flex items-center gap-2">
         {#if targetFlag}<span class="text-lg">{targetFlag}</span>{/if}
-        1st SRT
+        Original / base SRT
       </div>
       <div class="flex gap-2 min-w-0">
-        <button onclick={selectTarget} class="btn-secondary whitespace-nowrap px-4 py-2 shrink-0">Select 1st SRT</button>
+        <button onclick={selectTarget} class="btn-primary whitespace-nowrap px-4 py-2 shrink-0 flex items-center gap-2 shadow-lg shadow-teal-500/15">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7a2 2 0 012-2h5l2 2h7a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" /></svg>
+          Open SRT
+        </button>
         <button 
           type="button"
           onclick={() => expandedPathField = "target"}
@@ -516,14 +519,17 @@
     <div class="flex flex-col gap-2 relative z-10 min-w-0">
       <div class="text-sm font-semibold text-gray-300 flex items-center gap-2">
         {#if sourceFlag}<span class="text-lg">{sourceFlag}</span>{/if}
-        2nd SRT
+        Translation / review SRT
       </div>
       <div class="flex gap-2 min-w-0">
         <button 
           onclick={selectSource} 
           disabled={!targetPath}
-          class="btn-secondary whitespace-nowrap px-4 py-2 shrink-0 {!targetPath ? 'opacity-50 cursor-not-allowed' : ''}"
-        >Select 2nd SRT</button>
+          class="whitespace-nowrap px-4 py-2 shrink-0 flex items-center gap-2 rounded-lg border transition-all font-semibold {!targetPath ? 'bg-white/5 text-gray-600 border-transparent cursor-not-allowed' : 'bg-indigo-500/20 text-indigo-200 border-indigo-500/30 hover:bg-indigo-500/30 hover:border-indigo-400/50 shadow-lg shadow-indigo-500/10'}"
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7a2 2 0 012-2h5l2 2h7a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" /></svg>
+          Open SRT
+        </button>
         <button 
           type="button"
           disabled={!targetPath}
@@ -547,7 +553,7 @@
     </div>
 
     <!-- Editor Area -->
-    <div class="flex-1 min-h-[300px] h-full overflow-hidden flex flex-col min-w-0">
+    <div class="min-h-[300px] flex flex-col min-w-0">
       {#if targetSubs.length === 0 && sourceSubs.length === 0}
         <div class="flex-1 flex flex-col items-center justify-center text-gray-500 pb-10">
         <svg class="w-20 h-20 mb-6 opacity-20 text-teal-500 bg-teal-500/5 p-4 rounded-full" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -558,8 +564,8 @@
         </div>
       {:else}
         <!-- Pagination Top -->
-        <div class="flex flex-wrap items-center justify-between mb-4 gap-2 shrink-0">
-        <div class="flex items-center gap-2">
+        <div class="flex flex-col xl:flex-row xl:items-center xl:justify-between mb-4 gap-3 shrink-0">
+        <div class="flex items-center gap-2 flex-wrap">
           <div class="text-sm text-gray-400 font-medium bg-gray-800/80 px-3 py-1.5 rounded-md">
              Page <span class="text-white mx-1">{currentPage + 1}</span> of <span class="text-white mx-1">{totalPages || 1}</span>
           </div>
@@ -574,7 +580,7 @@
             <span class="text-xs font-medium">{itemsPerPage}</span>
           </button>
         </div>
-        <div class="flex gap-1.5 flex-wrap">
+        <div class="flex gap-1.5 flex-wrap xl:justify-end">
           <button onclick={jumpStart} disabled={currentPage === 0} class="btn-secondary px-3 py-1.5 disabled:opacity-50 flex items-center" title="Go to Start">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7" /></svg>
           </button>
@@ -607,7 +613,7 @@
         </div>
 
         <!-- Content Grid -->
-        <div class="flex-1 overflow-y-auto pr-3 pl-1 space-y-6 custom-scrollbar pb-4 min-w-0">
+        <div class="pr-3 pl-1 space-y-6 custom-scrollbar pb-4 min-w-0">
         {#each currentPageItems as item (item.index)}
           {@const isMissingPair =
             (!!item.source && (!item.source.text || item.source.text.trim() === '')) ||

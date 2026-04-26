@@ -8,7 +8,7 @@
   "settings.modal.localServer": "Serwer lokalny",
   "settings.modal.localServerDesc": "Ollama, LM Studio (Twój komputer)",
   "settings.modal.cloudApi": "Chmurowe API (OpenRouter)",
-  "settings.modal.cloudApiDesc": "GPT, Claude, Google API (Online)",
+  "settings.modal.cloudApiDesc": "GPT, Claude, API Google (online)",
   "settings.modal.notRequiredForLocal": "Niewymagane dla lokalnych...",
   "settings.modal.localEndpointDefault": "Domyślnie: http://localhost:11434/v1 (Ollama)",
   "settings.modelFamilies": "Rodziny modeli",
@@ -31,7 +31,7 @@
   "settings.languageDesc": "Wybierz język aplikacji",
   "settings.toggleVisibility": "Pokaż/Ukryj klucz API",
   "settings.hasSpecialChars": "Uwaga: Klucz zawiera spacje lub znaki specjalne",
-  "settings.model": "Model",
+  "settings.model": "Model AI",
   "settings.confirmDelete": "Usuń",
   "provider.local": "Lokalny LLM",
   "provider.openrouter": "OpenRouter",
@@ -46,7 +46,7 @@
   "translate.outputFile": "Plik wyjściowy",
   "translate.selectDestination": "Nie wybrano pliku wyjściowego",
   "translate.subtitles": "napisy",
-  "translate.log": "Log",
+  "translate.log": "Dziennik",
   "translate.clearLog": "Wyczyść",
   "translate.noLog": "Brak logów..."
 }

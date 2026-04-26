@@ -2,7 +2,7 @@
   "translate.error": "错误",
   "translate.cancel": "取消",
   "translate.start": "开始翻译",
-  "translate.customEndpointPlaceholder": "https://your-api.example.com/v1/chat/completions",
+  "translate.customEndpointPlaceholder": "https://api.example.com/v1/chat/completions（示例）",
   "translate.customApiKeyPlaceholder": "API 密钥（可选）",
   "translate.customEndpointHint": "输入 OpenAI 兼容的端点。如果您的端点不需要身份验证，API 密钥是可选的。",
   "translate.customEndpointRequired": "自定义提供商需要端点 URL",

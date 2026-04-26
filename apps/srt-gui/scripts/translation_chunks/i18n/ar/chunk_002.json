@@ -26,7 +26,7 @@
   "settings.default": "افتراضي",
   "settings.setAsDefault": "تعيين كافتراضي",
   "settings.delete": "حذف",
-  "settings.ctx": "ctx",
+  "settings.ctx": "السياق",
   "settings.modal.newKey": "تكوين النموذج",
   "settings.modal.keyName": "اسم التكوين",
   "settings.modal.keyNamePlaceholder": "مثال: Google API الشخصي",

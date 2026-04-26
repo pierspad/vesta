@@ -11,7 +11,7 @@
   "translate.error": "오류",
   "translate.cancel": "취소",
   "translate.start": "번역 시작",
-  "translate.customEndpointPlaceholder": "https://your-api.example.com/v1/chat/completions",
+  "translate.customEndpointPlaceholder": "https://api.example.com/v1/chat/completions (예시)",
   "translate.customApiKeyPlaceholder": "API 키 (선택사항)",
   "translate.customEndpointHint": "OpenAI 호환 엔드포인트를 입력하세요. 엔드포인트가 인증을 요구하지 않는 경우 API 키는 선택사항입니다.",
   "translate.customEndpointRequired": "사용자 정의 제공자에는 엔드포인트 URL이 필요합니다",

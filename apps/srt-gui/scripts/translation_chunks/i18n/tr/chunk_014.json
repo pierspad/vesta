@@ -13,7 +13,7 @@
   "nav.revision.desc": "Altyazı çevirisini tamamla ve düzelt",
   "align.helpTitle": "Revizyon Asistanı",
   "transcribe.ffmpegDownload": "FFmpeg İndir",
-  "sync.wizard.skip": "Skip",
+  "sync.wizard.skip": "Atla",
   "sync.autoSync": "Otomatik Senkronizasyon",
   "sync.autoSyncInProgress": "Otomatik senkronizasyon devam ediyor...",
   "sync.autoSyncRequires": "SRT ve Medya dosyası gerekli",
@@ -34,5 +34,16 @@
   "sync.confidenceHelp": "Eşleşme kalitesi (%0-100)",
   "sync.autoSyncResult.cancelled": "Otomatik senkronizasyon iptal edildi",
   "sync.autoSyncResult.success": "{{count}} segment başarıyla senkronize edildi",
-  "sync.autoSyncResult.noMatches": "Eşleşme bulunamadı"
+  "sync.autoSyncResult.noMatches": "Eşleşme bulunamadı",
+  "nav.notifications": "Bildirimler",
+  "nav.notifications.desc": "Güncelleme yok",
+  "nav.notifications.update": "Güncelleme var",
+  "notifications.title": "Bildirimler",
+  "notifications.checking": "Güncellemeler kontrol ediliyor...",
+  "notifications.none": "Bildirim yok",
+  "notifications.offline": "İnternet bağlantısı yok veya GitHub erişilemiyor.",
+  "notifications.updateAvailable": "Vesta {{version}} mevcut",
+  "notifications.updateDesc": "Geçerli sürüm: {{current}}. Son yayın: {{latest}}.",
+  "notifications.openReleases": "Sürümleri aç",
+  "notifications.lastChecked": "Son kontrol"
 }

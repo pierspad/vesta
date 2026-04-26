@@ -28,7 +28,7 @@
   "transcribe.files": "Arquivos",
   "transcribe.inputPathDesc": "Insira ou edite o caminho para o arquivo de áudio/vídeo.",
   "transcribe.inputRequired": "Por favor, selecione um arquivo de entrada",
-  "transcribe.modelBase": "Base",
+  "transcribe.modelBase": "Básico",
   "transcribe.modelLarge": "Grande",
   "transcribe.modelMedium": "Médio",
   "transcribe.modelRequired": "Por favor, selecione um modelo Whisper",

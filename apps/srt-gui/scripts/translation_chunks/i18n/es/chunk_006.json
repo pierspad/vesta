@@ -28,8 +28,8 @@
   "flashcards.activeLines": "Líneas activas",
   "flashcards.actorFilter": "Filtro de actor",
   "flashcards.actors": "actores",
-  "flashcards.audio": "Audio",
-  "flashcards.audioField": "3. Audio",
+  "flashcards.audio": "Sonido",
+  "flashcards.audioField": "3. Sonido",
   "flashcards.audioFiles": "Archivos de audio",
   "flashcards.audioLoaded": "Audio cargado",
   "flashcards.audioSource": "Archivo de origen de audio",
@@ -48,5 +48,5 @@
   "flashcards.cpuEcoDesc": "Carga mínima",
   "flashcards.cpuFullPower": "Máxima Potencia",
   "flashcards.cpuFullPowerDesc": "Máx. núcleos",
-  "flashcards.cpuMax": "max"
+  "flashcards.cpuMax": "máximo"
 }

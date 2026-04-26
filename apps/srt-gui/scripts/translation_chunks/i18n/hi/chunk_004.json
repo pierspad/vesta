@@ -11,7 +11,7 @@
   "translate.error": "त्रुटि",
   "translate.cancel": "रद्द करें",
   "translate.start": "अनुवाद शुरू करें",
-  "translate.customEndpointPlaceholder": "https://your-api.example.com/v1/chat/completions",
+  "translate.customEndpointPlaceholder": "https://api.example.com/v1/chat/completions (उदाहरण)",
   "translate.customApiKeyPlaceholder": "API कुंजी (वैकल्पिक)",
   "translate.customEndpointHint": "OpenAI-संगत एंडपॉइंट दर्ज करें। यदि आपके एंडपॉइंट को प्रमाणीकरण की आवश्यकता नहीं है तो API कुंजी वैकल्पिक है।",
   "translate.customEndpointRequired": "कस्टम प्रदाता के लिए एंडपॉइंट URL आवश्यक है",

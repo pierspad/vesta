@@ -14,15 +14,21 @@
   import InfoButton from "./InfoButton.svelte";
   import { transcribeSections } from "./info";
 
-  let { onGoToSettings } = $props<{ onGoToSettings?: () => void }>();
+  let { onGoToSettings } = $props<{ onGoToSettings?: (section?: "overview" | "llm" | "whisper" | "language" | "anki") => void }>();
 
   let t = $derived($locale);
 
   let inputPath = $state("");
   let outputPath = $state("");
   let selectedModel = $state("base");
-  let selectedLanguage = $state("auto");
-  let previousLanguageForOutput = "auto";
+  const LAST_TRANSCRIBE_LANGUAGE_KEY = "vesta-transcribe-source-language";
+  const DEFAULT_TRANSCRIBE_LANGUAGE_KEY = "vesta-default-transcribe-language";
+  const initialTranscribeLanguage =
+    localStorage.getItem(LAST_TRANSCRIBE_LANGUAGE_KEY) ||
+    localStorage.getItem(DEFAULT_TRANSCRIBE_LANGUAGE_KEY) ||
+    "auto";
+  let selectedLanguage = $state(initialTranscribeLanguage);
+  let previousLanguageForOutput = initialTranscribeLanguage;
   let translateToEnglish = $state(false);
   let wordTimestamps = $state(true);
   let maxSegmentLength = $state(30);
@@ -69,7 +75,6 @@
   let logs = $state<LogEntry[]>([]);
 
   let helpSection = $state<string | null>(null);
-
   let showInputPathDialog = $state(false);
   let showOutputPathDialog = $state(false);
   let editInputPath = $state("");
@@ -98,6 +103,14 @@
 
   let isModelDownloaded = $derived(
     whisperModels.find((m) => m.id === selectedModel)?.downloaded ?? false
+  );
+  let hasAnyWhisperModel = $derived(whisperModels.some((m) => m.downloaded));
+  let transcribeBlockedReason = $derived(
+    !isModelDownloaded
+      ? "Scarica e imposta un modello Whisper da Settings prima di avviare la trascrizione."
+      : !inputPath || !outputPath
+        ? "Seleziona file di input e destinazione per abilitare la trascrizione."
+        : ""
   );
 
   // Languages for transcription - use the same list as translation tab, with auto-detect option
@@ -175,6 +188,10 @@
     }
   });
 
+  $effect(() => {
+    localStorage.setItem(LAST_TRANSCRIBE_LANGUAGE_KEY, selectedLanguage);
+  });
+
   let unlistenProgress: (() => void) | null = null;
 
   onMount(async () => {
@@ -187,6 +204,7 @@
       }
       refreshModels();
     });
+    window.addEventListener("vesta-language-defaults-updated", handleLanguageDefaultsUpdated);
 
     try {
       backends = await invoke<typeof backends>("transcribe_check_backends");
@@ -216,8 +234,16 @@
 
   onDestroy(() => {
     window.removeEventListener("keydown", handleKeydown);
+    window.removeEventListener("vesta-language-defaults-updated", handleLanguageDefaultsUpdated);
     unlistenProgress?.();
   });
+
+  function handleLanguageDefaultsUpdated() {
+    if (!localStorage.getItem(LAST_TRANSCRIBE_LANGUAGE_KEY)) {
+      selectedLanguage = localStorage.getItem(DEFAULT_TRANSCRIBE_LANGUAGE_KEY) || "auto";
+      previousLanguageForOutput = selectedLanguage;
+    }
+  }
 
   function handleKeydown(e: KeyboardEvent) {
     if (
@@ -288,11 +314,27 @@
               "mkv",
               "avi",
               "webm",
+              "mov",
+              "wmv",
+              "flv",
+              "m4v",
+              "ts",
+              "3gp",
+              "mpeg",
+              "mpg",
+              "m2ts",
+              "vob",
               "mp3",
               "wav",
               "m4a",
               "flac",
               "ogg",
+              "aac",
+              "wma",
+              "amr",
+              "opus",
+              "aiff",
+              "alac",
             ],
           },
         ],
@@ -401,11 +443,13 @@
   async function startTranscription() {
     if (!inputPath || !outputPath) {
       error = t("transcribe.selectFilesFirst");
+      showSnackbar(t("transcribe.selectFilesFirst"));
       return;
     }
 
     if (!isModelDownloaded) {
-      error = "The selected Whisper model is not downloaded. Please download it in Settings.";
+      error = transcribeBlockedReason;
+      showSnackbar(transcribeBlockedReason);
       return;
     }
 
@@ -671,6 +715,39 @@
         >
         {t("transcribe.newTranscription")}
       </button>
+    </div>
+  {/if}
+
+  {#if !isModelDownloaded}
+    <div class="mb-4 glass-card p-4 border border-amber-500/30 bg-amber-500/10 shrink-0">
+      <div class="flex flex-col lg:flex-row lg:items-center gap-4">
+        <div class="flex items-start gap-3 flex-1">
+          <div class="w-10 h-10 rounded-lg bg-amber-500/20 text-amber-300 flex items-center justify-center shrink-0">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M5.07 19h13.86c1.54 0 2.5-1.67 1.73-3L13.73 4c-.77-1.33-2.69-1.33-3.46 0L3.34 16c-.77 1.33.19 3 1.73 3z" />
+            </svg>
+          </div>
+          <div>
+            <p class="text-sm font-semibold text-amber-100">Whisper non è ancora pronto</p>
+            <p class="text-xs text-amber-100/70 mt-1">
+              {hasAnyWhisperModel
+                ? `Il modello selezionato (${selectedModel}) non è scaricato. Scegli un modello già disponibile o scaricalo nella macro-area Whisper.`
+                : "Per trascrivere audio o video devi prima scaricare almeno un modello Whisper nella macro-area dedicata."}
+            </p>
+          </div>
+        </div>
+        <button
+          type="button"
+          onclick={() => onGoToSettings?.("whisper")}
+          class="px-4 py-2 rounded-lg bg-amber-500/20 border border-amber-500/40 text-amber-100 hover:bg-amber-500/30 transition-colors text-sm font-semibold flex items-center justify-center gap-2"
+          title="Apri Settings nella macro-area Whisper"
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18a6 6 0 006-6V7a6 6 0 10-12 0v5a6 6 0 006 6zm0 0v3m-4 0h8" />
+          </svg>
+          Apri Whisper
+        </button>
+      </div>
     </div>
   {/if}
 
@@ -960,7 +1037,8 @@
           {:else}
             <button
               onclick={startTranscription}
-              disabled={!inputPath || !outputPath}
+              disabled={!inputPath || !outputPath || !isModelDownloaded}
+              title={transcribeBlockedReason || t("transcribe.startTranscription")}
               class="btn-success flex-1 py-4 text-lg disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <svg
@@ -991,7 +1069,7 @@
           <!-- svelte-ignore a11y_no_static_element_interactions -->
           <div
             class="p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg cursor-pointer hover:bg-amber-500/20 transition-colors"
-            onclick={() => onGoToSettings?.()}
+            onclick={() => onGoToSettings?.("whisper")}
           >
             <div class="flex items-start gap-2">
               <span class="text-amber-400">⚠️</span>
@@ -999,6 +1077,7 @@
                 <p class="text-xs text-amber-200">
                   {t("transcribe.modelDownloadNote") || "It is necessary to download and set a Whisper model from Settings. Click here to go to Settings."}
                 </p>
+                <p class="text-[11px] text-amber-100/60 mt-1">Apre direttamente Settings > Whisper.</p>
               </div>
             </div>
           </div>
@@ -1119,9 +1198,9 @@
     {/if}
   {/snippet}
 
-  <div class="flex-1 grid grid-cols-1 xl:grid-cols-2 gap-6 min-h-0 overflow-y-auto">
+  <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
     <div
-      class="space-y-3 overflow-y-auto pr-1 min-h-[100px]"
+      class="space-y-3 min-h-[100px]"
       role="list"
     >
       {#each transcribePanelLayout.col1 as tPanelId, idx (tPanelId)}
@@ -1135,7 +1214,7 @@
     </div>
 
     <div
-      class="space-y-3 overflow-y-auto pr-1 min-h-[100px]"
+      class="space-y-3 min-h-[100px]"
       role="list"
     >
       {#each transcribePanelLayout.col2 as tPanelId, idx (tPanelId)}

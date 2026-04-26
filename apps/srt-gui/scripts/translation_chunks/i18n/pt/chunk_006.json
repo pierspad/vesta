@@ -43,7 +43,7 @@
   "flashcards.cpuCores": "Núcleos da CPU",
   "flashcards.cpuCoresNote": "Pelo menos 1 núcleo fica livre para o sistema. Mais núcleos = geração mais rápida.",
   "flashcards.cpuCoresUsage": "Threads paralelos",
-  "flashcards.cpuEco": "Eco",
+  "flashcards.cpuEco": "Econômico",
   "flashcards.cpuEcoDesc": "Carga mínima",
   "flashcards.cpuFullPower": "Poder Total",
   "flashcards.cpuFullPowerDesc": "Núcleos máx",

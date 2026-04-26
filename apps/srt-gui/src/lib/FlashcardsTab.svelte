@@ -35,6 +35,7 @@
 
   const OUTPUT_DIR_KEY = "vesta-last-output-dir";
   const NOTE_TYPE_LANGUAGE_KEY = "vesta-flashcards-note-type-language";
+  const DEFAULT_FLASHCARDS_LANGUAGE_KEY = "vesta-default-flashcards-language";
   const SERIES_MODE_KEY = "vesta-flashcards-series-mode";
   const SMART_FILE_MATCHING_KEY = "vesta-flashcards-smart-file-matching";
 
@@ -1077,6 +1078,14 @@
         languages.some((l) => l.code === savedNoteTypeLanguage)
       ) {
         noteTypeLanguage = savedNoteTypeLanguage;
+      } else {
+        const defaultNoteTypeLanguage = localStorage.getItem(DEFAULT_FLASHCARDS_LANGUAGE_KEY);
+        if (
+          defaultNoteTypeLanguage &&
+          languages.some((l) => l.code === defaultNoteTypeLanguage)
+        ) {
+          noteTypeLanguage = defaultNoteTypeLanguage;
+        }
       }
     } catch {}
 

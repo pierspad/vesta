@@ -244,6 +244,13 @@ jobs:
           workspaces: '. -> target'
           shared-key: "v1-sccache-windows"
 
+      - name: Cache Tauri tools (NSIS, WiX)
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ env.LOCALAPPDATA }}\tauri
+          key: tauri-tools-windows-${{ runner.os }}-v1
+
       - name: Get version
         id: version
         shell: bash

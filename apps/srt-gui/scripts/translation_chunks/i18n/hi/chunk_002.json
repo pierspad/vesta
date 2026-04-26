@@ -24,7 +24,7 @@
   "settings.default": "डिफ़ॉल्ट",
   "settings.setAsDefault": "डिफ़ॉल्ट के रूप में सेट करें",
   "settings.delete": "हटाएँ",
-  "settings.ctx": "ctx",
+  "settings.ctx": "संदर्भ",
   "settings.modal.newKey": "मॉडल कॉन्फ़िगर करें",
   "settings.modal.keyName": "कॉन्फ़िगरेशन नाम",
   "settings.modal.keyNamePlaceholder": "उदा: पर्सनल Google API",

@@ -2,7 +2,7 @@
   "translate.error": "エラー",
   "translate.cancel": "キャンセル",
   "translate.start": "翻訳開始",
-  "translate.customEndpointPlaceholder": "https://your-api.example.com/v1/chat/completions",
+  "translate.customEndpointPlaceholder": "https://api.example.com/v1/chat/completions（例）",
   "translate.customApiKeyPlaceholder": "APIキー（オプション）",
   "translate.customEndpointHint": "OpenAI互換のエンドポイントを入力してください。エンドポイントが認証を必要としない場合、APIキーはオプションです。",
   "translate.customEndpointRequired": "カスタムプロバイダーにはエンドポイントURLが必要です",

@@ -1,7 +1,7 @@
 {
-  "provider.groq": "Groq API",
+  "provider.groq": "Groq API servisi",
   "provider.groq.desc": "Ultra hızlı LPU çıkarımı — Llama 3.3 70B, GPT-OSS 120B, Qwen 3 32B",
-  "settings.modal.providerGroq": "Groq API",
+  "settings.modal.providerGroq": "Groq API servisi",
   "settings.modal.providerGroqDesc": "Llama 3.3, GPT-OSS 120B, Qwen 3 — ultra hızlı LPU",
   "settings.modal.apiKeyHintGroq": "API anahtarınızı şuradan alın",
   "settings.errorInvalidGroqKey": "Groq API anahtarları 'gsk_...' ile başlamalıdır",
@@ -25,7 +25,7 @@
   "settings.fieldReading": "Okuma",
   "settings.fieldAudio": "Ses",
   "settings.fieldSnapshot": "Ekran Görüntüsü",
-  "settings.fieldVideo": "Video",
+  "settings.fieldVideo": "Video dosyası",
   "settings.fieldTags": "Etiketler",
   "settings.fieldSequenceMarker": "Dizi İşaretçisi",
   "settings.fieldNotes": "Notlar",

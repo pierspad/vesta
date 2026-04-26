@@ -3,6 +3,7 @@
   import { getCurrentWindow } from "@tauri-apps/api/window";
   import { onMount } from "svelte";
   import FlashcardsTab from "./lib/FlashcardsTab.svelte";
+  import NotificationsTab from "./lib/NotificationsTab.svelte";
   import SettingsTab from "./lib/SettingsTab.svelte";
   import ShortcutOverlay from "./lib/ShortcutOverlay.svelte";
   import ShortcutsTab from "./lib/ShortcutsTab.svelte";
@@ -12,8 +13,11 @@
   import TranslateTab from "./lib/TranslateTab.svelte";
   import AlignTab from "./lib/AlignTab.svelte";
 
-  let activeTab = $state<"translate" | "sync" | "transcribe" | "align" | "flashcards" | "settings" | "shortcuts">("flashcards");
+  type AppTab = "translate" | "sync" | "transcribe" | "align" | "flashcards" | "settings" | "notifications" | "shortcuts";
+
+  let activeTab = $state<AppTab>("flashcards");
   let sidebarCollapsed = $state(false);
+  let requestedSettingsSection = $state<"overview" | "llm" | "whisper" | "language" | "anki">("overview");
 
   const MIN_WIDTH = 760;
   const MIN_HEIGHT = 620;
@@ -64,7 +68,25 @@
   });
 
   // Expose function to change tab programmatically
-  function changeTab(tab: typeof activeTab) {
+  function changeTab(tab: AppTab) {
+    if (tab === "settings") {
+      goToSettings("overview");
+      return;
+    }
+    activeTab = tab;
+  }
+
+  function goToSettings(section: typeof requestedSettingsSection = "overview") {
+    requestedSettingsSection = section;
+    activeTab = "settings";
+    window.dispatchEvent(new CustomEvent("vesta-open-settings-section", { detail: section }));
+  }
+
+  function handleTabChange(tab: AppTab) {
+    if (tab === "settings") {
+      goToSettings("overview");
+      return;
+    }
     activeTab = tab;
   }
 
@@ -84,18 +106,18 @@
   ondragover={(e) => { e.preventDefault(); if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy'; }}
   ondrop={(e) => e.preventDefault()}
 >
-  <Sidebar {activeTab} onTabChange={(tab) => (activeTab = tab)} collapsed={sidebarCollapsed} onToggleCollapse={toggleSidebar} />
+  <Sidebar {activeTab} onTabChange={handleTabChange} collapsed={sidebarCollapsed} onToggleCollapse={toggleSidebar} />
 
   <!-- Main Content - use CSS visibility to preserve state -->
   <div class="flex-1 overflow-hidden relative">
     <div class="absolute inset-0" class:hidden={activeTab !== "translate"}>
-      <TranslateTab onGoToSettings={() => (activeTab = "settings")} active={activeTab === "translate"} />
+      <TranslateTab onGoToSettings={goToSettings} active={activeTab === "translate"} />
     </div>
     <div class="absolute inset-0" class:hidden={activeTab !== "sync"}>
       <SyncTab active={activeTab === "sync"} />
     </div>
     <div class="absolute inset-0" class:hidden={activeTab !== "transcribe"}>
-      <TranscribeTab onGoToSettings={() => (activeTab = "settings")} />
+      <TranscribeTab onGoToSettings={goToSettings} />
     </div>
     <div class="absolute inset-0" class:hidden={activeTab !== "align"}>
       <AlignTab />
@@ -104,7 +126,10 @@
       <FlashcardsTab active={activeTab === "flashcards"} />
     </div>
     <div class="absolute inset-0" class:hidden={activeTab !== "settings"}>
-      <SettingsTab />
+      <SettingsTab requestedSection={requestedSettingsSection} />
+    </div>
+    <div class="absolute inset-0" class:hidden={activeTab !== "notifications"}>
+      <NotificationsTab />
     </div>
     <div class="absolute inset-0" class:hidden={activeTab !== "shortcuts"}>
       <ShortcutsTab />

@@ -34,5 +34,16 @@
   "sync.confidenceHelp": "Match quality (0-100%)",
   "sync.autoSyncResult.cancelled": "Auto-sync cancelled",
   "sync.autoSyncResult.success": "Successfully synced for {{count}} segments",
-  "sync.autoSyncResult.noMatches": "No matches found"
+  "sync.autoSyncResult.noMatches": "No matches found",
+  "nav.notifications": "Notifications",
+  "nav.notifications.desc": "No updates",
+  "nav.notifications.update": "Update available",
+  "notifications.title": "Notifications",
+  "notifications.checking": "Checking for updates...",
+  "notifications.none": "No notifications",
+  "notifications.offline": "No internet connection or GitHub is unreachable.",
+  "notifications.updateAvailable": "Vesta {{version}} is available",
+  "notifications.updateDesc": "Current version: {{current}}. Latest release: {{latest}}.",
+  "notifications.openReleases": "Open releases",
+  "notifications.lastChecked": "Last checked"
 }

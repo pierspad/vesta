@@ -13,8 +13,8 @@
   "nav.revision.desc": "Compléter et corriger la traduction des sous-titres",
   "align.helpTitle": "Assistant de révision",
   "transcribe.ffmpegDownload": "Télécharger FFmpeg",
-  "sync.wizard.skip": "Skip",
-  "sync.autoSync": "Auto-Sync",
+  "sync.wizard.skip": "Ignorer",
+  "sync.autoSync": "Synchronisation automatique",
   "sync.autoSyncInProgress": "Auto-Sync en cours...",
   "sync.autoSyncRequires": "Nécessite SRT et Média",
   "sync.autoSyncCancelling": "Annulation...",
@@ -34,5 +34,16 @@
   "sync.confidenceHelp": "Qualité de correspondance (0-100%)",
   "sync.autoSyncResult.cancelled": "Synchronisation automatique annulée",
   "sync.autoSyncResult.success": "Synchronisé avec succès pour {{count}} segments",
-  "sync.autoSyncResult.noMatches": "Aucune correspondance trouvée"
+  "sync.autoSyncResult.noMatches": "Aucune correspondance trouvée",
+  "nav.notifications": "Centre d'alertes",
+  "nav.notifications.desc": "Aucune mise à jour",
+  "nav.notifications.update": "Mise à jour disponible",
+  "notifications.title": "Centre d'alertes",
+  "notifications.checking": "Recherche de mises à jour...",
+  "notifications.none": "Aucune notification",
+  "notifications.offline": "Pas de connexion internet ou GitHub est injoignable.",
+  "notifications.updateAvailable": "Vesta {{version}} est disponible",
+  "notifications.updateDesc": "Version actuelle : {{current}}. Dernière release : {{latest}}.",
+  "notifications.openReleases": "Ouvrir les releases",
+  "notifications.lastChecked": "Dernière vérification"
 }

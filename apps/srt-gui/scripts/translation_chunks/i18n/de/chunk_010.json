@@ -1,7 +1,7 @@
 {
   "sync.tryAnotherFile": "Eine andere Datei versuchen",
   "sync.wizard.allSynced": "Alle Untertitel scheinen synchronisiert zu sein!",
-  "sync.wizard.checkpoint": "Checkpoint",
+  "sync.wizard.checkpoint": "Prüfpunkt",
   "sync.wizard.confirm": "Bestätigen & Weiter",
   "sync.wizard.continueChecking": "Weiter prüfen",
   "sync.wizard.go": "Los",

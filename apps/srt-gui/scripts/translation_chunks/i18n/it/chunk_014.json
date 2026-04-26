@@ -14,7 +14,7 @@
   "shortcuts.action.alignCyclePerPage": "Cicla sottotitoli visibili (5/10/15)",
   "align.helpTitle": "Assistente Revisione",
   "transcribe.ffmpegDownload": "Scarica FFmpeg",
-  "sync.autoSync": "Auto-Sync",
+  "sync.autoSync": "Sincronizzazione automatica",
   "sync.autoSyncInProgress": "Auto-Sync in corso...",
   "sync.autoSyncRequires": "Richiede SRT e Media",
   "sync.autoSyncCancelling": "Annullamento...",
@@ -34,5 +34,16 @@
   "sync.confidenceHelp": "Qualità della corrispondenza (0-100%)",
   "sync.autoSyncResult.cancelled": "Sincronizzazione automatica annullata",
   "sync.autoSyncResult.success": "Sincronizzato correttamente per {{count}} segmenti",
-  "sync.autoSyncResult.noMatches": "Nessuna corrispondenza trovata"
+  "sync.autoSyncResult.noMatches": "Nessuna corrispondenza trovata",
+  "nav.notifications": "Notifiche",
+  "nav.notifications.desc": "Nessun aggiornamento",
+  "nav.notifications.update": "Aggiornamento disponibile",
+  "notifications.title": "Notifiche",
+  "notifications.checking": "Controllo aggiornamenti...",
+  "notifications.none": "Nessuna notifica",
+  "notifications.offline": "Connessione assente o GitHub non raggiungibile.",
+  "notifications.updateAvailable": "Vesta {{version}} è disponibile",
+  "notifications.updateDesc": "Versione attuale: {{current}}. Ultima release: {{latest}}.",
+  "notifications.openReleases": "Apri le release",
+  "notifications.lastChecked": "Ultimo controllo"
 }

@@ -1,7 +1,7 @@
 {
   "transcribe.cancel": "Anuluj",
   "transcribe.progress": "Postęp",
-  "transcribe.log": "Log",
+  "transcribe.log": "Dziennik",
   "transcribe.clearLog": "Wyczyść",
   "transcribe.noLog": "Brak logów...",
   "transcribe.modelRequired": "Wybierz model Whisper",
@@ -42,7 +42,7 @@
   "flashcards.selectDir": "Nie wybrano folderu",
   "flashcards.mediaFile": "Plik multimedialny (wideo lub audio)",
   "flashcards.mediaFileDesc": "Wideo = klipy audio + zrzuty ekranu. Audio = tylko klipy audio",
-  "flashcards.media": "Media",
+  "flashcards.media": "Multimedia",
   "flashcards.mediaPlaceholder": "Nie wybrano mediów",
   "flashcards.mediaFiles": "Pliki multimedialne",
   "flashcards.mediaLoaded": "Media wczytane",

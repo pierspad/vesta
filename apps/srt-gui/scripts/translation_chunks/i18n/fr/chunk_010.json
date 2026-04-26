@@ -29,7 +29,7 @@
   "transcribe.files": "Fichiers",
   "transcribe.inputPathDesc": "Entrez ou modifiez le chemin du fichier audio/vidéo.",
   "transcribe.inputRequired": "Veuillez sélectionner un fichier d'entrée",
-  "transcribe.modelBase": "Base",
+  "transcribe.modelBase": "Basique",
   "transcribe.modelLarge": "Grand",
   "transcribe.modelMedium": "Moyen",
   "transcribe.modelRequired": "Veuillez sélectionner un modèle Whisper",
@@ -47,6 +47,6 @@
   "transcribe.processing": "Traitement en cours",
   "transcribe.progress": "Progression",
   "transcribe.readyToProcess": "Prêt à transcrire",
-  "transcribe.segmentLong": "Long",
+  "transcribe.segmentLong": "Longue",
   "transcribe.segmentLongDesc": "60s — lignes longues"
 }

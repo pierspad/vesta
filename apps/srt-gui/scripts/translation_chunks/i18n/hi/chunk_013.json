@@ -1,7 +1,7 @@
 {
-  "provider.groq": "Groq API",
+  "provider.groq": "Groq API सेवा",
   "provider.groq.desc": "अल्ट्रा-फास्ट LPU निष्कर्ष — Llama 3.3 70B, GPT-OSS 120B, Qwen 3 32B",
-  "settings.modal.providerGroq": "Groq API",
+  "settings.modal.providerGroq": "Groq API सेवा",
   "settings.modal.providerGroqDesc": "Llama 3.3, GPT-OSS 120B, Qwen 3 — अल्ट्रा-फास्ट LPU",
   "settings.modal.apiKeyHintGroq": "अपनी API कुंजी यहाँ से प्राप्त करें",
   "settings.errorInvalidGroqKey": "Groq API कुंजियाँ 'gsk_...' से शुरू होनी चाहिए",

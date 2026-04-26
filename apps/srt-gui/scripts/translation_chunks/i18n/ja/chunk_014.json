@@ -13,7 +13,7 @@
   "nav.revision.desc": "翻訳字幕を補完・修正",
   "align.helpTitle": "修正アシスタント",
   "transcribe.ffmpegDownload": "FFmpegをダウンロード",
-  "sync.wizard.skip": "Skip",
+  "sync.wizard.skip": "スキップする",
   "sync.autoSync": "自動同期",
   "sync.autoSyncInProgress": "自動同期中...",
   "sync.autoSyncRequires": "SRTとメディアファイルが必要",
@@ -34,5 +34,16 @@
   "sync.confidenceHelp": "一致の質 (0-100%)",
   "sync.autoSyncResult.cancelled": "自動同期がキャンセルされました",
   "sync.autoSyncResult.success": "{{count}} 個のセグメントの同期に成功しました",
-  "sync.autoSyncResult.noMatches": "一致が見つかりませんでした"
+  "sync.autoSyncResult.noMatches": "一致が見つかりませんでした",
+  "nav.notifications": "通知",
+  "nav.notifications.desc": "更新はありません",
+  "nav.notifications.update": "更新があります",
+  "notifications.title": "通知",
+  "notifications.checking": "更新を確認しています...",
+  "notifications.none": "通知はありません",
+  "notifications.offline": "インターネット接続がないか、GitHub に接続できません。",
+  "notifications.updateAvailable": "Vesta {{version}} が利用できます",
+  "notifications.updateDesc": "現在のバージョン: {{current}}。最新リリース: {{latest}}。",
+  "notifications.openReleases": "リリースを開く",
+  "notifications.lastChecked": "最終確認"
 }

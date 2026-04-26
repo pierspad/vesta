@@ -46,7 +46,7 @@
   "sync.completion": "Tamamlanma",
   "sync.avgOffset": "Ort. Ofset",
   "sync.suggested": "Önerilen",
-  "sync.video": "Video",
+  "sync.video": "Video dosyası",
   "sync.currentSubtitle": "Mevcut Altyazı",
   "sync.noSubtitleSelected": "Altyazı seçilmedi"
 }

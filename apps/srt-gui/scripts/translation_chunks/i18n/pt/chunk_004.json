@@ -7,7 +7,7 @@
   "translate.customEndpointHint": "Insira um endpoint compatível com OpenAI. A chave API é opcional se o seu endpoint não requer autenticação.",
   "translate.customEndpointRequired": "A URL do endpoint é obrigatória para o provedor personalizado",
   "translate.livePreview": "Pré-visualização ao Vivo",
-  "translate.original": "Original",
+  "translate.original": "Texto original",
   "translate.translated": "Traduzido",
   "transcribe.title": "Transcrição de Áudio",
   "transcribe.subtitle": "Gerar legendas SRT a partir de áudio/vídeo usando Whisper AI",

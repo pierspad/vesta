@@ -1,7 +1,7 @@
 {
-  "provider.groq": "Groq API",
+  "provider.groq": "Groq API 서비스",
   "provider.groq.desc": "초고속 LPU 추론 — Llama 3.3 70B, GPT-OSS 120B, Qwen 3 32B",
-  "settings.modal.providerGroq": "Groq API",
+  "settings.modal.providerGroq": "Groq API 서비스",
   "settings.modal.providerGroqDesc": "Llama 3.3, GPT-OSS 120B, Qwen 3 — 초고속 LPU",
   "settings.modal.apiKeyHintGroq": "API 키를 다음에서 얻으세요",
   "settings.errorInvalidGroqKey": "Groq API 키는 'gsk_...'로 시작해야 합니다",

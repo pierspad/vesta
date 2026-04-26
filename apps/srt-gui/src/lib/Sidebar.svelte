@@ -5,8 +5,8 @@
   import { locale } from "./i18n";
 
   interface Props {
-    activeTab: "translate" | "sync" | "transcribe" | "align" | "flashcards" | "settings" | "shortcuts";
-    onTabChange: (tab: "translate" | "sync" | "transcribe" | "align" | "flashcards" | "settings" | "shortcuts") => void;
+    activeTab: "translate" | "sync" | "transcribe" | "align" | "flashcards" | "settings" | "notifications" | "shortcuts";
+    onTabChange: (tab: "translate" | "sync" | "transcribe" | "align" | "flashcards" | "settings" | "notifications" | "shortcuts") => void;
     collapsed?: boolean;
     onToggleCollapse?: () => void;
   }
@@ -19,9 +19,81 @@
 
   let appVersionNum = $state("");
   let appLicense = $state("");
+  const RELEASE_API_URL = "https://api.github.com/repos/pierspad/Vesta/releases/latest";
+  const RELEASES_URL = "https://github.com/pierspad/Vesta/releases";
+  type ReleaseStatus = "idle" | "checking" | "available" | "current" | "offline";
+  let releaseStatus = $state<ReleaseStatus>("idle");
+  let latestVersion = $state("");
+  let releaseUrl = $state(RELEASES_URL);
+  let releaseCheckedAt = $state<Date | null>(null);
+  let hasUpdateNotification = $derived(releaseStatus === "available");
 
   function formatLicense(license: string): string {
     return license.replace(/-only$/i, "").trim();
+  }
+
+  function normalizeVersion(version: string): string {
+    return version.trim().replace(/^v/i, "").split(/[+-]/)[0];
+  }
+
+  function compareVersions(left: string, right: string): number {
+    const leftParts = normalizeVersion(left).split(".").map((part) => Number.parseInt(part, 10) || 0);
+    const rightParts = normalizeVersion(right).split(".").map((part) => Number.parseInt(part, 10) || 0);
+    const length = Math.max(leftParts.length, rightParts.length);
+
+    for (let i = 0; i < length; i += 1) {
+      const diff = (leftParts[i] || 0) - (rightParts[i] || 0);
+      if (diff !== 0) return diff;
+    }
+
+    return 0;
+  }
+
+  function formatVersionTag(version: string): string {
+    const normalized = version.trim();
+    if (!normalized) return "";
+    return normalized.startsWith("v") || normalized.startsWith("V") ? normalized : `v${normalized}`;
+  }
+
+  function formatCheckedAt(value: Date | null): string {
+    if (!value) return "";
+    return new Intl.DateTimeFormat(undefined, {
+      dateStyle: "short",
+      timeStyle: "short",
+    }).format(value);
+  }
+
+  async function checkForUpdates(currentVersion: string) {
+    if (!currentVersion) return;
+    if (typeof navigator !== "undefined" && navigator.onLine === false) {
+      releaseStatus = "offline";
+      return;
+    }
+
+    releaseStatus = "checking";
+
+    try {
+      const response = await fetch(RELEASE_API_URL, {
+        cache: "no-store",
+        headers: { Accept: "application/vnd.github+json" },
+      });
+
+      if (!response.ok) throw new Error(`GitHub release check failed: ${response.status}`);
+
+      const latest = await response.json() as {
+        tag_name?: string;
+        name?: string;
+        html_url?: string;
+      };
+      const tag = latest.tag_name || latest.name || "";
+      latestVersion = formatVersionTag(tag);
+      releaseUrl = latest.html_url || RELEASES_URL;
+      releaseCheckedAt = new Date();
+      releaseStatus = compareVersions(latestVersion, currentVersion) > 0 ? "available" : "current";
+    } catch (error) {
+      console.warn("Could not check Vesta releases:", error);
+      releaseStatus = "offline";
+    }
   }
 
   onMount(() => {
@@ -30,6 +102,7 @@
         appVersionNum = `v${info.version}`;
         appLicense = formatLicense(info.license);
         appVersion = `v${info.version} • Tauri + Svelte • ${formatLicense(info.license)}`;
+        void checkForUpdates(info.version);
       })
       .catch(() => {
         appVersion = "VESTA";
@@ -52,11 +125,13 @@
 
   <div class="p-6 border-b border-white/10">
     <div class="flex items-center gap-3 {collapsed ? 'justify-center' : ''}">
-      <div class="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden">
-        <img src={fireplaceIcon} alt="VESTA" class="w-10 h-10" />
+      <div class="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 relative overflow-visible">
+        <div class="absolute -inset-2 bg-orange-500/35 rounded-full blur-xl z-0"></div>
+        <div class="absolute inset-0 bg-amber-300/20 rounded-full blur-md z-0"></div>
+        <img src={fireplaceIcon} alt="VESTA" class="w-10 h-10 drop-shadow-[0_0_18px_rgba(249,115,22,0.9)] relative z-10" />
       </div>
       {#if !collapsed}
-        <div>
+        <div class="relative z-10">
           <h1 class="text-2xl font-bold tracking-wider bg-gradient-to-r from-amber-400 via-orange-400 to-red-400 bg-clip-text text-transparent">
             {t("app.title")}
           </h1>
@@ -253,6 +328,47 @@
     </button>
 
     <button
+      class="w-full flex items-center gap-3 {collapsed ? 'px-2 justify-center' : 'px-4'} py-3 rounded-xl transition-all duration-300 {activeTab === 'notifications'
+        ? 'bg-gradient-to-r from-slate-700 to-slate-600 text-white shadow-lg shadow-slate-500/20'
+        : 'text-gray-400 hover:bg-white/5 hover:text-white'}"
+      onclick={() => onTabChange("notifications")}
+      title={collapsed ? t("nav.notifications") : undefined}
+    >
+      <div class="w-8 h-8 rounded-lg {activeTab === 'notifications' ? 'bg-white/20' : 'bg-white/5'} flex items-center justify-center flex-shrink-0 relative">
+        <svg
+          class="w-5 h-5"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6 6 0 10-12 0v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0a3 3 0 11-6 0m6 0H9"
+          />
+        </svg>
+        {#if hasUpdateNotification}
+          <span class="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-amber-400 ring-2 ring-gray-900"></span>
+        {/if}
+      </div>
+      {#if !collapsed}
+        <div class="text-left flex-1 min-w-0">
+          <span class="block font-medium">{t("nav.notifications")}</span>
+          <span class="text-xs {activeTab === 'notifications' ? 'text-white/70' : 'text-gray-500'} truncate">
+            {#if releaseStatus === "available"}
+              {t("nav.notifications.update")}
+            {:else if releaseStatus === "checking"}
+              {t("notifications.checking")}
+            {:else}
+              {t("nav.notifications.desc")}
+            {/if}
+          </span>
+        </div>
+      {/if}
+    </button>
+
+    <button
       class="w-full flex items-center gap-3 {collapsed ? 'px-2 justify-center' : 'px-4'} py-3 rounded-xl transition-all duration-300 {activeTab ===
       'shortcuts'
         ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg shadow-indigo-500/30'
@@ -317,4 +433,3 @@
     </div>
   </div>
 </aside>
-

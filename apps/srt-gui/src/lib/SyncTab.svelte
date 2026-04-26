@@ -1111,7 +1111,7 @@
 </script>
 
 <div
-  class="h-full flex flex-col p-6 overflow-hidden bg-gradient-to-br from-gray-900 via-gray-900 to-gray-950 relative"
+  class="h-full flex flex-col p-6 overflow-y-auto bg-gradient-to-br from-gray-900 via-gray-900 to-gray-950 relative"
   role="application"
   ondrop={(e) => {
     e.preventDefault();
@@ -2159,20 +2159,20 @@
     {@render panelContent("toolbar")}
   </div>
 
-  <div class="flex-1 grid grid-cols-1 xl:grid-cols-2 gap-6 min-h-0 overflow-hidden">
+  <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
     <!-- Left column: wizard -->
-    <div class="flex flex-col min-h-0 overflow-hidden" role="list">
-      <div class="flex-1 flex flex-col min-h-0" role="listitem">
+    <div class="flex flex-col" role="list">
+      <div class="flex flex-col" role="listitem">
         {@render panelContent("wizard")}
       </div>
     </div>
 
     <!-- Right column: status + subtitle list (inner scroll per panel) -->
-    <div class="flex flex-col gap-3 min-h-0 overflow-hidden" role="list">
-      <div class="flex flex-col min-h-[220px] max-h-[56%]" role="listitem">
+    <div class="flex flex-col gap-3" role="list">
+      <div class="flex flex-col min-h-[220px]" role="listitem">
         {@render panelContent("status")}
       </div>
-      <div class="flex-1 flex flex-col min-h-[240px] overflow-hidden" role="listitem">
+      <div class="flex flex-col min-h-[240px]" role="listitem">
         {@render panelContent("subtitleList")}
       </div>
     </div>

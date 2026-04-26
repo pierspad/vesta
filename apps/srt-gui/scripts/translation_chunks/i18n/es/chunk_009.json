@@ -4,7 +4,7 @@
   "settings.modelDownloading": "Descargando modelo: {{model}}",
   "settings.modelDownloadCancelled": "Descarga cancelada para el modelo {{model}}",
   "sync.anchors": "Anclajes",
-  "sync.audioFormats": "Audio: MP3, WAV, OGG, FLAC • Video: MP4, MKV, AVI, WebM",
+  "sync.audioFormats": "Audio: MP3, WAV, OGG, FLAC • Vídeo: MP4, MKV, AVI, WebM",
   "sync.audioPlaceholder": "Carga un archivo de audio o video",
   "sync.averageOffset": "Desfase promedio",
   "sync.avgOffset": "Desfase Prom.",

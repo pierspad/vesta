@@ -22,7 +22,7 @@
   "shortcuts.reset": "Raccourcis réinitialisés aux valeurs par défaut",
   "shortcuts.resetSingle": "Raccourci réinitialisé",
   "shortcuts.confirmReset": "Êtes-vous sûr de vouloir réinitialiser tous les raccourcis?",
-  "shortcuts.category.global": "🌐 Global",
+  "shortcuts.category.global": "🌐 Globales",
   "shortcuts.category.global.desc": "Raccourcis disponibles partout dans l'application",
   "shortcuts.category.translate": "🌍 Traduction",
   "shortcuts.category.translate.desc": "Raccourcis pour l'onglet traduction",

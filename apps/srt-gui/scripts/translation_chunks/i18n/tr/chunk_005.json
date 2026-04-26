@@ -32,7 +32,7 @@
   "sync.completed": "tamamlandı",
   "sync.loading": "Yükleniyor...",
   "sync.resetSync": "Senkronizasyonu Sıfırla",
-  "sync.keySpace": "Space",
+  "sync.keySpace": "Boşluk tuşu",
   "sync.playPause": "Oynat/Duraklat",
   "sync.seek": "Ara ±0.1s",
   "sync.offsetAdjust": "Ofset ±100ms",

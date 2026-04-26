@@ -24,7 +24,7 @@
   "settings.default": "기본값",
   "settings.setAsDefault": "기본값으로 설정",
   "settings.delete": "삭제",
-  "settings.ctx": "ctx",
+  "settings.ctx": "컨텍스트",
   "settings.modal.newKey": "모델 구성",
   "settings.modal.keyName": "구성 이름",
   "settings.modal.keyNamePlaceholder": "예: 개인 Google API",

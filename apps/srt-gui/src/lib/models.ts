@@ -823,8 +823,8 @@ export function loadAndValidateApiKeys(): ApiKeyConfig[] {
 
     // Converti chiavi con tipi legacy a "google" e filtra quelle non valide
     const converted = parsed.map((k: any) => {
-      // Se già ha un tipo valido (local, google), mantienilo
-      if (k.apiType === "local" || k.apiType === "google" || k.apiType === "groq") {
+      // Se già ha un tipo valido, mantienilo
+      if (k.apiType === "local" || k.apiType === "google" || k.apiType === "groq" || k.apiType === "custom") {
         return k;
       }
       // Converti tipi legacy (openrouter, gemini, openai, anthropic, etc.) a google

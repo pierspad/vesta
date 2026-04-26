@@ -1,7 +1,7 @@
 {
   "flashcards.timeShift": "Zeitverschiebung",
   "flashcards.generateAudioClips": "Audio zu Karteikarten hinzufügen",
-  "flashcards.bitrate": "Bitrate",
+  "flashcards.bitrate": "Bitrate-Rate",
   "flashcards.normalizeAudio": "Audio normalisieren",
   "flashcards.padStart": "Anfang auffüllen",
   "flashcards.padEnd": "Ende auffüllen",
@@ -16,7 +16,7 @@
   "flashcards.firstEpisode": "Erste Episodennummer",
   "flashcards.deckNameLabel": "Deck-Name",
   "flashcards.deckNamePlaceholder": "z.B.: Detour - Deutsch",
-  "flashcards.deckName": "Deck",
+  "flashcards.deckName": "Stapel",
   "flashcards.generate": "Karteikarten generieren",
   "flashcards.cancel": "Abbrechen",
   "flashcards.preview": "Karten-Vorschau",
@@ -46,7 +46,7 @@
   "flashcards.exportTSVBadge": "Klassisch",
   "shortcuts.overlay.title": "Tastenkürzel",
   "shortcuts.overlay.hint": "Shift+? zum Ein-/Ausblenden",
-  "shortcuts.overlay.global": "Global",
+  "shortcuts.overlay.global": "Globalbereich",
   "shortcuts.editShortcut": "Kürzel bearbeiten",
   "shortcuts.resetDefault": "Standard wiederherstellen"
 }

@@ -18,7 +18,13 @@
   import LogPanel, { type LogEntry } from "./LogPanel.svelte";
   import InfoModal from "./InfoModal.svelte";
   import InfoButton from "./InfoButton.svelte";
+  import Snackbar from "./Snackbar.svelte";
   import { translateSections } from "./info";
+  import {
+    extractModelsFromPayload,
+    fetchModelsFromEndpoint,
+    type DiscoveredModel,
+  } from "./modelDiscovery";
 
   // Set of known language codes for smart output filename detection
   const knownLangCodes = new Set(languages.map((l) => l.code));
@@ -57,7 +63,7 @@
   }
 
   interface Props {
-    onGoToSettings?: () => void;
+    onGoToSettings?: (section?: "overview" | "llm" | "whisper" | "language" | "anki") => void;
     active?: boolean;
   }
 
@@ -110,6 +116,11 @@
   const LAST_MODEL_KEY = "vesta-translate-last-model";
   const LAST_CUSTOM_PROVIDER_KEY = "vesta-translate-last-custom-provider";
   const LAST_CUSTOM_MODEL_KEY = "vesta-translate-last-custom-model";
+  const LAST_TARGET_LANGUAGE_KEY = "vesta-translate-target-language";
+  const DEFAULT_LLM_PROVIDER_KEY = "vesta-default-llm-provider";
+  const DEFAULT_LLM_MODEL_KEY = "vesta-default-llm-model";
+  const DEFAULT_LLM_CUSTOM_PROVIDER_KEY = "vesta-default-llm-custom-provider";
+  const DEFAULT_TARGET_LANGUAGE_KEY = "vesta-default-target-language";
 
   function loadStoredValue(key: string): string {
     try {
@@ -121,19 +132,20 @@
 
   let inputPath = $state("");
   let outputPath = $state("");
-  let targetLang = $state("it");
-  let previousTargetLang = "it";
-  const initialProvider = loadStoredValue(LAST_PROVIDER_KEY);
+  const initialTargetLang = loadStoredValue(LAST_TARGET_LANGUAGE_KEY) || loadStoredValue(DEFAULT_TARGET_LANGUAGE_KEY) || "it";
+  let targetLang = $state(initialTargetLang);
+  let previousTargetLang = initialTargetLang;
+  const initialProvider = loadStoredValue(DEFAULT_LLM_PROVIDER_KEY) || loadStoredValue(LAST_PROVIDER_KEY) || "local";
   let selectedProviderFamily = $state(initialProvider);
-  let providerConfirmed = $state(Boolean(initialProvider));
-  let selectedCustomProviderId = $state(loadStoredValue(LAST_CUSTOM_PROVIDER_KEY));
+  let providerConfirmed = $state(true);
+  let selectedCustomProviderId = $state(loadStoredValue(DEFAULT_LLM_CUSTOM_PROVIDER_KEY) || loadStoredValue(LAST_CUSTOM_PROVIDER_KEY));
   let tempSnackbar = $state("");
   let tempSnackbarTimer: ReturnType<typeof setTimeout> | null = null;
   let localCustomModel = $state(loadStoredValue(LAST_CUSTOM_MODEL_KEY));
   let batchSize = $state(15);
   let resumeOverlap = $state(2);
   let titleContext = $state("");
-  let selectedModel = $state(loadStoredValue(LAST_MODEL_KEY));
+  let selectedModel = $state(loadStoredValue(DEFAULT_LLM_MODEL_KEY) || loadStoredValue(LAST_MODEL_KEY));
 
   // Local server URL with persistence
   const LOCAL_SERVER_URL_KEY = "vesta-local-server-url";
@@ -141,78 +153,13 @@
   let localServerUrl = $state(localStorage.getItem(LOCAL_SERVER_URL_KEY) || DEFAULT_LOCAL_URL);
 
   // Dynamically fetched models from local/custom server
-  let fetchedModels = $state<{ id: string; name: string }[]>([]);
+  let fetchedModels = $state<DiscoveredModel[]>([]);
   let isFetchingModels = $state(false);
   let fetchModelsError = $state("");
 
   function saveLocalServerUrl(url: string) {
     localServerUrl = url;
     localStorage.setItem(LOCAL_SERVER_URL_KEY, url);
-  }
-
-  function extractModelsFromPayload(payload: unknown): { id: string; name: string }[] {
-    const candidates: unknown[] = [];
-
-    if (Array.isArray(payload)) {
-      candidates.push(...payload);
-    } else if (payload && typeof payload === "object") {
-      const record = payload as Record<string, unknown>;
-
-      if (Array.isArray(record.data)) {
-        candidates.push(...record.data);
-      }
-      if (Array.isArray(record.models)) {
-        candidates.push(...record.models);
-      }
-
-      const nestedData = record.data;
-      if (nestedData && typeof nestedData === "object") {
-        const nestedRecord = nestedData as Record<string, unknown>;
-        if (Array.isArray(nestedRecord.models)) {
-          candidates.push(...nestedRecord.models);
-        }
-      }
-    }
-
-    const seen = new Set<string>();
-    const models: { id: string; name: string }[] = [];
-
-    for (const candidate of candidates) {
-      let id = "";
-
-      if (typeof candidate === "string") {
-        id = candidate.trim();
-      } else if (candidate && typeof candidate === "object") {
-        const record = candidate as Record<string, unknown>;
-        const rawId = [record.id, record.name, record.model]
-          .find((value) => typeof value === "string" && value.trim().length > 0);
-
-        if (typeof rawId === "string") {
-          id = rawId.trim();
-        }
-      }
-
-      if (!id || seen.has(id)) continue;
-      seen.add(id);
-      models.push({ id, name: id });
-    }
-
-    return models;
-  }
-
-  function buildModelsUrl(baseUrl: string) {
-    let url = baseUrl.trim().replace(/\/+$/, "");
-
-    if (!url) return url;
-
-    // LM Studio serves the model list at /v1/models, not /api/v1/models.
-    url = url.replace(/\/api(?=\/v1(?:\/models)?$)/, "");
-
-    if (url.endsWith("/models")) {
-      return url;
-    }
-
-    return url.endsWith("/v1") ? `${url}/models` : `${url}/v1/models`;
   }
 
   async function fetchModelsFromServer(baseUrl: string, force = false) {
@@ -244,27 +191,7 @@
     fetchModelsError = "";
     fetchedModels = [];
     try {
-      const url = buildModelsUrl(baseUrl);
-      const resp = await tauriFetch(url, {
-        method: 'GET',
-        headers: {
-          Accept: 'application/json',
-        },
-      });
-      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-      const responseText = await resp.text();
-      let data: unknown = null;
-      if (responseText.trim().length > 0) {
-        try {
-          data = JSON.parse(responseText);
-        } catch {
-          throw new Error("Invalid JSON response");
-        }
-      }
-
-      const models = extractModelsFromPayload(data);
-
-      if (models.length === 0) throw new Error("No models found");
+      const models = await fetchModelsFromEndpoint(baseUrl);
       fetchedModels = models;
       if (cacheKey) {
         localStorage.setItem(cacheKey, JSON.stringify(models));
@@ -414,6 +341,7 @@
   $effect(() => {
     localStorage.setItem(LAST_PROVIDER_KEY, selectedProviderFamily || "");
     localStorage.setItem(LAST_MODEL_KEY, selectedModel || "");
+    localStorage.setItem(LAST_TARGET_LANGUAGE_KEY, targetLang || "");
     localStorage.setItem(
       LAST_CUSTOM_PROVIDER_KEY,
       selectedCustomProviderId || "",
@@ -590,6 +518,19 @@
   let hasCustomKey = $derived(apiKeys.some((k) => k.apiType === "custom" && k.apiUrl && k.apiUrl.trim().length > 0));
   let hasGoogleKey = $derived(apiKeys.some((k) => k.apiType === "google"));
   let hasGroqKey = $derived(apiKeys.some((k) => k.apiType === "groq"));
+  let isLlmConfigured = $derived(
+    !!selectedProviderFamily &&
+      !!effectiveModel &&
+      hasValidKey &&
+      (selectedProviderFamily !== "local" || !!localServerUrl.trim()),
+  );
+  let translationBlockedReason = $derived(
+    !isLlmConfigured
+      ? "Configura un LLM nella macro-area Settings > LLM prima di avviare la traduzione."
+      : !inputPath || !outputPath
+        ? "Seleziona file SRT di input e destinazione per abilitare la traduzione."
+        : "",
+  );
 
   let shouldKeepProviderPickerOpen = $derived(
     !providerConfirmed || (!hasValidKey && selectedProviderFamily !== "local"),
@@ -598,7 +539,26 @@
   function handleStorageChange(e: StorageEvent) {
     if (e.key === "srt-tools-api-keys") {
       loadApiKeys();
+    } else if (
+      e.key === DEFAULT_LLM_PROVIDER_KEY ||
+      e.key === DEFAULT_LLM_MODEL_KEY ||
+      e.key === DEFAULT_LLM_CUSTOM_PROVIDER_KEY ||
+      e.key === LOCAL_SERVER_URL_KEY
+    ) {
+      loadDefaultLlmSettings();
+    } else if (e.key === DEFAULT_TARGET_LANGUAGE_KEY && !localStorage.getItem(LAST_TARGET_LANGUAGE_KEY)) {
+      targetLang = loadStoredValue(DEFAULT_TARGET_LANGUAGE_KEY) || targetLang;
     }
+  }
+
+  function loadDefaultLlmSettings() {
+    selectedProviderFamily = loadStoredValue(DEFAULT_LLM_PROVIDER_KEY) || selectedProviderFamily || "local";
+    selectedModel = loadStoredValue(DEFAULT_LLM_MODEL_KEY) || selectedModel;
+    selectedCustomProviderId = loadStoredValue(DEFAULT_LLM_CUSTOM_PROVIDER_KEY) || selectedCustomProviderId;
+    localServerUrl = localStorage.getItem(LOCAL_SERVER_URL_KEY) || DEFAULT_LOCAL_URL;
+    providerConfirmed = true;
+    fetchedModels = [];
+    fetchModelsError = "";
   }
 
   onMount(async () => {
@@ -608,6 +568,7 @@
 
     // Also listen for custom event for same-window updates
     window.addEventListener("apikeys-updated", loadApiKeys);
+    window.addEventListener("vesta-llm-default-updated", loadDefaultLlmSettings);
 
     try {
       unlistenDragDrop = await getCurrentWebview().onDragDropEvent((event) => {
@@ -651,6 +612,7 @@
   onDestroy(() => {
     window.removeEventListener("storage", handleStorageChange);
     window.removeEventListener("apikeys-updated", loadApiKeys);
+    window.removeEventListener("vesta-llm-default-updated", loadDefaultLlmSettings);
     unlistenProgress?.();
     unlistenComplete?.();
     if (previewRefreshInterval) {
@@ -757,6 +719,12 @@
   }
 
   async function startTranslation() {
+    if (!isLlmConfigured) {
+      error = translationBlockedReason;
+      showNoKeySnackbar(selectedProviderFamily || "llm");
+      return;
+    }
+
     if (!inputPath || !outputPath || !effectiveModel) {
       error = t("translate.selectFileAndKey");
       return;
@@ -907,9 +875,9 @@
     logs = [];
   }
 
-  function handleGoToSettings() {
+  function handleGoToSettings(section: "overview" | "llm" | "whisper" | "language" | "anki" = "llm") {
     if (onGoToSettings) {
-      onGoToSettings();
+      onGoToSettings(section);
     }
   }
 
@@ -1082,6 +1050,37 @@
     </div>
   {/if}
 
+  {#if !isLlmConfigured}
+    <div class="mb-4 glass-card p-4 border border-amber-500/30 bg-amber-500/10 shrink-0">
+      <div class="flex flex-col lg:flex-row lg:items-center gap-4">
+        <div class="flex items-start gap-3 flex-1">
+          <div class="w-10 h-10 rounded-lg bg-amber-500/20 text-amber-300 flex items-center justify-center shrink-0">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3h6m-7 4h8a3 3 0 013 3v7a3 3 0 01-3 3H8a3 3 0 01-3-3v-7a3 3 0 013-3zm4 3v4m-2-2h4" />
+            </svg>
+          </div>
+          <div>
+            <p class="text-sm font-semibold text-amber-100">Traduzione bloccata: manca un LLM configurato</p>
+            <p class="text-xs text-amber-100/70 mt-1">
+              Imposta provider, modello e API key dove richiesto. Dopo il salvataggio questa tab si aggiorna automaticamente.
+            </p>
+          </div>
+        </div>
+        <button
+          type="button"
+          onclick={() => handleGoToSettings("llm")}
+          class="px-4 py-2 rounded-lg bg-amber-500/20 border border-amber-500/40 text-amber-100 hover:bg-amber-500/30 transition-colors text-sm font-semibold flex items-center justify-center gap-2"
+          title="Apri Settings nella macro-area LLM"
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h6m0 0v6m0-6L10 16m-3 1h10a2 2 0 002-2v-2M7 7h3" />
+          </svg>
+          Apri LLM
+        </button>
+      </div>
+    </div>
+  {/if}
+
   {#snippet panelContent(panelId: TranslatePanelId)}
     {#if panelId === "options"}
       <div class="glass-card p-5">
@@ -1105,6 +1104,7 @@
           <InfoButton onclick={() => (helpSection = "options")} />
         </h3>
         <div class="space-y-4">
+          {#if false}
           <!-- Provider Selection -->
           <div>
             <span class="block text-sm text-gray-400 mb-2"
@@ -1314,7 +1314,7 @@
                   {t("translate.noCustomProviders")}
                   <button
                     type="button"
-                    onclick={handleGoToSettings}
+                    onclick={() => handleGoToSettings("llm")}
                     class="underline hover:text-cyan-400 transition-colors"
                   >
                     {t("translate.goToSettings")}
@@ -1365,7 +1365,7 @@
                 <div class="flex items-center gap-2">
                   <button
                     type="button"
-                    onclick={() => fetchModelsFromServer(customProviderEntry.apiUrl!)}
+                    onclick={() => customProviderEntry?.apiUrl && fetchModelsFromServer(customProviderEntry.apiUrl)}
                     disabled={isFetchingModels}
                     class="px-3 py-2 rounded-lg text-xs font-medium transition-all
                       {isFetchingModels ? 'bg-white/5 text-gray-500 cursor-wait' : 'bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 border border-indigo-500/30 hover:border-indigo-500/50'}"
@@ -1472,6 +1472,7 @@
                 class="input-modern w-full text-sm font-mono"
               />
             </div>
+          {/if}
           {/if}
 
           <div
@@ -1723,8 +1724,10 @@
             onclick={startTranslation}
             disabled={!inputPath ||
               !outputPath ||
+              !isLlmConfigured ||
               !hasValidKey ||
               (selectedProviderFamily !== "custom" && !selectedModel)}
+            title={translationBlockedReason || t("translate.start")}
             class="btn-success flex-1 py-4 text-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
           >
             <svg
@@ -1976,9 +1979,9 @@
     {/if}
   {/snippet}
 
-  <div class="flex-1 grid grid-cols-1 xl:grid-cols-2 gap-6 min-h-0 overflow-y-auto transition-opacity">
+  <div class="grid grid-cols-1 xl:grid-cols-2 gap-6 transition-opacity">
     <div
-      class="space-y-3 overflow-y-auto overflow-x-hidden pr-1 min-h-[100px]"
+      class="space-y-3 overflow-x-hidden min-h-[100px]"
       role="list"
     >
       {#each translatePanelLayout.col1 as trPanelId, idx (trPanelId)}
@@ -1992,7 +1995,7 @@
     </div>
 
     <div
-      class="space-y-3 overflow-y-auto overflow-x-hidden pr-1 min-h-[100px]"
+      class="space-y-3 overflow-x-hidden min-h-[100px]"
       role="list"
     >
       {#each translatePanelLayout.col2 as trPanelId, idx (trPanelId)}
@@ -2011,6 +2014,14 @@
     sections={translateSections} 
     onclose={() => (helpSection = null)} 
   />
+
+  {#if tempSnackbar}
+    <Snackbar
+      message="Configura prima un LLM nella macro-area Settings > LLM."
+      variant="warning"
+      onclose={() => (tempSnackbar = "")}
+    />
+  {/if}
 
   <PathPreviewModal
     isOpen={!!expandedPathField}

@@ -13,7 +13,7 @@
   "nav.revision.desc": "Дополняйте и исправляйте перевод субтитров",
   "align.helpTitle": "Помощник редактуры",
   "transcribe.ffmpegDownload": "Скачать FFmpeg",
-  "sync.wizard.skip": "Skip",
+  "sync.wizard.skip": "Пропустить",
   "sync.autoSync": "Авто-Синхронизация",
   "sync.autoSyncInProgress": "Авто-синхронизация выполняется...",
   "sync.autoSyncRequires": "Требуется SRT и медиафайл",
@@ -34,5 +34,16 @@
   "sync.confidenceHelp": "Качество совпадения (0-100%)",
   "sync.autoSyncResult.cancelled": "Автосинхронизация отменена",
   "sync.autoSyncResult.success": "Успешно синхронизировано для {{count}} сегментов",
-  "sync.autoSyncResult.noMatches": "Совпадений не найдено"
+  "sync.autoSyncResult.noMatches": "Совпадений не найдено",
+  "nav.notifications": "Уведомления",
+  "nav.notifications.desc": "Обновлений нет",
+  "nav.notifications.update": "Доступно обновление",
+  "notifications.title": "Уведомления",
+  "notifications.checking": "Проверка обновлений...",
+  "notifications.none": "Нет уведомлений",
+  "notifications.offline": "Нет подключения к интернету или GitHub недоступен.",
+  "notifications.updateAvailable": "Доступна Vesta {{version}}",
+  "notifications.updateDesc": "Текущая версия: {{current}}. Последний релиз: {{latest}}.",
+  "notifications.openReleases": "Открыть релизы",
+  "notifications.lastChecked": "Последняя проверка"
 }
