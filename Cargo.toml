@@ -16,10 +16,10 @@ tokio = { version = "1.35", features = ["full"] }
 reqwest = { version = "0.11", default-features = false, features = ["json", "rustls-tls"] }
 
 # Internal crates
-srt-parser = { path = "./core/srt-parser", version = "0.5.0" }
-srt-extract = { path = "./lib/srt-extract", version = "0.5.0" }
-srt-translate = { path = "./lib/srt-translate", version = "0.5.0" }
-srt-sync = { path = "./lib/srt-sync", version = "0.5.0" }
+srt-parser = { path = "./core/srt-parser", version = "0.6.0" }
+srt-extract = { path = "./lib/srt-extract", version = "0.6.0" }
+srt-translate = { path = "./lib/srt-translate", version = "0.6.0" }
+srt-sync = { path = "./lib/srt-sync", version = "0.6.0" }
 
 [profile.release]
 lto = "thin"

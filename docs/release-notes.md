@@ -1,15 +1,10 @@
 ## Release notes:
 
-### Additions
-- **Automatic SRT Synchronization**: implemented automatic subtitle synchronization powered by Whisper.
-- **Enhanced Accuracy**: improved Whisper’s synchronization logic to better handle audio-to-text alignment.
-- **Documentation**: updated the README.
-
-### Removals
-- **Redundancy Cleanup**: reduced internal code redundancies.
+### New features
+- **Media Formats**: Support for new audio and video formats has been implemented.
+- **Update Check**: An update check feature has been added to monitor for new versions.
 
 ### Fixes
-- **UI & Layout**: fixed resizing issues for the revision tab and general UI element scaling.
-- **Translations**: resolved issues with missing translations and improved overall localization accuracy.
-- **Subtitle Management**: fixed subtitle rendering bugs and improved field populating logic.
-- **Info Sections**: improved the clarity and layout of information sections.
+- **Settings UI**: The settings panel UI has been improved and optimised.
+- **Translations**: Translations have been refined to ensure greater overall accuracy.
+- **Models Selector**: The models selector has been simplified to make interaction more direct and efficient.
