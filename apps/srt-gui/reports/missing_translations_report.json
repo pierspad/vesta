@@ -26,19 +26,19 @@
   "missing_counts_by_locale": {
     "ar": 36,
     "de": 38,
-    "es": 37,
-    "fr": 36,
+    "es": 38,
+    "fr": 37,
     "hi": 36,
-    "it": 6,
+    "it": 7,
     "ja": 36,
     "ko": 36,
     "pl": 37,
-    "pt": 38,
+    "pt": 39,
     "ru": 36,
-    "tr": 36,
+    "tr": 37,
     "zh": 0
   },
-  "total_keys_with_issues": 39,
+  "total_keys_with_issues": 40,
   "orphan_keys_count": 0,
   "orphan_keys": [],
   "missing_keys": {
@@ -55,6 +55,42 @@
         },
         {
           "locale": "it",
+          "reason": "same_as_english",
+          "directory": "locales"
+        }
+      ]
+    },
+    "nav.flashcards": {
+      "locales": [
+        "es",
+        "fr",
+        "it",
+        "pt",
+        "tr"
+      ],
+      "details": [
+        {
+          "locale": "es",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "fr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "it",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pt",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "tr",
           "reason": "same_as_english",
           "directory": "locales"
         }
