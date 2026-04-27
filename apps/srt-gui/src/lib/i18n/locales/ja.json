@@ -655,7 +655,7 @@
   "sync.tooltipConfirmAnchor": "現在の字幕を同期ポイントとしてマーク（Enter）。アンカーは、近くの字幕タイミングを補間するために使用される参照ポイントです。",
   "sync.tooltipPrevAnchor": "前のアンカーにジャンプ",
   "sync.tooltipNextAnchor": "次のアンカーにジャンプ",
-  "shortcuts.action.alignCyclePerPage": "表示中の字幕を切り替え (5/10/15)",
+  "shortcuts.action.alignCyclePerPage": "表示中の字幕を切り替え (5/10/15/20)",
   "shortcuts.action.alignNextPage": "次の字幕ページ",
   "shortcuts.action.alignPrevPage": "前の字幕ページ",
   "shortcuts.action.alignSave": "結果を保存",

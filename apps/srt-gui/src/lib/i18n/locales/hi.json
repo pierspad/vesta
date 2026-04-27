@@ -655,7 +655,7 @@
   "translate.fetchModels": "मॉडल प्राप्त करें",
   "translate.fetchModelsHint": "अपने सर्वर से उपलब्ध मॉडल लोड करने के लिए 'मॉडल प्राप्त करें' पर क्लिक करें।",
   "translate.modelsFound": "मॉडल उपलब्ध",
-  "shortcuts.action.alignCyclePerPage": "दृश्यमान उपशीर्षकों में चक्र करें (5/10/15)",
+  "shortcuts.action.alignCyclePerPage": "दृश्यमान उपशीर्षकों में चक्र करें (5/10/15/20)",
   "shortcuts.action.alignNextPage": "अगला उपशीर्षक पृष्ठ",
   "shortcuts.action.alignPrevPage": "पिछला उपशीर्षक पृष्ठ",
   "shortcuts.action.alignSave": "परिणाम सहेजें",

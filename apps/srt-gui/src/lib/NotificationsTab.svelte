@@ -108,7 +108,7 @@
     </button>
   </div>
 
-  <div class="glass-card p-5 max-w-3xl">
+  <div class="glass-card p-5 w-full">
     {#if releaseStatus === "available"}
       <div class="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4">
         <p class="text-sm font-semibold text-amber-100">

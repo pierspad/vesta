@@ -655,7 +655,7 @@
   "sync.tooltipConfirmAnchor": "Отметьте текущие субтитры как точку синхронизации (Enter). Якоря — это опорные точки, используемые для интерполяции времени ближайших субтитров.",
   "sync.tooltipPrevAnchor": "Перейти к предыдущему якорю",
   "sync.tooltipNextAnchor": "Перейти к следующему якорю",
-  "shortcuts.action.alignCyclePerPage": "Переключать видимые субтитры (5/10/15)",
+  "shortcuts.action.alignCyclePerPage": "Переключать видимые субтитры (5/10/15/20)",
   "shortcuts.action.alignNextPage": "Следующая страница субтитров",
   "shortcuts.action.alignPrevPage": "Предыдущая страница субтитров",
   "shortcuts.action.alignSave": "Сохранить результат",

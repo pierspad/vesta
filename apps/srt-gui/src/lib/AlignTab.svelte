@@ -23,17 +23,24 @@
   let sourceSubs: Subtitle[] = $state([]);
 
   let currentPage = $state(0);
-  const ITEMS_PER_PAGE_OPTIONS = [5, 10, 15] as const;
-  let itemsPerPageIndex = $state(1); // default 10
+  const ITEMS_PER_PAGE_OPTIONS = [5, 10, 15, 20] as const;
+  let itemsPerPageIndex = $state(2); // default 15
   let itemsPerPage = $derived(ITEMS_PER_PAGE_OPTIONS[itemsPerPageIndex]);
 
-  function cycleItemsPerPage() {
-    // Remember the first visible subtitle index before changing
+  function setItemsPerPageIndex(nextIndex: number) {
     const firstVisibleIdx = currentPage * itemsPerPage;
-    itemsPerPageIndex = (itemsPerPageIndex + 1) % ITEMS_PER_PAGE_OPTIONS.length;
-    // Adjust currentPage so the same subtitle region is visible
-    const newPerPage = ITEMS_PER_PAGE_OPTIONS[itemsPerPageIndex];
-    currentPage = Math.min(Math.floor(firstVisibleIdx / newPerPage), Math.max(0, Math.ceil(Math.max(targetSubs.length, sourceSubs.length) / newPerPage) - 1));
+    const clampedIndex = Math.max(0, Math.min(nextIndex, ITEMS_PER_PAGE_OPTIONS.length - 1));
+    const newPerPage = ITEMS_PER_PAGE_OPTIONS[clampedIndex];
+    const newTotalPages = Math.ceil(Math.max(targetSubs.length, sourceSubs.length) / newPerPage);
+    itemsPerPageIndex = clampedIndex;
+    currentPage = Math.min(
+      Math.floor(firstVisibleIdx / newPerPage),
+      Math.max(0, newTotalPages - 1),
+    );
+  }
+
+  function cycleItemsPerPage() {
+    setItemsPerPageIndex((itemsPerPageIndex + 1) % ITEMS_PER_PAGE_OPTIONS.length);
   }
 
   let error = $state("");
@@ -397,6 +404,12 @@
   }
 
   let totalPages = $derived(Math.ceil(Math.max(targetSubs.length, sourceSubs.length) / itemsPerPage));
+
+  $effect(() => {
+    if (currentPage >= totalPages) {
+      currentPage = Math.max(0, totalPages - 1);
+    }
+  });
   
   // Create padded arrays for the current page so we can iterate side-by-side
   let currentPageItems = $derived(Array.from({ length: itemsPerPage }, (_, i) => {
@@ -432,10 +445,11 @@
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div 
-  class="h-full flex flex-col p-6 overflow-y-auto animate-fade-in relative text-gray-200"
+  class="h-full flex flex-col p-6 overflow-y-auto relative text-gray-200 bg-gradient-to-br from-gray-900 via-gray-900 to-gray-950"
   onkeydown={handleKeydown}
 >
-  <div class="min-h-full bg-[#1d2332] rounded-2xl border border-white/5 shadow-2xl p-6 flex flex-col">
+  <div class="min-h-full flex flex-col gap-4">
+  <div class="glass-card p-6 shrink-0">
     <div class="mb-6 flex items-start justify-between shrink-0 gap-3">
       <div>
         <h2 class="text-lg font-semibold text-teal-300 flex items-center gap-2">
@@ -468,7 +482,7 @@
     {/if}
 
     <!-- File Selection Area -->
-    <div class="grid grid-cols-1 md:grid-cols-[1fr_auto_1fr] items-center gap-4 mb-8 shrink-0 relative min-w-0">
+    <div class="grid grid-cols-1 md:grid-cols-[1fr_auto_1fr] items-center gap-4 shrink-0 relative min-w-0">
     
     <!-- Target File -->
     <div class="flex flex-col gap-2 relative z-10 min-w-0">
@@ -552,8 +566,10 @@
     </div>
     </div>
 
+  </div>
+
     <!-- Editor Area -->
-    <div class="min-h-[300px] flex flex-col min-w-0">
+    <div class="flex-1 flex flex-col min-w-0 glass-card p-6 overflow-hidden">
       {#if targetSubs.length === 0 && sourceSubs.length === 0}
         <div class="flex-1 flex flex-col items-center justify-center text-gray-500 pb-10">
         <svg class="w-20 h-20 mb-6 opacity-20 text-teal-500 bg-teal-500/5 p-4 rounded-full" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -566,19 +582,23 @@
         <!-- Pagination Top -->
         <div class="flex flex-col xl:flex-row xl:items-center xl:justify-between mb-4 gap-3 shrink-0">
         <div class="flex items-center gap-2 flex-wrap">
-          <div class="text-sm text-gray-400 font-medium bg-gray-800/80 px-3 py-1.5 rounded-md">
-             Page <span class="text-white mx-1">{currentPage + 1}</span> of <span class="text-white mx-1">{totalPages || 1}</span>
+          <div class="min-w-[10.5rem] text-sm text-gray-400 font-medium bg-gray-800/80 px-3 py-1.5 rounded-md tabular-nums">
+             Page <span class="inline-block min-w-[4ch] text-center text-white mx-1">{currentPage + 1}</span> of <span class="inline-block min-w-[4ch] text-center text-white mx-1">{totalPages || 1}</span>
           </div>
           <div class="w-px h-6 bg-gray-700 mx-1"></div>
-          <!-- Items per page cycle button -->
-          <button
-            onclick={cycleItemsPerPage}
-            class="flex items-center gap-1.5 bg-gray-800/50 px-3 py-1.5 rounded-md border border-gray-700 hover:border-teal-500/50 hover:bg-teal-500/10 transition-all text-gray-300 hover:text-teal-300"
-            title="Cycle visible subtitles per page (5 / 10 / 15)"
-          >
-            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" /></svg>
-            <span class="text-xs font-medium">{itemsPerPage}</span>
-          </button>
+          <div class="flex items-center gap-1 bg-gray-800/50 px-1 py-1 rounded-md border border-gray-700">
+            {#each ITEMS_PER_PAGE_OPTIONS as option, optionIndex}
+              <button
+                onclick={() => setItemsPerPageIndex(optionIndex)}
+                class="min-w-8 rounded px-2 py-0.5 text-xs font-medium transition-colors {itemsPerPage === option
+                  ? 'bg-teal-500/20 text-teal-200'
+                  : 'text-gray-400 hover:bg-white/10 hover:text-gray-200'}"
+                title="{option} subtitles per page"
+              >
+                {option}
+              </button>
+            {/each}
+          </div>
         </div>
         <div class="flex gap-1.5 flex-wrap xl:justify-end">
           <button onclick={jumpStart} disabled={currentPage === 0} class="btn-secondary px-3 py-1.5 disabled:opacity-50 flex items-center" title="Go to Start">
@@ -613,7 +633,7 @@
         </div>
 
         <!-- Content Grid -->
-        <div class="pr-3 pl-1 space-y-6 custom-scrollbar pb-4 min-w-0">
+        <div class="pr-3 pl-1 space-y-6 custom-scrollbar pb-4 min-w-0 overflow-y-auto flex-1">
         {#each currentPageItems as item (item.index)}
           {@const isMissingPair =
             (!!item.source && (!item.source.text || item.source.text.trim() === '')) ||

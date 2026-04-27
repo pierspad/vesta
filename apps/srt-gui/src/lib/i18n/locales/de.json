@@ -655,7 +655,7 @@
   "sync.tooltipConfirmAnchor": "Markieren Sie den aktuellen Untertitel als Synchronisierungspunkt (Enter). Anker sind Referenzpunkte für die Interpolation in der Nähe liegender Untertitel-Zeitpunkte.",
   "sync.tooltipPrevAnchor": "Zum vorherigen Anker springen",
   "sync.tooltipNextAnchor": "Zum nächsten Anker springen",
-  "shortcuts.action.alignCyclePerPage": "Sichtbare Untertitel durchschalten (5/10/15)",
+  "shortcuts.action.alignCyclePerPage": "Sichtbare Untertitel durchschalten (5/10/15/20)",
   "shortcuts.action.alignNextPage": "Nächste Untertitelseite",
   "shortcuts.action.alignPrevPage": "Vorherige Untertitelseite",
   "shortcuts.action.alignSave": "Ergebnis speichern",

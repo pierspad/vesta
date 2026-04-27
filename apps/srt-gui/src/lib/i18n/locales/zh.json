@@ -655,7 +655,7 @@
   "sync.tooltipConfirmAnchor": "将当前字幕标记为同步点（Enter）。锚点是用于插值附近字幕时间的参考点。",
   "sync.tooltipPrevAnchor": "转到上一个锚点",
   "sync.tooltipNextAnchor": "转到下一个锚点",
-  "shortcuts.action.alignCyclePerPage": "循环显示可见字幕 (5/10/15)",
+  "shortcuts.action.alignCyclePerPage": "循环显示可见字幕 (5/10/15/20)",
   "shortcuts.action.alignNextPage": "下一页字幕",
   "shortcuts.action.alignPrevPage": "上一页字幕",
   "shortcuts.action.alignSave": "保存结果",

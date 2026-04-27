@@ -655,7 +655,7 @@
   "sync.tooltipPrevAnchor": "Przejdź do poprzedniego punktu zakotwiczenia",
   "sync.tooltipNextAnchor": "Przejdź do następnego punktu zakotwiczenia",
   "sync.needVideoForAnchor": "Załaduj wideo przed potwierdzeniem punktów zakotwiczenia.",
-  "shortcuts.action.alignCyclePerPage": "Przełącz widoczne napisy (5/10/15)",
+  "shortcuts.action.alignCyclePerPage": "Przełącz widoczne napisy (5/10/15/20)",
   "shortcuts.action.alignNextPage": "Następna strona napisów",
   "shortcuts.action.alignPrevPage": "Poprzednia strona napisów",
   "shortcuts.action.alignSave": "Zapisz wynik",

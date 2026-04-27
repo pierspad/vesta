@@ -152,10 +152,16 @@
       overviewLanguageDesc: "Interface language and default workflow languages.",
       overviewAnkiDesc: "HTML, CSS, fields and note type for flashcards.",
       statusTitle: "Preference status",
+      statusActiveTitle: "Active defaults",
+      statusDesc: "A quick health check for the defaults used by the workflow tabs.",
       apiKeysSaved: "Saved API keys",
+      apiKeysHint: "Remote providers available for Translation. Local models do not need keys.",
       translationLanguage: "Translation language",
+      translationLanguageHint: "Default language used when creating translations.",
+      whisperHint: "Default local model used by the Transcription tab.",
+      noteTypeHint: "Anki note type used by exported flashcards.",
       quickSetup: "Quick setup",
-      quickSetupTitle: "Complete only what is missing",
+      quickSetupTitle: "Finish the essentials",
       actionRequired: "Action required",
       transcription: "Transcription",
       translation: "Translation",
@@ -199,10 +205,16 @@
       overviewLanguageDesc: "Lingua interfaccia e lingue predefinite di lavoro.",
       overviewAnkiDesc: "HTML, CSS, campi e note type delle flashcard.",
       statusTitle: "Stato preferenze",
+      statusActiveTitle: "Default attivi",
+      statusDesc: "Un controllo rapido dei default usati dalle tab operative.",
       apiKeysSaved: "API key salvate",
+      apiKeysHint: "Provider remoti disponibili per Traduzione. I modelli locali non richiedono chiavi.",
       translationLanguage: "Lingua traduzione",
+      translationLanguageHint: "Lingua predefinita usata quando crei traduzioni.",
+      whisperHint: "Modello locale predefinito usato dalla tab Trascrizione.",
+      noteTypeHint: "Tipo nota Anki usato dalle flashcard esportate.",
       quickSetup: "Setup rapido",
-      quickSetupTitle: "Completa solo quello che manca",
+      quickSetupTitle: "Completa le impostazioni essenziali",
       actionRequired: "Azione richiesta",
       transcription: "Trascrizione",
       translation: "Traduzione",
@@ -246,10 +258,16 @@
       overviewLanguageDesc: "界面语言和工作默认语言。",
       overviewAnkiDesc: "闪卡的 HTML、CSS、字段和 note type。",
       statusTitle: "偏好状态",
+      statusActiveTitle: "当前默认值",
+      statusDesc: "快速检查工作标签页使用的默认设置。",
       apiKeysSaved: "已保存的 API key",
+      apiKeysHint: "翻译可用的远程提供商。本地模型不需要 key。",
       translationLanguage: "翻译语言",
+      translationLanguageHint: "创建翻译时使用的默认语言。",
+      whisperHint: "转录标签页使用的默认本地模型。",
+      noteTypeHint: "导出闪卡时使用的 Anki 笔记类型。",
       quickSetup: "快速设置",
-      quickSetupTitle: "只补全缺少的项目",
+      quickSetupTitle: "完成必要设置",
       actionRequired: "需要操作",
       transcription: "转录",
       translation: "翻译",
@@ -323,6 +341,24 @@
     if (defaultLlmProvider === "custom") return savedCustomProviders.length > 0;
     return defaultProviderKeys.length > 0;
   });
+  let requiredSetupActions = $derived.by(() => {
+    const actions: { section: SettingsSection; title: string; desc: string }[] = [];
+    if (downloadedWhisperCount === 0) {
+      actions.push({
+        section: "whisper",
+        title: s("transcription"),
+        desc: s("setupWhisperDesc"),
+      });
+    }
+    if (!isDefaultLlmReady) {
+      actions.push({
+        section: "llm",
+        title: s("translation"),
+        desc: s("setupLlmDesc"),
+      });
+    }
+    return actions;
+  });
   type ProviderStatus = "available" | "checking" | "offline" | "requiresKey";
 
   function getProviderStatus(providerId: string): ProviderStatus {
@@ -360,6 +396,12 @@
     if (status === "online") return t("settings.endpointStatus.online");
     if (status === "offline") return t("settings.endpointStatus.offline");
     return t("settings.endpointStatus.idle");
+  }
+
+  function providerDescription(pid: string): string {
+    const key = `provider.${pid}.desc`;
+    const translated = t(key);
+    return translated === key ? providers[pid]?.description || "" : translated;
   }
   let activeSectionMeta = $derived.by(() => {
     if (activeSettingsSection === "llm") {
@@ -400,6 +442,11 @@
 
   function openSettingsSection(section: SettingsSection) {
     activeSettingsSection = section;
+  }
+
+  function openFirstRequiredAction() {
+    const firstAction = requiredSetupActions[0];
+    if (firstAction) openSettingsSection(firstAction.section);
   }
 
   function handleOpenSettingsSectionEvent(event: Event) {
@@ -1432,9 +1479,6 @@
               <p class="text-xs uppercase tracking-wide text-gray-500">{s("quickSetup")}</p>
               <h3 class="text-lg font-bold text-white">{s("quickSetupTitle")}</h3>
             </div>
-            <span class="text-xs px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-200">
-              {s("actionRequired")}
-            </span>
           </div>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
             {#if downloadedWhisperCount === 0}
@@ -1472,25 +1516,98 @@
         </div>
       {/if}
 
-      <div class="glass-card p-5">
-        <p class="text-xs uppercase tracking-wide text-gray-500 mb-3">{s("statusTitle")}</p>
-        <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-x-8 gap-y-3 text-sm">
-          <div class="grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-4">
-            <span class="text-gray-400">{s("apiKeysSaved")}</span>
-            <span class="font-semibold text-white">{configuredApiKeyCount}</span>
+      <div class="glass-card p-5 min-h-[12rem]">
+        <div class="mb-4 flex items-start justify-between gap-4">
+          <div>
+            <p class="text-xs uppercase tracking-wide text-gray-500">{s("statusTitle")}</p>
+            <h3 class="mt-1 text-lg font-bold text-white">{s("statusActiveTitle")}</h3>
+            <p class="mt-1 text-sm text-gray-500">{s("statusDesc")}</p>
           </div>
-          <div class="grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-4">
-            <span class="text-gray-400">{t("settings.whisperDefault")}</span>
-            <span class="font-semibold text-white">{defaultWhisperModel}</span>
+          <div class="group relative">
+            <button
+              type="button"
+              onclick={() => needsQuickSetup && openFirstRequiredAction()}
+              class="inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs transition-colors {needsQuickSetup ? 'border-amber-500/30 bg-amber-500/10 text-amber-200 hover:bg-amber-500/20' : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200 cursor-default'}"
+            >
+              <span class="h-2 w-2 rounded-full {needsQuickSetup ? 'bg-amber-300' : 'bg-emerald-300'}"></span>
+              {needsQuickSetup ? s("actionRequired") : t("settings.ready")}
+            </button>
+            {#if needsQuickSetup}
+              <div class="settings-action-tooltip right-0 left-auto translate-x-0">
+                <p class="mb-2 font-semibold text-amber-100">{s("quickSetupTitle")}</p>
+                <ol class="list-decimal space-y-1.5 pl-4">
+                  {#each requiredSetupActions as action}
+                    <li>
+                      <span class="font-semibold text-white">{action.title}:</span>
+                      <span class="text-gray-300">{action.desc}</span>
+                    </li>
+                  {/each}
+                </ol>
+              </div>
+            {/if}
           </div>
-          <div class="grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-4">
-            <span class="text-gray-400">{s("translationLanguage")}</span>
-            <span class="font-semibold text-white">{defaultTargetLanguage.toUpperCase()}</span>
-          </div>
-          <div class="grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-4">
-            <span class="text-gray-400">{t("settings.noteType")}</span>
-            <span class="font-semibold text-white truncate max-w-[14rem]">{noteTypeName}</span>
-          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <button
+            type="button"
+            onclick={() => openSettingsSection("llm")}
+            class="rounded-xl border border-white/10 bg-white/[0.04] p-4 text-left transition-colors hover:border-indigo-400/40 hover:bg-indigo-500/10"
+          >
+            <div class="flex items-start justify-between gap-3">
+              <div>
+                <span class="block text-xs text-gray-500">{s("apiKeysSaved")}</span>
+                <span class="mt-1 block text-xl font-bold text-white">{configuredApiKeyCount}</span>
+              </div>
+              <span class="rounded-full bg-indigo-500/15 px-2 py-1 text-xs text-indigo-200">{defaultLlmProvider}</span>
+            </div>
+            <p class="mt-2 text-xs leading-relaxed text-gray-500">{s("apiKeysHint")}</p>
+          </button>
+
+          <button
+            type="button"
+            onclick={() => openSettingsSection("whisper")}
+            class="rounded-xl border border-white/10 bg-white/[0.04] p-4 text-left transition-colors hover:border-cyan-400/40 hover:bg-cyan-500/10"
+          >
+            <div class="flex items-start justify-between gap-3">
+              <div>
+                <span class="block text-xs text-gray-500">{t("settings.whisperDefault")}</span>
+                <span class="mt-1 block text-xl font-bold text-white">{defaultWhisperModel}</span>
+              </div>
+              <span class="rounded-full bg-cyan-500/15 px-2 py-1 text-xs text-cyan-200">{downloadedWhisperCount}</span>
+            </div>
+            <p class="mt-2 text-xs leading-relaxed text-gray-500">{s("whisperHint")}</p>
+          </button>
+
+          <button
+            type="button"
+            onclick={() => openSettingsSection("language")}
+            class="rounded-xl border border-white/10 bg-white/[0.04] p-4 text-left transition-colors hover:border-emerald-400/40 hover:bg-emerald-500/10"
+          >
+            <div class="flex items-start justify-between gap-3">
+              <div>
+                <span class="block text-xs text-gray-500">{s("translationLanguage")}</span>
+                <span class="mt-1 block text-xl font-bold text-white">{defaultTargetLanguage.toUpperCase()}</span>
+              </div>
+              <span class="text-2xl leading-none">{languages.find((lang) => lang.code === defaultTargetLanguage)?.flag || "🌐"}</span>
+            </div>
+            <p class="mt-2 text-xs leading-relaxed text-gray-500">{s("translationLanguageHint")}</p>
+          </button>
+
+          <button
+            type="button"
+            onclick={() => openSettingsSection("anki")}
+            class="rounded-xl border border-white/10 bg-white/[0.04] p-4 text-left transition-colors hover:border-amber-400/40 hover:bg-amber-500/10"
+          >
+            <div class="flex items-start justify-between gap-3">
+              <div class="min-w-0">
+                <span class="block text-xs text-gray-500">{t("settings.noteType")}</span>
+                <span class="mt-1 block truncate text-xl font-bold text-white">{noteTypeName}</span>
+              </div>
+              <span class="rounded-full bg-amber-500/15 px-2 py-1 text-xs text-amber-200">Anki</span>
+            </div>
+            <p class="mt-2 text-xs leading-relaxed text-gray-500">{s("noteTypeHint")}</p>
+          </button>
         </div>
       </div>
     </div>
@@ -1713,7 +1830,7 @@
             </div>
             <div class="min-w-0">
               <span class="block text-sm font-semibold truncate">{t(`provider.${pid}`) || provider?.name || pid}</span>
-              <span class="block text-[10px] opacity-60 truncate">{providerAvailable ? provider?.description : t("settings.addApiKeyToEnable")}</span>
+              <span class="block text-[10px] opacity-60 truncate">{providerAvailable ? providerDescription(pid) : t("settings.addApiKeyToEnable")}</span>
             </div>
           </button>
         {/each}
@@ -1833,11 +1950,21 @@
 
         <div class="flex-1 overflow-y-auto p-2 space-y-2">
           {#each apiKeys as key}
+            <!-- svelte-ignore a11y_no_static_element_interactions -->
             <div
-              class="p-3 bg-white/5 rounded-xl border border-white/10 hover:border-white/20 transition-all group
+              role="button"
+              tabindex="0"
+              onclick={() => openEditKeyModal(key.id)}
+              onkeydown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  openEditKeyModal(key.id);
+                }
+              }}
+              class="p-3 rounded-xl border transition-all group cursor-pointer bg-white/[0.035] opacity-90 hover:opacity-100 hover:bg-white/[0.075] hover:border-white/30
                 {key.isDefault
-                ? 'ring-1 ring-indigo-500/50 bg-indigo-500/5'
-                : ''}"
+                ? 'ring-1 ring-indigo-500/50 border-indigo-400/30 bg-indigo-500/10'
+                : 'border-white/10'}"
             >
               <div class="flex items-start gap-3">
                 <div
@@ -1909,21 +2036,13 @@
                     <span class="font-medium text-gray-200 text-sm truncate"
                       >{key.name}</span
                     >
-                    {#if key.isDefault}
-                      <svg
-                        class="w-3.5 h-3.5 text-indigo-400"
-                        fill="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          d="M16 4c.55 0 1 .45 1 1v4.38l1.71 1.71c.18.18.29.43.29.7V14c0 .55-.45 1-1 1h-5v5l-1 1-1-1v-5H6c-.55 0-1-.45-1-1v-2.21c0-.27.11-.52.29-.71L7 9.38V5c0-.55.45-1 1-1h8zm-1 2H9v3.62l-2 2V13h10v-1.38l-2-2V6z"
-                        />
-                      </svg>
-                    {/if}
                   </div>
                   <div class="flex items-center gap-1.5">
                     <button
-                      onclick={() => toggleKeyVisibility(key.id)}
+                      onclick={(event) => {
+                        event.stopPropagation();
+                        toggleKeyVisibility(key.id);
+                      }}
                       class="text-[10px] text-gray-500 font-mono truncate hover:text-gray-300 transition-colors flex items-center gap-1"
                       title={t("settings.toggleVisibility")}
                     >
@@ -1970,7 +2089,10 @@
                       >
                     </button>
                     <button
-                      onclick={() => copyApiKey(key.apiKey)}
+                      onclick={(event) => {
+                        event.stopPropagation();
+                        copyApiKey(key.apiKey);
+                      }}
                       class="p-1 text-gray-500 hover:text-gray-300 transition-colors flex-shrink-0"
                       title={t("common.copy")}
                     >
@@ -2000,30 +2122,37 @@
                 </div>
 
                 <div class="flex items-center gap-1.5">
-                  {#if !key.isDefault}
-                    <button
-                      onclick={() => setDefaultKey(key.id)}
-                      class="p-1.5 text-gray-500 hover:text-indigo-400 hover:bg-white/10 rounded transition-colors"
-                      title={t("settings.setAsDefault")}
-                    >
-                      <svg
-                        class="w-4 h-4"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                          stroke-width="2"
-                          d="M5 5a2 2 0 012-2h10a2 2 0 012 2v4.38l1.71 1.71c.18.18.29.43.29.7V14a2 2 0 01-2 2h-5v4l-2 2-2-2v-4H5a2 2 0 01-2-2v-2.21c0-.27.11-.52.29-.71L5 9.38V5z"
-                        />
-                      </svg>
-                    </button>
-                  {/if}
                   <button
-                    onclick={() => openEditKeyModal(key.id)}
-                    class="p-2.5 text-gray-400 hover:text-indigo-400 hover:bg-indigo-500/10 rounded-lg transition-colors"
+                    onclick={(event) => {
+                      event.stopPropagation();
+                      if (!key.isDefault) setDefaultKey(key.id);
+                    }}
+                    class="p-1.5 rounded transition-colors {key.isDefault
+                      ? 'text-indigo-300 bg-indigo-500/15 cursor-default'
+                      : 'text-gray-500 hover:text-indigo-400 hover:bg-white/10'}"
+                    title={key.isDefault ? t("settings.default") : t("settings.setAsDefault")}
+                    aria-pressed={key.isDefault}
+                  >
+                    <svg
+                      class="w-4 h-4"
+                      fill={key.isDefault ? "currentColor" : "none"}
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M5 5a2 2 0 012-2h10a2 2 0 012 2v4.38l1.71 1.71c.18.18.29.43.29.7V14a2 2 0 01-2 2h-5v4l-2 2-2-2v-4H5a2 2 0 01-2-2v-2.21c0-.27.11-.52.29-.71L5 9.38V5z"
+                      />
+                    </svg>
+                  </button>
+                  <button
+                    onclick={(event) => {
+                      event.stopPropagation();
+                      openEditKeyModal(key.id);
+                    }}
+                    class="p-2.5 text-amber-400 hover:text-amber-300 hover:bg-amber-500/10 rounded-lg transition-colors"
                     title={t("settings.edit")}
                   >
                     <svg
@@ -2041,7 +2170,10 @@
                     </svg>
                   </button>
                   <button
-                    onclick={() => askDeleteApiKey(key.id)}
+                    onclick={(event) => {
+                      event.stopPropagation();
+                      askDeleteApiKey(key.id);
+                    }}
                     class="p-2.5 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-colors"
                     title={t("settings.delete")}
                   >
@@ -2884,23 +3016,23 @@
             {/if}
 
             {#if newKeyType === "google"}
-              <p class="text-[10px] text-gray-500 leading-relaxed">
-                💡 {t("settings.modal.apiKeyHintGoogle")}
+              <p class="rounded-lg border border-blue-400/20 bg-blue-500/10 px-3 py-2 text-sm text-blue-100 leading-relaxed">
+                <span class="font-semibold text-blue-200">{t("settings.modal.apiKeyHintGoogle")}</span>
                 <a
                   href="https://aistudio.google.com/apikey"
                   target="_blank"
-                  class="text-blue-400 hover:text-blue-300 underline"
+                  class="ml-1 font-semibold text-blue-300 hover:text-blue-200 underline underline-offset-2"
                   >aistudio.google.com/apikey</a
                 >
               </p>
             {/if}
             {#if newKeyType === "groq"}
-              <p class="text-[10px] text-gray-500 leading-relaxed">
-                ⚡ {t("settings.modal.apiKeyHintGroq")}
+              <p class="rounded-lg border border-orange-400/20 bg-orange-500/10 px-3 py-2 text-sm text-orange-100 leading-relaxed">
+                <span class="font-semibold text-orange-200">{t("settings.modal.apiKeyHintGroq")}</span>
                 <a
                   href="https://console.groq.com/keys"
                   target="_blank"
-                  class="text-orange-400 hover:text-orange-300 underline"
+                  class="ml-1 font-semibold text-orange-300 hover:text-orange-200 underline underline-offset-2"
                   >console.groq.com/keys</a
                 >
               </p>
@@ -3035,9 +3167,46 @@
     bottom: auto;
     top: calc(100% + 8px);
   }
-	  :global(.group:hover > .card-style-tooltip) {
-	    display: block;
-	  }
+  :global(.group:hover > .card-style-tooltip) {
+    display: block;
+  }
+
+  .settings-action-tooltip {
+    position: absolute;
+    bottom: calc(100% + 10px);
+    left: 50%;
+    z-index: 60;
+    width: min(24rem, calc(100vw - 3rem));
+    padding: 0.75rem 0.875rem;
+    border: 1px solid rgba(251, 191, 36, 0.28);
+    border-radius: 0.75rem;
+    background: rgba(3, 7, 18, 0.97);
+    box-shadow: 0 18px 45px rgba(0, 0, 0, 0.45);
+    color: #d1d5db;
+    font-size: 0.75rem;
+    line-height: 1.35;
+    opacity: 0;
+    pointer-events: none;
+    transform: translateX(-50%) translateY(4px);
+    transition:
+      opacity 0.15s ease,
+      transform 0.15s ease;
+  }
+
+  .settings-action-tooltip.right-0 {
+    right: 0;
+    left: auto;
+    transform: translateY(4px);
+  }
+
+  .group:hover > .settings-action-tooltip {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+
+  .group:hover > .settings-action-tooltip.right-0 {
+    transform: translateY(0);
+  }
 
 	  .ui-language-grid {
 	    display: flex;

@@ -655,7 +655,7 @@
   "translate.fetchModels": "모델 가져오기",
   "translate.fetchModelsHint": "'모델 가져오기'를 클릭하여 서버에서 사용 가능한 모델을 로드합니다.",
   "translate.modelsFound": "사용 가능한 모델",
-  "shortcuts.action.alignCyclePerPage": "표시 중인 자막 순환 (5/10/15)",
+  "shortcuts.action.alignCyclePerPage": "표시 중인 자막 순환 (5/10/15/20)",
   "shortcuts.action.alignNextPage": "다음 자막 페이지",
   "shortcuts.action.alignPrevPage": "이전 자막 페이지",
   "shortcuts.action.alignSave": "결과 저장",

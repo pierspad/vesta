@@ -667,7 +667,7 @@
   "shortcuts.action.alignSwapFiles": "Swap file order",
   "shortcuts.action.alignUndo": "Undo last edit",
   "shortcuts.action.alignSave": "Save result",
-  "shortcuts.action.alignCyclePerPage": "Cycle visible subtitles (5/10/15)",
+  "shortcuts.action.alignCyclePerPage": "Cycle visible subtitles (5/10/15/20)",
   "align.helpTitle": "Revision Assistant",
   "sync.autoSync": "Auto-Sync",
   "sync.autoSyncInProgress": "Auto-Sync in progress...",

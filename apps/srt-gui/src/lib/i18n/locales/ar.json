@@ -657,7 +657,7 @@
   "translate.fetchModels": "جلب النماذج",
   "translate.fetchModelsHint": "انقر على 'جلب النماذج' لتحميل النماذج المتاحة من خادمك.",
   "translate.modelsFound": "نماذج متاحة",
-  "shortcuts.action.alignCyclePerPage": "تبديل الترجمات المرئية (5/10/15)",
+  "shortcuts.action.alignCyclePerPage": "تبديل الترجمات المرئية (5/10/15/20)",
   "shortcuts.action.alignNextPage": "صفحة الترجمة التالية",
   "shortcuts.action.alignPrevPage": "صفحة الترجمة السابقة",
   "shortcuts.action.alignSave": "حفظ النتيجة",

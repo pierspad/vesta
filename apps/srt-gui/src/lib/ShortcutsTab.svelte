@@ -63,6 +63,27 @@
     transcribe: "shortcuts.category.transcribe",
   };
 
+  const categoryIcons: Record<string, string> = {
+    alignment: "🛠️",
+    flashcards: "🃏",
+    global: "🌐",
+    sync: "⏱️",
+    transcribe: "🎙️",
+    translate: "🌍",
+  };
+
+  function categoryText(category: string): string {
+    return t(categoryLabels[category]).replace(/^[^\p{L}\p{N}]+/u, "").trim();
+  }
+
+  let categoryFilterItems = $derived(
+    Object.keys(categoryLabels).sort((a, b) =>
+      categoryText(a).localeCompare(categoryText(b), undefined, {
+        sensitivity: "base",
+      }),
+    ),
+  );
+
   const categoryDescriptions: Record<string, string> = {
     global: "shortcuts.category.global.desc",
     flashcards: "shortcuts.category.flashcards.desc",
@@ -320,17 +341,18 @@
   {/if}
 
   <div class="flex items-center gap-4 mb-6">
-    <div class="flex gap-2">
+    <div class="flex items-center gap-2">
       <button
         onclick={() => (filter = "all")}
-        class="px-4 py-2 rounded-lg text-sm font-medium transition-colors
+        class="px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm
           {filter === 'all'
-          ? 'bg-indigo-500 text-white'
+          ? 'bg-indigo-500 text-white ring-1 ring-indigo-300/30'
           : 'bg-white/5 text-gray-400 hover:bg-white/10'}"
       >
         {t("shortcuts.filter.all")}
       </button>
-      {#each Object.keys(categoryLabels) as cat}
+      <span class="h-7 w-px bg-white/10" aria-hidden="true"></span>
+      {#each categoryFilterItems as cat}
         <button
           onclick={() => (filter = cat as any)}
           class="px-4 py-2 rounded-lg text-sm font-medium transition-colors
@@ -338,7 +360,7 @@
             ? 'bg-indigo-500 text-white'
             : 'bg-white/5 text-gray-400 hover:bg-white/10'}"
         >
-          {t(categoryLabels[cat]).split(" ")[0]}
+          {categoryText(cat)}
         </button>
       {/each}
     </div>
@@ -368,8 +390,9 @@
       {#if categoryShortcuts.length > 0}
         <div class="glass-card p-5" style="content-visibility: auto; contain-intrinsic-size: auto 300px;">
           <div class="mb-4">
-            <h3 class="text-lg font-semibold text-white">
-              {t(categoryLabels[category])}
+            <h3 class="text-lg font-semibold text-white flex items-center gap-2">
+              <span aria-hidden="true">{categoryIcons[category]}</span>
+              {categoryText(category)}
             </h3>
             <p class="text-xs text-gray-500 mt-1">
               {t(categoryDescriptions[category])}
@@ -390,8 +413,9 @@
     <div class="mt-6">
       <div class="glass-card p-5" style="content-visibility: auto; contain-intrinsic-size: auto 400px;">
         <div class="mb-4">
-          <h3 class="text-lg font-semibold text-white">
-            {t("shortcuts.category.sync")}
+          <h3 class="text-lg font-semibold text-white flex items-center gap-2">
+            <span aria-hidden="true">{categoryIcons.sync}</span>
+            {categoryText("sync")}
           </h3>
           <p class="text-xs text-gray-500 mt-1">
             {t("shortcuts.category.sync.desc")}

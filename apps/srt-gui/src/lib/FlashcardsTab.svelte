@@ -37,26 +37,9 @@
   const NOTE_TYPE_LANGUAGE_KEY = "vesta-flashcards-note-type-language";
   const DEFAULT_FLASHCARDS_LANGUAGE_KEY = "vesta-default-flashcards-language";
   const SERIES_MODE_KEY = "vesta-flashcards-series-mode";
-  const SMART_FILE_MATCHING_KEY = "vesta-flashcards-smart-file-matching";
+  const ANKI_FIELDS_PANEL_OPEN_KEY = "vesta-flashcards-anki-fields-panel-open";
 
-  function loadSmartFileMatching(): boolean {
-    try {
-      const saved = localStorage.getItem(SMART_FILE_MATCHING_KEY);
-      return saved === null ? true : saved === "true";
-    } catch {
-      return true;
-    }
-  }
-
-  let smartFileMatchingEnabled = $state(loadSmartFileMatching());
-
-  function toggleSmartFileMatching() {
-    smartFileMatchingEnabled = !smartFileMatchingEnabled;
-    localStorage.setItem(
-      SMART_FILE_MATCHING_KEY,
-      String(smartFileMatchingEnabled),
-    );
-  }
+  let smartFileMatchingEnabled = $state(true);
 
   // ─── Series Mode State ───────────────────────────────────────────────────
   let seriesMode = $state(loadSeriesMode());
@@ -83,10 +66,25 @@
     mediaType: "none" | "video" | "audio";
   }
 
+  type EpisodeFileField = "targetSubsPath" | "nativeSubsPath" | "mediaPath";
+
+  const episodeEditorFields: {
+    field: EpisodeFileField;
+    labelKey: "targetLangSubs" | "nativeLangSubs" | "mediaFile";
+    placeholderKey: "selectFile" | "optional" | "mediaPlaceholder";
+    required: boolean;
+  }[] = [
+    { field: "targetSubsPath", labelKey: "targetLangSubs", placeholderKey: "selectFile", required: true },
+    { field: "nativeSubsPath", labelKey: "nativeLangSubs", placeholderKey: "optional", required: false },
+    { field: "mediaPath", labelKey: "mediaFile", placeholderKey: "mediaPlaceholder", required: false },
+  ];
+
   let episodes = $state<EpisodeEntry[]>([]);
   let seriesOutputMode = $state<"single" | "separate">("separate");
   let seriesCurrentEpisode = $state(0);
   let seriesTotalEpisodes = $state(0);
+  let editingEpisodeIndex = $state<number | null>(null);
+  let editingEpisode = $state<EpisodeEntry | null>(null);
 
   // Extract episode number from filename using common patterns
   function extractEpisodeNumber(filename: string): number | null {
@@ -145,8 +143,12 @@
     episodeNumber: number | null;
   }
 
-  function stripCompoundSubtitleSuffix(baseName: string): string {
+  function normalizeSeriesBaseKey(baseName: string): string {
     let stem = baseName.toLowerCase();
+    stem = stem.replace(/\([^)]*\b(?:19|20)\d{2}\b[^)]*\)/g, "");
+    stem = stem.replace(/\[[^\]]*\b(?:19|20)\d{2}\b[^\]]*\]/g, "");
+    stem = stem.replace(/\b(?:19|20)\d{2}\b/g, "");
+    stem = stem.replace(/\b(?:720p|1080p|2160p|4k|bluray|brrip|webrip|web-dl|webdl|hdtv|dvdrip|x264|x265|h264|h265|aac|dts)\b/g, "");
     stem = stem.replace(/[\s]+/g, " ");
     stem = stem.replace(/[._-](native|original|orig|source)(?=($|[._-]))/gi, "");
     // Also strip reference/translation hints for consistent matching
@@ -162,7 +164,15 @@
     // Normalize all separators to underscore for consistent matching
     stem = suffixParts.join("_");
 
-    return stem.replace(/[._-]+$/g, "").trim();
+    return stem
+      .replace(/[^\p{L}\p{N}]+/gu, "_")
+      .replace(/^_+|_+$/g, "")
+      .replace(/_+/g, "_")
+      .trim();
+  }
+
+  function stripCompoundSubtitleSuffix(baseName: string): string {
+    return normalizeSeriesBaseKey(baseName);
   }
 
   function parseSeriesSubtitle(path: string): ParsedSeriesSubtitle {
@@ -196,7 +206,7 @@
     return {
       path,
       name,
-      baseKey: stripCompoundSubtitleSuffix(baseName) || baseName.toLowerCase(),
+      baseKey: normalizeSeriesBaseKey(baseName) || baseName.toLowerCase(),
       mediaType: detectMediaType(name),
       episodeNumber: extractEpisodeNumber(name),
     };
@@ -218,14 +228,8 @@
         : { target: paths[0], native: "" };
     }
 
-    const normalizedNoteTypeLanguage = noteTypeLanguage.toLowerCase();
     let targetCandidate =
       parsed.find((item) => item.roleHint === "original") ||
-      (normalizedNoteTypeLanguage
-        ? parsed.find(
-            (item) => item.language?.toLowerCase() === normalizedNoteTypeLanguage,
-          )
-        : undefined) ||
       parsed[0];
 
     let nativeCandidate =
@@ -233,13 +237,6 @@
         (item) =>
           item.path !== targetCandidate.path && item.roleHint === "reference",
       ) ||
-      (normalizedNoteTypeLanguage
-        ? parsed.find(
-            (item) =>
-              item.path !== targetCandidate.path &&
-              item.language?.toLowerCase() !== normalizedNoteTypeLanguage,
-          )
-        : undefined) ||
       parsed.find((item) => item.path !== targetCandidate.path) ||
       null;
 
@@ -409,6 +406,46 @@
     }
   }
 
+  async function expandSeriesFilesWithSmartMatches(
+    subtitleFiles: string[],
+    mediaFiles: string[],
+  ): Promise<{ subtitleFiles: string[]; mediaFiles: string[] }> {
+    if (!smartFileMatchingEnabled || subtitleFiles.length === 0) {
+      return { subtitleFiles, mediaFiles };
+    }
+
+    const subtitleSet = new Set(subtitleFiles);
+    const mediaSet = new Set(mediaFiles);
+
+    await Promise.all(
+      subtitleFiles.map(async (path) => {
+        try {
+          const companion = await invoke<string | null>(
+            "sync_suggest_companion_subtitle_for_srt",
+            { srtPath: path },
+          );
+          if (companion && companion !== path) subtitleSet.add(companion);
+        } catch {
+          // Best-effort suggestion only.
+        }
+
+        try {
+          const media = await invoke<string | null>("sync_suggest_media_for_srt", {
+            srtPath: path,
+          });
+          if (media) mediaSet.add(media);
+        } catch {
+          // Best-effort suggestion only.
+        }
+      }),
+    );
+
+    return {
+      subtitleFiles: [...subtitleSet],
+      mediaFiles: [...mediaSet],
+    };
+  }
+
   // Auto-match files across categories by episode number, then lexicographic
   function autoMatchFiles(
     targetFiles: string[],
@@ -511,12 +548,115 @@
     }
   }
 
+  async function addMovieFiles() {
+    try {
+      const raw = await guardedOpen({
+        multiple: true,
+        filters: [
+          {
+            name: "Subtitle and Media Files",
+            extensions: ["srt", "ass", "ssa", "vtt", ...VIDEO_EXTENSIONS, ...AUDIO_EXTENSIONS],
+          },
+        ],
+      });
+      const selected = normalizeSelected(raw);
+      if (selected.length > 0) {
+        await handleFileDrop(selected);
+      }
+    } catch (e) {
+      error = `${t("flashcards.errorSelectingFile")}: ${e}`;
+    }
+  }
+
+  function clearMovieFile(field: "target" | "native" | "media") {
+    if (field === "target") {
+      targetSubsPath = "";
+      targetSubsInfo = null;
+    } else if (field === "native") {
+      nativeSubsPath = "";
+      nativeSubsInfo = null;
+    } else {
+      mediaPath = "";
+      mediaType = "none";
+      generateSnapshots = false;
+      generateVideoClips = false;
+    }
+  }
+
 
 
   function removeEpisode(idx: number) {
     episodes = episodes
       .filter((_, i) => i !== idx)
       .map((e, i) => ({ ...e, id: i + 1 }));
+  }
+
+  function openEpisodeEditor(idx: number) {
+    const episode = episodes[idx];
+    if (!episode) return;
+    editingEpisodeIndex = idx;
+    editingEpisode = { ...episode };
+  }
+
+  function closeEpisodeEditor() {
+    editingEpisodeIndex = null;
+    editingEpisode = null;
+  }
+
+  function saveEpisodeEditor() {
+    if (editingEpisodeIndex === null || !editingEpisode) return;
+    const updatedEpisode: EpisodeEntry = {
+      id: editingEpisode.id,
+      targetSubsPath: editingEpisode.targetSubsPath,
+      nativeSubsPath: editingEpisode.nativeSubsPath,
+      mediaPath: editingEpisode.mediaPath,
+      mediaType: editingEpisode.mediaPath
+        ? detectMediaType(getFileName(editingEpisode.mediaPath))
+        : "none",
+    };
+    episodes = episodes.map((episode, idx) =>
+      idx === editingEpisodeIndex
+        ? {
+            ...updatedEpisode,
+            id: episode.id,
+          }
+        : episode,
+    );
+    closeEpisodeEditor();
+  }
+
+  async function selectEpisodeFile(field: EpisodeFileField) {
+    if (!editingEpisode) return;
+    try {
+      const selected = await guardedOpen({
+        multiple: false,
+        filters:
+          field === "mediaPath"
+            ? [
+                {
+                  name: t("flashcards.mediaFiles"),
+                  extensions: [...VIDEO_EXTENSIONS, ...AUDIO_EXTENSIONS],
+                },
+              ]
+            : [
+                {
+                  name: t("flashcards.subtitleFiles"),
+                  extensions: ["srt", "ass", "ssa", "vtt"],
+                },
+              ],
+      });
+      if (!selected || Array.isArray(selected)) return;
+      editingEpisode = {
+        ...editingEpisode,
+        [field]: selected,
+        mediaType:
+          field === "mediaPath"
+            ? detectMediaType(getFileName(selected))
+            : editingEpisode.mediaType,
+      };
+    } catch (e) {
+      error = `${t("flashcards.errorSelectingFile")}: ${e}`;
+    }
   }
 
   function clearAllEpisodes() {
@@ -544,6 +684,21 @@
   let showSubtitleOptions = $state(false);
   let showContextLines = $state(false);
   let showFilters = $state(false);
+  let showAnkiFields = $state(loadAnkiFieldsPanelOpen());
+
+  function loadAnkiFieldsPanelOpen(): boolean {
+    try {
+      const saved = localStorage.getItem(ANKI_FIELDS_PANEL_OPEN_KEY);
+      return saved === null ? true : saved === "true";
+    } catch {
+      return true;
+    }
+  }
+
+  function toggleAnkiFieldsPanel() {
+    showAnkiFields = !showAnkiFields;
+    localStorage.setItem(ANKI_FIELDS_PANEL_OPEN_KEY, String(showAnkiFields));
+  }
   let hasAnyFiles = $derived(
     seriesMode
       ? episodes.length > 0
@@ -661,9 +816,9 @@
   };
 
   const DEFAULT_SERIES_LAYOUT: ColumnLayout = {
-    col1: ["files", "subtitleOptions", "contextLines", "filters"],
-    col2: ["naming", "audioClips", "snapshots", "videoClips", "ankiFields"],
-    col3: ["exportFormat", "cpuCores", "actions", "progressResult", "logs"],
+    col1: ["files", "cpuCores", "ankiFields", "subtitleOptions", "contextLines", "filters"],
+    col2: ["naming", "audioClips", "snapshots", "videoClips"],
+    col3: ["exportFormat", "actions", "progressResult", "logs"],
   };
 
   function cloneLayout(layout: ColumnLayout): ColumnLayout {
@@ -859,6 +1014,78 @@
       : Boolean(targetSubsPath && outputDir && deckName && noteTypeLanguage),
   );
 
+  type RequirementPanelId = "files" | "naming" | "ankiFields";
+  type GenerationRequirement = {
+    panel: RequirementPanelId;
+    label: string;
+  };
+
+  let generationPromptOpen = $state(false);
+  let highlightedRequirementPanels = $state<Set<RequirementPanelId>>(new Set());
+  let requirementPulseTimer: ReturnType<typeof setTimeout> | null = null;
+
+  let generationRequirements = $derived.by((): GenerationRequirement[] => {
+    const missing: GenerationRequirement[] = [];
+    if (seriesMode) {
+      if (episodes.length === 0) {
+        missing.push({
+          panel: "files",
+          label: `Aggiungi almeno un episodio in ${t("flashcards.files")}`,
+        });
+      }
+    } else if (!targetSubsPath) {
+      missing.push({
+        panel: "files",
+        label: `${t("flashcards.targetLangSubs")}`,
+      });
+    }
+    if (!outputDir) {
+      missing.push({
+        panel: "files",
+        label: `${t("flashcards.outputDir")}`,
+      });
+    }
+    if (!deckName.trim()) {
+      missing.push({
+        panel: "naming",
+        label: `${t("flashcards.deckNameLabel")}`,
+      });
+    }
+    if (!noteTypeLanguage) {
+      missing.push({
+        panel: "ankiFields",
+        label: `${t("flashcards.noteTypeLanguage")}`,
+      });
+    }
+    return missing;
+  });
+
+  let generationRequirementsText = $derived(
+    generationRequirements.map((item) => item.label).join(", "),
+  );
+
+  function panelHighlightClass(panelId: RequirementPanelId): string {
+    return highlightedRequirementPanels.has(panelId)
+      ? "flashcard-requirement-pulse"
+      : "";
+  }
+
+  function promptMissingGenerationRequirements() {
+    if (canRunFlashcards) return;
+    generationPromptOpen = true;
+    highlightedRequirementPanels = new Set(
+      generationRequirements.map((item) => item.panel),
+    );
+    if (requirementPulseTimer) clearTimeout(requirementPulseTimer);
+    requirementPulseTimer = setTimeout(() => {
+      highlightedRequirementPanels = new Set();
+    }, 1800);
+  }
+
+  function closeGenerationPrompt() {
+    generationPromptOpen = false;
+  }
+
   function inferLanguageFromPath(filePath: string): string | null {
     const filename = filePath.split("/").pop()?.toLowerCase() || "";
     const base = filename.replace(/\.[^/.]+$/, "");
@@ -962,7 +1189,11 @@
 
     if (seriesMode) {
       if (subtitleFiles.length > 0 || mediaFiles.length > 0) {
-        mergeSeriesDroppedFiles(subtitleFiles, mediaFiles);
+        const expanded = await expandSeriesFilesWithSmartMatches(
+          subtitleFiles,
+          mediaFiles,
+        );
+        mergeSeriesDroppedFiles(expanded.subtitleFiles, expanded.mediaFiles);
         addLog(`${episodes.length} ${t("flashcards.seriesEpisodesAdded")}`, "target-subs");
       }
     } else {
@@ -1163,6 +1394,7 @@
     if (unlistenDragDrop) unlistenDragDrop();
     if (removeTemplateListener) removeTemplateListener();
     if (removeLayoutObserver) removeLayoutObserver();
+    if (requirementPulseTimer) clearTimeout(requirementPulseTimer);
   });
 
   // Track the i18n key of the last progress log so sequential updates
@@ -1764,6 +1996,7 @@
 
   async function startGeneration() {
     if (!canRunFlashcards) {
+      promptMissingGenerationRequirements();
       error = t("flashcards.requiredFieldsMissing");
       return;
     }
@@ -2129,53 +2362,76 @@
 
   {#snippet panelContent(panelId: PanelId)}
     {#if panelId === "files"}
-      <div class="glass-card p-4">
-        <h3
-          class="text-sm font-semibold mb-3 flex items-center gap-2 text-emerald-400"
-        >
-          <svg
-            class="w-4 h-4"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
+      <div class="glass-card p-4 {panelHighlightClass('files')}">
+        <div class="mb-3 flex items-center gap-3">
+          <h3
+            class="flex min-w-0 items-center gap-2 text-sm font-semibold {seriesMode ? 'text-violet-300' : 'text-emerald-400'}"
           >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
-            />
-          </svg>
-          {t("flashcards.files")}
-          <InfoButton onclick={() => (helpSection = "files")} />
-        </h3>
-
-        {#if !seriesMode}
-          <div class="mb-3 flex items-center justify-between rounded-lg border border-emerald-500/20 bg-emerald-500/5 px-3 py-2">
-            <div class="text-xs">
-              <p class="text-emerald-300 font-semibold">Smart file matching</p>
-              <p class="text-[10px] text-gray-400">Auto-load companion subtitle and media on each file selection</p>
-            </div>
+            <svg
+              class="w-4 h-4 shrink-0"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
+              />
+            </svg>
+            {t("flashcards.files")}
+          </h3>
+          <span class="flex shrink-0 items-center gap-1.5 rounded-full border border-gray-700/60 bg-gray-900/60 px-2 py-1">
             <button
               type="button"
-              role="switch"
-              aria-checked={smartFileMatchingEnabled}
-              onclick={toggleSmartFileMatching}
-              class="w-12 h-6 rounded-full transition-all duration-200 relative {smartFileMatchingEnabled
-                ? 'bg-emerald-500/70'
-                : 'bg-gray-700'}"
-              title={smartFileMatchingEnabled
-                ? "Smart matching enabled"
-                : "Smart matching disabled"}
+              onclick={toggleSeriesMode}
+              class="flex items-center gap-1 text-xs font-semibold transition-colors {!seriesMode
+                ? 'text-emerald-300'
+                : 'text-gray-500 hover:text-gray-300'}"
+              title={t("flashcards.modeMovie")}
             >
-              <div
-                class="absolute w-5 h-5 bg-white rounded-full top-0.5 transition-all duration-200 {smartFileMatchingEnabled
-                  ? 'left-6'
-                  : 'left-0.5'}"
-              ></div>
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                <rect x="2" y="4" width="20" height="16" rx="2" />
+                <path d="M2 8h20M7 4v4M17 4v4" stroke-linecap="round" />
+              </svg>
+              Film
             </button>
+            <button
+              type="button"
+              class="relative h-5 w-9 shrink-0 rounded-full transition-colors {seriesMode ? 'bg-violet-500/60' : 'bg-emerald-500/50'}"
+              onclick={toggleSeriesMode}
+              role="switch"
+              aria-checked={seriesMode}
+              title={seriesMode ? t("flashcards.modeSeries") : t("flashcards.modeMovie")}
+            >
+              <span
+                class="absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-transform {seriesMode
+                  ? 'translate-x-4'
+                  : 'translate-x-0'}"
+              ></span>
+            </button>
+            <button
+              type="button"
+              onclick={toggleSeriesMode}
+              class="flex items-center gap-1 text-xs font-semibold transition-colors {seriesMode
+                ? 'text-violet-300'
+                : 'text-gray-500 hover:text-gray-300'}"
+              title={t("flashcards.modeSeries")}
+            >
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                <rect x="2" y="3" width="20" height="6" rx="1" />
+                <rect x="2" y="11" width="20" height="6" rx="1" />
+                <line x1="6" y1="3" x2="6" y2="9" />
+                <line x1="6" y1="11" x2="6" y2="17" />
+              </svg>
+              Serie TV
+            </button>
+          </span>
+          <div class="ml-auto">
+            <InfoButton onclick={() => (helpSection = "files")} />
           </div>
-        {/if}
+        </div>
 
         {#if !seriesMode}
           <div class="space-y-2.5">
@@ -2224,49 +2480,16 @@
                   >
                   {t("flashcards.browse")}
                 </button>
-              </div>
-            </div>
-
-            <div>
-              <span class="block text-xs text-gray-400 mb-1">
-                {t("flashcards.outputDir")} <span class="text-red-400">*</span>
-              </span>
-              <div class="flex gap-2">
                 <button
                   type="button"
-                  onclick={() => {
-                    if (outputDir) expandedPathField = "output";
-                  }}
-                  class="input-modern flex-1 text-xs text-left transition-colors truncate {outputDir
-                    ? 'cursor-pointer hover:bg-white/10'
-                    : 'cursor-default hover:bg-transparent'}"
-                  style="direction: rtl; text-align: left;"
-                  title={outputDir || t("flashcards.selectDir")}
+                  onclick={() => clearMovieFile("target")}
+                  class="inline-flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg border border-red-500/30 bg-red-500/10 text-red-300 transition-colors hover:border-red-400/60 hover:bg-red-500/20 {targetSubsPath ? '' : 'invisible'}"
+                  title="Rimuovi file"
+                  aria-label="Rimuovi file"
                 >
-                  <span
-                    class={outputDir ? "text-white" : "text-gray-500"}
-                    style="unicode-bidi: plaintext;"
-                  >
-                    {outputDir || t("flashcards.selectDir")}
-                  </span>
-                </button>
-                <button
-                  onclick={selectOutputDir}
-                  class="btn-primary py-1.5 px-3 text-xs flex-shrink-0 flex items-center gap-1"
-                >
-                  <svg
-                    class="w-3.5 h-3.5"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                    ><path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"
-                    /></svg
-                  >
-                  {t("flashcards.browse")}
+                  <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
                 </button>
               </div>
             </div>
@@ -2315,6 +2538,17 @@
                   >
                   {t("flashcards.browse")}
                 </button>
+                <button
+                  type="button"
+                  onclick={() => clearMovieFile("native")}
+                  class="inline-flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg border border-red-500/30 bg-red-500/10 text-red-300 transition-colors hover:border-red-400/60 hover:bg-red-500/20 {nativeSubsPath ? '' : 'invisible'}"
+                  title="Rimuovi file"
+                  aria-label="Rimuovi file"
+                >
+                  <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                </button>
               </div>
             </div>
 
@@ -2347,6 +2581,61 @@
                 <button
                   onclick={selectMedia}
                   class="btn-secondary py-1.5 px-3 text-xs flex-shrink-0 flex items-center gap-1"
+                >
+                  <svg
+                    class="w-3.5 h-3.5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    ><path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"
+                    /></svg
+                  >
+                  {t("flashcards.browse")}
+                </button>
+                <button
+                  type="button"
+                  onclick={() => clearMovieFile("media")}
+                  class="inline-flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg border border-red-500/30 bg-red-500/10 text-red-300 transition-colors hover:border-red-400/60 hover:bg-red-500/20 {mediaPath ? '' : 'invisible'}"
+                  title="Rimuovi file"
+                  aria-label="Rimuovi file"
+                >
+                  <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <span class="block text-xs text-gray-400 mb-1">
+                {t("flashcards.outputDir")} <span class="text-red-400">*</span>
+              </span>
+              <div class="flex gap-2">
+                <button
+                  type="button"
+                  onclick={() => {
+                    if (outputDir) expandedPathField = "output";
+                  }}
+                  class="input-modern flex-1 text-xs text-left transition-colors truncate {outputDir
+                    ? 'cursor-pointer hover:bg-white/10'
+                    : 'cursor-default hover:bg-transparent'}"
+                  style="direction: rtl; text-align: left;"
+                  title={outputDir || t("flashcards.selectDir")}
+                >
+                  <span
+                    class={outputDir ? "text-white" : "text-gray-500"}
+                    style="unicode-bidi: plaintext;"
+                  >
+                    {outputDir || t("flashcards.selectDir")}
+                  </span>
+                </button>
+                <button
+                  onclick={selectOutputDir}
+                  class="btn-primary py-1.5 px-3 text-xs flex-shrink-0 flex items-center gap-1"
                 >
                   <svg
                     class="w-3.5 h-3.5"
@@ -2445,15 +2734,16 @@
                         <th class="p-1.5 text-left text-gray-400"
                           >{t("flashcards.mediaFile")}</th
                         >
-                        <th class="p-1.5 w-10"></th>
+                        <th class="p-1.5 w-20"></th>
                       </tr>
                     </thead>
                     <tbody>
                       {#each episodes as ep, idx}
                         <tr
-                          class="border-t border-gray-800 {idx % 2 === 0
+                          class="border-t border-gray-800 cursor-pointer {idx % 2 === 0
                             ? 'bg-gray-900/30'
                             : 'bg-gray-800/20'} hover:bg-gray-700/20"
+                          onclick={() => openEpisodeEditor(idx)}
                         >
                           <td class="p-1.5 text-gray-500 font-mono">{ep.id}</td>
                           <td
@@ -2481,9 +2771,28 @@
                             {ep.mediaPath ? ep.mediaPath.split("/").pop() : "—"}
                           </td>
                           <td class="p-1.5">
+                            <div class="flex items-center justify-end gap-5">
                             <button
-                              onclick={() => removeEpisode(idx)}
-                              class="text-gray-600 hover:text-red-400 transition-colors"
+                              onclick={(e) => { e.stopPropagation(); openEpisodeEditor(idx); }}
+                              class="text-amber-400 hover:text-amber-300 transition-colors"
+                              title="Modifica episodio"
+                            >
+                              <svg
+                                class="w-3.5 h-3.5"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                                ><path
+                                  stroke-linecap="round"
+                                  stroke-linejoin="round"
+                                  stroke-width="2"
+                                  d="M11 4H6a2 2 0 00-2 2v12a2 2 0 002 2h12a2 2 0 002-2v-5M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"
+                                /></svg
+                              >
+                            </button>
+                            <button
+                              onclick={(e) => { e.stopPropagation(); removeEpisode(idx); }}
+                              class="text-red-400 hover:text-red-300 transition-colors"
                               title={t("flashcards.removeEpisode")}
                             >
                               <svg
@@ -2495,10 +2804,11 @@
                                   stroke-linecap="round"
                                   stroke-linejoin="round"
                                   stroke-width="2"
-                                  d="M6 18L18 6M6 6l12 12"
+                                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
                                 /></svg
                               >
                             </button>
+                            </div>
                           </td>
                         </tr>
                       {/each}
@@ -3400,31 +3710,46 @@
       <div
         inert={!hasAnyFiles}
         title={!hasAnyFiles ? HINT_LOAD_TARGET_FIRST : undefined}
-        class="glass-card p-4 {!hasAnyFiles
+        class="glass-card p-4 {panelHighlightClass('ankiFields')} {!hasAnyFiles
           ? 'opacity-50'
           : ''}"
       >
-        <h3
-          class="text-sm font-semibold mb-3 flex items-center gap-2 text-lime-400"
-        >
-          <svg
-            class="w-4 h-4"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
+        <div class="flex items-center gap-2">
+          <button
+            type="button"
+            onclick={toggleAnkiFieldsPanel}
+            class="flex-1 flex items-center justify-between text-sm font-semibold text-lime-400"
           >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2"
-            />
-          </svg>
-          {t("flashcards.ankiFields")}
+            <span class="flex items-center gap-2">
+              <svg
+                class="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2"
+                />
+              </svg>
+              {t("flashcards.ankiFields")}
+            </span>
+            <svg
+              class="w-4 h-4 transition-transform {showAnkiFields ? 'rotate-180' : ''}"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
           <InfoButton onclick={() => (helpSection = "ankiFields")} />
-        </h3>
+        </div>
 
-        <div class="mb-3">
+        {#if showAnkiFields}
+        <div class="mt-3 mb-3">
           <span class="block text-xs text-gray-400 mb-1"
             >{t("flashcards.noteTypeLanguage")}</span
           >
@@ -3534,6 +3859,7 @@
             🔢 {t("flashcards.sequenceField")}
           </button>
         </div>
+        {/if}
       </div>
     {:else if panelId === "exportFormat"}
       <div
@@ -3668,7 +3994,7 @@
       <div
         inert={!hasAnyFiles}
         title={!hasAnyFiles ? HINT_LOAD_TARGET_FIRST : undefined}
-        class="glass-card p-4 {!hasAnyFiles
+        class="glass-card p-4 {panelHighlightClass('naming')} {!hasAnyFiles
           ? 'opacity-50'
           : ''}"
       >
@@ -3839,35 +4165,66 @@
             {t("flashcards.cancel")}
           </button>
         {:else}
-          <button
-            onclick={startGeneration}
-            disabled={!canRunFlashcards}
-            title={!canRunFlashcards
-              ? "Complete required fields: subtitle, output folder, deck name, and language."
-              : undefined}
-            class="btn-success w-full py-4 text-lg disabled:opacity-50 disabled:cursor-not-allowed"
+          <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+          <div
+            class="group relative"
+            role={!canRunFlashcards ? "button" : undefined}
+            tabindex={!canRunFlashcards ? 0 : undefined}
+            onclick={() => {
+              if (!canRunFlashcards) promptMissingGenerationRequirements();
+            }}
+            onmouseleave={closeGenerationPrompt}
+            onfocusout={closeGenerationPrompt}
+            onkeydown={(event) => {
+              if (!canRunFlashcards && (event.key === "Enter" || event.key === " ")) {
+                event.preventDefault();
+                promptMissingGenerationRequirements();
+              }
+            }}
           >
-            <svg
-              class="w-5 h-5 inline mr-2"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
+            <button
+              onclick={startGeneration}
+              disabled={!canRunFlashcards}
+              aria-describedby={!canRunFlashcards ? "flashcards-generate-requirements" : undefined}
+              class="btn-success w-full py-4 text-lg disabled:cursor-help disabled:opacity-55 {!canRunFlashcards ? 'pointer-events-none saturate-75' : ''}"
             >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M13 10V3L4 14h7v7l9-11h-7z"
-              />
-            </svg>
-            {t("flashcards.generate")}
-          </button>
+              <svg
+                class="w-5 h-5 inline mr-2"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M13 10V3L4 14h7v7l9-11h-7z"
+                />
+              </svg>
+              {t("flashcards.generate")}
+            </button>
+            {#if !canRunFlashcards}
+              <div
+                id="flashcards-generate-requirements"
+                class="pointer-events-none absolute bottom-full left-1/2 z-40 mb-3 w-[min(22rem,calc(100vw-3rem))] -translate-x-1/2 rounded-xl border border-amber-400/30 bg-gray-950/95 p-3 text-left text-xs text-gray-200 opacity-0 shadow-2xl shadow-black/40 ring-1 ring-white/10 transition-all duration-150 group-hover:opacity-100 group-hover:translate-y-0 {generationPromptOpen ? 'opacity-100 translate-y-0' : 'translate-y-1'}"
+              >
+                <p class="mb-2 font-semibold text-amber-200">
+                  Mancano ancora questi passaggi:
+                </p>
+                <ol class="list-decimal space-y-1 pl-4 text-gray-300">
+                  {#each generationRequirements as requirement}
+                    <li>{requirement.label}</li>
+                  {/each}
+                </ol>
+              </div>
+            {/if}
+          </div>
 
           <button
             class="btn-secondary w-full py-2 disabled:opacity-50 disabled:cursor-not-allowed"
             disabled={!canRunFlashcards}
             title={!canRunFlashcards
-              ? "Complete required fields: subtitle, output folder, deck name, and language."
+              ? `Completa: ${generationRequirementsText}`
               : undefined}
             onclick={loadPreview}
           >
@@ -4068,77 +4425,6 @@
     {/if}
   {/snippet}
 
-  <div class="relative mb-1 flex items-center justify-center min-h-[32px]">
-    <!-- Movie/Series toggle -->
-    <div>
-      <div
-        class="flex items-center gap-2 px-3 py-0.5 rounded-full bg-gray-800/60 border border-gray-700/50"
-      >
-        <button
-          onclick={toggleSeriesMode}
-          class="flex items-center gap-1 text-xs font-medium transition-colors {!seriesMode
-            ? 'text-emerald-400'
-            : 'text-gray-500 hover:text-gray-300'}"
-          title={t("flashcards.modeMovie")}
-        >
-          <svg
-            class="w-3.5 h-3.5"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-            stroke-width="2"
-          >
-            <rect x="2" y="4" width="20" height="16" rx="2" />
-            <path d="M2 8h20M7 4v4M17 4v4" stroke-linecap="round" />
-          </svg>
-          {t("flashcards.modeMovie")}
-        </button>
-        <div
-          class="relative w-9 h-5 cursor-pointer"
-          onclick={toggleSeriesMode}
-          role="switch"
-          tabindex="0"
-          aria-checked={seriesMode}
-          onkeydown={(e) => {
-            if (e.key === "Enter" || e.key === " ") toggleSeriesMode();
-          }}
-        >
-          <div
-            class="absolute inset-0 rounded-full transition-colors {seriesMode
-              ? 'bg-violet-500/40'
-              : 'bg-gray-700'}"
-          ></div>
-          <div
-            class="absolute top-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-transform {seriesMode
-              ? 'translate-x-4'
-              : 'translate-x-0.5'}"
-          ></div>
-        </div>
-        <button
-          onclick={toggleSeriesMode}
-          class="flex items-center gap-1 text-xs font-medium transition-colors {seriesMode
-            ? 'text-violet-400'
-            : 'text-gray-500 hover:text-gray-300'}"
-          title={t("flashcards.modeSeries")}
-        >
-          <svg
-            class="w-3.5 h-3.5"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-            stroke-width="2"
-          >
-            <rect x="2" y="3" width="20" height="6" rx="1" />
-            <rect x="2" y="11" width="20" height="6" rx="1" />
-            <line x1="6" y1="3" x2="6" y2="9" />
-            <line x1="6" y1="11" x2="6" y2="17" />
-          </svg>
-          {t("flashcards.modeSeries")}
-        </button>
-      </div>
-    </div>
-  </div>
-
   <div bind:this={layoutHostEl} class="flex-1 grid {gridColClass} gap-4 min-h-0 overflow-y-auto">
     {#if seriesMode}
       <!-- In series mode, render the files panel full-width above the columns -->
@@ -4181,6 +4467,126 @@
     {/if}
   </div>
 
+  {#if editingEpisode}
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <div
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/65 p-6"
+      role="dialog"
+      aria-modal="true"
+      tabindex="-1"
+      onclick={closeEpisodeEditor}
+      onkeydown={(e) => {
+        if (e.key === "Escape") closeEpisodeEditor();
+      }}
+    >
+      <!-- svelte-ignore a11y_no_static_element_interactions -->
+      <div
+        class="w-full max-w-2xl rounded-xl border border-gray-700 bg-gray-900 p-5 shadow-2xl"
+        onclick={(e) => e.stopPropagation()}
+        onkeydown={(e) => e.stopPropagation()}
+      >
+        <div class="mb-4 flex items-center justify-between gap-3">
+          <div>
+            <p class="text-xs uppercase tracking-wide text-gray-500">Modalità Serie</p>
+            <h3 class="text-lg font-bold text-white">
+              Modifica episodio {editingEpisode.id}
+            </h3>
+          </div>
+          <button
+            type="button"
+            onclick={closeEpisodeEditor}
+            class="text-xl leading-none text-gray-400 hover:text-white"
+          >×</button>
+        </div>
+
+        <div class="space-y-3">
+          {#each episodeEditorFields as item}
+            {@const field = item.field}
+            {@const label = t(`flashcards.${item.labelKey}`)}
+            {@const placeholder = t(`flashcards.${item.placeholderKey}`)}
+            <div>
+              <div class="mb-1 flex items-center gap-3">
+                <span class="text-xs font-medium text-gray-400">
+                  {label}
+                  {#if item.required}<span class="text-red-400">*</span>{/if}
+                </span>
+              </div>
+              <div class="flex gap-2">
+                <button
+                  type="button"
+                  class="input-modern flex-1 truncate text-left text-xs"
+                  style="direction: rtl; text-align: left;"
+                  title={editingEpisode[field] || placeholder}
+                  onclick={() => {
+                    const value = editingEpisode?.[field];
+                    if (value) expandedPathField = field as string;
+                  }}
+                >
+                  <span
+                    class={editingEpisode[field]
+                      ? "text-white"
+                      : "text-gray-500"}
+                    style="unicode-bidi: plaintext;"
+                  >
+                    {editingEpisode[field] || placeholder}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onclick={() => selectEpisodeFile(field)}
+                  class="btn-primary flex h-10 shrink-0 items-center gap-1.5 px-4 text-xs"
+                >
+                  <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7a2 2 0 012-2h5l2 2h7a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" />
+                  </svg>
+                  {t("flashcards.browse")}
+                </button>
+                {#if editingEpisode[field]}
+                  <button
+                    type="button"
+                    class="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-red-500/30 bg-red-500/10 text-red-300 shadow-sm transition-colors hover:border-red-400/60 hover:bg-red-500/20 hover:text-red-100"
+                    title="Svuota campo"
+                    aria-label="Svuota campo"
+                    onclick={() => {
+                      if (!editingEpisode) return;
+                      editingEpisode = {
+                        ...editingEpisode,
+                        [field]: "",
+                        mediaType: field === "mediaPath" ? "none" : editingEpisode.mediaType,
+                      };
+                    }}
+                  >
+                    <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </button>
+                {/if}
+              </div>
+            </div>
+          {/each}
+        </div>
+
+        <div class="mt-5 flex justify-end gap-2">
+          <button
+            type="button"
+            onclick={closeEpisodeEditor}
+            class="btn-secondary px-4 py-2 text-sm"
+          >
+            {t("settings.modal.cancel")}
+          </button>
+          <button
+            type="button"
+            onclick={saveEpisodeEditor}
+            disabled={!editingEpisode.targetSubsPath}
+            class="rounded-lg border border-emerald-400/40 bg-emerald-500/20 px-4 py-2 text-sm font-semibold text-emerald-100 shadow-lg shadow-emerald-500/10 transition-all hover:border-emerald-300/60 hover:bg-emerald-500/30 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {t("settings.modal.save")}
+          </button>
+        </div>
+      </div>
+    </div>
+  {/if}
+
   <InfoModal 
     section={helpSection} 
     sections={flashcardsSections} 
@@ -4190,19 +4596,52 @@
   <PathPreviewModal
     isOpen={!!expandedPathField}
     title={expandedPathField === "targetSubs"
+      || expandedPathField === "targetSubsPath"
       ? t("flashcards.targetLangSubs")
       : expandedPathField === "output"
         ? t("flashcards.outputDir")
         : expandedPathField === "nativeSubs"
+          || expandedPathField === "nativeSubsPath"
           ? t("flashcards.nativeLangSubs")
           : t("flashcards.mediaFile")}
     value={expandedPathField === "targetSubs"
       ? targetSubsPath
+      : expandedPathField === "targetSubsPath"
+        ? editingEpisode?.targetSubsPath || ""
       : expandedPathField === "output"
         ? outputDir
         : expandedPathField === "nativeSubs"
           ? nativeSubsPath
-          : mediaPath}
+          : expandedPathField === "nativeSubsPath"
+            ? editingEpisode?.nativeSubsPath || ""
+            : expandedPathField === "mediaPath"
+              ? editingEpisode?.mediaPath || ""
+              : mediaPath}
     onclose={() => (expandedPathField = null)}
   />
 </div>
+
+<style>
+  :global(.flashcard-requirement-pulse) {
+    animation: flashcard-requirement-pulse 0.9s ease-in-out 2;
+    border-color: rgba(251, 191, 36, 0.75) !important;
+    box-shadow:
+      0 0 0 1px rgba(251, 191, 36, 0.3),
+      0 0 24px rgba(251, 191, 36, 0.24);
+  }
+
+  @keyframes flashcard-requirement-pulse {
+    0%,
+    100% {
+      border-color: rgba(251, 191, 36, 0.35);
+      box-shadow: 0 0 0 0 rgba(251, 191, 36, 0);
+    }
+
+    45% {
+      border-color: rgba(251, 191, 36, 0.9);
+      box-shadow:
+        0 0 0 1px rgba(251, 191, 36, 0.45),
+        0 0 28px rgba(251, 191, 36, 0.36);
+    }
+  }
+</style>
