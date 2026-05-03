@@ -118,8 +118,9 @@ fn extract_audio_segment(
     start_sec: f64,
     duration_sec: f64,
     output_wav: &str,
+    ffmpeg_cmd: &str,
 ) -> Result<()> {
-    let output = std::process::Command::new("ffmpeg")
+    let output = std::process::Command::new(ffmpeg_cmd)
         .args([
             "-y",
             "-ss", &format!("{:.2}", start_sec),
@@ -298,8 +299,8 @@ fn get_model_path(model_id: &str) -> Result<std::path::PathBuf> {
 }
 
 /// Get media duration in seconds using ffprobe
-async fn get_media_duration(media_path: &str) -> Result<f64> {
-    let output = tokio::process::Command::new("ffprobe")
+async fn get_media_duration(media_path: &str, ffprobe_cmd: &str) -> Result<f64> {
+    let output = tokio::process::Command::new(ffprobe_cmd)
         .args([
             "-v", "error",
             "-show_entries", "format=duration",
@@ -378,7 +379,9 @@ pub async fn sync_auto_sync(
 
     let model_path = get_model_path(&model_id).map_err(|e| e.to_string())?;
 
-    let ffmpeg_ok = tokio::process::Command::new("ffmpeg")
+    let ffmpeg_cmd = crate::commands::flashcards::media::resolve_ffmpeg_path(Some(&app)).await;
+    
+    let ffmpeg_ok = tokio::process::Command::new(&ffmpeg_cmd)
         .arg("-version")
         .output()
         .await
@@ -388,8 +391,10 @@ pub async fn sync_auto_sync(
     if !ffmpeg_ok {
         return Err("FFmpeg is required for auto-sync. Install FFmpeg first.".to_string());
     }
+    
+    let ffprobe_cmd = crate::commands::flashcards::media::resolve_ffprobe_path(Some(&app)).await;
 
-    let duration_sec = get_media_duration(&media_path).await.unwrap_or(0.0);
+    let duration_sec = get_media_duration(&media_path, &ffprobe_cmd).await.unwrap_or(0.0);
     if duration_sec < 10.0 {
         return Err("Media file too short or unable to detect duration".to_string());
     }
@@ -439,6 +444,7 @@ pub async fn sync_auto_sync(
     let temp_dir_path = temp_dir.path().to_path_buf();
     
     let total_segments = sample_positions.len();
+    let ffmpeg_cmd_arc = std::sync::Arc::<str>::from(ffmpeg_cmd.as_str());
 
     let spawn_res = tokio::task::spawn_blocking(move || -> Result<(Vec<MatchCandidate>, usize, bool), String> {
         let mut all_matches: Vec<MatchCandidate> = Vec::new();
@@ -496,7 +502,7 @@ pub async fn sync_auto_sync(
             let wav_path = temp_dir_path.join(format!("segment_{}.wav", idx));
             let wav_str = wav_path.to_string_lossy().to_string();
 
-            if let Err(e) = extract_audio_segment(&media_path_str, start_pos, segment_duration, &wav_str) {
+            if let Err(e) = extract_audio_segment(&media_path_str, start_pos, segment_duration, &wav_str, &ffmpeg_cmd_arc) {
                 eprintln!("[auto-sync] Segment {} extraction failed: {}", idx, e);
                 continue;
             }

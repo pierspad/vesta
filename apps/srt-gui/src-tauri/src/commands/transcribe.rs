@@ -150,7 +150,9 @@ async fn convert_to_wav(
         .context("Failed to create temp WAV file")?;
     let wav_path = temp_wav.into_temp_path().to_path_buf();
     
-    let convert_output = tokio::process::Command::new("ffmpeg")
+    let ffmpeg_cmd = crate::commands::flashcards::media::resolve_ffmpeg_path(Some(app)).await;
+
+    let convert_output = tokio::process::Command::new(&ffmpeg_cmd)
         .args([
             "-y",
             "-i", input_path,
@@ -553,8 +555,9 @@ fn num_cpus() -> usize {
 
 /// Check what Whisper backends are available
 #[tauri::command]
-pub async fn transcribe_check_backends() -> Result<serde_json::Value, String> {
-    let ffmpeg_available = tokio::process::Command::new("ffmpeg")
+pub async fn transcribe_check_backends(app: AppHandle) -> Result<serde_json::Value, String> {
+    let ffmpeg_cmd = crate::commands::flashcards::media::resolve_ffmpeg_path(Some(&app)).await;
+    let ffmpeg_available = tokio::process::Command::new(&ffmpeg_cmd)
         .arg("-version")
         .output()
         .await

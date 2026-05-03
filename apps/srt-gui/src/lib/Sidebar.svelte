@@ -3,6 +3,11 @@
   import { onMount } from "svelte";
   import fireplaceIcon from "../assets/fireplace.svg";
   import { locale } from "./i18n";
+  import {
+    getStoredSettingsActionState,
+    SETTINGS_ACTION_REQUIRED_EVENT,
+    type SettingsActionNotificationDetail,
+  } from "./settingsNotifications";
 
   interface Props {
     activeTab: "translate" | "sync" | "transcribe" | "align" | "flashcards" | "settings" | "notifications" | "shortcuts";
@@ -27,6 +32,7 @@
   let releaseUrl = $state(RELEASES_URL);
   let releaseCheckedAt = $state<Date | null>(null);
   let hasUpdateNotification = $derived(releaseStatus === "available");
+  let hasSettingsActionNotification = $state(false);
 
   function formatLicense(license: string): string {
     return license.replace(/-only$/i, "").trim();
@@ -97,6 +103,15 @@
   }
 
   onMount(() => {
+    hasSettingsActionNotification = getStoredSettingsActionState().required;
+
+    const handleSettingsActionRequired = (event: Event) => {
+      const detail = (event as CustomEvent<SettingsActionNotificationDetail | boolean>).detail;
+      hasSettingsActionNotification = typeof detail === "boolean" ? detail : detail.required;
+    };
+
+    window.addEventListener(SETTINGS_ACTION_REQUIRED_EVENT, handleSettingsActionRequired);
+
     invoke<{ version: string; name: string; license: string }>("get_app_info")
       .then((info) => {
         appVersionNum = `v${info.version}`;
@@ -109,6 +124,10 @@
         appVersionNum = "v0.1.0";
         appLicense = "GPL-3.0";
       });
+
+    return () => {
+      window.removeEventListener(SETTINGS_ACTION_REQUIRED_EVENT, handleSettingsActionRequired);
+    };
   });
 </script>
 
@@ -144,7 +163,7 @@
     <button
       class="w-full flex items-center gap-3 {collapsed ? 'px-2 justify-center' : 'px-4'} py-3 rounded-xl transition-all duration-300 {activeTab ===
       'flashcards'
-        ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-lg shadow-emerald-500/30'
+        ? 'bg-gradient-to-r from-amber-600 to-orange-700 text-white shadow-lg shadow-amber-500/22'
         : 'text-gray-400 hover:bg-white/5 hover:text-white'}"
       onclick={() => onTabChange("flashcards")}
       title={collapsed ? t("nav.flashcards") : undefined}
@@ -175,7 +194,7 @@
     <button
       class="w-full flex items-center gap-3 {collapsed ? 'px-2 justify-center' : 'px-4'} py-3 rounded-xl transition-all duration-300 {activeTab ===
       'translate'
-        ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg shadow-indigo-500/30'
+        ? 'bg-gradient-to-r from-fuchsia-700 to-rose-700 text-white shadow-lg shadow-fuchsia-500/20'
         : 'text-gray-400 hover:bg-white/5 hover:text-white'}"
       onclick={() => onTabChange("translate")}
       title={collapsed ? t("nav.translate") : undefined}
@@ -206,7 +225,7 @@
     <button
       class="w-full flex items-center gap-3 {collapsed ? 'px-2 justify-center' : 'px-4'} py-3 rounded-xl transition-all duration-300 {activeTab ===
       'sync'
-        ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg shadow-indigo-500/30'
+        ? 'bg-gradient-to-r from-sky-700 to-cyan-700 text-white shadow-lg shadow-cyan-500/20'
         : 'text-gray-400 hover:bg-white/5 hover:text-white'}"
       onclick={() => onTabChange("sync")}
       title={collapsed ? t("nav.sync") : undefined}
@@ -237,7 +256,7 @@
     <button
       class="w-full flex items-center gap-3 {collapsed ? 'px-2 justify-center' : 'px-4'} py-3 rounded-xl transition-all duration-300 {activeTab ===
       'align'
-        ? 'bg-gradient-to-r from-teal-500 to-emerald-600 text-white shadow-lg shadow-teal-500/30'
+        ? 'bg-gradient-to-r from-violet-700 to-indigo-700 text-white shadow-lg shadow-violet-500/20'
         : 'text-gray-400 hover:bg-white/5 hover:text-white'}"
       onclick={() => onTabChange("align")}
       title={collapsed ? t("nav.revision") : undefined}
@@ -258,7 +277,7 @@
     <button
       class="w-full flex items-center gap-3 {collapsed ? 'px-2 justify-center' : 'px-4'} py-3 rounded-xl transition-all duration-300 {activeTab ===
       'transcribe'
-        ? 'bg-gradient-to-r from-cyan-600 to-blue-600 text-white shadow-lg shadow-cyan-500/30'
+        ? 'bg-gradient-to-r from-teal-700 to-emerald-700 text-white shadow-lg shadow-teal-500/20'
         : 'text-gray-400 hover:bg-white/5 hover:text-white'}"
       onclick={() => onTabChange("transcribe")}
       title={collapsed ? t("nav.transcribe") : undefined}
@@ -293,12 +312,13 @@
     <button
       class="w-full flex items-center gap-3 {collapsed ? 'px-2 justify-center' : 'px-4'} py-3 rounded-xl transition-all duration-300 {activeTab ===
       'settings'
-        ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg shadow-indigo-500/30'
+        ? 'bg-gradient-to-r from-slate-700 to-zinc-600 text-white shadow-lg shadow-slate-500/20'
         : 'text-gray-400 hover:bg-white/5 hover:text-white'}"
       onclick={() => onTabChange("settings")}
+      data-context-menu="settings-notifications"
       title={collapsed ? t("nav.settings") : undefined}
     >
-      <div class="w-8 h-8 rounded-lg {activeTab === 'settings' ? 'bg-white/20' : 'bg-white/5'} flex items-center justify-center flex-shrink-0">
+      <div class="w-8 h-8 rounded-lg {activeTab === 'settings' ? 'bg-white/20' : 'bg-white/5'} flex items-center justify-center flex-shrink-0 relative">
         <svg
           class="w-5 h-5"
           fill="none"
@@ -318,6 +338,9 @@
             d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
           />
         </svg>
+        {#if hasSettingsActionNotification}
+          <span class="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-red-500 ring-2 ring-gray-900 shadow-[0_0_10px_rgba(239,68,68,0.75)]"></span>
+        {/if}
       </div>
       {#if !collapsed}
         <div class="text-left">
@@ -371,7 +394,7 @@
     <button
       class="w-full flex items-center gap-3 {collapsed ? 'px-2 justify-center' : 'px-4'} py-3 rounded-xl transition-all duration-300 {activeTab ===
       'shortcuts'
-        ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg shadow-indigo-500/30'
+        ? 'bg-gradient-to-r from-slate-700 to-zinc-600 text-white shadow-lg shadow-slate-500/20'
         : 'text-gray-400 hover:bg-white/5 hover:text-white'}"
       onclick={() => onTabChange("shortcuts")}
       title={collapsed ? t("nav.shortcuts") : undefined}

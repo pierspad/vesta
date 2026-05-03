@@ -84,6 +84,55 @@
   box-shadow: 0 4px 16px rgba(255, 65, 108, 0.5);
 }
 
+/* Shared in-app context menus */
+.vesta-context-menu {
+  position: absolute;
+  min-width: 210px;
+  overflow: hidden;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(17, 24, 39, 0.98);
+  padding: 4px;
+  box-shadow: 0 22px 60px rgba(0, 0, 0, 0.48);
+  backdrop-filter: blur(14px);
+}
+
+.vesta-context-menu-item {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  border-radius: 8px;
+  padding: 0.58rem 0.72rem;
+  color: rgb(209 213 219);
+  font-size: 0.8125rem;
+  line-height: 1.2;
+  transition: background-color 0.12s ease, color 0.12s ease, opacity 0.12s ease;
+}
+
+.vesta-context-menu-item:hover:not(:disabled) {
+  background: rgba(99, 102, 241, 0.18);
+  color: white;
+}
+
+.vesta-context-menu-item:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.vesta-context-menu-item kbd {
+  color: rgb(107 114 128);
+  font-size: 0.65rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+}
+
+.vesta-context-menu-separator {
+  height: 1px;
+  margin: 4px 2px;
+  background: rgba(255, 255, 255, 0.1);
+}
+
 /* Modern inputs */
 .input-modern {
   background: #1a1a2e;
@@ -106,19 +155,19 @@
 
 /* Modern select - OPAQUE backgrounds for readability */
 .select-modern {
-  background: #1a1a2e !important;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 12px;
-  padding: 12px 16px;
+  background: rgba(24, 24, 42, 0.96) !important;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 10px;
+  padding: 11px 14px;
   color: white;
-  transition: all 0.3s ease;
+  transition: border-color 0.16s ease, background-color 0.16s ease;
   cursor: pointer;
 }
 
 .select-modern:focus {
   outline: none;
-  border-color: #667eea;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
+  background: rgba(27, 28, 47, 0.98) !important;
+  border-color: rgba(129, 140, 248, 0.58);
 }
 
 .select-modern option {
@@ -347,18 +396,18 @@ input[type="range"]::-webkit-slider-thumb:hover {
 
 /* Custom select for language with proper styling - OPAQUE */
 .select-modern-styled {
-  background: #1a1a2e !important;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 12px;
-  padding: 12px 40px 12px 16px;
+  background: rgba(24, 24, 42, 0.96) !important;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 10px;
+  padding: 11px 40px 11px 14px;
   color: white;
-  transition: all 0.3s ease;
+  transition: border-color 0.16s ease, background-color 0.16s ease;
 }
 
 .select-modern-styled:focus {
   outline: none;
-  border-color: #667eea;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
+  background: rgba(27, 28, 47, 0.98) !important;
+  border-color: rgba(129, 140, 248, 0.58);
 }
 
 .select-modern-styled option {

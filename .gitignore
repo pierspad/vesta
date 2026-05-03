@@ -33,3 +33,7 @@ Test_Subs/Detour-1945-Public_domain.mkv
 *.mp3
 *.flac
 .directory
+
+# Generated/test artifacts
+__pycache__/
+*.pyc

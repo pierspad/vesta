@@ -512,6 +512,9 @@
     if (nextId === null) {
       showSaveSuggestion = true;
       wizardSubtitle = null;
+      if (audioElement) {
+        audioElement.pause();
+      }
       return;
     }
     showSaveSuggestion = false;
@@ -1268,9 +1271,9 @@
 
   {#snippet panelContent(panelId: SyncPanelId)}
     {#if panelId === "toolbar"}
-      <div class="glass-card flex flex-col gap-3 p-4 flex-shrink-0">
+      <div class="glass-card grid gap-3 p-4 flex-shrink-0 grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_auto]">
         <!-- Row 1: File inputs -->
-        <div class="flex items-center gap-2 w-full">
+        <div class="col-start-1 row-start-1 flex items-center gap-2 w-full min-w-0 pr-6">
           <div class="flex-1 min-w-0">
             <div class="flex gap-2">
               <button
@@ -1293,11 +1296,11 @@
               </button>
               <button
                 onclick={selectSrtFile}
-                class="btn-primary py-2 px-3 flex items-center justify-center"
+                class="btn-primary py-2 px-3 flex items-center justify-center gap-1.5 whitespace-nowrap"
                 title={t("sync.tooltip.loadSrt")}
               >
                 <svg
-                  class="w-5 h-5"
+                  class="w-4 h-4"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -1309,10 +1312,10 @@
                     d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
                   />
                 </svg>
+                <span class="text-xs font-semibold">{t("sync.loadSrt")}</span>
               </button>
             </div>
           </div>
-
           <div class="text-gray-500 flex-shrink-0 {status?.is_loaded ? 'text-indigo-400' : ''}">
             <svg
               class="w-5 h-5"
@@ -1327,7 +1330,9 @@
               /></svg
             >
           </div>
+        </div>
 
+        <div class="col-start-1 row-start-2 flex items-center gap-2 w-full min-w-0 pr-6">
           <div class="flex-1 min-w-0">
             <div class="flex gap-2">
               <button
@@ -1351,11 +1356,11 @@
               <button
                 onclick={selectAudioFile}
                 disabled={!status?.is_loaded}
-                class="btn-secondary py-2 px-3 disabled:opacity-30 disabled:cursor-not-allowed"
+                class="btn-primary py-2 px-3 flex items-center justify-center gap-1.5 whitespace-nowrap disabled:opacity-30 disabled:cursor-not-allowed"
                 title={t("sync.tooltip.loadVideo")}
               >
                 <svg
-                  class="w-5 h-5"
+                  class="w-4 h-4"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -1373,38 +1378,62 @@
                     d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
                   />
                 </svg>
+                <span class="text-xs font-semibold">{t("sync.loadVideo") || t("sync.loadAudio")}</span>
               </button>
             </div>
           </div>
         </div>
 
-        <!-- Row 2: Action buttons -->
-        <div class="flex items-center gap-2 w-full">
-          <div class="relative group flex-1">
-            <button
-              type="button"
-              onclick={startAutoSync}
-              disabled={isAutoSyncing || !status?.is_loaded || !hasAudio}
-              class="w-full h-10 flex items-center justify-center gap-2 rounded-lg border bg-indigo-500/20 border-indigo-500/40 text-indigo-300 hover:bg-indigo-500/30 text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {#if isAutoSyncing}
-                <svg class="animate-spin w-4 h-4 text-indigo-300" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-              {:else}
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>
-              {/if}
-              {t("sync.autoSync")}
-            </button>
-            {#if !status?.is_loaded || !hasAudio}
-              <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 bg-gray-800 border border-white/10 text-xs text-indigo-300 rounded-lg shadow-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
-                {t("sync.autoSyncRequires")}
-              </div>
+        <!-- Col 2: Action buttons (Auto Sync & Load Session) -->
+        <div class="col-start-2 row-start-1 relative group flex w-full h-10">
+          <button
+            type="button"
+            onclick={startAutoSync}
+            disabled={isAutoSyncing || !status?.is_loaded || !hasAudio}
+            class="w-full h-full flex items-center justify-center gap-2 rounded-lg border bg-indigo-500/20 border-indigo-500/40 text-indigo-300 hover:bg-indigo-500/30 text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed px-4"
+          >
+            {#if isAutoSyncing}
+              <svg class="animate-spin w-4 h-4 text-indigo-300" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+            {:else}
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>
             {/if}
-          </div>
+            {t("sync.autoSync")}
+          </button>
+          {#if !status?.is_loaded || !hasAudio}
+            <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 bg-gray-800 border border-white/10 text-xs text-indigo-300 rounded-lg shadow-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
+              {t("sync.autoSyncRequires")}
+            </div>
+          {/if}
+        </div>
 
+        <div class="col-start-2 row-start-2 flex w-full h-10">
+          <button
+            onclick={loadSession}
+            class="w-full h-full flex items-center justify-center gap-2 rounded-lg border bg-cyan-500/20 border-cyan-500/40 text-cyan-300 hover:bg-cyan-500/30 text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed px-4"
+            title={t("sync.tooltipLoadSession")}
+          >
+            <svg
+              class="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              ><path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"
+              /></svg
+            >
+            {t("sync.loadSession")}
+          </button>
+        </div>
+
+        <!-- Col 3: Action buttons (New Sync & Save Session) -->
+        <div class="col-start-3 row-start-1 flex w-full h-10">
           {#if status?.is_loaded || audioSrc}
             <button
               onclick={() => (showResetModal = true)}
-              class="flex-1 h-10 flex items-center justify-center gap-2 rounded-lg border bg-amber-500/20 border-amber-500/40 text-amber-300 hover:bg-amber-500/30 text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              class="w-full h-full flex items-center justify-center gap-2 rounded-lg border bg-amber-500/20 border-amber-500/40 text-amber-300 hover:bg-amber-500/30 text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed px-4"
               title={t("sync.newSyncDesc")}
             >
               <svg
@@ -1422,31 +1451,13 @@
               {t("sync.newSync")}
             </button>
           {/if}
+        </div>
 
-          <button
-            onclick={loadSession}
-            class="flex-1 h-10 flex items-center justify-center gap-2 rounded-lg border bg-cyan-500/20 border-cyan-500/40 text-cyan-300 hover:bg-cyan-500/30 text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-            title={t("sync.tooltipLoadSession")}
-          >
-            <svg
-              class="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-              ><path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"
-              /></svg
-            >
-            {t("sync.loadSession")}
-          </button>
-
+        <div class="col-start-3 row-start-2 flex w-full h-10">
           <button
             onclick={saveSession}
             disabled={!status?.is_loaded}
-            class="flex-1 h-10 flex items-center justify-center gap-2 rounded-lg border bg-teal-500/20 border-teal-500/40 text-teal-300 hover:bg-teal-500/30 text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            class="w-full h-full flex items-center justify-center gap-2 rounded-lg border bg-teal-500/20 border-teal-500/40 text-teal-300 hover:bg-teal-500/30 text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed px-4"
             title={t("sync.tooltipSaveSession")}
           >
             <svg
@@ -1463,15 +1474,18 @@
             >
             {t("sync.saveSession")}
           </button>
+        </div>
 
+        <!-- Col 4: Action button (Save File) -->
+        <div class="col-start-4 row-start-1 row-span-2 flex w-full h-full">
           <button
             onclick={saveFile}
             disabled={!status?.is_loaded}
-            class="flex-1 h-10 flex items-center justify-center gap-2 rounded-lg border bg-green-500/20 border-green-500/40 text-green-300 hover:bg-green-500/30 text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            class="w-full h-full flex flex-col items-center justify-center gap-2 rounded-lg border bg-green-500/20 border-green-500/40 text-green-300 hover:bg-green-500/30 text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed px-6 py-2"
             title={t("sync.tooltipSaveFile")}
           >
             <svg
-              class="w-4 h-4"
+              class="w-6 h-6"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -1482,7 +1496,7 @@
                 d="M5 13l4 4L19 7"
               /></svg
             >
-            {t("sync.saveFile")}
+            <span class="max-w-[4rem] text-center leading-tight">{t("sync.saveFile")}</span>
           </button>
         </div>
       </div>
@@ -2117,7 +2131,7 @@
       tabindex="-1"
     >
       <div
-        class="absolute bg-gray-800 border border-white/20 rounded-lg shadow-xl py-1 min-w-[180px] animate-fade-in"
+        class="vesta-context-menu animate-fade-in"
         style="left: {subtitleContextMenu.x}px; top: {subtitleContextMenu.y}px;"
       >
         <button
@@ -2126,7 +2140,8 @@
               playSubtitleFromList(subtitleContextMenu.sub);
             closeSubtitleContextMenu();
           }}
-          class="w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-indigo-500/20 hover:text-indigo-300 flex items-center gap-2 transition-colors"
+          class="vesta-context-menu-item"
+          style="justify-content: flex-start;"
         >
           <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"
             ><path d="M8 5v14l11-7z" /></svg
@@ -2139,7 +2154,8 @@
               goToSubtitleManual(subtitleContextMenu.sub);
             closeSubtitleContextMenu();
           }}
-          class="w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-indigo-500/20 hover:text-indigo-300 flex items-center gap-2 transition-colors"
+          class="vesta-context-menu-item"
+          style="justify-content: flex-start;"
         >
           <svg
             class="w-4 h-4"

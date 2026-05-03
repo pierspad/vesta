@@ -11,6 +11,10 @@
   } from "./i18n";
   import SearchableSelect from "./SearchableSelect.svelte";
   import {
+    buildSettingsActionHash,
+    publishSettingsActionState,
+  } from "./settingsNotifications";
+  import {
     fetchModelsFromEndpoint,
     type DiscoveredModel,
   } from "./modelDiscovery";
@@ -20,6 +24,7 @@
     defaultCardTemplates,
     defaultFieldNames,
     getModelsForProvider,
+    getLanguageSearchTerms,
     languages,
     limitNoteTypeFieldValue,
     loadAndValidateApiKeys,
@@ -49,6 +54,8 @@
   const DEFAULT_TARGET_LANGUAGE_KEY = "vesta-default-target-language";
   const DEFAULT_TRANSCRIBE_LANGUAGE_KEY = "vesta-default-transcribe-language";
   const DEFAULT_FLASHCARDS_LANGUAGE_KEY = "vesta-default-flashcards-language";
+  const DEFAULT_NATIVE_LANGUAGE_KEY = "vesta-default-native-language";
+  const NOTE_TYPE_LANGUAGE_KEY = "vesta-flashcards-note-type-language";
   const ANKI_FIELD_PRESETS_KEY = "vesta-anki-field-presets";
   const ACTIVE_ANKI_FIELD_PRESET_KEY = "vesta-active-anki-field-preset";
 
@@ -105,6 +112,7 @@
   let defaultTargetLanguage = $state(loadStoredValue(DEFAULT_TARGET_LANGUAGE_KEY, "it"));
   let defaultTranscribeLanguage = $state(loadStoredValue(DEFAULT_TRANSCRIBE_LANGUAGE_KEY, "auto"));
   let defaultFlashcardsLanguage = $state(loadStoredValue(DEFAULT_FLASHCARDS_LANGUAGE_KEY, "it"));
+  let defaultNativeLanguage = $state(loadStoredValue(DEFAULT_NATIVE_LANGUAGE_KEY, "it"));
   let discoveredDefaultModels = $state<DiscoveredModel[]>([]);
   let isCheckingDefaultEndpoint = $state(false);
   let defaultEndpointStatus = $state<EndpointStatus>("idle");
@@ -158,6 +166,11 @@
       apiKeysHint: "Remote providers available for Translation. Local models do not need keys.",
       translationLanguage: "Translation language",
       translationLanguageHint: "Default language used when creating translations.",
+      studyingLanguage: "Language you study",
+      studyingLanguageHint: "Used for flashcard expressions and auto-selecting original subtitles.",
+      nativeLanguage: "Your language",
+      nativeLanguageHint: "Used for flashcard meanings and auto-selecting reference subtitles.",
+      transcriptionLanguageHint: "Spoken language to use when transcribing audio. Auto-detect remains available.",
       whisperHint: "Default local model used by the Transcription tab.",
       noteTypeHint: "Anki note type used by exported flashcards.",
       quickSetup: "Quick setup",
@@ -172,7 +185,7 @@
       setupLlmDesc: "Set the provider, key or default model to unlock the Translation tab.",
       interfaceLanguageDesc: "Choose the interface language.",
       defaultLanguages: "Default languages",
-      defaultLanguagesDesc: "Used when Translation, Flashcards and Transcription open. Tabs still remember the last choice.",
+      defaultLanguagesDesc: "Choose your study pair, translation target and transcription source. Tabs still remember the last choice.",
       addProviderKicker: "New configuration",
       addProviderTitle: "Add an LLM provider",
       addProviderDesc: "Save API keys or OpenAI-compatible endpoints for translation and remote models.",
@@ -211,6 +224,11 @@
       apiKeysHint: "Provider remoti disponibili per Traduzione. I modelli locali non richiedono chiavi.",
       translationLanguage: "Lingua traduzione",
       translationLanguageHint: "Lingua predefinita usata quando crei traduzioni.",
+      studyingLanguage: "Lingua che studi",
+      studyingLanguageHint: "Usata per le frasi delle flashcard e per selezionare i sottotitoli originali.",
+      nativeLanguage: "La tua lingua",
+      nativeLanguageHint: "Usata per i significati delle flashcard e per selezionare i sottotitoli di riferimento.",
+      transcriptionLanguageHint: "Lingua parlata da usare quando trascrivi audio. Resta disponibile il rilevamento automatico.",
       whisperHint: "Modello locale predefinito usato dalla tab Trascrizione.",
       noteTypeHint: "Tipo nota Anki usato dalle flashcard esportate.",
       quickSetup: "Setup rapido",
@@ -225,7 +243,7 @@
       setupLlmDesc: "Imposta provider, chiave o modello predefinito per sbloccare la tab Traduzione.",
       interfaceLanguageDesc: "Scegli la lingua dell'interfaccia.",
       defaultLanguages: "Lingue predefinite",
-      defaultLanguagesDesc: "Usate all'apertura di traduzione, flashcards e trascrizione. Le tab ricordano comunque l'ultima scelta.",
+      defaultLanguagesDesc: "Scegli coppia di studio, lingua di arrivo delle traduzioni e lingua sorgente della trascrizione. Le tab ricordano comunque l'ultima scelta.",
       addProviderKicker: "Nuova configurazione",
       addProviderTitle: "Aggiungi un provider LLM",
       addProviderDesc: "Salva API key o endpoint compatibili OpenAI per traduzione e modelli remoti.",
@@ -264,6 +282,11 @@
       apiKeysHint: "翻译可用的远程提供商。本地模型不需要 key。",
       translationLanguage: "翻译语言",
       translationLanguageHint: "创建翻译时使用的默认语言。",
+      studyingLanguage: "学习语言",
+      studyingLanguageHint: "用于闪卡例句，并自动选择原始字幕。",
+      nativeLanguage: "你的语言",
+      nativeLanguageHint: "用于闪卡释义，并自动选择参考字幕。",
+      transcriptionLanguageHint: "转录音频时使用的口语语言；仍可选择自动检测。",
       whisperHint: "转录标签页使用的默认本地模型。",
       noteTypeHint: "导出闪卡时使用的 Anki 笔记类型。",
       quickSetup: "快速设置",
@@ -278,7 +301,7 @@
       setupLlmDesc: "设置提供商、key 或默认模型以解锁翻译标签页。",
       interfaceLanguageDesc: "选择界面语言。",
       defaultLanguages: "默认语言",
-      defaultLanguagesDesc: "用于打开翻译、闪卡和转录标签页。各标签页仍会记住上一次选择。",
+      defaultLanguagesDesc: "选择学习语言组合、翻译目标语言和转录源语言。各标签页仍会记住上一次选择。",
       addProviderKicker: "新配置",
       addProviderTitle: "添加 LLM 提供商",
       addProviderDesc: "保存 API key 或 OpenAI 兼容端点，用于翻译和远程模型。",
@@ -330,7 +353,7 @@
       value: lang.code,
       label: lang.nameEn === lang.name ? lang.name : `${lang.nameEn} — ${lang.name}`,
       icon: lang.flag,
-      searchTerms: `${lang.nameEn} ${lang.name}`,
+      searchTerms: getLanguageSearchTerms(lang.code),
     })),
   );
   let configuredApiKeyCount = $derived(apiKeys.filter((key) => key.apiType !== "local").length);
@@ -956,6 +979,44 @@
   let unlistenProgress: (() => void) | null = null;
   let defaultWhisperModel = $state("base");
 
+  function formatWhisperModelName(modelId: string): string {
+    const matchedModel = whisperModels.find((model) => model.id === modelId);
+    if (matchedModel?.name) return matchedModel.name;
+    return modelId ? modelId.charAt(0).toUpperCase() + modelId.slice(1) : "";
+  }
+
+  function whisperModelIconPath(modelId: string): string {
+    const paths: Record<string, string> = {
+      tiny: "M13 3L4 14h7l-1 7 9-12h-7l1-6z",
+      base: "M12 4a8 8 0 100 16 8 8 0 000-16zm0 3v5l3 2",
+      small: "M6 20V10m6 10V4m6 16v-7M4 10h4m2-6h4m2 9h4",
+      medium: "M4 13h3l2-6 4 12 2-6h5",
+      large: "M12 3l8 4-8 4-8-4 8-4zm-8 8l8 4 8-4M4 15l8 4 8-4",
+    };
+    return paths[modelId] || "M9 3h6m-7 4h8a3 3 0 013 3v7a3 3 0 01-3 3H8a3 3 0 01-3-3v-7a3 3 0 013-3zm4 3v4m-2-2h4";
+  }
+
+  function whisperModelAccent(modelId: string): string {
+    const accents: Record<string, string> = {
+      tiny: "from-amber-500/25 to-yellow-500/10 text-amber-200",
+      base: "from-sky-500/25 to-cyan-500/10 text-sky-200",
+      small: "from-emerald-500/25 to-teal-500/10 text-emerald-200",
+      medium: "from-indigo-500/25 to-violet-500/10 text-indigo-200",
+      large: "from-fuchsia-500/25 to-rose-500/10 text-fuchsia-200",
+    };
+    return accents[modelId] || "from-cyan-500/20 to-blue-500/10 text-cyan-200";
+  }
+
+  $effect(() => {
+    if (typeof window === "undefined") return;
+    publishSettingsActionState(
+      buildSettingsActionHash({
+        needsWhisper: downloadedWhisperCount === 0,
+        needsLlm: !isDefaultLlmReady,
+      }),
+    );
+  });
+
   onMount(async () => {
     defaultWhisperModel = localStorage.getItem("srt-default-whisper-model") || "base";
     await refreshModels();
@@ -1381,10 +1442,10 @@
       <button
         type="button"
         onclick={() => openSettingsSection("overview")}
-        class="py-2.5 px-4 rounded-xl bg-slate-800/90 border border-cyan-500/30 text-cyan-100 hover:bg-cyan-500/15 hover:border-cyan-400/60 hover:text-white transition-all flex items-center gap-2 text-sm font-semibold shadow-lg shadow-cyan-950/20"
+        class="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-3.5 py-2.5 text-sm font-semibold text-cyan-100 shadow-sm transition-colors hover:border-white/20 hover:bg-white/[0.07] hover:text-white"
         title="Torna alla panoramica Settings"
       >
-        <span class="w-7 h-7 rounded-lg bg-cyan-500/15 border border-cyan-400/20 flex items-center justify-center">
+        <span class="flex h-6 w-6 items-center justify-center rounded-md">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
           </svg>
@@ -1473,7 +1534,7 @@
 
     <div class="mt-6 grid grid-cols-1 {needsQuickSetup ? 'xl:grid-cols-[1.2fr_0.8fr]' : ''} gap-4">
       {#if needsQuickSetup}
-        <div class="glass-card p-5">
+        <div class="glass-card p-5 {needsQuickSetup ? 'settings-quick-setup-pulse' : ''}">
           <div class="flex items-center justify-between gap-4 mb-4">
             <div>
               <p class="text-xs uppercase tracking-wide text-gray-500">{s("quickSetup")}</p>
@@ -1572,7 +1633,7 @@
             <div class="flex items-start justify-between gap-3">
               <div>
                 <span class="block text-xs text-gray-500">{t("settings.whisperDefault")}</span>
-                <span class="mt-1 block text-xl font-bold text-white">{defaultWhisperModel}</span>
+                <span class="mt-1 block text-xl font-bold text-white">{formatWhisperModelName(defaultWhisperModel)}</span>
               </div>
               <span class="rounded-full bg-cyan-500/15 px-2 py-1 text-xs text-cyan-200">{downloadedWhisperCount}</span>
             </div>
@@ -1655,10 +1716,47 @@
         </div>
       </div>
 
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+      <div class="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-4 gap-5">
         <div class="rounded-xl border border-white/10 bg-white/5 p-5">
           <div class="flex items-center justify-between gap-3 mb-4">
-            <span class="block text-sm font-semibold text-white">{s("translation")}</span>
+            <span class="block text-sm font-semibold text-white">{s("studyingLanguage")}</span>
+            <span class="text-4xl">{languages.find((lang) => lang.code === defaultFlashcardsLanguage)?.flag || "🌐"}</span>
+          </div>
+          <SearchableSelect
+            className="language-select"
+            noResultsText={t("common.noResults")}
+            options={defaultWorkflowLanguageOptions}
+            value={defaultFlashcardsLanguage}
+            onchange={(v) => {
+              defaultFlashcardsLanguage = v;
+              saveDefaultLanguage(DEFAULT_FLASHCARDS_LANGUAGE_KEY, v);
+              saveDefaultLanguage(NOTE_TYPE_LANGUAGE_KEY, v);
+            }}
+            placeholder={t("flashcards.noteTypeLanguagePlaceholder")}
+          />
+          <p class="mt-3 text-xs leading-relaxed text-gray-500">{s("studyingLanguageHint")}</p>
+        </div>
+        <div class="rounded-xl border border-white/10 bg-white/5 p-5">
+          <div class="flex items-center justify-between gap-3 mb-4">
+            <span class="block text-sm font-semibold text-white">{s("nativeLanguage")}</span>
+            <span class="text-4xl">{languages.find((lang) => lang.code === defaultNativeLanguage)?.flag || "🌐"}</span>
+          </div>
+          <SearchableSelect
+            className="language-select"
+            noResultsText={t("common.noResults")}
+            options={defaultWorkflowLanguageOptions}
+            value={defaultNativeLanguage}
+            onchange={(v) => {
+              defaultNativeLanguage = v;
+              saveDefaultLanguage(DEFAULT_NATIVE_LANGUAGE_KEY, v);
+            }}
+            placeholder={t("flashcards.noteTypeLanguagePlaceholder")}
+          />
+          <p class="mt-3 text-xs leading-relaxed text-gray-500">{s("nativeLanguageHint")}</p>
+        </div>
+        <div class="rounded-xl border border-white/10 bg-white/5 p-5">
+          <div class="flex items-center justify-between gap-3 mb-4">
+            <span class="block text-sm font-semibold text-white">{s("translationLanguage")}</span>
             <span class="text-4xl">{languages.find((lang) => lang.code === defaultTargetLanguage)?.flag || "🌐"}</span>
           </div>
           <SearchableSelect
@@ -1672,23 +1770,7 @@
             }}
             placeholder={t("translate.targetLang")}
           />
-        </div>
-        <div class="rounded-xl border border-white/10 bg-white/5 p-5">
-          <div class="flex items-center justify-between gap-3 mb-4">
-            <span class="block text-sm font-semibold text-white">{t("nav.flashcards")}</span>
-            <span class="text-4xl">{languages.find((lang) => lang.code === defaultFlashcardsLanguage)?.flag || "🌐"}</span>
-          </div>
-          <SearchableSelect
-            className="language-select"
-            noResultsText={t("common.noResults")}
-            options={defaultWorkflowLanguageOptions}
-            value={defaultFlashcardsLanguage}
-            onchange={(v) => {
-              defaultFlashcardsLanguage = v;
-              saveDefaultLanguage(DEFAULT_FLASHCARDS_LANGUAGE_KEY, v);
-            }}
-            placeholder={t("flashcards.noteTypeLanguagePlaceholder")}
-          />
+          <p class="mt-3 text-xs leading-relaxed text-gray-500">{s("translationLanguageHint")}</p>
         </div>
         <div class="rounded-xl border border-white/10 bg-white/5 p-5">
           <div class="flex items-center justify-between gap-3 mb-4">
@@ -1709,6 +1791,7 @@
             }}
             placeholder={t("transcribe.sourceLanguage")}
           />
+          <p class="mt-3 text-xs leading-relaxed text-gray-500">{s("transcriptionLanguageHint")}</p>
         </div>
       </div>
     </div>
@@ -2256,26 +2339,18 @@
       {/if}
     </div>
 
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-3 mb-4">
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
       <div class="p-4 rounded-xl bg-cyan-500/10 border border-cyan-500/25">
-        <p class="text-xs uppercase tracking-wide text-cyan-300/70 mb-1">{t("settings.status")}</p>
+        <p class="text-xs uppercase tracking-wide text-cyan-300/70 mb-1">{t("settings.modelsDownloadedLocally")}</p>
         <p class="text-2xl font-bold text-white">{downloadedWhisperCount}/{whisperModels.length}</p>
-        <p class="text-xs text-gray-400 mt-1">{t("settings.modelsDownloadedLocally")}</p>
       </div>
       <div class="p-4 rounded-xl bg-white/5 border border-white/10">
-        <p class="text-xs uppercase tracking-wide text-gray-500 mb-1">{t("settings.activeDefault")}</p>
+        <p class="text-xs uppercase tracking-wide text-gray-500 mb-1">{t("settings.default")}</p>
         <p class="text-2xl font-bold text-white">{defaultWhisperModel ? (t(`transcribe.model${defaultWhisperModel.charAt(0).toUpperCase()}${defaultWhisperModel.slice(1)}`) || defaultWhisperModel) : ""}</p>
-        <p class="text-xs text-gray-400 mt-1">{t("settings.usedByTranscriptionTab")}</p>
       </div>
       <div class="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/25">
         <p class="text-xs uppercase tracking-wide text-emerald-300/70 mb-1">{t("settings.ready")}</p>
         <p class="text-2xl font-bold text-white">{downloadedWhisperCount > 0 ? t("common.yes") : t("common.no")}</p>
-        <p class="text-xs text-gray-400 mt-1">{t("settings.atLeastOneModelRequired")}</p>
-      </div>
-      <div class="p-4 rounded-xl bg-white/5 border border-white/10">
-        <p class="text-xs uppercase tracking-wide text-gray-500 mb-1">{t("settings.download")}</p>
-        <p class="text-2xl font-bold text-white">{isDownloading ? `${progress || 0}%` : whisperModels.length - downloadedWhisperCount}</p>
-        <p class="text-xs text-gray-400 mt-1">{isDownloading ? progressStage || t("settings.inProgress") : t("settings.missing")}</p>
       </div>
     </div>
 
@@ -2328,12 +2403,10 @@
               </button>
             {/if}
           </div>
-          <div class="mx-auto mb-2 w-9 h-9 rounded-lg flex items-center justify-center {model.downloaded ? 'bg-cyan-500/15 text-cyan-300' : 'bg-white/5 text-amber-300'}">
-            {#if model.downloaded}
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
-            {:else}
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-            {/if}
+          <div class="mx-auto mb-2 flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 bg-gradient-to-br {whisperModelAccent(model.id)} shadow-sm">
+            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d={whisperModelIconPath(model.id)} />
+            </svg>
           </div>
           <div class="font-bold text-sm">
             {t(`transcribe.model${model.id.charAt(0).toUpperCase()}${model.id.slice(1)}`) || model.name}
@@ -2487,19 +2560,17 @@
         <div class="grid grid-cols-1 lg:grid-cols-[0.9fr_1.1fr] gap-4 mb-5">
           <div>
             <label for="anki-field-preset-select" class="block text-xs font-semibold text-gray-400 mb-2">{s("savedTemplate")}</label>
-            <select
-              id="anki-field-preset-select"
-              bind:value={selectedAnkiFieldPresetId}
-              onchange={(event) => {
-                const target = event.currentTarget;
-                if (target instanceof HTMLSelectElement) applyAnkiFieldPreset(target.value);
-              }}
-              class="input-modern w-full text-sm"
-            >
-              {#each allAnkiFieldPresets as preset}
-                <option value={preset.id}>{preset.name}</option>
-              {/each}
-            </select>
+            <SearchableSelect
+              className="settings-template-select"
+              noResultsText={t("common.noResults")}
+              options={allAnkiFieldPresets.map((preset) => ({
+                value: preset.id,
+                label: preset.name,
+              }))}
+              value={selectedAnkiFieldPresetId}
+              onchange={applyAnkiFieldPreset}
+              placeholder={s("savedTemplate")}
+            />
           </div>
           <div>
             <label for="anki-field-preset-name" class="block text-xs font-semibold text-gray-400 mb-2">{s("templateName")}</label>
@@ -2546,10 +2617,10 @@
         </div>
       </div>
 
-      <div class="rounded-xl border border-amber-500/20 bg-amber-500/10 p-5">
+      <div class="rounded-xl border border-white/10 bg-white/5 p-5">
         <div class="flex flex-col xl:flex-row xl:items-start xl:justify-between gap-4 mb-4">
           <div>
-            <div class="flex items-center gap-2 text-amber-200/80">
+            <div class="flex items-center gap-2 text-cyan-300/80">
               <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 5h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2z" />
               </svg>
@@ -2564,7 +2635,7 @@
                 type="button"
                 onclick={() => (activeTemplateCodeTab = tab.id)}
                 title={tab.hint}
-                class="h-9 px-3 rounded-lg border text-xs font-semibold transition-colors {activeTemplateCodeTab === tab.id ? 'bg-amber-500/20 border-amber-400/40 text-amber-100' : 'bg-black/20 border-white/10 text-gray-400 hover:text-white hover:bg-white/10'}"
+                class="h-9 px-3 rounded-lg border text-xs font-semibold transition-colors {activeTemplateCodeTab === tab.id ? 'bg-cyan-500/20 border-cyan-400/40 text-cyan-100' : 'bg-black/20 border-white/10 text-gray-400 hover:text-white hover:bg-white/10'}"
               >
                 {tab.label}
               </button>
@@ -2583,7 +2654,7 @@
             <button
               type="button"
               onclick={() => (showResetConfirm = "style")}
-              class="h-9 px-3 rounded-lg border border-white/10 bg-white/5 text-gray-300 hover:text-amber-200 hover:border-amber-500/30 transition-colors text-xs font-semibold flex items-center gap-2"
+              class="h-9 px-3 rounded-lg border border-white/10 bg-white/5 text-gray-300 hover:text-cyan-200 hover:border-cyan-500/30 transition-colors text-xs font-semibold flex items-center gap-2"
               title="Ripristina ai valori di default di Vesta"
             >
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2605,7 +2676,7 @@
         <div class="mt-4 rounded-lg border border-white/10 bg-black/20 p-4">
           <div class="flex flex-col lg:flex-row lg:items-center gap-3">
             <div class="lg:w-48 shrink-0">
-              <p class="text-xs uppercase tracking-wide text-amber-200/80">{t("settings.availableVars")}</p>
+              <p class="text-xs uppercase tracking-wide text-cyan-300/80">{t("settings.availableVars")}</p>
               <p class="text-xs text-gray-500 mt-1">{s("clickToCopy")}</p>
             </div>
             <div class="flex flex-wrap gap-2 text-[11px] font-mono">
@@ -3206,6 +3277,25 @@
 
   .group:hover > .settings-action-tooltip.right-0 {
     transform: translateY(0);
+  }
+
+  :global(.settings-quick-setup-pulse) {
+    animation: settings-quick-setup-pulse 1.45s ease-in-out infinite;
+  }
+
+  @keyframes settings-quick-setup-pulse {
+    0%,
+    100% {
+      border-color: rgba(251, 191, 36, 0.28);
+      box-shadow: 0 0 0 0 rgba(251, 191, 36, 0);
+    }
+
+    50% {
+      border-color: rgba(249, 115, 22, 0.78);
+      box-shadow:
+        0 0 0 1px rgba(249, 115, 22, 0.32),
+        0 0 24px rgba(249, 115, 22, 0.24);
+    }
   }
 
 	  .ui-language-grid {

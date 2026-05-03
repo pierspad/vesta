@@ -12,6 +12,7 @@
   import TranscribeTab from "./lib/TranscribeTab.svelte";
   import TranslateTab from "./lib/TranslateTab.svelte";
   import AlignTab from "./lib/AlignTab.svelte";
+  import AppContextMenu from "./lib/AppContextMenu.svelte";
 
   type AppTab = "translate" | "sync" | "transcribe" | "align" | "flashcards" | "settings" | "notifications" | "shortcuts";
 
@@ -137,4 +138,5 @@
   </div>
 
   <ShortcutOverlay {activeTab} />
+  <AppContextMenu />
 </main>
