@@ -284,6 +284,10 @@ jobs:
         working-directory: ${{ env.TAURI_APP_DIR }}
         run: npx tauri icon src-tauri/icons/icon.png -o src-tauri/icons
 
+      - name: Build frontend assets for Cargo preflight
+        working-directory: ${{ env.TAURI_APP_DIR }}
+        run: npm run build
+
       - name: Preflight Cargo check
         shell: pwsh
         env:
