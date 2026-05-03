@@ -7,6 +7,8 @@
   import { onDestroy, onMount } from "svelte";
   import { locale } from "./i18n";
   import {
+    detectLanguageCode,
+    getLanguageSearchTerms,
     getModelsForProvider,
     languages,
     loadAndValidateApiKeys,
@@ -26,16 +28,6 @@
     type DiscoveredModel,
   } from "./modelDiscovery";
 
-  // Set of known language codes for smart output filename detection
-  const knownLangCodes = new Set(languages.map((l) => l.code));
-  // Also add common 3-letter ISO 639-2 codes
-  const extraLangCodes = [
-    "eng", "ita", "spa", "fra", "deu", "por", "rus", "jpn", "kor", "zho",
-    "ara", "tur", "pol", "nld", "swe", "nor", "dan", "fin", "ces", "hun",
-    "ron", "ukr", "ell", "heb", "hin", "ind", "msa", "tha", "vie", "isl", "cat",
-  ];
-  for (const c of extraLangCodes) knownLangCodes.add(c);
-
   /**
    * Generates a smart output path by detecting and replacing language codes
    * in the filename. If the last segment before .srt (delimited by - . or _)
@@ -54,7 +46,7 @@
     const match = input.match(/^(.+)([\-._])([^\-._]+)\.srt$/i);
     if (match) {
       const [, prefix, separator, lastSegment] = match;
-      if (knownLangCodes.has(lastSegment.toLowerCase())) {
+      if (detectLanguageCode(lastSegment)) {
         return `${prefix}${separator}${lang}.srt`;
       }
     }
@@ -1492,7 +1484,7 @@
                     lang.nameEn === lang.name
                       ? lang.name
                       : `${lang.nameEn} — ${lang.name}`,
-                  searchTerms: `${lang.nameEn} ${lang.name}`,
+                  searchTerms: getLanguageSearchTerms(lang.code),
                   icon: lang.flag,
                 }))}
                 value={targetLang}

@@ -697,6 +697,158 @@ export const languages = [
   { code: "vi", name: "Tiếng Việt", nameEn: "Vietnamese", flag: "🇻🇳" },
 ];
 
+export const languageAliases: Record<string, string[]> = {
+  ar: ["ara", "arb", "arabic", "arabo", "arab", "arabia"],
+  ca: ["cat", "catalan", "català", "catala", "catalano"],
+  zh: ["chi", "zho", "cmn", "zh-cn", "chs", "chinese", "mandarin", "simplified chinese", "cinese", "cinese semplificato"],
+  "zh-tw": ["chi", "zho", "cmn", "zh-hant", "zh-tw", "cht", "traditional chinese", "cinese tradizionale", "taiwanese mandarin"],
+  cs: ["cze", "ces", "czech", "čeština", "cestina", "ceco"],
+  da: ["dan", "danish", "dansk", "danese"],
+  nl: ["dut", "nld", "dutch", "nederlands", "olandese", "neerlandese"],
+  en: ["eng", "english", "inglese", "ingles", "anglais", "inglés", "en-us", "en-gb"],
+  fi: ["fin", "finnish", "suomi", "finlandese"],
+  fr: ["fre", "fra", "french", "français", "francais", "francese"],
+  de: ["ger", "deu", "german", "deutsch", "tedesco"],
+  el: ["gre", "ell", "greek", "ελληνικά", "ellinika", "greco"],
+  he: ["heb", "hebrew", "עברית", "ivrit", "ebraico"],
+  hi: ["hin", "hindi", "हिंदी"],
+  hu: ["hun", "hungarian", "magyar", "ungherese"],
+  is: ["ice", "isl", "icelandic", "íslenska", "islenska", "islandese"],
+  id: ["ind", "indonesian", "bahasa indonesia", "indonesiano"],
+  it: ["ita", "italian", "italiano", "italiana"],
+  ja: ["jpn", "japanese", "日本語", "nihongo", "giapponese"],
+  ko: ["kor", "korean", "한국어", "hangul", "coreano"],
+  ms: ["may", "msa", "malay", "bahasa melayu", "malese"],
+  no: ["nor", "norwegian", "norsk", "norvegese", "nb", "nob", "nn", "nno"],
+  pl: ["pol", "polish", "polski", "polacco"],
+  pt: ["por", "portuguese", "português", "portugues", "portoghese"],
+  "pt-br": ["por", "pt-br", "ptbr", "brazilian portuguese", "português brasil", "portugues brasil", "portoghese brasiliano", "brasiliano"],
+  ro: ["rum", "ron", "romanian", "română", "romana", "rumeno"],
+  ru: ["rus", "russian", "русский", "russkiy", "russo"],
+  es: ["spa", "esp", "spanish", "español", "espanol", "espaniol", "castellano", "spagnolo"],
+  sv: ["swe", "sved", "swedish", "svenska", "svedese"],
+  th: ["tha", "thai", "ไทย", "tailandese"],
+  tr: ["tur", "turkish", "türkçe", "turkce", "turco"],
+  uk: ["ukr", "ukrainian", "українська", "ukrayinska", "ucraino"],
+  vi: ["vie", "vietnamese", "tiếng việt", "tieng viet", "vietnamita"],
+};
+
+export function normalizeLanguageText(value: string | null | undefined): string {
+  return (value || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[’']/g, "")
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .trim();
+}
+
+export function getLanguageSearchTerms(code: string): string {
+  const lang = languages.find((item) => item.code === code);
+  return [
+    code,
+    code.split("-")[0],
+    lang?.nameEn,
+    lang?.name,
+    ...(languageAliases[code] || []),
+    ...(languageAliases[code.split("-")[0]] || []),
+  ]
+    .filter(Boolean)
+    .map((term) => String(term))
+    .join(" ");
+}
+
+function uniqueLanguageTerms(code: string): string[] {
+  return [
+    code,
+    code.split("-")[0],
+    getLanguageSearchTerms(code),
+  ]
+    .join(" ")
+    .split(/\s+/)
+    .concat(
+      (languageAliases[code] || []),
+      (languageAliases[code.split("-")[0]] || []),
+      languages.find((item) => item.code === code)?.nameEn || "",
+      languages.find((item) => item.code === code)?.name || "",
+    )
+    .map(normalizeLanguageText)
+    .filter(Boolean)
+    .filter((term, index, arr) => arr.indexOf(term) === index);
+}
+
+function levenshteinDistance(a: string, b: string): number {
+  if (a === b) return 0;
+  if (!a.length) return b.length;
+  if (!b.length) return a.length;
+
+  const row = Array.from({ length: b.length + 1 }, (_, index) => index);
+  for (let i = 1; i <= a.length; i += 1) {
+    let previous = row[0];
+    row[0] = i;
+    for (let j = 1; j <= b.length; j += 1) {
+      const current = row[j];
+      row[j] =
+        a[i - 1] === b[j - 1]
+          ? previous
+          : Math.min(row[j - 1] + 1, previous + 1, row[j] + 1);
+      previous = current;
+    }
+  }
+  return row[b.length];
+}
+
+function similarity(a: string, b: string): number {
+  const maxLength = Math.max(a.length, b.length);
+  if (maxLength === 0) return 1;
+  return 1 - levenshteinDistance(a, b) / maxLength;
+}
+
+export function scoreLanguageMatch(value: string, code: string): number {
+  const normalized = normalizeLanguageText(value);
+  if (!normalized) return 0;
+
+  const tokens = normalized.split(/\s+/).filter(Boolean);
+  const tokenSet = new Set(tokens);
+  let score = 0;
+
+  for (const term of uniqueLanguageTerms(code)) {
+    if (!term) continue;
+    if (normalized === term) score = Math.max(score, 100);
+
+    if (term.length <= 3) {
+      if (tokenSet.has(term)) score = Math.max(score, 96);
+      continue;
+    }
+
+    if (` ${normalized} `.includes(` ${term} `)) score = Math.max(score, 92);
+
+    for (const token of tokens) {
+      if (token.length < 4) continue;
+      if (token === term) score = Math.max(score, 90);
+      if (term.startsWith(token) || token.startsWith(term)) score = Math.max(score, 82);
+      if (similarity(token, term) >= 0.86) score = Math.max(score, 76);
+    }
+  }
+
+  return score;
+}
+
+export function detectLanguageCode(value: string): string | null {
+  let bestCode: string | null = null;
+  let bestScore = 0;
+
+  for (const lang of languages) {
+    const score = scoreLanguageMatch(value, lang.code);
+    if (score > bestScore) {
+      bestScore = score;
+      bestCode = lang.code;
+    }
+  }
+
+  return bestScore >= 76 ? bestCode : null;
+}
+
 // Shortcut predefinite
 export interface ShortcutDefinition {
   id: string;

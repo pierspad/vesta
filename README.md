@@ -13,7 +13,11 @@ Built with Rust (Tauri) + Svelte.
 
 Load a video. Get subtitles. Translate them. Export an Anki deck with video clips, audio snippets, and screenshot cards all synced to the exact lines of dialogue. The whole pipeline that used to take an hour now takes a few minutes.
 
-Tested on [*Detour* (1945)](https://archive.org/details/detour1945HD): **~7× faster** than subs2srs end-to-end using a 4.3Ghz 8 cores CPU.
+![Benchmark comparison: Vesta vs subs2srs](benchmark_comparison.png)
+
+Benchmarks were run on an Intel i5-1135G7 laptop CPU (4 cores, 8 threads). Even on that modest CPU, Vesta is consistently much faster than subs2srs for flashcard generation because it is written in Rust and parallelizes the expensive work across available cores: subtitle parsing and matching, media extraction orchestration, TSV/APKG generation, and file output.
+
+On the benchmark set, Vesta completes the same flashcard-generation workflow in roughly **2.3-2.6× less time** than subs2srs. On CPUs with more cores and higher sustained performance, the gap should become even clearer because Vesta has more parallel work available than the classic subs2srs pipeline.
 
 ---
 

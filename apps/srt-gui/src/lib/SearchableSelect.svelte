@@ -173,7 +173,6 @@
       onkeydown={handleKeydown}
       {placeholder}
       class="searchable-select-input w-full"
-      style="background-color: #1a1a2e;"
       autocomplete="off"
     />
     <div
@@ -201,7 +200,6 @@
     <div
       bind:this={dropdownElement}
       class="searchable-select-dropdown"
-      style="background-color: #0d0d1a; opacity: 1;"
     >
       {#if filteredOptions.length === 0}
         <div class="px-4 py-3 text-gray-500 text-sm text-center">
@@ -224,11 +222,6 @@
               <span class="mr-2">{option.icon}</span>
             {/if}
             <span>{option.label}</span>
-            {#if option.searchTerms && searchQuery}
-              <span class="text-gray-500 text-xs ml-2"
-                >({option.searchTerms})</span
-              >
-            {/if}
             {#if option.value === value}
               <svg
                 class="w-4 h-4 ml-auto text-indigo-400"
@@ -253,20 +246,19 @@
 
 <style lang="postcss">
   .searchable-select-input {
-    background: #1a1a2e !important;
-    background-color: #1a1a2e !important;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 12px;
-    padding: 12px 40px 12px 16px;
+    background: rgba(24, 24, 42, 0.96);
+    border: 1px solid rgba(148, 163, 184, 0.18);
+    border-radius: 10px;
+    padding: 11px 40px 11px 14px;
     color: white;
-    transition: all 0.3s ease;
+    transition: border-color 0.16s ease, background-color 0.16s ease;
     font-size: 0.875rem;
   }
 
   .searchable-select-input:focus {
     outline: none;
-    border-color: #667eea;
-    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
+    background: rgba(27, 28, 47, 0.98);
+    border-color: rgba(129, 140, 248, 0.58);
   }
 
   .searchable-select-input::placeholder {
@@ -282,13 +274,10 @@
     max-height: 280px;
     overflow-y: auto;
     overflow-x: hidden;
-    background: #0d0d1a !important;
-    background-color: #0d0d1a !important;
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    border-radius: 12px;
-    box-shadow:
-      0 10px 40px rgba(0, 0, 0, 1),
-      0 0 0 1px rgba(0, 0, 0, 1);
+    background: rgba(15, 23, 42, 0.98);
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    border-radius: 10px;
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.34);
     z-index: 9999;
     opacity: 1 !important;
     isolation: isolate;
@@ -297,28 +286,38 @@
   .searchable-select-option {
     display: flex;
     align-items: center;
-    padding: 10px 16px;
+    min-height: 42px;
+    gap: 8px;
+    padding: 10px 14px;
     font-size: 0.875rem;
-    transition: background-color 0.1s ease;
+    transition: background-color 0.1s ease, color 0.1s ease;
     cursor: pointer;
     border: none;
-    background: #0d0d1a !important;
-    background-color: #0d0d1a !important;
+    background: rgba(15, 23, 42, 0.98);
   }
 
   .searchable-select-option:hover {
-    background: #1e1e38 !important;
-    background-color: #1e1e38 !important;
+    background: rgba(30, 41, 59, 0.98);
   }
 
   .searchable-select-option.highlighted {
-    background: #2d2d5f !important;
-    background-color: #2d2d5f !important;
+    background: rgba(67, 56, 202, 0.32);
   }
 
   .searchable-select-option.selected {
-    background: #1a1a3e !important;
-    background-color: #1a1a3e !important;
+    background: rgba(79, 70, 229, 0.22);
+  }
+
+  :global(.compact-select) .searchable-select-input {
+    min-height: 42px;
+    padding: 10px 38px 10px 12px;
+    font-size: 0.75rem;
+  }
+
+  :global(.compact-select) .searchable-select-option {
+    min-height: 38px;
+    padding: 9px 12px;
+    font-size: 0.75rem;
   }
 
   .searchable-select-option:first-child {

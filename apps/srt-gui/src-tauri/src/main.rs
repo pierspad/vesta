@@ -1,10 +1,10 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use std::sync::Mutex;
-use std::path::Path;
 use std::fs;
 use std::io::{Read, Seek, SeekFrom};
+use std::path::Path;
+use std::sync::Mutex;
 
 mod commands;
 mod state;
@@ -15,11 +15,11 @@ use axum::{
     routing::get,
     Router,
 };
+use tower::ServiceExt;
 use tower_http::{
     cors::{Any, CorsLayer},
     services::ServeFile,
 };
-use tower::ServiceExt;
 
 #[derive(serde::Deserialize)]
 struct MediaParams {
@@ -33,20 +33,26 @@ fn get_media_server_port(port: tauri::State<MediaServerPort>) -> u16 {
     port.0
 }
 
-async fn media_handler(Query(params): Query<MediaParams>, req: Request) -> Result<impl IntoResponse, axum::http::StatusCode> {
+async fn media_handler(
+    Query(params): Query<MediaParams>,
+    req: Request,
+) -> Result<impl IntoResponse, axum::http::StatusCode> {
     ServeFile::new(&params.path)
         .oneshot(req)
         .await
         .map_err(|_| axum::http::StatusCode::INTERNAL_SERVER_ERROR)
 }
 
+use commands::auto_sync::*;
+use commands::flashcards::*;
 use commands::info::*;
 use commands::sync::*;
-use commands::translate::*;
-use commands::flashcards::*;
 use commands::transcribe::*;
-use commands::auto_sync::*;
-use state::{AppSyncState, AppTranslateState, AppFlashcardState, AppTranscribeState, SyncState, TranslateState, FlashcardState, TranscribeState};
+use commands::translate::*;
+use state::{
+    AppFlashcardState, AppSyncState, AppTranscribeState, AppTranslateState, FlashcardState,
+    SyncState, TranscribeState, TranslateState,
+};
 
 /// Determina il MIME type in base all'estensione
 fn mime_from_ext(path: &str) -> &'static str {
@@ -84,7 +90,10 @@ fn main() {
         std::env::set_var("WEBKIT_DISABLE_MEDIA_STREAM", "1");
         // Disable GStreamer audio/video sinks entirely to prevent
         // "GStreamer element autoaudiosink not found" errors on drag-drop
-        std::env::set_var("GST_PLUGIN_FEATURE_RANK", "autoaudiosink:0,autovideosink:0,pulsesink:0,alsasink:0");
+        std::env::set_var(
+            "GST_PLUGIN_FEATURE_RANK",
+            "autoaudiosink:0,autovideosink:0,pulsesink:0,alsasink:0",
+        );
         // Prevent WebKit from using GStreamer for content sniffing on dropped files
         std::env::set_var("GST_REGISTRY_UPDATE", "no");
     }
@@ -92,17 +101,17 @@ fn main() {
     let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("Failed to bind random port");
     listener.set_nonblocking(true).unwrap();
     let port = listener.local_addr().unwrap().port();
-    
+
     tauri::async_runtime::spawn(async move {
         let cors = CorsLayer::new()
             .allow_origin(Any)
             .allow_methods(Any)
             .allow_headers(Any);
-            
+
         let app = Router::new()
             .route("/media", get(media_handler))
             .layer(cors);
-            
+
         let tokio_listener = tokio::net::TcpListener::from_std(listener).unwrap();
         axum::serve(tokio_listener, app).await.unwrap();
     });
@@ -333,6 +342,111 @@ fn main() {
                     });
                 }
             }
+
+            // CLI BENCHMARK MODE
+            let args: Vec<String> = std::env::args().collect();
+            if args.len() >= 6 && args[1] == "--benchmark" {
+                let app_handle = app.handle().clone();
+                let sub1 = args[2].clone();
+                let sub2 = args[3].clone();
+                let video = args[4].clone();
+                let out_dir = args[5].clone();
+                let export_fmt = if args.len() >= 7 { args[6].clone() } else { "tsv".to_string() };
+
+                tauri::async_runtime::spawn(async move {
+                    use std::time::Instant;
+                    use crate::commands::flashcards::types::{FlashcardConfig, SubtitleFilters, ContextConfig, OutputFields};
+                    use tauri::Manager;
+
+                    let has_audio = {
+                        let output = std::process::Command::new("ffprobe")
+                            .args(["-v", "error", "-show_entries", "stream=codec_type", "-of", "csv=p=0", &video])
+                            .output()
+                            .expect("failed to execute ffprobe");
+                        String::from_utf8_lossy(&output.stdout).contains("audio")
+                    };
+
+                    let config = FlashcardConfig {
+                        target_subs_path: sub1,
+                        native_subs_path: Some(sub2),
+                        video_path: Some(video.clone()),
+                        audio_path: if has_audio { Some(video) } else { None },
+                        output_dir: out_dir,
+                        use_timings_from: "target".to_string(),
+                        span_start_ms: None,
+                        span_end_ms: None,
+                        time_shift_target_ms: 0,
+                        time_shift_native_ms: 0,
+                        filters: SubtitleFilters {
+                            include_words: None,
+                            exclude_words: None,
+                            exclude_duplicates_subs1: false,
+                            exclude_duplicates_subs2: false,
+                            min_chars: None,
+                            max_chars: None,
+                            min_duration_ms: None,
+                            max_duration_ms: None,
+                            exclude_styled: false,
+                            actor_filter: None,
+                            only_cjk: false,
+                            remove_no_match: false,
+                        },
+                        context: ContextConfig { leading: 0, trailing: 0, max_gap_seconds: 0.0 },
+                        combine_sentences: false,
+                        continuation_chars: "".to_string(),
+                        generate_audio: has_audio,
+                        audio_bitrate: 128,
+                        audio_track_index: None,
+                        normalize_audio: false,
+                        audio_pad_start_ms: 0,
+                        audio_pad_end_ms: 0,
+                        generate_snapshots: true,
+                        snapshot_width: 240,
+                        snapshot_height: 160,
+                        crop_bottom: 0,
+                        generate_video_clips: true,
+                        video_codec: "h264".to_string(),
+                        h264_preset: "ultrafast".to_string(),
+                        video_bitrate: 1000,
+                        video_audio_bitrate: 128,
+                        video_pad_start_ms: 0,
+                        video_pad_end_ms: 0,
+                        deck_name: "BenchmarkDeck".to_string(),
+                        episode_number: 1,
+                        export_format: Some(export_fmt),
+                        note_type_name: None,
+                        output_fields: OutputFields {
+                            include_tag: true,
+                            include_sequence: true,
+                            include_audio: true,
+                            include_snapshot: true,
+                            include_video: true,
+                            include_subs1: true,
+                            include_subs2: true,
+                        },
+                        cpu_cores: None,
+                        card_front_html: None,
+                        card_back_html: None,
+                        card_css: None,
+                    };
+
+                    let state = app_handle.state::<crate::AppFlashcardState>();
+
+                    let start = Instant::now();
+                    let res = crate::commands::flashcards::commands::flashcard_generate(
+                        app_handle.clone(),
+                        state,
+                        config
+                    ).await;
+                    let duration = start.elapsed();
+
+                    match res {
+                        Ok(_) => println!("VESTA_BENCHMARK_SUCCESS: {} ms", duration.as_millis()),
+                        Err(e) => println!("VESTA_BENCHMARK_ERROR: {}", e),
+                    }
+                    std::process::exit(0);
+                });
+            }
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -370,7 +484,9 @@ fn main() {
             flashcard_preview,
             flashcard_generate,
             flashcard_cancel,
+            flashcard_list_audio_tracks,
             flashcard_check_deps,
+            flashcard_download_ffmpeg,
             flashcard_check_dir_exists,
             flashcard_get_cpu_count,
             // Comandi trascrizione

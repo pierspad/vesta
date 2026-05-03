@@ -227,33 +227,33 @@
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div class="fixed inset-0 z-[80]" onmousedown={closeContextMenu} oncontextmenu={(e) => { e.preventDefault(); closeContextMenu(); }}>
       <div
-        class="absolute min-w-[180px] overflow-hidden rounded-xl border border-white/10 bg-gray-900/98 py-1 shadow-2xl"
+        class="vesta-context-menu"
         style="left: {contextMenu.x}px; top: {contextMenu.y}px;"
         onmousedown={(e) => e.stopPropagation()}
       >
-        <button type="button" class="editor-menu-item" onclick={() => { undo(); closeContextMenu(); }}>
+        <button type="button" class="vesta-context-menu-item" onclick={() => { undo(); closeContextMenu(); }}>
           <span>Undo</span>
           <kbd>Ctrl Z</kbd>
         </button>
-        <button type="button" class="editor-menu-item" onclick={() => { redo(); closeContextMenu(); }}>
+        <button type="button" class="vesta-context-menu-item" onclick={() => { redo(); closeContextMenu(); }}>
           <span>Redo</span>
           <kbd>Ctrl Y</kbd>
         </button>
-        <div class="my-1 h-px bg-white/10"></div>
-        <button type="button" class="editor-menu-item" onclick={copySelection}>
+        <div class="vesta-context-menu-separator"></div>
+        <button type="button" class="vesta-context-menu-item" onclick={copySelection}>
           <span>Copy</span>
           <kbd>Ctrl C</kbd>
         </button>
-        <button type="button" class="editor-menu-item" onclick={cutSelection}>
+        <button type="button" class="vesta-context-menu-item" onclick={cutSelection}>
           <span>Cut</span>
           <kbd>Ctrl X</kbd>
         </button>
-        <button type="button" class="editor-menu-item" onclick={pasteClipboard}>
+        <button type="button" class="vesta-context-menu-item" onclick={pasteClipboard}>
           <span>Paste</span>
           <kbd>Ctrl V</kbd>
         </button>
-        <div class="my-1 h-px bg-white/10"></div>
-        <button type="button" class="editor-menu-item" onclick={selectAllText}>
+        <div class="vesta-context-menu-separator"></div>
+        <button type="button" class="vesta-context-menu-item" onclick={selectAllText}>
           <span>Select all</span>
           <kbd>Ctrl A</kbd>
         </button>
@@ -266,29 +266,6 @@
   textarea::selection {
     background-color: rgba(99, 102, 241, 0.4);
     color: transparent;
-  }
-
-  .editor-menu-item {
-    display: flex;
-    width: 100%;
-    align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
-    padding: 0.55rem 0.8rem;
-    color: rgb(209 213 219);
-    font-size: 0.8125rem;
-    transition: background-color 0.12s ease, color 0.12s ease;
-  }
-
-  .editor-menu-item:hover {
-    background: rgba(255, 255, 255, 0.08);
-    color: white;
-  }
-
-  .editor-menu-item kbd {
-    color: rgb(107 114 128);
-    font-size: 0.65rem;
-    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
   }
 
   :global(.var-token-expression) { color: rgb(125 211 252); }

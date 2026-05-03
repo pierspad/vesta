@@ -7,8 +7,11 @@
   import { locale } from "./i18n";
   import {
     CARD_TEMPLATES_UPDATED_EVENT,
+    detectLanguageCode,
+    getLanguageSearchTerms,
     languages,
     loadCardTemplates,
+    scoreLanguageMatch,
   } from "./models";
   import PathPreviewModal from "./PathPreviewModal.svelte";
   import SearchableSelect from "./SearchableSelect.svelte";
@@ -33,11 +36,31 @@
   let mediaType = $state<"none" | "video" | "audio">("none");
   let outputDir = $state("");
 
+  interface AudioTrackInfo {
+    index: number;
+    stream_index: number;
+    codec: string | null;
+    language: string | null;
+    title: string | null;
+    channels: number | null;
+  }
+
+  let audioTracks = $state<AudioTrackInfo[]>([]);
+  let selectedAudioTrackIndex = $state<number | null>(null);
+  let audioTrackAutoSelected = $state(true);
+  let audioTracksLoading = $state(false);
+
   const OUTPUT_DIR_KEY = "vesta-last-output-dir";
   const NOTE_TYPE_LANGUAGE_KEY = "vesta-flashcards-note-type-language";
   const DEFAULT_FLASHCARDS_LANGUAGE_KEY = "vesta-default-flashcards-language";
+  const DEFAULT_NATIVE_LANGUAGE_KEY = "vesta-default-native-language";
+  const DEFAULT_TARGET_LANGUAGE_KEY = "vesta-default-target-language";
   const SERIES_MODE_KEY = "vesta-flashcards-series-mode";
   const ANKI_FIELDS_PANEL_OPEN_KEY = "vesta-flashcards-anki-fields-panel-open";
+  const FLASHCARD_MEDIA_WIDTH_KEY = "vesta-flashcards-media-width";
+  const FLASHCARD_MEDIA_HEIGHT_KEY = "vesta-flashcards-media-height";
+  const DEFAULT_FLASHCARD_MEDIA_WIDTH = 240;
+  const DEFAULT_FLASHCARD_MEDIA_HEIGHT = 160;
 
   let smartFileMatchingEnabled = $state(true);
 
@@ -120,9 +143,40 @@
     "reference",
     "ref",
   ];
-  const KNOWN_LANGUAGE_CODES = new Set(
-    languages.map((lang) => lang.code.toLowerCase()),
-  );
+  const KNOWN_LANGUAGE_CODES = new Set(languages.map((lang) => lang.code.toLowerCase()));
+
+  function loadDefaultLanguage(key: string, fallback = ""): string {
+    try {
+      return localStorage.getItem(key) || fallback;
+    } catch {
+      return fallback;
+    }
+  }
+
+  function loadStoredDimension(key: string, fallback: number): number {
+    try {
+      const value = Number.parseInt(localStorage.getItem(key) || "", 10);
+      return Number.isFinite(value) && value > 0 ? value : fallback;
+    } catch {
+      return fallback;
+    }
+  }
+
+  function persistDimension(key: string, value: number) {
+    if (!Number.isFinite(value) || value <= 0) return;
+    localStorage.setItem(key, String(Math.round(value)));
+  }
+
+  function getStudiedLanguagePreference(): string {
+    return noteTypeLanguage || loadDefaultLanguage(DEFAULT_FLASHCARDS_LANGUAGE_KEY);
+  }
+
+  function getNativeLanguagePreference(): string {
+    return (
+      loadDefaultLanguage(DEFAULT_NATIVE_LANGUAGE_KEY) ||
+      loadDefaultLanguage(DEFAULT_TARGET_LANGUAGE_KEY, "it")
+    );
+  }
 
   interface ParsedSeriesSubtitle {
     path: string;
@@ -157,7 +211,7 @@
     const suffixParts = stem.split(/[._-]+/).filter(Boolean);
     if (suffixParts.length > 1) {
       const lastPart = suffixParts[suffixParts.length - 1];
-      if (KNOWN_LANGUAGE_CODES.has(lastPart)) {
+      if (KNOWN_LANGUAGE_CODES.has(lastPart) || detectLanguageCode(lastPart)) {
         suffixParts.pop();
       }
     }
@@ -228,14 +282,34 @@
         : { target: paths[0], native: "" };
     }
 
+    const studiedLanguage = getStudiedLanguagePreference();
+    const nativeLanguage = getNativeLanguagePreference();
+    const byStudiedLanguage = studiedLanguage
+      ? parsed.find((item) => item.language === studiedLanguage)
+      : null;
+    const byNativeLanguage = nativeLanguage
+      ? parsed.find((item) => item.language === nativeLanguage)
+      : null;
+
     let targetCandidate =
+      (preferredRole === "auto" ? byStudiedLanguage : null) ||
       parsed.find((item) => item.roleHint === "original") ||
+      parsed.find((item) => item.path !== byNativeLanguage?.path) ||
       parsed[0];
 
     let nativeCandidate =
+      (preferredRole === "auto" && byNativeLanguage?.path !== targetCandidate.path
+        ? byNativeLanguage
+        : null) ||
       parsed.find(
         (item) =>
           item.path !== targetCandidate.path && item.roleHint === "reference",
+      ) ||
+      parsed.find(
+        (item) =>
+          item.path !== targetCandidate.path &&
+          item.language &&
+          item.language !== targetCandidate.language,
       ) ||
       parsed.find((item) => item.path !== targetCandidate.path) ||
       null;
@@ -568,16 +642,40 @@
     }
   }
 
+  function canClearMovieFile(field: "target" | "native" | "media") {
+    return field === "target"
+      ? !!targetSubsPath
+      : field === "native"
+        ? !!nativeSubsPath
+        : !!mediaPath;
+  }
+
+  function clearMovieFileButtonClass(field: "target" | "native" | "media") {
+    return canClearMovieFile(field)
+      ? "border-red-500/30 bg-red-500/10 text-red-300 hover:border-red-400/60 hover:bg-red-500/20"
+      : "cursor-not-allowed border-white/10 bg-white/5 text-gray-600 opacity-60";
+  }
+
+  function timingSourceFieldClass(field: "target" | "native") {
+    return showTimingFlash && useTimingsFrom === field ? "timing-source-flash" : "";
+  }
+
   function clearMovieFile(field: "target" | "native" | "media") {
+    if (!canClearMovieFile(field)) return;
+
     if (field === "target") {
       targetSubsPath = "";
       targetSubsInfo = null;
     } else if (field === "native") {
       nativeSubsPath = "";
       nativeSubsInfo = null;
+      if (useTimingsFrom === "native") useTimingsFrom = "target";
     } else {
       mediaPath = "";
       mediaType = "none";
+      audioTracks = [];
+      selectedAudioTrackIndex = null;
+      audioTrackAutoSelected = true;
       generateSnapshots = false;
       generateVideoClips = false;
     }
@@ -676,10 +774,21 @@
   let hasAudio = $derived(hasMedia);
 
   let useTimingsFrom = $state<"target" | "native">("target");
+  let hasReferenceSubs = $derived(
+    seriesMode
+      ? episodes.some((ep) => ep.nativeSubsPath !== "")
+      : nativeSubsPath !== "",
+  );
   let spanStart = $state("");
   let spanEnd = $state("");
   let timeShiftTarget = $state(0);
   let timeShiftNative = $state(0);
+
+  $effect(() => {
+    if (!hasReferenceSubs && useTimingsFrom === "native") {
+      useTimingsFrom = "target";
+    }
+  });
 
   let showSubtitleOptions = $state(false);
   let showContextLines = $state(false);
@@ -725,6 +834,27 @@
   let onlyCjk = $state(false);
   let removeNoMatch = $state(false);
 
+  let timingFlashTimer: ReturnType<typeof setTimeout> | null = null;
+  let showTimingFlash = $state(false);
+  let timingFlashKey = $state(0);
+
+  function triggerTimingFlash() {
+    timingFlashKey += 1;
+    showTimingFlash = true;
+    if (timingFlashTimer) clearTimeout(timingFlashTimer);
+    timingFlashTimer = setTimeout(() => {
+      showTimingFlash = false;
+    }, 1200);
+  }
+
+  function handleTimingSourceChange(nextSource: "target" | "native") {
+    const previousSource = useTimingsFrom;
+    if (previousSource === nextSource) return;
+
+    useTimingsFrom = nextSource;
+    triggerTimingFlash();
+  }
+
   let contextLeading = $state(0);
   let contextTrailing = $state(0);
   let contextMaxGap = $state(15.0);
@@ -734,13 +864,13 @@
 
   let generateAudio = $state(true);
   let audioBitrate = $state(128);
-  let audioPadStart = $state(250);
-  let audioPadEnd = $state(250);
+  let audioPadStart = $state(0);
+  let audioPadEnd = $state(0);
   let normalizeAudio = $state(false);
 
   let generateSnapshots = $state(true);
-  let snapshotWidth = $state(384);
-  let snapshotHeight = $state(216);
+  let snapshotWidth = $state(loadStoredDimension(FLASHCARD_MEDIA_WIDTH_KEY, DEFAULT_FLASHCARD_MEDIA_WIDTH));
+  let snapshotHeight = $state(loadStoredDimension(FLASHCARD_MEDIA_HEIGHT_KEY, DEFAULT_FLASHCARD_MEDIA_HEIGHT));
   let cropBottom = $state(0);
 
   let generateVideoClips = $state(false);
@@ -750,6 +880,14 @@
   let videoAudioBitrate = $state(128);
   let videoPadStart = $state(250);
   let videoPadEnd = $state(50);
+
+  $effect(() => {
+    persistDimension(FLASHCARD_MEDIA_WIDTH_KEY, snapshotWidth);
+  });
+
+  $effect(() => {
+    persistDimension(FLASHCARD_MEDIA_HEIGHT_KEY, snapshotHeight);
+  });
 
   let exportFormat = $state<"tsv" | "apkg">("apkg");
 
@@ -987,6 +1125,7 @@
     format: string;
   } | null>(null);
   let ffmpegAvailable = $state<boolean | null>(null);
+  let isDownloadingFFmpeg = $state(false);
 
   let showPreview = $state(false);
   let previewLines = $state<any[]>([]);
@@ -1000,6 +1139,7 @@
   let unlisten: (() => void) | null = null;
   let unlistenDragDrop: (() => void) | null = null;
   let removeTemplateListener: (() => void) | null = null;
+  let removeLanguageDefaultsListener: (() => void) | null = null;
   let removeLayoutObserver: (() => void) | null = null;
   let isDraggingOver = $state(false);
 
@@ -1089,34 +1229,79 @@
   function inferLanguageFromPath(filePath: string): string | null {
     const filename = filePath.split("/").pop()?.toLowerCase() || "";
     const base = filename.replace(/\.[^/.]+$/, "");
-    const tokens = base.split(/[^a-z0-9-]+/).filter(Boolean);
-    const tokenSet = new Set(tokens);
+    const tokens = base.split(/[^a-z0-9-]+/i).filter(Boolean);
+    const suffixMatches = tokens
+      .slice(-3)
+      .reverse()
+      .map((token) => detectLanguageCode(token))
+      .filter(Boolean);
+    return suffixMatches[0] || detectLanguageCode(base);
+  }
 
-    for (const lang of languages) {
-      const code = lang.code.toLowerCase();
-      if (code.includes("-") && tokenSet.has(code)) return lang.code;
-    }
+  function getPreferredAudioLanguageCode(): string {
+    return inferLanguageFromPath(targetSubsPath) || noteTypeLanguage;
+  }
 
-    for (const lang of languages) {
-      const code = lang.code.toLowerCase();
-      if (code.length !== 2) continue;
-      const index = tokens.lastIndexOf(code);
-      if (index !== -1 && index >= tokens.length - 2) return lang.code;
-    }
+  function scoreAudioTrackForLanguage(track: AudioTrackInfo, languageCode: string): number {
+    if (!languageCode) return 0;
+    return Math.max(
+      scoreLanguageMatch(track.language || "", languageCode),
+      Math.max(0, scoreLanguageMatch(track.title || "", languageCode) - 12),
+    );
+  }
 
-    const normalized = ` ${base.replace(/[^a-z0-9]+/g, " ")} `;
-    for (const lang of languages) {
-      const languageName = lang.nameEn
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, " ")
-        .trim();
-      if (languageName && normalized.includes(` ${languageName} `)) {
-        return lang.code;
+  function pickBestAudioTrackIndex(tracks: AudioTrackInfo[], languageCode: string): number | null {
+    if (tracks.length <= 1) return null;
+    let bestTrack = tracks[0];
+    let bestScore = -1;
+
+    for (const track of tracks) {
+      const score = scoreAudioTrackForLanguage(track, languageCode);
+      if (score > bestScore) {
+        bestScore = score;
+        bestTrack = track;
       }
     }
 
-    return null;
+    return bestTrack.index;
   }
+
+  function formatAudioTrackLabel(track: AudioTrackInfo): string {
+    const parts = [`#${track.index + 1}`];
+    if (track.language) parts.push(track.language.toUpperCase());
+    if (track.title) parts.push(track.title);
+    if (track.codec) parts.push(track.codec);
+    if (track.channels) parts.push(`${track.channels} ch`);
+    return parts.join(" - ");
+  }
+
+  async function loadAudioTracksForMedia(path: string) {
+    audioTracks = [];
+    selectedAudioTrackIndex = null;
+    audioTrackAutoSelected = true;
+
+    if (detectMediaType(getFileName(path)) !== "video") return;
+
+    audioTracksLoading = true;
+    try {
+      const tracks = await invoke<AudioTrackInfo[]>("flashcard_list_audio_tracks", {
+        path,
+      });
+      audioTracks = tracks;
+      selectedAudioTrackIndex =
+        tracks.length > 1 ? pickBestAudioTrackIndex(tracks, getPreferredAudioLanguageCode()) : null;
+    } catch (e) {
+      addLog(`${t("flashcards.audioTracksError")}: ${e}`, "warning");
+    } finally {
+      audioTracksLoading = false;
+    }
+  }
+
+  $effect(() => {
+    if (audioTracks.length > 1 && audioTrackAutoSelected) {
+      selectedAudioTrackIndex = pickBestAudioTrackIndex(audioTracks, getPreferredAudioLanguageCode());
+    }
+  });
 
   // ─── File Drag-and-Drop Handler ───────────────────────────────────────────
   function getFileExtension(path: string): string {
@@ -1154,7 +1339,7 @@
     const parts = base.split(/[._-]/);
     if (parts.length > 1) {
       const lastPart = parts[parts.length - 1].toLowerCase();
-      if (KNOWN_LANGUAGE_CODES.has(lastPart)) {
+      if (KNOWN_LANGUAGE_CODES.has(lastPart) || detectLanguageCode(lastPart)) {
         parts.pop();
         base = parts.join(" ");
       } else {
@@ -1253,7 +1438,7 @@
 
       // Handle media files
       if (mediaFiles.length > 0) {
-        applyMediaSelection(mediaFiles[0]);
+        await applyMediaSelection(mediaFiles[0]);
       }
     }
   }
@@ -1263,6 +1448,17 @@
 
     const handleCardTemplatesUpdated = () => {
       syncNoteTypeNameFromTemplates();
+    };
+    const handleLanguageDefaultsUpdated = () => {
+      try {
+        const defaultNoteTypeLanguage = localStorage.getItem(DEFAULT_FLASHCARDS_LANGUAGE_KEY);
+        if (
+          defaultNoteTypeLanguage &&
+          languages.some((l) => l.code === defaultNoteTypeLanguage)
+        ) {
+          noteTypeLanguage = defaultNoteTypeLanguage;
+        }
+      } catch {}
     };
 
     const updateLayoutWidth = () => {
@@ -1298,6 +1494,15 @@
       window.removeEventListener(
         CARD_TEMPLATES_UPDATED_EVENT,
         handleCardTemplatesUpdated,
+      );
+    window.addEventListener(
+      "vesta-language-defaults-updated",
+      handleLanguageDefaultsUpdated,
+    );
+    removeLanguageDefaultsListener = () =>
+      window.removeEventListener(
+        "vesta-language-defaults-updated",
+        handleLanguageDefaultsUpdated,
       );
 
     try {
@@ -1393,6 +1598,7 @@
     if (unlisten) unlisten();
     if (unlistenDragDrop) unlistenDragDrop();
     if (removeTemplateListener) removeTemplateListener();
+    if (removeLanguageDefaultsListener) removeLanguageDefaultsListener();
     if (removeLayoutObserver) removeLayoutObserver();
     if (requirementPulseTimer) clearTimeout(requirementPulseTimer);
   });
@@ -1482,6 +1688,7 @@
       continuation_chars: continuationChars,
       generate_audio: generateAudio,
       audio_bitrate: audioBitrate,
+      audio_track_index: selectedAudioTrackIndex,
       normalize_audio: normalizeAudio,
       audio_pad_start_ms: audioPadStart,
       audio_pad_end_ms: audioPadEnd,
@@ -1548,14 +1755,6 @@
     nativeSubsPath = path;
     const filename = nativeSubsPath.split("/").pop() || "";
 
-    if (!noteTypeLanguage) {
-      const inferredLanguage = inferLanguageFromPath(nativeSubsPath);
-      if (inferredLanguage) {
-        noteTypeLanguage = inferredLanguage;
-        localStorage.setItem(NOTE_TYPE_LANGUAGE_KEY, inferredLanguage);
-      }
-    }
-
     const info = await invoke<any>("flashcard_load_subs", {
       path: nativeSubsPath,
     });
@@ -1567,10 +1766,11 @@
     );
   }
 
-  function applyMediaSelection(path: string, autoSelected = false) {
+  async function applyMediaSelection(path: string, autoSelected = false) {
     mediaPath = path;
     const filename = mediaPath.split("/").pop() || "";
     mediaType = detectMediaType(filename);
+    await loadAudioTracksForMedia(path);
 
     if (mediaType === "video") {
       generateAudio = true;
@@ -1639,7 +1839,7 @@
         }
         return;
       }
-      applyMediaSelection(suggestedPath, true);
+      await applyMediaSelection(suggestedPath, true);
     } catch {
       // Best-effort suggestion only.
     }
@@ -1742,7 +1942,7 @@
         ],
       });
       if (selected) {
-        applyMediaSelection(selected as string);
+        await applyMediaSelection(selected as string);
       }
     } catch (e) {
       error = `${t("flashcards.errorSelectingFile")}: ${e}`;
@@ -1890,6 +2090,7 @@
           continuation_chars: continuationChars,
           generate_audio: ep.mediaPath ? generateAudio : false,
           audio_bitrate: audioBitrate,
+          audio_track_index: null,
           normalize_audio: normalizeAudio,
           audio_pad_start_ms: audioPadStart,
           audio_pad_end_ms: audioPadEnd,
@@ -2087,6 +2288,9 @@
     nativeSubsPath = "";
     mediaPath = "";
     mediaType = "none";
+    audioTracks = [];
+    selectedAudioTrackIndex = null;
+    audioTrackAutoSelected = true;
     targetSubsInfo = null;
     nativeSubsInfo = null;
     episodes = [];
@@ -2153,14 +2357,27 @@
       </p>
       <button
         type="button"
+        disabled={isDownloadingFFmpeg}
         onclick={async () => {
-          const { open } = await import("@tauri-apps/plugin-shell");
-          await open("https://www.ffmpeg.org/download.html");
+          isDownloadingFFmpeg = true;
+          try {
+            await invoke("flashcard_download_ffmpeg");
+            ffmpegAvailable = true;
+          } catch (e) {
+            error = "Download failed: " + e;
+          } finally {
+            isDownloadingFFmpeg = false;
+          }
         }}
-        class="flex-shrink-0 px-3 py-1.5 rounded-lg bg-amber-500/20 border border-amber-500/40 text-amber-300 text-xs font-semibold hover:bg-amber-500/30 transition-colors flex items-center gap-1.5"
+        class="flex-shrink-0 px-3 py-1.5 rounded-lg bg-amber-500/20 border border-amber-500/40 text-amber-300 text-xs font-semibold hover:bg-amber-500/30 transition-colors flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
       >
-        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
-        {t("transcribe.ffmpegDownload")}
+        {#if isDownloadingFFmpeg}
+          <svg class="animate-spin w-3.5 h-3.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+          {t("flashcards.downloading") || "Downloading..."}
+        {:else}
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+          Scarica Automaticamente
+        {/if}
       </button>
     </div>
   {/if}
@@ -2449,7 +2666,7 @@
                   onclick={() => {
                     if (targetSubsPath) expandedPathField = "targetSubs";
                   }}
-                  class="input-modern flex-1 text-xs text-left transition-colors truncate {targetSubsPath
+                  class="input-modern flex-1 text-xs text-left transition-colors truncate {timingSourceFieldClass('target')} {targetSubsPath
                     ? 'cursor-pointer hover:bg-white/10'
                     : 'cursor-default hover:bg-transparent'}"
                   style="direction: rtl; text-align: left;"
@@ -2483,11 +2700,12 @@
                 <button
                   type="button"
                   onclick={() => clearMovieFile("target")}
-                  class="inline-flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg border border-red-500/30 bg-red-500/10 text-red-300 transition-colors hover:border-red-400/60 hover:bg-red-500/20 {targetSubsPath ? '' : 'invisible'}"
+                  disabled={!canClearMovieFile("target")}
+                  class="inline-flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-lg border transition-colors {clearMovieFileButtonClass('target')}"
                   title="Rimuovi file"
                   aria-label="Rimuovi file"
                 >
-                  <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                   </svg>
                 </button>
@@ -2507,7 +2725,7 @@
                   onclick={() => {
                     if (nativeSubsPath) expandedPathField = "nativeSubs";
                   }}
-                  class="input-modern flex-1 text-xs text-left transition-colors truncate {nativeSubsPath
+                  class="input-modern flex-1 text-xs text-left transition-colors truncate {timingSourceFieldClass('native')} {nativeSubsPath
                     ? 'cursor-pointer hover:bg-white/10'
                     : 'cursor-default hover:bg-transparent'}"
                   style="direction: rtl; text-align: left;"
@@ -2541,11 +2759,12 @@
                 <button
                   type="button"
                   onclick={() => clearMovieFile("native")}
-                  class="inline-flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg border border-red-500/30 bg-red-500/10 text-red-300 transition-colors hover:border-red-400/60 hover:bg-red-500/20 {nativeSubsPath ? '' : 'invisible'}"
+                  disabled={!canClearMovieFile("native")}
+                  class="inline-flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-lg border transition-colors {clearMovieFileButtonClass('native')}"
                   title="Rimuovi file"
                   aria-label="Rimuovi file"
                 >
-                  <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                   </svg>
                 </button>
@@ -2599,11 +2818,12 @@
                 <button
                   type="button"
                   onclick={() => clearMovieFile("media")}
-                  class="inline-flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg border border-red-500/30 bg-red-500/10 text-red-300 transition-colors hover:border-red-400/60 hover:bg-red-500/20 {mediaPath ? '' : 'invisible'}"
+                  disabled={!canClearMovieFile("media")}
+                  class="inline-flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-lg border transition-colors {clearMovieFileButtonClass('media')}"
                   title="Rimuovi file"
                   aria-label="Rimuovi file"
                 >
-                  <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                   </svg>
                 </button>
@@ -2886,7 +3106,9 @@
         <div class="flex items-center gap-2">
           <button
             onclick={() => {
-              if (hasAnyFiles) showSubtitleOptions = !showSubtitleOptions;
+              if (hasAnyFiles) {
+                showSubtitleOptions = !showSubtitleOptions;
+              }
             }}
             class="flex-1 flex items-center justify-between text-sm font-semibold text-teal-400"
           >
@@ -2926,35 +3148,40 @@
         </div>
         {#if showSubtitleOptions}
           <div class="mt-3 space-y-2.5 animate-fade-in">
-            <div class="flex items-center gap-4">
-              <span class="text-xs text-gray-400"
-                >{t("flashcards.useTimingsFrom")}:</span
+            <div class="flex flex-col gap-2">
+              <span class="text-xs text-gray-400">{t("flashcards.useTimingsFrom")}</span>
+              <div
+                class="timing-source-toggle {useTimingsFrom === 'native' ? 'timing-source-toggle-native' : ''} {showTimingFlash ? 'timing-source-toggle-flash' : ''}"
               >
-              <label class="flex items-center gap-1.5">
-                <input
-                  type="radio"
-                  bind:group={useTimingsFrom}
-                  value="target"
-                  class="text-emerald-500"
-                />
-                <span class="text-xs text-gray-300"
-                  >{t("flashcards.subs1")}</span
-                >
-              </label>
-              <label class="flex items-center gap-1.5">
-                <input
-                  type="radio"
-                  bind:group={useTimingsFrom}
-                  value="native"
-                  class="text-emerald-500"
-                  disabled={!nativeSubsPath}
-                />
-                <span
-                  class="text-xs text-gray-300 {!nativeSubsPath
-                    ? 'opacity-50'
-                    : ''}">{t("flashcards.subs2")}</span
-                >
-              </label>
+                {#key timingFlashKey}
+                  <div class="timing-source-slider"></div>
+                {/key}
+                <label class="flex-1 cursor-pointer">
+                  <input
+                    type="radio"
+                    checked={useTimingsFrom === "target"}
+                    value="target"
+                    class="peer sr-only"
+                    onchange={() => handleTimingSourceChange("target")}
+                  />
+                  <div class="timing-source-choice">
+                    {t("flashcards.timingsOriginal")}
+                  </div>
+                </label>
+                <label class="flex-1 cursor-pointer { !hasReferenceSubs ? 'opacity-50 cursor-not-allowed' : '' }">
+                  <input
+                    type="radio"
+                    checked={useTimingsFrom === "native"}
+                    value="native"
+                    disabled={!hasReferenceSubs}
+                    class="peer sr-only"
+                    onchange={() => handleTimingSourceChange("native")}
+                  />
+                  <div class="timing-source-choice">
+                    {t("flashcards.timingsReference")}
+                  </div>
+                </label>
+              </div>
             </div>
 
             <div class="grid grid-cols-2 gap-2">
@@ -2985,7 +3212,7 @@
             <div class="grid grid-cols-2 gap-2">
               <div>
                 <span class="block text-xs text-gray-500 mb-1"
-                  >{t("flashcards.timeShift")} {t("flashcards.subs1")}</span
+                  >{t("flashcards.timeShiftOriginal")}</span
                 >
                 <div class="flex items-center gap-1">
                   <input
@@ -2998,14 +3225,14 @@
               </div>
               <div>
                 <span class="block text-xs text-gray-500 mb-1"
-                  >{t("flashcards.timeShift")} {t("flashcards.subs2")}</span
+                  >{t("flashcards.timeShiftReference")}</span
                 >
                 <div class="flex items-center gap-1">
                   <input
                     type="number"
                     bind:value={timeShiftNative}
                     class="input-modern w-full text-xs"
-                    disabled={!nativeSubsPath}
+                    disabled={!hasReferenceSubs}
                   />
                   <span class="text-xs text-gray-500">ms</span>
                 </div>
@@ -3013,11 +3240,11 @@
             </div>
 
             <div class="flex items-center gap-3 pt-1">
-              <label class="flex items-center gap-1.5">
+              <label class="vesta-check-row flex items-center gap-2">
                 <input
                   type="checkbox"
                   bind:checked={combineSentences}
-                  class="rounded text-emerald-500"
+                  class="vesta-check-input text-emerald-500"
                 />
                 <span class="text-xs text-gray-300"
                   >{t("flashcards.combineSentences")}</span
@@ -3124,30 +3351,30 @@
               />
             </div>
 
-            <div class="flex flex-wrap gap-3">
-              <label class="flex items-center gap-1.5">
-                <input
-                  type="checkbox"
-                  bind:checked={excludeDuplicatesSubs1}
-                  class="rounded text-orange-500"
-                />
-                <span class="text-xs text-gray-300"
-                  >{t("flashcards.excludeDupSubs1")}</span
-                >
-              </label>
-              <label class="flex items-center gap-1.5">
-                <input
-                  type="checkbox"
-                  bind:checked={excludeDuplicatesSubs2}
-                  class="rounded text-orange-500"
-                  disabled={!nativeSubsPath}
-                />
-                <span
-                  class="text-xs text-gray-300 {!nativeSubsPath
-                    ? 'opacity-50'
-                    : ''}">{t("flashcards.excludeDupSubs2")}</span
-                >
-              </label>
+            <div class="flex flex-col gap-2">
+              <div class="grid grid-cols-2 gap-2">
+                <label class="filter-pill-check justify-center">
+                  <input
+                    type="checkbox"
+                    bind:checked={excludeDuplicatesSubs1}
+                    class="sr-only"
+                  />
+                  <span class="text-xs font-medium text-gray-300"
+                    >{t("flashcards.excludeDupSubs1")}</span
+                  >
+                </label>
+                <label class="filter-pill-check justify-center { !nativeSubsPath ? 'opacity-50 cursor-not-allowed' : '' }">
+                  <input
+                    type="checkbox"
+                    bind:checked={excludeDuplicatesSubs2}
+                    disabled={!nativeSubsPath}
+                    class="sr-only"
+                  />
+                  <span
+                    class="text-xs font-medium text-gray-300">{t("flashcards.excludeDupSubs2")}</span
+                  >
+                </label>
+              </div>
             </div>
 
             <div class="grid grid-cols-2 gap-2">
@@ -3210,38 +3437,36 @@
               </div>
             </div>
 
-            <div class="space-y-1.5">
-              <label class="flex items-center gap-1.5">
+            <div class="grid gap-1.5">
+              <label class="vesta-check-row">
                 <input
                   type="checkbox"
                   bind:checked={excludeStyled}
-                  class="rounded text-orange-500"
+                  class="vesta-check-input text-orange-500"
                 />
                 <span class="text-xs text-gray-300"
                   >{t("flashcards.excludeStyled")}</span
                 >
               </label>
-              <label class="flex items-center gap-1.5">
+              <label class="vesta-check-row">
                 <input
                   type="checkbox"
                   bind:checked={onlyCjk}
-                  class="rounded text-orange-500"
+                  class="vesta-check-input text-orange-500"
                 />
                 <span class="text-xs text-gray-300"
                   >{t("flashcards.onlyCjk")}</span
                 >
               </label>
-              <label class="flex items-center gap-1.5">
+              <label class="vesta-check-row {!nativeSubsPath ? 'opacity-50 cursor-not-allowed' : ''}">
                 <input
                   type="checkbox"
                   bind:checked={removeNoMatch}
-                  class="rounded text-orange-500"
+                  class="vesta-check-input text-orange-500"
                   disabled={!nativeSubsPath}
                 />
                 <span
-                  class="text-xs text-gray-300 {!nativeSubsPath
-                    ? 'opacity-50'
-                    : ''}">{t("flashcards.removeNoMatch")}</span
+                  class="text-xs text-gray-300">{t("flashcards.removeNoMatch")}</span
                 >
               </label>
             </div>
@@ -3403,7 +3628,34 @@
         {#if generateAudio && hasAudio}
           <div class="space-y-2 animate-fade-in">
             <div class="grid grid-cols-2 gap-2">
-              <div>
+              {#if mediaType === "video" && (audioTracksLoading || audioTracks.length > 1)}
+                <div>
+                  <span class="block text-xs text-gray-500 mb-1"
+                    >{t("flashcards.audioTrack")}</span
+                  >
+                  {#if audioTracksLoading}
+                    <div class="input-modern text-xs text-gray-500">
+                      {t("flashcards.audioTracksLoading")}
+                    </div>
+                  {:else}
+                    <SearchableSelect
+                      noResultsText={t("common.noResults")}
+                      options={audioTracks.map((track) => ({
+                        value: String(track.index),
+                        label: formatAudioTrackLabel(track),
+                      }))}
+                      value={selectedAudioTrackIndex === null ? "" : String(selectedAudioTrackIndex)}
+                      onchange={(value) => {
+                        selectedAudioTrackIndex = value === "" ? null : Number(value);
+                        audioTrackAutoSelected = false;
+                      }}
+                      placeholder={t("flashcards.audioTrack")}
+                    />
+                  {/if}
+                </div>
+              {/if}
+
+              <div class={mediaType === "video" && (audioTracksLoading || audioTracks.length > 1) ? "" : "col-span-2"}>
                 <span class="block text-xs text-gray-500 mb-1"
                   >{t("flashcards.bitrate")}</span
                 >
@@ -3421,20 +3673,8 @@
                   placeholder="Bitrate"
                 />
               </div>
-              <div class="flex items-end">
-                <label class="flex items-center gap-1.5">
-                  <input
-                    type="checkbox"
-                    bind:checked={normalizeAudio}
-                    class="rounded text-cyan-500"
-                  />
-                  <span class="text-xs text-gray-300"
-                    >{t("flashcards.normalizeAudio")}</span
-                  >
-                </label>
-              </div>
             </div>
-            <div class="grid grid-cols-2 gap-2">
+            <div class="grid grid-cols-3 gap-2 items-end">
               <div>
                 <span class="block text-xs text-gray-500 mb-1"
                   >{t("flashcards.padStart")}</span
@@ -3460,6 +3700,20 @@
                   />
                   <span class="text-xs text-gray-500">ms</span>
                 </div>
+              </div>
+              <div class="flex justify-center">
+                <label
+                  class="normalize-audio-toggle min-h-[42px] w-full flex items-center justify-center gap-1.5 rounded-xl border px-2 text-center transition-colors"
+                >
+                  <input
+                    type="checkbox"
+                    bind:checked={normalizeAudio}
+                    class="sr-only"
+                  />
+                  <span class="text-xs text-gray-300"
+                    >{t("flashcards.normalizeAudio")}</span
+                  >
+                </label>
               </div>
             </div>
           </div>
@@ -3497,7 +3751,6 @@
             onclick={() => {
               if (hasVideo) {
                 generateSnapshots = !generateSnapshots;
-                if (generateSnapshots) generateVideoClips = false;
               }
             }}
             class="w-10 h-5 rounded-full transition-all duration-200 relative
@@ -3591,7 +3844,6 @@
             onclick={() => {
               if (hasVideo) {
                 generateVideoClips = !generateVideoClips;
-                if (generateVideoClips) generateSnapshots = false;
               }
             }}
             class="w-10 h-5 rounded-full transition-all duration-200 relative
@@ -3611,9 +3863,38 @@
             <div class="grid grid-cols-2 gap-2">
               <div>
                 <span class="block text-xs text-gray-500 mb-1"
+                  >{t("flashcards.width")}</span
+                >
+                <div class="flex items-center gap-1">
+                  <input
+                    type="number"
+                    bind:value={snapshotWidth}
+                    class="input-modern w-full text-xs"
+                  />
+                  <span class="text-xs text-gray-500">px</span>
+                </div>
+              </div>
+              <div>
+                <span class="block text-xs text-gray-500 mb-1"
+                  >{t("flashcards.height")}</span
+                >
+                <div class="flex items-center gap-1">
+                  <input
+                    type="number"
+                    bind:value={snapshotHeight}
+                    class="input-modern w-full text-xs"
+                  />
+                  <span class="text-xs text-gray-500">px</span>
+                </div>
+              </div>
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <span class="block text-xs text-gray-500 mb-1"
                   >{t("flashcards.videoCodec")}</span
                 >
                 <SearchableSelect
+                  className="compact-select"
                   noResultsText={t("common.noResults")}
                   options={[
                     { value: "h264", label: "H.264 (MP4)" },
@@ -3629,6 +3910,7 @@
                   >{t("flashcards.h264Preset")}</span
                 >
                 <SearchableSelect
+                  className="compact-select"
                   noResultsText={t("common.noResults")}
                   options={[
                     { value: "ultrafast", label: "Ultrafast" },
@@ -3662,6 +3944,7 @@
                   >{t("flashcards.audioBitrate")}</span
                 >
                 <SearchableSelect
+                  className="compact-select"
                   noResultsText={t("common.noResults")}
                   options={[
                     { value: "64", label: "64 kb/s" },
@@ -3761,7 +4044,7 @@
                 lang.nameEn === lang.name
                   ? lang.name
                   : `${lang.nameEn} — ${lang.name}`,
-              searchTerms: `${lang.nameEn} ${lang.name}`,
+              searchTerms: getLanguageSearchTerms(lang.code),
               icon: lang.flag,
             }))}
             value={noteTypeLanguage}
@@ -4622,12 +4905,206 @@
 </div>
 
 <style>
+  .timing-source-toggle {
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 0.5rem;
+    display: flex;
+    gap: 0.25rem;
+    padding: 0.25rem;
+    position: relative;
+  }
+
+  .timing-source-toggle label {
+    position: relative;
+    z-index: 1;
+  }
+
+  .timing-source-slider {
+    background: rgba(148, 163, 184, 0.11);
+    border: 1px solid rgba(148, 163, 184, 0.18);
+    border-radius: 7px;
+    bottom: 0.25rem;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.06),
+      0 8px 18px rgba(0, 0, 0, 0.16);
+    left: 0.25rem;
+    position: absolute;
+    top: 0.25rem;
+    transform: translateX(0);
+    transition:
+      transform 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+      border-color 0.2s ease,
+      box-shadow 0.2s ease;
+    width: calc((100% - 0.75rem) / 2);
+  }
+
+  .timing-source-toggle-native .timing-source-slider {
+    transform: translateX(calc(100% + 0.25rem));
+  }
+
+  .timing-source-toggle-flash .timing-source-slider {
+    animation: timing-source-flash 0.42s ease-in-out 2;
+  }
+
+  .timing-source-choice {
+    border: 1px solid transparent;
+    border-radius: 7px;
+    color: rgb(156 163 175);
+    font-size: 0.75rem;
+    font-weight: 650;
+    line-height: 1.1;
+    min-height: 2rem;
+    padding: 0.5rem 0.65rem;
+    text-align: center;
+    transition:
+      background-color 0.16s ease,
+      border-color 0.16s ease,
+      color 0.16s ease;
+  }
+
+  input:checked + .timing-source-choice {
+    color: rgb(229 231 235);
+  }
+
+  label:hover .timing-source-choice {
+    color: rgb(209 213 219);
+  }
+
+  input:disabled + .timing-source-choice {
+    pointer-events: none;
+  }
+
+  .timing-source-flash {
+    animation: timing-source-flash 0.42s ease-in-out 2;
+  }
+
+  .filter-pill-check {
+    align-items: center;
+    border: 1px solid rgba(148, 163, 184, 0.16);
+    border-radius: 7px;
+    cursor: pointer;
+    display: flex;
+    min-height: 2.15rem;
+    padding: 0.48rem 0.65rem;
+    text-align: center;
+    transition:
+      background-color 0.16s ease,
+      border-color 0.16s ease,
+      color 0.16s ease;
+  }
+
+  .filter-pill-check:hover {
+    background: rgba(148, 163, 184, 0.08);
+    border-color: rgba(148, 163, 184, 0.28);
+  }
+
+  .filter-pill-check:has(input:checked) {
+    background: rgba(99, 102, 241, 0.14);
+    border-color: rgba(129, 140, 248, 0.4);
+  }
+
+  .filter-pill-check:has(input:checked) span {
+    color: rgb(199 210 254);
+  }
+
+  .vesta-check-row {
+    align-items: center;
+    border: 1px solid rgba(148, 163, 184, 0.12);
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    gap: 0.5rem;
+    min-height: 2.1rem;
+    padding: 0.4rem 0.55rem;
+    transition:
+      background-color 0.16s ease,
+      border-color 0.16s ease;
+  }
+
+  .vesta-check-row:hover {
+    background: rgba(148, 163, 184, 0.07);
+    border-color: rgba(148, 163, 184, 0.22);
+  }
+
+  .vesta-check-row:has(.vesta-check-input:checked) {
+    background: rgba(99, 102, 241, 0.1);
+    border-color: rgba(129, 140, 248, 0.32);
+  }
+
+  .vesta-check-input {
+    appearance: none;
+    background: rgba(15, 23, 42, 0.85);
+    border: 1px solid rgba(148, 163, 184, 0.38);
+    border-radius: 5px;
+    display: grid;
+    height: 0.95rem;
+    margin: 0;
+    place-content: center;
+    width: 0.95rem;
+  }
+
+  .vesta-check-input::before {
+    background: rgb(199 210 254);
+    clip-path: polygon(14% 44%, 0 60%, 40% 100%, 100% 16%, 84% 0, 38% 62%);
+    content: "";
+    height: 0.55rem;
+    opacity: 0;
+    transform: scale(0.75);
+    transition: opacity 0.12s ease, transform 0.12s ease;
+    width: 0.55rem;
+  }
+
+  .vesta-check-input:checked {
+    background: rgba(79, 70, 229, 0.35);
+    border-color: rgba(165, 180, 252, 0.72);
+  }
+
+  .vesta-check-input:checked::before {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  .normalize-audio-toggle {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.1);
+  }
+
+  .normalize-audio-toggle:hover {
+    background: rgba(148, 163, 184, 0.1);
+    border-color: rgba(148, 163, 184, 0.25);
+  }
+
+  .normalize-audio-toggle:has(input:checked) {
+    background: rgba(14, 116, 144, 0.22);
+    border-color: rgba(34, 211, 238, 0.38);
+  }
+
+  .normalize-audio-toggle:has(input:checked) span {
+    color: rgb(165 243 252);
+  }
+
   :global(.flashcard-requirement-pulse) {
     animation: flashcard-requirement-pulse 0.9s ease-in-out 2;
     border-color: rgba(251, 191, 36, 0.75) !important;
     box-shadow:
       0 0 0 1px rgba(251, 191, 36, 0.3),
       0 0 24px rgba(251, 191, 36, 0.24);
+  }
+
+  @keyframes timing-source-flash {
+    0%,
+    100% {
+      border-color: rgba(52, 211, 153, 0.2);
+      box-shadow: 0 0 0 0 rgba(52, 211, 153, 0);
+    }
+
+    45% {
+      border-color: rgba(52, 211, 153, 0.9);
+      box-shadow:
+        0 0 0 2px rgba(52, 211, 153, 0.18),
+        0 0 14px rgba(52, 211, 153, 0.25);
+    }
   }
 
   @keyframes flashcard-requirement-pulse {
