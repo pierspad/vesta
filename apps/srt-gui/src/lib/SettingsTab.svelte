@@ -3,6 +3,7 @@
   import { invoke } from "@tauri-apps/api/core";
   import { listen } from "@tauri-apps/api/event";
   import CodeEditor from "./CodeEditor.svelte";
+  import Snackbar from "./Snackbar.svelte";
   import {
     availableUILanguages,
     currentLanguage,
@@ -69,27 +70,79 @@
 
   const ankiFieldDefinitions: {
     key: AnkiFieldKey;
-    label: string;
-    placeholder: string;
     variable: string;
     colorClass: string;
+    iconClass: string;
+    iconPath: string;
   }[] = [
-    { key: "expression", label: "Expression", placeholder: "Expression", variable: "{{Expression}}", colorClass: "border-sky-400/30 bg-sky-400/10 text-sky-200 hover:bg-sky-400/15" },
-    { key: "meaning", label: "Meaning", placeholder: "Meaning", variable: "{{Meaning}}", colorClass: "border-emerald-400/30 bg-emerald-400/10 text-emerald-200 hover:bg-emerald-400/15" },
-    { key: "reading", label: "Reading", placeholder: "Reading", variable: "{{Reading}}", colorClass: "border-violet-400/30 bg-violet-400/10 text-violet-200 hover:bg-violet-400/15" },
-    { key: "audio", label: "Audio", placeholder: "Audio", variable: "{{Audio}}", colorClass: "border-rose-400/30 bg-rose-400/10 text-rose-200 hover:bg-rose-400/15" },
-    { key: "snapshot", label: "Snapshot", placeholder: "Snapshot", variable: "{{Snapshot}}", colorClass: "border-amber-400/30 bg-amber-400/10 text-amber-200 hover:bg-amber-400/15" },
-    { key: "video", label: "Video", placeholder: "Video", variable: "{{Video}}", colorClass: "border-orange-400/30 bg-orange-400/10 text-orange-200 hover:bg-orange-400/15" },
-    { key: "tags", label: "Tags", placeholder: "Tags", variable: "{{Tags}}", colorClass: "border-lime-400/30 bg-lime-400/10 text-lime-200 hover:bg-lime-400/15" },
+    {
+      key: "expression",
+      variable: "{{Expression}}",
+      colorClass: "border-sky-400/30 bg-sky-400/10 text-sky-200 hover:bg-sky-400/15",
+      iconClass: "text-sky-300",
+      iconPath: "M4 6h16M4 12h10M4 18h7",
+    },
+    {
+      key: "meaning",
+      variable: "{{Meaning}}",
+      colorClass: "border-emerald-400/30 bg-emerald-400/10 text-emerald-200 hover:bg-emerald-400/15",
+      iconClass: "text-emerald-300",
+      iconPath: "M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10",
+    },
+    {
+      key: "reading",
+      variable: "{{Reading}}",
+      colorClass: "border-violet-400/30 bg-violet-400/10 text-violet-200 hover:bg-violet-400/15",
+      iconClass: "text-violet-300",
+      iconPath: "M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5s3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18s-3.332.477-4.5 1.253",
+    },
+    {
+      key: "audio",
+      variable: "{{Audio}}",
+      colorClass: "border-rose-400/30 bg-rose-400/10 text-rose-200 hover:bg-rose-400/15",
+      iconClass: "text-rose-300",
+      iconPath: "M11 5L6 9H3v6h3l5 4V5zm4.5 4.5a4 4 0 010 5m2.5-7.5a8 8 0 010 10",
+    },
+    {
+      key: "snapshot",
+      variable: "{{Snapshot}}",
+      colorClass: "border-amber-400/30 bg-amber-400/10 text-amber-200 hover:bg-amber-400/15",
+      iconClass: "text-amber-300",
+      iconPath: "M3 7h4l2-3h6l2 3h4v13H3V7zm9 10a4 4 0 100-8 4 4 0 000 8z",
+    },
+    {
+      key: "video",
+      variable: "{{Video}}",
+      colorClass: "border-orange-400/30 bg-orange-400/10 text-orange-200 hover:bg-orange-400/15",
+      iconClass: "text-orange-300",
+      iconPath: "M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 6h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2z",
+    },
+    {
+      key: "tags",
+      variable: "{{Tags}}",
+      colorClass: "border-lime-400/30 bg-lime-400/10 text-lime-200 hover:bg-lime-400/15",
+      iconClass: "text-lime-300",
+      iconPath: "M7 7h.01M3 11l8.586-8.586A2 2 0 0113 2h6a2 2 0 012 2v6a2 2 0 01-.586 1.414L11.828 20a2 2 0 01-2.828 0L3 14a2 2 0 010-3z",
+    },
     {
       key: "sequenceMarker",
-      label: "Sequence Marker",
-      placeholder: "SequenceMarker",
       variable: "{{SequenceMarker}}",
       colorClass: "border-cyan-400/30 bg-cyan-400/10 text-cyan-200 hover:bg-cyan-400/15",
+      iconClass: "text-cyan-300",
+      iconPath: "M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01",
     },
-    { key: "notes", label: "Notes", placeholder: "Notes", variable: "{{Notes}}", colorClass: "border-fuchsia-400/30 bg-fuchsia-400/10 text-fuchsia-200 hover:bg-fuchsia-400/15" },
+    {
+      key: "notes",
+      variable: "{{Notes}}",
+      colorClass: "border-fuchsia-400/30 bg-fuchsia-400/10 text-fuchsia-200 hover:bg-fuchsia-400/15",
+      iconClass: "text-fuchsia-300",
+      iconPath: "M11 5H6a2 2 0 00-2 2v11a1 1 0 001 1h11a2 2 0 002-2v-5M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z",
+    },
   ];
+
+  function fieldVariableName(field: { variable: string }): string {
+    return field.variable.replace(/^\{\{|\}\}$/g, "");
+  }
 
   function loadStoredValue(key: string, fallback = ""): string {
     try {
@@ -128,17 +181,19 @@
   let snackbarMessage = $state<string | null>(null);
   let snackbarType = $state<"error" | "success">("success");
   let snackbarTimeout = $state<ReturnType<typeof setTimeout> | null>(null);
+  let snackbarKey = $state(0);
 
   function showSnackbar(
     message: string,
     type: "error" | "success" = "success",
   ) {
     if (snackbarTimeout) clearTimeout(snackbarTimeout);
+    snackbarKey += 1;
     snackbarMessage = message;
     snackbarType = type;
     snackbarTimeout = setTimeout(() => {
       snackbarMessage = null;
-    }, 3500);
+    }, 1300);
   }
 
   const settingsCopy = {
@@ -160,7 +215,7 @@
       overviewLanguageDesc: "Interface language and default workflow languages.",
       overviewAnkiDesc: "HTML, CSS, fields and note type for flashcards.",
       statusTitle: "Preference status",
-      statusActiveTitle: "Active defaults",
+      statusActiveTitle: "Preferences",
       statusDesc: "A quick health check for the defaults used by the workflow tabs.",
       apiKeysSaved: "Saved API keys",
       apiKeysHint: "Remote providers available for Translation. Local models do not need keys.",
@@ -218,7 +273,7 @@
       overviewLanguageDesc: "Lingua interfaccia e lingue predefinite di lavoro.",
       overviewAnkiDesc: "HTML, CSS, campi e note type delle flashcard.",
       statusTitle: "Stato preferenze",
-      statusActiveTitle: "Default attivi",
+      statusActiveTitle: "Preferenze",
       statusDesc: "Un controllo rapido dei default usati dalle tab operative.",
       apiKeysSaved: "API key salvate",
       apiKeysHint: "Provider remoti disponibili per Traduzione. I modelli locali non richiedono chiavi.",
@@ -276,7 +331,7 @@
       overviewLanguageDesc: "界面语言和工作默认语言。",
       overviewAnkiDesc: "闪卡的 HTML、CSS、字段和 note type。",
       statusTitle: "偏好状态",
-      statusActiveTitle: "当前默认值",
+      statusActiveTitle: "偏好设置",
       statusDesc: "快速检查工作标签页使用的默认设置。",
       apiKeysSaved: "已保存的 API key",
       apiKeysHint: "翻译可用的远程提供商。本地模型不需要 key。",
@@ -749,6 +804,11 @@
 
   function getFieldValue(key: AnkiFieldKey): string {
     return getCurrentFieldNames()[key];
+  }
+
+  function getFieldVariable(field: (typeof ankiFieldDefinitions)[number]): string {
+    const fieldName = getFieldValue(field.key).trim() || field.variable.slice(2, -2);
+    return `{{${fieldName}}}`;
   }
 
   function setFieldValue(key: AnkiFieldKey, value: string) {
@@ -1379,15 +1439,16 @@
 
   let showCopySnackbar = $state(false);
   let copySnackbarTimeout: ReturnType<typeof setTimeout> | null = null;
+  let copySnackbarKey = $state(0);
 
   function copyToClipboard(text: string) {
     navigator.clipboard.writeText(text);
+    copySnackbarKey += 1;
     showCopySnackbar = true;
     if (copySnackbarTimeout) clearTimeout(copySnackbarTimeout);
-    // Hide after 2 seconds
     copySnackbarTimeout = setTimeout(() => {
       showCopySnackbar = false;
-    }, 2000);
+    }, 1300);
   }
 
   function copyApiKey(key: string) {
@@ -1469,7 +1530,7 @@
 
   {#if activeSettingsSection === "overview"}
     <div class="mb-6">
-      <p class="text-xs uppercase tracking-wide text-gray-500 mb-2">{s("overviewKicker")}</p>
+
       <h2 class="text-2xl font-bold text-white">{s("overviewTitle")}</h2>
       <p class="text-sm text-gray-500 mt-1">{s("overviewDesc")}</p>
     </div>
@@ -1537,7 +1598,7 @@
         <div class="glass-card p-5 {needsQuickSetup ? 'settings-quick-setup-pulse' : ''}">
           <div class="flex items-center justify-between gap-4 mb-4">
             <div>
-              <p class="text-xs uppercase tracking-wide text-gray-500">{s("quickSetup")}</p>
+
               <h3 class="text-lg font-bold text-white">{s("quickSetupTitle")}</h3>
             </div>
           </div>
@@ -1580,7 +1641,7 @@
       <div class="glass-card p-5 min-h-[12rem]">
         <div class="mb-4 flex items-start justify-between gap-4">
           <div>
-            <p class="text-xs uppercase tracking-wide text-gray-500">{s("statusTitle")}</p>
+
             <h3 class="mt-1 text-lg font-bold text-white">{s("statusActiveTitle")}</h3>
             <p class="mt-1 text-sm text-gray-500">{s("statusDesc")}</p>
           </div>
@@ -1801,25 +1862,20 @@
 
   <!-- Snackbar notification at the bottom -->
   {#if snackbarMessage}
-    <div
-      class="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] px-5 py-3 rounded-xl shadow-2xl flex items-center gap-3 animate-fade-in
-        {snackbarType === 'error'
-        ? 'bg-red-500/90 text-white border border-red-400/50'
-        : 'bg-emerald-500/90 text-white border border-emerald-400/50'}"
-      style="backdrop-filter: blur(12px);"
-    >
-      <span class="text-sm font-medium">{snackbarMessage}</span>
-      <button
-        onclick={() => (snackbarMessage = null)}
-        class="text-white/70 hover:text-white ml-2">✕</button
-      >
-    </div>
+    <Snackbar
+      message={snackbarMessage}
+      variant={snackbarType === "error" ? "error" : "success"}
+      bottomClass="bottom-6"
+      duration={1300}
+      animationKey={snackbarKey}
+      onclose={() => (snackbarMessage = null)}
+    />
   {/if}
 
   {#if activeSettingsSection === "llm"}
   <div class="grid grid-cols-1 xl:grid-cols-[0.95fr_1.05fr] gap-5 mb-5">
     <div class="glass-card p-5 min-h-[10rem] flex flex-col justify-center">
-      <p class="text-xs uppercase tracking-wide text-gray-500">{s("addProviderKicker")}</p>
+
       <h3 class="mt-1 text-lg font-bold text-white">{s("addProviderTitle")}</h3>
       <p class="mt-2 max-w-xl text-sm text-gray-400">
         {s("addProviderDesc")}
@@ -1839,7 +1895,7 @@
     <div class="glass-card p-5">
       <div class="flex items-center justify-between gap-4 mb-4">
         <div>
-          <p class="text-xs uppercase tracking-wide text-gray-500">{t("settings.providerStatusTitle")}</p>
+
           <h3 class="text-lg font-bold text-white">{t("settings.savedConfigurations", { count: configuredApiKeyCount })}</h3>
         </div>
         <span class="inline-flex items-center gap-2 text-xs px-3 py-1.5 rounded-full border {hasRemoteApiKey ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300' : 'bg-white/5 border-white/10 text-gray-400'}">
@@ -2587,7 +2643,12 @@
 
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
           <div>
-            <label for="note-type-name-inline" class="block text-xs font-semibold text-gray-400 mb-1">Note type</label>
+            <label for="note-type-name-inline" class="mb-1 flex items-center gap-1.5 text-xs font-semibold text-gray-400">
+              <svg class="h-3.5 w-3.5 text-emerald-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v4H4V5zm0 8h8v7H5a1 1 0 01-1-1v-6zm12 0h4v6a1 1 0 01-1 1h-3v-7z" />
+              </svg>
+              <span>Note type</span>
+            </label>
             <input
               id="note-type-name-inline"
               type="text"
@@ -2601,16 +2662,21 @@
           </div>
           {#each ankiFieldDefinitions as field}
             <div>
-              <label for={`anki-field-${field.key}`} class="block text-xs font-semibold text-gray-400 mb-1">{field.label}</label>
+              <label for={`anki-field-${field.key}`} class="mb-1 flex items-center gap-1.5 text-xs font-semibold text-gray-400">
+                <svg class={`h-3.5 w-3.5 ${field.iconClass}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d={field.iconPath} />
+                </svg>
+                <span>{fieldVariableName(field)}</span>
+              </label>
               <input
                 id={`anki-field-${field.key}`}
-                aria-label={field.label}
+                aria-label={fieldVariableName(field)}
                 type="text"
                 value={getFieldValue(field.key)}
                 maxlength="25"
                 oninput={(event) => syncLimitedInput(event, (value) => setFieldValue(field.key, value), saveFields)}
                 class="input-modern w-full text-sm"
-                placeholder={field.placeholder}
+                placeholder={fieldVariableName(field)}
               />
             </div>
           {/each}
@@ -2684,13 +2750,13 @@
               <button
                 type="button"
                 onclick={() => {
-                  navigator.clipboard.writeText(field.variable);
+                  navigator.clipboard.writeText(getFieldVariable(field));
                   showSnackbar(t("settings.keyCopied"));
                 }}
                 class="px-2.5 py-1.5 rounded-lg border transition-colors {field.colorClass}"
                 title="Copia variabile"
               >
-                {field.variable}
+                {getFieldVariable(field)}
               </button>
             {/each}
             </div>
@@ -3132,28 +3198,14 @@
   {/if}
 
   {#if showCopySnackbar}
-    <div
-      class="fixed bottom-6 left-1/2 -translate-x-1/2 z-[60] animate-fade-in"
-    >
-      <div
-        class="bg-gray-800 border border-gray-700 text-white px-4 py-2.5 rounded-lg shadow-xl flex items-center gap-2"
-      >
-        <svg
-          class="w-4 h-4 text-green-400"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M5 13l4 4L19 7"
-          />
-        </svg>
-        <span class="text-sm font-medium">{t("settings.keyCopied")}</span>
-      </div>
-    </div>
+    <Snackbar
+      message={t("settings.keyCopied")}
+      variant="success"
+      bottomClass="bottom-6"
+      duration={1300}
+      animationKey={copySnackbarKey}
+      onclose={() => (showCopySnackbar = false)}
+    />
   {/if}
 
   {#if deleteConfirmId}

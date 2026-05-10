@@ -33,6 +33,7 @@
   let releaseCheckedAt = $state<Date | null>(null);
   let hasUpdateNotification = $derived(releaseStatus === "available");
   let hasSettingsActionNotification = $state(false);
+  let settingsNotificationRead = $state(false);
 
   function formatLicense(license: string): string {
     return license.replace(/-only$/i, "").trim();
@@ -103,11 +104,19 @@
   }
 
   onMount(() => {
-    hasSettingsActionNotification = getStoredSettingsActionState().required;
+    const initial = getStoredSettingsActionState();
+    hasSettingsActionNotification = initial.required;
+    settingsNotificationRead = initial.read;
 
     const handleSettingsActionRequired = (event: Event) => {
-      const detail = (event as CustomEvent<SettingsActionNotificationDetail | boolean>).detail;
-      hasSettingsActionNotification = typeof detail === "boolean" ? detail : detail.required;
+      const detail = (event as CustomEvent<SettingsActionNotificationDetail>).detail;
+      if (typeof detail === "boolean") {
+        hasSettingsActionNotification = detail;
+        return;
+      }
+
+      hasSettingsActionNotification = detail.required;
+      settingsNotificationRead = detail.read;
     };
 
     window.addEventListener(SETTINGS_ACTION_REQUIRED_EVENT, handleSettingsActionRequired);
@@ -339,7 +348,13 @@
           />
         </svg>
         {#if hasSettingsActionNotification}
-          <span class="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-red-500 ring-2 ring-gray-900 shadow-[0_0_10px_rgba(239,68,68,0.75)]"></span>
+          {#if settingsNotificationRead}
+            <!-- Read/acknowledged: dimmer, no pulse -->
+            <span class="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-gray-500 ring-2 ring-gray-900"></span>
+          {:else}
+            <!-- Unread: bright red with glow -->
+            <span class="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-red-500 ring-2 ring-gray-900 shadow-[0_0_10px_rgba(239,68,68,0.75)]"></span>
+          {/if}
         {/if}
       </div>
       {#if !collapsed}

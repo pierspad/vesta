@@ -94,21 +94,6 @@ if [[ ! "$confirm_release" =~ ^[sS]$ ]]; then
     exit 0
 fi
 
-# ── Verifica gh CLI ───────────────────────────────────────────
-if ! command -v gh &> /dev/null; then
-    echo -e "${RED}❌ GitHub CLI (gh) non installato${NC}"
-    echo "   Installa con: sudo pacman -S github-cli"
-    exit 1
-fi
-
-echo -e "${YELLOW}🔐 Verifica autenticazione GitHub...${NC}"
-if ! gh auth status &> /dev/null; then
-    echo -e "${RED}❌ Non sei autenticato con GitHub CLI${NC}"
-    echo "   Esegui: gh auth login"
-    exit 1
-fi
-echo -e "${GREEN}✅ Autenticato${NC}"
-
 # ── Genera .SRCINFO ──────────────────────────────────────────
 echo -e "${YELLOW}📄 Generazione .SRCINFO...${NC}"
 cd "$SCRIPT_DIR"
@@ -159,13 +144,7 @@ git push origin "$BRANCH"
 git push origin "$TAG_VERSION"
 echo -e "${GREEN}✅ Push completato${NC}"
 
-# ── Crea release GitHub ──────────────────────────────────────
-echo -e "${YELLOW}🚀 Creazione release GitHub...${NC}"
-gh release create "$TAG_VERSION" \
-    --title "VESTA $TAG_VERSION" \
-    --notes-file "$RELEASE_NOTES"
-
 echo ""
-echo -e "${GREEN}✅ Release $TAG_VERSION creata con successo!${NC}"
-echo -e "${BLUE}   La GitHub Action 'Build and Release' partirà automaticamente.${NC}"
+echo -e "${GREEN}✅ Tag $TAG_VERSION pubblicato con successo!${NC}"
+echo -e "${BLUE}   La GitHub Action 'Build and Release' creerà la release usando docs/release-notes.md.${NC}"
 echo -e "${BLUE}   Dopo il build, esegui ./push-aur.sh per aggiornare AUR.${NC}"

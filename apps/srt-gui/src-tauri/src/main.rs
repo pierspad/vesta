@@ -415,6 +415,7 @@ fn main() {
                         episode_number: 1,
                         export_format: Some(export_fmt),
                         note_type_name: None,
+                        field_names: None,
                         output_fields: OutputFields {
                             include_tag: true,
                             include_sequence: true,

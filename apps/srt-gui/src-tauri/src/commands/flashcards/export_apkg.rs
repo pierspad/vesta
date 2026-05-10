@@ -7,6 +7,48 @@ use super::types::*;
 
 // ─── APKG Generation ─────────────────────────────────────────────────────────
 
+fn clean_field_name(value: &str, fallback: &str) -> String {
+    let trimmed = value.trim();
+    if trimmed.is_empty() {
+        fallback.to_string()
+    } else {
+        trimmed.to_string()
+    }
+}
+
+fn push_model_field(field_defs: &mut Vec<String>, ord: &mut i32, name: &str) {
+    let json_name = serde_json::to_string(name).unwrap_or_else(|_| "\"Field\"".to_string());
+    field_defs.push(format!(
+        r#"{{"name":{},"ord":{},"sticky":false,"rtl":false,"font":"Arial","size":20,"description":"","plainText":false,"collapsed":false,"excludeFromSearch":false}}"#,
+        json_name, ord
+    ));
+    *ord += 1;
+}
+
+fn anki_field_ref(name: &str) -> String {
+    format!("{{{{{}}}}}", name)
+}
+
+fn rewrite_template_field_tokens(template: &str, replacements: &[(&str, &str)]) -> String {
+    let mut output = template.to_string();
+
+    for (index, (canonical, _)) in replacements.iter().enumerate() {
+        output = output.replace(
+            &anki_field_ref(canonical),
+            &format!("__VESTA_FIELD_TOKEN_{index}__"),
+        );
+    }
+
+    for (index, (_, actual)) in replacements.iter().enumerate() {
+        output = output.replace(
+            &format!("__VESTA_FIELD_TOKEN_{index}__"),
+            &anki_field_ref(actual),
+        );
+    }
+
+    output
+}
+
 /// Generate an APKG file (Anki package) from matched lines.
 /// Builds the SQLite database (collection.anki2) and packages it into a ZIP
 /// along with media files. This approach mirrors the Anki internal format.
@@ -138,63 +180,45 @@ pub(crate) fn generate_apkg(
         );
 
         // Build model fields based on what the user selected
+        let field_names = config.field_names.clone().unwrap_or_default();
+        let expression_name = clean_field_name(&field_names.expression, "Expression");
+        let meaning_name = clean_field_name(&field_names.meaning, "Meaning");
+        let reading_name = clean_field_name(&field_names.reading, "Reading");
+        let audio_name = clean_field_name(&field_names.audio, "Audio");
+        let snapshot_name = clean_field_name(&field_names.snapshot, "Snapshot");
+        let video_name = clean_field_name(&field_names.video, "Video");
+        let tags_name = clean_field_name(&field_names.tags, "Tags");
+        let sequence_name = clean_field_name(&field_names.sequence_marker, "SequenceMarker");
+        let notes_name = clean_field_name(&field_names.notes, "Notes");
+
         let mut field_defs = Vec::new();
         let mut ord = 0;
 
         if config.output_fields.include_subs1 {
-            field_defs.push(format!(
-                r#"{{"name":"Expression","ord":{},"sticky":false,"rtl":false,"font":"Arial","size":20,"description":"","plainText":false,"collapsed":false,"excludeFromSearch":false}}"#,
-                ord
-            ));
-            ord += 1;
+            push_model_field(&mut field_defs, &mut ord, &expression_name);
         }
         if config.output_fields.include_subs2 {
-            field_defs.push(format!(
-                r#"{{"name":"Meaning","ord":{},"sticky":false,"rtl":false,"font":"Arial","size":20,"description":"","plainText":false,"collapsed":false,"excludeFromSearch":false}}"#,
-                ord
-            ));
-            ord += 1;
+            push_model_field(&mut field_defs, &mut ord, &meaning_name);
         }
         if config.output_fields.include_audio {
-            field_defs.push(format!(
-                r#"{{"name":"Audio","ord":{},"sticky":false,"rtl":false,"font":"Arial","size":20,"description":"","plainText":false,"collapsed":false,"excludeFromSearch":false}}"#,
-                ord
-            ));
-            ord += 1;
+            push_model_field(&mut field_defs, &mut ord, &audio_name);
         }
         if config.output_fields.include_snapshot {
-            field_defs.push(format!(
-                r#"{{"name":"Snapshot","ord":{},"sticky":false,"rtl":false,"font":"Arial","size":20,"description":"","plainText":false,"collapsed":false,"excludeFromSearch":false}}"#,
-                ord
-            ));
-            ord += 1;
+            push_model_field(&mut field_defs, &mut ord, &snapshot_name);
         }
         if config.output_fields.include_video {
-            field_defs.push(format!(
-                r#"{{"name":"Video","ord":{},"sticky":false,"rtl":false,"font":"Arial","size":20,"description":"","plainText":false,"collapsed":false,"excludeFromSearch":false}}"#,
-                ord
-            ));
-            ord += 1;
+            push_model_field(&mut field_defs, &mut ord, &video_name);
         }
         if config.output_fields.include_tag {
-            field_defs.push(format!(
-                r#"{{"name":"Tag","ord":{},"sticky":false,"rtl":false,"font":"Arial","size":20,"description":"","plainText":false,"collapsed":false,"excludeFromSearch":false}}"#,
-                ord
-            ));
-            ord += 1;
+            push_model_field(&mut field_defs, &mut ord, &tags_name);
         }
         if config.output_fields.include_sequence {
-            field_defs.push(format!(
-                r#"{{"name":"SequenceMarker","ord":{},"sticky":false,"rtl":false,"font":"Arial","size":20,"description":"","plainText":false,"collapsed":false,"excludeFromSearch":false}}"#,
-                ord
-            ));
-            ord += 1;
+            push_model_field(&mut field_defs, &mut ord, &sequence_name);
         }
         // Reading field (always included, user fills manually)
-        field_defs.push(format!(
-            r#"{{"name":"Reading","ord":{},"sticky":false,"rtl":false,"font":"Arial","size":20,"description":"","plainText":false,"collapsed":false,"excludeFromSearch":false}}"#,
-            ord
-        ));
+        push_model_field(&mut field_defs, &mut ord, &reading_name);
+        // Notes field is reserved as an empty manual field for future annotations.
+        push_model_field(&mut field_defs, &mut ord, &notes_name);
         let _ = ord;
 
         // If no fields, add defaults
@@ -204,34 +228,60 @@ pub(crate) fn generate_apkg(
         }
 
         // Use custom templates if provided, otherwise use defaults
-        let qfmt = config
-            .card_front_html
-            .as_deref()
-            .unwrap_or(ANKI_FRONT_TEMPLATE);
-        let afmt = config
-            .card_back_html
-            .as_deref()
-            .unwrap_or(ANKI_BACK_TEMPLATE);
+        let template_replacements = [
+            ("Expression", expression_name.as_str()),
+            ("Meaning", meaning_name.as_str()),
+            ("Reading", reading_name.as_str()),
+            ("Audio", audio_name.as_str()),
+            ("Snapshot", snapshot_name.as_str()),
+            ("Video", video_name.as_str()),
+            ("Tags", tags_name.as_str()),
+            ("Tag", tags_name.as_str()),
+            ("SequenceMarker", sequence_name.as_str()),
+            ("Notes", notes_name.as_str()),
+        ];
+
+        let qfmt = rewrite_template_field_tokens(
+            config
+                .card_front_html
+                .as_deref()
+                .unwrap_or(ANKI_FRONT_TEMPLATE),
+            &template_replacements,
+        );
+        let afmt = rewrite_template_field_tokens(
+            config
+                .card_back_html
+                .as_deref()
+                .unwrap_or(ANKI_BACK_TEMPLATE),
+            &template_replacements,
+        );
         let css = config.card_css.as_deref().unwrap_or(ANKI_CARD_STYLING);
 
         let note_type_name = config.note_type_name.as_deref().unwrap_or("subs2srs");
+        let note_type_json =
+            serde_json::to_string(note_type_name).unwrap_or_else(|_| "\"subs2srs\"".to_string());
+        let qfmt_json = serde_json::to_string(&qfmt).unwrap_or_else(|_| "\"\"".to_string());
+        let afmt_json = serde_json::to_string(&afmt).unwrap_or_else(|_| "\"\"".to_string());
+        let css_json = serde_json::to_string(css).unwrap_or_else(|_| "\"\"".to_string());
 
         let models_json = format!(
-            r#"{{"{mid}":{{"id":{mid},"name":"{note_type}","type":0,"mod":{ts},"usn":-1,"sortf":0,"did":{did},"tmpls":[{{"name":"Card 1","ord":0,"qfmt":"{qfmt}","afmt":"{afmt}","did":null,"bqfmt":"","bafmt":""}}],"flds":[{flds}],"css":"{css}","latexPre":"\\\\documentclass[12pt]{{article}}\\\\special{{papersize=3in,5in}}\\\\usepackage[utf8]{{inputenc}}\\\\usepackage{{amssymb,amsmath}}\\\\pagestyle{{empty}}\\\\setlength{{\\\\parindent}}{{0in}}\\\\begin{{document}}\\n","latexPost":"\\\\end{{document}}","latexsvg":false,"req":[[0,"all",[0]]]}}}}"#,
+            r#"{{"{mid}":{{"id":{mid},"name":{note_type},"type":0,"mod":{ts},"usn":-1,"sortf":0,"did":{did},"tmpls":[{{"name":"Card 1","ord":0,"qfmt":{qfmt},"afmt":{afmt},"did":null,"bqfmt":"","bafmt":""}}],"flds":[{flds}],"css":{css},"latexPre":"\\\\documentclass[12pt]{{article}}\\\\special{{papersize=3in,5in}}\\\\usepackage[utf8]{{inputenc}}\\\\usepackage{{amssymb,amsmath}}\\\\pagestyle{{empty}}\\\\setlength{{\\\\parindent}}{{0in}}\\\\begin{{document}}\\n","latexPost":"\\\\end{{document}}","latexsvg":false,"req":[[0,"all",[0]]]}}}}"#,
             mid = model_id,
-            note_type = note_type_name.replace('"', r#"\""#),
+            note_type = note_type_json,
             ts = timestamp,
             did = deck_id,
-            qfmt = qfmt.replace('"', r#"\""#).replace('\n', "\\n"),
-            afmt = afmt.replace('"', r#"\""#).replace('\n', "\\n"),
+            qfmt = qfmt_json,
+            afmt = afmt_json,
             flds = field_defs.join(","),
-            css = css.replace('"', r#"\""#).replace('\n', "\\n"),
+            css = css_json,
         );
 
+        let deck_name_json =
+            serde_json::to_string(&config.deck_name).unwrap_or_else(|_| "\"Vesta\"".to_string());
         let decks_json = format!(
-            r#"{{"{did}":{{"id":{did},"name":"{name}","mod":{ts},"usn":-1,"lrnToday":[0,0],"revToday":[0,0],"newToday":[0,0],"timeToday":[0,0],"collapsed":false,"browserCollapsed":false,"desc":"","dyn":0,"conf":1,"extendNew":10,"extendRev":50}}}}"#,
+            r#"{{"{did}":{{"id":{did},"name":{name},"mod":{ts},"usn":-1,"lrnToday":[0,0],"revToday":[0,0],"newToday":[0,0],"timeToday":[0,0],"collapsed":false,"browserCollapsed":false,"desc":"","dyn":0,"conf":1,"extendNew":10,"extendRev":50}}}}"#,
             did = deck_id,
-            name = config.deck_name.replace('"', r#"\""#),
+            name = deck_name_json,
             ts = timestamp,
         );
 
@@ -341,6 +391,9 @@ pub(crate) fn generate_apkg(
             }
 
             // Reading (empty — user fills manually in Anki)
+            fields.push(String::new());
+
+            // Notes (empty — reserved for user annotations in Anki)
             fields.push(String::new());
 
             let flds = fields.join("\x1f");
