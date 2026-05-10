@@ -1,13 +1,13 @@
 <script lang="ts">
   import { invoke } from '@tauri-apps/api/core';
-  import { guardedOpen, guardedSave } from './dialogGuard';
-  import PathPreviewModal from './PathPreviewModal.svelte';
-  import { readTextFile, writeTextFile } from '@tauri-apps/plugin-fs';
-  import { t } from './i18n';
   import { listen } from '@tauri-apps/api/event';
-  import { onMount, onDestroy } from 'svelte';
-  import { languages } from './models';
+  import { readTextFile, writeTextFile } from '@tauri-apps/plugin-fs';
+  import { onDestroy, onMount } from 'svelte';
+  import { guardedOpen, guardedSave } from './dialogGuard';
+  import { t } from './i18n';
   import InfoButton from './InfoButton.svelte';
+  import { languages } from './models';
+  import PathPreviewModal from './PathPreviewModal.svelte';
 
   interface Subtitle {
     id: number;
@@ -488,30 +488,30 @@
     <div class="flex flex-col gap-2 relative z-10 min-w-0">
       <div class="text-sm font-semibold text-gray-300 flex items-center gap-2">
         {#if targetFlag}<span class="text-lg">{targetFlag}</span>{/if}
-        Original / base SRT
+        {t("align.baseSrt")}
       </div>
       <div class="flex gap-2 min-w-0">
         <button onclick={selectTarget} class="btn-primary whitespace-nowrap px-4 py-2 shrink-0 flex items-center gap-2 shadow-lg shadow-teal-500/15">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7a2 2 0 012-2h5l2 2h7a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" /></svg>
-          Open SRT
+          {t("align.openSrt")}
         </button>
         <button 
           type="button"
           onclick={() => expandedPathField = "target"}
           class="input-modern flex-1 text-sm text-left cursor-pointer hover:bg-white/10 transition-colors truncate min-w-0"
           style="direction: rtl; text-align: left;"
-          title={targetPath || "Drag & drop SRT here..."}
+          title={targetPath || t("align.dragDropSrt")}
         >
           <span
             class={targetPath ? "text-white" : "text-gray-500"}
             style="unicode-bidi: plaintext;"
           >
-            {targetPath || "Drag & drop SRT here..."}
+            {targetPath || t("align.dragDropSrt")}
           </span>
         </button>
       </div>
       {#if targetSubs.length > 0}
-        <div class="text-xs text-gray-400">{targetSubs.length} subtitles loaded</div>
+        <div class="text-xs text-gray-400">{t("align.subtitlesLoaded", { count: targetSubs.length })}</div>
       {/if}
     </div>
 
@@ -521,7 +521,7 @@
         onclick={swapFiles}
         disabled={!targetPath || !sourcePath}
         class="p-2.5 rounded-full border transition-colors group {(!targetPath || !sourcePath) ? 'bg-gray-900/40 text-gray-600 border-gray-800 cursor-not-allowed' : 'bg-gray-900/70 hover:bg-teal-500/20 text-gray-400 hover:text-teal-300 border-gray-700 hover:border-teal-500/50'}"
-        title="Swap file order"
+        title={t("align.swapFiles")}
       >
         <svg class="w-6 h-6 {!targetPath || !sourcePath ? '' : 'group-hover:rotate-180'} transition-transform duration-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
@@ -533,7 +533,7 @@
     <div class="flex flex-col gap-2 relative z-10 min-w-0">
       <div class="text-sm font-semibold text-gray-300 flex items-center gap-2">
         {#if sourceFlag}<span class="text-lg">{sourceFlag}</span>{/if}
-        Translation / review SRT
+        {t("align.translationSrt")}
       </div>
       <div class="flex gap-2 min-w-0">
         <button 
@@ -542,7 +542,7 @@
           class="whitespace-nowrap px-4 py-2 shrink-0 flex items-center gap-2 rounded-lg border transition-all font-semibold {!targetPath ? 'bg-white/5 text-gray-600 border-transparent cursor-not-allowed' : 'bg-indigo-500/20 text-indigo-200 border-indigo-500/30 hover:bg-indigo-500/30 hover:border-indigo-400/50 shadow-lg shadow-indigo-500/10'}"
         >
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7a2 2 0 012-2h5l2 2h7a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" /></svg>
-          Open SRT
+          {t("align.openSrt")}
         </button>
         <button 
           type="button"
@@ -550,18 +550,18 @@
           onclick={() => targetPath && (expandedPathField = "source")}
           class="input-modern flex-1 text-sm text-left truncate min-w-0 {!targetPath ? 'opacity-50 cursor-not-allowed bg-transparent' : 'cursor-pointer hover:bg-white/10 transition-colors'}"
           style="direction: rtl; text-align: left;"
-          title={sourcePath || "Drag & drop SRT here..."}
+          title={sourcePath || t("align.dragDropSrt")}
         >
           <span
             class={sourcePath ? "text-white" : "text-gray-500"}
             style="unicode-bidi: plaintext;"
           >
-            {sourcePath || "Drag & drop SRT here..."}
+            {sourcePath || t("align.dragDropSrt")}
           </span>
         </button>
       </div>
       {#if sourceSubs.length > 0}
-        <div class="text-xs text-gray-400">{sourceSubs.length} subtitles loaded</div>
+        <div class="text-xs text-gray-400">{t("align.subtitlesLoaded", { count: sourceSubs.length })}</div>
       {/if}
     </div>
     </div>
@@ -575,15 +575,15 @@
         <svg class="w-20 h-20 mb-6 opacity-20 text-teal-500 bg-teal-500/5 p-4 rounded-full" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
         </svg>
-        <p class="text-lg font-medium text-gray-400">Load some SRT files to start aligning.</p>
-        <p class="text-sm mt-2 text-gray-600">You can drag and drop files anywhere on this window.</p>
+        <p class="text-lg font-medium text-gray-400">{t("align.loadPrompt")}</p>
+        <p class="text-sm mt-2 text-gray-600">{t("align.dragDropAnywhere")}</p>
         </div>
       {:else}
         <!-- Pagination Top -->
         <div class="flex flex-col xl:flex-row xl:items-center xl:justify-between mb-4 gap-3 shrink-0">
         <div class="flex items-center gap-2 flex-wrap">
           <div class="min-w-[10.5rem] text-sm text-gray-400 font-medium bg-gray-800/80 px-3 py-1.5 rounded-md tabular-nums">
-             Page <span class="inline-block min-w-[4ch] text-center text-white mx-1">{currentPage + 1}</span> of <span class="inline-block min-w-[4ch] text-center text-white mx-1">{totalPages || 1}</span>
+             {t("align.page")} <span class="inline-block min-w-[4ch] text-center text-white mx-1">{currentPage + 1}</span> {t("align.of")} <span class="inline-block min-w-[4ch] text-center text-white mx-1">{totalPages || 1}</span>
           </div>
           <div class="w-px h-6 bg-gray-700 mx-1"></div>
           <div class="flex items-center gap-1 bg-gray-800/50 px-1 py-1 rounded-md border border-gray-700">
@@ -593,7 +593,7 @@
                 class="min-w-8 rounded px-2 py-0.5 text-xs font-medium transition-colors {itemsPerPage === option
                   ? 'bg-teal-500/20 text-teal-200'
                   : 'text-gray-400 hover:bg-white/10 hover:text-gray-200'}"
-                title="{option} subtitles per page"
+                title={t("align.subsPerPage", { count: option })}
               >
                 {option}
               </button>
@@ -601,33 +601,33 @@
           </div>
         </div>
         <div class="flex gap-1.5 flex-wrap xl:justify-end">
-          <button onclick={jumpStart} disabled={currentPage === 0} class="btn-secondary px-3 py-1.5 disabled:opacity-50 flex items-center" title="Go to Start">
+          <button onclick={jumpStart} disabled={currentPage === 0} class="btn-secondary px-3 py-1.5 disabled:opacity-50 flex items-center" title={t("align.goToStart")}>
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7" /></svg>
           </button>
           <!-- Jump to Prev Empty (orange glow) -->
-          <button onclick={jumpToPrevEmpty} disabled={!hasEmptyBackward} class="btn-secondary px-3 py-1.5 disabled:opacity-30 flex items-center empty-jump-btn" title="Jump to previous empty subtitle">
+          <button onclick={jumpToPrevEmpty} disabled={!hasEmptyBackward} class="btn-secondary px-3 py-1.5 disabled:opacity-30 flex items-center empty-jump-btn" title={t("align.prevEmpty")}>
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 19l-7-7 7-7M22 19l-7-7 7-7" /></svg>
           </button>
           <button onclick={prevPage} disabled={currentPage === 0} class="btn-secondary px-4 py-1.5 disabled:opacity-50 flex items-center">
             <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
-            Prev
+            {t("align.prev")}
           </button>
           <button onclick={nextPage} disabled={currentPage >= totalPages - 1} class="btn-secondary px-4 py-1.5 disabled:opacity-50 flex items-center">
-            Next
+            {t("align.next")}
             <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
           </button>
           <!-- Jump to Next Empty (orange glow) -->
-          <button onclick={jumpToNextEmpty} disabled={!hasEmptyForward} class="btn-secondary px-3 py-1.5 disabled:opacity-30 flex items-center empty-jump-btn" title="Jump to next empty subtitle">
+          <button onclick={jumpToNextEmpty} disabled={!hasEmptyForward} class="btn-secondary px-3 py-1.5 disabled:opacity-30 flex items-center empty-jump-btn" title={t("align.nextEmpty")}>
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M2 5l7 7-7 7" /></svg>
           </button>
-          <button onclick={jumpEnd} disabled={currentPage >= totalPages - 1} class="btn-secondary px-3 py-1.5 disabled:opacity-50 flex items-center" title="Go to End">
+          <button onclick={jumpEnd} disabled={currentPage >= totalPages - 1} class="btn-secondary px-3 py-1.5 disabled:opacity-50 flex items-center" title={t("align.goToEnd")}>
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7" /></svg>
           </button>
           <div class="w-px h-6 bg-gray-700 mx-1"></div>
           <button onclick={saveSource} class="btn-primary px-6 py-1.5 flex items-center gap-2 shadow-lg shadow-teal-500/20" disabled={sourceSubs.length === 0}>
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" /></svg>
             {#if sourceFlag}<span class="text-base">{sourceFlag}</span>{/if}
-            Save Result
+            {t("align.saveResult")}
           </button>
         </div>
         </div>
@@ -661,7 +661,7 @@
               {:else}
                 <div class="h-full min-h-[125px] flex flex-col items-center justify-center text-gray-600 text-sm">
                   <svg class="w-6 h-6 mb-2 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4" /></svg>
-                  <span>No Subtitle</span>
+                  <span>{t("align.noSubtitle")}</span>
                 </div>
               {/if}
             </div>
@@ -683,12 +683,12 @@
                   class="flex-1 w-full bg-transparent p-3 text-[15px] leading-relaxed text-indigo-100 resize-none min-h-[90px] focus:outline-none placeholder-indigo-900/50 min-w-0"
                   bind:value={sourceSubs[item.index].text}
                   oninput={scheduleUndo}
-                  placeholder="Type subtitle here..."
+                  placeholder={t("align.typeSubtitle")}
                 ></textarea>
               {:else}
                 <div class="h-full min-h-[125px] flex flex-col items-center justify-center text-indigo-900/40 text-sm">
                   <svg class="w-6 h-6 mb-2 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4" /></svg>
-                  <span>No Subtitle</span>
+                  <span>{t("align.noSubtitle")}</span>
                 </div>
               {/if}
             </div>
