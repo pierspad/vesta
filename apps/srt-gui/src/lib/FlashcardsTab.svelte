@@ -3,7 +3,7 @@
   import { listen } from "@tauri-apps/api/event";
   import { getCurrentWebview } from "@tauri-apps/api/webview";
   import { guardedOpen } from "./dialogGuard";
-  import { onDestroy, onMount, tick } from "svelte";
+  import { onDestroy, onMount } from "svelte";
   import { locale } from "./i18n";
   import {
     CARD_TEMPLATES_UPDATED_EVENT,
@@ -11,6 +11,7 @@
     getLanguageSearchTerms,
     languages,
     loadCardTemplates,
+    loadFieldNames,
     scoreLanguageMatch,
   } from "./models";
   import PathPreviewModal from "./PathPreviewModal.svelte";
@@ -18,6 +19,8 @@
   import LogPanel, { type LogEntry } from "./LogPanel.svelte";
   import InfoModal from "./InfoModal.svelte";
   import InfoButton from "./InfoButton.svelte";
+  import CodeEditor from "./CodeEditor.svelte";
+  import Snackbar from "./Snackbar.svelte";
   import { flashcardsSections } from "./info";
 
   const SUBTITLE_EXTENSIONS = ["srt", "ass", "ssa", "vtt"];
@@ -56,6 +59,7 @@
   const DEFAULT_NATIVE_LANGUAGE_KEY = "vesta-default-native-language";
   const DEFAULT_TARGET_LANGUAGE_KEY = "vesta-default-target-language";
   const SERIES_MODE_KEY = "vesta-flashcards-series-mode";
+  const SMART_MATCHING_RULES_KEY = "vesta-flashcards-smart-matching-rules";
   const ANKI_FIELDS_PANEL_OPEN_KEY = "vesta-flashcards-anki-fields-panel-open";
   const FLASHCARD_MEDIA_WIDTH_KEY = "vesta-flashcards-media-width";
   const FLASHCARD_MEDIA_HEIGHT_KEY = "vesta-flashcards-media-height";
@@ -63,6 +67,245 @@
   const DEFAULT_FLASHCARD_MEDIA_HEIGHT = 160;
 
   let smartFileMatchingEnabled = $state(true);
+
+  interface SmartMatchingRules {
+    episodeRegexes: string[];
+    originalSubtitleHints: string[];
+    referenceSubtitleHints: string[];
+    removableNameTokens: string[];
+  }
+
+  const DEFAULT_SMART_MATCHING_RULES: SmartMatchingRules = {
+    episodeRegexes: [
+      "[Ss]\\d{1,2}[Ee](\\d{1,4})",
+      "[Pp]art(?:e)?[\\s_\\-.]?(\\d{1,4})",
+      "[Ee][Pp]?\\.?\\s*(\\d{1,4})",
+      "[Ee]pisode\\.?\\s*(\\d{1,4})",
+      "[Xx](\\d{1,4})",
+      "[\\s_\\-.](\\d{1,4})[\\s_\\-.]",
+      "^(\\d{1,4})[\\s_\\-.]",
+      "[\\s_\\-.](\\d{1,4})$",
+    ],
+    originalSubtitleHints: ["native", "original", "orig", "source"],
+    referenceSubtitleHints: [
+      "translated",
+      "translation",
+      "tradotto",
+      "traduzione",
+      "reference",
+      "ref",
+    ],
+    removableNameTokens: [
+      "720p",
+      "1080p",
+      "2160p",
+      "4k",
+      "bluray",
+      "brrip",
+      "webrip",
+      "web-dl",
+      "webdl",
+      "hdtv",
+      "dvdrip",
+      "x264",
+      "x265",
+      "h264",
+      "h265",
+      "aac",
+      "dts",
+    ],
+  };
+
+  function normalizeSmartMatchingRules(value: unknown): SmartMatchingRules {
+    const fallback = DEFAULT_SMART_MATCHING_RULES;
+    const obj = value && typeof value === "object" ? value as Partial<SmartMatchingRules> : {};
+    const cleanStringArray = (items: unknown, fallbackItems: string[]) =>
+      Array.isArray(items)
+        ? items.filter((item): item is string => typeof item === "string" && item.trim().length > 0)
+        : fallbackItems;
+
+    return {
+      episodeRegexes: cleanStringArray(obj.episodeRegexes, fallback.episodeRegexes),
+      originalSubtitleHints: cleanStringArray(obj.originalSubtitleHints, fallback.originalSubtitleHints),
+      referenceSubtitleHints: cleanStringArray(obj.referenceSubtitleHints, fallback.referenceSubtitleHints),
+      removableNameTokens: cleanStringArray(obj.removableNameTokens, fallback.removableNameTokens),
+    };
+  }
+
+  function loadSmartMatchingRules(): SmartMatchingRules {
+    try {
+      const saved = localStorage.getItem(SMART_MATCHING_RULES_KEY);
+      return saved
+        ? normalizeSmartMatchingRules(JSON.parse(stripJsonComments(saved)))
+        : normalizeSmartMatchingRules(DEFAULT_SMART_MATCHING_RULES);
+    } catch {
+      return normalizeSmartMatchingRules(DEFAULT_SMART_MATCHING_RULES);
+    }
+  }
+
+  function parseSmartMatchingRulesDraft(): SmartMatchingRules {
+    const parsed = normalizeSmartMatchingRules(JSON.parse(stripJsonComments(smartMatchingRulesDraft)));
+    parsed.episodeRegexes.forEach((pattern) => new RegExp(pattern, "i"));
+    return parsed;
+  }
+
+  function getSmartMatchingRulesDraftError(): string | null {
+    try {
+      parseSmartMatchingRulesDraft();
+      return null;
+    } catch (e) {
+      return `${t("flashcards.smartMatchingInvalid")}: ${e}`;
+    }
+  }
+
+  function formatJsonArray(items: string[], indent = 2): string {
+    const spaces = " ".repeat(indent);
+    return items
+      .map((item) => `${spaces}${JSON.stringify(item)}`)
+      .join(",\n");
+  }
+
+  function formatSmartMatchingRules(rules: SmartMatchingRules): string {
+    const episodeRegexDescriptions = [
+      "S01E02 / S1E2 -> captures 02 or 2",
+      "Part 02 / Parte 02 -> captures 02",
+      "Ep. 02 / E02 -> captures 02",
+      "Episode 02 -> captures 02",
+      "x02 -> captures 02, useful for names like Show x02",
+      "Episode number between separators: space, underscore, hyphen, or dot",
+      "Episode number at the beginning of the filename",
+      "Episode number at the end of the filename",
+    ];
+    const episodeRegexes = rules.episodeRegexes
+      .map((pattern, index) => {
+        const description =
+          episodeRegexDescriptions[index] || "Custom pattern: it must capture the episode number";
+        return `    // ${description}\n    ${JSON.stringify(pattern)}`;
+      })
+      .join(",\n");
+
+    return `{
+  // episodeRegexes: regexes tested from top to bottom on the filename.
+  // The first capture group (\\d...) must be the episode number to match.
+  "episodeRegexes": [
+${episodeRegexes}
+  ],
+
+  // originalSubtitleHints: words that mark a subtitle file as the original track.
+  "originalSubtitleHints": [
+${formatJsonArray(rules.originalSubtitleHints, 4)}
+  ],
+
+  // referenceSubtitleHints: words that mark a subtitle file as the reference translation.
+  "referenceSubtitleHints": [
+${formatJsonArray(rules.referenceSubtitleHints, 4)}
+  ],
+
+  // removableNameTokens: technical tokens removed before comparing series/episode names.
+  "removableNameTokens": [
+${formatJsonArray(rules.removableNameTokens, 4)}
+  ]
+}`;
+  }
+
+  function stripJsonComments(value: string): string {
+    let output = "";
+    let inString = false;
+    let inLineComment = false;
+    let inBlockComment = false;
+    let escaped = false;
+
+    for (let i = 0; i < value.length; i += 1) {
+      const char = value[i];
+      const next = value[i + 1];
+
+      if (inLineComment) {
+        if (char === "\n") {
+          inLineComment = false;
+          output += char;
+        }
+        continue;
+      }
+
+      if (inBlockComment) {
+        if (char === "*" && next === "/") {
+          inBlockComment = false;
+          i += 1;
+        } else if (char === "\n") {
+          output += "\n";
+        }
+        continue;
+      }
+
+      if (!inString && char === "/" && next === "/") {
+        inLineComment = true;
+        i += 1;
+        continue;
+      }
+
+      if (!inString && char === "/" && next === "*") {
+        inBlockComment = true;
+        i += 1;
+        continue;
+      }
+
+      output += char;
+
+      if (char === '"' && !escaped) {
+        inString = !inString;
+      }
+
+      escaped = inString && char === "\\" && !escaped;
+      if (char !== "\\") escaped = false;
+    }
+
+    return output;
+  }
+
+  function escapeRegExp(value: string): string {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  }
+
+  let smartMatchingRules = $state<SmartMatchingRules>(loadSmartMatchingRules());
+  let showSmartMatchingDialog = $state(false);
+  let smartMatchingRulesDraft = $state("");
+  let smartMatchingRulesError = $state<string | null>(null);
+  let episodeContextMenu = $state<{ x: number; y: number; idx: number } | null>(null);
+
+  function openSmartMatchingDialog() {
+    smartMatchingRulesDraft = formatSmartMatchingRules(smartMatchingRules);
+    smartMatchingRulesError = null;
+    showSmartMatchingDialog = true;
+  }
+
+  function closeSmartMatchingDialog() {
+    showSmartMatchingDialog = false;
+    smartMatchingRulesError = null;
+  }
+
+  function saveSmartMatchingRules() {
+    try {
+      const parsed = parseSmartMatchingRulesDraft();
+      smartMatchingRules = parsed;
+      localStorage.setItem(SMART_MATCHING_RULES_KEY, formatSmartMatchingRules(parsed));
+      closeSmartMatchingDialog();
+    } catch (e) {
+      smartMatchingRulesError = `${t("flashcards.smartMatchingInvalid")}: ${e}`;
+    }
+  }
+
+  function resetSmartMatchingRules() {
+    if (!window.confirm(t("flashcards.smartMatchingResetConfirm"))) return;
+    smartMatchingRules = normalizeSmartMatchingRules(DEFAULT_SMART_MATCHING_RULES);
+    smartMatchingRulesDraft = formatSmartMatchingRules(smartMatchingRules);
+    localStorage.removeItem(SMART_MATCHING_RULES_KEY);
+    smartMatchingRulesError = null;
+  }
+
+  function copySmartMatchingRules() {
+    navigator.clipboard.writeText(smartMatchingRulesDraft);
+    showSnackbar(t("flashcards.copiedSmartMatching"), "success");
+  }
 
   // ─── Series Mode State ───────────────────────────────────────────────────
   let seriesMode = $state(loadSeriesMode());
@@ -81,12 +324,33 @@
   }
 
   // Episode data for series mode
+  interface EpisodeMediaOverrides {
+    generateAudio?: boolean;
+    audioBitrate?: number;
+    audioTrackIndex?: number | null;
+    normalizeAudio?: boolean;
+    audioPadStart?: number;
+    audioPadEnd?: number;
+    generateSnapshots?: boolean;
+    snapshotWidth?: number;
+    snapshotHeight?: number;
+    cropBottom?: number;
+    generateVideoClips?: boolean;
+    videoCodec?: string;
+    h264Preset?: string;
+    videoBitrate?: number;
+    videoAudioBitrate?: number;
+    videoPadStart?: number;
+    videoPadEnd?: number;
+  }
+
   interface EpisodeEntry {
     id: number;
     targetSubsPath: string;
     nativeSubsPath: string;
     mediaPath: string;
     mediaType: "none" | "video" | "audio";
+    mediaOverrides?: EpisodeMediaOverrides;
   }
 
   type EpisodeFileField = "targetSubsPath" | "nativeSubsPath" | "mediaPath";
@@ -108,42 +372,57 @@
   let seriesTotalEpisodes = $state(0);
   let editingEpisodeIndex = $state<number | null>(null);
   let editingEpisode = $state<EpisodeEntry | null>(null);
+  let editingMediaEpisodeIndex = $state<number | null>(null);
+  let editingMediaEpisode = $state<EpisodeEntry | null>(null);
+  let editingMediaOverrides = $state<Required<EpisodeMediaOverrides> | null>(null);
+  let editingMediaTab = $state<"audio" | "snapshot" | "video">("audio");
+  let episodeAudioTracks = $state<AudioTrackInfo[]>([]);
+  let episodeAudioTracksLoading = $state(false);
+  let initialEditingMediaOverridesStr = $state("");
+  let initialEditingEpisodeStr = $state("");
+  let snackbarMessage = $state<string | null>(null);
+  let snackbarTimeout = $state<ReturnType<typeof setTimeout> | null>(null);
+  let snackbarKey = $state(0);
 
-  // Extract episode number from filename using common patterns
+  let snackbarVariant = $state<"success" | "info" | "warning" | "error">("info");
+
+  function showSnackbar(message: string, variant: "success" | "info" | "warning" | "error" = "info") {
+    if (snackbarTimeout) clearTimeout(snackbarTimeout);
+    snackbarKey += 1;
+    snackbarMessage = message;
+    snackbarVariant = variant;
+    snackbarTimeout = setTimeout(() => {
+      snackbarMessage = null;
+    }, 1300);
+  }
+
+  // Extract episode number from filename using the editable smart matching patterns.
   function extractEpisodeNumber(filename: string): number | null {
     const base = filename.replace(/\.[^/.]+$/, "");
-    // Match patterns: S01E03, E03, Ep03, Episode 03, x03, - 03, _03
-    const patterns = [
-      /[Ss]\d{1,2}[Ee](\d{1,4})/,
-      /[Ee][Pp]?\.?\s*(\d{1,4})/i,
-      /[Ee]pisode\.?\s*(\d{1,4})/i,
-      /[Xx](\d{1,4})/,
-      /[\s_\-\.](\d{1,4})[\s_\-\.]/,
-      /^(\d{1,4})[\s_\-\.]/,
-      /[\s_\-\.](\d{1,4})$/,
-    ];
-    for (const pat of patterns) {
-      const m = base.match(pat);
-      if (m) return parseInt(m[1], 10);
+    for (const pattern of smartMatchingRules.episodeRegexes) {
+      try {
+        const match = base.match(new RegExp(pattern, "i"));
+        const rawEpisode = match?.[1] ?? match?.[0];
+        const numericEpisode = rawEpisode?.match(/\d{1,4}/)?.[0];
+        if (numericEpisode) return parseInt(numericEpisode, 10);
+      } catch {
+        // Invalid custom regexes are blocked on save; ignore stale stored values defensively.
+      }
     }
     return null;
   }
 
-  const ORIGINAL_SUBTITLE_HINTS = [
-    "native",
-    "original",
-    "orig",
-    "source",
-  ];
-  const REFERENCE_SUBTITLE_HINTS = [
-    "translated",
-    "translation",
-    "tradotto",
-    "traduzione",
-    "reference",
-    "ref",
-  ];
   const KNOWN_LANGUAGE_CODES = new Set(languages.map((lang) => lang.code.toLowerCase()));
+
+  function delimitedHintRegex(hints: string[], flags = "i") {
+    if (hints.length === 0) return null;
+    return new RegExp(`(^|[._-])(${hints.map(escapeRegExp).join("|")})(?=($|[._-]))`, flags);
+  }
+
+  function removableTokenRegex(tokens: string[]) {
+    if (tokens.length === 0) return null;
+    return new RegExp(`\\b(?:${tokens.map(escapeRegExp).join("|")})\\b`, "gi");
+  }
 
   function loadDefaultLanguage(key: string, fallback = ""): string {
     try {
@@ -178,6 +457,110 @@
     );
   }
 
+  function getGenericMediaSettings(): Required<EpisodeMediaOverrides> {
+    return {
+      generateAudio,
+      audioBitrate,
+      audioTrackIndex: selectedAudioTrackIndex,
+      normalizeAudio,
+      audioPadStart,
+      audioPadEnd,
+      generateSnapshots,
+      snapshotWidth,
+      snapshotHeight,
+      cropBottom,
+      generateVideoClips,
+      videoCodec,
+      h264Preset,
+      videoBitrate,
+      videoAudioBitrate,
+      videoPadStart,
+      videoPadEnd,
+    };
+  }
+
+  function getEpisodeMediaSettings(ep: EpisodeEntry): Required<EpisodeMediaOverrides> {
+    return {
+      ...getGenericMediaSettings(),
+      ...(ep.mediaOverrides || {}),
+    };
+  }
+
+  function episodeHasMediaOverrides(ep: EpisodeEntry): boolean {
+    return Boolean(ep.mediaOverrides && Object.keys(ep.mediaOverrides).length > 0);
+  }
+
+  type EpisodeMediaOverrideKey = keyof EpisodeMediaOverrides;
+
+  const audioOverrideKeys: EpisodeMediaOverrideKey[] = [
+    "generateAudio",
+    "audioBitrate",
+    "audioTrackIndex",
+    "normalizeAudio",
+    "audioPadStart",
+    "audioPadEnd",
+  ];
+  const snapshotOverrideKeys: EpisodeMediaOverrideKey[] = [
+    "generateSnapshots",
+    "snapshotWidth",
+    "snapshotHeight",
+    "cropBottom",
+  ];
+  const videoOverrideKeys: EpisodeMediaOverrideKey[] = [
+    "generateVideoClips",
+    "videoCodec",
+    "h264Preset",
+    "videoBitrate",
+    "videoAudioBitrate",
+    "videoPadStart",
+    "videoPadEnd",
+  ];
+
+  function mediaOverrideValueChanged(key: EpisodeMediaOverrideKey): boolean {
+    if (!editingMediaOverrides) return false;
+    const genericSettings = getGenericMediaSettings();
+    
+    if (key === "audioTrackIndex" && editingMediaEpisode && genericSettings.audioTrackIndex === null) {
+      const autoPicked = pickBestAudioTrackIndex(
+        episodeAudioTracks,
+        getPreferredAudioLanguageCodeForEpisode(editingMediaEpisode)
+      );
+      if (editingMediaOverrides.audioTrackIndex === autoPicked) {
+        return false;
+      }
+    }
+
+    return editingMediaOverrides[key] !== genericSettings[key];
+  }
+
+  function mediaOverrideClass(key: EpisodeMediaOverrideKey): string {
+    return mediaOverrideValueChanged(key)
+      ? "media-override-glow"
+      : "";
+  }
+
+  function mediaOverrideGroupHasChanges(keys: EpisodeMediaOverrideKey[]): boolean {
+    return keys.some((key) => mediaOverrideValueChanged(key));
+  }
+
+  function buildEpisodeMediaOverrideDiff(settings: Required<EpisodeMediaOverrides>): EpisodeMediaOverrides {
+    const diff: EpisodeMediaOverrides = {};
+    ([
+      ...audioOverrideKeys,
+      ...snapshotOverrideKeys,
+      ...videoOverrideKeys,
+    ] as EpisodeMediaOverrideKey[]).forEach((key) => {
+      if (mediaOverrideValueChanged(key)) {
+        diff[key] = settings[key] as never;
+      }
+    });
+    return diff;
+  }
+
+  function getPreferredAudioLanguageCodeForEpisode(ep: EpisodeEntry): string {
+    return inferLanguageFromPath(ep.targetSubsPath) || noteTypeLanguage;
+  }
+
   interface ParsedSeriesSubtitle {
     path: string;
     name: string;
@@ -195,6 +578,7 @@
     mediaPath: string;
     mediaType: "none" | "video" | "audio";
     episodeNumber: number | null;
+    mediaOverrides?: EpisodeMediaOverrides;
   }
 
   function normalizeSeriesBaseKey(baseName: string): string {
@@ -202,19 +586,22 @@
     stem = stem.replace(/\([^)]*\b(?:19|20)\d{2}\b[^)]*\)/g, "");
     stem = stem.replace(/\[[^\]]*\b(?:19|20)\d{2}\b[^\]]*\]/g, "");
     stem = stem.replace(/\b(?:19|20)\d{2}\b/g, "");
-    stem = stem.replace(/\b(?:720p|1080p|2160p|4k|bluray|brrip|webrip|web-dl|webdl|hdtv|dvdrip|x264|x265|h264|h265|aac|dts)\b/g, "");
+    const tokenRegex = removableTokenRegex(smartMatchingRules.removableNameTokens);
+    if (tokenRegex) stem = stem.replace(tokenRegex, "");
     stem = stem.replace(/[\s]+/g, " ");
-    stem = stem.replace(/[._-](native|original|orig|source)(?=($|[._-]))/gi, "");
-    // Also strip reference/translation hints for consistent matching
-    stem = stem.replace(/[._-](translated|translation|tradotto|traduzione|reference|ref)(?=($|[._-]))/gi, "");
+    const roleHintRegex = delimitedHintRegex([
+      ...smartMatchingRules.originalSubtitleHints,
+      ...smartMatchingRules.referenceSubtitleHints,
+    ], "gi");
+    if (roleHintRegex) stem = stem.replace(roleHintRegex, "$1");
 
-    const suffixParts = stem.split(/[._-]+/).filter(Boolean);
-    if (suffixParts.length > 1) {
-      const lastPart = suffixParts[suffixParts.length - 1];
-      if (KNOWN_LANGUAGE_CODES.has(lastPart) || detectLanguageCode(lastPart)) {
-        suffixParts.pop();
-      }
-    }
+    const suffixParts = stem
+      .split(/[._-]+/)
+      .filter((part) => {
+        if (!part) return false;
+        if (KNOWN_LANGUAGE_CODES.has(part)) return false;
+        return !detectLanguageCode(part);
+      });
     // Normalize all separators to underscore for consistent matching
     stem = suffixParts.join("_");
 
@@ -234,13 +621,11 @@
     const baseName = name.replace(/\.[^/.]+$/, "");
     const normalized = baseName.toLowerCase();
     const language = inferLanguageFromPath(path);
-    const roleHint = ORIGINAL_SUBTITLE_HINTS.some((hint) =>
-      new RegExp(`(^|[._-])${hint}([._-]|$)`, "i").test(normalized),
-    )
+    const originalHintRegex = delimitedHintRegex(smartMatchingRules.originalSubtitleHints);
+    const referenceHintRegex = delimitedHintRegex(smartMatchingRules.referenceSubtitleHints);
+    const roleHint = originalHintRegex?.test(normalized)
       ? "original"
-      : REFERENCE_SUBTITLE_HINTS.some((hint) =>
-            new RegExp(`(^|[._-])${hint}([._-]|$)`, "i").test(normalized),
-          )
+      : referenceHintRegex?.test(normalized)
         ? "reference"
         : "unknown";
 
@@ -346,6 +731,7 @@
         nativeSubsPath: episode.nativeSubsPath,
         mediaPath: episode.mediaPath,
         mediaType: episode.mediaType,
+        mediaOverrides: episode.mediaOverrides,
         episodeNumber:
           extractEpisodeNumber(
             getFileName(
@@ -374,6 +760,7 @@
       nativeSubsPath: entry.nativeSubsPath,
       mediaPath: entry.mediaPath,
       mediaType: entry.mediaType,
+      mediaOverrides: entry.mediaOverrides,
     }));
   }
 
@@ -422,6 +809,22 @@
 
       if (preferredRole === "native" && paths.length === 1) {
         entry.nativeSubsPath = paths[0];
+      } else if (preferredRole === "auto" && paths.length === 1) {
+        const parsed = parsedGroup[0];
+        const studiedLanguage = getStudiedLanguagePreference();
+        const nativeLanguage = getNativeLanguagePreference();
+        const isStudiedSubtitle = Boolean(studiedLanguage && parsed?.language === studiedLanguage);
+        const isNativeSubtitle = Boolean(nativeLanguage && parsed?.language === nativeLanguage);
+
+        if (isNativeSubtitle && !isStudiedSubtitle) {
+          entry.nativeSubsPath = paths[0];
+        } else if (isStudiedSubtitle) {
+          entry.targetSubsPath = paths[0];
+        } else if (!entry.targetSubsPath) {
+          entry.targetSubsPath = paths[0];
+        } else {
+          entry.nativeSubsPath = paths[0];
+        }
       } else {
         if (classified.target) entry.targetSubsPath = classified.target;
         if (classified.native) entry.nativeSubsPath = classified.native;
@@ -687,21 +1090,79 @@
     episodes = episodes
       .filter((_, i) => i !== idx)
       .map((e, i) => ({ ...e, id: i + 1 }));
+    closeEpisodeContextMenu();
   }
 
   function openEpisodeEditor(idx: number) {
     const episode = episodes[idx];
     if (!episode) return;
+    closeEpisodeContextMenu();
     editingEpisodeIndex = idx;
     editingEpisode = { ...episode };
+    initialEditingEpisodeStr = JSON.stringify(episode);
+  }
+
+  function openEpisodeContextMenu(event: MouseEvent, idx: number) {
+    event.preventDefault();
+    episodeContextMenu = { x: event.clientX, y: event.clientY, idx };
+  }
+
+  function closeEpisodeContextMenu() {
+    episodeContextMenu = null;
+  }
+
+  async function openEpisodeMediaSettings(idx: number) {
+    const episode = episodes[idx];
+    if (!episode || !episode.mediaPath) return;
+
+    closeEpisodeContextMenu();
+    editingMediaEpisodeIndex = idx;
+    editingMediaEpisode = { ...episode };
+    editingMediaTab = "audio";
+    episodeAudioTracks = [];
+    episodeAudioTracksLoading = episode.mediaType === "video";
+    editingMediaOverrides = getEpisodeMediaSettings(episode);
+
+    if (episode.mediaType === "video") {
+      const tracks = await listAudioTracksForEpisode(episode);
+      episodeAudioTracks = tracks;
+      if (
+        editingMediaEpisodeIndex === idx &&
+        editingMediaOverrides &&
+        episode.mediaOverrides?.audioTrackIndex === undefined
+      ) {
+        editingMediaOverrides = {
+          ...editingMediaOverrides,
+          audioTrackIndex: pickBestAudioTrackIndex(
+            tracks,
+            getPreferredAudioLanguageCodeForEpisode(episode),
+          ),
+        };
+      }
+      episodeAudioTracksLoading = false;
+    }
+    
+    if (editingMediaOverrides) {
+      initialEditingMediaOverridesStr = JSON.stringify(editingMediaOverrides);
+    }
   }
 
   function closeEpisodeEditor() {
     editingEpisodeIndex = null;
     editingEpisode = null;
+    initialEditingEpisodeStr = "";
   }
 
-  function saveEpisodeEditor() {
+  function closeEpisodeMediaSettings() {
+    editingMediaEpisodeIndex = null;
+    editingMediaEpisode = null;
+    editingMediaOverrides = null;
+    episodeAudioTracks = [];
+    episodeAudioTracksLoading = false;
+    initialEditingMediaOverridesStr = "";
+  }
+
+  function syncEpisodeEditor() {
     if (editingEpisodeIndex === null || !editingEpisode) return;
     const updatedEpisode: EpisodeEntry = {
       id: editingEpisode.id,
@@ -711,6 +1172,7 @@
       mediaType: editingEpisode.mediaPath
         ? detectMediaType(getFileName(editingEpisode.mediaPath))
         : "none",
+      mediaOverrides: editingEpisode.mediaPath ? editingEpisode.mediaOverrides : undefined,
     };
     episodes = episodes.map((episode, idx) =>
       idx === editingEpisodeIndex
@@ -720,7 +1182,54 @@
           }
         : episode,
     );
+  }
+
+  function revertEpisodeEditor() {
+    if (editingEpisodeIndex !== null && initialEditingEpisodeStr) {
+      const restored = JSON.parse(initialEditingEpisodeStr);
+      episodes = episodes.map((ep, idx) =>
+        idx === editingEpisodeIndex ? restored : ep
+      );
+    }
     closeEpisodeEditor();
+  }
+
+  function updateEditingMediaOverride<K extends keyof EpisodeMediaOverrides>(
+    key: K,
+    value: EpisodeMediaOverrides[K],
+  ) {
+    if (!editingMediaOverrides) return;
+    editingMediaOverrides = {
+      ...editingMediaOverrides,
+      [key]: value,
+    };
+  }
+
+  function saveEpisodeMediaSettings() {
+    if (editingMediaEpisodeIndex === null || !editingMediaOverrides) return;
+    const mediaOverrides = buildEpisodeMediaOverrideDiff(editingMediaOverrides);
+    episodes = episodes.map((episode, idx) =>
+      idx === editingMediaEpisodeIndex
+        ? {
+            ...episode,
+            mediaOverrides: Object.keys(mediaOverrides).length > 0 ? mediaOverrides : undefined,
+          }
+        : episode,
+    );
+    closeEpisodeMediaSettings();
+  }
+
+  function resetEpisodeMediaSettings() {
+    if (editingMediaEpisodeIndex === null) return;
+    episodes = episodes.map((episode, idx) =>
+      idx === editingMediaEpisodeIndex
+        ? {
+            ...episode,
+            mediaOverrides: undefined,
+          }
+        : episode,
+    );
+    closeEpisodeMediaSettings();
   }
 
   async function selectEpisodeFile(field: EpisodeFileField) {
@@ -752,6 +1261,7 @@
             ? detectMediaType(getFileName(selected))
             : editingEpisode.mediaType,
       };
+      syncEpisodeEditor();
     } catch (e) {
       error = `${t("flashcards.errorSelectingFile")}: ${e}`;
     }
@@ -1146,10 +1656,13 @@
   function syncNoteTypeNameFromTemplates() {
     noteTypeName = loadCardTemplates().noteTypeName;
   }
+  let needsDeckName = $derived(
+    !seriesMode || seriesOutputMode === "single",
+  );
   let canRunFlashcards = $derived(
     seriesMode
       ? Boolean(
-          episodes.length > 0 && outputDir && deckName && noteTypeLanguage,
+          episodes.length > 0 && outputDir && (needsDeckName ? deckName : true) && noteTypeLanguage,
         )
       : Boolean(targetSubsPath && outputDir && deckName && noteTypeLanguage),
   );
@@ -1185,7 +1698,7 @@
         label: `${t("flashcards.outputDir")}`,
       });
     }
-    if (!deckName.trim()) {
+    if (needsDeckName && !deckName.trim()) {
       missing.push({
         panel: "naming",
         label: `${t("flashcards.deckNameLabel")}`,
@@ -1264,6 +1777,23 @@
     }
 
     return bestTrack.index;
+  }
+
+  async function listAudioTracksForEpisode(ep: EpisodeEntry): Promise<AudioTrackInfo[]> {
+    if (!ep.mediaPath || ep.mediaType !== "video") return [];
+    try {
+      return await invoke<AudioTrackInfo[]>("flashcard_list_audio_tracks", {
+        path: ep.mediaPath,
+      });
+    } catch (e) {
+      addLog(`${t("flashcards.audioTracksError")}: ${e}`, "warning", getFileName(ep.mediaPath));
+      return [];
+    }
+  }
+
+  async function pickAudioTrackIndexForEpisode(ep: EpisodeEntry): Promise<number | null> {
+    const tracks = await listAudioTracksForEpisode(ep);
+    return pickBestAudioTrackIndex(tracks, getPreferredAudioLanguageCodeForEpisode(ep));
   }
 
   function formatAudioTrackLabel(track: AudioTrackInfo): string {
@@ -1359,6 +1889,28 @@
     base = base.replace(/^\d{1,4}[\s_\-\.]/, "");
     
     return base.replace(/[._-]/g, " ").replace(/\s+/g, " ").trim() || "Default Deck";
+  }
+
+  /** Derive a deck name from an episode file path for "separate" mode.
+   *  Returns the filename without extension, with known language suffixes
+   *  like -en, -it etc. stripped. */
+  function deriveDeckNameFromFile(ep: EpisodeEntry): string {
+    // Prefer media file, then target subs
+    const filePath = ep.mediaPath || ep.targetSubsPath;
+    const filename = filePath.replace(/\\/g, "/").split("/").pop() || "";
+    let base = filename.replace(/\.[^/.]+$/, "");
+
+    // Strip known language suffixes like -en, _it, .ja etc.
+    const langParts = base.split(/[._-]/);
+    if (langParts.length > 1) {
+      const lastPart = langParts[langParts.length - 1].toLowerCase();
+      if (KNOWN_LANGUAGE_CODES.has(lastPart) || detectLanguageCode(lastPart)) {
+        langParts.pop();
+        base = langParts.join(" ");
+      }
+    }
+
+    return base.replace(/[._-]/g, " ").replace(/\s+/g, " ").trim() || `Episode`;
   }
 
   async function handleFileDrop(paths: string[]) {
@@ -1707,6 +2259,7 @@
       episode_number: 1,
       export_format: exportFormat,
       note_type_name: noteTypeName,
+      field_names: loadFieldNames(),
       output_fields: {
         include_tag: includeTag,
         include_sequence: includeSequence,
@@ -2055,6 +2608,11 @@
         const epMediaType = ep.mediaType;
         const epHasVideo = epMediaType === "video";
         const epHasMedia = epMediaType !== "none";
+        const epMediaSettings = getEpisodeMediaSettings(ep);
+        const epAudioTrackIndex =
+          ep.mediaOverrides?.audioTrackIndex !== undefined
+            ? ep.mediaOverrides.audioTrackIndex
+            : await pickAudioTrackIndexForEpisode(ep);
 
         const epConfig = {
           target_subs_path: ep.targetSubsPath,
@@ -2088,27 +2646,28 @@
           },
           combine_sentences: combineSentences,
           continuation_chars: continuationChars,
-          generate_audio: ep.mediaPath ? generateAudio : false,
-          audio_bitrate: audioBitrate,
-          audio_track_index: null,
-          normalize_audio: normalizeAudio,
-          audio_pad_start_ms: audioPadStart,
-          audio_pad_end_ms: audioPadEnd,
-          generate_snapshots: epHasVideo ? generateSnapshots : false,
-          snapshot_width: snapshotWidth,
-          snapshot_height: snapshotHeight,
-          crop_bottom: cropBottom,
-          generate_video_clips: epHasVideo ? generateVideoClips : false,
-          video_codec: videoCodec,
-          h264_preset: h264Preset,
-          video_bitrate: videoBitrate,
-          video_audio_bitrate: videoAudioBitrate,
-          video_pad_start_ms: videoPadStart,
-          video_pad_end_ms: videoPadEnd,
-          deck_name: seriesOutputMode === "separate" ? `${deckName}_${epNum}` : deckName,
+          generate_audio: ep.mediaPath ? epMediaSettings.generateAudio : false,
+          audio_bitrate: epMediaSettings.audioBitrate,
+          audio_track_index: epAudioTrackIndex,
+          normalize_audio: epMediaSettings.normalizeAudio,
+          audio_pad_start_ms: epMediaSettings.audioPadStart,
+          audio_pad_end_ms: epMediaSettings.audioPadEnd,
+          generate_snapshots: epHasVideo ? epMediaSettings.generateSnapshots : false,
+          snapshot_width: epMediaSettings.snapshotWidth,
+          snapshot_height: epMediaSettings.snapshotHeight,
+          crop_bottom: epMediaSettings.cropBottom,
+          generate_video_clips: epHasVideo ? epMediaSettings.generateVideoClips : false,
+          video_codec: epMediaSettings.videoCodec,
+          h264_preset: epMediaSettings.h264Preset,
+          video_bitrate: epMediaSettings.videoBitrate,
+          video_audio_bitrate: epMediaSettings.videoAudioBitrate,
+          video_pad_start_ms: epMediaSettings.videoPadStart,
+          video_pad_end_ms: epMediaSettings.videoPadEnd,
+          deck_name: seriesOutputMode === "separate" ? deriveDeckNameFromFile(ep) : deckName,
           episode_number: epNum,
           export_format: exportFormat,
           note_type_name: noteTypeName,
+          field_names: loadFieldNames(),
           output_fields: {
             include_tag: includeTag,
             include_sequence: includeSequence,
@@ -2433,7 +2992,7 @@
             </div>
             <button
               onclick={() => (showPreview = false)}
-              class="text-gray-400 hover:text-white text-xl leading-none p-1"
+	              class="dialog-close-button text-gray-400 hover:text-white text-xl leading-none p-1"
             >
               ✕
             </button>
@@ -2954,51 +3513,68 @@
                         <th class="p-1.5 text-left text-gray-400"
                           >{t("flashcards.mediaFile")}</th
                         >
-                        <th class="p-1.5 w-20"></th>
+                        <th class="p-1.5 w-28"></th>
                       </tr>
                     </thead>
                     <tbody>
                       {#each episodes as ep, idx}
-                        <tr
-                          class="border-t border-gray-800 cursor-pointer {idx % 2 === 0
-                            ? 'bg-gray-900/30'
-                            : 'bg-gray-800/20'} hover:bg-gray-700/20"
-                          onclick={() => openEpisodeEditor(idx)}
-                        >
+	                        <tr
+	                          class="border-t border-gray-800 cursor-default {idx % 2 === 0
+	                            ? 'bg-gray-900/30'
+	                            : 'bg-gray-800/20'} hover:bg-gray-700/20"
+	                          oncontextmenu={(e) => openEpisodeContextMenu(e, idx)}
+	                        >
                           <td class="p-1.5 text-gray-500 font-mono">{ep.id}</td>
                           <td
-                            class="p-1.5 text-emerald-300 truncate"
+                            class="p-1.5 cursor-pointer truncate text-emerald-300 transition-colors hover:bg-violet-500/12 hover:text-emerald-100 rounded-md"
                             title={ep.targetSubsPath}
+                            onclick={() => { navigator.clipboard.writeText(ep.targetSubsPath); showSnackbar(t("flashcards.copiedTargetSubs") || "Percorso originale copiato", "success"); }}
                           >
-                            {ep.targetSubsPath.split("/").pop()}
+                            <span class="px-1.5 py-0.5">{ep.targetSubsPath.split("/").pop()}</span>
                           </td>
                           <td
-                            class="p-1.5 truncate {ep.nativeSubsPath
-                              ? 'text-blue-300'
-                              : 'text-gray-600'}"
+                            class="p-1.5 cursor-pointer truncate transition-colors hover:bg-violet-500/12 rounded-md {ep.nativeSubsPath
+                              ? 'text-blue-300 hover:text-blue-100'
+                              : 'text-gray-600 hover:text-gray-400'}"
                             title={ep.nativeSubsPath || "—"}
+                            onclick={() => { if(ep.nativeSubsPath) { navigator.clipboard.writeText(ep.nativeSubsPath); showSnackbar(t("flashcards.copiedNativeSubs") || "Percorso riferimento copiato", "success"); } }}
                           >
-                            {ep.nativeSubsPath
+                            <span class="px-1.5 py-0.5">{ep.nativeSubsPath
                               ? ep.nativeSubsPath.split("/").pop()
-                              : "—"}
+                              : "—"}</span>
                           </td>
-                          <td
-                            class="p-1.5 truncate {ep.mediaPath
-                              ? 'text-purple-300'
-                              : 'text-gray-600'}"
-                            title={ep.mediaPath || "—"}
-                          >
-                            {ep.mediaPath ? ep.mediaPath.split("/").pop() : "—"}
-                          </td>
-                          <td class="p-1.5">
-                            <div class="flex items-center justify-end gap-5">
-                            <button
-                              onclick={(e) => { e.stopPropagation(); openEpisodeEditor(idx); }}
-                              class="text-amber-400 hover:text-amber-300 transition-colors"
-                              title="Modifica episodio"
+	                          <td
+                              class="p-1.5 cursor-pointer truncate transition-colors hover:bg-violet-500/12 rounded-md {ep.mediaPath ? 'text-purple-300 hover:text-purple-100' : 'text-gray-600 hover:text-gray-400'}"
+                              title={ep.mediaPath || "—"}
+                              onclick={() => { if(ep.mediaPath) { navigator.clipboard.writeText(ep.mediaPath); showSnackbar(t("flashcards.copiedMediaPath") || "Percorso media copiato", "success"); } }}
                             >
+	                            {#if ep.mediaPath}
+	                              <span class="group inline-flex max-w-full items-center gap-1.5 text-left px-1.5 py-0.5">
+	                                {#if episodeHasMediaOverrides(ep)}
+	                                  <span
+	                                    class="h-2 w-2 shrink-0 rounded-full bg-violet-400 shadow-[0_0_10px_rgba(167,139,250,0.75)]"
+	                                    title={t("flashcards.hasPerMovieOverrides")}
+	                                    aria-label={t("flashcards.hasPerMovieOverrides")}
+	                                  ></span>
+	                                {/if}
+	                                <span class="truncate">
+	                                  {ep.mediaPath.split("/").pop()}
+	                                </span>
+	                              </span>
+	                            {:else}
+	                              <span class="px-1.5 py-0.5">—</span>
+	                            {/if}
+	                          </td>
+	                          <td class="p-1.5">
+	                            <div class="flex items-center justify-end gap-1">
+	                            <button
+	                              onclick={(e) => { e.stopPropagation(); openEpisodeEditor(idx); }}
+	                              class="inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-md text-amber-400 transition-colors hover:bg-amber-400/10 hover:text-amber-300"
+	                              title={t("common.edit")}
+	                              aria-label={t("common.edit")}
+	                            >
                               <svg
-                                class="w-3.5 h-3.5"
+                                class="w-4 h-4"
                                 fill="none"
                                 stroke="currentColor"
                                 viewBox="0 0 24 24"
@@ -3007,16 +3583,44 @@
                                   stroke-linejoin="round"
                                   stroke-width="2"
                                   d="M11 4H6a2 2 0 00-2 2v12a2 2 0 002 2h12a2 2 0 002-2v-5M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"
-                                /></svg
-                              >
-                            </button>
-                            <button
-                              onclick={(e) => { e.stopPropagation(); removeEpisode(idx); }}
-                              class="text-red-400 hover:text-red-300 transition-colors"
-                              title={t("flashcards.removeEpisode")}
+	                                /></svg
+	                              >
+	                            </button>
+	                            <button
+	                              onclick={(e) => { e.stopPropagation(); openEpisodeMediaSettings(idx); }}
+	                              disabled={!ep.mediaPath}
+	                              class="inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-md text-violet-300 transition-colors hover:bg-violet-400/10 hover:text-violet-200 disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:bg-transparent disabled:hover:text-violet-300"
+	                              title={t("common.settings")}
+	                              aria-label={t("common.settings")}
+	                            >
+	                              <svg
+	                                class="h-4 w-4"
+	                                fill="none"
+	                                stroke="currentColor"
+	                                viewBox="0 0 24 24"
+	                              >
+	                                <path
+	                                  stroke-linecap="round"
+	                                  stroke-linejoin="round"
+	                                  stroke-width="2"
+	                                  d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+	                                />
+	                                <path
+	                                  stroke-linecap="round"
+	                                  stroke-linejoin="round"
+	                                  stroke-width="2"
+	                                  d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+	                                />
+	                              </svg>
+	                            </button>
+	                            <button
+	                              onclick={(e) => { e.stopPropagation(); removeEpisode(idx); }}
+	                              class="inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-md text-red-400 transition-colors hover:bg-red-400/10 hover:text-red-300"
+                              title={t("common.delete")}
+                              aria-label={t("common.delete")}
                             >
                               <svg
-                                class="w-3.5 h-3.5"
+                                class="w-4 h-4"
                                 fill="none"
                                 stroke="currentColor"
                                 viewBox="0 0 24 24"
@@ -3040,9 +3644,17 @@
                 >
                   <span>{episodes.length} {t("flashcards.seriesEpisodes")}</span
                   >
-                  <span class="text-gray-600"
-                    >{t("flashcards.autoMatched")}</span
+                  <button
+                    type="button"
+                    onclick={openSmartMatchingDialog}
+                    class="inline-flex items-center gap-1.5 rounded-md px-1.5 py-0.5 text-gray-500 transition-colors hover:bg-white/5 hover:text-violet-300"
+                    title={t("flashcards.smartMatchingTitle")}
                   >
+                    <svg class="h-3 w-3 text-violet-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5L12 3zM19 14l.75 2.25L22 17l-2.25.75L19 20l-.75-2.25L16 17l2.25-.75L19 14zM5 14l.75 2.25L8 17l-2.25.75L5 20l-.75-2.25L2 17l2.25-.75L5 14z" />
+                    </svg>
+                    {t("flashcards.autoMatched")}
+                  </button>
                 </div>
               </div>
 
@@ -3273,21 +3885,9 @@
       >
         <div class="flex items-center gap-2">
           <button
-            onclick={async (e) => {
+            onclick={() => {
               if (!hasAnyFiles) return;
               showFilters = !showFilters;
-              const column = e.currentTarget.closest(".overflow-y-auto");
-              await tick();
-              if (column) {
-                if (showFilters) {
-                  column.scrollTo({
-                    top: column.scrollHeight,
-                    behavior: "smooth",
-                  });
-                } else {
-                  column.scrollTo({ top: 0, behavior: "smooth" });
-                }
-              }
             }}
             class="flex-1 flex items-center justify-between text-sm font-semibold text-orange-400"
           >
@@ -3628,7 +4228,7 @@
         {#if generateAudio && hasAudio}
           <div class="space-y-2 animate-fade-in">
             <div class="grid grid-cols-2 gap-2">
-              {#if mediaType === "video" && (audioTracksLoading || audioTracks.length > 1)}
+              {#if mediaType === "video" && (audioTracksLoading || audioTracks.length >= 1)}
                 <div>
                   <span class="block text-xs text-gray-500 mb-1"
                     >{t("flashcards.audioTrack")}</span
@@ -3637,7 +4237,7 @@
                     <div class="input-modern text-xs text-gray-500">
                       {t("flashcards.audioTracksLoading")}
                     </div>
-                  {:else}
+                  {:else if audioTracks.length > 1}
                     <SearchableSelect
                       noResultsText={t("common.noResults")}
                       options={audioTracks.map((track) => ({
@@ -3651,11 +4251,15 @@
                       }}
                       placeholder={t("flashcards.audioTrack")}
                     />
+                  {:else}
+                    <div class="input-modern text-xs text-gray-500 opacity-60 cursor-not-allowed">
+                      {formatAudioTrackLabel(audioTracks[0])}
+                    </div>
                   {/if}
                 </div>
               {/if}
 
-              <div class={mediaType === "video" && (audioTracksLoading || audioTracks.length > 1) ? "" : "col-span-2"}>
+              <div class={mediaType === "video" && (audioTracksLoading || audioTracks.length >= 1) ? "" : "col-span-2"}>
                 <span class="block text-xs text-gray-500 mb-1"
                   >{t("flashcards.bitrate")}</span
                 >
@@ -3702,15 +4306,13 @@
                 </div>
               </div>
               <div class="flex justify-center">
-                <label
-                  class="normalize-audio-toggle min-h-[42px] w-full flex items-center justify-center gap-1.5 rounded-xl border px-2 text-center transition-colors"
-                >
+                <label class="vesta-check-row min-h-[42px] w-full">
                   <input
                     type="checkbox"
                     bind:checked={normalizeAudio}
-                    class="sr-only"
+                    class="vesta-check-input shrink-0"
                   />
-                  <span class="text-xs text-gray-300"
+                  <span class="min-w-0 text-left text-xs font-medium text-gray-300"
                     >{t("flashcards.normalizeAudio")}</span
                   >
                 </label>
@@ -4302,22 +4904,34 @@
         </h3>
 
         <div class="space-y-3">
-          <div>
-            <span class="block text-xs text-gray-400 mb-1">
-              {t("flashcards.deckNameLabel")}
-              <span class="text-red-400">*</span>
-            </span>
-            <input
-              type="text"
-              bind:value={deckName}
-              oninput={(event) => {
-                deckNameAuto =
-                  (event.currentTarget as HTMLInputElement).value.trim().length === 0;
-              }}
-              class="input-modern w-full text-sm"
-              placeholder={t("flashcards.deckNamePlaceholder")}
-            />
-          </div>
+          {#if needsDeckName}
+            <div>
+              <span class="block text-xs text-gray-400 mb-1">
+                {t("flashcards.deckNameLabel")}
+                <span class="text-red-400">*</span>
+              </span>
+              <input
+                type="text"
+                bind:value={deckName}
+                oninput={(event) => {
+                  deckNameAuto =
+                    (event.currentTarget as HTMLInputElement).value.trim().length === 0;
+                }}
+                class="input-modern w-full text-sm"
+                placeholder={t("flashcards.deckNamePlaceholder")}
+              />
+            </div>
+          {:else}
+            <div class="rounded-lg bg-violet-500/10 border border-violet-500/20 p-3">
+              <div class="flex items-center gap-2 mb-1">
+                <svg class="w-3.5 h-3.5 text-violet-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span class="text-xs font-medium text-violet-300">{t("flashcards.deckNameAutoLabel")}</span>
+              </div>
+              <p class="text-[10px] text-gray-400">{t("flashcards.deckNameAutoDesc")}</p>
+            </div>
+          {/if}
 
         </div>
       </div>
@@ -4750,6 +5364,69 @@
     {/if}
   </div>
 
+  {#if episodeContextMenu}
+    {@const contextEpisode = episodes[episodeContextMenu.idx]}
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <div
+      class="fixed inset-0 z-50"
+      onclick={closeEpisodeContextMenu}
+      oncontextmenu={(e) => {
+        e.preventDefault();
+        closeEpisodeContextMenu();
+      }}
+      onkeydown={(e) => {
+        if (e.key === "Escape") closeEpisodeContextMenu();
+      }}
+      role="presentation"
+      tabindex="-1"
+    >
+      <div
+        class="vesta-context-menu animate-fade-in"
+        style="left: {episodeContextMenu.x}px; top: {episodeContextMenu.y}px;"
+      >
+        <button
+          type="button"
+          class="vesta-context-menu-item"
+          onclick={() => openEpisodeEditor(episodeContextMenu!.idx)}
+        >
+          <span class="inline-flex items-center gap-2">
+            <svg class="h-4 w-4 text-amber-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 4H6a2 2 0 00-2 2v12a2 2 0 002 2h12a2 2 0 002-2v-5M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
+            </svg>
+            {t("common.edit")}
+          </span>
+        </button>
+        <button
+          type="button"
+          class="vesta-context-menu-item"
+          disabled={!contextEpisode?.mediaPath}
+          onclick={() => openEpisodeMediaSettings(episodeContextMenu!.idx)}
+        >
+          <span class="inline-flex items-center gap-2">
+            <svg class="h-4 w-4 text-violet-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            {t("common.settings")}
+          </span>
+        </button>
+        <div class="vesta-context-menu-separator"></div>
+        <button
+          type="button"
+          class="vesta-context-menu-item"
+          onclick={() => removeEpisode(episodeContextMenu!.idx)}
+        >
+          <span class="inline-flex items-center gap-2 text-red-300">
+            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+            {t("common.delete")}
+          </span>
+        </button>
+      </div>
+    </div>
+  {/if}
+
   {#if editingEpisode}
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div
@@ -4770,15 +5447,14 @@
       >
         <div class="mb-4 flex items-center justify-between gap-3">
           <div>
-            <p class="text-xs uppercase tracking-wide text-gray-500">Modalità Serie</p>
             <h3 class="text-lg font-bold text-white">
-              Modifica episodio {editingEpisode.id}
+              {t("common.edit")} {getFileName(editingEpisode.targetSubsPath || editingEpisode.nativeSubsPath || editingEpisode.mediaPath) || `episodio ${editingEpisode.id}`}
             </h3>
           </div>
           <button
             type="button"
             onclick={closeEpisodeEditor}
-            class="text-xl leading-none text-gray-400 hover:text-white"
+	            class="dialog-close-button text-xl leading-none text-gray-400 hover:text-white"
           >×</button>
         </div>
 
@@ -4824,26 +5500,27 @@
                   </svg>
                   {t("flashcards.browse")}
                 </button>
-                {#if editingEpisode[field]}
                   <button
                     type="button"
-                    class="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-red-500/30 bg-red-500/10 text-red-300 shadow-sm transition-colors hover:border-red-400/60 hover:bg-red-500/20 hover:text-red-100"
-                    title="Svuota campo"
-                    aria-label="Svuota campo"
+                    class={editingEpisode[field]
+                      ? "inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-red-500/30 bg-red-500/10 text-red-300 shadow-sm transition-colors hover:border-red-400/60 hover:bg-red-500/20 hover:text-red-100"
+                      : "inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-gray-700 bg-gray-800 text-gray-600 transition-colors cursor-default"}
+                    title={t("common.clearField")}
+                    aria-label={t("common.clearField")}
                     onclick={() => {
-                      if (!editingEpisode) return;
+                      if (!editingEpisode || !editingEpisode[field]) return;
                       editingEpisode = {
                         ...editingEpisode,
                         [field]: "",
                         mediaType: field === "mediaPath" ? "none" : editingEpisode.mediaType,
                       };
+                      syncEpisodeEditor();
                     }}
                   >
                     <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                     </svg>
                   </button>
-                {/if}
               </div>
             </div>
           {/each}
@@ -4852,19 +5529,418 @@
         <div class="mt-5 flex justify-end gap-2">
           <button
             type="button"
-            onclick={closeEpisodeEditor}
+            onclick={revertEpisodeEditor}
             class="btn-secondary px-4 py-2 text-sm"
           >
-            {t("settings.modal.cancel")}
+            {t("common.restore")}
           </button>
           <button
             type="button"
-            onclick={saveEpisodeEditor}
-            disabled={!editingEpisode.targetSubsPath}
+            onclick={closeEpisodeEditor}
             class="rounded-lg border border-emerald-400/40 bg-emerald-500/20 px-4 py-2 text-sm font-semibold text-emerald-100 shadow-lg shadow-emerald-500/10 transition-all hover:border-emerald-300/60 hover:bg-emerald-500/30 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {t("settings.modal.save")}
+            {t("common.done")}
           </button>
+        </div>
+      </div>
+    </div>
+  {/if}
+
+  {#if editingMediaEpisode && editingMediaOverrides}
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <div
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/65 p-6"
+      role="dialog"
+      aria-modal="true"
+      tabindex="-1"
+      onclick={closeEpisodeMediaSettings}
+      onkeydown={(e) => {
+        if (e.key === "Escape") closeEpisodeMediaSettings();
+      }}
+    >
+      <!-- svelte-ignore a11y_no_static_element_interactions -->
+      <div
+        class="flex max-h-[92vh] w-[96vw] flex-col rounded-xl border border-gray-700 bg-gray-900 shadow-2xl"
+        onclick={(e) => e.stopPropagation()}
+        onkeydown={(e) => e.stopPropagation()}
+      >
+        <div class="flex items-center justify-between gap-3 border-b border-gray-700 px-5 py-4">
+          <div class="min-w-0">
+            <p class="text-xs uppercase tracking-wide text-violet-300">
+              {t("flashcards.perMovieSettings")}
+            </p>
+            <h3 class="truncate text-lg font-bold text-white" title={editingMediaEpisode.mediaPath}>
+              {getFileName(editingMediaEpisode.mediaPath)}
+            </h3>
+          </div>
+          <button
+            type="button"
+            onclick={closeEpisodeMediaSettings}
+	            class="dialog-close-button p-1 text-xl leading-none text-gray-400 hover:text-white"
+            aria-label={t("common.close")}
+          >×</button>
+        </div>
+
+        <div class="flex-1 overflow-y-auto p-5">
+          <div class="media-settings-panels">
+          <!-- AUDIO PANEL -->
+            <div class="space-y-4 rounded-xl border border-gray-800 bg-gray-800/30 p-5 shadow-inner">
+              <div class="flex items-center justify-between rounded-lg border border-cyan-500/20 bg-cyan-500/10 p-3">
+                <span class="text-sm font-semibold text-cyan-200">
+                  {t("flashcards.generateAudioClips")}
+                </span>
+                <button
+                  type="button"
+                  aria-label={t("flashcards.generateAudioClips")}
+	                  class="relative h-5 w-10 rounded-full transition-colors {editingMediaOverrides.generateAudio ? 'bg-cyan-500' : 'bg-gray-600'} {mediaOverrideClass('generateAudio')}"
+                  onclick={() => updateEditingMediaOverride("generateAudio", !editingMediaOverrides?.generateAudio)}
+                >
+                  <span class="absolute top-0.5 h-4 w-4 rounded-full bg-white transition-all {editingMediaOverrides.generateAudio ? 'left-5' : 'left-0.5'}"></span>
+                </button>
+              </div>
+
+              {#if editingMediaOverrides.generateAudio}
+                <div class="space-y-4 animate-fade-in">
+                  {#if editingMediaEpisode.mediaType === "video"}
+                <div>
+                  <span class="mb-1 block text-xs text-gray-500">{t("flashcards.audioTrack")}</span>
+                  {#if episodeAudioTracksLoading}
+                    <div class="input-modern text-xs text-gray-500">{t("flashcards.audioTracksLoading")}</div>
+                  {:else if episodeAudioTracks.length > 1}
+	                    <SearchableSelect
+	                      className={mediaOverrideClass("audioTrackIndex")}
+	                      noResultsText={t("common.noResults")}
+                      options={episodeAudioTracks.map((track) => ({
+                        value: String(track.index),
+                        label: formatAudioTrackLabel(track),
+                      }))}
+                      value={editingMediaOverrides.audioTrackIndex === null ? "" : String(editingMediaOverrides.audioTrackIndex)}
+                      onchange={(value) => updateEditingMediaOverride("audioTrackIndex", value === "" ? null : Number(value))}
+                      placeholder={t("flashcards.audioTrack")}
+                    />
+                  {:else if episodeAudioTracks.length === 1}
+	                    <div class="input-modern text-xs text-gray-500 opacity-60 cursor-not-allowed {mediaOverrideClass('audioTrackIndex')}">
+                      {formatAudioTrackLabel(episodeAudioTracks[0])}
+                    </div>
+                  {:else}
+	                    <div class="input-modern text-xs text-gray-500 {mediaOverrideClass('audioTrackIndex')}">
+                      {t("flashcards.audioTrackAuto")}
+                    </div>
+                  {/if}
+                </div>
+              {/if}
+
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <span class="mb-1 block text-xs text-gray-500">{t("flashcards.bitrate")}</span>
+	                  <SearchableSelect
+	                    className={mediaOverrideClass("audioBitrate")}
+	                    noResultsText={t("common.noResults")}
+                    options={[
+                      { value: "64", label: "64 kb/s" },
+                      { value: "128", label: "128 kb/s" },
+                      { value: "192", label: "192 kb/s" },
+                      { value: "256", label: "256 kb/s" },
+                      { value: "320", label: "320 kb/s" },
+                    ]}
+                    value={String(editingMediaOverrides.audioBitrate)}
+                    onchange={(v) => updateEditingMediaOverride("audioBitrate", parseInt(v))}
+                    placeholder="Bitrate"
+                  />
+                </div>
+                <label class="vesta-check-row mt-5">
+                  <input
+                    type="checkbox"
+                    checked={!!editingMediaOverrides.normalizeAudio}
+                    onchange={(event) => updateEditingMediaOverride("normalizeAudio", (event.currentTarget as HTMLInputElement).checked)}
+	                    class="vesta-check-input shrink-0 {mediaOverrideClass('normalizeAudio')}"
+                  />
+                  <span class="text-xs font-medium text-gray-300">{t("flashcards.normalizeAudio")}</span>
+                </label>
+              </div>
+
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <span class="mb-1 block text-xs text-gray-500">{t("flashcards.padStart")}</span>
+                  <div class="flex items-center gap-1">
+                    <input
+                      type="number"
+                      value={editingMediaOverrides.audioPadStart}
+                      oninput={(event) => updateEditingMediaOverride("audioPadStart", Number((event.currentTarget as HTMLInputElement).value))}
+	                      class="input-modern w-full text-xs {mediaOverrideClass('audioPadStart')}"
+                    />
+                    <span class="text-xs text-gray-500">ms</span>
+                  </div>
+                </div>
+                <div>
+                  <span class="mb-1 block text-xs text-gray-500">{t("flashcards.padEnd")}</span>
+                  <div class="flex items-center gap-1">
+                    <input
+                      type="number"
+                      value={editingMediaOverrides.audioPadEnd}
+                      oninput={(event) => updateEditingMediaOverride("audioPadEnd", Number((event.currentTarget as HTMLInputElement).value))}
+	                      class="input-modern w-full text-xs {mediaOverrideClass('audioPadEnd')}"
+                    />
+                    <span class="text-xs text-gray-500">ms</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            {/if}
+            </div>
+          <!-- SNAPSHOT PANEL -->
+            <div class="space-y-4 rounded-xl border border-gray-800 bg-gray-800/30 p-5 shadow-inner {editingMediaEpisode.mediaType !== 'video' ? 'opacity-45' : ''}">
+              <div class="flex items-center justify-between rounded-lg border border-purple-500/20 bg-purple-500/10 p-3">
+                <span class="text-sm font-semibold text-purple-200">
+                  {t("flashcards.generateSnapshots")}
+                </span>
+                <button
+                  type="button"
+                  aria-label={t("flashcards.generateSnapshots")}
+                  disabled={editingMediaEpisode.mediaType !== "video"}
+	                  class="relative h-5 w-10 rounded-full transition-colors {editingMediaOverrides.generateSnapshots && editingMediaEpisode.mediaType === 'video' ? 'bg-purple-500' : 'bg-gray-600'} {mediaOverrideClass('generateSnapshots')}"
+                  onclick={() => updateEditingMediaOverride("generateSnapshots", !editingMediaOverrides?.generateSnapshots)}
+                >
+                  <span class="absolute top-0.5 h-4 w-4 rounded-full bg-white transition-all {editingMediaOverrides.generateSnapshots && editingMediaEpisode.mediaType === 'video' ? 'left-5' : 'left-0.5'}"></span>
+                </button>
+              </div>
+              
+              {#if editingMediaOverrides.generateSnapshots && editingMediaEpisode.mediaType === "video"}
+                <div class="grid grid-cols-3 gap-3 animate-fade-in">
+                  <div>
+                  <span class="mb-1 block text-xs text-gray-500">{t("flashcards.width")}</span>
+                  <div class="flex items-center gap-1">
+	                    <input type="number" value={editingMediaOverrides.snapshotWidth} oninput={(event) => updateEditingMediaOverride("snapshotWidth", Number((event.currentTarget as HTMLInputElement).value))} class="input-modern w-full text-xs {mediaOverrideClass('snapshotWidth')}" />
+                    <span class="text-xs text-gray-500">px</span>
+                  </div>
+                </div>
+                <div>
+                  <span class="mb-1 block text-xs text-gray-500">{t("flashcards.height")}</span>
+                  <div class="flex items-center gap-1">
+	                    <input type="number" value={editingMediaOverrides.snapshotHeight} oninput={(event) => updateEditingMediaOverride("snapshotHeight", Number((event.currentTarget as HTMLInputElement).value))} class="input-modern w-full text-xs {mediaOverrideClass('snapshotHeight')}" />
+                    <span class="text-xs text-gray-500">px</span>
+                  </div>
+                </div>
+                <div>
+                  <span class="mb-1 block text-xs text-gray-500">{t("flashcards.cropBottom")}</span>
+                  <div class="flex items-center gap-1">
+	                    <input type="number" value={editingMediaOverrides.cropBottom} oninput={(event) => updateEditingMediaOverride("cropBottom", Number((event.currentTarget as HTMLInputElement).value))} class="input-modern w-full text-xs {mediaOverrideClass('cropBottom')}" />
+                    <span class="text-xs text-gray-500">px</span>
+                  </div>
+                </div>
+              </div>
+              {/if}
+            </div>
+          <!-- VIDEO PANEL -->
+            <div class="space-y-4 rounded-xl border border-gray-800 bg-gray-800/30 p-5 shadow-inner {editingMediaEpisode.mediaType !== 'video' ? 'opacity-45' : ''}">
+              <div class="flex items-center justify-between rounded-lg border border-rose-500/20 bg-rose-500/10 p-3">
+                <span class="text-sm font-semibold text-rose-200">
+                  {t("flashcards.generateVideoClips")}
+                </span>
+                <button
+                  type="button"
+                  aria-label={t("flashcards.generateVideoClips")}
+                  disabled={editingMediaEpisode.mediaType !== "video"}
+	                  class="relative h-5 w-10 rounded-full transition-colors {editingMediaOverrides.generateVideoClips && editingMediaEpisode.mediaType === 'video' ? 'bg-rose-500' : 'bg-gray-600'} {mediaOverrideClass('generateVideoClips')}"
+                  onclick={() => updateEditingMediaOverride("generateVideoClips", !editingMediaOverrides?.generateVideoClips)}
+                >
+                  <span class="absolute top-0.5 h-4 w-4 rounded-full bg-white transition-all {editingMediaOverrides.generateVideoClips && editingMediaEpisode.mediaType === 'video' ? 'left-5' : 'left-0.5'}"></span>
+                </button>
+              </div>
+              
+              {#if editingMediaOverrides.generateVideoClips && editingMediaEpisode.mediaType === "video"}
+                <div class="space-y-4 animate-fade-in">
+                  <div class="grid grid-cols-2 gap-3">
+                    <div>
+                  <span class="mb-1 block text-xs text-gray-500">{t("flashcards.videoCodec")}</span>
+                  <SearchableSelect
+	                    className="compact-select {mediaOverrideClass('videoCodec')}"
+                    noResultsText={t("common.noResults")}
+                    options={[
+                      { value: "h264", label: "H.264 (MP4)" },
+                      { value: "mpeg4", label: "MPEG-4 (AVI)" },
+                    ]}
+                    value={editingMediaOverrides.videoCodec}
+                    onchange={(v) => updateEditingMediaOverride("videoCodec", v)}
+                    placeholder="Codec"
+                  />
+                </div>
+                <div>
+                  <span class="mb-1 block text-xs text-gray-500">{t("flashcards.h264Preset")}</span>
+                  <SearchableSelect
+	                    className="compact-select {mediaOverrideClass('h264Preset')}"
+                    noResultsText={t("common.noResults")}
+                    options={[
+                      { value: "ultrafast", label: "Ultrafast" },
+                      { value: "fast", label: "Fast" },
+                      { value: "medium", label: "Medium" },
+                      { value: "slow", label: "Slow" },
+                      { value: "veryslow", label: "Very slow" },
+                    ]}
+                    value={editingMediaOverrides.h264Preset}
+                    onchange={(v) => updateEditingMediaOverride("h264Preset", v)}
+                    placeholder="Preset"
+                  />
+                </div>
+              </div>
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <span class="mb-1 block text-xs text-gray-500">{t("flashcards.videoBitrate")}</span>
+                  <div class="flex items-center gap-1">
+	                    <input type="number" value={editingMediaOverrides.videoBitrate} oninput={(event) => updateEditingMediaOverride("videoBitrate", Number((event.currentTarget as HTMLInputElement).value))} class="input-modern w-full text-xs {mediaOverrideClass('videoBitrate')}" />
+                    <span class="text-xs text-gray-500">kb/s</span>
+                  </div>
+                </div>
+                <div>
+                  <span class="mb-1 block text-xs text-gray-500">{t("flashcards.audioBitrate")}</span>
+                  <SearchableSelect
+	                    className="compact-select {mediaOverrideClass('videoAudioBitrate')}"
+                    noResultsText={t("common.noResults")}
+                    options={[
+                      { value: "64", label: "64 kb/s" },
+                      { value: "128", label: "128 kb/s" },
+                      { value: "192", label: "192 kb/s" },
+                      { value: "256", label: "256 kb/s" },
+                    ]}
+                    value={String(editingMediaOverrides.videoAudioBitrate)}
+                    onchange={(v) => updateEditingMediaOverride("videoAudioBitrate", parseInt(v))}
+                    placeholder="Bitrate"
+                  />
+                </div>
+              </div>
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <span class="mb-1 block text-xs text-gray-500">{t("flashcards.padStart")}</span>
+                  <div class="flex items-center gap-1">
+	                    <input type="number" value={editingMediaOverrides.videoPadStart} oninput={(event) => updateEditingMediaOverride("videoPadStart", Number((event.currentTarget as HTMLInputElement).value))} class="input-modern w-full text-xs {mediaOverrideClass('videoPadStart')}" />
+                    <span class="text-xs text-gray-500">ms</span>
+                  </div>
+                </div>
+                <div>
+                  <span class="mb-1 block text-xs text-gray-500">{t("flashcards.padEnd")}</span>
+                  <div class="flex items-center gap-1">
+	                    <input type="number" value={editingMediaOverrides.videoPadEnd} oninput={(event) => updateEditingMediaOverride("videoPadEnd", Number((event.currentTarget as HTMLInputElement).value))} class="input-modern w-full text-xs {mediaOverrideClass('videoPadEnd')}" />
+                    <span class="text-xs text-gray-500">ms</span>
+                  </div>
+                </div>
+              </div>
+              </div>
+              {/if}
+            </div>
+          </div>
+        </div>
+
+        <div class="flex items-center justify-between gap-3 border-t border-gray-700 px-5 py-4">
+          <button type="button" onclick={resetEpisodeMediaSettings} class="btn-secondary px-4 py-2 text-sm">
+            {t("flashcards.useGenericSettings")}
+          </button>
+          <div class="flex gap-2">
+            <button type="button" onclick={closeEpisodeMediaSettings} class="btn-secondary px-4 py-2 text-sm">
+              {t("settings.modal.cancel")}
+            </button>
+            <button
+              type="button"
+              disabled={!editingMediaOverrides || JSON.stringify(editingMediaOverrides) === initialEditingMediaOverridesStr}
+              onclick={saveEpisodeMediaSettings}
+              class="rounded-lg border border-violet-400/40 bg-violet-500/20 px-4 py-2 text-sm font-semibold text-violet-100 shadow-lg shadow-violet-500/10 transition-all hover:border-violet-300/60 hover:bg-violet-500/30 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-violet-400/40 disabled:hover:bg-violet-500/20"
+            >
+              {t("settings.modal.save")}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  {/if}
+
+  {#if showSmartMatchingDialog}
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <div
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/65 p-6"
+      role="dialog"
+      aria-modal="true"
+      tabindex="-1"
+      onclick={closeSmartMatchingDialog}
+      onkeydown={(e) => {
+        if (e.key === "Escape") closeSmartMatchingDialog();
+      }}
+    >
+      <!-- svelte-ignore a11y_no_static_element_interactions -->
+      <div
+        class="flex max-h-[94vh] w-full max-w-4xl flex-col rounded-xl border border-gray-700 bg-gray-900 shadow-2xl"
+        onclick={(e) => e.stopPropagation()}
+        onkeydown={(e) => e.stopPropagation()}
+      >
+        <div class="flex items-center justify-between gap-3 border-b border-gray-700 px-5 py-4">
+          <div>
+            <h3 class="flex items-center gap-2 text-lg font-bold text-violet-300">
+              <svg class="h-4 w-4 text-violet-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5L12 3zM19 14l.75 2.25L22 17l-2.25.75L19 20l-.75-2.25L16 17l2.25-.75L19 14z" />
+              </svg>
+              {t("flashcards.smartMatchingTitle")}
+            </h3>
+          </div>
+          <button
+            type="button"
+            onclick={closeSmartMatchingDialog}
+	            class="dialog-close-button p-1 text-xl leading-none text-gray-400 hover:text-white"
+            aria-label={t("common.close")}
+          >×</button>
+        </div>
+
+        <div class="flex-1 overflow-y-auto p-5">
+          <div class="relative" id="smart-matching-rules">
+            <button
+              type="button"
+              onclick={copySmartMatchingRules}
+              class="absolute right-3 top-3 z-10 inline-flex h-8 w-8 items-center justify-center rounded-md border border-white/10 bg-gray-950/85 text-gray-300 shadow-lg transition-colors hover:bg-white/10 hover:text-white"
+              title={t("common.copy")}
+              aria-label={t("common.copy")}
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+              </svg>
+            </button>
+	            <CodeEditor
+	              bind:value={smartMatchingRulesDraft}
+	              language="jsonc"
+	              heightClass="h-[34rem]"
+	              onchange={() => {
+	                smartMatchingRulesError = getSmartMatchingRulesDraftError();
+	              }}
+	            />
+          </div>
+          {#if smartMatchingRulesError}
+            <p class="mt-2 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-200">
+              {smartMatchingRulesError}
+            </p>
+          {/if}
+        </div>
+
+        <div class="flex items-center justify-between gap-3 border-t border-gray-700 px-5 py-4">
+          <button
+            type="button"
+            onclick={resetSmartMatchingRules}
+            class="btn-secondary px-4 py-2 text-sm"
+          >
+            {t("flashcards.smartMatchingReset")}
+          </button>
+          <div class="flex gap-2">
+            <button
+              type="button"
+              onclick={closeSmartMatchingDialog}
+              class="btn-secondary px-4 py-2 text-sm"
+            >
+              {t("settings.modal.cancel")}
+            </button>
+	            <button
+	              type="button"
+	              onclick={saveSmartMatchingRules}
+	              disabled={!!getSmartMatchingRulesDraftError()}
+	              class="rounded-lg border border-violet-400/40 bg-violet-500/20 px-4 py-2 text-sm font-semibold text-violet-100 shadow-lg shadow-violet-500/10 transition-all hover:border-violet-300/60 hover:bg-violet-500/30 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-violet-400/40 disabled:hover:bg-violet-500/20"
+	            >
+              {t("settings.modal.save")}
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -4905,6 +5981,20 @@
 </div>
 
 <style>
+  /* Responsive button labels: hide text on narrow screens */
+  @media (max-width: 900px) {
+    .episode-btn-label {
+      display: none;
+    }
+  }
+
+  /* Media settings panels: side by side on wide, stacked on narrow */
+  .media-settings-panels {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.25rem;
+  }
+
   .timing-source-toggle {
     background: rgba(0, 0, 0, 0.2);
     border: 1px solid rgba(255, 255, 255, 0.1);
@@ -5060,33 +6150,53 @@
     border-color: rgba(165, 180, 252, 0.72);
   }
 
-  .vesta-check-input:checked::before {
-    opacity: 1;
-    transform: scale(1);
-  }
+	  .vesta-check-input:checked::before {
+	    opacity: 1;
+	    transform: scale(1);
+	  }
 
-  .normalize-audio-toggle {
-    background: rgba(255, 255, 255, 0.05);
-    border-color: rgba(255, 255, 255, 0.1);
-  }
+	  .dialog-close-button {
+	    border-radius: 0.45rem;
+	    transition:
+	      background-color 0.14s ease,
+	      box-shadow 0.14s ease,
+	      color 0.14s ease;
+	  }
 
-  .normalize-audio-toggle:hover {
-    background: rgba(148, 163, 184, 0.1);
-    border-color: rgba(148, 163, 184, 0.25);
-  }
+	  .dialog-close-button:hover {
+	    background: rgba(148, 163, 184, 0.1);
+	    box-shadow: 0 0 18px rgba(148, 163, 184, 0.26);
+	  }
 
-  .normalize-audio-toggle:has(input:checked) {
-    background: rgba(14, 116, 144, 0.22);
-    border-color: rgba(34, 211, 238, 0.38);
-  }
+	  .media-override-glow,
+	  :global(.media-override-glow) {
+	    border-color: rgba(167, 139, 250, 0.72) !important;
+	    box-shadow:
+	      0 0 0 1px rgba(167, 139, 250, 0.28),
+	      0 0 18px rgba(167, 139, 250, 0.22) !important;
+	  }
 
-  .normalize-audio-toggle:has(input:checked) span {
-    color: rgb(165 243 252);
-  }
+	  :global(.media-override-glow .searchable-select-input) {
+	    border-color: rgba(167, 139, 250, 0.72) !important;
+	    box-shadow:
+	      0 0 0 1px rgba(167, 139, 250, 0.28),
+	      0 0 18px rgba(167, 139, 250, 0.22) !important;
+	  }
 
-  :global(.flashcard-requirement-pulse) {
-    animation: flashcard-requirement-pulse 0.9s ease-in-out 2;
-    border-color: rgba(251, 191, 36, 0.75) !important;
+	  .media-tab-dot {
+	    background: rgb(167 139 250);
+	    border-radius: 9999px;
+	    box-shadow: 0 0 10px rgba(167, 139, 250, 0.8);
+	    height: 0.42rem;
+	    position: absolute;
+	    right: 0.35rem;
+	    top: 0.35rem;
+	    width: 0.42rem;
+	  }
+
+	  :global(.flashcard-requirement-pulse) {
+	    animation: flashcard-requirement-pulse 0.9s ease-in-out 2;
+	    border-color: rgba(251, 191, 36, 0.75) !important;
     box-shadow:
       0 0 0 1px rgba(251, 191, 36, 0.3),
       0 0 24px rgba(251, 191, 36, 0.24);
@@ -5122,3 +6232,13 @@
     }
   }
 </style>
+
+{#if snackbarMessage}
+  <Snackbar
+    message={snackbarMessage}
+    variant={snackbarVariant}
+    duration={1300}
+    animationKey={snackbarKey}
+    onclose={() => (snackbarMessage = null)}
+  />
+{/if}

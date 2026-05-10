@@ -111,6 +111,9 @@ pub struct FlashcardConfig {
     // Note type name for Anki
     pub note_type_name: Option<String>,
 
+    // Custom Anki field names
+    pub field_names: Option<FieldNamesConfig>,
+
     // Output fields
     pub output_fields: OutputFields,
 
@@ -155,6 +158,36 @@ pub struct OutputFields {
     pub include_video: bool,
     pub include_subs1: bool,
     pub include_subs2: bool,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FieldNamesConfig {
+    pub expression: String,
+    pub meaning: String,
+    pub reading: String,
+    pub audio: String,
+    pub snapshot: String,
+    pub video: String,
+    pub tags: String,
+    pub sequence_marker: String,
+    pub notes: String,
+}
+
+impl Default for FieldNamesConfig {
+    fn default() -> Self {
+        Self {
+            expression: "Expression".to_string(),
+            meaning: "Meaning".to_string(),
+            reading: "Reading".to_string(),
+            audio: "Audio".to_string(),
+            snapshot: "Snapshot".to_string(),
+            video: "Video".to_string(),
+            tags: "Tags".to_string(),
+            sequence_marker: "SequenceMarker".to_string(),
+            notes: "Notes".to_string(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize)]

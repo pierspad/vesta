@@ -1,7 +1,12 @@
 <script lang="ts">
   import { onDestroy } from "svelte";
 
-  let { value = $bindable(""), language = "html", onchange = () => {} } = $props();
+  let {
+    value = $bindable(""),
+    language = "html",
+    onchange = () => {},
+    heightClass = "h-64",
+  } = $props();
 
   let history = $state<string[]>([value || ""]);
   let historyIndex = $state(0);
@@ -160,13 +165,90 @@
     Notes: "var-token-notes",
   };
 
-  // Basic highlight
-  function highlight(code: string, lang: string) {
-    if (!code) return "";
-    let html = code
+  function escapeHtml(text: string) {
+    return text
       .replace(/&/g, "&amp;")
       .replace(/</g, "&lt;")
       .replace(/>/g, "&gt;");
+  }
+
+  function highlightJsonLike(code: string) {
+    let html = "";
+    let i = 0;
+
+    while (i < code.length) {
+      const char = code[i];
+      const next = code[i + 1];
+
+      if (char === "/" && next === "/") {
+        const end = code.indexOf("\n", i);
+        const comment = end === -1 ? code.slice(i) : code.slice(i, end);
+        html += `<span class="text-slate-500">${escapeHtml(comment)}</span>`;
+        i += comment.length;
+        continue;
+      }
+
+      if (char === "/" && next === "*") {
+        const end = code.indexOf("*/", i + 2);
+        const comment = end === -1 ? code.slice(i) : code.slice(i, end + 2);
+        html += `<span class="text-slate-500">${escapeHtml(comment)}</span>`;
+        i += comment.length;
+        continue;
+      }
+
+      if (char === '"') {
+        let end = i + 1;
+        let escaped = false;
+        while (end < code.length) {
+          const current = code[end];
+          if (current === '"' && !escaped) {
+            end += 1;
+            break;
+          }
+          escaped = current === "\\" && !escaped;
+          if (current !== "\\") escaped = false;
+          end += 1;
+        }
+        const token = code.slice(i, end);
+        let lookahead = end;
+        while (/\s/.test(code[lookahead] || "")) lookahead += 1;
+        const className = code[lookahead] === ":" ? "text-sky-300" : "text-emerald-300";
+        html += `<span class="${className}">${escapeHtml(token)}</span>`;
+        i = end;
+        continue;
+      }
+
+      const keyword = code.slice(i).match(/^(true|false|null)\b/);
+      if (keyword) {
+        html += `<span class="text-violet-300">${keyword[0]}</span>`;
+        i += keyword[0].length;
+        continue;
+      }
+
+      const number = code.slice(i).match(/^-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?/);
+      if (number) {
+        html += `<span class="text-amber-300">${number[0]}</span>`;
+        i += number[0].length;
+        continue;
+      }
+
+      if (/[\[\]{}:,]/.test(char)) {
+        html += `<span class="text-pink-400">${escapeHtml(char)}</span>`;
+        i += 1;
+        continue;
+      }
+
+      html += escapeHtml(char);
+      i += 1;
+    }
+
+    return html;
+  }
+
+  // Basic highlight
+  function highlight(code: string, lang: string) {
+    if (!code) return "";
+    let html = escapeHtml(code);
     
     if (lang === "html") {
       html = html.replace(/([a-zA-Z-]+)="([^"]*)"/g, '<span class="text-amber-300">$1</span>="<span class="text-emerald-300">$2</span>"');
@@ -186,13 +268,15 @@
         const className = variableClasses[normalized] || "var-token-default";
         return `<span class="${className}">{{${normalized}}}</span>`;
       });
+    } else if (lang === "json" || lang === "jsonc") {
+      html = highlightJsonLike(code);
     }
     // ensure blank line at the end renders spaces correctly if needed
     return html;
   }
 </script>
 
-<div class="relative flex w-full h-64 bg-gray-900 rounded-lg overflow-hidden border border-white/10 group focus-within:border-indigo-500/50 transition-colors">
+<div class={`relative flex w-full ${heightClass} bg-gray-900 rounded-lg overflow-hidden border border-white/10 group focus-within:border-indigo-500/50 transition-colors`}>
   <!-- Line Numbers -->
   <div class="w-10 bg-black/40 py-3 text-right pr-2 text-sm font-mono text-gray-600 select-none overflow-hidden shrink-0">
     <div style="transform: translateY(-{scrollTop}px)">

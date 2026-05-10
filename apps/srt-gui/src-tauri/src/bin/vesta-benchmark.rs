@@ -88,6 +88,7 @@ fn build_config(
         episode_number: 1,
         export_format: Some(export_format),
         note_type_name: None,
+        field_names: None,
         output_fields: OutputFields {
             include_tag: true,
             include_sequence: true,

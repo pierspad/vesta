@@ -26,6 +26,7 @@ from typing import Any
 LOCALE_FILE_RE = re.compile(r"^[a-z]{2}\.json$", re.IGNORECASE)
 SAME_AS_ENGLISH_ALLOWED_KEYS = {
     "app.title",
+    "common.no",
     "provider.openrouter",
 }
 

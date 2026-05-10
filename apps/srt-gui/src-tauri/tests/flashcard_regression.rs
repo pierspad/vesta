@@ -75,6 +75,7 @@ fn text_only_config(target: &str, native: Option<&str>, deck: &str) -> Flashcard
         continuation_chars: String::new(),
         generate_audio: false,
         audio_bitrate: 128,
+        audio_track_index: None,
         normalize_audio: false,
         audio_pad_start_ms: 0,
         audio_pad_end_ms: 0,
@@ -93,6 +94,7 @@ fn text_only_config(target: &str, native: Option<&str>, deck: &str) -> Flashcard
         episode_number: 1,
         export_format: Some("tsv".to_string()),
         note_type_name: None,
+        field_names: None,
         output_fields: OutputFields {
             include_tag: true,
             include_sequence: true,
