@@ -17,6 +17,7 @@ import hi from './locales/hi.json';
 import it from './locales/it.json';
 import ja from './locales/ja.json';
 import ko from './locales/ko.json';
+import nl from './locales/nl.json';
 import pl from './locales/pl.json';
 import pt from './locales/pt.json';
 import ru from './locales/ru.json';
@@ -33,6 +34,7 @@ import infoHi from './locales/info/hi.json';
 import infoIt from './locales/info/it.json';
 import infoJa from './locales/info/ja.json';
 import infoKo from './locales/info/ko.json';
+import infoNl from './locales/info/nl.json';
 import infoPl from './locales/info/pl.json';
 import infoPt from './locales/info/pt.json';
 import infoRu from './locales/info/ru.json';
@@ -49,6 +51,7 @@ export interface UILanguage {
 export const availableUILanguages: UILanguage[] = [
   { code: 'ar', name: 'Arabic', nativeName: 'العربية', flag: '🇸🇦' },
   { code: 'zh', name: 'Chinese', nativeName: '中文', flag: '🇨🇳' },
+  { code: 'nl', name: 'Dutch', nativeName: 'Nederlands', flag: '🇳🇱' },
   { code: 'en', name: 'English', nativeName: 'English', flag: '🇬🇧' },
   { code: 'fr', name: 'French', nativeName: 'Français', flag: '🇫🇷' },
   { code: 'de', name: 'German', nativeName: 'Deutsch', flag: '🇩🇪' },
@@ -73,6 +76,7 @@ const translations: Record<string, Record<string, string>> = {
   it: { ...en, ...infoEn, ...it, ...infoIt },
   ja: { ...en, ...infoEn, ...ja, ...infoJa },
   ko: { ...en, ...infoEn, ...ko, ...infoKo },
+  nl: { ...en, ...infoEn, ...nl, ...infoNl },
   pl: { ...en, ...infoEn, ...pl, ...infoPl },
   pt: { ...en, ...infoEn, ...pt, ...infoPt },
   ru: { ...en, ...infoEn, ...ru, ...infoRu },

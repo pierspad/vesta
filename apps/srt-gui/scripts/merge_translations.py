@@ -37,7 +37,7 @@ SRC_ROOT   = SCRIPT_DIR.parent / "src" / "lib" / "i18n" / "locales"
 I18N_DST   = SRC_ROOT          # <lang>.json files live here
 INFO_DST   = SRC_ROOT / "info" # info/<lang>.json files
 
-LANGUAGES = ["ar", "de", "en", "es", "fr", "hi", "it", "ja", "ko", "pl", "pt", "ru", "tr", "zh"]
+LANGUAGES = ["ar", "de", "en", "es", "fr", "hi", "it", "ja", "ko", "nl", "pl", "pt", "ru", "tr", "zh"]
 
 
 def load_json(path: Path) -> dict:

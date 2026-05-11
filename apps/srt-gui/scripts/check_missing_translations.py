@@ -24,9 +24,64 @@ from typing import Any
 
 
 LOCALE_FILE_RE = re.compile(r"^[a-z]{2}\.json$", re.IGNORECASE)
+PLACEHOLDER_RE = re.compile(r"\{\{[^}]+\}\}|\{[A-Za-z0-9_.-]+\}")
+EXPECTED_LOCALES = [
+    "ar",
+    "de",
+    "en",
+    "es",
+    "fr",
+    "hi",
+    "it",
+    "ja",
+    "ko",
+    "nl",
+    "pl",
+    "pt",
+    "ru",
+    "tr",
+    "zh",
+]
 SAME_AS_ENGLISH_ALLOWED_KEYS = {
     "app.title",
+    "app.version",
     "common.no",
+    "flashcards.audio",
+    "flashcards.audioField",
+    "flashcards.audioPanel",
+    "flashcards.cpuEco",
+    "flashcards.cpuMin",
+    "flashcards.filters",
+    "flashcards.media",
+    "flashcards.previewStatus",
+    "flashcards.video",
+    "flashcards.videoField",
+    "flashcards.videoPanel",
+    "notifications.openReleases",
+    "settings.cardCss",
+    "settings.ctx",
+    "settings.endpointStatus.offline",
+    "settings.endpointStatus.online",
+    "settings.fieldAudio",
+    "settings.fieldVideo",
+    "settings.modal.providerAnthropicDesc",
+    "settings.modal.providerGoogleDesc",
+    "settings.modal.providerOpenaiDesc",
+    "settings.model",
+    "settings.providerStatus.offline",
+    "settings.status",
+    "shortcuts.action.offsetUp",
+    "sync.audioFormats",
+    "sync.offset",
+    "sync.offsetAdjust",
+    "sync.statusTitle",
+    "sync.video",
+    "transcribe.modelMedium",
+    "transcribe.segmentMedium",
+    "translate.batchTurbo",
+    "translate.context",
+    "translate.model",
+    "translate.subPerBatch",
     "provider.openrouter",
 }
 
@@ -61,6 +116,10 @@ def normalize_text(value: Any) -> str:
     return str(value).strip()
 
 
+def placeholders(value: Any) -> set[str]:
+    return set(PLACEHOLDER_RE.findall(normalize_text(value)))
+
+
 def discover_locale_dirs(base_dir: Path) -> list[Path]:
     """Return a list of directories containing locale JSON files."""
     dirs = [base_dir]
@@ -91,16 +150,29 @@ def audit_single_dir(
     locale_codes = [p.stem for p in locale_paths]
 
     all_missing: dict[str, list[MissingItem]] = {}
-    per_locale_count = {code: 0 for code in locale_codes}
+    expected_non_en = [code for code in EXPECTED_LOCALES if code != "en"]
+    per_locale_count = {code: 0 for code in expected_non_en}
     orphans: list[OrphanItem] = []
 
     loaded_locales = {p.stem: load_json(p) for p in locale_paths}
     dir_label = locales_dir.name
 
+    for code in expected_non_en:
+        if code in loaded_locales:
+            continue
+
+        for key in en_data:
+            all_missing.setdefault(key, []).append(
+                MissingItem(locale=code, reason="missing_locale", directory=dir_label)
+            )
+            per_locale_count[code] += 1
+
     # Check for missing / empty / same-as-english
     for key, en_value in en_data.items():
         en_text = normalize_text(en_value)
         for code, data in loaded_locales.items():
+            if code not in expected_non_en:
+                continue
             reason: str | None = None
             if key not in data:
                 reason = "missing_key"
@@ -108,6 +180,8 @@ def audit_single_dir(
                 value_text = normalize_text(data.get(key))
                 if value_text == "":
                     reason = "empty_value"
+                elif placeholders(value_text) != placeholders(en_text):
+                    reason = "placeholder_mismatch"
                 elif value_text == en_text and key not in SAME_AS_ENGLISH_ALLOWED_KEYS:
                     reason = "same_as_english"
 
@@ -120,6 +194,8 @@ def audit_single_dir(
     # Check for orphan keys (in locale but not in en.json)
     en_keys = set(en_data.keys())
     for code, data in loaded_locales.items():
+        if code not in expected_non_en:
+            continue
         for key in data:
             if key not in en_keys:
                 orphans.append(OrphanItem(locale=code, key=key, directory=dir_label))
@@ -251,7 +327,7 @@ def main() -> int:
     )
     parser.add_argument(
         "--block-reasons",
-        default="missing_key,empty_value",
+        default="missing_locale,missing_key,empty_value,placeholder_mismatch",
         help="Comma-separated reasons that should block when --fail-on-issues is set",
     )
     args = parser.parse_args()

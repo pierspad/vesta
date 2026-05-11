@@ -18,15 +18,15 @@ jobs:
     name: Build (linux)
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.11'
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: '20'
 
@@ -34,7 +34,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Setup sccache
-        uses: mozilla-actions/sccache-action@v0.0.8
+        uses: mozilla-actions/sccache-action@v0.0.9
 
       - name: Rust cache
         uses: swatinem/rust-cache@v2
@@ -86,7 +86,7 @@ jobs:
           python3 apps/srt-gui/scripts/check_missing_translations.py \
             --output apps/srt-gui/reports/missing_translations_report.json \
             --fail-on-issues \
-            --block-reasons missing_key,empty_value
+            --block-reasons missing_locale,missing_key,empty_value,placeholder_mismatch
 
       - name: Generate platform icons
         working-directory: ${{ env.TAURI_APP_DIR }}
@@ -102,13 +102,13 @@ jobs:
         run: npx tauri build --bundles deb,rpm
 
       - name: Upload DEB
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: vesta-linux-deb
           path: target/release/bundle/deb/*.deb
 
       - name: Upload RPM
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: vesta-linux-rpm
           path: target/release/bundle/rpm/*.rpm
@@ -121,7 +121,7 @@ jobs:
     needs: build-linux
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Get version
         id: version
@@ -132,7 +132,7 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
       - name: Download DEB artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: vesta-linux-deb
           path: deb-artifact
@@ -158,7 +158,7 @@ jobs:
           "
 
       - name: Upload Arch Package
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: packages-arch
           path: build-scripts/*.pkg.tar.zst
@@ -171,7 +171,7 @@ jobs:
     needs: build-linux
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Get version
         id: version
@@ -182,7 +182,7 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
       - name: Download DEB artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: vesta-linux-deb
           path: deb-artifact
@@ -213,7 +213,7 @@ jobs:
           flatpak build-bundle repo "vesta-${VERSION}.flatpak" com.vesta.desktop
 
       - name: Upload Flatpak
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: packages-flatpak
           path: build-scripts/vesta-*.flatpak
@@ -225,10 +225,10 @@ jobs:
     name: Build (windows)
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: '20'
 
@@ -236,7 +236,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Setup sccache
-        uses: mozilla-actions/sccache-action@v0.0.8
+        uses: mozilla-actions/sccache-action@v0.0.9
 
       - name: Rust cache
         uses: swatinem/rust-cache@v2
@@ -245,7 +245,7 @@ jobs:
           shared-key: "v1-sccache-windows"
 
       - name: Cache Tauri tools (NSIS, WiX)
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ${{ env.LOCALAPPDATA }}\tauri
@@ -305,7 +305,7 @@ jobs:
         run: npx tauri build --bundles nsis,msi
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: packages-windows
           path: |
@@ -325,10 +325,10 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Download all artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           path: artifacts
 
@@ -346,6 +346,10 @@ jobs:
           echo "=== Release files ==="
           ls -lh release/
 
+      - name: Extract release notes for tag
+        run: |
+          build-scripts/extract-release-notes.sh "${GITHUB_REF_NAME}" docs/release-notes.md release-notes-for-tag.md
+
       - name: Create Release
         uses: ncipollo/release-action@v1
         with:
@@ -353,7 +357,7 @@ jobs:
           tag: ${{ github.ref_name }}
           commit: ${{ github.sha }}
           name: VESTA ${{ github.ref_name }}
-          bodyFile: docs/release-notes.md
+          bodyFile: release-notes-for-tag.md
           allowUpdates: true
           omitBodyDuringUpdate: false
           replacesArtifacts: true

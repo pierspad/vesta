@@ -1,6 +1,7 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 set -euo pipefail
+export LC_ALL=C
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -11,140 +12,174 @@ NC='\033[0m'
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 
-echo -e "${BLUE}🚀 VESTA — Release Creator${NC}"
-echo "=================================="
+PKGBUILD="$SCRIPT_DIR/PKGBUILD"
+UPDATE_SCRIPT="$SCRIPT_DIR/update_project_info.sh"
+CHECK_SCRIPT="$SCRIPT_DIR/check_internal_crate_versions.sh"
+EXTRACT_NOTES_SCRIPT="$SCRIPT_DIR/extract-release-notes.sh"
+RELEASE_NOTES_FILE="$PROJECT_ROOT/docs/release-notes.md"
+I18N_AUDIT_SCRIPT="$PROJECT_ROOT/apps/srt-gui/scripts/check_missing_translations.py"
+I18N_REPORT="$PROJECT_ROOT/apps/srt-gui/reports/missing_translations_report.json"
+RELEASE_BODY_PREVIEW=""
 
-# ── Prepara e leggi versione dal PKGBUILD ─────────────────────
-if [ ! -f "$SCRIPT_DIR/PKGBUILD" ]; then
-    echo -e "${RED}❌ PKGBUILD non trovato in $SCRIPT_DIR${NC}"
+cleanup() {
+    if [ -n "$RELEASE_BODY_PREVIEW" ] && [ -f "$RELEASE_BODY_PREVIEW" ]; then
+        rm -f "$RELEASE_BODY_PREVIEW"
+    fi
+}
+trap cleanup EXIT
+
+read_pkgver() {
+    awk -F'=' '/^pkgver[[:space:]]*=/{print $2; exit}' "$PKGBUILD" | tr -d '\r' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/^"//' -e 's/"$//'
+}
+
+open_file_blocking() {
+    local file="$1"
+    local title="$2"
+
+    if [ ! -f "$file" ]; then
+        echo -e "${RED}Error: file non trovato: $file${NC}"
+        exit 1
+    fi
+
+    echo -e "${YELLOW}Apro ${title}... salva e chiudi per continuare${NC}"
+    code --wait "$file"
+}
+
+find_python() {
+    if command -v python3 >/dev/null 2>&1; then
+        printf '%s\n' "python3"
+    elif command -v python >/dev/null 2>&1; then
+        printf '%s\n' "python"
+    else
+        return 1
+    fi
+}
+
+if [ ! -f "$PKGBUILD" ]; then
+    echo -e "${RED}Error: PKGBUILD non trovato in $SCRIPT_DIR${NC}"
     exit 1
 fi
 
-echo -e "${YELLOW}📝 Apertura di PKGBUILD con VS Code... (Salva e chiudi il file per continuare)${NC}"
-code --wait "$SCRIPT_DIR/PKGBUILD"
+if [ ! -f "$UPDATE_SCRIPT" ] || [ ! -f "$CHECK_SCRIPT" ] || [ ! -f "$EXTRACT_NOTES_SCRIPT" ]; then
+    echo -e "${RED}Error: script di supporto mancanti (update/check/extract release notes)${NC}"
+    exit 1
+fi
 
-VERSION=$(grep -Po '^pkgver=\K.*' "$SCRIPT_DIR/PKGBUILD")
+if [ ! -f "$RELEASE_NOTES_FILE" ]; then
+    echo -e "${RED}Error: release notes non trovate in $RELEASE_NOTES_FILE${NC}"
+    exit 1
+fi
+
+if [ ! -f "$I18N_AUDIT_SCRIPT" ]; then
+    echo -e "${RED}Error: audit i18n non trovato: $I18N_AUDIT_SCRIPT${NC}"
+    exit 1
+fi
+
+if ! command -v code >/dev/null 2>&1; then
+    echo -e "${RED}Error: comando 'code' non disponibile. Installa/abilita VS Code CLI.${NC}"
+    exit 1
+fi
+
+echo -e "${BLUE}VESTA Release Creator${NC}"
+echo "=================================="
+
+open_file_blocking "$PKGBUILD" "PKGBUILD"
+
+VERSION="$(read_pkgver)"
 if [ -z "$VERSION" ]; then
-    echo -e "${RED}❌ Impossibile leggere pkgver dal PKGBUILD${NC}"
+    echo -e "${RED}Error: impossibile leggere pkgver dal PKGBUILD${NC}"
     exit 1
 fi
 
 TAG_VERSION="v$VERSION"
-echo -e "${GREEN}✅ Versione rilevata: ${VERSION}${NC}"
+echo -e "${GREEN}Versione rilevata: ${VERSION}${NC}"
 
-# ── Aggiorna tutti i file del progetto ────────────────────────
-echo -e "${YELLOW}🔄 Esecuzione update_project_info.sh...${NC}"
-bash "$SCRIPT_DIR/update_project_info.sh"
-echo ""
+echo -e "${YELLOW}Allineo i file progetto dal PKGBUILD...${NC}"
+bash "$UPDATE_SCRIPT"
 
-echo -e "${YELLOW}🔎 Verifica finale coerenza versioni interne...${NC}"
-bash "$SCRIPT_DIR/check_internal_crate_versions.sh"
-echo ""
+echo -e "${YELLOW}Verifico coerenza versioni interne...${NC}"
+bash "$CHECK_SCRIPT"
 
-# ── Verifica traduzioni i18n (blocca release su chiavi mancanti/vuote) ──
-I18N_AUDIT_SCRIPT="$PROJECT_ROOT/apps/srt-gui/scripts/check_missing_translations.py"
-I18N_REPORT="$PROJECT_ROOT/apps/srt-gui/reports/missing_translations_report.json"
-
-if [ ! -f "$I18N_AUDIT_SCRIPT" ]; then
-    echo -e "${RED}❌ Script audit traduzioni non trovato: $I18N_AUDIT_SCRIPT${NC}"
+PYTHON_BIN="$(find_python)" || {
+    echo -e "${RED}Error: Python non trovato (serve per l'audit i18n)${NC}"
     exit 1
-fi
+}
 
-PYTHON_BIN="python3"
-if ! command -v "$PYTHON_BIN" &> /dev/null; then
-    if command -v python &> /dev/null; then
-        PYTHON_BIN="python"
-    else
-        echo -e "${RED}❌ Python non trovato (serve per l'audit traduzioni)${NC}"
-        exit 1
-    fi
-fi
-
-echo -e "${YELLOW}🌍 Verifica traduzioni (chiavi mancanti/vuote)...${NC}"
-if ! "$PYTHON_BIN" "$I18N_AUDIT_SCRIPT" \
+echo -e "${YELLOW}Verifico sincronizzazione i18n...${NC}"
+"$PYTHON_BIN" "$I18N_AUDIT_SCRIPT" \
     --output "$I18N_REPORT" \
     --fail-on-issues \
-    --block-reasons missing_key,empty_value; then
-    echo -e "${RED}❌ Rilevate incongruenze nelle traduzioni.${NC}"
-    echo -e "${YELLOW}   Correggi i file locale e riesegui la release.${NC}"
-    echo -e "${YELLOW}   Report: $I18N_REPORT${NC}"
-    exit 1
-fi
-echo -e "${GREEN}✅ Traduzioni OK (nessuna chiave mancante/vuota)${NC}"
-echo ""
+    --block-reasons missing_locale,missing_key,empty_value,placeholder_mismatch
 
-# ── Verifica e modifica release-notes ─────────────────────────
-RELEASE_NOTES="$PROJECT_ROOT/docs/release-notes.md"
-if [ ! -f "$RELEASE_NOTES" ]; then
-    echo -e "${RED}❌ $RELEASE_NOTES non trovato${NC}"
-    echo -e "   Crealo prima di fare una release."
+open_file_blocking "$RELEASE_NOTES_FILE" "$(basename "$RELEASE_NOTES_FILE")"
+
+if ! grep -q '[^[:space:]]' "$RELEASE_NOTES_FILE"; then
+    echo -e "${RED}Error: release notes vuote. Compilale prima di pubblicare.${NC}"
     exit 1
 fi
 
-echo -e "${YELLOW}⚠  Le note di release verranno pubblicate con la GitHub Release.${NC}"
-echo -e "${BLUE}📝 Apertura di release-notes.md con VS Code... (Salva e chiudi il file per continuare)${NC}"
-code --wait "$RELEASE_NOTES"
-echo ""
-echo -e "${GREEN}✅ Release notes aggiornate e confermate${NC}"
+RELEASE_BODY_PREVIEW="$(mktemp)"
 
-# Conferma finale dopo aver visto/modificato le note
-read -rp "Procedere con la release v${VERSION}? [s/N] " confirm_release
+echo -e "${YELLOW}Verifico la sezione release notes per ${TAG_VERSION}...${NC}"
+bash "$EXTRACT_NOTES_SCRIPT" "$TAG_VERSION" "$RELEASE_NOTES_FILE" "$RELEASE_BODY_PREVIEW"
+echo -e "${GREEN}Release notes valide; verra pubblicata la sezione del tag o il blocco 'Release Notes'.${NC}"
+
+if command -v makepkg >/dev/null 2>&1; then
+    echo -e "${YELLOW}Genero .SRCINFO...${NC}"
+    (
+        cd "$SCRIPT_DIR"
+        makepkg --printsrcinfo > .SRCINFO
+    )
+    echo -e "${GREEN}.SRCINFO aggiornato${NC}"
+else
+    echo -e "${YELLOW}makepkg non disponibile, skip .SRCINFO${NC}"
+fi
+
+echo -e "${YELLOW}Sincronizzo Cargo.lock (cargo update --workspace)...${NC}"
+(
+    cd "$PROJECT_ROOT"
+    cargo update --workspace
+)
+echo -e "${GREEN}Cargo.lock sincronizzato${NC}"
+
+echo -e "${YELLOW}Modifiche che finiranno nel commit/tag:${NC}"
+git -C "$PROJECT_ROOT" status --short
+echo ""
+
+read -rp "Procedere con commit, tag e push di ${TAG_VERSION}? [s/N] " confirm_release
 if [[ ! "$confirm_release" =~ ^[sS]$ ]]; then
-    echo -e "${YELLOW}⚠  Release annullata.${NC}"
+    echo -e "${YELLOW}Release annullata.${NC}"
     exit 0
 fi
 
-# ── Genera .SRCINFO ──────────────────────────────────────────
-echo -e "${YELLOW}📄 Generazione .SRCINFO...${NC}"
-cd "$SCRIPT_DIR"
-if command -v makepkg &> /dev/null; then
-    makepkg --printsrcinfo > .SRCINFO
-    echo -e "${GREEN}✅ .SRCINFO aggiornato${NC}"
-else
-    echo -e "${YELLOW}⚠ makepkg non disponibile, skip .SRCINFO${NC}"
-fi
-
-# ── Sincronizza Cargo.lock con le nuove versioni ──────────────
-echo -e "${YELLOW}🔒 Aggiornamento Cargo.lock (cargo update --workspace)...${NC}"
-cd "$PROJECT_ROOT"
-if ! cargo update --workspace 2>&1; then
-    echo -e "${RED}❌ cargo update --workspace fallito${NC}"
-    exit 1
-fi
-echo -e "${GREEN}✅ Cargo.lock sincronizzato${NC}"
-echo ""
-
-# ── Commit e tag ──────────────────────────────────────────────
-echo -e "${YELLOW}📦 Commit e tag...${NC}"
+echo -e "${YELLOW}Commit, tag e push...${NC}"
 cd "$PROJECT_ROOT"
 
-# Aggiungi tutti i file modificati dallo script (incluso Cargo.lock)
 git add -A
 
 if git diff --cached --quiet; then
-    echo -e "${YELLOW}⚠ Nessuna modifica da committare, procedo con il tag${NC}"
+    echo -e "${YELLOW}Nessuna modifica da committare, continuo con il tag${NC}"
 else
-    git commit -m "chore: release v${VERSION}"
-    echo -e "${GREEN}✅ Commit creato${NC}"
+    git commit -m "chore: release ${TAG_VERSION}"
+    echo -e "${GREEN}Commit creato${NC}"
 fi
 
-# Se il tag esiste già, rimuovilo
 if git rev-parse "$TAG_VERSION" >/dev/null 2>&1; then
-    echo -e "${YELLOW}⚠ Tag $TAG_VERSION già esistente, lo ricreo${NC}"
+    echo -e "${YELLOW}Tag ${TAG_VERSION} gia esistente, lo ricreo${NC}"
     git tag -d "$TAG_VERSION"
     git push origin ":refs/tags/$TAG_VERSION" 2>/dev/null || true
 fi
 
 git tag "$TAG_VERSION"
 
-# ── Push ──────────────────────────────────────────────────────
-BRANCH=$(git branch --show-current)
-echo -e "${YELLOW}🚀 Push su origin/${BRANCH} + tag ${TAG_VERSION}...${NC}"
-git push origin "$BRANCH"
-git push origin "$TAG_VERSION"
-echo -e "${GREEN}✅ Push completato${NC}"
+BRANCH="$(git branch --show-current)"
+if [ -z "$BRANCH" ]; then
+    echo -e "${RED}Error: impossibile rilevare il branch corrente (HEAD detached?)${NC}"
+    exit 1
+fi
 
-echo ""
-echo -e "${GREEN}✅ Tag $TAG_VERSION pubblicato con successo!${NC}"
-echo -e "${BLUE}   La GitHub Action 'Build and Release' creerà la release usando docs/release-notes.md.${NC}"
-echo -e "${BLUE}   Dopo il build, esegui ./push-aur.sh per aggiornare AUR.${NC}"
+git push --atomic origin "$BRANCH" "$TAG_VERSION"
+
+echo -e "${GREEN}Tag ${TAG_VERSION} pubblicato con successo${NC}"
+echo -e "${BLUE}La GitHub Action creera la release usando solo la sezione ${TAG_VERSION} di docs/release-notes.md.${NC}"
+echo -e "${BLUE}Dopo il build GitHub, esegui ./push-aur.sh per aggiornare AUR.${NC}"
