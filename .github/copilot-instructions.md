@@ -1,34 +1,89 @@
 ---
-description: Linee guida generali per VESTA, stack Svelte+Tauri e documentazione automatica.
+description: Linee guida LLM per VESTA, i18n, qualita e release.
 ---
 
 # Istruzioni Copilot per VESTA
 
-Queste istruzioni vengono lette automaticamente da GitHub Copilot (e altri LLM compatibili) in questo workspace grazie alla loro presenza in `.github/copilot-instructions.md`. Devi sempre aderire a queste regole quando scrivi codice o effettui delle modifiche.
+Queste istruzioni vengono lette automaticamente da GitHub Copilot e da altri LLM compatibili quando lavorano in questo workspace. Devi aderire a queste regole quando scrivi codice, aggiorni documentazione o prepari una release.
 
-## 1. Changelog Costante e Obbligatorio
-Ogni volta che completi con successo un task o un bugfix significativo per l'utente, **devi categoricamente documentare le tue modifiche accodandole nel file `docs/list_of_things_changed.md`**.
-* Come formattarlo: Aggiungi un punto elenco in fondo, o raggruppalo per categoria se pertinente, descrivendo *cosa* è stato cambiato.
-* Perché: Questo serve all'utente, poco prima di generare una release, per compilare le note di rilascio. NON omettere questo step. Non chiedere prima il permesso all'utente, fallo automaticamente alla fine del tuo lavoro.
+## 1. Changelog operativo obbligatorio
 
-## 2. Traduzioni e Multi-lingua (i18n)
-VESTA è supportato in 13 lingue differenti. Se metti mani alla UI (file `.svelte` o affini):
-* **Non utilizzare NESSUNA stringa visibile all'utente in modo hardcoded**. Utilizza sempre la funzione `t("chiave.di.traduzione")`.
-* Una volta creata in crea un piccolo script python (o usa quelli già a tua disposizione in /vesta/apps/srt-gui/scripts) per generare JSON updates tradotti in **tutte** le altre lingue presenti nella cartella `locales/` contemporaneamente (`it`, `fr`, `es`, `de`, `ar`, `ja`, `ko`, `zh`, `hi`, `ru`, `tr`, `pt`, `pl`).
-* Una volta modificate le traduzioni, per validarle **DEVI eseguire sempre** il comando dal terminale:
-  ```bash
-  python3 apps/srt-gui/scripts/check_missing_translations.py
-  ```
-  Se il report terminale segnala errori, sistemali subito. Ricorda che se una traduzione in un'altra lingua (es. Francese o Italiano) coincide letteralmente con la stringa in lingua Inglese, lo script lo marcherà come `same_as_english` loggandolo come errore. In questi rari casi, usa un artefatto provvisorio (es: un accento) o segnalalo per bypassare lo script.
+Ogni volta che completi un task, bugfix, refactor o aggiornamento significativo, documenta le modifiche in `docs/list_of_things_changed.md`.
 
-## 3. Comandi utili e Architettura
-Vesta ha due parti principali nel workspace:
-* **Frontend**: Svelte (Vite), risiede in `apps/srt-gui`. Usa `npm run dev` per i test.
-* **Backend CLI/Tauri**: Rust, in `core/`, `lib/`, `cli/`, e `src-tauri/`.
-* Le funzionalità core di analisi SRT sono in Rust. Non duplicare la medesima logica sul front-end se si tratta di computazione pesante, usa Tauri commands (`invoke`) chiamando Rust.
-* Rust crates e dipendenze vanno lette nei rispettivi `Cargo.toml`.
+- Mantieni il titolo principale `# Modifiche recenti (in preparazione alla release)`.
+- Raggruppa le modifiche sotto sezioni `## [Data Odierna] - Categoria`.
+- Usa bullet nel formato `- **Etichetta breve**: Descrizione concreta della modifica`.
+- Scrivi cosa e' cambiato e perche' e' utile all'utente o al progetto.
+- Non chiedere conferma prima di aggiornare questo file: e' il registro operativo che alimenta le release notes.
 
-## 4. Stile per SvelteKit
-* Stiamo usando le **Runes di Svelte 5** (`$state`, `$derived`, `onclick` anziché `on:click`, ecc.). Non usare la sintassi obsoleta di Svelte 4, attieniti al reattivo `$state`.
-* Mantieni isolato il CSS dentro il tag `<style>` e/o usa classi **Tailwind CSS**. Evita di mischiare stili globali se non strettamente necessario.
+## 2. Internazionalizzazione a 15 lingue
 
+VESTA deve restare tradotto nelle stesse 15 lingue di TextMerger:
+`ar`, `de`, `en`, `es`, `fr`, `hi`, `it`, `ja`, `ko`, `nl`, `pl`, `pt`, `ru`, `tr`, `zh`.
+
+Quando modifichi testi visibili all'utente:
+
+- non introdurre stringhe UI hardcoded nei componenti Svelte;
+- usa sempre `t("chiave.di.traduzione")` e i file in `apps/srt-gui/src/lib/i18n/locales`;
+- aggiorna sia i locale principali sia `apps/srt-gui/src/lib/i18n/locales/info` quando tocchi contenuti di aiuto;
+- aggiorna tutte le 15 lingue nello stesso commit/task;
+- preserva placeholder come `{{count}}`, markup necessario e struttura JSON;
+- usa gli script in `apps/srt-gui/scripts` quando devi spezzare, fondere o controllare traduzioni;
+- esegui `npm run i18n:audit` dalla cartella `apps/srt-gui/` e correggi chiavi mancanti o vuote.
+
+## 3. Qualita, riuso e debito tecnico
+
+Ogni modifica deve ridurre o almeno non aumentare il debito tecnico.
+
+- Preferisci componenti riutilizzabili a duplicazioni locali di UI o logica.
+- Centralizza pattern ripetuti come snackbar, modali, shortcut, form controls, gestione errori e helper i18n.
+- Mantieni le funzionalita core di parsing, sync, estrazione e traduzione SRT lato Rust/Tauri quando sono computazionalmente rilevanti.
+- Evita refactor larghi non richiesti, ma se tocchi codice duplicato valuta un'estrazione piccola e chiara.
+- Aggiungi test o audit proporzionati al rischio della modifica.
+
+## 4. Architettura e stile Svelte
+
+- Frontend: Svelte/Vite in `apps/srt-gui`.
+- Backend CLI/Tauri: Rust in `core/`, `lib/`, `cli/` e `apps/srt-gui/src-tauri/`.
+- Usa le Runes di Svelte 5 (`$state`, `$derived`, `onclick`) dove il file le usa gia'.
+- Mantieni il CSS locale al componente o usa Tailwind; evita global CSS se non serve.
+- Leggi i `Cargo.toml` rilevanti prima di toccare crate o dipendenze Rust.
+
+## 5. Release notes e pubblicazione
+
+La GitHub Release deve usare `docs/release-notes.md` come corpo curato della release. Non sostituirla con release notes generate automaticamente.
+
+Formato preferito:
+
+```markdown
+## Release Notes
+
+### Fixes
+
+* **Area**: Fix sintetico e concreto
+
+### Improvements
+
+* **Area**: Miglioramento sintetico e concreto
+```
+
+Regole:
+
+- usa `*` nelle release notes, non `-`;
+- mantieni categorie brevi come `Fixes`, `Improvements`, `Packaging`, `Localization`, se servono;
+- non creare sezioni vuote;
+- scrivi per utenti finali: il dettaglio operativo resta in `docs/list_of_things_changed.md`.
+
+Prima di pubblicare:
+
+- consulta `docs/list_of_things_changed.md`;
+- aggiorna `docs/release-notes.md`;
+- verifica la sezione con `build-scripts/extract-release-notes.sh vX.Y.Z`;
+- verifica versioni e i18n con `build-scripts/git-release.sh`.
+
+## 6. Comandi utili
+
+- Frontend: `cd apps/srt-gui && npm run check`
+- Audit i18n: `cd apps/srt-gui && npm run i18n:audit`
+- Release: `build-scripts/git-release.sh`
+- Pubblicazione AUR dopo GitHub Release: `build-scripts/push-aur.sh`

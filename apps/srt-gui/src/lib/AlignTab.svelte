@@ -4,10 +4,12 @@
   import { readTextFile, writeTextFile } from '@tauri-apps/plugin-fs';
   import { onDestroy, onMount } from 'svelte';
   import { guardedOpen, guardedSave } from './dialogGuard';
-  import { t } from './i18n';
+  import { locale } from './i18n';
   import InfoButton from './InfoButton.svelte';
   import { languages } from './models';
   import PathPreviewModal from './PathPreviewModal.svelte';
+
+  let t = $derived($locale);
 
   interface Subtitle {
     id: number;
@@ -702,7 +704,7 @@
 
   <PathPreviewModal
     isOpen={!!expandedPathField}
-    title={expandedPathField === "target" ? "1st SRT Path" : "2nd SRT Path"}
+    title={expandedPathField === "target" ? t("align.baseSrt") : t("align.translationSrt")}
     value={expandedPathField === "target" ? targetPath || "—" : sourcePath || "—"}
     onclose={() => (expandedPathField = null)}
   />

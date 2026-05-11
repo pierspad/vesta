@@ -6,6 +6,7 @@
 # ===========================================================================
 
 set -euo pipefail
+export LC_ALL=C
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -14,24 +15,56 @@ BLUE='\033[0;34m'
 NC='\033[0m'
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-cd "$SCRIPT_DIR"
+PKGBUILD="$SCRIPT_DIR/PKGBUILD"
+UPDATE_SCRIPT="$SCRIPT_DIR/update_project_info.sh"
+CHECK_SCRIPT="$SCRIPT_DIR/check_internal_crate_versions.sh"
 
-# ── Leggi dal PKGBUILD ───────────────────────────────────────
-PROJECT_NAME=$(grep -Po '^pkgname=\K.*' PKGBUILD)
-AUR_REPO_DIR="${AUR_REPO_DIR:-./${PROJECT_NAME}}"
+PROJECT_NAME="${PROJECT_NAME:-$(awk -F'=' '/^pkgname[[:space:]]*=/{print $2; exit}' "$PKGBUILD" | tr -d '\r' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')}"
+AUR_REPO_DIR="${AUR_REPO_DIR:-$SCRIPT_DIR/${PROJECT_NAME}}"
+AUR_REMOTE_URL="ssh://aur@aur.archlinux.org/${PROJECT_NAME}.git"
 
 if [ -z "$PROJECT_NAME" ]; then
     echo -e "${RED}❌ Impossibile leggere pkgname dal PKGBUILD${NC}"
     exit 1
 fi
 
+if [ ! -f "$UPDATE_SCRIPT" ] || [ ! -f "$CHECK_SCRIPT" ]; then
+    echo -e "${RED}❌ Script update/check mancanti in $SCRIPT_DIR${NC}"
+    exit 1
+fi
+
 echo -e "${BLUE}🔄 AUR Push — ${PROJECT_NAME}${NC}"
 echo "=================================="
 
+echo -e "${YELLOW}🔄 Allineamento metadati dal PKGBUILD...${NC}"
+bash "$UPDATE_SCRIPT"
+
+echo -e "${YELLOW}🔎 Verifica coerenza versioni interne...${NC}"
+bash "$CHECK_SCRIPT"
+
+cd "$SCRIPT_DIR"
+
 # ── Clona il repo AUR se non esiste ──────────────────────────
-if [ ! -d "$AUR_REPO_DIR" ]; then
-    echo -e "${YELLOW}⚠ Directory $AUR_REPO_DIR non trovata. Clonazione repo AUR...${NC}"
-    if ! git clone "ssh://aur@aur.archlinux.org/${PROJECT_NAME}.git" "$AUR_REPO_DIR"; then
+if [[ -d "$AUR_REPO_DIR/.git" ]] && git -C "$AUR_REPO_DIR" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    CURRENT_REMOTE_URL="$(git -C "$AUR_REPO_DIR" remote get-url origin 2>/dev/null || true)"
+    if [[ "$CURRENT_REMOTE_URL" != "$AUR_REMOTE_URL" ]]; then
+        echo -e "${RED}❌ $AUR_REPO_DIR punta a un remote diverso da AUR.${NC}"
+        echo -e "${RED}   Remote attuale: ${CURRENT_REMOTE_URL:-<nessuno>}${NC}"
+        echo -e "${RED}   Remote atteso:  $AUR_REMOTE_URL${NC}"
+        exit 1
+    fi
+else
+    if [[ -e "$AUR_REPO_DIR" ]]; then
+        BACKUP_DIR="${AUR_REPO_DIR}.backup.$(date +%s)"
+        echo -e "${YELLOW}⚠ $AUR_REPO_DIR esiste ma non e' un repository git AUR valido.${NC}"
+        echo -e "${YELLOW}📦 Backup in $BACKUP_DIR${NC}"
+        mv "$AUR_REPO_DIR" "$BACKUP_DIR"
+    else
+        echo -e "${YELLOW}⚠ Directory $AUR_REPO_DIR non trovata.${NC}"
+    fi
+
+    echo -e "${YELLOW}⬇️  Clonazione repo AUR...${NC}"
+    if ! git clone "$AUR_REMOTE_URL" "$AUR_REPO_DIR"; then
         echo -e "${RED}❌ Errore nella clonazione. Configura la chiave SSH per AUR.${NC}"
         exit 1
     fi
@@ -42,13 +75,12 @@ rm -rf pkg/ src/ ./*.pkg.*
 
 # ── Aggiorna checksum SHA256 ─────────────────────────────────
 echo -e "${YELLOW}🔍 Aggiornamento checksum con updpkgsums...${NC}"
-if command -v updpkgsums &> /dev/null; then
-    updpkgsums
-    echo -e "${GREEN}✅ Checksum aggiornati${NC}"
-else
-    echo -e "${YELLOW}⚠ updpkgsums non trovato. Installa pacman-contrib.${NC}"
-    echo -e "   I checksum nel PKGBUILD potrebbero non essere aggiornati."
+if ! command -v updpkgsums >/dev/null 2>&1; then
+    echo -e "${RED}❌ updpkgsums non trovato. Installa pacman-contrib.${NC}"
+    exit 1
 fi
+updpkgsums
+echo -e "${GREEN}✅ Checksum aggiornati${NC}"
 
 # ── Genera .SRCINFO ──────────────────────────────────────────
 echo -e "${YELLOW}📄 Generazione .SRCINFO...${NC}"
@@ -65,7 +97,7 @@ cd "$AUR_REPO_DIR"
 git add -A
 
 if ! git diff --staged --quiet; then
-    VERSION=$(grep -Po '^pkgver=\K.*' PKGBUILD)
+    VERSION=$(awk -F'=' '/^pkgver[[:space:]]*=/{print $2; exit}' PKGBUILD | tr -d '\r' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
     git commit -m "Update to v${VERSION}"
     git push
     echo -e "${GREEN}✅ Push completato su AUR${NC}"

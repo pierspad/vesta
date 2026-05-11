@@ -158,6 +158,28 @@ translations = {
         "align.typeSubtitle": "여기에 자막 입력...",
         "align.noSubtitle": "자막 없음"
     },
+    "nl": {
+        "align.baseSrt": "Originele / basis-SRT",
+        "align.openSrt": "SRT openen",
+        "align.dragDropSrt": "Sleep SRT hierheen...",
+        "align.subtitlesLoaded": "{{count}} ondertitels geladen",
+        "align.swapFiles": "Bestandsvolgorde wisselen",
+        "align.translationSrt": "Vertaling / revisie-SRT",
+        "align.loadPrompt": "Laad enkele SRT-bestanden om te beginnen met uitlijnen.",
+        "align.dragDropAnywhere": "Je kunt bestanden overal in dit venster slepen en neerzetten.",
+        "align.page": "Pagina",
+        "align.of": "van",
+        "align.subsPerPage": "{{count}} ondertitels per pagina",
+        "align.goToStart": "Naar begin",
+        "align.prevEmpty": "Ga naar vorige lege ondertitel",
+        "align.prev": "Vorige",
+        "align.next": "Volgende",
+        "align.nextEmpty": "Ga naar volgende lege ondertitel",
+        "align.goToEnd": "Naar einde",
+        "align.saveResult": "Resultaat opslaan",
+        "align.typeSubtitle": "Typ hier de ondertitel...",
+        "align.noSubtitle": "Geen ondertitel"
+    },
     "pl": {
         "align.baseSrt": "Oryginał / Bazowy SRT",
         "align.openSrt": "Otwórz SRT",
