@@ -12,25 +12,25 @@ name = "vesta_lib"
 crate-type = ["lib", "cdylib", "staticlib"]
 
 [build-dependencies]
-tauri-build = { version = "2.0", features = [] }
+tauri-build = { version = "2.6", features = [] }
 
 [dependencies]
-tauri = { version = "2.0", features = ["protocol-asset"] }
-tauri-plugin-shell = "2.0"
-tauri-plugin-fs = "2.0"
-tauri-plugin-http = "2.0"
+tauri = { version = "2.11", features = ["protocol-asset"] }
+tauri-plugin-shell = "2.3"
+tauri-plugin-fs = "2.5"
+tauri-plugin-http = "2.5"
 serde = { workspace = true }
 serde_json = { workspace = true }
 anyhow = { workspace = true }
 tokio = { workspace = true }
 tokio-util = "0.7"
 urlencoding = "2"
-zip = "2"
+zip = "8"
 tempfile = "3"
-dirs = "5"
-whisper-rs = "0.15"
+dirs = "6"
+whisper-rs = "0.16"
 hound = "3"
-rusqlite = { version = "0.31", features = ["bundled"] }
+rusqlite = { version = "0.39", features = ["bundled"] }
 sha1_smol = "1.0"
 ffmpeg-sidecar = { version = "2.5.1", features = ["download_ffmpeg"] }
 
@@ -38,20 +38,20 @@ ffmpeg-sidecar = { version = "2.5.1", features = ["download_ffmpeg"] }
 srt-parser = { workspace = true }
 srt-translate = { workspace = true }
 srt-sync = { workspace = true }
-axum = "0.8.8"
-tower-http = { version = "0.6.8", features = ["cors", "fs"] }
+axum = "0.8.9"
+tower-http = { version = "0.6.10", features = ["cors", "fs"] }
 tower = "0.5.3"
 
 [target.'cfg(target_os = "linux")'.dependencies]
 webkit2gtk = "2.0"
-tauri-plugin-dialog = { version = "2.0", default-features = false, features = ["xdg-portal"] }
+tauri-plugin-dialog = { version = "2.7", default-features = false, features = ["xdg-portal"] }
 
 [target.'cfg(not(target_os = "linux"))'.dependencies]
-tauri-plugin-dialog = "2.0"
+tauri-plugin-dialog = "2.7"
 
 [dev-dependencies]
-sha2 = "0.10"
-tokio = { version = "1.35", features = ["full"] }
+sha2 = "0.11"
+tokio = { version = "1.52", features = ["full"] }
 
 [features]
 default = ["custom-protocol"]
