@@ -19,6 +19,6 @@ anyhow.workspace = true
 clap.workspace = true
 tokio.workspace = true
 dotenvy = "0.15"
-toml = "0.8"
+toml = "1.1"
 serde.workspace = true
 regex = "1"
