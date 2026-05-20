@@ -1,5 +1,10 @@
 # Modifiche recenti (in preparazione alla release)
 
+## [2026-05-20] - Automazione Release e Integrazione Changelog/Release Notes
+- **Harness LLM**: Aggiornate le istruzioni Copilot per richiedere l'aggiornamento simultaneo del changelog operativo e delle release notes curate per ciascuna modifica.
+- **Script Release**: Modificato `git-release.sh` per iniettare automaticamente la versione letta dal PKGBUILD come intestazione (`## Release Notes vX.Y.Z`) prima dell'apertura, e svuotare/resettare entrambi i file al termine della release di successo (con commit e push automatico).
+- **Estrattore Note**: Aggiornato `extract-release-notes.sh` per supportare intestazioni che iniziano con "Release Notes vX.Y.Z".
+
 ## [Data Odierna] - Release, i18n e Governance LLM
 - **GitHub Actions Node 24**: Aggiornate le action CI/release a versioni compatibili con il runtime Node.js 24 (`checkout@v6`, `setup-node@v6`, `setup-python@v6`, `upload-artifact@v6`, `download-artifact@v7`, `cache@v5`, `sccache-action@v0.0.9`) per rimuovere gli avvisi di deprecazione Node.js 20.
 - **Lingua olandese completa**: Aggiunti i file `nl.json` per i locale principali e per i contenuti help/info, portando VESTA alle stesse 15 lingue di TextMerger.

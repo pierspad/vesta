@@ -798,6 +798,145 @@ fn simplify_subtitle_stem(name: &str) -> String {
     tokens.join(" ")
 }
 
+/// Prepara un file media per la riproduzione nel browser.
+/// Per formati non nativamente supportati da WebKitGTK (MKV, AVI, FLV, OGM, VOB),
+/// usa ffmpeg per estrarre l'audio in formato OGG (Opus) nella cache dell'app.
+/// Restituisce il percorso del file da riprodurre (originale o transcodificato).
+#[tauri::command]
+pub async fn sync_prepare_media_for_playback(
+    app: tauri::AppHandle,
+    path: String,
+) -> Result<String, String> {
+    use tauri::Manager;
+
+    let ext = Path::new(&path)
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("")
+        .to_lowercase();
+
+    // Formats natively supported by WebKitGTK / GStreamer without extra plugins
+    let browser_native = matches!(
+        ext.as_str(),
+        "mp4" | "m4v" | "webm" | "mp3" | "wav" | "ogg" | "m4a" | "aac" | "opus" | "flac"
+    );
+
+    if browser_native {
+        // Browser can play this directly
+        return Ok(path);
+    }
+
+    // For non-native formats (mkv, avi, mov, flv, ogm, vob, wma, m4b, etc.),
+    // transcode audio to OGG Opus via ffmpeg
+    let ffmpeg_cmd = super::flashcards::media::resolve_ffmpeg_path(Some(&app)).await;
+
+    // Create a cache directory for transcoded files
+    let cache_dir = app
+        .path()
+        .app_cache_dir()
+        .map_err(|e| format!("Cannot get cache dir: {}", e))?
+        .join("media_cache");
+
+    std::fs::create_dir_all(&cache_dir)
+        .map_err(|e| format!("Cannot create cache dir: {}", e))?;
+
+    // Generate a deterministic output filename based on the source path
+    let hash = sha1_hash(&path);
+    let output_path = cache_dir.join(format!("{}.ogg", hash));
+
+    // If already transcoded, return cached version
+    if output_path.exists() {
+        // Verify the source file hasn't been modified since the cache was created
+        let source_modified = std::fs::metadata(&path)
+            .and_then(|m| m.modified())
+            .ok();
+        let cache_modified = std::fs::metadata(&output_path)
+            .and_then(|m| m.modified())
+            .ok();
+
+        if let (Some(src_time), Some(cache_time)) = (source_modified, cache_modified) {
+            if cache_time > src_time {
+                return Ok(output_path.to_string_lossy().to_string());
+            }
+        }
+    }
+
+    // Transcode: extract audio to OGG Opus
+    eprintln!(
+        "[sync] Transcoding '{}' to OGG for browser playback...",
+        path
+    );
+
+    let output = tokio::process::Command::new(&ffmpeg_cmd)
+        .args([
+            "-nostdin",
+            "-loglevel", "error",
+            "-y",
+            "-i", &path,
+            "-vn",       // no video
+            "-sn",       // no subtitles
+            "-dn",       // no data streams
+            "-c:a", "libopus",
+            "-b:a", "128k",
+            "-ar", "48000",
+            "-ac", "2",
+        ])
+        .arg(output_path.as_os_str())
+        .output()
+        .await
+        .map_err(|e| format!("Failed to run ffmpeg: {}", e))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        // Fallback: try with libvorbis if libopus is not available
+        eprintln!("[sync] libopus failed, trying libvorbis fallback: {}", stderr);
+
+        let output2 = tokio::process::Command::new(&ffmpeg_cmd)
+            .args([
+                "-nostdin",
+                "-loglevel", "error",
+                "-y",
+                "-i", &path,
+                "-vn",
+                "-sn",
+                "-dn",
+                "-c:a", "libvorbis",
+                "-b:a", "128k",
+                "-ar", "44100",
+                "-ac", "2",
+            ])
+            .arg(output_path.as_os_str())
+            .output()
+            .await
+            .map_err(|e| format!("Failed to run ffmpeg (vorbis): {}", e))?;
+
+        if !output2.status.success() {
+            let stderr2 = String::from_utf8_lossy(&output2.stderr);
+            return Err(format!(
+                "ffmpeg transcoding failed: {}",
+                if stderr2.is_empty() { &stderr } else { &stderr2 }
+            ));
+        }
+    }
+
+    eprintln!(
+        "[sync] Transcoded '{}' -> '{}'",
+        path,
+        output_path.display()
+    );
+
+    Ok(output_path.to_string_lossy().to_string())
+}
+
+/// Simple hash for generating cache filenames
+fn sha1_hash(input: &str) -> String {
+    use std::collections::hash_map::DefaultHasher;
+    use std::hash::{Hash, Hasher};
+    let mut hasher = DefaultHasher::new();
+    input.hash(&mut hasher);
+    format!("{:016x}", hasher.finish())
+}
+
 /// Helper per estrarre lo stato dall'engine
 fn get_status_from_engine(engine: &SyncEngine) -> SyncStatus {
     SyncStatus {

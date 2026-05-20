@@ -59,6 +59,7 @@
   let audioSrc = $state<string | null>(null);
   let audioError = $state<string | null>(null);
   let hasAutoPaused = $state(false);
+  let isPreparingMedia = $state(false);
 
   let showResetModal = $state(false);
 
@@ -401,8 +402,24 @@
   }
 
   async function loadMediaFile(filePath: string): Promise<string> {
-    const port = await getMediaPort();
-    return `http://127.0.0.1:${port}/media?path=${encodeURIComponent(filePath)}`;
+    // For non-browser-native formats (mkv, avi, etc.), transcode audio
+    // via ffmpeg to OGG Opus for reliable WebKitGTK playback
+    const needsTranscode = /\.(mkv|avi|mov|flv|ogm|vob|wma|m4b|m2ts|mpeg|mpg)$/i.test(filePath);
+    if (needsTranscode) {
+      isPreparingMedia = true;
+      showSnackbar(t("sync.transcodingMedia"), "info");
+    }
+    try {
+      const playbackPath = await invoke<string>("sync_prepare_media_for_playback", {
+        path: filePath,
+      });
+      const port = await getMediaPort();
+      return `http://127.0.0.1:${port}/media?path=${encodeURIComponent(playbackPath)}`;
+    } finally {
+      if (needsTranscode) {
+        isPreparingMedia = false;
+      }
+    }
   }
 
   function cleanupAudioSrc() {
@@ -1673,6 +1690,19 @@
                         ? formatTime(audioDuration * 1000)
                         : "--:--"}</span
                     >
+                  </div>
+                {:else if isPreparingMedia}
+                  <div class="text-center py-4">
+                    <div class="flex items-center justify-center gap-3">
+                      <svg class="animate-spin h-5 w-5 text-purple-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      <p class="text-purple-300">{t("sync.transcodingMedia")}</p>
+                    </div>
+                    <p class="text-xs text-gray-500 mt-2">
+                      {t("sync.transcodingHint")}
+                    </p>
                   </div>
                 {:else if !audioSrc}
                   <div class="text-center py-4">
