@@ -16,6 +16,8 @@
     start: string;
     end: string;
     text: string;
+    originalStart?: string;
+    originalEnd?: string;
   }
 
   let targetPath = $state("");
@@ -72,7 +74,7 @@
     activityLogId = 0;
   }
 
-  // Expanded path modal
+  // Expanded path field
   let expandedPathField = $state<string | null>(null);
 
   // ─── Undo History ──────────────────────────────────────────────────────────
@@ -82,7 +84,14 @@
 
   function pushUndo() {
     // Serialize current sourceSubs state
-    const snapshot = JSON.stringify(sourceSubs.map(s => ({ id: s.id, start: s.start, end: s.end, text: s.text })));
+    const snapshot = JSON.stringify(sourceSubs.map(s => ({
+      id: s.id,
+      start: s.start,
+      end: s.end,
+      text: s.text,
+      originalStart: s.originalStart,
+      originalEnd: s.originalEnd
+    })));
     // Don't push if identical to last snapshot
     if (undoStack.length > 0 && undoStack[undoStack.length - 1] === snapshot) return;
     undoStack = [...undoStack.slice(-(MAX_UNDO - 1)), snapshot];
@@ -257,14 +266,16 @@
   }
 
   function parseSrt(content: string): Subtitle[] {
-    const blocks = content.trim().replace(/\r\n/g, '\n').split(/\n\s*\n/);
+    const blocks = content.trim().replace(/\r\n/g, '\n').split(/\n\s*\n/).filter(Boolean);
     return blocks.map(block => {
       const lines = block.split('\n');
       const id = parseInt(lines[0], 10) || 0;
       const timeLine = lines[1] || '';
       const times = timeLine.split(' --> ');
       const text = lines.slice(2).join('\n');
-      return { id, start: times[0] || '00:00:00,000', end: times[1] || '00:00:00,000', text };
+      const start = times[0] || '00:00:00,000';
+      const end = times[1] || '00:00:00,000';
+      return { id, start, end, text, originalStart: start, originalEnd: end };
     });
   }
 
@@ -273,26 +284,65 @@
   }
 
   function normalizeAlignments() {
-    // Collect all unique IDs across both arrays
+    // 1. Restore original timestamps for any existing subtitles in both lists
+    targetSubs.forEach(s => {
+      if (s.originalStart !== undefined) s.start = s.originalStart;
+      if (s.originalEnd !== undefined) s.end = s.originalEnd;
+    });
+    sourceSubs.forEach(s => {
+      if (s.originalStart !== undefined) s.start = s.originalStart;
+      if (s.originalEnd !== undefined) s.end = s.originalEnd;
+    });
+
+    // 2. Collect unique maps of the original subtitles
     const targetMap = new Map(targetSubs.map(s => [s.id, s]));
     const sourceMap = new Map(sourceSubs.map(s => [s.id, s]));
     
     // Create a Set of all IDs, sort numerically
     const allIds = Array.from(new Set([...targetMap.keys(), ...sourceMap.keys()])).sort((a, b) => a - b);
     
-    // Rebuild the arrays based on the unique IDs, injecting padded items where missing
+    // Rebuild targetSubs (the original/primary side)
     targetSubs = allIds.map(id => {
-      if (targetMap.has(id)) return targetMap.get(id)!;
-      // If missing in target, inject a dummy object
+      if (targetMap.has(id)) {
+        return targetMap.get(id)!;
+      }
+      // If missing in target, inject a dummy object with source's original timestamps
       const s = sourceMap.get(id);
-      return { id, start: s?.start || '00:00:00,000', end: s?.end || '00:00:00,000', text: '' };
+      const start = s?.originalStart || s?.start || '00:00:00,000';
+      const end = s?.originalEnd || s?.end || '00:00:00,000';
+      return { 
+        id, 
+        start, 
+        end, 
+        text: '', 
+        originalStart: start, 
+        originalEnd: end 
+      };
     });
 
+    // Rebuild sourceSubs (the secondary/editable side)
+    const alignedTargetMap = new Map(targetSubs.map(s => [s.id, s]));
+
     sourceSubs = allIds.map(id => {
-      if (sourceMap.has(id)) return sourceMap.get(id)!;
+      const t = alignedTargetMap.get(id)!;
+      const alignedStart = t.start;
+      const alignedEnd = t.end;
+
+      if (sourceMap.has(id)) {
+        const s = sourceMap.get(id)!;
+        s.start = alignedStart;
+        s.end = alignedEnd;
+        return s;
+      }
       // If missing in source, inject an empty editable item
-      const t = targetMap.get(id);
-      return { id, start: t?.start || '00:00:00,000', end: t?.end || '00:00:00,000', text: '' };
+      return { 
+        id, 
+        start: alignedStart, 
+        end: alignedEnd, 
+        text: '',
+        originalStart: alignedStart,
+        originalEnd: alignedEnd
+      };
     });
   }
 
