@@ -12,6 +12,7 @@
 
 ### Improvements
 
+* **Release Automation**: The release script now automatically formats the release notes version header, and cleans/resets both the operational changelog and the release notes files upon successful release
 * **Dutch Localization**: Added Dutch (`nl`) UI and help translations, matching TextMerger's 15-language set
 * **Release Scripts**: Aligned release and AUR publishing scripts with TextMerger's validation-first structure
 * **Project Governance**: LLM/Copilot instructions now require curated release notes, synchronized i18n, reusable components, and technical debt reduction

@@ -6,15 +6,21 @@ description: Linee guida LLM per VESTA, i18n, qualita e release.
 
 Queste istruzioni vengono lette automaticamente da GitHub Copilot e da altri LLM compatibili quando lavorano in questo workspace. Devi aderire a queste regole quando scrivi codice, aggiorni documentazione o prepari una release.
 
-## 1. Changelog operativo obbligatorio
+## 1. Changelog operativo e Release Notes obbligatori
 
-Ogni volta che completi un task, bugfix, refactor o aggiornamento significativo, documenta le modifiche in `docs/list_of_things_changed.md`.
+Ogni volta che completi un task, bugfix, refactor o aggiornamento significativo, devi aggiornare contemporaneamente SIA `docs/list_of_things_changed.md` SIA `docs/release-notes.md`.
 
-- Mantieni il titolo principale `# Modifiche recenti (in preparazione alla release)`.
-- Raggruppa le modifiche sotto sezioni `## [Data Odierna] - Categoria`.
-- Usa bullet nel formato `- **Etichetta breve**: Descrizione concreta della modifica`.
-- Scrivi cosa e' cambiato e perche' e' utile all'utente o al progetto.
-- Non chiedere conferma prima di aggiornare questo file: e' il registro operativo che alimenta le release notes.
+- Per `docs/list_of_things_changed.md` (registro tecnico/operativo):
+  - Mantieni il titolo principale `# Modifiche recenti (in preparazione alla release)`.
+  - Raggruppa le modifiche sotto sezioni `## [Data Odierna] - Categoria`.
+  - Usa bullet nel formato `- **Etichetta breve**: Descrizione concreta della modifica`.
+  - Scrivi cosa e' cambiato e perche' e' utile all'utente o al progetto.
+- Per `docs/release-notes.md` (curated release notes per gli utenti finali):
+  - Aggiorna la sezione corrente (sotto `## Release Notes` o la versione attiva).
+  - Mantieni le categorie come `### Fixes` e `### Improvements`.
+  - Usa bullet nel formato `* **Area**: Descrizione sintetica e concreta della modifica per l'utente finale`.
+  - Non creare sezioni vuote.
+- Non chiedere conferma prima di aggiornare questi file: aggiornali entrambi in parallelo ad ogni task o bugfix terminato.
 
 ## 2. Internazionalizzazione a 15 lingue
 
@@ -74,12 +80,9 @@ Regole:
 - non creare sezioni vuote;
 - scrivi per utenti finali: il dettaglio operativo resta in `docs/list_of_things_changed.md`.
 
-Prima di pubblicare:
-
-- consulta `docs/list_of_things_changed.md`;
-- aggiorna `docs/release-notes.md`;
-- verifica la sezione con `build-scripts/extract-release-notes.sh vX.Y.Z`;
-- verifica versioni e i18n con `build-scripts/git-release.sh`.
+Durante lo script di release `git-release.sh`:
+- L'intestazione principale `## Release Notes` viene aggiornata automaticamente in `## Release Notes vX.Y.Z` in base alla versione inserita nel PKGBUILD.
+- Al termine del processo di release con successo, lo script resetta automaticamente sia `docs/list_of_things_changed.md` sia `docs/release-notes.md` per il ciclo successivo.
 
 ## 6. Comandi utili
 

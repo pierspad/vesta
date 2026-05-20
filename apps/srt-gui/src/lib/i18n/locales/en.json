@@ -808,5 +808,7 @@
   "common.delete": "Delete",
   "common.done": "Done",
   "common.restore": "Restore",
-  "common.clearField": "Clear field"
+  "common.clearField": "Clear field",
+  "sync.transcodingMedia": "Extracting audio track...",
+  "sync.transcodingHint": "MKV/AVI audio is being extracted for playback. This is only needed the first time."
 }

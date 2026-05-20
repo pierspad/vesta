@@ -808,5 +808,7 @@
   "common.delete": "Elimina",
   "common.done": "Fatto",
   "common.restore": "Ripristina",
-  "common.clearField": "Svuota campo"
+  "common.clearField": "Svuota campo",
+  "sync.transcodingMedia": "Estrazione traccia audio...",
+  "sync.transcodingHint": "L'audio del file MKV/AVI viene estratto per la riproduzione. Necessario solo la prima volta."
 }

@@ -111,6 +111,21 @@ echo -e "${YELLOW}Verifico sincronizzazione i18n...${NC}"
     --fail-on-issues \
     --block-reasons missing_locale,missing_key,empty_value,placeholder_mismatch
 
+# Aggiorna l'intestazione delle release notes con la versione corrente
+if [ -f "$RELEASE_NOTES_FILE" ]; then
+    echo -e "${YELLOW}Aggiorno l'intestazione delle release notes a v${VERSION}...${NC}"
+    UPDATED_NOTES=$(awk -v ver="$VERSION" '
+        BEGIN { replaced = 0 }
+        /^##/ && !replaced {
+            print "## Release Notes v" ver
+            replaced = 1
+            next
+        }
+        { print }
+    ' "$RELEASE_NOTES_FILE")
+    echo "$UPDATED_NOTES" > "$RELEASE_NOTES_FILE"
+fi
+
 open_file_blocking "$RELEASE_NOTES_FILE" "$(basename "$RELEASE_NOTES_FILE")"
 
 if ! grep -q '[^[:space:]]' "$RELEASE_NOTES_FILE"; then
@@ -182,4 +197,22 @@ git push --atomic origin "$BRANCH" "$TAG_VERSION"
 
 echo -e "${GREEN}Tag ${TAG_VERSION} pubblicato con successo${NC}"
 echo -e "${BLUE}La GitHub Action creera la release usando solo la sezione ${TAG_VERSION} di docs/release-notes.md.${NC}"
+
+echo -e "${YELLOW}Svuoto list of things changed e release notes...${NC}"
+echo "# Modifiche recenti (in preparazione alla release)" > "$PROJECT_ROOT/docs/list_of_things_changed.md"
+echo "" >> "$PROJECT_ROOT/docs/list_of_things_changed.md"
+
+cat << 'EOF' > "$RELEASE_NOTES_FILE"
+## Release Notes
+
+### Fixes
+
+### Improvements
+EOF
+
+git add "$PROJECT_ROOT/docs/list_of_things_changed.md" "$RELEASE_NOTES_FILE"
+git commit -m "chore: reset changelog and release notes for next development cycle"
+git push origin "$BRANCH"
+echo -e "${GREEN}Changelog e release notes resettati e pushati su $BRANCH con successo.${NC}"
+
 echo -e "${BLUE}Dopo il build GitHub, esegui ./push-aur.sh per aggiornare AUR.${NC}"

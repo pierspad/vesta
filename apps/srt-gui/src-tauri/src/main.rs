@@ -474,6 +474,7 @@ fn main() {
             sync_save_session,
             sync_load_session,
             sync_reset,
+            sync_prepare_media_for_playback,
             // Comandi flashcard
             flashcard_load_subs,
             flashcard_preview,
