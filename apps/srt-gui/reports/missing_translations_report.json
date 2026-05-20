@@ -4,10 +4,10 @@
     "/home/ribben/Desktop/Various_Projects/vesta/apps/srt-gui/src/lib/i18n/locales/info"
   ],
   "en_keys_per_directory": {
-    "locales": 808,
+    "locales": 812,
     "info": 25
   },
-  "total_english_keys": 833,
+  "total_english_keys": 837,
   "checked_locales": [
     "ar",
     "de",

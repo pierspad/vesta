@@ -1,4 +1,4 @@
-## Release Notes
+## Release Notes v0.8.0
 
 ### Fixes
 

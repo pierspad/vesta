@@ -676,6 +676,8 @@
   "transcribe.ffmpegDownload": "下载 FFmpeg",
   "sync.wizard.skip": "跳过",
   "sync.autoSync": "自动同步",
+  "sync.autoSyncFast": "自动同步-快速",
+  "sync.autoSyncFull": "自动同步-精确",
   "sync.autoSyncInProgress": "自动同步进行中...",
   "sync.autoSyncRequires": "需要SRT文件和媒体文件",
   "sync.autoSyncCancelling": "取消中...",
@@ -806,5 +808,7 @@
   "align.goToEnd": "到底部",
   "align.saveResult": "保存结果",
   "align.typeSubtitle": "在此输入字幕...",
-  "align.noSubtitle": "无字幕"
+  "align.noSubtitle": "无字幕",
+  "sync.transcodingMedia": "正在提取音轨...",
+  "sync.transcodingHint": "正在提取MKV/AVI音频以进行播放。这只是第一次需要。"
 }

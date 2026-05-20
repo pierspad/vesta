@@ -676,6 +676,8 @@
   "transcribe.ffmpegDownload": "Baixar FFmpeg",
   "sync.wizard.skip": "Pular",
   "sync.autoSync": "Sincronização automática",
+  "sync.autoSyncFast": "Sincronização automática - RÁPIDA",
+  "sync.autoSyncFull": "Sincronização automática - PRECISA",
   "sync.autoSyncInProgress": "Auto-Sync em andamento...",
   "sync.autoSyncRequires": "Requer SRT e Mídia",
   "sync.autoSyncCancelling": "Cancelando...",
@@ -806,5 +808,7 @@
   "align.goToEnd": "Ir para o final",
   "align.saveResult": "Salvar resultado",
   "align.typeSubtitle": "Digite a legenda aqui...",
-  "align.noSubtitle": "Sem legenda"
+  "align.noSubtitle": "Sem legenda",
+  "sync.transcodingMedia": "A extrair faixa de áudio...",
+  "sync.transcodingHint": "O áudio MKV/AVI está a ser extraído para reprodução. Isso só é necessário na primeira vez."
 }
