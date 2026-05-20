@@ -700,6 +700,8 @@
   "align.typeSubtitle": "Type subtitle here...",
   "align.noSubtitle": "No Subtitle",
   "sync.autoSync": "Auto-Sync",
+  "sync.autoSyncFast": "Autosync - FAST",
+  "sync.autoSyncFull": "Autosync - PRECISE",
   "sync.autoSyncInProgress": "Auto-Sync in progress...",
   "sync.autoSyncRequires": "Requires SRT and Media",
   "sync.autoSyncCancelling": "Cancelling...",

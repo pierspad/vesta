@@ -179,6 +179,16 @@ fn read_wav_to_f32(wav_path: &Path) -> Result<Vec<f32>> {
     }
 }
 
+/// Helper function to check if audio samples are silent (RMS under threshold)
+fn is_silent(samples: &[f32], threshold: f32) -> bool {
+    if samples.is_empty() {
+        return true;
+    }
+    let sum_sq: f32 = samples.iter().map(|&x| x * x).sum();
+    let rms = (sum_sq / samples.len() as f32).sqrt();
+    rms < threshold
+}
+
 /// Transcribe an audio segment using a pre-loaded whisper-rs context to avoid reloading the model
 fn transcribe_segment_with_ctx(
     ctx: &WhisperContext,
@@ -338,6 +348,7 @@ pub async fn sync_auto_sync(
     transcribe_state: State<'_, AppTranscribeState>,
     model_id: String,
     language: Option<String>,
+    quick: bool,
 ) -> Result<AutoSyncResult, String> {
     let token = {
         let mut ss = sync_state.lock().map_err(|e| e.to_string())?;
@@ -399,17 +410,12 @@ pub async fn sync_auto_sync(
         return Err("Media file too short or unable to detect duration".to_string());
     }
 
-    // Increased segment duration to 75s per user request (was 60.0)
-    let segment_duration = 75.0;
-    
-    // Increased the number of samples analyzed over the file length. Max segments increased from 10 to 16.
-    let num_samples = (duration_sec / 120.0).ceil().min(16.0).max(4.0) as usize;
-    let step = duration_sec / (num_samples + 1) as f64;
-
+    // Determine segment duration and sample positions based on quick mode (quick = BREVE, false = PRECISO)
+    let segment_duration = if quick { 20.0 } else { 40.0 };
+    let num_samples = if quick { 12 } else { 24 };
     let mut sample_positions: Vec<f64> = Vec::new();
-    
-    // Add specifically the first and last quartiles for higher precision at ends as per request,
-    // then fill in the rest using the steps.
+
+    let step = duration_sec / (num_samples + 1) as f64;
     for i in 1..=num_samples {
         let pos = step * i as f64;
         if pos + segment_duration <= duration_sec {
@@ -432,7 +438,6 @@ pub async fn sync_auto_sync(
             sample_positions.len().to_string(),
         )])),
     );
-
 
     let app_clone = app.clone();
     let model_path_str = model_path.to_string_lossy().to_string();
@@ -470,10 +475,64 @@ pub async fn sync_auto_sync(
                 return Ok((all_matches, idx, true));
             }
 
+            let mut current_pos = start_pos;
+            let mut attempts = 0;
+            let mut audio_data = Vec::new();
+            let mut wav_path = temp_dir_path.join(format!("segment_{}.wav", idx));
+
+            let max_attempts = if quick { 5 } else { 3 };
+            let shift_amount = if quick { 15.0 } else { 20.0 };
+
+            // Try to find a non-silent segment
+            while attempts < max_attempts && current_pos + segment_duration <= duration_sec {
+                let temp_wav_path = temp_dir_path.join(format!("segment_{}_try{}.wav", idx, attempts));
+                let temp_wav_str = temp_wav_path.to_string_lossy().to_string();
+
+                if let Err(e) = extract_audio_segment(&media_path_str, current_pos, segment_duration, &temp_wav_str, &ffmpeg_cmd_arc) {
+                    eprintln!("[auto-sync] Segment {} try {} extraction failed: {}", idx, attempts, e);
+                    attempts += 1;
+                    current_pos += shift_amount;
+                    continue;
+                }
+
+                let samples = match read_wav_to_f32(&temp_wav_path) {
+                    Ok(data) => data,
+                    Err(e) => {
+                        eprintln!("[auto-sync] Failed to read segment {} try {}: {}", idx, attempts, e);
+                        let _ = std::fs::remove_file(&temp_wav_path);
+                        attempts += 1;
+                        current_pos += shift_amount;
+                        continue;
+                    }
+                };
+
+                let silent = is_silent(&samples, 0.003);
+                if silent {
+                    println!("[auto-sync] Segment {} at {:.1}s is silent, shifting forward...", idx, current_pos);
+                    let _ = std::fs::remove_file(&temp_wav_path);
+                    attempts += 1;
+                    current_pos += shift_amount;
+                } else {
+                    audio_data = samples;
+                    wav_path = temp_wav_path;
+                    break;
+                }
+            }
+            
+            // Fallback to original start_pos if all shifted attempts are silent or out of bounds
+            if audio_data.is_empty() {
+                let wav_str = wav_path.to_string_lossy().to_string();
+                let _ = extract_audio_segment(&media_path_str, start_pos, segment_duration, &wav_str, &ffmpeg_cmd_arc);
+                if let Ok(samples) = read_wav_to_f32(&wav_path) {
+                    audio_data = samples;
+                    current_pos = start_pos;
+                }
+            }
+
             let progress = (idx as f64 / total_segments as f64) * 80.0 + 10.0;
 
-            let start_label = format_mm_ss(start_pos);
-            let end_label = format_mm_ss(start_pos + segment_duration);
+            let start_label = format_mm_ss(current_pos);
+            let end_label = format_mm_ss(current_pos + segment_duration);
             emit_auto_sync_progress(
                 &app_clone,
                 "transcribe",
@@ -499,36 +558,24 @@ pub async fn sync_auto_sync(
                 ])),
             );
 
-            let wav_path = temp_dir_path.join(format!("segment_{}.wav", idx));
-            let wav_str = wav_path.to_string_lossy().to_string();
-
-            if let Err(e) = extract_audio_segment(&media_path_str, start_pos, segment_duration, &wav_str, &ffmpeg_cmd_arc) {
-                eprintln!("[auto-sync] Segment {} extraction failed: {}", idx, e);
-                continue;
+            if token_clone.is_cancelled() {
+                let _ = std::fs::remove_file(&wav_path);
+                break;
             }
-
-            let audio_data = match read_wav_to_f32(&wav_path) {
-                Ok(data) => data,
-                Err(e) => {
-                    eprintln!("[auto-sync] Failed to read segment {}: {}", idx, e);
-                    continue;
-                }
-            };
-
-            if token_clone.is_cancelled() { break; }
 
             let transcribed = match transcribe_segment_with_ctx(&ctx, &audio_data, language_clone.as_deref()) {
                 Ok(segs) => segs,
                 Err(e) => {
                     eprintln!("[auto-sync] Segment {} transcription failed: {}", idx, e);
+                    let _ = std::fs::remove_file(&wav_path);
                     continue;
                 }
             };
 
             let adjusted_segments: Vec<TranscribedSegment> = transcribed.into_iter()
                 .map(|mut seg| {
-                    seg.start_ms += (start_pos * 1000.0) as i64;
-                    seg.end_ms += (start_pos * 1000.0) as i64;
+                    seg.start_ms += (current_pos * 1000.0) as i64;
+                    seg.end_ms += (current_pos * 1000.0) as i64;
                     seg
                 })
                 .collect();

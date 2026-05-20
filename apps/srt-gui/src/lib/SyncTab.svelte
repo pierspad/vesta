@@ -157,6 +157,7 @@
   }
 
   let isAutoSyncing = $state(false);
+  let activeAutoSyncMode = $state<"quick" | "precise" | null>(null);
   let isCancellingAutoSync = $state(false);
   let autoSyncProgress = $state(0);
   let autoSyncMessage = $state("");
@@ -202,7 +203,7 @@
     }
   }
 
-  async function startAutoSync() {
+  async function startAutoSync(quick = false) {
     if (isAutoSyncing) return;
     if (!status?.is_loaded) {
       showSnackbar(t("sync.dropSrtFirst"), "warning");
@@ -229,9 +230,10 @@
       whisperModelsAvailable[0];
 
     isAutoSyncing = true;
+    activeAutoSyncMode = quick ? "quick" : "precise";
     autoSyncProgress = 0;
     autoSyncMessage = t("sync.autoSyncInProgress");
-    addSyncLog(`Auto-sync started with model: ${modelId}`, "info");
+    addSyncLog(`Auto-sync started with model: ${modelId} (mode: ${quick ? 'quick' : 'precise'})`, "info");
 
     // Listen for progress events
     const { listen } = await import("@tauri-apps/api/event");
@@ -250,6 +252,7 @@
       }>("sync_auto_sync", {
         modelId,
         language: null,
+        quick,
       });
 
       status = await invoke<SyncStatus>("sync_get_status");
@@ -278,6 +281,7 @@
       addSyncLog(msg, "error");
     } finally {
       isAutoSyncing = false;
+      activeAutoSyncMode = null;
       isCancellingAutoSync = false;
       autoSyncProgress = 0;
       autoSyncMessage = "";
@@ -1189,7 +1193,7 @@
   {/if}
 
   <!-- svelte-ignore a11y_media_has_caption -->
-  <audio
+  <video
     bind:this={audioElement}
     src={audioSrc || undefined}
     class="hidden"
@@ -1267,7 +1271,7 @@
     onseeked={() => {
       syncDebug("audio:onseeked", { currentTime: audioElement?.currentTime });
     }}
-  ></audio>
+  ></video>
 
   {#snippet panelContent(panelId: SyncPanelId)}
     {#if panelId === "toolbar"}
@@ -1384,20 +1388,20 @@
           </div>
         </div>
 
-        <!-- Col 2: Action buttons (Auto Sync & Load Session) -->
+        <!-- Col 2: Action buttons (Auto Sync Fast & Full) -->
         <div class="col-start-2 row-start-1 relative group flex w-full h-10">
           <button
             type="button"
-            onclick={startAutoSync}
+            onclick={() => startAutoSync(true)}
             disabled={isAutoSyncing || !status?.is_loaded || !hasAudio}
             class="w-full h-full flex items-center justify-center gap-2 rounded-lg border bg-indigo-500/20 border-indigo-500/40 text-indigo-300 hover:bg-indigo-500/30 text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed px-4"
           >
-            {#if isAutoSyncing}
+            {#if isAutoSyncing && activeAutoSyncMode === 'quick'}
               <svg class="animate-spin w-4 h-4 text-indigo-300" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
             {:else}
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
             {/if}
-            {t("sync.autoSync")}
+            {t("sync.autoSyncFast")}
           </button>
           {#if !status?.is_loaded || !hasAudio}
             <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 bg-gray-800 border border-white/10 text-xs text-indigo-300 rounded-lg shadow-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
@@ -1406,29 +1410,28 @@
           {/if}
         </div>
 
-        <div class="col-start-2 row-start-2 flex w-full h-10">
+        <div class="col-start-2 row-start-2 relative group flex w-full h-10">
           <button
-            onclick={loadSession}
-            class="w-full h-full flex items-center justify-center gap-2 rounded-lg border bg-cyan-500/20 border-cyan-500/40 text-cyan-300 hover:bg-cyan-500/30 text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed px-4"
-            title={t("sync.tooltipLoadSession")}
+            type="button"
+            onclick={() => startAutoSync(false)}
+            disabled={isAutoSyncing || !status?.is_loaded || !hasAudio}
+            class="w-full h-full flex items-center justify-center gap-2 rounded-lg border bg-indigo-500/20 border-indigo-500/40 text-indigo-300 hover:bg-indigo-500/30 text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed px-4"
           >
-            <svg
-              class="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-              ><path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"
-              /></svg
-            >
-            {t("sync.loadSession")}
+            {#if isAutoSyncing && activeAutoSyncMode === 'precise'}
+              <svg class="animate-spin w-4 h-4 text-indigo-300" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+            {:else}
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>
+            {/if}
+            {t("sync.autoSyncFull")}
           </button>
+          {#if !status?.is_loaded || !hasAudio}
+            <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 bg-gray-800 border border-white/10 text-xs text-indigo-300 rounded-lg shadow-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
+              {t("sync.autoSyncRequires")}
+            </div>
+          {/if}
         </div>
 
-        <!-- Col 3: Action buttons (New Sync & Save Session) -->
+        <!-- Col 3: Action buttons (New Sync & Save/Load Session) -->
         <div class="col-start-3 row-start-1 flex w-full h-10">
           {#if status?.is_loaded || audioSrc}
             <button
@@ -1453,15 +1456,34 @@
           {/if}
         </div>
 
-        <div class="col-start-3 row-start-2 flex w-full h-10">
+        <div class="col-start-3 row-start-2 flex w-full h-10 gap-2">
+          <button
+            onclick={loadSession}
+            class="flex-1 h-full flex items-center justify-center gap-1 rounded-lg border bg-cyan-500/20 border-cyan-500/40 text-cyan-300 hover:bg-cyan-500/30 text-xs font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed px-2"
+            title={t("sync.tooltipLoadSession")}
+          >
+            <svg
+              class="w-3.5 h-3.5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              ><path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"
+              /></svg
+            >
+            {t("sync.loadSession")}
+          </button>
           <button
             onclick={saveSession}
             disabled={!status?.is_loaded}
-            class="w-full h-full flex items-center justify-center gap-2 rounded-lg border bg-teal-500/20 border-teal-500/40 text-teal-300 hover:bg-teal-500/30 text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed px-4"
+            class="flex-1 h-full flex items-center justify-center gap-1 rounded-lg border bg-teal-500/20 border-teal-500/40 text-teal-300 hover:bg-teal-500/30 text-xs font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed px-2"
             title={t("sync.tooltipSaveSession")}
           >
             <svg
-              class="w-4 h-4"
+              class="w-3.5 h-3.5"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
