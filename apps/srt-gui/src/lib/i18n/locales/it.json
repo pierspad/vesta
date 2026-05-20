@@ -700,6 +700,8 @@
   "align.noSubtitle": "Nessun sottotitolo",
   "transcribe.ffmpegDownload": "Scarica FFmpeg",
   "sync.autoSync": "Sincronizzazione automatica",
+  "sync.autoSyncFast": "Autosync - BREVE",
+  "sync.autoSyncFull": "Autosync - PRECISO",
   "sync.autoSyncInProgress": "Auto-Sync in corso...",
   "sync.autoSyncRequires": "Richiede SRT e Media",
   "sync.autoSyncCancelling": "Annullamento...",

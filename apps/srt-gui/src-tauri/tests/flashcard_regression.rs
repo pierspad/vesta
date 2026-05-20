@@ -36,7 +36,8 @@ fn fixture_path(name: &str) -> String {
 fn sha256_str(data: &str) -> String {
     let mut hasher = Sha256::new();
     hasher.update(data.as_bytes());
-    format!("{:x}", hasher.finalize())
+    let result = hasher.finalize();
+    result.iter().map(|b| format!("{:02x}", b)).collect()
 }
 
 /// Build a minimal FlashcardConfig for text-only tests (no media extraction).

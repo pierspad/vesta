@@ -88,12 +88,6 @@ fn main() {
         // Prevent WebKitWebProcess crash when gst-plugins-good is not installed
         // (missing autoaudiosink element causes the app to go grey/unresponsive)
         std::env::set_var("WEBKIT_DISABLE_MEDIA_STREAM", "1");
-        // Disable GStreamer audio/video sinks entirely to prevent
-        // "GStreamer element autoaudiosink not found" errors on drag-drop
-        std::env::set_var(
-            "GST_PLUGIN_FEATURE_RANK",
-            "autoaudiosink:0,autovideosink:0,pulsesink:0,alsasink:0",
-        );
         // Prevent WebKit from using GStreamer for content sniffing on dropped files
         std::env::set_var("GST_REGISTRY_UPDATE", "no");
     }
