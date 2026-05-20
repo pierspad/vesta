@@ -676,6 +676,8 @@
   "transcribe.ffmpegDownload": "Télécharger FFmpeg",
   "sync.wizard.skip": "Ignorer",
   "sync.autoSync": "Synchronisation automatique",
+  "sync.autoSyncFast": "Synchronisation automatique - RAPIDE",
+  "sync.autoSyncFull": "Synchronisation automatique - PRÉCISE",
   "sync.autoSyncInProgress": "Auto-Sync en cours...",
   "sync.autoSyncRequires": "Nécessite SRT et Média",
   "sync.autoSyncCancelling": "Annulation...",
@@ -806,5 +808,7 @@
   "align.goToEnd": "Aller à la fin",
   "align.saveResult": "Enregistrer le résultat",
   "align.typeSubtitle": "Tapez le sous-titre ici...",
-  "align.noSubtitle": "Pas de sous-titre"
+  "align.noSubtitle": "Pas de sous-titre",
+  "sync.transcodingMedia": "Extraction de la piste audio...",
+  "sync.transcodingHint": "L'audio MKV/AVI est en cours d'extraction pour la lecture. Cela n'est nécessaire que la première fois."
 }

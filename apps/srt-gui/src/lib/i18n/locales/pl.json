@@ -676,6 +676,8 @@
   "transcribe.ffmpegDownload": "Pobierz FFmpeg",
   "sync.wizard.skip": "Pomiń",
   "sync.autoSync": "Automatyczna synchronizacja",
+  "sync.autoSyncFast": "Automatyczna synchronizacja - SZYBKA",
+  "sync.autoSyncFull": "Automatyczna synchronizacja - PRECYZYJNA",
   "sync.autoSyncInProgress": "Auto-Sync w toku...",
   "sync.autoSyncRequires": "Wymaga pliku SRT i multimediów",
   "sync.autoSyncCancelling": "Anulowanie...",
@@ -806,5 +808,7 @@
   "align.goToEnd": "Przejdź na koniec",
   "align.saveResult": "Zapisz wynik",
   "align.typeSubtitle": "Wpisz napisy tutaj...",
-  "align.noSubtitle": "Brak napisów"
+  "align.noSubtitle": "Brak napisów",
+  "sync.transcodingMedia": "Wyodrębnianie ścieżki dźwiękowej...",
+  "sync.transcodingHint": "Dźwięk MKV/AVI jest wyodrębniany do odtwarzania. Jest to potrzebne tylko za pierwszym razem."
 }

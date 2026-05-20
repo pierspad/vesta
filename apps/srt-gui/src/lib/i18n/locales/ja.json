@@ -676,6 +676,8 @@
   "transcribe.ffmpegDownload": "FFmpegをダウンロード",
   "sync.wizard.skip": "スキップする",
   "sync.autoSync": "自動同期",
+  "sync.autoSyncFast": "自動同期-高速",
+  "sync.autoSyncFull": "自動同期-正確",
   "sync.autoSyncInProgress": "自動同期中...",
   "sync.autoSyncRequires": "SRTとメディアファイルが必要",
   "sync.autoSyncCancelling": "キャンセル中...",
@@ -806,5 +808,7 @@
   "align.goToEnd": "最後まで行く",
   "align.saveResult": "結果を保存",
   "align.typeSubtitle": "ここに字幕を入力...",
-  "align.noSubtitle": "字幕なし"
+  "align.noSubtitle": "字幕なし",
+  "sync.transcodingMedia": "オーディオトラックを抽出しています...",
+  "sync.transcodingHint": "再生のためにMKV/AVIオーディオが抽出されています。これは初回のみ必要です。"
 }

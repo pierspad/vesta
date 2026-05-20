@@ -676,6 +676,8 @@
   "transcribe.ffmpegDownload": "FFmpeg İndir",
   "sync.wizard.skip": "Atla",
   "sync.autoSync": "Otomatik Senkronizasyon",
+  "sync.autoSyncFast": "Otomatik senkronizasyon - HIZLI",
+  "sync.autoSyncFull": "Otomatik SENKRONİZASYON - KESİN",
   "sync.autoSyncInProgress": "Otomatik senkronizasyon devam ediyor...",
   "sync.autoSyncRequires": "SRT ve Medya dosyası gerekli",
   "sync.autoSyncCancelling": "İptal ediliyor...",
@@ -806,5 +808,7 @@
   "align.goToEnd": "Sona git",
   "align.saveResult": "Sonucu kaydet",
   "align.typeSubtitle": "Altyazıyı buraya yazın...",
-  "align.noSubtitle": "Altyazı yok"
+  "align.noSubtitle": "Altyazı yok",
+  "sync.transcodingMedia": "Ses parçası ayıklanıyor...",
+  "sync.transcodingHint": "MKV/avı sesi oynatılmak üzere çıkarılıyor. Bu sadece ilk seferde gereklidir."
 }

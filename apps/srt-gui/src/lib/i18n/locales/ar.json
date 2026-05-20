@@ -676,6 +676,8 @@
   "transcribe.ffmpegDownload": "تحميل FFmpeg",
   "sync.wizard.skip": "تخطّي",
   "sync.autoSync": "مزامنة تلقائية",
+  "sync.autoSyncFast": "مزامنة تلقائية - سريعة",
+  "sync.autoSyncFull": "مزامنة تلقائية - دقيقة",
   "sync.autoSyncInProgress": "المزامنة التلقائية قيد التقدم...",
   "sync.autoSyncRequires": "يتطلب ملف SRT وملف وسائط",
   "sync.autoSyncCancelling": "إلغاء...",
@@ -806,5 +808,7 @@
   "align.goToEnd": "الذهاب للنهاية",
   "align.saveResult": "حفظ النتيجة",
   "align.typeSubtitle": "اكتب الترجمة هنا...",
-  "align.noSubtitle": "لا يوجد ترجمة"
+  "align.noSubtitle": "لا يوجد ترجمة",
+  "sync.transcodingMedia": "جارٍ استخراج المسار الصوتي...",
+  "sync.transcodingHint": "يتم استخراج صوت MKV/AVI للتشغيل. هذا مطلوب فقط في المرة الأولى."
 }

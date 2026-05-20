@@ -700,6 +700,8 @@
   "align.typeSubtitle": "Typ hier ondertiteling...",
   "align.noSubtitle": "Geen ondertiteling",
   "sync.autoSync": "Automatische synchronisatie",
+  "sync.autoSyncFast": "Autosynchronisatie - SNEL",
+  "sync.autoSyncFull": "Autosynchronisatie - PRECIES",
   "sync.autoSyncInProgress": "Automatische synchronisatie bezig...",
   "sync.autoSyncRequires": "Vereist SRT en media",
   "sync.autoSyncCancelling": "Annuleren...",
@@ -806,5 +808,7 @@
   "common.delete": "Verwijderen",
   "common.done": "Klaar",
   "common.restore": "Herstellen",
-  "common.clearField": "Duidelijk veld"
+  "common.clearField": "Duidelijk veld",
+  "sync.transcodingMedia": "Audiotrack wordt geëxtraheerd...",
+  "sync.transcodingHint": "MKV/AVI-audio wordt geëxtraheerd voor weergave. Dit is alleen de eerste keer nodig."
 }
