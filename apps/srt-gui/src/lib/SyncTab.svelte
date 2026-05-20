@@ -1294,7 +1294,7 @@
     {#if panelId === "toolbar"}
       <div class="glass-card grid gap-3 p-4 flex-shrink-0 grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_auto]">
         <!-- Row 1: File inputs -->
-        <div class="col-start-1 row-start-1 flex items-center gap-2 w-full min-w-0 pr-6">
+        <div class="col-start-1 row-start-1 flex items-center gap-2 w-full min-w-0">
           <div class="flex-1 min-w-0">
             <div class="flex gap-2">
               <button
@@ -1317,7 +1317,7 @@
               </button>
               <button
                 onclick={selectSrtFile}
-                class="btn-primary py-2 px-3 flex items-center justify-center gap-1.5 whitespace-nowrap"
+                class="btn-primary py-2 px-3 flex items-center justify-center gap-1.5 whitespace-nowrap w-36 shrink-0"
                 title={t("sync.tooltip.loadSrt")}
               >
                 <svg
@@ -1337,23 +1337,9 @@
               </button>
             </div>
           </div>
-          <div class="text-gray-500 flex-shrink-0 {status?.is_loaded ? 'text-indigo-400' : ''}">
-            <svg
-              class="w-5 h-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-              ><path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M13 7l5 5m0 0l-5 5m5-5H6"
-              /></svg
-            >
-          </div>
         </div>
 
-        <div class="col-start-1 row-start-2 flex items-center gap-2 w-full min-w-0 pr-6">
+        <div class="col-start-1 row-start-2 flex items-center gap-2 w-full min-w-0">
           <div class="flex-1 min-w-0">
             <div class="flex gap-2">
               <button
@@ -1377,7 +1363,7 @@
               <button
                 onclick={selectAudioFile}
                 disabled={!status?.is_loaded}
-                class="btn-primary py-2 px-3 flex items-center justify-center gap-1.5 whitespace-nowrap disabled:opacity-30 disabled:cursor-not-allowed"
+                class="btn-primary py-2 px-3 flex items-center justify-center gap-1.5 whitespace-nowrap disabled:opacity-30 disabled:cursor-not-allowed w-36 shrink-0"
                 title={t("sync.tooltip.loadVideo")}
               >
                 <svg
