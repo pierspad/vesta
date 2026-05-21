@@ -464,6 +464,7 @@ pub struct _G_fpos_t {
     pub __pos: __off_t,
     pub __state: __mbstate_t,
 }
+/*
 #[allow(clippy::unnecessary_operation, clippy::identity_op)]
 const _: () = {
     ["Size of _G_fpos_t"][::std::mem::size_of::<_G_fpos_t>() - 16usize];
@@ -471,6 +472,7 @@ const _: () = {
     ["Offset of field: _G_fpos_t::__pos"][::std::mem::offset_of!(_G_fpos_t, __pos) - 0usize];
     ["Offset of field: _G_fpos_t::__state"][::std::mem::offset_of!(_G_fpos_t, __state) - 8usize];
 };
+*/
 pub type __fpos_t = _G_fpos_t;
 #[repr(C)]
 #[derive(Copy, Clone)]
@@ -478,6 +480,7 @@ pub struct _G_fpos64_t {
     pub __pos: __off64_t,
     pub __state: __mbstate_t,
 }
+/*
 #[allow(clippy::unnecessary_operation, clippy::identity_op)]
 const _: () = {
     ["Size of _G_fpos64_t"][::std::mem::size_of::<_G_fpos64_t>() - 16usize];
@@ -486,6 +489,7 @@ const _: () = {
     ["Offset of field: _G_fpos64_t::__state"]
         [::std::mem::offset_of!(_G_fpos64_t, __state) - 8usize];
 };
+*/
 pub type __fpos64_t = _G_fpos64_t;
 pub type __FILE = _IO_FILE;
 pub type FILE = _IO_FILE;
@@ -542,6 +546,7 @@ pub struct _IO_FILE {
     pub _total_written: __uint64_t,
     pub _unused2: [::std::os::raw::c_char; 8usize],
 }
+/*
 #[allow(clippy::unnecessary_operation, clippy::identity_op)]
 const _: () = {
     ["Size of _IO_FILE"][::std::mem::size_of::<_IO_FILE>() - 216usize];
@@ -599,6 +604,7 @@ const _: () = {
         [::std::mem::offset_of!(_IO_FILE, _total_written) - 200usize];
     ["Offset of field: _IO_FILE::_unused2"][::std::mem::offset_of!(_IO_FILE, _unused2) - 208usize];
 };
+*/
 impl _IO_FILE {
     #[inline]
     pub fn _flags2(&self) -> ::std::os::raw::c_int {
