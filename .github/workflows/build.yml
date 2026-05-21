@@ -9,6 +9,7 @@ on:
 env:
   TAURI_APP_DIR: apps/srt-gui
   WHISPER_DONT_GENERATE_BINDINGS: "1"
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 jobs:
   # ===========================================================
@@ -18,7 +19,7 @@ jobs:
     name: Build (linux)
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v4
 
       - name: Setup Python
         uses: actions/setup-python@v6
@@ -34,7 +35,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Setup sccache
-        uses: mozilla-actions/sccache-action@v0.0.9
+        uses: mozilla-actions/sccache-action@v0.0.10
 
       - name: Rust cache
         uses: swatinem/rust-cache@v2
@@ -121,7 +122,7 @@ jobs:
     needs: build-linux
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v4
 
       - name: Get version
         id: version
@@ -171,7 +172,7 @@ jobs:
     needs: build-linux
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v4
 
       - name: Get version
         id: version
@@ -225,7 +226,7 @@ jobs:
     name: Build (windows)
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v4
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
@@ -236,7 +237,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Setup sccache
-        uses: mozilla-actions/sccache-action@v0.0.9
+        uses: mozilla-actions/sccache-action@v0.0.10
 
       - name: Rust cache
         uses: swatinem/rust-cache@v2
@@ -248,7 +249,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: |
-            ${{ env.LOCALAPPDATA }}\tauri
+            ~/AppData/Local/tauri
           key: tauri-tools-windows-${{ runner.os }}-v1
 
       - name: Get version
@@ -325,7 +326,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v4
 
       - name: Download all artifacts
         uses: actions/download-artifact@v7
