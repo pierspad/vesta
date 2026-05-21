@@ -1,10 +1,61 @@
-# Agent / LLM Instructions for Vesta
+# Agent / LLM Instructions for Vesta (Tauri + Svelte Harness)
 
-## Release Notes and Versioning
-- **Do Not Delete Release Notes**: The release script (`git-release.sh`) does not delete or reset `docs/release-notes.md` or `docs/list_of_things_changed.md` after a release.
-- **Determine if a Release was Done**: When you are asked to make a code change or prepare a release, check the version in `build-scripts/PKGBUILD` (via `pkgver=X.Y.Z`) and check `docs/release-notes.md`.
-- **Action on Version Match**: If the version in `build-scripts/PKGBUILD` matches the version in the header of `docs/release-notes.md` (e.g., both are `0.8.0`), it means the release for `0.8.0` has already been made.
-- **How to Proceed**:
-  1. Increment the version number in `build-scripts/PKGBUILD` (e.g., to `0.8.1` or the appropriate next version).
-  2. Run `sh build-scripts/update_project_info.sh` to propagate the version bump to all configuration and project files.
-  3. Overwrite/update `docs/release-notes.md` and `docs/list_of_things_changed.md` with the new version number and document the new changes.
+All development, code generation, and AI assistance for this project must adhere strictly to these rules and architecture specifications.
+
+---
+
+## 1. Release Notes and Versioning
+*   **Do Not Delete Release Notes**: The release script (`git-release.sh`) does not delete or reset `docs/release-notes.md` or `docs/list_of_things_changed.md` after a release.
+*   **Determine if a Release was Done**: When asked to make a code change or prepare a release, check the version in `build-scripts/PKGBUILD` (via `pkgver=X.Y.Z`) and check `docs/release-notes.md`.
+*   **Action on Version Match**: If the version in `build-scripts/PKGBUILD` matches the version in the header of `docs/release-notes.md` (e.g., both are `0.8.0`), it means the release for `0.8.0` has already been made.
+*   **How to Proceed**:
+    1.  Increment the version number in `build-scripts/PKGBUILD` (e.g., to `0.8.1` or the appropriate next version).
+    2.  Run `sh build-scripts/update_project_info.sh` to propagate the version bump to all configuration and project files.
+    3.  Overwrite/update `docs/release-notes.md` and `docs/list_of_things_changed.md` with the new version number and document the new changes.
+
+---
+
+## 2. Core Tech Stack
+*   **Backend**: Rust (Tauri v2) - high-performance system access, low memory footprint.
+*   **Frontend**: Svelte + TypeScript - reactive, fast compilation, clean stores.
+*   **Styling**: Vanilla CSS - custom CSS variables for theme states, glassmorphism UI, smooth transitions, and hardware-accelerated animations. Avoid Tailwind CSS.
+*   **Build Optimization**: High priority. Utilize preflight checks, local sccache, and custom bypass configs.
+
+---
+
+## 3. i18n & Localization Standard (15 Languages)
+*   **Locale Storage**:
+    *   `apps/srt-gui/src/lib/i18n/locales/` - General UI translations.
+    *   `apps/srt-gui/src/lib/i18n/locales/info/` - Detailed helper texts and descriptions.
+*   **Supported Locales**: English (`en` - source of truth), Italian (`it`), Spanish (`es`), French (`fr`), German (`de`), Portuguese (`pt`), Russian (`ru`), Chinese (`zh`), Japanese (`ja`), Korean (`ko`), Arabic (`ar`), Polish (`pl`), Dutch (`nl`), Turkish (`tr`), Swedish (`sv`).
+*   **Validation**: Maintain the Python script (`check_missing_translations.py`) in CI/CD to prevent releases if keys are missing, empty, or parameters (e.g., `{count}`) mismatch.
+
+---
+
+## 4. UI Shell & Sidebar Layout
+*   **Shell Structure**: Left-sidebar and workspace view configuration.
+*   **Attribution Dock (Bottom-Left)**:
+    *   Must display version, license, stack details (Tauri + Svelte).
+    *   Must display external links: Developer Web Site (`https://pierspad.com`) and GitHub Repository URL.
+    *   Links must be opened safely using Tauri Shell plugin (`open` API):
+        ```typescript
+        import { open as openExternal } from '@tauri-apps/plugin-shell';
+        ```
+
+---
+
+## 5. Settings Panel Architecture
+*   **Macro Cards**: Top grid summarizing settings sections (e.g., Download, Interface, Shortcuts) with real-time status.
+*   **Section Smooth Scroll**: Macro cards must scroll to target section using element `scrollIntoView({ behavior: 'smooth' })`.
+*   **Highlight Animation**: Glow target section on navigation with standard glow keyframes.
+*   **Theme Switcher**: Dark/Light mode theme change by toggling class/attributes on the root element.
+*   **Language Selector**: Flags/names button grid.
+*   **Shortcuts Panel**: Integrated keymap editor dynamically updating shortcut settings.
+
+---
+
+## 6. Whisper & Heavy Compilation Optimization
+*   **Env-Bypass via Precompiled Bindings**:
+    *   Set `WHISPER_DONT_GENERATE_BINDINGS="1"` in the compile environment to skip the `bindgen` step.
+    *   Copy local verified `src/bindings.rs` directly to `OUT_DIR` inside the vendored `whisper-rs-sys` crate.
+*   **CI/CD Caching**: Always use `sccache` + `rust-cache` inside GitHub Actions to reduce build times.
