@@ -198,21 +198,7 @@ git push --atomic origin "$BRANCH" "$TAG_VERSION"
 echo -e "${GREEN}Tag ${TAG_VERSION} pubblicato con successo${NC}"
 echo -e "${BLUE}La GitHub Action creera la release usando solo la sezione ${TAG_VERSION} di docs/release-notes.md.${NC}"
 
-echo -e "${YELLOW}Svuoto list of things changed e release notes...${NC}"
-echo "# Modifiche recenti (in preparazione alla release)" > "$PROJECT_ROOT/docs/list_of_things_changed.md"
-echo "" >> "$PROJECT_ROOT/docs/list_of_things_changed.md"
-
-cat << 'EOF' > "$RELEASE_NOTES_FILE"
-## Release Notes
-
-### Fixes
-
-### Improvements
-EOF
-
-git add "$PROJECT_ROOT/docs/list_of_things_changed.md" "$RELEASE_NOTES_FILE"
-git commit -m "chore: reset changelog and release notes for next development cycle"
-git push origin "$BRANCH"
-echo -e "${GREEN}Changelog e release notes resettati e pushati su $BRANCH con successo.${NC}"
-
+# Do not reset the release notes and changelog here.
+# Instead, the LLM/Agent will overwrite them in the next development cycle
+# when it detects that the version number is already equal to the version number in the release notes.
 echo -e "${BLUE}Dopo il build GitHub, esegui ./push-aur.sh per aggiornare AUR.${NC}"
