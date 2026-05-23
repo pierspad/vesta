@@ -78,7 +78,7 @@
   }
 </script>
 
-<div class="glass-card p-4 flex flex-col" style="min-height: {minHeight};">
+<div class="glass-card p-5 flex flex-col" style="min-height: {minHeight};">
   <div class="flex items-center justify-between mb-3 shrink-0">
     <h4 class="text-sm font-medium text-gray-400 flex items-center gap-2">
       <svg

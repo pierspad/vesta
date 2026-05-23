@@ -1,4 +1,15 @@
 {
+  "settings.modal.defaultModelHint": "Das standardmäßig zu verwendende Modell mit dieser Konfiguration",
+  "settings.modal.defaultModelPlaceholder": "z. B.: llama3.2, mistral, gpt-4o",
+  "settings.modal.modelOptionalHint": "Optional. Sie können das Modell im Tab 'Übersetzung' wählen. Dies ist nur ein Standard.",
+  "settings.modal.providerAnthropic": "Claude von Anthropic",
+  "settings.modal.providerAnthropicDesc": "Modelle Opus 4.6 und Sonnet 4.6",
+  "settings.modal.providerGoogle": "Google-API",
+  "settings.modal.providerGoogleDesc": "Google-API-Modelle 3.1 Pro und 3 Flash",
+  "settings.modal.providerOpenai": "OpenAI-GPT",
+  "settings.modal.providerOpenaiDesc": "Modelle GPT-5.2 und GPT-5",
+  "settings.modelsHint": "Klicken Sie auf ein Modell, um schnell einen API-Schlüssel mit diesem Modell als Standard hinzuzufügen",
+  "settings.soonBadge": "Bald",
   "settings.stopModelDownload": "Download stoppen",
   "settings.stoppingModelDownload": "Wird gestoppt...",
   "settings.modelDownloading": "Modell wird heruntergeladen: {{model}}",
@@ -37,16 +48,5 @@
   "sync.saveSession": "Sitzung speichern",
   "sync.seek": "Suchen ±0.1s",
   "sync.sessionSaved": "Sitzung gespeichert:",
-  "sync.srtPlaceholder": "Laden Sie eine SRT-Datei, um zu beginnen",
-  "sync.statusTitle": "Zustand",
-  "sync.subtitle": "Untertitel mit Audio mithilfe intelligenter Checkpoints abgleichen",
-  "sync.subtitles": "Untertitel",
-  "sync.title": "Untertitel-Synchronisierung",
-  "sync.tooltip.loadAudio": "Audio- oder Videodatei laden (nur Audio wird verwendet)",
-  "sync.tooltip.loadSrt": "SRT-Untertiteldatei laden",
-  "sync.tooltip.loadVideo": "Videodatei laden",
-  "sync.tooltipLoadSession": "Eine gespeicherte Synchronisierungssitzung (.json) fortsetzen. Eine Sitzung speichert die SRT-Datei, den Videopfad, alle bestätigten Anker und den Fortschritt, sodass Sie dort weitermachen können, wo Sie aufgehört haben.",
-  "sync.tooltipRemoveAnchor": "Diesen Synchronisations-Anker entfernen",
-  "sync.tooltipSaveFile": "Die endgültige synchronisierte SRT-Datei (.srt) mit allen angewendeten Timing-Korrekturen aus den Ankern exportieren. Dies ist die fertige Ausgabedatei.",
-  "sync.tooltipSaveSession": "Den aktuellen Synchronisationsstatus in einer .json-Datei speichern. Beinhaltet: SRT-Pfad, Videopfad, alle bestätigten Anker und Offsets. Nützlich, um die Arbeit zu pausieren und später fortzusetzen."
+  "sync.srtPlaceholder": "Laden Sie eine SRT-Datei, um zu beginnen"
 }

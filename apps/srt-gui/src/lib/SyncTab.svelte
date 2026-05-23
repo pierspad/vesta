@@ -1,14 +1,16 @@
 <script lang="ts">
   import { invoke } from "@tauri-apps/api/core";
   import { getCurrentWebview } from "@tauri-apps/api/webview";
-  import { guardedOpen, guardedSave } from "./dialogGuard";
+  import { guardedOpen, guardedSave } from "./utils/dialogGuard";
   import PathPreviewModal from "./PathPreviewModal.svelte";
-  import Snackbar from "./Snackbar.svelte";
+  import ConfirmDialog from "./ConfirmDialog.svelte";
   import InfoModal from "./InfoModal.svelte";
+  import { snackbar } from "./snackbarStore.svelte";
   import InfoButton from "./InfoButton.svelte";
   import { syncSections } from "./info";
   import { onMount } from "svelte";
   import { locale } from "./i18n";
+  import { getFileName } from "./models";
 
   interface Props {
     active?: boolean;
@@ -63,9 +65,7 @@
 
   let showResetModal = $state(false);
 
-  let snackbarMessage = $state<string | null>(null);
-  let snackbarVariant = $state<"success" | "info" | "warning" | "error">("info");
-  let snackbarTimeout = $state<ReturnType<typeof setTimeout> | null>(null);
+
 
   let confidenceScore = $derived(
     status?.total_subtitles
@@ -300,9 +300,6 @@
     console.info(`[SyncTab] ${message}`);
   }
 
-  function getFileName(path: string): string {
-    return path.split("/").pop() || path;
-  }
 
   async function tryAutoSelectMediaForSrt(srtPath: string) {
     try {
@@ -444,12 +441,7 @@
   }
 
   function showSnackbar(message: string, variant: "success" | "info" | "warning" | "error" = "info") {
-    if (snackbarTimeout) clearTimeout(snackbarTimeout);
-    snackbarMessage = message;
-    snackbarVariant = variant;
-    snackbarTimeout = setTimeout(() => {
-      snackbarMessage = null;
-    }, 3500);
+    snackbar.show(message, variant, 3500);
   }
 
   const OFFSET_TOLERANCE_MS = 200;
@@ -1015,6 +1007,27 @@
   }
 
   function handleKeydown(e: KeyboardEvent) {
+    if (subtitleContextMenu) {
+      const key = e.key.toLowerCase();
+      if (key === "escape") {
+        closeSubtitleContextMenu();
+        e.preventDefault();
+        return;
+      }
+      if (key === "p") {
+        playSubtitleFromList(subtitleContextMenu.sub);
+        closeSubtitleContextMenu();
+        e.preventDefault();
+        return;
+      }
+      if (key === "g") {
+        goToSubtitleManual(subtitleContextMenu.sub);
+        closeSubtitleContextMenu();
+        e.preventDefault();
+        return;
+      }
+    }
+
     if (
       document.activeElement?.tagName === "INPUT" ||
       document.activeElement?.tagName === "TEXTAREA"
@@ -1135,7 +1148,10 @@
   onMount(() => {
     syncDebug("mount", { active });
     window.addEventListener("keydown", handleKeydown);
-    let unlistenDragDrop: (() => void) | null = null;
+
+    let activeListener = true;
+    let unlistenDD: (() => void) | null = null;
+
     getCurrentWebview()
       .onDragDropEvent((event) => {
         if (!active) return;
@@ -1149,12 +1165,18 @@
         } else if (event.payload.type === "leave") isDraggingOver = false;
       })
       .then((fn) => {
-        unlistenDragDrop = fn;
+        if (!activeListener) fn();
+        else unlistenDD = fn;
+      })
+      .catch((e) => {
+        console.warn("Failed to set up drag-drop listener:", e);
       });
+
     return () => {
+      activeListener = false;
       syncDebug("unmount");
       window.removeEventListener("keydown", handleKeydown);
-      if (unlistenDragDrop) unlistenDragDrop();
+      if (unlistenDD) unlistenDD();
       if (singleClickTimer) clearTimeout(singleClickTimer);
     };
   });
@@ -1292,7 +1314,7 @@
 
   {#snippet panelContent(panelId: SyncPanelId)}
     {#if panelId === "toolbar"}
-      <div class="glass-card grid gap-3 p-4 flex-shrink-0 grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_auto]">
+      <div class="glass-card grid gap-3 p-5 flex-shrink-0 grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_auto]">
         <!-- Row 1: File inputs -->
         <div class="col-start-1 row-start-1 flex items-center gap-2 w-full min-w-0">
           <div class="flex-1 min-w-0">
@@ -1436,27 +1458,26 @@
 
         <!-- Col 3: Action buttons (New Sync & Save/Load Session) -->
         <div class="col-start-3 row-start-1 flex w-full h-10">
-          {#if status?.is_loaded || audioSrc}
-            <button
-              onclick={() => (showResetModal = true)}
-              class="w-full h-full flex items-center justify-center gap-2 rounded-lg border bg-amber-500/20 border-amber-500/40 text-amber-300 hover:bg-amber-500/30 text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed px-4"
-              title={t("sync.newSyncDesc")}
+          <button
+            onclick={() => (showResetModal = true)}
+            disabled={!(status?.is_loaded || audioSrc)}
+            class="w-full h-full flex items-center justify-center gap-2 rounded-lg border border-red-500/30 bg-red-500/10 text-red-300 hover:bg-red-500/20 hover:border-red-500/50 hover:text-white text-sm font-medium transition-all disabled:opacity-30 disabled:cursor-not-allowed px-4"
+            title={t("sync.newSyncDesc")}
+          >
+            <svg
+              class="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              ><path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+              /></svg
             >
-              <svg
-                class="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-                ><path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-                /></svg
-              >
-              {t("sync.newSync")}
-            </button>
-          {/if}
+            {t("sync.newSync")}
+          </button>
         </div>
 
         <div class="col-start-3 row-start-2 flex w-full h-10 gap-2">
@@ -1527,23 +1548,23 @@
       </div>
     {:else if panelId === "wizard"}
       <div class="glass-card relative flex flex-col overflow-visible">
-        <div class="p-3 flex items-center gap-2 flex-shrink-0">
-          <svg
-            class="w-5 h-5 text-indigo-400"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-            ><path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
-            /></svg
-          >
-          <h3 class="text-sm font-semibold text-indigo-400">
+        <div class="p-5 pb-3 flex-shrink-0">
+          <h3 class="text-lg font-semibold flex items-center gap-2 text-indigo-400">
+            <svg
+              class="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              ><path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+              /></svg
+            >
             {t("sync.wizard.title")}
+            <InfoButton onclick={() => (helpSection = "wizard")} />
           </h3>
-          <InfoButton onclick={() => (helpSection = "wizard")} />
         </div>
 
         <div
@@ -1923,10 +1944,10 @@
         </div>
       </div>
     {:else if panelId === "status"}
-      <div class="glass-card p-4 min-h-0 space-y-4">
-        <div class="flex items-center gap-2">
+      <div class="glass-card p-5 min-h-0 space-y-4">
+        <h3 class="text-lg font-semibold flex items-center gap-2 text-cyan-400">
           <svg
-            class="w-5 h-5 text-cyan-400"
+            class="w-5 h-5"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -1937,11 +1958,9 @@
               d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
             /></svg
           >
-          <h3 class="text-sm font-semibold text-cyan-400">
-            {t("sync.statusTitle")}
-          </h3>
+          {t("sync.statusTitle")}
           <InfoButton onclick={() => (helpSection = "status")} />
-        </div>
+        </h3>
 
         {#if status?.is_loaded}
           <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
@@ -1992,26 +2011,28 @@
     {:else if panelId === "subtitleList"}
       <div class="glass-card flex flex-col h-full min-h-0">
         <!-- Header -->
-        <div class="p-4 pb-2 flex-shrink-0 flex items-center gap-2">
-          <svg
-            class="w-4 h-4 text-purple-400"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-            ><path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M4 6h16M4 10h16M4 14h16M4 18h16"
-            /></svg
-          >
-          <h4 class="text-sm font-semibold text-purple-400">
-            {t("sync.subtitles")}
-            {#if status?.is_loaded}<span class="text-gray-500 font-normal"
-                >(Page {currentPage} of {totalPages})</span
-              >{/if}
+        <div class="px-5 pt-5 pb-2 flex-shrink-0">
+          <h4 class="text-sm font-semibold flex items-center gap-2 text-purple-400">
+            <svg
+              class="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              ><path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M4 6h16M4 10h16M4 14h16M4 18h16"
+              /></svg
+            >
+            <span>
+              {t("sync.subtitles")}
+              {#if status?.is_loaded}<span class="text-gray-500 font-normal"
+                  >(Page {currentPage} of {totalPages})</span
+                >{/if}
+            </span>
+            <InfoButton onclick={() => (helpSection = "subtitleList")} />
           </h4>
-          <InfoButton onclick={() => (helpSection = "subtitleList")} />
         </div>
 
         <!-- Pagination controls — TOP -->
@@ -2179,12 +2200,14 @@
             closeSubtitleContextMenu();
           }}
           class="vesta-context-menu-item"
-          style="justify-content: flex-start;"
         >
-          <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"
-            ><path d="M8 5v14l11-7z" /></svg
-          >
-          {t("sync.playSubtitle")}
+          <span class="inline-flex items-center gap-2">
+            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"
+              ><path d="M8 5v14l11-7z" /></svg
+            >
+            {t("sync.playSubtitle")}
+          </span>
+          <kbd>P</kbd>
         </button>
         <button
           onclick={() => {
@@ -2193,21 +2216,23 @@
             closeSubtitleContextMenu();
           }}
           class="vesta-context-menu-item"
-          style="justify-content: flex-start;"
         >
-          <svg
-            class="w-4 h-4"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-            ><path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M15 12a9 9 0 11-18 0 9 9 0 0118 0z"
-            /></svg
-          >
-          {t("sync.goToSubtitle")}
+          <span class="inline-flex items-center gap-2">
+            <svg
+              class="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              ><path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M15 12a9 9 0 11-18 0 9 9 0 0118 0z"
+              /></svg
+            >
+            {t("sync.goToSubtitle")}
+          </span>
+          <kbd>G</kbd>
         </button>
       </div>
     </div>
@@ -2250,39 +2275,18 @@
     </div>
   {/if}
 
-  {#if snackbarMessage}
-    <Snackbar
-      message={snackbarMessage}
-      variant={snackbarVariant}
-      onclose={() => (snackbarMessage = null)}
-    />
-  {/if}
 
-  {#if showResetModal}
-    <div
-      class="absolute inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
-    >
-      <div
-        class="p-6 max-w-sm w-full mx-4 shadow-2xl border border-white/10 rounded-2xl"
-        style="background: #1e1e2e;"
-      >
-        <h3 class="text-lg font-semibold text-white mb-2">
-          {t("sync.resetSync")}
-        </h3>
-        <p class="text-gray-400 text-sm mb-6">{t("sync.confirmReset")}</p>
-        <div class="flex gap-3 justify-end">
-          <button
-            onclick={() => (showResetModal = false)}
-            class="btn-secondary py-2 px-5 text-sm"
-            >{t("sync.cancelReset")}</button
-          >
-          <button onclick={confirmReset} class="btn-danger py-2 px-5 text-sm"
-            >OK</button
-          >
-        </div>
-      </div>
-    </div>
-  {/if}
+
+  <ConfirmDialog
+    show={showResetModal}
+    title={t("sync.resetSync") || "Ripristinare sessione?"}
+    message={t("sync.confirmReset") || "Tutti i dati correnti di sincronizzazione andranno persi."}
+    confirmText="OK"
+    cancelText={t("sync.cancelReset") || "Annulla"}
+    variant="danger"
+    on:cancel={() => (showResetModal = false)}
+    on:confirm={confirmReset}
+  />
 
   <PathPreviewModal
     isOpen={!!expandedPathField}

@@ -2,7 +2,7 @@
   import { invoke } from "@tauri-apps/api/core";
   import { listen } from "@tauri-apps/api/event";
   import { getCurrentWebview } from "@tauri-apps/api/webview";
-  import { guardedOpen, guardedSave } from "./dialogGuard";
+  import { guardedOpen, guardedSave } from "./utils/dialogGuard";
   import { fetch as tauriFetch } from "@tauri-apps/plugin-http";
   import { onDestroy, onMount } from "svelte";
   import { locale } from "./i18n";
@@ -20,7 +20,7 @@
   import LogPanel, { type LogEntry } from "./LogPanel.svelte";
   import InfoModal from "./InfoModal.svelte";
   import InfoButton from "./InfoButton.svelte";
-  import Snackbar from "./Snackbar.svelte";
+  import { snackbar } from "./snackbarStore.svelte";
   import { translateSections } from "./info";
   import {
     extractModelsFromPayload,
@@ -131,8 +131,7 @@
   let selectedProviderFamily = $state(initialProvider);
   let providerConfirmed = $state(true);
   let selectedCustomProviderId = $state(loadStoredValue(DEFAULT_LLM_CUSTOM_PROVIDER_KEY) || loadStoredValue(LAST_CUSTOM_PROVIDER_KEY));
-  let tempSnackbar = $state("");
-  let tempSnackbarTimer: ReturnType<typeof setTimeout> | null = null;
+
   let localCustomModel = $state(loadStoredValue(LAST_CUSTOM_MODEL_KEY));
   let batchSize = $state(15);
   let resumeOverlap = $state(2);
@@ -553,7 +552,15 @@
     fetchModelsError = "";
   }
 
-  onMount(async () => {
+  $effect(() => {
+    if (!active) {
+      stopPreviewRefresh();
+    } else if (isTranslating) {
+      startPreviewRefresh();
+    }
+  });
+
+  onMount(() => {
     loadApiKeys();
 
     window.addEventListener("storage", handleStorageChange);
@@ -562,28 +569,37 @@
     window.addEventListener("apikeys-updated", loadApiKeys);
     window.addEventListener("vesta-llm-default-updated", loadDefaultLlmSettings);
 
-    try {
-      unlistenDragDrop = await getCurrentWebview().onDragDropEvent((event) => {
-        if (!active) return;
-        if (event.payload.type === "over") isDraggingOver = true;
-        else if (event.payload.type === "drop") {
-          isDraggingOver = false;
-          if (event.payload.paths) handleFileDrop(event.payload.paths);
-        } else if (event.payload.type === "leave") isDraggingOver = false;
-      });
-    } catch (e) {
-      console.warn("Failed to set up drag-drop listener:", e);
-    }
+    let activeListener = true;
+    let unlistenDD: (() => void) | null = null;
+    let unlistenProg: (() => void) | null = null;
+    let unlistenComp: (() => void) | null = null;
 
-    unlistenProgress = await listen<TranslateProgressEvent>(
+    getCurrentWebview().onDragDropEvent((event) => {
+      if (!active) return;
+      if (event.payload.type === "over") isDraggingOver = true;
+      else if (event.payload.type === "drop") {
+        isDraggingOver = false;
+        if (event.payload.paths) handleFileDrop(event.payload.paths);
+      } else if (event.payload.type === "leave") isDraggingOver = false;
+    }).then((fn) => {
+      if (!activeListener) fn();
+      else unlistenDD = fn;
+    }).catch((e) => {
+      console.warn("Failed to set up drag-drop listener:", e);
+    });
+
+    listen<TranslateProgressEvent>(
       "translate-progress",
       (event) => {
         progress = event.payload;
         addLog(event.payload.message);
       },
-    );
+    ).then((fn) => {
+      if (!activeListener) fn();
+      else unlistenProg = fn;
+    }).catch(console.error);
 
-    unlistenComplete = await listen<TranslateResult>(
+    listen<TranslateResult>(
       "translate-complete",
       (event) => {
         result = event.payload;
@@ -598,20 +614,21 @@
         }
         addLog(`✅ ${event.payload.message} (${event.payload.translated_count} subtitles)`);
       },
-    );
-  });
+    ).then((fn) => {
+      if (!activeListener) fn();
+      else unlistenComp = fn;
+    }).catch(console.error);
 
-  onDestroy(() => {
-    window.removeEventListener("storage", handleStorageChange);
-    window.removeEventListener("apikeys-updated", loadApiKeys);
-    window.removeEventListener("vesta-llm-default-updated", loadDefaultLlmSettings);
-    unlistenProgress?.();
-    unlistenComplete?.();
-    if (previewRefreshInterval) {
-      clearInterval(previewRefreshInterval);
-      previewRefreshInterval = null;
-    }
-    if (unlistenDragDrop) unlistenDragDrop();
+    return () => {
+      activeListener = false;
+      window.removeEventListener("storage", handleStorageChange);
+      window.removeEventListener("apikeys-updated", loadApiKeys);
+      window.removeEventListener("vesta-llm-default-updated", loadDefaultLlmSettings);
+      if (unlistenDD) unlistenDD();
+      if (unlistenProg) unlistenProg();
+      if (unlistenComp) unlistenComp();
+      stopPreviewRefresh();
+    };
   });
 
   function loadApiKeys() {
@@ -692,6 +709,60 @@
     } catch (e) {
       error = `${t("translate.errorSelectingFile")} ${e}`;
     }
+  }
+
+  async function saveInputPath(newPath: string): Promise<boolean> {
+    let cleaned = newPath.trim().replace(/\/+$/, "");
+    if (!cleaned) {
+      snackbar.show("Path cannot be empty", "error", 3500);
+      return false;
+    }
+    try {
+      const exists = await invoke<boolean>("transcribe_check_file_exists", {
+        path: cleaned,
+      });
+      if (!exists) {
+        snackbar.show(`File not found: ${cleaned}`, "error", 3500);
+        return false;
+      }
+      inputPath = cleaned;
+      await loadFileInfo();
+      if (!outputPath) {
+        outputPath = generateOutputPath(inputPath, targetLang);
+      }
+      addLog(`📥 Input selected: ${inputPath.split("/").pop()}`);
+      addLog(`📤 Output set: ${outputPath.split("/").pop()}`);
+      return true;
+    } catch (e) {
+      snackbar.show(`Error: ${e}`, "error", 3500);
+      return false;
+    }
+  }
+
+  async function saveOutputPath(newPath: string): Promise<boolean> {
+    let cleaned = newPath.trim().replace(/\/+$/, "");
+    if (!cleaned) {
+      snackbar.show("Path cannot be empty", "error", 3500);
+      return false;
+    }
+    const parentDir = cleaned.substring(0, cleaned.lastIndexOf("/"));
+    if (parentDir) {
+      try {
+        const exists = await invoke<boolean>("transcribe_check_file_exists", {
+          path: parentDir,
+        });
+        if (!exists) {
+          snackbar.show(`Directory not found: ${parentDir}`, "error", 3500);
+          return false;
+        }
+      } catch (e) {
+        snackbar.show(`Error: ${e}`, "error", 3500);
+        return false;
+      }
+    }
+    outputPath = cleaned;
+    addLog(`📤 Output updated: ${outputPath.split("/").pop()}`);
+    return true;
   }
 
   async function loadFileInfo() {
@@ -874,12 +945,7 @@
   }
 
   function showNoKeySnackbar(family: string) {
-    if (tempSnackbarTimer) clearTimeout(tempSnackbarTimer);
-    tempSnackbar = family;
-    tempSnackbarTimer = setTimeout(() => {
-      tempSnackbar = "";
-      tempSnackbarTimer = null;
-    }, 4000);
+    snackbar.show("Configura prima un LLM nella macro-area Settings > LLM.", "warning", 4000);
   }
 
   const TRANSLATE_PANEL_IDS = [
@@ -892,116 +958,6 @@
   ] as const;
 
   type TranslatePanelId = (typeof TRANSLATE_PANEL_IDS)[number];
-
-  interface TranslateColumnLayout {
-    col1: TranslatePanelId[];
-    col2: TranslatePanelId[];
-  }
-
-  const TRANSLATE_DEFAULT_LAYOUT: TranslateColumnLayout = {
-    col1: ["options", "logs"],
-    col2: ["files", "actions", "progress", "livePreview"],
-  };
-
-  function loadTranslateLayout(): TranslateColumnLayout {
-    try {
-      const saved = localStorage.getItem("srt-translate-layout-v1");
-      if (saved) {
-        const parsed = JSON.parse(saved) as TranslateColumnLayout;
-        const all = [...parsed.col1, ...parsed.col2];
-        const valid =
-          TRANSLATE_PANEL_IDS.every((id) => all.includes(id)) &&
-          all.length === TRANSLATE_PANEL_IDS.length;
-        if (valid) return parsed;
-      }
-    } catch {}
-    return { ...TRANSLATE_DEFAULT_LAYOUT };
-  }
-
-  function saveTranslateLayout(layout: TranslateColumnLayout) {
-    localStorage.setItem("srt-translate-layout-v1", JSON.stringify(layout));
-  }
-
-  let translatePanelLayout = $state<TranslateColumnLayout>(
-    loadTranslateLayout(),
-  );
-
-  let trDraggedPanel = $state<TranslatePanelId | null>(null);
-  let trDragOverCol = $state<"col1" | "col2" | null>(null);
-  let trDragOverIdx = $state<number | null>(null);
-
-  function trOnDragStart(e: DragEvent, panelId: TranslatePanelId) {
-    const target = e.target as HTMLElement;
-    if (
-      target?.tagName === "INPUT" &&
-      (target as HTMLInputElement).type === "range"
-    ) {
-      e.preventDefault();
-      return;
-    }
-    trDraggedPanel = panelId;
-    if (e.dataTransfer) {
-      e.dataTransfer.effectAllowed = "move";
-      e.dataTransfer.setData("text/plain", panelId);
-    }
-  }
-
-  function trOnDragOver(e: DragEvent, col: "col1" | "col2", idx: number) {
-    if (!trDraggedPanel) return;
-    e.preventDefault();
-    if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
-    trDragOverCol = col;
-    trDragOverIdx = idx;
-  }
-
-  function trOnDragOverColumn(e: DragEvent, col: "col1" | "col2") {
-    if (!trDraggedPanel) return;
-    e.preventDefault();
-    if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
-    trDragOverCol = col;
-    if (trDragOverIdx === null) {
-      trDragOverIdx = translatePanelLayout[col].length;
-    }
-  }
-
-  function trOnDrop(col: "col1" | "col2", idx: number) {
-    if (!trDraggedPanel) return;
-    const newLayout = { ...translatePanelLayout };
-    for (const c of ["col1", "col2"] as const) {
-      const i = newLayout[c].indexOf(trDraggedPanel);
-      if (i !== -1) {
-        newLayout[c] = [...newLayout[c]];
-        newLayout[c].splice(i, 1);
-        if (c === col && i < idx) idx--;
-        break;
-      }
-    }
-    newLayout[col] = [...newLayout[col]];
-    newLayout[col].splice(idx, 0, trDraggedPanel);
-    translatePanelLayout = newLayout;
-    saveTranslateLayout(translatePanelLayout);
-    trDraggedPanel = null;
-    trDragOverCol = null;
-    trDragOverIdx = null;
-  }
-
-  function trOnDropColumn(col: "col1" | "col2") {
-    trOnDrop(col, translatePanelLayout[col].length);
-  }
-
-  function trOnDragEnd() {
-    trDraggedPanel = null;
-    trDragOverCol = null;
-    trDragOverIdx = null;
-  }
-
-  function resetTranslateLayout() {
-    translatePanelLayout = {
-      col1: [...TRANSLATE_DEFAULT_LAYOUT.col1],
-      col2: [...TRANSLATE_DEFAULT_LAYOUT.col2],
-    };
-    saveTranslateLayout(translatePanelLayout);
-  }
 </script>
 
 <div 
@@ -1972,32 +1928,16 @@
   {/snippet}
 
   <div class="grid grid-cols-1 xl:grid-cols-2 gap-6 transition-opacity">
-    <div
-      class="space-y-3 overflow-x-hidden min-h-[100px]"
-      role="list"
-    >
-      {#each translatePanelLayout.col1 as trPanelId, idx (trPanelId)}
-        <div
-          class="relative transition-all duration-150 flex-1 flex flex-col"
-          role="listitem"
-        >
-          {@render panelContent(trPanelId)}
-        </div>
-      {/each}
+    <div class="space-y-3 overflow-x-hidden min-h-[100px]">
+      {@render panelContent("options")}
+      {@render panelContent("logs")}
     </div>
 
-    <div
-      class="space-y-3 overflow-x-hidden min-h-[100px]"
-      role="list"
-    >
-      {#each translatePanelLayout.col2 as trPanelId, idx (trPanelId)}
-        <div
-          class="transition-all duration-150"
-          role="listitem"
-        >
-          {@render panelContent(trPanelId)}
-        </div>
-      {/each}
+    <div class="space-y-3 overflow-x-hidden min-h-[100px]">
+      {@render panelContent("files")}
+      {@render panelContent("actions")}
+      {@render panelContent("progress")}
+      {@render panelContent("livePreview")}
     </div>
   </div>
 
@@ -2007,13 +1947,6 @@
     onclose={() => (helpSection = null)} 
   />
 
-  {#if tempSnackbar}
-    <Snackbar
-      message="Configura prima un LLM nella macro-area Settings > LLM."
-      variant="warning"
-      onclose={() => (tempSnackbar = "")}
-    />
-  {/if}
 
   <PathPreviewModal
     isOpen={!!expandedPathField}
@@ -2022,6 +1955,12 @@
       : t("translate.outputFile")}
     value={expandedPathField === "input" ? inputPath : outputPath}
     onclose={() => (expandedPathField = null)}
+    editable={true}
+    secondaryText={`✏️ ${t("transcribe.editPath")}`}
+    desc={expandedPathField === "input"
+      ? t("transcribe.inputPathDesc")
+      : t("transcribe.outputPathDesc")}
+    onsave={expandedPathField === "input" ? saveInputPath : saveOutputPath}
   />
 </div>
 

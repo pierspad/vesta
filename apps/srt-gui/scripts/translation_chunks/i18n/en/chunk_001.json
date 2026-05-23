@@ -43,10 +43,10 @@
   "shortcuts.action.goToSettings": "Go to Settings",
   "shortcuts.action.goToShortcuts": "Go to Shortcuts",
   "shortcuts.action.addApiKey": "Add API Key",
-  "shortcuts.action.generateFlashcards": "Generate flashcards",
-  "shortcuts.action.cancelGeneration": "Cancel generation",
-  "shortcuts.action.previewCards": "Preview cards",
-  "shortcuts.action.openSrt": "Open SRT file",
-  "shortcuts.action.startTranslation": "Start translation",
-  "shortcuts.action.cancelTranslation": "Cancel translation"
+  "shortcuts.action.autoSync": "Auto-sync subtitles",
+  "shortcuts.action.newSync": "New sync session",
+  "shortcuts.action.loadSession": "Load sync session",
+  "shortcuts.action.saveSession": "Save sync session",
+  "shortcuts.action.syncUndo": "Undo sync edit",
+  "shortcuts.action.generateFlashcards": "Generate flashcards"
 }

@@ -1,4 +1,15 @@
 {
+  "shortcuts.action.cancelGeneration": "Отменить генерацию",
+  "shortcuts.action.previewCards": "Предпросмотр карточек",
+  "shortcuts.action.prevAnchor": "Предыдущий якорь",
+  "shortcuts.action.nextAnchor": "Следующий якорь",
+  "flashcards.exportAPKGBadge": "Рекомендуется",
+  "flashcards.exportTSVBadge": "Классический",
+  "shortcuts.overlay.title": "Горячие клавиши",
+  "shortcuts.overlay.hint": "Shift+? для отображения/скрытия",
+  "shortcuts.overlay.global": "Глобальные",
+  "shortcuts.editShortcut": "Изменить клавишу",
+  "shortcuts.resetDefault": "Сбросить",
   "settings.googleProviderTip": "Для использования функции перевода необходим ключ API Google Cloud с активированным Cloud Translation API.",
   "settings.localProviderTip": "С локальным провайдером Ollama + модель вроде gemma3 выполняет перевод локально – бесплатно и без отправки данных.",
   "settings.groqProviderTip": "Сверхбыстрые вычисления на базе Groq LPU. Требуется API-ключ gsk_ от console.groq.com.",
@@ -37,16 +48,5 @@
   "flashcards.closePreview": "Закрыть",
   "flashcards.combineSentences": "Объединять разорванные предложения",
   "flashcards.comingSoonDesc": "Автоматически создавайте карточки Anki из субтитров. Идеально для изучения языков по фильмам и сериалам.",
-  "flashcards.contextLines": "Строки контекста",
-  "flashcards.continuationCharsHint": "Символы, указывающие на продолжение строки на следующей",
-  "flashcards.cpuBalanced": "Баланс",
-  "flashcards.cpuBalancedDesc": "50% ядер",
-  "flashcards.cpuCores": "Ядра ЦП",
-  "flashcards.cpuCoresNote": "Минимум 1 ядро остается свободным. Больше ядер = быстрее генерация.",
-  "flashcards.cpuCoresUsage": "Потоки",
-  "flashcards.cpuEco": "Эко",
-  "flashcards.cpuEcoDesc": "Мин. нагрузка",
-  "flashcards.cpuFullPower": "Максимум",
-  "flashcards.cpuFullPowerDesc": "Макс. ядер",
-  "flashcards.cpuMax": "макс"
+  "flashcards.contextLines": "Строки контекста"
 }

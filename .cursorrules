@@ -1,61 +1,279 @@
-# Agent / LLM Instructions for Vesta (Tauri + Svelte Harness)
+# Agent & LLM Instructions: Principles of Excellent Software (Tauri + Svelte 5 stack)
 
-All development, code generation, and AI assistance for this project must adhere strictly to these rules and architecture specifications.
-
----
-
-## 1. Release Notes and Versioning
-*   **Do Not Delete Release Notes**: The release script (`git-release.sh`) does not delete or reset `docs/release-notes.md` or `docs/list_of_things_changed.md` after a release.
-*   **Determine if a Release was Done**: When asked to make a code change or prepare a release, check the version in `build-scripts/PKGBUILD` (via `pkgver=X.Y.Z`) and check `docs/release-notes.md`.
-*   **Action on Version Match**: If the version in `build-scripts/PKGBUILD` matches the version in the header of `docs/release-notes.md` (e.g., both are `0.8.0`), it means the release for `0.8.0` has already been made.
-*   **How to Proceed**:
-    1.  Increment the version number in `build-scripts/PKGBUILD` (e.g., to `0.8.1` or the appropriate next version).
-    2.  Run `sh build-scripts/update_project_info.sh` to propagate the version bump to all configuration and project files.
-    3.  Overwrite/update `docs/release-notes.md` and `docs/list_of_things_changed.md` with the new version number and document the new changes.
+All development, code generation, and AI assistance for the projects in this workspace must adhere strictly to these rules, architectural specifications, and software engineering principles. These standards ensure premium visual aesthetics, minimal boilerplate, high performance, and robust code maintainability across all applications in the suite.
 
 ---
 
-## 2. Core Tech Stack
-*   **Backend**: Rust (Tauri v2) - high-performance system access, low memory footprint.
-*   **Frontend**: Svelte + TypeScript - reactive, fast compilation, clean stores.
-*   **Styling**: Vanilla CSS - custom CSS variables for theme states, glassmorphism UI, smooth transitions, and hardware-accelerated animations. Avoid Tailwind CSS.
-*   **Build Optimization**: High priority. Utilize preflight checks, local sccache, and custom bypass configs.
+## 1. Core Tech Stack & Standards
+
+Depending on the specific project, the technology stack utilizes the following standards:
+
+### 1.1 Backend & App Framework
+*   **Backend**: Rust (Tauri v2) — high-performance system access, low memory footprint, strict security models.
+*   **Frontend**: Svelte 5 + TypeScript + Vite — highly reactive, fast compilation, minimal boilerplate.
+    *   *Svelte 5 Runes*: Always prefer Svelte 5 runes (`$state`, `$derived`, `$props()`) for new components. If modifying legacy components, maintain the existing Svelte 4 syntax (`export let`, reactive `$: `) or refactor them cleanly to Svelte 5 Runes.
+
+### 1.2 Styling Frameworks by Project
+*   **Reaper**: Vanilla CSS only. This project does NOT use TailwindCSS. All styles must be written in scoped `<style>` blocks inside Svelte components or global classes in `src/app.css`.
+*   **Textmerger**: Vanilla CSS only (with TailwindCSS legacy in some older elements). Do NOT generate new Tailwind utility classes; write standard CSS classes or scoped `<style>` blocks.
+*   **Vesta**: Svelte 5 + Tailwind CSS v4 (`@import "tailwindcss";` in `app.css`). Tailwind utility classes are allowed and encouraged for layout and spacing, but they must utilize the custom theme variables. For complex/premium custom UI patterns (e.g. glassmorphism), write semantic CSS classes in `app.css` or scoped `<style>` blocks.
 
 ---
 
-## 3. i18n & Localization Standard (15 Languages)
-*   **Locale Storage**:
-    *   `apps/srt-gui/src/lib/i18n/locales/` - General UI translations.
-    *   `apps/srt-gui/src/lib/i18n/locales/info/` - Detailed helper texts and descriptions.
-*   **Supported Locales**: English (`en` - source of truth), Italian (`it`), Spanish (`es`), French (`fr`), German (`de`), Portuguese (`pt`), Russian (`ru`), Chinese (`zh`), Japanese (`ja`), Korean (`ko`), Arabic (`ar`), Polish (`pl`), Dutch (`nl`), Turkish (`tr`), Swedish (`sv`).
-*   **Validation**: Maintain the Python script (`check_missing_translations.py`) in CI/CD to prevent releases if keys are missing, empty, or parameters (e.g., `{count}`) mismatch.
+## 2. Design Tokens & CSS Variable Architecture
+
+Do not hardcode hex colors or specific palettes directly in component styles. All styling must be driven by semantic CSS variables defined in each app's `app.css`, allowing the color scheme to be changed dynamically without modifying component logic.
+
+### Canonical Variable Names & Color Schemes by Project
+
+#### Reaper (Vanilla Dark/Light)
+```css
+:root {
+  --bg: #111315;          /* Base app background */
+  --surface: #181b1f;     /* Sidebars, panels, primary containers */
+  --surface-2: #20242a;   /* Cards, input backgrounds, secondary containers */
+  --surface-3: #292f36;   /* Hover highlights, active elements */
+  --text: #f2f4f3;         /* Main readable text (high contrast) */
+  --muted: #a8b1ad;        /* Secondary/subtitle/placeholder text */
+  --border: #343b43;       /* Standard thin borders */
+  --accent: #2a9d8f;       /* Focus accent, main actions */
+  --accent-strong: #43c2ad; /* Hover state on primary actions */
+  --accent-text: #071916;  /* Text color on accent backgrounds */
+  --warn: #e9a23b;
+  --danger: #e15d64;
+  --done: #78c679;
+  --shadow: 0 18px 50px rgba(0, 0, 0, 0.22);
+}
+:root[data-theme='light'] {
+  --bg: #f5f4ef;
+  --surface: #ffffff;
+  --surface-2: #ece9e1;
+  --surface-3: #ded9cf;
+  --text: #20221f;
+  --muted: #626b66;
+  --border: #d2cdc2;
+  --accent: #0f7d72;
+  --accent-strong: #0c695f;
+  --accent-text: #ffffff;
+  --warn: #9a640d;
+  --danger: #b53d46;
+  --done: #3f7f46;
+  --shadow: 0 18px 38px rgba(55, 48, 38, 0.12);
+}
+```
+
+#### Vesta (Tailwind v4 - Dark/Light)
+```css
+:root {
+  --bg: #1a1a2e;          /* Base app background */
+  --surface: #16213e;     /* Sidebars, panels, primary containers */
+  --surface-2: #0f172a;   /* Cards, input backgrounds, secondary containers */
+  --surface-3: #1e293b;   /* Hover highlights, active elements */
+  --glass-bg: rgba(255, 255, 255, 0.05);
+  --glass-border: rgba(255, 255, 255, 0.1);
+  --text: #ffffff;         /* Main readable text (high contrast) */
+  --muted: #94a3b8;        /* Secondary/subtitle/placeholder text */
+  --border: rgba(255, 255, 255, 0.1);
+  --accent: #667eea;       /* Focus accent, main actions */
+  --accent-strong: #764ba2; /* Hover state on primary actions */
+  --accent-text: #ffffff;  /* Text color on accent backgrounds */
+  --warn: #fbbf24;
+  --danger: #ff416c;
+  --done: #38ef7d;
+  --shadow: 0 18px 50px rgba(0, 0, 0, 0.4);
+}
+:root[data-theme='light'] {
+  --bg: #f8fafc;
+  --surface: #ffffff;
+  --surface-2: #f1f5f9;
+  --surface-3: #e2e8f0;
+  --glass-bg: rgba(0, 0, 0, 0.03);
+  --glass-border: rgba(0, 0, 0, 0.08);
+  --text: #0f172a;
+  --muted: #64748b;
+  --border: rgba(0, 0, 0, 0.08);
+  --accent: #4f46e5;
+  --accent-strong: #4338ca;
+  --accent-text: #ffffff;
+  --warn: #d97706;
+  --danger: #dc2626;
+  --done: #16a34a;
+  --shadow: 0 18px 38px rgba(15, 23, 42, 0.08);
+}
+```
+
+#### Textmerger (Vanilla - Dark/Light)
+```css
+:root {
+  --bg: #1e1e1e;          /* Base app background */
+  --surface: #252526;     /* Sidebars, panels, primary containers */
+  --surface-2: #2d2d2d;   /* Cards, input backgrounds, secondary containers */
+  --surface-3: #3c3c3c;   /* Hover highlights, active elements */
+  --text: #e5e7eb;         /* Main readable text (high contrast) */
+  --muted: #9ca3af;        /* Secondary/subtitle/placeholder text */
+  --border: #333333;       /* Standard thin borders */
+  --accent: #007acc;       /* Focus accent, main actions */
+  --accent-strong: #0098ff; /* Hover state on primary actions */
+  --accent-text: #ffffff;  /* Text color on accent backgrounds */
+  --warn: #e9a23b;
+  --danger: #e15d64;
+  --done: #78c679;
+  --shadow: 0 18px 50px rgba(0, 0, 0, 0.22);
+}
+:root[data-theme="light"] {
+  --bg: #ffffff;
+  --surface: #f3f4f6;
+  --surface-2: #e5e7eb;
+  --surface-3: #d1d5db;
+  --text: #111827;
+  --muted: #6b7280;
+  --border: #e5e7eb;
+  --accent: #0066b3;
+  --accent-strong: #005599;
+  --accent-text: #ffffff;
+  --warn: #9a640d;
+  --danger: #b53d46;
+  --done: #3f7f46;
+  --shadow: 0 18px 38px rgba(55, 48, 38, 0.12);
+}
+```
+
+### Shared Transitions
+Ensure components transition smoothly during theme changes by applying this rule globally:
+```css
+body, button, input, div, span, nav {
+  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+```
 
 ---
 
-## 4. UI Shell & Sidebar Layout
-*   **Shell Structure**: Left-sidebar and workspace view configuration.
-*   **Attribution Dock (Bottom-Left)**:
-    *   Must display version, license, stack details (Tauri + Svelte).
-    *   Must display external links: Developer Web Site (`https://pierspad.com`) and GitHub Repository URL.
-    *   Links must be opened safely using Tauri Shell plugin (`open` API):
-        ```typescript
-        import { open as openExternal } from '@tauri-apps/plugin-shell';
-        ```
+## 3. UI/UX Visual Harmony Rules (MANDATORY)
+
+Every UI element created or modified must be visually consistent with the rest of the application. This is a premium desktop suite — no raw browser defaults are acceptable.
+
+### 3.1 Input Fields & Textfields
+Use `.field` as the container wrapper (handles label + input + helper text layout):
+*   Background: `var(--surface-2)`, border: `1px solid var(--border)`, border-radius: `8px` or `12px` depending on project, min-height: `40px`, padding: `0 12px`, color: `var(--text)`.
+*   Focus state: transition `border-color 0.15s ease, box-shadow 0.15s ease`. On focus: `border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 24%, transparent);`.
+*   Labels above inputs: color `var(--muted)`, font-size `0.88rem`, displayed with `display: inline-flex; align-items: center; gap: 6px;`.
+
+### 3.2 Buttons — Standard & Icon
+Standard classes:
+*   **`.icon-text`** or **`.btn-primary`**: Action buttons with smooth transitions: `transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;`.
+*   **`.icon-only`** or **`.icon-btn`**: Square icon buttons, typically `width: 40px; height: 40px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface-2);`.
+*   Primary variants: `background: var(--accent); color: var(--accent-text); border-color: var(--accent);`. Hover: `background: var(--accent-strong);`.
+
+### 3.3 Segmented Controls
+Use `.segmented` for exclusive multi-option selections (format, mode, auth method).
+*   Active button: `color: var(--accent-text); border-color: var(--accent); background: var(--accent);`.
+*   Inactive button: `background: var(--surface-2); color: var(--muted);` with hover `background: var(--surface-3); color: var(--text);`.
+
+### 3.4 Toggle Cards & Checkboxes
+Never use native `<input type="checkbox">`. Use toggle cards:
+*   An element with `role="button"`, `tabindex="0"`, receiving `.active` class when toggled.
+*   Active state: `border-color: var(--accent); background: color-mix(in srgb, var(--accent) 15%, var(--surface-2));` with accent icon.
+*   Always include keyboard handler: `on:keydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } }}`.
+
+### 3.5 Custom Dropdowns & Selects
+Never use raw `<select>` tags for styled select boxes.
+*   Dropdown overlay: `position: absolute; z-index: 50; top: calc(100% + 4px); left: 0; right: 0; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; box-shadow: var(--shadow); overflow: hidden;`.
+*   Detect available screen space: if opened near the bottom, open upward (`bottom: calc(100% + 4px); top: auto;`).
+*   Close on `Escape`, backdrop click, or selection.
+
+### 3.6 Range Sliders
+*   Pass the current progress as a CSS custom property: `style="--percent: {((value - min) / (max - min) * 100)}%"`.
+*   The track fill uses `--percent` to color the active portion: `accent-color: var(--accent);`.
+
+### 3.7 Scrollbars
+*   Invisible scrollbars: `scrollbar-width: none;` + `::-webkit-scrollbar { display: none; }`.
+*   Thin scrollbars: `scrollbar-width: thin; scrollbar-color: var(--border) transparent;`.
+*   Never leave the default thick system scrollbar visible in the app UI.
+
+### 3.8 Modals & Dialogs
+*   Backdrop: Glassmorphic backdrop `position: fixed; inset: 0; z-index: 20; background: rgba(0,0,0,0.65); backdrop-filter: blur(8px);` with `fade` Svelte transition.
+*   Dialog card: `border-radius: 12px; background: var(--surface-2); border: 1px solid var(--border); box-shadow: var(--shadow);` with `scale` entry transition (`duration: 150, start: 0.96`).
+*   **CRITICAL**: The dialog card must stop event propagation (`on:click|stopPropagation` or Svelte equivalent) to prevent backdrop click dismissals from triggering on inner clicks.
+*   **Dialog Collision Guard**: Per prevenire crash da doppie aperture simultanee o stuttering visivi, non chiamare mai direttamente `open` o `save` da `@tauri-apps/plugin-dialog`. Importa e usa sempre le funzioni protette `guardedOpen` e `guardedSave` esposte da `src/lib/utils/dialogGuard.ts`.
+
+### 3.9 skeleton Loading States
+Instead of simple spinning wheels, use pure CSS shimmering skeletons:
+```css
+.skeleton {
+  background: linear-gradient(90deg, var(--surface-2) 25%, var(--surface-3) 50%, var(--surface-2) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite linear;
+  border-radius: 4px;
+  pointer-events: none;
+  user-select: none;
+}
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+```
+
+### 3.10 Beautiful Empty States
+When lists, tables, or search views have no data, never display a blank space. Provide a structured empty state wrapper `.empty-state` with an SVG icon, clear header, and a clear "Call to Action" button.
+
+### 3.11 Accessibility & Focus Management
+*   **Focus Ring**: Ensure focusable elements (`button`, `a`, `[role="button"]`, `input`) show a clear `:focus-visible` state with `2px` border in `var(--accent)`.
+*   **Focus Trapping**: Inside modal dialogs, trap the focus using Svelte keydown hooks, and return it to the trigger element when the dialog closes.
+
+### 3.12 Logical CSS Properties (RTL Support)
+Use logical properties to natively support bidirectional layouts (Arabic `ar` language):
+*   `margin-left` / `margin-right` $\rightarrow$ `margin-inline-start` / `margin-inline-end`
+*   `padding-left` / `padding-right` $\rightarrow$ `padding-inline-start` / `padding-inline-end`
+*   `border-left` / `border-right` $\rightarrow$ `border-inline-start` / `border-inline-end`
+*   `left` / `right` $\rightarrow$ `inset-inline-start` / `inset-inline-end`
 
 ---
 
-## 5. Settings Panel Architecture
-*   **Macro Cards**: Top grid summarizing settings sections (e.g., Download, Interface, Shortcuts) with real-time status.
-*   **Section Smooth Scroll**: Macro cards must scroll to target section using element `scrollIntoView({ behavior: 'smooth' })`.
-*   **Highlight Animation**: Glow target section on navigation with standard glow keyframes.
-*   **Theme Switcher**: Dark/Light mode theme change by toggling class/attributes on the root element.
-*   **Language Selector**: Flags/names button grid.
-*   **Shortcuts Panel**: Integrated keymap editor dynamically updating shortcut settings.
+## 4. i18n & Localization Standard (15 Languages)
+
+To minimize compiled bundle size, avoid external localization packages. Implement a lightweight reactive derived translation store.
+
+*   **Supported Languages (15)**:
+    English (`en`), Italian (`it`), Spanish (`es`), French (`fr`), German (`de`), Portuguese (`pt`), Russian (`ru`), Chinese (`zh`), Japanese (`ja`), Korean (`ko`), Arabic (`ar` - RTL), Polish (`pl`), Dutch (`nl`), Turkish (`tr`), Hindi (`hi`).
+*   **Key Merging Strategy**: Import locale JSONs and merge with English as safe key-by-key fallback:
+    `ar: { ...en, ...infoEn, ...ar, ...infoAr }`
+*   **Translation function `$locale(key)`** or **`$t(key)`**: Derived store that supports flat or nested key access and `{{paramName}}` placeholder replacement.
 
 ---
 
-## 6. Whisper & Heavy Compilation Optimization
-*   **Env-Bypass via Precompiled Bindings**:
-    *   Set `WHISPER_DONT_GENERATE_BINDINGS="1"` in the compile environment to skip the `bindgen` step.
-    *   Copy local verified `src/bindings.rs` directly to `OUT_DIR` inside the vendored `whisper-rs-sys` crate.
-*   **CI/CD Caching**: Always use `sccache` + `rust-cache` inside GitHub Actions to reduce build times.
+## 5. Keyboard Shortcuts & Keybinds Engine
+
+*   **Input Protection**: Inside the global `handleKeydown` window listener, bypass shortcut logic if the target is an interactive input (`INPUT`, `TEXTAREA`, or `isContentEditable`).
+*   **Normalized Combo Detection**: Always parse in fixed sequence: `Ctrl`, `Alt`, `Shift`, `Meta`, then the uppercase key character. `SPACE` represents spacebar:
+    `const combo = keys.join("+").toUpperCase();`
+*   **Interactive Keybind Recording (`KeybindRecorder.svelte`)**: Active capture window that catches modifiers + normal keys, updates the `shortcuts` store dynamically.
+
+---
+
+## 6. Snackbars & Toast Notification System
+
+*   **durata Standard**: La durata standard obbligatoria per tutte le notifiche toast comuni è impostata a **2.5 secondi (2500ms)** per bilanciare visibilità e immediatezza UX.
+*   **Store**: Exposes `snackbar.show(message, variant, duration)` and `snackbar.dismiss(id)`.
+*   **Variants**: `success` (green/`var(--done)`), `info` (blue/`var(--accent)`), `warning` (amber/`var(--warn)`), `error` (red/`var(--danger)`).
+*   **Micro-Animations**: Use a reactive `#key` block to trigger entry animation (`animate-fade-in-up` / `toastSlideIn`) on every new toast, and a progress bar with custom scaling animation.
+
+---
+
+## 7. Release Notes & Versioning Governance
+
+*   **Propagate Version Bump**: Use corresponding update scripts (e.g. `update_project_info.sh`) to sync the version across PKGBUILD/cargo config/Svelte layouts.
+*   **Immediate Change Logging**: Every single modification made to source files by an LLM or AI assistant must be recorded with technical reasons inside `docs/list_of_things_changed.md` immediately.
+
+---
+
+## 8. Bottom-Left GitHub & Attribution Panel Practice
+
+Every client-side app (Tauri/Svelte) must include a standardized, visually premium footer in the bottom-left panel (or within the settings footer if there is no primary sidebar) featuring:
+*   **Version Number**: An active link to the repository releases page on GitHub.
+*   **License Link**: An active link to the project's license file on GitHub.
+*   **Pierpaolo Spadafora Icon**: A round profile avatar (from a local, low-resolution cached file in `assets/avatar.png` or `assets/avatar.png` under `src/assets/` at 64x64 resolution, typically under 10KB) linking directly to his personal website (`https://pierspad.com`).
+*   **GitHub Repository Link**: A two-row flex/block link labeled with "GitHub" and "Repo" alongside a standard GitHub SVG icon.
+
+**Design & Shared Practice Guidelines**:
+*   **Offline/Low-Res Asset Embedding Rule**: Standardize that profile avatars or background images in attribution components must be cached and stored directly in the repository's assets directory rather than fetched dynamically from external servers.
+*   **Lexical HTML & Svelte Block Scoping Boundary**: To prevent Svelte template compilation and parsing bugs, developers must ensure all opened `div` and Svelte block tags (`{#if}`, `{#each}`, etc.) are strictly closed within their correct lexical scope.

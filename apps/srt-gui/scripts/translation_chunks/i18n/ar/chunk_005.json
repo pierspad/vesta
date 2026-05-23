@@ -1,4 +1,15 @@
 {
+  "sync.saveSession": "حفظ جلسة",
+  "sync.loadSession": "تحميل جلسة",
+  "sync.reset": "إعادة تعيين",
+  "sync.noSrt": "لا يوجد SRT",
+  "sync.noVideo": "لا يوجد فيديو",
+  "sync.subtitles": "الترجمات",
+  "sync.anchors": "المراسي",
+  "sync.completion": "الاكتمال",
+  "sync.avgOffset": "متوسط الإزاحة",
+  "sync.suggested": "مقترح",
+  "sync.video": "الفيديو",
   "sync.currentSubtitle": "الترجمة الحالية",
   "sync.noSubtitleSelected": "لم يتم اختيار ترجمة",
   "sync.original": "الأصلي",
@@ -37,16 +48,5 @@
   "sync.keySpace": "المسافة",
   "sync.playPause": "تشغيل/إيقاف مؤقت",
   "sync.seek": "تقديم/ترجيع ±0.1 ثانية",
-  "sync.offsetAdjust": "إزاحة ±100 مللي ثانية",
-  "sync.confirm": "تأكيد",
-  "sync.navigateAnchors": "التنقل بين المراسي",
-  "sync.tooltipPlay": "تشغيل الفيديو (Space)",
-  "sync.tooltipPause": "إيقاف الفيديو (Space)",
-  "sync.tooltipOffsetMinus": "تقليل الإزاحة 100 مللي ثانية (↓)",
-  "sync.tooltipOffsetPlus": "زيادة الإزاحة 100 مللي ثانية (↑)",
-  "sync.tooltipOffset": "ضبط دقيق لتوقيت الترجمات. القيم الموجبة تؤخر الترجمات، والسالبة تجعلها تظهر مبكراً.",
-  "sync.tooltipConfirmAnchor": "تحديد الترجمة الحالية كنقطة مزامنة (Enter). المراسي هي نقاط مرجعية تُستخدم لاستيفاء التوقيت للترجمات المحيطة.",
-  "sync.tooltipRemoveAnchor": "إزالة مرساة المزامنة هذه (Del)",
-  "sync.tooltipLoadSession": "استئناف جلسة مزامنة سابقة. تحفظ الجلسات المراسي والتقدم للمتابعة لاحقاً.",
-  "sync.tooltipSaveSession": "حفظ التقدم الحالي للمتابعة لاحقاً. يشمل مسار SRT وموقع الفيديو وجميع المراسي."
+  "sync.offsetAdjust": "إزاحة ±100 مللي ثانية"
 }

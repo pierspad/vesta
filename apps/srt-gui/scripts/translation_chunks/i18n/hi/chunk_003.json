@@ -1,4 +1,15 @@
 {
+  "settings.modal.protocolInfo": "सभी प्रदाता OpenAI-संगत API प्रोटोकॉल का उपयोग करते हैं। स्थानीय सर्वर (Ollama, LM Studio) और क्लाउड प्रदाता सभी समर्थित हैं।",
+  "settings.modal.configName": "कॉन्फ़िगरेशन नाम",
+  "settings.modal.configNamePlaceholder": "उदा: मेरी OpenAI कुंजी",
+  "settings.modal.apiEndpoint": "API एंडपॉइंट URL",
+  "settings.modal.optional": "वैकल्पिक",
+  "settings.modal.apiEndpointHint": "डिफ़ॉल्ट प्रदाता URL के लिए खाली छोड़ दें। स्थानीय सर्वर के लिए, http://localhost:11434/v1 का उपयोग करें",
+  "settings.modal.defaultModel": "डिफ़ॉल्ट मॉडल ID",
+  "settings.modal.defaultModelPlaceholder": "उदा: llama3.2, mistral, gpt-4o",
+  "settings.modal.defaultModelHint": "इस कॉन्फ़िगरेशन के साथ डिफ़ॉल्ट रूप से उपयोग किया जाने वाला मॉडल",
+  "settings.modal.openrouterModelHint": "openrouter.ai/models पर ID खोजें — आप किसी भी मॉडल का उपयोग कर सकते हैं, भले ही वह प्रीसेट सूची में न हो!",
+  "settings.modal.localServer": "लोकल सर्वर",
   "settings.modal.localServerDesc": "Ollama, LM Studio (आपका PC)",
   "settings.modal.cloudApi": "क्लाउड API (OpenRouter)",
   "settings.modal.cloudApiDesc": "GPT, Claude, Google API (ऑनलाइन)",
@@ -37,16 +48,5 @@
   "translate.inputFile": "इनपुट SRT फ़ाइल",
   "translate.selectFile": "कोई इनपुट फ़ाइल चयनित नहीं",
   "translate.outputFile": "आउटपुट फ़ाइल",
-  "translate.selectDestination": "कोई आउटपुट फ़ाइल चयनित नहीं",
-  "translate.subtitles": "उपशीर्षक",
-  "translate.log": "लॉग",
-  "translate.clearLog": "साफ़ करें",
-  "translate.noLog": "कोई लॉग नहीं...",
-  "translate.options": "अनुवाद विकल्प",
-  "translate.provider": "प्रदाता",
-  "translate.apiKey": "API कुंजी",
-  "translate.model": "मॉडल",
-  "translate.targetLang": "लक्ष्य भाषा",
-  "translate.batchSize": "बैच का आकार",
-  "translate.batchSizeTooltip": "प्रति API अनुरोध उपशीर्षक की संख्या। उच्च मान = कम कॉल लेकिन अधिक टोकन।"
+  "translate.selectDestination": "कोई आउटपुट फ़ाइल चयनित नहीं"
 }

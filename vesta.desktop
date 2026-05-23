@@ -2,8 +2,8 @@
 Name=VESTA
 Comment=Video Extraction, Sync & Translation for Anki
 Exec=vesta
-Icon=com.vesta.desktop
+Icon=vesta
 Type=Application
 Categories=AudioVideo;Education;Utility;
 Terminal=false
-StartupWMClass=com.vesta.desktop
+StartupWMClass=vesta

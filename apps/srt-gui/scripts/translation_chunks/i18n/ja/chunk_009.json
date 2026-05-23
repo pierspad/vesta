@@ -1,4 +1,15 @@
 {
+  "settings.modal.defaultModelHint": "この構成でデフォルトで使用されるモデル",
+  "settings.modal.defaultModelPlaceholder": "例: llama3.2, mistral, gpt-4o",
+  "settings.modal.modelOptionalHint": "オプション。翻訳タブでモデルを選択できます。これは単なるデフォルト設定です。",
+  "settings.modal.providerAnthropic": "AnthropicのClaude",
+  "settings.modal.providerAnthropicDesc": "Opus 4.6 と Sonnet 4.6",
+  "settings.modal.providerGoogle": "Google API サービス",
+  "settings.modal.providerGoogleDesc": "Google API 3.1 Pro と 3 Flash",
+  "settings.modal.providerOpenai": "OpenAIのGPT",
+  "settings.modal.providerOpenaiDesc": "GPT-5.2 と GPT-5",
+  "settings.modelsHint": "モデルをクリックすると、そのモデルをデフォルトとした API キーをクイック追加できます",
+  "settings.soonBadge": "近日導入",
   "settings.stopModelDownload": "ダウンロードを停止",
   "settings.stoppingModelDownload": "停止中...",
   "settings.modelDownloading": "モデルをダウンロード中: {{model}}",
@@ -37,16 +48,5 @@
   "sync.saveSession": "セッションを保存",
   "sync.seek": "シーク ±0.1秒",
   "sync.sessionSaved": "セッションを保存しました:",
-  "sync.srtPlaceholder": "SRTファイルを読み込んで開始する",
-  "sync.statusTitle": "ステータス",
-  "sync.subtitle": "スマートチェックポイントを使用して字幕を音声に合わせます",
-  "sync.subtitles": "字幕",
-  "sync.title": "字幕の同期",
-  "sync.tooltip.loadAudio": "音声または動画ファイルを読み込む (音声のみ使用されます) ",
-  "sync.tooltip.loadSrt": "SRT 字幕ファイルを読み込む",
-  "sync.tooltip.loadVideo": "動画ファイルを読み込む",
-  "sync.tooltipLoadSession": "保存された同期セッション (.json) を再開します。セッションには SRT ファイル、動画パス、すべての確認済みアンカー、および進捗状況が保存されているため、中断したところから再開できます。",
-  "sync.tooltipRemoveAnchor": "この同期アンカーを削除",
-  "sync.tooltipSaveFile": "アンカーからのすべてのタイミング補正が適用された最終同期 SRT ファイル (.srt) をエクスポートします。これがすぐに使用できる出力ファイルになります。",
-  "sync.tooltipSaveSession": "現在の同期状態を .json ファイルに保存します。SRT パス、動画パス、すべての確認済みアンカーとオフセットが含まれます。後で作業を中断して再開する場合に便利です。"
+  "sync.srtPlaceholder": "SRTファイルを読み込んで開始する"
 }

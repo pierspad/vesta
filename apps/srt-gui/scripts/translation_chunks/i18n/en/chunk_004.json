@@ -1,4 +1,15 @@
 {
+  "translate.subtitle": "Translate SRT files using AI via OpenRouter (GPT, Claude, Google API, Mistral) or local LLM",
+  "translate.noApiWarning": "No API key configured.",
+  "translate.goToSettings": "Go to Settings",
+  "translate.toAddOne": "to add one.",
+  "translate.file": "File",
+  "translate.inputFile": "Input SRT File",
+  "translate.selectFile": "No input file selected",
+  "translate.outputFile": "Output File",
+  "translate.selectDestination": "No output file selected",
+  "translate.subtitles": "subtitles",
+  "translate.log": "Log",
   "translate.clearLog": "Clear",
   "translate.noLog": "No log...",
   "translate.options": "Translation Options",
@@ -37,16 +48,5 @@
   "translate.cancelled": "Translation cancelled",
   "translate.loadedFile": "Loaded file with {{count}} subtitles",
   "translate.errorLoading": "Error loading file:",
-  "translate.errorTranslating": "Translation error:",
-  "translate.livePreview": "Live Preview",
-  "translate.original": "Original",
-  "translate.translated": "Translated",
-  "translate.waitingForTranslation": "Waiting for translation to start...",
-  "translate.errorCancelling": "Error cancelling:",
-  "translate.errorSelectingFile": "Error selecting file:",
-  "translate.tooltip.upload": "Select input SRT file",
-  "translate.tooltip.save": "Select output destination",
-  "translate.dropFileHere": "Drop file here",
-  "translate.dropFileHint": "SRT subtitle file",
-  "sync.title": "Subtitle Synchronization"
+  "translate.errorTranslating": "Translation error:"
 }

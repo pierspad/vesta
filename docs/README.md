@@ -1,43 +1,88 @@
-https://archive.org/details/detour1945HD
+# Vesta
 
-link per scaricare il film Detour (1945) direttamente dall'archive.org
+**subs2srs, but actually fast.**
 
-# Developer Guide
+Vesta is a desktop app for turning video files into translated subtitles and Anki decks. 
+If you've used subs2srs, the workflow will feel immediately familiar; same core idea, rebuilt from scratch to be faster and less painful to use.
 
-## Build and Release Scripts
+Built with Rust (Tauri) + Svelte.
 
-From the project root, use the helper scripts in `build-scripts/` for release work:
+---
 
-```bash
-# Run GUI quickly in dev mode
-sh run_gui.sh
+## What it does
 
-# Sync versions/metadata from build-scripts/PKGBUILD
-sh build-scripts/update_project_info.sh
+Load a video. Get subtitles. Translate them. Export an Anki deck with video clips, audio snippets, and screenshot cards all synced to the exact lines of dialogue. The whole pipeline that used to take an hour now takes a few minutes.
 
-# Verify internal crate version consistency
-sh build-scripts/check_internal_crate_versions.sh
+![Benchmark comparison: Vesta vs subs2srs](benchmark_comparison.png)
 
-# Audit UI translations across all 15 locales
-(cd apps/srt-gui && npm run i18n:audit)
+Benchmarks were run on an Intel i5-1135G7 laptop CPU (4 cores, 8 threads). Even on that modest CPU, Vesta is consistently much faster than subs2srs for flashcard generation because it is written in Rust and parallelizes the expensive work across available cores: subtitle parsing and matching, media extraction orchestration, TSV/APKG generation, and file output.
 
-# Build local Arch package from freshly built .deb
-sh build-scripts/build-aur.sh
+On the benchmark set, Vesta completes the same flashcard-generation workflow in roughly **2.3-2.6× less time** than subs2srs. On CPUs with more cores and higher sustained performance, the gap should become even clearer because Vesta has more parallel work available than the classic subs2srs pipeline.
 
-# Guided release flow
-sh build-scripts/git-release.sh
+---
 
-# Preview the release notes section that will be published for a tag
-sh build-scripts/extract-release-notes.sh v0.7.1
+## Core Feature
+
+**Flashcards** — generates Anki decks from your subtitles. 
+You can also export it directly in .apkg format to import in Anki.
+Each card can also include:
+- an audio snippet
+- a snapshot of the sentence
+- a video clip of the sentence
+
+## More Features
+
+**Translation**: If you have the original subtitle file and you cannot really find the subtitle in your language, you can translate it using an LLM.
+Either connect to an existing API or run your own instance locally.
+
+**Sync**: If your srt file is not in sync with the audio, you can sync it using an interactive wizard.
+You can either use the automatic sync that will try to put anchors using Whisper, or you can put the anchors manually.
+The ideal workflow is to use Whisper to find the rough timestamps and then manually adjust them.
+The anchors put by the user have an higher priority in fidelity than the anchors put by Whisper.
+
+**Revision**: A built-in SRT editor for when you want to clean things up by hand.
+
+**Transcription**: If you lack also the original srt file you can use Vesta to generate SRT subtitles straight from the audio using Whisper locally. 
+It is strictly recommended to use this feature only if you really don't have the subtitle file, since the quality of the generated srt is not always perfect as a human vetted one.
+
+---
+
+## Pipeline
+
+You don't have to start from scratch. Jump in at whatever step makes sense:
+
+```
+Video → [Transcribe] → [Sync] → [Translate] → [Flashcards]
 ```
 
-## Agent / LLM Guidelines
+Already have an SRT? Skip straight to Sync or Flashcards.
 
-### Release Notes and Versioning
-1. **Do Not Delete Release Notes After Release**: The `git-release.sh` script does not delete or reset `docs/release-notes.md` or `docs/list_of_things_changed.md`.
-2. **Detecting Post-Release State**: When making a new change, check the version number in `build-scripts/PKGBUILD` and the version number in `docs/release-notes.md` (e.g. `## Release Notes v0.8.0` or similar). If they are equal, it indicates that the current version was already released.
-3. **Handling the Post-Release Change**:
-   - You must first increment/bump the version in `build-scripts/PKGBUILD` (e.g., from `0.8.0` to `0.8.1`).
-   - Run `build-scripts/update_project_info.sh` to propagate this new version across all project files.
-   - Overwrite/update `docs/release-notes.md` and `docs/list_of_things_changed.md` with the new version section and list the new changes under preparation.
+---
 
+## Test media
+
+Development was done using the public domain film **Detour (1945)** — good length, clear dialogue, freely available.
+
+→ [Download Detour (1945) HD on archive.org](https://archive.org/details/detour1945HD)
+
+---
+
+## Series naming convention
+
+When processing multiple episodes, name your files so Vesta can automatically detect season and episode numbers:
+
+```
+name_[season<N>]_[ep]<N>.ext
+```
+or the simpler:
+```
+<name>_S<N>E<N>.ext
+```
+
+**Examples:**
+```
+12_angry_men_[season01]_[ep]01.mp4
+breaking_bad_s01e05.mp4
+```
+
+The bracketed format exists specifically for titles that start with numbers (like "12 Angry Men"), so Vesta doesn't confuse the title with episode metadata. Exported decks will come out as `<DeckName>_<Episode>.apkg`, one per episode.

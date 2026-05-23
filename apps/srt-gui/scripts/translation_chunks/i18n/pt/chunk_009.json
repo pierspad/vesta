@@ -1,4 +1,15 @@
 {
+  "settings.modal.defaultModelPlaceholder": "ex: llama3.2, mistral, gpt-4o",
+  "settings.modal.modelOptionalHint": "Opcional. Você pode escolher o modelo na aba de Tradução. Este é apenas um padrão.",
+  "settings.modal.providerAnthropic": "Claude da Anthropic",
+  "settings.modal.providerAnthropicDesc": "Modelos Opus 4.6 e Sonnet 4.6",
+  "settings.modal.providerGoogle": "API do Google",
+  "settings.modal.providerGoogleDesc": "Modelos Google API 3.1 Pro e 3 Flash",
+  "settings.modal.providerOpenai": "GPT da OpenAI",
+  "settings.modal.providerOpenaiDesc": "Modelos GPT-5.2 e GPT-5",
+  "settings.modelsHint": "Clique em um modelo para adicionar rapidamente uma chave API com este modelo como padrão",
+  "settings.soonBadge": "Breve",
+  "settings.stopModelDownload": "Parar download",
   "settings.stoppingModelDownload": "Parando...",
   "settings.modelDownloading": "Baixando modelo: {{model}}",
   "settings.modelDownloadCancelled": "Download cancelado para o modelo {{model}}",
@@ -37,16 +48,5 @@
   "sync.seek": "Avançar/voltar ±0,1 s",
   "sync.sessionSaved": "Sessão salva:",
   "sync.srtPlaceholder": "Carregue um arquivo SRT para começar",
-  "sync.statusTitle": "Estado",
-  "sync.subtitle": "Alinhe as legendas com o áudio usando pontos de verificação inteligentes",
-  "sync.subtitles": "Legendas",
-  "sync.title": "Sincronização de Legendas",
-  "sync.tooltip.loadAudio": "Carregar arquivo de áudio ou vídeo (apenas o áudio é usado)",
-  "sync.tooltip.loadSrt": "Carregar arquivo de legenda SRT",
-  "sync.tooltip.loadVideo": "Carregar arquivo de vídeo",
-  "sync.tooltipLoadSession": "Retomar uma sessão de sincronia salva (.json). Uma sessão armazena o arquivo SRT, o caminho do vídeo, todas as âncoras confirmadas e o progresso.",
-  "sync.tooltipRemoveAnchor": "Remover esta âncora de sincronia",
-  "sync.tooltipSaveFile": "Exportar o arquivo SRT final sincronizado (.srt) com todas as correções de tempo aplicadas. Este é o arquivo de saída pronto para uso.",
-  "sync.tooltipSaveSession": "Salvar o estado atual da sincronia em um arquivo .json. Inclui: caminho SRT, caminho do vídeo, todas as âncoras e ajustes. Útil para pausar e retomar o trabalho depois.",
-  "sync.tryAnotherFile": "Tentar outro arquivo"
+  "sync.statusTitle": "Estado"
 }

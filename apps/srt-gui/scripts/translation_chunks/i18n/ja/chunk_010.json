@@ -1,4 +1,15 @@
 {
+  "sync.statusTitle": "ステータス",
+  "sync.subtitle": "スマートチェックポイントを使用して字幕を音声に合わせます",
+  "sync.subtitles": "字幕",
+  "sync.title": "字幕の同期",
+  "sync.tooltip.loadAudio": "音声または動画ファイルを読み込む (音声のみ使用されます) ",
+  "sync.tooltip.loadSrt": "SRT 字幕ファイルを読み込む",
+  "sync.tooltip.loadVideo": "動画ファイルを読み込む",
+  "sync.tooltipLoadSession": "保存された同期セッション (.json) を再開します。セッションには SRT ファイル、動画パス、すべての確認済みアンカー、および進捗状況が保存されているため、中断したところから再開できます。",
+  "sync.tooltipRemoveAnchor": "この同期アンカーを削除",
+  "sync.tooltipSaveFile": "アンカーからのすべてのタイミング補正が適用された最終同期 SRT ファイル (.srt) をエクスポートします。これがすぐに使用できる出力ファイルになります。",
+  "sync.tooltipSaveSession": "現在の同期状態を .json ファイルに保存します。SRT パス、動画パス、すべての確認済みアンカーとオフセットが含まれます。後で作業を中断して再開する場合に便利です。",
   "sync.tryAnotherFile": "別のファイルを試す",
   "sync.wizard.allSynced": "すべての字幕が同期されているようです！",
   "sync.wizard.checkpoint": "チェックポイント",
@@ -37,16 +48,5 @@
   "transcribe.modelTiny": "Tiny (極小)",
   "transcribe.modelUninstalled": "モデルをアンインストールしました",
   "transcribe.newTranscription": "新規文字起こし",
-  "transcribe.newTranscriptionDesc": "すべてのフィールド、ログ、結果をクリアして新しい文字起こしを開始する",
-  "transcribe.noBackendWarning": "Whisper バックエンドが見つかりません",
-  "transcribe.noInputMediaSelected": "入力メディアが選択されていません",
-  "transcribe.noOutputFileSelected": "出力ファイルが選択されていません",
-  "transcribe.notDownloaded": "未ダウンロード",
-  "transcribe.outputPathDesc": "出力 SRT ファイルのパスを入力または編集してください。",
-  "transcribe.outputRequired": "出力ファイルを選択してください",
-  "transcribe.processing": "処理中",
-  "transcribe.progress": "進捗",
-  "transcribe.readyToProcess": "文字起こしの準備完了",
-  "transcribe.segmentLong": "長い",
-  "transcribe.segmentLongDesc": "60秒 — 行数が少なく、より長い行"
+  "transcribe.newTranscriptionDesc": "すべてのフィールド、ログ、結果をクリアして新しい文字起こしを開始する"
 }

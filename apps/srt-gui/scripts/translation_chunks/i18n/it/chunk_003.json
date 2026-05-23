@@ -1,4 +1,15 @@
 {
+  "settings.modal.add": "Aggiungi",
+  "settings.modal.addCustomApiKey": "Aggiungi API Key Personalizzata",
+  "settings.modal.protocolInfo": "Tutti i provider usano il protocollo API compatibile con OpenAI. Server locali (Ollama, LM Studio) e provider cloud sono tutti supportati.",
+  "settings.modal.configName": "Nome Configurazione",
+  "settings.modal.configNamePlaceholder": "es: La mia chiave OpenAI",
+  "settings.modal.apiEndpoint": "URL Endpoint API",
+  "settings.modal.optional": "opzionale",
+  "settings.modal.apiEndpointHint": "Lascia vuoto per l'URL predefinito del provider. Per server locali, usa http://localhost:11434/v1",
+  "settings.modal.defaultModel": "ID Modello Predefinito",
+  "settings.modal.modelOptionalHint": "Opzionale. Puoi scegliere il modello nel tab Traduzione. Questo è solo un default.",
+  "settings.modal.defaultModelPlaceholder": "es: llama3.2, mistral, gpt-4o",
   "settings.modal.defaultModelHint": "Il modello da usare di default con questa configurazione",
   "settings.modal.openrouterModelHint": "Trova l'ID su openrouter.ai/models — Puoi usare qualsiasi modello, anche se non è nella lista predefinita!",
   "settings.modal.localServer": "Server Locale",
@@ -37,16 +48,5 @@
   "translate.goToSettings": "Vai alle Impostazioni",
   "translate.toAddOne": "per aggiungerne una.",
   "translate.file": "File sorgente",
-  "translate.inputFile": "File SRT Input",
-  "translate.selectFile": "Nessun file di input selezionato",
-  "translate.outputFile": "File Output",
-  "translate.selectDestination": "Nessun file di output selezionato",
-  "translate.subtitles": "sottotitoli",
-  "translate.log": "Registro",
-  "translate.clearLog": "Cancella",
-  "translate.noLog": "Nessun log...",
-  "translate.options": "Opzioni Traduzione",
-  "translate.provider": "Fornitore",
-  "translate.apiKey": "Chiave API",
-  "translate.model": "Modello"
+  "translate.inputFile": "File SRT Input"
 }

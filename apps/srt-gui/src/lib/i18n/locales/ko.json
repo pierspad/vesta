@@ -64,6 +64,12 @@
   "shortcuts.action.goToSuggested": "제안된 위치로 이동",
   "shortcuts.action.saveFile": "SRT 저장",
   "settings.title": "설정",
+  "settings.section.overview": "일반",
+  "settings.section.llm": "LLM 및 API 키",
+  "settings.section.whisper": "Whisper",
+  "settings.section.language": "언어 및 스마트 매칭",
+  "settings.section.anki": "Anki 템플릿",
+  "settings.section.shortcuts": "단축키",
   "settings.subtitle": "API 키 및 사용 가능한 모델 관리",
   "settings.providers": "제공자",
   "settings.selectProvider": "제공자 선택",
@@ -810,5 +816,12 @@
   "align.typeSubtitle": "여기에 자막 입력...",
   "align.noSubtitle": "자막 없음",
   "sync.transcodingMedia": "오디오 트랙 추출 중...",
-  "sync.transcodingHint": "MKV/AVI 오디오가 재생을 위해 추출되고 있습니다. 이 절차는 처음에만 필요합니다."
+  "sync.transcodingHint": "MKV/AVI 오디오가 재생을 위해 추출되고 있습니다. 이 절차는 처음에만 필요합니다.",
+  "flashcards.downloading": "다운로드 중...",
+  "flashcards.dropNoValidFiles": "유효한 자막 또는 미디어 파일이 드롭되지 않았습니다",
+  "settings.ankiPresetDesc": "내보내기용 필드 매핑을 구성합니다.",
+  "settings.apiKeysDesc": "번역용으로 구성된 자격 증명입니다.",
+  "settings.cardPanelDescShort": "카드 HTML 및 CSS 코드를 편집합니다.",
+  "settings.savedConfigurationsDesc": "활성 번역 제공업체입니다.",
+  "translate.refetchModelsTooltip": "제공업체에서 모델 다시 가져오기"
 }

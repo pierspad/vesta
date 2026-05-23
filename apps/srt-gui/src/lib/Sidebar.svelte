@@ -1,7 +1,9 @@
 <script lang="ts">
   import { invoke } from "@tauri-apps/api/core";
   import { onMount } from "svelte";
+  import { fetch as tauriFetch } from "@tauri-apps/plugin-http";
   import fireplaceIcon from "../assets/fireplace.svg";
+  import authorAvatar from "../assets/avatar.png";
   import { locale } from "./i18n";
   import {
     getStoredSettingsActionState,
@@ -10,13 +12,14 @@
   } from "./settingsNotifications";
 
   interface Props {
-    activeTab: "translate" | "sync" | "transcribe" | "align" | "flashcards" | "settings" | "notifications" | "shortcuts";
-    onTabChange: (tab: "translate" | "sync" | "transcribe" | "align" | "flashcards" | "settings" | "notifications" | "shortcuts") => void;
+    activeTab: "translate" | "sync" | "transcribe" | "align" | "flashcards" | "settings";
+    onTabChange: (tab: "translate" | "sync" | "transcribe" | "align" | "flashcards" | "settings") => void;
     collapsed?: boolean;
     onToggleCollapse?: () => void;
+    settingsSection?: "overview" | "llm" | "whisper" | "language" | "anki" | "shortcuts";
   }
 
-  let { activeTab, onTabChange, collapsed = false, onToggleCollapse }: Props = $props();
+  let { activeTab, onTabChange, collapsed = false, onToggleCollapse, settingsSection = $bindable("overview") }: Props = $props();
   
   let t = $derived($locale);
 
@@ -26,6 +29,12 @@
   let appLicense = $state("");
   const RELEASE_API_URL = "https://api.github.com/repos/pierspad/Vesta/releases/latest";
   const RELEASES_URL = "https://github.com/pierspad/Vesta/releases";
+  
+  const repoUrl = "https://github.com/pierspad/VESTA";
+  const releasesUrl = "https://github.com/pierspad/VESTA/releases";
+  const licenseUrl = "https://github.com/pierspad/VESTA/blob/main/LICENSE";
+  const authorUrl = "https://pierspad.com";
+  const authorIconUrl = authorAvatar;
   type ReleaseStatus = "idle" | "checking" | "available" | "current" | "offline";
   let releaseStatus = $state<ReleaseStatus>("idle");
   let latestVersion = $state("");
@@ -34,6 +43,9 @@
   let hasUpdateNotification = $derived(releaseStatus === "available");
   let hasSettingsActionNotification = $state(false);
   let settingsNotificationRead = $state(false);
+  let settingsHash = $state("");
+  let needsWhisperDot = $derived(settingsHash.includes("whisper-model-missing:v1"));
+  let needsLlmDot = $derived(settingsHash.includes("llm-default-unready:v1"));
 
   function formatLicense(license: string): string {
     return license.replace(/-only$/i, "").trim();
@@ -79,26 +91,101 @@
 
     releaseStatus = "checking";
 
+    // 1. Primary Strategy: GitHub official API via CORS-free tauriFetch
     try {
-      const response = await fetch(RELEASE_API_URL, {
-        cache: "no-store",
-        headers: { Accept: "application/vnd.github+json" },
+      const response = await tauriFetch(RELEASE_API_URL, {
+        method: "GET",
+        headers: {
+          "Accept": "application/vnd.github+json",
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        }
       });
 
-      if (!response.ok) throw new Error(`GitHub release check failed: ${response.status}`);
+      if (!response.ok) {
+        throw new Error(`GitHub API returned status ${response.status}`);
+      }
 
       const latest = await response.json() as {
         tag_name?: string;
         name?: string;
         html_url?: string;
       };
+      
       const tag = latest.tag_name || latest.name || "";
+      if (!tag) {
+        throw new Error("Empty version tag in API response");
+      }
+
       latestVersion = formatVersionTag(tag);
       releaseUrl = latest.html_url || RELEASES_URL;
       releaseCheckedAt = new Date();
       releaseStatus = compareVersions(latestVersion, currentVersion) > 0 ? "available" : "current";
-    } catch (error) {
-      console.warn("Could not check Vesta releases:", error);
+      return;
+    } catch (apiError) {
+      console.warn("Vesta background update check: GitHub API failed, trying package.json fallback:", apiError);
+    }
+
+    // 2. Secondary Strategy: Raw package.json via CORS-free tauriFetch (rate-limit free!)
+    try {
+      const response = await tauriFetch("https://raw.githubusercontent.com/pierspad/Vesta/main/apps/srt-gui/package.json", {
+        method: "GET",
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`Raw package.json fetch returned status ${response.status}`);
+      }
+
+      const pkg = await response.json() as { version?: string };
+      const tag = pkg.version || "";
+      if (!tag) {
+        throw new Error("Empty version field in package.json");
+      }
+
+      latestVersion = formatVersionTag(tag);
+      releaseUrl = RELEASES_URL;
+      releaseCheckedAt = new Date();
+      releaseStatus = compareVersions(latestVersion, currentVersion) > 0 ? "available" : "current";
+      return;
+    } catch (pkgError) {
+      console.warn("Vesta background update check: Raw package.json fallback failed, trying redirect fallback:", pkgError);
+    }
+
+    // 3. Tertiary Strategy: Redirect check via tauriFetch with redirect: "manual"
+    try {
+      const response = await tauriFetch("https://github.com/pierspad/Vesta/releases/latest", {
+        method: "GET",
+        redirect: "manual",
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        }
+      });
+
+      let tag = "";
+      let finalUrl = "";
+
+      const location = response.headers.get("location");
+      if ((response.status >= 300 && response.status < 400) && location) {
+        finalUrl = location;
+        tag = location.substring(location.lastIndexOf("/") + 1);
+      } else if (response.ok) {
+        finalUrl = response.url || "";
+        tag = finalUrl.substring(finalUrl.lastIndexOf("/") + 1);
+      }
+
+      if (!tag || tag === "latest") {
+        throw new Error("Could not parse redirect version tag");
+      }
+
+      latestVersion = formatVersionTag(tag);
+      releaseUrl = finalUrl || RELEASES_URL;
+      releaseCheckedAt = new Date();
+      releaseStatus = compareVersions(latestVersion, currentVersion) > 0 ? "available" : "current";
+      return;
+    } catch (redirectError) {
+      console.error("Vesta background update check: All strategies failed:", redirectError);
       releaseStatus = "offline";
     }
   }
@@ -107,6 +194,7 @@
     const initial = getStoredSettingsActionState();
     hasSettingsActionNotification = initial.required;
     settingsNotificationRead = initial.read;
+    settingsHash = initial.hash || "";
 
     const handleSettingsActionRequired = (event: Event) => {
       const detail = (event as CustomEvent<SettingsActionNotificationDetail>).detail;
@@ -117,16 +205,24 @@
 
       hasSettingsActionNotification = detail.required;
       settingsNotificationRead = detail.read;
+      settingsHash = detail.hash || "";
     };
 
     window.addEventListener(SETTINGS_ACTION_REQUIRED_EVENT, handleSettingsActionRequired);
+
+    const savedAutoCheck = localStorage.getItem("vesta-automatic-update-checks");
+    const autoCheckEnabled = savedAutoCheck !== "false";
 
     invoke<{ version: string; name: string; license: string }>("get_app_info")
       .then((info) => {
         appVersionNum = `v${info.version}`;
         appLicense = formatLicense(info.license);
         appVersion = `v${info.version} • Tauri + Svelte • ${formatLicense(info.license)}`;
-        void checkForUpdates(info.version);
+        if (autoCheckEnabled) {
+          void checkForUpdates(info.version);
+        } else {
+          releaseStatus = "offline";
+        }
       })
       .catch(() => {
         appVersion = "VESTA";
@@ -151,321 +247,361 @@
     </svg>
   </button>
 
-  <div class="p-6 border-b border-white/10">
-    <div class="flex items-center gap-3 {collapsed ? 'justify-center' : ''}">
-      <div class="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 relative overflow-visible">
-        <div class="absolute -inset-2 bg-orange-500/35 rounded-full blur-xl z-0"></div>
-        <div class="absolute inset-0 bg-amber-300/20 rounded-full blur-md z-0"></div>
-        <img src={fireplaceIcon} alt="VESTA" class="w-10 h-10 drop-shadow-[0_0_18px_rgba(249,115,22,0.9)] relative z-10" />
-      </div>
-      {#if !collapsed}
-        <div class="relative z-10">
-          <h1 class="text-2xl font-bold tracking-wider bg-gradient-to-r from-amber-400 via-orange-400 to-red-400 bg-clip-text text-transparent">
-            {t("app.title")}
-          </h1>
+  <div class="h-[89px] min-h-[89px] max-h-[89px] px-6 border-b border-white/10 flex items-center shrink-0">
+    {#if activeTab === "settings"}
+      <button
+        onclick={() => {
+          onTabChange("flashcards");
+        }}
+        class="flex items-center gap-4 group cursor-pointer text-left focus:outline-none w-full"
+      >
+        <div class="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center flex-shrink-0 group-hover:bg-white/10 transition-colors border border-white/10">
+          <svg class="w-4.5 h-4.5 text-gray-400 group-hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
+          </svg>
         </div>
-      {/if}
-    </div>
+        {#if !collapsed}
+          <span class="text-lg font-bold text-gray-300 group-hover:text-white transition-colors ml-1">{t("nav.settings")}</span>
+        {/if}
+      </button>
+    {:else}
+      <div class="flex items-center gap-3 w-full">
+        <button
+          onclick={() => onTabChange("settings")}
+          class="brand-settings-toggle-btn text-gray-400 hover:text-white transition-colors duration-200 focus:outline-none flex items-center justify-center w-8 h-8 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 relative shrink-0 cursor-pointer"
+          title={t("nav.settings")}
+        >
+          <svg class="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+          </svg>
+          {#if hasSettingsActionNotification || hasUpdateNotification}
+            {#if hasSettingsActionNotification && !settingsNotificationRead}
+              <span class="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-red-500 ring-2 ring-gray-900 shadow-[0_0_10px_rgba(239,68,68,0.75)]"></span>
+            {:else if hasUpdateNotification}
+              <span class="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-amber-500 ring-2 ring-gray-900 shadow-[0_0_10px_rgba(245,158,11,0.75)] animate-pulse"></span>
+            {:else}
+              <span class="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-gray-500 ring-2 ring-gray-900"></span>
+            {/if}
+          {/if}
+        </button>
+
+        {#if !collapsed}
+          <div class="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 relative overflow-visible ml-4">
+            <div class="absolute -inset-1.5 bg-orange-500/22 rounded-full blur-lg z-0"></div>
+            <div class="absolute inset-0 bg-amber-300/12 rounded-full blur-md z-0"></div>
+            <img src={fireplaceIcon} alt="VESTA" class="w-10 h-10 drop-shadow-[0_0_10px_rgba(249,115,22,0.55)] relative z-10" />
+          </div>
+          <div class="relative z-10">
+            <h1 class="text-2xl font-bold tracking-wider bg-gradient-to-r from-amber-400 via-orange-400 to-red-400 bg-clip-text text-transparent">
+              {t("app.title")}
+            </h1>
+          </div>
+        {/if}
+      </div>
+    {/if}
   </div>
 
-  <nav class="flex-1 p-4 space-y-2 flex flex-col">
-    <button
-      class="w-full flex items-center gap-3 {collapsed ? 'px-2 justify-center' : 'px-4'} py-3 rounded-xl transition-all duration-300 {activeTab ===
-      'flashcards'
-        ? 'bg-gradient-to-r from-amber-600 to-orange-700 text-white shadow-lg shadow-amber-500/22'
-        : 'text-gray-400 hover:bg-white/5 hover:text-white'}"
-      onclick={() => onTabChange("flashcards")}
-      title={collapsed ? t("nav.flashcards") : undefined}
-    >
-      <div class="w-8 h-8 rounded-lg {activeTab === 'flashcards' ? 'bg-white/20' : 'bg-white/5'} flex items-center justify-center flex-shrink-0 relative">
-        <svg
-          class="w-5 h-5"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
-          />
-        </svg>
-      </div>
-      {#if !collapsed}
-        <div class="text-left flex-1">
-          <span class="block font-medium {activeTab === 'flashcards' ? 'text-white' : ''}">{t("nav.flashcards")}</span>
-          <span class="text-xs {activeTab === 'flashcards' ? 'text-white/70' : 'text-gray-500'}">{t("nav.flashcards.desc")}</span>
+  <nav class="flex-1 p-4 flex flex-col justify-center gap-3">
+
+    {#if activeTab === "settings"}
+      <!-- Settings navigation buttons -->
+      <button
+        class="w-full flex items-center gap-3.5 {collapsed ? 'px-2 justify-center' : 'px-4.5'} py-3 rounded-xl transition-all duration-300 border border-transparent cursor-pointer {settingsSection === 'overview'
+          ? 'bg-gradient-to-r from-sky-600 to-sky-700 text-white shadow-lg shadow-sky-500/22 border-sky-500/30'
+          : 'text-gray-400 hover:bg-sky-500/10 hover:text-sky-400 hover:border-sky-500/20'}"
+        onclick={() => settingsSection = "overview"}
+        title={collapsed ? t("settings.section.overview") : undefined}
+      >
+        <div class="w-9 h-9 rounded-xl {settingsSection === 'overview' ? 'bg-white/20' : 'bg-white/5'} flex items-center justify-center flex-shrink-0 relative transition-colors border border-white/5">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+          </svg>
         </div>
-      {/if}
-    </button>
+        {#if !collapsed}
+          <div class="text-left flex-1 py-1">
+            <span class="block text-[15px] font-semibold">{t("settings.section.overview")}</span>
+          </div>
+        {/if}
+      </button>
 
-    <button
-      class="w-full flex items-center gap-3 {collapsed ? 'px-2 justify-center' : 'px-4'} py-3 rounded-xl transition-all duration-300 {activeTab ===
-      'translate'
-        ? 'bg-gradient-to-r from-fuchsia-700 to-rose-700 text-white shadow-lg shadow-fuchsia-500/20'
-        : 'text-gray-400 hover:bg-white/5 hover:text-white'}"
-      onclick={() => onTabChange("translate")}
-      title={collapsed ? t("nav.translate") : undefined}
-    >
-      <div class="w-8 h-8 rounded-lg {activeTab === 'translate' ? 'bg-white/20' : 'bg-white/5'} flex items-center justify-center flex-shrink-0">
-        <svg
-          class="w-5 h-5"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129"
-          />
-        </svg>
-      </div>
-      {#if !collapsed}
-        <div class="text-left">
-          <span class="block font-medium">{t("nav.translate")}</span>
-          <span class="text-xs {activeTab === 'translate' ? 'text-white/70' : 'text-gray-500'}">{t("nav.translate.desc")}</span>
-        </div>
-      {/if}
-    </button>
-
-    <button
-      class="w-full flex items-center gap-3 {collapsed ? 'px-2 justify-center' : 'px-4'} py-3 rounded-xl transition-all duration-300 {activeTab ===
-      'sync'
-        ? 'bg-gradient-to-r from-sky-700 to-cyan-700 text-white shadow-lg shadow-cyan-500/20'
-        : 'text-gray-400 hover:bg-white/5 hover:text-white'}"
-      onclick={() => onTabChange("sync")}
-      title={collapsed ? t("nav.sync") : undefined}
-    >
-      <div class="w-8 h-8 rounded-lg {activeTab === 'sync' ? 'bg-white/20' : 'bg-white/5'} flex items-center justify-center flex-shrink-0">
-        <svg
-          class="w-5 h-5"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-          />
-        </svg>
-      </div>
-      {#if !collapsed}
-        <div class="text-left flex-1">
-          <span class="block font-medium">{t("nav.sync")}</span>
-          <span class="text-xs {activeTab === 'sync' ? 'text-white/70' : 'text-gray-500'}">{t("nav.sync.desc")}</span>
-        </div>
-      {/if}
-    </button>
-
-    <button
-      class="w-full flex items-center gap-3 {collapsed ? 'px-2 justify-center' : 'px-4'} py-3 rounded-xl transition-all duration-300 {activeTab ===
-      'align'
-        ? 'bg-gradient-to-r from-violet-700 to-indigo-700 text-white shadow-lg shadow-violet-500/20'
-        : 'text-gray-400 hover:bg-white/5 hover:text-white'}"
-      onclick={() => onTabChange("align")}
-      title={collapsed ? t("nav.revision") : undefined}
-    >
-      <div class="w-8 h-8 rounded-lg {activeTab === 'align' ? 'bg-white/20' : 'bg-white/5'} flex items-center justify-center flex-shrink-0">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7"/>
-        </svg>
-      </div>
-      {#if !collapsed}
-        <div class="text-left flex-1">
-          <span class="block font-medium">{t("nav.revision")}</span>
-          <span class="text-xs {activeTab === 'align' ? 'text-white/70' : 'text-gray-500'}">{t("nav.revision.desc")}</span>
-        </div>
-      {/if}
-    </button>
-
-    <button
-      class="w-full flex items-center gap-3 {collapsed ? 'px-2 justify-center' : 'px-4'} py-3 rounded-xl transition-all duration-300 {activeTab ===
-      'transcribe'
-        ? 'bg-gradient-to-r from-teal-700 to-emerald-700 text-white shadow-lg shadow-teal-500/20'
-        : 'text-gray-400 hover:bg-white/5 hover:text-white'}"
-      onclick={() => onTabChange("transcribe")}
-      title={collapsed ? t("nav.transcribe") : undefined}
-    >
-      <div class="w-8 h-8 rounded-lg {activeTab === 'transcribe' ? 'bg-white/20' : 'bg-white/5'} flex items-center justify-center flex-shrink-0 relative">
-        <svg
-          class="w-5 h-5"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"
-          />
-        </svg>
-      </div>
-      {#if !collapsed}
-        <div class="text-left flex-1">
-          <span class="block font-medium {activeTab === 'transcribe' ? 'text-white' : ''}">{t("nav.transcribe")}</span>
-          <span class="text-xs {activeTab === 'transcribe' ? 'text-white/70' : 'text-gray-500'}">{t("nav.transcribe.desc")}</span>
-        </div>
-      {/if}
-    </button>
-
-    <div class="flex-1"></div>
-
-    <div class="border-t border-white/10 my-2"></div>
-
-    <button
-      class="w-full flex items-center gap-3 {collapsed ? 'px-2 justify-center' : 'px-4'} py-3 rounded-xl transition-all duration-300 {activeTab ===
-      'settings'
-        ? 'bg-gradient-to-r from-slate-700 to-zinc-600 text-white shadow-lg shadow-slate-500/20'
-        : 'text-gray-400 hover:bg-white/5 hover:text-white'}"
-      onclick={() => onTabChange("settings")}
-      data-context-menu="settings-notifications"
-      title={collapsed ? t("nav.settings") : undefined}
-    >
-      <div class="w-8 h-8 rounded-lg {activeTab === 'settings' ? 'bg-white/20' : 'bg-white/5'} flex items-center justify-center flex-shrink-0 relative">
-        <svg
-          class="w-5 h-5"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
-          />
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-          />
-        </svg>
-        {#if hasSettingsActionNotification}
-          {#if settingsNotificationRead}
-            <!-- Read/acknowledged: dimmer, no pulse -->
-            <span class="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-gray-500 ring-2 ring-gray-900"></span>
-          {:else}
-            <!-- Unread: bright red with glow -->
-            <span class="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-red-500 ring-2 ring-gray-900 shadow-[0_0_10px_rgba(239,68,68,0.75)]"></span>
+      <button
+        class="w-full flex items-center gap-3.5 {collapsed ? 'px-2 justify-center' : 'px-4.5'} py-3 rounded-xl transition-all duration-300 border border-transparent cursor-pointer {settingsSection === 'llm'
+          ? 'bg-gradient-to-r from-indigo-600 to-indigo-700 text-white shadow-lg shadow-indigo-500/22 border-indigo-500/30'
+          : 'text-gray-400 hover:bg-indigo-500/10 hover:text-indigo-400 hover:border-indigo-500/20'}"
+        onclick={() => settingsSection = "llm"}
+        title={collapsed ? t("settings.section.llm") : undefined}
+      >
+        <div class="w-9 h-9 rounded-xl {settingsSection === 'llm' ? 'bg-white/20' : 'bg-white/5'} flex items-center justify-center flex-shrink-0 relative transition-colors border border-white/5">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3h6m-7 4h8a3 3 0 013 3v7a3 3 0 01-3 3H8a3 3 0 01-3-3v-7a3 3 0 01-3-3zm4 3v4m-2-2h4" />
+          </svg>
+          {#if needsLlmDot}
+            <span class="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-amber-500 ring-2 ring-gray-900 animate-pulse shadow-[0_0_8px_rgba(245,158,11,0.6)]"></span>
           {/if}
+        </div>
+        {#if !collapsed}
+          <div class="text-left flex-1 py-1">
+            <span class="block text-[15px] font-semibold">{t("settings.section.llm")}</span>
+          </div>
         {/if}
-      </div>
-      {#if !collapsed}
-        <div class="text-left">
-          <span class="block font-medium">{t("nav.settings")}</span>
-          <span class="text-xs {activeTab === 'settings' ? 'text-white/70' : 'text-gray-500'}">{t("nav.settings.desc")}</span>
-        </div>
-      {/if}
-    </button>
+      </button>
 
-    <button
-      class="w-full flex items-center gap-3 {collapsed ? 'px-2 justify-center' : 'px-4'} py-3 rounded-xl transition-all duration-300 {activeTab === 'notifications'
-        ? 'bg-gradient-to-r from-slate-700 to-slate-600 text-white shadow-lg shadow-slate-500/20'
-        : 'text-gray-400 hover:bg-white/5 hover:text-white'}"
-      onclick={() => onTabChange("notifications")}
-      title={collapsed ? t("nav.notifications") : undefined}
-    >
-      <div class="w-8 h-8 rounded-lg {activeTab === 'notifications' ? 'bg-white/20' : 'bg-white/5'} flex items-center justify-center flex-shrink-0 relative">
-        <svg
-          class="w-5 h-5"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6 6 0 10-12 0v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0a3 3 0 11-6 0m6 0H9"
-          />
-        </svg>
-        {#if hasUpdateNotification}
-          <span class="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-amber-400 ring-2 ring-gray-900"></span>
+      <button
+        class="w-full flex items-center gap-3.5 {collapsed ? 'px-2 justify-center' : 'px-4.5'} py-3 rounded-xl transition-all duration-300 border border-transparent cursor-pointer {settingsSection === 'whisper'
+          ? 'bg-gradient-to-r from-cyan-600 to-cyan-700 text-white shadow-lg shadow-cyan-500/22 border-cyan-500/30'
+          : 'text-gray-400 hover:bg-cyan-500/10 hover:text-cyan-400 hover:border-cyan-500/20'}"
+        onclick={() => settingsSection = "whisper"}
+        title={collapsed ? t("settings.section.whisper") : undefined}
+      >
+        <div class="w-9 h-9 rounded-xl {settingsSection === 'whisper' ? 'bg-white/20' : 'bg-white/5'} flex items-center justify-center flex-shrink-0 relative transition-colors border border-white/5">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18a6 6 0 006-6V7a6 6 0 10-12 0v5a6 6 0 006 6zm0 0v3m-4 0h8" />
+          </svg>
+          {#if needsWhisperDot}
+            <span class="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-amber-500 ring-2 ring-gray-900 animate-pulse shadow-[0_0_8px_rgba(245,158,11,0.6)]"></span>
+          {/if}
+        </div>
+        {#if !collapsed}
+          <div class="text-left flex-1 py-1">
+            <span class="block text-[15px] font-semibold">{t("settings.section.whisper")}</span>
+          </div>
         {/if}
-      </div>
-      {#if !collapsed}
-        <div class="text-left flex-1 min-w-0">
-          <span class="block font-medium">{t("nav.notifications")}</span>
-          <span class="text-xs {activeTab === 'notifications' ? 'text-white/70' : 'text-gray-500'} truncate">
-            {#if releaseStatus === "available"}
-              {t("nav.notifications.update")}
-            {:else if releaseStatus === "checking"}
-              {t("notifications.checking")}
-            {:else}
-              {t("nav.notifications.desc")}
-            {/if}
-          </span>
-        </div>
-      {/if}
-    </button>
+      </button>
 
-    <button
-      class="w-full flex items-center gap-3 {collapsed ? 'px-2 justify-center' : 'px-4'} py-3 rounded-xl transition-all duration-300 {activeTab ===
-      'shortcuts'
-        ? 'bg-gradient-to-r from-slate-700 to-zinc-600 text-white shadow-lg shadow-slate-500/20'
-        : 'text-gray-400 hover:bg-white/5 hover:text-white'}"
-      onclick={() => onTabChange("shortcuts")}
-      title={collapsed ? t("nav.shortcuts") : undefined}
-    >
-      <div class="w-8 h-8 rounded-lg {activeTab === 'shortcuts' ? 'bg-white/20' : 'bg-white/5'} flex items-center justify-center flex-shrink-0">
-        <svg
-          class="w-5 h-5"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M4 7a3 3 0 013-3h10a3 3 0 013 3v10a3 3 0 01-3 3H7a3 3 0 01-3-3V7zm4 2h2m2 0h2m2 0h2M7 13h2m2 0h2m2 0h2M7 17h6"
-          />
-        </svg>
-      </div>
-      {#if !collapsed}
-        <div class="text-left">
-          <span class="block font-medium">{t("nav.shortcuts")}</span>
-          <span class="text-xs {activeTab === 'shortcuts' ? 'text-white/70' : 'text-gray-500'}">{t("nav.shortcuts.desc")}</span>
+      <button
+        class="w-full flex items-center gap-3.5 {collapsed ? 'px-2 justify-center' : 'px-4.5'} py-3 rounded-xl transition-all duration-300 border border-transparent cursor-pointer {settingsSection === 'language'
+          ? 'bg-gradient-to-r from-emerald-600 to-emerald-700 text-white shadow-lg shadow-emerald-500/22 border-emerald-500/30'
+          : 'text-gray-400 hover:bg-emerald-500/10 hover:text-emerald-400 hover:border-emerald-500/20'}"
+        onclick={() => settingsSection = "language"}
+        title={collapsed ? t("settings.section.language") : undefined}
+      >
+        <div class="w-9 h-9 rounded-xl {settingsSection === 'language' ? 'bg-white/20' : 'bg-white/5'} flex items-center justify-center flex-shrink-0 relative transition-colors border border-white/5">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5h12M9 3v2m1 9a18 18 0 01-4-5m7 12l5-10 5 10m-9-4h8" />
+          </svg>
         </div>
-      {/if}
-    </button>
+        {#if !collapsed}
+          <div class="text-left flex-1 py-1">
+            <span class="block text-[15px] font-semibold">{t("settings.section.language")}</span>
+          </div>
+        {/if}
+      </button>
+
+      <button
+        class="w-full flex items-center gap-3.5 {collapsed ? 'px-2 justify-center' : 'px-4.5'} py-3 rounded-xl transition-all duration-300 border border-transparent cursor-pointer {settingsSection === 'anki'
+          ? 'bg-gradient-to-r from-amber-600 to-amber-700 text-white shadow-lg shadow-amber-500/22 border-amber-500/30'
+          : 'text-gray-400 hover:bg-amber-500/10 hover:text-amber-400 hover:border-amber-500/20'}"
+        onclick={() => settingsSection = "anki"}
+        title={collapsed ? t("settings.section.anki") : undefined}
+      >
+        <div class="w-9 h-9 rounded-xl {settingsSection === 'anki' ? 'bg-white/20' : 'bg-white/5'} flex items-center justify-center flex-shrink-0 relative transition-colors border border-white/5">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v4H4V5zm0 8h8v7H5a1 1 0 01-1-1v-6zm12 0h4v6a1 1 0 01-1 1h-3v-7z" />
+          </svg>
+        </div>
+        {#if !collapsed}
+          <div class="text-left flex-1 py-1">
+            <span class="block text-[15px] font-semibold">{t("settings.section.anki")}</span>
+          </div>
+        {/if}
+      </button>
+
+      <button
+        class="w-full flex items-center gap-3.5 {collapsed ? 'px-2 justify-center' : 'px-4.5'} py-3 rounded-xl transition-all duration-300 border border-transparent cursor-pointer {settingsSection === 'shortcuts'
+          ? 'bg-gradient-to-r from-purple-600 to-purple-700 text-white shadow-lg shadow-purple-500/22 border-purple-500/30'
+          : 'text-gray-400 hover:bg-purple-500/10 hover:text-purple-400 hover:border-purple-500/20'}"
+        onclick={() => settingsSection = "shortcuts"}
+        title={collapsed ? t("settings.section.shortcuts") : undefined}
+      >
+        <div class="w-9 h-9 rounded-xl {settingsSection === 'shortcuts' ? 'bg-white/20' : 'bg-white/5'} flex items-center justify-center flex-shrink-0 relative transition-colors border border-white/5">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7a3 3 0 013-3h10a3 3 0 013 3v10a3 3 0 01-3 3H7a3 3 0 01-3-3V7zm4 2h2m2 0h2m2 0h2M7 13h2m2 0h2m2 0h2M7 17h6" />
+          </svg>
+          {#if hasUpdateNotification}
+            <span class="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-amber-500 ring-2 ring-gray-900 animate-pulse shadow-[0_0_8px_rgba(245,158,11,0.6)]"></span>
+          {/if}
+        </div>
+        {#if !collapsed}
+          <div class="text-left flex-1 py-1">
+            <span class="block text-[15px] font-semibold">{t("settings.section.shortcuts")}</span>
+          </div>
+        {/if}
+      </button>
+    {:else}
+      <button
+        class="w-full flex items-center gap-3.5 {collapsed ? 'px-2 justify-center' : 'px-4.5'} py-3 rounded-xl transition-all duration-300 border border-transparent cursor-pointer {activeTab ===
+        'flashcards'
+          ? 'bg-gradient-to-r from-amber-600 to-orange-700 text-white shadow-lg shadow-amber-500/22 shadow-orange-600/20 border-amber-500/30'
+          : 'text-gray-400 hover:bg-amber-500/10 hover:text-amber-400 hover:border-amber-500/20'}"
+        onclick={() => onTabChange("flashcards")}
+        title={collapsed ? t("nav.flashcards") : undefined}
+      >
+        <div class="w-9 h-9 rounded-xl {activeTab === 'flashcards' ? 'bg-white/20' : 'bg-white/5'} flex items-center justify-center flex-shrink-0 relative transition-colors border border-white/5">
+          <svg
+            class="w-5 h-5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
+            />
+          </svg>
+        </div>
+        {#if !collapsed}
+          <div class="text-left flex-1 py-1">
+            <span class="block text-[15px] font-semibold {activeTab === 'flashcards' ? 'text-white' : ''}">{t("nav.flashcards")}</span>
+          </div>
+        {/if}
+      </button>
+
+      <button
+        class="w-full flex items-center gap-3.5 {collapsed ? 'px-2 justify-center' : 'px-4.5'} py-3 rounded-xl transition-all duration-300 border border-transparent cursor-pointer {activeTab ===
+        'translate'
+          ? 'bg-gradient-to-r from-fuchsia-700 to-rose-700 text-white shadow-lg shadow-fuchsia-500/20 shadow-rose-600/20 border-fuchsia-500/30'
+          : 'text-gray-400 hover:bg-fuchsia-500/10 hover:text-fuchsia-400 hover:border-fuchsia-500/20'}"
+        onclick={() => onTabChange("translate")}
+        title={collapsed ? t("nav.translate") : undefined}
+      >
+        <div class="w-9 h-9 rounded-xl {activeTab === 'translate' ? 'bg-white/20' : 'bg-white/5'} flex items-center justify-center flex-shrink-0 relative transition-colors border border-white/5">
+          <svg
+            class="w-5 h-5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129"
+            />
+          </svg>
+        </div>
+        {#if !collapsed}
+          <div class="text-left flex-1 py-1">
+            <span class="block text-[15px] font-semibold">{t("nav.translate")}</span>
+          </div>
+        {/if}
+      </button>
+
+      <button
+        class="w-full flex items-center gap-3.5 {collapsed ? 'px-2 justify-center' : 'px-4.5'} py-3 rounded-xl transition-all duration-300 border border-transparent cursor-pointer {activeTab ===
+        'sync'
+          ? 'bg-gradient-to-r from-sky-700 to-cyan-700 text-white shadow-lg shadow-cyan-500/20 shadow-sky-600/20 border-sky-500/30'
+          : 'text-gray-400 hover:bg-sky-500/10 hover:text-sky-400 hover:border-sky-500/20'}"
+        onclick={() => onTabChange("sync")}
+        title={collapsed ? t("nav.sync") : undefined}
+      >
+        <div class="w-9 h-9 rounded-xl {activeTab === 'sync' ? 'bg-white/20' : 'bg-white/5'} flex items-center justify-center flex-shrink-0 relative transition-colors border border-white/5">
+          <svg
+            class="w-5 h-5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+            />
+          </svg>
+        </div>
+        {#if !collapsed}
+          <div class="text-left flex-1 py-1">
+            <span class="block text-[15px] font-semibold">{t("nav.sync")}</span>
+          </div>
+        {/if}
+      </button>
+
+      <button
+        class="w-full flex items-center gap-3.5 {collapsed ? 'px-2 justify-center' : 'px-4.5'} py-3 rounded-xl transition-all duration-300 border border-transparent cursor-pointer {activeTab ===
+        'align'
+          ? 'bg-gradient-to-r from-violet-700 to-indigo-700 text-white shadow-lg shadow-violet-500/20 shadow-indigo-600/20 border-violet-500/30'
+          : 'text-gray-400 hover:bg-violet-500/10 hover:text-violet-400 hover:border-violet-500/20'}"
+        onclick={() => onTabChange("align")}
+        title={collapsed ? t("nav.revision") : undefined}
+      >
+        <div class="w-9 h-9 rounded-xl {activeTab === 'align' ? 'bg-white/20' : 'bg-white/5'} flex items-center justify-center flex-shrink-0 relative transition-colors border border-white/5">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7"/>
+          </svg>
+        </div>
+        {#if !collapsed}
+          <div class="text-left flex-1 py-1">
+            <span class="block text-[15px] font-semibold">{t("nav.revision")}</span>
+          </div>
+        {/if}
+      </button>
+
+      <button
+        class="w-full flex items-center gap-3.5 {collapsed ? 'px-2 justify-center' : 'px-4.5'} py-3 rounded-xl transition-all duration-300 border border-transparent cursor-pointer {activeTab ===
+        'transcribe'
+          ? 'bg-gradient-to-r from-teal-700 to-emerald-700 text-white shadow-lg shadow-teal-500/20 shadow-emerald-600/20 border-teal-500/30'
+          : 'text-gray-400 hover:bg-teal-500/10 hover:text-teal-400 hover:border-teal-500/20'}"
+        onclick={() => onTabChange("transcribe")}
+        title={collapsed ? t("nav.transcribe") : undefined}
+      >
+        <div class="w-9 h-9 rounded-xl {activeTab === 'transcribe' ? 'bg-white/20' : 'bg-white/5'} flex items-center justify-center flex-shrink-0 relative transition-colors border border-white/5">
+          <svg
+            class="w-5 h-5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"
+            />
+          </svg>
+        </div>
+        {#if !collapsed}
+          <div class="text-left flex-1 py-1">
+            <span class="block text-[15px] font-semibold {activeTab === 'transcribe' ? 'text-white' : ''}">{t("nav.transcribe")}</span>
+          </div>
+        {/if}
+      </button>
+    {/if}
   </nav>
 
-  <div class="p-4 border-t border-white/10">
-    <div class="glass-card p-3 {collapsed ? 'flex items-center justify-center' : ''}">
+  <div class="h-[92px] px-6 border-t border-white/10 bg-gray-950 flex items-center shrink-0">
+    <div class="w-full {collapsed ? 'flex items-center justify-center' : ''}">
       {#if collapsed}
-        <span class="text-[10px] text-gray-500">
-          <a href="https://github.com/pierspad/VESTA.git" target="_blank" class="hover:text-gray-400 transition-colors">
-            {appVersionNum || "v0.1"}
-          </a>
-        </span>
+        <a href={authorUrl} target="_blank" class="flex-shrink-0 transition-transform hover:scale-110 active:scale-95 duration-150 inline-block" title="Pierpaolo Spadafora">
+          <img src={authorIconUrl} alt="Pierpaolo Spadafora" class="w-8 h-8 rounded-full border border-white/10 shadow-sm" />
+        </a>
       {:else}
-        <div class="w-fit">
-          <p class="text-xs text-gray-500">
-            <a href="https://github.com/pierspad/VESTA.git" target="_blank" class="hover:text-indigo-400 transition-colors">
-              {appVersionNum || "v0.1.0"}
+        <div class="flex items-center justify-between w-full">
+          <div class="flex items-center gap-2.5 min-w-0">
+            <a href={authorUrl} target="_blank" class="flex-shrink-0 transition-transform hover:scale-110 active:scale-95 duration-150 inline-block" title="Pierpaolo Spadafora">
+              <img src={authorIconUrl} alt="Pierpaolo Spadafora" class="w-8 h-8 rounded-full border border-white/10 shadow-sm" />
             </a>
-            <span class="mx-1">•</span>
-            Tauri + Svelte
-            <span class="mx-1">•</span>
-            <a href="https://www.gnu.org/licenses/gpl-3.0.html" target="_blank" class="hover:text-indigo-400 transition-colors">
-              {appLicense || "GPL-3.0"}
-            </a>
-          </p>
-          <p class="text-[10px] text-gray-600 mt-1 flex justify-between items-center">
-            <a href="https://pierspad.com" target="_blank" class="hover:text-gray-400 transition-colors">Pierpaolo Spadafora</a>
-            <a href="https://github.com/pierspad/VESTA.git" target="_blank" class="hover:text-gray-400 transition-colors flex items-center gap-1">
-              <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path fill-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" clip-rule="evenodd" /></svg>
-              GitHub Repo
-            </a>
-          </p>
+            <div class="flex flex-col gap-0.5 min-w-0">
+              <a href={releasesUrl} target="_blank" class="text-sm font-semibold text-gray-200 hover:text-indigo-400 transition-colors truncate leading-none">
+                {appVersionNum || "v0.1.0"}
+              </a>
+              <a href={licenseUrl} target="_blank" class="text-[11px] text-gray-400 hover:text-indigo-400 transition-colors leading-none">
+                {appLicense || "GPL-3.0"}
+              </a>
+            </div>
+          </div>
+          
+          <a href={repoUrl} target="_blank" class="flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-white/5 text-gray-400 hover:text-white transition-all duration-150 text-right shrink-0 select-none border border-transparent hover:border-white/5">
+            <div class="flex flex-col text-[10px] font-bold leading-tight uppercase tracking-wider text-right">
+              <span>GitHub</span>
+              <span class="opacity-75">Repo</span>
+            </div>
+            <svg class="w-6 h-6 shrink-0" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path fill-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.05A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" clip-rule="evenodd" />
+            </svg>
+          </a>
         </div>
       {/if}
     </div>

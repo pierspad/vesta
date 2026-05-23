@@ -33,6 +33,11 @@
   "shortcuts.action.goToSettings": "Ir para Configurações",
   "shortcuts.action.goToShortcuts": "Ir para Atalhos",
   "shortcuts.action.addApiKey": "Adicionar chave API",
+  "shortcuts.action.autoSync": "Sincronizar legendas automaticamente",
+  "shortcuts.action.newSync": "Nova sessão de sincronização",
+  "shortcuts.action.loadSession": "Carregar sessão de sincronização",
+  "shortcuts.action.saveSession": "Salvar sessão de sincronização",
+  "shortcuts.action.syncUndo": "Desfazer edição de sincronização",
   "shortcuts.action.openSrt": "Abrir arquivo SRT",
   "shortcuts.action.startTranslation": "Iniciar tradução",
   "shortcuts.action.cancelTranslation": "Cancelar tradução",
@@ -43,10 +48,5 @@
   "shortcuts.action.back1s": "Voltar 1s",
   "shortcuts.action.forward1s": "Avançar 1s",
   "shortcuts.action.offsetUp": "Deslocamento +100 ms",
-  "shortcuts.action.offsetDown": "Deslocamento -100 ms",
-  "shortcuts.action.offsetUpFast": "Deslocamento +500 ms",
-  "shortcuts.action.offsetDownFast": "Deslocamento -500 ms",
-  "shortcuts.action.confirmAnchor": "Confirmar âncora",
-  "shortcuts.action.nextSubtitle": "Próxima legenda",
-  "shortcuts.action.prevSubtitle": "Legenda anterior"
+  "shortcuts.action.offsetDown": "Deslocamento -100 ms"
 }

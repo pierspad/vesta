@@ -1,4 +1,15 @@
 {
+  "shortcuts.action.cancelGeneration": "生成キャンセル",
+  "shortcuts.action.previewCards": "カードプレビュー",
+  "shortcuts.action.prevAnchor": "前のアンカー",
+  "shortcuts.action.nextAnchor": "次のアンカー",
+  "flashcards.exportAPKGBadge": "推奨",
+  "flashcards.exportTSVBadge": "クラシック",
+  "shortcuts.overlay.title": "キーボードショートカット",
+  "shortcuts.overlay.hint": "Shift+? で表示切替",
+  "shortcuts.overlay.global": "グローバル",
+  "shortcuts.editShortcut": "ショートカット編集",
+  "shortcuts.resetDefault": "デフォルトに戻す",
   "settings.googleProviderTip": "翻訳機能を使用するには、Cloud Translation APIが有効なGoogle Cloud APIキーが必要です。",
   "settings.localProviderTip": "ローカルプロバイダーでは、Ollama + gemma3のようなモデルがローカルで翻訳を実行します。無料でデータの外部送信もありません。",
   "settings.groqProviderTip": "Groq LPU を活用した超高速推論。 console.groq.com から発行される gsk_ API キーが必要です。",
@@ -37,16 +48,5 @@
   "flashcards.closePreview": "閉じる",
   "flashcards.combineSentences": "分割された文章を結合する",
   "flashcards.comingSoonDesc": "字幕から Anki フラッシュカードを自動的に作成します。映画やテレビ番組を使った語学学習に最適です。",
-  "flashcards.contextLines": "コンテキスト行数",
-  "flashcards.continuationCharsHint": "行が次に続くことを示す文字",
-  "flashcards.cpuBalanced": "バランス",
-  "flashcards.cpuBalancedDesc": "50% のコアを使用",
-  "flashcards.cpuCores": "CPU コア",
-  "flashcards.cpuCoresNote": "少なくとも 1 つのコアはシステム用に空けられます。コア数が多いほど生成が高速になります。",
-  "flashcards.cpuCoresUsage": "並列スレッド",
-  "flashcards.cpuEco": "エコ",
-  "flashcards.cpuEcoDesc": "最小負荷",
-  "flashcards.cpuFullPower": "フルパワー",
-  "flashcards.cpuFullPowerDesc": "最大コア",
-  "flashcards.cpuMax": "最大"
+  "flashcards.contextLines": "コンテキスト行数"
 }

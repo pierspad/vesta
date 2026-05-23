@@ -82,6 +82,8 @@ SAME_AS_ENGLISH_ALLOWED_KEYS = {
     "translate.context",
     "translate.model",
     "translate.subPerBatch",
+    "settings.section.overview",
+    "settings.section.whisper",
     "provider.openrouter",
 }
 

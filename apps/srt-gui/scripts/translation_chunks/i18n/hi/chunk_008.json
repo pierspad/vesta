@@ -1,4 +1,15 @@
 {
+  "flashcards.padStart": "आरंभ मार्जिन",
+  "flashcards.padEnd": "अंत मार्जिन",
+  "flashcards.generateSnapshots": "फ़्लैशकार्ड में स्नैपशॉट जोड़ें",
+  "flashcards.width": "चौड़ाई",
+  "flashcards.height": "ऊंचाई",
+  "flashcards.cropBottom": "निचला क्रॉप",
+  "flashcards.generateVideoClips": "फ़्लैशकार्ड में वीडियो जोड़ें",
+  "flashcards.videoBitrate": "वीडियो बिटरेट",
+  "flashcards.audioBitrate": "ऑडियो बिटरेट",
+  "flashcards.naming": "नामकरण",
+  "flashcards.firstEpisode": "पहला एपिसोड नंबर",
   "flashcards.deckNameLabel": "डेक का नाम",
   "flashcards.deckNamePlaceholder": "उदाहरण: Detour - हिंदी",
   "flashcards.deckName": "डेक",
@@ -37,16 +48,5 @@
   "settings.localProviderTip": "स्थानीय प्रदाता के साथ, Ollama + gemma3 जैसा मॉडल स्थानीय रूप से अनुवाद करता है – मुफ़्त और बिना डेटा भेजे।",
   "settings.groqProviderTip": "Groq LPU द्वारा संचालित अल्ट्रा-फास्ट अनुमान। console.groq.com से gsk_ API कुंजी की आवश्यकता होती है।",
   "settings.customProviderTip": "किसी भी OpenAI-संगत एंडपॉइंट (OpenRouter, Together आदि) से कनेक्ट करें। यूआरएल और वैकल्पिक API कुंजी कॉन्फ़िगर करें।",
-  "flashcards.newGeneration": "नई निर्माण प्रक्रिया",
-  "flashcards.newGenerationDesc": "नयी निर्माण प्रक्रिया शुरू करने के लिए सभी फ़ील्ड रीसेट करें",
-  "flashcards.progress.parsing": "उपशीर्षक पार्स हो रहे हैं...",
-  "flashcards.progress.matching": "उपशीर्षक जोड़ियाँ मिलान हो रही हैं...",
-  "flashcards.progress.filtering": "फ़िल्टर लागू हो रहे हैं...",
-  "flashcards.progress.extractingMedia": "मीडिया निकाला जा रहा है... {{current}}/{{total}}",
-  "flashcards.progress.audioFailed": "⚠ पंक्ति #{{line}} के लिए ऑडियो विफल: {{error}}",
-  "flashcards.progress.snapshotFailed": "⚠ पंक्ति #{{line}} के लिए स्क्रीनशॉट विफल: {{error}}",
-  "flashcards.progress.videoFailed": "⚠ पंक्ति #{{line}} के लिए वीडियो क्लिप विफल: {{error}}",
-  "flashcards.progress.audioExtractionsFailed": "⚠ {{count}} ऑडियो निष्कर्षण विफल",
-  "flashcards.progress.snapshotExtractionsFailed": "⚠ {{count}} स्क्रीनशॉट निष्कर्षण विफल",
-  "flashcards.progress.videoExtractionsFailed": "⚠ {{count}} वीडियो क्लिप निष्कर्षण विफल"
+  "flashcards.newGeneration": "नई निर्माण प्रक्रिया"
 }

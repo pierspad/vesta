@@ -1,4 +1,15 @@
 {
+  "flashcards.progress.parsing": "Analizowanie napisów...",
+  "flashcards.progress.matching": "Dopasowywanie par napisów...",
+  "flashcards.progress.filtering": "Stosowanie filtrów...",
+  "flashcards.progress.extractingMedia": "Ekstrakcja mediów... {{current}}/{{total}}",
+  "flashcards.progress.audioFailed": "⚠ Audio nie powiodło się dla linii #{{line}}: {{error}}",
+  "flashcards.progress.snapshotFailed": "⚠ Zrzut ekranu nie powiódł się dla linii #{{line}}: {{error}}",
+  "flashcards.progress.videoFailed": "⚠ Klip wideo nie powiodło się dla linii #{{line}}: {{error}}",
+  "flashcards.progress.audioExtractionsFailed": "⚠ {{count}} ekstrakcji audio nie powiodło się",
+  "flashcards.progress.snapshotExtractionsFailed": "⚠ {{count}} ekstrakcji zrzutów ekranu nie powiodło się",
+  "flashcards.progress.videoExtractionsFailed": "⚠ {{count}} ekstrakcji klipów wideo nie powiodło się",
+  "flashcards.progress.generatingApkg": "Generowanie pakietu APKG...",
   "flashcards.progress.generatingTsv": "Generowanie pliku importu Anki...",
   "flashcards.progress.complete": "Generowanie fiszek zakończone!",
   "flashcards.fieldsLabel": "Pola",
@@ -37,16 +48,5 @@
   "transcribe.outputPathDesc": "Wprowadź lub edytuj ścieżkę wyjściową pliku SRT.",
   "transcribe.editPath": "Edytuj",
   "common.noResults": "Brak wyników",
-  "flashcards.browse": "Przeglądaj",
-  "flashcards.columns1": "1 kolumna",
-  "flashcards.columns2": "2 kolumny",
-  "flashcards.columns3": "3 kolumny",
-  "flashcards.modeMovie": "Tryb Filmu",
-  "flashcards.modeSeries": "Tryb Serialu",
-  "flashcards.seriesEpisodes": "odcinki",
-  "flashcards.addTargetSubs": "Dodaj napisy docelowe",
-  "flashcards.addNativeSubs": "Dodaj napisy ojczyste",
-  "flashcards.addMedia": "Dodaj media",
-  "flashcards.clearAll": "Wyczyść wszystko",
-  "flashcards.noFilesAdded": "Nie dodano jeszcze plików. Zacznij od dodania napisów docelowych."
+  "flashcards.browse": "Przeglądaj"
 }

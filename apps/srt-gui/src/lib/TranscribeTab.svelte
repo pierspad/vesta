@@ -2,14 +2,14 @@
   import { invoke } from "@tauri-apps/api/core";
   import LogPanel, { type LogEntry } from "./LogPanel.svelte";
   import { listen } from "@tauri-apps/api/event";
-  import { guardedOpen, guardedSave } from "./dialogGuard";
+  import { guardedOpen, guardedSave } from "./utils/dialogGuard";
   import { onDestroy, onMount } from "svelte";
   import { locale } from "./i18n";
   import { getLanguageSearchTerms, languages as allLanguages } from "./models";
   import PathPickerField from "./PathPickerField.svelte";
   import PathPreviewModal from "./PathPreviewModal.svelte";
   import SearchableSelect from "./SearchableSelect.svelte";
-  import Snackbar from "./Snackbar.svelte";
+  import { snackbar } from "./snackbarStore.svelte";
   import InfoModal from "./InfoModal.svelte";
   import InfoButton from "./InfoButton.svelte";
   import { transcribeSections } from "./info";
@@ -60,27 +60,14 @@
     detected_language?: string;
   } | null>(null);
 
-  let snackbarMessage = $state<string | null>(null);
-  let snackbarTimeout = $state<ReturnType<typeof setTimeout> | null>(null);
-
   function showSnackbar(message: string) {
-    if (snackbarTimeout) clearTimeout(snackbarTimeout);
-    snackbarMessage = message;
-    snackbarTimeout = setTimeout(() => {
-      snackbarMessage = null;
-    }, 3500);
+    snackbar.show(message, "info", 3500);
   }
 
   let logIdCounter = 0;
   let logs = $state<LogEntry[]>([]);
 
   let helpSection = $state<string | null>(null);
-  let showInputPathDialog = $state(false);
-  let showOutputPathDialog = $state(false);
-  let editInputPath = $state("");
-  let editOutputPath = $state("");
-  let inputPathError = $state<string | null>(null);
-  let outputPathError = $state<string | null>(null);
   let expandedPathField = $state<string | null>(null);
 
   let backends = $state<{
@@ -193,29 +180,31 @@
     localStorage.setItem(LAST_TRANSCRIBE_LANGUAGE_KEY, selectedLanguage);
   });
 
-  let unlistenProgress: (() => void) | null = null;
+  function handleWhisperModelUpdated(e: Event) {
+    const detail = (e as CustomEvent).detail;
+    if (detail) {
+      selectedModel = detail;
+    }
+    refreshModels().catch(console.error);
+  }
 
-  onMount(async () => {
+  onMount(() => {
     window.addEventListener("keydown", handleKeydown);
     selectedModel = localStorage.getItem("srt-default-whisper-model") || "base";
 
-    window.addEventListener("whisper-model-updated", (e: any) => {
-      if (e.detail) {
-        selectedModel = e.detail;
-      }
-      refreshModels();
-    });
+    window.addEventListener("whisper-model-updated", handleWhisperModelUpdated);
     window.addEventListener("vesta-language-defaults-updated", handleLanguageDefaultsUpdated);
 
-    try {
-      backends = await invoke<typeof backends>("transcribe_check_backends");
-    } catch (e) {
-      console.error("Could not check backends:", e);
-    }
+    invoke<typeof backends>("transcribe_check_backends")
+      .then((res) => { backends = res; })
+      .catch((e) => console.error("Could not check backends:", e));
 
-    await refreshModels();
+    refreshModels().catch((e) => console.error("Could not list models:", e));
 
-    unlistenProgress = await listen<{
+    let activeListener = true;
+    let unlisten: (() => void) | null = null;
+
+    listen<{
       stage: string;
       message: string;
       percentage: number;
@@ -230,13 +219,18 @@
       if (p.stage !== "done") {
         addLog(p.message, "progress");
       }
-    });
-  });
+    }).then((fn) => {
+      if (!activeListener) fn();
+      else unlisten = fn;
+    }).catch(console.error);
 
-  onDestroy(() => {
-    window.removeEventListener("keydown", handleKeydown);
-    window.removeEventListener("vesta-language-defaults-updated", handleLanguageDefaultsUpdated);
-    unlistenProgress?.();
+    return () => {
+      activeListener = false;
+      window.removeEventListener("keydown", handleKeydown);
+      window.removeEventListener("whisper-model-updated", handleWhisperModelUpdated);
+      window.removeEventListener("vesta-language-defaults-updated", handleLanguageDefaultsUpdated);
+      if (unlisten) unlisten();
+    };
   });
 
   function handleLanguageDefaultsUpdated() {
@@ -374,53 +368,42 @@
     }
   }
 
-  function openInputPathDialog() {
-    editInputPath = inputPath;
-    inputPathError = null;
-    showInputPathDialog = true;
-  }
-
-  function openOutputPathDialog() {
-    editOutputPath = outputPath;
-    outputPathError = null;
-    showOutputPathDialog = true;
-  }
-
-  async function confirmInputPath() {
-    let cleaned = editInputPath.trim().replace(/\/+$/, "");
+  async function saveInputPath(newPath: string): Promise<boolean> {
+    let cleaned = newPath.trim().replace(/\/+$/, "");
     if (!cleaned) {
-      inputPathError = "Path cannot be empty";
-      return;
+      showSnackbar("Path cannot be empty");
+      return false;
     }
     try {
       const exists = await invoke<boolean>("transcribe_check_file_exists", {
         path: cleaned,
       });
       if (!exists) {
-        inputPathError = `File not found: ${cleaned}`;
-        return;
+        showSnackbar(`File not found: ${cleaned}`);
+        return false;
       }
       inputPath = cleaned;
       if (!outputPath) {
         const outputLang = effectiveLanguageCodeForOutput(selectedLanguage);
         outputPath = generateOutputPathFromInput(inputPath, outputLang);
       }
-      showInputPathDialog = false;
       addLog(
         `${t("transcribe.fileSelected")}: ${inputPath.split("/").pop()}`,
         "file",
       );
       addLog(`Output file: ${outputPath.split("/").pop()}`, "info");
+      return true;
     } catch (e) {
-      inputPathError = `Error: ${e}`;
+      showSnackbar(`Error: ${e}`);
+      return false;
     }
   }
 
-  async function confirmOutputPath() {
-    let cleaned = editOutputPath.trim().replace(/\/+$/, "");
+  async function saveOutputPath(newPath: string): Promise<boolean> {
+    let cleaned = newPath.trim().replace(/\/+$/, "");
     if (!cleaned) {
-      outputPathError = "Path cannot be empty";
-      return;
+      showSnackbar("Path cannot be empty");
+      return false;
     }
     const parentDir = cleaned.substring(0, cleaned.lastIndexOf("/"));
     if (parentDir) {
@@ -429,16 +412,16 @@
           path: parentDir,
         });
         if (!exists) {
-          outputPathError = `Directory not found: ${parentDir}`;
-          return;
+          showSnackbar(`Directory not found: ${parentDir}`);
+          return false;
         }
       } catch (e) {
-        outputPathError = `Error: ${e}`;
-        return;
+        showSnackbar(`Error: ${e}`);
+        return false;
       }
     }
     outputPath = cleaned;
-    showOutputPathDialog = false;
+    return true;
   }
 
   async function startTranscription() {
@@ -541,114 +524,6 @@
   ] as const;
 
   type TranscribePanelId = (typeof TRANSCRIBE_PANEL_IDS)[number];
-
-  interface TranscribeColumnLayout {
-    col1: TranscribePanelId[];
-    col2: TranscribePanelId[];
-  }
-
-  const TRANSCRIBE_DEFAULT_LAYOUT: TranscribeColumnLayout = {
-    col1: ["files"],
-    col2: ["options", "actions", "progress", "logs"],
-  };
-
-  function loadTranscribeLayout(): TranscribeColumnLayout {
-    try {
-      const saved = localStorage.getItem("srt-transcribe-layout-v1");
-      if (saved) {
-        const parsed = JSON.parse(saved) as TranscribeColumnLayout;
-        const all = [...parsed.col1, ...parsed.col2];
-        const valid =
-          TRANSCRIBE_PANEL_IDS.every((id) => all.includes(id)) &&
-          all.length === TRANSCRIBE_PANEL_IDS.length;
-        if (valid) return parsed;
-      }
-    } catch {}
-    return { ...TRANSCRIBE_DEFAULT_LAYOUT };
-  }
-
-  function saveTranscribeLayout(layout: TranscribeColumnLayout) {
-    localStorage.setItem("srt-transcribe-layout-v1", JSON.stringify(layout));
-  }
-
-  let transcribePanelLayout = $state<TranscribeColumnLayout>(
-    loadTranscribeLayout(),
-  );
-
-  let tDraggedPanel = $state<TranscribePanelId | null>(null);
-  let tDragOverCol = $state<"col1" | "col2" | null>(null);
-  let tDragOverIdx = $state<number | null>(null);
-
-  function tOnDragStart(e: DragEvent, panelId: TranscribePanelId) {
-    const target = e.target as HTMLElement;
-    if (
-      target?.tagName === "INPUT" &&
-      (target as HTMLInputElement).type === "range"
-    ) {
-      e.preventDefault();
-      return;
-    }
-    tDraggedPanel = panelId;
-    if (e.dataTransfer) {
-      e.dataTransfer.effectAllowed = "move";
-      e.dataTransfer.setData("text/plain", panelId);
-    }
-  }
-
-  function tOnDragOver(e: DragEvent, col: "col1" | "col2", idx: number) {
-    e.preventDefault();
-    if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
-    tDragOverCol = col;
-    tDragOverIdx = idx;
-  }
-
-  function tOnDragOverColumn(e: DragEvent, col: "col1" | "col2") {
-    e.preventDefault();
-    if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
-    tDragOverCol = col;
-    if (tDragOverIdx === null) {
-      tDragOverIdx = transcribePanelLayout[col].length;
-    }
-  }
-
-  function tOnDrop(col: "col1" | "col2", idx: number) {
-    if (!tDraggedPanel) return;
-    const newLayout = { ...transcribePanelLayout };
-    for (const c of ["col1", "col2"] as const) {
-      const i = newLayout[c].indexOf(tDraggedPanel);
-      if (i !== -1) {
-        newLayout[c] = [...newLayout[c]];
-        newLayout[c].splice(i, 1);
-        if (c === col && i < idx) idx--;
-        break;
-      }
-    }
-    newLayout[col] = [...newLayout[col]];
-    newLayout[col].splice(idx, 0, tDraggedPanel);
-    transcribePanelLayout = newLayout;
-    saveTranscribeLayout(transcribePanelLayout);
-    tDraggedPanel = null;
-    tDragOverCol = null;
-    tDragOverIdx = null;
-  }
-
-  function tOnDropColumn(col: "col1" | "col2") {
-    tOnDrop(col, transcribePanelLayout[col].length);
-  }
-
-  function tOnDragEnd() {
-    tDraggedPanel = null;
-    tDragOverCol = null;
-    tDragOverIdx = null;
-  }
-
-  function resetTranscribeLayout() {
-    transcribePanelLayout = {
-      col1: [...TRANSCRIBE_DEFAULT_LAYOUT.col1],
-      col2: [...TRANSCRIBE_DEFAULT_LAYOUT.col2],
-    };
-    saveTranscribeLayout(transcribePanelLayout);
-  }
 </script>
 
 <div
@@ -772,9 +647,9 @@
           ? 'opacity-50 pointer-events-none'
           : ''}"
       >
-        <h3 class="text-lg font-semibold mb-4 flex items-center gap-2">
+        <h3 class="text-lg font-semibold mb-4 flex items-center gap-2 text-blue-400">
           <svg
-            class="w-5 h-5 text-blue-400"
+            class="w-5 h-5"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -963,9 +838,9 @@
       </div>
     {:else if panelId === "files"}
       <div class="glass-card p-5">
-        <h3 class="text-lg font-semibold mb-4 flex items-center gap-2">
+        <h3 class="text-lg font-semibold mb-4 flex items-center gap-2 text-indigo-400">
           <svg
-            class="w-5 h-5 text-indigo-400"
+            class="w-5 h-5"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -1213,150 +1088,17 @@
   {/snippet}
 
   <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
-    <div
-      class="space-y-3 min-h-[100px]"
-      role="list"
-    >
-      {#each transcribePanelLayout.col1 as tPanelId, idx (tPanelId)}
-        <div
-          class="transition-all duration-150"
-          role="listitem"
-        >
-          {@render panelContent(tPanelId)}
-        </div>
-      {/each}
+    <div class="space-y-3 min-h-[100px]">
+      {@render panelContent("files")}
     </div>
 
-    <div
-      class="space-y-3 min-h-[100px]"
-      role="list"
-    >
-      {#each transcribePanelLayout.col2 as tPanelId, idx (tPanelId)}
-        <div
-          class="transition-all duration-150"
-          role="listitem"
-        >
-          {@render panelContent(tPanelId)}
-        </div>
-      {/each}
+    <div class="space-y-3 min-h-[100px]">
+      {@render panelContent("options")}
+      {@render panelContent("actions")}
+      {@render panelContent("progress")}
+      {@render panelContent("logs")}
     </div>
   </div>
-
-  {#if showInputPathDialog}
-    <!-- svelte-ignore a11y_no_static_element_interactions -->
-    <div
-      class="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-6"
-      role="dialog"
-      aria-modal="true"
-      tabindex="-1"
-      onclick={() => (showInputPathDialog = false)}
-      onkeydown={(e) => {
-        if (e.key === "Escape") showInputPathDialog = false;
-      }}
-    >
-      <!-- svelte-ignore a11y_no_static_element_interactions -->
-      <div
-        class="bg-gray-900 border border-gray-700 rounded-xl w-full max-w-xl p-6"
-        onclick={(e) => e.stopPropagation()}
-        onkeydown={(e) => {
-          if (e.key === "Enter") confirmInputPath();
-          e.stopPropagation();
-        }}
-      >
-        <div class="flex items-center justify-between mb-4">
-          <h2 class="text-lg font-bold text-white">
-            {t("transcribe.inputFile")}
-          </h2>
-          <button
-            onclick={() => (showInputPathDialog = false)}
-            class="text-gray-400 hover:text-white text-xl">✕</button
-          >
-        </div>
-        <p class="text-xs text-gray-400 mb-3">
-          {t("transcribe.inputPathDesc")}
-        </p>
-        <input
-          type="text"
-          bind:value={editInputPath}
-          class="input-modern w-full text-sm mb-2"
-          placeholder="/path/to/audio-or-video.mp4"
-        />
-        {#if inputPathError}
-          <p class="text-red-400 text-xs mb-2">{inputPathError}</p>
-        {/if}
-        <div class="flex justify-end gap-2 mt-4">
-          <button
-            onclick={() => (showInputPathDialog = false)}
-            class="btn-secondary py-1.5 px-4 text-sm"
-          >
-            {t("settings.modal.cancel")}
-          </button>
-          <button
-            onclick={confirmInputPath}
-            class="btn-primary py-1.5 px-4 text-sm">OK</button
-          >
-        </div>
-      </div>
-    </div>
-  {/if}
-
-  {#if showOutputPathDialog}
-    <!-- svelte-ignore a11y_no_static_element_interactions -->
-    <div
-      class="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-6"
-      role="dialog"
-      aria-modal="true"
-      tabindex="-1"
-      onclick={() => (showOutputPathDialog = false)}
-      onkeydown={(e) => {
-        if (e.key === "Escape") showOutputPathDialog = false;
-      }}
-    >
-      <!-- svelte-ignore a11y_no_static_element_interactions -->
-      <div
-        class="bg-gray-900 border border-gray-700 rounded-xl w-full max-w-xl p-6"
-        onclick={(e) => e.stopPropagation()}
-        onkeydown={(e) => {
-          if (e.key === "Enter") confirmOutputPath();
-          e.stopPropagation();
-        }}
-      >
-        <div class="flex items-center justify-between mb-4">
-          <h2 class="text-lg font-bold text-white">
-            {t("transcribe.outputFile")}
-          </h2>
-          <button
-            onclick={() => (showOutputPathDialog = false)}
-            class="text-gray-400 hover:text-white text-xl">✕</button
-          >
-        </div>
-        <p class="text-xs text-gray-400 mb-3">
-          {t("transcribe.outputPathDesc")}
-        </p>
-        <input
-          type="text"
-          bind:value={editOutputPath}
-          class="input-modern w-full text-sm mb-2"
-          placeholder="/path/to/output.srt"
-        />
-        {#if outputPathError}
-          <p class="text-red-400 text-xs mb-2">{outputPathError}</p>
-        {/if}
-        <div class="flex justify-end gap-2 mt-4">
-          <button
-            onclick={() => (showOutputPathDialog = false)}
-            class="btn-secondary py-1.5 px-4 text-sm"
-          >
-            {t("settings.modal.cancel")}
-          </button>
-          <button
-            onclick={confirmOutputPath}
-            class="btn-primary py-1.5 px-4 text-sm">OK</button
-          >
-        </div>
-      </div>
-    </div>
-  {/if}
 
   <InfoModal 
     section={helpSection} 
@@ -1371,22 +1113,15 @@
       : t("transcribe.outputFile")}
     value={expandedPathField === "input" ? inputPath : outputPath}
     onclose={() => (expandedPathField = null)}
+    editable={true}
     secondaryText={`✏️ ${t("transcribe.editPath")}`}
-    onsecondary={() => {
-      const field = expandedPathField;
-      expandedPathField = null;
-      if (field === "input") openInputPathDialog();
-      else if (field === "output") openOutputPathDialog();
-    }}
+    desc={expandedPathField === "input"
+      ? t("transcribe.inputPathDesc")
+      : t("transcribe.outputPathDesc")}
+    onsave={expandedPathField === "input" ? saveInputPath : saveOutputPath}
   />
 
 
 
-  {#if snackbarMessage}
-    <Snackbar
-      message={snackbarMessage}
-      variant="success"
-      onclose={() => (snackbarMessage = null)}
-    />
-  {/if}
+
 </div>

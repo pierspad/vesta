@@ -1,4 +1,15 @@
 {
+  "transcribe.noBackendWarning": "未找到 Whisper 后端",
+  "transcribe.noInputMediaSelected": "未选择输入媒体",
+  "transcribe.noOutputFileSelected": "未选择输出文件",
+  "transcribe.notDownloaded": "待下载",
+  "transcribe.outputPathDesc": "输入或编辑输出 SRT 文件路径。",
+  "transcribe.outputRequired": "请选择输出文件",
+  "transcribe.processing": "正在处理",
+  "transcribe.progress": "进度",
+  "transcribe.readyToProcess": "准备转录",
+  "transcribe.segmentLong": "长",
+  "transcribe.segmentLongDesc": "60s — 较少且较长的行",
   "transcribe.segmentMedium": "中等",
   "transcribe.segmentMediumDesc": "20s — 平衡方案",
   "transcribe.segmentShort": "短",
@@ -37,16 +48,5 @@
   "translate.dropFileHere": "将文件拖放到此处",
   "translate.dropFileHint": "SRT字幕文件",
   "translate.tooltip.upload": "选择输入 SRT 文件",
-  "translate.waitingForTranslation": "等待翻译开始...",
-  "flashcards.browse": "浏览",
-  "flashcards.columns1": "1列",
-  "flashcards.columns2": "2列",
-  "flashcards.columns3": "3列",
-  "flashcards.modeMovie": "电影模式",
-  "flashcards.modeSeries": "剧集模式",
-  "flashcards.seriesEpisodes": "集",
-  "flashcards.addTargetSubs": "添加目标语言字幕",
-  "flashcards.addNativeSubs": "添加母语字幕",
-  "flashcards.addMedia": "添加媒体",
-  "flashcards.clearAll": "全部清除"
+  "translate.waitingForTranslation": "等待翻译开始..."
 }

@@ -1,4 +1,15 @@
 {
+  "settings.modal.localServerDesc": "Ollama, LM Studio (您的电脑) ",
+  "settings.modal.cloudApi": "云API (OpenRouter)",
+  "settings.modal.cloudApiDesc": "GPT, Claude, Google API (在线) ",
+  "settings.modal.notRequiredForLocal": "本地服务器无需...",
+  "settings.modal.localEndpointDefault": "默认: http://localhost:11434/v1 (Ollama)",
+  "settings.modelFamilies": "模型家族",
+  "settings.addCustomApiKey": "添加自定义API密钥",
+  "settings.keyAdded": "API密钥添加成功",
+  "settings.keyUpdated": "配置已成功更新",
+  "settings.edit": "编辑",
+  "settings.modal.editApiKey": "编辑 API 密钥",
   "settings.keyDeleted": "API密钥已删除",
   "settings.keyCopied": "API密钥已复制到剪贴板",
   "settings.modelAdded": "自定义模型已添加",
@@ -37,16 +48,5 @@
   "translate.noLog": "暂无日志...",
   "translate.options": "翻译选项",
   "translate.provider": "提供商",
-  "translate.apiKey": "API 密钥",
-  "translate.model": "模型",
-  "translate.targetLang": "目标语言",
-  "translate.batchSize": "批次大小",
-  "translate.slow": "慢",
-  "translate.fast": "快",
-  "translate.context": "上下文",
-  "translate.contextPlaceholder": "例如:Detour (1945)、Nosferatu (1922)",
-  "translate.progress": "进度",
-  "translate.batch": "批次",
-  "translate.timeRemaining": "剩余时间:",
-  "translate.completed": "翻译完成"
+  "translate.apiKey": "API 密钥"
 }

@@ -1,4 +1,15 @@
 {
+  "provider.google": "Google API servisi",
+  "provider.custom": "Özel Sağlayıcı",
+  "provider.google.desc": "Google API API (AIza... anahtarı gerektirir)",
+  "provider.local.desc": "Ollama, LM Studio, yerel modeller",
+  "provider.openai": "OpenAI GPT modeli",
+  "provider.openai.desc": "GPT-4, GPT-4o, GPT-3.5 (Yakında)",
+  "settings.errorEndpointRequired": "Yerel sunucu için API uç noktası gereklidir",
+  "settings.errorInvalidGoogleKey": "Google API anahtarları 'AIza...' ile başlamalıdır",
+  "settings.modal.apiKeyHintGoogle": "API anahtarınızı şuradan alın:",
+  "settings.modal.modelOptionalHint": "İsteğe bağlı. Modeli Çeviri sekmesinden seçebilirsiniz. Bu sadece varsayılandır.",
+  "settings.modal.providerAnthropic": "Anthropic Claude modeli",
   "settings.modal.providerAnthropicDesc": "Opus 4.6 ve Sonnet 4.6",
   "settings.modal.providerGoogle": "Google API servisi",
   "settings.modal.providerGoogleDesc": "Google API 3.1 Pro ve 3 Flash",
@@ -37,16 +48,5 @@
   "transcribe.downloadModel": "Modeli indir",
   "transcribe.editPath": "Düzenle",
   "transcribe.errorUninstalling": "Model kaldırılırken hata oluştu",
-  "transcribe.ffmpegMissing": "FFmpeg bulunamadı",
-  "transcribe.ffmpegMissingDesc": "Video dosyalarından ses çıkarmak için FFmpeg gereklidir. Paket yöneticinizle yükleyin.",
-  "transcribe.inputPathDesc": "Ses/video dosyasına giden yolu girin veya düzenleyin.",
-  "transcribe.modelBase": "Temel (Base)",
-  "transcribe.modelLarge": "Büyük (Large)",
-  "transcribe.modelMedium": "Orta (Medium)",
-  "transcribe.modelSmall": "Küçük (Small)",
-  "transcribe.modelTiny": "Çok Küçük (Tiny)",
-  "transcribe.modelUninstalled": "Model kaldırıldı",
-  "transcribe.newTranscription": "Yeni Transkripsiyon",
-  "transcribe.newTranscriptionDesc": "Yeni bir transkripsiyon başlatmak için tüm alanları, günlükleri ve sonuçları temizleyin",
-  "transcribe.noBackendWarning": "Whisper arka ucu bulunamadı"
+  "transcribe.ffmpegMissing": "FFmpeg bulunamadı"
 }

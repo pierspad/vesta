@@ -1,4 +1,15 @@
 {
+  "sync.subtitle": "Alinhe as legendas com o áudio usando pontos de verificação inteligentes",
+  "sync.subtitles": "Legendas",
+  "sync.title": "Sincronização de Legendas",
+  "sync.tooltip.loadAudio": "Carregar arquivo de áudio ou vídeo (apenas o áudio é usado)",
+  "sync.tooltip.loadSrt": "Carregar arquivo de legenda SRT",
+  "sync.tooltip.loadVideo": "Carregar arquivo de vídeo",
+  "sync.tooltipLoadSession": "Retomar uma sessão de sincronia salva (.json). Uma sessão armazena o arquivo SRT, o caminho do vídeo, todas as âncoras confirmadas e o progresso.",
+  "sync.tooltipRemoveAnchor": "Remover esta âncora de sincronia",
+  "sync.tooltipSaveFile": "Exportar o arquivo SRT final sincronizado (.srt) com todas as correções de tempo aplicadas. Este é o arquivo de saída pronto para uso.",
+  "sync.tooltipSaveSession": "Salvar o estado atual da sincronia em um arquivo .json. Inclui: caminho SRT, caminho do vídeo, todas as âncoras e ajustes. Útil para pausar e retomar o trabalho depois.",
+  "sync.tryAnotherFile": "Tentar outro arquivo",
   "sync.wizard.allSynced": "Todas as legendas parecem estar sincronizadas!",
   "sync.wizard.checkpoint": "Ponto de verificação",
   "sync.wizard.confirm": "Confirmar e Próximo",
@@ -37,16 +48,5 @@
   "transcribe.modelUninstalled": "Modelo desinstalado",
   "transcribe.newTranscription": "Nova Transcrição",
   "transcribe.newTranscriptionDesc": "Limpar todos os campos, logs e resultados para iniciar uma nova transcrição",
-  "transcribe.noBackendWarning": "Nenhum backend Whisper encontrado",
-  "transcribe.noInputMediaSelected": "Sem mídia de entrada",
-  "transcribe.noOutputFileSelected": "Sem arquivo de saída",
-  "transcribe.notDownloaded": "para baixar",
-  "transcribe.outputPathDesc": "Insira ou edite o caminho do arquivo SRT de saída.",
-  "transcribe.outputRequired": "Por favor, selecione um arquivo de saída",
-  "transcribe.processing": "Processando",
-  "transcribe.progress": "Progresso",
-  "transcribe.readyToProcess": "Pronto para transcrever",
-  "transcribe.segmentLong": "Longo",
-  "transcribe.segmentLongDesc": "60s — menos linhas, mais longas",
-  "transcribe.segmentMedium": "Médio"
+  "transcribe.noBackendWarning": "Nenhum backend Whisper encontrado"
 }

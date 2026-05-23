@@ -1,4 +1,15 @@
 {
+  "settings.modal.apiKeyPlaceholder": "Enter your API key...",
+  "settings.modal.apiKeyPlaceholderLocal": "Leave empty for Ollama",
+  "settings.modal.apiUrl": "API Endpoint URL",
+  "settings.modal.apiUrlPlaceholder": "e.g.: https://api.openai.com/v1",
+  "settings.modal.cancel": "Cancel",
+  "settings.modal.save": "Save",
+  "settings.modal.add": "Add",
+  "settings.modal.addCustomApiKey": "Add Custom API Key",
+  "settings.modal.protocolInfo": "All providers use the OpenAI-compatible API protocol. Local servers (Ollama, LM Studio) and cloud providers are all supported.",
+  "settings.modal.configName": "Configuration Name",
+  "settings.modal.configNamePlaceholder": "e.g.: My OpenAI Key",
   "settings.modal.apiEndpoint": "API Endpoint URL",
   "settings.modal.optional": "optional",
   "settings.modal.apiEndpointHint": "Leave empty for default provider URL. For local servers, use http://localhost:11434/v1",
@@ -37,16 +48,5 @@
   "settings.confirmDelete": "Delete",
   "provider.local": "Local LLM",
   "provider.openrouter": "OpenRouter",
-  "translate.title": "Subtitle Translation",
-  "translate.subtitle": "Translate SRT files using AI via OpenRouter (GPT, Claude, Google API, Mistral) or local LLM",
-  "translate.noApiWarning": "No API key configured.",
-  "translate.goToSettings": "Go to Settings",
-  "translate.toAddOne": "to add one.",
-  "translate.file": "File",
-  "translate.inputFile": "Input SRT File",
-  "translate.selectFile": "No input file selected",
-  "translate.outputFile": "Output File",
-  "translate.selectDestination": "No output file selected",
-  "translate.subtitles": "subtitles",
-  "translate.log": "Log"
+  "translate.title": "Subtitle Translation"
 }

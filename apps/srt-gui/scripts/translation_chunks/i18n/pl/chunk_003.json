@@ -1,4 +1,15 @@
 {
+  "settings.modal.apiUrl": "Adres URL punktu końcowego API",
+  "settings.modal.apiUrlPlaceholder": "np.: https://api.openai.com/v1",
+  "settings.modal.cancel": "Anuluj",
+  "settings.modal.save": "Zapisz",
+  "settings.modal.add": "Dodaj",
+  "settings.modal.addCustomApiKey": "Dodaj własny klucz API",
+  "settings.modal.protocolInfo": "Wszyscy dostawcy używają protokołu API zgodnego z OpenAI. Obsługiwane są zarówno serwery lokalne (Ollama, LM Studio), jak i dostawcy chmurowi.",
+  "settings.modal.configName": "Nazwa konfiguracji",
+  "settings.modal.configNamePlaceholder": "np.: Mój klucz OpenAI",
+  "settings.modal.apiEndpoint": "Adres URL punktu końcowego API",
+  "settings.modal.optional": "opcjonalnie",
   "settings.modal.apiEndpointHint": "Pozostaw puste dla domyślnego adresu URL dostawcy. Dla serwerów lokalnych użyj http://localhost:11434/v1",
   "settings.modal.defaultModel": "Domyślny identyfikator modelu",
   "settings.modal.modelOptionalHint": "Opcjonalnie. Możesz wybrać model w zakładce Tłumaczenie. To jest tylko domyślna wartość.",
@@ -37,16 +48,5 @@
   "provider.openrouter": "OpenRouter",
   "translate.title": "Tłumaczenie Napisów",
   "translate.subtitle": "Tłumacz pliki SRT za pomocą AI przez OpenRouter (GPT, Claude, Google API, Mistral) lub lokalny LLM",
-  "translate.noApiWarning": "Nie skonfigurowano klucza API.",
-  "translate.goToSettings": "Przejdź do Ustawień",
-  "translate.toAddOne": "aby dodać jeden.",
-  "translate.file": "Plik",
-  "translate.inputFile": "Wejściowy plik SRT",
-  "translate.selectFile": "Nie wybrano pliku wejściowego",
-  "translate.outputFile": "Plik wyjściowy",
-  "translate.selectDestination": "Nie wybrano pliku wyjściowego",
-  "translate.subtitles": "napisy",
-  "translate.log": "Dziennik",
-  "translate.clearLog": "Wyczyść",
-  "translate.noLog": "Brak logów..."
+  "translate.noApiWarning": "Nie skonfigurowano klucza API."
 }

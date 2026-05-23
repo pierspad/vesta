@@ -1,10 +1,14 @@
 <script lang="ts">
-  import { onMount } from "svelte";
-  import { locale } from "./i18n";
+  import { onMount, onDestroy } from "svelte";
+  import { invoke } from "@tauri-apps/api/core";
+  import { locale, currentLanguage } from "./i18n";
+  import ConfirmDialog from "./ConfirmDialog.svelte";
+  import { snackbar } from "./snackbarStore.svelte";
   import {
     defaultShortcuts,
     getShortcuts,
     resetShortcuts,
+    resetSingleShortcut,
     saveShortcutOverride,
     type ShortcutDefinition,
   } from "./models";
@@ -12,46 +16,174 @@
   let shortcuts = $state<ShortcutDefinition[]>([]);
   let editingShortcut = $state<string | null>(null);
   let recordingKey = $state(false);
-  let success = $state<string | null>(null);
   let error = $state<string | null>(null);
   let showResetAllConfirm = $state(false);
-  let filter = $state<"all" | "global" | "translate" | "sync" | "flashcards" | "alignment" | "transcribe">(
-    "all",
-  );
+  let selectedCategories = $state<string[]>([]);
+  let searchQuery = $state<string>("");
+
+  let searchMode = $state<"text" | "keys">("text");
+  let searchKeys = $state<string[]>([]);
+  let isListeningForSearchKeys = $state(false);
+
+
+
+  const categoryOrder = ["global", "flashcards", "translate", "sync", "alignment", "transcribe"];
 
   let t = $derived($locale);
 
-  let filteredShortcuts = $derived(
-    filter === "all"
-      ? shortcuts
-      : shortcuts.filter((s) => s.category === filter),
-  );
-
-  let groupedShortcuts = $derived.by(() => {
-    const groups: Record<string, ShortcutDefinition[]> = {
-      global: [],
-      flashcards: [],
-      translate: [],
-      sync: [],
-      alignment: [],
-      transcribe: [],
-    };
-    filteredShortcuts.forEach((s) => {
-      if (groups[s.category]) {
-        groups[s.category].push(s);
+  function fuzzyMatch(text: string, query: string): boolean {
+    if (!query) return true;
+    if (!text) return false;
+    
+    const q = query.toLowerCase().replace(/\s+/g, "");
+    const t = text.toLowerCase();
+    
+    let queryIdx = 0;
+    for (let i = 0; i < t.length; i++) {
+      if (t[i] === q[queryIdx]) {
+        queryIdx++;
+        if (queryIdx === q.length) {
+          return true;
+        }
       }
+    }
+    return false;
+  }
+
+  function toggleSearchMode() {
+    searchMode = searchMode === "text" ? "keys" : "text";
+    if (searchMode === "text") {
+      clearSearchKeys();
+    }
+  }
+
+  function setSearchMode(mode: "text" | "keys") {
+    searchMode = mode;
+    if (mode === "text") {
+      clearSearchKeys();
+    }
+  }
+
+  let globalSearchKeysHandler: ((e: KeyboardEvent) => void) | null = null;
+
+  function startSearchKeysListening() {
+    isListeningForSearchKeys = true;
+    if (globalSearchKeysHandler) {
+      window.removeEventListener("keydown", globalSearchKeysHandler, true);
+    }
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        e.stopPropagation();
+        stopSearchKeysListening();
+        return;
+      }
+
+      e.preventDefault();
+      e.stopPropagation();
+
+      const parts: string[] = [];
+      if (e.ctrlKey || e.metaKey) parts.push("Ctrl");
+      if (e.altKey) parts.push("Alt");
+      if (e.shiftKey) parts.push("Shift");
+
+      let keyName = e.key;
+      if (keyName === " ") keyName = "Space";
+      else if (keyName.length === 1) keyName = keyName.toUpperCase();
+      else if (keyName.startsWith("Arrow")) keyName = keyName;
+
+      if (!["Control", "Alt", "Shift", "Meta"].includes(e.key)) {
+        if (!parts.includes(keyName)) {
+          parts.push(keyName);
+        }
+      }
+
+      searchKeys = parts;
+    };
+    globalSearchKeysHandler = handler;
+    window.addEventListener("keydown", handler, true);
+  }
+
+  function stopSearchKeysListening() {
+    isListeningForSearchKeys = false;
+    if (globalSearchKeysHandler) {
+      window.removeEventListener("keydown", globalSearchKeysHandler, true);
+      globalSearchKeysHandler = null;
+    }
+  }
+
+  function clearSearchKeys() {
+    searchKeys = [];
+    stopSearchKeysListening();
+  }
+
+  let globalSearchClickHandler: ((e: MouseEvent) => void) | null = null;
+
+  $effect(() => {
+    if (isListeningForSearchKeys) {
+      const clickHandler = () => {
+        stopSearchKeysListening();
+      };
+      globalSearchClickHandler = clickHandler;
+      window.addEventListener("click", clickHandler);
+    } else {
+      if (globalSearchClickHandler) {
+        window.removeEventListener("click", globalSearchClickHandler);
+        globalSearchClickHandler = null;
+      }
+    }
+  });
+
+  onDestroy(() => {
+    if (globalSearchKeysHandler) {
+      window.removeEventListener("keydown", globalSearchKeysHandler, true);
+    }
+    if (globalSearchClickHandler) {
+      window.removeEventListener("click", globalSearchClickHandler);
+    }
+  });
+
+  let filteredShortcuts = $derived.by(() => {
+    let list = [...shortcuts];
+    // 1. Filter by active category
+    if (selectedCategories.length > 0) {
+      list = list.filter((s) => selectedCategories.includes(s.category));
+    }
+    // 2. Filter by search query / keys
+    if (searchMode === "text") {
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase().trim();
+        list = list.filter((s) => {
+          const desc = t(s.description);
+          const key = s.defaultKey;
+          if (desc.toLowerCase().includes(q) || key.toLowerCase().includes(q)) {
+            return true;
+          }
+          return fuzzyMatch(desc, q) || fuzzyMatch(key, q);
+        });
+      }
+    } else {
+      if (searchKeys.length > 0) {
+        list = list.filter((s) => {
+          const shortcutValue = s.defaultKey.toUpperCase();
+          const shortcutParts = shortcutValue.split("+").map((p) => p.trim());
+          const searchUpper = searchKeys.map((k) => k.toUpperCase());
+          return searchUpper.every((sk) => shortcutParts.some((sp) => sp.includes(sk)));
+        });
+      }
+    }
+    // 3. Sort by category and then alphabetically by localized description
+    list.sort((a, b) => {
+      const catA = categoryOrder.indexOf(a.category);
+      const catB = categoryOrder.indexOf(b.category);
+      if (catA !== catB) {
+        return catA - catB;
+      }
+      return t(a.description).localeCompare(t(b.description), undefined, {
+        sensitivity: "base",
+      });
     });
-    return groups;
-  });
-
-  let syncShortcutsLeft = $derived.by(() => {
-    const syncShorts = groupedShortcuts.sync;
-    return syncShorts.slice(0, Math.ceil(syncShorts.length / 2));
-  });
-
-  let syncShortcutsRight = $derived.by(() => {
-    const syncShorts = groupedShortcuts.sync;
-    return syncShorts.slice(Math.ceil(syncShorts.length / 2));
+    return list;
   });
 
   const categoryLabels: Record<string, string> = {
@@ -61,15 +193,6 @@
     sync: "shortcuts.category.sync",
     alignment: "shortcuts.category.alignment",
     transcribe: "shortcuts.category.transcribe",
-  };
-
-  const categoryIcons: Record<string, string> = {
-    alignment: "🛠️",
-    flashcards: "🃏",
-    global: "🌐",
-    sync: "⏱️",
-    transcribe: "🎙️",
-    translate: "🌍",
   };
 
   function categoryText(category: string): string {
@@ -84,15 +207,6 @@
     ),
   );
 
-  const categoryDescriptions: Record<string, string> = {
-    global: "shortcuts.category.global.desc",
-    flashcards: "shortcuts.category.flashcards.desc",
-    translate: "shortcuts.category.translate.desc",
-    sync: "shortcuts.category.sync.desc",
-    alignment: "shortcuts.category.alignment.desc",
-    transcribe: "shortcuts.category.transcribe.desc",
-  };
-
   onMount(() => {
     shortcuts = getShortcuts();
   });
@@ -100,9 +214,10 @@
   let currentKeyHandler: ((e: KeyboardEvent) => void) | null = null;
 
   function startEditing(shortcutId: string) {
-    if (currentKeyHandler) {
-      window.removeEventListener("keydown", currentKeyHandler);
-      currentKeyHandler = null;
+    if (editingShortcut === shortcutId) return;
+
+    if (editingShortcut !== null) {
+      cancelEditing();
     }
 
     editingShortcut = shortcutId;
@@ -139,24 +254,23 @@
         } else {
           saveShortcutOverride(editingShortcut!, newKey);
           shortcuts = getShortcuts();
-          success = t("shortcuts.updated", { key: newKey });
-          setTimeout(() => (success = null), 3000);
+          snackbar.show(t("shortcuts.updated", { key: newKey }), "success", 2500);
         }
 
         editingShortcut = null;
         recordingKey = false;
-        window.removeEventListener("keydown", handler);
+        window.removeEventListener("keydown", handler, true);
         currentKeyHandler = null;
       }
     };
 
     currentKeyHandler = handler;
-    window.addEventListener("keydown", handler);
+    window.addEventListener("keydown", handler, true);
   }
 
   function cancelEditing() {
     if (currentKeyHandler) {
-      window.removeEventListener("keydown", currentKeyHandler);
+      window.removeEventListener("keydown", currentKeyHandler, true);
       currentKeyHandler = null;
     }
     editingShortcut = null;
@@ -167,8 +281,7 @@
     showResetAllConfirm = false;
     resetShortcuts();
     shortcuts = getShortcuts();
-    success = t("shortcuts.reset");
-    setTimeout(() => (success = null), 3000);
+    snackbar.show(t("shortcuts.reset"), "success", 2500);
   }
 
   function getDefaultKey(shortcutId: string): string {
@@ -181,42 +294,155 @@
   }
 
   function resetSingle(shortcutId: string) {
-    const defaultKey = getDefaultKey(shortcutId);
-    saveShortcutOverride(shortcutId, defaultKey);
+    resetSingleShortcut(shortcutId);
     shortcuts = getShortcuts();
-    success = t("shortcuts.resetSingle");
-    setTimeout(() => (success = null), 3000);
+    snackbar.show(t("shortcuts.resetSingle"), "success", 2500);
+  }
+
+  function toggleCategory(cat: string) {
+    if (selectedCategories.includes(cat)) {
+      selectedCategories = selectedCategories.filter((c) => c !== cat);
+    } else {
+      selectedCategories = [...selectedCategories, cat];
+    }
+  }
+
+  function getShortcutIcon(id: string): string {
+    // Return custom inline SVG based on ID
+    if (id.includes("open-file") || id.includes("load-session")) {
+      return `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" /></svg>`;
+    }
+    if (id.includes("save-session") || id.includes("save")) {
+      return `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4H8m-2 4h10m-5-8V3m0 0l-3 3m3-3l3 3" /></svg>`;
+    }
+    if (id.includes("start") || id.includes("generate")) {
+      return `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" /><path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>`;
+    }
+    if (id.includes("cancel")) {
+      return `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" /></svg>`;
+    }
+    if (id.includes("preview")) {
+      return `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>`;
+    }
+    if (id.includes("clear-logs")) {
+      return `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>`;
+    }
+    if (id.includes("add-key") || id.includes("new")) {
+      return `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" /></svg>`;
+    }
+    if (id.includes("show-help")) {
+      return `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>`;
+    }
+    if (id === "tab-flashcards") {
+      return `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>`;
+    }
+    if (id === "tab-translate") {
+      return `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129" /></svg>`;
+    }
+    if (id === "tab-sync") {
+      return `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>`;
+    }
+    if (id === "tab-settings") {
+      return `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>`;
+    }
+    if (id === "tab-shortcuts") {
+      return `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 7a3 3 0 013-3h10a3 3 0 013 3v10a3 3 0 01-3 3H7a3 3 0 01-3-3V7zm4 2h2m2 0h2m2 0h2M7 13h2m2 0h2m2 0h2M7 17h6" /></svg>`;
+    }
+    if (id === "sync-auto") {
+      return `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>`;
+    }
+    if (id.includes("play-pause")) {
+      return `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" /><path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>`;
+    }
+    if (id === "sync-seek-back-fast") {
+      return `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 19l-7-7 7-7m8 14l-7-7 7-7" /></svg>`;
+    }
+    if (id === "sync-seek-forward-fast") {
+      return `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 5l7 7-7 7M5 5l7 7-7 7" /></svg>`;
+    }
+    if (id === "sync-seek-back" || id.includes("prev-sub")) {
+      return `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" /></svg>`;
+    }
+    if (id === "sync-seek-forward" || id.includes("next-sub")) {
+      return `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" /></svg>`;
+    }
+    if (id.includes("offset-up-fast") || id === "sync-prev-anchor") {
+      return `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 11l7-7 7 7M5 19l7-7 7 7" /></svg>`;
+    }
+    if (id.includes("offset-down-fast") || id === "sync-next-anchor") {
+      return `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 13l-7 7-7-7m14-8l-7 7-7-7" /></svg>`;
+    }
+    if (id.includes("offset-up") || id.includes("prev-page")) {
+      return `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7" /></svg>`;
+    }
+    if (id.includes("offset-down") || id.includes("next-page")) {
+      return `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" /></svg>`;
+    }
+    if (id.includes("undo")) {
+      return `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" /></svg>`;
+    }
+    if (id.includes("confirm")) {
+      return `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" /></svg>`;
+    }
+    if (id.includes("suggested")) {
+      return `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>`;
+    }
+    if (id.includes("swap")) {
+      return `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" /></svg>`;
+    }
+    if (id.includes("cycle")) {
+      return `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" /></svg>`;
+    }
+    // Fallback: keyboard icon
+    return `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9" /></svg>`;
   }
 </script>
 
 {#snippet shortcutRow(shortcut: ShortcutDefinition)}
+  <!-- svelte-ignore a11y_click_events_have_key_events -->
+  <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div
-    class="flex items-center justify-between p-3 rounded-lg transition-colors
+    class="flex items-center justify-between p-4 rounded-xl border transition-all duration-200 cursor-pointer
       {editingShortcut === shortcut.id
-      ? 'bg-indigo-500/20 ring-1 ring-indigo-500'
-      : 'bg-white/5 hover:bg-white/10'}"
-    style="content-visibility: auto; contain-intrinsic-size: auto 52px;"
+      ? 'bg-red-500/10 border-red-500/50 shadow-[0_0_15px_rgba(239,68,68,0.25)] text-white font-semibold'
+      : 'bg-white/5 border-white/5 hover:bg-white/10 hover:border-white/10 text-gray-300 hover:text-white'}"
+    onclick={() => startEditing(shortcut.id)}
   >
-    <div class="flex-1">
-      <p class="text-sm text-white">{t(shortcut.description)}</p>
-      {#if isModified(shortcut)}
-        <p class="text-xs text-amber-400 mt-1">
-          {t("shortcuts.modified", { key: getDefaultKey(shortcut.id) })}
-        </p>
-      {/if}
+    <div class="flex items-center gap-3 min-w-0 flex-1 pr-3">
+      <!-- Custom shortcut icon -->
+      <div class="shrink-0 text-gray-400 group-hover:text-white transition-colors flex items-center justify-center">
+        {@html getShortcutIcon(shortcut.id)}
+      </div>
+
+      <div class="min-w-0 flex-1">
+        <p class="text-sm font-semibold truncate">{t(shortcut.description)}</p>
+        {#if isModified(shortcut)}
+          <p class="text-[10px] text-amber-400/80 mt-0.5 font-medium">
+            {t("shortcuts.modified", { key: getDefaultKey(shortcut.id) })}
+          </p>
+        {/if}
+      </div>
     </div>
 
-    <div class="flex items-center gap-2">
+    <div class="flex items-center gap-2 shrink-0">
       {#if editingShortcut === shortcut.id}
-        <div class="flex items-center gap-2 text-indigo-300 animate-pulse">
-          <span class="text-sm">{t("shortcuts.pressKeys")}</span>
+        <!-- svelte-ignore a11y_click_events_have_key_events -->
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
+        <div
+          class="flex items-center gap-2 text-xs text-red-100 font-bold animate-pulse bg-red-600/20 border border-red-500/40 px-3 py-1.5 rounded-lg cursor-default"
+          onclick={(e) => e.stopPropagation()}
+        >
+          <span>{$currentLanguage === "it" ? "Registrazione tasti..." : "Recording keys..."}</span>
           <button
-            onclick={cancelEditing}
-            class="text-gray-400 hover:text-white p-1"
+            onclick={(e) => {
+              e.stopPropagation();
+              cancelEditing();
+            }}
+            class="text-red-300 hover:text-white p-0.5 transition-colors focus:outline-none cursor-pointer"
             aria-label="Cancel"
           >
             <svg
-              class="w-4 h-4"
+              class="w-3.5 h-3.5"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -224,7 +450,7 @@
               <path
                 stroke-linecap="round"
                 stroke-linejoin="round"
-                stroke-width="2"
+                stroke-width="2.5"
                 d="M6 18L18 6M6 6l12 12"
               />
             </svg>
@@ -232,42 +458,20 @@
         </div>
       {:else}
         <div class="flex items-center gap-1">
-          {#each shortcut.defaultKey.split("+") as keyPart, i}
-            {#if i > 0}
-              <span class="text-gray-500 text-xs font-bold">+</span>
-            {/if}
-            <kbd
-              class="px-2 py-1 bg-gray-800 border border-gray-600 rounded text-xs text-gray-300 font-mono shadow-md"
-            >
-              {keyPart}
-            </kbd>
-          {/each}
-        </div>
-
-        <button
-          onclick={() => startEditing(shortcut.id)}
-          class="p-1.5 text-gray-500 hover:text-indigo-400 hover:bg-white/5 rounded transition-colors"
-          title={t("shortcuts.editShortcut")}
-        >
-          <svg
-            class="w-4 h-4"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
+          <kbd
+            class="px-3 py-1.5 bg-gray-950/80 border border-white/10 rounded-lg text-xs text-gray-300 font-mono shadow-sm font-semibold tracking-wide whitespace-nowrap"
           >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-            />
-          </svg>
-        </button>
+            {shortcut.defaultKey.split("+").join(" + ")}
+          </kbd>
+        </div>
 
         {#if isModified(shortcut)}
           <button
-            onclick={() => resetSingle(shortcut.id)}
-            class="p-1.5 text-gray-500 hover:text-amber-400 hover:bg-white/5 rounded transition-colors"
+            onclick={(e) => {
+              e.stopPropagation();
+              resetSingle(shortcut.id);
+            }}
+            class="p-1.5 text-amber-400 hover:text-amber-300 hover:bg-amber-500/10 rounded-lg transition-all cursor-pointer"
             title={t("shortcuts.resetDefault")}
           >
             <svg
@@ -291,85 +495,181 @@
 {/snippet}
 
 <div
-  class="h-full flex flex-col p-6 overflow-y-auto bg-gradient-to-br from-gray-900 via-gray-900 to-gray-950"
+  class="h-full flex flex-col bg-gradient-to-br from-gray-900 via-gray-900 to-gray-950"
   style="contain: layout style; will-change: transform;"
 >
-  {#if error}
-    <div
-      class="mb-4 p-4 bg-red-500/10 border border-red-500/30 rounded-xl flex items-center gap-3 animate-fade-in"
-    >
-      <svg
-        class="w-5 h-5 text-red-400"
-        fill="none"
-        stroke="currentColor"
-        viewBox="0 0 24 24"
-      >
-        <path
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          stroke-width="2"
-          d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-        />
-      </svg>
-      <span class="text-red-300 flex-1">{error}</span>
-      <button
-        onclick={() => (error = null)}
-        class="text-red-400 hover:text-red-300">✕</button
-      >
+  <!-- Top Bar with Category Filters & Search Input aligned exactly to Vesta top heights -->
+  <div class="h-[89px] px-6 shrink-0 flex items-center justify-between gap-4 border-b border-white/10 bg-gray-900">
+    <!-- Left side: Category buttons -->
+    <div class="flex items-center gap-4 min-w-0">
+      <div class="flex flex-wrap gap-2 items-center">
+        {#each categoryFilterItems as cat}
+          <button
+            onclick={() => toggleCategory(cat)}
+            class="px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 border
+              {selectedCategories.includes(cat)
+              ? 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white border-indigo-500/50 shadow-md shadow-indigo-500/20'
+              : 'bg-white/5 text-gray-400 border-transparent hover:bg-white/10 hover:text-white'}"
+          >
+            {categoryText(cat)}
+          </button>
+        {/each}
+      </div>
     </div>
-  {/if}
 
-  {#if success}
-    <div
-      class="mb-4 p-4 bg-green-500/10 border border-green-500/30 rounded-xl flex items-center gap-3 animate-fade-in"
-    >
-      <svg
-        class="w-5 h-5 text-green-400"
-        fill="none"
-        stroke="currentColor"
-        viewBox="0 0 24 24"
-      >
-        <path
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          stroke-width="2"
-          d="M5 13l4 4L19 7"
-        />
-      </svg>
-      <span class="text-green-300">{success}</span>
-    </div>
-  {/if}
+    <!-- Right side: Search Bar & Toggle -->
+    <div class="flex items-center gap-3 shrink-0">
+      <!-- Search Input Container -->
+      <div class="relative flex items-center w-72">
+        {#if searchMode === "text"}
+          <input
+            type="text"
+            bind:value={searchQuery}
+            placeholder={$currentLanguage === 'it' ? 'Cerca scorciatoie...' : 'Search shortcuts...'}
+            class="w-full pl-9 pr-8 py-2 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/30 transition-all placeholder-gray-500"
+          />
+          <svg class="absolute left-3 w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+          {#if searchQuery}
+            <button
+              onclick={() => (searchQuery = "")}
+              class="absolute right-3 text-gray-500 hover:text-white transition-colors"
+              aria-label="Clear search"
+            >
+              ✕
+            </button>
+          {/if}
+        {:else}
+          <!-- Key Search Container -->
+          <!-- svelte-ignore a11y_click_events_have_key_events -->
+          <!-- svelte-ignore a11y_no_static_element_interactions -->
+          <div
+            onclick={(e) => {
+              e.stopPropagation();
+              if (isListeningForSearchKeys) {
+                stopSearchKeysListening();
+              } else {
+                startSearchKeysListening();
+              }
+            }}
+            class="w-full pl-9 pr-8 py-2 min-h-[38px] bg-white/5 border rounded-xl text-sm text-white focus:outline-none transition-all flex items-center cursor-pointer select-none
+              {isListeningForSearchKeys ? 'border-indigo-500/50 ring-1 ring-indigo-500/30 bg-indigo-500/5' : 'border-white/10'}"
+          >
+            <svg class="absolute left-3 w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            <div class="flex-1 flex flex-wrap items-center gap-1 min-w-0">
+              {#if searchKeys.length > 0}
+                <div class="flex items-center gap-0.5 flex-wrap">
+                  {#each searchKeys as key, i}
+                    {#if i > 0}
+                      <span class="text-gray-500 text-[10px]">+</span>
+                    {/if}
+                    <kbd class="px-1.5 py-0.5 bg-gray-950 border border-white/15 rounded text-[10px] text-gray-300 font-mono font-semibold shadow-sm tracking-wide whitespace-nowrap">
+                      {key}
+                    </kbd>
+                  {/each}
+                  {#if isListeningForSearchKeys}
+                    <span class="w-[1.5px] h-3.5 bg-indigo-400 animate-pulse ml-0.5 shrink-0"></span>
+                  {/if}
+                </div>
+              {:else if isListeningForSearchKeys}
+                <span class="text-xs text-indigo-400 font-medium animate-pulse">{$currentLanguage === 'it' ? 'Premi i tasti...' : 'Press keys...'}</span>
+              {:else}
+                <span class="text-gray-500 text-xs">{$currentLanguage === 'it' ? 'Cerca per tasti...' : 'Search by keys...'}</span>
+              {/if}
+            </div>
+            {#if searchKeys.length > 0 || isListeningForSearchKeys}
+              <button
+                onclick={(e) => {
+                  e.stopPropagation();
+                  clearSearchKeys();
+                }}
+                class="absolute right-3 text-gray-500 hover:text-white transition-colors"
+                aria-label="Clear search keys"
+              >
+                ✕
+              </button>
+            {/if}
+          </div>
+        {/if}
+      </div>
 
-  <div class="flex items-center gap-4 mb-6">
-    <div class="flex items-center gap-2">
-      <button
-        onclick={() => (filter = "all")}
-        class="px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm
-          {filter === 'all'
-          ? 'bg-indigo-500 text-white ring-1 ring-indigo-300/30'
-          : 'bg-white/5 text-gray-400 hover:bg-white/10'}"
-      >
-        {t("shortcuts.filter.all")}
-      </button>
-      <span class="h-7 w-px bg-white/10" aria-hidden="true"></span>
-      {#each categoryFilterItems as cat}
+      <!-- Segmented Search Mode Control -->
+      <div class="flex items-center bg-white/5 border border-white/10 rounded-xl p-0.5 shrink-0">
         <button
-          onclick={() => (filter = cat as any)}
-          class="px-4 py-2 rounded-lg text-sm font-medium transition-colors
-            {filter === cat
-            ? 'bg-indigo-500 text-white'
-            : 'bg-white/5 text-gray-400 hover:bg-white/10'}"
+          onclick={() => setSearchMode("text")}
+          class="px-2.5 py-1.5 rounded-lg text-[10px] font-bold transition-all duration-200 flex items-center gap-1 cursor-pointer
+            {searchMode === 'text'
+              ? 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-md shadow-indigo-500/20'
+              : 'text-gray-400 hover:text-white hover:bg-white/5'}"
+          title={$currentLanguage === 'it' ? 'Cerca per testo' : 'Search by text'}
         >
-          {categoryText(cat)}
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h7" />
+          </svg>
+          <span>TEXT</span>
         </button>
+        <button
+          onclick={() => setSearchMode("keys")}
+          class="px-2.5 py-1.5 rounded-lg text-[10px] font-bold transition-all duration-200 flex items-center gap-1 cursor-pointer
+            {searchMode === 'keys'
+              ? 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-md shadow-indigo-500/20'
+              : 'text-gray-400 hover:text-white hover:bg-white/5'}"
+          title={$currentLanguage === 'it' ? 'Cerca per tasti' : 'Search by keys'}
+        >
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M3 10h18M7 15h1m4 0h1-4m8 0h1m-9 0H3m18 0h-3M5 5h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2z" />
+          </svg>
+          <span>KEYS</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scrollable grid area for shortcut cards -->
+  <div class="px-6 py-6 flex-1 overflow-y-auto min-h-0">
+    {#if error}
+      <div
+        class="mb-4 p-4 bg-red-500/10 border border-red-500/30 rounded-xl flex items-center gap-3 animate-fade-in"
+      >
+        <svg
+          class="w-5 h-5 text-red-400"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+          />
+        </svg>
+        <span class="text-red-300 flex-1">{error}</span>
+        <button
+          onclick={() => (error = null)}
+          class="text-red-400 hover:text-red-300">✕</button
+        >
+      </div>
+    {/if}
+
+    <div class="grid gap-4 grid-cols-1 md:grid-cols-2 xl:grid-cols-3 content-start">
+      {#each filteredShortcuts as shortcut}
+        {@render shortcutRow(shortcut)}
       {/each}
     </div>
+  </div>
 
-    <div class="flex-1"></div>
-
-    <button onclick={() => (showResetAllConfirm = true)} class="btn-secondary py-2 px-4 text-sm">
+  <!-- Fixed Bottom Band styled and sized to sidebar bottom -->
+  <div class="h-[92px] border-t border-white/10 bg-gray-950 flex items-center justify-center shrink-0">
+    <button
+      onclick={() => (showResetAllConfirm = true)}
+      class="px-5 py-2.5 bg-red-600 hover:bg-red-500 text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-red-900/30 flex items-center gap-2 hover:scale-[1.02] active:scale-[0.98]"
+    >
       <svg
-        class="w-4 h-4 inline mr-2"
+        class="w-4 h-4"
         fill="none"
         stroke="currentColor"
         viewBox="0 0 24 24"
@@ -381,98 +681,18 @@
           d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
         />
       </svg>
-      {t("shortcuts.resetAll")}
+      {t("settings.resetDefaults") || "Ripristina predefiniti"}
     </button>
   </div>
 
-  <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
-    {#each Object.entries(groupedShortcuts).filter(([cat]) => cat !== "sync") as [category, categoryShortcuts]}
-      {#if categoryShortcuts.length > 0}
-        <div class="glass-card p-5" style="content-visibility: auto; contain-intrinsic-size: auto 300px;">
-          <div class="mb-4">
-            <h3 class="text-lg font-semibold text-white flex items-center gap-2">
-              <span aria-hidden="true">{categoryIcons[category]}</span>
-              {categoryText(category)}
-            </h3>
-            <p class="text-xs text-gray-500 mt-1">
-              {t(categoryDescriptions[category])}
-            </p>
-          </div>
-
-          <div class="space-y-2">
-            {#each categoryShortcuts as shortcut}
-              {@render shortcutRow(shortcut)}
-            {/each}
-          </div>
-        </div>
-      {/if}
-    {/each}
-  </div>
-
-  {#if groupedShortcuts.sync.length > 0}
-    <div class="mt-6">
-      <div class="glass-card p-5" style="content-visibility: auto; contain-intrinsic-size: auto 400px;">
-        <div class="mb-4">
-          <h3 class="text-lg font-semibold text-white flex items-center gap-2">
-            <span aria-hidden="true">{categoryIcons.sync}</span>
-            {categoryText("sync")}
-          </h3>
-          <p class="text-xs text-gray-500 mt-1">
-            {t("shortcuts.category.sync.desc")}
-          </p>
-        </div>
-
-        <div class="grid grid-cols-1 xl:grid-cols-2 gap-4">
-          <div class="space-y-2">
-            {#each syncShortcutsLeft as shortcut}
-              {@render shortcutRow(shortcut)}
-            {/each}
-          </div>
-
-          <div class="space-y-2">
-            {#each syncShortcutsRight as shortcut}
-              {@render shortcutRow(shortcut)}
-            {/each}
-          </div>
-        </div>
-      </div>
-    </div>
-  {/if}
-
-  {#if showResetAllConfirm}
-    <div
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
-      role="dialog"
-      aria-modal="true"
-      tabindex="-1"
-      onclick={() => (showResetAllConfirm = false)}
-      onkeydown={(e) => {
-        if (e.key === "Escape") showResetAllConfirm = false;
-      }}
-    >
-      <!-- svelte-ignore a11y_no_static_element_interactions -->
-      <div
-        class="p-6 max-w-sm w-full mx-4 shadow-2xl border border-white/10 rounded-2xl"
-        style="background: #1e1e2e;"
-        onclick={(e) => e.stopPropagation()}
-        onkeydown={(e) => e.stopPropagation()}
-      >
-        <h3 class="text-lg font-semibold text-white mb-2">
-          {t("shortcuts.resetAll")}
-        </h3>
-        <p class="text-gray-400 text-sm mb-6">{t("shortcuts.confirmReset")}</p>
-        <div class="flex gap-3 justify-end">
-          <button
-            onclick={() => (showResetAllConfirm = false)}
-            class="btn-secondary py-2 px-5 text-sm"
-          >
-            {t("sync.cancelReset")}
-          </button>
-          <button onclick={confirmResetToDefaults} class="btn-danger py-2 px-5 text-sm">
-            OK
-          </button>
-        </div>
-      </div>
-    </div>
-  {/if}
+  <ConfirmDialog
+    show={showResetAllConfirm}
+    title={t("settings.resetDefaults") || "Ripristinare i valori predefiniti?"}
+    message={t("shortcuts.confirmReset") || "Tutte le scorciatoie personalizzate verranno ripristinate ai valori predefiniti."}
+    confirmText="OK"
+    cancelText={t("sync.cancelReset") || "Annulla"}
+    variant="danger"
+    on:cancel={() => (showResetAllConfirm = false)}
+    on:confirm={confirmResetToDefaults}
+  />
 </div>

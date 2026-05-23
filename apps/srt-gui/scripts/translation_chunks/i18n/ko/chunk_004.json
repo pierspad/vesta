@@ -1,4 +1,15 @@
 {
+  "translate.subtitles": "자막",
+  "translate.log": "로그",
+  "translate.clearLog": "지우기",
+  "translate.noLog": "로그 없음...",
+  "translate.options": "번역 옵션",
+  "translate.provider": "제공자",
+  "translate.apiKey": "API 키",
+  "translate.model": "모델",
+  "translate.targetLang": "대상 언어",
+  "translate.batchSize": "배치 크기",
+  "translate.batchSizeTooltip": "API 요청당 자막 수. 높을수록 호출 횟수 감소, 토큰 증가.",
   "translate.slow": "느림",
   "translate.fast": "빠름",
   "translate.context": "컨텍스트",
@@ -37,16 +48,5 @@
   "sync.loadVideo": "비디오 로드",
   "sync.saveFile": "파일 저장",
   "sync.saveSession": "세션 저장",
-  "sync.loadSession": "세션 불러오기",
-  "sync.reset": "초기화",
-  "sync.noSrt": "SRT 없음",
-  "sync.noVideo": "비디오 없음",
-  "sync.subtitles": "자막",
-  "sync.anchors": "앵커",
-  "sync.completion": "완료율",
-  "sync.avgOffset": "평균 오프셋",
-  "sync.suggested": "제안",
-  "sync.video": "비디오",
-  "sync.currentSubtitle": "현재 자막",
-  "sync.noSubtitleSelected": "선택된 자막 없음"
+  "sync.loadSession": "세션 불러오기"
 }

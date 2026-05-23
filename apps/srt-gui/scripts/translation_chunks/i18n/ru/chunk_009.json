@@ -1,4 +1,15 @@
 {
+  "settings.modal.defaultModelHint": "Модель по умолчанию для этой конфигурации",
+  "settings.modal.defaultModelPlaceholder": "напр.: llama3.2, mistral, gpt-4o",
+  "settings.modal.modelOptionalHint": "Опционально. Вы сможете выбрать модель во вкладке Перевод. Это лишь значение по умолчанию.",
+  "settings.modal.providerAnthropic": "Claude от Anthropic",
+  "settings.modal.providerAnthropicDesc": "Модели Opus 4.6 и Sonnet 4.6",
+  "settings.modal.providerGoogle": "API Google",
+  "settings.modal.providerGoogleDesc": "Модели Google API 3.1 Pro и 3 Flash",
+  "settings.modal.providerOpenai": "GPT от OpenAI",
+  "settings.modal.providerOpenaiDesc": "Модели GPT-5.2 и GPT-5",
+  "settings.modelsHint": "Кликните на модель, чтобы быстро добавить API ключ с этой моделью по умолчанию",
+  "settings.soonBadge": "Скоро",
   "settings.stopModelDownload": "Остановить загрузку",
   "settings.stoppingModelDownload": "Остановка...",
   "settings.modelDownloading": "Загрузка модели: {{model}}",
@@ -37,16 +48,5 @@
   "sync.saveSession": "Сохранить сессию",
   "sync.seek": "Поиск ±0.1с",
   "sync.sessionSaved": "Сессия сохранена:",
-  "sync.srtPlaceholder": "Загрузите файл SRT для старта",
-  "sync.statusTitle": "Статус",
-  "sync.subtitle": "Выравнивание субтитров по звуку с помощью умных точек",
-  "sync.subtitles": "Субтитры",
-  "sync.title": "Синхронизация Субтитров",
-  "sync.tooltip.loadAudio": "Загрузить аудио или видео (используется только звук)",
-  "sync.tooltip.loadSrt": "Загрузить SRT файл субтитров",
-  "sync.tooltip.loadVideo": "Загрузить видео файл",
-  "sync.tooltipLoadSession": "Возобновить сохраненную сессию (.json). Сессия хранит файл SRT, путь к видео, все якоря и прогресс.",
-  "sync.tooltipRemoveAnchor": "Удалить этот якорь",
-  "sync.tooltipSaveFile": "Экспортировать финальный синхронизированный SRT файл (.srt). Это готовый к использованию результат.",
-  "sync.tooltipSaveSession": "Сохранить текущее состояние в .json файл. Позволяет прерваться и продолжить позже."
+  "sync.srtPlaceholder": "Загрузите файл SRT для старта"
 }

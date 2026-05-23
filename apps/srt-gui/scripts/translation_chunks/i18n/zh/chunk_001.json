@@ -33,6 +33,11 @@
   "shortcuts.action.goToSettings": "转到设置",
   "shortcuts.action.goToShortcuts": "转到快捷键",
   "shortcuts.action.addApiKey": "添加API密钥",
+  "shortcuts.action.autoSync": "自动同步字幕",
+  "shortcuts.action.newSync": "新同步会话",
+  "shortcuts.action.loadSession": "加载同步会话",
+  "shortcuts.action.saveSession": "保存同步会话",
+  "shortcuts.action.syncUndo": "撤销同步编辑",
   "shortcuts.action.openSrt": "打开SRT文件",
   "shortcuts.action.startTranslation": "开始翻译",
   "shortcuts.action.cancelTranslation": "取消翻译",
@@ -43,10 +48,5 @@
   "shortcuts.action.back1s": "后退1秒",
   "shortcuts.action.forward1s": "前进1秒",
   "shortcuts.action.offsetUp": "偏移 +100毫秒",
-  "shortcuts.action.offsetDown": "偏移 -100毫秒",
-  "shortcuts.action.offsetUpFast": "偏移 +500毫秒",
-  "shortcuts.action.offsetDownFast": "偏移 -500毫秒",
-  "shortcuts.action.confirmAnchor": "确认锚点",
-  "shortcuts.action.nextSubtitle": "下一个字幕",
-  "shortcuts.action.prevSubtitle": "上一个字幕"
+  "shortcuts.action.offsetDown": "偏移 -100毫秒"
 }

@@ -1,4 +1,15 @@
 {
+  "transcribe.noBackendWarning": "Whisper バックエンドが見つかりません",
+  "transcribe.noInputMediaSelected": "入力メディアが選択されていません",
+  "transcribe.noOutputFileSelected": "出力ファイルが選択されていません",
+  "transcribe.notDownloaded": "未ダウンロード",
+  "transcribe.outputPathDesc": "出力 SRT ファイルのパスを入力または編集してください。",
+  "transcribe.outputRequired": "出力ファイルを選択してください",
+  "transcribe.processing": "処理中",
+  "transcribe.progress": "進捗",
+  "transcribe.readyToProcess": "文字起こしの準備完了",
+  "transcribe.segmentLong": "長い",
+  "transcribe.segmentLongDesc": "60秒 — 行数が少なく、より長い行",
   "transcribe.segmentMedium": "中間",
   "transcribe.segmentMediumDesc": "20秒 — バランス重視",
   "transcribe.segmentShort": "短い",
@@ -37,16 +48,5 @@
   "translate.dropFileHere": "ファイルをここにドロップ",
   "translate.dropFileHint": "SRT字幕ファイル",
   "translate.tooltip.upload": "入力 SRT ファイルを選択",
-  "translate.waitingForTranslation": "翻訳の開始を待機中...",
-  "flashcards.browse": "参照",
-  "flashcards.columns1": "1列",
-  "flashcards.columns2": "2列",
-  "flashcards.columns3": "3列",
-  "flashcards.modeMovie": "映画モード",
-  "flashcards.modeSeries": "シリーズモード",
-  "flashcards.seriesEpisodes": "エピソード",
-  "flashcards.addTargetSubs": "ターゲット字幕を追加",
-  "flashcards.addNativeSubs": "母語字幕を追加",
-  "flashcards.addMedia": "メディアを追加",
-  "flashcards.clearAll": "すべて消去"
+  "translate.waitingForTranslation": "翻訳の開始を待機中..."
 }

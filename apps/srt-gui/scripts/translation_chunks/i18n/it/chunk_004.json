@@ -1,4 +1,15 @@
 {
+  "translate.selectFile": "Nessun file di input selezionato",
+  "translate.outputFile": "File Output",
+  "translate.selectDestination": "Nessun file di output selezionato",
+  "translate.subtitles": "sottotitoli",
+  "translate.log": "Registro",
+  "translate.clearLog": "Cancella",
+  "translate.noLog": "Nessun log...",
+  "translate.options": "Opzioni Traduzione",
+  "translate.provider": "Fornitore",
+  "translate.apiKey": "Chiave API",
+  "translate.model": "Modello",
   "translate.targetLang": "Lingua Target",
   "translate.batchSize": "Dimensione Batch",
   "translate.batchSizeTooltip": "Numero di sottotitoli per richiesta API. Valori alti = meno chiamate ma più token.",
@@ -37,16 +48,5 @@
   "translate.errorTranslating": "Errore traduzione:",
   "translate.livePreview": "Anteprima Live",
   "translate.original": "Originale",
-  "translate.translated": "Tradotto",
-  "translate.waitingForTranslation": "In attesa dell'avvio della traduzione...",
-  "translate.errorCancelling": "Errore annullamento:",
-  "translate.errorSelectingFile": "Errore selezione file:",
-  "translate.tooltip.upload": "Seleziona file SRT da tradurre",
-  "translate.tooltip.save": "Seleziona destinazione output",
-  "translate.dropFileHere": "Rilascia il file qui",
-  "translate.dropFileHint": "File sottotitoli SRT",
-  "sync.title": "Sincronizzazione Sottotitoli",
-  "sync.subtitle": "Allinea i sottotitoli con il video usando punti di riferimento",
-  "sync.wizard.title": "Wizard Sincronizzazione",
-  "sync.statusTitle": "Stato"
+  "translate.translated": "Tradotto"
 }

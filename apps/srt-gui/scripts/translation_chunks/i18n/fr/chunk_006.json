@@ -1,4 +1,15 @@
 {
+  "shortcuts.action.cancelGeneration": "Annuler la génération",
+  "shortcuts.action.previewCards": "Aperçu des cartes",
+  "shortcuts.action.prevAnchor": "Ancre précédente",
+  "shortcuts.action.nextAnchor": "Ancre suivante",
+  "flashcards.exportAPKGBadge": "Recommandé",
+  "flashcards.exportTSVBadge": "Classique",
+  "shortcuts.overlay.title": "Raccourcis clavier",
+  "shortcuts.overlay.hint": "Shift+? pour afficher/masquer",
+  "shortcuts.overlay.global": "Globales",
+  "shortcuts.editShortcut": "Modifier le raccourci",
+  "shortcuts.resetDefault": "Réinitialiser",
   "settings.googleProviderTip": "Pour utiliser la traduction, vous avez besoin d'une clé API Google Cloud avec l'API Cloud Translation activée.",
   "settings.localProviderTip": "Avec un fournisseur local, Ollama + un modèle comme gemma3 effectue la traduction localement, sans frais et sans envoi de données.",
   "settings.groqProviderTip": "Inférence ultra-rapide optimisée par Groq LPU. Nécessite une clé API gsk_ à partir de console.groq.com.",
@@ -37,16 +48,5 @@
   "flashcards.closePreview": "Fermer",
   "flashcards.combineSentences": "Combiner les phrases divisées",
   "flashcards.comingSoonDesc": "Créez des flashcards Anki automatiquement à partir de vos sous-titres. Parfait pour l'apprentissage des langues avec les films et les séries.",
-  "flashcards.contextLines": "Lignes de Contexte",
-  "flashcards.continuationCharsHint": "Caractères qui indiquent qu'une ligne continue sur la suivante",
-  "flashcards.cpuBalanced": "Équilibré",
-  "flashcards.cpuBalancedDesc": "50% des cœurs",
-  "flashcards.cpuCores": "Cœurs de processeur",
-  "flashcards.cpuCoresNote": "Au moins 1 cœur reste libre pour le système. Plus de cœurs = génération plus rapide.",
-  "flashcards.cpuCoresUsage": "Threads parallèles",
-  "flashcards.cpuEco": "Éco",
-  "flashcards.cpuEcoDesc": "Charge minimale",
-  "flashcards.cpuFullPower": "Pleine Puissance",
-  "flashcards.cpuFullPowerDesc": "Maximum de cœurs",
-  "flashcards.cpuMax": "maximum"
+  "flashcards.contextLines": "Lignes de Contexte"
 }

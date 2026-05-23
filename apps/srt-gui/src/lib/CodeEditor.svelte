@@ -104,6 +104,54 @@
   }
 
   function handleKeydown(e: KeyboardEvent) {
+    if (contextMenu) {
+      const key = e.key.toLowerCase();
+      if (e.key === "Escape") {
+        closeContextMenu();
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
+      if (key === "u" && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault();
+        e.stopPropagation();
+        undo();
+        closeContextMenu();
+        return;
+      }
+      if (key === "r" && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault();
+        e.stopPropagation();
+        redo();
+        closeContextMenu();
+        return;
+      }
+      if (key === "c" && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault();
+        e.stopPropagation();
+        void copySelection();
+        return;
+      }
+      if (key === "x" && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault();
+        e.stopPropagation();
+        void cutSelection();
+        return;
+      }
+      if (key === "v" && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault();
+        e.stopPropagation();
+        void pasteClipboard();
+        return;
+      }
+      if (key === "a" && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault();
+        e.stopPropagation();
+        selectAllText();
+        return;
+      }
+    }
+
     // Check for Ctrl+Z and Ctrl+Y / Ctrl+Shift+Z
     if (e.ctrlKey || e.metaKey) {
       if (e.key === 'z') {
@@ -317,29 +365,29 @@
       >
         <button type="button" class="vesta-context-menu-item" onclick={() => { undo(); closeContextMenu(); }}>
           <span>Undo</span>
-          <kbd>Ctrl Z</kbd>
+          <kbd>U / Ctrl Z</kbd>
         </button>
         <button type="button" class="vesta-context-menu-item" onclick={() => { redo(); closeContextMenu(); }}>
           <span>Redo</span>
-          <kbd>Ctrl Y</kbd>
+          <kbd>R / Ctrl Y</kbd>
         </button>
         <div class="vesta-context-menu-separator"></div>
         <button type="button" class="vesta-context-menu-item" onclick={copySelection}>
           <span>Copy</span>
-          <kbd>Ctrl C</kbd>
+          <kbd>C / Ctrl C</kbd>
         </button>
         <button type="button" class="vesta-context-menu-item" onclick={cutSelection}>
           <span>Cut</span>
-          <kbd>Ctrl X</kbd>
+          <kbd>X / Ctrl X</kbd>
         </button>
         <button type="button" class="vesta-context-menu-item" onclick={pasteClipboard}>
           <span>Paste</span>
-          <kbd>Ctrl V</kbd>
+          <kbd>V / Ctrl V</kbd>
         </button>
         <div class="vesta-context-menu-separator"></div>
         <button type="button" class="vesta-context-menu-item" onclick={selectAllText}>
           <span>Select all</span>
-          <kbd>Ctrl A</kbd>
+          <kbd>A / Ctrl A</kbd>
         </button>
       </div>
     </div>

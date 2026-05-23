@@ -1,4 +1,15 @@
 {
+  "shortcuts.action.cancelGeneration": "取消生成",
+  "shortcuts.action.previewCards": "预览卡片",
+  "shortcuts.action.prevAnchor": "上一个锚点",
+  "shortcuts.action.nextAnchor": "下一个锚点",
+  "flashcards.exportAPKGBadge": "推荐",
+  "flashcards.exportTSVBadge": "经典",
+  "shortcuts.overlay.title": "键盘快捷键",
+  "shortcuts.overlay.hint": "按 Shift+? 切换",
+  "shortcuts.overlay.global": "全局",
+  "shortcuts.editShortcut": "编辑快捷键",
+  "shortcuts.resetDefault": "恢复默认",
   "settings.googleProviderTip": "要使用翻译功能,您需要一个启用了 Cloud Translation API 的 Google Cloud API 密钥。",
   "settings.localProviderTip": "使用本地提供商,Ollama + gemma3 等模型在本地执行翻译——免费且不会发送数据到外部。",
   "settings.groqProviderTip": "采用 Groq LPU 提供支持超快推理。需要从 console.groq.com 获取的 gsk_ 格式 API 密钥。",
@@ -37,16 +48,5 @@
   "flashcards.closePreview": "关闭",
   "flashcards.combineSentences": "合并拆分的句子",
   "flashcards.comingSoonDesc": "自动从您的字幕创建 Anki 闪卡。非常适合通过电影和电视剧学习语言。",
-  "flashcards.contextLines": "上下文行数",
-  "flashcards.continuationCharsHint": "指示行在下一行继续的字符",
-  "flashcards.cpuBalanced": "平衡",
-  "flashcards.cpuBalancedDesc": "50% 核心",
-  "flashcards.cpuCores": "CPU 核心",
-  "flashcards.cpuCoresNote": "至少保留 1 个核心给系统。核心越多 = 生成越快。",
-  "flashcards.cpuCoresUsage": "并行线程",
-  "flashcards.cpuEco": "节能",
-  "flashcards.cpuEcoDesc": "最小负载",
-  "flashcards.cpuFullPower": "全力",
-  "flashcards.cpuFullPowerDesc": "最大核心",
-  "flashcards.cpuMax": "最大"
+  "flashcards.contextLines": "上下文行数"
 }

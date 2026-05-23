@@ -19,7 +19,7 @@ jobs:
     name: Build (linux)
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup Python
         uses: actions/setup-python@v6
@@ -122,7 +122,7 @@ jobs:
     needs: build-linux
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Get version
         id: version
@@ -172,7 +172,7 @@ jobs:
     needs: build-linux
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Get version
         id: version
@@ -208,6 +208,8 @@ jobs:
 
           cp apps/srt-gui/src-tauri/icons/icon-512x512.png build-scripts/flatpak-files/com.vesta.desktop.png
           cp com.vesta.desktop.desktop build-scripts/flatpak-files/
+          sed -i 's/^Icon=vesta/Icon=com.vesta.desktop/' build-scripts/flatpak-files/com.vesta.desktop.desktop
+          sed -i 's/^StartupWMClass=vesta/StartupWMClass=com.vesta.desktop/' build-scripts/flatpak-files/com.vesta.desktop.desktop
 
           cd build-scripts
           flatpak-builder --force-clean --repo=repo flatpak-build com.vesta.desktop.flatpak.yml
@@ -226,7 +228,7 @@ jobs:
     name: Build (windows)
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
@@ -265,6 +267,12 @@ jobs:
         run: |
           choco install llvm -y
           echo "LIBCLANG_PATH=C:\Program Files\LLVM\lib" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Preflight Cargo check (whisper-rs-sys)
+        env:
+          SCCACHE_GHA_ENABLED: "true"
+          RUSTC_WRAPPER: "sccache"
+        run: cargo check -p whisper-rs-sys
 
       - name: Install frontend dependencies
         working-directory: ${{ env.TAURI_APP_DIR }}
@@ -326,7 +334,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Download all artifacts
         uses: actions/download-artifact@v7

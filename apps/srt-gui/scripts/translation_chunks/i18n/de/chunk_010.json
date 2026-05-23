@@ -1,4 +1,15 @@
 {
+  "sync.statusTitle": "Zustand",
+  "sync.subtitle": "Untertitel mit Audio mithilfe intelligenter Checkpoints abgleichen",
+  "sync.subtitles": "Untertitel",
+  "sync.title": "Untertitel-Synchronisierung",
+  "sync.tooltip.loadAudio": "Audio- oder Videodatei laden (nur Audio wird verwendet)",
+  "sync.tooltip.loadSrt": "SRT-Untertiteldatei laden",
+  "sync.tooltip.loadVideo": "Videodatei laden",
+  "sync.tooltipLoadSession": "Eine gespeicherte Synchronisierungssitzung (.json) fortsetzen. Eine Sitzung speichert die SRT-Datei, den Videopfad, alle bestätigten Anker und den Fortschritt, sodass Sie dort weitermachen können, wo Sie aufgehört haben.",
+  "sync.tooltipRemoveAnchor": "Diesen Synchronisations-Anker entfernen",
+  "sync.tooltipSaveFile": "Die endgültige synchronisierte SRT-Datei (.srt) mit allen angewendeten Timing-Korrekturen aus den Ankern exportieren. Dies ist die fertige Ausgabedatei.",
+  "sync.tooltipSaveSession": "Den aktuellen Synchronisationsstatus in einer .json-Datei speichern. Beinhaltet: SRT-Pfad, Videopfad, alle bestätigten Anker und Offsets. Nützlich, um die Arbeit zu pausieren und später fortzusetzen.",
   "sync.tryAnotherFile": "Eine andere Datei versuchen",
   "sync.wizard.allSynced": "Alle Untertitel scheinen synchronisiert zu sein!",
   "sync.wizard.checkpoint": "Prüfpunkt",
@@ -37,16 +48,5 @@
   "transcribe.modelTiny": "Winzig",
   "transcribe.modelUninstalled": "Modell deinstalliert",
   "transcribe.newTranscription": "Neue Transkription",
-  "transcribe.newTranscriptionDesc": "Alle Felder, Protokolle und Ergebnisse löschen, um eine neue Transkription zu starten",
-  "transcribe.noBackendWarning": "Kein Whisper-Backend gefunden",
-  "transcribe.noInputMediaSelected": "kein Eingabemedium ausgewählt",
-  "transcribe.noOutputFileSelected": "keine Ausgabedatei ausgewählt",
-  "transcribe.notDownloaded": "herunterladen",
-  "transcribe.outputPathDesc": "Geben Sie den Pfad der SRT-Ausgabedatei ein oder bearbeiten Sie ihn.",
-  "transcribe.outputRequired": "Bitte wählen Sie eine Ausgabedatei",
-  "transcribe.processing": "Verarbeitung",
-  "transcribe.progress": "Fortschritt",
-  "transcribe.readyToProcess": "Bereit zur Transkription",
-  "transcribe.segmentLong": "Lang",
-  "transcribe.segmentLongDesc": "60s — weniger, längere Zeilen"
+  "transcribe.newTranscriptionDesc": "Alle Felder, Protokolle und Ergebnisse löschen, um eine neue Transkription zu starten"
 }

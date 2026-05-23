@@ -1,4 +1,15 @@
 {
+  "translate.goToSettings": "Przejdź do Ustawień",
+  "translate.toAddOne": "aby dodać jeden.",
+  "translate.file": "Plik",
+  "translate.inputFile": "Wejściowy plik SRT",
+  "translate.selectFile": "Nie wybrano pliku wejściowego",
+  "translate.outputFile": "Plik wyjściowy",
+  "translate.selectDestination": "Nie wybrano pliku wyjściowego",
+  "translate.subtitles": "napisy",
+  "translate.log": "Dziennik",
+  "translate.clearLog": "Wyczyść",
+  "translate.noLog": "Brak logów...",
   "translate.options": "Opcje tłumaczenia",
   "translate.provider": "Dostawca",
   "translate.apiKey": "Klucz API",
@@ -37,16 +48,5 @@
   "translate.errorLoading": "Błąd ładowania pliku:",
   "translate.errorTranslating": "Błąd tłumaczenia:",
   "translate.livePreview": "Podgląd na żywo",
-  "translate.original": "Oryginał",
-  "translate.translated": "Przetłumaczone",
-  "translate.waitingForTranslation": "Oczekiwanie na rozpoczęcie tłumaczenia...",
-  "translate.errorCancelling": "Błąd podczas anulowania:",
-  "translate.errorSelectingFile": "Błąd podczas wybierania pliku:",
-  "translate.tooltip.upload": "Wybierz wejściowy plik SRT",
-  "translate.tooltip.save": "Wybierz miejsce zapisu",
-  "translate.dropFileHere": "Upuść plik tutaj",
-  "translate.dropFileHint": "Plik napisów SRT",
-  "sync.title": "Synchronizacja Napisów",
-  "sync.subtitle": "Wyrównaj napisy z dźwiękiem za pomocą inteligentnych punktów kontrolnych",
-  "sync.wizard.title": "Kreator synchronizacji"
+  "translate.original": "Oryginał"
 }

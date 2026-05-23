@@ -40,13 +40,13 @@
   "shortcuts.action.goToSettings": "الذهاب إلى الإعدادات",
   "shortcuts.action.goToShortcuts": "الذهاب إلى الاختصارات",
   "shortcuts.action.addApiKey": "إضافة مفتاح API",
+  "shortcuts.action.autoSync": "مزامنة الترجمة تلقائيًا",
+  "shortcuts.action.newSync": "جلسة مزامنة جديدة",
+  "shortcuts.action.loadSession": "تحميل جلسة المزامنة",
+  "shortcuts.action.saveSession": "حفظ جلسة المزامنة",
+  "shortcuts.action.syncUndo": "تراجع عن تعديل المزامنة",
   "shortcuts.action.openSrt": "فتح ملف SRT",
   "shortcuts.action.startTranslation": "بدء الترجمة",
   "shortcuts.action.cancelTranslation": "إلغاء الترجمة",
-  "shortcuts.action.clearLogs": "مسح السجلات",
-  "shortcuts.action.playPause": "تشغيل/إيقاف مؤقت",
-  "shortcuts.action.back01s": "الرجوع 0.1 ثانية",
-  "shortcuts.action.forward01s": "التقدم 0.1 ثانية",
-  "shortcuts.action.back1s": "الرجوع 1 ثانية",
-  "shortcuts.action.forward1s": "التقدم 1 ثانية"
+  "shortcuts.action.clearLogs": "مسح السجلات"
 }

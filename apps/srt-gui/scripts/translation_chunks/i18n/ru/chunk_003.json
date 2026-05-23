@@ -1,4 +1,15 @@
 {
+  "settings.modal.localServerDesc": "Ollama, LM Studio (Ваш ПК)",
+  "settings.modal.cloudApi": "Облачный API (OpenRouter)",
+  "settings.modal.cloudApiDesc": "GPT, Claude, Google API (Онлайн)",
+  "settings.modal.notRequiredForLocal": "Не требуется для локального сервера...",
+  "settings.modal.localEndpointDefault": "По умолчанию: http://localhost:11434/v1 (Ollama)",
+  "settings.modelFamilies": "Семейства моделей",
+  "settings.addCustomApiKey": "Добавить пользовательский API ключ",
+  "settings.keyAdded": "API ключ успешно добавлен",
+  "settings.keyUpdated": "Конфигурация успешно обновлена",
+  "settings.edit": "Редактировать",
+  "settings.modal.editApiKey": "Редактировать ключ API",
   "settings.keyDeleted": "API ключ удалён",
   "settings.keyCopied": "API ключ скопирован в буфер обмена",
   "settings.modelAdded": "Пользовательская модель добавлена",
@@ -37,16 +48,5 @@
   "translate.noLog": "Нет записей...",
   "translate.options": "Параметры Перевода",
   "translate.provider": "Провайдер",
-  "translate.apiKey": "API-ключ",
-  "translate.model": "Модель",
-  "translate.targetLang": "Целевой Язык",
-  "translate.batchSize": "Размер Пакета",
-  "translate.slow": "медленно",
-  "translate.fast": "быстро",
-  "translate.context": "Контекст",
-  "translate.contextPlaceholder": "напр.: Detour (1945), Nosferatu (1922)",
-  "translate.progress": "Прогресс",
-  "translate.batch": "Пакет",
-  "translate.timeRemaining": "Осталось времени:",
-  "translate.completed": "Перевод Завершён"
+  "translate.apiKey": "API-ключ"
 }

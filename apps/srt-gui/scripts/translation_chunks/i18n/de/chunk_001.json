@@ -33,6 +33,11 @@
   "shortcuts.action.goToSettings": "Zu Einstellungen",
   "shortcuts.action.goToShortcuts": "Zu Shortcuts",
   "shortcuts.action.addApiKey": "API-Schlüssel hinzufügen",
+  "shortcuts.action.autoSync": "Untertitel automatisch synchronisieren",
+  "shortcuts.action.newSync": "Neue Sync-Sitzung",
+  "shortcuts.action.loadSession": "Sync-Sitzung laden",
+  "shortcuts.action.saveSession": "Sync-Sitzung speichern",
+  "shortcuts.action.syncUndo": "Sync-Bearbeitung rückgängig machen",
   "shortcuts.action.openSrt": "SRT-Datei öffnen",
   "shortcuts.action.startTranslation": "Übersetzung starten",
   "shortcuts.action.cancelTranslation": "Übersetzung abbrechen",
@@ -43,10 +48,5 @@
   "shortcuts.action.back1s": "1s zurück",
   "shortcuts.action.forward1s": "1s vor",
   "shortcuts.action.offsetUp": "Versatz +100 ms",
-  "shortcuts.action.offsetDown": "Versatz -100 ms",
-  "shortcuts.action.offsetUpFast": "Versatz +500 ms",
-  "shortcuts.action.offsetDownFast": "Versatz -500 ms",
-  "shortcuts.action.confirmAnchor": "Anker bestätigen",
-  "shortcuts.action.nextSubtitle": "Nächster Untertitel",
-  "shortcuts.action.prevSubtitle": "Vorheriger Untertitel"
+  "shortcuts.action.offsetDown": "Versatz -100 ms"
 }

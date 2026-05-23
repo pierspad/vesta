@@ -3,11 +3,14 @@
   import { listen } from '@tauri-apps/api/event';
   import { readTextFile, writeTextFile } from '@tauri-apps/plugin-fs';
   import { onDestroy, onMount } from 'svelte';
-  import { guardedOpen, guardedSave } from './dialogGuard';
+  import { guardedOpen, guardedSave } from './utils/dialogGuard';
   import { locale } from './i18n';
   import InfoButton from './InfoButton.svelte';
-  import { languages } from './models';
+  import { languages, getFileName, inferLanguageFromPath, getFlagForPath } from './models';
   import PathPreviewModal from './PathPreviewModal.svelte';
+  import { snackbar } from './snackbarStore.svelte';
+  import InfoModal from './InfoModal.svelte';
+  import { revisionSections } from './info';
 
   let t = $derived($locale);
 
@@ -49,6 +52,20 @@
 
   let error = $state("");
   let success = $state("");
+
+  $effect(() => {
+    if (error) {
+      snackbar.show(error, "error", 4000);
+      error = "";
+    }
+  });
+
+  $effect(() => {
+    if (success) {
+      snackbar.show(success, "success", 3000);
+      success = "";
+    }
+  });
   let helpSection = $state<string | null>(null);
 
   interface ActivityLogEntry {
@@ -165,31 +182,7 @@
     }
   }
 
-  // ─── Language / Flag Detection ─────────────────────────────────────────────
-  const knownLangCodes = new Set(languages.map(l => l.code.toLowerCase()));
 
-  function inferLanguageFromPath(filePath: string): string | null {
-    const filename = filePath.split("/").pop()?.toLowerCase() || "";
-    const base = filename.replace(/\.[^/.]+$/, "");
-    // Split on separators: . - _
-    const tokens = base.split(/[.\-_]+/).filter(Boolean);
-    // Check from the end for a known language code
-    for (let i = tokens.length - 1; i >= 0; i--) {
-      if (knownLangCodes.has(tokens[i])) {
-        // Return the original-case code from the languages list
-        const lang = languages.find(l => l.code.toLowerCase() === tokens[i]);
-        if (lang) return lang.code;
-      }
-    }
-    return null;
-  }
-
-  function getFlagForPath(path: string): string {
-    const code = inferLanguageFromPath(path);
-    if (!code) return "";
-    const lang = languages.find(l => l.code === code);
-    return lang?.flag || "";
-  }
 
   let targetFlag = $derived(targetPath ? getFlagForPath(targetPath) : "");
   let sourceFlag = $derived(sourcePath ? getFlagForPath(sourcePath) : "");
@@ -230,23 +223,28 @@
     if (page !== null) currentPage = page;
   }
 
-  // DnD listener unsubs
-  let unlistenFileDrop: () => void;
-
-  onMount(async () => {
+  onMount(() => {
     window.addEventListener('keydown', handleKeydown);
-    unlistenFileDrop = await listen<{ paths: string[] }>('tauri://file-drop', (event) => {
+
+    let activeListener = true;
+    let unlisten: (() => void) | null = null;
+
+    listen<{ paths: string[] }>('tauri://file-drop', (event) => {
       const paths = event.payload.paths;
       if (paths && paths.length > 0) {
         handleDroppedFiles(paths);
       }
-    });
-  });
+    }).then((fn) => {
+      if (!activeListener) fn();
+      else unlisten = fn;
+    }).catch(console.error);
 
-  onDestroy(() => {
-    window.removeEventListener('keydown', handleKeydown);
-    if (unlistenFileDrop) unlistenFileDrop();
-    if (undoDebounceTimer) clearTimeout(undoDebounceTimer);
+    return () => {
+      activeListener = false;
+      window.removeEventListener('keydown', handleKeydown);
+      if (unlisten) unlisten();
+      if (undoDebounceTimer) clearTimeout(undoDebounceTimer);
+    };
   });
 
   function handleDroppedFiles(paths: string[]) {
@@ -490,9 +488,7 @@
   }
 
 
-  function getFileName(path: string): string {
-    return path.split('/').pop() || path;
-  }
+
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -501,37 +497,25 @@
   onkeydown={handleKeydown}
 >
   <div class="min-h-full flex flex-col gap-4">
-  <div class="glass-card p-6 shrink-0">
+  <div class="glass-card p-5 shrink-0">
     <div class="mb-6 flex items-start justify-between shrink-0 gap-3">
       <div>
-        <h2 class="text-lg font-semibold text-teal-300 flex items-center gap-2">
+        <h3 class="text-lg font-semibold text-teal-300 flex items-center gap-2">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7"/>
           </svg>
           {t("nav.revision")}
-        </h2>
+        </h3>
         <p class="text-sm text-gray-500 mt-0.5">{t("nav.revision.desc")}</p>
       </div>
       <InfoButton
         class="text-gray-500 hover:text-teal-300 transition-colors p-1"
         title={t("align.helpTitle")}
-        onclick={() => (helpSection = "overview")}
+        onclick={() => (helpSection = "help")}
       />
     </div>
 
-    <!-- Error/Success -->
-    {#if error}
-      <div class="mb-4 p-3 bg-red-500/10 border border-red-500/50 rounded-xl text-red-400 flex items-center shrink-0">
-        {error}
-        <button class="ml-auto" onclick={() => error = ""}>✕</button>
-      </div>
-    {/if}
-    {#if success}
-      <div class="mb-4 p-3 bg-green-500/10 border border-green-500/50 rounded-xl text-green-400 flex items-center shrink-0">
-        {success}
-        <button class="ml-auto" onclick={() => success = ""}>✕</button>
-      </div>
-    {/if}
+
 
     <!-- File Selection Area -->
     <div class="grid grid-cols-1 md:grid-cols-[1fr_auto_1fr] items-center gap-4 shrink-0 relative min-w-0">
@@ -621,7 +605,7 @@
   </div>
 
     <!-- Editor Area -->
-    <div class="flex-1 flex flex-col min-w-0 glass-card p-6 overflow-hidden">
+    <div class="flex-1 flex flex-col min-w-0 glass-card p-5 overflow-hidden">
       {#if targetSubs.length === 0 && sourceSubs.length === 0}
         <div class="flex-1 flex flex-col items-center justify-center text-gray-500 pb-10">
         <svg class="w-20 h-20 mb-6 opacity-20 text-teal-500 bg-teal-500/5 p-4 rounded-full" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -759,43 +743,11 @@
     onclose={() => (expandedPathField = null)}
   />
 
-  {#if helpSection}
-    <!-- svelte-ignore a11y_no_static_element_interactions -->
-    <div
-      class="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-6"
-      role="dialog"
-      aria-modal="true"
-      tabindex="-1"
-      onclick={() => (helpSection = null)}
-      onkeydown={(e) => {
-        if (e.key === "Escape") helpSection = null;
-      }}
-    >
-      <!-- svelte-ignore a11y_no_static_element_interactions -->
-      <div
-        class="bg-gray-900 border border-gray-700 rounded-xl w-full max-w-2xl p-5 animate-fade-in"
-        onclick={(e) => e.stopPropagation()}
-        onkeydown={(e) => e.stopPropagation()}
-      >
-        <div class="flex items-center justify-between mb-3">
-          <h3 class="text-sm font-semibold text-gray-300">{t("align.helpTitle")}</h3>
-          <button
-            onclick={() => (helpSection = null)}
-            class="text-gray-400 hover:text-white text-lg leading-none"
-          >✕</button>
-        </div>
-        <div class="text-sm text-gray-200 leading-relaxed prose prose-invert prose-sm max-w-none">
-          {@html t("align.helpContent")}
-        </div>
-        <div class="mt-4 flex justify-end">
-          <button
-            onclick={() => (helpSection = null)}
-            class="btn-primary py-1.5 px-4 text-xs"
-          >OK</button>
-        </div>
-      </div>
-    </div>
-  {/if}
+  <InfoModal
+    section={helpSection}
+    sections={revisionSections}
+    onclose={() => (helpSection = null)}
+  />
 </div>
 
 <style>

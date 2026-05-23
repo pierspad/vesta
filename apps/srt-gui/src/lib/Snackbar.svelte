@@ -13,7 +13,7 @@
     onclose,
     variant = "info",
     bottomClass = "bottom-4",
-    duration = 2000,
+    duration = 2500,
     animationKey = "",
   }: Props = $props();
 

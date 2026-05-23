@@ -1,4 +1,15 @@
 {
+  "sync.tooltipSaveSession": "Save the current sync state to a .json file. Includes: SRT path, video path, all confirmed anchors and offsets. Useful to pause and resume work later.",
+  "sync.tooltipSaveFile": "Export the final synchronized SRT file (.srt) with all timing corrections from anchors applied. This is the ready-to-use output file.",
+  "sync.cancelReset": "Cancel",
+  "sync.dropSrtFirst": "Load an SRT file first, then the audio.",
+  "sync.needAudioForAnchor": "Load an audio file before confirming anchors.",
+  "sync.dropFileHere": "Drop file here",
+  "sync.dropFileHint": "First the SRT file, then the Audio/Video file (or both)",
+  "sync.wizard.allSynced": "All subtitles appear to be synchronized!",
+  "sync.wizard.suggestSave": "The offset is consistent across all checkpoints. You can save the file now.",
+  "sync.wizard.continueChecking": "Continue checking",
+  "sync.wizard.checkpoint": "Checkpoint",
   "sync.wizard.replay": "Replay",
   "sync.wizard.skip": "Skip",
   "sync.wizard.confirm": "Confirm & Next",
@@ -37,16 +48,5 @@
   "transcribe.translateToEnglishDesc": "Transcribe and translate to English",
   "transcribe.maxSegmentLength": "Max segment length",
   "transcribe.segmentShort": "Short",
-  "transcribe.segmentShortDesc": "10s — many short subs",
-  "transcribe.segmentMedium": "Medium",
-  "transcribe.segmentMediumDesc": "20s — balanced",
-  "transcribe.segmentStandard": "Standard",
-  "transcribe.segmentStandardDesc": "30s — default",
-  "transcribe.segmentLong": "Long",
-  "transcribe.segmentLongDesc": "60s — fewer, longer lines",
-  "transcribe.seconds": "seconds",
-  "transcribe.inputFile": "Input File",
-  "transcribe.selectFile": "Select file...",
-  "transcribe.outputFile": "Output File",
-  "transcribe.selectDestination": "Select destination..."
+  "transcribe.segmentShortDesc": "10s — many short subs"
 }

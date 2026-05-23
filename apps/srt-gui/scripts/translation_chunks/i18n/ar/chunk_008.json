@@ -1,4 +1,15 @@
 {
+  "flashcards.generateSnapshots": "إضافة لقطات إلى البطاقات",
+  "flashcards.width": "العرض",
+  "flashcards.height": "الارتفاع",
+  "flashcards.cropBottom": "قص الجزء السفلي",
+  "flashcards.generateVideoClips": "إضافة فيديو إلى البطاقات",
+  "flashcards.videoBitrate": "معدل بت الفيديو",
+  "flashcards.audioBitrate": "معدل بت الصوت",
+  "flashcards.naming": "التسمية",
+  "flashcards.firstEpisode": "رقم الحلقة الأولى",
+  "flashcards.deckNameLabel": "اسم المجموعة",
+  "flashcards.deckNamePlaceholder": "مثال: Detour - عربي",
   "flashcards.deckName": "المجموعة",
   "flashcards.generate": "توليد البطاقات",
   "flashcards.cancel": "إلغاء",
@@ -37,16 +48,5 @@
   "settings.customProviderTip": "اتصل بأي نقطة نهاية متوافقة مع OpenAI (مثل OpenRouter و Together وما إلى ذلك). قم بتكوين عنوان URL ومفتاح API اختياري.",
   "flashcards.newGeneration": "توليد جديد",
   "flashcards.newGenerationDesc": "إعادة تعيين جميع الحقول لبدء توليد جديد",
-  "flashcards.progress.parsing": "تحليل الترجمات...",
-  "flashcards.progress.matching": "مطابقة أزواج الترجمات...",
-  "flashcards.progress.filtering": "تطبيق الفلاتر...",
-  "flashcards.progress.extractingMedia": "استخراج الوسائط... {{current}}/{{total}}",
-  "flashcards.progress.audioFailed": "⚠ فشل الصوت للسطر #{{line}}: {{error}}",
-  "flashcards.progress.snapshotFailed": "⚠ فشل لقطة الشاشة للسطر #{{line}}: {{error}}",
-  "flashcards.progress.videoFailed": "⚠ فشل مقطع الفيديو للسطر #{{line}}: {{error}}",
-  "flashcards.progress.audioExtractionsFailed": "⚠ فشل {{count}} استخراج(ات) صوتية",
-  "flashcards.progress.snapshotExtractionsFailed": "⚠ فشل {{count}} استخراج(ات) لقطات شاشة",
-  "flashcards.progress.videoExtractionsFailed": "⚠ فشل {{count}} استخراج(ات) مقاطع فيديو",
-  "flashcards.progress.generatingApkg": "إنشاء حزمة APKG...",
-  "flashcards.progress.generatingTsv": "إنشاء ملف استيراد Anki..."
+  "flashcards.progress.parsing": "تحليل الترجمات..."
 }

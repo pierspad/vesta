@@ -66,6 +66,12 @@
   "shortcuts.action.goToSuggested": "الذهاب إلى المقترح",
   "shortcuts.action.saveFile": "حفظ SRT",
   "settings.title": "الإعدادات",
+  "settings.section.overview": "عام",
+  "settings.section.llm": "مفاتيح LLM و API",
+  "settings.section.whisper": "Whisper",
+  "settings.section.language": "اللغات والمطابقة الذكية",
+  "settings.section.anki": "قوالب Anki",
+  "settings.section.shortcuts": "الاختصارات",
   "settings.subtitle": "إدارة مفاتيح API والنماذج المتاحة",
   "settings.providers": "المزود",
   "settings.selectProvider": "اختر مزوداً",
@@ -810,5 +816,12 @@
   "align.typeSubtitle": "اكتب الترجمة هنا...",
   "align.noSubtitle": "لا يوجد ترجمة",
   "sync.transcodingMedia": "جارٍ استخراج المسار الصوتي...",
-  "sync.transcodingHint": "يتم استخراج صوت MKV/AVI للتشغيل. هذا مطلوب فقط في المرة الأولى."
+  "sync.transcodingHint": "يتم استخراج صوت MKV/AVI للتشغيل. هذا مطلوب فقط في المرة الأولى.",
+  "flashcards.downloading": "جاري التحميل...",
+  "flashcards.dropNoValidFiles": "لم يتم إسقاط أي ملفات ترجمة أو وسائط صالحة",
+  "settings.ankiPresetDesc": "تكوين مطابقة الحقول للتصدير.",
+  "settings.apiKeysDesc": "بيانات الاعتماد المهيأة للترجمة.",
+  "settings.cardPanelDescShort": "تعديل كود HTML و CSS للبطاقة.",
+  "settings.savedConfigurationsDesc": "مزوّدو الترجمة النشطون.",
+  "translate.refetchModelsTooltip": "إعادة جلب النماذج من المزوّد"
 }

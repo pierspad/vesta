@@ -34,7 +34,7 @@ impl Timestamp {
 
     /// Parse da formato SRT (00:00:20,000)
     pub fn from_srt_string(s: &str) -> Result<Self> {
-        let parts: Vec<&str> = s.split(&[':', ','][..]).collect();
+        let parts: Vec<&str> = s.split(&[':', ',', '.'][..]).collect();
         if parts.len() != 4 {
             anyhow::bail!("Formato timestamp invalido: {}", s);
         }
@@ -212,6 +212,13 @@ mod tests {
         let ts = Timestamp::from_srt_string("00:00:20,000").unwrap();
         assert_eq!(ts.milliseconds, 20000);
         assert_eq!(ts.to_srt_string(), "00:00:20,000");
+    }
+
+    #[test]
+    fn test_timestamp_dot_parsing() {
+        let ts = Timestamp::from_srt_string("00:00:20.500").unwrap();
+        assert_eq!(ts.milliseconds, 20500);
+        assert_eq!(ts.to_srt_string(), "00:00:20,500");
     }
 
     #[test]

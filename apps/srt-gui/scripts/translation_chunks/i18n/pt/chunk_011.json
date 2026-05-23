@@ -1,4 +1,15 @@
 {
+  "transcribe.noInputMediaSelected": "Sem mídia de entrada",
+  "transcribe.noOutputFileSelected": "Sem arquivo de saída",
+  "transcribe.notDownloaded": "para baixar",
+  "transcribe.outputPathDesc": "Insira ou edite o caminho do arquivo SRT de saída.",
+  "transcribe.outputRequired": "Por favor, selecione um arquivo de saída",
+  "transcribe.processing": "Processando",
+  "transcribe.progress": "Progresso",
+  "transcribe.readyToProcess": "Pronto para transcrever",
+  "transcribe.segmentLong": "Longo",
+  "transcribe.segmentLongDesc": "60s — menos linhas, mais longas",
+  "transcribe.segmentMedium": "Médio",
   "transcribe.segmentMediumDesc": "20s — equilibrado",
   "transcribe.segmentShort": "Curto",
   "transcribe.segmentShortDesc": "10s — muitos subs curtos",
@@ -37,16 +48,5 @@
   "translate.dropFileHint": "Arquivo de legendas SRT",
   "translate.tooltip.upload": "Selecionar arquivo SRT de entrada",
   "translate.waitingForTranslation": "Aguardando início da tradução...",
-  "flashcards.browse": "Procurar",
-  "flashcards.columns1": "1 coluna",
-  "flashcards.columns2": "2 colunas",
-  "flashcards.columns3": "3 colunas",
-  "flashcards.modeMovie": "Modo Filme",
-  "flashcards.modeSeries": "Modo Série",
-  "flashcards.seriesEpisodes": "episódios",
-  "flashcards.addTargetSubs": "Adicionar Legendas de Destino",
-  "flashcards.addNativeSubs": "Adicionar Legendas Nativas",
-  "flashcards.addMedia": "Adicionar Mídia",
-  "flashcards.clearAll": "Limpar Tudo",
-  "flashcards.noFilesAdded": "Nenhum arquivo adicionado ainda. Comece adicionando legendas de destino."
+  "flashcards.browse": "Procurar"
 }

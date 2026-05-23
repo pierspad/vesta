@@ -1,4 +1,15 @@
 {
+  "provider.google": "Google API 서비스",
+  "provider.custom": "사용자 정의 제공자",
+  "provider.google.desc": "Google API 네이티브 API (AIza... 키 필요)",
+  "provider.local.desc": "Ollama, LM Studio, 로컬 모델",
+  "provider.openai": "OpenAI GPT 모델",
+  "provider.openai.desc": "GPT-4, GPT-4o, GPT-3.5 (출시 예정)",
+  "settings.errorEndpointRequired": "로컬 서버의 경우 API 엔드포인트가 필요합니다",
+  "settings.errorInvalidGoogleKey": "Google API 키는 'AIza...'로 시작해야 합니다",
+  "settings.modal.apiKeyHintGoogle": "여기에서 API 키를 받으세요:",
+  "settings.modal.modelOptionalHint": "선택 사항. 번역 탭에서 모델을 선택할 수 있습니다. 이것은 기본값일 뿐입니다.",
+  "settings.modal.providerAnthropic": "Anthropic Claude 모델",
   "settings.modal.providerAnthropicDesc": "Opus 4.6 및 Sonnet 4.6",
   "settings.modal.providerGoogle": "Google API 서비스",
   "settings.modal.providerGoogleDesc": "Google API 3.1 Pro 및 3 Flash",
@@ -37,16 +48,5 @@
   "transcribe.downloadModel": "모델 다운로드",
   "transcribe.editPath": "편집",
   "transcribe.errorUninstalling": "모델 제거 오류",
-  "transcribe.ffmpegMissing": "FFmpeg를 찾을 수 없음",
-  "transcribe.ffmpegMissingDesc": "비디오 파일에서 오디오를 추출하려면 FFmpeg가 필요합니다. 패키지 관리자로 설치하세요.",
-  "transcribe.inputPathDesc": "오디오/비디오 파일 경로를 입력하거나 편집하세요.",
-  "transcribe.modelBase": "기본(Base)",
-  "transcribe.modelLarge": "큼(Large)",
-  "transcribe.modelMedium": "중간(Medium)",
-  "transcribe.modelSmall": "작음(Small)",
-  "transcribe.modelTiny": "매우 작음(Tiny)",
-  "transcribe.modelUninstalled": "모델이 제거됨",
-  "transcribe.newTranscription": "새로운 음성인식",
-  "transcribe.newTranscriptionDesc": "새로운 음성인식을 시작하기 위해 모든 필드, 로그 및 결과를 지웁니다",
-  "transcribe.noBackendWarning": "Whisper 백엔드를 찾을 수 없습니다"
+  "transcribe.ffmpegMissing": "FFmpeg를 찾을 수 없음"
 }

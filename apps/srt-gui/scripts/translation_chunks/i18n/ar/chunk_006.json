@@ -1,4 +1,15 @@
 {
+  "sync.confirm": "تأكيد",
+  "sync.navigateAnchors": "التنقل بين المراسي",
+  "sync.tooltipPlay": "تشغيل الفيديو (Space)",
+  "sync.tooltipPause": "إيقاف الفيديو (Space)",
+  "sync.tooltipOffsetMinus": "تقليل الإزاحة 100 مللي ثانية (↓)",
+  "sync.tooltipOffsetPlus": "زيادة الإزاحة 100 مللي ثانية (↑)",
+  "sync.tooltipOffset": "ضبط دقيق لتوقيت الترجمات. القيم الموجبة تؤخر الترجمات، والسالبة تجعلها تظهر مبكراً.",
+  "sync.tooltipConfirmAnchor": "تحديد الترجمة الحالية كنقطة مزامنة (Enter). المراسي هي نقاط مرجعية تُستخدم لاستيفاء التوقيت للترجمات المحيطة.",
+  "sync.tooltipRemoveAnchor": "إزالة مرساة المزامنة هذه (Del)",
+  "sync.tooltipLoadSession": "استئناف جلسة مزامنة سابقة. تحفظ الجلسات المراسي والتقدم للمتابعة لاحقاً.",
+  "sync.tooltipSaveSession": "حفظ التقدم الحالي للمتابعة لاحقاً. يشمل مسار SRT وموقع الفيديو وجميع المراسي.",
   "sync.tooltipSaveFile": "تصدير ملف SRT المتزامن مع جميع تصحيحات التوقيت.",
   "sync.tooltipPrevAnchor": "الانتقال إلى المرساة السابقة",
   "sync.tooltipNextAnchor": "الانتقال إلى المرساة التالية",
@@ -37,16 +48,5 @@
   "transcribe.selectDestination": "اختر الوجهة...",
   "transcribe.audioVideoFiles": "ملفات صوت/فيديو",
   "transcribe.srtFiles": "ملفات SRT",
-  "transcribe.start": "بدء النسخ",
-  "transcribe.cancel": "إلغاء",
-  "transcribe.progress": "التقدم",
-  "transcribe.log": "السجل",
-  "transcribe.clearLog": "مسح",
-  "transcribe.noLog": "لا يوجد سجل...",
-  "transcribe.modelRequired": "يرجى اختيار نموذج Whisper",
-  "transcribe.inputRequired": "يرجى اختيار ملف إدخال",
-  "transcribe.outputRequired": "يرجى اختيار ملف إخراج",
-  "transcribe.starting": "بدء النسخ...",
-  "transcribe.completed": "اكتمل النسخ",
-  "transcribe.cancelled": "تم إلغاء النسخ"
+  "transcribe.start": "بدء النسخ"
 }

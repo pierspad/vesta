@@ -1,4 +1,15 @@
 {
+  "translate.subtitles": "उपशीर्षक",
+  "translate.log": "लॉग",
+  "translate.clearLog": "साफ़ करें",
+  "translate.noLog": "कोई लॉग नहीं...",
+  "translate.options": "अनुवाद विकल्प",
+  "translate.provider": "प्रदाता",
+  "translate.apiKey": "API कुंजी",
+  "translate.model": "मॉडल",
+  "translate.targetLang": "लक्ष्य भाषा",
+  "translate.batchSize": "बैच का आकार",
+  "translate.batchSizeTooltip": "प्रति API अनुरोध उपशीर्षक की संख्या। उच्च मान = कम कॉल लेकिन अधिक टोकन।",
   "translate.slow": "धीमा",
   "translate.fast": "तेज़",
   "translate.context": "संदर्भ",
@@ -37,16 +48,5 @@
   "sync.loadAudio": "ऑडियो/वीडियो लोड करें",
   "sync.loadVideo": "वीडियो लोड करें",
   "sync.saveFile": "फ़ाइल सहेजें",
-  "sync.saveSession": "सत्र सहेजें",
-  "sync.loadSession": "सत्र लोड करें",
-  "sync.reset": "रीसेट",
-  "sync.noSrt": "कोई SRT लोड नहीं किया गया",
-  "sync.noVideo": "कोई वीडियो लोड नहीं किया गया",
-  "sync.subtitles": "उपशीर्षक",
-  "sync.anchors": "एंकर",
-  "sync.completion": "पूर्णता",
-  "sync.avgOffset": "औसत ऑफ़सेट",
-  "sync.suggested": "सुझाया गया",
-  "sync.video": "वीडियो",
-  "sync.currentSubtitle": "वर्तमान उपशीर्षक"
+  "sync.saveSession": "सत्र सहेजें"
 }

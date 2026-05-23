@@ -1,4 +1,15 @@
 {
+  "flashcards.exportAPKGSoon": "Wkrótce",
+  "flashcards.resetLayout": "Resetuj układ",
+  "flashcards.cpuCores": "Rdzenie CPU",
+  "flashcards.cpuCoresUsage": "Wątki równoległe",
+  "flashcards.cpuMin": "minimum",
+  "flashcards.cpuMax": "maks",
+  "flashcards.cpuCoresNote": "Przynajmniej 1 rdzeń pozostaje wolny dla systemu. Więcej rdzeni = szybsze generowanie.",
+  "flashcards.cpuEco": "Eko",
+  "flashcards.cpuEcoDesc": "Minimalne obciążenie",
+  "flashcards.cpuBalanced": "Zrównoważony",
+  "flashcards.cpuBalancedDesc": "50% rdzeni",
   "flashcards.cpuPerformance": "Wydajność",
   "flashcards.cpuPerformanceDesc": "75% rdzeni",
   "flashcards.cpuFullPower": "Pełna Moc",
@@ -37,16 +48,5 @@
   "flashcards.newGeneration": "Nowa generacja",
   "flashcards.newGenerationDesc": "Zresetuj i rozpocznij nowe generowanie fiszek",
   "translate.logs": "Logi",
-  "flashcards.logs": "Logi",
-  "flashcards.progress.parsing": "Analizowanie napisów...",
-  "flashcards.progress.matching": "Dopasowywanie par napisów...",
-  "flashcards.progress.filtering": "Stosowanie filtrów...",
-  "flashcards.progress.extractingMedia": "Ekstrakcja mediów... {{current}}/{{total}}",
-  "flashcards.progress.audioFailed": "⚠ Audio nie powiodło się dla linii #{{line}}: {{error}}",
-  "flashcards.progress.snapshotFailed": "⚠ Zrzut ekranu nie powiódł się dla linii #{{line}}: {{error}}",
-  "flashcards.progress.videoFailed": "⚠ Klip wideo nie powiodło się dla linii #{{line}}: {{error}}",
-  "flashcards.progress.audioExtractionsFailed": "⚠ {{count}} ekstrakcji audio nie powiodło się",
-  "flashcards.progress.snapshotExtractionsFailed": "⚠ {{count}} ekstrakcji zrzutów ekranu nie powiodło się",
-  "flashcards.progress.videoExtractionsFailed": "⚠ {{count}} ekstrakcji klipów wideo nie powiodło się",
-  "flashcards.progress.generatingApkg": "Generowanie pakietu APKG..."
+  "flashcards.logs": "Logi"
 }

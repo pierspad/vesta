@@ -17,8 +17,8 @@
         "height": 1040,
         "resizable": true,
         "fullscreen": false,
-        "minWidth": 760,
-        "minHeight": 720,
+        "minWidth": 640,
+        "minHeight": 600,
         "maxWidth": 10000,
         "maxHeight": 10000,
         "dragDropEnabled": true

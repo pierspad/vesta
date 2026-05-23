@@ -1,4 +1,15 @@
 {
+  "settings.modal.add": "إضافة",
+  "settings.modal.addCustomApiKey": "إضافة مفتاح API مخصص",
+  "settings.modal.protocolInfo": "جميع المزودين يستخدمون بروتوكول API المتوافق مع OpenAI. الخوادم المحلية (Ollama, LM Studio) ومزودي السحابة مدعومون.",
+  "settings.modal.configName": "اسم التكوين",
+  "settings.modal.configNamePlaceholder": "مثال: مفتاح OpenAI الخاص بي",
+  "settings.modal.apiEndpoint": "رابط نقطة نهاية API",
+  "settings.modal.optional": "اختياري",
+  "settings.modal.apiEndpointHint": "اتركه فارغاً لرابط المزود الافتراضي. للخوادم المحلية، استخدم http://localhost:11434/v1",
+  "settings.modal.defaultModel": "معرف النموذج الافتراضي",
+  "settings.modal.defaultModelPlaceholder": "مثال: llama3.2, mistral, gpt-4o",
+  "settings.modal.defaultModelHint": "النموذج الذي سيُستخدم افتراضياً مع هذا التكوين",
   "settings.modal.openrouterModelHint": "ابحث عن المعرف في openrouter.ai/models — يمكنك استخدام أي نموذج، حتى لو لم يكن في القائمة المحددة مسبقاً!",
   "settings.modal.localServer": "خادم محلي",
   "settings.modal.localServerDesc": "Ollama, LM Studio (جهازك)",
@@ -37,16 +48,5 @@
   "translate.toAddOne": "لإضافة واحد.",
   "translate.file": "ملف",
   "translate.inputFile": "ملف SRT المدخل",
-  "translate.selectFile": "لم يتم اختيار ملف إدخال",
-  "translate.outputFile": "ملف الإخراج",
-  "translate.selectDestination": "لم يتم اختيار ملف إخراج",
-  "translate.subtitles": "ترجمات",
-  "translate.log": "سجل",
-  "translate.clearLog": "مسح",
-  "translate.noLog": "لا يوجد سجل...",
-  "translate.options": "خيارات الترجمة",
-  "translate.provider": "المزود",
-  "translate.apiKey": "مفتاح API",
-  "translate.model": "النموذج",
-  "translate.targetLang": "اللغة الهدف"
+  "translate.selectFile": "لم يتم اختيار ملف إدخال"
 }

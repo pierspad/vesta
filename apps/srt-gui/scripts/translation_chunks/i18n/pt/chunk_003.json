@@ -1,4 +1,15 @@
 {
+  "settings.modal.localServerDesc": "Ollama, LM Studio (Seu PC)",
+  "settings.modal.cloudApi": "API em nuvem (OpenRouter)",
+  "settings.modal.cloudApiDesc": "GPT, Claude, API do Google (online)",
+  "settings.modal.notRequiredForLocal": "Não necessária para servidor local...",
+  "settings.modal.localEndpointDefault": "Padrão: http://localhost:11434/v1 (Ollama)",
+  "settings.modelFamilies": "Famílias de Modelos",
+  "settings.addCustomApiKey": "Adicionar chave API personalizada",
+  "settings.keyAdded": "Chave API adicionada com sucesso",
+  "settings.keyUpdated": "Configuração atualizada com sucesso",
+  "settings.edit": "Editar",
+  "settings.modal.editApiKey": "Editar chave API",
   "settings.keyDeleted": "Chave API excluída",
   "settings.keyCopied": "Chave API copiada para a área de transferência",
   "settings.modelAdded": "Modelo personalizado adicionado",
@@ -37,16 +48,5 @@
   "translate.noLog": "Sem registro...",
   "translate.options": "Opções de Tradução",
   "translate.provider": "Provedor",
-  "translate.apiKey": "Chave API",
-  "translate.model": "Modelo",
-  "translate.targetLang": "Idioma Destino",
-  "translate.batchSize": "Tamanho do Lote",
-  "translate.slow": "lento",
-  "translate.fast": "rápido",
-  "translate.context": "Contexto",
-  "translate.contextPlaceholder": "ex.: Detour (1945), Nosferatu (1922)",
-  "translate.progress": "Progresso",
-  "translate.batch": "Lote",
-  "translate.timeRemaining": "Tempo restante:",
-  "translate.completed": "Tradução Concluída"
+  "translate.apiKey": "Chave API"
 }
