@@ -956,6 +956,48 @@ export function resetShortcuts(): void {
   localStorage.removeItem("srt-tools-shortcut-overrides");
 }
 
+// Funzione per resettare una singola shortcut con cascade dei conflitti
+export function resetSingleShortcut(shortcutId: string): void {
+  const overridesJson = localStorage.getItem("srt-tools-shortcut-overrides");
+  let overrides: Record<string, string> = {};
+  if (overridesJson) {
+    try {
+      overrides = JSON.parse(overridesJson);
+    } catch {
+      overrides = {};
+    }
+  }
+
+  const resetQueue: string[] = [shortcutId];
+  const processed = new Set<string>();
+
+  while (resetQueue.length > 0) {
+    const currentId = resetQueue.shift()!;
+    if (processed.has(currentId)) continue;
+    processed.add(currentId);
+
+    // Rimuovi l'override per far tornare la scorciatoia al valore predefinito
+    delete overrides[currentId];
+
+    // Trova il tasto predefinito di questa scorciatoia
+    const defaultDef = defaultShortcuts.find((s) => s.id === currentId);
+    if (!defaultDef) continue;
+    const revertedKey = defaultDef.defaultKey;
+
+    // Coda per il reset tutte le ALTRE scorciatoie che attualmente risolvono a revertedKey
+    for (const s of defaultShortcuts) {
+      if (s.id === currentId || processed.has(s.id)) continue;
+
+      const currentKey = overrides[s.id] || s.defaultKey;
+      if (currentKey === revertedKey) {
+        resetQueue.push(s.id);
+      }
+    }
+  }
+
+  localStorage.setItem("srt-tools-shortcut-overrides", JSON.stringify(overrides));
+}
+
 // Funzione per formattare context window
 export function formatContextWindow(tokens: number): string {
   if (tokens >= 1000000) {
@@ -1198,3 +1240,32 @@ export function resetCardTemplates(): CardTemplateConfig {
   dispatchWindowEvent(CARD_TEMPLATES_UPDATED_EVENT);
   return sanitizeCardTemplateConfig({ ...defaultCardTemplates });
 }
+
+// ─── Shared Utilities ───────────────────────────────────────────────────────
+
+export function getFileName(path: string): string {
+  return path.split("/").pop() || path;
+}
+
+const knownLangCodes = new Set(languages.map((l) => l.code.toLowerCase()));
+
+export function inferLanguageFromPath(filePath: string): string | null {
+  const filename = filePath.split("/").pop()?.toLowerCase() || "";
+  const base = filename.replace(/\.[^/.]+$/, "");
+  const tokens = base.split(/[.\-_]+/).filter(Boolean);
+  for (let i = tokens.length - 1; i >= 0; i--) {
+    if (knownLangCodes.has(tokens[i])) {
+      const lang = languages.find((l) => l.code.toLowerCase() === tokens[i]);
+      if (lang) return lang.code;
+    }
+  }
+  return null;
+}
+
+export function getFlagForPath(path: string): string {
+  const code = inferLanguageFromPath(path);
+  if (!code) return "";
+  const lang = languages.find((l) => l.code === code);
+  return lang?.flag || "";
+}
+

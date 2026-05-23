@@ -1,4 +1,15 @@
 {
+  "settings.modal.protocolInfo": "Tüm sağlayıcılar OpenAI uyumlu API protokolünü kullanır. Yerel sunucular (Ollama, LM Studio) ve bulut sağlayıcıları desteklenir.",
+  "settings.modal.configName": "Yapılandırma Adı",
+  "settings.modal.configNamePlaceholder": "örn: OpenAI Anahtarım",
+  "settings.modal.apiEndpoint": "API Uç Nokta URL'si",
+  "settings.modal.optional": "İsteğe Bağlı",
+  "settings.modal.apiEndpointHint": "Varsayılan sağlayıcı URL'si için boş bırakın. Yerel sunucular için http://localhost:11434/v1 kullanın",
+  "settings.modal.defaultModel": "Varsayılan Model ID",
+  "settings.modal.defaultModelPlaceholder": "örn: llama3.2, mistral, gpt-4o",
+  "settings.modal.defaultModelHint": "Bu yapılandırma ile varsayılan olarak kullanılacak model",
+  "settings.modal.openrouterModelHint": "ID'yi openrouter.ai/models adresinde bulun — Ön ayarlı listede olmasa bile herhangi bir modeli kullanabilirsiniz!",
+  "settings.modal.localServer": "Yerel Sunucu",
   "settings.modal.localServerDesc": "Ollama, LM Studio (Bilgisayarınız)",
   "settings.modal.cloudApi": "Bulut API (OpenRouter)",
   "settings.modal.cloudApiDesc": "GPT, Claude, Google API (Çevrimiçi)",
@@ -37,16 +48,5 @@
   "translate.inputFile": "Giriş SRT Dosyası",
   "translate.selectFile": "Giriş dosyası seçilmedi",
   "translate.outputFile": "Çıkış Dosyası",
-  "translate.selectDestination": "Çıkış dosyası seçilmedi",
-  "translate.subtitles": "altyazı",
-  "translate.log": "Günlük",
-  "translate.clearLog": "Temizle",
-  "translate.noLog": "Günlük yok...",
-  "translate.options": "Çeviri Seçenekleri",
-  "translate.provider": "Sağlayıcı",
-  "translate.apiKey": "API Anahtarı",
-  "translate.model": "Model seçimi",
-  "translate.targetLang": "Hedef Dil",
-  "translate.batchSize": "Grup Boyutu",
-  "translate.batchSizeTooltip": "API isteği başına altyazı sayısı. Daha yüksek değerler = daha az çağrı ama daha fazla token."
+  "translate.selectDestination": "Çıkış dosyası seçilmedi"
 }

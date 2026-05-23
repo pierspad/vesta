@@ -1,4 +1,15 @@
 {
+  "flashcards.height": "Yükseklik",
+  "flashcards.cropBottom": "Alt kırpma",
+  "flashcards.generateVideoClips": "Kartlara Video Ekle",
+  "flashcards.videoBitrate": "Video bit hızı",
+  "flashcards.audioBitrate": "Ses bit hızı",
+  "flashcards.naming": "İsimlendirme",
+  "flashcards.firstEpisode": "İlk bölüm numarası",
+  "flashcards.deckNameLabel": "Deste adı",
+  "flashcards.deckNamePlaceholder": "örn: Detour - Türkçe",
+  "flashcards.deckName": "Deste",
+  "flashcards.generate": "Flash Kartları Oluştur",
   "flashcards.cancel": "İptal",
   "flashcards.preview": "Kartları Önizle",
   "flashcards.log": "Günlük",
@@ -37,16 +48,5 @@
   "flashcards.newGenerationDesc": "Yeni bir oluşturma başlatmak için tüm alanları sıfırlayın",
   "flashcards.progress.parsing": "Altyazılar ayrıştırılıyor...",
   "flashcards.progress.matching": "Altyazı çiftleri eşleştiriliyor...",
-  "flashcards.progress.filtering": "Filtreler uygulanıyor...",
-  "flashcards.progress.extractingMedia": "Medya çıkarılıyor... {{current}}/{{total}}",
-  "flashcards.progress.audioFailed": "⚠ Satır #{{line}} için ses başarısız: {{error}}",
-  "flashcards.progress.snapshotFailed": "⚠ Satır #{{line}} için ekran görüntüsü başarısız: {{error}}",
-  "flashcards.progress.videoFailed": "⚠ Satır #{{line}} için video klip başarısız: {{error}}",
-  "flashcards.progress.audioExtractionsFailed": "⚠ {{count}} ses çıkarma başarısız",
-  "flashcards.progress.snapshotExtractionsFailed": "⚠ {{count}} ekran görüntüsü çıkarma başarısız",
-  "flashcards.progress.videoExtractionsFailed": "⚠ {{count}} video klip çıkarma başarısız",
-  "flashcards.progress.generatingApkg": "APKG paketi oluşturuluyor...",
-  "flashcards.progress.generatingTsv": "Anki içe aktarma dosyası oluşturuluyor...",
-  "flashcards.progress.complete": "Flash kart oluşturma tamamlandı!",
-  "common.noResults": "Sonuç yok"
+  "flashcards.progress.filtering": "Filtreler uygulanıyor..."
 }

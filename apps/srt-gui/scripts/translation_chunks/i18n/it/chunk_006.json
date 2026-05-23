@@ -1,4 +1,15 @@
 {
+  "sync.tooltip.back": "Indietro 5 secondi",
+  "sync.tooltip.forward": "Avanti 5 secondi",
+  "sync.videoPlaceholder": "Carica un video per iniziare",
+  "sync.videoFormats": "Formati supportati: MP4, MKV, AVI, WebM",
+  "sync.videoCodecError": "Impossibile riprodurre questo video",
+  "sync.videoCodecHint": "Codec video mancanti. Su Linux, installa: gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly gstreamer1.0-libav",
+  "sync.tryAnotherVideo": "Prova un altro video",
+  "sync.srtPlaceholder": "Carica un file SRT per iniziare",
+  "sync.averageOffset": "Offset medio",
+  "sync.completed": "completato",
+  "sync.loading": "Caricamento...",
   "sync.resetSync": "Reset Sincronizzazione",
   "sync.newSync": "Nuova Sincronizzazione",
   "sync.newSyncDesc": "Azzera e avvia una nuova sincronizzazione",
@@ -37,16 +48,5 @@
   "transcribe.languageAuto": "Rilevamento automatico",
   "transcribe.options": "Opzioni",
   "transcribe.speed": "Velocità",
-  "transcribe.files": "File",
-  "transcribe.sourceLanguage": "Lingua sorgente",
-  "transcribe.selectAudioVideo": "Seleziona audio/video...",
-  "transcribe.noInputMediaSelected": "nessun media di input selezionato",
-  "transcribe.readyToProcess": "Pronto per la trascrizione",
-  "transcribe.startTranscription": "Avvia Trascrizione",
-  "transcribe.modelDownloadNote": "Questo modello non è ancora stato scaricato. Scaricalo prima di avviare la trascrizione.",
-  "transcribe.processing": "Elaborazione",
-  "transcribe.fileSelected": "File selezionato",
-  "transcribe.selectFilesFirst": "Seleziona prima i file di input e output",
-  "transcribe.wordTimestamps": "Timestamp parole",
-  "transcribe.wordTimestampsDesc": "Sottotitoli millimetrici. Permette anche a Whisper di spezzettare le frasi su più righe."
+  "transcribe.files": "File"
 }

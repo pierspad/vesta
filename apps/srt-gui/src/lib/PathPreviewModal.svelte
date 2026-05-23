@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { t } from "./i18n";
+
   interface Props {
     isOpen: boolean;
     title: string;
@@ -7,6 +9,10 @@
     confirmText?: string;
     secondaryText?: string;
     onsecondary?: () => void;
+    editable?: boolean;
+    desc?: string;
+    placeholder?: string;
+    onsave?: (newValue: string) => boolean | Promise<boolean> | void | Promise<void>;
   }
 
   let {
@@ -17,7 +23,48 @@
     confirmText = "OK",
     secondaryText,
     onsecondary,
+    editable = false,
+    desc,
+    placeholder,
+    onsave,
   }: Props = $props();
+
+  let isEditing = $state(false);
+  let editValue = $state("");
+
+  // Keep editValue and isEditing state consistent when modal opens/changes
+  $effect(() => {
+    if (isOpen) {
+      editValue = value;
+      isEditing = false;
+    }
+  });
+
+  async function handlePrimaryClick() {
+    if (isEditing && onsave) {
+      const result = await onsave(editValue);
+      if (result === false) {
+        return; // Validation failed, keep editing
+      }
+    }
+    onclose();
+  }
+
+  function handleSecondaryClick() {
+    if (editable) {
+      if (isEditing) {
+        // Cancel editing
+        isEditing = false;
+        editValue = value;
+      } else {
+        // Start editing
+        isEditing = true;
+        editValue = value;
+      }
+    } else {
+      onsecondary?.();
+    }
+  }
 </script>
 
 {#if isOpen}
@@ -47,17 +94,42 @@
         >
       </div>
 
-      <div class="bg-gray-800/80 rounded-lg p-3 border border-gray-700/50">
-        <p class="text-sm text-white font-mono break-all select-all leading-relaxed">
-          {value || "—"}
-        </p>
-      </div>
+      {#if isEditing}
+        <div class="flex flex-col">
+          {#if desc}
+            <p class="text-xs text-gray-400 mb-2">{desc}</p>
+          {/if}
+          <input
+            type="text"
+            bind:value={editValue}
+            placeholder={placeholder || ""}
+            class="input-modern w-full text-sm font-mono"
+            onkeydown={(e) => {
+              if (e.key === "Enter") handlePrimaryClick();
+            }}
+          />
+        </div>
+      {:else}
+        <div class="bg-gray-800/80 rounded-lg p-3 border border-gray-700/50">
+          <p class="text-sm text-white font-mono break-all select-all leading-relaxed">
+            {value || "—"}
+          </p>
+        </div>
+      {/if}
 
-      <div class="mt-3 flex justify-end gap-2">
-        {#if secondaryText && onsecondary}
+      <div class="mt-4 flex justify-end gap-2">
+        {#if editable}
           <button
             type="button"
-            onclick={onsecondary}
+            onclick={handleSecondaryClick}
+            class="btn-secondary py-1.5 px-4 text-xs"
+          >
+            {isEditing ? t("common.cancel") : (secondaryText || "✏️ Edit")}
+          </button>
+        {:else if secondaryText && onsecondary}
+          <button
+            type="button"
+            onclick={handleSecondaryClick}
             class="btn-secondary py-1.5 px-4 text-xs"
           >
             {secondaryText}
@@ -66,12 +138,13 @@
 
         <button
           type="button"
-          onclick={onclose}
+          onclick={handlePrimaryClick}
           class="btn-primary py-1.5 px-4 text-xs"
         >
-          {confirmText}
+          {isEditing ? t("settings.modal.save") : confirmText}
         </button>
       </div>
     </div>
   </div>
 {/if}
+

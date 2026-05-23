@@ -1,4 +1,15 @@
 {
+  "translate.livePreview": "Live Preview",
+  "translate.original": "Original",
+  "translate.translated": "Translated",
+  "translate.waitingForTranslation": "Waiting for translation to start...",
+  "translate.errorCancelling": "Error cancelling:",
+  "translate.errorSelectingFile": "Error selecting file:",
+  "translate.tooltip.upload": "Select input SRT file",
+  "translate.tooltip.save": "Select output destination",
+  "translate.dropFileHere": "Drop file here",
+  "translate.dropFileHint": "SRT subtitle file",
+  "sync.title": "Subtitle Synchronization",
   "sync.subtitle": "Align subtitles with audio using smart checkpoints",
   "sync.wizard.title": "Synchronization Wizard",
   "sync.statusTitle": "Status",
@@ -37,16 +48,5 @@
   "sync.offsetAdjust": "Offset ±100ms",
   "sync.confirm": "Confirm",
   "sync.tooltipRemoveAnchor": "Remove this sync anchor",
-  "sync.tooltipLoadSession": "Resume a saved sync session (.json). A session stores the SRT file, video path, all confirmed anchors and progress, so you can pick up where you left off.",
-  "sync.tooltipSaveSession": "Save the current sync state to a .json file. Includes: SRT path, video path, all confirmed anchors and offsets. Useful to pause and resume work later.",
-  "sync.tooltipSaveFile": "Export the final synchronized SRT file (.srt) with all timing corrections from anchors applied. This is the ready-to-use output file.",
-  "sync.cancelReset": "Cancel",
-  "sync.dropSrtFirst": "Load an SRT file first, then the audio.",
-  "sync.needAudioForAnchor": "Load an audio file before confirming anchors.",
-  "sync.dropFileHere": "Drop file here",
-  "sync.dropFileHint": "First the SRT file, then the Audio/Video file (or both)",
-  "sync.wizard.allSynced": "All subtitles appear to be synchronized!",
-  "sync.wizard.suggestSave": "The offset is consistent across all checkpoints. You can save the file now.",
-  "sync.wizard.continueChecking": "Continue checking",
-  "sync.wizard.checkpoint": "Checkpoint"
+  "sync.tooltipLoadSession": "Resume a saved sync session (.json). A session stores the SRT file, video path, all confirmed anchors and progress, so you can pick up where you left off."
 }

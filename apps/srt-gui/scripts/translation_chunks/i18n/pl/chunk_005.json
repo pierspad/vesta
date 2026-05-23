@@ -1,4 +1,15 @@
 {
+  "translate.translated": "Przetłumaczone",
+  "translate.waitingForTranslation": "Oczekiwanie na rozpoczęcie tłumaczenia...",
+  "translate.errorCancelling": "Błąd podczas anulowania:",
+  "translate.errorSelectingFile": "Błąd podczas wybierania pliku:",
+  "translate.tooltip.upload": "Wybierz wejściowy plik SRT",
+  "translate.tooltip.save": "Wybierz miejsce zapisu",
+  "translate.dropFileHere": "Upuść plik tutaj",
+  "translate.dropFileHint": "Plik napisów SRT",
+  "sync.title": "Synchronizacja Napisów",
+  "sync.subtitle": "Wyrównaj napisy z dźwiękiem za pomocą inteligentnych punktów kontrolnych",
+  "sync.wizard.title": "Kreator synchronizacji",
   "sync.statusTitle": "Stan",
   "sync.loadSrt": "Wczytaj SRT",
   "sync.loadAudio": "Wczytaj Audio/Wideo",
@@ -37,16 +48,5 @@
   "sync.tooltipRemoveAnchor": "Usuń tę kotwicę synchronizacji",
   "sync.tooltipLoadSession": "Wznów zapisaną sesję synchronizacji (.json). Sesja przechowuje plik SRT, ścieżkę wideo, wszystkie potwierdzone kotwice i postęp, dzięki czemu możesz kontynuować pracę później.",
   "sync.tooltipSaveSession": "Zapisz bieżący stan synchronizacji do pliku .json. Zawiera: ścieżkę SRT, ścieżkę wideo, wszystkie potwierdzone kotwice i offsety. Przydatne do przerwania i wznowienia pracy później.",
-  "sync.tooltipSaveFile": "Eksportuj końcowy zsynchronizowany plik SRT (.srt) ze wszystkimi korektami czasowymi z kotwic. To gotowy plik wynikowy.",
-  "sync.cancelReset": "Anuluj",
-  "sync.dropSrtFirst": "Najpierw wczytaj plik SRT, a następnie audio.",
-  "sync.needAudioForAnchor": "Wczytaj plik audio przed potwierdzaniem kotwic.",
-  "sync.dropFileHere": "Upuść plik tutaj",
-  "sync.dropFileHint": "Najpierw plik SRT, potem plik Audio/Wideo (lub oba)",
-  "sync.wizard.allSynced": "Wszystkie napisy wydają się być zsynchronizowane!",
-  "sync.wizard.suggestSave": "Offset jest spójny we wszystkich punktach kontrolnych. Możesz teraz zapisać plik.",
-  "sync.wizard.continueChecking": "Kontynuuj sprawdzanie",
-  "sync.wizard.checkpoint": "Punkt kontrolny",
-  "sync.wizard.replay": "Powtórz",
-  "sync.wizard.confirm": "Potwierdź i dalej"
+  "sync.tooltipSaveFile": "Eksportuj końcowy zsynchronizowany plik SRT (.srt) ze wszystkimi korektami czasowymi z kotwic. To gotowy plik wynikowy."
 }

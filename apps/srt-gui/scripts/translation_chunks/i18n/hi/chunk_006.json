@@ -1,4 +1,15 @@
 {
+  "sync.seek": "सीक ±0.1s",
+  "sync.offsetAdjust": "ऑफ़सेट ±100ms",
+  "sync.confirm": "पुष्टि करें",
+  "sync.navigateAnchors": "एंकर नेविगेट करें",
+  "sync.tooltipPlay": "वीडियो चलाएँ (स्पेस)",
+  "sync.tooltipPause": "वीडियो रोकें (स्पेस)",
+  "sync.tooltipOffsetMinus": "ऑफ़सेट 100ms कम करें (↓)",
+  "sync.tooltipOffsetPlus": "ऑफ़सेट 100ms बढ़ाएँ (↑)",
+  "sync.tooltipOffset": "उपशीर्षक समय को फाइन-ट्यून करें। सकारात्मक मान उपशीर्षक में देरी करते हैं, नकारात्मक मान उन्हें जल्दी दिखाते हैं।",
+  "sync.tooltipConfirmAnchor": "वर्तमान उपशीर्षक को सिंक बिंदु के रूप में चिह्नित करें (Enter)। एंकर संदर्भ बिंदु होते हैं जिनका उपयोग आसपास के उपशीर्षक के समय को इंटरपोलेट करने के लिए किया जाता।",
+  "sync.tooltipRemoveAnchor": "इस सिंक एंकर को हटाएँ (Del)",
   "sync.tooltipLoadSession": "पिछले सिंक सत्र को फिर से शुरू करें। सत्र आपके एंकर और प्रगति को सहेजते हैं ताकि आप बाद में जारी रख सकें।",
   "sync.tooltipSaveSession": "बाद में जारी रखने के लिए वर्तमान प्रगति को सहेजें। इसमें SRT पथ, वीडियो स्थिति और सभी एंकर शामिल हैं।",
   "sync.tooltipSaveFile": "सभी समय सुधारों के साथ सिंक्रनाइज़ SRT फ़ाइल निर्यात करें।",
@@ -37,16 +48,5 @@
   "transcribe.selectFile": "फ़ाइल चुनें...",
   "transcribe.outputFile": "आउटपुट फ़ाइल",
   "transcribe.selectDestination": "गंतव्य चुनें...",
-  "transcribe.audioVideoFiles": "ऑडियो/वीडियो फ़ाइलें",
-  "transcribe.srtFiles": "SRT फ़ाइलें",
-  "transcribe.start": "प्रतिलेखन शुरू करें",
-  "transcribe.cancel": "रद्द करें",
-  "transcribe.progress": "प्रगति",
-  "transcribe.log": "लॉग",
-  "transcribe.clearLog": "साफ़ करें",
-  "transcribe.noLog": "कोई लॉग नहीं...",
-  "transcribe.modelRequired": "कृपया Whisper मॉडल चुनें",
-  "transcribe.inputRequired": "कृपया इनपुट फ़ाइल चुनें",
-  "transcribe.outputRequired": "कृपया आउटपुट फ़ाइल चुनें",
-  "transcribe.starting": "प्रतिलेखन शुरू हो रहा है..."
+  "transcribe.audioVideoFiles": "ऑडियो/वीडियो फ़ाइलें"
 }

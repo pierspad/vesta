@@ -1,4 +1,15 @@
 {
+  "settings.modal.protocolInfo": "모든 제공자는 OpenAI 호환 API 프로토콜을 사용합니다. 로컬 서버(Ollama, LM Studio)와 클라우드 제공자 모두 지원됩니다.",
+  "settings.modal.configName": "구성 이름",
+  "settings.modal.configNamePlaceholder": "예: 내 OpenAI 키",
+  "settings.modal.apiEndpoint": "API 엔드포인트 URL",
+  "settings.modal.optional": "선택 사항",
+  "settings.modal.apiEndpointHint": "기본 제공자 URL을 사용하려면 비워두세요. 로컬 서버의 경우 http://localhost:11434/v1 사용",
+  "settings.modal.defaultModel": "기본 모델 ID",
+  "settings.modal.defaultModelPlaceholder": "예: llama3.2, mistral, gpt-4o",
+  "settings.modal.defaultModelHint": "이 구성에서 기본으로 사용할 모델",
+  "settings.modal.openrouterModelHint": "openrouter.ai/models에서 ID 찾기 — 프리셋 목록에 없는 모델도 사용 가능합니다!",
+  "settings.modal.localServer": "로컬 서버",
   "settings.modal.localServerDesc": "Ollama, LM Studio (내 PC)",
   "settings.modal.cloudApi": "클라우드 API (OpenRouter)",
   "settings.modal.cloudApiDesc": "GPT, Claude, Google API (온라인)",
@@ -37,16 +48,5 @@
   "translate.inputFile": "입력 SRT 파일",
   "translate.selectFile": "입력 파일이 선택되지 않았습니다",
   "translate.outputFile": "출력 파일",
-  "translate.selectDestination": "출력 파일이 선택되지 않았습니다",
-  "translate.subtitles": "자막",
-  "translate.log": "로그",
-  "translate.clearLog": "지우기",
-  "translate.noLog": "로그 없음...",
-  "translate.options": "번역 옵션",
-  "translate.provider": "제공자",
-  "translate.apiKey": "API 키",
-  "translate.model": "모델",
-  "translate.targetLang": "대상 언어",
-  "translate.batchSize": "배치 크기",
-  "translate.batchSizeTooltip": "API 요청당 자막 수. 높을수록 호출 횟수 감소, 토큰 증가."
+  "translate.selectDestination": "출력 파일이 선택되지 않았습니다"
 }

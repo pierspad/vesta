@@ -1,4 +1,15 @@
 {
+  "settings.modal.localServerDesc": "Ollama, LM Studio (Dein PC)",
+  "settings.modal.cloudApi": "Cloud-API (OpenRouter)",
+  "settings.modal.cloudApiDesc": "GPT, Claude, Google API (online)",
+  "settings.modal.notRequiredForLocal": "Für lokale Server nicht erforderlich...",
+  "settings.modal.localEndpointDefault": "Standard: http://localhost:11434/v1 (Ollama)",
+  "settings.modelFamilies": "Modellfamilien",
+  "settings.addCustomApiKey": "Benutzerdefinierten API-Schlüssel hinzufügen",
+  "settings.keyAdded": "API-Schlüssel erfolgreich hinzugefügt",
+  "settings.keyUpdated": "Konfiguration erfolgreich aktualisiert",
+  "settings.edit": "Bearbeiten",
+  "settings.modal.editApiKey": "API-Schlüssel bearbeiten",
   "settings.keyDeleted": "API-Schlüssel gelöscht",
   "settings.keyCopied": "API-Schlüssel in Zwischenablage kopiert",
   "settings.modelAdded": "Benutzerdefiniertes Modell hinzugefügt",
@@ -37,16 +48,5 @@
   "translate.noLog": "Kein Protokoll...",
   "translate.options": "Übersetzungsoptionen",
   "translate.provider": "Anbieter",
-  "translate.apiKey": "API-Schlüssel",
-  "translate.model": "Modell",
-  "translate.targetLang": "Zielsprache",
-  "translate.batchSize": "Stapelgröße",
-  "translate.slow": "langsam",
-  "translate.fast": "schnell",
-  "translate.context": "Kontext",
-  "translate.contextPlaceholder": "z.B.: Detour (1945), Nosferatu (1922)",
-  "translate.progress": "Fortschritt",
-  "translate.batch": "Stapel",
-  "translate.timeRemaining": "Verbleibende Zeit:",
-  "translate.completed": "Übersetzung abgeschlossen"
+  "translate.apiKey": "API-Schlüssel"
 }

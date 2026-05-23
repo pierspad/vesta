@@ -1,4 +1,15 @@
 {
+  "sync.tooltipPlay": "비디오 재생 (Space)",
+  "sync.tooltipPause": "비디오 일시정지 (Space)",
+  "sync.tooltipOffsetMinus": "오프셋 100ms 감소 (↓)",
+  "sync.tooltipOffsetPlus": "오프셋 100ms 증가 (↑)",
+  "sync.tooltipOffset": "자막 타이밍 미세 조정. 양수 값은 자막을 지연시키고, 음수 값은 더 일찍 표시합니다.",
+  "sync.tooltipConfirmAnchor": "현재 자막을 동기화 지점으로 표시 (Enter). 앵커는 주변 자막의 타이밍을 보간하는 데 사용되는 기준점입니다.",
+  "sync.tooltipRemoveAnchor": "이 동기화 앵커 제거 (Del)",
+  "sync.tooltipLoadSession": "이전 동기화 세션 재개. 세션은 앵커와 진행 상황을 저장하여 나중에 계속할 수 있습니다.",
+  "sync.tooltipSaveSession": "나중에 계속하려면 현재 진행 상황 저장. SRT 경로, 비디오 위치, 모든 앵커 포함.",
+  "sync.tooltipSaveFile": "모든 타이밍 수정이 적용된 동기화된 SRT 파일 내보내기.",
+  "sync.tooltipPrevAnchor": "이전 앵커로 이동",
   "sync.tooltipNextAnchor": "다음 앵커로 이동",
   "sync.cancelReset": "취소",
   "sync.dropSrtFirst": "먼저 SRT 파일을 로드한 다음 비디오를 로드하세요.",
@@ -37,16 +48,5 @@
   "transcribe.srtFiles": "SRT 파일",
   "transcribe.start": "음성인식 시작",
   "transcribe.cancel": "취소",
-  "transcribe.progress": "진행률",
-  "transcribe.log": "로그",
-  "transcribe.clearLog": "지우기",
-  "transcribe.noLog": "로그 없음...",
-  "transcribe.modelRequired": "Whisper 모델을 선택하세요",
-  "transcribe.inputRequired": "입력 파일을 선택하세요",
-  "transcribe.outputRequired": "출력 파일을 선택하세요",
-  "transcribe.starting": "음성인식 시작 중...",
-  "transcribe.completed": "음성인식 완료",
-  "transcribe.cancelled": "음성인식 취소됨",
-  "transcribe.errorSelectingFile": "파일 선택 오류",
-  "transcribe.comingSoonDesc": "Whisper AI 기반 자동 음성-텍스트 변환. 오디오 또는 비디오 파일에서 직접 자막을 생성합니다."
+  "transcribe.progress": "진행률"
 }

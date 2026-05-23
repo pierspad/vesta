@@ -1,4 +1,15 @@
 {
+  "sync.tooltipPlay": "Video oynat (Space)",
+  "sync.tooltipPause": "Video duraklat (Space)",
+  "sync.tooltipOffsetMinus": "Ofseti 100ms azalt (↓)",
+  "sync.tooltipOffsetPlus": "Ofseti 100ms artır (↑)",
+  "sync.tooltipOffset": "Altyazı zamanlamasını ince ayarlayın. Pozitif değerler altyazıları geciktirir, negatif değerler daha erken gösterir.",
+  "sync.tooltipConfirmAnchor": "Mevcut altyazıyı senkronizasyon noktası olarak işaretle (Enter). Çapalar, çevredeki altyazıların zamanlamasını enterpolasyon için kullanılan referans noktalarıdır.",
+  "sync.tooltipRemoveAnchor": "Bu senkronizasyon çapasını kaldır (Del)",
+  "sync.tooltipLoadSession": "Önceki senkronizasyon oturumunu devam ettir. Oturumlar çapalarınızı ve ilerlemenizi kaydeder.",
+  "sync.tooltipSaveSession": "Daha sonra devam etmek için mevcut ilerlemeyi kaydet. SRT yolu, video konumu ve tüm çapaları içerir.",
+  "sync.tooltipSaveFile": "Tüm zamanlama düzeltmeleri uygulanmış senkronize SRT dosyasını dışa aktar.",
+  "sync.tooltipPrevAnchor": "Önceki çapaya atla",
   "sync.tooltipNextAnchor": "Sonraki çapaya atla",
   "sync.cancelReset": "İptal",
   "sync.dropSrtFirst": "Önce bir SRT dosyası yükleyin, ardından videoyu.",
@@ -37,16 +48,5 @@
   "transcribe.srtFiles": "SRT dosyaları",
   "transcribe.start": "Transkripsiyonu Başlat",
   "transcribe.cancel": "İptal",
-  "transcribe.progress": "İlerleme",
-  "transcribe.log": "Günlük",
-  "transcribe.clearLog": "Temizle",
-  "transcribe.noLog": "Günlük yok...",
-  "transcribe.modelRequired": "Lütfen bir Whisper modeli seçin",
-  "transcribe.inputRequired": "Lütfen bir giriş dosyası seçin",
-  "transcribe.outputRequired": "Lütfen bir çıkış dosyası seçin",
-  "transcribe.starting": "Transkripsiyon başlıyor...",
-  "transcribe.completed": "Transkripsiyon tamamlandı",
-  "transcribe.cancelled": "Transkripsiyon iptal edildi",
-  "transcribe.errorSelectingFile": "Dosya seçme hatası",
-  "transcribe.comingSoonDesc": "Whisper AI ile otomatik konuşmadan metne transkripsiyon. Ses veya video dosyalarından doğrudan altyazı oluşturun."
+  "transcribe.progress": "İlerleme"
 }

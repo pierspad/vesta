@@ -64,6 +64,12 @@
   "shortcuts.action.goToSuggested": "Önerilene git",
   "shortcuts.action.saveFile": "SRT kaydet",
   "settings.title": "Ayarlar",
+  "settings.section.overview": "Genel",
+  "settings.section.llm": "LLM ve API Anahtarları",
+  "settings.section.whisper": "Whisper",
+  "settings.section.language": "Diller ve Akıllı Eşleştirme",
+  "settings.section.anki": "Anki Şablonları",
+  "settings.section.shortcuts": "Kısayollar",
   "settings.subtitle": "API anahtarlarınızı ve mevcut modelleri yönetin",
   "settings.providers": "Sağlayıcı",
   "settings.selectProvider": "Sağlayıcı Seçin",
@@ -810,5 +816,12 @@
   "align.typeSubtitle": "Altyazıyı buraya yazın...",
   "align.noSubtitle": "Altyazı yok",
   "sync.transcodingMedia": "Ses parçası ayıklanıyor...",
-  "sync.transcodingHint": "MKV/avı sesi oynatılmak üzere çıkarılıyor. Bu sadece ilk seferde gereklidir."
+  "sync.transcodingHint": "MKV/avı sesi oynatılmak üzere çıkarılıyor. Bu sadece ilk seferde gereklidir.",
+  "flashcards.downloading": "İndiriliyor...",
+  "flashcards.dropNoValidFiles": "Geçerli bir altyazı veya medya dosyası bırakılmadı",
+  "settings.ankiPresetDesc": "Dışa aktarım için alan eşleştirmesini yapılandırın.",
+  "settings.apiKeysDesc": "Çeviri için yapılandırılmış kimlik bilgileri.",
+  "settings.cardPanelDescShort": "Kart HTML ve CSS kodunu düzenleyin.",
+  "settings.savedConfigurationsDesc": "Aktif çeviri sağlayıcıları.",
+  "translate.refetchModelsTooltip": "Modelleri sağlayıcıdan yeniden al"
 }

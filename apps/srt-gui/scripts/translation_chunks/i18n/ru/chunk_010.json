@@ -1,4 +1,15 @@
 {
+  "sync.statusTitle": "Статус",
+  "sync.subtitle": "Выравнивание субтитров по звуку с помощью умных точек",
+  "sync.subtitles": "Субтитры",
+  "sync.title": "Синхронизация Субтитров",
+  "sync.tooltip.loadAudio": "Загрузить аудио или видео (используется только звук)",
+  "sync.tooltip.loadSrt": "Загрузить SRT файл субтитров",
+  "sync.tooltip.loadVideo": "Загрузить видео файл",
+  "sync.tooltipLoadSession": "Возобновить сохраненную сессию (.json). Сессия хранит файл SRT, путь к видео, все якоря и прогресс.",
+  "sync.tooltipRemoveAnchor": "Удалить этот якорь",
+  "sync.tooltipSaveFile": "Экспортировать финальный синхронизированный SRT файл (.srt). Это готовый к использованию результат.",
+  "sync.tooltipSaveSession": "Сохранить текущее состояние в .json файл. Позволяет прерваться и продолжить позже.",
   "sync.tryAnotherFile": "Попробовать другой файл",
   "sync.wizard.allSynced": "Все субтитры выглядят синхронизированными!",
   "sync.wizard.checkpoint": "Точка проверки",
@@ -37,16 +48,5 @@
   "transcribe.modelTiny": "Крошечный",
   "transcribe.modelUninstalled": "Модель удалена",
   "transcribe.newTranscription": "Новая Транскрипция",
-  "transcribe.newTranscriptionDesc": "Очистить все поля и логи для новой транскрипции",
-  "transcribe.noBackendWarning": "Бэкенд Whisper не найден",
-  "transcribe.noInputMediaSelected": "медиа не выбрано",
-  "transcribe.noOutputFileSelected": "файл не выбран",
-  "transcribe.notDownloaded": "скачать",
-  "transcribe.outputPathDesc": "Введите или исправьте путь к выходному SRT.",
-  "transcribe.outputRequired": "Пожалуйста, выберите выходной файл",
-  "transcribe.processing": "Обработка",
-  "transcribe.progress": "Прогресс",
-  "transcribe.readyToProcess": "Готово к транскрипции",
-  "transcribe.segmentLong": "Длин.",
-  "transcribe.segmentLongDesc": "60с — реже, длинные строки"
+  "transcribe.newTranscriptionDesc": "Очистить все поля и логи для новой транскрипции"
 }

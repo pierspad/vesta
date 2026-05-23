@@ -1,4 +1,15 @@
 {
+  "transcribe.noBackendWarning": "Бэкенд Whisper не найден",
+  "transcribe.noInputMediaSelected": "Медиа не выбрано",
+  "transcribe.noOutputFileSelected": "Файл не выбран",
+  "transcribe.notDownloaded": "скачать",
+  "transcribe.outputPathDesc": "Введите или исправьте путь к выходному SRT.",
+  "transcribe.outputRequired": "Пожалуйста, выберите выходной файл",
+  "transcribe.processing": "Обработка",
+  "transcribe.progress": "Прогресс",
+  "transcribe.readyToProcess": "Готово к транскрипции",
+  "transcribe.segmentLong": "Длин.",
+  "transcribe.segmentLongDesc": "60с — реже, длинные строки",
   "transcribe.segmentMedium": "Сред.",
   "transcribe.segmentMediumDesc": "20с — баланс",
   "transcribe.segmentShort": "Кор.",
@@ -37,16 +48,5 @@
   "translate.dropFileHere": "Перетащите файл сюда",
   "translate.dropFileHint": "Файл субтитров SRT",
   "translate.tooltip.upload": "Выбрать входную SRT файл",
-  "translate.waitingForTranslation": "Ожидание начала...",
-  "flashcards.browse": "Обзор",
-  "flashcards.columns1": "1 столбец",
-  "flashcards.columns2": "2 столбца",
-  "flashcards.columns3": "3 столбца",
-  "flashcards.modeMovie": "Режим Фильма",
-  "flashcards.modeSeries": "Режим Сериала",
-  "flashcards.seriesEpisodes": "эпизодов",
-  "flashcards.addTargetSubs": "Добавить изучаемые субтитры",
-  "flashcards.addNativeSubs": "Добавить родные субтитры",
-  "flashcards.addMedia": "Добавить медиа",
-  "flashcards.clearAll": "Очистить всё"
+  "translate.waitingForTranslation": "Ожидание начала..."
 }

@@ -1,4 +1,15 @@
 {
+  "sync.reset": "Sıfırla",
+  "sync.noSrt": "SRT yok",
+  "sync.noVideo": "Video yok",
+  "sync.subtitles": "Altyazılar",
+  "sync.anchors": "Çapalar",
+  "sync.completion": "Tamamlanma",
+  "sync.avgOffset": "Ort. Ofset",
+  "sync.suggested": "Önerilen",
+  "sync.video": "Video dosyası",
+  "sync.currentSubtitle": "Mevcut Altyazı",
+  "sync.noSubtitleSelected": "Altyazı seçilmedi",
   "sync.original": "Orijinal",
   "sync.synced": "Senkronize",
   "sync.offset": "Ofset",
@@ -37,16 +48,5 @@
   "sync.seek": "Ara ±0.1s",
   "sync.offsetAdjust": "Ofset ±100ms",
   "sync.confirm": "Onayla",
-  "sync.navigateAnchors": "Çapalar arası gezin",
-  "sync.tooltipPlay": "Video oynat (Space)",
-  "sync.tooltipPause": "Video duraklat (Space)",
-  "sync.tooltipOffsetMinus": "Ofseti 100ms azalt (↓)",
-  "sync.tooltipOffsetPlus": "Ofseti 100ms artır (↑)",
-  "sync.tooltipOffset": "Altyazı zamanlamasını ince ayarlayın. Pozitif değerler altyazıları geciktirir, negatif değerler daha erken gösterir.",
-  "sync.tooltipConfirmAnchor": "Mevcut altyazıyı senkronizasyon noktası olarak işaretle (Enter). Çapalar, çevredeki altyazıların zamanlamasını enterpolasyon için kullanılan referans noktalarıdır.",
-  "sync.tooltipRemoveAnchor": "Bu senkronizasyon çapasını kaldır (Del)",
-  "sync.tooltipLoadSession": "Önceki senkronizasyon oturumunu devam ettir. Oturumlar çapalarınızı ve ilerlemenizi kaydeder.",
-  "sync.tooltipSaveSession": "Daha sonra devam etmek için mevcut ilerlemeyi kaydet. SRT yolu, video konumu ve tüm çapaları içerir.",
-  "sync.tooltipSaveFile": "Tüm zamanlama düzeltmeleri uygulanmış senkronize SRT dosyasını dışa aktar.",
-  "sync.tooltipPrevAnchor": "Önceki çapaya atla"
+  "sync.navigateAnchors": "Çapalar arası gezin"
 }

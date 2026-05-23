@@ -57,6 +57,12 @@
   "shortcuts.action.goToSuggested": "转到建议",
   "shortcuts.action.saveFile": "保存SRT",
   "settings.title": "设置",
+  "settings.section.overview": "常规",
+  "settings.section.llm": "LLM 和 API 密钥",
+  "settings.section.whisper": "Whisper",
+  "settings.section.language": "语言和智能匹配",
+  "settings.section.anki": "Anki 模板",
+  "settings.section.shortcuts": "快捷键",
   "settings.subtitle": "管理您的API密钥和可用模型",
   "settings.providers": "提供商",
   "settings.selectProvider": "选择提供商",
@@ -810,5 +816,12 @@
   "align.typeSubtitle": "在此输入字幕...",
   "align.noSubtitle": "无字幕",
   "sync.transcodingMedia": "正在提取音轨...",
-  "sync.transcodingHint": "正在提取MKV/AVI音频以进行播放。这只是第一次需要。"
+  "sync.transcodingHint": "正在提取MKV/AVI音频以进行播放。这只是第一次需要。",
+  "flashcards.downloading": "正在下载...",
+  "flashcards.dropNoValidFiles": "拖放的文件中没有有效的字幕或媒体文件",
+  "settings.ankiPresetDesc": "配置导出的字段映射。",
+  "settings.apiKeysDesc": "已配置的翻译凭据。",
+  "settings.cardPanelDescShort": "编辑卡片的 HTML 和 CSS 代码。",
+  "settings.savedConfigurationsDesc": "活跃的翻译服务商。",
+  "translate.refetchModelsTooltip": "从服务商重新获取模型"
 }

@@ -11,7 +11,7 @@
   "nav.revision.desc": "Completa e correggi la traduzione",
   "nav.transcribe": "Trascrizione",
   "nav.transcribe.desc": "Speech-to-text con Whisper",
-  "nav.flashcards": "Carte Anki",
+  "nav.flashcards": "Flashcard",
   "nav.flashcards.desc": "Crea carte Anki dai sub",
   "nav.comingSoon": "Presto",
   "nav.settings": "Impostazioni",
@@ -40,13 +40,13 @@
   "shortcuts.action.goToSettings": "Vai a Impostazioni",
   "shortcuts.action.goToShortcuts": "Vai a Shortcuts",
   "shortcuts.action.addApiKey": "Aggiungi chiave API",
+  "shortcuts.action.autoSync": "Sincronizzazione automatica",
+  "shortcuts.action.newSync": "Nuova sincronizzazione",
+  "shortcuts.action.loadSession": "Carica sessione",
+  "shortcuts.action.saveSession": "Salva sessione",
+  "shortcuts.action.syncUndo": "Annulla modifica sincronizzazione",
   "shortcuts.action.openSrt": "Apri file SRT",
   "shortcuts.action.startTranslation": "Avvia traduzione",
   "shortcuts.action.cancelTranslation": "Annulla traduzione",
-  "shortcuts.action.clearLogs": "Cancella log",
-  "shortcuts.action.playPause": "Play/Pausa video",
-  "shortcuts.action.back01s": "Indietro 0.1s",
-  "shortcuts.action.forward01s": "Avanti 0.1s",
-  "shortcuts.action.back1s": "Indietro 1s",
-  "shortcuts.action.forward1s": "Avanti 1s"
+  "shortcuts.action.clearLogs": "Cancella log"
 }

@@ -1,4 +1,15 @@
 {
+  "translate.subtitles": "altyazı",
+  "translate.log": "Günlük",
+  "translate.clearLog": "Temizle",
+  "translate.noLog": "Günlük yok...",
+  "translate.options": "Çeviri Seçenekleri",
+  "translate.provider": "Sağlayıcı",
+  "translate.apiKey": "API Anahtarı",
+  "translate.model": "Model seçimi",
+  "translate.targetLang": "Hedef Dil",
+  "translate.batchSize": "Grup Boyutu",
+  "translate.batchSizeTooltip": "API isteği başına altyazı sayısı. Daha yüksek değerler = daha az çağrı ama daha fazla token.",
   "translate.slow": "yavaş",
   "translate.fast": "hızlı",
   "translate.context": "Bağlam",
@@ -37,16 +48,5 @@
   "sync.loadVideo": "Video Yükle",
   "sync.saveFile": "Dosyayı Kaydet",
   "sync.saveSession": "Oturanu Kaydet",
-  "sync.loadSession": "Oturanu Yükle",
-  "sync.reset": "Sıfırla",
-  "sync.noSrt": "SRT yok",
-  "sync.noVideo": "Video yok",
-  "sync.subtitles": "Altyazılar",
-  "sync.anchors": "Çapalar",
-  "sync.completion": "Tamamlanma",
-  "sync.avgOffset": "Ort. Ofset",
-  "sync.suggested": "Önerilen",
-  "sync.video": "Video dosyası",
-  "sync.currentSubtitle": "Mevcut Altyazı",
-  "sync.noSubtitleSelected": "Altyazı seçilmedi"
+  "sync.loadSession": "Oturanu Yükle"
 }

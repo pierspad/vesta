@@ -1,4 +1,15 @@
 {
+  "provider.anthropic": "Claude من Anthropic",
+  "provider.anthropic.desc": "Claude 3.5, Claude 3 (قريباً)",
+  "provider.google": "واجهة Google البرمجية",
+  "provider.custom": "مزود مخصص",
+  "provider.google.desc": "واجهة برمجة تطبيقات Google API الأصلية (تتطلب مفتاح AIza...)",
+  "provider.local.desc": "Ollama, LM Studio, نماذج محلية",
+  "provider.openai": "GPT من OpenAI",
+  "provider.openai.desc": "GPT-4, GPT-4o, GPT-3.5 (قريباً)",
+  "settings.errorEndpointRequired": "رابط API مطلوب للخادم المحلي",
+  "settings.errorInvalidGoogleKey": "يجب أن تبدأ مفاتيح Google API بـ 'AIza...'",
+  "settings.modal.apiKeyHintGoogle": "احصل على مفتاح API الخاص بك من",
   "settings.modal.modelOptionalHint": "اختياري. يمكنك اختيار النموذج في تبويب الترجمة. هذا مجرد افتراضي.",
   "settings.modal.providerAnthropic": "Claude من Anthropic",
   "settings.modal.providerAnthropicDesc": "Opus 4.6 و Sonnet 4.6",
@@ -37,16 +48,5 @@
   "transcribe.autoDetect": "اكتشاف تلقائي",
   "transcribe.clickToDownload": "انقر لتحميل هذا النموذج",
   "transcribe.downloadModel": "تحميل النموذج",
-  "transcribe.editPath": "تعديل",
-  "transcribe.errorUninstalling": "خطأ في إلغاء تثبيت النموذج",
-  "transcribe.ffmpegMissing": "FFmpeg غير موجود",
-  "transcribe.ffmpegMissingDesc": "يلزم وجود FFmpeg لاستخراج الصوت من ملفات الفيديو. قم بتثبيته باستخدام مدير الحزم الخاص بك.",
-  "transcribe.inputPathDesc": "أدخل أو عدل المسار إلى ملف الصوت/الفيديو.",
-  "transcribe.modelBase": "أساسي (Base)",
-  "transcribe.modelLarge": "كبير (Large)",
-  "transcribe.modelMedium": "متوسط (Medium)",
-  "transcribe.modelSmall": "صغير (Small)",
-  "transcribe.modelTiny": "صغير جدًا (Tiny)",
-  "transcribe.modelUninstalled": "تم إلغاء تثبيت النموذج",
-  "transcribe.newTranscription": "نسخ جديد"
+  "transcribe.editPath": "تعديل"
 }

@@ -1,4 +1,15 @@
 {
+  "shortcuts.action.cancelGeneration": "Generierung abbrechen",
+  "shortcuts.action.previewCards": "Karten-Vorschau",
+  "shortcuts.action.prevAnchor": "Vorheriger Anker",
+  "shortcuts.action.nextAnchor": "Nächster Anker",
+  "flashcards.exportAPKGBadge": "Empfohlen",
+  "flashcards.exportTSVBadge": "Klassisch",
+  "shortcuts.overlay.title": "Tastenkürzel",
+  "shortcuts.overlay.hint": "Shift+? zum Ein-/Ausblenden",
+  "shortcuts.overlay.global": "Globalbereich",
+  "shortcuts.editShortcut": "Kürzel bearbeiten",
+  "shortcuts.resetDefault": "Standard wiederherstellen",
   "settings.googleProviderTip": "Um die Übersetzungsfunktion zu nutzen, benötigen Sie einen Google Cloud API-Schlüssel mit aktivierter Cloud Translation API.",
   "settings.localProviderTip": "Mit einem lokalen Anbieter führt Ollama + ein Modell wie gemma3 die Übersetzung lokal aus – kostenlos und ohne Datenübertragung.",
   "settings.groqProviderTip": "Ultraschnelle Inferenz auf Basis von Groq LPU. Erfordert einen gsk_ API-Schlüssel von console.groq.com.",
@@ -37,16 +48,5 @@
   "flashcards.closePreview": "Schließen",
   "flashcards.combineSentences": "Geteilte Sätze kombinieren",
   "flashcards.comingSoonDesc": "Erstellen Sie Anki-Karten automatisch aus Ihren Untertiteln. Perfekt zum Sprachenlernen mit Filmen und Serien.",
-  "flashcards.contextLines": "Kontextzeilen",
-  "flashcards.continuationCharsHint": "Zeichen, die anzeigen, dass eine Zeile auf der nächsten weitergeht",
-  "flashcards.cpuBalanced": "Ausgewogen",
-  "flashcards.cpuBalancedDesc": "50% Kerne",
-  "flashcards.cpuCores": "CPU-Kerne",
-  "flashcards.cpuCoresNote": "Mindestens 1 Kern bleibt für das System frei. Mehr Kerne = schnellere Generierung.",
-  "flashcards.cpuCoresUsage": "Parallele Threads",
-  "flashcards.cpuEco": "Öko",
-  "flashcards.cpuEcoDesc": "Minimale Auslastung",
-  "flashcards.cpuFullPower": "Volle Leistung",
-  "flashcards.cpuFullPowerDesc": "Max. Kerne",
-  "flashcards.cpuMax": "Maximum"
+  "flashcards.contextLines": "Kontextzeilen"
 }

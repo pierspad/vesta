@@ -57,6 +57,12 @@
   "shortcuts.action.goToSuggested": "提案に移動",
   "shortcuts.action.saveFile": "SRTを保存",
   "settings.title": "設定",
+  "settings.section.overview": "一般",
+  "settings.section.llm": "LLMとAPIキー",
+  "settings.section.whisper": "Whisper",
+  "settings.section.language": "言語とスマートマッチング",
+  "settings.section.anki": "Ankiテンプレート",
+  "settings.section.shortcuts": "ショートカット",
   "settings.subtitle": "APIキーと利用可能なモデルを管理",
   "settings.providers": "プロバイダー",
   "settings.selectProvider": "プロバイダーを選択",
@@ -810,5 +816,12 @@
   "align.typeSubtitle": "ここに字幕を入力...",
   "align.noSubtitle": "字幕なし",
   "sync.transcodingMedia": "オーディオトラックを抽出しています...",
-  "sync.transcodingHint": "再生のためにMKV/AVIオーディオが抽出されています。これは初回のみ必要です。"
+  "sync.transcodingHint": "再生のためにMKV/AVIオーディオが抽出されています。これは初回のみ必要です。",
+  "flashcards.downloading": "ダウンロード中...",
+  "flashcards.dropNoValidFiles": "有効な字幕ファイルまたはメディアファイルがドロップされていません",
+  "settings.ankiPresetDesc": "エクスポート用のフィールドマッピングを設定します。",
+  "settings.apiKeysDesc": "翻訳用に設定された資格情報。",
+  "settings.cardPanelDescShort": "カードのHTMLおよびCSSコードを編集します。",
+  "settings.savedConfigurationsDesc": "有効な翻訳プロバイダー。",
+  "translate.refetchModelsTooltip": "プロバイダーからモデルを再取得"
 }

@@ -136,17 +136,62 @@
   }
 
   function handleKeydown(event: KeyboardEvent) {
-    if (event.key === "Escape") closeMenu();
+    if (!menu) return;
+    const key = event.key.toLowerCase();
+
+    if (event.key === "Escape") {
+      closeMenu();
+      return;
+    }
+
+    if (menu.settingsTarget) {
+      if (key === "h" && menu.settingsHash && !menu.settingsHidden) {
+        event.preventDefault();
+        event.stopPropagation();
+        hideNotifications();
+      } else if (key === "s" && menu.settingsHash && menu.settingsHidden) {
+        event.preventDefault();
+        event.stopPropagation();
+        showNotificationsAction();
+      } else if (key === "r" && menu.settingsHash) {
+        event.preventDefault();
+        event.stopPropagation();
+        toggleReadNotification();
+      }
+    }
+
+    // Capture standard single-key shortcuts when menu is active (letters without modifiers)
+    const target = event.target as HTMLElement;
+    const isEditing = target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable;
+    if (!isEditing) {
+      if (key === "c" && !event.ctrlKey && !event.metaKey && menu.hasSelection) {
+        event.preventDefault();
+        event.stopPropagation();
+        void copy();
+      } else if (key === "x" && !event.ctrlKey && !event.metaKey && menu.editable && menu.hasSelection) {
+        event.preventDefault();
+        event.stopPropagation();
+        void cut();
+      } else if (key === "v" && !event.ctrlKey && !event.metaKey && menu.editable) {
+        event.preventDefault();
+        event.stopPropagation();
+        void paste();
+      } else if (key === "a" && !event.ctrlKey && !event.metaKey && menu.editable) {
+        event.preventDefault();
+        event.stopPropagation();
+        selectAll();
+      }
+    }
   }
 
   onMount(() => {
     window.addEventListener("contextmenu", openMenu);
-    window.addEventListener("keydown", handleKeydown);
+    window.addEventListener("keydown", handleKeydown, true);
   });
 
   onDestroy(() => {
     window.removeEventListener("contextmenu", openMenu);
-    window.removeEventListener("keydown", handleKeydown);
+    window.removeEventListener("keydown", handleKeydown, true);
   });
 </script>
 
@@ -179,6 +224,7 @@
               </svg>
               Nascondi notifiche
             </span>
+            <kbd>H</kbd>
           </button>
         {:else if menu.settingsHash && menu.settingsHidden}
           <!-- Notifications are hidden → offer "Show" -->
@@ -194,6 +240,7 @@
               </svg>
               Mostra notifiche
             </span>
+            <kbd>S</kbd>
           </button>
         {:else}
           <button
@@ -229,6 +276,7 @@
                 Segna come letta
               {/if}
             </span>
+            <kbd>R</kbd>
           </button>
         {/if}
         <div class="vesta-context-menu-separator"></div>
@@ -236,20 +284,20 @@
 
       <button type="button" class="vesta-context-menu-item" disabled={!menu.hasSelection} onclick={copy}>
         <span>Copia</span>
-        <kbd>Ctrl C</kbd>
+        <kbd>C / Ctrl C</kbd>
       </button>
       <button type="button" class="vesta-context-menu-item" disabled={!menu.editable || !menu.hasSelection} onclick={cut}>
         <span>Taglia</span>
-        <kbd>Ctrl X</kbd>
+        <kbd>X / Ctrl X</kbd>
       </button>
       <button type="button" class="vesta-context-menu-item" disabled={!menu.editable} onclick={paste}>
         <span>Incolla</span>
-        <kbd>Ctrl V</kbd>
+        <kbd>V / Ctrl V</kbd>
       </button>
       <div class="vesta-context-menu-separator"></div>
       <button type="button" class="vesta-context-menu-item" disabled={!menu.editable} onclick={selectAll}>
         <span>Seleziona tutto</span>
-        <kbd>Ctrl A</kbd>
+        <kbd>A / Ctrl A</kbd>
       </button>
     </div>
   </div>

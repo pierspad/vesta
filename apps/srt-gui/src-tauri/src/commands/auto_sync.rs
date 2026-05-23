@@ -339,6 +339,102 @@ pub async fn sync_cancel_auto_sync(sync_state: State<'_, AppSyncState>) -> Resul
     Ok(())
 }
 
+struct PreparedSegment {
+    idx: usize,
+    current_pos: f64,
+    audio_data: Vec<f32>,
+    _wav_path: std::path::PathBuf,
+}
+
+async fn prepare_single_segment(
+    idx: usize,
+    start_pos: f64,
+    segment_duration: f64,
+    duration_sec: f64,
+    quick: bool,
+    media_path: String,
+    temp_dir_path: std::path::PathBuf,
+    ffmpeg_cmd: String,
+) -> Result<PreparedSegment, String> {
+    let mut current_pos = start_pos;
+    let mut attempts = 0;
+    let mut audio_data = Vec::new();
+    let mut wav_path = temp_dir_path.join(format!("segment_{}.wav", idx));
+
+    let max_attempts = if quick { 5 } else { 3 };
+    let shift_amount = if quick { 15.0 } else { 20.0 };
+
+    while attempts < max_attempts && current_pos + segment_duration <= duration_sec {
+        let temp_wav_path = temp_dir_path.join(format!("segment_{}_try{}.wav", idx, attempts));
+        let temp_wav_str = temp_wav_path.to_string_lossy().to_string();
+
+        let media_path_clone = media_path.clone();
+        let ffmpeg_cmd_clone = ffmpeg_cmd.clone();
+        let extract_res = tokio::task::spawn_blocking(move || {
+            extract_audio_segment(&media_path_clone, current_pos, segment_duration, &temp_wav_str, &ffmpeg_cmd_clone)
+        }).await;
+
+        let extract_ok = match extract_res {
+            Ok(Ok(())) => true,
+            _ => false,
+        };
+
+        if !extract_ok {
+            attempts += 1;
+            current_pos += shift_amount;
+            continue;
+        }
+
+        let temp_wav_path_clone = temp_wav_path.clone();
+        let samples_res = tokio::task::spawn_blocking(move || {
+            read_wav_to_f32(&temp_wav_path_clone)
+        }).await;
+
+        let samples = match samples_res {
+            Ok(Ok(data)) => data,
+            _ => {
+                let _ = std::fs::remove_file(&temp_wav_path);
+                attempts += 1;
+                current_pos += shift_amount;
+                continue;
+            }
+        };
+
+        let silent = is_silent(&samples, 0.003);
+        if silent {
+            let _ = std::fs::remove_file(&temp_wav_path);
+            attempts += 1;
+            current_pos += shift_amount;
+        } else {
+            audio_data = samples;
+            wav_path = temp_wav_path;
+            break;
+        }
+    }
+
+    if audio_data.is_empty() {
+        let wav_str = wav_path.to_string_lossy().to_string();
+        let media_path_clone = media_path.clone();
+        let ffmpeg_cmd_clone = ffmpeg_cmd.clone();
+        let _ = tokio::task::spawn_blocking(move || {
+            extract_audio_segment(&media_path_clone, start_pos, segment_duration, &wav_str, &ffmpeg_cmd_clone)
+        }).await;
+
+        let wav_path_clone = wav_path.clone();
+        if let Ok(Ok(samples)) = tokio::task::spawn_blocking(move || read_wav_to_f32(&wav_path_clone)).await {
+            audio_data = samples;
+            current_pos = start_pos;
+        }
+    }
+
+    Ok(PreparedSegment {
+        idx,
+        current_pos,
+        audio_data,
+        _wav_path: wav_path,
+    })
+}
+
 /// Auto-sync command: transcribes strategic audio segments and matches
 /// them against loaded SRT subtitles to create anchor points automatically.
 #[tauri::command]
@@ -360,36 +456,36 @@ pub async fn sync_auto_sync(
         if ts.is_transcribing {
             return Err("A transcription is already in progress".to_string());
         }
-
+ 
         let token = CancellationToken::new();
         ss.is_auto_syncing = true;
         ss.auto_sync_cancellation_token = Some(token.clone());
         token
     };
-
+ 
     // Ensure state cleanup when function returns
     let _guard = AutoSyncGuard(&sync_state);
-
+ 
     // Get media path and subtitle info from sync engine
     let (media_path, subtitle_infos) = {
         let ss = sync_state.lock().map_err(|e| e.to_string())?;
         let engine = ss.engine.as_ref()
             .ok_or("No SRT file loaded for sync")?;
-
+ 
         let media = engine.get_video_path()
             .ok_or("No media file loaded. Load audio/video first.")?
             .to_string();
-
+ 
         let subs: Vec<(u32, i64, String)> = engine.get_all_subtitles()
             .iter()
             .map(|sub| (sub.id, sub.start.milliseconds as i64, sub.text.clone()))
             .collect();
-
+ 
         (media, subs)
     };
-
+ 
     let model_path = get_model_path(&model_id).map_err(|e| e.to_string())?;
-
+ 
     let ffmpeg_cmd = crate::commands::flashcards::media::resolve_ffmpeg_path(Some(&app)).await;
     
     let ffmpeg_ok = tokio::process::Command::new(&ffmpeg_cmd)
@@ -398,23 +494,23 @@ pub async fn sync_auto_sync(
         .await
         .map(|o| o.status.success())
         .unwrap_or(false);
-
+ 
     if !ffmpeg_ok {
         return Err("FFmpeg is required for auto-sync. Install FFmpeg first.".to_string());
     }
     
     let ffprobe_cmd = crate::commands::flashcards::media::resolve_ffprobe_path(Some(&app)).await;
-
+ 
     let duration_sec = get_media_duration(&media_path, &ffprobe_cmd).await.unwrap_or(0.0);
     if duration_sec < 10.0 {
         return Err("Media file too short or unable to detect duration".to_string());
     }
-
+ 
     // Determine segment duration and sample positions based on quick mode (quick = BREVE, false = PRECISO)
     let segment_duration = if quick { 20.0 } else { 40.0 };
     let num_samples = if quick { 12 } else { 24 };
     let mut sample_positions: Vec<f64> = Vec::new();
-
+ 
     let step = duration_sec / (num_samples + 1) as f64;
     for i in 1..=num_samples {
         let pos = step * i as f64;
@@ -422,11 +518,11 @@ pub async fn sync_auto_sync(
             sample_positions.push(pos);
         }
     }
-
+ 
     if sample_positions.is_empty() {
         sample_positions.push(0.0);
     }
-
+ 
     emit_auto_sync_progress(
         &app,
         "start",
@@ -438,7 +534,7 @@ pub async fn sync_auto_sync(
             sample_positions.len().to_string(),
         )])),
     );
-
+ 
     let app_clone = app.clone();
     let model_path_str = model_path.to_string_lossy().to_string();
     let media_path_str = media_path.clone();
@@ -449,7 +545,78 @@ pub async fn sync_auto_sync(
     let temp_dir_path = temp_dir.path().to_path_buf();
     
     let total_segments = sample_positions.len();
-    let ffmpeg_cmd_arc = std::sync::Arc::<str>::from(ffmpeg_cmd.as_str());
+    
+    // Concurrently prepare all segments using a CPU-bounded semaphore to maximize I/O throughput safely
+    emit_auto_sync_progress(
+        &app,
+        "prepare",
+        format!("Preparing and extracting {} audio segments in parallel...", total_segments),
+        3.0,
+        Some("sync.autoSyncProgress.preparingSegments"),
+        Some(HashMap::from([
+            ("total".to_string(), total_segments.to_string()),
+        ])),
+    );
+
+    let max_concurrency = num_cpus().min(6);
+    let semaphore = std::sync::Arc::new(tokio::sync::Semaphore::new(max_concurrency));
+    let mut prep_handles = Vec::new();
+
+    for (idx, &start_pos) in sample_positions.iter().enumerate() {
+        let sem = semaphore.clone();
+        let media_path = media_path_str.clone();
+        let temp_dir_path = temp_dir_path.clone();
+        let ffmpeg_cmd = ffmpeg_cmd.clone();
+
+        prep_handles.push(tokio::spawn(async move {
+            let _permit = sem.acquire().await.unwrap();
+            prepare_single_segment(
+                idx,
+                start_pos,
+                segment_duration,
+                duration_sec,
+                quick,
+                media_path,
+                temp_dir_path,
+                ffmpeg_cmd,
+            ).await
+        }));
+    }
+
+    let mut prepared_segments = Vec::new();
+    for (idx, handle) in prep_handles.into_iter().enumerate() {
+        if token.is_cancelled() {
+            let _ = std::fs::remove_dir_all(&temp_dir_path);
+            return Ok(AutoSyncResult {
+                success: false,
+                cancelled: true,
+                anchors_created: 0,
+                segments_analyzed: idx,
+                message: "Auto-sync was cancelled.".to_string(),
+            });
+        }
+        match handle.await {
+            Ok(Ok(prep)) => prepared_segments.push(prep),
+            Ok(Err(e)) => {
+                eprintln!("[auto-sync] Segment {} preparation failed: {}", idx, e);
+            }
+            Err(e) => {
+                eprintln!("[auto-sync] Segment {} task panicked: {:?}", idx, e);
+            }
+        }
+    }
+
+    // Sort chronologically to preserve geometric alignment sequence
+    prepared_segments.sort_by_key(|s| s.idx);
+
+    emit_auto_sync_progress(
+        &app,
+        "prepare_done",
+        "Audio preparation complete. Loading Whisper model...".to_string(),
+        10.0,
+        Some("sync.autoSyncProgress.loadingModel"),
+        None,
+    );
 
     let spawn_res = tokio::task::spawn_blocking(move || -> Result<(Vec<MatchCandidate>, usize, bool), String> {
         let mut all_matches: Vec<MatchCandidate> = Vec::new();
@@ -458,11 +625,11 @@ pub async fn sync_auto_sync(
             &model_path_str,
             whisper_rs::WhisperContextParameters::default(),
         ).map_err(|e| format!("Failed to load Whisper model: {:?}", e))?;
-
+ 
         let mut subtitle_infos_sorted = subtitle_infos_clone;
         subtitle_infos_sorted.sort_by_key(|(_, start_ms, _)| *start_ms);
-
-        for (idx, &start_pos) in sample_positions.iter().enumerate() {
+ 
+        for (idx, prep) in prepared_segments.iter().enumerate() {
             if token_clone.is_cancelled() {
                 emit_auto_sync_progress(
                     &app_clone,
@@ -474,65 +641,11 @@ pub async fn sync_auto_sync(
                 );
                 return Ok((all_matches, idx, true));
             }
-
-            let mut current_pos = start_pos;
-            let mut attempts = 0;
-            let mut audio_data = Vec::new();
-            let mut wav_path = temp_dir_path.join(format!("segment_{}.wav", idx));
-
-            let max_attempts = if quick { 5 } else { 3 };
-            let shift_amount = if quick { 15.0 } else { 20.0 };
-
-            // Try to find a non-silent segment
-            while attempts < max_attempts && current_pos + segment_duration <= duration_sec {
-                let temp_wav_path = temp_dir_path.join(format!("segment_{}_try{}.wav", idx, attempts));
-                let temp_wav_str = temp_wav_path.to_string_lossy().to_string();
-
-                if let Err(e) = extract_audio_segment(&media_path_str, current_pos, segment_duration, &temp_wav_str, &ffmpeg_cmd_arc) {
-                    eprintln!("[auto-sync] Segment {} try {} extraction failed: {}", idx, attempts, e);
-                    attempts += 1;
-                    current_pos += shift_amount;
-                    continue;
-                }
-
-                let samples = match read_wav_to_f32(&temp_wav_path) {
-                    Ok(data) => data,
-                    Err(e) => {
-                        eprintln!("[auto-sync] Failed to read segment {} try {}: {}", idx, attempts, e);
-                        let _ = std::fs::remove_file(&temp_wav_path);
-                        attempts += 1;
-                        current_pos += shift_amount;
-                        continue;
-                    }
-                };
-
-                let silent = is_silent(&samples, 0.003);
-                if silent {
-                    println!("[auto-sync] Segment {} at {:.1}s is silent, shifting forward...", idx, current_pos);
-                    let _ = std::fs::remove_file(&temp_wav_path);
-                    attempts += 1;
-                    current_pos += shift_amount;
-                } else {
-                    audio_data = samples;
-                    wav_path = temp_wav_path;
-                    break;
-                }
-            }
-            
-            // Fallback to original start_pos if all shifted attempts are silent or out of bounds
-            if audio_data.is_empty() {
-                let wav_str = wav_path.to_string_lossy().to_string();
-                let _ = extract_audio_segment(&media_path_str, start_pos, segment_duration, &wav_str, &ffmpeg_cmd_arc);
-                if let Ok(samples) = read_wav_to_f32(&wav_path) {
-                    audio_data = samples;
-                    current_pos = start_pos;
-                }
-            }
-
+ 
             let progress = (idx as f64 / total_segments as f64) * 80.0 + 10.0;
-
-            let start_label = format_mm_ss(current_pos);
-            let end_label = format_mm_ss(current_pos + segment_duration);
+ 
+            let start_label = format_mm_ss(prep.current_pos);
+            let end_label = format_mm_ss(prep.current_pos + segment_duration);
             emit_auto_sync_progress(
                 &app_clone,
                 "transcribe",
@@ -557,53 +670,51 @@ pub async fn sync_auto_sync(
                     ),
                 ])),
             );
-
+ 
             if token_clone.is_cancelled() {
-                let _ = std::fs::remove_file(&wav_path);
                 break;
             }
-
-            let transcribed = match transcribe_segment_with_ctx(&ctx, &audio_data, language_clone.as_deref()) {
+ 
+            let transcribed = match transcribe_segment_with_ctx(&ctx, &prep.audio_data, language_clone.as_deref()) {
                 Ok(segs) => segs,
                 Err(e) => {
-                    eprintln!("[auto-sync] Segment {} transcription failed: {}", idx, e);
-                    let _ = std::fs::remove_file(&wav_path);
+                    eprintln!("[auto-sync] Segment {} transcription failed: {}", prep.idx, e);
                     continue;
                 }
             };
-
+ 
             let adjusted_segments: Vec<TranscribedSegment> = transcribed.into_iter()
                 .map(|mut seg| {
-                    seg.start_ms += (current_pos * 1000.0) as i64;
-                    seg.end_ms += (current_pos * 1000.0) as i64;
+                    seg.start_ms += (prep.current_pos * 1000.0) as i64;
+                    seg.end_ms += (prep.current_pos * 1000.0) as i64;
                     seg
                 })
                 .collect();
-
+ 
             for tseg in &adjusted_segments {
                 // Tiny or one-word fragments are very noisy for subtitle alignment.
                 if tseg.text.split_whitespace().count() < 2 {
                     continue;
                 }
-
+ 
                 let near_idx = subtitle_infos_sorted
                     .partition_point(|(_, sub_start_ms, _)| *sub_start_ms < tseg.start_ms);
                 let window_start = near_idx.saturating_sub(40);
                 let window_end = (near_idx + 40).min(subtitle_infos_sorted.len());
-
+ 
                 for &(sub_id, sub_start_ms, ref sub_text) in &subtitle_infos_sorted[window_start..window_end] {
                     let time_diff = (sub_start_ms - tseg.start_ms).abs();
                     if time_diff > 45_000 {
                         continue;
                     }
-
+ 
                     let sim = text_similarity(&tseg.text, sub_text);
                     if sim > 0.42 {
                         let score = sim * temporal_weight(time_diff);
                         if score < 0.40 {
                             continue;
                         }
-
+ 
                         all_matches.push(MatchCandidate {
                             subtitle_id: sub_id,
                             original_start_ms: sub_start_ms,
@@ -614,14 +725,13 @@ pub async fn sync_auto_sync(
                     }
                 }
             }
-            let _ = std::fs::remove_file(&wav_path);
         }
         
         Ok((all_matches, total_segments, token_clone.is_cancelled()))
     }).await.map_err(|e| format!("Task panic: {:?}", e))?;
     
     let (all_matches, segments_analyzed, is_cancelled) = spawn_res?;
-    let _ = std::fs::remove_dir_all(&temp_dir);
+    let _ = std::fs::remove_dir_all(&temp_dir_path);
 
     if is_cancelled {
         return Ok(AutoSyncResult {

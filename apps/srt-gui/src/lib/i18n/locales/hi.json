@@ -64,6 +64,12 @@
   "shortcuts.action.goToSuggested": "सुझाए गए पर जाएँ",
   "shortcuts.action.saveFile": "SRT सहेजें",
   "settings.title": "सेटिंग्स",
+  "settings.section.overview": "सामान्य",
+  "settings.section.llm": "एलएलएम और एपीआई कुंजी",
+  "settings.section.whisper": "Whisper",
+  "settings.section.language": "भाषाएँ और स्मार्ट मिलान",
+  "settings.section.anki": "अंकी टेम्पलेट",
+  "settings.section.shortcuts": "शॉर्टकट",
   "settings.subtitle": "अपनी API कुंजियों और उपलब्ध मॉडलों को प्रबंधित करें",
   "settings.providers": "प्रदाता",
   "settings.selectProvider": "प्रदाता चुनें",
@@ -810,5 +816,12 @@
   "align.typeSubtitle": "यहाँ उपशीर्षक टाइप करें...",
   "align.noSubtitle": "कोई उपशीर्षक नहीं",
   "sync.transcodingMedia": "ऑडियो ट्रैक निकाला जा रहा है...",
-  "sync.transcodingHint": "प्लेबैक के लिए MKV/AVI ऑडियो निकाला जा रहा है। यह केवल पहली बार की जरूरत है।"
+  "sync.transcodingHint": "प्लेबैक के लिए MKV/AVI ऑडियो निकाला जा रहा है। यह केवल पहली बार की जरूरत है।",
+  "flashcards.downloading": "डाउनलोड हो रहा है...",
+  "flashcards.dropNoValidFiles": "कोई वैध उपशीर्षक या मीडिया फ़ाइलें नहीं छोड़ी गईं",
+  "settings.ankiPresetDesc": "निर्यात के लिए फ़ील्ड मैपिंग कॉन्फ़िगर करें।",
+  "settings.apiKeysDesc": "अनुवाद के लिए कॉन्फ़िगर किए गए क्रेडेंशियल।",
+  "settings.cardPanelDescShort": "कार्ड HTML और CSS कोड संपादित करें।",
+  "settings.savedConfigurationsDesc": "सक्रिय अनुवाद प्रदाता।",
+  "translate.refetchModelsTooltip": "प्रदाता से मॉडल फिर से प्राप्त करें"
 }

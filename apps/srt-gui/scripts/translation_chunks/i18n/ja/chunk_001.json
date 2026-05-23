@@ -33,6 +33,11 @@
   "shortcuts.action.goToSettings": "設定に移動",
   "shortcuts.action.goToShortcuts": "ショートカットに移動",
   "shortcuts.action.addApiKey": "APIキーを追加",
+  "shortcuts.action.autoSync": "字幕を自動同期",
+  "shortcuts.action.newSync": "新しい同期セッション",
+  "shortcuts.action.loadSession": "同期セッションを読み込む",
+  "shortcuts.action.saveSession": "同期セッションを保存",
+  "shortcuts.action.syncUndo": "同期編集を元に戻す",
   "shortcuts.action.openSrt": "SRTファイルを開く",
   "shortcuts.action.startTranslation": "翻訳開始",
   "shortcuts.action.cancelTranslation": "翻訳キャンセル",
@@ -43,10 +48,5 @@
   "shortcuts.action.back1s": "1秒戻る",
   "shortcuts.action.forward1s": "1秒進む",
   "shortcuts.action.offsetUp": "オフセット +100ms",
-  "shortcuts.action.offsetDown": "オフセット -100ms",
-  "shortcuts.action.offsetUpFast": "オフセット +500ms",
-  "shortcuts.action.offsetDownFast": "オフセット -500ms",
-  "shortcuts.action.confirmAnchor": "アンカーを確認",
-  "shortcuts.action.nextSubtitle": "次の字幕",
-  "shortcuts.action.prevSubtitle": "前の字幕"
+  "shortcuts.action.offsetDown": "オフセット -100ms"
 }

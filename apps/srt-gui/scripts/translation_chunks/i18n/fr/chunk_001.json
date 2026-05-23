@@ -33,6 +33,11 @@
   "shortcuts.action.goToSettings": "Aller aux Paramètres",
   "shortcuts.action.goToShortcuts": "Aller aux Raccourcis",
   "shortcuts.action.addApiKey": "Ajouter clé API",
+  "shortcuts.action.autoSync": "Synchroniser automatiquement les sous-titres",
+  "shortcuts.action.newSync": "Nouvelle session de synchronisation",
+  "shortcuts.action.loadSession": "Charger la session de synchronisation",
+  "shortcuts.action.saveSession": "Enregistrer la session de synchronisation",
+  "shortcuts.action.syncUndo": "Annuler la modification de synchronisation",
   "shortcuts.action.openSrt": "Ouvrir fichier SRT",
   "shortcuts.action.startTranslation": "Démarrer la traduction",
   "shortcuts.action.cancelTranslation": "Annuler la traduction",
@@ -43,10 +48,5 @@
   "shortcuts.action.back1s": "Reculer 1s",
   "shortcuts.action.forward1s": "Avancer 1s",
   "shortcuts.action.offsetUp": "Décalage +100ms",
-  "shortcuts.action.offsetDown": "Décalage -100ms",
-  "shortcuts.action.offsetUpFast": "Décalage +500ms",
-  "shortcuts.action.offsetDownFast": "Décalage -500ms",
-  "shortcuts.action.confirmAnchor": "Confirmer l'ancre",
-  "shortcuts.action.nextSubtitle": "Sous-titre suivant",
-  "shortcuts.action.prevSubtitle": "Sous-titre précédent"
+  "shortcuts.action.offsetDown": "Décalage -100ms"
 }

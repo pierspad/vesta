@@ -1,4 +1,15 @@
 {
+  "translate.outputFile": "ملف الإخراج",
+  "translate.selectDestination": "لم يتم اختيار ملف إخراج",
+  "translate.subtitles": "ترجمات",
+  "translate.log": "سجل",
+  "translate.clearLog": "مسح",
+  "translate.noLog": "لا يوجد سجل...",
+  "translate.options": "خيارات الترجمة",
+  "translate.provider": "المزود",
+  "translate.apiKey": "مفتاح API",
+  "translate.model": "النموذج",
+  "translate.targetLang": "اللغة الهدف",
   "translate.batchSize": "حجم الدفعة",
   "translate.batchSizeTooltip": "عدد الترجمات لكل طلب API. القيم الأعلى = استدعاءات أقل لكن رموز أكثر.",
   "translate.slow": "بطيء",
@@ -37,16 +48,5 @@
   "sync.subtitle": "محاذاة الترجمات مع الفيديو باستخدام نقاط مرجعية",
   "sync.loadSrt": "تحميل SRT",
   "sync.loadVideo": "تحميل الفيديو",
-  "sync.saveFile": "حفظ ملف",
-  "sync.saveSession": "حفظ جلسة",
-  "sync.loadSession": "تحميل جلسة",
-  "sync.reset": "إعادة تعيين",
-  "sync.noSrt": "لا يوجد SRT",
-  "sync.noVideo": "لا يوجد فيديو",
-  "sync.subtitles": "الترجمات",
-  "sync.anchors": "المراسي",
-  "sync.completion": "الاكتمال",
-  "sync.avgOffset": "متوسط الإزاحة",
-  "sync.suggested": "مقترح",
-  "sync.video": "الفيديو"
+  "sync.saveFile": "حفظ ملف"
 }

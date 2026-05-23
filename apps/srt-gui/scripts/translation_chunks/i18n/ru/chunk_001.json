@@ -33,6 +33,11 @@
   "shortcuts.action.goToSettings": "Перейти к Настройкам",
   "shortcuts.action.goToShortcuts": "Перейти к Горячим клавишам",
   "shortcuts.action.addApiKey": "Добавить API ключ",
+  "shortcuts.action.autoSync": "Автоматически синхронизировать субтитры",
+  "shortcuts.action.newSync": "Новая сессия синхронизации",
+  "shortcuts.action.loadSession": "Загрузить сессию синхронизации",
+  "shortcuts.action.saveSession": "Сохранить сессию синхронизации",
+  "shortcuts.action.syncUndo": "Отменить правку синхронизации",
   "shortcuts.action.openSrt": "Открыть файл SRT",
   "shortcuts.action.startTranslation": "Начать перевод",
   "shortcuts.action.cancelTranslation": "Отменить перевод",
@@ -43,10 +48,5 @@
   "shortcuts.action.back1s": "Назад 1с",
   "shortcuts.action.forward1s": "Вперёд 1с",
   "shortcuts.action.offsetUp": "Смещение +100мс",
-  "shortcuts.action.offsetDown": "Смещение -100мс",
-  "shortcuts.action.offsetUpFast": "Смещение +500мс",
-  "shortcuts.action.offsetDownFast": "Смещение -500мс",
-  "shortcuts.action.confirmAnchor": "Подтвердить якорь",
-  "shortcuts.action.nextSubtitle": "Следующий субтитр",
-  "shortcuts.action.prevSubtitle": "Предыдущий субтитр"
+  "shortcuts.action.offsetDown": "Смещение -100мс"
 }

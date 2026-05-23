@@ -2,7 +2,7 @@
   import { invoke } from "@tauri-apps/api/core";
   import { listen } from "@tauri-apps/api/event";
   import { getCurrentWebview } from "@tauri-apps/api/webview";
-  import { guardedOpen } from "./dialogGuard";
+  import { guardedOpen } from "./utils/dialogGuard";
   import { onDestroy, onMount } from "svelte";
   import { locale } from "./i18n";
   import {
@@ -13,6 +13,8 @@
     loadCardTemplates,
     loadFieldNames,
     scoreLanguageMatch,
+    getFileName,
+    inferLanguageFromPath,
   } from "./models";
   import PathPreviewModal from "./PathPreviewModal.svelte";
   import SearchableSelect from "./SearchableSelect.svelte";
@@ -20,8 +22,9 @@
   import InfoModal from "./InfoModal.svelte";
   import InfoButton from "./InfoButton.svelte";
   import CodeEditor from "./CodeEditor.svelte";
-  import Snackbar from "./Snackbar.svelte";
+  import { snackbar } from "./snackbarStore.svelte";
   import { flashcardsSections } from "./info";
+  import { smartMatchingStore } from "./smartMatchingStore.svelte";
 
   const SUBTITLE_EXTENSIONS = ["srt", "ass", "ssa", "vtt"];
 
@@ -66,7 +69,7 @@
   const DEFAULT_FLASHCARD_MEDIA_WIDTH = 240;
   const DEFAULT_FLASHCARD_MEDIA_HEIGHT = 160;
 
-  let smartFileMatchingEnabled = $state(true);
+  let smartFileMatchingEnabled = $derived(smartMatchingStore.enabled);
 
   interface SmartMatchingRules {
     episodeRegexes: string[];
@@ -266,7 +269,7 @@ ${formatJsonArray(rules.removableNameTokens, 4)}
     return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   }
 
-  let smartMatchingRules = $state<SmartMatchingRules>(loadSmartMatchingRules());
+  let smartMatchingRules = $derived(smartMatchingStore.rules);
   let showSmartMatchingDialog = $state(false);
   let smartMatchingRulesDraft = $state("");
   let smartMatchingRulesError = $state<string | null>(null);
@@ -380,20 +383,8 @@ ${formatJsonArray(rules.removableNameTokens, 4)}
   let episodeAudioTracksLoading = $state(false);
   let initialEditingMediaOverridesStr = $state("");
   let initialEditingEpisodeStr = $state("");
-  let snackbarMessage = $state<string | null>(null);
-  let snackbarTimeout = $state<ReturnType<typeof setTimeout> | null>(null);
-  let snackbarKey = $state(0);
-
-  let snackbarVariant = $state<"success" | "info" | "warning" | "error">("info");
-
   function showSnackbar(message: string, variant: "success" | "info" | "warning" | "error" = "info") {
-    if (snackbarTimeout) clearTimeout(snackbarTimeout);
-    snackbarKey += 1;
-    snackbarMessage = message;
-    snackbarVariant = variant;
-    snackbarTimeout = setTimeout(() => {
-      snackbarMessage = null;
-    }, 1300);
+    snackbar.show(message, variant, 1300);
   }
 
   // Extract episode number from filename using the editable smart matching patterns.
@@ -1401,8 +1392,54 @@ ${formatJsonArray(rules.removableNameTokens, 4)}
 
   let exportFormat = $state<"tsv" | "apkg">("apkg");
 
+  let autoSendToAnki = $state(localStorage.getItem("vesta-flashcards-auto-send-anki") === "true");
+  let ankiSyncing = $state(false);
+  let ankiSyncSuccess = $state(false);
+  let ankiSyncError = $state<string | null>(null);
+
+  $effect(() => {
+    localStorage.setItem("vesta-flashcards-auto-send-anki", String(autoSendToAnki));
+  });
+
+  async function sendToAnkiConnect(apkgPath: string) {
+    if (!apkgPath) return;
+    ankiSyncing = true;
+    ankiSyncError = null;
+    ankiSyncSuccess = false;
+    try {
+      const response = await fetch("http://127.0.0.1:8765", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "importPackage",
+          version: 6,
+          params: { path: apkgPath }
+        })
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const data = await response.json();
+      if (data.error) {
+        throw new Error(data.error);
+      }
+      ankiSyncSuccess = true;
+      showSnackbar("Pacchetto Anki importato con successo!", "success");
+      addLog("AnkiConnect: Deck importato con successo in Anki!", "success");
+    } catch (e: any) {
+      ankiSyncError = e.message || String(e);
+      showSnackbar(`Errore di connessione ad Anki: ${ankiSyncError}`, "error");
+      addLog(`AnkiConnect Error: ${ankiSyncError}`, "error");
+    } finally {
+      ankiSyncing = false;
+    }
+  }
+
   let systemCpuCount = $state(4);
   let cpuCores = $state(2); // will be set properly onMount
+  let handleCpuCoresChanged = (e: Event) => {
+    cpuCores = (e as CustomEvent<number>).detail;
+  };
   let minCpuCores = $derived(2);
   let maxCpuCores = $derived(Math.max(2, systemCpuCount - 1));
 
@@ -1440,7 +1477,6 @@ ${formatJsonArray(rules.removableNameTokens, 4)}
     "ankiFields",
     "exportFormat",
     "naming",
-    "cpuCores",
     "actions",
     "progressResult",
     "logs",
@@ -1460,11 +1496,11 @@ ${formatJsonArray(rules.removableNameTokens, 4)}
   const DEFAULT_LAYOUT: ColumnLayout = {
     col1: ["files", "subtitleOptions", "contextLines", "filters"],
     col2: ["naming", "audioClips", "snapshots", "videoClips", "ankiFields"],
-    col3: ["exportFormat", "cpuCores", "actions", "progressResult", "logs"],
+    col3: ["exportFormat", "actions", "progressResult", "logs"],
   };
 
   const DEFAULT_SERIES_LAYOUT: ColumnLayout = {
-    col1: ["files", "cpuCores", "ankiFields", "subtitleOptions", "contextLines", "filters"],
+    col1: ["files", "ankiFields", "subtitleOptions", "contextLines", "filters"],
     col2: ["naming", "audioClips", "snapshots", "videoClips"],
     col3: ["exportFormat", "actions", "progressResult", "logs"],
   };
@@ -1643,11 +1679,72 @@ ${formatJsonArray(rules.removableNameTokens, 4)}
   let previewFilter = $state<"all" | "active" | "inactive">("all");
   let previewSearch = $state("");
   let previewPage = $state(1);
+
+  let playingLine = $state<any | null>(null);
+  let previewIsPlaying = $state(false);
+  let playerElement = $state<HTMLMediaElement | null>(null);
+  let mediaServerPort: number | null = null;
+
+  async function getMediaPort(): Promise<number> {
+    if (mediaServerPort) return mediaServerPort;
+    mediaServerPort = await invoke<number>("get_media_server_port");
+    return mediaServerPort;
+  }
+
+  let previewMediaPath = $derived.by(() => {
+    if (seriesMode && episodes.length > 0) {
+      return episodes[0].mediaPath;
+    }
+    return mediaPath;
+  });
+
+  let previewMediaType = $derived.by(() => {
+    if (seriesMode && episodes.length > 0) {
+      return episodes[0].mediaType;
+    }
+    return hasVideo ? "video" : (hasAudio ? "audio" : "none");
+  });
+
+  async function playPreviewLine(line: any) {
+    if (!previewMediaPath) return;
+    if (playingLine?.index === line.index) {
+      if (playerElement) {
+        if (playerElement.paused) {
+          playerElement.play().catch(() => {});
+        } else {
+          playerElement.pause();
+        }
+      }
+      return;
+    }
+
+    playingLine = line;
+    const port = await getMediaPort();
+    
+    // For non-browser-native formats in Tauri, sync prepares playback
+    const needsTranscode = /\.(mkv|avi|mov|flv|ogm|vob|wma|m4b|m2ts|mpeg|mpg)$/i.test(previewMediaPath);
+    let preparedPath = previewMediaPath;
+    if (needsTranscode) {
+      showSnackbar("Transcodifica dell'anteprima in corso...", "info");
+      preparedPath = await invoke<string>("sync_prepare_media_for_playback", {
+        path: previewMediaPath
+      });
+    }
+
+    const src = `http://127.0.0.1:${port}/media?path=${encodeURIComponent(preparedPath)}#t=${line.start_ms / 1000},${line.end_ms / 1000}`;
+    
+    if (playerElement) {
+      playerElement.src = src;
+      playerElement.load();
+      playerElement.play().catch(() => {});
+    }
+  }
   let expandedPathField = $state<string | null>(null);
   const previewPerPage = 50;
 
   let unlisten: (() => void) | null = null;
   let unlistenDragDrop: (() => void) | null = null;
+  let activeListener = true;
   let removeTemplateListener: (() => void) | null = null;
   let removeLanguageDefaultsListener: (() => void) | null = null;
   let removeLayoutObserver: (() => void) | null = null;
@@ -1739,17 +1836,6 @@ ${formatJsonArray(rules.removableNameTokens, 4)}
     generationPromptOpen = false;
   }
 
-  function inferLanguageFromPath(filePath: string): string | null {
-    const filename = filePath.split("/").pop()?.toLowerCase() || "";
-    const base = filename.replace(/\.[^/.]+$/, "");
-    const tokens = base.split(/[^a-z0-9-]+/i).filter(Boolean);
-    const suffixMatches = tokens
-      .slice(-3)
-      .reverse()
-      .map((token) => detectLanguageCode(token))
-      .filter(Boolean);
-    return suffixMatches[0] || detectLanguageCode(base);
-  }
 
   function getPreferredAudioLanguageCode(): string {
     return inferLanguageFromPath(targetSubsPath) || noteTypeLanguage;
@@ -1838,9 +1924,6 @@ ${formatJsonArray(rules.removableNameTokens, 4)}
     return (path.split(".").pop() || "").toLowerCase();
   }
 
-  function getFileName(path: string): string {
-    return path.replace(/\\/g, "/").split("/").pop() || path;
-  }
 
   function isSubtitleFile(path: string): boolean {
     return SUBTITLE_EXTENSIONS.includes(getFileExtension(path));
@@ -2100,27 +2183,40 @@ ${formatJsonArray(rules.removableNameTokens, 4)}
     try {
       systemCpuCount = await invoke<number>("flashcard_get_cpu_count");
       const startupMaxCores = Math.max(2, systemCpuCount - 1);
-      cpuCores = startupMaxCores;
+      const savedCores = localStorage.getItem("vesta_cpu_cores");
+      if (savedCores) {
+        cpuCores = parseInt(savedCores);
+      } else {
+        cpuCores = startupMaxCores;
+      }
     } catch {
       systemCpuCount = 4;
-      cpuCores = Math.max(2, systemCpuCount - 1);
+      const savedCores = localStorage.getItem("vesta_cpu_cores");
+      if (savedCores) {
+        cpuCores = parseInt(savedCores);
+      } else {
+        cpuCores = Math.max(2, systemCpuCount - 1);
+      }
     }
+
+    window.addEventListener("vesta-cpu-cores-changed", handleCpuCoresChanged);
 
     // Listen for OS-level file drag and drop
-    try {
-      unlistenDragDrop = await getCurrentWebview().onDragDropEvent((event) => {
-        if (!active) return;
-        if (event.payload.type === "over") isDraggingOver = true;
-        else if (event.payload.type === "drop") {
-          isDraggingOver = false;
-          if (event.payload.paths) handleFileDrop(event.payload.paths);
-        } else if (event.payload.type === "leave") isDraggingOver = false;
-      });
-    } catch (e) {
+    getCurrentWebview().onDragDropEvent((event) => {
+      if (!active) return;
+      if (event.payload.type === "over") isDraggingOver = true;
+      else if (event.payload.type === "drop") {
+        isDraggingOver = false;
+        if (event.payload.paths) handleFileDrop(event.payload.paths);
+      } else if (event.payload.type === "leave") isDraggingOver = false;
+    }).then((fn) => {
+      if (!activeListener) fn();
+      else unlistenDragDrop = fn;
+    }).catch((e) => {
       console.warn("Failed to set up drag-drop listener:", e);
-    }
+    });
 
-    unlisten = await listen<{
+    listen<{
       stage: string;
       message: string;
       current: number;
@@ -2143,10 +2239,15 @@ ${formatJsonArray(rules.removableNameTokens, 4)}
       if (p.stage !== "done") {
         addLog(progressMessage, "progress", undefined, p.message);
       }
-    });
+    }).then((fn) => {
+      if (!activeListener) fn();
+      else unlisten = fn;
+    }).catch(console.error);
   });
 
   onDestroy(() => {
+    activeListener = false;
+    window.removeEventListener("vesta-cpu-cores-changed", handleCpuCoresChanged);
     if (unlisten) unlisten();
     if (unlistenDragDrop) unlistenDragDrop();
     if (removeTemplateListener) removeTemplateListener();
@@ -2206,11 +2307,24 @@ ${formatJsonArray(rules.removableNameTokens, 4)}
   }
 
   function buildConfig() {
+    let tPath = targetSubsPath;
+    let nPath = nativeSubsPath || null;
+    let vPath = hasVideo ? mediaPath : null;
+    let aPath = hasAudio && !hasVideo ? mediaPath : null;
+
+    if (seriesMode && episodes.length > 0) {
+      const ep = episodes[0];
+      tPath = ep.targetSubsPath;
+      nPath = ep.nativeSubsPath || null;
+      vPath = ep.mediaType === "video" ? ep.mediaPath : null;
+      aPath = ep.mediaType === "audio" ? ep.mediaPath : null;
+    }
+
     return {
-      target_subs_path: targetSubsPath,
-      native_subs_path: nativeSubsPath || null,
-      video_path: hasVideo ? mediaPath : null,
-      audio_path: hasAudio && !hasVideo ? mediaPath : null,
+      target_subs_path: tPath,
+      native_subs_path: nPath,
+      video_path: vPath,
+      audio_path: aPath,
       output_dir: outputDir,
       use_timings_from: useTimingsFrom,
       span_start_ms: parseTimeToMs(spanStart),
@@ -2706,6 +2820,11 @@ ${formatJsonArray(rules.removableNameTokens, 4)}
         }
       }
 
+      let finalApkgPath: string | null = null;
+      if (apkgPaths.length > 0) {
+        finalApkgPath = apkgPaths[apkgPaths.length - 1];
+      }
+
       // Merge APKGs if single mode selected
       if (
         seriesOutputMode === "single" &&
@@ -2718,6 +2837,7 @@ ${formatJsonArray(rules.removableNameTokens, 4)}
             apkgPaths,
             outputPath: `${outputDir}/${deckName.replace(/[^a-zA-Z0-9_\-\. ]/g, "_")}.apkg`,
           });
+          finalApkgPath = mergedPath;
           addLog(`APKG: ${mergedPath}`, "success");
         } catch (e) {
           addLog(`${t("flashcards.mergeFailed")}: ${e}`, "error");
@@ -2732,13 +2852,17 @@ ${formatJsonArray(rules.removableNameTokens, 4)}
         snapshots: totalSnapshots,
         videoClips: totalVideoClips,
         tsvPath: null,
-        apkgPath: apkgPaths.length > 0 ? apkgPaths[apkgPaths.length - 1] : null,
+        apkgPath: finalApkgPath,
       };
 
       addLog(
         `${t("flashcards.seriesComplete", { total: String(episodes.length) })}`,
         "success",
       );
+
+      if (autoSendToAnki && finalApkgPath && !hadError) {
+        await sendToAnkiConnect(finalApkgPath);
+      }
     } catch (e) {
       error = `${t("flashcards.errorGenerating")}: ${e}`;
       addLog(`${error}`, "error");
@@ -2787,6 +2911,10 @@ ${formatJsonArray(rules.removableNameTokens, 4)}
         tsvPath: res.tsv_path,
         apkgPath: res.apkg_path,
       };
+
+      if (res.success && autoSendToAnki && res.apkg_path) {
+        await sendToAnkiConnect(res.apkg_path);
+      }
 
       if (res.success) {
         addLog(
@@ -2856,7 +2984,47 @@ ${formatJsonArray(rules.removableNameTokens, 4)}
     deckName = "";
     deckNameAuto = true;
   }
+
+  function handleGlobalKeydown(e: KeyboardEvent) {
+    if (episodeContextMenu) {
+      if (
+        document.activeElement?.tagName === "INPUT" ||
+        document.activeElement?.tagName === "TEXTAREA"
+      )
+        return;
+
+      const key = e.key.toLowerCase();
+      if (key === "escape") {
+        closeEpisodeContextMenu();
+        e.preventDefault();
+        return;
+      }
+      if (key === "e") {
+        openEpisodeEditor(episodeContextMenu.idx);
+        closeEpisodeContextMenu();
+        e.preventDefault();
+        return;
+      }
+      if (key === "s") {
+        const contextEpisode = episodes[episodeContextMenu.idx];
+        if (contextEpisode?.mediaPath) {
+          openEpisodeMediaSettings(episodeContextMenu.idx);
+        }
+        closeEpisodeContextMenu();
+        e.preventDefault();
+        return;
+      }
+      if (key === "d" || key === "delete") {
+        removeEpisode(episodeContextMenu.idx);
+        closeEpisodeContextMenu();
+        e.preventDefault();
+        return;
+      }
+    }
+  }
 </script>
+
+<svelte:window onkeydown={handleGlobalKeydown} />
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
@@ -2967,27 +3135,17 @@ ${formatJsonArray(rules.removableNameTokens, 4)}
               {t("flashcards.preview")}
             </h2>
           </div>
-          <div class="flex items-center gap-3">
-            <div class="relative">
-              <svg
-                class="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                />
-              </svg>
+            <div class="relative flex items-center">
+              <span class="absolute left-3 text-gray-400">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </span>
               <input
                 type="text"
                 bind:value={previewSearch}
-                class="input-modern text-xs w-48 pl-8"
+                class="bg-gray-800/80 hover:bg-gray-800 focus:bg-gray-950 border border-gray-700/80 focus:border-emerald-500/50 text-xs text-gray-100 placeholder-gray-500 rounded-lg pl-9 pr-3 py-1.5 w-60 outline-none focus:ring-1 focus:ring-emerald-500/20 transition-all"
                 placeholder={t("flashcards.previewSearch")}
-                style="text-indent: 0;"
               />
             </div>
             <button
@@ -2997,7 +3155,6 @@ ${formatJsonArray(rules.removableNameTokens, 4)}
               ✕
             </button>
           </div>
-        </div>
 
         <div
           class="px-4 py-2 border-b border-gray-700 flex items-center justify-between"
@@ -3067,6 +3224,9 @@ ${formatJsonArray(rules.removableNameTokens, 4)}
               <thead class="sticky top-0 z-10">
                 <tr class="text-gray-400 bg-gray-800 shadow-sm">
                   <th class="p-2 text-left w-12">#</th>
+                  {#if previewMediaPath}
+                    <th class="p-2 text-center w-12">Play</th>
+                  {/if}
                   <th class="p-2 text-left w-20"
                     >{t("flashcards.previewTime")}</th
                   >
@@ -3086,8 +3246,27 @@ ${formatJsonArray(rules.removableNameTokens, 4)}
                       ? 'bg-emerald-500/5 hover:bg-emerald-500/10'
                       : 'bg-red-500/5 opacity-60 hover:bg-red-500/10'}"
                   >
-                    <td class="p-2 text-gray-500 font-mono">{line.index + 1}</td
-                    >
+                    <td class="p-2 text-gray-500 font-mono">{line.index + 1}</td>
+                    {#if previewMediaPath}
+                      <td class="p-2 text-center">
+                        <button
+                          type="button"
+                          onclick={() => playPreviewLine(line)}
+                          class="text-gray-400 hover:text-emerald-400 transition-colors p-1"
+                          title="Riproduci questa riga"
+                        >
+                          {#if playingLine && playingLine.index === line.index && previewIsPlaying}
+                            <svg class="w-4 h-4 text-emerald-400" fill="currentColor" viewBox="0 0 24 24">
+                              <path fill-rule="evenodd" d="M6.75 5.25a.75.75 0 0 1 .75-.75H9a.75.75 0 0 1 .75.75v13.5a.75.75 0 0 1-.75.75H7.5a.75.75 0 0 1-.75-.75V5.25Zm7.5 0A.75.75 0 0 1 15 4.5h1.5a.75.75 0 0 1 .75.75v13.5a.75.75 0 0 1-.75.75H15a.75.75 0 0 1-.75-.75V5.25Z" clip-rule="evenodd" />
+                            </svg>
+                          {:else}
+                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                              <path fill-rule="evenodd" d="M4.5 5.653c0-1.427 1.529-2.33 2.779-1.643l11.54 6.347c1.295.712 1.295 2.573 0 3.286L7.28 19.99c-1.25.687-2.779-.217-2.779-1.643V5.653Z" clip-rule="evenodd" />
+                            </svg>
+                          {/if}
+                        </button>
+                      </td>
+                    {/if}
                     <td class="p-2 text-gray-400 font-mono">
                       {Math.floor(line.start_ms / 60000)}:{String(
                         Math.floor((line.start_ms % 60000) / 1000),
@@ -3133,18 +3312,94 @@ ${formatJsonArray(rules.removableNameTokens, 4)}
           {/if}
         </div>
       </div>
+
+      {#if playingLine && previewMediaPath}
+        <div class="fixed bottom-10 right-10 z-50 glass-card p-4 w-72 rounded-xl shadow-2xl border border-gray-700/60 flex flex-col gap-2 transition-all" onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()}>
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-semibold text-emerald-400">Anteprima Riproduzione</span>
+            <button
+              onclick={() => {
+                if (playerElement) playerElement.pause();
+                playingLine = null;
+              }}
+              class="text-gray-400 hover:text-white text-xs"
+            >
+              Chiudi
+            </button>
+          </div>
+          
+          {#if previewMediaType === "video"}
+            <div class="w-full aspect-video rounded bg-black overflow-hidden border border-gray-800">
+              <video
+                bind:this={playerElement}
+                class="w-full h-full object-contain"
+                onplay={() => (previewIsPlaying = true)}
+                onpause={() => (previewIsPlaying = false)}
+                onended={() => {
+                  previewIsPlaying = false;
+                  playingLine = null;
+                }}
+                controls={false}
+                autoplay
+              ></video>
+            </div>
+          {:else}
+            <audio
+              bind:this={playerElement}
+              onplay={() => (previewIsPlaying = true)}
+              onpause={() => (previewIsPlaying = false)}
+              onended={() => {
+                previewIsPlaying = false;
+                playingLine = null;
+              }}
+              autoplay
+              class="hidden"
+            ></audio>
+          {/if}
+          
+          <div class="text-[10px] text-gray-400 flex flex-col gap-0.5 mt-1">
+            <div class="flex justify-between font-mono">
+              <span># {playingLine.index + 1}</span>
+              <span>{Math.floor(playingLine.start_ms / 60000)}:{String(Math.floor((playingLine.start_ms % 60000) / 1000)).padStart(2, "0")}</span>
+            </div>
+            <p class="text-gray-200 truncate italic mt-1 font-sans">"{playingLine.subs1_text}"</p>
+          </div>
+          
+          <div class="flex items-center justify-center gap-4 mt-2 border-t border-gray-800/80 pt-2">
+            <button
+              onclick={() => {
+                if (playerElement) {
+                  if (playerElement.paused) playerElement.play();
+                  else playerElement.pause();
+                }
+              }}
+              class="p-2 rounded-full bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 transition-colors"
+            >
+              {#if previewIsPlaying}
+                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                  <path fill-rule="evenodd" d="M6.75 5.25a.75.75 0 0 1 .75-.75H9a.75.75 0 0 1 .75.75v13.5a.75.75 0 0 1-.75.75H7.5a.75.75 0 0 1-.75-.75V5.25Zm7.5 0A.75.75 0 0 1 15 4.5h1.5a.75.75 0 0 1 .75.75v13.5a.75.75 0 0 1-.75.75H15a.75.75 0 0 1-.75-.75V5.25Z" clip-rule="evenodd" />
+                </svg>
+              {:else}
+                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                  <path fill-rule="evenodd" d="M4.5 5.653c0-1.427 1.529-2.33 2.779-1.643l11.54 6.347c1.295.712 1.295 2.573 0 3.286L7.28 19.99c-1.25.687-2.779-.217-2.779-1.643V5.653Z" clip-rule="evenodd" />
+                </svg>
+              {/if}
+            </button>
+          </div>
+        </div>
+      {/if}
     </div>
   {/if}
 
   {#snippet panelContent(panelId: PanelId)}
     {#if panelId === "files"}
-      <div class="glass-card p-4 {panelHighlightClass('files')}">
+      <div class="glass-card p-5 {panelHighlightClass('files')}">
         <div class="mb-3 flex items-center gap-3">
           <h3
-            class="flex min-w-0 items-center gap-2 text-sm font-semibold {seriesMode ? 'text-violet-300' : 'text-emerald-400'}"
+            class="flex min-w-0 items-center gap-2 text-lg font-semibold {seriesMode ? 'text-violet-300' : 'text-emerald-400'}"
           >
             <svg
-              class="w-4 h-4 shrink-0"
+              class="w-5 h-5 shrink-0"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -3204,6 +3459,46 @@ ${formatJsonArray(rules.removableNameTokens, 4)}
               Serie TV
             </button>
           </span>
+          {#if seriesMode}
+            <button
+              onclick={addSeriesMultipleFiles}
+              class="btn-primary py-1 px-3 text-xs flex items-center gap-1.5 h-8 rounded-lg shrink-0"
+            >
+              <svg
+                class="w-3.5 h-3.5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                ><path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M12 4v16m8-8H4"
+                /></svg
+              >
+              Add Files
+            </button>
+            {#if episodes.length > 0}
+              <button
+                onclick={clearAllEpisodes}
+                class="text-xs text-red-400 hover:text-red-300 transition-colors flex items-center gap-1 shrink-0"
+              >
+                <svg
+                  class="w-3.5 h-3.5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  ><path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                  /></svg
+                >
+                {t("flashcards.clearAll")}
+              </button>
+            {/if}
+          {/if}
           <div class="ml-auto">
             <InfoButton onclick={() => (helpSection = "files")} />
           </div>
@@ -3436,47 +3731,6 @@ ${formatJsonArray(rules.removableNameTokens, 4)}
         {:else}
           <!-- Series mode: batch file management -->
           <div class="space-y-3">
-            <!-- Add files buttons -->
-            <div class="flex flex-wrap gap-2">
-              <button
-                onclick={addSeriesMultipleFiles}
-                class="btn-primary py-1.5 px-3 text-xs flex items-center gap-1.5"
-              >
-                <svg
-                  class="w-3.5 h-3.5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                  ><path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M12 4v16m8-8H4"
-                  /></svg
-                >
-                Add Files
-              </button>
-              {#if episodes.length > 0}
-                <button
-                  onclick={clearAllEpisodes}
-                  class="ml-auto text-xs text-red-400 hover:text-red-300 transition-colors flex items-center gap-1"
-                >
-                  <svg
-                    class="w-3 h-3"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                    ><path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                    /></svg
-                  >
-                  {t("flashcards.clearAll")}
-                </button>
-              {/if}
-            </div>
 
             <!-- Episode table -->
             {#if episodes.length === 0}
@@ -3711,7 +3965,7 @@ ${formatJsonArray(rules.removableNameTokens, 4)}
       <div
         inert={!hasAnyFiles}
         title={!hasAnyFiles ? HINT_LOAD_TARGET_FIRST : undefined}
-        class="glass-card p-4 {!hasAnyFiles
+        class="glass-card p-5 {!hasAnyFiles
           ? 'opacity-40'
           : ''}"
       >
@@ -3879,7 +4133,7 @@ ${formatJsonArray(rules.removableNameTokens, 4)}
       <div
         inert={!hasAnyFiles}
         title={!hasAnyFiles ? HINT_LOAD_TARGET_FIRST : undefined}
-        class="glass-card p-4 {!hasAnyFiles
+        class="glass-card p-5 {!hasAnyFiles
           ? 'opacity-40'
           : ''}"
       >
@@ -4091,7 +4345,7 @@ ${formatJsonArray(rules.removableNameTokens, 4)}
       <div
         inert={!hasAnyFiles}
         title={!hasAnyFiles ? HINT_LOAD_TARGET_FIRST : undefined}
-        class="glass-card p-4 {!hasAnyFiles
+        class="glass-card p-5 {!hasAnyFiles
           ? 'opacity-40'
           : ''}"
       >
@@ -4184,17 +4438,17 @@ ${formatJsonArray(rules.removableNameTokens, 4)}
       <div
         inert={!hasAudio}
         title={!hasAudio ? HINT_LOAD_MEDIA_FIRST : undefined}
-        class="glass-card p-4 {!hasAudio
+        class="glass-card p-5 {!hasAudio
           ? 'opacity-40'
           : ''}"
         style="overflow: visible; position: relative; z-index: 10;"
       >
         <div class="flex items-center justify-between mb-3">
           <h3
-            class="text-sm font-semibold flex items-center gap-2 text-cyan-400"
+            class="text-lg font-semibold flex items-center gap-2 text-cyan-400"
           >
             <svg
-              class="w-4 h-4"
+              class="w-5 h-5"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -4325,16 +4579,16 @@ ${formatJsonArray(rules.removableNameTokens, 4)}
       <div
         inert={!hasVideo}
         title={!hasVideo ? HINT_LOAD_VIDEO_FIRST : undefined}
-        class="glass-card p-4 {!hasVideo
+        class="glass-card p-5 {!hasVideo
           ? 'opacity-40'
           : ''}"
       >
         <div class="flex items-center justify-between mb-3">
           <h3
-            class="text-sm font-semibold flex items-center gap-2 text-purple-400"
+            class="text-lg font-semibold flex items-center gap-2 text-purple-400"
           >
             <svg
-              class="w-4 h-4"
+              class="w-5 h-5"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -4417,17 +4671,17 @@ ${formatJsonArray(rules.removableNameTokens, 4)}
       <div
         inert={!hasVideo}
         title={!hasVideo ? HINT_LOAD_VIDEO_FIRST : undefined}
-        class="glass-card p-4 {!hasVideo
+        class="glass-card p-5 {!hasVideo
           ? 'opacity-40'
           : ''}"
         style="overflow: visible; position: relative; z-index: 5;"
       >
         <div class="flex items-center justify-between mb-3">
           <h3
-            class="text-sm font-semibold flex items-center gap-2 text-rose-400"
+            class="text-lg font-semibold flex items-center gap-2 text-rose-400"
           >
             <svg
-              class="w-4 h-4"
+              class="w-5 h-5"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -4595,7 +4849,7 @@ ${formatJsonArray(rules.removableNameTokens, 4)}
       <div
         inert={!hasAnyFiles}
         title={!hasAnyFiles ? HINT_LOAD_TARGET_FIRST : undefined}
-        class="glass-card p-4 {panelHighlightClass('ankiFields')} {!hasAnyFiles
+        class="glass-card p-5 {panelHighlightClass('ankiFields')} {!hasAnyFiles
           ? 'opacity-50'
           : ''}"
       >
@@ -4750,15 +5004,15 @@ ${formatJsonArray(rules.removableNameTokens, 4)}
       <div
         inert={!hasAnyFiles}
         title={!hasAnyFiles ? HINT_LOAD_TARGET_FIRST : undefined}
-        class="glass-card p-4 {!hasAnyFiles
+        class="glass-card p-5 {!hasAnyFiles
           ? 'opacity-50'
           : ''}"
       >
         <h3
-          class="text-sm font-semibold mb-3 flex items-center gap-2 text-sky-400"
+          class="text-lg font-semibold mb-4 flex items-center gap-2 text-sky-400"
         >
           <svg
-            class="w-4 h-4"
+            class="w-5 h-5"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -4825,6 +5079,24 @@ ${formatJsonArray(rules.removableNameTokens, 4)}
             </div>
           </label>
 
+          {#if exportFormat === "apkg"}
+            <div class="mt-3 pt-3 border-t border-gray-700/50 flex flex-col gap-1.5">
+              <label class="flex items-center gap-2 cursor-pointer group">
+                <input
+                  type="checkbox"
+                  bind:checked={autoSendToAnki}
+                  class="rounded border-gray-700 bg-gray-900 text-emerald-500 focus:ring-emerald-500/30"
+                />
+                <span class="text-xs text-gray-300 group-hover:text-white transition-colors">
+                  Invia ad Anki (AnkiConnect) automaticamente
+                </span>
+              </label>
+              <p class="text-[10px] text-gray-500 leading-normal">
+                Richiede Anki aperto in background con l'addon <strong>AnkiConnect</strong> installato.
+              </p>
+            </div>
+          {/if}
+
           {#if seriesMode && exportFormat === "apkg"}
             <!-- Series output mode (only for APKG) -->
             <div class="mt-4 pt-3 border-t border-gray-700/50">
@@ -4879,15 +5151,15 @@ ${formatJsonArray(rules.removableNameTokens, 4)}
       <div
         inert={!hasAnyFiles}
         title={!hasAnyFiles ? HINT_LOAD_TARGET_FIRST : undefined}
-        class="glass-card p-4 {panelHighlightClass('naming')} {!hasAnyFiles
+        class="glass-card p-5 {panelHighlightClass('naming')} {!hasAnyFiles
           ? 'opacity-50'
           : ''}"
       >
         <h3
-          class="text-sm font-semibold mb-3 flex items-center gap-2 text-amber-400"
+          class="text-lg font-semibold mb-4 flex items-center gap-2 text-amber-400"
         >
           <svg
-            class="w-4 h-4"
+            class="w-5 h-5"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -4935,110 +5207,7 @@ ${formatJsonArray(rules.removableNameTokens, 4)}
 
         </div>
       </div>
-    {:else if panelId === "cpuCores"}
-      <div
-        inert={!hasAnyFiles}
-        title={!hasAnyFiles ? HINT_LOAD_TARGET_FIRST : undefined}
-        class="glass-card p-4 {!hasAnyFiles
-          ? 'opacity-50'
-          : ''}"
-      >
-        <h3
-          class="text-sm font-semibold mb-3 flex items-center gap-2 text-orange-400"
-        >
-          <svg
-            class="w-4 h-4"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"
-            />
-          </svg>
-          {t("flashcards.cpuCores")}
-          <InfoButton onclick={() => (helpSection = "cpuCores")} />
-        </h3>
-        <div class="grid grid-cols-4 gap-2 mb-3">
-          <button
-            onclick={() => setCpuPreset("eco")}
-            class="p-2 rounded-lg text-center transition-all duration-200 border text-xs {activeCpuPreset ===
-            'eco'
-              ? 'bg-orange-500/20 border-orange-500/50 text-white'
-              : 'bg-white/5 hover:bg-white/10 border-transparent text-gray-400 hover:text-white'}"
-          >
-            <span class="block mb-1 text-white">
-              <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M5 14c0-5.523 4.477-10 10-10h4v4c0 5.523-4.477 10-10 10H5v-4z" />
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M7 17c2.5-2.5 5.5-4.5 9-6" />
-              </svg>
-            </span>
-            <span class="font-semibold block">{t("flashcards.cpuEco")}</span>
-          </button>
-          <button
-            onclick={() => setCpuPreset("balanced")}
-            class="p-2 rounded-lg text-center transition-all duration-200 border text-xs {activeCpuPreset ===
-            'balanced'
-              ? 'bg-orange-500/20 border-orange-500/50 text-white'
-              : 'bg-white/5 hover:bg-white/10 border-transparent text-gray-400 hover:text-white'}"
-          >
-            <span class="block mb-1 text-white">
-              <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 4v16" />
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M6 7h12" />
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M8 7l-3 5h6L8 7z" />
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M16 7l-3 5h6l-3-5z" />
-              </svg>
-            </span>
-            <span class="font-semibold block"
-              >{t("flashcards.cpuBalanced")}</span
-            >
-          </button>
-          <button
-            onclick={() => setCpuPreset("performance")}
-            class="p-2 rounded-lg text-center transition-all duration-200 border text-xs {activeCpuPreset ===
-            'performance'
-              ? 'bg-orange-500/20 border-orange-500/50 text-white'
-              : 'bg-white/5 hover:bg-white/10 border-transparent text-gray-400 hover:text-white'}"
-          >
-            <span class="block mb-1 text-white">
-              <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M5 16l5-5 3 3 6-7" />
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M14 7h5v5" />
-              </svg>
-            </span>
-            <span class="font-semibold block"
-              >{t("flashcards.cpuPerformance")}</span
-            >
-          </button>
-          <button
-            onclick={() => setCpuPreset("full")}
-            class="p-2 rounded-lg text-center transition-all duration-200 border text-xs {activeCpuPreset ===
-            'full'
-              ? 'bg-orange-500/20 border-orange-500/50 text-white'
-              : 'bg-white/5 hover:bg-white/10 border-transparent text-gray-400 hover:text-white'}"
-          >
-            <span class="block mb-1 text-white">
-              <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M11 3L6 13h5l-1 8 8-12h-5l2-6h-4z" />
-              </svg>
-            </span>
-            <span class="font-semibold block"
-              >{t("flashcards.cpuFullPower")}</span
-            >
-          </button>
-        </div>
-        <div class="flex items-center justify-between text-xs">
-          <span class="text-gray-500">{t("flashcards.cpuCoresUsage")}</span>
-          <span
-            class="text-white font-mono bg-white/10 px-2 py-0.5 rounded text-sm"
-            >{cpuCores} / {systemCpuCount}</span
-          >
-        </div>
-      </div>
+
     {:else if panelId === "actions"}
       <div class="space-y-3">
         {#if isProcessing}
@@ -5175,7 +5344,7 @@ ${formatJsonArray(rules.removableNameTokens, 4)}
       <div class="space-y-3">
         {#if isProcessing || progress > 0}
           <div
-            class="glass-card p-4 {isProcessing ? 'animate-pulse-glow' : ''}"
+            class="glass-card p-5 {isProcessing ? 'animate-pulse-glow' : ''}"
           >
             <div class="flex items-center gap-4">
               <div class="flex-1">
@@ -5211,7 +5380,7 @@ ${formatJsonArray(rules.removableNameTokens, 4)}
         {/if}
         {#if result}
           <div
-            class="glass-card p-4 border-l-4 {result.success
+            class="glass-card p-5 border-l-4 {result.success
               ? 'border-green-500 bg-green-500/5'
               : 'border-red-500 bg-red-500/5'}"
           >
@@ -5262,6 +5431,35 @@ ${formatJsonArray(rules.removableNameTokens, 4)}
                   >
                     📦 {result.apkgPath}
                   </p>
+
+                  <div class="mt-3 flex flex-col gap-2">
+                    <button
+                      type="button"
+                      onclick={() => { if (result?.apkgPath) sendToAnkiConnect(result.apkgPath); }}
+                      disabled={ankiSyncing}
+                      class="inline-flex items-center justify-center gap-2 rounded-lg border border-emerald-500/35 bg-emerald-500/10 px-4 py-2 text-xs font-semibold text-emerald-300 hover:bg-emerald-500/20 active:bg-emerald-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-md w-fit"
+                    >
+                      {#if ankiSyncing}
+                        <div class="animate-spin w-3.5 h-3.5 border border-emerald-300 border-t-transparent rounded-full"></div>
+                        <span>Invio in corso...</span>
+                      {:else}
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+                        </svg>
+                        <span>Invia ad Anki (AnkiConnect)</span>
+                      {/if}
+                    </button>
+                    {#if ankiSyncSuccess}
+                      <p class="text-[10px] text-green-400 font-medium flex items-center gap-1">
+                        ✓ Importato con successo!
+                      </p>
+                    {/if}
+                    {#if ankiSyncError}
+                      <p class="text-[10px] text-red-400 font-medium flex items-center gap-1">
+                        ✗ Errore: {ankiSyncError}
+                      </p>
+                    {/if}
+                  </div>
                 {/if}
               </div>
             {:else}
@@ -5285,7 +5483,7 @@ ${formatJsonArray(rules.removableNameTokens, 4)}
           </div>
         {/if}
         {#if error}
-          <div class="glass-card p-4 border border-red-500/30 bg-red-500/10">
+          <div class="glass-card p-5 border border-red-500/30 bg-red-500/10">
             <div class="flex items-center gap-3">
               <svg
                 class="w-5 h-5 text-red-400"
@@ -5330,9 +5528,9 @@ ${formatJsonArray(rules.removableNameTokens, 4)}
       </div>
     {/if}
     <div class="space-y-3 {seriesMode ? '' : 'overflow-y-auto'} pr-1 min-h-[100px]" role="list">
-      {#each effectivePanelLayout.col1 as panelId, idx (panelId)}
+      {#each effectivePanelLayout.col1 as panelId, idx}
         {#if !(seriesMode && panelId === "files")}
-        <div class="relative transition-all duration-150" role="listitem">
+        <div class="relative" role="listitem">
           {@render panelContent(panelId)}
         </div>
         {/if}
@@ -5341,9 +5539,9 @@ ${formatJsonArray(rules.removableNameTokens, 4)}
 
     {#if effectiveColumnCount >= 2}
       <div class="space-y-3 {seriesMode ? '' : 'overflow-y-auto'} pr-1 min-h-[100px]" role="list">
-        {#each effectivePanelLayout.col2 as panelId, idx (panelId)}
+        {#each effectivePanelLayout.col2 as panelId, idx}
           {#if !(seriesMode && panelId === "files")}
-          <div class="relative transition-all duration-150" role="listitem">
+          <div class="relative" role="listitem">
             {@render panelContent(panelId)}
           </div>
           {/if}
@@ -5353,9 +5551,9 @@ ${formatJsonArray(rules.removableNameTokens, 4)}
 
     {#if effectiveColumnCount >= 3}
       <div class="space-y-3 {seriesMode ? '' : 'overflow-y-auto'} pr-1 min-h-[100px]" role="list">
-        {#each effectivePanelLayout.col3 as panelId, idx (panelId)}
+        {#each effectivePanelLayout.col3 as panelId, idx}
           {#if !(seriesMode && panelId === "files")}
-          <div class="transition-all duration-150" role="listitem">
+          <div class="relative" role="listitem">
             {@render panelContent(panelId)}
           </div>
           {/if}
@@ -5395,6 +5593,7 @@ ${formatJsonArray(rules.removableNameTokens, 4)}
             </svg>
             {t("common.edit")}
           </span>
+          <kbd>E</kbd>
         </button>
         <button
           type="button"
@@ -5409,6 +5608,7 @@ ${formatJsonArray(rules.removableNameTokens, 4)}
             </svg>
             {t("common.settings")}
           </span>
+          <kbd>S</kbd>
         </button>
         <div class="vesta-context-menu-separator"></div>
         <button
@@ -5422,6 +5622,7 @@ ${formatJsonArray(rules.removableNameTokens, 4)}
             </svg>
             {t("common.delete")}
           </span>
+          <kbd>D / Del</kbd>
         </button>
       </div>
     </div>
@@ -6233,12 +6434,4 @@ ${formatJsonArray(rules.removableNameTokens, 4)}
   }
 </style>
 
-{#if snackbarMessage}
-  <Snackbar
-    message={snackbarMessage}
-    variant={snackbarVariant}
-    duration={1300}
-    animationKey={snackbarKey}
-    onclose={() => (snackbarMessage = null)}
-  />
-{/if}
+

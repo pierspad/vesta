@@ -1,4 +1,15 @@
 {
+  "sync.statusTitle": "状态",
+  "sync.subtitle": "使用智能检查点将字幕与音频对齐",
+  "sync.subtitles": "字幕",
+  "sync.title": "字幕同步",
+  "sync.tooltip.loadAudio": "加载音频或视频文件 (仅使用音频)",
+  "sync.tooltip.loadSrt": "加载 SRT 字幕文件",
+  "sync.tooltip.loadVideo": "加载视频文件",
+  "sync.tooltipLoadSession": "恢复保存的同步会话 (.json)。会话存储了 SRT 文件、视频路径、所有确认的锚点和进度，方便您从中断处继续。",
+  "sync.tooltipRemoveAnchor": "移除此同步锚点",
+  "sync.tooltipSaveFile": "导出应用了所有锚点时间校正的最终同步 SRT 文件 (.srt)。这是准备就绪的输出文件。",
+  "sync.tooltipSaveSession": "将当前同步状态保存为 .json 文件。包含：SRT 路径、视频路径、所有已确认的锚点和偏移。适合稍后暂停并恢复工作。",
   "sync.tryAnotherFile": "尝试另一个文件",
   "sync.wizard.allSynced": "所有字幕似乎已完成同步！",
   "sync.wizard.checkpoint": "检查点",
@@ -37,16 +48,5 @@
   "transcribe.modelTiny": "极简 (Tiny)",
   "transcribe.modelUninstalled": "模型已卸载",
   "transcribe.newTranscription": "新转录",
-  "transcribe.newTranscriptionDesc": "清除所有字段、日志和结果以开始新转录",
-  "transcribe.noBackendWarning": "未找到 Whisper 后端",
-  "transcribe.noInputMediaSelected": "未选择输入媒体",
-  "transcribe.noOutputFileSelected": "未选择输出文件",
-  "transcribe.notDownloaded": "待下载",
-  "transcribe.outputPathDesc": "输入或编辑输出 SRT 文件路径。",
-  "transcribe.outputRequired": "请选择输出文件",
-  "transcribe.processing": "正在处理",
-  "transcribe.progress": "进度",
-  "transcribe.readyToProcess": "准备转录",
-  "transcribe.segmentLong": "长",
-  "transcribe.segmentLongDesc": "60s — 较少且较长的行"
+  "transcribe.newTranscriptionDesc": "清除所有字段、日志和结果以开始新转录"
 }

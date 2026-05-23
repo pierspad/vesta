@@ -1,4 +1,15 @@
 {
+  "shortcuts.action.cancelGeneration": "Cancelar geração",
+  "shortcuts.action.previewCards": "Pré-visualizar cartões",
+  "shortcuts.action.prevAnchor": "Âncora anterior",
+  "shortcuts.action.nextAnchor": "Próxima âncora",
+  "flashcards.exportAPKGBadge": "Recomendado",
+  "flashcards.exportTSVBadge": "Clássico",
+  "shortcuts.overlay.title": "Atalhos de teclado",
+  "shortcuts.overlay.hint": "Shift+? para mostrar/ocultar",
+  "shortcuts.overlay.global": "Globais",
+  "shortcuts.editShortcut": "Editar atalho",
+  "shortcuts.resetDefault": "Restaurar padrão",
   "settings.googleProviderTip": "Para usar a função de tradução, você precisa de uma chave API do Google Cloud com a API Cloud Translation ativada.",
   "settings.localProviderTip": "Com um provedor local, Ollama + um modelo como gemma3 realiza a tradução localmente, sem custos e sem enviar dados externamente.",
   "settings.groqProviderTip": "Inferência ultra rápida impulsionada por Groq LPU. Requer uma chave API gsk_ no console.groq.com.",
@@ -37,16 +48,5 @@
   "flashcards.closePreview": "Fechar",
   "flashcards.combineSentences": "Combinar frases divididas",
   "flashcards.comingSoonDesc": "Crie flashcards do Anki automaticamente a partir das suas legendas. Perfeito para o aprendizado de idiomas com filmes e séries de TV.",
-  "flashcards.continuationCharsHint": "Caracteres que indicam que uma linha continua na seguinte",
-  "flashcards.cpuBalanced": "Equilibrado",
-  "flashcards.cpuBalancedDesc": "50% dos núcleos",
-  "flashcards.cpuCores": "Núcleos da CPU",
-  "flashcards.cpuCoresNote": "Pelo menos 1 núcleo fica livre para o sistema. Mais núcleos = geração mais rápida.",
-  "flashcards.cpuCoresUsage": "Threads paralelos",
-  "flashcards.cpuEco": "Econômico",
-  "flashcards.cpuEcoDesc": "Carga mínima",
-  "flashcards.cpuFullPower": "Poder Total",
-  "flashcards.cpuFullPowerDesc": "Núcleos máx",
-  "flashcards.cpuMax": "máx",
-  "flashcards.cpuMin": "mín"
+  "flashcards.continuationCharsHint": "Caracteres que indicam que uma linha continua na seguinte"
 }

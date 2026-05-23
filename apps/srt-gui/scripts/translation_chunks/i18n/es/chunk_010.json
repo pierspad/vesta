@@ -1,4 +1,15 @@
 {
+  "sync.statusTitle": "Estado",
+  "sync.subtitle": "Alinear subtítulos con audio usando puntos de control inteligentes",
+  "sync.subtitles": "Subtítulos",
+  "sync.title": "Sincronización de Subtítulos",
+  "sync.tooltip.loadAudio": "Cargar archivo de audio o video (solo se usa el audio)",
+  "sync.tooltip.loadSrt": "Cargar archivo de subtítulos SRT",
+  "sync.tooltip.loadVideo": "Cargar archivo de video",
+  "sync.tooltipLoadSession": "Reanudar una sesión de sincronización guardada (.json). Una sesión almacena el archivo SRT, la ruta del video, todos los anclajes confirmados y el progreso, para que puedas continuar donde lo dejaste.",
+  "sync.tooltipRemoveAnchor": "Eliminar este anclaje de sincronización",
+  "sync.tooltipSaveFile": "Exportar el archivo SRT final sincronizado (.srt) con todas las correcciones de tiempo de los anclajes aplicadas. Este es el archivo de salida listo para usar.",
+  "sync.tooltipSaveSession": "Guardar el estado actual de sincronización en un archivo .json. Incluye: ruta SRT, ruta de video, todos los anclajes confirmados y desfases. Útil para pausar y continuar el trabajo más tarde.",
   "sync.tryAnotherFile": "Intentar con otro archivo",
   "sync.wizard.allSynced": "¡Todos los subtítulos parecen estar sincronizados!",
   "sync.wizard.checkpoint": "Punto de control",
@@ -37,16 +48,5 @@
   "transcribe.modelTiny": "Minúsculo",
   "transcribe.modelUninstalled": "Modelo desinstalado",
   "transcribe.newTranscription": "Nueva Transcripción",
-  "transcribe.newTranscriptionDesc": "Limpiar todos los campos, registros y resultados para empezar una nueva transcripción",
-  "transcribe.noBackendWarning": "No se encontró un servidor Whisper",
-  "transcribe.noInputMediaSelected": "no se ha seleccionado archivo multimedia",
-  "transcribe.noOutputFileSelected": "no se ha seleccionado archivo de salida",
-  "transcribe.notDownloaded": "por descargar",
-  "transcribe.outputPathDesc": "Introduce o edita la ruta del archivo SRT de salida.",
-  "transcribe.outputRequired": "Por favor, selecciona un archivo de salida",
-  "transcribe.processing": "Procesando",
-  "transcribe.progress": "Progreso",
-  "transcribe.readyToProcess": "Listo para transcribir",
-  "transcribe.segmentLong": "Largo",
-  "transcribe.segmentLongDesc": "60 s — menos líneas, más largas"
+  "transcribe.newTranscriptionDesc": "Limpiar todos los campos, registros y resultados para empezar una nueva transcripción"
 }

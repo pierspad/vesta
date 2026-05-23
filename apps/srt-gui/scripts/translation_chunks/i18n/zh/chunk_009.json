@@ -1,4 +1,15 @@
 {
+  "settings.modal.defaultModelHint": "此配置默认使用的模型",
+  "settings.modal.defaultModelPlaceholder": "例如：llama3.2, mistral, gpt-4o",
+  "settings.modal.modelOptionalHint": "可选。您可以在翻译选项卡中选择模型。这只是一个默认值。",
+  "settings.modal.providerAnthropic": "Anthropic Claude 模型",
+  "settings.modal.providerAnthropicDesc": "Opus 4.6 与 Sonnet 4.6",
+  "settings.modal.providerGoogle": "Google API 服务",
+  "settings.modal.providerGoogleDesc": "Google API 3.1 Pro 与 3 Flash",
+  "settings.modal.providerOpenai": "OpenAI GPT 模型",
+  "settings.modal.providerOpenaiDesc": "GPT-5.2 与 GPT-5",
+  "settings.modelsHint": "点击模型可快速添加以此模型为默认值的 API 密钥",
+  "settings.soonBadge": "敬请期待",
   "settings.stopModelDownload": "停止下载",
   "settings.stoppingModelDownload": "正在停止...",
   "settings.modelDownloading": "正在下载模型：{{model}}",
@@ -37,16 +48,5 @@
   "sync.saveSession": "保存会话",
   "sync.seek": "搜索 ±0.1s",
   "sync.sessionSaved": "会话已保存：",
-  "sync.srtPlaceholder": "请先加载一个 SRT 文件",
-  "sync.statusTitle": "状态",
-  "sync.subtitle": "使用智能检查点将字幕与音频对齐",
-  "sync.subtitles": "字幕",
-  "sync.title": "字幕同步",
-  "sync.tooltip.loadAudio": "加载音频或视频文件 (仅使用音频)",
-  "sync.tooltip.loadSrt": "加载 SRT 字幕文件",
-  "sync.tooltip.loadVideo": "加载视频文件",
-  "sync.tooltipLoadSession": "恢复保存的同步会话 (.json)。会话存储了 SRT 文件、视频路径、所有确认的锚点和进度，方便您从中断处继续。",
-  "sync.tooltipRemoveAnchor": "移除此同步锚点",
-  "sync.tooltipSaveFile": "导出应用了所有锚点时间校正的最终同步 SRT 文件 (.srt)。这是准备就绪的输出文件。",
-  "sync.tooltipSaveSession": "将当前同步状态保存为 .json 文件。包含：SRT 路径、视频路径、所有已确认的锚点和偏移。适合稍后暂停并恢复工作。"
+  "sync.srtPlaceholder": "请先加载一个 SRT 文件"
 }

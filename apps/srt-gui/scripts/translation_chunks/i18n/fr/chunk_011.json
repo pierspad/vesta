@@ -1,4 +1,15 @@
 {
+  "transcribe.noBackendWarning": "Aucun backend Whisper trouvé",
+  "transcribe.noInputMediaSelected": "Aucun média d'entrée sélectionné",
+  "transcribe.noOutputFileSelected": "Aucun fichier de sortie sélectionné",
+  "transcribe.notDownloaded": "à télécharger",
+  "transcribe.outputPathDesc": "Entrez ou modifiez le chemin de sortie SRT.",
+  "transcribe.outputRequired": "Veuillez choisir un fichier de sortie",
+  "transcribe.processing": "Traitement en cours",
+  "transcribe.progress": "Progression",
+  "transcribe.readyToProcess": "Prêt à transcrire",
+  "transcribe.segmentLong": "Longue",
+  "transcribe.segmentLongDesc": "60s — lignes longues",
   "transcribe.segmentMedium": "Moyen",
   "transcribe.segmentMediumDesc": "20s — équilibré",
   "transcribe.segmentShort": "Court",
@@ -37,16 +48,5 @@
   "translate.dropFileHere": "Déposez le fichier ici",
   "translate.dropFileHint": "Fichier de sous-titres SRT",
   "translate.tooltip.upload": "Sélectionner le fichier d'entrée SRT",
-  "translate.waitingForTranslation": "En attente du début de la traduction...",
-  "flashcards.browse": "Parcourir",
-  "flashcards.columns1": "1 colonne",
-  "flashcards.columns2": "2 colonnes",
-  "flashcards.columns3": "3 colonnes",
-  "flashcards.modeMovie": "Mode Film",
-  "flashcards.modeSeries": "Mode Série",
-  "flashcards.seriesEpisodes": "épisodes",
-  "flashcards.addTargetSubs": "Ajouter les sous-titres cibles",
-  "flashcards.addNativeSubs": "Ajouter les sous-titres natifs",
-  "flashcards.addMedia": "Ajouter des médias",
-  "flashcards.clearAll": "Tout effacer"
+  "translate.waitingForTranslation": "En attente du début de la traduction..."
 }

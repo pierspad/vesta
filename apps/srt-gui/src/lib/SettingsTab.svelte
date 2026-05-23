@@ -2,8 +2,12 @@
   import { onMount, onDestroy } from "svelte";
   import { invoke } from "@tauri-apps/api/core";
   import { listen } from "@tauri-apps/api/event";
+  import { fetch as tauriFetch } from "@tauri-apps/plugin-http";
   import CodeEditor from "./CodeEditor.svelte";
-  import Snackbar from "./Snackbar.svelte";
+  import ConfirmDialog from "./ConfirmDialog.svelte";
+  import ShortcutsTab from "./ShortcutsTab.svelte";
+  import { smartMatchingStore } from "./smartMatchingStore.svelte";
+  import { snackbar } from "./snackbarStore.svelte";
   import {
     availableUILanguages,
     currentLanguage,
@@ -43,9 +47,9 @@
   const allProviderIds = ["local", "google", "groq", "custom"];
   const apiKeyProviderIds = ["google", "groq", "custom"];
   type EndpointStatus = "idle" | "checking" | "online" | "offline";
-  type SettingsSection = "overview" | "llm" | "whisper" | "language" | "anki";
+  type SettingsSection = "overview" | "llm" | "whisper" | "language" | "anki" | "shortcuts";
   type TemplateCodeTab = "front" | "back" | "css";
-  let { requestedSection = "overview" }: { requestedSection?: SettingsSection } = $props();
+  let { requestedSection = $bindable("overview") }: { requestedSection?: SettingsSection } = $props();
 
   const DEFAULT_LLM_PROVIDER_KEY = "vesta-default-llm-provider";
   const DEFAULT_LLM_MODEL_KEY = "vesta-default-llm-model";
@@ -178,30 +182,20 @@
   let showAddModel = $state(false);
 
   // Snackbar notification system (replaces inline error/success banners)
-  let snackbarMessage = $state<string | null>(null);
-  let snackbarType = $state<"error" | "success">("success");
-  let snackbarTimeout = $state<ReturnType<typeof setTimeout> | null>(null);
-  let snackbarKey = $state(0);
-
+  // Centralized snackbar store delegation
   function showSnackbar(
     message: string,
     type: "error" | "success" = "success",
   ) {
-    if (snackbarTimeout) clearTimeout(snackbarTimeout);
-    snackbarKey += 1;
-    snackbarMessage = message;
-    snackbarType = type;
-    snackbarTimeout = setTimeout(() => {
-      snackbarMessage = null;
-    }, 1300);
+    snackbar.show(message, type === "error" ? "error" : "success", 1300);
   }
 
   const settingsCopy = {
     en: {
       macroArea: "Macro area",
       overviewKicker: "Settings",
-      overviewTitle: "Organized preferences",
-      overviewDesc: "Choose a section and edit only the options for that area.",
+      overviewTitle: "General",
+      overviewDesc: "Interface language and macro configuration areas.",
       llmTitle: "LLM, provider and API key",
       llmDesc: "Choose the engine used for translation and manage credentials.",
       whisperTitle: "Whisper",
@@ -219,11 +213,11 @@
       statusDesc: "A quick health check for the defaults used by the workflow tabs.",
       apiKeysSaved: "Saved API keys",
       apiKeysHint: "Remote providers available for Translation. Local models do not need keys.",
-      translationLanguage: "Translation language",
+      translationLanguage: "Language to translate into",
       translationLanguageHint: "Default language used when creating translations.",
-      studyingLanguage: "Language you study",
+      studyingLanguage: "Language to study",
       studyingLanguageHint: "Used for flashcard expressions and auto-selecting original subtitles.",
-      nativeLanguage: "Your language",
+      nativeLanguage: "Native language",
       nativeLanguageHint: "Used for flashcard meanings and auto-selecting reference subtitles.",
       transcriptionLanguageHint: "Spoken language to use when transcribing audio. Auto-detect remains available.",
       whisperHint: "Default local model used by the Transcription tab.",
@@ -231,7 +225,7 @@
       quickSetup: "Quick setup",
       quickSetupTitle: "Finish the essentials",
       actionRequired: "Action required",
-      transcription: "Transcription",
+      transcription: "Language to transcribe from",
       translation: "Translation",
       configure: "To configure",
       llmMissing: "LLM missing",
@@ -258,8 +252,8 @@
     it: {
       macroArea: "Macro area",
       overviewKicker: "Settings",
-      overviewTitle: "Preferenze organizzate",
-      overviewDesc: "Scegli una sezione e modifica solo le opzioni relative a quell'area.",
+      overviewTitle: "Generale",
+      overviewDesc: "Lingua dell'interfaccia e macro aree delle preferenze.",
       llmTitle: "LLM, provider e API key",
       llmDesc: "Scegli il motore che usera la traduzione e gestisci le credenziali.",
       whisperTitle: "Whisper",
@@ -277,11 +271,11 @@
       statusDesc: "Un controllo rapido dei default usati dalle tab operative.",
       apiKeysSaved: "API key salvate",
       apiKeysHint: "Provider remoti disponibili per Traduzione. I modelli locali non richiedono chiavi.",
-      translationLanguage: "Lingua traduzione",
+      translationLanguage: "Lingua in cui tradurre",
       translationLanguageHint: "Lingua predefinita usata quando crei traduzioni.",
-      studyingLanguage: "Lingua che studi",
+      studyingLanguage: "Lingua da studiare",
       studyingLanguageHint: "Usata per le frasi delle flashcard e per selezionare i sottotitoli originali.",
-      nativeLanguage: "La tua lingua",
+      nativeLanguage: "Lingua madre",
       nativeLanguageHint: "Usata per i significati delle flashcard e per selezionare i sottotitoli di riferimento.",
       transcriptionLanguageHint: "Lingua parlata da usare quando trascrivi audio. Resta disponibile il rilevamento automatico.",
       whisperHint: "Modello locale predefinito usato dalla tab Trascrizione.",
@@ -289,7 +283,7 @@
       quickSetup: "Setup rapido",
       quickSetupTitle: "Completa le impostazioni essenziali",
       actionRequired: "Azione richiesta",
-      transcription: "Trascrizione",
+      transcription: "Lingua da cui trascrivere",
       translation: "Traduzione",
       configure: "Da configurare",
       llmMissing: "LLM mancante",
@@ -520,6 +514,7 @@
 
   function openSettingsSection(section: SettingsSection) {
     activeSettingsSection = section;
+    requestedSection = section;
   }
 
   function openFirstRequiredAction() {
@@ -724,8 +719,132 @@
     }
   });
 
+  // CPU Cores Settings
+  let systemCpuCount = $state(4);
+  let cpuCores = $state(2);
+  let minCpuCores = $derived(2);
+  let maxCpuCores = $derived(Math.max(2, systemCpuCount - 1));
+
+  let cpuPresets = $derived([
+    { id: "eco", threads: minCpuCores },
+    {
+      id: "balanced",
+      threads: minCpuCores + Math.ceil((maxCpuCores - minCpuCores) / 3),
+    },
+    {
+      id: "performance",
+      threads: minCpuCores + Math.ceil(((maxCpuCores - minCpuCores) * 2) / 3),
+    },
+    { id: "full", threads: maxCpuCores },
+  ] as const);
+
+  let activeCpuPreset = $derived(
+    cpuPresets.find((p) => p.threads === cpuCores)?.id ?? null,
+  );
+
+  function setCpuPreset(presetId: string) {
+    const preset = cpuPresets.find((p) => p.id === presetId);
+    if (preset) {
+      cpuCores = preset.threads;
+      localStorage.setItem("vesta_cpu_cores", cpuCores.toString());
+      window.dispatchEvent(new CustomEvent("vesta-cpu-cores-changed", { detail: cpuCores }));
+    }
+  }
+
+  // Smart Matching Settings
+  let smartMatchingEnabled = $derived(smartMatchingStore.enabled);
+  let smartMatchingRulesDraft = $state("");
+  let smartMatchingRulesError = $state<string | null>(null);
+
+  function formatSmartMatchingRules(rules: any): string {
+    return JSON.stringify(rules, null, 2);
+  }
+
+  function toggleSmartMatching() {
+    smartMatchingStore.setEnabled(!smartMatchingStore.enabled);
+    if (smartMatchingStore.enabled) {
+      smartMatchingRulesDraft = formatSmartMatchingRules(smartMatchingStore.rules);
+      smartMatchingRulesError = null;
+    }
+  }
+
+  function getSmartMatchingRulesDraftError(): string | null {
+    try {
+      const parsed = JSON.parse(smartMatchingRulesDraft.replace(/\\"|"(?:\\"|[^"])*"|(\/\/.*|\/\*[\s\S]*?\*\/)/g, (m, g) => g ? "" : m));
+      if (!parsed || typeof parsed !== "object") return "Must be a valid JSON object";
+      return null;
+    } catch (e: any) {
+      return e.message || "Invalid JSON";
+    }
+  }
+
+  function saveSmartMatchingRules() {
+    const err = getSmartMatchingRulesDraftError();
+    smartMatchingRulesError = err;
+    if (err) return;
+    try {
+      const cleanJson = smartMatchingRulesDraft.replace(/\\"|"(?:\\"|[^"])*"|(\/\/.*|\/\*[\s\S]*?\*\/)/g, (m, g) => g ? "" : m);
+      const parsed = JSON.parse(cleanJson);
+      smartMatchingStore.saveRules(parsed);
+      snackbar.show("Regole smart matching salvate con successo!", "success", 1300);
+    } catch (e: any) {
+      smartMatchingRulesError = e.message || "Salvataggio fallito";
+    }
+  }
+
+  function resetSmartMatchingRules() {
+    showResetConfirm = "smartMatching";
+  }
+
+  function copySmartMatchingRules() {
+    navigator.clipboard.writeText(smartMatchingRulesDraft);
+    snackbar.show("Regole smart matching copiate negli appunti", "success", 1300);
+  }
+
   // Card template editor
-  let showResetConfirm = $state<"style" | "fields" | null>(null);
+  let showResetConfirm = $state<"style" | "fields" | "smartMatching" | "overview" | "llm" | "whisper" | "language" | "anki" | null>(null);
+  let resetTitle = $derived.by(() => {
+    if (showResetConfirm === "smartMatching") {
+      return "Ripristinare regole di default?";
+    }
+    if (showResetConfirm === "overview") {
+      return "Ripristinare lingua predefinita?";
+    }
+    if (showResetConfirm === "llm") {
+      return "Ripristinare impostazioni LLM predefinite?";
+    }
+    if (showResetConfirm === "whisper") {
+      return "Ripristinare modello Whisper predefinito?";
+    }
+    if (showResetConfirm === "language") {
+      return "Ripristinare impostazioni lingue e matching?";
+    }
+    if (showResetConfirm === "anki") {
+      return "Ripristinare template e campi Anki?";
+    }
+    return t("settings.resetConfirmTitle") || "Ripristinare i valori predefiniti?";
+  });
+  let resetMessage = $derived.by(() => {
+    if (showResetConfirm === "smartMatching") {
+      return "Tutte le personalizzazioni delle regole dello Smart Matching andranno perse.";
+    }
+    if (showResetConfirm === "overview") {
+      return "La lingua dell'interfaccia verrà ripristinata all'italiano.";
+    }
+    if (showResetConfirm === "llm") {
+      return "Tutte le configurazioni LLM e URL locali verranno ripristinate ai valori predefiniti.";
+    }
+    if (showResetConfirm === "whisper") {
+      return "Il modello Whisper predefinito verrà reimpostato su 'base'.";
+    }
+    if (showResetConfirm === "language") {
+      return "Tutte le preferenze di lingua e le regole dello Smart Matching verranno ripristinate.";
+    }
+    if (showResetConfirm === "anki") {
+      return "Tutti i template HTML/CSS e i preset dei campi Anki verranno ripristinati.";
+    }
+    return t("settings.resetConfirmDesc") || "Tutte le personalizzazioni correnti andranno perse.";
+  });
   let activeTemplateCodeTab = $state<TemplateCodeTab>("front");
   const templateCodeTabs: { id: TemplateCodeTab; label: string; hint: string }[] = [
     { id: "front", label: "Front HTML", hint: "Modifica il file front.html di questo template" },
@@ -923,6 +1042,69 @@
     saveFields();
   }
 
+  function resetOverviewSettings() {
+    setLanguage("it");
+    snackbar.show("Lingua dell'interfaccia ripristinata", "info", 1300);
+  }
+
+  function resetLlmSettings() {
+    defaultLlmProvider = "local";
+    defaultLocalServerUrl = DEFAULT_LOCAL_URL;
+    defaultLlmCustomProviderId = "";
+    defaultLlmModel = "";
+    persistDefaultLlmSettings();
+    snackbar.show("Impostazioni LLM ripristinate", "info", 1300);
+  }
+
+  function resetWhisperSettings() {
+    const baseModel = whisperModels.find((m) => m.id === "base");
+    if (baseModel && baseModel.downloaded) {
+      defaultWhisperModel = "base";
+      localStorage.setItem("srt-default-whisper-model", "base");
+      snackbar.show("Modello Whisper predefinito ripristinato a \"Base\"", "info", 2000);
+    } else {
+      // Find if there is another downloaded model
+      const alternate = whisperModels.find((m) => m.downloaded);
+      if (alternate) {
+        defaultWhisperModel = alternate.id;
+        localStorage.setItem("srt-default-whisper-model", alternate.id);
+        snackbar.show(`Il modello "Base" non è scaricato. Impostato il modello "${alternate.name}" come predefinito.`, "warning", 3000);
+      } else {
+        defaultWhisperModel = "base";
+        localStorage.setItem("srt-default-whisper-model", "base");
+        snackbar.show("Il modello predefinito \"Base\" non è ancora scaricato. Scaricalo per utilizzarlo.", "warning", 3000);
+      }
+    }
+  }
+
+  function resetLanguageSettings() {
+    defaultTargetLanguage = "it";
+    defaultTranscribeLanguage = "auto";
+    defaultFlashcardsLanguage = "it";
+    defaultNativeLanguage = "it";
+    saveDefaultLanguage(DEFAULT_TARGET_LANGUAGE_KEY, "it");
+    saveDefaultLanguage(DEFAULT_TRANSCRIBE_LANGUAGE_KEY, "auto");
+    saveDefaultLanguage(DEFAULT_FLASHCARDS_LANGUAGE_KEY, "it");
+    saveDefaultLanguage(DEFAULT_NATIVE_LANGUAGE_KEY, "it");
+
+    smartMatchingStore.resetRules();
+    smartMatchingStore.setEnabled(true);
+    smartMatchingRulesDraft = formatSmartMatchingRules(smartMatchingStore.rules);
+    smartMatchingRulesError = null;
+
+    snackbar.show("Impostazioni lingue e regole smart matching ripristinate", "info", 1300);
+  }
+
+  function resetAnkiSettings() {
+    const defaults = resetCardTemplates();
+    templateFrontHtml = defaults.frontHtml;
+    templateBackHtml = defaults.backHtml;
+    templateCss = defaults.css;
+    noteTypeName = defaults.noteTypeName;
+    resetAnkiFieldsToDefault();
+    snackbar.show("Template e campi Anki ripristinati", "info", 1300);
+  }
+
   function saveFields() {
     saveFieldNames({
       expression: fieldExpression,
@@ -988,8 +1170,227 @@
       : [],
   );
 
+  // Update section states
+  type UpdateStatus = "idle" | "checking" | "available" | "current" | "error" | "disabled" | "offline";
+  let automaticUpdateChecks = $state<boolean>(true);
+  let updateStatus = $state<UpdateStatus>("idle");
+  let latestVersion = $state<string>("");
+  let releaseUrl = $state<string>("https://github.com/pierspad/VESTA/releases");
+  let appVersionNum = $state<string>("");
+  let updateError = $state<string>("");
+
+  const RELEASE_API_URL = "https://api.github.com/repos/pierspad/Vesta/releases/latest";
+
+  function normalizeVersion(version: string): string {
+    return version.trim().replace(/^v/i, "").split(/[+-]/)[0];
+  }
+
+  function compareVersions(left: string, right: string): number {
+    const leftParts = normalizeVersion(left).split(".").map((part) => Number.parseInt(part, 10) || 0);
+    const rightParts = normalizeVersion(right).split(".").map((part) => Number.parseInt(part, 10) || 0);
+    const length = Math.max(leftParts.length, rightParts.length);
+
+    for (let i = 0; i < length; i += 1) {
+      const diff = (leftParts[i] || 0) - (rightParts[i] || 0);
+      if (diff !== 0) return diff;
+    }
+
+    return 0;
+  }
+
+  async function checkForUpdates(source: "auto" | "manual" = "manual") {
+    if (source === "auto" && !automaticUpdateChecks) {
+      updateStatus = "disabled";
+      return;
+    }
+
+    if (typeof navigator !== "undefined" && navigator.onLine === false) {
+      updateStatus = "offline";
+      if (source === "manual") {
+        snackbar.show($currentLanguage === "it" ? "Connessione assente o GitHub non raggiungibile" : "No connection or GitHub is unreachable", "error");
+      }
+      return;
+    }
+
+    updateStatus = "checking";
+    updateError = "";
+
+    // 1. Primary Strategy: GitHub official API via CORS-free tauriFetch
+    try {
+      const response = await tauriFetch(RELEASE_API_URL, {
+        method: "GET",
+        headers: {
+          "Accept": "application/vnd.github+json",
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`GitHub API returned status ${response.status}`);
+      }
+
+      const latest = await response.json() as {
+        tag_name?: string;
+        name?: string;
+        html_url?: string;
+      };
+      
+      const tag = latest.tag_name || latest.name || "";
+      if (!tag) {
+        throw new Error("Empty version tag in API response");
+      }
+
+      latestVersion = tag.startsWith("v") || tag.startsWith("V") ? tag : `v${tag}`;
+      releaseUrl = latest.html_url || "https://github.com/pierspad/VESTA/releases";
+      
+      processUpdateResult(source);
+      return;
+    } catch (apiError) {
+      console.warn("Vesta update check: GitHub API failed, trying package.json fallback:", apiError);
+    }
+
+    // 2. Secondary Strategy: Raw package.json via CORS-free tauriFetch (rate-limit free!)
+    try {
+      const response = await tauriFetch("https://raw.githubusercontent.com/pierspad/Vesta/main/apps/srt-gui/package.json", {
+        method: "GET",
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`Raw package.json fetch returned status ${response.status}`);
+      }
+
+      const pkg = await response.json() as { version?: string };
+      const tag = pkg.version || "";
+      if (!tag) {
+        throw new Error("Empty version field in package.json");
+      }
+
+      latestVersion = tag.startsWith("v") || tag.startsWith("V") ? tag : `v${tag}`;
+      releaseUrl = "https://github.com/pierspad/VESTA/releases";
+
+      processUpdateResult(source);
+      return;
+    } catch (pkgError) {
+      console.warn("Vesta update check: Raw package.json fallback failed, trying redirect fallback:", pkgError);
+    }
+
+    // 3. Tertiary Strategy: Redirect check via tauriFetch with redirect: "manual"
+    try {
+      const response = await tauriFetch("https://github.com/pierspad/Vesta/releases/latest", {
+        method: "GET",
+        redirect: "manual",
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        }
+      });
+
+      let tag = "";
+      let finalUrl = "";
+
+      const location = response.headers.get("location");
+      if ((response.status >= 300 && response.status < 400) && location) {
+        finalUrl = location;
+        tag = location.substring(location.lastIndexOf("/") + 1);
+      } else if (response.ok) {
+        finalUrl = response.url || "";
+        tag = finalUrl.substring(finalUrl.lastIndexOf("/") + 1);
+      }
+
+      if (!tag || tag === "latest") {
+        throw new Error("Could not parse redirect version tag");
+      }
+
+      latestVersion = tag.startsWith("v") || tag.startsWith("V") ? tag : `v${tag}`;
+      releaseUrl = finalUrl || "https://github.com/pierspad/VESTA/releases";
+
+      processUpdateResult(source);
+      return;
+    } catch (redirectError) {
+      console.error("Vesta update check: All strategies failed:", redirectError);
+      updateStatus = "error";
+      updateError = $currentLanguage === "it" ? "Impossibile controllare gli aggiornamenti" : "Could not check for updates";
+      if (source === "manual") {
+        snackbar.show(updateError, "error");
+      }
+    }
+  }
+
+  function processUpdateResult(source: "auto" | "manual") {
+    if (appVersionNum) {
+      if (compareVersions(latestVersion, appVersionNum) > 0) {
+        updateStatus = "available";
+        if (source === "manual") {
+          snackbar.show(($currentLanguage === "it" ? "Nuova versione disponibile: " : "New version available: ") + latestVersion, "info");
+        }
+      } else {
+        updateStatus = "current";
+        if (source === "manual") {
+          snackbar.show($currentLanguage === "it" ? "Il software è aggiornato" : "Software is up to date", "success");
+        }
+      }
+    } else {
+      updateStatus = "current";
+    }
+  }
+
+  function toggleAutomaticUpdateChecks() {
+    automaticUpdateChecks = !automaticUpdateChecks;
+    localStorage.setItem("vesta-automatic-update-checks", automaticUpdateChecks.toString());
+
+    if (automaticUpdateChecks) {
+      void checkForUpdates("manual");
+    } else {
+      updateStatus = "disabled";
+    }
+  }
+
   onMount(() => {
+    invoke<number>("flashcard_get_cpu_count").then((count) => {
+      systemCpuCount = count;
+      const savedCores = localStorage.getItem("vesta_cpu_cores");
+      if (savedCores) {
+        cpuCores = parseInt(savedCores);
+      } else {
+        cpuCores = Math.max(2, systemCpuCount - 1);
+      }
+    }).catch(() => {
+      systemCpuCount = 4;
+      const savedCores = localStorage.getItem("vesta_cpu_cores");
+      if (savedCores) {
+        cpuCores = parseInt(savedCores);
+      } else {
+        cpuCores = Math.max(2, systemCpuCount - 1);
+      }
+    });
+
     loadApiKeys();
+    const savedAutoCheck = localStorage.getItem("vesta-automatic-update-checks");
+    automaticUpdateChecks = savedAutoCheck !== "false";
+
+    invoke<{ version: string }>("get_app_info")
+      .then((info) => {
+        appVersionNum = `v${info.version}`;
+        if (automaticUpdateChecks) {
+          void checkForUpdates("auto");
+        } else {
+          updateStatus = "disabled";
+        }
+      })
+      .catch(() => {
+        appVersionNum = "v0.1.0";
+        if (automaticUpdateChecks) {
+          void checkForUpdates("auto");
+        } else {
+          updateStatus = "disabled";
+        }
+      });
+    smartMatchingRulesDraft = formatSmartMatchingRules(smartMatchingStore.rules);
+    defaultWhisperModel = localStorage.getItem("srt-default-whisper-model") || "base";
+
+    refreshModels().catch((e) => console.error("Could not list models:", e));
 
     const handleKeydown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -1003,12 +1404,33 @@
 
     window.addEventListener("keydown", handleKeydown);
     window.addEventListener("vesta-open-settings-section", handleOpenSettingsSectionEvent);
+    window.addEventListener(CARD_TEMPLATES_UPDATED_EVENT, syncTemplateStateFromStorage);
+    window.addEventListener(FIELD_NAMES_UPDATED_EVENT, syncFieldStateFromStorage);
+
+    let activeListener = true;
+    let unlistenProg: (() => void) | null = null;
+
+    listen<{
+      stage: string;
+      message: string;
+      percentage: number;
+    }>("transcribe-progress", (event) => {
+      const p = event.payload;
+      progress = Math.round(p.percentage);
+      progressMessage = p.message;
+      progressStage = p.stage;
+    }).then((fn) => {
+      if (!activeListener) fn();
+      else unlistenProg = fn;
+    }).catch(console.error);
+
     return () => {
+      activeListener = false;
       window.removeEventListener("keydown", handleKeydown);
       window.removeEventListener("vesta-open-settings-section", handleOpenSettingsSectionEvent);
       window.removeEventListener(CARD_TEMPLATES_UPDATED_EVENT, syncTemplateStateFromStorage);
       window.removeEventListener(FIELD_NAMES_UPDATED_EVENT, syncFieldStateFromStorage);
-      unlistenProgress?.();
+      if (unlistenProg) unlistenProg();
     };
   });
 
@@ -1036,7 +1458,6 @@
   let progress = $state(0);
   let progressMessage = $state("");
   let progressStage = $state("");
-  let unlistenProgress: (() => void) | null = null;
   let defaultWhisperModel = $state("base");
 
   function formatWhisperModelName(modelId: string): string {
@@ -1077,21 +1498,8 @@
     );
   });
 
-  onMount(async () => {
-    defaultWhisperModel = localStorage.getItem("srt-default-whisper-model") || "base";
-    await refreshModels();
 
-    unlistenProgress = await listen<{
-      stage: string;
-      message: string;
-      percentage: number;
-    }>("transcribe-progress", (event) => {
-      const p = event.payload;
-      progress = Math.round(p.percentage);
-      progressMessage = p.message;
-      progressStage = p.stage;
-    });
-  });
+
 
   function setDefaultWhisperModel(modelId: string, notify = true) {
     defaultWhisperModel = modelId;
@@ -1238,10 +1646,8 @@
     fieldNotes = fieldNames.notes;
   }
 
-  onMount(() => {
-    window.addEventListener(CARD_TEMPLATES_UPDATED_EVENT, syncTemplateStateFromStorage);
-    window.addEventListener(FIELD_NAMES_UPDATED_EVENT, syncFieldStateFromStorage);
-  });
+
+
 
   function loadApiKeys() {
     apiKeys = loadAndValidateApiKeys();
@@ -1437,18 +1843,9 @@
 
   let visibleKeyIds = $state<Set<string>>(new Set());
 
-  let showCopySnackbar = $state(false);
-  let copySnackbarTimeout: ReturnType<typeof setTimeout> | null = null;
-  let copySnackbarKey = $state(0);
-
   function copyToClipboard(text: string) {
     navigator.clipboard.writeText(text);
-    copySnackbarKey += 1;
-    showCopySnackbar = true;
-    if (copySnackbarTimeout) clearTimeout(copySnackbarTimeout);
-    copySnackbarTimeout = setTimeout(() => {
-      showCopySnackbar = false;
-    }, 1300);
+    snackbar.show(t("settings.keyCopied"), "success", 1300);
   }
 
   function copyApiKey(key: string) {
@@ -1496,240 +1893,313 @@
 </script>
 
 <div
-  class="h-full flex flex-col p-6 overflow-y-auto bg-gradient-to-br from-gray-900 via-gray-900 to-gray-950"
+  class="h-full flex flex-col bg-gradient-to-br from-gray-900 via-gray-900 to-gray-950"
 >
-  {#if activeSettingsSection !== "overview"}
-    <div class="mb-5 flex items-center justify-between gap-4">
-      <button
-        type="button"
-        onclick={() => openSettingsSection("overview")}
-        class="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-3.5 py-2.5 text-sm font-semibold text-cyan-100 shadow-sm transition-colors hover:border-white/20 hover:bg-white/[0.07] hover:text-white"
-        title="Torna alla panoramica Settings"
-      >
-        <span class="flex h-6 w-6 items-center justify-center rounded-md">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-          </svg>
-        </span>
-        {t("nav.settings")}
-      </button>
-      <div class="flex items-center gap-3 text-right">
-        <div>
-          <p class="text-xs uppercase tracking-wide text-gray-500">{activeSectionMeta.label}</p>
-          <h2 class="text-lg font-semibold text-white">{activeSectionMeta.title}</h2>
-          <p class="text-xs text-gray-500 mt-0.5 max-w-xl">{activeSectionMeta.desc}</p>
-        </div>
-        <div class="w-11 h-11 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center {activeSectionMeta.accent}">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d={activeSectionMeta.iconPath} />
-          </svg>
-        </div>
-      </div>
+  {#if activeSettingsSection === 'shortcuts'}
+    <div class="flex-1 flex flex-col min-h-0">
+      <ShortcutsTab />
     </div>
-  {/if}
+  {:else}
+    <!-- Scrollable content area -->
+    <div class="flex-1 overflow-y-auto p-6">
+
 
   {#if activeSettingsSection === "overview"}
-    <div class="mb-6">
-
-      <h2 class="text-2xl font-bold text-white">{s("overviewTitle")}</h2>
-      <p class="text-sm text-gray-500 mt-1">{s("overviewDesc")}</p>
+    <div
+      class="glass-card p-6 mb-6 flex flex-col gap-5 shrink-0"
+    >
+      <div class="ui-language-grid w-full">
+        {#each availableUILanguages as lang}
+          <button
+            onclick={() => setLanguage(lang.code)}
+            class="ui-language-button flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 border text-left min-w-0
+              {$currentLanguage === lang.code
+              ? 'bg-gradient-to-r from-indigo-500/20 to-purple-500/20 border-indigo-500/50 text-white shadow-sm'
+              : 'bg-white/5 hover:bg-white/10 text-gray-400 hover:text-gray-200 border-transparent hover:border-white/10'}"
+          >
+            <span class="text-2xl leading-none shrink-0">{lang.flag}</span>
+            <span class="min-w-0 flex flex-col leading-tight">
+              <span class="block truncate text-sm font-bold text-white">{lang.name}</span>
+              <span class="block truncate text-[11px] font-medium text-gray-400 opacity-80">{lang.nativeName}</span>
+            </span>
+          </button>
+        {/each}
+      </div>
     </div>
 
-    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-      <button
-        type="button"
-        onclick={() => openSettingsSection("llm")}
-        class="glass-card p-5 text-left hover:border-indigo-400/40 hover:bg-indigo-500/10 transition-all group"
-      >
-        <div class="w-11 h-11 rounded-lg bg-indigo-500/20 text-indigo-300 flex items-center justify-center mb-4 group-hover:shadow-[0_0_18px_rgba(99,102,241,0.35)]">
-          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3h6m-7 4h8a3 3 0 013 3v7a3 3 0 01-3 3H8a3 3 0 01-3-3v-7a3 3 0 013-3zm4 3v4m-2-2h4" />
-          </svg>
-        </div>
-        <h3 class="text-base font-bold text-white">{s("llmTitle")}</h3>
-        <p class="text-sm text-gray-500 mt-1">{s("overviewLlmDesc")}</p>
-      </button>
-
-      <button
-        type="button"
-        onclick={() => openSettingsSection("whisper")}
-        class="glass-card p-5 text-left hover:border-cyan-400/40 hover:bg-cyan-500/10 transition-all group"
-      >
-        <div class="w-11 h-11 rounded-lg bg-cyan-500/20 text-cyan-300 flex items-center justify-center mb-4 group-hover:shadow-[0_0_18px_rgba(6,182,212,0.35)]">
-          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18a6 6 0 006-6V7a6 6 0 10-12 0v5a6 6 0 006 6zm0 0v3m-4 0h8" />
-          </svg>
-        </div>
-        <h3 class="text-base font-bold text-white">{s("whisperTitle")}</h3>
-        <p class="text-sm text-gray-500 mt-1">{s("overviewWhisperDesc")}</p>
-      </button>
-
-      <button
-        type="button"
-        onclick={() => openSettingsSection("language")}
-        class="glass-card p-5 text-left hover:border-emerald-400/40 hover:bg-emerald-500/10 transition-all group"
-      >
-        <div class="w-11 h-11 rounded-lg bg-emerald-500/20 text-emerald-300 flex items-center justify-center mb-4 group-hover:shadow-[0_0_18px_rgba(16,185,129,0.35)]">
-          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5h12M9 3v2m1 9a18 18 0 01-4-5m7 12l5-10 5 10m-9-4h8" />
-          </svg>
-        </div>
-        <h3 class="text-base font-bold text-white">{s("languageTitle")}</h3>
-        <p class="text-sm text-gray-500 mt-1">{s("overviewLanguageDesc")}</p>
-      </button>
-
-      <button
-        type="button"
-        onclick={() => openSettingsSection("anki")}
-        class="glass-card p-5 text-left hover:border-amber-400/40 hover:bg-amber-500/10 transition-all group"
-      >
-        <div class="w-11 h-11 rounded-lg bg-amber-500/20 text-amber-300 flex items-center justify-center mb-4 group-hover:shadow-[0_0_18px_rgba(245,158,11,0.35)]">
-          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v4H4V5zm0 8h8v7H5a1 1 0 01-1-1v-6zm12 0h4v6a1 1 0 01-1 1h-3v-7z" />
-          </svg>
-        </div>
-        <h3 class="text-base font-bold text-white">{s("ankiTitle")}</h3>
-        <p class="text-sm text-gray-500 mt-1">{s("overviewAnkiDesc")}</p>
-      </button>
-    </div>
-
-    <div class="mt-6 grid grid-cols-1 {needsQuickSetup ? 'xl:grid-cols-[1.2fr_0.8fr]' : ''} gap-4">
-      {#if needsQuickSetup}
-        <div class="glass-card p-5 {needsQuickSetup ? 'settings-quick-setup-pulse' : ''}">
-          <div class="flex items-center justify-between gap-4 mb-4">
-            <div>
-
-              <h3 class="text-lg font-bold text-white">{s("quickSetupTitle")}</h3>
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6 items-stretch">
+      <!-- Left Column: CPU Cores + Aggiornamenti -->
+      <div class="flex flex-col gap-6">
+        <!-- CPU Cores Card -->
+        <div class="glass-card p-6 flex flex-col justify-between flex-1">
+          <div>
+            <h3
+              class="text-lg font-semibold mb-4 flex items-center gap-2 text-orange-400"
+            >
+              <svg
+                class="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"
+                />
+              </svg>
+              {t("flashcards.cpuCores")}
+            </h3>
+            <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-2 xl:grid-cols-4 gap-2.5 mb-4">
+              <button
+                onclick={() => setCpuPreset("eco")}
+                class="p-3 rounded-xl text-center transition-all duration-200 border text-xs cursor-pointer {activeCpuPreset ===
+                'eco'
+                  ? 'bg-orange-500/20 border-orange-500/50 text-white'
+                  : 'bg-white/5 hover:bg-white/10 border-transparent text-gray-400 hover:text-white'}"
+              >
+                <span class="block mb-1 text-white">
+                  <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M5 14c0-5.523 4.477-10 10-10h4v4c0 5.523-4.477 10-10 10H5v-4z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M7 17c2.5-2.5 5.5-4.5 9-6" />
+                  </svg>
+                </span>
+                <span class="font-semibold block">{t("flashcards.cpuEco")}</span>
+              </button>
+              <button
+                onclick={() => setCpuPreset("balanced")}
+                class="p-3 rounded-xl text-center transition-all duration-200 border text-xs cursor-pointer {activeCpuPreset ===
+                'balanced'
+                  ? 'bg-orange-500/20 border-orange-500/50 text-white'
+                  : 'bg-white/5 hover:bg-white/10 border-transparent text-gray-400 hover:text-white'}"
+              >
+                <span class="block mb-1 text-white">
+                  <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 4v16" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M6 7h12" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M8 7l-3 5h6L8 7z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M16 7l-3 5h6l-3-5z" />
+                  </svg>
+                </span>
+                <span class="font-semibold block"
+                  >{t("flashcards.cpuBalanced")}</span
+                >
+              </button>
+              <button
+                onclick={() => setCpuPreset("performance")}
+                class="p-3 rounded-xl text-center transition-all duration-200 border text-xs cursor-pointer {activeCpuPreset ===
+                'performance'
+                  ? 'bg-orange-500/20 border-orange-500/50 text-white'
+                  : 'bg-white/5 hover:bg-white/10 border-transparent text-gray-400 hover:text-white'}"
+              >
+                <span class="block mb-1 text-white">
+                  <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M5 16l5-5 3 3 6-7" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M14 7h5v5" />
+                  </svg>
+                </span>
+                <span class="font-semibold block"
+                  >{t("flashcards.cpuPerformance")}</span
+                >
+              </button>
+              <button
+                onclick={() => setCpuPreset("full")}
+                class="p-3 rounded-xl text-center transition-all duration-200 border text-xs cursor-pointer {activeCpuPreset ===
+                'full'
+                  ? 'bg-orange-500/20 border-orange-500/50 text-white'
+                  : 'bg-white/5 hover:bg-white/10 border-transparent text-gray-400 hover:text-white'}"
+              >
+                <span class="block mb-1 text-white">
+                  <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M11 3L6 13h5l-1 8 8-12h-5l2-6h-4z" />
+                  </svg>
+                </span>
+                <span class="font-semibold block"
+                  >{t("flashcards.cpuFullPower")}</span
+                >
+              </button>
             </div>
           </div>
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {#if downloadedWhisperCount === 0}
-              <button
-                type="button"
-                onclick={() => openSettingsSection("whisper")}
-                class="p-4 rounded-xl border text-left transition-colors bg-amber-500/10 border-amber-500/30 hover:bg-amber-500/15"
-              >
-                <div class="flex items-center justify-between gap-3">
-                  <span class="text-sm font-semibold text-white">{s("transcription")}</span>
-                  <span class="text-xs text-amber-300">{s("configure")}</span>
-                </div>
-                <p class="text-xs text-gray-400 mt-2">
-                  {s("setupWhisperDesc")}
-                </p>
-              </button>
-            {/if}
+          <div class="flex items-center justify-between text-sm px-1 mt-auto pt-4 border-t border-white/5">
+            <span class="text-gray-400">{t("flashcards.cpuCoresUsage")}</span>
+            <span
+              class="text-white font-mono bg-white/10 px-2.5 py-1 rounded-lg text-sm"
+              >{cpuCores} / {systemCpuCount}</span
+            >
+          </div>
+        </div>
 
-            {#if !isDefaultLlmReady}
+        <!-- Aggiornamenti Card -->
+        <div class="glass-card p-6 flex flex-col justify-between flex-1">
+          <div>
+            <div class="flex items-center gap-3 mb-4">
+              <div class="w-9 h-9 rounded-lg bg-indigo-500/20 text-indigo-300 flex items-center justify-center">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+              </div>
+              <div>
+                <h3 class="text-sm font-bold text-white">{$currentLanguage === 'it' ? 'Aggiornamenti' : 'Updates'}</h3>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
               <button
                 type="button"
-                onclick={() => openSettingsSection("llm")}
-                class="p-4 rounded-xl border text-left transition-colors bg-amber-500/10 border-amber-500/30 hover:bg-amber-500/15"
+                onclick={toggleAutomaticUpdateChecks}
+                class="rounded-xl border p-4 text-left transition-all duration-200 flex flex-row items-center justify-between gap-3 cursor-pointer
+                  {automaticUpdateChecks
+                    ? 'bg-indigo-500/10 border-indigo-500/30 text-white hover:bg-indigo-500/15 hover:border-indigo-500/40 shadow-md shadow-indigo-500/5'
+                    : 'bg-white/5 border-white/10 text-gray-400 hover:text-white hover:bg-white/10 hover:border-white/20'}"
               >
-                <div class="flex items-center justify-between gap-3">
-                  <span class="text-sm font-semibold text-white">{s("translation")}</span>
-                  <span class="text-xs text-amber-300">{defaultLlmModel ? s("providerCheck") : s("llmMissing")}</span>
-                </div>
-                <p class="text-xs text-gray-400 mt-2">
-                  {s("setupLlmDesc")}
-                </p>
+                <span class="text-xs font-semibold">
+                  {$currentLanguage === 'it' ? 'Controlli automatici' : 'Automatic checks'}
+                </span>
+                {#if automaticUpdateChecks}
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5 text-indigo-400 shrink-0">
+                    <path fill-rule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12zm13.36-1.814a.75.75 0 10-1.22-.872l-3.236 4.53L9.53 12.22a.75.75 0 00-1.06 1.06l2.25 2.25a.75.75 0 001.14-.094l3.75-5.25z" clip-rule="evenodd" />
+                  </svg>
+                {:else}
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5 text-gray-500 shrink-0">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                {/if}
               </button>
+
+              <button
+                type="button"
+                onclick={() => checkForUpdates("manual")}
+                disabled={updateStatus === 'checking'}
+                class="rounded-xl border border-white/10 bg-white/5 p-4 text-left transition-all duration-200 hover:border-white/20 hover:bg-white/10 active:scale-[0.98] disabled:opacity-60 flex flex-row items-center justify-between gap-3 cursor-pointer"
+              >
+                <span class="text-xs font-semibold text-white">
+                  {$currentLanguage === 'it' ? 'Verifica ora' : 'Check now'}
+                </span>
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992m0 0v-.001M21.015 9.348l-3.181-3.182a8.25 8.25 0 00-13.803 3.7M7.977 14.652H2.985m0 0v.001m0-.001l3.181 3.182a8.25 8.25 0 0013.803-3.7" />
+                </svg>
+              </button>
+            </div>
+
+            {#if updateStatus === "available"}
+              <div class="mt-3.5 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3.5 flex items-center justify-between gap-4">
+                <div class="flex items-center gap-2.5">
+                  <span class="w-2.5 h-2.5 rounded-full bg-amber-400 ring-4 ring-amber-500/20 animate-pulse"></span>
+                  <span class="text-xs font-semibold text-amber-100">{$currentLanguage === 'it' ? `Nuova versione: ${latestVersion}` : `New version: ${latestVersion}`}</span>
+                </div>
+                <a href={releaseUrl} target="_blank" class="text-xs text-indigo-400 hover:text-indigo-300 font-bold flex items-center gap-1">
+                  {$currentLanguage === 'it' ? 'Scarica' : 'Download'}
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 3h7m0 0v7m0-7L10 14M5 7v14h14v-5" />
+                  </svg>
+                </a>
+              </div>
             {/if}
           </div>
         </div>
-      {/if}
+      </div>
 
-      <div class="glass-card p-5 min-h-[12rem]">
-        <div class="mb-4 flex items-start justify-between gap-4">
-          <div>
-
-            <h3 class="mt-1 text-lg font-bold text-white">{s("statusActiveTitle")}</h3>
-            <p class="mt-1 text-sm text-gray-500">{s("statusDesc")}</p>
+      <!-- Preferences Status Card -->
+      <div class="glass-card p-6 flex flex-col justify-between h-full">
+        <div>
+          <div class="mb-4 flex items-start justify-between gap-4">
+            <div>
+              <h3 class="text-lg font-bold text-white leading-tight">{s("statusActiveTitle")}</h3>
+              <p class="mt-1 text-xs text-gray-500 leading-normal">{s("statusDesc")}</p>
+            </div>
+            <div class="group relative">
+              <button
+                type="button"
+                onclick={() => needsQuickSetup && openFirstRequiredAction()}
+                class="inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs transition-colors {needsQuickSetup ? 'border-amber-500/30 bg-amber-500/10 text-amber-200 hover:bg-amber-500/20' : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200 cursor-default'}"
+              >
+                <span class="h-2 w-2 rounded-full {needsQuickSetup ? 'bg-amber-300 animate-pulse' : 'bg-emerald-300'}"></span>
+                {needsQuickSetup ? s("actionRequired") : t("settings.ready")}
+              </button>
+              {#if needsQuickSetup}
+                <div class="settings-action-tooltip right-0 left-auto translate-x-0">
+                  <p class="mb-2 font-semibold text-amber-100">{s("quickSetupTitle")}</p>
+                  <ol class="list-decimal space-y-1.5 pl-4">
+                    {#each requiredSetupActions as action}
+                      <li>
+                        <span class="font-semibold text-white">{action.title}:</span>
+                        <span class="text-gray-300">{action.desc}</span>
+                      </li>
+                    {/each}
+                  </ol>
+                </div>
+              {/if}
+            </div>
           </div>
-          <div class="group relative">
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
             <button
               type="button"
-              onclick={() => needsQuickSetup && openFirstRequiredAction()}
-              class="inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs transition-colors {needsQuickSetup ? 'border-amber-500/30 bg-amber-500/10 text-amber-200 hover:bg-amber-500/20' : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200 cursor-default'}"
+              onclick={() => openSettingsSection("llm")}
+              class="rounded-xl border border-white/10 bg-white/[0.04] p-4 text-left transition-colors hover:border-indigo-400/40 hover:bg-indigo-500/10 relative"
             >
-              <span class="h-2 w-2 rounded-full {needsQuickSetup ? 'bg-amber-300' : 'bg-emerald-300'}"></span>
-              {needsQuickSetup ? s("actionRequired") : t("settings.ready")}
+              <div class="flex items-start justify-between gap-3">
+                <div>
+                  <span class="block text-xs text-gray-500">{s("apiKeysSaved")}</span>
+                  <span class="mt-1 block text-xl font-bold text-white">{configuredApiKeyCount}</span>
+                </div>
+                <span class="rounded-full bg-indigo-500/15 px-2 py-1 text-xs text-indigo-200">{defaultLlmProvider}</span>
+              </div>
+              <p class="mt-2 text-xs leading-relaxed text-gray-500">{s("apiKeysHint")}</p>
+              {#if !isDefaultLlmReady}
+                <span class="absolute top-3 right-3 w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse shadow-[0_0_8px_rgba(245,158,11,0.6)]"></span>
+              {/if}
             </button>
-            {#if needsQuickSetup}
-              <div class="settings-action-tooltip right-0 left-auto translate-x-0">
-                <p class="mb-2 font-semibold text-amber-100">{s("quickSetupTitle")}</p>
-                <ol class="list-decimal space-y-1.5 pl-4">
-                  {#each requiredSetupActions as action}
-                    <li>
-                      <span class="font-semibold text-white">{action.title}:</span>
-                      <span class="text-gray-300">{action.desc}</span>
-                    </li>
-                  {/each}
-                </ol>
+
+            <button
+              type="button"
+              onclick={() => openSettingsSection("whisper")}
+              class="rounded-xl border border-white/10 bg-white/[0.04] p-4 text-left transition-colors hover:border-cyan-400/40 hover:bg-cyan-500/10 relative"
+            >
+              <div class="flex items-start justify-between gap-3">
+                <div>
+                  <span class="block text-xs text-gray-500">{t("settings.whisperDefault")}</span>
+                  <span class="mt-1 block text-xl font-bold text-white">{formatWhisperModelName(defaultWhisperModel)}</span>
+                </div>
+                <span class="rounded-full bg-cyan-500/15 px-2 py-1 text-xs text-cyan-200">{downloadedWhisperCount}</span>
               </div>
-            {/if}
+              <p class="mt-2 text-xs leading-relaxed text-gray-500">{s("whisperHint")}</p>
+              {#if downloadedWhisperCount === 0}
+                <span class="absolute top-3 right-3 w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse shadow-[0_0_8px_rgba(245,158,11,0.6)]"></span>
+              {/if}
+            </button>
+
+            <button
+              type="button"
+              onclick={() => openSettingsSection("language")}
+              class="rounded-xl border border-white/10 bg-white/[0.04] p-4 text-left transition-colors hover:border-emerald-400/40 hover:bg-emerald-500/10"
+            >
+              <div class="flex items-start justify-between gap-3">
+                <div>
+                  <span class="block text-xs text-gray-500">{s("translationLanguage")}</span>
+                  <span class="mt-1 block text-xl font-bold text-white">{defaultTargetLanguage.toUpperCase()}</span>
+                </div>
+                <span class="text-2xl leading-none">{languages.find((lang) => lang.code === defaultTargetLanguage)?.flag || "🌐"}</span>
+              </div>
+              <p class="mt-2 text-xs leading-relaxed text-gray-500">{s("translationLanguageHint")}</p>
+            </button>
+
+            <button
+              type="button"
+              onclick={() => openSettingsSection("anki")}
+              class="rounded-xl border border-white/10 bg-white/[0.04] p-4 text-left transition-colors hover:border-amber-400/40 hover:bg-amber-500/10"
+            >
+              <div class="flex items-start justify-between gap-3">
+                <div class="min-w-0">
+                  <span class="block text-xs text-gray-500">{t("settings.noteType")}</span>
+                  <span class="mt-1 block truncate text-xl font-bold text-white">{noteTypeName}</span>
+                </div>
+                <span class="rounded-full bg-amber-500/15 px-2 py-1 text-xs text-amber-200">Anki</span>
+              </div>
+              <p class="mt-2 text-xs leading-relaxed text-gray-500">{s("noteTypeHint")}</p>
+            </button>
           </div>
-        </div>
-
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <button
-            type="button"
-            onclick={() => openSettingsSection("llm")}
-            class="rounded-xl border border-white/10 bg-white/[0.04] p-4 text-left transition-colors hover:border-indigo-400/40 hover:bg-indigo-500/10"
-          >
-            <div class="flex items-start justify-between gap-3">
-              <div>
-                <span class="block text-xs text-gray-500">{s("apiKeysSaved")}</span>
-                <span class="mt-1 block text-xl font-bold text-white">{configuredApiKeyCount}</span>
-              </div>
-              <span class="rounded-full bg-indigo-500/15 px-2 py-1 text-xs text-indigo-200">{defaultLlmProvider}</span>
-            </div>
-            <p class="mt-2 text-xs leading-relaxed text-gray-500">{s("apiKeysHint")}</p>
-          </button>
-
-          <button
-            type="button"
-            onclick={() => openSettingsSection("whisper")}
-            class="rounded-xl border border-white/10 bg-white/[0.04] p-4 text-left transition-colors hover:border-cyan-400/40 hover:bg-cyan-500/10"
-          >
-            <div class="flex items-start justify-between gap-3">
-              <div>
-                <span class="block text-xs text-gray-500">{t("settings.whisperDefault")}</span>
-                <span class="mt-1 block text-xl font-bold text-white">{formatWhisperModelName(defaultWhisperModel)}</span>
-              </div>
-              <span class="rounded-full bg-cyan-500/15 px-2 py-1 text-xs text-cyan-200">{downloadedWhisperCount}</span>
-            </div>
-            <p class="mt-2 text-xs leading-relaxed text-gray-500">{s("whisperHint")}</p>
-          </button>
-
-          <button
-            type="button"
-            onclick={() => openSettingsSection("language")}
-            class="rounded-xl border border-white/10 bg-white/[0.04] p-4 text-left transition-colors hover:border-emerald-400/40 hover:bg-emerald-500/10"
-          >
-            <div class="flex items-start justify-between gap-3">
-              <div>
-                <span class="block text-xs text-gray-500">{s("translationLanguage")}</span>
-                <span class="mt-1 block text-xl font-bold text-white">{defaultTargetLanguage.toUpperCase()}</span>
-              </div>
-              <span class="text-2xl leading-none">{languages.find((lang) => lang.code === defaultTargetLanguage)?.flag || "🌐"}</span>
-            </div>
-            <p class="mt-2 text-xs leading-relaxed text-gray-500">{s("translationLanguageHint")}</p>
-          </button>
-
-          <button
-            type="button"
-            onclick={() => openSettingsSection("anki")}
-            class="rounded-xl border border-white/10 bg-white/[0.04] p-4 text-left transition-colors hover:border-amber-400/40 hover:bg-amber-500/10"
-          >
-            <div class="flex items-start justify-between gap-3">
-              <div class="min-w-0">
-                <span class="block text-xs text-gray-500">{t("settings.noteType")}</span>
-                <span class="mt-1 block truncate text-xl font-bold text-white">{noteTypeName}</span>
-              </div>
-              <span class="rounded-full bg-amber-500/15 px-2 py-1 text-xs text-amber-200">Anki</span>
-            </div>
-            <p class="mt-2 text-xs leading-relaxed text-gray-500">{s("noteTypeHint")}</p>
-          </button>
         </div>
       </div>
     </div>
@@ -1737,33 +2207,6 @@
 
   {#if activeSettingsSection === "language"}
   <div class="mb-6 flex flex-col gap-4">
-    <div
-      class="glass-card p-5 flex flex-col xl:flex-row xl:items-start gap-5"
-    >
-      <div class="xl:w-56 shrink-0">
-        <span
-          class="text-xs font-bold text-gray-500 uppercase tracking-wide"
-        >
-          {t("settings.language")}
-        </span>
-        <p class="text-sm text-gray-400 mt-2">{s("interfaceLanguageDesc")}</p>
-      </div>
-      <div class="ui-language-grid flex-1">
-        {#each availableUILanguages as lang}
-          <button
-            onclick={() => setLanguage(lang.code)}
-            class="ui-language-button min-h-[4.75rem] flex flex-col items-center justify-center gap-2 px-3 py-3 rounded-lg transition-all duration-200 border
-              {$currentLanguage === lang.code
-              ? 'bg-gradient-to-r from-indigo-500/20 to-purple-500/20 border-indigo-500/50 text-white shadow-sm'
-              : 'bg-white/5 hover:bg-white/10 text-gray-400 hover:text-gray-200 border-transparent hover:border-white/10'}"
-          >
-            <span class="text-3xl leading-none">{lang.flag}</span>
-            <span class="text-sm font-semibold uppercase">{lang.code}</span>
-          </button>
-        {/each}
-      </div>
-    </div>
-
     <div class="glass-card p-6">
       <div class="flex items-center gap-3 mb-4">
         <div class="w-9 h-9 rounded-lg bg-emerald-500/20 text-emerald-300 flex items-center justify-center">
@@ -1773,7 +2216,6 @@
         </div>
         <div>
           <h3 class="text-sm font-bold text-white">{s("defaultLanguages")}</h3>
-          <p class="text-xs text-gray-500">{s("defaultLanguagesDesc")}</p>
         </div>
       </div>
 
@@ -1857,29 +2299,84 @@
       </div>
     </div>
 
+    <!-- Smart Matching Card -->
+    <div class="glass-card p-6 flex flex-col gap-4">
+      <div class="flex items-center justify-between gap-4">
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 rounded-lg bg-violet-500/20 text-violet-300 flex items-center justify-center">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+          </div>
+          <div>
+            <h3 class="text-sm font-bold text-white">Smart Matching</h3>
+          </div>
+        </div>
+        <!-- Toggle Switch -->
+        <button
+          type="button"
+          class="relative h-6 w-11 shrink-0 rounded-full transition-colors {smartMatchingEnabled ? 'bg-violet-500/60' : 'bg-gray-700'}"
+          onclick={toggleSmartMatching}
+          role="switch"
+          aria-checked={smartMatchingEnabled}
+          aria-label="Attiva/disattiva smart matching"
+        >
+          <span
+            class="absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-transform {smartMatchingEnabled ? 'translate-x-5' : 'translate-x-0'}"
+          ></span>
+        </button>
+      </div>
+
+      {#if smartMatchingEnabled}
+        <!-- Rules Editor -->
+        <div class="mt-4 pt-4 border-t border-white/5 space-y-3">
+          <div class="relative">
+            <!-- Copy button in the top-right of CodeEditor -->
+            <button
+              type="button"
+              onclick={copySmartMatchingRules}
+              class="absolute top-2.5 right-2.5 z-10 w-8 h-8 rounded-lg bg-gray-900/80 hover:bg-cyan-500/20 text-gray-400 hover:text-cyan-200 border border-white/10 hover:border-cyan-500/30 transition-all flex items-center justify-center cursor-pointer shadow-md"
+              title="Copia regole negli appunti"
+            >
+              <svg class="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+              </svg>
+            </button>
+            <CodeEditor
+              bind:value={smartMatchingRulesDraft}
+              language="jsonc"
+              heightClass="h-[520px]"
+              onchange={saveSmartMatchingRules}
+            />
+          </div>
+          {#if smartMatchingRulesError}
+            <p class="mt-2 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-200">
+              {smartMatchingRulesError}
+            </p>
+          {/if}
+        </div>
+      {/if}
+    </div>
+
   </div>
   {/if}
 
-  <!-- Snackbar notification at the bottom -->
-  {#if snackbarMessage}
-    <Snackbar
-      message={snackbarMessage}
-      variant={snackbarType === "error" ? "error" : "success"}
-      bottomClass="bottom-6"
-      duration={1300}
-      animationKey={snackbarKey}
-      onclose={() => (snackbarMessage = null)}
-    />
-  {/if}
+
 
   {#if activeSettingsSection === "llm"}
   <div class="grid grid-cols-1 xl:grid-cols-[0.95fr_1.05fr] gap-5 mb-5">
-    <div class="glass-card p-5 min-h-[10rem] flex flex-col justify-center">
-
-      <h3 class="mt-1 text-lg font-bold text-white">{s("addProviderTitle")}</h3>
-      <p class="mt-2 max-w-xl text-sm text-gray-400">
-        {s("addProviderDesc")}
-      </p>
+    <div class="glass-card p-5 min-h-[10rem] flex flex-col justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-lg bg-indigo-500/20 text-indigo-300 flex items-center justify-center shrink-0">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </div>
+        <div>
+          <h3 class="text-sm font-bold text-white">{s("addProviderTitle")}</h3>
+          <p class="text-xs text-gray-500">{s("addProviderDesc")}</p>
+        </div>
+      </div>
       <button
         type="button"
         onclick={() => openAddKeyModal("custom")}
@@ -1892,13 +2389,20 @@
       </button>
     </div>
 
-    <div class="glass-card p-5">
-      <div class="flex items-center justify-between gap-4 mb-4">
-        <div>
-
-          <h3 class="text-lg font-bold text-white">{t("settings.savedConfigurations", { count: configuredApiKeyCount })}</h3>
+    <div class="glass-card p-5 flex flex-col justify-between">
+      <div class="flex items-start justify-between gap-4 mb-4">
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 rounded-lg bg-purple-500/20 text-purple-300 flex items-center justify-center shrink-0">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01" />
+            </svg>
+          </div>
+          <div>
+            <h3 class="text-sm font-bold text-white">{t("settings.savedConfigurations", { count: configuredApiKeyCount })}</h3>
+            <p class="text-xs text-gray-500">{t("settings.savedConfigurationsDesc") || ($currentLanguage === "it" ? "Provider di traduzione attivi." : "Active translation providers.")}</p>
+          </div>
         </div>
-        <span class="inline-flex items-center gap-2 text-xs px-3 py-1.5 rounded-full border {hasRemoteApiKey ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300' : 'bg-white/5 border-white/10 text-gray-400'}">
+        <span class="inline-flex items-center gap-2 text-xs px-3 py-1.5 rounded-full border {hasRemoteApiKey ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300' : 'bg-white/5 border-white/10 text-gray-400'} shrink-0 mt-1">
           <span class="w-2 h-2 rounded-full {hasRemoteApiKey ? 'bg-emerald-400' : 'bg-gray-500'}"></span>
           {hasRemoteApiKey ? t("settings.remoteLlmUnlocked") : t("settings.localLlmOnly")}
         </span>
@@ -2069,7 +2573,7 @@
               type="text"
               bind:value={defaultLlmModel}
               oninput={persistDefaultLlmSettings}
-              placeholder="es. gemini-2.5-flash, llama3.2, openai/gpt-oss-20b"
+              placeholder="es. gpt-oss-20b, qwen2.5, gemma-2-9b"
               class="input-modern w-full text-sm font-mono mt-2"
             />
           {/if}
@@ -2079,12 +2583,18 @@
   </div>
 
   <div class="glass-card flex flex-col min-h-[18rem]">
-        <div class="p-4 border-b border-white/5">
-          <h3
-            class="text-sm font-semibold text-gray-400 uppercase tracking-wide"
-          >
-            {t("settings.apiKeys")}
-          </h3>
+        <div class="p-4 border-b border-white/5 flex items-center gap-3">
+          <div class="w-9 h-9 rounded-lg bg-violet-500/20 text-violet-300 flex items-center justify-center shrink-0">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m-2 4a2 2 0 012 2m-3-4a3 3 0 11-6 0 3 3 0 016 0zM8 21a4 4 0 014-4h4a4 4 0 014 4H8z" />
+            </svg>
+          </div>
+          <div>
+            <h3 class="text-sm font-bold text-white uppercase tracking-wide">
+              {t("settings.apiKeys")}
+            </h3>
+            <p class="text-xs text-gray-500">{t("settings.apiKeysDesc") || ($currentLanguage === "it" ? "Le credenziali registrate per la traduzione." : "Configured credentials for translation.")}</p>
+          </div>
         </div>
 
         <div class="flex-1 overflow-y-auto p-2 space-y-2">
@@ -2568,15 +3078,16 @@
   <div class="mt-6 space-y-4">
       <div class="rounded-xl border border-emerald-500/20 bg-white/5 p-5">
         <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 mb-5">
-          <div>
-            <div class="flex items-center gap-2 text-emerald-300/80">
-              <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div class="flex items-center gap-3">
+            <div class="w-9 h-9 rounded-lg bg-emerald-500/20 text-emerald-300 flex items-center justify-center shrink-0">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v4H4V5zm0 8h8v7H5a1 1 0 01-1-1v-6zm12 0h4v6a1 1 0 01-1 1h-3v-7z" />
               </svg>
-              <p class="text-xs uppercase tracking-wide">{s("fieldPanelKicker")}</p>
             </div>
-            <h4 class="text-sm font-bold text-white mt-1">{s("fieldPanelTitle")}</h4>
-            <p class="text-xs text-gray-500 mt-1">{s("fieldPanelDesc")}</p>
+            <div>
+              <h3 class="text-sm font-bold text-white">{s("fieldPanelKicker")}</h3>
+              <p class="text-xs text-gray-500">{t("settings.ankiPresetDesc") || ($currentLanguage === "it" ? "Corrispondenze dei campi per l'esportazione." : "Configure mapping fields for export.")}</p>
+            </div>
           </div>
           <div class="flex flex-wrap gap-2">
             <button
@@ -2600,16 +3111,7 @@
               </svg>
               {t("settings.delete")}
             </button>
-            <button
-              type="button"
-              onclick={() => (showResetConfirm = "fields")}
-              class="px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-gray-300 hover:text-amber-300 hover:border-amber-500/30 transition-colors text-xs font-semibold flex items-center gap-2"
-            >
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
-              {t("settings.default")}
-            </button>
+
           </div>
         </div>
 
@@ -2685,15 +3187,16 @@
 
       <div class="rounded-xl border border-white/10 bg-white/5 p-5">
         <div class="flex flex-col xl:flex-row xl:items-start xl:justify-between gap-4 mb-4">
-          <div>
-            <div class="flex items-center gap-2 text-cyan-300/80">
-              <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div class="flex items-center gap-3">
+            <div class="w-9 h-9 rounded-lg bg-cyan-500/20 text-cyan-300 flex items-center justify-center shrink-0">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 5h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2z" />
               </svg>
-              <p class="text-xs uppercase tracking-wide">{s("cardPanelKicker")}</p>
             </div>
-            <h4 class="text-sm font-bold text-white mt-1">{s("cardPanelTitle")}</h4>
-            <p class="text-xs text-gray-500 mt-1">{s("cardPanelDesc")}</p>
+            <div>
+              <h3 class="text-sm font-bold text-white">{s("cardPanelKicker")}</h3>
+              <p class="text-xs text-gray-500">{t("settings.cardPanelDescShort") || ($currentLanguage === "it" ? "Modifica il codice HTML e CSS." : "Edit card HTML and CSS code.")}</p>
+            </div>
           </div>
           <div class="flex flex-wrap gap-2">
             {#each templateCodeTabs as tab}
@@ -2717,17 +3220,7 @@
               </svg>
               {t("common.copy")}
             </button>
-            <button
-              type="button"
-              onclick={() => (showResetConfirm = "style")}
-              class="h-9 px-3 rounded-lg border border-white/10 bg-white/5 text-gray-300 hover:text-cyan-200 hover:border-cyan-500/30 transition-colors text-xs font-semibold flex items-center gap-2"
-              title="Ripristina ai valori di default di Vesta"
-            >
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
-              {t("settings.resetDefaults")}
-            </button>
+
           </div>
         </div>
 
@@ -2764,68 +3257,62 @@
         </div>
       </div>
 
-    <!-- Reset Confirmation Dialog -->
-    {#if showResetConfirm}
-      <!-- svelte-ignore a11y_no_static_element_interactions -->
-      <div
-        class="fixed inset-0 bg-black/70 flex items-center justify-center z-[60] p-6"
-        role="dialog"
-        aria-modal="true"
-        tabindex="-1"
-        onmousedown={(e) => {
-          if (e.target === e.currentTarget) showResetConfirm = null;
-        }}
-        onkeydown={(e) => {
-          if (e.key === "Escape") showResetConfirm = null;
-        }}
+    </div>
+  {/if}
+  </div>
+
+  <!-- Fixed Bottom Band with Red Reset Button styled and sized to sidebar bottom -->
+  <div class="h-[92px] border-t border-white/10 bg-gray-950 flex items-center justify-center shrink-0">
+    <button
+      onclick={() => {
+        if (activeSettingsSection !== "shortcuts") {
+          showResetConfirm = activeSettingsSection;
+        }
+      }}
+      class="px-5 py-2.5 bg-red-600 hover:bg-red-500 text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-red-900/30 flex items-center gap-2 hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
+    >
+      <svg
+        class="w-4 h-4"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
       >
-        <div
-          class="bg-gray-900 border border-gray-700 rounded-xl w-full max-w-sm p-6 animate-fade-in shadow-2xl"
-          onmousedown={(e) => e.stopPropagation()}
-        >
-          <div class="flex items-center gap-3 mb-4">
-            <div class="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center">
-              <svg class="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
-              </svg>
-            </div>
-            <div>
-              <h3 class="text-sm font-bold text-white">{t("settings.resetConfirmTitle") || "Reset to defaults?"}</h3>
-              <p class="text-xs text-gray-400 mt-1">{t("settings.resetConfirmDesc") || "All customizations will be lost."}</p>
-            </div>
-          </div>
-          <div class="flex justify-end gap-3">
-            <button
-              type="button"
-              onclick={() => (showResetConfirm = null)}
-              class="btn-secondary py-2 px-4 text-sm"
-            >
-              {t("common.cancel") || "Cancel"}
-            </button>
-            <button
-              type="button"
-              onclick={() => {
-                if (showResetConfirm === "style") {
-                  const defaults = resetCardTemplates();
-                  templateFrontHtml = defaults.frontHtml;
-                  templateBackHtml = defaults.backHtml;
-                  templateCss = defaults.css;
-                  noteTypeName = defaults.noteTypeName;
-                } else if (showResetConfirm === "fields") {
-                  resetAnkiFieldsToDefault();
-                }
-                showResetConfirm = null;
-              }}
-              class="py-2 px-4 text-sm font-medium rounded-lg bg-amber-500/20 border border-amber-500/50 text-amber-300 hover:bg-amber-500/30 transition-colors"
-            >
-              {t("settings.resetDefaults")}
-            </button>
-          </div>
-        </div>
-      </div>
-    {/if}
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="2"
+          d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+        />
+      </svg>
+      {t("settings.resetDefaults") || "Ripristina predefiniti"}
+    </button>
   </div>
   {/if}
+
+  <!-- Reset Confirmation Dialog -->
+  <ConfirmDialog
+    show={!!showResetConfirm}
+    title={resetTitle}
+    message={resetMessage}
+    confirmText={t("settings.resetDefaults") || "Ripristina predefiniti"}
+    cancelText={t("common.cancel") || "Annulla"}
+    variant="danger"
+    on:cancel={() => (showResetConfirm = null)}
+    on:confirm={() => {
+      if (showResetConfirm === "overview") {
+        resetOverviewSettings();
+      } else if (showResetConfirm === "llm") {
+        resetLlmSettings();
+      } else if (showResetConfirm === "whisper") {
+        resetWhisperSettings();
+      } else if (showResetConfirm === "language") {
+        resetLanguageSettings();
+      } else if (showResetConfirm === "anki") {
+        resetAnkiSettings();
+      }
+      showResetConfirm = null;
+    }}
+  />
 
   {#if showAddKey}
     <div
@@ -2856,91 +3343,7 @@
               class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2"
               >{t("settings.modal.provider")}</span
             >
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <!-- Server Locale -->
-              <button
-                type="button"
-                onclick={() => {
-                  newKeyType = "local";
-                  newKeyName = providers.local.name;
-                  newKeyUrl = providers.local.defaultApiUrl || "";
-                  newKeyValue = "";
-                }}
-                class="hidden items-center gap-3 p-3 rounded-lg transition-all duration-200 border text-left
-                  {newKeyType === 'local'
-                  ? 'bg-indigo-500/20 border-indigo-500/50 text-white'
-                  : 'bg-white/5 hover:bg-white/10 border-transparent text-gray-400'}"
-              >
-                <div
-                  class="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white shadow-lg"
-                >
-                  <svg
-                    class="w-5 h-5"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
-                    />
-                  </svg>
-                </div>
-                <div class="flex flex-col">
-                  <span class="text-sm font-bold"
-                    >{t("settings.modal.localServer")}</span
-                  >
-                  <span class="text-[10px] opacity-70 leading-tight"
-                    >{t("settings.modal.localServerDesc")}</span
-                  >
-                </div>
-              </button>
-
-              <!-- Provider Personalizzato -->
-              <button
-                type="button"
-                onclick={() => {
-                  newKeyType = "custom";
-                  newKeyName = "";
-                  newKeyUrl = "";
-                  newKeyValue = "";
-                }}
-                class="flex items-center gap-3 p-3 rounded-lg transition-all duration-200 border text-left
-                  {newKeyType === 'custom'
-                  ? 'bg-indigo-500/20 border-indigo-500/50 text-white'
-                  : 'bg-white/5 hover:bg-white/10 border-transparent text-gray-400'}"
-              >
-                <div
-                  class="w-8 h-8 rounded-lg bg-gradient-to-br from-gray-500 to-gray-600 flex items-center justify-center text-white shadow-lg"
-                >
-                  <svg
-                    class="w-5 h-5"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                    ><path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
-                    /><path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                    /></svg
-                  >
-                </div>
-                <div class="flex flex-col">
-                  <span class="text-sm font-bold">{t("provider.custom")}</span>
-                  <span class="text-[10px] opacity-70 leading-tight"
-                    >{t("provider.custom.desc")}</span
-                  >
-                </div>
-              </button>
-
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
               <!-- Google Gemini -->
               <button
                 type="button"
@@ -3019,6 +3422,49 @@
                 </div>
               </button>
             </div>
+
+            <!-- Provider Personalizzato (Full-Width Below) -->
+            <button
+              type="button"
+              onclick={() => {
+                newKeyType = "custom";
+                newKeyName = "";
+                newKeyUrl = "";
+                newKeyValue = "";
+              }}
+              class="w-full flex items-center gap-3 p-3 rounded-lg transition-all duration-200 border text-left
+                {newKeyType === 'custom'
+                ? 'bg-indigo-500/20 border-indigo-500/50 text-white'
+                : 'bg-white/5 hover:bg-white/10 border-transparent text-gray-400'}"
+            >
+              <div
+                class="w-8 h-8 rounded-lg bg-gradient-to-br from-gray-500 to-gray-600 flex items-center justify-center text-white shadow-lg"
+              >
+                <svg
+                  class="w-5 h-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  ><path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+                  /><path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                  /></svg
+                >
+              </div>
+              <div class="flex flex-col">
+                <span class="text-sm font-bold">{t("provider.custom")}</span>
+                <span class="text-[10px] opacity-70 leading-tight"
+                  >{t("provider.custom.desc")}</span
+                >
+              </div>
+            </button>
           </div>
 
           <div class="space-y-4">
@@ -3197,16 +3643,7 @@
     </div>
   {/if}
 
-  {#if showCopySnackbar}
-    <Snackbar
-      message={t("settings.keyCopied")}
-      variant="success"
-      bottomClass="bottom-6"
-      duration={1300}
-      animationKey={copySnackbarKey}
-      onclose={() => (showCopySnackbar = false)}
-    />
-  {/if}
+
 
   {#if deleteConfirmId}
     <div
@@ -3351,16 +3788,14 @@
   }
 
 	  .ui-language-grid {
-	    display: flex;
-	    flex-wrap: wrap;
-	    justify-content: center;
+	    display: grid;
+	    grid-template-columns: repeat(auto-fill, minmax(11.5rem, 1fr));
 	    gap: 0.75rem;
-	    max-width: calc(7 * 7rem + 6 * 0.75rem);
-	    margin-inline: auto;
+	    width: 100%;
 	  }
 
 	  .ui-language-button {
-	    flex: 0 0 7rem;
+	    min-width: 0;
 	  }
 
 	  :global(.language-select .searchable-select-input) {

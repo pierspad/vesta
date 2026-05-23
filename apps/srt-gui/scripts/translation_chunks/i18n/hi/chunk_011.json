@@ -1,4 +1,15 @@
 {
+  "flashcards.videoCodec": "वीडियो कोडेक",
+  "flashcards.videoField": "5. वीडियो",
+  "provider.anthropic": "Anthropic का Claude",
+  "provider.anthropic.desc": "Claude 3.5, Claude 3 (जल्द आ रहा है)",
+  "provider.google": "Google API सेवा",
+  "provider.custom": "कस्टम प्रदाता",
+  "provider.google.desc": "Google API नेटिव API (AIza... की आवश्यकता)",
+  "provider.local.desc": "Ollama, LM Studio, स्थानीय मॉडल",
+  "provider.openai": "OpenAI GPT मॉडल",
+  "provider.openai.desc": "GPT-4, GPT-4o, GPT-3.5 (जल्द आ रहा है)",
+  "settings.errorEndpointRequired": "स्थानीय सर्वर के लिए API एंडपॉइंट आवश्यक है",
   "settings.errorInvalidGoogleKey": "Google API कुंजियाँ 'AIza...' से शुरू होनी चाहिए",
   "settings.modal.apiKeyHintGoogle": "अपनी API कुंजी प्राप्त करें",
   "settings.modal.modelOptionalHint": "वैकल्पिक। आप अनुवाद टैब में मॉडल चुन सकते हैं। यह सिर्फ एक डिफ़ॉल्ट है।",
@@ -37,16 +48,5 @@
   "transcribe.downloadModel": "मॉडल डाउनलोड करें",
   "transcribe.editPath": "संपादित करें",
   "transcribe.errorUninstalling": "मॉडल अनइंस्टॉल करने में त्रुटि",
-  "transcribe.ffmpegMissing": "FFmpeg नहीं मिला",
-  "transcribe.ffmpegMissingDesc": "वीडियो फ़ाइलों से ऑडियो निकालने के लिए FFmpeg आवश्यक है। इसे अपने पैकेज मैनेजर के साथ इंस्टॉल करें।",
-  "transcribe.inputPathDesc": "ऑडियो/वीडियो फ़ाइल का पथ दर्ज करें या संपादित करें।",
-  "transcribe.modelBase": "आधार (Base)",
-  "transcribe.modelLarge": "बड़ा (Large)",
-  "transcribe.modelMedium": "मध्यम (Medium)",
-  "transcribe.modelSmall": "छोटा (Small)",
-  "transcribe.modelTiny": "छोटा (Tiny)",
-  "transcribe.modelUninstalled": "मॉडल अनइंस्टॉल किया गया",
-  "transcribe.newTranscription": "नया प्रतिलेखन",
-  "transcribe.newTranscriptionDesc": "नया प्रतिलेखन शुरू करने के लिए सभी फ़ील्ड, लॉग और परिणाम साफ़ करें",
-  "transcribe.noBackendWarning": "कोई Whisper बैकएंड नहीं मिला"
+  "transcribe.ffmpegMissing": "FFmpeg नहीं मिला"
 }

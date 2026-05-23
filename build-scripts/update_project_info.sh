@@ -119,11 +119,11 @@ if [ -f "$DESKTOP_FILE" ]; then
 Name=${APP_NAME}
 Comment=${PKGDESC}
 Exec=${BINARY_NAME}
-Icon=${APP_ID}
+Icon=${BINARY_NAME}
 Type=Application
 Categories=AudioVideo;Education;Utility;
 Terminal=false
-StartupWMClass=${APP_ID}
+StartupWMClass=${BINARY_NAME}
 EOF
     update_file "$DESKTOP_FILE" "name, comment, exec, icon"
 fi
@@ -135,11 +135,11 @@ if [ -f "$DESKTOP_FILE2" ]; then
 Name=${APP_NAME}
 Comment=${PKGDESC}
 Exec=${BINARY_NAME}
-Icon=${APP_ID}
+Icon=${BINARY_NAME}
 Type=Application
 Categories=AudioVideo;Education;Utility;
 Terminal=false
-StartupWMClass=${APP_ID}
+StartupWMClass=${BINARY_NAME}
 EOF
     update_file "$DESKTOP_FILE2" "name, comment, exec, icon"
 fi

@@ -57,6 +57,12 @@
   "shortcuts.action.goToSuggested": "Ir para sugerido",
   "shortcuts.action.saveFile": "Salvar SRT",
   "settings.title": "Configurações",
+  "settings.section.overview": "Geral",
+  "settings.section.llm": "LLM e Chaves API",
+  "settings.section.whisper": "Whisper",
+  "settings.section.language": "Idiomas e correspondência inteligente",
+  "settings.section.anki": "Modelos do Anki",
+  "settings.section.shortcuts": "Atalhos",
   "settings.subtitle": "Gerencie suas chaves API e modelos disponíveis",
   "settings.providers": "Provedor",
   "settings.selectProvider": "Selecione um Provedor",
@@ -810,5 +816,12 @@
   "align.typeSubtitle": "Digite a legenda aqui...",
   "align.noSubtitle": "Sem legenda",
   "sync.transcodingMedia": "A extrair faixa de áudio...",
-  "sync.transcodingHint": "O áudio MKV/AVI está a ser extraído para reprodução. Isso só é necessário na primeira vez."
+  "sync.transcodingHint": "O áudio MKV/AVI está a ser extraído para reprodução. Isso só é necessário na primeira vez.",
+  "flashcards.downloading": "Baixando...",
+  "flashcards.dropNoValidFiles": "Nenhum arquivo de legenda ou mídia válido inserido",
+  "settings.ankiPresetDesc": "Configure o mapeamento de campos para exportação.",
+  "settings.apiKeysDesc": "Credenciais configuradas para tradução.",
+  "settings.cardPanelDescShort": "Edite o código HTML e CSS do cartão.",
+  "settings.savedConfigurationsDesc": "Provedores de tradução ativos.",
+  "translate.refetchModelsTooltip": "Obter modelos do provedor novamente"
 }

@@ -122,8 +122,3 @@ export function unmarkSettingsNotificationRead(): SettingsActionNotificationDeta
   const hash = localStorage.getItem(SETTINGS_ACTION_CURRENT_HASH_KEY) || "";
   return publishSettingsActionState(hash);
 }
-
-/** Legacy compat: kept for use where old API was called */
-export function markCurrentSettingsActionRead(): SettingsActionNotificationDetail {
-  return hideSettingsNotifications();
-}
