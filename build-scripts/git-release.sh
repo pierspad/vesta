@@ -41,8 +41,15 @@ open_file_blocking() {
         exit 1
     fi
 
-    echo -e "${YELLOW}Apro ${title}... salva e chiudi per continuare${NC}"
-    code --wait "$file"
+    echo -e "${YELLOW}Apro ${title}...${NC}"
+    if command -v code >/dev/null 2>&1; then
+        code "$file"
+    else
+        echo -e "${YELLOW}Puoi modificare il file con il tuo editor preferito: $file${NC}"
+    fi
+
+    echo -e "${YELLOW}👉 Modifica il file, SALVALO e poi premi [INVIO] in questo terminale per continuare...${NC}"
+    read -r
 }
 
 find_python() {
@@ -76,8 +83,7 @@ if [ ! -f "$I18N_AUDIT_SCRIPT" ]; then
 fi
 
 if ! command -v code >/dev/null 2>&1; then
-    echo -e "${RED}Error: comando 'code' non disponibile. Installa/abilita VS Code CLI.${NC}"
-    exit 1
+    echo -e "${YELLOW}Warning: comando 'code' non disponibile. Dovrai aprire e modificare i file manualmente.${NC}"
 fi
 
 echo -e "${BLUE}VESTA Release Creator${NC}"
