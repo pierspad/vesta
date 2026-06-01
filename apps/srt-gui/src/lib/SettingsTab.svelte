@@ -1552,7 +1552,7 @@
           t("settings.modelDownloadCancelled", { model: modelId }) || `Download cancelled for model ${modelId}`,
         );
       } else {
-        showSnackbar(t("settings.whisper.downloadFailed", { model: modelId, error: e }), "error");
+        showSnackbar(t("settings.whisper.downloadFailed", { model: modelId, error: String(e) }), "error");
       }
     } finally {
       isDownloading = false;
@@ -1571,7 +1571,7 @@
     try {
       await invoke("transcribe_cancel");
     } catch (e) {
-      showSnackbar(t("settings.whisper.cancelFailed", { error: e }), "error");
+      showSnackbar(t("settings.whisper.cancelFailed", { error: String(e) }), "error");
       isCancellingDownload = false;
     }
   }
@@ -1583,7 +1583,7 @@
       showSnackbar(t("settings.whisper.uninstallSuccess", { model: modelId }));
       await refreshModels();
     } catch (e) {
-      showSnackbar(t("settings.whisper.uninstallFailed", { model: modelId, error: e }), "error");
+      showSnackbar(t("settings.whisper.uninstallFailed", { model: modelId, error: String(e) }), "error");
     }
   }
 

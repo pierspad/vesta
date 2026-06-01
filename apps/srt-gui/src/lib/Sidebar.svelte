@@ -308,7 +308,7 @@
       <!-- Settings navigation buttons -->
       <button
         class="w-full flex items-center gap-3.5 {collapsed ? 'px-2 justify-center' : 'px-4.5'} py-3 rounded-xl transition-all duration-300 border border-transparent cursor-pointer {settingsSection === 'overview'
-          ? 'bg-gradient-to-r from-sky-600 to-sky-700 text-white shadow-lg shadow-sky-500/22 border-sky-500/30'
+          ? 'bg-gradient-to-r from-sky-600 to-sky-700 text-white shadow-lg shadow-sky-500/22 border-sky-500/30 bg-clip-padding'
           : 'text-gray-400 hover:bg-sky-500/10 hover:text-sky-400 hover:border-sky-500/20'}"
         onclick={() => settingsSection = "overview"}
         title={collapsed ? t("settings.section.overview") : undefined}
@@ -327,7 +327,7 @@
 
       <button
         class="w-full flex items-center gap-3.5 {collapsed ? 'px-2 justify-center' : 'px-4.5'} py-3 rounded-xl transition-all duration-300 border border-transparent cursor-pointer {settingsSection === 'llm'
-          ? 'bg-gradient-to-r from-indigo-600 to-indigo-700 text-white shadow-lg shadow-indigo-500/22 border-indigo-500/30'
+          ? 'bg-gradient-to-r from-indigo-600 to-indigo-700 text-white shadow-lg shadow-indigo-500/22 border-indigo-500/30 bg-clip-padding'
           : 'text-gray-400 hover:bg-indigo-500/10 hover:text-indigo-400 hover:border-indigo-500/20'}"
         onclick={() => settingsSection = "llm"}
         title={collapsed ? t("settings.section.llm") : undefined}
@@ -349,7 +349,7 @@
 
       <button
         class="w-full flex items-center gap-3.5 {collapsed ? 'px-2 justify-center' : 'px-4.5'} py-3 rounded-xl transition-all duration-300 border border-transparent cursor-pointer {settingsSection === 'whisper'
-          ? 'bg-gradient-to-r from-cyan-600 to-cyan-700 text-white shadow-lg shadow-cyan-500/22 border-cyan-500/30'
+          ? 'bg-gradient-to-r from-cyan-600 to-cyan-700 text-white shadow-lg shadow-cyan-500/22 border-cyan-500/30 bg-clip-padding'
           : 'text-gray-400 hover:bg-cyan-500/10 hover:text-cyan-400 hover:border-cyan-500/20'}"
         onclick={() => settingsSection = "whisper"}
         title={collapsed ? t("settings.section.whisper") : undefined}
@@ -371,7 +371,7 @@
 
       <button
         class="w-full flex items-center gap-3.5 {collapsed ? 'px-2 justify-center' : 'px-4.5'} py-3 rounded-xl transition-all duration-300 border border-transparent cursor-pointer {settingsSection === 'language'
-          ? 'bg-gradient-to-r from-emerald-600 to-emerald-700 text-white shadow-lg shadow-emerald-500/22 border-emerald-500/30'
+          ? 'bg-gradient-to-r from-emerald-600 to-emerald-700 text-white shadow-lg shadow-emerald-500/22 border-emerald-500/30 bg-clip-padding'
           : 'text-gray-400 hover:bg-emerald-500/10 hover:text-emerald-400 hover:border-emerald-500/20'}"
         onclick={() => settingsSection = "language"}
         title={collapsed ? t("settings.section.language") : undefined}
@@ -390,7 +390,7 @@
 
       <button
         class="w-full flex items-center gap-3.5 {collapsed ? 'px-2 justify-center' : 'px-4.5'} py-3 rounded-xl transition-all duration-300 border border-transparent cursor-pointer {settingsSection === 'anki'
-          ? 'bg-gradient-to-r from-amber-600 to-amber-700 text-white shadow-lg shadow-amber-500/22 border-amber-500/30'
+          ? 'bg-gradient-to-r from-amber-600 to-amber-700 text-white shadow-lg shadow-amber-500/22 border-amber-500/30 bg-clip-padding'
           : 'text-gray-400 hover:bg-amber-500/10 hover:text-amber-400 hover:border-amber-500/20'}"
         onclick={() => settingsSection = "anki"}
         title={collapsed ? t("settings.section.anki") : undefined}
@@ -409,7 +409,7 @@
 
       <button
         class="w-full flex items-center gap-3.5 {collapsed ? 'px-2 justify-center' : 'px-4.5'} py-3 rounded-xl transition-all duration-300 border border-transparent cursor-pointer {settingsSection === 'shortcuts'
-          ? 'bg-gradient-to-r from-purple-600 to-purple-700 text-white shadow-lg shadow-purple-500/22 border-purple-500/30'
+          ? 'bg-gradient-to-r from-purple-600 to-purple-700 text-white shadow-lg shadow-purple-500/22 border-purple-500/30 bg-clip-padding'
           : 'text-gray-400 hover:bg-purple-500/10 hover:text-purple-400 hover:border-purple-500/20'}"
         onclick={() => settingsSection = "shortcuts"}
         title={collapsed ? t("settings.section.shortcuts") : undefined}
@@ -432,7 +432,7 @@
       <button
         class="w-full flex items-center gap-3.5 {collapsed ? 'px-2 justify-center' : 'px-4.5'} py-3 rounded-xl transition-all duration-300 border border-transparent cursor-pointer {activeTab ===
         'flashcards'
-          ? 'bg-gradient-to-r from-amber-600 to-orange-700 text-white shadow-lg shadow-amber-500/22 shadow-orange-600/20 border-amber-500/30'
+          ? 'bg-gradient-to-r from-amber-600 to-orange-700 text-white shadow-lg shadow-amber-500/22 shadow-orange-600/20 border-amber-500/30 bg-clip-padding'
           : 'text-gray-400 hover:bg-amber-500/10 hover:text-amber-400 hover:border-amber-500/20'}"
         onclick={() => onTabChange("flashcards")}
         title={collapsed ? t("nav.flashcards") : undefined}
@@ -462,7 +462,7 @@
       <button
         class="w-full flex items-center gap-3.5 {collapsed ? 'px-2 justify-center' : 'px-4.5'} py-3 rounded-xl transition-all duration-300 border border-transparent cursor-pointer {activeTab ===
         'translate'
-          ? 'bg-gradient-to-r from-fuchsia-700 to-rose-700 text-white shadow-lg shadow-fuchsia-500/20 shadow-rose-600/20 border-fuchsia-500/30'
+          ? 'bg-gradient-to-r from-fuchsia-700 to-rose-700 text-white shadow-lg shadow-fuchsia-500/20 shadow-rose-600/20 border-fuchsia-500/30 bg-clip-padding'
           : 'text-gray-400 hover:bg-fuchsia-500/10 hover:text-fuchsia-400 hover:border-fuchsia-500/20'}"
         onclick={() => onTabChange("translate")}
         title={collapsed ? t("nav.translate") : undefined}
@@ -492,7 +492,7 @@
       <button
         class="w-full flex items-center gap-3.5 {collapsed ? 'px-2 justify-center' : 'px-4.5'} py-3 rounded-xl transition-all duration-300 border border-transparent cursor-pointer {activeTab ===
         'sync'
-          ? 'bg-gradient-to-r from-sky-700 to-cyan-700 text-white shadow-lg shadow-cyan-500/20 shadow-sky-600/20 border-sky-500/30'
+          ? 'bg-gradient-to-r from-sky-700 to-cyan-700 text-white shadow-lg shadow-cyan-500/20 shadow-sky-600/20 border-sky-500/30 bg-clip-padding'
           : 'text-gray-400 hover:bg-sky-500/10 hover:text-sky-400 hover:border-sky-500/20'}"
         onclick={() => onTabChange("sync")}
         title={collapsed ? t("nav.sync") : undefined}
@@ -522,7 +522,7 @@
       <button
         class="w-full flex items-center gap-3.5 {collapsed ? 'px-2 justify-center' : 'px-4.5'} py-3 rounded-xl transition-all duration-300 border border-transparent cursor-pointer {activeTab ===
         'align'
-          ? 'bg-gradient-to-r from-violet-700 to-indigo-700 text-white shadow-lg shadow-violet-500/20 shadow-indigo-600/20 border-violet-500/30'
+          ? 'bg-gradient-to-r from-violet-700 to-indigo-700 text-white shadow-lg shadow-violet-500/20 shadow-indigo-600/20 border-violet-500/30 bg-clip-padding'
           : 'text-gray-400 hover:bg-violet-500/10 hover:text-violet-400 hover:border-violet-500/20'}"
         onclick={() => onTabChange("align")}
         title={collapsed ? t("nav.revision") : undefined}
@@ -542,7 +542,7 @@
       <button
         class="w-full flex items-center gap-3.5 {collapsed ? 'px-2 justify-center' : 'px-4.5'} py-3 rounded-xl transition-all duration-300 border border-transparent cursor-pointer {activeTab ===
         'transcribe'
-          ? 'bg-gradient-to-r from-teal-700 to-emerald-700 text-white shadow-lg shadow-teal-500/20 shadow-emerald-600/20 border-teal-500/30'
+          ? 'bg-gradient-to-r from-teal-700 to-emerald-700 text-white shadow-lg shadow-teal-500/20 shadow-emerald-600/20 border-teal-500/30 bg-clip-padding'
           : 'text-gray-400 hover:bg-teal-500/10 hover:text-teal-400 hover:border-teal-500/20'}"
         onclick={() => onTabChange("transcribe")}
         title={collapsed ? t("nav.transcribe") : undefined}

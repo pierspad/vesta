@@ -1728,82 +1728,53 @@
   }
 
   async function handleFileDrop(paths: string[]) {
-    console.log("[DragDrop] handleFileDrop chiamata con percorsi:", paths);
-    addLog(`handleFileDrop: Inizio elaborazione di ${paths.length} file...`, "info");
     if (!paths || paths.length === 0) {
-      addLog("handleFileDrop Warning: Nessun percorso fornito.", "warning");
       return;
     }
 
     const subtitleFiles = paths.filter(isSubtitleFile);
     const mediaFiles = paths.filter(isMediaFile);
 
-    console.log("[DragDrop] File sottotitoli rilevati:", subtitleFiles);
-    console.log("[DragDrop] File media rilevati:", mediaFiles);
-    addLog(`handleFileDrop: Trovati ${subtitleFiles.length} file sottotitoli e ${mediaFiles.length} file media`, "info");
-
     if (subtitleFiles.length === 0 && mediaFiles.length === 0) {
-      const msg = t("flashcards.dropNoValidFiles") || "Nessun file sottotitolo o media valido è stato rilasciato";
-      addLog(`handleFileDrop Warning: ${msg}`, "warning");
-      paths.forEach(p => {
-        const ext = getFileExtension(p);
-        addLog(`handleFileDrop Info: File ignorato '${p.split('/').pop()}' (estensione non supportata: .${ext})`, "info");
-      });
       return;
     }
 
     if (seriesMode) {
-      addLog("handleFileDrop: Modalità Serie TV attiva.", "info");
       if (subtitleFiles.length > 0 || mediaFiles.length > 0) {
         try {
-          addLog("handleFileDrop: Elaborazione file serie con accoppiamento smart in corso...", "info");
           const expanded = await expandSeriesFilesWithSmartMatches(
             subtitleFiles,
             mediaFiles,
           );
-          console.log("[DragDrop] Sottotitoli espansi (smart):", expanded.subtitleFiles);
-          console.log("[DragDrop] Media espansi (smart):", expanded.mediaFiles);
-          addLog(`handleFileDrop: Trovati ${expanded.subtitleFiles.length} sottotitoli e ${expanded.mediaFiles.length} media dopo espansione smart`, "info");
-
           mergeSeriesDroppedFiles(expanded.subtitleFiles, expanded.mediaFiles);
           addLog(`${episodes.length} ${t("flashcards.seriesEpisodesAdded")}`, "target-subs");
         } catch (e: any) {
           console.error("[DragDrop] Errore nell'elaborazione smart della serie:", e);
-          addLog(`handleFileDrop Error: Errore durante l'elaborazione smart: ${e.message || e}`, "error");
         }
       }
     } else {
       // Single-episode mode
-      addLog("handleFileDrop: Modalità Singolo Episodio attiva.", "info");
       if (subtitleFiles.length >= 2) {
         const { target, native } = classifySubtitles(subtitleFiles);
-        console.log("[DragDrop] Sottotitoli classificati -> target:", target, "native:", native);
-        addLog(`handleFileDrop: Classificati -> Originale: ${target ? 'Sì' : 'No'}, Riferimento: ${native ? 'Sì' : 'No'}`, "info");
         if (target) {
           try {
-            addLog(`handleFileDrop: Caricamento sottotitolo originale: ${target.split('/').pop()}`, "info");
             await loadTargetSubtitle(target);
             await tryAutoSelectMediaForSubtitle(target, smartFileMatchingEnabled);
           } catch (e: any) {
             error = `Error parsing subtitles: ${e}`;
-            addLog(`handleFileDrop Error: Caricamento sottotitolo originale fallito: ${e.message || e}`, "error");
           }
         }
         if (native) {
           try {
-            addLog(`handleFileDrop: Caricamento sottotitolo riferimento: ${native.split('/').pop()}`, "info");
             await loadNativeSubtitle(native);
           } catch (e: any) {
             error = `Error parsing native subtitles: ${e}`;
-            addLog(`handleFileDrop Error: Caricamento sottotitolo riferimento fallito: ${e.message || e}`, "error");
           }
         }
       } else if (subtitleFiles.length === 1) {
         const subPath = subtitleFiles[0];
-        addLog(`handleFileDrop: Singolo file sottotitolo rilevato: ${subPath.split('/').pop()}`, "info");
         if (!targetSubsPath) {
           try {
-            addLog("handleFileDrop: Slot originale vuoto, caricamento come originale...", "info");
             await loadTargetSubtitle(subPath);
             await tryAutoSelectCompanionSubtitle(
               subPath,
@@ -1816,11 +1787,9 @@
             );
           } catch (e: any) {
             error = `Error parsing subtitles: ${e}`;
-            addLog(`handleFileDrop Error: Caricamento come originale fallito: ${e.message || e}`, "error");
           }
         } else {
           try {
-            addLog("handleFileDrop: Slot originale occupato, caricamento come riferimento...", "info");
             await loadNativeSubtitle(subPath);
             await tryAutoSelectCompanionSubtitle(
               subPath,
@@ -1833,7 +1802,6 @@
             );
           } catch (e: any) {
             error = `Error parsing native subtitles: ${e}`;
-            addLog(`handleFileDrop Error: Caricamento come riferimento fallito: ${e.message || e}`, "error");
           }
         }
       }
@@ -1841,7 +1809,6 @@
       // Handle media files
       if (mediaFiles.length > 0) {
         const mediaPath = mediaFiles[0];
-        addLog(`handleFileDrop: Caricamento file media: ${mediaPath.split('/').pop()}`, "info");
         await applyMediaSelection(mediaPath);
       }
     }
@@ -1851,31 +1818,21 @@
     e.preventDefault();
     isDraggingOver = false;
     hasLoggedDragOver = false;
-    
-    console.log("[HtmlDrop] Drop event intercettato a livello HTML");
-    addLog("HtmlDrop: Rilevato rilascio file a livello HTML5", "info");
 
     if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       const files = Array.from(e.dataTransfer.files);
       const paths: string[] = [];
       
-      files.forEach((file, idx) => {
+      files.forEach((file) => {
         const path = (file as any).path;
-        console.log(`[HtmlDrop] File #${idx}: '${file.name}', path: '${path}'`);
-        addLog(`HtmlDrop: File #${idx}: '${file.name}' (percorso: ${path || 'non disponibile'})`, "info");
         if (path) {
           paths.push(path);
         }
       });
 
       if (paths.length > 0) {
-        addLog(`HtmlDrop: Avvio elaborazione di ${paths.length} file con percorsi assoluti...`, "info");
         await handleFileDrop(paths);
-      } else {
-        addLog("HtmlDrop Info: I percorsi assoluti non sono esportabili tramite HTML5 in questa Webview. Verrà utilizzato l'evento di basso livello di Tauri.", "info");
       }
-    } else {
-      addLog("HtmlDrop Warning: I dati del drag-and-drop sono vuoti o non accessibili.", "warning");
     }
   }
 
@@ -2005,37 +1962,23 @@
     // Listen for OS-level file drag and drop
     getCurrentWebview().onDragDropEvent((event) => {
       if (!active) {
-        console.log("[DragDrop] Ignorato evento perché il tab non è attivo.");
         return;
       }
       if (event.payload.type === "over") {
         isDraggingOver = true;
-        console.log("[DragDrop] Drag over");
       } else if (event.payload.type === "drop") {
         isDraggingOver = false;
-        console.log("[DragDrop] Drop ricevuto. Payload:", event.payload);
-        addLog(`DragDrop: Rilevato rilascio di file. Totale elementi: ${event.payload.paths?.length || 0}`, "info");
         if (event.payload.paths && event.payload.paths.length > 0) {
-          event.payload.paths.forEach((p, i) => {
-            console.log(`[DragDrop] Path #${i}: ${p}`);
-            addLog(`DragDrop: File #${i}: ${p}`, "info");
-          });
           handleFileDrop(event.payload.paths);
-        } else {
-          console.warn("[DragDrop] drop payload paths è vuoto o indefinito");
-          addLog("DragDrop Warning: Nessun percorso file ricevuto nel payload del drop.", "warning");
         }
       } else if (event.payload.type === "leave") {
         isDraggingOver = false;
-        console.log("[DragDrop] Drag leave");
       }
     }).then((fn) => {
       if (!activeListener) fn();
       else unlistenDragDrop = fn;
-      console.log("[DragDrop] Configurato listener su Webview con successo.");
     }).catch((e) => {
       console.warn("Failed to set up drag-drop listener:", e);
-      addLog(`DragDrop Error: Fallito setup listener: ${e}`, "error");
     });
 
     listen<{
@@ -2851,10 +2794,6 @@
       e.dataTransfer.dropEffect = 'copy';
     }
     isDraggingOver = true;
-    if (!hasLoggedDragOver) {
-      addLog("DragDrop: Rilevato trascinamento file sopra la finestra (HTML5)", "info");
-      hasLoggedDragOver = true;
-    }
   }}
   ondrop={handleHtmlDrop}
   ondragleave={(e) => {
@@ -2862,8 +2801,6 @@
     const ct = e.currentTarget as HTMLElement;
     if (rt && ct.contains(rt)) return;
     isDraggingOver = false;
-    hasLoggedDragOver = false;
-    addLog("DragDrop: I file hanno lasciato la finestra (HTML5)", "info");
   }}
 >
   {#if isDraggingOver}
