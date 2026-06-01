@@ -294,7 +294,7 @@ fn main() {
                         use webkit2gtk::PolicyDecisionExt;
                         use webkit2gtk::PolicyDecisionType;
                         use webkit2gtk::URIRequestExt;
-                        use webkit2gtk::glib::{Cast, ObjectExt};
+                        use webkit2gtk::glib::Cast;
                         let webview = wv.inner();
                         let wk: &webkit2gtk::WebView = webview.as_ref();
 
@@ -317,21 +317,8 @@ fn main() {
                             false
                         });
 
-                        // 2) Prevent WebKit from processing dropped file data via GStreamer.
-                        //    wry (Tauri's webview layer) connects its own drag-data-received
-                        //    handler FIRST (during webview construction) which extracts URIs
-                        //    and emits Tauri's DragDrop events.  Our handler fires AFTER wry's
-                        //    but BEFORE WebKit's class handler.  By stopping the signal here,
-                        //    WebKit's default handler never runs, so the WebProcess never
-                        //    receives the dropped data and never invokes GStreamer — avoiding
-                        //    the "autoaudiosink not found" crash entirely.
-                        let wk_obj: webkit2gtk::glib::Object = wk.clone().upcast();
-                        wk_obj.connect_local("drag-data-received", false, |values| {
-                            if let Ok(widget) = values[0].get::<webkit2gtk::glib::Object>() {
-                                widget.stop_signal_emission_by_name("drag-data-received");
-                            }
-                            None
-                        });
+                        // 2) The workaround to prevent WebKit from processing dropped file data via GStreamer
+                        //    has been removed because it was interfering with Tauri's own DragDrop events.
                         }
                     });
                 }

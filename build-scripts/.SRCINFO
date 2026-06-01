@@ -30,7 +30,7 @@ pkgbase = vesta-bin
 	options = !debug
 	source = vesta-0.9.0.deb::https://github.com/pierspad/VESTA/releases/download/v0.9.0/VESTA_0.9.0_amd64.deb
 	source = LICENSE::https://raw.githubusercontent.com/pierspad/VESTA/main/LICENSE
-	sha256sums = 7da7415ccbbeb012046360375bef125fb5470c4f5e9bf2ef58b174f851e6177b
+	sha256sums = 14e69caacef6213e244a74da6382035840c38cd7622ea4635ef657a2871ea8e8
 	sha256sums = 144ee8f9fbaee3025c001b0b0e854eb6a80c1025a6548ead97ab5fb90df7aca6
 
 pkgname = vesta-bin

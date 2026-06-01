@@ -302,7 +302,7 @@
     {/if}
   </div>
 
-  <nav class="flex-1 p-4 flex flex-col justify-center gap-3">
+  <nav class="flex-1 p-4 flex flex-col justify-start gap-3">
 
     {#if activeTab === "settings"}
       <!-- Settings navigation buttons -->
