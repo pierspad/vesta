@@ -1021,7 +1021,7 @@
     ankiFieldPresetName = preset.name;
     localStorage.setItem(ACTIVE_ANKI_FIELD_PRESET_KEY, preset.id);
     persistAnkiFieldPresets();
-    showSnackbar("Template campi salvato");
+    showSnackbar(t("settings.anki.presetSaved"));
   }
 
   function deleteCurrentAnkiFieldPreset() {
@@ -1029,7 +1029,7 @@
     savedAnkiFieldPresets = savedAnkiFieldPresets.filter((preset) => preset.id !== selectedAnkiFieldPresetId);
     persistAnkiFieldPresets();
     applyAnkiFieldPreset("default");
-    showSnackbar("Template campi eliminato");
+    showSnackbar(t("settings.anki.presetDeleted"));
   }
 
   function resetAnkiFieldsToDefault() {
@@ -1044,7 +1044,7 @@
 
   function resetOverviewSettings() {
     setLanguage("it");
-    snackbar.show("Lingua dell'interfaccia ripristinata", "info", 1300);
+    snackbar.show(t("settings.overview.resetSuccess"), "info", 1300);
   }
 
   function resetLlmSettings() {
@@ -1053,7 +1053,7 @@
     defaultLlmCustomProviderId = "";
     defaultLlmModel = "";
     persistDefaultLlmSettings();
-    snackbar.show("Impostazioni LLM ripristinate", "info", 1300);
+    snackbar.show(t("settings.llm.resetSuccess"), "info", 1300);
   }
 
   function resetWhisperSettings() {
@@ -1061,18 +1061,18 @@
     if (baseModel && baseModel.downloaded) {
       defaultWhisperModel = "base";
       localStorage.setItem("srt-default-whisper-model", "base");
-      snackbar.show("Modello Whisper predefinito ripristinato a \"Base\"", "info", 2000);
+      snackbar.show(t("settings.whisper.resetSuccess"), "info", 2000);
     } else {
       // Find if there is another downloaded model
       const alternate = whisperModels.find((m) => m.downloaded);
       if (alternate) {
         defaultWhisperModel = alternate.id;
         localStorage.setItem("srt-default-whisper-model", alternate.id);
-        snackbar.show(`Il modello "Base" non è scaricato. Impostato il modello "${alternate.name}" come predefinito.`, "warning", 3000);
+        snackbar.show(t("settings.whisper.resetBaseNotDownloaded", { name: alternate.name }), "warning", 3000);
       } else {
         defaultWhisperModel = "base";
         localStorage.setItem("srt-default-whisper-model", "base");
-        snackbar.show("Il modello predefinito \"Base\" non è ancora scaricato. Scaricalo per utilizzarlo.", "warning", 3000);
+        snackbar.show(t("settings.whisper.resetBaseDownloadWarning"), "warning", 3000);
       }
     }
   }
@@ -1092,7 +1092,7 @@
     smartMatchingRulesDraft = formatSmartMatchingRules(smartMatchingStore.rules);
     smartMatchingRulesError = null;
 
-    snackbar.show("Impostazioni lingue e regole smart matching ripristinate", "info", 1300);
+    snackbar.show(t("settings.language.resetSuccess"), "info", 1300);
   }
 
   function resetAnkiSettings() {
@@ -1102,7 +1102,7 @@
     templateCss = defaults.css;
     noteTypeName = defaults.noteTypeName;
     resetAnkiFieldsToDefault();
-    snackbar.show("Template e campi Anki ripristinati", "info", 1300);
+    snackbar.show(t("settings.anki.resetSuccess"), "info", 1300);
   }
 
   function saveFields() {
@@ -1505,7 +1505,7 @@
     defaultWhisperModel = modelId;
     localStorage.setItem("srt-default-whisper-model", modelId);
     if (notify) {
-      showSnackbar(`Default Whisper model set to ${modelId}`);
+      showSnackbar(t("settings.whisper.defaultSet", { model: modelId }));
     }
     // Dispatch event so other tabs can pick up the change if needed
     window.dispatchEvent(new CustomEvent("whisper-model-updated", { detail: modelId }));
@@ -1541,9 +1541,9 @@
       const downloaded = whisperModels.find((m) => m.id === modelId)?.downloaded;
       if (downloaded && pendingDefaultModelId === modelId) {
         setDefaultWhisperModel(modelId, false);
-        showSnackbar(`Model ${modelId} downloaded and set as default`);
+        showSnackbar(t("settings.whisper.downloadAndSetSuccess", { model: modelId }));
       } else if (downloaded) {
-        showSnackbar(`Model ${modelId} downloaded successfully`);
+        showSnackbar(t("settings.whisper.downloadSuccess", { model: modelId }));
       }
     } catch (e) {
       const message = String(e).toLowerCase();
@@ -1552,7 +1552,7 @@
           t("settings.modelDownloadCancelled", { model: modelId }) || `Download cancelled for model ${modelId}`,
         );
       } else {
-        showSnackbar(`Failed to download model ${modelId}: ${e}`, "error");
+        showSnackbar(t("settings.whisper.downloadFailed", { model: modelId, error: e }), "error");
       }
     } finally {
       isDownloading = false;
@@ -1571,7 +1571,7 @@
     try {
       await invoke("transcribe_cancel");
     } catch (e) {
-      showSnackbar(`Failed to cancel download: ${e}`, "error");
+      showSnackbar(t("settings.whisper.cancelFailed", { error: e }), "error");
       isCancellingDownload = false;
     }
   }
@@ -1580,10 +1580,10 @@
     if (isDownloading) return;
     try {
       await invoke<boolean>("transcribe_uninstall_model", { modelId });
-      showSnackbar(`Model ${modelId} uninstalled`);
+      showSnackbar(t("settings.whisper.uninstallSuccess", { model: modelId }));
       await refreshModels();
     } catch (e) {
-      showSnackbar(`Failed to uninstall model ${modelId}: ${e}`, "error");
+      showSnackbar(t("settings.whisper.uninstallFailed", { model: modelId, error: e }), "error");
     }
   }
 

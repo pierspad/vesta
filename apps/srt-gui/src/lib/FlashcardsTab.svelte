@@ -71,244 +71,15 @@
 
   let smartFileMatchingEnabled = $derived(smartMatchingStore.enabled);
 
-  interface SmartMatchingRules {
-    episodeRegexes: string[];
-    originalSubtitleHints: string[];
-    referenceSubtitleHints: string[];
-    removableNameTokens: string[];
-  }
 
-  const DEFAULT_SMART_MATCHING_RULES: SmartMatchingRules = {
-    episodeRegexes: [
-      "[Ss]\\d{1,2}[Ee](\\d{1,4})",
-      "[Pp]art(?:e)?[\\s_\\-.]?(\\d{1,4})",
-      "[Ee][Pp]?\\.?\\s*(\\d{1,4})",
-      "[Ee]pisode\\.?\\s*(\\d{1,4})",
-      "[Xx](\\d{1,4})",
-      "[\\s_\\-.](\\d{1,4})[\\s_\\-.]",
-      "^(\\d{1,4})[\\s_\\-.]",
-      "[\\s_\\-.](\\d{1,4})$",
-    ],
-    originalSubtitleHints: ["native", "original", "orig", "source"],
-    referenceSubtitleHints: [
-      "translated",
-      "translation",
-      "tradotto",
-      "traduzione",
-      "reference",
-      "ref",
-    ],
-    removableNameTokens: [
-      "720p",
-      "1080p",
-      "2160p",
-      "4k",
-      "bluray",
-      "brrip",
-      "webrip",
-      "web-dl",
-      "webdl",
-      "hdtv",
-      "dvdrip",
-      "x264",
-      "x265",
-      "h264",
-      "h265",
-      "aac",
-      "dts",
-    ],
-  };
-
-  function normalizeSmartMatchingRules(value: unknown): SmartMatchingRules {
-    const fallback = DEFAULT_SMART_MATCHING_RULES;
-    const obj = value && typeof value === "object" ? value as Partial<SmartMatchingRules> : {};
-    const cleanStringArray = (items: unknown, fallbackItems: string[]) =>
-      Array.isArray(items)
-        ? items.filter((item): item is string => typeof item === "string" && item.trim().length > 0)
-        : fallbackItems;
-
-    return {
-      episodeRegexes: cleanStringArray(obj.episodeRegexes, fallback.episodeRegexes),
-      originalSubtitleHints: cleanStringArray(obj.originalSubtitleHints, fallback.originalSubtitleHints),
-      referenceSubtitleHints: cleanStringArray(obj.referenceSubtitleHints, fallback.referenceSubtitleHints),
-      removableNameTokens: cleanStringArray(obj.removableNameTokens, fallback.removableNameTokens),
-    };
-  }
-
-  function loadSmartMatchingRules(): SmartMatchingRules {
-    try {
-      const saved = localStorage.getItem(SMART_MATCHING_RULES_KEY);
-      return saved
-        ? normalizeSmartMatchingRules(JSON.parse(stripJsonComments(saved)))
-        : normalizeSmartMatchingRules(DEFAULT_SMART_MATCHING_RULES);
-    } catch {
-      return normalizeSmartMatchingRules(DEFAULT_SMART_MATCHING_RULES);
-    }
-  }
-
-  function parseSmartMatchingRulesDraft(): SmartMatchingRules {
-    const parsed = normalizeSmartMatchingRules(JSON.parse(stripJsonComments(smartMatchingRulesDraft)));
-    parsed.episodeRegexes.forEach((pattern) => new RegExp(pattern, "i"));
-    return parsed;
-  }
-
-  function getSmartMatchingRulesDraftError(): string | null {
-    try {
-      parseSmartMatchingRulesDraft();
-      return null;
-    } catch (e) {
-      return `${t("flashcards.smartMatchingInvalid")}: ${e}`;
-    }
-  }
-
-  function formatJsonArray(items: string[], indent = 2): string {
-    const spaces = " ".repeat(indent);
-    return items
-      .map((item) => `${spaces}${JSON.stringify(item)}`)
-      .join(",\n");
-  }
-
-  function formatSmartMatchingRules(rules: SmartMatchingRules): string {
-    const episodeRegexDescriptions = [
-      "S01E02 / S1E2 -> captures 02 or 2",
-      "Part 02 / Parte 02 -> captures 02",
-      "Ep. 02 / E02 -> captures 02",
-      "Episode 02 -> captures 02",
-      "x02 -> captures 02, useful for names like Show x02",
-      "Episode number between separators: space, underscore, hyphen, or dot",
-      "Episode number at the beginning of the filename",
-      "Episode number at the end of the filename",
-    ];
-    const episodeRegexes = rules.episodeRegexes
-      .map((pattern, index) => {
-        const description =
-          episodeRegexDescriptions[index] || "Custom pattern: it must capture the episode number";
-        return `    // ${description}\n    ${JSON.stringify(pattern)}`;
-      })
-      .join(",\n");
-
-    return `{
-  // episodeRegexes: regexes tested from top to bottom on the filename.
-  // The first capture group (\\d...) must be the episode number to match.
-  "episodeRegexes": [
-${episodeRegexes}
-  ],
-
-  // originalSubtitleHints: words that mark a subtitle file as the original track.
-  "originalSubtitleHints": [
-${formatJsonArray(rules.originalSubtitleHints, 4)}
-  ],
-
-  // referenceSubtitleHints: words that mark a subtitle file as the reference translation.
-  "referenceSubtitleHints": [
-${formatJsonArray(rules.referenceSubtitleHints, 4)}
-  ],
-
-  // removableNameTokens: technical tokens removed before comparing series/episode names.
-  "removableNameTokens": [
-${formatJsonArray(rules.removableNameTokens, 4)}
-  ]
-}`;
-  }
-
-  function stripJsonComments(value: string): string {
-    let output = "";
-    let inString = false;
-    let inLineComment = false;
-    let inBlockComment = false;
-    let escaped = false;
-
-    for (let i = 0; i < value.length; i += 1) {
-      const char = value[i];
-      const next = value[i + 1];
-
-      if (inLineComment) {
-        if (char === "\n") {
-          inLineComment = false;
-          output += char;
-        }
-        continue;
-      }
-
-      if (inBlockComment) {
-        if (char === "*" && next === "/") {
-          inBlockComment = false;
-          i += 1;
-        } else if (char === "\n") {
-          output += "\n";
-        }
-        continue;
-      }
-
-      if (!inString && char === "/" && next === "/") {
-        inLineComment = true;
-        i += 1;
-        continue;
-      }
-
-      if (!inString && char === "/" && next === "*") {
-        inBlockComment = true;
-        i += 1;
-        continue;
-      }
-
-      output += char;
-
-      if (char === '"' && !escaped) {
-        inString = !inString;
-      }
-
-      escaped = inString && char === "\\" && !escaped;
-      if (char !== "\\") escaped = false;
-    }
-
-    return output;
-  }
 
   function escapeRegExp(value: string): string {
     return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   }
 
   let smartMatchingRules = $derived(smartMatchingStore.rules);
-  let showSmartMatchingDialog = $state(false);
-  let smartMatchingRulesDraft = $state("");
-  let smartMatchingRulesError = $state<string | null>(null);
   let episodeContextMenu = $state<{ x: number; y: number; idx: number } | null>(null);
 
-  function openSmartMatchingDialog() {
-    smartMatchingRulesDraft = formatSmartMatchingRules(smartMatchingRules);
-    smartMatchingRulesError = null;
-    showSmartMatchingDialog = true;
-  }
-
-  function closeSmartMatchingDialog() {
-    showSmartMatchingDialog = false;
-    smartMatchingRulesError = null;
-  }
-
-  function saveSmartMatchingRules() {
-    try {
-      const parsed = parseSmartMatchingRulesDraft();
-      smartMatchingRules = parsed;
-      localStorage.setItem(SMART_MATCHING_RULES_KEY, formatSmartMatchingRules(parsed));
-      closeSmartMatchingDialog();
-    } catch (e) {
-      smartMatchingRulesError = `${t("flashcards.smartMatchingInvalid")}: ${e}`;
-    }
-  }
-
-  function resetSmartMatchingRules() {
-    if (!window.confirm(t("flashcards.smartMatchingResetConfirm"))) return;
-    smartMatchingRules = normalizeSmartMatchingRules(DEFAULT_SMART_MATCHING_RULES);
-    smartMatchingRulesDraft = formatSmartMatchingRules(smartMatchingRules);
-    localStorage.removeItem(SMART_MATCHING_RULES_KEY);
-    smartMatchingRulesError = null;
-  }
-
-  function copySmartMatchingRules() {
-    navigator.clipboard.writeText(smartMatchingRulesDraft);
-    showSnackbar(t("flashcards.copiedSmartMatching"), "success");
-  }
 
   // ─── Series Mode State ───────────────────────────────────────────────────
   let seriesMode = $state(loadSeriesMode());
@@ -1392,48 +1163,7 @@ ${formatJsonArray(rules.removableNameTokens, 4)}
 
   let exportFormat = $state<"tsv" | "apkg">("apkg");
 
-  let autoSendToAnki = $state(localStorage.getItem("vesta-flashcards-auto-send-anki") === "true");
-  let ankiSyncing = $state(false);
-  let ankiSyncSuccess = $state(false);
-  let ankiSyncError = $state<string | null>(null);
 
-  $effect(() => {
-    localStorage.setItem("vesta-flashcards-auto-send-anki", String(autoSendToAnki));
-  });
-
-  async function sendToAnkiConnect(apkgPath: string) {
-    if (!apkgPath) return;
-    ankiSyncing = true;
-    ankiSyncError = null;
-    ankiSyncSuccess = false;
-    try {
-      const response = await fetch("http://127.0.0.1:8765", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "importPackage",
-          version: 6,
-          params: { path: apkgPath }
-        })
-      });
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      const data = await response.json();
-      if (data.error) {
-        throw new Error(data.error);
-      }
-      ankiSyncSuccess = true;
-      showSnackbar("Pacchetto Anki importato con successo!", "success");
-      addLog("AnkiConnect: Deck importato con successo in Anki!", "success");
-    } catch (e: any) {
-      ankiSyncError = e.message || String(e);
-      showSnackbar(`Errore di connessione ad Anki: ${ankiSyncError}`, "error");
-      addLog(`AnkiConnect Error: ${ankiSyncError}`, "error");
-    } finally {
-      ankiSyncing = false;
-    }
-  }
 
   let systemCpuCount = $state(4);
   let cpuCores = $state(2); // will be set properly onMount
@@ -1749,6 +1479,7 @@ ${formatJsonArray(rules.removableNameTokens, 4)}
   let removeLanguageDefaultsListener: (() => void) | null = null;
   let removeLayoutObserver: (() => void) | null = null;
   let isDraggingOver = $state(false);
+  let hasLoggedDragOver = false;
 
   function syncNoteTypeNameFromTemplates() {
     noteTypeName = loadCardTemplates().noteTypeName;
@@ -1997,49 +1728,82 @@ ${formatJsonArray(rules.removableNameTokens, 4)}
   }
 
   async function handleFileDrop(paths: string[]) {
-    if (!paths || paths.length === 0) return;
+    console.log("[DragDrop] handleFileDrop chiamata con percorsi:", paths);
+    addLog(`handleFileDrop: Inizio elaborazione di ${paths.length} file...`, "info");
+    if (!paths || paths.length === 0) {
+      addLog("handleFileDrop Warning: Nessun percorso fornito.", "warning");
+      return;
+    }
 
     const subtitleFiles = paths.filter(isSubtitleFile);
     const mediaFiles = paths.filter(isMediaFile);
 
+    console.log("[DragDrop] File sottotitoli rilevati:", subtitleFiles);
+    console.log("[DragDrop] File media rilevati:", mediaFiles);
+    addLog(`handleFileDrop: Trovati ${subtitleFiles.length} file sottotitoli e ${mediaFiles.length} file media`, "info");
+
     if (subtitleFiles.length === 0 && mediaFiles.length === 0) {
-      addLog(t("flashcards.dropNoValidFiles") || "No valid subtitle or media files dropped", "warning");
+      const msg = t("flashcards.dropNoValidFiles") || "Nessun file sottotitolo o media valido è stato rilasciato";
+      addLog(`handleFileDrop Warning: ${msg}`, "warning");
+      paths.forEach(p => {
+        const ext = getFileExtension(p);
+        addLog(`handleFileDrop Info: File ignorato '${p.split('/').pop()}' (estensione non supportata: .${ext})`, "info");
+      });
       return;
     }
 
     if (seriesMode) {
+      addLog("handleFileDrop: Modalità Serie TV attiva.", "info");
       if (subtitleFiles.length > 0 || mediaFiles.length > 0) {
-        const expanded = await expandSeriesFilesWithSmartMatches(
-          subtitleFiles,
-          mediaFiles,
-        );
-        mergeSeriesDroppedFiles(expanded.subtitleFiles, expanded.mediaFiles);
-        addLog(`${episodes.length} ${t("flashcards.seriesEpisodesAdded")}`, "target-subs");
+        try {
+          addLog("handleFileDrop: Elaborazione file serie con accoppiamento smart in corso...", "info");
+          const expanded = await expandSeriesFilesWithSmartMatches(
+            subtitleFiles,
+            mediaFiles,
+          );
+          console.log("[DragDrop] Sottotitoli espansi (smart):", expanded.subtitleFiles);
+          console.log("[DragDrop] Media espansi (smart):", expanded.mediaFiles);
+          addLog(`handleFileDrop: Trovati ${expanded.subtitleFiles.length} sottotitoli e ${expanded.mediaFiles.length} media dopo espansione smart`, "info");
+
+          mergeSeriesDroppedFiles(expanded.subtitleFiles, expanded.mediaFiles);
+          addLog(`${episodes.length} ${t("flashcards.seriesEpisodesAdded")}`, "target-subs");
+        } catch (e: any) {
+          console.error("[DragDrop] Errore nell'elaborazione smart della serie:", e);
+          addLog(`handleFileDrop Error: Errore durante l'elaborazione smart: ${e.message || e}`, "error");
+        }
       }
     } else {
       // Single-episode mode
+      addLog("handleFileDrop: Modalità Singolo Episodio attiva.", "info");
       if (subtitleFiles.length >= 2) {
         const { target, native } = classifySubtitles(subtitleFiles);
+        console.log("[DragDrop] Sottotitoli classificati -> target:", target, "native:", native);
+        addLog(`handleFileDrop: Classificati -> Originale: ${target ? 'Sì' : 'No'}, Riferimento: ${native ? 'Sì' : 'No'}`, "info");
         if (target) {
           try {
+            addLog(`handleFileDrop: Caricamento sottotitolo originale: ${target.split('/').pop()}`, "info");
             await loadTargetSubtitle(target);
             await tryAutoSelectMediaForSubtitle(target, smartFileMatchingEnabled);
-          } catch (e) {
+          } catch (e: any) {
             error = `Error parsing subtitles: ${e}`;
+            addLog(`handleFileDrop Error: Caricamento sottotitolo originale fallito: ${e.message || e}`, "error");
           }
         }
         if (native) {
           try {
+            addLog(`handleFileDrop: Caricamento sottotitolo riferimento: ${native.split('/').pop()}`, "info");
             await loadNativeSubtitle(native);
-          } catch (e) {
+          } catch (e: any) {
             error = `Error parsing native subtitles: ${e}`;
+            addLog(`handleFileDrop Error: Caricamento sottotitolo riferimento fallito: ${e.message || e}`, "error");
           }
         }
       } else if (subtitleFiles.length === 1) {
-        // Single subtitle: assign to target if empty, otherwise to native
         const subPath = subtitleFiles[0];
+        addLog(`handleFileDrop: Singolo file sottotitolo rilevato: ${subPath.split('/').pop()}`, "info");
         if (!targetSubsPath) {
           try {
+            addLog("handleFileDrop: Slot originale vuoto, caricamento come originale...", "info");
             await loadTargetSubtitle(subPath);
             await tryAutoSelectCompanionSubtitle(
               subPath,
@@ -2050,11 +1814,13 @@ ${formatJsonArray(rules.removableNameTokens, 4)}
               subPath,
               smartFileMatchingEnabled,
             );
-          } catch (e) {
+          } catch (e: any) {
             error = `Error parsing subtitles: ${e}`;
+            addLog(`handleFileDrop Error: Caricamento come originale fallito: ${e.message || e}`, "error");
           }
         } else {
           try {
+            addLog("handleFileDrop: Slot originale occupato, caricamento come riferimento...", "info");
             await loadNativeSubtitle(subPath);
             await tryAutoSelectCompanionSubtitle(
               subPath,
@@ -2065,16 +1831,51 @@ ${formatJsonArray(rules.removableNameTokens, 4)}
               subPath,
               smartFileMatchingEnabled,
             );
-          } catch (e) {
+          } catch (e: any) {
             error = `Error parsing native subtitles: ${e}`;
+            addLog(`handleFileDrop Error: Caricamento come riferimento fallito: ${e.message || e}`, "error");
           }
         }
       }
 
       // Handle media files
       if (mediaFiles.length > 0) {
-        await applyMediaSelection(mediaFiles[0]);
+        const mediaPath = mediaFiles[0];
+        addLog(`handleFileDrop: Caricamento file media: ${mediaPath.split('/').pop()}`, "info");
+        await applyMediaSelection(mediaPath);
       }
+    }
+  }
+
+  async function handleHtmlDrop(e: DragEvent) {
+    e.preventDefault();
+    isDraggingOver = false;
+    hasLoggedDragOver = false;
+    
+    console.log("[HtmlDrop] Drop event intercettato a livello HTML");
+    addLog("HtmlDrop: Rilevato rilascio file a livello HTML5", "info");
+
+    if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      const files = Array.from(e.dataTransfer.files);
+      const paths: string[] = [];
+      
+      files.forEach((file, idx) => {
+        const path = (file as any).path;
+        console.log(`[HtmlDrop] File #${idx}: '${file.name}', path: '${path}'`);
+        addLog(`HtmlDrop: File #${idx}: '${file.name}' (percorso: ${path || 'non disponibile'})`, "info");
+        if (path) {
+          paths.push(path);
+        }
+      });
+
+      if (paths.length > 0) {
+        addLog(`HtmlDrop: Avvio elaborazione di ${paths.length} file con percorsi assoluti...`, "info");
+        await handleFileDrop(paths);
+      } else {
+        addLog("HtmlDrop Info: I percorsi assoluti non sono esportabili tramite HTML5 in questa Webview. Verrà utilizzato l'evento di basso livello di Tauri.", "info");
+      }
+    } else {
+      addLog("HtmlDrop Warning: I dati del drag-and-drop sono vuoti o non accessibili.", "warning");
     }
   }
 
@@ -2203,17 +2004,38 @@ ${formatJsonArray(rules.removableNameTokens, 4)}
 
     // Listen for OS-level file drag and drop
     getCurrentWebview().onDragDropEvent((event) => {
-      if (!active) return;
-      if (event.payload.type === "over") isDraggingOver = true;
-      else if (event.payload.type === "drop") {
+      if (!active) {
+        console.log("[DragDrop] Ignorato evento perché il tab non è attivo.");
+        return;
+      }
+      if (event.payload.type === "over") {
+        isDraggingOver = true;
+        console.log("[DragDrop] Drag over");
+      } else if (event.payload.type === "drop") {
         isDraggingOver = false;
-        if (event.payload.paths) handleFileDrop(event.payload.paths);
-      } else if (event.payload.type === "leave") isDraggingOver = false;
+        console.log("[DragDrop] Drop ricevuto. Payload:", event.payload);
+        addLog(`DragDrop: Rilevato rilascio di file. Totale elementi: ${event.payload.paths?.length || 0}`, "info");
+        if (event.payload.paths && event.payload.paths.length > 0) {
+          event.payload.paths.forEach((p, i) => {
+            console.log(`[DragDrop] Path #${i}: ${p}`);
+            addLog(`DragDrop: File #${i}: ${p}`, "info");
+          });
+          handleFileDrop(event.payload.paths);
+        } else {
+          console.warn("[DragDrop] drop payload paths è vuoto o indefinito");
+          addLog("DragDrop Warning: Nessun percorso file ricevuto nel payload del drop.", "warning");
+        }
+      } else if (event.payload.type === "leave") {
+        isDraggingOver = false;
+        console.log("[DragDrop] Drag leave");
+      }
     }).then((fn) => {
       if (!activeListener) fn();
       else unlistenDragDrop = fn;
+      console.log("[DragDrop] Configurato listener su Webview con successo.");
     }).catch((e) => {
       console.warn("Failed to set up drag-drop listener:", e);
+      addLog(`DragDrop Error: Fallito setup listener: ${e}`, "error");
     });
 
     listen<{
@@ -2860,9 +2682,6 @@ ${formatJsonArray(rules.removableNameTokens, 4)}
         "success",
       );
 
-      if (autoSendToAnki && finalApkgPath && !hadError) {
-        await sendToAnkiConnect(finalApkgPath);
-      }
     } catch (e) {
       error = `${t("flashcards.errorGenerating")}: ${e}`;
       addLog(`${error}`, "error");
@@ -2912,9 +2731,6 @@ ${formatJsonArray(rules.removableNameTokens, 4)}
         apkgPath: res.apkg_path,
       };
 
-      if (res.success && autoSendToAnki && res.apkg_path) {
-        await sendToAnkiConnect(res.apkg_path);
-      }
 
       if (res.success) {
         addLog(
@@ -3029,33 +2845,46 @@ ${formatJsonArray(rules.removableNameTokens, 4)}
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
   class="h-full flex flex-col p-6 overflow-y-auto flashcards-scroll bg-gradient-to-br from-gray-900 via-gray-900 to-gray-950 relative"
-  ondragover={(e) => { e.preventDefault(); if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy'; }}
-  ondrop={(e) => { e.preventDefault(); isDraggingOver = false; }}
+  ondragover={(e) => {
+    e.preventDefault();
+    if (e.dataTransfer) {
+      e.dataTransfer.dropEffect = 'copy';
+    }
+    isDraggingOver = true;
+    if (!hasLoggedDragOver) {
+      addLog("DragDrop: Rilevato trascinamento file sopra la finestra (HTML5)", "info");
+      hasLoggedDragOver = true;
+    }
+  }}
+  ondrop={handleHtmlDrop}
   ondragleave={(e) => {
     const rt = e.relatedTarget as HTMLElement | null;
     const ct = e.currentTarget as HTMLElement;
     if (rt && ct.contains(rt)) return;
     isDraggingOver = false;
+    hasLoggedDragOver = false;
+    addLog("DragDrop: I file hanno lasciato la finestra (HTML5)", "info");
   }}
 >
   {#if isDraggingOver}
     <div
-      class="absolute inset-0 z-50 bg-purple-500/10 border-2 border-dashed border-purple-400 rounded-2xl flex items-center justify-center pointer-events-none"
+      class="absolute inset-0 z-50 {seriesMode ? 'bg-violet-500/10 border-violet-400/80 text-violet-400' : 'bg-emerald-500/10 border-emerald-400/80 text-emerald-400'} border-2 border-dashed rounded-2xl flex items-center justify-center pointer-events-none"
     >
       <div class="text-center">
         <svg
-          class="w-16 h-16 mx-auto mb-3 text-purple-400"
+          class="w-16 h-16 mx-auto mb-3 {seriesMode ? 'text-violet-400' : 'text-emerald-400'}"
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
-          ><path
+        >
+          <path
             stroke-linecap="round"
             stroke-linejoin="round"
             stroke-width="2"
             d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
-          /></svg
-        >
-        <p class="text-lg font-medium text-purple-300">
+          />
+        </svg>
+        <p class="text-lg font-medium {seriesMode ? 'text-violet-300' : 'text-emerald-300'}">
           {t("flashcards.dropFileHere")}
         </p>
         <p class="text-sm text-gray-400 mt-1">{t("flashcards.dropFileHint")}</p>
@@ -3896,19 +3725,7 @@ ${formatJsonArray(rules.removableNameTokens, 4)}
                 <div
                   class="bg-gray-800/40 px-2 py-1 text-[10px] text-gray-500 flex items-center justify-between border-t border-gray-700/50"
                 >
-                  <span>{episodes.length} {t("flashcards.seriesEpisodes")}</span
-                  >
-                  <button
-                    type="button"
-                    onclick={openSmartMatchingDialog}
-                    class="inline-flex items-center gap-1.5 rounded-md px-1.5 py-0.5 text-gray-500 transition-colors hover:bg-white/5 hover:text-violet-300"
-                    title={t("flashcards.smartMatchingTitle")}
-                  >
-                    <svg class="h-3 w-3 text-violet-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5L12 3zM19 14l.75 2.25L22 17l-2.25.75L19 20l-.75-2.25L16 17l2.25-.75L19 14zM5 14l.75 2.25L8 17l-2.25.75L5 20l-.75-2.25L2 17l2.25-.75L5 14z" />
-                    </svg>
-                    {t("flashcards.autoMatched")}
-                  </button>
+                  <span>{episodes.length} {t("flashcards.seriesEpisodes")}</span>
                 </div>
               </div>
 
@@ -5079,23 +4896,6 @@ ${formatJsonArray(rules.removableNameTokens, 4)}
             </div>
           </label>
 
-          {#if exportFormat === "apkg"}
-            <div class="mt-3 pt-3 border-t border-gray-700/50 flex flex-col gap-1.5">
-              <label class="flex items-center gap-2 cursor-pointer group">
-                <input
-                  type="checkbox"
-                  bind:checked={autoSendToAnki}
-                  class="rounded border-gray-700 bg-gray-900 text-emerald-500 focus:ring-emerald-500/30"
-                />
-                <span class="text-xs text-gray-300 group-hover:text-white transition-colors">
-                  Invia ad Anki (AnkiConnect) automaticamente
-                </span>
-              </label>
-              <p class="text-[10px] text-gray-500 leading-normal">
-                Richiede Anki aperto in background con l'addon <strong>AnkiConnect</strong> installato.
-              </p>
-            </div>
-          {/if}
 
           {#if seriesMode && exportFormat === "apkg"}
             <!-- Series output mode (only for APKG) -->
@@ -5432,34 +5232,6 @@ ${formatJsonArray(rules.removableNameTokens, 4)}
                     📦 {result.apkgPath}
                   </p>
 
-                  <div class="mt-3 flex flex-col gap-2">
-                    <button
-                      type="button"
-                      onclick={() => { if (result?.apkgPath) sendToAnkiConnect(result.apkgPath); }}
-                      disabled={ankiSyncing}
-                      class="inline-flex items-center justify-center gap-2 rounded-lg border border-emerald-500/35 bg-emerald-500/10 px-4 py-2 text-xs font-semibold text-emerald-300 hover:bg-emerald-500/20 active:bg-emerald-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-md w-fit"
-                    >
-                      {#if ankiSyncing}
-                        <div class="animate-spin w-3.5 h-3.5 border border-emerald-300 border-t-transparent rounded-full"></div>
-                        <span>Invio in corso...</span>
-                      {:else}
-                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
-                        </svg>
-                        <span>Invia ad Anki (AnkiConnect)</span>
-                      {/if}
-                    </button>
-                    {#if ankiSyncSuccess}
-                      <p class="text-[10px] text-green-400 font-medium flex items-center gap-1">
-                        ✓ Importato con successo!
-                      </p>
-                    {/if}
-                    {#if ankiSyncError}
-                      <p class="text-[10px] text-red-400 font-medium flex items-center gap-1">
-                        ✗ Errore: {ankiSyncError}
-                      </p>
-                    {/if}
-                  </div>
                 {/if}
               </div>
             {:else}
@@ -6053,99 +5825,7 @@ ${formatJsonArray(rules.removableNameTokens, 4)}
     </div>
   {/if}
 
-  {#if showSmartMatchingDialog}
-    <!-- svelte-ignore a11y_no_static_element_interactions -->
-    <div
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/65 p-6"
-      role="dialog"
-      aria-modal="true"
-      tabindex="-1"
-      onclick={closeSmartMatchingDialog}
-      onkeydown={(e) => {
-        if (e.key === "Escape") closeSmartMatchingDialog();
-      }}
-    >
-      <!-- svelte-ignore a11y_no_static_element_interactions -->
-      <div
-        class="flex max-h-[94vh] w-full max-w-4xl flex-col rounded-xl border border-gray-700 bg-gray-900 shadow-2xl"
-        onclick={(e) => e.stopPropagation()}
-        onkeydown={(e) => e.stopPropagation()}
-      >
-        <div class="flex items-center justify-between gap-3 border-b border-gray-700 px-5 py-4">
-          <div>
-            <h3 class="flex items-center gap-2 text-lg font-bold text-violet-300">
-              <svg class="h-4 w-4 text-violet-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5L12 3zM19 14l.75 2.25L22 17l-2.25.75L19 20l-.75-2.25L16 17l2.25-.75L19 14z" />
-              </svg>
-              {t("flashcards.smartMatchingTitle")}
-            </h3>
-          </div>
-          <button
-            type="button"
-            onclick={closeSmartMatchingDialog}
-	            class="dialog-close-button p-1 text-xl leading-none text-gray-400 hover:text-white"
-            aria-label={t("common.close")}
-          >×</button>
-        </div>
 
-        <div class="flex-1 overflow-y-auto p-5">
-          <div class="relative" id="smart-matching-rules">
-            <button
-              type="button"
-              onclick={copySmartMatchingRules}
-              class="absolute right-3 top-3 z-10 inline-flex h-8 w-8 items-center justify-center rounded-md border border-white/10 bg-gray-950/85 text-gray-300 shadow-lg transition-colors hover:bg-white/10 hover:text-white"
-              title={t("common.copy")}
-              aria-label={t("common.copy")}
-            >
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-              </svg>
-            </button>
-	            <CodeEditor
-	              bind:value={smartMatchingRulesDraft}
-	              language="jsonc"
-	              heightClass="h-[34rem]"
-	              onchange={() => {
-	                smartMatchingRulesError = getSmartMatchingRulesDraftError();
-	              }}
-	            />
-          </div>
-          {#if smartMatchingRulesError}
-            <p class="mt-2 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-200">
-              {smartMatchingRulesError}
-            </p>
-          {/if}
-        </div>
-
-        <div class="flex items-center justify-between gap-3 border-t border-gray-700 px-5 py-4">
-          <button
-            type="button"
-            onclick={resetSmartMatchingRules}
-            class="btn-secondary px-4 py-2 text-sm"
-          >
-            {t("flashcards.smartMatchingReset")}
-          </button>
-          <div class="flex gap-2">
-            <button
-              type="button"
-              onclick={closeSmartMatchingDialog}
-              class="btn-secondary px-4 py-2 text-sm"
-            >
-              {t("settings.modal.cancel")}
-            </button>
-	            <button
-	              type="button"
-	              onclick={saveSmartMatchingRules}
-	              disabled={!!getSmartMatchingRulesDraftError()}
-	              class="rounded-lg border border-violet-400/40 bg-violet-500/20 px-4 py-2 text-sm font-semibold text-violet-100 shadow-lg shadow-violet-500/10 transition-all hover:border-violet-300/60 hover:bg-violet-500/30 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-violet-400/40 disabled:hover:bg-violet-500/20"
-	            >
-              {t("settings.modal.save")}
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  {/if}
 
   <InfoModal 
     section={helpSection} 
