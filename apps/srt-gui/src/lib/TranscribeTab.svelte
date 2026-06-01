@@ -2,6 +2,7 @@
   import { invoke } from "@tauri-apps/api/core";
   import LogPanel, { type LogEntry } from "./LogPanel.svelte";
   import { listen } from "@tauri-apps/api/event";
+  import { getCurrentWebview } from "@tauri-apps/api/webview";
   import { guardedOpen, guardedSave } from "./utils/dialogGuard";
   import { onDestroy, onMount } from "svelte";
   import { locale } from "./i18n";
@@ -12,9 +13,13 @@
   import { snackbar } from "./snackbarStore.svelte";
   import InfoModal from "./InfoModal.svelte";
   import InfoButton from "./InfoButton.svelte";
+  import ConfirmDialog from "./ConfirmDialog.svelte";
   import { transcribeSections } from "./info";
 
-  let { onGoToSettings } = $props<{ onGoToSettings?: (section?: "overview" | "llm" | "whisper" | "language" | "anki") => void }>();
+  let { onGoToSettings, active = false } = $props<{
+    onGoToSettings?: (section?: "overview" | "llm" | "whisper" | "language" | "anki") => void;
+    active?: boolean;
+  }>();
 
   let t = $derived($locale);
 
@@ -69,6 +74,10 @@
 
   let helpSection = $state<string | null>(null);
   let expandedPathField = $state<string | null>(null);
+
+  let isDraggingOver = $state(false);
+  let showOverwriteConfirm = $state(false);
+  let pendingDroppedPaths = $state<string[]>([]);
 
   let backends = $state<{
     ffmpeg: boolean;
@@ -203,6 +212,24 @@
 
     let activeListener = true;
     let unlisten: (() => void) | null = null;
+    let unlistenDD: (() => void) | null = null;
+
+    getCurrentWebview().onDragDropEvent((event) => {
+      if (!active) return;
+      if (event.payload.type === "over") {
+        isDraggingOver = true;
+      } else if (event.payload.type === "drop") {
+        isDraggingOver = false;
+        if (event.payload.paths && event.payload.paths.length > 0) {
+          handleDroppedFiles(event.payload.paths);
+        }
+      } else if (event.payload.type === "leave") {
+        isDraggingOver = false;
+      }
+    }).then((fn) => {
+      if (!activeListener) fn();
+      else unlistenDD = fn;
+    }).catch(console.error);
 
     listen<{
       stage: string;
@@ -230,6 +257,7 @@
       window.removeEventListener("whisper-model-updated", handleWhisperModelUpdated);
       window.removeEventListener("vesta-language-defaults-updated", handleLanguageDefaultsUpdated);
       if (unlisten) unlisten();
+      if (unlistenDD) unlistenDD();
     };
   });
 
@@ -349,6 +377,52 @@
       }
     } catch (e) {
       error = `${t("transcribe.errorSelectingFile")}: ${e}`;
+    }
+  }
+
+  const validMediaExtensions = new Set([
+    "mp4", "mkv", "avi", "webm", "mov", "wmv", "flv", "m4v", "ts", "3gp",
+    "mpeg", "mpg", "m2ts", "vob", "mp3", "wav", "m4a", "flac", "ogg", "aac",
+    "wma", "amr", "opus", "aiff", "alac"
+  ]);
+
+  function isAudioVideoFile(path: string) {
+    const ext = path.split('.').pop()?.toLowerCase();
+    return ext ? validMediaExtensions.has(ext) : false;
+  }
+
+  async function processFilesToLoad(paths: string[]) {
+    if (paths.length > 0) {
+      const newMedia = paths[0];
+      inputPath = newMedia;
+      const outputLang = effectiveLanguageCodeForOutput(selectedLanguage);
+      outputPath = generateOutputPathFromInput(inputPath, outputLang);
+      addLog(
+        `${t("transcribe.fileSelected")}: ${inputPath.split("/").pop()}`,
+        "file",
+      );
+      addLog(`Output file: ${outputPath.split("/").pop()}`, "info");
+    }
+  }
+
+  function handleDroppedFiles(paths: string[]) {
+    const mediaPaths = paths.filter(isAudioVideoFile).slice(-1);
+    if (mediaPaths.length === 0) return;
+
+    const hasExistingFile = !!inputPath;
+    if (hasExistingFile) {
+      pendingDroppedPaths = mediaPaths;
+      showOverwriteConfirm = true;
+    } else {
+      processFilesToLoad(mediaPaths);
+    }
+  }
+
+  function confirmOverwrite() {
+    showOverwriteConfirm = false;
+    if (pendingDroppedPaths.length > 0) {
+      processFilesToLoad(pendingDroppedPaths);
+      pendingDroppedPaths = [];
     }
   }
 
@@ -527,8 +601,52 @@
 </script>
 
 <div
-  class="h-full flex flex-col p-6 overflow-y-auto bg-gradient-to-br from-gray-900 via-gray-900 to-gray-950"
+  role="region"
+  aria-label="Transcribe content"
+  class="h-full flex flex-col p-6 overflow-y-auto bg-gradient-to-br from-gray-900 via-gray-900 to-gray-950 relative"
+  ondragover={(e) => {
+    if (!active) return;
+    e.preventDefault();
+    if (e.dataTransfer) {
+      e.dataTransfer.dropEffect = 'copy';
+    }
+    isDraggingOver = true;
+  }}
+  ondrop={(e) => {
+    if (!active) return;
+    e.preventDefault();
+    isDraggingOver = false;
+  }}
+  ondragleave={(e) => {
+    if (!active) return;
+    const rt = e.relatedTarget as HTMLElement | null;
+    const ct = e.currentTarget as HTMLElement;
+    if (rt && ct.contains(rt)) return;
+    isDraggingOver = false;
+  }}
 >
+  {#if isDraggingOver}
+    <div
+      class="absolute inset-0 z-50 bg-indigo-500/10 border-2 border-dashed border-indigo-400 rounded-2xl flex items-center justify-center pointer-events-none"
+    >
+      <div class="text-center">
+        <svg
+          class="w-16 h-16 mx-auto mb-3 text-indigo-400"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+          ><path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+          /></svg
+        >
+        <p class="text-lg font-semibold text-indigo-300">Rilascia 1 file audio o video da trascrivere</p>
+        <p class="text-xs text-indigo-500 mt-1">Verrà impostato come file di input per la trascrizione</p>
+      </div>
+    </div>
+  {/if}
   <!-- FFmpeg Warning (whisper-rs is always available natively) -->
   {#if backends && !backends.ffmpeg}
     <div
@@ -826,8 +944,8 @@
                 <span class="font-semibold block">{t("transcribe.segmentLong")}</span>
               </button>
             </div>
-            <div class="mt-2 flex items-center justify-between text-xs">
-              <span class="text-gray-500">Segment length</span>
+            <div class="mt-2 flex items-center gap-2 text-xs">
+              <span class="text-gray-500">Segment length:</span>
               <span
                 class="text-white font-mono bg-white/10 px-2 py-0.5 rounded text-sm"
                 >{maxSegmentLength}s</span
@@ -1121,7 +1239,17 @@
     onsave={expandedPathField === "input" ? saveInputPath : saveOutputPath}
   />
 
-
-
-
+  <ConfirmDialog
+    show={showOverwriteConfirm}
+    title="Sovrascrivere il file esistente?"
+    message="Hai già un file caricato per la trascrizione. Se procedi, il file attuale verrà sostituito con quello nuovo."
+    confirmText="Sovrascrivi"
+    cancelText="Annulla"
+    variant="warning"
+    on:cancel={() => {
+      showOverwriteConfirm = false;
+      pendingDroppedPaths = [];
+    }}
+    on:confirm={confirmOverwrite}
+  />
 </div>

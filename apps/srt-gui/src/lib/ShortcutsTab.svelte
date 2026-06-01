@@ -31,6 +31,18 @@
 
   let t = $derived($locale);
 
+  let labels = $derived((() => {
+    const lang = $currentLanguage || "en";
+    const dict = {
+      it: { text: "TESTO", keys: "TASTI", textPlaceholder: "Cerca per testo...", keysPlaceholder: "Cerca per tasti...", pressKeys: "Premi i tasti..." },
+      es: { text: "TEXTO", keys: "TECLAS", textPlaceholder: "Buscar por texto...", keysPlaceholder: "Buscar por teclas...", pressKeys: "Presiona las teclas..." },
+      fr: { text: "TEXTE", keys: "TOUCHES", textPlaceholder: "Rechercher par texte...", keysPlaceholder: "Rechercher par touches...", pressKeys: "Appuyez sur les touches..." },
+      pt: { text: "TEXTO", keys: "TECLAS", textPlaceholder: "Pesquisar por texto...", keysPlaceholder: "Pesquisar por teclas...", pressKeys: "Pressione as teclas..." },
+      en: { text: "TEXT", keys: "KEYS", textPlaceholder: "Search by text...", keysPlaceholder: "Search by keys...", pressKeys: "Press keys..." }
+    };
+    return (dict as Record<string, typeof dict.en>)[lang] || dict["en"];
+  })());
+
   function fuzzyMatch(text: string, query: string): boolean {
     if (!query) return true;
     if (!text) return false;
@@ -517,113 +529,117 @@
       </div>
     </div>
 
-    <!-- Right side: Search Bar & Toggle -->
+    <!-- Right side: Unified Search Panel -->
     <div class="flex items-center gap-3 shrink-0">
-      <!-- Search Input Container -->
-      <div class="relative flex items-center w-72">
-        {#if searchMode === "text"}
-          <input
-            type="text"
-            bind:value={searchQuery}
-            placeholder={$currentLanguage === 'it' ? 'Cerca scorciatoie...' : 'Search shortcuts...'}
-            class="w-full pl-9 pr-8 py-2 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/30 transition-all placeholder-gray-500"
-          />
-          <svg class="absolute left-3 w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+      <!-- Unified Search Container -->
+      <div class="flex items-center bg-white/5 border rounded-xl p-0.5 transition-all w-96 relative
+        {isListeningForSearchKeys ? 'border-indigo-500/50 ring-1 ring-indigo-500/30 bg-indigo-500/5' : 'border-white/10 focus-within:border-indigo-500/50 focus-within:ring-1 focus-within:ring-indigo-500/30'}"
+      >
+        <!-- Search Icon (Left) -->
+        <div class="pl-2.5 pr-2 flex items-center justify-center shrink-0">
+          <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
             <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
-          {#if searchQuery}
-            <button
-              onclick={() => (searchQuery = "")}
-              class="absolute right-3 text-gray-500 hover:text-white transition-colors"
-              aria-label="Clear search"
-            >
-              ✕
-            </button>
-          {/if}
-        {:else}
-          <!-- Key Search Container -->
-          <!-- svelte-ignore a11y_click_events_have_key_events -->
-          <!-- svelte-ignore a11y_no_static_element_interactions -->
-          <div
-            onclick={(e) => {
-              e.stopPropagation();
-              if (isListeningForSearchKeys) {
-                stopSearchKeysListening();
-              } else {
-                startSearchKeysListening();
-              }
-            }}
-            class="w-full pl-9 pr-8 py-2 min-h-[38px] bg-white/5 border rounded-xl text-sm text-white focus:outline-none transition-all flex items-center cursor-pointer select-none
-              {isListeningForSearchKeys ? 'border-indigo-500/50 ring-1 ring-indigo-500/30 bg-indigo-500/5' : 'border-white/10'}"
-          >
-            <svg class="absolute left-3 w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-            <div class="flex-1 flex flex-wrap items-center gap-1 min-w-0">
-              {#if searchKeys.length > 0}
-                <div class="flex items-center gap-0.5 flex-wrap">
-                  {#each searchKeys as key, i}
-                    {#if i > 0}
-                      <span class="text-gray-500 text-[10px]">+</span>
-                    {/if}
-                    <kbd class="px-1.5 py-0.5 bg-gray-950 border border-white/15 rounded text-[10px] text-gray-300 font-mono font-semibold shadow-sm tracking-wide whitespace-nowrap">
-                      {key}
-                    </kbd>
-                  {/each}
-                  {#if isListeningForSearchKeys}
-                    <span class="w-[1.5px] h-3.5 bg-indigo-400 animate-pulse ml-0.5 shrink-0"></span>
-                  {/if}
-                </div>
-              {:else if isListeningForSearchKeys}
-                <span class="text-xs text-indigo-400 font-medium animate-pulse">{$currentLanguage === 'it' ? 'Premi i tasti...' : 'Press keys...'}</span>
-              {:else}
-                <span class="text-gray-500 text-xs">{$currentLanguage === 'it' ? 'Cerca per tasti...' : 'Search by keys...'}</span>
-              {/if}
-            </div>
-            {#if searchKeys.length > 0 || isListeningForSearchKeys}
+        </div>
+
+        <!-- Middle input area -->
+        <div class="flex-1 min-w-0 pr-8 relative">
+          {#if searchMode === "text"}
+            <input
+              type="text"
+              bind:value={searchQuery}
+              placeholder={labels.textPlaceholder}
+              class="w-full py-1.5 bg-transparent border-0 text-sm text-white focus:outline-none placeholder-gray-500"
+            />
+            {#if searchQuery}
               <button
-                onclick={(e) => {
-                  e.stopPropagation();
-                  clearSearchKeys();
-                }}
-                class="absolute right-3 text-gray-500 hover:text-white transition-colors"
-                aria-label="Clear search keys"
+                onclick={() => (searchQuery = "")}
+                class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white transition-colors"
+                aria-label="Clear search"
               >
                 ✕
               </button>
             {/if}
-          </div>
-        {/if}
-      </div>
+          {:else}
+            <!-- svelte-ignore a11y_click_events_have_key_events -->
+            <!-- svelte-ignore a11y_no_static_element_interactions -->
+            <div
+              onclick={(e) => {
+                e.stopPropagation();
+                if (isListeningForSearchKeys) {
+                  stopSearchKeysListening();
+                } else {
+                  startSearchKeysListening();
+                }
+              }}
+              class="w-full py-1.5 text-sm text-white flex items-center cursor-pointer select-none min-h-[32px]"
+            >
+              <div class="flex-1 flex flex-wrap items-center gap-1 min-w-0">
+                {#if searchKeys.length > 0}
+                  <div class="flex items-center gap-0.5 flex-wrap">
+                    {#each searchKeys as key, i}
+                      {#if i > 0}
+                        <span class="text-gray-500 text-[10px]">+</span>
+                      {/if}
+                      <kbd class="px-1.5 py-0.5 bg-gray-950 border border-white/15 rounded text-[10px] text-gray-300 font-mono font-semibold shadow-sm tracking-wide whitespace-nowrap">
+                        {key}
+                      </kbd>
+                    {/each}
+                    {#if isListeningForSearchKeys}
+                      <span class="w-[1.5px] h-3.5 bg-indigo-400 animate-pulse ml-0.5 shrink-0"></span>
+                    {/if}
+                  </div>
+                {:else if isListeningForSearchKeys}
+                  <span class="text-xs text-indigo-400 font-medium animate-pulse">{labels.pressKeys}</span>
+                {:else}
+                  <span class="text-gray-500 text-xs">{labels.keysPlaceholder}</span>
+                {/if}
+              </div>
+              {#if searchKeys.length > 0 || isListeningForSearchKeys}
+                <button
+                  onclick={(e) => {
+                    e.stopPropagation();
+                    clearSearchKeys();
+                  }}
+                  class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white transition-colors"
+                  aria-label="Clear search keys"
+                >
+                  ✕
+                </button>
+              {/if}
+            </div>
+          {/if}
+        </div>
 
-      <!-- Segmented Search Mode Control -->
-      <div class="flex items-center bg-white/5 border border-white/10 rounded-xl p-0.5 shrink-0">
-        <button
-          onclick={() => setSearchMode("text")}
-          class="px-2.5 py-1.5 rounded-lg text-[10px] font-bold transition-all duration-200 flex items-center gap-1 cursor-pointer
-            {searchMode === 'text'
-              ? 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-md shadow-indigo-500/20'
-              : 'text-gray-400 hover:text-white hover:bg-white/5'}"
-          title={$currentLanguage === 'it' ? 'Cerca per testo' : 'Search by text'}
-        >
-          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h7" />
-          </svg>
-          <span>TEXT</span>
-        </button>
-        <button
-          onclick={() => setSearchMode("keys")}
-          class="px-2.5 py-1.5 rounded-lg text-[10px] font-bold transition-all duration-200 flex items-center gap-1 cursor-pointer
-            {searchMode === 'keys'
-              ? 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-md shadow-indigo-500/20'
-              : 'text-gray-400 hover:text-white hover:bg-white/5'}"
-          title={$currentLanguage === 'it' ? 'Cerca per tasti' : 'Search by keys'}
-        >
-          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M3 10h18M7 15h1m4 0h1-4m8 0h1m-9 0H3m18 0h-3M5 5h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2z" />
-          </svg>
-          <span>KEYS</span>
-        </button>
+        <!-- Switch Buttons (Right side inside the search input) -->
+        <div class="flex items-center bg-white/5 border border-white/10 rounded-lg p-0.5 shrink-0 select-none mr-0.5">
+          <button
+            onclick={() => setSearchMode("text")}
+            class="px-2 py-1 rounded-md text-[9px] font-bold transition-all duration-200 flex items-center gap-1 cursor-pointer
+              {searchMode === 'text'
+                ? 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow shadow-indigo-500/20'
+                : 'text-gray-400 hover:text-white hover:bg-white/5'}"
+            title={labels.textPlaceholder}
+          >
+            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h7" />
+            </svg>
+            <span>{labels.text}</span>
+          </button>
+          <button
+            onclick={() => setSearchMode("keys")}
+            class="px-2 py-1 rounded-md text-[9px] font-bold transition-all duration-200 flex items-center gap-1 cursor-pointer
+              {searchMode === 'keys'
+                ? 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow shadow-indigo-500/20'
+                : 'text-gray-400 hover:text-white hover:bg-white/5'}"
+            title={labels.keysPlaceholder}
+          >
+            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M3 10h18M7 15h1m4 0h1-4m8 0h1m-9 0H3m18 0h-3M5 5h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2z" />
+            </svg>
+            <span>{labels.keys}</span>
+          </button>
+        </div>
       </div>
     </div>
   </div>

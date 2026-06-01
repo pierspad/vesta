@@ -1,6 +1,7 @@
 <script lang="ts">
   import { invoke } from '@tauri-apps/api/core';
   import { listen } from '@tauri-apps/api/event';
+  import { getCurrentWebview } from '@tauri-apps/api/webview';
   import { readTextFile, writeTextFile } from '@tauri-apps/plugin-fs';
   import { onDestroy, onMount } from 'svelte';
   import { guardedOpen, guardedSave } from './utils/dialogGuard';
@@ -10,7 +11,10 @@
   import PathPreviewModal from './PathPreviewModal.svelte';
   import { snackbar } from './snackbarStore.svelte';
   import InfoModal from './InfoModal.svelte';
+  import ConfirmDialog from './ConfirmDialog.svelte';
   import { revisionSections } from './info';
+
+  let { active = false } = $props<{ active?: boolean }>();
 
   let t = $derived($locale);
 
@@ -28,6 +32,10 @@
   
   let targetSubs: Subtitle[] = $state([]);
   let sourceSubs: Subtitle[] = $state([]);
+
+  let isDraggingOver = $state(false);
+  let showOverwriteConfirm = $state(false);
+  let pendingDroppedPaths = $state<string[]>([]);
 
   let currentPage = $state(0);
   const ITEMS_PER_PAGE_OPTIONS = [5, 10, 15, 20] as const;
@@ -227,39 +235,71 @@
     window.addEventListener('keydown', handleKeydown);
 
     let activeListener = true;
-    let unlisten: (() => void) | null = null;
+    let unlistenDD: (() => void) | null = null;
 
-    listen<{ paths: string[] }>('tauri://file-drop', (event) => {
-      const paths = event.payload.paths;
-      if (paths && paths.length > 0) {
-        handleDroppedFiles(paths);
+    getCurrentWebview().onDragDropEvent((event) => {
+      if (!active) return;
+      if (event.payload.type === "over") {
+        isDraggingOver = true;
+      } else if (event.payload.type === "drop") {
+        isDraggingOver = false;
+        if (event.payload.paths && event.payload.paths.length > 0) {
+          handleDroppedFiles(event.payload.paths);
+        }
+      } else if (event.payload.type === "leave") {
+        isDraggingOver = false;
       }
     }).then((fn) => {
       if (!activeListener) fn();
-      else unlisten = fn;
+      else unlistenDD = fn;
     }).catch(console.error);
 
     return () => {
       activeListener = false;
       window.removeEventListener('keydown', handleKeydown);
-      if (unlisten) unlisten();
+      if (unlistenDD) unlistenDD();
       if (undoDebounceTimer) clearTimeout(undoDebounceTimer);
     };
   });
 
+  async function processFilesToLoad(paths: string[]) {
+    if (paths.length === 2) {
+      const [fileA, fileB] = paths;
+      targetPath = "";
+      targetSubs = [];
+      sourcePath = "";
+      sourceSubs = [];
+      await loadTarget(fileA);
+      await loadSource(fileB);
+    } else if (paths.length === 1) {
+      const [fileA] = paths;
+      targetPath = "";
+      targetSubs = [];
+      sourcePath = "";
+      sourceSubs = [];
+      await loadTarget(fileA);
+      await tryAutoSelectSourceForTarget(fileA);
+    }
+  }
+
   function handleDroppedFiles(paths: string[]) {
-    // Assign to source or target based on what's empty, or just overwrite first
-    for (const p of paths) {
-      if (!p.toLowerCase().endsWith('.srt')) continue;
-      
-      if (!targetPath) {
-        loadTarget(p);
-      } else if (!sourcePath) {
-        loadSource(p);
-      } else {
-        // Overwrite source if both full
-        loadSource(p);
-      }
+    const srtPaths = paths.filter(p => p.toLowerCase().endsWith('.srt')).slice(-2);
+    if (srtPaths.length === 0) return;
+
+    const hasExistingFiles = !!(targetPath || sourcePath);
+    if (hasExistingFiles) {
+      pendingDroppedPaths = srtPaths;
+      showOverwriteConfirm = true;
+    } else {
+      processFilesToLoad(srtPaths);
+    }
+  }
+
+  function confirmOverwrite() {
+    showOverwriteConfirm = false;
+    if (pendingDroppedPaths.length > 0) {
+      processFilesToLoad(pendingDroppedPaths);
+      pendingDroppedPaths = [];
     }
   }
 
@@ -492,10 +532,55 @@
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
+<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 <div 
+  role="region"
+  aria-label="Revision content"
   class="h-full flex flex-col p-6 overflow-y-auto relative text-gray-200 bg-gradient-to-br from-gray-900 via-gray-900 to-gray-950"
   onkeydown={handleKeydown}
+  ondragover={(e) => {
+    if (!active) return;
+    e.preventDefault();
+    if (e.dataTransfer) {
+      e.dataTransfer.dropEffect = 'copy';
+    }
+    isDraggingOver = true;
+  }}
+  ondrop={(e) => {
+    if (!active) return;
+    e.preventDefault();
+    isDraggingOver = false;
+  }}
+  ondragleave={(e) => {
+    if (!active) return;
+    const rt = e.relatedTarget as HTMLElement | null;
+    const ct = e.currentTarget as HTMLElement;
+    if (rt && ct.contains(rt)) return;
+    isDraggingOver = false;
+  }}
 >
+  {#if isDraggingOver}
+    <div
+      class="absolute inset-0 z-50 bg-teal-500/10 border-2 border-dashed border-teal-400 rounded-2xl flex items-center justify-center pointer-events-none"
+    >
+      <div class="text-center">
+        <svg
+          class="w-16 h-16 mx-auto mb-3 text-teal-400"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+          ><path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+          /></svg
+        >
+        <p class="text-lg font-semibold text-teal-300">Rilascia 1 o 2 file SRT da revisionare</p>
+        <p class="text-xs text-teal-500 mt-1">Verranno caricati rispettivamente come Sottotitolo Originale e di Riferimento</p>
+      </div>
+    </div>
+  {/if}
   <div class="min-h-full flex flex-col gap-4">
   <div class="glass-card p-5 shrink-0">
     <div class="mb-6 flex items-start justify-between shrink-0 gap-3">
@@ -506,7 +591,6 @@
           </svg>
           {t("nav.revision")}
         </h3>
-        <p class="text-sm text-gray-500 mt-0.5">{t("nav.revision.desc")}</p>
       </div>
       <InfoButton
         class="text-gray-500 hover:text-teal-300 transition-colors p-1"
@@ -747,6 +831,20 @@
     section={helpSection}
     sections={revisionSections}
     onclose={() => (helpSection = null)}
+  />
+
+  <ConfirmDialog
+    show={showOverwriteConfirm}
+    title="Sovrascrivere i file esistenti?"
+    message="Hai già dei file caricati in questa sessione. Se procedi, i dati correnti verranno sostituiti con quelli nuovi."
+    confirmText="Sovrascrivi"
+    cancelText="Annulla"
+    variant="warning"
+    on:cancel={() => {
+      showOverwriteConfirm = false;
+      pendingDroppedPaths = [];
+    }}
+    on:confirm={confirmOverwrite}
   />
 </div>
 

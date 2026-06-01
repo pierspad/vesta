@@ -1540,7 +1540,6 @@
                 bind:value={resumeOverlap}
                 class="w-full h-1.5 bg-gray-800 rounded-lg appearance-none cursor-pointer accent-green-500"
               />
-              <p class="text-[10px] text-gray-500 mt-1">Number of previously translated subtitles to re-send to the LLM for context when resuming.</p>
             </div>
             
             <div class="mt-4">
@@ -1625,9 +1624,6 @@
                   <p class="font-medium text-white">
                     {fileInfo.subtitle_count}
                     {t("translate.subtitles")}
-                  </p>
-                  <p class="text-sm text-gray-400 truncate max-w-xs">
-                    "{fileInfo.first_subtitle}"
                   </p>
                 </div>
               </div>

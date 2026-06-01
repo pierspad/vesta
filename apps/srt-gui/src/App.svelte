@@ -139,10 +139,10 @@
       <SyncTab active={activeTab === "sync"} />
     </div>
     <div class="absolute inset-0" class:hidden={activeTab !== "transcribe"}>
-      <TranscribeTab onGoToSettings={goToSettings} />
+      <TranscribeTab onGoToSettings={goToSettings} active={activeTab === "transcribe"} />
     </div>
     <div class="absolute inset-0" class:hidden={activeTab !== "align"}>
-      <AlignTab />
+      <AlignTab active={activeTab === "align"} />
     </div>
     <div class="absolute inset-0" class:hidden={activeTab !== "flashcards"}>
       <FlashcardsTab active={activeTab === "flashcards"} />
