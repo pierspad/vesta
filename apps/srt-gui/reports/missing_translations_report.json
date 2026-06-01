@@ -4,10 +4,10 @@
     "/home/ribben/Desktop/Various_Projects/vesta/apps/srt-gui/src/lib/i18n/locales/info"
   ],
   "en_keys_per_directory": {
-    "locales": 825,
+    "locales": 861,
     "info": 25
   },
-  "total_english_keys": 850,
+  "total_english_keys": 886,
   "checked_locales": [
     "ar",
     "de",
@@ -26,22 +26,77 @@
   ],
   "missing_counts_by_locale": {
     "ar": 0,
-    "de": 0,
-    "es": 0,
-    "fr": 0,
+    "de": 1,
+    "es": 1,
+    "fr": 1,
     "hi": 0,
-    "it": 0,
+    "it": 2,
     "ja": 0,
     "ko": 0,
     "nl": 0,
     "pl": 0,
-    "pt": 0,
+    "pt": 1,
     "ru": 0,
     "tr": 0,
     "zh": 0
   },
-  "total_keys_with_issues": 0,
+  "total_keys_with_issues": 3,
   "orphan_keys_count": 0,
   "orphan_keys": [],
-  "missing_keys": {}
+  "missing_keys": {
+    "settings.smartMatching.title": {
+      "locales": [
+        "de"
+      ],
+      "details": [
+        {
+          "locale": "de",
+          "reason": "same_as_english",
+          "directory": "locales"
+        }
+      ]
+    },
+    "transcribe.log": {
+      "locales": [
+        "it"
+      ],
+      "details": [
+        {
+          "locale": "it",
+          "reason": "same_as_english",
+          "directory": "locales"
+        }
+      ]
+    },
+    "translate.batch": {
+      "locales": [
+        "es",
+        "fr",
+        "it",
+        "pt"
+      ],
+      "details": [
+        {
+          "locale": "es",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "fr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "it",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pt",
+          "reason": "same_as_english",
+          "directory": "locales"
+        }
+      ]
+    }
+  }
 }

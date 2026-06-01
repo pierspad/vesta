@@ -1,0 +1,16 @@
+[package]
+name = "whisper-common"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow.workspace = true
+dirs.workspace = true
+hound.workspace = true
+reqwest = { workspace = true, features = ["stream"] }
+serde = { workspace = true, features = ["derive"] }
+tempfile.workspace = true
+tokio = { workspace = true, features = ["full"] }
+whisper-rs.workspace = true
+futures.workspace = true
+tokio-util = { version = "0.7" }

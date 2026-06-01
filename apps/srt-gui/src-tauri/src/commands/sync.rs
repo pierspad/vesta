@@ -103,6 +103,26 @@ pub fn sync_get_status(
     }
 }
 
+fn map_subtitle_to_info(
+    engine: &SyncEngine,
+    sub: &srt_parser::Subtitle,
+    anchor_ids: &[u32],
+) -> Option<SubtitleInfo> {
+    let synced = engine.get_synced_subtitle(sub.id)?;
+    let offset = engine.get_current_offset(sub.id).unwrap_or(0);
+    
+    Some(SubtitleInfo {
+        id: sub.id,
+        start_ms: sub.start.milliseconds,
+        end_ms: sub.end.milliseconds,
+        text: sub.text.clone(),
+        synced_start_ms: synced.start.milliseconds,
+        synced_end_ms: synced.end.milliseconds,
+        offset_ms: offset,
+        is_anchor: anchor_ids.contains(&sub.id),
+    })
+}
+
 /// Ottiene tutti i sottotitoli con info di sync
 #[tauri::command]
 pub fn sync_get_subtitles(
@@ -118,21 +138,7 @@ pub fn sync_get_subtitles(
 
     let subtitles: Vec<SubtitleInfo> = engine.get_all_subtitles()
         .iter()
-        .filter_map(|sub| {
-            let synced = engine.get_synced_subtitle(sub.id)?;
-            let offset = engine.get_current_offset(sub.id).unwrap_or(0);
-            
-            Some(SubtitleInfo {
-                id: sub.id,
-                start_ms: sub.start.milliseconds,
-                end_ms: sub.end.milliseconds,
-                text: sub.text.clone(),
-                synced_start_ms: synced.start.milliseconds,
-                synced_end_ms: synced.end.milliseconds,
-                offset_ms: offset,
-                is_anchor: anchor_ids.contains(&sub.id),
-            })
-        })
+        .filter_map(|sub| map_subtitle_to_info(engine, sub, &anchor_ids))
         .collect();
 
     Ok(subtitles)
@@ -162,21 +168,7 @@ pub fn sync_get_subtitles_range(
         .iter()
         .skip(start_idx)
         .take(count)
-        .filter_map(|sub| {
-            let synced = engine.get_synced_subtitle(sub.id)?;
-            let offset = engine.get_current_offset(sub.id).unwrap_or(0);
-            
-            Some(SubtitleInfo {
-                id: sub.id,
-                start_ms: sub.start.milliseconds,
-                end_ms: sub.end.milliseconds,
-                text: sub.text.clone(),
-                synced_start_ms: synced.start.milliseconds,
-                synced_end_ms: synced.end.milliseconds,
-                offset_ms: offset,
-                is_anchor: anchor_ids.contains(&sub.id),
-            })
-        })
+        .filter_map(|sub| map_subtitle_to_info(engine, sub, &anchor_ids))
         .collect();
 
     Ok(subtitles)
@@ -196,23 +188,11 @@ pub fn sync_get_subtitle(
     let sub = engine.get_subtitle(id)
         .ok_or(format!("Sottotitolo {} non trovato", id))?;
 
-    let synced = engine.get_synced_subtitle(id)
-        .ok_or(format!("Impossibile sincronizzare sottotitolo {}", id))?;
-
-    let offset = engine.get_current_offset(id).unwrap_or(0);
     let anchors = engine.get_anchors();
-    let is_anchor = anchors.iter().any(|a| a.subtitle_index == id);
+    let anchor_ids: Vec<u32> = anchors.iter().map(|a| a.subtitle_index).collect();
 
-    Ok(SubtitleInfo {
-        id: sub.id,
-        start_ms: sub.start.milliseconds,
-        end_ms: sub.end.milliseconds,
-        text: sub.text.clone(),
-        synced_start_ms: synced.start.milliseconds,
-        synced_end_ms: synced.end.milliseconds,
-        offset_ms: offset,
-        is_anchor,
-    })
+    map_subtitle_to_info(engine, sub, &anchor_ids)
+        .ok_or(format!("Impossibile sincronizzare sottotitolo {}", id))
 }
 
 /// Trova il sottotitolo al tempo video specificato

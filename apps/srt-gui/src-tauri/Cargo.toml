@@ -30,6 +30,7 @@ tempfile = "3"
 dirs = "6"
 whisper-rs = "0.16"
 hound = "3"
+whisper-common = { workspace = true }
 rusqlite = { version = "0.39", features = ["bundled"] }
 sha1_smol = "1.0"
 ffmpeg-sidecar = { version = "2.5.1", features = ["download_ffmpeg"] }

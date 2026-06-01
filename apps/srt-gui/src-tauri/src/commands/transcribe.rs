@@ -9,20 +9,14 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 use tauri::{AppHandle, Emitter, State};
 use tokio_util::sync::CancellationToken;
-use whisper_rs::{FullParams, SamplingStrategy, WhisperContext, WhisperContextParameters};
+
+use whisper_common::model::{list_models, uninstall_model, WhisperModelInfo};
+use whisper_common::audio::{convert_to_wav, read_wav_to_f32};
+use whisper_common::transcribe::{transcribe_full, TranscribeOptions};
 
 use crate::state::AppTranscribeState;
 
 // ─── Data Types ──────────────────────────────────────────────────────────────
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct WhisperModelInfo {
-    pub id: String,
-    pub name: String,
-    pub size: String,
-    pub speed: String,
-    pub downloaded: bool,
-}
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct TranscribeConfig {
@@ -53,166 +47,32 @@ pub struct TranscribeProgressEvent {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-/// Get the directory where Whisper models are stored
-fn get_models_dir() -> Result<PathBuf> {
-    let cache_dir = dirs::cache_dir()
-        .unwrap_or_else(|| PathBuf::from(std::env::var("HOME").unwrap_or_else(|_| ".".to_string())).join(".cache"));
-    let models_dir = cache_dir.join("whisper");
-    Ok(models_dir)
-}
-
-/// Check if a whisper model file exists locally
-fn model_file_path(model_id: &str) -> Result<PathBuf> {
-    let models_dir = get_models_dir()?;
-    let filename = format!("ggml-{}.bin", model_id);
-    Ok(models_dir.join(filename))
-}
-
 /// Download Whisper model from Hugging Face
 async fn download_model(
     app: &AppHandle,
     model_id: &str,
     cancel_token: &CancellationToken,
 ) -> Result<PathBuf> {
-    let model_path = model_file_path(model_id)?;
-    
-    // If already exists, return immediately
-    if model_path.exists() {
-        return Ok(model_path);
-    }
-    
-    // Create directory if needed
-    if let Some(parent) = model_path.parent() {
-        std::fs::create_dir_all(parent)?;
-    }
-    
-    let url = format!(
-        "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-{}.bin",
-        model_id
-    );
-    
     app.emit("transcribe-progress", TranscribeProgressEvent {
         stage: "download".to_string(),
         message: format!("Downloading model {} ...", model_id),
         percentage: 0.0,
     }).ok();
-    
-    // Use curl for download with progress
-    let temp_path = model_path.with_extension("bin.partial");
-    let mut cmd = tokio::process::Command::new("curl");
-    cmd.args([
-        "-L",
-        "--progress-bar",
-        "-o", temp_path.to_str().unwrap(),
-        &url,
-    ]);
-    
-    let output = cmd.output().await.context("Failed to run curl for model download")?;
-    
-    if cancel_token.is_cancelled() {
-        let _ = std::fs::remove_file(&temp_path);
-        anyhow::bail!("Download cancelled");
-    }
-    
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        let _ = std::fs::remove_file(&temp_path);
-        anyhow::bail!("Failed to download model: {}", stderr);
-    }
-    
-    // Rename temp file to final path
-    std::fs::rename(&temp_path, &model_path)?;
-    
-    app.emit("transcribe-progress", TranscribeProgressEvent {
-        stage: "download".to_string(),
-        message: format!("Model {} downloaded successfully", model_id),
-        percentage: 100.0,
-    }).ok();
-    
-    Ok(model_path)
-}
 
-/// Convert input audio/video to 16kHz mono WAV using ffmpeg
-async fn convert_to_wav(
-    app: &AppHandle,
-    input_path: &str,
-    cancel_token: &CancellationToken,
-) -> Result<PathBuf> {
-    app.emit("transcribe-progress", TranscribeProgressEvent {
-        stage: "convert".to_string(),
-        message: "Converting audio to WAV format...".to_string(),
-        percentage: 10.0,
-    }).ok();
-    
-    let temp_wav = tempfile::Builder::new()
-        .suffix(".wav")
-        .tempfile()
-        .context("Failed to create temp WAV file")?;
-    let wav_path = temp_wav.into_temp_path().to_path_buf();
-    
-    let ffmpeg_cmd = crate::commands::flashcards::media::resolve_ffmpeg_path(Some(app)).await;
+    let app_progress = app.clone();
+    let model_id_progress = model_id.to_string();
 
-    let convert_output = tokio::process::Command::new(&ffmpeg_cmd)
-        .args([
-            "-y",
-            "-i", input_path,
-            "-ar", "16000",
-            "-ac", "1",
-            "-c:a", "pcm_s16le",
-            wav_path.to_str().unwrap(),
-        ])
-        .output()
-        .await
-        .context("Failed to run ffmpeg for audio conversion")?;
-    
-    if !convert_output.status.success() {
-        let stderr = String::from_utf8_lossy(&convert_output.stderr);
-        anyhow::bail!("Audio conversion failed: {}", stderr);
-    }
-    
-    if cancel_token.is_cancelled() {
-        anyhow::bail!("Transcription cancelled");
-    }
-    
-    Ok(wav_path)
-}
-
-/// Read WAV file into f32 samples for whisper-rs
-fn read_wav_to_f32(wav_path: &Path) -> Result<Vec<f32>> {
-    let reader = hound::WavReader::open(wav_path)
-        .context("Failed to open WAV file")?;
-    
-    let spec = reader.spec();
-    
-    let samples: Vec<f32> = match spec.sample_format {
-        hound::SampleFormat::Int => {
-            let max_val = (1 << (spec.bits_per_sample - 1)) as f32;
-            reader.into_samples::<i32>()
-                .filter_map(|s| s.ok())
-                .map(|s| s as f32 / max_val)
-                .collect()
-        }
-        hound::SampleFormat::Float => {
-            reader.into_samples::<f32>()
-                .filter_map(|s| s.ok())
-                .collect()
-        }
-    };
-    
-    // If stereo, convert to mono by averaging channels
-    if spec.channels == 2 {
-        Ok(samples.chunks(2)
-            .map(|chunk| {
-                if chunk.len() == 2 {
-                    (chunk[0] + chunk[1]) / 2.0
-                } else {
-                    chunk[0]
-                }
-            })
-            .collect())
-    } else {
-        Ok(samples)
-    }
+    whisper_common::model::download_model(
+        model_id,
+        move |percentage| {
+            app_progress.emit("transcribe-progress", TranscribeProgressEvent {
+                stage: "download".to_string(),
+                message: format!("Downloading model {} ({}%)...", model_id_progress, percentage),
+                percentage: percentage as f64,
+            }).ok();
+        },
+        Some(cancel_token),
+    ).await
 }
 
 /// A raw segment from whisper
@@ -409,43 +269,14 @@ fn run_whisper_rs(
         percentage: 20.0,
     }).ok();
     
-    // Load model
-    let ctx = WhisperContext::new_with_params(
-        model_path.to_str().unwrap(),
-        WhisperContextParameters::default(),
+    let model_path_str = model_path.to_string_lossy().to_string();
+    let ctx = whisper_rs::WhisperContext::new_with_params(
+        &model_path_str,
+        whisper_rs::WhisperContextParameters::default(),
     ).map_err(|e| anyhow::anyhow!("Failed to load Whisper model: {:?}", e))?;
-    
-    let mut state = ctx.create_state()
-        .map_err(|e| anyhow::anyhow!("Failed to create Whisper state: {:?}", e))?;
     
     if cancel_token.is_cancelled() {
         anyhow::bail!("Transcription cancelled");
-    }
-    
-    // Configure parameters
-    let mut params = FullParams::new(SamplingStrategy::Greedy { best_of: 1 });
-    
-    // Set language
-    if config.language != "auto" {
-        params.set_language(Some(&config.language));
-    } else {
-        params.set_language(None);
-    }
-    
-    // Set translate mode
-    params.set_translate(config.translate_to_english);
-    
-    // Performance settings
-    params.set_n_threads(num_cpus().min(8) as i32);
-    params.set_print_progress(false);
-    params.set_print_realtime(false);
-    params.set_print_special(false);
-    params.set_print_timestamps(false);
-    params.set_token_timestamps(config.word_timestamps);
-    
-    // Segment length control
-    if config.max_segment_length > 0 {
-        params.set_max_len(config.max_segment_length as i32);
     }
     
     app.emit("transcribe-progress", TranscribeProgressEvent {
@@ -454,63 +285,26 @@ fn run_whisper_rs(
         percentage: 30.0,
     }).ok();
     
-    // Run inference
-    state.full(params, audio_data)
-        .map_err(|e| anyhow::anyhow!("Whisper transcription failed: {:?}", e))?;
-    
-    if cancel_token.is_cancelled() {
-        anyhow::bail!("Transcription cancelled");
-    }
-    
-    // Extract segments
-    let n_segments = state.full_n_segments();
-
-    let detected_language = if config.language == "auto" {
-        let lang_id = state.full_lang_id_from_state();
-        if lang_id >= 0 {
-            whisper_rs::get_lang_str(lang_id).map(|s| s.to_string())
-        } else {
-            None
-        }
-    } else {
-        Some(config.language.clone())
+    let options = TranscribeOptions {
+        language: if config.language != "auto" { Some(config.language.clone()) } else { None },
+        translate_to_english: config.translate_to_english,
+        n_threads: None,
+        word_timestamps: config.word_timestamps,
+        max_segment_length: if config.max_segment_length > 0 { Some(config.max_segment_length) } else { None },
     };
     
-    app.emit("transcribe-progress", TranscribeProgressEvent {
-        stage: "transcribe".to_string(),
-        message: format!("Processing {} segments...", n_segments),
-        percentage: 80.0,
-    }).ok();
+    let (raw_segments, detected_language) = transcribe_full(&ctx, audio_data, &options, Some(cancel_token))?;
     
-    let mut raw_segments: Vec<RawSegment> = Vec::with_capacity(n_segments as usize);
-    
-    for i in 0..n_segments {
-        let seg = match state.get_segment(i) {
-            Some(s) => s,
-            None => continue,
-        };
-        
-        let start_t = seg.start_timestamp();
-        let end_t = seg.end_timestamp();
-        let text = match seg.to_str() {
-            Ok(s) => s.trim().to_string(),
-            Err(_) => continue,
-        };
-        
-        if text.is_empty() {
-            continue;
-        }
-        
-        // whisper timestamps are in centiseconds (10ms units)
-        raw_segments.push(RawSegment {
-            start_ms: start_t * 10,
-            end_ms: end_t * 10,
-            text,
-        });
-    }
+    let raw: Vec<RawSegment> = raw_segments.into_iter()
+        .map(|s| RawSegment {
+            start_ms: s.start_ms,
+            end_ms: s.end_ms,
+            text: s.text,
+        })
+        .collect();
     
     // Post-process segments for better SRT formatting
-    let segments = postprocess_segments(raw_segments, config.max_segment_length);
+    let segments = postprocess_segments(raw, config.max_segment_length);
     
     app.emit("transcribe-progress", TranscribeProgressEvent {
         stage: "writing".to_string(),
@@ -544,13 +338,6 @@ fn run_whisper_rs(
     })
 }
 
-/// Get number of available CPU cores
-fn num_cpus() -> usize {
-    std::thread::available_parallelism()
-        .map(|n| n.get())
-        .unwrap_or(4)
-}
-
 // ─── Tauri Commands ──────────────────────────────────────────────────────────
 
 /// Check what Whisper backends are available
@@ -577,30 +364,7 @@ pub async fn transcribe_check_backends(app: AppHandle) -> Result<serde_json::Val
 /// Get list of models with their download status
 #[tauri::command]
 pub async fn transcribe_list_models() -> Result<Vec<WhisperModelInfo>, String> {
-    let models = vec![
-        ("tiny", "Tiny", "~75MB", "~32x"),
-        ("base", "Base", "~150MB", "~16x"),
-        ("small", "Small", "~500MB", "~6x"),
-        ("medium", "Medium", "~1.5GB", "~2x"),
-        ("large", "Large", "~3GB", "~1x"),
-    ];
-    
-    let mut result = Vec::new();
-    for (id, name, size, speed) in models {
-        let downloaded = model_file_path(id)
-            .map(|p| p.exists())
-            .unwrap_or(false);
-        
-        result.push(WhisperModelInfo {
-            id: id.to_string(),
-            name: name.to_string(),
-            size: size.to_string(),
-            speed: speed.to_string(),
-            downloaded,
-        });
-    }
-    
-    Ok(result)
+    list_models().map_err(|e| e.to_string())
 }
 
 /// Download a specific Whisper model
@@ -628,13 +392,7 @@ pub async fn transcribe_download_model(
 pub async fn transcribe_uninstall_model(
     model_id: String,
 ) -> Result<bool, String> {
-    let model_path = model_file_path(&model_id).map_err(|e| e.to_string())?;
-    if model_path.exists() {
-        std::fs::remove_file(&model_path).map_err(|e| format!("Failed to delete model: {}", e))?;
-        Ok(true)
-    } else {
-        Err(format!("Model file not found: {}", model_path.display()))
-    }
+    uninstall_model(&model_id).map_err(|e| e.to_string())
 }
 
 /// Start transcription
@@ -677,17 +435,25 @@ pub async fn transcribe_start(
         }
     };
     
-    // Convert input to WAV
-    let wav_path = match convert_to_wav(&app, &config.input_path, &cancel_token).await {
-        Ok(p) => p,
+    // Convert input to WAV using the common audio module!
+    let temp_wav = tempfile::Builder::new()
+        .suffix(".wav")
+        .tempfile()
+        .map_err(|e| format!("Failed to create temp WAV file: {}", e))?;
+    let wav_path = temp_wav.into_temp_path().to_path_buf();
+    
+    let ffmpeg_cmd = crate::commands::flashcards::media::resolve_ffmpeg_path(Some(&app)).await;
+
+    match convert_to_wav(&ffmpeg_cmd, Path::new(&config.input_path), &wav_path, Some(&cancel_token)).await {
+        Ok(_) => {}
         Err(e) => {
             let mut s = state.lock().map_err(|e2| e2.to_string())?;
             s.is_transcribing = false;
             return Err(format!("Audio conversion failed: {}", e));
         }
-    };
+    }
     
-    // Read audio data
+    // Read audio data using the common audio module!
     let audio_data = match read_wav_to_f32(&wav_path) {
         Ok(data) => data,
         Err(e) => {

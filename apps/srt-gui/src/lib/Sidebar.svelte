@@ -236,7 +236,7 @@
   });
 </script>
 
-<aside class="{collapsed ? 'w-20' : 'w-72'} bg-gradient-to-b from-gray-900 via-gray-900 to-gray-950 border-r border-white/10 flex flex-col transition-[width] duration-200 ease-out relative will-change-[width]">
+<aside class="{collapsed ? 'w-20' : 'w-[238px]'} bg-gradient-to-b from-gray-900 via-gray-900 to-gray-950 border-r border-white/10 flex flex-col transition-[width] duration-200 ease-out relative will-change-[width]">
   <button
     onclick={onToggleCollapse}
     class="absolute -right-3 top-6 w-6 h-6 bg-gray-800 border border-white/20 rounded-full flex items-center justify-center text-gray-400 hover:text-white hover:bg-gray-700 transition-all z-10 shadow-lg"
@@ -247,7 +247,7 @@
     </svg>
   </button>
 
-  <div class="h-[89px] min-h-[89px] max-h-[89px] px-6 border-b border-white/10 flex items-center shrink-0">
+  <div class="h-[89px] min-h-[89px] max-h-[89px] px-4 border-b border-white/10 flex items-center shrink-0">
     {#if activeTab === "settings"}
       <button
         onclick={() => {
@@ -307,7 +307,7 @@
     {#if activeTab === "settings"}
       <!-- Settings navigation buttons -->
       <button
-        class="w-full flex items-center gap-3.5 {collapsed ? 'px-2 justify-center' : 'px-4.5'} py-3 rounded-xl transition-all duration-300 border border-transparent cursor-pointer {settingsSection === 'overview'
+        class="w-full flex items-center gap-3.5 {collapsed ? 'px-2 justify-center' : 'px-3.5'} py-3 rounded-xl transition-all duration-300 border border-transparent cursor-pointer {settingsSection === 'overview'
           ? 'bg-gradient-to-r from-sky-600 to-sky-700 text-white shadow-lg shadow-sky-500/22 border-sky-500/30 bg-clip-padding'
           : 'text-gray-400 hover:bg-sky-500/10 hover:text-sky-400 hover:border-sky-500/20'}"
         onclick={() => settingsSection = "overview"}
@@ -326,7 +326,7 @@
       </button>
 
       <button
-        class="w-full flex items-center gap-3.5 {collapsed ? 'px-2 justify-center' : 'px-4.5'} py-3 rounded-xl transition-all duration-300 border border-transparent cursor-pointer {settingsSection === 'llm'
+        class="w-full flex items-center gap-3.5 {collapsed ? 'px-2 justify-center' : 'px-3.5'} py-3 rounded-xl transition-all duration-300 border border-transparent cursor-pointer {settingsSection === 'llm'
           ? 'bg-gradient-to-r from-indigo-600 to-indigo-700 text-white shadow-lg shadow-indigo-500/22 border-indigo-500/30 bg-clip-padding'
           : 'text-gray-400 hover:bg-indigo-500/10 hover:text-indigo-400 hover:border-indigo-500/20'}"
         onclick={() => settingsSection = "llm"}
@@ -348,7 +348,7 @@
       </button>
 
       <button
-        class="w-full flex items-center gap-3.5 {collapsed ? 'px-2 justify-center' : 'px-4.5'} py-3 rounded-xl transition-all duration-300 border border-transparent cursor-pointer {settingsSection === 'whisper'
+        class="w-full flex items-center gap-3.5 {collapsed ? 'px-2 justify-center' : 'px-3.5'} py-3 rounded-xl transition-all duration-300 border border-transparent cursor-pointer {settingsSection === 'whisper'
           ? 'bg-gradient-to-r from-cyan-600 to-cyan-700 text-white shadow-lg shadow-cyan-500/22 border-cyan-500/30 bg-clip-padding'
           : 'text-gray-400 hover:bg-cyan-500/10 hover:text-cyan-400 hover:border-cyan-500/20'}"
         onclick={() => settingsSection = "whisper"}
@@ -370,7 +370,7 @@
       </button>
 
       <button
-        class="w-full flex items-center gap-3.5 {collapsed ? 'px-2 justify-center' : 'px-4.5'} py-3 rounded-xl transition-all duration-300 border border-transparent cursor-pointer {settingsSection === 'language'
+        class="w-full flex items-center gap-3.5 {collapsed ? 'px-2 justify-center' : 'px-3.5'} py-3 rounded-xl transition-all duration-300 border border-transparent cursor-pointer {settingsSection === 'language'
           ? 'bg-gradient-to-r from-emerald-600 to-emerald-700 text-white shadow-lg shadow-emerald-500/22 border-emerald-500/30 bg-clip-padding'
           : 'text-gray-400 hover:bg-emerald-500/10 hover:text-emerald-400 hover:border-emerald-500/20'}"
         onclick={() => settingsSection = "language"}
@@ -389,7 +389,7 @@
       </button>
 
       <button
-        class="w-full flex items-center gap-3.5 {collapsed ? 'px-2 justify-center' : 'px-4.5'} py-3 rounded-xl transition-all duration-300 border border-transparent cursor-pointer {settingsSection === 'anki'
+        class="w-full flex items-center gap-3.5 {collapsed ? 'px-2 justify-center' : 'px-3.5'} py-3 rounded-xl transition-all duration-300 border border-transparent cursor-pointer {settingsSection === 'anki'
           ? 'bg-gradient-to-r from-amber-600 to-amber-700 text-white shadow-lg shadow-amber-500/22 border-amber-500/30 bg-clip-padding'
           : 'text-gray-400 hover:bg-amber-500/10 hover:text-amber-400 hover:border-amber-500/20'}"
         onclick={() => settingsSection = "anki"}
@@ -408,7 +408,7 @@
       </button>
 
       <button
-        class="w-full flex items-center gap-3.5 {collapsed ? 'px-2 justify-center' : 'px-4.5'} py-3 rounded-xl transition-all duration-300 border border-transparent cursor-pointer {settingsSection === 'shortcuts'
+        class="w-full flex items-center gap-3.5 {collapsed ? 'px-2 justify-center' : 'px-3.5'} py-3 rounded-xl transition-all duration-300 border border-transparent cursor-pointer {settingsSection === 'shortcuts'
           ? 'bg-gradient-to-r from-purple-600 to-purple-700 text-white shadow-lg shadow-purple-500/22 border-purple-500/30 bg-clip-padding'
           : 'text-gray-400 hover:bg-purple-500/10 hover:text-purple-400 hover:border-purple-500/20'}"
         onclick={() => settingsSection = "shortcuts"}
@@ -430,7 +430,7 @@
       </button>
     {:else}
       <button
-        class="w-full flex items-center gap-3.5 {collapsed ? 'px-2 justify-center' : 'px-4.5'} py-3 rounded-xl transition-all duration-300 border border-transparent cursor-pointer {activeTab ===
+        class="w-full flex items-center gap-3.5 {collapsed ? 'px-2 justify-center' : 'px-3.5'} py-3 rounded-xl transition-all duration-300 border border-transparent cursor-pointer {activeTab ===
         'flashcards'
           ? 'bg-gradient-to-r from-amber-600 to-orange-700 text-white shadow-lg shadow-amber-500/22 shadow-orange-600/20 border-amber-500/30 bg-clip-padding'
           : 'text-gray-400 hover:bg-amber-500/10 hover:text-amber-400 hover:border-amber-500/20'}"
@@ -460,7 +460,7 @@
       </button>
 
       <button
-        class="w-full flex items-center gap-3.5 {collapsed ? 'px-2 justify-center' : 'px-4.5'} py-3 rounded-xl transition-all duration-300 border border-transparent cursor-pointer {activeTab ===
+        class="w-full flex items-center gap-3.5 {collapsed ? 'px-2 justify-center' : 'px-3.5'} py-3 rounded-xl transition-all duration-300 border border-transparent cursor-pointer {activeTab ===
         'translate'
           ? 'bg-gradient-to-r from-fuchsia-700 to-rose-700 text-white shadow-lg shadow-fuchsia-500/20 shadow-rose-600/20 border-fuchsia-500/30 bg-clip-padding'
           : 'text-gray-400 hover:bg-fuchsia-500/10 hover:text-fuchsia-400 hover:border-fuchsia-500/20'}"
@@ -490,7 +490,7 @@
       </button>
 
       <button
-        class="w-full flex items-center gap-3.5 {collapsed ? 'px-2 justify-center' : 'px-4.5'} py-3 rounded-xl transition-all duration-300 border border-transparent cursor-pointer {activeTab ===
+        class="w-full flex items-center gap-3.5 {collapsed ? 'px-2 justify-center' : 'px-3.5'} py-3 rounded-xl transition-all duration-300 border border-transparent cursor-pointer {activeTab ===
         'sync'
           ? 'bg-gradient-to-r from-sky-700 to-cyan-700 text-white shadow-lg shadow-cyan-500/20 shadow-sky-600/20 border-sky-500/30 bg-clip-padding'
           : 'text-gray-400 hover:bg-sky-500/10 hover:text-sky-400 hover:border-sky-500/20'}"
@@ -520,7 +520,7 @@
       </button>
 
       <button
-        class="w-full flex items-center gap-3.5 {collapsed ? 'px-2 justify-center' : 'px-4.5'} py-3 rounded-xl transition-all duration-300 border border-transparent cursor-pointer {activeTab ===
+        class="w-full flex items-center gap-3.5 {collapsed ? 'px-2 justify-center' : 'px-3.5'} py-3 rounded-xl transition-all duration-300 border border-transparent cursor-pointer {activeTab ===
         'align'
           ? 'bg-gradient-to-r from-violet-700 to-indigo-700 text-white shadow-lg shadow-violet-500/20 shadow-indigo-600/20 border-violet-500/30 bg-clip-padding'
           : 'text-gray-400 hover:bg-violet-500/10 hover:text-violet-400 hover:border-violet-500/20'}"
@@ -540,7 +540,7 @@
       </button>
 
       <button
-        class="w-full flex items-center gap-3.5 {collapsed ? 'px-2 justify-center' : 'px-4.5'} py-3 rounded-xl transition-all duration-300 border border-transparent cursor-pointer {activeTab ===
+        class="w-full flex items-center gap-3.5 {collapsed ? 'px-2 justify-center' : 'px-3.5'} py-3 rounded-xl transition-all duration-300 border border-transparent cursor-pointer {activeTab ===
         'transcribe'
           ? 'bg-gradient-to-r from-teal-700 to-emerald-700 text-white shadow-lg shadow-teal-500/20 shadow-emerald-600/20 border-teal-500/30 bg-clip-padding'
           : 'text-gray-400 hover:bg-teal-500/10 hover:text-teal-400 hover:border-teal-500/20'}"
@@ -571,15 +571,17 @@
     {/if}
   </nav>
 
-  <div class="h-[92px] px-6 border-t border-white/10 bg-gray-950 flex items-center shrink-0">
+  <div class="h-[92px] px-4 border-t border-white/10 bg-gray-950 flex items-center shrink-0">
     <div class="w-full {collapsed ? 'flex items-center justify-center' : ''}">
       {#if collapsed}
-        <a href={authorUrl} target="_blank" class="flex-shrink-0 transition-transform hover:scale-110 active:scale-95 duration-150 inline-block" title="Pierpaolo Spadafora">
-          <img src={authorIconUrl} alt="Pierpaolo Spadafora" class="w-8 h-8 rounded-full border border-white/10 shadow-sm" />
+        <a href={repoUrl} target="_blank" class="flex-shrink-0 transition-all hover:scale-110 active:scale-95 duration-150 flex items-center justify-center w-8 h-8 rounded-lg hover:bg-white/5 text-gray-400 hover:text-white border border-transparent hover:border-white/5" title={t("about.repository") || "Repository GitHub"}>
+          <svg class="w-6 h-6 shrink-0" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path fill-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.05A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" clip-rule="evenodd" />
+          </svg>
         </a>
       {:else}
         <div class="flex items-center justify-between w-full">
-          <div class="flex items-center gap-2.5 min-w-0">
+          <div class="flex items-center gap-2 min-w-0">
             <a href={authorUrl} target="_blank" class="flex-shrink-0 transition-transform hover:scale-110 active:scale-95 duration-150 inline-block" title="Pierpaolo Spadafora">
               <img src={authorIconUrl} alt="Pierpaolo Spadafora" class="w-8 h-8 rounded-full border border-white/10 shadow-sm" />
             </a>
@@ -593,7 +595,7 @@
             </div>
           </div>
           
-          <a href={repoUrl} target="_blank" class="flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-white/5 text-gray-400 hover:text-white transition-all duration-150 text-right shrink-0 select-none border border-transparent hover:border-white/5">
+          <a href={repoUrl} target="_blank" class="flex items-center gap-1.5 px-2 py-1.5 rounded-lg hover:bg-white/5 text-gray-400 hover:text-white transition-all duration-150 text-right shrink-0 select-none border border-transparent hover:border-white/5">
             <div class="flex flex-col text-[10px] font-bold leading-tight uppercase tracking-wider text-right">
               <span>GitHub</span>
               <span class="opacity-75">Repo</span>

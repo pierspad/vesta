@@ -32,7 +32,7 @@
   "transcribe.start": "Avvia Trascrizione",
   "transcribe.cancel": "Annulla",
   "transcribe.progress": "Progresso",
-  "transcribe.log": "Registro",
+  "transcribe.log": "Log",
   "transcribe.clearLog": "Pulisci",
   "transcribe.noLog": "Nessun log...",
   "transcribe.modelRequired": "Seleziona un modello Whisper",

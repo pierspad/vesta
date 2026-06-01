@@ -951,7 +951,6 @@
   const TRANSLATE_PANEL_IDS = [
     "options",
     "files",
-    "actions",
     "progress",
     "livePreview",
     "logs",
@@ -963,7 +962,7 @@
 <div 
   role="region"
   aria-label="Translate content"
-  class="h-full flex flex-col p-6 overflow-y-auto overflow-x-hidden translate-tab-scroll relative"
+  class="h-full flex flex-col translate-tab-scroll relative overflow-hidden"
   ondragover={(e) => { e.preventDefault(); if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy'; }}
   ondrop={(e) => { e.preventDefault(); isDraggingOver = false; }}
   ondragleave={(e) => {
@@ -1570,7 +1569,7 @@
         class="glass-card p-5 {!canUseFilePanel ? 'opacity-40' : ''}"
       >
         <h3
-          class="text-lg font-semibold mb-4 flex items-center gap-2 text-indigo-400"
+          class="text-lg font-semibold mb-4 flex items-center gap-2 panel-title-files-output"
         >
           <svg
             class="w-5 h-5"
@@ -1585,7 +1584,7 @@
               d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
             />
           </svg>
-          {t("translate.file")}
+          {t("common.filesAndOutput")}
           <InfoButton onclick={() => (helpSection = "files")} />
         </h3>
         <div class="space-y-3">
@@ -1596,8 +1595,6 @@
             browseTitle={t("translate.tooltip.upload")}
             onexpand={() => (expandedPathField = "input")}
             onbrowse={selectInputFile}
-            browseButtonClass="btn-primary py-2 px-3"
-            browseIconPath="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"
           />
 
           <PathPickerField
@@ -1607,8 +1604,6 @@
             browseTitle={t("translate.tooltip.save")}
             onexpand={() => (expandedPathField = "output")}
             onbrowse={selectOutputFile}
-            browseButtonClass="btn-secondary py-2 px-3"
-            browseIconPath="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"
           />
           {#if fileInfo}
             <div
@@ -1631,72 +1626,7 @@
           {/if}
         </div>
       </div>
-    {:else if panelId === "actions"}
-      <div class="flex gap-3">
-        {#if isTranslating}
-          <button
-            onclick={cancelTranslation}
-            class="btn-danger flex-1 py-4 text-lg"
-          >
-            <svg
-              class="w-5 h-5 inline mr-2"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M6 18L18 6M6 6l12 12"
-              />
-            </svg>
-            {t("translate.cancel")}
-          </button>
-        {:else if result || error}
-          <button
-            onclick={resetTranslation}
-            class="btn-secondary flex-1 py-4 text-lg bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 hover:bg-indigo-500/30 transition-all font-semibold"
-          >
-            <svg class="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
-            New Translation
-          </button>
-        {:else}
-          <button
-            onclick={startTranslation}
-            disabled={!inputPath ||
-              !outputPath ||
-              !isLlmConfigured ||
-              !hasValidKey ||
-              (selectedProviderFamily !== "custom" && !selectedModel)}
-            title={translationBlockedReason || t("translate.start")}
-            class="btn-success flex-1 py-4 text-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
-          >
-            <svg
-              class="w-5 h-5 inline mr-2"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"
-              />
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-              />
-            </svg>
-            {t("translate.start")}
-          </button>
-        {/if}
-      </div>
+
     {:else if panelId === "progress"}
       <div class="space-y-3">
         {#if isTranslating || progress}
@@ -1923,18 +1853,105 @@
     {/if}
   {/snippet}
 
-  <div class="grid grid-cols-1 xl:grid-cols-2 gap-6 transition-opacity">
-    <div class="space-y-3 overflow-x-hidden min-h-[100px]">
-      {@render panelContent("options")}
-      {@render panelContent("logs")}
-    </div>
+  <div class="flex-1 overflow-y-auto p-6 min-h-0">
+    <div class="grid grid-cols-1 xl:grid-cols-2 gap-6 transition-opacity">
+      <div class="space-y-3 overflow-x-hidden min-h-[100px]">
+        {@render panelContent("files")}
+        {@render panelContent("progress")}
+        {@render panelContent("livePreview")}
+      </div>
 
-    <div class="space-y-3 overflow-x-hidden min-h-[100px]">
-      {@render panelContent("files")}
-      {@render panelContent("actions")}
-      {@render panelContent("progress")}
-      {@render panelContent("livePreview")}
+      <div class="space-y-3 overflow-x-hidden min-h-[100px]">
+        {@render panelContent("options")}
+        <!-- {@render panelContent("logs")} -->
+      </div>
     </div>
+  </div>
+
+  <!-- Fixed Bottom Band with Action Buttons -->
+  <div class="h-[92px] border-t border-white/10 bg-gray-950 flex items-center justify-center gap-4 px-6 shrink-0 z-40">
+    {#if isTranslating}
+      <button
+        onclick={cancelTranslation}
+        class="px-5 py-2.5 bg-red-600 hover:bg-red-500 text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-red-900/30 flex items-center gap-2 hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
+      >
+        <svg
+          class="w-4 h-4"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M6 18L18 6M6 6l12 12"
+          />
+        </svg>
+        {t("translate.cancel")}
+      </button>
+    {:else if result || error}
+      <div class="relative group">
+        <button
+          onclick={resetTranslation}
+          class="px-5 py-2.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 rounded-xl font-bold text-sm transition-all border border-amber-500/30 flex items-center gap-2 hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
+        >
+          <svg
+            class="w-4 h-4"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+            />
+          </svg>
+          New Translation
+        </button>
+        <div class="pointer-events-none absolute bottom-full left-1/2 z-50 mb-3 -translate-x-1/2 rounded-xl border border-amber-500/30 bg-gray-950/95 p-3 text-center text-xs text-amber-300 shadow-2xl shadow-black/40 ring-1 ring-white/10 transition-all duration-150 opacity-0 group-hover:opacity-100 group-hover:translate-y-0 translate-y-1 whitespace-nowrap">
+          {t("translate.cancel") === "Annulla" ? "Azzera e avvia una nuova traduzione" : "Reset and start a new translation"}
+        </div>
+      </div>
+    {:else}
+      <div class="relative group">
+        <button
+          onclick={startTranslation}
+          disabled={!inputPath ||
+            !outputPath ||
+            !isLlmConfigured ||
+            !hasValidKey ||
+            (selectedProviderFamily !== "custom" && !selectedModel)}
+          class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:bg-emerald-600/55 text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-emerald-900/30 flex items-center gap-2 enabled:hover:scale-[1.02] enabled:active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-55 cursor-pointer"
+        >
+          <svg
+            class="w-4 h-4"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"
+            />
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+            />
+          </svg>
+          {t("translate.start")}
+        </button>
+        <div class="pointer-events-none absolute bottom-full left-1/2 z-50 mb-3 -translate-x-1/2 rounded-xl border border-emerald-500/30 bg-gray-950/95 p-3 text-center text-xs text-emerald-300 shadow-2xl shadow-black/40 ring-1 ring-white/10 transition-all duration-150 opacity-0 group-hover:opacity-100 group-hover:translate-y-0 translate-y-1 whitespace-nowrap">
+          {translationBlockedReason || t("translate.start")}
+        </div>
+      </div>
+    {/if}
   </div>
 
   <InfoModal 

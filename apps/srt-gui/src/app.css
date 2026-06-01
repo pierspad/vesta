@@ -21,6 +21,10 @@
   contain: style;
 }
 
+.panel-title-files-output {
+  color: rgb(74 222 128);
+}
+
 /* Modern buttons */
 .btn-primary {
   background: var(--gradient-primary);

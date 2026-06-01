@@ -77,7 +77,7 @@
   "settings.selectProvider": "Seleziona un Provider",
   "settings.selectProviderHint": "Clicca su un provider per vedere i modelli disponibili",
   "settings.models": "Modelli {{provider}}",
-  "settings.apiKeys": "Chiavi API Configurate",
+  "settings.apiKeys": "Chiavi API configurate",
   "settings.noApiKeys": "Nessuna chiave API",
   "settings.addKeyHint": "Aggiungi una chiave per iniziare",
   "settings.addApiKey": "Aggiungi Chiave API",
@@ -332,7 +332,7 @@
   "transcribe.start": "Avvia Trascrizione",
   "transcribe.cancel": "Annulla",
   "transcribe.progress": "Progresso",
-  "transcribe.log": "Registro",
+  "transcribe.log": "Log",
   "transcribe.clearLog": "Pulisci",
   "transcribe.noLog": "Nessun log...",
   "transcribe.modelRequired": "Seleziona un modello Whisper",
@@ -464,9 +464,9 @@
   "flashcards.snapshotField": "4. Istantanea",
   "flashcards.videoField": "5. File video",
   "flashcards.exportFormat": "Formato Esportazione",
-  "flashcards.exportTSV": "TSV + file media (classico subs2srs)",
+  "flashcards.exportTSV": "TSV + Cartella media (classico subs2srs)",
   "flashcards.exportTSVDesc": "Genera un file .tsv + cartella media. Importa in Anki manualmente.",
-  "flashcards.exportAPKG": "APKG (pacchetto Anki, pronto all'importazione)",
+  "flashcards.exportAPKG": "APKG (file singolo - doppio click per importare)",
   "flashcards.exportAPKGDesc": "Un singolo file .apkg con tutto incluso. Doppio click per importare.",
   "flashcards.exportAPKGSoon": "Prossimamente",
   "flashcards.resetLayout": "Reimposta layout",
@@ -857,5 +857,7 @@
   "settings.whisper.downloadFailed": "Download del modello {{model}} fallito: {{error}}",
   "settings.whisper.cancelFailed": "Annullamento del download fallito: {{error}}",
   "settings.whisper.uninstallSuccess": "Modello {{model}} rimosso con successo",
-  "settings.whisper.uninstallFailed": "Rimozione del modello {{model}} fallita: {{error}}"
+  "settings.whisper.uninstallFailed": "Rimozione del modello {{model}} fallita: {{error}}",
+  "sync.toolbarTitle": "File e Opzioni",
+  "common.filesAndOutput": "File e Output"
 }
