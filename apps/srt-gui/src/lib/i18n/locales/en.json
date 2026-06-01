@@ -83,7 +83,7 @@
   "settings.selectProvider": "Select a Provider",
   "settings.selectProviderHint": "Click on a provider to see available models",
   "settings.models": "Models {{provider}}",
-  "settings.apiKeys": "Configured API Keys",
+  "settings.apiKeys": "Configured API keys",
   "settings.noApiKeys": "No API key",
   "settings.addKeyHint": "Add a key to get started",
   "settings.addApiKey": "Add API Key",
@@ -454,9 +454,9 @@
   "flashcards.exportFormat": "Export Format",
   "flashcards.noteTypeLanguage": "Language you study",
   "flashcards.noteTypeLanguagePlaceholder": "Select language...",
-  "flashcards.exportTSV": "TSV + media files (subs2srs classic)",
+  "flashcards.exportTSV": "TSV + Media folder (classic subs2srs)",
   "flashcards.exportTSVDesc": "Generates a .tsv file + media folder. Import into Anki manually.",
-  "flashcards.exportAPKG": "APKG (Anki package, ready to import)",
+  "flashcards.exportAPKG": "APKG (single file - double-click to import)",
   "flashcards.exportAPKGDesc": "Single .apkg file with everything included. Just double-click to import.",
   "flashcards.exportAPKGSoon": "Coming soon",
   "flashcards.resetLayout": "Reset layout",
@@ -857,5 +857,7 @@
   "settings.whisper.downloadFailed": "Failed to download model {{model}}: {{error}}",
   "settings.whisper.cancelFailed": "Failed to cancel download: {{error}}",
   "settings.whisper.uninstallSuccess": "Model {{model}} uninstalled successfully",
-  "settings.whisper.uninstallFailed": "Failed to uninstall model {{model}}: {{error}}"
+  "settings.whisper.uninstallFailed": "Failed to uninstall model {{model}}: {{error}}",
+  "sync.toolbarTitle": "Files & Options",
+  "common.filesAndOutput": "Files & Output"
 }

@@ -30,6 +30,10 @@ export const translateSections: Record<string, InfoSection> = {
 
 // ─── Synchronization Tab ──────────────────────────────────
 export const syncSections: Record<string, InfoSection> = {
+  files: {
+    titleKey: "sync.toolbarTitle",
+    contentKey: "sync.helpContent",
+  },
   wizard: {
     titleKey: "sync.wizard.title",
     contentKey: "sync.wizardHelp",
@@ -70,10 +74,6 @@ export const flashcardsSections: Record<string, InfoSection> = {
     titleKey: "flashcards.files",
     contentKey: "flashcards.filesHelpMovie",
   },
-  subtitleOptions: {
-    titleKey: "flashcards.subtitleOptions",
-    contentKey: "flashcards.subtitleOptionsHelp",
-  },
   audioClips: {
     titleKey: "flashcards.generateAudioClips",
     contentKey: "flashcards.generateAudioClipsHelp",
@@ -89,14 +89,6 @@ export const flashcardsSections: Record<string, InfoSection> = {
   naming: {
     titleKey: "flashcards.naming",
     contentKey: "flashcards.namingHelp",
-  },
-  filters: {
-    titleKey: "flashcards.filters",
-    contentKey: "flashcards.filtersHelp",
-  },
-  contextLines: {
-    titleKey: "flashcards.contextLines",
-    contentKey: "flashcards.contextLinesHelp",
   },
   ankiFields: {
     titleKey: "flashcards.ankiFields",

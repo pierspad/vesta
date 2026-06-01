@@ -13,12 +13,12 @@
     "windows": [
       {
         "title": "VESTA",
-        "width": 1700,
-        "height": 1040,
+        "width": 1550,
+        "height": 890,
         "resizable": true,
         "fullscreen": false,
-        "minWidth": 640,
-        "minHeight": 600,
+        "minWidth": 340,
+        "minHeight": 500,
         "maxWidth": 10000,
         "maxHeight": 10000,
         "dragDropEnabled": true

@@ -49,7 +49,13 @@
   type EndpointStatus = "idle" | "checking" | "online" | "offline";
   type SettingsSection = "overview" | "llm" | "whisper" | "language" | "anki" | "shortcuts";
   type TemplateCodeTab = "front" | "back" | "css";
-  let { requestedSection = $bindable("overview") }: { requestedSection?: SettingsSection } = $props();
+  let {
+    requestedSection = $bindable("overview"),
+    highlightItemId = $bindable(null),
+  }: {
+    requestedSection?: SettingsSection;
+    highlightItemId?: string | null;
+  } = $props();
 
   const DEFAULT_LLM_PROVIDER_KEY = "vesta-default-llm-provider";
   const DEFAULT_LLM_MODEL_KEY = "vesta-default-llm-model";
@@ -1459,6 +1465,18 @@
   let progressMessage = $state("");
   let progressStage = $state("");
   let defaultWhisperModel = $state("base");
+  let highlightedModelId = $state<string | null>(null);
+
+  $effect(() => {
+    if (highlightItemId) {
+      highlightedModelId = highlightItemId;
+      const timer = setTimeout(() => {
+        highlightedModelId = null;
+        highlightItemId = null;
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  });
 
   function formatWhisperModelName(modelId: string): string {
     const matchedModel = whisperModels.find((model) => model.id === modelId);
@@ -2374,7 +2392,6 @@
         </div>
         <div>
           <h3 class="text-sm font-bold text-white">{s("addProviderTitle")}</h3>
-          <p class="text-xs text-gray-500">{s("addProviderDesc")}</p>
         </div>
       </div>
       <button
@@ -2399,7 +2416,6 @@
           </div>
           <div>
             <h3 class="text-sm font-bold text-white">{t("settings.savedConfigurations", { count: configuredApiKeyCount })}</h3>
-            <p class="text-xs text-gray-500">{t("settings.savedConfigurationsDesc") || ($currentLanguage === "it" ? "Provider di traduzione attivi." : "Active translation providers.")}</p>
           </div>
         </div>
         <span class="inline-flex items-center gap-2 text-xs px-3 py-1.5 rounded-full border {hasRemoteApiKey ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300' : 'bg-white/5 border-white/10 text-gray-400'} shrink-0 mt-1">
@@ -2428,7 +2444,6 @@
         </div>
         <div>
           <h3 class="text-sm font-bold text-white">{t("settings.defaultLlm")}</h3>
-          <p class="text-xs text-gray-500">{t("settings.defaultLlmDesc")}</p>
         </div>
       </div>
       <div class="text-right text-xs text-gray-500">
@@ -2590,10 +2605,9 @@
             </svg>
           </div>
           <div>
-            <h3 class="text-sm font-bold text-white uppercase tracking-wide">
+            <h3 class="text-sm font-bold text-white tracking-wide">
               {t("settings.apiKeys")}
             </h3>
-            <p class="text-xs text-gray-500">{t("settings.apiKeysDesc") || ($currentLanguage === "it" ? "Le credenziali registrate per la traduzione." : "Configured credentials for translation.")}</p>
           </div>
         </div>
 
@@ -2880,29 +2894,7 @@
       </div>
       <div class="flex-1">
         <h3 class="text-sm font-bold text-white">{t("transcribe.whisperModel")}</h3>
-        <p class="text-xs text-gray-500">{t("transcribe.whisperModelDesc") || "Download models for local transcription and auto-sync. Double click to download or set default. Right click to uninstall."}</p>
       </div>
-      {#if isDownloading && downloadingModelId}
-        <button
-          type="button"
-          onclick={cancelModelDownload}
-          disabled={isCancellingDownload}
-          class="px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors inline-flex items-center gap-2
-            {isCancellingDownload
-            ? 'bg-amber-500/10 border-amber-500/30 text-amber-300 cursor-wait'
-            : 'bg-red-500/10 border-red-500/30 text-red-300 hover:bg-red-500/20 hover:border-red-500/50'}"
-          title={t("settings.stopModelDownload") || "Stop download"}
-        >
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 6h12v12H6z" />
-          </svg>
-          {#if isCancellingDownload}
-            {t("settings.stoppingModelDownload") || "Stopping..."}
-          {:else}
-            {t("settings.stopModelDownload") || "Stop download"}
-          {/if}
-        </button>
-      {/if}
     </div>
 
     <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
@@ -2947,26 +2939,42 @@
             ? 'bg-cyan-500/20 border-cyan-500/50 text-white shadow-[0_0_15px_rgba(6,182,212,0.15)]'
             : model.downloaded
               ? 'bg-white/10 hover:bg-white/20 border-white/20 text-gray-200'
-              : 'bg-white/5 hover:bg-white/10 border-transparent text-gray-500 opacity-60'}"
+              : 'bg-white/5 hover:bg-white/10 border-transparent text-gray-500 opacity-60'}
+            {highlightedModelId === model.id ? 'model-highlight-flash' : ''}"
           title={model.downloaded ? t("settings.whisperDownloadedHint") : t("settings.whisperNotDownloadedHint")}
         >
-          <div class="absolute top-1 right-1 pointer-events-none">
+          <div class="absolute top-1.5 right-1.5 pointer-events-none">
             {#if !model.downloaded}
-              <button
-                onclick={(e) => { e.stopPropagation(); void downloadModel(model.id, true); }}
-                class="text-amber-400 hover:text-cyan-400 transition-colors animate-pulse pointer-events-auto"
-                title={t("transcribe.clickToDownload")}
-                disabled={isDownloading}
-              >
-                {#if downloadingModelId === model.id}
-                  <svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+              {#if downloadingModelId === model.id}
+                <button
+                  onclick={(e) => { e.stopPropagation(); void cancelModelDownload(); }}
+                  disabled={isCancellingDownload}
+                  class="text-red-400 hover:text-red-300 transition-colors pointer-events-auto p-1 bg-red-500/10 hover:bg-red-500/20 rounded-md border border-red-500/30 flex items-center justify-center cursor-pointer"
+                  title={t("settings.stopModelDownload") || "Ferma download"}
+                >
+                  {#if isCancellingDownload}
+                    <svg class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
+                      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                    </svg>
+                  {:else}
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 6h12v12H6z" />
+                    </svg>
+                  {/if}
+                </button>
+              {:else}
+                <button
+                  onclick={(e) => { e.stopPropagation(); void downloadModel(model.id, true); }}
+                  class="text-amber-400 hover:text-cyan-400 transition-colors animate-pulse pointer-events-auto p-1 hover:bg-white/5 rounded-md"
+                  title={t("transcribe.clickToDownload")}
+                  disabled={isDownloading}
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
                   </svg>
-                {:else}
-                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-                {/if}
-              </button>
+                </button>
+              {/if}
             {/if}
           </div>
           <div class="mx-auto mb-2 flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 bg-gradient-to-br {whisperModelAccent(model.id)} shadow-sm">
@@ -3086,7 +3094,6 @@
             </div>
             <div>
               <h3 class="text-sm font-bold text-white">{s("fieldPanelKicker")}</h3>
-              <p class="text-xs text-gray-500">{t("settings.ankiPresetDesc") || ($currentLanguage === "it" ? "Corrispondenze dei campi per l'esportazione." : "Configure mapping fields for export.")}</p>
             </div>
           </div>
           <div class="flex flex-wrap gap-2">
@@ -3195,7 +3202,6 @@
             </div>
             <div>
               <h3 class="text-sm font-bold text-white">{s("cardPanelKicker")}</h3>
-              <p class="text-xs text-gray-500">{t("settings.cardPanelDescShort") || ($currentLanguage === "it" ? "Modifica il codice HTML e CSS." : "Edit card HTML and CSS code.")}</p>
             </div>
           </div>
           <div class="flex flex-wrap gap-2">
@@ -3811,5 +3817,22 @@
 
   :global(.language-select .searchable-select-option span:first-child) {
     font-size: 1.35rem;
+  }
+
+  @keyframes settings-model-highlight-flash {
+    0%, 100% {
+      border-color: rgba(255, 255, 255, 0.1);
+      box-shadow: none;
+    }
+    25%, 75% {
+      border-color: #f59e0b;
+      box-shadow: 0 0 15px rgba(245, 158, 11, 0.6);
+      background-color: rgba(245, 158, 11, 0.1);
+      opacity: 1;
+    }
+  }
+
+  .model-highlight-flash {
+    animation: settings-model-highlight-flash 1s ease-in-out 2;
   }
 </style>

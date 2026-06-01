@@ -277,3 +277,12 @@ Every client-side app (Tauri/Svelte) must include a standardized, visually premi
 **Design & Shared Practice Guidelines**:
 *   **Offline/Low-Res Asset Embedding Rule**: Standardize that profile avatars or background images in attribution components must be cached and stored directly in the repository's assets directory rather than fetched dynamically from external servers.
 *   **Lexical HTML & Svelte Block Scoping Boundary**: To prevent Svelte template compilation and parsing bugs, developers must ensure all opened `div` and Svelte block tags (`{#if}`, `{#each}`, etc.) are strictly closed within their correct lexical scope.
+
+---
+
+## 9. Shared Crate / Library Architecture (Optional Heavy Features)
+
+For heavy, optional, or reusable features (such as audio transcription with Whisper, media downloading with yt-dlp, or complex translation engines), do not duplicate logic across different application workspaces. Instead:
+*   **Modular Shared Crates**: Extract the common functionality into a highly-cohesive, decoupled, and standalone Rust library crate (e.g. `whisper-common` placed in `lib/whisper-common` of each repository, or as a relative path dependency).
+*   **Decoupled & Portable APIs**: Expose generic interfaces using standard callbacks (e.g., progress percentages or stages) and optional cancellation tokens (`CancellationToken`) instead of coupling with Tauri-specific state or handlers.
+*   **Optional & Configurable**: Heavy dependencies (like `whisper-rs`, `reqwest/stream`, `hound`) must be encapsulated inside these crates, keeping the main application workspaces clean, light, and easy to build if these features are not utilized or are optional.

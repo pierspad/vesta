@@ -17,7 +17,7 @@
   import { transcribeSections } from "./info";
 
   let { onGoToSettings, active = false } = $props<{
-    onGoToSettings?: (section?: "overview" | "llm" | "whisper" | "language" | "anki") => void;
+    onGoToSettings?: (section?: "overview" | "llm" | "whisper" | "language" | "anki" | "shortcuts", highlightItemId?: string) => void;
     active?: boolean;
   }>();
 
@@ -592,7 +592,6 @@
   const TRANSCRIBE_PANEL_IDS = [
     "options",
     "files",
-    "actions",
     "progress",
     "logs",
   ] as const;
@@ -603,7 +602,7 @@
 <div
   role="region"
   aria-label="Transcribe content"
-  class="h-full flex flex-col p-6 overflow-y-auto bg-gradient-to-br from-gray-900 via-gray-900 to-gray-950 relative"
+  class="h-full flex flex-col bg-gradient-to-br from-gray-900 via-gray-900 to-gray-950 relative overflow-hidden"
   ondragover={(e) => {
     if (!active) return;
     e.preventDefault();
@@ -700,63 +699,9 @@
     </div>
   {/if}
 
-  {#if isTranscribing || result || error}
-    <div class="flex items-center justify-end mb-4 shrink-0">
-      <button
-        onclick={resetTranscription}
-        disabled={isTranscribing}
-        class="py-1.5 px-4 rounded-lg border border-amber-500/30 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 transition-colors text-sm font-medium disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-2"
-        title={t("transcribe.newTranscriptionDesc")}
-      >
-        <svg
-          class="w-4 h-4"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-          ><path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-          /></svg
-        >
-        {t("transcribe.newTranscription")}
-      </button>
-    </div>
-  {/if}
 
-  {#if !isModelDownloaded}
-    <div class="mb-4 glass-card p-4 border border-amber-500/30 bg-amber-500/10 shrink-0">
-      <div class="flex flex-col lg:flex-row lg:items-center gap-4">
-        <div class="flex items-start gap-3 flex-1">
-          <div class="w-10 h-10 rounded-lg bg-amber-500/20 text-amber-300 flex items-center justify-center shrink-0">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M5.07 19h13.86c1.54 0 2.5-1.67 1.73-3L13.73 4c-.77-1.33-2.69-1.33-3.46 0L3.34 16c-.77 1.33.19 3 1.73 3z" />
-            </svg>
-          </div>
-          <div>
-            <p class="text-sm font-semibold text-amber-100">Whisper non è ancora pronto</p>
-            <p class="text-xs text-amber-100/70 mt-1">
-              {hasAnyWhisperModel
-                ? `Il modello selezionato (${selectedModel}) non è scaricato. Scegli un modello già disponibile o scaricalo nella macro-area Whisper.`
-                : "Per trascrivere audio o video devi prima scaricare almeno un modello Whisper nella macro-area dedicata."}
-            </p>
-          </div>
-        </div>
-        <button
-          type="button"
-          onclick={() => onGoToSettings?.("whisper")}
-          class="px-4 py-2 rounded-lg bg-amber-500/20 border border-amber-500/40 text-amber-100 hover:bg-amber-500/30 transition-colors text-sm font-semibold flex items-center justify-center gap-2"
-          title="Apri Settings nella macro-area Whisper"
-        >
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18a6 6 0 006-6V7a6 6 0 10-12 0v5a6 6 0 006 6zm0 0v3m-4 0h8" />
-          </svg>
-          Apri Whisper
-        </button>
-      </div>
-    </div>
-  {/if}
+
+
 
   {#snippet panelContent(panelId: TranscribePanelId)}
     {#if panelId === "options"}
@@ -956,7 +901,7 @@
       </div>
     {:else if panelId === "files"}
       <div class="glass-card p-5">
-        <h3 class="text-lg font-semibold mb-4 flex items-center gap-2 text-indigo-400">
+        <h3 class="text-lg font-semibold mb-4 flex items-center gap-2 panel-title-files-output">
           <svg
             class="w-5 h-5"
             fill="none"
@@ -970,7 +915,7 @@
               d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
             />
           </svg>
-          {t("transcribe.files")}
+          {t("common.filesAndOutput")}
           <InfoButton onclick={() => (helpSection = "files")} />
         </h3>
         <div class="space-y-3">
@@ -981,8 +926,6 @@
             browseTitle={t("transcribe.selectFile")}
             onexpand={() => (expandedPathField = "input")}
             onbrowse={selectInputFile}
-            browseButtonClass="btn-primary py-2 px-3"
-            browseIconPath="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"
           />
 
           <PathPickerField
@@ -992,8 +935,6 @@
             browseTitle={t("transcribe.selectDestination")}
             onexpand={() => (expandedPathField = "output")}
             onbrowse={selectOutputFile}
-            browseButtonClass="btn-secondary py-2 px-3"
-            browseIconPath="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"
           />
           {#if inputPath}
             <div
@@ -1018,78 +959,7 @@
           {/if}
         </div>
       </div>
-    {:else if panelId === "actions"}
-      <div class="space-y-3">
-        <div class="flex gap-3">
-          {#if isTranscribing}
-            <button
-              onclick={cancelTranscription}
-              class="btn-danger flex-1 py-4 text-lg"
-            >
-              <svg
-                class="w-5 h-5 inline mr-2"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M6 18L18 6M6 6l12 12"
-                />
-              </svg>
-              {t("transcribe.cancel")}
-            </button>
-          {:else}
-            <button
-              onclick={startTranscription}
-              disabled={!inputPath || !outputPath || !isModelDownloaded}
-              title={transcribeBlockedReason || t("transcribe.startTranscription")}
-              class="btn-success flex-1 py-4 text-lg disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <svg
-                class="w-5 h-5 inline mr-2"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"
-                />
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
-              </svg>
-              {t("transcribe.startTranscription")}
-            </button>
-          {/if}
-        </div>
-        {#if !isModelDownloaded}
-          <!-- svelte-ignore a11y_click_events_have_key_events -->
-          <!-- svelte-ignore a11y_no_static_element_interactions -->
-          <div
-            class="p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg cursor-pointer hover:bg-amber-500/20 transition-colors"
-            onclick={() => onGoToSettings?.("whisper")}
-          >
-            <div class="flex items-start gap-2">
-              <span class="text-amber-400">⚠️</span>
-              <div class="flex-1 flex flex-col items-center text-center">
-                <p class="text-xs text-amber-200">
-                  {t("transcribe.modelDownloadNote") || "It is necessary to download and set a Whisper model from Settings. Click here to go to Settings."}
-                </p>
-                <p class="text-[11px] text-amber-100/60 mt-1">Apre direttamente Settings > Whisper.</p>
-              </div>
-            </div>
-          </div>
-        {/if}
-      </div>
+
     {:else if panelId === "progress"}
       <div class="space-y-3">
         {#if isTranscribing || progress > 0}
@@ -1205,17 +1075,158 @@
     {/if}
   {/snippet}
 
-  <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
-    <div class="space-y-3 min-h-[100px]">
-      {@render panelContent("files")}
-    </div>
+  {#snippet mediaDetailsCard()}
+    {@const activeModelObj = whisperModels.find((m) => m.id === selectedModel)}
+    <div class="glass-card p-5 space-y-4">
+      <h3 class="text-sm font-bold text-indigo-400 tracking-wide flex items-center gap-2">
+        <svg class="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        Modello Whisper
+      </h3>
 
-    <div class="space-y-3 min-h-[100px]">
-      {@render panelContent("options")}
-      {@render panelContent("actions")}
-      {@render panelContent("progress")}
-      {@render panelContent("logs")}
+      <div class="space-y-4 text-xs">
+        <!-- Whisper Model Selection & Info -->
+        <div class="grid grid-cols-1 md:grid-cols-[1.2fr_0.8fr] gap-4 items-center bg-white/5 border border-white/10 rounded-xl p-3.5">
+          <div class="space-y-1.5">
+            <SearchableSelect
+              noResultsText={t("common.noResults")}
+              options={whisperModels.map((m) => ({
+                value: m.id,
+                label: `${t(`transcribe.model${m.id.charAt(0).toUpperCase()}${m.id.slice(1)}`) || m.name} (${m.size})${m.downloaded ? ' ✓' : ''}`,
+              }))}
+              value={selectedModel}
+              onchange={(v) => {
+                selectedModel = v;
+                localStorage.setItem("srt-default-whisper-model", v);
+                window.dispatchEvent(new CustomEvent("whisper-model-updated", { detail: v }));
+              }}
+              placeholder="Seleziona modello Whisper"
+            />
+          </div>
+          <div class="grid grid-cols-2 gap-2 text-center mt-2 md:mt-0">
+            <button
+              type="button"
+              onclick={() => {
+                if (!isModelDownloaded) {
+                  onGoToSettings?.("whisper", selectedModel);
+                }
+              }}
+              disabled={isModelDownloaded}
+              class="bg-black/35 rounded-lg p-2 flex flex-col justify-center items-center text-center {!isModelDownloaded ? 'hover:bg-white/10 hover:ring-1 hover:ring-amber-500/50 cursor-pointer transition-all' : 'cursor-default'}"
+            >
+              <span class="text-gray-400 text-[10px] mb-0.5">Stato</span>
+              <span class="font-bold truncate {isModelDownloaded ? 'text-emerald-400' : 'text-amber-400'}" title={isModelDownloaded ? 'Scaricato' : 'Clicca per scaricare in Impostazioni'}>
+                {isModelDownloaded ? 'Scaricato' : 'Manca'}
+              </span>
+            </button>
+            <div class="bg-black/35 rounded-lg p-2 flex flex-col justify-center">
+              <span class="text-gray-400 text-[10px] mb-0.5">Velocità</span>
+              <span class="font-bold text-cyan-300 capitalize truncate" title={activeModelObj?.speed || 'N/D'}>
+                {activeModelObj?.speed || 'N/D'}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
+  {/snippet}
+
+  <div class="flex-1 overflow-y-auto p-6 min-h-0">
+    <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+      <div class="space-y-3 min-h-[100px]">
+        {@render panelContent("files")}
+        {@render mediaDetailsCard()}
+      </div>
+
+      <div class="space-y-3 min-h-[100px]">
+        {@render panelContent("options")}
+        {@render panelContent("progress")}
+        <!-- {@render panelContent("logs")} -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Fixed Bottom Band with Action Buttons -->
+  <div class="h-[92px] border-t border-white/10 bg-gray-950 flex items-center justify-center gap-4 px-6 shrink-0 z-40">
+    {#if isTranscribing}
+      <button
+        onclick={cancelTranscription}
+        class="px-5 py-2.5 bg-red-600 hover:bg-red-500 text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-red-900/30 flex items-center gap-2 hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
+      >
+        <svg
+          class="w-4 h-4"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M6 18L18 6M6 6l12 12"
+          />
+        </svg>
+        {t("transcribe.cancel")}
+      </button>
+    {:else if result || error}
+      <div class="relative group">
+        <button
+          onclick={resetTranscription}
+          class="px-5 py-2.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 rounded-xl font-bold text-sm transition-all border border-amber-500/30 flex items-center gap-2 hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
+        >
+          <svg
+            class="w-4 h-4"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+            />
+          </svg>
+          {t("transcribe.newTranscription")}
+        </button>
+        <div class="pointer-events-none absolute bottom-full left-1/2 z-50 mb-3 -translate-x-1/2 rounded-xl border border-amber-500/30 bg-gray-950/95 p-3 text-center text-xs text-amber-300 shadow-2xl shadow-black/40 ring-1 ring-white/10 transition-all duration-150 opacity-0 group-hover:opacity-100 group-hover:translate-y-0 translate-y-1 whitespace-nowrap">
+          {t("transcribe.newTranscriptionDesc")}
+        </div>
+      </div>
+    {:else}
+      <div class="relative group">
+        <button
+          onclick={startTranscription}
+          disabled={!inputPath || !outputPath || !isModelDownloaded}
+          class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:bg-emerald-600/55 text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-emerald-900/30 flex items-center gap-2 enabled:hover:scale-[1.02] enabled:active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-55 cursor-pointer"
+        >
+          <svg
+            class="w-4 h-4"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"
+            />
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+            />
+          </svg>
+          {t("transcribe.startTranscription")}
+        </button>
+        <div class="pointer-events-none absolute bottom-full left-1/2 z-50 mb-3 -translate-x-1/2 rounded-xl border border-teal-500/30 bg-gray-950/95 p-3 text-center text-xs text-teal-300 shadow-2xl shadow-black/40 ring-1 ring-white/10 transition-all duration-150 opacity-0 group-hover:opacity-100 group-hover:translate-y-0 translate-y-1 whitespace-nowrap">
+          {transcribeBlockedReason || t("transcribe.startTranscription")}
+        </div>
+      </div>
+    {/if}
   </div>
 
   <InfoModal 

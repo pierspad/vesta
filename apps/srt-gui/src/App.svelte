@@ -17,25 +17,37 @@
   type AppTab = "translate" | "sync" | "transcribe" | "align" | "flashcards" | "settings";
 
   let activeTab = $state<AppTab>("flashcards");
-  let sidebarCollapsed = $state(false);
+  let sidebarCollapsed = $state(
+    typeof localStorage !== 'undefined'
+      ? localStorage.getItem("vesta-sidebar-collapsed") === "true"
+      : false
+  );
   let requestedSettingsSection = $state<"overview" | "llm" | "whisper" | "language" | "anki" | "shortcuts">("overview");
+  let highlightItemId = $state<string | null>(null);
 
-  const MIN_WIDTH = 760;
-  const MIN_HEIGHT = 620;
+  const MIN_WIDTH = 460;
+  const MIN_HEIGHT = 520;
   // Hysteresis: collapse early while shrinking, expand only when there's plenty
   // of space while growing. This keeps columns as the first thing to recover.
   const SIDEBAR_COLLAPSE_FIRST_WIDTH = 1560;
   // Re-expand only after content has had time to fully recover width first.
-  // Delta is slightly larger than the sidebar width gain (w-20 -> w-72 = 208px)
+  // Delta is slightly larger than the sidebar width gain (w-20 -> w-[238px] = 158px)
   // to preserve hysteresis and avoid flicker around the switching point.
-  const SIDEBAR_EXPAND_LAST_WIDTH = SIDEBAR_COLLAPSE_FIRST_WIDTH + 240;
+  const SIDEBAR_EXPAND_LAST_WIDTH = SIDEBAR_COLLAPSE_FIRST_WIDTH + 190;
 
   function applyResponsiveSidebar(logicalWidth: number) {
-    if (logicalWidth <= SIDEBAR_COLLAPSE_FIRST_WIDTH) {
+    const savedState = typeof localStorage !== 'undefined' ? localStorage.getItem("vesta-sidebar-collapsed") : null;
+    
+    // If the user explicitly collapsed it (savedState === "true"), it should stay collapsed.
+    // Otherwise, we only auto-collapse it if the screen gets critically narrow (<= 1024px).
+    const collapseThreshold = (savedState === "true") ? 0 : 1024;
+    const expandThreshold = (savedState === "true") ? 0 : 1024 + 190;
+
+    if (logicalWidth <= collapseThreshold) {
       sidebarCollapsed = true;
       return;
     }
-    if (logicalWidth >= SIDEBAR_EXPAND_LAST_WIDTH) {
+    if (logicalWidth >= expandThreshold) {
       sidebarCollapsed = false;
     }
   }
@@ -72,6 +84,12 @@
 
     window.addEventListener("keydown", handleKeyDown);
 
+    const handleWindowResize = () => {
+      if (window.innerWidth < MIN_WIDTH) return;
+      applyResponsiveSidebar(window.innerWidth);
+    };
+    window.addEventListener("resize", handleWindowResize);
+
     (async () => {
       const scaleFactor = await appWindow.scaleFactor();
       const physMinW = Math.round(MIN_WIDTH * scaleFactor);
@@ -83,18 +101,23 @@
 
       // Fallback: enforce min size on resize events for WMs that ignore setMinSize
       unlisten = await appWindow.onResized(async ({ payload: size }) => {
+        if (size.width === 0 || size.height === 0) return;
         if (size.width < physMinW || size.height < physMinH) {
           const w = Math.max(size.width, physMinW);
           const h = Math.max(size.height, physMinH);
           await appWindow.setSize(new PhysicalSize(w, h)).catch(() => {});
         }
-        applyResponsiveSidebar(size.width / scaleFactor);
+        const logicalWidth = size.width / scaleFactor;
+        if (logicalWidth >= MIN_WIDTH) {
+          applyResponsiveSidebar(logicalWidth);
+        }
       });
     })();
 
     return () => {
       unlisten?.();
       window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("resize", handleWindowResize);
     };
   });
 
@@ -107,13 +130,17 @@
     activeTab = tab;
   }
 
-  function goToSettings(section: typeof requestedSettingsSection = "overview") {
+  function goToSettings(section: typeof requestedSettingsSection = "overview", highlightId?: string) {
     requestedSettingsSection = section;
+    highlightItemId = highlightId || null;
     activeTab = "settings";
   }
 
   function toggleSidebar() {
     sidebarCollapsed = !sidebarCollapsed;
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem("vesta-sidebar-collapsed", String(sidebarCollapsed));
+    }
   }
 
   // Make available globally for TranslateTab link
@@ -124,7 +151,7 @@
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <main
-  class="flex h-screen min-w-[760px] min-h-[620px] bg-gradient-to-br from-gray-900 via-gray-950 to-gray-900 text-gray-100"
+  class="flex h-screen min-w-[460px] min-h-[520px] bg-gradient-to-br from-gray-900 via-gray-950 to-gray-900 text-gray-100"
   ondragover={(e) => { e.preventDefault(); if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy'; }}
   ondrop={(e) => e.preventDefault()}
 >
@@ -148,7 +175,7 @@
       <FlashcardsTab active={activeTab === "flashcards"} />
     </div>
     <div class="absolute inset-0" class:hidden={activeTab !== "settings"}>
-      <SettingsTab bind:requestedSection={requestedSettingsSection} />
+      <SettingsTab bind:requestedSection={requestedSettingsSection} bind:highlightItemId={highlightItemId} />
     </div>
   </div>
 

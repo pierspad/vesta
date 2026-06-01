@@ -590,9 +590,9 @@
                     {/if}
                   </div>
                 {:else if isListeningForSearchKeys}
-                  <span class="text-xs text-indigo-400 font-medium animate-pulse">{labels.pressKeys}</span>
+                  <span class="text-sm text-indigo-400 font-medium animate-pulse">{labels.pressKeys}</span>
                 {:else}
-                  <span class="text-gray-500 text-xs">{labels.keysPlaceholder}</span>
+                  <span class="text-gray-500 text-sm">{labels.keysPlaceholder}</span>
                 {/if}
               </div>
               {#if searchKeys.length > 0 || isListeningForSearchKeys}

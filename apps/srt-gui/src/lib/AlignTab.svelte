@@ -190,6 +190,29 @@
     }
   }
 
+  function handleTextareaWheel(e: WheelEvent) {
+    const textarea = e.currentTarget as HTMLTextAreaElement;
+    const isScrollable = textarea.scrollHeight > textarea.clientHeight;
+    
+    if (!isScrollable) {
+      const scrollContainer = textarea.closest('.overflow-y-auto');
+      if (scrollContainer) {
+        scrollContainer.scrollTop += e.deltaY;
+        e.preventDefault();
+      }
+    } else {
+      const isAtTop = textarea.scrollTop === 0 && e.deltaY < 0;
+      const isAtBottom = Math.abs(textarea.scrollHeight - textarea.clientHeight - textarea.scrollTop) < 1 && e.deltaY > 0;
+      if (isAtTop || isAtBottom) {
+        const scrollContainer = textarea.closest('.overflow-y-auto');
+        if (scrollContainer) {
+          scrollContainer.scrollTop += e.deltaY;
+          e.preventDefault();
+        }
+      }
+    }
+  }
+
 
 
   let targetFlag = $derived(targetPath ? getFlagForPath(targetPath) : "");
@@ -536,7 +559,7 @@
 <div 
   role="region"
   aria-label="Revision content"
-  class="h-full flex flex-col p-6 overflow-y-auto relative text-gray-200 bg-gradient-to-br from-gray-900 via-gray-900 to-gray-950"
+  class="h-full flex flex-col text-gray-200 bg-gradient-to-br from-gray-900 via-gray-900 to-gray-950 relative overflow-hidden"
   onkeydown={handleKeydown}
   ondragover={(e) => {
     if (!active) return;
@@ -581,242 +604,266 @@
       </div>
     </div>
   {/if}
-  <div class="min-h-full flex flex-col gap-4">
-  <div class="glass-card p-5 shrink-0">
-    <div class="mb-6 flex items-start justify-between shrink-0 gap-3">
-      <div>
-        <h3 class="text-lg font-semibold text-teal-300 flex items-center gap-2">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7"/>
-          </svg>
-          {t("nav.revision")}
-        </h3>
-      </div>
-      <InfoButton
-        class="text-gray-500 hover:text-teal-300 transition-colors p-1"
-        title={t("align.helpTitle")}
-        onclick={() => (helpSection = "help")}
-      />
-    </div>
-
-
-
-    <!-- File Selection Area -->
-    <div class="grid grid-cols-1 md:grid-cols-[1fr_auto_1fr] items-center gap-4 shrink-0 relative min-w-0">
-    
-    <!-- Target File -->
-    <div class="flex flex-col gap-2 relative z-10 min-w-0">
-      <div class="text-sm font-semibold text-gray-300 flex items-center gap-2">
-        {#if targetFlag}<span class="text-lg">{targetFlag}</span>{/if}
-        {t("align.baseSrt")}
-      </div>
-      <div class="flex gap-2 min-w-0">
-        <button onclick={selectTarget} class="btn-primary whitespace-nowrap px-4 py-2 shrink-0 flex items-center gap-2 shadow-lg shadow-teal-500/15">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7a2 2 0 012-2h5l2 2h7a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" /></svg>
-          {t("align.openSrt")}
-        </button>
-        <button 
-          type="button"
-          onclick={() => expandedPathField = "target"}
-          class="input-modern flex-1 text-sm text-left cursor-pointer hover:bg-white/10 transition-colors truncate min-w-0"
-          style="direction: rtl; text-align: left;"
-          title={targetPath || t("align.dragDropSrt")}
-        >
-          <span
-            class={targetPath ? "text-white" : "text-gray-500"}
-            style="unicode-bidi: plaintext;"
-          >
-            {targetPath || t("align.dragDropSrt")}
-          </span>
-        </button>
-      </div>
-      {#if targetSubs.length > 0}
-        <div class="text-xs text-gray-400">{t("align.subtitlesLoaded", { count: targetSubs.length })}</div>
-      {/if}
-    </div>
-
-    <!-- Swap Button -->
-    <div class="flex items-center justify-center relative z-20 md:px-2 shrink-0 mt-4 md:mt-0">
-      <button 
-        onclick={swapFiles}
-        disabled={!targetPath || !sourcePath}
-        class="p-2.5 rounded-full border transition-colors group {(!targetPath || !sourcePath) ? 'bg-gray-900/40 text-gray-600 border-gray-800 cursor-not-allowed' : 'bg-gray-900/70 hover:bg-teal-500/20 text-gray-400 hover:text-teal-300 border-gray-700 hover:border-teal-500/50'}"
-        title={t("align.swapFiles")}
-      >
-        <svg class="w-6 h-6 {!targetPath || !sourcePath ? '' : 'group-hover:rotate-180'} transition-transform duration-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-        </svg>
-      </button>
-    </div>
-
-    <!-- Source File -->
-    <div class="flex flex-col gap-2 relative z-10 min-w-0">
-      <div class="text-sm font-semibold text-gray-300 flex items-center gap-2">
-        {#if sourceFlag}<span class="text-lg">{sourceFlag}</span>{/if}
-        {t("align.translationSrt")}
-      </div>
-      <div class="flex gap-2 min-w-0">
-        <button 
-          onclick={selectSource} 
-          disabled={!targetPath}
-          class="whitespace-nowrap px-4 py-2 shrink-0 flex items-center gap-2 rounded-lg border transition-all font-semibold {!targetPath ? 'bg-white/5 text-gray-600 border-transparent cursor-not-allowed' : 'bg-indigo-500/20 text-indigo-200 border-indigo-500/30 hover:bg-indigo-500/30 hover:border-indigo-400/50 shadow-lg shadow-indigo-500/10'}"
-        >
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7a2 2 0 012-2h5l2 2h7a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" /></svg>
-          {t("align.openSrt")}
-        </button>
-        <button 
-          type="button"
-          disabled={!targetPath}
-          onclick={() => targetPath && (expandedPathField = "source")}
-          class="input-modern flex-1 text-sm text-left truncate min-w-0 {!targetPath ? 'opacity-50 cursor-not-allowed bg-transparent' : 'cursor-pointer hover:bg-white/10 transition-colors'}"
-          style="direction: rtl; text-align: left;"
-          title={sourcePath || t("align.dragDropSrt")}
-        >
-          <span
-            class={sourcePath ? "text-white" : "text-gray-500"}
-            style="unicode-bidi: plaintext;"
-          >
-            {sourcePath || t("align.dragDropSrt")}
-          </span>
-        </button>
-      </div>
-      {#if sourceSubs.length > 0}
-        <div class="text-xs text-gray-400">{t("align.subtitlesLoaded", { count: sourceSubs.length })}</div>
-      {/if}
-    </div>
-    </div>
-
-  </div>
-
-    <!-- Editor Area -->
-    <div class="flex-1 flex flex-col min-w-0 glass-card p-5 overflow-hidden">
-      {#if targetSubs.length === 0 && sourceSubs.length === 0}
-        <div class="flex-1 flex flex-col items-center justify-center text-gray-500 pb-10">
-        <svg class="w-20 h-20 mb-6 opacity-20 text-teal-500 bg-teal-500/5 p-4 rounded-full" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-        </svg>
-        <p class="text-lg font-medium text-gray-400">{t("align.loadPrompt")}</p>
-        <p class="text-sm mt-2 text-gray-600">{t("align.dragDropAnywhere")}</p>
-        </div>
-      {:else}
-        <!-- Pagination Top -->
-        <div class="flex flex-col xl:flex-row xl:items-center xl:justify-between mb-4 gap-3 shrink-0">
-        <div class="flex items-center gap-2 flex-wrap">
-          <div class="min-w-[10.5rem] text-sm text-gray-400 font-medium bg-gray-800/80 px-3 py-1.5 rounded-md tabular-nums">
-             {t("align.page")} <span class="inline-block min-w-[4ch] text-center text-white mx-1">{currentPage + 1}</span> {t("align.of")} <span class="inline-block min-w-[4ch] text-center text-white mx-1">{totalPages || 1}</span>
+  <div class="flex-1 overflow-y-auto p-6 min-h-0">
+    <div class="min-h-full flex flex-col gap-4">
+      <div class="glass-card p-5 shrink-0">
+        <div class="mb-6 flex items-start justify-between shrink-0 gap-3">
+          <div>
+            <h3 class="text-lg font-semibold text-teal-300 flex items-center gap-2">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7"/>
+              </svg>
+              {t("nav.revision")}
+            </h3>
           </div>
-          <div class="w-px h-6 bg-gray-700 mx-1"></div>
-          <div class="flex items-center gap-1 bg-gray-800/50 px-1 py-1 rounded-md border border-gray-700">
-            {#each ITEMS_PER_PAGE_OPTIONS as option, optionIndex}
-              <button
-                onclick={() => setItemsPerPageIndex(optionIndex)}
-                class="min-w-8 rounded px-2 py-0.5 text-xs font-medium transition-colors {itemsPerPage === option
-                  ? 'bg-teal-500/20 text-teal-200'
-                  : 'text-gray-400 hover:bg-white/10 hover:text-gray-200'}"
-                title={t("align.subsPerPage", { count: option })}
+          <InfoButton
+            class="text-gray-500 hover:text-teal-300 transition-colors p-1"
+            title={t("align.helpTitle")}
+            onclick={() => (helpSection = "help")}
+          />
+        </div>
+
+        <!-- File Selection Area -->
+        <div class="grid grid-cols-1 md:grid-cols-[1fr_auto_1fr] items-center gap-4 shrink-0 relative min-w-0">
+        
+          <!-- Target File -->
+          <div class="flex flex-col gap-2 relative z-10 min-w-0">
+            <div class="text-sm font-semibold text-gray-300 flex items-center gap-2">
+              {#if targetFlag}<span class="text-lg">{targetFlag}</span>{/if}
+              {t("align.baseSrt")}
+            </div>
+            <div class="flex gap-2 min-w-0">
+              <button 
+                type="button"
+                onclick={() => expandedPathField = "target"}
+                class="input-modern flex-1 text-sm text-left cursor-pointer hover:bg-white/10 transition-colors truncate min-w-0"
+                style="direction: rtl; text-align: left;"
+                title={targetPath || t("align.dragDropSrt")}
               >
-                {option}
+                <span
+                  class={targetPath ? "text-white" : "text-gray-500"}
+                  style="unicode-bidi: plaintext;"
+                >
+                  {targetPath || t("align.dragDropSrt")}
+                </span>
               </button>
+              <button
+                onclick={selectTarget}
+                class="btn-secondary py-2 px-3 flex items-center justify-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer"
+                title={t("align.openSrt")}
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                </svg>
+                <span class="text-xs font-semibold">{t("flashcards.browse")}</span>
+              </button>
+            </div>
+            {#if targetSubs.length > 0}
+              <div class="text-xs text-gray-400">{t("align.subtitlesLoaded", { count: targetSubs.length })}</div>
+            {/if}
+          </div>
+
+          <!-- Swap Button -->
+          <div class="flex items-center justify-center relative z-20 md:px-2 shrink-0 mt-4 md:mt-0">
+            <button 
+              onclick={swapFiles}
+              disabled={!targetPath || !sourcePath}
+              class="p-2.5 rounded-full border transition-colors group {(!targetPath || !sourcePath) ? 'bg-gray-900/40 text-gray-600 border-gray-800 cursor-not-allowed' : 'bg-gray-900/70 hover:bg-teal-500/20 text-gray-400 hover:text-teal-300 border-gray-700 hover:border-teal-500/50'}"
+              title={t("align.swapFiles")}
+            >
+              <svg class="w-6 h-6 {!targetPath || !sourcePath ? '' : 'group-hover:rotate-180'} transition-transform duration-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+              </svg>
+            </button>
+          </div>
+
+          <!-- Source File -->
+          <div class="flex flex-col gap-2 relative z-10 min-w-0">
+            <div class="text-sm font-semibold text-gray-300 flex items-center gap-2">
+              {#if sourceFlag}<span class="text-lg">{sourceFlag}</span>{/if}
+              {t("align.translationSrt")}
+            </div>
+            <div class="flex gap-2 min-w-0">
+              <button 
+                type="button"
+                disabled={!targetPath}
+                onclick={() => targetPath && (expandedPathField = "source")}
+                class="input-modern flex-1 text-sm text-left truncate min-w-0 {!targetPath ? 'opacity-50 cursor-not-allowed bg-transparent' : 'cursor-pointer hover:bg-white/10 transition-colors'}"
+                style="direction: rtl; text-align: left;"
+                title={sourcePath || t("align.dragDropSrt")}
+              >
+                <span
+                  class={sourcePath ? "text-white" : "text-gray-500"}
+                  style="unicode-bidi: plaintext;"
+                >
+                  {sourcePath || t("align.dragDropSrt")}
+                </span>
+              </button>
+              <button 
+                onclick={selectSource} 
+                disabled={!targetPath}
+                class="btn-secondary py-2 px-3 flex items-center justify-center gap-1.5 whitespace-nowrap shrink-0 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                title={t("align.openSrt")}
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                </svg>
+                <span class="text-xs font-semibold">{t("flashcards.browse")}</span>
+              </button>
+            </div>
+            {#if sourceSubs.length > 0}
+              <div class="text-xs text-gray-400">{t("align.subtitlesLoaded", { count: sourceSubs.length })}</div>
+            {/if}
+          </div>
+        </div>
+      </div>
+
+      <!-- Editor Area -->
+      <div class="flex-1 flex flex-col min-w-0 glass-card p-5 overflow-hidden">
+        {#if targetSubs.length === 0 && sourceSubs.length === 0}
+          <div class="flex-1 flex flex-col items-center justify-center text-gray-500 pb-10">
+            <svg class="w-20 h-20 mb-6 opacity-20 text-teal-500 bg-teal-500/5 p-4 rounded-full" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            <p class="text-lg font-medium text-gray-400">{t("align.loadPrompt")}</p>
+            <p class="text-sm mt-2 text-gray-600">{t("align.dragDropAnywhere")}</p>
+          </div>
+        {:else}
+          <!-- Pagination Top -->
+          <div class="flex flex-col xl:flex-row xl:items-center xl:justify-between mb-4 gap-3 shrink-0">
+            <div class="flex items-center gap-2 flex-wrap">
+              <div class="min-w-[10.5rem] text-sm text-gray-400 font-medium bg-gray-800/80 px-3 py-1.5 rounded-md tabular-nums">
+                {t("align.page")} <span class="inline-block min-w-[4ch] text-center text-white mx-1">{currentPage + 1}</span> {t("align.of")} <span class="inline-block min-w-[4ch] text-center text-white mx-1">{totalPages || 1}</span>
+              </div>
+              <div class="w-px h-6 bg-gray-700 mx-1"></div>
+              <div class="flex items-center gap-1 bg-gray-800/50 px-1 py-1 rounded-md border border-gray-700">
+                {#each ITEMS_PER_PAGE_OPTIONS as option, optionIndex}
+                  <button
+                    onclick={() => setItemsPerPageIndex(optionIndex)}
+                    class="min-w-8 rounded px-2 py-0.5 text-xs font-medium transition-colors {itemsPerPage === option
+                      ? 'bg-teal-500/20 text-teal-200'
+                      : 'text-gray-400 hover:bg-white/10 hover:text-gray-200'}"
+                    title={t("align.subsPerPage", { count: option })}
+                  >
+                    {option}
+                  </button>
+                {/each}
+              </div>
+            </div>
+            <div class="flex gap-1.5 flex-wrap xl:justify-end">
+              <button onclick={jumpStart} disabled={currentPage === 0} class="btn-secondary px-3 py-1.5 disabled:opacity-50 flex items-center" title={t("align.goToStart")}>
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7" /></svg>
+              </button>
+              <!-- Jump to Prev Empty (orange glow) -->
+              <button onclick={jumpToPrevEmpty} disabled={!hasEmptyBackward} class="btn-secondary px-3 py-1.5 disabled:opacity-30 flex items-center empty-jump-btn" title={t("align.prevEmpty")}>
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 19l-7-7 7-7M22 19l-7-7 7-7" /></svg>
+              </button>
+              <button onclick={prevPage} disabled={currentPage === 0} class="btn-secondary px-4 py-1.5 disabled:opacity-50 flex items-center">
+                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
+                {t("align.prev")}
+              </button>
+              <button onclick={nextPage} disabled={currentPage >= totalPages - 1} class="btn-secondary px-4 py-1.5 disabled:opacity-50 flex items-center">
+                {t("align.next")}
+                <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
+              </button>
+              <!-- Jump to Next Empty (orange glow) -->
+              <button onclick={jumpToNextEmpty} disabled={!hasEmptyForward} class="btn-secondary px-3 py-1.5 disabled:opacity-30 flex items-center empty-jump-btn" title={t("align.nextEmpty")}>
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M2 5l7 7-7 7" /></svg>
+              </button>
+              <button onclick={jumpEnd} disabled={currentPage >= totalPages - 1} class="btn-secondary px-3 py-1.5 disabled:opacity-50 flex items-center" title={t("align.goToEnd")}>
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7" /></svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- Content Grid -->
+          <div class="pr-3 pl-1 space-y-6 custom-scrollbar pb-4 min-w-0 overflow-y-auto flex-1">
+            {#each currentPageItems as item (item.index)}
+              {@const isMissingPair =
+                (!!item.source && (!item.source.text || item.source.text.trim() === '')) ||
+                (!!item.target && (!item.target.text || item.target.text.trim() === ''))}
+              <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 group min-w-0 rounded-xl p-1 transition-all {isMissingPair ? 'missing-pair-row' : ''}">
+                
+                <!-- Target Side (Readonly) -->
+                <div class="flex flex-col h-full rounded-lg border overflow-hidden relative bg-gray-900/40 min-w-0 {isMissingPair ? 'border-orange-500/50' : 'border-gray-800/70'}">
+                  {#if item.target}
+                    <!-- Header part -->
+                    <div class="flex justify-between items-center text-xs text-gray-500 bg-gray-900/80 px-3 py-2 border-b border-gray-800/50 font-mono tracking-wider truncate">
+                      <span class="bg-gray-800 flex-shrink-0 px-2 py-0.5 rounded text-gray-400 max-w-full">#{item.target.id}</span>
+                      <span class="flex items-center gap-1.5 md:gap-2 truncate ml-2">
+                        <span class="text-teal-400/50 truncate min-w-0">{item.target.start}</span>
+                        <svg class="w-3 h-3 mx-0.5 text-gray-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+                        <span class="text-emerald-400/50 truncate min-w-0">{item.target.end}</span>
+                      </span>
+                    </div>
+                    <!-- Content part -->
+                    <textarea 
+                      class="flex-1 w-full bg-transparent p-3 text-sm text-gray-300 resize-none min-h-[90px] focus:outline-none min-w-0"
+                      readonly
+                      value={item.target.text}
+                      onwheel={handleTextareaWheel}
+                    ></textarea>
+                  {:else}
+                    <div class="h-full min-h-[125px] flex flex-col items-center justify-center text-gray-600 text-sm">
+                      <svg class="w-6 h-6 mb-2 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4" /></svg>
+                      <span>{t("align.noSubtitle")}</span>
+                    </div>
+                  {/if}
+                </div>
+
+                <!-- Source Side (Editable) -->
+                <div class="flex flex-col h-full rounded-lg border bg-indigo-950/10 focus-within:border-indigo-500/50 transition-colors overflow-hidden relative min-w-0 {isMissingPair ? 'border-orange-500/60' : 'border-indigo-500/20'}">
+                  {#if item.source}
+                     <!-- Header part -->
+                     <div class="flex justify-between items-center text-xs text-indigo-400/70 bg-indigo-950/40 px-3 py-2 border-b border-indigo-500/20 font-mono tracking-wider truncate">
+                      <span class="bg-indigo-900/50 flex-shrink-0 text-indigo-300 px-2 py-0.5 rounded max-w-full">#{item.source.id}</span>
+                      <span class="flex items-center gap-1.5 md:gap-2 truncate ml-2">
+                        <span class="text-blue-400/70 truncate min-w-0">{item.source.start}</span>
+                        <svg class="w-3 h-3 mx-0.5 text-indigo-500/50 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+                        <span class="text-indigo-400/70 truncate min-w-0">{item.source.end}</span>
+                      </span>
+                    </div>
+                    <!-- Content part: Svelte 5 runes allow easy bind:value on sourceSubs array -->
+                    <textarea 
+                      class="flex-1 w-full bg-transparent p-3 text-[15px] leading-relaxed text-indigo-100 resize-none min-h-[90px] focus:outline-none placeholder-indigo-900/50 min-w-0"
+                      bind:value={sourceSubs[item.index].text}
+                      oninput={scheduleUndo}
+                      onwheel={handleTextareaWheel}
+                      placeholder={t("align.typeSubtitle")}
+                    ></textarea>
+                  {:else}
+                    <div class="h-full min-h-[125px] flex flex-col items-center justify-center text-indigo-900/40 text-sm">
+                      <svg class="w-6 h-6 mb-2 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4" /></svg>
+                      <span>{t("align.noSubtitle")}</span>
+                    </div>
+                  {/if}
+                </div>
+                
+              </div>
             {/each}
           </div>
-        </div>
-        <div class="flex gap-1.5 flex-wrap xl:justify-end">
-          <button onclick={jumpStart} disabled={currentPage === 0} class="btn-secondary px-3 py-1.5 disabled:opacity-50 flex items-center" title={t("align.goToStart")}>
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7" /></svg>
-          </button>
-          <!-- Jump to Prev Empty (orange glow) -->
-          <button onclick={jumpToPrevEmpty} disabled={!hasEmptyBackward} class="btn-secondary px-3 py-1.5 disabled:opacity-30 flex items-center empty-jump-btn" title={t("align.prevEmpty")}>
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 19l-7-7 7-7M22 19l-7-7 7-7" /></svg>
-          </button>
-          <button onclick={prevPage} disabled={currentPage === 0} class="btn-secondary px-4 py-1.5 disabled:opacity-50 flex items-center">
-            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
-            {t("align.prev")}
-          </button>
-          <button onclick={nextPage} disabled={currentPage >= totalPages - 1} class="btn-secondary px-4 py-1.5 disabled:opacity-50 flex items-center">
-            {t("align.next")}
-            <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
-          </button>
-          <!-- Jump to Next Empty (orange glow) -->
-          <button onclick={jumpToNextEmpty} disabled={!hasEmptyForward} class="btn-secondary px-3 py-1.5 disabled:opacity-30 flex items-center empty-jump-btn" title={t("align.nextEmpty")}>
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M2 5l7 7-7 7" /></svg>
-          </button>
-          <button onclick={jumpEnd} disabled={currentPage >= totalPages - 1} class="btn-secondary px-3 py-1.5 disabled:opacity-50 flex items-center" title={t("align.goToEnd")}>
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7" /></svg>
-          </button>
-          <div class="w-px h-6 bg-gray-700 mx-1"></div>
-          <button onclick={saveSource} class="btn-primary px-6 py-1.5 flex items-center gap-2 shadow-lg shadow-teal-500/20" disabled={sourceSubs.length === 0}>
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" /></svg>
-            {#if sourceFlag}<span class="text-base">{sourceFlag}</span>{/if}
-            {t("align.saveResult")}
-          </button>
-        </div>
-        </div>
+        {/if}
+      </div>
+    </div>
+  </div>
 
-        <!-- Content Grid -->
-        <div class="pr-3 pl-1 space-y-6 custom-scrollbar pb-4 min-w-0 overflow-y-auto flex-1">
-        {#each currentPageItems as item (item.index)}
-          {@const isMissingPair =
-            (!!item.source && (!item.source.text || item.source.text.trim() === '')) ||
-            (!!item.target && (!item.target.text || item.target.text.trim() === ''))}
-          <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 group min-w-0 rounded-xl p-1 transition-all {isMissingPair ? 'missing-pair-row' : ''}">
-            
-            <!-- Target Side (Readonly) -->
-            <div class="flex flex-col h-full rounded-lg border overflow-hidden relative bg-gray-900/40 min-w-0 {isMissingPair ? 'border-orange-500/50' : 'border-gray-800/70'}">
-              {#if item.target}
-                <!-- Header part -->
-                <div class="flex justify-between items-center text-xs text-gray-500 bg-gray-900/80 px-3 py-2 border-b border-gray-800/50 font-mono tracking-wider truncate">
-                  <span class="bg-gray-800 flex-shrink-0 px-2 py-0.5 rounded text-gray-400 max-w-full">#{item.target.id}</span>
-                  <span class="flex items-center gap-1.5 md:gap-2 truncate ml-2">
-                    <span class="text-teal-400/50 truncate min-w-0">{item.target.start}</span>
-                    <svg class="w-3 h-3 mx-0.5 text-gray-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
-                    <span class="text-emerald-400/50 truncate min-w-0">{item.target.end}</span>
-                  </span>
-                </div>
-                <!-- Content part -->
-                <textarea 
-                  class="flex-1 w-full bg-transparent p-3 text-sm text-gray-300 resize-none min-h-[90px] focus:outline-none min-w-0"
-                  readonly
-                  value={item.target.text}
-                ></textarea>
-              {:else}
-                <div class="h-full min-h-[125px] flex flex-col items-center justify-center text-gray-600 text-sm">
-                  <svg class="w-6 h-6 mb-2 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4" /></svg>
-                  <span>{t("align.noSubtitle")}</span>
-                </div>
-              {/if}
-            </div>
-
-            <!-- Source Side (Editable) -->
-            <div class="flex flex-col h-full rounded-lg border bg-indigo-950/10 focus-within:border-indigo-500/50 transition-colors overflow-hidden relative min-w-0 {isMissingPair ? 'border-orange-500/60' : 'border-indigo-500/20'}">
-              {#if item.source}
-                 <!-- Header part -->
-                 <div class="flex justify-between items-center text-xs text-indigo-400/70 bg-indigo-950/40 px-3 py-2 border-b border-indigo-500/20 font-mono tracking-wider truncate">
-                  <span class="bg-indigo-900/50 flex-shrink-0 text-indigo-300 px-2 py-0.5 rounded max-w-full">#{item.source.id}</span>
-                  <span class="flex items-center gap-1.5 md:gap-2 truncate ml-2">
-                    <span class="text-blue-400/70 truncate min-w-0">{item.source.start}</span>
-                    <svg class="w-3 h-3 mx-0.5 text-indigo-500/50 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
-                    <span class="text-indigo-400/70 truncate min-w-0">{item.source.end}</span>
-                  </span>
-                </div>
-                <!-- Content part: Svelte 5 runes allow easy bind:value on sourceSubs array -->
-                <textarea 
-                  class="flex-1 w-full bg-transparent p-3 text-[15px] leading-relaxed text-indigo-100 resize-none min-h-[90px] focus:outline-none placeholder-indigo-900/50 min-w-0"
-                  bind:value={sourceSubs[item.index].text}
-                  oninput={scheduleUndo}
-                  placeholder={t("align.typeSubtitle")}
-                ></textarea>
-              {:else}
-                <div class="h-full min-h-[125px] flex flex-col items-center justify-center text-indigo-900/40 text-sm">
-                  <svg class="w-6 h-6 mb-2 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4" /></svg>
-                  <span>{t("align.noSubtitle")}</span>
-                </div>
-              {/if}
-            </div>
-            
-          </div>
-        {/each}
-        </div>
-      {/if}
+  <!-- Fixed Bottom Band with Action Buttons -->
+  <div class="h-[92px] border-t border-white/10 bg-gray-950 flex items-center justify-center gap-4 px-6 shrink-0 z-40">
+    <div class="relative group">
+      <button
+        onclick={saveSource}
+        disabled={sourceSubs.length === 0}
+        class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:bg-emerald-600/55 text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-emerald-900/30 flex items-center gap-2 enabled:hover:scale-[1.02] enabled:active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-55 cursor-pointer"
+      >
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+        </svg>
+        {#if sourceFlag}<span class="text-base">{sourceFlag}</span>{/if}
+        {t("align.saveResult")}
+      </button>
+      <div class="pointer-events-none absolute bottom-full left-1/2 z-50 mb-3 -translate-x-1/2 rounded-xl border border-violet-500/30 bg-gray-950/95 p-3 text-center text-xs text-violet-300 shadow-2xl shadow-black/40 ring-1 ring-white/10 transition-all duration-150 opacity-0 group-hover:opacity-100 group-hover:translate-y-0 translate-y-1 whitespace-nowrap">
+        {sourceSubs.length === 0 ? "Carica e allinea i file per salvare" : t("align.saveResult")}
+      </div>
     </div>
   </div>
 

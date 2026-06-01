@@ -807,25 +807,23 @@
     }
   }
 
-  function canClearMovieFile(field: "target" | "native" | "media") {
+  function canClearMovieFile(field: "target" | "native" | "media" | "output") {
     return field === "target"
       ? !!targetSubsPath
       : field === "native"
         ? !!nativeSubsPath
-        : !!mediaPath;
+        : field === "media"
+          ? !!mediaPath
+          : !!outputDir;
   }
 
-  function clearMovieFileButtonClass(field: "target" | "native" | "media") {
+  function clearMovieFileButtonClass(field: "target" | "native" | "media" | "output") {
     return canClearMovieFile(field)
       ? "border-red-500/30 bg-red-500/10 text-red-300 hover:border-red-400/60 hover:bg-red-500/20"
       : "cursor-not-allowed border-white/10 bg-white/5 text-gray-600 opacity-60";
   }
 
-  function timingSourceFieldClass(field: "target" | "native") {
-    return showTimingFlash && useTimingsFrom === field ? "timing-source-flash" : "";
-  }
-
-  function clearMovieFile(field: "target" | "native" | "media") {
+  function clearMovieFile(field: "target" | "native" | "media" | "output") {
     if (!canClearMovieFile(field)) return;
 
     if (field === "target") {
@@ -834,8 +832,7 @@
     } else if (field === "native") {
       nativeSubsPath = "";
       nativeSubsInfo = null;
-      if (useTimingsFrom === "native") useTimingsFrom = "target";
-    } else {
+    } else if (field === "media") {
       mediaPath = "";
       mediaType = "none";
       audioTracks = [];
@@ -843,6 +840,8 @@
       audioTrackAutoSelected = true;
       generateSnapshots = false;
       generateVideoClips = false;
+    } else if (field === "output") {
+      outputDir = "";
     }
   }
 
@@ -1045,26 +1044,6 @@
   );
   let hasAudio = $derived(hasMedia);
 
-  let useTimingsFrom = $state<"target" | "native">("target");
-  let hasReferenceSubs = $derived(
-    seriesMode
-      ? episodes.some((ep) => ep.nativeSubsPath !== "")
-      : nativeSubsPath !== "",
-  );
-  let spanStart = $state("");
-  let spanEnd = $state("");
-  let timeShiftTarget = $state(0);
-  let timeShiftNative = $state(0);
-
-  $effect(() => {
-    if (!hasReferenceSubs && useTimingsFrom === "native") {
-      useTimingsFrom = "target";
-    }
-  });
-
-  let showSubtitleOptions = $state(false);
-  let showContextLines = $state(false);
-  let showFilters = $state(false);
   let showAnkiFields = $state(loadAnkiFieldsPanelOpen());
 
   function loadAnkiFieldsPanelOpen(): boolean {
@@ -1093,46 +1072,6 @@
     "Load a video file first to unlock this section.";
   const PANEL_INFO_BUTTON_CLASS =
     "text-gray-500 hover:text-emerald-300 transition-colors";
-  let includeWords = $state("");
-  let excludeWords = $state("");
-  let excludeDuplicatesSubs1 = $state(false);
-  let excludeDuplicatesSubs2 = $state(false);
-  let minChars = $state<number | null>(null);
-  let maxChars = $state<number | null>(null);
-  let minDurationMs = $state<number | null>(null);
-  let maxDurationMs = $state<number | null>(null);
-  let excludeStyled = $state(false);
-  let actorFilter = $state("");
-  let onlyCjk = $state(false);
-  let removeNoMatch = $state(false);
-
-  let timingFlashTimer: ReturnType<typeof setTimeout> | null = null;
-  let showTimingFlash = $state(false);
-  let timingFlashKey = $state(0);
-
-  function triggerTimingFlash() {
-    timingFlashKey += 1;
-    showTimingFlash = true;
-    if (timingFlashTimer) clearTimeout(timingFlashTimer);
-    timingFlashTimer = setTimeout(() => {
-      showTimingFlash = false;
-    }, 1200);
-  }
-
-  function handleTimingSourceChange(nextSource: "target" | "native") {
-    const previousSource = useTimingsFrom;
-    if (previousSource === nextSource) return;
-
-    useTimingsFrom = nextSource;
-    triggerTimingFlash();
-  }
-
-  let contextLeading = $state(0);
-  let contextTrailing = $state(0);
-  let contextMaxGap = $state(15.0);
-
-  let combineSentences = $state(false);
-  let continuationChars = $state(",、→");
 
   let generateAudio = $state(true);
   let audioBitrate = $state(128);
@@ -1198,16 +1137,12 @@
 
   const PANEL_IDS = [
     "files",
-    "subtitleOptions",
-    "filters",
-    "contextLines",
     "audioClips",
     "snapshots",
     "videoClips",
     "ankiFields",
     "exportFormat",
     "naming",
-    "actions",
     "progressResult",
     "logs",
   ] as const;
@@ -1220,19 +1155,19 @@
     col3: PanelId[];
   }
 
-  const MOVIE_LAYOUT_KEY = "vesta-flashcards-layout-v3";
-  const SERIES_LAYOUT_KEY = "vesta-flashcards-series-layout-v3";
+  const MOVIE_LAYOUT_KEY = "vesta-flashcards-layout-v4";
+  const SERIES_LAYOUT_KEY = "vesta-flashcards-series-layout-v4";
 
   const DEFAULT_LAYOUT: ColumnLayout = {
-    col1: ["files", "subtitleOptions", "contextLines", "filters"],
-    col2: ["naming", "audioClips", "snapshots", "videoClips", "ankiFields"],
-    col3: ["exportFormat", "actions", "progressResult", "logs"],
+    col1: ["files", "naming"],
+    col2: ["audioClips", "snapshots", "videoClips"],
+    col3: ["exportFormat", "ankiFields", "progressResult"],
   };
 
   const DEFAULT_SERIES_LAYOUT: ColumnLayout = {
-    col1: ["files", "ankiFields", "subtitleOptions", "contextLines", "filters"],
-    col2: ["naming", "audioClips", "snapshots", "videoClips"],
-    col3: ["exportFormat", "actions", "progressResult", "logs"],
+    col1: ["files", "naming"],
+    col2: ["audioClips", "snapshots", "videoClips"],
+    col3: ["exportFormat", "ankiFields", "progressResult"],
   };
 
   function cloneLayout(layout: ColumnLayout): ColumnLayout {
@@ -1290,41 +1225,25 @@
         : PREFERRED_COLUMN_COUNT,
   );
 
-  let effectivePanelLayout = $derived.by(() => {
+  let effectivePanelLayout = $derived.by((): ColumnLayout => {
     if (effectiveColumnCount === 3) {
       return {
-        col1: [...panelLayout.col1],
-        col2: [...panelLayout.col2],
-        col3: [...panelLayout.col3],
+        col1: ["files", "naming"],
+        col2: ["audioClips", "snapshots", "videoClips"],
+        col3: ["exportFormat", "ankiFields", "progressResult"],
       };
     }
 
     if (effectiveColumnCount === 2) {
-      const orderedPanels = [
-        ...panelLayout.col1,
-        ...panelLayout.col2,
-        ...panelLayout.col3,
-      ];
-      const balancedCol1: PanelId[] = [];
-      const balancedCol2: PanelId[] = [];
-
-      orderedPanels.forEach((panelId, idx) => {
-        if (idx % 2 === 0) {
-          balancedCol1.push(panelId);
-        } else {
-          balancedCol2.push(panelId);
-        }
-      });
-
       return {
-        col1: balancedCol1,
-        col2: balancedCol2,
+        col1: ["files", "audioClips", "videoClips"],
+        col2: ["naming", "ankiFields", "exportFormat", "snapshots", "progressResult"],
         col3: [],
       };
     }
 
     return {
-      col1: [...panelLayout.col1, ...panelLayout.col2, ...panelLayout.col3],
+      col1: ["files", "naming", "audioClips", "snapshots", "videoClips", "exportFormat", "ankiFields", "progressResult"],
       col2: [],
       col3: [],
     };
@@ -1511,7 +1430,7 @@
       if (episodes.length === 0) {
         missing.push({
           panel: "files",
-          label: `Aggiungi almeno un episodio in ${t("flashcards.files")}`,
+          label: `Aggiungi almeno un episodio in ${t("common.filesAndOutput")}`,
         });
       }
     } else if (!targetSubsPath) {
@@ -2091,32 +2010,32 @@
       video_path: vPath,
       audio_path: aPath,
       output_dir: outputDir,
-      use_timings_from: useTimingsFrom,
-      span_start_ms: parseTimeToMs(spanStart),
-      span_end_ms: parseTimeToMs(spanEnd),
-      time_shift_target_ms: timeShiftTarget,
-      time_shift_native_ms: timeShiftNative,
+      use_timings_from: "target",
+      span_start_ms: 0,
+      span_end_ms: 0,
+      time_shift_target_ms: 0,
+      time_shift_native_ms: 0,
       filters: {
-        include_words: includeWords || null,
-        exclude_words: excludeWords || null,
-        exclude_duplicates_subs1: excludeDuplicatesSubs1,
-        exclude_duplicates_subs2: excludeDuplicatesSubs2,
-        min_chars: minChars,
-        max_chars: maxChars,
-        min_duration_ms: minDurationMs,
-        max_duration_ms: maxDurationMs,
-        exclude_styled: excludeStyled,
-        actor_filter: actorFilter || null,
-        only_cjk: onlyCjk,
-        remove_no_match: removeNoMatch,
+        include_words: null,
+        exclude_words: null,
+        exclude_duplicates_subs1: false,
+        exclude_duplicates_subs2: false,
+        min_chars: null,
+        max_chars: null,
+        min_duration_ms: null,
+        max_duration_ms: null,
+        exclude_styled: false,
+        actor_filter: null,
+        only_cjk: false,
+        remove_no_match: false,
       },
       context: {
-        leading: contextLeading,
-        trailing: contextTrailing,
-        max_gap_seconds: contextMaxGap,
+        leading: 0,
+        trailing: 0,
+        max_gap_seconds: 15.0,
       },
-      combine_sentences: combineSentences,
-      continuation_chars: continuationChars,
+      combine_sentences: false,
+      continuation_chars: ",、→",
       generate_audio: generateAudio,
       audio_bitrate: audioBitrate,
       audio_track_index: selectedAudioTrackIndex,
@@ -2499,32 +2418,32 @@
           video_path: epHasVideo ? ep.mediaPath : null,
           audio_path: epHasMedia && !epHasVideo ? ep.mediaPath : null,
           output_dir: outputDir,
-          use_timings_from: useTimingsFrom,
-          span_start_ms: parseTimeToMs(spanStart),
-          span_end_ms: parseTimeToMs(spanEnd),
-          time_shift_target_ms: timeShiftTarget,
-          time_shift_native_ms: timeShiftNative,
+          use_timings_from: "target",
+          span_start_ms: 0,
+          span_end_ms: 0,
+          time_shift_target_ms: 0,
+          time_shift_native_ms: 0,
           filters: {
-            include_words: includeWords || null,
-            exclude_words: excludeWords || null,
-            exclude_duplicates_subs1: excludeDuplicatesSubs1,
-            exclude_duplicates_subs2: excludeDuplicatesSubs2,
-            min_chars: minChars,
-            max_chars: maxChars,
-            min_duration_ms: minDurationMs,
-            max_duration_ms: maxDurationMs,
-            exclude_styled: excludeStyled,
-            actor_filter: actorFilter || null,
-            only_cjk: onlyCjk,
-            remove_no_match: removeNoMatch,
+            include_words: null,
+            exclude_words: null,
+            exclude_duplicates_subs1: false,
+            exclude_duplicates_subs2: false,
+            min_chars: null,
+            max_chars: null,
+            min_duration_ms: null,
+            max_duration_ms: null,
+            exclude_styled: false,
+            actor_filter: null,
+            only_cjk: false,
+            remove_no_match: false,
           },
           context: {
-            leading: contextLeading,
-            trailing: contextTrailing,
-            max_gap_seconds: contextMaxGap,
+            leading: 0,
+            trailing: 0,
+            max_gap_seconds: 15.0,
           },
-          combine_sentences: combineSentences,
-          continuation_chars: continuationChars,
+          combine_sentences: false,
+          continuation_chars: ",、→",
           generate_audio: ep.mediaPath ? epMediaSettings.generateAudio : false,
           audio_bitrate: epMediaSettings.audioBitrate,
           audio_track_index: epAudioTrackIndex,
@@ -2787,7 +2706,7 @@
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
-  class="h-full flex flex-col p-6 overflow-y-auto flashcards-scroll bg-gradient-to-br from-gray-900 via-gray-900 to-gray-950 relative"
+  class="h-full flex flex-col bg-gradient-to-br from-gray-900 via-gray-900 to-gray-950 relative overflow-hidden"
   ondragover={(e) => {
     e.preventDefault();
     if (e.dataTransfer) {
@@ -2803,6 +2722,7 @@
     isDraggingOver = false;
   }}
 >
+  <div class="flex-1 overflow-y-auto p-6 flashcards-scroll min-h-0 flex flex-col gap-4">
   {#if isDraggingOver}
     <div
       class="absolute inset-0 z-50 {seriesMode ? 'bg-violet-500/10 border-violet-400/80 text-violet-400' : 'bg-emerald-500/10 border-emerald-400/80 text-emerald-400'} border-2 border-dashed rounded-2xl flex items-center justify-center pointer-events-none"
@@ -3162,7 +3082,7 @@
       <div class="glass-card p-5 {panelHighlightClass('files')}">
         <div class="mb-3 flex items-center gap-3">
           <h3
-            class="flex min-w-0 items-center gap-2 text-lg font-semibold {seriesMode ? 'text-violet-300' : 'text-emerald-400'}"
+            class="flex min-w-0 items-center gap-2 text-lg font-semibold panel-title-files-output"
           >
             <svg
               class="w-5 h-5 shrink-0"
@@ -3177,7 +3097,7 @@
                 d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
               />
             </svg>
-            {t("flashcards.files")}
+            {t("common.filesAndOutput")}
           </h3>
           <span class="flex shrink-0 items-center gap-1.5 rounded-full border border-gray-700/60 bg-gray-900/60 px-2 py-1">
             <button
@@ -3277,16 +3197,13 @@
                 {t("flashcards.targetLangSubs")}
                 <span class="text-red-400">*</span>
               </span>
-              <span class="block text-[10px] text-gray-500 mb-1"
-                >{t("flashcards.targetLangSubsDesc")}</span
-              >
               <div class="flex gap-2">
                 <button
                   type="button"
                   onclick={() => {
                     if (targetSubsPath) expandedPathField = "targetSubs";
                   }}
-                  class="input-modern flex-1 text-xs text-left transition-colors truncate {timingSourceFieldClass('target')} {targetSubsPath
+                  class="input-modern flex-1 text-xs text-left transition-colors truncate {targetSubsPath
                     ? 'cursor-pointer hover:bg-white/10'
                     : 'cursor-default hover:bg-transparent'}"
                   style="direction: rtl; text-align: left;"
@@ -3301,21 +3218,22 @@
                 </button>
                 <button
                   onclick={selectTargetSubs}
-                  class="btn-primary py-1.5 px-3 text-xs flex-shrink-0 flex items-center gap-1"
+                  class="btn-secondary py-2 px-3 text-xs flex-shrink-0 flex items-center gap-1.5 cursor-pointer"
                 >
                   <svg
-                    class="w-3.5 h-3.5"
+                    class="w-4 h-4"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
-                    ><path
+                  >
+                    <path
                       stroke-linecap="round"
                       stroke-linejoin="round"
                       stroke-width="2"
                       d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"
-                    /></svg
-                  >
-                  {t("flashcards.browse")}
+                    />
+                  </svg>
+                  <span class="text-xs font-semibold">{t("flashcards.browse")}</span>
                 </button>
                 <button
                   type="button"
@@ -3336,16 +3254,13 @@
               <span class="block text-xs text-gray-400 mb-1"
                 >{t("flashcards.nativeLangSubs")}</span
               >
-              <span class="block text-[10px] text-gray-500 mb-1"
-                >{t("flashcards.nativeLangSubsDesc")}</span
-              >
               <div class="flex gap-2">
                 <button
                   type="button"
                   onclick={() => {
                     if (nativeSubsPath) expandedPathField = "nativeSubs";
                   }}
-                  class="input-modern flex-1 text-xs text-left transition-colors truncate {timingSourceFieldClass('native')} {nativeSubsPath
+                  class="input-modern flex-1 text-xs text-left transition-colors truncate {nativeSubsPath
                     ? 'cursor-pointer hover:bg-white/10'
                     : 'cursor-default hover:bg-transparent'}"
                   style="direction: rtl; text-align: left;"
@@ -3360,21 +3275,22 @@
                 </button>
                 <button
                   onclick={selectNativeSubs}
-                  class="btn-secondary py-1.5 px-3 text-xs flex-shrink-0 flex items-center gap-1"
+                  class="btn-secondary py-2 px-3 text-xs flex-shrink-0 flex items-center gap-1.5 cursor-pointer"
                 >
                   <svg
-                    class="w-3.5 h-3.5"
+                    class="w-4 h-4"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
-                    ><path
+                  >
+                    <path
                       stroke-linecap="round"
                       stroke-linejoin="round"
                       stroke-width="2"
                       d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"
-                    /></svg
-                  >
-                  {t("flashcards.browse")}
+                    />
+                  </svg>
+                  <span class="text-xs font-semibold">{t("flashcards.browse")}</span>
                 </button>
                 <button
                   type="button"
@@ -3394,9 +3310,6 @@
             <div>
               <span class="block text-xs text-gray-400 mb-1"
                 >{t("flashcards.mediaFile")}</span
-              >
-              <span class="block text-[10px] text-gray-500 mb-1"
-                >{t("flashcards.mediaFileDesc")}</span
               >
               <div class="flex gap-2">
                 <button
@@ -3419,21 +3332,22 @@
                 </button>
                 <button
                   onclick={selectMedia}
-                  class="btn-secondary py-1.5 px-3 text-xs flex-shrink-0 flex items-center gap-1"
+                  class="btn-secondary py-2 px-3 text-xs flex-shrink-0 flex items-center gap-1.5 cursor-pointer"
                 >
                   <svg
-                    class="w-3.5 h-3.5"
+                    class="w-4 h-4"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
-                    ><path
+                  >
+                    <path
                       stroke-linecap="round"
                       stroke-linejoin="round"
                       stroke-width="2"
                       d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"
-                    /></svg
-                  >
-                  {t("flashcards.browse")}
+                    />
+                  </svg>
+                  <span class="text-xs font-semibold">{t("flashcards.browse")}</span>
                 </button>
                 <button
                   type="button"
@@ -3475,21 +3389,35 @@
                 </button>
                 <button
                   onclick={selectOutputDir}
-                  class="btn-primary py-1.5 px-3 text-xs flex-shrink-0 flex items-center gap-1"
+                  class="btn-secondary py-2 px-3 text-xs flex-shrink-0 flex items-center gap-1.5 cursor-pointer"
+                  title={t("flashcards.selectDir")}
                 >
                   <svg
-                    class="w-3.5 h-3.5"
+                    class="w-4 h-4"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
-                    ><path
+                  >
+                    <path
                       stroke-linecap="round"
                       stroke-linejoin="round"
                       stroke-width="2"
                       d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"
-                    /></svg
-                  >
-                  {t("flashcards.browse")}
+                    />
+                  </svg>
+                  <span class="text-xs font-semibold">{t("flashcards.browse")}</span>
+                </button>
+                <button
+                  type="button"
+                  onclick={() => clearMovieFile("output")}
+                  disabled={!canClearMovieFile("output")}
+                  class="inline-flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-lg border transition-colors {clearMovieFileButtonClass('output')}"
+                  title="Rimuovi cartella"
+                  aria-label="Rimuovi cartella"
+                >
+                  <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
                 </button>
               </div>
             </div>
@@ -3693,498 +3621,39 @@
                   </button>
                   <button
                     onclick={selectOutputDir}
-                    class="btn-primary py-1.5 px-3 text-xs flex-shrink-0 flex items-center gap-1"
+                    class="btn-secondary py-2 px-3 text-xs flex-shrink-0 flex items-center gap-1.5 cursor-pointer"
+                    title={t("flashcards.selectDir")}
                   >
                     <svg
-                      class="w-3.5 h-3.5"
+                      class="w-4 h-4"
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"
-                      ><path
+                    >
+                      <path
                         stroke-linecap="round"
                         stroke-linejoin="round"
                         stroke-width="2"
                         d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"
-                      /></svg
-                    >
-                    {t("flashcards.browse")}
+                      />
+                    </svg>
+                    <span class="text-xs font-semibold">{t("flashcards.browse")}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onclick={() => clearMovieFile("output")}
+                    disabled={!canClearMovieFile("output")}
+                    class="inline-flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-lg border transition-colors {clearMovieFileButtonClass('output')}"
+                    title="Rimuovi cartella"
+                    aria-label="Rimuovi cartella"
+                  >
+                    <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
                   </button>
                 </div>
               </div>
             {/if}
-          </div>
-        {/if}
-      </div>
-    {:else if panelId === "subtitleOptions"}
-      <div
-        inert={!hasAnyFiles}
-        title={!hasAnyFiles ? HINT_LOAD_TARGET_FIRST : undefined}
-        class="glass-card p-5 {!hasAnyFiles
-          ? 'opacity-40'
-          : ''}"
-      >
-        <div class="flex items-center gap-2">
-          <button
-            onclick={() => {
-              if (hasAnyFiles) {
-                showSubtitleOptions = !showSubtitleOptions;
-              }
-            }}
-            class="flex-1 flex items-center justify-between text-sm font-semibold text-teal-400"
-          >
-            <span class="flex items-center gap-2">
-              <svg
-                class="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"
-                />
-              </svg>
-              {t("flashcards.subtitleOptions")}
-            </span>
-            <svg
-              class="w-4 h-4 transition-transform {showSubtitleOptions
-                ? 'rotate-180'
-                : ''}"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M19 9l-7 7-7-7"
-              />
-            </svg>
-          </button>
-          <InfoButton onclick={() => (helpSection = "subtitleOptions")} />
-        </div>
-        {#if showSubtitleOptions}
-          <div class="mt-3 space-y-2.5 animate-fade-in">
-            <div class="flex flex-col gap-2">
-              <span class="text-xs text-gray-400">{t("flashcards.useTimingsFrom")}</span>
-              <div
-                class="timing-source-toggle {useTimingsFrom === 'native' ? 'timing-source-toggle-native' : ''} {showTimingFlash ? 'timing-source-toggle-flash' : ''}"
-              >
-                {#key timingFlashKey}
-                  <div class="timing-source-slider"></div>
-                {/key}
-                <label class="flex-1 cursor-pointer">
-                  <input
-                    type="radio"
-                    checked={useTimingsFrom === "target"}
-                    value="target"
-                    class="peer sr-only"
-                    onchange={() => handleTimingSourceChange("target")}
-                  />
-                  <div class="timing-source-choice">
-                    {t("flashcards.timingsOriginal")}
-                  </div>
-                </label>
-                <label class="flex-1 cursor-pointer { !hasReferenceSubs ? 'opacity-50 cursor-not-allowed' : '' }">
-                  <input
-                    type="radio"
-                    checked={useTimingsFrom === "native"}
-                    value="native"
-                    disabled={!hasReferenceSubs}
-                    class="peer sr-only"
-                    onchange={() => handleTimingSourceChange("native")}
-                  />
-                  <div class="timing-source-choice">
-                    {t("flashcards.timingsReference")}
-                  </div>
-                </label>
-              </div>
-            </div>
-
-            <div class="grid grid-cols-2 gap-2">
-              <div>
-                <span class="block text-xs text-gray-500 mb-1"
-                  >{t("flashcards.spanStart")}</span
-                >
-                <input
-                  type="text"
-                  bind:value={spanStart}
-                  class="input-modern w-full text-xs"
-                  placeholder="h:mm:ss"
-                />
-              </div>
-              <div>
-                <span class="block text-xs text-gray-500 mb-1"
-                  >{t("flashcards.spanEnd")}</span
-                >
-                <input
-                  type="text"
-                  bind:value={spanEnd}
-                  class="input-modern w-full text-xs"
-                  placeholder="h:mm:ss"
-                />
-              </div>
-            </div>
-
-            <div class="grid grid-cols-2 gap-2">
-              <div>
-                <span class="block text-xs text-gray-500 mb-1"
-                  >{t("flashcards.timeShiftOriginal")}</span
-                >
-                <div class="flex items-center gap-1">
-                  <input
-                    type="number"
-                    bind:value={timeShiftTarget}
-                    class="input-modern w-full text-xs"
-                  />
-                  <span class="text-xs text-gray-500">ms</span>
-                </div>
-              </div>
-              <div>
-                <span class="block text-xs text-gray-500 mb-1"
-                  >{t("flashcards.timeShiftReference")}</span
-                >
-                <div class="flex items-center gap-1">
-                  <input
-                    type="number"
-                    bind:value={timeShiftNative}
-                    class="input-modern w-full text-xs"
-                    disabled={!hasReferenceSubs}
-                  />
-                  <span class="text-xs text-gray-500">ms</span>
-                </div>
-              </div>
-            </div>
-
-            <div class="flex items-center gap-3 pt-1">
-              <label class="vesta-check-row flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  bind:checked={combineSentences}
-                  class="vesta-check-input text-emerald-500"
-                />
-                <span class="text-xs text-gray-300"
-                  >{t("flashcards.combineSentences")}</span
-                >
-              </label>
-              {#if combineSentences}
-                <input
-                  type="text"
-                  bind:value={continuationChars}
-                  class="input-modern w-28 text-xs"
-                  placeholder=",、→"
-                  title={t("flashcards.continuationCharsHint")}
-                />
-              {/if}
-            </div>
-          </div>
-        {/if}
-      </div>
-    {:else if panelId === "filters"}
-      <div
-        inert={!hasAnyFiles}
-        title={!hasAnyFiles ? HINT_LOAD_TARGET_FIRST : undefined}
-        class="glass-card p-5 {!hasAnyFiles
-          ? 'opacity-40'
-          : ''}"
-      >
-        <div class="flex items-center gap-2">
-          <button
-            onclick={() => {
-              if (!hasAnyFiles) return;
-              showFilters = !showFilters;
-            }}
-            class="flex-1 flex items-center justify-between text-sm font-semibold text-orange-400"
-          >
-            <span class="flex items-center gap-2">
-              <svg
-                class="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
-                />
-              </svg>
-              {t("flashcards.filters")}
-            </span>
-            <svg
-              class="w-4 h-4 transition-transform {showFilters
-                ? 'rotate-180'
-                : ''}"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M19 9l-7 7-7-7"
-              />
-            </svg>
-          </button>
-          <InfoButton onclick={() => (helpSection = "filters")} />
-        </div>
-
-        {#if showFilters}
-          <div class="mt-3 space-y-2.5 animate-fade-in">
-            <div>
-              <span class="block text-xs text-gray-500 mb-1"
-                >{t("flashcards.includeWords")}</span
-              >
-              <input
-                type="text"
-                bind:value={includeWords}
-                class="input-modern w-full text-xs"
-                placeholder={t("flashcards.includeWordsHint")}
-              />
-            </div>
-            <div>
-              <span class="block text-xs text-gray-500 mb-1"
-                >{t("flashcards.excludeWords")}</span
-              >
-              <input
-                type="text"
-                bind:value={excludeWords}
-                class="input-modern w-full text-xs"
-                placeholder={t("flashcards.excludeWordsHint")}
-              />
-            </div>
-
-            <div class="flex flex-col gap-2">
-              <div class="grid grid-cols-2 gap-2">
-                <label class="filter-pill-check justify-center">
-                  <input
-                    type="checkbox"
-                    bind:checked={excludeDuplicatesSubs1}
-                    class="sr-only"
-                  />
-                  <span class="text-xs font-medium text-gray-300"
-                    >{t("flashcards.excludeDupSubs1")}</span
-                  >
-                </label>
-                <label class="filter-pill-check justify-center { !nativeSubsPath ? 'opacity-50 cursor-not-allowed' : '' }">
-                  <input
-                    type="checkbox"
-                    bind:checked={excludeDuplicatesSubs2}
-                    disabled={!nativeSubsPath}
-                    class="sr-only"
-                  />
-                  <span
-                    class="text-xs font-medium text-gray-300">{t("flashcards.excludeDupSubs2")}</span
-                  >
-                </label>
-              </div>
-            </div>
-
-            <div class="grid grid-cols-2 gap-2">
-              <div>
-                <span class="block text-xs text-gray-500 mb-1"
-                  >{t("flashcards.minChars")}</span
-                >
-                <input
-                  type="number"
-                  bind:value={minChars}
-                  class="input-modern w-full text-xs"
-                  min="0"
-                  placeholder="—"
-                />
-              </div>
-              <div>
-                <span class="block text-xs text-gray-500 mb-1"
-                  >{t("flashcards.maxChars")}</span
-                >
-                <input
-                  type="number"
-                  bind:value={maxChars}
-                  class="input-modern w-full text-xs"
-                  min="0"
-                  placeholder="—"
-                />
-              </div>
-            </div>
-
-            <div class="grid grid-cols-2 gap-2">
-              <div>
-                <span class="block text-xs text-gray-500 mb-1"
-                  >{t("flashcards.minDuration")}</span
-                >
-                <div class="flex items-center gap-1">
-                  <input
-                    type="number"
-                    bind:value={minDurationMs}
-                    class="input-modern w-full text-xs"
-                    min="0"
-                    placeholder="—"
-                  />
-                  <span class="text-xs text-gray-500">ms</span>
-                </div>
-              </div>
-              <div>
-                <span class="block text-xs text-gray-500 mb-1"
-                  >{t("flashcards.maxDuration")}</span
-                >
-                <div class="flex items-center gap-1">
-                  <input
-                    type="number"
-                    bind:value={maxDurationMs}
-                    class="input-modern w-full text-xs"
-                    min="0"
-                    placeholder="—"
-                  />
-                  <span class="text-xs text-gray-500">ms</span>
-                </div>
-              </div>
-            </div>
-
-            <div class="grid gap-1.5">
-              <label class="vesta-check-row">
-                <input
-                  type="checkbox"
-                  bind:checked={excludeStyled}
-                  class="vesta-check-input text-orange-500"
-                />
-                <span class="text-xs text-gray-300"
-                  >{t("flashcards.excludeStyled")}</span
-                >
-              </label>
-              <label class="vesta-check-row">
-                <input
-                  type="checkbox"
-                  bind:checked={onlyCjk}
-                  class="vesta-check-input text-orange-500"
-                />
-                <span class="text-xs text-gray-300"
-                  >{t("flashcards.onlyCjk")}</span
-                >
-              </label>
-              <label class="vesta-check-row {!nativeSubsPath ? 'opacity-50 cursor-not-allowed' : ''}">
-                <input
-                  type="checkbox"
-                  bind:checked={removeNoMatch}
-                  class="vesta-check-input text-orange-500"
-                  disabled={!nativeSubsPath}
-                />
-                <span
-                  class="text-xs text-gray-300">{t("flashcards.removeNoMatch")}</span
-                >
-              </label>
-            </div>
-
-            {#if targetSubsInfo && targetSubsInfo.actors.length > 0}
-              <div>
-                <span class="block text-xs text-gray-500 mb-1"
-                  >{t("flashcards.actorFilter")}</span
-                >
-                <input
-                  type="text"
-                  bind:value={actorFilter}
-                  class="input-modern w-full text-xs"
-                  placeholder={targetSubsInfo.actors.join(", ")}
-                />
-              </div>
-            {/if}
-          </div>
-        {/if}
-      </div>
-    {:else if panelId === "contextLines"}
-      <div
-        inert={!hasAnyFiles}
-        title={!hasAnyFiles ? HINT_LOAD_TARGET_FIRST : undefined}
-        class="glass-card p-5 {!hasAnyFiles
-          ? 'opacity-40'
-          : ''}"
-      >
-        <div class="flex items-center gap-2">
-          <button
-            onclick={() => {
-              if (hasAnyFiles) showContextLines = !showContextLines;
-            }}
-            class="flex-1 flex items-center justify-between text-sm font-semibold text-indigo-400"
-          >
-            <span class="flex items-center gap-2">
-              <svg
-                class="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M4 6h16M4 10h16M4 14h16M4 18h16"
-                />
-              </svg>
-              {t("flashcards.contextLines")}
-            </span>
-            <svg
-              class="w-4 h-4 transition-transform {showContextLines
-                ? 'rotate-180'
-                : ''}"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M19 9l-7 7-7-7"
-              />
-            </svg>
-          </button>
-          <InfoButton onclick={() => (helpSection = "contextLines")} />
-        </div>
-        {#if showContextLines}
-          <div class="mt-3 grid grid-cols-3 gap-2 animate-fade-in">
-            <div>
-              <span class="block text-xs text-gray-500 mb-1"
-                >{t("flashcards.leading")}</span
-              >
-              <input
-                type="number"
-                bind:value={contextLeading}
-                class="input-modern w-full text-xs"
-                min="0"
-                max="10"
-              />
-            </div>
-            <div>
-              <span class="block text-xs text-gray-500 mb-1"
-                >{t("flashcards.trailing")}</span
-              >
-              <input
-                type="number"
-                bind:value={contextTrailing}
-                class="input-modern w-full text-xs"
-                min="0"
-                max="10"
-              />
-            </div>
-            <div>
-              <span class="block text-xs text-gray-500 mb-1"
-                >{t("flashcards.maxGap")}</span
-              >
-              <div class="flex items-center gap-1">
-                <input
-                  type="number"
-                  bind:value={contextMaxGap}
-                  class="input-modern w-full text-xs"
-                  min="0"
-                  step="0.5"
-                />
-                <span class="text-xs text-gray-500">s</span>
-              </div>
-            </div>
           </div>
         {/if}
       </div>
@@ -4798,13 +4267,6 @@
               <span class="text-xs font-medium text-gray-200"
                 >{t("flashcards.exportAPKG")}</span
               >
-              <span
-                class="ml-1.5 text-[9px] bg-emerald-500/20 text-emerald-400 px-1.5 py-0.5 rounded-full font-semibold uppercase"
-                >{t("flashcards.exportAPKGBadge")}</span
-              >
-              <p class="text-[10px] text-gray-500">
-                {t("flashcards.exportAPKGDesc")}
-              </p>
             </div>
           </label>
           <label
@@ -4823,13 +4285,6 @@
               <span class="text-xs font-medium text-gray-200"
                 >{t("flashcards.exportTSV")}</span
               >
-              <span
-                class="ml-1.5 text-[9px] bg-gray-500/20 text-gray-400 px-1.5 py-0.5 rounded-full font-semibold uppercase"
-                >{t("flashcards.exportTSVBadge")}</span
-              >
-              <p class="text-[10px] text-gray-500">
-                {t("flashcards.exportTSVDesc")}
-              </p>
             </div>
           </label>
 
@@ -4945,138 +4400,6 @@
         </div>
       </div>
 
-    {:else if panelId === "actions"}
-      <div class="space-y-3">
-        {#if isProcessing}
-          <button
-            onclick={cancelGeneration}
-            class="btn-danger w-full py-4 text-lg"
-          >
-            <svg
-              class="w-5 h-5 inline mr-2"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M6 18L18 6M6 6l12 12"
-              />
-            </svg>
-            {t("flashcards.cancel")}
-          </button>
-        {:else}
-          <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
-          <div
-            class="group relative"
-            role={!canRunFlashcards ? "button" : undefined}
-            tabindex={!canRunFlashcards ? 0 : undefined}
-            onclick={() => {
-              if (!canRunFlashcards) promptMissingGenerationRequirements();
-            }}
-            onmouseleave={closeGenerationPrompt}
-            onfocusout={closeGenerationPrompt}
-            onkeydown={(event) => {
-              if (!canRunFlashcards && (event.key === "Enter" || event.key === " ")) {
-                event.preventDefault();
-                promptMissingGenerationRequirements();
-              }
-            }}
-          >
-            <button
-              onclick={startGeneration}
-              disabled={!canRunFlashcards}
-              aria-describedby={!canRunFlashcards ? "flashcards-generate-requirements" : undefined}
-              class="btn-success w-full py-4 text-lg disabled:cursor-help disabled:opacity-55 {!canRunFlashcards ? 'pointer-events-none saturate-75' : ''}"
-            >
-              <svg
-                class="w-5 h-5 inline mr-2"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M13 10V3L4 14h7v7l9-11h-7z"
-                />
-              </svg>
-              {t("flashcards.generate")}
-            </button>
-            {#if !canRunFlashcards}
-              <div
-                id="flashcards-generate-requirements"
-                class="pointer-events-none absolute bottom-full left-1/2 z-40 mb-3 w-[min(22rem,calc(100vw-3rem))] -translate-x-1/2 rounded-xl border border-amber-400/30 bg-gray-950/95 p-3 text-left text-xs text-gray-200 opacity-0 shadow-2xl shadow-black/40 ring-1 ring-white/10 transition-all duration-150 group-hover:opacity-100 group-hover:translate-y-0 {generationPromptOpen ? 'opacity-100 translate-y-0' : 'translate-y-1'}"
-              >
-                <p class="mb-2 font-semibold text-amber-200">
-                  Mancano ancora questi passaggi:
-                </p>
-                <ol class="list-decimal space-y-1 pl-4 text-gray-300">
-                  {#each generationRequirements as requirement}
-                    <li>{requirement.label}</li>
-                  {/each}
-                </ol>
-              </div>
-            {/if}
-          </div>
-
-          <button
-            class="btn-secondary w-full py-2 disabled:opacity-50 disabled:cursor-not-allowed"
-            disabled={!canRunFlashcards}
-            title={!canRunFlashcards
-              ? `Completa: ${generationRequirementsText}`
-              : undefined}
-            onclick={loadPreview}
-          >
-            <svg
-              class="w-4 h-4 inline mr-2"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-              />
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-              />
-            </svg>
-            {t("flashcards.preview")}
-          </button>
-        {/if}
-
-        {#if result}
-          <button
-            onclick={resetGeneration}
-            class="w-full py-2 rounded-lg border border-amber-500/30 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 transition-colors text-sm font-medium"
-            title={t("flashcards.newGenerationDesc")}
-          >
-            <svg
-              class="w-4 h-4 inline mr-2"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-              />
-            </svg>
-            {t("flashcards.newGeneration")}
-          </button>
-        {/if}
-      </div>
     {:else if panelId === "progressResult"}
       <div class="space-y-3">
         {#if isProcessing || progress > 0}
@@ -5229,14 +4552,14 @@
     {/if}
   {/snippet}
 
-  <div bind:this={layoutHostEl} class="flex-1 grid {gridColClass} gap-4 min-h-0 overflow-y-auto">
+  <div bind:this={layoutHostEl} class="grid {gridColClass} gap-4">
     {#if seriesMode}
       <!-- In series mode, render the files panel full-width above the columns -->
       <div class="{effectiveColumnCount >= 2 ? 'col-span-2' : ''} {effectiveColumnCount >= 3 ? 'col-span-3' : ''} mb-1">
         {@render panelContent("files")}
       </div>
     {/if}
-    <div class="space-y-3 {seriesMode ? '' : 'overflow-y-auto'} pr-1 min-h-[100px]" role="list">
+    <div class="space-y-3 pr-1 min-h-[100px]" role="list">
       {#each effectivePanelLayout.col1 as panelId, idx}
         {#if !(seriesMode && panelId === "files")}
         <div class="relative" role="listitem">
@@ -5247,7 +4570,7 @@
     </div>
 
     {#if effectiveColumnCount >= 2}
-      <div class="space-y-3 {seriesMode ? '' : 'overflow-y-auto'} pr-1 min-h-[100px]" role="list">
+      <div class="space-y-3 pr-1 min-h-[100px]" role="list">
         {#each effectivePanelLayout.col2 as panelId, idx}
           {#if !(seriesMode && panelId === "files")}
           <div class="relative" role="listitem">
@@ -5259,7 +4582,7 @@
     {/if}
 
     {#if effectiveColumnCount >= 3}
-      <div class="space-y-3 {seriesMode ? '' : 'overflow-y-auto'} pr-1 min-h-[100px]" role="list">
+      <div class="space-y-3 pr-1 min-h-[100px]" role="list">
         {#each effectivePanelLayout.col3 as panelId, idx}
           {#if !(seriesMode && panelId === "files")}
           <div class="relative" role="listitem">
@@ -5403,12 +4726,12 @@
                 <button
                   type="button"
                   onclick={() => selectEpisodeFile(field)}
-                  class="btn-primary flex h-10 shrink-0 items-center gap-1.5 px-4 text-xs"
+                  class="btn-secondary flex h-10 shrink-0 items-center gap-1.5 px-4 text-xs cursor-pointer"
                 >
-                  <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7a2 2 0 012-2h5l2 2h7a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" />
+                  <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
                   </svg>
-                  {t("flashcards.browse")}
+                  <span class="text-xs font-semibold">{t("flashcards.browse")}</span>
                 </button>
                   <button
                     type="button"
@@ -5796,6 +5119,146 @@
               : mediaPath}
     onclose={() => (expandedPathField = null)}
   />
+  </div>
+
+  <!-- Fixed Bottom Band with Action Buttons -->
+  <div class="h-[92px] border-t border-white/10 bg-gray-950 flex items-center justify-center gap-4 px-6 shrink-0">
+    {#if isProcessing}
+      <button
+        onclick={cancelGeneration}
+        class="px-5 py-2.5 bg-red-600 hover:bg-red-500 text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-red-900/30 flex items-center gap-2 hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
+      >
+        <svg
+          class="w-4 h-4"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M6 18L18 6M6 6l12 12"
+          />
+        </svg>
+        {t("flashcards.cancel")}
+      </button>
+    {:else}
+      <div class="relative group">
+        <button
+          class="px-5 py-2.5 bg-gray-800 hover:bg-gray-700 disabled:bg-gray-800 text-gray-300 disabled:text-gray-500 rounded-xl font-bold text-sm transition-all border border-white/10 flex items-center gap-2 enabled:hover:scale-[1.02] enabled:active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+          disabled={!canRunFlashcards}
+          onclick={loadPreview}
+        >
+          <svg
+            class="w-4 h-4"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+            />
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+            />
+          </svg>
+          {t("flashcards.preview")}
+        </button>
+        <div class="pointer-events-none absolute bottom-full left-1/2 z-50 mb-3 -translate-x-1/2 rounded-xl border border-amber-500/30 bg-gray-950/95 p-3 text-center text-xs text-amber-300 shadow-2xl shadow-black/40 ring-1 ring-white/10 transition-all duration-150 opacity-0 group-hover:opacity-100 group-hover:translate-y-0 translate-y-1 whitespace-nowrap">
+          {!canRunFlashcards ? `Completa: ${generationRequirementsText}` : t("flashcards.preview")}
+        </div>
+      </div>
+
+      <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+      <div
+        class="group relative"
+        role={!canRunFlashcards ? "button" : undefined}
+        tabindex={!canRunFlashcards ? 0 : undefined}
+        onclick={() => {
+          if (!canRunFlashcards) promptMissingGenerationRequirements();
+        }}
+        onmouseleave={closeGenerationPrompt}
+        onfocusout={closeGenerationPrompt}
+        onkeydown={(event) => {
+          if (!canRunFlashcards && (event.key === "Enter" || event.key === " ")) {
+            event.preventDefault();
+            promptMissingGenerationRequirements();
+          }
+        }}
+      >
+        <button
+          onclick={startGeneration}
+          disabled={!canRunFlashcards}
+          aria-describedby={!canRunFlashcards ? "flashcards-generate-requirements" : undefined}
+          class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:bg-emerald-600/55 text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-emerald-900/30 flex items-center gap-2 enabled:hover:scale-[1.02] enabled:active:scale-[0.98] disabled:cursor-help disabled:opacity-55 {!canRunFlashcards ? 'pointer-events-none saturate-75' : 'cursor-pointer'}"
+        >
+          <svg
+            class="w-4 h-4"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M13 10V3L4 14h7v7l9-11h-7z"
+            />
+          </svg>
+          {t("flashcards.generate")}
+        </button>
+        {#if !canRunFlashcards}
+          <div
+            id="flashcards-generate-requirements"
+            class="pointer-events-none absolute bottom-full left-1/2 z-40 mb-3 w-[min(22rem,calc(100vw-3rem))] -translate-x-1/2 rounded-xl border border-amber-400/30 bg-gray-950/95 p-3 text-left text-xs text-gray-200 opacity-0 shadow-2xl shadow-black/40 ring-1 ring-white/10 transition-all duration-150 group-hover:opacity-100 group-hover:translate-y-0 {generationPromptOpen ? 'opacity-100 translate-y-0' : 'translate-y-1'}"
+          >
+            <p class="mb-2 font-semibold text-amber-200">
+              Mancano ancora questi passaggi:
+            </p>
+            <ol class="list-decimal space-y-1 pl-4 text-gray-300">
+              {#each generationRequirements as requirement}
+                <li>{requirement.label}</li>
+              {/each}
+            </ol>
+          </div>
+        {/if}
+      </div>
+    {/if}
+
+    {#if result}
+      <div class="relative group">
+        <button
+          onclick={resetGeneration}
+          class="px-5 py-2.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 rounded-xl font-bold text-sm transition-all border border-amber-500/30 flex items-center gap-2 hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
+        >
+          <svg
+            class="w-4 h-4"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+            />
+          </svg>
+          {t("flashcards.newGeneration")}
+        </button>
+        <div class="pointer-events-none absolute bottom-full left-1/2 z-50 mb-3 -translate-x-1/2 rounded-xl border border-amber-500/30 bg-gray-950/95 p-3 text-center text-xs text-amber-300 shadow-2xl shadow-black/40 ring-1 ring-white/10 transition-all duration-150 opacity-0 group-hover:opacity-100 group-hover:translate-y-0 translate-y-1 whitespace-nowrap">
+          {t("flashcards.newGenerationDesc")}
+        </div>
+      </div>
+    {/if}
+  </div>
 </div>
 
 <style>
@@ -5871,16 +5334,8 @@
       color 0.16s ease;
   }
 
-  input:checked + .timing-source-choice {
-    color: rgb(229 231 235);
-  }
-
   label:hover .timing-source-choice {
     color: rgb(209 213 219);
-  }
-
-  input:disabled + .timing-source-choice {
-    pointer-events: none;
   }
 
   .timing-source-flash {
@@ -6050,5 +5505,4 @@
     }
   }
 </style>
-
 

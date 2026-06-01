@@ -5,10 +5,11 @@
 use anyhow::{Context as _, Result};
 use serde::Serialize;
 use std::collections::HashMap;
-use std::path::Path;
 use tauri::{AppHandle, Emitter, State};
-use whisper_rs::{FullParams, SamplingStrategy, WhisperContext};
 use tokio_util::sync::CancellationToken;
+
+use whisper_common::transcribe::{TranscribedSegment, TranscribeOptions, transcribe_full, text_similarity};
+use whisper_common::audio::read_wav_to_f32;
 
 use crate::state::{AppSyncState, AppTranscribeState};
 
@@ -32,14 +33,6 @@ pub struct AutoSyncResult {
     pub message: String,
 }
 
-/// A transcribed segment with timing info
-#[derive(Debug, Clone)]
-struct TranscribedSegment {
-    start_ms: i64,
-    end_ms: i64,
-    text: String,
-}
-
 /// A candidate match between a transcribed segment and an SRT subtitle
 #[derive(Debug, Clone)]
 struct MatchCandidate {
@@ -60,56 +53,6 @@ impl<'a> Drop for AutoSyncGuard<'a> {
             ss.auto_sync_cancellation_token = None;
         }
     }
-}
-
-/// Normalized string similarity using Levenshtein distance (character level)
-fn text_similarity(a: &str, b: &str) -> f64 {
-    let a_clean = normalize_text(a);
-    let b_clean = normalize_text(b);
-
-    if a_clean.is_empty() && b_clean.is_empty() {
-        return 1.0;
-    }
-    if a_clean.is_empty() || b_clean.is_empty() {
-        return 0.0;
-    }
-
-    let a_chars: Vec<char> = a_clean.chars().collect();
-    let b_chars: Vec<char> = b_clean.chars().collect();
-    
-    let a_len = a_chars.len();
-    let b_len = b_chars.len();
-    
-    // DP for Levenshtein distance
-    let mut dp = vec![vec![0; b_len + 1]; a_len + 1];
-    
-    for i in 0..=a_len { dp[i][0] = i; }
-    for j in 0..=b_len { dp[0][j] = j; }
-    
-    for i in 1..=a_len {
-        for j in 1..=b_len {
-            let cost = if a_chars[i - 1] == b_chars[j - 1] { 0 } else { 1 };
-            dp[i][j] = (dp[i - 1][j] + 1) // deletion
-                .min(dp[i][j - 1] + 1) // insertion
-                .min(dp[i - 1][j - 1] + cost); // substitution
-        }
-    }
-    
-    let dist = dp[a_len][b_len] as f64;
-    let max_len = (a_len.max(b_len)) as f64;
-    
-    1.0 - (dist / max_len)
-}
-
-/// Normalize text for comparison: lowercase, strip punctuation, collapse whitespace
-fn normalize_text(s: &str) -> String {
-    s.to_lowercase()
-        .chars()
-        .map(|c| if c.is_alphanumeric() || c.is_whitespace() { c } else { ' ' })
-        .collect::<String>()
-        .split_whitespace()
-        .collect::<Vec<_>>()
-        .join(" ")
 }
 
 /// Extract a short audio segment from the media file using FFmpeg
@@ -142,43 +85,6 @@ fn extract_audio_segment(
     Ok(())
 }
 
-/// Read WAV file into f32 samples
-fn read_wav_to_f32(wav_path: &Path) -> Result<Vec<f32>> {
-    let reader = hound::WavReader::open(wav_path)
-        .context("Failed to open WAV file")?;
-
-    let spec = reader.spec();
-
-    let samples: Vec<f32> = match spec.sample_format {
-        hound::SampleFormat::Int => {
-            let max_val = (1 << (spec.bits_per_sample - 1)) as f32;
-            reader.into_samples::<i32>()
-                .filter_map(|s| s.ok())
-                .map(|s| s as f32 / max_val)
-                .collect()
-        }
-        hound::SampleFormat::Float => {
-            reader.into_samples::<f32>()
-                .filter_map(|s| s.ok())
-                .collect()
-        }
-    };
-
-    if spec.channels == 2 {
-        Ok(samples.chunks(2)
-            .map(|chunk| {
-                if chunk.len() == 2 {
-                    (chunk[0] + chunk[1]) / 2.0
-                } else {
-                    chunk[0]
-                }
-            })
-            .collect())
-    } else {
-        Ok(samples)
-    }
-}
-
 /// Helper function to check if audio samples are silent (RMS under threshold)
 fn is_silent(samples: &[f32], threshold: f32) -> bool {
     if samples.is_empty() {
@@ -187,66 +93,6 @@ fn is_silent(samples: &[f32], threshold: f32) -> bool {
     let sum_sq: f32 = samples.iter().map(|&x| x * x).sum();
     let rms = (sum_sq / samples.len() as f32).sqrt();
     rms < threshold
-}
-
-/// Transcribe an audio segment using a pre-loaded whisper-rs context to avoid reloading the model
-fn transcribe_segment_with_ctx(
-    ctx: &WhisperContext,
-    audio_data: &[f32],
-    language: Option<&str>,
-) -> Result<Vec<TranscribedSegment>> {
-    let mut state = ctx.create_state()
-        .map_err(|e| anyhow::anyhow!("Failed to create Whisper state: {:?}", e))?;
-
-    let mut params = FullParams::new(SamplingStrategy::Greedy { best_of: 1 });
-
-    if let Some(lang) = language {
-        if lang != "auto" {
-            params.set_language(Some(lang));
-        } else {
-            params.set_language(None);
-        }
-    } else {
-        params.set_language(None);
-    }
-
-    params.set_translate(false);
-    params.set_n_threads(num_cpus().min(8) as i32);
-    params.set_print_progress(false);
-    params.set_print_realtime(false);
-    params.set_print_special(false);
-    params.set_print_timestamps(false);
-    params.set_token_timestamps(true);
-
-    state.full(params, audio_data)
-        .map_err(|e| anyhow::anyhow!("Whisper transcription failed: {:?}", e))?;
-
-    let n_segments = state.full_n_segments();
-    let mut segments = Vec::new();
-
-    for i in 0..n_segments {
-        let seg = match state.get_segment(i) {
-            Some(s) => s,
-            None => continue,
-        };
-
-        let text = match seg.to_str() {
-            Ok(s) => s.trim().to_string(),
-            Err(_) => continue,
-        };
-
-        if text.is_empty() {
-            continue;
-        }
-
-        segments.push(TranscribedSegment {
-            start_ms: seg.start_timestamp() * 10,
-            end_ms: seg.end_timestamp() * 10,
-            text,
-        });
-    }
-
-    Ok(segments)
 }
 
 fn num_cpus() -> usize {
@@ -557,17 +403,17 @@ pub async fn sync_auto_sync(
             ("total".to_string(), total_segments.to_string()),
         ])),
     );
-
+ 
     let max_concurrency = num_cpus().min(6);
     let semaphore = std::sync::Arc::new(tokio::sync::Semaphore::new(max_concurrency));
     let mut prep_handles = Vec::new();
-
+ 
     for (idx, &start_pos) in sample_positions.iter().enumerate() {
         let sem = semaphore.clone();
         let media_path = media_path_str.clone();
         let temp_dir_path = temp_dir_path.clone();
         let ffmpeg_cmd = ffmpeg_cmd.clone();
-
+ 
         prep_handles.push(tokio::spawn(async move {
             let _permit = sem.acquire().await.unwrap();
             prepare_single_segment(
@@ -582,7 +428,7 @@ pub async fn sync_auto_sync(
             ).await
         }));
     }
-
+ 
     let mut prepared_segments = Vec::new();
     for (idx, handle) in prep_handles.into_iter().enumerate() {
         if token.is_cancelled() {
@@ -605,10 +451,10 @@ pub async fn sync_auto_sync(
             }
         }
     }
-
+ 
     // Sort chronologically to preserve geometric alignment sequence
     prepared_segments.sort_by_key(|s| s.idx);
-
+ 
     emit_auto_sync_progress(
         &app,
         "prepare_done",
@@ -617,7 +463,7 @@ pub async fn sync_auto_sync(
         Some("sync.autoSyncProgress.loadingModel"),
         None,
     );
-
+ 
     let spawn_res = tokio::task::spawn_blocking(move || -> Result<(Vec<MatchCandidate>, usize, bool), String> {
         let mut all_matches: Vec<MatchCandidate> = Vec::new();
         
@@ -667,7 +513,7 @@ pub async fn sync_auto_sync(
                     (
                         "duration".to_string(),
                         format!("{}s", segment_duration.round() as i64),
-                    ),
+                     ),
                 ])),
             );
  
@@ -675,7 +521,15 @@ pub async fn sync_auto_sync(
                 break;
             }
  
-            let transcribed = match transcribe_segment_with_ctx(&ctx, &prep.audio_data, language_clone.as_deref()) {
+            let options = TranscribeOptions {
+                language: language_clone.clone(),
+                translate_to_english: false,
+                n_threads: None,
+                word_timestamps: true,
+                max_segment_length: None,
+            };
+
+            let (transcribed, _) = match transcribe_full(&ctx, &prep.audio_data, &options, Some(&token_clone)) {
                 Ok(segs) => segs,
                 Err(e) => {
                     eprintln!("[auto-sync] Segment {} transcription failed: {}", prep.idx, e);
@@ -732,7 +586,7 @@ pub async fn sync_auto_sync(
     
     let (all_matches, segments_analyzed, is_cancelled) = spawn_res?;
     let _ = std::fs::remove_dir_all(&temp_dir_path);
-
+ 
     if is_cancelled {
         return Ok(AutoSyncResult {
             success: false,
@@ -742,7 +596,7 @@ pub async fn sync_auto_sync(
             message: "Auto-sync was cancelled.".to_string(),
         });
     }
-
+ 
     let mut best_offset = 0i64;
     let mut max_dense_count = 0;
     
@@ -760,14 +614,14 @@ pub async fn sync_auto_sync(
             best_offset = current_offset;
         }
     }
-
+ 
     let geometrically_verified: Vec<MatchCandidate> = all_matches.into_iter()
         .filter(|m| {
             let offset = m.transcribed_start_ms - m.original_start_ms;
             (offset - best_offset).abs() <= 15_000
         })
         .collect();
-
+ 
     let mut best_per_sub: std::collections::HashMap<u32, MatchCandidate> = std::collections::HashMap::new();
     for m in geometrically_verified {
         let entry = best_per_sub.entry(m.subtitle_id).or_insert_with(|| m.clone());
@@ -775,10 +629,10 @@ pub async fn sync_auto_sync(
             *entry = m;
         }
     }
-
+ 
     let mut final_matches: Vec<MatchCandidate> = best_per_sub.into_values().collect();
     final_matches.sort_by_key(|m| m.original_start_ms);
-
+ 
     let mut spaced_matches: Vec<MatchCandidate> = Vec::new();
     let mut last_time: Option<i64> = None;
     for m in final_matches {
@@ -787,54 +641,65 @@ pub async fn sync_auto_sync(
             last_time = Some(m.original_start_ms);
         }
     }
-
+ 
     let anchors_created = {
         let mut ss = sync_state.lock().map_err(|e| e.to_string())?;
         let engine = ss.engine.as_mut()
             .ok_or("No SRT file loaded for sync")?;
-
+ 
         let existing_anchors = engine.get_anchors().to_vec();
-
+ 
         let mut count = 0;
         for m in &spaced_matches {
             let is_near_existing = existing_anchors.iter().any(|a| {
-                a.subtitle_index == m.subtitle_id ||
-                (a.original_time_ms - m.original_start_ms).abs() < 30_000
+                (a.original_time_ms - m.original_start_ms).abs() < 10_000
+                    || (a.corrected_time_ms - m.transcribed_start_ms).abs() < 10_000
             });
-
+ 
             if !is_near_existing {
                 if engine.add_anchor(m.subtitle_id, m.transcribed_start_ms, false).is_ok() {
                     count += 1;
                 }
             }
         }
+        
         count
     };
-
+ 
+    if anchors_created == 0 {
+        emit_auto_sync_progress(
+            &app,
+            "done",
+            "No confident matches found. Try with a larger Whisper model or check that the SRT matches the audio.".to_string(),
+            100.0,
+            Some("sync.autoSyncProgress.noMatches"),
+            None,
+        );
+        return Ok(AutoSyncResult {
+            success: false,
+            cancelled: false,
+            anchors_created: 0,
+            segments_analyzed,
+            message: "No confident matches found. Try with a larger Whisper model or check that the SRT matches the audio.".to_string(),
+        });
+    }
+ 
     emit_auto_sync_progress(
         &app,
         "done",
-        format!(
-            "Auto-sync complete: {} anchors created from {} segments",
-            anchors_created, total_segments
-        ),
+        format!("Auto-sync complete! Created {} new visual anchor points.", anchors_created),
         100.0,
-        Some("sync.autoSyncProgress.doneAnchors"),
+        Some("sync.autoSyncProgress.done"),
         Some(HashMap::from([
-            ("anchors".to_string(), anchors_created.to_string()),
-            ("segments".to_string(), total_segments.to_string()),
+            ("count".to_string(), anchors_created.to_string()),
         ])),
     );
-
+ 
     Ok(AutoSyncResult {
-        success: anchors_created > 0,
+        success: true,
         cancelled: false,
         anchors_created,
-        segments_analyzed: total_segments,
-        message: if anchors_created > 0 {
-            format!("{} anchor points created automatically. Review and adjust as needed.", anchors_created)
-        } else {
-            "No confident matches found. Try with a larger Whisper model or check that the SRT matches the audio.".to_string()
-        },
+        segments_analyzed,
+        message: format!("Successfully created {} new visual anchor points.", anchors_created),
     })
 }
