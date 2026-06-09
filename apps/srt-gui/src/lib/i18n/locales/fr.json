@@ -783,7 +783,7 @@
   "transcribe.wordTimestamps": "Horodatages par mot",
   "transcribe.wordTimestampsDesc": "Générer des horodatages pour chaque mot",
   "translate.apiKey": "Clé API",
-  "translate.batch": "Batch",
+  "translate.batch": "Lot",
   "translate.batchBalanced": "Équilibré",
   "translate.batchBalancedDesc": "15 sous — bon compromis",
   "translate.batchFast": "Rapide",

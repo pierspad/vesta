@@ -783,7 +783,7 @@
   "transcribe.wordTimestamps": "Marcações por palavra",
   "transcribe.wordTimestampsDesc": "Gerar marcações de tempo para cada palavra",
   "translate.apiKey": "Chave API",
-  "translate.batch": "Batch",
+  "translate.batch": "Lote",
   "translate.batchBalanced": "Equilibrado",
   "translate.batchBalancedDesc": "15 subs — bom compromisso",
   "translate.batchFast": "Rápido",
