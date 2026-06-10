@@ -7,7 +7,7 @@ export default defineConfig({
   plugins: [svelte(), tailwindcss()],
   clearScreen: false,
   server: {
-    port: 5173,
+    port: 5175,
     strictPort: true,
     watch: {
       ignored: ["**/src-tauri/**"],

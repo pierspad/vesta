@@ -18,6 +18,8 @@
   border: 1px solid var(--glass-border);
   border-radius: 16px;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   contain: style;
 }
 
@@ -437,8 +439,14 @@ kbd {
   will-change: width;
 }
 
-/* Reduce paint on hidden elements */
+/* Reduce layout/paint on hidden elements - optimized using content-visibility */
 .hidden {
-  visibility: hidden;
+  content-visibility: hidden;
   pointer-events: none;
+}
+
+@supports not (content-visibility: hidden) {
+  .hidden {
+    visibility: hidden;
+  }
 }

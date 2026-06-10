@@ -1552,8 +1552,7 @@
               </div>
 
               <div
-                class="bg-white/5 rounded-xl p-5 text-center flex-shrink-0 flex flex-col items-center justify-center"
-                style="min-height: 100px;"
+                class="bg-white/5 rounded-xl p-5 text-center flex-shrink-0 flex flex-col items-center justify-center min-h-[100px]"
               >
                 <p class="text-xl text-white font-medium leading-relaxed">
                   {wizardSubtitle.text}
@@ -1631,8 +1630,7 @@
               </div>
 
               <div
-                class="flex items-center justify-center gap-4 flex-wrap flex-shrink-0"
-                style="min-height: 60px;"
+                class="flex items-center justify-center gap-4 flex-wrap flex-shrink-0 min-h-[60px]"
               >
                 <button
                   onclick={() =>

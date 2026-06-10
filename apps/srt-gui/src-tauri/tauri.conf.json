@@ -5,7 +5,7 @@
   "identifier": "com.vesta.desktop",
   "build": {
     "frontendDist": "../dist",
-    "devUrl": "http://localhost:5173",
+    "devUrl": "http://localhost:5175",
     "beforeDevCommand": "npm run dev",
     "beforeBuildCommand": "npm run tauri:prepare && npm run build"
   },

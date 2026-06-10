@@ -27,6 +27,14 @@ srt-translate = { path = "./lib/srt-translate", version = "0.10.0" }
 srt-sync = { path = "./lib/srt-sync", version = "0.10.0" }
 whisper-common = { path = "./lib/whisper-common", version = "0.10.0" }
 
+[profile.dev]
+opt-level = 0
+debug = 0
+strip = "debuginfo"
+
+[profile.dev.package."*"]
+opt-level = 1
+
 [profile.release]
 opt-level = 3
 lto = true

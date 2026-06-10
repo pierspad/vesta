@@ -1090,6 +1090,19 @@
   let videoPadStart = $state(250);
   let videoPadEnd = $state(50);
 
+  // ─── Card Filters ────────────────────────────────────────────────────────
+  let combineSentences = $state(false);
+  let continuationChars = $state(",、→");
+  let filterMinChars = $state<number | null>(null);
+  let filterMaxChars = $state<number | null>(null);
+  let filterMinDurationMs = $state<number | null>(null);
+  let filterMaxDurationMs = $state<number | null>(null);
+  // Slider enable toggles
+  let filterMinCharsEnabled = $state(false);
+  let filterMaxCharsEnabled = $state(false);
+  let filterMinDurationEnabled = $state(false);
+  let filterMaxDurationEnabled = $state(false);
+
   $effect(() => {
     persistDimension(FLASHCARD_MEDIA_WIDTH_KEY, snapshotWidth);
   });
@@ -1138,6 +1151,7 @@
     "audioClips",
     "snapshots",
     "videoClips",
+    "cardFilters",
     "ankiFields",
     "exportFormat",
     "naming",
@@ -1157,15 +1171,15 @@
   const SERIES_LAYOUT_KEY = "vesta-flashcards-series-layout-v4";
 
   const DEFAULT_LAYOUT: ColumnLayout = {
-    col1: ["files", "naming"],
+    col1: ["files", "cardFilters"],
     col2: ["audioClips", "snapshots", "videoClips"],
-    col3: ["exportFormat", "ankiFields", "progressResult"],
+    col3: ["naming", "exportFormat", "ankiFields", "progressResult"],
   };
 
   const DEFAULT_SERIES_LAYOUT: ColumnLayout = {
-    col1: ["files", "naming"],
+    col1: ["files", "cardFilters"],
     col2: ["audioClips", "snapshots", "videoClips"],
-    col3: ["exportFormat", "ankiFields", "progressResult"],
+    col3: ["naming", "exportFormat", "ankiFields", "progressResult"],
   };
 
   function cloneLayout(layout: ColumnLayout): ColumnLayout {
@@ -1226,22 +1240,22 @@
   let effectivePanelLayout = $derived.by((): ColumnLayout => {
     if (effectiveColumnCount === 3) {
       return {
-        col1: ["files", "naming"],
+        col1: ["files", "cardFilters"],
         col2: ["audioClips", "snapshots", "videoClips"],
-        col3: ["exportFormat", "ankiFields", "progressResult"],
+        col3: ["naming", "exportFormat", "ankiFields", "progressResult"],
       };
     }
 
     if (effectiveColumnCount === 2) {
       return {
         col1: ["files", "audioClips", "snapshots", "videoClips"],
-        col2: ["naming", "exportFormat", "ankiFields", "progressResult"],
+        col2: ["naming", "exportFormat", "ankiFields", "progressResult", "cardFilters"],
         col3: [],
       };
     }
 
     return {
-      col1: ["files", "naming", "audioClips", "snapshots", "videoClips", "exportFormat", "ankiFields", "progressResult"],
+      col1: ["files", "cardFilters", "naming", "audioClips", "snapshots", "videoClips", "exportFormat", "ankiFields", "progressResult"],
       col2: [],
       col3: [],
     };
@@ -2016,10 +2030,10 @@
         exclude_words: null,
         exclude_duplicates_subs1: false,
         exclude_duplicates_subs2: false,
-        min_chars: null,
-        max_chars: null,
-        min_duration_ms: null,
-        max_duration_ms: null,
+        min_chars: filterMinCharsEnabled ? filterMinChars : null,
+        max_chars: filterMaxCharsEnabled ? filterMaxChars : null,
+        min_duration_ms: filterMinDurationEnabled ? filterMinDurationMs : null,
+        max_duration_ms: filterMaxDurationEnabled ? filterMaxDurationMs : null,
         exclude_styled: false,
         actor_filter: null,
         only_cjk: false,
@@ -2030,8 +2044,8 @@
         trailing: 0,
         max_gap_seconds: 15.0,
       },
-      combine_sentences: false,
-      continuation_chars: ",、→",
+      combine_sentences: combineSentences,
+      continuation_chars: continuationChars,
       generate_audio: generateAudio,
       audio_bitrate: audioBitrate,
       audio_track_index: selectedAudioTrackIndex,
@@ -2718,7 +2732,7 @@
     isDraggingOver = false;
   }}
 >
-  <div class="flex-1 overflow-y-auto p-6 flashcards-scroll min-h-0 flex flex-col gap-4">
+  <div class="flex-1 overflow-y-auto overflow-x-hidden p-6 flashcards-scroll min-h-0 flex flex-col gap-4">
   {#if isDraggingOver}
     <div
       class="absolute inset-0 z-50 {seriesMode ? 'bg-violet-500/10 border-violet-400/80 text-violet-400' : 'bg-emerald-500/10 border-emerald-400/80 text-emerald-400'} border-2 border-dashed rounded-2xl flex items-center justify-center pointer-events-none"
@@ -3447,10 +3461,9 @@
       <div
         inert={!hasAudio}
         title={!hasAudio ? HINT_LOAD_MEDIA_FIRST : undefined}
-        class="glass-card p-5 {!hasAudio
+        class="glass-card p-5 relative z-10 overflow-visible {!hasAudio
           ? 'opacity-40'
           : ''}"
-        style="overflow: visible; position: relative; z-index: 10;"
       >
         <div class="flex items-center justify-between mb-3">
           <h3
@@ -3678,10 +3691,9 @@
       <div
         inert={!hasVideo}
         title={!hasVideo ? HINT_LOAD_VIDEO_FIRST : undefined}
-        class="glass-card p-5 {!hasVideo
+        class="glass-card p-5 relative z-5 overflow-visible {!hasVideo
           ? 'opacity-40'
           : ''}"
-        style="overflow: visible; position: relative; z-index: 5;"
       >
         <div class="flex items-center justify-between mb-3">
           <h3
@@ -3850,6 +3862,173 @@
             </div>
           </div>
         {/if}
+      </div>
+    {:else if panelId === "cardFilters"}
+      <div class="glass-card p-5">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-lg font-semibold flex items-center gap-2 text-amber-400">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-.293.707L13 13.414V19a1 1 0 01-.553.894l-4 2A1 1 0 017 21v-7.586L3.293 6.707A1 1 0 013 6V4z" />
+            </svg>
+            Filtri Carte
+          </h3>
+        </div>
+
+        <!-- Sentence Combining -->
+        <div class="mb-4 p-3 rounded-lg bg-amber-500/5 border border-amber-500/20">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <svg class="w-4 h-4 text-amber-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+              </svg>
+              <div>
+                <span class="text-sm font-semibold text-gray-200">Unisci Frasi Consecutive</span>
+                <p class="text-[11px] text-gray-500 mt-0.5">Unisce le righe SRT che finiscono con caratteri di continuazione (es. virgola) nella riga successiva</p>
+              </div>
+            </div>
+            <button
+              onclick={() => (combineSentences = !combineSentences)}
+              class="w-10 h-5 rounded-full transition-all duration-200 relative shrink-0 ml-3
+                {combineSentences ? 'bg-amber-500' : 'bg-gray-600'}"
+              aria-label="Toggle sentence combining"
+            >
+              <div class="absolute w-4 h-4 bg-white rounded-full top-0.5 transition-all duration-200
+                {combineSentences ? 'left-5' : 'left-0.5'}"></div>
+            </button>
+          </div>
+          {#if combineSentences}
+            <div class="mt-3 animate-fade-in">
+              <span class="block text-xs text-gray-500 mb-1">Caratteri di continuazione</span>
+              <input
+                type="text"
+                bind:value={continuationChars}
+                class="input-modern w-full text-xs font-mono"
+                placeholder=",、→"
+              />
+              <p class="text-[10px] text-gray-600 mt-1">Se una riga finisce con uno di questi caratteri, viene unita alla successiva</p>
+            </div>
+          {/if}
+        </div>
+
+        <!-- Length Filter -->
+        <div class="mb-3">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs font-semibold text-gray-300">Lunghezza (caratteri)</span>
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <div class="flex items-center gap-1.5 mb-1">
+                <button
+                  onclick={() => { filterMinCharsEnabled = !filterMinCharsEnabled; if (filterMinCharsEnabled && filterMinChars === null) filterMinChars = 8; }}
+                  class="w-7 h-3.5 rounded-full transition-all duration-200 relative shrink-0
+                    {filterMinCharsEnabled ? 'bg-amber-500' : 'bg-gray-600'}"
+                  aria-label="Enable min chars"
+                >
+                  <div class="absolute w-2.5 h-2.5 bg-white rounded-full top-0.5 transition-all duration-200
+                    {filterMinCharsEnabled ? 'left-[14px]' : 'left-0.5'}"></div>
+                </button>
+                <span class="text-xs text-gray-500">Minimo</span>
+              </div>
+              <div class="flex items-center gap-1">
+                <input
+                  type="number"
+                  min="1"
+                  bind:value={filterMinChars}
+                  disabled={!filterMinCharsEnabled}
+                  class="input-modern w-full text-xs {!filterMinCharsEnabled ? 'opacity-40 cursor-not-allowed' : ''}"
+                  placeholder="8"
+                />
+                <span class="text-xs text-gray-500">car.</span>
+              </div>
+            </div>
+            <div>
+              <div class="flex items-center gap-1.5 mb-1">
+                <button
+                  onclick={() => { filterMaxCharsEnabled = !filterMaxCharsEnabled; if (filterMaxCharsEnabled && filterMaxChars === null) filterMaxChars = 120; }}
+                  class="w-7 h-3.5 rounded-full transition-all duration-200 relative shrink-0
+                    {filterMaxCharsEnabled ? 'bg-amber-500' : 'bg-gray-600'}"
+                  aria-label="Enable max chars"
+                >
+                  <div class="absolute w-2.5 h-2.5 bg-white rounded-full top-0.5 transition-all duration-200
+                    {filterMaxCharsEnabled ? 'left-[14px]' : 'left-0.5'}"></div>
+                </button>
+                <span class="text-xs text-gray-500">Massimo</span>
+              </div>
+              <div class="flex items-center gap-1">
+                <input
+                  type="number"
+                  min="1"
+                  bind:value={filterMaxChars}
+                  disabled={!filterMaxCharsEnabled}
+                  class="input-modern w-full text-xs {!filterMaxCharsEnabled ? 'opacity-40 cursor-not-allowed' : ''}"
+                  placeholder="120"
+                />
+                <span class="text-xs text-gray-500">car.</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Duration Filter -->
+        <div>
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs font-semibold text-gray-300">Durata</span>
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <div class="flex items-center gap-1.5 mb-1">
+                <button
+                  onclick={() => { filterMinDurationEnabled = !filterMinDurationEnabled; if (filterMinDurationEnabled && filterMinDurationMs === null) filterMinDurationMs = 500; }}
+                  class="w-7 h-3.5 rounded-full transition-all duration-200 relative shrink-0
+                    {filterMinDurationEnabled ? 'bg-amber-500' : 'bg-gray-600'}"
+                  aria-label="Enable min duration"
+                >
+                  <div class="absolute w-2.5 h-2.5 bg-white rounded-full top-0.5 transition-all duration-200
+                    {filterMinDurationEnabled ? 'left-[14px]' : 'left-0.5'}"></div>
+                </button>
+                <span class="text-xs text-gray-500">Minima</span>
+              </div>
+              <div class="flex items-center gap-1">
+                <input
+                  type="number"
+                  min="0"
+                  step="100"
+                  bind:value={filterMinDurationMs}
+                  disabled={!filterMinDurationEnabled}
+                  class="input-modern w-full text-xs {!filterMinDurationEnabled ? 'opacity-40 cursor-not-allowed' : ''}"
+                  placeholder="500"
+                />
+                <span class="text-xs text-gray-500">ms</span>
+              </div>
+            </div>
+            <div>
+              <div class="flex items-center gap-1.5 mb-1">
+                <button
+                  onclick={() => { filterMaxDurationEnabled = !filterMaxDurationEnabled; if (filterMaxDurationEnabled && filterMaxDurationMs === null) filterMaxDurationMs = 8000; }}
+                  class="w-7 h-3.5 rounded-full transition-all duration-200 relative shrink-0
+                    {filterMaxDurationEnabled ? 'bg-amber-500' : 'bg-gray-600'}"
+                  aria-label="Enable max duration"
+                >
+                  <div class="absolute w-2.5 h-2.5 bg-white rounded-full top-0.5 transition-all duration-200
+                    {filterMaxDurationEnabled ? 'left-[14px]' : 'left-0.5'}"></div>
+                </button>
+                <span class="text-xs text-gray-500">Massima</span>
+              </div>
+              <div class="flex items-center gap-1">
+                <input
+                  type="number"
+                  min="0"
+                  step="100"
+                  bind:value={filterMaxDurationMs}
+                  disabled={!filterMaxDurationEnabled}
+                  class="input-modern w-full text-xs {!filterMaxDurationEnabled ? 'opacity-40 cursor-not-allowed' : ''}"
+                  placeholder="8000"
+                />
+                <span class="text-xs text-gray-500">ms</span>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     {:else if panelId === "ankiFields"}
       <div
@@ -4332,14 +4511,14 @@
     {/if}
   {/snippet}
 
-  <div bind:this={layoutHostEl} class="grid {gridColClass} gap-4">
+  <div bind:this={layoutHostEl} class="grid {gridColClass} gap-4 min-w-0">
     {#if seriesMode}
       <!-- In series mode, render the files panel full-width above the columns -->
       <div class="{effectiveColumnCount >= 2 ? 'col-span-2' : ''} {effectiveColumnCount >= 3 ? 'col-span-3' : ''} mb-1">
         {@render panelContent("files")}
       </div>
     {/if}
-    <div class="space-y-3 pr-1 min-h-[100px]" role="list">
+    <div class="space-y-3 min-w-0 pr-1 min-h-[100px]" role="list">
       {#each effectivePanelLayout.col1 as panelId, idx}
         {#if !(seriesMode && panelId === "files")}
         <div class="relative" role="listitem">
@@ -4350,7 +4529,7 @@
     </div>
 
     {#if effectiveColumnCount >= 2}
-      <div class="space-y-3 pr-1 min-h-[100px]" role="list">
+      <div class="space-y-3 min-w-0 pr-1 min-h-[100px]" role="list">
         {#each effectivePanelLayout.col2 as panelId, idx}
           {#if !(seriesMode && panelId === "files")}
           <div class="relative" role="listitem">
@@ -4362,7 +4541,7 @@
     {/if}
 
     {#if effectiveColumnCount >= 3}
-      <div class="space-y-3 pr-1 min-h-[100px]" role="list">
+      <div class="space-y-3 min-w-0 pr-1 min-h-[100px]" role="list">
         {#each effectivePanelLayout.col3 as panelId, idx}
           {#if !(seriesMode && panelId === "files")}
           <div class="relative" role="listitem">
