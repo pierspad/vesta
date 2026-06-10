@@ -4,10 +4,7 @@
   import { guardedOpen, guardedSave } from "./utils/dialogGuard";
   import PathPreviewModal from "./PathPreviewModal.svelte";
   import ConfirmDialog from "./ConfirmDialog.svelte";
-  import InfoModal from "./InfoModal.svelte";
   import { snackbar } from "./snackbarStore.svelte";
-  import InfoButton from "./InfoButton.svelte";
-  import { syncSections } from "./info";
   import { onMount } from "svelte";
   import { locale } from "./i18n";
   import { getFileName } from "./models";
@@ -114,7 +111,6 @@
   let isStartingPlayback = $state(false);
   let isConfirmingCheckpoint = $state(false);
 
-  let helpSection = $state<string | null>(null);
   let expandedPathField = $state<"srt" | "media" | null>(null);
 
   interface SyncLogEntry {
@@ -1195,7 +1191,7 @@
 </script>
 
 <div
-  class="h-full flex flex-col bg-gradient-to-br from-gray-900 via-gray-900 to-gray-950 relative overflow-hidden"
+  class="h-full flex flex-col bg-gray-900 relative overflow-hidden"
   role="application"
   ondrop={(e) => {
     e.preventDefault();
@@ -1327,9 +1323,9 @@
   {#snippet panelContent(panelId: SyncPanelId)}
     {#if panelId === "files"}
       <div class="glass-card p-5 flex flex-col min-w-0">
-        <h3 class="text-lg font-semibold flex items-center gap-2 mb-4 text-emerald-400">
+        <h3 class="text-lg font-semibold flex items-center gap-2 mb-4 panel-title-files-output">
           <svg
-            class="w-5 h-5 text-emerald-400"
+            class="w-5 h-5"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -1342,7 +1338,6 @@
             />
           </svg>
           {t("common.filesAndOutput")}
-          <InfoButton onclick={() => (helpSection = "files")} />
         </h3>
 
         <div class="space-y-4">
@@ -1461,7 +1456,6 @@
               /></svg
             >
             {t("sync.wizard.title")}
-            <InfoButton onclick={() => (helpSection = "wizard")} />
           </h3>
         </div>
 
@@ -1857,7 +1851,6 @@
             /></svg
           >
           {t("sync.statusTitle")}
-          <InfoButton onclick={() => (helpSection = "status")} />
         </h3>
 
         <div class="grid grid-cols-2 gap-3">
@@ -1927,7 +1920,6 @@
                   >(Page {currentPage} of {totalPages})</span
                 >{/if}
             </span>
-            <InfoButton onclick={() => (helpSection = "subtitleList")} />
           </h3>
         </div>
 
@@ -2042,7 +2034,7 @@
   </div>
 
   <!-- Fixed Bottom Band with Action Buttons -->
-  <div class="h-[92px] border-t border-white/10 bg-gray-950 flex items-center justify-center gap-4 px-6 shrink-0 z-40">
+  <div class="h-[92px] border-t border-white/10 bg-gray-900 flex items-center justify-center gap-4 px-6 shrink-0 z-40">
     <div class="relative group">
       <button
         onclick={saveFile}
@@ -2064,7 +2056,7 @@
         </svg>
         {t("sync.saveFile")}
       </button>
-      <div class="pointer-events-none absolute bottom-full left-1/2 z-50 mb-3 -translate-x-1/2 rounded-xl border border-green-500/30 bg-gray-950/95 p-3 text-center text-xs text-green-300 shadow-2xl shadow-black/40 ring-1 ring-white/10 transition-all duration-150 opacity-0 group-hover:opacity-100 group-hover:translate-y-0 translate-y-1 whitespace-nowrap">
+      <div class="pointer-events-none absolute bottom-full left-1/2 z-50 mb-3 -translate-x-1/2 rounded-xl border border-green-500/30 bg-gray-950/95 p-3 text-center text-xs text-green-300 shadow-2xl shadow-black/40 ring-1 ring-white/10 transition-all duration-150 delay-0 group-hover:delay-300 opacity-0 group-hover:opacity-100 group-hover:translate-y-0 translate-y-1 whitespace-nowrap">
         {t("sync.tooltipSaveFile")}
       </div>
     </div>
@@ -2082,7 +2074,7 @@
         </svg>
         {t("sync.newSync")}
       </button>
-      <div class="pointer-events-none absolute bottom-full left-1/2 z-50 mb-3 -translate-x-1/2 rounded-xl border border-red-500/30 bg-gray-950/95 p-3 text-center text-xs text-red-300 shadow-2xl shadow-black/40 ring-1 ring-white/10 transition-all duration-150 opacity-0 group-hover:opacity-100 group-hover:translate-y-0 translate-y-1 whitespace-nowrap">
+      <div class="pointer-events-none absolute bottom-full left-1/2 z-50 mb-3 -translate-x-1/2 rounded-xl border border-red-500/30 bg-gray-950/95 p-3 text-center text-xs text-red-300 shadow-2xl shadow-black/40 ring-1 ring-white/10 transition-all duration-150 delay-0 group-hover:delay-300 opacity-0 group-hover:opacity-100 group-hover:translate-y-0 translate-y-1 whitespace-nowrap">
         {t("sync.newSyncDesc")}
       </div>
     </div>
@@ -2161,11 +2153,11 @@
 
       <!-- Custom Tooltip for Autosync Group -->
       {#if !status?.is_loaded || !hasAudio}
-        <div class="pointer-events-none absolute bottom-full left-1/2 z-50 mb-3 -translate-x-1/2 rounded-xl border border-indigo-400/30 bg-gray-950/95 p-3 text-left text-xs text-indigo-300 shadow-2xl shadow-black/40 ring-1 ring-white/10 transition-all duration-150 opacity-0 group-hover:opacity-100 group-hover:translate-y-0 translate-y-1 whitespace-nowrap">
+        <div class="pointer-events-none absolute bottom-full left-1/2 z-50 mb-3 -translate-x-1/2 rounded-xl border border-indigo-400/30 bg-gray-950/95 p-3 text-left text-xs text-indigo-300 shadow-2xl shadow-black/40 ring-1 ring-white/10 transition-all duration-150 delay-0 group-hover:delay-300 opacity-0 group-hover:opacity-100 group-hover:translate-y-0 translate-y-1 whitespace-nowrap">
           {t("sync.autoSyncRequires")}
         </div>
       {:else}
-        <div class="pointer-events-none absolute bottom-full left-1/2 z-50 mb-3 -translate-x-1/2 rounded-xl border border-indigo-400/30 bg-gray-950/95 p-3 text-center text-xs text-indigo-300 shadow-2xl shadow-black/40 ring-1 ring-white/10 transition-all duration-150 opacity-0 group-hover:opacity-100 group-hover:translate-y-0 translate-y-1 whitespace-nowrap">
+        <div class="pointer-events-none absolute bottom-full left-1/2 z-50 mb-3 -translate-x-1/2 rounded-xl border border-indigo-400/30 bg-gray-950/95 p-3 text-center text-xs text-indigo-300 shadow-2xl shadow-black/40 ring-1 ring-white/10 transition-all duration-150 delay-0 group-hover:delay-300 opacity-0 group-hover:opacity-100 group-hover:translate-y-0 translate-y-1 whitespace-nowrap">
           {selectedAutosyncMode === "quick"
             ? `${t("sync.autoSync")} - ${formatModeName("sync.autoSyncFast", "Breve")}`
             : `${t("sync.autoSync")} - ${formatModeName("sync.autoSyncFull", "Preciso")}`}
@@ -2324,11 +2316,5 @@
     title={expandedPathField === "srt" ? "SRT Path" : "Media Path"}
     value={expandedPathField === "srt" ? status?.srt_path || "" : status?.video_path || ""}
     onclose={() => (expandedPathField = null)}
-  />
-
-  <InfoModal 
-    section={helpSection} 
-    sections={syncSections} 
-    onclose={() => (helpSection = null)} 
   />
 </div>

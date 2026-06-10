@@ -13,15 +13,13 @@
     languages,
     loadAndValidateApiKeys,
     type ApiKeyConfig,
+    getFileName,
   } from "./models";
   import PathPickerField from "./PathPickerField.svelte";
   import PathPreviewModal from "./PathPreviewModal.svelte";
   import SearchableSelect from "./SearchableSelect.svelte";
   import LogPanel, { type LogEntry } from "./LogPanel.svelte";
-  import InfoModal from "./InfoModal.svelte";
-  import InfoButton from "./InfoButton.svelte";
   import { snackbar } from "./snackbarStore.svelte";
-  import { translateSections } from "./info";
   import {
     extractModelsFromPayload,
     fetchModelsFromEndpoint,
@@ -222,8 +220,6 @@
   let error = $state<string | null>(null);
   let result = $state<TranslateResult | null>(null);
   let expandedPathField = $state<string | null>(null);
-
-  let helpSection = $state<string | null>(null);
 
   // Live subtitle preview - array of translated subtitle pairs
   interface SubtitlePair {
@@ -610,7 +606,7 @@
           progress = null;
         }
         if (event.payload.output_path) {
-          addLog(`📁 Saved: ${event.payload.output_path.split("/").pop()}`);
+          addLog(`📁 Saved: ${getFileName(event.payload.output_path)}`);
         }
         addLog(`✅ ${event.payload.message} (${event.payload.translated_count} subtitles)`);
       },
@@ -686,8 +682,8 @@
         if (!outputPath) {
           outputPath = generateOutputPath(inputPath, targetLang);
         }
-        addLog(`📥 Input selected: ${inputPath.split("/").pop()}`);
-        addLog(`📤 Output set: ${outputPath.split("/").pop()}`);
+        addLog(`📥 Input selected: ${getFileName(inputPath)}`);
+        addLog(`📤 Output set: ${getFileName(outputPath)}`);
       }
     } catch (e) {
       error = `${t("translate.errorSelectingFile")} ${e}`;
@@ -704,7 +700,7 @@
 
       if (selected) {
         outputPath = selected;
-        addLog(`📤 Output updated: ${outputPath.split("/").pop()}`);
+        addLog(`📤 Output updated: ${getFileName(outputPath)}`);
       }
     } catch (e) {
       error = `${t("translate.errorSelectingFile")} ${e}`;
@@ -730,8 +726,8 @@
       if (!outputPath) {
         outputPath = generateOutputPath(inputPath, targetLang);
       }
-      addLog(`📥 Input selected: ${inputPath.split("/").pop()}`);
-      addLog(`📤 Output set: ${outputPath.split("/").pop()}`);
+      addLog(`📥 Input selected: ${getFileName(inputPath)}`);
+      addLog(`📤 Output set: ${getFileName(outputPath)}`);
       return true;
     } catch (e) {
       snackbar.show(`Error: ${e}`, "error", 3500);
@@ -761,7 +757,7 @@
       }
     }
     outputPath = cleaned;
-    addLog(`📤 Output updated: ${outputPath.split("/").pop()}`);
+    addLog(`📤 Output updated: ${getFileName(outputPath)}`);
     return true;
   }
 
@@ -1048,7 +1044,6 @@
             />
           </svg>
           {t("translate.options")}
-          <InfoButton onclick={() => (helpSection = "options")} />
         </h3>
         <div class="space-y-4">
           {#if false}
@@ -1585,7 +1580,6 @@
             />
           </svg>
           {t("common.filesAndOutput")}
-          <InfoButton onclick={() => (helpSection = "files")} />
         </h3>
         <div class="space-y-3">
           <PathPickerField
@@ -1869,7 +1863,7 @@
   </div>
 
   <!-- Fixed Bottom Band with Action Buttons -->
-  <div class="h-[92px] border-t border-white/10 bg-gray-950 flex items-center justify-center gap-4 px-6 shrink-0 z-40">
+  <div class="h-[92px] border-t border-white/10 bg-gray-900 flex items-center justify-center gap-4 px-6 shrink-0 z-40">
     {#if isTranslating}
       <button
         onclick={cancelTranslation}
@@ -1911,7 +1905,7 @@
           </svg>
           New Translation
         </button>
-        <div class="pointer-events-none absolute bottom-full left-1/2 z-50 mb-3 -translate-x-1/2 rounded-xl border border-amber-500/30 bg-gray-950/95 p-3 text-center text-xs text-amber-300 shadow-2xl shadow-black/40 ring-1 ring-white/10 transition-all duration-150 opacity-0 group-hover:opacity-100 group-hover:translate-y-0 translate-y-1 whitespace-nowrap">
+        <div class="pointer-events-none absolute bottom-full left-1/2 z-50 mb-3 -translate-x-1/2 rounded-xl border border-amber-500/30 bg-gray-950/95 p-3 text-center text-xs text-amber-300 shadow-2xl shadow-black/40 ring-1 ring-white/10 transition-all duration-150 delay-0 group-hover:delay-300 opacity-0 group-hover:opacity-100 group-hover:translate-y-0 translate-y-1 whitespace-nowrap">
           {t("translate.cancel") === "Annulla" ? "Azzera e avvia una nuova traduzione" : "Reset and start a new translation"}
         </div>
       </div>
@@ -1947,19 +1941,12 @@
           </svg>
           {t("translate.start")}
         </button>
-        <div class="pointer-events-none absolute bottom-full left-1/2 z-50 mb-3 -translate-x-1/2 rounded-xl border border-emerald-500/30 bg-gray-950/95 p-3 text-center text-xs text-emerald-300 shadow-2xl shadow-black/40 ring-1 ring-white/10 transition-all duration-150 opacity-0 group-hover:opacity-100 group-hover:translate-y-0 translate-y-1 whitespace-nowrap">
+        <div class="pointer-events-none absolute bottom-full left-1/2 z-50 mb-3 -translate-x-1/2 rounded-xl border border-emerald-500/30 bg-gray-950/95 p-3 text-center text-xs text-emerald-300 shadow-2xl shadow-black/40 ring-1 ring-white/10 transition-all duration-150 delay-0 group-hover:delay-300 opacity-0 group-hover:opacity-100 group-hover:translate-y-0 translate-y-1 whitespace-nowrap">
           {translationBlockedReason || t("translate.start")}
         </div>
       </div>
     {/if}
   </div>
-
-  <InfoModal 
-    section={helpSection} 
-    sections={translateSections} 
-    onclose={() => (helpSection = null)} 
-  />
-
 
   <PathPreviewModal
     isOpen={!!expandedPathField}

@@ -308,7 +308,7 @@
   "transcribe.processing": "Elaborazione",
   "transcribe.fileSelected": "File selezionato",
   "transcribe.selectFilesFirst": "Seleziona prima i file di input e output",
-  "transcribe.wordTimestamps": "Timestamp parole",
+  "transcribe.wordTimestamps": "Timestamp per singola parola",
   "transcribe.wordTimestampsDesc": "Sottotitoli millimetrici. Permette anche a Whisper di spezzettare le frasi su più righe.",
   "transcribe.translateToEnglish": "Traduci in Inglese",
   "transcribe.translateToEnglishDesc": "Trascrivi e traduci in inglese",

@@ -1244,13 +1244,14 @@ export function resetCardTemplates(): CardTemplateConfig {
 // ─── Shared Utilities ───────────────────────────────────────────────────────
 
 export function getFileName(path: string): string {
-  return path.split("/").pop() || path;
+  const normalized = path.replace(/\\/g, "/");
+  return normalized.split("/").pop() || path;
 }
 
 const knownLangCodes = new Set(languages.map((l) => l.code.toLowerCase()));
 
 export function inferLanguageFromPath(filePath: string): string | null {
-  const filename = filePath.split("/").pop()?.toLowerCase() || "";
+  const filename = getFileName(filePath).toLowerCase();
   const base = filename.replace(/\.[^/.]+$/, "");
   const tokens = base.split(/[.\-_]+/).filter(Boolean);
   for (let i = tokens.length - 1; i >= 0; i--) {

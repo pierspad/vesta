@@ -159,7 +159,7 @@
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <main
-  class="flex h-screen min-w-[460px] min-h-[520px] bg-gradient-to-br from-gray-900 via-gray-950 to-gray-900 text-gray-100"
+  class="flex h-screen min-w-[460px] min-h-[520px] bg-gray-900 text-gray-100"
   ondragover={(e) => { e.preventDefault(); if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy'; }}
   ondrop={(e) => e.preventDefault()}
 >

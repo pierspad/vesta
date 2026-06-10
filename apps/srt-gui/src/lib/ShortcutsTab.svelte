@@ -507,7 +507,7 @@
 {/snippet}
 
 <div
-  class="h-full flex flex-col bg-gradient-to-br from-gray-900 via-gray-900 to-gray-950"
+  class="h-full flex flex-col bg-gray-900"
   style="contain: layout style; will-change: transform;"
 >
   <!-- Top Bar with Category Filters & Search Input aligned exactly to Vesta top heights -->
@@ -679,7 +679,7 @@
   </div>
 
   <!-- Fixed Bottom Band styled and sized to sidebar bottom -->
-  <div class="h-[92px] border-t border-white/10 bg-gray-950 flex items-center justify-center shrink-0">
+  <div class="h-[92px] border-t border-white/10 bg-gray-900 flex items-center justify-center shrink-0">
     <button
       onclick={() => (showResetAllConfirm = true)}
       class="px-5 py-2.5 bg-red-600 hover:bg-red-500 text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-red-900/30 flex items-center gap-2 hover:scale-[1.02] active:scale-[0.98]"

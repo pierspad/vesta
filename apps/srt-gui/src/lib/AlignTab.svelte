@@ -6,13 +6,11 @@
   import { onDestroy, onMount } from 'svelte';
   import { guardedOpen, guardedSave } from './utils/dialogGuard';
   import { locale } from './i18n';
-  import InfoButton from './InfoButton.svelte';
   import { languages, getFileName, inferLanguageFromPath, getFlagForPath } from './models';
   import PathPreviewModal from './PathPreviewModal.svelte';
   import { snackbar } from './snackbarStore.svelte';
-  import InfoModal from './InfoModal.svelte';
   import ConfirmDialog from './ConfirmDialog.svelte';
-  import { revisionSections } from './info';
+  import PathPickerField from './PathPickerField.svelte';
 
   let { active = false } = $props<{ active?: boolean }>();
 
@@ -78,7 +76,6 @@
       success = "";
     }
   });
-  let helpSection = $state<string | null>(null);
 
   interface ActivityLogEntry {
     id: number;
@@ -197,13 +194,36 @@
 
   function handleTextareaWheel(e: WheelEvent) {
     const textarea = e.currentTarget as HTMLTextAreaElement;
-    const isScrollable = textarea.scrollHeight > textarea.clientHeight;
-    
-    const findScrollableAncestor = (el: HTMLElement): HTMLElement | null => {
+    const direction = e.deltaY;
+    if (direction === 0) return;
+
+    // Se la textarea stessa può scorrere nella direzione dello scorrimento richiesto,
+    // lasciamo che l'evento avvenga nativamente senza bloccarlo.
+    const textareaCanScroll = textarea.scrollHeight > textarea.clientHeight;
+    if (textareaCanScroll) {
+      if (direction > 0 && textarea.scrollTop + textarea.clientHeight < textarea.scrollHeight - 1) {
+        return;
+      }
+      if (direction < 0 && textarea.scrollTop > 1) {
+        return;
+      }
+    }
+
+    // Altrimenti, cerchiamo l'antenato scorrevole più vicino che ha spazio libero per scorrere nella direzione corretta.
+    const findScrollableAncestor = (el: HTMLElement, dir: number): HTMLElement | null => {
       let parent = el.parentElement;
       while (parent) {
-        if (parent.classList.contains('overflow-y-auto') || parent.classList.contains('overflow-auto')) {
-          if (parent.scrollHeight > parent.clientHeight) {
+        const style = window.getComputedStyle(parent);
+        const overflowY = style.overflowY;
+        const isScrollableStyle = overflowY === 'auto' || overflowY === 'scroll' || 
+                                  parent.classList.contains('overflow-y-auto') || 
+                                  parent.classList.contains('overflow-auto');
+        
+        if (isScrollableStyle && parent.scrollHeight > parent.clientHeight) {
+          if (dir > 0 && parent.scrollTop + parent.clientHeight < parent.scrollHeight - 1) {
+            return parent;
+          }
+          if (dir < 0 && parent.scrollTop > 1) {
             return parent;
           }
         }
@@ -212,22 +232,21 @@
       return null;
     };
 
-    if (!isScrollable) {
-      const scrollContainer = findScrollableAncestor(textarea);
-      if (scrollContainer) {
-        scrollContainer.scrollTop += e.deltaY;
-        e.preventDefault();
+    const scrollContainer = findScrollableAncestor(textarea, direction);
+    if (scrollContainer) {
+      // Normalizzazione del delta a seconda della modalità (fondamentale in ambienti WebKit/Tauri su Linux/Windows)
+      let scrollAmount = e.deltaY;
+      if (e.deltaMode === 1) { // Modalità a righe
+        scrollAmount *= 40;
+      } else if (e.deltaMode === 2) { // Modalità a pagine
+        scrollAmount *= 800;
       }
-    } else {
-      const isAtTop = textarea.scrollTop === 0 && e.deltaY < 0;
-      const isAtBottom = Math.abs(textarea.scrollHeight - textarea.clientHeight - textarea.scrollTop) < 1 && e.deltaY > 0;
-      if (isAtTop || isAtBottom) {
-        const scrollContainer = findScrollableAncestor(textarea);
-        if (scrollContainer) {
-          scrollContainer.scrollTop += e.deltaY;
-          e.preventDefault();
-        }
-      }
+
+      scrollContainer.scrollBy({
+        top: scrollAmount,
+        behavior: 'auto'
+      });
+      e.preventDefault();
     }
   }
 
@@ -591,7 +610,7 @@
 <div 
   role="region"
   aria-label="Revision content"
-  class="h-full flex flex-col text-gray-200 bg-gradient-to-br from-gray-900 via-gray-900 to-gray-950 relative overflow-hidden"
+  class="h-full flex flex-col text-gray-200 bg-gray-900 relative overflow-hidden"
   onkeydown={handleKeydown}
   ondragover={(e) => {
     if (!active) return;
@@ -648,11 +667,6 @@
               {t("nav.revision")}
             </h3>
           </div>
-          <InfoButton
-            class="text-gray-500 hover:text-teal-300 transition-colors p-1"
-            title={t("align.helpTitle")}
-            onclick={() => (helpSection = "help")}
-          />
         </div>
 
         <!-- File Selection Area -->
@@ -664,32 +678,13 @@
               {#if targetFlag}<span class="text-lg">{targetFlag}</span>{/if}
               {t("align.baseSrt")}
             </div>
-            <div class="flex gap-2 min-w-0">
-              <button 
-                type="button"
-                onclick={() => expandedPathField = "target"}
-                class="input-modern flex-1 text-sm text-left cursor-pointer hover:bg-white/10 transition-colors truncate min-w-0"
-                style="direction: rtl; text-align: left;"
-                title={targetPath || t("align.dragDropSrt")}
-              >
-                <span
-                  class={targetPath ? "text-white" : "text-gray-500"}
-                  style="unicode-bidi: plaintext;"
-                >
-                  {targetPath || t("align.dragDropSrt")}
-                </span>
-              </button>
-              <button
-                onclick={() => checkUnsavedAndRun(selectTarget)}
-                class="btn-secondary py-2 px-3 flex items-center justify-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer"
-                title={t("align.openSrt")}
-              >
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-                </svg>
-                <span class="text-xs font-semibold">{t("flashcards.browse")}</span>
-              </button>
-            </div>
+            <PathPickerField
+              value={targetPath}
+              placeholder={t("align.dragDropSrt")}
+              browseTitle={t("align.openSrt")}
+              onexpand={() => expandedPathField = "target"}
+              onbrowse={() => checkUnsavedAndRun(selectTarget)}
+            />
             {#if targetSubs.length > 0}
               <div class="text-xs text-gray-400">{t("align.subtitlesLoaded", { count: targetSubs.length })}</div>
             {/if}
@@ -715,34 +710,14 @@
               {#if sourceFlag}<span class="text-lg">{sourceFlag}</span>{/if}
               {t("align.translationSrt")}
             </div>
-            <div class="flex gap-2 min-w-0">
-              <button 
-                type="button"
-                disabled={!targetPath}
-                onclick={() => targetPath && (expandedPathField = "source")}
-                class="input-modern flex-1 text-sm text-left truncate min-w-0 {!targetPath ? 'opacity-50 cursor-not-allowed bg-transparent' : 'cursor-pointer hover:bg-white/10 transition-colors'}"
-                style="direction: rtl; text-align: left;"
-                title={sourcePath || t("align.dragDropSrt")}
-              >
-                <span
-                  class={sourcePath ? "text-white" : "text-gray-500"}
-                  style="unicode-bidi: plaintext;"
-                >
-                  {sourcePath || t("align.dragDropSrt")}
-                </span>
-              </button>
-              <button 
-                onclick={() => checkUnsavedAndRun(selectSource)} 
-                disabled={!targetPath}
-                class="btn-secondary py-2 px-3 flex items-center justify-center gap-1.5 whitespace-nowrap shrink-0 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
-                title={t("align.openSrt")}
-              >
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-                </svg>
-                <span class="text-xs font-semibold">{t("flashcards.browse")}</span>
-              </button>
-            </div>
+            <PathPickerField
+              value={sourcePath}
+              placeholder={t("align.dragDropSrt")}
+              browseTitle={t("align.openSrt")}
+              disabled={!targetPath}
+              onexpand={() => targetPath && (expandedPathField = "source")}
+              onbrowse={() => checkUnsavedAndRun(selectSource)}
+            />
             {#if sourceSubs.length > 0}
               <div class="text-xs text-gray-400">{t("align.subtitlesLoaded", { count: sourceSubs.length })}</div>
             {/if}
@@ -880,7 +855,7 @@
   </div>
 
   <!-- Fixed Bottom Band with Action Buttons -->
-  <div class="h-[92px] border-t border-white/10 bg-gray-950 flex items-center justify-center gap-4 px-6 shrink-0 z-40">
+  <div class="h-[92px] border-t border-white/10 bg-gray-900 flex items-center justify-center gap-4 px-6 shrink-0 z-40">
     <div class="relative group">
       <button
         onclick={saveSource}
@@ -893,7 +868,7 @@
         {#if sourceFlag}<span class="text-base">{sourceFlag}</span>{/if}
         {t("align.saveResult")}
       </button>
-      <div class="pointer-events-none absolute bottom-full left-1/2 z-50 mb-3 -translate-x-1/2 rounded-xl border border-violet-500/30 bg-gray-950/95 p-3 text-center text-xs text-violet-300 shadow-2xl shadow-black/40 ring-1 ring-white/10 transition-all duration-150 opacity-0 group-hover:opacity-100 group-hover:translate-y-0 translate-y-1 whitespace-nowrap">
+      <div class="pointer-events-none absolute bottom-full left-1/2 z-50 mb-3 -translate-x-1/2 rounded-xl border border-violet-500/30 bg-gray-950/95 p-3 text-center text-xs text-violet-300 shadow-2xl shadow-black/40 ring-1 ring-white/10 transition-all duration-150 delay-0 group-hover:delay-300 opacity-0 group-hover:opacity-100 group-hover:translate-y-0 translate-y-1 whitespace-nowrap">
         {sourceSubs.length === 0 ? "Carica e allinea i file per salvare" : t("align.saveResult")}
       </div>
     </div>
@@ -904,12 +879,6 @@
     title={expandedPathField === "target" ? t("align.baseSrt") : t("align.translationSrt")}
     value={expandedPathField === "target" ? targetPath || "—" : sourcePath || "—"}
     onclose={() => (expandedPathField = null)}
-  />
-
-  <InfoModal
-    section={helpSection}
-    sections={revisionSections}
-    onclose={() => (helpSection = null)}
   />
 
   <ConfirmDialog
@@ -948,6 +917,10 @@
 </div>
 
 <style>
+  .custom-scrollbar {
+    overscroll-behavior-y: auto;
+  }
+
   .missing-pair-row {
     border: 1px solid rgba(249, 115, 22, 0.45);
     box-shadow: 0 0 0 1px rgba(249, 115, 22, 0.15), 0 0 18px rgba(249, 115, 22, 0.12);
