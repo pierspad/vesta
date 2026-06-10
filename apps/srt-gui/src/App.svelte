@@ -17,37 +17,42 @@
   type AppTab = "translate" | "sync" | "transcribe" | "align" | "flashcards" | "settings";
 
   let activeTab = $state<AppTab>("flashcards");
-  let sidebarCollapsed = $state(
-    typeof localStorage !== 'undefined'
-      ? localStorage.getItem("vesta-sidebar-collapsed") === "true"
-      : false
-  );
+  const initialPreference = (() => {
+    if (typeof localStorage === 'undefined') return null;
+    const savedPref = localStorage.getItem("vesta-sidebar-user-pref");
+    if (savedPref === "collapsed" || savedPref === "expanded") {
+      return savedPref;
+    }
+    // Migration from old key
+    const oldSaved = localStorage.getItem("vesta-sidebar-collapsed");
+    if (oldSaved === "true") return "collapsed";
+    if (oldSaved === "false") return "expanded";
+    return null;
+  })();
+
+  let userPreference = $state<"collapsed" | "expanded" | null>(initialPreference);
+  let sidebarCollapsed = $state(initialPreference === "collapsed");
   let requestedSettingsSection = $state<"overview" | "llm" | "whisper" | "language" | "anki" | "shortcuts">("overview");
   let highlightItemId = $state<string | null>(null);
 
   const MIN_WIDTH = 460;
   const MIN_HEIGHT = 520;
-  // Hysteresis: collapse early while shrinking, expand only when there's plenty
-  // of space while growing. This keeps columns as the first thing to recover.
-  const SIDEBAR_COLLAPSE_FIRST_WIDTH = 1560;
-  // Re-expand only after content has had time to fully recover width first.
-  // Delta is slightly larger than the sidebar width gain (w-20 -> w-[238px] = 158px)
-  // to preserve hysteresis and avoid flicker around the switching point.
-  const SIDEBAR_EXPAND_LAST_WIDTH = SIDEBAR_COLLAPSE_FIRST_WIDTH + 190;
+  
+  // Collapse threshold (approx. when the window gets close to the 1280px/1300px mark, 
+  // before dropping to single-column layout).
+  const COLLAPSE_THRESHOLD = 1300;
+  // Re-expand threshold (COLLAPSE_THRESHOLD + 190px delta to avoid flicker)
+  const EXPAND_THRESHOLD = COLLAPSE_THRESHOLD + 190;
 
   function applyResponsiveSidebar(logicalWidth: number) {
-    const savedState = typeof localStorage !== 'undefined' ? localStorage.getItem("vesta-sidebar-collapsed") : null;
-    
-    // If the user explicitly collapsed it (savedState === "true"), it should stay collapsed.
-    // Otherwise, we only auto-collapse it if the screen gets critically narrow (<= 1024px).
-    const collapseThreshold = (savedState === "true") ? 0 : 1024;
-    const expandThreshold = (savedState === "true") ? 0 : 1024 + 190;
-
-    if (logicalWidth <= collapseThreshold) {
-      sidebarCollapsed = true;
+    // If the user explicitly set a preference, respect it and skip responsive auto-collapsing.
+    if (userPreference !== null) {
       return;
     }
-    if (logicalWidth >= expandThreshold) {
+
+    if (logicalWidth <= COLLAPSE_THRESHOLD) {
+      sidebarCollapsed = true;
+    } else if (logicalWidth >= EXPAND_THRESHOLD) {
       sidebarCollapsed = false;
     }
   }
@@ -138,7 +143,10 @@
 
   function toggleSidebar() {
     sidebarCollapsed = !sidebarCollapsed;
+    userPreference = sidebarCollapsed ? "collapsed" : "expanded";
     if (typeof localStorage !== 'undefined') {
+      localStorage.setItem("vesta-sidebar-user-pref", userPreference);
+      // Keep old key synced for backwards compatibility
       localStorage.setItem("vesta-sidebar-collapsed", String(sidebarCollapsed));
     }
   }

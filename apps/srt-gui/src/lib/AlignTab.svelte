@@ -37,6 +37,10 @@
   let showOverwriteConfirm = $state(false);
   let pendingDroppedPaths = $state<string[]>([]);
 
+  let hasUnsavedChanges = $state(false);
+  let showUnsavedWarning = $state(false);
+  let pendingBrowseAction = $state<(() => void) | null>(null);
+
   let currentPage = $state(0);
   const ITEMS_PER_PAGE_OPTIONS = [5, 10, 15, 20] as const;
   let itemsPerPageIndex = $state(2); // default 15
@@ -123,6 +127,7 @@
   }
 
   function scheduleUndo() {
+    hasUnsavedChanges = true;
     // Push undo snapshot on first keystroke, debounce subsequent ones
     if (undoDebounceTimer === null) {
       pushUndo();
@@ -194,8 +199,21 @@
     const textarea = e.currentTarget as HTMLTextAreaElement;
     const isScrollable = textarea.scrollHeight > textarea.clientHeight;
     
+    const findScrollableAncestor = (el: HTMLElement): HTMLElement | null => {
+      let parent = el.parentElement;
+      while (parent) {
+        if (parent.classList.contains('overflow-y-auto') || parent.classList.contains('overflow-auto')) {
+          if (parent.scrollHeight > parent.clientHeight) {
+            return parent;
+          }
+        }
+        parent = parent.parentElement;
+      }
+      return null;
+    };
+
     if (!isScrollable) {
-      const scrollContainer = textarea.closest('.overflow-y-auto');
+      const scrollContainer = findScrollableAncestor(textarea);
       if (scrollContainer) {
         scrollContainer.scrollTop += e.deltaY;
         e.preventDefault();
@@ -204,7 +222,7 @@
       const isAtTop = textarea.scrollTop === 0 && e.deltaY < 0;
       const isAtBottom = Math.abs(textarea.scrollHeight - textarea.clientHeight - textarea.scrollTop) < 1 && e.deltaY > 0;
       if (isAtTop || isAtBottom) {
-        const scrollContainer = textarea.closest('.overflow-y-auto');
+        const scrollContainer = findScrollableAncestor(textarea);
         if (scrollContainer) {
           scrollContainer.scrollTop += e.deltaY;
           e.preventDefault();
@@ -410,9 +428,12 @@
   async function loadTarget(path: string) {
     try {
       const content = await readTextFile(path);
+      sourcePath = "";
+      sourceSubs = [];
       targetSubs = parseSrt(content);
       targetPath = path;
       normalizeAlignments();
+      hasUnsavedChanges = false;
       error = "";
       addActivityLog(`Target loaded: ${getFileName(path)} (${targetSubs.length} subtitles)`, 'success');
     } catch (e) {
@@ -454,11 +475,21 @@
       sourcePath = path;
       normalizeAlignments();
       undoStack = []; // Reset undo on new file load
+      hasUnsavedChanges = false;
       error = "";
       addActivityLog(`Source loaded: ${getFileName(path)} (${sourceSubs.length} subtitles)`, 'success');
     } catch (e) {
       error = `Error loading source: ${e}`;
       addActivityLog(`Source load failed: ${e}`, 'error');
+    }
+  }
+
+  function checkUnsavedAndRun(action: () => void) {
+    if (hasUnsavedChanges) {
+      pendingBrowseAction = action;
+      showUnsavedWarning = true;
+    } else {
+      action();
     }
   }
 
@@ -507,6 +538,7 @@
         const content = serializeSrt(sourceSubs);
         await writeTextFile(savePath, content);
         success = `File saved to ${savePath}`;
+        hasUnsavedChanges = false;
         addActivityLog(`Aligned file saved: ${getFileName(savePath)}`, 'success');
         setTimeout(() => success = "", 3000);
       }
@@ -648,7 +680,7 @@
                 </span>
               </button>
               <button
-                onclick={selectTarget}
+                onclick={() => checkUnsavedAndRun(selectTarget)}
                 class="btn-secondary py-2 px-3 flex items-center justify-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer"
                 title={t("align.openSrt")}
               >
@@ -700,7 +732,7 @@
                 </span>
               </button>
               <button 
-                onclick={selectSource} 
+                onclick={() => checkUnsavedAndRun(selectSource)} 
                 disabled={!targetPath}
                 class="btn-secondary py-2 px-3 flex items-center justify-center gap-1.5 whitespace-nowrap shrink-0 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
                 title={t("align.openSrt")}
@@ -892,6 +924,26 @@
       pendingDroppedPaths = [];
     }}
     on:confirm={confirmOverwrite}
+  />
+
+  <ConfirmDialog
+    show={showUnsavedWarning}
+    title="Modifiche non salvate"
+    message="Hai delle modifiche non salvate ai sottotitoli. Se procedi e carichi dei nuovi file, le modifiche correnti verranno perse permanentemente."
+    confirmText="Procedi comunque"
+    cancelText="Annulla"
+    variant="warning"
+    on:cancel={() => {
+      showUnsavedWarning = false;
+      pendingBrowseAction = null;
+    }}
+    on:confirm={() => {
+      showUnsavedWarning = false;
+      if (pendingBrowseAction) {
+        pendingBrowseAction();
+        pendingBrowseAction = null;
+      }
+    }}
   />
 </div>
 

@@ -1212,7 +1212,7 @@
   // Responsive columns: auto-collapse from 3 -> 2 -> 1 based on available width.
   const PREFERRED_COLUMN_COUNT = 3;
   const STACK_TO_ONE_COLUMN_WIDTH = 1040;
-  const STACK_TO_TWO_COLUMNS_WIDTH = 1240;
+  const STACK_TO_TWO_COLUMNS_WIDTH = 1450;
   let layoutHostEl = $state<HTMLElement | null>(null);
   let layoutWidth = $state(
     typeof window !== "undefined" ? window.innerWidth : 1700,
@@ -1236,8 +1236,8 @@
 
     if (effectiveColumnCount === 2) {
       return {
-        col1: ["files", "audioClips", "videoClips"],
-        col2: ["naming", "ankiFields", "exportFormat", "snapshots", "progressResult"],
+        col1: ["files", "audioClips", "snapshots", "videoClips"],
+        col2: ["naming", "exportFormat", "ankiFields", "progressResult"],
         col3: [],
       };
     }
