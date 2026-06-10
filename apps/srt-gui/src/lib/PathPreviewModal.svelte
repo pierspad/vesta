@@ -117,33 +117,37 @@
         </div>
       {/if}
 
-      <div class="mt-4 flex justify-end gap-2">
-        {#if editable}
-          <button
-            type="button"
-            onclick={handleSecondaryClick}
-            class="btn-secondary py-1.5 px-4 text-xs"
-          >
-            {isEditing ? t("common.cancel") : (secondaryText || "✏️ Edit")}
-          </button>
-        {:else if secondaryText && onsecondary}
-          <button
-            type="button"
-            onclick={handleSecondaryClick}
-            class="btn-secondary py-1.5 px-4 text-xs"
-          >
-            {secondaryText}
-          </button>
-        {/if}
+      {#if isEditing || editable || (secondaryText && onsecondary)}
+        <div class="mt-4 flex justify-end gap-2">
+          {#if editable}
+            <button
+              type="button"
+              onclick={handleSecondaryClick}
+              class="btn-secondary py-1.5 px-4 text-xs"
+            >
+              {isEditing ? t("common.cancel") : (secondaryText || "✏️ Edit")}
+            </button>
+          {:else if secondaryText && onsecondary}
+            <button
+              type="button"
+              onclick={handleSecondaryClick}
+              class="btn-secondary py-1.5 px-4 text-xs"
+            >
+              {secondaryText}
+            </button>
+          {/if}
 
-        <button
-          type="button"
-          onclick={handlePrimaryClick}
-          class="btn-primary py-1.5 px-4 text-xs"
-        >
-          {isEditing ? t("settings.modal.save") : confirmText}
-        </button>
-      </div>
+          {#if isEditing}
+            <button
+              type="button"
+              onclick={handlePrimaryClick}
+              class="btn-primary py-1.5 px-4 text-xs"
+            >
+              {t("settings.modal.save")}
+            </button>
+          {/if}
+        </div>
+      {/if}
     </div>
   </div>
 {/if}
