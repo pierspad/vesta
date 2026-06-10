@@ -19,11 +19,9 @@
   import PathPreviewModal from "./PathPreviewModal.svelte";
   import SearchableSelect from "./SearchableSelect.svelte";
   import LogPanel, { type LogEntry } from "./LogPanel.svelte";
-  import InfoModal from "./InfoModal.svelte";
-  import InfoButton from "./InfoButton.svelte";
   import CodeEditor from "./CodeEditor.svelte";
   import { snackbar } from "./snackbarStore.svelte";
-  import { flashcardsSections } from "./info";
+  import PathPickerField from "./PathPickerField.svelte";
   import { smartMatchingStore } from "./smartMatchingStore.svelte";
 
   const SUBTITLE_EXTENSIONS = ["srt", "ass", "ssa", "vtt"];
@@ -695,7 +693,7 @@
     type FileWithEp = { path: string; ep: number | null; name: string };
     const toEntries = (files: string[]): FileWithEp[] =>
       files.map((f) => {
-        const name = f.split("/").pop() || f;
+        const name = getFileName(f);
         return { path: f, ep: extractEpisodeNumber(name), name };
       });
 
@@ -1262,8 +1260,6 @@
     seriesMode ? t("flashcards.filesHelp") : t("flashcards.filesHelpMovie"),
   );
 
-  let helpSection = $state<string | null>(null);
-
   let noteTypeLanguage = $state("");
   let noteTypeName = $state(loadCardTemplates().noteTypeName);
 
@@ -1630,7 +1626,7 @@
   function deriveDeckNameFromFile(ep: EpisodeEntry): string {
     // Prefer media file, then target subs
     const filePath = ep.mediaPath || ep.targetSubsPath;
-    const filename = filePath.replace(/\\/g, "/").split("/").pop() || "";
+    const filename = getFileName(filePath);
     let base = filename.replace(/\.[^/.]+$/, "");
 
     // Strip known language suffixes like -en, _it, .ja etc.
@@ -2076,7 +2072,7 @@
 
   async function loadTargetSubtitle(path: string) {
     targetSubsPath = path;
-    const filename = targetSubsPath.split("/").pop() || "";
+    const filename = getFileName(targetSubsPath);
 
     if (!noteTypeLanguage) {
       const inferredLanguage = inferLanguageFromPath(targetSubsPath);
@@ -2104,7 +2100,7 @@
 
   async function loadNativeSubtitle(path: string) {
     nativeSubsPath = path;
-    const filename = nativeSubsPath.split("/").pop() || "";
+    const filename = getFileName(nativeSubsPath);
 
     const info = await invoke<any>("flashcard_load_subs", {
       path: nativeSubsPath,
@@ -2119,7 +2115,7 @@
 
   async function applyMediaSelection(path: string, autoSelected = false) {
     mediaPath = path;
-    const filename = mediaPath.split("/").pop() || "";
+    const filename = getFileName(mediaPath);
     mediaType = detectMediaType(filename);
     await loadAudioTracksForMedia(path);
 
@@ -2706,7 +2702,7 @@
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
-  class="h-full flex flex-col bg-gradient-to-br from-gray-900 via-gray-900 to-gray-950 relative overflow-hidden"
+  class="h-full flex flex-col bg-gray-900 relative overflow-hidden"
   ondragover={(e) => {
     e.preventDefault();
     if (e.dataTransfer) {
@@ -3185,9 +3181,6 @@
               </button>
             {/if}
           {/if}
-          <div class="ml-auto">
-            <InfoButton onclick={() => (helpSection = "files")} />
-          </div>
         </div>
 
         {#if !seriesMode}
@@ -3197,229 +3190,64 @@
                 {t("flashcards.targetLangSubs")}
                 <span class="text-red-400">*</span>
               </span>
-              <div class="flex gap-2">
-                <button
-                  type="button"
-                  onclick={() => {
-                    if (targetSubsPath) expandedPathField = "targetSubs";
-                  }}
-                  class="input-modern flex-1 text-xs text-left transition-colors truncate {targetSubsPath
-                    ? 'cursor-pointer hover:bg-white/10'
-                    : 'cursor-default hover:bg-transparent'}"
-                  style="direction: rtl; text-align: left;"
-                  title={targetSubsPath || t("flashcards.selectFile")}
-                >
-                  <span
-                    class={targetSubsPath ? "text-white" : "text-gray-500"}
-                    style="unicode-bidi: plaintext;"
-                  >
-                    {targetSubsPath || t("flashcards.selectFile")}
-                  </span>
-                </button>
-                <button
-                  onclick={selectTargetSubs}
-                  class="btn-secondary py-2 px-3 text-xs flex-shrink-0 flex items-center gap-1.5 cursor-pointer"
-                >
-                  <svg
-                    class="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"
-                    />
-                  </svg>
-                  <span class="text-xs font-semibold">{t("flashcards.browse")}</span>
-                </button>
-                <button
-                  type="button"
-                  onclick={() => clearMovieFile("target")}
-                  disabled={!canClearMovieFile("target")}
-                  class="inline-flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-lg border transition-colors {clearMovieFileButtonClass('target')}"
-                  title="Rimuovi file"
-                  aria-label="Rimuovi file"
-                >
-                  <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  </svg>
-                </button>
-              </div>
+              <PathPickerField
+                value={targetSubsPath}
+                placeholder={t("flashcards.selectFile")}
+                browseTitle={t("flashcards.selectFile")}
+                onexpand={() => {
+                  if (targetSubsPath) expandedPathField = "targetSubs";
+                }}
+                onbrowse={selectTargetSubs}
+                onclear={() => clearMovieFile("target")}
+              />
             </div>
 
             <div>
               <span class="block text-xs text-gray-400 mb-1"
                 >{t("flashcards.nativeLangSubs")}</span
               >
-              <div class="flex gap-2">
-                <button
-                  type="button"
-                  onclick={() => {
-                    if (nativeSubsPath) expandedPathField = "nativeSubs";
-                  }}
-                  class="input-modern flex-1 text-xs text-left transition-colors truncate {nativeSubsPath
-                    ? 'cursor-pointer hover:bg-white/10'
-                    : 'cursor-default hover:bg-transparent'}"
-                  style="direction: rtl; text-align: left;"
-                  title={nativeSubsPath || t("flashcards.optional")}
-                >
-                  <span
-                    class={nativeSubsPath ? "text-white" : "text-gray-500"}
-                    style="unicode-bidi: plaintext;"
-                  >
-                    {nativeSubsPath || t("flashcards.optional")}
-                  </span>
-                </button>
-                <button
-                  onclick={selectNativeSubs}
-                  class="btn-secondary py-2 px-3 text-xs flex-shrink-0 flex items-center gap-1.5 cursor-pointer"
-                >
-                  <svg
-                    class="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"
-                    />
-                  </svg>
-                  <span class="text-xs font-semibold">{t("flashcards.browse")}</span>
-                </button>
-                <button
-                  type="button"
-                  onclick={() => clearMovieFile("native")}
-                  disabled={!canClearMovieFile("native")}
-                  class="inline-flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-lg border transition-colors {clearMovieFileButtonClass('native')}"
-                  title="Rimuovi file"
-                  aria-label="Rimuovi file"
-                >
-                  <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  </svg>
-                </button>
-              </div>
+              <PathPickerField
+                value={nativeSubsPath}
+                placeholder={t("flashcards.optional")}
+                browseTitle={t("flashcards.optional")}
+                onexpand={() => {
+                  if (nativeSubsPath) expandedPathField = "nativeSubs";
+                }}
+                onbrowse={selectNativeSubs}
+                onclear={() => clearMovieFile("native")}
+              />
             </div>
 
             <div>
               <span class="block text-xs text-gray-400 mb-1"
                 >{t("flashcards.mediaFile")}</span
               >
-              <div class="flex gap-2">
-                <button
-                  type="button"
-                  onclick={() => {
-                    if (mediaPath) expandedPathField = "media";
-                  }}
-                  class="input-modern flex-1 text-xs text-left transition-colors truncate {mediaPath
-                    ? 'cursor-pointer hover:bg-white/10'
-                    : 'cursor-default hover:bg-transparent'}"
-                  style="direction: rtl; text-align: left;"
-                  title={mediaPath || t("flashcards.mediaPlaceholder")}
-                >
-                  <span
-                    class={mediaPath ? "text-white" : "text-gray-500"}
-                    style="unicode-bidi: plaintext;"
-                  >
-                    {mediaPath || t("flashcards.mediaPlaceholder")}
-                  </span>
-                </button>
-                <button
-                  onclick={selectMedia}
-                  class="btn-secondary py-2 px-3 text-xs flex-shrink-0 flex items-center gap-1.5 cursor-pointer"
-                >
-                  <svg
-                    class="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"
-                    />
-                  </svg>
-                  <span class="text-xs font-semibold">{t("flashcards.browse")}</span>
-                </button>
-                <button
-                  type="button"
-                  onclick={() => clearMovieFile("media")}
-                  disabled={!canClearMovieFile("media")}
-                  class="inline-flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-lg border transition-colors {clearMovieFileButtonClass('media')}"
-                  title="Rimuovi file"
-                  aria-label="Rimuovi file"
-                >
-                  <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  </svg>
-                </button>
-              </div>
+              <PathPickerField
+                value={mediaPath}
+                placeholder={t("flashcards.mediaPlaceholder")}
+                browseTitle={t("flashcards.mediaPlaceholder")}
+                onexpand={() => {
+                  if (mediaPath) expandedPathField = "media";
+                }}
+                onbrowse={selectMedia}
+                onclear={() => clearMovieFile("media")}
+              />
             </div>
 
             <div>
               <span class="block text-xs text-gray-400 mb-1">
                 {t("flashcards.outputDir")} <span class="text-red-400">*</span>
               </span>
-              <div class="flex gap-2">
-                <button
-                  type="button"
-                  onclick={() => {
-                    if (outputDir) expandedPathField = "output";
-                  }}
-                  class="input-modern flex-1 text-xs text-left transition-colors truncate {outputDir
-                    ? 'cursor-pointer hover:bg-white/10'
-                    : 'cursor-default hover:bg-transparent'}"
-                  style="direction: rtl; text-align: left;"
-                  title={outputDir || t("flashcards.selectDir")}
-                >
-                  <span
-                    class={outputDir ? "text-white" : "text-gray-500"}
-                    style="unicode-bidi: plaintext;"
-                  >
-                    {outputDir || t("flashcards.selectDir")}
-                  </span>
-                </button>
-                <button
-                  onclick={selectOutputDir}
-                  class="btn-secondary py-2 px-3 text-xs flex-shrink-0 flex items-center gap-1.5 cursor-pointer"
-                  title={t("flashcards.selectDir")}
-                >
-                  <svg
-                    class="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"
-                    />
-                  </svg>
-                  <span class="text-xs font-semibold">{t("flashcards.browse")}</span>
-                </button>
-                <button
-                  type="button"
-                  onclick={() => clearMovieFile("output")}
-                  disabled={!canClearMovieFile("output")}
-                  class="inline-flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-lg border transition-colors {clearMovieFileButtonClass('output')}"
-                  title="Rimuovi cartella"
-                  aria-label="Rimuovi cartella"
-                >
-                  <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  </svg>
-                </button>
-              </div>
+              <PathPickerField
+                value={outputDir}
+                placeholder={t("flashcards.selectDir")}
+                browseTitle={t("flashcards.selectDir")}
+                onexpand={() => {
+                  if (outputDir) expandedPathField = "output";
+                }}
+                onbrowse={selectOutputDir}
+                onclear={() => clearMovieFile("output")}
+              />
             </div>
           </div>
         {:else}
@@ -3478,7 +3306,7 @@
                             title={ep.targetSubsPath}
                             onclick={() => { navigator.clipboard.writeText(ep.targetSubsPath); showSnackbar(t("flashcards.copiedTargetSubs") || "Percorso originale copiato", "success"); }}
                           >
-                            <span class="px-1.5 py-0.5">{ep.targetSubsPath.split("/").pop()}</span>
+                            <span class="px-1.5 py-0.5">{getFileName(ep.targetSubsPath)}</span>
                           </td>
                           <td
                             class="p-1.5 cursor-pointer truncate transition-colors hover:bg-violet-500/12 rounded-md {ep.nativeSubsPath
@@ -3488,7 +3316,7 @@
                             onclick={() => { if(ep.nativeSubsPath) { navigator.clipboard.writeText(ep.nativeSubsPath); showSnackbar(t("flashcards.copiedNativeSubs") || "Percorso riferimento copiato", "success"); } }}
                           >
                             <span class="px-1.5 py-0.5">{ep.nativeSubsPath
-                              ? ep.nativeSubsPath.split("/").pop()
+                              ? getFileName(ep.nativeSubsPath)
                               : "—"}</span>
                           </td>
 	                          <td
@@ -3506,7 +3334,7 @@
 	                                  ></span>
 	                                {/if}
 	                                <span class="truncate">
-	                                  {ep.mediaPath.split("/").pop()}
+	                                  {getFileName(ep.mediaPath)}
 	                                </span>
 	                              </span>
 	                            {:else}
@@ -3600,58 +3428,16 @@
                   {t("flashcards.outputDir")}
                   <span class="text-red-400">*</span>
                 </span>
-                <div class="flex gap-2">
-                  <button
-                    type="button"
-                    onclick={() => {
-                      if (outputDir) expandedPathField = "output";
-                    }}
-                    class="input-modern flex-1 text-xs text-left transition-colors truncate {outputDir
-                      ? 'cursor-pointer hover:bg-white/10'
-                      : 'cursor-default hover:bg-transparent'}"
-                    style="direction: rtl; text-align: left;"
-                    title={outputDir || t("flashcards.selectDir")}
-                  >
-                    <span
-                      class={outputDir ? "text-white" : "text-gray-500"}
-                      style="unicode-bidi: plaintext;"
-                    >
-                      {outputDir || t("flashcards.selectDir")}
-                    </span>
-                  </button>
-                  <button
-                    onclick={selectOutputDir}
-                    class="btn-secondary py-2 px-3 text-xs flex-shrink-0 flex items-center gap-1.5 cursor-pointer"
-                    title={t("flashcards.selectDir")}
-                  >
-                    <svg
-                      class="w-4 h-4"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        stroke-width="2"
-                        d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"
-                      />
-                    </svg>
-                    <span class="text-xs font-semibold">{t("flashcards.browse")}</span>
-                  </button>
-                  <button
-                    type="button"
-                    onclick={() => clearMovieFile("output")}
-                    disabled={!canClearMovieFile("output")}
-                    class="inline-flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-lg border transition-colors {clearMovieFileButtonClass('output')}"
-                    title="Rimuovi cartella"
-                    aria-label="Rimuovi cartella"
-                  >
-                    <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
-                  </button>
-                </div>
+                <PathPickerField
+                  value={outputDir}
+                  placeholder={t("flashcards.selectDir")}
+                  browseTitle={t("flashcards.selectDir")}
+                  onexpand={() => {
+                    if (outputDir) expandedPathField = "output";
+                  }}
+                  onbrowse={selectOutputDir}
+                  onclear={() => clearMovieFile("output")}
+                />
               </div>
             {/if}
           </div>
@@ -3684,7 +3470,6 @@
               />
             </svg>
             {t("flashcards.generateAudioClips")}
-            <InfoButton onclick={() => (helpSection = "audioClips")} />
           </h3>
           <button
             onclick={() => {
@@ -3824,7 +3609,6 @@
               />
             </svg>
             {t("flashcards.generateSnapshots")}
-            <InfoButton onclick={() => (helpSection = "snapshots")} />
           </h3>
           <button
             onclick={() => {
@@ -3917,7 +3701,6 @@
               />
             </svg>
             {t("flashcards.generateVideoClips")}
-            <InfoButton onclick={() => (helpSection = "videoClips")} />
           </h3>
           <button
             onclick={() => {
@@ -4107,7 +3890,6 @@
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
             </svg>
           </button>
-          <InfoButton onclick={() => (helpSection = "ankiFields")} />
         </div>
 
         {#if showAnkiFields}
@@ -4248,7 +4030,6 @@
             />
           </svg>
           {t("flashcards.exportFormat")}
-          <InfoButton onclick={() => (helpSection = "exportFormat")} />
         </h3>
         <div class="space-y-2">
           <label
@@ -4364,7 +4145,6 @@
             />
           </svg>
           {t("flashcards.naming")}
-          <InfoButton onclick={() => (helpSection = "naming")} />
         </h3>
 
         <div class="space-y-3">
@@ -5085,14 +4865,6 @@
     </div>
   {/if}
 
-
-
-  <InfoModal 
-    section={helpSection} 
-    sections={flashcardsSections} 
-    onclose={() => (helpSection = null)} 
-  />
-
   <PathPreviewModal
     isOpen={!!expandedPathField}
     title={expandedPathField === "targetSubs"
@@ -5122,7 +4894,7 @@
   </div>
 
   <!-- Fixed Bottom Band with Action Buttons -->
-  <div class="h-[92px] border-t border-white/10 bg-gray-950 flex items-center justify-center gap-4 px-6 shrink-0">
+  <div class="h-[92px] border-t border-white/10 bg-gray-900 flex items-center justify-center gap-4 px-6 shrink-0">
     {#if isProcessing}
       <button
         onclick={cancelGeneration}
@@ -5171,7 +4943,7 @@
           </svg>
           {t("flashcards.preview")}
         </button>
-        <div class="pointer-events-none absolute bottom-full left-1/2 z-50 mb-3 -translate-x-1/2 rounded-xl border border-amber-500/30 bg-gray-950/95 p-3 text-center text-xs text-amber-300 shadow-2xl shadow-black/40 ring-1 ring-white/10 transition-all duration-150 opacity-0 group-hover:opacity-100 group-hover:translate-y-0 translate-y-1 whitespace-nowrap">
+        <div class="pointer-events-none absolute bottom-full left-1/2 z-50 mb-3 -translate-x-1/2 rounded-xl border border-amber-500/30 bg-gray-950/95 p-3 text-center text-xs text-amber-300 shadow-2xl shadow-black/40 ring-1 ring-white/10 transition-all duration-150 delay-0 group-hover:delay-300 opacity-0 group-hover:opacity-100 group-hover:translate-y-0 translate-y-1 whitespace-nowrap">
           {!canRunFlashcards ? `Completa: ${generationRequirementsText}` : t("flashcards.preview")}
         </div>
       </div>
@@ -5217,7 +4989,7 @@
         {#if !canRunFlashcards}
           <div
             id="flashcards-generate-requirements"
-            class="pointer-events-none absolute bottom-full left-1/2 z-40 mb-3 w-[min(22rem,calc(100vw-3rem))] -translate-x-1/2 rounded-xl border border-amber-400/30 bg-gray-950/95 p-3 text-left text-xs text-gray-200 opacity-0 shadow-2xl shadow-black/40 ring-1 ring-white/10 transition-all duration-150 group-hover:opacity-100 group-hover:translate-y-0 {generationPromptOpen ? 'opacity-100 translate-y-0' : 'translate-y-1'}"
+            class="pointer-events-none absolute bottom-full left-1/2 z-40 mb-3 w-[min(22rem,calc(100vw-3rem))] -translate-x-1/2 rounded-xl border border-amber-400/30 bg-gray-950/95 p-3 text-left text-xs text-gray-200 opacity-0 shadow-2xl shadow-black/40 ring-1 ring-white/10 transition-all duration-150 delay-0 group-hover:delay-300 group-hover:opacity-100 group-hover:translate-y-0 {generationPromptOpen ? 'opacity-100 translate-y-0' : 'translate-y-1'}"
           >
             <p class="mb-2 font-semibold text-amber-200">
               Mancano ancora questi passaggi:
@@ -5253,7 +5025,7 @@
           </svg>
           {t("flashcards.newGeneration")}
         </button>
-        <div class="pointer-events-none absolute bottom-full left-1/2 z-50 mb-3 -translate-x-1/2 rounded-xl border border-amber-500/30 bg-gray-950/95 p-3 text-center text-xs text-amber-300 shadow-2xl shadow-black/40 ring-1 ring-white/10 transition-all duration-150 opacity-0 group-hover:opacity-100 group-hover:translate-y-0 translate-y-1 whitespace-nowrap">
+        <div class="pointer-events-none absolute bottom-full left-1/2 z-50 mb-3 -translate-x-1/2 rounded-xl border border-amber-500/30 bg-gray-950/95 p-3 text-center text-xs text-amber-300 shadow-2xl shadow-black/40 ring-1 ring-white/10 transition-all duration-150 delay-0 group-hover:delay-300 opacity-0 group-hover:opacity-100 group-hover:translate-y-0 translate-y-1 whitespace-nowrap">
           {t("flashcards.newGenerationDesc")}
         </div>
       </div>

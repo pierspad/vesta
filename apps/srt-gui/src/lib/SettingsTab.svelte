@@ -1911,7 +1911,7 @@
 </script>
 
 <div
-  class="h-full flex flex-col bg-gradient-to-br from-gray-900 via-gray-900 to-gray-950"
+  class="h-full flex flex-col bg-gray-900"
 >
   {#if activeSettingsSection === 'shortcuts'}
     <div class="flex-1 flex flex-col min-h-0">
@@ -3268,7 +3268,7 @@
   </div>
 
   <!-- Fixed Bottom Band with Red Reset Button styled and sized to sidebar bottom -->
-  <div class="h-[92px] border-t border-white/10 bg-gray-950 flex items-center justify-center shrink-0">
+  <div class="h-[92px] border-t border-white/10 bg-gray-900 flex items-center justify-center shrink-0">
     <button
       onclick={() => {
         if (activeSettingsSection !== "shortcuts") {

@@ -6,15 +6,12 @@
   import { guardedOpen, guardedSave } from "./utils/dialogGuard";
   import { onDestroy, onMount } from "svelte";
   import { locale } from "./i18n";
-  import { getLanguageSearchTerms, languages as allLanguages } from "./models";
+  import { getLanguageSearchTerms, languages as allLanguages, getFileName } from "./models";
   import PathPickerField from "./PathPickerField.svelte";
   import PathPreviewModal from "./PathPreviewModal.svelte";
   import SearchableSelect from "./SearchableSelect.svelte";
   import { snackbar } from "./snackbarStore.svelte";
-  import InfoModal from "./InfoModal.svelte";
-  import InfoButton from "./InfoButton.svelte";
   import ConfirmDialog from "./ConfirmDialog.svelte";
-  import { transcribeSections } from "./info";
 
   let { onGoToSettings, active = false } = $props<{
     onGoToSettings?: (section?: "overview" | "llm" | "whisper" | "language" | "anki" | "shortcuts", highlightItemId?: string) => void;
@@ -72,7 +69,6 @@
   let logIdCounter = 0;
   let logs = $state<LogEntry[]>([]);
 
-  let helpSection = $state<string | null>(null);
   let expandedPathField = $state<string | null>(null);
 
   let isDraggingOver = $state(false);
@@ -175,7 +171,7 @@
         outputPath = generateOutputPathFromInput(inputPath, effectiveCurrentLang);
       }
       addLog(
-        `Language set to ${selectedLanguageLabel(currentLang)}; output updated to ${outputPath.split("/").pop()}`,
+        `Language set to ${selectedLanguageLabel(currentLang)}; output updated to ${getFileName(outputPath)}`,
         "info",
       );
       previousLanguageForOutput = currentLang;
@@ -370,10 +366,10 @@
           outputPath = generateOutputPathFromInput(inputPath, outputLang);
         }
         addLog(
-          `${t("transcribe.fileSelected")}: ${inputPath.split("/").pop()}`,
+          `${t("transcribe.fileSelected")}: ${getFileName(inputPath)}`,
           "file",
         );
-        addLog(`Output file: ${outputPath.split("/").pop()}`, "info");
+        addLog(`Output file: ${getFileName(outputPath)}`, "info");
       }
     } catch (e) {
       error = `${t("transcribe.errorSelectingFile")}: ${e}`;
@@ -398,10 +394,10 @@
       const outputLang = effectiveLanguageCodeForOutput(selectedLanguage);
       outputPath = generateOutputPathFromInput(inputPath, outputLang);
       addLog(
-        `${t("transcribe.fileSelected")}: ${inputPath.split("/").pop()}`,
+        `${t("transcribe.fileSelected")}: ${getFileName(inputPath)}`,
         "file",
       );
-      addLog(`Output file: ${outputPath.split("/").pop()}`, "info");
+      addLog(`Output file: ${getFileName(outputPath)}`, "info");
     }
   }
 
@@ -435,7 +431,7 @@
 
       if (selected) {
         outputPath = selected;
-        addLog(`Output file set manually: ${outputPath.split("/").pop()}`, "file");
+        addLog(`Output file set manually: ${getFileName(outputPath)}`, "file");
       }
     } catch (e) {
       error = `${t("transcribe.errorSelectingFile")}: ${e}`;
@@ -462,10 +458,10 @@
         outputPath = generateOutputPathFromInput(inputPath, outputLang);
       }
       addLog(
-        `${t("transcribe.fileSelected")}: ${inputPath.split("/").pop()}`,
+        `${t("transcribe.fileSelected")}: ${getFileName(inputPath)}`,
         "file",
       );
-      addLog(`Output file: ${outputPath.split("/").pop()}`, "info");
+      addLog(`Output file: ${getFileName(outputPath)}`, "info");
       return true;
     } catch (e) {
       showSnackbar(`Error: ${e}`);
@@ -518,7 +514,7 @@
     addLog(`${t("transcribe.starting")} (model: ${selectedModel})`, "info");
     addLog(`Source language: ${selectedLanguageLabel(selectedLanguage)}`, "info");
     addLog(`Word timestamps: ${wordTimestamps ? "enabled" : "disabled"}; max segment: ${maxSegmentLength}s`, "info");
-    addLog(`Input: ${inputPath.split("/").pop()} → Output: ${outputPath.split("/").pop()}`, "file");
+    addLog(`Input: ${getFileName(inputPath)} → Output: ${getFileName(outputPath)}`, "file");
 
     const startTime = Date.now();
 
@@ -548,7 +544,7 @@
         addLog(`Detected language: ${res.detected_language}`, "success");
       }
       if (res.output_path) {
-        addLog(`Saved: ${res.output_path.split("/").pop()}`, "success");
+        addLog(`Saved: ${getFileName(res.output_path)}`, "success");
       }
       addLog(res.message, "success");
       await refreshModels();
@@ -602,7 +598,7 @@
 <div
   role="region"
   aria-label="Transcribe content"
-  class="h-full flex flex-col bg-gradient-to-br from-gray-900 via-gray-900 to-gray-950 relative overflow-hidden"
+  class="h-full flex flex-col bg-gray-900 relative overflow-hidden"
   ondragover={(e) => {
     if (!active) return;
     e.preventDefault();
@@ -731,7 +727,6 @@
             />
           </svg>
           {t("transcribe.options")}
-          <InfoButton onclick={() => (helpSection = "options")} />
         </h3>
         <div class="space-y-4">
           <div>
@@ -762,9 +757,6 @@
               <span class="text-gray-200 text-sm"
                 >{t("transcribe.wordTimestamps")}</span
               >
-              <p class="text-xs text-gray-500">
-                {t("transcribe.wordTimestampsDesc")}
-              </p>
             </div>
             <button
               onclick={() => (wordTimestamps = !wordTimestamps)}
@@ -782,9 +774,8 @@
           </div>
           <div>
             <div class="flex items-center justify-between mb-2">
-              <span class="text-sm text-gray-400 flex items-center gap-2">
+              <span class="text-sm text-gray-400">
                 {t("transcribe.maxSegmentLength")}
-                <InfoButton onclick={() => (helpSection = "segmentLength")} />
               </span>
             </div>
             <div class="grid grid-cols-4 gap-2">
@@ -916,7 +907,6 @@
             />
           </svg>
           {t("common.filesAndOutput")}
-          <InfoButton onclick={() => (helpSection = "files")} />
         </h3>
         <div class="space-y-3">
           <PathPickerField
@@ -948,7 +938,7 @@
                 </div>
                 <div>
                   <p class="font-medium text-white">
-                    {inputPath.split("/").pop()}
+                    {getFileName(inputPath)}
                   </p>
                   <p class="text-sm text-gray-400">
                     {t("transcribe.readyToProcess")}
@@ -1148,7 +1138,7 @@
   </div>
 
   <!-- Fixed Bottom Band with Action Buttons -->
-  <div class="h-[92px] border-t border-white/10 bg-gray-950 flex items-center justify-center gap-4 px-6 shrink-0 z-40">
+  <div class="h-[92px] border-t border-white/10 bg-gray-900 flex items-center justify-center gap-4 px-6 shrink-0 z-40">
     {#if isTranscribing}
       <button
         onclick={cancelTranscription}
@@ -1190,7 +1180,7 @@
           </svg>
           {t("transcribe.newTranscription")}
         </button>
-        <div class="pointer-events-none absolute bottom-full left-1/2 z-50 mb-3 -translate-x-1/2 rounded-xl border border-amber-500/30 bg-gray-950/95 p-3 text-center text-xs text-amber-300 shadow-2xl shadow-black/40 ring-1 ring-white/10 transition-all duration-150 opacity-0 group-hover:opacity-100 group-hover:translate-y-0 translate-y-1 whitespace-nowrap">
+        <div class="pointer-events-none absolute bottom-full left-1/2 z-50 mb-3 -translate-x-1/2 rounded-xl border border-amber-500/30 bg-gray-950/95 p-3 text-center text-xs text-amber-300 shadow-2xl shadow-black/40 ring-1 ring-white/10 transition-all duration-150 delay-0 group-hover:delay-300 opacity-0 group-hover:opacity-100 group-hover:translate-y-0 translate-y-1 whitespace-nowrap">
           {t("transcribe.newTranscriptionDesc")}
         </div>
       </div>
@@ -1222,18 +1212,12 @@
           </svg>
           {t("transcribe.startTranscription")}
         </button>
-        <div class="pointer-events-none absolute bottom-full left-1/2 z-50 mb-3 -translate-x-1/2 rounded-xl border border-teal-500/30 bg-gray-950/95 p-3 text-center text-xs text-teal-300 shadow-2xl shadow-black/40 ring-1 ring-white/10 transition-all duration-150 opacity-0 group-hover:opacity-100 group-hover:translate-y-0 translate-y-1 whitespace-nowrap">
+        <div class="pointer-events-none absolute bottom-full left-1/2 z-50 mb-3 -translate-x-1/2 rounded-xl border border-teal-500/30 bg-gray-950/95 p-3 text-center text-xs text-teal-300 shadow-2xl shadow-black/40 ring-1 ring-white/10 transition-all duration-150 delay-0 group-hover:delay-300 opacity-0 group-hover:opacity-100 group-hover:translate-y-0 translate-y-1 whitespace-nowrap">
           {transcribeBlockedReason || t("transcribe.startTranscription")}
         </div>
       </div>
     {/if}
   </div>
-
-  <InfoModal 
-    section={helpSection} 
-    sections={transcribeSections} 
-    onclose={() => (helpSection = null)} 
-  />
 
   <PathPreviewModal
     isOpen={!!expandedPathField}

@@ -236,7 +236,7 @@
   });
 </script>
 
-<aside class="{collapsed ? 'w-20' : 'w-[238px]'} bg-gradient-to-b from-gray-900 via-gray-900 to-gray-950 border-r border-white/10 flex flex-col transition-[width] duration-200 ease-out relative will-change-[width]">
+<aside class="{collapsed ? 'w-20' : 'w-[238px]'} bg-gray-900 border-r border-white/10 flex flex-col transition-[width] duration-200 ease-out relative will-change-[width]">
   <button
     onclick={onToggleCollapse}
     class="absolute -right-3 top-6 w-6 h-6 bg-gray-800 border border-white/20 rounded-full flex items-center justify-center text-gray-400 hover:text-white hover:bg-gray-700 transition-all z-10 shadow-lg"
@@ -571,7 +571,7 @@
     {/if}
   </nav>
 
-  <div class="h-[92px] px-4 border-t border-white/10 bg-gray-950 flex items-center shrink-0">
+  <div class="h-[92px] px-4 border-t border-white/10 bg-gray-900 flex items-center shrink-0">
     <div class="w-full {collapsed ? 'flex items-center justify-center' : ''}">
       {#if collapsed}
         <a href={repoUrl} target="_blank" class="flex-shrink-0 transition-all hover:scale-110 active:scale-95 duration-150 flex items-center justify-center w-8 h-8 rounded-lg hover:bg-white/5 text-gray-400 hover:text-white border border-transparent hover:border-white/5" title={t("about.repository") || "Repository GitHub"}>
