@@ -9,7 +9,6 @@ dirs.workspace = true
 hound.workspace = true
 reqwest = { workspace = true, features = ["stream"] }
 serde = { workspace = true, features = ["derive"] }
-tempfile.workspace = true
 tokio = { workspace = true, features = ["full"] }
 whisper-rs.workspace = true
 futures.workspace = true

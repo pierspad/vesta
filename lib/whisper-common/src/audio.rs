@@ -23,6 +23,16 @@ pub async fn convert_to_wav(
         .spawn()
         .context("Failed to spawn FFmpeg process for audio conversion")?;
 
+    let mut stderr_reader = child.stderr.take().ok_or_else(|| anyhow!("Failed to capture stderr"))?;
+    
+    // Spawn task to read stderr asynchronously to prevent deadlocks
+    let stderr_handle = tokio::spawn(async move {
+        use tokio::io::AsyncReadExt;
+        let mut buf = Vec::new();
+        let _ = stderr_reader.read_to_end(&mut buf).await;
+        buf
+    });
+
     let res = if let Some(token) = cancel_token {
         tokio::select! {
             res = child.wait() => res,
@@ -36,9 +46,10 @@ pub async fn convert_to_wav(
     };
 
     let status = res.context("Failed to wait for FFmpeg process")?;
+    let stderr_bytes = stderr_handle.await.unwrap_or_default();
+
     if !status.success() {
-        let output = child.wait_with_output().await.ok();
-        let stderr = output.map(|o| String::from_utf8_lossy(&o.stderr).to_string()).unwrap_or_default();
+        let stderr = String::from_utf8_lossy(&stderr_bytes).to_string();
         anyhow::bail!("FFmpeg audio conversion failed: {}", stderr);
     }
 

@@ -12,7 +12,6 @@ categories = ["multimedia", "parser-implementations"]
 [dependencies]
 srt-parser = { workspace = true }
 anyhow.workspace = true
-serde.workspace = true
 serde_json.workspace = true
 
 [lib]

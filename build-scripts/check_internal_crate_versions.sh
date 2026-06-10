@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 set -euo pipefail
 export LC_ALL=C
@@ -32,6 +32,25 @@ fi
 
 ERRORS=0
 
+check_equals() {
+    local label="$1"
+    local file="$2"
+    local current="$3"
+
+    if [ -z "$current" ]; then
+        echo -e "  ${RED}✗${NC} $label — valore non trovato"
+        ((ERRORS++))
+        return
+    fi
+
+    if [ "$current" != "$VERSION" ]; then
+        echo -e "  ${RED}✗${NC} $label — trovato $current (atteso: $VERSION)"
+        ((ERRORS++))
+    else
+        echo -e "  ${GREEN}✓${NC} $label — $current"
+    fi
+}
+
 check_package_version() {
     local file="$1"
     local relative="${file#$PROJECT_ROOT/}"
@@ -56,6 +75,57 @@ echo -e "${YELLOW}Controllo versioni package core/lib (atteso: $VERSION)...${NC}
 while IFS= read -r crate_toml; do
     check_package_version "$crate_toml"
 done < <(find "$PROJECT_ROOT/core" "$PROJECT_ROOT/lib" -mindepth 2 -maxdepth 2 -name Cargo.toml | sort)
+
+echo -e "${YELLOW}Controllo coerenza versioni app GUI (atteso: $VERSION)...${NC}"
+
+# 1. package.json
+PKG_JSON="$PROJECT_ROOT/apps/srt-gui/package.json"
+if [ -f "$PKG_JSON" ]; then
+    FRONTEND_VERSION=$(sed -n 's/.*"version": "\([^"]*\)".*/\1/p' "$PKG_JSON" | head -n 1 | tr -d '\r')
+    check_equals "apps/srt-gui/package.json" "$PKG_JSON" "$FRONTEND_VERSION"
+else
+    echo -e "  ${RED}✗${NC} apps/srt-gui/package.json non trovato"
+    ((ERRORS++))
+fi
+
+# 2. tauri.conf.json
+TAURI_CONF="$PROJECT_ROOT/apps/srt-gui/src-tauri/tauri.conf.json"
+if [ -f "$TAURI_CONF" ]; then
+    TAURI_VERSION=$(sed -n 's/.*"version": "\([^"]*\)".*/\1/p' "$TAURI_CONF" | head -n 1 | tr -d '\r')
+    check_equals "apps/srt-gui/src-tauri/tauri.conf.json" "$TAURI_CONF" "$TAURI_VERSION"
+else
+    echo -e "  ${RED}✗${NC} apps/srt-gui/src-tauri/tauri.conf.json non trovato"
+    ((ERRORS++))
+fi
+
+# 3. src-tauri/Cargo.toml
+TAURI_CARGO="$PROJECT_ROOT/apps/srt-gui/src-tauri/Cargo.toml"
+if [ -f "$TAURI_CARGO" ]; then
+    TAURI_CARGO_VERSION=$(sed -n 's/^version = "\([^"]*\)"/\1/p' "$TAURI_CARGO" | head -n 1 | tr -d '\r')
+    check_equals "apps/srt-gui/src-tauri/Cargo.toml" "$TAURI_CARGO" "$TAURI_CARGO_VERSION"
+else
+    echo -e "  ${RED}✗${NC} apps/srt-gui/src-tauri/Cargo.toml non trovato"
+    ((ERRORS++))
+fi
+
+# 4. Cargo.lock
+WORKSPACE_LOCK="$PROJECT_ROOT/Cargo.lock"
+if [ -f "$WORKSPACE_LOCK" ]; then
+    LOCK_VERSION=$(awk '
+        /^\[\[package\]\]$/ { in_pkg=0; seen_pkg=1; next }
+        seen_pkg && /^name = "vesta"$/ { in_pkg=1; next }
+        in_pkg && /^version = / {
+            value=$3
+            gsub(/"/, "", value)
+            print value
+            exit
+        }
+    ' "$WORKSPACE_LOCK" | tr -d '\r')
+    check_equals "Cargo.lock" "$WORKSPACE_LOCK" "$LOCK_VERSION"
+else
+    echo -e "  ${RED}✗${NC} Cargo.lock non trovato"
+    ((ERRORS++))
+fi
 
 echo -e "${YELLOW}Controllo [workspace.dependencies] internal crates...${NC}"
 for crate in srt-parser srt-extract srt-sync srt-translate; do

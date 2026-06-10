@@ -1749,7 +1749,7 @@
         {/if}
       </div>
     {:else if panelId === "livePreview"}
-      <div class="glass-card p-5 shrink-0" style="min-height: 400px;">
+      <div class="glass-card p-5 shrink-0 min-h-[400px]">
         <div class="flex items-center justify-between mb-4">
           <h3
             class="text-lg font-semibold flex items-center gap-2 text-purple-400"
@@ -1775,7 +1775,7 @@
             {/if}
           </h3>
         </div>
-        <div class="grid grid-cols-2 gap-4" style="min-height: 340px;">
+        <div class="grid grid-cols-2 gap-4 min-h-[340px]">
           <div class="bg-white/5 rounded-xl p-4 flex flex-col">
             <p
               class="text-xs text-gray-500 uppercase tracking-wide mb-3 shrink-0"
@@ -1971,8 +1971,5 @@
     -webkit-overflow-scrolling: touch;
     overflow-y: auto;
     overscroll-behavior: contain;
-    transform: translateZ(0);
-    will-change: scroll-position;
-    backface-visibility: hidden;
   }
 </style>
