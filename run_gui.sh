@@ -1,4 +1,6 @@
-#!/bin/bash
+#!/usr/bin/env bash
+
+set -euo pipefail
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -6,46 +8,63 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m'
 
-if [ ! -d "apps/srt-gui" ]; then
-    echo -e "${RED}❌ Errore: Esegui questo script dalla root del progetto (dove c'è la cartella apps/srt-gui).${NC}"
-    echo -e "   Percorso attuale: $(pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_DIR="$SCRIPT_DIR/apps/srt-gui"
+
+if [ ! -d "$APP_DIR" ]; then
+    echo -e "${RED}❌ Error: cartella apps/srt-gui non trovata in $SCRIPT_DIR${NC}"
     exit 1
 fi
 
-echo -e "${BLUE}🚀 Avvio SRT Tools GUI...${NC}"
+cd "$APP_DIR"
+
+echo -e "${BLUE}🚀 Starting Vesta...${NC}"
 echo ""
 
-cd apps/srt-gui
-
+# 1. Prerequisite Checks
 if ! command -v npm &> /dev/null; then
-    echo -e "${RED}❌ Errore: npm non trovato. Installa Node.js per continuare.${NC}"
+    echo -e "${RED}❌ Error: npm non trovato. Installa Node.js per continuare.${NC}"
     exit 1
 fi
 
 if [ ! -d "node_modules" ]; then
     echo -e "${YELLOW}📦 Installazione dipendenze frontend...${NC}"
     npm install
-    if [ $? -ne 0 ]; then
-        echo -e "${RED}❌ Errore durante l'installazione delle dipendenze.${NC}"
-        exit 1
-    fi
     echo ""
 fi
 
 if [ ! -f "node_modules/.bin/tauri" ]; then
-    echo -e "${YELLOW}📦 Installazione Tauri CLI...${NC}"
+    echo -e "${YELLOW}📦 Installazione Tauri CLI locale...${NC}"
     npm install @tauri-apps/cli
     echo ""
 fi
 
-echo -e "${GREEN}✅ Dipendenze OK${NC}"
-echo -e "${BLUE}🖥️  Avvio Tauri in modalità sviluppo...${NC}"
+echo -e "${GREEN}✅ Dependencies OK${NC}"
+
+# 2. Dynamic Port Selection
+BASE_PORT=5175
+PORT=$BASE_PORT
+
+find_free_port() {
+    local port=$1
+    while true; do
+        if python3 -c "import socket; s = socket.socket(socket.AF_INET, socket.SOCK_STREAM); s.bind(('127.0.0.1', $port))" >/dev/null 2>&1; then
+            echo "$port"
+            return 0
+        fi
+        port=$((port + 1))
+    done
+}
+
+PORT=$(find_free_port "$BASE_PORT")
+export PORT
+echo -e "${GREEN}🔌 Using available port $PORT${NC}"
+
+export WEBKIT_DISABLE_COMPOSITING_MODE=1
+export WHISPER_DONT_GENERATE_BINDINGS=1
+
+echo -e "${BLUE}🖥️  Starting Tauri in dev mode on port $PORT...${NC}"
 echo -e "${YELLOW}   (Premi Ctrl+C per fermare)${NC}"
 echo ""
 
-
-export WEBKIT_DISABLE_COMPOSITING_MODE=1
-
-export WHISPER_DONT_GENERATE_BINDINGS=1
-
-npm run tauri dev
+npx tauri dev --config "{\"build\": {\"devUrl\": \"http://localhost:$PORT\"}}"

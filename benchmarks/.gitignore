@@ -1,0 +1,8 @@
+.work/
+results/
+config.local.sh
+subs2srs-headless/subs2srs-headless.exe
+subs2srs-headless/subs2srs-headless.exe.mdb
+subs2srs-headless/sources.rsp
+subs2srs-headless/Utils/
+.bin/

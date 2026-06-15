@@ -1,0 +1,18 @@
+[package]
+name = "srt-flashcards-cli"
+version = "0.10.0"
+edition = "2021"
+description = "Headless command-line front-end for the srt-flashcards engine (subs → Anki TSV/APKG)."
+authors = ["Pierpaolo Spadafora <pierpaolospadafora@proton.me>"]
+license = "GPL-3.0-only"
+
+[[bin]]
+name = "srt-flashcards"
+path = "src/main.rs"
+
+[dependencies]
+srt-flashcards = { workspace = true }
+clap = { workspace = true }
+tokio = { workspace = true }
+tokio-util = "0.7"
+anyhow = { workspace = true }

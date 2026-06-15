@@ -4414,6 +4414,32 @@ dependencies = [
 ]
 
 [[package]]
+name = "srt-flashcards"
+version = "0.10.0"
+dependencies = [
+ "anyhow",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "sha1_smol",
+ "tempfile",
+ "tokio",
+ "tokio-util",
+ "zip 8.6.0",
+]
+
+[[package]]
+name = "srt-flashcards-cli"
+version = "0.10.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "srt-flashcards",
+ "tokio",
+ "tokio-util",
+]
+
+[[package]]
 name = "srt-parser"
 version = "0.10.0"
 dependencies = [
@@ -5602,11 +5628,10 @@ dependencies = [
  "axum",
  "dirs",
  "ffmpeg-sidecar",
- "rusqlite",
  "serde",
  "serde_json",
- "sha1_smol",
  "sha2 0.11.0",
+ "srt-flashcards",
  "srt-parser",
  "srt-sync",
  "srt-translate",
@@ -5625,7 +5650,6 @@ dependencies = [
  "webkit2gtk",
  "whisper-common",
  "whisper-rs",
- "zip 8.6.0",
 ]
 
 [[package]]

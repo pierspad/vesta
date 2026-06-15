@@ -59,6 +59,43 @@ Already have an SRT? Skip straight to Sync or Flashcards.
 
 ---
 
+## Modular & headless use
+
+Vesta is a workspace of decoupled crates: each heavy feature is a GUI-agnostic
+library (`lib/`) with a matching command-line front-end (`cli/`). If you only
+want one feature, build just its CLI — no GUI, no Tauri:
+
+```bash
+cargo build --release -p srt-flashcards-cli   # subtitles + video → Anki deck (TSV/APKG)
+cargo build --release -p srt-translate-cli     # LLM subtitle translation
+cargo build --release -p srt-extract-cli       # SRT data extraction
+
+target/release/srt-flashcards generate \
+  --target movie-en.srt --native movie-it.srt --video movie.mp4 --output out --format apkg
+```
+
+The flashcard engine lives in [`lib/srt-flashcards`](lib/srt-flashcards); the
+desktop app, the CLI, and the benchmark harness all share that one
+implementation. See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+
+## Benchmarks (reproducible)
+
+The chart above can be regenerated — and Vesta variants compared — with the
+numbered scripts in [`benchmarks/`](benchmarks/):
+
+```bash
+./benchmarks/1_compile_subs2srs.sh   # headless subs2srs harness (its real code, no GUI)
+./benchmarks/2_compile_vesta.sh      # the Vesta flashcard CLI (release)
+./benchmarks/3_run_benchmarks.sh     # time both on the test media
+./benchmarks/4_generate_report.sh    # chart + summary
+```
+
+Vesta runs on `cores-1` workers; subs2srs runs exactly as written
+(single-threaded). Same inputs, same outputs, pure execution-time comparison —
+see [`benchmarks/README.md`](benchmarks/README.md).
+
+---
+
 ## Test media
 
 Development was done using the public domain film **Detour (1945)** — good length, clear dialogue, freely available.

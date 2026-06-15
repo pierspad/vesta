@@ -1,9 +1,10 @@
 use std::process::Command;
 use std::time::Instant;
 
-use vesta_lib::commands::flashcards::{
-    flashcard_generate_headless, ContextConfig, FlashcardConfig, OutputFields, SubtitleFilters,
+use srt_flashcards::{
+    generate, ContextConfig, FlashcardConfig, MediaTools, OutputFields, SubtitleFilters,
 };
+use tokio_util::sync::CancellationToken;
 
 fn has_audio(video_path: &str) -> bool {
     Command::new("ffprobe")
@@ -128,7 +129,7 @@ async fn main() {
     );
 
     let start = Instant::now();
-    match flashcard_generate_headless(config).await {
+    match generate(config, MediaTools::default(), CancellationToken::new(), &|_| {}).await {
         Ok(result) if result.success => {
             println!(
                 "VESTA_BENCHMARK_SUCCESS: {} ms",
