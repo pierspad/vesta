@@ -66,6 +66,8 @@
   const FLASHCARD_MEDIA_HEIGHT_KEY = "vesta-flashcards-media-height";
   const DEFAULT_FLASHCARD_MEDIA_WIDTH = 240;
   const DEFAULT_FLASHCARD_MEDIA_HEIGHT = 160;
+  const EXPORT_FORMAT_KEY = "vesta-export-format";
+  const SERIES_OUTPUT_MODE_KEY = "vesta-series-output-mode";
 
   let smartFileMatchingEnabled = $derived(smartMatchingStore.enabled);
 
@@ -139,7 +141,14 @@
   ];
 
   let episodes = $state<EpisodeEntry[]>([]);
-  let seriesOutputMode = $state<"single" | "separate">("separate");
+  let seriesOutputMode = $state<"single" | "separate">(
+    (() => {
+      try {
+        const saved = localStorage.getItem(SERIES_OUTPUT_MODE_KEY);
+        return saved === "single" ? "single" : "separate";
+      } catch { return "separate"; }
+    })()
+  );
   let seriesCurrentEpisode = $state(0);
   let seriesTotalEpisodes = $state(0);
   let editingEpisodeIndex = $state<number | null>(null);
@@ -1091,6 +1100,7 @@
   let videoPadEnd = $state(50);
 
   // ─── Card Filters ────────────────────────────────────────────────────────
+  let cardFiltersEnabled = $state(false);
   let combineSentences = $state(false);
   let continuationChars = $state(",、→");
   let filterMinChars = $state<number>(8);
@@ -1111,8 +1121,31 @@
     persistDimension(FLASHCARD_MEDIA_HEIGHT_KEY, snapshotHeight);
   });
 
-  let exportFormat = $state<"tsv" | "apkg">("apkg");
+  let exportFormat = $state<"tsv" | "apkg">(
+    (() => {
+      try {
+        const saved = localStorage.getItem(EXPORT_FORMAT_KEY);
+        return saved === "tsv" ? "tsv" : "apkg";
+      } catch { return "apkg"; }
+    })()
+  );
 
+  $effect(() => {
+    try { localStorage.setItem(EXPORT_FORMAT_KEY, exportFormat); } catch {}
+  });
+
+  $effect(() => {
+    if (active) {
+      try {
+        const saved = localStorage.getItem(EXPORT_FORMAT_KEY);
+        exportFormat = saved === "tsv" ? "tsv" : "apkg";
+      } catch {}
+    }
+  });
+
+  $effect(() => {
+    try { localStorage.setItem(SERIES_OUTPUT_MODE_KEY, seriesOutputMode); } catch {}
+  });
 
 
   let systemCpuCount = $state(4);
@@ -1153,7 +1186,6 @@
     "videoClips",
     "cardFilters",
     "ankiFields",
-    "exportFormat",
     "naming",
     "progressResult",
     "logs",
@@ -1173,13 +1205,13 @@
   const DEFAULT_LAYOUT: ColumnLayout = {
     col1: ["files", "cardFilters"],
     col2: ["audioClips", "snapshots", "videoClips"],
-    col3: ["naming", "exportFormat", "ankiFields", "progressResult"],
+    col3: ["naming", "ankiFields", "progressResult"],
   };
 
   const DEFAULT_SERIES_LAYOUT: ColumnLayout = {
     col1: ["files", "cardFilters"],
     col2: ["audioClips", "snapshots", "videoClips"],
-    col3: ["naming", "exportFormat", "ankiFields", "progressResult"],
+    col3: ["naming", "ankiFields", "progressResult"],
   };
 
   function cloneLayout(layout: ColumnLayout): ColumnLayout {
@@ -1242,20 +1274,20 @@
       return {
         col1: ["files", "cardFilters"],
         col2: ["audioClips", "snapshots", "videoClips"],
-        col3: ["naming", "exportFormat", "ankiFields", "progressResult"],
+        col3: ["naming", "ankiFields", "progressResult"],
       };
     }
 
     if (effectiveColumnCount === 2) {
       return {
         col1: ["files", "audioClips", "snapshots", "videoClips"],
-        col2: ["naming", "exportFormat", "ankiFields", "progressResult", "cardFilters"],
+        col2: ["naming", "ankiFields", "progressResult", "cardFilters"],
         col3: [],
       };
     }
 
     return {
-      col1: ["files", "cardFilters", "naming", "audioClips", "snapshots", "videoClips", "exportFormat", "ankiFields", "progressResult"],
+      col1: ["files", "cardFilters", "naming", "audioClips", "snapshots", "videoClips", "ankiFields", "progressResult"],
       col2: [],
       col3: [],
     };
@@ -2021,8 +2053,8 @@
       audio_path: aPath,
       output_dir: outputDir,
       use_timings_from: "target",
-      span_start_ms: 0,
-      span_end_ms: 0,
+      span_start_ms: null,
+      span_end_ms: null,
       time_shift_target_ms: 0,
       time_shift_native_ms: 0,
       filters: {
@@ -2030,10 +2062,10 @@
         exclude_words: null,
         exclude_duplicates_subs1: false,
         exclude_duplicates_subs2: false,
-        min_chars: filterMinCharsEnabled ? filterMinChars : null,
-        max_chars: filterMaxCharsEnabled ? filterMaxChars : null,
-        min_duration_ms: filterMinDurationEnabled ? filterMinDurationMs : null,
-        max_duration_ms: filterMaxDurationEnabled ? filterMaxDurationMs : null,
+        min_chars: cardFiltersEnabled && filterMinCharsEnabled ? filterMinChars : null,
+        max_chars: cardFiltersEnabled && filterMaxCharsEnabled ? filterMaxChars : null,
+        min_duration_ms: cardFiltersEnabled && filterMinDurationEnabled ? filterMinDurationMs : null,
+        max_duration_ms: cardFiltersEnabled && filterMaxDurationEnabled ? filterMaxDurationMs : null,
         exclude_styled: false,
         actor_filter: null,
         only_cjk: false,
@@ -2044,7 +2076,7 @@
         trailing: 0,
         max_gap_seconds: 15.0,
       },
-      combine_sentences: combineSentences,
+      combine_sentences: cardFiltersEnabled && combineSentences,
       continuation_chars: continuationChars,
       generate_audio: generateAudio,
       audio_bitrate: audioBitrate,
@@ -2429,8 +2461,8 @@
           audio_path: epHasMedia && !epHasVideo ? ep.mediaPath : null,
           output_dir: outputDir,
           use_timings_from: "target",
-          span_start_ms: 0,
-          span_end_ms: 0,
+          span_start_ms: null,
+          span_end_ms: null,
           time_shift_target_ms: 0,
           time_shift_native_ms: 0,
           filters: {
@@ -3869,12 +3901,31 @@
         title={!hasAnyFiles ? HINT_LOAD_TARGET_FIRST : undefined}
         class="glass-card p-5 {!hasAnyFiles ? 'opacity-40' : ''}"
       >
-        <h3 class="text-lg font-semibold flex items-center gap-2 text-amber-400 mb-4">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-.293.707L13 13.414V19a1 1 0 01-.553.894l-4 2A1 1 0 017 21v-7.586L3.293 6.707A1 1 0 013 6V4z" />
-          </svg>
-          Filtri Carte
-        </h3>
+        <div class="flex items-center justify-between {cardFiltersEnabled ? 'mb-3' : ''}">
+          <h3
+            class="text-lg font-semibold flex items-center gap-2 text-amber-400"
+          >
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-.293.707L13 13.414V19a1 1 0 01-.553.894l-4 2A1 1 0 017 21v-7.586L3.293 6.707A1 1 0 013 6V4z" />
+            </svg>
+            Filtri Carte
+          </h3>
+          <button
+            onclick={() => {
+              cardFiltersEnabled = !cardFiltersEnabled;
+            }}
+            class="w-10 h-5 rounded-full transition-all duration-200 relative
+              {cardFiltersEnabled ? 'bg-amber-500' : 'bg-gray-600'}"
+            aria-label="Toggle card filters"
+          >
+            <div
+              class="absolute w-4 h-4 bg-white rounded-full top-0.5 transition-all duration-200
+              {cardFiltersEnabled ? 'left-5' : 'left-0.5'}"
+            ></div>
+          </button>
+        </div>
+
+        {#if cardFiltersEnabled}
 
         <!-- Sentence Combining -->
         <div class="flex items-center justify-between mb-3">
@@ -3889,17 +3940,16 @@
               {combineSentences ? 'left-5' : 'left-0.5'}"></div>
           </button>
         </div>
-        {#if combineSentences}
-          <div class="mb-4 animate-fade-in">
-            <span class="block text-xs text-gray-500 mb-1">Caratteri di continuazione</span>
-            <input
-              type="text"
-              bind:value={continuationChars}
-              class="input-modern w-full text-xs font-mono"
-              placeholder=",、→"
-            />
-          </div>
-        {/if}
+        <div class="mb-4 transition-opacity duration-200 {!combineSentences ? 'opacity-40' : ''}">
+          <span class="block text-xs text-gray-500 mb-1">Caratteri di continuazione</span>
+          <input
+            type="text"
+            bind:value={continuationChars}
+            disabled={!combineSentences}
+            class="input-modern w-full text-xs font-mono {!combineSentences ? 'cursor-not-allowed' : ''}"
+            placeholder=",、→"
+          />
+        </div>
 
         <!-- Length Filter -->
         <div class="mb-3 space-y-2">
@@ -4042,6 +4092,7 @@
             </div>
           </div>
         </div>
+        {/if}
       </div>
     {:else if panelId === "ankiFields"}
       <div
@@ -4196,121 +4247,6 @@
           </button>
         </div>
         {/if}
-      </div>
-    {:else if panelId === "exportFormat"}
-      <div
-        inert={!hasAnyFiles}
-        title={!hasAnyFiles ? HINT_LOAD_TARGET_FIRST : undefined}
-        class="glass-card p-5 {!hasAnyFiles
-          ? 'opacity-50'
-          : ''}"
-      >
-        <h3
-          class="text-lg font-semibold mb-4 flex items-center gap-2 text-sky-400"
-        >
-          <svg
-            class="w-5 h-5"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-            />
-          </svg>
-          {t("flashcards.exportFormat")}
-        </h3>
-        <div class="space-y-2">
-          <label
-            class="flex items-start gap-2 p-2 rounded-lg cursor-pointer transition-colors
-            {exportFormat === 'apkg'
-              ? 'bg-emerald-500/10 border border-emerald-500/30'
-              : 'bg-transparent border border-transparent hover:bg-gray-800/50'}"
-          >
-            <input
-              type="radio"
-              bind:group={exportFormat}
-              value="apkg"
-              class="mt-0.5 text-emerald-500"
-            />
-            <div class="flex-1">
-              <span class="text-xs font-medium text-gray-200"
-                >{t("flashcards.exportAPKG")}</span
-              >
-            </div>
-          </label>
-          <label
-            class="flex items-start gap-2 p-2 rounded-lg cursor-pointer transition-colors
-            {exportFormat === 'tsv'
-              ? 'bg-sky-500/10 border border-sky-500/30'
-              : 'bg-transparent border border-transparent hover:bg-gray-800/50'}"
-          >
-            <input
-              type="radio"
-              bind:group={exportFormat}
-              value="tsv"
-              class="mt-0.5 text-sky-500"
-            />
-            <div class="flex-1">
-              <span class="text-xs font-medium text-gray-200"
-                >{t("flashcards.exportTSV")}</span
-              >
-            </div>
-          </label>
-
-
-          {#if seriesMode && exportFormat === "apkg"}
-            <!-- Series output mode (only for APKG) -->
-            <div class="mt-4 pt-3 border-t border-gray-700/50">
-              <span class="block text-xs text-gray-400 mb-2"
-                >{t("flashcards.seriesOutputFormat")}</span
-              >
-              <div class="flex gap-2">
-                <button
-                  onclick={() => (seriesOutputMode = "separate")}
-                  class="flex-1 py-2 px-3 text-xs rounded-lg border transition-colors {seriesOutputMode ===
-                  'separate'
-                    ? 'border-violet-500/50 bg-violet-500/10 text-violet-300'
-                    : 'border-gray-700/50 text-gray-400 hover:border-gray-600 bg-gray-900/40'}"
-                >
-                  <div
-                    class="font-medium mb-0.5 text-gray-200 {seriesOutputMode ===
-                    'separate'
-                      ? 'text-violet-200'
-                      : ''}"
-                  >
-                    {t("flashcards.outputPerEpisode")}
-                  </div>
-                  <div class="text-[10px] opacity-80">
-                    {t("flashcards.outputPerEpisodeDesc")}
-                  </div>
-                </button>
-                <button
-                  onclick={() => (seriesOutputMode = "single")}
-                  class="flex-1 py-2 px-3 text-xs rounded-lg border transition-colors {seriesOutputMode ===
-                  'single'
-                    ? 'border-violet-500/50 bg-violet-500/10 text-violet-300'
-                    : 'border-gray-700/50 text-gray-400 hover:border-gray-600 bg-gray-900/40'}"
-                >
-                  <div
-                    class="font-medium mb-0.5 text-gray-200 {seriesOutputMode ===
-                    'single'
-                      ? 'text-violet-200'
-                      : ''}"
-                  >
-                    {t("flashcards.outputSingleApkg")}
-                  </div>
-                  <div class="text-[10px] opacity-80">
-                    {t("flashcards.outputSingleApkgDesc")}
-                  </div>
-                </button>
-              </div>
-            </div>
-          {/if}
-        </div>
       </div>
     {:else if panelId === "naming"}
       <div
@@ -5108,6 +5044,56 @@
         {t("flashcards.cancel")}
       </button>
     {:else}
+      <!-- Export format badge + series output mode selector -->
+      <div class="flex items-center gap-2 mr-2">
+        <!-- Format badge (hovering shows tooltip to go to settings) -->
+        <div class="relative group/fmt">
+          <div class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold
+            {exportFormat === 'apkg'
+              ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300'
+              : 'border-sky-500/40 bg-sky-500/10 text-sky-300'}
+            cursor-default select-none"
+          >
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+              />
+            </svg>
+            {exportFormat === 'apkg' ? 'APKG' : 'TSV'}
+          </div>
+          <div class="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-50
+            rounded-lg border border-white/10 bg-gray-950/95 px-3 py-2 text-xs text-gray-300 shadow-xl
+            opacity-0 group-hover/fmt:opacity-100 transition-opacity duration-150 whitespace-nowrap text-center">
+            {t("flashcards.exportFormat")} · {t("settings.changeInSettings")}
+          </div>
+        </div>
+
+        <!-- Series output mode inline selector (only visible in series mode + apkg) -->
+        {#if seriesMode && exportFormat === "apkg"}
+          <div class="flex items-center gap-1 p-1 rounded-lg border border-gray-700/60 bg-gray-800/60">
+            <button
+              onclick={() => (seriesOutputMode = "separate")}
+              class="px-2.5 py-1 rounded text-xs font-semibold transition-all
+                {seriesOutputMode === 'separate'
+                  ? 'bg-violet-500/20 border border-violet-500/50 text-violet-200'
+                  : 'text-gray-500 hover:text-gray-300 border border-transparent'}"
+              title={t("flashcards.outputPerEpisodeDesc")}
+            >
+              {t("flashcards.outputPerEpisode")}
+            </button>
+            <button
+              onclick={() => (seriesOutputMode = "single")}
+              class="px-2.5 py-1 rounded text-xs font-semibold transition-all
+                {seriesOutputMode === 'single'
+                  ? 'bg-violet-500/20 border border-violet-500/50 text-violet-200'
+                  : 'text-gray-500 hover:text-gray-300 border border-transparent'}"
+              title={t("flashcards.outputSingleApkgDesc")}
+            >
+              {t("flashcards.outputSingleApkg")}
+            </button>
+          </div>
+        {/if}
+      </div>
       <div class="relative group">
         <button
           class="px-5 py-2.5 bg-gray-800 hover:bg-gray-700 disabled:bg-gray-800 text-gray-300 disabled:text-gray-500 rounded-xl font-bold text-sm transition-all border border-white/10 flex items-center gap-2 enabled:hover:scale-[1.02] enabled:active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"

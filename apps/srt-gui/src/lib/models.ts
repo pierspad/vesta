@@ -1270,3 +1270,21 @@ export function getFlagForPath(path: string): string {
   return lang?.flag || "";
 }
 
+export function getSortedKeys(keyStr: string): string[] {
+  if (!keyStr) return [];
+  const keys = keyStr.split("+").map(k => k.trim());
+  const order = ["Ctrl", "Alt", "Shift"];
+  keys.sort((a, b) => {
+    const idxA = order.indexOf(a);
+    const idxB = order.indexOf(b);
+    if (idxA !== -1 && idxB !== -1) {
+      return idxA - idxB;
+    }
+    if (idxA !== -1) return -1;
+    if (idxB !== -1) return 1;
+    return a.localeCompare(b);
+  });
+  return keys;
+}
+
+

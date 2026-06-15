@@ -892,6 +892,19 @@
     ...savedAnkiFieldPresets,
   ]);
 
+  const EXPORT_FORMAT_KEY = "vesta-export-format";
+  let exportFormat = $state<"apkg" | "tsv">(
+    (() => {
+      try {
+        const saved = localStorage.getItem(EXPORT_FORMAT_KEY);
+        return saved === "tsv" ? "tsv" : "apkg";
+      } catch { return "apkg"; }
+    })()
+  );
+  $effect(() => {
+    try { localStorage.setItem(EXPORT_FORMAT_KEY, exportFormat); } catch {}
+  });
+
   function saveTemplates() {
     saveCardTemplates({
       frontHtml: templateFrontHtml,
@@ -3084,6 +3097,79 @@
   <!-- Card Template Editor -->
   {#if activeSettingsSection === "anki"}
   <div class="mt-6 space-y-4">
+
+      <!-- Export Format Card -->
+      <div class="rounded-xl border border-sky-500/20 bg-white/5 p-5">
+        <div class="flex items-center gap-3 mb-4">
+          <div class="w-9 h-9 rounded-lg bg-sky-500/15 text-sky-300 flex items-center justify-center shrink-0">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+              />
+            </svg>
+          </div>
+          <div>
+            <h3 class="text-sm font-bold text-white">{t("settings.anki.exportFormat")}</h3>
+            <p class="text-xs text-gray-400 mt-0.5">{t("settings.anki.exportFormatDesc")}</p>
+          </div>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <!-- APKG option -->
+          <button
+            type="button"
+            onclick={() => (exportFormat = "apkg")}
+            class="flex items-start gap-3 p-3.5 rounded-xl border text-left transition-all
+              {exportFormat === 'apkg'
+                ? 'border-emerald-500/50 bg-emerald-500/10'
+                : 'border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/8'}"
+          >
+            <div class="mt-0.5 w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0
+              {exportFormat === 'apkg' ? 'border-emerald-400' : 'border-gray-500'}">
+              {#if exportFormat === "apkg"}
+                <div class="w-2 h-2 rounded-full bg-emerald-400"></div>
+              {/if}
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-2 flex-wrap">
+                <span class="text-sm font-semibold {exportFormat === 'apkg' ? 'text-emerald-200' : 'text-white'}">{t("settings.anki.exportAPKG")}</span>
+                <span class="text-[10px] px-1.5 py-0.5 rounded-full font-bold
+                  {exportFormat === 'apkg'
+                    ? 'bg-emerald-500/30 text-emerald-300 border border-emerald-500/40'
+                    : 'bg-gray-700/60 text-gray-400 border border-gray-700'}">{t("flashcards.exportAPKGBadge")}</span>
+              </div>
+              <p class="text-xs text-gray-400 mt-1 leading-relaxed">{t("flashcards.exportAPKGDesc")}</p>
+            </div>
+          </button>
+
+          <!-- TSV option -->
+          <button
+            type="button"
+            onclick={() => (exportFormat = "tsv")}
+            class="flex items-start gap-3 p-3.5 rounded-xl border text-left transition-all
+              {exportFormat === 'tsv'
+                ? 'border-sky-500/50 bg-sky-500/10'
+                : 'border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/8'}"
+          >
+            <div class="mt-0.5 w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0
+              {exportFormat === 'tsv' ? 'border-sky-400' : 'border-gray-500'}">
+              {#if exportFormat === "tsv"}
+                <div class="w-2 h-2 rounded-full bg-sky-400"></div>
+              {/if}
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-2 flex-wrap">
+                <span class="text-sm font-semibold {exportFormat === 'tsv' ? 'text-sky-200' : 'text-white'}">{t("settings.anki.exportTSV")}</span>
+                <span class="text-[10px] px-1.5 py-0.5 rounded-full font-bold
+                  {exportFormat === 'tsv'
+                    ? 'bg-sky-500/30 text-sky-300 border border-sky-500/40'
+                    : 'bg-gray-700/60 text-gray-400 border border-gray-700'}">{t("flashcards.exportTSVBadge")}</span>
+              </div>
+              <p class="text-xs text-gray-400 mt-1 leading-relaxed">{t("flashcards.exportTSVDesc")}</p>
+            </div>
+          </button>
+        </div>
+      </div>
+
       <div class="rounded-xl border border-emerald-500/20 bg-white/5 p-5">
         <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 mb-5">
           <div class="flex items-center gap-3">
