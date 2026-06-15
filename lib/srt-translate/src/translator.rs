@@ -239,24 +239,8 @@ impl Translator {
             let status = http_response.status();
             let response_text = http_response.text().await?;
 
-            // Handle 429 rate limit with retry
-            if status == reqwest::StatusCode::TOO_MANY_REQUESTS && attempt < MAX_RETRIES {
-                let delay = parse_retry_delay(&response_text);
-                eprintln!(
-                    "[srt-translate] Rate limited (429), retrying in {:.0}s (attempt {}/{})...",
-                    delay.as_secs_f64(), attempt + 1, MAX_RETRIES
-                );
-                sleep(delay).await;
-                continue;
-            }
-
-            // Handle 5xx server errors with exponential backoff
-            if status.is_server_error() && attempt < MAX_RETRIES {
-                let delay = Duration::from_secs(2_u64.pow(attempt as u32) * 5);
-                eprintln!(
-                    "[srt-translate] Server error ({}), retrying in {:.0}s (attempt {}/{})...",
-                    status, delay.as_secs_f64(), attempt + 1, MAX_RETRIES
-                );
+            // Retry on 429 / 5xx with backoff; otherwise fall through to parse.
+            if let Some(delay) = retry_backoff(status, &response_text, attempt, MAX_RETRIES) {
                 sleep(delay).await;
                 continue;
             }
@@ -398,24 +382,8 @@ impl Translator {
             let status = http_response.status();
             let response_text = http_response.text().await?;
 
-            // Handle 429 rate limit with retry
-            if status == reqwest::StatusCode::TOO_MANY_REQUESTS && attempt < MAX_RETRIES {
-                let delay = parse_retry_delay(&response_text);
-                eprintln!(
-                    "[srt-translate] Rate limited (429), retrying in {:.0}s (attempt {}/{})...",
-                    delay.as_secs_f64(), attempt + 1, MAX_RETRIES
-                );
-                sleep(delay).await;
-                continue;
-            }
-
-            // Handle 5xx server errors with exponential backoff
-            if status.is_server_error() && attempt < MAX_RETRIES {
-                let delay = Duration::from_secs(2_u64.pow(attempt as u32) * 5);
-                eprintln!(
-                    "[srt-translate] Server error ({}), retrying in {:.0}s (attempt {}/{})...",
-                    status, delay.as_secs_f64(), attempt + 1, MAX_RETRIES
-                );
+            // Retry on 429 / 5xx with backoff; otherwise fall through to parse.
+            if let Some(delay) = retry_backoff(status, &response_text, attempt, MAX_RETRIES) {
                 sleep(delay).await;
                 continue;
             }
@@ -450,6 +418,45 @@ impl Translator {
 
         anyhow::bail!("API rate limit exceeded after {} retries", MAX_RETRIES)
     }
+}
+
+/// Decide whether an HTTP response should be retried, shared by every API path.
+///
+/// Returns the delay to wait before the next attempt — server-suggested for a
+/// `429`, exponential (`5·2^attempt` s) for a `5xx` — or `None` to stop retrying
+/// and process the response as-is. Logs the reason. Once `attempt` reaches
+/// `max_retries` no further retry is offered.
+fn retry_backoff(
+    status: reqwest::StatusCode,
+    body: &str,
+    attempt: u32,
+    max_retries: u32,
+) -> Option<Duration> {
+    if attempt >= max_retries {
+        return None;
+    }
+    if status == reqwest::StatusCode::TOO_MANY_REQUESTS {
+        let delay = parse_retry_delay(body);
+        eprintln!(
+            "[srt-translate] Rate limited (429), retrying in {:.0}s (attempt {}/{})...",
+            delay.as_secs_f64(),
+            attempt + 1,
+            max_retries
+        );
+        return Some(delay);
+    }
+    if status.is_server_error() {
+        let delay = Duration::from_secs(2_u64.pow(attempt) * 5);
+        eprintln!(
+            "[srt-translate] Server error ({}), retrying in {:.0}s (attempt {}/{})...",
+            status,
+            delay.as_secs_f64(),
+            attempt + 1,
+            max_retries
+        );
+        return Some(delay);
+    }
+    None
 }
 
 /// Parse the retry delay from a rate-limit error response body.

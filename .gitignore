@@ -20,8 +20,8 @@ Thumbs.db
 *.key
 config.toml 
 
-Helpful_Source_code_subs2srs
-Source_code_subs2srs
+# subs2srs is vendored as source under subs2srs_source_code/ (GPLv3, kept whole
+# with its copyright notices + gpl.txt) for full benchmark reproducibility.
 Test_Subs/Detour-1945-Public_domain.mkv
 
 # File video/audio grandi

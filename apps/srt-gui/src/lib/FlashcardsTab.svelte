@@ -1093,10 +1093,10 @@
   // ─── Card Filters ────────────────────────────────────────────────────────
   let combineSentences = $state(false);
   let continuationChars = $state(",、→");
-  let filterMinChars = $state<number | null>(null);
-  let filterMaxChars = $state<number | null>(null);
-  let filterMinDurationMs = $state<number | null>(null);
-  let filterMaxDurationMs = $state<number | null>(null);
+  let filterMinChars = $state<number>(8);
+  let filterMaxChars = $state<number>(120);
+  let filterMinDurationMs = $state<number>(500);
+  let filterMaxDurationMs = $state<number>(8000);
   // Slider enable toggles
   let filterMinCharsEnabled = $state(false);
   let filterMaxCharsEnabled = $state(false);
@@ -3864,167 +3864,180 @@
         {/if}
       </div>
     {:else if panelId === "cardFilters"}
-      <div class="glass-card p-5">
-        <div class="flex items-center justify-between mb-4">
-          <h3 class="text-lg font-semibold flex items-center gap-2 text-amber-400">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-.293.707L13 13.414V19a1 1 0 01-.553.894l-4 2A1 1 0 017 21v-7.586L3.293 6.707A1 1 0 013 6V4z" />
-            </svg>
-            Filtri Carte
-          </h3>
-        </div>
+      <div
+        inert={!hasAnyFiles}
+        title={!hasAnyFiles ? HINT_LOAD_TARGET_FIRST : undefined}
+        class="glass-card p-5 {!hasAnyFiles ? 'opacity-40' : ''}"
+      >
+        <h3 class="text-lg font-semibold flex items-center gap-2 text-amber-400 mb-4">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-.293.707L13 13.414V19a1 1 0 01-.553.894l-4 2A1 1 0 017 21v-7.586L3.293 6.707A1 1 0 013 6V4z" />
+          </svg>
+          Filtri Carte
+        </h3>
 
         <!-- Sentence Combining -->
-        <div class="mb-4 p-3 rounded-lg bg-amber-500/5 border border-amber-500/20">
-          <div class="flex items-center justify-between">
-            <div class="flex items-center gap-2">
-              <svg class="w-4 h-4 text-amber-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-              </svg>
-              <div>
-                <span class="text-sm font-semibold text-gray-200">Unisci Frasi Consecutive</span>
-                <p class="text-[11px] text-gray-500 mt-0.5">Unisce le righe SRT che finiscono con caratteri di continuazione (es. virgola) nella riga successiva</p>
-              </div>
-            </div>
-            <button
-              onclick={() => (combineSentences = !combineSentences)}
-              class="w-10 h-5 rounded-full transition-all duration-200 relative shrink-0 ml-3
-                {combineSentences ? 'bg-amber-500' : 'bg-gray-600'}"
-              aria-label="Toggle sentence combining"
-            >
-              <div class="absolute w-4 h-4 bg-white rounded-full top-0.5 transition-all duration-200
-                {combineSentences ? 'left-5' : 'left-0.5'}"></div>
-            </button>
-          </div>
-          {#if combineSentences}
-            <div class="mt-3 animate-fade-in">
-              <span class="block text-xs text-gray-500 mb-1">Caratteri di continuazione</span>
-              <input
-                type="text"
-                bind:value={continuationChars}
-                class="input-modern w-full text-xs font-mono"
-                placeholder=",、→"
-              />
-              <p class="text-[10px] text-gray-600 mt-1">Se una riga finisce con uno di questi caratteri, viene unita alla successiva</p>
-            </div>
-          {/if}
+        <div class="flex items-center justify-between mb-3">
+          <span class="text-sm font-medium text-gray-300">Unisci frasi spezzate su righe consecutive</span>
+          <button
+            onclick={() => (combineSentences = !combineSentences)}
+            class="w-10 h-5 rounded-full transition-all duration-200 relative shrink-0 ml-3
+              {combineSentences ? 'bg-amber-500' : 'bg-gray-600'}"
+            aria-label="Toggle sentence combining"
+          >
+            <div class="absolute w-4 h-4 bg-white rounded-full top-0.5 transition-all duration-200
+              {combineSentences ? 'left-5' : 'left-0.5'}"></div>
+          </button>
         </div>
+        {#if combineSentences}
+          <div class="mb-4 animate-fade-in">
+            <span class="block text-xs text-gray-500 mb-1">Caratteri di continuazione</span>
+            <input
+              type="text"
+              bind:value={continuationChars}
+              class="input-modern w-full text-xs font-mono"
+              placeholder=",、→"
+            />
+          </div>
+        {/if}
 
         <!-- Length Filter -->
-        <div class="mb-3">
-          <div class="flex items-center justify-between mb-2">
-            <span class="text-xs font-semibold text-gray-300">Lunghezza (caratteri)</span>
-          </div>
-          <div class="grid grid-cols-2 gap-2">
-            <div>
-              <div class="flex items-center gap-1.5 mb-1">
+        <div class="mb-3 space-y-2">
+          <span class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Lunghezza (car.)</span>
+          <div class="grid grid-cols-2 gap-3">
+            <div class="space-y-1">
+              <div class="flex items-center justify-between">
+                <span class="text-xs text-gray-400">Minimo</span>
                 <button
-                  onclick={() => { filterMinCharsEnabled = !filterMinCharsEnabled; if (filterMinCharsEnabled && filterMinChars === null) filterMinChars = 8; }}
-                  class="w-7 h-3.5 rounded-full transition-all duration-200 relative shrink-0
+                  onclick={() => { filterMinCharsEnabled = !filterMinCharsEnabled; }}
+                  class="w-10 h-5 rounded-full transition-all duration-200 relative
                     {filterMinCharsEnabled ? 'bg-amber-500' : 'bg-gray-600'}"
                   aria-label="Enable min chars"
                 >
-                  <div class="absolute w-2.5 h-2.5 bg-white rounded-full top-0.5 transition-all duration-200
-                    {filterMinCharsEnabled ? 'left-[14px]' : 'left-0.5'}"></div>
+                  <div class="absolute w-4 h-4 bg-white rounded-full top-0.5 transition-all duration-200
+                    {filterMinCharsEnabled ? 'left-5' : 'left-0.5'}"></div>
                 </button>
-                <span class="text-xs text-gray-500">Minimo</span>
               </div>
-              <div class="flex items-center gap-1">
+              <div class="space-y-1.5">
+                <div class="flex items-center gap-1">
+                  <input
+                    type="number" min="1"
+                    bind:value={filterMinChars}
+                    disabled={!filterMinCharsEnabled}
+                    class="input-modern w-full text-xs {!filterMinCharsEnabled ? 'opacity-40 cursor-not-allowed' : ''}"
+                    placeholder="8"
+                  />
+                  <span class="text-xs text-gray-500 shrink-0">car.</span>
+                </div>
                 <input
-                  type="number"
-                  min="1"
+                  type="range" min="1" max="100" step="1"
                   bind:value={filterMinChars}
                   disabled={!filterMinCharsEnabled}
-                  class="input-modern w-full text-xs {!filterMinCharsEnabled ? 'opacity-40 cursor-not-allowed' : ''}"
-                  placeholder="8"
+                  class="w-full mt-1.5 transition-opacity duration-200 {!filterMinCharsEnabled ? 'opacity-40 cursor-not-allowed' : ''}"
                 />
-                <span class="text-xs text-gray-500">car.</span>
               </div>
             </div>
-            <div>
-              <div class="flex items-center gap-1.5 mb-1">
+            <div class="space-y-1">
+              <div class="flex items-center justify-between">
+                <span class="text-xs text-gray-400">Massimo</span>
                 <button
-                  onclick={() => { filterMaxCharsEnabled = !filterMaxCharsEnabled; if (filterMaxCharsEnabled && filterMaxChars === null) filterMaxChars = 120; }}
-                  class="w-7 h-3.5 rounded-full transition-all duration-200 relative shrink-0
+                  onclick={() => { filterMaxCharsEnabled = !filterMaxCharsEnabled; }}
+                  class="w-10 h-5 rounded-full transition-all duration-200 relative
                     {filterMaxCharsEnabled ? 'bg-amber-500' : 'bg-gray-600'}"
                   aria-label="Enable max chars"
                 >
-                  <div class="absolute w-2.5 h-2.5 bg-white rounded-full top-0.5 transition-all duration-200
-                    {filterMaxCharsEnabled ? 'left-[14px]' : 'left-0.5'}"></div>
+                  <div class="absolute w-4 h-4 bg-white rounded-full top-0.5 transition-all duration-200
+                    {filterMaxCharsEnabled ? 'left-5' : 'left-0.5'}"></div>
                 </button>
-                <span class="text-xs text-gray-500">Massimo</span>
               </div>
-              <div class="flex items-center gap-1">
+              <div class="space-y-1.5">
+                <div class="flex items-center gap-1">
+                  <input
+                    type="number" min="1"
+                    bind:value={filterMaxChars}
+                    disabled={!filterMaxCharsEnabled}
+                    class="input-modern w-full text-xs {!filterMaxCharsEnabled ? 'opacity-40 cursor-not-allowed' : ''}"
+                    placeholder="120"
+                  />
+                  <span class="text-xs text-gray-500 shrink-0">car.</span>
+                </div>
                 <input
-                  type="number"
-                  min="1"
+                  type="range" min="1" max="500" step="1"
                   bind:value={filterMaxChars}
                   disabled={!filterMaxCharsEnabled}
-                  class="input-modern w-full text-xs {!filterMaxCharsEnabled ? 'opacity-40 cursor-not-allowed' : ''}"
-                  placeholder="120"
+                  class="w-full mt-1.5 transition-opacity duration-200 {!filterMaxCharsEnabled ? 'opacity-40 cursor-not-allowed' : ''}"
                 />
-                <span class="text-xs text-gray-500">car.</span>
               </div>
             </div>
           </div>
         </div>
 
         <!-- Duration Filter -->
-        <div>
-          <div class="flex items-center justify-between mb-2">
-            <span class="text-xs font-semibold text-gray-300">Durata</span>
-          </div>
-          <div class="grid grid-cols-2 gap-2">
-            <div>
-              <div class="flex items-center gap-1.5 mb-1">
+        <div class="space-y-2">
+          <span class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Durata</span>
+          <div class="grid grid-cols-2 gap-3">
+            <div class="space-y-1">
+              <div class="flex items-center justify-between">
+                <span class="text-xs text-gray-400">Minima</span>
                 <button
-                  onclick={() => { filterMinDurationEnabled = !filterMinDurationEnabled; if (filterMinDurationEnabled && filterMinDurationMs === null) filterMinDurationMs = 500; }}
-                  class="w-7 h-3.5 rounded-full transition-all duration-200 relative shrink-0
+                  onclick={() => { filterMinDurationEnabled = !filterMinDurationEnabled; }}
+                  class="w-10 h-5 rounded-full transition-all duration-200 relative
                     {filterMinDurationEnabled ? 'bg-amber-500' : 'bg-gray-600'}"
                   aria-label="Enable min duration"
                 >
-                  <div class="absolute w-2.5 h-2.5 bg-white rounded-full top-0.5 transition-all duration-200
-                    {filterMinDurationEnabled ? 'left-[14px]' : 'left-0.5'}"></div>
+                  <div class="absolute w-4 h-4 bg-white rounded-full top-0.5 transition-all duration-200
+                    {filterMinDurationEnabled ? 'left-5' : 'left-0.5'}"></div>
                 </button>
-                <span class="text-xs text-gray-500">Minima</span>
               </div>
-              <div class="flex items-center gap-1">
+              <div class="space-y-1.5">
+                <div class="flex items-center gap-1">
+                  <input
+                    type="number" min="0" step="100"
+                    bind:value={filterMinDurationMs}
+                    disabled={!filterMinDurationEnabled}
+                    class="input-modern w-full text-xs {!filterMinDurationEnabled ? 'opacity-40 cursor-not-allowed' : ''}"
+                    placeholder="500"
+                  />
+                  <span class="text-xs text-gray-500 shrink-0">ms</span>
+                </div>
                 <input
-                  type="number"
-                  min="0"
-                  step="100"
+                  type="range" min="0" max="5000" step="100"
                   bind:value={filterMinDurationMs}
                   disabled={!filterMinDurationEnabled}
-                  class="input-modern w-full text-xs {!filterMinDurationEnabled ? 'opacity-40 cursor-not-allowed' : ''}"
-                  placeholder="500"
+                  class="w-full mt-1.5 transition-opacity duration-200 {!filterMinDurationEnabled ? 'opacity-40 cursor-not-allowed' : ''}"
                 />
-                <span class="text-xs text-gray-500">ms</span>
               </div>
             </div>
-            <div>
-              <div class="flex items-center gap-1.5 mb-1">
+            <div class="space-y-1">
+              <div class="flex items-center justify-between">
+                <span class="text-xs text-gray-400">Massima</span>
                 <button
-                  onclick={() => { filterMaxDurationEnabled = !filterMaxDurationEnabled; if (filterMaxDurationEnabled && filterMaxDurationMs === null) filterMaxDurationMs = 8000; }}
-                  class="w-7 h-3.5 rounded-full transition-all duration-200 relative shrink-0
+                  onclick={() => { filterMaxDurationEnabled = !filterMaxDurationEnabled; }}
+                  class="w-10 h-5 rounded-full transition-all duration-200 relative
                     {filterMaxDurationEnabled ? 'bg-amber-500' : 'bg-gray-600'}"
                   aria-label="Enable max duration"
                 >
-                  <div class="absolute w-2.5 h-2.5 bg-white rounded-full top-0.5 transition-all duration-200
-                    {filterMaxDurationEnabled ? 'left-[14px]' : 'left-0.5'}"></div>
+                  <div class="absolute w-4 h-4 bg-white rounded-full top-0.5 transition-all duration-200
+                    {filterMaxDurationEnabled ? 'left-5' : 'left-0.5'}"></div>
                 </button>
-                <span class="text-xs text-gray-500">Massima</span>
               </div>
-              <div class="flex items-center gap-1">
+              <div class="space-y-1.5">
+                <div class="flex items-center gap-1">
+                  <input
+                    type="number" min="0" step="100"
+                    bind:value={filterMaxDurationMs}
+                    disabled={!filterMaxDurationEnabled}
+                    class="input-modern w-full text-xs {!filterMaxDurationEnabled ? 'opacity-40 cursor-not-allowed' : ''}"
+                    placeholder="8000"
+                  />
+                  <span class="text-xs text-gray-500 shrink-0">ms</span>
+                </div>
                 <input
-                  type="number"
-                  min="0"
-                  step="100"
+                  type="range" min="0" max="30000" step="500"
                   bind:value={filterMaxDurationMs}
                   disabled={!filterMaxDurationEnabled}
-                  class="input-modern w-full text-xs {!filterMaxDurationEnabled ? 'opacity-40 cursor-not-allowed' : ''}"
-                  placeholder="8000"
+                  class="w-full mt-1.5 transition-opacity duration-200 {!filterMaxDurationEnabled ? 'opacity-40 cursor-not-allowed' : ''}"
                 />
-                <span class="text-xs text-gray-500">ms</span>
               </div>
             </div>
           </div>

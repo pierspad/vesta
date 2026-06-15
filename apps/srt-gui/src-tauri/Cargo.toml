@@ -25,19 +25,17 @@ anyhow = { workspace = true }
 tokio = { workspace = true }
 tokio-util = "0.7"
 urlencoding = "2"
-zip = "8"
 tempfile = "3"
 dirs = "6"
 whisper-rs = "0.16"
 whisper-common = { workspace = true }
-rusqlite = { version = "0.39", features = ["bundled"] }
-sha1_smol = "1.0"
 ffmpeg-sidecar = { version = "2.5.1", features = ["download_ffmpeg"] }
 
 # Dipendenze dal workspace
 srt-parser = { workspace = true }
 srt-translate = { workspace = true }
 srt-sync = { workspace = true }
+srt-flashcards = { workspace = true }
 axum = "0.8.9"
 tower-http = { version = "0.6.10", features = ["cors", "fs"] }
 tower = "0.5.3"
