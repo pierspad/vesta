@@ -7,6 +7,7 @@
   import {
     defaultShortcuts,
     getShortcuts,
+    getSortedKeys,
     resetShortcuts,
     resetSingleShortcut,
     saveShortcutOverride,
@@ -469,12 +470,17 @@
           </button>
         </div>
       {:else}
-        <div class="flex items-center gap-1">
-          <kbd
-            class="px-3 py-1.5 bg-gray-950/80 border border-white/10 rounded-lg text-xs text-gray-300 font-mono shadow-sm font-semibold tracking-wide whitespace-nowrap"
-          >
-            {shortcut.defaultKey.split("+").join(" + ")}
-          </kbd>
+        <div class="flex items-center gap-1 flex-wrap">
+          {#each getSortedKeys(shortcut.defaultKey) as key, i}
+            {#if i > 0}
+              <span class="text-gray-500 text-xs font-semibold px-0.5">+</span>
+            {/if}
+            <kbd
+              class="px-2.5 py-1 bg-gray-950/80 border border-white/10 rounded-lg text-xs text-gray-300 font-mono shadow-sm font-semibold tracking-wide whitespace-nowrap"
+            >
+              {key}
+            </kbd>
+          {/each}
         </div>
 
         {#if isModified(shortcut)}
@@ -549,7 +555,7 @@
               type="text"
               bind:value={searchQuery}
               placeholder={labels.textPlaceholder}
-              class="w-full py-1.5 bg-transparent border-0 text-sm text-white focus:outline-none placeholder-gray-500"
+              class="w-full h-8 py-0 bg-transparent border-0 text-sm text-white focus:outline-none placeholder-gray-500"
             />
             {#if searchQuery}
               <button
@@ -572,7 +578,7 @@
                   startSearchKeysListening();
                 }
               }}
-              class="w-full py-1.5 text-sm text-white flex items-center cursor-pointer select-none min-h-[32px]"
+              class="w-full h-8 py-0 text-sm text-white flex items-center cursor-pointer select-none"
             >
               <div class="flex-1 flex flex-wrap items-center gap-1 min-w-0">
                 {#if searchKeys.length > 0}

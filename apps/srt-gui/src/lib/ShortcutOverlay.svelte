@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onDestroy, onMount } from "svelte";
   import { locale } from "./i18n";
-  import { getShortcuts, type ShortcutDefinition } from "./models";
+  import { getShortcuts, getSortedKeys, type ShortcutDefinition } from "./models";
 
   interface Props {
     activeTab: string;
@@ -191,7 +191,7 @@
                   >{t(shortcut.description)}</span
                 >
                 <div class="flex items-center gap-0.5">
-                  {#each shortcut.defaultKey.split("+") as keyPart, i}
+                  {#each getSortedKeys(shortcut.defaultKey) as keyPart, i}
                     {#if i > 0}
                       <span class="text-gray-600 text-[9px]">+</span>
                     {/if}
@@ -224,7 +224,7 @@
                   >{t(shortcut.description)}</span
                 >
                 <div class="flex items-center gap-0.5">
-                  {#each shortcut.defaultKey.split("+") as keyPart, i}
+                  {#each getSortedKeys(shortcut.defaultKey) as keyPart, i}
                     {#if i > 0}
                       <span class="text-gray-600 text-[9px]">+</span>
                     {/if}
