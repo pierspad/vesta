@@ -1382,22 +1382,6 @@
     };
   });
 
-  $effect(() => {
-    const meaningIncluded = activeNoteType.included.meaning;
-    if (!meaningIncluded) {
-      if (nativeSubsPath) nativeSubsPath = "";
-      episodes = episodes.map(ep => ep.nativeSubsPath ? { ...ep, nativeSubsPath: "" } : ep);
-    }
-  });
-
-  $effect(() => {
-    const hasMedia = activeNoteType.included.audio || activeNoteType.included.snapshot || activeNoteType.included.video;
-    if (!hasMedia) {
-      if (mediaPath) mediaPath = "";
-      episodes = episodes.map(ep => ep.mediaPath ? { ...ep, mediaPath: "", mediaType: "none", mediaOverrides: undefined } : ep);
-    }
-  });
-
   let noteTypeOptions = $derived(
     noteTypeList.map((nt) => ({
       value: nt.id,
@@ -3372,9 +3356,14 @@
             </div>
 
              <div>
-              <span class="block text-xs text-gray-400 mb-1"
-                >{t("flashcards.nativeLangSubs")}</span
-              >
+              <span class="block text-xs mb-1 transition-colors text-gray-400">
+                <span class={!activeNoteType.included.meaning ? 'text-gray-500 line-through opacity-60' : ''}>
+                  {t("flashcards.nativeLangSubs")}
+                </span>
+                {#if !activeNoteType.included.meaning}
+                  <span class="text-[10px] text-amber-500/80 ml-1.5 font-normal normal-case italic no-underline">({t("flashcards.inactiveNoteTypeField")})</span>
+                {/if}
+              </span>
               <PathPickerField
                 value={nativeSubsPath}
                 placeholder={t("flashcards.optional")}
@@ -3389,9 +3378,14 @@
             </div>
 
             <div>
-              <span class="block text-xs text-gray-400 mb-1"
-                >{t("flashcards.mediaFile")}</span
-              >
+              <span class="block text-xs mb-1 transition-colors text-gray-400">
+                <span class={(!activeNoteType.included.audio && !activeNoteType.included.snapshot && !activeNoteType.included.video) ? 'text-gray-500 line-through opacity-60' : ''}>
+                  {t("flashcards.mediaFile")}
+                </span>
+                {#if !activeNoteType.included.audio && !activeNoteType.included.snapshot && !activeNoteType.included.video}
+                  <span class="text-[10px] text-amber-500/80 ml-1.5 font-normal normal-case italic no-underline">({t("flashcards.inactiveNoteTypeField")})</span>
+                {/if}
+              </span>
               <PathPickerField
                 value={mediaPath}
                 placeholder={t("flashcards.mediaPlaceholder")}
@@ -4580,9 +4574,14 @@
             {@const isFieldDisabled = field === "nativeSubsPath" ? !activeNoteType.included.meaning : field === "mediaPath" ? (!activeNoteType.included.audio && !activeNoteType.included.snapshot && !activeNoteType.included.video) : false}
             <div>
               <div class="mb-1 flex items-center gap-3">
-                <span class="text-xs font-medium text-gray-400">
-                  {label}
-                  {#if item.required}<span class="text-red-400">*</span>{/if}
+                <span class="text-xs font-medium transition-colors text-gray-400">
+                  <span class={isFieldDisabled ? 'text-gray-500 line-through opacity-60' : ''}>
+                    {label}
+                  </span>
+                  {#if isFieldDisabled}
+                    <span class="text-[10px] text-amber-500/80 ml-1.5 font-normal normal-case italic no-underline">({t("flashcards.inactiveNoteTypeField")})</span>
+                  {/if}
+                  {#if item.required && !isFieldDisabled}<span class="text-red-400">*</span>{/if}
                 </span>
               </div>
               <div class="flex gap-2">

@@ -902,7 +902,7 @@
   let allAnkiFieldPresets = $derived<AnkiFieldPreset[]>([
     {
       id: "default",
-      name: "Default Vesta",
+      name: "Default_Vesta",
       noteTypeName: defaultCardTemplates.noteTypeName,
       fields: defaultFieldNames,
     },
@@ -3316,12 +3316,23 @@
             />
           </div>
           {#each ankiFieldDefinitions as field}
+            {@const isLocked = field.key === "expression" || field.key === "sequenceMarker"}
             <div>
-              <label for={`anki-field-${field.key}`} class="mb-1 flex items-center gap-1.5 text-xs font-semibold text-gray-400">
-                <svg class={`h-3.5 w-3.5 ${field.iconClass}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d={field.iconPath} />
-                </svg>
-                <span>{fieldVariableName(field)}</span>
+              <label for={`anki-field-${field.key}`} class="mb-1 flex items-center justify-between gap-1.5 text-xs font-semibold text-gray-400">
+                <div class="flex items-center gap-1.5">
+                  <svg class={`h-3.5 w-3.5 ${field.iconClass}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d={field.iconPath} />
+                  </svg>
+                  <span>{fieldVariableName(field)}</span>
+                </div>
+                {#if isLocked}
+                  <span class="text-[9px] text-amber-500/80 font-semibold uppercase tracking-wider bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20 flex items-center gap-1" title={t("settings.essentialFieldLocked")}>
+                    <svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                    <span>LOCKED</span>
+                  </span>
+                {/if}
               </label>
               <input
                 id={`anki-field-${field.key}`}
@@ -3329,9 +3340,9 @@
                 type="text"
                 value={getFieldValue(field.key)}
                 maxlength="25"
-                disabled={selectedAnkiFieldPresetId === "default"}
+                disabled={selectedAnkiFieldPresetId === "default" || isLocked}
                 oninput={(event) => syncLimitedInput(event, (value) => setFieldValue(field.key, value), saveFields)}
-                class="input-modern w-full text-sm disabled:opacity-50 disabled:cursor-not-allowed {!getFieldValue(field.key).trim() ? 'opacity-40 border-dashed border-gray-600' : ''}"
+                class="input-modern w-full text-sm disabled:opacity-50 disabled:cursor-not-allowed {isLocked ? 'border-amber-500/20 bg-amber-500/5 text-amber-200/90' : !getFieldValue(field.key).trim() ? 'opacity-40 border-dashed border-gray-600' : ''}"
                 placeholder={fieldVariableName(field)}
               />
             </div>
