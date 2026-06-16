@@ -1,24 +1,44 @@
-
 ## Release Notes v0.11.0
 
 ### New Features
 
-* **Note Types as First-Class Objects**: The flashcards screen now has a single **note type selector** (replacing the old "language + field pills" duplication). It lists the locked, per-language predefined note types (e.g. `English_Vesta`) plus any custom note types you create. Picking one sets the export name, the study language and the active fields in one place.
-* **Standalone CLIs**: Split the engine into independent command-line tools (`srt-extract`, `srt-translate`, `srt-flashcards`) so each stage can be scripted and run on its own, separately from the GUI.
-* **Benchmark Suite**: Added a reproducible methodology for benchmarking Vesta against subs2srs in both single-core and multi-core modes, with build helpers and report generation.
+- **Note Types as First-Class Objects**: The flashcards screen now uses a single **note type selector** instead of separate language and field controls. Note types define the export name, study language and active schema in one place.
+- **Standalone CLI Tools**: Split the processing pipeline into independent command-line applications (`srt-extract`, `srt-translate`, `srt-flashcards`) so each stage can be automated and used without the GUI.
+- **Benchmark Suite**: Added a reproducible benchmarking environment comparing Vesta against subs2srs in both single-core and multi-core execution modes, including automated reports and performance plots.
+- **Deterministic Anki Export Identity**: APKG exports now generate stable model and deck identifiers, allowing Anki to correctly recognise repeated exports and merge them instead of creating duplicated note types or decks.
+- **Custom Note Types**: Added support for user-defined note types with configurable fields while keeping predefined note types consistent and migration-safe.
 
 ### Fixes
 
-* **Anki Note Type Duplication (APKG)**: Fixed the long-standing issue where importing several `.apkg` files built on the same note type produced duplicate note types (`Name`, `Name+`, ...) instead of merging into one. The Anki **model id is now derived from the note type name** (not the deck), and the exported **schema is a fixed property of the note type** — predefined note types are locked to all nine fields in a canonical order, so every export of the same note type is structurally identical. That is exactly what Anki needs to recognise repeated imports as the same note type and merge them.
-* **APKG / TSV Field Consistency**: Both export paths emit the same canonical field order (Expression, Meaning, Audio, Snapshot, Video, Tags, SequenceMarker, Reading, Notes) and the same inclusion rules, so a TSV import and an APKG import of the same configuration map onto an identical note type.
-* **Filters**: Restored and corrected subtitle filtering behaviour.
+- **Anki Note Type Duplication**: Fixed duplicated note models (`Name`, `Name+`, ...) when importing multiple APKG files generated from the same configuration. Model identity is now derived from the note type rather than the deck.
+- **Canonical APKG Schema**: Predefined note types now always export the same nine-field schema in a fixed order:
+  `Expression, Meaning, Audio, Snapshot, Video, Tags, SequenceMarker, Reading, Notes`.
+- **APKG / TSV Compatibility**: Unified APKG and TSV exports so both formats use the same field ordering and inclusion rules.
+- **Subtitle Matching Logic**: Improved and isolated subtitle/media matching logic, making suggestions more reliable and reusable outside the GUI.
+- **Filters**: Restored and corrected subtitle filtering behaviour.
+- **Template Validation**: Prevented invalid custom note types from being saved without required fields such as `Expression`.
+- **Settings Navigation**: Fixed returning from settings always opening the wrong section by preserving the previous active tab.
 
 ### Improvements
 
-* **Custom Note Types Can Trim Fields**: Predefined note types stay locked to the full nine-field schema; custom note types may switch individual fields off to get a smaller, cleaner schema, while still merging cleanly on re-import.
-* **Settings Reorganisation**: Moved note type, field name and card template configuration into the Settings section for a clearer, more centralised setup.
-* **Code Deduplication & Efficiency**: Separated responsibilities across the CLI crates, removed duplicated logic and streamlined hot paths.
-* **Build Scripts**: Improved the build and release scripts.
-* **Regression Coverage**: Added automated tests that lock in the per-note-type schema and the stable model id, guarding the merge behaviour against future regressions.
+- **Anki Configuration Reorganisation**: Moved export format, note type and field configuration into Settings for a cleaner workflow.
+- **Simplified Note Type Architecture**: Removed language-specific note type coupling and moved to a generic note type system.
+- **Locked Required Fields**: Predefined schemas now protect required fields such as `Expression` and `SequenceMarker` from accidental changes.
+- **Improved Disabled Field Feedback**: Inactive fields are now kept visible and clearly marked instead of disappearing when unavailable.
+- **Flashcard Layout Redesign**: Rebalanced the flashcard workspace into a cleaner three-column layout:
+  - Files and naming
+  - Audio/video configuration
+  - Snapshots, filters and results
+- **Shortcut Improvements**: Added better formatting and sorting for keyboard shortcuts and quick navigation actions.
+- **Settings Shortcuts**: Added context actions to quickly open related settings from export format and note type controls.
+- **UI Stability Improvements**: Removed dynamic layout shifting caused by hidden configuration panels; unavailable options remain visible but disabled.
+- **Update Status Feedback**: Improved update checking UI with loading state, up-to-date confirmation and available update notifications.
+- **Codebase Cleanup**: Reduced duplicated logic, separated responsibilities across crates, improved retry handling and simplified backend state management.
+- **Localization Updates**: Completed missing translations and moved remaining hardcoded UI strings into the translation system.
+- **Regression Tests**: Added coverage for note type schemas, stable identifiers and export consistency to prevent future regressions.
 
-> **One-time migration note for existing collections**: if you already have a Vesta note type (e.g. `English_Vesta`) created by an older version, your current note type may have a slightly different schema (for example a `Tag` field instead of `Tags`, and no `Notes` field). For Anki to merge new imports into it rather than creating `English_Vesta+`, align your existing note type's fields with the canonical schema above (rename `Tag` → `Tags`, add a `Notes` field). From then on every Vesta export of that note type will merge cleanly.
+> **One-time migration note for existing collections**: if you already have a Vesta note type (for example `English_Vesta`) created by an older version, your existing schema may differ from the new canonical structure. To avoid Anki creating a duplicate note type (`Name+`), update your existing note type fields to match:
+>
+> `Expression, Meaning, Audio, Snapshot, Video, Tags, SequenceMarker, Reading, Notes`
+>
+> In particular, rename `Tag` → `Tags` and add the missing `Notes` field. Future exports using the same note type will then merge correctly.
