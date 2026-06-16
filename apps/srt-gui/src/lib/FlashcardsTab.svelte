@@ -15,8 +15,10 @@
     loadCardTemplates,
     listNoteTypes,
     findNoteTypeById,
-    predefinedNoteTypeForLanguage,
     noteTypeOutputFields,
+    loadActiveNoteTypeId,
+    saveActiveNoteTypeId,
+    ACTIVE_NOTE_TYPE_CHANGED_EVENT,
     type NoteTypeDef,
     type FieldKey,
     scoreLanguageMatch,
@@ -1231,7 +1233,6 @@
     "snapshots",
     "videoClips",
     "cardFilters",
-    "ankiFields",
     "naming",
     "progressResult",
     "logs",
@@ -1249,15 +1250,15 @@
   const SERIES_LAYOUT_KEY = "vesta-flashcards-series-layout-v4";
 
   const DEFAULT_LAYOUT: ColumnLayout = {
-    col1: ["files", "cardFilters"],
+    col1: ["files"],
     col2: ["audioClips", "snapshots", "videoClips"],
-    col3: ["naming", "ankiFields", "progressResult"],
+    col3: ["naming", "cardFilters", "progressResult"],
   };
 
   const DEFAULT_SERIES_LAYOUT: ColumnLayout = {
-    col1: ["files", "cardFilters"],
+    col1: ["files"],
     col2: ["audioClips", "snapshots", "videoClips"],
-    col3: ["naming", "ankiFields", "progressResult"],
+    col3: ["naming", "cardFilters", "progressResult"],
   };
 
   function cloneLayout(layout: ColumnLayout): ColumnLayout {
@@ -1318,22 +1319,22 @@
   let effectivePanelLayout = $derived.by((): ColumnLayout => {
     if (effectiveColumnCount === 3) {
       return {
-        col1: ["files", "cardFilters"],
+        col1: ["files"],
         col2: ["audioClips", "snapshots", "videoClips"],
-        col3: ["naming", "ankiFields", "progressResult"],
+        col3: ["naming", "cardFilters", "progressResult"],
       };
     }
 
     if (effectiveColumnCount === 2) {
       return {
         col1: ["files", "audioClips", "snapshots", "videoClips"],
-        col2: ["naming", "ankiFields", "progressResult", "cardFilters"],
+        col2: ["naming", "progressResult", "cardFilters"],
         col3: [],
       };
     }
 
     return {
-      col1: ["files", "cardFilters", "naming", "audioClips", "snapshots", "videoClips", "ankiFields", "progressResult"],
+      col1: ["files", "naming", "audioClips", "snapshots", "videoClips", "cardFilters", "progressResult"],
       col2: [],
       col3: [],
     };
@@ -1361,27 +1362,24 @@
   // locked to all fields; custom ones are created and edited in Settings. The
   // active field set is read-only here — editing lives in Settings by design.
   let noteTypeList = $state<NoteTypeDef[]>(listNoteTypes());
-  let selectedNoteTypeId = $state("");
+  let selectedNoteTypeId = $state(loadActiveNoteTypeId());
   let selectedNoteType = $derived(
-    findNoteTypeById(selectedNoteTypeId) ??
-      (noteTypeLanguage ? predefinedNoteTypeForLanguage(noteTypeLanguage) : null),
+    findNoteTypeById(selectedNoteTypeId)
   );
-  // Never null — falls back to a predefined note type so payloads are always valid.
+  // Never null — falls back to the default note type.
   let activeNoteType = $derived(
-    selectedNoteType ?? predefinedNoteTypeForLanguage(noteTypeLanguage || "en"),
+    selectedNoteType ?? findNoteTypeById("default")!
   );
   let noteTypeName = $derived(activeNoteType.name);
 
-  // When the language is set by inference or defaults, follow it with that
-  // language's predefined note type — unless the user picked a custom one.
   $effect(() => {
-    const lang = noteTypeLanguage;
-    if (!lang) return;
-    const current = findNoteTypeById(selectedNoteTypeId);
-    if (!current || current.predefined) {
-      const id = `predef:${lang}`;
-      if (selectedNoteTypeId !== id) selectedNoteTypeId = id;
-    }
+    const handler = () => {
+      selectedNoteTypeId = loadActiveNoteTypeId();
+    };
+    window.addEventListener(ACTIVE_NOTE_TYPE_CHANGED_EVENT, handler);
+    return () => {
+      window.removeEventListener(ACTIVE_NOTE_TYPE_CHANGED_EVENT, handler);
+    };
   });
 
   $effect(() => {
@@ -1450,6 +1448,17 @@
       try {
         localStorage.setItem(NOTE_TYPE_LANGUAGE_KEY, nt.language);
       } catch {}
+    }
+  }
+
+  function cycleTemplates() {
+    if (noteTypeList.length === 0) return;
+    const currentIndex = noteTypeList.findIndex((nt) => nt.id === selectedNoteTypeId);
+    const nextIndex = (currentIndex + 1) % noteTypeList.length;
+    const nextTemplate = noteTypeList[nextIndex];
+    if (nextTemplate) {
+      selectedNoteTypeId = nextTemplate.id;
+      saveActiveNoteTypeId(nextTemplate.id);
     }
   }
 
@@ -1585,7 +1594,7 @@
       : Boolean(targetSubsPath && outputDir && deckName && noteTypeLanguage),
   );
 
-  type RequirementPanelId = "files" | "naming" | "ankiFields";
+  type RequirementPanelId = "files" | "naming";
   type GenerationRequirement = {
     panel: RequirementPanelId;
     label: string;
@@ -1620,12 +1629,6 @@
       missing.push({
         panel: "naming",
         label: `${t("flashcards.deckNameLabel")}`,
-      });
-    }
-    if (!noteTypeLanguage) {
-      missing.push({
-        panel: "ankiFields",
-        label: `${t("flashcards.noteTypeLanguage")}`,
       });
     }
     return missing;
@@ -4217,46 +4220,7 @@
         </div>
         {/if}
       </div>
-    {:else if panelId === "ankiFields"}
-      <div
-        inert={!hasAnyFiles}
-        title={!hasAnyFiles ? HINT_LOAD_TARGET_FIRST : undefined}
-        class="glass-card p-5 {panelHighlightClass('ankiFields')} {!hasAnyFiles
-          ? 'opacity-50'
-          : ''}"
-      >
-        <h3
-          class="text-sm font-semibold mb-3 flex items-center gap-2 text-lime-400"
-        >
-          <svg
-            class="w-4 h-4"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2"
-            />
-          </svg>
-          {t("flashcards.ankiFields")}
-        </h3>
 
-        <div class="mt-3">
-          <span class="block text-xs text-gray-400 mb-1"
-            >{t("flashcards.noteType")}</span
-          >
-          <SearchableSelect
-            noResultsText={t("common.noResults")}
-            options={noteTypeOptions}
-            value={selectedNoteTypeId}
-            onchange={(v) => selectNoteType(v)}
-            placeholder={t("flashcards.noteTypePlaceholder")}
-          />
-        </div>
-      </div>
     {:else if panelId === "naming"}
       <div
         inert={!hasAnyFiles}
@@ -5080,6 +5044,27 @@
             rounded-lg border border-white/10 bg-gray-950/95 px-3 py-2 text-xs text-gray-300 shadow-xl
             opacity-0 group-hover/fmt:opacity-100 transition-opacity duration-150 whitespace-nowrap text-center">
             {t("flashcards.clickToToggleFormat")}
+          </div>
+        </div>
+
+        <!-- Template toggle button -->
+        <div class="relative group/tmpl">
+          <button
+            type="button"
+            onclick={cycleTemplates}
+            class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold border-violet-500/40 bg-violet-500/10 text-violet-300 hover:bg-violet-500/20 hover:border-violet-500/50 cursor-pointer transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] select-none"
+          >
+            <svg class="w-3.5 h-3.5 text-violet-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M4 5a1 1 0 011-1h14a1 1 0 011 1v4H4V5zm0 8h8v7H5a1 1 0 01-1-1v-6zm12 0h4v6a1 1 0 01-1 1h-3v-7z"
+              />
+            </svg>
+            Template: {activeNoteType.name}
+          </button>
+          <div class="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-50
+            rounded-lg border border-white/10 bg-gray-950/95 px-3 py-2 text-xs text-gray-300 shadow-xl
+            opacity-0 group-hover/tmpl:opacity-100 transition-opacity duration-150 whitespace-nowrap text-center">
+            {t("flashcards.clickToCycleTemplates")}
           </div>
         </div>
 

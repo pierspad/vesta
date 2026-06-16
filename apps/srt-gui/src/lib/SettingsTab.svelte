@@ -40,6 +40,9 @@
     resetCardTemplates,
     saveCardTemplates,
     saveFieldNames,
+    loadActiveNoteTypeId,
+    saveActiveNoteTypeId,
+    ACTIVE_NOTE_TYPE_CHANGED_EVENT,
     type ApiKeyConfig,
     type FieldNamesConfig,
     type ModelInfo
@@ -885,6 +888,17 @@
   let savedAnkiFieldPresets = $state<AnkiFieldPreset[]>(initAnkiFieldPresets);
   let selectedAnkiFieldPresetId = $state(initSelectedAnkiFieldPreset?.id || "default");
   let ankiFieldPresetName = $state(initSelectedAnkiFieldPreset?.name || "");
+  let activeNoteTypeId = $state(loadActiveNoteTypeId());
+
+  $effect(() => {
+    const handler = () => {
+      activeNoteTypeId = loadActiveNoteTypeId();
+    };
+    window.addEventListener(ACTIVE_NOTE_TYPE_CHANGED_EVENT, handler);
+    return () => {
+      window.removeEventListener(ACTIVE_NOTE_TYPE_CHANGED_EVENT, handler);
+    };
+  });
   let allAnkiFieldPresets = $derived<AnkiFieldPreset[]>([
     {
       id: "default",
@@ -1059,8 +1073,19 @@
 
   function deleteCurrentAnkiFieldPreset() {
     if (selectedAnkiFieldPresetId === "default") return;
-    savedAnkiFieldPresets = savedAnkiFieldPresets.filter((preset) => preset.id !== selectedAnkiFieldPresetId);
+    const deletedId = selectedAnkiFieldPresetId;
+    savedAnkiFieldPresets = savedAnkiFieldPresets.filter((preset) => preset.id !== deletedId);
     persistAnkiFieldPresets();
+
+    // Reset activeNoteTypeId to default if it was deleted
+    const currentActiveId = loadActiveNoteTypeId();
+    const formattedDeletedId = deletedId.startsWith("custom:") ? deletedId : `custom:${deletedId}`;
+    const formattedActiveId = currentActiveId.startsWith("custom:") ? currentActiveId : `custom:${currentActiveId}`;
+    if (formattedActiveId === formattedDeletedId) {
+      saveActiveNoteTypeId("default");
+      activeNoteTypeId = "default";
+    }
+
     applyAnkiFieldPreset("default");
     window.dispatchEvent(new CustomEvent(NOTE_TYPES_UPDATED_EVENT));
     showSnackbar(t("settings.anki.presetDeleted"));
@@ -3225,7 +3250,7 @@
           </div>
         </div>
 
-        <div class="grid grid-cols-1 lg:grid-cols-[0.9fr_1.1fr] gap-4 mb-5">
+        <div class="grid grid-cols-1 lg:grid-cols-[1fr_1fr_1.2fr] gap-4 mb-5">
           <div>
             <label for="anki-field-preset-select" class="block text-xs font-semibold text-gray-400 mb-2">{s("savedTemplate")}</label>
             <SearchableSelect
@@ -3249,6 +3274,23 @@
               maxlength="25"
               class="input-modern w-full text-sm"
               placeholder="vesta_modificato"
+            />
+          </div>
+          <div>
+            <label for="active-flashcards-template-select" class="block text-xs font-semibold text-gray-400 mb-2">Template attivo per Flashcard</label>
+            <SearchableSelect
+              className="settings-active-template-select"
+              noResultsText={t("common.noResults")}
+              options={allAnkiFieldPresets.map((preset) => ({
+                value: preset.id,
+                label: preset.id === "default" ? preset.name : `★ ${preset.name}`,
+              }))}
+              value={activeNoteTypeId}
+              onchange={(v) => {
+                activeNoteTypeId = v;
+                saveActiveNoteTypeId(v);
+              }}
+              placeholder="Seleziona il template attivo..."
             />
           </div>
         </div>

@@ -1305,35 +1305,54 @@ export function saveCustomNoteTypes(list: NoteTypeDef[]): void {
   dispatchWindowEvent(NOTE_TYPES_UPDATED_EVENT);
 }
 
-/** The locked, predefined note type for a study language. */
+/** The locked, predefined note type. */
 export function predefinedNoteTypeForLanguage(code: string): NoteTypeDef {
-  const lang = languages.find((l) => l.code === code);
   return {
-    id: `predef:${code}`,
-    name: lang ? `${lang.nameEn}_Vesta` : `Vesta_${code}`,
+    id: "default",
+    name: "Default Vesta",
     predefined: true,
-    language: code,
+    language: "",
     fields: { ...defaultFieldNames },
     included: { ...allFieldsIncluded },
   };
 }
 
-/** One predefined note type per known language. */
+/** Predefined note types (just returning the default template now). */
 export function predefinedNoteTypes(): NoteTypeDef[] {
-  return languages.map((l) => predefinedNoteTypeForLanguage(l.code));
+  return [predefinedNoteTypeForLanguage("")];
 }
 
-/** All selectable note types: custom first (A→Z), then predefined (A→Z). */
+/** All selectable note types: predefined first, then custom (A→Z). */
 export function listNoteTypes(): NoteTypeDef[] {
   const byName = (a: NoteTypeDef, b: NoteTypeDef) => a.name.localeCompare(b.name);
   const custom = loadCustomNoteTypes().slice().sort(byName);
-  const predef = predefinedNoteTypes().slice().sort(byName);
-  return [...custom, ...predef];
+  const defaultNT = predefinedNoteTypeForLanguage("");
+  return [defaultNT, ...custom];
 }
 
 export function findNoteTypeById(id: string): NoteTypeDef | null {
-  if (id.startsWith("predef:")) return predefinedNoteTypeForLanguage(id.slice("predef:".length));
+  if (id === "default" || id.startsWith("predef:")) {
+    return predefinedNoteTypeForLanguage("");
+  }
   return loadCustomNoteTypes().find((nt) => nt.id === id) ?? null;
+}
+
+const ACTIVE_NOTE_TYPE_ID_KEY = "vesta-active-note-type-id";
+export const ACTIVE_NOTE_TYPE_CHANGED_EVENT = "vesta:active-note-type-changed";
+
+export function loadActiveNoteTypeId(): string {
+  try {
+    const saved = localStorage.getItem(ACTIVE_NOTE_TYPE_ID_KEY);
+    if (saved) return saved;
+  } catch { /* ignore */ }
+  return "default";
+}
+
+export function saveActiveNoteTypeId(id: string): void {
+  try {
+    localStorage.setItem(ACTIVE_NOTE_TYPE_ID_KEY, id);
+    dispatchWindowEvent(ACTIVE_NOTE_TYPE_CHANGED_EVENT);
+  } catch { /* ignore */ }
 }
 
 export function newCustomNoteTypeId(): string {
