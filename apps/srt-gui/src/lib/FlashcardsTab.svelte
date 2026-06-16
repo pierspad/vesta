@@ -1058,21 +1058,7 @@
   );
   let hasAudio = $derived(hasMedia);
 
-  let showAnkiFields = $state(loadAnkiFieldsPanelOpen());
-
-  function loadAnkiFieldsPanelOpen(): boolean {
-    try {
-      const saved = localStorage.getItem(ANKI_FIELDS_PANEL_OPEN_KEY);
-      return saved === null ? true : saved === "true";
-    } catch {
-      return true;
-    }
-  }
-
-  function toggleAnkiFieldsPanel() {
-    showAnkiFields = !showAnkiFields;
-    localStorage.setItem(ANKI_FIELDS_PANEL_OPEN_KEY, String(showAnkiFields));
-  }
+  let showAnkiFields = true;
   let hasAnyFiles = $derived(
     seriesMode
       ? episodes.length > 0
@@ -1395,6 +1381,22 @@
     if (!current || current.predefined) {
       const id = `predef:${lang}`;
       if (selectedNoteTypeId !== id) selectedNoteTypeId = id;
+    }
+  });
+
+  $effect(() => {
+    const meaningIncluded = activeNoteType.included.meaning;
+    if (!meaningIncluded) {
+      if (nativeSubsPath) nativeSubsPath = "";
+      episodes = episodes.map(ep => ep.nativeSubsPath ? { ...ep, nativeSubsPath: "" } : ep);
+    }
+  });
+
+  $effect(() => {
+    const hasMedia = activeNoteType.included.audio || activeNoteType.included.snapshot || activeNoteType.included.video;
+    if (!hasMedia) {
+      if (mediaPath) mediaPath = "";
+      episodes = episodes.map(ep => ep.mediaPath ? { ...ep, mediaPath: "", mediaType: "none", mediaOverrides: undefined } : ep);
     }
   });
 
@@ -3366,7 +3368,7 @@
               />
             </div>
 
-            <div>
+             <div>
               <span class="block text-xs text-gray-400 mb-1"
                 >{t("flashcards.nativeLangSubs")}</span
               >
@@ -3374,6 +3376,7 @@
                 value={nativeSubsPath}
                 placeholder={t("flashcards.optional")}
                 browseTitle={t("flashcards.optional")}
+                disabled={!activeNoteType.included.meaning}
                 onexpand={() => {
                   if (nativeSubsPath) expandedPathField = "nativeSubs";
                 }}
@@ -3390,6 +3393,7 @@
                 value={mediaPath}
                 placeholder={t("flashcards.mediaPlaceholder")}
                 browseTitle={t("flashcards.mediaPlaceholder")}
+                disabled={!activeNoteType.included.audio && !activeNoteType.included.snapshot && !activeNoteType.included.video}
                 onexpand={() => {
                   if (mediaPath) expandedPathField = "media";
                 }}
@@ -4221,41 +4225,26 @@
           ? 'opacity-50'
           : ''}"
       >
-        <div class="flex items-center gap-2">
-          <button
-            type="button"
-            onclick={toggleAnkiFieldsPanel}
-            class="flex-1 flex items-center justify-between text-sm font-semibold text-lime-400"
+        <h3
+          class="text-sm font-semibold mb-3 flex items-center gap-2 text-lime-400"
+        >
+          <svg
+            class="w-4 h-4"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
           >
-            <span class="flex items-center gap-2">
-              <svg
-                class="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2"
-                />
-              </svg>
-              {t("flashcards.ankiFields")}
-            </span>
-            <svg
-              class="w-4 h-4 transition-transform {showAnkiFields ? 'rotate-180' : ''}"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-            </svg>
-          </button>
-        </div>
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2"
+            />
+          </svg>
+          {t("flashcards.ankiFields")}
+        </h3>
 
-        {#if showAnkiFields}
-        <div class="mt-3 mb-3">
+        <div class="mt-3">
           <span class="block text-xs text-gray-400 mb-1"
             >{t("flashcards.noteType")}</span
           >
@@ -4266,27 +4255,7 @@
             onchange={(v) => selectNoteType(v)}
             placeholder={t("flashcards.noteTypePlaceholder")}
           />
-          <p class="mt-1.5 text-[11px] text-gray-500">
-            {t("flashcards.noteTypeManageHint")}
-          </p>
         </div>
-
-        <span class="block text-xs text-gray-500 mb-2"
-          >{t("flashcards.fieldsLabel")}</span
-        >
-        <div class="flex flex-wrap gap-2">
-          {#each activeFieldKeys as key (key)}
-            <span
-              class="px-3 py-1.5 rounded-full text-xs font-medium border bg-lime-500/15 border-lime-500/40 text-lime-300"
-            >
-              {fieldChipLabel(key)}
-            </span>
-          {/each}
-          {#if activeFieldKeys.length === 0}
-            <span class="text-xs text-gray-500">—</span>
-          {/if}
-        </div>
-        {/if}
       </div>
     {:else if panelId === "naming"}
       <div
@@ -4644,6 +4613,7 @@
             {@const field = item.field}
             {@const label = t(`flashcards.${item.labelKey}`)}
             {@const placeholder = t(`flashcards.${item.placeholderKey}`)}
+            {@const isFieldDisabled = field === "nativeSubsPath" ? !activeNoteType.included.meaning : field === "mediaPath" ? (!activeNoteType.included.audio && !activeNoteType.included.snapshot && !activeNoteType.included.video) : false}
             <div>
               <div class="mb-1 flex items-center gap-3">
                 <span class="text-xs font-medium text-gray-400">
@@ -4654,8 +4624,9 @@
               <div class="flex gap-2">
                 <button
                   type="button"
-                  class="input-modern flex-1 truncate text-left text-xs"
+                  class="input-modern flex-1 truncate text-left text-xs disabled:opacity-50 disabled:cursor-not-allowed"
                   style="direction: rtl; text-align: left;"
+                  disabled={isFieldDisabled}
                   title={editingEpisode[field] || placeholder}
                   onclick={() => {
                     const value = editingEpisode?.[field];
@@ -4674,7 +4645,8 @@
                 <button
                   type="button"
                   onclick={() => selectEpisodeFile(field)}
-                  class="btn-secondary flex h-10 shrink-0 items-center gap-1.5 px-4 text-xs cursor-pointer"
+                  disabled={isFieldDisabled}
+                  class="btn-secondary flex h-10 shrink-0 items-center gap-1.5 px-4 text-xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
@@ -4683,9 +4655,10 @@
                 </button>
                   <button
                     type="button"
-                    class={editingEpisode[field]
+                    disabled={isFieldDisabled || !editingEpisode[field]}
+                    class={editingEpisode[field] && !isFieldDisabled
                       ? "inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-red-500/30 bg-red-500/10 text-red-300 shadow-sm transition-colors hover:border-red-400/60 hover:bg-red-500/20 hover:text-red-100"
-                      : "inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-gray-700 bg-gray-800 text-gray-600 transition-colors cursor-default"}
+                      : "inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-gray-700 bg-gray-800 text-gray-600 transition-colors cursor-default opacity-50 cursor-not-allowed"}
                     title={t("common.clearField")}
                     aria-label={t("common.clearField")}
                     onclick={() => {
