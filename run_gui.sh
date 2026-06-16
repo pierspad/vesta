@@ -45,15 +45,16 @@ echo -e "${GREEN}✅ Dependencies OK${NC}"
 BASE_PORT=5175
 PORT=$BASE_PORT
 
+port_in_use() {
+    ss -tln 2>/dev/null | awk '{print $4}' | grep -q ":${1}$"
+}
+
 find_free_port() {
     local port=$1
-    while true; do
-        if python3 -c "import socket; s = socket.socket(socket.AF_INET, socket.SOCK_STREAM); s.bind(('127.0.0.1', $port))" >/dev/null 2>&1; then
-            echo "$port"
-            return 0
-        fi
+    while port_in_use "$port"; do
         port=$((port + 1))
     done
+    echo "$port"
 }
 
 PORT=$(find_free_port "$BASE_PORT")

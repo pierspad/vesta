@@ -92,15 +92,27 @@ echo -e "${YELLOW}📁 Copia file nel repository AUR...${NC}"
 cp PKGBUILD .SRCINFO "$AUR_REPO_DIR/"
 
 # ── Commit e push ─────────────────────────────────────────────
-echo -e "${YELLOW}🚀 Commit e push su AUR...${NC}"
 cd "$AUR_REPO_DIR"
 git add -A
 
-if ! git diff --staged --quiet; then
-    VERSION=$(awk -F'=' '/^pkgver[[:space:]]*=/{print $2; exit}' PKGBUILD | tr -d '\r' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
-    git commit -m "Update to v${VERSION}"
-    git push
-    echo -e "${GREEN}✅ Push completato su AUR${NC}"
-else
-    echo -e "${YELLOW}⚠ Nessuna modifica da pushare${NC}"
+if git diff --staged --quiet; then
+    echo -e "${YELLOW}⚠ Nessuna modifica da pushare su AUR${NC}"
+    exit 0
 fi
+
+VERSION=$(awk -F'=' '/^pkgver[[:space:]]*=/{print $2; exit}' PKGBUILD | tr -d '\r' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
+
+echo -e "${YELLOW}Modifiche che verranno pushate su AUR (v${VERSION}):${NC}"
+git diff --staged --stat
+echo ""
+
+read -rp "Procedere con il push su AUR di v${VERSION}? [s/N] " confirm_aur
+if [[ ! "$confirm_aur" =~ ^[sS]$ ]]; then
+    echo -e "${YELLOW}Push AUR annullato.${NC}"
+    exit 0
+fi
+
+echo -e "${YELLOW}🚀 Commit e push su AUR...${NC}"
+git commit -m "Update to v${VERSION}"
+git push
+echo -e "${GREEN}✅ Push completato su AUR${NC}"

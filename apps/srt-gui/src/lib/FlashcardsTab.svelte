@@ -1076,6 +1076,26 @@
     episodes = [];
   }
 
+  function swapEpisodeSubs(idx: number) {
+    const ep = episodes[idx];
+    if (!ep) return;
+    const temp = ep.targetSubsPath;
+    ep.targetSubsPath = ep.nativeSubsPath;
+    ep.nativeSubsPath = temp;
+    episodes = [...episodes];
+  }
+
+  function swapAllEpisodesSubs() {
+    episodes = episodes.map((ep) => {
+      const temp = ep.targetSubsPath;
+      return {
+        ...ep,
+        targetSubsPath: ep.nativeSubsPath,
+        nativeSubsPath: temp
+      };
+    });
+  }
+
   let hasMedia = $derived(
     seriesMode
       ? episodes.some((ep) => ep.mediaType !== "none")
@@ -1345,27 +1365,73 @@
   );
 
   let effectivePanelLayout = $derived.by((): ColumnLayout => {
-    if (effectiveColumnCount === 3) {
-      return {
-        col1: ["files", "naming"],
-        col2: ["audioClips", "videoClips"],
-        col3: ["snapshots", "cardFilters", "progressResult"],
-      };
-    }
+    if (seriesMode) {
+      if (effectiveColumnCount === 3) {
+        return {
+          col1: ["files", "naming", "audioClips", "snapshots"],
+          col2: ["videoClips"],
+          col3: ["cardFilters", "progressResult"],
+        };
+      }
 
-    if (effectiveColumnCount === 2) {
+      if (effectiveColumnCount === 2) {
+        return {
+          col1: [
+            "files",
+            "audioClips",
+            "snapshots",
+            "videoClips",
+            "progressResult",
+          ],
+          col2: ["naming", "cardFilters"],
+          col3: [],
+        };
+      }
+
       return {
-        col1: ["files", "naming", "cardFilters"],
-        col2: ["audioClips", "snapshots", "videoClips", "progressResult"],
+        col1: [
+          "files",
+          "naming",
+          "audioClips",
+          "snapshots",
+          "videoClips",
+          "cardFilters",
+          "progressResult",
+        ],
+        col2: [],
+        col3: [],
+      };
+    } else {
+      if (effectiveColumnCount === 3) {
+        return {
+          col1: ["files", "naming"],
+          col2: ["audioClips", "videoClips"],
+          col3: ["snapshots", "cardFilters", "progressResult"],
+        };
+      }
+
+      if (effectiveColumnCount === 2) {
+        return {
+          col1: ["files", "naming", "cardFilters"],
+          col2: ["audioClips", "snapshots", "videoClips", "progressResult"],
+          col3: [],
+        };
+      }
+
+      return {
+        col1: [
+          "files",
+          "naming",
+          "audioClips",
+          "snapshots",
+          "videoClips",
+          "cardFilters",
+          "progressResult",
+        ],
+        col2: [],
         col3: [],
       };
     }
-
-    return {
-      col1: ["files", "naming", "audioClips", "snapshots", "videoClips", "cardFilters", "progressResult"],
-      col2: [],
-      col3: [],
-    };
   });
 
   // Computed column grid class
@@ -1581,8 +1647,35 @@
   const previewPerPage = 50;
 
   let unlisten: (() => void) | null = null;
-  let unlistenDragDrop: (() => void) | null = null;
   let activeListener = true;
+
+  $effect(() => {
+    if (active) {
+      let unlistenDragDropLocal: (() => void) | null = null;
+      getCurrentWebview().onDragDropEvent((event) => {
+        if (event.payload.type === "over") {
+          isDraggingOver = true;
+        } else if (event.payload.type === "drop") {
+          isDraggingOver = false;
+          if (event.payload.paths && event.payload.paths.length > 0) {
+            handleFileDrop(event.payload.paths);
+          }
+        } else if (event.payload.type === "leave") {
+          isDraggingOver = false;
+        }
+      }).then((fn) => {
+        unlistenDragDropLocal = fn;
+      }).catch((e) => {
+        console.warn("Failed to set up drag-drop listener in FlashcardsTab:", e);
+      });
+
+      return () => {
+        if (unlistenDragDropLocal) {
+          unlistenDragDropLocal();
+        }
+      };
+    }
+  });
   let removeTemplateListener: (() => void) | null = null;
   let removeNoteTypesListener: (() => void) | null = null;
   let removeLanguageDefaultsListener: (() => void) | null = null;
@@ -2071,27 +2164,7 @@
 
     window.addEventListener("vesta-cpu-cores-changed", handleCpuCoresChanged);
 
-    // Listen for OS-level file drag and drop
-    getCurrentWebview().onDragDropEvent((event) => {
-      if (!active) {
-        return;
-      }
-      if (event.payload.type === "over") {
-        isDraggingOver = true;
-      } else if (event.payload.type === "drop") {
-        isDraggingOver = false;
-        if (event.payload.paths && event.payload.paths.length > 0) {
-          handleFileDrop(event.payload.paths);
-        }
-      } else if (event.payload.type === "leave") {
-        isDraggingOver = false;
-      }
-    }).then((fn) => {
-      if (!activeListener) fn();
-      else unlistenDragDrop = fn;
-    }).catch((e) => {
-      console.warn("Failed to set up drag-drop listener:", e);
-    });
+    // OS-level file drag and drop is handled dynamically via $effect
 
     listen<{
       stage: string;
@@ -2126,7 +2199,6 @@
     activeListener = false;
     window.removeEventListener("vesta-cpu-cores-changed", handleCpuCoresChanged);
     if (unlisten) unlisten();
-    if (unlistenDragDrop) unlistenDragDrop();
     if (removeTemplateListener) removeTemplateListener();
     if (removeNoteTypesListener) removeNoteTypesListener();
     if (removeLanguageDefaultsListener) removeLanguageDefaultsListener();
@@ -3350,7 +3422,7 @@
       <div class="glass-card p-5 {panelHighlightClass('files')}">
         <div class="mb-3 flex items-center gap-3">
           <h3
-            class="flex min-w-0 items-center gap-2 text-lg font-semibold panel-title-files-output"
+            class="flex min-w-0 items-center gap-2 text-lg font-semibold {seriesMode ? 'text-violet-400' : 'panel-title-files-output'}"
           >
             <svg
               class="w-5 h-5 shrink-0"
@@ -3416,7 +3488,7 @@
           {#if seriesMode}
             <button
               onclick={addSeriesMultipleFiles}
-              class="btn-primary py-1 px-3 text-xs flex items-center gap-1.5 h-8 rounded-lg shrink-0"
+              class="bg-violet-600 hover:bg-violet-500 text-white font-semibold py-1 px-3 text-xs flex items-center gap-1.5 h-8 rounded-lg shrink-0 transition-colors cursor-pointer"
             >
               <svg
                 class="w-3.5 h-3.5"
@@ -3435,7 +3507,7 @@
             {#if episodes.length > 0}
               <button
                 onclick={clearAllEpisodes}
-                class="text-xs text-red-400 hover:text-red-300 transition-colors flex items-center gap-1 shrink-0"
+                class="border border-red-500/30 bg-red-500/10 hover:border-red-400/60 hover:bg-red-500/20 text-red-300 font-semibold py-1 px-3 text-xs flex items-center gap-1.5 h-8 rounded-lg shrink-0 transition-colors cursor-pointer"
               >
                 <svg
                   class="w-3.5 h-3.5"
@@ -3563,14 +3635,26 @@
                   <table class="w-full text-xs table-fixed">
                     <thead class="bg-gray-800/80 sticky top-0">
                       <tr>
-                        <th class="p-1.5 text-left text-gray-400 w-10">#</th>
-                        <th class="p-1.5 text-left text-gray-400"
+                        <th class="p-1.5 text-center text-gray-400 w-10">#</th>
+                        <th class="p-1.5 text-center text-gray-400"
                           >{t("flashcards.targetLangSubs")}</th
                         >
-                        <th class="p-1.5 text-left text-gray-400"
+                        <th class="p-1.5 text-center text-gray-400 w-12">
+                          <button
+                            onclick={swapAllEpisodesSubs}
+                            class="inline-flex h-6 w-6 cursor-pointer items-center justify-center rounded-md text-gray-400 transition-colors hover:bg-gray-700/50 hover:text-white"
+                            title={t("flashcards.swapAllSubs")}
+                            aria-label={t("flashcards.swapAllSubs")}
+                          >
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                              <path stroke-linecap="round" stroke-linejoin="round" d="M7.5 21 3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
+                            </svg>
+                          </button>
+                        </th>
+                        <th class="p-1.5 text-center text-gray-400"
                           >{t("flashcards.nativeLangSubs")}</th
                         >
-                        <th class="p-1.5 text-left text-gray-400"
+                        <th class="p-1.5 text-center text-gray-400"
                           >{t("flashcards.mediaFile")}</th
                         >
                         <th class="p-1.5 w-28"></th>
@@ -3584,16 +3668,28 @@
 	                            : 'bg-gray-800/20'} hover:bg-gray-700/20"
 	                          oncontextmenu={(e) => openEpisodeContextMenu(e, idx)}
 	                        >
-                          <td class="p-1.5 text-gray-500 font-mono">{ep.id}</td>
+                          <td class="p-1.5 text-center text-gray-500 font-mono">{ep.id}</td>
                           <td
-                            class="p-1.5 cursor-pointer truncate text-emerald-300 transition-colors hover:bg-violet-500/12 hover:text-emerald-100 rounded-md"
+                            class="p-1.5 cursor-pointer truncate text-emerald-300 transition-colors hover:bg-violet-500/12 hover:text-emerald-100 rounded-md text-center"
                             title={ep.targetSubsPath}
                             onclick={() => { navigator.clipboard.writeText(ep.targetSubsPath); showSnackbar(t("flashcards.copiedTargetSubs") || "Percorso originale copiato", "success"); }}
                           >
                             <span class="px-1.5 py-0.5">{getFileName(ep.targetSubsPath)}</span>
                           </td>
+                          <td class="p-1.5 text-center w-12">
+                            <button
+                              onclick={() => swapEpisodeSubs(idx)}
+                              class="inline-flex h-6 w-6 cursor-pointer items-center justify-center rounded-md text-gray-400 transition-colors hover:bg-gray-700/50 hover:text-white"
+                              title={t("flashcards.swapSubs")}
+                              aria-label={t("flashcards.swapSubs")}
+                            >
+                              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M7.5 21 3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
+                              </svg>
+                            </button>
+                          </td>
                           <td
-                            class="p-1.5 cursor-pointer truncate transition-colors hover:bg-violet-500/12 rounded-md {ep.nativeSubsPath
+                            class="p-1.5 cursor-pointer truncate transition-colors hover:bg-violet-500/12 rounded-md text-center {ep.nativeSubsPath
                               ? 'text-blue-300 hover:text-blue-100'
                               : 'text-gray-600 hover:text-gray-400'}"
                             title={ep.nativeSubsPath || "—"}
@@ -3604,7 +3700,7 @@
                               : "—"}</span>
                           </td>
 	                          <td
-                              class="p-1.5 cursor-pointer truncate transition-colors hover:bg-violet-500/12 rounded-md {ep.mediaPath ? 'text-purple-300 hover:text-purple-100' : 'text-gray-600 hover:text-gray-400'}"
+                              class="p-1.5 cursor-pointer truncate transition-colors hover:bg-violet-500/12 rounded-md text-center {ep.mediaPath ? 'text-purple-300 hover:text-purple-100' : 'text-gray-600 hover:text-gray-400'}"
                               title={ep.mediaPath || "—"}
                               onclick={() => { if(ep.mediaPath) { navigator.clipboard.writeText(ep.mediaPath); showSnackbar(t("flashcards.copiedMediaPath") || "Percorso media copiato", "success"); } }}
                             >

@@ -19,6 +19,7 @@
     buildSettingsActionHash,
     publishSettingsActionState,
   } from "./settingsNotifications";
+  import { aiStore } from "./aiStore.svelte";
   import {
     fetchModelsFromEndpoint,
     type DiscoveredModel,
@@ -184,8 +185,18 @@
   let defaultNativeLanguage = $state(loadStoredValue(DEFAULT_NATIVE_LANGUAGE_KEY, "it"));
   
   const DEFAULT_REFINEMENT_PROMPT_KEY = "vesta-default-refinement-prompt";
-  const DEFAULT_REFINEMENT_PROMPT_VAL = "Spiega le parole desuete e più astruse della frase fornendo traduzione, esempio d'uso ed etimologia.";
-  let defaultRefinementPrompt = $state(loadStoredValue(DEFAULT_REFINEMENT_PROMPT_KEY, DEFAULT_REFINEMENT_PROMPT_VAL));
+  const OLD_DEFAULT_PROMPT_1 = "Spiega le parole desuete e più astruse della frase fornendo traduzione, esempio d'uso ed etimologia.";
+  const OLD_DEFAULT_PROMPT_2 = "Analizza la frase fornita e identifica le parole chiave, i termini insoliti, le espressioni idiomatiche o le strutture grammaticali più complesse.\nPer ciascuno di questi elementi, fornisci una spiegazione dettagliata scritta nella LINGUA DI RIFERIMENTO (es. se la frase originale è in inglese, spiega i termini in italiano).\n\nPer ogni termine spiegato, struttura la nota in questo modo usando il Markdown:\n• **[Termine originale]** ([Parte del discorso]): [Traduzione/Significato in italiano]\n  - *Spiegazione*: [Breve contesto, sfumature di significato o etimologia interessante]\n  - *Esempio*: \"[Frase d'esempio nella lingua originale]\" → \"[Traduzione dell'esempio in italiano]\"\n\nMantieni le spiegazioni chiare, concise e focalizzate sull'apprendimento pratico della lingua.";
+  const DEFAULT_REFINEMENT_PROMPT_VAL = "You are a language teacher specialized in vocabulary acquisition and language learning through Anki.\n\nYour task is to generate the \"Notes\" field of an Anki flashcard using the provided card's front (expression), back (meaning/translation), and optional user notes/context.\n\nGoal:\nI do not want a simple translation. I want to deeply understand the sentence, especially natural expressions, idioms, common collocations, unusual grammar structures, and words whose meaning or usage is not obvious, so that I can recognize and reuse them in real conversations.\n\nInstructions:\n\n1. Analyze the sentence as a whole:\n- Briefly explain the overall meaning of the sentence.\n- Identify the linguistic register (formal, informal, colloquial, technical, literary, etc.).\n- If the sentence contains an idiomatic expression or a typical construction, explain it.\n\n2. Identify only the most valuable elements:\nDo not explain every single word.\nSelect only words, verbs, prepositions, collocations, or expressions that:\n- have multiple meanings;\n- have a meaning different from the literal translation;\n- are difficult or ambiguous for a learner;\n- are very common for native speakers but difficult to understand intuitively;\n- have cultural, pragmatic, or stylistic nuances.\n\nFor each selected element provide:\n\n<b>Expression/word:</b>\n- Meaning in this sentence:\n  Explain the specific meaning and role in the sentence.\n\n- Usage:\n  Explain:\n  - when it is used;\n  - common contexts where it appears;\n  - words it commonly combines with;\n  - differences from similar expressions or synonyms;\n  - common mistakes learners make.\n\n- Other important meanings:\n  Include only meanings that are actually common or useful.\n\n- Etymology:\n  Include only if interesting:\n  - origin of the word/expression;\n  - how the meaning evolved;\n  - connections with related words in the same language or other languages.\n\n3. For idiomatic expressions:\nDo not only give a literal translation.\nExplain:\n- the real meaning;\n- the metaphor or idea behind the expression;\n- why native speakers use this expression;\n- situations where it sounds natural;\n- useful equivalents in Italian when helpful.\n\n4. Keep the content suitable for Anki:\n- It should be detailed enough to teach something useful.\n- Avoid unnecessary encyclopedic explanations.\n- Focus on practical understanding and memory-friendly explanations.\n- Prioritize insights that help the learner use the language naturally.\n\n5. Incorporate User Notes / Context:\n- If the user provides additional notes, context, or specific questions in the \"Notes\" field (e.g. asking for clarification on a specific word or phrase), you MUST prioritize explaining or addressing their comments. Integrate these clarifications directly into your explanation.\n\n6. Output format:\nGenerate only the content of the Anki Notes field.\nDo not add introductions or comments.\n\nUse simple HTML compatible with Anki:\n- <b> for titles;\n- <br> for line breaks;\n- <ul><li> for lists when useful.\n\nStructure:\n\n<b>General meaning</b><br>\n...\n\n<br><b>Important expressions and vocabulary</b><br>\n\n<b>[expression/word 1]</b><br>\n<b>Meaning:</b> ...<br>\n<b>Usage:</b> ...<br>\n<b>Etymology:</b> ...<br>\n\n<b>[expression/word 2]</b><br>\n...\n\nDo not provide a word-by-word translation of the entire sentence.\nDo not explain obvious words unless they have a relevant linguistic feature.\nFocus on deep understanding of real language usage.\n\nCard Details:\nFront: {{front}}\nBack: {{back}}\nUser Notes/Context: {{notes}}";
+
+  let loadedPrompt = loadStoredValue(DEFAULT_REFINEMENT_PROMPT_KEY, DEFAULT_REFINEMENT_PROMPT_VAL);
+  if (loadedPrompt === OLD_DEFAULT_PROMPT_1 || loadedPrompt === OLD_DEFAULT_PROMPT_2 || loadedPrompt.includes("[INSERT SENTENCE HERE]")) {
+    loadedPrompt = DEFAULT_REFINEMENT_PROMPT_VAL;
+    try {
+      localStorage.setItem(DEFAULT_REFINEMENT_PROMPT_KEY, DEFAULT_REFINEMENT_PROMPT_VAL);
+    } catch {}
+  }
+  let defaultRefinementPrompt = $state(loadedPrompt);
 
   function persistRefinementPrompt() {
     try {
@@ -712,6 +723,7 @@
   });
 
   $effect(() => {
+    if (!active) return;
     const provider = defaultLlmProvider;
     const endpointUrl = activeDefaultEndpointUrl;
     const endpointApiKey = activeDefaultEndpointApiKey;
@@ -744,6 +756,7 @@
   });
 
   $effect(() => {
+    if (!active) return;
     const endpointUrl = defaultLocalServerUrl;
     const timeout = setTimeout(() => {
       void refreshLocalProviderStatus();
@@ -850,10 +863,7 @@
     showResetConfirm = "smartMatching";
   }
 
-  function copySmartMatchingRules() {
-    navigator.clipboard.writeText(smartMatchingRulesDraft);
-    snackbar.show("Regole smart matching copiate negli appunti", "success", 1300);
-  }
+
 
   // Card template editor
   let showResetConfirm = $state<"style" | "fields" | "smartMatching" | "overview" | "llm" | "whisper" | "language" | "anki" | null>(null);
@@ -1023,16 +1033,7 @@
     setCurrentFieldNames(fields);
   }
 
-  function getActiveTemplateCode() {
-    if (activeTemplateCodeTab === "back") return templateBackHtml;
-    if (activeTemplateCodeTab === "css") return templateCss;
-    return templateFrontHtml;
-  }
 
-  function copyActiveTemplateCode() {
-    navigator.clipboard.writeText(getActiveTemplateCode());
-    showSnackbar(t("settings.keyCopied"));
-  }
 
   function sanitizeAnkiFieldPreset(raw: Partial<AnkiFieldPreset>): AnkiFieldPreset | null {
     if (!raw.id || !raw.name || !raw.fields) return null;
@@ -1566,6 +1567,21 @@
   $effect(() => {
     if (highlightItemId) {
       highlightedModelId = highlightItemId;
+      const targetId = highlightItemId;
+      
+      // Scroll to the element if it exists in the DOM
+      setTimeout(() => {
+        if (targetId) {
+          const el = document.getElementById(targetId);
+          if (el) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            if (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT') {
+              el.focus();
+            }
+          }
+        }
+      }, 100);
+
       const timer = setTimeout(() => {
         highlightedModelId = null;
         highlightItemId = null;
@@ -1606,10 +1622,21 @@
     if (typeof window === "undefined") return;
     publishSettingsActionState(
       buildSettingsActionHash({
-        needsWhisper: downloadedWhisperCount === 0,
-        needsLlm: !isDefaultLlmReady,
+        needsWhisper: downloadedWhisperCount === 0 && !aiStore.killSwitchActive,
+        needsLlm: !isDefaultLlmReady && !aiStore.killSwitchActive,
       }),
     );
+  });
+
+  $effect(() => {
+    if (aiStore.killSwitchActive) {
+      if (activeSettingsSection === "llm" || activeSettingsSection === "whisper") {
+        activeSettingsSection = "overview";
+      }
+      if (requestedSection === "llm" || requestedSection === "whisper") {
+        requestedSection = "overview";
+      }
+    }
   });
 
 
@@ -2423,17 +2450,6 @@
         <!-- Rules Editor -->
         <div class="mt-4 pt-4 border-t border-white/5 space-y-3">
           <div class="relative">
-            <!-- Copy button in the top-right of CodeEditor -->
-            <button
-              type="button"
-              onclick={copySmartMatchingRules}
-              class="absolute top-2.5 right-2.5 z-10 w-8 h-8 rounded-lg bg-gray-900/80 hover:bg-cyan-500/20 text-gray-400 hover:text-cyan-200 border border-white/10 hover:border-cyan-500/30 transition-all flex items-center justify-center cursor-pointer shadow-md"
-              title="Copia regole negli appunti"
-            >
-              <svg class="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-              </svg>
-            </button>
             <CodeEditor
               bind:value={smartMatchingRulesDraft}
               language="jsonc"
@@ -2455,7 +2471,7 @@
 
 
 
-  {#if activeSettingsSection === "llm"}
+  {#if activeSettingsSection === "llm" && !aiStore.killSwitchActive}
   <div class="grid grid-cols-1 xl:grid-cols-[0.95fr_1.05fr] gap-5 mb-5">
     <div class="glass-card p-5 min-h-[10rem] flex flex-col justify-between">
       <div class="flex items-center gap-3">
@@ -2703,7 +2719,7 @@
           </div>
         </div>
 
-        <div class="flex-1 overflow-y-auto p-2 space-y-2">
+        <div class="p-2 space-y-2">
           {#each apiKeys as key}
             <!-- svelte-ignore a11y_no_static_element_interactions -->
             <div
@@ -2975,7 +2991,7 @@
       </div>
 
       <!-- Default Flashcard Refinement Prompt -->
-      <div class="glass-card p-5 mb-6">
+      <div class="glass-card p-5 mt-10 mb-6">
         <div class="flex items-center gap-3 mb-4">
           <div class="w-9 h-9 rounded-lg bg-indigo-500/20 text-indigo-300 flex items-center justify-center shrink-0">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2984,26 +3000,25 @@
           </div>
           <div>
             <h3 class="text-sm font-bold text-white">{t("settings.refinementPromptTitle") || "Default Flashcard Refinement Prompt"}</h3>
-            <p class="text-xs text-gray-400 mt-0.5">{t("settings.refinementPromptDesc") || "This prompt is used when automatically adding notes to flashcards using AI."}</p>
           </div>
         </div>
         <div class="space-y-3">
-          <textarea
+          <CodeEditor
             id="default-refinement-prompt"
             bind:value={defaultRefinementPrompt}
-            oninput={persistRefinementPrompt}
-            rows="4"
+            onchange={persistRefinementPrompt}
+            language="prompt"
             placeholder={DEFAULT_REFINEMENT_PROMPT_VAL}
-            class="input-modern w-full text-sm font-sans"
-          ></textarea>
-          <div class="flex justify-between items-center text-xs text-gray-500">
-            <span>{t("settings.refinementPromptTip") || "Tip: Ask the LLM to structure the notes with translations, examples, and etymology."}</span>
+            heightClass="h-[450px]"
+            class={highlightedModelId === "default-refinement-prompt" ? "editor-highlight-pulse" : ""}
+          />
+          <div class="flex justify-end items-center text-xs text-gray-500">
             <button
               type="button"
               onclick={resetRefinementPrompt}
               class="text-indigo-400 hover:text-indigo-300 font-semibold cursor-pointer"
             >
-              {t("settings.resetDefault") || "Reset to default"}
+              {t("settings.reset_default") || t("settings.resetDefault") || "Reset to default"}
             </button>
           </div>
         </div>
@@ -3011,7 +3026,7 @@
   {/if}
 
   <!-- Whisper Models -->
-  {#if activeSettingsSection === "whisper"}
+  {#if activeSettingsSection === "whisper" && !aiStore.killSwitchActive}
   <div class="mt-6 glass-card p-5 {downloadedWhisperCount === 0 ? 'border-glow-amber-slow' : ''}" role="group" oncontextmenu={openWhisperPanelContextMenu}>
     <div class="flex items-center gap-3 mb-4">
       <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-white shadow-lg">
@@ -3374,17 +3389,7 @@
                 {tab.label}
               </button>
             {/each}
-            <button
-              type="button"
-              onclick={copyActiveTemplateCode}
-              class="h-9 px-3 rounded-lg border border-white/10 bg-black/20 text-gray-300 hover:text-white hover:bg-white/10 transition-colors text-xs font-semibold flex items-center gap-2"
-              title={t("common.copy")}
-            >
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-              </svg>
-              {t("common.copy")}
-            </button>
+
 
           </div>
         </div>

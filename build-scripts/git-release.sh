@@ -156,12 +156,7 @@ else
     echo -e "${YELLOW}makepkg non disponibile, skip .SRCINFO${NC}"
 fi
 
-echo -e "${YELLOW}Sincronizzo Cargo.lock (cargo update --workspace)...${NC}"
-(
-    cd "$PROJECT_ROOT"
-    cargo update --workspace
-)
-echo -e "${GREEN}Cargo.lock sincronizzato${NC}"
+# Cargo.lock già sincronizzato da update_project_info.sh (cargo update --workspace)
 
 echo -e "${YELLOW}Modifiche che finiranno nel commit/tag:${NC}"
 git -C "$PROJECT_ROOT" status --short

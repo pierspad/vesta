@@ -3,9 +3,9 @@
     "/home/ribben/Desktop/Various_Projects/vesta/apps/srt-gui/src/lib/i18n/locales"
   ],
   "en_keys_per_directory": {
-    "locales": 545
+    "locales": 621
   },
-  "total_english_keys": 545,
+  "total_english_keys": 621,
   "checked_locales": [
     "ar",
     "de",
@@ -23,22 +23,22 @@
     "zh"
   ],
   "missing_counts_by_locale": {
-    "ar": 0,
-    "de": 4,
-    "es": 0,
-    "fr": 4,
-    "hi": 0,
-    "it": 0,
-    "ja": 0,
-    "ko": 0,
-    "nl": 4,
-    "pl": 2,
-    "pt": 0,
-    "ru": 0,
-    "tr": 2,
-    "zh": 0
+    "ar": 74,
+    "de": 78,
+    "es": 74,
+    "fr": 78,
+    "hi": 74,
+    "it": 1,
+    "ja": 74,
+    "ko": 74,
+    "nl": 78,
+    "pl": 76,
+    "pt": 74,
+    "ru": 74,
+    "tr": 76,
+    "zh": 74
   },
-  "total_keys_with_issues": 4,
+  "total_keys_with_issues": 78,
   "orphan_keys_count": 0,
   "orphan_keys": [],
   "missing_keys": {
@@ -157,6 +157,6228 @@
         },
         {
           "locale": "tr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        }
+      ]
+    },
+    "flashcards.swapAllSubs": {
+      "locales": [
+        "ar",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "ja",
+        "ko",
+        "nl",
+        "pl",
+        "pt",
+        "ru",
+        "tr",
+        "zh"
+      ],
+      "details": [
+        {
+          "locale": "ar",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "de",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "es",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "fr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "hi",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ja",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ko",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "nl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pt",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ru",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "tr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "zh",
+          "reason": "same_as_english",
+          "directory": "locales"
+        }
+      ]
+    },
+    "flashcards.swapSubs": {
+      "locales": [
+        "ar",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "ja",
+        "ko",
+        "nl",
+        "pl",
+        "pt",
+        "ru",
+        "tr",
+        "zh"
+      ],
+      "details": [
+        {
+          "locale": "ar",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "de",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "es",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "fr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "hi",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ja",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ko",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "nl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pt",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ru",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "tr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "zh",
+          "reason": "same_as_english",
+          "directory": "locales"
+        }
+      ]
+    },
+    "nav.refine": {
+      "locales": [
+        "ar",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "ja",
+        "ko",
+        "nl",
+        "pl",
+        "pt",
+        "ru",
+        "tr",
+        "zh"
+      ],
+      "details": [
+        {
+          "locale": "ar",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "de",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "es",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "fr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "hi",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ja",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ko",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "nl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pt",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ru",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "tr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "zh",
+          "reason": "same_as_english",
+          "directory": "locales"
+        }
+      ]
+    },
+    "refine.action.close": {
+      "locales": [
+        "ar",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "ja",
+        "ko",
+        "nl",
+        "pl",
+        "pt",
+        "ru",
+        "tr",
+        "zh"
+      ],
+      "details": [
+        {
+          "locale": "ar",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "de",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "es",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "fr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "hi",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ja",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ko",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "nl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pt",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ru",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "tr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "zh",
+          "reason": "same_as_english",
+          "directory": "locales"
+        }
+      ]
+    },
+    "refine.action.fileLabel": {
+      "locales": [
+        "ar",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "it",
+        "ja",
+        "ko",
+        "nl",
+        "pl",
+        "pt",
+        "ru",
+        "tr",
+        "zh"
+      ],
+      "details": [
+        {
+          "locale": "ar",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "de",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "es",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "fr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "hi",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "it",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ja",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ko",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "nl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pt",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ru",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "tr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "zh",
+          "reason": "same_as_english",
+          "directory": "locales"
+        }
+      ]
+    },
+    "refine.action.overwrite": {
+      "locales": [
+        "ar",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "ja",
+        "ko",
+        "nl",
+        "pl",
+        "pt",
+        "ru",
+        "tr",
+        "zh"
+      ],
+      "details": [
+        {
+          "locale": "ar",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "de",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "es",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "fr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "hi",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ja",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ko",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "nl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pt",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ru",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "tr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "zh",
+          "reason": "same_as_english",
+          "directory": "locales"
+        }
+      ]
+    },
+    "refine.action.saveNew": {
+      "locales": [
+        "ar",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "ja",
+        "ko",
+        "nl",
+        "pl",
+        "pt",
+        "ru",
+        "tr",
+        "zh"
+      ],
+      "details": [
+        {
+          "locale": "ar",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "de",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "es",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "fr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "hi",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ja",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ko",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "nl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pt",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ru",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "tr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "zh",
+          "reason": "same_as_english",
+          "directory": "locales"
+        }
+      ]
+    },
+    "refine.action.saving": {
+      "locales": [
+        "ar",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "ja",
+        "ko",
+        "nl",
+        "pl",
+        "pt",
+        "ru",
+        "tr",
+        "zh"
+      ],
+      "details": [
+        {
+          "locale": "ar",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "de",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "es",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "fr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "hi",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ja",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ko",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "nl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pt",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ru",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "tr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "zh",
+          "reason": "same_as_english",
+          "directory": "locales"
+        }
+      ]
+    },
+    "refine.badge.annotated": {
+      "locales": [
+        "ar",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "ja",
+        "ko",
+        "nl",
+        "pl",
+        "pt",
+        "ru",
+        "tr",
+        "zh"
+      ],
+      "details": [
+        {
+          "locale": "ar",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "de",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "es",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "fr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "hi",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ja",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ko",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "nl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pt",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ru",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "tr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "zh",
+          "reason": "same_as_english",
+          "directory": "locales"
+        }
+      ]
+    },
+    "refine.badge.modified": {
+      "locales": [
+        "ar",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "ja",
+        "ko",
+        "nl",
+        "pl",
+        "pt",
+        "ru",
+        "tr",
+        "zh"
+      ],
+      "details": [
+        {
+          "locale": "ar",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "de",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "es",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "fr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "hi",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ja",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ko",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "nl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pt",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ru",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "tr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "zh",
+          "reason": "same_as_english",
+          "directory": "locales"
+        }
+      ]
+    },
+    "refine.btn.generateAI": {
+      "locales": [
+        "ar",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "ja",
+        "ko",
+        "nl",
+        "pl",
+        "pt",
+        "ru",
+        "tr",
+        "zh"
+      ],
+      "details": [
+        {
+          "locale": "ar",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "de",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "es",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "fr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "hi",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ja",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ko",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "nl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pt",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ru",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "tr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "zh",
+          "reason": "same_as_english",
+          "directory": "locales"
+        }
+      ]
+    },
+    "refine.btn.generating": {
+      "locales": [
+        "ar",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "ja",
+        "ko",
+        "nl",
+        "pl",
+        "pt",
+        "ru",
+        "tr",
+        "zh"
+      ],
+      "details": [
+        {
+          "locale": "ar",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "de",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "es",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "fr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "hi",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ja",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ko",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "nl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pt",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ru",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "tr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "zh",
+          "reason": "same_as_english",
+          "directory": "locales"
+        }
+      ]
+    },
+    "refine.btn.next": {
+      "locales": [
+        "ar",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "ja",
+        "ko",
+        "nl",
+        "pl",
+        "pt",
+        "ru",
+        "tr",
+        "zh"
+      ],
+      "details": [
+        {
+          "locale": "ar",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "de",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "es",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "fr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "hi",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ja",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ko",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "nl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pt",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ru",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "tr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "zh",
+          "reason": "same_as_english",
+          "directory": "locales"
+        }
+      ]
+    },
+    "refine.btn.prev": {
+      "locales": [
+        "ar",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "ja",
+        "ko",
+        "nl",
+        "pl",
+        "pt",
+        "ru",
+        "tr",
+        "zh"
+      ],
+      "details": [
+        {
+          "locale": "ar",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "de",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "es",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "fr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "hi",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ja",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ko",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "nl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pt",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ru",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "tr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "zh",
+          "reason": "same_as_english",
+          "directory": "locales"
+        }
+      ]
+    },
+    "refine.btn.startAI": {
+      "locales": [
+        "ar",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "ja",
+        "ko",
+        "nl",
+        "pl",
+        "pt",
+        "ru",
+        "tr",
+        "zh"
+      ],
+      "details": [
+        {
+          "locale": "ar",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "de",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "es",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "fr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "hi",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ja",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ko",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "nl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pt",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ru",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "tr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "zh",
+          "reason": "same_as_english",
+          "directory": "locales"
+        }
+      ]
+    },
+    "refine.btn.stop": {
+      "locales": [
+        "ar",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "ja",
+        "ko",
+        "nl",
+        "pl",
+        "pt",
+        "ru",
+        "tr",
+        "zh"
+      ],
+      "details": [
+        {
+          "locale": "ar",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "de",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "es",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "fr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "hi",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ja",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ko",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "nl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pt",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ru",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "tr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "zh",
+          "reason": "same_as_english",
+          "directory": "locales"
+        }
+      ]
+    },
+    "refine.card.back": {
+      "locales": [
+        "ar",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "ja",
+        "ko",
+        "nl",
+        "pl",
+        "pt",
+        "ru",
+        "tr",
+        "zh"
+      ],
+      "details": [
+        {
+          "locale": "ar",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "de",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "es",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "fr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "hi",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ja",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ko",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "nl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pt",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ru",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "tr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "zh",
+          "reason": "same_as_english",
+          "directory": "locales"
+        }
+      ]
+    },
+    "refine.card.front": {
+      "locales": [
+        "ar",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "ja",
+        "ko",
+        "nl",
+        "pl",
+        "pt",
+        "ru",
+        "tr",
+        "zh"
+      ],
+      "details": [
+        {
+          "locale": "ar",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "de",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "es",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "fr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "hi",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ja",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ko",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "nl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pt",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ru",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "tr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "zh",
+          "reason": "same_as_english",
+          "directory": "locales"
+        }
+      ]
+    },
+    "refine.dropzone.ariaLabel": {
+      "locales": [
+        "ar",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "ja",
+        "ko",
+        "nl",
+        "pl",
+        "pt",
+        "ru",
+        "tr",
+        "zh"
+      ],
+      "details": [
+        {
+          "locale": "ar",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "de",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "es",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "fr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "hi",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ja",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ko",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "nl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pt",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ru",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "tr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "zh",
+          "reason": "same_as_english",
+          "directory": "locales"
+        }
+      ]
+    },
+    "refine.dropzone.browse": {
+      "locales": [
+        "ar",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "ja",
+        "ko",
+        "nl",
+        "pl",
+        "pt",
+        "ru",
+        "tr",
+        "zh"
+      ],
+      "details": [
+        {
+          "locale": "ar",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "de",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "es",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "fr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "hi",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ja",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ko",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "nl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pt",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ru",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "tr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "zh",
+          "reason": "same_as_english",
+          "directory": "locales"
+        }
+      ]
+    },
+    "refine.dropzone.desc": {
+      "locales": [
+        "ar",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "ja",
+        "ko",
+        "nl",
+        "pl",
+        "pt",
+        "ru",
+        "tr",
+        "zh"
+      ],
+      "details": [
+        {
+          "locale": "ar",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "de",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "es",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "fr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "hi",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ja",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ko",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "nl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pt",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ru",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "tr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "zh",
+          "reason": "same_as_english",
+          "directory": "locales"
+        }
+      ]
+    },
+    "refine.dropzone.loading": {
+      "locales": [
+        "ar",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "ja",
+        "ko",
+        "nl",
+        "pl",
+        "pt",
+        "ru",
+        "tr",
+        "zh"
+      ],
+      "details": [
+        {
+          "locale": "ar",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "de",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "es",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "fr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "hi",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ja",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ko",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "nl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pt",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ru",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "tr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "zh",
+          "reason": "same_as_english",
+          "directory": "locales"
+        }
+      ]
+    },
+    "refine.dropzone.title": {
+      "locales": [
+        "ar",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "ja",
+        "ko",
+        "nl",
+        "pl",
+        "pt",
+        "ru",
+        "tr",
+        "zh"
+      ],
+      "details": [
+        {
+          "locale": "ar",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "de",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "es",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "fr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "hi",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ja",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ko",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "nl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pt",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ru",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "tr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "zh",
+          "reason": "same_as_english",
+          "directory": "locales"
+        }
+      ]
+    },
+    "refine.found": {
+      "locales": [
+        "ar",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "ja",
+        "ko",
+        "nl",
+        "pl",
+        "pt",
+        "ru",
+        "tr",
+        "zh"
+      ],
+      "details": [
+        {
+          "locale": "ar",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "de",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "es",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "fr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "hi",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ja",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ko",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "nl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pt",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ru",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "tr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "zh",
+          "reason": "same_as_english",
+          "directory": "locales"
+        }
+      ]
+    },
+    "refine.llm.changeModel": {
+      "locales": [
+        "ar",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "ja",
+        "ko",
+        "nl",
+        "pl",
+        "pt",
+        "ru",
+        "tr",
+        "zh"
+      ],
+      "details": [
+        {
+          "locale": "ar",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "de",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "es",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "fr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "hi",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ja",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ko",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "nl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pt",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ru",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "tr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "zh",
+          "reason": "same_as_english",
+          "directory": "locales"
+        }
+      ]
+    },
+    "refine.llm.engine": {
+      "locales": [
+        "ar",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "ja",
+        "ko",
+        "nl",
+        "pl",
+        "pt",
+        "ru",
+        "tr",
+        "zh"
+      ],
+      "details": [
+        {
+          "locale": "ar",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "de",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "es",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "fr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "hi",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ja",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ko",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "nl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pt",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ru",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "tr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "zh",
+          "reason": "same_as_english",
+          "directory": "locales"
+        }
+      ]
+    },
+    "refine.llm.promptLabel": {
+      "locales": [
+        "ar",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "ja",
+        "ko",
+        "nl",
+        "pl",
+        "pt",
+        "ru",
+        "tr",
+        "zh"
+      ],
+      "details": [
+        {
+          "locale": "ar",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "de",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "es",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "fr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "hi",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ja",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ko",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "nl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pt",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ru",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "tr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "zh",
+          "reason": "same_as_english",
+          "directory": "locales"
+        }
+      ]
+    },
+    "refine.llm.promptPlaceholder": {
+      "locales": [
+        "ar",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "ja",
+        "ko",
+        "nl",
+        "pl",
+        "pt",
+        "ru",
+        "tr",
+        "zh"
+      ],
+      "details": [
+        {
+          "locale": "ar",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "de",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "es",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "fr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "hi",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ja",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ko",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "nl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pt",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ru",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "tr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "zh",
+          "reason": "same_as_english",
+          "directory": "locales"
+        }
+      ]
+    },
+    "refine.llm.promptSupport": {
+      "locales": [
+        "ar",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "ja",
+        "ko",
+        "nl",
+        "pl",
+        "pt",
+        "ru",
+        "tr",
+        "zh"
+      ],
+      "details": [
+        {
+          "locale": "ar",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "de",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "es",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "fr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "hi",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ja",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ko",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "nl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pt",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ru",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "tr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "zh",
+          "reason": "same_as_english",
+          "directory": "locales"
+        }
+      ]
+    },
+    "refine.log.batchErrorFallback": {
+      "locales": [
+        "ar",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "ja",
+        "ko",
+        "nl",
+        "pl",
+        "pt",
+        "ru",
+        "tr",
+        "zh"
+      ],
+      "details": [
+        {
+          "locale": "ar",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "de",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "es",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "fr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "hi",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ja",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ko",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "nl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pt",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ru",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "tr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "zh",
+          "reason": "same_as_english",
+          "directory": "locales"
+        }
+      ]
+    },
+    "refine.log.batchGen": {
+      "locales": [
+        "ar",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "ja",
+        "ko",
+        "nl",
+        "pl",
+        "pt",
+        "ru",
+        "tr",
+        "zh"
+      ],
+      "details": [
+        {
+          "locale": "ar",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "de",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "es",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "fr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "hi",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ja",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ko",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "nl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pt",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ru",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "tr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "zh",
+          "reason": "same_as_english",
+          "directory": "locales"
+        }
+      ]
+    },
+    "refine.log.cardsToProcess": {
+      "locales": [
+        "ar",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "ja",
+        "ko",
+        "nl",
+        "pl",
+        "pt",
+        "ru",
+        "tr",
+        "zh"
+      ],
+      "details": [
+        {
+          "locale": "ar",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "de",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "es",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "fr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "hi",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ja",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ko",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "nl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pt",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ru",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "tr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "zh",
+          "reason": "same_as_english",
+          "directory": "locales"
+        }
+      ]
+    },
+    "refine.log.completed": {
+      "locales": [
+        "ar",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "ja",
+        "ko",
+        "nl",
+        "pl",
+        "pt",
+        "ru",
+        "tr",
+        "zh"
+      ],
+      "details": [
+        {
+          "locale": "ar",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "de",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "es",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "fr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "hi",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ja",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ko",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "nl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pt",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ru",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "tr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "zh",
+          "reason": "same_as_english",
+          "directory": "locales"
+        }
+      ]
+    },
+    "refine.log.empty": {
+      "locales": [
+        "ar",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "ja",
+        "ko",
+        "nl",
+        "pl",
+        "pt",
+        "ru",
+        "tr",
+        "zh"
+      ],
+      "details": [
+        {
+          "locale": "ar",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "de",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "es",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "fr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "hi",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ja",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ko",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "nl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pt",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ru",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "tr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "zh",
+          "reason": "same_as_english",
+          "directory": "locales"
+        }
+      ]
+    },
+    "refine.log.error": {
+      "locales": [
+        "ar",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "ja",
+        "ko",
+        "nl",
+        "pl",
+        "pt",
+        "ru",
+        "tr",
+        "zh"
+      ],
+      "details": [
+        {
+          "locale": "ar",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "de",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "es",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "fr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "hi",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ja",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ko",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "nl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pt",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ru",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "tr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "zh",
+          "reason": "same_as_english",
+          "directory": "locales"
+        }
+      ]
+    },
+    "refine.log.errorFallback": {
+      "locales": [
+        "ar",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "ja",
+        "ko",
+        "nl",
+        "pl",
+        "pt",
+        "ru",
+        "tr",
+        "zh"
+      ],
+      "details": [
+        {
+          "locale": "ar",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "de",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "es",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "fr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "hi",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ja",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ko",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "nl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pt",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ru",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "tr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "zh",
+          "reason": "same_as_english",
+          "directory": "locales"
+        }
+      ]
+    },
+    "refine.log.jsonFormatError": {
+      "locales": [
+        "ar",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "ja",
+        "ko",
+        "nl",
+        "pl",
+        "pt",
+        "ru",
+        "tr",
+        "zh"
+      ],
+      "details": [
+        {
+          "locale": "ar",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "de",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "es",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "fr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "hi",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ja",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ko",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "nl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pt",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ru",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "tr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "zh",
+          "reason": "same_as_english",
+          "directory": "locales"
+        }
+      ]
+    },
+    "refine.log.singleGen": {
+      "locales": [
+        "ar",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "ja",
+        "ko",
+        "nl",
+        "pl",
+        "pt",
+        "ru",
+        "tr",
+        "zh"
+      ],
+      "details": [
+        {
+          "locale": "ar",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "de",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "es",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "fr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "hi",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ja",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ko",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "nl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pt",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ru",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "tr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "zh",
+          "reason": "same_as_english",
+          "directory": "locales"
+        }
+      ]
+    },
+    "refine.log.singleGenFallback": {
+      "locales": [
+        "ar",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "ja",
+        "ko",
+        "nl",
+        "pl",
+        "pt",
+        "ru",
+        "tr",
+        "zh"
+      ],
+      "details": [
+        {
+          "locale": "ar",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "de",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "es",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "fr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "hi",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ja",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ko",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "nl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pt",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ru",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "tr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "zh",
+          "reason": "same_as_english",
+          "directory": "locales"
+        }
+      ]
+    },
+    "refine.log.start": {
+      "locales": [
+        "ar",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "ja",
+        "ko",
+        "nl",
+        "pl",
+        "pt",
+        "ru",
+        "tr",
+        "zh"
+      ],
+      "details": [
+        {
+          "locale": "ar",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "de",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "es",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "fr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "hi",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ja",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ko",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "nl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pt",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ru",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "tr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "zh",
+          "reason": "same_as_english",
+          "directory": "locales"
+        }
+      ]
+    },
+    "refine.log.startAuto": {
+      "locales": [
+        "ar",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "ja",
+        "ko",
+        "nl",
+        "pl",
+        "pt",
+        "ru",
+        "tr",
+        "zh"
+      ],
+      "details": [
+        {
+          "locale": "ar",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "de",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "es",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "fr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "hi",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ja",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ko",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "nl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pt",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ru",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "tr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "zh",
+          "reason": "same_as_english",
+          "directory": "locales"
+        }
+      ]
+    },
+    "refine.log.stopped": {
+      "locales": [
+        "ar",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "ja",
+        "ko",
+        "nl",
+        "pl",
+        "pt",
+        "ru",
+        "tr",
+        "zh"
+      ],
+      "details": [
+        {
+          "locale": "ar",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "de",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "es",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "fr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "hi",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ja",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ko",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "nl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pt",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ru",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "tr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "zh",
+          "reason": "same_as_english",
+          "directory": "locales"
+        }
+      ]
+    },
+    "refine.log.success": {
+      "locales": [
+        "ar",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "ja",
+        "ko",
+        "nl",
+        "pl",
+        "pt",
+        "ru",
+        "tr",
+        "zh"
+      ],
+      "details": [
+        {
+          "locale": "ar",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "de",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "es",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "fr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "hi",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ja",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ko",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "nl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pt",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ru",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "tr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "zh",
+          "reason": "same_as_english",
+          "directory": "locales"
+        }
+      ]
+    },
+    "refine.log.successFallback": {
+      "locales": [
+        "ar",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "ja",
+        "ko",
+        "nl",
+        "pl",
+        "pt",
+        "ru",
+        "tr",
+        "zh"
+      ],
+      "details": [
+        {
+          "locale": "ar",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "de",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "es",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "fr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "hi",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ja",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ko",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "nl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pt",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ru",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "tr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "zh",
+          "reason": "same_as_english",
+          "directory": "locales"
+        }
+      ]
+    },
+    "refine.log.title": {
+      "locales": [
+        "ar",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "ja",
+        "ko",
+        "nl",
+        "pl",
+        "pt",
+        "ru",
+        "tr",
+        "zh"
+      ],
+      "details": [
+        {
+          "locale": "ar",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "de",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "es",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "fr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "hi",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ja",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ko",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "nl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pt",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ru",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "tr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "zh",
+          "reason": "same_as_english",
+          "directory": "locales"
+        }
+      ]
+    },
+    "refine.mode.auto": {
+      "locales": [
+        "ar",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "ja",
+        "ko",
+        "nl",
+        "pl",
+        "pt",
+        "ru",
+        "tr",
+        "zh"
+      ],
+      "details": [
+        {
+          "locale": "ar",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "de",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "es",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "fr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "hi",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ja",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ko",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "nl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pt",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ru",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "tr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "zh",
+          "reason": "same_as_english",
+          "directory": "locales"
+        }
+      ]
+    },
+    "refine.mode.manual": {
+      "locales": [
+        "ar",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "ja",
+        "ko",
+        "nl",
+        "pl",
+        "pt",
+        "ru",
+        "tr",
+        "zh"
+      ],
+      "details": [
+        {
+          "locale": "ar",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "de",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "es",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "fr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "hi",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ja",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ko",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "nl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pt",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ru",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "tr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "zh",
+          "reason": "same_as_english",
+          "directory": "locales"
+        }
+      ]
+    },
+    "refine.msg.cancelled": {
+      "locales": [
+        "ar",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "ja",
+        "ko",
+        "nl",
+        "pl",
+        "pt",
+        "ru",
+        "tr",
+        "zh"
+      ],
+      "details": [
+        {
+          "locale": "ar",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "de",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "es",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "fr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "hi",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ja",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ko",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "nl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pt",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ru",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "tr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "zh",
+          "reason": "same_as_english",
+          "directory": "locales"
+        }
+      ]
+    },
+    "refine.msg.emptyRefinementPrompt": {
+      "locales": [
+        "ar",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "ja",
+        "ko",
+        "nl",
+        "pl",
+        "pt",
+        "ru",
+        "tr",
+        "zh"
+      ],
+      "details": [
+        {
+          "locale": "ar",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "de",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "es",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "fr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "hi",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ja",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ko",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "nl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pt",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ru",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "tr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "zh",
+          "reason": "same_as_english",
+          "directory": "locales"
+        }
+      ]
+    },
+    "refine.msg.generateError": {
+      "locales": [
+        "ar",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "ja",
+        "ko",
+        "nl",
+        "pl",
+        "pt",
+        "ru",
+        "tr",
+        "zh"
+      ],
+      "details": [
+        {
+          "locale": "ar",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "de",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "es",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "fr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "hi",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ja",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ko",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "nl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pt",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ru",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "tr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "zh",
+          "reason": "same_as_english",
+          "directory": "locales"
+        }
+      ]
+    },
+    "refine.msg.generateSuccess": {
+      "locales": [
+        "ar",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "ja",
+        "ko",
+        "nl",
+        "pl",
+        "pt",
+        "ru",
+        "tr",
+        "zh"
+      ],
+      "details": [
+        {
+          "locale": "ar",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "de",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "es",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "fr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "hi",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ja",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ko",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "nl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pt",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ru",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "tr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "zh",
+          "reason": "same_as_english",
+          "directory": "locales"
+        }
+      ]
+    },
+    "refine.msg.invalidLlmConfig": {
+      "locales": [
+        "ar",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "ja",
+        "ko",
+        "nl",
+        "pl",
+        "pt",
+        "ru",
+        "tr",
+        "zh"
+      ],
+      "details": [
+        {
+          "locale": "ar",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "de",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "es",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "fr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "hi",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ja",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ko",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "nl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pt",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ru",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "tr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "zh",
+          "reason": "same_as_english",
+          "directory": "locales"
+        }
+      ]
+    },
+    "refine.msg.invalidPrompt": {
+      "locales": [
+        "ar",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "ja",
+        "ko",
+        "nl",
+        "pl",
+        "pt",
+        "ru",
+        "tr",
+        "zh"
+      ],
+      "details": [
+        {
+          "locale": "ar",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "de",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "es",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "fr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "hi",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ja",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ko",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "nl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pt",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ru",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "tr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "zh",
+          "reason": "same_as_english",
+          "directory": "locales"
+        }
+      ]
+    },
+    "refine.msg.loadSuccess": {
+      "locales": [
+        "ar",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "ja",
+        "ko",
+        "nl",
+        "pl",
+        "pt",
+        "ru",
+        "tr",
+        "zh"
+      ],
+      "details": [
+        {
+          "locale": "ar",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "de",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "es",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "fr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "hi",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ja",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ko",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "nl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pt",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ru",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "tr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "zh",
+          "reason": "same_as_english",
+          "directory": "locales"
+        }
+      ]
+    },
+    "refine.msg.missingApiKey": {
+      "locales": [
+        "ar",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "ja",
+        "ko",
+        "nl",
+        "pl",
+        "pt",
+        "ru",
+        "tr",
+        "zh"
+      ],
+      "details": [
+        {
+          "locale": "ar",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "de",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "es",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "fr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "hi",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ja",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ko",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "nl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pt",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ru",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "tr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "zh",
+          "reason": "same_as_english",
+          "directory": "locales"
+        }
+      ]
+    },
+    "refine.msg.noCardSelectedAlert": {
+      "locales": [
+        "ar",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "ja",
+        "ko",
+        "nl",
+        "pl",
+        "pt",
+        "ru",
+        "tr",
+        "zh"
+      ],
+      "details": [
+        {
+          "locale": "ar",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "de",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "es",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "fr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "hi",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ja",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ko",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "nl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pt",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ru",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "tr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "zh",
+          "reason": "same_as_english",
+          "directory": "locales"
+        }
+      ]
+    },
+    "refine.msg.noCardsToProcess": {
+      "locales": [
+        "ar",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "ja",
+        "ko",
+        "nl",
+        "pl",
+        "pt",
+        "ru",
+        "tr",
+        "zh"
+      ],
+      "details": [
+        {
+          "locale": "ar",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "de",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "es",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "fr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "hi",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ja",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ko",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "nl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pt",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ru",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "tr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "zh",
+          "reason": "same_as_english",
+          "directory": "locales"
+        }
+      ]
+    },
+    "refine.msg.overwriteError": {
+      "locales": [
+        "ar",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "ja",
+        "ko",
+        "nl",
+        "pl",
+        "pt",
+        "ru",
+        "tr",
+        "zh"
+      ],
+      "details": [
+        {
+          "locale": "ar",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "de",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "es",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "fr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "hi",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ja",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ko",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "nl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pt",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ru",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "tr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "zh",
+          "reason": "same_as_english",
+          "directory": "locales"
+        }
+      ]
+    },
+    "refine.msg.overwriteSuccess": {
+      "locales": [
+        "ar",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "ja",
+        "ko",
+        "nl",
+        "pl",
+        "pt",
+        "ru",
+        "tr",
+        "zh"
+      ],
+      "details": [
+        {
+          "locale": "ar",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "de",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "es",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "fr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "hi",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ja",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ko",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "nl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pt",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ru",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "tr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "zh",
+          "reason": "same_as_english",
+          "directory": "locales"
+        }
+      ]
+    },
+    "refine.msg.processing": {
+      "locales": [
+        "ar",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "ja",
+        "ko",
+        "nl",
+        "pl",
+        "pt",
+        "ru",
+        "tr",
+        "zh"
+      ],
+      "details": [
+        {
+          "locale": "ar",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "de",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "es",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "fr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "hi",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ja",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ko",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "nl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pt",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ru",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "tr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "zh",
+          "reason": "same_as_english",
+          "directory": "locales"
+        }
+      ]
+    },
+    "refine.msg.saveError": {
+      "locales": [
+        "ar",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "ja",
+        "ko",
+        "nl",
+        "pl",
+        "pt",
+        "ru",
+        "tr",
+        "zh"
+      ],
+      "details": [
+        {
+          "locale": "ar",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "de",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "es",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "fr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "hi",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ja",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ko",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "nl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pt",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ru",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "tr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "zh",
+          "reason": "same_as_english",
+          "directory": "locales"
+        }
+      ]
+    },
+    "refine.msg.saveSuccess": {
+      "locales": [
+        "ar",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "ja",
+        "ko",
+        "nl",
+        "pl",
+        "pt",
+        "ru",
+        "tr",
+        "zh"
+      ],
+      "details": [
+        {
+          "locale": "ar",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "de",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "es",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "fr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "hi",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ja",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ko",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "nl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pt",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ru",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "tr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "zh",
+          "reason": "same_as_english",
+          "directory": "locales"
+        }
+      ]
+    },
+    "refine.msg.unsupportedFormat": {
+      "locales": [
+        "ar",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "ja",
+        "ko",
+        "nl",
+        "pl",
+        "pt",
+        "ru",
+        "tr",
+        "zh"
+      ],
+      "details": [
+        {
+          "locale": "ar",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "de",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "es",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "fr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "hi",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ja",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ko",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "nl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pt",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ru",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "tr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "zh",
+          "reason": "same_as_english",
+          "directory": "locales"
+        }
+      ]
+    },
+    "refine.noCardSelected": {
+      "locales": [
+        "ar",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "ja",
+        "ko",
+        "nl",
+        "pl",
+        "pt",
+        "ru",
+        "tr",
+        "zh"
+      ],
+      "details": [
+        {
+          "locale": "ar",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "de",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "es",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "fr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "hi",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ja",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ko",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "nl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pt",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ru",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "tr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "zh",
+          "reason": "same_as_english",
+          "directory": "locales"
+        }
+      ]
+    },
+    "refine.notesLabel": {
+      "locales": [
+        "ar",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "ja",
+        "ko",
+        "nl",
+        "pl",
+        "pt",
+        "ru",
+        "tr",
+        "zh"
+      ],
+      "details": [
+        {
+          "locale": "ar",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "de",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "es",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "fr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "hi",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ja",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ko",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "nl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pt",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ru",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "tr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "zh",
+          "reason": "same_as_english",
+          "directory": "locales"
+        }
+      ]
+    },
+    "refine.notesPlaceholder": {
+      "locales": [
+        "ar",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "ja",
+        "ko",
+        "nl",
+        "pl",
+        "pt",
+        "ru",
+        "tr",
+        "zh"
+      ],
+      "details": [
+        {
+          "locale": "ar",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "de",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "es",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "fr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "hi",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ja",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ko",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "nl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pt",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ru",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "tr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "zh",
+          "reason": "same_as_english",
+          "directory": "locales"
+        }
+      ]
+    },
+    "refine.options.batchMode": {
+      "locales": [
+        "ar",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "ja",
+        "ko",
+        "nl",
+        "pl",
+        "pt",
+        "ru",
+        "tr",
+        "zh"
+      ],
+      "details": [
+        {
+          "locale": "ar",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "de",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "es",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "fr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "hi",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ja",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ko",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "nl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pt",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ru",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "tr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "zh",
+          "reason": "same_as_english",
+          "directory": "locales"
+        }
+      ]
+    },
+    "refine.options.onlyUnannotated": {
+      "locales": [
+        "ar",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "ja",
+        "ko",
+        "nl",
+        "pl",
+        "pt",
+        "ru",
+        "tr",
+        "zh"
+      ],
+      "details": [
+        {
+          "locale": "ar",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "de",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "es",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "fr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "hi",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ja",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ko",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "nl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pt",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ru",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "tr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "zh",
+          "reason": "same_as_english",
+          "directory": "locales"
+        }
+      ]
+    },
+    "refine.progress.title": {
+      "locales": [
+        "ar",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "ja",
+        "ko",
+        "nl",
+        "pl",
+        "pt",
+        "ru",
+        "tr",
+        "zh"
+      ],
+      "details": [
+        {
+          "locale": "ar",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "de",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "es",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "fr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "hi",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ja",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ko",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "nl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pt",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ru",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "tr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "zh",
+          "reason": "same_as_english",
+          "directory": "locales"
+        }
+      ]
+    },
+    "refine.searchPlaceholder": {
+      "locales": [
+        "ar",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "ja",
+        "ko",
+        "nl",
+        "pl",
+        "pt",
+        "ru",
+        "tr",
+        "zh"
+      ],
+      "details": [
+        {
+          "locale": "ar",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "de",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "es",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "fr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "hi",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ja",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ko",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "nl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pt",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ru",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "tr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "zh",
+          "reason": "same_as_english",
+          "directory": "locales"
+        }
+      ]
+    },
+    "refine.total": {
+      "locales": [
+        "ar",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "ja",
+        "ko",
+        "nl",
+        "pl",
+        "pt",
+        "ru",
+        "tr",
+        "zh"
+      ],
+      "details": [
+        {
+          "locale": "ar",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "de",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "es",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "fr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "hi",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ja",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ko",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "nl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pt",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ru",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "tr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "zh",
+          "reason": "same_as_english",
+          "directory": "locales"
+        }
+      ]
+    },
+    "settings.refinementPromptDesc": {
+      "locales": [
+        "ar",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "ja",
+        "ko",
+        "nl",
+        "pl",
+        "pt",
+        "ru",
+        "tr",
+        "zh"
+      ],
+      "details": [
+        {
+          "locale": "ar",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "de",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "es",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "fr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "hi",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ja",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ko",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "nl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pt",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ru",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "tr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "zh",
+          "reason": "same_as_english",
+          "directory": "locales"
+        }
+      ]
+    },
+    "settings.refinementPromptTip": {
+      "locales": [
+        "ar",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "ja",
+        "ko",
+        "nl",
+        "pl",
+        "pt",
+        "ru",
+        "tr",
+        "zh"
+      ],
+      "details": [
+        {
+          "locale": "ar",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "de",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "es",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "fr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "hi",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ja",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ko",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "nl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pt",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ru",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "tr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "zh",
+          "reason": "same_as_english",
+          "directory": "locales"
+        }
+      ]
+    },
+    "settings.refinementPromptTitle": {
+      "locales": [
+        "ar",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "ja",
+        "ko",
+        "nl",
+        "pl",
+        "pt",
+        "ru",
+        "tr",
+        "zh"
+      ],
+      "details": [
+        {
+          "locale": "ar",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "de",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "es",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "fr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "hi",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ja",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ko",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "nl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pt",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ru",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "tr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "zh",
           "reason": "same_as_english",
           "directory": "locales"
         }

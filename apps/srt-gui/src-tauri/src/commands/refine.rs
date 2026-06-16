@@ -140,6 +140,12 @@ pub async fn refine_load_file(path: String) -> Result<Vec<RefineCard>, String> {
         return Err("Il file specificato non esiste".to_string());
     }
 
+    // Cache the loaded file to a temp backup path
+    let backup_path = std::env::temp_dir().join("vesta_refine_backup.tmp");
+    if let Err(e) = fs::copy(&path_buf, &backup_path) {
+        println!("Failed to create backup copy: {}", e);
+    }
+
     let ext = path_buf.extension()
         .and_then(|e| e.to_str())
         .unwrap_or("")
@@ -276,17 +282,34 @@ pub async fn refine_save_file(
     updates: Vec<RefineUpdate>,
 ) -> Result<bool, String> {
     let input_path_buf = PathBuf::from(&input_path);
-    if !input_path_buf.exists() {
-        return Err("Il file di input originale non esiste".to_string());
+    
+    // Check if input file exists. If not, try to use backup file.
+    let resolved_input_path = if input_path_buf.exists() {
+        input_path_buf
+    } else {
+        let backup_path = std::env::temp_dir().join("vesta_refine_backup.tmp");
+        if backup_path.exists() {
+            backup_path
+        } else {
+            return Err("Il file di input originale non esiste e non è stata trovata alcuna copia cache di backup.".to_string());
+        }
+    };
+
+    // Check if the destination parent directory exists
+    let output_path_buf = PathBuf::from(&output_path);
+    if let Some(parent) = output_path_buf.parent() {
+        if !parent.as_os_str().is_empty() && !parent.exists() {
+            return Err(format!("La cartella di destinazione '{}' non esiste.", parent.display()));
+        }
     }
 
-    let ext = input_path_buf.extension()
+    let ext = PathBuf::from(&input_path).extension()
         .and_then(|e| e.to_str())
         .unwrap_or("")
         .to_lowercase();
 
     if ext == "tsv" {
-        let content = fs::read_to_string(&input_path_buf)
+        let content = fs::read_to_string(&resolved_input_path)
             .map_err(|e| format!("Impossibile leggere il file TSV di input: {}", e))?;
         
         let mut rows = Vec::new();
@@ -344,7 +367,8 @@ pub async fn refine_save_file(
             .map_err(|e| format!("Impossibile creare la directory temporanea: {}", e))?;
         
         // Unzip original APKG into temp
-        unzip_archive(&input_path, temp_dir.path())?;
+        let input_path_str = resolved_input_path.to_str().unwrap_or(&input_path);
+        unzip_archive(input_path_str, temp_dir.path())?;
 
         let db_path = temp_dir.path().join("collection.anki2");
         if !db_path.exists() {

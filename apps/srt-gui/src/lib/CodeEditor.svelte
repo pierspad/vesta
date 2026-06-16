@@ -1,11 +1,18 @@
 <script lang="ts">
   import { onDestroy } from "svelte";
+  import { t } from "./i18n";
+  import { snackbar } from "./snackbarStore.svelte";
 
   let {
     value = $bindable(""),
     language = "html",
     onchange = () => {},
     heightClass = "h-64",
+    readonly = false,
+    placeholder = "",
+    id = "",
+    class: classProp = "",
+    textareaClass = "",
   } = $props();
 
   let history = $state<string[]>([value || ""]);
@@ -194,8 +201,27 @@
     onchange();
   }
 
+  let copied = $state(false);
+  let copyTimeout: ReturnType<typeof setTimeout> | null = null;
+
+  async function handleCopy() {
+    try {
+      await navigator.clipboard.writeText(value || "");
+      copied = true;
+      if (copyTimeout) clearTimeout(copyTimeout);
+      copyTimeout = setTimeout(() => {
+        copied = false;
+      }, 2000);
+      snackbar.show(t("settings.keyCopied") || "Copied to clipboard", "success");
+    } catch (err) {
+      console.error("Failed to copy text: ", err);
+      snackbar.show("Failed to copy", "error");
+    }
+  }
+
   onDestroy(() => {
     closeContextMenu();
+    if (copyTimeout) clearTimeout(copyTimeout);
   });
 
   let lines = $derived((value || "").split("\n"));
@@ -318,15 +344,36 @@
       });
     } else if (lang === "json" || lang === "jsonc") {
       html = highlightJsonLike(code);
+    } else if (lang === "markdown" || lang === "prompt") {
+      // Template variables: {{front}}, {{back}}, {{notes}} or others like {{expression}}, {{meaning}}
+      html = html.replace(/(\{\{[a-zA-Z0-9_]+\}\})/g, '<span class="text-violet-400 font-bold bg-violet-500/10 px-1 border border-violet-500/20 rounded">$1</span>');
+      // Inline HTML tags in markdown
+      html = html.replace(/(&lt;\/?[a-zA-Z0-9:-]+.*?&gt;)/g, '<span class="text-purple-400">$1</span>');
+      // Headings
+      html = html.replace(/^(#+\s+.*)$/gm, '<span class="text-blue-400 font-bold">$1</span>');
+      // Bold
+      html = html.replace(/(\*\*.*?\*\*)/g, '<span class="text-gray-100 font-bold">$1</span>');
+      // Inline code
+      html = html.replace(/(`.*?`)/g, '<span class="text-emerald-400 bg-emerald-500/10 px-0.5 rounded">$1</span>');
+      // List bullets
+      html = html.replace(/^(\s*[-*+•]\s+)/gm, '<span class="text-amber-400 font-bold">$1</span>');
+      html = html.replace(/^(\s*\d+\.\s+)/gm, '<span class="text-amber-400 font-bold">$1</span>');
     }
     // ensure blank line at the end renders spaces correctly if needed
     return html;
   }
 </script>
 
-<div class={`relative flex w-full ${heightClass} bg-gray-900 rounded-lg overflow-hidden border border-white/10 group focus-within:border-indigo-500/50 transition-colors`}>
+<!-- svelte-ignore a11y_click_events_have_key_events -->
+<!-- svelte-ignore a11y_no_static_element_interactions -->
+<div 
+  class={`relative flex w-full ${heightClass} bg-gray-900 rounded-lg overflow-hidden border border-white/10 group focus-within:border-indigo-500/50 transition-colors ${classProp}`}
+>
   <!-- Line Numbers -->
-  <div class="w-10 bg-black/40 py-3 text-right pr-2 text-sm font-mono text-gray-600 select-none overflow-hidden shrink-0">
+  <div 
+    onclick={() => textareaElement?.focus()}
+    class="w-10 bg-black/40 py-3 text-right pr-2 text-sm font-mono text-gray-600 select-none overflow-hidden shrink-0 cursor-text"
+  >
     <div style="transform: translateY(-{scrollTop}px)">
       {#each lines as _, i}
         <div class="leading-relaxed whitespace-pre">{i + 1}</div>
@@ -341,7 +388,10 @@
     <!-- Transparent Textarea -->
     <textarea
       bind:this={textareaElement}
+      id={id}
       bind:value
+      readonly={readonly}
+      placeholder={placeholder}
       oninput={handleInput}
       onkeydown={handleKeydown}
       oncontextmenu={openContextMenu}
@@ -350,9 +400,27 @@
         scrollLeft = e.currentTarget.scrollLeft;
       }}
       wrap="off"
-      class="absolute inset-0 w-full h-full p-3 m-0 font-mono text-sm leading-relaxed text-transparent bg-transparent border-none resize-none outline-none caret-white whitespace-pre break-normal pr-9 custom-scrollbar"
+      class="absolute inset-0 w-full h-full p-3 m-0 font-mono text-sm leading-relaxed text-transparent bg-transparent border-none resize-none outline-none caret-white whitespace-pre break-normal pr-9 custom-scrollbar {textareaClass}"
       spellcheck="false"
     ></textarea>
+
+    <!-- Copy Button -->
+    <button
+      type="button"
+      onclick={handleCopy}
+      class="absolute top-2.5 right-2.5 z-10 w-8 h-8 rounded-lg bg-gray-900/80 hover:bg-cyan-500/20 text-gray-400 hover:text-cyan-200 border border-white/10 hover:border-cyan-500/30 transition-all flex items-center justify-center cursor-pointer shadow-md opacity-60 hover:opacity-100"
+      title={t("common.copy") || "Copy"}
+    >
+      {#if copied}
+        <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+        </svg>
+      {:else}
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+        </svg>
+      {/if}
+    </button>
   </div>
 
   {#if contextMenu}

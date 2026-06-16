@@ -1,0 +1,140 @@
+name: Publish to AUR
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag da pubblicare (es. v1.2.3). Obbligatorio se lanciato manualmente.'
+        required: false
+
+concurrency:
+  group: aur-publish
+  cancel-in-progress: false
+
+jobs:
+  publish-aur:
+    name: Push PKGBUILD to AUR
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Resolve ref to checkout
+        id: ref
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            if [ -z "${{ inputs.tag }}" ]; then
+              echo "::error::workflow_dispatch richiede l'input 'tag' (es. v1.2.3)."
+              exit 1
+            fi
+            echo "ref=${{ inputs.tag }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "ref=${{ github.ref }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ steps.ref.outputs.ref }}
+
+      - name: Normalize line endings
+        shell: bash
+        run: |
+          sed -i 's/\r$//' build-scripts/PKGBUILD
+          sed -i 's/\r$//' build-scripts/ci-push-aur.sh
+
+      - name: Get version
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION=$(sed -n 's/^pkgver=//p' build-scripts/PKGBUILD | tr -d '\r' | xargs)
+          if [ -z "$VERSION" ]; then
+            echo "::error::pkgver non trovato in build-scripts/PKGBUILD"
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Versione: $VERSION"
+
+      - name: Wait for release asset availability
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd build-scripts
+
+          # The source= line uses shell variables (${url}, ${_srcname}, ${pkgver}),
+          # so we cannot grep a literal https:// URL — we reconstruct it instead.
+          PKGVER=$(grep -oP '^pkgver=\K.*' PKGBUILD | tr -d '\r' | xargs)
+          BASE_URL=$(grep -oP '^url="\K[^"]+' PKGBUILD | head -n1)
+          # _srcname is the upstream archive/binary name (e.g. "VESTA")
+          SRCNAME=$(grep -oP '^_srcname=\K\S+' PKGBUILD | head -n1)
+          if [ -z "$SRCNAME" ]; then
+            # fallback: use _pkgname
+            SRCNAME=$(grep -oP '^_pkgname=\K\S+' PKGBUILD | head -n1)
+          fi
+
+          ASSET_URL="${BASE_URL}/releases/download/v${PKGVER}/${SRCNAME}_${PKGVER}_amd64.deb"
+          echo "Verifico disponibilità: $ASSET_URL"
+
+          for i in $(seq 1 18); do
+            if curl --silent --fail --head "$ASSET_URL" > /dev/null; then
+              echo "Asset disponibile (tentativo $i)."
+              exit 0
+            fi
+            echo "Tentativo $i/18 fallito, riprovo in 10s..."
+            sleep 10
+          done
+          echo "::error::Asset non disponibile dopo 3 minuti di attesa: $ASSET_URL"
+          exit 1
+
+      - name: Prepare SSH materials
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/ssh"
+          printf '%s\n' "${{ secrets.AUR_SSH_PRIVATE_KEY }}" > "$RUNNER_TEMP/ssh/id_aur"
+          printf '%s\n' "${{ secrets.AUR_KNOWN_HOSTS }}" > "$RUNNER_TEMP/ssh/known_hosts"
+          chmod 600 "$RUNNER_TEMP/ssh/id_aur"
+
+      - name: Write container entrypoint
+        shell: bash
+        run: |
+          cat > "$RUNNER_TEMP/entrypoint.sh" <<'EOF'
+          #!/usr/bin/env bash
+          set -euo pipefail
+
+          pacman -Syu --noconfirm git sudo openssh pacman-contrib base-devel
+
+          useradd -m builder
+          echo 'builder ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers
+
+          mkdir -p /home/builder/.ssh
+          cp /ssh-input/id_aur /home/builder/.ssh/id_aur
+          cp /ssh-input/known_hosts /home/builder/.ssh/known_hosts
+
+          cat > /home/builder/.ssh/config <<'SSHCONF'
+          Host aur.archlinux.org
+            User aur
+            IdentityFile /home/builder/.ssh/id_aur
+            IdentitiesOnly yes
+            UserKnownHostsFile /home/builder/.ssh/known_hosts
+            StrictHostKeyChecking yes
+          SSHCONF
+
+          chown -R builder:builder /home/builder/.ssh
+          chmod 700 /home/builder/.ssh
+          chmod 600 /home/builder/.ssh/id_aur /home/builder/.ssh/config
+          chmod 644 /home/builder/.ssh/known_hosts
+
+          exec su - builder -c /workspace/build-scripts/ci-push-aur.sh
+          EOF
+          chmod +x "$RUNNER_TEMP/entrypoint.sh"
+
+      - name: Build & push AUR package
+        shell: bash
+        run: |
+          docker run --rm \
+            -v "${{ github.workspace }}:/workspace" \
+            -v "$RUNNER_TEMP/ssh:/ssh-input:ro" \
+            -v "$RUNNER_TEMP/entrypoint.sh:/entrypoint.sh:ro" \
+            archlinux:base-devel bash /entrypoint.sh
