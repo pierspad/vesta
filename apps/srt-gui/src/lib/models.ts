@@ -1086,14 +1086,14 @@ export function limitNoteTypeFieldValue(value: string): string {
 
 function sanitizeFieldNamesConfig(config: FieldNamesConfig): FieldNamesConfig {
   return {
-    expression: limitNoteTypeFieldValue(config.expression),
+    expression: "Expression",
     meaning: limitNoteTypeFieldValue(config.meaning),
     reading: limitNoteTypeFieldValue(config.reading),
     audio: limitNoteTypeFieldValue(config.audio),
     snapshot: limitNoteTypeFieldValue(config.snapshot),
     video: limitNoteTypeFieldValue(config.video),
     tags: limitNoteTypeFieldValue(config.tags),
-    sequenceMarker: limitNoteTypeFieldValue(config.sequenceMarker),
+    sequenceMarker: "SequenceMarker",
     notes: limitNoteTypeFieldValue(config.notes),
   };
 }
@@ -1309,7 +1309,7 @@ export function saveCustomNoteTypes(list: NoteTypeDef[]): void {
 export function predefinedNoteTypeForLanguage(code: string): NoteTypeDef {
   return {
     id: "default",
-    name: "Default Vesta",
+    name: "Default_Vesta",
     predefined: true,
     language: "",
     fields: { ...defaultFieldNames },
