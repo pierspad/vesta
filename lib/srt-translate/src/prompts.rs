@@ -4,7 +4,6 @@
 //! Centralizzare i prompt qui rende il codice più pulito e facilita le modifiche future.
 
 use crate::language_info::get_language_info;
-use serde_json;
 
 /// Genera il prompt per la traduzione singola di un sottotitolo
 pub fn build_single_translation_prompt(

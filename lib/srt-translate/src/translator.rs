@@ -471,7 +471,7 @@ fn parse_retry_delay(response_body: &str) -> Duration {
             .take_while(|c| c.is_ascii_digit() || *c == '.')
             .collect();
         if let Ok(secs) = num_str.parse::<f64>() {
-            let clamped = secs.max(1.0).min(120.0);
+            let clamped = secs.clamp(1.0, 120.0);
             // Add a small buffer to avoid hitting the limit immediately
             return Duration::from_secs_f64(clamped + 2.0);
         }

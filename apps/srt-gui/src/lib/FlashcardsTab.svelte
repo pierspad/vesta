@@ -7,11 +7,18 @@
   import { locale } from "./i18n";
   import {
     CARD_TEMPLATES_UPDATED_EVENT,
+    NOTE_TYPES_UPDATED_EVENT,
+    NOTE_TYPE_FIELD_ORDER,
     detectLanguageCode,
     getLanguageSearchTerms,
     languages,
     loadCardTemplates,
-    loadFieldNames,
+    listNoteTypes,
+    findNoteTypeById,
+    predefinedNoteTypeForLanguage,
+    noteTypeOutputFields,
+    type NoteTypeDef,
+    type FieldKey,
     scoreLanguageMatch,
     getFileName,
     inferLanguageFromPath,
@@ -1113,6 +1120,59 @@
   let filterMinDurationEnabled = $state(false);
   let filterMaxDurationEnabled = $state(false);
 
+  let prevMinChars: number | undefined = undefined;
+  let prevMaxChars: number | undefined = undefined;
+  let prevMinDuration: number | undefined = undefined;
+  let prevMaxDuration: number | undefined = undefined;
+
+  $effect(() => {
+    // Keep within absolute bounds
+    if (filterMinChars < 1) filterMinChars = 1;
+    if (filterMinChars > 2000) filterMinChars = 2000;
+    if (filterMaxChars < 1) filterMaxChars = 1;
+    if (filterMaxChars > 2000) filterMaxChars = 2000;
+
+    if (filterMinDurationMs < 0) filterMinDurationMs = 0;
+    if (filterMinDurationMs > 120000) filterMinDurationMs = 120000;
+    if (filterMaxDurationMs < 0) filterMaxDurationMs = 0;
+    if (filterMaxDurationMs > 120000) filterMaxDurationMs = 120000;
+
+    // Initialize trackers on first run
+    if (prevMinChars === undefined) prevMinChars = filterMinChars;
+    if (prevMaxChars === undefined) prevMaxChars = filterMaxChars;
+    if (prevMinDuration === undefined) prevMinDuration = filterMinDurationMs;
+    if (prevMaxDuration === undefined) prevMaxDuration = filterMaxDurationMs;
+
+    // Enforce min <= max coherence based on which one was modified
+    if (filterMinChars !== prevMinChars) {
+      if (filterMinChars > filterMaxChars) {
+        filterMaxChars = filterMinChars;
+      }
+      prevMinChars = filterMinChars;
+      prevMaxChars = filterMaxChars;
+    } else if (filterMaxChars !== prevMaxChars) {
+      if (filterMaxChars < filterMinChars) {
+        filterMinChars = filterMaxChars;
+      }
+      prevMinChars = filterMinChars;
+      prevMaxChars = filterMaxChars;
+    }
+
+    if (filterMinDurationMs !== prevMinDuration) {
+      if (filterMinDurationMs > filterMaxDurationMs) {
+        filterMaxDurationMs = filterMinDurationMs;
+      }
+      prevMinDuration = filterMinDurationMs;
+      prevMaxDuration = filterMaxDurationMs;
+    } else if (filterMaxDurationMs !== prevMaxDuration) {
+      if (filterMaxDurationMs < filterMinDurationMs) {
+        filterMinDurationMs = filterMaxDurationMs;
+      }
+      prevMinDuration = filterMinDurationMs;
+      prevMaxDuration = filterMaxDurationMs;
+    }
+  });
+
   $effect(() => {
     persistDimension(FLASHCARD_MEDIA_WIDTH_KEY, snapshotWidth);
   });
@@ -1255,8 +1315,8 @@
 
   // Responsive columns: auto-collapse from 3 -> 2 -> 1 based on available width.
   const PREFERRED_COLUMN_COUNT = 3;
-  const STACK_TO_ONE_COLUMN_WIDTH = 1040;
-  const STACK_TO_TWO_COLUMNS_WIDTH = 1450;
+  const STACK_TO_ONE_COLUMN_WIDTH = 900;
+  const STACK_TO_TWO_COLUMNS_WIDTH = 1200;
   let layoutHostEl = $state<HTMLElement | null>(null);
   let layoutWidth = $state(
     typeof window !== "undefined" ? window.innerWidth : 1700,
@@ -1307,25 +1367,89 @@
   );
 
   let noteTypeLanguage = $state("");
-  let noteTypeName = $state(loadCardTemplates().noteTypeName);
 
-  // Auto-update noteTypeName when language changes
+  // ── Note type selection ──────────────────────────────────────────────────
+  // One select replaces the old "language + seven field pills" duplication. The
+  // chosen note type drives the export name, the study language, and which of the
+  // nine fields are active. Predefined note types are generated per language and
+  // locked to all fields; custom ones are created and edited in Settings. The
+  // active field set is read-only here — editing lives in Settings by design.
+  let noteTypeList = $state<NoteTypeDef[]>(listNoteTypes());
+  let selectedNoteTypeId = $state("");
+  let selectedNoteType = $derived(
+    findNoteTypeById(selectedNoteTypeId) ??
+      (noteTypeLanguage ? predefinedNoteTypeForLanguage(noteTypeLanguage) : null),
+  );
+  // Never null — falls back to a predefined note type so payloads are always valid.
+  let activeNoteType = $derived(
+    selectedNoteType ?? predefinedNoteTypeForLanguage(noteTypeLanguage || "en"),
+  );
+  let noteTypeName = $derived(activeNoteType.name);
+
+  // When the language is set by inference or defaults, follow it with that
+  // language's predefined note type — unless the user picked a custom one.
   $effect(() => {
-    if (noteTypeLanguage) {
-      const lang = languages.find(l => l.code === noteTypeLanguage);
-      noteTypeName = lang ? `${lang.nameEn}_Vesta` : `Vesta_${noteTypeLanguage}`;
-    } else {
-      noteTypeName = loadCardTemplates().noteTypeName;
+    const lang = noteTypeLanguage;
+    if (!lang) return;
+    const current = findNoteTypeById(selectedNoteTypeId);
+    if (!current || current.predefined) {
+      const id = `predef:${lang}`;
+      if (selectedNoteTypeId !== id) selectedNoteTypeId = id;
     }
   });
 
-  let includeTag = $state(true);
-  let includeSequence = $state(true);
-  let includeAudioField = $state(true);
-  let includeSnapshotField = $state(true);
-  let includeVideoField = $state(true);
-  let includeSubs1Field = $state(true);
-  let includeSubs2Field = $state(true);
+  let noteTypeOptions = $derived(
+    noteTypeList.map((nt) => ({
+      value: nt.id,
+      label: nt.predefined ? nt.name : `★ ${nt.name}`,
+      searchTerms: nt.predefined
+        ? [nt.name, languages.find((l) => l.code === nt.language)?.nameEn ?? ""]
+            .filter(Boolean)
+            .join(" ")
+        : nt.name,
+      icon: nt.predefined
+        ? languages.find((l) => l.code === nt.language)?.flag ?? "🃏"
+        : "★",
+    })),
+  );
+
+  let activeFieldKeys = $derived(
+    NOTE_TYPE_FIELD_ORDER.filter((k) => activeNoteType.included[k]),
+  );
+
+  function fieldChipLabel(key: FieldKey): string {
+    switch (key) {
+      case "expression":
+        return `🗣️ ${t("flashcards.subs1")}`;
+      case "meaning":
+        return `💬 ${t("flashcards.subs2")}`;
+      case "audio":
+        return `🔊 ${t("flashcards.audioField")}`;
+      case "snapshot":
+        return `📸 ${t("flashcards.snapshotField")}`;
+      case "video":
+        return `🎬 ${t("flashcards.videoField")}`;
+      case "tags":
+        return `🏷️ ${t("flashcards.tagField")}`;
+      case "sequenceMarker":
+        return `🔢 ${t("flashcards.sequenceField")}`;
+      case "reading":
+        return `📖 ${t("flashcards.readingField")}`;
+      case "notes":
+        return `📝 ${t("flashcards.notesField")}`;
+    }
+  }
+
+  function selectNoteType(id: string) {
+    selectedNoteTypeId = id;
+    const nt = findNoteTypeById(id);
+    if (nt?.language) {
+      noteTypeLanguage = nt.language;
+      try {
+        localStorage.setItem(NOTE_TYPE_LANGUAGE_KEY, nt.language);
+      } catch {}
+    }
+  }
 
   let deckName = $state("");
   let deckNameAuto = $state(true);
@@ -1437,13 +1561,16 @@
   let unlistenDragDrop: (() => void) | null = null;
   let activeListener = true;
   let removeTemplateListener: (() => void) | null = null;
+  let removeNoteTypesListener: (() => void) | null = null;
   let removeLanguageDefaultsListener: (() => void) | null = null;
   let removeLayoutObserver: (() => void) | null = null;
   let isDraggingOver = $state(false);
   let hasLoggedDragOver = false;
 
-  function syncNoteTypeNameFromTemplates() {
-    noteTypeName = loadCardTemplates().noteTypeName;
+  // Note type names now come from the selected note type rather than the global
+  // card template, so this just refreshes the list when custom note types change.
+  function refreshNoteTypes() {
+    noteTypeList = listNoteTypes();
   }
   let needsDeckName = $derived(
     !seriesMode || seriesOutputMode === "single",
@@ -1798,11 +1925,17 @@
   }
 
   onMount(async () => {
-    syncNoteTypeNameFromTemplates();
+    refreshNoteTypes();
 
     const handleCardTemplatesUpdated = () => {
-      syncNoteTypeNameFromTemplates();
+      refreshNoteTypes();
     };
+    const handleNoteTypesUpdated = () => {
+      refreshNoteTypes();
+    };
+    window.addEventListener(NOTE_TYPES_UPDATED_EVENT, handleNoteTypesUpdated);
+    removeNoteTypesListener = () =>
+      window.removeEventListener(NOTE_TYPES_UPDATED_EVENT, handleNoteTypesUpdated);
     const handleLanguageDefaultsUpdated = () => {
       try {
         const defaultNoteTypeLanguage = localStorage.getItem(DEFAULT_FLASHCARDS_LANGUAGE_KEY);
@@ -1977,6 +2110,7 @@
     if (unlisten) unlisten();
     if (unlistenDragDrop) unlistenDragDrop();
     if (removeTemplateListener) removeTemplateListener();
+    if (removeNoteTypesListener) removeNoteTypesListener();
     if (removeLanguageDefaultsListener) removeLanguageDefaultsListener();
     if (removeLayoutObserver) removeLayoutObserver();
     if (requirementPulseTimer) clearTimeout(requirementPulseTimer);
@@ -2098,17 +2232,9 @@
       deck_name: deckName,
       episode_number: 1,
       export_format: exportFormat,
-      note_type_name: noteTypeName,
-      field_names: loadFieldNames(),
-      output_fields: {
-        include_tag: includeTag,
-        include_sequence: includeSequence,
-        include_audio: includeAudioField,
-        include_snapshot: includeSnapshotField,
-        include_video: includeVideoField,
-        include_subs1: includeSubs1Field,
-        include_subs2: includeSubs2Field,
-      },
+      note_type_name: activeNoteType.name,
+      field_names: activeNoteType.fields,
+      output_fields: noteTypeOutputFields(activeNoteType),
       cpu_cores: cpuCores,
       card_front_html: loadCardTemplates().frontHtml,
       card_back_html: loadCardTemplates().backHtml,
@@ -2506,17 +2632,9 @@
           deck_name: seriesOutputMode === "separate" ? deriveDeckNameFromFile(ep) : deckName,
           episode_number: epNum,
           export_format: exportFormat,
-          note_type_name: noteTypeName,
-          field_names: loadFieldNames(),
-          output_fields: {
-            include_tag: includeTag,
-            include_sequence: includeSequence,
-            include_audio: includeAudioField,
-            include_snapshot: includeSnapshotField,
-            include_video: includeVideoField,
-            include_subs1: includeSubs1Field,
-            include_subs2: includeSubs2Field,
-          },
+          note_type_name: activeNoteType.name,
+          field_names: activeNoteType.fields,
+          output_fields: noteTypeOutputFields(activeNoteType),
           cpu_cores: cpuCores,
           card_front_html: loadCardTemplates().frontHtml,
           card_back_html: loadCardTemplates().backHtml,
@@ -3926,31 +4044,6 @@
         </div>
 
         {#if cardFiltersEnabled}
-
-        <!-- Sentence Combining -->
-        <div class="flex items-center justify-between mb-3">
-          <span class="text-sm font-medium text-gray-300">Unisci frasi spezzate su righe consecutive</span>
-          <button
-            onclick={() => (combineSentences = !combineSentences)}
-            class="w-10 h-5 rounded-full transition-all duration-200 relative shrink-0 ml-3
-              {combineSentences ? 'bg-amber-500' : 'bg-gray-600'}"
-            aria-label="Toggle sentence combining"
-          >
-            <div class="absolute w-4 h-4 bg-white rounded-full top-0.5 transition-all duration-200
-              {combineSentences ? 'left-5' : 'left-0.5'}"></div>
-          </button>
-        </div>
-        <div class="mb-4 transition-opacity duration-200 {!combineSentences ? 'opacity-40' : ''}">
-          <span class="block text-xs text-gray-500 mb-1">Caratteri di continuazione</span>
-          <input
-            type="text"
-            bind:value={continuationChars}
-            disabled={!combineSentences}
-            class="input-modern w-full text-xs font-mono {!combineSentences ? 'cursor-not-allowed' : ''}"
-            placeholder=",、→"
-          />
-        </div>
-
         <!-- Length Filter -->
         <div class="mb-3 space-y-2">
           <span class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Lunghezza (car.)</span>
@@ -3983,7 +4076,7 @@
                   type="range" min="1" max="100" step="1"
                   bind:value={filterMinChars}
                   disabled={!filterMinCharsEnabled}
-                  class="w-full mt-1.5 transition-opacity duration-200 {!filterMinCharsEnabled ? 'opacity-40 cursor-not-allowed' : ''}"
+                  class="slider-minimal w-full mt-1.5 transition-opacity duration-200 {!filterMinCharsEnabled ? 'opacity-40 cursor-not-allowed' : ''}"
                 />
               </div>
             </div>
@@ -4015,7 +4108,7 @@
                   type="range" min="1" max="500" step="1"
                   bind:value={filterMaxChars}
                   disabled={!filterMaxCharsEnabled}
-                  class="w-full mt-1.5 transition-opacity duration-200 {!filterMaxCharsEnabled ? 'opacity-40 cursor-not-allowed' : ''}"
+                  class="slider-minimal w-full mt-1.5 transition-opacity duration-200 {!filterMaxCharsEnabled ? 'opacity-40 cursor-not-allowed' : ''}"
                 />
               </div>
             </div>
@@ -4054,7 +4147,7 @@
                   type="range" min="0" max="5000" step="100"
                   bind:value={filterMinDurationMs}
                   disabled={!filterMinDurationEnabled}
-                  class="w-full mt-1.5 transition-opacity duration-200 {!filterMinDurationEnabled ? 'opacity-40 cursor-not-allowed' : ''}"
+                  class="slider-minimal w-full mt-1.5 transition-opacity duration-200 {!filterMinDurationEnabled ? 'opacity-40 cursor-not-allowed' : ''}"
                 />
               </div>
             </div>
@@ -4086,10 +4179,36 @@
                   type="range" min="0" max="30000" step="500"
                   bind:value={filterMaxDurationMs}
                   disabled={!filterMaxDurationEnabled}
-                  class="w-full mt-1.5 transition-opacity duration-200 {!filterMaxDurationEnabled ? 'opacity-40 cursor-not-allowed' : ''}"
+                  class="slider-minimal w-full mt-1.5 transition-opacity duration-200 {!filterMaxDurationEnabled ? 'opacity-40 cursor-not-allowed' : ''}"
                 />
               </div>
             </div>
+          </div>
+        </div>
+
+        <!-- Sentence Combining -->
+        <div class="mt-4 pt-4 border-t border-gray-800/50">
+          <div class="flex items-center justify-between mb-3">
+            <span class="text-sm font-medium text-gray-300">{t("flashcards.combineSentences")}</span>
+            <button
+              onclick={() => (combineSentences = !combineSentences)}
+              class="w-10 h-5 rounded-full transition-all duration-200 relative shrink-0 ml-3
+                {combineSentences ? 'bg-amber-500' : 'bg-gray-600'}"
+              aria-label="Toggle sentence combining"
+            >
+              <div class="absolute w-4 h-4 bg-white rounded-full top-0.5 transition-all duration-200
+                {combineSentences ? 'left-5' : 'left-0.5'}"></div>
+            </button>
+          </div>
+          <div class="transition-opacity duration-200 {!combineSentences ? 'opacity-40' : ''}">
+            <span class="block text-xs text-gray-500 mb-1">{t("flashcards.continuationChars")}</span>
+            <input
+              type="text"
+              bind:value={continuationChars}
+              disabled={!combineSentences}
+              class="input-modern w-full text-xs font-mono {!combineSentences ? 'cursor-not-allowed' : ''}"
+              placeholder=",、→"
+            />
           </div>
         </div>
         {/if}
@@ -4138,113 +4257,34 @@
         {#if showAnkiFields}
         <div class="mt-3 mb-3">
           <span class="block text-xs text-gray-400 mb-1"
-            >{t("flashcards.noteTypeLanguage")}</span
+            >{t("flashcards.noteType")}</span
           >
           <SearchableSelect
             noResultsText={t("common.noResults")}
-            options={languages.map((lang) => ({
-              value: lang.code,
-              label:
-                lang.nameEn === lang.name
-                  ? lang.name
-                  : `${lang.nameEn} — ${lang.name}`,
-              searchTerms: getLanguageSearchTerms(lang.code),
-              icon: lang.flag,
-            }))}
-            value={noteTypeLanguage}
-            onchange={(v) => {
-              noteTypeLanguage = v;
-              if (v) {
-                localStorage.setItem(NOTE_TYPE_LANGUAGE_KEY, v);
-              } else {
-                localStorage.removeItem(NOTE_TYPE_LANGUAGE_KEY);
-              }
-            }}
-            placeholder={t("flashcards.noteTypeLanguagePlaceholder")}
+            options={noteTypeOptions}
+            value={selectedNoteTypeId}
+            onchange={(v) => selectNoteType(v)}
+            placeholder={t("flashcards.noteTypePlaceholder")}
           />
-        </div>
-
-        <div class="mb-3 flex items-center gap-1.5">
-          <span class="text-xs text-gray-400"
-            >{t("flashcards.noteTypeName")}:</span
-          >
-          <span
-            class="text-xs text-white font-mono bg-white/10 px-2 py-0.5 rounded font-medium"
-            >{noteTypeName || "—"}</span
-          >
+          <p class="mt-1.5 text-[11px] text-gray-500">
+            {t("flashcards.noteTypeManageHint")}
+          </p>
         </div>
 
         <span class="block text-xs text-gray-500 mb-2"
           >{t("flashcards.fieldsLabel")}</span
         >
         <div class="flex flex-wrap gap-2">
-          <button
-            type="button"
-            onclick={() => (includeSubs1Field = !includeSubs1Field)}
-            class="px-3 py-1.5 rounded-full text-xs font-medium border transition-all {includeSubs1Field
-              ? 'bg-lime-500/20 border-lime-500/50 text-lime-300'
-              : 'bg-gray-800/50 border-gray-700/50 text-gray-500 hover:border-gray-600'}"
-          >
-            🗣️ {t("flashcards.subs1")}
-          </button>
-          <button
-            type="button"
-            onclick={() => {
-              if (nativeSubsPath) includeSubs2Field = !includeSubs2Field;
-            }}
-            class="px-3 py-1.5 rounded-full text-xs font-medium border transition-all {!nativeSubsPath
-              ? 'opacity-40 cursor-not-allowed'
-              : ''} {includeSubs2Field && nativeSubsPath
-              ? 'bg-lime-500/20 border-lime-500/50 text-lime-300'
-              : 'bg-gray-800/50 border-gray-700/50 text-gray-500 hover:border-gray-600'}"
-          >
-            💬 {t("flashcards.subs2")}
-          </button>
-          <button
-            type="button"
-            onclick={() => (includeAudioField = !includeAudioField)}
-            class="px-3 py-1.5 rounded-full text-xs font-medium border transition-all {includeAudioField
-              ? 'bg-lime-500/20 border-lime-500/50 text-lime-300'
-              : 'bg-gray-800/50 border-gray-700/50 text-gray-500 hover:border-gray-600'}"
-          >
-            🔊 {t("flashcards.audioField")}
-          </button>
-          <button
-            type="button"
-            onclick={() => (includeSnapshotField = !includeSnapshotField)}
-            class="px-3 py-1.5 rounded-full text-xs font-medium border transition-all {includeSnapshotField
-              ? 'bg-lime-500/20 border-lime-500/50 text-lime-300'
-              : 'bg-gray-800/50 border-gray-700/50 text-gray-500 hover:border-gray-600'}"
-          >
-            📸 {t("flashcards.snapshotField")}
-          </button>
-          <button
-            type="button"
-            onclick={() => (includeVideoField = !includeVideoField)}
-            class="px-3 py-1.5 rounded-full text-xs font-medium border transition-all {includeVideoField
-              ? 'bg-lime-500/20 border-lime-500/50 text-lime-300'
-              : 'bg-gray-800/50 border-gray-700/50 text-gray-500 hover:border-gray-600'}"
-          >
-            🎬 {t("flashcards.videoField")}
-          </button>
-          <button
-            type="button"
-            onclick={() => (includeTag = !includeTag)}
-            class="px-3 py-1.5 rounded-full text-xs font-medium border transition-all {includeTag
-              ? 'bg-lime-500/20 border-lime-500/50 text-lime-300'
-              : 'bg-gray-800/50 border-gray-700/50 text-gray-500 hover:border-gray-600'}"
-          >
-            🏷️ {t("flashcards.tagField")}
-          </button>
-          <button
-            type="button"
-            onclick={() => (includeSequence = !includeSequence)}
-            class="px-3 py-1.5 rounded-full text-xs font-medium border transition-all {includeSequence
-              ? 'bg-lime-500/20 border-lime-500/50 text-lime-300'
-              : 'bg-gray-800/50 border-gray-700/50 text-gray-500 hover:border-gray-600'}"
-          >
-            🔢 {t("flashcards.sequenceField")}
-          </button>
+          {#each activeFieldKeys as key (key)}
+            <span
+              class="px-3 py-1.5 rounded-full text-xs font-medium border bg-lime-500/15 border-lime-500/40 text-lime-300"
+            >
+              {fieldChipLabel(key)}
+            </span>
+          {/each}
+          {#if activeFieldKeys.length === 0}
+            <span class="text-xs text-gray-500">—</span>
+          {/if}
         </div>
         {/if}
       </div>
@@ -5044,15 +5084,17 @@
         {t("flashcards.cancel")}
       </button>
     {:else}
-      <!-- Export format badge + series output mode selector -->
+      <!-- Export format toggle button + series output mode selector -->
       <div class="flex items-center gap-2 mr-2">
-        <!-- Format badge (hovering shows tooltip to go to settings) -->
+        <!-- Format toggle button -->
         <div class="relative group/fmt">
-          <div class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold
-            {exportFormat === 'apkg'
-              ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300'
-              : 'border-sky-500/40 bg-sky-500/10 text-sky-300'}
-            cursor-default select-none"
+          <button
+            type="button"
+            onclick={() => (exportFormat = exportFormat === 'apkg' ? 'tsv' : 'apkg')}
+            class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] cursor-pointer select-none
+              {exportFormat === 'apkg'
+                ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20 hover:border-emerald-500/50'
+                : 'border-sky-500/40 bg-sky-500/10 text-sky-300 hover:bg-sky-500/20 hover:border-sky-500/50'}"
           >
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -5060,11 +5102,11 @@
               />
             </svg>
             {exportFormat === 'apkg' ? 'APKG' : 'TSV'}
-          </div>
+          </button>
           <div class="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-50
             rounded-lg border border-white/10 bg-gray-950/95 px-3 py-2 text-xs text-gray-300 shadow-xl
             opacity-0 group-hover/fmt:opacity-100 transition-opacity duration-150 whitespace-nowrap text-center">
-            {t("flashcards.exportFormat")} · {t("settings.changeInSettings")}
+            {t("flashcards.clickToToggleFormat")}
           </div>
         </div>
 

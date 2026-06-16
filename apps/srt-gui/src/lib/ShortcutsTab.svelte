@@ -6,6 +6,7 @@
   import { snackbar } from "./snackbarStore.svelte";
   import {
     defaultShortcuts,
+    formatKeyPart,
     getShortcuts,
     getSortedKeys,
     resetShortcuts,
@@ -478,7 +479,7 @@
             <kbd
               class="px-2.5 py-1 bg-gray-950/80 border border-white/10 rounded-lg text-xs text-gray-300 font-mono shadow-sm font-semibold tracking-wide whitespace-nowrap"
             >
-              {key}
+              {formatKeyPart(key, t)}
             </kbd>
           {/each}
         </div>
@@ -588,7 +589,7 @@
                         <span class="text-gray-500 text-[10px]">+</span>
                       {/if}
                       <kbd class="px-1.5 py-0.5 bg-gray-950 border border-white/15 rounded text-[10px] text-gray-300 font-mono font-semibold shadow-sm tracking-wide whitespace-nowrap">
-                        {key}
+                        {formatKeyPart(key, t)}
                       </kbd>
                     {/each}
                     {#if isListeningForSearchKeys}

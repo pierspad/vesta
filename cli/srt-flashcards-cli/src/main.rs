@@ -196,7 +196,6 @@ impl GenerateArgs {
             video_path: self.video.clone(),
             audio_path: self.audio.clone(),
             output_dir: self.output.clone(),
-            use_timings_from: "target".to_string(),
             span_start_ms: self.span_start,
             span_end_ms: self.span_end,
             time_shift_target_ms: self.shift_target,
@@ -205,15 +204,13 @@ impl GenerateArgs {
                 include_words: self.include_words.clone(),
                 exclude_words: self.exclude_words.clone(),
                 exclude_duplicates_subs1: self.exclude_duplicates,
-                exclude_duplicates_subs2: false,
                 min_chars: self.min_chars,
                 max_chars: self.max_chars,
                 min_duration_ms: self.min_duration,
                 max_duration_ms: self.max_duration,
-                exclude_styled: false,
-                actor_filter: None,
                 only_cjk: self.only_cjk,
                 remove_no_match: self.remove_no_match,
+                ..SubtitleFilters::default()
             },
             context: ContextConfig {
                 leading: self.context_leading,
@@ -226,8 +223,6 @@ impl GenerateArgs {
             audio_bitrate: self.audio_bitrate,
             audio_track_index: self.audio_track,
             normalize_audio: self.normalize_audio,
-            audio_pad_start_ms: 0,
-            audio_pad_end_ms: 0,
             generate_snapshots: !self.no_snapshots,
             snapshot_width: self.snapshot_width,
             snapshot_height: self.snapshot_height,
@@ -237,26 +232,19 @@ impl GenerateArgs {
             h264_preset: self.h264_preset.clone(),
             video_bitrate: self.video_bitrate,
             video_audio_bitrate: self.video_audio_bitrate,
-            video_pad_start_ms: 0,
-            video_pad_end_ms: 0,
             deck_name: self.deck.clone(),
             episode_number: self.episode,
             export_format: Some(self.format.clone()),
-            note_type_name: None,
             field_names: Some(FieldNamesConfig::default()),
             output_fields: OutputFields {
-                include_tag: true,
-                include_sequence: true,
                 include_audio: !self.no_audio,
                 include_snapshot: !self.no_snapshots,
                 include_video: !self.no_video,
-                include_subs1: true,
                 include_subs2: self.native.is_some(),
+                ..OutputFields::default()
             },
             cpu_cores: self.jobs,
-            card_front_html: None,
-            card_back_html: None,
-            card_css: None,
+            ..FlashcardConfig::default()
         }
     }
 }

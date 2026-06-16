@@ -1,110 +1,7 @@
-use std::process::Command;
 use std::time::Instant;
 
-use srt_flashcards::{
-    generate, ContextConfig, FlashcardConfig, MediaTools, OutputFields, SubtitleFilters,
-};
+use srt_flashcards::{generate, video_has_audio, FlashcardConfig, MediaTools};
 use tokio_util::sync::CancellationToken;
-
-fn has_audio(video_path: &str) -> bool {
-    Command::new("ffprobe")
-        .args([
-            "-v",
-            "error",
-            "-show_entries",
-            "stream=codec_type",
-            "-of",
-            "csv=p=0",
-            video_path,
-        ])
-        .output()
-        .map(|output| String::from_utf8_lossy(&output.stdout).contains("audio"))
-        .unwrap_or(false)
-}
-
-fn build_config(
-    target_subs_path: String,
-    native_subs_path: String,
-    video_path: String,
-    output_dir: String,
-    export_format: String,
-) -> FlashcardConfig {
-    let has_audio = has_audio(&video_path);
-    let cpu_cores = std::thread::available_parallelism()
-        .map(|n| n.get())
-        .unwrap_or(4)
-        .saturating_sub(1)
-        .max(2);
-
-    FlashcardConfig {
-        target_subs_path,
-        native_subs_path: Some(native_subs_path),
-        video_path: Some(video_path.clone()),
-        audio_path: if has_audio { Some(video_path) } else { None },
-        output_dir,
-        use_timings_from: "target".to_string(),
-        span_start_ms: None,
-        span_end_ms: None,
-        time_shift_target_ms: 0,
-        time_shift_native_ms: 0,
-        filters: SubtitleFilters {
-            include_words: None,
-            exclude_words: None,
-            exclude_duplicates_subs1: false,
-            exclude_duplicates_subs2: false,
-            min_chars: None,
-            max_chars: None,
-            min_duration_ms: None,
-            max_duration_ms: None,
-            exclude_styled: false,
-            actor_filter: None,
-            only_cjk: false,
-            remove_no_match: false,
-        },
-        context: ContextConfig {
-            leading: 0,
-            trailing: 0,
-            max_gap_seconds: 0.0,
-        },
-        combine_sentences: false,
-        continuation_chars: String::new(),
-        generate_audio: has_audio,
-        audio_bitrate: 128,
-        audio_track_index: None,
-        normalize_audio: false,
-        audio_pad_start_ms: 0,
-        audio_pad_end_ms: 0,
-        generate_snapshots: true,
-        snapshot_width: 240,
-        snapshot_height: 160,
-        crop_bottom: 0,
-        generate_video_clips: true,
-        video_codec: "h264".to_string(),
-        h264_preset: "ultrafast".to_string(),
-        video_bitrate: 1000,
-        video_audio_bitrate: 128,
-        video_pad_start_ms: 0,
-        video_pad_end_ms: 0,
-        deck_name: "BenchmarkDeck".to_string(),
-        episode_number: 1,
-        export_format: Some(export_format),
-        note_type_name: None,
-        field_names: None,
-        output_fields: OutputFields {
-            include_tag: true,
-            include_sequence: true,
-            include_audio: true,
-            include_snapshot: true,
-            include_video: true,
-            include_subs1: true,
-            include_subs2: true,
-        },
-        cpu_cores: Some(cpu_cores),
-        card_front_html: None,
-        card_back_html: None,
-        card_css: None,
-    }
-}
 
 #[tokio::main]
 async fn main() {
@@ -120,12 +17,19 @@ async fn main() {
     }
 
     let export_format = args.get(5).cloned().unwrap_or_else(|| "tsv".to_string());
-    let config = build_config(
+    let cpu_cores = std::thread::available_parallelism()
+        .map(|n| n.get())
+        .unwrap_or(4)
+        .saturating_sub(1)
+        .max(2);
+    let config = FlashcardConfig::benchmark(
         args[1].clone(),
         args[2].clone(),
         args[3].clone(),
         args[4].clone(),
         export_format,
+        video_has_audio("ffprobe", &args[3]),
+        Some(cpu_cores),
     );
 
     let start = Instant::now();

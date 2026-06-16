@@ -22,6 +22,26 @@ pub async fn check_ffmpeg(ffmpeg_cmd: &str) -> bool {
         .unwrap_or(false)
 }
 
+/// Returns `true` if `video_path` exposes at least one audio stream, probed via
+/// `ffprobe_cmd`. Any failure to run ffprobe (missing binary, unreadable file)
+/// is treated as "no audio". Synchronous: it is a one-shot startup probe used by
+/// the benchmark harness, not part of the hot extraction loop.
+pub fn video_has_audio(ffprobe_cmd: &str, video_path: &str) -> bool {
+    std::process::Command::new(ffprobe_cmd)
+        .args([
+            "-v",
+            "error",
+            "-show_entries",
+            "stream=codec_type",
+            "-of",
+            "csv=p=0",
+            video_path,
+        ])
+        .output()
+        .map(|output| String::from_utf8_lossy(&output.stdout).contains("audio"))
+        .unwrap_or(false)
+}
+
 /// Format milliseconds as ffmpeg timestamp HH:MM:SS.mmm
 pub(crate) fn ms_to_ffmpeg_ts(ms: i64) -> String {
     let ms = ms.max(0);

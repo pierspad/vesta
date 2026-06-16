@@ -183,7 +183,7 @@
       <FlashcardsTab active={activeTab === "flashcards"} />
     </div>
     <div class="absolute inset-0" class:hidden={activeTab !== "settings"}>
-      <SettingsTab bind:requestedSection={requestedSettingsSection} bind:highlightItemId={highlightItemId} />
+      <SettingsTab active={activeTab === "settings"} bind:requestedSection={requestedSettingsSection} bind:highlightItemId={highlightItemId} />
     </div>
   </div>
 

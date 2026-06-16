@@ -8,8 +8,10 @@
 
 mod engine;
 mod interpolator;
+pub mod matching;
 mod sampler;
 
 pub use engine::{SyncEngine, SyncState};
 pub use interpolator::{TimeMapper, AnchorPoint};
+pub use matching::{suggest_companion_subtitle_for_srt, suggest_media_for_srt};
 pub use sampler::{AdaptiveSampler, SamplerStrategy};

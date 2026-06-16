@@ -70,17 +70,27 @@ pub(crate) fn generate_apkg(
         .unwrap_or_default()
         .as_secs() as i64;
 
-    let deck_id: i64 = {
-        // Use a deterministic deck ID from the deck name
+    // Deterministic IDs derived from *names*, so the same name always maps to the
+    // same Anki object across every export. This is what lets Anki recognise a
+    // re-imported deck and merge it instead of creating duplicates. Decks and note
+    // types live in disjoint numeric bands so their ids can never collide.
+    fn stable_id(seed: &str, band_base: i64) -> i64 {
         let mut hash: u64 = 0;
-        for b in config.deck_name.bytes() {
+        for b in seed.bytes() {
             hash = hash.wrapping_mul(31).wrapping_add(b as u64);
         }
-        // Ensure positive and not 1 (reserved for "Default" deck)
-        ((hash % 1_000_000_000) + 1_000_000) as i64
-    };
+        (hash % 1_000_000_000) as i64 + band_base
+    }
 
-    let model_id: i64 = deck_id + 1;
+    // The note type name — NOT the deck name — drives the model id. Every deck
+    // that shares a note type name therefore shares one model id, so importing
+    // several decks built on the same note type reuses a single note type.
+    let note_type_name = config.note_type_name.as_deref().unwrap_or("subs2srs");
+
+    // Deck id stays keyed to the deck name (+1_000_000 keeps it off the reserved
+    // "Default" deck id of 1); model id sits in a separate, higher band.
+    let deck_id: i64 = stable_id(&config.deck_name, 1_000_000);
+    let model_id: i64 = stable_id(note_type_name, 2_000_000_000);
     let deck_sanitized = sanitize_filename(&config.deck_name);
     let ep = config.episode_number;
 
@@ -191,41 +201,39 @@ pub(crate) fn generate_apkg(
         let sequence_name = clean_field_name(&field_names.sequence_marker, "SequenceMarker");
         let notes_name = clean_field_name(&field_names.notes, "Notes");
 
+        // The schema is a property of the note type, fixed in this canonical order.
+        // Each field is emitted only when its toggle is on, and the SAME inclusion
+        // list is reused when writing every note below — so the model and the notes
+        // always agree on the column set. As long as a given note type *name* is
+        // always exported with the same toggles (predefined note types are locked
+        // to all-on; custom ones save their own fixed set), Anki recognises repeat
+        // imports as the same note type and merges them instead of appending "+".
+        let of = &config.output_fields;
+        let schema: [(bool, &str); 9] = [
+            (of.include_subs1, expression_name.as_str()),
+            (of.include_subs2, meaning_name.as_str()),
+            (of.include_audio, audio_name.as_str()),
+            (of.include_snapshot, snapshot_name.as_str()),
+            (of.include_video, video_name.as_str()),
+            (of.include_tag, tags_name.as_str()),
+            (of.include_sequence, sequence_name.as_str()),
+            (of.include_reading, reading_name.as_str()),
+            (of.include_notes, notes_name.as_str()),
+        ];
+
         let mut field_defs = Vec::new();
         let mut ord = 0;
-
-        if config.output_fields.include_subs1 {
+        for (included, name) in schema {
+            if included {
+                push_model_field(&mut field_defs, &mut ord, name);
+            }
+        }
+        // A note type must have at least one field; fall back to the Expression
+        // slot if the caller somehow disabled everything.
+        if field_defs.is_empty() {
             push_model_field(&mut field_defs, &mut ord, &expression_name);
         }
-        if config.output_fields.include_subs2 {
-            push_model_field(&mut field_defs, &mut ord, &meaning_name);
-        }
-        if config.output_fields.include_audio {
-            push_model_field(&mut field_defs, &mut ord, &audio_name);
-        }
-        if config.output_fields.include_snapshot {
-            push_model_field(&mut field_defs, &mut ord, &snapshot_name);
-        }
-        if config.output_fields.include_video {
-            push_model_field(&mut field_defs, &mut ord, &video_name);
-        }
-        if config.output_fields.include_tag {
-            push_model_field(&mut field_defs, &mut ord, &tags_name);
-        }
-        if config.output_fields.include_sequence {
-            push_model_field(&mut field_defs, &mut ord, &sequence_name);
-        }
-        // Reading field (always included, user fills manually)
-        push_model_field(&mut field_defs, &mut ord, &reading_name);
-        // Notes field is reserved as an empty manual field for future annotations.
-        push_model_field(&mut field_defs, &mut ord, &notes_name);
         let _ = ord;
-
-        // If no fields, add defaults
-        if field_defs.is_empty() {
-            field_defs.push(r#"{"name":"Front","ord":0,"sticky":false,"rtl":false,"font":"Arial","size":20,"description":"","plainText":false,"collapsed":false,"excludeFromSearch":false}"#.to_string());
-            field_defs.push(r#"{"name":"Back","ord":1,"sticky":false,"rtl":false,"font":"Arial","size":20,"description":"","plainText":false,"collapsed":false,"excludeFromSearch":false}"#.to_string());
-        }
 
         // Use custom templates if provided, otherwise use defaults
         let template_replacements = [
@@ -257,7 +265,6 @@ pub(crate) fn generate_apkg(
         );
         let css = config.card_css.as_deref().unwrap_or(ANKI_CARD_STYLING);
 
-        let note_type_name = config.note_type_name.as_deref().unwrap_or("subs2srs");
         let note_type_json =
             serde_json::to_string(note_type_name).unwrap_or_else(|_| "\"subs2srs\"".to_string());
         let qfmt_json = serde_json::to_string(&qfmt).unwrap_or_else(|_| "\"\"".to_string());
@@ -311,11 +318,17 @@ pub(crate) fn generate_apkg(
             let seq_num = seq + 1;
             let start_ts = ms_to_ffmpeg_ts(line.subs1.start_ms);
 
-            // Build fields (separated by \x1f)
-            let mut fields: Vec<String> = Vec::new();
+            // Build the fields (separated by \x1f) in the SAME canonical order and
+            // with the SAME inclusion rules as the model schema above: a field is
+            // written exactly when its toggle is on, so every note's column count
+            // matches the note type. A field that is on but has no data (e.g. a
+            // missing media file, or the manual Reading/Notes slots) is written as
+            // an empty string — present, but blank.
+            let of = &config.output_fields;
+            let mut fields: Vec<String> = Vec::with_capacity(9);
 
-            // Expression (subs1)
-            if config.output_fields.include_subs1 {
+            // 1. Expression (subs1)
+            if of.include_subs1 {
                 fields.push(render_text_with_context(
                     &line.subs1.text,
                     line,
@@ -326,75 +339,80 @@ pub(crate) fn generate_apkg(
                 ));
             }
 
-            // Meaning (subs2)
-            if config.output_fields.include_subs2 {
-                if let Some(ref s2) = line.subs2 {
-                    fields.push(render_text_with_context(
+            // 2. Meaning (subs2)
+            if of.include_subs2 {
+                fields.push(match &line.subs2 {
+                    Some(s2) => render_text_with_context(
                         &s2.text,
                         line,
                         lines,
                         |m| m.subs2.as_ref().map(|s| s.text.as_str()),
                         "class=\"context\"",
                         false,
-                    ));
-                } else {
-                    fields.push(String::new());
-                }
+                    ),
+                    None => String::new(),
+                });
             }
 
-            // Audio — only reference if the file actually exists
-            if config.output_fields.include_audio {
+            // 3. Audio — only reference if the file exists
+            if of.include_audio {
                 let filename = format!("{}_{:03}_{:04}.mp3", deck_sanitized, ep, seq_num);
-                let file_path = media_dir.join(&filename);
-                if file_path.exists() {
-                    fields.push(format!("[sound:{}]", filename));
+                fields.push(if media_dir.join(&filename).exists() {
+                    format!("[sound:{}]", filename)
                 } else {
-                    fields.push(String::new());
-                }
+                    String::new()
+                });
             }
 
-            // Snapshot — only reference if the file actually exists
-            if config.output_fields.include_snapshot {
+            // 4. Snapshot — only reference if the file exists
+            if of.include_snapshot {
                 let filename = format!("{}_{:03}_{:04}.jpg", deck_sanitized, ep, seq_num);
-                let file_path = media_dir.join(&filename);
-                if file_path.exists() {
-                    fields.push(format!("<img src=\"{}\">", filename));
+                fields.push(if media_dir.join(&filename).exists() {
+                    format!("<img src=\"{}\">", filename)
                 } else {
-                    fields.push(String::new());
-                }
+                    String::new()
+                });
             }
 
-            // Video — only reference if the file actually exists
-            if config.output_fields.include_video {
+            // 5. Video — only reference if the file exists
+            if of.include_video {
                 let ext = if config.video_codec == "h264" {
                     "mp4"
                 } else {
                     "avi"
                 };
                 let filename = format!("{}_{:03}_{:04}.{}", deck_sanitized, ep, seq_num, ext);
-                let file_path = media_dir.join(&filename);
-                if file_path.exists() {
-                    fields.push(format!("[sound:{}]", filename));
+                fields.push(if media_dir.join(&filename).exists() {
+                    format!("[sound:{}]", filename)
                 } else {
-                    fields.push(String::new());
-                }
+                    String::new()
+                });
             }
 
-            // Tag
-            if config.output_fields.include_tag {
+            // 6. Tags
+            if of.include_tag {
                 fields.push(format!("{}_{:03}", config.deck_name, ep));
             }
 
-            // SequenceMarker
-            if config.output_fields.include_sequence {
+            // 7. SequenceMarker
+            if of.include_sequence {
                 fields.push(format!("{:03}_{:04}_{}", ep, seq_num, start_ts));
             }
 
-            // Reading (empty — user fills manually in Anki)
-            fields.push(String::new());
+            // 8. Reading (empty — user fills manually in Anki)
+            if of.include_reading {
+                fields.push(String::new());
+            }
 
-            // Notes (empty — reserved for user annotations in Anki)
-            fields.push(String::new());
+            // 9. Notes (empty — reserved for user annotations in Anki)
+            if of.include_notes {
+                fields.push(String::new());
+            }
+
+            // Mirror the model's "at least one field" fallback.
+            if fields.is_empty() {
+                fields.push(String::new());
+            }
 
             let flds = fields.join("\x1f");
             let sfld = if !fields.is_empty() { &fields[0] } else { "" };
@@ -668,3 +686,191 @@ hr.solid {
   color: #000000;
 }
 "#;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn sub(text: &str) -> SubEntry {
+        SubEntry {
+            id: 1,
+            start_ms: 1000,
+            end_ms: 2000,
+            text: text.into(),
+            actor: None,
+            style: None,
+            active: true,
+        }
+    }
+
+    fn line(i: usize, a: &str, b: Option<&str>) -> MatchedLine {
+        MatchedLine {
+            index: i,
+            subs1: sub(a),
+            subs2: b.map(sub),
+            active: true,
+            leading_context: vec![],
+            trailing_context: vec![],
+        }
+    }
+
+    fn base_config(deck: &str, note_type: &str, output_fields: OutputFields) -> FlashcardConfig {
+        FlashcardConfig {
+            deck_name: deck.into(),
+            export_format: Some("apkg".into()),
+            note_type_name: Some(note_type.into()),
+            output_fields,
+            ..FlashcardConfig::default()
+        }
+    }
+
+    /// Pull the (model_id, ordered field names, note count) out of a generated apkg.
+    fn read_model(path: &Path) -> (String, Vec<String>, i64) {
+        let file = std::fs::File::open(path).unwrap();
+        let mut zip = zip::ZipArchive::new(file).unwrap();
+        let tmp = tempfile::tempdir().unwrap();
+        let db_path = tmp.path().join("collection.anki2");
+        {
+            let mut entry = zip.by_name("collection.anki2").unwrap();
+            let mut out = std::fs::File::create(&db_path).unwrap();
+            std::io::copy(&mut entry, &mut out).unwrap();
+        }
+        let conn = rusqlite::Connection::open(&db_path).unwrap();
+        let models: String = conn
+            .query_row("SELECT models FROM col WHERE id = 1", [], |r| r.get(0))
+            .unwrap();
+        let notes: i64 = conn
+            .query_row("SELECT COUNT(*) FROM notes", [], |r| r.get(0))
+            .unwrap();
+        let v: serde_json::Value = serde_json::from_str(&models).unwrap();
+        let (mid, model) = v.as_object().unwrap().iter().next().unwrap();
+        let names = model["flds"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|f| f["name"].as_str().unwrap().to_string())
+            .collect();
+        (mid.clone(), names, notes)
+    }
+
+    const CANONICAL: [&str; 9] = [
+        "Expression",
+        "Meaning",
+        "Audio",
+        "Snapshot",
+        "Video",
+        "Tags",
+        "SequenceMarker",
+        "Reading",
+        "Notes",
+    ];
+
+    /// All nine fields on — the schema a predefined (locked) note type always uses.
+    fn all_fields() -> OutputFields {
+        OutputFields {
+            include_subs1: true,
+            include_subs2: true,
+            include_audio: true,
+            include_snapshot: true,
+            include_video: true,
+            include_tag: true,
+            include_sequence: true,
+            include_reading: true,
+            include_notes: true,
+        }
+    }
+
+    /// Two exports that share a note type name AND the same field set must produce
+    /// a byte-identical schema and the same model id, even when the deck name
+    /// differs. That is what makes Anki merge them into one note type on import
+    /// instead of appending "+". (Predefined note types are locked to this full
+    /// set, so in practice they always satisfy this.)
+    #[test]
+    fn same_note_type_merges_across_decks() {
+        let tmp = tempfile::tempdir().unwrap();
+        let media = tmp.path().join("media");
+        std::fs::create_dir_all(&media).unwrap();
+        let lines = vec![line(0, "Hello", Some("Ciao")), line(1, "World", None)];
+
+        let a = tmp.path().join("a.apkg");
+        let b = tmp.path().join("b.apkg");
+        generate_apkg(
+            &lines,
+            &base_config("Friends S01E01", "English_Vesta", all_fields()),
+            &media,
+            &a,
+        )
+        .unwrap();
+        generate_apkg(
+            &lines,
+            &base_config("Friends S01E02", "English_Vesta", all_fields()),
+            &media,
+            &b,
+        )
+        .unwrap();
+
+        let (mid_a, fields_a, notes_a) = read_model(&a);
+        let (mid_b, fields_b, notes_b) = read_model(&b);
+
+        assert_eq!(fields_a, CANONICAL, "predefined schema is the canonical 9 fields");
+        assert_eq!(fields_b, fields_a, "same note type ⇒ identical schema");
+        assert_eq!(mid_a, mid_b, "same note type name ⇒ same model id");
+        assert_eq!((notes_a, notes_b), (2, 2), "both notes must still be written");
+    }
+
+    /// A custom note type may disable fields: the exported schema then contains
+    /// exactly the enabled fields, in canonical order, and nothing else.
+    #[test]
+    fn disabled_fields_shrink_the_schema() {
+        let tmp = tempfile::tempdir().unwrap();
+        let media = tmp.path().join("media");
+        std::fs::create_dir_all(&media).unwrap();
+        let lines = vec![line(0, "Hello", Some("Ciao"))];
+
+        // Keep only Expression, Meaning and Reading.
+        let reduced = OutputFields {
+            include_subs1: true,
+            include_subs2: true,
+            include_reading: true,
+            include_audio: false,
+            include_snapshot: false,
+            include_video: false,
+            include_tag: false,
+            include_sequence: false,
+            include_notes: false,
+        };
+
+        let path = tmp.path().join("c.apkg");
+        generate_apkg(&lines, &base_config("Deck", "Minimal_Vesta", reduced), &media, &path)
+            .unwrap();
+
+        let (_, fields, notes) = read_model(&path);
+        assert_eq!(
+            fields,
+            vec!["Expression", "Meaning", "Reading"],
+            "schema must be exactly the enabled fields, in canonical order"
+        );
+        assert_eq!(notes, 1);
+    }
+
+    /// A different note type name must land in a *different* model id band, so it
+    /// is imported as a separate note type rather than colliding with the first.
+    #[test]
+    fn different_note_type_names_get_different_model_ids() {
+        let tmp = tempfile::tempdir().unwrap();
+        let media = tmp.path().join("media");
+        std::fs::create_dir_all(&media).unwrap();
+        let lines = vec![line(0, "Hello", Some("Ciao"))];
+
+        let a = tmp.path().join("a.apkg");
+        let b = tmp.path().join("b.apkg");
+        generate_apkg(&lines, &base_config("Deck", "English_Vesta", all_fields()), &media, &a)
+            .unwrap();
+        generate_apkg(&lines, &base_config("Deck", "German_Vesta", all_fields()), &media, &b)
+            .unwrap();
+
+        let (mid_a, _, _) = read_model(&a);
+        let (mid_b, _, _) = read_model(&b);
+        assert_ne!(mid_a, mid_b, "distinct note type names must not share a model id");
+    }
+}

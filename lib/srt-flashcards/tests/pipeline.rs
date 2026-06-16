@@ -5,10 +5,7 @@
 //! neither ffmpeg nor Tauri and finishes in milliseconds. If the test media is
 //! absent (e.g. a slim checkout) the tests skip instead of failing.
 
-use srt_flashcards::{
-    build_matched_lines, load_sub_file_info, preview, ContextConfig, FlashcardConfig,
-    SubtitleFilters,
-};
+use srt_flashcards::{build_matched_lines, load_sub_file_info, preview, FlashcardConfig};
 
 fn test_subs_dir() -> std::path::PathBuf {
     std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -30,70 +27,14 @@ fn media_present() -> bool {
 }
 
 /// Minimal text-only config (no media extraction) for pipeline tests.
+/// Everything but the subtitle paths uses [`FlashcardConfig`]'s text-only defaults.
 fn config(target: String, native: Option<String>) -> FlashcardConfig {
     FlashcardConfig {
         target_subs_path: target,
         native_subs_path: native,
-        video_path: None,
-        audio_path: None,
-        output_dir: String::new(),
-        use_timings_from: "target".to_string(),
-        span_start_ms: None,
-        span_end_ms: None,
-        time_shift_target_ms: 0,
-        time_shift_native_ms: 0,
-        filters: SubtitleFilters {
-            include_words: None,
-            exclude_words: None,
-            exclude_duplicates_subs1: false,
-            exclude_duplicates_subs2: false,
-            min_chars: None,
-            max_chars: None,
-            min_duration_ms: None,
-            max_duration_ms: None,
-            exclude_styled: false,
-            actor_filter: None,
-            only_cjk: false,
-            remove_no_match: false,
-        },
-        context: ContextConfig { leading: 0, trailing: 0, max_gap_seconds: 0.0 },
-        combine_sentences: false,
-        continuation_chars: String::new(),
-        generate_audio: false,
-        audio_bitrate: 128,
-        audio_track_index: None,
-        normalize_audio: false,
-        audio_pad_start_ms: 0,
-        audio_pad_end_ms: 0,
-        generate_snapshots: false,
-        snapshot_width: 240,
-        snapshot_height: 160,
-        crop_bottom: 0,
-        generate_video_clips: false,
-        video_codec: "h264".to_string(),
-        h264_preset: "ultrafast".to_string(),
-        video_bitrate: 1000,
-        video_audio_bitrate: 128,
-        video_pad_start_ms: 0,
-        video_pad_end_ms: 0,
         deck_name: "Test".to_string(),
-        episode_number: 1,
-        export_format: Some("tsv".to_string()),
-        note_type_name: None,
-        field_names: None,
-        output_fields: srt_flashcards::OutputFields {
-            include_tag: true,
-            include_sequence: true,
-            include_audio: false,
-            include_snapshot: false,
-            include_video: false,
-            include_subs1: true,
-            include_subs2: true,
-        },
         cpu_cores: Some(2),
-        card_front_html: None,
-        card_back_html: None,
-        card_css: None,
+        ..FlashcardConfig::default()
     }
 }
 

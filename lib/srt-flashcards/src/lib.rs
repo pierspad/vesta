@@ -52,7 +52,7 @@ mod types;
 
 pub mod media;
 
-pub use media::check_ffmpeg;
+pub use media::{check_ffmpeg, video_has_audio};
 pub use types::*;
 
 use export_apkg::generate_apkg;

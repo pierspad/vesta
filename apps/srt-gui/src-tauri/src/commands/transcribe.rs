@@ -138,7 +138,7 @@ fn postprocess_segments(raw: Vec<RawSegment>, max_segment_len: u32) -> Vec<RawSe
             if (c == '.' || c == '!' || c == '?' || c == ';') && i > last_split + 10 {
                 // Check if next char is space or end of string (to avoid splitting "3.5")
                 let next_char = text[i+c.len_utf8()..].chars().next();
-                if next_char.map_or(true, |nc| nc == ' ' || nc.is_uppercase()) {
+                if next_char.is_none_or(|nc| nc == ' ' || nc.is_uppercase()) {
                     splits.push(i + c.len_utf8());
                     last_split = i + c.len_utf8();
                 }

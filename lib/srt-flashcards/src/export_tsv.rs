@@ -73,42 +73,21 @@ pub(crate) fn generate_tsv(
         "avi"
     };
 
+    let of = &config.output_fields;
+
     for (seq, line) in active_lines.iter().enumerate() {
-        let mut fields: Vec<String> = Vec::new();
+        // TSV columns mirror the APKG note type schema, in the same canonical order
+        // and with the same inclusion rules: a column exists exactly when its
+        // toggle is on. A column that is on but empty (missing media, or the manual
+        // Reading/Notes slots) is written as an empty cell. So a TSV import maps
+        // onto the very same note type as an APKG import of the same configuration.
+        let mut fields: Vec<String> = Vec::with_capacity(9);
 
         let seq_num = seq + 1;
         let start_ts = ms_to_ffmpeg_ts(line.subs1.start_ms);
 
-        // Tag
-        if config.output_fields.include_tag {
-            fields.push(format!("{}_{:03}", config.deck_name, ep));
-        }
-
-        // Sequence marker
-        if config.output_fields.include_sequence {
-            fields.push(format!("{:03}_{:04}_{}", ep, seq_num, start_ts));
-        }
-
-        // Audio
-        if config.output_fields.include_audio && config.generate_audio {
-            let filename = format!("{}_{:03}_{:04}.mp3", sanitized_deck, ep, seq_num);
-            fields.push(format!("[sound:{}]", filename));
-        }
-
-        // Snapshot
-        if config.output_fields.include_snapshot && config.generate_snapshots {
-            let filename = format!("{}_{:03}_{:04}.jpg", sanitized_deck, ep, seq_num);
-            fields.push(format!("<img src=\"{}\">", filename));
-        }
-
-        // Video clip
-        if config.output_fields.include_video && config.generate_video_clips {
-            let filename = format!("{}_{:03}_{:04}.{}", sanitized_deck, ep, seq_num, video_ext);
-            fields.push(format!("[sound:{}]", filename));
-        }
-
-        // Subs1 text (with context)
-        if config.output_fields.include_subs1 {
+        // 1. Expression (subs1, with context)
+        if of.include_subs1 {
             fields.push(render_text_with_context(
                 &line.subs1.text,
                 line,
@@ -119,20 +98,69 @@ pub(crate) fn generate_tsv(
             ));
         }
 
-        // Subs2 text (with context)
-        if config.output_fields.include_subs2 {
-            if let Some(ref s2) = line.subs2 {
-                fields.push(render_text_with_context(
+        // 2. Meaning (subs2, with context)
+        if of.include_subs2 {
+            fields.push(match &line.subs2 {
+                Some(s2) => render_text_with_context(
                     &s2.text,
                     line,
                     lines,
                     |m| m.subs2.as_ref().map(|s| s.text.as_str()),
                     "style=\"color:gray\"",
                     true,
-                ));
+                ),
+                None => String::new(),
+            });
+        }
+
+        // 3. Audio
+        if of.include_audio {
+            fields.push(if config.generate_audio {
+                format!("[sound:{}_{:03}_{:04}.mp3]", sanitized_deck, ep, seq_num)
             } else {
-                fields.push(String::new());
-            }
+                String::new()
+            });
+        }
+
+        // 4. Snapshot
+        if of.include_snapshot {
+            fields.push(if config.generate_snapshots {
+                format!("<img src=\"{}_{:03}_{:04}.jpg\">", sanitized_deck, ep, seq_num)
+            } else {
+                String::new()
+            });
+        }
+
+        // 5. Video clip
+        if of.include_video {
+            fields.push(if config.generate_video_clips {
+                format!(
+                    "[sound:{}_{:03}_{:04}.{}]",
+                    sanitized_deck, ep, seq_num, video_ext
+                )
+            } else {
+                String::new()
+            });
+        }
+
+        // 6. Tags
+        if of.include_tag {
+            fields.push(format!("{}_{:03}", config.deck_name, ep));
+        }
+
+        // 7. SequenceMarker
+        if of.include_sequence {
+            fields.push(format!("{:03}_{:04}_{}", ep, seq_num, start_ts));
+        }
+
+        // 8. Reading (empty — user fills manually in Anki)
+        if of.include_reading {
+            fields.push(String::new());
+        }
+
+        // 9. Notes (empty — reserved for user annotations in Anki)
+        if of.include_notes {
+            fields.push(String::new());
         }
 
         tsv.push_str(&fields.join("\t"));

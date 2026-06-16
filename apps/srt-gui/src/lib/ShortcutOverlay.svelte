@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onDestroy, onMount } from "svelte";
   import { locale } from "./i18n";
-  import { getShortcuts, getSortedKeys, type ShortcutDefinition } from "./models";
+  import { formatKeyPart, getShortcuts, getSortedKeys, type ShortcutDefinition } from "./models";
 
   interface Props {
     activeTab: string;
@@ -198,7 +198,7 @@
                     <kbd
                       class="px-1.5 py-0.5 bg-gray-800 border border-gray-700 rounded text-[10px] text-gray-400 font-mono"
                     >
-                      {keyPart}
+                      {formatKeyPart(keyPart, t)}
                     </kbd>
                   {/each}
                 </div>
@@ -231,7 +231,7 @@
                     <kbd
                       class="px-1.5 py-0.5 bg-gray-800 border border-gray-700 rounded text-[10px] text-gray-400 font-mono"
                     >
-                      {keyPart}
+                      {formatKeyPart(keyPart, t)}
                     </kbd>
                   {/each}
                 </div>
