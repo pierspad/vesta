@@ -20,6 +20,7 @@
   import SearchableSelect from "./SearchableSelect.svelte";
   import LogPanel, { type LogEntry } from "./LogPanel.svelte";
   import { snackbar } from "./snackbarStore.svelte";
+  import { aiStore } from "./aiStore.svelte";
   import {
     extractModelsFromPayload,
     fetchModelsFromEndpoint,
@@ -214,6 +215,9 @@
 
   let fileInfo = $state<SrtFileInfo | null>(null);
   let isTranslating = $state(false);
+  $effect(() => {
+    aiStore.isTranslating = isTranslating;
+  });
   let progress = $state<TranslateProgressEvent | null>(null);
   let logs = $state<LogEntry[]>([]);
   let logIdCounter = 0;

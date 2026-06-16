@@ -5,6 +5,7 @@
   import fireplaceIcon from "../assets/fireplace.svg";
   import authorAvatar from "../assets/avatar.png";
   import { locale } from "./i18n";
+  import { aiStore } from "./aiStore.svelte";
   import {
     getStoredSettingsActionState,
     SETTINGS_ACTION_REQUIRED_EVENT,
@@ -312,7 +313,7 @@
     {#if activeTab === "settings"}
       <!-- Settings navigation buttons -->
       <button
-        class="w-full flex items-center gap-3.5 {collapsed ? 'px-2 justify-center' : 'px-3.5'} py-3 rounded-xl transition-all duration-300 border border-transparent cursor-pointer {settingsSection === 'overview'
+        class="w-full flex gap-3.5 items-center {collapsed ? 'px-2 justify-center' : 'px-3.5'} h-[60px] rounded-xl transition-all duration-300 border border-transparent cursor-pointer {settingsSection === 'overview'
           ? 'bg-gradient-to-r from-sky-600 to-sky-700 text-white shadow-lg shadow-sky-500/22 border-sky-500/30 bg-clip-padding'
           : 'text-gray-400 hover:bg-sky-500/10 hover:text-sky-400 hover:border-sky-500/20'}"
         onclick={() => settingsSection = "overview"}
@@ -324,58 +325,60 @@
           </svg>
         </div>
         {#if !collapsed}
-          <div class="text-left flex-1 py-1">
+          <div class="text-left flex-1 min-w-0 leading-tight">
             <span class="block text-[15px] font-semibold">{t("settings.section.overview")}</span>
           </div>
         {/if}
       </button>
 
-      <button
-        class="w-full flex items-center gap-3.5 {collapsed ? 'px-2 justify-center' : 'px-3.5'} py-3 rounded-xl transition-all duration-300 border border-transparent cursor-pointer {settingsSection === 'llm'
-          ? 'bg-gradient-to-r from-indigo-600 to-indigo-700 text-white shadow-lg shadow-indigo-500/22 border-indigo-500/30 bg-clip-padding'
-          : 'text-gray-400 hover:bg-indigo-500/10 hover:text-indigo-400 hover:border-indigo-500/20'}"
-        onclick={() => settingsSection = "llm"}
-        title={collapsed ? t("settings.section.llm") : undefined}
-      >
-        <div class="w-9 h-9 rounded-xl {settingsSection === 'llm' ? 'bg-white/20' : 'bg-white/5'} flex items-center justify-center flex-shrink-0 relative transition-colors border border-white/5">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3h6m-7 4h8a3 3 0 013 3v7a3 3 0 01-3 3H8a3 3 0 01-3-3v-7a3 3 0 01-3-3zm4 3v4m-2-2h4" />
-          </svg>
-          {#if needsLlmDot}
-            <span class="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-amber-500 ring-2 ring-gray-900 animate-pulse shadow-[0_0_8px_rgba(245,158,11,0.6)]"></span>
-          {/if}
-        </div>
-        {#if !collapsed}
-          <div class="text-left flex-1 py-1">
-            <span class="block text-[15px] font-semibold">{t("settings.section.llm")}</span>
+      {#if !aiStore.killSwitchActive}
+        <button
+          class="w-full flex gap-3.5 items-center {collapsed ? 'px-2 justify-center' : 'px-3.5'} h-[60px] rounded-xl transition-all duration-300 border border-transparent cursor-pointer {settingsSection === 'llm'
+            ? 'bg-gradient-to-r from-indigo-600 to-indigo-700 text-white shadow-lg shadow-indigo-500/22 border-indigo-500/30 bg-clip-padding'
+            : 'text-gray-400 hover:bg-indigo-500/10 hover:text-indigo-400 hover:border-indigo-500/20'}"
+          onclick={() => settingsSection = "llm"}
+          title={collapsed ? t("settings.section.llm") : undefined}
+        >
+          <div class="w-9 h-9 rounded-xl {settingsSection === 'llm' ? 'bg-white/20' : 'bg-white/5'} flex items-center justify-center flex-shrink-0 relative transition-colors border border-white/5">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3h6m-7 4h8a3 3 0 013 3v7a3 3 0 01-3 3H8a3 3 0 01-3-3v-7a3 3 0 01-3-3zm4 3v4m-2-2h4" />
+            </svg>
+            {#if needsLlmDot}
+              <span class="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-amber-500 ring-2 ring-gray-900 animate-pulse shadow-[0_0_8px_rgba(245,158,11,0.6)]"></span>
+            {/if}
           </div>
-        {/if}
-      </button>
+          {#if !collapsed}
+            <div class="text-left flex-1 min-w-0 leading-tight">
+              <span class="block text-[15px] font-semibold">{t("settings.section.llm")}</span>
+            </div>
+          {/if}
+        </button>
+
+        <button
+          class="w-full flex gap-3.5 items-center {collapsed ? 'px-2 justify-center' : 'px-3.5'} h-[60px] rounded-xl transition-all duration-300 border border-transparent cursor-pointer {settingsSection === 'whisper'
+            ? 'bg-gradient-to-r from-cyan-600 to-cyan-700 text-white shadow-lg shadow-cyan-500/22 border-cyan-500/30 bg-clip-padding'
+            : 'text-gray-400 hover:bg-cyan-500/10 hover:text-cyan-400 hover:border-cyan-500/20'}"
+          onclick={() => settingsSection = "whisper"}
+          title={collapsed ? t("settings.section.whisper") : undefined}
+        >
+          <div class="w-9 h-9 rounded-xl {settingsSection === 'whisper' ? 'bg-white/20' : 'bg-white/5'} flex items-center justify-center flex-shrink-0 relative transition-colors border border-white/5">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18a6 6 0 006-6V7a6 6 0 10-12 0v5a6 6 0 006 6zm0 0v3m-4 0h8" />
+            </svg>
+            {#if needsWhisperDot}
+              <span class="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-amber-500 ring-2 ring-gray-900 animate-pulse shadow-[0_0_8px_rgba(245,158,11,0.6)]"></span>
+            {/if}
+          </div>
+          {#if !collapsed}
+            <div class="text-left flex-1 min-w-0 leading-tight">
+              <span class="block text-[15px] font-semibold">{t("settings.section.whisper")}</span>
+            </div>
+          {/if}
+        </button>
+      {/if}
 
       <button
-        class="w-full flex items-center gap-3.5 {collapsed ? 'px-2 justify-center' : 'px-3.5'} py-3 rounded-xl transition-all duration-300 border border-transparent cursor-pointer {settingsSection === 'whisper'
-          ? 'bg-gradient-to-r from-cyan-600 to-cyan-700 text-white shadow-lg shadow-cyan-500/22 border-cyan-500/30 bg-clip-padding'
-          : 'text-gray-400 hover:bg-cyan-500/10 hover:text-cyan-400 hover:border-cyan-500/20'}"
-        onclick={() => settingsSection = "whisper"}
-        title={collapsed ? t("settings.section.whisper") : undefined}
-      >
-        <div class="w-9 h-9 rounded-xl {settingsSection === 'whisper' ? 'bg-white/20' : 'bg-white/5'} flex items-center justify-center flex-shrink-0 relative transition-colors border border-white/5">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18a6 6 0 006-6V7a6 6 0 10-12 0v5a6 6 0 006 6zm0 0v3m-4 0h8" />
-          </svg>
-          {#if needsWhisperDot}
-            <span class="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-amber-500 ring-2 ring-gray-900 animate-pulse shadow-[0_0_8px_rgba(245,158,11,0.6)]"></span>
-          {/if}
-        </div>
-        {#if !collapsed}
-          <div class="text-left flex-1 py-1">
-            <span class="block text-[15px] font-semibold">{t("settings.section.whisper")}</span>
-          </div>
-        {/if}
-      </button>
-
-      <button
-        class="w-full flex items-center gap-3.5 {collapsed ? 'px-2 justify-center' : 'px-3.5'} py-3 rounded-xl transition-all duration-300 border border-transparent cursor-pointer {settingsSection === 'language'
+        class="w-full flex gap-3.5 items-center {collapsed ? 'px-2 justify-center' : 'px-3.5'} h-[60px] rounded-xl transition-all duration-300 border border-transparent cursor-pointer {settingsSection === 'language'
           ? 'bg-gradient-to-r from-emerald-600 to-emerald-700 text-white shadow-lg shadow-emerald-500/22 border-emerald-500/30 bg-clip-padding'
           : 'text-gray-400 hover:bg-emerald-500/10 hover:text-emerald-400 hover:border-emerald-500/20'}"
         onclick={() => settingsSection = "language"}
@@ -387,14 +390,14 @@
           </svg>
         </div>
         {#if !collapsed}
-          <div class="text-left flex-1 py-1">
+          <div class="text-left flex-1 min-w-0 leading-tight">
             <span class="block text-[15px] font-semibold">{t("settings.section.language")}</span>
           </div>
         {/if}
       </button>
 
       <button
-        class="w-full flex items-center gap-3.5 {collapsed ? 'px-2 justify-center' : 'px-3.5'} py-3 rounded-xl transition-all duration-300 border border-transparent cursor-pointer {settingsSection === 'anki'
+        class="w-full flex gap-3.5 items-center {collapsed ? 'px-2 justify-center' : 'px-3.5'} h-[60px] rounded-xl transition-all duration-300 border border-transparent cursor-pointer {settingsSection === 'anki'
           ? 'bg-gradient-to-r from-amber-600 to-amber-700 text-white shadow-lg shadow-amber-500/22 border-amber-500/30 bg-clip-padding'
           : 'text-gray-400 hover:bg-amber-500/10 hover:text-amber-400 hover:border-amber-500/20'}"
         onclick={() => settingsSection = "anki"}
@@ -406,14 +409,14 @@
           </svg>
         </div>
         {#if !collapsed}
-          <div class="text-left flex-1 py-1">
+          <div class="text-left flex-1 min-w-0 leading-tight">
             <span class="block text-[15px] font-semibold">{t("settings.section.anki")}</span>
           </div>
         {/if}
       </button>
 
       <button
-        class="w-full flex items-center gap-3.5 {collapsed ? 'px-2 justify-center' : 'px-3.5'} py-3 rounded-xl transition-all duration-300 border border-transparent cursor-pointer {settingsSection === 'shortcuts'
+        class="w-full flex gap-3.5 items-center {collapsed ? 'px-2 justify-center' : 'px-3.5'} h-[60px] rounded-xl transition-all duration-300 border border-transparent cursor-pointer {settingsSection === 'shortcuts'
           ? 'bg-gradient-to-r from-purple-600 to-purple-700 text-white shadow-lg shadow-purple-500/22 border-purple-500/30 bg-clip-padding'
           : 'text-gray-400 hover:bg-purple-500/10 hover:text-purple-400 hover:border-purple-500/20'}"
         onclick={() => settingsSection = "shortcuts"}
@@ -428,14 +431,14 @@
           {/if}
         </div>
         {#if !collapsed}
-          <div class="text-left flex-1 py-1">
+          <div class="text-left flex-1 min-w-0 leading-tight">
             <span class="block text-[15px] font-semibold">{t("settings.section.shortcuts")}</span>
           </div>
         {/if}
       </button>
     {:else}
       <button
-        class="w-full flex items-center gap-3.5 {collapsed ? 'px-2 justify-center' : 'px-3.5'} py-3 rounded-xl transition-all duration-300 border border-transparent cursor-pointer {activeTab ===
+        class="w-full flex gap-3.5 items-center {collapsed ? 'px-2 justify-center' : 'px-3.5'} h-[60px] rounded-xl transition-all duration-300 border border-transparent cursor-pointer {activeTab ===
         'flashcards'
           ? 'bg-gradient-to-r from-amber-600 to-orange-700 text-white shadow-lg shadow-amber-500/22 shadow-orange-600/20 border-amber-500/30 bg-clip-padding'
           : 'text-gray-400 hover:bg-amber-500/10 hover:text-amber-400 hover:border-amber-500/20'}"
@@ -458,14 +461,14 @@
           </svg>
         </div>
         {#if !collapsed}
-          <div class="text-left flex-1 py-1">
+          <div class="text-left flex-1 min-w-0 leading-tight">
             <span class="block text-[15px] font-semibold {activeTab === 'flashcards' ? 'text-white' : ''}">{t("nav.flashcards")}</span>
           </div>
         {/if}
       </button>
 
       <button
-        class="w-full flex items-center gap-3.5 {collapsed ? 'px-2 justify-center' : 'px-3.5'} py-3 rounded-xl transition-all duration-300 border border-transparent cursor-pointer {activeTab ===
+        class="w-full flex gap-3.5 items-center {collapsed ? 'px-2 justify-center' : 'px-3.5'} h-[60px] rounded-xl transition-all duration-300 border border-transparent cursor-pointer {activeTab ===
         'refine'
           ? 'bg-gradient-to-r from-rose-600 to-pink-700 text-white shadow-lg shadow-rose-500/22 shadow-pink-600/20 border-rose-500/30 bg-clip-padding'
           : 'text-gray-400 hover:bg-rose-500/10 hover:text-rose-400 hover:border-rose-500/20'}"
@@ -479,44 +482,46 @@
           </svg>
         </div>
         {#if !collapsed}
-          <div class="text-left flex-1 py-1">
+          <div class="text-left flex-1 min-w-0 leading-tight">
             <span class="block text-[15px] font-semibold {activeTab === 'refine' ? 'text-white' : ''}">{t("nav.refine")}</span>
           </div>
         {/if}
       </button>
 
-      <button
-        class="w-full flex items-center gap-3.5 {collapsed ? 'px-2 justify-center' : 'px-3.5'} py-3 rounded-xl transition-all duration-300 border border-transparent cursor-pointer {activeTab ===
-        'translate'
-          ? 'bg-gradient-to-r from-fuchsia-700 to-rose-700 text-white shadow-lg shadow-fuchsia-500/20 shadow-rose-600/20 border-fuchsia-500/30 bg-clip-padding'
-          : 'text-gray-400 hover:bg-fuchsia-500/10 hover:text-fuchsia-400 hover:border-fuchsia-500/20'}"
-        onclick={() => onTabChange("translate")}
-        title={collapsed ? t("nav.translate") : undefined}
-      >
-        <div class="w-9 h-9 rounded-xl {activeTab === 'translate' ? 'bg-white/20' : 'bg-white/5'} flex items-center justify-center flex-shrink-0 relative transition-colors border border-white/5">
-          <svg
-            class="w-5 h-5"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129"
-            />
-          </svg>
-        </div>
-        {#if !collapsed}
-          <div class="text-left flex-1 py-1">
-            <span class="block text-[15px] font-semibold">{t("nav.translate")}</span>
+      {#if !aiStore.killSwitchActive}
+        <button
+          class="w-full flex gap-3.5 items-center {collapsed ? 'px-2 justify-center' : 'px-3.5'} h-[60px] rounded-xl transition-all duration-300 border border-transparent cursor-pointer {activeTab ===
+          'translate'
+            ? 'bg-gradient-to-r from-fuchsia-700 to-rose-700 text-white shadow-lg shadow-fuchsia-500/20 shadow-rose-600/20 border-fuchsia-500/30 bg-clip-padding'
+            : 'text-gray-400 hover:bg-fuchsia-500/10 hover:text-fuchsia-400 hover:border-fuchsia-500/20'}"
+          onclick={() => onTabChange("translate")}
+          title={collapsed ? t("nav.translate") : undefined}
+        >
+          <div class="w-9 h-9 rounded-xl {activeTab === 'translate' ? 'bg-white/20' : 'bg-white/5'} flex items-center justify-center flex-shrink-0 relative transition-colors border border-white/5">
+            <svg
+              class="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129"
+              />
+            </svg>
           </div>
-        {/if}
-      </button>
+          {#if !collapsed}
+            <div class="text-left flex-1 min-w-0 leading-tight">
+              <span class="block text-[15px] font-semibold">{t("nav.translate")}</span>
+            </div>
+          {/if}
+        </button>
+      {/if}
 
       <button
-        class="w-full flex items-center gap-3.5 {collapsed ? 'px-2 justify-center' : 'px-3.5'} py-3 rounded-xl transition-all duration-300 border border-transparent cursor-pointer {activeTab ===
+        class="w-full flex gap-3.5 items-center {collapsed ? 'px-2 justify-center' : 'px-3.5'} h-[60px] rounded-xl transition-all duration-300 border border-transparent cursor-pointer {activeTab ===
         'sync'
           ? 'bg-gradient-to-r from-sky-700 to-cyan-700 text-white shadow-lg shadow-cyan-500/20 shadow-sky-600/20 border-sky-500/30 bg-clip-padding'
           : 'text-gray-400 hover:bg-sky-500/10 hover:text-sky-400 hover:border-sky-500/20'}"
@@ -539,14 +544,14 @@
           </svg>
         </div>
         {#if !collapsed}
-          <div class="text-left flex-1 py-1">
+          <div class="text-left flex-1 min-w-0 leading-tight">
             <span class="block text-[15px] font-semibold">{t("nav.sync")}</span>
           </div>
         {/if}
       </button>
 
       <button
-        class="w-full flex items-center gap-3.5 {collapsed ? 'px-2 justify-center' : 'px-3.5'} py-3 rounded-xl transition-all duration-300 border border-transparent cursor-pointer {activeTab ===
+        class="w-full flex gap-3.5 items-center {collapsed ? 'px-2 justify-center' : 'px-3.5'} h-[60px] rounded-xl transition-all duration-300 border border-transparent cursor-pointer {activeTab ===
         'align'
           ? 'bg-gradient-to-r from-violet-700 to-indigo-700 text-white shadow-lg shadow-violet-500/20 shadow-indigo-600/20 border-violet-500/30 bg-clip-padding'
           : 'text-gray-400 hover:bg-violet-500/10 hover:text-violet-400 hover:border-violet-500/20'}"
@@ -559,42 +564,86 @@
           </svg>
         </div>
         {#if !collapsed}
-          <div class="text-left flex-1 py-1">
+          <div class="text-left flex-1 min-w-0 leading-tight">
             <span class="block text-[15px] font-semibold">{t("nav.revision")}</span>
           </div>
         {/if}
       </button>
 
+      {#if !aiStore.killSwitchActive}
+        <button
+          class="w-full flex gap-3.5 items-center {collapsed ? 'px-2 justify-center' : 'px-3.5'} h-[60px] rounded-xl transition-all duration-300 border border-transparent cursor-pointer {activeTab ===
+          'transcribe'
+            ? 'bg-gradient-to-r from-teal-700 to-emerald-700 text-white shadow-lg shadow-teal-500/20 shadow-emerald-600/20 border-teal-500/30 bg-clip-padding'
+            : 'text-gray-400 hover:bg-teal-500/10 hover:text-teal-400 hover:border-teal-500/20'}"
+          onclick={() => onTabChange("transcribe")}
+          title={collapsed ? t("nav.transcribe") : undefined}
+        >
+          <div class="w-9 h-9 rounded-xl {activeTab === 'transcribe' ? 'bg-white/20' : 'bg-white/5'} flex items-center justify-center flex-shrink-0 relative transition-colors border border-white/5">
+            <svg
+              class="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"
+              />
+            </svg>
+          </div>
+          {#if !collapsed}
+            <div class="text-left flex-1 min-w-0 leading-tight">
+              <span class="block text-[15px] font-semibold {activeTab === 'transcribe' ? 'text-white' : ''}">{t("nav.transcribe")}</span>
+            </div>
+          {/if}
+        </button>
+      {/if}
+    {/if}
+
+    <!-- AI Kill Switch at the bottom of the nav -->
+    <div class="mt-auto pt-2 flex flex-col gap-2">
       <button
-        class="w-full flex items-center gap-3.5 {collapsed ? 'px-2 justify-center' : 'px-3.5'} py-3 rounded-xl transition-all duration-300 border border-transparent cursor-pointer {activeTab ===
-        'transcribe'
-          ? 'bg-gradient-to-r from-teal-700 to-emerald-700 text-white shadow-lg shadow-teal-500/20 shadow-emerald-600/20 border-teal-500/30 bg-clip-padding'
-          : 'text-gray-400 hover:bg-teal-500/10 hover:text-teal-400 hover:border-teal-500/20'}"
-        onclick={() => onTabChange("transcribe")}
-        title={collapsed ? t("nav.transcribe") : undefined}
+        type="button"
+        onclick={() => {
+          if (!aiStore.hasActiveAiProcess) {
+            aiStore.toggleKillSwitch();
+          }
+        }}
+        disabled={aiStore.hasActiveAiProcess}
+        class="w-full flex h-[60px] items-center {collapsed ? 'justify-center px-2' : 'justify-between px-3.5'} rounded-xl border border-transparent bg-white/5 text-gray-400 hover:bg-white/10 hover:text-gray-300 transition-all duration-300 {aiStore.hasActiveAiProcess ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}"
+        title={collapsed ? (aiStore.killSwitchActive ? "AI Disattivata (Kill Switch ON)" : "AI Attiva (Kill Switch OFF)") : undefined}
       >
-        <div class="w-9 h-9 rounded-xl {activeTab === 'transcribe' ? 'bg-white/20' : 'bg-white/5'} flex items-center justify-center flex-shrink-0 relative transition-colors border border-white/5">
-          <svg
-            class="w-5 h-5"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"
-            />
-          </svg>
+        <div class="flex items-center gap-3.5">
+          <div class="w-9 h-9 rounded-xl bg-white/5 text-gray-400 border border-white/5 flex items-center justify-center flex-shrink-0 relative transition-colors">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              {#if aiStore.killSwitchActive}
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z M3 3l18 18" />
+              {:else}
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
+              {/if}
+            </svg>
+            {#if aiStore.hasActiveAiProcess}
+              <span class="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-blue-500 animate-ping"></span>
+            {/if}
+          </div>
+          {#if !collapsed}
+            <span class="text-[15px] font-semibold select-none leading-none text-gray-300">{t("nav.aiKillSwitch") || "AI Kill Switch"}</span>
+          {/if}
         </div>
         {#if !collapsed}
-          <div class="text-left flex-1 py-1">
-            <span class="block text-[15px] font-semibold {activeTab === 'transcribe' ? 'text-white' : ''}">{t("nav.transcribe")}</span>
+          <div 
+            class="w-10 h-6 rounded-full p-1 transition-colors duration-200 shrink-0 {aiStore.killSwitchActive ? 'bg-indigo-600' : 'bg-white/10'}"
+            role="switch"
+            aria-checked={aiStore.killSwitchActive}
+          >
+            <div class="bg-white w-4 h-4 rounded-full shadow-md transform transition-transform duration-200 {aiStore.killSwitchActive ? 'translate-x-4' : 'translate-x-0'}"></div>
           </div>
         {/if}
       </button>
-    {/if}
+    </div>
   </nav>
 
   <div class="h-[92px] px-4 border-t border-white/10 bg-gray-900 flex items-center shrink-0">

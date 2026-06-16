@@ -14,6 +14,7 @@
   import AppContextMenu from "./lib/AppContextMenu.svelte";
   import Snackbar from "./lib/Snackbar.svelte";
   import { snackbar } from "./lib/snackbarStore.svelte";
+  import { aiStore } from "./lib/aiStore.svelte";
 
   type AppTab = "translate" | "sync" | "transcribe" | "align" | "flashcards" | "settings" | "refine";
 
@@ -36,6 +37,17 @@
   let requestedSettingsSection = $state<"overview" | "llm" | "whisper" | "language" | "anki" | "shortcuts">("overview");
   let highlightItemId = $state<string | null>(null);
   let lastActiveMainTab = $state<Exclude<AppTab, "settings">>("flashcards");
+
+  $effect(() => {
+    if (aiStore.killSwitchActive) {
+      if (activeTab === "translate" || activeTab === "transcribe") {
+        changeTab("flashcards");
+      }
+      if (requestedSettingsSection === "llm" || requestedSettingsSection === "whisper") {
+        requestedSettingsSection = "overview";
+      }
+    }
+  });
 
   const MIN_WIDTH = 460;
   const MIN_HEIGHT = 520;

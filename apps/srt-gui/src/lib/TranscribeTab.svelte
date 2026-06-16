@@ -12,6 +12,7 @@
   import SearchableSelect from "./SearchableSelect.svelte";
   import { snackbar } from "./snackbarStore.svelte";
   import ConfirmDialog from "./ConfirmDialog.svelte";
+  import { aiStore } from "./aiStore.svelte";
 
   let { onGoToSettings, active = false } = $props<{
     onGoToSettings?: (section?: "overview" | "llm" | "whisper" | "language" | "anki" | "shortcuts", highlightItemId?: string) => void;
@@ -50,6 +51,9 @@
   }
 
   let isTranscribing = $state(false);
+  $effect(() => {
+    aiStore.isTranscribing = isTranscribing;
+  });
   let progress = $state(0);
   let progressMessage = $state("");
   let progressStage = $state("");
