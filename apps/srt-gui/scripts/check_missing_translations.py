@@ -46,6 +46,7 @@ SAME_AS_ENGLISH_ALLOWED_KEYS = {
     "app.title",
     "common.no",
     "flashcards.audioField",
+    "flashcards.notesField",
     "flashcards.cpuEco",
     "flashcards.previewStatus",
     "flashcards.videoField",
