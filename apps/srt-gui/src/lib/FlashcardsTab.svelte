@@ -1915,6 +1915,7 @@
       if (mediaFiles.length > 0) {
         const mediaPath = mediaFiles[0];
         await applyMediaSelection(mediaPath);
+        await tryAutoSelectSubtitlesForMedia(mediaPath, subtitleFiles.length === 0);
       }
     }
   }
@@ -2381,6 +2382,38 @@
     }
   }
 
+  async function tryAutoSelectSubtitlesForMedia(path: string, force = false) {
+    if (!smartFileMatchingEnabled) return;
+    const needsTarget = !targetSubsPath;
+    const needsNative = !nativeSubsPath;
+    if (!force && !needsTarget && !needsNative) return;
+
+    try {
+      const defaultTargetLang = getStudiedLanguagePreference();
+      const defaultNativeLang = getNativeLanguagePreference();
+
+      const suggested = await invoke<{ target: string | null; native: string | null }>(
+        "sync_suggest_subtitles_for_media",
+        {
+          mediaPath: path,
+          defaultTargetLang: defaultTargetLang || null,
+          defaultNativeLang: defaultNativeLang || null,
+        }
+      );
+
+      if (suggested) {
+        if (suggested.target && (force || !targetSubsPath)) {
+          await loadTargetSubtitle(suggested.target);
+        }
+        if (suggested.native && (force || !nativeSubsPath)) {
+          await loadNativeSubtitle(suggested.native);
+        }
+      }
+    } catch (e) {
+      console.error("[SmartMatching] Error suggesting subtitles for media:", e);
+    }
+  }
+
   async function selectTargetSubs() {
     try {
       const selected = await guardedOpen({
@@ -2479,6 +2512,7 @@
       });
       if (selected) {
         await applyMediaSelection(selected as string);
+        await tryAutoSelectSubtitlesForMedia(selected as string, true);
       }
     } catch (e) {
       error = `${t("flashcards.errorSelectingFile")}: ${e}`;
@@ -2980,7 +3014,7 @@
   {#if showPreview}
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div
-      class="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-6"
+      class="fixed inset-0 z-50 bg-black/70 flex items-center justify-start pl-6 md:pl-16 lg:pl-[8vw] p-6"
       role="dialog"
       aria-modal="true"
       tabindex="-1"
@@ -2991,18 +3025,24 @@
     >
       <!-- svelte-ignore a11y_no_static_element_interactions -->
       <div
-        class="bg-gray-900 border border-gray-700 rounded-xl w-full max-w-5xl max-h-[85vh] flex flex-col"
+        class="bg-gray-900 border border-gray-800 rounded-xl w-full max-w-6xl max-h-[85vh] flex flex-col shadow-2xl"
         onclick={(e) => e.stopPropagation()}
         onkeydown={(e) => e.stopPropagation()}
       >
+        <!-- Modal Header -->
         <div
-          class="flex items-center justify-between p-4 border-b border-gray-700"
+          class="flex items-center justify-between p-4 border-b border-gray-800/80 bg-gray-900"
         >
           <div class="flex items-center gap-3">
-            <h2 class="text-lg font-bold text-emerald-400">
+            <h2 class="text-lg font-bold text-emerald-400 flex items-center gap-2">
+              <svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+              </svg>
               {t("flashcards.preview")}
             </h2>
           </div>
+          
+          <div class="flex items-center gap-4">
             <div class="relative flex items-center">
               <span class="absolute left-3 text-gray-400">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -3012,250 +3052,296 @@
               <input
                 type="text"
                 bind:value={previewSearch}
-                class="bg-gray-800/80 hover:bg-gray-800 focus:bg-gray-950 border border-gray-700/80 focus:border-emerald-500/50 text-xs text-gray-100 placeholder-gray-500 rounded-lg pl-9 pr-3 py-1.5 w-60 outline-none focus:ring-1 focus:ring-emerald-500/20 transition-all"
+                class="bg-gray-850 hover:bg-gray-800 focus:bg-gray-950 border border-gray-750 focus:border-emerald-500/50 text-xs text-gray-100 placeholder-gray-500 rounded-lg pl-9 pr-3 py-1.5 w-60 outline-none focus:ring-1 focus:ring-emerald-500/20 transition-all"
                 placeholder={t("flashcards.previewSearch")}
               />
             </div>
             <button
               onclick={() => (showPreview = false)}
-	              class="dialog-close-button text-gray-400 hover:text-white text-xl leading-none p-1"
+              class="dialog-close-button text-gray-400 hover:text-white text-xl leading-none p-1 transition-colors"
             >
               ✕
             </button>
           </div>
-
-        <div
-          class="px-4 py-2 border-b border-gray-700 flex items-center justify-between"
-        >
-          <div class="flex items-center gap-2">
-            <div class="flex rounded-lg overflow-hidden border border-gray-700">
-              {#each [["all", t("flashcards.previewAll"), "All subtitle lines"], ["active", t("flashcards.previewActive"), "Lines that will become flashcards"], ["inactive", t("flashcards.previewInactive"), "Lines excluded by your filters"]] as [val, label, tooltip]}
-                <button
-                  class="px-3 py-1 text-xs font-medium transition-colors {previewFilter ===
-                  val
-                    ? 'bg-emerald-500/20 text-emerald-300'
-                    : 'text-gray-400 hover:bg-gray-800'}"
-                  onclick={() => (previewFilter = val as any)}
-                  title={tooltip}
-                >
-                  {label}
-                </button>
-              {/each}
-            </div>
-            <span class="text-xs text-gray-500">
-              {filteredPreview.length}
-              {t("flashcards.linesShown")}
-            </span>
-          </div>
-          {#if previewTotalPages > 1}
-            <div class="flex items-center gap-1">
-              <button
-                disabled={previewPage <= 1}
-                onclick={() => (previewPage = 1)}
-                class="px-2 py-1 text-xs rounded text-gray-400 hover:text-white hover:bg-gray-800 disabled:opacity-30 disabled:cursor-not-allowed"
-                >«</button
-              >
-              <button
-                disabled={previewPage <= 1}
-                onclick={() => previewPage--}
-                class="px-2 py-1 text-xs rounded text-gray-400 hover:text-white hover:bg-gray-800 disabled:opacity-30 disabled:cursor-not-allowed"
-                >‹</button
-              >
-              <span class="text-xs text-gray-400 px-2">
-                {previewPage} / {previewTotalPages}
-              </span>
-              <button
-                disabled={previewPage >= previewTotalPages}
-                onclick={() => previewPage++}
-                class="px-2 py-1 text-xs rounded text-gray-400 hover:text-white hover:bg-gray-800 disabled:opacity-30 disabled:cursor-not-allowed"
-                >›</button
-              >
-              <button
-                disabled={previewPage >= previewTotalPages}
-                onclick={() => (previewPage = previewTotalPages)}
-                class="px-2 py-1 text-xs rounded text-gray-400 hover:text-white hover:bg-gray-800 disabled:opacity-30 disabled:cursor-not-allowed"
-                >»</button
-              >
-            </div>
-          {/if}
         </div>
 
-        <div class="flex-1 overflow-y-auto p-2">
-          {#if previewLoading}
-            <div class="flex items-center justify-center h-32">
-              <div
-                class="animate-spin w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full"
-              ></div>
+        <!-- Dialog Body: Columns layout -->
+        <div class="flex-1 flex overflow-hidden min-h-0">
+          
+          <!-- Left Column: Table of cards, filters, pagination -->
+          <div class="flex-1 flex flex-col min-w-0 min-h-0">
+            <!-- Sub-header (Filters, count, pagination) -->
+            <div class="px-4 py-2 border-b border-gray-800/80 bg-gray-900/50 flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <div class="flex rounded-lg overflow-hidden border border-gray-800">
+                  {#each [["all", t("flashcards.previewAll"), "All subtitle lines"], ["active", t("flashcards.previewActive"), "Lines that will become flashcards"], ["inactive", t("flashcards.previewInactive"), "Lines excluded by your filters"]] as [val, label, tooltip]}
+                    <button
+                      class="px-3 py-1 text-xs font-medium transition-colors {previewFilter === val
+                        ? 'bg-emerald-500/20 text-emerald-300'
+                        : 'text-gray-400 hover:bg-gray-800'}"
+                      onclick={() => (previewFilter = val as any)}
+                      title={tooltip}
+                    >
+                      {label}
+                    </button>
+                  {/each}
+                </div>
+                <span class="text-xs text-gray-500">
+                  {filteredPreview.length} {t("flashcards.linesShown")}
+                </span>
+              </div>
+              
+              {#if previewTotalPages > 1}
+                <div class="flex items-center gap-1">
+                  <button
+                    disabled={previewPage <= 1}
+                    onclick={() => (previewPage = 1)}
+                    class="px-2 py-1 text-xs rounded text-gray-400 hover:text-white hover:bg-gray-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                    >«</button
+                  >
+                  <button
+                    disabled={previewPage <= 1}
+                    onclick={() => previewPage--}
+                    class="px-2 py-1 text-xs rounded text-gray-400 hover:text-white hover:bg-gray-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                    >‹</button
+                  >
+                  <span class="text-xs text-gray-400 px-2 font-mono">
+                    {previewPage} / {previewTotalPages}
+                  </span>
+                  <button
+                    disabled={previewPage >= previewTotalPages}
+                    onclick={() => previewPage++}
+                    class="px-2 py-1 text-xs rounded text-gray-400 hover:text-white hover:bg-gray-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                    >›</button
+                  >
+                  <button
+                    disabled={previewPage >= previewTotalPages}
+                    onclick={() => (previewPage = previewTotalPages)}
+                    class="px-2 py-1 text-xs rounded text-gray-400 hover:text-white hover:bg-gray-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                    >»</button
+                  >
+                </div>
+              {/if}
             </div>
-          {:else}
-            <table class="w-full text-xs">
-              <thead class="sticky top-0 z-10">
-                <tr class="text-gray-400 bg-gray-800 shadow-sm">
-                  <th class="p-2 text-left w-12">#</th>
-                  {#if previewMediaPath}
-                    <th class="p-2 text-center w-12">Play</th>
-                  {/if}
-                  <th class="p-2 text-left w-20"
-                    >{t("flashcards.previewTime")}</th
-                  >
-                  <th class="p-2 text-left">{t("flashcards.subs1")}</th>
-                  {#if nativeSubsPath}
-                    <th class="p-2 text-left">{t("flashcards.subs2")}</th>
-                  {/if}
-                  <th class="p-2 text-center w-16"
-                    >{t("flashcards.previewStatus")}</th
-                  >
-                </tr>
-              </thead>
-              <tbody>
-                {#each previewPaged as line, i}
-                  <tr
-                    class="border-t border-gray-800 {line.active
-                      ? 'bg-emerald-500/5 hover:bg-emerald-500/10'
-                      : 'bg-red-500/5 opacity-60 hover:bg-red-500/10'}"
-                  >
-                    <td class="p-2 text-gray-500 font-mono">{line.index + 1}</td>
-                    {#if previewMediaPath}
-                      <td class="p-2 text-center">
-                        <button
-                          type="button"
-                          onclick={() => playPreviewLine(line)}
-                          class="text-gray-400 hover:text-emerald-400 transition-colors p-1"
-                          title="Riproduci questa riga"
-                        >
-                          {#if playingLine && playingLine.index === line.index && previewIsPlaying}
-                            <svg class="w-4 h-4 text-emerald-400" fill="currentColor" viewBox="0 0 24 24">
-                              <path fill-rule="evenodd" d="M6.75 5.25a.75.75 0 0 1 .75-.75H9a.75.75 0 0 1 .75.75v13.5a.75.75 0 0 1-.75.75H7.5a.75.75 0 0 1-.75-.75V5.25Zm7.5 0A.75.75 0 0 1 15 4.5h1.5a.75.75 0 0 1 .75.75v13.5a.75.75 0 0 1-.75.75H15a.75.75 0 0 1-.75-.75V5.25Z" clip-rule="evenodd" />
-                            </svg>
-                          {:else}
-                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                              <path fill-rule="evenodd" d="M4.5 5.653c0-1.427 1.529-2.33 2.779-1.643l11.54 6.347c1.295.712 1.295 2.573 0 3.286L7.28 19.99c-1.25.687-2.779-.217-2.779-1.643V5.653Z" clip-rule="evenodd" />
-                            </svg>
-                          {/if}
-                        </button>
-                      </td>
-                    {/if}
-                    <td class="p-2 text-gray-400 font-mono">
-                      {Math.floor(line.start_ms / 60000)}:{String(
-                        Math.floor((line.start_ms % 60000) / 1000),
-                      ).padStart(2, "0")}
-                    </td>
-                    <td class="p-2">
-                      <span
-                        contenteditable="true"
-                        class="text-gray-200 outline-none focus:bg-gray-800/50 focus:ring-1 focus:ring-emerald-500/30 rounded px-1 -mx-1 block"
-                        onblur={(e) => {
-                          line.subs1_text =
-                            (e.target as HTMLElement).textContent || "";
-                        }}>{line.subs1_text}</span
-                      >
-                    </td>
-                    {#if nativeSubsPath}
-                      <td class="p-2">
-                        <span
-                          contenteditable="true"
-                          class="text-gray-300 outline-none focus:bg-gray-800/50 focus:ring-1 focus:ring-emerald-500/30 rounded px-1 -mx-1 block"
-                          onblur={(e) => {
-                            line.subs2_text =
-                              (e.target as HTMLElement).textContent || "";
-                          }}>{line.subs2_text || "—"}</span
-                        >
-                      </td>
-                    {/if}
-                    <td class="p-2 text-center">
-                      {#if line.active}
-                        <span
-                          class="inline-block w-2 h-2 bg-emerald-400 rounded-full"
-                        ></span>
-                      {:else}
-                        <span
-                          class="inline-block w-2 h-2 bg-red-400 rounded-full"
-                        ></span>
+
+            <!-- Table content -->
+            <div class="flex-1 overflow-y-auto p-2">
+              {#if previewLoading}
+                <div class="flex items-center justify-center h-32">
+                  <div class="animate-spin w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full"></div>
+                </div>
+              {:else}
+                <table class="w-full text-xs">
+                  <thead class="sticky top-0 z-10">
+                    <tr class="text-gray-400 bg-gray-800 shadow-sm">
+                      <th class="p-2 text-left w-12">#</th>
+                      {#if previewMediaPath}
+                        <th class="p-2 text-center w-12">Play</th>
                       {/if}
-                    </td>
-                  </tr>
-                {/each}
-              </tbody>
-            </table>
+                      <th class="p-2 text-left w-20">{t("flashcards.previewTime")}</th>
+                      <th class="p-2 text-left">{t("flashcards.subs1")}</th>
+                      {#if nativeSubsPath}
+                        <th class="p-2 text-left">{t("flashcards.subs2")}</th>
+                      {/if}
+                      <th class="p-2 text-center w-16">{t("flashcards.previewStatus")}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {#each previewPaged as line, i}
+                      <tr class="border-t border-gray-800/60 {line.active
+                          ? 'bg-emerald-500/5 hover:bg-emerald-500/10'
+                          : 'bg-red-500/5 opacity-60 hover:bg-red-500/10'} transition-colors"
+                      >
+                        <td class="p-2 text-gray-500 font-mono">{line.index + 1}</td>
+                        {#if previewMediaPath}
+                          <td class="p-2 text-center">
+                            <button
+                              type="button"
+                              onclick={() => playPreviewLine(line)}
+                              class="text-gray-400 hover:text-emerald-400 transition-colors p-1"
+                              title="Riproduci questa riga"
+                            >
+                              {#if playingLine && playingLine.index === line.index && previewIsPlaying}
+                               <svg class="w-4 h-4 text-emerald-400" fill="currentColor" viewBox="0 0 24 24">
+                                  <path fill-rule="evenodd" d="M6.75 5.25a.75.75 0 0 1 .75-.75H9a.75.75 0 0 1 .75.75v13.5a.75.75 0 0 1-.75.75H7.5a.75.75 0 0 1-.75-.75V5.25Zm7.5 0A.75.75 0 0 1 15 4.5h1.5a.75.75 0 0 1 .75.75v13.5a.75.75 0 0 1-.75.75H15a.75.75 0 0 1-.75-.75V5.25Z" clip-rule="evenodd" />
+                                </svg>
+                              {:else}
+                                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                                  <path fill-rule="evenodd" d="M4.5 5.653c0-1.427 1.529-2.33 2.779-1.643l11.54 6.347c1.295.712 1.295 2.573 0 3.286L7.28 19.99c-1.25.687-2.779-.217-2.779-1.643V5.653Z" clip-rule="evenodd" />
+                                </svg>
+                              {/if}
+                            </button>
+                          </td>
+                        {/if}
+                        <td class="p-2 text-gray-400 font-mono">
+                          {Math.floor(line.start_ms / 60000)}:{String(Math.floor((line.start_ms % 60000) / 1000)).padStart(2, "0")}
+                        </td>
+                        <td class="p-2">
+                          <span
+                            contenteditable="true"
+                            class="text-gray-200 outline-none focus:bg-gray-800/50 focus:ring-1 focus:ring-emerald-500/30 rounded px-1 -mx-1 block"
+                            onblur={(e) => {
+                              line.subs1_text = (e.target as HTMLElement).textContent || "";
+                            }}>{line.subs1_text}</span
+                          >
+                        </td>
+                        {#if nativeSubsPath}
+                          <td class="p-2">
+                            <span
+                              contenteditable="true"
+                              class="text-gray-300 outline-none focus:bg-gray-800/50 focus:ring-1 focus:ring-emerald-500/30 rounded px-1 -mx-1 block"
+                              onblur={(e) => {
+                                line.subs2_text = (e.target as HTMLElement).textContent || "";
+                              }}>{line.subs2_text || "—"}</span
+                            >
+                          </td>
+                        {/if}
+                        <td class="p-2 text-center">
+                          {#if line.active}
+                            <span class="inline-block w-2 h-2 bg-emerald-400 rounded-full"></span>
+                          {:else}
+                            <span class="inline-block w-2 h-2 bg-red-400 rounded-full"></span>
+                          {/if}
+                        </td>
+                      </tr>
+                    {/each}
+                  </tbody>
+                </table>
+              {/if}
+            </div>
+          </div>
+
+          <!-- Right Column: Dedicated Player Sidebar -->
+          {#if previewMediaPath}
+            <div class="w-[360px] shrink-0 border-l border-gray-800 bg-gray-950/35 p-4 flex flex-col justify-between min-h-0 select-none">
+              
+              <!-- Player Container (Video/Audio/Placeholder) -->
+              <div class="flex flex-col gap-4 flex-1 overflow-y-auto">
+                <div class="flex items-center justify-between border-b border-gray-800 pb-2">
+                  <span class="text-xs font-semibold text-emerald-400 flex items-center gap-1.5">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                    </svg>
+                    Anteprima Riproduzione
+                  </span>
+                  {#if playingLine}
+                    <button
+                      onclick={() => {
+                        if (playerElement) playerElement.pause();
+                        playingLine = null;
+                      }}
+                      class="text-gray-500 hover:text-white text-xs transition-colors"
+                    >
+                      Cancella
+                    </button>
+                  {/if}
+                </div>
+
+                {#if playingLine}
+                  <!-- Player Media Panel -->
+                  {#if previewMediaType === "video"}
+                    <div class="w-full aspect-video rounded-lg bg-black overflow-hidden border border-gray-800/80 shadow-md">
+                      <video
+                        bind:this={playerElement}
+                        class="w-full h-full object-contain"
+                        onplay={() => (previewIsPlaying = true)}
+                        onpause={() => (previewIsPlaying = false)}
+                        onended={() => {
+                          previewIsPlaying = false;
+                          playingLine = null;
+                        }}
+                        controls={false}
+                        autoplay
+                      ></video>
+                    </div>
+                  {:else}
+                    <!-- Audio Player View -->
+                    <div class="w-full h-24 rounded-lg bg-emerald-950/10 border border-emerald-900/35 flex flex-col items-center justify-center gap-2 p-3 text-emerald-400">
+                      <svg class="w-8 h-8 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
+                      </svg>
+                      <span class="text-xs font-mono">Riproduzione Audio in corso</span>
+                      <audio
+                        bind:this={playerElement}
+                        onplay={() => (previewIsPlaying = true)}
+                        onpause={() => (previewIsPlaying = false)}
+                        onended={() => {
+                          previewIsPlaying = false;
+                          playingLine = null;
+                        }}
+                        autoplay
+                        class="hidden"
+                      ></audio>
+                    </div>
+                  {/if}
+
+                  <!-- Subtitle details -->
+                  <div class="flex flex-col gap-2 mt-2 bg-gray-900/40 p-3 rounded-lg border border-gray-850">
+                    <div class="flex justify-between items-center text-[11px] font-mono text-gray-500">
+                      <span class="bg-gray-850 px-1.5 py-0.5 rounded text-emerald-400 font-semibold">
+                        Riga #{playingLine.index + 1}
+                      </span>
+                      <span>
+                        {Math.floor(playingLine.start_ms / 60000)}:{String(Math.floor((playingLine.start_ms % 60000) / 1000)).padStart(2, "0")} - 
+                        {Math.floor(playingLine.end_ms / 60000)}:{String(Math.floor((playingLine.end_ms % 60000) / 1000)).padStart(2, "0")}
+                      </span>
+                    </div>
+                    <div class="text-xs text-gray-250 italic font-sans break-words bg-black/10 p-2 rounded border border-gray-900/20 leading-relaxed max-h-40 overflow-y-auto">
+                      "{playingLine.subs1_text}"
+                    </div>
+                    {#if playingLine.subs2_text}
+                      <div class="text-xs text-gray-400 italic font-sans break-words bg-black/10 p-2 rounded border border-gray-900/20 leading-relaxed max-h-40 overflow-y-auto">
+                        "{playingLine.subs2_text}"
+                      </div>
+                    {/if}
+                  </div>
+                {:else}
+                  <!-- Placeholder state when no line is selected -->
+                  <div class="flex-1 flex flex-col items-center justify-center p-6 text-center border-2 border-dashed border-gray-800/40 rounded-xl bg-gray-900/10 min-h-[220px]">
+                    <div class="w-12 h-12 rounded-full bg-gray-900 border border-gray-800 flex items-center justify-center text-gray-500 mb-3">
+                      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </div>
+                    <p class="text-xs font-semibold text-gray-400">Nessuna anteprima attiva</p>
+                    <p class="text-[10px] text-gray-500 mt-1 max-w-[200px] leading-normal">
+                      Fai clic sul pulsante Play di una riga per ascoltare l'audio o guardare la clip video corrispondente.
+                    </p>
+                  </div>
+                {/if}
+              </div>
+
+              <!-- Action button at bottom of sidebar (Play/Pause control if a line is active) -->
+              {#if playingLine}
+                <div class="flex items-center justify-center gap-4 mt-4 border-t border-gray-800/60 pt-3">
+                  <button
+                    onclick={() => {
+                      if (playerElement) {
+                        if (playerElement.paused) playerElement.play().catch(() => {});
+                        else playerElement.pause();
+                      }
+                    }}
+                    class="flex items-center justify-center gap-2 px-5 py-2 w-full rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 hover:border-emerald-500/35 transition-all text-xs font-medium cursor-pointer"
+                  >
+                    {#if previewIsPlaying}
+                      <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                        <path fill-rule="evenodd" d="M6.75 5.25a.75.75 0 0 1 .75-.75H9a.75.75 0 0 1 .75.75v13.5a.75.75 0 0 1-.75.75H7.5a.75.75 0 0 1-.75-.75V5.25Zm7.5 0A.75.75 0 0 1 15 4.5h1.5a.75.75 0 0 1 .75.75v13.5a.75.75 0 0 1-.75.75H15a.75.75 0 0 1-.75-.75V5.25Z" clip-rule="evenodd" />
+                      </svg>
+                      Pausa
+                    {:else}
+                      <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                        <path fill-rule="evenodd" d="M4.5 5.653c0-1.427 1.529-2.33 2.779-1.643l11.54 6.347c1.295.712 1.295 2.573 0 3.286L7.28 19.99c-1.25.687-2.779-.217-2.779-1.643V5.653Z" clip-rule="evenodd" />
+                      </svg>
+                      Riproduci
+                    {/if}
+                  </button>
+                </div>
+              {/if}
+            </div>
           {/if}
         </div>
       </div>
-
-      {#if playingLine && previewMediaPath}
-        <div class="fixed bottom-10 right-10 z-50 glass-card p-4 w-72 rounded-xl shadow-2xl border border-gray-700/60 flex flex-col gap-2 transition-all" onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()}>
-          <div class="flex items-center justify-between">
-            <span class="text-xs font-semibold text-emerald-400">Anteprima Riproduzione</span>
-            <button
-              onclick={() => {
-                if (playerElement) playerElement.pause();
-                playingLine = null;
-              }}
-              class="text-gray-400 hover:text-white text-xs"
-            >
-              Chiudi
-            </button>
-          </div>
-          
-          {#if previewMediaType === "video"}
-            <div class="w-full aspect-video rounded bg-black overflow-hidden border border-gray-800">
-              <video
-                bind:this={playerElement}
-                class="w-full h-full object-contain"
-                onplay={() => (previewIsPlaying = true)}
-                onpause={() => (previewIsPlaying = false)}
-                onended={() => {
-                  previewIsPlaying = false;
-                  playingLine = null;
-                }}
-                controls={false}
-                autoplay
-              ></video>
-            </div>
-          {:else}
-            <audio
-              bind:this={playerElement}
-              onplay={() => (previewIsPlaying = true)}
-              onpause={() => (previewIsPlaying = false)}
-              onended={() => {
-                previewIsPlaying = false;
-                playingLine = null;
-              }}
-              autoplay
-              class="hidden"
-            ></audio>
-          {/if}
-          
-          <div class="text-[10px] text-gray-400 flex flex-col gap-0.5 mt-1">
-            <div class="flex justify-between font-mono">
-              <span># {playingLine.index + 1}</span>
-              <span>{Math.floor(playingLine.start_ms / 60000)}:{String(Math.floor((playingLine.start_ms % 60000) / 1000)).padStart(2, "0")}</span>
-            </div>
-            <p class="text-gray-200 truncate italic mt-1 font-sans">"{playingLine.subs1_text}"</p>
-          </div>
-          
-          <div class="flex items-center justify-center gap-4 mt-2 border-t border-gray-800/80 pt-2">
-            <button
-              onclick={() => {
-                if (playerElement) {
-                  if (playerElement.paused) playerElement.play();
-                  else playerElement.pause();
-                }
-              }}
-              class="p-2 rounded-full bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 transition-colors"
-            >
-              {#if previewIsPlaying}
-                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                  <path fill-rule="evenodd" d="M6.75 5.25a.75.75 0 0 1 .75-.75H9a.75.75 0 0 1 .75.75v13.5a.75.75 0 0 1-.75.75H7.5a.75.75 0 0 1-.75-.75V5.25Zm7.5 0A.75.75 0 0 1 15 4.5h1.5a.75.75 0 0 1 .75.75v13.5a.75.75 0 0 1-.75.75H15a.75.75 0 0 1-.75-.75V5.25Z" clip-rule="evenodd" />
-                </svg>
-              {:else}
-                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                  <path fill-rule="evenodd" d="M4.5 5.653c0-1.427 1.529-2.33 2.779-1.643l11.54 6.347c1.295.712 1.295 2.573 0 3.286L7.28 19.99c-1.25.687-2.779-.217-2.779-1.643V5.653Z" clip-rule="evenodd" />
-                </svg>
-              {/if}
-            </button>
-          </div>
-        </div>
-      {/if}
     </div>
   {/if}
 

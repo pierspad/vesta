@@ -324,6 +324,71 @@ fn simplify_subtitle_stem(name: &str) -> String {
         .join(" ")
 }
 
+/// Suggerisce in modo best-effort i file sottotitoli associati a un file media.
+/// Restituisce la lista di candidati ordinati per punteggio decrescente.
+pub fn suggest_subtitles_for_media(media_path: &Path) -> std::io::Result<Vec<(PathBuf, i32)>> {
+    let Some(parent) = media_path.parent() else {
+        return Ok(Vec::new());
+    };
+    let Some(media_stem) = media_path.file_stem().and_then(|s| s.to_str()).filter(|s| !s.is_empty())
+    else {
+        return Ok(Vec::new());
+    };
+
+    let media_tokens = normalized_tokens(media_stem);
+    let media_ep = extract_episode_number(media_stem);
+    let media_joined = media_tokens.join(" ");
+
+    let mut candidates: Vec<(PathBuf, i32)> = Vec::new();
+    for entry in std::fs::read_dir(parent)? {
+        let Ok(entry) = entry else { continue };
+        let path = entry.path();
+        if !path.is_file() || !is_subtitle_path(&path) {
+            continue;
+        }
+        let Some(stem) = path.file_stem().and_then(|s| s.to_str()) else {
+            continue;
+        };
+        let srt_tokens = normalized_tokens(stem);
+        if srt_tokens.is_empty() {
+            continue;
+        }
+        let srt_joined = srt_tokens.join(" ");
+
+        let mut score: i32 = 0;
+        if stem.eq_ignore_ascii_case(media_stem) {
+            score += 100;
+        }
+
+        let srt_stem_simplified = simplify_subtitle_stem(stem);
+        let media_stem_simplified = simplify_subtitle_stem(media_stem);
+        if !srt_stem_simplified.is_empty() && srt_stem_simplified.eq_ignore_ascii_case(&media_stem_simplified) {
+            score += 80;
+        }
+
+        if !media_joined.is_empty()
+            && !srt_joined.is_empty()
+            && (srt_joined.contains(&media_joined) || media_joined.contains(&srt_joined))
+        {
+            score += 40;
+        }
+
+        score += token_overlap_score(&media_tokens, &srt_tokens);
+
+        match (media_ep, extract_episode_number(stem)) {
+            (Some(a), Some(b)) if a == b => score += 35,
+            (Some(_), Some(_)) => score -= 20,
+            _ => {}
+        }
+
+        candidates.push((path, score));
+    }
+
+    candidates.sort_by_key(|c| std::cmp::Reverse(c.1));
+
+    Ok(candidates)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -10,11 +10,12 @@
   import TranscribeTab from "./lib/TranscribeTab.svelte";
   import TranslateTab from "./lib/TranslateTab.svelte";
   import AlignTab from "./lib/AlignTab.svelte";
+  import RefineTab from "./lib/RefineTab.svelte";
   import AppContextMenu from "./lib/AppContextMenu.svelte";
   import Snackbar from "./lib/Snackbar.svelte";
   import { snackbar } from "./lib/snackbarStore.svelte";
 
-  type AppTab = "translate" | "sync" | "transcribe" | "align" | "flashcards" | "settings";
+  type AppTab = "translate" | "sync" | "transcribe" | "align" | "flashcards" | "settings" | "refine";
 
   let activeTab = $state<AppTab>("flashcards");
   const initialPreference = (() => {
@@ -60,6 +61,7 @@
 
   const TABS_ORDER: AppTab[] = [
     "flashcards",
+    "refine",
     "translate",
     "sync",
     "align",
@@ -186,6 +188,9 @@
     </div>
     <div class="absolute inset-0" class:hidden={activeTab !== "flashcards"}>
       <FlashcardsTab onGoToSettings={goToSettings} active={activeTab === "flashcards"} />
+    </div>
+    <div class="absolute inset-0" class:hidden={activeTab !== "refine"}>
+      <RefineTab onGoToSettings={goToSettings} active={activeTab === "refine"} />
     </div>
     <div class="absolute inset-0" class:hidden={activeTab !== "settings"}>
       <SettingsTab active={activeTab === "settings"} bind:requestedSection={requestedSettingsSection} bind:highlightItemId={highlightItemId} />

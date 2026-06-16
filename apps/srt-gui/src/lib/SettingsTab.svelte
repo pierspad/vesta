@@ -182,6 +182,21 @@
   let defaultTranscribeLanguage = $state(loadStoredValue(DEFAULT_TRANSCRIBE_LANGUAGE_KEY, "auto"));
   let defaultFlashcardsLanguage = $state(loadStoredValue(DEFAULT_FLASHCARDS_LANGUAGE_KEY, "it"));
   let defaultNativeLanguage = $state(loadStoredValue(DEFAULT_NATIVE_LANGUAGE_KEY, "it"));
+  
+  const DEFAULT_REFINEMENT_PROMPT_KEY = "vesta-default-refinement-prompt";
+  const DEFAULT_REFINEMENT_PROMPT_VAL = "Spiega le parole desuete e più astruse della frase fornendo traduzione, esempio d'uso ed etimologia.";
+  let defaultRefinementPrompt = $state(loadStoredValue(DEFAULT_REFINEMENT_PROMPT_KEY, DEFAULT_REFINEMENT_PROMPT_VAL));
+
+  function persistRefinementPrompt() {
+    try {
+      localStorage.setItem(DEFAULT_REFINEMENT_PROMPT_KEY, defaultRefinementPrompt);
+    } catch {}
+  }
+
+  function resetRefinementPrompt() {
+    defaultRefinementPrompt = DEFAULT_REFINEMENT_PROMPT_VAL;
+    persistRefinementPrompt();
+  }
   let discoveredDefaultModels = $state<DiscoveredModel[]>([]);
   let isCheckingDefaultEndpoint = $state(false);
   let defaultEndpointStatus = $state<EndpointStatus>("idle");
@@ -2957,7 +2972,42 @@
             </div>
           {/if}
         </div>
-  </div>
+      </div>
+
+      <!-- Default Flashcard Refinement Prompt -->
+      <div class="glass-card p-5 mb-6">
+        <div class="flex items-center gap-3 mb-4">
+          <div class="w-9 h-9 rounded-lg bg-indigo-500/20 text-indigo-300 flex items-center justify-center shrink-0">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+            </svg>
+          </div>
+          <div>
+            <h3 class="text-sm font-bold text-white">{t("settings.refinementPromptTitle") || "Default Flashcard Refinement Prompt"}</h3>
+            <p class="text-xs text-gray-400 mt-0.5">{t("settings.refinementPromptDesc") || "This prompt is used when automatically adding notes to flashcards using AI."}</p>
+          </div>
+        </div>
+        <div class="space-y-3">
+          <textarea
+            id="default-refinement-prompt"
+            bind:value={defaultRefinementPrompt}
+            oninput={persistRefinementPrompt}
+            rows="4"
+            placeholder={DEFAULT_REFINEMENT_PROMPT_VAL}
+            class="input-modern w-full text-sm font-sans"
+          ></textarea>
+          <div class="flex justify-between items-center text-xs text-gray-500">
+            <span>{t("settings.refinementPromptTip") || "Tip: Ask the LLM to structure the notes with translations, examples, and etymology."}</span>
+            <button
+              type="button"
+              onclick={resetRefinementPrompt}
+              class="text-indigo-400 hover:text-indigo-300 font-semibold cursor-pointer"
+            >
+              {t("settings.resetDefault") || "Reset to default"}
+            </button>
+          </div>
+        </div>
+      </div>
   {/if}
 
   <!-- Whisper Models -->

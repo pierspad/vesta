@@ -412,6 +412,112 @@ pub fn sync_suggest_companion_subtitle_for_srt(srt_path: String) -> Result<Optio
         .map_err(|e| e.to_string())
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SyncSuggestSubtitlesResult {
+    pub target: Option<String>,
+    pub native: Option<String>,
+}
+
+/// Suggerisce in modo best-effort i file sottotitoli target e native per un dato media.
+#[tauri::command]
+pub fn sync_suggest_subtitles_for_media(
+    media_path: String,
+    default_target_lang: Option<String>,
+    default_native_lang: Option<String>,
+) -> Result<SyncSuggestSubtitlesResult, String> {
+    let candidates = srt_sync::matching::suggest_subtitles_for_media(Path::new(&media_path))
+        .map_err(|e| e.to_string())?;
+
+    // Filtra i candidati con punteggio >= 45
+    let candidates: Vec<_> = candidates.into_iter().filter(|c| c.1 >= 45).collect();
+
+    if candidates.is_empty() {
+        return Ok(SyncSuggestSubtitlesResult { target: None, native: None });
+    }
+
+    let mut target = None;
+    let mut native = None;
+
+    // Helper per controllare la lingua nel nome file
+    let matches_lang = |path: &Path, lang: &Option<String>| -> bool {
+        if let Some(l) = lang {
+            if let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {
+                let lower_stem = stem.to_lowercase();
+                let lower_lang = l.to_lowercase();
+                if lower_stem.contains(&format!(".{}", lower_lang)) 
+                    || lower_stem.contains(&format!("_{}", lower_lang))
+                    || lower_stem.contains(&lower_lang) {
+                    return true;
+                }
+            }
+        }
+        false
+    };
+
+    // 1. Cerca ruoli espliciti
+    for (path, _) in &candidates {
+        if let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {
+            let lower_stem = stem.to_lowercase();
+            let is_ref = ["translated", "translation", "tradotto", "traduzione", "reference", "ref"]
+                .iter()
+                .any(|k| lower_stem.contains(k));
+            let is_orig = ["native", "original", "orig", "source"]
+                .iter()
+                .any(|k| lower_stem.contains(k));
+
+            let path_str = path.to_string_lossy().into_owned();
+            if is_ref && target.is_none() {
+                target = Some(path_str);
+            } else if is_orig && native.is_none() {
+                native = Some(path_str);
+            }
+        }
+    }
+
+    // 2. Prova ad abbinare per codici lingua
+    for (path, _) in &candidates {
+        let path_str = path.to_string_lossy().into_owned();
+        if target.is_some() && native.is_some() {
+            break;
+        }
+        
+        if Some(&path_str) == target.as_ref() || Some(&path_str) == native.as_ref() {
+            continue;
+        }
+
+        if target.is_none() && matches_lang(path, &default_target_lang) {
+            target = Some(path_str);
+        } else if native.is_none() && matches_lang(path, &default_native_lang) {
+            native = Some(path_str);
+        }
+    }
+
+    // 3. Fallback target: primo candidato non assegnato
+    if target.is_none() {
+        for (path, _) in &candidates {
+            let path_str = path.to_string_lossy().into_owned();
+            if Some(&path_str) != native.as_ref() {
+                target = Some(path_str);
+                break;
+            }
+        }
+    }
+
+    // 4. Fallback native: secondo candidato
+    if native.is_none() {
+        for (path, _) in &candidates {
+            let path_str = path.to_string_lossy().into_owned();
+            if Some(&path_str) != target.as_ref() {
+                native = Some(path_str);
+                break;
+            }
+        }
+    }
+
+    Ok(SyncSuggestSubtitlesResult { target, native })
+}
+
+
 /// Prepara un file media per la riproduzione nel browser.
 /// Per formati non nativamente supportati da WebKitGTK (MKV, AVI, FLV, OGM, VOB),
 /// usa ffmpeg per estrarre l'audio in formato OGG (Opus) nella cache dell'app.

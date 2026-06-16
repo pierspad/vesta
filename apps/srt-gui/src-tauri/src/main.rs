@@ -44,6 +44,7 @@ async fn media_handler(
 }
 
 use commands::auto_sync::*;
+use commands::refine::*;
 use commands::flashcards::*;
 use commands::info::*;
 use commands::sync::*;
@@ -382,6 +383,7 @@ fn main() {
             sync_load_srt,
             sync_suggest_media_for_srt,
             sync_suggest_companion_subtitle_for_srt,
+            sync_suggest_subtitles_for_media,
             sync_set_video,
             sync_get_status,
             sync_get_subtitles,
@@ -420,6 +422,10 @@ fn main() {
             // Comandi auto-sync
             sync_auto_sync,
             sync_cancel_auto_sync,
+            // Comandi refine
+            refine_load_file,
+            refine_save_file,
+            refine_card_llm_with_config,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
