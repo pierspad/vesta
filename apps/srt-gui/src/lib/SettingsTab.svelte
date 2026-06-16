@@ -260,6 +260,15 @@
       cardPanelTitle: "Edit Anki template files",
       cardPanelDesc: "Choose Front HTML, Back HTML or Style CSS to change the file open in the editor.",
       clickToCopy: "Click to copy.",
+      llmConfigIncomplete: "LLM configuration incomplete",
+      llmConfigIncompleteDescModel: "Default model missing. Select or input a model in the \"Default model\" section below.",
+      llmConfigIncompleteDescLocalOffline: "The local LLM server is offline. Please start Ollama/LM Studio or verify the endpoint URL.",
+      llmConfigIncompleteDescCustomEmpty: "No custom configurations saved. Please add a custom provider config first.",
+      llmConfigIncompleteDescKey: "Missing API key for the selected provider. Add a key in the \"Saved API keys\" or \"Add an LLM provider\" section to unlock it.",
+      llmRequiredLabel: "required",
+      llmLocalOfflineLabel: "server offline",
+      llmConfigMissingLabel: "configuration missing",
+      llmConfigIncompleteLabel: "configuration incomplete",
     },
     it: {
       macroArea: "Macro area",
@@ -318,6 +327,15 @@
       cardPanelTitle: "Modifica i file del template Anki",
       cardPanelDesc: "Scegli Front HTML, Back HTML o Style CSS per cambiare il file aperto nell'editor.",
       clickToCopy: "Clicca per copiare.",
+      llmConfigIncomplete: "Configurazione LLM incompleta",
+      llmConfigIncompleteDescModel: "Modello predefinito mancante. Seleziona o inserisci un modello nella sezione \"Modello predefinito\" sotto.",
+      llmConfigIncompleteDescLocalOffline: "Il server locale LLM non risponde. Avvia Ollama o LM Studio, oppure verifica l'indirizzo.",
+      llmConfigIncompleteDescCustomEmpty: "Nessun provider personalizzato salvato. Aggiungi una configurazione personalizzata per questo provider.",
+      llmConfigIncompleteDescKey: "Manca la chiave API per il provider selezionato. Aggiungi una chiave nella sezione \"API Key salvate\" o \"Aggiungi un provider LLM\" per sbloccarlo.",
+      llmRequiredLabel: "richiesto",
+      llmLocalOfflineLabel: "server offline",
+      llmConfigMissingLabel: "configurazione mancante",
+      llmConfigIncompleteLabel: "configurazione incompleta",
     },
     zh: {
       macroArea: "宏区域",
@@ -376,6 +394,15 @@
       cardPanelTitle: "编辑 Anki 模板文件",
       cardPanelDesc: "选择 Front HTML、Back HTML 或 Style CSS 来切换编辑器中的文件。",
       clickToCopy: "点击复制。",
+      llmConfigIncomplete: "LLM 配置不完整",
+      llmConfigIncompleteDescModel: "缺少默认模型。请在下方“默认模型”部分选择或输入一个模型。",
+      llmConfigIncompleteDescLocalOffline: "本地 LLM 服务器已离线。请启动 Ollama/LM Studio 或验证端点 URL。",
+      llmConfigIncompleteDescCustomEmpty: "未保存自定义配置。请先添加自定义提供商配置。",
+      llmConfigIncompleteDescKey: "所选提供商缺少 API key。请在“已保存的 API key”或“添加 LLM 提供商”部分添加 key 以解锁。",
+      llmRequiredLabel: "必填",
+      llmLocalOfflineLabel: "服务器离线",
+      llmConfigMissingLabel: "缺少配置",
+      llmConfigIncompleteLabel: "配置不完整",
     },
   } as const;
 
@@ -2072,293 +2099,183 @@
     </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6 items-stretch">
-      <!-- Left Column: CPU Cores + Aggiornamenti -->
-      <div class="flex flex-col gap-6">
-        <!-- CPU Cores Card -->
-        <div class="glass-card p-6 flex flex-col justify-between flex-1">
-          <div>
-            <h3
-              class="text-lg font-semibold mb-4 flex items-center gap-2 text-orange-400"
+      <!-- CPU Cores Card -->
+      <div class="glass-card p-6 flex flex-col justify-between h-full">
+        <div>
+          <h3
+            class="text-lg font-semibold mb-4 flex items-center gap-2 text-orange-400"
+          >
+            <svg
+              class="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
             >
-              <svg
-                class="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"
-                />
-              </svg>
-              {t("flashcards.cpuCores")}
-            </h3>
-            <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-2 xl:grid-cols-4 gap-2.5 mb-4">
-              <button
-                onclick={() => setCpuPreset("eco")}
-                class="p-3 rounded-xl text-center transition-all duration-200 border text-xs cursor-pointer {activeCpuPreset ===
-                'eco'
-                  ? 'bg-orange-500/20 border-orange-500/50 text-white'
-                  : 'bg-white/5 hover:bg-white/10 border-transparent text-gray-400 hover:text-white'}"
-              >
-                <span class="block mb-1 text-white">
-                  <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M5 14c0-5.523 4.477-10 10-10h4v4c0 5.523-4.477 10-10 10H5v-4z" />
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M7 17c2.5-2.5 5.5-4.5 9-6" />
-                  </svg>
-                </span>
-                <span class="font-semibold block">{t("flashcards.cpuEco")}</span>
-              </button>
-              <button
-                onclick={() => setCpuPreset("balanced")}
-                class="p-3 rounded-xl text-center transition-all duration-200 border text-xs cursor-pointer {activeCpuPreset ===
-                'balanced'
-                  ? 'bg-orange-500/20 border-orange-500/50 text-white'
-                  : 'bg-white/5 hover:bg-white/10 border-transparent text-gray-400 hover:text-white'}"
-              >
-                <span class="block mb-1 text-white">
-                  <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 4v16" />
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M6 7h12" />
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M8 7l-3 5h6L8 7z" />
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M16 7l-3 5h6l-3-5z" />
-                  </svg>
-                </span>
-                <span class="font-semibold block"
-                  >{t("flashcards.cpuBalanced")}</span
-                >
-              </button>
-              <button
-                onclick={() => setCpuPreset("performance")}
-                class="p-3 rounded-xl text-center transition-all duration-200 border text-xs cursor-pointer {activeCpuPreset ===
-                'performance'
-                  ? 'bg-orange-500/20 border-orange-500/50 text-white'
-                  : 'bg-white/5 hover:bg-white/10 border-transparent text-gray-400 hover:text-white'}"
-              >
-                <span class="block mb-1 text-white">
-                  <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M5 16l5-5 3 3 6-7" />
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M14 7h5v5" />
-                  </svg>
-                </span>
-                <span class="font-semibold block"
-                  >{t("flashcards.cpuPerformance")}</span
-                >
-              </button>
-              <button
-                onclick={() => setCpuPreset("full")}
-                class="p-3 rounded-xl text-center transition-all duration-200 border text-xs cursor-pointer {activeCpuPreset ===
-                'full'
-                  ? 'bg-orange-500/20 border-orange-500/50 text-white'
-                  : 'bg-white/5 hover:bg-white/10 border-transparent text-gray-400 hover:text-white'}"
-              >
-                <span class="block mb-1 text-white">
-                  <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M11 3L6 13h5l-1 8 8-12h-5l2-6h-4z" />
-                  </svg>
-                </span>
-                <span class="font-semibold block"
-                  >{t("flashcards.cpuFullPower")}</span
-                >
-              </button>
-            </div>
-          </div>
-          <div class="flex items-center justify-between text-sm px-1 mt-auto pt-4 border-t border-white/5">
-            <span class="text-gray-400">{t("flashcards.cpuCoresUsage")}</span>
-            <span
-              class="text-white font-mono bg-white/10 px-2.5 py-1 rounded-lg text-sm"
-              >{cpuCores} / {systemCpuCount}</span
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"
+              />
+            </svg>
+            {t("flashcards.cpuCores")}
+          </h3>
+          <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-2 xl:grid-cols-4 gap-2.5 mb-4">
+            <button
+              onclick={() => setCpuPreset("eco")}
+              class="p-3 rounded-xl text-center transition-all duration-200 border text-xs cursor-pointer {activeCpuPreset ===
+              'eco'
+                ? 'bg-orange-500/20 border-orange-500/50 text-white'
+                : 'bg-white/5 hover:bg-white/10 border-transparent text-gray-400 hover:text-white'}"
             >
+              <span class="block mb-1 text-white">
+                <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M5 14c0-5.523 4.477-10 10-10h4v4c0 5.523-4.477 10-10 10H5v-4z" />
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M7 17c2.5-2.5 5.5-4.5 9-6" />
+                </svg>
+              </span>
+              <span class="font-semibold block">{t("flashcards.cpuEco")}</span>
+            </button>
+            <button
+              onclick={() => setCpuPreset("balanced")}
+              class="p-3 rounded-xl text-center transition-all duration-200 border text-xs cursor-pointer {activeCpuPreset ===
+              'balanced'
+                ? 'bg-orange-500/20 border-orange-500/50 text-white'
+                : 'bg-white/5 hover:bg-white/10 border-transparent text-gray-400 hover:text-white'}"
+            >
+              <span class="block mb-1 text-white">
+                <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 4v16" />
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M6 7h12" />
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M8 7l-3 5h6L8 7z" />
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M16 7l-3 5h6l-3-5z" />
+                </svg>
+              </span>
+              <span class="font-semibold block"
+                >{t("flashcards.cpuBalanced")}</span
+              >
+            </button>
+            <button
+              onclick={() => setCpuPreset("performance")}
+              class="p-3 rounded-xl text-center transition-all duration-200 border text-xs cursor-pointer {activeCpuPreset ===
+              'performance'
+                ? 'bg-orange-500/20 border-orange-500/50 text-white'
+                : 'bg-white/5 hover:bg-white/10 border-transparent text-gray-400 hover:text-white'}"
+            >
+              <span class="block mb-1 text-white">
+                <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M5 16l5-5 3 3 6-7" />
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M14 7h5v5" />
+                </svg>
+              </span>
+              <span class="font-semibold block"
+                >{t("flashcards.cpuPerformance")}</span
+              >
+            </button>
+            <button
+              onclick={() => setCpuPreset("full")}
+              class="p-3 rounded-xl text-center transition-all duration-200 border text-xs cursor-pointer {activeCpuPreset ===
+              'full'
+                ? 'bg-orange-500/20 border-orange-500/50 text-white'
+                : 'bg-white/5 hover:bg-white/10 border-transparent text-gray-400 hover:text-white'}"
+            >
+              <span class="block mb-1 text-white">
+                <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M11 3L6 13h5l-1 8 8-12h-5l2-6h-4z" />
+                </svg>
+              </span>
+              <span class="font-semibold block"
+                >{t("flashcards.cpuFullPower")}</span
+              >
+            </button>
           </div>
         </div>
-
-        <!-- Aggiornamenti Card -->
-        <div class="glass-card p-6 flex flex-col justify-between flex-1">
-          <div>
-            <div class="flex items-center gap-3 mb-4">
-              <div class="w-9 h-9 rounded-lg bg-indigo-500/20 text-indigo-300 flex items-center justify-center">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                </svg>
-              </div>
-              <div>
-                <h3 class="text-sm font-bold text-white">{$currentLanguage === 'it' ? 'Aggiornamenti' : 'Updates'}</h3>
-              </div>
-            </div>
-
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
-              <button
-                type="button"
-                onclick={toggleAutomaticUpdateChecks}
-                class="rounded-xl border p-4 text-left transition-all duration-200 flex flex-row items-center justify-between gap-3 cursor-pointer
-                  {automaticUpdateChecks
-                    ? 'bg-indigo-500/10 border-indigo-500/30 text-white hover:bg-indigo-500/15 hover:border-indigo-500/40 shadow-md shadow-indigo-500/5'
-                    : 'bg-white/5 border-white/10 text-gray-400 hover:text-white hover:bg-white/10 hover:border-white/20'}"
-              >
-                <span class="text-xs font-semibold">
-                  {$currentLanguage === 'it' ? 'Controlli automatici' : 'Automatic checks'}
-                </span>
-                {#if automaticUpdateChecks}
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5 text-indigo-400 shrink-0">
-                    <path fill-rule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12zm13.36-1.814a.75.75 0 10-1.22-.872l-3.236 4.53L9.53 12.22a.75.75 0 00-1.06 1.06l2.25 2.25a.75.75 0 001.14-.094l3.75-5.25z" clip-rule="evenodd" />
-                  </svg>
-                {:else}
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5 text-gray-500 shrink-0">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                {/if}
-              </button>
-
-              {#if updateStatus === "available"}
-                <a
-                  href={releaseUrl}
-                  target="_blank"
-                  class="rounded-xl border border-amber-500/40 bg-amber-500/15 p-4 text-left transition-all duration-200 hover:border-amber-500/60 hover:bg-amber-500/25 active:scale-[0.98] flex flex-row items-center justify-between gap-3 cursor-pointer shadow-md shadow-amber-900/20"
-                >
-                  <span class="text-xs font-bold text-amber-200 flex items-center gap-2">
-                    <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse ring-4 ring-amber-500/20 shrink-0"></span>
-                    {$currentLanguage === 'it' ? `Aggiorna a ${latestVersion}` : `Update to ${latestVersion}`}
-                  </span>
-                  <svg class="w-5 h-5 text-amber-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                  </svg>
-                </a>
-              {:else}
-                <button
-                  type="button"
-                  onclick={() => checkForUpdates("manual")}
-                  disabled={updateStatus === 'checking'}
-                  class="rounded-xl border border-white/10 bg-white/5 p-4 text-left transition-all duration-200 hover:border-white/20 hover:bg-white/10 active:scale-[0.98] disabled:opacity-60 flex flex-row items-center justify-between gap-3 cursor-pointer"
-                >
-                  <span class="text-xs font-semibold text-white">
-                    {updateStatus === 'checking'
-                      ? ($currentLanguage === 'it' ? 'Controllo in corso…' : 'Checking…')
-                      : updateStatus === 'current'
-                        ? ($currentLanguage === 'it' ? 'Aggiornato ✓' : 'Up to date ✓')
-                        : ($currentLanguage === 'it' ? 'Verifica ora' : 'Check now')}
-                  </span>
-                  {#if updateStatus === 'checking'}
-                    <svg class="w-5 h-5 text-indigo-400 shrink-0 animate-spin" fill="none" viewBox="0 0 24 24">
-                      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
-                    </svg>
-                  {:else if updateStatus === 'current'}
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5 text-emerald-400 shrink-0">
-                      <path fill-rule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12zm13.36-1.814a.75.75 0 10-1.22-.872l-3.236 4.53L9.53 12.22a.75.75 0 00-1.06 1.06l2.25 2.25a.75.75 0 001.14-.094l3.75-5.25z" clip-rule="evenodd" />
-                    </svg>
-                  {:else}
-                    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992m0 0v-.001M21.015 9.348l-3.181-3.182a8.25 8.25 0 00-13.803 3.7M7.977 14.652H2.985m0 0v.001m0-.001l3.181 3.182a8.25 8.25 0 0013.803-3.7" />
-                    </svg>
-                  {/if}
-                </button>
-              {/if}
-            </div>
-          </div>
+        <div class="flex items-center justify-between text-sm px-1 mt-auto pt-4 border-t border-white/5">
+          <span class="text-gray-400">{t("flashcards.cpuCoresUsage")}</span>
+          <span
+            class="text-white font-mono bg-white/10 px-2.5 py-1 rounded-lg text-sm"
+            >{cpuCores} / {systemCpuCount}</span
+          >
         </div>
       </div>
 
-      <!-- Preferences Status Card -->
+      <!-- Aggiornamenti Card -->
       <div class="glass-card p-6 flex flex-col justify-between h-full">
         <div>
-          <div class="mb-4 flex items-start justify-between gap-4">
-            <div>
-              <h3 class="text-lg font-bold text-white leading-tight">{s("statusActiveTitle")}</h3>
-              <p class="mt-1 text-xs text-gray-500 leading-normal">{s("statusDesc")}</p>
+          <div class="flex items-center gap-3 mb-4">
+            <div class="w-9 h-9 rounded-lg bg-indigo-500/20 text-indigo-300 flex items-center justify-center">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
             </div>
-            <div class="group relative">
-              <button
-                type="button"
-                onclick={() => needsQuickSetup && openFirstRequiredAction()}
-                class="inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs transition-colors {needsQuickSetup ? 'border-amber-500/30 bg-amber-500/10 text-amber-200 hover:bg-amber-500/20' : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200 cursor-default'}"
-              >
-                <span class="h-2 w-2 rounded-full {needsQuickSetup ? 'bg-amber-300 animate-pulse' : 'bg-emerald-300'}"></span>
-                {needsQuickSetup ? s("actionRequired") : t("settings.ready")}
-              </button>
-              {#if needsQuickSetup}
-                <div class="settings-action-tooltip right-0 left-auto translate-x-0">
-                  <p class="mb-2 font-semibold text-amber-100">{s("quickSetupTitle")}</p>
-                  <ol class="list-decimal space-y-1.5 pl-4">
-                    {#each requiredSetupActions as action}
-                      <li>
-                        <span class="font-semibold text-white">{action.title}:</span>
-                        <span class="text-gray-300">{action.desc}</span>
-                      </li>
-                    {/each}
-                  </ol>
-                </div>
-              {/if}
+            <div>
+              <h3 class="text-sm font-bold text-white">{$currentLanguage === 'it' ? 'Aggiornamenti' : 'Updates'}</h3>
             </div>
           </div>
 
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
             <button
               type="button"
-              onclick={() => openSettingsSection("llm")}
-              class="rounded-xl border border-white/10 bg-white/[0.04] p-4 text-left transition-colors hover:border-indigo-400/40 hover:bg-indigo-500/10 relative"
+              onclick={toggleAutomaticUpdateChecks}
+              class="rounded-xl border p-4 text-left transition-all duration-200 flex flex-row items-center justify-between gap-3 cursor-pointer
+                {automaticUpdateChecks
+                  ? 'bg-indigo-500/10 border-indigo-500/30 text-white hover:bg-indigo-500/15 hover:border-indigo-500/40 shadow-md shadow-indigo-500/5'
+                  : 'bg-white/5 border-white/10 text-gray-400 hover:text-white hover:bg-white/10 hover:border-white/20'}"
             >
-              <div class="flex items-start justify-between gap-3">
-                <div>
-                  <span class="block text-xs text-gray-500">{s("apiKeysSaved")}</span>
-                  <span class="mt-1 block text-xl font-bold text-white">{configuredApiKeyCount}</span>
-                </div>
-                <span class="rounded-full bg-indigo-500/15 px-2 py-1 text-xs text-indigo-200">{defaultLlmProvider}</span>
-              </div>
-              <p class="mt-2 text-xs leading-relaxed text-gray-500">{s("apiKeysHint")}</p>
-              {#if !isDefaultLlmReady}
-                <span class="absolute top-3 right-3 w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse shadow-[0_0_8px_rgba(245,158,11,0.6)]"></span>
+              <span class="text-xs font-semibold">
+                {$currentLanguage === 'it' ? 'Controlli automatici' : 'Automatic checks'}
+              </span>
+              {#if automaticUpdateChecks}
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5 text-indigo-400 shrink-0">
+                  <path fill-rule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12zm13.36-1.814a.75.75 0 10-1.22-.872l-3.236 4.53L9.53 12.22a.75.75 0 00-1.06 1.06l2.25 2.25a.75.75 0 001.14-.094l3.75-5.25z" clip-rule="evenodd" />
+                </svg>
+              {:else}
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5 text-gray-500 shrink-0">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
               {/if}
             </button>
 
-            <button
-              type="button"
-              onclick={() => openSettingsSection("whisper")}
-              class="rounded-xl border border-white/10 bg-white/[0.04] p-4 text-left transition-colors hover:border-cyan-400/40 hover:bg-cyan-500/10 relative"
-            >
-              <div class="flex items-start justify-between gap-3">
-                <div>
-                  <span class="block text-xs text-gray-500">{t("settings.whisperDefault")}</span>
-                  <span class="mt-1 block text-xl font-bold text-white">{formatWhisperModelName(defaultWhisperModel)}</span>
-                </div>
-                <span class="rounded-full bg-cyan-500/15 px-2 py-1 text-xs text-cyan-200">{downloadedWhisperCount}</span>
-              </div>
-              <p class="mt-2 text-xs leading-relaxed text-gray-500">{s("whisperHint")}</p>
-              {#if downloadedWhisperCount === 0}
-                <span class="absolute top-3 right-3 w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse shadow-[0_0_8px_rgba(245,158,11,0.6)]"></span>
-              {/if}
-            </button>
-
-            <button
-              type="button"
-              onclick={() => openSettingsSection("language")}
-              class="rounded-xl border border-white/10 bg-white/[0.04] p-4 text-left transition-colors hover:border-emerald-400/40 hover:bg-emerald-500/10"
-            >
-              <div class="flex items-start justify-between gap-3">
-                <div>
-                  <span class="block text-xs text-gray-500">{s("translationLanguage")}</span>
-                  <span class="mt-1 block text-xl font-bold text-white">{defaultTargetLanguage.toUpperCase()}</span>
-                </div>
-                <span class="text-2xl leading-none">{languages.find((lang) => lang.code === defaultTargetLanguage)?.flag || "🌐"}</span>
-              </div>
-              <p class="mt-2 text-xs leading-relaxed text-gray-500">{s("translationLanguageHint")}</p>
-            </button>
-
-            <button
-              type="button"
-              onclick={() => openSettingsSection("anki")}
-              class="rounded-xl border border-white/10 bg-white/[0.04] p-4 text-left transition-colors hover:border-amber-400/40 hover:bg-amber-500/10"
-            >
-              <div class="flex items-start justify-between gap-3">
-                <div class="min-w-0">
-                  <span class="block text-xs text-gray-500">{t("settings.noteType")}</span>
-                  <span class="mt-1 block truncate text-xl font-bold text-white">{noteTypeName}</span>
-                </div>
-                <span class="rounded-full bg-amber-500/15 px-2 py-1 text-xs text-amber-200">Anki</span>
-              </div>
-              <p class="mt-2 text-xs leading-relaxed text-gray-500">{s("noteTypeHint")}</p>
-            </button>
+            {#if updateStatus === "available"}
+              <a
+                href={releaseUrl}
+                target="_blank"
+                class="rounded-xl border border-amber-500/40 bg-amber-500/15 p-4 text-left transition-all duration-200 hover:border-amber-500/60 hover:bg-amber-500/25 active:scale-[0.98] flex flex-row items-center justify-between gap-3 cursor-pointer shadow-md shadow-amber-900/20"
+              >
+                <span class="text-xs font-bold text-amber-200 flex items-center gap-2">
+                  <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse ring-4 ring-amber-500/20 shrink-0"></span>
+                  {$currentLanguage === 'it' ? `Aggiorna a ${latestVersion}` : `Update to ${latestVersion}`}
+                </span>
+                <svg class="w-5 h-5 text-amber-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+              </a>
+            {:else}
+              <button
+                type="button"
+                onclick={() => checkForUpdates("manual")}
+                disabled={updateStatus === 'checking'}
+                class="rounded-xl border border-white/10 bg-white/5 p-4 text-left transition-all duration-200 hover:border-white/20 hover:bg-white/10 active:scale-[0.98] disabled:opacity-60 flex flex-row items-center justify-between gap-3 cursor-pointer"
+              >
+                <span class="text-xs font-semibold text-white">
+                  {updateStatus === 'checking'
+                    ? ($currentLanguage === 'it' ? 'Controllo in corso…' : 'Checking…')
+                    : updateStatus === 'current'
+                      ? ($currentLanguage === 'it' ? 'Aggiornato ✓' : 'Up to date ✓')
+                      : ($currentLanguage === 'it' ? 'Verifica ora' : 'Check now')}
+                </span>
+                {#if updateStatus === 'checking'}
+                  <svg class="w-5 h-5 text-indigo-400 shrink-0 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                  </svg>
+                {:else}
+                  <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992m0 0v-.001M21.015 9.348l-3.181-3.182a8.25 8.25 0 00-13.803 3.7M7.977 14.652H2.985m0 0v.001m0-.001l3.181 3.182a8.25 8.25 0 0013.803-3.7" />
+                  </svg>
+                {/if}
+              </button>
+            {/if}
           </div>
         </div>
       </div>
@@ -2576,7 +2493,7 @@
     </div>
   </div>
 
-  <div class="glass-card p-5 mb-6">
+  <div class="glass-card p-5 mb-6 {!isDefaultLlmReady ? 'border-glow-amber-slow' : ''}">
     <div class="flex items-start justify-between gap-4 mb-4">
       <div class="flex items-center gap-3">
         <div class="w-9 h-9 rounded-lg bg-indigo-500/20 text-indigo-300 flex items-center justify-center">
@@ -2584,8 +2501,11 @@
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3h6m-7 4h8a3 3 0 013 3v7a3 3 0 01-3 3H8a3 3 0 01-3-3v-7a3 3 0 013-3zm4 3v4m-2-2h4" />
           </svg>
         </div>
-        <div>
+        <div class="flex items-center gap-2 flex-wrap">
           <h3 class="text-sm font-bold text-white">{t("settings.defaultLlm")}</h3>
+          {#if !isDefaultLlmReady}
+            <span class="text-[10px] text-amber-500 font-semibold italic">({s("llmConfigIncompleteLabel")})</span>
+          {/if}
         </div>
       </div>
       <div class="text-right text-xs text-gray-500">
@@ -2640,7 +2560,12 @@
         {#if defaultLlmProvider === "local"}
           <div>
             <div class="flex items-center justify-between gap-3 mb-1">
-              <label for="default-local-server-url" class="block text-xs text-gray-400">{t("settings.localEndpoint")}</label>
+              <label for="default-local-server-url" class="block text-xs text-gray-400 flex items-center justify-between w-full">
+                <span>{t("settings.localEndpoint")}</span>
+                {#if defaultEndpointStatus === 'offline'}
+                  <span class="text-[10px] text-amber-500 font-semibold italic">({s("llmLocalOfflineLabel")})</span>
+                {/if}
+              </label>
               <span class="inline-flex items-center gap-2 text-xs {defaultEndpointStatus === 'online' ? 'text-emerald-300' : defaultEndpointStatus === 'checking' ? 'text-cyan-300' : 'text-red-300'}">
                 <span class="w-2 h-2 rounded-full {defaultEndpointStatus === 'online' ? 'bg-emerald-400' : defaultEndpointStatus === 'checking' ? 'bg-cyan-400 animate-pulse' : 'bg-red-400'}"></span>
                 {getEndpointStatusText(defaultEndpointStatus)}
@@ -2666,7 +2591,12 @@
           {#if savedCustomProviders.length > 0}
             <div>
               <div class="flex items-center justify-between gap-3 mb-1">
-                <label for="default-custom-provider" class="block text-xs text-gray-400">{t("settings.customProvider")}</label>
+                <label for="default-custom-provider" class="block text-xs text-gray-400 flex items-center justify-between w-full">
+                  <span>{t("settings.customProvider")}</span>
+                  {#if savedCustomProviders.length === 0}
+                    <span class="text-[10px] text-amber-500 font-semibold italic">({s("llmConfigMissingLabel")})</span>
+                  {/if}
+                </label>
                 <span class="inline-flex items-center gap-2 text-xs {defaultEndpointStatus === 'online' ? 'text-emerald-300' : defaultEndpointStatus === 'checking' ? 'text-cyan-300' : 'text-red-300'}">
                   <span class="w-2 h-2 rounded-full {defaultEndpointStatus === 'online' ? 'bg-emerald-400' : defaultEndpointStatus === 'checking' ? 'bg-cyan-400 animate-pulse' : 'bg-red-400'}"></span>
                   {getEndpointStatusText(defaultEndpointStatus)}
@@ -2703,7 +2633,12 @@
           {/if}
         {/if}
         <div>
-          <label for="default-llm-model-input" class="block text-xs text-gray-400 mb-1">{t("settings.defaultModel")}</label>
+          <label for="default-llm-model-input" class="block text-xs text-gray-400 mb-1 flex items-center justify-between">
+            <span>{t("settings.defaultModel")}</span>
+            {#if !defaultLlmModel}
+              <span class="text-[10px] text-amber-500 font-semibold italic">({s("llmRequiredLabel")})</span>
+            {/if}
+          </label>
           {#if defaultProviderModels.length > 0}
             <SearchableSelect
               noResultsText={t("common.noResults")}
@@ -3027,7 +2962,7 @@
 
   <!-- Whisper Models -->
   {#if activeSettingsSection === "whisper"}
-  <div class="mt-6 glass-card p-5" role="group" oncontextmenu={openWhisperPanelContextMenu}>
+  <div class="mt-6 glass-card p-5 {downloadedWhisperCount === 0 ? 'border-glow-amber-slow' : ''}" role="group" oncontextmenu={openWhisperPanelContextMenu}>
     <div class="flex items-center gap-3 mb-4">
       <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-white shadow-lg">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -3911,42 +3846,6 @@
     display: block;
   }
 
-  .settings-action-tooltip {
-    position: absolute;
-    bottom: calc(100% + 10px);
-    left: 50%;
-    z-index: 60;
-    width: min(24rem, calc(100vw - 3rem));
-    padding: 0.75rem 0.875rem;
-    border: 1px solid rgba(251, 191, 36, 0.28);
-    border-radius: 0.75rem;
-    background: rgba(3, 7, 18, 0.97);
-    box-shadow: 0 18px 45px rgba(0, 0, 0, 0.45);
-    color: #d1d5db;
-    font-size: 0.75rem;
-    line-height: 1.35;
-    opacity: 0;
-    pointer-events: none;
-    transform: translateX(-50%) translateY(4px);
-    transition:
-      opacity 0.15s ease,
-      transform 0.15s ease;
-  }
-
-  .settings-action-tooltip.right-0 {
-    right: 0;
-    left: auto;
-    transform: translateY(4px);
-  }
-
-  .group:hover > .settings-action-tooltip {
-    opacity: 1;
-    transform: translateX(-50%) translateY(0);
-  }
-
-  .group:hover > .settings-action-tooltip.right-0 {
-    transform: translateY(0);
-  }
 
   :global(.settings-quick-setup-pulse) {
     animation: settings-quick-setup-pulse 1.45s ease-in-out infinite;
@@ -3964,6 +3863,24 @@
       box-shadow:
         0 0 0 1px rgba(249, 115, 22, 0.32),
         0 0 24px rgba(249, 115, 22, 0.24);
+    }
+  }
+
+  .border-glow-amber-slow {
+    animation: settings-glow-pulse-amber 4s ease-in-out infinite;
+  }
+
+  @keyframes settings-glow-pulse-amber {
+    0%,
+    100% {
+      border-color: rgba(245, 158, 11, 0.15);
+      box-shadow: 0 0 4px 0 rgba(245, 158, 11, 0.05);
+    }
+    50% {
+      border-color: rgba(245, 158, 11, 0.7);
+      box-shadow: 
+        0 0 16px 1px rgba(245, 158, 11, 0.25),
+        inset 0 0 8px 0 rgba(245, 158, 11, 0.15);
     }
   }
 

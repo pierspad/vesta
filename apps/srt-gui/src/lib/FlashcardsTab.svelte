@@ -93,11 +93,24 @@
 
   function openBottomContextMenu(event: MouseEvent, section: "overview" | "anki") {
     event.preventDefault();
-    // Estimate menu height (~80px for single item) and open above the click point
-    // so the menu doesn't cover the bottom bar buttons.
-    const MENU_HEIGHT_ESTIMATE = 90;
-    const y = Math.max(0, event.clientY - MENU_HEIGHT_ESTIMATE);
-    bottomContextMenu = { x: Math.min(event.clientX, window.innerWidth - 220), y, section };
+    let x = event.clientX;
+    let y = event.clientY - 52;
+
+    const target = event.currentTarget as HTMLElement | null;
+    if (target && typeof target.getBoundingClientRect === "function") {
+      const rect = target.getBoundingClientRect();
+      // Position the menu just above the button top edge.
+      // The single-item menu height is ~42px. To have a 6px gap, we subtract 48px.
+      y = rect.top - 48;
+      // Align left of the menu with the left of the button
+      x = rect.left;
+    }
+
+    bottomContextMenu = {
+      x: Math.min(x, window.innerWidth - 220),
+      y: Math.max(0, y),
+      section
+    };
   }
 
   function closeBottomContextMenu() {
