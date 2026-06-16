@@ -313,11 +313,20 @@
     snackbar.show(t("shortcuts.resetSingle"), "success", 2500);
   }
 
-  function toggleCategory(cat: string) {
-    if (selectedCategories.includes(cat)) {
-      selectedCategories = selectedCategories.filter((c) => c !== cat);
+  function toggleCategory(cat: string, event: MouseEvent) {
+    const isCtrl = event.ctrlKey || event.metaKey;
+    if (isCtrl) {
+      if (selectedCategories.includes(cat)) {
+        selectedCategories = selectedCategories.filter((c) => c !== cat);
+      } else {
+        selectedCategories = [...selectedCategories, cat];
+      }
     } else {
-      selectedCategories = [...selectedCategories, cat];
+      if (selectedCategories.length === 1 && selectedCategories[0] === cat) {
+        selectedCategories = [];
+      } else {
+        selectedCategories = [cat];
+      }
     }
   }
 
@@ -518,13 +527,13 @@
   style="contain: layout style; will-change: transform;"
 >
   <!-- Top Bar with Category Filters & Search Input aligned exactly to Vesta top heights -->
-  <div class="h-[89px] px-6 shrink-0 flex items-center justify-between gap-4 border-b border-white/10 bg-gray-900">
+  <div class="min-h-[89px] py-4 px-6 shrink-0 flex flex-wrap items-center justify-between gap-y-3 gap-x-4 border-b border-white/10 bg-gray-900">
     <!-- Left side: Category buttons -->
     <div class="flex items-center gap-4 min-w-0">
       <div class="flex flex-wrap gap-2 items-center">
         {#each categoryFilterItems as cat}
           <button
-            onclick={() => toggleCategory(cat)}
+            onclick={(e) => toggleCategory(cat, e)}
             class="px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 border
               {selectedCategories.includes(cat)
               ? 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white border-indigo-500/50 shadow-md shadow-indigo-500/20'
@@ -596,10 +605,14 @@
                       <span class="w-[1.5px] h-3.5 bg-indigo-400 animate-pulse ml-0.5 shrink-0"></span>
                     {/if}
                   </div>
-                {:else if isListeningForSearchKeys}
-                  <span class="text-sm text-indigo-400 font-medium animate-pulse">{labels.pressKeys}</span>
                 {:else}
-                  <span class="text-gray-500 text-sm">{labels.keysPlaceholder}</span>
+                  <input
+                    type="text"
+                    readonly
+                    placeholder={isListeningForSearchKeys ? labels.pressKeys : labels.keysPlaceholder}
+                    class="w-full h-8 py-0 bg-transparent border-0 text-sm focus:outline-none cursor-pointer select-none pointer-events-none
+                      {isListeningForSearchKeys ? 'placeholder-indigo-400 font-medium animate-pulse' : 'placeholder-gray-500'}"
+                  />
                 {/if}
               </div>
               {#if searchKeys.length > 0 || isListeningForSearchKeys}
@@ -621,10 +634,10 @@
         <!-- Switch Buttons (Right side inside the search input) -->
         <div class="flex items-center bg-white/5 border border-white/10 rounded-lg p-0.5 shrink-0 select-none mr-0.5">
           <button
-            onclick={() => setSearchMode("text")}
+            onclick={toggleSearchMode}
             class="px-2 py-1 rounded-md text-[9px] font-bold transition-all duration-200 flex items-center gap-1 cursor-pointer
               {searchMode === 'text'
-                ? 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow shadow-indigo-500/20'
+                ? 'bg-indigo-600 text-white shadow shadow-indigo-600/20'
                 : 'text-gray-400 hover:text-white hover:bg-white/5'}"
             title={labels.textPlaceholder}
           >
@@ -634,10 +647,10 @@
             <span>{labels.text}</span>
           </button>
           <button
-            onclick={() => setSearchMode("keys")}
+            onclick={toggleSearchMode}
             class="px-2 py-1 rounded-md text-[9px] font-bold transition-all duration-200 flex items-center gap-1 cursor-pointer
               {searchMode === 'keys'
-                ? 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow shadow-indigo-500/20'
+                ? 'bg-indigo-600 text-white shadow shadow-indigo-600/20'
                 : 'text-gray-400 hover:text-white hover:bg-white/5'}"
             title={labels.keysPlaceholder}
           >
