@@ -1319,16 +1319,16 @@
   let effectivePanelLayout = $derived.by((): ColumnLayout => {
     if (effectiveColumnCount === 3) {
       return {
-        col1: ["files"],
-        col2: ["audioClips", "snapshots", "videoClips"],
-        col3: ["naming", "cardFilters", "progressResult"],
+        col1: ["files", "naming"],
+        col2: ["audioClips", "videoClips"],
+        col3: ["snapshots", "cardFilters", "progressResult"],
       };
     }
 
     if (effectiveColumnCount === 2) {
       return {
-        col1: ["files", "audioClips", "snapshots", "videoClips"],
-        col2: ["naming", "progressResult", "cardFilters"],
+        col1: ["files", "naming", "cardFilters"],
+        col2: ["audioClips", "snapshots", "videoClips", "progressResult"],
         col3: [],
       };
     }
@@ -4027,7 +4027,7 @@
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-.293.707L13 13.414V19a1 1 0 01-.553.894l-4 2A1 1 0 017 21v-7.586L3.293 6.707A1 1 0 013 6V4z" />
             </svg>
-            Filtri Carte
+            {t("flashcards.cardFilters") || "Filtri Carte"}
           </h3>
           <button
             onclick={() => {
