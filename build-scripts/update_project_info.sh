@@ -174,6 +174,24 @@ while IFS= read -r crate_toml; do
 done < <(find "$PROJECT_ROOT/core" "$PROJECT_ROOT/lib" -mindepth 2 -maxdepth 2 -name Cargo.toml | sort)
 
 # ===========================================================
+# 9. Frontend Svelte Fallbacks (Sidebar.svelte, SettingsTab.svelte)
+# ===========================================================
+SIDEBAR_SVELTE="$PROJECT_ROOT/apps/srt-gui/src/lib/Sidebar.svelte"
+if [ -f "$SIDEBAR_SVELTE" ]; then
+    # Aggiorna fallback versione in Sidebar.svelte
+    sed -i "s/appVersionNum = \"v[0-9]*\.[0-9]*\.[0-9]*\"/appVersionNum = \"v${VERSION}\"/g" "$SIDEBAR_SVELTE"
+    sed -i "s/appVersionNum || \"v[0-9]*\.[0-9]*\.[0-9]*\"/appVersionNum || \"v${VERSION}\"/g" "$SIDEBAR_SVELTE"
+    update_file "$SIDEBAR_SVELTE" "fallback version"
+fi
+
+SETTINGS_TAB_SVELTE="$PROJECT_ROOT/apps/srt-gui/src/lib/SettingsTab.svelte"
+if [ -f "$SETTINGS_TAB_SVELTE" ]; then
+    # Aggiorna fallback versione in SettingsTab.svelte
+    sed -i "s/appVersionNum = \"v[0-9]*\.[0-9]*\.[0-9]*\"/appVersionNum = \"v${VERSION}\"/g" "$SETTINGS_TAB_SVELTE"
+    update_file "$SETTINGS_TAB_SVELTE" "fallback version"
+fi
+
+# ===========================================================
 # 8. Verifica coerenza versioni interne
 # ===========================================================
 echo ""

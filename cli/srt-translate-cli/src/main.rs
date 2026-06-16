@@ -111,9 +111,7 @@ fn calculate_workers_per_provider(rpm_limit: usize) -> usize {
     // Per task I/O bound, usiamo un numero di workers basato sul RPM
     // Più RPM = più workers possibili
     // Formula: circa 1 worker ogni 5-10 RPM, con min=2 e max=20
-    let base_workers = (rpm_limit / 8).max(2).min(20);
-    
-    base_workers
+    (rpm_limit / 8).clamp(2, 20)
 }
 
 /// Calcola workers legacy basato su CPU (per retrocompatibilità)
@@ -126,13 +124,9 @@ fn calculate_workers_per_key_legacy(num_providers: usize) -> usize {
     
     // Lascia sempre almeno 1 CPU libera
     let available_cpus = if num_cpus > 1 { num_cpus - 1 } else { 1 };
-    
-    // Distribuisci le CPU disponibili tra i provider
-    if num_providers > 0 {
-        (available_cpus / num_providers).max(1)
-    } else {
-        1
-    }
+
+    // Distribuisci le CPU disponibili tra i provider (checked_div: num_providers può essere 0)
+    available_cpus.checked_div(num_providers).unwrap_or(1).max(1)
 }
 
 #[derive(Parser)]

@@ -31,7 +31,11 @@
   const RELEASES_URL = "https://github.com/pierspad/Vesta/releases";
   
   const repoUrl = "https://github.com/pierspad/VESTA";
-  const releasesUrl = "https://github.com/pierspad/VESTA/releases";
+  let releasesUrl = $derived(
+    appVersionNum
+      ? `https://github.com/pierspad/VESTA/releases/tag/${appVersionNum}`
+      : "https://github.com/pierspad/VESTA/releases"
+  );
   const licenseUrl = "https://github.com/pierspad/VESTA/blob/main/LICENSE";
   const authorUrl = "https://pierspad.com";
   const authorIconUrl = authorAvatar;
@@ -226,7 +230,7 @@
       })
       .catch(() => {
         appVersion = "VESTA";
-        appVersionNum = "v0.1.0";
+        appVersionNum = "v0.10.0";
         appLicense = "GPL-3.0";
       });
 
@@ -236,7 +240,7 @@
   });
 </script>
 
-<aside class="{collapsed ? 'w-20' : 'w-[238px]'} bg-gray-900 border-r border-white/10 flex flex-col transition-[width] duration-200 ease-out relative will-change-[width]">
+<aside class="{collapsed ? 'w-20' : 'w-[260px]'} bg-gray-900 border-r border-white/10 flex flex-col transition-[width] duration-200 ease-out relative will-change-[width]">
   <button
     onclick={onToggleCollapse}
     class="absolute -right-3 top-6 w-6 h-6 bg-gray-800 border border-white/20 rounded-full flex items-center justify-center text-gray-400 hover:text-white hover:bg-gray-700 transition-all z-10 shadow-lg"
@@ -247,13 +251,13 @@
     </svg>
   </button>
 
-  <div class="h-[89px] min-h-[89px] max-h-[89px] px-4 border-b border-white/10 flex items-center shrink-0">
+  <div class="h-[89px] min-h-[89px] max-h-[89px] border-b border-white/10 flex items-center shrink-0 {collapsed ? 'justify-center px-2' : 'pl-[32px] pr-4'}">
     {#if activeTab === "settings"}
       <button
         onclick={() => {
           onTabChange("flashcards");
         }}
-        class="flex items-center gap-4 group cursor-pointer text-left focus:outline-none w-full"
+        class="flex items-center gap-4 group cursor-pointer focus:outline-none {collapsed ? 'w-8 h-8 justify-center' : 'w-full text-left'}"
       >
         <div class="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center flex-shrink-0 group-hover:bg-white/10 transition-colors border border-white/10">
           <svg class="w-4.5 h-4.5 text-gray-400 group-hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -265,7 +269,7 @@
         {/if}
       </button>
     {:else}
-      <div class="flex items-center gap-3 w-full">
+      <div class="flex items-center gap-3 w-full {collapsed ? 'justify-center' : ''}">
         <button
           onclick={() => onTabChange("settings")}
           class="brand-settings-toggle-btn text-gray-400 hover:text-white transition-colors duration-200 focus:outline-none flex items-center justify-center w-8 h-8 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 relative shrink-0 cursor-pointer"
@@ -287,7 +291,7 @@
         </button>
 
         {#if !collapsed}
-          <div class="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 relative overflow-visible ml-4">
+          <div class="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 relative overflow-visible ml-2">
             <div class="absolute -inset-1.5 bg-orange-500/22 rounded-full blur-lg z-0"></div>
             <div class="absolute inset-0 bg-amber-300/12 rounded-full blur-md z-0"></div>
             <img src={fireplaceIcon} alt="VESTA" class="w-10 h-10 drop-shadow-[0_0_10px_rgba(249,115,22,0.55)] relative z-10" />
@@ -587,7 +591,7 @@
             </a>
             <div class="flex flex-col gap-0.5 min-w-0">
               <a href={releasesUrl} target="_blank" class="text-sm font-semibold text-gray-200 hover:text-indigo-400 transition-colors truncate leading-none">
-                {appVersionNum || "v0.1.0"}
+                {appVersionNum || "v0.10.0"}
               </a>
               <a href={licenseUrl} target="_blank" class="text-[11px] text-gray-400 hover:text-indigo-400 transition-colors leading-none">
                 {appLicense || "GPL-3.0"}

@@ -126,7 +126,96 @@ pub struct FlashcardConfig {
     pub card_css: Option<String>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+impl Default for FlashcardConfig {
+    /// Text-only defaults: no media extraction, TSV export, sensible bitrates and
+    /// snapshot dimensions. Call sites override only the fields they care about
+    /// via `..FlashcardConfig::default()`.
+    fn default() -> Self {
+        Self {
+            target_subs_path: String::new(),
+            native_subs_path: None,
+            video_path: None,
+            audio_path: None,
+            output_dir: String::new(),
+            use_timings_from: "target".to_string(),
+            span_start_ms: None,
+            span_end_ms: None,
+            time_shift_target_ms: 0,
+            time_shift_native_ms: 0,
+            filters: SubtitleFilters::default(),
+            context: ContextConfig::default(),
+            combine_sentences: false,
+            continuation_chars: String::new(),
+            generate_audio: false,
+            audio_bitrate: 128,
+            audio_track_index: None,
+            normalize_audio: false,
+            audio_pad_start_ms: 0,
+            audio_pad_end_ms: 0,
+            generate_snapshots: false,
+            snapshot_width: 240,
+            snapshot_height: 160,
+            crop_bottom: 0,
+            generate_video_clips: false,
+            video_codec: "h264".to_string(),
+            h264_preset: "ultrafast".to_string(),
+            video_bitrate: 1000,
+            video_audio_bitrate: 128,
+            video_pad_start_ms: 0,
+            video_pad_end_ms: 0,
+            deck_name: String::new(),
+            episode_number: 1,
+            export_format: Some("tsv".to_string()),
+            note_type_name: None,
+            field_names: None,
+            output_fields: OutputFields::default(),
+            cpu_cores: None,
+            card_front_html: None,
+            card_back_html: None,
+            card_css: None,
+        }
+    }
+}
+
+impl FlashcardConfig {
+    /// "Everything on, fast presets" config shared by the benchmark harness —
+    /// both the standalone `vesta-benchmark` binary and the GUI's `--benchmark`
+    /// mode. The caller probes whether the source has an audio track (see
+    /// [`crate::video_has_audio`]) and supplies the CPU-core budget; every other
+    /// field uses the benchmark defaults.
+    pub fn benchmark(
+        target_subs_path: String,
+        native_subs_path: String,
+        video_path: String,
+        output_dir: String,
+        export_format: String,
+        has_audio: bool,
+        cpu_cores: Option<usize>,
+    ) -> Self {
+        Self {
+            target_subs_path,
+            native_subs_path: Some(native_subs_path),
+            audio_path: has_audio.then(|| video_path.clone()),
+            video_path: Some(video_path),
+            output_dir,
+            generate_audio: has_audio,
+            generate_snapshots: true,
+            generate_video_clips: true,
+            deck_name: "BenchmarkDeck".to_string(),
+            export_format: Some(export_format),
+            output_fields: OutputFields {
+                include_audio: true,
+                include_snapshot: true,
+                include_video: true,
+                ..OutputFields::default()
+            },
+            cpu_cores,
+            ..Self::default()
+        }
+    }
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
 pub struct SubtitleFilters {
     pub include_words: Option<String>,
     pub exclude_words: Option<String>,
@@ -142,11 +231,15 @@ pub struct SubtitleFilters {
     pub remove_no_match: bool,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Default, Deserialize)]
 pub struct ContextConfig {
     pub leading: usize,
     pub trailing: usize,
     pub max_gap_seconds: f64,
+}
+
+fn default_true() -> bool {
+    true
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -158,6 +251,31 @@ pub struct OutputFields {
     pub include_video: bool,
     pub include_subs1: bool,
     pub include_subs2: bool,
+    // Reading and Notes are manual fields. They default to ON so that payloads
+    // from older callers (which don't send these keys) keep the historical
+    // always-present behaviour; custom note types may switch them off.
+    #[serde(default = "default_true")]
+    pub include_reading: bool,
+    #[serde(default = "default_true")]
+    pub include_notes: bool,
+}
+
+impl Default for OutputFields {
+    /// Text card defaults: tag, sequence marker and both subtitle lines on; all
+    /// media columns off. (Not derivable — the derived default would be all-false.)
+    fn default() -> Self {
+        Self {
+            include_tag: true,
+            include_sequence: true,
+            include_audio: false,
+            include_snapshot: false,
+            include_video: false,
+            include_subs1: true,
+            include_subs2: true,
+            include_reading: true,
+            include_notes: true,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Deserialize)]

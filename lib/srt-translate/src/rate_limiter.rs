@@ -21,10 +21,14 @@ pub type RateLimiter = GovRateLimiter<NotKeyed, InMemoryState, DefaultClock>;
 /// * `rpm` - Richieste per minuto consentite
 ///
 /// # Esempio
-/// ```
+/// ```no_run
+/// # async fn esempio() {
+/// use srt_translate::create_rate_limiter;
+///
 /// let limiter = create_rate_limiter(15); // 15 RPM per Gemini free tier
 /// limiter.until_ready().await; // Aspetta fino a quando è disponibile un token
 /// // Fai la richiesta
+/// # }
 /// ```
 pub fn create_rate_limiter(rpm: u32) -> Arc<RateLimiter> {
     // Converti RPM in quota

@@ -192,6 +192,10 @@ struct PreparedSegment {
     _wav_path: std::path::PathBuf,
 }
 
+// Worker per un singolo segmento del fan-out di auto-sync: i parametri sono
+// indipendenti (posizioni, durate, path, comando ffmpeg) e la funzione è interna,
+// quindi raggrupparli in una struct aggiungerebbe cerimonia senza chiarezza.
+#[allow(clippy::too_many_arguments)]
 async fn prepare_single_segment(
     idx: usize,
     start_pos: f64,
@@ -220,10 +224,7 @@ async fn prepare_single_segment(
             extract_audio_segment(&media_path_clone, current_pos, segment_duration, &temp_wav_str, &ffmpeg_cmd_clone)
         }).await;
 
-        let extract_ok = match extract_res {
-            Ok(Ok(())) => true,
-            _ => false,
-        };
+        let extract_ok = matches!(extract_res, Ok(Ok(())));
 
         if !extract_ok {
             attempts += 1;
@@ -636,7 +637,7 @@ pub async fn sync_auto_sync(
     let mut spaced_matches: Vec<MatchCandidate> = Vec::new();
     let mut last_time: Option<i64> = None;
     for m in final_matches {
-        if last_time.map_or(true, |lt| m.original_start_ms.saturating_sub(lt) >= 30_000) {
+        if last_time.is_none_or(|lt| m.original_start_ms.saturating_sub(lt) >= 30_000) {
             spaced_matches.push(m.clone());
             last_time = Some(m.original_start_ms);
         }
@@ -656,10 +657,10 @@ pub async fn sync_auto_sync(
                     || (a.corrected_time_ms - m.transcribed_start_ms).abs() < 10_000
             });
  
-            if !is_near_existing {
-                if engine.add_anchor(m.subtitle_id, m.transcribed_start_ms, false).is_ok() {
-                    count += 1;
-                }
+            if !is_near_existing
+                && engine.add_anchor(m.subtitle_id, m.transcribed_start_ms, false).is_ok()
+            {
+                count += 1;
             }
         }
         

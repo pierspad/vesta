@@ -7,9 +7,10 @@ use serde::{Deserialize, Serialize};
 use crate::interpolator::TimeMapper;
 
 /// Strategia di campionamento per suggerire il prossimo sottotitolo da controllare
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub enum SamplerStrategy {
     /// Ricerca binaria: divide sempre l'intervallo a metà
+    #[default]
     BinarySearch,
     /// Priorità ai segmenti con maggiore incertezza stimata
     MaxUncertainty,
@@ -17,12 +18,6 @@ pub enum SamplerStrategy {
     UniformTime,
     /// Campionamento sequenziale (prossimo sottotitolo)
     Sequential,
-}
-
-impl Default for SamplerStrategy {
-    fn default() -> Self {
-        SamplerStrategy::BinarySearch
-    }
 }
 
 /// Sampler adattivo che suggerisce il prossimo sottotitolo da sincronizzare

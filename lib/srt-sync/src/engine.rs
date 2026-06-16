@@ -405,33 +405,6 @@ impl SyncEngine {
 mod tests {
     use super::*;
 
-    fn create_test_subtitles() -> HashMap<u32, Subtitle> {
-        let mut subs = HashMap::new();
-        
-        subs.insert(1, Subtitle {
-            id: 1,
-            start: Timestamp { milliseconds: 1000 },
-            end: Timestamp { milliseconds: 3000 },
-            text: "First subtitle".to_string(),
-        });
-        
-        subs.insert(2, Subtitle {
-            id: 2,
-            start: Timestamp { milliseconds: 5000 },
-            end: Timestamp { milliseconds: 7000 },
-            text: "Second subtitle".to_string(),
-        });
-        
-        subs.insert(3, Subtitle {
-            id: 3,
-            start: Timestamp { milliseconds: 10000 },
-            end: Timestamp { milliseconds: 12000 },
-            text: "Third subtitle".to_string(),
-        });
-
-        subs
-    }
-
     #[test]
     fn test_find_subtitle_at_time() {
         // Questo test richiederebbe un file SRT reale

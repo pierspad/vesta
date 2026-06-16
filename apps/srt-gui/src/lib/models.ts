@@ -1156,6 +1156,216 @@ export function resetFieldNames(): FieldNamesConfig {
   return sanitizeFieldNamesConfig({ ...defaultFieldNames });
 }
 
+// ─── Note Types ──────────────────────────────────────────────────────────────
+//
+// A "note type" is the unit the user selects when generating flashcards. It is a
+// name + the nine canonical fields + which of them are active. There are two
+// kinds:
+//
+//   • predefined — one per study language (e.g. "English_Vesta"). Locked: always
+//     all nine fields, with the canonical names. Generated on the fly from the
+//     languages list, never stored.
+//   • custom — created by the user (typically by forking a predefined one),
+//     stored in localStorage. May switch fields off to get a smaller schema.
+//
+// The Rust exporter keys the Anki model id off the note type *name* and emits
+// exactly the active fields, so as long as a given name always carries the same
+// active set (predefined are locked; a custom saves its own fixed set) Anki keeps
+// merging re-imports into one note type.
+
+export type FieldKey = keyof FieldNamesConfig;
+
+/** Canonical field order — MUST match the schema order in the Rust exporter. */
+export const NOTE_TYPE_FIELD_ORDER: FieldKey[] = [
+  "expression",
+  "meaning",
+  "audio",
+  "snapshot",
+  "video",
+  "tags",
+  "sequenceMarker",
+  "reading",
+  "notes",
+];
+
+export type FieldToggles = Record<FieldKey, boolean>;
+
+export const allFieldsIncluded: FieldToggles = {
+  expression: true,
+  meaning: true,
+  reading: true,
+  audio: true,
+  snapshot: true,
+  video: true,
+  tags: true,
+  sequenceMarker: true,
+  notes: true,
+};
+
+export interface NoteTypeDef {
+  /** "predef:<langCode>" for predefined, "custom:<id>" for custom. */
+  id: string;
+  /** Anki note type name. */
+  name: string;
+  predefined: boolean;
+  /** Study language code this note type maps to (drives subtitle matching). */
+  language: string;
+  fields: FieldNamesConfig;
+  included: FieldToggles;
+}
+
+/** Shape sent to the Rust backend as `output_fields`. */
+export interface OutputFieldsPayload {
+  include_subs1: boolean;
+  include_subs2: boolean;
+  include_audio: boolean;
+  include_snapshot: boolean;
+  include_video: boolean;
+  include_tag: boolean;
+  include_sequence: boolean;
+  include_reading: boolean;
+  include_notes: boolean;
+}
+
+const CUSTOM_NOTE_TYPES_KEY = "vesta-custom-note-types";
+const LEGACY_ANKI_FIELD_PRESETS_KEY = "vesta-anki-field-presets";
+export const NOTE_TYPES_UPDATED_EVENT = "vesta:note-types-updated";
+
+function sanitizeToggles(raw: Partial<FieldToggles> | undefined): FieldToggles {
+  const r = raw || {};
+  // Missing keys default to ON, so legacy data (no `included`) becomes all-on.
+  const at = (v: unknown) => v !== false;
+  return {
+    expression: at(r.expression),
+    meaning: at(r.meaning),
+    reading: at(r.reading),
+    audio: at(r.audio),
+    snapshot: at(r.snapshot),
+    video: at(r.video),
+    tags: at(r.tags),
+    sequenceMarker: at(r.sequenceMarker),
+    notes: at(r.notes),
+  };
+}
+
+function sanitizeCustomNoteType(raw: any): NoteTypeDef | null {
+  if (!raw || !raw.id || !raw.name) return null;
+  const id = String(raw.id).startsWith("custom:") ? String(raw.id) : `custom:${raw.id}`;
+  return {
+    id,
+    name: limitNoteTypeFieldValue(String(raw.name)),
+    predefined: false,
+    language: typeof raw.language === "string" ? raw.language : "",
+    fields: sanitizeFieldNamesConfig({ ...defaultFieldNames, ...(raw.fields || {}) }),
+    included: sanitizeToggles(raw.included),
+  };
+}
+
+/** Custom note types saved by the user, plus a one-time migration of the legacy
+ *  field-preset store (which had no per-field toggles → all-on). */
+export function loadCustomNoteTypes(): NoteTypeDef[] {
+  try {
+    const raw = localStorage.getItem(CUSTOM_NOTE_TYPES_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        return parsed
+          .map(sanitizeCustomNoteType)
+          .filter((nt): nt is NoteTypeDef => Boolean(nt));
+      }
+    }
+  } catch { /* ignore */ }
+
+  // Migrate legacy AnkiFieldPreset[] { id, name, noteTypeName, fields }.
+  try {
+    const legacyRaw = localStorage.getItem(LEGACY_ANKI_FIELD_PRESETS_KEY);
+    if (legacyRaw) {
+      const legacy = JSON.parse(legacyRaw);
+      if (Array.isArray(legacy) && legacy.length) {
+        const migrated = legacy
+          .map((p: any) =>
+            sanitizeCustomNoteType({
+              id: p.id,
+              name: p.noteTypeName || p.name,
+              fields: p.fields,
+              included: allFieldsIncluded,
+            }),
+          )
+          .filter((nt: NoteTypeDef | null): nt is NoteTypeDef => Boolean(nt));
+        if (migrated.length) {
+          saveCustomNoteTypes(migrated);
+          return migrated;
+        }
+      }
+    }
+  } catch { /* ignore */ }
+
+  return [];
+}
+
+export function saveCustomNoteTypes(list: NoteTypeDef[]): void {
+  const serialized = list.map((nt) => ({
+    id: nt.id,
+    name: limitNoteTypeFieldValue(nt.name),
+    language: nt.language,
+    fields: sanitizeFieldNamesConfig(nt.fields),
+    included: sanitizeToggles(nt.included),
+  }));
+  localStorage.setItem(CUSTOM_NOTE_TYPES_KEY, JSON.stringify(serialized));
+  dispatchWindowEvent(NOTE_TYPES_UPDATED_EVENT);
+}
+
+/** The locked, predefined note type for a study language. */
+export function predefinedNoteTypeForLanguage(code: string): NoteTypeDef {
+  const lang = languages.find((l) => l.code === code);
+  return {
+    id: `predef:${code}`,
+    name: lang ? `${lang.nameEn}_Vesta` : `Vesta_${code}`,
+    predefined: true,
+    language: code,
+    fields: { ...defaultFieldNames },
+    included: { ...allFieldsIncluded },
+  };
+}
+
+/** One predefined note type per known language. */
+export function predefinedNoteTypes(): NoteTypeDef[] {
+  return languages.map((l) => predefinedNoteTypeForLanguage(l.code));
+}
+
+/** All selectable note types: custom first (A→Z), then predefined (A→Z). */
+export function listNoteTypes(): NoteTypeDef[] {
+  const byName = (a: NoteTypeDef, b: NoteTypeDef) => a.name.localeCompare(b.name);
+  const custom = loadCustomNoteTypes().slice().sort(byName);
+  const predef = predefinedNoteTypes().slice().sort(byName);
+  return [...custom, ...predef];
+}
+
+export function findNoteTypeById(id: string): NoteTypeDef | null {
+  if (id.startsWith("predef:")) return predefinedNoteTypeForLanguage(id.slice("predef:".length));
+  return loadCustomNoteTypes().find((nt) => nt.id === id) ?? null;
+}
+
+export function newCustomNoteTypeId(): string {
+  return `custom:${Date.now().toString(36)}`;
+}
+
+/** Map a note type's active fields onto the backend `output_fields` payload. */
+export function noteTypeOutputFields(nt: NoteTypeDef): OutputFieldsPayload {
+  const i = nt.included;
+  return {
+    include_subs1: i.expression,
+    include_subs2: i.meaning,
+    include_audio: i.audio,
+    include_snapshot: i.snapshot,
+    include_video: i.video,
+    include_tag: i.tags,
+    include_sequence: i.sequenceMarker,
+    include_reading: i.reading,
+    include_notes: i.notes,
+  };
+}
+
 export const defaultCardTemplates: CardTemplateConfig = {
   frontHtml: `<div id="tags-container"></div>
 <div id="tags-source" style="display: none;">{{Tags}}</div>
@@ -1285,6 +1495,21 @@ export function getSortedKeys(keyStr: string): string[] {
     return a.localeCompare(b);
   });
   return keys;
+}
+
+/**
+ * Localized label for a single shortcut key part.
+ *
+ * Modifier and special keys (Ctrl, Shift, Enter, Space, arrows, ...) are looked
+ * up under the `keys.*` namespace so each language can show its own convention
+ * (e.g. German `Strg`/`Umschalt`, French `Maj`/`Entrée`). Letters, digits and
+ * any key without a `keys.*` entry fall back to the raw part. The translator is
+ * injected so this module stays free of any i18n import.
+ */
+export function formatKeyPart(part: string, translate: (key: string) => string): string {
+  const key = `keys.${part.toLowerCase()}`;
+  const label = translate(key);
+  return label === key ? part : label;
 }
 
 

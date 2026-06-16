@@ -65,6 +65,10 @@ pub struct BatchResult {
 ///
 /// **Nota**: Questa funzione usa solo il semaforo per limitare la concorrenza.
 /// Per un vero rate limiting basato su RPM, usa `translate_subtitles_with_rate_limit`.
+// API di traduzione pubblica a strati: ogni variante aggiunge una capacità (rate
+// limiting, cancellazione) e delega alla successiva, quindi la lista di parametri
+// è intrinseca al design, non complessità incidentale.
+#[allow(clippy::too_many_arguments)]
 pub async fn translate_subtitles_async<F>(
     translators: Vec<Translator>,
     subtitles: HashMap<u32, Subtitle>,
@@ -107,6 +111,7 @@ where
 /// * `title_context` - Contesto opzionale (es: titolo del film)
 /// * `output_path` - Percorso del file di output per salvataggio incrementale
 /// * `on_progress` - Callback invocato ad ogni aggiornamento di progresso
+#[allow(clippy::too_many_arguments)]
 pub async fn translate_subtitles_with_rate_limit<F>(
     translators: Vec<Translator>,
     rate_limiters: Option<Vec<std::sync::Arc<RateLimiter>>>,
@@ -259,6 +264,7 @@ where
 /// Ripara una traduzione incompleta con supporto per rate limiting RPM
 ///
 /// Versione avanzata che supporta rate limiters per rispettare i limiti RPM delle API.
+#[allow(clippy::too_many_arguments)]
 pub async fn repair_translation_with_rate_limit<F>(
     translators: Vec<Translator>,
     rate_limiters: Option<Vec<std::sync::Arc<RateLimiter>>>,
@@ -492,6 +498,7 @@ fn build_repair_context(
 /// * `output_path` - Percorso del file di output
 /// * `on_progress` - Callback per il progresso
 /// * `cancellation_token` - Token per cancellare la traduzione
+#[allow(clippy::too_many_arguments)]
 pub async fn translate_subtitles_with_rate_limit_cancellable<F>(
     translators: Vec<Translator>,
     rate_limiters: Option<Vec<std::sync::Arc<RateLimiter>>>,
@@ -741,7 +748,7 @@ where
             &subtitles_map,
             &translated,
             target_lang,
-            title_context.as_deref(),
+            title_context,
             output_path,
             progress_callback.clone(),
             &cancellation_token,
@@ -753,6 +760,7 @@ where
 }
 
 /// Ripara i sottotitoli mancanti con supporto cancellazione
+#[allow(clippy::too_many_arguments)]
 async fn repair_missing_subtitles_cancellable(
     translator: &Translator,
     missing_ids: &[u32],

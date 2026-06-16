@@ -336,81 +336,18 @@ fn main() {
 
                 tauri::async_runtime::spawn(async move {
                     use std::time::Instant;
-                    use crate::commands::flashcards::types::{FlashcardConfig, SubtitleFilters, ContextConfig, OutputFields};
+                    use crate::commands::flashcards::types::{video_has_audio, FlashcardConfig};
                     use tauri::Manager;
 
-                    let has_audio = {
-                        let output = std::process::Command::new("ffprobe")
-                            .args(["-v", "error", "-show_entries", "stream=codec_type", "-of", "csv=p=0", &video])
-                            .output()
-                            .expect("failed to execute ffprobe");
-                        String::from_utf8_lossy(&output.stdout).contains("audio")
-                    };
-
-                    let config = FlashcardConfig {
-                        target_subs_path: sub1,
-                        native_subs_path: Some(sub2),
-                        video_path: Some(video.clone()),
-                        audio_path: if has_audio { Some(video) } else { None },
-                        output_dir: out_dir,
-                        use_timings_from: "target".to_string(),
-                        span_start_ms: None,
-                        span_end_ms: None,
-                        time_shift_target_ms: 0,
-                        time_shift_native_ms: 0,
-                        filters: SubtitleFilters {
-                            include_words: None,
-                            exclude_words: None,
-                            exclude_duplicates_subs1: false,
-                            exclude_duplicates_subs2: false,
-                            min_chars: None,
-                            max_chars: None,
-                            min_duration_ms: None,
-                            max_duration_ms: None,
-                            exclude_styled: false,
-                            actor_filter: None,
-                            only_cjk: false,
-                            remove_no_match: false,
-                        },
-                        context: ContextConfig { leading: 0, trailing: 0, max_gap_seconds: 0.0 },
-                        combine_sentences: false,
-                        continuation_chars: "".to_string(),
-                        generate_audio: has_audio,
-                        audio_bitrate: 128,
-                        audio_track_index: None,
-                        normalize_audio: false,
-                        audio_pad_start_ms: 0,
-                        audio_pad_end_ms: 0,
-                        generate_snapshots: true,
-                        snapshot_width: 240,
-                        snapshot_height: 160,
-                        crop_bottom: 0,
-                        generate_video_clips: true,
-                        video_codec: "h264".to_string(),
-                        h264_preset: "ultrafast".to_string(),
-                        video_bitrate: 1000,
-                        video_audio_bitrate: 128,
-                        video_pad_start_ms: 0,
-                        video_pad_end_ms: 0,
-                        deck_name: "BenchmarkDeck".to_string(),
-                        episode_number: 1,
-                        export_format: Some(export_fmt),
-                        note_type_name: None,
-                        field_names: None,
-                        output_fields: OutputFields {
-                            include_tag: true,
-                            include_sequence: true,
-                            include_audio: true,
-                            include_snapshot: true,
-                            include_video: true,
-                            include_subs1: true,
-                            include_subs2: true,
-                        },
-                        cpu_cores: None,
-                        card_front_html: None,
-                        card_back_html: None,
-                        card_css: None,
-                    };
+                    let config = FlashcardConfig::benchmark(
+                        sub1,
+                        sub2,
+                        video.clone(),
+                        out_dir,
+                        export_fmt,
+                        video_has_audio("ffprobe", &video),
+                        None,
+                    );
 
                     let state = app_handle.state::<crate::AppFlashcardState>();
 

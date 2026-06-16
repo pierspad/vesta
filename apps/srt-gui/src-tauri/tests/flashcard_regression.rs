@@ -41,74 +41,15 @@ fn sha256_str(data: &str) -> String {
 }
 
 /// Build a minimal FlashcardConfig for text-only tests (no media extraction).
+/// Only the subtitle paths, output dir and deck differ from the text-only defaults.
 fn text_only_config(target: &str, native: Option<&str>, deck: &str) -> FlashcardConfig {
     FlashcardConfig {
         target_subs_path: target.to_string(),
-        native_subs_path: native.map(|s| s.to_string()),
-        video_path: None,
-        audio_path: None,
+        native_subs_path: native.map(str::to_string),
         output_dir: std::env::temp_dir().to_string_lossy().to_string(),
-        use_timings_from: "target".to_string(),
-        span_start_ms: None,
-        span_end_ms: None,
-        time_shift_target_ms: 0,
-        time_shift_native_ms: 0,
-        filters: SubtitleFilters {
-            include_words: None,
-            exclude_words: None,
-            exclude_duplicates_subs1: false,
-            exclude_duplicates_subs2: false,
-            min_chars: None,
-            max_chars: None,
-            min_duration_ms: None,
-            max_duration_ms: None,
-            exclude_styled: false,
-            actor_filter: None,
-            only_cjk: false,
-            remove_no_match: false,
-        },
-        context: ContextConfig {
-            leading: 0,
-            trailing: 0,
-            max_gap_seconds: 0.0,
-        },
-        combine_sentences: false,
-        continuation_chars: String::new(),
-        generate_audio: false,
-        audio_bitrate: 128,
-        audio_track_index: None,
-        normalize_audio: false,
-        audio_pad_start_ms: 0,
-        audio_pad_end_ms: 0,
-        generate_snapshots: false,
-        snapshot_width: 0,
-        snapshot_height: 0,
-        crop_bottom: 0,
-        generate_video_clips: false,
-        video_codec: "h264".to_string(),
-        h264_preset: "ultrafast".to_string(),
-        video_bitrate: 0,
-        video_audio_bitrate: 0,
-        video_pad_start_ms: 0,
-        video_pad_end_ms: 0,
         deck_name: deck.to_string(),
-        episode_number: 1,
-        export_format: Some("tsv".to_string()),
-        note_type_name: None,
-        field_names: None,
-        output_fields: OutputFields {
-            include_tag: true,
-            include_sequence: true,
-            include_audio: false,
-            include_snapshot: false,
-            include_video: false,
-            include_subs1: true,
-            include_subs2: true,
-        },
         cpu_cores: Some(2),
-        card_front_html: None,
-        card_back_html: None,
-        card_css: None,
+        ..FlashcardConfig::default()
     }
 }
 
@@ -379,7 +320,7 @@ fn test_regression_hashes() {
     for (en, it, expected_hash) in clips {
         let config = text_only_config(
             &fixture_path(en),
-            it.map(|f| fixture_path(f)).as_deref(),
+            it.map(fixture_path).as_deref(),
             "regression",
         );
         let preview = rt.block_on(flashcard_preview(config)).unwrap();
