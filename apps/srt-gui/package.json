@@ -4,7 +4,7 @@
   "version": "0.10.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "NODE_NO_WARNINGS=1 vite",
     "tauri:prepare": "tauri icon src-tauri/icons/icon.png -o src-tauri/icons",
     "build": "vite build",
     "preview": "vite preview",

@@ -37,9 +37,10 @@
 
   interface Props {
     active?: boolean;
+    onGoToSettings?: (section?: "overview" | "llm" | "whisper" | "language" | "anki" | "shortcuts", highlightItemId?: string) => void;
   }
 
-  let { active = true }: Props = $props();
+  let { active = true, onGoToSettings }: Props = $props();
 
   let t = $derived($locale);
 
@@ -88,6 +89,20 @@
 
   let smartMatchingRules = $derived(smartMatchingStore.rules);
   let episodeContextMenu = $state<{ x: number; y: number; idx: number } | null>(null);
+  let bottomContextMenu = $state<{ x: number; y: number; section: "overview" | "anki" } | null>(null);
+
+  function openBottomContextMenu(event: MouseEvent, section: "overview" | "anki") {
+    event.preventDefault();
+    // Estimate menu height (~80px for single item) and open above the click point
+    // so the menu doesn't cover the bottom bar buttons.
+    const MENU_HEIGHT_ESTIMATE = 90;
+    const y = Math.max(0, event.clientY - MENU_HEIGHT_ESTIMATE);
+    bottomContextMenu = { x: Math.min(event.clientX, window.innerWidth - 220), y, section };
+  }
+
+  function closeBottomContextMenu() {
+    bottomContextMenu = null;
+  }
 
 
   // ─── Series Mode State ───────────────────────────────────────────────────
@@ -2813,6 +2828,11 @@
   }
 
   function handleGlobalKeydown(e: KeyboardEvent) {
+    if (bottomContextMenu && e.key.toLowerCase() === "escape") {
+      closeBottomContextMenu();
+      e.preventDefault();
+      return;
+    }
     if (episodeContextMenu) {
       if (
         document.activeElement?.tagName === "INPUT" ||
@@ -3640,112 +3660,110 @@
               if (hasAudio) generateAudio = !generateAudio;
             }}
             class="w-10 h-5 rounded-full transition-all duration-200 relative
-              {generateAudio && hasAudio ? 'bg-cyan-500' : 'bg-gray-600'}"
+              {generateAudio ? 'bg-cyan-500' : 'bg-gray-600'}"
             aria-label="Toggle audio clips"
             disabled={!hasAudio}
           >
             <div
               class="absolute w-4 h-4 bg-white rounded-full top-0.5 transition-all duration-200
-              {generateAudio && hasAudio ? 'left-5' : 'left-0.5'}"
+              {generateAudio ? 'left-5' : 'left-0.5'}"
             ></div>
           </button>
         </div>
 
-        {#if hasAudio}
-          <div class="space-y-2 transition-all duration-200 {!generateAudio ? 'opacity-40 pointer-events-none' : ''}">
-            <div class="grid grid-cols-2 gap-2">
-              {#if mediaType === "video" && (audioTracksLoading || audioTracks.length >= 1)}
-                <div>
-                  <span class="block text-xs text-gray-500 mb-1"
-                    >{t("flashcards.audioTrack")}</span
-                  >
-                  {#if audioTracksLoading}
-                    <div class="input-modern text-xs text-gray-500">
-                      {t("flashcards.audioTracksLoading")}
-                    </div>
-                  {:else if audioTracks.length > 1}
-                    <SearchableSelect
-                      noResultsText={t("common.noResults")}
-                      options={audioTracks.map((track) => ({
-                        value: String(track.index),
-                        label: formatAudioTrackLabel(track),
-                      }))}
-                      value={selectedAudioTrackIndex === null ? "" : String(selectedAudioTrackIndex)}
-                      onchange={(value) => {
-                        selectedAudioTrackIndex = value === "" ? null : Number(value);
-                        audioTrackAutoSelected = false;
-                      }}
-                      placeholder={t("flashcards.audioTrack")}
-                    />
-                  {:else}
-                    <div class="input-modern text-xs text-gray-500 opacity-60 cursor-not-allowed">
-                      {formatAudioTrackLabel(audioTracks[0])}
-                    </div>
-                  {/if}
-                </div>
-              {/if}
+        <div class="space-y-2 transition-all duration-200 {!generateAudio ? 'opacity-40 pointer-events-none' : ''}">
+          <div class="grid grid-cols-2 gap-2">
+            {#if mediaType === "video" && (audioTracksLoading || audioTracks.length >= 1)}
+              <div>
+                <span class="block text-xs text-gray-500 mb-1"
+                  >{t("flashcards.audioTrack")}</span
+                >
+                {#if audioTracksLoading}
+                  <div class="input-modern text-xs text-gray-500">
+                    {t("flashcards.audioTracksLoading")}
+                  </div>
+                {:else if audioTracks.length > 1}
+                  <SearchableSelect
+                    noResultsText={t("common.noResults")}
+                    options={audioTracks.map((track) => ({
+                      value: String(track.index),
+                      label: formatAudioTrackLabel(track),
+                    }))}
+                    value={selectedAudioTrackIndex === null ? "" : String(selectedAudioTrackIndex)}
+                    onchange={(value) => {
+                      selectedAudioTrackIndex = value === "" ? null : Number(value);
+                      audioTrackAutoSelected = false;
+                    }}
+                    placeholder={t("flashcards.audioTrack")}
+                  />
+                {:else}
+                  <div class="input-modern text-xs text-gray-500 opacity-60 cursor-not-allowed">
+                    {formatAudioTrackLabel(audioTracks[0])}
+                  </div>
+                {/if}
+              </div>
+            {/if}
 
-              <div class={mediaType === "video" && (audioTracksLoading || audioTracks.length >= 1) ? "" : "col-span-2"}>
-                <span class="block text-xs text-gray-500 mb-1"
-                  >{t("flashcards.bitrate")}</span
-                >
-                <SearchableSelect
-                  noResultsText={t("common.noResults")}
-                  options={[
-                    { value: "64", label: "64 kb/s" },
-                    { value: "128", label: "128 kb/s" },
-                    { value: "192", label: "192 kb/s" },
-                    { value: "256", label: "256 kb/s" },
-                    { value: "320", label: "320 kb/s" },
-                  ]}
-                  value={String(audioBitrate)}
-                  onchange={(v) => (audioBitrate = parseInt(v))}
-                  placeholder="Bitrate"
-                />
-              </div>
-            </div>
-            <div class="grid grid-cols-3 gap-2 items-end">
-              <div>
-                <span class="block text-xs text-gray-500 mb-1"
-                  >{t("flashcards.padStart")}</span
-                >
-                <div class="flex items-center gap-1">
-                  <input
-                    type="number"
-                    bind:value={audioPadStart}
-                    class="input-modern w-full text-xs"
-                  />
-                  <span class="text-xs text-gray-500">ms</span>
-                </div>
-              </div>
-              <div>
-                <span class="block text-xs text-gray-500 mb-1"
-                  >{t("flashcards.padEnd")}</span
-                >
-                <div class="flex items-center gap-1">
-                  <input
-                    type="number"
-                    bind:value={audioPadEnd}
-                    class="input-modern w-full text-xs"
-                  />
-                  <span class="text-xs text-gray-500">ms</span>
-                </div>
-              </div>
-              <div class="flex justify-center">
-                <label class="vesta-check-row min-h-[42px] w-full">
-                  <input
-                    type="checkbox"
-                    bind:checked={normalizeAudio}
-                    class="vesta-check-input shrink-0"
-                  />
-                  <span class="min-w-0 text-left text-xs font-medium text-gray-300"
-                    >{t("flashcards.normalizeAudio")}</span
-                  >
-                </label>
-              </div>
+            <div class={mediaType === "video" && (audioTracksLoading || audioTracks.length >= 1) ? "" : "col-span-2"}>
+              <span class="block text-xs text-gray-500 mb-1"
+                >{t("flashcards.bitrate")}</span
+              >
+              <SearchableSelect
+                noResultsText={t("common.noResults")}
+                options={[
+                  { value: "64", label: "64 kb/s" },
+                  { value: "128", label: "128 kb/s" },
+                  { value: "192", label: "192 kb/s" },
+                  { value: "256", label: "256 kb/s" },
+                  { value: "320", label: "320 kb/s" },
+                ]}
+                value={String(audioBitrate)}
+                onchange={(v) => (audioBitrate = parseInt(v))}
+                placeholder="Bitrate"
+              />
             </div>
           </div>
-        {/if}
+          <div class="grid grid-cols-3 gap-2 items-end">
+            <div>
+              <span class="block text-xs text-gray-500 mb-1"
+                >{t("flashcards.padStart")}</span
+              >
+              <div class="flex items-center gap-1">
+                <input
+                  type="number"
+                  bind:value={audioPadStart}
+                  class="input-modern w-full text-xs"
+                />
+                <span class="text-xs text-gray-500">ms</span>
+              </div>
+            </div>
+            <div>
+              <span class="block text-xs text-gray-500 mb-1"
+                >{t("flashcards.padEnd")}</span
+              >
+              <div class="flex items-center gap-1">
+                <input
+                  type="number"
+                  bind:value={audioPadEnd}
+                  class="input-modern w-full text-xs"
+                />
+                <span class="text-xs text-gray-500">ms</span>
+              </div>
+            </div>
+            <div class="flex justify-center">
+              <label class="vesta-check-row min-h-[42px] w-full">
+                <input
+                  type="checkbox"
+                  bind:checked={normalizeAudio}
+                  class="vesta-check-input shrink-0"
+                />
+                <span class="min-w-0 text-left text-xs font-medium text-gray-300"
+                  >{t("flashcards.normalizeAudio")}</span
+                >
+              </label>
+            </div>
+          </div>
+        </div>
       </div>
     {:else if panelId === "snapshots"}
       <div
@@ -3781,62 +3799,60 @@
               }
             }}
             class="w-10 h-5 rounded-full transition-all duration-200 relative
-              {generateSnapshots && hasVideo ? 'bg-purple-500' : 'bg-gray-600'}"
+              {generateSnapshots ? 'bg-purple-500' : 'bg-gray-600'}"
             aria-label="Toggle snapshots"
             disabled={!hasVideo}
           >
             <div
               class="absolute w-4 h-4 bg-white rounded-full top-0.5 transition-all duration-200
-              {generateSnapshots && hasVideo ? 'left-5' : 'left-0.5'}"
+              {generateSnapshots ? 'left-5' : 'left-0.5'}"
             ></div>
           </button>
         </div>
 
-        {#if hasVideo}
-          <div class="space-y-2 transition-all duration-200 {!generateSnapshots ? 'opacity-40 pointer-events-none' : ''}">
-            <div class="grid grid-cols-3 gap-2">
-              <div>
-                <span class="block text-xs text-gray-500 mb-1"
-                  >{t("flashcards.width")}</span
-                >
-                <div class="flex items-center gap-1">
-                  <input
-                    type="number"
-                    bind:value={snapshotWidth}
-                    class="input-modern w-full text-xs"
-                  />
-                  <span class="text-xs text-gray-500">px</span>
-                </div>
+        <div class="space-y-2 transition-all duration-200 {!generateSnapshots ? 'opacity-40 pointer-events-none' : ''}">
+          <div class="grid grid-cols-3 gap-2">
+            <div>
+              <span class="block text-xs text-gray-500 mb-1"
+                >{t("flashcards.width")}</span
+              >
+              <div class="flex items-center gap-1">
+                <input
+                  type="number"
+                  bind:value={snapshotWidth}
+                  class="input-modern w-full text-xs"
+                />
+                <span class="text-xs text-gray-500">px</span>
               </div>
-              <div>
-                <span class="block text-xs text-gray-500 mb-1"
-                  >{t("flashcards.height")}</span
-                >
-                <div class="flex items-center gap-1">
-                  <input
-                    type="number"
-                    bind:value={snapshotHeight}
-                    class="input-modern w-full text-xs"
-                  />
-                  <span class="text-xs text-gray-500">px</span>
-                </div>
+            </div>
+            <div>
+              <span class="block text-xs text-gray-500 mb-1"
+                >{t("flashcards.height")}</span
+              >
+              <div class="flex items-center gap-1">
+                <input
+                  type="number"
+                  bind:value={snapshotHeight}
+                  class="input-modern w-full text-xs"
+                />
+                <span class="text-xs text-gray-500">px</span>
               </div>
-              <div>
-                <span class="block text-xs text-gray-500 mb-1"
-                  >{t("flashcards.cropBottom")}</span
-                >
-                <div class="flex items-center gap-1">
-                  <input
-                    type="number"
-                    bind:value={cropBottom}
-                    class="input-modern w-full text-xs"
-                  />
-                  <span class="text-xs text-gray-500">px</span>
-                </div>
+            </div>
+            <div>
+              <span class="block text-xs text-gray-500 mb-1"
+                >{t("flashcards.cropBottom")}</span
+              >
+              <div class="flex items-center gap-1">
+                <input
+                  type="number"
+                  bind:value={cropBottom}
+                  class="input-modern w-full text-xs"
+                />
+                <span class="text-xs text-gray-500">px</span>
               </div>
             </div>
           </div>
-        {/if}
+        </div>
       </div>
     {:else if panelId === "videoClips"}
       <div
@@ -3872,147 +3888,145 @@
               }
             }}
             class="w-10 h-5 rounded-full transition-all duration-200 relative
-              {generateVideoClips && hasVideo ? 'bg-rose-500' : 'bg-gray-600'}"
+              {generateVideoClips ? 'bg-rose-500' : 'bg-gray-600'}"
             aria-label="Toggle video clips"
             disabled={!hasVideo}
           >
             <div
               class="absolute w-4 h-4 bg-white rounded-full top-0.5 transition-all duration-200
-              {generateVideoClips && hasVideo ? 'left-5' : 'left-0.5'}"
+              {generateVideoClips ? 'left-5' : 'left-0.5'}"
             ></div>
           </button>
         </div>
 
-        {#if hasVideo}
-          <div class="space-y-2 transition-all duration-200 {!generateVideoClips ? 'opacity-40 pointer-events-none' : ''}">
-            <div class="grid grid-cols-2 gap-2">
-              <div>
-                <span class="block text-xs text-gray-500 mb-1"
-                  >{t("flashcards.width")}</span
-                >
-                <div class="flex items-center gap-1">
-                  <input
-                    type="number"
-                    bind:value={snapshotWidth}
-                    class="input-modern w-full text-xs"
-                  />
-                  <span class="text-xs text-gray-500">px</span>
-                </div>
-              </div>
-              <div>
-                <span class="block text-xs text-gray-500 mb-1"
-                  >{t("flashcards.height")}</span
-                >
-                <div class="flex items-center gap-1">
-                  <input
-                    type="number"
-                    bind:value={snapshotHeight}
-                    class="input-modern w-full text-xs"
-                  />
-                  <span class="text-xs text-gray-500">px</span>
-                </div>
+        <div class="space-y-2 transition-all duration-200 {!generateVideoClips ? 'opacity-40 pointer-events-none' : ''}">
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <span class="block text-xs text-gray-500 mb-1"
+                >{t("flashcards.width")}</span
+              >
+              <div class="flex items-center gap-1">
+                <input
+                  type="number"
+                  bind:value={snapshotWidth}
+                  class="input-modern w-full text-xs"
+                />
+                <span class="text-xs text-gray-500">px</span>
               </div>
             </div>
-            <div class="grid grid-cols-2 gap-2">
-              <div>
-                <span class="block text-xs text-gray-500 mb-1"
-                  >{t("flashcards.videoCodec")}</span
-                >
-                <SearchableSelect
-                  className="compact-select"
-                  noResultsText={t("common.noResults")}
-                  options={[
-                    { value: "h264", label: "H.264 (MP4)" },
-                    { value: "mpeg4", label: "MPEG-4 (AVI)" },
-                  ]}
-                  value={videoCodec}
-                  onchange={(v) => (videoCodec = v)}
-                  placeholder="Codec"
+            <div>
+              <span class="block text-xs text-gray-500 mb-1"
+                >{t("flashcards.height")}</span
+              >
+              <div class="flex items-center gap-1">
+                <input
+                  type="number"
+                  bind:value={snapshotHeight}
+                  class="input-modern w-full text-xs"
                 />
-              </div>
-              <div>
-                <span class="block text-xs text-gray-500 mb-1"
-                  >{t("flashcards.h264Preset")}</span
-                >
-                <SearchableSelect
-                  className="compact-select"
-                  noResultsText={t("common.noResults")}
-                  options={[
-                    { value: "ultrafast", label: "Ultrafast" },
-                    { value: "fast", label: "Fast" },
-                    { value: "medium", label: "Medium" },
-                    { value: "slow", label: "Slow" },
-                    { value: "veryslow", label: "Very slow" },
-                  ]}
-                  value={h264Preset}
-                  onchange={(v) => (h264Preset = v)}
-                  placeholder="Preset"
-                />
-              </div>
-            </div>
-            <div class="grid grid-cols-2 gap-2">
-              <div>
-                <span class="block text-xs text-gray-500 mb-1"
-                  >{t("flashcards.videoBitrate")}</span
-                >
-                <div class="flex items-center gap-1">
-                  <input
-                    type="number"
-                    bind:value={videoBitrate}
-                    class="input-modern w-full text-xs"
-                  />
-                  <span class="text-xs text-gray-500">kb/s</span>
-                </div>
-              </div>
-              <div>
-                <span class="block text-xs text-gray-500 mb-1"
-                  >{t("flashcards.audioBitrate")}</span
-                >
-                <SearchableSelect
-                  className="compact-select"
-                  noResultsText={t("common.noResults")}
-                  options={[
-                    { value: "64", label: "64 kb/s" },
-                    { value: "128", label: "128 kb/s" },
-                    { value: "192", label: "192 kb/s" },
-                    { value: "256", label: "256 kb/s" },
-                  ]}
-                  value={String(videoAudioBitrate)}
-                  onchange={(v) => (videoAudioBitrate = parseInt(v))}
-                  placeholder="Bitrate"
-                />
-              </div>
-            </div>
-            <div class="grid grid-cols-2 gap-2">
-              <div>
-                <span class="block text-xs text-gray-500 mb-1"
-                  >{t("flashcards.padStart")}</span
-                >
-                <div class="flex items-center gap-1">
-                  <input
-                    type="number"
-                    bind:value={videoPadStart}
-                    class="input-modern w-full text-xs"
-                  />
-                  <span class="text-xs text-gray-500">ms</span>
-                </div>
-              </div>
-              <div>
-                <span class="block text-xs text-gray-500 mb-1"
-                  >{t("flashcards.padEnd")}</span
-                >
-                <div class="flex items-center gap-1">
-                  <input
-                    type="number"
-                    bind:value={videoPadEnd}
-                    class="input-modern w-full text-xs"
-                  />
-                  <span class="text-xs text-gray-500">ms</span>
-                </div>
+                <span class="text-xs text-gray-500">px</span>
               </div>
             </div>
           </div>
-        {/if}
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <span class="block text-xs text-gray-500 mb-1"
+                >{t("flashcards.videoCodec")}</span
+              >
+              <SearchableSelect
+                className="compact-select"
+                noResultsText={t("common.noResults")}
+                options={[
+                  { value: "h264", label: "H.264 (MP4)" },
+                  { value: "mpeg4", label: "MPEG-4 (AVI)" },
+                ]}
+                value={videoCodec}
+                onchange={(v) => (videoCodec = v)}
+                placeholder="Codec"
+              />
+            </div>
+            <div>
+              <span class="block text-xs text-gray-500 mb-1"
+                >{t("flashcards.h264Preset")}</span
+              >
+              <SearchableSelect
+                className="compact-select"
+                noResultsText={t("common.noResults")}
+                options={[
+                  { value: "ultrafast", label: "Ultrafast" },
+                  { value: "fast", label: "Fast" },
+                  { value: "medium", label: "Medium" },
+                  { value: "slow", label: "Slow" },
+                  { value: "veryslow", label: "Very slow" },
+                ]}
+                value={h264Preset}
+                onchange={(v) => (h264Preset = v)}
+                placeholder="Preset"
+              />
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <span class="block text-xs text-gray-500 mb-1"
+                >{t("flashcards.videoBitrate")}</span
+              >
+              <div class="flex items-center gap-1">
+                <input
+                  type="number"
+                  bind:value={videoBitrate}
+                  class="input-modern w-full text-xs"
+                />
+                <span class="text-xs text-gray-500">kb/s</span>
+              </div>
+            </div>
+            <div>
+              <span class="block text-xs text-gray-500 mb-1"
+                >{t("flashcards.audioBitrate")}</span
+              >
+              <SearchableSelect
+                className="compact-select"
+                noResultsText={t("common.noResults")}
+                options={[
+                  { value: "64", label: "64 kb/s" },
+                  { value: "128", label: "128 kb/s" },
+                  { value: "192", label: "192 kb/s" },
+                  { value: "256", label: "256 kb/s" },
+                ]}
+                value={String(videoAudioBitrate)}
+                onchange={(v) => (videoAudioBitrate = parseInt(v))}
+                placeholder="Bitrate"
+              />
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <span class="block text-xs text-gray-500 mb-1"
+                >{t("flashcards.padStart")}</span
+              >
+              <div class="flex items-center gap-1">
+                <input
+                  type="number"
+                  bind:value={videoPadStart}
+                  class="input-modern w-full text-xs"
+                />
+                <span class="text-xs text-gray-500">ms</span>
+              </div>
+            </div>
+            <div>
+              <span class="block text-xs text-gray-500 mb-1"
+                >{t("flashcards.padEnd")}</span
+              >
+              <div class="flex items-center gap-1">
+                <input
+                  type="number"
+                  bind:value={videoPadEnd}
+                  class="input-modern w-full text-xs"
+                />
+                <span class="text-xs text-gray-500">ms</span>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     {:else if panelId === "cardFilters"}
       <div
@@ -4044,177 +4058,175 @@
           </button>
         </div>
 
-        {#if hasAnyFiles}
-          <div class="space-y-3 transition-all duration-200 {!cardFiltersEnabled ? 'opacity-40 pointer-events-none' : ''}">
-            <!-- Length Filter -->
-            <div class="space-y-2">
-              <span class="text-xs font-semibold text-gray-400 uppercase tracking-wider">{t("flashcards.filterLength")}</span>
-              <div class="grid grid-cols-2 gap-3">
-                <div class="space-y-1">
-                  <div class="flex items-center justify-between">
-                    <span class="text-xs text-gray-400">{t("flashcards.filterMinChars")}</span>
-                    <button
-                      onclick={() => { filterMinCharsEnabled = !filterMinCharsEnabled; }}
-                      class="w-10 h-5 rounded-full transition-all duration-200 relative
-                        {filterMinCharsEnabled ? 'bg-amber-500' : 'bg-gray-600'}"
-                      aria-label="Enable min chars"
-                    >
-                      <div class="absolute w-4 h-4 bg-white rounded-full top-0.5 transition-all duration-200
-                        {filterMinCharsEnabled ? 'left-5' : 'left-0.5'}"></div>
-                    </button>
-                  </div>
-                  <div class="space-y-1.5">
-                    <div class="flex items-center gap-1">
-                      <input
-                        type="number" min="1"
-                        bind:value={filterMinChars}
-                        disabled={!filterMinCharsEnabled}
-                        class="input-modern w-full text-xs {!filterMinCharsEnabled ? 'opacity-40 cursor-not-allowed' : ''}"
-                        placeholder="8"
-                      />
-                      <span class="text-xs text-gray-500 shrink-0">car.</span>
-                    </div>
+        <div class="space-y-3 transition-all duration-200 {!cardFiltersEnabled ? 'opacity-40 pointer-events-none' : ''}">
+          <!-- Length Filter -->
+          <div class="space-y-2">
+            <span class="text-xs font-semibold text-gray-400 uppercase tracking-wider">{t("flashcards.filterLength")}</span>
+            <div class="grid grid-cols-2 gap-3">
+              <div class="space-y-1">
+                <div class="flex items-center justify-between">
+                  <span class="text-xs text-gray-400">{t("flashcards.filterMinChars")}</span>
+                  <button
+                    onclick={() => { filterMinCharsEnabled = !filterMinCharsEnabled; }}
+                    class="w-10 h-5 rounded-full transition-all duration-200 relative
+                      {filterMinCharsEnabled ? 'bg-amber-500' : 'bg-gray-600'}"
+                    aria-label="Enable min chars"
+                  >
+                    <div class="absolute w-4 h-4 bg-white rounded-full top-0.5 transition-all duration-200
+                      {filterMinCharsEnabled ? 'left-5' : 'left-0.5'}"></div>
+                  </button>
+                </div>
+                <div class="space-y-1.5">
+                  <div class="flex items-center gap-1">
                     <input
-                      type="range" min="1" max="100" step="1"
+                      type="number" min="1"
                       bind:value={filterMinChars}
                       disabled={!filterMinCharsEnabled}
-                      class="slider-minimal w-full mt-1.5 transition-opacity duration-200 {!filterMinCharsEnabled ? 'opacity-40 cursor-not-allowed' : ''}"
+                      class="input-modern w-full text-xs {!filterMinCharsEnabled ? 'opacity-40 cursor-not-allowed' : ''}"
+                      placeholder="8"
                     />
+                    <span class="text-xs text-gray-500 shrink-0">car.</span>
                   </div>
+                  <input
+                    type="range" min="1" max="100" step="1"
+                    bind:value={filterMinChars}
+                    disabled={!filterMinCharsEnabled}
+                    class="slider-minimal w-full mt-1.5 transition-opacity duration-200 {!filterMinCharsEnabled ? 'opacity-40 cursor-not-allowed' : ''}"
+                  />
                 </div>
-                <div class="space-y-1">
-                  <div class="flex items-center justify-between">
-                    <span class="text-xs text-gray-400">{t("flashcards.filterMaxChars")}</span>
-                    <button
-                      onclick={() => { filterMaxCharsEnabled = !filterMaxCharsEnabled; }}
-                      class="w-10 h-5 rounded-full transition-all duration-200 relative
-                        {filterMaxCharsEnabled ? 'bg-amber-500' : 'bg-gray-600'}"
-                      aria-label="Enable max chars"
-                    >
-                      <div class="absolute w-4 h-4 bg-white rounded-full top-0.5 transition-all duration-200
-                        {filterMaxCharsEnabled ? 'left-5' : 'left-0.5'}"></div>
-                    </button>
-                  </div>
-                  <div class="space-y-1.5">
-                    <div class="flex items-center gap-1">
-                      <input
-                        type="number" min="1"
-                        bind:value={filterMaxChars}
-                        disabled={!filterMaxCharsEnabled}
-                        class="input-modern w-full text-xs {!filterMaxCharsEnabled ? 'opacity-40 cursor-not-allowed' : ''}"
-                        placeholder="120"
-                      />
-                      <span class="text-xs text-gray-500 shrink-0">car.</span>
-                    </div>
+              </div>
+              <div class="space-y-1">
+                <div class="flex items-center justify-between">
+                  <span class="text-xs text-gray-400">{t("flashcards.filterMaxChars")}</span>
+                  <button
+                    onclick={() => { filterMaxCharsEnabled = !filterMaxCharsEnabled; }}
+                    class="w-10 h-5 rounded-full transition-all duration-200 relative
+                      {filterMaxCharsEnabled ? 'bg-amber-500' : 'bg-gray-600'}"
+                    aria-label="Enable max chars"
+                  >
+                    <div class="absolute w-4 h-4 bg-white rounded-full top-0.5 transition-all duration-200
+                      {filterMaxCharsEnabled ? 'left-5' : 'left-0.5'}"></div>
+                  </button>
+                </div>
+                <div class="space-y-1.5">
+                  <div class="flex items-center gap-1">
                     <input
-                      type="range" min="1" max="500" step="1"
+                      type="number" min="1"
                       bind:value={filterMaxChars}
                       disabled={!filterMaxCharsEnabled}
-                      class="slider-minimal w-full mt-1.5 transition-opacity duration-200 {!filterMaxCharsEnabled ? 'opacity-40 cursor-not-allowed' : ''}"
+                      class="input-modern w-full text-xs {!filterMaxCharsEnabled ? 'opacity-40 cursor-not-allowed' : ''}"
+                      placeholder="120"
                     />
+                    <span class="text-xs text-gray-500 shrink-0">car.</span>
                   </div>
+                  <input
+                    type="range" min="1" max="500" step="1"
+                    bind:value={filterMaxChars}
+                    disabled={!filterMaxCharsEnabled}
+                    class="slider-minimal w-full mt-1.5 transition-opacity duration-200 {!filterMaxCharsEnabled ? 'opacity-40 cursor-not-allowed' : ''}"
+                  />
                 </div>
-              </div>
-            </div>
-
-            <!-- Duration Filter -->
-            <div class="space-y-2">
-              <span class="text-xs font-semibold text-gray-400 uppercase tracking-wider">{t("flashcards.filterDuration")}</span>
-              <div class="grid grid-cols-2 gap-3">
-                <div class="space-y-1">
-                  <div class="flex items-center justify-between">
-                    <span class="text-xs text-gray-400">{t("flashcards.filterMinDuration")}</span>
-                    <button
-                      onclick={() => { filterMinDurationEnabled = !filterMinDurationEnabled; }}
-                      class="w-10 h-5 rounded-full transition-all duration-200 relative
-                        {filterMinDurationEnabled ? 'bg-amber-500' : 'bg-gray-600'}"
-                      aria-label="Enable min duration"
-                    >
-                      <div class="absolute w-4 h-4 bg-white rounded-full top-0.5 transition-all duration-200
-                        {filterMinDurationEnabled ? 'left-5' : 'left-0.5'}"></div>
-                    </button>
-                  </div>
-                  <div class="space-y-1.5">
-                    <div class="flex items-center gap-1">
-                      <input
-                        type="number" min="0" step="100"
-                        bind:value={filterMinDurationMs}
-                        disabled={!filterMinDurationEnabled}
-                        class="input-modern w-full text-xs {!filterMinDurationEnabled ? 'opacity-40 cursor-not-allowed' : ''}"
-                        placeholder="500"
-                      />
-                      <span class="text-xs text-gray-500 shrink-0">ms</span>
-                    </div>
-                    <input
-                      type="range" min="0" max="5000" step="100"
-                      bind:value={filterMinDurationMs}
-                      disabled={!filterMinDurationEnabled}
-                      class="slider-minimal w-full mt-1.5 transition-opacity duration-200 {!filterMinDurationEnabled ? 'opacity-40 cursor-not-allowed' : ''}"
-                    />
-                  </div>
-                </div>
-                <div class="space-y-1">
-                  <div class="flex items-center justify-between">
-                    <span class="text-xs text-gray-400">{t("flashcards.filterMaxDuration")}</span>
-                    <button
-                      onclick={() => { filterMaxDurationEnabled = !filterMaxDurationEnabled; }}
-                      class="w-10 h-5 rounded-full transition-all duration-200 relative
-                        {filterMaxDurationEnabled ? 'bg-amber-500' : 'bg-gray-600'}"
-                      aria-label="Enable max duration"
-                    >
-                      <div class="absolute w-4 h-4 bg-white rounded-full top-0.5 transition-all duration-200
-                        {filterMaxDurationEnabled ? 'left-5' : 'left-0.5'}"></div>
-                    </button>
-                  </div>
-                  <div class="space-y-1.5">
-                    <div class="flex items-center gap-1">
-                      <input
-                        type="number" min="0" step="100"
-                        bind:value={filterMaxDurationMs}
-                        disabled={!filterMaxDurationEnabled}
-                        class="input-modern w-full text-xs {!filterMaxDurationEnabled ? 'opacity-40 cursor-not-allowed' : ''}"
-                        placeholder="8000"
-                      />
-                      <span class="text-xs text-gray-500 shrink-0">ms</span>
-                    </div>
-                    <input
-                      type="range" min="0" max="30000" step="500"
-                      bind:value={filterMaxDurationMs}
-                      disabled={!filterMaxDurationEnabled}
-                      class="slider-minimal w-full mt-1.5 transition-opacity duration-200 {!filterMaxDurationEnabled ? 'opacity-40 cursor-not-allowed' : ''}"
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Sentence Combining -->
-            <div class="mt-4 pt-4 border-t border-gray-800/50">
-              <div class="flex items-center justify-between mb-3">
-                <span class="text-xs font-semibold text-gray-400 uppercase tracking-wider">{t("flashcards.combineSentences")}</span>
-                <button
-                  onclick={() => (combineSentences = !combineSentences)}
-                  class="w-10 h-5 rounded-full transition-all duration-200 relative shrink-0 ml-3
-                    {combineSentences ? 'bg-amber-500' : 'bg-gray-600'}"
-                  aria-label="Toggle sentence combining"
-                >
-                  <div class="absolute w-4 h-4 bg-white rounded-full top-0.5 transition-all duration-200
-                    {combineSentences ? 'left-5' : 'left-0.5'}"></div>
-                </button>
-              </div>
-              <div class="transition-opacity duration-200 {!combineSentences ? 'opacity-40' : ''}">
-                <span class="block text-xs text-gray-500 mb-1">{t("flashcards.continuationChars")}</span>
-                <input
-                  type="text"
-                  bind:value={continuationChars}
-                  disabled={!combineSentences}
-                  class="input-modern w-full text-xs font-mono {!combineSentences ? 'cursor-not-allowed' : ''}"
-                  placeholder=",、→"
-                />
               </div>
             </div>
           </div>
-        {/if}
+
+          <!-- Duration Filter -->
+          <div class="space-y-2">
+            <span class="text-xs font-semibold text-gray-400 uppercase tracking-wider">{t("flashcards.filterDuration")}</span>
+            <div class="grid grid-cols-2 gap-3">
+              <div class="space-y-1">
+                <div class="flex items-center justify-between">
+                  <span class="text-xs text-gray-400">{t("flashcards.filterMinDuration")}</span>
+                  <button
+                    onclick={() => { filterMinDurationEnabled = !filterMinDurationEnabled; }}
+                    class="w-10 h-5 rounded-full transition-all duration-200 relative
+                      {filterMinDurationEnabled ? 'bg-amber-500' : 'bg-gray-600'}"
+                    aria-label="Enable min duration"
+                  >
+                    <div class="absolute w-4 h-4 bg-white rounded-full top-0.5 transition-all duration-200
+                      {filterMinDurationEnabled ? 'left-5' : 'left-0.5'}"></div>
+                  </button>
+                </div>
+                <div class="space-y-1.5">
+                  <div class="flex items-center gap-1">
+                    <input
+                      type="number" min="0" step="100"
+                      bind:value={filterMinDurationMs}
+                      disabled={!filterMinDurationEnabled}
+                      class="input-modern w-full text-xs {!filterMinDurationEnabled ? 'opacity-40 cursor-not-allowed' : ''}"
+                      placeholder="500"
+                    />
+                    <span class="text-xs text-gray-500 shrink-0">ms</span>
+                  </div>
+                  <input
+                    type="range" min="0" max="5000" step="100"
+                    bind:value={filterMinDurationMs}
+                    disabled={!filterMinDurationEnabled}
+                    class="slider-minimal w-full mt-1.5 transition-opacity duration-200 {!filterMinDurationEnabled ? 'opacity-40 cursor-not-allowed' : ''}"
+                  />
+                </div>
+              </div>
+              <div class="space-y-1">
+                <div class="flex items-center justify-between">
+                  <span class="text-xs text-gray-400">{t("flashcards.filterMaxDuration")}</span>
+                  <button
+                    onclick={() => { filterMaxDurationEnabled = !filterMaxDurationEnabled; }}
+                    class="w-10 h-5 rounded-full transition-all duration-200 relative
+                      {filterMaxDurationEnabled ? 'bg-amber-500' : 'bg-gray-600'}"
+                    aria-label="Enable max duration"
+                  >
+                    <div class="absolute w-4 h-4 bg-white rounded-full top-0.5 transition-all duration-200
+                      {filterMaxDurationEnabled ? 'left-5' : 'left-0.5'}"></div>
+                  </button>
+                </div>
+                <div class="space-y-1.5">
+                  <div class="flex items-center gap-1">
+                    <input
+                      type="number" min="0" step="100"
+                      bind:value={filterMaxDurationMs}
+                      disabled={!filterMaxDurationEnabled}
+                      class="input-modern w-full text-xs {!filterMaxDurationEnabled ? 'opacity-40 cursor-not-allowed' : ''}"
+                      placeholder="8000"
+                    />
+                    <span class="text-xs text-gray-500 shrink-0">ms</span>
+                  </div>
+                  <input
+                    type="range" min="0" max="30000" step="500"
+                    bind:value={filterMaxDurationMs}
+                    disabled={!filterMaxDurationEnabled}
+                    class="slider-minimal w-full mt-1.5 transition-opacity duration-200 {!filterMaxDurationEnabled ? 'opacity-40 cursor-not-allowed' : ''}"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Sentence Combining -->
+          <div class="mt-4 pt-4 border-t border-gray-800/50">
+            <div class="flex items-center justify-between mb-3">
+              <span class="text-xs font-semibold text-gray-400 uppercase tracking-wider">{t("flashcards.combineSentences")}</span>
+              <button
+                onclick={() => (combineSentences = !combineSentences)}
+                class="w-10 h-5 rounded-full transition-all duration-200 relative shrink-0 ml-3
+                  {combineSentences ? 'bg-amber-500' : 'bg-gray-600'}"
+                aria-label="Toggle sentence combining"
+              >
+                <div class="absolute w-4 h-4 bg-white rounded-full top-0.5 transition-all duration-200
+                  {combineSentences ? 'left-5' : 'left-0.5'}"></div>
+              </button>
+            </div>
+            <div class="transition-opacity duration-200 {!combineSentences ? 'opacity-40' : ''}">
+              <span class="block text-xs text-gray-500 mb-1">{t("flashcards.continuationChars")}</span>
+              <input
+                type="text"
+                bind:value={continuationChars}
+                disabled={!combineSentences}
+                class="input-modern w-full text-xs font-mono {!combineSentences ? 'cursor-not-allowed' : ''}"
+                placeholder=",、→"
+              />
+            </div>
+          </div>
+        </div>
       </div>
 
     {:else if panelId === "naming"}
@@ -4532,6 +4544,46 @@
             {t("common.delete")}
           </span>
           <kbd>D / Del</kbd>
+        </button>
+      </div>
+    </div>
+  {/if}
+
+  {#if bottomContextMenu}
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <div
+      class="fixed inset-0 z-50"
+      onclick={closeBottomContextMenu}
+      oncontextmenu={(e) => {
+        e.preventDefault();
+        closeBottomContextMenu();
+      }}
+      onkeydown={(e) => {
+        if (e.key === "Escape") closeBottomContextMenu();
+      }}
+      role="presentation"
+      tabindex="-1"
+    >
+      <div
+        class="vesta-context-menu animate-fade-in"
+        style="left: {bottomContextMenu.x}px; top: {bottomContextMenu.y}px;"
+      >
+        <button
+          type="button"
+          class="vesta-context-menu-item"
+          onclick={() => {
+            onGoToSettings?.(bottomContextMenu!.section);
+            closeBottomContextMenu();
+          }}
+        >
+          <span class="inline-flex items-center gap-2">
+            <svg class="h-4 w-4 text-sky-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            {t("translate.goToSettings")}
+          </span>
+          <kbd>Middle click</kbd>
         </button>
       </div>
     </div>
@@ -5029,6 +5081,13 @@
           <button
             type="button"
             onclick={() => (exportFormat = exportFormat === 'apkg' ? 'tsv' : 'apkg')}
+            oncontextmenu={(e) => openBottomContextMenu(e, "overview")}
+            onmousedown={(e) => {
+              if (e.button === 1) {
+                e.preventDefault();
+                onGoToSettings?.("overview");
+              }
+            }}
             class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] cursor-pointer select-none
               {exportFormat === 'apkg'
                 ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20 hover:border-emerald-500/50'
@@ -5053,6 +5112,13 @@
           <button
             type="button"
             onclick={cycleTemplates}
+            oncontextmenu={(e) => openBottomContextMenu(e, "anki")}
+            onmousedown={(e) => {
+              if (e.button === 1) {
+                e.preventDefault();
+                onGoToSettings?.("anki");
+              }
+            }}
             class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold border-violet-500/40 bg-violet-500/10 text-violet-300 hover:bg-violet-500/20 hover:border-violet-500/50 cursor-pointer transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] select-none"
           >
             <svg class="w-3.5 h-3.5 text-violet-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">

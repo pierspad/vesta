@@ -185,7 +185,7 @@
       <AlignTab active={activeTab === "align"} />
     </div>
     <div class="absolute inset-0" class:hidden={activeTab !== "flashcards"}>
-      <FlashcardsTab active={activeTab === "flashcards"} />
+      <FlashcardsTab onGoToSettings={goToSettings} active={activeTab === "flashcards"} />
     </div>
     <div class="absolute inset-0" class:hidden={activeTab !== "settings"}>
       <SettingsTab active={activeTab === "settings"} bind:requestedSection={requestedSettingsSection} bind:highlightItemId={highlightItemId} />

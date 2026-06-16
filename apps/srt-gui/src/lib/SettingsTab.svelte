@@ -2211,35 +2211,51 @@
                 {/if}
               </button>
 
-              <button
-                type="button"
-                onclick={() => checkForUpdates("manual")}
-                disabled={updateStatus === 'checking'}
-                class="rounded-xl border border-white/10 bg-white/5 p-4 text-left transition-all duration-200 hover:border-white/20 hover:bg-white/10 active:scale-[0.98] disabled:opacity-60 flex flex-row items-center justify-between gap-3 cursor-pointer"
-              >
-                <span class="text-xs font-semibold text-white">
-                  {$currentLanguage === 'it' ? 'Verifica ora' : 'Check now'}
-                </span>
-                <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992m0 0v-.001M21.015 9.348l-3.181-3.182a8.25 8.25 0 00-13.803 3.7M7.977 14.652H2.985m0 0v.001m0-.001l3.181 3.182a8.25 8.25 0 0013.803-3.7" />
-                </svg>
-              </button>
-            </div>
-
-            {#if updateStatus === "available"}
-              <div class="mt-3.5 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3.5 flex items-center justify-between gap-4">
-                <div class="flex items-center gap-2.5">
-                  <span class="w-2.5 h-2.5 rounded-full bg-amber-400 ring-4 ring-amber-500/20 animate-pulse"></span>
-                  <span class="text-xs font-semibold text-amber-100">{$currentLanguage === 'it' ? `Nuova versione: ${latestVersion}` : `New version: ${latestVersion}`}</span>
-                </div>
-                <a href={releaseUrl} target="_blank" class="text-xs text-indigo-400 hover:text-indigo-300 font-bold flex items-center gap-1">
-                  {$currentLanguage === 'it' ? 'Scarica' : 'Download'}
-                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 3h7m0 0v7m0-7L10 14M5 7v14h14v-5" />
+              {#if updateStatus === "available"}
+                <a
+                  href={releaseUrl}
+                  target="_blank"
+                  class="rounded-xl border border-amber-500/40 bg-amber-500/15 p-4 text-left transition-all duration-200 hover:border-amber-500/60 hover:bg-amber-500/25 active:scale-[0.98] flex flex-row items-center justify-between gap-3 cursor-pointer shadow-md shadow-amber-900/20"
+                >
+                  <span class="text-xs font-bold text-amber-200 flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse ring-4 ring-amber-500/20 shrink-0"></span>
+                    {$currentLanguage === 'it' ? `Aggiorna a ${latestVersion}` : `Update to ${latestVersion}`}
+                  </span>
+                  <svg class="w-5 h-5 text-amber-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                   </svg>
                 </a>
-              </div>
-            {/if}
+              {:else}
+                <button
+                  type="button"
+                  onclick={() => checkForUpdates("manual")}
+                  disabled={updateStatus === 'checking'}
+                  class="rounded-xl border border-white/10 bg-white/5 p-4 text-left transition-all duration-200 hover:border-white/20 hover:bg-white/10 active:scale-[0.98] disabled:opacity-60 flex flex-row items-center justify-between gap-3 cursor-pointer"
+                >
+                  <span class="text-xs font-semibold text-white">
+                    {updateStatus === 'checking'
+                      ? ($currentLanguage === 'it' ? 'Controllo in corso…' : 'Checking…')
+                      : updateStatus === 'current'
+                        ? ($currentLanguage === 'it' ? 'Aggiornato ✓' : 'Up to date ✓')
+                        : ($currentLanguage === 'it' ? 'Verifica ora' : 'Check now')}
+                  </span>
+                  {#if updateStatus === 'checking'}
+                    <svg class="w-5 h-5 text-indigo-400 shrink-0 animate-spin" fill="none" viewBox="0 0 24 24">
+                      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                    </svg>
+                  {:else if updateStatus === 'current'}
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5 text-emerald-400 shrink-0">
+                      <path fill-rule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12zm13.36-1.814a.75.75 0 10-1.22-.872l-3.236 4.53L9.53 12.22a.75.75 0 00-1.06 1.06l2.25 2.25a.75.75 0 001.14-.094l3.75-5.25z" clip-rule="evenodd" />
+                    </svg>
+                  {:else}
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992m0 0v-.001M21.015 9.348l-3.181-3.182a8.25 8.25 0 00-13.803 3.7M7.977 14.652H2.985m0 0v.001m0-.001l3.181 3.182a8.25 8.25 0 0013.803-3.7" />
+                    </svg>
+                  {/if}
+                </button>
+              {/if}
+            </div>
           </div>
         </div>
       </div>
