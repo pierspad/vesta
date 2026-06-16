@@ -107,6 +107,14 @@ impl Translator {
         }
     }
 
+    /// Invia un prompt generico all'LLM configurato e ritorna la risposta testuale
+    pub async fn generate_response(&self, prompt: &str) -> Result<String> {
+        match self.config.api_type {
+            ApiType::Google => self.call_google_api(prompt).await,
+            ApiType::Local | ApiType::OpenRouter | ApiType::Groq => self.call_openai_api(prompt).await,
+        }
+    }
+
     // ============== GOOGLE GEMINI API NATIVE ==============
 
     /// Traduzione singola usando Google Gemini API nativa

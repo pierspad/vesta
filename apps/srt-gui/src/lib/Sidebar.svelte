@@ -12,12 +12,12 @@
   } from "./settingsNotifications";
 
   interface Props {
-    activeTab: "translate" | "sync" | "transcribe" | "align" | "flashcards" | "settings";
-    onTabChange: (tab: "translate" | "sync" | "transcribe" | "align" | "flashcards" | "settings") => void;
+    activeTab: "translate" | "sync" | "transcribe" | "align" | "flashcards" | "settings" | "refine";
+    onTabChange: (tab: "translate" | "sync" | "transcribe" | "align" | "flashcards" | "settings" | "refine") => void;
     collapsed?: boolean;
     onToggleCollapse?: () => void;
     settingsSection?: "overview" | "llm" | "whisper" | "language" | "anki" | "shortcuts";
-    lastActiveMainTab?: "translate" | "sync" | "transcribe" | "align" | "flashcards";
+    lastActiveMainTab?: "translate" | "sync" | "transcribe" | "align" | "flashcards" | "refine";
   }
 
   let { activeTab, onTabChange, collapsed = false, onToggleCollapse, settingsSection = $bindable("overview"), lastActiveMainTab = "flashcards" }: Props = $props();
@@ -460,6 +460,27 @@
         {#if !collapsed}
           <div class="text-left flex-1 py-1">
             <span class="block text-[15px] font-semibold {activeTab === 'flashcards' ? 'text-white' : ''}">{t("nav.flashcards")}</span>
+          </div>
+        {/if}
+      </button>
+
+      <button
+        class="w-full flex items-center gap-3.5 {collapsed ? 'px-2 justify-center' : 'px-3.5'} py-3 rounded-xl transition-all duration-300 border border-transparent cursor-pointer {activeTab ===
+        'refine'
+          ? 'bg-gradient-to-r from-rose-600 to-pink-700 text-white shadow-lg shadow-rose-500/22 shadow-pink-600/20 border-rose-500/30 bg-clip-padding'
+          : 'text-gray-400 hover:bg-rose-500/10 hover:text-rose-400 hover:border-rose-500/20'}"
+        onclick={() => onTabChange("refine")}
+        title={collapsed ? t("nav.refine") : undefined}
+      >
+        <div class="w-9 h-9 rounded-xl {activeTab === 'refine' ? 'bg-white/20' : 'bg-white/5'} flex items-center justify-center flex-shrink-0 relative transition-colors border border-white/5">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 8l1.5-1.5M19 4l1.5 1.5M16 5l1.5-1.5" />
+          </svg>
+        </div>
+        {#if !collapsed}
+          <div class="text-left flex-1 py-1">
+            <span class="block text-[15px] font-semibold {activeTab === 'refine' ? 'text-white' : ''}">{t("nav.refine")}</span>
           </div>
         {/if}
       </button>

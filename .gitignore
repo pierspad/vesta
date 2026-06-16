@@ -37,3 +37,4 @@ Test_Subs/Detour-1945-Public_domain.mkv
 # Generated/test artifacts
 __pycache__/
 *.pyc
+build-scripts/vesta-*.*.*.deb
