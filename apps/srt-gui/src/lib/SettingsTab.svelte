@@ -2059,7 +2059,7 @@
           </div>
           <div class="flex-1 min-w-0">
             <div class="flex items-center gap-2 flex-wrap">
-              <span class="text-sm font-semibold {exportFormat === 'apkg' ? 'text-emerald-200' : 'text-white'}">{t("settings.anki.exportAPKG")}</span>
+              <span class="text-sm font-semibold text-white">{t("settings.anki.exportAPKG")}</span>
               <span class="text-[10px] px-1.5 py-0.5 rounded-full font-bold
                 {exportFormat === 'apkg'
                   ? 'bg-emerald-500/30 text-emerald-300 border border-emerald-500/40'
@@ -2086,7 +2086,7 @@
           </div>
           <div class="flex-1 min-w-0">
             <div class="flex items-center gap-2 flex-wrap">
-              <span class="text-sm font-semibold {exportFormat === 'tsv' ? 'text-sky-200' : 'text-white'}">{t("settings.anki.exportTSV")}</span>
+              <span class="text-sm font-semibold text-white">{t("settings.anki.exportTSV")}</span>
               <span class="text-[10px] px-1.5 py-0.5 rounded-full font-bold
                 {exportFormat === 'tsv'
                   ? 'bg-sky-500/30 text-sky-300 border border-sky-500/40'
@@ -3889,6 +3889,12 @@
 	    grid-template-columns: repeat(auto-fill, minmax(11.5rem, 1fr));
 	    gap: 0.75rem;
 	    width: 100%;
+	  }
+
+	  @media (min-width: 1280px) {
+	    .ui-language-grid {
+	      grid-template-columns: repeat(5, minmax(0, 1fr));
+	    }
 	  }
 
 	  .ui-language-button {
