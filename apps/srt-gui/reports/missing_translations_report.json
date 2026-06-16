@@ -3,9 +3,9 @@
     "/home/ribben/Desktop/Various_Projects/vesta/apps/srt-gui/src/lib/i18n/locales"
   ],
   "en_keys_per_directory": {
-    "locales": 539
+    "locales": 545
   },
-  "total_english_keys": 539,
+  "total_english_keys": 545,
   "checked_locales": [
     "ar",
     "de",
@@ -24,22 +24,143 @@
   ],
   "missing_counts_by_locale": {
     "ar": 0,
-    "de": 0,
+    "de": 4,
     "es": 0,
-    "fr": 0,
+    "fr": 4,
     "hi": 0,
     "it": 0,
     "ja": 0,
     "ko": 0,
-    "nl": 0,
-    "pl": 0,
+    "nl": 4,
+    "pl": 2,
     "pt": 0,
     "ru": 0,
-    "tr": 0,
+    "tr": 2,
     "zh": 0
   },
-  "total_keys_with_issues": 0,
+  "total_keys_with_issues": 4,
   "orphan_keys_count": 0,
   "orphan_keys": [],
-  "missing_keys": {}
+  "missing_keys": {
+    "flashcards.filterMaxChars": {
+      "locales": [
+        "de",
+        "fr",
+        "nl"
+      ],
+      "details": [
+        {
+          "locale": "de",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "fr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "nl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        }
+      ]
+    },
+    "flashcards.filterMaxDuration": {
+      "locales": [
+        "de",
+        "fr",
+        "nl"
+      ],
+      "details": [
+        {
+          "locale": "de",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "fr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "nl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        }
+      ]
+    },
+    "flashcards.filterMinChars": {
+      "locales": [
+        "de",
+        "fr",
+        "nl",
+        "pl",
+        "tr"
+      ],
+      "details": [
+        {
+          "locale": "de",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "fr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "nl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "tr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        }
+      ]
+    },
+    "flashcards.filterMinDuration": {
+      "locales": [
+        "de",
+        "fr",
+        "nl",
+        "pl",
+        "tr"
+      ],
+      "details": [
+        {
+          "locale": "de",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "fr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "nl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "tr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        }
+      ]
+    }
+  }
 }
