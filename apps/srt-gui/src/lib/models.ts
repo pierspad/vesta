@@ -1129,15 +1129,15 @@ export function loadFieldNames(): FieldNamesConfig {
     if (raw) {
       const parsed = JSON.parse(raw);
       return sanitizeFieldNamesConfig({
-        expression: parsed.expression || defaultFieldNames.expression,
-        meaning: parsed.meaning || defaultFieldNames.meaning,
-        reading: parsed.reading || defaultFieldNames.reading,
-        audio: parsed.audio || defaultFieldNames.audio,
-        snapshot: parsed.snapshot || defaultFieldNames.snapshot,
-        video: parsed.video || defaultFieldNames.video,
-        tags: parsed.tags || defaultFieldNames.tags,
-        sequenceMarker: parsed.sequenceMarker || defaultFieldNames.sequenceMarker,
-        notes: parsed.notes || defaultFieldNames.notes,
+        expression: parsed.expression !== undefined && parsed.expression !== "" ? parsed.expression : defaultFieldNames.expression,
+        meaning: parsed.meaning !== undefined ? parsed.meaning : defaultFieldNames.meaning,
+        reading: parsed.reading !== undefined ? parsed.reading : defaultFieldNames.reading,
+        audio: parsed.audio !== undefined ? parsed.audio : defaultFieldNames.audio,
+        snapshot: parsed.snapshot !== undefined ? parsed.snapshot : defaultFieldNames.snapshot,
+        video: parsed.video !== undefined ? parsed.video : defaultFieldNames.video,
+        tags: parsed.tags !== undefined ? parsed.tags : defaultFieldNames.tags,
+        sequenceMarker: parsed.sequenceMarker !== undefined ? parsed.sequenceMarker : defaultFieldNames.sequenceMarker,
+        notes: parsed.notes !== undefined ? parsed.notes : defaultFieldNames.notes,
       });
     }
   } catch { /* ignore */ }
@@ -1261,57 +1261,47 @@ function sanitizeCustomNoteType(raw: any): NoteTypeDef | null {
   };
 }
 
-/** Custom note types saved by the user, plus a one-time migration of the legacy
- *  field-preset store (which had no per-field toggles → all-on). */
+/** Custom note types saved by the user, loaded directly from the presets store. */
 export function loadCustomNoteTypes(): NoteTypeDef[] {
   try {
-    const raw = localStorage.getItem(CUSTOM_NOTE_TYPES_KEY);
+    const raw = localStorage.getItem("vesta-anki-field-presets");
     if (raw) {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed)) {
         return parsed
-          .map(sanitizeCustomNoteType)
+          .map((p: any) => {
+            if (!p || !p.id) return null;
+            const fields = sanitizeFieldNamesConfig({ ...defaultFieldNames, ...(p.fields || {}) });
+            const included: FieldToggles = {
+              expression: fields.expression.trim() !== "",
+              meaning: fields.meaning.trim() !== "",
+              reading: fields.reading.trim() !== "",
+              audio: fields.audio.trim() !== "",
+              snapshot: fields.snapshot.trim() !== "",
+              video: fields.video.trim() !== "",
+              tags: fields.tags.trim() !== "",
+              sequenceMarker: fields.sequenceMarker.trim() !== "",
+              notes: fields.notes.trim() !== "",
+            };
+            return {
+              id: p.id.startsWith("custom:") ? p.id : `custom:${p.id}`,
+              name: p.name || p.noteTypeName || "Unnamed Template",
+              predefined: false,
+              language: "",
+              fields,
+              included,
+            };
+          })
           .filter((nt): nt is NoteTypeDef => Boolean(nt));
       }
     }
   } catch { /* ignore */ }
-
-  // Migrate legacy AnkiFieldPreset[] { id, name, noteTypeName, fields }.
-  try {
-    const legacyRaw = localStorage.getItem(LEGACY_ANKI_FIELD_PRESETS_KEY);
-    if (legacyRaw) {
-      const legacy = JSON.parse(legacyRaw);
-      if (Array.isArray(legacy) && legacy.length) {
-        const migrated = legacy
-          .map((p: any) =>
-            sanitizeCustomNoteType({
-              id: p.id,
-              name: p.noteTypeName || p.name,
-              fields: p.fields,
-              included: allFieldsIncluded,
-            }),
-          )
-          .filter((nt: NoteTypeDef | null): nt is NoteTypeDef => Boolean(nt));
-        if (migrated.length) {
-          saveCustomNoteTypes(migrated);
-          return migrated;
-        }
-      }
-    }
-  } catch { /* ignore */ }
-
   return [];
 }
 
 export function saveCustomNoteTypes(list: NoteTypeDef[]): void {
-  const serialized = list.map((nt) => ({
-    id: nt.id,
-    name: limitNoteTypeFieldValue(nt.name),
-    language: nt.language,
-    fields: sanitizeFieldNamesConfig(nt.fields),
-    included: sanitizeToggles(nt.included),
-  }));
-  localStorage.setItem(CUSTOM_NOTE_TYPES_KEY, JSON.stringify(serialized));
+  // Keeping this function signature for backwards compatibility/types,
+  // but presets are saved via SettingsTab's persistAnkiFieldPresets.
   dispatchWindowEvent(NOTE_TYPES_UPDATED_EVENT);
 }
 

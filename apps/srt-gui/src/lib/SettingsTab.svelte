@@ -26,6 +26,7 @@
   import {
     CARD_TEMPLATES_UPDATED_EVENT,
     FIELD_NAMES_UPDATED_EVENT,
+    NOTE_TYPES_UPDATED_EVENT,
     defaultCardTemplates,
     defaultFieldNames,
     getModelsForProvider,
@@ -985,15 +986,15 @@
       name: limitNoteTypeFieldValue(raw.name),
       noteTypeName: limitNoteTypeFieldValue(raw.noteTypeName || defaultCardTemplates.noteTypeName),
       fields: {
-        expression: limitNoteTypeFieldValue(fields.expression || defaultFieldNames.expression),
-        meaning: limitNoteTypeFieldValue(fields.meaning || defaultFieldNames.meaning),
-        reading: limitNoteTypeFieldValue(fields.reading || defaultFieldNames.reading),
-        audio: limitNoteTypeFieldValue(fields.audio || defaultFieldNames.audio),
-        snapshot: limitNoteTypeFieldValue(fields.snapshot || defaultFieldNames.snapshot),
-        video: limitNoteTypeFieldValue(fields.video || defaultFieldNames.video),
-        tags: limitNoteTypeFieldValue(fields.tags || defaultFieldNames.tags),
-        sequenceMarker: limitNoteTypeFieldValue(fields.sequenceMarker || defaultFieldNames.sequenceMarker),
-        notes: limitNoteTypeFieldValue(fields.notes || defaultFieldNames.notes),
+        expression: limitNoteTypeFieldValue(fields.expression !== undefined && fields.expression !== "" ? fields.expression : defaultFieldNames.expression),
+        meaning: limitNoteTypeFieldValue(fields.meaning !== undefined ? fields.meaning : defaultFieldNames.meaning),
+        reading: limitNoteTypeFieldValue(fields.reading !== undefined ? fields.reading : defaultFieldNames.reading),
+        audio: limitNoteTypeFieldValue(fields.audio !== undefined ? fields.audio : defaultFieldNames.audio),
+        snapshot: limitNoteTypeFieldValue(fields.snapshot !== undefined ? fields.snapshot : defaultFieldNames.snapshot),
+        video: limitNoteTypeFieldValue(fields.video !== undefined ? fields.video : defaultFieldNames.video),
+        tags: limitNoteTypeFieldValue(fields.tags !== undefined ? fields.tags : defaultFieldNames.tags),
+        sequenceMarker: limitNoteTypeFieldValue(fields.sequenceMarker !== undefined ? fields.sequenceMarker : defaultFieldNames.sequenceMarker),
+        notes: limitNoteTypeFieldValue(fields.notes !== undefined ? fields.notes : defaultFieldNames.notes),
       },
     };
   }
@@ -1026,6 +1027,7 @@
     setCurrentFieldNames(preset.fields);
     saveTemplates();
     saveFields();
+    window.dispatchEvent(new CustomEvent(NOTE_TYPES_UPDATED_EVENT));
   }
 
   function saveCurrentAnkiFieldPreset() {
@@ -1051,6 +1053,7 @@
     ankiFieldPresetName = preset.name;
     localStorage.setItem(ACTIVE_ANKI_FIELD_PRESET_KEY, preset.id);
     persistAnkiFieldPresets();
+    window.dispatchEvent(new CustomEvent(NOTE_TYPES_UPDATED_EVENT));
     showSnackbar(t("settings.anki.presetSaved"));
   }
 
@@ -1059,6 +1062,7 @@
     savedAnkiFieldPresets = savedAnkiFieldPresets.filter((preset) => preset.id !== selectedAnkiFieldPresetId);
     persistAnkiFieldPresets();
     applyAnkiFieldPreset("default");
+    window.dispatchEvent(new CustomEvent(NOTE_TYPES_UPDATED_EVENT));
     showSnackbar(t("settings.anki.presetDeleted"));
   }
 
@@ -1070,6 +1074,7 @@
     setCurrentFieldNames(defaultFieldNames);
     saveTemplates();
     saveFields();
+    window.dispatchEvent(new CustomEvent(NOTE_TYPES_UPDATED_EVENT));
   }
 
   function resetOverviewSettings() {
@@ -3197,7 +3202,8 @@
             <button
               type="button"
               onclick={saveCurrentAnkiFieldPreset}
-              class="px-3 py-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 text-emerald-200 hover:bg-emerald-500/20 transition-colors text-xs font-semibold flex items-center gap-2"
+              disabled={!noteTypeName.trim() || !getFieldValue("expression").trim()}
+              class="px-3 py-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 text-emerald-200 hover:bg-emerald-500/20 transition-colors text-xs font-semibold flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
@@ -3260,9 +3266,10 @@
               type="text"
               bind:value={noteTypeName}
               maxlength="25"
+              disabled={selectedAnkiFieldPresetId === "default"}
               oninput={(event) =>
                 syncLimitedInput(event, (value) => (noteTypeName = value), saveTemplates)}
-              class="input-modern w-full text-sm"
+              class="input-modern w-full text-sm disabled:opacity-50 disabled:cursor-not-allowed"
               placeholder="Vesta_Default"
             />
           </div>
@@ -3280,8 +3287,9 @@
                 type="text"
                 value={getFieldValue(field.key)}
                 maxlength="25"
+                disabled={selectedAnkiFieldPresetId === "default"}
                 oninput={(event) => syncLimitedInput(event, (value) => setFieldValue(field.key, value), saveFields)}
-                class="input-modern w-full text-sm"
+                class="input-modern w-full text-sm disabled:opacity-50 disabled:cursor-not-allowed {!getFieldValue(field.key).trim() ? 'opacity-40 border-dashed border-gray-600' : ''}"
                 placeholder={fieldVariableName(field)}
               />
             </div>
