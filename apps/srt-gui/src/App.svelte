@@ -34,6 +34,7 @@
   let sidebarCollapsed = $state(initialPreference === "collapsed");
   let requestedSettingsSection = $state<"overview" | "llm" | "whisper" | "language" | "anki" | "shortcuts">("overview");
   let highlightItemId = $state<string | null>(null);
+  let lastActiveMainTab = $state<Exclude<AppTab, "settings">>("flashcards");
 
   const MIN_WIDTH = 460;
   const MIN_HEIGHT = 520;
@@ -129,15 +130,19 @@
   // Expose function to change tab programmatically
   function changeTab(tab: AppTab) {
     if (tab === "settings") {
-      goToSettings("overview");
+      goToSettings(requestedSettingsSection);
       return;
     }
     activeTab = tab;
+    lastActiveMainTab = tab;
   }
 
   function goToSettings(section: typeof requestedSettingsSection = "overview", highlightId?: string) {
     requestedSettingsSection = section;
     highlightItemId = highlightId || null;
+    if (activeTab !== "settings") {
+      lastActiveMainTab = activeTab;
+    }
     activeTab = "settings";
   }
 
@@ -163,7 +168,7 @@
   ondragover={(e) => { e.preventDefault(); if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy'; }}
   ondrop={(e) => e.preventDefault()}
 >
-  <Sidebar {activeTab} onTabChange={changeTab} collapsed={sidebarCollapsed} onToggleCollapse={toggleSidebar} bind:settingsSection={requestedSettingsSection} />
+  <Sidebar {activeTab} onTabChange={changeTab} collapsed={sidebarCollapsed} onToggleCollapse={toggleSidebar} bind:settingsSection={requestedSettingsSection} {lastActiveMainTab} />
 
   <!-- Main Content - use CSS visibility to preserve state -->
   <div class="flex-1 overflow-hidden relative">

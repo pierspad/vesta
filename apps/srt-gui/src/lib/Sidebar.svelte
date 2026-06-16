@@ -17,9 +17,10 @@
     collapsed?: boolean;
     onToggleCollapse?: () => void;
     settingsSection?: "overview" | "llm" | "whisper" | "language" | "anki" | "shortcuts";
+    lastActiveMainTab?: "translate" | "sync" | "transcribe" | "align" | "flashcards";
   }
 
-  let { activeTab, onTabChange, collapsed = false, onToggleCollapse, settingsSection = $bindable("overview") }: Props = $props();
+  let { activeTab, onTabChange, collapsed = false, onToggleCollapse, settingsSection = $bindable("overview"), lastActiveMainTab = "flashcards" }: Props = $props();
   
   let t = $derived($locale);
 
@@ -255,7 +256,7 @@
     {#if activeTab === "settings"}
       <button
         onclick={() => {
-          onTabChange("flashcards");
+          onTabChange(lastActiveMainTab);
         }}
         class="flex items-center gap-4 group cursor-pointer focus:outline-none {collapsed ? 'w-8 h-8 justify-center' : 'w-full text-left'}"
       >
