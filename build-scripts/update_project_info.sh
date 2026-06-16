@@ -192,7 +192,18 @@ if [ -f "$SETTINGS_TAB_SVELTE" ]; then
 fi
 
 # ===========================================================
-# 8. Verifica coerenza versioni interne
+# 8. Sincronizza Cargo.lock
+# ===========================================================
+if [ -f "$PROJECT_ROOT/Cargo.lock" ]; then
+    echo -e "${YELLOW}Sincronizzo Cargo.lock (cargo update --workspace)...${NC}"
+    (
+        cd "$PROJECT_ROOT"
+        cargo update --workspace
+    )
+fi
+
+# ===========================================================
+# 9. Verifica coerenza versioni interne
 # ===========================================================
 echo ""
 echo -e "${YELLOW}🔎 Verifica coerenza versioni crate interni...${NC}"
