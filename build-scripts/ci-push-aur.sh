@@ -9,8 +9,13 @@ SCRIPT_DIR="/workspace/build-scripts"
 cd "$SCRIPT_DIR"
 
 PKGBUILD="$SCRIPT_DIR/PKGBUILD"
-UPDATE_SCRIPT="$SCRIPT_DIR/update_project_info.sh"
 CHECK_SCRIPT="$SCRIPT_DIR/check_internal_crate_versions.sh"
+
+# update_project_info.sh NON viene chiamato in CI: usa sed -i su file del workspace
+# (tauri.conf.json, Cargo.toml, ecc.) a cui il container non ha write permission.
+# Non è necessario: al commit del tag, tutti i file sono già aggiornati dalla
+# sessione locale di sviluppo. L'unica modifica runtime è il checksum del .deb,
+# che updpkgsums gestisce direttamente sul PKGBUILD.
 
 PROJECT_NAME="$(awk -F'=' '/^pkgname[[:space:]]*=/{print $2; exit}' "$PKGBUILD" | tr -d '\r' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
 if [ -z "$PROJECT_NAME" ]; then
@@ -20,9 +25,6 @@ fi
 
 AUR_REMOTE_URL="ssh://aur@aur.archlinux.org/${PROJECT_NAME}.git"
 AUR_REPO_DIR="$HOME/aur-repo"
-
-echo "Allineamento metadati dal PKGBUILD..."
-bash "$UPDATE_SCRIPT"
 
 echo "Verifica coerenza versioni interne..."
 bash "$CHECK_SCRIPT"
