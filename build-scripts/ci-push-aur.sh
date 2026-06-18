@@ -48,6 +48,8 @@ echo "Copia file nel repository AUR..."
 cp PKGBUILD .SRCINFO "$AUR_REPO_DIR/"
 
 cd "$AUR_REPO_DIR"
+git config user.email "aur-bot@vesta-ci"
+git config user.name "Vesta CI"
 git add -A
 
 if git diff --staged --quiet; then
