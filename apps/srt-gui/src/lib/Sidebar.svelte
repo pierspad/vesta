@@ -232,7 +232,7 @@
       })
       .catch(() => {
         appVersion = "VESTA";
-        appVersionNum = "v0.11.0";
+        appVersionNum = "v0.12.0";
         appLicense = "GPL-3.0";
       });
 
@@ -662,7 +662,7 @@
             </a>
             <div class="flex flex-col gap-0.5 min-w-0">
               <a href={releasesUrl} target="_blank" class="text-sm font-semibold text-gray-200 hover:text-indigo-400 transition-colors truncate leading-none">
-                {appVersionNum || "v0.11.0"}
+                {appVersionNum || "v0.12.0"}
               </a>
               <a href={licenseUrl} target="_blank" class="text-[11px] text-gray-400 hover:text-indigo-400 transition-colors leading-none">
                 {appLicense || "GPL-3.0"}

@@ -80,6 +80,18 @@ SAME_AS_ENGLISH_ALLOWED_KEYS = {
     "translate.context",
     "translate.model",
     "translate.subPerBatch",
+    # ── Internationally shared terms ────────────────────────────────────────────
+    # These English words are identical (or the accepted standard) in the target
+    # language, so flagging them as "same as English" is a false positive.
+    "flashcards.filterMinChars",      # "Minimum" — universal in DE/FR/NL/PL/TR
+    "flashcards.filterMaxChars",      # "Maximum" — universal in DE/FR/NL
+    "flashcards.filterMinDuration",   # "Minimum" — universal in DE/FR/NL/PL/TR
+    "flashcards.filterMaxDuration",   # "Maximum" — universal in DE/FR/NL
+    "refine.mode.manual",             # "Manual" — used unchanged in ES/PT
+    "refine.total",                   # "Total: {{count}}" — identical in ES/PT
+    "refine.notesLabel",              # "Notes" — identical in FR
+    "refine.action.fileLabel",        # "File:" — identical in IT
+    "refine.llm.status.offline",      # "server offline" — identical in IT/NL
 }
 
 
@@ -133,6 +145,8 @@ def audit_single_dir(
     dict[str, int],
     list[str],
     list[OrphanItem],
+    dict[str, Any],           # en_data
+    dict[str, dict[str, Any]], # loaded_locales
 ]:
     en_path = locales_dir / "en.json"
     if not en_path.exists():
@@ -197,7 +211,7 @@ def audit_single_dir(
             if key not in en_keys:
                 orphans.append(OrphanItem(locale=code, key=key, directory=dir_label))
 
-    return all_missing, per_locale_count, locale_codes, orphans
+    return all_missing, per_locale_count, locale_codes, orphans, en_data, loaded_locales
 
 
 def audit_all_dirs(
@@ -208,16 +222,24 @@ def audit_all_dirs(
     list[str],
     list[OrphanItem],
     dict[str, int],
+    dict[str, Any],            # merged en_data (last dir wins on collision)
+    dict[str, dict[str, Any]], # merged loaded_locales
 ]:
     combined_missing: dict[str, list[MissingItem]] = {}
     combined_counts: dict[str, int] = {}
     all_codes: list[str] = []
     combined_orphans: list[OrphanItem] = []
     en_keys_per_dir: dict[str, int] = {}
+    merged_en: dict[str, Any] = {}
+    merged_locales: dict[str, dict[str, Any]] = {}
 
     for d in locale_dirs:
-        missing, counts, codes, orphans = audit_single_dir(d)
-        en_keys_per_dir[d.name] = len(load_json(d / "en.json"))
+        missing, counts, codes, orphans, en_data, loaded_locales = audit_single_dir(d)
+        en_keys_per_dir[d.name] = len(en_data)
+
+        merged_en.update(en_data)
+        for code, data in loaded_locales.items():
+            merged_locales.setdefault(code, {}).update(data)
 
         for key, items in missing.items():
             combined_missing.setdefault(key, []).extend(items)
@@ -230,7 +252,53 @@ def audit_all_dirs(
         combined_orphans.extend(orphans)
 
     all_codes.sort()
-    return combined_missing, combined_counts, all_codes, combined_orphans, en_keys_per_dir
+    return combined_missing, combined_counts, all_codes, combined_orphans, en_keys_per_dir, merged_en, merged_locales
+
+
+def build_translation_tasks(
+    missing_by_key: dict[str, list[MissingItem]],
+    en_data: dict[str, Any],
+    loaded_locales: dict[str, dict[str, Any]],
+) -> dict[str, list[dict[str, Any]]]:
+    """Build a per-locale map of translation tasks, each with full context.
+
+    Structure emitted::
+
+        {
+          "de": [
+            {
+              "key": "nav.refine",
+              "reason": "same_as_english",
+              "en": "Refine",
+              "current_value": "Refine"   # null when key is missing entirely
+            },
+            ...
+          ],
+          ...
+        }
+
+    Designed to be fed directly to an LLM or MCP tool:
+    - One entry = one translation to fix.
+    - `en` = authoritative English string to translate from.
+    - `current_value` = what is wrong in the file right now (null if key absent).
+    - `reason` = the exact issue category for filtering/routing.
+    """
+    # Group issues by locale
+    by_locale: dict[str, list[dict[str, Any]]] = {}
+    for key, issues in sorted(missing_by_key.items()):
+        en_value = en_data.get(key, "")
+        for item in issues:
+            locale_data = loaded_locales.get(item.locale, {})
+            current = locale_data.get(key)  # None if missing_key / missing_locale
+            by_locale.setdefault(item.locale, []).append(
+                {
+                    "key": key,
+                    "reason": item.reason,
+                    "en": en_value,
+                    "current_value": current,
+                }
+            )
+    return dict(sorted(by_locale.items()))
 
 
 def build_report(locale_dirs: list[Path]) -> dict[str, Any]:
@@ -240,6 +308,8 @@ def build_report(locale_dirs: list[Path]) -> dict[str, Any]:
         locale_codes,
         orphans,
         en_keys_per_dir,
+        merged_en,
+        merged_locales,
     ) = audit_all_dirs(locale_dirs)
 
     missing_keys = {}
@@ -259,6 +329,17 @@ def build_report(locale_dirs: list[Path]) -> dict[str, Any]:
 
     total_en = sum(en_keys_per_dir.values())
 
+    translation_tasks = build_translation_tasks(missing_by_key, merged_en, merged_locales)
+
+    # Summary statistics per locale for translation_tasks
+    tasks_summary: dict[str, dict[str, int]] = {}
+    for locale, tasks in translation_tasks.items():
+        reason_counts: dict[str, int] = {}
+        for t in tasks:
+            r = t["reason"]
+            reason_counts[r] = reason_counts.get(r, 0) + 1
+        tasks_summary[locale] = {"total": len(tasks), **reason_counts}
+
     return {
         "directories": [str(d) for d in locale_dirs],
         "en_keys_per_directory": en_keys_per_dir,
@@ -269,6 +350,13 @@ def build_report(locale_dirs: list[Path]) -> dict[str, Any]:
         "orphan_keys_count": len(orphan_entries),
         "orphan_keys": orphan_entries,
         "missing_keys": missing_keys,
+        # ── LLM/MCP-optimized section ──────────────────────────────────────────
+        # `translation_tasks` is the primary surface for automated tooling.
+        # Iterate over each locale, then submit its task list to an LLM.
+        # The LLM should return a JSON object { key: translated_string, ... }
+        # which can be merged back into the locale file directly.
+        "translation_tasks_summary": tasks_summary,
+        "translation_tasks": translation_tasks,
     }
 
 
@@ -388,6 +476,30 @@ def main() -> int:
             print(row)
     else:
         print("✅ No issues found across any locale!")
+
+    # Translation tasks summary (for LLM/MCP consumers)
+    tasks_summary = report.get("translation_tasks_summary", {})
+    tasks = report.get("translation_tasks", {})
+    if tasks_summary:
+        print()
+        print("📋 Translation tasks per locale (LLM/MCP view):")
+        print("─" * 60)
+        for locale, stats in tasks_summary.items():
+            total = stats.get("total", 0)
+            reasons_detail = "  ".join(
+                f"{reason}={count}"
+                for reason, count in stats.items()
+                if reason != "total"
+            )
+            preview_keys = [t["key"] for t in tasks.get(locale, [])[:3]]
+            preview = ", ".join(preview_keys)
+            if len(tasks.get(locale, [])) > 3:
+                preview += f", ... (+{len(tasks[locale]) - 3} more)"
+            print(f"  {locale:<4}  {total:>3} tasks  [{reasons_detail}]")
+            print(f"        e.g. {preview}")
+        print()
+        print(f"  ℹ  Use report['translation_tasks']['<locale>'] for the full task list.")
+        print(f"     Each task: {{key, reason, en, current_value}}")
 
     # Orphan keys
     orphans = report.get("orphan_keys", [])
