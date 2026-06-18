@@ -1,8 +1,15 @@
 name: Publish to AUR
 
 on:
-  release:
-    types: [published]
+  # release: published NON funziona quando la release è creata via GITHUB_TOKEN:
+  # GitHub non propaga l'evento ad altri workflow per evitare loop infiniti.
+  # workflow_run si aggancia al completamento di build.yml, che è l'unico trigger
+  # affidabile. Il filtro branches: ['v*'] esclude i run manuali (dispatch su main).
+  workflow_run:
+    workflows: ["Build and Release"]
+    types: [completed]
+    branches:
+      - 'v*'
   workflow_dispatch:
     inputs:
       tag:
@@ -17,6 +24,11 @@ jobs:
   publish-aur:
     name: Push PKGBUILD to AUR
     runs-on: ubuntu-22.04
+    # Per workflow_run: esegui solo se build.yml è andato a buon fine.
+    # Per workflow_dispatch: esegui sempre (l'utente sceglie consapevolmente).
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
     steps:
       - name: Resolve ref to checkout
         id: ref
@@ -30,7 +42,8 @@ jobs:
             fi
             echo "ref=${{ inputs.tag }}" >> "$GITHUB_OUTPUT"
           else
-            echo "ref=${{ github.ref }}" >> "$GITHUB_OUTPUT"
+            # workflow_run: head_branch contiene il nome del tag (es. v0.12.0)
+            echo "ref=${{ github.event.workflow_run.head_branch }}" >> "$GITHUB_OUTPUT"
           fi
 
       - uses: actions/checkout@v6
