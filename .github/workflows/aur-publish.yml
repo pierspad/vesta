@@ -10,11 +10,7 @@ on:
     types: [completed]
     branches:
       - 'v*'
-  workflow_dispatch:
-    inputs:
-      tag:
-        description: 'Tag da pubblicare (es. v1.2.3). Obbligatorio se lanciato manualmente.'
-        required: false
+  workflow_dispatch: {}  # per retry manuale, nessun input necessario
 
 concurrency:
   group: aur-publish
@@ -24,31 +20,17 @@ jobs:
   publish-aur:
     name: Push PKGBUILD to AUR
     runs-on: ubuntu-22.04
-    # Per workflow_run: esegui solo se build.yml è andato a buon fine.
-    # Per workflow_dispatch: esegui sempre (l'utente sceglie consapevolmente).
     if: >
       github.event_name == 'workflow_dispatch' ||
       github.event.workflow_run.conclusion == 'success'
     steps:
-      - name: Resolve ref to checkout
-        id: ref
-        shell: bash
-        run: |
-          set -euo pipefail
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            if [ -z "${{ inputs.tag }}" ]; then
-              echo "::error::workflow_dispatch richiede l'input 'tag' (es. v1.2.3)."
-              exit 1
-            fi
-            echo "ref=${{ inputs.tag }}" >> "$GITHUB_OUTPUT"
-          else
-            # workflow_run: head_branch contiene il nome del tag (es. v0.12.0)
-            echo "ref=${{ github.event.workflow_run.head_branch }}" >> "$GITHUB_OUTPUT"
-          fi
-
       - uses: actions/checkout@v6
-        with:
-          ref: ${{ steps.ref.outputs.ref }}
+        # Checkout del default branch (non del tag): gli script CI (ci-push-aur.sh,
+        # check_internal_crate_versions.sh) vivono qui e ricevono fix qui.
+        # Il PKGBUILD sul default branch riflette sempre l'ultimo release perché
+        # git-release.sh lo aggiorna e committa prima di taggere.
+        # Checkout del tag significherebbe eseguire potenzialmente una versione
+        # vecchia e buggata degli script (come è successo con v0.12.0).
 
       - name: Normalize line endings
         shell: bash
