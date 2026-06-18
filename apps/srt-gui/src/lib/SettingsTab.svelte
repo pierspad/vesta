@@ -1483,7 +1483,7 @@
         }
       })
       .catch(() => {
-        appVersionNum = "v0.11.0";
+        appVersionNum = "v0.12.0";
         if (automaticUpdateChecks) {
           void checkForUpdates("auto");
         } else {
