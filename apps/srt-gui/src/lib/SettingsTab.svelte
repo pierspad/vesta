@@ -1574,7 +1574,7 @@ import TranscribeTiers from "./TranscribeTiers.svelte";
         }
       })
       .catch(() => {
-        appVersionNum = "v0.12.0";
+        appVersionNum = "v0.13.0";
         if (automaticUpdateChecks) {
           void checkForUpdates("auto");
         } else {

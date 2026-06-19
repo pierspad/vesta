@@ -1,15 +1,12 @@
-## Release Notes v0.12.0
+## Release Notes v0.13.0
 
-### New Features
 
-- **Added a Refine Tab**: to add more information about a translation in the "notes" field.
-- **AI refinement**: possibility to make an llm generate the note refinement
-- **AI Killswitch**: to disable and hide all ai features of the app
+## Fixes
 
-### Fixes
-
-- **Updatet mismatched translations**
+- **Shortcuts**: fixed all (hopefully) of the non-working shortcuts
+- **Consistency**: increased consistency across all the app related to fonts, sizes etc.
 
 ### Improvements
 
-- **Translation checking**: improved the pre-release checking script to align all the translation files
+- **Api Keys handling**: drastically improved the api key handling and preference of usage of the keys
+- **Usability**: improved general usability of the tab

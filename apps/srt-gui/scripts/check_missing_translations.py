@@ -104,6 +104,12 @@ SAME_AS_ENGLISH_ALLOWED_KEYS = {
     "transcribe.log",
     "translate.batch",
     "translate.provider",
+    "settings.section.llm",
+    "provider.mistral.desc",
+    "settings.modal.documentation",
+    "tiers.auto",
+    "tiers.model",
+    "transcribe.cloudModel",
 }
 
 
