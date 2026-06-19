@@ -33,13 +33,20 @@ export interface ProviderInfo {
   requiresApiUrl: boolean;
   defaultApiUrl?: string;
   enabled: boolean; // Nuovo campo per abilitare/disabilitare provider
+  /** Pagina dove ottenere la API key (mostrata come link nella UI). */
+  apiKeyUrl?: string;
+  /** Prefisso atteso della key (hint/validazione leggera, es: "AIza", "gsk_"). */
+  keyPrefix?: string;
+  /** Placeholder per il campo key. */
+  keyPlaceholder?: string;
+  documentationUrl?: string;
 }
 
 // Provider disponibili - solo Local e Google sono abilitati
 export const providers: Record<string, ProviderInfo> = {
   local: {
     id: "local",
-    name: "Local LLM",
+    name: "Local LLM (Open API)",
     icon: "local", // Use icon ID for custom SVG icons
     color: "from-purple-500 to-pink-500",
     description: "Ollama, LM Studio, local models",
@@ -47,6 +54,7 @@ export const providers: Record<string, ProviderInfo> = {
     requiresApiUrl: true,
     defaultApiUrl: "http://localhost:11434/v1",
     enabled: true,
+    documentationUrl: "https://ollama.com",
   },
   google: {
     id: "google",
@@ -58,17 +66,52 @@ export const providers: Record<string, ProviderInfo> = {
     requiresApiUrl: false,
     defaultApiUrl: "https://generativelanguage.googleapis.com/v1beta",
     enabled: true,
+    apiKeyUrl: "https://aistudio.google.com/apikey",
+    keyPrefix: "AIza",
+    keyPlaceholder: "AIza...",
+    documentationUrl: "https://ai.google.dev/gemini-api/docs",
   },
   openai: {
     id: "openai",
-    name: "OpenAI GPT",
+    name: "OpenAI GPT / Whisper",
     icon: "openai", // Use icon ID for custom SVG icons
     color: "from-emerald-500 to-teal-500",
-    description: "GPT-5.2, GPT-5, GPT-4o (Coming Soon)",
+    description: "Modelli GPT e speech-to-text Whisper",
     requiresApiKey: true,
     requiresApiUrl: false,
     defaultApiUrl: "https://api.openai.com/v1",
-    enabled: false, // Coming soon
+    enabled: true,
+    apiKeyUrl: "https://platform.openai.com/api-keys",
+    keyPlaceholder: "sk-...",
+    documentationUrl: "https://platform.openai.com/docs",
+  },
+  deepgram: {
+    id: "deepgram",
+    name: "Deepgram",
+    icon: "deepgram",
+    color: "from-violet-500 to-fuchsia-500",
+    description: "Speech-to-text API (Nova-3, Nova-2)",
+    requiresApiKey: true,
+    requiresApiUrl: false,
+    defaultApiUrl: "https://api.deepgram.com/v1",
+    enabled: true,
+    apiKeyUrl: "https://console.deepgram.com",
+    keyPlaceholder: "Deepgram API key",
+    documentationUrl: "https://developers.deepgram.com",
+  },
+  assemblyai: {
+    id: "assemblyai",
+    name: "AssemblyAI",
+    icon: "assemblyai",
+    color: "from-indigo-500 to-blue-500",
+    description: "Speech-to-text API (best, nano)",
+    requiresApiKey: true,
+    requiresApiUrl: false,
+    defaultApiUrl: "https://api.assemblyai.com/v2",
+    enabled: true,
+    apiKeyUrl: "https://www.assemblyai.com/app/api-keys",
+    keyPlaceholder: "AssemblyAI API key",
+    documentationUrl: "https://www.assemblyai.com/docs",
   },
   anthropic: {
     id: "anthropic",
@@ -102,22 +145,105 @@ export const providers: Record<string, ProviderInfo> = {
     requiresApiUrl: false,
     defaultApiUrl: "https://api.groq.com/openai/v1",
     enabled: true,
+    apiKeyUrl: "https://console.groq.com/keys",
+    keyPrefix: "gsk_",
+    keyPlaceholder: "gsk_...",
+    documentationUrl: "https://console.groq.com/docs",
   },
   openrouter: {
     id: "openrouter",
     name: "OpenRouter",
     icon: "openrouter",
     color: "from-indigo-500 to-purple-600",
-    description: "Unified access to GPT, Claude, Gemini, Mistral and more (DISABLED)",
+    description: "One key for GPT, Claude, Gemini, Llama, Mistral and 300+ models",
     requiresApiKey: true,
     requiresApiUrl: false,
     defaultApiUrl: "https://openrouter.ai/api/v1",
-    enabled: false, // Disabilitato
+    enabled: true,
+    apiKeyUrl: "https://openrouter.ai/keys",
+    keyPrefix: "sk-or-",
+    keyPlaceholder: "sk-or-...",
+    documentationUrl: "https://openrouter.ai/docs",
+  },
+  mistral: {
+    id: "mistral",
+    name: "Mistral AI",
+    icon: "mistral",
+    color: "from-orange-500 to-rose-500",
+    description: "La Plateforme: Mistral Large, Medium, Small, Nemo, Codestral",
+    requiresApiKey: true,
+    requiresApiUrl: false,
+    defaultApiUrl: "https://api.mistral.ai/v1",
+    enabled: true,
+    apiKeyUrl: "https://console.mistral.ai/api-keys",
+    keyPlaceholder: "Mistral API key",
+    documentationUrl: "https://docs.mistral.ai",
+  },
+  github: {
+    id: "github",
+    name: "GitHub Models",
+    icon: "github",
+    color: "from-gray-600 to-gray-800",
+    description: "Free tier via GitHub PAT (models:read): GPT, Llama, Mistral, DeepSeek",
+    requiresApiKey: true,
+    requiresApiUrl: false,
+    defaultApiUrl: "https://models.github.ai/inference",
+    enabled: true,
+    apiKeyUrl: "https://github.com/settings/personal-access-tokens",
+    keyPrefix: "github_pat_",
+    keyPlaceholder: "github_pat_... or ghp_...",
+    documentationUrl: "https://docs.github.com",
+  },
+  nvidia: {
+    id: "nvidia",
+    name: "NVIDIA NIM",
+    icon: "nvidia",
+    color: "from-green-500 to-lime-500",
+    description: "build.nvidia.com: Llama, Nemotron, DeepSeek, Qwen and more",
+    requiresApiKey: true,
+    requiresApiUrl: false,
+    defaultApiUrl: "https://integrate.api.nvidia.com/v1",
+    enabled: true,
+    apiKeyUrl: "https://build.nvidia.com",
+    keyPrefix: "nvapi-",
+    keyPlaceholder: "nvapi-...",
+    documentationUrl: "https://docs.nvidia.com",
+  },
+  local_whisper: {
+    id: "local_whisper",
+    name: "Local Whisper",
+    icon: "local",
+    color: "from-purple-500 to-pink-500",
+    description: "Modello Whisper locale eseguito sul tuo PC",
+    requiresApiKey: false,
+    requiresApiUrl: false,
+    enabled: true,
+    documentationUrl: "https://github.com/ggerganov/whisper.cpp",
+  },
+  custom_whisper: {
+    id: "custom_whisper",
+    name: "Custom Whisper",
+    icon: "custom",
+    color: "from-gray-500 to-gray-600",
+    description: "Qualsiasi endpoint compatibile OpenAI (e.g. /audio/transcriptions)",
+    requiresApiKey: false,
+    requiresApiUrl: true,
+    defaultApiUrl: "http://localhost:8000/v1",
+    enabled: true,
   },
 };
 
-// Solo provider abilitati
-export const providerOrder = ["local", "custom", "google", "groq"];
+// Provider selezionabili per la modalità a tier / aggiunta key (in ordine).
+export const providerOrder = [
+  "google",
+  "groq",
+  "openrouter",
+  "mistral",
+  "github",
+  "nvidia",
+  "local",
+  "custom",
+];
 
 // Modelli per provider
 export const modelsByProvider: Record<string, ModelInfo[]> = {
@@ -558,8 +684,186 @@ export const modelsByProvider: Record<string, ModelInfo[]> = {
     },
   ],
 
-  // OpenRouter è disabilitato ma manteniamo la struttura per future implementazioni
-  openrouter: [],
+  // OpenRouter - un'unica key per centinaia di modelli (id "vendor/model")
+  openrouter: [
+    {
+      id: "google/gemini-2.5-flash",
+      name: "Gemini 2.5 Flash",
+      provider: "openrouter",
+      family: "Google",
+      familyInfo: { type: "proprietary", badge: "Stable" },
+      description: "Velocità ed efficienza Google via OpenRouter",
+      recommended: true,
+    },
+    {
+      id: "openai/gpt-4o-mini",
+      name: "GPT-4o mini",
+      provider: "openrouter",
+      family: "OpenAI",
+      familyInfo: { type: "proprietary", badge: "Budget" },
+      description: "Economico e veloce, ottimo per traduzioni",
+    },
+    {
+      id: "anthropic/claude-3.5-haiku",
+      name: "Claude 3.5 Haiku",
+      provider: "openrouter",
+      family: "Anthropic",
+      familyInfo: { type: "proprietary", badge: "Stable" },
+      description: "Haiku rapido di Anthropic",
+    },
+    {
+      id: "meta-llama/llama-3.3-70b-instruct",
+      name: "Llama 3.3 70B",
+      provider: "openrouter",
+      family: "Meta",
+      familyInfo: { type: "open-weights", badge: "Open" },
+      description: "Meta 70B instruct",
+    },
+    {
+      id: "deepseek/deepseek-chat",
+      name: "DeepSeek V3",
+      provider: "openrouter",
+      family: "DeepSeek",
+      familyInfo: { type: "open-source", badge: "OSS" },
+      description: "DeepSeek flagship MoE",
+    },
+    {
+      id: "mistralai/mistral-small-3.1-24b-instruct",
+      name: "Mistral Small 3.1",
+      provider: "openrouter",
+      family: "Mistral",
+      familyInfo: { type: "open-weights", badge: "Open" },
+      description: "Mistral Small 24B via OpenRouter",
+    },
+  ],
+
+  // Mistral AI - La Plateforme (API nativa OpenAI-compatible)
+  mistral: [
+    {
+      id: "mistral-large-latest",
+      name: "Mistral Large",
+      provider: "mistral",
+      family: "Mistral",
+      familyInfo: { type: "proprietary", badge: "Newest" },
+      contextWindow: 131072,
+      description: "Modello flagship Mistral, massima qualità",
+      recommended: true,
+    },
+    {
+      id: "mistral-medium-latest",
+      name: "Mistral Medium",
+      provider: "mistral",
+      family: "Mistral",
+      familyInfo: { type: "proprietary", badge: "Stable" },
+      contextWindow: 131072,
+      description: "Bilanciamento qualità/costo",
+    },
+    {
+      id: "mistral-small-latest",
+      name: "Mistral Small",
+      provider: "mistral",
+      family: "Mistral",
+      familyInfo: { type: "proprietary", badge: "Budget" },
+      contextWindow: 131072,
+      description: "Veloce ed economico, ottimo per traduzioni",
+      recommended: true,
+    },
+    {
+      id: "open-mistral-nemo",
+      name: "Mistral Nemo",
+      provider: "mistral",
+      family: "Mistral",
+      familyInfo: { type: "open-weights", badge: "Open" },
+      contextWindow: 131072,
+      description: "12B multilingue, gratuito su molti tier",
+    },
+  ],
+
+  // GitHub Models - free tier via PAT (models:read). ID con prefisso vendor.
+  github: [
+    {
+      id: "openai/gpt-4o-mini",
+      name: "GPT-4o mini",
+      provider: "github",
+      family: "OpenAI",
+      familyInfo: { type: "proprietary", badge: "Budget" },
+      description: "OpenAI compatto, free tier GitHub",
+      recommended: true,
+    },
+    {
+      id: "openai/gpt-4o",
+      name: "GPT-4o",
+      provider: "github",
+      family: "OpenAI",
+      familyInfo: { type: "proprietary", badge: "Stable" },
+      description: "OpenAI flagship multimodale",
+    },
+    {
+      id: "meta/Llama-3.3-70B-Instruct",
+      name: "Llama 3.3 70B",
+      provider: "github",
+      family: "Meta",
+      familyInfo: { type: "open-weights", badge: "Open" },
+      description: "Meta 70B instruct",
+    },
+    {
+      id: "mistral-ai/Mistral-Large-2411",
+      name: "Mistral Large 2411",
+      provider: "github",
+      family: "Mistral",
+      familyInfo: { type: "proprietary", badge: "Stable" },
+      description: "Mistral Large via GitHub Models",
+    },
+    {
+      id: "deepseek/DeepSeek-V3-0324",
+      name: "DeepSeek V3",
+      provider: "github",
+      family: "DeepSeek",
+      familyInfo: { type: "open-source", badge: "OSS" },
+      description: "DeepSeek V3 via GitHub Models",
+    },
+  ],
+
+  // NVIDIA NIM - integrate.api.nvidia.com (OpenAI-compatible)
+  nvidia: [
+    {
+      id: "meta/llama-3.3-70b-instruct",
+      name: "Llama 3.3 70B",
+      provider: "nvidia",
+      family: "Meta",
+      familyInfo: { type: "open-weights", badge: "Open" },
+      contextWindow: 131072,
+      description: "Meta 70B su NVIDIA NIM",
+      recommended: true,
+    },
+    {
+      id: "nvidia/llama-3.1-nemotron-70b-instruct",
+      name: "Llama 3.1 Nemotron 70B",
+      provider: "nvidia",
+      family: "NVIDIA",
+      familyInfo: { type: "open-weights", badge: "Open" },
+      contextWindow: 131072,
+      description: "Nemotron tuned da NVIDIA",
+    },
+    {
+      id: "deepseek-ai/deepseek-r1",
+      name: "DeepSeek R1",
+      provider: "nvidia",
+      family: "DeepSeek",
+      familyInfo: { type: "open-source", badge: "OSS" },
+      contextWindow: 131072,
+      description: "Ragionamento avanzato R1",
+    },
+    {
+      id: "qwen/qwen2.5-72b-instruct",
+      name: "Qwen 2.5 72B",
+      provider: "nvidia",
+      family: "Qwen",
+      familyInfo: { type: "open-source", badge: "OSS" },
+      contextWindow: 131072,
+      description: "Qwen 72B multilingue",
+    },
+  ],
 };
 
 // Modelli personalizzati (salvati in localStorage)
@@ -571,14 +875,32 @@ export interface CustomModel {
   description?: string;
 }
 
+export type ApiProviderId =
+  | "local"
+  | "google"
+  | "groq"
+  | "openrouter"
+  | "mistral"
+  | "github"
+  | "nvidia"
+  | "custom"
+  | "deepgram"
+  | "assemblyai"
+  | "local_whisper"
+  | "custom_whisper"
+  // legacy, mantenuti per retrocompatibilità nello storage
+  | "openai"
+  | "anthropic";
+
 export interface ApiKeyConfig {
   id: string;
   name: string;
-  apiType: "local" | "google" | "openrouter" | "openai" | "anthropic" | "custom" | "groq";
+  apiType: ApiProviderId;
   apiKey: string;
   apiUrl?: string;
   modelName?: string;  // Nome modello preferito
-  isDefault: boolean;
+  isDefault?: boolean;
+  isValid?: boolean;
 }
 
 // Funzione per ottenere tutti i modelli di un provider (inclusi custom)
@@ -861,10 +1183,13 @@ export interface ShortcutDefinition {
 export const defaultShortcuts: ShortcutDefinition[] = [
   // Global — tab navigation follows sidebar order (Flashcards first)
   { id: "tab-flashcards", action: "switchToFlashcards", description: "shortcuts.action.goToFlashcards", defaultKey: "Alt+1", category: "global" },
-  { id: "tab-translate", action: "switchToTranslate", description: "shortcuts.action.goToTranslation", defaultKey: "Alt+2", category: "global" },
-  { id: "tab-sync", action: "switchToSync", description: "shortcuts.action.goToSync", defaultKey: "Alt+3", category: "global" },
-  { id: "tab-settings", action: "switchToSettings", description: "shortcuts.action.goToSettings", defaultKey: "Alt+4", category: "global" },
-  { id: "tab-shortcuts", action: "switchToShortcuts", description: "shortcuts.action.goToShortcuts", defaultKey: "Alt+5", category: "global" },
+  { id: "tab-refine", action: "switchToRefine", description: "shortcuts.action.goToRefine", defaultKey: "Alt+2", category: "global" },
+  { id: "tab-translate", action: "switchToTranslate", description: "shortcuts.action.goToTranslation", defaultKey: "Alt+3", category: "global" },
+  { id: "tab-sync", action: "switchToSync", description: "shortcuts.action.goToSync", defaultKey: "Alt+4", category: "global" },
+  { id: "tab-align", action: "switchToAlign", description: "shortcuts.action.goToAlign", defaultKey: "Alt+5", category: "global" },
+  { id: "tab-transcribe", action: "switchToTranscribe", description: "shortcuts.action.goToTranscribe", defaultKey: "Alt+6", category: "global" },
+  { id: "tab-settings", action: "switchToSettings", description: "shortcuts.action.goToSettings", defaultKey: "Alt+7", category: "global" },
+  { id: "tab-shortcuts", action: "switchToShortcuts", description: "shortcuts.action.goToShortcuts", defaultKey: "Alt+8", category: "global" },
   { id: "settings-add-key", action: "addApiKey", description: "shortcuts.action.addApiKey", defaultKey: "Ctrl+N", category: "global" },
   { id: "show-help", action: "showShortcutHelp", description: "shortcuts.action.showHelp", defaultKey: "Shift+?", category: "global" },
 
@@ -949,11 +1274,17 @@ export function saveShortcutOverride(shortcutId: string, newKey: string): void {
 
   overrides[shortcutId] = newKey;
   localStorage.setItem("srt-tools-shortcut-overrides", JSON.stringify(overrides));
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("shortcuts-updated"));
+  }
 }
 
 // Funzione per resettare le shortcut
 export function resetShortcuts(): void {
   localStorage.removeItem("srt-tools-shortcut-overrides");
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("shortcuts-updated"));
+  }
 }
 
 // Funzione per resettare una singola shortcut con cascade dei conflitti
@@ -996,6 +1327,9 @@ export function resetSingleShortcut(shortcutId: string): void {
   }
 
   localStorage.setItem("srt-tools-shortcut-overrides", JSON.stringify(overrides));
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("shortcuts-updated"));
+  }
 }
 
 // Funzione per formattare context window
@@ -1015,10 +1349,26 @@ export function loadAndValidateApiKeys(): ApiKeyConfig[] {
     const parsed = JSON.parse(saved);
     if (!Array.isArray(parsed)) return [];
 
+    const validTypes = new Set([
+      "local",
+      "google",
+      "groq",
+      "custom",
+      "openrouter",
+      "mistral",
+      "github",
+      "nvidia",
+      "openai",
+      "deepgram",
+      "assemblyai",
+      "local_whisper",
+      "custom_whisper",
+    ]);
+
     // Converti chiavi con tipi legacy a "google" e filtra quelle non valide
     const converted = parsed.map((k: any) => {
       // Se già ha un tipo valido, mantienilo
-      if (k.apiType === "local" || k.apiType === "google" || k.apiType === "groq" || k.apiType === "custom") {
+      if (validTypes.has(k.apiType)) {
         return k;
       }
       // Converti tipi legacy (openrouter, gemini, openai, anthropic, etc.) a google
@@ -1050,6 +1400,286 @@ export function loadAndValidateApiKeys(): ApiKeyConfig[] {
   } catch {
     return [];
   }
+}
+
+// ─── Translation Tiers (priority list with automatic failover) ────────────────
+//
+// Una "tier list" è una lista ordinata di tier. tiers[0] è il tier a priorità
+// massima. Ogni tier contiene una o più entry; all'interno del tier le entry
+// vengono usate in round-robin, e quando un intero tier esaurisce i limiti si
+// passa automaticamente al tier successivo (failover, gestito dal backend Rust).
+//
+// Una entry punta a una API key salvata (apiKeyId) e a un modello specifico:
+// così la stessa key può comparire più volte con modelli diversi nello stesso
+// tier, sfruttando quote separate per modello con un'unica chiave.
+
+export interface TierEntry {
+  id: string;
+  provider: ApiProviderId;
+  /** Riferimento a ApiKeyConfig.id. Vuoto per provider locali senza key. */
+  apiKeyId: string;
+  /** Id del modello da chiamare. */
+  model: string;
+  /** Override opzionale RPM (richieste/minuto). */
+  rpm?: number;
+  /** Budget opzionale di richieste per run. */
+  maxRequests?: number;
+}
+
+export interface Tier {
+  id: string;
+  entries: TierEntry[];
+}
+
+const TIERS_KEY = "vesta-translate-tiers";
+export const TIERS_UPDATED_EVENT = "vesta:tiers-updated";
+
+export function newTierId(): string {
+  return `tier-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+}
+
+export function newTierEntryId(): string {
+  return `te-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+}
+
+export function loadTiers(): Tier[] {
+  try {
+    const raw = localStorage.getItem(TIERS_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        return parsed
+          .filter((t) => t && Array.isArray(t.entries))
+          .map((t) => ({
+            id: typeof t.id === "string" ? t.id : newTierId(),
+            entries: (t.entries as any[])
+              .filter((e) => e && typeof e.provider === "string")
+              .map((e) => ({
+                id: typeof e.id === "string" ? e.id : newTierEntryId(),
+                provider: e.provider as ApiProviderId,
+                apiKeyId: typeof e.apiKeyId === "string" ? e.apiKeyId : "",
+                model: typeof e.model === "string" ? e.model : "",
+                rpm: typeof e.rpm === "number" && e.rpm > 0 ? e.rpm : undefined,
+                maxRequests:
+                  typeof e.maxRequests === "number" && e.maxRequests > 0
+                    ? e.maxRequests
+                    : undefined,
+              })),
+          }));
+      }
+    }
+  } catch {
+    /* ignore */
+  }
+  return [];
+}
+
+export function saveTiers(tiers: Tier[]): void {
+  localStorage.setItem(TIERS_KEY, JSON.stringify(tiers));
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent(TIERS_UPDATED_EVENT));
+  }
+}
+
+/** True se almeno una entry ha un modello valido (tier configurabili e usabili). */
+export function tiersHaveUsableEntries(tiers: Tier[]): boolean {
+  return tiers.some((t) => t.entries.some((e) => e.model && e.model.trim().length > 0));
+}
+
+// ─── Transcribe Tiers ──────────────────────────────────────────────────────────
+
+export interface TranscribeTierEntry {
+  id: string;
+  provider: string; // "local" | "groq" | "openai" | "deepgram" | "assemblyai" | "custom"
+  apiKeyId: string;
+  model: string;
+  rpm?: number;
+  maxRequests?: number;
+}
+
+export interface TranscribeTier {
+  id: string;
+  entries: TranscribeTierEntry[];
+}
+
+const TRANSCRIBE_TIERS_KEY = "vesta-transcribe-tiers";
+export const TRANSCRIBE_TIERS_UPDATED_EVENT = "vesta:transcribe-tiers-updated";
+
+export function loadTranscribeTiers(): TranscribeTier[] {
+  try {
+    const raw = localStorage.getItem(TRANSCRIBE_TIERS_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        return parsed
+          .filter((t) => t && Array.isArray(t.entries))
+          .map((t) => ({
+            id: typeof t.id === "string" ? t.id : newTierId(),
+            entries: (t.entries as any[])
+              .filter((e) => e && typeof e.provider === "string")
+              .map((e) => ({
+                id: typeof e.id === "string" ? e.id : newTierEntryId(),
+                provider: e.provider,
+                apiKeyId: typeof e.apiKeyId === "string" ? e.apiKeyId : "",
+                model: typeof e.model === "string" ? e.model : "",
+                rpm: typeof e.rpm === "number" && e.rpm > 0 ? e.rpm : undefined,
+                maxRequests: typeof e.maxRequests === "number" && e.maxRequests > 0 ? e.maxRequests : undefined,
+              })),
+          }));
+      }
+    }
+  } catch {
+    /* ignore */
+  }
+  // Default: one tier with local base model
+  return [
+    {
+      id: newTierId(),
+      entries: [
+        {
+          id: newTierEntryId(),
+          provider: "local",
+          apiKeyId: "",
+          model: "base",
+        }
+      ]
+    }
+  ];
+}
+
+export function saveTranscribeTiers(tiers: TranscribeTier[]): void {
+  localStorage.setItem(TRANSCRIBE_TIERS_KEY, JSON.stringify(tiers));
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent(TRANSCRIBE_TIERS_UPDATED_EVENT));
+  }
+}
+
+export function transcribeTiersHaveUsableEntries(tiers: TranscribeTier[]): boolean {
+  return tiers.some((t) => t.entries.some((e) => e.model && e.model.trim().length > 0));
+}
+
+// ─── Cloud transcription providers (Whisper tab) ──────────────────────────────
+//
+// Motori di trascrizione cloud, in aggiunta a Whisper locale. Tutti vengono
+// normalizzati dal backend (whisper-common/cloud.rs) in segmenti SRT.
+
+export interface TranscribeProviderInfo {
+  id: string;
+  name: string;
+  color: string;
+  description: string;
+  defaultUrl?: string;
+  apiKeyUrl?: string;
+  keyPlaceholder?: string;
+  /** true per il provider "custom" che richiede l'URL. */
+  requiresUrl?: boolean;
+  /** true se il provider ignora il campo modello (es. AssemblyAI). */
+  modelOptional?: boolean;
+  models: { id: string; name: string; recommended?: boolean }[];
+}
+
+export const transcribeProviders: Record<string, TranscribeProviderInfo> = {
+  groq: {
+    id: "groq",
+    name: "Groq Cloud",
+    color: "from-orange-400 to-red-500",
+    description: "Whisper large-v3 ultra-veloce su LPU",
+    defaultUrl: "https://api.groq.com/openai/v1",
+    apiKeyUrl: "https://console.groq.com/keys",
+    keyPlaceholder: "gsk_...",
+    models: [
+      { id: "whisper-large-v3-turbo", name: "Whisper large-v3 turbo", recommended: true },
+      { id: "whisper-large-v3", name: "Whisper large-v3" },
+    ],
+  },
+  openai: {
+    id: "openai",
+    name: "OpenAI API",
+    color: "from-emerald-500 to-teal-500",
+    description: "Whisper-1 e gpt-4o-transcribe",
+    defaultUrl: "https://api.openai.com/v1",
+    apiKeyUrl: "https://platform.openai.com/api-keys",
+    keyPlaceholder: "sk-...",
+    models: [
+      { id: "whisper-1", name: "Whisper-1 (con timestamp)", recommended: true },
+      { id: "gpt-4o-mini-transcribe", name: "GPT-4o mini transcribe" },
+      { id: "gpt-4o-transcribe", name: "GPT-4o transcribe" },
+    ],
+  },
+  deepgram: {
+    id: "deepgram",
+    name: "Deepgram",
+    color: "from-violet-500 to-fuchsia-500",
+    description: "Nova-3, timestamp per parola e utterances",
+    defaultUrl: "https://api.deepgram.com/v1",
+    apiKeyUrl: "https://console.deepgram.com",
+    keyPlaceholder: "Deepgram API key",
+    models: [
+      { id: "nova-3", name: "Nova-3", recommended: true },
+      { id: "nova-2", name: "Nova-2" },
+    ],
+  },
+  assemblyai: {
+    id: "assemblyai",
+    name: "AssemblyAI",
+    color: "from-indigo-500 to-blue-500",
+    description: "Upload asincrono, timestamp accurati",
+    defaultUrl: "https://api.assemblyai.com/v2",
+    apiKeyUrl: "https://www.assemblyai.com/app/api-keys",
+    keyPlaceholder: "AssemblyAI API key",
+    modelOptional: true,
+    models: [
+      { id: "best", name: "Best", recommended: true },
+      { id: "nano", name: "Nano" },
+    ],
+  },
+  custom: {
+    id: "custom",
+    name: "Custom (OpenAI-compatible)",
+    color: "from-gray-500 to-gray-600",
+    description: "Qualsiasi endpoint /audio/transcriptions compatibile",
+    requiresUrl: true,
+    keyPlaceholder: "API key (opzionale)",
+    models: [],
+  },
+};
+
+export const transcribeProviderOrder = ["groq", "openai", "deepgram", "assemblyai", "custom"];
+
+export interface TranscribeCloudSettings {
+  /** "local" (Whisper locale) oppure un id provider cloud. */
+  engine: string;
+  /** Modello cloud selezionato per l'engine corrente. */
+  model: string;
+  /** URL custom (solo per engine "custom"). */
+  customUrl: string;
+  /** API key per provider: { groq, openai, deepgram, assemblyai, custom }. */
+  keys: Record<string, string>;
+}
+
+const TRANSCRIBE_CLOUD_KEY = "vesta-transcribe-cloud";
+
+export function loadTranscribeCloud(): TranscribeCloudSettings {
+  const fallback: TranscribeCloudSettings = { engine: "local", model: "", customUrl: "", keys: {} };
+  try {
+    const raw = localStorage.getItem(TRANSCRIBE_CLOUD_KEY);
+    if (raw) {
+      const p = JSON.parse(raw);
+      return {
+        engine: typeof p.engine === "string" ? p.engine : "local",
+        model: typeof p.model === "string" ? p.model : "",
+        customUrl: typeof p.customUrl === "string" ? p.customUrl : "",
+        keys: p.keys && typeof p.keys === "object" ? p.keys : {},
+      };
+    }
+  } catch {
+    /* ignore */
+  }
+  return fallback;
+}
+
+export function saveTranscribeCloud(s: TranscribeCloudSettings): void {
+  localStorage.setItem(TRANSCRIBE_CLOUD_KEY, JSON.stringify(s));
 }
 
 // ─── Card Templates ──────────────────────────────────────────────────────────

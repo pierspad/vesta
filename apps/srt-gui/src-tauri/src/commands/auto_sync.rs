@@ -528,6 +528,7 @@ pub async fn sync_auto_sync(
                 n_threads: None,
                 word_timestamps: true,
                 max_segment_length: None,
+                segment_callback: None,
             };
 
             let (transcribed, _) = match transcribe_full(&ctx, &prep.audio_data, &options, Some(&token_clone)) {

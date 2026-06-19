@@ -12,7 +12,12 @@
     getModelsForProvider,
     languages,
     loadAndValidateApiKeys,
+    loadTiers,
+    tiersHaveUsableEntries,
+    TIERS_UPDATED_EVENT,
+    providers,
     type ApiKeyConfig,
+    type Tier,
     getFileName,
   } from "./models";
   import PathPickerField from "./PathPickerField.svelte";
@@ -69,17 +74,23 @@
     last_subtitle: string;
   }
 
+  interface TierEntryPayload {
+    provider: string;
+    model: string;
+    api_key: string | null;
+    api_url: string | null;
+    rpm: number | null;
+    max_requests: number | null;
+  }
+
   interface TranslateConfig {
     input_path: string;
     output_path: string;
     target_lang: string;
-    api_keys: string[];
-    api_type: string;
     batch_size: number;
     resume_overlap: number;
     title_context: string | null;
-    api_url: string | null;
-    model: string | null;
+    tiers: TierEntryPayload[][];
   }
 
   interface TranslateProgressEvent {
@@ -236,6 +247,46 @@
 
   let apiKeys = $state<ApiKeyConfig[]>([]);
 
+  // Tier list (priority + failover). Quando presente ha la precedenza sul provider singolo.
+  let tiers = $state<Tier[]>([]);
+  let useTiers = $derived(tiersHaveUsableEntries(tiers));
+  let usableTierCount = $derived(
+    tiers.filter((tier) => tier.entries.some((e) => e.model && e.model.trim())).length,
+  );
+
+  function refreshTiers() {
+    tiers = loadTiers();
+  }
+
+  // Costruisce il payload a tier risolvendo le API key referenziate.
+  function buildTiersPayload(): TierEntryPayload[][] | null {
+    if (!useTiers) return null;
+    const out: TierEntryPayload[][] = [];
+    for (const tier of tiers) {
+      const entries: TierEntryPayload[] = [];
+      for (const e of tier.entries) {
+        if (!e.model || !e.model.trim()) continue;
+        const key = apiKeys.find((k) => k.id === e.apiKeyId);
+        const provider = e.provider || key?.apiType || "google";
+        const apiKeyVal = key?.apiKey?.trim() || null;
+        const apiUrl =
+          key?.apiUrl?.trim() || providers[provider]?.defaultApiUrl || null;
+        // Le entry remote senza key valida vengono saltate.
+        if (!apiKeyVal && provider !== "local" && provider !== "custom") continue;
+        entries.push({
+          provider,
+          model: e.model.trim(),
+          api_key: apiKeyVal,
+          api_url: apiUrl,
+          rpm: e.rpm ?? null,
+          max_requests: e.maxRequests ?? null,
+        });
+      }
+      if (entries.length > 0) out.push(entries);
+    }
+    return out.length > 0 ? out : null;
+  }
+
   let unlistenProgress: (() => void) | null = null;
   let unlistenComplete: (() => void) | null = null;
   let unlistenDragDrop: (() => void) | null = null;
@@ -265,8 +316,12 @@
     return [
       { id: "local", name: t("provider.local") },
       { id: "custom", name: t("provider.custom") },
-      { id: "google", name: t("provider.google") },
-      { id: "groq", name: t("provider.groq") },
+      { id: "google", name: providers.google?.name || "Google Gemini" },
+      { id: "groq", name: providers.groq?.name || "Groq" },
+      { id: "openrouter", name: providers.openrouter?.name || "OpenRouter" },
+      { id: "mistral", name: providers.mistral?.name || "Mistral AI" },
+      { id: "github", name: providers.github?.name || "GitHub Models" },
+      { id: "nvidia", name: providers.nvidia?.name || "NVIDIA NIM" },
     ];
   });
 
@@ -516,8 +571,8 @@
       (selectedProviderFamily !== "local" || !!localServerUrl.trim()),
   );
   let translationBlockedReason = $derived(
-    !isLlmConfigured
-      ? "Configura un LLM nella macro-area Settings > LLM prima di avviare la traduzione."
+    !useTiers
+      ? "Configura almeno un Tier di traduzione nelle impostazioni (Settings > LLM & API Keys) prima di avviare la traduzione."
       : !inputPath || !outputPath
         ? "Seleziona file SRT di input e destinazione per abilitare la traduzione."
         : "",
@@ -562,12 +617,14 @@
 
   onMount(() => {
     loadApiKeys();
+    refreshTiers();
 
     window.addEventListener("storage", handleStorageChange);
 
     // Also listen for custom event for same-window updates
     window.addEventListener("apikeys-updated", loadApiKeys);
     window.addEventListener("vesta-llm-default-updated", loadDefaultLlmSettings);
+    window.addEventListener(TIERS_UPDATED_EVENT, refreshTiers);
 
     let activeListener = true;
     let unlistenDD: (() => void) | null = null;
@@ -624,6 +681,7 @@
       window.removeEventListener("storage", handleStorageChange);
       window.removeEventListener("apikeys-updated", loadApiKeys);
       window.removeEventListener("vesta-llm-default-updated", loadDefaultLlmSettings);
+      window.removeEventListener(TIERS_UPDATED_EVENT, refreshTiers);
       if (unlistenDD) unlistenDD();
       if (unlistenProg) unlistenProg();
       if (unlistenComp) unlistenComp();
@@ -782,20 +840,16 @@
   }
 
   async function startTranslation() {
-    if (!isLlmConfigured) {
-      error = translationBlockedReason;
-      showNoKeySnackbar(selectedProviderFamily || "llm");
-      return;
-    }
-
-    if (!inputPath || !outputPath || !effectiveModel) {
+    if (!inputPath || !outputPath) {
       error = t("translate.selectFileAndKey");
       return;
     }
 
-    if (!hasValidKey) {
-      // Should not happen as button is disabled
-      error = t("translate.noApiWarning");
+    const tiersPayload = buildTiersPayload();
+
+    // La traduzione è guidata interamente dai tier: serve almeno un endpoint usabile.
+    if (!tiersPayload) {
+      error = t("tiers.noneConfigured");
       return;
     }
 
@@ -806,68 +860,20 @@
     translatedPairs = [];
     addLog(`🚀 ${t("translate.starting")}`);
     addLog(`🌐 Target language: ${targetLang}`);
-    addLog(`🧠 Provider: ${selectedProviderFamily} | Model: ${effectiveModel}`);
     addLog(`⚙️ Batch size: ${batchSize}, overlap: ${resumeOverlap}`);
     startPreviewRefresh();
 
-    let keysToSend: string[] = [];
-    if (selectedProviderFamily === "local") {
-      keysToSend = []; // Local doesn't need API keys
-    } else if (selectedProviderFamily === "google") {
-      // Collect ALL Google keys (round-robin rotation)
-      keysToSend = apiKeys
-        .filter((k) => k.apiType === "google")
-        .map((k) => k.apiKey.trim())
-        .filter((k) => k.length > 0);
-    } else if (selectedProviderFamily === "groq") {
-      keysToSend = apiKeys
-        .filter((k) => k.apiType === "groq")
-        .map((k) => k.apiKey.trim())
-        .filter((k) => k.length > 0);
-    } else if (selectedProviderFamily === "custom" && selectedCustomProviderId) {
-      const customKey = apiKeys.find((k) => k.id === selectedCustomProviderId);
-      if (customKey && customKey.apiKey && customKey.apiKey.trim()) {
-        keysToSend = [customKey.apiKey.trim()];
-      }
-    }
-
-    if (keysToSend.length > 0) {
-      addLog(`🔑 Using ${keysToSend.length} API key(s)`);
-      const hasValidGoogleKeys = keysToSend.some((k) => k.startsWith("AIza"));
-      if (!hasValidGoogleKeys && selectedProviderFamily === "google") {
-        addLog(
-          `⚠️ Warning: No valid Google AI keys found. Google API keys should start with 'AIza...'`,
-        );
-      }
-    } else if (selectedProviderFamily !== "local") {
-      addLog(`⚠️ No valid API keys found for ${selectedProviderFamily}`);
-    }
-
-    let apiUrl: string | null = null;
-    if (selectedProviderFamily === "local") {
-      apiUrl = localServerUrl || DEFAULT_LOCAL_URL;
-    } else if (selectedProviderFamily === "google") {
-      apiUrl = "https://generativelanguage.googleapis.com/v1beta";
-    } else if (selectedProviderFamily === "groq") {
-      apiUrl = "https://api.groq.com/openai/v1";
-    } else if (selectedProviderFamily === "custom" && selectedCustomProviderId) {
-      const customKey = apiKeys.find((k) => k.id === selectedCustomProviderId);
-      if (customKey) {
-        apiUrl = customKey.apiUrl || null;
-      }
-    }
+    const endpointCount = tiersPayload.reduce((sum, tier) => sum + tier.length, 0);
+    addLog(`🪜 ${t("tiers.logActive", { tiers: tiersPayload.length, endpoints: endpointCount })}`);
 
     const config: TranslateConfig = {
       input_path: inputPath,
       output_path: outputPath,
       target_lang: targetLang,
-      api_keys: keysToSend,
-      api_type: selectedProviderFamily,
       batch_size: batchSize,
       resume_overlap: resumeOverlap,
       title_context: titleContext || null,
-      api_url: apiUrl,
-      model: effectiveModel || null,
+      tiers: tiersPayload,
     };
 
     try {
@@ -997,37 +1003,6 @@
     </div>
   {/if}
 
-  {#if !isLlmConfigured}
-    <div class="mb-4 glass-card p-4 border border-amber-500/30 bg-amber-500/10 shrink-0">
-      <div class="flex flex-col lg:flex-row lg:items-center gap-4">
-        <div class="flex items-start gap-3 flex-1">
-          <div class="w-10 h-10 rounded-lg bg-amber-500/20 text-amber-300 flex items-center justify-center shrink-0">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3h6m-7 4h8a3 3 0 013 3v7a3 3 0 01-3 3H8a3 3 0 01-3-3v-7a3 3 0 013-3zm4 3v4m-2-2h4" />
-            </svg>
-          </div>
-          <div>
-            <p class="text-sm font-semibold text-amber-100">Traduzione bloccata: manca un LLM configurato</p>
-            <p class="text-xs text-amber-100/70 mt-1">
-              Imposta provider, modello e API key dove richiesto. Dopo il salvataggio questa tab si aggiorna automaticamente.
-            </p>
-          </div>
-        </div>
-        <button
-          type="button"
-          onclick={() => handleGoToSettings("llm")}
-          class="px-4 py-2 rounded-lg bg-amber-500/20 border border-amber-500/40 text-amber-100 hover:bg-amber-500/30 transition-colors text-sm font-semibold flex items-center justify-center gap-2"
-          title="Apri Settings nella macro-area LLM"
-        >
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h6m0 0v6m0-6L10 16m-3 1h10a2 2 0 002-2v-2M7 7h3" />
-          </svg>
-          Apri LLM
-        </button>
-      </div>
-    </div>
-  {/if}
-
   {#snippet panelContent(panelId: TranslatePanelId)}
     {#if panelId === "options"}
       <div class="glass-card p-5">
@@ -1050,376 +1025,7 @@
           {t("translate.options")}
         </h3>
         <div class="space-y-4">
-          {#if false}
-          <!-- Provider Selection -->
-          <div>
-            <span class="block text-sm text-gray-400 mb-2"
-              >{t("translate.provider")}</span
-            >
 
-            {#if shouldKeepProviderPickerOpen}
-              <!-- 2×2 Provider Grid -->
-              <div class="grid grid-cols-2 gap-2">
-                <!-- Local LLM -->
-                <button
-                  type="button"
-                  onclick={() => {
-                    selectedProviderFamily = "local";
-                    providerConfirmed = true;
-                  }}
-                  class="flex items-center gap-2 p-2.5 rounded-lg transition-all duration-200 border text-left text-xs
-                    {selectedProviderFamily === 'local'
-                    ? 'bg-indigo-500/20 border-indigo-500/50 text-white'
-                    : 'bg-white/5 hover:bg-white/10 border-transparent text-gray-400 hover:text-white'}"
-                >
-                  <div
-                    class="w-7 h-7 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white shadow-lg flex-shrink-0"
-                  >
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-                      ><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
-                      /></svg
-                    >
-                  </div>
-                  <div class="flex flex-col min-w-0">
-                    <span class="font-semibold truncate">{t("provider.local")}</span>
-                    <span class="text-[9px] opacity-60 truncate">{t("provider.local.desc")}</span>
-                  </div>
-                </button>
-
-                <!-- Provider Personalizzato -->
-                <div class="relative group/provider">
-                <button
-                  type="button"
-                  onclick={() => {
-                    if (!hasCustomKey) { handleGoToSettings(); return; }
-                    selectedProviderFamily = "custom";
-                    providerConfirmed = true;
-                  }}
-                  class="w-full flex items-center gap-2 p-2.5 rounded-lg transition-all duration-200 border text-left text-xs
-                    {selectedProviderFamily === 'custom'
-                    ? 'bg-indigo-500/20 border-indigo-500/50 text-white'
-                    : 'bg-white/5 hover:bg-white/10 border-transparent text-gray-400 hover:text-white'}
-                    {!hasCustomKey ? 'opacity-50 cursor-pointer hover:bg-white/5' : ''}"
-                >
-                  <div
-                    class="w-7 h-7 rounded-lg bg-gradient-to-br from-gray-500 to-gray-600 flex items-center justify-center text-white shadow-lg flex-shrink-0 {!hasCustomKey ? 'grayscale' : ''}"
-                  >
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-                      ><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
-                      /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                      /></svg
-                    >
-                  </div>
-                  <div class="flex flex-col min-w-0">
-                    <span class="font-semibold truncate">{t("provider.custom")}</span>
-                    <span class="text-[9px] opacity-60 truncate">{t("provider.custom.desc")}</span>
-                  </div>
-                </button>
-                {#if !hasCustomKey}
-                  <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 bg-gray-800 border border-white/10 text-xs text-amber-300 rounded-lg shadow-xl opacity-0 group-hover/provider:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
-                    {t("translate.noKeyTooltip")}
-                  </div>
-                {/if}
-                </div>
-
-                <!-- Google Gemini -->
-                <div class="relative group/provider">
-                <button
-                  type="button"
-                  onclick={() => {
-                    if (!hasGoogleKey) { handleGoToSettings(); return; }
-                    selectedProviderFamily = "google";
-                    providerConfirmed = true;
-                  }}
-                  class="w-full flex items-center gap-2 p-2.5 rounded-lg transition-all duration-200 border text-left text-xs
-                    {selectedProviderFamily === 'google'
-                    ? 'bg-indigo-500/20 border-indigo-500/50 text-white'
-                    : 'bg-white/5 hover:bg-white/10 border-transparent text-gray-400 hover:text-white'}
-                    {!hasGoogleKey ? 'opacity-50 cursor-pointer hover:bg-white/5' : ''}"
-                >
-                  <div
-                    class="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center text-white shadow-lg flex-shrink-0 {!hasGoogleKey ? 'grayscale' : ''}"
-                  >
-                    <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"
-                      ><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                      /><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                      /><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
-                      /><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
-                      /></svg
-                    >
-                  </div>
-                  <div class="flex flex-col min-w-0">
-                    <span class="font-semibold truncate">{t("provider.google")}</span>
-                    <span class="text-[9px] opacity-60 truncate">{t("provider.google.desc")}</span>
-                  </div>
-                </button>
-                {#if !hasGoogleKey}
-                  <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 bg-gray-800 border border-white/10 text-xs text-amber-300 rounded-lg shadow-xl opacity-0 group-hover/provider:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
-                    {t("translate.noKeyTooltip")}
-                  </div>
-                {/if}
-                </div>
-
-                <!-- Groq API -->
-                <div class="relative group/provider">
-                <button
-                  type="button"
-                  onclick={() => {
-                    if (!hasGroqKey) { handleGoToSettings(); return; }
-                    selectedProviderFamily = "groq";
-                    providerConfirmed = true;
-                  }}
-                  class="w-full flex items-center gap-2 p-2.5 rounded-lg transition-all duration-200 border text-left text-xs
-                    {selectedProviderFamily === 'groq'
-                    ? 'bg-indigo-500/20 border-indigo-500/50 text-white'
-                    : 'bg-white/5 hover:bg-white/10 border-transparent text-gray-400 hover:text-white'}
-                    {!hasGroqKey ? 'opacity-50 cursor-pointer hover:bg-white/5' : ''}"
-                >
-                  <div
-                    class="w-7 h-7 rounded-lg bg-gradient-to-br from-orange-400 to-red-500 flex items-center justify-center text-white shadow-lg flex-shrink-0 {!hasGroqKey ? 'grayscale' : ''}"
-                  >
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-                      ><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M13 10V3L4 14h7v7l9-11h-7z"
-                      /></svg
-                    >
-                  </div>
-                  <div class="flex flex-col min-w-0">
-                    <span class="font-semibold truncate">{t("provider.groq")}</span>
-                    <span class="text-[9px] opacity-60 truncate">{t("provider.groq.desc")}</span>
-                  </div>
-                </button>
-                {#if !hasGroqKey}
-                  <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 bg-gray-800 border border-white/10 text-xs text-amber-300 rounded-lg shadow-xl opacity-0 group-hover/provider:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
-                    {t("translate.noKeyTooltip")}
-                  </div>
-                {/if}
-                </div>
-              </div>
-
-            {:else}
-              <!-- Confirmed Provider: single card + change button -->
-              <div class="flex items-center gap-2">
-                <div class="flex items-center gap-2 p-2.5 rounded-lg bg-indigo-500/20 border border-indigo-500/50 text-white text-xs flex-1">
-                  <div class="w-7 h-7 rounded-lg bg-gradient-to-br flex items-center justify-center text-white shadow-lg flex-shrink-0
-                    {selectedProviderFamily === 'local' ? 'from-purple-500 to-pink-500' :
-                     selectedProviderFamily === 'custom' ? 'from-gray-500 to-gray-600' :
-                     selectedProviderFamily === 'google' ? 'from-blue-500 to-cyan-500' :
-                     'from-orange-400 to-red-500'}">
-                    {#if selectedProviderFamily === 'local'}
-                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
-                    {:else if selectedProviderFamily === 'custom'}
-                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-                    {:else if selectedProviderFamily === 'google'}
-                      <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
-                    {:else}
-                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
-                    {/if}
-                  </div>
-                  <span class="font-semibold truncate">
-                    {providerOptions.find(p => p.id === selectedProviderFamily)?.name || selectedProviderFamily}
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  onclick={() => { providerConfirmed = false; selectedProviderFamily = ""; selectedModel = ""; localCustomModel = ""; }}
-                  class="p-2 rounded-lg bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white transition-all border border-transparent hover:border-white/10"
-                  title={t("translate.changeProvider")}
-                >
-                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                      d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
-                  </svg>
-                </button>
-              </div>
-            {/if}
-          </div>
-
-          <!-- Custom Provider Select (only when custom is confirmed) -->
-          {#if providerConfirmed && selectedProviderFamily === "custom"}
-            <div>
-              <label for="custom-provider-select" class="block text-sm text-gray-400 mb-1"
-                >{t("translate.selectCustomProvider")}</label
-              >
-              {#if savedCustomProviders.length > 0}
-                <select
-                  id="custom-provider-select"
-                  bind:value={selectedCustomProviderId}
-                  class="w-full bg-black/40 border border-white/10 rounded-lg px-4 py-2.5 text-sm text-white focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 outline-none transition-all"
-                >
-                  <option value="">{t("translate.selectCustomProvider")}</option>
-                  {#each savedCustomProviders as cp}
-                    <option value={cp.id}>{cp.name}</option>
-                  {/each}
-                </select>
-              {:else}
-                <p class="text-xs text-gray-500 italic">
-                  {t("translate.noCustomProviders")}
-                  <button
-                    type="button"
-                    onclick={() => handleGoToSettings("llm")}
-                    class="underline hover:text-cyan-400 transition-colors"
-                  >
-                    {t("translate.goToSettings")}
-                  </button>
-                </p>
-              {/if}
-            </div>
-          {/if}
-
-          <!-- Local Server URL (shown when local provider is confirmed) -->
-          {#if providerConfirmed && selectedProviderFamily === "local"}
-            <div>
-              <label for="local-server-url" class="block text-sm text-gray-400 mb-1">{t("translate.localServerUrl")}</label>
-              <div class="flex items-center gap-2">
-                <input
-                  id="local-server-url"
-                  type="text"
-                  value={localServerUrl}
-                  oninput={(e) => saveLocalServerUrl((e.target as HTMLInputElement).value)}
-                  placeholder={DEFAULT_LOCAL_URL}
-                  class="input-modern flex-1 text-sm font-mono"
-                />
-                <button
-                  type="button"
-                  onclick={() => fetchModelsFromServer(localServerUrl)}
-                  disabled={isFetchingModels || !localServerUrl.trim()}
-                  class="px-3 py-2 rounded-lg text-xs font-medium transition-all
-                    {isFetchingModels ? 'bg-white/5 text-gray-500 cursor-wait' : 'bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 border border-indigo-500/30 hover:border-indigo-500/50'}"
-                >
-                  {#if isFetchingModels}
-                    <svg class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
-                  {:else}
-                    {t("translate.fetchModels")}
-                  {/if}
-                </button>
-              </div>
-              {#if fetchModelsError}
-                <p class="text-[10px] text-amber-400 mt-1">⚠ {fetchModelsError}</p>
-              {:else if fetchedModels.length > 0}
-                <p class="text-[10px] text-emerald-400 mt-1">✓ {fetchedModels.length} {t("translate.modelsFound")}</p>
-              {/if}
-            </div>
-
-            <!-- Fetch models for custom provider -->
-            {#if selectedCustomProviderId}
-              {@const customProviderEntry = apiKeys.find((k) => k.id === selectedCustomProviderId)}
-              {#if customProviderEntry?.apiUrl}
-                <div class="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onclick={() => customProviderEntry?.apiUrl && fetchModelsFromServer(customProviderEntry.apiUrl)}
-                    disabled={isFetchingModels}
-                    class="px-3 py-2 rounded-lg text-xs font-medium transition-all
-                      {isFetchingModels ? 'bg-white/5 text-gray-500 cursor-wait' : 'bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 border border-indigo-500/30 hover:border-indigo-500/50'}"
-                  >
-                    {#if isFetchingModels}
-                      <svg class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
-                    {:else}
-                      {t("translate.fetchModels")}
-                    {/if}
-                  </button>
-                  {#if fetchModelsError}
-                    <span class="text-[10px] text-amber-400">⚠ {fetchModelsError}</span>
-                  {:else if fetchedModels.length > 0}
-                    <span class="text-[10px] text-emerald-400">✓ {fetchedModels.length} {t("translate.modelsFound")}</span>
-                  {/if}
-                </div>
-              {/if}
-            {/if}
-          {/if}
-
-          <!-- Model selector (shown for all confirmed providers) -->
-          {#if providerConfirmed && (selectedProviderFamily !== "custom" || (selectedCustomProviderId && availableModels.length > 0))}
-            <div>
-              <div class="flex items-center justify-between mb-1">
-                <label for="model-select" class="block text-sm text-gray-400"
-                  >{t("translate.model")}</label
-                >
-                {#if selectedProviderFamily === "google" || selectedProviderFamily === "groq" || selectedProviderFamily === "local" || selectedProviderFamily === "custom"}
-                  <button
-                    type="button"
-                    onclick={() => {
-                        if (selectedProviderFamily === "local" || selectedProviderFamily === "custom") {
-                            const url = selectedProviderFamily === "local" ? localServerUrl : apiKeys.find((k) => k.id === selectedCustomProviderId)?.apiUrl;
-                            if (url) fetchModelsFromServer(url, true);
-                        } else {
-                            fetchProviderModels(selectedProviderFamily, true);
-                        }
-                    }}
-                    disabled={isFetchingModels}
-                    class="text-xs text-indigo-400 hover:text-indigo-300 transition-colors flex items-center gap-1"
-                    title={t("translate.refetchModelsTooltip")}
-                  >
-                    <svg class="w-3 h-3 {isFetchingModels ? 'animate-spin' : ''}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                    </svg>
-                    Refresh
-                  </button>
-                {/if}
-              </div>
-              {#if availableModels.length === 0 && (selectedProviderFamily === "local" || selectedProviderFamily === "custom")}
-                <p class="text-xs text-gray-500 italic py-2">{t("translate.fetchModelsHint")}</p>
-              {/if}
-              {#if availableModels.length > 0}
-                <SearchableSelect
-                  noResultsText={t("common.noResults")}
-                  options={availableModels.map((m) => ({
-                    value: m.id,
-                    label: m.name,
-                  }))}
-                  value={selectedModel}
-                  onchange={(v) => {
-                    selectedModel = v;
-                    localCustomModel = "";
-                  }}
-                  placeholder={t("translate.model")}
-                />
-              {/if}
-
-              <!-- Local/Custom provider: allow typing arbitrary model IDs -->
-              {#if selectedProviderFamily === "local" || selectedProviderFamily === "custom"}
-                {#if localCustomModel.trim()}
-                  <div class="flex items-center gap-2 mt-1.5">
-                    <input
-                      type="text"
-                      bind:value={localCustomModel}
-                      placeholder={t("translate.localCustomModelPlaceholder")}
-                      class="input-modern flex-1 text-sm font-mono"
-                    />
-                    <button
-                      type="button"
-                      onclick={() => (localCustomModel = "")}
-                      class="text-xs text-gray-400 hover:text-white px-2 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 transition-colors"
-                      title={t("translate.model")}>✕</button
-                    >
-                  </div>
-                  <p class="text-[10px] text-emerald-400 mt-1">
-                    ✓ {t("translate.usingCustomModel")}:
-                    <strong>{localCustomModel.trim()}</strong>
-                  </p>
-                {/if}
-              {/if}
-            </div>
-          {/if}
-
-          <!-- Custom provider: manual model input when no models fetched -->
-          {#if providerConfirmed && selectedProviderFamily === "custom" && selectedCustomProviderId && availableModels.length === 0}
-            <div>
-              <label for="custom-model-input" class="block text-sm text-gray-400 mb-1">{t("translate.model")}</label>
-              <input
-                id="custom-model-input"
-                type="text"
-                bind:value={localCustomModel}
-                placeholder={t("translate.customModelPlaceholder")}
-                class="input-modern w-full text-sm font-mono"
-              />
-            </div>
-          {/if}
-          {/if}
 
           <div
             class="{!inputPath
@@ -1593,6 +1199,7 @@
             browseTitle={t("translate.tooltip.upload")}
             onexpand={() => (expandedPathField = "input")}
             onbrowse={selectInputFile}
+            required={true}
           />
 
           <PathPickerField
@@ -1602,6 +1209,7 @@
             browseTitle={t("translate.tooltip.save")}
             onexpand={() => (expandedPathField = "output")}
             onbrowse={selectOutputFile}
+            required={true}
           />
           {#if fileInfo}
             <div
@@ -1867,14 +1475,14 @@
   </div>
 
   <!-- Fixed Bottom Band with Action Buttons -->
-  <div class="h-[92px] border-t border-white/10 bg-gray-900 flex items-center justify-center gap-4 px-6 shrink-0 z-40">
+  <div class="h-[92px] border-t border-white/10 bg-gray-900 flex items-center justify-end gap-4 px-6 shrink-0 z-40">
     {#if isTranslating}
       <button
         onclick={cancelTranslation}
-        class="px-5 py-2.5 bg-red-600 hover:bg-red-500 text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-red-900/30 flex items-center gap-2 hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
+        class="px-5 py-2.5 bg-red-600/80 hover:bg-red-500/80 border border-red-500/30 text-red-100 rounded-xl font-bold text-sm transition-all shadow-lg shadow-red-950/20 flex items-center gap-2 enabled:hover:scale-[1.02] enabled:active:scale-[0.98] cursor-pointer"
       >
         <svg
-          class="w-4 h-4"
+          class="w-4 h-4 text-red-100"
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -1895,7 +1503,7 @@
           class="px-5 py-2.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 rounded-xl font-bold text-sm transition-all border border-amber-500/30 flex items-center gap-2 hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
         >
           <svg
-            class="w-4 h-4"
+            class="w-4 h-4 text-amber-300"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -1917,15 +1525,11 @@
       <div class="relative group">
         <button
           onclick={startTranslation}
-          disabled={!inputPath ||
-            !outputPath ||
-            !isLlmConfigured ||
-            !hasValidKey ||
-            (selectedProviderFamily !== "custom" && !selectedModel)}
-          class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:bg-emerald-600/55 text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-emerald-900/30 flex items-center gap-2 enabled:hover:scale-[1.02] enabled:active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-55 cursor-pointer"
+          disabled={!inputPath || !outputPath || !useTiers}
+          class="px-5 py-2.5 bg-emerald-600/80 hover:bg-emerald-500/80 border border-emerald-500/30 disabled:bg-emerald-600/40 text-emerald-100 rounded-xl font-bold text-sm transition-all shadow-lg shadow-emerald-950/20 flex items-center gap-2 enabled:hover:scale-[1.02] enabled:active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-55 cursor-pointer"
         >
           <svg
-            class="w-4 h-4"
+            class="w-4 h-4 text-emerald-100"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -1945,7 +1549,7 @@
           </svg>
           {t("translate.start")}
         </button>
-        <div class="pointer-events-none absolute bottom-full left-1/2 z-50 mb-3 -translate-x-1/2 rounded-xl border border-emerald-500/30 bg-gray-950/95 p-3 text-center text-xs text-emerald-300 shadow-2xl shadow-black/40 ring-1 ring-white/10 transition-all duration-150 delay-0 group-hover:delay-300 opacity-0 group-hover:opacity-100 group-hover:translate-y-0 translate-y-1 whitespace-nowrap">
+        <div class="pointer-events-none absolute bottom-full right-0 z-50 mb-3 rounded-xl border border-emerald-500/30 bg-gray-950/95 p-3 text-center text-xs text-emerald-300 shadow-2xl shadow-black/40 ring-1 ring-white/10 transition-all duration-150 delay-0 group-hover:delay-300 opacity-0 group-hover:opacity-100 group-hover:translate-y-0 translate-y-1 whitespace-normal w-72">
           {translationBlockedReason || t("translate.start")}
         </div>
       </div>

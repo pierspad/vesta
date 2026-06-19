@@ -13,7 +13,7 @@ mod rate_limiter;
 
 use anyhow::Result;
 use srt_parser::{SrtParser, Subtitle};
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::sync::Arc;
 use std::time::Instant;
 use tokio::sync::Semaphore;
@@ -807,6 +807,526 @@ async fn repair_missing_subtitles_cancellable(
                         batch_start: id as usize,
                         batch_end: id as usize,
                     });
+                }
+            }
+        }
+    }
+
+    Ok(())
+}
+
+// =====================================================================================
+//  TIERED SCHEDULER
+//
+//  Un "pool" è una lista ordinata di tier. Ogni tier contiene una o più `PoolEntry`
+//  (provider + modello + API key, ciascuna con il proprio rate limiter e budget).
+//
+//  Politica di esecuzione:
+//   • All'interno di un tier le entry vengono usate in round-robin (carico bilanciato).
+//   • Quando una entry esaurisce il budget manuale oppure restituisce un errore di
+//     rate-limit/quota (dopo i retry interni), viene marcata come "esaurita" e rimossa
+//     dalla rotazione per il resto del run.
+//   • Quando TUTTE le entry di un tier sono esaurite si passa automaticamente al tier
+//     successivo (failover). Il passaggio è monotòno: non si torna a un tier precedente.
+// =====================================================================================
+
+/// Un singolo endpoint utilizzabile per la traduzione all'interno del pool a tier.
+#[derive(Clone)]
+pub struct PoolEntry {
+    /// Traduttore già configurato (provider + modello + key + base_url).
+    pub translator: Translator,
+    /// Rate limiter opzionale (spaziatura richieste in base agli RPM dichiarati).
+    pub rate_limiter: Option<Arc<RateLimiter>>,
+    /// Budget opzionale di richieste per questo run (None = illimitato).
+    pub max_requests: Option<u32>,
+    /// Etichetta leggibile per i log/progress (es: "T1 · google · gemini-3-flash").
+    pub label: String,
+}
+
+/// Pool a tier in ordine di priorità: l'indice 0 è il tier a priorità massima.
+pub type TranslatorPool = Vec<Vec<PoolEntry>>;
+
+/// Stato runtime di una singola entry durante un run.
+struct EntryRuntime {
+    exhausted: bool,
+    remaining: Option<u32>,
+}
+
+/// Stato runtime di un tier (entry + cursore round-robin).
+struct TierRuntime {
+    entries: Vec<EntryRuntime>,
+    cursor: usize,
+}
+
+/// Scheduler che assegna le entry rispettando tier e failover.
+struct TierScheduler {
+    tiers: Vec<TierRuntime>,
+    active: usize,
+}
+
+impl TierScheduler {
+    fn new(pool: &TranslatorPool) -> Self {
+        let tiers = pool
+            .iter()
+            .map(|entries| TierRuntime {
+                entries: entries
+                    .iter()
+                    .map(|e| EntryRuntime {
+                        exhausted: false,
+                        remaining: e.max_requests,
+                    })
+                    .collect(),
+                cursor: 0,
+            })
+            .collect();
+        Self { tiers, active: 0 }
+    }
+
+    /// Restituisce `(tier, idx)` di una entry disponibile, scalando il budget.
+    /// Avanza automaticamente al tier successivo quando quello attivo è esaurito.
+    /// Restituisce `None` quando ogni tier è esaurito.
+    fn acquire(&mut self) -> Option<(usize, usize)> {
+        while self.active < self.tiers.len() {
+            let active = self.active;
+            let tier = &mut self.tiers[active];
+            let n = tier.entries.len();
+            if n > 0 {
+                for off in 0..n {
+                    let i = (tier.cursor + off) % n;
+                    let entry = &mut tier.entries[i];
+                    if entry.exhausted {
+                        continue;
+                    }
+                    if let Some(0) = entry.remaining {
+                        entry.exhausted = true;
+                        continue;
+                    }
+                    if let Some(r) = entry.remaining.as_mut() {
+                        *r -= 1;
+                    }
+                    tier.cursor = (i + 1) % n;
+                    return Some((active, i));
+                }
+            }
+            // Tier attivo completamente esaurito: passa al successivo.
+            self.active += 1;
+        }
+        None
+    }
+
+    /// Marca una entry come esaurita (rate-limit/quota raggiunti).
+    fn report_exhausted(&mut self, tier: usize, idx: usize) {
+        if let Some(t) = self.tiers.get_mut(tier) {
+            if let Some(e) = t.entries.get_mut(idx) {
+                e.exhausted = true;
+            }
+        }
+    }
+
+    /// Indice del tier attualmente attivo (1-based per i messaggi all'utente).
+    fn active_tier_human(&self) -> usize {
+        self.active + 1
+    }
+}
+
+/// Heuristica per riconoscere un errore di rate-limit / quota esaurita.
+fn is_rate_limit_error(error: &anyhow::Error) -> bool {
+    let s = error.to_string().to_lowercase();
+    s.contains("429")
+        || s.contains("rate limit")
+        || s.contains("rate-limit")
+        || s.contains("quota")
+        || s.contains("resource_exhausted")
+        || s.contains("too many requests")
+        || s.contains("exceeded")
+        || s.contains("insufficient_quota")
+}
+
+/// Concorrenza desiderata: il massimo numero di entry presenti in un tier,
+/// limitato a un tetto ragionevole.
+fn pool_concurrency(pool: &TranslatorPool) -> usize {
+    pool.iter().map(|t| t.len()).max().unwrap_or(1).clamp(1, 16)
+}
+
+/// Traduce tutti i sottotitoli usando un pool a tier con failover automatico.
+///
+/// È la funzione usata dalla GUI: combina round-robin intra-tier, failover
+/// inter-tier, rate limiting per entry, budget manuale opzionale, salvataggio
+/// incrementale, ripresa da file esistente e cancellazione.
+#[allow(clippy::too_many_arguments)]
+pub async fn translate_subtitles_tiered_cancellable<F>(
+    pool: TranslatorPool,
+    subtitles: HashMap<u32, Subtitle>,
+    target_lang: &str,
+    batch_size: usize,
+    resume_overlap: usize,
+    title_context: Option<&str>,
+    output_path: &std::path::Path,
+    on_progress: F,
+    cancellation_token: CancellationToken,
+) -> Result<HashMap<u32, Subtitle>>
+where
+    F: FnMut(TranslationProgress) + Send + 'static,
+{
+    use tokio::sync::Mutex;
+
+    if pool.is_empty() || pool.iter().all(|t| t.is_empty()) {
+        anyhow::bail!("No translation endpoints configured (empty pool)");
+    }
+
+    let total = subtitles.len();
+    let total_batches = total.div_ceil(batch_size);
+
+    let progress_callback = Arc::new(Mutex::new(on_progress));
+    let translated = Arc::new(Mutex::new(HashMap::new()));
+    let timing_stats = Arc::new(Mutex::new((0.0_f64, 0_usize)));
+
+    // Ordina i sottotitoli per ID.
+    let mut sorted: Vec<_> = subtitles.into_iter().collect();
+    sorted.sort_by_key(|(id, _)| *id);
+    let subtitles_map: HashMap<u32, Subtitle> = sorted.iter().cloned().collect();
+
+    // Ripresa: se esiste già un output, riparti dal punto giusto.
+    let (skip_batches, start_idx) = if output_path.exists() {
+        match SrtParser::parse_file(output_path) {
+            Ok(existing) => {
+                let existing_count = existing.len();
+                if existing_count > 0 {
+                    *translated.lock().await = existing.clone();
+                    let missing = get_missing_or_incorrect_subtitle_ids(&subtitles_map, &existing).len();
+                    if missing > 0 {
+                        (total_batches, 0)
+                    } else {
+                        let calc_start_idx = existing_count.saturating_sub(resume_overlap);
+                        (calc_start_idx / batch_size, calc_start_idx)
+                    }
+                } else {
+                    (0, 0)
+                }
+            }
+            Err(_) => (0, 0),
+        }
+    } else {
+        (0, 0)
+    };
+
+    let remaining = if start_idx < sorted.len() { &sorted[start_idx..] } else { &[] };
+    let batches_to_process: VecDeque<(usize, Vec<(u32, Subtitle)>)> = remaining
+        .chunks(batch_size)
+        .enumerate()
+        .map(|(idx, chunk)| (idx + skip_batches, chunk.to_vec()))
+        .collect();
+
+    let pool = Arc::new(pool);
+    let scheduler = Arc::new(Mutex::new(TierScheduler::new(&pool)));
+    let queue = Arc::new(Mutex::new(batches_to_process));
+    let exhausted_flag = Arc::new(Mutex::new(false));
+    let concurrency = pool_concurrency(&pool);
+
+    let mut workers = Vec::new();
+
+    for _ in 0..concurrency {
+        let pool = pool.clone();
+        let scheduler = scheduler.clone();
+        let queue = queue.clone();
+        let translated = translated.clone();
+        let progress_callback = progress_callback.clone();
+        let timing_stats = timing_stats.clone();
+        let exhausted_flag = exhausted_flag.clone();
+        let output_path = output_path.to_path_buf();
+        let target_lang = target_lang.to_string();
+        let title_context = title_context.map(|s| s.to_string());
+        let token = cancellation_token.clone();
+
+        let worker = tokio::spawn(async move {
+            loop {
+                if token.is_cancelled() {
+                    return;
+                }
+
+                let next = { queue.lock().await.pop_front() };
+                let Some((batch_idx, batch_data)) = next else {
+                    return; // coda vuota: questo worker ha finito
+                };
+
+                let batch_start = batch_idx * batch_size + 1;
+                let batch_end = (batch_start + batch_data.len() - 1).min(total);
+
+                let texts_with_ids: Vec<(u32, String)> = batch_data
+                    .iter()
+                    .map(|(id, s)| (*id, s.text.clone()))
+                    .collect();
+
+                // Failover: prova entry diverse finché il batch non riesce o il pool è esaurito.
+                loop {
+                    if token.is_cancelled() {
+                        return;
+                    }
+
+                    let acquired = { scheduler.lock().await.acquire() };
+                    let Some((ti, ei)) = acquired else {
+                        // Tutti i tier esauriti: rimetti il batch in coda e segnala.
+                        *exhausted_flag.lock().await = true;
+                        queue.lock().await.push_front((batch_idx, batch_data.clone()));
+                        return;
+                    };
+
+                    let entry = pool[ti][ei].clone();
+
+                    if let Some(ref limiter) = entry.rate_limiter {
+                        tokio::select! {
+                            _ = token.cancelled() => return,
+                            _ = limiter.until_ready() => {}
+                        }
+                    }
+
+                    let eta = {
+                        let (total_dur, completed) = *timing_stats.lock().await;
+                        if completed > 0 {
+                            let avg = total_dur / completed as f64;
+                            Some(avg * total_batches.saturating_sub(completed) as f64)
+                        } else {
+                            None
+                        }
+                    };
+
+                    {
+                        let completed = timing_stats.lock().await.1;
+                        let mut cb = progress_callback.lock().await;
+                        cb(TranslationProgress {
+                            message: format!(
+                                "Batch [{}-{}]/{} via {}...",
+                                batch_start, batch_end, total, entry.label
+                            ),
+                            eta_seconds: eta,
+                            current_batch: completed,
+                            total_batches,
+                            batch_start,
+                            batch_end,
+                        });
+                    }
+
+                    let batch_start_time = Instant::now();
+                    let result = entry
+                        .translator
+                        .translate_batch(&texts_with_ids, &target_lang, title_context.as_deref())
+                        .await;
+
+                    if token.is_cancelled() {
+                        return;
+                    }
+
+                    match result {
+                        Ok(translations) => {
+                            {
+                                let mut map = translated.lock().await;
+                                for (id, subtitle) in &batch_data {
+                                    let mut new_sub = subtitle.clone();
+                                    if let Some(tr) = translations.get(id) {
+                                        new_sub.text = tr.clone();
+                                    }
+                                    map.insert(*id, new_sub);
+                                }
+                                let _ = save_translated_subtitles(&map, &output_path);
+                            }
+
+                            let dur = batch_start_time.elapsed().as_secs_f64();
+                            let completed_after = {
+                                let mut stats = timing_stats.lock().await;
+                                stats.0 += dur;
+                                stats.1 += 1;
+                                stats.1
+                            };
+
+                            let mut cb = progress_callback.lock().await;
+                            cb(TranslationProgress {
+                                message: format!("Batch [{}-{}] completed ✓", batch_start, batch_end),
+                                eta_seconds: eta,
+                                current_batch: completed_after,
+                                total_batches,
+                                batch_start,
+                                batch_end,
+                            });
+                            break; // batch fatto: passa al prossimo
+                        }
+                        Err(e) if is_rate_limit_error(&e) => {
+                            scheduler.lock().await.report_exhausted(ti, ei);
+                            let tier_now = scheduler.lock().await.active_tier_human();
+                            let completed = timing_stats.lock().await.1;
+                            let mut cb = progress_callback.lock().await;
+                            cb(TranslationProgress {
+                                message: format!(
+                                    "{} rate-limited — failing over (tier {}) ↻",
+                                    entry.label, tier_now
+                                ),
+                                eta_seconds: None,
+                                current_batch: completed,
+                                total_batches,
+                                batch_start,
+                                batch_end,
+                            });
+                            // ricicla il batch con un'altra entry
+                        }
+                        Err(e) => {
+                            let completed = timing_stats.lock().await.1;
+                            let mut cb = progress_callback.lock().await;
+                            cb(TranslationProgress {
+                                message: format!("Batch [{}-{}] error via {}: {} ✗", batch_start, batch_end, entry.label, e),
+                                eta_seconds: None,
+                                current_batch: completed,
+                                total_batches,
+                                batch_start,
+                                batch_end,
+                            });
+                            break; // errore non di quota: lascia al repair
+                        }
+                    }
+                }
+            }
+        });
+
+        workers.push(worker);
+    }
+
+    for w in workers {
+        let _ = w.await;
+    }
+
+    if cancellation_token.is_cancelled() {
+        anyhow::bail!("Translation cancelled by user");
+    }
+
+    if *exhausted_flag.lock().await {
+        let completed = timing_stats.lock().await.1;
+        let mut cb = progress_callback.lock().await;
+        cb(TranslationProgress {
+            message: "All tiers exhausted — some subtitles may be untranslated. Re-run to resume."
+                .to_string(),
+            eta_seconds: None,
+            current_batch: completed,
+            total_batches,
+            batch_start: 0,
+            batch_end: 0,
+        });
+    }
+
+    // Fase di repair sui sottotitoli mancanti/incoerenti.
+    let missing_ids = {
+        let map = translated.lock().await;
+        get_missing_or_incorrect_subtitle_ids(&subtitles_map, &map)
+    };
+
+    if !missing_ids.is_empty() && !cancellation_token.is_cancelled() {
+        {
+            let mut cb = progress_callback.lock().await;
+            cb(TranslationProgress {
+                message: format!("Repairing {} missing/incorrect subtitles...", missing_ids.len()),
+                eta_seconds: None,
+                current_batch: total_batches,
+                total_batches,
+                batch_start: 0,
+                batch_end: 0,
+            });
+        }
+
+        repair_missing_tiered(
+            pool.clone(),
+            &missing_ids,
+            &subtitles_map,
+            &translated,
+            target_lang,
+            title_context.map(|s| s.to_string()),
+            output_path,
+            progress_callback.clone(),
+            &cancellation_token,
+        )
+        .await?;
+    }
+
+    let result = translated.lock().await.clone();
+    Ok(result)
+}
+
+/// Repair tiered: ripara i sottotitoli mancanti scegliendo le entry con la stessa
+/// politica tier/round-robin/failover, in modo sequenziale (best effort).
+#[allow(clippy::too_many_arguments)]
+async fn repair_missing_tiered(
+    pool: Arc<TranslatorPool>,
+    missing_ids: &[u32],
+    original_subtitles: &HashMap<u32, Subtitle>,
+    translated: &Arc<tokio::sync::Mutex<HashMap<u32, Subtitle>>>,
+    target_lang: &str,
+    title_context: Option<String>,
+    output_path: &std::path::Path,
+    progress_callback: Arc<tokio::sync::Mutex<impl FnMut(TranslationProgress) + Send>>,
+    cancellation_token: &CancellationToken,
+) -> Result<()> {
+    use tokio::sync::Mutex;
+
+    // Scheduler fresco: budget e flag azzerati per la fase di repair.
+    let scheduler = Arc::new(Mutex::new(TierScheduler::new(&pool)));
+    let total = missing_ids.len();
+
+    for (idx, &id) in missing_ids.iter().enumerate() {
+        if cancellation_token.is_cancelled() {
+            anyhow::bail!("Repair cancelled by user");
+        }
+
+        let Some(original) = original_subtitles.get(&id) else { continue };
+
+        let context = {
+            let map = translated.lock().await;
+            build_repair_context(id, original_subtitles, &map)
+        };
+
+        // Failover anche in repair.
+        loop {
+            if cancellation_token.is_cancelled() {
+                anyhow::bail!("Repair cancelled by user");
+            }
+
+            let acquired = { scheduler.lock().await.acquire() };
+            let Some((ti, ei)) = acquired else {
+                // Nessuna entry disponibile: lascia l'originale e prosegui.
+                break;
+            };
+            let entry = pool[ti][ei].clone();
+
+            if let Some(ref limiter) = entry.rate_limiter {
+                tokio::select! {
+                    _ = cancellation_token.cancelled() => anyhow::bail!("Repair cancelled by user"),
+                    _ = limiter.until_ready() => {}
+                }
+            }
+
+            match entry
+                .translator
+                .translate_with_context(&original.text, target_lang, title_context.as_deref(), context.as_deref())
+                .await
+            {
+                Ok(translation) => {
+                    let mut new_sub = original.clone();
+                    new_sub.text = translation;
+                    let mut map = translated.lock().await;
+                    map.insert(id, new_sub);
+                    let _ = save_translated_subtitles(&map, output_path);
+                    break;
+                }
+                Err(e) if is_rate_limit_error(&e) => {
+                    scheduler.lock().await.report_exhausted(ti, ei);
+                    // riprova con un'altra entry
+                }
+                Err(e) => {
+                    let mut cb = progress_callback.lock().await;
+                    cb(TranslationProgress {
+                        message: format!("Repair failed for subtitle {}: {}", id, e),
+                        eta_seconds: None,
+                        current_batch: idx,
+                        total_batches: total,
+                        batch_start: id as usize,
+                        batch_end: id as usize,
+                    });
+                    break;
                 }
             }
         }

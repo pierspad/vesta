@@ -674,9 +674,10 @@
         
           <!-- Target File -->
           <div class="flex flex-col gap-2 relative z-10 min-w-0">
-            <div class="text-sm font-semibold text-gray-300 flex items-center gap-2">
-              {#if targetFlag}<span class="text-lg">{targetFlag}</span>{/if}
+            <div class="text-xs font-semibold text-gray-400 flex items-center gap-1.5">
+              {#if targetFlag}<span class="text-sm">{targetFlag}</span>{/if}
               {t("align.baseSrt")}
+              <span class="text-red-400 font-bold ml-0.5">*</span>
             </div>
             <PathPickerField
               value={targetPath}
@@ -706,9 +707,10 @@
 
           <!-- Source File -->
           <div class="flex flex-col gap-2 relative z-10 min-w-0">
-            <div class="text-sm font-semibold text-gray-300 flex items-center gap-2">
-              {#if sourceFlag}<span class="text-lg">{sourceFlag}</span>{/if}
+            <div class="text-xs font-semibold text-gray-400 flex items-center gap-1.5">
+              {#if sourceFlag}<span class="text-sm">{sourceFlag}</span>{/if}
               {t("align.translationSrt")}
+              <span class="text-red-400 font-bold ml-0.5">*</span>
             </div>
             <PathPickerField
               value={sourcePath}
@@ -855,20 +857,20 @@
   </div>
 
   <!-- Fixed Bottom Band with Action Buttons -->
-  <div class="h-[92px] border-t border-white/10 bg-gray-900 flex items-center justify-center gap-4 px-6 shrink-0 z-40">
+  <div class="h-[92px] border-t border-white/10 bg-gray-900 flex items-center justify-end gap-4 px-6 shrink-0 z-40">
     <div class="relative group">
       <button
         onclick={saveSource}
         disabled={sourceSubs.length === 0}
-        class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:bg-emerald-600/55 text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-emerald-900/30 flex items-center gap-2 enabled:hover:scale-[1.02] enabled:active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-55 cursor-pointer"
+        class="px-5 py-2.5 bg-emerald-600/80 hover:bg-emerald-500/80 border border-emerald-500/30 disabled:bg-emerald-600/40 text-emerald-100 rounded-xl font-bold text-sm transition-all shadow-lg shadow-emerald-950/20 flex items-center gap-2 enabled:hover:scale-[1.02] enabled:active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-55 cursor-pointer"
       >
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg class="w-4 h-4 text-emerald-100" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
         </svg>
         {#if sourceFlag}<span class="text-base">{sourceFlag}</span>{/if}
         {t("align.saveResult")}
       </button>
-      <div class="pointer-events-none absolute bottom-full left-1/2 z-50 mb-3 -translate-x-1/2 rounded-xl border border-violet-500/30 bg-gray-950/95 p-3 text-center text-xs text-violet-300 shadow-2xl shadow-black/40 ring-1 ring-white/10 transition-all duration-150 delay-0 group-hover:delay-300 opacity-0 group-hover:opacity-100 group-hover:translate-y-0 translate-y-1 whitespace-nowrap">
+      <div class="pointer-events-none absolute bottom-full right-0 z-50 mb-3 rounded-xl border border-emerald-500/30 bg-gray-950/95 p-3 text-center text-xs text-emerald-300 shadow-2xl shadow-black/40 ring-1 ring-white/10 transition-all duration-150 delay-0 group-hover:delay-300 opacity-0 group-hover:opacity-100 group-hover:translate-y-0 translate-y-1 whitespace-normal w-72">
         {sourceSubs.length === 0 ? "Carica e allinea i file per salvare" : t("align.saveResult")}
       </div>
     </div>

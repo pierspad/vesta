@@ -56,6 +56,82 @@ pub async fn convert_to_wav(
     Ok(())
 }
 
+/// Split input audio/video into fixed-length 16kHz mono WAV chunks using ffmpeg's
+/// segment muxer. Returns the chunk file paths in chronological order.
+///
+/// Used by the cloud transcription path: chunk N has timestamps relative to its
+/// own start, so the caller offsets each chunk by `index * segment_seconds`.
+pub async fn segment_to_wav_chunks(
+    ffmpeg_path: &str,
+    input_path: &Path,
+    out_dir: &Path,
+    segment_seconds: u32,
+    cancel_token: Option<&CancellationToken>,
+) -> Result<Vec<std::path::PathBuf>> {
+    let pattern = out_dir.join("chunk_%05d.wav");
+    let mut child = tokio::process::Command::new(ffmpeg_path)
+        .args([
+            "-y",
+            "-i", input_path.to_str().ok_or_else(|| anyhow!("Invalid input path"))?,
+            "-ar", "16000",
+            "-ac", "1",
+            "-c:a", "pcm_s16le",
+            "-f", "segment",
+            "-segment_time", &segment_seconds.max(1).to_string(),
+            pattern.to_str().ok_or_else(|| anyhow!("Invalid output pattern"))?,
+        ])
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::piped())
+        .spawn()
+        .context("Failed to spawn FFmpeg process for audio segmentation")?;
+
+    let mut stderr_reader = child.stderr.take().ok_or_else(|| anyhow!("Failed to capture stderr"))?;
+    let stderr_handle = tokio::spawn(async move {
+        use tokio::io::AsyncReadExt;
+        let mut buf = Vec::new();
+        let _ = stderr_reader.read_to_end(&mut buf).await;
+        buf
+    });
+
+    let res = if let Some(token) = cancel_token {
+        tokio::select! {
+            res = child.wait() => res,
+            _ = token.cancelled() => {
+                let _ = child.kill().await;
+                anyhow::bail!("Audio segmentation cancelled");
+            }
+        }
+    } else {
+        child.wait().await
+    };
+
+    let status = res.context("Failed to wait for FFmpeg process")?;
+    let stderr_bytes = stderr_handle.await.unwrap_or_default();
+    if !status.success() {
+        let stderr = String::from_utf8_lossy(&stderr_bytes).to_string();
+        anyhow::bail!("FFmpeg audio segmentation failed: {}", stderr);
+    }
+
+    // Collect and sort the produced chunks.
+    let mut chunks: Vec<std::path::PathBuf> = std::fs::read_dir(out_dir)
+        .context("Failed to read segment output dir")?
+        .filter_map(|e| e.ok().map(|e| e.path()))
+        .filter(|p| {
+            p.extension().map(|x| x == "wav").unwrap_or(false)
+                && p.file_name()
+                    .and_then(|n| n.to_str())
+                    .map(|n| n.starts_with("chunk_"))
+                    .unwrap_or(false)
+        })
+        .collect();
+    chunks.sort();
+
+    if chunks.is_empty() {
+        anyhow::bail!("FFmpeg produced no audio chunks");
+    }
+    Ok(chunks)
+}
+
 /// Read WAV file into f32 samples for whisper-rs, averaging channels if stereo
 pub fn read_wav_to_f32(wav_path: &Path) -> Result<Vec<f32>> {
     let reader = hound::WavReader::open(wav_path)

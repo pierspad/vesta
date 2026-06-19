@@ -372,14 +372,19 @@
     }
   }
 
-  // Save updates to a new file
-  async function saveNewFile() {
+  // Save updates to a new file with specified extension
+  async function saveNewFileWithExtension(ext: "apkg" | "tsv") {
     if (cards.length === 0) return;
     try {
-      const ext = filePath.split(".").pop()?.toLowerCase() || "apkg";
-      const defaultName = fileName
-        ? fileName.replace(`.${ext}`, `_refined.${ext}`)
-        : `refined_deck.${ext}`;
+      const currentExt = filePath.split(".").pop()?.toLowerCase() || "apkg";
+      let defaultName = fileName || `refined_deck.${ext}`;
+      if (fileName) {
+        if (fileName.toLowerCase().endsWith(`.${currentExt}`)) {
+          defaultName = fileName.substring(0, fileName.length - currentExt.length - 1) + `_refined.${ext}`;
+        } else {
+          defaultName = `${fileName}_refined.${ext}`;
+        }
+      }
 
       const selected = await guardedSave({
         defaultPath: defaultName,
@@ -411,6 +416,7 @@
       isSaving = false;
     }
   }
+
 
   // Refine single card using AI
   async function refineSingleCardAI() {
@@ -760,7 +766,7 @@ Esempio di formato di risposta atteso:
           <button
             onclick={selectFile}
             disabled={isLoading}
-            class="w-full py-2 px-3 bg-rose-600 hover:bg-rose-500 disabled:opacity-50 text-white rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer shadow-md shadow-rose-900/10"
+            class="w-full py-2 px-3 bg-indigo-600 hover:bg-indigo-500 text-white disabled:opacity-50 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
           >
             {#if isLoading}
               <svg class="animate-spin h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24">
@@ -844,7 +850,7 @@ Esempio di formato di risposta atteso:
                 onclick={() => mode = "manual"}
                 class="px-4 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer
                   {mode === 'manual'
-                    ? 'bg-rose-600 text-white shadow-md'
+                    ? 'bg-indigo-600 text-white shadow-md'
                     : 'text-gray-400 hover:text-white hover:bg-white/5'}"
               >
                 {t('refine.mode.manual')}
@@ -853,7 +859,7 @@ Esempio di formato di risposta atteso:
                 onclick={() => { mode = "auto"; refreshLlmConfig(); }}
                 class="px-4 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer
                   {mode === 'auto'
-                    ? 'bg-rose-600 text-white shadow-md'
+                    ? 'bg-indigo-600 text-white shadow-md'
                     : 'text-gray-400 hover:text-white hover:bg-white/5'}"
               >
                 {t('refine.mode.auto')}
@@ -894,16 +900,16 @@ Esempio di formato di risposta atteso:
                       type="button"
                       onclick={refineSingleCardAI}
                       disabled={selectedCardIndex === null || (selectedCard && isCardRefining(selectedCard.id))}
-                      class="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-rose-600/15 hover:bg-rose-600/25 border border-rose-500/30 hover:border-rose-500/50 text-rose-300 text-xs font-bold transition-all duration-200 cursor-pointer disabled:opacity-50"
+                      class="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-indigo-500/15 hover:bg-indigo-500/25 border border-indigo-500/30 hover:border-indigo-500/50 text-indigo-300 text-xs font-bold transition-all duration-200 cursor-pointer disabled:opacity-50"
                     >
                       {#if selectedCard && isCardRefining(selectedCard.id)}
-                        <svg class="animate-spin h-3.5 w-3.5 text-rose-300" fill="none" viewBox="0 0 24 24">
+                        <svg class="animate-spin h-3.5 w-3.5 text-indigo-300" fill="none" viewBox="0 0 24 24">
                           <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                           <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                         </svg>
                         {t('refine.btn.generating')}
                       {:else}
-                        <svg class="w-3.5 h-3.5 text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg class="w-3.5 h-3.5 text-indigo-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
                         </svg>
                         {t('refine.btn.generateAI')}
@@ -1057,7 +1063,7 @@ Esempio di formato di risposta atteso:
                   class="flex-1 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-sm font-bold text-gray-300 px-5 py-3 shadow-md transition-all cursor-pointer flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-[0.98]"
                 >
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h14a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                   </svg>
                   {t('refine.btn.editPrompt') || ($currentLanguage === 'it' ? 'Modifica Prompt' : 'Edit Prompt')}
                 </button>
@@ -1065,7 +1071,7 @@ Esempio di formato di risposta atteso:
                 {#if autoRefining}
                   <button
                     onclick={stopAutoRefinement}
-                    class="flex-1 rounded-xl bg-red-600 hover:bg-red-500 text-sm font-bold text-white px-5 py-3 shadow-md transition-all cursor-pointer flex items-center justify-center gap-2"
+                    class="flex-1 rounded-xl bg-red-600/80 hover:bg-red-500/80 border border-red-500/30 text-sm font-bold text-red-100 px-5 py-3 shadow-md transition-all cursor-pointer flex items-center justify-center gap-2"
                   >
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -1076,7 +1082,7 @@ Esempio di formato di risposta atteso:
                   <button
                     onclick={startAutoRefinement}
                     disabled={!!llmError || cards.length === 0}
-                    class="flex-1 rounded-xl bg-rose-600 hover:bg-rose-500 disabled:bg-rose-600/55 text-sm font-bold text-white px-5 py-3 shadow-md transition-all cursor-pointer flex items-center justify-center gap-2 enabled:hover:scale-[1.02] enabled:active:scale-[0.98] {(llmError || cards.length === 0) ? 'opacity-50 cursor-not-allowed' : ''}"
+                    class="flex-1 rounded-xl bg-rose-600/80 hover:bg-rose-500/80 border border-rose-500/30 disabled:bg-rose-600/40 text-sm font-bold text-rose-100 px-5 py-3 shadow-md transition-all cursor-pointer flex items-center justify-center gap-2 enabled:hover:scale-[1.02] enabled:active:scale-[0.98] {(llmError || cards.length === 0) ? 'opacity-50 cursor-not-allowed' : ''}"
                   >
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
@@ -1109,51 +1115,89 @@ Esempio di formato di risposta atteso:
   </div>
 
   <!-- Fixed Bottom Band with Action Buttons -->
-  <div class="h-[92px] border-t border-white/10 bg-gray-900 relative flex items-center justify-center px-6 shrink-0 z-40">
-    <!-- File indicator in bottom left -->
-    <div class="absolute left-6 text-xs text-gray-400 bg-white/5 border border-white/10 px-3 py-1.5 rounded-lg max-w-[300px] truncate" title={filePath || undefined}>
-      <span class="font-bold text-gray-300">{t('refine.action.fileLabel')}</span> {fileName || "—"}
+  <div class="h-[92px] border-t border-white/10 bg-gray-900 flex items-center justify-between px-6 shrink-0 z-40">
+    <!-- Bottom-left: File name pill and Overwrite button -->
+    <div class="flex items-center gap-4">
+      <div class="text-xs text-gray-400 bg-white/5 border border-white/10 px-3 py-1.5 rounded-lg max-w-[300px] truncate" title={filePath || undefined}>
+        <span class="font-bold text-gray-300">{t('refine.action.fileLabel')}</span> {fileName || "—"}
+      </div>
+
+      <div class="relative group">
+        <button
+          onclick={overwriteOriginalFile}
+          disabled={isSaving || cards.length === 0}
+          class="px-5 py-2.5 bg-rose-600 hover:bg-rose-500 disabled:bg-rose-600/40 text-white disabled:opacity-55 rounded-xl font-bold text-sm transition-all shadow-lg shadow-rose-950/30 flex items-center gap-2 enabled:hover:scale-[1.02] enabled:active:scale-[0.98] cursor-pointer border border-rose-500/10"
+        >
+          {#if isSaving}
+            <svg class="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            {t('refine.action.saving')}
+          {:else}
+            <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+            </svg>
+            {t('refine.action.overwrite', { extension: fileExtension })}
+          {/if}
+        </button>
+        <div class="pointer-events-none absolute bottom-full left-1/2 z-50 mb-3 -translate-x-1/2 rounded-xl border border-rose-500/30 bg-gray-950/95 p-3 text-center text-xs text-rose-300 shadow-2xl shadow-black/40 ring-1 ring-white/10 transition-all duration-150 delay-0 group-hover:delay-300 opacity-0 group-hover:opacity-100 group-hover:translate-y-0 translate-y-1 whitespace-normal w-72">
+          {t('refine.action.tooltipOverwrite') || ($currentLanguage === 'it' ? 'Sovrascrivi il file originale con le modifiche correnti' : 'Overwrite the original file with your current changes')}
+        </div>
+      </div>
     </div>
 
-    <!-- Action buttons centered -->
+    <!-- Bottom-right: Save as APKG and Save as TSV buttons -->
     <div class="flex items-center gap-4">
-      <button
-        onclick={overwriteOriginalFile}
-        disabled={isSaving || cards.length === 0}
-        class="px-5 py-2.5 bg-rose-600 hover:bg-rose-500 disabled:bg-rose-600/55 text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-rose-900/30 flex items-center gap-2 enabled:hover:scale-[1.02] enabled:active:scale-[0.98] disabled:opacity-55 cursor-pointer"
-      >
-        {#if isSaving}
-          <svg class="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
-            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-          </svg>
-          {t('refine.action.saving')}
-        {:else}
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
-          </svg>
-          {t('refine.action.overwrite', { extension: fileExtension })}
-        {/if}
-      </button>
+      <div class="relative group">
+        <button
+          onclick={() => saveNewFileWithExtension("apkg")}
+          disabled={isSaving || cards.length === 0 || fileExtension === "TSV"}
+          class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:bg-emerald-600/55 disabled:opacity-55 text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-emerald-950/20 flex items-center gap-2 enabled:hover:scale-[1.02] enabled:active:scale-[0.98] disabled:cursor-not-allowed cursor-pointer"
+        >
+          {#if isSaving}
+            <svg class="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            {t('refine.action.saving')}
+          {:else}
+            <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6M5 19V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2H7a2 2 0 01-2-2z" />
+            </svg>
+            {t('refine.action.saveAsApkg') || ($currentLanguage === 'it' ? 'Salva come APKG' : 'Save as APKG')}
+          {/if}
+        </button>
+        <div class="pointer-events-none absolute bottom-full left-1/2 z-50 mb-3 -translate-x-1/2 rounded-xl border border-emerald-500/30 bg-gray-950/95 p-3 text-center text-xs text-emerald-300 shadow-2xl shadow-black/40 ring-1 ring-white/10 transition-all duration-150 delay-0 group-hover:delay-300 opacity-0 group-hover:opacity-100 group-hover:translate-y-0 translate-y-1 whitespace-normal w-72">
+          {fileExtension === "TSV" 
+            ? ($currentLanguage === 'it' ? "Non è possibile salvare un TSV come APKG in questa scheda" : "It is not possible to save a TSV file as APKG in this tab")
+            : (t('refine.action.tooltipSaveAsApkg') || ($currentLanguage === 'it' ? 'Salva il mazzo corrente come pacchetto Anki (.apkg)' : 'Save the current deck as an Anki package (.apkg)'))}
+        </div>
+      </div>
 
-      <button
-        onclick={saveNewFile}
-        disabled={isSaving || cards.length === 0}
-        class="px-5 py-2.5 bg-white/5 hover:bg-white/10 disabled:bg-white/5 border border-white/10 text-gray-300 rounded-xl font-bold text-sm transition-all shadow-lg flex items-center gap-2 enabled:hover:scale-[1.02] enabled:active:scale-[0.98] disabled:opacity-55 cursor-pointer"
-      >
-        {#if isSaving}
-          <svg class="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
-            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-          </svg>
-          {t('refine.action.saving')}
-        {:else}
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6M5 19V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2H7a2 2 0 01-2-2z" />
-          </svg>
-          {t('refine.action.saveNew', { extension: fileExtension })}
-        {/if}
-      </button>
+      <div class="relative group">
+        <button
+          onclick={() => saveNewFileWithExtension("tsv")}
+          disabled={isSaving || cards.length === 0}
+          class="px-5 py-2.5 bg-cyan-600 hover:bg-cyan-500 disabled:bg-cyan-600/55 disabled:opacity-55 text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-cyan-950/20 flex items-center gap-2 enabled:hover:scale-[1.02] enabled:active:scale-[0.98] disabled:cursor-not-allowed cursor-pointer"
+        >
+          {#if isSaving}
+            <svg class="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            {t('refine.action.saving')}
+          {:else}
+            <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6M5 19V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2H7a2 2 0 01-2-2z" />
+            </svg>
+            {t('refine.action.saveAsTsv') || ($currentLanguage === 'it' ? 'Salva come TSV' : 'Save as TSV')}
+          {/if}
+        </button>
+        <div class="pointer-events-none absolute bottom-full right-0 z-50 mb-3 rounded-xl border border-cyan-500/30 bg-gray-950/95 p-3 text-center text-xs text-cyan-300 shadow-2xl shadow-black/40 ring-1 ring-white/10 transition-all duration-150 delay-0 group-hover:delay-300 opacity-0 group-hover:opacity-100 group-hover:translate-y-0 translate-y-1 whitespace-normal w-72">
+          {t('refine.action.tooltipSaveAsTsv') || ($currentLanguage === 'it' ? 'Esporta il mazzo corrente come file di testo separato da tab (.tsv)' : 'Export the current deck as a tab-separated text file (.tsv)')}
+        </div>
+      </div>
     </div>
   </div>
 

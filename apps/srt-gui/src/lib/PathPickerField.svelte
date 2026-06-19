@@ -13,6 +13,7 @@
     browseButtonClass?: string;
     browseIconPath?: string;
     browseLabel?: string;
+    required?: boolean;
   }
 
   let {
@@ -27,12 +28,18 @@
     browseButtonClass = "btn-secondary py-2 px-3",
     browseIconPath = "M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z",
     browseLabel = t("flashcards.browse"),
+    required = false,
   }: Props = $props();
 </script>
 
 <div>
   {#if label}
-    <span class="block text-sm text-gray-400 mb-1">{label}</span>
+    <span class="block text-xs text-gray-400 mb-1">
+      {label}
+      {#if required}
+        <span class="text-red-400 font-bold ml-0.5">*</span>
+      {/if}
+    </span>
   {/if}
   <div class="flex gap-2">
     <button
