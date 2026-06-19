@@ -40,11 +40,17 @@ if awk -v version="$VERSION" '
         return line
     }
 
+    function is_version(title) {
+        if (title ~ /^[0-9]/) return 1
+        if (tolower(title) == "unreleased") return 1
+        return 0
+    }
+
     /^#{1,6}[[:space:]]+/ {
         level = heading_level($0)
         title = heading_title($0)
 
-        if (capture && level <= start_level) {
+        if (capture && level <= start_level && is_version(title)) {
             exit
         }
 
