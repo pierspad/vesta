@@ -4,18 +4,18 @@ class SnackbarStore {
   message = $state<string | null>(null);
   variant = $state<SnackbarVariant>("info");
   key = $state(0);
-  duration = $state(2500);
+  duration = $state(1800);
   private timeout: ReturnType<typeof setTimeout> | null = null;
 
-  show(msg: string, v: SnackbarVariant = "info", d = 2500) {
+  show(msg: string, v: SnackbarVariant = "info", d = 1800) {
     if (this.timeout) clearTimeout(this.timeout);
     this.key += 1;
     this.message = msg;
     this.variant = v;
-    this.duration = d;
+    this.duration = 1800;
     this.timeout = setTimeout(() => {
       this.message = null;
-    }, d);
+    }, 1800);
   }
 
   close() {

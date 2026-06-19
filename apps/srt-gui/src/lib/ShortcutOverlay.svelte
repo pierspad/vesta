@@ -33,10 +33,6 @@
     return { global, contextual, category };
   });
 
-  let shiftPressed = false;
-  let otherKeyPressed = false;
-  let shiftTimer: any = null;
-
   function isInputActive(): boolean {
     const active = document.activeElement;
     if (!active) return false;
@@ -53,63 +49,12 @@
     if (e.shiftKey && e.key === "?") {
       e.preventDefault();
       visible = !visible;
-      if (shiftTimer) {
-        clearTimeout(shiftTimer);
-        shiftTimer = null;
-      }
       return;
     }
 
     if (e.key === "Escape" && visible) {
       visible = false;
       return;
-    }
-
-    if (e.key === "Shift") {
-      if (e.ctrlKey || e.altKey || e.metaKey) {
-        return;
-      }
-      if (!shiftPressed) {
-        shiftPressed = true;
-        otherKeyPressed = false;
-        
-        // Start a timer to open the overlay if they hold Shift for 200ms
-        if (!visible) {
-          shiftTimer = setTimeout(() => {
-            if (!otherKeyPressed) {
-              visible = true;
-            }
-          }, 200);
-        }
-      }
-    } else {
-      // If another key is pressed while Shift is held down, it's a shortcut combination
-      if (shiftPressed) {
-        otherKeyPressed = true;
-      }
-      if (shiftTimer) {
-        clearTimeout(shiftTimer);
-        shiftTimer = null;
-      }
-    }
-  }
-
-  function handleKeyUp(e: KeyboardEvent) {
-    if (e.key === "Shift") {
-      if (shiftPressed) {
-        if (shiftTimer) {
-          clearTimeout(shiftTimer);
-          shiftTimer = null;
-        }
-        
-        // If they released Shift quickly (a tap) and no other key was pressed, toggle it
-        if (!otherKeyPressed) {
-          visible = !visible;
-        }
-        
-        shiftPressed = false;
-        otherKeyPressed = false;
-      }
     }
   }
 
@@ -122,12 +67,10 @@
   onMount(() => {
     shortcuts = getShortcuts();
     window.addEventListener("keydown", handleKeyDown);
-    window.addEventListener("keyup", handleKeyUp);
   });
 
   onDestroy(() => {
     window.removeEventListener("keydown", handleKeyDown);
-    window.removeEventListener("keyup", handleKeyUp);
   });
 </script>
 

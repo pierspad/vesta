@@ -303,168 +303,271 @@ pub async fn refine_save_file(
         }
     }
 
-    let ext = PathBuf::from(&input_path).extension()
+    let input_ext = PathBuf::from(&input_path).extension()
         .and_then(|e| e.to_str())
         .unwrap_or("")
         .to_lowercase();
 
-    if ext == "tsv" {
-        let content = fs::read_to_string(&resolved_input_path)
-            .map_err(|e| format!("Impossibile leggere il file TSV di input: {}", e))?;
-        
-        let mut rows = Vec::new();
-        for line in content.lines() {
-            let cells: Vec<String> = line.split('\t').map(|s| s.to_string()).collect();
-            rows.push(cells);
-        }
+    let output_ext = PathBuf::from(&output_path).extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("")
+        .to_lowercase();
 
-        if rows.is_empty() {
-            return Err("Il file TSV è vuoto".to_string());
-        }
-
-        let text_cols = analyze_tsv_columns(&rows);
-        
-        // Find notes column: usually the last text column
-        let notes_idx = if text_cols.len() >= 3 {
-            *text_cols.last().unwrap()
-        } else {
-            return Err("Impossibile identificare la colonna Notes nel TSV".to_string());
-        };
-
-        // Create a map of updates
-        let mut updates_map = HashMap::new();
-        for u in updates {
-            if let Ok(idx) = u.id.parse::<usize>() {
-                updates_map.insert(idx, u.notes);
+    if output_ext == "tsv" {
+        if input_ext == "tsv" {
+            let content = fs::read_to_string(&resolved_input_path)
+                .map_err(|e| format!("Impossibile leggere il file TSV di input: {}", e))?;
+            
+            let mut rows = Vec::new();
+            for line in content.lines() {
+                let cells: Vec<String> = line.split('\t').map(|s| s.to_string()).collect();
+                rows.push(cells);
             }
-        }
 
-        // Apply updates
-        for (idx, row) in rows.iter_mut().enumerate() {
-            if let Some(new_notes) = updates_map.get(&idx) {
-                // Ensure row has enough cells
-                while row.len() <= notes_idx {
-                    row.push(String::new());
-                }
-                row[notes_idx] = new_notes.clone();
+            if rows.is_empty() {
+                return Err("Il file TSV è vuoto".to_string());
             }
-        }
 
-        // Write TSV
-        let mut output_content = String::new();
-        for row in rows {
-            output_content.push_str(&row.join("\t"));
-            output_content.push('\n');
-        }
-
-        fs::write(output_path, output_content)
-            .map_err(|e| format!("Impossibile scrivere il file TSV di output: {}", e))?;
-
-        Ok(true)
-
-    } else if ext == "apkg" {
-        let temp_dir = tempfile::tempdir()
-            .map_err(|e| format!("Impossibile creare la directory temporanea: {}", e))?;
-        
-        // Unzip original APKG into temp
-        let input_path_str = resolved_input_path.to_str().unwrap_or(&input_path);
-        unzip_archive(input_path_str, temp_dir.path())?;
-
-        let db_path = temp_dir.path().join("collection.anki2");
-        if !db_path.exists() {
-            return Err("File di input APKG non valido".to_string());
-        }
-
-        let conn = rusqlite::Connection::open(&db_path)
-            .map_err(|e| format!("Impossibile connettersi al database Anki: {}", e))?;
-
-        // Extract models to map note fields
-        let models_json: String = conn.query_row(
-            "SELECT models FROM col LIMIT 1",
-            [],
-            |row| row.get(0),
-        ).map_err(|e| format!("Errore lettura metadati modelli Anki: {}", e))?;
-
-        let models: HashMap<String, AnkiModel> = serde_json::from_str(&models_json)
-            .map_err(|e| format!("Errore nel parsing del modello Anki: {}", e))?;
-
-        let mut updates_map = HashMap::new();
-        for u in updates {
-            if let Ok(nid) = u.id.parse::<i64>() {
-                updates_map.insert(nid, u.notes);
-            }
-        }
-
-        let timestamp = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_secs() as i64;
-
-        // Perform updates inside a transaction
-        conn.execute("BEGIN TRANSACTION", []).map_err(|e| e.to_string())?;
-
-        for (&nid, new_notes) in &updates_map {
-            // Get current mid and flds
-            let (mid, flds): (i64, String) = match conn.query_row(
-                "SELECT mid, flds FROM notes WHERE id = ?",
-                [nid],
-                |row| Ok((row.get(0)?, row.get(1)?)),
-            ) {
-                Ok(res) => res,
-                Err(_) => continue, // Skip if not found
+            let text_cols = analyze_tsv_columns(&rows);
+            
+            // Find notes column: usually the last text column
+            let notes_idx = if text_cols.len() >= 3 {
+                *text_cols.last().unwrap()
+            } else {
+                return Err("Impossibile identificare la colonna Notes nel TSV".to_string());
             };
 
-            let mut fields: Vec<String> = flds.split('\x1f').map(|s| s.to_string()).collect();
+            // Create a map of updates
+            let mut updates_map = HashMap::new();
+            for u in updates {
+                if let Ok(idx) = u.id.parse::<usize>() {
+                    updates_map.insert(idx, u.notes);
+                }
+            }
 
-            // Find Notes index for mid
-            let mid_str = mid.to_string();
-            let mut notes_idx = fields.len().saturating_sub(1);
-            let mut expr_idx = 0;
+            // Apply updates
+            for (idx, row) in rows.iter_mut().enumerate() {
+                if let Some(new_notes) = updates_map.get(&idx) {
+                    // Ensure row has enough cells
+                    while row.len() <= notes_idx {
+                        row.push(String::new());
+                    }
+                    row[notes_idx] = new_notes.clone();
+                }
+            }
 
-            if let Some(model) = models.get(&mid_str) {
-                for field in &model.flds {
-                    let name_lower = field.name.to_lowercase();
-                    if name_lower == "notes" || name_lower == "note" || name_lower == "comment" || name_lower == "spiegazione" {
-                        notes_idx = field.ord;
-                    } else if name_lower == "expression" || name_lower == "front" || name_lower == "target" || name_lower == "question" {
-                        expr_idx = field.ord;
+            // Write TSV
+            let mut output_content = String::new();
+            for row in rows {
+                output_content.push_str(&row.join("\t"));
+                output_content.push('\n');
+            }
+
+            fs::write(output_path, output_content)
+                .map_err(|e| format!("Impossibile scrivere il file TSV di output: {}", e))?;
+
+            Ok(true)
+        } else if input_ext == "apkg" {
+            let temp_dir = tempfile::tempdir()
+                .map_err(|e| format!("Impossibile creare la directory temporanea: {}", e))?;
+            
+            // Unzip original APKG into temp
+            let input_path_str = resolved_input_path.to_str().unwrap_or(&input_path);
+            unzip_archive(input_path_str, temp_dir.path())?;
+
+            let db_path = temp_dir.path().join("collection.anki2");
+            if !db_path.exists() {
+                return Err("File di input APKG non valido".to_string());
+            }
+
+            let conn = rusqlite::Connection::open(&db_path)
+                .map_err(|e| format!("Impossibile connettersi al database Anki: {}", e))?;
+
+            // Extract models to map note fields
+            let models_json: String = conn.query_row(
+                "SELECT models FROM col LIMIT 1",
+                [],
+                |row| row.get(0),
+            ).map_err(|e| format!("Errore lettura metadati modelli Anki: {}", e))?;
+
+            let models: HashMap<String, AnkiModel> = serde_json::from_str(&models_json)
+                .map_err(|e| format!("Errore nel parsing del modello Anki: {}", e))?;
+
+            // Extract notes from DB
+            let mut stmt = conn.prepare("SELECT id, mid, flds FROM notes")
+                .map_err(|e| format!("Errore preparazione query note Anki: {}", e))?;
+            
+            let note_rows = stmt.query_map([], |row| {
+                Ok((row.get::<_, i64>(0)?, row.get::<_, i64>(1)?, row.get::<_, String>(2)?))
+            }).map_err(|e| format!("Errore esecuzione query note Anki: {}", e))?;
+
+            let mut cards = Vec::new();
+            for note in note_rows {
+                if let Ok((id, mid, flds)) = note {
+                    let fields: Vec<String> = flds.split('\x1f').map(|s| s.to_string()).collect();
+                    let mid_str = mid.to_string();
+                    let mut notes_idx = fields.len().saturating_sub(1);
+                    let mut expr_idx = 0;
+                    let mut mean_idx = 1;
+
+                    if let Some(model) = models.get(&mid_str) {
+                        for field in &model.flds {
+                            let name_lower = field.name.to_lowercase();
+                            if name_lower == "notes" || name_lower == "note" || name_lower == "comment" || name_lower == "spiegazione" {
+                                notes_idx = field.ord;
+                            } else if name_lower == "expression" || name_lower == "front" || name_lower == "target" || name_lower == "question" {
+                                expr_idx = field.ord;
+                            } else if name_lower == "meaning" || name_lower == "back" || name_lower == "native" || name_lower == "answer" {
+                                mean_idx = field.ord;
+                            }
+                        }
+                    }
+
+                    let expr = fields.get(expr_idx).cloned().unwrap_or_default();
+                    let mean = fields.get(mean_idx).cloned().unwrap_or_default();
+                    let notes = fields.get(notes_idx).cloned().unwrap_or_default();
+
+                    cards.push(RefineCard {
+                        id: id.to_string(),
+                        expression: expr,
+                        meaning: mean,
+                        notes,
+                    });
+                }
+            }
+
+            // Apply updates
+            let mut updates_map = HashMap::new();
+            for u in updates {
+                updates_map.insert(u.id, u.notes);
+            }
+
+            // Write TSV: expression \t meaning \t notes
+            let mut output_content = String::new();
+            for card in cards {
+                let updated_notes = updates_map.get(&card.id).cloned().unwrap_or(card.notes);
+                output_content.push_str(&format!(
+                    "{}\t{}\t{}\n",
+                    card.expression.replace('\n', "<br>").replace('\t', " "),
+                    card.meaning.replace('\n', "<br>").replace('\t', " "),
+                    updated_notes.replace('\n', "<br>").replace('\t', " ")
+                ));
+            }
+
+            fs::write(output_path, output_content)
+                .map_err(|e| format!("Impossibile scrivere il file TSV di output: {}", e))?;
+
+            Ok(true)
+        } else {
+            Err("Formato file di input non supportato per esportazione TSV".to_string())
+        }
+    } else if output_ext == "apkg" {
+        if input_ext == "apkg" {
+            let temp_dir = tempfile::tempdir()
+                .map_err(|e| format!("Impossibile creare la directory temporanea: {}", e))?;
+            
+            // Unzip original APKG into temp
+            let input_path_str = resolved_input_path.to_str().unwrap_or(&input_path);
+            unzip_archive(input_path_str, temp_dir.path())?;
+
+            let db_path = temp_dir.path().join("collection.anki2");
+            if !db_path.exists() {
+                return Err("File di input APKG non valido".to_string());
+            }
+
+            let conn = rusqlite::Connection::open(&db_path)
+                .map_err(|e| format!("Impossibile connettersi al database Anki: {}", e))?;
+
+            // Extract models to map note fields
+            let models_json: String = conn.query_row(
+                "SELECT models FROM col LIMIT 1",
+                [],
+                |row| row.get(0),
+            ).map_err(|e| format!("Errore lettura metadati modelli Anki: {}", e))?;
+
+            let models: HashMap<String, AnkiModel> = serde_json::from_str(&models_json)
+                .map_err(|e| format!("Errore nel parsing del modello Anki: {}", e))?;
+
+            let mut updates_map = HashMap::new();
+            for u in updates {
+                if let Ok(nid) = u.id.parse::<i64>() {
+                    updates_map.insert(nid, u.notes);
+                }
+            }
+
+            let timestamp = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_secs() as i64;
+
+            // Perform updates inside a transaction
+            conn.execute("BEGIN TRANSACTION", []).map_err(|e| e.to_string())?;
+
+            for (&nid, new_notes) in &updates_map {
+                // Get current mid and flds
+                let (mid, flds): (i64, String) = match conn.query_row(
+                    "SELECT mid, flds FROM notes WHERE id = ?",
+                    [nid],
+                    |row| Ok((row.get(0)?, row.get(1)?)),
+                ) {
+                    Ok(res) => res,
+                    Err(_) => continue, // Skip if not found
+                };
+
+                let mut fields: Vec<String> = flds.split('\x1f').map(|s| s.to_string()).collect();
+
+                // Find Notes index for mid
+                let mid_str = mid.to_string();
+                let mut notes_idx = fields.len().saturating_sub(1);
+                let mut expr_idx = 0;
+
+                if let Some(model) = models.get(&mid_str) {
+                    for field in &model.flds {
+                        let name_lower = field.name.to_lowercase();
+                        if name_lower == "notes" || name_lower == "note" || name_lower == "comment" || name_lower == "spiegazione" {
+                            notes_idx = field.ord;
+                        } else if name_lower == "expression" || name_lower == "front" || name_lower == "target" || name_lower == "question" {
+                            expr_idx = field.ord;
+                        }
                     }
                 }
-            }
 
-            // Update notes field
-            if notes_idx < fields.len() {
-                fields[notes_idx] = new_notes.clone();
-            } else {
-                while fields.len() <= notes_idx {
-                    fields.push(String::new());
+                // Update notes field
+                if notes_idx < fields.len() {
+                    fields[notes_idx] = new_notes.clone();
+                } else {
+                    while fields.len() <= notes_idx {
+                        fields.push(String::new());
+                    }
+                    fields[notes_idx] = new_notes.clone();
                 }
-                fields[notes_idx] = new_notes.clone();
+
+                let joined_flds = fields.join("\x1f");
+                let sfld = fields.get(expr_idx).cloned().unwrap_or_default();
+
+                // Recompute csum (first 8 hex characters of SHA-1 of the first field)
+                let csum = {
+                    let hex_str = sha1_smol::Sha1::from(&sfld).digest().to_string();
+                    i64::from_str_radix(&hex_str[0..8], 16).unwrap_or(0)
+                };
+
+                // Update database row
+                conn.execute(
+                    "UPDATE notes SET flds = ?, sfld = ?, csum = ?, mod = ? WHERE id = ?",
+                    rusqlite::params![joined_flds, sfld, csum, timestamp, nid],
+                ).map_err(|e| format!("Errore durante l'aggiornamento SQLite: {}", e))?;
             }
 
-            let joined_flds = fields.join("\x1f");
-            let sfld = fields.get(expr_idx).cloned().unwrap_or_default();
+            conn.execute("COMMIT", []).map_err(|e| e.to_string())?;
+            drop(conn); // Close connection so ZIP is free to read file
 
-            // Recompute csum (first 8 hex characters of SHA-1 of the first field)
-            let csum = {
-                let hex_str = sha1_smol::Sha1::from(&sfld).digest().to_string();
-                i64::from_str_radix(&hex_str[0..8], 16).unwrap_or(0)
-            };
+            // Zip it back
+            zip_folder(temp_dir.path(), &output_path)?;
 
-            // Update database row
-            conn.execute(
-                "UPDATE notes SET flds = ?, sfld = ?, csum = ?, mod = ? WHERE id = ?",
-                rusqlite::params![joined_flds, sfld, csum, timestamp, nid],
-            ).map_err(|e| format!("Errore durante l'aggiornamento SQLite: {}", e))?;
+            Ok(true)
+        } else {
+            Err("Salvare un file TSV come APKG non è supportato in questa scheda.".to_string())
         }
-
-        conn.execute("COMMIT", []).map_err(|e| e.to_string())?;
-        drop(conn); // Close connection so ZIP is free to read file
-
-        // Zip it back
-        zip_folder(temp_dir.path(), &output_path)?;
-
-        Ok(true)
     } else {
         Err("Formato file non supportato. Usa .tsv o .apkg".to_string())
     }

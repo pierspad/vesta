@@ -15,6 +15,7 @@
   import Snackbar from "./lib/Snackbar.svelte";
   import { snackbar } from "./lib/snackbarStore.svelte";
   import { aiStore } from "./lib/aiStore.svelte";
+  import { getShortcuts } from "./lib/models";
 
   type AppTab = "translate" | "sync" | "transcribe" | "align" | "flashcards" | "settings" | "refine";
 
@@ -37,6 +38,65 @@
   let requestedSettingsSection = $state<"overview" | "llm" | "whisper" | "language" | "anki" | "shortcuts">("overview");
   let highlightItemId = $state<string | null>(null);
   let lastActiveMainTab = $state<Exclude<AppTab, "settings">>("flashcards");
+
+  let shortcutsList = $state(getShortcuts());
+
+  function reloadShortcuts() {
+    shortcutsList = getShortcuts();
+  }
+
+  function isInputActive(): boolean {
+    const active = document.activeElement;
+    if (!active) return false;
+    const tag = active.tagName.toLowerCase();
+    return tag === "input" || tag === "textarea" || active.getAttribute("contenteditable") === "true";
+  }
+
+  function matchShortcut(e: KeyboardEvent, shortcutKey: string): boolean {
+    const parts = shortcutKey.split("+").map((p) => p.trim());
+    
+    const hasCtrl = parts.includes("Ctrl");
+    const hasAlt = parts.includes("Alt");
+    const hasShift = parts.includes("Shift");
+    
+    if (e.ctrlKey !== hasCtrl && e.metaKey !== hasCtrl) return false;
+    if (e.altKey !== hasAlt) return false;
+    if (e.shiftKey !== hasShift) return false;
+    
+    const mainKeyPart = parts.find((p) => !["Ctrl", "Alt", "Shift"].includes(p));
+    if (!mainKeyPart) return false;
+    
+    let eventKey = e.key;
+    if (eventKey === " ") eventKey = "Space";
+    else if (eventKey.length === 1) eventKey = eventKey.toUpperCase();
+    
+    return eventKey === mainKeyPart;
+  }
+
+  function triggerGlobalAction(action: string) {
+    if (action === "switchToFlashcards") {
+      changeTab("flashcards");
+    } else if (action === "switchToRefine") {
+      changeTab("refine");
+    } else if (action === "switchToTranslate") {
+      if (!aiStore.killSwitchActive) changeTab("translate");
+    } else if (action === "switchToSync") {
+      changeTab("sync");
+    } else if (action === "switchToAlign") {
+      changeTab("align");
+    } else if (action === "switchToTranscribe") {
+      if (!aiStore.killSwitchActive) changeTab("transcribe");
+    } else if (action === "switchToSettings") {
+      goToSettings("overview");
+    } else if (action === "switchToShortcuts") {
+      goToSettings("shortcuts");
+    } else if (action === "addApiKey") {
+      goToSettings("llm");
+      setTimeout(() => {
+        window.dispatchEvent(new CustomEvent("vesta-open-add-key-modal"));
+      }, 50);
+    }
+  }
 
   $effect(() => {
     if (aiStore.killSwitchActive) {
@@ -80,19 +140,130 @@
     "transcribe",
     "settings",
   ];
+  function getMainTabForDigit(digit: number, isKillSwitchOn: boolean): AppTab | null {
+    if (isKillSwitchOn) {
+      switch (digit) {
+        case 1: return "flashcards";
+        case 2: return "refine";
+        case 3: return "sync";
+        case 4: return "align";
+        default: return null;
+      }
+    } else {
+      switch (digit) {
+        case 1: return "flashcards";
+        case 2: return "refine";
+        case 3: return "translate";
+        case 4: return "sync";
+        case 5: return "align";
+        case 6: return "transcribe";
+        default: return null;
+      }
+    }
+  }
+
+  function getSettingsSectionForDigit(digit: number, isKillSwitchOn: boolean): "overview" | "llm" | "whisper" | "language" | "anki" | "shortcuts" | null {
+    if (isKillSwitchOn) {
+      switch (digit) {
+        case 1: return "overview";
+        case 2: return "language";
+        case 3: return "anki";
+        case 4: return "shortcuts";
+        default: return null;
+      }
+    } else {
+      switch (digit) {
+        case 1: return "overview";
+        case 2: return "llm";
+        case 3: return "whisper";
+        case 4: return "language";
+        case 5: return "anki";
+        case 6: return "shortcuts";
+        default: return null;
+      }
+    }
+  }
 
   function handleKeyDown(e: KeyboardEvent) {
-    if (e.ctrlKey && (e.key === "PageDown" || e.key === "PageUp")) {
-      e.preventDefault();
-      const currentIndex = TABS_ORDER.indexOf(activeTab);
-      if (currentIndex !== -1) {
-        let nextIndex;
-        if (e.key === "PageDown") {
-          nextIndex = (currentIndex + 1) % TABS_ORDER.length;
-        } else {
-          nextIndex = (currentIndex - 1 + TABS_ORDER.length) % TABS_ORDER.length;
+    const inputActive = isInputActive();
+
+    // Handle context-sensitive Alt+1..6 and Alt+Shift+1..6 navigation
+    if (!inputActive && e.altKey && !e.ctrlKey && !e.metaKey) {
+      let num: number | null = null;
+      if (e.key >= "1" && e.key <= "6") {
+        num = parseInt(e.key);
+      } else {
+        const matchDigit = e.code.match(/^Digit([1-6])$/);
+        if (matchDigit) {
+          num = parseInt(matchDigit[1]);
         }
-        changeTab(TABS_ORDER[nextIndex]);
+      }
+
+      if (num !== null) {
+        const inSettings = activeTab === "settings";
+        const killSwitch = aiStore.killSwitchActive;
+        const hasShift = e.shiftKey;
+
+        if (hasShift) {
+          if (inSettings) {
+            const targetTab = getMainTabForDigit(num, killSwitch);
+            if (targetTab) {
+              e.preventDefault();
+              changeTab(targetTab);
+              return;
+            }
+          } else {
+            const targetSection = getSettingsSectionForDigit(num, killSwitch);
+            if (targetSection) {
+              e.preventDefault();
+              goToSettings(targetSection);
+              return;
+            }
+          }
+        } else {
+          if (inSettings) {
+            const targetSection = getSettingsSectionForDigit(num, killSwitch);
+            if (targetSection) {
+              e.preventDefault();
+              goToSettings(targetSection);
+              return;
+            }
+          } else {
+            const targetTab = getMainTabForDigit(num, killSwitch);
+            if (targetTab) {
+              e.preventDefault();
+              changeTab(targetTab);
+              return;
+            }
+          }
+        }
+      }
+    }
+
+    if (e.ctrlKey && (e.key === "PageDown" || e.key === "PageUp")) {
+      if (!inputActive) {
+        e.preventDefault();
+        const currentIndex = TABS_ORDER.indexOf(activeTab);
+        if (currentIndex !== -1) {
+          let nextIndex;
+          if (e.key === "PageDown") {
+            nextIndex = (currentIndex + 1) % TABS_ORDER.length;
+          } else {
+            nextIndex = (currentIndex - 1 + TABS_ORDER.length) % TABS_ORDER.length;
+          }
+          changeTab(TABS_ORDER[nextIndex]);
+        }
+        return;
+      }
+    }
+
+    if (!inputActive) {
+      for (const shortcut of shortcutsList) {
+        if (shortcut.category === "global" && matchShortcut(e, shortcut.defaultKey)) {
+          e.preventDefault();
+          triggerGlobalAction(shortcut.action);
+          return;
+        }
       }
     }
   }
@@ -103,6 +274,7 @@
     let unlisten: (() => void) | null = null;
 
     window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("shortcuts-updated", reloadShortcuts);
 
     const handleWindowResize = () => {
       if (window.innerWidth < MIN_WIDTH) return;
@@ -137,6 +309,7 @@
     return () => {
       unlisten?.();
       window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("shortcuts-updated", reloadShortcuts);
       window.removeEventListener("resize", handleWindowResize);
     };
   });

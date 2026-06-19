@@ -11,13 +11,52 @@ pub struct TranscribedSegment {
     pub text: String,
 }
 
-#[derive(Debug, Clone, Default)]
 pub struct TranscribeOptions {
     pub language: Option<String>,
     pub translate_to_english: bool,
     pub n_threads: Option<usize>,
     pub word_timestamps: bool,
     pub max_segment_length: Option<u32>,
+    pub segment_callback: Option<std::sync::Arc<dyn Fn(i64, i64, &str) + Send + Sync + 'static>>,
+}
+
+impl std::fmt::Debug for TranscribeOptions {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("TranscribeOptions")
+            .field("language", &self.language)
+            .field("translate_to_english", &self.translate_to_english)
+            .field("n_threads", &self.n_threads)
+            .field("word_timestamps", &self.word_timestamps)
+            .field("max_segment_length", &self.max_segment_length)
+            .field("segment_callback", &self.segment_callback.as_ref().map(|_| "Some(Fn)"))
+            .finish()
+    }
+}
+
+impl Clone for TranscribeOptions {
+    fn clone(&self) -> Self {
+        Self {
+            language: self.language.clone(),
+            translate_to_english: self.translate_to_english,
+            n_threads: self.n_threads,
+            word_timestamps: self.word_timestamps,
+            max_segment_length: self.max_segment_length,
+            segment_callback: self.segment_callback.clone(),
+        }
+    }
+}
+
+impl Default for TranscribeOptions {
+    fn default() -> Self {
+        Self {
+            language: None,
+            translate_to_english: false,
+            n_threads: None,
+            word_timestamps: false,
+            max_segment_length: None,
+            segment_callback: None,
+        }
+    }
 }
 
 /// Run full transcription on the whole audio sample, returning the segments and the detected language
@@ -63,6 +102,13 @@ pub fn transcribe_full(
         if max_len > 0 {
             params.set_max_len(max_len as i32);
         }
+    }
+    
+    if let Some(ref cb) = options.segment_callback {
+        let cb = cb.clone();
+        params.set_segment_callback_safe(move |data: whisper_rs::SegmentCallbackData| {
+            cb(data.start_timestamp * 10, data.end_timestamp * 10, &data.text);
+        });
     }
     
     if let Some(token) = cancel_token {

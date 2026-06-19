@@ -11,8 +11,9 @@ use tauri::{AppHandle, Emitter, State};
 use tokio_util::sync::CancellationToken;
 
 use whisper_common::model::{list_models, uninstall_model, WhisperModelInfo};
-use whisper_common::audio::{convert_to_wav, read_wav_to_f32};
-use whisper_common::transcribe::{transcribe_full, TranscribeOptions};
+use whisper_common::audio::{convert_to_wav, read_wav_to_f32, segment_to_wav_chunks};
+use whisper_common::transcribe::{transcribe_full, TranscribeOptions, TranscribedSegment};
+use whisper_common::cloud::{transcribe_chunk, CloudConfig};
 
 use crate::state::AppTranscribeState;
 
@@ -27,6 +28,16 @@ pub struct TranscribeConfig {
     pub translate_to_english: bool,
     pub word_timestamps: bool,
     pub max_segment_length: u32,
+    /// Motore di trascrizione: "local" (default, whisper.cpp) oppure un provider
+    /// cloud ("groq" | "openai" | "deepgram" | "assemblyai" | "custom").
+    #[serde(default)]
+    pub provider: Option<String>,
+    /// API key per i provider cloud.
+    #[serde(default)]
+    pub api_key: Option<String>,
+    /// Base URL opzionale (override / richiesto per "custom").
+    #[serde(default)]
+    pub api_url: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -43,6 +54,13 @@ pub struct TranscribeProgressEvent {
     pub stage: String,
     pub message: String,
     pub percentage: f64,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct TranscribeSegmentEvent {
+    pub start_ms: i64,
+    pub end_ms: i64,
+    pub text: String,
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -285,12 +303,22 @@ fn run_whisper_rs(
         percentage: 30.0,
     }).ok();
     
+    let app_for_callback = app.clone();
+    let segment_callback = move |start_ms: i64, end_ms: i64, text: &str| {
+        let _ = app_for_callback.emit("transcribe-segment", TranscribeSegmentEvent {
+            start_ms,
+            end_ms,
+            text: text.to_string(),
+        });
+    };
+
     let options = TranscribeOptions {
         language: if config.language != "auto" { Some(config.language.clone()) } else { None },
         translate_to_english: config.translate_to_english,
         n_threads: None,
         word_timestamps: config.word_timestamps,
         max_segment_length: if config.max_segment_length > 0 { Some(config.max_segment_length) } else { None },
+        segment_callback: Some(std::sync::Arc::new(segment_callback)),
     };
     
     let (raw_segments, detected_language) = transcribe_full(&ctx, audio_data, &options, Some(cancel_token))?;
@@ -333,6 +361,123 @@ fn run_whisper_rs(
         success: true,
         message: format!("Transcription completed: {} segments", count),
         output_path: Some(effective_output_path),
+        subtitle_count: count,
+        detected_language,
+    })
+}
+
+/// Segment length (seconds) for cloud chunking. ~8 min of 16kHz mono WAV is
+/// well under every provider's upload limit (~15 MB).
+const CLOUD_CHUNK_SECONDS: i64 = 480;
+
+/// Run transcription through a cloud provider: split the audio into chunks,
+/// transcribe each (offsetting timestamps), then post-process and write SRT.
+async fn run_cloud(
+    app: &AppHandle,
+    config: &TranscribeConfig,
+    cancel_token: &CancellationToken,
+) -> Result<TranscribeResult> {
+    let provider = config.provider.clone().unwrap_or_else(|| "local".to_string());
+
+    app.emit("transcribe-progress", TranscribeProgressEvent {
+        stage: "preparing".to_string(),
+        message: "Preparing audio...".to_string(),
+        percentage: 5.0,
+    }).ok();
+
+    let ffmpeg_cmd = crate::commands::flashcards::media::resolve_ffmpeg_path(Some(app)).await;
+
+    let tmp_dir = tempfile::Builder::new()
+        .prefix("vesta_cloud_")
+        .tempdir()
+        .context("Failed to create temp dir for cloud transcription")?;
+
+    let chunks = segment_to_wav_chunks(
+        &ffmpeg_cmd,
+        Path::new(&config.input_path),
+        tmp_dir.path(),
+        CLOUD_CHUNK_SECONDS as u32,
+        Some(cancel_token),
+    )
+    .await
+    .context("Audio segmentation failed")?;
+
+    let cloud_cfg = CloudConfig {
+        provider: provider.clone(),
+        api_key: config.api_key.clone().unwrap_or_default(),
+        api_url: config.api_url.clone(),
+        model: config.model.clone(),
+        language: if config.language != "auto" { Some(config.language.clone()) } else { None },
+        translate_to_english: config.translate_to_english,
+    };
+
+    if cloud_cfg.api_key.trim().is_empty() {
+        anyhow::bail!("Missing API key for cloud provider '{}'", provider);
+    }
+
+    let client = whisper_common::cloud::default_client();
+
+    let total = chunks.len();
+    let mut all: Vec<TranscribedSegment> = Vec::new();
+
+    for (idx, chunk_path) in chunks.iter().enumerate() {
+        if cancel_token.is_cancelled() {
+            anyhow::bail!("Transcription cancelled");
+        }
+
+        let pct = 10.0 + (idx as f64 / total.max(1) as f64) * 80.0;
+        app.emit("transcribe-progress", TranscribeProgressEvent {
+            stage: "transcribe".to_string(),
+            message: format!("Transcribing chunk {}/{} via {}...", idx + 1, total, provider),
+            percentage: pct,
+        }).ok();
+
+        let bytes = std::fs::read(chunk_path)
+            .with_context(|| format!("Failed to read audio chunk {}", idx + 1))?;
+        let offset_ms = idx as i64 * CLOUD_CHUNK_SECONDS * 1000;
+
+        let segs = transcribe_chunk(&client, &cloud_cfg, bytes, "audio.wav")
+            .await
+            .with_context(|| format!("Cloud transcription failed on chunk {}", idx + 1))?;
+
+        for mut s in segs {
+            s.start_ms += offset_ms;
+            s.end_ms += offset_ms;
+            let _ = app.emit("transcribe-segment", TranscribeSegmentEvent {
+                start_ms: s.start_ms,
+                end_ms: s.end_ms,
+                text: s.text.clone(),
+            });
+            all.push(s);
+        }
+    }
+
+    all.sort_by_key(|s| s.start_ms);
+
+    let raw: Vec<RawSegment> = all
+        .into_iter()
+        .map(|s| RawSegment { start_ms: s.start_ms, end_ms: s.end_ms, text: s.text })
+        .collect();
+    let segments = postprocess_segments(raw, config.max_segment_length);
+
+    app.emit("transcribe-progress", TranscribeProgressEvent {
+        stage: "writing".to_string(),
+        message: "Writing SRT file...".to_string(),
+        percentage: 92.0,
+    }).ok();
+
+    let count = write_srt(&segments, &config.output_path)?;
+
+    let detected_language = if config.language != "auto" {
+        Some(config.language.clone())
+    } else {
+        None
+    };
+
+    Ok(TranscribeResult {
+        success: true,
+        message: format!("Transcription completed: {} segments", count),
+        output_path: Some(config.output_path.clone()),
         subtitle_count: count,
         detected_language,
     })
@@ -424,7 +569,30 @@ pub async fn transcribe_start(
         s.is_transcribing = false;
         return Err(format!("Input file not found: {}", config.input_path));
     }
-    
+
+    // ── Cloud provider path ───────────────────────────────────────────────────
+    let provider = config.provider.clone().unwrap_or_else(|| "local".to_string());
+    let is_cloud = !matches!(provider.to_lowercase().as_str(), "local" | "whisper" | "");
+    if is_cloud {
+        let result = run_cloud(&app, &config, &cancel_token).await;
+        {
+            let mut s = state.lock().map_err(|e| e.to_string())?;
+            s.is_transcribing = false;
+        }
+        return match result {
+            Ok(r) => {
+                app.emit("transcribe-progress", TranscribeProgressEvent {
+                    stage: "done".to_string(),
+                    message: r.message.clone(),
+                    percentage: 100.0,
+                }).ok();
+                Ok(r)
+            }
+            Err(e) => Err(e.to_string()),
+        };
+    }
+
+    // ── Local whisper.cpp path ────────────────────────────────────────────────
     // Download model if needed
     let model_path = match download_model(&app, &config.model, &cancel_token).await {
         Ok(p) => p,

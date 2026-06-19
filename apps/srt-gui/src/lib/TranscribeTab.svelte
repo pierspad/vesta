@@ -6,7 +6,23 @@
   import { guardedOpen, guardedSave } from "./utils/dialogGuard";
   import { onDestroy, onMount } from "svelte";
   import { locale } from "./i18n";
-  import { getLanguageSearchTerms, languages as allLanguages, getFileName } from "./models";
+  import {
+    getLanguageSearchTerms,
+    languages as allLanguages,
+    getFileName,
+    transcribeProviders,
+    transcribeProviderOrder,
+    loadTranscribeCloud,
+    saveTranscribeCloud,
+    type TranscribeCloudSettings,
+    loadTranscribeTiers,
+    transcribeTiersHaveUsableEntries,
+    TRANSCRIBE_TIERS_UPDATED_EVENT,
+    loadAndValidateApiKeys,
+    type ApiKeyConfig,
+    type TranscribeTier,
+    type TranscribeTierEntry,
+  } from "./models";
   import PathPickerField from "./PathPickerField.svelte";
   import PathPreviewModal from "./PathPreviewModal.svelte";
   import SearchableSelect from "./SearchableSelect.svelte";
@@ -102,13 +118,77 @@
     whisperModels.find((m) => m.id === selectedModel)?.downloaded ?? false
   );
   let hasAnyWhisperModel = $derived(whisperModels.some((m) => m.downloaded));
-  let transcribeBlockedReason = $derived(
-    !isModelDownloaded
-      ? "Scarica e imposta un modello Whisper da Settings prima di avviare la trascrizione."
-      : !inputPath || !outputPath
-        ? "Seleziona file di input e destinazione per abilitare la trascrizione."
-        : ""
+
+  // ─── Transcription engine (Local Whisper vs cloud providers) ────────────────
+  let transcribeTiers = $state<TranscribeTier[]>([]);
+  let apiKeys = $state<ApiKeyConfig[]>([]);
+  let transcribedSegments = $state<{ start_ms: number; end_ms: number; text: string }[]>([]);
+  let scrollContainer = $state<HTMLDivElement | null>(null);
+
+  function formatTime(ms: number): string {
+    const totalSeconds = Math.floor(ms / 1000);
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    const millis = Math.floor(ms % 1000);
+    if (hours > 0) {
+      return `${hours}:${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}.${millis.toString().padStart(3, "0")}`;
+    }
+    return `${minutes}:${seconds.toString().padStart(2, "0")}.${millis.toString().padStart(3, "0")}`;
+  }
+
+  $effect(() => {
+    if (transcribedSegments.length > 0 && scrollContainer) {
+      scrollContainer.scrollTop = scrollContainer.scrollHeight;
+    }
+  });
+
+  function refreshTranscribeTiers() {
+    transcribeTiers = loadTranscribeTiers();
+  }
+  function refreshApiKeys() {
+    apiKeys = loadAndValidateApiKeys();
+  }
+
+  function isTranscribeEntryReady(e: TranscribeTierEntry): boolean {
+    if (e.provider === "local" || e.provider === "local_whisper") {
+      return whisperModels.find((m) => m.id === e.model)?.downloaded ?? false;
+    }
+    const key = apiKeys.find((k) => k.id === e.apiKeyId);
+    if (e.provider === "custom") {
+      return !!key?.apiUrl?.trim();
+    }
+    return !!key?.apiKey?.trim();
+  }
+
+  let usableEntries = $derived(
+    transcribeTiers.flatMap((t) => t.entries).filter(isTranscribeEntryReady)
   );
+
+  let canStart = $derived(
+    !!inputPath && !!outputPath && usableEntries.length > 0
+  );
+
+  let transcribeBlockedReason = $derived.by(() => {
+    if (!inputPath || !outputPath) {
+      return "Seleziona file di input e destinazione per abilitare la trascrizione.";
+    }
+    if (transcribeTiers.length === 0 || transcribeTiers.flatMap((t) => t.entries).length === 0) {
+      return "Nessun tier configurato per la trascrizione. Configura i tier in Impostazioni.";
+    }
+    if (usableEntries.length === 0) {
+      const hasLocalConfigured = transcribeTiers.flatMap((t) => t.entries).some(e => e.provider === "local" || e.provider === "local_whisper");
+      if (hasLocalConfigured) {
+        return "Manca un modello Whisper.\nVerifica che le API key siano configurate o scarica il modello locale nelle impostazioni.";
+      }
+      return "Nessun endpoint di trascrizione pronto.\nVerifica che le API key siano configurate o che i modelli locali siano scaricati.";
+    }
+    return "";
+  });
+
+  function handleTranscribeCloudUpdated() {
+    // Keep empty or placeholder since tiers are used now
+  }
 
   // Languages for transcription - use the same list as translation tab, with auto-detect option
   let transcriptionLanguages = $derived([
@@ -199,10 +279,15 @@
 
   onMount(() => {
     window.addEventListener("keydown", handleKeydown);
+    refreshTranscribeTiers();
+    refreshApiKeys();
+    window.addEventListener(TRANSCRIBE_TIERS_UPDATED_EVENT, refreshTranscribeTiers);
+    window.addEventListener("apikeys-updated", refreshApiKeys);
     selectedModel = localStorage.getItem("srt-default-whisper-model") || "base";
 
     window.addEventListener("whisper-model-updated", handleWhisperModelUpdated);
     window.addEventListener("vesta-language-defaults-updated", handleLanguageDefaultsUpdated);
+    window.addEventListener("vesta:transcribe-cloud-updated", handleTranscribeCloudUpdated);
 
     invoke<typeof backends>("transcribe_check_backends")
       .then((res) => { backends = res; })
@@ -213,6 +298,7 @@
     let activeListener = true;
     let unlisten: (() => void) | null = null;
     let unlistenDD: (() => void) | null = null;
+    let unlistenSegment: (() => void) | null = null;
 
     getCurrentWebview().onDragDropEvent((event) => {
       if (!active) return;
@@ -251,13 +337,32 @@
       else unlisten = fn;
     }).catch(console.error);
 
+    listen<{
+      start_ms: number;
+      end_ms: number;
+      text: string;
+    }>("transcribe-segment", (event) => {
+      const p = event.payload;
+      transcribedSegments = [...transcribedSegments, {
+        start_ms: p.start_ms,
+        end_ms: p.end_ms,
+        text: p.text,
+      }];
+    }).then((fn) => {
+      if (!activeListener) fn();
+      else unlistenSegment = fn;
+    }).catch(console.error);
+
     return () => {
       activeListener = false;
-      window.removeEventListener("keydown", handleKeydown);
+      window.removeEventListener(TRANSCRIBE_TIERS_UPDATED_EVENT, refreshTranscribeTiers);
+      window.removeEventListener("apikeys-updated", refreshApiKeys);
       window.removeEventListener("whisper-model-updated", handleWhisperModelUpdated);
       window.removeEventListener("vesta-language-defaults-updated", handleLanguageDefaultsUpdated);
+      window.removeEventListener("vesta:transcribe-cloud-updated", handleTranscribeCloudUpdated);
       if (unlisten) unlisten();
       if (unlistenDD) unlistenDD();
+      if (unlistenSegment) unlistenSegment();
     };
   });
 
@@ -505,7 +610,7 @@
       return;
     }
 
-    if (!isModelDownloaded) {
+    if (!canStart) {
       error = transcribeBlockedReason;
       showSnackbar(transcribeBlockedReason);
       return;
@@ -514,55 +619,95 @@
     error = null;
     result = null;
     progress = 0;
+    transcribedSegments = [];
     isTranscribing = true;
-    addLog(`${t("transcribe.starting")} (model: ${selectedModel})`, "info");
-    addLog(`Source language: ${selectedLanguageLabel(selectedLanguage)}`, "info");
-    addLog(`Word timestamps: ${wordTimestamps ? "enabled" : "disabled"}; max segment: ${maxSegmentLength}s`, "info");
-    addLog(`Input: ${getFileName(inputPath)} → Output: ${getFileName(outputPath)}`, "file");
 
     const startTime = Date.now();
+    let success = false;
+    let lastErrorMsg = "";
 
-    try {
-      const res = await invoke<{
-        success: boolean;
-        message: string;
-        output_path?: string;
-        subtitle_count?: number;
-        detected_language?: string;
-      }>("transcribe_start", {
-        config: {
-          input_path: inputPath,
-          output_path: outputPath,
-          model: selectedModel,
-          language: selectedLanguage,
-          translate_to_english: translateToEnglish,
-          word_timestamps: wordTimestamps,
-          max_segment_length: maxSegmentLength,
-        },
-      });
-      result = res;
-      if (res.output_path) {
-        outputPath = res.output_path;
+    for (let tIdx = 0; tIdx < transcribeTiers.length; tIdx++) {
+      const tier = transcribeTiers[tIdx];
+      const readyEntries = tier.entries.filter(isTranscribeEntryReady);
+      if (readyEntries.length === 0) continue;
+
+      addLog(`🪜 Avvio Tier ${tIdx + 1} (${readyEntries.length} endpoint pronti)...`, "info");
+
+      for (const entry of readyEntries) {
+        const isCloudEntry = entry.provider !== "local" && entry.provider !== "local_whisper";
+        const engineLabel = isCloudEntry
+          ? `${transcribeProviders[entry.provider]?.name || entry.provider} · ${entry.model || "auto"}`
+          : entry.model;
+
+        addLog(`🎙️ Provando endpoint: ${engineLabel}...`, "info");
+        addLog(`Source language: ${selectedLanguageLabel(selectedLanguage)}`, "info");
+        addLog(`Word timestamps: ${wordTimestamps ? "enabled" : "disabled"}; max segment: ${maxSegmentLength}s`, "info");
+        addLog(`Input: ${getFileName(inputPath)} → Output: ${getFileName(outputPath)}`, "file");
+
+        try {
+          const key = isCloudEntry ? apiKeys.find((k) => k.id === entry.apiKeyId) : null;
+          const apiKeyVal = key?.apiKey?.trim() || null;
+          const apiUrl = key?.apiUrl?.trim() || transcribeProviders[entry.provider]?.defaultUrl || null;
+
+          const res = await invoke<{
+            success: boolean;
+            message: string;
+            output_path?: string;
+            subtitle_count?: number;
+            detected_language?: string;
+          }>("transcribe_start", {
+            config: {
+              input_path: inputPath,
+              output_path: outputPath,
+              model: entry.model,
+              language: selectedLanguage,
+              translate_to_english: translateToEnglish,
+              word_timestamps: wordTimestamps,
+              max_segment_length: maxSegmentLength,
+              provider: entry.provider,
+              api_key: apiKeyVal,
+              api_url: apiUrl,
+            },
+          });
+
+          result = res;
+          if (res.output_path) {
+            outputPath = res.output_path;
+          }
+          if (res.detected_language) {
+            addLog(`Detected language: ${res.detected_language}`, "success");
+          }
+          if (res.output_path) {
+            addLog(`Saved: ${getFileName(res.output_path)}`, "success");
+          }
+          addLog(res.message, "success");
+          await refreshModels();
+          success = true;
+          break; // Break inner loop on success
+        } catch (e: any) {
+          lastErrorMsg = e ? e.toString() : "Unknown error";
+          addLog(`⚠️ Errore su ${engineLabel}: ${lastErrorMsg}`, "warning");
+        }
       }
-      if (res.detected_language) {
-        addLog(`Detected language: ${res.detected_language}`, "success");
+
+      if (success) {
+        break; // Break outer loop on success
       }
-      if (res.output_path) {
-        addLog(`Saved: ${getFileName(res.output_path)}`, "success");
-      }
-      addLog(res.message, "success");
-      await refreshModels();
-    } catch (e: any) {
-      error = `${e}`;
-      addLog(`Error: ${e}`, "error");
-    } finally {
-      isTranscribing = false;
-      const elapsed = Math.floor((Date.now() - startTime) / 1000);
-      const hh = String(Math.floor(elapsed / 3600)).padStart(2, "0");
-      const mm = String(Math.floor((elapsed % 3600) / 60)).padStart(2, "0");
-      const ss = String(elapsed % 60).padStart(2, "0");
-      addLog(`⏱ ${hh}:${mm}:${ss}`, "info");
     }
+
+    if (!success) {
+      error = `Tutti i tier di trascrizione sono falliti. Ultimo errore: ${lastErrorMsg}`;
+      addLog(`❌ Errore finale: ${error}`, "error");
+    }
+
+    isTranscribing = false;
+    const elapsedSeconds = Math.floor((Date.now() - startTime) / 1000);
+    const hrs = String(Math.floor(elapsedSeconds / 3600)).padStart(2, "0");
+    const mins = String(
+      Math.floor((elapsedSeconds % 3600) / 60),
+    ).padStart(2, "0");
+    const secs = String(elapsedSeconds % 60).padStart(2, "0");
+    addLog(`⏱ ${hrs}:${mins}:${secs}`, "info");
   }
 
   async function cancelTranscription() {
@@ -914,21 +1059,23 @@
         </h3>
         <div class="space-y-3">
           <PathPickerField
-            label={t("transcribe.inputFile")}
+            label={t("transcribe.inputMediaFile")}
             value={inputPath}
             placeholder={t("transcribe.noInputMediaSelected")}
             browseTitle={t("transcribe.selectFile")}
             onexpand={() => (expandedPathField = "input")}
             onbrowse={selectInputFile}
+            required={true}
           />
 
           <PathPickerField
-            label={t("transcribe.outputFile")}
+            label={t("transcribe.outputSrtFile")}
             value={outputPath}
             placeholder={t("transcribe.noOutputFileSelected")}
             browseTitle={t("transcribe.selectDestination")}
             onexpand={() => (expandedPathField = "output")}
             onbrowse={selectOutputFile}
+            required={true}
           />
           {#if inputPath}
             <div
@@ -1069,60 +1216,32 @@
     {/if}
   {/snippet}
 
-  {#snippet mediaDetailsCard()}
-    {@const activeModelObj = whisperModels.find((m) => m.id === selectedModel)}
+  {#snippet transcribedSentencesCard()}
     <div class="glass-card p-5 space-y-4">
-      <h3 class="text-sm font-bold text-indigo-400 tracking-wide flex items-center gap-2">
-        <svg class="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
-        Modello Whisper
-      </h3>
-
-      <div class="space-y-4 text-xs">
-        <!-- Whisper Model Selection & Info -->
-        <div class="grid grid-cols-1 md:grid-cols-[1.2fr_0.8fr] gap-4 items-center bg-white/5 border border-white/10 rounded-xl p-3.5">
-          <div class="space-y-1.5">
-            <SearchableSelect
-              noResultsText={t("common.noResults")}
-              options={whisperModels.map((m) => ({
-                value: m.id,
-                label: `${t(`transcribe.model${m.id.charAt(0).toUpperCase()}${m.id.slice(1)}`) || m.name} (${m.size})${m.downloaded ? ' ✓' : ''}`,
-              }))}
-              value={selectedModel}
-              onchange={(v) => {
-                selectedModel = v;
-                localStorage.setItem("srt-default-whisper-model", v);
-                window.dispatchEvent(new CustomEvent("whisper-model-updated", { detail: v }));
-              }}
-              placeholder="Seleziona modello Whisper"
-            />
-          </div>
-          <div class="grid grid-cols-2 gap-2 text-center mt-2 md:mt-0">
-            <button
-              type="button"
-              onclick={() => {
-                if (!isModelDownloaded) {
-                  onGoToSettings?.("whisper", selectedModel);
-                }
-              }}
-              disabled={isModelDownloaded}
-              class="bg-black/35 rounded-lg p-2 flex flex-col justify-center items-center text-center {!isModelDownloaded ? 'hover:bg-white/10 hover:ring-1 hover:ring-amber-500/50 cursor-pointer transition-all' : 'cursor-default'}"
-            >
-              <span class="text-gray-400 text-[10px] mb-0.5">Stato</span>
-              <span class="font-bold truncate {isModelDownloaded ? 'text-emerald-400' : 'text-amber-400'}" title={isModelDownloaded ? 'Scaricato' : 'Clicca per scaricare in Impostazioni'}>
-                {isModelDownloaded ? 'Scaricato' : 'Manca'}
-              </span>
-            </button>
-            <div class="bg-black/35 rounded-lg p-2 flex flex-col justify-center">
-              <span class="text-gray-400 text-[10px] mb-0.5">Velocità</span>
-              <span class="font-bold text-cyan-300 capitalize truncate" title={activeModelObj?.speed || 'N/D'}>
-                {activeModelObj?.speed || 'N/D'}
-              </span>
-            </div>
-          </div>
-        </div>
+      <div class="flex items-center justify-between">
+        <span class="text-[10px] font-bold text-gray-500 uppercase tracking-wide">Frasi Trascritte</span>
+        <span class="text-[10px] text-indigo-400 font-semibold">{transcribedSegments.length} segmenti</span>
       </div>
+      
+      {#if transcribedSegments.length === 0}
+        <div class="rounded-lg border border-indigo-500/20 bg-indigo-500/5 px-3 py-8 text-center text-xs text-indigo-300">
+          Le frasi trascritte appariranno qui in tempo reale.
+        </div>
+      {:else}
+        <div 
+          bind:this={scrollContainer} 
+          class="space-y-2 max-h-[220px] overflow-y-auto pr-1 transcribe-scroll"
+        >
+          {#each transcribedSegments as segment}
+            <div class="p-2.5 rounded-lg bg-white/[0.02] border border-white/5 flex gap-3 text-xs hover:bg-white/5 transition-colors">
+              <span class="font-mono text-indigo-300 shrink-0 select-none">
+                {formatTime(segment.start_ms)} → {formatTime(segment.end_ms)}
+              </span>
+              <span class="text-gray-200 break-words">{segment.text}</span>
+            </div>
+          {/each}
+        </div>
+      {/if}
     </div>
   {/snippet}
 
@@ -1130,7 +1249,7 @@
     <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
       <div class="space-y-3 min-h-[100px]">
         {@render panelContent("files")}
-        {@render mediaDetailsCard()}
+        {@render transcribedSentencesCard()}
       </div>
 
       <div class="space-y-3 min-h-[100px]">
@@ -1142,14 +1261,14 @@
   </div>
 
   <!-- Fixed Bottom Band with Action Buttons -->
-  <div class="h-[92px] border-t border-white/10 bg-gray-900 flex items-center justify-center gap-4 px-6 shrink-0 z-40">
+  <div class="h-[92px] border-t border-white/10 bg-gray-900 flex items-center justify-end gap-4 px-6 shrink-0 z-40">
     {#if isTranscribing}
       <button
         onclick={cancelTranscription}
-        class="px-5 py-2.5 bg-red-600 hover:bg-red-500 text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-red-900/30 flex items-center gap-2 hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
+        class="px-5 py-2.5 bg-red-600/80 hover:bg-red-500/80 border border-red-500/30 text-red-100 rounded-xl font-bold text-sm transition-all shadow-lg shadow-red-950/20 flex items-center gap-2 hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
       >
         <svg
-          class="w-4 h-4"
+          class="w-4 h-4 text-red-100"
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -1170,7 +1289,7 @@
           class="px-5 py-2.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 rounded-xl font-bold text-sm transition-all border border-amber-500/30 flex items-center gap-2 hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
         >
           <svg
-            class="w-4 h-4"
+            class="w-4 h-4 text-amber-300"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -1192,11 +1311,11 @@
       <div class="relative group">
         <button
           onclick={startTranscription}
-          disabled={!inputPath || !outputPath || !isModelDownloaded}
-          class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:bg-emerald-600/55 text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-emerald-900/30 flex items-center gap-2 enabled:hover:scale-[1.02] enabled:active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-55 cursor-pointer"
+          disabled={!canStart}
+          class="px-5 py-2.5 bg-emerald-600/80 hover:bg-emerald-500/80 border border-emerald-500/30 disabled:bg-emerald-600/40 text-emerald-100 rounded-xl font-bold text-sm transition-all shadow-lg shadow-emerald-950/20 flex items-center gap-2 enabled:hover:scale-[1.02] enabled:active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-55 cursor-pointer"
         >
           <svg
-            class="w-4 h-4"
+            class="w-4 h-4 text-emerald-100"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -1216,7 +1335,7 @@
           </svg>
           {t("transcribe.startTranscription")}
         </button>
-        <div class="pointer-events-none absolute bottom-full left-1/2 z-50 mb-3 -translate-x-1/2 rounded-xl border border-teal-500/30 bg-gray-950/95 p-3 text-center text-xs text-teal-300 shadow-2xl shadow-black/40 ring-1 ring-white/10 transition-all duration-150 delay-0 group-hover:delay-300 opacity-0 group-hover:opacity-100 group-hover:translate-y-0 translate-y-1 whitespace-nowrap">
+        <div class="pointer-events-none absolute bottom-full right-0 z-50 mb-3 rounded-xl border border-teal-500/30 bg-gray-950/95 p-3 text-center text-xs text-teal-300 shadow-2xl shadow-black/40 ring-1 ring-white/10 transition-all duration-150 delay-0 group-hover:delay-300 opacity-0 group-hover:opacity-100 group-hover:translate-y-0 translate-y-1 whitespace-pre-line w-80">
           {transcribeBlockedReason || t("transcribe.startTranscription")}
         </div>
       </div>

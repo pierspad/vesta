@@ -1,11 +1,13 @@
 <script lang="ts">
   import { onDestroy, onMount, tick } from "svelte";
+  import ProviderIcon from "./ProviderIcon.svelte";
 
   interface Option {
     value: string;
     label: string;
     searchTerms?: string; // Additional terms to search by (e.g., English name)
     icon?: string; // Flag emoji or icon
+    provider?: string; // Provider ID for showing provider logo
   }
 
   interface Props {
@@ -15,6 +17,7 @@
     placeholder?: string;
     className?: string;
     noResultsText?: string;
+    onfocus?: () => void;
   }
 
   let {
@@ -24,6 +27,7 @@
     placeholder = "Select...",
     className = "",
     noResultsText = "No results",
+    onfocus,
   }: Props = $props();
 
   let isOpen = $state(false);
@@ -64,6 +68,9 @@
     // Start with the currently selected option highlighted and visible
     const selectedIdx = options.findIndex((opt) => opt.value === value);
     highlightedIndex = selectedIdx >= 0 ? selectedIdx : 0;
+    if (onfocus) {
+      onfocus();
+    }
     await tick();
     scrollToHighlighted();
   }
@@ -163,6 +170,11 @@
   bind:this={containerElement}
 >
   <div class="relative">
+    {#if selectedOption?.provider && !isOpen}
+      <div class="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none z-10">
+        <ProviderIcon provider={selectedOption.provider} size="w-5.5 h-5.5" glyph="w-3.5 h-3.5" rounded="rounded-md" />
+      </div>
+    {/if}
     <input
       bind:this={inputElement}
       type="text"
@@ -173,6 +185,7 @@
       onkeydown={handleKeydown}
       {placeholder}
       class="searchable-select-input w-full"
+      style:padding-left={selectedOption?.provider && !isOpen ? "38px" : ""}
       autocomplete="off"
     />
     <div
@@ -218,6 +231,11 @@
               : 'text-gray-300'}
               {option.value === value ? 'selected' : ''}"
           >
+            {#if option.provider}
+              <span class="mr-2 shrink-0">
+                <ProviderIcon provider={option.provider} size="w-5.5 h-5.5" glyph="w-3.5 h-3.5" rounded="rounded-md" />
+              </span>
+            {/if}
             {#if option.icon}
               <span class="mr-2">{option.icon}</span>
             {/if}
@@ -246,8 +264,8 @@
 
 <style lang="postcss">
   .searchable-select-input {
-    background: rgba(24, 24, 42, 0.96);
-    border: 1px solid rgba(148, 163, 184, 0.18);
+    background: #0b0f19;
+    border: 1px solid rgba(148, 163, 184, 0.25);
     border-radius: 10px;
     padding: 11px 40px 11px 14px;
     color: white;
@@ -257,7 +275,7 @@
 
   .searchable-select-input:focus {
     outline: none;
-    background: rgba(27, 28, 47, 0.98);
+    background: #0b0f19;
     border-color: rgba(129, 140, 248, 0.58);
   }
 
@@ -274,8 +292,8 @@
     max-height: 280px;
     overflow-y: auto;
     overflow-x: hidden;
-    background: rgba(15, 23, 42, 0.98);
-    border: 1px solid rgba(148, 163, 184, 0.2);
+    background: #0f172a;
+    border: 1px solid rgba(148, 163, 184, 0.25);
     border-radius: 10px;
     box-shadow: 0 12px 28px rgba(0, 0, 0, 0.34);
     z-index: 9999;
@@ -293,19 +311,19 @@
     transition: background-color 0.1s ease, color 0.1s ease;
     cursor: pointer;
     border: none;
-    background: rgba(15, 23, 42, 0.98);
+    background: #0f172a;
   }
 
   .searchable-select-option:hover {
-    background: rgba(30, 41, 59, 0.98);
+    background: #1e293b;
   }
 
   .searchable-select-option.highlighted {
-    background: rgba(67, 56, 202, 0.32);
+    background: rgba(67, 56, 202, 0.6);
   }
 
   .searchable-select-option.selected {
-    background: rgba(79, 70, 229, 0.22);
+    background: rgba(79, 70, 229, 0.4);
   }
 
   :global(.compact-select) .searchable-select-input {

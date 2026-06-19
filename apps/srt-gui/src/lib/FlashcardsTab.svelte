@@ -1554,6 +1554,7 @@
   let error = $state<string | null>(null);
   let result = $state<{
     success: boolean;
+    message?: string | null;
     cardsGenerated: number;
     audioClips: number;
     snapshots: number;
@@ -1694,7 +1695,11 @@
   let canRunFlashcards = $derived(
     seriesMode
       ? Boolean(
-          episodes.length > 0 && outputDir && (needsDeckName ? deckName : true) && noteTypeLanguage,
+          episodes.length > 0 &&
+            episodes.every((ep) => ep.targetSubsPath) &&
+            outputDir &&
+            (needsDeckName ? deckName : true) &&
+            noteTypeLanguage,
         )
       : Boolean(targetSubsPath && outputDir && deckName && noteTypeLanguage),
   );
@@ -1716,6 +1721,11 @@
         missing.push({
           panel: "files",
           label: `Aggiungi almeno un episodio in ${t("common.filesAndOutput")}`,
+        });
+      } else if (episodes.some((ep) => !ep.targetSubsPath)) {
+        missing.push({
+          panel: "files",
+          label: `Carica i sottotitoli originali per tutti gli episodi`,
         });
       }
     } else if (!targetSubsPath) {
@@ -2681,6 +2691,7 @@
     let totalVideoClips = 0;
     const apkgPaths: string[] = [];
     let hadError = false;
+    let errorMessages: string[] = [];
 
     try {
       for (let i = 0; i < episodes.length; i++) {
@@ -2719,10 +2730,10 @@
             exclude_words: null,
             exclude_duplicates_subs1: false,
             exclude_duplicates_subs2: false,
-            min_chars: null,
-            max_chars: null,
-            min_duration_ms: null,
-            max_duration_ms: null,
+            min_chars: cardFiltersEnabled && filterMinCharsEnabled ? filterMinChars : null,
+            max_chars: cardFiltersEnabled && filterMaxCharsEnabled ? filterMaxChars : null,
+            min_duration_ms: cardFiltersEnabled && filterMinDurationEnabled ? filterMinDurationMs : null,
+            max_duration_ms: cardFiltersEnabled && filterMaxDurationEnabled ? filterMaxDurationMs : null,
             exclude_styled: false,
             actor_filter: null,
             only_cjk: false,
@@ -2733,8 +2744,8 @@
             trailing: 0,
             max_gap_seconds: 15.0,
           },
-          combine_sentences: false,
-          continuation_chars: ",、→",
+          combine_sentences: cardFiltersEnabled && combineSentences,
+          continuation_chars: continuationChars,
           generate_audio: ep.mediaPath ? epMediaSettings.generateAudio : false,
           audio_bitrate: epMediaSettings.audioBitrate,
           audio_track_index: epAudioTrackIndex,
@@ -2780,10 +2791,13 @@
             );
           } else {
             addLog(`⚠ Ep ${epNum}: ${res.message}`, "warning");
+            errorMessages.push(`Ep ${epNum}: ${res.message}`);
           }
-        } catch (e) {
-          addLog(`✗ Ep ${epNum}: ${e}`, "error");
+        } catch (e: any) {
+          const errMsg = e ? e.toString() : "Unknown error";
+          addLog(`✗ Ep ${epNum}: ${errMsg}`, "error");
           hadError = true;
+          errorMessages.push(`Ep ${epNum}: ${errMsg}`);
         }
       }
 
@@ -2813,7 +2827,8 @@
       }
 
       result = {
-        success: !hadError,
+        success: !hadError && totalCards > 0,
+        message: errorMessages.length > 0 ? errorMessages.join(", ") : (totalCards === 0 ? "No active subtitle lines after filtering" : null),
         cardsGenerated: totalCards,
         audioClips: totalAudio,
         snapshots: totalSnapshots,
@@ -2827,13 +2842,27 @@
         "success",
       );
 
-    } catch (e) {
-      error = `${t("flashcards.errorGenerating")}: ${e}`;
+    } catch (e: any) {
+      const errMsg = e ? e.toString() : "Unknown error";
+      error = `${t("flashcards.errorGenerating")}: ${errMsg}`;
       addLog(`${error}`, "error");
+      result = {
+        success: false,
+        message: errMsg,
+        cardsGenerated: 0,
+        audioClips: 0,
+        snapshots: 0,
+        videoClips: 0,
+        tsvPath: null,
+        apkgPath: null,
+      };
     } finally {
       isProcessing = false;
       seriesCurrentEpisode = 0;
       seriesTotalEpisodes = 0;
+      progress = 0;
+      progressMessage = "";
+      progressStage = "";
       const elapsed = Math.floor((Date.now() - startTime) / 1000);
       const hh = String(Math.floor(elapsed / 3600)).padStart(2, "0");
       const mm = String(Math.floor((elapsed % 3600) / 60)).padStart(2, "0");
@@ -2868,6 +2897,7 @@
       const res = await invoke<any>("flashcard_generate", { config });
       result = {
         success: res.success,
+        message: res.message || null,
         cardsGenerated: res.cards_generated,
         audioClips: res.audio_clips,
         snapshots: res.snapshots,
@@ -2891,11 +2921,25 @@
       } else {
         addLog(res.message, "warning");
       }
-    } catch (e) {
-      error = `${t("flashcards.errorGenerating")}: ${e}`;
+    } catch (e: any) {
+      const errMsg = e ? e.toString() : "Unknown error";
+      error = `${t("flashcards.errorGenerating")}: ${errMsg}`;
       addLog(`${error}`, "error");
+      result = {
+        success: false,
+        message: errMsg,
+        cardsGenerated: 0,
+        audioClips: 0,
+        snapshots: 0,
+        videoClips: 0,
+        tsvPath: null,
+        apkgPath: null,
+      };
     } finally {
       isProcessing = false;
+      progress = 0;
+      progressMessage = "";
+      progressStage = "";
       const elapsed = Math.floor((Date.now() - startTime) / 1000);
       const hh = String(Math.floor(elapsed / 3600)).padStart(2, "0");
       const mm = String(Math.floor((elapsed % 3600) / 60)).padStart(2, "0");
@@ -3488,7 +3532,7 @@
           {#if seriesMode}
             <button
               onclick={addSeriesMultipleFiles}
-              class="bg-violet-600 hover:bg-violet-500 text-white font-semibold py-1 px-3 text-xs flex items-center gap-1.5 h-8 rounded-lg shrink-0 transition-colors cursor-pointer"
+              class="bg-violet-700 hover:bg-violet-600 text-white font-semibold py-1 px-3 text-xs flex items-center gap-1.5 h-8 rounded-lg shrink-0 transition-colors cursor-pointer"
             >
               <svg
                 class="w-3.5 h-3.5"
@@ -4593,7 +4637,13 @@
                     d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
                   />
                 </svg>
-                <p class="text-red-300">{t("flashcards.noActiveLines")}</p>
+                <p class="text-red-300">
+                  {result.message
+                    ? (result.message.includes("No active")
+                      ? t("flashcards.noActiveLines")
+                      : result.message)
+                    : t("flashcards.errorGenerating")}
+                </p>
               </div>
             {/if}
           </div>
@@ -5247,61 +5297,32 @@
   </div>
 
   <!-- Fixed Bottom Band with Action Buttons -->
-  <div class="h-[92px] border-t border-white/10 bg-gray-900 flex items-center justify-center gap-4 px-6 shrink-0">
+  <div class="h-[92px] border-t border-white/10 bg-gray-900 flex items-center justify-between px-6 shrink-0">
     {#if isProcessing}
-      <button
-        onclick={cancelGeneration}
-        class="px-5 py-2.5 bg-red-600 hover:bg-red-500 text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-red-900/30 flex items-center gap-2 hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
-      >
-        <svg
-          class="w-4 h-4"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
+      <div class="flex items-center justify-center w-full">
+        <button
+          onclick={cancelGeneration}
+          class="px-5 py-2.5 bg-red-600 hover:bg-red-500 text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-red-900/30 flex items-center gap-2 hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
         >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M6 18L18 6M6 6l12 12"
-          />
-        </svg>
-        {t("flashcards.cancel")}
-      </button>
-    {:else}
-      <!-- Export format toggle button + series output mode selector -->
-      <div class="flex items-center gap-2 mr-2">
-        <!-- Format toggle button -->
-        <div class="relative group/fmt">
-          <button
-            type="button"
-            onclick={() => (exportFormat = exportFormat === 'apkg' ? 'tsv' : 'apkg')}
-            oncontextmenu={(e) => openBottomContextMenu(e, "overview")}
-            onmousedown={(e) => {
-              if (e.button === 1) {
-                e.preventDefault();
-                onGoToSettings?.("overview");
-              }
-            }}
-            class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] cursor-pointer select-none
-              {exportFormat === 'apkg'
-                ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20 hover:border-emerald-500/50'
-                : 'border-sky-500/40 bg-sky-500/10 text-sky-300 hover:bg-sky-500/20 hover:border-sky-500/50'}"
+          <svg
+            class="w-4 h-4"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
           >
-            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-              />
-            </svg>
-            {exportFormat === 'apkg' ? 'APKG' : 'TSV'}
-          </button>
-          <div class="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-50
-            rounded-lg border border-white/10 bg-gray-950/95 px-3 py-2 text-xs text-gray-300 shadow-xl
-            opacity-0 group-hover/fmt:opacity-100 transition-opacity duration-150 whitespace-nowrap text-center">
-            {t("flashcards.clickToToggleFormat")}
-          </div>
-        </div>
-
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M6 18L18 6M6 6l12 12"
+            />
+          </svg>
+          {t("flashcards.cancel")}
+        </button>
+      </div>
+    {:else}
+      <!-- Left side: Note type template (default note type of the template) -->
+      <div class="flex items-center">
         <!-- Template toggle button -->
         <div class="relative group/tmpl">
           <button
@@ -5323,151 +5344,195 @@
             </svg>
             {t("settings.noteType")}: {activeNoteType.name}
           </button>
-          <div class="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-50
-            rounded-lg border border-white/10 bg-gray-950/95 px-3 py-2 text-xs text-gray-300 shadow-xl
-            opacity-0 group-hover/tmpl:opacity-100 transition-opacity duration-150 whitespace-nowrap text-center">
+          <div class="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-3 z-50
+            rounded-xl border border-violet-500/30 bg-gray-950/95 p-3 text-xs text-violet-300 shadow-2xl shadow-black/40 ring-1 ring-white/10
+            opacity-0 group-hover/tmpl:opacity-100 transition-all duration-150 whitespace-nowrap text-center">
             {t("flashcards.clickToCycleTemplates")}
           </div>
         </div>
+      </div>
 
-        <!-- Series output mode inline selector (only visible in series mode + apkg) -->
-        {#if seriesMode && exportFormat === "apkg"}
-          <div class="flex items-center gap-1 p-1 rounded-lg border border-gray-700/60 bg-gray-800/60">
+      <!-- Right side: Export format toggle button, series output mode selector, and action buttons -->
+      <div class="flex items-center gap-4">
+        <div class="flex items-center gap-2">
+          <!-- Format toggle button -->
+          <div class="relative group/fmt">
             <button
-              onclick={() => (seriesOutputMode = "separate")}
-              class="px-2.5 py-1 rounded text-xs font-semibold transition-all
-                {seriesOutputMode === 'separate'
-                  ? 'bg-violet-500/20 border border-violet-500/50 text-violet-200'
-                  : 'text-gray-500 hover:text-gray-300 border border-transparent'}"
-              title={t("flashcards.outputPerEpisodeDesc")}
+              type="button"
+              onclick={() => (exportFormat = exportFormat === 'apkg' ? 'tsv' : 'apkg')}
+              oncontextmenu={(e) => openBottomContextMenu(e, "overview")}
+              onmousedown={(e) => {
+                if (e.button === 1) {
+                  e.preventDefault();
+                  onGoToSettings?.("overview");
+                }
+              }}
+              class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] cursor-pointer select-none
+                {exportFormat === 'apkg'
+                  ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20 hover:border-emerald-500/50'
+                  : 'border-sky-500/40 bg-sky-500/10 text-sky-300 hover:bg-sky-500/20 hover:border-sky-500/50'}"
             >
-              {t("flashcards.outputPerEpisode")}
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                />
+              </svg>
+              {exportFormat === 'apkg' ? 'APKG' : 'TSV'}
             </button>
-            <button
-              onclick={() => (seriesOutputMode = "single")}
-              class="px-2.5 py-1 rounded text-xs font-semibold transition-all
-                {seriesOutputMode === 'single'
-                  ? 'bg-violet-500/20 border border-violet-500/50 text-violet-200'
-                  : 'text-gray-500 hover:text-gray-300 border border-transparent'}"
-              title={t("flashcards.outputSingleApkgDesc")}
-            >
-              {t("flashcards.outputSingleApkg")}
-            </button>
+            <div class="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-3 z-50
+              rounded-xl bg-gray-950/95 p-3 text-xs shadow-2xl shadow-black/40 ring-1 ring-white/10
+              opacity-0 group-hover/fmt:opacity-100 transition-all duration-150 whitespace-nowrap text-center border {exportFormat === 'apkg' ? 'border-emerald-500/30 text-emerald-300' : 'border-sky-500/30 text-sky-300'}">
+              {t("flashcards.clickToToggleFormat")}
+            </div>
           </div>
-        {/if}
-      </div>
-      <div class="relative group">
-        <button
-          class="px-5 py-2.5 bg-gray-800 hover:bg-gray-700 disabled:bg-gray-800 text-gray-300 disabled:text-gray-500 rounded-xl font-bold text-sm transition-all border border-white/10 flex items-center gap-2 enabled:hover:scale-[1.02] enabled:active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-          disabled={!canRunFlashcards}
-          onclick={loadPreview}
-        >
-          <svg
-            class="w-4 h-4"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-            />
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-            />
-          </svg>
-          {t("flashcards.preview")}
-        </button>
-        <div class="pointer-events-none absolute bottom-full left-1/2 z-50 mb-3 -translate-x-1/2 rounded-xl border border-amber-500/30 bg-gray-950/95 p-3 text-center text-xs text-amber-300 shadow-2xl shadow-black/40 ring-1 ring-white/10 transition-all duration-150 delay-0 group-hover:delay-300 opacity-0 group-hover:opacity-100 group-hover:translate-y-0 translate-y-1 whitespace-nowrap">
-          {!canRunFlashcards ? `Completa: ${generationRequirementsText}` : t("flashcards.preview")}
-        </div>
-      </div>
 
-      <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
-      <div
-        class="group relative"
-        role={!canRunFlashcards ? "button" : undefined}
-        tabindex={!canRunFlashcards ? 0 : undefined}
-        onclick={() => {
-          if (!canRunFlashcards) promptMissingGenerationRequirements();
-        }}
-        onmouseleave={closeGenerationPrompt}
-        onfocusout={closeGenerationPrompt}
-        onkeydown={(event) => {
-          if (!canRunFlashcards && (event.key === "Enter" || event.key === " ")) {
-            event.preventDefault();
-            promptMissingGenerationRequirements();
-          }
-        }}
-      >
-        <button
-          onclick={startGeneration}
-          disabled={!canRunFlashcards}
-          aria-describedby={!canRunFlashcards ? "flashcards-generate-requirements" : undefined}
-          class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:bg-emerald-600/55 text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-emerald-900/30 flex items-center gap-2 enabled:hover:scale-[1.02] enabled:active:scale-[0.98] disabled:cursor-help disabled:opacity-55 {!canRunFlashcards ? 'pointer-events-none saturate-75' : 'cursor-pointer'}"
-        >
-          <svg
-            class="w-4 h-4"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M13 10V3L4 14h7v7l9-11h-7z"
-            />
-          </svg>
-          {t("flashcards.generate")}
-        </button>
-        {#if !canRunFlashcards}
+          <!-- Series output mode inline selector (only visible in series mode + apkg) -->
+          {#if seriesMode && exportFormat === "apkg"}
+            <div class="flex items-center bg-gray-800/60 border border-gray-700/60 rounded-lg p-0.5 select-none relative group/sw">
+              <!-- Sliding indicator background -->
+              <div 
+                class="absolute top-0.5 bottom-0.5 left-0.5 rounded-md bg-violet-500/20 border border-violet-500/50 transition-all duration-200 ease-out"
+                style="width: 160px; transform: translateX({seriesOutputMode === 'separate' ? '0px' : '160px'});"
+              ></div>
+
+              <button
+                onclick={() => { seriesOutputMode = seriesOutputMode === 'separate' ? 'single' : 'separate'; }}
+                class="w-[160px] py-1 rounded-md text-xs font-semibold transition-colors duration-200 flex items-center justify-center cursor-pointer select-none relative z-10
+                  {seriesOutputMode === 'separate' ? 'text-violet-200' : 'text-gray-500 hover:text-gray-300'}"
+              >
+                {t("flashcards.outputPerEpisode")}
+              </button>
+              <button
+                onclick={() => { seriesOutputMode = seriesOutputMode === 'separate' ? 'single' : 'separate'; }}
+                class="w-[160px] py-1 rounded-md text-xs font-semibold transition-colors duration-200 flex items-center justify-center cursor-pointer select-none relative z-10
+                  {seriesOutputMode === 'single' ? 'text-violet-200' : 'text-gray-500 hover:text-gray-300'}"
+              >
+                {t("flashcards.outputSingleApkg")}
+              </button>
+
+              <!-- Custom premium tooltip -->
+              <div 
+                class="pointer-events-none absolute bottom-full z-50 mb-3 -translate-x-1/2 rounded-xl border border-violet-500/30 bg-gray-950/95 p-3 text-center text-xs text-violet-300 shadow-2xl shadow-black/40 ring-1 ring-white/10 transition-all duration-150 delay-0 group-hover/sw:delay-300 opacity-0 group-hover/sw:opacity-100 group-hover/sw:translate-y-0 translate-y-1 whitespace-normal max-w-[280px] w-max"
+                style="left: {seriesOutputMode === 'separate' ? '82px' : '242px'};"
+              >
+                {seriesOutputMode === 'separate' ? t("flashcards.outputPerEpisodeDesc") : t("flashcards.outputSingleApkgDesc")}
+              </div>
+            </div>
+          {/if}
+        </div>
+        {#if !result}
+          <div class="relative group">
+            <button
+              class="px-5 py-2.5 bg-gray-800 hover:bg-gray-700 disabled:bg-gray-800 text-gray-300 disabled:text-gray-500 rounded-xl font-bold text-sm transition-all border border-white/10 flex items-center gap-2 enabled:hover:scale-[1.02] enabled:active:scale-[0.98] disabled:opacity-55 disabled:cursor-not-allowed cursor-pointer"
+              disabled={!canRunFlashcards}
+              onclick={loadPreview}
+            >
+              <svg
+                class="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                />
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                />
+              </svg>
+              {t("flashcards.preview")}
+            </button>
+            <div class="pointer-events-none absolute bottom-full left-1/2 z-50 mb-3 -translate-x-1/2 rounded-xl border border-amber-500/30 bg-gray-950/95 p-3 text-center text-xs text-amber-300 shadow-2xl shadow-black/40 ring-1 ring-white/10 transition-all duration-150 delay-0 group-hover:delay-300 opacity-0 group-hover:opacity-100 group-hover:translate-y-0 translate-y-1 whitespace-normal w-72">
+              {!canRunFlashcards ? `Completa: ${generationRequirementsText}` : t("flashcards.preview")}
+            </div>
+          </div>
+
+          <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
           <div
-            id="flashcards-generate-requirements"
-            class="pointer-events-none absolute bottom-full left-1/2 z-40 mb-3 w-[min(22rem,calc(100vw-3rem))] -translate-x-1/2 rounded-xl border border-amber-400/30 bg-gray-950/95 p-3 text-left text-xs text-gray-200 opacity-0 shadow-2xl shadow-black/40 ring-1 ring-white/10 transition-all duration-150 delay-0 group-hover:delay-300 group-hover:opacity-100 group-hover:translate-y-0 {generationPromptOpen ? 'opacity-100 translate-y-0' : 'translate-y-1'}"
+            class="group relative"
+            role={!canRunFlashcards ? "button" : undefined}
+            tabindex={!canRunFlashcards ? 0 : undefined}
+            onclick={() => {
+              if (!canRunFlashcards) promptMissingGenerationRequirements();
+            }}
+            onmouseleave={closeGenerationPrompt}
+            onfocusout={closeGenerationPrompt}
+            onkeydown={(event) => {
+              if (!canRunFlashcards && (event.key === "Enter" || event.key === " ")) {
+                event.preventDefault();
+                promptMissingGenerationRequirements();
+              }
+            }}
           >
-            <p class="mb-2 font-semibold text-amber-200">
-              Mancano ancora questi passaggi:
-            </p>
-            <ol class="list-decimal space-y-1 pl-4 text-gray-300">
-              {#each generationRequirements as requirement}
-                <li>{requirement.label}</li>
-              {/each}
-            </ol>
+            <button
+              onclick={startGeneration}
+              disabled={!canRunFlashcards}
+              aria-describedby={!canRunFlashcards ? "flashcards-generate-requirements" : undefined}
+              class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:bg-emerald-600/55 text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-emerald-900/30 flex items-center gap-2 enabled:hover:scale-[1.02] enabled:active:scale-[0.98] disabled:cursor-help disabled:opacity-55 {!canRunFlashcards ? 'pointer-events-none saturate-75' : 'cursor-pointer'}"
+            >
+              <svg
+                class="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M13 10V3L4 14h7v7l9-11h-7z"
+                />
+              </svg>
+              {t("flashcards.generate")}
+            </button>
+            {#if !canRunFlashcards}
+              <div
+                id="flashcards-generate-requirements"
+                class="pointer-events-none absolute bottom-full left-1/2 z-40 mb-3 w-[min(22rem,calc(100vw-3rem))] -translate-x-1/2 rounded-xl border border-amber-400/30 bg-gray-950/95 p-3 text-left text-xs text-gray-200 opacity-0 shadow-2xl shadow-black/40 ring-1 ring-white/10 transition-all duration-150 delay-0 group-hover:delay-300 group-hover:opacity-100 group-hover:translate-y-0 {generationPromptOpen ? 'opacity-100 translate-y-0' : 'translate-y-1'}"
+              >
+                <p class="mb-2 font-semibold text-amber-200">
+                  Mancano ancora questi passaggi:
+                </p>
+                <ol class="list-decimal space-y-1 pl-4 text-gray-300">
+                  {#each generationRequirements as requirement}
+                    <li>{requirement.label}</li>
+                  {/each}
+                </ol>
+              </div>
+            {/if}
+          </div>
+        {:else}
+          <div class="relative group">
+            <button
+              onclick={resetGeneration}
+              class="px-5 py-2.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 rounded-xl font-bold text-sm transition-all border border-amber-500/30 flex items-center gap-2 hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
+            >
+              <svg
+                class="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                />
+              </svg>
+              {t("flashcards.newGeneration")}
+            </button>
+            <div class="pointer-events-none absolute bottom-full left-1/2 z-50 mb-3 -translate-x-1/2 rounded-xl border border-amber-500/30 bg-gray-950/95 p-3 text-center text-xs text-amber-300 shadow-2xl shadow-black/40 ring-1 ring-white/10 transition-all duration-150 delay-0 group-hover:delay-300 opacity-0 group-hover:opacity-100 group-hover:translate-y-0 translate-y-1 whitespace-normal w-72">
+              {t("flashcards.newGenerationDesc")}
+            </div>
           </div>
         {/if}
-      </div>
-    {/if}
-
-    {#if result}
-      <div class="relative group">
-        <button
-          onclick={resetGeneration}
-          class="px-5 py-2.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 rounded-xl font-bold text-sm transition-all border border-amber-500/30 flex items-center gap-2 hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
-        >
-          <svg
-            class="w-4 h-4"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-            />
-          </svg>
-          {t("flashcards.newGeneration")}
-        </button>
-        <div class="pointer-events-none absolute bottom-full left-1/2 z-50 mb-3 -translate-x-1/2 rounded-xl border border-amber-500/30 bg-gray-950/95 p-3 text-center text-xs text-amber-300 shadow-2xl shadow-black/40 ring-1 ring-white/10 transition-all duration-150 delay-0 group-hover:delay-300 opacity-0 group-hover:opacity-100 group-hover:translate-y-0 translate-y-1 whitespace-nowrap">
-          {t("flashcards.newGenerationDesc")}
-        </div>
       </div>
     {/if}
   </div>

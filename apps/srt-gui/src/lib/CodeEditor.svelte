@@ -13,6 +13,8 @@
     id = "",
     class: classProp = "",
     textareaClass = "",
+    wrap = false,
+    lineNumbers = !wrap,
   } = $props();
 
   let history = $state<string[]>([value || ""]);
@@ -370,6 +372,7 @@
   class={`relative flex w-full ${heightClass} bg-gray-900 rounded-lg overflow-hidden border border-white/10 group focus-within:border-indigo-500/50 transition-colors ${classProp}`}
 >
   <!-- Line Numbers -->
+  {#if lineNumbers}
   <div 
     onclick={() => textareaElement?.focus()}
     class="w-10 bg-black/40 py-3 text-right pr-2 text-sm font-mono text-gray-600 select-none overflow-hidden shrink-0 cursor-text"
@@ -380,10 +383,11 @@
       {/each}
     </div>
   </div>
+  {/if}
 
   <div class="relative flex-1 overflow-hidden h-full">
     <!-- Highlighted Code -->
-    <pre class="absolute w-full p-3 m-0 font-mono text-sm leading-relaxed text-gray-300 whitespace-pre break-normal pointer-events-none" aria-hidden="true" style="transform: translate(-{scrollLeft}px, -{scrollTop}px);">{@html highlight(value, language)}<br/></pre>
+    <pre class="absolute w-full pt-3 pb-3 pl-3 pr-9 m-0 font-mono text-sm leading-relaxed text-gray-300 pointer-events-none {wrap ? 'whitespace-pre-wrap break-words' : 'whitespace-pre break-normal'}" aria-hidden="true" style="transform: translate(-{wrap ? 0 : scrollLeft}px, -{scrollTop}px);">{@html highlight(value, language)}<br/></pre>
     
     <!-- Transparent Textarea -->
     <textarea
@@ -397,10 +401,10 @@
       oncontextmenu={openContextMenu}
       onscroll={(e) => {
         scrollTop = e.currentTarget.scrollTop;
-        scrollLeft = e.currentTarget.scrollLeft;
+        if (!wrap) scrollLeft = e.currentTarget.scrollLeft;
       }}
-      wrap="off"
-      class="absolute inset-0 w-full h-full p-3 m-0 font-mono text-sm leading-relaxed text-transparent bg-transparent border-none resize-none outline-none caret-white whitespace-pre break-normal pr-9 custom-scrollbar {textareaClass}"
+      wrap={wrap ? "soft" : "off"}
+      class="absolute inset-0 w-full h-full p-3 m-0 font-mono text-sm leading-relaxed text-transparent bg-transparent border-none resize-none outline-none caret-white pr-9 custom-scrollbar {wrap ? 'whitespace-pre-wrap break-words overflow-x-hidden' : 'whitespace-pre break-normal'} {textareaClass}"
       spellcheck="false"
     ></textarea>
 

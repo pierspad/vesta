@@ -114,3 +114,50 @@ export async function fetchModelsFromEndpoint(
   if (models.length === 0) throw new Error("No models found");
   return models;
 }
+
+/**
+ * Scopre i modelli disponibili per un provider, gestendo le differenze di API:
+ *  - Google Gemini: GET {base}/models?key=KEY, filtra a generateContent, rimuove "models/".
+ *  - Tutto il resto (OpenAI-compatible): GET {base}/models con Bearer.
+ *
+ * Pensata per essere chiamata a runtime così che nuovi modelli compaiano senza
+ * dover aggiornare l'app.
+ */
+export async function discoverModels(
+  provider: string,
+  apiKey: string,
+  apiUrl: string,
+  timeoutMs = 8000,
+): Promise<DiscoveredModel[]> {
+  const p = provider.toLowerCase();
+
+  if (p === "google" || p === "gemini") {
+    const base = (apiUrl || "https://generativelanguage.googleapis.com/v1beta")
+      .trim()
+      .replace(/\/+$/, "");
+    const url = `${base}/models?key=${encodeURIComponent(apiKey.trim())}`;
+    const resp = await tauriFetch(url, {
+      method: "GET",
+      headers: { Accept: "application/json" },
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const data = (await resp.json()) as { models?: any[] };
+    const arr = Array.isArray(data?.models) ? data.models : [];
+    const seen = new Set<string>();
+    const models: DiscoveredModel[] = [];
+    for (const m of arr) {
+      const methods = m?.supportedGenerationMethods;
+      if (Array.isArray(methods) && !methods.includes("generateContent")) continue;
+      const id = String(m?.name || m?.id || "").replace(/^models\//, "").trim();
+      if (!id || seen.has(id)) continue;
+      seen.add(id);
+      models.push({ id, name: String(m?.displayName || id).trim() || id });
+    }
+    if (models.length === 0) throw new Error("No models found");
+    return models;
+  }
+
+  // OpenAI-compatible (groq, openrouter, mistral, github, nvidia, local, custom).
+  return fetchModelsFromEndpoint(apiUrl, apiKey, timeoutMs);
+}

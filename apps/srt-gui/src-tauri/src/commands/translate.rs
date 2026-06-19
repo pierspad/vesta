@@ -10,25 +10,159 @@ use tokio_util::sync::CancellationToken;
 
 use srt_parser::SrtParser;
 use srt_translate::{
-    ApiType, RateLimitConfig, TranslationProgress, Translator, TranslatorConfig,
-    translate_subtitles_with_rate_limit_cancellable,
+    ApiType, PoolEntry, RateLimitConfig, TranslationProgress, Translator, TranslatorConfig,
+    TranslatorPool, translate_subtitles_tiered_cancellable,
 };
 
 use crate::state::AppTranslateState;
 
-/// Configurazione per la traduzione
+/// Una singola entry di un tier: provider + modello + key + opzioni.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TierEntryConfig {
+    /// Provider id: "google" | "groq" | "openrouter" | "mistral" | "github" | "nvidia" | "local" | "custom".
+    pub provider: String,
+    /// Id del modello da chiamare.
+    pub model: String,
+    /// API key (assente per i provider locali).
+    pub api_key: Option<String>,
+    /// Base URL personalizzato (richiesto per "custom").
+    pub api_url: Option<String>,
+    /// Limite richieste/minuto desiderato (override del default per provider).
+    pub rpm: Option<u32>,
+    /// Budget opzionale di richieste per questo run.
+    pub max_requests: Option<u32>,
+}
+
+/// Configurazione per la traduzione.
+///
+/// La traduzione è guidata interamente dai `tiers` (lista di priorità con
+/// failover automatico). `tiers[0]` ha la priorità massima.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TranslateConfig {
     pub input_path: String,
     pub output_path: String,
     pub target_lang: String,
-    pub api_keys: Vec<String>,
-    pub api_type: String, // "local" or "openrouter"
     pub batch_size: usize,
     pub resume_overlap: Option<usize>,
     pub title_context: Option<String>,
-    pub api_url: Option<String>,
-    pub model: Option<String>,
+
+    /// Tier in ordine di priorità: `tiers[0]` ha la priorità massima.
+    pub tiers: Vec<Vec<TierEntryConfig>>,
+}
+
+/// Default per provider: (tipo API, base URL, RPM consigliato, modello di default).
+fn provider_defaults(provider: &str) -> (ApiType, &'static str, u32, &'static str) {
+    match provider.to_lowercase().as_str() {
+        "google" | "gemini" => (
+            ApiType::Google,
+            "https://generativelanguage.googleapis.com/v1beta",
+            15,
+            "gemini-2.5-flash",
+        ),
+        "groq" => (
+            ApiType::Groq,
+            "https://api.groq.com/openai/v1",
+            30,
+            "llama-3.3-70b-versatile",
+        ),
+        "openrouter" => (
+            ApiType::OpenRouter,
+            "https://openrouter.ai/api/v1",
+            20,
+            "google/gemini-2.0-flash-001",
+        ),
+        "mistral" => (
+            ApiType::Local,
+            "https://api.mistral.ai/v1",
+            30,
+            "mistral-small-latest",
+        ),
+        "github" => (
+            ApiType::Local,
+            "https://models.github.ai/inference",
+            10,
+            "openai/gpt-4o-mini",
+        ),
+        "nvidia" => (
+            ApiType::Local,
+            "https://integrate.api.nvidia.com/v1",
+            40,
+            "meta/llama-3.3-70b-instruct",
+        ),
+        // local / custom / sconosciuti: OpenAI-compatible, nessun rate limit di default.
+        _ => (ApiType::Local, "http://localhost:11434/v1", 0, "llama3.2"),
+    }
+}
+
+/// Costruisce una `PoolEntry` da una entry di tier.
+fn build_pool_entry(entry: &TierEntryConfig, tier_human: usize) -> PoolEntry {
+    let (api_type, default_url, default_rpm, default_model) = provider_defaults(&entry.provider);
+
+    let base_url = entry
+        .api_url
+        .clone()
+        .filter(|u| !u.trim().is_empty())
+        .unwrap_or_else(|| default_url.to_string());
+
+    let model = if entry.model.trim().is_empty() {
+        default_model.to_string()
+    } else {
+        entry.model.clone()
+    };
+
+    let api_key = entry
+        .api_key
+        .clone()
+        .filter(|k| !k.trim().is_empty());
+
+    let translator = Translator::new(TranslatorConfig {
+        api_type,
+        api_key,
+        base_url,
+        model: model.clone(),
+    });
+
+    // Rate limiter: usa l'rpm dichiarato, altrimenti il default del provider.
+    // rpm == 0 significa "nessun limite" (es. local).
+    let rpm = entry.rpm.unwrap_or(default_rpm);
+    let rate_limiter = if rpm > 0 {
+        Some(RateLimitConfig::with_burst(rpm, 3).create_limiter())
+    } else {
+        None
+    };
+
+    PoolEntry {
+        translator,
+        rate_limiter,
+        max_requests: entry.max_requests.filter(|n| *n > 0),
+        label: format!("T{} · {} · {}", tier_human, entry.provider, model),
+    }
+}
+
+/// Costruisce il pool a tier dalla configurazione. Le entry senza modello o,
+/// per i provider remoti, senza key valida vengono scartate.
+fn build_pool(config: &TranslateConfig) -> Result<TranslatorPool, String> {
+    let pool: TranslatorPool = config
+        .tiers
+        .iter()
+        .enumerate()
+        .map(|(ti, tier)| {
+            tier.iter()
+                .filter(|e| !e.model.trim().is_empty())
+                .map(|e| build_pool_entry(e, ti + 1))
+                .collect::<Vec<PoolEntry>>()
+        })
+        .filter(|t| !t.is_empty())
+        .collect();
+
+    if pool.is_empty() {
+        return Err(
+            "Nessun tier configurato. Aggiungi almeno un endpoint nei Tier di precedenza."
+                .to_string(),
+        );
+    }
+
+    Ok(pool)
 }
 
 /// Evento di progresso emesso al frontend
@@ -142,72 +276,16 @@ async fn perform_translation(
 
     let total_count = subtitles.len();
 
-    // Determina il tipo di API - ora supporta: Local e Google (OpenRouter disabilitato)
-    let api_type = match config.api_type.to_lowercase().as_str() {
-        "local" => ApiType::Local,
-        "google" | "gemini" => ApiType::Google,
-        "groq" => ApiType::Groq,
-        "custom" => ApiType::Local, // Custom providers use OpenAI-compatible API
-        // OpenRouter e altri sono disabilitati per ora
-        "openrouter" | "openai" | "anthropic" | "mistral" => {
-            return Err("Provider disabilitato. Usa 'google', 'local' o 'groq'.".to_string());
-        }
-        _ => return Err(format!("Tipo API non supportato: {}. Usa 'google', 'local' o 'groq'.", config.api_type)),
-    };
+    // Costruisce il pool a tier. Se `config.tiers` è presente lo usa direttamente;
+    // altrimenti ricade sui campi legacy creando un singolo tier (un'entry per key).
+    let pool: TranslatorPool = build_pool(&config)?;
 
-    // Determina URL base sul tipo
-    let base_url = config.api_url.unwrap_or_else(|| {
-        match api_type {
-            ApiType::Local => "http://localhost:11434/v1".to_string(),
-            ApiType::Google => "https://generativelanguage.googleapis.com/v1beta".to_string(),
-            ApiType::Groq => "https://api.groq.com/openai/v1".to_string(),
-            ApiType::OpenRouter => "https://openrouter.ai/api/v1".to_string(), // Non usato
-        }
-    });
-
-    // Determina il modello - per Google, usa solo il nome del modello senza prefisso
-    let model = config.model.unwrap_or_else(|| {
-        match api_type {
-            ApiType::Local => "llama3.2".to_string(),
-            ApiType::Google => "gemini-2.0-flash".to_string(),
-            ApiType::Groq => "llama-3.3-70b-versatile".to_string(),
-            ApiType::OpenRouter => "google/gemini-2.0-flash-001".to_string(), // Non usato
-        }
-    });
-
-    // Se la lista chiavi è vuota ma il tipo richiede chiavi (es. Google), errore
-    // Per local, possiamo avere lista vuota
-    let keys = if config.api_keys.is_empty() {
-        if api_type == ApiType::Local {
-            vec!["".to_string()] // Empty key for local
-        } else {
-            return Err("Nessuna chiave API fornita. Aggiungi le tue chiavi API nelle impostazioni.".to_string());
-        }
-    } else {
-        config.api_keys.clone()
-    };
-
-    let mut translators = Vec::new();
-    let mut rate_limiters = Vec::new();
-
-    // Crea un translator per ogni chiave API (rotazione round-robin)
-    for key in keys {
-        // Crea il translator con la configurazione corretta
-        let translator_config = TranslatorConfig {
-            api_type: api_type.clone(),
-            api_key: if key.is_empty() { None } else { Some(key) },
-            base_url: base_url.clone(),
-            model: model.clone(),
-        };
-
-        translators.push(Translator::new(translator_config));
-        
-        // Crea rate limiter per ogni chiave (15 RPM per Gemini free tier, 1000 per pay-as-you-go)
-        // Usiamo 15 RPM come default conservativo, con burst=3 per evitare freeze iniziale
-        let rate_limit_config = RateLimitConfig::with_burst(15, 3);
-        rate_limiters.push(rate_limit_config.create_limiter());
+    if pool.is_empty() || pool.iter().all(|t| t.is_empty()) {
+        return Err(
+            "Nessun endpoint di traduzione configurato. Aggiungi almeno una key/tier nelle impostazioni."
+                .to_string(),
+        );
     }
-
 
     let output_path = PathBuf::from(&config.output_path);
 
@@ -241,10 +319,9 @@ async fn perform_translation(
         }
     };
 
-    // Esegui la traduzione con supporto per cancellazione
-    let translated: anyhow::Result<std::collections::HashMap<u32, srt_parser::Subtitle>> = translate_subtitles_with_rate_limit_cancellable(
-        translators,
-        Some(rate_limiters),
+    // Esegui la traduzione a tier con failover automatico e supporto cancellazione.
+    let translated: anyhow::Result<std::collections::HashMap<u32, srt_parser::Subtitle>> = translate_subtitles_tiered_cancellable(
+        pool,
         subtitles,
         &config.target_lang,
         config.batch_size,
