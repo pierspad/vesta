@@ -43,9 +43,9 @@
 
   let displayValue = $derived.by(() => {
     if (isOpen) return searchQuery;
-    return selectedOption
-      ? `${selectedOption.icon || ""} ${selectedOption.label}`.trim()
-      : "";
+    if (!selectedOption) return "";
+    const hasHtmlIcon = selectedOption.icon && selectedOption.icon.trim().startsWith("<");
+    return hasHtmlIcon ? selectedOption.label : `${selectedOption.icon || ""} ${selectedOption.label}`.trim();
   });
 
   let filteredOptions = $derived.by(() => {
@@ -181,6 +181,13 @@
         <ProviderIcon provider={selectedOption.provider} size="w-5.5 h-5.5" glyph="w-3.5 h-3.5" rounded="rounded-md" />
       </div>
     {/if}
+    {#if selectedOption?.icon && !isOpen}
+      {#if selectedOption.icon.trim().startsWith("<")}
+        <div class="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none z-10 text-gray-400 flex items-center justify-center">
+          {@html selectedOption.icon}
+        </div>
+      {/if}
+    {/if}
     <input
       bind:this={inputElement}
       type="text"
@@ -192,7 +199,7 @@
       {placeholder}
       disabled={disabled}
       class="searchable-select-input w-full disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-white/[0.02]"
-      style:padding-left={selectedOption?.provider && !isOpen ? "38px" : ""}
+      style:padding-left={(selectedOption?.provider || (selectedOption?.icon && selectedOption.icon.trim().startsWith("<"))) && !isOpen ? "38px" : ""}
       autocomplete="off"
     />
     <div
@@ -244,7 +251,11 @@
               </span>
             {/if}
             {#if option.icon}
-              <span class="mr-2">{option.icon}</span>
+              {#if option.icon.trim().startsWith("<")}
+                <span class="mr-2 flex items-center justify-center">{@html option.icon}</span>
+              {:else}
+                <span class="mr-2">{option.icon}</span>
+              {/if}
             {/if}
             <span>{option.label}</span>
             {#if option.value === value}

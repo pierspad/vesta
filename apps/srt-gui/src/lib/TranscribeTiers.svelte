@@ -424,10 +424,14 @@
                                 const isLocal = entry.provider === "local" || entry.provider === "local_whisper";
                                 const modelDetail = isLocal ? whisperModels.find(wm => wm.id === m.id) : null;
                                 const isDownloaded = modelDetail ? modelDetail.downloaded : false;
-                                const statusSuffix = isLocal ? (isDownloaded ? ` (${t("settings.ready") || "Pronto"})` : ` (${t("settings.notDownloaded") || "Non scaricato"})`) : "";
+                                
+                                const readyIcon = `<svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>`;
+                                const notDownloadedIcon = `<svg class="w-4 h-4 text-red-500/80" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1" /><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v8m0 0l-3-3m3 3l3-3" /><path stroke-linecap="round" stroke-linejoin="round" d="M3 3l18 18" /></svg>`;
+                                
                                 return {
                                   value: m.id,
-                                  label: `${m.name}${statusSuffix}${m.recommended ? " ★" : ""}`
+                                  label: m.name,
+                                  icon: isLocal ? (isDownloaded ? readyIcon : notDownloadedIcon) : ""
                                 };
                               }),
                               ...((entry.provider === "local" || entry.provider === "local_whisper") ? [] : [{ value: "__custom__", label: t("tiers.customModel") || "Modello personalizzato..." }])

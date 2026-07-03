@@ -214,15 +214,51 @@
   const batchPresets = [
     { id: "precise", value: 5 },
     { id: "balanced", value: 15 },
-    { id: "fast", value: 30 },
-    { id: "turbo", value: 50 },
+    { id: "fast", value: 50 },
+    { id: "turbo", value: 100 },
   ] as const;
   let activeBatchPreset = $derived(
-    batchPresets.find((p) => p.value === batchSize)?.id ?? null,
+    (() => {
+      let closest = batchPresets[0];
+      let minDiff = Math.abs(batchSize - closest.value);
+      for (const preset of batchPresets) {
+        const diff = Math.abs(batchSize - preset.value);
+        if (diff < minDiff) {
+          minDiff = diff;
+          closest = preset;
+        }
+      }
+      return closest.id;
+    })()
   );
   function setBatchPreset(presetId: string) {
     const preset = batchPresets.find((p) => p.id === presetId);
     if (preset) batchSize = preset.value;
+  }
+
+  const overlapPresets = [
+    { id: "none", value: 0 },
+    { id: "minimal", value: 1 },
+    { id: "balanced", value: 2 },
+    { id: "high", value: 5 },
+  ] as const;
+  let activeOverlapPreset = $derived(
+    (() => {
+      let closest = overlapPresets[0];
+      let minDiff = Math.abs(resumeOverlap - closest.value);
+      for (const preset of overlapPresets) {
+        const diff = Math.abs(resumeOverlap - preset.value);
+        if (diff < minDiff) {
+          minDiff = diff;
+          closest = preset;
+        }
+      }
+      return closest.id;
+    })()
+  );
+  function setOverlapPreset(presetId: string) {
+    const preset = overlapPresets.find((p) => p.id === presetId);
+    if (preset) resumeOverlap = preset.value;
   }
 
   let fileInfo = $state<SrtFileInfo | null>(null);
@@ -1235,40 +1271,54 @@
                 <div class="pt-4 border-t border-white/5">
                   <div class="flex items-center gap-2 mb-3">
                     <span class="block text-sm font-semibold text-white">
-                      {t("translate.contextTitle")}
+                      {t("translate.resumeOverlap")}
                     </span>
                     <span class="text-[9px] uppercase tracking-wide font-semibold px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400 border border-amber-500/25">
                       {t("translate.contextCostHint")}
                     </span>
                   </div>
-                  <div class="grid grid-cols-3 gap-2">
+                  <div class="grid grid-cols-4 gap-2">
                     <button
                       type="button"
-                      onclick={() => (resumeOverlap = 0)}
-                      class="p-2.5 rounded-lg text-center transition-all duration-200 border text-xs cursor-pointer
-                        {resumeOverlap === 0
+                      onclick={() => setOverlapPreset('none')}
+                      class="p-2.5 rounded-lg text-center transition-all duration-200 border text-[11px] cursor-pointer truncate
+                        {activeOverlapPreset === 'none'
                           ? 'bg-green-500/20 border-green-500/50 text-white font-semibold shadow-sm'
                           : 'bg-white/5 hover:bg-white/10 border-transparent text-gray-400 hover:text-white'}"
+                      title={t("translate.overlapNone")}
                     >
                       {t("translate.overlapNone")}
                     </button>
                     <button
                       type="button"
-                      onclick={() => (resumeOverlap = 2)}
-                      class="p-2.5 rounded-lg text-center transition-all duration-200 border text-xs cursor-pointer
-                        {resumeOverlap === 2
+                      onclick={() => setOverlapPreset('minimal')}
+                      class="p-2.5 rounded-lg text-center transition-all duration-200 border text-[11px] cursor-pointer truncate
+                        {activeOverlapPreset === 'minimal'
                           ? 'bg-green-500/20 border-green-500/50 text-white font-semibold shadow-sm'
                           : 'bg-white/5 hover:bg-white/10 border-transparent text-gray-400 hover:text-white'}"
+                      title={t("translate.overlapMinimal")}
+                    >
+                      {t("translate.overlapMinimal")}
+                    </button>
+                    <button
+                      type="button"
+                      onclick={() => setOverlapPreset('balanced')}
+                      class="p-2.5 rounded-lg text-center transition-all duration-200 border text-[11px] cursor-pointer truncate
+                        {activeOverlapPreset === 'balanced'
+                          ? 'bg-green-500/20 border-green-500/50 text-white font-semibold shadow-sm'
+                          : 'bg-white/5 hover:bg-white/10 border-transparent text-gray-400 hover:text-white'}"
+                      title={t("translate.overlapNormal")}
                     >
                       {t("translate.overlapNormal")}
                     </button>
                     <button
                       type="button"
-                      onclick={() => (resumeOverlap = 4)}
-                      class="p-2.5 rounded-lg text-center transition-all duration-200 border text-xs cursor-pointer
-                        {resumeOverlap === 4
+                      onclick={() => setOverlapPreset('high')}
+                      class="p-2.5 rounded-lg text-center transition-all duration-200 border text-[11px] cursor-pointer truncate
+                        {activeOverlapPreset === 'high'
                           ? 'bg-green-500/20 border-green-500/50 text-white font-semibold shadow-sm'
                           : 'bg-white/5 hover:bg-white/10 border-transparent text-gray-400 hover:text-white'}"
+                      title={t("translate.overlapHigh")}
                     >
                       {t("translate.overlapHigh")}
                     </button>

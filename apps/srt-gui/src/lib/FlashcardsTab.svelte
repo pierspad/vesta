@@ -80,7 +80,7 @@
   const EXPORT_FORMAT_KEY = "vesta-export-format";
   const SERIES_OUTPUT_MODE_KEY = "vesta-series-output-mode";
 
-  let smartFileMatchingEnabled = $derived(smartMatchingStore.enabled);
+  let smartFileMatchingEnabled = $derived(uiMode.easyMode || smartMatchingStore.enabled);
 
 
 
@@ -1143,6 +1143,26 @@
   let videoPadStart = $state(250);
   let videoPadEnd = $state(50);
 
+  // Tracks changes to snapshots / video clips toggles to enforce mutual exclusivity in APKG mode.
+  let prevGenerateSnapshots = $state(true);
+  let prevGenerateVideoClips = $state(false);
+
+  $effect(() => {
+    if (effectiveExportFormat === "apkg") {
+      if (generateSnapshots && generateVideoClips) {
+        if (generateSnapshots !== prevGenerateSnapshots) {
+          generateVideoClips = false;
+        } else if (generateVideoClips !== prevGenerateVideoClips) {
+          generateSnapshots = false;
+        } else {
+          generateVideoClips = false;
+        }
+      }
+    }
+    prevGenerateSnapshots = generateSnapshots;
+    prevGenerateVideoClips = generateVideoClips;
+  });
+
   // ─── Card Filters ────────────────────────────────────────────────────────
   let cardFiltersEnabled = $state(false);
   let combineSentences = $state(false);
@@ -1803,6 +1823,7 @@
 
   /** Panels rendered in the column layout. Easy mode hides the advanced ones. */
   function isPanelVisible(panelId: PanelId): boolean {
+    if (panelId === "progressResult") return false;
     if (seriesMode && panelId === "files") return false; // rendered full-width above
     if (easyMode && (panelId === "cardFilters" || panelId === "naming")) return false;
     return true;
@@ -3236,7 +3257,7 @@
     isDraggingOver = false;
   }}
 >
-  <div class="flex-1 overflow-y-auto overflow-x-hidden p-6 flashcards-scroll min-h-0 flex flex-col gap-4">
+  <div class="flex-1 overflow-y-auto overflow-x-hidden p-6 flashcards-scroll min-h-0 flex flex-col gap-4 {isProcessing ? 'pointer-events-none opacity-60 select-none' : ''}">
   {#if isDraggingOver}
     <div
       class="absolute inset-0 z-50 {seriesMode ? 'bg-violet-500/10 border-violet-400/80 text-violet-400' : 'bg-emerald-500/10 border-emerald-400/80 text-emerald-400'} border-2 border-dashed rounded-2xl flex items-center justify-center pointer-events-none"
@@ -4289,7 +4310,14 @@
                 d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
               />
             </svg>
-            {t("flashcards.generateSnapshots")}
+            <span class="flex flex-col">
+              <span>{t("flashcards.generateSnapshots")}</span>
+              {#if effectiveExportFormat === "apkg"}
+                <span class="text-[10px] text-purple-300/60 font-normal normal-case mt-0.5">
+                  {$currentLanguage === 'it' ? 'Mutualmente esclusivo con i video in APKG' : 'Mutually exclusive with video clips in APKG'}
+                </span>
+              {/if}
+            </span>
           </h3>
           <button
             onclick={() => {
@@ -4380,7 +4408,14 @@
                 d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
               />
             </svg>
-            {t("flashcards.generateVideoClips")}
+            <span class="flex flex-col">
+              <span>{t("flashcards.generateVideoClips")}</span>
+              {#if effectiveExportFormat === "apkg"}
+                <span class="text-[10px] text-rose-300/60 font-normal normal-case mt-0.5">
+                  {$currentLanguage === 'it' ? 'Mutualmente esclusivo con gli snapshot in APKG' : 'Mutually exclusive with snapshots in APKG'}
+                </span>
+              {/if}
+            </span>
           </h3>
           <button
             onclick={() => {
@@ -4529,6 +4564,18 @@
             </div>
           </div>
         </div>
+        {/if}
+
+        {#if generateVideoClips && !generateAudio}
+          <div class="mt-3 p-3 bg-amber-500/10 border border-amber-500/20 text-amber-200 rounded-xl text-xs flex items-start gap-2">
+            <svg class="w-4.5 h-4.5 text-amber-400 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+            </svg>
+            <div>
+              <p class="font-bold text-amber-300">{$currentLanguage === 'it' ? 'Audio Disattivato' : 'Audio Disabled'}</p>
+              <p class="opacity-90">{$currentLanguage === 'it' ? 'Le clip video verranno generate senza audio (mute).' : 'Video clips will be generated without audio (silent).'}</p>
+            </div>
+          </div>
         {/if}
       </div>
     {:else if panelId === "cardFilters"}
@@ -5561,9 +5608,272 @@
   </div>
 
   <!-- Fixed Bottom Band with Action Buttons -->
-  <div class="h-[92px] border-t border-white/10 bg-gray-900 flex items-center justify-between px-6 shrink-0">
+  <div class="h-[92px] border-t border-white/10 bg-gray-900 flex items-center justify-between px-6 shrink-0 relative overflow-hidden">
+    <!-- Animated background progress overlay (only when processing) -->
     {#if isProcessing}
-      <div class="flex items-center justify-center w-full">
+      <div 
+        class="absolute inset-y-0 left-0 bg-gradient-to-r from-emerald-500/15 to-teal-500/20 transition-all duration-300 ease-out z-0 pointer-events-none"
+        style="width: {progress}%"
+      ></div>
+      <div 
+        class="absolute inset-0 bg-shimmer-stripes opacity-15 z-0 pointer-events-none"
+      ></div>
+    {/if}
+
+    <!-- Left side: Note type template AND progress text/result messages -->
+    <div class="flex items-center gap-4 select-none z-10 min-w-0 flex-1">
+      {#if !result && !isProcessing}
+        {#if !easyMode}
+          <!-- Template cycle button -->
+          <div class="relative group/tmpl">
+            <button
+              type="button"
+              onclick={cycleTemplates}
+              oncontextmenu={(e) => openBottomContextMenu(e, "anki")}
+              onmousedown={(e) => {
+                if (e.button === 1) {
+                  e.preventDefault();
+                  onGoToSettings?.("anki");
+                }
+              }}
+              class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold cursor-pointer transition-all duration-200 border-violet-500/40 bg-violet-500/10 text-violet-300 hover:bg-violet-500/20 hover:border-violet-500/50 hover:scale-[1.02] active:scale-[0.98] select-none"
+            >
+              <svg class="w-3.5 h-3.5 text-violet-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M4 5a1 1 0 011-1h14a1 1 0 011 1v4H4V5zm0 8h8v7H5a1 1 0 01-1-1v-6zm12 0h4v6a1 1 0 01-1 1h-3v-7z"
+                />
+              </svg>
+              {t("settings.noteType")}: {activeNoteType.name}
+            </button>
+            <div class="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-3 z-50
+              rounded-xl border border-violet-500/30 bg-gray-950/95 p-3 text-xs text-violet-300 shadow-2xl shadow-black/40 ring-1 ring-white/10
+              opacity-0 group-hover/tmpl:opacity-100 transition-all duration-150 whitespace-nowrap text-center">
+              {t("flashcards.clickToCycleTemplates")}
+            </div>
+          </div>
+        {/if}
+      {:else if isProcessing}
+        <!-- Loading status message overlay -->
+        <div class="flex items-center gap-4">
+          {#if !easyMode}
+            <!-- Disabled Template Cycle button during loading just for aesthetic presence -->
+            <button
+              disabled
+              class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold select-none border-gray-700 bg-gray-800/40 text-gray-500 opacity-60 pointer-events-none"
+            >
+              <svg class="w-3.5 h-3.5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M4 5a1 1 0 011-1h14a1 1 0 011 1v4H4V5zm0 8h8v7H5a1 1 0 01-1-1v-6zm12 0h4v6a1 1 0 01-1 1h-3v-7z"
+                />
+              </svg>
+              {t("settings.noteType")}: {activeNoteType.name}
+            </button>
+          {/if}
+          <div class="flex flex-col justify-center">
+            <span class="text-xs font-semibold text-emerald-300 flex items-center gap-2">
+              <svg class="w-3.5 h-3.5 animate-spin text-emerald-400" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              {progressMessage || t("refine.btn.generating")}
+            </span>
+            <span class="text-[10px] text-emerald-400/80 font-bold mt-0.5">{progress}%</span>
+          </div>
+        </div>
+      {:else if result}
+        <!-- Result Display -->
+        <div class="flex items-center gap-4 min-w-0">
+          {#if result.success}
+            <!-- Success icon -->
+            <div class="flex items-center justify-center w-8 h-8 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 shrink-0">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <!-- Success Info -->
+            <div class="flex flex-col min-w-0">
+              <div class="flex items-baseline gap-2">
+                <span class="text-sm font-bold text-emerald-400 whitespace-nowrap">
+                  {result.cardsGenerated} {t("flashcards.cardsGenerated")}
+                </span>
+                <span class="text-[11px] text-gray-400 flex gap-2 font-medium shrink-0">
+                  {#if result.audioClips > 0}
+                    <span>🔊 {result.audioClips}</span>
+                  {/if}
+                  {#if result.snapshots > 0}
+                    <span>📸 {result.snapshots}</span>
+                  {/if}
+                  {#if result.videoClips > 0}
+                    <span>🎬 {result.videoClips}</span>
+                  {/if}
+                </span>
+              </div>
+              {#if result.apkgPath}
+                <button
+                  onclick={() => {
+                    if (result) {
+                      navigator.clipboard.writeText(result.apkgPath || '');
+                      showSnackbar($currentLanguage === 'it' ? 'Percorso copiato negli appunti!' : 'Path copied to clipboard!', 'success');
+                    }
+                  }}
+                  class="text-[11px] text-gray-500 hover:text-gray-300 transition-colors text-left truncate cursor-pointer font-medium hover:underline flex items-center gap-1 mt-0.5"
+                  title={result.apkgPath}
+                >
+                  📦 {result.apkgPath.split('/').pop()}
+                </button>
+              {:else if result.tsvPath}
+                <button
+                  onclick={() => {
+                    if (result) {
+                      navigator.clipboard.writeText(result.tsvPath || '');
+                      showSnackbar($currentLanguage === 'it' ? 'Percorso copiato negli appunti!' : 'Path copied to clipboard!', 'success');
+                    }
+                  }}
+                  class="text-[11px] text-gray-500 hover:text-gray-300 transition-colors text-left truncate cursor-pointer font-medium hover:underline flex items-center gap-1 mt-0.5"
+                  title={result.tsvPath}
+                >
+                  📄 {result.tsvPath.split('/').pop()}
+                </button>
+              {/if}
+            </div>
+          {:else}
+            <!-- Error icon -->
+            <div class="flex items-center justify-center w-8 h-8 rounded-full bg-red-500/10 border border-red-500/20 text-red-400 shrink-0">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <!-- Error details -->
+            <div class="flex flex-col min-w-0">
+              <span class="text-sm font-bold text-red-400">{t("flashcards.generationFailed") || 'Generation Failed'}</span>
+              <span class="text-[11px] text-gray-400 truncate max-w-[320px]" title={result.message}>
+                {result.message ? (result.message.includes("No active") ? t("flashcards.noActiveLines") : result.message) : t("flashcards.errorGenerating")}
+              </span>
+            </div>
+          {/if}
+        </div>
+      {/if}
+    </div>
+
+    <!-- Right side: Export format toggle button, series output mode selector, and action buttons -->
+    <div class="flex items-center gap-4 z-10 select-none shrink-0">
+      <div class="flex items-center gap-2">
+        {#if !easyMode}
+          <!-- Format toggle button -->
+          <div class="relative group/fmt">
+            <button
+              type="button"
+              onclick={() => (exportFormat = exportFormat === 'apkg' ? 'tsv' : 'apkg')}
+              oncontextmenu={(e) => openBottomContextMenu(e, "overview")}
+              onmousedown={(e) => {
+                if (e.button === 1) {
+                  e.preventDefault();
+                  onGoToSettings?.("overview");
+                }
+              }}
+              disabled={isProcessing || !!result}
+              class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold cursor-pointer select-none transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:active:scale-100
+                {isProcessing || result
+                  ? 'border-gray-700 bg-gray-800/40 text-gray-500 opacity-60 pointer-events-none'
+                  : exportFormat === 'apkg'
+                    ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20 hover:border-emerald-500/50 hover:scale-[1.02] active:scale-[0.98]'
+                    : 'border-sky-500/40 bg-sky-500/10 text-sky-300 hover:bg-sky-500/20 hover:border-sky-500/50 hover:scale-[1.02] active:scale-[0.98]'}"
+            >
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                />
+              </svg>
+              {exportFormat === 'apkg' ? 'APKG' : 'TSV'}
+            </button>
+            {#if !isProcessing && !result}
+              <div class="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-3 z-50
+                rounded-xl bg-gray-950/95 p-3 text-xs shadow-2xl shadow-black/40 ring-1 ring-white/10
+                opacity-0 group-hover/fmt:opacity-100 transition-all duration-150 whitespace-nowrap text-center border {exportFormat === 'apkg' ? 'border-emerald-500/30 text-emerald-300' : 'border-sky-500/30 text-sky-300'}">
+                {t("flashcards.clickToToggleFormat")}
+              </div>
+            {/if}
+          </div>
+        {/if}
+
+        <!-- Series output mode inline selector (only visible in series mode + apkg) -->
+        {#if seriesMode && effectiveExportFormat === "apkg"}
+          <div class="flex items-center bg-gray-800/60 border border-gray-700/60 rounded-lg p-0.5 select-none relative group/sw {isProcessing || result ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''}">
+            <!-- Sliding indicator background -->
+            <div 
+              class="absolute top-0.5 bottom-0.5 left-0.5 rounded-md bg-violet-500/20 border border-violet-500/50 transition-all duration-200 ease-out"
+              style="width: 160px; transform: translateX({seriesOutputMode === 'separate' ? '0px' : '160px'});"
+            ></div>
+
+            <button
+              onclick={() => { if(!isProcessing && !result) seriesOutputMode = seriesOutputMode === 'separate' ? 'single' : 'separate'; }}
+              disabled={isProcessing || !!result}
+              class="w-[160px] py-1 rounded-md text-xs font-semibold transition-colors duration-200 flex items-center justify-center cursor-pointer select-none relative z-10 disabled:cursor-not-allowed
+                {seriesOutputMode === 'separate' ? 'text-violet-200' : 'text-gray-500 hover:text-gray-300'}"
+            >
+              {t("flashcards.outputPerEpisode")}
+            </button>
+            <button
+              onclick={() => { if(!isProcessing && !result) seriesOutputMode = seriesOutputMode === 'separate' ? 'single' : 'separate'; }}
+              disabled={isProcessing || !!result}
+              class="w-[160px] py-1 rounded-md text-xs font-semibold transition-colors duration-200 flex items-center justify-center cursor-pointer select-none relative z-10 disabled:cursor-not-allowed
+                {seriesOutputMode === 'single' ? 'text-violet-200' : 'text-gray-500 hover:text-gray-300'}"
+            >
+              {t("flashcards.outputSingleApkg")}
+            </button>
+
+            <!-- Custom premium tooltip -->
+            {#if !isProcessing && !result}
+              <div 
+                class="pointer-events-none absolute bottom-full z-50 mb-3 -translate-x-1/2 rounded-xl border border-violet-500/30 bg-gray-950/95 p-3 text-center text-xs text-violet-300 shadow-2xl shadow-black/40 ring-1 ring-white/10 transition-all duration-150 delay-0 group-hover/sw:delay-300 opacity-0 group-hover/sw:opacity-100 group-hover/sw:translate-y-0 translate-y-1 whitespace-normal max-w-[280px] w-max"
+                style="left: {seriesOutputMode === 'separate' ? '82px' : '242px'};"
+              >
+                {seriesOutputMode === 'separate' ? t("flashcards.outputPerEpisodeDesc") : t("flashcards.outputSingleApkgDesc")}
+              </div>
+            {/if}
+          </div>
+        {/if}
+      </div>
+
+      <!-- Preview Button -->
+      {#if !result}
+        <div class="relative group">
+          <button
+            class="px-5 py-2.5 bg-gray-800 hover:bg-gray-700 disabled:bg-gray-800/40 text-gray-300 disabled:text-gray-600 rounded-xl font-bold text-sm transition-all border border-white/10 flex items-center gap-2 enabled:hover:scale-[1.02] enabled:active:scale-[0.98] disabled:cursor-not-allowed cursor-pointer disabled:border-white/5"
+            disabled={!canRunFlashcards || isProcessing}
+            onclick={loadPreview}
+          >
+            <svg
+              class="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+              />
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+              />
+            </svg>
+            {t("flashcards.preview")}
+          </button>
+          {#if !isProcessing}
+            <div class="pointer-events-none absolute bottom-full left-1/2 z-50 mb-3 -translate-x-1/2 rounded-xl border border-amber-500/30 bg-gray-950/95 p-3 text-center text-xs text-amber-300 shadow-2xl shadow-black/40 ring-1 ring-white/10 transition-all duration-150 delay-0 group-hover:delay-300 opacity-0 group-hover:opacity-100 group-hover:translate-y-0 translate-y-1 whitespace-normal w-72">
+              {!canRunFlashcards ? t("flashcards.completePrefix", { steps: generationRequirementsText }) : t("flashcards.preview")}
+            </div>
+          {/if}
+        </div>
+      {/if}
+
+      <!-- Main action button (Generate / Cancel / New Generation) -->
+      {#if isProcessing}
         <button
           onclick={cancelGeneration}
           class="px-5 py-2.5 bg-red-600 hover:bg-red-500 text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-red-900/30 flex items-center gap-2 hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
@@ -5583,144 +5893,8 @@
           </svg>
           {t("flashcards.cancel")}
         </button>
-      </div>
-    {:else}
-      <!-- Left side: Note type template (default note type of the template) -->
-      <div class="flex items-center">
-        {#if !easyMode}
-        <!-- Template toggle button -->
-        <div class="relative group/tmpl">
-          <button
-            type="button"
-            onclick={cycleTemplates}
-            oncontextmenu={(e) => openBottomContextMenu(e, "anki")}
-            onmousedown={(e) => {
-              if (e.button === 1) {
-                e.preventDefault();
-                onGoToSettings?.("anki");
-              }
-            }}
-            class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold border-violet-500/40 bg-violet-500/10 text-violet-300 hover:bg-violet-500/20 hover:border-violet-500/50 cursor-pointer transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] select-none"
-          >
-            <svg class="w-3.5 h-3.5 text-violet-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                d="M4 5a1 1 0 011-1h14a1 1 0 011 1v4H4V5zm0 8h8v7H5a1 1 0 01-1-1v-6zm12 0h4v6a1 1 0 01-1 1h-3v-7z"
-              />
-            </svg>
-            {t("settings.noteType")}: {activeNoteType.name}
-          </button>
-          <div class="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-3 z-50
-            rounded-xl border border-violet-500/30 bg-gray-950/95 p-3 text-xs text-violet-300 shadow-2xl shadow-black/40 ring-1 ring-white/10
-            opacity-0 group-hover/tmpl:opacity-100 transition-all duration-150 whitespace-nowrap text-center">
-            {t("flashcards.clickToCycleTemplates")}
-          </div>
-        </div>
-        {/if}
-      </div>
-
-      <!-- Right side: Export format toggle button, series output mode selector, and action buttons -->
-      <div class="flex items-center gap-4">
-        <div class="flex items-center gap-2">
-          {#if !easyMode}
-          <!-- Format toggle button -->
-          <div class="relative group/fmt">
-            <button
-              type="button"
-              onclick={() => (exportFormat = exportFormat === 'apkg' ? 'tsv' : 'apkg')}
-              oncontextmenu={(e) => openBottomContextMenu(e, "overview")}
-              onmousedown={(e) => {
-                if (e.button === 1) {
-                  e.preventDefault();
-                  onGoToSettings?.("overview");
-                }
-              }}
-              class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] cursor-pointer select-none
-                {exportFormat === 'apkg'
-                  ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20 hover:border-emerald-500/50'
-                  : 'border-sky-500/40 bg-sky-500/10 text-sky-300 hover:bg-sky-500/20 hover:border-sky-500/50'}"
-            >
-              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                />
-              </svg>
-              {exportFormat === 'apkg' ? 'APKG' : 'TSV'}
-            </button>
-            <div class="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-3 z-50
-              rounded-xl bg-gray-950/95 p-3 text-xs shadow-2xl shadow-black/40 ring-1 ring-white/10
-              opacity-0 group-hover/fmt:opacity-100 transition-all duration-150 whitespace-nowrap text-center border {exportFormat === 'apkg' ? 'border-emerald-500/30 text-emerald-300' : 'border-sky-500/30 text-sky-300'}">
-              {t("flashcards.clickToToggleFormat")}
-            </div>
-          </div>
-          {/if}
-
-          <!-- Series output mode inline selector (only visible in series mode + apkg) -->
-          {#if seriesMode && effectiveExportFormat === "apkg"}
-            <div class="flex items-center bg-gray-800/60 border border-gray-700/60 rounded-lg p-0.5 select-none relative group/sw">
-              <!-- Sliding indicator background -->
-              <div 
-                class="absolute top-0.5 bottom-0.5 left-0.5 rounded-md bg-violet-500/20 border border-violet-500/50 transition-all duration-200 ease-out"
-                style="width: 160px; transform: translateX({seriesOutputMode === 'separate' ? '0px' : '160px'});"
-              ></div>
-
-              <button
-                onclick={() => { seriesOutputMode = seriesOutputMode === 'separate' ? 'single' : 'separate'; }}
-                class="w-[160px] py-1 rounded-md text-xs font-semibold transition-colors duration-200 flex items-center justify-center cursor-pointer select-none relative z-10
-                  {seriesOutputMode === 'separate' ? 'text-violet-200' : 'text-gray-500 hover:text-gray-300'}"
-              >
-                {t("flashcards.outputPerEpisode")}
-              </button>
-              <button
-                onclick={() => { seriesOutputMode = seriesOutputMode === 'separate' ? 'single' : 'separate'; }}
-                class="w-[160px] py-1 rounded-md text-xs font-semibold transition-colors duration-200 flex items-center justify-center cursor-pointer select-none relative z-10
-                  {seriesOutputMode === 'single' ? 'text-violet-200' : 'text-gray-500 hover:text-gray-300'}"
-              >
-                {t("flashcards.outputSingleApkg")}
-              </button>
-
-              <!-- Custom premium tooltip -->
-              <div 
-                class="pointer-events-none absolute bottom-full z-50 mb-3 -translate-x-1/2 rounded-xl border border-violet-500/30 bg-gray-950/95 p-3 text-center text-xs text-violet-300 shadow-2xl shadow-black/40 ring-1 ring-white/10 transition-all duration-150 delay-0 group-hover/sw:delay-300 opacity-0 group-hover/sw:opacity-100 group-hover/sw:translate-y-0 translate-y-1 whitespace-normal max-w-[280px] w-max"
-                style="left: {seriesOutputMode === 'separate' ? '82px' : '242px'};"
-              >
-                {seriesOutputMode === 'separate' ? t("flashcards.outputPerEpisodeDesc") : t("flashcards.outputSingleApkgDesc")}
-              </div>
-            </div>
-          {/if}
-        </div>
+      {:else}
         {#if !result}
-          <div class="relative group">
-            <button
-              class="px-5 py-2.5 bg-gray-800 hover:bg-gray-700 disabled:bg-gray-800 text-gray-300 disabled:text-gray-500 rounded-xl font-bold text-sm transition-all border border-white/10 flex items-center gap-2 enabled:hover:scale-[1.02] enabled:active:scale-[0.98] disabled:opacity-55 disabled:cursor-not-allowed cursor-pointer"
-              disabled={!canRunFlashcards}
-              onclick={loadPreview}
-            >
-              <svg
-                class="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                />
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-                />
-              </svg>
-              {t("flashcards.preview")}
-            </button>
-            <div class="pointer-events-none absolute bottom-full left-1/2 z-50 mb-3 -translate-x-1/2 rounded-xl border border-amber-500/30 bg-gray-950/95 p-3 text-center text-xs text-amber-300 shadow-2xl shadow-black/40 ring-1 ring-white/10 transition-all duration-150 delay-0 group-hover:delay-300 opacity-0 group-hover:opacity-100 group-hover:translate-y-0 translate-y-1 whitespace-normal w-72">
-              {!canRunFlashcards ? t("flashcards.completePrefix", { steps: generationRequirementsText }) : t("flashcards.preview")}
-            </div>
-          </div>
-
           <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
           <div
             class="group relative"
@@ -5742,7 +5916,7 @@
               onclick={startGeneration}
               disabled={!canRunFlashcards}
               aria-describedby={!canRunFlashcards ? "flashcards-generate-requirements" : undefined}
-              class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:bg-emerald-600/55 text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-emerald-900/30 flex items-center gap-2 enabled:hover:scale-[1.02] enabled:active:scale-[0.98] disabled:cursor-help disabled:opacity-55 {!canRunFlashcards ? 'pointer-events-none saturate-75' : 'cursor-pointer'}"
+              class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:bg-emerald-600/40 text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-emerald-900/30 flex items-center gap-2 enabled:hover:scale-[1.02] enabled:active:scale-[0.98] disabled:cursor-help disabled:opacity-50 {!canRunFlashcards ? 'pointer-events-none saturate-75' : 'cursor-pointer'}"
             >
               <svg
                 class="w-4 h-4"
@@ -5801,8 +5975,8 @@
             </div>
           </div>
         {/if}
-      </div>
-    {/if}
+      {/if}
+    </div>
   </div>
 </div>
 
@@ -6048,6 +6222,25 @@
         0 0 0 1px rgba(251, 191, 36, 0.45),
         0 0 28px rgba(251, 191, 36, 0.36);
     }
+  }
+
+  @keyframes progress-stripes {
+    0% { background-position: 0 0; }
+    100% { background-position: 40px 0; }
+  }
+  .bg-shimmer-stripes {
+    background-image: linear-gradient(
+      45deg,
+      rgba(16, 185, 129, 0.15) 25%,
+      transparent 25%,
+      transparent 50%,
+      rgba(16, 185, 129, 0.15) 50%,
+      rgba(16, 185, 129, 0.15) 75%,
+      transparent 75%,
+      transparent
+    );
+    background-size: 40px 40px;
+    animation: progress-stripes 1.2s linear infinite;
   }
 </style>
 

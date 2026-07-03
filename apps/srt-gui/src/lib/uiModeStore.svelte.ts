@@ -34,10 +34,6 @@ class UiModeStore {
         localStorage.setItem("vesta-expert-backup-export-format", currentExport);
         localStorage.setItem("vesta-export-format", "apkg");
 
-        // 3. Smart Matching: backup and set to false
-        localStorage.setItem("vesta-expert-backup-smart-matching-enabled", String(smartMatchingStore.enabled));
-        smartMatchingStore.setEnabled(false);
-
       } else if (!prevExpertMode && newExpertMode) {
         // Enabling expert mode: Restore from backup
         
@@ -45,12 +41,6 @@ class UiModeStore {
         const backupExport = localStorage.getItem("vesta-expert-backup-export-format");
         if (backupExport) {
           localStorage.setItem("vesta-export-format", backupExport);
-        }
-
-        // 3. Smart Matching
-        const backupSmartMatching = localStorage.getItem("vesta-expert-backup-smart-matching-enabled");
-        if (backupSmartMatching !== null) {
-          smartMatchingStore.setEnabled(backupSmartMatching === "true");
         }
       }
     }

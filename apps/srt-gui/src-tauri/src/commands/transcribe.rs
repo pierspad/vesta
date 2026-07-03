@@ -584,7 +584,7 @@ pub async fn transcribe_start(
 
     // ── Cloud provider path ───────────────────────────────────────────────────
     let provider = config.provider.clone().unwrap_or_else(|| "local".to_string());
-    let is_cloud = !matches!(provider.to_lowercase().as_str(), "local" | "whisper" | "");
+    let is_cloud = !matches!(provider.to_lowercase().as_str(), "local" | "whisper" | "local_whisper" | "");
     if is_cloud {
         let result = run_cloud(&app, &config, &cancel_token).await;
         {
