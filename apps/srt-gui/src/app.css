@@ -222,6 +222,48 @@ input[type="range"]::-webkit-slider-thumb:hover {
   transform: scale(1.1);
 }
 
+/* Resource management slider — clean, no glow, no gradient */
+input[type="range"].slider-resource {
+  -webkit-appearance: none;
+  appearance: none;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  height: 5px;
+}
+
+input[type="range"].slider-resource::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 17px;
+  height: 17px;
+  background: #ffffff;
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+  transition: transform 0.15s ease, background-color 0.15s ease;
+}
+
+input[type="range"].slider-resource::-webkit-slider-thumb:hover {
+  transform: scale(1.12);
+  background: #f3f4f6;
+}
+
+input[type="range"].slider-resource::-moz-range-thumb {
+  border: none;
+  width: 17px;
+  height: 17px;
+  background: #ffffff;
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+  transition: transform 0.15s ease, background-color 0.15s ease;
+}
+
+input[type="range"].slider-resource::-moz-range-thumb:hover {
+  transform: scale(1.12);
+  background: #f3f4f6;
+}
+
 /* Range slider minimal (for flashcard filters) */
 input[type="range"].slider-minimal {
   -webkit-appearance: none;

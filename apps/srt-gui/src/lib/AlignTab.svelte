@@ -658,17 +658,6 @@
   <div class="flex-1 overflow-y-auto p-6 min-h-0">
     <div class="min-h-full flex flex-col gap-4">
       <div class="glass-card p-5 shrink-0">
-        <div class="mb-6 flex items-start justify-between shrink-0 gap-3">
-          <div>
-            <h3 class="text-lg font-semibold text-teal-300 flex items-center gap-2">
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7"/>
-              </svg>
-              {t("nav.revision")}
-            </h3>
-          </div>
-        </div>
-
         <!-- File Selection Area -->
         <div class="grid grid-cols-1 md:grid-cols-[1fr_auto_1fr] items-center gap-4 shrink-0 relative min-w-0">
         
@@ -867,8 +856,8 @@
         <svg class="w-4 h-4 text-emerald-100" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
         </svg>
-        {#if sourceFlag}<span class="text-base">{sourceFlag}</span>{/if}
         {t("align.saveResult")}
+        {#if sourceFlag}<span class="text-base">{sourceFlag}</span>{/if}
       </button>
       <div class="pointer-events-none absolute bottom-full right-0 z-50 mb-3 rounded-xl border border-emerald-500/30 bg-gray-950/95 p-3 text-center text-xs text-emerald-300 shadow-2xl shadow-black/40 ring-1 ring-white/10 transition-all duration-150 delay-0 group-hover:delay-300 opacity-0 group-hover:opacity-100 group-hover:translate-y-0 translate-y-1 whitespace-normal w-72">
         {sourceSubs.length === 0 ? "Carica e allinea i file per salvare" : t("align.saveResult")}

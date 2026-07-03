@@ -4,7 +4,7 @@
   import { getCurrentWebview } from "@tauri-apps/api/webview";
   import { guardedOpen } from "./utils/dialogGuard";
   import { onDestroy, onMount } from "svelte";
-  import { locale } from "./i18n";
+  import { locale, currentLanguage } from "./i18n";
   import {
     CARD_TEMPLATES_UPDATED_EVENT,
     NOTE_TYPES_UPDATED_EVENT,
@@ -1282,7 +1282,7 @@
   // hidden while the user only decides which media to include.
   let easyMode = $derived(uiMode.easyMode);
   let effectiveExportFormat = $derived(easyMode ? ("apkg" as const) : exportFormat);
-  let effectiveCpuCores = $derived(easyMode ? maxCpuCores : cpuCores);
+  let effectiveCpuCores = $derived(cpuCores);
 
   function setCpuPreset(presetId: string) {
     const preset = cpuPresets.find((p) => p.id === presetId);
@@ -1381,6 +1381,14 @@
   let effectivePanelLayout = $derived.by((): ColumnLayout => {
     if (seriesMode) {
       if (effectiveColumnCount === 3) {
+        // In easy mode (no expert mode), spread audio/snapshot/video across 3 columns
+        if (easyMode) {
+          return {
+            col1: ["files", "audioClips"],
+            col2: ["snapshots"],
+            col3: ["videoClips", "progressResult"],
+          };
+        }
         return {
           col1: ["files", "naming", "audioClips", "snapshots"],
           col2: ["videoClips"],
@@ -1389,6 +1397,20 @@
       }
 
       if (effectiveColumnCount === 2) {
+        // Easy mode: skip 2-col, collapse to 1 col directly
+        if (easyMode) {
+          return {
+            col1: [
+              "files",
+              "audioClips",
+              "snapshots",
+              "videoClips",
+              "progressResult",
+            ],
+            col2: [],
+            col3: [],
+          };
+        }
         return {
           col1: [
             "files",
@@ -1449,12 +1471,15 @@
   });
 
   // Computed column grid class
+  // In easy mode + series mode, skip 2-column layout entirely (go straight 3→1)
   let gridColClass = $derived(
-    effectiveColumnCount === 1
+    (easyMode && seriesMode && effectiveColumnCount === 2)
       ? "grid-cols-1"
-      : effectiveColumnCount === 2
-        ? "grid-cols-2"
-        : "grid-cols-3",
+      : effectiveColumnCount === 1
+        ? "grid-cols-1"
+        : effectiveColumnCount === 2
+          ? "grid-cols-2"
+          : "grid-cols-3",
   );
 
   let filesHelpContent = $derived(
@@ -1598,6 +1623,15 @@
   let previewFilter = $state<"all" | "active" | "inactive">("all");
   let previewSearch = $state("");
   let previewPage = $state(1);
+
+  let previewedSubsPath = $state<string | null>(null);
+  let previewedNativeSubsPath = $state<string | null>(null);
+  let undoStack = $state<any[]>([]);
+
+  let contextMenuVisible = $state(false);
+  let contextMenuX = $state(0);
+  let contextMenuY = $state(0);
+  let contextMenuLine = $state<any | null>(null);
 
   let playingLine = $state<any | null>(null);
   let previewIsPlaying = $state(false);
@@ -2650,6 +2684,9 @@
     try {
       const config = buildConfig();
       previewLines = await invoke<any[]>("flashcard_preview", { config });
+      previewedSubsPath = config.target_subs_path;
+      previewedNativeSubsPath = config.native_subs_path;
+      undoStack = [];
       addLog(
         `Preview: ${previewLines.length} total, ${previewLines.filter((l: any) => l.active).length} active`,
         "info",
@@ -2691,6 +2728,89 @@
     void previewFilter;
     void previewSearch;
     previewPage = 1;
+    if (!uiMode.expertMode) {
+      previewFilter = "all";
+    }
+  });
+
+  let activeCardNumbers = $derived.by(() => {
+    const map = new Map<number, number>();
+    let activeCount = 0;
+    for (const line of previewLines) {
+      if (line.active) {
+        activeCount++;
+        map.set(line.index, activeCount);
+      }
+    }
+    return map;
+  });
+
+  function pushToUndoStack() {
+    if (undoStack.length >= 50) {
+      undoStack.shift();
+    }
+    const snapshot = previewLines.map((line: any) => ({
+      ...line,
+      leading_context: [...line.leading_context],
+      trailing_context: [...line.trailing_context]
+    }));
+    undoStack.push(snapshot);
+  }
+
+  function handleUndo() {
+    if (undoStack.length > 0) {
+      const previousState = undoStack.pop();
+      previewLines = previousState;
+    }
+  }
+
+  function toggleLineActive(line: any) {
+    pushToUndoStack();
+    line.active = !line.active;
+  }
+
+  $effect(() => {
+    if (showPreview) {
+      const handleGlobalKeyDown = (e: KeyboardEvent) => {
+        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") {
+          e.preventDefault();
+          handleUndo();
+        }
+      };
+      window.addEventListener("keydown", handleGlobalKeyDown);
+      return () => {
+        window.removeEventListener("keydown", handleGlobalKeyDown);
+      };
+    }
+  });
+
+  function openContextMenu(e: MouseEvent, line: any) {
+    contextMenuLine = line;
+    contextMenuX = e.clientX;
+    contextMenuY = e.clientY;
+    contextMenuVisible = true;
+  }
+
+  function closeContextMenu() {
+    contextMenuVisible = false;
+  }
+
+  $effect(() => {
+    if (contextMenuVisible) {
+      const handleWindowClick = () => {
+        closeContextMenu();
+      };
+      window.addEventListener("click", handleWindowClick);
+      return () => {
+        window.removeEventListener("click", handleWindowClick);
+      };
+    }
+  });
+
+  $effect(() => {
+    if (!showPreview) {
+      contextMenuVisible = false;
+    }
   });
 
   async function startSeriesGeneration() {
@@ -2801,6 +2921,23 @@
           card_back_html: loadCardTemplates().backHtml,
           card_css: loadCardTemplates().css,
         };
+
+        if (previewLines.length > 0) {
+          if (epConfig.target_subs_path === previewedSubsPath) {
+            const tempTarget = await invoke<string>("save_temp_subtitles", {
+              lines: previewLines,
+              useNative: false,
+            });
+            epConfig.target_subs_path = tempTarget;
+          }
+          if (epConfig.native_subs_path && epConfig.native_subs_path === previewedNativeSubsPath) {
+            const tempNative = await invoke<string>("save_temp_subtitles", {
+              lines: previewLines,
+              useNative: true,
+            });
+            epConfig.native_subs_path = tempNative;
+          }
+        }
 
         try {
           const res = await invoke<any>("flashcard_generate", {
@@ -2921,6 +3058,24 @@
 
     try {
       const config = buildConfig();
+
+      if (previewLines.length > 0) {
+        if (config.target_subs_path === previewedSubsPath) {
+          const tempTarget = await invoke<string>("save_temp_subtitles", {
+            lines: previewLines,
+            useNative: false,
+          });
+          config.target_subs_path = tempTarget;
+        }
+        if (config.native_subs_path && config.native_subs_path === previewedNativeSubsPath) {
+          const tempNative = await invoke<string>("save_temp_subtitles", {
+            lines: previewLines,
+            useNative: true,
+          });
+          config.native_subs_path = tempNative;
+        }
+      }
+
       const res = await invoke<any>("flashcard_generate", { config });
       result = {
         success: res.success,
@@ -3218,17 +3373,23 @@
             <div class="px-4 py-2 border-b border-gray-800/80 bg-gray-900/50 flex items-center justify-between">
               <div class="flex items-center gap-2">
                 <div class="flex rounded-lg overflow-hidden border border-gray-800">
-                  {#each [["all", t("flashcards.previewAll"), "All subtitle lines"], ["active", t("flashcards.previewActive"), "Lines that will become flashcards"], ["inactive", t("flashcards.previewInactive"), "Lines excluded by your filters"]] as [val, label, tooltip]}
-                    <button
-                      class="px-3 py-1 text-xs font-medium transition-colors {previewFilter === val
-                        ? 'bg-emerald-500/20 text-emerald-300'
-                        : 'text-gray-400 hover:bg-gray-800'}"
-                      onclick={() => (previewFilter = val as any)}
-                      title={tooltip}
-                    >
-                      {label}
-                    </button>
-                  {/each}
+                  {#if uiMode.expertMode}
+                    {#each [["all", t("flashcards.previewAll"), "All subtitle lines"], ["active", t("flashcards.previewActive"), "Lines that will become flashcards"], ["inactive", t("flashcards.previewInactive"), "Lines excluded by your filters"]] as [val, label, tooltip]}
+                      <button
+                        class="px-3 py-1 text-xs font-medium transition-colors {previewFilter === val
+                          ? 'bg-emerald-500/20 text-emerald-300'
+                          : 'text-gray-400 hover:bg-gray-800'}"
+                        onclick={() => (previewFilter = val as any)}
+                        title={tooltip}
+                      >
+                        {label}
+                      </button>
+                    {/each}
+                  {:else}
+                    <div class="px-3 py-1 text-xs font-medium bg-emerald-500/20 text-emerald-300 select-none">
+                      {t("flashcards.previewAll")}
+                    </div>
+                  {/if}
                 </div>
                 <span class="text-xs text-gray-500">
                   {filteredPreview.length} {t("flashcards.linesShown")}
@@ -3292,11 +3453,30 @@
                   </thead>
                   <tbody>
                     {#each previewPaged as line, i}
-                      <tr class="border-t border-gray-800/60 {line.active
+                      <tr 
+                        class="border-t border-gray-800/60 {line.active
                           ? 'bg-emerald-500/5 hover:bg-emerald-500/10'
                           : 'bg-red-500/5 opacity-60 hover:bg-red-500/10'} transition-colors"
+                        onauxclick={(e) => {
+                          if (uiMode.expertMode && e.button === 1) { // middle click
+                            e.preventDefault();
+                            toggleLineActive(line);
+                          }
+                        }}
+                        oncontextmenu={(e) => {
+                          if (uiMode.expertMode) {
+                            e.preventDefault();
+                            openContextMenu(e, line);
+                          }
+                        }}
                       >
-                        <td class="p-2 text-gray-500 font-mono">{line.index + 1}</td>
+                        <td class="p-2 text-gray-500 font-mono">
+                          {#if line.active}
+                            {activeCardNumbers.get(line.index)}
+                          {:else}
+                            <span class="text-red-500/70 font-bold">—</span>
+                          {/if}
+                        </td>
                         {#if previewMediaPath}
                           <td class="p-2 text-center">
                             <button
@@ -3320,31 +3500,25 @@
                         <td class="p-2 text-gray-400 font-mono">
                           {Math.floor(line.start_ms / 60000)}:{String(Math.floor((line.start_ms % 60000) / 1000)).padStart(2, "0")}
                         </td>
-                        <td class="p-2">
-                          <span
-                            contenteditable="true"
-                            class="text-gray-200 outline-none focus:bg-gray-800/50 focus:ring-1 focus:ring-emerald-500/30 rounded px-1 -mx-1 block"
-                            onblur={(e) => {
-                              line.subs1_text = (e.target as HTMLElement).textContent || "";
-                            }}>{line.subs1_text}</span
-                          >
+                        <td class="p-2 text-gray-200">
+                          <span>{line.subs1_text}</span>
                         </td>
                         {#if nativeSubsPath}
-                          <td class="p-2">
-                            <span
-                              contenteditable="true"
-                              class="text-gray-300 outline-none focus:bg-gray-800/50 focus:ring-1 focus:ring-emerald-500/30 rounded px-1 -mx-1 block"
-                              onblur={(e) => {
-                                line.subs2_text = (e.target as HTMLElement).textContent || "";
-                              }}>{line.subs2_text || "—"}</span
-                            >
+                          <td class="p-2 text-gray-300">
+                            <span>{line.subs2_text || "—"}</span>
                           </td>
                         {/if}
-                        <td class="p-2 text-center">
+                        <td class="p-2 text-center select-none">
                           {#if line.active}
-                            <span class="inline-block w-2 h-2 bg-emerald-400 rounded-full"></span>
+                            <span
+                              class="inline-block w-2.5 h-2.5 bg-emerald-400 rounded-full"
+                              title={uiMode.expertMode ? "Tasto destro / clic rotellina per disattivare" : undefined}
+                            ></span>
                           {:else}
-                            <span class="inline-block w-2 h-2 bg-red-400 rounded-full"></span>
+                            <span
+                              class="inline-block w-2.5 h-2.5 bg-red-400 rounded-full"
+                              title={uiMode.expertMode ? "Tasto destro / clic rotellina per attivare" : undefined}
+                            ></span>
                           {/if}
                         </td>
                       </tr>
@@ -3486,6 +3660,60 @@
           {/if}
         </div>
       </div>
+
+      {#if contextMenuVisible && contextMenuLine}
+        <!-- svelte-ignore a11y_click_events_have_key_events -->
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
+        <div
+          class="fixed z-50 bg-gray-900 border border-gray-800 rounded-lg shadow-xl py-1.5 min-w-[200px]"
+          style="left: {contextMenuX}px; top: {contextMenuY}px;"
+          onclick={(e) => e.stopPropagation()}
+        >
+          <button
+            type="button"
+            onclick={() => {
+              navigator.clipboard.writeText(contextMenuLine.subs1_text);
+              closeContextMenu();
+            }}
+            class="w-full text-left px-4 py-2 text-xs text-gray-300 hover:bg-gray-800 hover:text-white transition-colors cursor-pointer"
+          >
+            {$currentLanguage === 'it' ? 'Copia sottotitolo originale' : 'Copy original subtitle'}
+          </button>
+
+          {#if nativeSubsPath && contextMenuLine.subs2_text}
+            <button
+              type="button"
+              onclick={() => {
+                navigator.clipboard.writeText(contextMenuLine.subs2_text || "");
+                closeContextMenu();
+              }}
+              class="w-full text-left px-4 py-2 text-xs text-gray-300 hover:bg-gray-800 hover:text-white transition-colors cursor-pointer"
+            >
+              {$currentLanguage === 'it' ? 'Copia traduzione di riferimento' : 'Copy reference translation'}
+            </button>
+          {/if}
+
+          <div class="border-t border-gray-800 my-1"></div>
+
+          <button
+            type="button"
+            onclick={() => {
+              toggleLineActive(contextMenuLine);
+              closeContextMenu();
+            }}
+            class="w-full text-left px-4 py-2 text-xs font-semibold transition-colors cursor-pointer
+              {contextMenuLine.active 
+                ? 'text-red-400 hover:bg-red-500/10' 
+                : 'text-emerald-400 hover:bg-emerald-500/10'}"
+          >
+            {#if contextMenuLine.active}
+              {$currentLanguage === 'it' ? 'Disabilita sottotitolo' : 'Disable subtitle'}
+            {:else}
+              {$currentLanguage === 'it' ? 'Abilita sottotitolo' : 'Enable subtitle'}
+            {/if}
+          </button>
+        </div>
+      {/if}
     </div>
   {/if}
 

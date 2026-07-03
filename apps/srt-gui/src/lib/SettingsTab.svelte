@@ -875,8 +875,47 @@ import TranscribeTiers from "./TranscribeTiers.svelte";
   // CPU Cores Settings
   let systemCpuCount = $state(4);
   let cpuCores = $state(2);
-  let minCpuCores = $derived(2);
-  let maxCpuCores = $derived(Math.max(2, systemCpuCount - 1));
+  let minCpuCores = $derived(1);
+  let maxCpuCores = $derived(Math.max(1, systemCpuCount - 1));
+
+  // RAM slider: stored in MB, max = totalMemory - 512 MB reserve
+  let systemTotalMemoryMb = $state(4096);
+  // min allowed = 256 MB, max allowed = total - 512 MB
+  let minRamMb = $derived(256);
+  let maxRamMb = $derived(Math.max(512, systemTotalMemoryMb - 512));
+  // 0 means "no limit" (use OS default)
+  let ramLimitMb = $state(
+    (() => {
+      const stored = localStorage.getItem("vesta_memory_limit_mb");
+      return stored ? parseInt(stored) : 0;
+    })()
+  );
+
+  // Dynamic RAM tick marks: pick a "nice" GB step so ~6 ticks span the range evenly
+  let ramTicksMb = $derived.by(() => {
+    const maxGb = maxRamMb / 1024;
+    const rawStep = maxGb / 6;
+    const niceStep =
+      rawStep <= 1 ? 1
+      : rawStep <= 2 ? 2
+      : rawStep <= 4 ? 4
+      : rawStep <= 8 ? 8
+      : rawStep <= 16 ? 16
+      : 32;
+    const ticks: number[] = [0];
+    for (let gb = niceStep; gb * 1024 <= maxRamMb; gb += niceStep) {
+      ticks.push(Math.round(gb * 1024));
+    }
+    return ticks;
+  });
+
+  // Dynamic CPU tick step: show every n-th core to avoid crowding
+  let cpuTickStep = $derived(
+    (maxCpuCores - minCpuCores) <= 8 ? 1
+    : (maxCpuCores - minCpuCores) <= 16 ? 2
+    : (maxCpuCores - minCpuCores) <= 32 ? 4
+    : 8
+  );
 
   let cpuPresets = $derived([
     { id: "eco", threads: minCpuCores },
@@ -1567,9 +1606,10 @@ import TranscribeTiers from "./TranscribeTiers.svelte";
       systemCpuCount = count;
       const savedCores = localStorage.getItem("vesta_cpu_cores");
       if (savedCores) {
-        cpuCores = parseInt(savedCores);
+        const parsed = parseInt(savedCores);
+        cpuCores = Math.min(Math.max(parsed, minCpuCores), Math.max(1, systemCpuCount - 1));
       } else {
-        cpuCores = Math.max(2, systemCpuCount - 1);
+        cpuCores = Math.max(1, systemCpuCount - 1);
       }
     }).catch(() => {
       systemCpuCount = 4;
@@ -1577,8 +1617,18 @@ import TranscribeTiers from "./TranscribeTiers.svelte";
       if (savedCores) {
         cpuCores = parseInt(savedCores);
       } else {
-        cpuCores = Math.max(2, systemCpuCount - 1);
+        cpuCores = Math.max(1, systemCpuCount - 1);
       }
+    });
+
+    invoke<number>("flashcard_get_total_memory_mb").then((mb) => {
+      systemTotalMemoryMb = mb;
+      // Validate stored ramLimitMb against new bounds
+      if (ramLimitMb > 0) {
+        ramLimitMb = Math.min(Math.max(ramLimitMb, minRamMb), Math.max(512, mb - 512));
+      }
+    }).catch(() => {
+      systemTotalMemoryMb = 4096;
     });
 
     loadApiKeys();
@@ -2234,83 +2284,80 @@ import TranscribeTiers from "./TranscribeTiers.svelte";
       </div>
     {/if}
 
-    <!-- Export Format Card -->
+    <!-- Export Format Card (Expert Mode Only) -->
     {#if uiMode.expertMode}
-      <div class="glass-card p-6 mb-6">
-        <div class="flex items-center gap-3 mb-4">
-          <div class="w-9 h-9 rounded-lg bg-sky-500/15 text-sky-300 flex items-center justify-center shrink-0">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-              />
-            </svg>
-          </div>
-          <div>
-            <h3 class="text-sm font-bold text-white">{t("settings.anki.exportFormat")}</h3>
-          </div>
-        </div>
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <!-- APKG option -->
+      <div class="glass-card p-6 flex flex-col justify-center mb-6">
+        <div class="relative bg-black/20 border border-white/5 rounded-xl p-1 flex gap-2 w-full select-none">
+          <!-- Sliding indicator background -->
+          <div 
+            class="absolute top-1 bottom-1 left-1 rounded-lg shadow-md transition-all duration-200 ease-out z-0
+              {exportFormat === 'apkg'
+                ? 'bg-emerald-500/15 border border-emerald-500/30'
+                : 'bg-sky-500/15 border border-sky-500/30'}"
+            style="width: calc(50% - 6px); transform: translateX({exportFormat === 'apkg' ? '0px' : 'calc(100% + 8px)'}); left: 4px;"
+          ></div>
+
+          <!-- APKG Option Button -->
           <button
             type="button"
-            onclick={() => (exportFormat = "apkg")}
-            class="flex items-start gap-3 p-3.5 rounded-xl border text-left transition-all cursor-pointer
-              {exportFormat === 'apkg'
-                ? 'border-emerald-500/50 bg-emerald-500/10'
-                : 'border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/8'}"
+            onclick={() => (exportFormat = exportFormat === "apkg" ? "tsv" : "apkg")}
+            class="flex-1 text-left p-4 rounded-lg transition-all duration-200 select-none relative z-10 flex items-center justify-between gap-4 cursor-pointer"
           >
-            <div class="mt-0.5 w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0
-              {exportFormat === 'apkg' ? 'border-emerald-400' : 'border-gray-500'}">
-              {#if exportFormat === "apkg"}
-                <div class="w-2 h-2 rounded-full bg-emerald-400"></div>
-              {/if}
-            </div>
             <div class="flex-1 min-w-0">
               <div class="flex items-center gap-2 flex-wrap">
-                <span class="text-sm font-semibold text-white">{t("settings.anki.exportAPKG")}</span>
-                <span class="text-[10px] px-1.5 py-0.5 rounded-full font-bold
+                <span class="text-sm font-bold transition-colors duration-200 {exportFormat === 'apkg' ? 'text-white' : 'text-gray-400 hover:text-gray-200'}">
+                  {$currentLanguage === 'it' ? 'Esportazione APKG' : 'APKG export'}
+                </span>
+                <span class="text-[10px] px-1.5 py-0.5 rounded-full font-bold transition-all duration-200
                   {exportFormat === 'apkg'
                     ? 'bg-emerald-500/30 text-emerald-300 border border-emerald-500/40'
-                    : 'bg-gray-700/60 text-gray-400 border border-gray-700'}">{t("flashcards.exportAPKGBadge")}</span>
+                    : 'bg-gray-700/60 text-gray-400 border border-gray-700'}">
+                  {t("flashcards.exportAPKGBadge")}
+                </span>
               </div>
               <p class="text-xs text-gray-400 mt-1 leading-relaxed">{t("flashcards.exportAPKGDesc")}</p>
             </div>
+            
+            <!-- Anki Package / File Zip SVG Icon on the right -->
+            <svg class="w-8 h-8 transition-colors duration-200 shrink-0 {exportFormat === 'apkg' ? 'text-emerald-400' : 'text-gray-500'}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+            </svg>
           </button>
 
-          <!-- TSV option -->
+          <!-- TSV Option Button -->
           <button
             type="button"
-            onclick={() => (exportFormat = "tsv")}
-            class="flex items-start gap-3 p-3.5 rounded-xl border text-left transition-all cursor-pointer
-              {exportFormat === 'tsv'
-                ? 'border-sky-500/50 bg-sky-500/10'
-                : 'border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/8'}"
+            onclick={() => (exportFormat = exportFormat === "tsv" ? "apkg" : "tsv")}
+            class="flex-1 text-left p-4 rounded-lg transition-all duration-200 select-none relative z-10 flex items-center justify-between gap-4 cursor-pointer"
           >
-            <div class="mt-0.5 w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0
-              {exportFormat === 'tsv' ? 'border-sky-400' : 'border-gray-500'}">
-              {#if exportFormat === "tsv"}
-                <div class="w-2 h-2 rounded-full bg-sky-400"></div>
-              {/if}
-            </div>
             <div class="flex-1 min-w-0">
               <div class="flex items-center gap-2 flex-wrap">
-                <span class="text-sm font-semibold text-white">{t("settings.anki.exportTSV")}</span>
-                <span class="text-[10px] px-1.5 py-0.5 rounded-full font-bold
+                <span class="text-sm font-bold transition-colors duration-200 {exportFormat === 'tsv' ? 'text-white' : 'text-gray-400 hover:text-gray-200'}">
+                  {$currentLanguage === 'it' ? 'Esportazione TSV' : 'TSV export'}
+                </span>
+                <span class="text-[10px] px-1.5 py-0.5 rounded-full font-bold transition-all duration-200
                   {exportFormat === 'tsv'
                     ? 'bg-sky-500/30 text-sky-300 border border-sky-500/40'
-                    : 'bg-gray-700/60 text-gray-400 border border-gray-700'}">{t("flashcards.exportTSVBadge")}</span>
+                    : 'bg-gray-700/60 text-gray-400 border border-gray-700'}">
+                  {t("flashcards.exportTSVBadge")}
+                </span>
               </div>
               <p class="text-xs text-gray-400 mt-1 leading-relaxed">{t("flashcards.exportTSVDesc")}</p>
             </div>
+
+            <!-- Folder SVG Icon on the right -->
+            <svg class="w-8 h-8 transition-colors duration-200 shrink-0 {exportFormat === 'tsv' ? 'text-sky-400' : 'text-gray-500'}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+            </svg>
           </button>
         </div>
       </div>
     {/if}
 
-    <div class="{uiMode.expertMode ? 'grid grid-cols-1 lg:grid-cols-2 gap-6' : 'block'} mb-6 items-stretch">
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6 items-stretch">
       <!-- CPU Cores Card -->
-      {#if uiMode.expertMode}
-        <div class="glass-card p-6 flex flex-col justify-between h-full">
+      <div class="glass-card p-6 flex flex-col justify-between h-full">
+        {#if uiMode.expertMode}
           <div>
             <div class="flex items-center gap-3 mb-4">
               <div class="w-9 h-9 rounded-lg bg-orange-500/20 text-orange-300 flex items-center justify-center shrink-0">
@@ -2329,10 +2376,126 @@ import TranscribeTiers from "./TranscribeTiers.svelte";
                 </svg>
               </div>
               <div>
-                <h3 class="text-sm font-bold text-white">{t("flashcards.cpuCores")}</h3>
+                <h3 class="text-sm font-bold text-white">{t("settings.cpuCoresExpertTitle")}</h3>
               </div>
             </div>
-            <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-2 xl:grid-cols-4 gap-2.5 mb-4">
+
+            <!-- Granular CPU slider -->
+            <div class="mb-5">
+              <span class="block text-xs text-gray-400 mb-2 font-medium">
+                {t("settings.cpuCoresSliderLabel")}
+              </span>
+              <div class="flex items-center gap-4">
+                <div class="flex-1 min-w-0">
+                  <input
+                    type="range"
+                    min={minCpuCores}
+                    max={maxCpuCores}
+                    value={cpuCores}
+                    class="slider-resource w-full cursor-pointer"
+                    oninput={(e) => {
+                      cpuCores = parseInt((e.target as HTMLInputElement).value);
+                      localStorage.setItem("vesta_cpu_cores", cpuCores.toString());
+                      window.dispatchEvent(new CustomEvent("vesta-cpu-cores-changed", { detail: cpuCores }));
+                    }}
+                  />
+                  <!-- Tick marks — dynamic, proportionally distributed across core range -->
+                  <div class="relative mt-1.5" style="height: 22px;">
+                    {#each Array(maxCpuCores - minCpuCores + 1) as _, i}
+                      {@const val = minCpuCores + i}
+                      {@const pct = ((val - minCpuCores) / (maxCpuCores - minCpuCores)) * 100}
+                      {#if val === minCpuCores || val === maxCpuCores || (val - minCpuCores) % cpuTickStep === 0}
+                        <div
+                          class="absolute flex flex-col items-center gap-0.5"
+                          style="left: {pct}%; transform: translateX(-50%);"
+                        >
+                          <div class="w-px h-1.5 {val === cpuCores ? 'bg-white/60' : 'bg-white/20'}"></div>
+                          <span class="text-[9px] {val === cpuCores ? 'text-white/70' : 'text-white/25'}">{val}</span>
+                        </div>
+                      {/if}
+                    {/each}
+                  </div>
+                </div>
+                <span class="text-white font-mono bg-white/10 px-2.5 py-1 rounded-lg text-xs shrink-0 self-start">
+                  {cpuCores} / {maxCpuCores}
+                </span>
+              </div>
+            </div>
+
+            <!-- RAM Memory slider -->
+            <div class="pt-4 border-t border-white/5">
+              <div class="flex items-center justify-between mb-2">
+                <span class="block text-xs text-gray-400 font-medium">
+                  {t("settings.ramLimitLabel")}
+                </span>
+                <span class="text-white font-mono bg-white/10 px-2.5 py-1 rounded-lg text-xs shrink-0">
+                  {ramLimitMb === 0
+                    ? ($currentLanguage === 'it' ? 'Nessun limite' : 'No limit')
+                    : ramLimitMb >= 1024
+                      ? `${(ramLimitMb / 1024).toFixed(ramLimitMb % 1024 === 0 ? 0 : 1)} GB`
+                      : `${ramLimitMb} MB`}
+                </span>
+              </div>
+              <input
+                type="range"
+                min={0}
+                max={maxRamMb}
+                step={64}
+                value={ramLimitMb}
+                class="slider-resource w-full cursor-pointer"
+                oninput={(e) => {
+                  const raw = parseInt((e.target as HTMLInputElement).value);
+                  // 0 = no limit
+                  ramLimitMb = raw < minRamMb ? 0 : raw;
+                  if (ramLimitMb === 0) {
+                    localStorage.removeItem("vesta_memory_limit_mb");
+                  } else {
+                    localStorage.setItem("vesta_memory_limit_mb", ramLimitMb.toString());
+                  }
+                }}
+              />
+              <!-- Tick marks: dynamic nice step — ~6 equidistant ticks based on system RAM -->
+              <div class="relative mt-1.5" style="height: 22px;">
+                {#each ramTicksMb as v}
+                  {@const pct = (v / maxRamMb) * 100}
+                  <div
+                    class="absolute flex flex-col items-center gap-0.5"
+                    style="left: {pct}%; transform: translateX(-50%);"
+                  >
+                    <div class="w-px h-1.5 {ramLimitMb === v ? 'bg-white/60' : 'bg-white/20'}"></div>
+                    <span class="text-[9px] {ramLimitMb === v ? 'text-white/70' : 'text-white/25'} whitespace-nowrap">
+                      {v === 0
+                        ? ($currentLanguage === 'it' ? 'Nessuno' : 'None')
+                        : v >= 1024 ? `${v / 1024}G` : `${v}M`}
+                    </span>
+                  </div>
+                {/each}
+              </div>
+            </div>
+          </div>
+        {:else}
+          <div>
+            <div class="flex items-center gap-3 mb-3">
+              <div class="w-9 h-9 rounded-lg bg-orange-500/20 text-orange-300 flex items-center justify-center shrink-0">
+                <svg
+                  class="w-5 h-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"
+                  />
+                </svg>
+              </div>
+              <div>
+                <h3 class="text-sm font-bold text-white">{t("settings.cpuCoresEasyTitle")}</h3>
+              </div>
+            </div>
+            <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-2 xl:grid-cols-4 gap-2.5">
               <button
                 onclick={() => setCpuPreset("eco")}
                 class="p-3 rounded-xl text-center transition-all duration-200 border text-xs cursor-pointer {activeCpuPreset ===
@@ -2402,24 +2565,26 @@ import TranscribeTiers from "./TranscribeTiers.svelte";
               </button>
             </div>
           </div>
-          <div class="flex items-center justify-between text-sm px-1 mt-auto pt-4 border-t border-white/5">
-            <span class="text-gray-400">{t("flashcards.cpuCoresUsage")}</span>
-            <span
-              class="text-white font-mono bg-white/10 px-2.5 py-1 rounded-lg text-sm"
-              >{cpuCores} / {systemCpuCount}</span
-            >
-          </div>
-        </div>
-      {/if}
+        {/if}
+      </div>
 
       <!-- Aggiornamenti Card -->
       <div class="glass-card p-6 flex flex-col justify-between h-full">
-        <div class="flex flex-col gap-4">
-          <!-- Toggle Row -->
-          <div class="flex items-center justify-between gap-4 p-4 rounded-xl bg-white/5 border border-transparent">
-            <span class="text-sm font-medium text-gray-300">
-              {$currentLanguage === 'it' ? 'Verifica automaticamente la presenza di aggiornamenti' : 'Check automatically for updates'}
-            </span>
+        <div class="flex flex-col gap-6">
+          <!-- Toggle Row with Icon, Labels, and Switch -->
+          <div class="flex items-center justify-between gap-4">
+            <div class="flex items-center gap-3.5">
+              <div class="w-9 h-9 rounded-lg bg-indigo-500/15 text-indigo-300 flex items-center justify-center shrink-0">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" />
+                </svg>
+              </div>
+              <div class="flex-1 min-w-0">
+                <span class="text-sm font-semibold text-white block">
+                  {$currentLanguage === 'it' ? 'Verifica aggiornamenti all\'avvio' : 'Check for updates on startup'}
+                </span>
+              </div>
+            </div>
             <button
               type="button"
               onclick={toggleAutomaticUpdateChecks}
@@ -2432,58 +2597,55 @@ import TranscribeTiers from "./TranscribeTiers.svelte";
             </button>
           </div>
 
-          <!-- Status / Action Row -->
-          <div>
-            {#if updateStatus === "available"}
-              <a
-                href={releaseUrl}
-                target="_blank"
-                class="inline-flex items-center gap-3 rounded-xl border border-amber-500/40 bg-amber-500/15 px-5 py-3 text-left transition-all duration-200 hover:border-amber-500/60 hover:bg-amber-500/25 active:scale-[0.98] cursor-pointer shadow-md shadow-amber-900/20"
-              >
-                <span class="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse ring-4 ring-amber-500/20 shrink-0"></span>
-                <span class="text-xs font-bold text-amber-200">
-                  {$currentLanguage === 'it' ? `Nuova versione disponibile! Scarica v${latestVersion}` : `New version available! Download v${latestVersion}`}
+          <!-- Bottom Row: Dynamic Status / Manual Check Area -->
+          <div class="pt-4 border-t border-white/5 flex items-center justify-between min-h-[44px]">
+            <span class="text-xs text-gray-400">
+              {$currentLanguage === 'it' ? 'Stato degli aggiornamenti' : 'Update status'}
+            </span>
+            <div>
+              {#if updateStatus === "available"}
+                <a
+                  href={releaseUrl}
+                  target="_blank"
+                  class="inline-flex items-center gap-2 rounded-xl border border-amber-500/40 bg-amber-500/15 px-4 py-2 text-left transition-all duration-200 hover:border-amber-500/60 hover:bg-amber-500/25 active:scale-[0.98] cursor-pointer shadow-md shadow-amber-900/20"
+                >
+                  <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse shrink-0"></span>
+                  <span class="text-[11px] font-bold text-amber-200">
+                    {$currentLanguage === 'it' ? `Scarica v${latestVersion}` : `Download v${latestVersion}`}
+                  </span>
+                  <svg class="w-4 h-4 text-amber-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                  </svg>
+                </a>
+              {:else if updateStatus === "checking"}
+                <div class="flex items-center gap-2 text-xs text-gray-400 font-semibold">
+                  <svg class="animate-spin h-3.5 w-3.5 text-indigo-400 shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                  </svg>
+                  <span>{$currentLanguage === 'it' ? 'Verifica...' : 'Checking...'}</span>
+                </div>
+              {:else if updateStatus === "current"}
+                <span class="text-xs font-semibold text-emerald-400 flex items-center gap-1.5 animate-fade-in bg-emerald-500/10 border border-emerald-500/25 px-2.5 py-1.5 rounded-lg select-none">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7" />
+                  </svg>
+                  {$currentLanguage === 'it' ? 'Aggiornato' : 'Up to date'}
                 </span>
-                <svg class="w-5 h-5 text-amber-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                </svg>
-              </a>
-            {:else if automaticUpdateChecks}
-              <p class="text-xs text-gray-500 italic px-1">
-                {$currentLanguage === 'it' ? 'Vesta verificherà la disponibilità di nuovi aggiornamenti all\'avvio.' : 'Vesta checks for updates automatically on startup.'}
-              </p>
-            {:else}
-              <div class="flex flex-wrap items-center gap-4">
+              {:else if automaticUpdateChecks}
+                <span class="text-xs text-gray-500 italic">
+                  {$currentLanguage === 'it' ? 'Attivo all\'avvio' : 'Active on startup'}
+                </span>
+              {:else}
                 <button
                   type="button"
                   onclick={() => checkForUpdates("manual")}
-                  disabled={updateStatus === 'checking'}
-                  class="px-5 py-2.5 bg-white/5 border border-white/10 hover:bg-white/10 hover:border-white/20 text-white rounded-xl text-sm font-semibold transition-all duration-200 active:scale-[0.98] disabled:opacity-60 flex items-center gap-2 cursor-pointer"
+                  class="px-4 py-2 bg-white/5 border border-white/10 hover:bg-white/10 hover:border-white/20 text-white rounded-xl text-xs font-semibold transition-all duration-200 active:scale-[0.98] cursor-pointer"
                 >
-                  {#if updateStatus === 'checking'}
-                    <svg class="w-4 h-4 text-indigo-400 animate-spin" fill="none" viewBox="0 0 24 24">
-                      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
-                    </svg>
-                    <span>{$currentLanguage === 'it' ? 'Verifica in corso...' : 'Checking for updates...'}</span>
-                  {:else}
-                    <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                    </svg>
-                    <span>{$currentLanguage === 'it' ? 'Cerca aggiornamenti' : 'Check for updates now'}</span>
-                  {/if}
+                  {$currentLanguage === 'it' ? 'Verifica ora' : 'Check now'}
                 </button>
-
-                {#if updateStatus === 'current'}
-                  <span class="text-xs font-semibold text-emerald-400 flex items-center gap-1.5 animate-fade-in">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7" />
-                    </svg>
-                    {$currentLanguage === 'it' ? 'L\'app è aggiornata all\'ultima versione' : 'Vesta is up to date'}
-                  </span>
-                {/if}
-              </div>
-            {/if}
+              {/if}
+            </div>
           </div>
         </div>
       </div>
@@ -3192,7 +3354,7 @@ import TranscribeTiers from "./TranscribeTiers.svelte";
               type="button"
               onclick={deleteCurrentAnkiFieldPreset}
               disabled={selectedAnkiFieldPresetId === "default"}
-              class="px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-gray-300 hover:text-red-300 hover:border-red-500/30 disabled:opacity-40 disabled:hover:text-gray-300 disabled:hover:border-white/10 transition-colors text-xs font-semibold flex items-center gap-2"
+              class="px-3 py-2 rounded-lg border border-red-500/30 bg-red-500/10 text-red-300 hover:bg-red-500/20 hover:border-red-500/50 disabled:opacity-40 disabled:cursor-not-allowed disabled:bg-white/5 disabled:border-white/10 disabled:text-gray-400 transition-colors text-xs font-semibold flex items-center gap-2"
             >
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />

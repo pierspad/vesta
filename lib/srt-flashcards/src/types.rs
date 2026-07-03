@@ -343,7 +343,7 @@ pub struct FlashcardResult {
 }
 
 /// Preview data for a single line
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PreviewLine {
     pub index: usize,
     pub subs1_text: String,

@@ -18,6 +18,7 @@
     className?: string;
     noResultsText?: string;
     onfocus?: () => void;
+    disabled?: boolean;
   }
 
   let {
@@ -28,6 +29,7 @@
     className = "",
     noResultsText = "No results",
     onfocus,
+    disabled = false,
   }: Props = $props();
 
   let isOpen = $state(false);
@@ -63,6 +65,7 @@
   });
 
   async function handleFocus() {
+    if (disabled) return;
     isOpen = true;
     searchQuery = "";
     // Start with the currently selected option highlighted and visible
@@ -76,6 +79,7 @@
   }
 
   function handleBlur(e: FocusEvent) {
+    if (disabled) return;
     // Delay to allow click on option
     setTimeout(() => {
       if (!containerElement?.contains(document.activeElement)) {
@@ -86,12 +90,14 @@
   }
 
   function handleInput(e: Event) {
+    if (disabled) return;
     const target = e.target as HTMLInputElement;
     searchQuery = target.value;
     isOpen = true;
   }
 
   function handleKeydown(e: KeyboardEvent) {
+    if (disabled) return;
     if (!isOpen) {
       if (e.key === "Enter" || e.key === "ArrowDown" || e.key === "ArrowUp") {
         isOpen = true;
@@ -184,7 +190,8 @@
       onblur={handleBlur}
       onkeydown={handleKeydown}
       {placeholder}
-      class="searchable-select-input w-full"
+      disabled={disabled}
+      class="searchable-select-input w-full disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-white/[0.02]"
       style:padding-left={selectedOption?.provider && !isOpen ? "38px" : ""}
       autocomplete="off"
     />

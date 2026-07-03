@@ -1063,118 +1063,218 @@
               />
             </div>
             {#if uiMode.expertMode}
-            <div>
-              <div class="flex items-center justify-between mb-2">
-                <span class="text-sm text-gray-400">{t("translate.batchSize")}</span>
-              </div>
-              <div class="grid grid-cols-4 gap-2">
-                <button
-                  onclick={() => setBatchPreset("precise")}
-                  class="p-2 rounded-lg text-center transition-all duration-200 border text-xs {activeBatchPreset ===
-                  'precise'
-                    ? 'bg-green-500/20 border-green-500/50 text-white'
-                    : 'bg-white/5 hover:bg-white/10 border-transparent text-gray-400 hover:text-white'}"
-                >
-                  <span class="block mb-1 text-white">
-                    <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <circle cx="12" cy="12" r="8" stroke-width="1.8" />
-                      <circle cx="12" cy="12" r="2" stroke-width="1.8" />
-                    </svg>
-                  </span>
-                  <span class="font-semibold block">{t("translate.batchPrecise")}</span>
-                </button>
-                <button
-                  onclick={() => setBatchPreset("balanced")}
-                  class="p-2 rounded-lg text-center transition-all duration-200 border text-xs {activeBatchPreset ===
-                  'balanced'
-                    ? 'bg-green-500/20 border-green-500/50 text-white'
-                    : 'bg-white/5 hover:bg-white/10 border-transparent text-gray-400 hover:text-white'}"
-                >
-                  <span class="block mb-1 text-white">
-                    <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 4v16" />
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M6 8h12" />
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M8 8l-2.5 4h5L8 8z" />
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M16 8l-2.5 4h5L16 8z" />
-                    </svg>
-                  </span>
-                  <span class="font-semibold block">{t("translate.batchBalanced")}</span>
-                </button>
-                <button
-                  onclick={() => setBatchPreset("fast")}
-                  class="p-2 rounded-lg text-center transition-all duration-200 border text-xs {activeBatchPreset ===
-                  'fast'
-                    ? 'bg-green-500/20 border-green-500/50 text-white'
-                    : 'bg-white/5 hover:bg-white/10 border-transparent text-gray-400 hover:text-white'}"
-                >
-                  <span class="block mb-1 text-white">
-                    <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M5 15l5-5 3 3 6-6" />
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M14 7h5v5" />
-                    </svg>
-                  </span>
-                  <span class="font-semibold block">{t("translate.batchFast")}</span>
-                </button>
-                <button
-                  onclick={() => setBatchPreset("turbo")}
-                  class="p-2 rounded-lg text-center transition-all duration-200 border text-xs {activeBatchPreset ===
-                  'turbo'
-                    ? 'bg-green-500/20 border-green-500/50 text-white'
-                    : 'bg-white/5 hover:bg-white/10 border-transparent text-gray-400 hover:text-white'}"
-                >
-                  <span class="block mb-1 text-white">
-                    <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M11 3L6 13h5l-1 8 8-12h-5l2-6h-4z" />
-                    </svg>
-                  </span>
-                  <span class="font-semibold block">{t("translate.batchTurbo")}</span>
-                </button>
-              </div>
-              <div class="mt-2 flex items-center justify-end text-xs">
-                <span
-                  class="text-white font-mono bg-white/10 px-2 py-0.5 rounded text-sm"
-                  >{batchSize} {t("translate.subPerBatch")}</span
-                >
-              </div>
-            </div>
-            <div class="mt-4">
-              <div class="flex items-center justify-between mb-2">
-                <label for="overlap-input" class="text-sm text-gray-400">
-                  {t("translate.resumeOverlap")}
-                </label>
-                <div class="flex items-center gap-2">
-                  <span class="text-white font-mono bg-white/10 px-2 py-0.5 rounded text-xs">{resumeOverlap} sub</span>
+              <!-- Expert/Advanced Translation Options -->
+              <div>
+                <div class="flex items-center justify-between mb-3">
+                  <span class="text-sm font-semibold text-white">{t("translate.batchSizeExpert")}</span>
+                  <div class="flex items-center gap-2">
+                    <input
+                      type="number"
+                      min="1"
+                      max="200"
+                      bind:value={batchSize}
+                      class="input-modern w-16 text-center text-xs font-mono py-1 rounded-lg"
+                    />
+                    <span class="text-gray-400 text-xs">{t("translate.subPerBatch")}</span>
+                  </div>
+                </div>
+                <input
+                  type="range"
+                  min="1"
+                  max="100"
+                  bind:value={batchSize}
+                  class="slider-resource w-full cursor-pointer"
+                />
+                <!-- Tick marks for batch size -->
+                <div class="relative mt-1.5 mb-5" style="height: 22px;">
+                  {#each [1, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100] as v}
+                    {@const pct = ((v - 1) / 99) * 100}
+                    <div
+                      class="absolute flex flex-col items-center gap-0.5"
+                      style="left: {pct}%; transform: translateX(-50%);"
+                    >
+                      <div class="w-px h-1.5 {batchSize === v ? 'bg-white/60' : 'bg-white/20'}"></div>
+                      <span class="text-[9px] {batchSize === v ? 'text-white/70' : 'text-white/25'}">{v}</span>
+                    </div>
+                  {/each}
+                </div>
+
+                <div class="pt-4 border-t border-white/5 mb-4">
+                  <div class="flex items-center justify-between mb-3">
+                    <span class="text-sm font-semibold text-white">{t("translate.resumeOverlapExpert")}</span>
+                    <div class="flex items-center gap-2">
+                      <input
+                        type="number"
+                        min="0"
+                        max="15"
+                        bind:value={resumeOverlap}
+                        class="input-modern w-16 text-center text-xs font-mono py-1 rounded-lg"
+                      />
+                      <span class="text-gray-400 text-xs">sub</span>
+                    </div>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="15"
+                    bind:value={resumeOverlap}
+                    class="slider-resource w-full cursor-pointer"
+                  />
+                  <!-- Tick marks for overlap -->
+                  <div class="relative mt-1.5" style="height: 22px;">
+                    {#each Array(16) as _, i}
+                      {@const pct = (i / 15) * 100}
+                      <div
+                        class="absolute flex flex-col items-center gap-0.5"
+                        style="left: {pct}%; transform: translateX(-50%);"
+                      >
+                        <div class="w-px h-1.5 {resumeOverlap === i ? 'bg-white/60' : 'bg-white/20'}"></div>
+                        {#if i === 0 || i === 5 || i === 10 || i === 15}
+                          <span class="text-[9px] {resumeOverlap === i ? 'text-white/70' : 'text-white/25'}">{i}</span>
+                        {/if}
+                      </div>
+                    {/each}
+                  </div>
+                </div>
+                
+                <div class="pt-4 border-t border-white/5">
+                  <label
+                    for="context-input"
+                    class="block text-sm font-semibold text-white mb-1"
+                  >
+                    {t("translate.context")}
+                    <span class="text-gray-500 font-normal">({t("translate.contextOptional")})</span>
+                  </label>
+                  <textarea
+                    id="context-input"
+                    bind:value={titleContext}
+                    rows="3"
+                    placeholder={t("translate.contextPlaceholder")}
+                    class="input-modern w-full text-xs min-h-[5rem] resize-y"
+                  ></textarea>
                 </div>
               </div>
-              <input
-                id="overlap-input"
-                type="range"
-                min="0"
-                max="10"
-                step="1"
-                bind:value={resumeOverlap}
-                class="w-full h-1.5 bg-gray-800 rounded-lg appearance-none cursor-pointer accent-green-500"
-              />
-            </div>
-            
-            <div class="mt-4">
-              <label
-                for="context-input"
-                class="block text-sm text-gray-400 mb-1"
-              >
-                {t("translate.context")}
-                <span class="text-gray-500"
-                  >{t("translate.contextOptional")}</span
-                >
-              </label>
-              <textarea
-                id="context-input"
-                bind:value={titleContext}
-                rows="4"
-                placeholder={t("translate.contextPlaceholder")}
-                class="input-modern w-full text-sm min-h-[7rem] resize-y"
-              ></textarea>
-            </div>
+            {:else}
+              <!-- Easy/Simplified Translation Options -->
+              <div>
+                <!-- Accuracy and speed preset block -->
+                <div class="mb-5">
+                  <span class="block text-sm font-semibold text-white mb-3">
+                    {t("translate.accuracySpeedTitle")}
+                  </span>
+                  <div class="grid grid-cols-4 gap-2">
+                    <button
+                      type="button"
+                      onclick={() => setBatchPreset("precise")}
+                      class="p-2 rounded-lg text-center transition-all duration-200 border text-xs cursor-pointer
+                        {activeBatchPreset === 'precise'
+                          ? 'bg-green-500/20 border-green-500/50 text-white font-semibold shadow-sm'
+                          : 'bg-white/5 hover:bg-white/10 border-transparent text-gray-400 hover:text-white'}"
+                    >
+                      <span class="block mb-1 text-white">
+                        <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <circle cx="12" cy="12" r="8" stroke-width="1.8" />
+                          <circle cx="12" cy="12" r="2" stroke-width="1.8" />
+                        </svg>
+                      </span>
+                      <span class="block">{t("translate.batchPrecise")}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onclick={() => setBatchPreset("balanced")}
+                      class="p-2 rounded-lg text-center transition-all duration-200 border text-xs cursor-pointer
+                        {activeBatchPreset === 'balanced'
+                          ? 'bg-green-500/20 border-green-500/50 text-white font-semibold shadow-sm'
+                          : 'bg-white/5 hover:bg-white/10 border-transparent text-gray-400 hover:text-white'}"
+                    >
+                      <span class="block mb-1 text-white">
+                        <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 4v16" />
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M6 8h12" />
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M8 8l-2.5 4h5L8 8z" />
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M16 8l-2.5 4h5L16 8z" />
+                        </svg>
+                      </span>
+                      <span class="block">{t("translate.batchBalanced")}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onclick={() => setBatchPreset("fast")}
+                      class="p-2 rounded-lg text-center transition-all duration-200 border text-xs cursor-pointer
+                        {activeBatchPreset === 'fast'
+                          ? 'bg-green-500/20 border-green-500/50 text-white font-semibold shadow-sm'
+                          : 'bg-white/5 hover:bg-white/10 border-transparent text-gray-400 hover:text-white'}"
+                    >
+                      <span class="block mb-1 text-white">
+                        <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M5 15l5-5 3 3 6-6" />
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M14 7h5v5" />
+                        </svg>
+                      </span>
+                      <span class="block">{t("translate.batchFast")}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onclick={() => setBatchPreset("turbo")}
+                      class="p-2 rounded-lg text-center transition-all duration-200 border text-xs cursor-pointer
+                        {activeBatchPreset === 'turbo'
+                          ? 'bg-green-500/20 border-green-500/50 text-white font-semibold shadow-sm'
+                          : 'bg-white/5 hover:bg-white/10 border-transparent text-gray-400 hover:text-white'}"
+                    >
+                      <span class="block mb-1 text-white">
+                        <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M11 3L6 13h5l-1 8 8-12h-5l2-6h-4z" />
+                        </svg>
+                      </span>
+                      <span class="block">{t("translate.batchTurbo")}</span>
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Text continuity preset block -->
+                <div class="pt-4 border-t border-white/5">
+                  <div class="flex items-center gap-2 mb-3">
+                    <span class="block text-sm font-semibold text-white">
+                      {t("translate.contextTitle")}
+                    </span>
+                    <span class="text-[9px] uppercase tracking-wide font-semibold px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400 border border-amber-500/25">
+                      {t("translate.contextCostHint")}
+                    </span>
+                  </div>
+                  <div class="grid grid-cols-3 gap-2">
+                    <button
+                      type="button"
+                      onclick={() => (resumeOverlap = 0)}
+                      class="p-2.5 rounded-lg text-center transition-all duration-200 border text-xs cursor-pointer
+                        {resumeOverlap === 0
+                          ? 'bg-green-500/20 border-green-500/50 text-white font-semibold shadow-sm'
+                          : 'bg-white/5 hover:bg-white/10 border-transparent text-gray-400 hover:text-white'}"
+                    >
+                      {t("translate.overlapNone")}
+                    </button>
+                    <button
+                      type="button"
+                      onclick={() => (resumeOverlap = 2)}
+                      class="p-2.5 rounded-lg text-center transition-all duration-200 border text-xs cursor-pointer
+                        {resumeOverlap === 2
+                          ? 'bg-green-500/20 border-green-500/50 text-white font-semibold shadow-sm'
+                          : 'bg-white/5 hover:bg-white/10 border-transparent text-gray-400 hover:text-white'}"
+                    >
+                      {t("translate.overlapNormal")}
+                    </button>
+                    <button
+                      type="button"
+                      onclick={() => (resumeOverlap = 4)}
+                      class="p-2.5 rounded-lg text-center transition-all duration-200 border text-xs cursor-pointer
+                        {resumeOverlap === 4
+                          ? 'bg-green-500/20 border-green-500/50 text-white font-semibold shadow-sm'
+                          : 'bg-white/5 hover:bg-white/10 border-transparent text-gray-400 hover:text-white'}"
+                    >
+                      {t("translate.overlapHigh")}
+                    </button>
+                  </div>
+                </div>
+              </div>
             {/if}
           </div>
         </div>

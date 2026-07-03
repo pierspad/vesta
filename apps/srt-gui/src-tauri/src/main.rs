@@ -411,6 +411,8 @@ fn main() {
             flashcard_download_ffmpeg,
             flashcard_check_dir_exists,
             flashcard_get_cpu_count,
+            flashcard_get_total_memory_mb,
+            save_temp_subtitles,
             // Comandi trascrizione
             transcribe_check_backends,
             transcribe_list_models,

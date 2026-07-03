@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount, onDestroy } from "svelte";
-  import { locale } from "./i18n";
+  import { locale, currentLanguage } from "./i18n";
+  import { get } from "svelte/store";
   import ProviderIcon from "./ProviderIcon.svelte";
   import SearchableSelect from "./SearchableSelect.svelte";
   import { discoverModels, type DiscoveredModel } from "./modelDiscovery";
@@ -137,16 +138,31 @@
     tiers = loadTiers();
   }
 
+  let localCheckInterval: any = null;
+
   onMount(() => {
     tiers = loadTiers();
     refreshKeys();
     window.addEventListener("apikeys-updated", refreshKeys);
     window.addEventListener(TIERS_UPDATED_EVENT, syncTiers);
+
+    localCheckInterval = setInterval(() => {
+      for (const tier of tiers) {
+        for (const e of tier.entries) {
+          if (e.provider === "local") {
+            void ensureModels(e.provider, e.apiKeyId);
+          }
+        }
+      }
+    }, 15000);
   });
 
   onDestroy(() => {
     window.removeEventListener("apikeys-updated", refreshKeys);
     window.removeEventListener(TIERS_UPDATED_EVENT, syncTiers);
+    if (localCheckInterval) {
+      clearInterval(localCheckInterval);
+    }
   });
 
   // ─── Mutations ──────────────────────────────────────────────────────────────
@@ -274,14 +290,33 @@
   // scoperti a runtime dall'endpoint del provider (deduplicati per id).
   function entryModels(entry: TierEntry): { id: string; name: string; recommended?: boolean }[] {
     const merged = new Map<string, { id: string; name: string; recommended?: boolean }>();
-    for (const m of getModelsForProvider(entry.provider)) {
-      merged.set(m.id, { id: m.id, name: m.name, recommended: m.recommended });
+    if (entry.provider !== "local") {
+      for (const m of getModelsForProvider(entry.provider)) {
+        merged.set(m.id, { id: m.id, name: m.name, recommended: m.recommended });
+      }
     }
     const disc = discovered.get(discoveryKey(entry.provider, entry.apiKeyId)) || [];
     for (const d of disc) {
       if (!merged.has(d.id)) merged.set(d.id, { id: d.id, name: d.name });
     }
     return [...merged.values()];
+  }
+
+  function localModelsPlaceholder(): string {
+    const lang = get(currentLanguage);
+    if (lang === 'it') {
+      return "Nessun modello locale trovato / Server offline";
+    }
+    if (lang === 'fr') {
+      return "Aucun modello local trovato / Serveur hors ligne";
+    }
+    if (lang === 'es') {
+      return "No se encontraron modelos locales / Servidor fuera de línea";
+    }
+    if (lang === 'de') {
+      return "Keine lokalen Modelle gefunden / Server offline";
+    }
+    return "No local models found / Server offline";
   }
 
   // Entry per cui l'utente ha scelto esplicitamente "modello personalizzato".
@@ -473,14 +508,19 @@
                         </button>
                       </div>
                       <SearchableSelect
-                        options={[
-                          ...entryModels(entry).map((m) => ({
-                            value: m.id,
-                            label: `${m.name}${m.recommended ? " ★" : ""}`
-                          })),
-                          { value: "__custom__", label: t("tiers.customModel") }
-                        ]}
-                        value={isCustomModel(entry) ? "__custom__" : entry.model}
+                        options={entry.provider === "local" && entryModels(entry).length === 0
+                          ? [{ value: "", label: localModelsPlaceholder() }]
+                          : [
+                              ...entryModels(entry).map((m) => ({
+                                value: m.id,
+                                label: `${m.name}${m.recommended ? " ★" : ""}`
+                              })),
+                              { value: "__custom__", label: t("tiers.customModel") }
+                            ]}
+                        value={entry.provider === "local" && entryModels(entry).length === 0
+                          ? ""
+                          : (isCustomModel(entry) ? "__custom__" : entry.model)}
+                        disabled={entry.provider === "local" && entryModels(entry).length === 0}
                         onfocus={() => ensureModels(entry.provider, entry.apiKeyId, true)}
                         onchange={(v) => {
                           if (v === "__custom__") {
