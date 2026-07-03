@@ -11,6 +11,7 @@ import TranscribeTiers from "./TranscribeTiers.svelte";
   import ProviderIcon from "./ProviderIcon.svelte";
   import { smartMatchingStore } from "./smartMatchingStore.svelte";
   import { snackbar } from "./snackbarStore.svelte";
+  import { uiMode } from "./uiModeStore.svelte";
   import {
     availableUILanguages,
     currentLanguage,
@@ -1065,6 +1066,31 @@ import TranscribeTiers from "./TranscribeTiers.svelte";
         const saved = localStorage.getItem(EXPORT_FORMAT_KEY);
         exportFormat = saved === "tsv" ? "tsv" : "apkg";
       } catch {}
+    }
+  });
+
+  $effect(() => {
+    const _ = uiMode.expertMode;
+    try {
+      const saved = localStorage.getItem(EXPORT_FORMAT_KEY);
+      exportFormat = saved === "tsv" ? "tsv" : "apkg";
+    } catch {}
+    try {
+      const savedCores = localStorage.getItem("vesta_cpu_cores");
+      if (savedCores) {
+        cpuCores = parseInt(savedCores);
+      }
+    } catch {}
+  });
+
+  $effect(() => {
+    if (!uiMode.expertMode) {
+      if (activeSettingsSection === "language" || activeSettingsSection === "anki") {
+        activeSettingsSection = "overview";
+      }
+      if (requestedSection === "language" || requestedSection === "anki") {
+        requestedSection = "overview";
+      }
     }
   });
 
@@ -2202,179 +2228,189 @@ import TranscribeTiers from "./TranscribeTiers.svelte";
       </div>
     </div>
 
+    {#if uiMode.easyMode}
+      <div class="mb-6">
+        {@render defaultLanguagesCard()}
+      </div>
+    {/if}
+
     <!-- Export Format Card -->
-    <div class="glass-card p-6 mb-6">
-      <div class="flex items-center gap-3 mb-4">
-        <div class="w-9 h-9 rounded-lg bg-sky-500/15 text-sky-300 flex items-center justify-center shrink-0">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-              d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-            />
-          </svg>
-        </div>
-        <div>
-          <h3 class="text-sm font-bold text-white">{t("settings.anki.exportFormat")}</h3>
-        </div>
-      </div>
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <!-- APKG option -->
-        <button
-          type="button"
-          onclick={() => (exportFormat = "apkg")}
-          class="flex items-start gap-3 p-3.5 rounded-xl border text-left transition-all cursor-pointer
-            {exportFormat === 'apkg'
-              ? 'border-emerald-500/50 bg-emerald-500/10'
-              : 'border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/8'}"
-        >
-          <div class="mt-0.5 w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0
-            {exportFormat === 'apkg' ? 'border-emerald-400' : 'border-gray-500'}">
-            {#if exportFormat === "apkg"}
-              <div class="w-2 h-2 rounded-full bg-emerald-400"></div>
-            {/if}
+    {#if uiMode.expertMode}
+      <div class="glass-card p-6 mb-6">
+        <div class="flex items-center gap-3 mb-4">
+          <div class="w-9 h-9 rounded-lg bg-sky-500/15 text-sky-300 flex items-center justify-center shrink-0">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+              />
+            </svg>
           </div>
-          <div class="flex-1 min-w-0">
-            <div class="flex items-center gap-2 flex-wrap">
-              <span class="text-sm font-semibold text-white">{t("settings.anki.exportAPKG")}</span>
-              <span class="text-[10px] px-1.5 py-0.5 rounded-full font-bold
-                {exportFormat === 'apkg'
-                  ? 'bg-emerald-500/30 text-emerald-300 border border-emerald-500/40'
-                  : 'bg-gray-700/60 text-gray-400 border border-gray-700'}">{t("flashcards.exportAPKGBadge")}</span>
-            </div>
-            <p class="text-xs text-gray-400 mt-1 leading-relaxed">{t("flashcards.exportAPKGDesc")}</p>
-          </div>
-        </button>
-
-        <!-- TSV option -->
-        <button
-          type="button"
-          onclick={() => (exportFormat = "tsv")}
-          class="flex items-start gap-3 p-3.5 rounded-xl border text-left transition-all cursor-pointer
-            {exportFormat === 'tsv'
-              ? 'border-sky-500/50 bg-sky-500/10'
-              : 'border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/8'}"
-        >
-          <div class="mt-0.5 w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0
-            {exportFormat === 'tsv' ? 'border-sky-400' : 'border-gray-500'}">
-            {#if exportFormat === "tsv"}
-              <div class="w-2 h-2 rounded-full bg-sky-400"></div>
-            {/if}
-          </div>
-          <div class="flex-1 min-w-0">
-            <div class="flex items-center gap-2 flex-wrap">
-              <span class="text-sm font-semibold text-white">{t("settings.anki.exportTSV")}</span>
-              <span class="text-[10px] px-1.5 py-0.5 rounded-full font-bold
-                {exportFormat === 'tsv'
-                  ? 'bg-sky-500/30 text-sky-300 border border-sky-500/40'
-                  : 'bg-gray-700/60 text-gray-400 border border-gray-700'}">{t("flashcards.exportTSVBadge")}</span>
-            </div>
-            <p class="text-xs text-gray-400 mt-1 leading-relaxed">{t("flashcards.exportTSVDesc")}</p>
-          </div>
-        </button>
-      </div>
-    </div>
-
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6 items-stretch">
-      <!-- CPU Cores Card -->
-      <div class="glass-card p-6 flex flex-col justify-between h-full">
-        <div>
-          <div class="flex items-center gap-3 mb-4">
-            <div class="w-9 h-9 rounded-lg bg-orange-500/20 text-orange-300 flex items-center justify-center shrink-0">
-              <svg
-                class="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"
-                />
-              </svg>
-            </div>
-            <div>
-              <h3 class="text-sm font-bold text-white">{t("flashcards.cpuCores")}</h3>
-            </div>
-          </div>
-          <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-2 xl:grid-cols-4 gap-2.5 mb-4">
-            <button
-              onclick={() => setCpuPreset("eco")}
-              class="p-3 rounded-xl text-center transition-all duration-200 border text-xs cursor-pointer {activeCpuPreset ===
-              'eco'
-                ? 'bg-orange-500/20 border-orange-500/50 text-white'
-                : 'bg-white/5 hover:bg-white/10 border-transparent text-gray-400 hover:text-white'}"
-            >
-              <span class="block mb-1 text-white">
-                <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M5 14c0-5.523 4.477-10 10-10h4v4c0 5.523-4.477 10-10 10H5v-4z" />
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M7 17c2.5-2.5 5.5-4.5 9-6" />
-                </svg>
-              </span>
-              <span class="font-semibold block">{t("flashcards.cpuEco")}</span>
-            </button>
-            <button
-              onclick={() => setCpuPreset("balanced")}
-              class="p-3 rounded-xl text-center transition-all duration-200 border text-xs cursor-pointer {activeCpuPreset ===
-              'balanced'
-                ? 'bg-orange-500/20 border-orange-500/50 text-white'
-                : 'bg-white/5 hover:bg-white/10 border-transparent text-gray-400 hover:text-white'}"
-            >
-              <span class="block mb-1 text-white">
-                <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 4v16" />
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M6 7h12" />
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M8 7l-3 5h6L8 7z" />
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M16 7l-3 5h6l-3-5z" />
-                </svg>
-              </span>
-              <span class="font-semibold block"
-                >{t("flashcards.cpuBalanced")}</span
-              >
-            </button>
-            <button
-              onclick={() => setCpuPreset("performance")}
-              class="p-3 rounded-xl text-center transition-all duration-200 border text-xs cursor-pointer {activeCpuPreset ===
-              'performance'
-                ? 'bg-orange-500/20 border-orange-500/50 text-white'
-                : 'bg-white/5 hover:bg-white/10 border-transparent text-gray-400 hover:text-white'}"
-            >
-              <span class="block mb-1 text-white">
-                <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M5 16l5-5 3 3 6-7" />
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M14 7h5v5" />
-                </svg>
-              </span>
-              <span class="font-semibold block"
-                >{t("flashcards.cpuPerformance")}</span
-              >
-            </button>
-            <button
-              onclick={() => setCpuPreset("full")}
-              class="p-3 rounded-xl text-center transition-all duration-200 border text-xs cursor-pointer {activeCpuPreset ===
-              'full'
-                ? 'bg-orange-500/20 border-orange-500/50 text-white'
-                : 'bg-white/5 hover:bg-white/10 border-transparent text-gray-400 hover:text-white'}"
-            >
-              <span class="block mb-1 text-white">
-                <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M11 3L6 13h5l-1 8 8-12h-5l2-6h-4z" />
-                </svg>
-              </span>
-              <span class="font-semibold block"
-                >{t("flashcards.cpuFullPower")}</span
-              >
-            </button>
+          <div>
+            <h3 class="text-sm font-bold text-white">{t("settings.anki.exportFormat")}</h3>
           </div>
         </div>
-        <div class="flex items-center justify-between text-sm px-1 mt-auto pt-4 border-t border-white/5">
-          <span class="text-gray-400">{t("flashcards.cpuCoresUsage")}</span>
-          <span
-            class="text-white font-mono bg-white/10 px-2.5 py-1 rounded-lg text-sm"
-            >{cpuCores} / {systemCpuCount}</span
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <!-- APKG option -->
+          <button
+            type="button"
+            onclick={() => (exportFormat = "apkg")}
+            class="flex items-start gap-3 p-3.5 rounded-xl border text-left transition-all cursor-pointer
+              {exportFormat === 'apkg'
+                ? 'border-emerald-500/50 bg-emerald-500/10'
+                : 'border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/8'}"
           >
+            <div class="mt-0.5 w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0
+              {exportFormat === 'apkg' ? 'border-emerald-400' : 'border-gray-500'}">
+              {#if exportFormat === "apkg"}
+                <div class="w-2 h-2 rounded-full bg-emerald-400"></div>
+              {/if}
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-2 flex-wrap">
+                <span class="text-sm font-semibold text-white">{t("settings.anki.exportAPKG")}</span>
+                <span class="text-[10px] px-1.5 py-0.5 rounded-full font-bold
+                  {exportFormat === 'apkg'
+                    ? 'bg-emerald-500/30 text-emerald-300 border border-emerald-500/40'
+                    : 'bg-gray-700/60 text-gray-400 border border-gray-700'}">{t("flashcards.exportAPKGBadge")}</span>
+              </div>
+              <p class="text-xs text-gray-400 mt-1 leading-relaxed">{t("flashcards.exportAPKGDesc")}</p>
+            </div>
+          </button>
+
+          <!-- TSV option -->
+          <button
+            type="button"
+            onclick={() => (exportFormat = "tsv")}
+            class="flex items-start gap-3 p-3.5 rounded-xl border text-left transition-all cursor-pointer
+              {exportFormat === 'tsv'
+                ? 'border-sky-500/50 bg-sky-500/10'
+                : 'border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/8'}"
+          >
+            <div class="mt-0.5 w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0
+              {exportFormat === 'tsv' ? 'border-sky-400' : 'border-gray-500'}">
+              {#if exportFormat === "tsv"}
+                <div class="w-2 h-2 rounded-full bg-sky-400"></div>
+              {/if}
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-2 flex-wrap">
+                <span class="text-sm font-semibold text-white">{t("settings.anki.exportTSV")}</span>
+                <span class="text-[10px] px-1.5 py-0.5 rounded-full font-bold
+                  {exportFormat === 'tsv'
+                    ? 'bg-sky-500/30 text-sky-300 border border-sky-500/40'
+                    : 'bg-gray-700/60 text-gray-400 border border-gray-700'}">{t("flashcards.exportTSVBadge")}</span>
+              </div>
+              <p class="text-xs text-gray-400 mt-1 leading-relaxed">{t("flashcards.exportTSVDesc")}</p>
+            </div>
+          </button>
         </div>
       </div>
+    {/if}
+
+    <div class="{uiMode.expertMode ? 'grid grid-cols-1 lg:grid-cols-2 gap-6' : 'block'} mb-6 items-stretch">
+      <!-- CPU Cores Card -->
+      {#if uiMode.expertMode}
+        <div class="glass-card p-6 flex flex-col justify-between h-full">
+          <div>
+            <div class="flex items-center gap-3 mb-4">
+              <div class="w-9 h-9 rounded-lg bg-orange-500/20 text-orange-300 flex items-center justify-center shrink-0">
+                <svg
+                  class="w-5 h-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"
+                  />
+                </svg>
+              </div>
+              <div>
+                <h3 class="text-sm font-bold text-white">{t("flashcards.cpuCores")}</h3>
+              </div>
+            </div>
+            <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-2 xl:grid-cols-4 gap-2.5 mb-4">
+              <button
+                onclick={() => setCpuPreset("eco")}
+                class="p-3 rounded-xl text-center transition-all duration-200 border text-xs cursor-pointer {activeCpuPreset ===
+                'eco'
+                  ? 'bg-orange-500/20 border-orange-500/50 text-white'
+                  : 'bg-white/5 hover:bg-white/10 border-transparent text-gray-400 hover:text-white'}"
+              >
+                <span class="block mb-1 text-white">
+                  <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M5 14c0-5.523 4.477-10 10-10h4v4c0 5.523-4.477 10-10 10H5v-4z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M7 17c2.5-2.5 5.5-4.5 9-6" />
+                  </svg>
+                </span>
+                <span class="font-semibold block">{t("flashcards.cpuEco")}</span>
+              </button>
+              <button
+                onclick={() => setCpuPreset("balanced")}
+                class="p-3 rounded-xl text-center transition-all duration-200 border text-xs cursor-pointer {activeCpuPreset ===
+                'balanced'
+                  ? 'bg-orange-500/20 border-orange-500/50 text-white'
+                  : 'bg-white/5 hover:bg-white/10 border-transparent text-gray-400 hover:text-white'}"
+              >
+                <span class="block mb-1 text-white">
+                  <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 4v16" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M6 7h12" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M8 7l-3 5h6L8 7z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M16 7l-3 5h6l-3-5z" />
+                  </svg>
+                </span>
+                <span class="font-semibold block"
+                  >{t("flashcards.cpuBalanced")}</span
+                >
+              </button>
+              <button
+                onclick={() => setCpuPreset("performance")}
+                class="p-3 rounded-xl text-center transition-all duration-200 border text-xs cursor-pointer {activeCpuPreset ===
+                'performance'
+                  ? 'bg-orange-500/20 border-orange-500/50 text-white'
+                  : 'bg-white/5 hover:bg-white/10 border-transparent text-gray-400 hover:text-white'}"
+              >
+                <span class="block mb-1 text-white">
+                  <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M5 16l5-5 3 3 6-7" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M14 7h5v5" />
+                  </svg>
+                </span>
+                <span class="font-semibold block"
+                  >{t("flashcards.cpuPerformance")}</span
+                >
+              </button>
+              <button
+                onclick={() => setCpuPreset("full")}
+                class="p-3 rounded-xl text-center transition-all duration-200 border text-xs cursor-pointer {activeCpuPreset ===
+                'full'
+                  ? 'bg-orange-500/20 border-orange-500/50 text-white'
+                  : 'bg-white/5 hover:bg-white/10 border-transparent text-gray-400 hover:text-white'}"
+              >
+                <span class="block mb-1 text-white">
+                  <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M11 3L6 13h5l-1 8 8-12h-5l2-6h-4z" />
+                  </svg>
+                </span>
+                <span class="font-semibold block"
+                  >{t("flashcards.cpuFullPower")}</span
+                >
+              </button>
+            </div>
+          </div>
+          <div class="flex items-center justify-between text-sm px-1 mt-auto pt-4 border-t border-white/5">
+            <span class="text-gray-400">{t("flashcards.cpuCoresUsage")}</span>
+            <span
+              class="text-white font-mono bg-white/10 px-2.5 py-1 rounded-lg text-sm"
+              >{cpuCores} / {systemCpuCount}</span
+            >
+          </div>
+        </div>
+      {/if}
 
       <!-- Aggiornamenti Card -->
       <div class="glass-card p-6 flex flex-col justify-between h-full">
@@ -2461,6 +2497,61 @@ import TranscribeTiers from "./TranscribeTiers.svelte";
 
   {#if activeSettingsSection === "language"}
   <div class="mb-6 flex flex-col gap-4">
+    {@render defaultLanguagesCard()}
+
+    <!-- Smart Matching Card -->
+    {#if uiMode.expertMode}
+      <div class="glass-card p-6 flex flex-col gap-4">
+        <div class="flex items-center justify-between gap-4">
+          <div class="flex items-center gap-3">
+            <div class="w-9 h-9 rounded-lg bg-violet-500/20 text-violet-300 flex items-center justify-center">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+            </div>
+            <div>
+              <h3 class="text-sm font-bold text-white">Smart Matching</h3>
+            </div>
+          </div>
+          <!-- Toggle Switch -->
+          <button
+            type="button"
+            class="relative h-6 w-11 shrink-0 rounded-full transition-colors {smartMatchingEnabled ? 'bg-violet-500/60' : 'bg-gray-700'}"
+            onclick={toggleSmartMatching}
+            role="switch"
+            aria-checked={smartMatchingEnabled}
+            aria-label="Attiva/disattiva smart matching"
+          >
+            <span
+              class="absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-transform {smartMatchingEnabled ? 'translate-x-5' : 'translate-x-0'}"
+            ></span>
+          </button>
+        </div>
+
+        {#if smartMatchingEnabled}
+          <!-- Rules Editor -->
+          <div class="mt-4 pt-4 border-t border-white/5 space-y-3">
+            <div class="relative">
+              <CodeEditor
+                bind:value={smartMatchingRulesDraft}
+                language="jsonc"
+                heightClass="h-[520px]"
+                onchange={saveSmartMatchingRules}
+              />
+            </div>
+            {#if smartMatchingRulesError}
+              <p class="mt-2 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-200">
+                {smartMatchingRulesError}
+              </p>
+            {/if}
+          </div>
+        {/if}
+      </div>
+    {/if}
+  </div>
+  {/if}
+
+  {#snippet defaultLanguagesCard()}
     <div class="glass-card p-6">
       <div class="flex items-center gap-3 mb-4">
         <div class="w-9 h-9 rounded-lg bg-emerald-500/20 text-emerald-300 flex items-center justify-center">
@@ -2552,57 +2643,7 @@ import TranscribeTiers from "./TranscribeTiers.svelte";
         </div>
       </div>
     </div>
-
-    <!-- Smart Matching Card -->
-    <div class="glass-card p-6 flex flex-col gap-4">
-      <div class="flex items-center justify-between gap-4">
-        <div class="flex items-center gap-3">
-          <div class="w-9 h-9 rounded-lg bg-violet-500/20 text-violet-300 flex items-center justify-center">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
-            </svg>
-          </div>
-          <div>
-            <h3 class="text-sm font-bold text-white">Smart Matching</h3>
-          </div>
-        </div>
-        <!-- Toggle Switch -->
-        <button
-          type="button"
-          class="relative h-6 w-11 shrink-0 rounded-full transition-colors {smartMatchingEnabled ? 'bg-violet-500/60' : 'bg-gray-700'}"
-          onclick={toggleSmartMatching}
-          role="switch"
-          aria-checked={smartMatchingEnabled}
-          aria-label="Attiva/disattiva smart matching"
-        >
-          <span
-            class="absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-transform {smartMatchingEnabled ? 'translate-x-5' : 'translate-x-0'}"
-          ></span>
-        </button>
-      </div>
-
-      {#if smartMatchingEnabled}
-        <!-- Rules Editor -->
-        <div class="mt-4 pt-4 border-t border-white/5 space-y-3">
-          <div class="relative">
-            <CodeEditor
-              bind:value={smartMatchingRulesDraft}
-              language="jsonc"
-              heightClass="h-[520px]"
-              onchange={saveSmartMatchingRules}
-            />
-          </div>
-          {#if smartMatchingRulesError}
-            <p class="mt-2 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-200">
-              {smartMatchingRulesError}
-            </p>
-          {/if}
-        </div>
-      {/if}
-    </div>
-
-  </div>
-  {/if}
+  {/snippet}
 
 
 

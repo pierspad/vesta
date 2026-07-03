@@ -1,3 +1,6 @@
+import { invoke } from "@tauri-apps/api/core";
+import { smartMatchingStore } from "./smartMatchingStore.svelte";
+
 /**
  * Global UI mode: Easy (default) vs Expert.
  *
@@ -18,8 +21,64 @@ class UiModeStore {
     }
   }
 
-  toggleExpertMode() {
-    this.expertMode = !this.expertMode;
+  async toggleExpertMode() {
+    const prevExpertMode = this.expertMode;
+    const newExpertMode = !prevExpertMode;
+
+    if (typeof localStorage !== "undefined") {
+      if (prevExpertMode && !newExpertMode) {
+        // Disabling expert mode: Backup and set to easy defaults
+        
+        // 1. Export Format: backup and set to apkg
+        const currentExport = localStorage.getItem("vesta-export-format") || "apkg";
+        localStorage.setItem("vesta-expert-backup-export-format", currentExport);
+        localStorage.setItem("vesta-export-format", "apkg");
+
+        // 2. CPU Cores: backup and set to full power (n-1)
+        const currentCores = localStorage.getItem("vesta_cpu_cores");
+        if (currentCores) {
+          localStorage.setItem("vesta-expert-backup-cpu-cores", currentCores);
+        }
+        try {
+          const count = await invoke<number>("flashcard_get_cpu_count");
+          const fullPower = Math.max(2, count - 1);
+          localStorage.setItem("vesta_cpu_cores", fullPower.toString());
+          window.dispatchEvent(new CustomEvent("vesta-cpu-cores-changed", { detail: fullPower }));
+        } catch (e) {
+          console.error("Failed to get CPU count in uiModeStore:", e);
+          localStorage.setItem("vesta_cpu_cores", "3");
+          window.dispatchEvent(new CustomEvent("vesta-cpu-cores-changed", { detail: 3 }));
+        }
+
+        // 3. Smart Matching: backup and set to false
+        localStorage.setItem("vesta-expert-backup-smart-matching-enabled", String(smartMatchingStore.enabled));
+        smartMatchingStore.setEnabled(false);
+
+      } else if (!prevExpertMode && newExpertMode) {
+        // Enabling expert mode: Restore from backup
+        
+        // 1. Export Format
+        const backupExport = localStorage.getItem("vesta-expert-backup-export-format");
+        if (backupExport) {
+          localStorage.setItem("vesta-export-format", backupExport);
+        }
+
+        // 2. CPU Cores
+        const backupCores = localStorage.getItem("vesta-expert-backup-cpu-cores");
+        if (backupCores) {
+          localStorage.setItem("vesta_cpu_cores", backupCores);
+          window.dispatchEvent(new CustomEvent("vesta-cpu-cores-changed", { detail: parseInt(backupCores, 10) }));
+        }
+
+        // 3. Smart Matching
+        const backupSmartMatching = localStorage.getItem("vesta-expert-backup-smart-matching-enabled");
+        if (backupSmartMatching !== null) {
+          smartMatchingStore.setEnabled(backupSmartMatching === "true");
+        }
+      }
+    }
+
+    this.expertMode = newExpertMode;
     if (typeof localStorage !== "undefined") {
       localStorage.setItem("vesta-expert-mode", String(this.expertMode));
     }

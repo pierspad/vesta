@@ -197,6 +197,14 @@
     }
   }
 
+  $effect(() => {
+    if (!uiMode.expertMode) {
+      if (settingsSection === "language" || settingsSection === "anki") {
+        settingsSection = "overview";
+      }
+    }
+  });
+
   onMount(() => {
     const initial = getStoredSettingsActionState();
     hasSettingsActionNotification = initial.required;
@@ -378,43 +386,45 @@
         </button>
       {/if}
 
-      <button
-        class="w-full flex gap-3.5 items-center {collapsed ? 'px-2 justify-center' : 'px-3.5'} h-[60px] rounded-xl transition-all duration-300 border border-transparent cursor-pointer {settingsSection === 'language'
-          ? 'bg-gradient-to-r from-emerald-600 to-emerald-700 text-white shadow-lg shadow-emerald-500/22 border-emerald-500/30 bg-clip-padding'
-          : 'text-gray-400 hover:bg-emerald-500/10 hover:text-emerald-400 hover:border-emerald-500/20'}"
-        onclick={() => settingsSection = "language"}
-        title={collapsed ? t("settings.section.language") : undefined}
-      >
-        <div class="w-9 h-9 rounded-xl {settingsSection === 'language' ? 'bg-white/20' : 'bg-white/5'} flex items-center justify-center flex-shrink-0 relative transition-colors border border-white/5">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5h12M9 3v2m1 9a18 18 0 01-4-5m7 12l5-10 5 10m-9-4h8" />
-          </svg>
-        </div>
-        {#if !collapsed}
-          <div class="text-left flex-1 min-w-0 leading-tight">
-            <span class="block text-[15px] font-semibold">{t("settings.section.language")}</span>
+      {#if uiMode.expertMode}
+        <button
+          class="w-full flex gap-3.5 items-center {collapsed ? 'px-2 justify-center' : 'px-3.5'} h-[60px] rounded-xl transition-all duration-300 border border-transparent cursor-pointer {settingsSection === 'language'
+            ? 'bg-gradient-to-r from-emerald-600 to-emerald-700 text-white shadow-lg shadow-emerald-500/22 border-emerald-500/30 bg-clip-padding'
+            : 'text-gray-400 hover:bg-emerald-500/10 hover:text-emerald-400 hover:border-emerald-500/20'}"
+          onclick={() => settingsSection = "language"}
+          title={collapsed ? t("settings.section.language") : undefined}
+        >
+          <div class="w-9 h-9 rounded-xl {settingsSection === 'language' ? 'bg-white/20' : 'bg-white/5'} flex items-center justify-center flex-shrink-0 relative transition-colors border border-white/5">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5h12M9 3v2m1 9a18 18 0 01-4-5m7 12l5-10 5 10m-9-4h8" />
+            </svg>
           </div>
-        {/if}
-      </button>
+          {#if !collapsed}
+            <div class="text-left flex-1 min-w-0 leading-tight">
+              <span class="block text-[15px] font-semibold">{t("settings.section.language")}</span>
+            </div>
+          {/if}
+        </button>
 
-      <button
-        class="w-full flex gap-3.5 items-center {collapsed ? 'px-2 justify-center' : 'px-3.5'} h-[60px] rounded-xl transition-all duration-300 border border-transparent cursor-pointer {settingsSection === 'anki'
-          ? 'bg-gradient-to-r from-amber-600 to-amber-700 text-white shadow-lg shadow-amber-500/22 border-amber-500/30 bg-clip-padding'
-          : 'text-gray-400 hover:bg-amber-500/10 hover:text-amber-400 hover:border-amber-500/20'}"
-        onclick={() => settingsSection = "anki"}
-        title={collapsed ? t("settings.section.anki") : undefined}
-      >
-        <div class="w-9 h-9 rounded-xl {settingsSection === 'anki' ? 'bg-white/20' : 'bg-white/5'} flex items-center justify-center flex-shrink-0 relative transition-colors border border-white/5">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v4H4V5zm0 8h8v7H5a1 1 0 01-1-1v-6zm12 0h4v6a1 1 0 01-1 1h-3v-7z" />
-          </svg>
-        </div>
-        {#if !collapsed}
-          <div class="text-left flex-1 min-w-0 leading-tight">
-            <span class="block text-[15px] font-semibold">{t("settings.section.anki")}</span>
+        <button
+          class="w-full flex gap-3.5 items-center {collapsed ? 'px-2 justify-center' : 'px-3.5'} h-[60px] rounded-xl transition-all duration-300 border border-transparent cursor-pointer {settingsSection === 'anki'
+            ? 'bg-gradient-to-r from-amber-600 to-amber-700 text-white shadow-lg shadow-amber-500/22 border-amber-500/30 bg-clip-padding'
+            : 'text-gray-400 hover:bg-amber-500/10 hover:text-amber-400 hover:border-amber-500/20'}"
+          onclick={() => settingsSection = "anki"}
+          title={collapsed ? t("settings.section.anki") : undefined}
+        >
+          <div class="w-9 h-9 rounded-xl {settingsSection === 'anki' ? 'bg-white/20' : 'bg-white/5'} flex items-center justify-center flex-shrink-0 relative transition-colors border border-white/5">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v4H4V5zm0 8h8v7H5a1 1 0 01-1-1v-6zm12 0h4v6a1 1 0 01-1 1h-3v-7z" />
+            </svg>
           </div>
-        {/if}
-      </button>
+          {#if !collapsed}
+            <div class="text-left flex-1 min-w-0 leading-tight">
+              <span class="block text-[15px] font-semibold">{t("settings.section.anki")}</span>
+            </div>
+          {/if}
+        </button>
+      {/if}
 
       <button
         class="w-full flex gap-3.5 items-center {collapsed ? 'px-2 justify-center' : 'px-3.5'} h-[60px] rounded-xl transition-all duration-300 border border-transparent cursor-pointer {settingsSection === 'shortcuts'
