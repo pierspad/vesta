@@ -32,6 +32,7 @@
   import { snackbar } from "./snackbarStore.svelte";
   import PathPickerField from "./PathPickerField.svelte";
   import { smartMatchingStore } from "./smartMatchingStore.svelte";
+  import { uiMode } from "./uiModeStore.svelte";
 
   const SUBTITLE_EXTENSIONS = ["srt", "ass", "ssa", "vtt"];
 
@@ -1249,6 +1250,11 @@
   let handleCpuCoresChanged = (e: Event) => {
     cpuCores = (e as CustomEvent<number>).detail;
   };
+  let handleFfmpegUpdated = () => {
+    invoke<boolean>("flashcard_check_deps")
+      .then((ok) => (ffmpegAvailable = ok))
+      .catch(() => {});
+  };
   let minCpuCores = $derived(2);
   let maxCpuCores = $derived(Math.max(2, systemCpuCount - 1));
 
@@ -1269,6 +1275,14 @@
   let activeCpuPreset = $derived(
     cpuPresets.find((p) => p.threads === cpuCores)?.id ?? null,
   );
+
+  // ─── Easy/Expert mode ──────────────────────────────────────────────────────
+  // In Easy mode advanced choices collapse to sane defaults: forced .apkg
+  // export, CPU cores = n-1, automatic deck name. The corresponding UI is
+  // hidden while the user only decides which media to include.
+  let easyMode = $derived(uiMode.easyMode);
+  let effectiveExportFormat = $derived(easyMode ? ("apkg" as const) : exportFormat);
+  let effectiveCpuCores = $derived(easyMode ? maxCpuCores : cpuCores);
 
   function setCpuPreset(presetId: string) {
     const preset = cpuPresets.find((p) => p.id === presetId);
@@ -1698,7 +1712,7 @@
           episodes.length > 0 &&
             episodes.every((ep) => ep.targetSubsPath) &&
             outputDir &&
-            (needsDeckName ? deckName : true) &&
+            (needsDeckName ? Boolean(deckName || (easyMode && episodes.length > 0)) : true) &&
             noteTypeLanguage,
         )
       : Boolean(targetSubsPath && outputDir && deckName && noteTypeLanguage),
@@ -1720,12 +1734,12 @@
       if (episodes.length === 0) {
         missing.push({
           panel: "files",
-          label: `Aggiungi almeno un episodio in ${t("common.filesAndOutput")}`,
+          label: t("flashcards.reqAddEpisode"),
         });
       } else if (episodes.some((ep) => !ep.targetSubsPath)) {
         missing.push({
           panel: "files",
-          label: `Carica i sottotitoli originali per tutti gli episodi`,
+          label: t("flashcards.reqSubsAllEpisodes"),
         });
       }
     } else if (!targetSubsPath) {
@@ -1740,7 +1754,7 @@
         label: `${t("flashcards.outputDir")}`,
       });
     }
-    if (needsDeckName && !deckName.trim()) {
+    if (!easyMode && needsDeckName && !deckName.trim()) {
       missing.push({
         panel: "naming",
         label: `${t("flashcards.deckNameLabel")}`,
@@ -1752,6 +1766,13 @@
   let generationRequirementsText = $derived(
     generationRequirements.map((item) => item.label).join(", "),
   );
+
+  /** Panels rendered in the column layout. Easy mode hides the advanced ones. */
+  function isPanelVisible(panelId: PanelId): boolean {
+    if (seriesMode && panelId === "files") return false; // rendered full-width above
+    if (easyMode && (panelId === "cardFilters" || panelId === "naming")) return false;
+    return true;
+  }
 
   function panelHighlightClass(panelId: RequirementPanelId): string {
     return highlightedRequirementPanels.has(panelId)
@@ -2173,6 +2194,7 @@
     }
 
     window.addEventListener("vesta-cpu-cores-changed", handleCpuCoresChanged);
+    window.addEventListener("vesta-ffmpeg-updated", handleFfmpegUpdated);
 
     // OS-level file drag and drop is handled dynamically via $effect
 
@@ -2208,6 +2230,7 @@
   onDestroy(() => {
     activeListener = false;
     window.removeEventListener("vesta-cpu-cores-changed", handleCpuCoresChanged);
+    window.removeEventListener("vesta-ffmpeg-updated", handleFfmpegUpdated);
     if (unlisten) unlisten();
     if (removeTemplateListener) removeTemplateListener();
     if (removeNoteTypesListener) removeNoteTypesListener();
@@ -2331,11 +2354,11 @@
       video_pad_end_ms: videoPadEnd,
       deck_name: deckName,
       episode_number: 1,
-      export_format: exportFormat,
+      export_format: effectiveExportFormat,
       note_type_name: activeNoteType.name,
       field_names: activeNoteType.fields,
       output_fields: noteTypeOutputFields(activeNoteType),
-      cpu_cores: cpuCores,
+      cpu_cores: effectiveCpuCores,
       card_front_html: loadCardTemplates().frontHtml,
       card_back_html: loadCardTemplates().backHtml,
       card_css: loadCardTemplates().css,
@@ -2671,6 +2694,10 @@
   });
 
   async function startSeriesGeneration() {
+    if (easyMode && needsDeckName && !deckName.trim() && episodes.length > 0) {
+      deckName = deriveDeckNameFromFile(episodes[0]);
+      deckNameAuto = true;
+    }
     error = null;
     result = null;
     progress = 0;
@@ -2765,11 +2792,11 @@
           video_pad_end_ms: epMediaSettings.videoPadEnd,
           deck_name: seriesOutputMode === "separate" ? deriveDeckNameFromFile(ep) : deckName,
           episode_number: epNum,
-          export_format: exportFormat,
+          export_format: effectiveExportFormat,
           note_type_name: activeNoteType.name,
           field_names: activeNoteType.fields,
           output_fields: noteTypeOutputFields(activeNoteType),
-          cpu_cores: cpuCores,
+          cpu_cores: effectiveCpuCores,
           card_front_html: loadCardTemplates().frontHtml,
           card_back_html: loadCardTemplates().backHtml,
           card_css: loadCardTemplates().css,
@@ -2810,7 +2837,7 @@
       if (
         seriesOutputMode === "single" &&
         apkgPaths.length > 1 &&
-        exportFormat === "apkg"
+        effectiveExportFormat === "apkg"
       ) {
         addLog(t("flashcards.mergingApkg"), "info");
         try {
@@ -3107,9 +3134,10 @@
           isDownloadingFFmpeg = true;
           try {
             await invoke("flashcard_download_ffmpeg");
-            ffmpegAvailable = true;
+            ffmpegAvailable = await invoke<boolean>("flashcard_check_deps");
+            window.dispatchEvent(new CustomEvent("vesta-ffmpeg-updated"));
           } catch (e) {
-            error = "Download failed: " + e;
+            error = `${t("flashcards.ffmpegDownloadFailed")}: ${e}`;
           } finally {
             isDownloadingFFmpeg = false;
           }
@@ -3121,7 +3149,7 @@
           {t("flashcards.downloading") || "Downloading..."}
         {:else}
           <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
-          Scarica Automaticamente
+          {t("flashcards.downloadAuto")}
         {/if}
       </button>
     </div>
@@ -3252,7 +3280,7 @@
                     <tr class="text-gray-400 bg-gray-800 shadow-sm">
                       <th class="p-2 text-left w-12">#</th>
                       {#if previewMediaPath}
-                        <th class="p-2 text-center w-12">Play</th>
+                        <th class="p-2 text-center w-12">{t("flashcards.previewPlay")}</th>
                       {/if}
                       <th class="p-2 text-left w-20">{t("flashcards.previewTime")}</th>
                       <th class="p-2 text-left">{t("flashcards.subs1")}</th>
@@ -3338,7 +3366,7 @@
                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
                     </svg>
-                    Anteprima Riproduzione
+                    {t("flashcards.previewPlayback")}
                   </span>
                   {#if playingLine}
                     <button
@@ -3348,7 +3376,7 @@
                       }}
                       class="text-gray-500 hover:text-white text-xs transition-colors"
                     >
-                      Cancella
+                      {t("common.cancel")}
                     </button>
                   {/if}
                 </div>
@@ -3376,7 +3404,7 @@
                       <svg class="w-8 h-8 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
                       </svg>
-                      <span class="text-xs font-mono">Riproduzione Audio in corso</span>
+                      <span class="text-xs font-mono">{t("flashcards.previewAudioPlaying")}</span>
                       <audio
                         bind:this={playerElement}
                         onplay={() => (previewIsPlaying = true)}
@@ -3420,9 +3448,9 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
                     </div>
-                    <p class="text-xs font-semibold text-gray-400">Nessuna anteprima attiva</p>
+                    <p class="text-xs font-semibold text-gray-400">{t("flashcards.previewNoActive")}</p>
                     <p class="text-[10px] text-gray-500 mt-1 max-w-[200px] leading-normal">
-                      Fai clic sul pulsante Play di una riga per ascoltare l'audio o guardare la clip video corrispondente.
+                      {t("flashcards.previewNoActiveHint")}
                     </p>
                   </div>
                 {/if}
@@ -3496,7 +3524,7 @@
                 <rect x="2" y="4" width="20" height="16" rx="2" />
                 <path d="M2 8h20M7 4v4M17 4v4" stroke-linecap="round" />
               </svg>
-              Film
+              {t("flashcards.modeMovieShort")}
             </button>
             <button
               type="button"
@@ -3526,7 +3554,7 @@
                 <line x1="6" y1="3" x2="6" y2="9" />
                 <line x1="6" y1="11" x2="6" y2="17" />
               </svg>
-              Serie TV
+              {t("flashcards.modeSeriesShort")}
             </button>
           </span>
           {#if seriesMode}
@@ -3546,7 +3574,7 @@
                   d="M12 4v16m8-8H4"
                 /></svg
               >
-              Add Files
+              {t("flashcards.addFiles")}
             </button>
             {#if episodes.length > 0}
               <button
@@ -3913,7 +3941,7 @@
         <div class="space-y-2 transition-all duration-200 {!generateAudio ? 'opacity-40 pointer-events-none' : ''}">
           <div class="grid grid-cols-2 gap-2">
             {#if mediaType === "video" && (audioTracksLoading || audioTracks.length >= 1)}
-              <div>
+              <div class={easyMode ? "col-span-2" : ""}>
                 <span class="block text-xs text-gray-500 mb-1"
                   >{t("flashcards.audioTrack")}</span
                 >
@@ -3943,6 +3971,7 @@
               </div>
             {/if}
 
+            {#if !easyMode}
             <div class={mediaType === "video" && (audioTracksLoading || audioTracks.length >= 1) ? "" : "col-span-2"}>
               <span class="block text-xs text-gray-500 mb-1"
                 >{t("flashcards.bitrate")}</span
@@ -3961,7 +3990,9 @@
                 placeholder="Bitrate"
               />
             </div>
+            {/if}
           </div>
+          {#if !easyMode}
           <div class="grid grid-cols-3 gap-2 items-end">
             <div>
               <span class="block text-xs text-gray-500 mb-1"
@@ -4002,6 +4033,7 @@
               </label>
             </div>
           </div>
+          {/if}
         </div>
       </div>
     {:else if panelId === "snapshots"}
@@ -4049,6 +4081,7 @@
           </button>
         </div>
 
+        {#if !easyMode}
         <div class="space-y-2 transition-all duration-200 {!generateSnapshots ? 'opacity-40 pointer-events-none' : ''}">
           <div class="grid grid-cols-3 gap-2">
             <div>
@@ -4092,6 +4125,7 @@
             </div>
           </div>
         </div>
+        {/if}
       </div>
     {:else if panelId === "videoClips"}
       <div
@@ -4138,6 +4172,7 @@
           </button>
         </div>
 
+        {#if !easyMode}
         <div class="space-y-2 transition-all duration-200 {!generateVideoClips ? 'opacity-40 pointer-events-none' : ''}">
           <div class="grid grid-cols-2 gap-2">
             <div>
@@ -4266,6 +4301,7 @@
             </div>
           </div>
         </div>
+        {/if}
       </div>
     {:else if panelId === "cardFilters"}
       <div
@@ -4695,7 +4731,7 @@
     {/if}
     <div class="space-y-3 min-w-0 pr-1 min-h-[100px]" role="list">
       {#each effectivePanelLayout.col1 as panelId, idx}
-        {#if !(seriesMode && panelId === "files")}
+        {#if isPanelVisible(panelId)}
         <div class="relative" role="listitem">
           {@render panelContent(panelId)}
         </div>
@@ -4706,7 +4742,7 @@
     {#if effectiveColumnCount >= 2}
       <div class="space-y-3 min-w-0 pr-1 min-h-[100px]" role="list">
         {#each effectivePanelLayout.col2 as panelId, idx}
-          {#if !(seriesMode && panelId === "files")}
+          {#if isPanelVisible(panelId)}
           <div class="relative" role="listitem">
             {@render panelContent(panelId)}
           </div>
@@ -4718,7 +4754,7 @@
     {#if effectiveColumnCount >= 3}
       <div class="space-y-3 min-w-0 pr-1 min-h-[100px]" role="list">
         {#each effectivePanelLayout.col3 as panelId, idx}
-          {#if !(seriesMode && panelId === "files")}
+          {#if isPanelVisible(panelId)}
           <div class="relative" role="listitem">
             {@render panelContent(panelId)}
           </div>
@@ -5323,6 +5359,7 @@
     {:else}
       <!-- Left side: Note type template (default note type of the template) -->
       <div class="flex items-center">
+        {#if !easyMode}
         <!-- Template toggle button -->
         <div class="relative group/tmpl">
           <button
@@ -5350,11 +5387,13 @@
             {t("flashcards.clickToCycleTemplates")}
           </div>
         </div>
+        {/if}
       </div>
 
       <!-- Right side: Export format toggle button, series output mode selector, and action buttons -->
       <div class="flex items-center gap-4">
         <div class="flex items-center gap-2">
+          {#if !easyMode}
           <!-- Format toggle button -->
           <div class="relative group/fmt">
             <button
@@ -5385,9 +5424,10 @@
               {t("flashcards.clickToToggleFormat")}
             </div>
           </div>
+          {/if}
 
           <!-- Series output mode inline selector (only visible in series mode + apkg) -->
-          {#if seriesMode && exportFormat === "apkg"}
+          {#if seriesMode && effectiveExportFormat === "apkg"}
             <div class="flex items-center bg-gray-800/60 border border-gray-700/60 rounded-lg p-0.5 select-none relative group/sw">
               <!-- Sliding indicator background -->
               <div 
@@ -5449,7 +5489,7 @@
               {t("flashcards.preview")}
             </button>
             <div class="pointer-events-none absolute bottom-full left-1/2 z-50 mb-3 -translate-x-1/2 rounded-xl border border-amber-500/30 bg-gray-950/95 p-3 text-center text-xs text-amber-300 shadow-2xl shadow-black/40 ring-1 ring-white/10 transition-all duration-150 delay-0 group-hover:delay-300 opacity-0 group-hover:opacity-100 group-hover:translate-y-0 translate-y-1 whitespace-normal w-72">
-              {!canRunFlashcards ? `Completa: ${generationRequirementsText}` : t("flashcards.preview")}
+              {!canRunFlashcards ? t("flashcards.completePrefix", { steps: generationRequirementsText }) : t("flashcards.preview")}
             </div>
           </div>
 
@@ -5497,7 +5537,7 @@
                 class="pointer-events-none absolute bottom-full left-1/2 z-40 mb-3 w-[min(22rem,calc(100vw-3rem))] -translate-x-1/2 rounded-xl border border-amber-400/30 bg-gray-950/95 p-3 text-left text-xs text-gray-200 opacity-0 shadow-2xl shadow-black/40 ring-1 ring-white/10 transition-all duration-150 delay-0 group-hover:delay-300 group-hover:opacity-100 group-hover:translate-y-0 {generationPromptOpen ? 'opacity-100 translate-y-0' : 'translate-y-1'}"
               >
                 <p class="mb-2 font-semibold text-amber-200">
-                  Mancano ancora questi passaggi:
+                  {t("flashcards.missingSteps")}
                 </p>
                 <ol class="list-decimal space-y-1 pl-4 text-gray-300">
                   {#each generationRequirements as requirement}

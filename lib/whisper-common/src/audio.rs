@@ -2,6 +2,20 @@ use anyhow::{anyhow, Context as _, Result};
 use std::path::Path;
 use tokio_util::sync::CancellationToken;
 
+/// Build an ffmpeg command with platform-appropriate flags: on Windows the
+/// console window is suppressed and the priority lowered so long conversions
+/// don't freeze the user's machine.
+fn ffmpeg_command(ffmpeg_path: &str) -> tokio::process::Command {
+    #[allow(unused_mut)]
+    let mut command = tokio::process::Command::new(ffmpeg_path);
+    #[cfg(windows)]
+    {
+        // CREATE_NO_WINDOW (0x0800_0000) | BELOW_NORMAL_PRIORITY_CLASS (0x0000_4000)
+        command.creation_flags(0x0800_4000);
+    }
+    command
+}
+
 /// Convert input audio/video to 16kHz mono WAV using ffmpeg, with cancellation support
 pub async fn convert_to_wav(
     ffmpeg_path: &str,
@@ -9,7 +23,7 @@ pub async fn convert_to_wav(
     output_path: &Path,
     cancel_token: Option<&CancellationToken>,
 ) -> Result<()> {
-    let mut child = tokio::process::Command::new(ffmpeg_path)
+    let mut child = ffmpeg_command(ffmpeg_path)
         .args([
             "-y",
             "-i", input_path.to_str().ok_or_else(|| anyhow!("Invalid input path"))?,
@@ -69,7 +83,7 @@ pub async fn segment_to_wav_chunks(
     cancel_token: Option<&CancellationToken>,
 ) -> Result<Vec<std::path::PathBuf>> {
     let pattern = out_dir.join("chunk_%05d.wav");
-    let mut child = tokio::process::Command::new(ffmpeg_path)
+    let mut child = ffmpeg_command(ffmpeg_path)
         .args([
             "-y",
             "-i", input_path.to_str().ok_or_else(|| anyhow!("Invalid input path"))?,

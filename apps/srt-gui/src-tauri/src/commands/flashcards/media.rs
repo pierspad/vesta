@@ -33,5 +33,17 @@ async fn resolve(app: Option<&AppHandle>, name: &str) -> String {
             }
         }
     }
+    // Manual installs: a binary placed next to the Vesta executable.
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(dir) = exe.parent() {
+            let mut path = dir.join(name);
+            if cfg!(windows) {
+                path.set_extension("exe");
+            }
+            if path.exists() {
+                return path.to_string_lossy().to_string();
+            }
+        }
+    }
     name.to_string()
 }

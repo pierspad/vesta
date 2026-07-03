@@ -357,18 +357,22 @@ async fn perform_translation(
         }
     };
 
+    // Un run che termina senza aver prodotto nemmeno un sottotitolo non è un
+    // successo: il frontend lo mostra come errore/warning invece che in verde.
+    let success = !translated.is_empty();
+
     // Emetti evento di completamento
     let _ = app.emit("translate-complete", TranslateResult {
-        success: true,
-        message: format!("Traduzione completata: {} sottotitoli", translated.len()),
-        output_path: Some(config.output_path.clone()),
+        success,
+        message: format!("Tradotti {} sottotitoli su {}", translated.len(), total_count),
+        output_path: success.then(|| config.output_path.clone()),
         translated_count: translated.len(),
     });
 
     Ok(TranslateResult {
-        success: true,
+        success,
         message: format!("Tradotti {} sottotitoli su {}", translated.len(), total_count),
-        output_path: Some(config.output_path),
+        output_path: success.then_some(config.output_path),
         translated_count: translated.len(),
     })
 }

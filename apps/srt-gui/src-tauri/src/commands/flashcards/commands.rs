@@ -94,25 +94,59 @@ pub async fn flashcard_cancel(state: State<'_, AppFlashcardState>) -> Result<boo
     Ok(true)
 }
 
-/// Check if ffmpeg is available (system `PATH` or downloaded into app data).
+/// Check if ffmpeg is available. Uses the exact same resolution logic as every
+/// feature that later *invokes* ffmpeg (system `PATH`, app-data download,
+/// executable directory) and verifies the binary actually runs — so the
+/// "ffmpeg missing" banner can never disagree with the real state.
 #[tauri::command]
 pub async fn flashcard_check_deps(app: AppHandle) -> Result<bool, String> {
-    if srt_flashcards::check_ffmpeg("ffmpeg").await {
-        return Ok(true);
+    let ffmpeg = resolve_ffmpeg_path(Some(&app)).await;
+    Ok(srt_flashcards::check_ffmpeg(&ffmpeg).await)
+}
+
+/// Locate `name` (e.g. `ffmpeg`) anywhere below `dir` and move it to the
+/// directory root. Different `ffmpeg_sidecar` releases (and archive layouts on
+/// Windows) unpack binaries into nested folders like `ffmpeg-xxx/bin/`.
+fn hoist_binary(dir: &std::path::Path, name: &str) -> Result<(), String> {
+    let file_name = if cfg!(windows) {
+        format!("{name}.exe")
+    } else {
+        name.to_string()
+    };
+    let target = dir.join(&file_name);
+    if target.exists() {
+        return Ok(());
     }
-    if let Ok(app_data) = app.path().app_local_data_dir() {
-        let mut ffmpeg_path = app_data.join("ffmpeg_bin").join("ffmpeg");
-        if cfg!(windows) {
-            ffmpeg_path.set_extension("exe");
+
+    fn find(dir: &std::path::Path, file_name: &str, depth: u8) -> Option<std::path::PathBuf> {
+        let entries = std::fs::read_dir(dir).ok()?;
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_file() && path.file_name().is_some_and(|n| n == file_name) {
+                return Some(path);
+            }
+            if depth > 0 && path.is_dir() {
+                if let Some(found) = find(&path, file_name, depth - 1) {
+                    return Some(found);
+                }
+            }
         }
-        if ffmpeg_path.exists() {
-            return Ok(true);
-        }
+        None
     }
-    Ok(false)
+
+    if let Some(found) = find(dir, &file_name, 4) {
+        std::fs::rename(&found, &target)
+            .or_else(|_| std::fs::copy(&found, &target).map(|_| ()))
+            .map_err(|e| format!("Failed to move {file_name} into place: {e}"))?;
+    }
+    Ok(())
 }
 
 /// Download a static ffmpeg build into the app data directory.
+///
+/// After unpacking, the binaries are hoisted to the destination root and the
+/// installation is verified by actually running `ffmpeg -version`: the command
+/// only returns `Ok` when the downloaded ffmpeg is genuinely usable.
 #[tauri::command]
 pub async fn flashcard_download_ffmpeg(app: AppHandle) -> Result<bool, String> {
     use ffmpeg_sidecar::download::{download_ffmpeg_package, ffmpeg_download_url, unpack_ffmpeg};
@@ -125,14 +159,30 @@ pub async fn flashcard_download_ffmpeg(app: AppHandle) -> Result<bool, String> {
     let dest = app_data.join("ffmpeg_bin");
     std::fs::create_dir_all(&dest).map_err(|e| e.to_string())?;
 
-    tokio::task::spawn_blocking(move || {
-        let url = ffmpeg_download_url().map_err(|e| e.to_string())?;
-        let archive = download_ffmpeg_package(url, &dest).map_err(|e| e.to_string())?;
-        unpack_ffmpeg(&archive, &dest).map_err(|e| e.to_string())?;
-        Ok(true)
+    let dest_task = dest.clone();
+    tokio::task::spawn_blocking(move || -> Result<(), String> {
+        let url = ffmpeg_download_url().map_err(|e| format!("Could not determine download URL: {e}"))?;
+        let archive = download_ffmpeg_package(url, &dest_task)
+            .map_err(|e| format!("Download failed: {e}"))?;
+        unpack_ffmpeg(&archive, &dest_task).map_err(|e| format!("Unpack failed: {e}"))?;
+        Ok(())
     })
     .await
-    .map_err(|e| e.to_string())?
+    .map_err(|e| e.to_string())??;
+
+    hoist_binary(&dest, "ffmpeg")?;
+    hoist_binary(&dest, "ffprobe")?;
+
+    // Final verification: resolve the way every consumer does and run it.
+    let ffmpeg = resolve_ffmpeg_path(Some(&app)).await;
+    if !srt_flashcards::check_ffmpeg(&ffmpeg).await {
+        return Err(
+            "ffmpeg was downloaded but could not be executed. \
+             You can install it manually and place it next to the Vesta executable."
+                .to_string(),
+        );
+    }
+    Ok(true)
 }
 
 /// Check if a directory exists.

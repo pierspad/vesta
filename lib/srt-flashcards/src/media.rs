@@ -9,12 +9,28 @@ use std::path::Path;
 
 // ─── FFmpeg Media Extraction ─────────────────────────────────────────────────
 
+/// Build a `tokio` command for a media tool with platform-appropriate flags.
+///
+/// On Windows this suppresses the console window (no flashing terminals during
+/// batch extraction) and lowers the process priority so that running dozens of
+/// parallel ffmpeg instances doesn't freeze the user's machine.
+pub fn media_command(cmd: &str) -> tokio::process::Command {
+    #[allow(unused_mut)]
+    let mut command = tokio::process::Command::new(cmd);
+    #[cfg(windows)]
+    {
+        // CREATE_NO_WINDOW (0x0800_0000) | BELOW_NORMAL_PRIORITY_CLASS (0x0000_4000)
+        command.creation_flags(0x0800_4000);
+    }
+    command
+}
+
 /// Returns `true` if the given ffmpeg executable can be invoked (`<cmd> -version`).
 ///
 /// `ffmpeg_cmd` may be a bare command resolved through `PATH` (e.g. `"ffmpeg"`)
 /// or an absolute path to a bundled binary.
 pub async fn check_ffmpeg(ffmpeg_cmd: &str) -> bool {
-    tokio::process::Command::new(ffmpeg_cmd)
+    media_command(ffmpeg_cmd)
         .arg("-version")
         .output()
         .await
@@ -100,7 +116,7 @@ pub(crate) async fn extract_audio_clip(
 ) -> Result<()> {
     let (start_ts, duration_ts) = clip_window(start_ms, end_ms, pad_start_ms, pad_end_ms);
 
-    let mut cmd = tokio::process::Command::new(ffmpeg_cmd);
+    let mut cmd = media_command(ffmpeg_cmd);
     cmd.args([
         "-nostdin", "-loglevel", "error", "-y", "-ss", &start_ts, "-t", &duration_ts, "-i",
         source_path, "-vn", "-sn", "-dn",
@@ -139,7 +155,7 @@ pub(crate) async fn extract_snapshot(
     let midpoint_ms = start_ms + (end_ms - start_ms) / 2;
     let vf = scale_vf(width, height, crop_bottom);
 
-    let mut cmd = tokio::process::Command::new(ffmpeg_cmd);
+    let mut cmd = media_command(ffmpeg_cmd);
     cmd.args([
         "-nostdin",
         "-loglevel",
@@ -188,7 +204,7 @@ pub(crate) async fn extract_video_clip(
     let (start_ts, duration_ts) = clip_window(start_ms, end_ms, pad_start_ms, pad_end_ms);
     let vf = scale_vf(width, height, crop_bottom);
 
-    let mut cmd = tokio::process::Command::new(ffmpeg_cmd);
+    let mut cmd = media_command(ffmpeg_cmd);
     cmd.args([
         "-nostdin", "-loglevel", "error", "-y", "-ss", &start_ts, "-t", &duration_ts, "-i",
         video_path, "-vf", &vf,
@@ -237,7 +253,7 @@ pub(crate) async fn extract_video_clip(
 pub(crate) async fn normalize_audio(file_path: &Path, ffmpeg_cmd: &str) -> Result<()> {
     let temp_path = file_path.with_extension("normalized.mp3");
 
-    let mut cmd = tokio::process::Command::new(ffmpeg_cmd);
+    let mut cmd = media_command(ffmpeg_cmd);
     cmd.args(["-y", "-i"]);
     cmd.arg(file_path.as_os_str());
     cmd.args([

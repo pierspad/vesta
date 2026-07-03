@@ -26,6 +26,7 @@
   import LogPanel, { type LogEntry } from "./LogPanel.svelte";
   import { snackbar } from "./snackbarStore.svelte";
   import { aiStore } from "./aiStore.svelte";
+  import { uiMode } from "./uiModeStore.svelte";
   import {
     extractModelsFromPayload,
     fetchModelsFromEndpoint,
@@ -296,7 +297,7 @@
 
   function ensureProviderSelectedForFiles(): boolean {
     if (providerConfirmed) return true;
-    error = "Select a provider before loading files.";
+    error = t("translate.selectProviderFirst");
     return false;
   }
 
@@ -572,9 +573,9 @@
   );
   let translationBlockedReason = $derived(
     !useTiers
-      ? "Configura almeno un Tier di traduzione nelle impostazioni (Settings > LLM & API Keys) prima di avviare la traduzione."
+      ? t("translate.blocked.noTiers")
       : !inputPath || !outputPath
-        ? "Seleziona file SRT di input e destinazione per abilitare la traduzione."
+        ? t("translate.blocked.selectFiles")
         : "",
   );
 
@@ -933,6 +934,15 @@
     fileInfo = null;
   }
 
+  /** Localized, count-aware message for the result box (backend text is a fallback). */
+  function resultMessage(r: TranslateResult): string {
+    const raw = (r.message || "").toLowerCase();
+    if (raw.includes("annullat") || raw.includes("cancel")) return t("translate.cancelled");
+    if (r.success) return t("translate.resultDone", { count: String(r.translated_count) });
+    if (r.translated_count === 0) return t("translate.resultNone");
+    return r.message;
+  }
+
   function formatEta(seconds: number | null): string {
     if (seconds === null) return "...";
     const mins = Math.floor(seconds / 60);
@@ -950,8 +960,8 @@
     }
   }
 
-  function showNoKeySnackbar(family: string) {
-    snackbar.show("Configura prima un LLM nella macro-area Settings > LLM.", "warning", 4000);
+  function showNoKeySnackbar(_family: string) {
+    snackbar.show(t("translate.configureLlmFirst"), "warning", 4000);
   }
 
   const TRANSLATE_PANEL_IDS = [
@@ -1052,6 +1062,7 @@
                 placeholder={t("translate.targetLang")}
               />
             </div>
+            {#if uiMode.expertMode}
             <div>
               <div class="flex items-center justify-between mb-2">
                 <span class="text-sm text-gray-400">{t("translate.batchSize")}</span>
@@ -1129,7 +1140,7 @@
             <div class="mt-4">
               <div class="flex items-center justify-between mb-2">
                 <label for="overlap-input" class="text-sm text-gray-400">
-                  Resume Overlap Offset
+                  {t("translate.resumeOverlap")}
                 </label>
                 <div class="flex items-center gap-2">
                   <span class="text-white font-mono bg-white/10 px-2 py-0.5 rounded text-xs">{resumeOverlap} sub</span>
@@ -1164,13 +1175,14 @@
                 class="input-modern w-full text-sm min-h-[7rem] resize-y"
               ></textarea>
             </div>
+            {/if}
           </div>
         </div>
       </div>
     {:else if panelId === "files"}
       <div
         inert={!canUseFilePanel}
-        title={!canUseFilePanel ? "Select a provider first" : undefined}
+        title={!canUseFilePanel ? t("translate.selectProviderFirst") : undefined}
         class="glass-card p-5 {!canUseFilePanel ? 'opacity-40' : ''}"
       >
         <h3
@@ -1322,7 +1334,7 @@
                     ? 'text-green-400'
                     : 'text-red-400'} font-medium"
                 >
-                  {result.message}
+                  {resultMessage(result)}
                 </p>
                 {#if result.output_path}
                   <p class="text-xs text-gray-500 mt-1 font-mono truncate">
@@ -1499,6 +1511,20 @@
     {:else if result || error}
       <div class="relative group">
         <button
+          onclick={startTranslation}
+          class="px-5 py-2.5 bg-emerald-600/80 hover:bg-emerald-500/80 border border-emerald-500/30 text-emerald-100 rounded-xl font-bold text-sm transition-all shadow-lg shadow-emerald-950/20 flex items-center gap-2 hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
+        >
+          <svg class="w-4 h-4 text-emerald-100" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+          {t("translate.retry")}
+        </button>
+        <div class="pointer-events-none absolute bottom-full left-1/2 z-50 mb-3 -translate-x-1/2 rounded-xl border border-emerald-500/30 bg-gray-950/95 p-3 text-center text-xs text-emerald-300 shadow-2xl shadow-black/40 ring-1 ring-white/10 transition-all duration-150 delay-0 group-hover:delay-300 opacity-0 group-hover:opacity-100 group-hover:translate-y-0 translate-y-1 whitespace-nowrap">
+          {t("translate.retryDesc")}
+        </div>
+      </div>
+      <div class="relative group">
+        <button
           onclick={resetTranslation}
           class="px-5 py-2.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 rounded-xl font-bold text-sm transition-all border border-amber-500/30 flex items-center gap-2 hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
         >
@@ -1515,10 +1541,10 @@
               d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
             />
           </svg>
-          New Translation
+          {t("translate.newTranslation")}
         </button>
         <div class="pointer-events-none absolute bottom-full left-1/2 z-50 mb-3 -translate-x-1/2 rounded-xl border border-amber-500/30 bg-gray-950/95 p-3 text-center text-xs text-amber-300 shadow-2xl shadow-black/40 ring-1 ring-white/10 transition-all duration-150 delay-0 group-hover:delay-300 opacity-0 group-hover:opacity-100 group-hover:translate-y-0 translate-y-1 whitespace-nowrap">
-          {t("translate.cancel") === "Annulla" ? "Azzera e avvia una nuova traduzione" : "Reset and start a new translation"}
+          {t("translate.newTranslationDesc")}
         </div>
       </div>
     {:else}

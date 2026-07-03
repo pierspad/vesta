@@ -303,12 +303,24 @@ fn run_whisper_rs(
         percentage: 30.0,
     }).ok();
     
+    // Total audio duration in ms (16 kHz mono float samples) — lets the
+    // segment callback map "where we are in the audio" onto the 30–90% window
+    // of the overall progress bar instead of leaving it frozen at 30%.
+    let total_audio_ms = (audio_data.len() as f64 / 16.0).max(1.0);
+
     let app_for_callback = app.clone();
     let segment_callback = move |start_ms: i64, end_ms: i64, text: &str| {
         let _ = app_for_callback.emit("transcribe-segment", TranscribeSegmentEvent {
             start_ms,
             end_ms,
             text: text.to_string(),
+        });
+
+        let ratio = (end_ms as f64 / total_audio_ms).clamp(0.0, 1.0);
+        let _ = app_for_callback.emit("transcribe-progress", TranscribeProgressEvent {
+            stage: "transcribe".to_string(),
+            message: format!("Transcribing audio... {:.0}%", ratio * 100.0),
+            percentage: 30.0 + ratio * 60.0,
         });
     };
 

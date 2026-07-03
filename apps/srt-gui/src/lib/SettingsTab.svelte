@@ -24,6 +24,11 @@ import TranscribeTiers from "./TranscribeTiers.svelte";
   } from "./settingsNotifications";
   import { aiStore } from "./aiStore.svelte";
   import {
+    DEFAULT_REFINEMENT_PROMPT,
+    REFINEMENT_PROMPT_STORAGE_KEY,
+    loadRefinementPrompt,
+  } from "./refinementPrompt";
+  import {
     fetchModelsFromEndpoint,
     type DiscoveredModel,
   } from "./modelDiscovery";
@@ -200,19 +205,8 @@ import TranscribeTiers from "./TranscribeTiers.svelte";
   let defaultFlashcardsLanguage = $state(loadStoredValue(DEFAULT_FLASHCARDS_LANGUAGE_KEY, "it"));
   let defaultNativeLanguage = $state(loadStoredValue(DEFAULT_NATIVE_LANGUAGE_KEY, "it"));
   
-  const DEFAULT_REFINEMENT_PROMPT_KEY = "vesta-default-refinement-prompt";
-  const OLD_DEFAULT_PROMPT_1 = "Spiega le parole desuete e più astruse della frase fornendo traduzione, esempio d'uso ed etimologia.";
-  const OLD_DEFAULT_PROMPT_2 = "Analizza la frase fornita e identifica le parole chiave, i termini insoliti, le espressioni idiomatiche o le strutture grammaticali più complesse.\nPer ciascuno di questi elementi, fornisci una spiegazione dettagliata scritta nella LINGUA DI RIFERIMENTO (es. se la frase originale è in inglese, spiega i termini in italiano).\n\nPer ogni termine spiegato, struttura la nota in questo modo usando il Markdown:\n• **[Termine originale]** ([Parte del discorso]): [Traduzione/Significato in italiano]\n  - *Spiegazione*: [Breve contesto, sfumature di significato o etimologia interessante]\n  - *Esempio*: \"[Frase d'esempio nella lingua originale]\" → \"[Traduzione dell'esempio in italiano]\"\n\nMantieni le spiegazioni chiare, concise e focalizzate sull'apprendimento pratico della lingua.";
-  const DEFAULT_REFINEMENT_PROMPT_VAL = "You are a language teacher specialized in vocabulary acquisition and language learning through Anki.\n\nYour task is to generate the \"Notes\" field of an Anki flashcard using the provided card's front (expression), back (meaning/translation), and optional user notes/context.\n\nGoal:\nI do not want a simple translation. I want to deeply understand the sentence, especially natural expressions, idioms, common collocations, unusual grammar structures, and words whose meaning or usage is not obvious, so that I can recognize and reuse them in real conversations.\n\nInstructions:\n\n1. Analyze the sentence as a whole:\n- Briefly explain the overall meaning of the sentence.\n- Identify the linguistic register (formal, informal, colloquial, technical, literary, etc.).\n- If the sentence contains an idiomatic expression or a typical construction, explain it.\n\n2. Identify only the most valuable elements:\nDo not explain every single word.\nSelect only words, verbs, prepositions, collocations, or expressions that:\n- have multiple meanings;\n- have a meaning different from the literal translation;\n- are difficult or ambiguous for a learner;\n- are very common for native speakers but difficult to understand intuitively;\n- have cultural, pragmatic, or stylistic nuances.\n\nFor each selected element provide:\n\n<b>Expression/word:</b>\n- Meaning in this sentence:\n  Explain the specific meaning and role in the sentence.\n\n- Usage:\n  Explain:\n  - when it is used;\n  - common contexts where it appears;\n  - words it commonly combines with;\n  - differences from similar expressions or synonyms;\n  - common mistakes learners make.\n\n- Other important meanings:\n  Include only meanings that are actually common or useful.\n\n- Etymology:\n  Include only if interesting:\n  - origin of the word/expression;\n  - how the meaning evolved;\n  - connections with related words in the same language or other languages.\n\n3. For idiomatic expressions:\nDo not only give a literal translation.\nExplain:\n- the real meaning;\n- the metaphor or idea behind the expression;\n- why native speakers use this expression;\n- situations where it sounds natural;\n- useful equivalents in Italian when helpful.\n\n4. Keep the content suitable for Anki:\n- It should be detailed enough to teach something useful.\n- Avoid unnecessary encyclopedic explanations.\n- Focus on practical understanding and memory-friendly explanations.\n- Prioritize insights that help the learner use the language naturally.\n\n5. Incorporate User Notes / Context:\n- If the user provides additional notes, context, or specific questions in the \"Notes\" field (e.g. asking for clarification on a specific word or phrase), you MUST prioritize explaining or addressing their comments. Integrate these clarifications directly into your explanation.\n\n6. Output format:\nGenerate only the content of the Anki Notes field.\nDo not add introductions or comments.\n\nUse simple HTML compatible with Anki:\n- <b> for titles;\n- <br> for line breaks;\n- <ul><li> for lists when useful.\n\nStructure:\n\n<b>General meaning</b><br>\n...\n\n<br><b>Important expressions and vocabulary</b><br>\n\n<b>[expression/word 1]</b><br>\n<b>Meaning:</b> ...<br>\n<b>Usage:</b> ...<br>\n<b>Etymology:</b> ...<br>\n\n<b>[expression/word 2]</b><br>\n...\n\nDo not provide a word-by-word translation of the entire sentence.\nDo not explain obvious words unless they have a relevant linguistic feature.\nFocus on deep understanding of real language usage.\n\nCard Details:\nFront: {{front}}\nBack: {{back}}\nUser Notes/Context: {{notes}}";
-
-  let loadedPrompt = loadStoredValue(DEFAULT_REFINEMENT_PROMPT_KEY, DEFAULT_REFINEMENT_PROMPT_VAL);
-  if (loadedPrompt === OLD_DEFAULT_PROMPT_1 || loadedPrompt === OLD_DEFAULT_PROMPT_2 || loadedPrompt.includes("[INSERT SENTENCE HERE]")) {
-    loadedPrompt = DEFAULT_REFINEMENT_PROMPT_VAL;
-    try {
-      localStorage.setItem(DEFAULT_REFINEMENT_PROMPT_KEY, DEFAULT_REFINEMENT_PROMPT_VAL);
-    } catch {}
-  }
-  let defaultRefinementPrompt = $state(loadedPrompt);
+  const DEFAULT_REFINEMENT_PROMPT_KEY = REFINEMENT_PROMPT_STORAGE_KEY;
+  let defaultRefinementPrompt = $state(loadRefinementPrompt());
 
   function persistRefinementPrompt() {
     try {
@@ -221,7 +215,7 @@ import TranscribeTiers from "./TranscribeTiers.svelte";
   }
 
   function resetRefinementPrompt() {
-    defaultRefinementPrompt = DEFAULT_REFINEMENT_PROMPT_VAL;
+    defaultRefinementPrompt = DEFAULT_REFINEMENT_PROMPT;
     persistRefinementPrompt();
   }
   let discoveredDefaultModels = $state<DiscoveredModel[]>([]);
@@ -1246,6 +1240,7 @@ import TranscribeTiers from "./TranscribeTiers.svelte";
     defaultLocalServerUrl = DEFAULT_LOCAL_URL;
     defaultLlmCustomProviderId = "";
     defaultLlmModel = "";
+    resetRefinementPrompt();
     persistDefaultLlmSettings();
     snackbar.show(t("settings.llm.resetSuccess"), "info", 1300);
   }
@@ -2902,19 +2897,10 @@ import TranscribeTiers from "./TranscribeTiers.svelte";
             bind:value={defaultRefinementPrompt}
             onchange={persistRefinementPrompt}
             language="prompt"
-            placeholder={DEFAULT_REFINEMENT_PROMPT_VAL}
+            placeholder={DEFAULT_REFINEMENT_PROMPT}
             heightClass="h-[450px]"
             class={highlightedModelId === "default-refinement-prompt" ? "editor-highlight-pulse" : ""}
           />
-          <div class="flex justify-end items-center text-xs text-gray-500">
-            <button
-              type="button"
-              onclick={resetRefinementPrompt}
-              class="text-indigo-400 hover:text-indigo-300 font-semibold cursor-pointer"
-            >
-              {t("settings.reset_default") || t("settings.resetDefault") || "Reset to default"}
-            </button>
-          </div>
         </div>
       </div>
   {/if}

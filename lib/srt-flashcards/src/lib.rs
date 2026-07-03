@@ -249,7 +249,7 @@ pub async fn list_audio_tracks(
     path: &str,
     ffprobe_cmd: &str,
 ) -> Result<Vec<AudioTrackInfo>, String> {
-    let output = tokio::process::Command::new(ffprobe_cmd)
+    let output = media::media_command(ffprobe_cmd)
         .args([
             "-v",
             "error",

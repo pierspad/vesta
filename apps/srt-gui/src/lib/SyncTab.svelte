@@ -1347,7 +1347,7 @@
           <PathPickerField
             label={t("sync.inputSrtFile")}
             value={status?.srt_path || ""}
-            placeholder={t("sync.loadSrt")}
+            placeholder={t("sync.noSrtFileSelected")}
             browseTitle={t("sync.tooltip.loadSrt")}
             onexpand={() => {
               if (status?.srt_path) expandedPathField = "srt";
@@ -1360,7 +1360,7 @@
           <PathPickerField
             label={t("sync.inputMediaFile")}
             value={status?.video_path || ""}
-            placeholder={t("sync.loadAudio")}
+            placeholder={t("sync.noMediaFileSelected")}
             browseTitle={t("sync.tooltip.loadVideo") || ""}
             disabled={!status?.is_loaded}
             onexpand={() => {

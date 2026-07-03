@@ -27,6 +27,7 @@
   import PathPreviewModal from "./PathPreviewModal.svelte";
   import SearchableSelect from "./SearchableSelect.svelte";
   import { snackbar } from "./snackbarStore.svelte";
+  import { uiMode } from "./uiModeStore.svelte";
   import ConfirmDialog from "./ConfirmDialog.svelte";
   import { aiStore } from "./aiStore.svelte";
 
@@ -171,17 +172,17 @@
 
   let transcribeBlockedReason = $derived.by(() => {
     if (!inputPath || !outputPath) {
-      return "Seleziona file di input e destinazione per abilitare la trascrizione.";
+      return t("transcribe.blocked.selectFiles");
     }
     if (transcribeTiers.length === 0 || transcribeTiers.flatMap((t) => t.entries).length === 0) {
-      return "Nessun tier configurato per la trascrizione. Configura i tier in Impostazioni.";
+      return t("transcribe.blocked.noTiers");
     }
     if (usableEntries.length === 0) {
       const hasLocalConfigured = transcribeTiers.flatMap((t) => t.entries).some(e => e.provider === "local" || e.provider === "local_whisper");
       if (hasLocalConfigured) {
-        return "Manca un modello Whisper.\nVerifica che le API key siano configurate o scarica il modello locale nelle impostazioni.";
+        return t("transcribe.blocked.missingModel");
       }
-      return "Nessun endpoint di trascrizione pronto.\nVerifica che le API key siano configurate o che i modelli locali siano scaricati.";
+      return t("transcribe.blocked.noEndpoint");
     }
     return "";
   });
@@ -289,9 +290,13 @@
     window.addEventListener("vesta-language-defaults-updated", handleLanguageDefaultsUpdated);
     window.addEventListener("vesta:transcribe-cloud-updated", handleTranscribeCloudUpdated);
 
-    invoke<typeof backends>("transcribe_check_backends")
-      .then((res) => { backends = res; })
-      .catch((e) => console.error("Could not check backends:", e));
+    const refreshBackends = () => {
+      invoke<typeof backends>("transcribe_check_backends")
+        .then((res) => { backends = res; })
+        .catch((e) => console.error("Could not check backends:", e));
+    };
+    refreshBackends();
+    window.addEventListener("vesta-ffmpeg-updated", refreshBackends);
 
     refreshModels().catch((e) => console.error("Could not list models:", e));
 
@@ -360,6 +365,7 @@
       window.removeEventListener("whisper-model-updated", handleWhisperModelUpdated);
       window.removeEventListener("vesta-language-defaults-updated", handleLanguageDefaultsUpdated);
       window.removeEventListener("vesta:transcribe-cloud-updated", handleTranscribeCloudUpdated);
+      window.removeEventListener("vesta-ffmpeg-updated", refreshBackends);
       if (unlisten) unlisten();
       if (unlistenDD) unlistenDD();
       if (unlistenSegment) unlistenSegment();
@@ -786,15 +792,15 @@
             d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
           /></svg
         >
-        <p class="text-lg font-semibold text-indigo-300">Rilascia 1 file audio o video da trascrivere</p>
-        <p class="text-xs text-indigo-500 mt-1">Verrà impostato come file di input per la trascrizione</p>
+        <p class="text-lg font-semibold text-indigo-300">{t("transcribe.dropFileHere")}</p>
+        <p class="text-xs text-indigo-500 mt-1">{t("transcribe.dropFileHint")}</p>
       </div>
     </div>
   {/if}
   <!-- FFmpeg Warning (whisper-rs is always available natively) -->
   {#if backends && !backends.ffmpeg}
     <div
-      class="mb-4 p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg flex items-center gap-3 shrink-0"
+      class="mx-6 mt-4 mb-0 p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl flex items-center gap-3 shrink-0"
     >
       <svg
         class="w-5 h-5 text-amber-400 flex-shrink-0"
@@ -824,9 +830,10 @@
           isDownloadingFFmpeg = true;
           try {
             await invoke("flashcard_download_ffmpeg");
-            if (backends) backends.ffmpeg = true;
+            backends = await invoke<typeof backends>("transcribe_check_backends");
+            window.dispatchEvent(new CustomEvent("vesta-ffmpeg-updated"));
           } catch (e) {
-            error = "Download failed: " + e;
+            error = `${t("flashcards.ffmpegDownloadFailed")}: ${e}`;
           } finally {
             isDownloadingFFmpeg = false;
           }
@@ -838,7 +845,7 @@
           {t("flashcards.downloading") || "Downloading..."}
         {:else}
           <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
-          Scarica Automaticamente
+          {t("flashcards.downloadAuto")}
         {/if}
       </button>
     </div>
@@ -898,6 +905,7 @@
               placeholder={t("transcribe.sourceLanguage")}
             />
           </div>
+          {#if uiMode.expertMode}
           <!-- svelte-ignore a11y_no_static_element_interactions -->
           <div
             class="flex items-center justify-between p-3 bg-white/5 rounded-lg"
@@ -1030,13 +1038,14 @@
               </button>
             </div>
             <div class="mt-2 flex items-center gap-2 text-xs">
-              <span class="text-gray-500">Segment length:</span>
+              <span class="text-gray-500">{t("transcribe.segmentLengthLabel")}</span>
               <span
                 class="text-white font-mono bg-white/10 px-2 py-0.5 rounded text-sm"
                 >{maxSegmentLength}s</span
               >
             </div>
           </div>
+          {/if}
         </div>
       </div>
     {:else if panelId === "files"}
@@ -1219,13 +1228,13 @@
   {#snippet transcribedSentencesCard()}
     <div class="glass-card p-5 space-y-4">
       <div class="flex items-center justify-between">
-        <span class="text-[10px] font-bold text-gray-500 uppercase tracking-wide">Frasi Trascritte</span>
+        <span class="text-[10px] font-bold text-gray-500 uppercase tracking-wide">{t("transcribe.livePhrases")}</span>
         <span class="text-[10px] text-indigo-400 font-semibold">{transcribedSegments.length} segmenti</span>
       </div>
       
       {#if transcribedSegments.length === 0}
         <div class="rounded-lg border border-indigo-500/20 bg-indigo-500/5 px-3 py-8 text-center text-xs text-indigo-300">
-          Le frasi trascritte appariranno qui in tempo reale.
+          {t("transcribe.livePhrasesHint")}
         </div>
       {:else}
         <div 

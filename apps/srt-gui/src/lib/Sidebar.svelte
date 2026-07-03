@@ -6,6 +6,7 @@
   import authorAvatar from "../assets/avatar.png";
   import { locale } from "./i18n";
   import { aiStore } from "./aiStore.svelte";
+  import { uiMode } from "./uiModeStore.svelte";
   import {
     getStoredSettingsActionState,
     SETTINGS_ACTION_REQUIRED_EVENT,
@@ -293,10 +294,10 @@
         </button>
 
         {#if !collapsed}
-          <div class="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 relative overflow-visible ml-2">
-            <div class="absolute -inset-1.5 bg-orange-500/22 rounded-full blur-lg z-0"></div>
-            <div class="absolute inset-0 bg-amber-300/12 rounded-full blur-md z-0"></div>
-            <img src={fireplaceIcon} alt="VESTA" class="w-10 h-10 drop-shadow-[0_0_10px_rgba(249,115,22,0.55)] relative z-10" />
+          <div class="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 relative overflow-visible ml-2" style="transform: translate3d(0, 0, 0);">
+            <div class="absolute -inset-1.5 bg-orange-500/22 rounded-full blur-lg z-0" style="will-change: filter; transform: translate3d(0, 0, 0);"></div>
+            <div class="absolute inset-0 bg-amber-300/12 rounded-full blur-md z-0" style="will-change: filter; transform: translate3d(0, 0, 0);"></div>
+            <img src={fireplaceIcon} alt="VESTA" class="w-10 h-10 drop-shadow-[0_0_10px_rgba(249,115,22,0.55)] relative z-10" style="will-change: filter; transform: translate3d(0, 0, 0);" />
           </div>
           <div class="relative z-10">
             <h1 class="text-2xl font-bold tracking-wider bg-gradient-to-r from-amber-400 via-orange-400 to-red-400 bg-clip-text text-transparent">
@@ -603,8 +604,39 @@
       {/if}
     {/if}
 
-    <!-- AI Kill Switch at the bottom of the nav -->
+    <!-- Expert Mode + AI Kill Switch at the bottom of the nav -->
     <div class="mt-auto pt-2 flex flex-col gap-2">
+      <button
+        type="button"
+        onclick={() => uiMode.toggleExpertMode()}
+        class="w-full flex h-[60px] items-center {collapsed ? 'justify-center px-2' : 'justify-between px-3.5'} rounded-xl border border-transparent bg-white/5 text-gray-400 hover:bg-white/10 hover:text-gray-300 transition-all duration-300 cursor-pointer"
+        title={collapsed ? (uiMode.expertMode ? t("nav.expertModeOn") : t("nav.expertModeOff")) : undefined}
+      >
+        <div class="flex items-center gap-3.5">
+          <div class="w-9 h-9 rounded-xl bg-white/5 text-gray-400 border border-white/5 flex items-center justify-center flex-shrink-0 relative transition-colors">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              {#if uiMode.expertMode}
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75" />
+              {:else}
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+              {/if}
+            </svg>
+          </div>
+          {#if !collapsed}
+            <span class="text-[15px] font-semibold select-none leading-none text-gray-300">{t("nav.expertMode")}</span>
+          {/if}
+        </div>
+        {#if !collapsed}
+          <div
+            class="w-10 h-6 rounded-full p-1 transition-colors duration-200 shrink-0 {uiMode.expertMode ? 'bg-indigo-600' : 'bg-white/10'}"
+            role="switch"
+            aria-checked={uiMode.expertMode}
+          >
+            <div class="bg-white w-4 h-4 rounded-full shadow-md transform transition-transform duration-200 {uiMode.expertMode ? 'translate-x-4' : 'translate-x-0'}"></div>
+          </div>
+        {/if}
+      </button>
+
       <button
         type="button"
         onclick={() => {
@@ -614,7 +646,7 @@
         }}
         disabled={aiStore.hasActiveAiProcess}
         class="w-full flex h-[60px] items-center {collapsed ? 'justify-center px-2' : 'justify-between px-3.5'} rounded-xl border border-transparent bg-white/5 text-gray-400 hover:bg-white/10 hover:text-gray-300 transition-all duration-300 {aiStore.hasActiveAiProcess ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}"
-        title={collapsed ? (aiStore.killSwitchActive ? "AI Disattivata (Kill Switch ON)" : "AI Attiva (Kill Switch OFF)") : undefined}
+        title={collapsed ? (aiStore.killSwitchActive ? t("nav.aiKillSwitchOn") : t("nav.aiKillSwitchOff")) : undefined}
       >
         <div class="flex items-center gap-3.5">
           <div class="w-9 h-9 rounded-xl bg-white/5 text-gray-400 border border-white/5 flex items-center justify-center flex-shrink-0 relative transition-colors">

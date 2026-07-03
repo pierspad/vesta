@@ -10,6 +10,7 @@
   import { fetchModelsFromEndpoint } from "./modelDiscovery";
   import CodeEditor from "./CodeEditor.svelte";
   import { aiStore } from "./aiStore.svelte";
+  import { loadRefinementPrompt } from "./refinementPrompt";
 
   interface Props {
     active?: boolean;
@@ -159,20 +160,7 @@
     const customProviderId = loadStoredValue("vesta-default-llm-custom-provider", "");
     const localUrl = loadStoredValue("vesta-local-server-url", "http://localhost:11434/v1");
     
-    // Load default prompt
-    const OLD_DEFAULT_PROMPT_1 = "Spiega le parole desuete e più astruse della frase fornendo traduzione, esempio d'uso ed etimologia.";
-    const OLD_DEFAULT_PROMPT_2 = "Analizza la frase fornita e identifica le parole chiave, i termini insoliti, le espressioni idiomatiche o le strutture grammaticali più complesse.\nPer ciascuno di questi elementi, fornisci una spiegazione dettagliata scritta nella LINGUA DI RIFERIMENTO (es. se la frase originale è in inglese, spiega i termini in italiano).\n\nPer ogni termine spiegato, struttura la nota in questo modo usando il Markdown:\n• **[Termine originale]** ([Parte del discorso]): [Traduzione/Significato in italiano]\n  - *Spiegazione*: [Breve contesto, sfumature di significato o etimologia interessante]\n  - *Esempio*: \"[Frase d\'esempio nella lingua originale]\" → \"[Traduzione dell\'esempio in italiano]\"\n\nMantieni le spiegazioni chiare, concise e focalizzate sull\'apprendimento pratico della lingua.";
-    
-    const NEW_DEFAULT_PROMPT = "You are a language teacher specialized in vocabulary acquisition and language learning through Anki.\n\nYour task is to generate the \"Notes\" field of an Anki flashcard using the provided card's front (expression), back (meaning/translation), and optional user notes/context.\n\nGoal:\nI do not want a simple translation. I want to deeply understand the sentence, especially natural expressions, idioms, common collocations, unusual grammar structures, and words whose meaning or usage is not obvious, so that I can recognize and reuse them in real conversations.\n\nInstructions:\n\n1. Analyze the sentence as a whole:\n- Briefly explain the overall meaning of the sentence.\n- Identify the linguistic register (formal, informal, colloquial, technical, literary, etc.).\n- If the sentence contains an idiomatic expression or a typical construction, explain it.\n\n2. Identify only the most valuable elements:\nDo not explain every single word.\nSelect only words, verbs, prepositions, collocations, or expressions that:\n- have multiple meanings;\n- have a meaning different from the literal translation;\n- are difficult or ambiguous for a learner;\n- are very common for native speakers but difficult to understand intuitively;\n- have cultural, pragmatic, or stylistic nuances.\n\nFor each selected element provide:\n\n<b>Expression/word:</b>\n- Meaning in this sentence:\n  Explain the specific meaning and role in the sentence.\n\n- Usage:\n  Explain:\n  - when it is used;\n  - common contexts where it appears;\n  - words it commonly combines with;\n  - differences from similar expressions or synonyms;\n  - common mistakes learners make.\n\n- Other important meanings:\n  Include only meanings that are actually common or useful.\n\n- Etymology:\n  Include only if interesting:\n  - origin of the word/expression;\n  - how the meaning evolved;\n  - connections with related words in the same language or other languages.\n\n3. For idiomatic expressions:\nDo not only give a literal translation.\nExplain:\n- the real meaning;\n- the metaphor or idea behind the expression;\n- why native speakers use this expression;\n- situations where it sounds natural;\n- useful equivalents in Italian when helpful.\n\n4. Keep the content suitable for Anki:\n- It should be detailed enough to teach something useful.\n- Avoid unnecessary encyclopedic explanations.\n- Focus on practical understanding and memory-friendly explanations.\n- Prioritize insights that help the learner use the language naturally.\n\n5. Incorporate User Notes / Context:\n- If the user provides additional notes, context, or specific questions in the \"Notes\" field (e.g. asking for clarification on a specific word or phrase), you MUST prioritize explaining or addressing their comments. Integrate these clarifications directly into your explanation.\n\n6. Output format:\nGenerate only the content of the Anki Notes field.\nDo not add introductions or comments.\n\nUse simple HTML compatible with Anki:\n- <b> for titles;\n- <br> for line breaks;\n- <ul><li> for lists when useful.\n\nStructure:\n\n<b>General meaning</b><br>\n...\n\n<br><b>Important expressions and vocabulary</b><br>\n\n<b>[expression/word 1]</b><br>\n<b>Meaning:</b> ...<br>\n<b>Usage:</b> ...<br>\n<b>Etymology:</b> ...<br>\n\n<b>[expression/word 2]</b><br>\n...\n\nDo not provide a word-by-word translation of the entire sentence.\nDo not explain obvious words unless they have a relevant linguistic feature.\nFocus on deep understanding of real language usage.\n\nCard Details:\nFront: {{front}}\nBack: {{back}}\nUser Notes/Context: {{notes}}";
-    
-    let defaultPrompt = loadStoredValue("vesta-default-refinement-prompt", NEW_DEFAULT_PROMPT);
-    if (defaultPrompt === OLD_DEFAULT_PROMPT_1 || defaultPrompt === OLD_DEFAULT_PROMPT_2 || defaultPrompt.includes("[INSERT SENTENCE HERE]")) {
-      defaultPrompt = NEW_DEFAULT_PROMPT;
-      try {
-        localStorage.setItem("vesta-default-refinement-prompt", NEW_DEFAULT_PROMPT);
-      } catch {}
-    }
-    customPrompt = defaultPrompt;
+    customPrompt = loadRefinementPrompt();
 
     let apiKey = "";
     let apiUrl = "";
@@ -743,9 +731,9 @@ Esempio di formato di risposta atteso:
           />
         </svg>
         <p class="text-lg font-medium text-rose-300">
-          Rilascia il file qui
+          {t("refine.dropFileHere")}
         </p>
-        <p class="text-sm text-gray-400 mt-1">Trascina e rilascia file .apkg o .tsv</p>
+        <p class="text-sm text-gray-400 mt-1">{t("refine.dropFileHint")}</p>
       </div>
     </div>
   {/if}
@@ -974,7 +962,7 @@ Esempio di formato di risposta atteso:
                   <svg class="w-4 h-4 text-indigo-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
                   </svg>
-                  <span class="font-semibold text-gray-300">LLM Engine:</span>
+                  <span class="font-semibold text-gray-300">{t("refine.llmEngine")}</span>
                   <span class="text-[10px] {llmError === 'offline' ? 'bg-amber-500/10 border border-amber-500/20 text-amber-300' : 'bg-indigo-500/10 border border-indigo-500/20 text-indigo-300'} px-2 py-0.5 rounded-full border border-current font-bold uppercase tracking-wider ml-1">
                     {llmConfig.api_type === "local" ? "Local" : "API"}
                   </span>
@@ -985,7 +973,7 @@ Esempio di formato di risposta atteso:
                   <svg class="w-4 h-4 {llmError ? 'text-amber-400' : 'text-indigo-400'} shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
                   </svg>
-                  <span class="font-semibold text-gray-300">LLM Model in Use:</span>
+                  <span class="font-semibold text-gray-300">{t("refine.llmModelInUse")}</span>
                   {#if llmConfig.model && llmError !== "modelRequired" && llmError !== "keyMissing" && llmError !== "incomplete"}
                     <span class="text-[10px] bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full font-mono font-bold tracking-wide ml-1">
                       {llmConfig.model}
@@ -1206,7 +1194,7 @@ Esempio di formato di risposta atteso:
     title={t('refine.warning.unsavedChangesTitle') || "Modifiche non salvate"}
     message={t('refine.warning.unsavedChangesMsg') || "Ci sono modifiche non salvate nel file corrente. Caricando un nuovo file, perderai i progressi non salvati. Vuoi procedere comunque?"}
     confirmText={t('refine.warning.confirmLoad') || "Procedi comunque"}
-    cancelText={t('common.cancel') || t('settings.cancel') || "Annulla"}
+    cancelText={t('common.cancel')}
     variant="warning"
     on:cancel={() => {
       showOverwriteConfirm = false;
