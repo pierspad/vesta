@@ -2414,80 +2414,75 @@ import TranscribeTiers from "./TranscribeTiers.svelte";
 
       <!-- Aggiornamenti Card -->
       <div class="glass-card p-6 flex flex-col justify-between h-full">
-        <div>
-          <div class="flex items-center gap-3 mb-4">
-            <div class="w-9 h-9 rounded-lg bg-indigo-500/20 text-indigo-300 flex items-center justify-center">
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
-            </div>
-            <div>
-              <h3 class="text-sm font-bold text-white">{$currentLanguage === 'it' ? 'Aggiornamenti' : 'Updates'}</h3>
-            </div>
-          </div>
-
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
+        <div class="flex flex-col gap-4">
+          <!-- Toggle Row -->
+          <div class="flex items-center justify-between gap-4 p-4 rounded-xl bg-white/5 border border-transparent">
+            <span class="text-sm font-medium text-gray-300">
+              {$currentLanguage === 'it' ? 'Verifica automaticamente la presenza di aggiornamenti' : 'Check automatically for updates'}
+            </span>
             <button
               type="button"
               onclick={toggleAutomaticUpdateChecks}
-              class="rounded-xl border p-4 text-left transition-all duration-200 flex flex-row items-center justify-between gap-3 cursor-pointer
-                {automaticUpdateChecks
-                  ? 'bg-indigo-500/10 border-indigo-500/30 text-white hover:bg-indigo-500/15 hover:border-indigo-500/40 shadow-md shadow-indigo-500/5'
-                  : 'bg-white/5 border-white/10 text-gray-400 hover:text-white hover:bg-white/10 hover:border-white/20'}"
+              class="w-10 h-6 rounded-full p-1 transition-colors duration-200 shrink-0 cursor-pointer {automaticUpdateChecks ? 'bg-indigo-600' : 'bg-white/10'}"
+              role="switch"
+              aria-checked={automaticUpdateChecks}
+              aria-label={$currentLanguage === 'it' ? 'Verifica aggiornamenti automatica' : 'Toggle automatic update checks'}
             >
-              <span class="text-xs font-semibold">
-                {$currentLanguage === 'it' ? 'Controlli automatici' : 'Automatic checks'}
-              </span>
-              {#if automaticUpdateChecks}
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5 text-indigo-400 shrink-0">
-                  <path fill-rule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12zm13.36-1.814a.75.75 0 10-1.22-.872l-3.236 4.53L9.53 12.22a.75.75 0 00-1.06 1.06l2.25 2.25a.75.75 0 001.14-.094l3.75-5.25z" clip-rule="evenodd" />
-                </svg>
-              {:else}
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5 text-gray-500 shrink-0">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              {/if}
+              <div class="bg-white w-4 h-4 rounded-full shadow-md transform transition-transform duration-200 {automaticUpdateChecks ? 'translate-x-4' : 'translate-x-0'}"></div>
             </button>
+          </div>
 
+          <!-- Status / Action Row -->
+          <div>
             {#if updateStatus === "available"}
               <a
                 href={releaseUrl}
                 target="_blank"
-                class="rounded-xl border border-amber-500/40 bg-amber-500/15 p-4 text-left transition-all duration-200 hover:border-amber-500/60 hover:bg-amber-500/25 active:scale-[0.98] flex flex-row items-center justify-between gap-3 cursor-pointer shadow-md shadow-amber-900/20"
+                class="inline-flex items-center gap-3 rounded-xl border border-amber-500/40 bg-amber-500/15 px-5 py-3 text-left transition-all duration-200 hover:border-amber-500/60 hover:bg-amber-500/25 active:scale-[0.98] cursor-pointer shadow-md shadow-amber-900/20"
               >
-                <span class="text-xs font-bold text-amber-200 flex items-center gap-2">
-                  <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse ring-4 ring-amber-500/20 shrink-0"></span>
-                  {$currentLanguage === 'it' ? `Aggiorna a ${latestVersion}` : `Update to ${latestVersion}`}
+                <span class="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse ring-4 ring-amber-500/20 shrink-0"></span>
+                <span class="text-xs font-bold text-amber-200">
+                  {$currentLanguage === 'it' ? `Nuova versione disponibile! Scarica v${latestVersion}` : `New version available! Download v${latestVersion}`}
                 </span>
                 <svg class="w-5 h-5 text-amber-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                 </svg>
               </a>
+            {:else if automaticUpdateChecks}
+              <p class="text-xs text-gray-500 italic px-1">
+                {$currentLanguage === 'it' ? 'Vesta verificherà la disponibilità di nuovi aggiornamenti all\'avvio.' : 'Vesta checks for updates automatically on startup.'}
+              </p>
             {:else}
-              <button
-                type="button"
-                onclick={() => checkForUpdates("manual")}
-                disabled={updateStatus === 'checking'}
-                class="rounded-xl border border-white/10 bg-white/5 p-4 text-left transition-all duration-200 hover:border-white/20 hover:bg-white/10 active:scale-[0.98] disabled:opacity-60 flex flex-row items-center justify-between gap-3 cursor-pointer"
-              >
-                <span class="text-xs font-semibold text-white">
-                  {updateStatus === 'checking'
-                    ? ($currentLanguage === 'it' ? 'Controllo in corso…' : 'Checking…')
-                    : updateStatus === 'current'
-                      ? ($currentLanguage === 'it' ? 'Aggiornato ✓' : 'Up to date ✓')
-                      : ($currentLanguage === 'it' ? 'Verifica ora' : 'Check now')}
-                </span>
-                {#if updateStatus === 'checking'}
-                  <svg class="w-5 h-5 text-indigo-400 shrink-0 animate-spin" fill="none" viewBox="0 0 24 24">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
-                  </svg>
-                {:else}
-                  <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992m0 0v-.001M21.015 9.348l-3.181-3.182a8.25 8.25 0 00-13.803 3.7M7.977 14.652H2.985m0 0v.001m0-.001l3.181 3.182a8.25 8.25 0 0013.803-3.7" />
-                  </svg>
+              <div class="flex flex-wrap items-center gap-4">
+                <button
+                  type="button"
+                  onclick={() => checkForUpdates("manual")}
+                  disabled={updateStatus === 'checking'}
+                  class="px-5 py-2.5 bg-white/5 border border-white/10 hover:bg-white/10 hover:border-white/20 text-white rounded-xl text-sm font-semibold transition-all duration-200 active:scale-[0.98] disabled:opacity-60 flex items-center gap-2 cursor-pointer"
+                >
+                  {#if updateStatus === 'checking'}
+                    <svg class="w-4 h-4 text-indigo-400 animate-spin" fill="none" viewBox="0 0 24 24">
+                      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                    </svg>
+                    <span>{$currentLanguage === 'it' ? 'Verifica in corso...' : 'Checking for updates...'}</span>
+                  {:else}
+                    <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    <span>{$currentLanguage === 'it' ? 'Cerca aggiornamenti' : 'Check for updates now'}</span>
+                  {/if}
+                </button>
+
+                {#if updateStatus === 'current'}
+                  <span class="text-xs font-semibold text-emerald-400 flex items-center gap-1.5 animate-fade-in">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7" />
+                    </svg>
+                    {$currentLanguage === 'it' ? 'L\'app è aggiornata all\'ultima versione' : 'Vesta is up to date'}
+                  </span>
                 {/if}
-              </button>
+              </div>
             {/if}
           </div>
         </div>
@@ -2553,19 +2548,8 @@ import TranscribeTiers from "./TranscribeTiers.svelte";
 
   {#snippet defaultLanguagesCard()}
     <div class="glass-card p-6">
-      <div class="flex items-center gap-3 mb-4">
-        <div class="w-9 h-9 rounded-lg bg-emerald-500/20 text-emerald-300 flex items-center justify-center">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5h12M9 3v2m1 9a18 18 0 01-4-5m7 12l5-10 5 10m-9-4h8" />
-          </svg>
-        </div>
-        <div>
-          <h3 class="text-sm font-bold text-white">{s("defaultLanguages")}</h3>
-        </div>
-      </div>
-
       <div class="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-4 gap-5">
-        <div class="rounded-xl border border-white/10 bg-white/5 p-5">
+        <div class="rounded-xl border border-transparent bg-white/5 p-5">
           <div class="flex items-center justify-between gap-3 mb-4">
             <span class="block text-sm font-semibold text-white">{s("studyingLanguage")}</span>
             <span class="text-4xl">{languages.find((lang) => lang.code === defaultFlashcardsLanguage)?.flag || "🌐"}</span>
@@ -2584,7 +2568,7 @@ import TranscribeTiers from "./TranscribeTiers.svelte";
           />
           <p class="mt-3 text-xs leading-relaxed text-gray-500">{s("studyingLanguageHint")}</p>
         </div>
-        <div class="rounded-xl border border-white/10 bg-white/5 p-5">
+        <div class="rounded-xl border border-transparent bg-white/5 p-5">
           <div class="flex items-center justify-between gap-3 mb-4">
             <span class="block text-sm font-semibold text-white">{s("nativeLanguage")}</span>
             <span class="text-4xl">{languages.find((lang) => lang.code === defaultNativeLanguage)?.flag || "🌐"}</span>
@@ -2602,7 +2586,7 @@ import TranscribeTiers from "./TranscribeTiers.svelte";
           />
           <p class="mt-3 text-xs leading-relaxed text-gray-500">{s("nativeLanguageHint")}</p>
         </div>
-        <div class="rounded-xl border border-white/10 bg-white/5 p-5">
+        <div class="rounded-xl border border-transparent bg-white/5 p-5">
           <div class="flex items-center justify-between gap-3 mb-4">
             <span class="block text-sm font-semibold text-white">{s("translationLanguage")}</span>
             <span class="text-4xl">{languages.find((lang) => lang.code === defaultTargetLanguage)?.flag || "🌐"}</span>
@@ -2620,7 +2604,7 @@ import TranscribeTiers from "./TranscribeTiers.svelte";
           />
           <p class="mt-3 text-xs leading-relaxed text-gray-500">{s("translationLanguageHint")}</p>
         </div>
-        <div class="rounded-xl border border-white/10 bg-white/5 p-5">
+        <div class="rounded-xl border border-transparent bg-white/5 p-5">
           <div class="flex items-center justify-between gap-3 mb-4">
             <span class="block text-sm font-semibold text-white">{s("transcription")}</span>
             <span class="text-4xl">{defaultTranscribeLanguage === "auto" ? "🌐" : languages.find((lang) => lang.code === defaultTranscribeLanguage)?.flag || "🌐"}</span>

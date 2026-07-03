@@ -495,14 +495,7 @@ kbd {
   will-change: width;
 }
 
-/* Reduce layout/paint on hidden elements - optimized using content-visibility */
+/* Reduce layout/paint on hidden elements - standard display: none */
 .hidden {
-  content-visibility: hidden;
-  pointer-events: none;
-}
-
-@supports not (content-visibility: hidden) {
-  .hidden {
-    visibility: hidden;
-  }
+  display: none !important;
 }
