@@ -284,7 +284,7 @@ fn run_whisper_rs(
     app.emit("transcribe-progress", TranscribeProgressEvent {
         stage: "transcribe".to_string(),
         message: "Loading Whisper model...".to_string(),
-        percentage: 20.0,
+        percentage: 12.0,
     }).ok();
     
     let model_path_str = model_path.to_string_lossy().to_string();
@@ -300,12 +300,12 @@ fn run_whisper_rs(
     app.emit("transcribe-progress", TranscribeProgressEvent {
         stage: "transcribe".to_string(),
         message: "Transcribing audio...".to_string(),
-        percentage: 30.0,
+        percentage: 15.0,
     }).ok();
     
     // Total audio duration in ms (16 kHz mono float samples) — lets the
-    // segment callback map "where we are in the audio" onto the 30–90% window
-    // of the overall progress bar instead of leaving it frozen at 30%.
+    // segment callback map "where we are in the audio" onto the 15–90% window
+    // of the overall progress bar instead of leaving it frozen at 15%.
     let total_audio_ms = (audio_data.len() as f64 / 16.0).max(1.0);
 
     let app_for_callback = app.clone();
@@ -320,7 +320,7 @@ fn run_whisper_rs(
         let _ = app_for_callback.emit("transcribe-progress", TranscribeProgressEvent {
             stage: "transcribe".to_string(),
             message: format!("Transcribing audio... {:.0}%", ratio * 100.0),
-            percentage: 30.0 + ratio * 60.0,
+            percentage: 15.0 + ratio * 75.0,
         });
     };
 
@@ -575,6 +575,12 @@ pub async fn transcribe_start(
         s.cancellation_token.clone().unwrap()
     };
     
+    app.emit("transcribe-progress", TranscribeProgressEvent {
+        stage: "start".to_string(),
+        message: "Starting transcription...".to_string(),
+        percentage: 0.0,
+    }).ok();
+    
     // Verify input file exists
     if !Path::new(&config.input_path).exists() {
         let mut s = state.lock().map_err(|e| e.to_string())?;
@@ -624,6 +630,12 @@ pub async fn transcribe_start(
     
     let ffmpeg_cmd = crate::commands::flashcards::media::resolve_ffmpeg_path(Some(&app)).await;
 
+    app.emit("transcribe-progress", TranscribeProgressEvent {
+        stage: "convert".to_string(),
+        message: "Converting audio format...".to_string(),
+        percentage: 5.0,
+    }).ok();
+
     match convert_to_wav(&ffmpeg_cmd, Path::new(&config.input_path), &wav_path, Some(&cancel_token)).await {
         Ok(_) => {}
         Err(e) => {
@@ -632,6 +644,12 @@ pub async fn transcribe_start(
             return Err(format!("Audio conversion failed: {}", e));
         }
     }
+
+    app.emit("transcribe-progress", TranscribeProgressEvent {
+        stage: "convert".to_string(),
+        message: "Audio converted successfully".to_string(),
+        percentage: 10.0,
+    }).ok();
     
     // Read audio data using the common audio module!
     let audio_data = match read_wav_to_f32(&wav_path) {

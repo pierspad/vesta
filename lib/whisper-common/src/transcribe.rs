@@ -115,6 +115,17 @@ pub fn transcribe_full(
         if token.is_cancelled() {
             anyhow::bail!("Transcription cancelled");
         }
+        unsafe extern "C" fn whisper_abort_callback(user_data: *mut std::ffi::c_void) -> bool {
+            if user_data.is_null() {
+                return false;
+            }
+            let token = &*(user_data as *const tokio_util::sync::CancellationToken);
+            token.is_cancelled()
+        }
+        unsafe {
+            params.set_abort_callback(Some(whisper_abort_callback));
+            params.set_abort_callback_user_data(token as *const tokio_util::sync::CancellationToken as *mut std::ffi::c_void);
+        }
     }
     
     state

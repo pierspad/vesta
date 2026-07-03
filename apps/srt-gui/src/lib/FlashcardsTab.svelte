@@ -5608,7 +5608,7 @@
   </div>
 
   <!-- Fixed Bottom Band with Action Buttons -->
-  <div class="h-[92px] border-t border-white/10 bg-gray-900 flex items-center justify-between px-6 shrink-0 relative overflow-hidden">
+  <div class="h-[92px] border-t border-white/10 bg-gray-900 flex items-center justify-between px-6 shrink-0 relative">
     <!-- Animated background progress overlay (only when processing) -->
     {#if isProcessing}
       <div 
