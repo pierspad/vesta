@@ -16,11 +16,11 @@ pub struct SyncState {
 /// Wrapper thread-safe per lo stato di sincronizzazione
 pub type AppSyncState = Mutex<SyncState>;
 
-/// Stato per la traduzione (configurazione)
+/// Stato per la traduzione (run in corso + cancellazione).
+/// La configurazione (tier, key, modelli) viaggia per-run dentro
+/// `TranslateConfig`: non viene mai persistita nel backend.
 #[derive(Default)]
 pub struct TranslateState {
-    pub api_key: Option<String>,
-    pub api_type: Option<String>,
     pub is_translating: bool,
     pub cancellation_token: Option<CancellationToken>,
 }

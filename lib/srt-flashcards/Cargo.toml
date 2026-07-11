@@ -1,7 +1,7 @@
 [package]
 name = "srt-flashcards"
 version = "0.13.0"
-edition = "2021"
+edition.workspace = true
 description = "Headless, Tauri-free engine that turns subtitle pairs + media into Anki flashcards (TSV / APKG)."
 authors = ["Pierpaolo Spadafora <pierpaolospadafora@proton.me>"]
 license = "GPL-3.0-only"
@@ -16,6 +16,6 @@ serde_json = { workspace = true }
 tokio = { workspace = true }
 tokio-util = "0.7"
 tempfile = { workspace = true }
-rusqlite = { version = "0.39", features = ["bundled"] }
+rusqlite = { version = "0.40", features = ["bundled"] }
 sha1_smol = "1.0"
 zip = "8"

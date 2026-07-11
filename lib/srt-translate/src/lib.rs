@@ -535,6 +535,9 @@ where
     let subtitles_map: HashMap<u32, Subtitle> = sorted.iter().cloned().collect();
 
     // Controlla se esiste un file di output e determina da dove riprendere
+    // (stessa politica della versione tiered: prefisso completo → salta i batch
+    // fatti; pochi buchi → solo repair mirato; molti buchi → ritraduzione in
+    // batch con numerazione corretta).
     let (skip_batches, start_idx) = if output_path.exists() {
         match SrtParser::parse_file(output_path) {
             Ok(existing_translations) => {
@@ -542,12 +545,14 @@ where
                 if existing_count > 0 {
                     *translated.lock().await = existing_translations.clone();
                     let missing_count = get_missing_or_incorrect_subtitle_ids(&subtitles_map, &existing_translations).len();
-                    if missing_count > 0 {
-                        (total_batches, 0)
-                    } else {
+                    if missing_count == 0 {
                         let calc_start_idx = existing_count.saturating_sub(resume_overlap);
                         let skip_b = calc_start_idx / batch_size;
                         (skip_b, calc_start_idx)
+                    } else if missing_count <= batch_size * 2 {
+                        (0, sorted.len())
+                    } else {
+                        (0, 0)
                     }
                 } else { (0, 0) }
             }
@@ -930,6 +935,10 @@ impl TierScheduler {
 }
 
 /// Heuristica per riconoscere un errore di rate-limit / quota esaurita.
+///
+/// Nota: niente match sul solo "exceeded" — frasi come "context length
+/// exceeded" sono errori di richiesta, non di quota, e marcavano
+/// erroneamente la entry come esaurita facendo scalare il tier.
 fn is_rate_limit_error(error: &anyhow::Error) -> bool {
     let s = error.to_string().to_lowercase();
     s.contains("429")
@@ -937,8 +946,9 @@ fn is_rate_limit_error(error: &anyhow::Error) -> bool {
         || s.contains("rate-limit")
         || s.contains("quota")
         || s.contains("resource_exhausted")
+        || s.contains("resource exhausted")
         || s.contains("too many requests")
-        || s.contains("exceeded")
+        || s.contains("limit exceeded")
         || s.contains("insufficient_quota")
 }
 
@@ -987,6 +997,13 @@ where
     let subtitles_map: HashMap<u32, Subtitle> = sorted.iter().cloned().collect();
 
     // Ripresa: se esiste già un output, riparti dal punto giusto.
+    //  • prefisso completo           → salta i batch già fatti (con overlap)
+    //  • pochi buchi sparsi          → salta la fase batch: il repair mirato
+    //                                  (uno a uno, con contesto) li sistema
+    //  • molti buchi                 → ritraduci in batch dall'inizio con
+    //                                  numerazione corretta (le righe già
+    //                                  presenti restano nel salvataggio
+    //                                  incrementale finché non vengono riscritte)
     let (skip_batches, start_idx) = if output_path.exists() {
         match SrtParser::parse_file(output_path) {
             Ok(existing) => {
@@ -994,11 +1011,13 @@ where
                 if existing_count > 0 {
                     *translated.lock().await = existing.clone();
                     let missing = get_missing_or_incorrect_subtitle_ids(&subtitles_map, &existing).len();
-                    if missing > 0 {
-                        (total_batches, 0)
-                    } else {
+                    if missing == 0 {
                         let calc_start_idx = existing_count.saturating_sub(resume_overlap);
                         (calc_start_idx / batch_size, calc_start_idx)
+                    } else if missing <= batch_size * 2 {
+                        (0, sorted.len())
+                    } else {
+                        (0, 0)
                     }
                 } else {
                     (0, 0)

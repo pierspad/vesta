@@ -119,7 +119,7 @@ pub fn transcribe_full(
             if user_data.is_null() {
                 return false;
             }
-            let token = &*(user_data as *const tokio_util::sync::CancellationToken);
+            let token = unsafe { &*(user_data as *const tokio_util::sync::CancellationToken) };
             token.is_cancelled()
         }
         unsafe {

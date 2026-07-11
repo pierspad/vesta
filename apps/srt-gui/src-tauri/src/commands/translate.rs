@@ -139,8 +139,15 @@ fn build_pool_entry(entry: &TierEntryConfig, tier_human: usize) -> PoolEntry {
     }
 }
 
+/// True se il provider può funzionare senza API key (endpoint locali o custom).
+fn provider_allows_missing_key(provider: &str) -> bool {
+    matches!(provider.to_lowercase().as_str(), "local" | "custom")
+}
+
 /// Costruisce il pool a tier dalla configurazione. Le entry senza modello o,
-/// per i provider remoti, senza key valida vengono scartate.
+/// per i provider remoti, senza key valida vengono scartate (il frontend le
+/// filtra già: qui è defense-in-depth, così una config malformata non produce
+/// batch che falliscono a runtime con "API key is required").
 fn build_pool(config: &TranslateConfig) -> Result<TranslatorPool, String> {
     let pool: TranslatorPool = config
         .tiers
@@ -149,6 +156,10 @@ fn build_pool(config: &TranslateConfig) -> Result<TranslatorPool, String> {
         .map(|(ti, tier)| {
             tier.iter()
                 .filter(|e| !e.model.trim().is_empty())
+                .filter(|e| {
+                    provider_allows_missing_key(&e.provider)
+                        || e.api_key.as_deref().is_some_and(|k| !k.trim().is_empty())
+                })
                 .map(|e| build_pool_entry(e, ti + 1))
                 .collect::<Vec<PoolEntry>>()
         })
@@ -182,19 +193,6 @@ pub struct TranslateResult {
     pub message: String,
     pub output_path: Option<String>,
     pub translated_count: usize,
-}
-
-/// Imposta la configurazione API
-#[tauri::command]
-pub async fn set_api_config(
-    state: State<'_, AppTranslateState>,
-    api_key: String,
-    api_type: String,
-) -> Result<bool, String> {
-    let mut translate_state = state.lock().map_err(|e| e.to_string())?;
-    translate_state.api_key = Some(api_key);
-    translate_state.api_type = Some(api_type);
-    Ok(true)
 }
 
 /// Carica un file SRT e ritorna info di base

@@ -1365,14 +1365,17 @@ export function loadAndValidateApiKeys(): ApiKeyConfig[] {
       "custom_whisper",
     ]);
 
-    // Converti chiavi con tipi legacy a "google" e filtra quelle non valide
+    // Migra i tipi legacy e filtra le chiavi non valide.
+    // Regola: una chiave viene riclassificata solo quando la conversione è
+    // certa (le chiavi Google iniziano con "AIza"); tutto il resto viene
+    // scartato — forzare una chiave sconosciuta a "google" produrrebbe solo
+    // errori 401 a runtime difficili da diagnosticare.
     const converted = parsed.map((k: any) => {
       // Se già ha un tipo valido, mantienilo
       if (validTypes.has(k.apiType)) {
         return k;
       }
-      // Converti tipi legacy (openrouter, gemini, openai, anthropic, etc.) a google
-      // Le chiavi Google iniziano con "AIza"
+      // Tipi legacy (gemini, ecc.): le chiavi Google iniziano con "AIza"
       if (k.apiKey && k.apiKey.startsWith("AIza")) {
         return {
           ...k,
@@ -1380,19 +1383,8 @@ export function loadAndValidateApiKeys(): ApiKeyConfig[] {
           apiUrl: "https://generativelanguage.googleapis.com/v1beta"
         };
       }
-      // Altre chiavi legacy (openrouter) - convertile a google se possibile o salta
-      if (k.apiType === "openrouter") {
-        // Le chiavi OpenRouter non sono compatibili con Google, le ignoriamo
-        return null;
-      }
-      // Converti altri tipi legacy a google
-      if (k.apiType && k.apiType !== "local") {
-        return {
-          ...k,
-          apiType: "google" as const,
-          apiUrl: "https://generativelanguage.googleapis.com/v1beta"
-        };
-      }
+      // Chiave legacy non riconoscibile: scartala (l'utente la ri-aggiunge
+      // dalle impostazioni con il provider corretto).
       return null;
     }).filter((k: any) => k !== null);
 

@@ -177,7 +177,7 @@ pub(crate) fn combine_sentences(lines: &mut Vec<MatchedLine>, continuation_chars
             lines[i].subs1.end_ms = next_end;
 
             // Combine subs2 too if both present
-            if let (Some(ref mut s2), Some(next_s2)) = (&mut lines[i].subs2, next_s2) {
+            if let (Some(s2), Some(next_s2)) = (&mut lines[i].subs2, next_s2) {
                 s2.text = format!("{} {}", s2.text, next_s2.text);
                 s2.end_ms = next_s2.end_ms;
             }

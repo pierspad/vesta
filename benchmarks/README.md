@@ -6,12 +6,28 @@
 ./benchmarks/1_compile_subs2srs.sh    # builds the headless subs2srs harness (mono/mcs)
 ./benchmarks/2_compile_vesta.sh       # builds the Vesta flashcard CLI (cargo, release)
 ./benchmarks/3_run_benchmarks.sh      # times both over the test media → results/results.csv
-./benchmarks/4_generate_report.sh     # → results/benchmark.png + results/summary.md
+./benchmarks/4_generate_report.sh     # → results/benchmark.svg + results/films/*.svg + results/summary.md
 ```
 
-Edit [`config.sh`](config.sh) to choose the test media and the Vesta variants to
-compare. Nothing here modifies the apps; everything writes under
+Test media are **auto-discovered** from `Test_Subs/FILM/` (see below); edit
+[`config.sh`](config.sh) only to change the Vesta variants, languages or media
+folder. Nothing here modifies the apps; everything writes under
 `benchmarks/results/` and `benchmarks/.work/` (both gitignored).
+
+## Test media auto-discovery
+
+`config.sh` scans `Test_Subs/FILM/` (override with `BENCH_MEDIA_DIR`) for films
+laid out as:
+
+```
+<Title>-en.srt                      # target subtitles   (BENCH_TARGET_LANG, default en)
+<Title>-it.srt                      # native subtitles   (BENCH_NATIVE_LANG, default it)
+<Title>*.mp4|mkv|avi|m4v|webm       # video (the name just has to start with <Title>)
+```
+
+A film is benchmarked **only if all three files exist**; anything incomplete
+(e.g. `8 e mezzo.mp4`, which ships without subtitles) is skipped with a warning.
+To add a film, drop the three files into the folder and re-run — no config edits.
 
 ## How the comparison is kept fair
 
@@ -85,12 +101,12 @@ them side by side. A local, gitignored `config.local.sh` can override `TEST_MEDI
 
 | File | Role |
 |---|---|
-| `config.sh` | Test media, Vesta variants, formats, parallelism, paths. |
+| `config.sh` | Media auto-discovery, Vesta variants, formats, parallelism, paths. |
 | `lib/common.sh` | Shared bash helpers (logging, timing, median). |
 | `1_compile_subs2srs.sh` | Build `subs2srs-headless.exe` + wire ffmpeg. |
 | `2_compile_vesta.sh` | `cargo build --release -p srt-flashcards-cli`. |
 | `3_run_benchmarks.sh` | Time every tool/variant/format → `results/results.csv`. |
-| `4_generate_report.sh` | Chart (`report/plot.py`) + `results/summary.md`. |
+| `4_generate_report.sh` | SVG charts (`report/plot.py`: combined + one per film) + `results/summary.md`. |
 | `subs2srs-headless/` | The headless harness sources (`Program.cs`, `Stubs.cs`). |
 | `../subs2srs_source_code/` | Vendored subs2srs source (GPLv3) the harness compiles. |
 

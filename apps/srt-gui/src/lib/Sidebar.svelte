@@ -302,10 +302,10 @@
         </button>
 
         {#if !collapsed}
-          <div class="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 relative overflow-visible ml-2" style="transform: translate3d(0, 0, 0);">
-            <div class="absolute -inset-1.5 bg-orange-500/22 rounded-full blur-lg z-0" style="will-change: filter; transform: translate3d(0, 0, 0);"></div>
+          <div class="w-14 h-14 rounded-xl flex items-center justify-center flex-shrink-0 relative overflow-visible ml-2" style="transform: translate3d(0, 0, 0);">
+            <div class="absolute -inset-2 bg-orange-500/22 rounded-full blur-lg z-0" style="will-change: filter; transform: translate3d(0, 0, 0);"></div>
             <div class="absolute inset-0 bg-amber-300/12 rounded-full blur-md z-0" style="will-change: filter; transform: translate3d(0, 0, 0);"></div>
-            <img src={fireplaceIcon} alt="VESTA" class="w-10 h-10 drop-shadow-[0_0_10px_rgba(249,115,22,0.55)] relative z-10" style="will-change: filter; transform: translate3d(0, 0, 0);" />
+            <img src={fireplaceIcon} alt="VESTA" class="w-14 h-14 drop-shadow-[0_0_10px_rgba(249,115,22,0.55)] relative z-10" style="will-change: filter; transform: translate3d(0, 0, 0);" />
           </div>
           <div class="relative z-10">
             <h1 class="text-2xl font-bold tracking-wider bg-gradient-to-r from-amber-400 via-orange-400 to-red-400 bg-clip-text text-transparent">
@@ -448,6 +448,7 @@
         {/if}
       </button>
     {:else}
+      <!-- 1. Flashcards -->
       <button
         class="w-full flex gap-3.5 items-center {collapsed ? 'px-2 justify-center' : 'px-3.5'} h-[60px] rounded-xl transition-all duration-300 border border-transparent cursor-pointer {activeTab ===
         'flashcards'
@@ -478,27 +479,40 @@
         {/if}
       </button>
 
-      <button
-        class="w-full flex gap-3.5 items-center {collapsed ? 'px-2 justify-center' : 'px-3.5'} h-[60px] rounded-xl transition-all duration-300 border border-transparent cursor-pointer {activeTab ===
-        'refine'
-          ? 'bg-gradient-to-r from-rose-600 to-pink-700 text-white shadow-lg shadow-rose-500/22 shadow-pink-600/20 border-rose-500/30 bg-clip-padding'
-          : 'text-gray-400 hover:bg-rose-500/10 hover:text-rose-400 hover:border-rose-500/20'}"
-        onclick={() => onTabChange("refine")}
-        title={collapsed ? t("nav.refine") : undefined}
-      >
-        <div class="w-9 h-9 rounded-xl {activeTab === 'refine' ? 'bg-white/20' : 'bg-white/5'} flex items-center justify-center flex-shrink-0 relative transition-colors border border-white/5">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 8l1.5-1.5M19 4l1.5 1.5M16 5l1.5-1.5" />
-          </svg>
-        </div>
-        {#if !collapsed}
-          <div class="text-left flex-1 min-w-0 leading-tight">
-            <span class="block text-[15px] font-semibold {activeTab === 'refine' ? 'text-white' : ''}">{t("nav.refine")}</span>
+      <!-- 2. Transcribe -->
+      {#if !aiStore.killSwitchActive}
+        <button
+          class="w-full flex gap-3.5 items-center {collapsed ? 'px-2 justify-center' : 'px-3.5'} h-[60px] rounded-xl transition-all duration-300 border border-transparent cursor-pointer {activeTab ===
+          'transcribe'
+            ? 'bg-gradient-to-r from-teal-700 to-emerald-700 text-white shadow-lg shadow-teal-500/20 shadow-emerald-600/20 border-teal-500/30 bg-clip-padding'
+            : 'text-gray-400 hover:bg-teal-500/10 hover:text-teal-400 hover:border-teal-500/20'}"
+          onclick={() => onTabChange("transcribe")}
+          title={collapsed ? t("nav.transcribe") : undefined}
+        >
+          <div class="w-9 h-9 rounded-xl {activeTab === 'transcribe' ? 'bg-white/20' : 'bg-white/5'} flex items-center justify-center flex-shrink-0 relative transition-colors border border-white/5">
+            <svg
+              class="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"
+              />
+            </svg>
           </div>
-        {/if}
-      </button>
+          {#if !collapsed}
+            <div class="text-left flex-1 min-w-0 leading-tight">
+              <span class="block text-[15px] font-semibold {activeTab === 'transcribe' ? 'text-white' : ''}">{t("nav.transcribe")}</span>
+            </div>
+          {/if}
+        </button>
+      {/if}
 
+      <!-- 3. Translate -->
       {#if !aiStore.killSwitchActive}
         <button
           class="w-full flex gap-3.5 items-center {collapsed ? 'px-2 justify-center' : 'px-3.5'} h-[60px] rounded-xl transition-all duration-300 border border-transparent cursor-pointer {activeTab ===
@@ -531,6 +545,7 @@
         </button>
       {/if}
 
+      <!-- 4. Synchronize -->
       <button
         class="w-full flex gap-3.5 items-center {collapsed ? 'px-2 justify-center' : 'px-3.5'} h-[60px] rounded-xl transition-all duration-300 border border-transparent cursor-pointer {activeTab ===
         'sync'
@@ -561,6 +576,7 @@
         {/if}
       </button>
 
+      <!-- 5. Revise -->
       <button
         class="w-full flex gap-3.5 items-center {collapsed ? 'px-2 justify-center' : 'px-3.5'} h-[60px] rounded-xl transition-all duration-300 border border-transparent cursor-pointer {activeTab ===
         'align'
@@ -581,37 +597,27 @@
         {/if}
       </button>
 
-      {#if !aiStore.killSwitchActive}
-        <button
-          class="w-full flex gap-3.5 items-center {collapsed ? 'px-2 justify-center' : 'px-3.5'} h-[60px] rounded-xl transition-all duration-300 border border-transparent cursor-pointer {activeTab ===
-          'transcribe'
-            ? 'bg-gradient-to-r from-teal-700 to-emerald-700 text-white shadow-lg shadow-teal-500/20 shadow-emerald-600/20 border-teal-500/30 bg-clip-padding'
-            : 'text-gray-400 hover:bg-teal-500/10 hover:text-teal-400 hover:border-teal-500/20'}"
-          onclick={() => onTabChange("transcribe")}
-          title={collapsed ? t("nav.transcribe") : undefined}
-        >
-          <div class="w-9 h-9 rounded-xl {activeTab === 'transcribe' ? 'bg-white/20' : 'bg-white/5'} flex items-center justify-center flex-shrink-0 relative transition-colors border border-white/5">
-            <svg
-              class="w-5 h-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"
-              />
-            </svg>
+      <!-- 6. Annotate -->
+      <button
+        class="w-full flex gap-3.5 items-center {collapsed ? 'px-2 justify-center' : 'px-3.5'} h-[60px] rounded-xl transition-all duration-300 border border-transparent cursor-pointer {activeTab ===
+        'refine'
+          ? 'bg-gradient-to-r from-rose-600 to-pink-700 text-white shadow-lg shadow-rose-500/22 shadow-pink-600/20 border-rose-500/30 bg-clip-padding'
+          : 'text-gray-400 hover:bg-rose-500/10 hover:text-rose-400 hover:border-rose-500/20'}"
+        onclick={() => onTabChange("refine")}
+        title={collapsed ? t("nav.refine") : undefined}
+      >
+        <div class="w-9 h-9 rounded-xl {activeTab === 'refine' ? 'bg-white/20' : 'bg-white/5'} flex items-center justify-center flex-shrink-0 relative transition-colors border border-white/5">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 8l1.5-1.5M19 4l1.5 1.5M16 5l1.5-1.5" />
+          </svg>
+        </div>
+        {#if !collapsed}
+          <div class="text-left flex-1 min-w-0 leading-tight">
+            <span class="block text-[15px] font-semibold {activeTab === 'refine' ? 'text-white' : ''}">{t("nav.refine")}</span>
           </div>
-          {#if !collapsed}
-            <div class="text-left flex-1 min-w-0 leading-tight">
-              <span class="block text-[15px] font-semibold {activeTab === 'transcribe' ? 'text-white' : ''}">{t("nav.transcribe")}</span>
-            </div>
-          {/if}
-        </button>
-      {/if}
+        {/if}
+      </button>
     {/if}
 
     <!-- Expert Mode + AI Kill Switch at the bottom of the nav -->

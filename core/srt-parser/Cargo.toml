@@ -1,7 +1,7 @@
 [package]
 name = "srt-parser"
 version = "0.13.0"
-edition = "2021"
+edition.workspace = true
 authors = ["Your Name <your.email@example.com>"]
 description = "Fast and reliable SRT (SubRip) subtitle file parser"
 license = "GPL-3.0"

@@ -29,17 +29,19 @@
 
 /* Modern buttons */
 .btn-primary {
-  background: var(--gradient-primary);
+  background: #6366f1; /* Solid Indigo */
   border: none;
   border-radius: 12px;
   padding: 12px 24px;
   font-weight: 600;
-  transition: box-shadow 0.15s ease, opacity 0.15s ease;
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+  transition: background-color 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+  color: white;
 }
 
 .btn-primary:hover {
-  box-shadow: 0 4px 16px rgba(102, 126, 234, 0.5);
+  background: #4f46e5;
+  box-shadow: 0 4px 16px rgba(99, 102, 241, 0.5);
 }
 
 .btn-primary:disabled {
@@ -63,31 +65,35 @@
 }
 
 .btn-success {
-  background: var(--gradient-success);
+  background: #10b981; /* Solid Emerald Green */
   border: none;
   border-radius: 12px;
   padding: 12px 24px;
   font-weight: 600;
-  transition: box-shadow 0.15s ease, opacity 0.15s ease;
-  box-shadow: 0 4px 12px rgba(17, 153, 142, 0.3);
+  transition: background-color 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+  color: white;
 }
 
 .btn-success:hover {
-  box-shadow: 0 4px 16px rgba(17, 153, 142, 0.5);
+  background: #059669;
+  box-shadow: 0 4px 16px rgba(16, 185, 129, 0.5);
 }
 
 .btn-danger {
-  background: linear-gradient(135deg, #ff416c 0%, #ff4b2b 100%);
+  background: #ef4444; /* Solid Red */
   border: none;
   border-radius: 12px;
   padding: 12px 24px;
   font-weight: 600;
-  transition: box-shadow 0.15s ease, opacity 0.15s ease;
-  box-shadow: 0 4px 12px rgba(255, 65, 108, 0.3);
+  transition: background-color 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+  color: white;
 }
 
 .btn-danger:hover {
-  box-shadow: 0 4px 16px rgba(255, 65, 108, 0.5);
+  background: #dc2626;
+  box-shadow: 0 4px 16px rgba(239, 68, 68, 0.5);
 }
 
 /* Shared in-app context menus */
@@ -147,6 +153,8 @@
   padding: 12px 16px;
   color: white;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  position: relative;
+  overflow: hidden;
 }
 
 .input-modern:focus {
@@ -157,6 +165,33 @@
 
 .input-modern::placeholder {
   color: rgba(255, 255, 255, 0.4);
+}
+
+/* Custom Number Input Spinners - Right anchored and occupying full height */
+.input-modern[type="number"] {
+  padding-right: 32px;
+}
+
+.input-modern[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  cursor: pointer;
+  display: block;
+  width: 24px;
+  height: 100%;
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(255, 255, 255, 0.05);
+  border-left: 1px solid rgba(255, 255, 255, 0.15);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='rgba%28255,255,255,0.6%29' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='18 15 12 9 6 15'/%3E%3C/svg%3E"), url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='rgba%28255,255,255,0.6%29' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-position: center 25%, center 75%;
+  background-size: 10px 10px, 10px 10px;
+  background-repeat: no-repeat;
+}
+
+.input-modern[type="number"]::-webkit-inner-spin-button:hover {
+  background-color: rgba(255, 255, 255, 0.12);
 }
 
 /* Modern select - OPAQUE backgrounds for readability */

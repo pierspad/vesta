@@ -24,19 +24,48 @@ use tower_http::{
 #[derive(serde::Deserialize)]
 struct MediaParams {
     path: String,
+    #[serde(default)]
+    token: String,
 }
 
-struct MediaServerPort(u16);
+/// Porta e token di sessione del media server locale.
+///
+/// Il server ascolta su 127.0.0.1 ma senza autenticazione qualunque processo
+/// (o pagina web, dato il CORS aperto necessario alla webview) sulla macchina
+/// potrebbe leggere file arbitrari via `/media?path=…`. Il token — generato a
+/// ogni avvio e noto solo alla webview — chiude questa falla.
+#[derive(Clone)]
+struct MediaServerInfo {
+    port: u16,
+    token: String,
+}
+
+/// Token di sessione imprevedibile senza dipendenze extra: due `RandomState`
+/// (seed SipHash casuale per-processo) forniscono 128 bit di entropia.
+fn generate_media_token() -> String {
+    use std::hash::{BuildHasher, Hasher};
+    let mut token = String::with_capacity(32);
+    for _ in 0..2 {
+        let mut h = std::collections::hash_map::RandomState::new().build_hasher();
+        h.write_u128(std::time::UNIX_EPOCH.elapsed().map(|d| d.as_nanos()).unwrap_or(0));
+        token.push_str(&format!("{:016x}", h.finish()));
+    }
+    token
+}
 
 #[tauri::command]
-fn get_media_server_port(port: tauri::State<MediaServerPort>) -> u16 {
-    port.0
+fn get_media_server_info(info: tauri::State<MediaServerInfo>) -> (u16, String) {
+    (info.port, info.token.clone())
 }
 
 async fn media_handler(
+    axum::extract::State(expected_token): axum::extract::State<String>,
     Query(params): Query<MediaParams>,
     req: Request,
 ) -> Result<impl IntoResponse, axum::http::StatusCode> {
+    if params.token != expected_token {
+        return Err(axum::http::StatusCode::FORBIDDEN);
+    }
     ServeFile::new(&params.path)
         .oneshot(req)
         .await
@@ -84,7 +113,11 @@ fn mime_from_ext(path: &str) -> &'static str {
 fn main() {
     // Fix blurry rendering on Linux (WebKitGTK DMABUF renderer issue)
     #[cfg(target_os = "linux")]
-    {
+    // SAFETY: this runs at the very top of `main`, single-threaded, before any other
+    // thread (ours or WebKit's) is spawned or reads the environment, so there's no
+    // concurrent-access race — the precondition `std::env::set_var` requires since it
+    // became `unsafe` (env vars aren't thread-safe on all platforms).
+    unsafe {
         std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
         // Prevent WebKitWebProcess crash when gst-plugins-good is not installed
         // (missing autoaudiosink element causes the app to go grey/unresponsive)
@@ -96,20 +129,25 @@ fn main() {
     let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("Failed to bind random port");
     listener.set_nonblocking(true).unwrap();
     let port = listener.local_addr().unwrap().port();
+    let media_token = generate_media_token();
 
-    tauri::async_runtime::spawn(async move {
-        let cors = CorsLayer::new()
-            .allow_origin(Any)
-            .allow_methods(Any)
-            .allow_headers(Any);
+    {
+        let media_token = media_token.clone();
+        tauri::async_runtime::spawn(async move {
+            let cors = CorsLayer::new()
+                .allow_origin(Any)
+                .allow_methods(Any)
+                .allow_headers(Any);
 
-        let app = Router::new()
-            .route("/media", get(media_handler))
-            .layer(cors);
+            let app = Router::new()
+                .route("/media", get(media_handler))
+                .with_state(media_token)
+                .layer(cors);
 
-        let tokio_listener = tokio::net::TcpListener::from_std(listener).unwrap();
-        axum::serve(tokio_listener, app).await.unwrap();
-    });
+            let tokio_listener = tokio::net::TcpListener::from_std(listener).unwrap();
+            axum::serve(tokio_listener, app).await.unwrap();
+        });
+    }
 
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
@@ -276,7 +314,10 @@ fn main() {
         .manage(Mutex::new(TranslateState::default()) as AppTranslateState)
         .manage(Mutex::new(FlashcardState::default()) as AppFlashcardState)
         .manage(Mutex::new(TranscribeState::default()) as AppTranscribeState)
-        .manage(MediaServerPort(port))
+        .manage(MediaServerInfo {
+            port,
+            token: media_token,
+        })
         .setup(|app| {
             // On Linux, prevent WebKit from navigating to file:// URLs when files
             // are drag-dropped onto the webview. Without this, WebKit tries to
@@ -370,11 +411,10 @@ fn main() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
-            get_media_server_port,
+            get_media_server_info,
             // Comandi app info
             get_app_info,
             // Comandi traduzione
-            set_api_config,
             load_srt_for_translate,
             start_translation,
             cancel_translation,

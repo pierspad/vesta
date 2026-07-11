@@ -310,7 +310,7 @@
     max-height: 280px;
     overflow-y: auto;
     overflow-x: hidden;
-    background: #0f172a;
+    background: #0f172a !important;
     border: 1px solid rgba(148, 163, 184, 0.25);
     border-radius: 10px;
     box-shadow: 0 12px 28px rgba(0, 0, 0, 0.34);
@@ -329,19 +329,19 @@
     transition: background-color 0.1s ease, color 0.1s ease;
     cursor: pointer;
     border: none;
-    background: #0f172a;
+    background: #0f172a !important;
   }
 
   .searchable-select-option:hover {
-    background: #1e293b;
+    background: #1e293b !important;
   }
 
   .searchable-select-option.highlighted {
-    background: rgba(67, 56, 202, 0.6);
+    background: rgba(67, 56, 202, 0.8) !important;
   }
 
   .searchable-select-option.selected {
-    background: rgba(79, 70, 229, 0.4);
+    background: rgba(79, 70, 229, 0.6) !important;
   }
 
   :global(.compact-select) .searchable-select-input {

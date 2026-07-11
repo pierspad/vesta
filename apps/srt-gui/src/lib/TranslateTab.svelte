@@ -1207,16 +1207,9 @@
               <div>
                 <div class="flex items-center justify-between mb-3">
                   <span class="text-sm font-semibold text-white">{t("translate.batchSizeExpert")}</span>
-                  <div class="flex items-center gap-2">
-                    <input
-                      type="number"
-                      min="1"
-                      max="200"
-                      bind:value={batchSize}
-                      class="input-modern w-16 text-center text-xs font-mono py-1 rounded-lg"
-                    />
-                    <span class="text-gray-400 text-xs">{t("translate.subPerBatch")}</span>
-                  </div>
+                  <span class="text-white font-mono bg-white/10 px-2.5 py-1 rounded-lg text-xs shrink-0">
+                    {batchSize} {t("translate.subPerBatch")}
+                  </span>
                 </div>
                 <input
                   type="range"
@@ -1242,16 +1235,9 @@
                 <div class="pt-4 border-t border-white/5 mb-4">
                   <div class="flex items-center justify-between mb-3">
                     <span class="text-sm font-semibold text-white">{t("translate.resumeOverlapExpert")}</span>
-                    <div class="flex items-center gap-2">
-                      <input
-                        type="number"
-                        min="0"
-                        max="15"
-                        bind:value={resumeOverlap}
-                        class="input-modern w-16 text-center text-xs font-mono py-1 rounded-lg"
-                      />
-                      <span class="text-gray-400 text-xs">sub</span>
-                    </div>
+                    <span class="text-white font-mono bg-white/10 px-2.5 py-1 rounded-lg text-xs shrink-0">
+                      {resumeOverlap} sub
+                    </span>
                   </div>
                   <input
                     type="range"

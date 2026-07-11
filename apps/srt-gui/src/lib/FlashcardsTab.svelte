@@ -1656,12 +1656,14 @@
   let playingLine = $state<any | null>(null);
   let previewIsPlaying = $state(false);
   let playerElement = $state<HTMLMediaElement | null>(null);
-  let mediaServerPort: number | null = null;
+  let mediaServerInfo: [number, string] | null = null;
 
-  async function getMediaPort(): Promise<number> {
-    if (mediaServerPort) return mediaServerPort;
-    mediaServerPort = await invoke<number>("get_media_server_port");
-    return mediaServerPort;
+  // Porta + token di sessione del media server locale (il token autentica
+  // ogni richiesta /media: senza, il server risponde 403).
+  async function getMediaServerInfo(): Promise<[number, string]> {
+    if (mediaServerInfo) return mediaServerInfo;
+    mediaServerInfo = await invoke<[number, string]>("get_media_server_info");
+    return mediaServerInfo;
   }
 
   let previewMediaPath = $derived.by(() => {
@@ -1692,7 +1694,7 @@
     }
 
     playingLine = line;
-    const port = await getMediaPort();
+    const [port, token] = await getMediaServerInfo();
     
     // For non-browser-native formats in Tauri, sync prepares playback
     const needsTranscode = /\.(mkv|avi|mov|flv|ogm|vob|wma|m4b|m2ts|mpeg|mpg)$/i.test(previewMediaPath);
@@ -1704,7 +1706,7 @@
       });
     }
 
-    const src = `http://127.0.0.1:${port}/media?path=${encodeURIComponent(preparedPath)}#t=${line.start_ms / 1000},${line.end_ms / 1000}`;
+    const src = `http://127.0.0.1:${port}/media?path=${encodeURIComponent(preparedPath)}&token=${token}#t=${line.start_ms / 1000},${line.end_ms / 1000}`;
     
     if (playerElement) {
       playerElement.src = src;

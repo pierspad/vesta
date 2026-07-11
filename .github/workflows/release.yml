@@ -1,0 +1,206 @@
+name: Release (semver bump)
+
+# Rilascio completamente automatizzato:
+#   1. bump SemVer del pkgver nel PKGBUILD (patch/minor/major, o versione esplicita)
+#   2. propagazione della versione a tutto il progetto (update_project_info.sh)
+#   3. gate di qualità: coerenza versioni interne + audit i18n
+#   4. release notes: usa la sezione "## vX.Y.Z" di docs/release-notes.md se
+#      esiste, altrimenti la genera dai commit dall'ultimo tag
+#   5. commit "chore: release vX.Y.Z" + tag + push atomico
+#   6. trigger esplicito di "Build and Release" sul tag (i tag pushati con
+#      GITHUB_TOKEN NON scatenano workflow on:push — serve il dispatch)
+#   7. backmerge: riporta il commit di release sull'altro branch (main<->dev)
+#
+# Da eseguire dal branch da cui si vuole rilasciare (Actions → Release → Run
+# workflow → scegli branch e tipo di bump). La catena a valle è invariata:
+# build.yml costruisce e pubblica la GitHub Release, aur-publish.yml (workflow_run)
+# pusha su AUR.
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: "Tipo di bump SemVer"
+        type: choice
+        options: [patch, minor, major]
+        default: patch
+      version:
+        description: "Versione esplicita (es. 1.2.3) — se valorizzata ignora il bump"
+        required: false
+        type: string
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  release:
+    name: Bump, tag & dispatch build
+    runs-on: ubuntu-22.04
+    outputs:
+      version: ${{ steps.bump.outputs.version }}
+      branch: ${{ steps.bump.outputs.branch }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0   # servono i tag per le release notes auto-generate
+
+      - name: Setup Python (audit i18n)
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+
+      - name: Install Rust stable (sync Cargo.lock)
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Normalize line endings
+        shell: bash
+        run: |
+          sed -i 's/\r$//' build-scripts/PKGBUILD \
+                           build-scripts/update_project_info.sh \
+                           build-scripts/check_internal_crate_versions.sh \
+                           build-scripts/extract-release-notes.sh
+
+      - name: Compute new version
+        id: bump
+        shell: bash
+        run: |
+          set -euo pipefail
+          CURRENT=$(sed -n 's/^pkgver=//p' build-scripts/PKGBUILD | tr -d '\r' | xargs)
+          [ -n "$CURRENT" ] || { echo "::error::pkgver non trovato nel PKGBUILD"; exit 1; }
+
+          EXPLICIT="${{ inputs.version }}"
+          if [ -n "$EXPLICIT" ]; then
+            [[ "$EXPLICIT" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "::error::versione non SemVer: $EXPLICIT"; exit 1; }
+            VERSION="$EXPLICIT"
+          else
+            IFS=. read -r MAJ MIN PAT <<< "$CURRENT"
+            case "${{ inputs.bump }}" in
+              major) VERSION="$((MAJ+1)).0.0" ;;
+              minor) VERSION="$MAJ.$((MIN+1)).0" ;;
+              *)     VERSION="$MAJ.$MIN.$((PAT+1))" ;;
+            esac
+          fi
+
+          if git rev-parse "v$VERSION" >/dev/null 2>&1; then
+            echo "::error::il tag v$VERSION esiste già"; exit 1
+          fi
+
+          sed -i "s/^pkgver=.*/pkgver=$VERSION/" build-scripts/PKGBUILD
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "branch=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+          echo "Release: $CURRENT → $VERSION (branch ${GITHUB_REF_NAME})"
+
+      - name: Propagate version (update_project_info.sh)
+        shell: bash
+        run: bash build-scripts/update_project_info.sh
+
+      - name: Validate internal crate versions
+        shell: bash
+        run: bash build-scripts/check_internal_crate_versions.sh
+
+      - name: Validate i18n translations
+        shell: bash
+        run: |
+          python3 apps/srt-gui/scripts/check_missing_translations.py \
+            --output apps/srt-gui/reports/missing_translations_report.json \
+            --fail-on-issues \
+            --block-reasons missing_locale,missing_key,empty_value,placeholder_mismatch
+
+      - name: Ensure release notes section
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="${{ steps.bump.outputs.version }}"
+          NOTES=docs/release-notes.md
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || true)
+
+          # docs/release-notes.md è una sezione "rolling": il numero nell'header
+          # viene riallineato qui (come faceva git-release.sh), così chi scrive
+          # le note prima del rilascio non deve indovinare la versione bumpata.
+          if [ -f "$NOTES" ]; then
+            sed -i "0,/^##[^#].*/s//## Release Notes v$VERSION/" "$NOTES"
+          fi
+
+          # Note "stantie": file non toccato dall'ultimo tag ⇒ il contenuto è
+          # quello della release precedente. In quel caso le rigenero dai commit.
+          STALE=0
+          if [ -n "$LAST_TAG" ] && git diff --quiet "$LAST_TAG" -- "$NOTES" 2>/dev/null; then
+            STALE=1
+          fi
+
+          if [ "$STALE" = 0 ] \
+             && bash build-scripts/extract-release-notes.sh "v$VERSION" "$NOTES" /tmp/notes-preview.md 2>/dev/null \
+             && grep -q '[^[:space:]]' /tmp/notes-preview.md; then
+            echo "Uso le note scritte a mano in $NOTES:"
+          else
+            echo "Note assenti o non aggiornate dall'ultima release — le genero dai commit."
+            RANGE=${LAST_TAG:+$LAST_TAG..HEAD}
+            {
+              echo "## Release Notes v$VERSION"
+              echo
+              git log $RANGE --no-merges --pretty='- %s' | grep -v '^- chore: release' || echo "- Maintenance release"
+            } > "$NOTES"
+            bash build-scripts/extract-release-notes.sh "v$VERSION" "$NOTES" /tmp/notes-preview.md
+          fi
+          cat /tmp/notes-preview.md
+
+      - name: Commit, tag & push (atomic)
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="${{ steps.bump.outputs.version }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "chore: release v$VERSION"
+          git tag "v$VERSION"
+          git push --atomic origin "${GITHUB_REF_NAME}" "v$VERSION"
+
+      - name: Dispatch "Build and Release" on the tag
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # I push effettuati con GITHUB_TOKEN non generano eventi on:push per
+          # prevenire loop: il build sul tag va lanciato esplicitamente.
+          gh workflow run "Build and Release" --ref "v${{ steps.bump.outputs.version }}"
+
+  backmerge:
+    name: Backmerge release commit
+    needs: release
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Merge release branch into the sibling branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          SRC="${{ needs.release.outputs.branch }}"
+          case "$SRC" in
+            main) DST=dev ;;
+            dev)  DST=main ;;
+            *)    echo "Branch $SRC senza sibling configurato — skip backmerge."; exit 0 ;;
+          esac
+
+          if ! git ls-remote --exit-code --heads origin "$DST" >/dev/null; then
+            echo "Branch $DST inesistente — skip backmerge."; exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout "$DST"
+          if git merge --no-edit "origin/$SRC"; then
+            git push origin "$DST"
+            echo "Backmerge $SRC → $DST completato."
+          else
+            echo "::warning::Conflitti nel backmerge $SRC → $DST: risolvere a mano."
+            exit 1
+          fi
