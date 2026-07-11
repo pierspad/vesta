@@ -1,48 +1,11 @@
-name: Release (semver bump)
-
-# Rilascio completamente automatizzato:
-#   0. trigger: push su main (Conventional Commits) o dispatch manuale
-#   1. bump SemVer del pkgver nel PKGBUILD (patch/minor/major, o versione esplicita)
-#   2. propagazione della versione a tutto il progetto (update_project_info.sh)
-#   3. gate di qualità: coerenza versioni interne + audit i18n
-#   4. release notes: usa la sezione "## vX.Y.Z" di docs/release-notes.md se
-#      esiste, altrimenti la genera dai commit dall'ultimo tag
-#   5. commit "chore: release vX.Y.Z" + tag + push atomico
-#   6. trigger esplicito di "Build and Release" sul tag (i tag pushati con
-#      GITHUB_TOKEN NON scatenano workflow on:push — serve il dispatch)
-#   7. backmerge: riporta il commit di release su dev
-#
-# Trigger automatico (push su main): il job "detect" scansiona i commit dall'ultimo
-# tag e decide il bump secondo Conventional Commits — feat: → minor, fix:/perf: →
-# patch, "!" dopo il type o un footer "BREAKING CHANGE:" → major. Se nessun commit
-# rilevante è presente (solo chore/docs/style/refactor/test/ci/build) il rilascio
-# viene saltato senza errori. Il commit "chore: release vX.Y.Z" che questo stesso
-# workflow crea è escluso a priori (altrimenti si auto-triggererebbe all'infinito).
-#
-# Push/commit fatti con GITHUB_TOKEN (sia il commit di release+tag sia il backmerge)
-# non generano eventi on:push per prevenire loop — è un comportamento nativo di
-# GitHub Actions, non serve gestirlo a mano.
-#
-# Override manuale: Actions → Release → Run workflow → scegli branch e tipo di bump
-# (o "auto" per usare comunque il rilevamento dai commit) o una versione esplicita.
-# La catena a valle è invariata: build.yml costruisce e pubblica la GitHub Release,
-# aur-publish.yml (workflow_run) pusha su AUR.
+name: Release (semantic-release)
 
 on:
   push:
     branches:
       - main
+      - dev
   workflow_dispatch:
-    inputs:
-      bump:
-        description: "Tipo di bump SemVer ('auto' = rileva dai Conventional Commits dall'ultimo tag)"
-        type: choice
-        options: [auto, patch, minor, major]
-        default: auto
-      version:
-        description: "Versione esplicita (es. 1.2.3) — se valorizzata ignora bump/auto"
-        required: false
-        type: string
 
 concurrency:
   group: release
@@ -53,78 +16,13 @@ permissions:
   actions: write
 
 jobs:
-  detect:
-    name: Detect release & bump type
-    runs-on: ubuntu-22.04
-    # Non reagire al push del nostro stesso commit "chore: release vX.Y.Z"
-    # (i push con GITHUB_TOKEN non triggererebbero comunque, ma la guardia
-    # esplicita rende l'intento leggibile e ci protegge se in futuro si passa
-    # a un PAT per il push).
-    if: >-
-      github.event_name != 'push' ||
-      !startsWith(github.event.head_commit.message, 'chore: release v')
-    outputs:
-      skip: ${{ steps.detect.outputs.skip }}
-      bump: ${{ steps.detect.outputs.bump }}
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          fetch-depth: 0 # servono i tag per capire da dove contare i commit
-
-      - name: Determine bump
-        id: detect
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          EXPLICIT="${{ inputs.version }}"
-          CHOSEN_BUMP="${{ inputs.bump }}"
-
-          # Versione esplicita o bump scelto a mano (diverso da "auto"): il
-          # rilevamento dai commit non serve, si procede sempre.
-          if [ -n "$EXPLICIT" ] || { [ -n "$CHOSEN_BUMP" ] && [ "$CHOSEN_BUMP" != "auto" ]; }; then
-            echo "Bump/versione scelti manualmente da workflow_dispatch — nessun rilevamento necessario."
-            echo "skip=false" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          # Push automatico, oppure dispatch manuale con bump=auto: rileva dai
-          # Conventional Commits accumulati dall'ultimo tag.
-          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || true)
-          RANGE=${LAST_TAG:+$LAST_TAG..HEAD}
-          LOG=$(git log $RANGE --no-merges --pretty='format:%s%n%b%n===END===' 2>/dev/null || true)
-
-          BUMP=""
-          if echo "$LOG" | grep -qE '^[a-zA-Z]+(\([a-zA-Z0-9_.-]*\))?!:' || echo "$LOG" | grep -q 'BREAKING CHANGE:'; then
-            BUMP="major"
-          elif echo "$LOG" | grep -qE '^feat(\([a-zA-Z0-9_.-]*\))?:'; then
-            BUMP="minor"
-          elif echo "$LOG" | grep -qE '^(fix|perf)(\([a-zA-Z0-9_.-]*\))?:'; then
-            BUMP="patch"
-          fi
-
-          if [ -z "$BUMP" ]; then
-            echo "Nessun commit feat/fix/perf/breaking dall'ultimo tag (${LAST_TAG:-nessuno}) — skip release."
-            echo "skip=true" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          echo "Bump rilevato dai Conventional Commits dall'ultimo tag (${LAST_TAG:-nessuno}): $BUMP"
-          echo "skip=false" >> "$GITHUB_OUTPUT"
-          echo "bump=$BUMP" >> "$GITHUB_OUTPUT"
-
   release:
-    name: Bump, tag & dispatch build
-    needs: detect
-    if: needs.detect.outputs.skip != 'true'
+    name: Validate and Release
     runs-on: ubuntu-22.04
-    outputs:
-      version: ${{ steps.bump.outputs.version }}
-      branch: ${{ steps.bump.outputs.branch }}
     steps:
       - uses: actions/checkout@v6
         with:
-          fetch-depth: 0   # servono i tag per le release notes auto-generate
+          fetch-depth: 0
 
       - name: Setup Python (audit i18n)
         uses: actions/setup-python@v6
@@ -139,50 +37,7 @@ jobs:
         run: |
           sed -i 's/\r$//' build-scripts/PKGBUILD \
                            build-scripts/update_project_info.sh \
-                           build-scripts/check_internal_crate_versions.sh \
-                           build-scripts/extract-release-notes.sh
-
-      - name: Compute new version
-        id: bump
-        shell: bash
-        run: |
-          set -euo pipefail
-          CURRENT=$(sed -n 's/^pkgver=//p' build-scripts/PKGBUILD | tr -d '\r' | xargs)
-          [ -n "$CURRENT" ] || { echo "::error::pkgver non trovato nel PKGBUILD"; exit 1; }
-
-          EXPLICIT="${{ inputs.version }}"
-          if [ -n "$EXPLICIT" ]; then
-            [[ "$EXPLICIT" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "::error::versione non SemVer: $EXPLICIT"; exit 1; }
-            VERSION="$EXPLICIT"
-            BUMP="explicit"
-          else
-            CHOSEN_BUMP="${{ inputs.bump }}"
-            if [ -n "$CHOSEN_BUMP" ] && [ "$CHOSEN_BUMP" != "auto" ]; then
-              BUMP="$CHOSEN_BUMP"
-            else
-              BUMP="${{ needs.detect.outputs.bump }}"
-            fi
-            IFS=. read -r MAJ MIN PAT <<< "$CURRENT"
-            case "$BUMP" in
-              major) VERSION="$((MAJ+1)).0.0" ;;
-              minor) VERSION="$MAJ.$((MIN+1)).0" ;;
-              patch) VERSION="$MAJ.$MIN.$((PAT+1))" ;;
-              *) echo "::error::bump non valido: '$BUMP'"; exit 1 ;;
-            esac
-          fi
-
-          if git rev-parse "v$VERSION" >/dev/null 2>&1; then
-            echo "::error::il tag v$VERSION esiste già"; exit 1
-          fi
-
-          sed -i "s/^pkgver=.*/pkgver=$VERSION/" build-scripts/PKGBUILD
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "branch=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
-          echo "Release: $CURRENT → $VERSION (branch ${GITHUB_REF_NAME}, bump: $BUMP)"
-
-      - name: Propagate version (update_project_info.sh)
-        shell: bash
-        run: bash build-scripts/update_project_info.sh
+                           build-scripts/check_internal_crate_versions.sh
 
       - name: Validate internal crate versions
         shell: bash
@@ -196,96 +51,19 @@ jobs:
             --fail-on-issues \
             --block-reasons missing_locale,missing_key,empty_value,placeholder_mismatch
 
-      - name: Ensure release notes section
-        shell: bash
-        run: |
-          set -euo pipefail
-          VERSION="${{ steps.bump.outputs.version }}"
-          NOTES=docs/release-notes.md
-          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || true)
-
-          # docs/release-notes.md è una sezione "rolling": il numero nell'header
-          # viene riallineato qui (come faceva git-release.sh), così chi scrive
-          # le note prima del rilascio non deve indovinare la versione bumpata.
-          if [ -f "$NOTES" ]; then
-            sed -i "0,/^##[^#].*/s//## Release Notes v$VERSION/" "$NOTES"
-          fi
-
-          # Note "stantie": file non toccato dall'ultimo tag ⇒ il contenuto è
-          # quello della release precedente. In quel caso le rigenero dai commit.
-          STALE=0
-          if [ -n "$LAST_TAG" ] && git diff --quiet "$LAST_TAG" -- "$NOTES" 2>/dev/null; then
-            STALE=1
-          fi
-
-          if [ "$STALE" = 0 ] \
-             && bash build-scripts/extract-release-notes.sh "v$VERSION" "$NOTES" /tmp/notes-preview.md 2>/dev/null \
-             && grep -q '[^[:space:]]' /tmp/notes-preview.md; then
-            echo "Uso le note scritte a mano in $NOTES:"
-          else
-            echo "Note assenti o non aggiornate dall'ultima release — le genero dai commit."
-            RANGE=${LAST_TAG:+$LAST_TAG..HEAD}
-            {
-              echo "## Release Notes v$VERSION"
-              echo
-              git log $RANGE --no-merges --pretty='- %s' | grep -v '^- chore: release' || echo "- Maintenance release"
-            } > "$NOTES"
-            bash build-scripts/extract-release-notes.sh "v$VERSION" "$NOTES" /tmp/notes-preview.md
-          fi
-          cat /tmp/notes-preview.md
-
-      - name: Commit, tag & push (atomic)
-        shell: bash
-        run: |
-          set -euo pipefail
-          VERSION="${{ steps.bump.outputs.version }}"
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add -A
-          git commit -m "chore: release v$VERSION"
-          git tag "v$VERSION"
-          git push --atomic origin "${GITHUB_REF_NAME}" "v$VERSION"
-
-      - name: Dispatch "Build and Release" on the tag
-        shell: bash
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          # I push effettuati con GITHUB_TOKEN non generano eventi on:push per
-          # prevenire loop: il build sul tag va lanciato esplicitamente.
-          gh workflow run "Build and Release" --ref "v${{ steps.bump.outputs.version }}"
-
-  backmerge:
-    name: Backmerge release commit
-    needs: release
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v6
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
         with:
-          fetch-depth: 0
+          node-version: '20'
 
-      - name: Merge release branch into the sibling branch
-        shell: bash
-        run: |
-          set -euo pipefail
-          SRC="${{ needs.release.outputs.branch }}"
-          case "$SRC" in
-            main) DST=dev ;;
-            dev)  DST=main ;;
-            *)    echo "Branch $SRC senza sibling configurato — skip backmerge."; exit 0 ;;
-          esac
-
-          if ! git ls-remote --exit-code --heads origin "$DST" >/dev/null; then
-            echo "Branch $DST inesistente — skip backmerge."; exit 0
-          fi
-
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git checkout "$DST"
-          if git merge --no-edit "origin/$SRC"; then
-            git push origin "$DST"
-            echo "Backmerge $SRC → $DST completato."
-          else
-            echo "::warning::Conflitti nel backmerge $SRC → $DST: risolvere a mano."
-            exit 1
-          fi
+      - name: Release via semantic-release
+        uses: cycjimmy/semantic-release-action@v5
+        id: release
+        with:
+          extra_plugins: |
+            @semantic-release/changelog
+            @semantic-release/exec
+            @semantic-release/git
+            @cleyrop-org/semantic-release-backmerge
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
