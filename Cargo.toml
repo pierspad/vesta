@@ -25,12 +25,12 @@ whisper-rs = "0.16"
 futures = "0.3"
 
 # Internal crates
-srt-parser = { path = "./core/srt-parser", version = "0.13.0" }
-srt-extract = { path = "./lib/srt-extract", version = "0.13.0" }
-srt-translate = { path = "./lib/srt-translate", version = "0.13.0" }
-srt-sync = { path = "./lib/srt-sync", version = "0.13.0" }
-srt-flashcards = { path = "./lib/srt-flashcards", version = "0.13.0" }
-whisper-common = { path = "./lib/whisper-common", version = "0.13.0" }
+srt-parser = { path = "./core/srt-parser", version = "0.14.0-dev.1" }
+srt-extract = { path = "./lib/srt-extract", version = "0.14.0-dev.1" }
+srt-translate = { path = "./lib/srt-translate", version = "0.14.0-dev.1" }
+srt-sync = { path = "./lib/srt-sync", version = "0.14.0-dev.1" }
+srt-flashcards = { path = "./lib/srt-flashcards", version = "0.14.0-dev.1" }
+whisper-common = { path = "./lib/whisper-common", version = "0.14.0-dev.1" }
 
 [profile.dev]
 opt-level = 0
