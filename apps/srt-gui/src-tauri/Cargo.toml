@@ -33,6 +33,7 @@ ffmpeg-sidecar = { version = "2.5.1", features = ["download_ffmpeg"] }
 rusqlite = { version = "0.40", features = ["bundled"] }
 zip = "8"
 sha1_smol = "1.0"
+sysinfo = "0.39"
 
 # Dipendenze dal workspace
 srt-parser = { workspace = true }

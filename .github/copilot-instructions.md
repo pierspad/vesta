@@ -80,13 +80,15 @@ Regole:
 - non creare sezioni vuote;
 - scrivi per utenti finali: il dettaglio operativo resta in `docs/list_of_things_changed.md`.
 
-Durante lo script di release `git-release.sh`:
-- L'intestazione principale `## Release Notes` viene aggiornata automaticamente in `## Release Notes vX.Y.Z` in base alla versione inserita nel PKGBUILD.
-- Al termine del processo di release con successo, lo script resetta automaticamente sia `docs/list_of_things_changed.md` sia `docs/release-notes.md` per il ciclo successivo.
+Il rilascio è interamente gestito dalla GitHub Action `release.yml` (nessuno script locale — `git-release.sh`/`push-aur.sh`/`build-aur.sh` sono pattern ritirati):
+- **Si attiva da sola su ogni push su `main`**, leggendo i Conventional Commits accumulati dall'ultimo tag: `feat:` → minor bump, `fix:`/`perf:` → patch bump, `feat!:` o un footer `BREAKING CHANGE:` → major bump. Se non c'è nessun commit `feat`/`fix`/`perf`/breaking (solo `chore`/`docs`/`refactor`/`test`/`ci`/`build`) il rilascio viene saltato in automatico, senza errori.
+- L'intestazione principale `## Release Notes` viene riallineata automaticamente in `## Release Notes vX.Y.Z` in base alla versione bumpata nel PKGBUILD.
+- Se `docs/release-notes.md` non è stato toccato dall'ultimo tag, la Action ne rigenera il contenuto dai messaggi di commit invece di pubblicare note stantie — per questo conviene comunque scrivere i bullet a mano durante lo sviluppo (§1), altrimenti la release finale mostra solo i commit grezzi. `docs/list_of_things_changed.md` non viene toccato dalla pipeline: resta un log tecnico manuale, va aggiornato a mano come da §1.
+- Rimane disponibile anche il trigger manuale: Actions → "Release (semver bump)" → Run workflow, con bump `auto|patch|minor|major` o una versione esplicita.
 
 ## 6. Comandi utili
 
 - Frontend: `cd apps/srt-gui && npm run check`
 - Audit i18n: `cd apps/srt-gui && npm run i18n:audit`
-- Release: `build-scripts/git-release.sh`
-- Pubblicazione AUR dopo GitHub Release: `build-scripts/push-aur.sh`
+- Release: prefissa il commit con `feat:`/`fix:`/`perf:` e pusha su `main` — parte da solo; per un bump manuale/forzato usa Actions → "Release (semver bump)" → Run workflow.
+- Pubblicazione AUR: automatica (`aur-publish.yml`) dopo che "Build and Release" completa — nessun comando manuale.

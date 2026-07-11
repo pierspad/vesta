@@ -200,64 +200,18 @@ pub async fn flashcard_get_cpu_count() -> Result<usize, String> {
 }
 
 /// Get total physical system memory in megabytes.
+///
+/// Delegates to `sysinfo`, which wraps the platform-specific queries (`/proc/meminfo`
+/// on Linux, `sysctl` on macOS, `GlobalMemoryStatusEx` on Windows) behind a safe API,
+/// so this crate no longer needs its own per-OS `cfg` branches or raw FFI.
 #[tauri::command]
 pub async fn flashcard_get_total_memory_mb() -> Result<u64, String> {
-    #[cfg(target_os = "linux")]
-    {
-        let content = std::fs::read_to_string("/proc/meminfo")
-            .map_err(|e| format!("Failed to read /proc/meminfo: {}", e))?;
-        for line in content.lines() {
-            if line.starts_with("MemTotal:") {
-                let kb: u64 = line
-                    .split_whitespace()
-                    .nth(1)
-                    .and_then(|s| s.parse().ok())
-                    .unwrap_or(4 * 1024 * 1024);
-                return Ok(kb / 1024);
-            }
-        }
-        Ok(4096)
-    }
-    #[cfg(target_os = "macos")]
-    {
-        let output = std::process::Command::new("sysctl")
-            .arg("-n")
-            .arg("hw.memsize")
-            .output()
-            .map_err(|e| format!("sysctl failed: {}", e))?;
-        let bytes: u64 = String::from_utf8_lossy(&output.stdout)
-            .trim()
-            .parse()
-            .unwrap_or(4 * 1024 * 1024 * 1024);
-        Ok(bytes / (1024 * 1024))
-    }
-    #[cfg(target_os = "windows")]
-    {
-        use std::mem;
-        #[repr(C)]
-        struct MEMORYSTATUSEX {
-            dw_length: u32,
-            dw_memory_load: u32,
-            ull_total_phys: u64,
-            ull_avail_phys: u64,
-            ull_total_page_file: u64,
-            ull_avail_page_file: u64,
-            ull_total_virtual: u64,
-            ull_avail_virtual: u64,
-            ull_avail_extended_virtual: u64,
-        }
-        extern "system" {
-            fn GlobalMemoryStatusEx(lp_buffer: *mut MEMORYSTATUSEX) -> i32;
-        }
-        let mut status: MEMORYSTATUSEX = unsafe { mem::zeroed() };
-        status.dw_length = mem::size_of::<MEMORYSTATUSEX>() as u32;
-        unsafe { GlobalMemoryStatusEx(&mut status) };
-        Ok(status.ull_total_phys / (1024 * 1024))
-    }
-    #[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
-    {
-        Ok(4096)
-    }
+    let mut sys = sysinfo::System::new();
+    sys.refresh_memory();
+    let total_mb = sys.total_memory() / (1024 * 1024);
+    // Fall back to a conservative default on the rare platform/sandbox where sysinfo
+    // can't read anything (mirrors the previous behaviour's fallback constants).
+    Ok(if total_mb > 0 { total_mb } else { 4096 })
 }
 
 /// Write a list of preview lines to a temporary subtitle file and return its path.

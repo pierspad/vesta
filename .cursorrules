@@ -422,21 +422,25 @@ For any heavy, optional, or reusable feature (Whisper, yt-dlp downloading, trans
 
 ## 15. Release Pipeline — three GitHub Actions, zero manual steps
 
-The whole release is CI-driven. **Do not create local release scripts** (`git-release.sh`, `push-aur.sh`, `build-aur.sh` are retired patterns): the only human action is *Actions → "Release (semver bump)" → Run workflow*.
+The whole release is CI-driven. **Do not create local release scripts** (`git-release.sh`, `push-aur.sh`, `build-aur.sh` are retired patterns): a `feat:`/`fix:`/`perf:` push to `main` releases itself — the only human action *needed* is writing Conventional Commit messages. Manual override still exists for edge cases: *Actions → "Release (semver bump)" → Run workflow*.
 
-### 15.1 `release.yml` — "Release (semver bump)" (`workflow_dispatch`)
+### 15.1 `release.yml` — "Release (semver bump)" (`push: main` + `workflow_dispatch`)
 
-Inputs: `bump` = `patch|minor|major` (default patch) **or** an explicit `version`. Steps, in order, all fail-fast:
+**Trigger** — every push to `main` runs a `detect` job first (Conventional Commits scan since the last tag): `feat:` → minor, `fix:`/`perf:` → patch, a `!` after the type or a `BREAKING CHANGE:` footer → major. If nothing in range matches (only `chore`/`docs`/`style`/`refactor`/`test`/`ci`/`build`), the job sets `skip=true` and the rest of the pipeline is skipped — no wasted Rust/Python toolchain setup, no empty release. The `detect` job also short-circuits on its own `chore: release v<version>` commit so it can never trigger itself; push/backmerge commits made with `GITHUB_TOKEN` don't fire `on: push` anyway (GitHub anti-recursion rule), this is just belt-and-suspenders. `workflow_dispatch` inputs: `bump` = `auto|patch|minor|major` (default `auto`, i.e. same Conventional-Commits detection as a push) **or** an explicit `version`, which always wins.
 
-1. `actions/checkout` with `fetch-depth: 0` (tags are needed for auto-notes) on the branch it was dispatched from.
-2. **Compute the new version** from `PKGBUILD` `pkgver` (+SemVer bump or the explicit input); abort if the tag `v<version>` already exists. Write it back to `PKGBUILD`.
+Steps, in order, all fail-fast:
+
+1. `actions/checkout` with `fetch-depth: 0` (tags are needed for auto-notes) on the branch it was dispatched from (or `main` for an automatic push).
+2. **Compute the new version** from `PKGBUILD` `pkgver` (+ the detected/chosen SemVer bump, or the explicit input); abort if the tag `v<version>` already exists. Write it back to `PKGBUILD`.
 3. **Propagate** — `update_project_info.sh`; then the **consistency gate**; then (where present) the **i18n audit** with `--fail-on-issues --block-reasons missing_locale,missing_key,empty_value,placeholder_mismatch`.
 4. **Release notes** — re-align the rolling header to `## Release Notes v<version>`; if the file is stale (unchanged since the last tag) or the section is empty, generate bullets from `git log <last-tag>..HEAD --no-merges` (excluding `chore: release` commits). Print the preview in the job log.
 5. **Commit `chore: release v<version>` + tag + `git push --atomic origin <branch> v<version>`** (bot identity).
 6. **Dispatch the build explicitly**: `gh workflow run "Build and Release" --ref v<version>`. This is mandatory — tags pushed with `GITHUB_TOKEN` do **not** fire `on: push` workflows (GitHub anti-recursion rule).
 7. **Backmerge job** — after a release from `main`, merge into `dev` (and vice versa) and push; skip silently if the sibling branch doesn't exist; emit a warning and fail the job on conflicts (a human resolves).
 
-Required workflow permissions: `contents: write`, `actions: write`. Concurrency group `release`, no cancel-in-progress.
+Required workflow permissions: `contents: write`, `actions: write`. Concurrency group `release`, no cancel-in-progress — so a burst of pushes to `main` queues releases one at a time instead of racing on the shared `PKGBUILD` `pkgver`.
+
+**Writing commits that should ship** — since `main` auto-releases, prefix commit subjects with `feat:`/`fix:`/`perf:` (Conventional Commits) whenever the change should bump the version; use `chore:`/`docs:`/`refactor:`/`test:`/`style:`/`ci:`/`build:` for anything that shouldn't trigger a release on its own (it'll ship bundled with the next `feat`/`fix`). Mark breaking changes with `!` after the type (`feat!:`) or a `BREAKING CHANGE:` footer.
 
 ### 15.2 `build.yml` — "Build and Release" (`on: push: tags: v*` + `workflow_dispatch`)
 

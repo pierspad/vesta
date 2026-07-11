@@ -1,6 +1,7 @@
 name: Release (semver bump)
 
 # Rilascio completamente automatizzato:
+#   0. trigger: push su main (Conventional Commits) o dispatch manuale
 #   1. bump SemVer del pkgver nel PKGBUILD (patch/minor/major, o versione esplicita)
 #   2. propagazione della versione a tutto il progetto (update_project_info.sh)
 #   3. gate di qualità: coerenza versioni interne + audit i18n
@@ -9,23 +10,37 @@ name: Release (semver bump)
 #   5. commit "chore: release vX.Y.Z" + tag + push atomico
 #   6. trigger esplicito di "Build and Release" sul tag (i tag pushati con
 #      GITHUB_TOKEN NON scatenano workflow on:push — serve il dispatch)
-#   7. backmerge: riporta il commit di release sull'altro branch (main<->dev)
+#   7. backmerge: riporta il commit di release su dev
 #
-# Da eseguire dal branch da cui si vuole rilasciare (Actions → Release → Run
-# workflow → scegli branch e tipo di bump). La catena a valle è invariata:
-# build.yml costruisce e pubblica la GitHub Release, aur-publish.yml (workflow_run)
-# pusha su AUR.
+# Trigger automatico (push su main): il job "detect" scansiona i commit dall'ultimo
+# tag e decide il bump secondo Conventional Commits — feat: → minor, fix:/perf: →
+# patch, "!" dopo il type o un footer "BREAKING CHANGE:" → major. Se nessun commit
+# rilevante è presente (solo chore/docs/style/refactor/test/ci/build) il rilascio
+# viene saltato senza errori. Il commit "chore: release vX.Y.Z" che questo stesso
+# workflow crea è escluso a priori (altrimenti si auto-triggererebbe all'infinito).
+#
+# Push/commit fatti con GITHUB_TOKEN (sia il commit di release+tag sia il backmerge)
+# non generano eventi on:push per prevenire loop — è un comportamento nativo di
+# GitHub Actions, non serve gestirlo a mano.
+#
+# Override manuale: Actions → Release → Run workflow → scegli branch e tipo di bump
+# (o "auto" per usare comunque il rilevamento dai commit) o una versione esplicita.
+# La catena a valle è invariata: build.yml costruisce e pubblica la GitHub Release,
+# aur-publish.yml (workflow_run) pusha su AUR.
 
 on:
+  push:
+    branches:
+      - main
   workflow_dispatch:
     inputs:
       bump:
-        description: "Tipo di bump SemVer"
+        description: "Tipo di bump SemVer ('auto' = rileva dai Conventional Commits dall'ultimo tag)"
         type: choice
-        options: [patch, minor, major]
-        default: patch
+        options: [auto, patch, minor, major]
+        default: auto
       version:
-        description: "Versione esplicita (es. 1.2.3) — se valorizzata ignora il bump"
+        description: "Versione esplicita (es. 1.2.3) — se valorizzata ignora bump/auto"
         required: false
         type: string
 
@@ -38,8 +53,70 @@ permissions:
   actions: write
 
 jobs:
+  detect:
+    name: Detect release & bump type
+    runs-on: ubuntu-22.04
+    # Non reagire al push del nostro stesso commit "chore: release vX.Y.Z"
+    # (i push con GITHUB_TOKEN non triggererebbero comunque, ma la guardia
+    # esplicita rende l'intento leggibile e ci protegge se in futuro si passa
+    # a un PAT per il push).
+    if: >-
+      github.event_name != 'push' ||
+      !startsWith(github.event.head_commit.message, 'chore: release v')
+    outputs:
+      skip: ${{ steps.detect.outputs.skip }}
+      bump: ${{ steps.detect.outputs.bump }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0 # servono i tag per capire da dove contare i commit
+
+      - name: Determine bump
+        id: detect
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          EXPLICIT="${{ inputs.version }}"
+          CHOSEN_BUMP="${{ inputs.bump }}"
+
+          # Versione esplicita o bump scelto a mano (diverso da "auto"): il
+          # rilevamento dai commit non serve, si procede sempre.
+          if [ -n "$EXPLICIT" ] || { [ -n "$CHOSEN_BUMP" ] && [ "$CHOSEN_BUMP" != "auto" ]; }; then
+            echo "Bump/versione scelti manualmente da workflow_dispatch — nessun rilevamento necessario."
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Push automatico, oppure dispatch manuale con bump=auto: rileva dai
+          # Conventional Commits accumulati dall'ultimo tag.
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || true)
+          RANGE=${LAST_TAG:+$LAST_TAG..HEAD}
+          LOG=$(git log $RANGE --no-merges --pretty='format:%s%n%b%n===END===' 2>/dev/null || true)
+
+          BUMP=""
+          if echo "$LOG" | grep -qE '^[a-zA-Z]+(\([a-zA-Z0-9_.-]*\))?!:' || echo "$LOG" | grep -q 'BREAKING CHANGE:'; then
+            BUMP="major"
+          elif echo "$LOG" | grep -qE '^feat(\([a-zA-Z0-9_.-]*\))?:'; then
+            BUMP="minor"
+          elif echo "$LOG" | grep -qE '^(fix|perf)(\([a-zA-Z0-9_.-]*\))?:'; then
+            BUMP="patch"
+          fi
+
+          if [ -z "$BUMP" ]; then
+            echo "Nessun commit feat/fix/perf/breaking dall'ultimo tag (${LAST_TAG:-nessuno}) — skip release."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "Bump rilevato dai Conventional Commits dall'ultimo tag (${LAST_TAG:-nessuno}): $BUMP"
+          echo "skip=false" >> "$GITHUB_OUTPUT"
+          echo "bump=$BUMP" >> "$GITHUB_OUTPUT"
+
   release:
     name: Bump, tag & dispatch build
+    needs: detect
+    if: needs.detect.outputs.skip != 'true'
     runs-on: ubuntu-22.04
     outputs:
       version: ${{ steps.bump.outputs.version }}
@@ -77,12 +154,20 @@ jobs:
           if [ -n "$EXPLICIT" ]; then
             [[ "$EXPLICIT" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "::error::versione non SemVer: $EXPLICIT"; exit 1; }
             VERSION="$EXPLICIT"
+            BUMP="explicit"
           else
+            CHOSEN_BUMP="${{ inputs.bump }}"
+            if [ -n "$CHOSEN_BUMP" ] && [ "$CHOSEN_BUMP" != "auto" ]; then
+              BUMP="$CHOSEN_BUMP"
+            else
+              BUMP="${{ needs.detect.outputs.bump }}"
+            fi
             IFS=. read -r MAJ MIN PAT <<< "$CURRENT"
-            case "${{ inputs.bump }}" in
+            case "$BUMP" in
               major) VERSION="$((MAJ+1)).0.0" ;;
               minor) VERSION="$MAJ.$((MIN+1)).0" ;;
-              *)     VERSION="$MAJ.$MIN.$((PAT+1))" ;;
+              patch) VERSION="$MAJ.$MIN.$((PAT+1))" ;;
+              *) echo "::error::bump non valido: '$BUMP'"; exit 1 ;;
             esac
           fi
 
@@ -93,7 +178,7 @@ jobs:
           sed -i "s/^pkgver=.*/pkgver=$VERSION/" build-scripts/PKGBUILD
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "branch=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
-          echo "Release: $CURRENT → $VERSION (branch ${GITHUB_REF_NAME})"
+          echo "Release: $CURRENT → $VERSION (branch ${GITHUB_REF_NAME}, bump: $BUMP)"
 
       - name: Propagate version (update_project_info.sh)
         shell: bash

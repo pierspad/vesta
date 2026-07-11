@@ -115,6 +115,11 @@ pub fn transcribe_full(
         if token.is_cancelled() {
             anyhow::bail!("Transcription cancelled");
         }
+        // SAFETY: whisper.cpp's C callback ABI leaves us no safe alternative — `full()`
+        // below is synchronous and only calls back into `whisper_abort_callback` while
+        // it's running, so `user_data` never outlives the `&CancellationToken` borrow
+        // (`token`) it was cast from a few lines down. Non-null and correctly aligned
+        // because we're the only ones who ever set it, right before this same call.
         unsafe extern "C" fn whisper_abort_callback(user_data: *mut std::ffi::c_void) -> bool {
             if user_data.is_null() {
                 return false;
