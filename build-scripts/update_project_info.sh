@@ -110,9 +110,9 @@ else
 fi
 
 # ===========================================================
-# 4. .desktop file (root)
+# 4. .desktop file (build-scripts)
 # ===========================================================
-DESKTOP_FILE="$PROJECT_ROOT/com.vesta.desktop.desktop"
+DESKTOP_FILE="$SCRIPT_DIR/com.vesta.desktop.desktop"
 if [ -f "$DESKTOP_FILE" ]; then
     cat > "$DESKTOP_FILE" <<EOF
 [Desktop Entry]
@@ -128,7 +128,7 @@ EOF
     update_file "$DESKTOP_FILE" "name, comment, exec, icon"
 fi
 
-DESKTOP_FILE2="$PROJECT_ROOT/vesta.desktop"
+DESKTOP_FILE2="$SCRIPT_DIR/vesta.desktop"
 if [ -f "$DESKTOP_FILE2" ]; then
     cat > "$DESKTOP_FILE2" <<EOF
 [Desktop Entry]

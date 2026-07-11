@@ -207,7 +207,7 @@ jobs:
           cp "$BINARY" build-scripts/flatpak-files/vesta
 
           cp apps/srt-gui/src-tauri/icons/icon-512x512.png build-scripts/flatpak-files/com.vesta.desktop.png
-          cp com.vesta.desktop.desktop build-scripts/flatpak-files/
+          cp build-scripts/com.vesta.desktop.desktop build-scripts/flatpak-files/
           sed -i 's/^Icon=vesta/Icon=com.vesta.desktop/' build-scripts/flatpak-files/com.vesta.desktop.desktop
           sed -i 's/^StartupWMClass=vesta/StartupWMClass=com.vesta.desktop/' build-scripts/flatpak-files/com.vesta.desktop.desktop
 

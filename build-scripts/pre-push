@@ -1,0 +1,31 @@
+#!/bin/bash
+# ===========================================================================
+# Git pre-push hook for Vesta
+# Prevents pushing if i18n validation or crate consistency checks fail.
+# ===========================================================================
+
+# Imposta la cartella di lavoro sulla radice del progetto
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$PROJECT_ROOT"
+
+echo "🔎 Running pre-push quality gates..."
+
+# 1. Validate internal crate versions
+echo "  [1/2] Checking internal crate versions..."
+if ! bash build-scripts/check_internal_crate_versions.sh; then
+  echo "❌ Error: Crate versions are inconsistent. Push aborted." >&2
+  exit 1
+fi
+
+# 2. Validate i18n translations
+echo "  [2/2] Checking i18n translations..."
+if ! python3 apps/srt-gui/scripts/check_missing_translations.py \
+  --output apps/srt-gui/reports/missing_translations_report.json \
+  --fail-on-issues \
+  --block-reasons missing_locale,missing_key,empty_value,placeholder_mismatch; then
+  echo "❌ Error: i18n translation issues found. Push aborted." >&2
+  exit 1
+fi
+
+echo "✅ All checks passed. Proceeding with push."
+exit 0
