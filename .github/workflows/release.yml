@@ -65,5 +65,6 @@ jobs:
             @semantic-release/exec
             @semantic-release/git
             @cleyrop-org/semantic-release-backmerge
+            conventional-changelog-conventionalcommits
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
