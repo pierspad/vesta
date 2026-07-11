@@ -3,9 +3,9 @@
     "/home/ribben/Desktop/Various_Projects/vesta/apps/srt-gui/src/lib/i18n/locales"
   ],
   "en_keys_per_directory": {
-    "locales": 700
+    "locales": 774
   },
-  "total_english_keys": 700,
+  "total_english_keys": 774,
   "checked_locales": [
     "ar",
     "de",
@@ -23,25 +23,4788 @@
     "zh"
   ],
   "missing_counts_by_locale": {
-    "ar": 0,
-    "de": 0,
-    "es": 0,
-    "fr": 0,
-    "hi": 0,
-    "it": 0,
-    "ja": 0,
-    "ko": 0,
-    "nl": 0,
-    "pl": 0,
-    "pt": 0,
-    "ru": 0,
-    "tr": 0,
-    "zh": 0
+    "ar": 28,
+    "de": 29,
+    "es": 29,
+    "fr": 29,
+    "hi": 28,
+    "it": 1,
+    "ja": 28,
+    "ko": 28,
+    "nl": 29,
+    "pl": 29,
+    "pt": 30,
+    "ru": 29,
+    "tr": 29,
+    "zh": 28
   },
-  "total_keys_with_issues": 0,
+  "total_keys_with_issues": 30,
   "orphan_keys_count": 0,
   "orphan_keys": [],
-  "missing_keys": {},
-  "translation_tasks_summary": {},
-  "translation_tasks": {}
+  "missing_keys": {
+    "flashcards.completePrefix": {
+      "locales": [
+        "pt"
+      ],
+      "details": [
+        {
+          "locale": "pt",
+          "reason": "same_as_english",
+          "directory": "locales"
+        }
+      ]
+    },
+    "flashcards.previewPlay": {
+      "locales": [
+        "de",
+        "es",
+        "fr",
+        "it",
+        "nl",
+        "pl",
+        "pt",
+        "ru",
+        "tr"
+      ],
+      "details": [
+        {
+          "locale": "de",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "es",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "fr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "it",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "nl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pt",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ru",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "tr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        }
+      ]
+    },
+    "settings.cpuCoresActiveHint": {
+      "locales": [
+        "ar",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "ja",
+        "ko",
+        "nl",
+        "pl",
+        "pt",
+        "ru",
+        "tr",
+        "zh"
+      ],
+      "details": [
+        {
+          "locale": "ar",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "de",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "es",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "fr",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "hi",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "ja",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "ko",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "nl",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "pl",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "pt",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "ru",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "tr",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "zh",
+          "reason": "missing_key",
+          "directory": "locales"
+        }
+      ]
+    },
+    "settings.cpuCoresActiveLabel": {
+      "locales": [
+        "ar",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "ja",
+        "ko",
+        "nl",
+        "pl",
+        "pt",
+        "ru",
+        "tr",
+        "zh"
+      ],
+      "details": [
+        {
+          "locale": "ar",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "de",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "es",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "fr",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "hi",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "ja",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "ko",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "nl",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "pl",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "pt",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "ru",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "tr",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "zh",
+          "reason": "missing_key",
+          "directory": "locales"
+        }
+      ]
+    },
+    "settings.cpuCoresEasyDesc": {
+      "locales": [
+        "ar",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "ja",
+        "ko",
+        "nl",
+        "pl",
+        "pt",
+        "ru",
+        "tr",
+        "zh"
+      ],
+      "details": [
+        {
+          "locale": "ar",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "de",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "es",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "fr",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "hi",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "ja",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "ko",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "nl",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "pl",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "pt",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "ru",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "tr",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "zh",
+          "reason": "missing_key",
+          "directory": "locales"
+        }
+      ]
+    },
+    "settings.cpuCoresEasyTitle": {
+      "locales": [
+        "ar",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "ja",
+        "ko",
+        "nl",
+        "pl",
+        "pt",
+        "ru",
+        "tr",
+        "zh"
+      ],
+      "details": [
+        {
+          "locale": "ar",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "de",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "es",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "fr",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "hi",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "ja",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "ko",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "nl",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "pl",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "pt",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "ru",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "tr",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "zh",
+          "reason": "missing_key",
+          "directory": "locales"
+        }
+      ]
+    },
+    "settings.cpuCoresExpertDesc": {
+      "locales": [
+        "ar",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "ja",
+        "ko",
+        "nl",
+        "pl",
+        "pt",
+        "ru",
+        "tr",
+        "zh"
+      ],
+      "details": [
+        {
+          "locale": "ar",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "de",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "es",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "fr",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "hi",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "ja",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "ko",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "nl",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "pl",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "pt",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "ru",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "tr",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "zh",
+          "reason": "missing_key",
+          "directory": "locales"
+        }
+      ]
+    },
+    "settings.cpuCoresExpertTitle": {
+      "locales": [
+        "ar",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "ja",
+        "ko",
+        "nl",
+        "pl",
+        "pt",
+        "ru",
+        "tr",
+        "zh"
+      ],
+      "details": [
+        {
+          "locale": "ar",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "de",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "es",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "fr",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "hi",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "ja",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "ko",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "nl",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "pl",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "pt",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "ru",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "tr",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "zh",
+          "reason": "missing_key",
+          "directory": "locales"
+        }
+      ]
+    },
+    "settings.cpuCoresSliderLabel": {
+      "locales": [
+        "ar",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "ja",
+        "ko",
+        "nl",
+        "pl",
+        "pt",
+        "ru",
+        "tr",
+        "zh"
+      ],
+      "details": [
+        {
+          "locale": "ar",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "de",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "es",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "fr",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "hi",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "ja",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "ko",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "nl",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "pl",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "pt",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "ru",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "tr",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "zh",
+          "reason": "missing_key",
+          "directory": "locales"
+        }
+      ]
+    },
+    "settings.ramLimitDesc": {
+      "locales": [
+        "ar",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "ja",
+        "ko",
+        "nl",
+        "pl",
+        "pt",
+        "ru",
+        "tr",
+        "zh"
+      ],
+      "details": [
+        {
+          "locale": "ar",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "de",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "es",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "fr",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "hi",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "ja",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "ko",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "nl",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "pl",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "pt",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "ru",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "tr",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "zh",
+          "reason": "missing_key",
+          "directory": "locales"
+        }
+      ]
+    },
+    "settings.ramLimitLabel": {
+      "locales": [
+        "ar",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "ja",
+        "ko",
+        "nl",
+        "pl",
+        "pt",
+        "ru",
+        "tr",
+        "zh"
+      ],
+      "details": [
+        {
+          "locale": "ar",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "de",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "es",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "fr",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "hi",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "ja",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "ko",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "nl",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "pl",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "pt",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "ru",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "tr",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "zh",
+          "reason": "missing_key",
+          "directory": "locales"
+        }
+      ]
+    },
+    "settings.ramNoLimit": {
+      "locales": [
+        "ar",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "ja",
+        "ko",
+        "nl",
+        "pl",
+        "pt",
+        "ru",
+        "tr",
+        "zh"
+      ],
+      "details": [
+        {
+          "locale": "ar",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "de",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "es",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "fr",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "hi",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "ja",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "ko",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "nl",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "pl",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "pt",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "ru",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "tr",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "zh",
+          "reason": "missing_key",
+          "directory": "locales"
+        }
+      ]
+    },
+    "transcribe.error": {
+      "locales": [
+        "ar",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "ja",
+        "ko",
+        "nl",
+        "pl",
+        "pt",
+        "ru",
+        "tr",
+        "zh"
+      ],
+      "details": [
+        {
+          "locale": "ar",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "de",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "es",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "fr",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "hi",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "ja",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "ko",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "nl",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "pl",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "pt",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "ru",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "tr",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "zh",
+          "reason": "missing_key",
+          "directory": "locales"
+        }
+      ]
+    },
+    "transcribe.finished": {
+      "locales": [
+        "ar",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "ja",
+        "ko",
+        "nl",
+        "pl",
+        "pt",
+        "ru",
+        "tr",
+        "zh"
+      ],
+      "details": [
+        {
+          "locale": "ar",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "de",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "es",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "fr",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "hi",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "ja",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "ko",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "nl",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "pl",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "pt",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "ru",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "tr",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "zh",
+          "reason": "missing_key",
+          "directory": "locales"
+        }
+      ]
+    },
+    "transcribe.running": {
+      "locales": [
+        "ar",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "ja",
+        "ko",
+        "nl",
+        "pl",
+        "pt",
+        "ru",
+        "tr",
+        "zh"
+      ],
+      "details": [
+        {
+          "locale": "ar",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "de",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "es",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "fr",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "hi",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "ja",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "ko",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "nl",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "pl",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "pt",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "ru",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "tr",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "zh",
+          "reason": "missing_key",
+          "directory": "locales"
+        }
+      ]
+    },
+    "transcribe.transcribing": {
+      "locales": [
+        "ar",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "ja",
+        "ko",
+        "nl",
+        "pl",
+        "pt",
+        "ru",
+        "tr",
+        "zh"
+      ],
+      "details": [
+        {
+          "locale": "ar",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "de",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "es",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "fr",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "hi",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "ja",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "ko",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "nl",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "pl",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "pt",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "ru",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "tr",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "zh",
+          "reason": "missing_key",
+          "directory": "locales"
+        }
+      ]
+    },
+    "translate.accuracySpeedDesc": {
+      "locales": [
+        "ar",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "ja",
+        "ko",
+        "nl",
+        "pl",
+        "pt",
+        "ru",
+        "tr",
+        "zh"
+      ],
+      "details": [
+        {
+          "locale": "ar",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "de",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "es",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "fr",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "hi",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "ja",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "ko",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "nl",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "pl",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "pt",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "ru",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "tr",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "zh",
+          "reason": "missing_key",
+          "directory": "locales"
+        }
+      ]
+    },
+    "translate.accuracySpeedTitle": {
+      "locales": [
+        "ar",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "ja",
+        "ko",
+        "nl",
+        "pl",
+        "pt",
+        "ru",
+        "tr",
+        "zh"
+      ],
+      "details": [
+        {
+          "locale": "ar",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "de",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "es",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "fr",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "hi",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "ja",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "ko",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "nl",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "pl",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "pt",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "ru",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "tr",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "zh",
+          "reason": "missing_key",
+          "directory": "locales"
+        }
+      ]
+    },
+    "translate.batchSizeExpert": {
+      "locales": [
+        "ar",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "ja",
+        "ko",
+        "nl",
+        "pl",
+        "pt",
+        "ru",
+        "tr",
+        "zh"
+      ],
+      "details": [
+        {
+          "locale": "ar",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "de",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "es",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "fr",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "hi",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "ja",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "ko",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "nl",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "pl",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "pt",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "ru",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "tr",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "zh",
+          "reason": "missing_key",
+          "directory": "locales"
+        }
+      ]
+    },
+    "translate.batchSizeExpertDesc": {
+      "locales": [
+        "ar",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "ja",
+        "ko",
+        "nl",
+        "pl",
+        "pt",
+        "ru",
+        "tr",
+        "zh"
+      ],
+      "details": [
+        {
+          "locale": "ar",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "de",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "es",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "fr",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "hi",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "ja",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "ko",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "nl",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "pl",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "pt",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "ru",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "tr",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "zh",
+          "reason": "missing_key",
+          "directory": "locales"
+        }
+      ]
+    },
+    "translate.contextCostHint": {
+      "locales": [
+        "ar",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "ja",
+        "ko",
+        "nl",
+        "pl",
+        "pt",
+        "ru",
+        "tr",
+        "zh"
+      ],
+      "details": [
+        {
+          "locale": "ar",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "de",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "es",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "fr",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "hi",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "ja",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "ko",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "nl",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "pl",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "pt",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "ru",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "tr",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "zh",
+          "reason": "missing_key",
+          "directory": "locales"
+        }
+      ]
+    },
+    "translate.contextTitle": {
+      "locales": [
+        "ar",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "ja",
+        "ko",
+        "nl",
+        "pl",
+        "pt",
+        "ru",
+        "tr",
+        "zh"
+      ],
+      "details": [
+        {
+          "locale": "ar",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "de",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "es",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "fr",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "hi",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "ja",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "ko",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "nl",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "pl",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "pt",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "ru",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "tr",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "zh",
+          "reason": "missing_key",
+          "directory": "locales"
+        }
+      ]
+    },
+    "translate.continuityDesc": {
+      "locales": [
+        "ar",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "ja",
+        "ko",
+        "nl",
+        "pl",
+        "pt",
+        "ru",
+        "tr",
+        "zh"
+      ],
+      "details": [
+        {
+          "locale": "ar",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "de",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "es",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "fr",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "hi",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "ja",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "ko",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "nl",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "pl",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "pt",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "ru",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "tr",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "zh",
+          "reason": "missing_key",
+          "directory": "locales"
+        }
+      ]
+    },
+    "translate.continuityTitle": {
+      "locales": [
+        "ar",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "ja",
+        "ko",
+        "nl",
+        "pl",
+        "pt",
+        "ru",
+        "tr",
+        "zh"
+      ],
+      "details": [
+        {
+          "locale": "ar",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "de",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "es",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "fr",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "hi",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "ja",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "ko",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "nl",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "pl",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "pt",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "ru",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "tr",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "zh",
+          "reason": "missing_key",
+          "directory": "locales"
+        }
+      ]
+    },
+    "translate.overlapHigh": {
+      "locales": [
+        "ar",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "ja",
+        "ko",
+        "nl",
+        "pl",
+        "pt",
+        "ru",
+        "tr",
+        "zh"
+      ],
+      "details": [
+        {
+          "locale": "ar",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "de",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "es",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "fr",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "hi",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "ja",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "ko",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "nl",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "pl",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "pt",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "ru",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "tr",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "zh",
+          "reason": "missing_key",
+          "directory": "locales"
+        }
+      ]
+    },
+    "translate.overlapMinimal": {
+      "locales": [
+        "ar",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "ja",
+        "ko",
+        "nl",
+        "pl",
+        "pt",
+        "ru",
+        "tr",
+        "zh"
+      ],
+      "details": [
+        {
+          "locale": "ar",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "de",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "es",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "fr",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "hi",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "ja",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "ko",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "nl",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "pl",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "pt",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "ru",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "tr",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "zh",
+          "reason": "missing_key",
+          "directory": "locales"
+        }
+      ]
+    },
+    "translate.overlapNone": {
+      "locales": [
+        "ar",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "ja",
+        "ko",
+        "nl",
+        "pl",
+        "pt",
+        "ru",
+        "tr",
+        "zh"
+      ],
+      "details": [
+        {
+          "locale": "ar",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "de",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "es",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "fr",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "hi",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "ja",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "ko",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "nl",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "pl",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "pt",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "ru",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "tr",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "zh",
+          "reason": "missing_key",
+          "directory": "locales"
+        }
+      ]
+    },
+    "translate.overlapNormal": {
+      "locales": [
+        "ar",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "ja",
+        "ko",
+        "nl",
+        "pl",
+        "pt",
+        "ru",
+        "tr",
+        "zh"
+      ],
+      "details": [
+        {
+          "locale": "ar",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "de",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "es",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "fr",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "hi",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "ja",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "ko",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "nl",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "pl",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "pt",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "ru",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "tr",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "zh",
+          "reason": "missing_key",
+          "directory": "locales"
+        }
+      ]
+    },
+    "translate.resumeOverlapExpert": {
+      "locales": [
+        "ar",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "ja",
+        "ko",
+        "nl",
+        "pl",
+        "pt",
+        "ru",
+        "tr",
+        "zh"
+      ],
+      "details": [
+        {
+          "locale": "ar",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "de",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "es",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "fr",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "hi",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "ja",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "ko",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "nl",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "pl",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "pt",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "ru",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "tr",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "zh",
+          "reason": "missing_key",
+          "directory": "locales"
+        }
+      ]
+    },
+    "translate.resumeOverlapExpertDesc": {
+      "locales": [
+        "ar",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "ja",
+        "ko",
+        "nl",
+        "pl",
+        "pt",
+        "ru",
+        "tr",
+        "zh"
+      ],
+      "details": [
+        {
+          "locale": "ar",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "de",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "es",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "fr",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "hi",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "ja",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "ko",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "nl",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "pl",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "pt",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "ru",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "tr",
+          "reason": "missing_key",
+          "directory": "locales"
+        },
+        {
+          "locale": "zh",
+          "reason": "missing_key",
+          "directory": "locales"
+        }
+      ]
+    }
+  },
+  "translation_tasks_summary": {
+    "ar": {
+      "total": 28,
+      "missing_key": 28
+    },
+    "de": {
+      "total": 29,
+      "same_as_english": 1,
+      "missing_key": 28
+    },
+    "es": {
+      "total": 29,
+      "same_as_english": 1,
+      "missing_key": 28
+    },
+    "fr": {
+      "total": 29,
+      "same_as_english": 1,
+      "missing_key": 28
+    },
+    "hi": {
+      "total": 28,
+      "missing_key": 28
+    },
+    "it": {
+      "total": 1,
+      "same_as_english": 1
+    },
+    "ja": {
+      "total": 28,
+      "missing_key": 28
+    },
+    "ko": {
+      "total": 28,
+      "missing_key": 28
+    },
+    "nl": {
+      "total": 29,
+      "same_as_english": 1,
+      "missing_key": 28
+    },
+    "pl": {
+      "total": 29,
+      "same_as_english": 1,
+      "missing_key": 28
+    },
+    "pt": {
+      "total": 30,
+      "same_as_english": 2,
+      "missing_key": 28
+    },
+    "ru": {
+      "total": 29,
+      "same_as_english": 1,
+      "missing_key": 28
+    },
+    "tr": {
+      "total": 29,
+      "same_as_english": 1,
+      "missing_key": 28
+    },
+    "zh": {
+      "total": 28,
+      "missing_key": 28
+    }
+  },
+  "translation_tasks": {
+    "ar": [
+      {
+        "key": "settings.cpuCoresActiveHint",
+        "reason": "missing_key",
+        "en": "Click on a core block to adjust the active core count.",
+        "current_value": null
+      },
+      {
+        "key": "settings.cpuCoresActiveLabel",
+        "reason": "missing_key",
+        "en": "Active Cores",
+        "current_value": null
+      },
+      {
+        "key": "settings.cpuCoresEasyDesc",
+        "reason": "missing_key",
+        "en": "Choose how much of your computer's power to allocate for flashcard generation. Higher profiles are faster but may slow down other applications.",
+        "current_value": null
+      },
+      {
+        "key": "settings.cpuCoresEasyTitle",
+        "reason": "missing_key",
+        "en": "Computer Effort",
+        "current_value": null
+      },
+      {
+        "key": "settings.cpuCoresExpertDesc",
+        "reason": "missing_key",
+        "en": "Manually configure CPU thread allocation and memory constraints for processing.",
+        "current_value": null
+      },
+      {
+        "key": "settings.cpuCoresExpertTitle",
+        "reason": "missing_key",
+        "en": "Resource Management",
+        "current_value": null
+      },
+      {
+        "key": "settings.cpuCoresSliderLabel",
+        "reason": "missing_key",
+        "en": "Number of CPU Threads",
+        "current_value": null
+      },
+      {
+        "key": "settings.ramLimitDesc",
+        "reason": "missing_key",
+        "en": "Limits maximum RAM consumption during video clip encoding and extraction.",
+        "current_value": null
+      },
+      {
+        "key": "settings.ramLimitLabel",
+        "reason": "missing_key",
+        "en": "RAM Memory Limit",
+        "current_value": null
+      },
+      {
+        "key": "settings.ramNoLimit",
+        "reason": "missing_key",
+        "en": "No limit (Recommended)",
+        "current_value": null
+      },
+      {
+        "key": "transcribe.error",
+        "reason": "missing_key",
+        "en": "Error",
+        "current_value": null
+      },
+      {
+        "key": "transcribe.finished",
+        "reason": "missing_key",
+        "en": "Completed",
+        "current_value": null
+      },
+      {
+        "key": "transcribe.running",
+        "reason": "missing_key",
+        "en": "Processing...",
+        "current_value": null
+      },
+      {
+        "key": "transcribe.transcribing",
+        "reason": "missing_key",
+        "en": "Transcribing...",
+        "current_value": null
+      },
+      {
+        "key": "translate.accuracySpeedDesc",
+        "reason": "missing_key",
+        "en": "Choose the accuracy profile. Higher quality yields a better translation but takes more time.",
+        "current_value": null
+      },
+      {
+        "key": "translate.accuracySpeedTitle",
+        "reason": "missing_key",
+        "en": "Accuracy & Speed",
+        "current_value": null
+      },
+      {
+        "key": "translate.batchSizeExpert",
+        "reason": "missing_key",
+        "en": "Batch Size (Subtitles per request)",
+        "current_value": null
+      },
+      {
+        "key": "translate.batchSizeExpertDesc",
+        "reason": "missing_key",
+        "en": "Number of subtitle lines sent in a single prompt to the LLM.",
+        "current_value": null
+      },
+      {
+        "key": "translate.contextCostHint",
+        "reason": "missing_key",
+        "en": "Higher = more accuracy, but costlier",
+        "current_value": null
+      },
+      {
+        "key": "translate.contextTitle",
+        "reason": "missing_key",
+        "en": "Context",
+        "current_value": null
+      },
+      {
+        "key": "translate.continuityDesc",
+        "reason": "missing_key",
+        "en": "Controls sentence flow by passing context between subtitle batches.",
+        "current_value": null
+      },
+      {
+        "key": "translate.continuityTitle",
+        "reason": "missing_key",
+        "en": "Translation Continuity",
+        "current_value": null
+      },
+      {
+        "key": "translate.overlapHigh",
+        "reason": "missing_key",
+        "en": "High",
+        "current_value": null
+      },
+      {
+        "key": "translate.overlapMinimal",
+        "reason": "missing_key",
+        "en": "Minimal",
+        "current_value": null
+      },
+      {
+        "key": "translate.overlapNone",
+        "reason": "missing_key",
+        "en": "None",
+        "current_value": null
+      },
+      {
+        "key": "translate.overlapNormal",
+        "reason": "missing_key",
+        "en": "Balanced",
+        "current_value": null
+      },
+      {
+        "key": "translate.resumeOverlapExpert",
+        "reason": "missing_key",
+        "en": "Overlap Offset",
+        "current_value": null
+      },
+      {
+        "key": "translate.resumeOverlapExpertDesc",
+        "reason": "missing_key",
+        "en": "Number of preceding subtitle lines included for context continuity.",
+        "current_value": null
+      }
+    ],
+    "de": [
+      {
+        "key": "flashcards.previewPlay",
+        "reason": "same_as_english",
+        "en": "Play",
+        "current_value": "Play"
+      },
+      {
+        "key": "settings.cpuCoresActiveHint",
+        "reason": "missing_key",
+        "en": "Click on a core block to adjust the active core count.",
+        "current_value": null
+      },
+      {
+        "key": "settings.cpuCoresActiveLabel",
+        "reason": "missing_key",
+        "en": "Active Cores",
+        "current_value": null
+      },
+      {
+        "key": "settings.cpuCoresEasyDesc",
+        "reason": "missing_key",
+        "en": "Choose how much of your computer's power to allocate for flashcard generation. Higher profiles are faster but may slow down other applications.",
+        "current_value": null
+      },
+      {
+        "key": "settings.cpuCoresEasyTitle",
+        "reason": "missing_key",
+        "en": "Computer Effort",
+        "current_value": null
+      },
+      {
+        "key": "settings.cpuCoresExpertDesc",
+        "reason": "missing_key",
+        "en": "Manually configure CPU thread allocation and memory constraints for processing.",
+        "current_value": null
+      },
+      {
+        "key": "settings.cpuCoresExpertTitle",
+        "reason": "missing_key",
+        "en": "Resource Management",
+        "current_value": null
+      },
+      {
+        "key": "settings.cpuCoresSliderLabel",
+        "reason": "missing_key",
+        "en": "Number of CPU Threads",
+        "current_value": null
+      },
+      {
+        "key": "settings.ramLimitDesc",
+        "reason": "missing_key",
+        "en": "Limits maximum RAM consumption during video clip encoding and extraction.",
+        "current_value": null
+      },
+      {
+        "key": "settings.ramLimitLabel",
+        "reason": "missing_key",
+        "en": "RAM Memory Limit",
+        "current_value": null
+      },
+      {
+        "key": "settings.ramNoLimit",
+        "reason": "missing_key",
+        "en": "No limit (Recommended)",
+        "current_value": null
+      },
+      {
+        "key": "transcribe.error",
+        "reason": "missing_key",
+        "en": "Error",
+        "current_value": null
+      },
+      {
+        "key": "transcribe.finished",
+        "reason": "missing_key",
+        "en": "Completed",
+        "current_value": null
+      },
+      {
+        "key": "transcribe.running",
+        "reason": "missing_key",
+        "en": "Processing...",
+        "current_value": null
+      },
+      {
+        "key": "transcribe.transcribing",
+        "reason": "missing_key",
+        "en": "Transcribing...",
+        "current_value": null
+      },
+      {
+        "key": "translate.accuracySpeedDesc",
+        "reason": "missing_key",
+        "en": "Choose the accuracy profile. Higher quality yields a better translation but takes more time.",
+        "current_value": null
+      },
+      {
+        "key": "translate.accuracySpeedTitle",
+        "reason": "missing_key",
+        "en": "Accuracy & Speed",
+        "current_value": null
+      },
+      {
+        "key": "translate.batchSizeExpert",
+        "reason": "missing_key",
+        "en": "Batch Size (Subtitles per request)",
+        "current_value": null
+      },
+      {
+        "key": "translate.batchSizeExpertDesc",
+        "reason": "missing_key",
+        "en": "Number of subtitle lines sent in a single prompt to the LLM.",
+        "current_value": null
+      },
+      {
+        "key": "translate.contextCostHint",
+        "reason": "missing_key",
+        "en": "Higher = more accuracy, but costlier",
+        "current_value": null
+      },
+      {
+        "key": "translate.contextTitle",
+        "reason": "missing_key",
+        "en": "Context",
+        "current_value": null
+      },
+      {
+        "key": "translate.continuityDesc",
+        "reason": "missing_key",
+        "en": "Controls sentence flow by passing context between subtitle batches.",
+        "current_value": null
+      },
+      {
+        "key": "translate.continuityTitle",
+        "reason": "missing_key",
+        "en": "Translation Continuity",
+        "current_value": null
+      },
+      {
+        "key": "translate.overlapHigh",
+        "reason": "missing_key",
+        "en": "High",
+        "current_value": null
+      },
+      {
+        "key": "translate.overlapMinimal",
+        "reason": "missing_key",
+        "en": "Minimal",
+        "current_value": null
+      },
+      {
+        "key": "translate.overlapNone",
+        "reason": "missing_key",
+        "en": "None",
+        "current_value": null
+      },
+      {
+        "key": "translate.overlapNormal",
+        "reason": "missing_key",
+        "en": "Balanced",
+        "current_value": null
+      },
+      {
+        "key": "translate.resumeOverlapExpert",
+        "reason": "missing_key",
+        "en": "Overlap Offset",
+        "current_value": null
+      },
+      {
+        "key": "translate.resumeOverlapExpertDesc",
+        "reason": "missing_key",
+        "en": "Number of preceding subtitle lines included for context continuity.",
+        "current_value": null
+      }
+    ],
+    "es": [
+      {
+        "key": "flashcards.previewPlay",
+        "reason": "same_as_english",
+        "en": "Play",
+        "current_value": "Play"
+      },
+      {
+        "key": "settings.cpuCoresActiveHint",
+        "reason": "missing_key",
+        "en": "Click on a core block to adjust the active core count.",
+        "current_value": null
+      },
+      {
+        "key": "settings.cpuCoresActiveLabel",
+        "reason": "missing_key",
+        "en": "Active Cores",
+        "current_value": null
+      },
+      {
+        "key": "settings.cpuCoresEasyDesc",
+        "reason": "missing_key",
+        "en": "Choose how much of your computer's power to allocate for flashcard generation. Higher profiles are faster but may slow down other applications.",
+        "current_value": null
+      },
+      {
+        "key": "settings.cpuCoresEasyTitle",
+        "reason": "missing_key",
+        "en": "Computer Effort",
+        "current_value": null
+      },
+      {
+        "key": "settings.cpuCoresExpertDesc",
+        "reason": "missing_key",
+        "en": "Manually configure CPU thread allocation and memory constraints for processing.",
+        "current_value": null
+      },
+      {
+        "key": "settings.cpuCoresExpertTitle",
+        "reason": "missing_key",
+        "en": "Resource Management",
+        "current_value": null
+      },
+      {
+        "key": "settings.cpuCoresSliderLabel",
+        "reason": "missing_key",
+        "en": "Number of CPU Threads",
+        "current_value": null
+      },
+      {
+        "key": "settings.ramLimitDesc",
+        "reason": "missing_key",
+        "en": "Limits maximum RAM consumption during video clip encoding and extraction.",
+        "current_value": null
+      },
+      {
+        "key": "settings.ramLimitLabel",
+        "reason": "missing_key",
+        "en": "RAM Memory Limit",
+        "current_value": null
+      },
+      {
+        "key": "settings.ramNoLimit",
+        "reason": "missing_key",
+        "en": "No limit (Recommended)",
+        "current_value": null
+      },
+      {
+        "key": "transcribe.error",
+        "reason": "missing_key",
+        "en": "Error",
+        "current_value": null
+      },
+      {
+        "key": "transcribe.finished",
+        "reason": "missing_key",
+        "en": "Completed",
+        "current_value": null
+      },
+      {
+        "key": "transcribe.running",
+        "reason": "missing_key",
+        "en": "Processing...",
+        "current_value": null
+      },
+      {
+        "key": "transcribe.transcribing",
+        "reason": "missing_key",
+        "en": "Transcribing...",
+        "current_value": null
+      },
+      {
+        "key": "translate.accuracySpeedDesc",
+        "reason": "missing_key",
+        "en": "Choose the accuracy profile. Higher quality yields a better translation but takes more time.",
+        "current_value": null
+      },
+      {
+        "key": "translate.accuracySpeedTitle",
+        "reason": "missing_key",
+        "en": "Accuracy & Speed",
+        "current_value": null
+      },
+      {
+        "key": "translate.batchSizeExpert",
+        "reason": "missing_key",
+        "en": "Batch Size (Subtitles per request)",
+        "current_value": null
+      },
+      {
+        "key": "translate.batchSizeExpertDesc",
+        "reason": "missing_key",
+        "en": "Number of subtitle lines sent in a single prompt to the LLM.",
+        "current_value": null
+      },
+      {
+        "key": "translate.contextCostHint",
+        "reason": "missing_key",
+        "en": "Higher = more accuracy, but costlier",
+        "current_value": null
+      },
+      {
+        "key": "translate.contextTitle",
+        "reason": "missing_key",
+        "en": "Context",
+        "current_value": null
+      },
+      {
+        "key": "translate.continuityDesc",
+        "reason": "missing_key",
+        "en": "Controls sentence flow by passing context between subtitle batches.",
+        "current_value": null
+      },
+      {
+        "key": "translate.continuityTitle",
+        "reason": "missing_key",
+        "en": "Translation Continuity",
+        "current_value": null
+      },
+      {
+        "key": "translate.overlapHigh",
+        "reason": "missing_key",
+        "en": "High",
+        "current_value": null
+      },
+      {
+        "key": "translate.overlapMinimal",
+        "reason": "missing_key",
+        "en": "Minimal",
+        "current_value": null
+      },
+      {
+        "key": "translate.overlapNone",
+        "reason": "missing_key",
+        "en": "None",
+        "current_value": null
+      },
+      {
+        "key": "translate.overlapNormal",
+        "reason": "missing_key",
+        "en": "Balanced",
+        "current_value": null
+      },
+      {
+        "key": "translate.resumeOverlapExpert",
+        "reason": "missing_key",
+        "en": "Overlap Offset",
+        "current_value": null
+      },
+      {
+        "key": "translate.resumeOverlapExpertDesc",
+        "reason": "missing_key",
+        "en": "Number of preceding subtitle lines included for context continuity.",
+        "current_value": null
+      }
+    ],
+    "fr": [
+      {
+        "key": "flashcards.previewPlay",
+        "reason": "same_as_english",
+        "en": "Play",
+        "current_value": "Play"
+      },
+      {
+        "key": "settings.cpuCoresActiveHint",
+        "reason": "missing_key",
+        "en": "Click on a core block to adjust the active core count.",
+        "current_value": null
+      },
+      {
+        "key": "settings.cpuCoresActiveLabel",
+        "reason": "missing_key",
+        "en": "Active Cores",
+        "current_value": null
+      },
+      {
+        "key": "settings.cpuCoresEasyDesc",
+        "reason": "missing_key",
+        "en": "Choose how much of your computer's power to allocate for flashcard generation. Higher profiles are faster but may slow down other applications.",
+        "current_value": null
+      },
+      {
+        "key": "settings.cpuCoresEasyTitle",
+        "reason": "missing_key",
+        "en": "Computer Effort",
+        "current_value": null
+      },
+      {
+        "key": "settings.cpuCoresExpertDesc",
+        "reason": "missing_key",
+        "en": "Manually configure CPU thread allocation and memory constraints for processing.",
+        "current_value": null
+      },
+      {
+        "key": "settings.cpuCoresExpertTitle",
+        "reason": "missing_key",
+        "en": "Resource Management",
+        "current_value": null
+      },
+      {
+        "key": "settings.cpuCoresSliderLabel",
+        "reason": "missing_key",
+        "en": "Number of CPU Threads",
+        "current_value": null
+      },
+      {
+        "key": "settings.ramLimitDesc",
+        "reason": "missing_key",
+        "en": "Limits maximum RAM consumption during video clip encoding and extraction.",
+        "current_value": null
+      },
+      {
+        "key": "settings.ramLimitLabel",
+        "reason": "missing_key",
+        "en": "RAM Memory Limit",
+        "current_value": null
+      },
+      {
+        "key": "settings.ramNoLimit",
+        "reason": "missing_key",
+        "en": "No limit (Recommended)",
+        "current_value": null
+      },
+      {
+        "key": "transcribe.error",
+        "reason": "missing_key",
+        "en": "Error",
+        "current_value": null
+      },
+      {
+        "key": "transcribe.finished",
+        "reason": "missing_key",
+        "en": "Completed",
+        "current_value": null
+      },
+      {
+        "key": "transcribe.running",
+        "reason": "missing_key",
+        "en": "Processing...",
+        "current_value": null
+      },
+      {
+        "key": "transcribe.transcribing",
+        "reason": "missing_key",
+        "en": "Transcribing...",
+        "current_value": null
+      },
+      {
+        "key": "translate.accuracySpeedDesc",
+        "reason": "missing_key",
+        "en": "Choose the accuracy profile. Higher quality yields a better translation but takes more time.",
+        "current_value": null
+      },
+      {
+        "key": "translate.accuracySpeedTitle",
+        "reason": "missing_key",
+        "en": "Accuracy & Speed",
+        "current_value": null
+      },
+      {
+        "key": "translate.batchSizeExpert",
+        "reason": "missing_key",
+        "en": "Batch Size (Subtitles per request)",
+        "current_value": null
+      },
+      {
+        "key": "translate.batchSizeExpertDesc",
+        "reason": "missing_key",
+        "en": "Number of subtitle lines sent in a single prompt to the LLM.",
+        "current_value": null
+      },
+      {
+        "key": "translate.contextCostHint",
+        "reason": "missing_key",
+        "en": "Higher = more accuracy, but costlier",
+        "current_value": null
+      },
+      {
+        "key": "translate.contextTitle",
+        "reason": "missing_key",
+        "en": "Context",
+        "current_value": null
+      },
+      {
+        "key": "translate.continuityDesc",
+        "reason": "missing_key",
+        "en": "Controls sentence flow by passing context between subtitle batches.",
+        "current_value": null
+      },
+      {
+        "key": "translate.continuityTitle",
+        "reason": "missing_key",
+        "en": "Translation Continuity",
+        "current_value": null
+      },
+      {
+        "key": "translate.overlapHigh",
+        "reason": "missing_key",
+        "en": "High",
+        "current_value": null
+      },
+      {
+        "key": "translate.overlapMinimal",
+        "reason": "missing_key",
+        "en": "Minimal",
+        "current_value": null
+      },
+      {
+        "key": "translate.overlapNone",
+        "reason": "missing_key",
+        "en": "None",
+        "current_value": null
+      },
+      {
+        "key": "translate.overlapNormal",
+        "reason": "missing_key",
+        "en": "Balanced",
+        "current_value": null
+      },
+      {
+        "key": "translate.resumeOverlapExpert",
+        "reason": "missing_key",
+        "en": "Overlap Offset",
+        "current_value": null
+      },
+      {
+        "key": "translate.resumeOverlapExpertDesc",
+        "reason": "missing_key",
+        "en": "Number of preceding subtitle lines included for context continuity.",
+        "current_value": null
+      }
+    ],
+    "hi": [
+      {
+        "key": "settings.cpuCoresActiveHint",
+        "reason": "missing_key",
+        "en": "Click on a core block to adjust the active core count.",
+        "current_value": null
+      },
+      {
+        "key": "settings.cpuCoresActiveLabel",
+        "reason": "missing_key",
+        "en": "Active Cores",
+        "current_value": null
+      },
+      {
+        "key": "settings.cpuCoresEasyDesc",
+        "reason": "missing_key",
+        "en": "Choose how much of your computer's power to allocate for flashcard generation. Higher profiles are faster but may slow down other applications.",
+        "current_value": null
+      },
+      {
+        "key": "settings.cpuCoresEasyTitle",
+        "reason": "missing_key",
+        "en": "Computer Effort",
+        "current_value": null
+      },
+      {
+        "key": "settings.cpuCoresExpertDesc",
+        "reason": "missing_key",
+        "en": "Manually configure CPU thread allocation and memory constraints for processing.",
+        "current_value": null
+      },
+      {
+        "key": "settings.cpuCoresExpertTitle",
+        "reason": "missing_key",
+        "en": "Resource Management",
+        "current_value": null
+      },
+      {
+        "key": "settings.cpuCoresSliderLabel",
+        "reason": "missing_key",
+        "en": "Number of CPU Threads",
+        "current_value": null
+      },
+      {
+        "key": "settings.ramLimitDesc",
+        "reason": "missing_key",
+        "en": "Limits maximum RAM consumption during video clip encoding and extraction.",
+        "current_value": null
+      },
+      {
+        "key": "settings.ramLimitLabel",
+        "reason": "missing_key",
+        "en": "RAM Memory Limit",
+        "current_value": null
+      },
+      {
+        "key": "settings.ramNoLimit",
+        "reason": "missing_key",
+        "en": "No limit (Recommended)",
+        "current_value": null
+      },
+      {
+        "key": "transcribe.error",
+        "reason": "missing_key",
+        "en": "Error",
+        "current_value": null
+      },
+      {
+        "key": "transcribe.finished",
+        "reason": "missing_key",
+        "en": "Completed",
+        "current_value": null
+      },
+      {
+        "key": "transcribe.running",
+        "reason": "missing_key",
+        "en": "Processing...",
+        "current_value": null
+      },
+      {
+        "key": "transcribe.transcribing",
+        "reason": "missing_key",
+        "en": "Transcribing...",
+        "current_value": null
+      },
+      {
+        "key": "translate.accuracySpeedDesc",
+        "reason": "missing_key",
+        "en": "Choose the accuracy profile. Higher quality yields a better translation but takes more time.",
+        "current_value": null
+      },
+      {
+        "key": "translate.accuracySpeedTitle",
+        "reason": "missing_key",
+        "en": "Accuracy & Speed",
+        "current_value": null
+      },
+      {
+        "key": "translate.batchSizeExpert",
+        "reason": "missing_key",
+        "en": "Batch Size (Subtitles per request)",
+        "current_value": null
+      },
+      {
+        "key": "translate.batchSizeExpertDesc",
+        "reason": "missing_key",
+        "en": "Number of subtitle lines sent in a single prompt to the LLM.",
+        "current_value": null
+      },
+      {
+        "key": "translate.contextCostHint",
+        "reason": "missing_key",
+        "en": "Higher = more accuracy, but costlier",
+        "current_value": null
+      },
+      {
+        "key": "translate.contextTitle",
+        "reason": "missing_key",
+        "en": "Context",
+        "current_value": null
+      },
+      {
+        "key": "translate.continuityDesc",
+        "reason": "missing_key",
+        "en": "Controls sentence flow by passing context between subtitle batches.",
+        "current_value": null
+      },
+      {
+        "key": "translate.continuityTitle",
+        "reason": "missing_key",
+        "en": "Translation Continuity",
+        "current_value": null
+      },
+      {
+        "key": "translate.overlapHigh",
+        "reason": "missing_key",
+        "en": "High",
+        "current_value": null
+      },
+      {
+        "key": "translate.overlapMinimal",
+        "reason": "missing_key",
+        "en": "Minimal",
+        "current_value": null
+      },
+      {
+        "key": "translate.overlapNone",
+        "reason": "missing_key",
+        "en": "None",
+        "current_value": null
+      },
+      {
+        "key": "translate.overlapNormal",
+        "reason": "missing_key",
+        "en": "Balanced",
+        "current_value": null
+      },
+      {
+        "key": "translate.resumeOverlapExpert",
+        "reason": "missing_key",
+        "en": "Overlap Offset",
+        "current_value": null
+      },
+      {
+        "key": "translate.resumeOverlapExpertDesc",
+        "reason": "missing_key",
+        "en": "Number of preceding subtitle lines included for context continuity.",
+        "current_value": null
+      }
+    ],
+    "it": [
+      {
+        "key": "flashcards.previewPlay",
+        "reason": "same_as_english",
+        "en": "Play",
+        "current_value": "Play"
+      }
+    ],
+    "ja": [
+      {
+        "key": "settings.cpuCoresActiveHint",
+        "reason": "missing_key",
+        "en": "Click on a core block to adjust the active core count.",
+        "current_value": null
+      },
+      {
+        "key": "settings.cpuCoresActiveLabel",
+        "reason": "missing_key",
+        "en": "Active Cores",
+        "current_value": null
+      },
+      {
+        "key": "settings.cpuCoresEasyDesc",
+        "reason": "missing_key",
+        "en": "Choose how much of your computer's power to allocate for flashcard generation. Higher profiles are faster but may slow down other applications.",
+        "current_value": null
+      },
+      {
+        "key": "settings.cpuCoresEasyTitle",
+        "reason": "missing_key",
+        "en": "Computer Effort",
+        "current_value": null
+      },
+      {
+        "key": "settings.cpuCoresExpertDesc",
+        "reason": "missing_key",
+        "en": "Manually configure CPU thread allocation and memory constraints for processing.",
+        "current_value": null
+      },
+      {
+        "key": "settings.cpuCoresExpertTitle",
+        "reason": "missing_key",
+        "en": "Resource Management",
+        "current_value": null
+      },
+      {
+        "key": "settings.cpuCoresSliderLabel",
+        "reason": "missing_key",
+        "en": "Number of CPU Threads",
+        "current_value": null
+      },
+      {
+        "key": "settings.ramLimitDesc",
+        "reason": "missing_key",
+        "en": "Limits maximum RAM consumption during video clip encoding and extraction.",
+        "current_value": null
+      },
+      {
+        "key": "settings.ramLimitLabel",
+        "reason": "missing_key",
+        "en": "RAM Memory Limit",
+        "current_value": null
+      },
+      {
+        "key": "settings.ramNoLimit",
+        "reason": "missing_key",
+        "en": "No limit (Recommended)",
+        "current_value": null
+      },
+      {
+        "key": "transcribe.error",
+        "reason": "missing_key",
+        "en": "Error",
+        "current_value": null
+      },
+      {
+        "key": "transcribe.finished",
+        "reason": "missing_key",
+        "en": "Completed",
+        "current_value": null
+      },
+      {
+        "key": "transcribe.running",
+        "reason": "missing_key",
+        "en": "Processing...",
+        "current_value": null
+      },
+      {
+        "key": "transcribe.transcribing",
+        "reason": "missing_key",
+        "en": "Transcribing...",
+        "current_value": null
+      },
+      {
+        "key": "translate.accuracySpeedDesc",
+        "reason": "missing_key",
+        "en": "Choose the accuracy profile. Higher quality yields a better translation but takes more time.",
+        "current_value": null
+      },
+      {
+        "key": "translate.accuracySpeedTitle",
+        "reason": "missing_key",
+        "en": "Accuracy & Speed",
+        "current_value": null
+      },
+      {
+        "key": "translate.batchSizeExpert",
+        "reason": "missing_key",
+        "en": "Batch Size (Subtitles per request)",
+        "current_value": null
+      },
+      {
+        "key": "translate.batchSizeExpertDesc",
+        "reason": "missing_key",
+        "en": "Number of subtitle lines sent in a single prompt to the LLM.",
+        "current_value": null
+      },
+      {
+        "key": "translate.contextCostHint",
+        "reason": "missing_key",
+        "en": "Higher = more accuracy, but costlier",
+        "current_value": null
+      },
+      {
+        "key": "translate.contextTitle",
+        "reason": "missing_key",
+        "en": "Context",
+        "current_value": null
+      },
+      {
+        "key": "translate.continuityDesc",
+        "reason": "missing_key",
+        "en": "Controls sentence flow by passing context between subtitle batches.",
+        "current_value": null
+      },
+      {
+        "key": "translate.continuityTitle",
+        "reason": "missing_key",
+        "en": "Translation Continuity",
+        "current_value": null
+      },
+      {
+        "key": "translate.overlapHigh",
+        "reason": "missing_key",
+        "en": "High",
+        "current_value": null
+      },
+      {
+        "key": "translate.overlapMinimal",
+        "reason": "missing_key",
+        "en": "Minimal",
+        "current_value": null
+      },
+      {
+        "key": "translate.overlapNone",
+        "reason": "missing_key",
+        "en": "None",
+        "current_value": null
+      },
+      {
+        "key": "translate.overlapNormal",
+        "reason": "missing_key",
+        "en": "Balanced",
+        "current_value": null
+      },
+      {
+        "key": "translate.resumeOverlapExpert",
+        "reason": "missing_key",
+        "en": "Overlap Offset",
+        "current_value": null
+      },
+      {
+        "key": "translate.resumeOverlapExpertDesc",
+        "reason": "missing_key",
+        "en": "Number of preceding subtitle lines included for context continuity.",
+        "current_value": null
+      }
+    ],
+    "ko": [
+      {
+        "key": "settings.cpuCoresActiveHint",
+        "reason": "missing_key",
+        "en": "Click on a core block to adjust the active core count.",
+        "current_value": null
+      },
+      {
+        "key": "settings.cpuCoresActiveLabel",
+        "reason": "missing_key",
+        "en": "Active Cores",
+        "current_value": null
+      },
+      {
+        "key": "settings.cpuCoresEasyDesc",
+        "reason": "missing_key",
+        "en": "Choose how much of your computer's power to allocate for flashcard generation. Higher profiles are faster but may slow down other applications.",
+        "current_value": null
+      },
+      {
+        "key": "settings.cpuCoresEasyTitle",
+        "reason": "missing_key",
+        "en": "Computer Effort",
+        "current_value": null
+      },
+      {
+        "key": "settings.cpuCoresExpertDesc",
+        "reason": "missing_key",
+        "en": "Manually configure CPU thread allocation and memory constraints for processing.",
+        "current_value": null
+      },
+      {
+        "key": "settings.cpuCoresExpertTitle",
+        "reason": "missing_key",
+        "en": "Resource Management",
+        "current_value": null
+      },
+      {
+        "key": "settings.cpuCoresSliderLabel",
+        "reason": "missing_key",
+        "en": "Number of CPU Threads",
+        "current_value": null
+      },
+      {
+        "key": "settings.ramLimitDesc",
+        "reason": "missing_key",
+        "en": "Limits maximum RAM consumption during video clip encoding and extraction.",
+        "current_value": null
+      },
+      {
+        "key": "settings.ramLimitLabel",
+        "reason": "missing_key",
+        "en": "RAM Memory Limit",
+        "current_value": null
+      },
+      {
+        "key": "settings.ramNoLimit",
+        "reason": "missing_key",
+        "en": "No limit (Recommended)",
+        "current_value": null
+      },
+      {
+        "key": "transcribe.error",
+        "reason": "missing_key",
+        "en": "Error",
+        "current_value": null
+      },
+      {
+        "key": "transcribe.finished",
+        "reason": "missing_key",
+        "en": "Completed",
+        "current_value": null
+      },
+      {
+        "key": "transcribe.running",
+        "reason": "missing_key",
+        "en": "Processing...",
+        "current_value": null
+      },
+      {
+        "key": "transcribe.transcribing",
+        "reason": "missing_key",
+        "en": "Transcribing...",
+        "current_value": null
+      },
+      {
+        "key": "translate.accuracySpeedDesc",
+        "reason": "missing_key",
+        "en": "Choose the accuracy profile. Higher quality yields a better translation but takes more time.",
+        "current_value": null
+      },
+      {
+        "key": "translate.accuracySpeedTitle",
+        "reason": "missing_key",
+        "en": "Accuracy & Speed",
+        "current_value": null
+      },
+      {
+        "key": "translate.batchSizeExpert",
+        "reason": "missing_key",
+        "en": "Batch Size (Subtitles per request)",
+        "current_value": null
+      },
+      {
+        "key": "translate.batchSizeExpertDesc",
+        "reason": "missing_key",
+        "en": "Number of subtitle lines sent in a single prompt to the LLM.",
+        "current_value": null
+      },
+      {
+        "key": "translate.contextCostHint",
+        "reason": "missing_key",
+        "en": "Higher = more accuracy, but costlier",
+        "current_value": null
+      },
+      {
+        "key": "translate.contextTitle",
+        "reason": "missing_key",
+        "en": "Context",
+        "current_value": null
+      },
+      {
+        "key": "translate.continuityDesc",
+        "reason": "missing_key",
+        "en": "Controls sentence flow by passing context between subtitle batches.",
+        "current_value": null
+      },
+      {
+        "key": "translate.continuityTitle",
+        "reason": "missing_key",
+        "en": "Translation Continuity",
+        "current_value": null
+      },
+      {
+        "key": "translate.overlapHigh",
+        "reason": "missing_key",
+        "en": "High",
+        "current_value": null
+      },
+      {
+        "key": "translate.overlapMinimal",
+        "reason": "missing_key",
+        "en": "Minimal",
+        "current_value": null
+      },
+      {
+        "key": "translate.overlapNone",
+        "reason": "missing_key",
+        "en": "None",
+        "current_value": null
+      },
+      {
+        "key": "translate.overlapNormal",
+        "reason": "missing_key",
+        "en": "Balanced",
+        "current_value": null
+      },
+      {
+        "key": "translate.resumeOverlapExpert",
+        "reason": "missing_key",
+        "en": "Overlap Offset",
+        "current_value": null
+      },
+      {
+        "key": "translate.resumeOverlapExpertDesc",
+        "reason": "missing_key",
+        "en": "Number of preceding subtitle lines included for context continuity.",
+        "current_value": null
+      }
+    ],
+    "nl": [
+      {
+        "key": "flashcards.previewPlay",
+        "reason": "same_as_english",
+        "en": "Play",
+        "current_value": "Play"
+      },
+      {
+        "key": "settings.cpuCoresActiveHint",
+        "reason": "missing_key",
+        "en": "Click on a core block to adjust the active core count.",
+        "current_value": null
+      },
+      {
+        "key": "settings.cpuCoresActiveLabel",
+        "reason": "missing_key",
+        "en": "Active Cores",
+        "current_value": null
+      },
+      {
+        "key": "settings.cpuCoresEasyDesc",
+        "reason": "missing_key",
+        "en": "Choose how much of your computer's power to allocate for flashcard generation. Higher profiles are faster but may slow down other applications.",
+        "current_value": null
+      },
+      {
+        "key": "settings.cpuCoresEasyTitle",
+        "reason": "missing_key",
+        "en": "Computer Effort",
+        "current_value": null
+      },
+      {
+        "key": "settings.cpuCoresExpertDesc",
+        "reason": "missing_key",
+        "en": "Manually configure CPU thread allocation and memory constraints for processing.",
+        "current_value": null
+      },
+      {
+        "key": "settings.cpuCoresExpertTitle",
+        "reason": "missing_key",
+        "en": "Resource Management",
+        "current_value": null
+      },
+      {
+        "key": "settings.cpuCoresSliderLabel",
+        "reason": "missing_key",
+        "en": "Number of CPU Threads",
+        "current_value": null
+      },
+      {
+        "key": "settings.ramLimitDesc",
+        "reason": "missing_key",
+        "en": "Limits maximum RAM consumption during video clip encoding and extraction.",
+        "current_value": null
+      },
+      {
+        "key": "settings.ramLimitLabel",
+        "reason": "missing_key",
+        "en": "RAM Memory Limit",
+        "current_value": null
+      },
+      {
+        "key": "settings.ramNoLimit",
+        "reason": "missing_key",
+        "en": "No limit (Recommended)",
+        "current_value": null
+      },
+      {
+        "key": "transcribe.error",
+        "reason": "missing_key",
+        "en": "Error",
+        "current_value": null
+      },
+      {
+        "key": "transcribe.finished",
+        "reason": "missing_key",
+        "en": "Completed",
+        "current_value": null
+      },
+      {
+        "key": "transcribe.running",
+        "reason": "missing_key",
+        "en": "Processing...",
+        "current_value": null
+      },
+      {
+        "key": "transcribe.transcribing",
+        "reason": "missing_key",
+        "en": "Transcribing...",
+        "current_value": null
+      },
+      {
+        "key": "translate.accuracySpeedDesc",
+        "reason": "missing_key",
+        "en": "Choose the accuracy profile. Higher quality yields a better translation but takes more time.",
+        "current_value": null
+      },
+      {
+        "key": "translate.accuracySpeedTitle",
+        "reason": "missing_key",
+        "en": "Accuracy & Speed",
+        "current_value": null
+      },
+      {
+        "key": "translate.batchSizeExpert",
+        "reason": "missing_key",
+        "en": "Batch Size (Subtitles per request)",
+        "current_value": null
+      },
+      {
+        "key": "translate.batchSizeExpertDesc",
+        "reason": "missing_key",
+        "en": "Number of subtitle lines sent in a single prompt to the LLM.",
+        "current_value": null
+      },
+      {
+        "key": "translate.contextCostHint",
+        "reason": "missing_key",
+        "en": "Higher = more accuracy, but costlier",
+        "current_value": null
+      },
+      {
+        "key": "translate.contextTitle",
+        "reason": "missing_key",
+        "en": "Context",
+        "current_value": null
+      },
+      {
+        "key": "translate.continuityDesc",
+        "reason": "missing_key",
+        "en": "Controls sentence flow by passing context between subtitle batches.",
+        "current_value": null
+      },
+      {
+        "key": "translate.continuityTitle",
+        "reason": "missing_key",
+        "en": "Translation Continuity",
+        "current_value": null
+      },
+      {
+        "key": "translate.overlapHigh",
+        "reason": "missing_key",
+        "en": "High",
+        "current_value": null
+      },
+      {
+        "key": "translate.overlapMinimal",
+        "reason": "missing_key",
+        "en": "Minimal",
+        "current_value": null
+      },
+      {
+        "key": "translate.overlapNone",
+        "reason": "missing_key",
+        "en": "None",
+        "current_value": null
+      },
+      {
+        "key": "translate.overlapNormal",
+        "reason": "missing_key",
+        "en": "Balanced",
+        "current_value": null
+      },
+      {
+        "key": "translate.resumeOverlapExpert",
+        "reason": "missing_key",
+        "en": "Overlap Offset",
+        "current_value": null
+      },
+      {
+        "key": "translate.resumeOverlapExpertDesc",
+        "reason": "missing_key",
+        "en": "Number of preceding subtitle lines included for context continuity.",
+        "current_value": null
+      }
+    ],
+    "pl": [
+      {
+        "key": "flashcards.previewPlay",
+        "reason": "same_as_english",
+        "en": "Play",
+        "current_value": "Play"
+      },
+      {
+        "key": "settings.cpuCoresActiveHint",
+        "reason": "missing_key",
+        "en": "Click on a core block to adjust the active core count.",
+        "current_value": null
+      },
+      {
+        "key": "settings.cpuCoresActiveLabel",
+        "reason": "missing_key",
+        "en": "Active Cores",
+        "current_value": null
+      },
+      {
+        "key": "settings.cpuCoresEasyDesc",
+        "reason": "missing_key",
+        "en": "Choose how much of your computer's power to allocate for flashcard generation. Higher profiles are faster but may slow down other applications.",
+        "current_value": null
+      },
+      {
+        "key": "settings.cpuCoresEasyTitle",
+        "reason": "missing_key",
+        "en": "Computer Effort",
+        "current_value": null
+      },
+      {
+        "key": "settings.cpuCoresExpertDesc",
+        "reason": "missing_key",
+        "en": "Manually configure CPU thread allocation and memory constraints for processing.",
+        "current_value": null
+      },
+      {
+        "key": "settings.cpuCoresExpertTitle",
+        "reason": "missing_key",
+        "en": "Resource Management",
+        "current_value": null
+      },
+      {
+        "key": "settings.cpuCoresSliderLabel",
+        "reason": "missing_key",
+        "en": "Number of CPU Threads",
+        "current_value": null
+      },
+      {
+        "key": "settings.ramLimitDesc",
+        "reason": "missing_key",
+        "en": "Limits maximum RAM consumption during video clip encoding and extraction.",
+        "current_value": null
+      },
+      {
+        "key": "settings.ramLimitLabel",
+        "reason": "missing_key",
+        "en": "RAM Memory Limit",
+        "current_value": null
+      },
+      {
+        "key": "settings.ramNoLimit",
+        "reason": "missing_key",
+        "en": "No limit (Recommended)",
+        "current_value": null
+      },
+      {
+        "key": "transcribe.error",
+        "reason": "missing_key",
+        "en": "Error",
+        "current_value": null
+      },
+      {
+        "key": "transcribe.finished",
+        "reason": "missing_key",
+        "en": "Completed",
+        "current_value": null
+      },
+      {
+        "key": "transcribe.running",
+        "reason": "missing_key",
+        "en": "Processing...",
+        "current_value": null
+      },
+      {
+        "key": "transcribe.transcribing",
+        "reason": "missing_key",
+        "en": "Transcribing...",
+        "current_value": null
+      },
+      {
+        "key": "translate.accuracySpeedDesc",
+        "reason": "missing_key",
+        "en": "Choose the accuracy profile. Higher quality yields a better translation but takes more time.",
+        "current_value": null
+      },
+      {
+        "key": "translate.accuracySpeedTitle",
+        "reason": "missing_key",
+        "en": "Accuracy & Speed",
+        "current_value": null
+      },
+      {
+        "key": "translate.batchSizeExpert",
+        "reason": "missing_key",
+        "en": "Batch Size (Subtitles per request)",
+        "current_value": null
+      },
+      {
+        "key": "translate.batchSizeExpertDesc",
+        "reason": "missing_key",
+        "en": "Number of subtitle lines sent in a single prompt to the LLM.",
+        "current_value": null
+      },
+      {
+        "key": "translate.contextCostHint",
+        "reason": "missing_key",
+        "en": "Higher = more accuracy, but costlier",
+        "current_value": null
+      },
+      {
+        "key": "translate.contextTitle",
+        "reason": "missing_key",
+        "en": "Context",
+        "current_value": null
+      },
+      {
+        "key": "translate.continuityDesc",
+        "reason": "missing_key",
+        "en": "Controls sentence flow by passing context between subtitle batches.",
+        "current_value": null
+      },
+      {
+        "key": "translate.continuityTitle",
+        "reason": "missing_key",
+        "en": "Translation Continuity",
+        "current_value": null
+      },
+      {
+        "key": "translate.overlapHigh",
+        "reason": "missing_key",
+        "en": "High",
+        "current_value": null
+      },
+      {
+        "key": "translate.overlapMinimal",
+        "reason": "missing_key",
+        "en": "Minimal",
+        "current_value": null
+      },
+      {
+        "key": "translate.overlapNone",
+        "reason": "missing_key",
+        "en": "None",
+        "current_value": null
+      },
+      {
+        "key": "translate.overlapNormal",
+        "reason": "missing_key",
+        "en": "Balanced",
+        "current_value": null
+      },
+      {
+        "key": "translate.resumeOverlapExpert",
+        "reason": "missing_key",
+        "en": "Overlap Offset",
+        "current_value": null
+      },
+      {
+        "key": "translate.resumeOverlapExpertDesc",
+        "reason": "missing_key",
+        "en": "Number of preceding subtitle lines included for context continuity.",
+        "current_value": null
+      }
+    ],
+    "pt": [
+      {
+        "key": "flashcards.completePrefix",
+        "reason": "same_as_english",
+        "en": "Complete: {{steps}}",
+        "current_value": "Complete: {{steps}}"
+      },
+      {
+        "key": "flashcards.previewPlay",
+        "reason": "same_as_english",
+        "en": "Play",
+        "current_value": "Play"
+      },
+      {
+        "key": "settings.cpuCoresActiveHint",
+        "reason": "missing_key",
+        "en": "Click on a core block to adjust the active core count.",
+        "current_value": null
+      },
+      {
+        "key": "settings.cpuCoresActiveLabel",
+        "reason": "missing_key",
+        "en": "Active Cores",
+        "current_value": null
+      },
+      {
+        "key": "settings.cpuCoresEasyDesc",
+        "reason": "missing_key",
+        "en": "Choose how much of your computer's power to allocate for flashcard generation. Higher profiles are faster but may slow down other applications.",
+        "current_value": null
+      },
+      {
+        "key": "settings.cpuCoresEasyTitle",
+        "reason": "missing_key",
+        "en": "Computer Effort",
+        "current_value": null
+      },
+      {
+        "key": "settings.cpuCoresExpertDesc",
+        "reason": "missing_key",
+        "en": "Manually configure CPU thread allocation and memory constraints for processing.",
+        "current_value": null
+      },
+      {
+        "key": "settings.cpuCoresExpertTitle",
+        "reason": "missing_key",
+        "en": "Resource Management",
+        "current_value": null
+      },
+      {
+        "key": "settings.cpuCoresSliderLabel",
+        "reason": "missing_key",
+        "en": "Number of CPU Threads",
+        "current_value": null
+      },
+      {
+        "key": "settings.ramLimitDesc",
+        "reason": "missing_key",
+        "en": "Limits maximum RAM consumption during video clip encoding and extraction.",
+        "current_value": null
+      },
+      {
+        "key": "settings.ramLimitLabel",
+        "reason": "missing_key",
+        "en": "RAM Memory Limit",
+        "current_value": null
+      },
+      {
+        "key": "settings.ramNoLimit",
+        "reason": "missing_key",
+        "en": "No limit (Recommended)",
+        "current_value": null
+      },
+      {
+        "key": "transcribe.error",
+        "reason": "missing_key",
+        "en": "Error",
+        "current_value": null
+      },
+      {
+        "key": "transcribe.finished",
+        "reason": "missing_key",
+        "en": "Completed",
+        "current_value": null
+      },
+      {
+        "key": "transcribe.running",
+        "reason": "missing_key",
+        "en": "Processing...",
+        "current_value": null
+      },
+      {
+        "key": "transcribe.transcribing",
+        "reason": "missing_key",
+        "en": "Transcribing...",
+        "current_value": null
+      },
+      {
+        "key": "translate.accuracySpeedDesc",
+        "reason": "missing_key",
+        "en": "Choose the accuracy profile. Higher quality yields a better translation but takes more time.",
+        "current_value": null
+      },
+      {
+        "key": "translate.accuracySpeedTitle",
+        "reason": "missing_key",
+        "en": "Accuracy & Speed",
+        "current_value": null
+      },
+      {
+        "key": "translate.batchSizeExpert",
+        "reason": "missing_key",
+        "en": "Batch Size (Subtitles per request)",
+        "current_value": null
+      },
+      {
+        "key": "translate.batchSizeExpertDesc",
+        "reason": "missing_key",
+        "en": "Number of subtitle lines sent in a single prompt to the LLM.",
+        "current_value": null
+      },
+      {
+        "key": "translate.contextCostHint",
+        "reason": "missing_key",
+        "en": "Higher = more accuracy, but costlier",
+        "current_value": null
+      },
+      {
+        "key": "translate.contextTitle",
+        "reason": "missing_key",
+        "en": "Context",
+        "current_value": null
+      },
+      {
+        "key": "translate.continuityDesc",
+        "reason": "missing_key",
+        "en": "Controls sentence flow by passing context between subtitle batches.",
+        "current_value": null
+      },
+      {
+        "key": "translate.continuityTitle",
+        "reason": "missing_key",
+        "en": "Translation Continuity",
+        "current_value": null
+      },
+      {
+        "key": "translate.overlapHigh",
+        "reason": "missing_key",
+        "en": "High",
+        "current_value": null
+      },
+      {
+        "key": "translate.overlapMinimal",
+        "reason": "missing_key",
+        "en": "Minimal",
+        "current_value": null
+      },
+      {
+        "key": "translate.overlapNone",
+        "reason": "missing_key",
+        "en": "None",
+        "current_value": null
+      },
+      {
+        "key": "translate.overlapNormal",
+        "reason": "missing_key",
+        "en": "Balanced",
+        "current_value": null
+      },
+      {
+        "key": "translate.resumeOverlapExpert",
+        "reason": "missing_key",
+        "en": "Overlap Offset",
+        "current_value": null
+      },
+      {
+        "key": "translate.resumeOverlapExpertDesc",
+        "reason": "missing_key",
+        "en": "Number of preceding subtitle lines included for context continuity.",
+        "current_value": null
+      }
+    ],
+    "ru": [
+      {
+        "key": "flashcards.previewPlay",
+        "reason": "same_as_english",
+        "en": "Play",
+        "current_value": "Play"
+      },
+      {
+        "key": "settings.cpuCoresActiveHint",
+        "reason": "missing_key",
+        "en": "Click on a core block to adjust the active core count.",
+        "current_value": null
+      },
+      {
+        "key": "settings.cpuCoresActiveLabel",
+        "reason": "missing_key",
+        "en": "Active Cores",
+        "current_value": null
+      },
+      {
+        "key": "settings.cpuCoresEasyDesc",
+        "reason": "missing_key",
+        "en": "Choose how much of your computer's power to allocate for flashcard generation. Higher profiles are faster but may slow down other applications.",
+        "current_value": null
+      },
+      {
+        "key": "settings.cpuCoresEasyTitle",
+        "reason": "missing_key",
+        "en": "Computer Effort",
+        "current_value": null
+      },
+      {
+        "key": "settings.cpuCoresExpertDesc",
+        "reason": "missing_key",
+        "en": "Manually configure CPU thread allocation and memory constraints for processing.",
+        "current_value": null
+      },
+      {
+        "key": "settings.cpuCoresExpertTitle",
+        "reason": "missing_key",
+        "en": "Resource Management",
+        "current_value": null
+      },
+      {
+        "key": "settings.cpuCoresSliderLabel",
+        "reason": "missing_key",
+        "en": "Number of CPU Threads",
+        "current_value": null
+      },
+      {
+        "key": "settings.ramLimitDesc",
+        "reason": "missing_key",
+        "en": "Limits maximum RAM consumption during video clip encoding and extraction.",
+        "current_value": null
+      },
+      {
+        "key": "settings.ramLimitLabel",
+        "reason": "missing_key",
+        "en": "RAM Memory Limit",
+        "current_value": null
+      },
+      {
+        "key": "settings.ramNoLimit",
+        "reason": "missing_key",
+        "en": "No limit (Recommended)",
+        "current_value": null
+      },
+      {
+        "key": "transcribe.error",
+        "reason": "missing_key",
+        "en": "Error",
+        "current_value": null
+      },
+      {
+        "key": "transcribe.finished",
+        "reason": "missing_key",
+        "en": "Completed",
+        "current_value": null
+      },
+      {
+        "key": "transcribe.running",
+        "reason": "missing_key",
+        "en": "Processing...",
+        "current_value": null
+      },
+      {
+        "key": "transcribe.transcribing",
+        "reason": "missing_key",
+        "en": "Transcribing...",
+        "current_value": null
+      },
+      {
+        "key": "translate.accuracySpeedDesc",
+        "reason": "missing_key",
+        "en": "Choose the accuracy profile. Higher quality yields a better translation but takes more time.",
+        "current_value": null
+      },
+      {
+        "key": "translate.accuracySpeedTitle",
+        "reason": "missing_key",
+        "en": "Accuracy & Speed",
+        "current_value": null
+      },
+      {
+        "key": "translate.batchSizeExpert",
+        "reason": "missing_key",
+        "en": "Batch Size (Subtitles per request)",
+        "current_value": null
+      },
+      {
+        "key": "translate.batchSizeExpertDesc",
+        "reason": "missing_key",
+        "en": "Number of subtitle lines sent in a single prompt to the LLM.",
+        "current_value": null
+      },
+      {
+        "key": "translate.contextCostHint",
+        "reason": "missing_key",
+        "en": "Higher = more accuracy, but costlier",
+        "current_value": null
+      },
+      {
+        "key": "translate.contextTitle",
+        "reason": "missing_key",
+        "en": "Context",
+        "current_value": null
+      },
+      {
+        "key": "translate.continuityDesc",
+        "reason": "missing_key",
+        "en": "Controls sentence flow by passing context between subtitle batches.",
+        "current_value": null
+      },
+      {
+        "key": "translate.continuityTitle",
+        "reason": "missing_key",
+        "en": "Translation Continuity",
+        "current_value": null
+      },
+      {
+        "key": "translate.overlapHigh",
+        "reason": "missing_key",
+        "en": "High",
+        "current_value": null
+      },
+      {
+        "key": "translate.overlapMinimal",
+        "reason": "missing_key",
+        "en": "Minimal",
+        "current_value": null
+      },
+      {
+        "key": "translate.overlapNone",
+        "reason": "missing_key",
+        "en": "None",
+        "current_value": null
+      },
+      {
+        "key": "translate.overlapNormal",
+        "reason": "missing_key",
+        "en": "Balanced",
+        "current_value": null
+      },
+      {
+        "key": "translate.resumeOverlapExpert",
+        "reason": "missing_key",
+        "en": "Overlap Offset",
+        "current_value": null
+      },
+      {
+        "key": "translate.resumeOverlapExpertDesc",
+        "reason": "missing_key",
+        "en": "Number of preceding subtitle lines included for context continuity.",
+        "current_value": null
+      }
+    ],
+    "tr": [
+      {
+        "key": "flashcards.previewPlay",
+        "reason": "same_as_english",
+        "en": "Play",
+        "current_value": "Play"
+      },
+      {
+        "key": "settings.cpuCoresActiveHint",
+        "reason": "missing_key",
+        "en": "Click on a core block to adjust the active core count.",
+        "current_value": null
+      },
+      {
+        "key": "settings.cpuCoresActiveLabel",
+        "reason": "missing_key",
+        "en": "Active Cores",
+        "current_value": null
+      },
+      {
+        "key": "settings.cpuCoresEasyDesc",
+        "reason": "missing_key",
+        "en": "Choose how much of your computer's power to allocate for flashcard generation. Higher profiles are faster but may slow down other applications.",
+        "current_value": null
+      },
+      {
+        "key": "settings.cpuCoresEasyTitle",
+        "reason": "missing_key",
+        "en": "Computer Effort",
+        "current_value": null
+      },
+      {
+        "key": "settings.cpuCoresExpertDesc",
+        "reason": "missing_key",
+        "en": "Manually configure CPU thread allocation and memory constraints for processing.",
+        "current_value": null
+      },
+      {
+        "key": "settings.cpuCoresExpertTitle",
+        "reason": "missing_key",
+        "en": "Resource Management",
+        "current_value": null
+      },
+      {
+        "key": "settings.cpuCoresSliderLabel",
+        "reason": "missing_key",
+        "en": "Number of CPU Threads",
+        "current_value": null
+      },
+      {
+        "key": "settings.ramLimitDesc",
+        "reason": "missing_key",
+        "en": "Limits maximum RAM consumption during video clip encoding and extraction.",
+        "current_value": null
+      },
+      {
+        "key": "settings.ramLimitLabel",
+        "reason": "missing_key",
+        "en": "RAM Memory Limit",
+        "current_value": null
+      },
+      {
+        "key": "settings.ramNoLimit",
+        "reason": "missing_key",
+        "en": "No limit (Recommended)",
+        "current_value": null
+      },
+      {
+        "key": "transcribe.error",
+        "reason": "missing_key",
+        "en": "Error",
+        "current_value": null
+      },
+      {
+        "key": "transcribe.finished",
+        "reason": "missing_key",
+        "en": "Completed",
+        "current_value": null
+      },
+      {
+        "key": "transcribe.running",
+        "reason": "missing_key",
+        "en": "Processing...",
+        "current_value": null
+      },
+      {
+        "key": "transcribe.transcribing",
+        "reason": "missing_key",
+        "en": "Transcribing...",
+        "current_value": null
+      },
+      {
+        "key": "translate.accuracySpeedDesc",
+        "reason": "missing_key",
+        "en": "Choose the accuracy profile. Higher quality yields a better translation but takes more time.",
+        "current_value": null
+      },
+      {
+        "key": "translate.accuracySpeedTitle",
+        "reason": "missing_key",
+        "en": "Accuracy & Speed",
+        "current_value": null
+      },
+      {
+        "key": "translate.batchSizeExpert",
+        "reason": "missing_key",
+        "en": "Batch Size (Subtitles per request)",
+        "current_value": null
+      },
+      {
+        "key": "translate.batchSizeExpertDesc",
+        "reason": "missing_key",
+        "en": "Number of subtitle lines sent in a single prompt to the LLM.",
+        "current_value": null
+      },
+      {
+        "key": "translate.contextCostHint",
+        "reason": "missing_key",
+        "en": "Higher = more accuracy, but costlier",
+        "current_value": null
+      },
+      {
+        "key": "translate.contextTitle",
+        "reason": "missing_key",
+        "en": "Context",
+        "current_value": null
+      },
+      {
+        "key": "translate.continuityDesc",
+        "reason": "missing_key",
+        "en": "Controls sentence flow by passing context between subtitle batches.",
+        "current_value": null
+      },
+      {
+        "key": "translate.continuityTitle",
+        "reason": "missing_key",
+        "en": "Translation Continuity",
+        "current_value": null
+      },
+      {
+        "key": "translate.overlapHigh",
+        "reason": "missing_key",
+        "en": "High",
+        "current_value": null
+      },
+      {
+        "key": "translate.overlapMinimal",
+        "reason": "missing_key",
+        "en": "Minimal",
+        "current_value": null
+      },
+      {
+        "key": "translate.overlapNone",
+        "reason": "missing_key",
+        "en": "None",
+        "current_value": null
+      },
+      {
+        "key": "translate.overlapNormal",
+        "reason": "missing_key",
+        "en": "Balanced",
+        "current_value": null
+      },
+      {
+        "key": "translate.resumeOverlapExpert",
+        "reason": "missing_key",
+        "en": "Overlap Offset",
+        "current_value": null
+      },
+      {
+        "key": "translate.resumeOverlapExpertDesc",
+        "reason": "missing_key",
+        "en": "Number of preceding subtitle lines included for context continuity.",
+        "current_value": null
+      }
+    ],
+    "zh": [
+      {
+        "key": "settings.cpuCoresActiveHint",
+        "reason": "missing_key",
+        "en": "Click on a core block to adjust the active core count.",
+        "current_value": null
+      },
+      {
+        "key": "settings.cpuCoresActiveLabel",
+        "reason": "missing_key",
+        "en": "Active Cores",
+        "current_value": null
+      },
+      {
+        "key": "settings.cpuCoresEasyDesc",
+        "reason": "missing_key",
+        "en": "Choose how much of your computer's power to allocate for flashcard generation. Higher profiles are faster but may slow down other applications.",
+        "current_value": null
+      },
+      {
+        "key": "settings.cpuCoresEasyTitle",
+        "reason": "missing_key",
+        "en": "Computer Effort",
+        "current_value": null
+      },
+      {
+        "key": "settings.cpuCoresExpertDesc",
+        "reason": "missing_key",
+        "en": "Manually configure CPU thread allocation and memory constraints for processing.",
+        "current_value": null
+      },
+      {
+        "key": "settings.cpuCoresExpertTitle",
+        "reason": "missing_key",
+        "en": "Resource Management",
+        "current_value": null
+      },
+      {
+        "key": "settings.cpuCoresSliderLabel",
+        "reason": "missing_key",
+        "en": "Number of CPU Threads",
+        "current_value": null
+      },
+      {
+        "key": "settings.ramLimitDesc",
+        "reason": "missing_key",
+        "en": "Limits maximum RAM consumption during video clip encoding and extraction.",
+        "current_value": null
+      },
+      {
+        "key": "settings.ramLimitLabel",
+        "reason": "missing_key",
+        "en": "RAM Memory Limit",
+        "current_value": null
+      },
+      {
+        "key": "settings.ramNoLimit",
+        "reason": "missing_key",
+        "en": "No limit (Recommended)",
+        "current_value": null
+      },
+      {
+        "key": "transcribe.error",
+        "reason": "missing_key",
+        "en": "Error",
+        "current_value": null
+      },
+      {
+        "key": "transcribe.finished",
+        "reason": "missing_key",
+        "en": "Completed",
+        "current_value": null
+      },
+      {
+        "key": "transcribe.running",
+        "reason": "missing_key",
+        "en": "Processing...",
+        "current_value": null
+      },
+      {
+        "key": "transcribe.transcribing",
+        "reason": "missing_key",
+        "en": "Transcribing...",
+        "current_value": null
+      },
+      {
+        "key": "translate.accuracySpeedDesc",
+        "reason": "missing_key",
+        "en": "Choose the accuracy profile. Higher quality yields a better translation but takes more time.",
+        "current_value": null
+      },
+      {
+        "key": "translate.accuracySpeedTitle",
+        "reason": "missing_key",
+        "en": "Accuracy & Speed",
+        "current_value": null
+      },
+      {
+        "key": "translate.batchSizeExpert",
+        "reason": "missing_key",
+        "en": "Batch Size (Subtitles per request)",
+        "current_value": null
+      },
+      {
+        "key": "translate.batchSizeExpertDesc",
+        "reason": "missing_key",
+        "en": "Number of subtitle lines sent in a single prompt to the LLM.",
+        "current_value": null
+      },
+      {
+        "key": "translate.contextCostHint",
+        "reason": "missing_key",
+        "en": "Higher = more accuracy, but costlier",
+        "current_value": null
+      },
+      {
+        "key": "translate.contextTitle",
+        "reason": "missing_key",
+        "en": "Context",
+        "current_value": null
+      },
+      {
+        "key": "translate.continuityDesc",
+        "reason": "missing_key",
+        "en": "Controls sentence flow by passing context between subtitle batches.",
+        "current_value": null
+      },
+      {
+        "key": "translate.continuityTitle",
+        "reason": "missing_key",
+        "en": "Translation Continuity",
+        "current_value": null
+      },
+      {
+        "key": "translate.overlapHigh",
+        "reason": "missing_key",
+        "en": "High",
+        "current_value": null
+      },
+      {
+        "key": "translate.overlapMinimal",
+        "reason": "missing_key",
+        "en": "Minimal",
+        "current_value": null
+      },
+      {
+        "key": "translate.overlapNone",
+        "reason": "missing_key",
+        "en": "None",
+        "current_value": null
+      },
+      {
+        "key": "translate.overlapNormal",
+        "reason": "missing_key",
+        "en": "Balanced",
+        "current_value": null
+      },
+      {
+        "key": "translate.resumeOverlapExpert",
+        "reason": "missing_key",
+        "en": "Overlap Offset",
+        "current_value": null
+      },
+      {
+        "key": "translate.resumeOverlapExpertDesc",
+        "reason": "missing_key",
+        "en": "Number of preceding subtitle lines included for context continuity.",
+        "current_value": null
+      }
+    ]
+  }
 }
