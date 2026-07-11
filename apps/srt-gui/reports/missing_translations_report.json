@@ -26,7 +26,7 @@
     "ar": 28,
     "de": 29,
     "es": 29,
-    "fr": 29,
+    "fr": 30,
     "hi": 28,
     "it": 1,
     "ja": 28,
@@ -38,10 +38,22 @@
     "tr": 29,
     "zh": 28
   },
-  "total_keys_with_issues": 30,
+  "total_keys_with_issues": 31,
   "orphan_keys_count": 0,
   "orphan_keys": [],
   "missing_keys": {
+    "align.page": {
+      "locales": [
+        "fr"
+      ],
+      "details": [
+        {
+          "locale": "fr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        }
+      ]
+    },
     "flashcards.completePrefix": {
       "locales": [
         "pt"
@@ -133,67 +145,67 @@
       "details": [
         {
           "locale": "ar",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "de",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "es",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "fr",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "hi",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "ja",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "ko",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "nl",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "pl",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "pt",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "ru",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "tr",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "zh",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         }
       ]
@@ -217,67 +229,67 @@
       "details": [
         {
           "locale": "ar",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "de",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "es",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "fr",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "hi",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "ja",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "ko",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "nl",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "pl",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "pt",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "ru",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "tr",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "zh",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         }
       ]
@@ -301,67 +313,67 @@
       "details": [
         {
           "locale": "ar",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "de",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "es",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "fr",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "hi",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "ja",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "ko",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "nl",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "pl",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "pt",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "ru",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "tr",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "zh",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         }
       ]
@@ -385,67 +397,67 @@
       "details": [
         {
           "locale": "ar",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "de",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "es",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "fr",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "hi",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "ja",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "ko",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "nl",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "pl",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "pt",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "ru",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "tr",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "zh",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         }
       ]
@@ -469,67 +481,67 @@
       "details": [
         {
           "locale": "ar",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "de",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "es",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "fr",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "hi",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "ja",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "ko",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "nl",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "pl",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "pt",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "ru",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "tr",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "zh",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         }
       ]
@@ -553,67 +565,67 @@
       "details": [
         {
           "locale": "ar",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "de",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "es",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "fr",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "hi",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "ja",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "ko",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "nl",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "pl",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "pt",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "ru",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "tr",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "zh",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         }
       ]
@@ -637,67 +649,67 @@
       "details": [
         {
           "locale": "ar",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "de",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "es",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "fr",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "hi",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "ja",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "ko",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "nl",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "pl",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "pt",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "ru",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "tr",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "zh",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         }
       ]
@@ -721,67 +733,67 @@
       "details": [
         {
           "locale": "ar",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "de",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "es",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "fr",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "hi",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "ja",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "ko",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "nl",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "pl",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "pt",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "ru",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "tr",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "zh",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         }
       ]
@@ -805,67 +817,67 @@
       "details": [
         {
           "locale": "ar",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "de",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "es",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "fr",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "hi",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "ja",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "ko",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "nl",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "pl",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "pt",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "ru",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "tr",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "zh",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         }
       ]
@@ -889,67 +901,67 @@
       "details": [
         {
           "locale": "ar",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "de",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "es",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "fr",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "hi",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "ja",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "ko",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "nl",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "pl",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "pt",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "ru",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "tr",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "zh",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         }
       ]
@@ -973,67 +985,67 @@
       "details": [
         {
           "locale": "ar",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "de",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "es",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "fr",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "hi",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "ja",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "ko",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "nl",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "pl",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "pt",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "ru",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "tr",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "zh",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         }
       ]
@@ -1057,67 +1069,67 @@
       "details": [
         {
           "locale": "ar",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "de",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "es",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "fr",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "hi",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "ja",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "ko",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "nl",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "pl",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "pt",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "ru",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "tr",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "zh",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         }
       ]
@@ -1141,67 +1153,67 @@
       "details": [
         {
           "locale": "ar",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "de",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "es",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "fr",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "hi",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "ja",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "ko",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "nl",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "pl",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "pt",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "ru",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "tr",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "zh",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         }
       ]
@@ -1225,67 +1237,67 @@
       "details": [
         {
           "locale": "ar",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "de",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "es",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "fr",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "hi",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "ja",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "ko",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "nl",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "pl",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "pt",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "ru",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "tr",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "zh",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         }
       ]
@@ -1309,67 +1321,67 @@
       "details": [
         {
           "locale": "ar",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "de",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "es",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "fr",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "hi",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "ja",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "ko",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "nl",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "pl",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "pt",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "ru",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "tr",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "zh",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         }
       ]
@@ -1393,67 +1405,67 @@
       "details": [
         {
           "locale": "ar",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "de",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "es",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "fr",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "hi",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "ja",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "ko",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "nl",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "pl",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "pt",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "ru",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "tr",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "zh",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         }
       ]
@@ -1477,67 +1489,67 @@
       "details": [
         {
           "locale": "ar",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "de",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "es",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "fr",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "hi",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "ja",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "ko",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "nl",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "pl",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "pt",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "ru",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "tr",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "zh",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         }
       ]
@@ -1561,67 +1573,67 @@
       "details": [
         {
           "locale": "ar",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "de",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "es",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "fr",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "hi",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "ja",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "ko",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "nl",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "pl",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "pt",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "ru",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "tr",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "zh",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         }
       ]
@@ -1645,67 +1657,67 @@
       "details": [
         {
           "locale": "ar",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "de",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "es",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "fr",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "hi",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "ja",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "ko",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "nl",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "pl",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "pt",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "ru",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "tr",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "zh",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         }
       ]
@@ -1729,67 +1741,67 @@
       "details": [
         {
           "locale": "ar",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "de",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "es",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "fr",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "hi",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "ja",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "ko",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "nl",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "pl",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "pt",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "ru",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "tr",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "zh",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         }
       ]
@@ -1813,67 +1825,67 @@
       "details": [
         {
           "locale": "ar",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "de",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "es",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "fr",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "hi",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "ja",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "ko",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "nl",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "pl",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "pt",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "ru",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "tr",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "zh",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         }
       ]
@@ -1897,67 +1909,67 @@
       "details": [
         {
           "locale": "ar",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "de",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "es",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "fr",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "hi",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "ja",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "ko",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "nl",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "pl",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "pt",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "ru",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "tr",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "zh",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         }
       ]
@@ -1981,67 +1993,67 @@
       "details": [
         {
           "locale": "ar",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "de",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "es",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "fr",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "hi",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "ja",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "ko",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "nl",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "pl",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "pt",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "ru",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "tr",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "zh",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         }
       ]
@@ -2065,67 +2077,67 @@
       "details": [
         {
           "locale": "ar",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "de",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "es",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "fr",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "hi",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "ja",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "ko",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "nl",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "pl",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "pt",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "ru",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "tr",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "zh",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         }
       ]
@@ -2149,67 +2161,67 @@
       "details": [
         {
           "locale": "ar",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "de",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "es",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "fr",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "hi",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "ja",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "ko",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "nl",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "pl",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "pt",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "ru",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "tr",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "zh",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         }
       ]
@@ -2233,67 +2245,67 @@
       "details": [
         {
           "locale": "ar",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "de",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "es",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "fr",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "hi",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "ja",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "ko",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "nl",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "pl",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "pt",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "ru",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "tr",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "zh",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         }
       ]
@@ -2317,67 +2329,67 @@
       "details": [
         {
           "locale": "ar",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "de",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "es",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "fr",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "hi",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "ja",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "ko",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "nl",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "pl",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "pt",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "ru",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "tr",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "zh",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         }
       ]
@@ -2401,67 +2413,67 @@
       "details": [
         {
           "locale": "ar",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "de",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "es",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "fr",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "hi",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "ja",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "ko",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "nl",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "pl",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "pt",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "ru",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "tr",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         },
         {
           "locale": "zh",
-          "reason": "missing_key",
+          "reason": "same_as_english",
           "directory": "locales"
         }
       ]
@@ -2470,26 +2482,23 @@
   "translation_tasks_summary": {
     "ar": {
       "total": 28,
-      "missing_key": 28
+      "same_as_english": 28
     },
     "de": {
       "total": 29,
-      "same_as_english": 1,
-      "missing_key": 28
+      "same_as_english": 29
     },
     "es": {
       "total": 29,
-      "same_as_english": 1,
-      "missing_key": 28
+      "same_as_english": 29
     },
     "fr": {
-      "total": 29,
-      "same_as_english": 1,
-      "missing_key": 28
+      "total": 30,
+      "same_as_english": 30
     },
     "hi": {
       "total": 28,
-      "missing_key": 28
+      "same_as_english": 28
     },
     "it": {
       "total": 1,
@@ -2497,211 +2506,206 @@
     },
     "ja": {
       "total": 28,
-      "missing_key": 28
+      "same_as_english": 28
     },
     "ko": {
       "total": 28,
-      "missing_key": 28
+      "same_as_english": 28
     },
     "nl": {
       "total": 29,
-      "same_as_english": 1,
-      "missing_key": 28
+      "same_as_english": 29
     },
     "pl": {
       "total": 29,
-      "same_as_english": 1,
-      "missing_key": 28
+      "same_as_english": 29
     },
     "pt": {
       "total": 30,
-      "same_as_english": 2,
-      "missing_key": 28
+      "same_as_english": 30
     },
     "ru": {
       "total": 29,
-      "same_as_english": 1,
-      "missing_key": 28
+      "same_as_english": 29
     },
     "tr": {
       "total": 29,
-      "same_as_english": 1,
-      "missing_key": 28
+      "same_as_english": 29
     },
     "zh": {
       "total": 28,
-      "missing_key": 28
+      "same_as_english": 28
     }
   },
   "translation_tasks": {
     "ar": [
       {
         "key": "settings.cpuCoresActiveHint",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Click on a core block to adjust the active core count.",
-        "current_value": null
+        "current_value": "Click on a core block to adjust the active core count."
       },
       {
         "key": "settings.cpuCoresActiveLabel",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Active Cores",
-        "current_value": null
+        "current_value": "Active Cores"
       },
       {
         "key": "settings.cpuCoresEasyDesc",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Choose how much of your computer's power to allocate for flashcard generation. Higher profiles are faster but may slow down other applications.",
-        "current_value": null
+        "current_value": "Choose how much of your computer's power to allocate for flashcard generation. Higher profiles are faster but may slow down other applications."
       },
       {
         "key": "settings.cpuCoresEasyTitle",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Computer Effort",
-        "current_value": null
+        "current_value": "Computer Effort"
       },
       {
         "key": "settings.cpuCoresExpertDesc",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Manually configure CPU thread allocation and memory constraints for processing.",
-        "current_value": null
+        "current_value": "Manually configure CPU thread allocation and memory constraints for processing."
       },
       {
         "key": "settings.cpuCoresExpertTitle",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Resource Management",
-        "current_value": null
+        "current_value": "Resource Management"
       },
       {
         "key": "settings.cpuCoresSliderLabel",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Number of CPU Threads",
-        "current_value": null
+        "current_value": "Number of CPU Threads"
       },
       {
         "key": "settings.ramLimitDesc",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Limits maximum RAM consumption during video clip encoding and extraction.",
-        "current_value": null
+        "current_value": "Limits maximum RAM consumption during video clip encoding and extraction."
       },
       {
         "key": "settings.ramLimitLabel",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "RAM Memory Limit",
-        "current_value": null
+        "current_value": "RAM Memory Limit"
       },
       {
         "key": "settings.ramNoLimit",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "No limit (Recommended)",
-        "current_value": null
+        "current_value": "No limit (Recommended)"
       },
       {
         "key": "transcribe.error",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Error",
-        "current_value": null
+        "current_value": "Error"
       },
       {
         "key": "transcribe.finished",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Completed",
-        "current_value": null
+        "current_value": "Completed"
       },
       {
         "key": "transcribe.running",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Processing...",
-        "current_value": null
+        "current_value": "Processing..."
       },
       {
         "key": "transcribe.transcribing",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Transcribing...",
-        "current_value": null
+        "current_value": "Transcribing..."
       },
       {
         "key": "translate.accuracySpeedDesc",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Choose the accuracy profile. Higher quality yields a better translation but takes more time.",
-        "current_value": null
+        "current_value": "Choose the accuracy profile. Higher quality yields a better translation but takes more time."
       },
       {
         "key": "translate.accuracySpeedTitle",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Accuracy & Speed",
-        "current_value": null
+        "current_value": "Accuracy & Speed"
       },
       {
         "key": "translate.batchSizeExpert",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Batch Size (Subtitles per request)",
-        "current_value": null
+        "current_value": "Batch Size (Subtitles per request)"
       },
       {
         "key": "translate.batchSizeExpertDesc",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Number of subtitle lines sent in a single prompt to the LLM.",
-        "current_value": null
+        "current_value": "Number of subtitle lines sent in a single prompt to the LLM."
       },
       {
         "key": "translate.contextCostHint",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Higher = more accuracy, but costlier",
-        "current_value": null
+        "current_value": "Higher = more accuracy, but costlier"
       },
       {
         "key": "translate.contextTitle",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Context",
-        "current_value": null
+        "current_value": "Context"
       },
       {
         "key": "translate.continuityDesc",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Controls sentence flow by passing context between subtitle batches.",
-        "current_value": null
+        "current_value": "Controls sentence flow by passing context between subtitle batches."
       },
       {
         "key": "translate.continuityTitle",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Translation Continuity",
-        "current_value": null
+        "current_value": "Translation Continuity"
       },
       {
         "key": "translate.overlapHigh",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "High",
-        "current_value": null
+        "current_value": "High"
       },
       {
         "key": "translate.overlapMinimal",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Minimal",
-        "current_value": null
+        "current_value": "Minimal"
       },
       {
         "key": "translate.overlapNone",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "None",
-        "current_value": null
+        "current_value": "None"
       },
       {
         "key": "translate.overlapNormal",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Balanced",
-        "current_value": null
+        "current_value": "Balanced"
       },
       {
         "key": "translate.resumeOverlapExpert",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Overlap Offset",
-        "current_value": null
+        "current_value": "Overlap Offset"
       },
       {
         "key": "translate.resumeOverlapExpertDesc",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Number of preceding subtitle lines included for context continuity.",
-        "current_value": null
+        "current_value": "Number of preceding subtitle lines included for context continuity."
       }
     ],
     "de": [
@@ -2713,171 +2717,171 @@
       },
       {
         "key": "settings.cpuCoresActiveHint",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Click on a core block to adjust the active core count.",
-        "current_value": null
+        "current_value": "Click on a core block to adjust the active core count."
       },
       {
         "key": "settings.cpuCoresActiveLabel",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Active Cores",
-        "current_value": null
+        "current_value": "Active Cores"
       },
       {
         "key": "settings.cpuCoresEasyDesc",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Choose how much of your computer's power to allocate for flashcard generation. Higher profiles are faster but may slow down other applications.",
-        "current_value": null
+        "current_value": "Choose how much of your computer's power to allocate for flashcard generation. Higher profiles are faster but may slow down other applications."
       },
       {
         "key": "settings.cpuCoresEasyTitle",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Computer Effort",
-        "current_value": null
+        "current_value": "Computer Effort"
       },
       {
         "key": "settings.cpuCoresExpertDesc",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Manually configure CPU thread allocation and memory constraints for processing.",
-        "current_value": null
+        "current_value": "Manually configure CPU thread allocation and memory constraints for processing."
       },
       {
         "key": "settings.cpuCoresExpertTitle",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Resource Management",
-        "current_value": null
+        "current_value": "Resource Management"
       },
       {
         "key": "settings.cpuCoresSliderLabel",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Number of CPU Threads",
-        "current_value": null
+        "current_value": "Number of CPU Threads"
       },
       {
         "key": "settings.ramLimitDesc",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Limits maximum RAM consumption during video clip encoding and extraction.",
-        "current_value": null
+        "current_value": "Limits maximum RAM consumption during video clip encoding and extraction."
       },
       {
         "key": "settings.ramLimitLabel",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "RAM Memory Limit",
-        "current_value": null
+        "current_value": "RAM Memory Limit"
       },
       {
         "key": "settings.ramNoLimit",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "No limit (Recommended)",
-        "current_value": null
+        "current_value": "No limit (Recommended)"
       },
       {
         "key": "transcribe.error",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Error",
-        "current_value": null
+        "current_value": "Error"
       },
       {
         "key": "transcribe.finished",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Completed",
-        "current_value": null
+        "current_value": "Completed"
       },
       {
         "key": "transcribe.running",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Processing...",
-        "current_value": null
+        "current_value": "Processing..."
       },
       {
         "key": "transcribe.transcribing",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Transcribing...",
-        "current_value": null
+        "current_value": "Transcribing..."
       },
       {
         "key": "translate.accuracySpeedDesc",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Choose the accuracy profile. Higher quality yields a better translation but takes more time.",
-        "current_value": null
+        "current_value": "Choose the accuracy profile. Higher quality yields a better translation but takes more time."
       },
       {
         "key": "translate.accuracySpeedTitle",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Accuracy & Speed",
-        "current_value": null
+        "current_value": "Accuracy & Speed"
       },
       {
         "key": "translate.batchSizeExpert",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Batch Size (Subtitles per request)",
-        "current_value": null
+        "current_value": "Batch Size (Subtitles per request)"
       },
       {
         "key": "translate.batchSizeExpertDesc",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Number of subtitle lines sent in a single prompt to the LLM.",
-        "current_value": null
+        "current_value": "Number of subtitle lines sent in a single prompt to the LLM."
       },
       {
         "key": "translate.contextCostHint",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Higher = more accuracy, but costlier",
-        "current_value": null
+        "current_value": "Higher = more accuracy, but costlier"
       },
       {
         "key": "translate.contextTitle",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Context",
-        "current_value": null
+        "current_value": "Context"
       },
       {
         "key": "translate.continuityDesc",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Controls sentence flow by passing context between subtitle batches.",
-        "current_value": null
+        "current_value": "Controls sentence flow by passing context between subtitle batches."
       },
       {
         "key": "translate.continuityTitle",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Translation Continuity",
-        "current_value": null
+        "current_value": "Translation Continuity"
       },
       {
         "key": "translate.overlapHigh",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "High",
-        "current_value": null
+        "current_value": "High"
       },
       {
         "key": "translate.overlapMinimal",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Minimal",
-        "current_value": null
+        "current_value": "Minimal"
       },
       {
         "key": "translate.overlapNone",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "None",
-        "current_value": null
+        "current_value": "None"
       },
       {
         "key": "translate.overlapNormal",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Balanced",
-        "current_value": null
+        "current_value": "Balanced"
       },
       {
         "key": "translate.resumeOverlapExpert",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Overlap Offset",
-        "current_value": null
+        "current_value": "Overlap Offset"
       },
       {
         "key": "translate.resumeOverlapExpertDesc",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Number of preceding subtitle lines included for context continuity.",
-        "current_value": null
+        "current_value": "Number of preceding subtitle lines included for context continuity."
       }
     ],
     "es": [
@@ -2889,174 +2893,180 @@
       },
       {
         "key": "settings.cpuCoresActiveHint",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Click on a core block to adjust the active core count.",
-        "current_value": null
+        "current_value": "Click on a core block to adjust the active core count."
       },
       {
         "key": "settings.cpuCoresActiveLabel",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Active Cores",
-        "current_value": null
+        "current_value": "Active Cores"
       },
       {
         "key": "settings.cpuCoresEasyDesc",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Choose how much of your computer's power to allocate for flashcard generation. Higher profiles are faster but may slow down other applications.",
-        "current_value": null
+        "current_value": "Choose how much of your computer's power to allocate for flashcard generation. Higher profiles are faster but may slow down other applications."
       },
       {
         "key": "settings.cpuCoresEasyTitle",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Computer Effort",
-        "current_value": null
+        "current_value": "Computer Effort"
       },
       {
         "key": "settings.cpuCoresExpertDesc",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Manually configure CPU thread allocation and memory constraints for processing.",
-        "current_value": null
+        "current_value": "Manually configure CPU thread allocation and memory constraints for processing."
       },
       {
         "key": "settings.cpuCoresExpertTitle",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Resource Management",
-        "current_value": null
+        "current_value": "Resource Management"
       },
       {
         "key": "settings.cpuCoresSliderLabel",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Number of CPU Threads",
-        "current_value": null
+        "current_value": "Number of CPU Threads"
       },
       {
         "key": "settings.ramLimitDesc",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Limits maximum RAM consumption during video clip encoding and extraction.",
-        "current_value": null
+        "current_value": "Limits maximum RAM consumption during video clip encoding and extraction."
       },
       {
         "key": "settings.ramLimitLabel",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "RAM Memory Limit",
-        "current_value": null
+        "current_value": "RAM Memory Limit"
       },
       {
         "key": "settings.ramNoLimit",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "No limit (Recommended)",
-        "current_value": null
+        "current_value": "No limit (Recommended)"
       },
       {
         "key": "transcribe.error",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Error",
-        "current_value": null
+        "current_value": "Error"
       },
       {
         "key": "transcribe.finished",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Completed",
-        "current_value": null
+        "current_value": "Completed"
       },
       {
         "key": "transcribe.running",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Processing...",
-        "current_value": null
+        "current_value": "Processing..."
       },
       {
         "key": "transcribe.transcribing",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Transcribing...",
-        "current_value": null
+        "current_value": "Transcribing..."
       },
       {
         "key": "translate.accuracySpeedDesc",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Choose the accuracy profile. Higher quality yields a better translation but takes more time.",
-        "current_value": null
+        "current_value": "Choose the accuracy profile. Higher quality yields a better translation but takes more time."
       },
       {
         "key": "translate.accuracySpeedTitle",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Accuracy & Speed",
-        "current_value": null
+        "current_value": "Accuracy & Speed"
       },
       {
         "key": "translate.batchSizeExpert",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Batch Size (Subtitles per request)",
-        "current_value": null
+        "current_value": "Batch Size (Subtitles per request)"
       },
       {
         "key": "translate.batchSizeExpertDesc",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Number of subtitle lines sent in a single prompt to the LLM.",
-        "current_value": null
+        "current_value": "Number of subtitle lines sent in a single prompt to the LLM."
       },
       {
         "key": "translate.contextCostHint",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Higher = more accuracy, but costlier",
-        "current_value": null
+        "current_value": "Higher = more accuracy, but costlier"
       },
       {
         "key": "translate.contextTitle",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Context",
-        "current_value": null
+        "current_value": "Context"
       },
       {
         "key": "translate.continuityDesc",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Controls sentence flow by passing context between subtitle batches.",
-        "current_value": null
+        "current_value": "Controls sentence flow by passing context between subtitle batches."
       },
       {
         "key": "translate.continuityTitle",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Translation Continuity",
-        "current_value": null
+        "current_value": "Translation Continuity"
       },
       {
         "key": "translate.overlapHigh",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "High",
-        "current_value": null
+        "current_value": "High"
       },
       {
         "key": "translate.overlapMinimal",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Minimal",
-        "current_value": null
+        "current_value": "Minimal"
       },
       {
         "key": "translate.overlapNone",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "None",
-        "current_value": null
+        "current_value": "None"
       },
       {
         "key": "translate.overlapNormal",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Balanced",
-        "current_value": null
+        "current_value": "Balanced"
       },
       {
         "key": "translate.resumeOverlapExpert",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Overlap Offset",
-        "current_value": null
+        "current_value": "Overlap Offset"
       },
       {
         "key": "translate.resumeOverlapExpertDesc",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Number of preceding subtitle lines included for context continuity.",
-        "current_value": null
+        "current_value": "Number of preceding subtitle lines included for context continuity."
       }
     ],
     "fr": [
+      {
+        "key": "align.page",
+        "reason": "same_as_english",
+        "en": "Page",
+        "current_value": "Page"
+      },
       {
         "key": "flashcards.previewPlay",
         "reason": "same_as_english",
@@ -3065,341 +3075,341 @@
       },
       {
         "key": "settings.cpuCoresActiveHint",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Click on a core block to adjust the active core count.",
-        "current_value": null
+        "current_value": "Click on a core block to adjust the active core count."
       },
       {
         "key": "settings.cpuCoresActiveLabel",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Active Cores",
-        "current_value": null
+        "current_value": "Active Cores"
       },
       {
         "key": "settings.cpuCoresEasyDesc",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Choose how much of your computer's power to allocate for flashcard generation. Higher profiles are faster but may slow down other applications.",
-        "current_value": null
+        "current_value": "Choose how much of your computer's power to allocate for flashcard generation. Higher profiles are faster but may slow down other applications."
       },
       {
         "key": "settings.cpuCoresEasyTitle",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Computer Effort",
-        "current_value": null
+        "current_value": "Computer Effort"
       },
       {
         "key": "settings.cpuCoresExpertDesc",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Manually configure CPU thread allocation and memory constraints for processing.",
-        "current_value": null
+        "current_value": "Manually configure CPU thread allocation and memory constraints for processing."
       },
       {
         "key": "settings.cpuCoresExpertTitle",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Resource Management",
-        "current_value": null
+        "current_value": "Resource Management"
       },
       {
         "key": "settings.cpuCoresSliderLabel",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Number of CPU Threads",
-        "current_value": null
+        "current_value": "Number of CPU Threads"
       },
       {
         "key": "settings.ramLimitDesc",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Limits maximum RAM consumption during video clip encoding and extraction.",
-        "current_value": null
+        "current_value": "Limits maximum RAM consumption during video clip encoding and extraction."
       },
       {
         "key": "settings.ramLimitLabel",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "RAM Memory Limit",
-        "current_value": null
+        "current_value": "RAM Memory Limit"
       },
       {
         "key": "settings.ramNoLimit",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "No limit (Recommended)",
-        "current_value": null
+        "current_value": "No limit (Recommended)"
       },
       {
         "key": "transcribe.error",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Error",
-        "current_value": null
+        "current_value": "Error"
       },
       {
         "key": "transcribe.finished",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Completed",
-        "current_value": null
+        "current_value": "Completed"
       },
       {
         "key": "transcribe.running",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Processing...",
-        "current_value": null
+        "current_value": "Processing..."
       },
       {
         "key": "transcribe.transcribing",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Transcribing...",
-        "current_value": null
+        "current_value": "Transcribing..."
       },
       {
         "key": "translate.accuracySpeedDesc",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Choose the accuracy profile. Higher quality yields a better translation but takes more time.",
-        "current_value": null
+        "current_value": "Choose the accuracy profile. Higher quality yields a better translation but takes more time."
       },
       {
         "key": "translate.accuracySpeedTitle",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Accuracy & Speed",
-        "current_value": null
+        "current_value": "Accuracy & Speed"
       },
       {
         "key": "translate.batchSizeExpert",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Batch Size (Subtitles per request)",
-        "current_value": null
+        "current_value": "Batch Size (Subtitles per request)"
       },
       {
         "key": "translate.batchSizeExpertDesc",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Number of subtitle lines sent in a single prompt to the LLM.",
-        "current_value": null
+        "current_value": "Number of subtitle lines sent in a single prompt to the LLM."
       },
       {
         "key": "translate.contextCostHint",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Higher = more accuracy, but costlier",
-        "current_value": null
+        "current_value": "Higher = more accuracy, but costlier"
       },
       {
         "key": "translate.contextTitle",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Context",
-        "current_value": null
+        "current_value": "Context"
       },
       {
         "key": "translate.continuityDesc",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Controls sentence flow by passing context between subtitle batches.",
-        "current_value": null
+        "current_value": "Controls sentence flow by passing context between subtitle batches."
       },
       {
         "key": "translate.continuityTitle",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Translation Continuity",
-        "current_value": null
+        "current_value": "Translation Continuity"
       },
       {
         "key": "translate.overlapHigh",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "High",
-        "current_value": null
+        "current_value": "High"
       },
       {
         "key": "translate.overlapMinimal",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Minimal",
-        "current_value": null
+        "current_value": "Minimal"
       },
       {
         "key": "translate.overlapNone",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "None",
-        "current_value": null
+        "current_value": "None"
       },
       {
         "key": "translate.overlapNormal",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Balanced",
-        "current_value": null
+        "current_value": "Balanced"
       },
       {
         "key": "translate.resumeOverlapExpert",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Overlap Offset",
-        "current_value": null
+        "current_value": "Overlap Offset"
       },
       {
         "key": "translate.resumeOverlapExpertDesc",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Number of preceding subtitle lines included for context continuity.",
-        "current_value": null
+        "current_value": "Number of preceding subtitle lines included for context continuity."
       }
     ],
     "hi": [
       {
         "key": "settings.cpuCoresActiveHint",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Click on a core block to adjust the active core count.",
-        "current_value": null
+        "current_value": "Click on a core block to adjust the active core count."
       },
       {
         "key": "settings.cpuCoresActiveLabel",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Active Cores",
-        "current_value": null
+        "current_value": "Active Cores"
       },
       {
         "key": "settings.cpuCoresEasyDesc",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Choose how much of your computer's power to allocate for flashcard generation. Higher profiles are faster but may slow down other applications.",
-        "current_value": null
+        "current_value": "Choose how much of your computer's power to allocate for flashcard generation. Higher profiles are faster but may slow down other applications."
       },
       {
         "key": "settings.cpuCoresEasyTitle",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Computer Effort",
-        "current_value": null
+        "current_value": "Computer Effort"
       },
       {
         "key": "settings.cpuCoresExpertDesc",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Manually configure CPU thread allocation and memory constraints for processing.",
-        "current_value": null
+        "current_value": "Manually configure CPU thread allocation and memory constraints for processing."
       },
       {
         "key": "settings.cpuCoresExpertTitle",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Resource Management",
-        "current_value": null
+        "current_value": "Resource Management"
       },
       {
         "key": "settings.cpuCoresSliderLabel",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Number of CPU Threads",
-        "current_value": null
+        "current_value": "Number of CPU Threads"
       },
       {
         "key": "settings.ramLimitDesc",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Limits maximum RAM consumption during video clip encoding and extraction.",
-        "current_value": null
+        "current_value": "Limits maximum RAM consumption during video clip encoding and extraction."
       },
       {
         "key": "settings.ramLimitLabel",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "RAM Memory Limit",
-        "current_value": null
+        "current_value": "RAM Memory Limit"
       },
       {
         "key": "settings.ramNoLimit",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "No limit (Recommended)",
-        "current_value": null
+        "current_value": "No limit (Recommended)"
       },
       {
         "key": "transcribe.error",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Error",
-        "current_value": null
+        "current_value": "Error"
       },
       {
         "key": "transcribe.finished",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Completed",
-        "current_value": null
+        "current_value": "Completed"
       },
       {
         "key": "transcribe.running",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Processing...",
-        "current_value": null
+        "current_value": "Processing..."
       },
       {
         "key": "transcribe.transcribing",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Transcribing...",
-        "current_value": null
+        "current_value": "Transcribing..."
       },
       {
         "key": "translate.accuracySpeedDesc",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Choose the accuracy profile. Higher quality yields a better translation but takes more time.",
-        "current_value": null
+        "current_value": "Choose the accuracy profile. Higher quality yields a better translation but takes more time."
       },
       {
         "key": "translate.accuracySpeedTitle",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Accuracy & Speed",
-        "current_value": null
+        "current_value": "Accuracy & Speed"
       },
       {
         "key": "translate.batchSizeExpert",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Batch Size (Subtitles per request)",
-        "current_value": null
+        "current_value": "Batch Size (Subtitles per request)"
       },
       {
         "key": "translate.batchSizeExpertDesc",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Number of subtitle lines sent in a single prompt to the LLM.",
-        "current_value": null
+        "current_value": "Number of subtitle lines sent in a single prompt to the LLM."
       },
       {
         "key": "translate.contextCostHint",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Higher = more accuracy, but costlier",
-        "current_value": null
+        "current_value": "Higher = more accuracy, but costlier"
       },
       {
         "key": "translate.contextTitle",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Context",
-        "current_value": null
+        "current_value": "Context"
       },
       {
         "key": "translate.continuityDesc",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Controls sentence flow by passing context between subtitle batches.",
-        "current_value": null
+        "current_value": "Controls sentence flow by passing context between subtitle batches."
       },
       {
         "key": "translate.continuityTitle",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Translation Continuity",
-        "current_value": null
+        "current_value": "Translation Continuity"
       },
       {
         "key": "translate.overlapHigh",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "High",
-        "current_value": null
+        "current_value": "High"
       },
       {
         "key": "translate.overlapMinimal",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Minimal",
-        "current_value": null
+        "current_value": "Minimal"
       },
       {
         "key": "translate.overlapNone",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "None",
-        "current_value": null
+        "current_value": "None"
       },
       {
         "key": "translate.overlapNormal",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Balanced",
-        "current_value": null
+        "current_value": "Balanced"
       },
       {
         "key": "translate.resumeOverlapExpert",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Overlap Offset",
-        "current_value": null
+        "current_value": "Overlap Offset"
       },
       {
         "key": "translate.resumeOverlapExpertDesc",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Number of preceding subtitle lines included for context continuity.",
-        "current_value": null
+        "current_value": "Number of preceding subtitle lines included for context continuity."
       }
     ],
     "it": [
@@ -3413,341 +3423,341 @@
     "ja": [
       {
         "key": "settings.cpuCoresActiveHint",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Click on a core block to adjust the active core count.",
-        "current_value": null
+        "current_value": "Click on a core block to adjust the active core count."
       },
       {
         "key": "settings.cpuCoresActiveLabel",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Active Cores",
-        "current_value": null
+        "current_value": "Active Cores"
       },
       {
         "key": "settings.cpuCoresEasyDesc",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Choose how much of your computer's power to allocate for flashcard generation. Higher profiles are faster but may slow down other applications.",
-        "current_value": null
+        "current_value": "Choose how much of your computer's power to allocate for flashcard generation. Higher profiles are faster but may slow down other applications."
       },
       {
         "key": "settings.cpuCoresEasyTitle",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Computer Effort",
-        "current_value": null
+        "current_value": "Computer Effort"
       },
       {
         "key": "settings.cpuCoresExpertDesc",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Manually configure CPU thread allocation and memory constraints for processing.",
-        "current_value": null
+        "current_value": "Manually configure CPU thread allocation and memory constraints for processing."
       },
       {
         "key": "settings.cpuCoresExpertTitle",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Resource Management",
-        "current_value": null
+        "current_value": "Resource Management"
       },
       {
         "key": "settings.cpuCoresSliderLabel",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Number of CPU Threads",
-        "current_value": null
+        "current_value": "Number of CPU Threads"
       },
       {
         "key": "settings.ramLimitDesc",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Limits maximum RAM consumption during video clip encoding and extraction.",
-        "current_value": null
+        "current_value": "Limits maximum RAM consumption during video clip encoding and extraction."
       },
       {
         "key": "settings.ramLimitLabel",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "RAM Memory Limit",
-        "current_value": null
+        "current_value": "RAM Memory Limit"
       },
       {
         "key": "settings.ramNoLimit",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "No limit (Recommended)",
-        "current_value": null
+        "current_value": "No limit (Recommended)"
       },
       {
         "key": "transcribe.error",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Error",
-        "current_value": null
+        "current_value": "Error"
       },
       {
         "key": "transcribe.finished",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Completed",
-        "current_value": null
+        "current_value": "Completed"
       },
       {
         "key": "transcribe.running",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Processing...",
-        "current_value": null
+        "current_value": "Processing..."
       },
       {
         "key": "transcribe.transcribing",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Transcribing...",
-        "current_value": null
+        "current_value": "Transcribing..."
       },
       {
         "key": "translate.accuracySpeedDesc",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Choose the accuracy profile. Higher quality yields a better translation but takes more time.",
-        "current_value": null
+        "current_value": "Choose the accuracy profile. Higher quality yields a better translation but takes more time."
       },
       {
         "key": "translate.accuracySpeedTitle",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Accuracy & Speed",
-        "current_value": null
+        "current_value": "Accuracy & Speed"
       },
       {
         "key": "translate.batchSizeExpert",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Batch Size (Subtitles per request)",
-        "current_value": null
+        "current_value": "Batch Size (Subtitles per request)"
       },
       {
         "key": "translate.batchSizeExpertDesc",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Number of subtitle lines sent in a single prompt to the LLM.",
-        "current_value": null
+        "current_value": "Number of subtitle lines sent in a single prompt to the LLM."
       },
       {
         "key": "translate.contextCostHint",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Higher = more accuracy, but costlier",
-        "current_value": null
+        "current_value": "Higher = more accuracy, but costlier"
       },
       {
         "key": "translate.contextTitle",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Context",
-        "current_value": null
+        "current_value": "Context"
       },
       {
         "key": "translate.continuityDesc",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Controls sentence flow by passing context between subtitle batches.",
-        "current_value": null
+        "current_value": "Controls sentence flow by passing context between subtitle batches."
       },
       {
         "key": "translate.continuityTitle",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Translation Continuity",
-        "current_value": null
+        "current_value": "Translation Continuity"
       },
       {
         "key": "translate.overlapHigh",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "High",
-        "current_value": null
+        "current_value": "High"
       },
       {
         "key": "translate.overlapMinimal",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Minimal",
-        "current_value": null
+        "current_value": "Minimal"
       },
       {
         "key": "translate.overlapNone",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "None",
-        "current_value": null
+        "current_value": "None"
       },
       {
         "key": "translate.overlapNormal",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Balanced",
-        "current_value": null
+        "current_value": "Balanced"
       },
       {
         "key": "translate.resumeOverlapExpert",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Overlap Offset",
-        "current_value": null
+        "current_value": "Overlap Offset"
       },
       {
         "key": "translate.resumeOverlapExpertDesc",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Number of preceding subtitle lines included for context continuity.",
-        "current_value": null
+        "current_value": "Number of preceding subtitle lines included for context continuity."
       }
     ],
     "ko": [
       {
         "key": "settings.cpuCoresActiveHint",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Click on a core block to adjust the active core count.",
-        "current_value": null
+        "current_value": "Click on a core block to adjust the active core count."
       },
       {
         "key": "settings.cpuCoresActiveLabel",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Active Cores",
-        "current_value": null
+        "current_value": "Active Cores"
       },
       {
         "key": "settings.cpuCoresEasyDesc",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Choose how much of your computer's power to allocate for flashcard generation. Higher profiles are faster but may slow down other applications.",
-        "current_value": null
+        "current_value": "Choose how much of your computer's power to allocate for flashcard generation. Higher profiles are faster but may slow down other applications."
       },
       {
         "key": "settings.cpuCoresEasyTitle",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Computer Effort",
-        "current_value": null
+        "current_value": "Computer Effort"
       },
       {
         "key": "settings.cpuCoresExpertDesc",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Manually configure CPU thread allocation and memory constraints for processing.",
-        "current_value": null
+        "current_value": "Manually configure CPU thread allocation and memory constraints for processing."
       },
       {
         "key": "settings.cpuCoresExpertTitle",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Resource Management",
-        "current_value": null
+        "current_value": "Resource Management"
       },
       {
         "key": "settings.cpuCoresSliderLabel",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Number of CPU Threads",
-        "current_value": null
+        "current_value": "Number of CPU Threads"
       },
       {
         "key": "settings.ramLimitDesc",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Limits maximum RAM consumption during video clip encoding and extraction.",
-        "current_value": null
+        "current_value": "Limits maximum RAM consumption during video clip encoding and extraction."
       },
       {
         "key": "settings.ramLimitLabel",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "RAM Memory Limit",
-        "current_value": null
+        "current_value": "RAM Memory Limit"
       },
       {
         "key": "settings.ramNoLimit",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "No limit (Recommended)",
-        "current_value": null
+        "current_value": "No limit (Recommended)"
       },
       {
         "key": "transcribe.error",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Error",
-        "current_value": null
+        "current_value": "Error"
       },
       {
         "key": "transcribe.finished",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Completed",
-        "current_value": null
+        "current_value": "Completed"
       },
       {
         "key": "transcribe.running",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Processing...",
-        "current_value": null
+        "current_value": "Processing..."
       },
       {
         "key": "transcribe.transcribing",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Transcribing...",
-        "current_value": null
+        "current_value": "Transcribing..."
       },
       {
         "key": "translate.accuracySpeedDesc",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Choose the accuracy profile. Higher quality yields a better translation but takes more time.",
-        "current_value": null
+        "current_value": "Choose the accuracy profile. Higher quality yields a better translation but takes more time."
       },
       {
         "key": "translate.accuracySpeedTitle",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Accuracy & Speed",
-        "current_value": null
+        "current_value": "Accuracy & Speed"
       },
       {
         "key": "translate.batchSizeExpert",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Batch Size (Subtitles per request)",
-        "current_value": null
+        "current_value": "Batch Size (Subtitles per request)"
       },
       {
         "key": "translate.batchSizeExpertDesc",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Number of subtitle lines sent in a single prompt to the LLM.",
-        "current_value": null
+        "current_value": "Number of subtitle lines sent in a single prompt to the LLM."
       },
       {
         "key": "translate.contextCostHint",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Higher = more accuracy, but costlier",
-        "current_value": null
+        "current_value": "Higher = more accuracy, but costlier"
       },
       {
         "key": "translate.contextTitle",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Context",
-        "current_value": null
+        "current_value": "Context"
       },
       {
         "key": "translate.continuityDesc",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Controls sentence flow by passing context between subtitle batches.",
-        "current_value": null
+        "current_value": "Controls sentence flow by passing context between subtitle batches."
       },
       {
         "key": "translate.continuityTitle",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Translation Continuity",
-        "current_value": null
+        "current_value": "Translation Continuity"
       },
       {
         "key": "translate.overlapHigh",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "High",
-        "current_value": null
+        "current_value": "High"
       },
       {
         "key": "translate.overlapMinimal",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Minimal",
-        "current_value": null
+        "current_value": "Minimal"
       },
       {
         "key": "translate.overlapNone",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "None",
-        "current_value": null
+        "current_value": "None"
       },
       {
         "key": "translate.overlapNormal",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Balanced",
-        "current_value": null
+        "current_value": "Balanced"
       },
       {
         "key": "translate.resumeOverlapExpert",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Overlap Offset",
-        "current_value": null
+        "current_value": "Overlap Offset"
       },
       {
         "key": "translate.resumeOverlapExpertDesc",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Number of preceding subtitle lines included for context continuity.",
-        "current_value": null
+        "current_value": "Number of preceding subtitle lines included for context continuity."
       }
     ],
     "nl": [
@@ -3759,171 +3769,171 @@
       },
       {
         "key": "settings.cpuCoresActiveHint",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Click on a core block to adjust the active core count.",
-        "current_value": null
+        "current_value": "Click on a core block to adjust the active core count."
       },
       {
         "key": "settings.cpuCoresActiveLabel",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Active Cores",
-        "current_value": null
+        "current_value": "Active Cores"
       },
       {
         "key": "settings.cpuCoresEasyDesc",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Choose how much of your computer's power to allocate for flashcard generation. Higher profiles are faster but may slow down other applications.",
-        "current_value": null
+        "current_value": "Choose how much of your computer's power to allocate for flashcard generation. Higher profiles are faster but may slow down other applications."
       },
       {
         "key": "settings.cpuCoresEasyTitle",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Computer Effort",
-        "current_value": null
+        "current_value": "Computer Effort"
       },
       {
         "key": "settings.cpuCoresExpertDesc",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Manually configure CPU thread allocation and memory constraints for processing.",
-        "current_value": null
+        "current_value": "Manually configure CPU thread allocation and memory constraints for processing."
       },
       {
         "key": "settings.cpuCoresExpertTitle",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Resource Management",
-        "current_value": null
+        "current_value": "Resource Management"
       },
       {
         "key": "settings.cpuCoresSliderLabel",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Number of CPU Threads",
-        "current_value": null
+        "current_value": "Number of CPU Threads"
       },
       {
         "key": "settings.ramLimitDesc",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Limits maximum RAM consumption during video clip encoding and extraction.",
-        "current_value": null
+        "current_value": "Limits maximum RAM consumption during video clip encoding and extraction."
       },
       {
         "key": "settings.ramLimitLabel",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "RAM Memory Limit",
-        "current_value": null
+        "current_value": "RAM Memory Limit"
       },
       {
         "key": "settings.ramNoLimit",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "No limit (Recommended)",
-        "current_value": null
+        "current_value": "No limit (Recommended)"
       },
       {
         "key": "transcribe.error",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Error",
-        "current_value": null
+        "current_value": "Error"
       },
       {
         "key": "transcribe.finished",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Completed",
-        "current_value": null
+        "current_value": "Completed"
       },
       {
         "key": "transcribe.running",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Processing...",
-        "current_value": null
+        "current_value": "Processing..."
       },
       {
         "key": "transcribe.transcribing",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Transcribing...",
-        "current_value": null
+        "current_value": "Transcribing..."
       },
       {
         "key": "translate.accuracySpeedDesc",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Choose the accuracy profile. Higher quality yields a better translation but takes more time.",
-        "current_value": null
+        "current_value": "Choose the accuracy profile. Higher quality yields a better translation but takes more time."
       },
       {
         "key": "translate.accuracySpeedTitle",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Accuracy & Speed",
-        "current_value": null
+        "current_value": "Accuracy & Speed"
       },
       {
         "key": "translate.batchSizeExpert",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Batch Size (Subtitles per request)",
-        "current_value": null
+        "current_value": "Batch Size (Subtitles per request)"
       },
       {
         "key": "translate.batchSizeExpertDesc",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Number of subtitle lines sent in a single prompt to the LLM.",
-        "current_value": null
+        "current_value": "Number of subtitle lines sent in a single prompt to the LLM."
       },
       {
         "key": "translate.contextCostHint",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Higher = more accuracy, but costlier",
-        "current_value": null
+        "current_value": "Higher = more accuracy, but costlier"
       },
       {
         "key": "translate.contextTitle",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Context",
-        "current_value": null
+        "current_value": "Context"
       },
       {
         "key": "translate.continuityDesc",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Controls sentence flow by passing context between subtitle batches.",
-        "current_value": null
+        "current_value": "Controls sentence flow by passing context between subtitle batches."
       },
       {
         "key": "translate.continuityTitle",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Translation Continuity",
-        "current_value": null
+        "current_value": "Translation Continuity"
       },
       {
         "key": "translate.overlapHigh",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "High",
-        "current_value": null
+        "current_value": "High"
       },
       {
         "key": "translate.overlapMinimal",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Minimal",
-        "current_value": null
+        "current_value": "Minimal"
       },
       {
         "key": "translate.overlapNone",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "None",
-        "current_value": null
+        "current_value": "None"
       },
       {
         "key": "translate.overlapNormal",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Balanced",
-        "current_value": null
+        "current_value": "Balanced"
       },
       {
         "key": "translate.resumeOverlapExpert",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Overlap Offset",
-        "current_value": null
+        "current_value": "Overlap Offset"
       },
       {
         "key": "translate.resumeOverlapExpertDesc",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Number of preceding subtitle lines included for context continuity.",
-        "current_value": null
+        "current_value": "Number of preceding subtitle lines included for context continuity."
       }
     ],
     "pl": [
@@ -3935,171 +3945,171 @@
       },
       {
         "key": "settings.cpuCoresActiveHint",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Click on a core block to adjust the active core count.",
-        "current_value": null
+        "current_value": "Click on a core block to adjust the active core count."
       },
       {
         "key": "settings.cpuCoresActiveLabel",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Active Cores",
-        "current_value": null
+        "current_value": "Active Cores"
       },
       {
         "key": "settings.cpuCoresEasyDesc",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Choose how much of your computer's power to allocate for flashcard generation. Higher profiles are faster but may slow down other applications.",
-        "current_value": null
+        "current_value": "Choose how much of your computer's power to allocate for flashcard generation. Higher profiles are faster but may slow down other applications."
       },
       {
         "key": "settings.cpuCoresEasyTitle",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Computer Effort",
-        "current_value": null
+        "current_value": "Computer Effort"
       },
       {
         "key": "settings.cpuCoresExpertDesc",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Manually configure CPU thread allocation and memory constraints for processing.",
-        "current_value": null
+        "current_value": "Manually configure CPU thread allocation and memory constraints for processing."
       },
       {
         "key": "settings.cpuCoresExpertTitle",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Resource Management",
-        "current_value": null
+        "current_value": "Resource Management"
       },
       {
         "key": "settings.cpuCoresSliderLabel",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Number of CPU Threads",
-        "current_value": null
+        "current_value": "Number of CPU Threads"
       },
       {
         "key": "settings.ramLimitDesc",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Limits maximum RAM consumption during video clip encoding and extraction.",
-        "current_value": null
+        "current_value": "Limits maximum RAM consumption during video clip encoding and extraction."
       },
       {
         "key": "settings.ramLimitLabel",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "RAM Memory Limit",
-        "current_value": null
+        "current_value": "RAM Memory Limit"
       },
       {
         "key": "settings.ramNoLimit",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "No limit (Recommended)",
-        "current_value": null
+        "current_value": "No limit (Recommended)"
       },
       {
         "key": "transcribe.error",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Error",
-        "current_value": null
+        "current_value": "Error"
       },
       {
         "key": "transcribe.finished",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Completed",
-        "current_value": null
+        "current_value": "Completed"
       },
       {
         "key": "transcribe.running",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Processing...",
-        "current_value": null
+        "current_value": "Processing..."
       },
       {
         "key": "transcribe.transcribing",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Transcribing...",
-        "current_value": null
+        "current_value": "Transcribing..."
       },
       {
         "key": "translate.accuracySpeedDesc",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Choose the accuracy profile. Higher quality yields a better translation but takes more time.",
-        "current_value": null
+        "current_value": "Choose the accuracy profile. Higher quality yields a better translation but takes more time."
       },
       {
         "key": "translate.accuracySpeedTitle",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Accuracy & Speed",
-        "current_value": null
+        "current_value": "Accuracy & Speed"
       },
       {
         "key": "translate.batchSizeExpert",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Batch Size (Subtitles per request)",
-        "current_value": null
+        "current_value": "Batch Size (Subtitles per request)"
       },
       {
         "key": "translate.batchSizeExpertDesc",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Number of subtitle lines sent in a single prompt to the LLM.",
-        "current_value": null
+        "current_value": "Number of subtitle lines sent in a single prompt to the LLM."
       },
       {
         "key": "translate.contextCostHint",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Higher = more accuracy, but costlier",
-        "current_value": null
+        "current_value": "Higher = more accuracy, but costlier"
       },
       {
         "key": "translate.contextTitle",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Context",
-        "current_value": null
+        "current_value": "Context"
       },
       {
         "key": "translate.continuityDesc",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Controls sentence flow by passing context between subtitle batches.",
-        "current_value": null
+        "current_value": "Controls sentence flow by passing context between subtitle batches."
       },
       {
         "key": "translate.continuityTitle",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Translation Continuity",
-        "current_value": null
+        "current_value": "Translation Continuity"
       },
       {
         "key": "translate.overlapHigh",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "High",
-        "current_value": null
+        "current_value": "High"
       },
       {
         "key": "translate.overlapMinimal",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Minimal",
-        "current_value": null
+        "current_value": "Minimal"
       },
       {
         "key": "translate.overlapNone",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "None",
-        "current_value": null
+        "current_value": "None"
       },
       {
         "key": "translate.overlapNormal",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Balanced",
-        "current_value": null
+        "current_value": "Balanced"
       },
       {
         "key": "translate.resumeOverlapExpert",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Overlap Offset",
-        "current_value": null
+        "current_value": "Overlap Offset"
       },
       {
         "key": "translate.resumeOverlapExpertDesc",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Number of preceding subtitle lines included for context continuity.",
-        "current_value": null
+        "current_value": "Number of preceding subtitle lines included for context continuity."
       }
     ],
     "pt": [
@@ -4117,171 +4127,171 @@
       },
       {
         "key": "settings.cpuCoresActiveHint",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Click on a core block to adjust the active core count.",
-        "current_value": null
+        "current_value": "Click on a core block to adjust the active core count."
       },
       {
         "key": "settings.cpuCoresActiveLabel",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Active Cores",
-        "current_value": null
+        "current_value": "Active Cores"
       },
       {
         "key": "settings.cpuCoresEasyDesc",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Choose how much of your computer's power to allocate for flashcard generation. Higher profiles are faster but may slow down other applications.",
-        "current_value": null
+        "current_value": "Choose how much of your computer's power to allocate for flashcard generation. Higher profiles are faster but may slow down other applications."
       },
       {
         "key": "settings.cpuCoresEasyTitle",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Computer Effort",
-        "current_value": null
+        "current_value": "Computer Effort"
       },
       {
         "key": "settings.cpuCoresExpertDesc",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Manually configure CPU thread allocation and memory constraints for processing.",
-        "current_value": null
+        "current_value": "Manually configure CPU thread allocation and memory constraints for processing."
       },
       {
         "key": "settings.cpuCoresExpertTitle",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Resource Management",
-        "current_value": null
+        "current_value": "Resource Management"
       },
       {
         "key": "settings.cpuCoresSliderLabel",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Number of CPU Threads",
-        "current_value": null
+        "current_value": "Number of CPU Threads"
       },
       {
         "key": "settings.ramLimitDesc",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Limits maximum RAM consumption during video clip encoding and extraction.",
-        "current_value": null
+        "current_value": "Limits maximum RAM consumption during video clip encoding and extraction."
       },
       {
         "key": "settings.ramLimitLabel",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "RAM Memory Limit",
-        "current_value": null
+        "current_value": "RAM Memory Limit"
       },
       {
         "key": "settings.ramNoLimit",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "No limit (Recommended)",
-        "current_value": null
+        "current_value": "No limit (Recommended)"
       },
       {
         "key": "transcribe.error",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Error",
-        "current_value": null
+        "current_value": "Error"
       },
       {
         "key": "transcribe.finished",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Completed",
-        "current_value": null
+        "current_value": "Completed"
       },
       {
         "key": "transcribe.running",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Processing...",
-        "current_value": null
+        "current_value": "Processing..."
       },
       {
         "key": "transcribe.transcribing",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Transcribing...",
-        "current_value": null
+        "current_value": "Transcribing..."
       },
       {
         "key": "translate.accuracySpeedDesc",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Choose the accuracy profile. Higher quality yields a better translation but takes more time.",
-        "current_value": null
+        "current_value": "Choose the accuracy profile. Higher quality yields a better translation but takes more time."
       },
       {
         "key": "translate.accuracySpeedTitle",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Accuracy & Speed",
-        "current_value": null
+        "current_value": "Accuracy & Speed"
       },
       {
         "key": "translate.batchSizeExpert",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Batch Size (Subtitles per request)",
-        "current_value": null
+        "current_value": "Batch Size (Subtitles per request)"
       },
       {
         "key": "translate.batchSizeExpertDesc",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Number of subtitle lines sent in a single prompt to the LLM.",
-        "current_value": null
+        "current_value": "Number of subtitle lines sent in a single prompt to the LLM."
       },
       {
         "key": "translate.contextCostHint",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Higher = more accuracy, but costlier",
-        "current_value": null
+        "current_value": "Higher = more accuracy, but costlier"
       },
       {
         "key": "translate.contextTitle",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Context",
-        "current_value": null
+        "current_value": "Context"
       },
       {
         "key": "translate.continuityDesc",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Controls sentence flow by passing context between subtitle batches.",
-        "current_value": null
+        "current_value": "Controls sentence flow by passing context between subtitle batches."
       },
       {
         "key": "translate.continuityTitle",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Translation Continuity",
-        "current_value": null
+        "current_value": "Translation Continuity"
       },
       {
         "key": "translate.overlapHigh",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "High",
-        "current_value": null
+        "current_value": "High"
       },
       {
         "key": "translate.overlapMinimal",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Minimal",
-        "current_value": null
+        "current_value": "Minimal"
       },
       {
         "key": "translate.overlapNone",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "None",
-        "current_value": null
+        "current_value": "None"
       },
       {
         "key": "translate.overlapNormal",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Balanced",
-        "current_value": null
+        "current_value": "Balanced"
       },
       {
         "key": "translate.resumeOverlapExpert",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Overlap Offset",
-        "current_value": null
+        "current_value": "Overlap Offset"
       },
       {
         "key": "translate.resumeOverlapExpertDesc",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Number of preceding subtitle lines included for context continuity.",
-        "current_value": null
+        "current_value": "Number of preceding subtitle lines included for context continuity."
       }
     ],
     "ru": [
@@ -4293,171 +4303,171 @@
       },
       {
         "key": "settings.cpuCoresActiveHint",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Click on a core block to adjust the active core count.",
-        "current_value": null
+        "current_value": "Click on a core block to adjust the active core count."
       },
       {
         "key": "settings.cpuCoresActiveLabel",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Active Cores",
-        "current_value": null
+        "current_value": "Active Cores"
       },
       {
         "key": "settings.cpuCoresEasyDesc",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Choose how much of your computer's power to allocate for flashcard generation. Higher profiles are faster but may slow down other applications.",
-        "current_value": null
+        "current_value": "Choose how much of your computer's power to allocate for flashcard generation. Higher profiles are faster but may slow down other applications."
       },
       {
         "key": "settings.cpuCoresEasyTitle",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Computer Effort",
-        "current_value": null
+        "current_value": "Computer Effort"
       },
       {
         "key": "settings.cpuCoresExpertDesc",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Manually configure CPU thread allocation and memory constraints for processing.",
-        "current_value": null
+        "current_value": "Manually configure CPU thread allocation and memory constraints for processing."
       },
       {
         "key": "settings.cpuCoresExpertTitle",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Resource Management",
-        "current_value": null
+        "current_value": "Resource Management"
       },
       {
         "key": "settings.cpuCoresSliderLabel",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Number of CPU Threads",
-        "current_value": null
+        "current_value": "Number of CPU Threads"
       },
       {
         "key": "settings.ramLimitDesc",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Limits maximum RAM consumption during video clip encoding and extraction.",
-        "current_value": null
+        "current_value": "Limits maximum RAM consumption during video clip encoding and extraction."
       },
       {
         "key": "settings.ramLimitLabel",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "RAM Memory Limit",
-        "current_value": null
+        "current_value": "RAM Memory Limit"
       },
       {
         "key": "settings.ramNoLimit",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "No limit (Recommended)",
-        "current_value": null
+        "current_value": "No limit (Recommended)"
       },
       {
         "key": "transcribe.error",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Error",
-        "current_value": null
+        "current_value": "Error"
       },
       {
         "key": "transcribe.finished",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Completed",
-        "current_value": null
+        "current_value": "Completed"
       },
       {
         "key": "transcribe.running",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Processing...",
-        "current_value": null
+        "current_value": "Processing..."
       },
       {
         "key": "transcribe.transcribing",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Transcribing...",
-        "current_value": null
+        "current_value": "Transcribing..."
       },
       {
         "key": "translate.accuracySpeedDesc",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Choose the accuracy profile. Higher quality yields a better translation but takes more time.",
-        "current_value": null
+        "current_value": "Choose the accuracy profile. Higher quality yields a better translation but takes more time."
       },
       {
         "key": "translate.accuracySpeedTitle",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Accuracy & Speed",
-        "current_value": null
+        "current_value": "Accuracy & Speed"
       },
       {
         "key": "translate.batchSizeExpert",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Batch Size (Subtitles per request)",
-        "current_value": null
+        "current_value": "Batch Size (Subtitles per request)"
       },
       {
         "key": "translate.batchSizeExpertDesc",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Number of subtitle lines sent in a single prompt to the LLM.",
-        "current_value": null
+        "current_value": "Number of subtitle lines sent in a single prompt to the LLM."
       },
       {
         "key": "translate.contextCostHint",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Higher = more accuracy, but costlier",
-        "current_value": null
+        "current_value": "Higher = more accuracy, but costlier"
       },
       {
         "key": "translate.contextTitle",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Context",
-        "current_value": null
+        "current_value": "Context"
       },
       {
         "key": "translate.continuityDesc",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Controls sentence flow by passing context between subtitle batches.",
-        "current_value": null
+        "current_value": "Controls sentence flow by passing context between subtitle batches."
       },
       {
         "key": "translate.continuityTitle",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Translation Continuity",
-        "current_value": null
+        "current_value": "Translation Continuity"
       },
       {
         "key": "translate.overlapHigh",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "High",
-        "current_value": null
+        "current_value": "High"
       },
       {
         "key": "translate.overlapMinimal",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Minimal",
-        "current_value": null
+        "current_value": "Minimal"
       },
       {
         "key": "translate.overlapNone",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "None",
-        "current_value": null
+        "current_value": "None"
       },
       {
         "key": "translate.overlapNormal",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Balanced",
-        "current_value": null
+        "current_value": "Balanced"
       },
       {
         "key": "translate.resumeOverlapExpert",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Overlap Offset",
-        "current_value": null
+        "current_value": "Overlap Offset"
       },
       {
         "key": "translate.resumeOverlapExpertDesc",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Number of preceding subtitle lines included for context continuity.",
-        "current_value": null
+        "current_value": "Number of preceding subtitle lines included for context continuity."
       }
     ],
     "tr": [
@@ -4469,341 +4479,341 @@
       },
       {
         "key": "settings.cpuCoresActiveHint",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Click on a core block to adjust the active core count.",
-        "current_value": null
+        "current_value": "Click on a core block to adjust the active core count."
       },
       {
         "key": "settings.cpuCoresActiveLabel",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Active Cores",
-        "current_value": null
+        "current_value": "Active Cores"
       },
       {
         "key": "settings.cpuCoresEasyDesc",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Choose how much of your computer's power to allocate for flashcard generation. Higher profiles are faster but may slow down other applications.",
-        "current_value": null
+        "current_value": "Choose how much of your computer's power to allocate for flashcard generation. Higher profiles are faster but may slow down other applications."
       },
       {
         "key": "settings.cpuCoresEasyTitle",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Computer Effort",
-        "current_value": null
+        "current_value": "Computer Effort"
       },
       {
         "key": "settings.cpuCoresExpertDesc",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Manually configure CPU thread allocation and memory constraints for processing.",
-        "current_value": null
+        "current_value": "Manually configure CPU thread allocation and memory constraints for processing."
       },
       {
         "key": "settings.cpuCoresExpertTitle",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Resource Management",
-        "current_value": null
+        "current_value": "Resource Management"
       },
       {
         "key": "settings.cpuCoresSliderLabel",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Number of CPU Threads",
-        "current_value": null
+        "current_value": "Number of CPU Threads"
       },
       {
         "key": "settings.ramLimitDesc",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Limits maximum RAM consumption during video clip encoding and extraction.",
-        "current_value": null
+        "current_value": "Limits maximum RAM consumption during video clip encoding and extraction."
       },
       {
         "key": "settings.ramLimitLabel",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "RAM Memory Limit",
-        "current_value": null
+        "current_value": "RAM Memory Limit"
       },
       {
         "key": "settings.ramNoLimit",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "No limit (Recommended)",
-        "current_value": null
+        "current_value": "No limit (Recommended)"
       },
       {
         "key": "transcribe.error",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Error",
-        "current_value": null
+        "current_value": "Error"
       },
       {
         "key": "transcribe.finished",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Completed",
-        "current_value": null
+        "current_value": "Completed"
       },
       {
         "key": "transcribe.running",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Processing...",
-        "current_value": null
+        "current_value": "Processing..."
       },
       {
         "key": "transcribe.transcribing",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Transcribing...",
-        "current_value": null
+        "current_value": "Transcribing..."
       },
       {
         "key": "translate.accuracySpeedDesc",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Choose the accuracy profile. Higher quality yields a better translation but takes more time.",
-        "current_value": null
+        "current_value": "Choose the accuracy profile. Higher quality yields a better translation but takes more time."
       },
       {
         "key": "translate.accuracySpeedTitle",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Accuracy & Speed",
-        "current_value": null
+        "current_value": "Accuracy & Speed"
       },
       {
         "key": "translate.batchSizeExpert",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Batch Size (Subtitles per request)",
-        "current_value": null
+        "current_value": "Batch Size (Subtitles per request)"
       },
       {
         "key": "translate.batchSizeExpertDesc",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Number of subtitle lines sent in a single prompt to the LLM.",
-        "current_value": null
+        "current_value": "Number of subtitle lines sent in a single prompt to the LLM."
       },
       {
         "key": "translate.contextCostHint",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Higher = more accuracy, but costlier",
-        "current_value": null
+        "current_value": "Higher = more accuracy, but costlier"
       },
       {
         "key": "translate.contextTitle",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Context",
-        "current_value": null
+        "current_value": "Context"
       },
       {
         "key": "translate.continuityDesc",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Controls sentence flow by passing context between subtitle batches.",
-        "current_value": null
+        "current_value": "Controls sentence flow by passing context between subtitle batches."
       },
       {
         "key": "translate.continuityTitle",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Translation Continuity",
-        "current_value": null
+        "current_value": "Translation Continuity"
       },
       {
         "key": "translate.overlapHigh",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "High",
-        "current_value": null
+        "current_value": "High"
       },
       {
         "key": "translate.overlapMinimal",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Minimal",
-        "current_value": null
+        "current_value": "Minimal"
       },
       {
         "key": "translate.overlapNone",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "None",
-        "current_value": null
+        "current_value": "None"
       },
       {
         "key": "translate.overlapNormal",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Balanced",
-        "current_value": null
+        "current_value": "Balanced"
       },
       {
         "key": "translate.resumeOverlapExpert",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Overlap Offset",
-        "current_value": null
+        "current_value": "Overlap Offset"
       },
       {
         "key": "translate.resumeOverlapExpertDesc",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Number of preceding subtitle lines included for context continuity.",
-        "current_value": null
+        "current_value": "Number of preceding subtitle lines included for context continuity."
       }
     ],
     "zh": [
       {
         "key": "settings.cpuCoresActiveHint",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Click on a core block to adjust the active core count.",
-        "current_value": null
+        "current_value": "Click on a core block to adjust the active core count."
       },
       {
         "key": "settings.cpuCoresActiveLabel",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Active Cores",
-        "current_value": null
+        "current_value": "Active Cores"
       },
       {
         "key": "settings.cpuCoresEasyDesc",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Choose how much of your computer's power to allocate for flashcard generation. Higher profiles are faster but may slow down other applications.",
-        "current_value": null
+        "current_value": "Choose how much of your computer's power to allocate for flashcard generation. Higher profiles are faster but may slow down other applications."
       },
       {
         "key": "settings.cpuCoresEasyTitle",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Computer Effort",
-        "current_value": null
+        "current_value": "Computer Effort"
       },
       {
         "key": "settings.cpuCoresExpertDesc",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Manually configure CPU thread allocation and memory constraints for processing.",
-        "current_value": null
+        "current_value": "Manually configure CPU thread allocation and memory constraints for processing."
       },
       {
         "key": "settings.cpuCoresExpertTitle",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Resource Management",
-        "current_value": null
+        "current_value": "Resource Management"
       },
       {
         "key": "settings.cpuCoresSliderLabel",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Number of CPU Threads",
-        "current_value": null
+        "current_value": "Number of CPU Threads"
       },
       {
         "key": "settings.ramLimitDesc",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Limits maximum RAM consumption during video clip encoding and extraction.",
-        "current_value": null
+        "current_value": "Limits maximum RAM consumption during video clip encoding and extraction."
       },
       {
         "key": "settings.ramLimitLabel",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "RAM Memory Limit",
-        "current_value": null
+        "current_value": "RAM Memory Limit"
       },
       {
         "key": "settings.ramNoLimit",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "No limit (Recommended)",
-        "current_value": null
+        "current_value": "No limit (Recommended)"
       },
       {
         "key": "transcribe.error",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Error",
-        "current_value": null
+        "current_value": "Error"
       },
       {
         "key": "transcribe.finished",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Completed",
-        "current_value": null
+        "current_value": "Completed"
       },
       {
         "key": "transcribe.running",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Processing...",
-        "current_value": null
+        "current_value": "Processing..."
       },
       {
         "key": "transcribe.transcribing",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Transcribing...",
-        "current_value": null
+        "current_value": "Transcribing..."
       },
       {
         "key": "translate.accuracySpeedDesc",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Choose the accuracy profile. Higher quality yields a better translation but takes more time.",
-        "current_value": null
+        "current_value": "Choose the accuracy profile. Higher quality yields a better translation but takes more time."
       },
       {
         "key": "translate.accuracySpeedTitle",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Accuracy & Speed",
-        "current_value": null
+        "current_value": "Accuracy & Speed"
       },
       {
         "key": "translate.batchSizeExpert",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Batch Size (Subtitles per request)",
-        "current_value": null
+        "current_value": "Batch Size (Subtitles per request)"
       },
       {
         "key": "translate.batchSizeExpertDesc",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Number of subtitle lines sent in a single prompt to the LLM.",
-        "current_value": null
+        "current_value": "Number of subtitle lines sent in a single prompt to the LLM."
       },
       {
         "key": "translate.contextCostHint",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Higher = more accuracy, but costlier",
-        "current_value": null
+        "current_value": "Higher = more accuracy, but costlier"
       },
       {
         "key": "translate.contextTitle",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Context",
-        "current_value": null
+        "current_value": "Context"
       },
       {
         "key": "translate.continuityDesc",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Controls sentence flow by passing context between subtitle batches.",
-        "current_value": null
+        "current_value": "Controls sentence flow by passing context between subtitle batches."
       },
       {
         "key": "translate.continuityTitle",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Translation Continuity",
-        "current_value": null
+        "current_value": "Translation Continuity"
       },
       {
         "key": "translate.overlapHigh",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "High",
-        "current_value": null
+        "current_value": "High"
       },
       {
         "key": "translate.overlapMinimal",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Minimal",
-        "current_value": null
+        "current_value": "Minimal"
       },
       {
         "key": "translate.overlapNone",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "None",
-        "current_value": null
+        "current_value": "None"
       },
       {
         "key": "translate.overlapNormal",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Balanced",
-        "current_value": null
+        "current_value": "Balanced"
       },
       {
         "key": "translate.resumeOverlapExpert",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Overlap Offset",
-        "current_value": null
+        "current_value": "Overlap Offset"
       },
       {
         "key": "translate.resumeOverlapExpertDesc",
-        "reason": "missing_key",
+        "reason": "same_as_english",
         "en": "Number of preceding subtitle lines included for context continuity.",
-        "current_value": null
+        "current_value": "Number of preceding subtitle lines included for context continuity."
       }
     ]
   }
