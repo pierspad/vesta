@@ -1,6 +1,6 @@
 [package]
 name = "whisper-common"
-version = "0.14.0-dev.1"
+version = "0.14.0-dev.2"
 edition.workspace = true
 
 [dependencies]

@@ -4430,7 +4430,7 @@ dependencies = [
 
 [[package]]
 name = "srt-extract"
-version = "0.14.0-dev.1"
+version = "0.14.0-dev.2"
 dependencies = [
  "anyhow",
  "serde_json",
@@ -4449,7 +4449,7 @@ dependencies = [
 
 [[package]]
 name = "srt-flashcards"
-version = "0.14.0-dev.1"
+version = "0.14.0-dev.2"
 dependencies = [
  "anyhow",
  "rusqlite",
@@ -4475,7 +4475,7 @@ dependencies = [
 
 [[package]]
 name = "srt-parser"
-version = "0.14.0-dev.1"
+version = "0.14.0-dev.2"
 dependencies = [
  "anyhow",
  "serde",
@@ -4483,7 +4483,7 @@ dependencies = [
 
 [[package]]
 name = "srt-sync"
-version = "0.14.0-dev.1"
+version = "0.14.0-dev.2"
 dependencies = [
  "anyhow",
  "serde",
@@ -4493,7 +4493,7 @@ dependencies = [
 
 [[package]]
 name = "srt-translate"
-version = "0.14.0-dev.1"
+version = "0.14.0-dev.2"
 dependencies = [
  "anyhow",
  "governor",
@@ -5687,7 +5687,7 @@ checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
 
 [[package]]
 name = "vesta"
-version = "0.14.0-dev.1"
+version = "0.14.0-dev.2"
 dependencies = [
  "anyhow",
  "axum",
@@ -6078,7 +6078,7 @@ dependencies = [
 
 [[package]]
 name = "whisper-common"
-version = "0.14.0-dev.1"
+version = "0.14.0-dev.2"
 dependencies = [
  "anyhow",
  "dirs",

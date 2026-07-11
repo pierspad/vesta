@@ -1,3 +1,10 @@
+## [0.14.0-dev.2](https://github.com/pierspad/Vesta/compare/v0.14.0-dev.1...v0.14.0-dev.2) (2026-07-11)
+
+### 🐛 Bug Fixes
+
+* **ci:** restrict AUR publish to stable releases and enable prerelease flag on GitHub ([ce2bf71](https://github.com/pierspad/Vesta/commit/ce2bf71d3357101186f2084353e0ad1581bc60d6))
+* **ci:** support suffix-based versions in update_project_info.sh ([98dbaec](https://github.com/pierspad/Vesta/commit/98dbaec8d43abd1e1d40de3922af75bf0fb5df64))
+
 ## [0.14.0-dev.1](https://github.com/pierspad/Vesta/compare/v0.13.0...v0.14.0-dev.1) (2026-07-11)
 
 ### 🐛 Bug Fixes
