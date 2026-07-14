@@ -6,21 +6,19 @@ description: Linee guida LLM per VESTA, i18n, qualita e release.
 
 Queste istruzioni vengono lette automaticamente da GitHub Copilot e da altri LLM compatibili quando lavorano in questo workspace. Devi aderire a queste regole quando scrivi codice, aggiorni documentazione o prepari una release.
 
-## 1. Changelog operativo e Release Notes obbligatori
+## 1. Conventional Commits obbligatori
 
-Ogni volta che completi un task, bugfix, refactor o aggiornamento significativo, devi aggiornare contemporaneamente SIA `docs/list_of_things_changed.md` SIA `docs/release-notes.md`.
+I messaggi di commit SONO le release notes: `@semantic-release/release-notes-generator` genera il body della GitHub Release e il `CHANGELOG.md` direttamente dai commit. Non esistono file di note manuali da aggiornare.
 
-- Per `docs/list_of_things_changed.md` (registro tecnico/operativo):
-  - Mantieni il titolo principale `# Modifiche recenti (in preparazione alla release)`.
-  - Raggruppa le modifiche sotto sezioni `## [Data Odierna] - Categoria`.
-  - Usa bullet nel formato `- **Etichetta breve**: Descrizione concreta della modifica`.
-  - Scrivi cosa e' cambiato e perche' e' utile all'utente o al progetto.
-- Per `docs/release-notes.md` (curated release notes per gli utenti finali):
-  - Aggiorna la sezione corrente (sotto `## Release Notes` o la versione attiva).
-  - Mantieni le categorie come `### Fixes` e `### Improvements`.
-  - Usa bullet nel formato `* **Area**: Descrizione sintetica e concreta della modifica per l'utente finale`.
-  - Non creare sezioni vuote.
-- Non chiedere conferma prima di aggiornare questi file: aggiornali entrambi in parallelo ad ogni task o bugfix terminato.
+- Usa sempre il formato Conventional Commits: `tipo(scope): descrizione`.
+  - `feat:` → minor bump, sezione "✨ New Features";
+  - `fix:` → patch bump, sezione "🐛 Bug Fixes";
+  - `perf:` → patch bump, sezione "🔧 Improvements";
+  - `bump:` → patch bump, sezione "🚀 Updated App Support";
+  - `feat!:`/`fix!:` o footer `BREAKING CHANGE:` → major bump;
+  - `chore:`/`docs:`/`refactor:`/`test:`/`ci:` → nessun rilascio.
+- Scrivi la descrizione del commit pensando all'utente finale che la leggerà nella release: sintetica, concreta, in inglese, con lo scope che indica l'area toccata (es. `fix(shortcuts): restore Ctrl+S on Windows`).
+- Il dettaglio tecnico/operativo va nel body del commit, non serve altrove.
 
 ## 2. Internazionalizzazione a 15 lingue
 
@@ -55,40 +53,19 @@ Ogni modifica deve ridurre o almeno non aumentare il debito tecnico.
 - Mantieni il CSS locale al componente o usa Tailwind; evita global CSS se non serve.
 - Leggi i `Cargo.toml` rilevanti prima di toccare crate o dipendenze Rust.
 
-## 5. Release notes e pubblicazione
+## 5. Release e pubblicazione
 
-La GitHub Release deve usare `docs/release-notes.md` come corpo curato della release. Non sostituirla con release notes generate automaticamente.
+Il rilascio è interamente gestito da **semantic-release** (`release.yml`, config in `.releaserc`). Nessuno script locale, nessun file di note manuale.
 
-Formato preferito:
-
-```markdown
-## Release Notes
-
-### Fixes
-
-* **Area**: Fix sintetico e concreto
-
-### Improvements
-
-* **Area**: Miglioramento sintetico e concreto
-```
-
-Regole:
-
-- usa `*` nelle release notes, non `-`;
-- mantieni categorie brevi come `Fixes`, `Improvements`, `Packaging`, `Localization`, se servono;
-- non creare sezioni vuote;
-- scrivi per utenti finali: il dettaglio operativo resta in `docs/list_of_things_changed.md`.
-
-Il rilascio è interamente gestito dalla GitHub Action `release.yml` (nessuno script locale — `git-release.sh`/`push-aur.sh`/`build-aur.sh` sono pattern ritirati):
-- **Si attiva da sola su ogni push su `main`**, leggendo i Conventional Commits accumulati dall'ultimo tag: `feat:` → minor bump, `fix:`/`perf:` → patch bump, `feat!:` o un footer `BREAKING CHANGE:` → major bump. Se non c'è nessun commit `feat`/`fix`/`perf`/breaking (solo `chore`/`docs`/`refactor`/`test`/`ci`/`build`) il rilascio viene saltato in automatico, senza errori.
-- L'intestazione principale `## Release Notes` viene riallineata automaticamente in `## Release Notes vX.Y.Z` in base alla versione bumpata nel PKGBUILD.
-- Se `docs/release-notes.md` non è stato toccato dall'ultimo tag, la Action ne rigenera il contenuto dai messaggi di commit invece di pubblicare note stantie — per questo conviene comunque scrivere i bullet a mano durante lo sviluppo (§1), altrimenti la release finale mostra solo i commit grezzi. `docs/list_of_things_changed.md` non viene toccato dalla pipeline: resta un log tecnico manuale, va aggiornato a mano come da §1.
-- Rimane disponibile anche il trigger manuale: Actions → "Release (semver bump)" → Run workflow, con bump `auto|patch|minor|major` o una versione esplicita.
+- **Push su `main`** → release stabile `vX.Y.Z`, marcata Latest su GitHub e pubblicata su AUR.
+- **Push su `dev`** → prerelease `vX.Y.Z-dev.N`, marcata Pre-release su GitHub: non diventa mai Latest e non va mai su AUR. Il contatore `.N` cresce a ogni push su dev; la versione base si consolida al merge su main.
+- Il body della release e `CHANGELOG.md` sono generati dai Conventional Commits (§1). Non riscriverli a mano.
+- Il PKGBUILD (`build-scripts/PKGBUILD`) è la Single Source of Truth della versione: `update_project_info.sh` la propaga a tauri.conf.json, Cargo.toml, package.json, .desktop e flatpak. Non bumpare versioni a mano.
+- Flusso: semantic-release calcola il bump → propaga versione → commit `chore: Release vX.Y.Z [skip ci]` + tag → crea la GitHub Release → dispatcha "Build and Release" sul tag (upload binari) → backmerge `main → dev`.
 
 ## 6. Comandi utili
 
 - Frontend: `cd apps/srt-gui && npm run check`
 - Audit i18n: `cd apps/srt-gui && npm run i18n:audit`
-- Release: prefissa il commit con `feat:`/`fix:`/`perf:` e pusha su `main` — parte da solo; per un bump manuale/forzato usa Actions → "Release (semver bump)" → Run workflow.
-- Pubblicazione AUR: automatica (`aur-publish.yml`) dopo che "Build and Release" completa — nessun comando manuale.
+- Release: prefissa il commit con `feat:`/`fix:`/`perf:`/`bump:` e pusha — parte da sola (stabile da `main`, prerelease da `dev`).
+- Pubblicazione AUR: automatica (`aur-publish.yml`) dopo che "Build and Release" completa su un tag stabile — nessun comando manuale.
