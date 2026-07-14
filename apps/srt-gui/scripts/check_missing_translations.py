@@ -92,6 +92,10 @@ SAME_AS_ENGLISH_ALLOWED_KEYS = {
     "refine.notesLabel",              # "Notes" — identical in FR
     "refine.action.fileLabel",        # "File:" — identical in IT
     "refine.llm.status.offline",      # "server offline" — identical in IT/NL
+    "align.page",                     # "Page" — identical in FR
+    "translate.overlapMinimal",       # "Minimal" — identical in DE/FR/TR
+    "transcribe.error",               # "Error" — identical in ES
+    "translate.contextTitle",         # "Context" — identical in NL
     "provider.anthropic",
     "provider.github",
     "provider.mistral",
