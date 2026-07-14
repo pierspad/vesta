@@ -91,7 +91,7 @@ jobs:
 
       - name: Generate platform icons
         working-directory: ${{ env.TAURI_APP_DIR }}
-        run: npx tauri icon src-tauri/icons/icon.png -o src-tauri/icons
+        run: npx tauri icon src-tauri/icons/icon.svg -o src-tauri/icons
 
       - name: Build Tauri app
         working-directory: ${{ env.TAURI_APP_DIR }}
@@ -206,7 +206,8 @@ jobs:
           fi
           cp "$BINARY" build-scripts/flatpak-files/vesta
 
-          cp apps/srt-gui/src-tauri/icons/icon-512x512.png build-scripts/flatpak-files/com.vesta.desktop.png
+          # icon.png è il master 512x512 generato da `tauri icon` (icon.svg)
+          cp apps/srt-gui/src-tauri/icons/icon.png build-scripts/flatpak-files/com.vesta.desktop.png
           cp build-scripts/com.vesta.desktop.desktop build-scripts/flatpak-files/
           sed -i 's/^Icon=vesta/Icon=com.vesta.desktop/' build-scripts/flatpak-files/com.vesta.desktop.desktop
           sed -i 's/^StartupWMClass=vesta/StartupWMClass=com.vesta.desktop/' build-scripts/flatpak-files/com.vesta.desktop.desktop
@@ -291,7 +292,7 @@ jobs:
 
       - name: Generate platform icons
         working-directory: ${{ env.TAURI_APP_DIR }}
-        run: npx tauri icon src-tauri/icons/icon.png -o src-tauri/icons
+        run: npx tauri icon src-tauri/icons/icon.svg -o src-tauri/icons
 
       - name: Build frontend assets for Cargo preflight
         working-directory: ${{ env.TAURI_APP_DIR }}
