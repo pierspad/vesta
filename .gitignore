@@ -20,11 +20,12 @@ Thumbs.db
 *.key
 config.toml 
 
-# subs2srs is vendored as source under subs2srs_source_code/ (GPLv3, kept whole
+# subs2srs is vendored as source under
+# benchmarking_against_subs2srs/subs2srs_source_code/ (GPLv3, kept whole
 # with its copyright notices + gpl.txt) for full benchmark reproducibility.
-Test_Subs/Detour-1945-Public_domain.mkv
 
-# File video/audio grandi
+# File video/audio grandi (Test_Subs media inclusi: si scaricano/generano
+# con gli script in Test_Subs/, mai committati)
 *.mkv
 *.mp4
 *.avi
@@ -38,3 +39,11 @@ Test_Subs/Detour-1945-Public_domain.mkv
 __pycache__/
 *.pyc
 build-scripts/vesta-*.*.*.deb
+
+# Test_Subs: solo Detour (1945, pubblico dominio) è committato.
+# Ogni altro sottotitolo resta in locale per evitare problemi di licensing.
+Test_Subs/**/*.srt
+!Test_Subs/FILM/Detour-en.srt
+!Test_Subs/FILM/Detour-it.srt
+!Test_Subs/SERIE_TV/Detour-en_parte*.srt
+!Test_Subs/SERIE_TV/Detour-it_parte*.srt
