@@ -102,12 +102,14 @@ VESTA_JOBS="$(( CORES > 1 ? CORES - 1 : 1 ))"
 REPEATS="${REPEATS:-1}"
 
 # ── Layout ────────────────────────────────────────────────────────────────────
-SUBS2SRS_EXE="benchmarks/subs2srs-headless/subs2srs-headless.exe"
-RESULTS_DIR="benchmarks/results"
+SUBS2SRS_EXE="benchmarking_against_subs2srs/subs2srs-headless/subs2srs-headless.exe"
+RESULTS_DIR="benchmarking_against_subs2srs/results"
 RESULTS_CSV="${RESULTS_DIR}/results.csv"
-WORK_DIR="benchmarks/.work"   # scratch output for generated decks (gitignored)
+WORK_DIR="benchmarking_against_subs2srs/.work"   # scratch output for generated decks (gitignored)
 
-# Optional local override (gitignored): create benchmarks/config.local.sh to
+# Optional local override (gitignored): create benchmarking_against_subs2srs/config.local.sh to
 # point TEST_MEDIA / VESTA_VARIANTS at your own files without editing this file.
 _cfg_local="$(dirname "${BASH_SOURCE[0]}")/config.local.sh"
-[ -f "$_cfg_local" ] && source "$_cfg_local"
+if [ -f "$_cfg_local" ]; then
+  source "$_cfg_local"
+fi

@@ -2,7 +2,7 @@
 #
 # 4_generate_report.sh — turn results.csv into charts + a markdown summary.
 #
-# Produces (all inside benchmarks/results/):
+# Produces (all inside benchmarking_against_subs2srs/results/):
 #   benchmark.svg        combined grouped-bar chart, log scale (SVG renders on GitHub)
 #   films/<slug>.svg     one linear-scale chart per film
 #   summary.md           detailed analysis: per-film speed-ups, throughput, totals
@@ -11,7 +11,7 @@ source "$(dirname "${BASH_SOURCE[0]}")/config.sh"
 source "$(dirname "${BASH_SOURCE[0]}")/lib/common.sh"
 cd "$REPO_ROOT"
 
-[ -f "$RESULTS_CSV" ] || die "No results — run ./benchmarks/3_run_benchmarks.sh first"
+[ -f "$RESULTS_CSV" ] || die "No results — run ./benchmarking_against_subs2srs/3_run_benchmarks.sh first"
 
 MD="$RESULTS_DIR/summary.md"
 
@@ -21,7 +21,7 @@ PY="python3"
 [ -x ".venv/bin/python3" ] && PY=".venv/bin/python3"
 if command -v "$PY" >/dev/null 2>&1 || [ -x "$PY" ]; then
   log "Rendering charts with $PY…"
-  if "$PY" benchmarks/report/plot.py "$RESULTS_CSV" "$RESULTS_DIR"; then
+  if "$PY" benchmarking_against_subs2srs/report/plot.py "$RESULTS_CSV" "$RESULTS_DIR"; then
     ok "Charts written under $RESULTS_DIR (benchmark.svg + films/*.svg)"
   else
     warn "Charts failed — is matplotlib installed?  ($PY -m pip install matplotlib)"

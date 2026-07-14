@@ -8,7 +8,7 @@ set -euo pipefail
 C_RED='\033[0;31m'; C_GREEN='\033[0;32m'; C_YELLOW='\033[1;33m'
 C_BLUE='\033[0;34m'; C_BOLD='\033[1m'; C_NC='\033[0m'
 
-# Resolve repo root from this file's location (benchmarks/lib/common.sh -> repo root).
+# Resolve repo root from this file's location (benchmarking_against_subs2srs/lib/common.sh -> repo root).
 BENCH_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$BENCH_LIB_DIR/../.." && pwd)"
 

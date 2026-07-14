@@ -3,16 +3,16 @@
 ## TL;DR
 
 ```bash
-./benchmarks/1_compile_subs2srs.sh    # builds the headless subs2srs harness (mono/mcs)
-./benchmarks/2_compile_vesta.sh       # builds the Vesta flashcard CLI (cargo, release)
-./benchmarks/3_run_benchmarks.sh      # times both over the test media → results/results.csv
-./benchmarks/4_generate_report.sh     # → results/benchmark.svg + results/films/*.svg + results/summary.md
+./benchmarking_against_subs2srs/1_compile_subs2srs.sh    # builds the headless subs2srs harness (mono/mcs)
+./benchmarking_against_subs2srs/2_compile_vesta.sh       # builds the Vesta flashcard CLI (cargo, release)
+./benchmarking_against_subs2srs/3_run_benchmarks.sh      # times both over the test media → results/results.csv
+./benchmarking_against_subs2srs/4_generate_report.sh     # → results/benchmark.svg + results/films/*.svg + results/summary.md
 ```
 
 Test media are **auto-discovered** from `Test_Subs/FILM/` (see below); edit
 [`config.sh`](config.sh) only to change the Vesta variants, languages or media
 folder. Nothing here modifies the apps; everything writes under
-`benchmarks/results/` and `benchmarks/.work/` (both gitignored).
+`benchmarking_against_subs2srs/results/` and `benchmarking_against_subs2srs/.work/` (both gitignored).
 
 ## Test media auto-discovery
 
@@ -56,7 +56,7 @@ The goal is to compare **pure execution time for the same work**, so:
 ## The subs2srs headless harness (`subs2srs-headless/`)
 
 The harness compiles from the vendored subs2srs source under
-[`subs2srs_source_code/`](../subs2srs_source_code) (GPLv3, kept whole with its
+[`subs2srs_source_code/`](subs2srs_source_code) (GPLv3, kept whole with its
 copyright notices and `gpl.txt`, so the build is fully reproducible from this
 repo). subs2srs's generation logic (`WorkerSubs/Srs/Audio/Snapshot/Video`,
 `Utils*`, `Settings`) is cleanly separable from its WinForms UI. The harness:
@@ -108,7 +108,7 @@ them side by side. A local, gitignored `config.local.sh` can override `TEST_MEDI
 | `3_run_benchmarks.sh` | Time every tool/variant/format → `results/results.csv`. |
 | `4_generate_report.sh` | SVG charts (`report/plot.py`: combined + one per film) + `results/summary.md`. |
 | `subs2srs-headless/` | The headless harness sources (`Program.cs`, `Stubs.cs`). |
-| `../subs2srs_source_code/` | Vendored subs2srs source (GPLv3) the harness compiles. |
+| `subs2srs_source_code/` | Vendored subs2srs source (GPLv3) the harness compiles. |
 
 ## Requirements
 

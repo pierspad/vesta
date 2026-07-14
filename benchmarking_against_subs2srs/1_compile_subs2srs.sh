@@ -5,7 +5,7 @@
 # subs2srs ships only as a .NET 3.5 WinForms GUI with no command line. This
 # compiles the *real* subs2srs generation classes (Worker*/Utils*) into a
 # console executable, swapping three GUI types for headless no-op stubs
-# (see benchmarks/subs2srs-headless/Stubs.cs). No generation logic is altered.
+# (see benchmarking_against_subs2srs/subs2srs-headless/Stubs.cs). No generation logic is altered.
 
 source "$(dirname "${BASH_SOURCE[0]}")/config.sh"
 source "$(dirname "${BASH_SOURCE[0]}")/lib/common.sh"
@@ -14,8 +14,8 @@ cd "$REPO_ROOT"
 need mcs
 need ffmpeg
 
-S2S_SRC="subs2srs_source_code/subs2srs"
-HL="benchmarks/subs2srs-headless"
+S2S_SRC="benchmarking_against_subs2srs/subs2srs_source_code/subs2srs"
+HL="benchmarking_against_subs2srs/subs2srs-headless"
 RSP="$HL/sources.rsp"
 
 [ -d "$S2S_SRC" ] || die "subs2srs source not found at $S2S_SRC"

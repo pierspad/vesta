@@ -18,7 +18,7 @@ source "$(dirname "${BASH_SOURCE[0]}")/lib/common.sh"
 cd "$REPO_ROOT"
 
 need mono; need ffmpeg
-[ -f "$SUBS2SRS_EXE" ] || die "subs2srs harness missing — run ./benchmarks/1_compile_subs2srs.sh"
+[ -f "$SUBS2SRS_EXE" ] || die "subs2srs harness missing — run ./benchmarking_against_subs2srs/1_compile_subs2srs.sh"
 
 mkdir -p "$RESULTS_DIR" "$WORK_DIR"
 echo "title,subtitle_count,tool,variant,format,elapsed_ms,lines,audio,snapshots,video,jobs" > "$RESULTS_CSV"
@@ -90,4 +90,4 @@ for media in "${TEST_MEDIA[@]}"; do
 done
 
 ok "Wrote $RESULTS_CSV"
-echo "Next: ./benchmarks/4_generate_report.sh"
+echo "Next: ./benchmarking_against_subs2srs/4_generate_report.sh"
