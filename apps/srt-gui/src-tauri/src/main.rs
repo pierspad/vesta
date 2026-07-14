@@ -414,6 +414,7 @@ fn main() {
             get_media_server_info,
             // Comandi app info
             get_app_info,
+            read_subtitle_file,
             // Comandi traduzione
             load_srt_for_translate,
             start_translation,

@@ -2,7 +2,7 @@
   import { invoke } from '@tauri-apps/api/core';
   import { listen } from '@tauri-apps/api/event';
   import { getCurrentWebview } from '@tauri-apps/api/webview';
-  import { readTextFile, writeTextFile } from '@tauri-apps/plugin-fs';
+  import { writeTextFile } from '@tauri-apps/plugin-fs';
   import { onDestroy, onMount } from 'svelte';
   import { guardedOpen, guardedSave } from './utils/dialogGuard';
   import { locale } from './i18n';
@@ -446,7 +446,9 @@
 
   async function loadTarget(path: string) {
     try {
-      const content = await readTextFile(path);
+      // Encoding rilevato lato Rust (BOM, UTF-8/16, code page legacy):
+      // readTextFile del plugin fs fallirebbe sui file non UTF-8.
+      const content = await invoke<string>('read_subtitle_file', { path });
       sourcePath = "";
       sourceSubs = [];
       targetSubs = parseSrt(content);
@@ -489,7 +491,7 @@
 
   async function loadSource(path: string) {
     try {
-      const content = await readTextFile(path);
+      const content = await invoke<string>('read_subtitle_file', { path });
       sourceSubs = parseSrt(content);
       sourcePath = path;
       normalizeAlignments();

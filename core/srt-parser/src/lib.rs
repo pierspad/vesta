@@ -4,6 +4,8 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 
+pub mod encoding;
+
 /// Rappresenta un timestamp SRT in millisecondi
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Timestamp {
@@ -86,17 +88,20 @@ impl Subtitle {
 pub struct SrtParser;
 
 impl SrtParser {
-    /// Parse un file SRT e ritorna una HashMap con id -> sottotitolo
+    /// Parse un file SRT e ritorna una HashMap con id -> sottotitolo.
+    ///
+    /// L'encoding del file è rilevato automaticamente (BOM, UTF-8/16,
+    /// code page legacy): vedi [`encoding::read_text_auto`].
     pub fn parse_file<P: AsRef<Path>>(path: P) -> Result<HashMap<u32, Subtitle>> {
-        let content = fs::read_to_string(path).context("Impossibile leggere il file")?;
+        let content = encoding::read_text_auto(path)?;
         Self::parse_string(&content)
     }
 
     /// Parse una stringa SRT
     pub fn parse_string(content: &str) -> Result<HashMap<u32, Subtitle>> {
         let mut subtitles = HashMap::new();
-        // Normalize line endings before splitting
-        let normalized = content.replace("\r\n", "\n");
+        // Tollera un BOM residuo e normalizza i line ending prima dello split
+        let normalized = content.trim_start_matches('\u{feff}').replace("\r\n", "\n");
         let blocks: Vec<&str> = normalized.split("\n\n").collect();
 
         for block in blocks {

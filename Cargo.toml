@@ -23,6 +23,8 @@ hound = "3"
 tempfile = "3"
 whisper-rs = "0.16"
 futures = "0.3"
+encoding_rs = "0.8"
+chardetng = "1"
 
 # Internal crates
 srt-parser = { path = "./core/srt-parser", version = "0.14.0-dev.2" }

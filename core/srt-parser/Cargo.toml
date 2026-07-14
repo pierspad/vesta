@@ -13,6 +13,8 @@ readme = "README.md"
 [dependencies]
 anyhow.workspace = true
 serde.workspace = true
+encoding_rs.workspace = true
+chardetng.workspace = true
 
 [lib]
 name = "srt_parser"

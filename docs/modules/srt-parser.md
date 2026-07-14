@@ -9,6 +9,11 @@ on: a fast, dependency-light parser and writer for SubRip (`.srt`) files.
 - `SrtParser::normalize_subtitles(&mut subs)` — fills numbering gaps with placeholders
 - `SrtParser::save_file(...)` — writes a well-formed SRT back to disk
 - `Timestamp` (ms-precision, `from_srt_string` / `to_srt_string`) and `Subtitle` types
+- `encoding::read_text_auto(path)` / `decode_auto(bytes)` — encoding-tolerant
+  reading: BOM sniffing, strict UTF-8 fast path, BOM-less UTF-16 heuristic,
+  then statistical detection (`chardetng` + `encoding_rs`) for legacy code
+  pages (GBK, Windows-1252, …). `parse_file` uses it, so any SRT loads
+  correctly regardless of how it was saved
 
 ## Use as a Rust dependency
 
@@ -30,8 +35,8 @@ fn main() -> anyhow::Result<()> {
 
 ## Extract it standalone
 
-Copy `core/srt-parser/` into your own workspace — it only depends on `anyhow`
-and `serde` from crates.io, nothing internal. It is the single crate you must
+Copy `core/srt-parser/` into your own workspace — it only depends on `anyhow`,
+`serde`, `encoding_rs` and `chardetng` from crates.io, nothing internal. It is the single crate you must
 bring along when vendoring any other `srt-*` module.
 
 ## Who uses it

@@ -330,18 +330,8 @@ pub(crate) fn strip_vtt_tags(text: &str) -> String {
 
 /// Parse any supported subtitle file
 pub(crate) fn parse_subtitle_file(path: &str) -> Result<(Vec<SubEntry>, &'static str)> {
-    let content = std::fs::read_to_string(path)
-        .or_else(|_| -> Result<String> {
-            // Try common encodings
-            let bytes = std::fs::read(path)?;
-            // Try UTF-8 with BOM
-            if bytes.starts_with(&[0xEF, 0xBB, 0xBF]) {
-                Ok(String::from_utf8_lossy(&bytes[3..]).to_string())
-            } else {
-                // Try Latin-1 as fallback
-                Ok(bytes.iter().map(|&b| b as char).collect())
-            }
-        })
+    // Encoding rilevato automaticamente (BOM, UTF-8/16, code page legacy).
+    let content = srt_parser::encoding::read_text_auto(path)
         .context(format!("Cannot read file: {}", path))?;
 
     let format = detect_format(path);
