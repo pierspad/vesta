@@ -10,6 +10,7 @@ mod translator;
 mod language_info;
 mod prompts;
 mod rate_limiter;
+pub mod pool;
 
 use anyhow::Result;
 use srt_parser::{SrtParser, Subtitle};
@@ -22,6 +23,7 @@ use tokio_util::sync::CancellationToken;
 // Re-export dei tipi pubblici
 pub use translator::{Translator, TranslatorConfig, ApiType};
 pub use rate_limiter::{RateLimiter, RateLimitConfig, create_rate_limiter, create_rate_limiter_with_burst};
+pub use pool::{TierEntry, build_pool, build_pool_entry, provider_allows_missing_key, provider_defaults};
 
 /// Dati di progresso della traduzione passati al callback
 #[derive(Debug, Clone)]

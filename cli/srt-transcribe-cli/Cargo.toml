@@ -1,0 +1,18 @@
+[package]
+name = "srt-transcribe-cli"
+version = "0.14.0-dev.1"
+edition.workspace = true
+description = "Headless command-line front-end for the whisper-common pipeline (media → SRT via whisper.cpp or cloud providers)."
+authors = ["Pierpaolo Spadafora <pierpaolospadafora@proton.me>"]
+license = "GPL-3.0-only"
+
+[[bin]]
+name = "srt-transcribe"
+path = "src/main.rs"
+
+[dependencies]
+whisper-common = { workspace = true }
+clap = { workspace = true }
+tokio = { workspace = true }
+tokio-util = "0.7"
+anyhow = { workspace = true }

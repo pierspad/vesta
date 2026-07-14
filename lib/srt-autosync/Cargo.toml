@@ -1,0 +1,23 @@
+[package]
+name = "srt-autosync"
+version = "0.14.0-dev.1"
+edition.workspace = true
+authors = ["Pierpaolo Spadafora <pierpaolospadafora@proton.me>"]
+description = "Automatic subtitle-to-audio alignment: samples audio segments, transcribes them with Whisper and suggests anchor points by fuzzy-matching against subtitle text."
+license = "GPL-3.0-only"
+repository = "https://github.com/pierspad/vesta"
+keywords = ["srt", "subtitles", "synchronization", "whisper", "alignment"]
+categories = ["multimedia"]
+
+[lib]
+name = "srt_autosync"
+path = "src/lib.rs"
+
+[dependencies]
+whisper-common = { workspace = true }
+whisper-rs = { workspace = true }
+anyhow.workspace = true
+serde = { workspace = true }
+tokio = { workspace = true }
+tokio-util = "0.7"
+tempfile.workspace = true

@@ -4429,6 +4429,32 @@ dependencies = [
 ]
 
 [[package]]
+name = "srt-autosync"
+version = "0.14.0-dev.1"
+dependencies = [
+ "anyhow",
+ "serde",
+ "tempfile",
+ "tokio",
+ "tokio-util",
+ "whisper-common",
+ "whisper-rs",
+]
+
+[[package]]
+name = "srt-autosync-cli"
+version = "0.14.0-dev.1"
+dependencies = [
+ "anyhow",
+ "clap",
+ "srt-autosync",
+ "srt-sync",
+ "tokio",
+ "tokio-util",
+ "whisper-common",
+]
+
+[[package]]
 name = "srt-extract"
 version = "0.14.0-dev.2"
 dependencies = [
@@ -4482,6 +4508,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "srt-refine"
+version = "0.14.0-dev.1"
+dependencies = [
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "sha1_smol",
+ "srt-translate",
+ "tempfile",
+ "zip 8.6.0",
+]
+
+[[package]]
 name = "srt-sync"
 version = "0.14.0-dev.2"
 dependencies = [
@@ -4489,6 +4528,17 @@ dependencies = [
  "serde",
  "serde_json",
  "srt-parser",
+]
+
+[[package]]
+name = "srt-transcribe-cli"
+version = "0.14.0-dev.1"
+dependencies = [
+ "anyhow",
+ "clap",
+ "tokio",
+ "tokio-util",
+ "whisper-common",
 ]
 
 [[package]]
@@ -5693,13 +5743,13 @@ dependencies = [
  "axum",
  "dirs",
  "ffmpeg-sidecar",
- "rusqlite",
  "serde",
  "serde_json",
- "sha1_smol",
  "sha2 0.11.0",
+ "srt-autosync",
  "srt-flashcards",
  "srt-parser",
+ "srt-refine",
  "srt-sync",
  "srt-translate",
  "sysinfo",
@@ -5717,8 +5767,6 @@ dependencies = [
  "urlencoding",
  "webkit2gtk",
  "whisper-common",
- "whisper-rs",
- "zip 8.6.0",
 ]
 
 [[package]]
@@ -6087,6 +6135,7 @@ dependencies = [
  "reqwest 0.13.4",
  "serde",
  "serde_json",
+ "tempfile",
  "tokio",
  "tokio-util",
  "whisper-rs",

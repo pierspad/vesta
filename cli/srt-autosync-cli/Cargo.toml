@@ -1,0 +1,20 @@
+[package]
+name = "srt-autosync-cli"
+version = "0.14.0-dev.1"
+edition.workspace = true
+description = "Headless command-line front-end for the srt-autosync engine (align an SRT to a media file using Whisper anchor points)."
+authors = ["Pierpaolo Spadafora <pierpaolospadafora@proton.me>"]
+license = "GPL-3.0-only"
+
+[[bin]]
+name = "srt-autosync"
+path = "src/main.rs"
+
+[dependencies]
+srt-autosync = { workspace = true }
+srt-sync = { workspace = true }
+whisper-common = { workspace = true }
+clap = { workspace = true }
+tokio = { workspace = true }
+tokio-util = "0.7"
+anyhow = { workspace = true }

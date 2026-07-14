@@ -5,7 +5,7 @@ edition.workspace = true
 authors = ["Your Name <your.email@example.com>"]
 description = "Library for synchronizing SRT subtitles with video using anchor points and interpolation"
 license = "GPL-3.0"
-repository = "https://github.com/pierspad/auto_sub_srt"
+repository = "https://github.com/pierspad/vesta"
 keywords = ["srt", "subtitles", "synchronization", "video"]
 categories = ["multimedia"]
 

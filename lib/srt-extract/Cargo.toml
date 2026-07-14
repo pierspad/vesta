@@ -5,7 +5,7 @@ edition.workspace = true
 authors = ["Your Name <your.email@example.com>"]
 description = "Library for extracting and formatting SRT subtitle data"
 license = "GPL-3.0"
-repository = "https://github.com/pierspad/auto_sub_srt"
+repository = "https://github.com/pierspad/vesta"
 keywords = ["srt", "subtitles", "extract", "format"]
 categories = ["multimedia", "parser-implementations"]
 

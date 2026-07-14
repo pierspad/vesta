@@ -5,7 +5,7 @@ edition.workspace = true
 description = "CLI tool for extracting and formatting SRT subtitle data"
 authors = ["Your Name <your.email@example.com>"]
 license = "GPL-3.0"
-repository = "https://github.com/pierspad/auto_sub_srt"
+repository = "https://github.com/pierspad/vesta"
 readme = "README.md"
 
 [[bin]]
