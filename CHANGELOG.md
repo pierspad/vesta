@@ -1,3 +1,9 @@
+## [0.14.0-dev.4](https://github.com/pierspad/vesta/compare/v0.14.0-dev.3...v0.14.0-dev.4) (2026-07-14)
+
+### 🐛 Bug Fixes
+
+* **ci:** skip MSI bundling and sanitize Arch pkgver for pre-release tags ([b79b3bb](https://github.com/pierspad/vesta/commit/b79b3bbac606ed113a95bfe7122512771583b845))
+
 ## [0.14.0-dev.3](https://github.com/pierspad/vesta/compare/v0.14.0-dev.2...v0.14.0-dev.3) (2026-07-14)
 
 ### 🐛 Bug Fixes
