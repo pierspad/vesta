@@ -61,12 +61,16 @@ Already have an SRT? Skip straight to Sync or Flashcards.
 
 ## Modular & headless use
 
-Vesta is a workspace of decoupled crates: each heavy feature is a GUI-agnostic
-library (`lib/`) with a matching command-line front-end (`cli/`). If you only
-want one feature, build just its CLI — no GUI, no Tauri:
+Vesta is a workspace of decoupled crates: every feature is a GUI-agnostic
+library (`lib/`) with a matching command-line front-end (`cli/`), and the
+desktop app is just a thin adapter on top. If you have a better idea for a
+subs2srs successor but don't want to rewrite the machinery, take the module
+you need — as a standalone binary or as a Rust dependency — and build on it:
 
 ```bash
 cargo build --release -p srt-flashcards-cli   # subtitles + video → Anki deck (TSV/APKG)
+cargo build --release -p srt-transcribe-cli    # media → SRT (whisper.cpp or cloud)
+cargo build --release -p srt-autosync-cli      # auto re-sync an SRT via Whisper anchors
 cargo build --release -p srt-translate-cli     # LLM subtitle translation
 cargo build --release -p srt-extract-cli       # SRT data extraction
 
@@ -74,25 +78,37 @@ target/release/srt-flashcards generate \
   --target movie-en.srt --native movie-it.srt --video movie.mp4 --output out --format apkg
 ```
 
-The flashcard engine lives in [`lib/srt-flashcards`](lib/srt-flashcards); the
-desktop app, the CLI, and the benchmark harness all share that one
-implementation. See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+Each module has its own guide — what it does, how to build just its binary,
+and how to embed it in your own Rust project:
+
+- [Modules overview](modules/README.md) — the map of crates and the design contract
+- [srt-parser](modules/srt-parser.md) — SRT parsing & writing
+- [srt-extract](modules/srt-extract.md) — subtitle data extraction (JSON, stats…)
+- [srt-translate](modules/srt-translate.md) — LLM translation with multi-tier failover
+- [srt-sync](modules/srt-sync.md) — anchor-based re-timing engine
+- [srt-autosync](modules/srt-autosync.md) — automatic alignment via Whisper anchors
+- [whisper-common](modules/whisper-common.md) — transcription pipeline (media → SRT)
+- [srt-flashcards](modules/srt-flashcards.md) — subs2srs-style Anki deck generation
+- [srt-refine](modules/srt-refine.md) — LLM enrichment of existing decks
+
+See also [`docs/ARCHITECTURE.md`](ARCHITECTURE.md) for the layer rules that
+keep these crates extractable.
 
 ## Benchmarks (reproducible)
 
 The chart above can be regenerated — and Vesta variants compared — with the
-numbered scripts in [`benchmarks/`](benchmarks/):
+numbered scripts in [`benchmarking_against_subs2srs/`](../benchmarking_against_subs2srs/):
 
 ```bash
-./benchmarks/1_compile_subs2srs.sh   # headless subs2srs harness (its real code, no GUI)
-./benchmarks/2_compile_vesta.sh      # the Vesta flashcard CLI (release)
-./benchmarks/3_run_benchmarks.sh     # time both on the test media
-./benchmarks/4_generate_report.sh    # chart + summary
+./benchmarking_against_subs2srs/1_compile_subs2srs.sh   # headless subs2srs harness (its real code, no GUI)
+./benchmarking_against_subs2srs/2_compile_vesta.sh      # the Vesta flashcard CLI (release)
+./benchmarking_against_subs2srs/3_run_benchmarks.sh     # time both on the test media
+./benchmarking_against_subs2srs/4_generate_report.sh    # chart + summary
 ```
 
 Vesta runs on `cores-1` workers; subs2srs runs exactly as written
 (single-threaded). Same inputs, same outputs, pure execution-time comparison —
-see [`benchmarks/README.md`](benchmarks/README.md).
+see [`benchmarking_against_subs2srs/README.md`](../benchmarking_against_subs2srs/README.md).
 
 ---
 

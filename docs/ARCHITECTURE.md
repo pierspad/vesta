@@ -15,9 +15,11 @@ with a matching headless CLI, so you can build and use any one feature on its ow
 │  lib/   (feature engines)     │   │  cli/   (headless front-ends)    │
 │  • srt-flashcards   ──────────┼──►│  • srt-flashcards-cli            │
 │  • srt-translate    ──────────┼──►│  • srt-translate-cli             │
-│  • srt-sync                   │   │  • srt-extract-cli               │
+│  • srt-refine                 │   │  • srt-extract-cli               │
+│  • srt-sync                   │   │  • srt-transcribe-cli            │
+│  • srt-autosync     ──────────┼──►│  • srt-autosync-cli              │
 │  • srt-extract                │   └──────────────────────────────────┘
-│  • whisper-common             │
+│  • whisper-common   ──────────┼──►  (srt-transcribe)
 └───────────────┬──────────────┘
                 │ depends on
 ┌───────────────▼──────────────┐
@@ -30,8 +32,8 @@ with a matching headless CLI, so you can build and use any one feature on its ow
 | Layer | Crates | Rule |
 |---|---|---|
 | **core** | `srt-parser` | Foundational, dependency-light parsing. |
-| **lib** | `srt-flashcards`, `srt-translate`, `srt-sync`, `srt-extract`, `whisper-common` | Feature engines. **No GUI coupling.** Progress via callbacks, cancellation via `CancellationToken`, heavy deps (whisper, ffmpeg, sqlite) encapsulated here. |
-| **cli** | `srt-flashcards-cli`, `srt-translate-cli`, `srt-extract-cli` | Thin `clap` shells. Depend only on their library. |
+| **lib** | `srt-flashcards`, `srt-translate`, `srt-refine`, `srt-sync`, `srt-autosync`, `srt-extract`, `whisper-common` | Feature engines. **No GUI coupling.** Progress via callbacks, cancellation via `CancellationToken`, heavy deps (whisper, ffmpeg, sqlite) encapsulated here. |
+| **cli** | `srt-flashcards-cli`, `srt-translate-cli`, `srt-extract-cli`, `srt-transcribe-cli`, `srt-autosync-cli` | Thin `clap` shells. Depend only on their libraries. |
 | **apps** | `srt-gui` (`vesta`) | Tauri commands that translate between the GUI (AppHandle, events, state) and the engines. No business logic. |
 
 This is the `.cursorrules` §9 principle: *"Extract common functionality into a
@@ -45,15 +47,15 @@ Each library has a CLI you can build in isolation:
 
 ```bash
 cargo build --release -p srt-flashcards-cli   # just the flashcard maker
+cargo build --release -p srt-transcribe-cli    # just the transcriber (media → SRT)
+cargo build --release -p srt-autosync-cli      # just the Whisper-based auto-sync
 cargo build --release -p srt-translate-cli     # just the translator
 cargo build --release -p srt-extract-cli       # just the SRT data extractor
 ```
 
-The flashcard engine (`lib/srt-flashcards`) is the newest extraction: its logic
-previously lived inside the Tauri app and is now a standalone crate, so the
-desktop app, the CLI, and the benchmark harness all share one implementation.
-See [`lib/srt-flashcards/README.md`](../lib/srt-flashcards/README.md) and
-[`cli/srt-flashcards-cli/README.md`](../cli/srt-flashcards-cli/README.md).
+Per-module guides — what each crate does, how to build only its binary, and
+how to embed it in another Rust project — live in
+[`docs/modules/`](modules/README.md).
 
 ## Flashcard data flow
 
@@ -74,9 +76,9 @@ throttled progress bar to stderr; the benchmark passes a no-op.
 
 ## Benchmarking
 
-`benchmarks/` measures the flashcard engine against the original subs2srs using
+`benchmarking_against_subs2srs/` measures the flashcard engine against the original subs2srs using
 two headless CLIs over the same media. See
-[`benchmarks/README.md`](../benchmarks/README.md).
+[`benchmarking_against_subs2srs/README.md`](../benchmarking_against_subs2srs/README.md).
 
 ## Build & iteration notes
 
