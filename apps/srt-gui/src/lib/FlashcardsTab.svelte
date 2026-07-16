@@ -47,6 +47,7 @@
   import { generationStore, EXPORT_FORMAT_KEY, SERIES_OUTPUT_MODE_KEY } from "./generationStore.svelte";
   import GenerationStatusDisplay from "./GenerationStatusDisplay.svelte";
   import GenerationResultPanel from "./GenerationResultPanel.svelte";
+  import DeckNamingPanel from "./DeckNamingPanel.svelte";
 
   const SUBTITLE_EXTENSIONS = ["srt", "ass", "ssa", "vtt"];
 
@@ -3078,65 +3079,12 @@
       />
 
     {:else if panelId === "naming"}
-      <div
-        inert={!hasAnyFiles}
-        title={!hasAnyFiles ? HINT_LOAD_TARGET_FIRST : undefined}
-        class="glass-card p-5 {panelHighlightClass('naming')} {!hasAnyFiles
-          ? 'opacity-50'
-          : ''}"
-      >
-        <h3
-          class="text-lg font-semibold mb-4 flex items-center gap-2 text-amber-400"
-        >
-          <svg
-            class="w-5 h-5"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"
-            />
-          </svg>
-          {t("flashcards.naming")}
-        </h3>
-
-        <div class="space-y-3">
-          {#if needsDeckName}
-            <div>
-              <span class="block text-xs text-gray-400 mb-1">
-                {t("flashcards.deckNameLabel")}
-                <span class="text-red-400">*</span>
-              </span>
-              <input
-                type="text"
-                bind:value={generationStore.deckName}
-                oninput={(event) => {
-                  generationStore.deckNameAuto =
-                    (event.currentTarget as HTMLInputElement).value.trim().length === 0;
-                }}
-                class="input-modern w-full text-sm"
-                placeholder={t("flashcards.deckNamePlaceholder")}
-              />
-            </div>
-          {:else}
-            <div class="rounded-lg bg-violet-500/10 border border-violet-500/20 p-3">
-              <div class="flex items-center gap-2 mb-1">
-                <svg class="w-3.5 h-3.5 text-violet-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <span class="text-xs font-medium text-violet-300">{t("flashcards.deckNameAutoLabel")}</span>
-              </div>
-              <p class="text-[10px] text-gray-400">{t("flashcards.deckNameAutoDesc")}</p>
-            </div>
-          {/if}
-
-        </div>
-      </div>
-
+      <DeckNamingPanel
+        {hasAnyFiles}
+        {needsDeckName}
+        highlightClass={panelHighlightClass('naming')}
+        hintLoadTargetFirst={HINT_LOAD_TARGET_FIRST}
+      />
     {:else if panelId === "progressResult"}
       <GenerationResultPanel />
     {:else if panelId === "logs"}
@@ -3673,92 +3621,6 @@
     grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
     gap: 1.25rem;
   }
-
-  .filter-pill-check {
-    align-items: center;
-    border: 1px solid rgba(148, 163, 184, 0.16);
-    border-radius: 7px;
-    cursor: pointer;
-    display: flex;
-    min-height: 2.15rem;
-    padding: 0.48rem 0.65rem;
-    text-align: center;
-    transition:
-      background-color 0.16s ease,
-      border-color 0.16s ease,
-      color 0.16s ease;
-  }
-
-  .filter-pill-check:hover {
-    background: rgba(148, 163, 184, 0.08);
-    border-color: rgba(148, 163, 184, 0.28);
-  }
-
-  .filter-pill-check:has(input:checked) {
-    background: rgba(99, 102, 241, 0.14);
-    border-color: rgba(129, 140, 248, 0.4);
-  }
-
-  .filter-pill-check:has(input:checked) span {
-    color: rgb(199 210 254);
-  }
-
-  .vesta-check-row {
-    align-items: center;
-    border: 1px solid rgba(148, 163, 184, 0.12);
-    border-radius: 8px;
-    cursor: pointer;
-    display: flex;
-    gap: 0.5rem;
-    min-height: 2.1rem;
-    padding: 0.4rem 0.55rem;
-    transition:
-      background-color 0.16s ease,
-      border-color 0.16s ease;
-  }
-
-  .vesta-check-row:hover {
-    background: rgba(148, 163, 184, 0.07);
-    border-color: rgba(148, 163, 184, 0.22);
-  }
-
-  .vesta-check-row:has(.vesta-check-input:checked) {
-    background: rgba(99, 102, 241, 0.1);
-    border-color: rgba(129, 140, 248, 0.32);
-  }
-
-  .vesta-check-input {
-    appearance: none;
-    background: rgba(15, 23, 42, 0.85);
-    border: 1px solid rgba(148, 163, 184, 0.38);
-    border-radius: 5px;
-    display: grid;
-    height: 0.95rem;
-    margin: 0;
-    place-content: center;
-    width: 0.95rem;
-  }
-
-  .vesta-check-input::before {
-    background: rgb(199 210 254);
-    clip-path: polygon(14% 44%, 0 60%, 40% 100%, 100% 16%, 84% 0, 38% 62%);
-    content: "";
-    height: 0.55rem;
-    opacity: 0;
-    transform: scale(0.75);
-    transition: opacity 0.12s ease, transform 0.12s ease;
-    width: 0.55rem;
-  }
-
-  .vesta-check-input:checked {
-    background: rgba(79, 70, 229, 0.35);
-    border-color: rgba(165, 180, 252, 0.72);
-  }
-
-	  .vesta-check-input:checked::before {
-	    opacity: 1;
-	    transform: scale(1);
-	  }
 
 	  .dialog-close-button {
 	    border-radius: 0.45rem;
