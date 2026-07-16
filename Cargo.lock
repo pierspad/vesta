@@ -4457,7 +4457,7 @@ dependencies = [
 
 [[package]]
 name = "srt-ankiconnect"
-version = "0.14.0-dev.6"
+version = "0.5.0"
 dependencies = [
  "reqwest 0.13.4",
  "serde",
@@ -4466,7 +4466,7 @@ dependencies = [
 
 [[package]]
 name = "srt-autosync"
-version = "0.14.0-dev.6"
+version = "0.5.0"
 dependencies = [
  "anyhow",
  "serde",
@@ -4492,7 +4492,7 @@ dependencies = [
 
 [[package]]
 name = "srt-condense"
-version = "0.14.0-dev.6"
+version = "0.5.0"
 dependencies = [
  "anyhow",
  "num_cpus",
@@ -4506,7 +4506,7 @@ dependencies = [
 
 [[package]]
 name = "srt-extract"
-version = "0.14.0-dev.6"
+version = "0.5.0"
 dependencies = [
  "anyhow",
  "serde_json",
@@ -4525,7 +4525,7 @@ dependencies = [
 
 [[package]]
 name = "srt-flashcards"
-version = "0.14.0-dev.6"
+version = "0.5.0"
 dependencies = [
  "anyhow",
  "rusqlite",
@@ -4552,7 +4552,7 @@ dependencies = [
 
 [[package]]
 name = "srt-parser"
-version = "0.14.0-dev.6"
+version = "0.5.0"
 dependencies = [
  "anyhow",
  "chardetng",
@@ -4562,7 +4562,7 @@ dependencies = [
 
 [[package]]
 name = "srt-refine"
-version = "0.14.0-dev.6"
+version = "0.5.0"
 dependencies = [
  "rusqlite",
  "serde",
@@ -4577,7 +4577,7 @@ dependencies = [
 
 [[package]]
 name = "srt-sync"
-version = "0.14.0-dev.6"
+version = "0.5.0"
 dependencies = [
  "anyhow",
  "serde",
@@ -4587,7 +4587,7 @@ dependencies = [
 
 [[package]]
 name = "srt-transcribe"
-version = "0.14.0-dev.6"
+version = "0.5.0"
 dependencies = [
  "anyhow",
  "dirs",
@@ -4616,7 +4616,7 @@ dependencies = [
 
 [[package]]
 name = "srt-translate"
-version = "0.14.0-dev.6"
+version = "0.5.0"
 dependencies = [
  "anyhow",
  "governor",
@@ -5810,7 +5810,7 @@ checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
 
 [[package]]
 name = "vesta"
-version = "0.14.0-dev.6"
+version = "0.5.0"
 dependencies = [
  "anyhow",
  "axum",
