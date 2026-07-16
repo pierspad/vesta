@@ -225,51 +225,48 @@ pub async fn save_temp_subtitles(
         .path()
         .app_local_data_dir()
         .map_err(|e| format!("Failed to get app data dir: {}", e))?;
-    
+
     let temp_dir = app_data.join("temp_subs");
     std::fs::create_dir_all(&temp_dir).map_err(|e| e.to_string())?;
-    
+
     let suffix = if use_native { "native" } else { "target" };
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_millis())
         .unwrap_or(0);
     let temp_file_path = temp_dir.join(format!("temp_{}_{}.srt", suffix, now));
-    
-    // Format lines to SRT
-    let mut content = String::new();
-    let mut counter = 1;
+
+    // Riusa il writer di srt_parser invece di riformattare a mano il blocco
+    // SRT (contatore, timestamp, concatenazione stringhe): vedi
+    // REFACTOR-PLAN.md §1.3, stesso pattern già in uso in translate.rs.
+    let mut subtitles = std::collections::HashMap::new();
+    let mut counter: u32 = 1;
     for line in lines {
         if !line.active {
             continue;
         }
-        
+
         let text = if use_native {
             line.subs2_text.clone()
         } else {
             Some(line.subs1_text.clone())
         };
-        
-        if let Some(txt) = text {
-            let start_time = format_ms(line.start_ms);
-            let end_time = format_ms(line.end_ms);
-            
-            content.push_str(&format!("{}\n", counter));
-            content.push_str(&format!("{} --> {}\n", start_time, end_time));
-            content.push_str(&format!("{}\n\n", txt));
-            counter += 1;
-        }
-    }
-    
-    std::fs::write(&temp_file_path, content).map_err(|e| e.to_string())?;
-    
-    Ok(temp_file_path.to_string_lossy().to_string())
-}
 
-fn format_ms(ms: i64) -> String {
-    let h = ms / 3600000;
-    let m = (ms % 3600000) / 60000;
-    let s = (ms % 60000) / 1000;
-    let mss = ms % 1000;
-    format!("{:02}:{:02}:{:02},{:03}", h, m, s, mss)
+        let Some(text) = text else { continue };
+
+        subtitles.insert(
+            counter,
+            srt_parser::Subtitle {
+                id: counter,
+                start: srt_parser::Timestamp { milliseconds: line.start_ms.max(0) as u64 },
+                end: srt_parser::Timestamp { milliseconds: line.end_ms.max(0) as u64 },
+                text,
+            },
+        );
+        counter += 1;
+    }
+
+    srt_parser::SrtParser::save_file(&temp_file_path, &subtitles).map_err(|e| e.to_string())?;
+
+    Ok(temp_file_path.to_string_lossy().to_string())
 }

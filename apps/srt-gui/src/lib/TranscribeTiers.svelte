@@ -3,6 +3,7 @@
   import { locale } from "./i18n";
   import ProviderIcon from "./ProviderIcon.svelte";
   import SearchableSelect from "./SearchableSelect.svelte";
+  import TierList from "./components/TierList.svelte";
   import {
     transcribeProviders,
     loadAndValidateApiKeys,
@@ -271,108 +272,28 @@
     if (!entry.model) return false;
     return !models.some((m) => m.id === entry.model);
   }
-
-  let collapsedTiers = $state<Set<string>>(new Set());
-
-  function toggleTier(tierId: string) {
-    const next = new Set(collapsedTiers);
-    if (next.has(tierId)) {
-      next.delete(tierId);
-    } else {
-      next.add(tierId);
-    }
-    collapsedTiers = next;
-  }
 </script>
 
-<div class="space-y-4">
+{#snippet noKeysWarning()}
   {#if apiKeys.filter(isWhisperKey).length === 0}
     <div class="rounded-lg border border-amber-400/20 bg-amber-500/10 px-3 py-2.5 text-xs text-amber-100">
       {t("tiers.noKeys") || "Nessuna API key configurata. Aggiungi prima una chiave sopra, quindi selezionala qui."}
     </div>
   {/if}
+{/snippet}
 
-  {#if tiers.length === 0}
-    <div class="rounded-lg border border-white/10 bg-white/5 px-4 py-6 text-center text-sm text-gray-400">
-      {t("tiers.empty") || "Nessun tier. Aggiungi un tier per iniziare."}
-    </div>
-  {:else}
-    <div class="space-y-6">
-      {#each tiers as tier, tierIndex (tier.id)}
-        <div class="border-b border-white/5 pb-6 last:border-b-0 last:pb-0">
-          <!-- Tier Accordion Header -->
-          <!-- svelte-ignore a11y_no_static_element_interactions -->
-          <div
-            role="button"
-            tabindex="0"
-            onclick={() => toggleTier(tier.id)}
-            onkeydown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggleTier(tier.id); } }}
-            class="flex items-center justify-between gap-2 py-3 cursor-pointer group select-none outline-none"
-          >
-            <div class="flex items-center gap-3">
-              <!-- Chevron indicator -->
-              <span class="text-gray-500 group-hover:text-white transition-colors duration-150 flex-shrink-0">
-                {#if collapsedTiers.has(tier.id)}
-                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7" /></svg>
-                {:else}
-                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7" /></svg>
-                {/if}
-              </span>
-
-              <!-- Badge with Order Number -->
-              <span class="inline-flex items-center justify-center w-6 h-6 rounded-md bg-indigo-500/15 text-indigo-300 text-xs font-bold flex-shrink-0">
-                {tierIndex + 1}
-              </span>
-
-              <!-- Title & Priority sub-label -->
-              <div class="flex flex-col">
-                <span class="text-sm font-bold text-white group-hover:text-indigo-200 transition-colors">
-                  {t("tiers.tier") || "Tier"} {tierIndex + 1}
-                </span>
-                <span class="text-[10px] text-gray-500 font-medium mt-0.5 uppercase tracking-wider">
-                  {tierIndex === 0 ? (t("tiers.highestPriority") || "priorità massima") : (t("tiers.fallback") || "fallback")}
-                </span>
-              </div>
-            </div>
-
-            <!-- Tier Actions (Control Buttons) -->
-            <!-- svelte-ignore a11y_click_events_have_key_events -->
-            <div class="flex items-center gap-1" onclick={(e) => e.stopPropagation()}>
-              <button
-                type="button"
-                onclick={() => moveTier(tierIndex, -1)}
-                disabled={tierIndex === 0}
-                title={t("tiers.moveUp")}
-                class="p-1.5 rounded-lg text-indigo-400 bg-indigo-500/5 border border-indigo-500/10 hover:text-white hover:bg-indigo-500/20 hover:border-indigo-500/30 disabled:opacity-20 disabled:hover:bg-transparent disabled:border-transparent transition cursor-pointer"
-                aria-label={t("tiers.moveUp")}
-              >
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 15l7-7 7 7" /></svg>
-              </button>
-              <button
-                type="button"
-                onclick={() => moveTier(tierIndex, 1)}
-                disabled={tierIndex === tiers.length - 1}
-                title={t("tiers.moveDown")}
-                class="p-1.5 rounded-lg text-indigo-400 bg-indigo-500/5 border border-indigo-500/10 hover:text-white hover:bg-indigo-500/20 hover:border-indigo-500/30 disabled:opacity-20 disabled:hover:bg-transparent disabled:border-transparent transition cursor-pointer"
-                aria-label={t("tiers.moveDown")}
-              >
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7" /></svg>
-              </button>
-              <button
-                type="button"
-                onclick={() => removeTier(tierIndex)}
-                title={t("tiers.removeTier")}
-                class="p-1.5 rounded-lg text-red-400 bg-red-500/5 border border-red-500/10 hover:text-white hover:bg-red-500/20 hover:border-red-500/30 transition cursor-pointer"
-                aria-label={t("tiers.removeTier")}
-              >
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-              </button>
-            </div>
-          </div>
-
-          <!-- Tier Content (Endpoints list) -->
-          {#if !collapsedTiers.has(tier.id)}
-            <div class="pl-6 pr-2 py-2 space-y-4">
+<TierList
+  {tiers}
+  emptyMessage={t("tiers.empty") || "Nessun tier. Aggiungi un tier per iniziare."}
+  priorityLabel={(i) => (i === 0 ? (t("tiers.highestPriority") || "priorità massima") : (t("tiers.fallback") || "fallback"))}
+  moveUpLabel={t("tiers.moveUp")}
+  moveDownLabel={t("tiers.moveDown")}
+  removeTierLabel={t("tiers.removeTier")}
+  onMoveTier={moveTier}
+  onRemoveTier={removeTier}
+  warning={noKeysWarning}
+>
+  {#snippet tierBody(tier, tierIndex)}
               {#if tier.entries.length === 0}
                 <p class="text-xs text-gray-500 px-1 py-1">{t("tiers.tierEmpty") || "Tier vuoto — aggiungi almeno un endpoint."}</p>
               {/if}
@@ -516,10 +437,5 @@
                   + {t("tiers.addEntry") || "Aggiungi endpoint"}
                 </button>
               </div>
-            </div>
-          {/if}
-        </div>
-      {/each}
-    </div>
-  {/if}
-</div>
+  {/snippet}
+</TierList>

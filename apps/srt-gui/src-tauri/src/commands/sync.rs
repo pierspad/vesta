@@ -418,7 +418,10 @@ pub struct SyncSuggestSubtitlesResult {
     pub native: Option<String>,
 }
 
-/// Suggerisce in modo best-effort i file sottotitoli target e native per un dato media.
+/// Suggerisce in modo best-effort i file sottotitoli target e native per un
+/// dato media. Lo scoring dei candidati e l'assegnazione dei ruoli vivono in
+/// [`srt_sync::matching`] (GUI-agnostica, testabile); qui resta solo il
+/// filtro di confidenza (punteggio >= 45) e l'adattamento dei tipi per Tauri.
 #[tauri::command]
 pub fn sync_suggest_subtitles_for_media(
     media_path: String,
@@ -428,93 +431,18 @@ pub fn sync_suggest_subtitles_for_media(
     let candidates = srt_sync::matching::suggest_subtitles_for_media(Path::new(&media_path))
         .map_err(|e| e.to_string())?;
 
-    // Filtra i candidati con punteggio >= 45
     let candidates: Vec<_> = candidates.into_iter().filter(|c| c.1 >= 45).collect();
 
-    if candidates.is_empty() {
-        return Ok(SyncSuggestSubtitlesResult { target: None, native: None });
-    }
+    let (target, native) = srt_sync::matching::suggest_target_native_subtitles(
+        &candidates,
+        default_target_lang.as_deref(),
+        default_native_lang.as_deref(),
+    );
 
-    let mut target = None;
-    let mut native = None;
-
-    // Helper per controllare la lingua nel nome file
-    let matches_lang = |path: &Path, lang: &Option<String>| -> bool {
-        if let Some(l) = lang {
-            if let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {
-                let lower_stem = stem.to_lowercase();
-                let lower_lang = l.to_lowercase();
-                if lower_stem.contains(&format!(".{}", lower_lang)) 
-                    || lower_stem.contains(&format!("_{}", lower_lang))
-                    || lower_stem.contains(&lower_lang) {
-                    return true;
-                }
-            }
-        }
-        false
-    };
-
-    // 1. Cerca ruoli espliciti
-    for (path, _) in &candidates {
-        if let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {
-            let lower_stem = stem.to_lowercase();
-            let is_ref = ["translated", "translation", "tradotto", "traduzione", "reference", "ref"]
-                .iter()
-                .any(|k| lower_stem.contains(k));
-            let is_orig = ["native", "original", "orig", "source"]
-                .iter()
-                .any(|k| lower_stem.contains(k));
-
-            let path_str = path.to_string_lossy().into_owned();
-            if is_ref && target.is_none() {
-                target = Some(path_str);
-            } else if is_orig && native.is_none() {
-                native = Some(path_str);
-            }
-        }
-    }
-
-    // 2. Prova ad abbinare per codici lingua
-    for (path, _) in &candidates {
-        let path_str = path.to_string_lossy().into_owned();
-        if target.is_some() && native.is_some() {
-            break;
-        }
-        
-        if Some(&path_str) == target.as_ref() || Some(&path_str) == native.as_ref() {
-            continue;
-        }
-
-        if target.is_none() && matches_lang(path, &default_target_lang) {
-            target = Some(path_str);
-        } else if native.is_none() && matches_lang(path, &default_native_lang) {
-            native = Some(path_str);
-        }
-    }
-
-    // 3. Fallback target: primo candidato non assegnato
-    if target.is_none() {
-        for (path, _) in &candidates {
-            let path_str = path.to_string_lossy().into_owned();
-            if Some(&path_str) != native.as_ref() {
-                target = Some(path_str);
-                break;
-            }
-        }
-    }
-
-    // 4. Fallback native: secondo candidato
-    if native.is_none() {
-        for (path, _) in &candidates {
-            let path_str = path.to_string_lossy().into_owned();
-            if Some(&path_str) != target.as_ref() {
-                native = Some(path_str);
-                break;
-            }
-        }
-    }
-
-    Ok(SyncSuggestSubtitlesResult { target, native })
+    Ok(SyncSuggestSubtitlesResult {
+        target: target.map(|p| p.to_string_lossy().into_owned()),
+        native: native.map(|p| p.to_string_lossy().into_owned()),
+    })
 }
 
 
@@ -522,6 +450,12 @@ pub fn sync_suggest_subtitles_for_media(
 /// Per formati non nativamente supportati da WebKitGTK (MKV, AVI, FLV, OGM, VOB),
 /// usa ffmpeg per estrarre l'audio in formato OGG (Opus) nella cache dell'app.
 /// Restituisce il percorso del file da riprodurre (originale o transcodificato).
+///
+/// La whitelist dei formati, l'invocazione ffmpeg (con fallback opus->vorbis)
+/// e la cache su disco vivono in [`srt_sync::playback`] (GUI-agnostica,
+/// sincrona); qui restano solo la risoluzione di `app_cache_dir()`/ffmpeg e lo
+/// scheduling su un thread bloccante (la funzione di libreria usa
+/// `std::process::Command`, non `tokio`).
 #[tauri::command]
 pub async fn sync_prepare_media_for_playback(
     app: tauri::AppHandle,
@@ -529,132 +463,23 @@ pub async fn sync_prepare_media_for_playback(
 ) -> Result<String, String> {
     use tauri::Manager;
 
-    let ext = Path::new(&path)
-        .extension()
-        .and_then(|e| e.to_str())
-        .unwrap_or("")
-        .to_lowercase();
-
-    // Formats natively supported by WebKitGTK / GStreamer without extra plugins
-    let browser_native = matches!(
-        ext.as_str(),
-        "mp4" | "m4v" | "webm" | "mp3" | "wav" | "ogg" | "m4a" | "aac" | "opus" | "flac"
-    );
-
-    if browser_native {
-        // Browser can play this directly
-        return Ok(path);
-    }
-
-    // For non-native formats (mkv, avi, mov, flv, ogm, vob, wma, m4b, etc.),
-    // transcode audio to OGG Opus via ffmpeg
     let ffmpeg_cmd = super::flashcards::media::resolve_ffmpeg_path(Some(&app)).await;
 
-    // Create a cache directory for transcoded files
     let cache_dir = app
         .path()
         .app_cache_dir()
         .map_err(|e| format!("Cannot get cache dir: {}", e))?
         .join("media_cache");
 
-    std::fs::create_dir_all(&cache_dir)
-        .map_err(|e| format!("Cannot create cache dir: {}", e))?;
-
-    // Generate a deterministic output filename based on the source path
-    let hash = sha1_hash(&path);
-    let output_path = cache_dir.join(format!("{}.ogg", hash));
-
-    // If already transcoded, return cached version
-    if output_path.exists() {
-        // Verify the source file hasn't been modified since the cache was created
-        let source_modified = std::fs::metadata(&path)
-            .and_then(|m| m.modified())
-            .ok();
-        let cache_modified = std::fs::metadata(&output_path)
-            .and_then(|m| m.modified())
-            .ok();
-
-        if let (Some(src_time), Some(cache_time)) = (source_modified, cache_modified) {
-            if cache_time > src_time {
-                return Ok(output_path.to_string_lossy().to_string());
-            }
-        }
-    }
-
-    // Transcode: extract audio to OGG Opus
-    eprintln!(
-        "[sync] Transcoding '{}' to OGG for browser playback...",
-        path
-    );
-
-    let output = tokio::process::Command::new(&ffmpeg_cmd)
-        .args([
-            "-nostdin",
-            "-loglevel", "error",
-            "-y",
-            "-i", &path,
-            "-vn",       // no video
-            "-sn",       // no subtitles
-            "-dn",       // no data streams
-            "-c:a", "libopus",
-            "-b:a", "128k",
-            "-ar", "48000",
-            "-ac", "2",
-        ])
-        .arg(output_path.as_os_str())
-        .output()
-        .await
-        .map_err(|e| format!("Failed to run ffmpeg: {}", e))?;
-
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        // Fallback: try with libvorbis if libopus is not available
-        eprintln!("[sync] libopus failed, trying libvorbis fallback: {}", stderr);
-
-        let output2 = tokio::process::Command::new(&ffmpeg_cmd)
-            .args([
-                "-nostdin",
-                "-loglevel", "error",
-                "-y",
-                "-i", &path,
-                "-vn",
-                "-sn",
-                "-dn",
-                "-c:a", "libvorbis",
-                "-b:a", "128k",
-                "-ar", "44100",
-                "-ac", "2",
-            ])
-            .arg(output_path.as_os_str())
-            .output()
-            .await
-            .map_err(|e| format!("Failed to run ffmpeg (vorbis): {}", e))?;
-
-        if !output2.status.success() {
-            let stderr2 = String::from_utf8_lossy(&output2.stderr);
-            return Err(format!(
-                "ffmpeg transcoding failed: {}",
-                if stderr2.is_empty() { &stderr } else { &stderr2 }
-            ));
-        }
-    }
-
-    eprintln!(
-        "[sync] Transcoded '{}' -> '{}'",
-        path,
-        output_path.display()
-    );
+    let source = Path::new(&path).to_path_buf();
+    let output_path = tokio::task::spawn_blocking(move || {
+        srt_sync::playback::transcode_for_playback(&source, &cache_dir, &ffmpeg_cmd)
+    })
+    .await
+    .map_err(|e| format!("Transcoding task panicked: {}", e))?
+    .map_err(|e| e.to_string())?;
 
     Ok(output_path.to_string_lossy().to_string())
-}
-
-/// Simple hash for generating cache filenames
-fn sha1_hash(input: &str) -> String {
-    use std::collections::hash_map::DefaultHasher;
-    use std::hash::{Hash, Hasher};
-    let mut hasher = DefaultHasher::new();
-    input.hash(&mut hasher);
-    format!("{:016x}", hasher.finish())
 }
 
 /// Helper per estrarre lo stato dall'engine

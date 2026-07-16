@@ -389,6 +389,96 @@ pub fn suggest_subtitles_for_media(media_path: &Path) -> std::io::Result<Vec<(Pa
     Ok(candidates)
 }
 
+/// Assegna i ruoli target (da tradurre/rivedere) e native (originale) a una
+/// lista di candidati sottotitolo per un dato media — tipicamente l'output di
+/// [`suggest_subtitles_for_media`], già filtrato per punteggio dal chiamante.
+///
+/// Estratta da `sync_suggest_subtitles_for_media`: prima viveva solo nel
+/// layer Tauri (non testabile headless, e a rischio di divergere in silenzio
+/// dal resto di questo modulo). Passi, in ordine:
+/// 1. Ruolo esplicito nel nome file (keyword "translated/reference/..." →
+///    target, "native/original/..." → native; a parità sullo stesso file,
+///    target ha priorità).
+/// 2. Corrispondenza di lingua con i default forniti dal chiamante.
+/// 3. Fallback posizionale sui candidati rimasti: il primo libero (nell'ordine
+///    ricevuto) va a target, il successivo a native.
+pub fn suggest_target_native_subtitles(
+    candidates: &[(PathBuf, i32)],
+    default_target_lang: Option<&str>,
+    default_native_lang: Option<&str>,
+) -> (Option<PathBuf>, Option<PathBuf>) {
+    if candidates.is_empty() {
+        return (None, None);
+    }
+
+    let mut target: Option<PathBuf> = None;
+    let mut native: Option<PathBuf> = None;
+
+    const REFERENCE_KEYWORDS: &[&str] =
+        &["translated", "translation", "tradotto", "traduzione", "reference", "ref"];
+    const ORIGINAL_KEYWORDS: &[&str] = &["native", "original", "orig", "source"];
+
+    // 1. Ruoli espliciti nel nome file.
+    for (path, _) in candidates {
+        let Some(stem) = path.file_stem().and_then(|s| s.to_str()) else {
+            continue;
+        };
+        let lower_stem = stem.to_lowercase();
+        let is_ref = REFERENCE_KEYWORDS.iter().any(|k| lower_stem.contains(k));
+        let is_orig = ORIGINAL_KEYWORDS.iter().any(|k| lower_stem.contains(k));
+
+        if is_ref && target.is_none() {
+            target = Some(path.clone());
+        } else if is_orig && native.is_none() {
+            native = Some(path.clone());
+        }
+    }
+
+    // 2. Corrispondenza di lingua coi default.
+    let matches_lang = |path: &Path, lang: Option<&str>| -> bool {
+        let Some(lang) = lang else { return false };
+        let Some(stem) = path.file_stem().and_then(|s| s.to_str()) else {
+            return false;
+        };
+        let lower_stem = stem.to_lowercase();
+        let lower_lang = lang.to_lowercase();
+        lower_stem.contains(&format!(".{lower_lang}"))
+            || lower_stem.contains(&format!("_{lower_lang}"))
+            || lower_stem.contains(&lower_lang)
+    };
+    for (path, _) in candidates {
+        if target.is_some() && native.is_some() {
+            break;
+        }
+        if Some(path) == target.as_ref() || Some(path) == native.as_ref() {
+            continue;
+        }
+        if target.is_none() && matches_lang(path, default_target_lang) {
+            target = Some(path.clone());
+        } else if native.is_none() && matches_lang(path, default_native_lang) {
+            native = Some(path.clone());
+        }
+    }
+
+    // 3. Fallback posizionale: primo candidato libero -> target, poi -> native.
+    if target.is_none() {
+        target = candidates
+            .iter()
+            .map(|(p, _)| p)
+            .find(|p| Some(*p) != native.as_ref())
+            .cloned();
+    }
+    if native.is_none() {
+        native = candidates
+            .iter()
+            .map(|(p, _)| p)
+            .find(|p| Some(*p) != target.as_ref())
+            .cloned();
+    }
+
+    (target, native)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -435,6 +525,66 @@ mod tests {
         assert_eq!(
             simplify_subtitle_stem("Detour-en-original"),
             simplify_subtitle_stem("Detour.ita.translated")
+        );
+    }
+
+    #[test]
+    fn suggest_target_native_handles_no_candidates() {
+        assert_eq!(
+            suggest_target_native_subtitles(&[], Some("en"), Some("it")),
+            (None, None)
+        );
+    }
+
+    #[test]
+    fn suggest_target_native_single_candidate_becomes_target() {
+        let candidates = vec![(PathBuf::from("Movie.srt"), 60)];
+        assert_eq!(
+            suggest_target_native_subtitles(&candidates, None, None),
+            (Some(PathBuf::from("Movie.srt")), None)
+        );
+    }
+
+    #[test]
+    fn suggest_target_native_explicit_roles_in_filename() {
+        let candidates = vec![
+            (PathBuf::from("Movie.translated.srt"), 60),
+            (PathBuf::from("Movie.original.srt"), 55),
+        ];
+        assert_eq!(
+            suggest_target_native_subtitles(&candidates, None, None),
+            (
+                Some(PathBuf::from("Movie.translated.srt")),
+                Some(PathBuf::from("Movie.original.srt"))
+            )
+        );
+    }
+
+    #[test]
+    fn suggest_target_native_falls_back_positionally_without_roles() {
+        // Nessun ruolo esplicito nel nome: il primo candidato (per punteggio,
+        // già ordinato dal chiamante) diventa target, il secondo native.
+        let candidates = vec![
+            (PathBuf::from("Show.en.srt"), 60),
+            (PathBuf::from("Show.it.srt"), 50),
+        ];
+        assert_eq!(
+            suggest_target_native_subtitles(&candidates, None, None),
+            (Some(PathBuf::from("Show.en.srt")), Some(PathBuf::from("Show.it.srt")))
+        );
+    }
+
+    #[test]
+    fn suggest_target_native_matches_default_languages() {
+        // Nessun ruolo esplicito, ma i default di lingua permettono
+        // un'assegnazione più mirata del semplice ordine posizionale.
+        let candidates = vec![
+            (PathBuf::from("Show.it.srt"), 60),
+            (PathBuf::from("Show.en.srt"), 55),
+        ];
+        assert_eq!(
+            suggest_target_native_subtitles(&candidates, Some("en"), Some("it")),
+            (Some(PathBuf::from("Show.en.srt")), Some(PathBuf::from("Show.it.srt")))
         );
     }
 
