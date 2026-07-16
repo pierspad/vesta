@@ -1699,7 +1699,7 @@ import TranscribeTiers from "./TranscribeTiers.svelte";
         }
       })
       .catch(() => {
-        appVersionNum = "v0.5.0";
+        appVersionNum = "v0.14.0-dev.6";
         if (automaticUpdateChecks) {
           void checkForUpdates("auto");
         } else {
