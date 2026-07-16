@@ -66,6 +66,19 @@ jobs:
             libssl-dev \
             libclang-dev
 
+      # Vulkan SDK (LunarG): headers, loader e glslc, richiesti da ggml-vulkan
+      # per compilare gli shader della feature `vulkan` di whisper.cpp.
+      # A runtime basta libvulkan1 (dichiarata nel deb/rpm): senza driver GPU
+      # whisper.cpp ricade automaticamente sulla CPU.
+      - name: Install Vulkan SDK
+        run: |
+          wget -qO- https://packages.lunarg.com/lunarg-signing-key-pub.asc \
+            | sudo tee /etc/apt/trusted.gpg.d/lunarg.asc > /dev/null
+          sudo wget -qO /etc/apt/sources.list.d/lunarg-vulkan-jammy.list \
+            https://packages.lunarg.com/vulkan/lunarg-vulkan-jammy.list
+          sudo apt-get update
+          sudo apt-get install -y vulkan-sdk
+
       - name: Install frontend dependencies
         working-directory: ${{ env.TAURI_APP_DIR }}
         run: npm ci
@@ -89,6 +102,10 @@ jobs:
             --fail-on-issues \
             --block-reasons missing_locale,missing_key,empty_value,placeholder_mismatch
 
+      - name: Validate i18n keys referenced in source
+        shell: bash
+        run: node apps/srt-gui/scripts/check-i18n.mjs
+
       - name: Generate platform icons
         working-directory: ${{ env.TAURI_APP_DIR }}
         run: npx tauri icon src-tauri/icons/icon.svg -o src-tauri/icons
@@ -100,7 +117,7 @@ jobs:
           NO_STRIP: true
           SCCACHE_GHA_ENABLED: "true"
           RUSTC_WRAPPER: "sccache"
-        run: npx tauri build --bundles deb,rpm
+        run: npx tauri build --bundles deb,rpm -- --features vulkan
 
       - name: Upload DEB
         uses: actions/upload-artifact@v6
@@ -144,10 +161,18 @@ jobs:
           SHA256=$(sha256sum "$DEB_FILE" | awk '{print $1}')
           cp "$DEB_FILE" "build-scripts/vesta-${VERSION}.deb"
 
+          # makepkg vieta colons, slash, spazi e trattini in pkgver: le pre-release
+          # semantic-release (es. "0.14.0-dev.3") vanno sanificate sostituendo "-" con "."
+          PKGVER="${VERSION//-/.}"
+
           cd build-scripts
-          sed -i "s/^pkgver=.*/pkgver=${VERSION}/" PKGBUILD
+          sed -i "s/^pkgver=.*/pkgver=${PKGVER}/" PKGBUILD
           LOCAL_URI="file:///workspace/build-scripts/vesta-${VERSION}.deb"
-          sed -i "s|\${_pkgname}-\${pkgver}.deb::https://[^ \"]*|\${_pkgname}-\${pkgver}.deb::${LOCAL_URI}|" PKGBUILD
+          # NB: nel PKGBUILD la source è "${_pkgname}-${pkgver}.deb::${url}/releases/...",
+          # cioè usa la variabile ${url}, non un literal "https://": matchare "https://"
+          # qui non intercetta mai la riga e makepkg continua a scaricare dal
+          # rilascio GitHub (che a questo punto della pipeline non esiste ancora -> 404).
+          sed -i "s|\${_pkgname}-\${pkgver}.deb::\${url}[^ \"]*|\${_pkgname}-\${pkgver}.deb::${LOCAL_URI}|" PKGBUILD
           sed -i "0,/[a-f0-9]\{64\}/s//${SHA256}/" PKGBUILD
 
           docker run --rm -v ${{ github.workspace }}:/workspace -w /workspace/build-scripts archlinux:base-devel bash -c "
@@ -264,6 +289,21 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "Detected version: $VERSION"
 
+      - name: Determine Windows bundle targets
+        id: bundle_targets
+        shell: bash
+        run: |
+          # WiX/MSI richiede un identificatore di pre-release puramente numerico
+          # (<= 65535): "0.14.0-dev.3" non è un formato valido per il target msi
+          # e fa fallire l'intero step di build (niente exe, niente msi in release).
+          # Le pre-release (tag con "-", cioè le build sul branch dev) generano
+          # quindi solo l'installer NSIS; l'MSI resta riservato alle release stabili.
+          if [[ "$VERSION" == *-* ]]; then
+            echo "targets=nsis" >> "$GITHUB_OUTPUT"
+          else
+            echo "targets=nsis,msi" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Install system dependencies
         run: |
           choco install llvm -y
@@ -312,15 +352,20 @@ jobs:
           NO_STRIP: true
           SCCACHE_GHA_ENABLED: "true"
           RUSTC_WRAPPER: "sccache"
-        run: npx tauri build --bundles nsis,msi
+        run: npx tauri build --bundles ${{ steps.bundle_targets.outputs.targets }}
 
-      - name: Upload artifacts
+      - name: Upload NSIS installer
         uses: actions/upload-artifact@v6
         with:
-          name: packages-windows
-          path: |
-            target/release/bundle/nsis/*.exe
-            target/release/bundle/msi/*.msi
+          name: packages-windows-nsis
+          path: target/release/bundle/nsis/*.exe
+
+      - name: Upload MSI installer
+        if: ${{ steps.bundle_targets.outputs.targets == 'nsis,msi' }}
+        uses: actions/upload-artifact@v6
+        with:
+          name: packages-windows-msi
+          path: target/release/bundle/msi/*.msi
 
 
 
@@ -369,7 +414,7 @@ jobs:
           artifacts: "release/*"
           tag: ${{ github.ref_name }}
           commit: ${{ github.sha }}
-          name: VESTA ${{ github.ref_name }}
+          name: vesta ${{ github.ref_name }}
           bodyFile: release-notes-for-tag.md
           allowUpdates: true
           omitBodyDuringUpdate: true
