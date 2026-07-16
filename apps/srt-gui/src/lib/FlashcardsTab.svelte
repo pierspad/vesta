@@ -38,8 +38,10 @@
   import EmptyState from "./components/EmptyState.svelte";
   import FlashcardsPreviewModal from "./FlashcardsPreviewModal.svelte";
   import { previewStore } from "./previewStore.svelte";
-  import type { EpisodeMediaOverrides, AudioTrackInfo } from "./flashcardMediaTypes";
+  import type { EpisodeMediaOverrides, AudioTrackInfo, EpisodeMediaOverrideKey } from "./flashcardMediaTypes";
   import { formatAudioTrackLabel } from "./flashcardMediaTypes";
+  import { episodeMediaEditorStore } from "./episodeMediaEditorStore.svelte";
+  import EpisodeMediaSettingsModal from "./EpisodeMediaSettingsModal.svelte";
   import AudioClipsPanel from "./AudioClipsPanel.svelte";
   import SnapshotsPanel from "./SnapshotsPanel.svelte";
   import VideoClipsPanel from "./VideoClipsPanel.svelte";
@@ -174,13 +176,6 @@
   let seriesTotalEpisodes = $state(0);
   let editingEpisodeIndex = $state<number | null>(null);
   let editingEpisode = $state<EpisodeEntry | null>(null);
-  let editingMediaEpisodeIndex = $state<number | null>(null);
-  let editingMediaEpisode = $state<EpisodeEntry | null>(null);
-  let editingMediaOverrides = $state<Required<EpisodeMediaOverrides> | null>(null);
-  let editingMediaTab = $state<"audio" | "snapshot" | "video">("audio");
-  let episodeAudioTracks = $state<AudioTrackInfo[]>([]);
-  let episodeAudioTracksLoading = $state(false);
-  let initialEditingMediaOverridesStr = $state("");
   let initialEditingEpisodeStr = $state("");
   function showSnackbar(message: string, variant: "success" | "info" | "warning" | "error" = "info") {
     snackbar.show(message, variant, 1300);
@@ -262,8 +257,6 @@
     return Boolean(ep.mediaOverrides && Object.keys(ep.mediaOverrides).length > 0);
   }
 
-  type EpisodeMediaOverrideKey = keyof EpisodeMediaOverrides;
-
   const audioOverrideKeys: EpisodeMediaOverrideKey[] = [
     "generateAudio",
     "audioBitrate",
@@ -289,30 +282,28 @@
   ];
 
   function mediaOverrideValueChanged(key: EpisodeMediaOverrideKey): boolean {
-    if (!editingMediaOverrides) return false;
+    const overrides = episodeMediaEditorStore.overrides;
+    const episode = episodeMediaEditorStore.episode;
+    if (!overrides) return false;
     const genericSettings = getGenericMediaSettings();
-    
-    if (key === "audioTrackIndex" && editingMediaEpisode && genericSettings.audioTrackIndex === null) {
+
+    if (key === "audioTrackIndex" && episode && genericSettings.audioTrackIndex === null) {
       const autoPicked = pickBestAudioTrackIndex(
-        episodeAudioTracks,
-        getPreferredAudioLanguageCodeForEpisode(editingMediaEpisode)
+        episodeMediaEditorStore.audioTracks,
+        getPreferredAudioLanguageCodeForEpisode(episode)
       );
-      if (editingMediaOverrides.audioTrackIndex === autoPicked) {
+      if (overrides.audioTrackIndex === autoPicked) {
         return false;
       }
     }
 
-    return editingMediaOverrides[key] !== genericSettings[key];
+    return overrides[key] !== genericSettings[key];
   }
 
   function mediaOverrideClass(key: EpisodeMediaOverrideKey): string {
     return mediaOverrideValueChanged(key)
       ? "media-override-glow"
       : "";
-  }
-
-  function mediaOverrideGroupHasChanges(keys: EpisodeMediaOverrideKey[]): boolean {
-    return keys.some((key) => mediaOverrideValueChanged(key));
   }
 
   function buildEpisodeMediaOverrideDiff(settings: Required<EpisodeMediaOverrides>): EpisodeMediaOverrides {
@@ -329,7 +320,7 @@
     return diff;
   }
 
-  function getPreferredAudioLanguageCodeForEpisode(ep: EpisodeEntry): string {
+  function getPreferredAudioLanguageCodeForEpisode(ep: { targetSubsPath: string }): string {
     return inferLanguageFromPath(ep.targetSubsPath) || noteTypeLanguage;
   }
 
@@ -887,35 +878,22 @@
     if (!episode || !episode.mediaPath) return;
 
     closeEpisodeContextMenu();
-    editingMediaEpisodeIndex = idx;
-    editingMediaEpisode = { ...episode };
-    editingMediaTab = "audio";
-    episodeAudioTracks = [];
-    episodeAudioTracksLoading = episode.mediaType === "video";
-    editingMediaOverrides = getEpisodeMediaSettings(episode);
+    episodeMediaEditorStore.begin(idx, episode, getEpisodeMediaSettings(episode));
 
     if (episode.mediaType === "video") {
       const tracks = await listAudioTracksForEpisode(episode);
-      episodeAudioTracks = tracks;
-      if (
-        editingMediaEpisodeIndex === idx &&
-        editingMediaOverrides &&
-        episode.mediaOverrides?.audioTrackIndex === undefined
-      ) {
-        editingMediaOverrides = {
-          ...editingMediaOverrides,
-          audioTrackIndex: pickBestAudioTrackIndex(
-            tracks,
-            getPreferredAudioLanguageCodeForEpisode(episode),
-          ),
-        };
+      if (episodeMediaEditorStore.episodeIndex === idx) {
+        episodeMediaEditorStore.setAudioTracks(tracks);
+        if (episodeMediaEditorStore.overrides && episode.mediaOverrides?.audioTrackIndex === undefined) {
+          episodeMediaEditorStore.update(
+            "audioTrackIndex",
+            pickBestAudioTrackIndex(tracks, getPreferredAudioLanguageCodeForEpisode(episode)),
+          );
+        }
       }
-      episodeAudioTracksLoading = false;
     }
-    
-    if (editingMediaOverrides) {
-      initialEditingMediaOverridesStr = JSON.stringify(editingMediaOverrides);
-    }
+
+    episodeMediaEditorStore.captureBaseline();
   }
 
   function closeEpisodeEditor() {
@@ -925,12 +903,7 @@
   }
 
   function closeEpisodeMediaSettings() {
-    editingMediaEpisodeIndex = null;
-    editingMediaEpisode = null;
-    editingMediaOverrides = null;
-    episodeAudioTracks = [];
-    episodeAudioTracksLoading = false;
-    initialEditingMediaOverridesStr = "";
+    episodeMediaEditorStore.close();
   }
 
   function syncEpisodeEditor() {
@@ -965,22 +938,13 @@
     closeEpisodeEditor();
   }
 
-  function updateEditingMediaOverride<K extends keyof EpisodeMediaOverrides>(
-    key: K,
-    value: EpisodeMediaOverrides[K],
-  ) {
-    if (!editingMediaOverrides) return;
-    editingMediaOverrides = {
-      ...editingMediaOverrides,
-      [key]: value,
-    };
-  }
-
   function saveEpisodeMediaSettings() {
-    if (editingMediaEpisodeIndex === null || !editingMediaOverrides) return;
-    const mediaOverrides = buildEpisodeMediaOverrideDiff(editingMediaOverrides);
-    episodes = episodes.map((episode, idx) =>
-      idx === editingMediaEpisodeIndex
+    const idx = episodeMediaEditorStore.episodeIndex;
+    const overrides = episodeMediaEditorStore.overrides;
+    if (idx === null || !overrides) return;
+    const mediaOverrides = buildEpisodeMediaOverrideDiff(overrides);
+    episodes = episodes.map((episode, i) =>
+      i === idx
         ? {
             ...episode,
             mediaOverrides: Object.keys(mediaOverrides).length > 0 ? mediaOverrides : undefined,
@@ -991,9 +955,10 @@
   }
 
   function resetEpisodeMediaSettings() {
-    if (editingMediaEpisodeIndex === null) return;
-    episodes = episodes.map((episode, idx) =>
-      idx === editingMediaEpisodeIndex
+    const idx = episodeMediaEditorStore.episodeIndex;
+    if (idx === null) return;
+    episodes = episodes.map((episode, i) =>
+      i === idx
         ? {
             ...episode,
             mediaOverrides: undefined,
@@ -4307,311 +4272,7 @@
     </div>
   {/if}
 
-  {#if editingMediaEpisode && editingMediaOverrides}
-    <!-- svelte-ignore a11y_no_static_element_interactions -->
-    <div
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/65 p-6"
-      role="dialog"
-      aria-modal="true"
-      tabindex="-1"
-      onclick={closeEpisodeMediaSettings}
-      onkeydown={(e) => {
-        if (e.key === "Escape") closeEpisodeMediaSettings();
-      }}
-    >
-      <!-- svelte-ignore a11y_no_static_element_interactions -->
-      <div
-        class="flex max-h-[92vh] w-[96vw] flex-col rounded-xl border border-gray-700 bg-gray-900 shadow-2xl"
-        onclick={(e) => e.stopPropagation()}
-        onkeydown={(e) => e.stopPropagation()}
-      >
-        <div class="flex items-center justify-between gap-3 border-b border-gray-700 px-5 py-4">
-          <div class="min-w-0">
-            <p class="text-xs uppercase tracking-wide text-violet-300">
-              {t("flashcards.perMovieSettings")}
-            </p>
-            <h3 class="truncate text-lg font-bold text-white" title={editingMediaEpisode.mediaPath}>
-              {getFileName(editingMediaEpisode.mediaPath)}
-            </h3>
-          </div>
-          <button
-            type="button"
-            onclick={closeEpisodeMediaSettings}
-	            class="dialog-close-button p-1 text-xl leading-none text-gray-400 hover:text-white"
-            aria-label={t("common.close")}
-          >×</button>
-        </div>
-
-        <div class="flex-1 overflow-y-auto p-5">
-          <div class="media-settings-panels">
-          <!-- AUDIO PANEL -->
-            <div class="space-y-4 rounded-xl border border-gray-800 bg-gray-800/30 p-5 shadow-inner">
-              <div class="flex items-center justify-between rounded-lg border border-cyan-500/20 bg-cyan-500/10 p-3">
-                <span class="text-sm font-semibold text-cyan-200">
-                  {t("flashcards.generateAudioClips")}
-                </span>
-                <button
-                  type="button"
-                  aria-label={t("flashcards.generateAudioClips")}
-	                  class="relative h-5 w-10 rounded-full transition-colors {editingMediaOverrides.generateAudio ? 'bg-cyan-500' : 'bg-gray-600'} {mediaOverrideClass('generateAudio')}"
-                  onclick={() => updateEditingMediaOverride("generateAudio", !editingMediaOverrides?.generateAudio)}
-                >
-                  <span class="absolute top-0.5 h-4 w-4 rounded-full bg-white transition-all {editingMediaOverrides.generateAudio ? 'left-5' : 'left-0.5'}"></span>
-                </button>
-              </div>
-
-              {#if editingMediaOverrides.generateAudio}
-                <div class="space-y-4 animate-fade-in">
-                  {#if editingMediaEpisode.mediaType === "video"}
-                <div>
-                  <span class="mb-1 block text-xs text-gray-500">{t("flashcards.audioTrack")}</span>
-                  {#if episodeAudioTracksLoading}
-                    <div class="input-modern text-xs text-gray-500">{t("flashcards.audioTracksLoading")}</div>
-                  {:else if episodeAudioTracks.length > 1}
-	                    <SearchableSelect
-	                      className={mediaOverrideClass("audioTrackIndex")}
-	                      noResultsText={t("common.noResults")}
-                      options={episodeAudioTracks.map((track) => ({
-                        value: String(track.index),
-                        label: formatAudioTrackLabel(track),
-                      }))}
-                      value={editingMediaOverrides.audioTrackIndex === null ? "" : String(editingMediaOverrides.audioTrackIndex)}
-                      onchange={(value) => updateEditingMediaOverride("audioTrackIndex", value === "" ? null : Number(value))}
-                      placeholder={t("flashcards.audioTrack")}
-                    />
-                  {:else if episodeAudioTracks.length === 1}
-	                    <div class="input-modern text-xs text-gray-500 opacity-60 cursor-not-allowed {mediaOverrideClass('audioTrackIndex')}">
-                      {formatAudioTrackLabel(episodeAudioTracks[0])}
-                    </div>
-                  {:else}
-	                    <div class="input-modern text-xs text-gray-500 {mediaOverrideClass('audioTrackIndex')}">
-                      {t("flashcards.audioTrackAuto")}
-                    </div>
-                  {/if}
-                </div>
-              {/if}
-
-              <div class="grid grid-cols-2 gap-3">
-                <div>
-                  <span class="mb-1 block text-xs text-gray-500">{t("flashcards.bitrate")}</span>
-	                  <SearchableSelect
-	                    className={mediaOverrideClass("audioBitrate")}
-	                    noResultsText={t("common.noResults")}
-                    options={[
-                      { value: "64", label: "64 kb/s" },
-                      { value: "128", label: "128 kb/s" },
-                      { value: "192", label: "192 kb/s" },
-                      { value: "256", label: "256 kb/s" },
-                      { value: "320", label: "320 kb/s" },
-                    ]}
-                    value={String(editingMediaOverrides.audioBitrate)}
-                    onchange={(v) => updateEditingMediaOverride("audioBitrate", parseInt(v))}
-                    placeholder="Bitrate"
-                  />
-                </div>
-                <label class="vesta-check-row mt-5">
-                  <input
-                    type="checkbox"
-                    checked={!!editingMediaOverrides.normalizeAudio}
-                    onchange={(event) => updateEditingMediaOverride("normalizeAudio", (event.currentTarget as HTMLInputElement).checked)}
-	                    class="vesta-check-input shrink-0 {mediaOverrideClass('normalizeAudio')}"
-                  />
-                  <span class="text-xs font-medium text-gray-300">{t("flashcards.normalizeAudio")}</span>
-                </label>
-              </div>
-
-              <div class="grid grid-cols-2 gap-3">
-                <div>
-                  <span class="mb-1 block text-xs text-gray-500">{t("flashcards.padStart")}</span>
-                  <div class="flex items-center gap-1">
-                    <input
-                      type="number"
-                      value={editingMediaOverrides.audioPadStart}
-                      oninput={(event) => updateEditingMediaOverride("audioPadStart", Number((event.currentTarget as HTMLInputElement).value))}
-	                      class="input-modern w-full text-xs {mediaOverrideClass('audioPadStart')}"
-                    />
-                    <span class="text-xs text-gray-500">ms</span>
-                  </div>
-                </div>
-                <div>
-                  <span class="mb-1 block text-xs text-gray-500">{t("flashcards.padEnd")}</span>
-                  <div class="flex items-center gap-1">
-                    <input
-                      type="number"
-                      value={editingMediaOverrides.audioPadEnd}
-                      oninput={(event) => updateEditingMediaOverride("audioPadEnd", Number((event.currentTarget as HTMLInputElement).value))}
-	                      class="input-modern w-full text-xs {mediaOverrideClass('audioPadEnd')}"
-                    />
-                    <span class="text-xs text-gray-500">ms</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-            {/if}
-            </div>
-          <!-- SNAPSHOT PANEL -->
-            <div class="space-y-4 rounded-xl border border-gray-800 bg-gray-800/30 p-5 shadow-inner {editingMediaEpisode.mediaType !== 'video' ? 'opacity-45' : ''}">
-              <div class="flex items-center justify-between rounded-lg border border-purple-500/20 bg-purple-500/10 p-3">
-                <span class="text-sm font-semibold text-purple-200">
-                  {t("flashcards.generateSnapshots")}
-                </span>
-                <button
-                  type="button"
-                  aria-label={t("flashcards.generateSnapshots")}
-                  disabled={editingMediaEpisode.mediaType !== "video"}
-	                  class="relative h-5 w-10 rounded-full transition-colors {editingMediaOverrides.generateSnapshots && editingMediaEpisode.mediaType === 'video' ? 'bg-purple-500' : 'bg-gray-600'} {mediaOverrideClass('generateSnapshots')}"
-                  onclick={() => updateEditingMediaOverride("generateSnapshots", !editingMediaOverrides?.generateSnapshots)}
-                >
-                  <span class="absolute top-0.5 h-4 w-4 rounded-full bg-white transition-all {editingMediaOverrides.generateSnapshots && editingMediaEpisode.mediaType === 'video' ? 'left-5' : 'left-0.5'}"></span>
-                </button>
-              </div>
-              
-              {#if editingMediaOverrides.generateSnapshots && editingMediaEpisode.mediaType === "video"}
-                <div class="grid grid-cols-3 gap-3 animate-fade-in">
-                  <div>
-                  <span class="mb-1 block text-xs text-gray-500">{t("flashcards.width")}</span>
-                  <div class="flex items-center gap-1">
-	                    <input type="number" value={editingMediaOverrides.snapshotWidth} oninput={(event) => updateEditingMediaOverride("snapshotWidth", Number((event.currentTarget as HTMLInputElement).value))} class="input-modern w-full text-xs {mediaOverrideClass('snapshotWidth')}" />
-                    <span class="text-xs text-gray-500">px</span>
-                  </div>
-                </div>
-                <div>
-                  <span class="mb-1 block text-xs text-gray-500">{t("flashcards.height")}</span>
-                  <div class="flex items-center gap-1">
-	                    <input type="number" value={editingMediaOverrides.snapshotHeight} oninput={(event) => updateEditingMediaOverride("snapshotHeight", Number((event.currentTarget as HTMLInputElement).value))} class="input-modern w-full text-xs {mediaOverrideClass('snapshotHeight')}" />
-                    <span class="text-xs text-gray-500">px</span>
-                  </div>
-                </div>
-                <div>
-                  <span class="mb-1 block text-xs text-gray-500">{t("flashcards.cropBottom")}</span>
-                  <div class="flex items-center gap-1">
-	                    <input type="number" value={editingMediaOverrides.cropBottom} oninput={(event) => updateEditingMediaOverride("cropBottom", Number((event.currentTarget as HTMLInputElement).value))} class="input-modern w-full text-xs {mediaOverrideClass('cropBottom')}" />
-                    <span class="text-xs text-gray-500">px</span>
-                  </div>
-                </div>
-              </div>
-              {/if}
-            </div>
-          <!-- VIDEO PANEL -->
-            <div class="space-y-4 rounded-xl border border-gray-800 bg-gray-800/30 p-5 shadow-inner {editingMediaEpisode.mediaType !== 'video' ? 'opacity-45' : ''}">
-              <div class="flex items-center justify-between rounded-lg border border-rose-500/20 bg-rose-500/10 p-3">
-                <span class="text-sm font-semibold text-rose-200">
-                  {t("flashcards.generateVideoClips")}
-                </span>
-                <button
-                  type="button"
-                  aria-label={t("flashcards.generateVideoClips")}
-                  disabled={editingMediaEpisode.mediaType !== "video"}
-	                  class="relative h-5 w-10 rounded-full transition-colors {editingMediaOverrides.generateVideoClips && editingMediaEpisode.mediaType === 'video' ? 'bg-rose-500' : 'bg-gray-600'} {mediaOverrideClass('generateVideoClips')}"
-                  onclick={() => updateEditingMediaOverride("generateVideoClips", !editingMediaOverrides?.generateVideoClips)}
-                >
-                  <span class="absolute top-0.5 h-4 w-4 rounded-full bg-white transition-all {editingMediaOverrides.generateVideoClips && editingMediaEpisode.mediaType === 'video' ? 'left-5' : 'left-0.5'}"></span>
-                </button>
-              </div>
-              
-              {#if editingMediaOverrides.generateVideoClips && editingMediaEpisode.mediaType === "video"}
-                <div class="space-y-4 animate-fade-in">
-                  <div class="grid grid-cols-2 gap-3">
-                    <div>
-                  <span class="mb-1 block text-xs text-gray-500">{t("flashcards.videoCodec")}</span>
-                  <SearchableSelect
-	                    className="compact-select {mediaOverrideClass('videoCodec')}"
-                    noResultsText={t("common.noResults")}
-                    options={[
-                      { value: "h264", label: "H.264 (MP4)" },
-                      { value: "mpeg4", label: "MPEG-4 (AVI)" },
-                    ]}
-                    value={editingMediaOverrides.videoCodec}
-                    onchange={(v) => updateEditingMediaOverride("videoCodec", v)}
-                    placeholder="Codec"
-                  />
-                </div>
-                <div>
-                  <span class="mb-1 block text-xs text-gray-500">{t("flashcards.h264Preset")}</span>
-                  <SearchableSelect
-	                    className="compact-select {mediaOverrideClass('h264Preset')}"
-                    noResultsText={t("common.noResults")}
-                    options={[
-                      { value: "ultrafast", label: "Ultrafast" },
-                      { value: "fast", label: "Fast" },
-                      { value: "medium", label: "Medium" },
-                      { value: "slow", label: "Slow" },
-                      { value: "veryslow", label: "Very slow" },
-                    ]}
-                    value={editingMediaOverrides.h264Preset}
-                    onchange={(v) => updateEditingMediaOverride("h264Preset", v)}
-                    placeholder="Preset"
-                  />
-                </div>
-              </div>
-              <div class="grid grid-cols-2 gap-3">
-                <div>
-                  <span class="mb-1 block text-xs text-gray-500">{t("flashcards.videoBitrate")}</span>
-                  <div class="flex items-center gap-1">
-	                    <input type="number" value={editingMediaOverrides.videoBitrate} oninput={(event) => updateEditingMediaOverride("videoBitrate", Number((event.currentTarget as HTMLInputElement).value))} class="input-modern w-full text-xs {mediaOverrideClass('videoBitrate')}" />
-                    <span class="text-xs text-gray-500">kb/s</span>
-                  </div>
-                </div>
-                <div>
-                  <span class="mb-1 block text-xs text-gray-500">{t("flashcards.audioBitrate")}</span>
-                  <SearchableSelect
-	                    className="compact-select {mediaOverrideClass('videoAudioBitrate')}"
-                    noResultsText={t("common.noResults")}
-                    options={[
-                      { value: "64", label: "64 kb/s" },
-                      { value: "128", label: "128 kb/s" },
-                      { value: "192", label: "192 kb/s" },
-                      { value: "256", label: "256 kb/s" },
-                    ]}
-                    value={String(editingMediaOverrides.videoAudioBitrate)}
-                    onchange={(v) => updateEditingMediaOverride("videoAudioBitrate", parseInt(v))}
-                    placeholder="Bitrate"
-                  />
-                </div>
-              </div>
-              <div class="grid grid-cols-2 gap-3">
-                <div>
-                  <span class="mb-1 block text-xs text-gray-500">{t("flashcards.padStart")}</span>
-                  <div class="flex items-center gap-1">
-	                    <input type="number" value={editingMediaOverrides.videoPadStart} oninput={(event) => updateEditingMediaOverride("videoPadStart", Number((event.currentTarget as HTMLInputElement).value))} class="input-modern w-full text-xs {mediaOverrideClass('videoPadStart')}" />
-                    <span class="text-xs text-gray-500">ms</span>
-                  </div>
-                </div>
-                <div>
-                  <span class="mb-1 block text-xs text-gray-500">{t("flashcards.padEnd")}</span>
-                  <div class="flex items-center gap-1">
-	                    <input type="number" value={editingMediaOverrides.videoPadEnd} oninput={(event) => updateEditingMediaOverride("videoPadEnd", Number((event.currentTarget as HTMLInputElement).value))} class="input-modern w-full text-xs {mediaOverrideClass('videoPadEnd')}" />
-                    <span class="text-xs text-gray-500">ms</span>
-                  </div>
-                </div>
-              </div>
-              </div>
-              {/if}
-            </div>
-          </div>
-        </div>
-
-        <div class="flex items-center justify-between gap-3 border-t border-gray-700 px-5 py-4">
-          <button type="button" onclick={resetEpisodeMediaSettings} class="btn-secondary px-4 py-2 text-sm">
-            {t("flashcards.useGenericSettings")}
-          </button>
-          <div class="flex gap-2">
-            <button type="button" onclick={closeEpisodeMediaSettings} class="btn-secondary px-4 py-2 text-sm">
-              {t("settings.modal.cancel")}
-            </button>
-            <button
-              type="button"
-              disabled={!editingMediaOverrides || JSON.stringify(editingMediaOverrides) === initialEditingMediaOverridesStr}
-              onclick={saveEpisodeMediaSettings}
-              class="rounded-lg border border-violet-400/40 bg-violet-500/20 px-4 py-2 text-sm font-semibold text-violet-100 shadow-lg shadow-violet-500/10 transition-all hover:border-violet-300/60 hover:bg-violet-500/30 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-violet-400/40 disabled:hover:bg-violet-500/20"
-            >
-              {t("settings.modal.save")}
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  {/if}
+  <EpisodeMediaSettingsModal {mediaOverrideClass} onSave={saveEpisodeMediaSettings} onReset={resetEpisodeMediaSettings} />
 
   <PathPreviewModal
     isOpen={!!expandedPathField}

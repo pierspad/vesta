@@ -22,6 +22,8 @@ export interface EpisodeMediaOverrides {
   videoPadEnd?: number;
 }
 
+export type EpisodeMediaOverrideKey = keyof EpisodeMediaOverrides;
+
 export interface AudioTrackInfo {
   index: number;
   stream_index: number;
