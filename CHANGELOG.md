@@ -1,3 +1,22 @@
+## [0.14.0-dev.4](https://github.com/pierspad/vesta/compare/v0.14.0-dev.3...v0.14.0-dev.4) (2026-07-14)
+
+### 🐛 Bug Fixes
+
+* **ci:** skip MSI bundling and sanitize Arch pkgver for pre-release tags ([b79b3bb](https://github.com/pierspad/vesta/commit/b79b3bbac606ed113a95bfe7122512771583b845))
+
+## [0.14.0-dev.3](https://github.com/pierspad/vesta/compare/v0.14.0-dev.2...v0.14.0-dev.3) (2026-07-14)
+
+### 🐛 Bug Fixes
+
+* **branding:** use fireplace logo for all app and window icons ([8ad608a](https://github.com/pierspad/vesta/commit/8ad608aa7a82ffcf91692da46f886881e9276372))
+* **ci:** cancel stale queued release runs to avoid version-calc race ([945295b](https://github.com/pierspad/vesta/commit/945295bf5d4197959a26dfe9ba29ebaeae0fa41a))
+* **parser:** auto-detect subtitle file encoding (BOM, UTF-16, legacy code pages) ([ba99159](https://github.com/pierspad/vesta/commit/ba991593c14a3b0746ba04254efcc7c68cb0a5ea))
+* updated missing/broken translations ([0e39445](https://github.com/pierspad/vesta/commit/0e39445171ffd15770dcf3db4f973f99d03a7672))
+
+### ✨ New Features
+
+* **core:** extract engine logic into reusable library crates and CLI tools ([ba2712a](https://github.com/pierspad/vesta/commit/ba2712a75b768763688db2dbd4815d7e361dcd44))
+
 ## [0.14.0-dev.2](https://github.com/pierspad/Vesta/compare/v0.14.0-dev.1...v0.14.0-dev.2) (2026-07-11)
 
 ### 🐛 Bug Fixes

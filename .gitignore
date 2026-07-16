@@ -47,3 +47,7 @@ Test_Subs/**/*.srt
 !Test_Subs/FILM/Detour-it.srt
 !Test_Subs/SERIE_TV/Detour-en_parte*.srt
 !Test_Subs/SERIE_TV/Detour-it_parte*.srt
+commit-plan-continued.sh
+commit-plan-final.sh
+commit-plan.sh
+REFACTOR-PLAN.md

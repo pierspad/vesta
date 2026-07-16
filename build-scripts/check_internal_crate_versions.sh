@@ -128,10 +128,25 @@ else
 fi
 
 echo -e "${YELLOW}Controllo [workspace.dependencies] internal crates...${NC}"
-for crate in srt-parser srt-extract srt-sync srt-translate; do
+# La lista dei crate da controllare viene derivata da core/*/Cargo.toml e
+# lib/*/Cargo.toml (stesso find della sezione sopra), non scritta a mano:
+# un elenco statico va fuori sincrono ogni volta che si aggiunge o rinomina
+# un crate — è esattamente quello che è successo il 2026-07-16 quando
+# whisper-common è stato rinominato in srt-transcribe e sono arrivati
+# srt-condense/srt-ankiconnect, tutti assenti da questo controllo mentre
+# [workspace.dependencies] nel Cargo.toml radice perdeva le voci corrette
+# durante un merge, senza che nessun gate se ne accorgesse.
+while IFS= read -r crate_toml; do
+    crate=$(sed -n 's/^name = "\([^"]*\)"/\1/p' "$crate_toml" | tr -d '\r' | head -n 1)
+    if [ -z "$crate" ]; then
+        echo -e "  ${RED}✗${NC} ${crate_toml#$PROJECT_ROOT/} — nome package non trovato"
+        ((ERRORS++))
+        continue
+    fi
+
     line=$(grep -E "^${crate}\s*=\s*\{[^}]*path\s*=\s*\"" "$WORKSPACE_CARGO" || true)
     if [ -z "$line" ]; then
-        echo -e "  ${RED}✗${NC} Cargo.toml — dipendenza $crate con path non trovata"
+        echo -e "  ${RED}✗${NC} Cargo.toml — dipendenza $crate con path non trovata in [workspace.dependencies]"
         ((ERRORS++))
         continue
     fi
@@ -149,7 +164,7 @@ for crate in srt-parser srt-extract srt-sync srt-translate; do
     else
         echo -e "  ${GREEN}✓${NC} Cargo.toml — $crate version=$declared"
     fi
-done
+done < <(find "$PROJECT_ROOT/core" "$PROJECT_ROOT/lib" -mindepth 2 -maxdepth 2 -name Cargo.toml | sort)
 
 echo ""
 if [ "$ERRORS" -gt 0 ]; then

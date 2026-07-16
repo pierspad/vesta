@@ -174,6 +174,8 @@ async fn run(args: RunArgs) -> Result<()> {
         api_url: args.api_url,
         quality: args.quality,
         vad: args.vad,
+        vad_model_id: None,
+        vad_custom_path: None,
         use_gpu: args.gpu,
     };
 
