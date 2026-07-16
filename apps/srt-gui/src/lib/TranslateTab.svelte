@@ -9,17 +9,16 @@
   import {
     detectLanguageCode,
     getLanguageSearchTerms,
-    getModelsForProvider,
     languages,
     loadAndValidateApiKeys,
     loadTiers,
     tiersHaveUsableEntries,
     TIERS_UPDATED_EVENT,
-    providers,
     type ApiKeyConfig,
     type Tier,
     getFileName,
   } from "./models";
+  import { getModelsForProvider, providers } from "./llmProviders";
   import PathPickerField from "./PathPickerField.svelte";
   import PathPreviewModal from "./PathPreviewModal.svelte";
   import SearchableSelect from "./SearchableSelect.svelte";

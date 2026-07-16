@@ -11,7 +11,8 @@
  * stringhe i18n.
  */
 
-import { providers, type ApiKeyConfig, type Tier } from "./models";
+import { type ApiKeyConfig, type Tier } from "./models";
+import { providers } from "./llmProviders";
 import { fetchModelsFromEndpoint } from "./modelDiscovery";
 
 /** Entry serializzata per i comandi Tauri (contratto serde con `srt_translate::TierEntry`). */

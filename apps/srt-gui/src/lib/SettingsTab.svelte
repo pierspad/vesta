@@ -42,14 +42,12 @@ import TranscribeTiers from "./TranscribeTiers.svelte";
     NOTE_TYPES_UPDATED_EVENT,
     defaultCardTemplates,
     defaultFieldNames,
-    getModelsForProvider,
     getLanguageSearchTerms,
     languages,
     limitNoteTypeFieldValue,
     loadAndValidateApiKeys,
     loadCardTemplates,
     loadFieldNames,
-    providers,
     resetCardTemplates,
     saveCardTemplates,
     saveFieldNames,
@@ -68,7 +66,6 @@ import TranscribeTiers from "./TranscribeTiers.svelte";
     transcribeProviderOrder,
     type ApiKeyConfig,
     type FieldNamesConfig,
-    type ModelInfo,
     type Tier,
     type TranscribeTier,
     loadVadSelection,
@@ -76,6 +73,7 @@ import TranscribeTiers from "./TranscribeTiers.svelte";
     type VadSelection,
     DEFAULT_VAD_MODEL_ID,
   } from "./models";
+  import { getModelsForProvider, providers, type ModelInfo } from "./llmProviders";
   import { guardedOpen } from "./utils/dialogGuard";
 
   const allProviderIds = ["local", "google", "groq", "openai", "deepgram", "assemblyai", "openrouter", "mistral", "github", "nvidia", "custom"];

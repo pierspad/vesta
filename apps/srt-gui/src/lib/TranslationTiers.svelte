@@ -7,8 +7,6 @@
   import TierList from "./components/TierList.svelte";
   import { discoverModels, type DiscoveredModel } from "./modelDiscovery";
   import {
-    providers,
-    getModelsForProvider,
     loadAndValidateApiKeys,
     loadTiers,
     saveTiers,
@@ -19,6 +17,7 @@
     type Tier,
     type TierEntry,
   } from "./models";
+  import { providers, getModelsForProvider } from "./llmProviders";
 
   let t = $derived($locale);
 

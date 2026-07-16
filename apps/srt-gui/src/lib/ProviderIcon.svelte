@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { providers } from "./models";
+  import { providers } from "./llmProviders";
 
   // Icona provider riutilizzabile: quadrato arrotondato con gradiente del provider
   // e un glifo dedicato (o lettermark quando non c'è un marchio semplice).

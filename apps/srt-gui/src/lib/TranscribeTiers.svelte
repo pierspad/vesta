@@ -14,9 +14,9 @@
     type ApiKeyConfig,
     type TranscribeTier,
     type TranscribeTierEntry,
-    providers,
     TRANSCRIBE_TIERS_UPDATED_EVENT,
   } from "./models";
+  import { providers } from "./llmProviders";
   import { invoke } from "@tauri-apps/api/core";
 
   let t = $derived($locale);
