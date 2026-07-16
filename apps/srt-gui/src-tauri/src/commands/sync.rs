@@ -48,14 +48,10 @@ pub struct AnchorInfo {
 
 /// Carica un file SRT per la sincronizzazione
 #[tauri::command]
-pub fn sync_load_srt(
-    state: State<'_, AppSyncState>,
-    path: String,
-) -> Result<SyncStatus, String> {
+pub fn sync_load_srt(state: State<'_, AppSyncState>, path: String) -> Result<SyncStatus, String> {
     let mut sync_state = state.lock().map_err(|e| e.to_string())?;
 
-    let engine = SyncEngine::new(&path)
-        .map_err(|e| format!("Errore caricamento SRT: {}", e))?;
+    let engine = SyncEngine::new(&path).map_err(|e| format!("Errore caricamento SRT: {}", e))?;
 
     let status = get_status_from_engine(&engine);
     sync_state.engine = Some(engine);
@@ -65,13 +61,12 @@ pub fn sync_load_srt(
 
 /// Imposta il percorso del video
 #[tauri::command]
-pub fn sync_set_video(
-    state: State<'_, AppSyncState>,
-    path: String,
-) -> Result<SyncStatus, String> {
+pub fn sync_set_video(state: State<'_, AppSyncState>, path: String) -> Result<SyncStatus, String> {
     let mut sync_state = state.lock().map_err(|e| e.to_string())?;
 
-    let engine = sync_state.engine.as_mut()
+    let engine = sync_state
+        .engine
+        .as_mut()
         .ok_or("Nessun file SRT caricato")?;
 
     engine.set_video_path(&path);
@@ -81,9 +76,7 @@ pub fn sync_set_video(
 
 /// Ottiene lo stato corrente della sincronizzazione
 #[tauri::command]
-pub fn sync_get_status(
-    state: State<'_, AppSyncState>,
-) -> Result<SyncStatus, String> {
+pub fn sync_get_status(state: State<'_, AppSyncState>) -> Result<SyncStatus, String> {
     let sync_state = state.lock().map_err(|e| e.to_string())?;
 
     match &sync_state.engine {
@@ -109,7 +102,7 @@ fn map_subtitle_to_info(
 ) -> Option<SubtitleInfo> {
     let synced = engine.get_synced_subtitle(sub.id)?;
     let offset = engine.get_current_offset(sub.id).unwrap_or(0);
-    
+
     Some(SubtitleInfo {
         id: sub.id,
         start_ms: sub.start.milliseconds,
@@ -124,18 +117,19 @@ fn map_subtitle_to_info(
 
 /// Ottiene tutti i sottotitoli con info di sync
 #[tauri::command]
-pub fn sync_get_subtitles(
-    state: State<'_, AppSyncState>,
-) -> Result<Vec<SubtitleInfo>, String> {
+pub fn sync_get_subtitles(state: State<'_, AppSyncState>) -> Result<Vec<SubtitleInfo>, String> {
     let sync_state = state.lock().map_err(|e| e.to_string())?;
 
-    let engine = sync_state.engine.as_ref()
+    let engine = sync_state
+        .engine
+        .as_ref()
         .ok_or("Nessun file SRT caricato")?;
 
     let anchors = engine.get_anchors();
     let anchor_ids: Vec<u32> = anchors.iter().map(|a| a.subtitle_index).collect();
 
-    let subtitles: Vec<SubtitleInfo> = engine.get_all_subtitles()
+    let subtitles: Vec<SubtitleInfo> = engine
+        .get_all_subtitles()
         .iter()
         .filter_map(|sub| map_subtitle_to_info(engine, sub, &anchor_ids))
         .collect();
@@ -152,17 +146,19 @@ pub fn sync_get_subtitles_range(
 ) -> Result<Vec<SubtitleInfo>, String> {
     let sync_state = state.lock().map_err(|e| e.to_string())?;
 
-    let engine = sync_state.engine.as_ref()
+    let engine = sync_state
+        .engine
+        .as_ref()
         .ok_or("Nessun file SRT caricato")?;
 
     let anchors = engine.get_anchors();
     let anchor_ids: Vec<u32> = anchors.iter().map(|a| a.subtitle_index).collect();
 
     let all_subs = engine.get_all_subtitles();
-    
+
     // Find starting index based on subtitle ID
     let start_idx = all_subs.iter().position(|s| s.id >= start_id).unwrap_or(0);
-    
+
     let subtitles: Vec<SubtitleInfo> = all_subs
         .iter()
         .skip(start_idx)
@@ -175,16 +171,16 @@ pub fn sync_get_subtitles_range(
 
 /// Ottiene un sottotitolo specifico
 #[tauri::command]
-pub fn sync_get_subtitle(
-    state: State<'_, AppSyncState>,
-    id: u32,
-) -> Result<SubtitleInfo, String> {
+pub fn sync_get_subtitle(state: State<'_, AppSyncState>, id: u32) -> Result<SubtitleInfo, String> {
     let sync_state = state.lock().map_err(|e| e.to_string())?;
 
-    let engine = sync_state.engine.as_ref()
+    let engine = sync_state
+        .engine
+        .as_ref()
         .ok_or("Nessun file SRT caricato")?;
 
-    let sub = engine.get_subtitle(id)
+    let sub = engine
+        .get_subtitle(id)
         .ok_or(format!("Sottotitolo {} non trovato", id))?;
 
     let anchors = engine.get_anchors();
@@ -202,7 +198,9 @@ pub fn sync_find_subtitle_at_time(
 ) -> Result<Option<u32>, String> {
     let sync_state = state.lock().map_err(|e| e.to_string())?;
 
-    let engine = sync_state.engine.as_ref()
+    let engine = sync_state
+        .engine
+        .as_ref()
         .ok_or("Nessun file SRT caricato")?;
 
     Ok(engine.find_subtitle_at_time(time_ms))
@@ -216,7 +214,9 @@ pub fn sync_find_nearest_subtitle(
 ) -> Result<Option<u32>, String> {
     let sync_state = state.lock().map_err(|e| e.to_string())?;
 
-    let engine = sync_state.engine.as_ref()
+    let engine = sync_state
+        .engine
+        .as_ref()
         .ok_or("Nessun file SRT caricato")?;
 
     Ok(engine.find_nearest_subtitle(time_ms))
@@ -231,10 +231,13 @@ pub fn sync_add_anchor(
 ) -> Result<SyncStatus, String> {
     let mut sync_state = state.lock().map_err(|e| e.to_string())?;
 
-    let engine = sync_state.engine.as_mut()
+    let engine = sync_state
+        .engine
+        .as_mut()
         .ok_or("Nessun file SRT caricato")?;
 
-    engine.add_anchor(subtitle_id, corrected_time_ms, true)
+    engine
+        .add_anchor(subtitle_id, corrected_time_ms, true)
         .map_err(|e| format!("Errore aggiunta ancora: {}", e))?;
 
     Ok(get_status_from_engine(engine))
@@ -248,7 +251,9 @@ pub fn sync_remove_anchor(
 ) -> Result<SyncStatus, String> {
     let mut sync_state = state.lock().map_err(|e| e.to_string())?;
 
-    let engine = sync_state.engine.as_mut()
+    let engine = sync_state
+        .engine
+        .as_mut()
         .ok_or("Nessun file SRT caricato")?;
 
     engine.remove_anchor(subtitle_id);
@@ -258,15 +263,16 @@ pub fn sync_remove_anchor(
 
 /// Ottiene tutte le ancore
 #[tauri::command]
-pub fn sync_get_anchors(
-    state: State<'_, AppSyncState>,
-) -> Result<Vec<AnchorInfo>, String> {
+pub fn sync_get_anchors(state: State<'_, AppSyncState>) -> Result<Vec<AnchorInfo>, String> {
     let sync_state = state.lock().map_err(|e| e.to_string())?;
 
-    let engine = sync_state.engine.as_ref()
+    let engine = sync_state
+        .engine
+        .as_ref()
         .ok_or("Nessun file SRT caricato")?;
 
-    let anchors: Vec<AnchorInfo> = engine.get_anchors()
+    let anchors: Vec<AnchorInfo> = engine
+        .get_anchors()
         .iter()
         .map(|a| AnchorInfo {
             subtitle_id: a.subtitle_index,
@@ -282,12 +288,12 @@ pub fn sync_get_anchors(
 
 /// Suggerisce il prossimo sottotitolo da controllare
 #[tauri::command]
-pub fn sync_suggest_next(
-    state: State<'_, AppSyncState>,
-) -> Result<Option<u32>, String> {
+pub fn sync_suggest_next(state: State<'_, AppSyncState>) -> Result<Option<u32>, String> {
     let sync_state = state.lock().map_err(|e| e.to_string())?;
 
-    let engine = sync_state.engine.as_ref()
+    let engine = sync_state
+        .engine
+        .as_ref()
         .ok_or("Nessun file SRT caricato")?;
 
     Ok(engine.suggest_next_index())
@@ -301,7 +307,9 @@ pub fn sync_set_strategy(
 ) -> Result<SyncStatus, String> {
     let mut sync_state = state.lock().map_err(|e| e.to_string())?;
 
-    let engine = sync_state.engine.as_mut()
+    let engine = sync_state
+        .engine
+        .as_mut()
         .ok_or("Nessun file SRT caricato")?;
 
     let strat = match strategy.to_lowercase().as_str() {
@@ -325,10 +333,13 @@ pub fn sync_save_file(
 ) -> Result<String, String> {
     let sync_state = state.lock().map_err(|e| e.to_string())?;
 
-    let engine = sync_state.engine.as_ref()
+    let engine = sync_state
+        .engine
+        .as_ref()
         .ok_or("Nessun file SRT caricato")?;
 
-    engine.save_synced_file(&output_path)
+    engine
+        .save_synced_file(&output_path)
         .map_err(|e| format!("Errore salvataggio: {}", e))?;
 
     Ok(output_path)
@@ -342,10 +353,13 @@ pub fn sync_save_session(
 ) -> Result<String, String> {
     let sync_state = state.lock().map_err(|e| e.to_string())?;
 
-    let engine = sync_state.engine.as_ref()
+    let engine = sync_state
+        .engine
+        .as_ref()
         .ok_or("Nessun file SRT caricato")?;
 
-    engine.save_session(&session_path)
+    engine
+        .save_session(&session_path)
         .map_err(|e| format!("Errore salvataggio sessione: {}", e))?;
 
     Ok(session_path)
@@ -370,9 +384,7 @@ pub fn sync_load_session(
 
 /// Resetta la sincronizzazione (rimuove completamente engine, SRT e video)
 #[tauri::command]
-pub fn sync_reset(
-    state: State<'_, AppSyncState>,
-) -> Result<SyncStatus, String> {
+pub fn sync_reset(state: State<'_, AppSyncState>) -> Result<SyncStatus, String> {
     let mut sync_state = state.lock().map_err(|e| e.to_string())?;
 
     // Rimuovi completamente l'engine per liberare SRT e video
@@ -444,7 +456,6 @@ pub fn sync_suggest_subtitles_for_media(
         native: native.map(|p| p.to_string_lossy().into_owned()),
     })
 }
-
 
 /// Prepara un file media per la riproduzione nel browser.
 /// Per formati non nativamente supportati da WebKitGTK (MKV, AVI, FLV, OGM, VOB),

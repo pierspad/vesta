@@ -102,8 +102,8 @@ pub async fn sync_auto_sync(
         (media, subs)
     };
 
-    let model_path = srt_transcribe::model::model_file_path(&model_id)
-        .map_err(|e| e.to_string())?;
+    let model_path =
+        srt_transcribe::model::model_file_path(&model_id).map_err(|e| e.to_string())?;
 
     let ffmpeg_cmd = crate::commands::flashcards::media::resolve_ffmpeg_path(Some(&app)).await;
     let ffprobe_cmd = crate::commands::flashcards::media::resolve_ffprobe_path(Some(&app)).await;
@@ -152,7 +152,9 @@ pub async fn sync_auto_sync(
             });
 
             if !is_near_existing
-                && engine.add_anchor(s.subtitle_id, s.corrected_time_ms, false).is_ok()
+                && engine
+                    .add_anchor(s.subtitle_id, s.corrected_time_ms, false)
+                    .is_ok()
             {
                 count += 1;
             }
@@ -186,7 +188,9 @@ pub async fn sync_auto_sync(
         "sync-auto-progress",
         AutoSyncProgress {
             stage: "done".to_string(),
-            message: format!("Auto-sync complete! Created {anchors_created} new visual anchor points."),
+            message: format!(
+                "Auto-sync complete! Created {anchors_created} new visual anchor points."
+            ),
             percentage: 100.0,
             message_key: Some("sync.autoSyncProgress.done".to_string()),
             params: Some(std::collections::HashMap::from([(

@@ -11,8 +11,8 @@
 //! Run with:
 //!     cargo test --package vesta --test flashcard_regression -- --nocapture
 
+use sha2::{Digest, Sha256};
 use std::path::PathBuf;
-use sha2::{Sha256, Digest};
 
 // Re-use the library crate which re-exports commands::flashcards
 use vesta_lib::commands::flashcards::*;
@@ -23,9 +23,12 @@ fn fixtures_dir() -> PathBuf {
     // Navigate from src-tauri/tests/ up to project root, then into Test_Subs/fixtures
     let manifest = std::env::var("CARGO_MANIFEST_DIR").unwrap();
     PathBuf::from(manifest)
-        .parent().unwrap()  // srt-gui
-        .parent().unwrap()  // apps
-        .parent().unwrap()  // vesta root
+        .parent()
+        .unwrap() // srt-gui
+        .parent()
+        .unwrap() // apps
+        .parent()
+        .unwrap() // vesta root
         .join("Test_Subs/fixtures")
 }
 
@@ -58,9 +61,10 @@ fn text_only_config(target: &str, native: Option<&str>, deck: &str) -> Flashcard
 #[test]
 fn test_parse_clip02_en_count() {
     let path = fixture_path("clip_02_en.srt");
-    let info = tokio::runtime::Runtime::new().unwrap().block_on(
-        flashcard_load_subs(path)
-    ).unwrap();
+    let info = tokio::runtime::Runtime::new()
+        .unwrap()
+        .block_on(flashcard_load_subs(path))
+        .unwrap();
     assert_eq!(info.count, 37, "clip_02 EN should have 37 subtitle entries");
     assert_eq!(info.format, "srt");
 }
@@ -68,9 +72,10 @@ fn test_parse_clip02_en_count() {
 #[test]
 fn test_parse_clip02_it_count() {
     let path = fixture_path("clip_02_it.srt");
-    let info = tokio::runtime::Runtime::new().unwrap().block_on(
-        flashcard_load_subs(path)
-    ).unwrap();
+    let info = tokio::runtime::Runtime::new()
+        .unwrap()
+        .block_on(flashcard_load_subs(path))
+        .unwrap();
     assert_eq!(info.count, 37, "clip_02 IT should have 37 subtitle entries");
 }
 
@@ -112,7 +117,8 @@ fn test_preview_dual_subs_clip02() {
     assert!(with_subs2 > 0, "Should have subs2 matches");
 
     // Verify the text content is stable by hashing all subs1 texts
-    let all_subs1: String = preview.iter()
+    let all_subs1: String = preview
+        .iter()
         .map(|l| l.subs1_text.as_str())
         .collect::<Vec<_>>()
         .join("|");
@@ -129,11 +135,7 @@ fn test_preview_dual_subs_clip02() {
 #[test]
 fn test_preview_single_sub_clip03() {
     let rt = tokio::runtime::Runtime::new().unwrap();
-    let config = text_only_config(
-        &fixture_path("clip_03_en.srt"),
-        None,
-        "test_single",
-    );
+    let config = text_only_config(&fixture_path("clip_03_en.srt"), None, "test_single");
     let preview = rt.block_on(flashcard_preview(config)).unwrap();
     assert_eq!(preview.len(), 27, "clip_03 should produce 27 preview lines");
     // No subs2 when native is None
@@ -145,11 +147,7 @@ fn test_preview_single_sub_clip03() {
 #[test]
 fn test_filter_min_chars() {
     let rt = tokio::runtime::Runtime::new().unwrap();
-    let mut config = text_only_config(
-        &fixture_path("clip_02_en.srt"),
-        None,
-        "test_filter",
-    );
+    let mut config = text_only_config(&fixture_path("clip_02_en.srt"), None, "test_filter");
     config.filters.min_chars = Some(20);
     let preview = rt.block_on(flashcard_preview(config)).unwrap();
     let active: Vec<_> = preview.iter().filter(|l| l.active).collect();
@@ -166,29 +164,29 @@ fn test_filter_min_chars() {
 #[test]
 fn test_filter_exclude_words() {
     let rt = tokio::runtime::Runtime::new().unwrap();
-    let mut config = text_only_config(
-        &fixture_path("clip_02_en.srt"),
-        None,
-        "test_exclude",
-    );
+    let mut config = text_only_config(&fixture_path("clip_02_en.srt"), None, "test_exclude");
     config.filters.exclude_words = Some("music,penny".to_string());
     let preview = rt.block_on(flashcard_preview(config)).unwrap();
     let active: Vec<_> = preview.iter().filter(|l| l.active).collect();
     for line in &active {
         let lower = line.subs1_text.to_lowercase();
-        assert!(!lower.contains("music"), "Should not contain 'music': {}", line.subs1_text);
-        assert!(!lower.contains("penny"), "Should not contain 'penny': {}", line.subs1_text);
+        assert!(
+            !lower.contains("music"),
+            "Should not contain 'music': {}",
+            line.subs1_text
+        );
+        assert!(
+            !lower.contains("penny"),
+            "Should not contain 'penny': {}",
+            line.subs1_text
+        );
     }
 }
 
 #[test]
 fn test_filter_max_duration() {
     let rt = tokio::runtime::Runtime::new().unwrap();
-    let mut config = text_only_config(
-        &fixture_path("clip_05_en.srt"),
-        None,
-        "test_dur",
-    );
+    let mut config = text_only_config(&fixture_path("clip_05_en.srt"), None, "test_dur");
     config.filters.max_duration_ms = Some(3000);
     let preview = rt.block_on(flashcard_preview(config)).unwrap();
     let active: Vec<_> = preview.iter().filter(|l| l.active).collect();
@@ -206,11 +204,7 @@ fn test_filter_max_duration() {
 #[test]
 fn test_span_filter() {
     let rt = tokio::runtime::Runtime::new().unwrap();
-    let mut config = text_only_config(
-        &fixture_path("clip_02_en.srt"),
-        None,
-        "test_span",
-    );
+    let mut config = text_only_config(&fixture_path("clip_02_en.srt"), None, "test_span");
     // Only include lines between 30s and 60s
     config.span_start_ms = Some(30_000);
     config.span_end_ms = Some(60_000);
@@ -228,11 +222,7 @@ fn test_span_filter() {
 #[test]
 fn test_context_lines() {
     let rt = tokio::runtime::Runtime::new().unwrap();
-    let mut config = text_only_config(
-        &fixture_path("clip_02_en.srt"),
-        None,
-        "test_ctx",
-    );
+    let mut config = text_only_config(&fixture_path("clip_02_en.srt"), None, "test_ctx");
     config.context.leading = 1;
     config.context.trailing = 1;
     config.context.max_gap_seconds = 30.0;
@@ -240,8 +230,10 @@ fn test_context_lines() {
     // Middle lines should have both leading and trailing context
     if preview.len() > 2 {
         let mid = &preview[preview.len() / 2];
-        assert!(!mid.leading_context.is_empty() || !mid.trailing_context.is_empty(),
-            "Middle line should have context");
+        assert!(
+            !mid.leading_context.is_empty() || !mid.trailing_context.is_empty(),
+            "Middle line should have context"
+        );
     }
 }
 
@@ -250,27 +242,21 @@ fn test_context_lines() {
 #[test]
 fn test_sentence_combining() {
     let rt = tokio::runtime::Runtime::new().unwrap();
-    let mut config = text_only_config(
-        &fixture_path("clip_02_en.srt"),
-        None,
-        "test_combine",
-    );
+    let mut config = text_only_config(&fixture_path("clip_02_en.srt"), None, "test_combine");
     config.combine_sentences = true;
     config.continuation_chars = ",...".to_string();
     let preview_combined = rt.block_on(flashcard_preview(config)).unwrap();
 
-    let config_no_combine = text_only_config(
-        &fixture_path("clip_02_en.srt"),
-        None,
-        "test_no_combine",
-    );
+    let config_no_combine =
+        text_only_config(&fixture_path("clip_02_en.srt"), None, "test_no_combine");
     let preview_raw = rt.block_on(flashcard_preview(config_no_combine)).unwrap();
 
     // Combined should have fewer or equal lines
     assert!(
         preview_combined.len() <= preview_raw.len(),
         "Combining should reduce line count: {} > {}",
-        preview_combined.len(), preview_raw.len()
+        preview_combined.len(),
+        preview_raw.len()
     );
 }
 
@@ -307,14 +293,26 @@ fn test_time_shift_target() {
 fn test_regression_hashes() {
     let rt = tokio::runtime::Runtime::new().unwrap();
     let clips: &[(&str, Option<&str>, &str)] = &[
-        ("clip_02_en.srt", Some("clip_02_it.srt"),
-         "83c78c93c65d7d6559d490089d7889d0e40870402aa272a4c9301c8d46d40ae4"),
-        ("clip_03_en.srt", Some("clip_03_it.srt"),
-         "8bec366eb4c085fd02940c3de0ad5e35bb41abadbec7c5654e2687bba38e1277"),
-        ("clip_04_en.srt", Some("clip_04_it.srt"),
-         "4be580a56afc1d17d27cf84aa39445d693937d6616e0e0e47bb9d998891d835b"),
-        ("clip_05_en.srt", Some("clip_05_it.srt"),
-         "c876202fb60e27e54a03d6ad22fff6dcf3faf871d6bcd9947a06cf69fb9327af"),
+        (
+            "clip_02_en.srt",
+            Some("clip_02_it.srt"),
+            "83c78c93c65d7d6559d490089d7889d0e40870402aa272a4c9301c8d46d40ae4",
+        ),
+        (
+            "clip_03_en.srt",
+            Some("clip_03_it.srt"),
+            "8bec366eb4c085fd02940c3de0ad5e35bb41abadbec7c5654e2687bba38e1277",
+        ),
+        (
+            "clip_04_en.srt",
+            Some("clip_04_it.srt"),
+            "4be580a56afc1d17d27cf84aa39445d693937d6616e0e0e47bb9d998891d835b",
+        ),
+        (
+            "clip_05_en.srt",
+            Some("clip_05_it.srt"),
+            "c876202fb60e27e54a03d6ad22fff6dcf3faf871d6bcd9947a06cf69fb9327af",
+        ),
     ];
 
     for (en, it, expected_hash) in clips {
@@ -325,11 +323,20 @@ fn test_regression_hashes() {
         );
         let preview = rt.block_on(flashcard_preview(config)).unwrap();
 
-        let canonical: String = preview.iter().map(|l| {
-            format!("{}|{}|{}|{}|{}|{}\n",
-                l.index, l.subs1_text, l.subs2_text.as_deref().unwrap_or(""),
-                l.start_ms, l.end_ms, l.active)
-        }).collect();
+        let canonical: String = preview
+            .iter()
+            .map(|l| {
+                format!(
+                    "{}|{}|{}|{}|{}|{}\n",
+                    l.index,
+                    l.subs1_text,
+                    l.subs2_text.as_deref().unwrap_or(""),
+                    l.start_ms,
+                    l.end_ms,
+                    l.active
+                )
+            })
+            .collect();
         let hash = sha256_str(&canonical);
         assert_eq!(
             hash, *expected_hash,

@@ -3,8 +3,8 @@
 //! Implementa strategie per suggerire quale sottotitolo controllare successivamente
 //! per massimizzare l'efficienza della sincronizzazione.
 
-use serde::{Deserialize, Serialize};
 use crate::interpolator::TimeMapper;
+use serde::{Deserialize, Serialize};
 
 /// Strategia di campionamento per suggerire il prossimo sottotitolo da controllare
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
@@ -115,7 +115,7 @@ impl AdaptiveSampler {
             let current = self.checked_indices[i];
             let next = self.checked_indices[i + 1];
             let gap = next - current - 1;
-            
+
             if gap > largest_gap {
                 largest_gap = gap;
                 gap_start = current + 1;
@@ -193,7 +193,8 @@ impl AdaptiveSampler {
         }
 
         // Trova il tempo target non ancora controllato che è più lontano da un controllato
-        let checked_times: Vec<i64> = self.checked_indices
+        let checked_times: Vec<i64> = self
+            .checked_indices
             .iter()
             .filter_map(|&idx| self.subtitle_times_ms.get(idx as usize - 1).copied())
             .collect();
@@ -260,12 +261,12 @@ mod tests {
     #[test]
     fn test_binary_search_splits() {
         let mut sampler = AdaptiveSampler::new(100, SamplerStrategy::BinarySearch);
-        
+
         sampler.mark_checked(50);
         let next = sampler.suggest_next(&TimeMapper::new());
         // Dovrebbe suggerire il centro di uno dei due gap
         assert!(next.is_some());
-        
+
         let suggested = next.unwrap();
         assert!(suggested != 50);
     }
@@ -273,7 +274,7 @@ mod tests {
     #[test]
     fn test_sequential() {
         let mut sampler = AdaptiveSampler::new(10, SamplerStrategy::Sequential);
-        
+
         assert_eq!(sampler.suggest_next(&TimeMapper::new()), Some(1));
         sampler.mark_checked(1);
         assert_eq!(sampler.suggest_next(&TimeMapper::new()), Some(2));
@@ -284,11 +285,11 @@ mod tests {
     #[test]
     fn test_all_checked() {
         let mut sampler = AdaptiveSampler::new(3, SamplerStrategy::Sequential);
-        
+
         sampler.mark_checked(1);
         sampler.mark_checked(2);
         sampler.mark_checked(3);
-        
+
         assert_eq!(sampler.suggest_next(&TimeMapper::new()), None);
     }
 }

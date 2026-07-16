@@ -8,9 +8,9 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::Path;
 
-use srt_parser::{SrtParser, Subtitle, Timestamp};
 use crate::interpolator::{AnchorPoint, TimeMapper};
 use crate::sampler::{AdaptiveSampler, SamplerStrategy};
+use srt_parser::{SrtParser, Subtitle, Timestamp};
 
 /// Stato corrente della sincronizzazione (serializzabile per salvataggio sessione)
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -50,8 +50,8 @@ impl SyncEngine {
     /// Crea un nuovo engine caricando un file SRT
     pub fn new<P: AsRef<Path>>(srt_path: P) -> Result<Self> {
         let path_str = srt_path.as_ref().to_string_lossy().to_string();
-        let mut subtitles = SrtParser::parse_file(&srt_path)
-            .context("Impossibile caricare il file SRT")?;
+        let mut subtitles =
+            SrtParser::parse_file(&srt_path).context("Impossibile caricare il file SRT")?;
 
         // Normalizza: riempi buchi nella numerazione con "[...]"
         SrtParser::normalize_subtitles(&mut subtitles);
@@ -91,7 +91,7 @@ impl SyncEngine {
 
         let total = subtitles.len();
         let mut sampler = AdaptiveSampler::new(total, state.sampler_strategy);
-        
+
         // Ripristina gli indici controllati
         for idx in &state.checked_indices {
             sampler.mark_checked(*idx);
@@ -114,12 +114,13 @@ impl SyncEngine {
 
     /// Aggiorna i tempi nel sampler
     fn update_sampler_times(&mut self) {
-        let times: Vec<i64> = self.sorted_ids
+        let times: Vec<i64> = self
+            .sorted_ids
             .iter()
             .filter_map(|id| self.subtitles.get(id))
             .map(|sub| sub.start.milliseconds as i64)
             .collect();
-        
+
         self.sampler.set_subtitle_times(times);
     }
 
@@ -157,8 +158,12 @@ impl SyncEngine {
     /// Ottiene un sottotitolo sincronizzato (con offset applicato)
     pub fn get_synced_subtitle(&self, id: u32) -> Option<Subtitle> {
         self.subtitles.get(&id).map(|sub| {
-            let start_offset = self.time_mapper.calculate_offset(sub.start.milliseconds as i64);
-            let end_offset = self.time_mapper.calculate_offset(sub.end.milliseconds as i64);
+            let start_offset = self
+                .time_mapper
+                .calculate_offset(sub.start.milliseconds as i64);
+            let end_offset = self
+                .time_mapper
+                .calculate_offset(sub.end.milliseconds as i64);
 
             Subtitle {
                 id: sub.id,
@@ -194,10 +199,10 @@ impl SyncEngine {
         for id in &self.sorted_ids {
             if let Some(synced) = self.get_synced_subtitle(*id)
                 && video_time_ms >= synced.start.milliseconds
-                    && video_time_ms <= synced.end.milliseconds
-                {
-                    return Some(*id);
-                }
+                && video_time_ms <= synced.end.milliseconds
+            {
+                return Some(*id);
+            }
         }
         None
     }
@@ -224,13 +229,20 @@ impl SyncEngine {
     }
 
     /// Aggiunge un punto di ancoraggio
-    /// 
+    ///
     /// # Argomenti
     /// * `subtitle_id` - ID del sottotitolo (1-based)
     /// * `corrected_time_ms` - Tempo corretto dal video in millisecondi
     /// * `is_manual` - Specifica se l'ancora è forzata dall'utente (priorità massima)
-    pub fn add_anchor(&mut self, subtitle_id: u32, corrected_time_ms: i64, is_manual: bool) -> Result<()> {
-        let subtitle = self.subtitles.get(&subtitle_id)
+    pub fn add_anchor(
+        &mut self,
+        subtitle_id: u32,
+        corrected_time_ms: i64,
+        is_manual: bool,
+    ) -> Result<()> {
+        let subtitle = self
+            .subtitles
+            .get(&subtitle_id)
             .context(format!("Sottotitolo {} non trovato", subtitle_id))?;
 
         let anchor = if is_manual {
@@ -261,7 +273,8 @@ impl SyncEngine {
     /// Ottiene l'offset corrente per un sottotitolo
     pub fn get_current_offset(&self, subtitle_id: u32) -> Option<i64> {
         self.subtitles.get(&subtitle_id).map(|sub| {
-            self.time_mapper.calculate_offset(sub.start.milliseconds as i64)
+            self.time_mapper
+                .calculate_offset(sub.start.milliseconds as i64)
         })
     }
 
@@ -311,7 +324,8 @@ impl SyncEngine {
 
     /// Salva i sottotitoli sincronizzati su file
     pub fn save_synced_file<P: AsRef<Path>>(&self, output_path: P) -> Result<()> {
-        let synced: HashMap<u32, Subtitle> = self.sorted_ids
+        let synced: HashMap<u32, Subtitle> = self
+            .sorted_ids
             .iter()
             .filter_map(|id| self.get_synced_subtitle(*id).map(|s| (*id, s)))
             .collect();
@@ -325,11 +339,10 @@ impl SyncEngine {
     /// Salva lo stato della sessione per ripresa futura
     pub fn save_session<P: AsRef<Path>>(&self, session_path: P) -> Result<()> {
         let state = self.export_state();
-        let json = serde_json::to_string_pretty(&state)
-            .context("Impossibile serializzare lo stato")?;
-        
-        std::fs::write(session_path, json)
-            .context("Impossibile salvare la sessione")?;
+        let json =
+            serde_json::to_string_pretty(&state).context("Impossibile serializzare lo stato")?;
+
+        std::fs::write(session_path, json).context("Impossibile salvare la sessione")?;
 
         Ok(())
     }
@@ -338,9 +351,9 @@ impl SyncEngine {
     pub fn load_session<P: AsRef<Path>>(session_path: P) -> Result<Self> {
         let json = std::fs::read_to_string(&session_path)
             .context("Impossibile leggere il file di sessione")?;
-        
-        let state: SyncState = serde_json::from_str(&json)
-            .context("Impossibile deserializzare lo stato")?;
+
+        let state: SyncState =
+            serde_json::from_str(&json).context("Impossibile deserializzare lo stato")?;
 
         Self::from_state(state)
     }
@@ -415,7 +428,7 @@ mod tests {
         // Test di base per la logica degli offset
         let mut mapper = TimeMapper::new();
         mapper.add_anchor(AnchorPoint::new(1, 1000, 2000)); // +1 secondo
-        
+
         assert_eq!(mapper.calculate_offset(1000), 1000);
     }
 }

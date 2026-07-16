@@ -13,7 +13,7 @@ use std::sync::Arc;
 
 use anyhow::{Context as _, Result};
 use clap::Parser;
-use srt_autosync::{run_auto_sync, AutoSyncConfig, SubtitleLine};
+use srt_autosync::{AutoSyncConfig, SubtitleLine, run_auto_sync};
 use srt_sync::SyncEngine;
 use tokio_util::sync::CancellationToken;
 
@@ -105,14 +105,20 @@ async fn main() -> Result<()> {
 
     let on_progress = (!cli.quiet).then(|| -> srt_autosync::ProgressCallback {
         Arc::new(|update| {
-            eprintln!("[{:>3.0}%] {} — {}", update.percentage, update.stage, update.message);
+            eprintln!(
+                "[{:>3.0}%] {} — {}",
+                update.percentage, update.stage, update.message
+            );
         })
     });
 
     let outcome = run_auto_sync(&config, subtitles, on_progress, &cancel_token).await?;
 
     if outcome.cancelled {
-        eprintln!("Auto-sync cancelled after {} segments.", outcome.segments_analyzed);
+        eprintln!(
+            "Auto-sync cancelled after {} segments.",
+            outcome.segments_analyzed
+        );
         return Ok(());
     }
 
@@ -124,7 +130,10 @@ async fn main() -> Result<()> {
 
     let mut anchors_created = 0usize;
     for s in &outcome.suggestions {
-        if engine.add_anchor(s.subtitle_id, s.corrected_time_ms, false).is_ok() {
+        if engine
+            .add_anchor(s.subtitle_id, s.corrected_time_ms, false)
+            .is_ok()
+        {
             anchors_created += 1;
         }
     }

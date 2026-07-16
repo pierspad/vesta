@@ -6,8 +6,8 @@
 
 use anyhow::Result;
 use clap::Parser;
+use srt_extract::{OutputFormat, calculate_stats, extract};
 use srt_parser::SrtParser;
-use srt_extract::{extract, calculate_stats, OutputFormat};
 use std::path::PathBuf;
 
 #[derive(Parser)]
@@ -60,8 +60,7 @@ fn main() -> Result<()> {
         )
     } else {
         // Use library for standard formats
-        let format = OutputFormat::parse(&cli.format)
-            .unwrap_or(OutputFormat::Debug);
+        let format = OutputFormat::parse(&cli.format).unwrap_or(OutputFormat::Debug);
         extract(&subtitles, format)?
     };
 

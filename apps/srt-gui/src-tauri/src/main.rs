@@ -10,10 +10,10 @@ mod commands;
 mod state;
 
 use axum::{
+    Router,
     extract::{Query, Request},
     response::IntoResponse,
     routing::get,
-    Router,
 };
 use tower::ServiceExt;
 use tower_http::{
@@ -47,7 +47,12 @@ fn generate_media_token() -> String {
     let mut token = String::with_capacity(32);
     for _ in 0..2 {
         let mut h = std::collections::hash_map::RandomState::new().build_hasher();
-        h.write_u128(std::time::UNIX_EPOCH.elapsed().map(|d| d.as_nanos()).unwrap_or(0));
+        h.write_u128(
+            std::time::UNIX_EPOCH
+                .elapsed()
+                .map(|d| d.as_nanos())
+                .unwrap_or(0),
+        );
         token.push_str(&format!("{:016x}", h.finish()));
     }
     token
@@ -73,14 +78,14 @@ async fn media_handler(
 }
 
 use commands::auto_sync::*;
-use commands::refine::*;
+use commands::experimental::*;
 use commands::flashcards::*;
 use commands::info::*;
 use commands::net::*;
+use commands::refine::*;
 use commands::sync::*;
 use commands::transcribe::*;
 use commands::translate::*;
-use commands::experimental::*;
 use state::{
     AppCondenseState, AppFlashcardState, AppRefineState, AppSyncState, AppTranscribeState,
     AppTranslateState, CondenseState, FlashcardState, RefineState, SyncState, TranscribeState,

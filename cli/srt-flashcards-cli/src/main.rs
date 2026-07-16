@@ -305,7 +305,10 @@ async fn main() -> Result<()> {
                     return;
                 }
                 if ev.stage == "media" {
-                    eprint!("\r  [{:>3}%] extracting media {}/{}    ", pct, ev.current, ev.total);
+                    eprint!(
+                        "\r  [{:>3}%] extracting media {}/{}    ",
+                        pct, ev.current, ev.total
+                    );
                 } else {
                     eprintln!("\r  [{:>3}%] {}", pct, ev.stage);
                 }

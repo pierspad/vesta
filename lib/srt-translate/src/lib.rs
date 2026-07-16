@@ -1,16 +1,16 @@
 //! # srt-translate-lib
 //!
 //! Libreria core per la traduzione di sottotitoli SRT usando LLM (locali o remoti).
-//! 
+//!
 //! Questa libreria implementa il pattern di Inversione del Controllo (IoC),
 //! permettendo al chiamante di definire come gestire gli aggiornamenti di progresso
 //! tramite callback personalizzati.
 
-mod translator;
 mod language_info;
+pub mod pool;
 mod prompts;
 mod rate_limiter;
-pub mod pool;
+mod translator;
 
 use anyhow::Result;
 use srt_parser::{SrtParser, Subtitle};
@@ -21,9 +21,13 @@ use tokio::sync::Semaphore;
 use tokio_util::sync::CancellationToken;
 
 // Re-export dei tipi pubblici
-pub use translator::{Translator, TranslatorConfig, ApiType};
-pub use rate_limiter::{RateLimiter, RateLimitConfig, create_rate_limiter, create_rate_limiter_with_burst};
-pub use pool::{TierEntry, build_pool, build_pool_entry, provider_allows_missing_key, provider_defaults};
+pub use pool::{
+    TierEntry, build_pool, build_pool_entry, provider_allows_missing_key, provider_defaults,
+};
+pub use rate_limiter::{
+    RateLimitConfig, RateLimiter, create_rate_limiter, create_rate_limiter_with_burst,
+};
+pub use translator::{ApiType, Translator, TranslatorConfig};
 
 /// Dati di progresso della traduzione passati al callback
 #[derive(Debug, Clone)]
@@ -95,7 +99,8 @@ where
         title_context,
         output_path,
         on_progress,
-    ).await
+    )
+    .await
 }
 
 /// Traduce tutti i sottotitoli usando multiple API keys in parallelo con rate limiting RPM
@@ -140,7 +145,8 @@ where
         output_path,
         on_progress,
         cancellation_token,
-    ).await
+    )
+    .await
 }
 
 /// Verifica che tutti i sottotitoli dell'originale siano presenti nella traduzione
@@ -153,7 +159,7 @@ pub fn verify_translation_completeness(
 }
 
 /// Funzione modulare che identifica gli ID dei sottotitoli mancanti o con discrepanze nella traduzione
-/// 
+///
 /// Questa funzione confronta l'originale con la traduzione e restituisce un vettore
 /// contenente gli ID dei sottotitoli che:
 /// - Sono presenti nell'originale ma assenti nella traduzione
@@ -178,14 +184,14 @@ pub fn get_missing_or_incorrect_subtitle_ids(
             if !translated.contains_key(id) {
                 return true;
             }
-            
+
             // Sottotitolo presente ma con numero di linee diverso
             if let Some(translated_sub) = translated.get(id) {
                 let original_lines = original_sub.text.lines().count();
                 let translated_lines = translated_sub.text.lines().count();
                 return original_lines != translated_lines;
             }
-            
+
             false
         })
         .map(|(id, _)| *id)
@@ -208,7 +214,7 @@ pub fn get_missing_subtitle_ids(
 
 /// Ripara una traduzione incompleta traducendo i sottotitoli mancanti in parallelo
 /// con contesto migliorato (sottotitoli prima e dopo)
-/// 
+///
 /// Utilizza tutti i translators disponibili con un semaforo per massimizzare
 /// l'efficienza del parallelismo
 pub async fn repair_translation<F>(
@@ -233,7 +239,8 @@ where
         target_lang,
         title_context,
         on_progress,
-    ).await
+    )
+    .await
 }
 
 /// Ripara una traduzione incompleta con supporto per rate limiting RPM
@@ -262,21 +269,24 @@ where
 
     let total = missing_ids.len();
     let translators_len = translators.len();
-    
+
     // Wrapper thread-safe per il callback e i risultati
     let progress_callback = Arc::new(Mutex::new(on_progress));
     let repaired = Arc::new(Mutex::new(HashMap::new()));
-    
+
     // Crea un semaforo per controllare il parallelismo (come nella traduzione principale)
     let semaphore = Arc::new(Semaphore::new(translators_len));
-    
+
     // Wrappa i rate limiters
     let rate_limiters: Option<Vec<Arc<RateLimiter>>> = rate_limiters;
 
     {
         let mut callback = progress_callback.lock().await;
         callback(TranslationProgress {
-            message: format!("Found {} missing subtitles, repairing with {} workers...", total, translators_len),
+            message: format!(
+                "Found {} missing subtitles, repairing with {} workers...",
+                total, translators_len
+            ),
             eta_seconds: None,
             current_batch: 0,
             total_batches: total,
@@ -291,18 +301,18 @@ where
 
     // Crea tasks per ogni sottotitolo mancante
     let mut handles = vec![];
-    
+
     for (idx, id) in missing_ids.iter().enumerate() {
         if let Some(subtitle) = original.get(id) {
             // Seleziona translator in round-robin per bilanciare il carico
             let translator_idx = idx % translators_len;
             let translator = translators[translator_idx].clone();
-            
+
             let semaphore = semaphore.clone();
             // Clona il rate limiter per questo provider (se disponibile)
-            let rate_limiter = rate_limiters.as_ref().map(|limiters| {
-                limiters[translator_idx % limiters.len()].clone()
-            });
+            let rate_limiter = rate_limiters
+                .as_ref()
+                .map(|limiters| limiters[translator_idx % limiters.len()].clone());
             let id = *id;
             let subtitle = subtitle.clone();
             let target_lang = target_lang.to_string();
@@ -310,7 +320,7 @@ where
             let progress_callback = progress_callback.clone();
             let repaired = repaired.clone();
             let timing_stats = timing_stats.clone();
-            
+
             // Costruisce il contesto: sottotitoli prima e dopo
             let context_text = build_repair_context(id, original, translated);
 
@@ -319,12 +329,14 @@ where
                 if let Some(ref limiter) = rate_limiter {
                     limiter.until_ready().await;
                 }
-                
+
                 // Poi: acquisisce permit dal semaforo per limitare il parallelismo
                 // Questo non fallisce a meno che il semaforo non sia chiuso
-                let _permit = semaphore.acquire().await
+                let _permit = semaphore
+                    .acquire()
+                    .await
                     .expect("Semaphore should never be closed during repair");
-                
+
                 let task_start = Instant::now();
 
                 let eta = {
@@ -344,7 +356,13 @@ where
                     let completed = timing_stats.lock().await.1;
                     let mut callback = progress_callback.lock().await;
                     callback(TranslationProgress {
-                        message: format!("Repairing subtitle {} ({}/{}) [worker {}]", id, idx + 1, total, translator_idx + 1),
+                        message: format!(
+                            "Repairing subtitle {} ({}/{}) [worker {}]",
+                            id,
+                            idx + 1,
+                            total,
+                            translator_idx + 1
+                        ),
                         eta_seconds: eta,
                         current_batch: completed,
                         total_batches: total,
@@ -354,17 +372,20 @@ where
                 }
 
                 // Usa un prompt speciale con contesto
-                match translator.translate_with_context(
-                    &subtitle.text, 
-                    &target_lang, 
-                    title_context.as_deref(),
-                    context_text.as_deref()
-                ).await {
+                match translator
+                    .translate_with_context(
+                        &subtitle.text,
+                        &target_lang,
+                        title_context.as_deref(),
+                        context_text.as_deref(),
+                    )
+                    .await
+                {
                     Ok(translation) => {
                         let mut new_subtitle = subtitle.clone();
                         new_subtitle.text = translation;
                         repaired.lock().await.insert(id, new_subtitle);
-                        
+
                         // Aggiorna timing stats
                         let duration = task_start.elapsed().as_secs_f64();
                         let mut stats = timing_stats.lock().await;
@@ -406,7 +427,10 @@ where
     let total_time = start_time.elapsed().as_secs_f64();
     let mut callback = progress_callback.lock().await;
     callback(TranslationProgress {
-        message: format!("Repair completed! Fixed {} subtitles in {:.1}s ✓", total, total_time),
+        message: format!(
+            "Repair completed! Fixed {} subtitles in {:.1}s ✓",
+            total, total_time
+        ),
         eta_seconds: Some(0.0),
         current_batch: total,
         total_batches: total,
@@ -424,18 +448,19 @@ fn build_repair_context(
     translated: &HashMap<u32, Subtitle>,
 ) -> Option<String> {
     let mut context_parts = Vec::new();
-    
+
     // Cerca 2 sottotitoli prima
     for offset in (1..=2).rev() {
         if let Some(prev_id) = missing_id.checked_sub(offset)
-            && let (Some(orig), Some(trans)) = (original.get(&prev_id), translated.get(&prev_id)) {
-                context_parts.push(format!(
-                    "[{}] Original: {}\nTranslated: {}",
-                    prev_id, orig.text, trans.text
-                ));
-            }
+            && let (Some(orig), Some(trans)) = (original.get(&prev_id), translated.get(&prev_id))
+        {
+            context_parts.push(format!(
+                "[{}] Original: {}\nTranslated: {}",
+                prev_id, orig.text, trans.text
+            ));
+        }
     }
-    
+
     // Cerca 2 sottotitoli dopo
     for offset in 1..=2 {
         let next_id = missing_id + offset;
@@ -446,7 +471,7 @@ fn build_repair_context(
             ));
         }
     }
-    
+
     if context_parts.is_empty() {
         None
     } else {
@@ -496,10 +521,10 @@ where
 
     // Wrapper thread-safe per il callback
     let progress_callback = Arc::new(Mutex::new(on_progress));
-    
+
     // Risultati condivisi
     let translated = Arc::new(Mutex::new(HashMap::new()));
-    
+
     // Timing stats condivisi
     let timing_stats = Arc::new(Mutex::new((0.0_f64, 0_usize)));
 
@@ -518,7 +543,11 @@ where
                 let existing_count = existing_translations.len();
                 if existing_count > 0 {
                     *translated.lock().await = existing_translations.clone();
-                    let missing_count = get_missing_or_incorrect_subtitle_ids(&subtitles_map, &existing_translations).len();
+                    let missing_count = get_missing_or_incorrect_subtitle_ids(
+                        &subtitles_map,
+                        &existing_translations,
+                    )
+                    .len();
                     if missing_count == 0 {
                         let calc_start_idx = existing_count.saturating_sub(resume_overlap);
                         let skip_b = calc_start_idx / batch_size;
@@ -528,14 +557,22 @@ where
                     } else {
                         (0, 0)
                     }
-                } else { (0, 0) }
+                } else {
+                    (0, 0)
+                }
             }
-            Err(_) => (0, 0)
+            Err(_) => (0, 0),
         }
-    } else { (0, 0) };
+    } else {
+        (0, 0)
+    };
 
     // Prepara i batch da processare
-    let remaining = if start_idx < sorted.len() { &sorted[start_idx..] } else { &[] };
+    let remaining = if start_idx < sorted.len() {
+        &sorted[start_idx..]
+    } else {
+        &[]
+    };
     let batches_to_process: Vec<_> = remaining
         .chunks(batch_size)
         .enumerate()
@@ -556,11 +593,11 @@ where
 
         let translator_idx = batch_idx % translators.len();
         let translator = translators[translator_idx].clone();
-        
+
         let semaphore = semaphore.clone();
-        let rate_limiter = rate_limiters.as_ref().map(|limiters| {
-            limiters[translator_idx % limiters.len()].clone()
-        });
+        let rate_limiter = rate_limiters
+            .as_ref()
+            .map(|limiters| limiters[translator_idx % limiters.len()].clone());
         let translated = translated.clone();
         let progress_callback = progress_callback.clone();
         let timing_stats = timing_stats.clone();
@@ -582,7 +619,7 @@ where
                     _ = limiter.until_ready() => {}
                 }
             }
-            
+
             // Acquisisci permit
             let _permit = match semaphore.acquire().await {
                 Ok(p) => p,
@@ -593,7 +630,7 @@ where
             if token.is_cancelled() {
                 return;
             }
-            
+
             let batch_start_time = Instant::now();
             let batch_start = batch_idx * batch_size + 1;
             let batch_end = (batch_start + batch_data.len() - 1).min(total);
@@ -605,15 +642,22 @@ where
                     let avg_duration = total_duration / completed as f64;
                     let remaining = total_batches.saturating_sub(completed);
                     Some(avg_duration * remaining as f64)
-                } else { None }
+                } else {
+                    None
+                }
             };
 
             {
                 let completed = timing_stats.lock().await.1;
                 let mut callback = progress_callback.lock().await;
                 callback(TranslationProgress {
-                    message: format!("Starting batch [{}-{}]/{} (worker {})...", 
-                        batch_start, batch_end, total, translator_idx + 1),
+                    message: format!(
+                        "Starting batch [{}-{}]/{} (worker {})...",
+                        batch_start,
+                        batch_end,
+                        total,
+                        translator_idx + 1
+                    ),
                     eta_seconds: eta,
                     current_batch: completed,
                     total_batches,
@@ -712,7 +756,10 @@ where
     if !missing_ids.is_empty() && !cancellation_token.is_cancelled() {
         let mut callback = progress_callback.lock().await;
         callback(TranslationProgress {
-            message: format!("Repairing {} missing/incorrect subtitles...", missing_ids.len()),
+            message: format!(
+                "Repairing {} missing/incorrect subtitles...",
+                missing_ids.len()
+            ),
             eta_seconds: None,
             current_batch: total_batches,
             total_batches,
@@ -731,7 +778,8 @@ where
             output_path,
             progress_callback.clone(),
             &cancellation_token,
-        ).await?;
+        )
+        .await?;
     }
 
     let result = translated.lock().await.clone();
@@ -752,7 +800,7 @@ async fn repair_missing_subtitles_cancellable(
     cancellation_token: &CancellationToken,
 ) -> Result<()> {
     let total = missing_ids.len();
-    
+
     for (idx, &id) in missing_ids.iter().enumerate() {
         if cancellation_token.is_cancelled() {
             anyhow::bail!("Repair cancelled by user");
@@ -764,14 +812,19 @@ async fn repair_missing_subtitles_cancellable(
             drop(trans_map);
 
             let result = translator
-                .translate_with_context(&original.text, target_lang, title_context, context.as_deref())
+                .translate_with_context(
+                    &original.text,
+                    target_lang,
+                    title_context,
+                    context.as_deref(),
+                )
                 .await;
 
             match result {
                 Ok(translation) => {
                     let mut new_subtitle = original.clone();
                     new_subtitle.text = translation;
-                    
+
                     let mut trans_map = translated.lock().await;
                     trans_map.insert(id, new_subtitle);
                     let _ = SrtParser::save_file(output_path, &trans_map);
@@ -900,9 +953,10 @@ impl TierScheduler {
     /// Marca una entry come esaurita (rate-limit/quota raggiunti).
     pub fn report_exhausted(&mut self, tier: usize, idx: usize) {
         if let Some(t) = self.tiers.get_mut(tier)
-            && let Some(e) = t.entries.get_mut(idx) {
-                e.exhausted = true;
-            }
+            && let Some(e) = t.entries.get_mut(idx)
+        {
+            e.exhausted = true;
+        }
     }
 
     /// Indice del tier attualmente attivo (1-based per i messaggi all'utente).
@@ -987,7 +1041,8 @@ where
                 let existing_count = existing.len();
                 if existing_count > 0 {
                     *translated.lock().await = existing.clone();
-                    let missing = get_missing_or_incorrect_subtitle_ids(&subtitles_map, &existing).len();
+                    let missing =
+                        get_missing_or_incorrect_subtitle_ids(&subtitles_map, &existing).len();
                     if missing == 0 {
                         let calc_start_idx = existing_count.saturating_sub(resume_overlap);
                         (calc_start_idx / batch_size, calc_start_idx)
@@ -1006,7 +1061,11 @@ where
         (0, 0)
     };
 
-    let remaining = if start_idx < sorted.len() { &sorted[start_idx..] } else { &[] };
+    let remaining = if start_idx < sorted.len() {
+        &sorted[start_idx..]
+    } else {
+        &[]
+    };
     let batches_to_process: VecDeque<(usize, Vec<(u32, Subtitle)>)> = remaining
         .chunks(batch_size)
         .enumerate()
@@ -1063,7 +1122,10 @@ where
                     let Some((ti, ei)) = acquired else {
                         // Tutti i tier esauriti: rimetti il batch in coda e segnala.
                         *exhausted_flag.lock().await = true;
-                        queue.lock().await.push_front((batch_idx, batch_data.clone()));
+                        queue
+                            .lock()
+                            .await
+                            .push_front((batch_idx, batch_data.clone()));
                         return;
                     };
 
@@ -1136,7 +1198,10 @@ where
 
                             let mut cb = progress_callback.lock().await;
                             cb(TranslationProgress {
-                                message: format!("Batch [{}-{}] completed ✓", batch_start, batch_end),
+                                message: format!(
+                                    "Batch [{}-{}] completed ✓",
+                                    batch_start, batch_end
+                                ),
                                 eta_seconds: eta,
                                 current_batch: completed_after,
                                 total_batches,
@@ -1167,7 +1232,10 @@ where
                             let completed = timing_stats.lock().await.1;
                             let mut cb = progress_callback.lock().await;
                             cb(TranslationProgress {
-                                message: format!("Batch [{}-{}] error via {}: {} ✗", batch_start, batch_end, entry.label, e),
+                                message: format!(
+                                    "Batch [{}-{}] error via {}: {} ✗",
+                                    batch_start, batch_end, entry.label, e
+                                ),
                                 eta_seconds: None,
                                 current_batch: completed,
                                 total_batches,
@@ -1216,7 +1284,10 @@ where
         {
             let mut cb = progress_callback.lock().await;
             cb(TranslationProgress {
-                message: format!("Repairing {} missing/incorrect subtitles...", missing_ids.len()),
+                message: format!(
+                    "Repairing {} missing/incorrect subtitles...",
+                    missing_ids.len()
+                ),
                 eta_seconds: None,
                 current_batch: total_batches,
                 total_batches,
@@ -1268,7 +1339,9 @@ async fn repair_missing_tiered(
             anyhow::bail!("Repair cancelled by user");
         }
 
-        let Some(original) = original_subtitles.get(&id) else { continue };
+        let Some(original) = original_subtitles.get(&id) else {
+            continue;
+        };
 
         let context = {
             let map = translated.lock().await;
@@ -1297,7 +1370,12 @@ async fn repair_missing_tiered(
 
             match entry
                 .translator
-                .translate_with_context(&original.text, target_lang, title_context.as_deref(), context.as_deref())
+                .translate_with_context(
+                    &original.text,
+                    target_lang,
+                    title_context.as_deref(),
+                    context.as_deref(),
+                )
                 .await
             {
                 Ok(translation) => {

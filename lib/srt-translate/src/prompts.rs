@@ -12,7 +12,10 @@ pub fn build_single_translation_prompt(
     context: Option<&str>,
 ) -> String {
     let context_info = if let Some(ctx) = context {
-        format!("\n\nContext: This subtitle is from \"{}\". Use this context to better understand references, names, and cultural elements for more accurate translation.", ctx)
+        format!(
+            "\n\nContext: This subtitle is from \"{}\". Use this context to better understand references, names, and cultural elements for more accurate translation.",
+            ctx
+        )
     } else {
         String::new()
     };
@@ -61,7 +64,10 @@ pub fn build_batch_translation_prompt(
     let input_str = serde_json::to_string_pretty(&input_json).unwrap_or_default();
 
     let context_info = if let Some(ctx) = context {
-        format!("\n\nContext: These subtitles are from \"{}\". Use this context to better understand references, names, and cultural elements for more accurate translation.", ctx)
+        format!(
+            "\n\nContext: These subtitles are from \"{}\". Use this context to better understand references, names, and cultural elements for more accurate translation.",
+            ctx
+        )
     } else {
         String::new()
     };
@@ -109,7 +115,10 @@ pub fn build_context_enhanced_translation_prompt(
     surrounding_context: Option<&str>,
 ) -> String {
     let title_info = if let Some(ctx) = title_context {
-        format!("\n\nTitle Context: This subtitle is from \"{}\". Use this context to better understand references, names, and cultural elements.", ctx)
+        format!(
+            "\n\nTitle Context: This subtitle is from \"{}\". Use this context to better understand references, names, and cultural elements.",
+            ctx
+        )
     } else {
         String::new()
     };

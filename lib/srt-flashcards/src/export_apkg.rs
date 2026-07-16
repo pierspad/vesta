@@ -812,10 +812,17 @@ mod tests {
         let (mid_a, fields_a, notes_a) = read_model(&a);
         let (mid_b, fields_b, notes_b) = read_model(&b);
 
-        assert_eq!(fields_a, CANONICAL, "predefined schema is the canonical 9 fields");
+        assert_eq!(
+            fields_a, CANONICAL,
+            "predefined schema is the canonical 9 fields"
+        );
         assert_eq!(fields_b, fields_a, "same note type ⇒ identical schema");
         assert_eq!(mid_a, mid_b, "same note type name ⇒ same model id");
-        assert_eq!((notes_a, notes_b), (2, 2), "both notes must still be written");
+        assert_eq!(
+            (notes_a, notes_b),
+            (2, 2),
+            "both notes must still be written"
+        );
     }
 
     /// A custom note type may disable fields: the exported schema then contains
@@ -841,8 +848,13 @@ mod tests {
         };
 
         let path = tmp.path().join("c.apkg");
-        generate_apkg(&lines, &base_config("Deck", "Minimal_Vesta", reduced), &media, &path)
-            .unwrap();
+        generate_apkg(
+            &lines,
+            &base_config("Deck", "Minimal_Vesta", reduced),
+            &media,
+            &path,
+        )
+        .unwrap();
 
         let (_, fields, notes) = read_model(&path);
         assert_eq!(
@@ -864,13 +876,26 @@ mod tests {
 
         let a = tmp.path().join("a.apkg");
         let b = tmp.path().join("b.apkg");
-        generate_apkg(&lines, &base_config("Deck", "English_Vesta", all_fields()), &media, &a)
-            .unwrap();
-        generate_apkg(&lines, &base_config("Deck", "German_Vesta", all_fields()), &media, &b)
-            .unwrap();
+        generate_apkg(
+            &lines,
+            &base_config("Deck", "English_Vesta", all_fields()),
+            &media,
+            &a,
+        )
+        .unwrap();
+        generate_apkg(
+            &lines,
+            &base_config("Deck", "German_Vesta", all_fields()),
+            &media,
+            &b,
+        )
+        .unwrap();
 
         let (mid_a, _, _) = read_model(&a);
         let (mid_b, _, _) = read_model(&b);
-        assert_ne!(mid_a, mid_b, "distinct note type names must not share a model id");
+        assert_ne!(
+            mid_a, mid_b,
+            "distinct note type names must not share a model id"
+        );
     }
 }

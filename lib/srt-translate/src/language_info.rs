@@ -12,8 +12,9 @@ pub struct LanguageInfo {
 /// precedenza.
 pub fn get_language_info(lang_code: &str) -> LanguageInfo {
     let (full_name, examples) = match lang_code {
-        "it" => ("Italian",
-                r#"Examples of high-quality subtitle translations to Italian:
+        "it" => (
+            "Italian",
+            r#"Examples of high-quality subtitle translations to Italian:
 
                 English: "I can't believe this is happening."
                 Italian: "Non posso credere che stia succedendo."
@@ -28,10 +29,12 @@ pub fn get_language_info(lang_code: &str) -> LanguageInfo {
 
                 English: "I'm through doing that shit."
                 Italian: "Ho chiuso con queste stronzate."
-                "#),
+                "#,
+        ),
 
-        "es" => ("Spanish",
-                r#"Examples of high-quality subtitle translations to Spanish:
+        "es" => (
+            "Spanish",
+            r#"Examples of high-quality subtitle translations to Spanish:
 
                 English: "I can't believe this is happening."
                 Spanish: "No puedo creer que esto esté pasando."
@@ -46,10 +49,12 @@ pub fn get_language_info(lang_code: &str) -> LanguageInfo {
 
                 English: "I'm through doing that shit."
                 Spanish: "He terminado con esa mierda."
-                "#),
+                "#,
+        ),
 
-        "fr" => ("French",
-                r#"Examples of high-quality subtitle translations to French:
+        "fr" => (
+            "French",
+            r#"Examples of high-quality subtitle translations to French:
 
                 English: "I can't believe this is happening."
                 French: "Je n'arrive pas à croire que ça arrive."
@@ -64,10 +69,12 @@ pub fn get_language_info(lang_code: &str) -> LanguageInfo {
 
                 English: "I'm through doing that shit."
                 French: "J'en ai fini avec ces conneries."
-                "#),
+                "#,
+        ),
 
-        "de" => ("German",
-                r#"Examples of high-quality subtitle translations to German:
+        "de" => (
+            "German",
+            r#"Examples of high-quality subtitle translations to German:
 
                 English: "I can't believe this is happening."
                 German: "Ich kann nicht glauben, dass das passiert."
@@ -82,10 +89,12 @@ pub fn get_language_info(lang_code: &str) -> LanguageInfo {
 
                 English: "I'm through doing that shit."
                 German: "Ich habe mit diesem Scheiß abgeschlossen."
-                "#),
+                "#,
+        ),
 
-        "en" => ("English",
-                r#"Examples of high-quality subtitle translations to English:
+        "en" => (
+            "English",
+            r#"Examples of high-quality subtitle translations to English:
 
                 Italian: "Non posso credere che stia succedendo."
                 English: "I can't believe this is happening."
@@ -100,10 +109,12 @@ pub fn get_language_info(lang_code: &str) -> LanguageInfo {
 
                 Italian: "Ho chiuso con queste stronzate."
                 English: "I'm through doing that shit."
-                "#),
+                "#,
+        ),
 
-        "pt" => ("Portuguese",
-                r#"Examples of high-quality subtitle translations to Portuguese:
+        "pt" => (
+            "Portuguese",
+            r#"Examples of high-quality subtitle translations to Portuguese:
 
                 English: "I can't believe this is happening."
                 Portuguese: "Não posso acreditar que isso está acontecendo."
@@ -118,10 +129,12 @@ pub fn get_language_info(lang_code: &str) -> LanguageInfo {
 
                 English: "I'm through doing that shit."
                 Portuguese: "Cansei dessa merda."
-                "#),
+                "#,
+        ),
 
-        "ru" => ("Russian",
-                r#"Examples of high-quality subtitle translations to Russian:
+        "ru" => (
+            "Russian",
+            r#"Examples of high-quality subtitle translations to Russian:
 
                 English: "I can't believe this is happening."
                 Russian: "Не могу поверить, что это происходит."
@@ -136,10 +149,12 @@ pub fn get_language_info(lang_code: &str) -> LanguageInfo {
 
                 English: "I'm through doing that shit."
                 Russian: "С меня хватит этого дерьма."
-                "#),
+                "#,
+        ),
 
-        "ja" => ("Japanese",
-                r#"Examples of high-quality subtitle translations to Japanese:
+        "ja" => (
+            "Japanese",
+            r#"Examples of high-quality subtitle translations to Japanese:
 
                 English: "I can't believe this is happening."
                 Japanese: "信じられない。"
@@ -154,10 +169,12 @@ pub fn get_language_info(lang_code: &str) -> LanguageInfo {
 
                 English: "I'm through doing that shit."
                 Japanese: "もううんざりだ。"
-                "#),
+                "#,
+        ),
 
-        "zh" => ("Chinese (Simplified)",
-                r#"Examples of high-quality subtitle translations to Chinese (Simplified):
+        "zh" => (
+            "Chinese (Simplified)",
+            r#"Examples of high-quality subtitle translations to Chinese (Simplified):
 
                 English: "I can't believe this is happening."
                 Chinese: "我不敢相信这正在发生。"
@@ -172,10 +189,12 @@ pub fn get_language_info(lang_code: &str) -> LanguageInfo {
 
                 English: "I'm through doing that shit."
                 Chinese: "我受够这破事了。"
-                "#),
+                "#,
+        ),
 
-        "ar" => ("Arabic",
-                r#"Examples of high-quality subtitle translations to Arabic:
+        "ar" => (
+            "Arabic",
+            r#"Examples of high-quality subtitle translations to Arabic:
 
                 English: "I can't believe this is happening."
                 Arabic: "لا أصدق أن هذا يحدث."
@@ -190,10 +209,14 @@ pub fn get_language_info(lang_code: &str) -> LanguageInfo {
 
                 English: "I'm through doing that shit."
                 Arabic: "لقد انتهيت من هذا الهراء."
-                "#),
+                "#,
+        ),
 
         _ => ("the target language", ""),
     };
 
-    LanguageInfo { full_name, examples }
+    LanguageInfo {
+        full_name,
+        examples,
+    }
 }

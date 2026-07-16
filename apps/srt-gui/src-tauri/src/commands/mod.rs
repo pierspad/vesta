@@ -1,11 +1,11 @@
 //! Comandi Tauri per l'applicazione.
 
+pub mod auto_sync;
+pub mod experimental;
+pub mod flashcards;
 pub mod info;
 pub mod net;
-pub mod translate;
-pub mod sync;
-pub mod flashcards;
-pub mod transcribe;
-pub mod auto_sync;
 pub mod refine;
-pub mod experimental;
+pub mod sync;
+pub mod transcribe;
+pub mod translate;

@@ -1,8 +1,8 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use whisper_rs::WhisperContext;
-use tokio_util::sync::CancellationToken;
 use std::collections::HashSet;
+use tokio_util::sync::CancellationToken;
+use whisper_rs::WhisperContext;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TranscribedSegment {
@@ -41,7 +41,10 @@ impl std::fmt::Debug for TranscribeOptions {
             .field("max_segment_length", &self.max_segment_length)
             .field("beam_size", &self.beam_size)
             .field("vad_model_path", &self.vad_model_path)
-            .field("segment_callback", &self.segment_callback.as_ref().map(|_| "Some(Fn)"))
+            .field(
+                "segment_callback",
+                &self.segment_callback.as_ref().map(|_| "Some(Fn)"),
+            )
             .finish()
     }
 }
@@ -60,7 +63,6 @@ impl Clone for TranscribeOptions {
         }
     }
 }
-
 
 /// Default worker count for whisper.cpp: the *physical* cores, capped at 8.
 ///
@@ -103,13 +105,19 @@ pub fn transcribe_full(
 
     for span in spans {
         if let Some(token) = cancel_token
-            && token.is_cancelled() {
-                anyhow::bail!("Transcription cancelled");
-            }
+            && token.is_cancelled()
+        {
+            anyhow::bail!("Transcription cancelled");
+        }
 
         let offset_ms = (span.start / (SAMPLE_RATE / 1000)) as i64;
-        let (mut span_segments, span_language) =
-            transcribe_span(&mut state, &audio_data[span], options, offset_ms, cancel_token)?;
+        let (mut span_segments, span_language) = transcribe_span(
+            &mut state,
+            &audio_data[span],
+            options,
+            offset_ms,
+            cancel_token,
+        )?;
         detected_language = detected_language.or(span_language);
         segments.append(&mut span_segments);
     }
@@ -145,9 +153,9 @@ fn transcribe_span(
     } else {
         params.set_language(None);
     }
-    
+
     params.set_translate(options.translate_to_english);
-    
+
     let threads = options.n_threads.unwrap_or_else(default_n_threads);
     params.set_n_threads(threads as i32);
 
@@ -156,12 +164,13 @@ fn transcribe_span(
     params.set_print_special(false);
     params.set_print_timestamps(false);
     params.set_token_timestamps(options.word_timestamps);
-    
+
     if let Some(max_len) = options.max_segment_length
-        && max_len > 0 {
-            params.set_max_len(max_len as i32);
-        }
-    
+        && max_len > 0
+    {
+        params.set_max_len(max_len as i32);
+    }
+
     if let Some(ref cb) = options.segment_callback {
         let cb = cb.clone();
         params.set_segment_callback_safe(move |data: whisper_rs::SegmentCallbackData| {
@@ -172,7 +181,7 @@ fn transcribe_span(
             );
         });
     }
-    
+
     if let Some(token) = cancel_token {
         if token.is_cancelled() {
             anyhow::bail!("Transcription cancelled");
@@ -191,19 +200,22 @@ fn transcribe_span(
         }
         unsafe {
             params.set_abort_callback(Some(whisper_abort_callback));
-            params.set_abort_callback_user_data(token as *const tokio_util::sync::CancellationToken as *mut std::ffi::c_void);
+            params.set_abort_callback_user_data(
+                token as *const tokio_util::sync::CancellationToken as *mut std::ffi::c_void,
+            );
         }
     }
-    
+
     state
         .full(params, audio_data)
         .map_err(|e| anyhow::anyhow!("Whisper transcription failed: {:?}", e))?;
-        
+
     if let Some(token) = cancel_token
-        && token.is_cancelled() {
-            anyhow::bail!("Transcription cancelled");
-        }
-    
+        && token.is_cancelled()
+    {
+        anyhow::bail!("Transcription cancelled");
+    }
+
     let detected_language = {
         let lang_id = state.full_lang_id_from_state();
         if lang_id >= 0 {
@@ -212,25 +224,25 @@ fn transcribe_span(
             None
         }
     };
-    
+
     let n_segments = state.full_n_segments();
     let mut segments = Vec::with_capacity(n_segments as usize);
-    
+
     for i in 0..n_segments {
         let seg = match state.get_segment(i) {
             Some(s) => s,
             None => continue,
         };
-        
+
         let text = match seg.to_str() {
             Ok(s) => s.trim().to_string(),
             Err(_) => continue,
         };
-        
+
         if text.is_empty() {
             continue;
         }
-        
+
         // Whisper timestamps are in centiseconds (10ms units)
         segments.push(TranscribedSegment {
             start_ms: offset_ms + seg.start_timestamp() * 10,
@@ -268,9 +280,7 @@ pub fn vad_speech_spans_ms(
     ctx_params.set_n_threads(n_threads as i32);
 
     let mut vad = whisper_rs::WhisperVadContext::new(&model_path.to_string_lossy(), ctx_params)
-        .map_err(|e| {
-            anyhow::anyhow!("Failed to load VAD model {}: {e:?}", model_path.display())
-        })?;
+        .map_err(|e| anyhow::anyhow!("Failed to load VAD model {}: {e:?}", model_path.display()))?;
     let detected = vad
         .segments_from_samples(whisper_rs::WhisperVadParams::default(), samples)
         .map_err(|e| anyhow::anyhow!("VAD speech detection failed: {e:?}"))?;

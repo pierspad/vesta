@@ -134,11 +134,20 @@ fn hw_preset_args(encoder: H264Encoder, x264_preset: &str) -> Vec<String> {
         }
         H264Encoder::Qsv => {
             // QSV accepts the libx264 names from veryfast to veryslow.
-            let p = ["veryfast", "veryfast", "veryfast", "faster", "fast", "medium", "slow", "slower", "veryslow"][speed_rank];
+            let p = [
+                "veryfast", "veryfast", "veryfast", "faster", "fast", "medium", "slow", "slower",
+                "veryslow",
+            ][speed_rank];
             vec!["-preset".into(), p.into()]
         }
         H264Encoder::Amf => {
-            let q = if speed_rank <= 2 { "speed" } else if speed_rank <= 5 { "balanced" } else { "quality" };
+            let q = if speed_rank <= 2 {
+                "speed"
+            } else if speed_rank <= 5 {
+                "balanced"
+            } else {
+                "quality"
+            };
             vec!["-quality".into(), q.into()]
         }
         // VA-API and VideoToolbox have no preset concept.
@@ -150,16 +159,30 @@ fn hw_preset_args(encoder: H264Encoder, x264_preset: &str) -> Vec<String> {
 /// both "encoder not compiled in" and "no usable GPU/driver at runtime".
 async fn test_h264_encoder(ffmpeg_cmd: &str, encoder: H264Encoder) -> bool {
     let mut cmd = media_command(ffmpeg_cmd);
-    cmd.args(["-nostdin", "-loglevel", "error", "-f", "lavfi", "-i", "color=black:s=192x108:d=0.2"]);
+    cmd.args([
+        "-nostdin",
+        "-loglevel",
+        "error",
+        "-f",
+        "lavfi",
+        "-i",
+        "color=black:s=192x108:d=0.2",
+    ]);
     if encoder == H264Encoder::Vaapi {
         cmd.args([
-            "-init_hw_device", "vaapi=va",
-            "-filter_hw_device", "va",
-            "-vf", "format=nv12,hwupload",
+            "-init_hw_device",
+            "vaapi=va",
+            "-filter_hw_device",
+            "va",
+            "-vf",
+            "format=nv12,hwupload",
         ]);
     }
     cmd.args(["-c:v", encoder.ffmpeg_name(), "-f", "null", "-"]);
-    cmd.output().await.map(|o| o.status.success()).unwrap_or(false)
+    cmd.output()
+        .await
+        .map(|o| o.status.success())
+        .unwrap_or(false)
 }
 
 /// Detect the best available H.264 encoder, in platform-specific order of
@@ -242,8 +265,19 @@ pub(crate) async fn extract_audio_clip(
 
     let mut cmd = media_command(ffmpeg_cmd);
     cmd.args([
-        "-nostdin", "-loglevel", "error", "-y", "-ss", &start_ts, "-t", &duration_ts, "-i",
-        source_path, "-vn", "-sn", "-dn",
+        "-nostdin",
+        "-loglevel",
+        "error",
+        "-y",
+        "-ss",
+        &start_ts,
+        "-t",
+        &duration_ts,
+        "-i",
+        source_path,
+        "-vn",
+        "-sn",
+        "-dn",
     ]);
     if let Some(track_index) = audio_track_index {
         let audio_map = format!("0:a:{}", track_index);
@@ -333,7 +367,15 @@ pub(crate) async fn extract_video_clip(
 
     let mut cmd = media_command(ffmpeg_cmd);
     cmd.args([
-        "-nostdin", "-loglevel", "error", "-y", "-ss", &start_ts, "-t", &duration_ts, "-i",
+        "-nostdin",
+        "-loglevel",
+        "error",
+        "-y",
+        "-ss",
+        &start_ts,
+        "-t",
+        &duration_ts,
+        "-i",
         video_path,
     ]);
 
@@ -341,7 +383,10 @@ pub(crate) async fn extract_video_clip(
     // the device at the end of the filter chain.
     let vf = if codec == "h264" && encoder == H264Encoder::Vaapi {
         cmd.args(["-init_hw_device", "vaapi=va", "-filter_hw_device", "va"]);
-        format!("{},format=nv12,hwupload", scale_vf(width, height, crop_bottom))
+        format!(
+            "{},format=nv12,hwupload",
+            scale_vf(width, height, crop_bottom)
+        )
     } else {
         scale_vf(width, height, crop_bottom)
     };

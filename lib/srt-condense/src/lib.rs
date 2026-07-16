@@ -130,12 +130,17 @@ pub async fn condense(
     };
 
     // ── Stage 1: speech spans ────────────────────────────────────────────────
-    emit("detect", "Rilevamento segmenti parlati...".to_string(), 0, 0);
+    emit(
+        "detect",
+        "Rilevamento segmenti parlati...".to_string(),
+        0,
+        0,
+    );
 
     let (raw_spans, input_duration_ms) = match &config.mode {
         CondenseMode::Subtitles { srt_path } => {
-            let subs = SrtParser::parse_file(srt_path)
-                .map_err(|e| format!("Errore parsing SRT: {e}"))?;
+            let subs =
+                SrtParser::parse_file(srt_path).map_err(|e| format!("Errore parsing SRT: {e}"))?;
             let mut spans: Vec<(i64, i64)> = subs
                 .values()
                 .map(|s| (s.start.milliseconds as i64, s.end.milliseconds as i64))
@@ -279,7 +284,17 @@ pub async fn condense(
     std::fs::write(&list_path, list_content).map_err(|e| format!("Scrittura lista: {e}"))?;
 
     let output = tokio::process::Command::new(ffmpeg_cmd)
-        .args(["-nostdin", "-loglevel", "error", "-y", "-f", "concat", "-safe", "0", "-i"])
+        .args([
+            "-nostdin",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "concat",
+            "-safe",
+            "0",
+            "-i",
+        ])
         .arg(&list_path)
         .args(["-c", "copy"])
         .arg(&config.output_path)

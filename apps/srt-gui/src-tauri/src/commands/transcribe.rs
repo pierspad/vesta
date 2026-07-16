@@ -13,7 +13,7 @@ use serde::Serialize;
 use tauri::{AppHandle, Emitter, State};
 use tokio_util::sync::CancellationToken;
 
-use srt_transcribe::model::{list_models, uninstall_model, WhisperModelInfo};
+use srt_transcribe::model::{WhisperModelInfo, list_models, uninstall_model};
 use srt_transcribe::pipeline::{self, PipelineCallbacks, TranscriptionConfig};
 
 use crate::state::AppTranscribeState;
@@ -64,7 +64,11 @@ fn tauri_callbacks(app: &AppHandle) -> PipelineCallbacks {
         on_segment: Some(Arc::new(move |start_ms, end_ms, text: &str| {
             let _ = app_segment.emit(
                 "transcribe-segment",
-                TranscribeSegmentEvent { start_ms, end_ms, text: text.to_string() },
+                TranscribeSegmentEvent {
+                    start_ms,
+                    end_ms,
+                    text: text.to_string(),
+                },
             );
         })),
     }
@@ -123,9 +127,7 @@ pub async fn transcribe_download_model(
                 "transcribe-progress",
                 TranscribeProgressEvent {
                     stage: "download".to_string(),
-                    message: format!(
-                        "Downloading model {model_id_progress} ({percentage}%)..."
-                    ),
+                    message: format!("Downloading model {model_id_progress} ({percentage}%)..."),
                     percentage: percentage as f64,
                 },
             );
@@ -235,8 +237,7 @@ pub async fn transcribe_start(
     let ffmpeg_cmd = crate::commands::flashcards::media::resolve_ffmpeg_path(Some(&app)).await;
     let callbacks = tauri_callbacks(&app);
 
-    let result =
-        pipeline::transcribe_to_srt(&config, &ffmpeg_cmd, callbacks, &cancel_token).await;
+    let result = pipeline::transcribe_to_srt(&config, &ffmpeg_cmd, callbacks, &cancel_token).await;
 
     {
         let mut s = state.lock().map_err(|e| e.to_string())?;
@@ -246,7 +247,10 @@ pub async fn transcribe_start(
     match result {
         Ok(outcome) => Ok(TranscribeResult {
             success: true,
-            message: format!("Transcription completed: {} segments", outcome.subtitle_count),
+            message: format!(
+                "Transcription completed: {} segments",
+                outcome.subtitle_count
+            ),
             output_path: Some(outcome.output_path),
             subtitle_count: outcome.subtitle_count,
             detected_language: outcome.detected_language,

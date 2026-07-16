@@ -14,9 +14,7 @@ use std::collections::VecDeque;
 use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
-use srt_translate::{
-    TierScheduler, TranslatorPool, is_rate_limit_error, pool_concurrency,
-};
+use srt_translate::{TierScheduler, TranslatorPool, is_rate_limit_error, pool_concurrency};
 use tokio::sync::Mutex;
 use tokio_util::sync::CancellationToken;
 
@@ -39,7 +37,12 @@ pub struct RefineRunConfig {
 pub enum RefineEvent {
     /// Note generate per una card.
     #[serde(rename_all = "camelCase")]
-    CardDone { id: String, notes: String, done: usize, total: usize },
+    CardDone {
+        id: String,
+        notes: String,
+        done: usize,
+        total: usize,
+    },
     /// Card fallita definitivamente (errore non di quota).
     #[serde(rename_all = "camelCase")]
     CardFailed { id: String, error: String },
@@ -200,12 +203,15 @@ async fn worker_loop<F>(
                                 s.done += 1;
                                 s.done
                             };
-                            emit(&shared, RefineEvent::CardDone {
-                                id: card.id.clone(),
-                                notes,
-                                done,
-                                total: shared.total,
-                            })
+                            emit(
+                                &shared,
+                                RefineEvent::CardDone {
+                                    id: card.id.clone(),
+                                    notes,
+                                    done,
+                                    total: shared.total,
+                                },
+                            )
                             .await;
                         }
                         Job::Batch(cards) => {
@@ -231,30 +237,42 @@ async fn worker_loop<F>(
                 Err(e) if is_rate_limit_error(&e) => {
                     // Entry esaurita: marca e riprova lo stesso job con la prossima.
                     shared.scheduler.lock().await.report_exhausted(ti, ei);
-                    emit(&shared, RefineEvent::Info {
-                        message: format!("{}: rate limit/quota raggiunti, failover", entry.label),
-                    })
+                    emit(
+                        &shared,
+                        RefineEvent::Info {
+                            message: format!(
+                                "{}: rate limit/quota raggiunti, failover",
+                                entry.label
+                            ),
+                        },
+                    )
                     .await;
                 }
                 Err(e) => match &job {
                     Job::Single(card) => {
                         shared.summary.lock().await.failed += 1;
-                        emit(&shared, RefineEvent::CardFailed {
-                            id: card.id.clone(),
-                            error: e.to_string(),
-                        })
+                        emit(
+                            &shared,
+                            RefineEvent::CardFailed {
+                                id: card.id.clone(),
+                                error: e.to_string(),
+                            },
+                        )
                         .await;
                         break;
                     }
                     Job::Batch(cards) => {
                         // Stesso fallback della vecchia GUI: il batch fallito
                         // viene riprocessato una card alla volta.
-                        emit(&shared, RefineEvent::Info {
-                            message: format!(
-                                "Batch fallito via {} ({e}), fallback a richieste singole",
-                                entry.label
-                            ),
-                        })
+                        emit(
+                            &shared,
+                            RefineEvent::Info {
+                                message: format!(
+                                    "Batch fallito via {} ({e}), fallback a richieste singole",
+                                    entry.label
+                                ),
+                            },
+                        )
                         .await;
                         let mut queue = shared.queue.lock().await;
                         for card in cards.clone() {
@@ -355,12 +373,15 @@ where
                     s.done += 1;
                     s.done
                 };
-                emit(shared, RefineEvent::CardDone {
-                    id: card.id.clone(),
-                    notes: r.notes.trim().to_string(),
-                    done,
-                    total: shared.total,
-                })
+                emit(
+                    shared,
+                    RefineEvent::CardDone {
+                        id: card.id.clone(),
+                        notes: r.notes.trim().to_string(),
+                        done,
+                        total: shared.total,
+                    },
+                )
                 .await;
             }
             _ => missing.push(card.clone()),

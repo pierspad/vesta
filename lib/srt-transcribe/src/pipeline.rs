@@ -22,8 +22,8 @@ use serde::{Deserialize, Serialize};
 use tokio_util::sync::CancellationToken;
 
 use crate::audio::{convert_to_wav, read_wav_to_f32, segment_to_wav_chunks};
-use crate::cloud::{transcribe_chunk, CloudConfig};
-use crate::transcribe::{transcribe_full, TranscribeOptions, TranscribedSegment};
+use crate::cloud::{CloudConfig, transcribe_chunk};
+use crate::transcribe::{TranscribeOptions, TranscribedSegment, transcribe_full};
 
 // ─── Configuration ───────────────────────────────────────────────────────────
 
@@ -149,7 +149,11 @@ pub struct RawSegment {
 
 impl From<TranscribedSegment> for RawSegment {
     fn from(s: TranscribedSegment) -> Self {
-        Self { start_ms: s.start_ms, end_ms: s.end_ms, text: s.text }
+        Self {
+            start_ms: s.start_ms,
+            end_ms: s.end_ms,
+            text: s.text,
+        }
     }
 }
 
@@ -160,7 +164,11 @@ pub fn postprocess_segments(raw: Vec<RawSegment>, max_segment_len: u32) -> Vec<R
         return raw;
     }
 
-    let max_chars = if max_segment_len > 0 { max_segment_len as usize } else { 80 };
+    let max_chars = if max_segment_len > 0 {
+        max_segment_len as usize
+    } else {
+        80
+    };
 
     // Phase 1: merge segments that are very short (< 1s) or have very little text.
     let mut merged: Vec<RawSegment> = Vec::new();
@@ -171,15 +179,19 @@ pub fn postprocess_segments(raw: Vec<RawSegment>, max_segment_len: u32) -> Vec<R
         }
 
         let duration_ms = seg.end_ms - seg.start_ms;
-        let should_merge = !merged.is_empty()
-            && (duration_ms < 1000 && text.len() < 10 || text.len() < 3);
+        let should_merge =
+            !merged.is_empty() && (duration_ms < 1000 && text.len() < 10 || text.len() < 3);
 
         if should_merge {
             let last = merged.last_mut().unwrap();
             last.end_ms = seg.end_ms;
             last.text = format!("{} {}", last.text, text);
         } else {
-            merged.push(RawSegment { start_ms: seg.start_ms, end_ms: seg.end_ms, text });
+            merged.push(RawSegment {
+                start_ms: seg.start_ms,
+                end_ms: seg.end_ms,
+                text,
+            });
         }
     }
 
@@ -227,7 +239,11 @@ pub fn postprocess_segments(raw: Vec<RawSegment>, max_segment_len: u32) -> Vec<R
             let sub_start = seg.start_ms + (ratio_start * total_duration as f64) as i64;
             let sub_end = seg.start_ms + (ratio_end * total_duration as f64) as i64;
 
-            result.push(RawSegment { start_ms: sub_start, end_ms: sub_end, text: sub_text });
+            result.push(RawSegment {
+                start_ms: sub_start,
+                end_ms: sub_end,
+                text: sub_text,
+            });
             prev_pos = *split_pos;
 
             if idx == splits.len() - 1 && prev_pos < total_chars {
@@ -446,7 +462,10 @@ pub async fn run_cloud(
     callbacks: &PipelineCallbacks,
     cancel_token: &CancellationToken,
 ) -> Result<TranscriptionOutcome> {
-    let provider = config.provider.clone().unwrap_or_else(|| "local".to_string());
+    let provider = config
+        .provider
+        .clone()
+        .unwrap_or_else(|| "local".to_string());
 
     callbacks.progress("preparing", "Preparing audio...", 5.0);
 
@@ -491,7 +510,12 @@ pub async fn run_cloud(
         let pct = 10.0 + (idx as f64 / total.max(1) as f64) * 80.0;
         callbacks.progress(
             "transcribe",
-            format!("Transcribing chunk {}/{} via {}...", idx + 1, total, provider),
+            format!(
+                "Transcribing chunk {}/{} via {}...",
+                idx + 1,
+                total,
+                provider
+            ),
             pct,
         );
 
@@ -551,14 +575,21 @@ pub async fn transcribe_to_srt(
         let outcome = run_cloud(config, ffmpeg_cmd, &callbacks, cancel_token).await?;
         callbacks.progress(
             "done",
-            format!("Transcription completed: {} segments", outcome.subtitle_count),
+            format!(
+                "Transcription completed: {} segments",
+                outcome.subtitle_count
+            ),
             100.0,
         );
         return Ok(outcome);
     }
 
     // ── Local whisper.cpp path ────────────────────────────────────────────
-    callbacks.progress("download", format!("Checking model {}...", config.model), 0.0);
+    callbacks.progress(
+        "download",
+        format!("Checking model {}...", config.model),
+        0.0,
+    );
 
     let callbacks_dl = callbacks.clone();
     let model_label = config.model.clone();
@@ -584,9 +615,14 @@ pub async fn transcribe_to_srt(
 
     callbacks.progress("convert", "Converting audio format...", 5.0);
 
-    convert_to_wav(ffmpeg_cmd, Path::new(&config.input_path), &wav_path, Some(cancel_token))
-        .await
-        .context("Audio conversion failed")?;
+    convert_to_wav(
+        ffmpeg_cmd,
+        Path::new(&config.input_path),
+        &wav_path,
+        Some(cancel_token),
+    )
+    .await
+    .context("Audio conversion failed")?;
 
     callbacks.progress("convert", "Audio converted successfully", 10.0);
 
@@ -599,7 +635,13 @@ pub async fn transcribe_to_srt(
     let cancel_clone = cancel_token.clone();
 
     let result = tokio::task::spawn_blocking(move || {
-        run_local(&config_clone, &model_path, &audio_data, &callbacks_clone, &cancel_clone)
+        run_local(
+            &config_clone,
+            &model_path,
+            &audio_data,
+            &callbacks_clone,
+            &cancel_clone,
+        )
     })
     .await
     .context("Transcription task failed")?;
@@ -609,7 +651,10 @@ pub async fn transcribe_to_srt(
     let outcome = result?;
     callbacks.progress(
         "done",
-        format!("Transcription completed: {} segments", outcome.subtitle_count),
+        format!(
+            "Transcription completed: {} segments",
+            outcome.subtitle_count
+        ),
         100.0,
     );
 

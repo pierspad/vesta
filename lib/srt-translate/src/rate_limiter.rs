@@ -6,9 +6,9 @@
 //! A differenza del semaforo che limita solo la concorrenza,
 //! questo limiter garantisce un numero massimo di richieste per minuto.
 
-use governor::{Quota, RateLimiter as GovRateLimiter};
 use governor::clock::DefaultClock;
 use governor::state::{InMemoryState, NotKeyed};
+use governor::{Quota, RateLimiter as GovRateLimiter};
 use std::num::NonZeroU32;
 use std::sync::Arc;
 
@@ -34,16 +34,15 @@ pub fn create_rate_limiter(rpm: u32) -> Arc<RateLimiter> {
     // Converti RPM in quota
     // NonZeroU32::new restituisce None se l'input è 0, ma usiamo max(1, rpm)
     // quindi l'unwrap è sicuro (non può mai essere 0)
-    let requests_per_minute = NonZeroU32::new(rpm.max(1))
-        .expect("rpm.max(1) is always >= 1");
-    
+    let requests_per_minute = NonZeroU32::new(rpm.max(1)).expect("rpm.max(1) is always >= 1");
+
     // Crea una quota che permette 'rpm' richieste al minuto
     // allow_burst(1) significa che le richieste devono essere spaziate nel tempo,
     // evitando "raffiche" di richieste all'inizio del minuto.
     // Questo è ideale per traduzioni batch che devono rispettare i rate limit API.
     let quota = Quota::per_minute(requests_per_minute)
         .allow_burst(NonZeroU32::new(1).expect("1 is always >= 1"));
-    
+
     Arc::new(GovRateLimiter::direct(quota))
 }
 
@@ -54,13 +53,11 @@ pub fn create_rate_limiter(rpm: u32) -> Arc<RateLimiter> {
 /// * `burst` - Numero massimo di richieste in burst
 pub fn create_rate_limiter_with_burst(rpm: u32, burst: u32) -> Arc<RateLimiter> {
     // Gli expect sono sicuri perché max(1) garantisce valori >= 1
-    let requests_per_minute = NonZeroU32::new(rpm.max(1))
-        .expect("rpm.max(1) is always >= 1");
-    let burst_size = NonZeroU32::new(burst.max(1))
-        .expect("burst.max(1) is always >= 1");
-    
+    let requests_per_minute = NonZeroU32::new(rpm.max(1)).expect("rpm.max(1) is always >= 1");
+    let burst_size = NonZeroU32::new(burst.max(1)).expect("burst.max(1) is always >= 1");
+
     let quota = Quota::per_minute(requests_per_minute).allow_burst(burst_size);
-    
+
     Arc::new(GovRateLimiter::direct(quota))
 }
 
@@ -77,11 +74,14 @@ impl RateLimitConfig {
     pub fn new(rpm: u32) -> Self {
         Self { rpm, burst: None }
     }
-    
+
     pub fn with_burst(rpm: u32, burst: u32) -> Self {
-        Self { rpm, burst: Some(burst) }
+        Self {
+            rpm,
+            burst: Some(burst),
+        }
     }
-    
+
     /// Crea il rate limiter dalla configurazione
     pub fn create_limiter(&self) -> Arc<RateLimiter> {
         match self.burst {
@@ -94,14 +94,14 @@ impl RateLimitConfig {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_create_rate_limiter() {
         let limiter = create_rate_limiter(60);
         // Dovrebbe permettere almeno una richiesta immediata
         assert!(limiter.check().is_ok());
     }
-    
+
     #[test]
     fn test_rate_limiter_with_burst() {
         let limiter = create_rate_limiter_with_burst(60, 5);

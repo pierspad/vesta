@@ -1,8 +1,8 @@
-use anyhow::{anyhow, Context as _, Result};
+use anyhow::{Context as _, Result, anyhow};
+use futures::StreamExt as _;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use tokio_util::sync::CancellationToken;
-use futures::StreamExt as _;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WhisperModelInfo {
@@ -56,7 +56,7 @@ pub fn list_models() -> Result<Vec<WhisperModelInfo>> {
         let downloaded = model_file_path(id)
             .map(|path| path.exists())
             .unwrap_or(false);
-        
+
         result.push(WhisperModelInfo {
             id: id.to_string(),
             name: name.to_string(),
@@ -113,7 +113,9 @@ pub struct VadModelInfo {
     pub downloaded: bool,
 }
 
-fn vad_model_entry(id: &str) -> Result<&'static (&'static str, &'static str, &'static str, &'static str)> {
+fn vad_model_entry(
+    id: &str,
+) -> Result<&'static (&'static str, &'static str, &'static str, &'static str)> {
     VAD_MODELS
         .iter()
         .find(|(entry_id, _, _, _)| *entry_id == id)
@@ -189,9 +191,8 @@ where
     } else {
         model_id
     };
-    let url = format!(
-        "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-{url_id}.bin"
-    );
+    let url =
+        format!("https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-{url_id}.bin");
 
     download_to(&url, &path, progress_callback, cancel_token).await
 }
@@ -231,36 +232,34 @@ where
         .context("Failed to send request for model download")?;
 
     if !response.status().is_success() {
-        anyhow::bail!(
-            "Model download failed with status: {}",
-            response.status()
-        );
+        anyhow::bail!("Model download failed with status: {}", response.status());
     }
-    
+
     let total_size = response.content_length().unwrap_or(0);
     let mut file = tokio::fs::File::create(&partial)
         .await
         .context("Failed to create partial download file")?;
-        
+
     let mut stream = response.bytes_stream();
     let mut downloaded = 0u64;
     let mut last_emit = std::time::Instant::now();
-    
+
     progress_callback(0);
-    
+
     while let Some(chunk_result) = stream.next().await {
         if let Some(token) = cancel_token
-            && token.is_cancelled() {
-                let _ = tokio::fs::remove_file(&partial).await;
-                anyhow::bail!("Download cancelled");
-            }
-        
+            && token.is_cancelled()
+        {
+            let _ = tokio::fs::remove_file(&partial).await;
+            anyhow::bail!("Download cancelled");
+        }
+
         let chunk = chunk_result.context("Error reading response chunk")?;
         tokio::io::AsyncWriteExt::write_all(&mut file, &chunk)
             .await
             .context("Failed to write chunk to file")?;
         downloaded += chunk.len() as u64;
-        
+
         if total_size > 0 {
             let percentage = (downloaded as f64 / total_size as f64 * 100.0) as u32;
             if last_emit.elapsed() >= std::time::Duration::from_millis(150) || percentage == 100 {
@@ -269,11 +268,11 @@ where
             }
         }
     }
-    
+
     tokio::io::AsyncWriteExt::flush(&mut file)
         .await
         .context("Failed to flush download file")?;
-        
+
     tokio::fs::rename(&partial, &path)
         .await
         .context("Failed to rename partial file to destination")?;

@@ -33,7 +33,12 @@ pub struct CloudConfig {
 
 impl CloudConfig {
     fn base_url(&self) -> String {
-        if let Some(u) = self.api_url.as_ref().map(|s| s.trim()).filter(|s| !s.is_empty()) {
+        if let Some(u) = self
+            .api_url
+            .as_ref()
+            .map(|s| s.trim())
+            .filter(|s| !s.is_empty())
+        {
             return u.trim_end_matches('/').to_string();
         }
         default_base_url(&self.provider).to_string()
@@ -120,9 +125,10 @@ async fn openai_compatible(
 
     // language valido solo per /audio/transcriptions
     if !cfg.translate_to_english
-        && let Some(lang) = cfg.language.as_ref().filter(|l| l.as_str() != "auto") {
-            form = form.text("language", lang.clone());
-        }
+        && let Some(lang) = cfg.language.as_ref().filter(|l| l.as_str() != "auto")
+    {
+        form = form.text("language", lang.clone());
+    }
 
     let resp = client
         .post(&endpoint)
@@ -135,11 +141,19 @@ async fn openai_compatible(
     let status = resp.status();
     let body = resp.text().await.unwrap_or_default();
     if !status.is_success() {
-        anyhow::bail!("Transcription API error ({}): {}", status, truncate(&body, 400));
+        anyhow::bail!(
+            "Transcription API error ({}): {}",
+            status,
+            truncate(&body, 400)
+        );
     }
 
-    let parsed: OpenAiVerbose = serde_json::from_str(&body)
-        .with_context(|| format!("Failed to parse transcription response: {}", truncate(&body, 300)))?;
+    let parsed: OpenAiVerbose = serde_json::from_str(&body).with_context(|| {
+        format!(
+            "Failed to parse transcription response: {}",
+            truncate(&body, 300)
+        )
+    })?;
 
     if !parsed.segments.is_empty() {
         return Ok(parsed
@@ -160,7 +174,11 @@ async fn openai_compatible(
         return Ok(vec![]);
     }
     let end_ms = (parsed.duration.unwrap_or(0.0) * 1000.0) as i64;
-    Ok(vec![TranscribedSegment { start_ms: 0, end_ms, text }])
+    Ok(vec![TranscribedSegment {
+        start_ms: 0,
+        end_ms,
+        text,
+    }])
 }
 
 // ─── Deepgram ──────────────────────────────────────────────────────────────────
@@ -209,7 +227,11 @@ async fn deepgram(
     cfg: &CloudConfig,
     audio: Vec<u8>,
 ) -> Result<Vec<TranscribedSegment>> {
-    let model = if cfg.model.trim().is_empty() { "nova-3" } else { cfg.model.trim() };
+    let model = if cfg.model.trim().is_empty() {
+        "nova-3"
+    } else {
+        cfg.model.trim()
+    };
     let mut url = format!(
         "{}/listen?model={}&smart_format=true&punctuate=true&utterances=true",
         cfg.base_url(),
@@ -235,9 +257,15 @@ async fn deepgram(
         anyhow::bail!("Deepgram API error ({}): {}", status, truncate(&body, 400));
     }
 
-    let parsed: DgResponse = serde_json::from_str(&body)
-        .with_context(|| format!("Failed to parse Deepgram response: {}", truncate(&body, 300)))?;
-    let results = parsed.results.context("Deepgram response missing results")?;
+    let parsed: DgResponse = serde_json::from_str(&body).with_context(|| {
+        format!(
+            "Failed to parse Deepgram response: {}",
+            truncate(&body, 300)
+        )
+    })?;
+    let results = parsed
+        .results
+        .context("Deepgram response missing results")?;
 
     // Preferisci le utterances (già segmentate).
     if !results.utterances.is_empty() {
@@ -254,7 +282,12 @@ async fn deepgram(
     }
 
     // Fallback: ricostruisci dai word-level timestamps.
-    if let Some(alt) = results.channels.into_iter().next().and_then(|c| c.alternatives.into_iter().next()) {
+    if let Some(alt) = results
+        .channels
+        .into_iter()
+        .next()
+        .and_then(|c| c.alternatives.into_iter().next())
+    {
         if !alt.words.is_empty() {
             let words: Vec<Word> = alt
                 .words
@@ -269,7 +302,11 @@ async fn deepgram(
         }
         let text = alt.transcript.trim().to_string();
         if !text.is_empty() {
-            return Ok(vec![TranscribedSegment { start_ms: 0, end_ms: 0, text }]);
+            return Ok(vec![TranscribedSegment {
+                start_ms: 0,
+                end_ms: 0,
+                text,
+            }]);
         }
     }
 
@@ -369,7 +406,11 @@ async fn assemblyai(
                     let words: Vec<Word> = poll
                         .words
                         .into_iter()
-                        .map(|w| Word { start_ms: w.start, end_ms: w.end, text: w.text })
+                        .map(|w| Word {
+                            start_ms: w.start,
+                            end_ms: w.end,
+                            text: w.text,
+                        })
                         .collect();
                     return Ok(segments_from_words(words, 80));
                 }
@@ -377,7 +418,11 @@ async fn assemblyai(
                 return Ok(if text.is_empty() {
                     vec![]
                 } else {
-                    vec![TranscribedSegment { start_ms: 0, end_ms: 0, text }]
+                    vec![TranscribedSegment {
+                        start_ms: 0,
+                        end_ms: 0,
+                        text,
+                    }]
                 });
             }
             "error" => anyhow::bail!(

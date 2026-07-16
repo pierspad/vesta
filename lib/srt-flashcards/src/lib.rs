@@ -90,8 +90,16 @@ impl MediaTools {
         let ffmpeg = ffmpeg.into();
         let ffprobe = ffprobe.into();
         Self {
-            ffmpeg: if ffmpeg.is_empty() { "ffmpeg".into() } else { ffmpeg },
-            ffprobe: if ffprobe.is_empty() { "ffprobe".into() } else { ffprobe },
+            ffmpeg: if ffmpeg.is_empty() {
+                "ffmpeg".into()
+            } else {
+                ffmpeg
+            },
+            ffprobe: if ffprobe.is_empty() {
+                "ffprobe".into()
+            } else {
+                ffprobe
+            },
         }
     }
 }
@@ -160,7 +168,8 @@ fn cancelled_result(
 /// preview command and the generation routine).
 pub fn build_matched_lines(config: &FlashcardConfig) -> Result<Vec<MatchedLine>, String> {
     // Target subtitles + time shift.
-    let (mut subs1, _) = parse_subtitle_file(&config.target_subs_path).map_err(|e| e.to_string())?;
+    let (mut subs1, _) =
+        parse_subtitle_file(&config.target_subs_path).map_err(|e| e.to_string())?;
     if config.time_shift_target_ms != 0 {
         for s in subs1.iter_mut() {
             s.start_ms += config.time_shift_target_ms;
@@ -351,14 +360,38 @@ pub async fn generate(
     progress: ProgressCallback<'_>,
 ) -> Result<FlashcardResult, String> {
     // --- Stage 1: Parse + match + filter (shared pipeline) ---
-    emit(progress, "parsing", "flashcards.progress.parsing", 0, 100, 0.0, HashMap::new());
+    emit(
+        progress,
+        "parsing",
+        "flashcards.progress.parsing",
+        0,
+        100,
+        0.0,
+        HashMap::new(),
+    );
 
     if cancel.is_cancelled() {
         return Ok(cancelled_result("Cancelled", 0, 0, 0));
     }
 
-    emit(progress, "matching", "flashcards.progress.matching", 5, 100, 5.0, HashMap::new());
-    emit(progress, "filtering", "flashcards.progress.filtering", 10, 100, 10.0, HashMap::new());
+    emit(
+        progress,
+        "matching",
+        "flashcards.progress.matching",
+        5,
+        100,
+        5.0,
+        HashMap::new(),
+    );
+    emit(
+        progress,
+        "filtering",
+        "flashcards.progress.filtering",
+        10,
+        100,
+        10.0,
+        HashMap::new(),
+    );
 
     let matched = build_matched_lines(&config)?;
 
@@ -382,8 +415,12 @@ pub async fn generate(
     // `<deck>.media` folder lives inside `output_dir`), but APKG packs media in a
     // temp dir, so without this an APKG export into a not-yet-existing folder
     // (e.g. `~/Downloads/decks/`) would fail when the `.apkg` file is created.
-    std::fs::create_dir_all(&output_dir)
-        .map_err(|e| format!("Cannot create output directory '{}': {e}", output_dir.display()))?;
+    std::fs::create_dir_all(&output_dir).map_err(|e| {
+        format!(
+            "Cannot create output directory '{}': {e}",
+            output_dir.display()
+        )
+    })?;
     let export_format = config.export_format.as_deref().unwrap_or("tsv");
 
     // APKG packs media from a temp dir; TSV writes a sibling `<deck>.media` folder
@@ -406,7 +443,10 @@ pub async fn generate(
     std::fs::create_dir_all(&media_dir).map_err(|e| format!("Cannot create output dir: {}", e))?;
 
     // Media sources
-    let media_source = config.audio_path.as_deref().or(config.video_path.as_deref());
+    let media_source = config
+        .audio_path
+        .as_deref()
+        .or(config.video_path.as_deref());
     let video_source = config.video_path.as_deref();
 
     let needs_audio = config.generate_audio && media_source.is_some();
@@ -462,8 +502,8 @@ pub async fn generate(
     let mut snapshot_count = 0usize;
     let mut video_count = 0usize;
 
-    let total_media_ops =
-        active_lines.len() * (needs_audio as usize + needs_snapshots as usize + needs_video as usize);
+    let total_media_ops = active_lines.len()
+        * (needs_audio as usize + needs_snapshots as usize + needs_video as usize);
     let mut completed_ops = 0usize;
 
     if total_media_ops > 0 {
@@ -497,8 +537,15 @@ pub async fn generate(
                 tasks.spawn(async move {
                     let _permit = permit.acquire_owned().await.expect("semaphore open");
                     let result = extract_audio_clip(
-                        &source, &output_path, start_ms, end_ms, pad_s, pad_e, bitrate,
-                        audio_track_index, &ffmpeg,
+                        &source,
+                        &output_path,
+                        start_ms,
+                        end_ms,
+                        pad_s,
+                        pad_e,
+                        bitrate,
+                        audio_track_index,
+                        &ffmpeg,
                     )
                     .await;
                     if result.is_ok() && normalize {
@@ -520,9 +567,17 @@ pub async fn generate(
 
                 tasks.spawn(async move {
                     let _permit = permit.acquire_owned().await.expect("semaphore open");
-                    let result =
-                        extract_snapshot(&source, &output_path, start_ms, end_ms, w, h, crop, &ffmpeg)
-                            .await;
+                    let result = extract_snapshot(
+                        &source,
+                        &output_path,
+                        start_ms,
+                        end_ms,
+                        w,
+                        h,
+                        crop,
+                        &ffmpeg,
+                    )
+                    .await;
                     ("snapshot", result, seq_num)
                 });
             }
@@ -530,8 +585,10 @@ pub async fn generate(
             if needs_video {
                 let source = video_source_arc.clone().unwrap();
                 let ext = if video_codec == "h264" { "mp4" } else { "avi" };
-                let output_path =
-                    media_dir.join(format!("{}_{:03}_{:04}.{}", deck_sanitized, ep, seq_num, ext));
+                let output_path = media_dir.join(format!(
+                    "{}_{:03}_{:04}.{}",
+                    deck_sanitized, ep, seq_num, ext
+                ));
                 let codec = video_codec.clone();
                 let preset = h264_preset.clone();
                 let vbr = config.video_bitrate;
@@ -550,11 +607,27 @@ pub async fn generate(
                     let _permit = permit.acquire_owned().await.expect("semaphore open");
                     let _hw_permit = match hw_video_semaphore_acquire(hw_permit_source).await {
                         Ok(p) => p,
-                        Err(_) => return ("video", Err(anyhow::anyhow!("semaphore closed")), seq_num),
+                        Err(_) => {
+                            return ("video", Err(anyhow::anyhow!("semaphore closed")), seq_num);
+                        }
                     };
                     let mut result = extract_video_clip(
-                        &source, &output_path, start_ms, end_ms, pad_s, pad_e, &codec, &preset,
-                        video_encoder, vbr, abr, audio_track_index, w, h, crop, &ffmpeg,
+                        &source,
+                        &output_path,
+                        start_ms,
+                        end_ms,
+                        pad_s,
+                        pad_e,
+                        &codec,
+                        &preset,
+                        video_encoder,
+                        vbr,
+                        abr,
+                        audio_track_index,
+                        w,
+                        h,
+                        crop,
+                        &ffmpeg,
                     )
                     .await;
                     // Safety net: a probed GPU encoder can still fail on a
@@ -562,9 +635,22 @@ pub async fn generate(
                     // that clip once in software instead of losing it.
                     if result.is_err() && video_encoder.is_hardware() {
                         result = extract_video_clip(
-                            &source, &output_path, start_ms, end_ms, pad_s, pad_e, &codec,
-                            &preset, media::H264Encoder::Libx264, vbr, abr, audio_track_index,
-                            w, h, crop, &ffmpeg,
+                            &source,
+                            &output_path,
+                            start_ms,
+                            end_ms,
+                            pad_s,
+                            pad_e,
+                            &codec,
+                            &preset,
+                            media::H264Encoder::Libx264,
+                            vbr,
+                            abr,
+                            audio_track_index,
+                            w,
+                            h,
+                            crop,
+                            &ffmpeg,
                         )
                         .await;
                     }
@@ -637,9 +723,21 @@ pub async fn generate(
 
     // Report aggregate media failures.
     for (needs, count, msg_key) in [
-        (needs_audio, audio_count, "flashcards.progress.audioExtractionsFailed"),
-        (needs_snapshots, snapshot_count, "flashcards.progress.snapshotExtractionsFailed"),
-        (needs_video, video_count, "flashcards.progress.videoExtractionsFailed"),
+        (
+            needs_audio,
+            audio_count,
+            "flashcards.progress.audioExtractionsFailed",
+        ),
+        (
+            needs_snapshots,
+            snapshot_count,
+            "flashcards.progress.snapshotExtractionsFailed",
+        ),
+        (
+            needs_video,
+            video_count,
+            "flashcards.progress.videoExtractionsFailed",
+        ),
     ] {
         if needs && count < total_active {
             emit(
@@ -659,12 +757,28 @@ pub async fn generate(
     let mut apkg_path_result: Option<String> = None;
 
     if export_format == "apkg" {
-        emit(progress, "tsv", "flashcards.progress.generatingApkg", 90, 100, 90.0, HashMap::new());
+        emit(
+            progress,
+            "tsv",
+            "flashcards.progress.generatingApkg",
+            90,
+            100,
+            90.0,
+            HashMap::new(),
+        );
         let apkg_path = output_dir.join(format!("{}.apkg", sanitize_filename(&config.deck_name)));
         generate_apkg(&matched, &config, &media_dir, &apkg_path)?;
         apkg_path_result = Some(apkg_path.to_string_lossy().to_string());
     } else {
-        emit(progress, "tsv", "flashcards.progress.generatingTsv", 90, 100, 90.0, HashMap::new());
+        emit(
+            progress,
+            "tsv",
+            "flashcards.progress.generatingTsv",
+            90,
+            100,
+            90.0,
+            HashMap::new(),
+        );
         let media_str = media_dir.to_str().unwrap_or("");
         let tsv_content = generate_tsv(&matched, &config, media_str, media_str, media_str);
         let tsv_path = output_dir.join(format!("{}.tsv", sanitize_filename(&config.deck_name)));
@@ -673,7 +787,15 @@ pub async fn generate(
         tsv_path_result = Some(tsv_path.to_string_lossy().to_string());
     }
 
-    emit(progress, "done", "flashcards.progress.complete", 100, 100, 100.0, HashMap::new());
+    emit(
+        progress,
+        "done",
+        "flashcards.progress.complete",
+        100,
+        100,
+        100.0,
+        HashMap::new(),
+    );
 
     Ok(FlashcardResult {
         success: true,

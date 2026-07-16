@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Context as _, Result};
+use anyhow::{Context as _, Result, anyhow};
 use std::path::Path;
 use tokio_util::sync::CancellationToken;
 
@@ -34,8 +34,11 @@ pub async fn convert_to_wav(
         .spawn()
         .context("Failed to spawn FFmpeg process for audio conversion")?;
 
-    let mut stderr_reader = child.stderr.take().ok_or_else(|| anyhow!("Failed to capture stderr"))?;
-    
+    let mut stderr_reader = child
+        .stderr
+        .take()
+        .ok_or_else(|| anyhow!("Failed to capture stderr"))?;
+
     // Spawn task to read stderr asynchronously to prevent deadlocks
     let stderr_handle = tokio::spawn(async move {
         use tokio::io::AsyncReadExt;
@@ -84,7 +87,17 @@ pub async fn segment_to_wav_chunks(
         .arg("-y")
         .arg("-i")
         .arg(input_path)
-        .args(["-ar", "16000", "-ac", "1", "-c:a", "pcm_s16le", "-f", "segment", "-segment_time"])
+        .args([
+            "-ar",
+            "16000",
+            "-ac",
+            "1",
+            "-c:a",
+            "pcm_s16le",
+            "-f",
+            "segment",
+            "-segment_time",
+        ])
         .arg(segment_seconds.max(1).to_string())
         .arg(&pattern)
         .stdout(std::process::Stdio::null())
@@ -92,7 +105,10 @@ pub async fn segment_to_wav_chunks(
         .spawn()
         .context("Failed to spawn FFmpeg process for audio segmentation")?;
 
-    let mut stderr_reader = child.stderr.take().ok_or_else(|| anyhow!("Failed to capture stderr"))?;
+    let mut stderr_reader = child
+        .stderr
+        .take()
+        .ok_or_else(|| anyhow!("Failed to capture stderr"))?;
     let stderr_handle = tokio::spawn(async move {
         use tokio::io::AsyncReadExt;
         let mut buf = Vec::new();
@@ -141,29 +157,29 @@ pub async fn segment_to_wav_chunks(
 
 /// Read WAV file into f32 samples for whisper-rs, averaging channels if stereo
 pub fn read_wav_to_f32(wav_path: &Path) -> Result<Vec<f32>> {
-    let reader = hound::WavReader::open(wav_path)
-        .context("Failed to open WAV file")?;
-    
+    let reader = hound::WavReader::open(wav_path).context("Failed to open WAV file")?;
+
     let spec = reader.spec();
-    
+
     let samples: Vec<f32> = match spec.sample_format {
         hound::SampleFormat::Int => {
             let max_val = (1 << (spec.bits_per_sample.saturating_sub(1))) as f32;
-            reader.into_samples::<i32>()
+            reader
+                .into_samples::<i32>()
                 .filter_map(|s| s.ok())
                 .map(|s| s as f32 / max_val)
                 .collect()
         }
-        hound::SampleFormat::Float => {
-            reader.into_samples::<f32>()
-                .filter_map(|s| s.ok())
-                .collect()
-        }
+        hound::SampleFormat::Float => reader
+            .into_samples::<f32>()
+            .filter_map(|s| s.ok())
+            .collect(),
     };
-    
+
     // If stereo, convert to mono by averaging channels
     if spec.channels == 2 {
-        Ok(samples.chunks(2)
+        Ok(samples
+            .chunks(2)
             .map(|chunk| {
                 if chunk.len() == 2 {
                     (chunk[0] + chunk[1]) / 2.0

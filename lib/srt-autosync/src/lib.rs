@@ -30,7 +30,7 @@ use tokio_util::sync::CancellationToken;
 
 use srt_transcribe::audio::read_wav_to_f32;
 use srt_transcribe::transcribe::{
-    text_similarity, transcribe_full, TranscribeOptions, TranscribedSegment,
+    TranscribeOptions, TranscribedSegment, text_similarity, transcribe_full,
 };
 
 // ─── Public types ────────────────────────────────────────────────────────────
@@ -117,12 +117,18 @@ fn extract_audio_segment(
     let output = std::process::Command::new(ffmpeg_cmd)
         .args([
             "-y",
-            "-ss", &format!("{start_sec:.2}"),
-            "-i", media_path,
-            "-t", &format!("{duration_sec:.2}"),
-            "-ar", "16000",
-            "-ac", "1",
-            "-c:a", "pcm_s16le",
+            "-ss",
+            &format!("{start_sec:.2}"),
+            "-i",
+            media_path,
+            "-t",
+            &format!("{duration_sec:.2}"),
+            "-ar",
+            "16000",
+            "-ac",
+            "1",
+            "-c:a",
+            "pcm_s16le",
             output_wav,
         ])
         .output()
@@ -147,7 +153,9 @@ fn is_silent(samples: &[f32], threshold: f32) -> bool {
 }
 
 fn num_cpus() -> usize {
-    std::thread::available_parallelism().map(|n| n.get()).unwrap_or(4)
+    std::thread::available_parallelism()
+        .map(|n| n.get())
+        .unwrap_or(4)
 }
 
 fn format_mm_ss(total_seconds: f64) -> String {
@@ -172,9 +180,12 @@ fn temporal_weight(time_diff_ms: i64) -> f64 {
 pub async fn get_media_duration(media_path: &str, ffprobe_cmd: &str) -> Result<f64> {
     let output = tokio::process::Command::new(ffprobe_cmd)
         .args([
-            "-v", "error",
-            "-show_entries", "format=duration",
-            "-of", "default=noprint_wrappers=1:nokey=1",
+            "-v",
+            "error",
+            "-show_entries",
+            "format=duration",
+            "-of",
+            "default=noprint_wrappers=1:nokey=1",
             media_path,
         ])
         .output()
@@ -295,7 +306,12 @@ async fn prepare_single_segment(
         }
     }
 
-    Ok(PreparedSegment { idx, current_pos, audio_data, _wav_path: wav_path })
+    Ok(PreparedSegment {
+        idx,
+        current_pos,
+        audio_data,
+        _wav_path: wav_path,
+    })
 }
 
 fn emit(
@@ -376,7 +392,10 @@ pub async fn run_auto_sync(
         format!("Preparing auto-sync: {total_segments} audio segments to analyze..."),
         0.0,
         Some("sync.autoSyncProgress.analyzingSegments"),
-        Some(HashMap::from([("total".to_string(), total_segments.to_string())])),
+        Some(HashMap::from([(
+            "total".to_string(),
+            total_segments.to_string(),
+        )])),
     );
 
     let temp_dir = tempfile::tempdir().context("Failed to create temp dir")?;
@@ -389,7 +408,10 @@ pub async fn run_auto_sync(
         format!("Preparing and extracting {total_segments} audio segments in parallel..."),
         3.0,
         Some("sync.autoSyncProgress.preparingSegments"),
-        Some(HashMap::from([("total".to_string(), total_segments.to_string())])),
+        Some(HashMap::from([(
+            "total".to_string(),
+            total_segments.to_string(),
+        )])),
     );
 
     let max_concurrency = num_cpus().min(6);
@@ -461,8 +483,10 @@ pub async fn run_auto_sync(
             )
             .map_err(|e| format!("Failed to load Whisper model: {e:?}"))?;
 
-            let mut subtitles_sorted: Vec<(u32, i64, String)> =
-                subtitles.into_iter().map(|s| (s.id, s.start_ms, s.text)).collect();
+            let mut subtitles_sorted: Vec<(u32, i64, String)> = subtitles
+                .into_iter()
+                .map(|s| (s.id, s.start_ms, s.text))
+                .collect();
             subtitles_sorted.sort_by_key(|(_, start_ms, _)| *start_ms);
 
             for (idx, prep) in prepared_segments.iter().enumerate() {
@@ -500,7 +524,10 @@ pub async fn run_auto_sync(
                         ("total".to_string(), total_segments.to_string()),
                         ("start".to_string(), start_label),
                         ("end".to_string(), end_label),
-                        ("duration".to_string(), format!("{}s", segment_duration.round() as i64)),
+                        (
+                            "duration".to_string(),
+                            format!("{}s", segment_duration.round() as i64),
+                        ),
                     ])),
                 );
 
@@ -619,7 +646,9 @@ pub async fn run_auto_sync(
     // Best match per subtitle.
     let mut best_per_sub: HashMap<u32, MatchCandidate> = HashMap::new();
     for m in geometrically_verified {
-        let entry = best_per_sub.entry(m.subtitle_id).or_insert_with(|| m.clone());
+        let entry = best_per_sub
+            .entry(m.subtitle_id)
+            .or_insert_with(|| m.clone());
         if m.score > entry.score || (m.score == entry.score && m.similarity > entry.similarity) {
             *entry = m;
         }
@@ -644,5 +673,9 @@ pub async fn run_auto_sync(
         }
     }
 
-    Ok(AutoSyncOutcome { suggestions, segments_analyzed, cancelled: false })
+    Ok(AutoSyncOutcome {
+        suggestions,
+        segments_analyzed,
+        cancelled: false,
+    })
 }

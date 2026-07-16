@@ -5,9 +5,8 @@ use std::time::Duration;
 use tokio::time::sleep;
 
 use crate::prompts::{
+    build_batch_translation_prompt, build_context_enhanced_translation_prompt,
     build_single_translation_prompt,
-    build_batch_translation_prompt,
-    build_context_enhanced_translation_prompt,
 };
 
 /// Tipo di API da utilizzare
@@ -65,17 +64,21 @@ impl Translator {
             .timeout(Duration::from_secs(120))
             .build()
             .unwrap_or_else(|_| reqwest::Client::new());
-        Self {
-            config,
-            client,
-        }
+        Self { config, client }
     }
 
     /// Traduce un singolo testo - sceglie il formato in base al tipo di API
-    pub async fn translate(&self, text: &str, target_lang: &str, context: Option<&str>) -> Result<String> {
+    pub async fn translate(
+        &self,
+        text: &str,
+        target_lang: &str,
+        context: Option<&str>,
+    ) -> Result<String> {
         match self.config.api_type {
             ApiType::Google => self.translate_google(text, target_lang, context).await,
-            ApiType::Local | ApiType::OpenRouter | ApiType::Groq => self.translate_openai(text, target_lang, context).await,
+            ApiType::Local | ApiType::OpenRouter | ApiType::Groq => {
+                self.translate_openai(text, target_lang, context).await
+            }
         }
     }
 
@@ -89,8 +92,24 @@ impl Translator {
         surrounding_context: Option<&str>,
     ) -> Result<String> {
         match self.config.api_type {
-            ApiType::Google => self.translate_with_context_google(text, target_lang, title_context, surrounding_context).await,
-            ApiType::Local | ApiType::OpenRouter | ApiType::Groq => self.translate_with_context_openai(text, target_lang, title_context, surrounding_context).await,
+            ApiType::Google => {
+                self.translate_with_context_google(
+                    text,
+                    target_lang,
+                    title_context,
+                    surrounding_context,
+                )
+                .await
+            }
+            ApiType::Local | ApiType::OpenRouter | ApiType::Groq => {
+                self.translate_with_context_openai(
+                    text,
+                    target_lang,
+                    title_context,
+                    surrounding_context,
+                )
+                .await
+            }
         }
     }
 
@@ -102,8 +121,14 @@ impl Translator {
         context: Option<&str>,
     ) -> Result<HashMap<u32, String>> {
         match self.config.api_type {
-            ApiType::Google => self.translate_batch_google(texts_with_ids, target_lang, context).await,
-            ApiType::Local | ApiType::OpenRouter | ApiType::Groq => self.translate_batch_openai(texts_with_ids, target_lang, context).await,
+            ApiType::Google => {
+                self.translate_batch_google(texts_with_ids, target_lang, context)
+                    .await
+            }
+            ApiType::Local | ApiType::OpenRouter | ApiType::Groq => {
+                self.translate_batch_openai(texts_with_ids, target_lang, context)
+                    .await
+            }
         }
     }
 
@@ -111,7 +136,9 @@ impl Translator {
     pub async fn generate_response(&self, prompt: &str) -> Result<String> {
         match self.config.api_type {
             ApiType::Google => self.call_google_api(prompt).await,
-            ApiType::Local | ApiType::OpenRouter | ApiType::Groq => self.call_openai_api(prompt).await,
+            ApiType::Local | ApiType::OpenRouter | ApiType::Groq => {
+                self.call_openai_api(prompt).await
+            }
         }
     }
 
@@ -137,7 +164,7 @@ impl Translator {
     ) -> Result<HashMap<u32, String>> {
         let prompt = build_batch_translation_prompt(texts_with_ids, target_lang, context);
         let result_text = self.call_google_api(&prompt).await?;
-        
+
         // Parse JSON result
         let translations = parse_json_translations(&result_text, texts_with_ids.len())?;
         Ok(translations)
@@ -151,7 +178,12 @@ impl Translator {
         title_context: Option<&str>,
         surrounding_context: Option<&str>,
     ) -> Result<String> {
-        let prompt = build_context_enhanced_translation_prompt(text, target_lang, title_context, surrounding_context);
+        let prompt = build_context_enhanced_translation_prompt(
+            text,
+            target_lang,
+            title_context,
+            surrounding_context,
+        );
         self.call_google_api(&prompt).await
     }
 
@@ -206,7 +238,10 @@ impl Translator {
             error: Option<GeminiError>,
         }
 
-        let api_key = self.config.api_key.as_ref()
+        let api_key = self
+            .config
+            .api_key
+            .as_ref()
             .ok_or_else(|| anyhow::anyhow!("Google API key is required"))?;
 
         // Formato URL Google: /v1beta/models/{model}:generateContent?key=API_KEY
@@ -224,15 +259,14 @@ impl Translator {
                     text: prompt.to_string(),
                 }],
             }],
-            generation_config: GenerationConfig {
-                temperature: 0.3,
-            },
+            generation_config: GenerationConfig { temperature: 0.3 },
         };
 
         const MAX_RETRIES: u32 = 3;
 
         for attempt in 0..=MAX_RETRIES {
-            let http_response = self.client
+            let http_response = self
+                .client
                 .post(&url)
                 .header("x-goog-api-key", api_key)
                 .header("Content-Type", "application/json")
@@ -240,7 +274,11 @@ impl Translator {
                 .send()
                 .await
                 .map_err(|e| {
-                    eprintln!("[srt-translate] Google API request failed: {} (url: {})", e, &url[..url.find('?').unwrap_or(url.len())]);
+                    eprintln!(
+                        "[srt-translate] Google API request failed: {} (url: {})",
+                        e,
+                        &url[..url.find('?').unwrap_or(url.len())]
+                    );
                     e
                 })?;
 
@@ -254,38 +292,55 @@ impl Translator {
             }
 
             if !status.is_success() {
-                eprintln!("[srt-translate] Google API error response (status {}): {}", status, &response_text[..response_text.len().min(500)]);
+                eprintln!(
+                    "[srt-translate] Google API error response (status {}): {}",
+                    status,
+                    &response_text[..response_text.len().min(500)]
+                );
             }
 
-            let response: GeminiResponse = serde_json::from_str(&response_text)
-                .map_err(|e| anyhow::anyhow!(
+            let response: GeminiResponse = serde_json::from_str(&response_text).map_err(|e| {
+                anyhow::anyhow!(
                     "Failed to parse Google API response (status {}): {}. Raw: {}",
-                    status, e, &response_text[..response_text.len().min(500)]
-                ))?;
+                    status,
+                    e,
+                    &response_text[..response_text.len().min(500)]
+                )
+            })?;
 
             // Controlla errori
             if let Some(ref error) = response.error {
-                let error_msg = error.message.as_deref().unwrap_or("Unknown Google API error");
+                let error_msg = error
+                    .message
+                    .as_deref()
+                    .unwrap_or("Unknown Google API error");
                 let error_code = error.code.unwrap_or(0);
                 anyhow::bail!("Google API error (code {}): {}", error_code, error_msg);
             }
 
             // Estrai il testo dalla risposta
-            let text = response.candidates
+            let text = response
+                .candidates
                 .and_then(|c| c.into_iter().next())
                 .and_then(|c| c.content)
                 .and_then(|c| c.parts)
                 .and_then(|p| p.into_iter().next())
                 .and_then(|p| p.text)
-                .ok_or_else(|| anyhow::anyhow!(
-                    "Google API response missing text content. Status: {}. Response: {}",
-                    status, &response_text[..response_text.len().min(500)]
-                ))?;
+                .ok_or_else(|| {
+                    anyhow::anyhow!(
+                        "Google API response missing text content. Status: {}. Response: {}",
+                        status,
+                        &response_text[..response_text.len().min(500)]
+                    )
+                })?;
 
             return Ok(text.trim().trim_matches('"').to_string());
         }
 
-        anyhow::bail!("Google API rate limit exceeded after {} retries", MAX_RETRIES)
+        anyhow::bail!(
+            "Google API rate limit exceeded after {} retries",
+            MAX_RETRIES
+        )
     }
 
     // ============== OPENAI-COMPATIBLE API ==============
@@ -323,7 +378,12 @@ impl Translator {
         title_context: Option<&str>,
         surrounding_context: Option<&str>,
     ) -> Result<String> {
-        let prompt = build_context_enhanced_translation_prompt(text, target_lang, title_context, surrounding_context);
+        let prompt = build_context_enhanced_translation_prompt(
+            text,
+            target_lang,
+            title_context,
+            surrounding_context,
+        );
         let result = self.call_openai_api(&prompt).await?;
         Ok(result.trim().trim_matches('"').to_string())
     }
@@ -360,7 +420,10 @@ impl Translator {
             error: Option<ApiError>,
         }
 
-        let url = format!("{}/chat/completions", self.config.base_url.trim_end_matches('/'));
+        let url = format!(
+            "{}/chat/completions",
+            self.config.base_url.trim_end_matches('/')
+        );
 
         let request = Request {
             model: self.config.model.clone(),
@@ -397,25 +460,38 @@ impl Translator {
             }
 
             if !status.is_success() {
-                eprintln!("[srt-translate] API error response (status {}): {}", status, &response_text[..response_text.len().min(500)]);
+                eprintln!(
+                    "[srt-translate] API error response (status {}): {}",
+                    status,
+                    &response_text[..response_text.len().min(500)]
+                );
             }
 
-            let response: ResponseWithError = serde_json::from_str(&response_text)
-                .map_err(|e| anyhow::anyhow!(
-                    "Failed to parse API response (status {}): {}. Raw: {}",
-                    status, e, &response_text[..response_text.len().min(300)]
-                ))?;
+            let response: ResponseWithError =
+                serde_json::from_str(&response_text).map_err(|e| {
+                    anyhow::anyhow!(
+                        "Failed to parse API response (status {}): {}. Raw: {}",
+                        status,
+                        e,
+                        &response_text[..response_text.len().min(300)]
+                    )
+                })?;
 
             if let Some(ref api_error) = response.error {
-                let error_msg = api_error.message.as_deref()
+                let error_msg = api_error
+                    .message
+                    .as_deref()
                     .or(api_error.error.as_deref())
                     .unwrap_or("Unknown API error");
                 anyhow::bail!("API error: {}", error_msg);
             }
 
             let choices = response.choices.ok_or_else(|| {
-                anyhow::anyhow!("API response missing 'choices'. Status: {}. Response: {}",
-                    status, &response_text[..response_text.len().min(300)])
+                anyhow::anyhow!(
+                    "API response missing 'choices'. Status: {}. Response: {}",
+                    status,
+                    &response_text[..response_text.len().min(300)]
+                )
             })?;
 
             return Ok(choices
@@ -475,7 +551,8 @@ fn parse_retry_delay(response_body: &str) -> Duration {
     if let Some(pos) = response_body.find("retry in ") {
         let after = &response_body[pos + 9..];
         // Extract the numeric part (possibly with decimals)
-        let num_str: String = after.chars()
+        let num_str: String = after
+            .chars()
             .take_while(|c| c.is_ascii_digit() || *c == '.')
             .collect();
         if let Ok(secs) = num_str.parse::<f64>() {
@@ -496,7 +573,7 @@ struct TranslationItem {
 }
 
 /// Parsa la risposta JSON dell'LLM in una HashMap di traduzioni
-/// 
+///
 /// Questa funzione è robusta e gestisce:
 /// - JSON puro
 /// - JSON racchiuso in code blocks markdown (```json ... ```)
@@ -509,24 +586,22 @@ fn parse_json_translations(response: &str, expected_count: usize) -> Result<Hash
         .trim_start_matches("```")
         .trim_end_matches("```")
         .trim();
-    
+
     // Trova l'array JSON (cerca '[' e ']')
     let json_start = cleaned.find('[');
     let json_end = cleaned.rfind(']');
-    
+
     let json_str = match (json_start, json_end) {
         (Some(start), Some(end)) if end > start => &cleaned[start..=end],
         _ => cleaned, // Prova comunque con l'intero contenuto
     };
-    
+
     // Prova a parsare come array di TranslationItem
     match serde_json::from_str::<Vec<TranslationItem>>(json_str) {
         Ok(items) => {
-            let translations: HashMap<u32, String> = items
-                .into_iter()
-                .map(|item| (item.id, item.text))
-                .collect();
-            
+            let translations: HashMap<u32, String> =
+                items.into_iter().map(|item| (item.id, item.text)).collect();
+
             // Verifica che abbiamo tutte le traduzioni
             if translations.len() != expected_count {
                 anyhow::bail!(
@@ -535,7 +610,7 @@ fn parse_json_translations(response: &str, expected_count: usize) -> Result<Hash
                     translations.len()
                 );
             }
-            
+
             Ok(translations)
         }
         Err(e) => {
@@ -544,7 +619,7 @@ fn parse_json_translations(response: &str, expected_count: usize) -> Result<Hash
             if let Some(translations) = try_legacy_parsing(cleaned, expected_count) {
                 return Ok(translations);
             }
-            
+
             anyhow::bail!(
                 "Failed to parse JSON response: {}. Response was: {}",
                 e,
@@ -559,7 +634,7 @@ fn try_legacy_parsing(text: &str, expected_count: usize) -> Option<HashMap<u32, 
     let mut translations = HashMap::new();
     let mut current_id: Option<u32> = None;
     let mut current_translation = String::new();
-    
+
     for line in text.lines() {
         let line_lower = line.to_lowercase();
         // Supporta varianti: "ID:", "id:", "Subtitle ID:", etc.
@@ -568,7 +643,7 @@ fn try_legacy_parsing(text: &str, expected_count: usize) -> Option<HashMap<u32, 
             if let Some(id) = current_id {
                 translations.insert(id, current_translation.trim().to_string());
             }
-            
+
             // Cerca il pattern ID e TRANSLATION
             if let Some((id_part, trans_part)) = line.split_once('|') {
                 // Estrai l'ID numerico
@@ -594,12 +669,12 @@ fn try_legacy_parsing(text: &str, expected_count: usize) -> Option<HashMap<u32, 
             current_translation.push_str(line);
         }
     }
-    
+
     // Salva l'ultima traduzione
     if let Some(id) = current_id {
         translations.insert(id, current_translation.trim().to_string());
     }
-    
+
     if translations.len() >= expected_count {
         Some(translations)
     } else {

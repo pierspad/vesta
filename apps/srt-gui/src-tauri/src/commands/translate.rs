@@ -7,9 +7,7 @@ use tauri::{AppHandle, Emitter, State};
 use tokio_util::sync::CancellationToken;
 
 use srt_parser::SrtParser;
-use srt_translate::{
-    TranslationProgress, TranslatorPool, translate_subtitles_tiered_cancellable,
-};
+use srt_translate::{TranslationProgress, TranslatorPool, translate_subtitles_tiered_cancellable};
 
 use crate::state::AppTranslateState;
 
@@ -93,7 +91,7 @@ pub async fn start_translation(
 ) -> Result<TranslateResult, String> {
     // Crea un nuovo cancellation token
     let cancellation_token = CancellationToken::new();
-    
+
     // Controlla se già in traduzione e salva il token
     {
         let mut translate_state = state.lock().map_err(|e| e.to_string())?;
@@ -172,19 +170,20 @@ async fn perform_translation(
     };
 
     // Esegui la traduzione a tier con failover automatico e supporto cancellazione.
-    let translated: anyhow::Result<std::collections::HashMap<u32, srt_parser::Subtitle>> = translate_subtitles_tiered_cancellable(
-        pool,
-        subtitles,
-        &config.target_lang,
-        config.batch_size,
-        config.resume_overlap.unwrap_or(2),
-        config.title_context.as_deref(),
-        &output_path,
-        on_progress,
-        cancellation_token,
-    )
-    .await;
-    
+    let translated: anyhow::Result<std::collections::HashMap<u32, srt_parser::Subtitle>> =
+        translate_subtitles_tiered_cancellable(
+            pool,
+            subtitles,
+            &config.target_lang,
+            config.batch_size,
+            config.resume_overlap.unwrap_or(2),
+            config.title_context.as_deref(),
+            &output_path,
+            on_progress,
+            cancellation_token,
+        )
+        .await;
+
     // Gestisci la cancellazione
     let translated: std::collections::HashMap<u32, srt_parser::Subtitle> = match translated {
         Ok(t) => t,
@@ -192,12 +191,15 @@ async fn perform_translation(
             let error_str = e.to_string();
             if error_str.contains("cancelled") || error_str.contains("annullat") {
                 // Emetti evento di cancellazione
-                let _ = app.emit("translate-complete", TranslateResult {
-                    success: false,
-                    message: "Traduzione annullata dall'utente".to_string(),
-                    output_path: None,
-                    translated_count: 0,
-                });
+                let _ = app.emit(
+                    "translate-complete",
+                    TranslateResult {
+                        success: false,
+                        message: "Traduzione annullata dall'utente".to_string(),
+                        output_path: None,
+                        translated_count: 0,
+                    },
+                );
                 return Ok(TranslateResult {
                     success: false,
                     message: "Traduzione annullata".to_string(),
@@ -214,16 +216,27 @@ async fn perform_translation(
     let success = !translated.is_empty();
 
     // Emetti evento di completamento
-    let _ = app.emit("translate-complete", TranslateResult {
-        success,
-        message: format!("Tradotti {} sottotitoli su {}", translated.len(), total_count),
-        output_path: success.then(|| config.output_path.clone()),
-        translated_count: translated.len(),
-    });
+    let _ = app.emit(
+        "translate-complete",
+        TranslateResult {
+            success,
+            message: format!(
+                "Tradotti {} sottotitoli su {}",
+                translated.len(),
+                total_count
+            ),
+            output_path: success.then(|| config.output_path.clone()),
+            translated_count: translated.len(),
+        },
+    );
 
     Ok(TranslateResult {
         success,
-        message: format!("Tradotti {} sottotitoli su {}", translated.len(), total_count),
+        message: format!(
+            "Tradotti {} sottotitoli su {}",
+            translated.len(),
+            total_count
+        ),
         output_path: success.then_some(config.output_path),
         translated_count: translated.len(),
     })
@@ -231,19 +244,17 @@ async fn perform_translation(
 
 /// Annulla la traduzione in corso
 #[tauri::command]
-pub async fn cancel_translation(
-    state: State<'_, AppTranslateState>,
-) -> Result<bool, String> {
+pub async fn cancel_translation(state: State<'_, AppTranslateState>) -> Result<bool, String> {
     let mut translate_state = state.lock().map_err(|e| e.to_string())?;
-    
+
     // Cancella il token se presente - questo fermerà tutte le richieste in corso
     if let Some(ref token) = translate_state.cancellation_token {
         token.cancel();
     }
-    
+
     translate_state.is_translating = false;
     translate_state.cancellation_token = None;
-    
+
     Ok(true)
 }
 
@@ -263,49 +274,51 @@ pub async fn get_latest_translated_subtitles(
     count: usize,
 ) -> Result<Vec<SubtitlePair>, String> {
     use std::path::Path;
-    
+
     // Verifica che il file di output esista
     if !Path::new(&output_path).exists() {
         return Ok(vec![]);
     }
-    
+
     // Carica i sottotitoli originali
     let original_subs = SrtParser::parse_file(&input_path)
         .map_err(|e| format!("Errore lettura file originale: {}", e))?;
-    
+
     // Carica i sottotitoli tradotti
     let translated_subs = SrtParser::parse_file(&output_path)
         .map_err(|e| format!("Errore lettura file tradotto: {}", e))?;
-    
+
     // Ottieni gli ID ordinati dei sottotitoli tradotti
     let mut translated_ids: Vec<u32> = translated_subs.keys().cloned().collect();
     translated_ids.sort();
-    
+
     // Prendi gli ultimi N
     let start_idx = if translated_ids.len() > count {
         translated_ids.len() - count
     } else {
         0
     };
-    
+
     let latest_ids = &translated_ids[start_idx..];
-    
+
     // Crea le coppie
     let mut pairs = Vec::new();
     for &id in latest_ids {
-        let original_text = original_subs.get(&id)
+        let original_text = original_subs
+            .get(&id)
             .map(|s| s.text.clone())
             .unwrap_or_else(|| "—".to_string());
-        let translated_text = translated_subs.get(&id)
+        let translated_text = translated_subs
+            .get(&id)
             .map(|s| s.text.clone())
             .unwrap_or_else(|| "—".to_string());
-        
+
         pairs.push(SubtitlePair {
             id,
             original: original_text,
             translated: translated_text,
         });
     }
-    
+
     Ok(pairs)
 }

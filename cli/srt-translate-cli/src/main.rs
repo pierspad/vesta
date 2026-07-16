@@ -9,20 +9,14 @@ use clap::Parser;
 use regex::Regex;
 use serde::Deserialize;
 use srt_parser::SrtParser;
-use std::path::PathBuf;
-use std::io::{self, Write};
-use std::sync::{Arc, LazyLock};
 use srt_translate::{
-    translate_subtitles_with_rate_limit, 
-    repair_translation_with_rate_limit,
-    TranslationProgress,
+    ApiType, RateLimiter, TranslationProgress, Translator, TranslatorConfig, create_rate_limiter,
+    repair_translation_with_rate_limit, translate_subtitles_with_rate_limit,
     verify_translation_completeness,
-    Translator,
-    TranslatorConfig,
-    ApiType,
-    create_rate_limiter,
-    RateLimiter,
 };
+use std::io::{self, Write};
+use std::path::PathBuf;
+use std::sync::{Arc, LazyLock};
 
 /// Configurazione caricata da config.toml
 #[derive(Debug, Deserialize)]
@@ -40,12 +34,12 @@ struct ApiConfig {
 
 #[derive(Debug, Deserialize, Clone)]
 struct ProviderConfig {
-    provider: String,  // "gemini", "openai", "local"
+    provider: String, // "gemini", "openai", "local"
     api_key: String,
     model: String,
     rpm_limit: usize,
     #[serde(default)]
-    workers_per_key: Option<usize>,  // Ora opzionale, calcolato automaticamente se None
+    workers_per_key: Option<usize>, // Ora opzionale, calcolato automaticamente se None
 }
 
 #[derive(Debug, Deserialize)]
@@ -79,7 +73,7 @@ fn expand_env_vars(content: &str) -> Result<String> {
     for cap in ENV_VAR_PATTERN.captures_iter(content) {
         let var_name = &cap[1];
         let placeholder = &cap[0];
-        
+
         match std::env::var(var_name) {
             Ok(value) => {
                 result = result.replace(placeholder, &value);
@@ -89,22 +83,22 @@ fn expand_env_vars(content: &str) -> Result<String> {
             }
         }
     }
-    
+
     if !missing_vars.is_empty() {
         return Err(anyhow::anyhow!(
             "Missing required environment variables: {}\n\nPlease set them in your .env file.",
             missing_vars.join(", ")
         ));
     }
-    
+
     Ok(result)
 }
 
 /// Calcola automaticamente il numero di workers per provider in base al RPM
-/// 
-/// Per task I/O bound (come le chiamate API), il numero di workers non è 
+///
+/// Per task I/O bound (come le chiamate API), il numero di workers non è
 /// limitato dalla CPU ma dalla latenza di rete e dal rate limit dell'API.
-/// 
+///
 /// Strategia:
 /// - Con rate limiters abilitati, possiamo avere più workers in attesa
 /// - Il rate limiter garantisce di non superare l'RPM
@@ -123,12 +117,15 @@ fn calculate_workers_per_key_legacy(num_providers: usize) -> usize {
     let num_cpus = std::thread::available_parallelism()
         .map(|n| n.get())
         .unwrap_or(1);
-    
+
     // Lascia sempre almeno 1 CPU libera
     let available_cpus = if num_cpus > 1 { num_cpus - 1 } else { 1 };
 
     // Distribuisci le CPU disponibili tra i provider (checked_div: num_providers può essere 0)
-    available_cpus.checked_div(num_providers).unwrap_or(1).max(1)
+    available_cpus
+        .checked_div(num_providers)
+        .unwrap_or(1)
+        .max(1)
 }
 
 #[derive(Parser)]
@@ -166,9 +163,9 @@ async fn main() -> Result<()> {
     // Carica le variabili d'ambiente dal file .env
     // Ignora l'errore se il file .env non esiste (non è obbligatorio)
     let _ = dotenvy::dotenv();
-    
+
     let cli = Cli::parse();
-    
+
     // Se richiesta la lista delle lingue
     if cli.language_list {
         print_language_list();
@@ -191,20 +188,24 @@ async fn main() -> Result<()> {
             cli.config.display(),
             e
         ))?;
-    
+
     // Sostituisci i placeholder ${VAR_NAME} con i valori dalle variabili d'ambiente
     config_content = expand_env_vars(&config_content)?;
-    
+
     let config: Config = toml::from_str(&config_content)
         .map_err(|e| anyhow::anyhow!("Failed to parse config.toml: {}", e))?;
 
     // Validazione
     if config.api.providers.is_empty() {
-        return Err(anyhow::anyhow!("No API providers found in config.toml. Please add at least one [[api.providers]] section."));
+        return Err(anyhow::anyhow!(
+            "No API providers found in config.toml. Please add at least one [[api.providers]] section."
+        ));
     }
-    
+
     // Applica il calcolo automatico dei workers basato sull'RPM (I/O bound optimization)
-    let providers_with_workers: Vec<ProviderConfig> = config.api.providers
+    let providers_with_workers: Vec<ProviderConfig> = config
+        .api
+        .providers
         .into_iter()
         .map(|mut p| {
             if p.workers_per_key.is_none() {
@@ -216,29 +217,38 @@ async fn main() -> Result<()> {
         .collect();
 
     // Statistiche
-    let total_workers: usize = providers_with_workers.iter()
+    let total_workers: usize = providers_with_workers
+        .iter()
         .map(|p| p.workers_per_key.unwrap_or(1))
         .sum();
-    
+
     let num_cpus = std::thread::available_parallelism()
         .map(|n| n.get())
         .unwrap_or(1);
-    
+
     println!("🔧 Configuration:");
-    println!("  💻 System CPUs: {} (not a bottleneck for I/O bound tasks)", num_cpus);
+    println!(
+        "  💻 System CPUs: {} (not a bottleneck for I/O bound tasks)",
+        num_cpus
+    );
     println!("  📄 Config file: {}", cli.config.display());
     println!("  🔑 API providers: {}", providers_with_workers.len());
     for (idx, provider) in providers_with_workers.iter().enumerate() {
         let workers = provider.workers_per_key.unwrap_or(1);
-        let auto_note = if provider.workers_per_key.is_none() { 
-            " [auto-calculated from RPM]" 
-        } else { 
-            "" 
+        let auto_note = if provider.workers_per_key.is_none() {
+            " [auto-calculated from RPM]"
+        } else {
+            ""
         };
-        println!("     [{idx}] {} - {} ({} RPM, {} workers{})", 
-            provider.provider, provider.model, provider.rpm_limit, workers, auto_note);
+        println!(
+            "     [{idx}] {} - {} ({} RPM, {} workers{})",
+            provider.provider, provider.model, provider.rpm_limit, workers, auto_note
+        );
     }
-    println!("  📦 Batch size: {} subtitles per request", config.translation.batch_size);
+    println!(
+        "  📦 Batch size: {} subtitles per request",
+        config.translation.batch_size
+    );
     println!("  🚀 Total concurrent workers: {}", total_workers);
     println!();
 
@@ -248,7 +258,8 @@ async fn main() -> Result<()> {
     println!("✅ Found {} subtitles", original_subtitles.len());
 
     // Estrai il titolo del film/show dal nome file per contesto
-    let title_context = cli.input
+    let title_context = cli
+        .input
         .file_stem()
         .and_then(|s| s.to_str())
         .map(|s| s.replace(['_', '.'], " "));
@@ -259,13 +270,18 @@ async fn main() -> Result<()> {
 
     // Determina il percorso di output
     let output_path = cli.output.unwrap_or_else(|| {
-        let parent = cli.input.parent().unwrap_or_else(|| std::path::Path::new("."));
-        
+        let parent = cli
+            .input
+            .parent()
+            .unwrap_or_else(|| std::path::Path::new("."));
+
         // Estrai il nome file senza estensione
-        let input_filename = cli.input.file_stem()
+        let input_filename = cli
+            .input
+            .file_stem()
             .and_then(|s| s.to_str())
             .unwrap_or("subtitles");
-        
+
         // Rimuovi eventuale codice lingua esistente
         let base_name = if let Some(last_dot_idx) = input_filename.rfind('.') {
             let potential_lang = &input_filename[last_dot_idx + 1..];
@@ -277,12 +293,14 @@ async fn main() -> Result<()> {
         } else {
             input_filename.to_string()
         };
-        
+
         // Applica il pattern dal config
-        let filename = config.output.filename_pattern
+        let filename = config
+            .output
+            .filename_pattern
             .replace("{input_name}", &base_name)
             .replace("{language}", language);
-        
+
         parent.join(filename)
     });
 
@@ -294,14 +312,20 @@ async fn main() -> Result<()> {
         if let Some(eta) = progress.eta_seconds {
             let minutes = (eta / 60.0) as u32;
             let seconds = (eta % 60.0) as u32;
-            
+
             if progress.message.contains("Starting batch") {
-                print!("  {} (ETA: {}m {}s)...\r", progress.message, minutes, seconds);
+                print!(
+                    "  {} (ETA: {}m {}s)...\r",
+                    progress.message, minutes, seconds
+                );
                 // flush può fallire se stdout è una pipe chiusa - ignoriamo l'errore
                 let _ = io::stdout().flush();
             } else if progress.message.contains("completed") {
                 // Mostra il completamento con l'ETA
-                println!("  {} (ETA: {}m {}s remaining)", progress.message, minutes, seconds);
+                println!(
+                    "  {} (ETA: {}m {}s remaining)",
+                    progress.message, minutes, seconds
+                );
             } else {
                 println!("  {} (ETA: {}m {}s)", progress.message, minutes, seconds);
             }
@@ -315,7 +339,7 @@ async fn main() -> Result<()> {
     // Crea i Translator e RateLimiters da tutti i provider configurati
     let mut translators: Vec<Translator> = Vec::new();
     let mut rate_limiters: Vec<Arc<RateLimiter>> = Vec::new();
-    
+
     for provider in &providers_with_workers {
         // Determina tipo API dal provider - Local o Google (OpenRouter disabilitato)
         let api_type = match provider.provider.as_str() {
@@ -324,7 +348,10 @@ async fn main() -> Result<()> {
             "groq" => ApiType::Groq,
             // OpenRouter e altri sono disabilitati
             _ => {
-                eprintln!("⚠️ Provider '{}' non supportato. Usa 'local', 'groq' o 'google'.", provider.provider);
+                eprintln!(
+                    "⚠️ Provider '{}' non supportato. Usa 'local', 'groq' o 'google'.",
+                    provider.provider
+                );
                 continue;
             }
         };
@@ -338,11 +365,11 @@ async fn main() -> Result<()> {
         };
 
         let workers = provider.workers_per_key.unwrap_or(1);
-        
+
         // Crea un rate limiter condiviso per questo provider (rispetta RPM)
         // Il rate limiter è condiviso tra tutti i workers dello stesso provider
         let rate_limiter = create_rate_limiter(provider.rpm_limit as u32);
-        
+
         // Crea N translators per questo provider (workers_per_key)
         for _ in 0..workers {
             translators.push(Translator::new(TranslatorConfig {
@@ -370,36 +397,49 @@ async fn main() -> Result<()> {
     .await?;
 
     println!();
-    
+
     // Loop di verifica e riparazione automatica
     // Continua fino a quando non ci sono più discrepanze
     let max_repair_attempts = 5;
     let mut repair_attempt = 0;
-    
+
     loop {
         repair_attempt += 1;
-        
+
         // Verifica completezza della traduzione
         println!("🔍 Verifying translation completeness...");
         let missing_ids = verify_translation_completeness(&original_subtitles, &translated);
-        
+
         if missing_ids.is_empty() {
-            println!("✅ All {} subtitles present with correct line counts - no repair needed!", original_subtitles.len());
+            println!(
+                "✅ All {} subtitles present with correct line counts - no repair needed!",
+                original_subtitles.len()
+            );
             break;
         }
-        
+
         if repair_attempt > max_repair_attempts {
-            println!("⚠️  Maximum repair attempts ({}) reached.", max_repair_attempts);
-            println!("⚠️  Still found {} subtitles with issues.", missing_ids.len());
+            println!(
+                "⚠️  Maximum repair attempts ({}) reached.",
+                max_repair_attempts
+            );
+            println!(
+                "⚠️  Still found {} subtitles with issues.",
+                missing_ids.len()
+            );
             println!("💡 You may need to review these subtitles manually.");
             break;
         }
-        
+
         println!("⚠️  Found {} subtitles with issues!", missing_ids.len());
-        println!("🔧 Starting automatic repair (attempt {}/{}) with {} workers...", 
-                 repair_attempt, max_repair_attempts, translators.len());
+        println!(
+            "🔧 Starting automatic repair (attempt {}/{}) with {} workers...",
+            repair_attempt,
+            max_repair_attempts,
+            translators.len()
+        );
         println!();
-        
+
         // Callback per il repair
         let repair_progress = |progress: TranslationProgress| {
             if progress.message.contains("Repairing") {
@@ -409,7 +449,7 @@ async fn main() -> Result<()> {
                 println!("  {}", progress.message);
             }
         };
-        
+
         // Gestione errori migliorata: se il repair fallisce, salva il file parziale
         // e continua al prossimo tentativo invece di propagare l'errore fatalmente
         let repair_result = repair_translation_with_rate_limit(
@@ -423,16 +463,19 @@ async fn main() -> Result<()> {
             repair_progress,
         )
         .await;
-        
+
         if let Err(e) = repair_result {
             eprintln!("⚠️  Repair attempt {} failed: {}", repair_attempt, e);
-            
+
             // Salva comunque il file parziale per non perdere il lavoro fatto
             save_partial_translation(&output_path, &translated)?;
             println!("💾 Partial translation saved to: {}", output_path.display());
-            
+
             // Se l'errore è fatale (es. Quota Exceeded), aspetta un po' prima di riprovare
-            if e.to_string().contains("Quota") || e.to_string().contains("429") || e.to_string().contains("rate") {
+            if e.to_string().contains("Quota")
+                || e.to_string().contains("429")
+                || e.to_string().contains("rate")
+            {
                 println!("⏳ Rate limit detected, waiting 60 seconds before retry...");
                 tokio::time::sleep(std::time::Duration::from_secs(60)).await;
             } else {
@@ -440,18 +483,21 @@ async fn main() -> Result<()> {
                 println!("⏳ Waiting 5 seconds before retry...");
                 tokio::time::sleep(std::time::Duration::from_secs(5)).await;
             }
-            
+
             continue; // Riprova il loop di repair
         }
-        
+
         // Salva la versione riparata dopo ogni iterazione
         SrtParser::save_file(&output_path, &translated)?;
 
         println!();
-        println!("✅ Repair cycle {} completed, re-verifying...", repair_attempt);
+        println!(
+            "✅ Repair cycle {} completed, re-verifying...",
+            repair_attempt
+        );
         println!();
     }
-    
+
     println!();
     println!("💾 Translation complete: {}", output_path.display());
     println!("✨ Done!");
@@ -475,50 +521,65 @@ fn check_missing_subtitles(original_path: &PathBuf, translated_path: &PathBuf) -
     // Parse del file originale
     println!("📖 Reading original file: {}", original_path.display());
     let original_subtitles = SrtParser::parse_file(original_path)?;
-    println!("✅ Found {} subtitles in original", original_subtitles.len());
+    println!(
+        "✅ Found {} subtitles in original",
+        original_subtitles.len()
+    );
     println!();
 
     // Verifica se il file tradotto esiste
     if !translated_path.exists() {
-        println!("❌ Translation file not found: {}", translated_path.display());
-        println!("   All {} subtitles need to be translated.", original_subtitles.len());
+        println!(
+            "❌ Translation file not found: {}",
+            translated_path.display()
+        );
+        println!(
+            "   All {} subtitles need to be translated.",
+            original_subtitles.len()
+        );
         return Ok(());
     }
 
     println!("📖 Reading translation file: {}", translated_path.display());
     let translated_subtitles = SrtParser::parse_file(translated_path)?;
-    println!("✅ Found {} subtitles in translation", translated_subtitles.len());
+    println!(
+        "✅ Found {} subtitles in translation",
+        translated_subtitles.len()
+    );
     println!();
 
     // Verifica completezza
     let missing_ids = verify_translation_completeness(&original_subtitles, &translated_subtitles);
-    
+
     // Verifica discrepanze nel numero di righe
     let mut line_discrepancies = Vec::new();
     for (id, original_sub) in &original_subtitles {
         if let Some(translated_sub) = translated_subtitles.get(id) {
             let original_lines = original_sub.text.lines().count();
             let translated_lines = translated_sub.text.lines().count();
-            
+
             if original_lines != translated_lines {
                 line_discrepancies.push((*id, original_lines, translated_lines));
             }
         }
     }
-    
+
     let has_issues = !missing_ids.is_empty() || !line_discrepancies.is_empty();
-    
+
     if !has_issues {
         println!("✅ Translation is complete and accurate!");
-        println!("   All {} subtitles are present with correct line counts.", original_subtitles.len());
+        println!(
+            "   All {} subtitles are present with correct line counts.",
+            original_subtitles.len()
+        );
     } else {
         if !missing_ids.is_empty() {
             println!("⚠️  Found {} missing subtitles:", missing_ids.len());
             println!();
-            
+
             // Raggruppa gli ID mancanti in intervalli per una visualizzazione più pulita
             let ranges = group_ids_into_ranges(&missing_ids);
-            
+
             println!("Missing subtitle IDs:");
             for range in ranges {
                 if range.0 == range.1 {
@@ -529,29 +590,41 @@ fn check_missing_subtitles(original_path: &PathBuf, translated_path: &PathBuf) -
             }
             println!();
         }
-        
+
         if !line_discrepancies.is_empty() {
-            println!("⚠️  Found {} subtitles with line count discrepancies:", line_discrepancies.len());
+            println!(
+                "⚠️  Found {} subtitles with line count discrepancies:",
+                line_discrepancies.len()
+            );
             println!();
             println!("Subtitle ID | Original Lines | Translated Lines");
             println!("------------|----------------|------------------");
-            
+
             // Mostra i primi 20 e se ce ne sono di più, mostra un sommario
             let show_count = line_discrepancies.len().min(20);
             for (id, orig_lines, trans_lines) in &line_discrepancies[..show_count] {
-                println!("     {:6} |         {:6} |           {:6}", id, orig_lines, trans_lines);
+                println!(
+                    "     {:6} |         {:6} |           {:6}",
+                    id, orig_lines, trans_lines
+                );
             }
-            
+
             if line_discrepancies.len() > 20 {
                 println!("     ...and {} more", line_discrepancies.len() - 20);
             }
             println!();
-            println!("💡 These subtitles may have been incorrectly translated (missing or extra lines).");
+            println!(
+                "💡 These subtitles may have been incorrectly translated (missing or extra lines)."
+            );
         }
-        
+
         println!();
         println!("💡 Tip: Re-run the translation to fix these issues:");
-        println!("   srt-translate -i {} -o {}", original_path.display(), translated_path.display());
+        println!(
+            "   srt-translate -i {} -o {}",
+            original_path.display(),
+            translated_path.display()
+        );
     }
 
     Ok(())
@@ -562,14 +635,14 @@ fn group_ids_into_ranges(ids: &[u32]) -> Vec<(u32, u32)> {
     if ids.is_empty() {
         return Vec::new();
     }
-    
+
     let mut sorted_ids = ids.to_vec();
     sorted_ids.sort_unstable();
-    
+
     let mut ranges = Vec::new();
     let mut range_start = sorted_ids[0];
     let mut range_end = sorted_ids[0];
-    
+
     for &id in &sorted_ids[1..] {
         if id == range_end + 1 {
             range_end = id;
@@ -580,7 +653,7 @@ fn group_ids_into_ranges(ids: &[u32]) -> Vec<(u32, u32)> {
         }
     }
     ranges.push((range_start, range_end));
-    
+
     ranges
 }
 

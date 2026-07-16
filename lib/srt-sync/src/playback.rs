@@ -11,8 +11,9 @@ use std::process::Command;
 
 /// Estensioni riproducibili nativamente dal player embedded (WebKitGTK /
 /// GStreamer) senza passare da ffmpeg.
-const NATIVE_PLAYBACK_EXTENSIONS: &[&str] =
-    &["mp4", "m4v", "webm", "mp3", "wav", "ogg", "m4a", "aac", "opus", "flac"];
+const NATIVE_PLAYBACK_EXTENSIONS: &[&str] = &[
+    "mp4", "m4v", "webm", "mp3", "wav", "ogg", "m4a", "aac", "opus", "flac",
+];
 
 /// Vero se `path` ha un'estensione riproducibile nativamente, quindi non
 /// richiede transcodifica.
@@ -37,9 +38,9 @@ fn stable_path_hash(input: &str) -> String {
     const FNV_OFFSET_BASIS: u64 = 0xcbf29ce484222325;
     const FNV_PRIME: u64 = 0x100000001b3;
 
-    let hash = input
-        .bytes()
-        .fold(FNV_OFFSET_BASIS, |hash, byte| (hash ^ byte as u64).wrapping_mul(FNV_PRIME));
+    let hash = input.bytes().fold(FNV_OFFSET_BASIS, |hash, byte| {
+        (hash ^ byte as u64).wrapping_mul(FNV_PRIME)
+    });
 
     format!("{hash:016x}")
 }
@@ -71,11 +72,14 @@ pub fn transcode_for_playback(
 
     if output_path.exists() {
         let source_modified = std::fs::metadata(source).and_then(|m| m.modified()).ok();
-        let cache_modified = std::fs::metadata(&output_path).and_then(|m| m.modified()).ok();
+        let cache_modified = std::fs::metadata(&output_path)
+            .and_then(|m| m.modified())
+            .ok();
         if let (Some(src_time), Some(cache_time)) = (source_modified, cache_modified)
-            && cache_time > src_time {
-                return Ok(output_path);
-            }
+            && cache_time > src_time
+        {
+            return Ok(output_path);
+        }
     }
 
     eprintln!(
@@ -103,7 +107,16 @@ pub fn transcode_for_playback(
             .arg("-i")
             .arg(source)
             .args([
-                "-vn", "-sn", "-dn", "-c:a", "libvorbis", "-b:a", "128k", "-ar", "44100", "-ac",
+                "-vn",
+                "-sn",
+                "-dn",
+                "-c:a",
+                "libvorbis",
+                "-b:a",
+                "128k",
+                "-ar",
+                "44100",
+                "-ac",
                 "2",
             ])
             .arg(&output_path)
@@ -134,8 +147,13 @@ mod tests {
 
     #[test]
     fn native_formats_are_recognised() {
-        for ext in ["mp4", "m4v", "webm", "mp3", "wav", "ogg", "m4a", "aac", "opus", "flac"] {
-            assert!(is_natively_playable(Path::new(&format!("clip.{ext}"))), "{ext} should be native");
+        for ext in [
+            "mp4", "m4v", "webm", "mp3", "wav", "ogg", "m4a", "aac", "opus", "flac",
+        ] {
+            assert!(
+                is_natively_playable(Path::new(&format!("clip.{ext}"))),
+                "{ext} should be native"
+            );
         }
         // Case-insensitive extension matching.
         assert!(is_natively_playable(Path::new("clip.MP3")));
@@ -144,7 +162,10 @@ mod tests {
     #[test]
     fn non_native_formats_need_transcoding() {
         for ext in ["mkv", "avi", "mov", "flv", "ogm", "vob", "wma", "m4b"] {
-            assert!(!is_natively_playable(Path::new(&format!("clip.{ext}"))), "{ext} should not be native");
+            assert!(
+                !is_natively_playable(Path::new(&format!("clip.{ext}"))),
+                "{ext} should not be native"
+            );
         }
     }
 
@@ -152,13 +173,23 @@ mod tests {
     fn transcode_is_a_no_op_for_native_formats() {
         // Non deve nemmeno toccare cache_dir/ffmpeg per un formato già nativo.
         let source = Path::new("/does/not/exist/clip.mp3");
-        let result = transcode_for_playback(source, Path::new("/does/not/exist/cache"), "ffmpeg-not-on-path");
+        let result = transcode_for_playback(
+            source,
+            Path::new("/does/not/exist/cache"),
+            "ffmpeg-not-on-path",
+        );
         assert_eq!(result.unwrap(), source.to_path_buf());
     }
 
     #[test]
     fn stable_path_hash_is_deterministic_and_low_collision() {
-        assert_eq!(stable_path_hash("/a/b/movie.mkv"), stable_path_hash("/a/b/movie.mkv"));
-        assert_ne!(stable_path_hash("/a/b/movie.mkv"), stable_path_hash("/a/b/other.mkv"));
+        assert_eq!(
+            stable_path_hash("/a/b/movie.mkv"),
+            stable_path_hash("/a/b/movie.mkv")
+        );
+        assert_ne!(
+            stable_path_hash("/a/b/movie.mkv"),
+            stable_path_hash("/a/b/other.mkv")
+        );
     }
 }

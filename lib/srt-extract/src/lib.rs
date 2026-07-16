@@ -1,7 +1,7 @@
 //! # srt-extract
 //!
 //! Libreria per l'estrazione e la formattazione di dati da file SRT.
-//! 
+//!
 //! Questa libreria fornisce funzionalità per:
 //! - Estrarre sottotitoli in vari formati (JSON, summary, debug)
 //! - Analizzare statistiche sui sottotitoli
@@ -15,10 +15,10 @@
 //!
 //! # fn main() -> anyhow::Result<()> {
 //! let subtitles = SrtParser::parse_file("movie.srt")?;
-//! 
+//!
 //! // Estrai come JSON
 //! let json = extract(&subtitles, OutputFormat::Json)?;
-//! 
+//!
 //! // Estrai come summary
 //! let summary = extract(&subtitles, OutputFormat::Summary)?;
 //! # Ok(())
@@ -159,7 +159,7 @@ pub struct SubtitleStats {
 /// Struttura SubtitleStats con le statistiche
 pub fn calculate_stats(subtitles: &HashMap<u32, Subtitle>) -> SubtitleStats {
     let total_count = subtitles.len();
-    
+
     if total_count == 0 {
         return SubtitleStats {
             total_count: 0,
@@ -216,7 +216,7 @@ mod tests {
     fn test_extract_to_json() {
         let mut subs = HashMap::new();
         subs.insert(1, create_test_subtitle(1, "Hello", 0, 1000));
-        
+
         let json = extract_to_json(&subs).unwrap();
         assert!(json.contains("Hello"));
     }
@@ -226,7 +226,7 @@ mod tests {
         let mut subs = HashMap::new();
         subs.insert(1, create_test_subtitle(1, "Hello", 0, 2000));
         subs.insert(2, create_test_subtitle(2, "World!", 2000, 4000));
-        
+
         let stats = calculate_stats(&subs);
         assert_eq!(stats.total_count, 2);
         assert_eq!(stats.total_duration_seconds, 4.0);

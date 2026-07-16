@@ -64,20 +64,26 @@ impl TimeMapper {
     pub fn add_anchor(&mut self, anchor: AnchorPoint) {
         // Se esiste già un'ancora manuale, e la nuova non è manuale, ignoriamo la nuova.
         // Le ancore manuali sono la "verità assoluta" e non possono essere sovrascritte da processi automatici come il whisper sync.
-        if let Some(existing) = self.anchors.iter().find(|a| a.subtitle_index == anchor.subtitle_index)
-            && existing.is_manual && !anchor.is_manual {
-                return;
-            }
+        if let Some(existing) = self
+            .anchors
+            .iter()
+            .find(|a| a.subtitle_index == anchor.subtitle_index)
+            && existing.is_manual
+            && !anchor.is_manual
+        {
+            return;
+        }
 
         // Rimuovi eventuali ancore esistenti per lo stesso indice
-        self.anchors.retain(|a| a.subtitle_index != anchor.subtitle_index);
-        
+        self.anchors
+            .retain(|a| a.subtitle_index != anchor.subtitle_index);
+
         // Aggiungi la nuova ancora
         self.anchors.push(anchor);
-        
+
         // Ordina per tempo originale in modo che l'interpolazione funzioni correttamente
         self.anchors.sort_by_key(|a| a.original_time_ms);
-        
+
         // Filtriamo le ancore automatiche ("whisper sync") che causano incongruenze temporali
         // (es. "viaggio nel tempo" all'indietro tra le ancore manuali o incongruenza di ordinamento temporale stretto).
         self.filter_inconsistent_auto_anchors();
@@ -142,15 +148,15 @@ impl TimeMapper {
         if self.anchors.len() < 2 {
             return;
         }
-        
+
         let mut valid_anchors = Vec::new();
-        
+
         for anchor in self.anchors.drain(..) {
             if anchor.is_manual {
                 // Le ancore manuali sono sacre
                 valid_anchors.push(anchor);
             } else {
-                // Controlla se questa ancora automatica ("whisper sync") rompe la monotonicità del tempo corretto 
+                // Controlla se questa ancora automatica ("whisper sync") rompe la monotonicità del tempo corretto
                 // rispetto all'ultima ancora considerata valida
                 if let Some(last_valid) = valid_anchors.last() {
                     // Poiché le ancore sono ordinate per original_time_ms crescente,
@@ -165,13 +171,13 @@ impl TimeMapper {
                 valid_anchors.push(anchor);
             }
         }
-        
-        // A questo punto potrebbero esserci sovrapposizioni o cali di tempo all'indietro da un'ancora automatica 
+
+        // A questo punto potrebbero esserci sovrapposizioni o cali di tempo all'indietro da un'ancora automatica
         // verso una successiva ancora manuale. Ripetiamo all'indietro per assicurarci
         // che le automatiche non eccedano le manuali future.
         let mut final_anchors = Vec::new();
         let mut next_valid: Option<AnchorPoint> = None;
-        
+
         for anchor in valid_anchors.into_iter().rev() {
             if anchor.is_manual {
                 final_anchors.push(anchor);
@@ -188,7 +194,7 @@ impl TimeMapper {
                 next_valid = Some(anchor);
             }
         }
-        
+
         // Final anchors è al contrario rispetto ad original_time_ms
         final_anchors.reverse();
         self.anchors = final_anchors;
@@ -217,7 +223,7 @@ impl TimeMapper {
     }
 
     /// Calcola l'offset per un dato tempo originale usando interpolazione lineare
-    /// 
+    ///
     /// Strategia:
     /// - Se non ci sono ancore: offset = 0
     /// - Se c'è una sola ancora: usa offset costante
@@ -284,7 +290,8 @@ impl TimeMapper {
         }
 
         // Trova la distanza dal punto di ancoraggio più vicino
-        let min_distance = self.anchors
+        let min_distance = self
+            .anchors
             .iter()
             .map(|a| (a.original_time_ms - original_time_ms).abs())
             .min()
@@ -318,12 +325,12 @@ mod tests {
     #[test]
     fn test_linear_interpolation() {
         let mut mapper = TimeMapper::new();
-        mapper.add_anchor(AnchorPoint::new(1, 0, 0));        // offset 0 a t=0
+        mapper.add_anchor(AnchorPoint::new(1, 0, 0)); // offset 0 a t=0
         mapper.add_anchor(AnchorPoint::new(10, 10000, 12000)); // offset +2s a t=10s
 
         // A metà strada, offset dovrebbe essere +1s
         assert_eq!(mapper.calculate_offset(5000), 1000);
-        
+
         // A 3/4, offset dovrebbe essere +1.5s
         assert_eq!(mapper.calculate_offset(7500), 1500);
     }
@@ -331,12 +338,12 @@ mod tests {
     #[test]
     fn test_extrapolation() {
         let mut mapper = TimeMapper::new();
-        mapper.add_anchor(AnchorPoint::new(1, 5000, 6000));   // offset +1s a t=5s
+        mapper.add_anchor(AnchorPoint::new(1, 5000, 6000)); // offset +1s a t=5s
         mapper.add_anchor(AnchorPoint::new(10, 10000, 12000)); // offset +2s a t=10s
 
         // Prima della prima ancora: usa offset della prima
         assert_eq!(mapper.calculate_offset(0), 1000);
-        
+
         // Dopo l'ultima ancora: usa offset dell'ultima
         assert_eq!(mapper.calculate_offset(20000), 2000);
     }
@@ -348,10 +355,10 @@ mod tests {
         mapper.add_anchor(AnchorPoint::new(2, 1000, 2000));
 
         assert_eq!(mapper.anchor_count(), 2);
-        
+
         assert!(mapper.remove_anchor(1));
         assert_eq!(mapper.anchor_count(), 1);
-        
+
         assert!(!mapper.remove_anchor(99)); // Non esiste
     }
 }

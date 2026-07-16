@@ -8,8 +8,8 @@
 use tauri::{AppHandle, Emitter, State};
 use tokio_util::sync::CancellationToken;
 
-use srt_refine::{RefineEvent, RefineRunConfig, RefineRunSummary};
 pub use srt_refine::{RefineCard, RefineUpdate};
+use srt_refine::{RefineEvent, RefineRunConfig, RefineRunSummary};
 
 use crate::commands::translate::TierEntryConfig;
 use crate::state::AppRefineState;
@@ -50,7 +50,11 @@ pub async fn refine_card_llm_tiered(
 
     let summary = srt_refine::refine_cards_tiered(
         vec![card],
-        RefineRunConfig { prompt, batch_mode: false, batch_size: 1 },
+        RefineRunConfig {
+            prompt,
+            batch_mode: false,
+            batch_size: 1,
+        },
         pool,
         move |event| {
             if let RefineEvent::CardDone { id, notes, .. } = event
@@ -107,7 +111,11 @@ pub async fn refine_cards_llm_tiered(
 
     let result = srt_refine::refine_cards_tiered(
         cards,
-        RefineRunConfig { prompt, batch_mode, batch_size: 5 },
+        RefineRunConfig {
+            prompt,
+            batch_mode,
+            batch_size: 5,
+        },
         pool,
         on_event,
         cancellation_token,

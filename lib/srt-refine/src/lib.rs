@@ -111,13 +111,15 @@ pub fn analyze_tsv_columns(rows: &[Vec<String>]) -> Vec<usize> {
 // ─── ZIP helpers ─────────────────────────────────────────────────────────────
 
 fn unzip_archive(zip_path: &str, dest_dir: &Path) -> Result<(), String> {
-    let file = fs::File::open(zip_path)
-        .map_err(|e| format!("Impossibile aprire il file APKG: {e}"))?;
+    let file =
+        fs::File::open(zip_path).map_err(|e| format!("Impossibile aprire il file APKG: {e}"))?;
     let mut archive =
         zip::ZipArchive::new(file).map_err(|e| format!("Errore archivio ZIP: {e}"))?;
 
     for i in 0..archive.len() {
-        let mut file = archive.by_index(i).map_err(|e| format!("Errore indice ZIP: {e}"))?;
+        let mut file = archive
+            .by_index(i)
+            .map_err(|e| format!("Errore indice ZIP: {e}"))?;
         let outpath = match file.enclosed_name() {
             Some(path) => dest_dir.join(path),
             None => continue,
@@ -147,8 +149,8 @@ fn zip_folder(src_dir: &Path, zip_path: &str) -> Result<(), String> {
     let options = zip::write::SimpleFileOptions::default()
         .compression_method(zip::CompressionMethod::Deflated);
 
-    let walkdir = fs::read_dir(src_dir)
-        .map_err(|e| format!("Errore lettura directory temporanea: {e}"))?;
+    let walkdir =
+        fs::read_dir(src_dir).map_err(|e| format!("Errore lettura directory temporanea: {e}"))?;
     for entry in walkdir {
         let entry = entry.map_err(|e| e.to_string())?;
         let path = entry.path();
@@ -162,7 +164,8 @@ fn zip_folder(src_dir: &Path, zip_path: &str) -> Result<(), String> {
                 .map_err(|e| format!("Errore copia file nel ZIP: {e}"))?;
         }
     }
-    zip.finish().map_err(|e| format!("Errore completamento ZIP: {e}"))?;
+    zip.finish()
+        .map_err(|e| format!("Errore completamento ZIP: {e}"))?;
     Ok(())
 }
 
@@ -262,7 +265,11 @@ fn load_cards_tsv(path: &Path) -> Result<Vec<RefineCard>, String> {
     let mean_idx = text_cols.get(1).copied().unwrap_or(1);
 
     // Notes column: usually the last text column.
-    let notes_idx = if text_cols.len() >= 3 { *text_cols.last().unwrap() } else { 999 };
+    let notes_idx = if text_cols.len() >= 3 {
+        *text_cols.last().unwrap()
+    } else {
+        999
+    };
 
     let cards = rows
         .iter()
@@ -359,7 +366,10 @@ pub fn save_cards(
         && !parent.as_os_str().is_empty()
         && !parent.exists()
     {
-        return Err(format!("La cartella di destinazione '{}' non esiste.", parent.display()));
+        return Err(format!(
+            "La cartella di destinazione '{}' non esiste.",
+            parent.display()
+        ));
     }
 
     let ext_of = |p: &str| {
@@ -463,7 +473,11 @@ fn save_apkg_to_tsv(
 
     let note_rows = stmt
         .query_map([], |row| {
-            Ok((row.get::<_, i64>(0)?, row.get::<_, i64>(1)?, row.get::<_, String>(2)?))
+            Ok((
+                row.get::<_, i64>(0)?,
+                row.get::<_, i64>(1)?,
+                row.get::<_, String>(2)?,
+            ))
         })
         .map_err(|e| format!("Errore esecuzione query note Anki: {e}"))?;
 
@@ -533,17 +547,17 @@ fn save_apkg_to_apkg(
         .unwrap_or_default()
         .as_secs() as i64;
 
-    conn.execute("BEGIN TRANSACTION", []).map_err(|e| e.to_string())?;
+    conn.execute("BEGIN TRANSACTION", [])
+        .map_err(|e| e.to_string())?;
 
     for (&nid, new_notes) in &updates_map {
-        let (mid, flds): (i64, String) = match conn.query_row(
-            "SELECT mid, flds FROM notes WHERE id = ?",
-            [nid],
-            |row| Ok((row.get(0)?, row.get(1)?)),
-        ) {
-            Ok(res) => res,
-            Err(_) => continue, // Skip if not found
-        };
+        let (mid, flds): (i64, String) =
+            match conn.query_row("SELECT mid, flds FROM notes WHERE id = ?", [nid], |row| {
+                Ok((row.get(0)?, row.get(1)?))
+            }) {
+                Ok(res) => res,
+                Err(_) => continue, // Skip if not found
+            };
 
         let mut fields: Vec<String> = flds.split('\x1f').map(str::to_string).collect();
         let (expr_idx, _, notes_idx) = field_indices(models.get(&mid.to_string()), fields.len());
@@ -632,7 +646,12 @@ pub async fn refine_card_llm(
         Some(_) => config.api_key.clone(),
     };
 
-    let translator = Translator::new(TranslatorConfig { api_type, api_key, base_url, model });
+    let translator = Translator::new(TranslatorConfig {
+        api_type,
+        api_key,
+        base_url,
+        model,
+    });
 
     translator
         .generate_response(&interpolate_prompt(prompt, card))

@@ -125,7 +125,10 @@ pub(crate) fn generate_tsv(
         // 4. Snapshot
         if of.include_snapshot {
             fields.push(if config.generate_snapshots {
-                format!("<img src=\"{}_{:03}_{:04}.jpg\">", sanitized_deck, ep, seq_num)
+                format!(
+                    "<img src=\"{}_{:03}_{:04}.jpg\">",
+                    sanitized_deck, ep, seq_num
+                )
             } else {
                 String::new()
             });

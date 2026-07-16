@@ -125,7 +125,8 @@ fn hoist_binary(dir: &std::path::Path, name: &str) -> Result<(), String> {
             if path.is_file() && path.file_name().is_some_and(|n| n == file_name) {
                 return Some(path);
             }
-            if depth > 0 && path.is_dir()
+            if depth > 0
+                && path.is_dir()
                 && let Some(found) = find(&path, file_name, depth - 1)
             {
                 return Some(found);
@@ -161,7 +162,8 @@ pub async fn flashcard_download_ffmpeg(app: AppHandle) -> Result<bool, String> {
 
     let dest_task = dest.clone();
     tokio::task::spawn_blocking(move || -> Result<(), String> {
-        let url = ffmpeg_download_url().map_err(|e| format!("Could not determine download URL: {e}"))?;
+        let url =
+            ffmpeg_download_url().map_err(|e| format!("Could not determine download URL: {e}"))?;
         let archive = download_ffmpeg_package(url, &dest_task)
             .map_err(|e| format!("Download failed: {e}"))?;
         unpack_ffmpeg(&archive, &dest_task).map_err(|e| format!("Unpack failed: {e}"))?;
@@ -176,11 +178,9 @@ pub async fn flashcard_download_ffmpeg(app: AppHandle) -> Result<bool, String> {
     // Final verification: resolve the way every consumer does and run it.
     let ffmpeg = resolve_ffmpeg_path(Some(&app)).await;
     if !srt_flashcards::check_ffmpeg(&ffmpeg).await {
-        return Err(
-            "ffmpeg was downloaded but could not be executed. \
+        return Err("ffmpeg was downloaded but could not be executed. \
              You can install it manually and place it next to the Vesta executable."
-                .to_string(),
-        );
+            .to_string());
     }
     Ok(true)
 }
@@ -258,8 +258,12 @@ pub async fn save_temp_subtitles(
             counter,
             srt_parser::Subtitle {
                 id: counter,
-                start: srt_parser::Timestamp { milliseconds: line.start_ms.max(0) as u64 },
-                end: srt_parser::Timestamp { milliseconds: line.end_ms.max(0) as u64 },
+                start: srt_parser::Timestamp {
+                    milliseconds: line.start_ms.max(0) as u64,
+                },
+                end: srt_parser::Timestamp {
+                    milliseconds: line.end_ms.max(0) as u64,
+                },
                 text,
             },
         );

@@ -41,17 +41,19 @@ pub(crate) fn apply_filters(lines: &mut [MatchedLine], filters: &SubtitleFilters
 
         // Include words filter
         if let Some(ref words) = include_set
-            && !words.iter().any(|w| text_lower.contains(w)) {
-                line.active = false;
-                continue;
-            }
+            && !words.iter().any(|w| text_lower.contains(w))
+        {
+            line.active = false;
+            continue;
+        }
 
         // Exclude words filter
         if let Some(ref words) = exclude_set
-            && words.iter().any(|w| text_lower.contains(w)) {
-                line.active = false;
-                continue;
-            }
+            && words.iter().any(|w| text_lower.contains(w))
+        {
+            line.active = false;
+            continue;
+        }
 
         // Exclude duplicates subs1
         if filters.exclude_duplicates_subs1 {
@@ -65,38 +67,43 @@ pub(crate) fn apply_filters(lines: &mut [MatchedLine], filters: &SubtitleFilters
 
         // Exclude duplicates subs2
         if filters.exclude_duplicates_subs2
-            && let Some(ref s2) = line.subs2 {
-                let normalized = s2.text.trim().to_string();
-                if seen_subs2.contains(&normalized) {
-                    line.active = false;
-                    continue;
-                }
-                seen_subs2.insert(normalized);
+            && let Some(ref s2) = line.subs2
+        {
+            let normalized = s2.text.trim().to_string();
+            if seen_subs2.contains(&normalized) {
+                line.active = false;
+                continue;
             }
+            seen_subs2.insert(normalized);
+        }
 
         // Min/max character length
         if let Some(min) = filters.min_chars
-            && line.subs1.text.chars().count() < min {
-                line.active = false;
-                continue;
-            }
+            && line.subs1.text.chars().count() < min
+        {
+            line.active = false;
+            continue;
+        }
         if let Some(max) = filters.max_chars
-            && line.subs1.text.chars().count() > max {
-                line.active = false;
-                continue;
-            }
+            && line.subs1.text.chars().count() > max
+        {
+            line.active = false;
+            continue;
+        }
 
         // Min/max duration
         if let Some(min) = filters.min_duration_ms
-            && duration < min {
-                line.active = false;
-                continue;
-            }
+            && duration < min
+        {
+            line.active = false;
+            continue;
+        }
         if let Some(max) = filters.max_duration_ms
-            && duration > max {
-                line.active = false;
-                continue;
-            }
+            && duration > max
+        {
+            line.active = false;
+            continue;
+        }
 
         // Exclude styled lines (ASS)
         if filters.exclude_styled && line.subs1.text.starts_with('{') {
@@ -241,12 +248,14 @@ pub(crate) fn apply_span(
 ) {
     for line in lines.iter_mut() {
         if let Some(start) = span_start
-            && line.subs1.end_ms < start {
-                line.active = false;
-            }
+            && line.subs1.end_ms < start
+        {
+            line.active = false;
+        }
         if let Some(end) = span_end
-            && line.subs1.start_ms > end {
-                line.active = false;
-            }
+            && line.subs1.start_ms > end
+        {
+            line.active = false;
+        }
     }
 }

@@ -8,17 +8,17 @@
 //! This binary is the "shell": it parses CLI arguments and delegates all logic
 //! to the library, mirroring the `srt-flashcards` / `srt-translate` CLIs.
 
-use std::sync::atomic::{AtomicI64, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicI64, Ordering};
 
 use anyhow::Result;
 use clap::{Parser, Subcommand};
-use tokio_util::sync::CancellationToken;
 use srt_transcribe::model::{
-    download_model, download_vad_model, list_models, list_vad_models, uninstall_model,
-    uninstall_vad_model, DEFAULT_VAD_MODEL_ID,
+    DEFAULT_VAD_MODEL_ID, download_model, download_vad_model, list_models, list_vad_models,
+    uninstall_model, uninstall_vad_model,
 };
-use srt_transcribe::pipeline::{transcribe_to_srt, PipelineCallbacks, TranscriptionConfig};
+use srt_transcribe::pipeline::{PipelineCallbacks, TranscriptionConfig, transcribe_to_srt};
+use tokio_util::sync::CancellationToken;
 
 #[derive(Parser)]
 #[command(
@@ -153,7 +153,14 @@ async fn main() -> Result<()> {
             } else {
                 uninstall_model(&model_id)?
             };
-            println!("{}", if removed { "Model removed." } else { "Model was not installed." });
+            println!(
+                "{}",
+                if removed {
+                    "Model removed."
+                } else {
+                    "Model was not installed."
+                }
+            );
             Ok(())
         }
         Command::Run(args) => run(args).await,

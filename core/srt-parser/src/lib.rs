@@ -15,8 +15,8 @@ pub struct Timestamp {
 impl Timestamp {
     /// Crea un timestamp da ore, minuti, secondi e millisecondi
     pub fn new(hours: u32, minutes: u32, seconds: u32, millis: u32) -> Self {
-        let total_ms = (hours as u64 * 3600 + minutes as u64 * 60 + seconds as u64) * 1000
-            + millis as u64;
+        let total_ms =
+            (hours as u64 * 3600 + minutes as u64 * 60 + seconds as u64) * 1000 + millis as u64;
         Self {
             milliseconds: total_ms,
         }
@@ -177,20 +177,24 @@ impl SrtParser {
                 .find_map(|next_id| subtitles.get(&next_id).map(|s| s.start.milliseconds))
                 .unwrap_or(prev_end + 1000);
 
-            subtitles.insert(id, Subtitle {
+            subtitles.insert(
                 id,
-                start: Timestamp { milliseconds: prev_end },
-                end: Timestamp { milliseconds: next_start },
-                text: "[...]".to_string(),
-            });
+                Subtitle {
+                    id,
+                    start: Timestamp {
+                        milliseconds: prev_end,
+                    },
+                    end: Timestamp {
+                        milliseconds: next_start,
+                    },
+                    text: "[...]".to_string(),
+                },
+            );
         }
     }
 
     /// Salva i sottotitoli in un file SRT
-    pub fn save_file<P: AsRef<Path>>(
-        path: P,
-        subtitles: &HashMap<u32, Subtitle>,
-    ) -> Result<()> {
+    pub fn save_file<P: AsRef<Path>>(path: P, subtitles: &HashMap<u32, Subtitle>) -> Result<()> {
         let mut sorted_subs: Vec<_> = subtitles.values().collect();
         sorted_subs.sort_by_key(|s| s.id);
 

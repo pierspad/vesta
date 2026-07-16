@@ -15,7 +15,10 @@ pub fn suggest_media_for_srt(srt_path: &Path) -> std::io::Result<Option<PathBuf>
     let Some(parent) = srt_path.parent() else {
         return Ok(None);
     };
-    let Some(srt_stem) = srt_path.file_stem().and_then(|s| s.to_str()).filter(|s| !s.is_empty())
+    let Some(srt_stem) = srt_path
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .filter(|s| !s.is_empty())
     else {
         return Ok(None);
     };
@@ -73,7 +76,10 @@ pub fn suggest_companion_subtitle_for_srt(srt_path: &Path) -> std::io::Result<Op
     let Some(parent) = srt_path.parent() else {
         return Ok(None);
     };
-    let Some(srt_stem) = srt_path.file_stem().and_then(|s| s.to_str()).filter(|s| !s.is_empty())
+    let Some(srt_stem) = srt_path
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .filter(|s| !s.is_empty())
     else {
         return Ok(None);
     };
@@ -179,8 +185,24 @@ fn is_media_path(path: &Path) -> bool {
 
     matches!(
         ext.as_str(),
-        "mp4" | "mkv" | "avi" | "webm" | "mov" | "m4v" | "m2ts" | "mpeg" | "mpg" | "mp3" | "wav"
-            | "ogg" | "flac" | "m4a" | "aac" | "wma" | "opus" | "m4b"
+        "mp4"
+            | "mkv"
+            | "avi"
+            | "webm"
+            | "mov"
+            | "m4v"
+            | "m2ts"
+            | "mpeg"
+            | "mpg"
+            | "mp3"
+            | "wav"
+            | "ogg"
+            | "flac"
+            | "m4a"
+            | "aac"
+            | "wma"
+            | "opus"
+            | "m4b"
     )
 }
 
@@ -198,9 +220,40 @@ fn is_subtitle_path(path: &Path) -> bool {
 /// tipiche dei nomi di release (codec, risoluzioni, tag lingua, ecc.).
 fn normalized_tokens(name: &str) -> Vec<String> {
     const STOPWORDS: &[&str] = &[
-        "srt", "sub", "subs", "subtitle", "subtitles", "eng", "en", "ita", "it", "jpn", "ja",
-        "spa", "es", "fra", "fr", "ger", "de", "rus", "ru", "v2", "v3", "x264", "x265", "h264",
-        "h265", "hevc", "1080p", "720p", "2160p", "480p", "webrip", "bluray", "brrip", "dvdrip",
+        "srt",
+        "sub",
+        "subs",
+        "subtitle",
+        "subtitles",
+        "eng",
+        "en",
+        "ita",
+        "it",
+        "jpn",
+        "ja",
+        "spa",
+        "es",
+        "fra",
+        "fr",
+        "ger",
+        "de",
+        "rus",
+        "ru",
+        "v2",
+        "v3",
+        "x264",
+        "x265",
+        "h264",
+        "h265",
+        "hevc",
+        "1080p",
+        "720p",
+        "2160p",
+        "480p",
+        "webrip",
+        "bluray",
+        "brrip",
+        "dvdrip",
         "aac",
     ];
 
@@ -254,9 +307,10 @@ fn extract_episode_number(name: &str) -> Option<u32> {
                     end += 1;
                 }
                 if end > start
-                    && let Ok(v) = lower[start..end].parse::<u32>() {
-                        return Some(v);
-                    }
+                    && let Ok(v) = lower[start..end].parse::<u32>()
+                {
+                    return Some(v);
+                }
             }
         }
     }
@@ -265,9 +319,10 @@ fn extract_episode_number(name: &str) -> Option<u32> {
     for part in lower.split(|c: char| !c.is_ascii_alphanumeric()) {
         if (1..=3).contains(&part.len())
             && part.chars().all(|c| c.is_ascii_digit())
-            && let Ok(v) = part.parse::<u32>() {
-                return Some(v);
-            }
+            && let Ok(v) = part.parse::<u32>()
+        {
+            return Some(v);
+        }
     }
 
     None
@@ -294,9 +349,16 @@ fn extract_subtitle_role(name: &str) -> Option<&'static str> {
     {
         return Some("original");
     }
-    if ["translated", "translation", "tradotto", "traduzione", "reference", "ref"]
-        .iter()
-        .any(|k| lower.contains(k))
+    if [
+        "translated",
+        "translation",
+        "tradotto",
+        "traduzione",
+        "reference",
+        "ref",
+    ]
+    .iter()
+    .any(|k| lower.contains(k))
     {
         return Some("reference");
     }
@@ -308,9 +370,35 @@ fn extract_subtitle_role(name: &str) -> Option<&'static str> {
 /// sullo stesso stem.
 fn simplify_subtitle_stem(name: &str) -> String {
     const NOISE: &[&str] = &[
-        "native", "original", "orig", "source", "translated", "translation", "tradotto",
-        "traduzione", "reference", "ref", "srt", "sub", "subs", "subtitle", "subtitles", "it",
-        "ita", "en", "eng", "ja", "jpn", "es", "spa", "fr", "fra", "de", "ger", "ru", "rus",
+        "native",
+        "original",
+        "orig",
+        "source",
+        "translated",
+        "translation",
+        "tradotto",
+        "traduzione",
+        "reference",
+        "ref",
+        "srt",
+        "sub",
+        "subs",
+        "subtitle",
+        "subtitles",
+        "it",
+        "ita",
+        "en",
+        "eng",
+        "ja",
+        "jpn",
+        "es",
+        "spa",
+        "fr",
+        "fra",
+        "de",
+        "ger",
+        "ru",
+        "rus",
     ];
 
     name.split(|c: char| !c.is_ascii_alphanumeric())
@@ -327,7 +415,10 @@ pub fn suggest_subtitles_for_media(media_path: &Path) -> std::io::Result<Vec<(Pa
     let Some(parent) = media_path.parent() else {
         return Ok(Vec::new());
     };
-    let Some(media_stem) = media_path.file_stem().and_then(|s| s.to_str()).filter(|s| !s.is_empty())
+    let Some(media_stem) = media_path
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .filter(|s| !s.is_empty())
     else {
         return Ok(Vec::new());
     };
@@ -359,7 +450,9 @@ pub fn suggest_subtitles_for_media(media_path: &Path) -> std::io::Result<Vec<(Pa
 
         let srt_stem_simplified = simplify_subtitle_stem(stem);
         let media_stem_simplified = simplify_subtitle_stem(media_stem);
-        if !srt_stem_simplified.is_empty() && srt_stem_simplified.eq_ignore_ascii_case(&media_stem_simplified) {
+        if !srt_stem_simplified.is_empty()
+            && srt_stem_simplified.eq_ignore_ascii_case(&media_stem_simplified)
+        {
             score += 80;
         }
 
@@ -411,8 +504,14 @@ pub fn suggest_target_native_subtitles(
     let mut target: Option<PathBuf> = None;
     let mut native: Option<PathBuf> = None;
 
-    const REFERENCE_KEYWORDS: &[&str] =
-        &["translated", "translation", "tradotto", "traduzione", "reference", "ref"];
+    const REFERENCE_KEYWORDS: &[&str] = &[
+        "translated",
+        "translation",
+        "tradotto",
+        "traduzione",
+        "reference",
+        "ref",
+    ];
     const ORIGINAL_KEYWORDS: &[&str] = &["native", "original", "orig", "source"];
 
     // 1. Ruoli espliciti nel nome file.
@@ -567,7 +666,10 @@ mod tests {
         ];
         assert_eq!(
             suggest_target_native_subtitles(&candidates, None, None),
-            (Some(PathBuf::from("Show.en.srt")), Some(PathBuf::from("Show.it.srt")))
+            (
+                Some(PathBuf::from("Show.en.srt")),
+                Some(PathBuf::from("Show.it.srt"))
+            )
         );
     }
 
@@ -581,7 +683,10 @@ mod tests {
         ];
         assert_eq!(
             suggest_target_native_subtitles(&candidates, Some("en"), Some("it")),
-            (Some(PathBuf::from("Show.en.srt")), Some(PathBuf::from("Show.it.srt")))
+            (
+                Some(PathBuf::from("Show.en.srt")),
+                Some(PathBuf::from("Show.it.srt"))
+            )
         );
     }
 

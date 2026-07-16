@@ -5,7 +5,7 @@
 //! neither ffmpeg nor Tauri and finishes in milliseconds. If the test media is
 //! absent (e.g. a slim checkout) the tests skip instead of failing.
 
-use srt_flashcards::{build_matched_lines, load_sub_file_info, preview, FlashcardConfig};
+use srt_flashcards::{FlashcardConfig, build_matched_lines, load_sub_file_info, preview};
 
 fn test_subs_dir() -> std::path::PathBuf {
     std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -15,11 +15,17 @@ fn test_subs_dir() -> std::path::PathBuf {
 }
 
 fn en() -> String {
-    test_subs_dir().join("Detour-en.srt").to_string_lossy().into_owned()
+    test_subs_dir()
+        .join("Detour-en.srt")
+        .to_string_lossy()
+        .into_owned()
 }
 
 fn it() -> String {
-    test_subs_dir().join("Detour-it.srt").to_string_lossy().into_owned()
+    test_subs_dir()
+        .join("Detour-it.srt")
+        .to_string_lossy()
+        .into_owned()
 }
 
 fn media_present() -> bool {
@@ -57,7 +63,10 @@ fn dual_subs_match_one_to_one() {
     let lines = preview(&config(en(), Some(it()))).expect("preview dual");
     assert_eq!(lines.len(), 1018);
     let with_native = lines.iter().filter(|l| l.subs2_text.is_some()).count();
-    assert!(with_native > 900, "most lines should match a native sub, got {with_native}");
+    assert!(
+        with_native > 900,
+        "most lines should match a native sub, got {with_native}"
+    );
 }
 
 #[test]
@@ -80,7 +89,10 @@ fn span_filter_narrows_active_window() {
     cfg.span_end_ms = Some(130_000);
     let matched = build_matched_lines(&cfg).expect("matched");
     let active = matched.iter().filter(|m| m.active).count();
-    assert!(active > 0 && active < 50, "span should isolate a handful of lines, got {active}");
+    assert!(
+        active > 0 && active < 50,
+        "span should isolate a handful of lines, got {active}"
+    );
     for m in matched.iter().filter(|m| m.active) {
         assert!(m.subs1.end_ms >= 90_000 && m.subs1.start_ms <= 130_000);
     }

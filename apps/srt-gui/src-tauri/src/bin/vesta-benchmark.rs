@@ -1,6 +1,6 @@
 use std::time::Instant;
 
-use srt_flashcards::{generate, video_has_audio, FlashcardConfig, MediaTools};
+use srt_flashcards::{FlashcardConfig, MediaTools, generate, video_has_audio};
 use tokio_util::sync::CancellationToken;
 
 #[tokio::main]
@@ -33,7 +33,14 @@ async fn main() {
     );
 
     let start = Instant::now();
-    match generate(config, MediaTools::default(), CancellationToken::new(), &|_| {}).await {
+    match generate(
+        config,
+        MediaTools::default(),
+        CancellationToken::new(),
+        &|_| {},
+    )
+    .await
+    {
         Ok(result) if result.success => {
             println!(
                 "vesta_BENCHMARK_SUCCESS: {} ms",
