@@ -3,7 +3,6 @@
   import { getCurrentWebview } from "@tauri-apps/api/webview";
   import { guardedOpen, guardedSave } from "./utils/dialogGuard";
   import PathPreviewModal from "./PathPreviewModal.svelte";
-  import PathPickerField from "./PathPickerField.svelte";
   import ConfirmDialog from "./ConfirmDialog.svelte";
   import { snackbar } from "./snackbarStore.svelte";
   import { onMount } from "svelte";
@@ -15,6 +14,7 @@
   import SectionHeader from "./components/SectionHeader.svelte";
   import AutoSyncControls from "./AutoSyncControls.svelte";
   import AutoSyncOverlay from "./AutoSyncOverlay.svelte";
+  import FilesPanel from "./FilesPanel.svelte";
 
   interface Props {
     active?: boolean;
@@ -1289,43 +1289,15 @@
 
   {#snippet panelContent(panelId: SyncPanelId)}
     {#if panelId === "files"}
-      <div class="glass-card p-5 flex flex-col min-w-0 gap-4">
-        <SectionHeader
-          title={t("common.filesAndOutput")}
-          accent="emerald"
-          iconPath="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
-        />
-
-        <div class="space-y-3">
-          <!-- SRT File input -->
-          <PathPickerField
-            label={t("sync.inputSrtFile")}
-            value={status?.srt_path || ""}
-            placeholder={t("sync.noSrtFileSelected")}
-            browseTitle={t("sync.tooltip.loadSrt")}
-            onexpand={() => {
-              if (status?.srt_path) expandedPathField = "srt";
-            }}
-            onbrowse={selectSrtFile}
-            required={true}
-          />
-
-          <!-- Media File input -->
-          <PathPickerField
-            label={t("sync.inputMediaFile")}
-            value={status?.video_path || ""}
-            placeholder={t("sync.noMediaFileSelected")}
-            browseTitle={t("sync.tooltip.loadVideo") || ""}
-            disabled={!status?.is_loaded}
-            onexpand={() => {
-              if (status?.video_path) expandedPathField = "media";
-            }}
-            onbrowse={selectAudioFile}
-            required={true}
-          />
-        </div>
-      </div>
-
+      <FilesPanel
+        srtPath={status?.srt_path ?? null}
+        mediaPath={status?.video_path ?? null}
+        srtLoaded={!!status?.is_loaded}
+        onExpandSrt={() => (expandedPathField = "srt")}
+        onExpandMedia={() => (expandedPathField = "media")}
+        onBrowseSrt={selectSrtFile}
+        onBrowseMedia={selectAudioFile}
+      />
     {:else if panelId === "wizard"}
       <div class="glass-card relative flex flex-col overflow-visible">
         <div class="p-5 pb-3 flex-shrink-0">
