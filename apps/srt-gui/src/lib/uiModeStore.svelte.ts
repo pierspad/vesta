@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { smartMatchingStore } from "./smartMatchingStore.svelte";
+import * as vestaConfig from "./vestaConfig";
 
 /**
  * Global UI mode: Easy (default) vs Expert.
@@ -16,39 +17,32 @@ class UiModeStore {
   easyMode = $derived(!this.expertMode);
 
   constructor() {
-    if (typeof localStorage !== "undefined") {
-      this.expertMode = localStorage.getItem("vesta-expert-mode") === "true";
-    }
+    this.expertMode = vestaConfig.getItem("vesta-expert-mode") === "true";
   }
 
   async toggleExpertMode() {
     const prevExpertMode = this.expertMode;
     const newExpertMode = !prevExpertMode;
 
-    if (typeof localStorage !== "undefined") {
-      if (prevExpertMode && !newExpertMode) {
-        // Disabling expert mode: Backup and set to easy defaults
-        
-        // 1. Export Format: backup and set to apkg
-        const currentExport = localStorage.getItem("vesta-export-format") || "apkg";
-        localStorage.setItem("vesta-expert-backup-export-format", currentExport);
-        localStorage.setItem("vesta-export-format", "apkg");
+    if (prevExpertMode && !newExpertMode) {
+      // Disabling expert mode: Backup and set to easy defaults
 
-      } else if (!prevExpertMode && newExpertMode) {
-        // Enabling expert mode: Restore from backup
-        
-        // 1. Export Format
-        const backupExport = localStorage.getItem("vesta-expert-backup-export-format");
-        if (backupExport) {
-          localStorage.setItem("vesta-export-format", backupExport);
-        }
+      // 1. Export Format: backup and set to apkg
+      const currentExport = vestaConfig.getItem("vesta-export-format") || "apkg";
+      vestaConfig.setItem("vesta-expert-backup-export-format", currentExport);
+      vestaConfig.setItem("vesta-export-format", "apkg");
+    } else if (!prevExpertMode && newExpertMode) {
+      // Enabling expert mode: Restore from backup
+
+      // 1. Export Format
+      const backupExport = vestaConfig.getItem("vesta-expert-backup-export-format");
+      if (backupExport) {
+        vestaConfig.setItem("vesta-export-format", backupExport);
       }
     }
 
     this.expertMode = newExpertMode;
-    if (typeof localStorage !== "undefined") {
-      localStorage.setItem("vesta-expert-mode", String(this.expertMode));
-    }
+    vestaConfig.setItem("vesta-expert-mode", String(this.expertMode));
   }
 }
 

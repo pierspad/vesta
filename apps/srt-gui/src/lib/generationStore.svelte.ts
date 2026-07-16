@@ -1,5 +1,6 @@
 import { ankiStore } from "./ankiStore.svelte";
 import type { LogEntry } from "./LogPanel.svelte";
+import * as vestaConfig from "./vestaConfig";
 
 export const EXPORT_FORMAT_KEY = "vesta-export-format";
 export const SERIES_OUTPUT_MODE_KEY = "vesta-series-output-mode";
@@ -17,7 +18,7 @@ export interface GenerationResult {
 
 function loadInitialExportFormat(): "tsv" | "apkg" | "anki" {
   try {
-    const saved = localStorage.getItem(EXPORT_FORMAT_KEY);
+    const saved = vestaConfig.getItem(EXPORT_FORMAT_KEY);
     if (saved === "tsv" || saved === "anki" || saved === "apkg") return saved;
   } catch {}
   return "apkg";
@@ -25,7 +26,7 @@ function loadInitialExportFormat(): "tsv" | "apkg" | "anki" {
 
 function loadInitialSeriesOutputMode(): "single" | "separate" {
   try {
-    return localStorage.getItem(SERIES_OUTPUT_MODE_KEY) === "single" ? "single" : "separate";
+    return vestaConfig.getItem(SERIES_OUTPUT_MODE_KEY) === "single" ? "single" : "separate";
   } catch {
     return "separate";
   }

@@ -32,6 +32,7 @@
   import ConfirmDialog from "./ConfirmDialog.svelte";
   import { aiStore } from "./aiStore.svelte";
   import FooterActions from "./components/FooterActions.svelte";
+  import * as vestaConfig from "./vestaConfig";
 
   let { onGoToSettings, active = false } = $props<{
     onGoToSettings?: (section?: "overview" | "llm" | "whisper" | "language" | "anki" | "shortcuts", highlightItemId?: string) => void;
@@ -46,8 +47,8 @@
   const LAST_TRANSCRIBE_LANGUAGE_KEY = "vesta-transcribe-source-language";
   const DEFAULT_TRANSCRIBE_LANGUAGE_KEY = "vesta-default-transcribe-language";
   const initialTranscribeLanguage =
-    localStorage.getItem(LAST_TRANSCRIBE_LANGUAGE_KEY) ||
-    localStorage.getItem(DEFAULT_TRANSCRIBE_LANGUAGE_KEY) ||
+    vestaConfig.getItem(LAST_TRANSCRIBE_LANGUAGE_KEY) ||
+    vestaConfig.getItem(DEFAULT_TRANSCRIBE_LANGUAGE_KEY) ||
     "auto";
   let selectedLanguage = $state(initialTranscribeLanguage);
   let previousLanguageForOutput = initialTranscribeLanguage;
@@ -59,16 +60,16 @@
   const TRANSCRIBE_QUALITY_KEY = "vesta-transcribe-quality";
   const TRANSCRIBE_VAD_KEY = "vesta-transcribe-vad";
   const TRANSCRIBE_GPU_KEY = "vesta-transcribe-gpu";
-  let qualityMode = $state(localStorage.getItem(TRANSCRIBE_QUALITY_KEY) === "true");
+  let qualityMode = $state(vestaConfig.getItem(TRANSCRIBE_QUALITY_KEY) === "true");
   // Defaults to ON: once a VAD model is installed it's a strict improvement
   // for local transcription (skips silence, fewer hallucinations). The toggle
   // itself stays disabled until `vadInstalled` is true, so this default is
   // inert for users without the model.
-  const storedVad = localStorage.getItem(TRANSCRIBE_VAD_KEY);
+  const storedVad = vestaConfig.getItem(TRANSCRIBE_VAD_KEY);
   let vadEnabled = $state(storedVad === null ? true : storedVad === "true");
   // GPU defaults to ON in GPU-capable builds: whisper.cpp falls back to CPU
   // by itself when no usable device exists.
-  let useGpu = $state(localStorage.getItem(TRANSCRIBE_GPU_KEY) !== "false");
+  let useGpu = $state(vestaConfig.getItem(TRANSCRIBE_GPU_KEY) !== "false");
   let vadInstalled = $state(false);
   let gpuSupported = $state(false);
   let vadModels = $state<{ id: string; size: string; downloaded: boolean }[]>([]);
@@ -76,15 +77,15 @@
 
   function toggleQualityMode() {
     qualityMode = !qualityMode;
-    localStorage.setItem(TRANSCRIBE_QUALITY_KEY, String(qualityMode));
+    vestaConfig.setItem(TRANSCRIBE_QUALITY_KEY, String(qualityMode));
   }
   function toggleVad() {
     vadEnabled = !vadEnabled;
-    localStorage.setItem(TRANSCRIBE_VAD_KEY, String(vadEnabled));
+    vestaConfig.setItem(TRANSCRIBE_VAD_KEY, String(vadEnabled));
   }
   function toggleGpu() {
     useGpu = !useGpu;
-    localStorage.setItem(TRANSCRIBE_GPU_KEY, String(useGpu));
+    vestaConfig.setItem(TRANSCRIBE_GPU_KEY, String(useGpu));
   }
 
   /** Re-derive `vadInstalled` for whichever variant (built-in or custom) is
@@ -334,7 +335,7 @@
   });
 
   $effect(() => {
-    localStorage.setItem(LAST_TRANSCRIBE_LANGUAGE_KEY, selectedLanguage);
+    vestaConfig.setItem(LAST_TRANSCRIBE_LANGUAGE_KEY, selectedLanguage);
   });
 
   function handleWhisperModelUpdated(e: Event) {
@@ -351,7 +352,7 @@
     refreshApiKeys();
     window.addEventListener(TRANSCRIBE_TIERS_UPDATED_EVENT, refreshTranscribeTiers);
     window.addEventListener("apikeys-updated", refreshApiKeys);
-    selectedModel = localStorage.getItem("srt-default-whisper-model") || "base";
+    selectedModel = vestaConfig.getItem("srt-default-whisper-model") || "base";
 
     window.addEventListener("whisper-model-updated", handleWhisperModelUpdated);
     window.addEventListener("vesta-language-defaults-updated", handleLanguageDefaultsUpdated);
@@ -443,8 +444,8 @@
   });
 
   function handleLanguageDefaultsUpdated() {
-    if (!localStorage.getItem(LAST_TRANSCRIBE_LANGUAGE_KEY)) {
-      selectedLanguage = localStorage.getItem(DEFAULT_TRANSCRIBE_LANGUAGE_KEY) || "auto";
+    if (!vestaConfig.getItem(LAST_TRANSCRIBE_LANGUAGE_KEY)) {
+      selectedLanguage = vestaConfig.getItem(DEFAULT_TRANSCRIBE_LANGUAGE_KEY) || "auto";
       previousLanguageForOutput = selectedLanguage;
     }
   }

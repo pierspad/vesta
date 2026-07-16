@@ -35,6 +35,7 @@
     type TierEntryPayload,
     type TiersUnavailableReason,
   } from "./llmTiers";
+  import * as vestaConfig from "./vestaConfig";
 
   /**
    * Generates a smart output path by detecting and replacing language codes
@@ -121,7 +122,7 @@
 
   function loadStoredValue(key: string): string {
     try {
-      return localStorage.getItem(key) || "";
+      return vestaConfig.getItem(key) || "";
     } catch {
       return "";
     }
@@ -146,7 +147,7 @@
   // Local server URL with persistence
   const LOCAL_SERVER_URL_KEY = "vesta-local-server-url";
   const DEFAULT_LOCAL_URL = "http://localhost:11434/v1";
-  let localServerUrl = $state(localStorage.getItem(LOCAL_SERVER_URL_KEY) || DEFAULT_LOCAL_URL);
+  let localServerUrl = $state(vestaConfig.getItem(LOCAL_SERVER_URL_KEY) || DEFAULT_LOCAL_URL);
 
   // Dynamically fetched models from local/custom server
   let fetchedModels = $state<DiscoveredModel[]>([]);
@@ -155,7 +156,7 @@
 
   function saveLocalServerUrl(url: string) {
     localServerUrl = url;
-    localStorage.setItem(LOCAL_SERVER_URL_KEY, url);
+    vestaConfig.setItem(LOCAL_SERVER_URL_KEY, url);
   }
 
   async function fetchModelsFromServer(baseUrl: string, force = false) {
@@ -166,7 +167,7 @@
         : null;
 
     if (!force && cacheKey) {
-      const cached = localStorage.getItem(cacheKey);
+      const cached = vestaConfig.getItem(cacheKey);
       if (cached) {
         try {
           const parsed = JSON.parse(cached);
@@ -190,7 +191,7 @@
       const models = await fetchModelsFromEndpoint(baseUrl);
       fetchedModels = models;
       if (cacheKey) {
-        localStorage.setItem(cacheKey, JSON.stringify(models));
+        vestaConfig.setItem(cacheKey, JSON.stringify(models));
       }
       
       // Auto-select first model if none selected
@@ -417,14 +418,14 @@
   });
 
   $effect(() => {
-    localStorage.setItem(LAST_PROVIDER_KEY, selectedProviderFamily || "");
-    localStorage.setItem(LAST_MODEL_KEY, selectedModel || "");
-    localStorage.setItem(LAST_TARGET_LANGUAGE_KEY, targetLang || "");
-    localStorage.setItem(
+    vestaConfig.setItem(LAST_PROVIDER_KEY, selectedProviderFamily || "");
+    vestaConfig.setItem(LAST_MODEL_KEY, selectedModel || "");
+    vestaConfig.setItem(LAST_TARGET_LANGUAGE_KEY, targetLang || "");
+    vestaConfig.setItem(
       LAST_CUSTOM_PROVIDER_KEY,
       selectedCustomProviderId || "",
     );
-    localStorage.setItem(LAST_CUSTOM_MODEL_KEY, localCustomModel || "");
+    vestaConfig.setItem(LAST_CUSTOM_MODEL_KEY, localCustomModel || "");
   });
 
 
@@ -442,7 +443,7 @@
     const cacheKey = `vesta-dynamic-models-${family}-${apiKey.substring(0, 8)}`;
 
     if (!force) {
-      const cached = localStorage.getItem(cacheKey);
+      const cached = vestaConfig.getItem(cacheKey);
       if (cached) {
         try {
           const parsed = JSON.parse(cached);
@@ -540,7 +541,7 @@
       }
 
       fetchedModels = models;
-      localStorage.setItem(cacheKey, JSON.stringify(models));
+      vestaConfig.setItem(cacheKey, JSON.stringify(models));
 
       // Auto-select first model if current one is not in the list
       if (!selectedModel || !models.find((m) => m.id === selectedModel)) {
@@ -624,7 +625,7 @@
       e.key === LOCAL_SERVER_URL_KEY
     ) {
       loadDefaultLlmSettings();
-    } else if (e.key === DEFAULT_TARGET_LANGUAGE_KEY && !localStorage.getItem(LAST_TARGET_LANGUAGE_KEY)) {
+    } else if (e.key === DEFAULT_TARGET_LANGUAGE_KEY && !vestaConfig.getItem(LAST_TARGET_LANGUAGE_KEY)) {
       targetLang = loadStoredValue(DEFAULT_TARGET_LANGUAGE_KEY) || targetLang;
     }
   }
@@ -633,7 +634,7 @@
     selectedProviderFamily = loadStoredValue(DEFAULT_LLM_PROVIDER_KEY) || selectedProviderFamily || "local";
     selectedModel = loadStoredValue(DEFAULT_LLM_MODEL_KEY) || selectedModel;
     selectedCustomProviderId = loadStoredValue(DEFAULT_LLM_CUSTOM_PROVIDER_KEY) || selectedCustomProviderId;
-    localServerUrl = localStorage.getItem(LOCAL_SERVER_URL_KEY) || DEFAULT_LOCAL_URL;
+    localServerUrl = vestaConfig.getItem(LOCAL_SERVER_URL_KEY) || DEFAULT_LOCAL_URL;
     providerConfirmed = true;
     fetchedModels = [];
     fetchModelsError = "";

@@ -1,4 +1,5 @@
 import { locale } from "./i18n";
+import * as vestaConfig from "./vestaConfig";
 
 export interface SmartMatchingRules {
   episodeRegexes: string[];
@@ -74,7 +75,7 @@ function normalizeRules(value: unknown): SmartMatchingRules {
 }
 
 class SmartMatchingStore {
-  enabled = $state(localStorage.getItem("vesta-flashcards-smart-file-matching-enabled") !== "false");
+  enabled = $state(vestaConfig.getItem("vesta-flashcards-smart-file-matching-enabled") !== "false");
   rules = $state<SmartMatchingRules>(DEFAULT_SMART_MATCHING_RULES);
 
   constructor() {
@@ -83,7 +84,7 @@ class SmartMatchingStore {
 
   load() {
     try {
-      const saved = localStorage.getItem("vesta-flashcards-smart-matching-rules");
+      const saved = vestaConfig.getItem("vesta-flashcards-smart-matching-rules");
       if (saved) {
         this.rules = normalizeRules(JSON.parse(stripJsonComments(saved)));
       } else {
@@ -96,17 +97,17 @@ class SmartMatchingStore {
 
   setEnabled(val: boolean) {
     this.enabled = val;
-    localStorage.setItem("vesta-flashcards-smart-file-matching-enabled", String(val));
+    vestaConfig.setItem("vesta-flashcards-smart-file-matching-enabled", String(val));
   }
 
   saveRules(rules: SmartMatchingRules) {
     this.rules = rules;
-    localStorage.setItem("vesta-flashcards-smart-matching-rules", JSON.stringify(rules, null, 2));
+    vestaConfig.setItem("vesta-flashcards-smart-matching-rules", JSON.stringify(rules, null, 2));
   }
 
   resetRules() {
     this.rules = normalizeRules(DEFAULT_SMART_MATCHING_RULES);
-    localStorage.setItem("vesta-flashcards-smart-matching-rules", JSON.stringify(this.rules, null, 2));
+    vestaConfig.setItem("vesta-flashcards-smart-matching-rules", JSON.stringify(this.rules, null, 2));
   }
 }
 

@@ -7,6 +7,7 @@
   import { getFileName } from "./models";
   import Card from "./components/Card.svelte";
   import SectionHeader from "./components/SectionHeader.svelte";
+  import * as vestaConfig from "./vestaConfig";
 
   let t = $derived($locale);
 
@@ -125,7 +126,7 @@
   let ankiUrl = $state(
     (() => {
       try {
-        return localStorage.getItem("vesta-ankiconnect-url") || "http://127.0.0.1:8765";
+        return vestaConfig.getItem("vesta-ankiconnect-url") || "http://127.0.0.1:8765";
       } catch {
         return "http://127.0.0.1:8765";
       }
@@ -133,7 +134,7 @@
   );
   $effect(() => {
     try {
-      localStorage.setItem("vesta-ankiconnect-url", ankiUrl);
+      vestaConfig.setItem("vesta-ankiconnect-url", ankiUrl);
     } catch {
       /* storage unavailable */
     }

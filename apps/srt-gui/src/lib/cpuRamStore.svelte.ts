@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import * as vestaConfig from "./vestaConfig";
 
 /** CPU-core / RAM-limit resource card in Settings -> Overview. Self-contained
  * to this one card (verified: every reference outside the card's markup is
@@ -22,7 +23,7 @@ class CpuRamStore {
   /** 0 means "no limit" (use OS default). */
   ramLimitMb = $state(
     (() => {
-      const stored = localStorage.getItem("vesta_memory_limit_mb");
+      const stored = vestaConfig.getItem("vesta_memory_limit_mb");
       return stored ? parseInt(stored) : 0;
     })(),
   );
@@ -62,7 +63,7 @@ class CpuRamStore {
 
   setCores(cores: number) {
     this.cpuCores = cores;
-    localStorage.setItem("vesta_cpu_cores", this.cpuCores.toString());
+    vestaConfig.setItem("vesta_cpu_cores", this.cpuCores.toString());
     window.dispatchEvent(new CustomEvent("vesta-cpu-cores-changed", { detail: this.cpuCores }));
   }
 
@@ -75,9 +76,9 @@ class CpuRamStore {
     // 0 = no limit
     this.ramLimitMb = raw < this.minRamMb ? 0 : raw;
     if (this.ramLimitMb === 0) {
-      localStorage.removeItem("vesta_memory_limit_mb");
+      vestaConfig.removeItem("vesta_memory_limit_mb");
     } else {
-      localStorage.setItem("vesta_memory_limit_mb", this.ramLimitMb.toString());
+      vestaConfig.setItem("vesta_memory_limit_mb", this.ramLimitMb.toString());
     }
   }
 
@@ -86,7 +87,7 @@ class CpuRamStore {
     try {
       const count = await invoke<number>("flashcard_get_cpu_count");
       this.systemCpuCount = count;
-      const savedCores = localStorage.getItem("vesta_cpu_cores");
+      const savedCores = vestaConfig.getItem("vesta_cpu_cores");
       if (savedCores) {
         const parsed = parseInt(savedCores);
         this.cpuCores = Math.min(Math.max(parsed, this.minCpuCores), Math.max(1, this.systemCpuCount - 1));
@@ -95,7 +96,7 @@ class CpuRamStore {
       }
     } catch {
       this.systemCpuCount = 4;
-      const savedCores = localStorage.getItem("vesta_cpu_cores");
+      const savedCores = vestaConfig.getItem("vesta_cpu_cores");
       this.cpuCores = savedCores ? parseInt(savedCores) : Math.max(1, this.systemCpuCount - 1);
     }
 

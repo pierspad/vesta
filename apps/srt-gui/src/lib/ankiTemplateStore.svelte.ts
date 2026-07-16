@@ -14,6 +14,7 @@ import {
   saveActiveNoteTypeId,
   type FieldNamesConfig,
 } from "./noteTypes";
+import * as vestaConfig from "./vestaConfig";
 
 const ANKI_FIELD_PRESETS_KEY = "vesta-anki-field-presets";
 const ACTIVE_ANKI_FIELD_PRESET_KEY = "vesta-active-anki-field-preset";
@@ -30,7 +31,7 @@ export type TemplateCodeTab = "front" | "back" | "css";
 
 function loadStoredValue(key: string, fallback = ""): string {
   try {
-    return localStorage.getItem(key) || fallback;
+    return vestaConfig.getItem(key) || fallback;
   } catch {
     return fallback;
   }
@@ -59,7 +60,7 @@ function sanitizeAnkiFieldPreset(raw: Partial<AnkiFieldPreset>): AnkiFieldPreset
 
 function loadAnkiFieldPresets(): AnkiFieldPreset[] {
   try {
-    const raw = localStorage.getItem(ANKI_FIELD_PRESETS_KEY);
+    const raw = vestaConfig.getItem(ANKI_FIELD_PRESETS_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
@@ -186,7 +187,7 @@ class AnkiTemplateStore {
   }
 
   private persistAnkiFieldPresets() {
-    localStorage.setItem(ANKI_FIELD_PRESETS_KEY, JSON.stringify(this.savedAnkiFieldPresets));
+    vestaConfig.setItem(ANKI_FIELD_PRESETS_KEY, JSON.stringify(this.savedAnkiFieldPresets));
   }
 
   applyAnkiFieldPreset(presetId: string) {
@@ -194,7 +195,7 @@ class AnkiTemplateStore {
     if (!preset) return;
     this.selectedAnkiFieldPresetId = preset.id;
     this.ankiFieldPresetName = preset.id === "default" ? "" : preset.name;
-    localStorage.setItem(ACTIVE_ANKI_FIELD_PRESET_KEY, preset.id);
+    vestaConfig.setItem(ACTIVE_ANKI_FIELD_PRESET_KEY, preset.id);
     this.noteTypeName = preset.noteTypeName;
     this.setCurrentFieldNames(preset.fields);
     this.saveTemplates();
@@ -223,7 +224,7 @@ class AnkiTemplateStore {
 
     this.selectedAnkiFieldPresetId = preset.id;
     this.ankiFieldPresetName = preset.name;
-    localStorage.setItem(ACTIVE_ANKI_FIELD_PRESET_KEY, preset.id);
+    vestaConfig.setItem(ACTIVE_ANKI_FIELD_PRESET_KEY, preset.id);
     this.persistAnkiFieldPresets();
     window.dispatchEvent(new CustomEvent(NOTE_TYPES_UPDATED_EVENT));
     snackbar.show(t("settings.anki.presetSaved"));
@@ -252,7 +253,7 @@ class AnkiTemplateStore {
   private resetAnkiFieldsToDefault() {
     this.selectedAnkiFieldPresetId = "default";
     this.ankiFieldPresetName = "";
-    localStorage.setItem(ACTIVE_ANKI_FIELD_PRESET_KEY, "default");
+    vestaConfig.setItem(ACTIVE_ANKI_FIELD_PRESET_KEY, "default");
     this.noteTypeName = defaultCardTemplates.noteTypeName;
     this.setCurrentFieldNames(defaultFieldNames);
     this.saveTemplates();

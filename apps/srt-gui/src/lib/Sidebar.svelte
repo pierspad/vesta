@@ -12,6 +12,7 @@
     SETTINGS_ACTION_REQUIRED_EVENT,
     type SettingsActionNotificationDetail,
   } from "./settingsNotifications";
+  import * as vestaConfig from "./vestaConfig";
 
   interface Props {
     activeTab: "translate" | "sync" | "transcribe" | "align" | "flashcards" | "settings" | "refine" | "experimental";
@@ -225,7 +226,7 @@
 
     window.addEventListener(SETTINGS_ACTION_REQUIRED_EVENT, handleSettingsActionRequired);
 
-    const savedAutoCheck = localStorage.getItem("vesta-automatic-update-checks");
+    const savedAutoCheck = vestaConfig.getItem("vesta-automatic-update-checks");
     const autoCheckEnabled = savedAutoCheck !== "false";
 
     invoke<{ version: string; name: string; license: string }>("get_app_info")

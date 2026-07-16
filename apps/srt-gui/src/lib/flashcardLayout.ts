@@ -1,3 +1,5 @@
+import * as vestaConfig from "./vestaConfig";
+
 // Column-layout system for FlashcardsTab: which panel ids exist, their
 // persisted (user-editable) arrangement, and the responsive layout the UI
 // falls back to once the host column collapses from 3 -> 2 -> 1. Pulled out
@@ -55,11 +57,11 @@ export function loadSeriesLayout(): ColumnLayout {
 }
 
 export function saveLayout(layout: ColumnLayout) {
-  localStorage.setItem(MOVIE_LAYOUT_KEY, JSON.stringify(layout));
+  vestaConfig.setItem(MOVIE_LAYOUT_KEY, JSON.stringify(layout));
 }
 
 export function saveSeriesLayout(layout: ColumnLayout) {
-  localStorage.setItem(SERIES_LAYOUT_KEY, JSON.stringify(layout));
+  vestaConfig.setItem(SERIES_LAYOUT_KEY, JSON.stringify(layout));
 }
 
 // Responsive columns: auto-collapse from 3 -> 2 -> 1 based on available width.

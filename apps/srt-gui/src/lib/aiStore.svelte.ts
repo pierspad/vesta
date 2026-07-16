@@ -1,3 +1,5 @@
+import * as vestaConfig from "./vestaConfig";
+
 class AiStore {
   killSwitchActive = $state(false);
   isTranslating = $state(false);
@@ -13,9 +15,7 @@ class AiStore {
   );
 
   constructor() {
-    if (typeof localStorage !== "undefined") {
-      this.killSwitchActive = localStorage.getItem("vesta-ai-kill-switch") === "true";
-    }
+    this.killSwitchActive = vestaConfig.getItem("vesta-ai-kill-switch") === "true";
   }
 
   toggleKillSwitch() {
@@ -23,9 +23,7 @@ class AiStore {
       return;
     }
     this.killSwitchActive = !this.killSwitchActive;
-    if (typeof localStorage !== "undefined") {
-      localStorage.setItem("vesta-ai-kill-switch", String(this.killSwitchActive));
-    }
+    vestaConfig.setItem("vesta-ai-kill-switch", String(this.killSwitchActive));
   }
 }
 

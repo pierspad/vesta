@@ -1,4 +1,5 @@
 import type { ApiProviderId } from "./apiKeys";
+import * as vestaConfig from "./vestaConfig";
 
 // ─── Translation Tiers (priority list with automatic failover) ────────────────
 //
@@ -42,7 +43,7 @@ export function newTierEntryId(): string {
 
 export function loadTiers(): Tier[] {
   try {
-    const raw = localStorage.getItem(TIERS_KEY);
+    const raw = vestaConfig.getItem(TIERS_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed)) {
@@ -73,7 +74,7 @@ export function loadTiers(): Tier[] {
 }
 
 export function saveTiers(tiers: Tier[]): void {
-  localStorage.setItem(TIERS_KEY, JSON.stringify(tiers));
+  vestaConfig.setItem(TIERS_KEY, JSON.stringify(tiers));
   if (typeof window !== "undefined") {
     window.dispatchEvent(new CustomEvent(TIERS_UPDATED_EVENT));
   }

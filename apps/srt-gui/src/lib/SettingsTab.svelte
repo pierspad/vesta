@@ -67,6 +67,7 @@
   } from "./transcribeProviders";
   import { getModelsForProvider, providers, type ModelInfo } from "./llmProviders";
   import { getLanguageSearchTerms, languages } from "./languages";
+  import * as vestaConfig from "./vestaConfig";
 
   const allProviderIds = ["local", "google", "groq", "openai", "deepgram", "assemblyai", "openrouter", "mistral", "github", "nvidia", "custom"];
   const apiKeyProviderIds = ["google", "groq", "openai", "deepgram", "assemblyai", "openrouter", "mistral", "github", "nvidia", "custom"];
@@ -95,7 +96,7 @@
   const NOTE_TYPE_LANGUAGE_KEY = "vesta-flashcards-note-type-language";
   function loadStoredValue(key: string, fallback = ""): string {
     try {
-      return localStorage.getItem(key) || fallback;
+      return vestaConfig.getItem(key) || fallback;
     } catch {
       return fallback;
     }
@@ -122,7 +123,7 @@
 
   function persistRefinementPrompt() {
     try {
-      localStorage.setItem(DEFAULT_REFINEMENT_PROMPT_KEY, defaultRefinementPrompt);
+      vestaConfig.setItem(DEFAULT_REFINEMENT_PROMPT_KEY, defaultRefinementPrompt);
     } catch {}
   }
 
@@ -564,10 +565,10 @@
   });
 
   function persistDefaultLlmSettings() {
-    localStorage.setItem(DEFAULT_LLM_PROVIDER_KEY, defaultLlmProvider);
-    localStorage.setItem(DEFAULT_LLM_MODEL_KEY, defaultLlmModel);
-    localStorage.setItem(DEFAULT_LLM_CUSTOM_PROVIDER_KEY, defaultLlmCustomProviderId);
-    localStorage.setItem(LOCAL_SERVER_URL_KEY, defaultLocalServerUrl);
+    vestaConfig.setItem(DEFAULT_LLM_PROVIDER_KEY, defaultLlmProvider);
+    vestaConfig.setItem(DEFAULT_LLM_MODEL_KEY, defaultLlmModel);
+    vestaConfig.setItem(DEFAULT_LLM_CUSTOM_PROVIDER_KEY, defaultLlmCustomProviderId);
+    vestaConfig.setItem(LOCAL_SERVER_URL_KEY, defaultLocalServerUrl);
     window.dispatchEvent(new CustomEvent("vesta-llm-default-updated"));
   }
 
@@ -737,7 +738,7 @@
   });
 
   function saveDefaultLanguage(key: string, value: string) {
-    localStorage.setItem(key, value);
+    vestaConfig.setItem(key, value);
     window.dispatchEvent(new CustomEvent("vesta-language-defaults-updated"));
   }
 
@@ -842,13 +843,13 @@
     return t("settings.resetConfirmDesc") || "Tutte le personalizzazioni correnti andranno perse.";
   });
   $effect(() => {
-    try { localStorage.setItem(EXPORT_FORMAT_KEY, exportFormatStore.exportFormat); } catch {}
+    try { vestaConfig.setItem(EXPORT_FORMAT_KEY, exportFormatStore.exportFormat); } catch {}
   });
 
   $effect(() => {
     if (active) {
       try {
-        const saved = localStorage.getItem(EXPORT_FORMAT_KEY);
+        const saved = vestaConfig.getItem(EXPORT_FORMAT_KEY);
         if (saved === "tsv" || saved === "anki" || saved === "apkg") {
           exportFormatStore.exportFormat = saved === "anki" && ankiStore.status !== "online" ? "apkg" : saved;
         } else {
@@ -861,7 +862,7 @@
   $effect(() => {
     const _ = uiMode.expertMode;
     try {
-      const saved = localStorage.getItem(EXPORT_FORMAT_KEY);
+      const saved = vestaConfig.getItem(EXPORT_FORMAT_KEY);
       if (saved === "tsv" || saved === "anki" || saved === "apkg") {
         exportFormatStore.exportFormat = saved === "anki" && ankiStore.status !== "online" ? "apkg" : saved;
       } else {
@@ -869,7 +870,7 @@
       }
     } catch {}
     try {
-      const savedCores = localStorage.getItem("vesta_cpu_cores");
+      const savedCores = vestaConfig.getItem("vesta_cpu_cores");
       if (savedCores) {
         cpuRamStore.cpuCores = parseInt(savedCores);
       }
@@ -960,7 +961,7 @@
 
     loadApiKeys();
     smartMatchingRulesDraft = formatSmartMatchingRules(smartMatchingStore.rules);
-    whisperModelsStore.defaultWhisperModel = localStorage.getItem("srt-default-whisper-model") || "base";
+    whisperModelsStore.defaultWhisperModel = vestaConfig.getItem("srt-default-whisper-model") || "base";
 
     whisperModelsStore.refreshModels().catch((e) => console.error("Could not list models:", e));
     void whisperModelsStore.refreshAddons();
@@ -1095,7 +1096,7 @@
   }
 
   function saveApiKeys() {
-    localStorage.setItem("srt-tools-api-keys", JSON.stringify(apiKeys));
+    vestaConfig.setItem("srt-tools-api-keys", JSON.stringify(apiKeys));
     // Dispatch custom event to notify other tabs in the same window
     window.dispatchEvent(new CustomEvent("apikeys-updated"));
   }

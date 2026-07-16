@@ -1,3 +1,5 @@
+import * as vestaConfig from "./vestaConfig";
+
 /**
  * Single source of truth for the default flashcard-refinement prompt.
  *
@@ -76,14 +78,14 @@ export function isLegacyDefaultPrompt(prompt: string): boolean {
 export function loadRefinementPrompt(): string {
   let stored: string | null = null;
   try {
-    stored = localStorage.getItem(REFINEMENT_PROMPT_STORAGE_KEY);
+    stored = vestaConfig.getItem(REFINEMENT_PROMPT_STORAGE_KEY);
   } catch {
     /* storage unavailable */
   }
 
   if (!stored || isLegacyDefaultPrompt(stored)) {
     try {
-      localStorage.setItem(REFINEMENT_PROMPT_STORAGE_KEY, DEFAULT_REFINEMENT_PROMPT);
+      vestaConfig.setItem(REFINEMENT_PROMPT_STORAGE_KEY, DEFAULT_REFINEMENT_PROMPT);
     } catch {
       /* storage unavailable */
     }

@@ -17,6 +17,7 @@
     type TierEntry,
   } from "./translationTiers";
   import { providers, getModelsForProvider } from "./llmProviders";
+  import * as vestaConfig from "./vestaConfig";
 
   let t = $derived($locale);
 
@@ -38,7 +39,7 @@
         name: "Local LLM (Open API)",
         apiType: "local",
         apiKey: "local-not-needed",
-        apiUrl: localStorage.getItem("vesta-local-server-url") || "http://localhost:11434/v1",
+        apiUrl: vestaConfig.getItem("vesta-local-server-url") || "http://localhost:11434/v1",
         isValid: true
       });
     } else {
@@ -82,7 +83,7 @@
     const lsKey = `vesta-tier-models-${cacheId}`;
     if (!force && provider !== "local") {
       try {
-        const raw = localStorage.getItem(lsKey);
+        const raw = vestaConfig.getItem(lsKey);
         if (raw) {
           const parsed = JSON.parse(raw);
           if (parsed && Array.isArray(parsed.models) && Date.now() - parsed.ts < DISCOVERY_TTL_MS) {
@@ -106,7 +107,7 @@
         localOffline = false;
       }
       try {
-        localStorage.setItem(lsKey, JSON.stringify({ ts: Date.now(), models }));
+        vestaConfig.setItem(lsKey, JSON.stringify({ ts: Date.now(), models }));
       } catch {
         /* ignore quota */
       }

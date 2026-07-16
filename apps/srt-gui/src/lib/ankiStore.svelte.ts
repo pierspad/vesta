@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import * as vestaConfig from "./vestaConfig";
 
 class AnkiStore {
   url = $state("http://127.0.0.1:8765");
@@ -7,18 +8,14 @@ class AnkiStore {
   decks = $state<string[]>([]);
 
   constructor() {
-    if (typeof localStorage !== "undefined") {
-      this.url = localStorage.getItem("vesta-ankiconnect-url") || "http://127.0.0.1:8765";
-    }
+    this.url = vestaConfig.getItem("vesta-ankiconnect-url") || "http://127.0.0.1:8765";
   }
 
   setUrl(newUrl: string) {
     this.url = newUrl;
-    if (typeof localStorage !== "undefined") {
-      try {
-        localStorage.setItem("vesta-ankiconnect-url", newUrl);
-      } catch {}
-    }
+    try {
+      vestaConfig.setItem("vesta-ankiconnect-url", newUrl);
+    } catch {}
   }
 
   async checkConnection(): Promise<boolean> {

@@ -18,18 +18,18 @@
   import { snackbar } from "./lib/snackbarStore.svelte";
   import { aiStore } from "./lib/aiStore.svelte";
   import { getShortcuts } from "./lib/shortcuts";
+  import * as vestaConfig from "./lib/vestaConfig";
 
   type AppTab = "translate" | "sync" | "transcribe" | "align" | "flashcards" | "settings" | "refine" | "experimental";
 
   let activeTab = $state<AppTab>("flashcards");
   const initialPreference = (() => {
-    if (typeof localStorage === 'undefined') return null;
-    const savedPref = localStorage.getItem("vesta-sidebar-user-pref");
+    const savedPref = vestaConfig.getItem("vesta-sidebar-user-pref");
     if (savedPref === "collapsed" || savedPref === "expanded") {
       return savedPref;
     }
     // Migration from old key
-    const oldSaved = localStorage.getItem("vesta-sidebar-collapsed");
+    const oldSaved = vestaConfig.getItem("vesta-sidebar-collapsed");
     if (oldSaved === "true") return "collapsed";
     if (oldSaved === "false") return "expanded";
     return null;
@@ -351,11 +351,9 @@
   function toggleSidebar() {
     sidebarCollapsed = !sidebarCollapsed;
     userPreference = sidebarCollapsed ? "collapsed" : "expanded";
-    if (typeof localStorage !== 'undefined') {
-      localStorage.setItem("vesta-sidebar-user-pref", userPreference);
-      // Keep old key synced for backwards compatibility
-      localStorage.setItem("vesta-sidebar-collapsed", String(sidebarCollapsed));
-    }
+    vestaConfig.setItem("vesta-sidebar-user-pref", userPreference);
+    // Keep old key synced for backwards compatibility
+    vestaConfig.setItem("vesta-sidebar-collapsed", String(sidebarCollapsed));
   }
 
   // Make available globally for TranslateTab link

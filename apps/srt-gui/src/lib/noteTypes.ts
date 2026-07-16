@@ -1,3 +1,5 @@
+import * as vestaConfig from "./vestaConfig";
+
 // Note-type system: field names, note-type definitions (predefined +
 // custom), and card templates. Kept together (not split further) because
 // NoteTypeDef.fields is a FieldNamesConfig, sanitizeCustomNoteType/
@@ -77,7 +79,7 @@ export const defaultFieldNames: FieldNamesConfig = {
 
 export function loadFieldNames(): FieldNamesConfig {
   try {
-    const raw = localStorage.getItem(FIELD_NAMES_KEY);
+    const raw = vestaConfig.getItem(FIELD_NAMES_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
       return sanitizeFieldNamesConfig({
@@ -98,12 +100,12 @@ export function loadFieldNames(): FieldNamesConfig {
 
 export function saveFieldNames(config: FieldNamesConfig): void {
   const sanitized = sanitizeFieldNamesConfig(config);
-  localStorage.setItem(FIELD_NAMES_KEY, JSON.stringify(sanitized));
+  vestaConfig.setItem(FIELD_NAMES_KEY, JSON.stringify(sanitized));
   dispatchWindowEvent(FIELD_NAMES_UPDATED_EVENT);
 }
 
 export function resetFieldNames(): FieldNamesConfig {
-  localStorage.removeItem(FIELD_NAMES_KEY);
+  vestaConfig.removeItem(FIELD_NAMES_KEY);
   dispatchWindowEvent(FIELD_NAMES_UPDATED_EVENT);
   return sanitizeFieldNamesConfig({ ...defaultFieldNames });
 }
@@ -216,7 +218,7 @@ function sanitizeCustomNoteType(raw: any): NoteTypeDef | null {
 /** Custom note types saved by the user, loaded directly from the presets store. */
 export function loadCustomNoteTypes(): NoteTypeDef[] {
   try {
-    const raw = localStorage.getItem("vesta-anki-field-presets");
+    const raw = vestaConfig.getItem("vesta-anki-field-presets");
     if (raw) {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed)) {
@@ -294,7 +296,7 @@ export const ACTIVE_NOTE_TYPE_CHANGED_EVENT = "vesta:active-note-type-changed";
 
 export function loadActiveNoteTypeId(): string {
   try {
-    const saved = localStorage.getItem(ACTIVE_NOTE_TYPE_ID_KEY);
+    const saved = vestaConfig.getItem(ACTIVE_NOTE_TYPE_ID_KEY);
     if (saved) return saved;
   } catch { /* ignore */ }
   return "default";
@@ -302,7 +304,7 @@ export function loadActiveNoteTypeId(): string {
 
 export function saveActiveNoteTypeId(id: string): void {
   try {
-    localStorage.setItem(ACTIVE_NOTE_TYPE_ID_KEY, id);
+    vestaConfig.setItem(ACTIVE_NOTE_TYPE_ID_KEY, id);
     dispatchWindowEvent(ACTIVE_NOTE_TYPE_CHANGED_EVENT);
   } catch { /* ignore */ }
 }
@@ -386,7 +388,7 @@ export const defaultCardTemplates: CardTemplateConfig = {
 
 export function loadCardTemplates(): CardTemplateConfig {
   try {
-    const raw = localStorage.getItem(CARD_TEMPLATE_KEY);
+    const raw = vestaConfig.getItem(CARD_TEMPLATE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
       return sanitizeCardTemplateConfig({
@@ -402,12 +404,12 @@ export function loadCardTemplates(): CardTemplateConfig {
 
 export function saveCardTemplates(config: CardTemplateConfig): void {
   const sanitized = sanitizeCardTemplateConfig(config);
-  localStorage.setItem(CARD_TEMPLATE_KEY, JSON.stringify(sanitized));
+  vestaConfig.setItem(CARD_TEMPLATE_KEY, JSON.stringify(sanitized));
   dispatchWindowEvent(CARD_TEMPLATES_UPDATED_EVENT);
 }
 
 export function resetCardTemplates(): CardTemplateConfig {
-  localStorage.removeItem(CARD_TEMPLATE_KEY);
+  vestaConfig.removeItem(CARD_TEMPLATE_KEY);
   dispatchWindowEvent(CARD_TEMPLATES_UPDATED_EVENT);
   return sanitizeCardTemplateConfig({ ...defaultCardTemplates });
 }

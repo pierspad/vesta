@@ -1,4 +1,5 @@
 pub mod auto_sync;
+pub mod config;
 pub mod experimental;
 pub mod flashcards;
 pub mod info;

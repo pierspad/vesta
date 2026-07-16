@@ -69,6 +69,7 @@ async fn media_handler(
 }
 
 use commands::auto_sync::*;
+use commands::config::*;
 use commands::experimental::*;
 use commands::flashcards::*;
 use commands::info::*;
@@ -312,6 +313,7 @@ fn main() {
         .manage(Mutex::new(TranscribeState::default()) as AppTranscribeState)
         .manage(Mutex::new(RefineState::default()) as AppRefineState)
         .manage(Mutex::new(CondenseState::default()) as AppCondenseState)
+        .manage(commands::config::ConfigState::default())
         .manage(MediaServerInfo {
             port,
             token: media_token,
@@ -475,6 +477,11 @@ fn main() {
             ankiconnect_ping,
             ankiconnect_deck_names,
             ankiconnect_import_package,
+
+            config_load_all,
+            config_set,
+            config_remove,
+            config_clear,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

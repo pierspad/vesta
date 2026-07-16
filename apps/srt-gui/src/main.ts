@@ -1,6 +1,6 @@
 import { mount } from "svelte";
 import "./app.css";
-import App from "./App.svelte";
+import { hydrate as hydrateVestaConfig } from "./lib/vestaConfig";
 
 // Prevent WebKit from handling dropped files (triggers GStreamer errors).
 // Only intercept OS file drops (dataTransfer contains "Files").
@@ -37,6 +37,19 @@ window.onunhandledrejection = (e) => {
 };
 
 try {
+  // Idrata la cache di vesta_config.json PRIMA di importare App.svelte.
+  // Molti store (aiStore, ankiStore, uiModeStore, i18n, ...) sono singleton
+  // costruiti a livello di modulo -- il loro `$state(vestaConfig.getItem(...))`
+  // gira nel momento in cui il modulo viene *importato*, non quando il
+  // componente viene montato. Con un `import App from "./App.svelte"` statico
+  // in cima al file, l'intero grafo di moduli di App verrebbe valutato prima
+  // di questo `await` (gli import statici vengono issati ed eseguiti prima
+  // del corpo del modulo corrente), leggendo la cache ancora vuota. L'import
+  // dinamico qui sotto garantisce che App e tutti i suoi store vengano
+  // valutati solo dopo che la cache è stata idratata.
+  await hydrateVestaConfig();
+  const { default: App } = await import("./App.svelte");
+
   const app = mount(App, {
     target: document.getElementById("app")!,
   });

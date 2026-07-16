@@ -1,3 +1,5 @@
+import * as vestaConfig from "./vestaConfig";
+
 // ─── Cloud transcription providers (Whisper tab) ──────────────────────────────
 //
 // Motori di trascrizione cloud, in aggiunta a Whisper locale. Tutti vengono
@@ -102,7 +104,7 @@ const TRANSCRIBE_CLOUD_KEY = "vesta-transcribe-cloud";
 export function loadTranscribeCloud(): TranscribeCloudSettings {
   const fallback: TranscribeCloudSettings = { engine: "local", model: "", customUrl: "", keys: {} };
   try {
-    const raw = localStorage.getItem(TRANSCRIBE_CLOUD_KEY);
+    const raw = vestaConfig.getItem(TRANSCRIBE_CLOUD_KEY);
     if (raw) {
       const p = JSON.parse(raw);
       return {
@@ -119,5 +121,5 @@ export function loadTranscribeCloud(): TranscribeCloudSettings {
 }
 
 export function saveTranscribeCloud(s: TranscribeCloudSettings): void {
-  localStorage.setItem(TRANSCRIBE_CLOUD_KEY, JSON.stringify(s));
+  vestaConfig.setItem(TRANSCRIBE_CLOUD_KEY, JSON.stringify(s));
 }

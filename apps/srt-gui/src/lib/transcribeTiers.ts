@@ -1,4 +1,5 @@
 import { newTierId, newTierEntryId } from "./translationTiers";
+import * as vestaConfig from "./vestaConfig";
 
 // ─── Transcribe Tiers ──────────────────────────────────────────────────────────
 // Stesso schema di failover di translationTiers.ts, ma per la trascrizione
@@ -24,7 +25,7 @@ export const TRANSCRIBE_TIERS_UPDATED_EVENT = "vesta:transcribe-tiers-updated";
 
 export function loadTranscribeTiers(): TranscribeTier[] {
   try {
-    const raw = localStorage.getItem(TRANSCRIBE_TIERS_KEY);
+    const raw = vestaConfig.getItem(TRANSCRIBE_TIERS_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed)) {
@@ -65,7 +66,7 @@ export function loadTranscribeTiers(): TranscribeTier[] {
 }
 
 export function saveTranscribeTiers(tiers: TranscribeTier[]): void {
-  localStorage.setItem(TRANSCRIBE_TIERS_KEY, JSON.stringify(tiers));
+  vestaConfig.setItem(TRANSCRIBE_TIERS_KEY, JSON.stringify(tiers));
   if (typeof window !== "undefined") {
     window.dispatchEvent(new CustomEvent(TRANSCRIBE_TIERS_UPDATED_EVENT));
   }

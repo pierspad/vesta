@@ -1,11 +1,12 @@
 import { ankiStore } from "./ankiStore.svelte";
+import * as vestaConfig from "./vestaConfig";
 
 export const EXPORT_FORMAT_KEY = "vesta-export-format";
 export type ExportFormat = "apkg" | "tsv" | "anki";
 
 function loadInitial(): ExportFormat {
   try {
-    const saved = localStorage.getItem(EXPORT_FORMAT_KEY);
+    const saved = vestaConfig.getItem(EXPORT_FORMAT_KEY);
     if (saved === "tsv" || saved === "anki" || saved === "apkg") return saved;
     return "apkg";
   } catch {

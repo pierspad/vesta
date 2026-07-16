@@ -1,3 +1,5 @@
+import * as vestaConfig from "./vestaConfig";
+
 // API key management: the provider id union (shared between LLM providers
 // and transcription providers — deepgram/assemblyai/local_whisper/...) and
 // the ApiKeyConfig shape used to store/validate saved keys. Kept separate
@@ -33,7 +35,7 @@ export interface ApiKeyConfig {
 
 // Helper per caricare e validare le chiavi API
 export function loadAndValidateApiKeys(): ApiKeyConfig[] {
-  const saved = localStorage.getItem("srt-tools-api-keys");
+  const saved = vestaConfig.getItem("srt-tools-api-keys");
   if (!saved) return [];
 
   try {

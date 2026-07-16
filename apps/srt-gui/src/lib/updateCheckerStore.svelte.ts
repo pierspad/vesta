@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { fetch as tauriFetch } from "./tauriHttp";
 import { snackbar } from "./snackbarStore.svelte";
 import { currentLanguage } from "./i18n";
+import * as vestaConfig from "./vestaConfig";
 
 export type UpdateStatus = "idle" | "checking" | "available" | "current" | "error" | "disabled" | "offline";
 
@@ -157,7 +158,7 @@ class UpdateCheckerStore {
   }
 
   onAutomaticUpdateChecksChange() {
-    localStorage.setItem("vesta-automatic-update-checks", this.automaticUpdateChecks.toString());
+    vestaConfig.setItem("vesta-automatic-update-checks", this.automaticUpdateChecks.toString());
     if (this.automaticUpdateChecks) {
       void this.checkForUpdates("manual");
     } else {
@@ -167,7 +168,7 @@ class UpdateCheckerStore {
 
   /** Called once from SettingsTab.svelte's app-lifetime onMount. */
   init() {
-    const savedAutoCheck = localStorage.getItem("vesta-automatic-update-checks");
+    const savedAutoCheck = vestaConfig.getItem("vesta-automatic-update-checks");
     this.automaticUpdateChecks = savedAutoCheck !== "false";
 
     invoke<{ version: string }>("get_app_info")

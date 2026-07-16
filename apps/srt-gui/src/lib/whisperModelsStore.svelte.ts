@@ -8,6 +8,7 @@ import {
   DEFAULT_VAD_MODEL_ID,
   type VadSelection,
 } from "./vadSelection";
+import * as vestaConfig from "./vestaConfig";
 
 export interface WhisperModel {
   id: string;
@@ -83,7 +84,7 @@ class WhisperModelsStore {
 
   setDefaultWhisperModel(modelId: string, notify = true) {
     this.defaultWhisperModel = modelId;
-    localStorage.setItem("srt-default-whisper-model", modelId);
+    vestaConfig.setItem("srt-default-whisper-model", modelId);
     if (notify) {
       showSnackbar(t("settings.whisper.defaultSet", { model: modelId }));
     }
@@ -297,17 +298,17 @@ class WhisperModelsStore {
     const baseModel = this.whisperModels.find((m) => m.id === "base");
     if (baseModel && baseModel.downloaded) {
       this.defaultWhisperModel = "base";
-      localStorage.setItem("srt-default-whisper-model", "base");
+      vestaConfig.setItem("srt-default-whisper-model", "base");
       snackbar.show(t("settings.whisper.resetSuccess"), "info", 2000);
     } else {
       const alternate = this.whisperModels.find((m) => m.downloaded);
       if (alternate) {
         this.defaultWhisperModel = alternate.id;
-        localStorage.setItem("srt-default-whisper-model", alternate.id);
+        vestaConfig.setItem("srt-default-whisper-model", alternate.id);
         snackbar.show(t("settings.whisper.resetBaseNotDownloaded", { name: alternate.name }), "warning", 3000);
       } else {
         this.defaultWhisperModel = "base";
-        localStorage.setItem("srt-default-whisper-model", "base");
+        vestaConfig.setItem("srt-default-whisper-model", "base");
         snackbar.show(t("settings.whisper.resetBaseDownloadWarning"), "warning", 3000);
       }
     }

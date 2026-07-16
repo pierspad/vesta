@@ -1,3 +1,5 @@
+import * as vestaConfig from "./vestaConfig";
+
 // ─── Silero VAD variant selection ───────────────────────────────────────────
 // Which VAD model to run when the user has VAD enabled: one of the built-in
 // variants (see `srt_transcribe::model::VAD_MODELS`, mirrored here only by
@@ -19,7 +21,7 @@ const VAD_SELECTION_KEY = "vesta-transcribe-vad-selection";
 export function loadVadSelection(): VadSelection {
   const fallback: VadSelection = { modelId: DEFAULT_VAD_MODEL_ID, customPath: null };
   try {
-    const raw = localStorage.getItem(VAD_SELECTION_KEY);
+    const raw = vestaConfig.getItem(VAD_SELECTION_KEY);
     if (raw) {
       const p = JSON.parse(raw);
       return {
@@ -34,5 +36,5 @@ export function loadVadSelection(): VadSelection {
 }
 
 export function saveVadSelection(s: VadSelection): void {
-  localStorage.setItem(VAD_SELECTION_KEY, JSON.stringify(s));
+  vestaConfig.setItem(VAD_SELECTION_KEY, JSON.stringify(s));
 }

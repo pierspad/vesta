@@ -72,6 +72,7 @@
     computeEffectiveColumnCount,
     computeEffectivePanelLayout,
   } from "./flashcardLayout";
+  import * as vestaConfig from "./vestaConfig";
 
   interface Props {
     active?: boolean;
@@ -146,7 +147,7 @@
 
   function loadSeriesMode(): boolean {
     try {
-      return localStorage.getItem(SERIES_MODE_KEY) === "true";
+      return vestaConfig.getItem(SERIES_MODE_KEY) === "true";
     } catch {
       return false;
     }
@@ -154,7 +155,7 @@
 
   function toggleSeriesMode() {
     seriesMode = !seriesMode;
-    localStorage.setItem(SERIES_MODE_KEY, String(seriesMode));
+    vestaConfig.setItem(SERIES_MODE_KEY, String(seriesMode));
   }
 
   // Episode data for series mode: `EpisodeEntry` lives in seriesFileMatching.ts
@@ -184,7 +185,7 @@
 
   function loadDefaultLanguage(key: string, fallback = ""): string {
     try {
-      return localStorage.getItem(key) || fallback;
+      return vestaConfig.getItem(key) || fallback;
     } catch {
       return fallback;
     }
@@ -192,7 +193,7 @@
 
   function loadStoredDimension(key: string, fallback: number): number {
     try {
-      const value = Number.parseInt(localStorage.getItem(key) || "", 10);
+      const value = Number.parseInt(vestaConfig.getItem(key) || "", 10);
       return Number.isFinite(value) && value > 0 ? value : fallback;
     } catch {
       return fallback;
@@ -201,7 +202,7 @@
 
   function persistDimension(key: string, value: number) {
     if (!Number.isFinite(value) || value <= 0) return;
-    localStorage.setItem(key, String(Math.round(value)));
+    vestaConfig.setItem(key, String(Math.round(value)));
   }
 
   function getStudiedLanguagePreference(): string {
@@ -682,7 +683,7 @@
   let videoHwAccel = $state(
     (() => {
       try {
-        return localStorage.getItem("vesta-video-hw-accel") === "off" ? "off" : "auto";
+        return vestaConfig.getItem("vesta-video-hw-accel") === "off" ? "off" : "auto";
       } catch {
         return "auto";
       }
@@ -690,7 +691,7 @@
   );
   $effect(() => {
     try {
-      localStorage.setItem("vesta-video-hw-accel", videoHwAccel);
+      vestaConfig.setItem("vesta-video-hw-accel", videoHwAccel);
     } catch {
       /* storage unavailable */
     }
@@ -803,13 +804,13 @@
   // convention as every other store in this codebase (no $effect inside a
   // store class).
   $effect(() => {
-    try { localStorage.setItem(EXPORT_FORMAT_KEY, generationStore.exportFormat); } catch {}
+    try { vestaConfig.setItem(EXPORT_FORMAT_KEY, generationStore.exportFormat); } catch {}
   });
 
   $effect(() => {
     if (active) {
       try {
-        const saved = localStorage.getItem(EXPORT_FORMAT_KEY);
+        const saved = vestaConfig.getItem(EXPORT_FORMAT_KEY);
         if (saved === "tsv" || saved === "anki" || saved === "apkg") {
           if (saved === "anki" && ankiStore.status !== "online") {
             generationStore.exportFormat = "apkg";
@@ -830,7 +831,7 @@
   $effect(() => {
     if (ankiStore.status === "online") {
       try {
-        const saved = localStorage.getItem(EXPORT_FORMAT_KEY);
+        const saved = vestaConfig.getItem(EXPORT_FORMAT_KEY);
         if (!saved) {
           generationStore.exportFormat = "anki";
         }
@@ -841,7 +842,7 @@
   });
 
   $effect(() => {
-    try { localStorage.setItem(SERIES_OUTPUT_MODE_KEY, generationStore.seriesOutputMode); } catch {}
+    try { vestaConfig.setItem(SERIES_OUTPUT_MODE_KEY, generationStore.seriesOutputMode); } catch {}
   });
 
   let handleCpuCoresChanged = (e: Event) => {
@@ -978,7 +979,7 @@
     if (nt?.language) {
       noteTypeLanguage = nt.language;
       try {
-        localStorage.setItem(NOTE_TYPE_LANGUAGE_KEY, nt.language);
+        vestaConfig.setItem(NOTE_TYPE_LANGUAGE_KEY, nt.language);
       } catch {}
     }
   }
@@ -1353,7 +1354,7 @@
       window.removeEventListener(NOTE_TYPES_UPDATED_EVENT, handleNoteTypesUpdated);
     const handleLanguageDefaultsUpdated = () => {
       try {
-        const defaultNoteTypeLanguage = localStorage.getItem(DEFAULT_FLASHCARDS_LANGUAGE_KEY);
+        const defaultNoteTypeLanguage = vestaConfig.getItem(DEFAULT_FLASHCARDS_LANGUAGE_KEY);
         if (
           defaultNoteTypeLanguage &&
           languages.some((l) => l.code === defaultNoteTypeLanguage)
@@ -1408,7 +1409,7 @@
       );
 
     try {
-      const savedNoteTypeLanguage = localStorage.getItem(
+      const savedNoteTypeLanguage = vestaConfig.getItem(
         NOTE_TYPE_LANGUAGE_KEY,
       );
       if (
@@ -1417,7 +1418,7 @@
       ) {
         noteTypeLanguage = savedNoteTypeLanguage;
       } else {
-        const defaultNoteTypeLanguage = localStorage.getItem(DEFAULT_FLASHCARDS_LANGUAGE_KEY);
+        const defaultNoteTypeLanguage = vestaConfig.getItem(DEFAULT_FLASHCARDS_LANGUAGE_KEY);
         if (
           defaultNoteTypeLanguage &&
           languages.some((l) => l.code === defaultNoteTypeLanguage)
@@ -1428,7 +1429,7 @@
     } catch {}
 
     try {
-      const savedDir = localStorage.getItem(OUTPUT_DIR_KEY);
+      const savedDir = vestaConfig.getItem(OUTPUT_DIR_KEY);
       if (savedDir) {
         const exists = await invoke<boolean>("flashcard_check_dir_exists", {
           path: savedDir,
@@ -1436,7 +1437,7 @@
         if (exists) {
           outputDir = savedDir;
         } else {
-          localStorage.removeItem(OUTPUT_DIR_KEY);
+          vestaConfig.removeItem(OUTPUT_DIR_KEY);
         }
       }
     } catch {}
@@ -1450,7 +1451,7 @@
     try {
       generationStore.systemCpuCount = await invoke<number>("flashcard_get_cpu_count");
       const startupMaxCores = Math.max(2, generationStore.systemCpuCount - 1);
-      const savedCores = localStorage.getItem("vesta_cpu_cores");
+      const savedCores = vestaConfig.getItem("vesta_cpu_cores");
       if (savedCores) {
         generationStore.cpuCores = parseInt(savedCores);
       } else {
@@ -1458,7 +1459,7 @@
       }
     } catch {
       generationStore.systemCpuCount = 4;
-      const savedCores = localStorage.getItem("vesta_cpu_cores");
+      const savedCores = vestaConfig.getItem("vesta_cpu_cores");
       if (savedCores) {
         generationStore.cpuCores = parseInt(savedCores);
       } else {
@@ -1521,7 +1522,7 @@
   async function maybeAutoImportToAnki(apkgPath: string) {
     const url = (() => {
       try {
-        return localStorage.getItem("vesta-ankiconnect-url") || "http://127.0.0.1:8765";
+        return vestaConfig.getItem("vesta-ankiconnect-url") || "http://127.0.0.1:8765";
       } catch {
         return "http://127.0.0.1:8765";
       }
@@ -1638,7 +1639,7 @@
       const inferredLanguage = inferLanguageFromPath(targetSubsPath);
       if (inferredLanguage) {
         noteTypeLanguage = inferredLanguage;
-        localStorage.setItem(NOTE_TYPE_LANGUAGE_KEY, inferredLanguage);
+        vestaConfig.setItem(NOTE_TYPE_LANGUAGE_KEY, inferredLanguage);
       }
     }
 
@@ -1878,7 +1879,7 @@
       const selected = await guardedOpen({ directory: true });
       if (selected) {
         outputDir = selected as string;
-        localStorage.setItem(OUTPUT_DIR_KEY, outputDir);
+        vestaConfig.setItem(OUTPUT_DIR_KEY, outputDir);
         generationStore.addLog(`${t("flashcards.outputDirSet")}`, "output", outputDir);
       }
     } catch (e) {

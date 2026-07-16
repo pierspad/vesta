@@ -23,6 +23,7 @@ import pt from './locales/pt.json';
 import ru from './locales/ru.json';
 import tr from './locales/tr.json';
 import zh from './locales/zh.json';
+import * as vestaConfig from "../vestaConfig";
 
 
 
@@ -95,11 +96,9 @@ function getSystemLanguage(): string {
 }
 
 function getInitialLanguage(): string {
-  if (typeof localStorage !== 'undefined') {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved && translations[saved]) {
-      return saved;
-    }
+  const saved = vestaConfig.getItem(STORAGE_KEY);
+  if (saved && translations[saved]) {
+    return saved;
   }
   // Usa la lingua del sistema operativo come default
   return getSystemLanguage();
@@ -108,9 +107,7 @@ function getInitialLanguage(): string {
 export const currentLanguage = writable<string>(getInitialLanguage());
 
 currentLanguage.subscribe((lang) => {
-  if (typeof localStorage !== 'undefined') {
-    localStorage.setItem(STORAGE_KEY, lang);
-  }
+  vestaConfig.setItem(STORAGE_KEY, lang);
 });
 
 function translate(

@@ -1,3 +1,5 @@
+import * as vestaConfig from "./vestaConfig";
+
 /**
  * Definizione modelli AI disponibili per la traduzione
  *
@@ -888,7 +890,7 @@ export function getModelsForProvider(providerId: string): ModelInfo[] {
   const defaultModels = modelsByProvider[providerId] || [];
 
   // Carica modelli personalizzati
-  const customModelsJson = localStorage.getItem("srt-tools-custom-models");
+  const customModelsJson = vestaConfig.getItem("srt-tools-custom-models");
   if (customModelsJson) {
     try {
       const customModels: CustomModel[] = JSON.parse(customModelsJson);
