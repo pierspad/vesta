@@ -96,6 +96,11 @@ pub struct FlashcardConfig {
     pub generate_video_clips: bool,
     pub video_codec: String, // "h264" or "mpeg4"
     pub h264_preset: String, // ultrafast..placebo
+    /// Hardware acceleration for H.264 encoding: `"auto"` (default) probes the
+    /// GPU encoders (NVENC/VA-API/QSV/AMF/VideoToolbox) and uses the best one,
+    /// `"off"` forces libx264 (expert-mode override).
+    #[serde(default = "default_video_hw_accel")]
+    pub video_hw_accel: String,
     pub video_bitrate: u32,
     pub video_audio_bitrate: u32,
     pub video_pad_start_ms: i64,
@@ -124,6 +129,10 @@ pub struct FlashcardConfig {
     pub card_front_html: Option<String>,
     pub card_back_html: Option<String>,
     pub card_css: Option<String>,
+}
+
+fn default_video_hw_accel() -> String {
+    "auto".to_string()
 }
 
 impl Default for FlashcardConfig {
@@ -159,6 +168,7 @@ impl Default for FlashcardConfig {
             generate_video_clips: false,
             video_codec: "h264".to_string(),
             h264_preset: "ultrafast".to_string(),
+            video_hw_accel: default_video_hw_accel(),
             video_bitrate: 1000,
             video_audio_bitrate: 128,
             video_pad_start_ms: 0,

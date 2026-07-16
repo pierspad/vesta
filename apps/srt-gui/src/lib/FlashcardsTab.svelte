@@ -33,6 +33,9 @@
   import PathPickerField from "./PathPickerField.svelte";
   import { smartMatchingStore } from "./smartMatchingStore.svelte";
   import { uiMode } from "./uiModeStore.svelte";
+  import { ankiStore } from "./ankiStore.svelte";
+  import FooterActions from "./components/FooterActions.svelte";
+  import EmptyState from "./components/EmptyState.svelte";
 
   const SUBTITLE_EXTENSIONS = ["srt", "ass", "ssa", "vtt"];
 
@@ -1138,6 +1141,23 @@
   let generateVideoClips = $state(false);
   let videoCodec = $state("h264");
   let h264Preset = $state("medium");
+  // "auto" = GPU encoder when available (default), "off" = force libx264 (expert mode).
+  let videoHwAccel = $state(
+    (() => {
+      try {
+        return localStorage.getItem("vesta-video-hw-accel") === "off" ? "off" : "auto";
+      } catch {
+        return "auto";
+      }
+    })(),
+  );
+  $effect(() => {
+    try {
+      localStorage.setItem("vesta-video-hw-accel", videoHwAccel);
+    } catch {
+      /* storage unavailable */
+    }
+  });
   let videoBitrate = $state(800);
   let videoAudioBitrate = $state(128);
   let videoPadStart = $state(250);
@@ -1238,11 +1258,14 @@
     persistDimension(FLASHCARD_MEDIA_HEIGHT_KEY, snapshotHeight);
   });
 
-  let exportFormat = $state<"tsv" | "apkg">(
+  let exportFormat = $state<"tsv" | "apkg" | "anki">(
     (() => {
       try {
         const saved = localStorage.getItem(EXPORT_FORMAT_KEY);
-        return saved === "tsv" ? "tsv" : "apkg";
+        if (saved === "tsv" || saved === "anki" || saved === "apkg") {
+          return saved as any;
+        }
+        return "apkg";
       } catch { return "apkg"; }
     })()
   );
@@ -1255,8 +1278,33 @@
     if (active) {
       try {
         const saved = localStorage.getItem(EXPORT_FORMAT_KEY);
-        exportFormat = saved === "tsv" ? "tsv" : "apkg";
+        if (saved === "tsv" || saved === "anki" || saved === "apkg") {
+          if (saved === "anki" && ankiStore.status !== "online") {
+            exportFormat = "apkg";
+          } else {
+            exportFormat = saved as any;
+          }
+        } else {
+          if (ankiStore.status === "online") {
+            exportFormat = "anki";
+          } else {
+            exportFormat = "apkg";
+          }
+        }
       } catch {}
+    }
+  });
+
+  $effect(() => {
+    if (ankiStore.status === "online") {
+      try {
+        const saved = localStorage.getItem(EXPORT_FORMAT_KEY);
+        if (!saved) {
+          exportFormat = "anki";
+        }
+      } catch {}
+    } else if (exportFormat === "anki") {
+      exportFormat = "apkg";
     }
   });
 
@@ -1301,8 +1349,22 @@
   // export, CPU cores = n-1, automatic deck name. The corresponding UI is
   // hidden while the user only decides which media to include.
   let easyMode = $derived(uiMode.easyMode);
-  let effectiveExportFormat = $derived(easyMode ? ("apkg" as const) : exportFormat);
+  let effectiveExportFormat = $derived(exportFormat === "anki" ? "apkg" : exportFormat);
   let effectiveCpuCores = $derived(cpuCores);
+
+  function cycleExportFormat() {
+    if (exportFormat === "apkg") {
+      exportFormat = "tsv";
+    } else if (exportFormat === "tsv") {
+      if (ankiStore.status === "online") {
+        exportFormat = "anki";
+      } else {
+        exportFormat = "apkg";
+      }
+    } else {
+      exportFormat = "apkg";
+    }
+  }
 
   function setCpuPreset(presetId: string) {
     const preset = cpuPresets.find((p) => p.id === presetId);
@@ -2296,6 +2358,36 @@
     if (requirementPulseTimer) clearTimeout(requirementPulseTimer);
   });
 
+  // ─── AnkiConnect auto-import ─────────────────────────────────────────────
+  // If Anki (with the AnkiConnect add-on) is running, push the freshly
+  // generated .apkg straight into the collection instead of leaving the
+  // user to import it by hand from the Experimental tab. Reuses the same
+  // AnkiConnect URL configured there; silently no-ops when Anki isn't
+  // reachable — the .apkg stays on disk either way.
+  async function maybeAutoImportToAnki(apkgPath: string) {
+    const url = (() => {
+      try {
+        return localStorage.getItem("vesta-ankiconnect-url") || "http://127.0.0.1:8765";
+      } catch {
+        return "http://127.0.0.1:8765";
+      }
+    })();
+
+    try {
+      await invoke<number>("ankiconnect_ping", { url });
+    } catch {
+      return; // Anki not running / AnkiConnect not installed.
+    }
+
+    try {
+      await invoke("ankiconnect_import_package", { path: apkgPath, url });
+      addLog(t("flashcards.ankiAutoImportSuccess"), "success");
+      snackbar.show(t("flashcards.ankiAutoImportSuccess"), "success");
+    } catch (e) {
+      addLog(`${t("flashcards.ankiAutoImportFailed")}: ${e}`, "warning");
+    }
+  }
+
   // Track the i18n key of the last progress log so sequential updates
   // (e.g. "Extracting media… 1/100", "2/100", …) replace the previous
   // entry instead of appending thousands of lines.
@@ -2405,6 +2497,7 @@
       generate_video_clips: generateVideoClips,
       video_codec: videoCodec,
       h264_preset: h264Preset,
+      video_hw_accel: videoHwAccel,
       video_bitrate: videoBitrate,
       video_audio_bitrate: videoAudioBitrate,
       video_pad_start_ms: videoPadStart,
@@ -2929,6 +3022,7 @@
           generate_video_clips: epHasVideo ? epMediaSettings.generateVideoClips : false,
           video_codec: epMediaSettings.videoCodec,
           h264_preset: epMediaSettings.h264Preset,
+          video_hw_accel: videoHwAccel,
           video_bitrate: epMediaSettings.videoBitrate,
           video_audio_bitrate: epMediaSettings.videoAudioBitrate,
           video_pad_start_ms: epMediaSettings.videoPadStart,
@@ -3011,6 +3105,10 @@
           addLog(`${t("flashcards.mergeFailed")}: ${e}`, "error");
           hadError = true;
         }
+      }
+
+      if (finalApkgPath && exportFormat === "anki" && !hadError) {
+        await maybeAutoImportToAnki(finalApkgPath);
       }
 
       result = {
@@ -3122,6 +3220,9 @@
         }
         if (res.apkg_path) {
           addLog(`APKG: ${res.apkg_path}`, "success");
+          if (exportFormat === "anki") {
+            await maybeAutoImportToAnki(res.apkg_path);
+          }
         }
       } else {
         addLog(res.message, "warning");
@@ -3638,17 +3739,12 @@
                   </div>
                 {:else}
                   <!-- Placeholder state when no line is selected -->
-                  <div class="flex-1 flex flex-col items-center justify-center p-6 text-center border-2 border-dashed border-gray-800/40 rounded-xl bg-gray-900/10 min-h-[220px]">
-                    <div class="w-12 h-12 rounded-full bg-gray-900 border border-gray-800 flex items-center justify-center text-gray-500 mb-3">
-                      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                    </div>
-                    <p class="text-xs font-semibold text-gray-400">{t("flashcards.previewNoActive")}</p>
-                    <p class="text-[10px] text-gray-500 mt-1 max-w-[200px] leading-normal">
-                      {t("flashcards.previewNoActiveHint")}
-                    </p>
+                  <div class="flex-1 flex flex-col border-2 border-dashed border-gray-800/40 rounded-xl bg-gray-900/10 min-h-[220px]">
+                    <EmptyState
+                      title={t("flashcards.previewNoActive")}
+                      description={t("flashcards.previewNoActiveHint")}
+                      iconPath="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664zM21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
                   </div>
                 {/if}
               </div>
@@ -4504,6 +4600,24 @@
               />
             </div>
           </div>
+          {#if uiMode.expertMode && videoCodec === "h264"}
+            <div>
+              <span class="block text-xs text-gray-500 mb-1"
+                >{t("flashcards.videoEncoder")}</span
+              >
+              <SearchableSelect
+                className="compact-select"
+                noResultsText={t("common.noResults")}
+                options={[
+                  { value: "auto", label: t("flashcards.videoEncoderAuto") },
+                  { value: "off", label: t("flashcards.videoEncoderX264") },
+                ]}
+                value={videoHwAccel}
+                onchange={(v) => (videoHwAccel = v)}
+                placeholder="Encoder"
+              />
+            </div>
+          {/if}
           <div class="grid grid-cols-2 gap-2">
             <div>
               <span class="block text-xs text-gray-500 mb-1"
@@ -5610,18 +5724,19 @@
   </div>
 
   <!-- Fixed Bottom Band with Action Buttons -->
-  <div class="h-[92px] border-t border-white/10 bg-gray-900 flex items-center justify-between px-6 shrink-0 relative">
-    <!-- Animated background progress overlay (only when processing) -->
-    {#if isProcessing}
-      <div 
-        class="absolute inset-y-0 left-0 bg-gradient-to-r from-emerald-500/15 to-teal-500/20 transition-all duration-300 ease-out z-0 pointer-events-none"
-        style="width: {progress}%"
-      ></div>
-      <div 
-        class="absolute inset-0 bg-shimmer-stripes opacity-15 z-0 pointer-events-none"
-      ></div>
-    {/if}
-
+  <FooterActions>
+    {#snippet background()}
+      {#if isProcessing}
+        <div
+          class="absolute inset-y-0 left-0 bg-gradient-to-r from-emerald-500/15 to-teal-500/20 transition-all duration-300 ease-out z-0 pointer-events-none"
+          style="width: {progress}%"
+        ></div>
+        <div
+          class="absolute inset-0 bg-shimmer-stripes opacity-15 z-0 pointer-events-none"
+        ></div>
+      {/if}
+    {/snippet}
+    {#snippet left()}
     <!-- Left side: Note type template AND progress text/result messages -->
     <div class="flex items-center gap-4 select-none z-10 min-w-0 flex-1">
       {#if !result && !isProcessing}
@@ -5756,16 +5871,16 @@
         </div>
       {/if}
     </div>
-
+    {/snippet}
+    {#snippet right()}
     <!-- Right side: Export format toggle button, series output mode selector, and action buttons -->
     <div class="flex items-center gap-4 z-10 select-none shrink-0">
       <div class="flex items-center gap-2">
-        {#if !easyMode}
           <!-- Format toggle button -->
           <div class="relative group/fmt">
             <button
               type="button"
-              onclick={() => (exportFormat = exportFormat === 'apkg' ? 'tsv' : 'apkg')}
+              onclick={cycleExportFormat}
               oncontextmenu={(e) => openBottomContextMenu(e, "overview")}
               onmousedown={(e) => {
                 if (e.button === 1) {
@@ -5779,24 +5894,30 @@
                   ? 'border-gray-700 bg-gray-800/40 text-gray-500 opacity-60 pointer-events-none'
                   : exportFormat === 'apkg'
                     ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20 hover:border-emerald-500/50 hover:scale-[1.02] active:scale-[0.98]'
-                    : 'border-sky-500/40 bg-sky-500/10 text-sky-300 hover:bg-sky-500/20 hover:border-sky-500/50 hover:scale-[1.02] active:scale-[0.98]'}"
+                    : exportFormat === 'tsv'
+                      ? 'border-sky-500/40 bg-sky-500/10 text-sky-300 hover:bg-sky-500/20 hover:border-sky-500/50 hover:scale-[1.02] active:scale-[0.98]'
+                      : 'border-violet-500/40 bg-violet-500/10 text-violet-300 hover:bg-violet-500/20 hover:border-violet-500/50 hover:scale-[1.02] active:scale-[0.98]'}"
             >
               <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                   d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
                 />
               </svg>
-              {exportFormat === 'apkg' ? 'APKG' : 'TSV'}
+              {exportFormat === 'apkg' ? 'APKG' : exportFormat === 'tsv' ? 'TSV' : 'Anki Connect'}
             </button>
             {#if !isProcessing && !result}
               <div class="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-3 z-50
                 rounded-xl bg-gray-950/95 p-3 text-xs shadow-2xl shadow-black/40 ring-1 ring-white/10
-                opacity-0 group-hover/fmt:opacity-100 transition-all duration-150 whitespace-nowrap text-center border {exportFormat === 'apkg' ? 'border-emerald-500/30 text-emerald-300' : 'border-sky-500/30 text-sky-300'}">
+                opacity-0 group-hover/fmt:opacity-100 transition-all duration-150 whitespace-nowrap text-center border
+                {exportFormat === 'apkg'
+                  ? 'border-emerald-500/30 text-emerald-300'
+                  : exportFormat === 'tsv'
+                    ? 'border-sky-500/30 text-sky-300'
+                    : 'border-violet-500/30 text-violet-300'}">
                 {t("flashcards.clickToToggleFormat")}
               </div>
             {/if}
           </div>
-        {/if}
 
         <!-- Series output mode inline selector (only visible in series mode + apkg) -->
         {#if seriesMode && effectiveExportFormat === "apkg"}
@@ -5979,7 +6100,8 @@
         {/if}
       {/if}
     </div>
-  </div>
+    {/snippet}
+  </FooterActions>
 </div>
 
 <style>

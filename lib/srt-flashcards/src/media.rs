@@ -58,6 +58,130 @@ pub fn video_has_audio(ffprobe_cmd: &str, video_path: &str) -> bool {
         .unwrap_or(false)
 }
 
+// ─── H.264 hardware encoder detection ────────────────────────────────────────
+
+/// H.264 encoder to use for video clips.
+///
+/// `Libx264` is the software fallback and the only entry guaranteed to exist
+/// in any ffmpeg build; the others are GPU-backed and must be probed with
+/// [`detect_h264_encoder`] before use (being compiled in does not mean the
+/// device is actually usable at runtime).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum H264Encoder {
+    #[default]
+    Libx264,
+    /// NVIDIA NVENC (Linux/Windows).
+    Nvenc,
+    /// AMD AMF (Windows).
+    Amf,
+    /// Intel Quick Sync (Linux/Windows).
+    Qsv,
+    /// VA-API (Linux: AMD/Intel, portable DRM path).
+    Vaapi,
+    /// Apple VideoToolbox (macOS).
+    VideoToolbox,
+}
+
+impl H264Encoder {
+    /// ffmpeg encoder name (`-c:v` value).
+    pub fn ffmpeg_name(self) -> &'static str {
+        match self {
+            Self::Libx264 => "libx264",
+            Self::Nvenc => "h264_nvenc",
+            Self::Amf => "h264_amf",
+            Self::Qsv => "h264_qsv",
+            Self::Vaapi => "h264_vaapi",
+            Self::VideoToolbox => "h264_videotoolbox",
+        }
+    }
+
+    /// Human-readable label for logs/UI.
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::Libx264 => "libx264 (CPU)",
+            Self::Nvenc => "NVENC (NVIDIA GPU)",
+            Self::Amf => "AMF (AMD GPU)",
+            Self::Qsv => "Quick Sync (Intel GPU)",
+            Self::Vaapi => "VA-API (GPU)",
+            Self::VideoToolbox => "VideoToolbox (Apple)",
+        }
+    }
+
+    pub fn is_hardware(self) -> bool {
+        self != Self::Libx264
+    }
+}
+
+/// Map a libx264-style preset (`ultrafast`..`placebo`) onto the equivalent
+/// option for a hardware encoder. Returns the extra `-preset`/`-quality` args.
+fn hw_preset_args(encoder: H264Encoder, x264_preset: &str) -> Vec<String> {
+    let speed_rank = match x264_preset {
+        "ultrafast" => 0,
+        "superfast" => 1,
+        "veryfast" => 2,
+        "faster" => 3,
+        "fast" => 4,
+        "medium" => 5,
+        "slow" => 6,
+        "slower" => 7,
+        _ => 8, // veryslow / placebo
+    };
+    match encoder {
+        H264Encoder::Nvenc => {
+            // NVENC: p1 (fastest) .. p7 (slowest/best).
+            let p = ["p1", "p1", "p2", "p3", "p4", "p5", "p6", "p7", "p7"][speed_rank];
+            vec!["-preset".into(), p.into()]
+        }
+        H264Encoder::Qsv => {
+            // QSV accepts the libx264 names from veryfast to veryslow.
+            let p = ["veryfast", "veryfast", "veryfast", "faster", "fast", "medium", "slow", "slower", "veryslow"][speed_rank];
+            vec!["-preset".into(), p.into()]
+        }
+        H264Encoder::Amf => {
+            let q = if speed_rank <= 2 { "speed" } else if speed_rank <= 5 { "balanced" } else { "quality" };
+            vec!["-quality".into(), q.into()]
+        }
+        // VA-API and VideoToolbox have no preset concept.
+        _ => Vec::new(),
+    }
+}
+
+/// Functional probe: try a tiny synthetic encode with `encoder`. This catches
+/// both "encoder not compiled in" and "no usable GPU/driver at runtime".
+async fn test_h264_encoder(ffmpeg_cmd: &str, encoder: H264Encoder) -> bool {
+    let mut cmd = media_command(ffmpeg_cmd);
+    cmd.args(["-nostdin", "-loglevel", "error", "-f", "lavfi", "-i", "color=black:s=192x108:d=0.2"]);
+    if encoder == H264Encoder::Vaapi {
+        cmd.args([
+            "-init_hw_device", "vaapi=va",
+            "-filter_hw_device", "va",
+            "-vf", "format=nv12,hwupload",
+        ]);
+    }
+    cmd.args(["-c:v", encoder.ffmpeg_name(), "-f", "null", "-"]);
+    cmd.output().await.map(|o| o.status.success()).unwrap_or(false)
+}
+
+/// Detect the best available H.264 encoder, in platform-specific order of
+/// preference, falling back to `libx264`. Run this ONCE per generation run
+/// (it spawns a few short-lived ffmpeg processes), then reuse the result for
+/// every clip.
+pub async fn detect_h264_encoder(ffmpeg_cmd: &str) -> H264Encoder {
+    #[cfg(target_os = "macos")]
+    let candidates = [H264Encoder::VideoToolbox];
+    #[cfg(windows)]
+    let candidates = [H264Encoder::Nvenc, H264Encoder::Qsv, H264Encoder::Amf];
+    #[cfg(all(unix, not(target_os = "macos")))]
+    let candidates = [H264Encoder::Nvenc, H264Encoder::Vaapi, H264Encoder::Qsv];
+
+    for encoder in candidates {
+        if test_h264_encoder(ffmpeg_cmd, encoder).await {
+            return encoder;
+        }
+    }
+    H264Encoder::Libx264
+}
+
 /// Format milliseconds as ffmpeg timestamp HH:MM:SS.mmm
 pub(crate) fn ms_to_ffmpeg_ts(ms: i64) -> String {
     let ms = ms.max(0);
@@ -182,7 +306,10 @@ pub(crate) async fn extract_snapshot(
     run_ffmpeg(cmd, "snapshot").await
 }
 
-/// Extract video clip for a single subtitle line
+/// Extract video clip for a single subtitle line.
+///
+/// `encoder` is honoured only when `codec == "h264"`; pass the value returned
+/// by [`detect_h264_encoder`] (or [`H264Encoder::Libx264`] to force software).
 #[allow(clippy::too_many_arguments)]
 pub(crate) async fn extract_video_clip(
     video_path: &str,
@@ -193,6 +320,7 @@ pub(crate) async fn extract_video_clip(
     pad_end_ms: i64,
     codec: &str,
     preset: &str,
+    encoder: H264Encoder,
     video_bitrate: u32,
     audio_bitrate: u32,
     audio_track_index: Option<usize>,
@@ -202,13 +330,23 @@ pub(crate) async fn extract_video_clip(
     ffmpeg_cmd: &str,
 ) -> Result<()> {
     let (start_ts, duration_ts) = clip_window(start_ms, end_ms, pad_start_ms, pad_end_ms);
-    let vf = scale_vf(width, height, crop_bottom);
 
     let mut cmd = media_command(ffmpeg_cmd);
     cmd.args([
         "-nostdin", "-loglevel", "error", "-y", "-ss", &start_ts, "-t", &duration_ts, "-i",
-        video_path, "-vf", &vf,
+        video_path,
     ]);
+
+    // VA-API encodes from GPU surfaces: the scaled frame must be uploaded to
+    // the device at the end of the filter chain.
+    let vf = if codec == "h264" && encoder == H264Encoder::Vaapi {
+        cmd.args(["-init_hw_device", "vaapi=va", "-filter_hw_device", "va"]);
+        format!("{},format=nv12,hwupload", scale_vf(width, height, crop_bottom))
+    } else {
+        scale_vf(width, height, crop_bottom)
+    };
+    cmd.args(["-vf", &vf]);
+
     if let Some(track_index) = audio_track_index {
         let audio_map = format!("0:a:{}", track_index);
         cmd.args(["-map", "0:v:0", "-map", audio_map.as_str()]);
@@ -216,11 +354,15 @@ pub(crate) async fn extract_video_clip(
 
     match codec {
         "h264" => {
+            cmd.args(["-c:v", encoder.ffmpeg_name()]);
+            if encoder == H264Encoder::Libx264 {
+                cmd.args(["-preset", preset]);
+            } else {
+                for arg in hw_preset_args(encoder, preset) {
+                    cmd.arg(arg);
+                }
+            }
             cmd.args([
-                "-c:v",
-                "libx264",
-                "-preset",
-                preset,
                 "-b:v",
                 &format!("{}k", video_bitrate),
                 "-c:a",

@@ -52,7 +52,7 @@ mod types;
 
 pub mod media;
 
-pub use media::{check_ffmpeg, video_has_audio};
+pub use media::{H264Encoder, check_ffmpeg, detect_h264_encoder, video_has_audio};
 pub use types::*;
 
 use export_apkg::generate_apkg;
@@ -120,6 +120,16 @@ fn emit(
         percentage: pct,
         params,
     });
+}
+
+/// Acquire the optional hardware-encode permit (no-op when encoding on CPU).
+async fn hw_video_semaphore_acquire(
+    semaphore: Option<Arc<tokio::sync::Semaphore>>,
+) -> Result<Option<tokio::sync::OwnedSemaphorePermit>, tokio::sync::AcquireError> {
+    match semaphore {
+        Some(s) => Ok(Some(s.acquire_owned().await?)),
+        None => Ok(None),
+    }
 }
 
 fn cancelled_result(
@@ -417,6 +427,26 @@ pub async fn generate(
     let video_codec = config.video_codec.clone();
     let h264_preset = config.h264_preset.clone();
 
+    // H.264 encoder: probe the GPU once per run ("auto", the default), unless
+    // the user forced software encoding ("off", expert mode).
+    let video_encoder = if needs_video && video_codec == "h264" && config.video_hw_accel != "off" {
+        let encoder = detect_h264_encoder(&tools.ffmpeg).await;
+        if encoder.is_hardware() {
+            emit(
+                progress,
+                "media",
+                &format!("Video encoder: {}", encoder.label()),
+                0,
+                0,
+                0.0,
+                HashMap::from([("encoder".to_string(), encoder.ffmpeg_name().to_string())]),
+            );
+        }
+        encoder
+    } else {
+        H264Encoder::Libx264
+    };
+
     let batch_size = resolve_worker_count(config.cpu_cores);
 
     // --- Stage 4: Parallel media extraction (streaming, bounded concurrency) ---
@@ -438,6 +468,12 @@ pub async fn generate(
 
     if total_media_ops > 0 {
         let semaphore = Arc::new(tokio::sync::Semaphore::new(batch_size));
+        // GPU encoders have concurrent-session limits (NVENC on GeForce: 3-8
+        // depending on driver) and saturate with few sessions anyway: cap
+        // hardware encodes separately from the CPU-bound audio/snapshot jobs.
+        let hw_video_semaphore = video_encoder
+            .is_hardware()
+            .then(|| Arc::new(tokio::sync::Semaphore::new(3)));
         let mut tasks: tokio::task::JoinSet<(&'static str, anyhow::Result<()>, usize)> =
             tokio::task::JoinSet::new();
 
@@ -509,13 +545,29 @@ pub async fn generate(
                 let ffmpeg = ffmpeg_cmd_arc.clone();
                 let permit = semaphore.clone();
 
+                let hw_permit_source = hw_video_semaphore.clone();
                 tasks.spawn(async move {
                     let _permit = permit.acquire_owned().await.expect("semaphore open");
-                    let result = extract_video_clip(
+                    let _hw_permit = match hw_video_semaphore_acquire(hw_permit_source).await {
+                        Ok(p) => p,
+                        Err(_) => return ("video", Err(anyhow::anyhow!("semaphore closed")), seq_num),
+                    };
+                    let mut result = extract_video_clip(
                         &source, &output_path, start_ms, end_ms, pad_s, pad_e, &codec, &preset,
-                        vbr, abr, audio_track_index, w, h, crop, &ffmpeg,
+                        video_encoder, vbr, abr, audio_track_index, w, h, crop, &ffmpeg,
                     )
                     .await;
+                    // Safety net: a probed GPU encoder can still fail on a
+                    // specific clip (driver quirks, session limits); retry
+                    // that clip once in software instead of losing it.
+                    if result.is_err() && video_encoder.is_hardware() {
+                        result = extract_video_clip(
+                            &source, &output_path, start_ms, end_ms, pad_s, pad_e, &codec,
+                            &preset, media::H264Encoder::Libx264, vbr, abr, audio_track_index,
+                            w, h, crop, &ffmpeg,
+                        )
+                        .await;
+                    }
                     ("video", result, seq_num)
                 });
             }
