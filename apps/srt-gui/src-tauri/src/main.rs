@@ -79,9 +79,11 @@ use commands::info::*;
 use commands::sync::*;
 use commands::transcribe::*;
 use commands::translate::*;
+use commands::experimental::*;
 use state::{
-    AppFlashcardState, AppSyncState, AppTranscribeState, AppTranslateState, FlashcardState,
-    SyncState, TranscribeState, TranslateState,
+    AppCondenseState, AppFlashcardState, AppRefineState, AppSyncState, AppTranscribeState,
+    AppTranslateState, CondenseState, FlashcardState, RefineState, SyncState, TranscribeState,
+    TranslateState,
 };
 
 /// Determina il MIME type in base all'estensione
@@ -314,6 +316,8 @@ fn main() {
         .manage(Mutex::new(TranslateState::default()) as AppTranslateState)
         .manage(Mutex::new(FlashcardState::default()) as AppFlashcardState)
         .manage(Mutex::new(TranscribeState::default()) as AppTranscribeState)
+        .manage(Mutex::new(RefineState::default()) as AppRefineState)
+        .manage(Mutex::new(CondenseState::default()) as AppCondenseState)
         .manage(MediaServerInfo {
             port,
             token: media_token,
@@ -459,6 +463,10 @@ fn main() {
             transcribe_list_models,
             transcribe_download_model,
             transcribe_uninstall_model,
+            transcribe_addons_status,
+            transcribe_download_vad,
+            transcribe_uninstall_vad,
+            transcribe_path_exists,
             transcribe_start,
             transcribe_cancel,
             transcribe_check_file_exists,
@@ -468,7 +476,15 @@ fn main() {
             // Comandi refine
             refine_load_file,
             refine_save_file,
-            refine_card_llm_with_config,
+            refine_card_llm_tiered,
+            refine_cards_llm_tiered,
+            refine_cancel,
+            // Comandi sperimentali (condensed audio, AnkiConnect)
+            condense_start,
+            condense_cancel,
+            ankiconnect_ping,
+            ankiconnect_deck_names,
+            ankiconnect_import_package,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

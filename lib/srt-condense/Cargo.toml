@@ -1,0 +1,27 @@
+[package]
+name = "srt-condense"
+version = "0.14.0-dev.2"
+edition.workspace = true
+authors = ["Pierpaolo Spadafora <pierpaolospadafora@proton.me>"]
+description = "Headless engine to build condensed audio from media + subtitles or Silero VAD speech detection — concatenates only the spoken segments of an episode into a single audio file."
+license = "GPL-3.0-only"
+repository = "https://github.com/pierspad/vesta"
+keywords = ["audio", "vad", "language-learning", "srt", "condensed"]
+categories = ["multimedia"]
+
+[lib]
+name = "srt_condense"
+path = "src/lib.rs"
+
+[dependencies]
+srt-parser = { workspace = true }
+srt-transcribe = { workspace = true }
+anyhow.workspace = true
+serde = { workspace = true, features = ["derive"] }
+tokio = { workspace = true, features = ["full"] }
+tokio-util = "0.7"
+tempfile.workspace = true
+num_cpus.workspace = true
+
+[features]
+vulkan = ["srt-transcribe/vulkan"]

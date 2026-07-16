@@ -1,0 +1,19 @@
+[package]
+name = "srt-ankiconnect"
+version = "0.14.0-dev.2"
+edition.workspace = true
+authors = ["Pierpaolo Spadafora <pierpaolospadafora@proton.me>"]
+description = "Minimal AnkiConnect client — ping, deck listing, APKG import and note pushing against a running Anki instance (localhost:8765)."
+license = "GPL-3.0-only"
+repository = "https://github.com/pierspad/vesta"
+keywords = ["anki", "ankiconnect", "flashcards"]
+categories = ["multimedia"]
+
+[lib]
+name = "srt_ankiconnect"
+path = "src/lib.rs"
+
+[dependencies]
+reqwest = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json.workspace = true

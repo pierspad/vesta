@@ -14,12 +14,12 @@
   } from "./settingsNotifications";
 
   interface Props {
-    activeTab: "translate" | "sync" | "transcribe" | "align" | "flashcards" | "settings" | "refine";
-    onTabChange: (tab: "translate" | "sync" | "transcribe" | "align" | "flashcards" | "settings" | "refine") => void;
+    activeTab: "translate" | "sync" | "transcribe" | "align" | "flashcards" | "settings" | "refine" | "experimental";
+    onTabChange: (tab: "translate" | "sync" | "transcribe" | "align" | "flashcards" | "settings" | "refine" | "experimental") => void;
     collapsed?: boolean;
     onToggleCollapse?: () => void;
     settingsSection?: "overview" | "llm" | "whisper" | "language" | "anki" | "shortcuts";
-    lastActiveMainTab?: "translate" | "sync" | "transcribe" | "align" | "flashcards" | "refine";
+    lastActiveMainTab?: "translate" | "sync" | "transcribe" | "align" | "flashcards" | "refine" | "experimental";
   }
 
   let { activeTab, onTabChange, collapsed = false, onToggleCollapse, settingsSection = $bindable("overview"), lastActiveMainTab = "flashcards" }: Props = $props();
@@ -33,13 +33,13 @@
   const RELEASE_API_URL = "https://api.github.com/repos/pierspad/Vesta/releases/latest";
   const RELEASES_URL = "https://github.com/pierspad/Vesta/releases";
   
-  const repoUrl = "https://github.com/pierspad/VESTA";
+  const repoUrl = "https://github.com/pierspad/vesta";
   let releasesUrl = $derived(
     appVersionNum
-      ? `https://github.com/pierspad/VESTA/releases/tag/${appVersionNum}`
-      : "https://github.com/pierspad/VESTA/releases"
+      ? `https://github.com/pierspad/vesta/releases/tag/${appVersionNum}`
+      : "https://github.com/pierspad/vesta/releases"
   );
-  const licenseUrl = "https://github.com/pierspad/VESTA/blob/main/LICENSE";
+  const licenseUrl = "https://github.com/pierspad/vesta/blob/main/LICENSE";
   const authorUrl = "https://pierspad.com";
   const authorIconUrl = authorAvatar;
   type ReleaseStatus = "idle" | "checking" | "available" | "current" | "offline";
@@ -240,7 +240,7 @@
         }
       })
       .catch(() => {
-        appVersion = "VESTA";
+        appVersion = "vesta";
         appVersionNum = "v0.14.0-dev.2";
         appLicense = "GPL-3.0";
       });
@@ -305,7 +305,7 @@
           <div class="w-14 h-14 rounded-xl flex items-center justify-center flex-shrink-0 relative overflow-visible ml-2" style="transform: translate3d(0, 0, 0);">
             <div class="absolute -inset-2 bg-orange-500/22 rounded-full blur-lg z-0" style="will-change: filter; transform: translate3d(0, 0, 0);"></div>
             <div class="absolute inset-0 bg-amber-300/12 rounded-full blur-md z-0" style="will-change: filter; transform: translate3d(0, 0, 0);"></div>
-            <img src={fireplaceIcon} alt="VESTA" class="w-14 h-14 drop-shadow-[0_0_10px_rgba(249,115,22,0.55)] relative z-10" style="will-change: filter; transform: translate3d(0, 0, 0);" />
+            <img src={fireplaceIcon} alt="vesta" class="w-14 h-14 drop-shadow-[0_0_10px_rgba(249,115,22,0.55)] relative z-10" style="will-change: filter; transform: translate3d(0, 0, 0);" />
           </div>
           <div class="relative z-10">
             <h1 class="text-2xl font-bold tracking-wider bg-gradient-to-r from-amber-400 via-orange-400 to-red-400 bg-clip-text text-transparent">
@@ -615,6 +615,27 @@
         {#if !collapsed}
           <div class="text-left flex-1 min-w-0 leading-tight">
             <span class="block text-[15px] font-semibold {activeTab === 'refine' ? 'text-white' : ''}">{t("nav.refine")}</span>
+          </div>
+        {/if}
+      </button>
+
+      <!-- 7. Experimental -->
+      <button
+        class="w-full flex gap-3.5 items-center {collapsed ? 'px-2 justify-center' : 'px-3.5'} h-[60px] rounded-xl transition-all duration-300 border border-transparent cursor-pointer {activeTab ===
+        'experimental'
+          ? 'bg-gradient-to-r from-amber-600 to-orange-700 text-white shadow-lg shadow-amber-500/22 shadow-orange-600/20 border-amber-500/30 bg-clip-padding'
+          : 'text-gray-400 hover:bg-amber-500/10 hover:text-amber-400 hover:border-amber-500/20'}"
+        onclick={() => onTabChange("experimental")}
+        title={collapsed ? t("nav.experimental") : undefined}
+      >
+        <div class="w-9 h-9 rounded-xl {activeTab === 'experimental' ? 'bg-white/20' : 'bg-white/5'} flex items-center justify-center flex-shrink-0 relative transition-colors border border-white/5">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+          </svg>
+        </div>
+        {#if !collapsed}
+          <div class="text-left flex-1 min-w-0 leading-tight">
+            <span class="block text-[15px] font-semibold {activeTab === 'experimental' ? 'text-white' : ''}">{t("nav.experimental")}</span>
           </div>
         {/if}
       </button>

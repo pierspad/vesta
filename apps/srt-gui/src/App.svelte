@@ -2,6 +2,7 @@
   import { PhysicalSize } from "@tauri-apps/api/dpi";
   import { getCurrentWindow } from "@tauri-apps/api/window";
   import { onMount } from "svelte";
+  import { ankiStore } from "./lib/ankiStore.svelte";
   import FlashcardsTab from "./lib/FlashcardsTab.svelte";
   import SettingsTab from "./lib/SettingsTab.svelte";
   import ShortcutOverlay from "./lib/ShortcutOverlay.svelte";
@@ -11,13 +12,14 @@
   import TranslateTab from "./lib/TranslateTab.svelte";
   import AlignTab from "./lib/AlignTab.svelte";
   import RefineTab from "./lib/RefineTab.svelte";
+  import ExperimentalTab from "./lib/ExperimentalTab.svelte";
   import AppContextMenu from "./lib/AppContextMenu.svelte";
   import Snackbar from "./lib/Snackbar.svelte";
   import { snackbar } from "./lib/snackbarStore.svelte";
   import { aiStore } from "./lib/aiStore.svelte";
   import { getShortcuts } from "./lib/models";
 
-  type AppTab = "translate" | "sync" | "transcribe" | "align" | "flashcards" | "settings" | "refine";
+  type AppTab = "translate" | "sync" | "transcribe" | "align" | "flashcards" | "settings" | "refine" | "experimental";
 
   let activeTab = $state<AppTab>("flashcards");
   const initialPreference = (() => {
@@ -109,6 +111,18 @@
     }
   });
 
+  $effect(() => {
+    if (activeTab === "flashcards" || activeTab === "settings" || activeTab === "experimental") {
+      ankiStore.checkConnection();
+      const interval = setInterval(() => {
+        ankiStore.checkConnection();
+      }, 5000);
+      return () => {
+        clearInterval(interval);
+      };
+    }
+  });
+
   const MIN_WIDTH = 460;
   const MIN_HEIGHT = 520;
   
@@ -138,6 +152,7 @@
     "sync",
     "align",
     "transcribe",
+    "experimental",
     "settings",
   ];
   function getMainTabForDigit(digit: number, isKillSwitchOn: boolean): AppTab | null {
@@ -376,6 +391,9 @@
     </div>
     <div class="absolute inset-0" class:hidden={activeTab !== "refine"}>
       <RefineTab onGoToSettings={goToSettings} active={activeTab === "refine"} />
+    </div>
+    <div class="absolute inset-0" class:hidden={activeTab !== "experimental"}>
+      <ExperimentalTab />
     </div>
     <div class="absolute inset-0" class:hidden={activeTab !== "settings"}>
       <SettingsTab active={activeTab === "settings"} bind:requestedSection={requestedSettingsSection} bind:highlightItemId={highlightItemId} />

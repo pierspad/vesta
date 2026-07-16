@@ -47,3 +47,24 @@ pub struct TranscribeState {
 
 /// Wrapper thread-safe per lo stato trascrizione
 pub type AppTranscribeState = Mutex<TranscribeState>;
+
+/// Stato per il refinement AI delle flashcard (run in corso + cancellazione).
+/// Come per la traduzione, la configurazione dei tier viaggia per-run.
+#[derive(Default)]
+pub struct RefineState {
+    pub is_refining: bool,
+    pub cancellation_token: Option<CancellationToken>,
+}
+
+/// Wrapper thread-safe per lo stato refinement
+pub type AppRefineState = Mutex<RefineState>;
+
+/// Stato per la generazione di condensed audio (feature sperimentale).
+#[derive(Default)]
+pub struct CondenseState {
+    pub is_running: bool,
+    pub cancellation_token: Option<CancellationToken>,
+}
+
+/// Wrapper thread-safe per lo stato condense
+pub type AppCondenseState = Mutex<CondenseState>;
