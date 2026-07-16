@@ -1,3 +1,9 @@
+## [0.14.0-dev.6](https://github.com/pierspad/vesta/compare/v0.14.0-dev.5...v0.14.0-dev.6) (2026-07-16)
+
+### 🐛 Bug Fixes
+
+* **whisper-rs-sys:** include vulkan backend symbols in bundled bindings ([8d1286c](https://github.com/pierspad/vesta/commit/8d1286c11b4c26754a08089d30c2ef52bb4aaba6))
+
 ## [0.14.0-dev.5](https://github.com/pierspad/vesta/compare/v0.14.0-dev.4...v0.14.0-dev.5) (2026-07-16)
 
 ### 🐛 Bug Fixes
