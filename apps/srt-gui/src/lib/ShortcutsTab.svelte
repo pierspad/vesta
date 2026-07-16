@@ -14,7 +14,7 @@
     resetSingleShortcut,
     saveShortcutOverride,
     type ShortcutDefinition,
-  } from "./models";
+  } from "./shortcuts";
 
   let shortcuts = $state<ShortcutDefinition[]>([]);
   let editingShortcut = $state<string | null>(null);

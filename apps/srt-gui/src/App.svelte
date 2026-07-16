@@ -17,7 +17,7 @@
   import Snackbar from "./lib/Snackbar.svelte";
   import { snackbar } from "./lib/snackbarStore.svelte";
   import { aiStore } from "./lib/aiStore.svelte";
-  import { getShortcuts } from "./lib/models";
+  import { getShortcuts } from "./lib/shortcuts";
 
   type AppTab = "translate" | "sync" | "transcribe" | "align" | "flashcards" | "settings" | "refine" | "experimental";
 

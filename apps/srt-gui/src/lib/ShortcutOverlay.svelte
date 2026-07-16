@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onDestroy, onMount } from "svelte";
   import { locale } from "./i18n";
-  import { formatKeyPart, getShortcuts, getSortedKeys, type ShortcutDefinition } from "./models";
+  import { formatKeyPart, getShortcuts, getSortedKeys, type ShortcutDefinition } from "./shortcuts";
 
   interface Props {
     activeTab: string;
