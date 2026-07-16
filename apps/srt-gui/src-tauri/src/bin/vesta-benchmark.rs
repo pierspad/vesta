@@ -36,20 +36,20 @@ async fn main() {
     match generate(config, MediaTools::default(), CancellationToken::new(), &|_| {}).await {
         Ok(result) if result.success => {
             println!(
-                "VESTA_BENCHMARK_SUCCESS: {} ms",
+                "vesta_BENCHMARK_SUCCESS: {} ms",
                 start.elapsed().as_millis()
             );
             println!(
-                "VESTA_BENCHMARK_CARDS: {} audio={} snapshots={} video={}",
+                "vesta_BENCHMARK_CARDS: {} audio={} snapshots={} video={}",
                 result.cards_generated, result.audio_clips, result.snapshots, result.video_clips
             );
         }
         Ok(result) => {
-            eprintln!("VESTA_BENCHMARK_ERROR: {}", result.message);
+            eprintln!("vesta_BENCHMARK_ERROR: {}", result.message);
             std::process::exit(1);
         }
         Err(error) => {
-            eprintln!("VESTA_BENCHMARK_ERROR: {}", error);
+            eprintln!("vesta_BENCHMARK_ERROR: {}", error);
             std::process::exit(1);
         }
     }

@@ -406,8 +406,8 @@ fn main() {
                     let duration = start.elapsed();
 
                     match res {
-                        Ok(_) => println!("VESTA_BENCHMARK_SUCCESS: {} ms", duration.as_millis()),
-                        Err(e) => println!("VESTA_BENCHMARK_ERROR: {}", e),
+                        Ok(_) => println!("vesta_BENCHMARK_SUCCESS: {} ms", duration.as_millis()),
+                        Err(e) => println!("vesta_BENCHMARK_ERROR: {}", e),
                     }
                     std::process::exit(0);
                 });
