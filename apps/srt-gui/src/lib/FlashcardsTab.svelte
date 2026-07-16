@@ -36,6 +36,13 @@
   import { ankiStore } from "./ankiStore.svelte";
   import FooterActions from "./components/FooterActions.svelte";
   import EmptyState from "./components/EmptyState.svelte";
+  import FlashcardsPreviewModal from "./FlashcardsPreviewModal.svelte";
+  import { previewStore } from "./previewStore.svelte";
+  import type { EpisodeMediaOverrides, AudioTrackInfo } from "./flashcardMediaTypes";
+  import { formatAudioTrackLabel } from "./flashcardMediaTypes";
+  import AudioClipsPanel from "./AudioClipsPanel.svelte";
+  import SnapshotsPanel from "./SnapshotsPanel.svelte";
+  import VideoClipsPanel from "./VideoClipsPanel.svelte";
 
   const SUBTITLE_EXTENSIONS = ["srt", "ass", "ssa", "vtt"];
 
@@ -54,17 +61,10 @@
   let mediaType = $state<"none" | "video" | "audio">("none");
   let outputDir = $state("");
 
-  interface AudioTrackInfo {
-    index: number;
-    stream_index: number;
-    codec: string | null;
-    language: string | null;
-    title: string | null;
-    channels: number | null;
-  }
+  // AudioTrackInfo / EpisodeMediaOverrides live in flashcardMediaTypes.ts so
+  // the extracted media-settings panel components can import them too.
 
   let audioTracks = $state<AudioTrackInfo[]>([]);
-  let selectedAudioTrackIndex = $state<number | null>(null);
   let audioTrackAutoSelected = $state(true);
   let audioTracksLoading = $state(false);
 
@@ -139,26 +139,6 @@
   }
 
   // Episode data for series mode
-  interface EpisodeMediaOverrides {
-    generateAudio?: boolean;
-    audioBitrate?: number;
-    audioTrackIndex?: number | null;
-    normalizeAudio?: boolean;
-    audioPadStart?: number;
-    audioPadEnd?: number;
-    generateSnapshots?: boolean;
-    snapshotWidth?: number;
-    snapshotHeight?: number;
-    cropBottom?: number;
-    generateVideoClips?: boolean;
-    videoCodec?: string;
-    h264Preset?: string;
-    videoBitrate?: number;
-    videoAudioBitrate?: number;
-    videoPadStart?: number;
-    videoPadEnd?: number;
-  }
-
   interface EpisodeEntry {
     id: number;
     targetSubsPath: string;
@@ -268,25 +248,7 @@
   }
 
   function getGenericMediaSettings(): Required<EpisodeMediaOverrides> {
-    return {
-      generateAudio,
-      audioBitrate,
-      audioTrackIndex: selectedAudioTrackIndex,
-      normalizeAudio,
-      audioPadStart,
-      audioPadEnd,
-      generateSnapshots,
-      snapshotWidth,
-      snapshotHeight,
-      cropBottom,
-      generateVideoClips,
-      videoCodec,
-      h264Preset,
-      videoBitrate,
-      videoAudioBitrate,
-      videoPadStart,
-      videoPadEnd,
-    };
+    return mediaSettings;
   }
 
   function getEpisodeMediaSettings(ep: EpisodeEntry): Required<EpisodeMediaOverrides> {
@@ -884,10 +846,10 @@
       mediaPath = "";
       mediaType = "none";
       audioTracks = [];
-      selectedAudioTrackIndex = null;
+      mediaSettings.audioTrackIndex = null;
       audioTrackAutoSelected = true;
-      generateSnapshots = false;
-      generateVideoClips = false;
+      mediaSettings.generateSnapshots = false;
+      mediaSettings.generateVideoClips = false;
     } else if (field === "output") {
       outputDir = "";
     }
@@ -1127,21 +1089,30 @@
   const PANEL_INFO_BUTTON_CLASS =
     "text-gray-500 hover:text-emerald-300 transition-colors";
 
-  let generateAudio = $state(true);
-  let audioBitrate = $state(128);
-  let audioPadStart = $state(0);
-  let audioPadEnd = $state(0);
-  let normalizeAudio = $state(false);
-
-  let generateSnapshots = $state(true);
-  let snapshotWidth = $state(loadStoredDimension(FLASHCARD_MEDIA_WIDTH_KEY, DEFAULT_FLASHCARD_MEDIA_WIDTH));
-  let snapshotHeight = $state(loadStoredDimension(FLASHCARD_MEDIA_HEIGHT_KEY, DEFAULT_FLASHCARD_MEDIA_HEIGHT));
-  let cropBottom = $state(0);
-
-  let generateVideoClips = $state(false);
-  let videoCodec = $state("h264");
-  let h264Preset = $state("medium");
+  // Movie-mode media settings — same shape as EpisodeMediaOverrides so a
+  // per-episode override is just a partial diff against this object (see
+  // getGenericMediaSettings / getEpisodeMediaSettings below).
+  let mediaSettings = $state<Required<EpisodeMediaOverrides>>({
+    generateAudio: true,
+    audioBitrate: 128,
+    audioTrackIndex: null,
+    normalizeAudio: false,
+    audioPadStart: 0,
+    audioPadEnd: 0,
+    generateSnapshots: true,
+    snapshotWidth: loadStoredDimension(FLASHCARD_MEDIA_WIDTH_KEY, DEFAULT_FLASHCARD_MEDIA_WIDTH),
+    snapshotHeight: loadStoredDimension(FLASHCARD_MEDIA_HEIGHT_KEY, DEFAULT_FLASHCARD_MEDIA_HEIGHT),
+    cropBottom: 0,
+    generateVideoClips: false,
+    videoCodec: "h264",
+    h264Preset: "medium",
+    videoBitrate: 800,
+    videoAudioBitrate: 128,
+    videoPadStart: 250,
+    videoPadEnd: 50,
+  });
   // "auto" = GPU encoder when available (default), "off" = force libx264 (expert mode).
+  // Not part of EpisodeMediaOverrides: it's a global preference, not overridable per-episode.
   let videoHwAccel = $state(
     (() => {
       try {
@@ -1158,10 +1129,6 @@
       /* storage unavailable */
     }
   });
-  let videoBitrate = $state(800);
-  let videoAudioBitrate = $state(128);
-  let videoPadStart = $state(250);
-  let videoPadEnd = $state(50);
 
   // Tracks changes to snapshots / video clips toggles to enforce mutual exclusivity in APKG mode.
   let prevGenerateSnapshots = $state(true);
@@ -1169,18 +1136,18 @@
 
   $effect(() => {
     if (effectiveExportFormat === "apkg") {
-      if (generateSnapshots && generateVideoClips) {
-        if (generateSnapshots !== prevGenerateSnapshots) {
-          generateVideoClips = false;
-        } else if (generateVideoClips !== prevGenerateVideoClips) {
-          generateSnapshots = false;
+      if (mediaSettings.generateSnapshots && mediaSettings.generateVideoClips) {
+        if (mediaSettings.generateSnapshots !== prevGenerateSnapshots) {
+          mediaSettings.generateVideoClips = false;
+        } else if (mediaSettings.generateVideoClips !== prevGenerateVideoClips) {
+          mediaSettings.generateSnapshots = false;
         } else {
-          generateVideoClips = false;
+          mediaSettings.generateVideoClips = false;
         }
       }
     }
-    prevGenerateSnapshots = generateSnapshots;
-    prevGenerateVideoClips = generateVideoClips;
+    prevGenerateSnapshots = mediaSettings.generateSnapshots;
+    prevGenerateVideoClips = mediaSettings.generateVideoClips;
   });
 
   // ─── Card Filters ────────────────────────────────────────────────────────
@@ -1251,11 +1218,11 @@
   });
 
   $effect(() => {
-    persistDimension(FLASHCARD_MEDIA_WIDTH_KEY, snapshotWidth);
+    persistDimension(FLASHCARD_MEDIA_WIDTH_KEY, mediaSettings.snapshotWidth);
   });
 
   $effect(() => {
-    persistDimension(FLASHCARD_MEDIA_HEIGHT_KEY, snapshotHeight);
+    persistDimension(FLASHCARD_MEDIA_HEIGHT_KEY, mediaSettings.snapshotHeight);
   });
 
   let exportFormat = $state<"tsv" | "apkg" | "anki">(
@@ -1699,35 +1666,6 @@
   let ffmpegAvailable = $state<boolean | null>(null);
   let isDownloadingFFmpeg = $state(false);
 
-  let showPreview = $state(false);
-  let previewLines = $state<any[]>([]);
-  let previewLoading = $state(false);
-  let previewFilter = $state<"all" | "active" | "inactive">("all");
-  let previewSearch = $state("");
-  let previewPage = $state(1);
-
-  let previewedSubsPath = $state<string | null>(null);
-  let previewedNativeSubsPath = $state<string | null>(null);
-  let undoStack = $state<any[]>([]);
-
-  let contextMenuVisible = $state(false);
-  let contextMenuX = $state(0);
-  let contextMenuY = $state(0);
-  let contextMenuLine = $state<any | null>(null);
-
-  let playingLine = $state<any | null>(null);
-  let previewIsPlaying = $state(false);
-  let playerElement = $state<HTMLMediaElement | null>(null);
-  let mediaServerInfo: [number, string] | null = null;
-
-  // Porta + token di sessione del media server locale (il token autentica
-  // ogni richiesta /media: senza, il server risponde 403).
-  async function getMediaServerInfo(): Promise<[number, string]> {
-    if (mediaServerInfo) return mediaServerInfo;
-    mediaServerInfo = await invoke<[number, string]>("get_media_server_info");
-    return mediaServerInfo;
-  }
-
   let previewMediaPath = $derived.by(() => {
     if (seriesMode && episodes.length > 0) {
       return episodes[0].mediaPath;
@@ -1742,42 +1680,7 @@
     return hasVideo ? "video" : (hasAudio ? "audio" : "none");
   });
 
-  async function playPreviewLine(line: any) {
-    if (!previewMediaPath) return;
-    if (playingLine?.index === line.index) {
-      if (playerElement) {
-        if (playerElement.paused) {
-          playerElement.play().catch(() => {});
-        } else {
-          playerElement.pause();
-        }
-      }
-      return;
-    }
-
-    playingLine = line;
-    const [port, token] = await getMediaServerInfo();
-    
-    // For non-browser-native formats in Tauri, sync prepares playback
-    const needsTranscode = /\.(mkv|avi|mov|flv|ogm|vob|wma|m4b|m2ts|mpeg|mpg)$/i.test(previewMediaPath);
-    let preparedPath = previewMediaPath;
-    if (needsTranscode) {
-      showSnackbar("Transcodifica dell'anteprima in corso...", "info");
-      preparedPath = await invoke<string>("sync_prepare_media_for_playback", {
-        path: previewMediaPath
-      });
-    }
-
-    const src = `http://127.0.0.1:${port}/media?path=${encodeURIComponent(preparedPath)}&token=${token}#t=${line.start_ms / 1000},${line.end_ms / 1000}`;
-    
-    if (playerElement) {
-      playerElement.src = src;
-      playerElement.load();
-      playerElement.play().catch(() => {});
-    }
-  }
   let expandedPathField = $state<string | null>(null);
-  const previewPerPage = 50;
 
   let unlisten: (() => void) | null = null;
   let activeListener = true;
@@ -1961,18 +1864,10 @@
     return pickBestAudioTrackIndex(tracks, getPreferredAudioLanguageCodeForEpisode(ep));
   }
 
-  function formatAudioTrackLabel(track: AudioTrackInfo): string {
-    const parts = [`#${track.index + 1}`];
-    if (track.language) parts.push(track.language.toUpperCase());
-    if (track.title) parts.push(track.title);
-    if (track.codec) parts.push(track.codec);
-    if (track.channels) parts.push(`${track.channels} ch`);
-    return parts.join(" - ");
-  }
 
   async function loadAudioTracksForMedia(path: string) {
     audioTracks = [];
-    selectedAudioTrackIndex = null;
+    mediaSettings.audioTrackIndex = null;
     audioTrackAutoSelected = true;
 
     if (detectMediaType(getFileName(path)) !== "video") return;
@@ -1983,7 +1878,7 @@
         path,
       });
       audioTracks = tracks;
-      selectedAudioTrackIndex =
+      mediaSettings.audioTrackIndex =
         tracks.length > 1 ? pickBestAudioTrackIndex(tracks, getPreferredAudioLanguageCode()) : null;
     } catch (e) {
       addLog(`${t("flashcards.audioTracksError")}: ${e}`, "warning");
@@ -1994,7 +1889,7 @@
 
   $effect(() => {
     if (audioTracks.length > 1 && audioTrackAutoSelected) {
-      selectedAudioTrackIndex = pickBestAudioTrackIndex(audioTracks, getPreferredAudioLanguageCode());
+      mediaSettings.audioTrackIndex = pickBestAudioTrackIndex(audioTracks, getPreferredAudioLanguageCode());
     }
   });
 
@@ -2484,24 +2379,24 @@
       },
       combine_sentences: cardFiltersEnabled && combineSentences,
       continuation_chars: continuationChars,
-      generate_audio: generateAudio,
-      audio_bitrate: audioBitrate,
-      audio_track_index: selectedAudioTrackIndex,
-      normalize_audio: normalizeAudio,
-      audio_pad_start_ms: audioPadStart,
-      audio_pad_end_ms: audioPadEnd,
-      generate_snapshots: generateSnapshots,
-      snapshot_width: snapshotWidth,
-      snapshot_height: snapshotHeight,
-      crop_bottom: cropBottom,
-      generate_video_clips: generateVideoClips,
-      video_codec: videoCodec,
-      h264_preset: h264Preset,
+      generate_audio: mediaSettings.generateAudio,
+      audio_bitrate: mediaSettings.audioBitrate,
+      audio_track_index: mediaSettings.audioTrackIndex,
+      normalize_audio: mediaSettings.normalizeAudio,
+      audio_pad_start_ms: mediaSettings.audioPadStart,
+      audio_pad_end_ms: mediaSettings.audioPadEnd,
+      generate_snapshots: mediaSettings.generateSnapshots,
+      snapshot_width: mediaSettings.snapshotWidth,
+      snapshot_height: mediaSettings.snapshotHeight,
+      crop_bottom: mediaSettings.cropBottom,
+      generate_video_clips: mediaSettings.generateVideoClips,
+      video_codec: mediaSettings.videoCodec,
+      h264_preset: mediaSettings.h264Preset,
       video_hw_accel: videoHwAccel,
-      video_bitrate: videoBitrate,
-      video_audio_bitrate: videoAudioBitrate,
-      video_pad_start_ms: videoPadStart,
-      video_pad_end_ms: videoPadEnd,
+      video_bitrate: mediaSettings.videoBitrate,
+      video_audio_bitrate: mediaSettings.videoAudioBitrate,
+      video_pad_start_ms: mediaSettings.videoPadStart,
+      video_pad_end_ms: mediaSettings.videoPadEnd,
       deck_name: deckName,
       episode_number: 1,
       export_format: effectiveExportFormat,
@@ -2565,13 +2460,13 @@
     await loadAudioTracksForMedia(path);
 
     if (mediaType === "video") {
-      generateAudio = true;
-      generateSnapshots = true;
+      mediaSettings.generateAudio = true;
+      mediaSettings.generateSnapshots = true;
       addLog(`${t("flashcards.mediaTypeVideo")}`, "media", filename);
     } else if (mediaType === "audio") {
-      generateAudio = true;
-      generateSnapshots = false;
-      generateVideoClips = false;
+      mediaSettings.generateAudio = true;
+      mediaSettings.generateSnapshots = false;
+      mediaSettings.generateVideoClips = false;
       addLog(`${t("flashcards.mediaTypeAudio")}`, "media", filename);
     }
 
@@ -2793,141 +2688,19 @@
       return;
     }
 
-    previewLoading = true;
-    showPreview = true;
     error = null;
-
     try {
       const config = buildConfig();
-      previewLines = await invoke<any[]>("flashcard_preview", { config });
-      previewedSubsPath = config.target_subs_path;
-      previewedNativeSubsPath = config.native_subs_path;
-      undoStack = [];
-      addLog(
-        `Preview: ${previewLines.length} total, ${previewLines.filter((l: any) => l.active).length} active`,
-        "info",
+      await previewStore.load(config, (lines) =>
+        addLog(
+          `Preview: ${lines.length} total, ${lines.filter((l) => l.active).length} active`,
+          "info",
+        ),
       );
     } catch (e) {
       error = `Preview error: ${e}`;
-    } finally {
-      previewLoading = false;
     }
   }
-
-  let filteredPreview = $derived(
-    previewLines.filter((line: any) => {
-      const matchFilter =
-        previewFilter === "all" ||
-        (previewFilter === "active" && line.active) ||
-        (previewFilter === "inactive" && !line.active);
-      const matchSearch =
-        !previewSearch ||
-        line.subs1_text.toLowerCase().includes(previewSearch.toLowerCase()) ||
-        (line.subs2_text &&
-          line.subs2_text.toLowerCase().includes(previewSearch.toLowerCase()));
-      return matchFilter && matchSearch;
-    }),
-  );
-
-  let previewTotalPages = $derived(
-    Math.max(1, Math.ceil(filteredPreview.length / previewPerPage)),
-  );
-  let previewPaged = $derived(
-    filteredPreview.slice(
-      (previewPage - 1) * previewPerPage,
-      previewPage * previewPerPage,
-    ),
-  );
-
-  $effect(() => {
-    // reactive dependencies: previewFilter, previewSearch
-    void previewFilter;
-    void previewSearch;
-    previewPage = 1;
-    if (!uiMode.expertMode) {
-      previewFilter = "all";
-    }
-  });
-
-  let activeCardNumbers = $derived.by(() => {
-    const map = new Map<number, number>();
-    let activeCount = 0;
-    for (const line of previewLines) {
-      if (line.active) {
-        activeCount++;
-        map.set(line.index, activeCount);
-      }
-    }
-    return map;
-  });
-
-  function pushToUndoStack() {
-    if (undoStack.length >= 50) {
-      undoStack.shift();
-    }
-    const snapshot = previewLines.map((line: any) => ({
-      ...line,
-      leading_context: [...line.leading_context],
-      trailing_context: [...line.trailing_context]
-    }));
-    undoStack.push(snapshot);
-  }
-
-  function handleUndo() {
-    if (undoStack.length > 0) {
-      const previousState = undoStack.pop();
-      previewLines = previousState;
-    }
-  }
-
-  function toggleLineActive(line: any) {
-    pushToUndoStack();
-    line.active = !line.active;
-  }
-
-  $effect(() => {
-    if (showPreview) {
-      const handleGlobalKeyDown = (e: KeyboardEvent) => {
-        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") {
-          e.preventDefault();
-          handleUndo();
-        }
-      };
-      window.addEventListener("keydown", handleGlobalKeyDown);
-      return () => {
-        window.removeEventListener("keydown", handleGlobalKeyDown);
-      };
-    }
-  });
-
-  function openContextMenu(e: MouseEvent, line: any) {
-    contextMenuLine = line;
-    contextMenuX = e.clientX;
-    contextMenuY = e.clientY;
-    contextMenuVisible = true;
-  }
-
-  function closeContextMenu() {
-    contextMenuVisible = false;
-  }
-
-  $effect(() => {
-    if (contextMenuVisible) {
-      const handleWindowClick = () => {
-        closeContextMenu();
-      };
-      window.addEventListener("click", handleWindowClick);
-      return () => {
-        window.removeEventListener("click", handleWindowClick);
-      };
-    }
-  });
-
-  $effect(() => {
-    if (!showPreview) {
-      contextMenuVisible = false;
-    }
-  });
 
   async function startSeriesGeneration() {
     if (easyMode && needsDeckName && !deckName.trim() && episodes.length > 0) {
@@ -3039,22 +2812,7 @@
           card_css: loadCardTemplates().css,
         };
 
-        if (previewLines.length > 0) {
-          if (epConfig.target_subs_path === previewedSubsPath) {
-            const tempTarget = await invoke<string>("save_temp_subtitles", {
-              lines: previewLines,
-              useNative: false,
-            });
-            epConfig.target_subs_path = tempTarget;
-          }
-          if (epConfig.native_subs_path && epConfig.native_subs_path === previewedNativeSubsPath) {
-            const tempNative = await invoke<string>("save_temp_subtitles", {
-              lines: previewLines,
-              useNative: true,
-            });
-            epConfig.native_subs_path = tempNative;
-          }
-        }
+        await previewStore.applyOverrides(epConfig);
 
         try {
           const res = await invoke<any>("flashcard_generate", {
@@ -3180,22 +2938,7 @@
     try {
       const config = buildConfig();
 
-      if (previewLines.length > 0) {
-        if (config.target_subs_path === previewedSubsPath) {
-          const tempTarget = await invoke<string>("save_temp_subtitles", {
-            lines: previewLines,
-            useNative: false,
-          });
-          config.target_subs_path = tempTarget;
-        }
-        if (config.native_subs_path && config.native_subs_path === previewedNativeSubsPath) {
-          const tempNative = await invoke<string>("save_temp_subtitles", {
-            lines: previewLines,
-            useNative: true,
-          });
-          config.native_subs_path = tempNative;
-        }
-      }
+      await previewStore.applyOverrides(config);
 
       const res = await invoke<any>("flashcard_generate", { config });
       result = {
@@ -3287,7 +3030,7 @@
     mediaPath = "";
     mediaType = "none";
     audioTracks = [];
-    selectedAudioTrackIndex = null;
+    mediaSettings.audioTrackIndex = null;
     audioTrackAutoSelected = true;
     targetSubsInfo = null;
     nativeSubsInfo = null;
@@ -3434,406 +3177,8 @@
     </div>
   {/if}
 
-  {#if showPreview}
-    <!-- svelte-ignore a11y_no_static_element_interactions -->
-    <div
-      class="fixed inset-0 z-50 bg-black/70 flex items-center justify-start pl-6 md:pl-16 lg:pl-[8vw] p-6"
-      role="dialog"
-      aria-modal="true"
-      tabindex="-1"
-      onclick={() => (showPreview = false)}
-      onkeydown={(e) => {
-        if (e.key === "Escape") showPreview = false;
-      }}
-    >
-      <!-- svelte-ignore a11y_no_static_element_interactions -->
-      <div
-        class="bg-gray-900 border border-gray-800 rounded-xl w-full max-w-6xl max-h-[85vh] flex flex-col shadow-2xl"
-        onclick={(e) => e.stopPropagation()}
-        onkeydown={(e) => e.stopPropagation()}
-      >
-        <!-- Modal Header -->
-        <div
-          class="flex items-center justify-between p-4 border-b border-gray-800/80 bg-gray-900"
-        >
-          <div class="flex items-center gap-3">
-            <h2 class="text-lg font-bold text-emerald-400 flex items-center gap-2">
-              <svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-              </svg>
-              {t("flashcards.preview")}
-            </h2>
-          </div>
-          
-          <div class="flex items-center gap-4">
-            <div class="relative flex items-center">
-              <span class="absolute left-3 text-gray-400">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-              </span>
-              <input
-                type="text"
-                bind:value={previewSearch}
-                class="bg-gray-850 hover:bg-gray-800 focus:bg-gray-950 border border-gray-750 focus:border-emerald-500/50 text-xs text-gray-100 placeholder-gray-500 rounded-lg pl-9 pr-3 py-1.5 w-60 outline-none focus:ring-1 focus:ring-emerald-500/20 transition-all"
-                placeholder={t("flashcards.previewSearch")}
-              />
-            </div>
-            <button
-              onclick={() => (showPreview = false)}
-              class="dialog-close-button text-gray-400 hover:text-white text-xl leading-none p-1 transition-colors"
-            >
-              ✕
-            </button>
-          </div>
-        </div>
-
-        <!-- Dialog Body: Columns layout -->
-        <div class="flex-1 flex overflow-hidden min-h-0">
-          
-          <!-- Left Column: Table of cards, filters, pagination -->
-          <div class="flex-1 flex flex-col min-w-0 min-h-0">
-            <!-- Sub-header (Filters, count, pagination) -->
-            <div class="px-4 py-2 border-b border-gray-800/80 bg-gray-900/50 flex items-center justify-between">
-              <div class="flex items-center gap-2">
-                <div class="flex rounded-lg overflow-hidden border border-gray-800">
-                  {#if uiMode.expertMode}
-                    {#each [["all", t("flashcards.previewAll"), "All subtitle lines"], ["active", t("flashcards.previewActive"), "Lines that will become flashcards"], ["inactive", t("flashcards.previewInactive"), "Lines excluded by your filters"]] as [val, label, tooltip]}
-                      <button
-                        class="px-3 py-1 text-xs font-medium transition-colors {previewFilter === val
-                          ? 'bg-emerald-500/20 text-emerald-300'
-                          : 'text-gray-400 hover:bg-gray-800'}"
-                        onclick={() => (previewFilter = val as any)}
-                        title={tooltip}
-                      >
-                        {label}
-                      </button>
-                    {/each}
-                  {:else}
-                    <div class="px-3 py-1 text-xs font-medium bg-emerald-500/20 text-emerald-300 select-none">
-                      {t("flashcards.previewAll")}
-                    </div>
-                  {/if}
-                </div>
-                <span class="text-xs text-gray-500">
-                  {filteredPreview.length} {t("flashcards.linesShown")}
-                </span>
-              </div>
-              
-              {#if previewTotalPages > 1}
-                <div class="flex items-center gap-1">
-                  <button
-                    disabled={previewPage <= 1}
-                    onclick={() => (previewPage = 1)}
-                    class="px-2 py-1 text-xs rounded text-gray-400 hover:text-white hover:bg-gray-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                    >«</button
-                  >
-                  <button
-                    disabled={previewPage <= 1}
-                    onclick={() => previewPage--}
-                    class="px-2 py-1 text-xs rounded text-gray-400 hover:text-white hover:bg-gray-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                    >‹</button
-                  >
-                  <span class="text-xs text-gray-400 px-2 font-mono">
-                    {previewPage} / {previewTotalPages}
-                  </span>
-                  <button
-                    disabled={previewPage >= previewTotalPages}
-                    onclick={() => previewPage++}
-                    class="px-2 py-1 text-xs rounded text-gray-400 hover:text-white hover:bg-gray-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                    >›</button
-                  >
-                  <button
-                    disabled={previewPage >= previewTotalPages}
-                    onclick={() => (previewPage = previewTotalPages)}
-                    class="px-2 py-1 text-xs rounded text-gray-400 hover:text-white hover:bg-gray-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                    >»</button
-                  >
-                </div>
-              {/if}
-            </div>
-
-            <!-- Table content -->
-            <div class="flex-1 overflow-y-auto p-2">
-              {#if previewLoading}
-                <div class="flex items-center justify-center h-32">
-                  <div class="animate-spin w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full"></div>
-                </div>
-              {:else}
-                <table class="w-full text-xs">
-                  <thead class="sticky top-0 z-10">
-                    <tr class="text-gray-400 bg-gray-800 shadow-sm">
-                      <th class="p-2 text-left w-12">#</th>
-                      {#if previewMediaPath}
-                        <th class="p-2 text-center w-12">{t("flashcards.previewPlay")}</th>
-                      {/if}
-                      <th class="p-2 text-left w-20">{t("flashcards.previewTime")}</th>
-                      <th class="p-2 text-left">{t("flashcards.subs1")}</th>
-                      {#if nativeSubsPath}
-                        <th class="p-2 text-left">{t("flashcards.subs2")}</th>
-                      {/if}
-                      <th class="p-2 text-center w-16">{t("flashcards.previewStatus")}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {#each previewPaged as line, i}
-                      <tr 
-                        class="border-t border-gray-800/60 {line.active
-                          ? 'bg-emerald-500/5 hover:bg-emerald-500/10'
-                          : 'bg-red-500/5 opacity-60 hover:bg-red-500/10'} transition-colors"
-                        onauxclick={(e) => {
-                          if (uiMode.expertMode && e.button === 1) { // middle click
-                            e.preventDefault();
-                            toggleLineActive(line);
-                          }
-                        }}
-                        oncontextmenu={(e) => {
-                          if (uiMode.expertMode) {
-                            e.preventDefault();
-                            openContextMenu(e, line);
-                          }
-                        }}
-                      >
-                        <td class="p-2 text-gray-500 font-mono">
-                          {#if line.active}
-                            {activeCardNumbers.get(line.index)}
-                          {:else}
-                            <span class="text-red-500/70 font-bold">—</span>
-                          {/if}
-                        </td>
-                        {#if previewMediaPath}
-                          <td class="p-2 text-center">
-                            <button
-                              type="button"
-                              onclick={() => playPreviewLine(line)}
-                              class="text-gray-400 hover:text-emerald-400 transition-colors p-1"
-                              title="Riproduci questa riga"
-                            >
-                              {#if playingLine && playingLine.index === line.index && previewIsPlaying}
-                               <svg class="w-4 h-4 text-emerald-400" fill="currentColor" viewBox="0 0 24 24">
-                                  <path fill-rule="evenodd" d="M6.75 5.25a.75.75 0 0 1 .75-.75H9a.75.75 0 0 1 .75.75v13.5a.75.75 0 0 1-.75.75H7.5a.75.75 0 0 1-.75-.75V5.25Zm7.5 0A.75.75 0 0 1 15 4.5h1.5a.75.75 0 0 1 .75.75v13.5a.75.75 0 0 1-.75.75H15a.75.75 0 0 1-.75-.75V5.25Z" clip-rule="evenodd" />
-                                </svg>
-                              {:else}
-                                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                                  <path fill-rule="evenodd" d="M4.5 5.653c0-1.427 1.529-2.33 2.779-1.643l11.54 6.347c1.295.712 1.295 2.573 0 3.286L7.28 19.99c-1.25.687-2.779-.217-2.779-1.643V5.653Z" clip-rule="evenodd" />
-                                </svg>
-                              {/if}
-                            </button>
-                          </td>
-                        {/if}
-                        <td class="p-2 text-gray-400 font-mono">
-                          {Math.floor(line.start_ms / 60000)}:{String(Math.floor((line.start_ms % 60000) / 1000)).padStart(2, "0")}
-                        </td>
-                        <td class="p-2 text-gray-200">
-                          <span>{line.subs1_text}</span>
-                        </td>
-                        {#if nativeSubsPath}
-                          <td class="p-2 text-gray-300">
-                            <span>{line.subs2_text || "—"}</span>
-                          </td>
-                        {/if}
-                        <td class="p-2 text-center select-none">
-                          {#if line.active}
-                            <span
-                              class="inline-block w-2.5 h-2.5 bg-emerald-400 rounded-full"
-                              title={uiMode.expertMode ? "Tasto destro / clic rotellina per disattivare" : undefined}
-                            ></span>
-                          {:else}
-                            <span
-                              class="inline-block w-2.5 h-2.5 bg-red-400 rounded-full"
-                              title={uiMode.expertMode ? "Tasto destro / clic rotellina per attivare" : undefined}
-                            ></span>
-                          {/if}
-                        </td>
-                      </tr>
-                    {/each}
-                  </tbody>
-                </table>
-              {/if}
-            </div>
-          </div>
-
-          <!-- Right Column: Dedicated Player Sidebar -->
-          {#if previewMediaPath}
-            <div class="w-[360px] shrink-0 border-l border-gray-800 bg-gray-950/35 p-4 flex flex-col justify-between min-h-0 select-none">
-              
-              <!-- Player Container (Video/Audio/Placeholder) -->
-              <div class="flex flex-col gap-4 flex-1 overflow-y-auto">
-                <div class="flex items-center justify-between border-b border-gray-800 pb-2">
-                  <span class="text-xs font-semibold text-emerald-400 flex items-center gap-1.5">
-                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                    </svg>
-                    {t("flashcards.previewPlayback")}
-                  </span>
-                  {#if playingLine}
-                    <button
-                      onclick={() => {
-                        if (playerElement) playerElement.pause();
-                        playingLine = null;
-                      }}
-                      class="text-gray-500 hover:text-white text-xs transition-colors"
-                    >
-                      {t("common.cancel")}
-                    </button>
-                  {/if}
-                </div>
-
-                {#if playingLine}
-                  <!-- Player Media Panel -->
-                  {#if previewMediaType === "video"}
-                    <div class="w-full aspect-video rounded-lg bg-black overflow-hidden border border-gray-800/80 shadow-md">
-                      <video
-                        bind:this={playerElement}
-                        class="w-full h-full object-contain"
-                        onplay={() => (previewIsPlaying = true)}
-                        onpause={() => (previewIsPlaying = false)}
-                        onended={() => {
-                          previewIsPlaying = false;
-                          playingLine = null;
-                        }}
-                        controls={false}
-                        autoplay
-                      ></video>
-                    </div>
-                  {:else}
-                    <!-- Audio Player View -->
-                    <div class="w-full h-24 rounded-lg bg-emerald-950/10 border border-emerald-900/35 flex flex-col items-center justify-center gap-2 p-3 text-emerald-400">
-                      <svg class="w-8 h-8 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
-                      </svg>
-                      <span class="text-xs font-mono">{t("flashcards.previewAudioPlaying")}</span>
-                      <audio
-                        bind:this={playerElement}
-                        onplay={() => (previewIsPlaying = true)}
-                        onpause={() => (previewIsPlaying = false)}
-                        onended={() => {
-                          previewIsPlaying = false;
-                          playingLine = null;
-                        }}
-                        autoplay
-                        class="hidden"
-                      ></audio>
-                    </div>
-                  {/if}
-
-                  <!-- Subtitle details -->
-                  <div class="flex flex-col gap-2 mt-2 bg-gray-900/40 p-3 rounded-lg border border-gray-850">
-                    <div class="flex justify-between items-center text-[11px] font-mono text-gray-500">
-                      <span class="bg-gray-850 px-1.5 py-0.5 rounded text-emerald-400 font-semibold">
-                        {t("flashcards.rowNum", { count: playingLine.index + 1 })}
-                      </span>
-                      <span>
-                        {Math.floor(playingLine.start_ms / 60000)}:{String(Math.floor((playingLine.start_ms % 60000) / 1000)).padStart(2, "0")} - 
-                        {Math.floor(playingLine.end_ms / 60000)}:{String(Math.floor((playingLine.end_ms % 60000) / 1000)).padStart(2, "0")}
-                      </span>
-                    </div>
-                    <div class="text-xs text-gray-250 italic font-sans break-words bg-black/10 p-2 rounded border border-gray-900/20 leading-relaxed max-h-40 overflow-y-auto">
-                      "{playingLine.subs1_text}"
-                    </div>
-                    {#if playingLine.subs2_text}
-                      <div class="text-xs text-gray-400 italic font-sans break-words bg-black/10 p-2 rounded border border-gray-900/20 leading-relaxed max-h-40 overflow-y-auto">
-                        "{playingLine.subs2_text}"
-                      </div>
-                    {/if}
-                  </div>
-                {:else}
-                  <!-- Placeholder state when no line is selected -->
-                  <div class="flex-1 flex flex-col border-2 border-dashed border-gray-800/40 rounded-xl bg-gray-900/10 min-h-[220px]">
-                    <EmptyState
-                      title={t("flashcards.previewNoActive")}
-                      description={t("flashcards.previewNoActiveHint")}
-                      iconPath="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664zM21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                    />
-                  </div>
-                {/if}
-              </div>
-
-              <!-- Action button at bottom of sidebar (Play/Pause control if a line is active) -->
-              {#if playingLine}
-                <div class="flex items-center justify-center gap-4 mt-4 border-t border-gray-800/60 pt-3">
-                  <button
-                    onclick={() => {
-                      if (playerElement) {
-                        if (playerElement.paused) playerElement.play().catch(() => {});
-                        else playerElement.pause();
-                      }
-                    }}
-                    class="flex items-center justify-center gap-2 px-5 py-2 w-full rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 hover:border-emerald-500/35 transition-all text-xs font-medium cursor-pointer"
-                  >
-                    {#if previewIsPlaying}
-                      <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                        <path fill-rule="evenodd" d="M6.75 5.25a.75.75 0 0 1 .75-.75H9a.75.75 0 0 1 .75.75v13.5a.75.75 0 0 1-.75.75H7.5a.75.75 0 0 1-.75-.75V5.25Zm7.5 0A.75.75 0 0 1 15 4.5h1.5a.75.75 0 0 1 .75.75v13.5a.75.75 0 0 1-.75.75H15a.75.75 0 0 1-.75-.75V5.25Z" clip-rule="evenodd" />
-                      </svg>
-                      {t("common.pause")}
-                    {:else}
-                      <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                        <path fill-rule="evenodd" d="M4.5 5.653c0-1.427 1.529-2.33 2.779-1.643l11.54 6.347c1.295.712 1.295 2.573 0 3.286L7.28 19.99c-1.25.687-2.779-.217-2.779-1.643V5.653Z" clip-rule="evenodd" />
-                      </svg>
-                      {t("common.play")}
-                    {/if}
-                  </button>
-                </div>
-              {/if}
-            </div>
-          {/if}
-        </div>
-      </div>
-
-      {#if contextMenuVisible && contextMenuLine}
-        <!-- svelte-ignore a11y_click_events_have_key_events -->
-        <!-- svelte-ignore a11y_no_static_element_interactions -->
-        <div
-          class="fixed z-50 bg-gray-900 border border-gray-800 rounded-lg shadow-xl py-1.5 min-w-[200px]"
-          style="left: {contextMenuX}px; top: {contextMenuY}px;"
-          onclick={(e) => e.stopPropagation()}
-        >
-          <button
-            type="button"
-            onclick={() => {
-              navigator.clipboard.writeText(contextMenuLine.subs1_text);
-              closeContextMenu();
-            }}
-            class="w-full text-left px-4 py-2 text-xs text-gray-300 hover:bg-gray-800 hover:text-white transition-colors cursor-pointer"
-          >
-            {$currentLanguage === 'it' ? 'Copia sottotitolo originale' : 'Copy original subtitle'}
-          </button>
-
-          {#if nativeSubsPath && contextMenuLine.subs2_text}
-            <button
-              type="button"
-              onclick={() => {
-                navigator.clipboard.writeText(contextMenuLine.subs2_text || "");
-                closeContextMenu();
-              }}
-              class="w-full text-left px-4 py-2 text-xs text-gray-300 hover:bg-gray-800 hover:text-white transition-colors cursor-pointer"
-            >
-              {$currentLanguage === 'it' ? 'Copia traduzione di riferimento' : 'Copy reference translation'}
-            </button>
-          {/if}
-
-          <div class="border-t border-gray-800 my-1"></div>
-
-          <button
-            type="button"
-            onclick={() => {
-              toggleLineActive(contextMenuLine);
-              closeContextMenu();
-            }}
-            class="w-full text-left px-4 py-2 text-xs font-semibold transition-colors cursor-pointer
-              {contextMenuLine.active 
-                ? 'text-red-400 hover:bg-red-500/10' 
-                : 'text-emerald-400 hover:bg-emerald-500/10'}"
-          >
-            {#if contextMenuLine.active}
-              {$currentLanguage === 'it' ? 'Disabilita sottotitolo' : 'Disable subtitle'}
-            {:else}
-              {$currentLanguage === 'it' ? 'Abilita sottotitolo' : 'Enable subtitle'}
-            {/if}
-          </button>
-        </div>
-      {/if}
-    </div>
+  {#if previewStore.visible}
+    <FlashcardsPreviewModal mediaPath={previewMediaPath} mediaType={previewMediaType} nativeSubsPath={nativeSubsPath} />
   {/if}
 
   {#snippet panelContent(panelId: PanelId)}
@@ -4243,457 +3588,30 @@
         {/if}
       </div>
     {:else if panelId === "audioClips"}
-      <div
-        inert={!hasAudio}
-        title={!hasAudio ? HINT_LOAD_MEDIA_FIRST : undefined}
-        class="glass-card p-5 relative z-10 overflow-visible {!hasAudio
-          ? 'opacity-40'
-          : ''}"
-      >
-        <div class="flex items-center justify-between mb-3">
-          <h3
-            class="text-lg font-semibold flex items-center gap-2 text-cyan-400"
-          >
-            <svg
-              class="w-5 h-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"
-              />
-            </svg>
-            {t("flashcards.generateAudioClips")}
-          </h3>
-          <button
-            onclick={() => {
-              if (hasAudio) generateAudio = !generateAudio;
-            }}
-            class="w-10 h-5 rounded-full transition-all duration-200 relative
-              {generateAudio ? 'bg-cyan-500' : 'bg-gray-600'}"
-            aria-label="Toggle audio clips"
-            disabled={!hasAudio}
-          >
-            <div
-              class="absolute w-4 h-4 bg-white rounded-full top-0.5 transition-all duration-200
-              {generateAudio ? 'left-5' : 'left-0.5'}"
-            ></div>
-          </button>
-        </div>
-
-        <div class="space-y-2 transition-all duration-200 {!generateAudio ? 'opacity-40 pointer-events-none' : ''}">
-          <div class="grid grid-cols-2 gap-2">
-            {#if mediaType === "video" && (audioTracksLoading || audioTracks.length >= 1)}
-              <div class={easyMode ? "col-span-2" : ""}>
-                <span class="block text-xs text-gray-500 mb-1"
-                  >{t("flashcards.audioTrack")}</span
-                >
-                {#if audioTracksLoading}
-                  <div class="input-modern text-xs text-gray-500">
-                    {t("flashcards.audioTracksLoading")}
-                  </div>
-                {:else if audioTracks.length > 1}
-                  <SearchableSelect
-                    noResultsText={t("common.noResults")}
-                    options={audioTracks.map((track) => ({
-                      value: String(track.index),
-                      label: formatAudioTrackLabel(track),
-                    }))}
-                    value={selectedAudioTrackIndex === null ? "" : String(selectedAudioTrackIndex)}
-                    onchange={(value) => {
-                      selectedAudioTrackIndex = value === "" ? null : Number(value);
-                      audioTrackAutoSelected = false;
-                    }}
-                    placeholder={t("flashcards.audioTrack")}
-                  />
-                {:else}
-                  <div class="input-modern text-xs text-gray-500 opacity-60 cursor-not-allowed">
-                    {formatAudioTrackLabel(audioTracks[0])}
-                  </div>
-                {/if}
-              </div>
-            {/if}
-
-            {#if !easyMode}
-            <div class={mediaType === "video" && (audioTracksLoading || audioTracks.length >= 1) ? "" : "col-span-2"}>
-              <span class="block text-xs text-gray-500 mb-1"
-                >{t("flashcards.bitrate")}</span
-              >
-              <SearchableSelect
-                noResultsText={t("common.noResults")}
-                options={[
-                  { value: "64", label: "64 kb/s" },
-                  { value: "128", label: "128 kb/s" },
-                  { value: "192", label: "192 kb/s" },
-                  { value: "256", label: "256 kb/s" },
-                  { value: "320", label: "320 kb/s" },
-                ]}
-                value={String(audioBitrate)}
-                onchange={(v) => (audioBitrate = parseInt(v))}
-                placeholder="Bitrate"
-              />
-            </div>
-            {/if}
-          </div>
-          {#if !easyMode}
-          <div class="grid grid-cols-3 gap-2 items-end">
-            <div>
-              <span class="block text-xs text-gray-500 mb-1"
-                >{t("flashcards.padStart")}</span
-              >
-              <div class="flex items-center gap-1">
-                <input
-                  type="number"
-                  bind:value={audioPadStart}
-                  class="input-modern w-full text-xs"
-                />
-                <span class="text-xs text-gray-500">ms</span>
-              </div>
-            </div>
-            <div>
-              <span class="block text-xs text-gray-500 mb-1"
-                >{t("flashcards.padEnd")}</span
-              >
-              <div class="flex items-center gap-1">
-                <input
-                  type="number"
-                  bind:value={audioPadEnd}
-                  class="input-modern w-full text-xs"
-                />
-                <span class="text-xs text-gray-500">ms</span>
-              </div>
-            </div>
-            <div class="flex justify-center">
-              <label class="vesta-check-row min-h-[42px] w-full">
-                <input
-                  type="checkbox"
-                  bind:checked={normalizeAudio}
-                  class="vesta-check-input shrink-0"
-                />
-                <span class="min-w-0 text-left text-xs font-medium text-gray-300"
-                  >{t("flashcards.normalizeAudio")}</span
-                >
-              </label>
-            </div>
-          </div>
-          {/if}
-        </div>
-      </div>
+      <AudioClipsPanel
+        bind:settings={mediaSettings}
+        {hasAudio}
+        {mediaType}
+        {audioTracks}
+        {audioTracksLoading}
+        hintLoadMediaFirst={HINT_LOAD_MEDIA_FIRST}
+        onTrackPicked={() => (audioTrackAutoSelected = false)}
+      />
     {:else if panelId === "snapshots"}
-      <div
-        inert={!hasVideo}
-        title={!hasVideo ? HINT_LOAD_VIDEO_FIRST : undefined}
-        class="glass-card p-5 {!hasVideo
-          ? 'opacity-40'
-          : ''}"
-      >
-        <div class="flex items-center justify-between mb-3">
-          <h3
-            class="text-lg font-semibold flex items-center gap-2 text-purple-400"
-          >
-            <svg
-              class="w-5 h-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-              />
-            </svg>
-            <span class="flex flex-col">
-              <span>{t("flashcards.generateSnapshots")}</span>
-              {#if effectiveExportFormat === "apkg"}
-                <span class="text-[10px] text-purple-300/60 font-normal normal-case mt-0.5">
-                  {$currentLanguage === 'it' ? 'Mutualmente esclusivo con i video in APKG' : 'Mutually exclusive with video clips in APKG'}
-                </span>
-              {/if}
-            </span>
-          </h3>
-          <button
-            onclick={() => {
-              if (hasVideo) {
-                generateSnapshots = !generateSnapshots;
-              }
-            }}
-            class="w-10 h-5 rounded-full transition-all duration-200 relative
-              {generateSnapshots ? 'bg-purple-500' : 'bg-gray-600'}"
-            aria-label="Toggle snapshots"
-            disabled={!hasVideo}
-          >
-            <div
-              class="absolute w-4 h-4 bg-white rounded-full top-0.5 transition-all duration-200
-              {generateSnapshots ? 'left-5' : 'left-0.5'}"
-            ></div>
-          </button>
-        </div>
-
-        {#if !easyMode}
-        <div class="space-y-2 transition-all duration-200 {!generateSnapshots ? 'opacity-40 pointer-events-none' : ''}">
-          <div class="grid grid-cols-3 gap-2">
-            <div>
-              <span class="block text-xs text-gray-500 mb-1"
-                >{t("flashcards.width")}</span
-              >
-              <div class="flex items-center gap-1">
-                <input
-                  type="number"
-                  bind:value={snapshotWidth}
-                  class="input-modern w-full text-xs"
-                />
-                <span class="text-xs text-gray-500">px</span>
-              </div>
-            </div>
-            <div>
-              <span class="block text-xs text-gray-500 mb-1"
-                >{t("flashcards.height")}</span
-              >
-              <div class="flex items-center gap-1">
-                <input
-                  type="number"
-                  bind:value={snapshotHeight}
-                  class="input-modern w-full text-xs"
-                />
-                <span class="text-xs text-gray-500">px</span>
-              </div>
-            </div>
-            <div>
-              <span class="block text-xs text-gray-500 mb-1"
-                >{t("flashcards.cropBottom")}</span
-              >
-              <div class="flex items-center gap-1">
-                <input
-                  type="number"
-                  bind:value={cropBottom}
-                  class="input-modern w-full text-xs"
-                />
-                <span class="text-xs text-gray-500">px</span>
-              </div>
-            </div>
-          </div>
-        </div>
-        {/if}
-      </div>
+      <SnapshotsPanel
+        bind:settings={mediaSettings}
+        {hasVideo}
+        {effectiveExportFormat}
+        hintLoadVideoFirst={HINT_LOAD_VIDEO_FIRST}
+      />
     {:else if panelId === "videoClips"}
-      <div
-        inert={!hasVideo}
-        title={!hasVideo ? HINT_LOAD_VIDEO_FIRST : undefined}
-        class="glass-card p-5 relative z-5 overflow-visible {!hasVideo
-          ? 'opacity-40'
-          : ''}"
-      >
-        <div class="flex items-center justify-between mb-3">
-          <h3
-            class="text-lg font-semibold flex items-center gap-2 text-rose-400"
-          >
-            <svg
-              class="w-5 h-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
-              />
-            </svg>
-            <span class="flex flex-col">
-              <span>{t("flashcards.generateVideoClips")}</span>
-              {#if effectiveExportFormat === "apkg"}
-                <span class="text-[10px] text-rose-300/60 font-normal normal-case mt-0.5">
-                  {$currentLanguage === 'it' ? 'Mutualmente esclusivo con gli snapshot in APKG' : 'Mutually exclusive with snapshots in APKG'}
-                </span>
-              {/if}
-            </span>
-          </h3>
-          <button
-            onclick={() => {
-              if (hasVideo) {
-                generateVideoClips = !generateVideoClips;
-              }
-            }}
-            class="w-10 h-5 rounded-full transition-all duration-200 relative
-              {generateVideoClips ? 'bg-rose-500' : 'bg-gray-600'}"
-            aria-label="Toggle video clips"
-            disabled={!hasVideo}
-          >
-            <div
-              class="absolute w-4 h-4 bg-white rounded-full top-0.5 transition-all duration-200
-              {generateVideoClips ? 'left-5' : 'left-0.5'}"
-            ></div>
-          </button>
-        </div>
-
-        {#if !easyMode}
-        <div class="space-y-2 transition-all duration-200 {!generateVideoClips ? 'opacity-40 pointer-events-none' : ''}">
-          <div class="grid grid-cols-2 gap-2">
-            <div>
-              <span class="block text-xs text-gray-500 mb-1"
-                >{t("flashcards.width")}</span
-              >
-              <div class="flex items-center gap-1">
-                <input
-                  type="number"
-                  bind:value={snapshotWidth}
-                  class="input-modern w-full text-xs"
-                />
-                <span class="text-xs text-gray-500">px</span>
-              </div>
-            </div>
-            <div>
-              <span class="block text-xs text-gray-500 mb-1"
-                >{t("flashcards.height")}</span
-              >
-              <div class="flex items-center gap-1">
-                <input
-                  type="number"
-                  bind:value={snapshotHeight}
-                  class="input-modern w-full text-xs"
-                />
-                <span class="text-xs text-gray-500">px</span>
-              </div>
-            </div>
-          </div>
-          <div class="grid grid-cols-2 gap-2">
-            <div>
-              <span class="block text-xs text-gray-500 mb-1"
-                >{t("flashcards.videoCodec")}</span
-              >
-              <SearchableSelect
-                className="compact-select"
-                noResultsText={t("common.noResults")}
-                options={[
-                  { value: "h264", label: "H.264 (MP4)" },
-                  { value: "mpeg4", label: "MPEG-4 (AVI)" },
-                ]}
-                value={videoCodec}
-                onchange={(v) => (videoCodec = v)}
-                placeholder="Codec"
-              />
-            </div>
-            <div>
-              <span class="block text-xs text-gray-500 mb-1"
-                >{t("flashcards.h264Preset")}</span
-              >
-              <SearchableSelect
-                className="compact-select"
-                noResultsText={t("common.noResults")}
-                options={[
-                  { value: "ultrafast", label: "Ultrafast" },
-                  { value: "fast", label: "Fast" },
-                  { value: "medium", label: "Medium" },
-                  { value: "slow", label: "Slow" },
-                  { value: "veryslow", label: "Very slow" },
-                ]}
-                value={h264Preset}
-                onchange={(v) => (h264Preset = v)}
-                placeholder="Preset"
-              />
-            </div>
-          </div>
-          {#if uiMode.expertMode && videoCodec === "h264"}
-            <div>
-              <span class="block text-xs text-gray-500 mb-1"
-                >{t("flashcards.videoEncoder")}</span
-              >
-              <SearchableSelect
-                className="compact-select"
-                noResultsText={t("common.noResults")}
-                options={[
-                  { value: "auto", label: t("flashcards.videoEncoderAuto") },
-                  { value: "off", label: t("flashcards.videoEncoderX264") },
-                ]}
-                value={videoHwAccel}
-                onchange={(v) => (videoHwAccel = v)}
-                placeholder="Encoder"
-              />
-            </div>
-          {/if}
-          <div class="grid grid-cols-2 gap-2">
-            <div>
-              <span class="block text-xs text-gray-500 mb-1"
-                >{t("flashcards.videoBitrate")}</span
-              >
-              <div class="flex items-center gap-1">
-                <input
-                  type="number"
-                  bind:value={videoBitrate}
-                  class="input-modern w-full text-xs"
-                />
-                <span class="text-xs text-gray-500">kb/s</span>
-              </div>
-            </div>
-            <div>
-              <span class="block text-xs text-gray-500 mb-1"
-                >{t("flashcards.audioBitrate")}</span
-              >
-              <SearchableSelect
-                className="compact-select"
-                noResultsText={t("common.noResults")}
-                options={[
-                  { value: "64", label: "64 kb/s" },
-                  { value: "128", label: "128 kb/s" },
-                  { value: "192", label: "192 kb/s" },
-                  { value: "256", label: "256 kb/s" },
-                ]}
-                value={String(videoAudioBitrate)}
-                onchange={(v) => (videoAudioBitrate = parseInt(v))}
-                placeholder="Bitrate"
-              />
-            </div>
-          </div>
-          <div class="grid grid-cols-2 gap-2">
-            <div>
-              <span class="block text-xs text-gray-500 mb-1"
-                >{t("flashcards.padStart")}</span
-              >
-              <div class="flex items-center gap-1">
-                <input
-                  type="number"
-                  bind:value={videoPadStart}
-                  class="input-modern w-full text-xs"
-                />
-                <span class="text-xs text-gray-500">ms</span>
-              </div>
-            </div>
-            <div>
-              <span class="block text-xs text-gray-500 mb-1"
-                >{t("flashcards.padEnd")}</span
-              >
-              <div class="flex items-center gap-1">
-                <input
-                  type="number"
-                  bind:value={videoPadEnd}
-                  class="input-modern w-full text-xs"
-                />
-                <span class="text-xs text-gray-500">ms</span>
-              </div>
-            </div>
-          </div>
-        </div>
-        {/if}
-
-        {#if generateVideoClips && !generateAudio}
-          <div class="mt-3 p-3 bg-amber-500/10 border border-amber-500/20 text-amber-200 rounded-xl text-xs flex items-start gap-2">
-            <svg class="w-4.5 h-4.5 text-amber-400 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
-            </svg>
-            <div>
-              <p class="font-bold text-amber-300">{$currentLanguage === 'it' ? 'Audio Disattivato' : 'Audio Disabled'}</p>
-              <p class="opacity-90">{$currentLanguage === 'it' ? 'Le clip video verranno generate senza audio (mute).' : 'Video clips will be generated without audio (silent).'}</p>
-            </div>
-          </div>
-        {/if}
-      </div>
+      <VideoClipsPanel
+        bind:settings={mediaSettings}
+        bind:videoHwAccel
+        {hasVideo}
+        {effectiveExportFormat}
+        hintLoadVideoFirst={HINT_LOAD_VIDEO_FIRST}
+      />
     {:else if panelId === "cardFilters"}
       <div
         inert={!hasAnyFiles}
