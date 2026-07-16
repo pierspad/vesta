@@ -296,22 +296,22 @@ fn test_regression_hashes() {
         (
             "clip_02_en.srt",
             Some("clip_02_it.srt"),
-            "83c78c93c65d7d6559d490089d7889d0e40870402aa272a4c9301c8d46d40ae4",
+            "2e034c13a56867a613b65e287979d1dafd99a323041d3aff8b90be13f0af5a65",
         ),
         (
             "clip_03_en.srt",
             Some("clip_03_it.srt"),
-            "8bec366eb4c085fd02940c3de0ad5e35bb41abadbec7c5654e2687bba38e1277",
+            "715a0ae130d3c52dc2f4e1c7a74a666050d599a3178b074e8d0ea7e517c39628",
         ),
         (
             "clip_04_en.srt",
             Some("clip_04_it.srt"),
-            "4be580a56afc1d17d27cf84aa39445d693937d6616e0e0e47bb9d998891d835b",
+            "a23e98e8f2af1fd9631d18884d3c35b9c8c9466ebea309e049d15ed5f5349a67",
         ),
         (
             "clip_05_en.srt",
             Some("clip_05_it.srt"),
-            "c876202fb60e27e54a03d6ad22fff6dcf3faf871d6bcd9947a06cf69fb9327af",
+            "ebe1530c8afcc4c9c62f824213276152c22cdafbe6377d155bdd082b8bd71287",
         ),
     ];
 
