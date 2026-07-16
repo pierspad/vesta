@@ -1,11 +1,11 @@
 {
   "directories": [
-    "/home/ribben/Desktop/Various_Projects/vesta/apps/srt-gui/src/lib/i18n/locales"
+    "/sessions/cool-elegant-hopper/mnt/vesta/apps/srt-gui/src/lib/i18n/locales"
   ],
   "en_keys_per_directory": {
-    "locales": 774
+    "locales": 787
   },
-  "total_english_keys": 774,
+  "total_english_keys": 787,
   "checked_locales": [
     "ar",
     "de",
@@ -23,25 +23,262 @@
     "zh"
   ],
   "missing_counts_by_locale": {
-    "ar": 0,
-    "de": 0,
-    "es": 0,
-    "fr": 0,
-    "hi": 0,
-    "it": 0,
+    "ar": 1,
+    "de": 1,
+    "es": 1,
+    "fr": 2,
+    "hi": 1,
+    "it": 1,
     "ja": 0,
     "ko": 0,
-    "nl": 0,
-    "pl": 0,
-    "pt": 0,
-    "ru": 0,
-    "tr": 0,
+    "nl": 2,
+    "pl": 1,
+    "pt": 1,
+    "ru": 1,
+    "tr": 1,
     "zh": 0
   },
-  "total_keys_with_issues": 0,
+  "total_keys_with_issues": 2,
   "orphan_keys_count": 0,
   "orphan_keys": [],
-  "missing_keys": {},
-  "translation_tasks_summary": {},
-  "translation_tasks": {}
+  "missing_keys": {
+    "flashcards.videoEncoderX264": {
+      "locales": [
+        "ar",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "it",
+        "nl",
+        "pl",
+        "pt",
+        "ru",
+        "tr"
+      ],
+      "details": [
+        {
+          "locale": "ar",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "de",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "es",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "fr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "hi",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "it",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "nl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "pt",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "ru",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "tr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        }
+      ]
+    },
+    "refine.llmTiersSummary": {
+      "locales": [
+        "fr",
+        "nl"
+      ],
+      "details": [
+        {
+          "locale": "fr",
+          "reason": "same_as_english",
+          "directory": "locales"
+        },
+        {
+          "locale": "nl",
+          "reason": "same_as_english",
+          "directory": "locales"
+        }
+      ]
+    }
+  },
+  "translation_tasks_summary": {
+    "ar": {
+      "total": 1,
+      "same_as_english": 1
+    },
+    "de": {
+      "total": 1,
+      "same_as_english": 1
+    },
+    "es": {
+      "total": 1,
+      "same_as_english": 1
+    },
+    "fr": {
+      "total": 2,
+      "same_as_english": 2
+    },
+    "hi": {
+      "total": 1,
+      "same_as_english": 1
+    },
+    "it": {
+      "total": 1,
+      "same_as_english": 1
+    },
+    "nl": {
+      "total": 2,
+      "same_as_english": 2
+    },
+    "pl": {
+      "total": 1,
+      "same_as_english": 1
+    },
+    "pt": {
+      "total": 1,
+      "same_as_english": 1
+    },
+    "ru": {
+      "total": 1,
+      "same_as_english": 1
+    },
+    "tr": {
+      "total": 1,
+      "same_as_english": 1
+    }
+  },
+  "translation_tasks": {
+    "ar": [
+      {
+        "key": "flashcards.videoEncoderX264",
+        "reason": "same_as_english",
+        "en": "x264 (CPU)",
+        "current_value": "x264 (CPU)"
+      }
+    ],
+    "de": [
+      {
+        "key": "flashcards.videoEncoderX264",
+        "reason": "same_as_english",
+        "en": "x264 (CPU)",
+        "current_value": "x264 (CPU)"
+      }
+    ],
+    "es": [
+      {
+        "key": "flashcards.videoEncoderX264",
+        "reason": "same_as_english",
+        "en": "x264 (CPU)",
+        "current_value": "x264 (CPU)"
+      }
+    ],
+    "fr": [
+      {
+        "key": "flashcards.videoEncoderX264",
+        "reason": "same_as_english",
+        "en": "x264 (CPU)",
+        "current_value": "x264 (CPU)"
+      },
+      {
+        "key": "refine.llmTiersSummary",
+        "reason": "same_as_english",
+        "en": "{{tiers}} tier(s) · {{endpoints}} endpoint(s)",
+        "current_value": "{{tiers}} tier(s) · {{endpoints}} endpoint(s)"
+      }
+    ],
+    "hi": [
+      {
+        "key": "flashcards.videoEncoderX264",
+        "reason": "same_as_english",
+        "en": "x264 (CPU)",
+        "current_value": "x264 (CPU)"
+      }
+    ],
+    "it": [
+      {
+        "key": "flashcards.videoEncoderX264",
+        "reason": "same_as_english",
+        "en": "x264 (CPU)",
+        "current_value": "x264 (CPU)"
+      }
+    ],
+    "nl": [
+      {
+        "key": "flashcards.videoEncoderX264",
+        "reason": "same_as_english",
+        "en": "x264 (CPU)",
+        "current_value": "x264 (CPU)"
+      },
+      {
+        "key": "refine.llmTiersSummary",
+        "reason": "same_as_english",
+        "en": "{{tiers}} tier(s) · {{endpoints}} endpoint(s)",
+        "current_value": "{{tiers}} tier(s) · {{endpoints}} endpoint(s)"
+      }
+    ],
+    "pl": [
+      {
+        "key": "flashcards.videoEncoderX264",
+        "reason": "same_as_english",
+        "en": "x264 (CPU)",
+        "current_value": "x264 (CPU)"
+      }
+    ],
+    "pt": [
+      {
+        "key": "flashcards.videoEncoderX264",
+        "reason": "same_as_english",
+        "en": "x264 (CPU)",
+        "current_value": "x264 (CPU)"
+      }
+    ],
+    "ru": [
+      {
+        "key": "flashcards.videoEncoderX264",
+        "reason": "same_as_english",
+        "en": "x264 (CPU)",
+        "current_value": "x264 (CPU)"
+      }
+    ],
+    "tr": [
+      {
+        "key": "flashcards.videoEncoderX264",
+        "reason": "same_as_english",
+        "en": "x264 (CPU)",
+        "current_value": "x264 (CPU)"
+      }
+    ]
+  }
 }
