@@ -5,6 +5,8 @@
   import { guardedOpen } from "./utils/dialogGuard";
   import { onDestroy, onMount } from "svelte";
   import { locale, currentLanguage } from "./i18n";
+  import { getFileName, inferLanguageFromPath } from "./models";
+  import { detectLanguageCode, getLanguageSearchTerms, languages, scoreLanguageMatch } from "./languages";
   import {
     CARD_TEMPLATES_UPDATED_EVENT,
     NOTE_TYPES_UPDATED_EVENT,
@@ -18,10 +20,7 @@
     ACTIVE_NOTE_TYPE_CHANGED_EVENT,
     type NoteTypeDef,
     type FieldKey,
-    getFileName,
-    inferLanguageFromPath,
-  } from "./models";
-  import { detectLanguageCode, getLanguageSearchTerms, languages, scoreLanguageMatch } from "./languages";
+  } from "./noteTypes";
   import PathPreviewModal from "./PathPreviewModal.svelte";
   import SearchableSelect from "./SearchableSelect.svelte";
   import LogPanel from "./LogPanel.svelte";

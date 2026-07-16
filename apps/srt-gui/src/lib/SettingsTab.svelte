@@ -37,21 +37,7 @@ import TranscribeTiers from "./TranscribeTiers.svelte";
     type DiscoveredModel,
   } from "./modelDiscovery";
   import {
-    CARD_TEMPLATES_UPDATED_EVENT,
-    FIELD_NAMES_UPDATED_EVENT,
-    NOTE_TYPES_UPDATED_EVENT,
-    defaultCardTemplates,
-    defaultFieldNames,
-    limitNoteTypeFieldValue,
     loadAndValidateApiKeys,
-    loadCardTemplates,
-    loadFieldNames,
-    resetCardTemplates,
-    saveCardTemplates,
-    saveFieldNames,
-    loadActiveNoteTypeId,
-    saveActiveNoteTypeId,
-    ACTIVE_NOTE_TYPE_CHANGED_EVENT,
     loadTiers,
     tiersHaveUsableEntries,
     TIERS_UPDATED_EVENT,
@@ -63,7 +49,6 @@ import TranscribeTiers from "./TranscribeTiers.svelte";
     transcribeProviders,
     transcribeProviderOrder,
     type ApiKeyConfig,
-    type FieldNamesConfig,
     type Tier,
     type TranscribeTier,
     loadVadSelection,
@@ -73,6 +58,23 @@ import TranscribeTiers from "./TranscribeTiers.svelte";
   } from "./models";
   import { getModelsForProvider, providers, type ModelInfo } from "./llmProviders";
   import { getLanguageSearchTerms, languages } from "./languages";
+  import {
+    CARD_TEMPLATES_UPDATED_EVENT,
+    FIELD_NAMES_UPDATED_EVENT,
+    NOTE_TYPES_UPDATED_EVENT,
+    defaultCardTemplates,
+    defaultFieldNames,
+    limitNoteTypeFieldValue,
+    loadCardTemplates,
+    loadFieldNames,
+    resetCardTemplates,
+    saveCardTemplates,
+    saveFieldNames,
+    loadActiveNoteTypeId,
+    saveActiveNoteTypeId,
+    ACTIVE_NOTE_TYPE_CHANGED_EVENT,
+    type FieldNamesConfig,
+  } from "./noteTypes";
   import { guardedOpen } from "./utils/dialogGuard";
 
   const allProviderIds = ["local", "google", "groq", "openai", "deepgram", "assemblyai", "openrouter", "mistral", "github", "nvidia", "custom"];
