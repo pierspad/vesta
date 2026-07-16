@@ -165,13 +165,16 @@ if [ -f "$WORKSPACE_CARGO" ]; then
 fi
 
 # ===========================================================
-# 7. Internal crate Cargo.toml package versions (core/lib)
+# 7. Internal crate Cargo.toml package versions (core/lib/cli)
 # ===========================================================
+# cli/ è incluso qui perché check_internal_crate_versions.sh lo verifica: se
+# uno dei due elenchi diverge dall'altro, il bump di release lascia le CLI
+# indietro senza che nessun gate se ne accorga (è già successo).
 while IFS= read -r crate_toml; do
     # Aggiorna la prima occorrenza di version nel file (sezione [package])
     sed -i "0,/^version = \".*\"/s//version = \"${VERSION}\"/" "$crate_toml"
     update_file "$crate_toml" "package version"
-done < <(find "$PROJECT_ROOT/core" "$PROJECT_ROOT/lib" -mindepth 2 -maxdepth 2 -name Cargo.toml | sort)
+done < <(find "$PROJECT_ROOT/core" "$PROJECT_ROOT/lib" "$PROJECT_ROOT/cli" -mindepth 2 -maxdepth 2 -name Cargo.toml | sort)
 
 # ===========================================================
 # 9. Frontend Svelte Fallbacks (Sidebar.svelte, SettingsTab.svelte)

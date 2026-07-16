@@ -2,44 +2,35 @@
 //!
 //! Interfaccia a riga di comando per la traduzione di sottotitoli SRT.
 //! Questo è il "guscio" che gestisce l'I/O utente e delega la logica
-//! di business alla libreria `srt-translate`.
+//! di business alla libreria `srt-translate` — inclusi il pool a tier
+//! e lo scheduler di failover, condivisi con l'app desktop (vedi
+//! `srt_translate::{build_pool, translate_subtitles_tiered_cancellable}`).
 
 use anyhow::Result;
 use clap::Parser;
 use regex::Regex;
 use serde::Deserialize;
 use srt_parser::SrtParser;
-use srt_translate::{
-    ApiType, RateLimiter, TranslationProgress, Translator, TranslatorConfig, create_rate_limiter,
-    repair_translation_with_rate_limit, translate_subtitles_with_rate_limit,
-    verify_translation_completeness,
-};
-use std::io::{self, Write};
+use srt_translate::{TierEntry, TranslationProgress, translate_subtitles_tiered_cancellable};
 use std::path::PathBuf;
-use std::sync::{Arc, LazyLock};
+use std::sync::LazyLock;
+use tokio_util::sync::CancellationToken;
 
 /// Configurazione caricata da config.toml
 #[derive(Debug, Deserialize)]
 struct Config {
-    api: ApiConfig,
+    /// Tier di precedenza: il primo esaurito (rate-limit/quota) fa
+    /// scattare il failover automatico verso il tier successivo.
+    #[serde(default)]
+    tiers: Vec<TierConfig>,
     translation: TranslationConfig,
     #[serde(default)]
     output: OutputConfig,
 }
 
 #[derive(Debug, Deserialize)]
-struct ApiConfig {
-    providers: Vec<ProviderConfig>,
-}
-
-#[derive(Debug, Deserialize, Clone)]
-struct ProviderConfig {
-    provider: String, // "gemini", "openai", "local"
-    api_key: String,
-    model: String,
-    rpm_limit: usize,
-    #[serde(default)]
-    workers_per_key: Option<usize>, // Ora opzionale, calcolato automaticamente se None
+struct TierConfig {
+    entries: Vec<TierEntry>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -94,43 +85,9 @@ fn expand_env_vars(content: &str) -> Result<String> {
     Ok(result)
 }
 
-/// Calcola automaticamente il numero di workers per provider in base al RPM
-///
-/// Per task I/O bound (come le chiamate API), il numero di workers non è
-/// limitato dalla CPU ma dalla latenza di rete e dal rate limit dell'API.
-///
-/// Strategia:
-/// - Con rate limiters abilitati, possiamo avere più workers in attesa
-/// - Il rate limiter garantisce di non superare l'RPM
-/// - Più workers = migliore parallelizzazione delle richieste
-fn calculate_workers_per_provider(rpm_limit: usize) -> usize {
-    // Per task I/O bound, usiamo un numero di workers basato sul RPM
-    // Più RPM = più workers possibili
-    // Formula: circa 1 worker ogni 5-10 RPM, con min=2 e max=20
-    (rpm_limit / 8).clamp(2, 20)
-}
-
-/// Calcola workers legacy basato su CPU (per retrocompatibilità)
-#[deprecated(note = "Use calculate_workers_per_provider which is optimized for I/O bound tasks")]
-#[allow(dead_code)]
-fn calculate_workers_per_key_legacy(num_providers: usize) -> usize {
-    let num_cpus = std::thread::available_parallelism()
-        .map(|n| n.get())
-        .unwrap_or(1);
-
-    // Lascia sempre almeno 1 CPU libera
-    let available_cpus = if num_cpus > 1 { num_cpus - 1 } else { 1 };
-
-    // Distribuisci le CPU disponibili tra i provider (checked_div: num_providers può essere 0)
-    available_cpus
-        .checked_div(num_providers)
-        .unwrap_or(1)
-        .max(1)
-}
-
 #[derive(Parser)]
 #[command(name = "srt-translate")]
-#[command(about = "Translate SRT files using LLM APIs with multi-account support", long_about = None)]
+#[command(about = "Translate SRT files using LLM APIs with tiered multi-provider failover", long_about = None)]
 struct Cli {
     /// Path to the SRT file to translate
     #[arg(short, long)]
@@ -195,61 +152,25 @@ async fn main() -> Result<()> {
     let config: Config = toml::from_str(&config_content)
         .map_err(|e| anyhow::anyhow!("Failed to parse config.toml: {}", e))?;
 
-    // Validazione
-    if config.api.providers.is_empty() {
-        return Err(anyhow::anyhow!(
-            "No API providers found in config.toml. Please add at least one [[api.providers]] section."
-        ));
-    }
-
-    // Applica il calcolo automatico dei workers basato sull'RPM (I/O bound optimization)
-    let providers_with_workers: Vec<ProviderConfig> = config
-        .api
-        .providers
-        .into_iter()
-        .map(|mut p| {
-            if p.workers_per_key.is_none() {
-                // Calcola workers in base al RPM del provider (ottimizzato per I/O bound)
-                p.workers_per_key = Some(calculate_workers_per_provider(p.rpm_limit));
-            }
-            p
-        })
-        .collect();
-
-    // Statistiche
-    let total_workers: usize = providers_with_workers
-        .iter()
-        .map(|p| p.workers_per_key.unwrap_or(1))
-        .sum();
-
-    let num_cpus = std::thread::available_parallelism()
-        .map(|n| n.get())
-        .unwrap_or(1);
+    // Il pool a tier (default per provider, filtro delle entry inutilizzabili,
+    // rate limiter, concorrenza) è tutto delegato a `srt_translate::build_pool`:
+    // la stessa funzione usata dall'app desktop, così CLI e GUI condividono
+    // un'unica implementazione del failover invece di due.
+    let tiers: Vec<Vec<TierEntry>> = config.tiers.into_iter().map(|t| t.entries).collect();
+    let pool = srt_translate::build_pool(&tiers).map_err(|e| anyhow::anyhow!(e))?;
 
     println!("🔧 Configuration:");
-    println!(
-        "  💻 System CPUs: {} (not a bottleneck for I/O bound tasks)",
-        num_cpus
-    );
     println!("  📄 Config file: {}", cli.config.display());
-    println!("  🔑 API providers: {}", providers_with_workers.len());
-    for (idx, provider) in providers_with_workers.iter().enumerate() {
-        let workers = provider.workers_per_key.unwrap_or(1);
-        let auto_note = if provider.workers_per_key.is_none() {
-            " [auto-calculated from RPM]"
-        } else {
-            ""
-        };
-        println!(
-            "     [{idx}] {} - {} ({} RPM, {} workers{})",
-            provider.provider, provider.model, provider.rpm_limit, workers, auto_note
-        );
+    for (tier_idx, tier) in pool.iter().enumerate() {
+        println!("  🏷️  Tier {}:", tier_idx + 1);
+        for entry in tier {
+            println!("     - {}", entry.label);
+        }
     }
     println!(
         "  📦 Batch size: {} subtitles per request",
         config.translation.batch_size
     );
-    println!("  🚀 Total concurrent workers: {}", total_workers);
     println!();
 
     // Parse del file SRT
@@ -312,80 +233,18 @@ async fn main() -> Result<()> {
         if let Some(eta) = progress.eta_seconds {
             let minutes = (eta / 60.0) as u32;
             let seconds = (eta % 60.0) as u32;
-
-            if progress.message.contains("Starting batch") {
-                print!(
-                    "  {} (ETA: {}m {}s)...\r",
-                    progress.message, minutes, seconds
-                );
-                // flush può fallire se stdout è una pipe chiusa - ignoriamo l'errore
-                let _ = io::stdout().flush();
-            } else if progress.message.contains("completed") {
-                // Mostra il completamento con l'ETA
-                println!(
-                    "  {} (ETA: {}m {}s remaining)",
-                    progress.message, minutes, seconds
-                );
-            } else {
-                println!("  {} (ETA: {}m {}s)", progress.message, minutes, seconds);
-            }
-        } else if progress.message.contains("✓") || progress.message.contains("✗") {
-            println!("  {}", progress.message);
+            println!("  {} (ETA: {}m {}s)", progress.message, minutes, seconds);
         } else if !progress.message.is_empty() {
             println!("  ℹ️  {}", progress.message);
         }
     };
 
-    // Crea i Translator e RateLimiters da tutti i provider configurati
-    let mut translators: Vec<Translator> = Vec::new();
-    let mut rate_limiters: Vec<Arc<RateLimiter>> = Vec::new();
-
-    for provider in &providers_with_workers {
-        // Determina tipo API dal provider - Local o Google (OpenRouter disabilitato)
-        let api_type = match provider.provider.as_str() {
-            "local" => ApiType::Local,
-            "google" | "gemini" => ApiType::Google,
-            "groq" => ApiType::Groq,
-            // OpenRouter e altri sono disabilitati
-            _ => {
-                eprintln!(
-                    "⚠️ Provider '{}' non supportato. Usa 'local', 'groq' o 'google'.",
-                    provider.provider
-                );
-                continue;
-            }
-        };
-
-        // Determina base URL
-        let base_url = match api_type {
-            ApiType::Local => "http://localhost:1234/v1",
-            ApiType::Google => "https://generativelanguage.googleapis.com/v1beta",
-            ApiType::OpenRouter => "https://openrouter.ai/api/v1", // Non usato
-            ApiType::Groq => "https://api.groq.com/openai/v1",
-        };
-
-        let workers = provider.workers_per_key.unwrap_or(1);
-
-        // Crea un rate limiter condiviso per questo provider (rispetta RPM)
-        // Il rate limiter è condiviso tra tutti i workers dello stesso provider
-        let rate_limiter = create_rate_limiter(provider.rpm_limit as u32);
-
-        // Crea N translators per questo provider (workers_per_key)
-        for _ in 0..workers {
-            translators.push(Translator::new(TranslatorConfig {
-                base_url: base_url.to_string(),
-                model: provider.model.clone(),
-                api_key: Some(provider.api_key.clone()),
-                api_type: api_type.clone(),
-            }));
-            // Ogni worker dello stesso provider condivide lo stesso rate limiter
-            rate_limiters.push(rate_limiter.clone());
-        }
-    }
-
-    let mut translated = translate_subtitles_with_rate_limit(
-        translators.clone(),
-        Some(rate_limiters.clone()),
+    // Un'unica chiamata gestisce batching, rate limiting, failover a tier e
+    // repair automatico delle righe mancanti/incoerenti: tutta questa logica
+    // vive in `srt_translate` (vedi `translate_subtitles_tiered_cancellable`),
+    // non più duplicata qui nel CLI.
+    let translated = translate_subtitles_tiered_cancellable(
+        pool,
         original_subtitles.clone(),
         language,
         config.translation.batch_size,
@@ -393,109 +252,24 @@ async fn main() -> Result<()> {
         title_context.as_deref(),
         &output_path,
         cli_progress_handler,
+        CancellationToken::new(),
     )
     .await?;
 
     println!();
 
-    // Loop di verifica e riparazione automatica
-    // Continua fino a quando non ci sono più discrepanze
-    let max_repair_attempts = 5;
-    let mut repair_attempt = 0;
-
-    loop {
-        repair_attempt += 1;
-
-        // Verifica completezza della traduzione
-        println!("🔍 Verifying translation completeness...");
-        let missing_ids = verify_translation_completeness(&original_subtitles, &translated);
-
-        if missing_ids.is_empty() {
-            println!(
-                "✅ All {} subtitles present with correct line counts - no repair needed!",
-                original_subtitles.len()
-            );
-            break;
-        }
-
-        if repair_attempt > max_repair_attempts {
-            println!(
-                "⚠️  Maximum repair attempts ({}) reached.",
-                max_repair_attempts
-            );
-            println!(
-                "⚠️  Still found {} subtitles with issues.",
-                missing_ids.len()
-            );
-            println!("💡 You may need to review these subtitles manually.");
-            break;
-        }
-
-        println!("⚠️  Found {} subtitles with issues!", missing_ids.len());
+    let missing_ids =
+        srt_translate::verify_translation_completeness(&original_subtitles, &translated);
+    if missing_ids.is_empty() {
         println!(
-            "🔧 Starting automatic repair (attempt {}/{}) with {} workers...",
-            repair_attempt,
-            max_repair_attempts,
-            translators.len()
+            "✅ All {} subtitles present with correct line counts!",
+            original_subtitles.len()
         );
-        println!();
-
-        // Callback per il repair
-        let repair_progress = |progress: TranslationProgress| {
-            if progress.message.contains("Repairing") {
-                print!("  {} \r", progress.message);
-                io::stdout().flush().unwrap_or(());
-            } else {
-                println!("  {}", progress.message);
-            }
-        };
-
-        // Gestione errori migliorata: se il repair fallisce, salva il file parziale
-        // e continua al prossimo tentativo invece di propagare l'errore fatalmente
-        let repair_result = repair_translation_with_rate_limit(
-            translators.clone(),
-            Some(rate_limiters.clone()),
-            &original_subtitles,
-            &mut translated,
-            missing_ids.clone(),
-            language,
-            title_context.as_deref(),
-            repair_progress,
-        )
-        .await;
-
-        if let Err(e) = repair_result {
-            eprintln!("⚠️  Repair attempt {} failed: {}", repair_attempt, e);
-
-            // Salva comunque il file parziale per non perdere il lavoro fatto
-            save_partial_translation(&output_path, &translated)?;
-            println!("💾 Partial translation saved to: {}", output_path.display());
-
-            // Se l'errore è fatale (es. Quota Exceeded), aspetta un po' prima di riprovare
-            if e.to_string().contains("Quota")
-                || e.to_string().contains("429")
-                || e.to_string().contains("rate")
-            {
-                println!("⏳ Rate limit detected, waiting 60 seconds before retry...");
-                tokio::time::sleep(std::time::Duration::from_secs(60)).await;
-            } else {
-                // Per altri errori, breve pausa per far "raffreddare" l'API
-                println!("⏳ Waiting 5 seconds before retry...");
-                tokio::time::sleep(std::time::Duration::from_secs(5)).await;
-            }
-
-            continue; // Riprova il loop di repair
-        }
-
-        // Salva la versione riparata dopo ogni iterazione
-        SrtParser::save_file(&output_path, &translated)?;
-
-        println!();
+    } else {
         println!(
-            "✅ Repair cycle {} completed, re-verifying...",
-            repair_attempt
+            "⚠️  {} subtitles still have issues after repair — you may need to review them manually.",
+            missing_ids.len()
         );
-        println!();
     }
 
     println!();
@@ -503,15 +277,6 @@ async fn main() -> Result<()> {
     println!("✨ Done!");
 
     Ok(())
-}
-
-/// Salva il file di traduzione parziale (usato in caso di errore nel repair)
-/// Questo evita di perdere il lavoro già fatto se la traduzione viene interrotta
-fn save_partial_translation(
-    output_path: &PathBuf,
-    translated: &std::collections::HashMap<u32, srt_parser::Subtitle>,
-) -> Result<()> {
-    SrtParser::save_file(output_path, translated)
 }
 
 fn check_missing_subtitles(original_path: &PathBuf, translated_path: &PathBuf) -> Result<()> {
@@ -549,7 +314,8 @@ fn check_missing_subtitles(original_path: &PathBuf, translated_path: &PathBuf) -
     println!();
 
     // Verifica completezza
-    let missing_ids = verify_translation_completeness(&original_subtitles, &translated_subtitles);
+    let missing_ids =
+        srt_translate::verify_translation_completeness(&original_subtitles, &translated_subtitles);
 
     // Verifica discrepanze nel numero di righe
     let mut line_discrepancies = Vec::new();

@@ -3,6 +3,14 @@ target/
 **/*.rs.bk
 *.pdb
 
+# Binari compilati copiati fuori da target/ (build_all.sh li rigenera)
+/bin/
+cli/*/srt-extract
+cli/*/srt-translate
+cli/*/srt-flashcards
+cli/*/srt-autosync
+cli/*/srt-transcribe
+
 # IDE
 .vscode/
 .idea/

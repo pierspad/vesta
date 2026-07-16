@@ -1,6 +1,6 @@
 [package]
 name = "srt-translate-cli"
-version = "0.1.0"
+version = "0.14.1-dev.3"
 edition.workspace = true
 description = "CLI tool for translating SRT subtitle files using LLM APIs"
 authors = ["Your Name <your.email@example.com>"]
@@ -18,6 +18,7 @@ srt-translate = { workspace = true }
 anyhow.workspace = true
 clap.workspace = true
 tokio.workspace = true
+tokio-util = "0.7"
 dotenvy = "0.15"
 toml = "1.1"
 serde.workspace = true

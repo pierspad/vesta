@@ -4347,7 +4347,7 @@ dependencies = [
 
 [[package]]
 name = "srt-autosync-cli"
-version = "0.14.0-dev.2"
+version = "0.14.1-dev.2"
 dependencies = [
  "anyhow",
  "clap",
@@ -4382,7 +4382,7 @@ dependencies = [
 
 [[package]]
 name = "srt-extract-cli"
-version = "0.1.0"
+version = "0.14.1-dev.2"
 dependencies = [
  "anyhow",
  "clap",
@@ -4408,7 +4408,7 @@ dependencies = [
 
 [[package]]
 name = "srt-flashcards-cli"
-version = "0.10.0"
+version = "0.14.1-dev.2"
 dependencies = [
  "anyhow",
  "clap",
@@ -4472,7 +4472,7 @@ dependencies = [
 
 [[package]]
 name = "srt-transcribe-cli"
-version = "0.14.0-dev.2"
+version = "0.14.1-dev.2"
 dependencies = [
  "anyhow",
  "clap",
@@ -4497,7 +4497,7 @@ dependencies = [
 
 [[package]]
 name = "srt-translate-cli"
-version = "0.1.0"
+version = "0.14.1-dev.2"
 dependencies = [
  "anyhow",
  "clap",
@@ -4507,6 +4507,7 @@ dependencies = [
  "srt-parser",
  "srt-translate",
  "tokio",
+ "tokio-util",
  "toml 1.1.2+spec-1.1.0",
 ]
 

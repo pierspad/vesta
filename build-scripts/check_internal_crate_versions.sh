@@ -71,10 +71,10 @@ check_package_version() {
     fi
 }
 
-echo -e "${YELLOW}Controllo versioni package core/lib (atteso: $VERSION)...${NC}"
+echo -e "${YELLOW}Controllo versioni package core/lib/cli (atteso: $VERSION)...${NC}"
 while IFS= read -r crate_toml; do
     check_package_version "$crate_toml"
-done < <(find "$PROJECT_ROOT/core" "$PROJECT_ROOT/lib" -mindepth 2 -maxdepth 2 -name Cargo.toml | sort)
+done < <(find "$PROJECT_ROOT/core" "$PROJECT_ROOT/lib" "$PROJECT_ROOT/cli" -mindepth 2 -maxdepth 2 -name Cargo.toml | sort)
 
 echo -e "${YELLOW}Controllo coerenza versioni app GUI (atteso: $VERSION)...${NC}"
 
@@ -136,6 +136,12 @@ echo -e "${YELLOW}Controllo [workspace.dependencies] internal crates...${NC}"
 # srt-condense/srt-ankiconnect, tutti assenti da questo controllo mentre
 # [workspace.dependencies] nel Cargo.toml radice perdeva le voci corrette
 # durante un merge, senza che nessun gate se ne accorgesse.
+#
+# cli/*/Cargo.toml resta fuori da QUESTO loop di proposito: sono binari
+# terminali, nessun altro crate del workspace li dichiara come dipendenza
+# con `path =`, quindi non hanno una voce in [workspace.dependencies] da
+# poter disallineare. La loro versione di package è comunque coperta dal
+# controllo core/lib/cli qui sopra.
 while IFS= read -r crate_toml; do
     crate=$(sed -n 's/^name = "\([^"]*\)"/\1/p' "$crate_toml" | tr -d '\r' | head -n 1)
     if [ -z "$crate" ]; then
