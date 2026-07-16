@@ -5974,3 +5974,35 @@ const _: () = {
 pub struct ggml_backend_buffer {
     pub _address: u8,
 }
+unsafe extern "C" {
+    pub fn ggml_backend_vk_init(dev_num: usize) -> ggml_backend_t;
+}
+unsafe extern "C" {
+    pub fn ggml_backend_is_vk(backend: ggml_backend_t) -> bool;
+}
+unsafe extern "C" {
+    pub fn ggml_backend_vk_get_device_count() -> ::std::os::raw::c_int;
+}
+unsafe extern "C" {
+    pub fn ggml_backend_vk_get_device_description(
+        device: ::std::os::raw::c_int,
+        description: *mut ::std::os::raw::c_char,
+        description_size: usize,
+    );
+}
+unsafe extern "C" {
+    pub fn ggml_backend_vk_get_device_memory(
+        device: ::std::os::raw::c_int,
+        free: *mut usize,
+        total: *mut usize,
+    );
+}
+unsafe extern "C" {
+    pub fn ggml_backend_vk_buffer_type(dev_num: usize) -> ggml_backend_buffer_type_t;
+}
+unsafe extern "C" {
+    pub fn ggml_backend_vk_host_buffer_type() -> ggml_backend_buffer_type_t;
+}
+unsafe extern "C" {
+    pub fn ggml_backend_vk_reg() -> ggml_backend_reg_t;
+}
