@@ -20,7 +20,7 @@
   "experimental.condense.modeVad": "VAD (Silero)",
   "experimental.condense.subtitlesHint": "Verwendet die SRT-Zeitstempel: schnell und präzise, wenn die Untertitel synchron sind.",
   "experimental.condense.vadHint": "Erkennt Sprache mit Silero VAD: keine Untertitel nötig. Benötigt das VAD-Modell (Einstellungen → Whisper).",
-  "experimental.condense.padding": "Padding",
+  "experimental.condense.padding": "Abstand",
   "experimental.condense.mergeGap": "Lücken zusammenführen unter",
   "experimental.condense.start": "Kondensiertes Audio erstellen",
   "experimental.condense.stageDetect": "Sprache wird erkannt…",

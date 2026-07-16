@@ -114,6 +114,13 @@ SAME_AS_ENGLISH_ALLOWED_KEYS = {
     "tiers.auto",
     "tiers.model",
     "transcribe.cloudModel",
+    "experimental.anki.title",
+    "experimental.condense.modeVad",
+    "flashcards.videoEncoderX264",
+    "experimental.badge",
+    "nav.experimental",
+    "experimental.condense.resultSegments",
+    "flashcards.exportAnkiConnectBadge",
 }
 
 

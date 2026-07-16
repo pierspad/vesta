@@ -20,7 +20,7 @@
   "experimental.condense.modeVad": "VAD (Silero)",
   "experimental.condense.subtitlesHint": "Usa i timestamp dell'SRT: veloce e preciso quando i sottotitoli sono sincronizzati.",
   "experimental.condense.vadHint": "Rileva il parlato con Silero VAD: non servono sottotitoli. Richiede il modello VAD (Impostazioni → Whisper).",
-  "experimental.condense.padding": "Padding",
+  "experimental.condense.padding": "Margine",
   "experimental.condense.mergeGap": "Fondi pause sotto",
   "experimental.condense.start": "Crea Audio Condensato",
   "experimental.condense.stageDetect": "Rilevamento parlato…",

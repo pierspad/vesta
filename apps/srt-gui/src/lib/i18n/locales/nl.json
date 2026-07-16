@@ -794,7 +794,7 @@
   "refine.dropFileHint": "Sleep .apkg- of .tsv-bestanden hierheen",
   "refine.llmEngine": "LLM-engine:",
   "refine.llmTiersLabel": "LLM-tiers:",
-  "refine.llmTiersSummary": "{{tiers}} tier(s) · {{endpoints}} endpoint(s)",
+  "refine.llmTiersSummary": "{{tiers}} niveau(s) · {{endpoints}} eindpunt(en)",
   "refine.llmTiersReady": "gereed",
   "refine.llmTiersEdit": "Configureren in Instellingen → LLM",
   "refine.msg.poolExhausted": "Alle LLM-tiers zijn uitgeput (rate limit/quota). Probeer het later opnieuw of voeg meer endpoints toe.",

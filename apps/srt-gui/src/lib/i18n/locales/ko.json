@@ -30,7 +30,7 @@
   "experimental.condense.resultRatio": "원본 대비",
   "experimental.anki.title": "AnkiConnect",
   "experimental.anki.subtitle": "실행 중인 Anki와 AnkiConnect 추가 기능(코드 2055492159)으로 통신합니다. Vesta를 떠나지 않고 생성한 APKG 덱을 가져오세요.",
-  "experimental.anki.url": "AnkiConnect URL",
+  "experimental.anki.url": "AnkiConnect URL 주소",
   "experimental.anki.testConnection": "연결 테스트",
   "experimental.anki.online": "연결됨 · API v{{version}}",
   "experimental.anki.offline": "연결할 수 없음",

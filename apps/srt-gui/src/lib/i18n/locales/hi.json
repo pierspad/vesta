@@ -30,7 +30,7 @@
   "experimental.condense.resultRatio": "मूल का",
   "experimental.anki.title": "AnkiConnect",
   "experimental.anki.subtitle": "चल रहे Anki से AnkiConnect ऐड-ऑन (कोड 2055492159) के जरिए संवाद करता है: Vesta छोड़े बिना जनरेट किए गए APKG डेक आयात करें।",
-  "experimental.anki.url": "AnkiConnect URL",
+  "experimental.anki.url": "AnkiConnect यूआरएल",
   "experimental.anki.testConnection": "कनेक्शन जाँचें",
   "experimental.anki.online": "कनेक्टेड · API v{{version}}",
   "experimental.anki.offline": "पहुँच योग्य नहीं",

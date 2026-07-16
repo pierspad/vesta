@@ -794,7 +794,7 @@
   "refine.dropFileHint": "Glissez-déposez des fichiers .apkg ou .tsv",
   "refine.llmEngine": "Moteur LLM :",
   "refine.llmTiersLabel": "Tiers LLM :",
-  "refine.llmTiersSummary": "{{tiers}} tier(s) · {{endpoints}} endpoint(s)",
+  "refine.llmTiersSummary": "{{tiers}} niveau(x) · {{endpoints}} point(s) de terminaison",
   "refine.llmTiersReady": "prêt",
   "refine.llmTiersEdit": "Configurer dans Paramètres → LLM",
   "refine.msg.poolExhausted": "Tous les tiers LLM sont épuisés (limite de débit/quota). Réessayez plus tard ou ajoutez d'autres endpoints.",
