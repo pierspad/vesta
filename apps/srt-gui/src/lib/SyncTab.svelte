@@ -10,8 +10,11 @@
   import { locale } from "./i18n";
   import { getFileName } from "./models";
   import { aiStore } from "./aiStore.svelte";
+  import { autoSyncStore, type AutoSyncProgressPayload } from "./autoSyncStore.svelte";
   import FooterActions from "./components/FooterActions.svelte";
   import SectionHeader from "./components/SectionHeader.svelte";
+  import AutoSyncControls from "./AutoSyncControls.svelte";
+  import AutoSyncOverlay from "./AutoSyncOverlay.svelte";
 
   interface Props {
     active?: boolean;
@@ -149,75 +152,33 @@
   }
 
   // ─── Auto-Sync with Whisper ────────────────────────────
-  interface AutoSyncProgressPayload {
-    stage: string;
-    message: string;
-    percentage: number;
-    message_key?: string | null;
-    params?: Record<string, string> | null;
-  }
-
-  let isAutoSyncing = $state(false);
-  let activeAutoSyncMode = $state<"quick" | "precise" | null>(null);
-  let selectedAutosyncMode = $state<"quick" | "precise">("quick");
-  let isCancellingAutoSync = $state(false);
-  let autoSyncProgress = $state(0);
-  let autoSyncMessage = $state("");
-
-  function resolveAutoSyncProgressMessage(payload: AutoSyncProgressPayload): string {
-    if (payload.message_key) {
-      const params = payload.params ?? {};
-
-      // Keep compatibility with locale strings that expect {{count}} while
-      // backend progress events provide { total } for segment counts.
-      if (params.total && !params.count) {
-        return t(payload.message_key, { ...params, count: params.total });
-      }
-
-      return t(payload.message_key, params);
-    }
-    return payload.message;
-  }
-
-  function formatModeName(key: string, fallback: string): string {
-    const value = t(key);
-    if (value.includes(" - ")) {
-      const part = value.split(" - ")[1];
-      if (part) {
-        return part.charAt(0).toUpperCase() + part.slice(1).toLowerCase();
-      }
-    }
-    return fallback;
-  }
-
   async function cancelAutoSync() {
-    if (!isAutoSyncing || isCancellingAutoSync) return;
-    isCancellingAutoSync = true;
+    if (!autoSyncStore.isAutoSyncing || autoSyncStore.isCancelling) return;
+    autoSyncStore.isCancelling = true;
     try {
       await invoke("sync_cancel_auto_sync");
-      autoSyncMessage = t("sync.autoSyncCancelling");
+      autoSyncStore.message = t("sync.autoSyncCancelling");
     } catch (e) {
       showSnackbar(`Cancel failed: ${e}`, "error");
-      isCancellingAutoSync = false;
+      autoSyncStore.isCancelling = false;
     }
   }
-  let whisperModelsAvailable = $state<string[]>([]);
 
   async function checkWhisperModels() {
     try {
       const models = await invoke<Array<{ id: string; downloaded: boolean }>>(
         "transcribe_list_models",
       );
-      whisperModelsAvailable = models
+      autoSyncStore.whisperModelsAvailable = models
         .filter((m) => m.downloaded)
         .map((m) => m.id);
     } catch {
-      whisperModelsAvailable = [];
+      autoSyncStore.whisperModelsAvailable = [];
     }
   }
 
   async function startAutoSync(quick = false) {
-    if (isAutoSyncing) return;
+    if (autoSyncStore.isAutoSyncing) return;
     if (!status?.is_loaded) {
       showSnackbar(t("sync.dropSrtFirst"), "warning");
       return;
@@ -228,7 +189,7 @@
     }
 
     await checkWhisperModels();
-    if (whisperModelsAvailable.length === 0) {
+    if (autoSyncStore.whisperModelsAvailable.length === 0) {
       showSnackbar(
         t("transcribe.noBackendWarning"),
         "warning"
@@ -239,20 +200,20 @@
     // Prefer small > base > tiny > medium > large
     const preferredOrder = ["small", "base", "tiny", "medium", "large"];
     const modelId =
-      preferredOrder.find((m) => whisperModelsAvailable.includes(m)) ??
-      whisperModelsAvailable[0];
+      preferredOrder.find((m) => autoSyncStore.whisperModelsAvailable.includes(m)) ??
+      autoSyncStore.whisperModelsAvailable[0];
 
-    isAutoSyncing = true;
-    activeAutoSyncMode = quick ? "quick" : "precise";
-    autoSyncProgress = 0;
-    autoSyncMessage = t("sync.autoSyncInProgress");
+    autoSyncStore.isAutoSyncing = true;
+    autoSyncStore.activeMode = quick ? "quick" : "precise";
+    autoSyncStore.progress = 0;
+    autoSyncStore.message = t("sync.autoSyncInProgress");
     addSyncLog(`Auto-sync started with model: ${modelId} (mode: ${quick ? 'quick' : 'precise'})`, "info");
 
     // Listen for progress events
     const { listen } = await import("@tauri-apps/api/event");
     const unlisten = await listen<AutoSyncProgressPayload>("sync-auto-progress", (event) => {
-      autoSyncProgress = event.payload.percentage;
-      autoSyncMessage = resolveAutoSyncProgressMessage(event.payload);
+      autoSyncStore.progress = event.payload.percentage;
+      autoSyncStore.message = autoSyncStore.resolveProgressMessage(event.payload);
     });
 
     try {
@@ -293,11 +254,11 @@
       showSnackbar(msg, "error");
       addSyncLog(msg, "error");
     } finally {
-      isAutoSyncing = false;
-      activeAutoSyncMode = null;
-      isCancellingAutoSync = false;
-      autoSyncProgress = 0;
-      autoSyncMessage = "";
+      autoSyncStore.isAutoSyncing = false;
+      autoSyncStore.activeMode = null;
+      autoSyncStore.isCancelling = false;
+      autoSyncStore.progress = 0;
+      autoSyncStore.message = "";
       unlisten();
     }
   }
@@ -2338,95 +2299,10 @@
       </div>
     {/snippet}
     {#snippet center()}
-      {#if !aiStore.killSwitchActive}
-        <!-- Unified Autosync Button Group -->
-        <div class="flex items-center bg-white/5 border border-white/10 rounded-xl p-1 shrink-0 relative group">
-          <!-- Autosync Trigger Button -->
-          <button
-            onclick={() => startAutoSync(selectedAutosyncMode === "quick")}
-            disabled={isAutoSyncing || !status?.is_loaded || !hasAudio}
-            class="px-5 py-2 bg-indigo-600/80 hover:bg-indigo-500/80 border border-indigo-500/30 disabled:bg-indigo-600/40 text-indigo-100 rounded-lg font-bold text-sm transition-all shadow-lg shadow-indigo-950/20 flex items-center gap-2 enabled:hover:scale-[1.02] enabled:active:scale-[0.98] disabled:opacity-55 shrink-0 {!status?.is_loaded || !hasAudio ? 'pointer-events-none saturate-75' : 'cursor-pointer'}"
-          >
-            {#if isAutoSyncing}
-              <svg class="animate-spin w-4 h-4 text-indigo-300" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-            {:else}
-              <svg
-                class="w-4 h-4 text-indigo-100"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"
-                />
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
-              </svg>
-            {/if}
-            <span>{t("sync.autoSync") || "Autosync"}</span>
-          </button>
-
-          <!-- Selector Capsule Switcher -->
-          <div class="flex items-center bg-black/25 border border-white/5 rounded-lg p-0.5 ml-2 shrink-0 select-none relative">
-            <!-- Sliding indicator background -->
-            <div 
-              class="absolute top-0.5 bottom-0.5 left-0.5 rounded-md bg-indigo-500/20 border border-indigo-500/50 shadow shadow-indigo-500/25 transition-all duration-200 ease-out"
-              style="width: 100px; transform: translateX({selectedAutosyncMode === 'quick' ? '0px' : '100px'});"
-            ></div>
-
-            <button
-              onclick={() => { if (!isAutoSyncing) selectedAutosyncMode = selectedAutosyncMode === 'quick' ? 'precise' : 'quick'; }}
-              disabled={isAutoSyncing || !status?.is_loaded || !hasAudio}
-              class="w-[100px] py-1 rounded-md text-[10px] font-bold transition-colors duration-200 flex items-center justify-center gap-1.5 cursor-pointer disabled:cursor-not-allowed select-none relative z-10
-                {selectedAutosyncMode === 'quick' ? 'text-indigo-200' : 'text-gray-500 hover:text-gray-300'}
-                {(!status?.is_loaded || !hasAudio) ? 'opacity-30 pointer-events-none' : ''}"
-            >
-              <svg class="w-3.5 h-3.5 flex-shrink-0 transition-colors duration-200 {selectedAutosyncMode === 'quick' ? 'text-indigo-300' : 'text-gray-500'}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
-              </svg>
-              <span>{formatModeName("sync.autoSyncFast", "Breve")}</span>
-            </button>
-            <button
-              onclick={() => { if (!isAutoSyncing) selectedAutosyncMode = selectedAutosyncMode === 'quick' ? 'precise' : 'quick'; }}
-              disabled={isAutoSyncing || !status?.is_loaded || !hasAudio}
-              class="w-[100px] py-1 rounded-md text-[10px] font-bold transition-colors duration-200 flex items-center justify-center gap-1.5 cursor-pointer disabled:cursor-not-allowed select-none relative z-10
-                {selectedAutosyncMode === 'precise' ? 'text-indigo-200' : 'text-gray-500 hover:text-gray-300'}
-                {(!status?.is_loaded || !hasAudio) ? 'opacity-30 pointer-events-none' : ''}"
-            >
-              <svg class="w-3.5 h-3.5 flex-shrink-0 transition-colors duration-200 {selectedAutosyncMode === 'precise' ? 'text-indigo-300' : 'text-gray-500'}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
-              </svg>
-              <span>{formatModeName("sync.autoSyncFull", "Preciso")}</span>
-            </button>
-
-            <!-- Custom Tooltip for Autosync Group -->
-            {#if !status?.is_loaded || !hasAudio}
-              <div 
-                class="pointer-events-none absolute bottom-full z-50 mb-3 -translate-x-1/2 rounded-xl border border-indigo-400/30 bg-gray-950/95 p-3 text-left text-xs text-indigo-300 shadow-2xl shadow-black/40 ring-1 ring-white/10 transition-all duration-150 delay-0 group-hover:delay-300 opacity-0 group-hover:opacity-100 group-hover:translate-y-0 translate-y-1 whitespace-nowrap"
-                style="left: {selectedAutosyncMode === 'quick' ? '52px' : '152px'};"
-              >
-                {t("sync.autoSyncRequires")}
-              </div>
-            {:else}
-              <div 
-                class="pointer-events-none absolute bottom-full z-50 mb-3 -translate-x-1/2 rounded-xl border border-indigo-400/30 bg-gray-950/95 p-3 text-center text-xs text-indigo-300 shadow-2xl shadow-black/40 ring-1 ring-white/10 transition-all duration-150 delay-0 group-hover:delay-300 opacity-0 group-hover:opacity-100 group-hover:translate-y-0 translate-y-1 whitespace-nowrap"
-                style="left: {selectedAutosyncMode === 'quick' ? '52px' : '152px'};"
-              >
-                {selectedAutosyncMode === "quick"
-                  ? `${t("sync.autoSync")} - ${formatModeName("sync.autoSyncFast", "Breve")}`
-                  : `${t("sync.autoSync")} - ${formatModeName("sync.autoSyncFull", "Preciso")}`}
-              </div>
-            {/if}
-          </div>
-        </div>
-      {/if}
+      <AutoSyncControls
+        canAutoSync={!!status?.is_loaded && hasAudio}
+        onStart={() => startAutoSync(autoSyncStore.selectedMode === "quick")}
+      />
     {/snippet}
     {#snippet right()}
       <!-- New Sync -->
@@ -2475,36 +2351,7 @@
     {/snippet}
   </FooterActions>
 
-  {#if isAutoSyncing}
-    <!-- svelte-ignore a11y_no_static_element_interactions -->
-    <div class="fixed inset-0 z-[100] bg-black/80 flex items-center justify-center p-6 backdrop-blur-sm"
-         onclick={(e) => e.stopPropagation()}
-         onkeydown={(e) => e.stopPropagation()}
-    >
-      <div class="max-w-md w-full p-8 text-center flex flex-col items-center bg-[#0f172a] border border-indigo-300/20 rounded-2xl shadow-2xl opacity-100">
-        <svg class="animate-spin w-12 h-12 text-indigo-400 mb-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-        <h3 class="text-xl font-bold text-white mb-2">{t("sync.autoSyncInProgress")}</h3>
-        <p class="text-indigo-300 text-sm mb-6 max-w-[280px] leading-relaxed">{autoSyncMessage}</p>
-        
-        <div class="w-full bg-gray-800 rounded-full h-3 mb-2 overflow-hidden border border-white/5">
-          <div
-            class="bg-indigo-500 h-full rounded-full transition-all duration-300 ease-out relative overflow-hidden"
-            style="width: {autoSyncProgress}%"
-          >
-            <div class="absolute inset-0 bg-white/20 animate-pulse"></div>
-          </div>
-        </div>
-        <p class="text-gray-400 text-xs font-mono">{Math.round(autoSyncProgress)}%</p>
-        <button
-          onclick={cancelAutoSync}
-          disabled={isCancellingAutoSync}
-          class="mt-6 px-4 py-2 border border-red-500/50 text-red-400 hover:bg-red-500/20 rounded-lg text-sm transition-colors disabled:opacity-50"
-        >
-          {isCancellingAutoSync ? t("sync.autoSyncCancelling") : t("sync.autoSyncCancel")}
-        </button>
-      </div>
-    </div>
-  {/if}
+  <AutoSyncOverlay onCancel={cancelAutoSync} />
 
   {#if subtitleContextMenu}
     <!-- svelte-ignore a11y_no_static_element_interactions -->
