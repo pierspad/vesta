@@ -56,7 +56,8 @@
           "apps/srt-gui/src/lib/Sidebar.svelte",
           "apps/srt-gui/src/lib/SettingsTab.svelte",
           "core/*/Cargo.toml",
-          "lib/*/Cargo.toml"
+          "lib/*/Cargo.toml",
+          "cli/*/Cargo.toml"
         ],
         "message": "chore: Release v${nextRelease.version} [skip ci]\n\n${nextRelease.notes}"
       }
