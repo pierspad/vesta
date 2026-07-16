@@ -7,9 +7,6 @@
   import { onDestroy, onMount } from "svelte";
   import { locale, currentLanguage } from "./i18n";
   import {
-    detectLanguageCode,
-    getLanguageSearchTerms,
-    languages,
     loadAndValidateApiKeys,
     loadTiers,
     tiersHaveUsableEntries,
@@ -19,6 +16,7 @@
     getFileName,
   } from "./models";
   import { getModelsForProvider, providers } from "./llmProviders";
+  import { detectLanguageCode, getLanguageSearchTerms, languages } from "./languages";
   import PathPickerField from "./PathPickerField.svelte";
   import PathPreviewModal from "./PathPreviewModal.svelte";
   import SearchableSelect from "./SearchableSelect.svelte";

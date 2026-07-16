@@ -7,8 +7,6 @@
   import { onDestroy, onMount } from "svelte";
   import { locale, currentLanguage } from "./i18n";
   import {
-    getLanguageSearchTerms,
-    languages as allLanguages,
     getFileName,
     transcribeProviders,
     transcribeProviderOrder,
@@ -25,6 +23,7 @@
     loadVadSelection,
     type VadSelection,
   } from "./models";
+  import { getLanguageSearchTerms, languages as allLanguages } from "./languages";
   import PathPickerField from "./PathPickerField.svelte";
   import PathPreviewModal from "./PathPreviewModal.svelte";
   import SearchableSelect from "./SearchableSelect.svelte";

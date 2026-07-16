@@ -42,8 +42,6 @@ import TranscribeTiers from "./TranscribeTiers.svelte";
     NOTE_TYPES_UPDATED_EVENT,
     defaultCardTemplates,
     defaultFieldNames,
-    getLanguageSearchTerms,
-    languages,
     limitNoteTypeFieldValue,
     loadAndValidateApiKeys,
     loadCardTemplates,
@@ -74,6 +72,7 @@ import TranscribeTiers from "./TranscribeTiers.svelte";
     DEFAULT_VAD_MODEL_ID,
   } from "./models";
   import { getModelsForProvider, providers, type ModelInfo } from "./llmProviders";
+  import { getLanguageSearchTerms, languages } from "./languages";
   import { guardedOpen } from "./utils/dialogGuard";
 
   const allProviderIds = ["local", "google", "groq", "openai", "deepgram", "assemblyai", "openrouter", "mistral", "github", "nvidia", "custom"];

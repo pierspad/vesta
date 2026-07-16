@@ -9,9 +9,6 @@
     CARD_TEMPLATES_UPDATED_EVENT,
     NOTE_TYPES_UPDATED_EVENT,
     NOTE_TYPE_FIELD_ORDER,
-    detectLanguageCode,
-    getLanguageSearchTerms,
-    languages,
     loadCardTemplates,
     listNoteTypes,
     findNoteTypeById,
@@ -21,10 +18,10 @@
     ACTIVE_NOTE_TYPE_CHANGED_EVENT,
     type NoteTypeDef,
     type FieldKey,
-    scoreLanguageMatch,
     getFileName,
     inferLanguageFromPath,
   } from "./models";
+  import { detectLanguageCode, getLanguageSearchTerms, languages, scoreLanguageMatch } from "./languages";
   import PathPreviewModal from "./PathPreviewModal.svelte";
   import SearchableSelect from "./SearchableSelect.svelte";
   import LogPanel from "./LogPanel.svelte";

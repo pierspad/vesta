@@ -6,7 +6,8 @@
   import { onDestroy, onMount } from 'svelte';
   import { guardedOpen, guardedSave } from './utils/dialogGuard';
   import { locale } from './i18n';
-  import { languages, getFileName, inferLanguageFromPath, getFlagForPath } from './models';
+  import { getFileName, inferLanguageFromPath, getFlagForPath } from './models';
+  import { languages } from './languages';
   import PathPreviewModal from './PathPreviewModal.svelte';
   import { snackbar } from './snackbarStore.svelte';
   import ConfirmDialog from './ConfirmDialog.svelte';
