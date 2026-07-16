@@ -37,13 +37,6 @@ jobs:
       - name: Setup sccache
         uses: mozilla-actions/sccache-action@v0.0.10
 
-      - name: Configure sccache GHA credentials
-        uses: actions/github-script@v7
-        with:
-          script: |
-            core.exportVariable('ACTIONS_CACHE_URL', process.env.ACTIONS_CACHE_URL || '');
-            core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN || '');
-
       - name: Rust cache
         uses: swatinem/rust-cache@v2
         with:
@@ -71,8 +64,7 @@ jobs:
             cmake \
             pkg-config \
             libssl-dev \
-            libclang-dev \
-            mold
+            libclang-dev
 
       # Vulkan SDK (LunarG): headers, loader e glslc, richiesti da ggml-vulkan
       # per compilare gli shader della feature `vulkan` di whisper.cpp.
@@ -275,13 +267,6 @@ jobs:
       - name: Setup sccache
         uses: mozilla-actions/sccache-action@v0.0.10
 
-      - name: Configure sccache GHA credentials
-        uses: actions/github-script@v7
-        with:
-          script: |
-            core.exportVariable('ACTIONS_CACHE_URL', process.env.ACTIONS_CACHE_URL || '');
-            core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN || '');
-
       - name: Rust cache
         uses: swatinem/rust-cache@v2
         with:
@@ -423,18 +408,37 @@ jobs:
           # release non esistesse ancora (es. run manuale su un tag orfano).
           echo "See [CHANGELOG.md](https://github.com/${GITHUB_REPOSITORY}/blob/main/CHANGELOG.md) for details." > release-notes-for-tag.md
 
-      - name: Create Release
-        uses: ncipollo/release-action@v1
-        with:
-          artifacts: "release/*"
-          tag: ${{ github.ref_name }}
-          commit: ${{ github.sha }}
-          name: vesta ${{ github.ref_name }}
-          bodyFile: release-notes-for-tag.md
-          allowUpdates: true
-          omitBodyDuringUpdate: true
-          replacesArtifacts: true
-          generateReleaseNotes: false
-          prerelease: ${{ contains(github.ref_name, '-') }}
+      - name: Create Release and Upload Assets
+        shell: bash
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Crea la release se non esiste
+          if ! gh release view "${{ github.ref_name }}" >/dev/null 2>&1; then
+            echo "Creazione della release..."
+            PRERELEASE_FLAG=""
+            if [[ "${{ github.ref_name }}" == *-* ]]; then
+              PRERELEASE_FLAG="--prerelease"
+            fi
+            gh release create "${{ github.ref_name }}" \
+              --title "vesta ${{ github.ref_name }}" \
+              --notes-file release-notes-for-tag.md \
+              --target "${{ github.sha }}" \
+              $PRERELEASE_FLAG
+          else
+            echo "La release esiste già."
+          fi
+
+          # Upload degli asset con tentativi di retry in caso di errori transienti (es. 503)
+          for i in {1..5}; do
+            echo "Tentativo di upload $i di 5..."
+            if gh release upload "${{ github.ref_name }}" release/* --clobber; then
+              echo "Upload completato con successo!"
+              exit 0
+            else
+              echo "Errore durante l'upload, attesa di 10 secondi prima di riprovare..."
+              sleep 10
+            fi
+          done
+          echo "Impossibile caricare gli asset dopo 5 tentativi."
+          exit 1
