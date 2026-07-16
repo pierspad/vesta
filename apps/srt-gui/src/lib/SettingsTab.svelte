@@ -5,6 +5,8 @@
   import { fetch as tauriFetch } from "@tauri-apps/plugin-http";
   import CodeEditor from "./CodeEditor.svelte";
   import ConfirmDialog from "./ConfirmDialog.svelte";
+  import FooterActions from "./components/FooterActions.svelte";
+  import ToggleRow from "./components/ToggleRow.svelte";
   import ShortcutsTab from "./ShortcutsTab.svelte";
   import TranslationTiers from "./TranslationTiers.svelte";
 import TranscribeTiers from "./TranscribeTiers.svelte";
@@ -12,6 +14,7 @@ import TranscribeTiers from "./TranscribeTiers.svelte";
   import { smartMatchingStore } from "./smartMatchingStore.svelte";
   import { snackbar } from "./snackbarStore.svelte";
   import { uiMode } from "./uiModeStore.svelte";
+  import { ankiStore } from "./ankiStore.svelte";
   import {
     availableUILanguages,
     currentLanguage,
@@ -67,8 +70,13 @@ import TranscribeTiers from "./TranscribeTiers.svelte";
     type FieldNamesConfig,
     type ModelInfo,
     type Tier,
-    type TranscribeTier
+    type TranscribeTier,
+    loadVadSelection,
+    saveVadSelection,
+    type VadSelection,
+    DEFAULT_VAD_MODEL_ID,
   } from "./models";
+  import { guardedOpen } from "./utils/dialogGuard";
 
   const allProviderIds = ["local", "google", "groq", "openai", "deepgram", "assemblyai", "openrouter", "mistral", "github", "nvidia", "custom"];
   const apiKeyProviderIds = ["google", "groq", "openai", "deepgram", "assemblyai", "openrouter", "mistral", "github", "nvidia", "custom"];
@@ -1087,11 +1095,14 @@ import TranscribeTiers from "./TranscribeTiers.svelte";
   ]);
 
   const EXPORT_FORMAT_KEY = "vesta-export-format";
-  let exportFormat = $state<"apkg" | "tsv">(
+  let exportFormat = $state<"apkg" | "tsv" | "anki">(
     (() => {
       try {
         const saved = localStorage.getItem(EXPORT_FORMAT_KEY);
-        return saved === "tsv" ? "tsv" : "apkg";
+        if (saved === "tsv" || saved === "anki" || saved === "apkg") {
+          return saved as any;
+        }
+        return "apkg";
       } catch { return "apkg"; }
     })()
   );
@@ -1103,7 +1114,19 @@ import TranscribeTiers from "./TranscribeTiers.svelte";
     if (active) {
       try {
         const saved = localStorage.getItem(EXPORT_FORMAT_KEY);
-        exportFormat = saved === "tsv" ? "tsv" : "apkg";
+        if (saved === "tsv" || saved === "anki" || saved === "apkg") {
+          if (saved === "anki" && ankiStore.status !== "online") {
+            exportFormat = "apkg";
+          } else {
+            exportFormat = saved as any;
+          }
+        } else {
+          if (ankiStore.status === "online") {
+            exportFormat = "anki";
+          } else {
+            exportFormat = "apkg";
+          }
+        }
       } catch {}
     }
   });
@@ -1112,7 +1135,19 @@ import TranscribeTiers from "./TranscribeTiers.svelte";
     const _ = uiMode.expertMode;
     try {
       const saved = localStorage.getItem(EXPORT_FORMAT_KEY);
-      exportFormat = saved === "tsv" ? "tsv" : "apkg";
+      if (saved === "tsv" || saved === "anki" || saved === "apkg") {
+        if (saved === "anki" && ankiStore.status !== "online") {
+          exportFormat = "apkg";
+        } else {
+          exportFormat = saved as any;
+        }
+      } else {
+        if (ankiStore.status === "online") {
+          exportFormat = "anki";
+        } else {
+          exportFormat = "apkg";
+        }
+      }
     } catch {}
     try {
       const savedCores = localStorage.getItem("vesta_cpu_cores");
@@ -1121,6 +1156,26 @@ import TranscribeTiers from "./TranscribeTiers.svelte";
       }
     } catch {}
   });
+
+  $effect(() => {
+    if (ankiStore.status !== "online" && exportFormat === "anki") {
+      exportFormat = "apkg";
+    }
+  });
+
+  function cycleExportFormat() {
+    if (exportFormat === "apkg") {
+      exportFormat = "tsv";
+    } else if (exportFormat === "tsv") {
+      if (ankiStore.status === "online") {
+        exportFormat = "anki";
+      } else {
+        exportFormat = "apkg";
+      }
+    } else {
+      exportFormat = "apkg";
+    }
+  }
 
   $effect(() => {
     if (!uiMode.expertMode) {
@@ -1429,11 +1484,11 @@ import TranscribeTiers from "./TranscribeTiers.svelte";
   let automaticUpdateChecks = $state<boolean>(true);
   let updateStatus = $state<UpdateStatus>("idle");
   let latestVersion = $state<string>("");
-  let releaseUrl = $state<string>("https://github.com/pierspad/VESTA/releases");
+  let releaseUrl = $state<string>("https://github.com/pierspad/vesta/releases");
   let appVersionNum = $state<string>("");
   let updateError = $state<string>("");
 
-  const RELEASE_API_URL = "https://api.github.com/repos/pierspad/Vesta/releases/latest";
+  const RELEASE_API_URL = "https://api.github.com/repos/pierspad/vesta/releases/latest";
 
   function normalizeVersion(version: string): string {
     return version.trim().replace(/^v/i, "").split(/[+-]/)[0];
@@ -1495,7 +1550,7 @@ import TranscribeTiers from "./TranscribeTiers.svelte";
       }
 
       latestVersion = tag.startsWith("v") || tag.startsWith("V") ? tag : `v${tag}`;
-      releaseUrl = latest.html_url || "https://github.com/pierspad/VESTA/releases";
+      releaseUrl = latest.html_url || "https://github.com/pierspad/vesta/releases";
       
       processUpdateResult(source);
       return;
@@ -1505,7 +1560,7 @@ import TranscribeTiers from "./TranscribeTiers.svelte";
 
     // 2. Secondary Strategy: Raw package.json via CORS-free tauriFetch (rate-limit free!)
     try {
-      const response = await tauriFetch("https://raw.githubusercontent.com/pierspad/Vesta/main/apps/srt-gui/package.json", {
+      const response = await tauriFetch("https://raw.githubusercontent.com/pierspad/vesta/main/apps/srt-gui/package.json", {
         method: "GET",
         headers: {
           "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
@@ -1523,7 +1578,7 @@ import TranscribeTiers from "./TranscribeTiers.svelte";
       }
 
       latestVersion = tag.startsWith("v") || tag.startsWith("V") ? tag : `v${tag}`;
-      releaseUrl = "https://github.com/pierspad/VESTA/releases";
+      releaseUrl = "https://github.com/pierspad/vesta/releases";
 
       processUpdateResult(source);
       return;
@@ -1533,7 +1588,7 @@ import TranscribeTiers from "./TranscribeTiers.svelte";
 
     // 3. Tertiary Strategy: Redirect check via tauriFetch with redirect: "manual"
     try {
-      const response = await tauriFetch("https://github.com/pierspad/Vesta/releases/latest", {
+      const response = await tauriFetch("https://github.com/pierspad/vesta/releases/latest", {
         method: "GET",
         redirect: "manual",
         headers: {
@@ -1558,7 +1613,7 @@ import TranscribeTiers from "./TranscribeTiers.svelte";
       }
 
       latestVersion = tag.startsWith("v") || tag.startsWith("V") ? tag : `v${tag}`;
-      releaseUrl = finalUrl || "https://github.com/pierspad/VESTA/releases";
+      releaseUrl = finalUrl || "https://github.com/pierspad/vesta/releases";
 
       processUpdateResult(source);
       return;
@@ -1590,8 +1645,7 @@ import TranscribeTiers from "./TranscribeTiers.svelte";
     }
   }
 
-  function toggleAutomaticUpdateChecks() {
-    automaticUpdateChecks = !automaticUpdateChecks;
+  function onAutomaticUpdateChecksChange() {
     localStorage.setItem("vesta-automatic-update-checks", automaticUpdateChecks.toString());
 
     if (automaticUpdateChecks) {
@@ -1656,6 +1710,7 @@ import TranscribeTiers from "./TranscribeTiers.svelte";
     defaultWhisperModel = localStorage.getItem("srt-default-whisper-model") || "base";
 
     refreshModels().catch((e) => console.error("Could not list models:", e));
+    void refreshAddons();
 
     const handleKeydown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -1878,6 +1933,118 @@ import TranscribeTiers from "./TranscribeTiers.svelte";
     } catch (e) {
       console.error("Could not list models:", e);
     }
+  }
+
+  // ─── Silero VAD add-ons (managed like the whisper models) ───────────────────
+  // Two downloadable variants (v5.1.2 default, v6.2.0 newer) plus an optional
+  // arbitrary local .bin. The active choice is persisted client-side
+  // (`vesta-transcribe-vad-selection`) and read back by TranscribeTab when it
+  // resolves which path to send to `transcribe_start`.
+  let vadModels = $state<{ id: string; size: string; downloaded: boolean }[]>([]);
+  let vadSelection = $state<VadSelection>(loadVadSelection());
+  let downloadingVadId = $state<string | null>(null);
+  let vadCustomValid = $state(false);
+
+  async function refreshAddons() {
+    try {
+      const s = await invoke<{
+        vad_models: { id: string; size: string; downloaded: boolean }[];
+      }>("transcribe_addons_status");
+      vadModels = s.vad_models;
+      await refreshVadCustomValid();
+    } catch (e) {
+      console.error("Could not read transcription add-ons status:", e);
+    }
+  }
+
+  async function refreshVadCustomValid() {
+    if (!vadSelection.customPath) {
+      vadCustomValid = false;
+      return;
+    }
+    try {
+      vadCustomValid = await invoke<boolean>("transcribe_path_exists", {
+        path: vadSelection.customPath,
+      });
+    } catch {
+      vadCustomValid = false;
+    }
+  }
+
+  function selectVadModel(modelId: string) {
+    vadSelection = { modelId, customPath: null };
+    saveVadSelection(vadSelection);
+    window.dispatchEvent(new CustomEvent("vesta-vad-updated"));
+  }
+
+  function handleVadModelClick(model: { id: string; downloaded: boolean }) {
+    if (model.downloaded) {
+      selectVadModel(model.id);
+      return;
+    }
+    void downloadVad(model.id);
+  }
+
+  async function downloadVad(modelId: string) {
+    if (isDownloading || downloadingVadId) return;
+    downloadingVadId = modelId;
+    try {
+      await invoke<boolean>("transcribe_download_vad", { modelId });
+      await refreshAddons();
+      selectVadModel(modelId);
+      showSnackbar(t("settings.whisper.downloadSuccess", { model: `Silero VAD ${modelId}` }));
+    } catch (e) {
+      const message = String(e).toLowerCase();
+      if (message.includes("cancelled") || message.includes("canceled")) {
+        showSnackbar(t("settings.modelDownloadCancelled", { model: `Silero VAD ${modelId}` }));
+      } else {
+        showSnackbar(
+          t("settings.whisper.downloadFailed", { model: `Silero VAD ${modelId}`, error: String(e) }),
+          "error",
+        );
+      }
+    } finally {
+      downloadingVadId = null;
+      progress = 0;
+      progressMessage = "";
+      progressStage = "";
+    }
+  }
+
+  async function uninstallVad(modelId: string) {
+    if (downloadingVadId) return;
+    try {
+      await invoke<boolean>("transcribe_uninstall_vad", { modelId });
+      await refreshAddons();
+      if (!vadSelection.customPath && vadSelection.modelId === modelId) {
+        selectVadModel(DEFAULT_VAD_MODEL_ID);
+      }
+      showSnackbar(t("settings.whisper.uninstallSuccess", { model: `Silero VAD ${modelId}` }));
+    } catch (e) {
+      showSnackbar(
+        t("settings.whisper.uninstallFailed", { model: `Silero VAD ${modelId}`, error: String(e) }),
+        "error",
+      );
+    }
+  }
+
+  async function pickCustomVad() {
+    const path = await guardedOpen({
+      filters: [{ name: "VAD model", extensions: ["bin"] }],
+      multiple: false,
+    });
+    if (!path || typeof path !== "string") return;
+    vadSelection = { modelId: vadSelection.modelId, customPath: path };
+    saveVadSelection(vadSelection);
+    await refreshVadCustomValid();
+    window.dispatchEvent(new CustomEvent("vesta-vad-updated"));
+  }
+
+  function clearCustomVad() {
+    vadSelection = { modelId: vadSelection.modelId, customPath: null };
+    saveVadSelection(vadSelection);
+    vadCustomValid = false;
+    window.dispatchEvent(new CustomEvent("vesta-vad-updated"));
   }
 
   async function downloadModel(modelId: string, setAsDefaultAfterDownload = false) {
@@ -2241,6 +2408,10 @@ import TranscribeTiers from "./TranscribeTiers.svelte";
   function onModelClick(model: ModelInfo) {
     openAddKeyModal(model.provider);
   }
+
+  let showAnki = $derived(ankiStore.status === "online");
+  let numOpts = $derived(showAnki ? 3 : 2);
+  let activeIdx = $derived(exportFormat === "apkg" ? 0 : (exportFormat === "tsv" ? 1 : 2));
 </script>
 
 <div
@@ -2293,14 +2464,16 @@ import TranscribeTiers from "./TranscribeTiers.svelte";
             class="absolute top-1 bottom-1 left-1 rounded-lg shadow-md transition-all duration-200 ease-out z-0
               {exportFormat === 'apkg'
                 ? 'bg-emerald-500/15 border border-emerald-500/30'
-                : 'bg-sky-500/15 border border-sky-500/30'}"
-            style="width: calc(50% - 6px); transform: translateX({exportFormat === 'apkg' ? '0px' : 'calc(100% + 8px)'}); left: 4px;"
+                : exportFormat === 'tsv'
+                  ? 'bg-sky-500/15 border border-sky-500/30'
+                  : 'bg-violet-500/15 border border-violet-500/30'}"
+            style="width: calc({100 / numOpts}% - 6px); transform: translateX(calc({activeIdx * 100}% + {activeIdx * 8}px)); left: 4px;"
           ></div>
 
           <!-- APKG Option Button -->
           <button
             type="button"
-            onclick={() => (exportFormat = exportFormat === "apkg" ? "tsv" : "apkg")}
+            onclick={cycleExportFormat}
             class="flex-1 text-left p-4 rounded-lg transition-all duration-200 select-none relative z-10 flex items-center justify-between gap-4 cursor-pointer"
           >
             <div class="flex-1 min-w-0">
@@ -2327,7 +2500,7 @@ import TranscribeTiers from "./TranscribeTiers.svelte";
           <!-- TSV Option Button -->
           <button
             type="button"
-            onclick={() => (exportFormat = exportFormat === "tsv" ? "apkg" : "tsv")}
+            onclick={cycleExportFormat}
             class="flex-1 text-left p-4 rounded-lg transition-all duration-200 select-none relative z-10 flex items-center justify-between gap-4 cursor-pointer"
           >
             <div class="flex-1 min-w-0">
@@ -2350,6 +2523,35 @@ import TranscribeTiers from "./TranscribeTiers.svelte";
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
             </svg>
           </button>
+
+          <!-- Anki Connect Option Button -->
+          {#if showAnki}
+            <button
+              type="button"
+              onclick={cycleExportFormat}
+              class="flex-1 text-left p-4 rounded-lg transition-all duration-200 select-none relative z-10 flex items-center justify-between gap-4 cursor-pointer"
+            >
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2 flex-wrap">
+                  <span class="text-sm font-bold transition-colors duration-200 {exportFormat === 'anki' ? 'text-white' : 'text-gray-400 hover:text-gray-200'}">
+                    {$currentLanguage === 'it' ? 'Esportazione Anki Connect' : 'Anki Connect export'}
+                  </span>
+                  <span class="text-[10px] px-1.5 py-0.5 rounded-full font-bold transition-all duration-200
+                    {exportFormat === 'anki'
+                      ? 'bg-violet-500/30 text-violet-300 border border-violet-500/40'
+                      : 'bg-gray-700/60 text-gray-400 border border-gray-700'}">
+                    {t("flashcards.exportAnkiConnectBadge")}
+                  </span>
+                </div>
+                <p class="text-xs text-gray-400 mt-1 leading-relaxed">{t("flashcards.exportAnkiConnectDesc")}</p>
+              </div>
+
+              <!-- Anki Connect/Flash SVG Icon on the right -->
+              <svg class="w-8 h-8 transition-colors duration-200 shrink-0 {exportFormat === 'anki' ? 'text-violet-400' : 'text-gray-500'}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+            </button>
+          {/if}
         </div>
       </div>
     {/if}
@@ -2571,31 +2773,13 @@ import TranscribeTiers from "./TranscribeTiers.svelte";
       <!-- Aggiornamenti Card -->
       <div class="glass-card p-6 flex flex-col justify-between h-full">
         <div class="flex flex-col gap-6">
-          <!-- Toggle Row with Icon, Labels, and Switch -->
-          <div class="flex items-center justify-between gap-4">
-            <div class="flex items-center gap-3.5">
-              <div class="w-9 h-9 rounded-lg bg-indigo-500/15 text-indigo-300 flex items-center justify-center shrink-0">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" />
-                </svg>
-              </div>
-              <div class="flex-1 min-w-0">
-                <span class="text-sm font-semibold text-white block">
-                  {$currentLanguage === 'it' ? 'Verifica aggiornamenti all\'avvio' : 'Check for updates on startup'}
-                </span>
-              </div>
-            </div>
-            <button
-              type="button"
-              onclick={toggleAutomaticUpdateChecks}
-              class="w-10 h-6 rounded-full p-1 transition-colors duration-200 shrink-0 cursor-pointer {automaticUpdateChecks ? 'bg-indigo-600' : 'bg-white/10'}"
-              role="switch"
-              aria-checked={automaticUpdateChecks}
-              aria-label={$currentLanguage === 'it' ? 'Verifica aggiornamenti automatica' : 'Toggle automatic update checks'}
-            >
-              <div class="bg-white w-4 h-4 rounded-full shadow-md transform transition-transform duration-200 {automaticUpdateChecks ? 'translate-x-4' : 'translate-x-0'}"></div>
-            </button>
-          </div>
+          <ToggleRow
+            label={$currentLanguage === 'it' ? 'Verifica aggiornamenti all\'avvio' : 'Check for updates on startup'}
+            bind:checked={automaticUpdateChecks}
+            onchange={onAutomaticUpdateChecksChange}
+            accent="indigo"
+            iconPath="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"
+          />
 
           <!-- Bottom Row: Dynamic Status / Manual Check Area -->
           <div class="pt-4 border-t border-white/5 flex items-center justify-between min-h-[44px]">
@@ -2659,31 +2843,13 @@ import TranscribeTiers from "./TranscribeTiers.svelte";
     <!-- Smart Matching Card -->
     {#if uiMode.expertMode}
       <div class="glass-card p-6 flex flex-col gap-4">
-        <div class="flex items-center justify-between gap-4">
-          <div class="flex items-center gap-3">
-            <div class="w-9 h-9 rounded-lg bg-violet-500/20 text-violet-300 flex items-center justify-center">
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
-              </svg>
-            </div>
-            <div>
-              <h3 class="text-sm font-bold text-white">Smart Matching</h3>
-            </div>
-          </div>
-          <!-- Toggle Switch -->
-          <button
-            type="button"
-            class="relative h-6 w-11 shrink-0 rounded-full transition-colors {smartMatchingEnabled ? 'bg-violet-500/60' : 'bg-gray-700'}"
-            onclick={toggleSmartMatching}
-            role="switch"
-            aria-checked={smartMatchingEnabled}
-            aria-label="Attiva/disattiva smart matching"
-          >
-            <span
-              class="absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-transform {smartMatchingEnabled ? 'translate-x-5' : 'translate-x-0'}"
-            ></span>
-          </button>
-        </div>
+        <ToggleRow
+          label="Smart Matching"
+          checked={smartMatchingEnabled}
+          onchange={toggleSmartMatching}
+          accent="violet"
+          iconPath="M13 10V3L4 14h7v7l9-11h-7z"
+        />
 
         {#if smartMatchingEnabled}
           <!-- Rules Editor -->
@@ -3240,6 +3406,97 @@ import TranscribeTiers from "./TranscribeTiers.svelte";
         </div>
       {/each}
     </div>
+
+    <!-- Silero VAD add-ons: two downloadable variants + an optional custom model.
+         Clicking a downloaded variant makes it the active one (same pattern as
+         the Whisper model grid above); the active choice is what TranscribeTab
+         resolves into transcribe_start's config. -->
+    <div class="mt-4 space-y-2">
+      {#each vadModels as model (model.id)}
+        {@const isActive = !vadSelection.customPath && vadSelection.modelId === model.id}
+        <div class="p-4 rounded-xl border flex items-center justify-between gap-4 {isActive
+          ? 'bg-emerald-500/10 border-emerald-500/25'
+          : 'bg-white/5 border-white/10'}">
+          <button
+            type="button"
+            onclick={() => handleVadModelClick(model)}
+            disabled={downloadingVadId !== null}
+            class="min-w-0 text-left flex-1 cursor-pointer disabled:cursor-default"
+          >
+            <div class="flex items-center gap-2 flex-wrap">
+              <span class="text-sm font-bold text-white">Silero VAD {model.id}</span>
+              {#if model.id === DEFAULT_VAD_MODEL_ID}
+                <span class="text-[9px] text-gray-500 uppercase tracking-wide">{t("settings.default")}</span>
+              {/if}
+              <span class="text-[10px] text-gray-500">{model.size}</span>
+              {#if model.downloaded}
+                {#if isActive}
+                  <span class="text-[9px] font-bold text-emerald-400 uppercase tracking-wide">{t("settings.ready")}</span>
+                {/if}
+              {:else if downloadingVadId === model.id}
+                <span class="text-[9px] text-amber-400/70">{t("settings.downloading")} {progress > 0 ? `${progress}%` : ""}</span>
+              {:else}
+                <span class="text-[9px] text-amber-400/70">{t("settings.notDownloaded")}</span>
+              {/if}
+            </div>
+          </button>
+          {#if model.downloaded}
+            <button
+              onclick={() => void uninstallVad(model.id)}
+              disabled={downloadingVadId !== null}
+              class="shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold text-red-300 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 transition-colors cursor-pointer disabled:opacity-50"
+            >
+              {t("settings.uninstall")}
+            </button>
+          {:else}
+            <button
+              onclick={() => void downloadVad(model.id)}
+              disabled={isDownloading || downloadingVadId !== null}
+              class="shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold text-white bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 transition-colors cursor-pointer"
+            >
+              {t("settings.download")}
+            </button>
+          {/if}
+        </div>
+      {/each}
+
+      <!-- Custom VAD model: arbitrary local .bin, bypasses the table above -->
+      <div class="p-4 rounded-xl border flex items-center justify-between gap-4 {vadSelection.customPath
+        ? 'bg-emerald-500/10 border-emerald-500/25'
+        : 'bg-white/5 border-white/10'}">
+        <div class="min-w-0">
+          <div class="flex items-center gap-2 flex-wrap">
+            <span class="text-sm font-bold text-white">{t("settings.whisper.vadCustomLabel")}</span>
+            {#if vadSelection.customPath}
+              {#if vadCustomValid}
+                <span class="text-[9px] font-bold text-emerald-400 uppercase tracking-wide">{t("settings.whisper.vadCustomActive")}</span>
+              {:else}
+                <span class="text-[9px] text-red-400">{t("settings.whisper.vadCustomInvalid")}</span>
+              {/if}
+            {/if}
+          </div>
+          {#if vadSelection.customPath}
+            <p class="text-xs text-gray-400 mt-1 truncate" title={vadSelection.customPath}>{vadSelection.customPath}</p>
+          {/if}
+        </div>
+        <div class="shrink-0 flex items-center gap-2">
+          <button
+            onclick={() => void pickCustomVad()}
+            class="px-3 py-1.5 rounded-lg text-xs font-bold text-white bg-cyan-600 hover:bg-cyan-500 transition-colors cursor-pointer"
+          >
+            {t("settings.whisper.vadCustomPick")}
+          </button>
+          {#if vadSelection.customPath}
+            <button
+              onclick={clearCustomVad}
+              class="px-3 py-1.5 rounded-lg text-xs font-bold text-red-300 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 transition-colors cursor-pointer"
+            >
+              {t("settings.remove")}
+            </button>
+          {/if}
+        </div>
+      </div>
+    </div>
   </div>
   {/if}
 
@@ -3530,32 +3787,36 @@ import TranscribeTiers from "./TranscribeTiers.svelte";
   {/if}
   </div>
 
-  <!-- Fixed Bottom Band with Red Reset Button styled and sized to sidebar bottom -->
-  <div class="h-[92px] border-t border-white/10 bg-gray-900 flex items-center justify-center shrink-0">
-    <button
-      onclick={() => {
-        if (activeSettingsSection !== "shortcuts") {
-          showResetConfirm = activeSettingsSection;
-        }
-      }}
-      class="px-5 py-2.5 bg-red-600 hover:bg-red-500 text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-red-900/30 flex items-center gap-2 hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
-    >
-      <svg
-        class="w-4 h-4"
-        fill="none"
-        stroke="currentColor"
-        viewBox="0 0 24 24"
+  <!-- Fixed Bottom Band: reset è un'azione rara e distruttiva, quindi piccola
+       e in un angolo (con conferma) invece di un bottone rosso gigante al
+       centro di ogni sezione di Settings. -->
+  <FooterActions justify="end">
+    {#snippet right()}
+      <button
+        onclick={() => {
+          if (activeSettingsSection !== "shortcuts") {
+            showResetConfirm = activeSettingsSection;
+          }
+        }}
+        class="px-3.5 py-2 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-300 rounded-lg font-semibold text-xs transition-colors flex items-center gap-1.5 cursor-pointer"
       >
-        <path
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          stroke-width="2"
-          d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-        />
-      </svg>
-      {t("settings.resetDefaults") || "Ripristina predefiniti"}
-    </button>
-  </div>
+        <svg
+          class="w-3.5 h-3.5"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+          />
+        </svg>
+        {t("settings.resetDefaults") || "Ripristina predefiniti"}
+      </button>
+    {/snippet}
+  </FooterActions>
   {/if}
 
   <!-- Reset Confirmation Dialog -->

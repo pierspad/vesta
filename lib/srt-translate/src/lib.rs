@@ -866,13 +866,17 @@ struct TierRuntime {
 }
 
 /// Scheduler che assegna le entry rispettando tier e failover.
-struct TierScheduler {
+///
+/// Pubblico perché è generico rispetto al task: qualsiasi consumer con un
+/// [`TranslatorPool`] (es. `srt-refine`) può riusare la stessa politica
+/// round-robin + failover senza duplicarla.
+pub struct TierScheduler {
     tiers: Vec<TierRuntime>,
     active: usize,
 }
 
 impl TierScheduler {
-    fn new(pool: &TranslatorPool) -> Self {
+    pub fn new(pool: &TranslatorPool) -> Self {
         let tiers = pool
             .iter()
             .map(|entries| TierRuntime {
@@ -892,7 +896,7 @@ impl TierScheduler {
     /// Restituisce `(tier, idx)` di una entry disponibile, scalando il budget.
     /// Avanza automaticamente al tier successivo quando quello attivo è esaurito.
     /// Restituisce `None` quando ogni tier è esaurito.
-    fn acquire(&mut self) -> Option<(usize, usize)> {
+    pub fn acquire(&mut self) -> Option<(usize, usize)> {
         while self.active < self.tiers.len() {
             let active = self.active;
             let tier = &mut self.tiers[active];
@@ -922,7 +926,7 @@ impl TierScheduler {
     }
 
     /// Marca una entry come esaurita (rate-limit/quota raggiunti).
-    fn report_exhausted(&mut self, tier: usize, idx: usize) {
+    pub fn report_exhausted(&mut self, tier: usize, idx: usize) {
         if let Some(t) = self.tiers.get_mut(tier) {
             if let Some(e) = t.entries.get_mut(idx) {
                 e.exhausted = true;
@@ -931,7 +935,7 @@ impl TierScheduler {
     }
 
     /// Indice del tier attualmente attivo (1-based per i messaggi all'utente).
-    fn active_tier_human(&self) -> usize {
+    pub fn active_tier_human(&self) -> usize {
         self.active + 1
     }
 }
@@ -941,7 +945,7 @@ impl TierScheduler {
 /// Nota: niente match sul solo "exceeded" — frasi come "context length
 /// exceeded" sono errori di richiesta, non di quota, e marcavano
 /// erroneamente la entry come esaurita facendo scalare il tier.
-fn is_rate_limit_error(error: &anyhow::Error) -> bool {
+pub fn is_rate_limit_error(error: &anyhow::Error) -> bool {
     let s = error.to_string().to_lowercase();
     s.contains("429")
         || s.contains("rate limit")
@@ -956,7 +960,7 @@ fn is_rate_limit_error(error: &anyhow::Error) -> bool {
 
 /// Concorrenza desiderata: il massimo numero di entry presenti in un tier,
 /// limitato a un tetto ragionevole.
-fn pool_concurrency(pool: &TranslatorPool) -> usize {
+pub fn pool_concurrency(pool: &TranslatorPool) -> usize {
     pool.iter().map(|t| t.len()).max().unwrap_or(1).clamp(1, 16)
 }
 
