@@ -9,13 +9,14 @@
   import ToggleRow from "./components/ToggleRow.svelte";
   import ShortcutsTab from "./ShortcutsTab.svelte";
   import TranslationTiers from "./TranslationTiers.svelte";
-import TranscribeTiers from "./TranscribeTiers.svelte";
   import ProviderIcon from "./ProviderIcon.svelte";
   import ApiKeysCard from "./ApiKeysCard.svelte";
   import AddApiKeyModal from "./AddApiKeyModal.svelte";
   import { apiKeyEditorStore } from "./apiKeyEditorStore.svelte";
   import AnkiSettingsPanel from "./AnkiSettingsPanel.svelte";
   import { ankiTemplateStore } from "./ankiTemplateStore.svelte";
+  import WhisperSettingsPanel from "./WhisperSettingsPanel.svelte";
+  import { whisperModelsStore } from "./whisperModelsStore.svelte";
   import { smartMatchingStore } from "./smartMatchingStore.svelte";
   import { snackbar } from "./snackbarStore.svelte";
   import { uiMode } from "./uiModeStore.svelte";
@@ -60,15 +61,8 @@ import TranscribeTiers from "./TranscribeTiers.svelte";
     transcribeProviders,
     transcribeProviderOrder,
   } from "./transcribeProviders";
-  import {
-    loadVadSelection,
-    saveVadSelection,
-    type VadSelection,
-    DEFAULT_VAD_MODEL_ID,
-  } from "./vadSelection";
   import { getModelsForProvider, providers, type ModelInfo } from "./llmProviders";
   import { getLanguageSearchTerms, languages } from "./languages";
-  import { guardedOpen } from "./utils/dialogGuard";
 
   const allProviderIds = ["local", "google", "groq", "openai", "deepgram", "assemblyai", "openrouter", "mistral", "github", "nvidia", "custom"];
   const apiKeyProviderIds = ["google", "groq", "openai", "deepgram", "assemblyai", "openrouter", "mistral", "github", "nvidia", "custom"];
@@ -144,7 +138,6 @@ import TranscribeTiers from "./TranscribeTiers.svelte";
 
   let translationTiersRef = $state<any>(null);
   let transcribeTiers = $state<TranscribeTier[]>([]);
-  let transcribeTiersRef = $state<any>(null);
 
   // Whisper cloud/online settings
   const cloudSettings = loadTranscribeCloud();
@@ -447,7 +440,7 @@ import TranscribeTiers from "./TranscribeTiers.svelte";
   let isDefaultLlmReady = $derived(tiersHaveUsableEntries(tiers));
   let requiredSetupActions = $derived.by(() => {
     const actions: { section: SettingsSection; title: string; desc: string }[] = [];
-    if (downloadedWhisperCount === 0) {
+    if (whisperModelsStore.downloadedWhisperCount === 0) {
       actions.push({
         section: "whisper",
         title: s("transcription"),
@@ -1024,27 +1017,6 @@ import TranscribeTiers from "./TranscribeTiers.svelte";
     snackbar.show(t("settings.llm.resetSuccess"), "info", 1300);
   }
 
-  function resetWhisperSettings() {
-    const baseModel = whisperModels.find((m) => m.id === "base");
-    if (baseModel && baseModel.downloaded) {
-      defaultWhisperModel = "base";
-      localStorage.setItem("srt-default-whisper-model", "base");
-      snackbar.show(t("settings.whisper.resetSuccess"), "info", 2000);
-    } else {
-      // Find if there is another downloaded model
-      const alternate = whisperModels.find((m) => m.downloaded);
-      if (alternate) {
-        defaultWhisperModel = alternate.id;
-        localStorage.setItem("srt-default-whisper-model", alternate.id);
-        snackbar.show(t("settings.whisper.resetBaseNotDownloaded", { name: alternate.name }), "warning", 3000);
-      } else {
-        defaultWhisperModel = "base";
-        localStorage.setItem("srt-default-whisper-model", "base");
-        snackbar.show(t("settings.whisper.resetBaseDownloadWarning"), "warning", 3000);
-      }
-    }
-  }
-
   function resetLanguageSettings() {
     defaultTargetLanguage = "it";
     defaultTranscribeLanguage = "auto";
@@ -1319,10 +1291,10 @@ import TranscribeTiers from "./TranscribeTiers.svelte";
         }
       });
     smartMatchingRulesDraft = formatSmartMatchingRules(smartMatchingStore.rules);
-    defaultWhisperModel = localStorage.getItem("srt-default-whisper-model") || "base";
+    whisperModelsStore.defaultWhisperModel = localStorage.getItem("srt-default-whisper-model") || "base";
 
-    refreshModels().catch((e) => console.error("Could not list models:", e));
-    void refreshAddons();
+    whisperModelsStore.refreshModels().catch((e) => console.error("Could not list models:", e));
+    void whisperModelsStore.refreshAddons();
 
     const handleKeydown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -1338,22 +1310,6 @@ import TranscribeTiers from "./TranscribeTiers.svelte";
       openAddKeyModal("custom");
     };
 
-    const handleDownloadWhisperModelEvent = (e: Event) => {
-      const customEvent = e as CustomEvent<{ modelId: string }>;
-      const modelId = customEvent.detail?.modelId;
-      if (modelId) {
-        void downloadModel(modelId, true);
-      }
-    };
-
-    const handleUninstallWhisperModelEvent = (e: Event) => {
-      const customEvent = e as CustomEvent<{ modelId: string }>;
-      const modelId = customEvent.detail?.modelId;
-      if (modelId) {
-        void uninstallModel(modelId);
-      }
-    };
-
     tiers = loadTiers();
     transcribeTiers = loadTranscribeTiers();
     window.addEventListener("keydown", handleKeydown);
@@ -1361,24 +1317,27 @@ import TranscribeTiers from "./TranscribeTiers.svelte";
     window.addEventListener("vesta-open-add-key-modal", handleOpenAddKeyModalEvent);
     window.addEventListener(TIERS_UPDATED_EVENT, syncTiersFromStorage);
     window.addEventListener(TRANSCRIBE_TIERS_UPDATED_EVENT, syncTranscribeTiersFromStorage);
-    window.addEventListener("vesta-download-whisper-model", handleDownloadWhisperModelEvent);
-    window.addEventListener("vesta-uninstall-whisper-model", handleUninstallWhisperModelEvent);
 
     let activeListener = true;
     let unlistenProg: (() => void) | null = null;
 
+    // Real backend subscription (unlike the whisper-model download/uninstall
+    // window events, which only ever originate from WhisperSettingsPanel's
+    // own child TranscribeTiers) -- stays registered for SettingsTab's whole
+    // lifetime so progress tracking survives navigating away from the
+    // "whisper" section mid-download. See [[vesta-settings-refactor]].
     listen<{
       stage: string;
       message: string;
       percentage: number;
     }>("transcribe-progress", (event) => {
       const p = event.payload;
-      progress = Math.round(p.percentage);
-      progressMessage = p.message;
-      progressStage = p.stage;
+      whisperModelsStore.progress = Math.round(p.percentage);
+      whisperModelsStore.progressMessage = p.message;
+      whisperModelsStore.progressStage = p.stage;
       window.dispatchEvent(new CustomEvent("vesta-whisper-download-progress", {
         detail: {
-          modelId: downloadingModelId,
+          modelId: whisperModelsStore.downloadingModelId,
           progress: Math.round(p.percentage),
           stage: p.stage,
           message: p.message
@@ -1396,8 +1355,6 @@ import TranscribeTiers from "./TranscribeTiers.svelte";
       window.removeEventListener("vesta-open-add-key-modal", handleOpenAddKeyModalEvent);
       window.removeEventListener(TIERS_UPDATED_EVENT, syncTiersFromStorage);
       window.removeEventListener(TRANSCRIBE_TIERS_UPDATED_EVENT, syncTranscribeTiersFromStorage);
-      window.removeEventListener("vesta-download-whisper-model", handleDownloadWhisperModelEvent);
-      window.removeEventListener("vesta-uninstall-whisper-model", handleUninstallWhisperModelEvent);
       if (unlistenProg) unlistenProg();
     };
   });
@@ -1410,38 +1367,18 @@ import TranscribeTiers from "./TranscribeTiers.svelte";
     transcribeTiers = loadTranscribeTiers();
   }
 
-  // Whisper Model Management
-  let whisperModels = $state<{
-    id: string;
-    name: string;
-    size: string;
-    speed: string;
-    downloaded: boolean;
-  }[]>([
-    { id: "tiny", name: "Tiny", size: "~75MB", speed: "~32x", downloaded: false },
-    { id: "base", name: "Base", size: "~150MB", speed: "~16x", downloaded: false },
-    { id: "small", name: "Small", size: "~500MB", speed: "~6x", downloaded: false },
-    { id: "medium", name: "Medium", size: "~1.5GB", speed: "~2x", downloaded: false },
-    { id: "large", name: "Large", size: "~3GB", speed: "~1x", downloaded: false },
-  ]);
-  let downloadedWhisperCount = $derived(whisperModels.filter((model) => model.downloaded).length);
-  let needsQuickSetup = $derived(downloadedWhisperCount === 0 || !isDefaultLlmReady);
+  let needsQuickSetup = $derived(whisperModelsStore.downloadedWhisperCount === 0 || !isDefaultLlmReady);
 
-  let isDownloading = $state(false);
-  let isCancellingDownload = $state(false);
-  let downloadingModelId = $state<string | null>(null);
-  let pendingDefaultModelId = $state<string | null>(null);
-  let progress = $state(0);
-  let progressMessage = $state("");
-  let progressStage = $state("");
-  let defaultWhisperModel = $state("base");
+  // Shared with the whisper section's model grid (see WhisperSettingsPanel.svelte)
+  // and the llm section's refinement-prompt editor -- stays here since both
+  // read it.
   let highlightedModelId = $state<string | null>(null);
 
   $effect(() => {
     if (highlightItemId) {
       highlightedModelId = highlightItemId;
       const targetId = highlightItemId;
-      
+
       // Scroll to the element if it exists in the DOM
       setTimeout(() => {
         if (targetId) {
@@ -1463,39 +1400,11 @@ import TranscribeTiers from "./TranscribeTiers.svelte";
     }
   });
 
-  function formatWhisperModelName(modelId: string): string {
-    const matchedModel = whisperModels.find((model) => model.id === modelId);
-    if (matchedModel?.name) return matchedModel.name;
-    return modelId ? modelId.charAt(0).toUpperCase() + modelId.slice(1) : "";
-  }
-
-  function whisperModelIconPath(modelId: string): string {
-    const paths: Record<string, string> = {
-      tiny: "M13 3L4 14h7l-1 7 9-12h-7l1-6z",
-      base: "M12 4a8 8 0 100 16 8 8 0 000-16zm0 3v5l3 2",
-      small: "M6 20V10m6 10V4m6 16v-7M4 10h4m2-6h4m2 9h4",
-      medium: "M4 13h3l2-6 4 12 2-6h5",
-      large: "M12 3l8 4-8 4-8-4 8-4zm-8 8l8 4 8-4M4 15l8 4 8-4",
-    };
-    return paths[modelId] || "M9 3h6m-7 4h8a3 3 0 013 3v7a3 3 0 01-3 3H8a3 3 0 01-3-3v-7a3 3 0 013-3zm4 3v4m-2-2h4";
-  }
-
-  function whisperModelAccent(modelId: string): string {
-    const accents: Record<string, string> = {
-      tiny: "from-amber-500/25 to-yellow-500/10 text-amber-200",
-      base: "from-sky-500/25 to-cyan-500/10 text-sky-200",
-      small: "from-emerald-500/25 to-teal-500/10 text-emerald-200",
-      medium: "from-indigo-500/25 to-violet-500/10 text-indigo-200",
-      large: "from-fuchsia-500/25 to-rose-500/10 text-fuchsia-200",
-    };
-    return accents[modelId] || "from-cyan-500/20 to-blue-500/10 text-cyan-200";
-  }
-
   $effect(() => {
     if (typeof window === "undefined") return;
     publishSettingsActionState(
       buildSettingsActionHash({
-        needsWhisper: downloadedWhisperCount === 0 && !aiStore.killSwitchActive,
+        needsWhisper: whisperModelsStore.downloadedWhisperCount === 0 && !aiStore.killSwitchActive,
         needsLlm: !isDefaultLlmReady && !aiStore.killSwitchActive,
       }),
     );
@@ -1511,253 +1420,6 @@ import TranscribeTiers from "./TranscribeTiers.svelte";
       }
     }
   });
-
-
-
-
-  function setDefaultWhisperModel(modelId: string, notify = true) {
-    defaultWhisperModel = modelId;
-    localStorage.setItem("srt-default-whisper-model", modelId);
-    if (notify) {
-      showSnackbar(t("settings.whisper.defaultSet", { model: modelId }));
-    }
-    // Dispatch event so other tabs can pick up the change if needed
-    window.dispatchEvent(new CustomEvent("whisper-model-updated", { detail: modelId }));
-  }
-
-  function handleWhisperModelClick(model: { id: string; downloaded: boolean }) {
-    if (model.downloaded) {
-      setDefaultWhisperModel(model.id);
-      return;
-    }
-    void downloadModel(model.id, true);
-  }
-
-  async function refreshModels() {
-    try {
-      const models = await invoke<typeof whisperModels>("transcribe_list_models");
-      whisperModels = models;
-      window.dispatchEvent(new CustomEvent("vesta-whisper-models-updated", { detail: { models } }));
-    } catch (e) {
-      console.error("Could not list models:", e);
-    }
-  }
-
-  // ─── Silero VAD add-ons (managed like the whisper models) ───────────────────
-  // Two downloadable variants (v5.1.2 default, v6.2.0 newer) plus an optional
-  // arbitrary local .bin. The active choice is persisted client-side
-  // (`vesta-transcribe-vad-selection`) and read back by TranscribeTab when it
-  // resolves which path to send to `transcribe_start`.
-  let vadModels = $state<{ id: string; size: string; downloaded: boolean }[]>([]);
-  let vadSelection = $state<VadSelection>(loadVadSelection());
-  let downloadingVadId = $state<string | null>(null);
-  let vadCustomValid = $state(false);
-
-  async function refreshAddons() {
-    try {
-      const s = await invoke<{
-        vad_models: { id: string; size: string; downloaded: boolean }[];
-      }>("transcribe_addons_status");
-      vadModels = s.vad_models;
-      await refreshVadCustomValid();
-    } catch (e) {
-      console.error("Could not read transcription add-ons status:", e);
-    }
-  }
-
-  async function refreshVadCustomValid() {
-    if (!vadSelection.customPath) {
-      vadCustomValid = false;
-      return;
-    }
-    try {
-      vadCustomValid = await invoke<boolean>("transcribe_path_exists", {
-        path: vadSelection.customPath,
-      });
-    } catch {
-      vadCustomValid = false;
-    }
-  }
-
-  function selectVadModel(modelId: string) {
-    vadSelection = { modelId, customPath: null };
-    saveVadSelection(vadSelection);
-    window.dispatchEvent(new CustomEvent("vesta-vad-updated"));
-  }
-
-  function handleVadModelClick(model: { id: string; downloaded: boolean }) {
-    if (model.downloaded) {
-      selectVadModel(model.id);
-      return;
-    }
-    void downloadVad(model.id);
-  }
-
-  async function downloadVad(modelId: string) {
-    if (isDownloading || downloadingVadId) return;
-    downloadingVadId = modelId;
-    try {
-      await invoke<boolean>("transcribe_download_vad", { modelId });
-      await refreshAddons();
-      selectVadModel(modelId);
-      showSnackbar(t("settings.whisper.downloadSuccess", { model: `Silero VAD ${modelId}` }));
-    } catch (e) {
-      const message = String(e).toLowerCase();
-      if (message.includes("cancelled") || message.includes("canceled")) {
-        showSnackbar(t("settings.modelDownloadCancelled", { model: `Silero VAD ${modelId}` }));
-      } else {
-        showSnackbar(
-          t("settings.whisper.downloadFailed", { model: `Silero VAD ${modelId}`, error: String(e) }),
-          "error",
-        );
-      }
-    } finally {
-      downloadingVadId = null;
-      progress = 0;
-      progressMessage = "";
-      progressStage = "";
-    }
-  }
-
-  async function uninstallVad(modelId: string) {
-    if (downloadingVadId) return;
-    try {
-      await invoke<boolean>("transcribe_uninstall_vad", { modelId });
-      await refreshAddons();
-      if (!vadSelection.customPath && vadSelection.modelId === modelId) {
-        selectVadModel(DEFAULT_VAD_MODEL_ID);
-      }
-      showSnackbar(t("settings.whisper.uninstallSuccess", { model: `Silero VAD ${modelId}` }));
-    } catch (e) {
-      showSnackbar(
-        t("settings.whisper.uninstallFailed", { model: `Silero VAD ${modelId}`, error: String(e) }),
-        "error",
-      );
-    }
-  }
-
-  async function pickCustomVad() {
-    const path = await guardedOpen({
-      filters: [{ name: "VAD model", extensions: ["bin"] }],
-      multiple: false,
-    });
-    if (!path || typeof path !== "string") return;
-    vadSelection = { modelId: vadSelection.modelId, customPath: path };
-    saveVadSelection(vadSelection);
-    await refreshVadCustomValid();
-    window.dispatchEvent(new CustomEvent("vesta-vad-updated"));
-  }
-
-  function clearCustomVad() {
-    vadSelection = { modelId: vadSelection.modelId, customPath: null };
-    saveVadSelection(vadSelection);
-    vadCustomValid = false;
-    window.dispatchEvent(new CustomEvent("vesta-vad-updated"));
-  }
-
-  async function downloadModel(modelId: string, setAsDefaultAfterDownload = false) {
-    if (isDownloading) return;
-    isDownloading = true;
-    isCancellingDownload = false;
-    downloadingModelId = modelId;
-    pendingDefaultModelId = setAsDefaultAfterDownload ? modelId : null;
-    try {
-      await invoke<boolean>("transcribe_download_model", { modelId });
-      await refreshModels();
-
-      const downloaded = whisperModels.find((m) => m.id === modelId)?.downloaded;
-      if (downloaded && pendingDefaultModelId === modelId) {
-        setDefaultWhisperModel(modelId, false);
-        showSnackbar(t("settings.whisper.downloadAndSetSuccess", { model: modelId }));
-      } else if (downloaded) {
-        showSnackbar(t("settings.whisper.downloadSuccess", { model: modelId }));
-      }
-    } catch (e) {
-      const message = String(e).toLowerCase();
-      if (message.includes("cancelled") || message.includes("canceled")) {
-        showSnackbar(
-          t("settings.modelDownloadCancelled", { model: modelId }) || `Download cancelled for model ${modelId}`,
-        );
-      } else {
-        showSnackbar(t("settings.whisper.downloadFailed", { model: modelId, error: String(e) }), "error");
-      }
-    } finally {
-      isDownloading = false;
-      isCancellingDownload = false;
-      downloadingModelId = null;
-      pendingDefaultModelId = null;
-      progress = 0;
-      progressMessage = "";
-      progressStage = "";
-      window.dispatchEvent(new CustomEvent("vesta-whisper-download-progress", {
-        detail: { modelId: null, progress: 0 }
-      }));
-    }
-  }
-
-  async function cancelModelDownload() {
-    if (!isDownloading || isCancellingDownload) return;
-    isCancellingDownload = true;
-    try {
-      await invoke("transcribe_cancel");
-    } catch (e) {
-      showSnackbar(t("settings.whisper.cancelFailed", { error: String(e) }), "error");
-      isCancellingDownload = false;
-    }
-  }
-
-  async function uninstallModel(modelId: string) {
-    if (isDownloading) return;
-    try {
-      await invoke<boolean>("transcribe_uninstall_model", { modelId });
-      showSnackbar(t("settings.whisper.uninstallSuccess", { model: modelId }));
-      await refreshModels();
-    } catch (e) {
-      showSnackbar(t("settings.whisper.uninstallFailed", { model: modelId, error: String(e) }), "error");
-    }
-  }
-
-  let contextMenu = $state<{
-    x: number;
-    y: number;
-    kind: "model" | "panel";
-    modelId?: string;
-    downloaded?: boolean;
-  } | null>(null);
-
-  function openContextMenu(e: MouseEvent, model: { id: string; downloaded: boolean }) {
-    e.preventDefault();
-    e.stopPropagation();
-    contextMenu = {
-      x: e.clientX,
-      y: e.clientY,
-      kind: "model",
-      modelId: model.id,
-      downloaded: model.downloaded,
-    };
-  }
-
-  function openWhisperPanelContextMenu(e: MouseEvent) {
-    e.preventDefault();
-    contextMenu = {
-      x: e.clientX,
-      y: e.clientY,
-      kind: "panel",
-    };
-  }
-
-  function closeContextMenu() {
-    contextMenu = null;
-  }
-
-  function handleModelDblClick(model: { id: string; downloaded: boolean }) {
-    if (!model.downloaded && !isDownloading) {
-      void downloadModel(model.id, true);
-    } else if (model.downloaded) {
-      setDefaultWhisperModel(model.id);
-    }
-  }
-
 
   function loadApiKeys() {
     apiKeys = loadAndValidateApiKeys();
@@ -2544,332 +2206,16 @@ import TranscribeTiers from "./TranscribeTiers.svelte";
 
   <!-- Whisper Models -->
   {#if activeSettingsSection === "whisper" && !aiStore.killSwitchActive}
-    <ApiKeysCard
-      title={s("apiKeysSaved")}
-      addButtonLabel={s("addProviderButton")}
-      defaultProvider="groq"
+    <WhisperSettingsPanel
+      {s}
       {apiKeys}
       onAddKey={openAddKeyModal}
       onEditKey={openEditKeyModal}
       onDeleteKey={askDeleteApiKey}
       onSetDefault={setDefaultKey}
+      {highlightedModelId}
+      {whisperEngine}
     />
-
-  <!-- Whisper Tiers (priority list + failover) -->
-  <div class="glass-card flex flex-col mb-6 mt-10">
-    <div class="p-4 border-b border-white/5 flex items-center justify-between gap-3 w-full">
-      <div class="flex items-center gap-3">
-        <div class="w-9 h-9 rounded-lg bg-indigo-500/20 text-indigo-300 flex items-center justify-center shrink-0">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h10M4 18h6" />
-          </svg>
-        </div>
-        <div>
-          <h3 class="text-sm font-bold text-white">{t("transcribe.tiers.cardTitle") || "Tier di precedenza per la trascrizione"}</h3>
-        </div>
-      </div>
-      <button
-        type="button"
-        onclick={() => transcribeTiersRef?.triggerAddTier()}
-        class="inline-flex items-center justify-center gap-2 rounded-lg bg-indigo-500 px-3.5 py-2 text-xs font-bold text-white shadow-lg shadow-indigo-500/20 hover:bg-indigo-400 transition-colors cursor-pointer"
-      >
-        + {t("tiers.addTier")}
-      </button>
-    </div>
-    <div class="p-4">
-      <TranscribeTiers bind:this={transcribeTiersRef} />
-    </div>
-  </div>
-
-
-
-  {#if whisperEngine === "local"}
-  <div class="mt-6 glass-card p-5 {downloadedWhisperCount === 0 ? 'border-glow-amber-slow' : ''}" role="group" oncontextmenu={openWhisperPanelContextMenu}>
-    <div class="flex items-center gap-3 mb-4">
-      <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-white shadow-lg">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-        </svg>
-      </div>
-      <div class="flex-1">
-        <h3 class="text-sm font-bold text-white">{t("transcribe.whisperModel")}</h3>
-      </div>
-    </div>
-
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
-      <div class="p-4 rounded-xl bg-cyan-500/10 border border-cyan-500/25">
-        <p class="text-xs uppercase tracking-wide text-cyan-300/70 mb-1">{t("settings.modelsDownloadedLocally")}</p>
-        <p class="text-2xl font-bold text-white">{downloadedWhisperCount}/{whisperModels.length}</p>
-      </div>
-      <div class="p-4 rounded-xl bg-white/5 border border-white/10">
-        <p class="text-xs uppercase tracking-wide text-gray-500 mb-1">{t("settings.default")}</p>
-        <p class="text-2xl font-bold text-white">{defaultWhisperModel ? (t(`transcribe.model${defaultWhisperModel.charAt(0).toUpperCase()}${defaultWhisperModel.slice(1)}`) || defaultWhisperModel) : ""}</p>
-      </div>
-      <div class="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/25">
-        <p class="text-xs uppercase tracking-wide text-emerald-300/70 mb-1">{t("settings.ready")}</p>
-        <p class="text-2xl font-bold text-white">{downloadedWhisperCount > 0 ? t("common.yes") : t("common.no")}</p>
-      </div>
-    </div>
-
-    {#if isDownloading && downloadingModelId}
-      <div class="mb-3 text-xs text-gray-400">
-        {t("settings.modelDownloading", { model: downloadingModelId }) || `Downloading model: ${downloadingModelId}`}
-        {#if progress > 0}
-          <span class="text-cyan-300 ml-1">{progress}%</span>
-        {/if}
-      </div>
-    {/if}
-    
-    <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-3">
-      {#each whisperModels as model}
-        <!-- svelte-ignore a11y_no_static_element_interactions -->
-        <div
-          onclick={() => handleWhisperModelClick(model)}
-          ondblclick={() => handleModelDblClick(model)}
-          oncontextmenu={(e) => openContextMenu(e, model)}
-          onkeydown={(e) => {
-            if (e.key === "Enter" || e.key === " ") handleWhisperModelClick(model);
-          }}
-          role="radio"
-          aria-checked={defaultWhisperModel === model.id}
-          tabindex="0"
-          class="relative min-h-[8.5rem] p-4 rounded-xl text-center transition-all duration-200 border cursor-pointer
-            {defaultWhisperModel === model.id && model.downloaded
-            ? 'bg-cyan-500/20 border-cyan-500/50 text-white shadow-[0_0_15px_rgba(6,182,212,0.15)]'
-            : model.downloaded
-              ? 'bg-white/10 hover:bg-white/20 border-white/20 text-gray-200'
-              : 'bg-white/5 hover:bg-white/10 border-transparent text-gray-500 opacity-60'}
-            {highlightedModelId === model.id ? 'model-highlight-flash' : ''}"
-          title={model.downloaded ? t("settings.whisperDownloadedHint") : t("settings.whisperNotDownloadedHint")}
-        >
-          <div class="absolute top-1.5 right-1.5 pointer-events-none">
-            {#if !model.downloaded}
-              {#if downloadingModelId === model.id}
-                <button
-                   onclick={(e) => { e.stopPropagation(); void cancelModelDownload(); }}
-                  disabled={isCancellingDownload}
-                  class="text-red-400 hover:text-red-300 transition-colors pointer-events-auto p-1 bg-red-500/10 hover:bg-red-500/20 rounded-md border border-red-500/30 flex items-center justify-center cursor-pointer"
-                  title={t("settings.stopModelDownload") || "Ferma download"}
-                >
-                  {#if isCancellingDownload}
-                    <svg class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
-                      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
-                    </svg>
-                  {:else}
-                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 6h12v12H6z" />
-                    </svg>
-                  {/if}
-                </button>
-              {:else}
-                <button
-                  onclick={(e) => { e.stopPropagation(); void downloadModel(model.id, true); }}
-                  class="text-amber-400 hover:text-cyan-400 transition-colors animate-pulse pointer-events-auto p-1 hover:bg-white/5 rounded-md"
-                  title={t("transcribe.clickToDownload")}
-                  disabled={isDownloading}
-                >
-                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
-                  </svg>
-                </button>
-              {/if}
-            {/if}
-          </div>
-          <div class="mx-auto mb-2 flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 bg-gradient-to-br {whisperModelAccent(model.id)} shadow-sm">
-            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d={whisperModelIconPath(model.id)} />
-            </svg>
-          </div>
-          <div class="font-bold text-sm">
-            {t(`transcribe.model${model.id.charAt(0).toUpperCase()}${model.id.slice(1)}`) || model.name}
-          </div>
-          <div class="text-[10px] text-gray-500 mt-1">{model.size}</div>
-          {#if !model.downloaded}
-            <div class="text-[9px] text-amber-400/70 mt-0.5">
-              {#if downloadingModelId === model.id}
-                {t("settings.downloading")} {progress > 0 ? `${progress}%` : ""}
-              {:else}
-                {t("settings.notDownloaded")}
-              {/if}
-            </div>
-          {:else if defaultWhisperModel === model.id}
-            <div class="text-[9px] text-cyan-400 mt-0.5 font-bold">{t("settings.default")}</div>
-          {/if}
-        </div>
-      {/each}
-    </div>
-
-    <!-- Silero VAD add-ons: two downloadable variants + an optional custom model.
-         Clicking a downloaded variant makes it the active one (same pattern as
-         the Whisper model grid above); the active choice is what TranscribeTab
-         resolves into transcribe_start's config. -->
-    <div class="mt-4 space-y-2">
-      {#each vadModels as model (model.id)}
-        {@const isActive = !vadSelection.customPath && vadSelection.modelId === model.id}
-        <div class="p-4 rounded-xl border flex items-center justify-between gap-4 {isActive
-          ? 'bg-emerald-500/10 border-emerald-500/25'
-          : 'bg-white/5 border-white/10'}">
-          <button
-            type="button"
-            onclick={() => handleVadModelClick(model)}
-            disabled={downloadingVadId !== null}
-            class="min-w-0 text-left flex-1 cursor-pointer disabled:cursor-default"
-          >
-            <div class="flex items-center gap-2 flex-wrap">
-              <span class="text-sm font-bold text-white">Silero VAD {model.id}</span>
-              {#if model.id === DEFAULT_VAD_MODEL_ID}
-                <span class="text-[9px] text-gray-500 uppercase tracking-wide">{t("settings.default")}</span>
-              {/if}
-              <span class="text-[10px] text-gray-500">{model.size}</span>
-              {#if model.downloaded}
-                {#if isActive}
-                  <span class="text-[9px] font-bold text-emerald-400 uppercase tracking-wide">{t("settings.ready")}</span>
-                {/if}
-              {:else if downloadingVadId === model.id}
-                <span class="text-[9px] text-amber-400/70">{t("settings.downloading")} {progress > 0 ? `${progress}%` : ""}</span>
-              {:else}
-                <span class="text-[9px] text-amber-400/70">{t("settings.notDownloaded")}</span>
-              {/if}
-            </div>
-          </button>
-          {#if model.downloaded}
-            <button
-              onclick={() => void uninstallVad(model.id)}
-              disabled={downloadingVadId !== null}
-              class="shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold text-red-300 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 transition-colors cursor-pointer disabled:opacity-50"
-            >
-              {t("settings.uninstall")}
-            </button>
-          {:else}
-            <button
-              onclick={() => void downloadVad(model.id)}
-              disabled={isDownloading || downloadingVadId !== null}
-              class="shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold text-white bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 transition-colors cursor-pointer"
-            >
-              {t("settings.download")}
-            </button>
-          {/if}
-        </div>
-      {/each}
-
-      <!-- Custom VAD model: arbitrary local .bin, bypasses the table above -->
-      <div class="p-4 rounded-xl border flex items-center justify-between gap-4 {vadSelection.customPath
-        ? 'bg-emerald-500/10 border-emerald-500/25'
-        : 'bg-white/5 border-white/10'}">
-        <div class="min-w-0">
-          <div class="flex items-center gap-2 flex-wrap">
-            <span class="text-sm font-bold text-white">{t("settings.whisper.vadCustomLabel")}</span>
-            {#if vadSelection.customPath}
-              {#if vadCustomValid}
-                <span class="text-[9px] font-bold text-emerald-400 uppercase tracking-wide">{t("settings.whisper.vadCustomActive")}</span>
-              {:else}
-                <span class="text-[9px] text-red-400">{t("settings.whisper.vadCustomInvalid")}</span>
-              {/if}
-            {/if}
-          </div>
-          {#if vadSelection.customPath}
-            <p class="text-xs text-gray-400 mt-1 truncate" title={vadSelection.customPath}>{vadSelection.customPath}</p>
-          {/if}
-        </div>
-        <div class="shrink-0 flex items-center gap-2">
-          <button
-            onclick={() => void pickCustomVad()}
-            class="px-3 py-1.5 rounded-lg text-xs font-bold text-white bg-cyan-600 hover:bg-cyan-500 transition-colors cursor-pointer"
-          >
-            {t("settings.whisper.vadCustomPick")}
-          </button>
-          {#if vadSelection.customPath}
-            <button
-              onclick={clearCustomVad}
-              class="px-3 py-1.5 rounded-lg text-xs font-bold text-red-300 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 transition-colors cursor-pointer"
-            >
-              {t("settings.remove")}
-            </button>
-          {/if}
-        </div>
-      </div>
-    </div>
-  </div>
-  {/if}
-
-  {#if contextMenu}
-    <!-- svelte-ignore a11y_no_static_element_interactions -->
-    <div
-      class="fixed inset-0 z-50"
-      onmousedown={closeContextMenu}
-      oncontextmenu={(e) => { e.preventDefault(); closeContextMenu(); }}
-    >
-      <div
-        class="absolute bg-gray-900/98 border border-white/10 rounded-xl shadow-2xl py-1 min-w-[190px] animate-fade-in overflow-hidden"
-        style="left: {contextMenu.x}px; top: {contextMenu.y}px;"
-        onmousedown={(e) => e.stopPropagation()}
-      >
-        <div class="px-3 py-1.5 border-b border-white/5 bg-white/5 mb-1">
-          <span class="text-xs font-bold text-gray-400 uppercase tracking-wide">
-            {contextMenu.kind === "model" ? `Whisper: ${contextMenu.modelId}` : "Whisper"}
-          </span>
-        </div>
-        {#if contextMenu.kind === "panel"}
-          <button
-            class="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-white/10 hover:text-white flex items-center gap-2 transition-colors"
-            onclick={() => {
-              void refreshModels();
-              closeContextMenu();
-            }}
-          >
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9M20 20v-5h-.581m0 0a8.003 8.003 0 01-15.357-2" /></svg>
-            {t("settings.refreshStatus")}
-          </button>
-          {#if whisperModels.some((model) => !model.downloaded)}
-            <button
-              class="w-full text-left px-4 py-2 text-sm text-cyan-300 hover:bg-cyan-500/10 hover:text-cyan-200 flex items-center gap-2 transition-colors"
-              onclick={() => {
-                const nextModel = whisperModels.find((model) => !model.downloaded);
-                if (nextModel) void downloadModel(nextModel.id, true);
-                closeContextMenu();
-              }}
-            >
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-              {t("settings.downloadNext")}
-            </button>
-          {/if}
-        {:else if contextMenu.downloaded && contextMenu.modelId}
-          <button
-            class="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-white/10 hover:text-white flex items-center gap-2 transition-colors"
-            onclick={() => {
-              if (contextMenu?.modelId) setDefaultWhisperModel(contextMenu.modelId);
-              closeContextMenu();
-            }}
-          >
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
-            {t("settings.setAsDefault")}
-          </button>
-          <button
-            class="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-red-500/10 hover:text-red-300 flex items-center gap-2 transition-colors"
-            onclick={() => {
-              if (contextMenu?.modelId) void uninstallModel(contextMenu.modelId);
-              closeContextMenu();
-            }}
-          >
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-            {t("settings.remove")}
-          </button>
-        {:else if contextMenu.modelId}
-          <button
-            class="w-full text-left px-4 py-2 text-sm text-cyan-300 hover:bg-cyan-500/10 hover:text-cyan-200 flex items-center gap-2 transition-colors"
-            onclick={() => {
-              if (contextMenu?.modelId) void downloadModel(contextMenu.modelId, true);
-              closeContextMenu();
-            }}
-          >
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-            {t("settings.downloadAndSet")}
-          </button>
-        {/if}
-      </div>
-    </div>
-  {/if}
   {/if}
 
   {#if activeSettingsSection === "anki"}
@@ -2924,7 +2270,7 @@ import TranscribeTiers from "./TranscribeTiers.svelte";
       } else if (showResetConfirm === "llm") {
         resetLlmSettings();
       } else if (showResetConfirm === "whisper") {
-        resetWhisperSettings();
+        whisperModelsStore.resetAll();
       } else if (showResetConfirm === "language") {
         resetLanguageSettings();
       } else if (showResetConfirm === "anki") {
@@ -3042,24 +2388,6 @@ import TranscribeTiers from "./TranscribeTiers.svelte";
     }
   }
 
-  .border-glow-amber-slow {
-    animation: settings-glow-pulse-amber 4s ease-in-out infinite;
-  }
-
-  @keyframes settings-glow-pulse-amber {
-    0%,
-    100% {
-      border-color: rgba(245, 158, 11, 0.15);
-      box-shadow: 0 0 4px 0 rgba(245, 158, 11, 0.05);
-    }
-    50% {
-      border-color: rgba(245, 158, 11, 0.7);
-      box-shadow: 
-        0 0 16px 1px rgba(245, 158, 11, 0.25),
-        inset 0 0 8px 0 rgba(245, 158, 11, 0.15);
-    }
-  }
-
 	  .ui-language-grid {
 	    display: grid;
 	    grid-template-columns: repeat(auto-fill, minmax(11.5rem, 1fr));
@@ -3092,20 +2420,4 @@ import TranscribeTiers from "./TranscribeTiers.svelte";
     font-size: 1.35rem;
   }
 
-  @keyframes settings-model-highlight-flash {
-    0%, 100% {
-      border-color: rgba(255, 255, 255, 0.1);
-      box-shadow: none;
-    }
-    25%, 75% {
-      border-color: #f59e0b;
-      box-shadow: 0 0 15px rgba(245, 158, 11, 0.6);
-      background-color: rgba(245, 158, 11, 0.1);
-      opacity: 1;
-    }
-  }
-
-  .model-highlight-flash {
-    animation: settings-model-highlight-flash 1s ease-in-out 2;
-  }
 </style>
