@@ -28,8 +28,8 @@ use anyhow::{Context as _, Result};
 use serde::Serialize;
 use tokio_util::sync::CancellationToken;
 
-use whisper_common::audio::read_wav_to_f32;
-use whisper_common::transcribe::{
+use srt_transcribe::audio::read_wav_to_f32;
+use srt_transcribe::transcribe::{
     text_similarity, transcribe_full, TranscribeOptions, TranscribedSegment,
 };
 
@@ -49,7 +49,7 @@ pub struct AutoSyncConfig {
     /// Media file (video or audio) the subtitles should be aligned to.
     pub media_path: String,
     /// Path to a downloaded ggml Whisper model
-    /// (see `whisper_common::model::model_file_path`).
+    /// (see `srt_transcribe::model::model_file_path`).
     pub model_path: PathBuf,
     /// Spoken language hint (None = autodetect).
     pub language: Option<String>,
@@ -511,6 +511,7 @@ pub async fn run_auto_sync(
                     word_timestamps: true,
                     max_segment_length: None,
                     segment_callback: None,
+                    ..TranscribeOptions::default()
                 };
 
                 let (transcribed, _) =

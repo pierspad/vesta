@@ -41,7 +41,7 @@ The model is downloaded on demand (Hugging Face, cached in
 [dependencies]
 srt-autosync   = { git = "https://github.com/pierspad/vesta" }
 srt-sync       = { git = "https://github.com/pierspad/vesta" }
-whisper-common = { git = "https://github.com/pierspad/vesta" }
+srt-transcribe = { git = "https://github.com/pierspad/vesta" }
 tokio          = { version = "1", features = ["full"] }
 tokio-util     = "0.7"
 ```
@@ -60,7 +60,7 @@ async fn main() -> anyhow::Result<()> {
 
     let config = AutoSyncConfig {
         media_path: "movie.mp4".into(),
-        model_path: whisper_common::model::model_file_path("base")?,
+        model_path: srt_transcribe::model::model_file_path("base")?,
         language: Some("en".into()),
         quick: false,
         ffmpeg_cmd: "ffmpeg".into(),
@@ -78,7 +78,7 @@ async fn main() -> anyhow::Result<()> {
 
 ## Extract it standalone
 
-Copy `lib/srt-autosync/` + `lib/whisper-common/` (+ `lib/srt-sync/` and
+Copy `lib/srt-autosync/` + `lib/srt-transcribe/` (+ `lib/srt-sync/` and
 `core/srt-parser/` if you apply the anchors). External deps: `whisper-rs`
 (compiles whisper.cpp — needs cmake and a C++ toolchain), `tokio`,
 `tokio-util`, `tempfile`, `anyhow`, `serde`. FFmpeg is a runtime requirement,

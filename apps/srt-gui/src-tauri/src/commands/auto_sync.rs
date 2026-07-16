@@ -102,7 +102,7 @@ pub async fn sync_auto_sync(
         (media, subs)
     };
 
-    let model_path = whisper_common::model::model_file_path(&model_id)
+    let model_path = srt_transcribe::model::model_file_path(&model_id)
         .map_err(|e| e.to_string())?;
 
     let ffmpeg_cmd = crate::commands::flashcards::media::resolve_ffmpeg_path(Some(&app)).await;

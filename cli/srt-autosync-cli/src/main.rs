@@ -73,7 +73,7 @@ async fn main() -> Result<()> {
 
     // Ensure the Whisper model is available (download on demand).
     let model_id = cli.model.clone();
-    let model_path = whisper_common::model::download_model(
+    let model_path = srt_transcribe::model::download_model(
         &cli.model,
         move |pct| eprint!("\rDownloading model {model_id}... {pct}%"),
         None,

@@ -14,7 +14,7 @@ name = "srt_autosync"
 path = "src/lib.rs"
 
 [dependencies]
-whisper-common = { workspace = true }
+srt-transcribe = { workspace = true }
 whisper-rs = { workspace = true }
 anyhow.workspace = true
 serde = { workspace = true }
