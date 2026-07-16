@@ -4275,72 +4275,6 @@
     gap: 1.25rem;
   }
 
-  .timing-source-toggle {
-    background: rgba(0, 0, 0, 0.2);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 0.5rem;
-    display: flex;
-    gap: 0.25rem;
-    padding: 0.25rem;
-    position: relative;
-  }
-
-  .timing-source-toggle label {
-    position: relative;
-    z-index: 1;
-  }
-
-  .timing-source-slider {
-    background: rgba(148, 163, 184, 0.11);
-    border: 1px solid rgba(148, 163, 184, 0.18);
-    border-radius: 7px;
-    bottom: 0.25rem;
-    box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.06),
-      0 8px 18px rgba(0, 0, 0, 0.16);
-    left: 0.25rem;
-    position: absolute;
-    top: 0.25rem;
-    transform: translateX(0);
-    transition:
-      transform 0.28s cubic-bezier(0.22, 1, 0.36, 1),
-      border-color 0.2s ease,
-      box-shadow 0.2s ease;
-    width: calc((100% - 0.75rem) / 2);
-  }
-
-  .timing-source-toggle-native .timing-source-slider {
-    transform: translateX(calc(100% + 0.25rem));
-  }
-
-  .timing-source-toggle-flash .timing-source-slider {
-    animation: timing-source-flash 0.42s ease-in-out 2;
-  }
-
-  .timing-source-choice {
-    border: 1px solid transparent;
-    border-radius: 7px;
-    color: rgb(156 163 175);
-    font-size: 0.75rem;
-    font-weight: 650;
-    line-height: 1.1;
-    min-height: 2rem;
-    padding: 0.5rem 0.65rem;
-    text-align: center;
-    transition:
-      background-color 0.16s ease,
-      border-color 0.16s ease,
-      color 0.16s ease;
-  }
-
-  label:hover .timing-source-choice {
-    color: rgb(209 213 219);
-  }
-
-  .timing-source-flash {
-    animation: timing-source-flash 0.42s ease-in-out 2;
-  }
-
   .filter-pill-check {
     align-items: center;
     border: 1px solid rgba(148, 163, 184, 0.16);
@@ -4472,21 +4406,6 @@
     box-shadow:
       0 0 0 1px rgba(251, 191, 36, 0.3),
       0 0 24px rgba(251, 191, 36, 0.24);
-  }
-
-  @keyframes timing-source-flash {
-    0%,
-    100% {
-      border-color: rgba(52, 211, 153, 0.2);
-      box-shadow: 0 0 0 0 rgba(52, 211, 153, 0);
-    }
-
-    45% {
-      border-color: rgba(52, 211, 153, 0.9);
-      box-shadow:
-        0 0 0 2px rgba(52, 211, 153, 0.18),
-        0 0 14px rgba(52, 211, 153, 0.25);
-    }
   }
 
   @keyframes flashcard-requirement-pulse {
