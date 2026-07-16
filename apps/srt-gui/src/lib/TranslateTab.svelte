@@ -26,12 +26,19 @@
   import LogPanel, { type LogEntry } from "./LogPanel.svelte";
   import { snackbar } from "./snackbarStore.svelte";
   import { aiStore } from "./aiStore.svelte";
+  import FooterActions from "./components/FooterActions.svelte";
   import { uiMode } from "./uiModeStore.svelte";
   import {
     extractModelsFromPayload,
     fetchModelsFromEndpoint,
     type DiscoveredModel,
   } from "./modelDiscovery";
+  import {
+    buildTiersPayload as buildTiersPayloadShared,
+    checkTiersAvailability as checkTiersAvailabilityShared,
+    type TierEntryPayload,
+    type TiersUnavailableReason,
+  } from "./llmTiers";
 
   /**
    * Generates a smart output path by detecting and replacing language codes
@@ -73,15 +80,6 @@
     subtitle_count: number;
     first_subtitle: string;
     last_subtitle: string;
-  }
-
-  interface TierEntryPayload {
-    provider: string;
-    model: string;
-    api_key: string | null;
-    api_url: string | null;
-    rpm: number | null;
-    max_requests: number | null;
   }
 
   interface TranslateConfig {
@@ -295,129 +293,34 @@
     tiers = loadTiers();
   }
 
-  // Costruisce il payload a tier risolvendo le API key referenziate.
+  // Payload a tier: delega al modulo condiviso (stessa logica di RefineTab).
   function buildTiersPayload(): TierEntryPayload[][] | null {
     if (!useTiers) return null;
-    const out: TierEntryPayload[][] = [];
-    for (const tier of tiers) {
-      const entries: TierEntryPayload[] = [];
-      for (const e of tier.entries) {
-        if (!e.model || !e.model.trim()) continue;
-        const key = apiKeys.find((k) => k.id === e.apiKeyId);
-        const provider = e.provider || key?.apiType || "google";
-        const apiKeyVal = key?.apiKey?.trim() || null;
-        const apiUrl =
-          key?.apiUrl?.trim() || providers[provider]?.defaultApiUrl || null;
-        // Le entry remote senza key valida vengono saltate.
-        if (!apiKeyVal && provider !== "local" && provider !== "custom") continue;
-        entries.push({
-          provider,
-          model: e.model.trim(),
-          api_key: apiKeyVal,
-          api_url: apiUrl,
-          rpm: e.rpm ?? null,
-          max_requests: e.maxRequests ?? null,
-        });
-      }
-      if (entries.length > 0) out.push(entries);
+    return buildTiersPayloadShared(tiers, apiKeys);
+  }
+
+  function tiersUnavailableMessage(reason: TiersUnavailableReason): string {
+    switch (reason) {
+      case "noneConfigured":
+        return t("tiers.noneConfigured") || "No tiers configured";
+      case "localOffline":
+        return t("settings.llmConfigIncompleteDescLocalOffline") || "The local LLM server is offline. Please start Ollama/LM Studio or verify the endpoint URL.";
+      case "keyMissing":
+        return t("settings.llmConfigIncompleteDescKey") || "Missing API key";
+      case "incomplete":
+        return t("settings.llmConfigIncompleteDescCustomEmpty") || "LLM configuration incomplete";
+      default:
+        return t("translate.errorTranslating") || "No available LLM found in tiers. Check your settings.";
     }
-    return out.length > 0 ? out : null;
   }
 
   async function checkTiersAvailability(): Promise<{ available: boolean; errorMsg?: string }> {
     if (!useTiers) {
       return { available: false, errorMsg: t("tiers.noneConfigured") || "No tiers configured" };
     }
-
-    const configuredEntries: any[] = [];
-    for (const tier of tiers) {
-      for (const e of tier.entries) {
-        if (e.model && e.model.trim()) {
-          configuredEntries.push(e);
-        }
-      }
-    }
-
-    if (configuredEntries.length === 0) {
-      return { available: false, errorMsg: t("tiers.noneConfigured") || "No tiers configured" };
-    }
-
-    let hasOnlineLocal = false;
-    let hasValidRemote = false;
-    let hasKeyMissing = false;
-    let hasOfflineLocal = false;
-    let hasIncomplete = false;
-
-    const pingPromises = configuredEntries.map(async (e) => {
-      const key = apiKeys.find((k) => k.id === e.apiKeyId);
-      const provider = e.provider || key?.apiType || "google";
-      const apiKeyVal = key?.apiKey?.trim() || null;
-
-      if (provider === "local" || provider === "custom") {
-        const apiUrl = key?.apiUrl?.trim() || providers[provider]?.defaultApiUrl || "";
-        if (!apiUrl.trim()) {
-          hasIncomplete = true;
-          return;
-        }
-        if (provider === "custom" && !apiKeyVal) {
-          hasKeyMissing = true;
-          return;
-        }
-        try {
-          const models = await fetchModelsFromEndpoint(apiUrl, apiKeyVal || "", 2000);
-          if (models && models.length > 0) {
-            hasOnlineLocal = true;
-          } else {
-            hasOfflineLocal = true;
-          }
-        } catch {
-          hasOfflineLocal = true;
-        }
-      } else {
-        if (!apiKeyVal) {
-          hasKeyMissing = true;
-        } else {
-          hasValidRemote = true;
-        }
-      }
-    });
-
-    await Promise.all(pingPromises);
-
-    if (hasOnlineLocal || hasValidRemote) {
-      return { available: true };
-    }
-
-    if (hasOfflineLocal && !hasKeyMissing && !hasIncomplete) {
-      return {
-        available: false,
-        errorMsg: t("settings.llmConfigIncompleteDescLocalOffline") || "The local LLM server is offline. Please start Ollama/LM Studio or verify the endpoint URL.",
-      };
-    }
-    if (hasKeyMissing && !hasOfflineLocal && !hasIncomplete) {
-      return {
-        available: false,
-        errorMsg: t("settings.llmConfigIncompleteDescKey") || "Missing API key",
-      };
-    }
-    if (hasIncomplete && !hasOfflineLocal && !hasKeyMissing) {
-      return {
-        available: false,
-        errorMsg: t("settings.llmConfigIncompleteDescCustomEmpty") || "LLM configuration incomplete",
-      };
-    }
-
-    if (hasOfflineLocal) {
-      return {
-        available: false,
-        errorMsg: t("settings.llmConfigIncompleteDescLocalOffline") || "The local LLM server is offline. Please start Ollama/LM Studio or verify the endpoint URL.",
-      };
-    }
-
-    return {
-      available: false,
-      errorMsg: t("translate.errorTranslating") || "No available LLM found in tiers. Check your settings.",
-    };
+    const check = await checkTiersAvailabilityShared(tiers, apiKeys);
+    if (check.available) return { available: true };
+    return { available: false, errorMsg: tiersUnavailableMessage(check.reason) };
   }
 
   let unlistenProgress: (() => void) | null = null;
@@ -1726,17 +1629,17 @@
   </div>
 
   <!-- Fixed Bottom Band with Action Buttons -->
-  <div class="h-[92px] border-t border-white/10 bg-gray-900 flex items-center justify-between px-6 shrink-0 z-40 relative">
-    
-    <!-- Animated background progress overlay (only when translating) -->
-    {#if isTranslating}
-      <div 
-        class="absolute inset-y-0 left-0 bg-gradient-to-r from-purple-500/15 to-pink-500/20 transition-all duration-300 ease-out z-0 pointer-events-none"
-        style="width: {progress?.percentage || 0}%"
-      ></div>
-      <div class="absolute inset-0 bg-shimmer-stripes opacity-15 z-0 pointer-events-none"></div>
-    {/if}
-
+  <FooterActions>
+    {#snippet background()}
+      {#if isTranslating}
+        <div
+          class="absolute inset-y-0 left-0 bg-gradient-to-r from-purple-500/15 to-pink-500/20 transition-all duration-300 ease-out z-0 pointer-events-none"
+          style="width: {progress?.percentage || 0}%"
+        ></div>
+        <div class="absolute inset-0 bg-shimmer-stripes opacity-15 z-0 pointer-events-none"></div>
+      {/if}
+    {/snippet}
+    {#snippet left()}
     <!-- Left side: Progress/Result status info -->
     <div class="flex items-center gap-4 select-none z-10 min-w-0 flex-1">
       {#if isTranslating}
@@ -1814,7 +1717,8 @@
         </div>
       {/if}
     </div>
-
+    {/snippet}
+    {#snippet right()}
     <!-- Right side: Action Buttons -->
     <div class="flex items-center gap-4 z-10 select-none shrink-0">
       {#if isTranslating}
@@ -1910,7 +1814,8 @@
         </div>
       {/if}
     </div>
-  </div>
+    {/snippet}
+  </FooterActions>
 
   <PathPreviewModal
     isOpen={!!expandedPathField}

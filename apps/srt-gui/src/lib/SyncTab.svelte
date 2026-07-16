@@ -10,6 +10,8 @@
   import { locale } from "./i18n";
   import { getFileName } from "./models";
   import { aiStore } from "./aiStore.svelte";
+  import FooterActions from "./components/FooterActions.svelte";
+  import SectionHeader from "./components/SectionHeader.svelte";
 
   interface Props {
     active?: boolean;
@@ -1326,23 +1328,12 @@
 
   {#snippet panelContent(panelId: SyncPanelId)}
     {#if panelId === "files"}
-      <div class="glass-card p-5 flex flex-col min-w-0">
-        <h3 class="text-lg font-semibold flex items-center gap-2 mb-4 panel-title-files-output">
-          <svg
-            class="w-5 h-5"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
-            />
-          </svg>
-          {t("common.filesAndOutput")}
-        </h3>
+      <div class="glass-card p-5 flex flex-col min-w-0 gap-4">
+        <SectionHeader
+          title={t("common.filesAndOutput")}
+          accent="emerald"
+          iconPath="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
+        />
 
         <div class="space-y-3">
           <!-- SRT File input -->
@@ -1377,21 +1368,11 @@
     {:else if panelId === "wizard"}
       <div class="glass-card relative flex flex-col overflow-visible">
         <div class="p-5 pb-3 flex-shrink-0">
-          <h3 class="text-lg font-semibold flex items-center gap-2 text-indigo-400">
-            <svg
-              class="w-5 h-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-              ><path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
-              /></svg
-            >
-            {t("sync.wizard.title")}
-          </h3>
+          <SectionHeader
+            title={t("sync.wizard.title")}
+            accent="indigo"
+            iconPath="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+          />
         </div>
 
         <div
@@ -2323,9 +2304,8 @@
   </div>
 
   <!-- Fixed Bottom Band with Action Buttons -->
-  <div class="h-[92px] border-t border-white/10 bg-gray-900 flex items-center justify-between px-6 shrink-0 z-40">
-    <!-- Left: Load & Save Session -->
-    <div class="flex items-center gap-4 justify-start flex-1">
+  <FooterActions>
+    {#snippet left()}
       <div class="relative group">
         <button
           onclick={loadSession}
@@ -2356,10 +2336,8 @@
           {t("sync.tooltipSaveSession")}
         </div>
       </div>
-    </div>
-
-    <!-- Center: Autosync -->
-    <div class="flex items-center justify-center flex-1">
+    {/snippet}
+    {#snippet center()}
       {#if !aiStore.killSwitchActive}
         <!-- Unified Autosync Button Group -->
         <div class="flex items-center bg-white/5 border border-white/10 rounded-xl p-1 shrink-0 relative group">
@@ -2449,10 +2427,8 @@
           </div>
         </div>
       {/if}
-    </div>
-
-    <!-- Right: New Sync & Save File -->
-    <div class="flex items-center gap-4 justify-end flex-1">
+    {/snippet}
+    {#snippet right()}
       <!-- New Sync -->
       <div class="relative group">
         <button
@@ -2496,8 +2472,8 @@
           {t("sync.tooltipSaveFile")}
         </div>
       </div>
-    </div>
-  </div>
+    {/snippet}
+  </FooterActions>
 
   {#if isAutoSyncing}
     <!-- svelte-ignore a11y_no_static_element_interactions -->

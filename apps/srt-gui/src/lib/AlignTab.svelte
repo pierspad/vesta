@@ -11,6 +11,8 @@
   import { snackbar } from './snackbarStore.svelte';
   import ConfirmDialog from './ConfirmDialog.svelte';
   import PathPickerField from './PathPickerField.svelte';
+  import EmptyState from './components/EmptyState.svelte';
+  import FooterActions from './components/FooterActions.svelte';
 
   let { active = false } = $props<{ active?: boolean }>();
 
@@ -570,6 +572,7 @@
   }
 
   let isLoaded = $derived(targetSubs.length > 0 || sourceSubs.length > 0);
+  let saveFileName = $derived(sourcePath ? getFileName(sourcePath).replace('.srt', '_aligned.srt') : '');
 
   let totalPages = $derived(isLoaded ? Math.ceil(Math.max(targetSubs.length, sourceSubs.length) / itemsPerPage) : 1);
 
@@ -579,7 +582,12 @@
     }
   });
   
-  // Create padded arrays for the current page so we can iterate side-by-side
+  // Array "a pettine" per iterare target/source fianco a fianco nella pagina
+  // corrente. Prima, quando non c'era ancora nessun file caricato, veniva
+  // sintetizzata una manciata di righe finte (id #1-#5, timestamp
+  // 00:00:00,000): sembrava dato corrotto invece di un vero stato vuoto.
+  // Ora semplicemente non ci sono righe, e la Content Grid mostra un
+  // EmptyState come nelle altre tab.
   let currentPageItems = $derived(
     isLoaded
       ? Array.from({ length: itemsPerPage }, (_, i) => {
@@ -590,11 +598,7 @@
             source: sourceSubs[index] || null
           };
         }).filter(item => item.target !== null || item.source !== null)
-      : Array.from({ length: 5 }, (_, i) => ({
-          index: i,
-          target: { id: i + 1, start: "00:00:00,000", end: "00:00:00,000", text: "" },
-          source: { id: i + 1, start: "00:00:00,000", end: "00:00:00,000", text: "" }
-        }))
+      : []
   );
 
   function prevPage() {
@@ -778,6 +782,13 @@
         </div>
 
         <!-- Content Grid -->
+        {#if !isLoaded}
+          <EmptyState
+            title={t("align.loadPrompt")}
+            description={t("align.dragDropAnywhere")}
+            iconPath="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"
+          />
+        {:else}
         <div class="pr-3 pl-1 space-y-6 custom-scrollbar pb-4 min-w-0 overflow-y-auto flex-1">
           {#each currentPageItems as item (item.index)}
             {@const isMissingPair = targetPath && sourcePath && (
@@ -857,29 +868,52 @@
             </div>
           {/each}
         </div>
+        {/if}
       </div>
     </div>
   </div>
 
   <!-- Fixed Bottom Band with Action Buttons -->
-  <div class="h-[92px] border-t border-white/10 bg-gray-900 flex items-center justify-end gap-4 px-6 shrink-0 z-40">
-    <div class="relative group">
-      <button
-        onclick={saveSource}
-        disabled={sourceSubs.length === 0}
-        class="px-5 py-2.5 bg-emerald-600/80 hover:bg-emerald-500/80 border border-emerald-500/30 disabled:bg-emerald-600/40 text-emerald-100 rounded-xl font-bold text-sm transition-all shadow-lg shadow-emerald-950/20 flex items-center gap-2 enabled:hover:scale-[1.02] enabled:active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-55 cursor-pointer"
-      >
-        <svg class="w-4 h-4 text-emerald-100" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
-        </svg>
-        {t("align.saveResult")}
-        {#if sourceFlag}<span class="text-base">{sourceFlag}</span>{/if}
-      </button>
-      <div class="pointer-events-none absolute bottom-full right-0 z-50 mb-3 rounded-xl border border-emerald-500/30 bg-gray-950/95 p-3 text-center text-xs text-emerald-300 shadow-2xl shadow-black/40 ring-1 ring-white/10 transition-all duration-150 delay-0 group-hover:delay-300 opacity-0 group-hover:opacity-100 group-hover:translate-y-0 translate-y-1 whitespace-normal w-72">
-        {sourceSubs.length === 0 ? "Carica e allinea i file per salvare" : t("align.saveResult")}
+  <FooterActions justify="center">
+    {#snippet left()}
+      <div class="flex-1 w-full grid grid-cols-2">
+        <!-- Left Column: Save Button aligned to the right of the left half -->
+        <div class="flex items-center justify-end pr-3">
+          <div class="relative group">
+            <button
+              onclick={saveSource}
+              disabled={sourceSubs.length === 0}
+              class="px-5 py-2.5 bg-emerald-600/80 hover:bg-emerald-500/80 border border-emerald-500/30 disabled:bg-emerald-600/40 text-emerald-100 rounded-xl font-bold text-sm transition-all shadow-lg shadow-emerald-950/20 flex items-center gap-2 enabled:hover:scale-[1.02] enabled:active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-55 cursor-pointer"
+            >
+              <svg class="w-4 h-4 text-emerald-100" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+              </svg>
+              {t("align.saveResult")}
+            </button>
+            <div class="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 z-50 mb-3 rounded-xl border border-emerald-500/30 bg-gray-950/95 p-3 text-center text-xs text-emerald-300 shadow-2xl shadow-black/40 ring-1 ring-white/10 transition-all duration-150 delay-0 group-hover:delay-300 opacity-0 group-hover:opacity-100 group-hover:translate-y-0 translate-y-1 whitespace-normal w-72">
+              {sourceSubs.length === 0 ? "Carica e allinea i file per salvare" : t("align.saveResult")}
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Column: Filename Label aligned to the left of the right half -->
+        <div class="flex items-center justify-start pl-3">
+          <div class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold select-none
+            {sourceSubs.length > 0 
+              ? 'border-indigo-500/40 bg-indigo-500/10 text-indigo-300' 
+              : 'border-gray-700/40 bg-gray-800/10 text-gray-500/60'}"
+          >
+            <svg class="w-3.5 h-3.5 {sourceSubs.length > 0 ? 'text-indigo-300' : 'text-gray-500/50'}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            <span class="truncate max-w-[280px] md:max-w-[400px]" title={sourcePath ? saveFileName : ""}>
+              {sourcePath ? saveFileName : "..."}
+            </span>
+          </div>
+        </div>
       </div>
-    </div>
-  </div>
+    {/snippet}
+  </FooterActions>
 
   <PathPreviewModal
     isOpen={!!expandedPathField}

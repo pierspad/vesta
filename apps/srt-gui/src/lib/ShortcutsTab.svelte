@@ -4,6 +4,7 @@
   import { locale, currentLanguage } from "./i18n";
   import ConfirmDialog from "./ConfirmDialog.svelte";
   import { snackbar } from "./snackbarStore.svelte";
+  import FooterActions from "./components/FooterActions.svelte";
   import {
     defaultShortcuts,
     formatKeyPart,
@@ -707,28 +708,27 @@
     </div>
   </div>
 
-  <!-- Fixed Bottom Band styled and sized to sidebar bottom -->
-  <div class="h-[92px] border-t border-white/10 bg-gray-900 flex items-center justify-center shrink-0">
-    <button
-      onclick={() => (showResetAllConfirm = true)}
-      class="px-5 py-2.5 bg-red-600 hover:bg-red-500 text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-red-900/30 flex items-center gap-2 hover:scale-[1.02] active:scale-[0.98]"
-    >
-      <svg
-        class="w-4 h-4"
-        fill="none"
-        stroke="currentColor"
-        viewBox="0 0 24 24"
+  <!-- Fixed Bottom Band: reset è distruttivo e raro, quindi piccolo e in un
+       angolo (con conferma) — stesso trattamento del bottone di Settings,
+       non più un bottone rosso gigante centrato. -->
+  <FooterActions justify="end">
+    {#snippet right()}
+      <button
+        onclick={() => (showResetAllConfirm = true)}
+        class="px-3.5 py-2 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-300 rounded-lg font-semibold text-xs transition-colors flex items-center gap-1.5 cursor-pointer"
       >
-        <path
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          stroke-width="2"
-          d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-        />
-      </svg>
-      {t("settings.resetDefaults") || "Ripristina predefiniti"}
-    </button>
-  </div>
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+          />
+        </svg>
+        {t("settings.resetDefaults") || "Ripristina predefiniti"}
+      </button>
+    {/snippet}
+  </FooterActions>
 
   <ConfirmDialog
     show={showResetAllConfirm}
