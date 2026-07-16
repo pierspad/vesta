@@ -350,6 +350,8 @@
   "flashcards.noteTypeLanguagePlaceholder": "Wybierz język...",
   "flashcards.exportTSVDesc": "Generuje plik .tsv + folder mediów. Zaimportuj do Anki ręcznie.",
   "flashcards.exportAPKGDesc": "Pojedynczy plik .apkg ze wszystkim w środku. Po prostu kliknij dwukrotnie, aby zaimportować.",
+  "flashcards.exportAnkiConnectDesc": "Wysyła fiszki bezpośrednio do lokalnej kolekcji Anki za pomocą AnkiConnect.",
+  "flashcards.exportAnkiConnectBadge": "Bezpośrednio",
   "flashcards.cpuCores": "Rdzenie CPU",
   "flashcards.cpuCoresUsage": "Wątki równoległe",
   "flashcards.cpuEco": "Eko",

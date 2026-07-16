@@ -350,6 +350,8 @@
   "flashcards.noteTypeLanguagePlaceholder": "언어 선택...",
   "flashcards.exportTSVDesc": ".tsv 파일 + 미디어 폴더 생성. Anki로 수동 가져오기.",
   "flashcards.exportAPKGDesc": "모든 것이 포함된 단일 .apkg 파일. 더블 클릭하여 가져오기.",
+  "flashcards.exportAnkiConnectDesc": "AnkiConnect를 사용하여 플래시카드를 로컬 Anki 컬렉션으로 직접 전송합니다.",
+  "flashcards.exportAnkiConnectBadge": "직접",
   "flashcards.cpuCores": "CPU 코어",
   "flashcards.cpuCoresUsage": "병렬 스레드",
   "flashcards.cpuEco": "에코",

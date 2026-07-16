@@ -350,6 +350,8 @@
   "flashcards.noteTypeLanguagePlaceholder": "भाषा चुनें...",
   "flashcards.exportTSVDesc": "एक .tsv फ़ाइल + मीडिया फ़ोल्डर उत्पन्न करता है। मैन्युअल रूप से Anki में आयात करें।",
   "flashcards.exportAPKGDesc": "सब कुछ के साथ सिंगल .apkg फ़ाइल। आयात करने के लिए बस डबल-क्लिक करें।",
+  "flashcards.exportAnkiConnectDesc": "AnkiConnect का उपयोग करके फ्लैशकार्ड सीधे आपके स्थानीय Anki संग्रह में भेजता है।",
+  "flashcards.exportAnkiConnectBadge": "सीधा",
   "flashcards.cpuCores": "CPU कोर्स्",
   "flashcards.cpuCoresUsage": "समानांतर थ्रेड्स",
   "flashcards.cpuEco": "इको",

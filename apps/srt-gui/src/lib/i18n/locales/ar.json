@@ -350,6 +350,8 @@
   "flashcards.noteTypeLanguagePlaceholder": "اختر اللغة...",
   "flashcards.exportTSVDesc": "يُنشئ ملف .tsv + مجلد وسائط. استيراد إلى أنكي يدويًا.",
   "flashcards.exportAPKGDesc": "ملف .apkg واحد يتضمن كل شيء. انقر نقرًا مزدوجًا للاستيراد.",
+  "flashcards.exportAnkiConnectDesc": "يرسل البطاقات التعليمية مباشرة إلى مجموعة Anki المحلية باستخدام AnkiConnect.",
+  "flashcards.exportAnkiConnectBadge": "مباشر",
   "flashcards.cpuCores": "أنوية المعالج",
   "flashcards.cpuCoresUsage": "الخيوط المتوازية",
   "flashcards.cpuEco": "اقتصادي",

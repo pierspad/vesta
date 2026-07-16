@@ -350,6 +350,8 @@
   "flashcards.noteTypeLanguagePlaceholder": "Выберите язык...",
   "flashcards.exportTSVDesc": "Создает файл .tsv + папку медиа. Импорт в Anki вручную.",
   "flashcards.exportAPKGDesc": "Один файл .apkg со всем необходимым. Просто кликните, чтобы импортировать.",
+  "flashcards.exportAnkiConnectDesc": "Отправляет карточки напрямую в вашу локальную коллекцию Anki с помощью AnkiConnect.",
+  "flashcards.exportAnkiConnectBadge": "Напрямую",
   "flashcards.cpuCores": "Ядра ЦП",
   "flashcards.cpuCoresUsage": "Потоки",
   "flashcards.cpuEco": "Эко",

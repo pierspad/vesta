@@ -350,6 +350,8 @@
   "flashcards.noteTypeLanguagePlaceholder": "Selecione o idioma...",
   "flashcards.exportTSVDesc": "Gera um arquivo .tsv + pasta de mídia. Importar manualmente no Anki.",
   "flashcards.exportAPKGDesc": "Um único arquivo .apkg com tudo incluído. Basta um clique duplo para importar.",
+  "flashcards.exportAnkiConnectDesc": "Envia os flashcards diretamente para a sua coleção local do Anki usando o AnkiConnect.",
+  "flashcards.exportAnkiConnectBadge": "Direto",
   "flashcards.cpuCores": "Núcleos da CPU",
   "flashcards.cpuCoresUsage": "Threads paralelos",
   "flashcards.cpuEco": "Econômico",

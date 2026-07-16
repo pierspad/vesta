@@ -350,6 +350,8 @@
   "flashcards.noteTypeLanguagePlaceholder": "Sprache auswählen...",
   "flashcards.exportTSVDesc": "Erzeugt eine .tsv-Datei + Medienordner. Manuell in Anki importieren.",
   "flashcards.exportAPKGDesc": "Einzelne .apkg-Datei, die alles enthält. Zum Importieren einfach doppelklicken.",
+  "flashcards.exportAnkiConnectDesc": "Sendet Karteikarten direkt über AnkiConnect an deine lokale Anki-Sammlung.",
+  "flashcards.exportAnkiConnectBadge": "Direkt",
   "flashcards.cpuCores": "CPU-Kerne",
   "flashcards.cpuCoresUsage": "Parallele Threads",
   "flashcards.cpuEco": "Öko",

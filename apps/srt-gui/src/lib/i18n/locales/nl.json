@@ -350,6 +350,8 @@
   "flashcards.noteTypeLanguagePlaceholder": "Taal selecteren...",
   "flashcards.exportTSVDesc": "Genereert een .tsv-bestand + mediamap. Handmatig importeren in Anki.",
   "flashcards.exportAPKGDesc": "Eén .apkg-bestand met alles inbegrepen. Dubbelklik eenvoudig om te importeren.",
+  "flashcards.exportAnkiConnectDesc": "Verstuurt flashcards direct naar je lokale Anki-verzameling via AnkiConnect.",
+  "flashcards.exportAnkiConnectBadge": "Direct",
   "flashcards.cpuCores": "CPU-kernen",
   "flashcards.cpuCoresUsage": "Parallelle draden",
   "flashcards.cpuEco": "Eco",

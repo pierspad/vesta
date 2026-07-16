@@ -350,6 +350,8 @@
   "flashcards.noteTypeLanguagePlaceholder": "言語を選択...",
   "flashcards.exportTSVDesc": ".tsvファイルとメディアフォルダを生成します。Ankiへは手動でインポートします。",
   "flashcards.exportAPKGDesc": "すべてが含まれた単一の .apkg ファイル。ダブルクリックでインポートします。",
+  "flashcards.exportAnkiConnectDesc": "AnkiConnect を使用して、フラッシュカードをローカルの Anki コレクションに直接送信します。",
+  "flashcards.exportAnkiConnectBadge": "直接",
   "flashcards.cpuCores": "CPU コア",
   "flashcards.cpuCoresUsage": "並列スレッド",
   "flashcards.cpuEco": "エコ",

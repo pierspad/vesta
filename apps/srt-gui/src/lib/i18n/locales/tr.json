@@ -350,6 +350,8 @@
   "flashcards.noteTypeLanguagePlaceholder": "Dil seçin...",
   "flashcards.exportTSVDesc": ".tsv dosyası + medya klasörü oluşturur. Anki'ye manuel içe aktarılır.",
   "flashcards.exportAPKGDesc": "Her şey dahil tek .apkg dosyası. İçe aktarmak için çift tıklamanız yeterlidir.",
+  "flashcards.exportAnkiConnectDesc": "AnkiConnect kullanarak kartları doğrudan yerel Anki koleksiyonunuza gönderir.",
+  "flashcards.exportAnkiConnectBadge": "Doğrudan",
   "flashcards.cpuCores": "CPU Çekirdekleri",
   "flashcards.cpuCoresUsage": "Paralel iş parçacıkları",
   "flashcards.cpuEco": "Eko",
