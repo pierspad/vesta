@@ -1,8 +1,8 @@
 ---
-description: Linee guida LLM per VESTA, i18n, qualita e release.
+description: Linee guida LLM per vesta, i18n, qualita e release.
 ---
 
-# Istruzioni Copilot per VESTA
+# Istruzioni Copilot per vesta
 
 Queste istruzioni vengono lette automaticamente da GitHub Copilot e da altri LLM compatibili quando lavorano in questo workspace. Devi aderire a queste regole quando scrivi codice, aggiorni documentazione o prepari una release.
 
@@ -22,7 +22,7 @@ I messaggi di commit SONO le release notes: `@semantic-release/release-notes-gen
 
 ## 2. Internazionalizzazione a 15 lingue
 
-VESTA deve restare tradotto nelle stesse 15 lingue di TextMerger:
+vesta deve restare tradotto nelle stesse 15 lingue di TextMerger:
 `ar`, `de`, `en`, `es`, `fr`, `hi`, `it`, `ja`, `ko`, `nl`, `pl`, `pt`, `ru`, `tr`, `zh`.
 
 Quando modifichi testi visibili all'utente:

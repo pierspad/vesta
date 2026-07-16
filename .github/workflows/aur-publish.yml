@@ -61,7 +61,7 @@ jobs:
           # so we cannot grep a literal https:// URL — we reconstruct it instead.
           PKGVER=$(grep -oP '^pkgver=\K.*' PKGBUILD | tr -d '\r' | xargs)
           BASE_URL=$(grep -oP '^url="\K[^"]+' PKGBUILD | head -n1)
-          # _srcname is the upstream archive/binary name (e.g. "VESTA")
+          # _srcname is the upstream archive/binary name (e.g. "vesta")
           SRCNAME=$(grep -oP '^_srcname=\K\S+' PKGBUILD | head -n1)
           if [ -z "$SRCNAME" ]; then
             # fallback: use _pkgname

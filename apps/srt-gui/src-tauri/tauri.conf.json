@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "VESTA",
+  "productName": "vesta",
   "version": "0.14.0-dev.2",
   "identifier": "com.vesta.desktop",
   "build": {
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "VESTA",
+        "title": "vesta",
         "width": 1650,
         "height": 890,
         "resizable": true,
@@ -48,7 +48,15 @@
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ]
+    ],
+    "linux": {
+      "deb": {
+        "depends": ["libvulkan1"]
+      },
+      "rpm": {
+        "depends": ["vulkan-loader"]
+      }
+    }
   },
   "plugins": {
     "shell": {
