@@ -36,26 +36,31 @@ import TranscribeTiers from "./TranscribeTiers.svelte";
     fetchModelsFromEndpoint,
     type DiscoveredModel,
   } from "./modelDiscovery";
+  import { loadAndValidateApiKeys, type ApiKeyConfig } from "./apiKeys";
   import {
-    loadAndValidateApiKeys,
     loadTiers,
     tiersHaveUsableEntries,
     TIERS_UPDATED_EVENT,
+    type Tier,
+  } from "./translationTiers";
+  import {
     loadTranscribeTiers,
     transcribeTiersHaveUsableEntries,
     TRANSCRIBE_TIERS_UPDATED_EVENT,
+    type TranscribeTier,
+  } from "./transcribeTiers";
+  import {
     loadTranscribeCloud,
     saveTranscribeCloud,
     transcribeProviders,
     transcribeProviderOrder,
-    type ApiKeyConfig,
-    type Tier,
-    type TranscribeTier,
+  } from "./transcribeProviders";
+  import {
     loadVadSelection,
     saveVadSelection,
     type VadSelection,
     DEFAULT_VAD_MODEL_ID,
-  } from "./models";
+  } from "./vadSelection";
   import { getModelsForProvider, providers, type ModelInfo } from "./llmProviders";
   import { getLanguageSearchTerms, languages } from "./languages";
   import {

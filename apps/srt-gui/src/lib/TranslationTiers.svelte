@@ -6,17 +6,16 @@
   import SearchableSelect from "./SearchableSelect.svelte";
   import TierList from "./components/TierList.svelte";
   import { discoverModels, type DiscoveredModel } from "./modelDiscovery";
+  import { loadAndValidateApiKeys, type ApiKeyConfig } from "./apiKeys";
   import {
-    loadAndValidateApiKeys,
     loadTiers,
     saveTiers,
     newTierId,
     newTierEntryId,
     TIERS_UPDATED_EVENT,
-    type ApiKeyConfig,
     type Tier,
     type TierEntry,
-  } from "./models";
+  } from "./translationTiers";
   import { providers, getModelsForProvider } from "./llmProviders";
 
   let t = $derived($locale);

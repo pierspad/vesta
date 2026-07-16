@@ -11,7 +11,8 @@
  * stringhe i18n.
  */
 
-import { type ApiKeyConfig, type Tier } from "./models";
+import { type ApiKeyConfig } from "./apiKeys";
+import { type Tier } from "./translationTiers";
 import { providers } from "./llmProviders";
 import { fetchModelsFromEndpoint } from "./modelDiscovery";
 

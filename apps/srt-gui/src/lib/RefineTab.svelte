@@ -5,15 +5,14 @@
   import { snackbar } from "./snackbarStore.svelte";
   import { onMount, onDestroy, untrack } from "svelte";
   import { locale, currentLanguage } from "./i18n";
+  import { getFileName } from "./models";
+  import { loadAndValidateApiKeys, type ApiKeyConfig } from "./apiKeys";
   import {
-    getFileName,
-    loadAndValidateApiKeys,
     loadTiers,
     tiersHaveUsableEntries,
     TIERS_UPDATED_EVENT,
-    type ApiKeyConfig,
     type Tier,
-  } from "./models";
+  } from "./translationTiers";
   import {
     buildTiersPayload,
     checkTiersAvailability,

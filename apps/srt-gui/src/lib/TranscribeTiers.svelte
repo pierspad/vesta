@@ -4,18 +4,16 @@
   import ProviderIcon from "./ProviderIcon.svelte";
   import SearchableSelect from "./SearchableSelect.svelte";
   import TierList from "./components/TierList.svelte";
+  import { transcribeProviders } from "./transcribeProviders";
+  import { loadAndValidateApiKeys, type ApiKeyConfig } from "./apiKeys";
+  import { newTierId, newTierEntryId } from "./translationTiers";
   import {
-    transcribeProviders,
-    loadAndValidateApiKeys,
     loadTranscribeTiers,
     saveTranscribeTiers,
-    newTierId,
-    newTierEntryId,
-    type ApiKeyConfig,
     type TranscribeTier,
     type TranscribeTierEntry,
     TRANSCRIBE_TIERS_UPDATED_EVENT,
-  } from "./models";
+  } from "./transcribeTiers";
   import { providers } from "./llmProviders";
   import { invoke } from "@tauri-apps/api/core";
 

@@ -6,15 +6,14 @@
   import { fetch as tauriFetch } from "./tauriHttp";
   import { onDestroy, onMount } from "svelte";
   import { locale, currentLanguage } from "./i18n";
+  import { getFileName } from "./models";
+  import { loadAndValidateApiKeys, type ApiKeyConfig } from "./apiKeys";
   import {
-    loadAndValidateApiKeys,
     loadTiers,
     tiersHaveUsableEntries,
     TIERS_UPDATED_EVENT,
-    type ApiKeyConfig,
     type Tier,
-    getFileName,
-  } from "./models";
+  } from "./translationTiers";
   import { getModelsForProvider, providers } from "./llmProviders";
   import { detectLanguageCode, getLanguageSearchTerms, languages } from "./languages";
   import PathPickerField from "./PathPickerField.svelte";

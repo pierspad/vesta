@@ -6,23 +6,23 @@
   import { guardedOpen, guardedSave } from "./utils/dialogGuard";
   import { onDestroy, onMount } from "svelte";
   import { locale, currentLanguage } from "./i18n";
+  import { getFileName } from "./models";
   import {
-    getFileName,
     transcribeProviders,
     transcribeProviderOrder,
     loadTranscribeCloud,
     saveTranscribeCloud,
     type TranscribeCloudSettings,
+  } from "./transcribeProviders";
+  import {
     loadTranscribeTiers,
     transcribeTiersHaveUsableEntries,
     TRANSCRIBE_TIERS_UPDATED_EVENT,
-    loadAndValidateApiKeys,
-    type ApiKeyConfig,
     type TranscribeTier,
     type TranscribeTierEntry,
-    loadVadSelection,
-    type VadSelection,
-  } from "./models";
+  } from "./transcribeTiers";
+  import { loadAndValidateApiKeys, type ApiKeyConfig } from "./apiKeys";
+  import { loadVadSelection, type VadSelection } from "./vadSelection";
   import { getLanguageSearchTerms, languages as allLanguages } from "./languages";
   import PathPickerField from "./PathPickerField.svelte";
   import PathPreviewModal from "./PathPreviewModal.svelte";
