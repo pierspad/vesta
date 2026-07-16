@@ -22,6 +22,8 @@
     type ApiKeyConfig,
     type TranscribeTier,
     type TranscribeTierEntry,
+    loadVadSelection,
+    type VadSelection,
   } from "./models";
   import PathPickerField from "./PathPickerField.svelte";
   import PathPreviewModal from "./PathPreviewModal.svelte";
@@ -30,6 +32,7 @@
   import { uiMode } from "./uiModeStore.svelte";
   import ConfirmDialog from "./ConfirmDialog.svelte";
   import { aiStore } from "./aiStore.svelte";
+  import FooterActions from "./components/FooterActions.svelte";
 
   let { onGoToSettings, active = false } = $props<{
     onGoToSettings?: (section?: "overview" | "llm" | "whisper" | "language" | "anki" | "shortcuts", highlightItemId?: string) => void;
@@ -52,6 +55,71 @@
   let translateToEnglish = $state(false);
   let wordTimestamps = $state(true);
   let maxSegmentLength = $state(30);
+
+  // ─── Local-whisper add-ons: quality (beam search), VAD, GPU ────────────────
+  const TRANSCRIBE_QUALITY_KEY = "vesta-transcribe-quality";
+  const TRANSCRIBE_VAD_KEY = "vesta-transcribe-vad";
+  const TRANSCRIBE_GPU_KEY = "vesta-transcribe-gpu";
+  let qualityMode = $state(localStorage.getItem(TRANSCRIBE_QUALITY_KEY) === "true");
+  // Defaults to ON: once a VAD model is installed it's a strict improvement
+  // for local transcription (skips silence, fewer hallucinations). The toggle
+  // itself stays disabled until `vadInstalled` is true, so this default is
+  // inert for users without the model.
+  const storedVad = localStorage.getItem(TRANSCRIBE_VAD_KEY);
+  let vadEnabled = $state(storedVad === null ? true : storedVad === "true");
+  // GPU defaults to ON in GPU-capable builds: whisper.cpp falls back to CPU
+  // by itself when no usable device exists.
+  let useGpu = $state(localStorage.getItem(TRANSCRIBE_GPU_KEY) !== "false");
+  let vadInstalled = $state(false);
+  let gpuSupported = $state(false);
+  let vadModels = $state<{ id: string; size: string; downloaded: boolean }[]>([]);
+  let vadSelection = $state<VadSelection>(loadVadSelection());
+
+  function toggleQualityMode() {
+    qualityMode = !qualityMode;
+    localStorage.setItem(TRANSCRIBE_QUALITY_KEY, String(qualityMode));
+  }
+  function toggleVad() {
+    vadEnabled = !vadEnabled;
+    localStorage.setItem(TRANSCRIBE_VAD_KEY, String(vadEnabled));
+  }
+  function toggleGpu() {
+    useGpu = !useGpu;
+    localStorage.setItem(TRANSCRIBE_GPU_KEY, String(useGpu));
+  }
+
+  /** Re-derive `vadInstalled` for whichever variant (built-in or custom) is
+   * currently selected in Settings → Whisper. */
+  async function refreshVadReady() {
+    vadSelection = loadVadSelection();
+    if (vadSelection.customPath) {
+      try {
+        vadInstalled = await invoke<boolean>("transcribe_path_exists", {
+          path: vadSelection.customPath,
+        });
+      } catch {
+        vadInstalled = false;
+      }
+    } else {
+      vadInstalled = vadModels.some(
+        (m) => m.id === vadSelection.modelId && m.downloaded,
+      );
+    }
+  }
+
+  async function refreshAddons() {
+    try {
+      const s = await invoke<{
+        vad_models: { id: string; size: string; downloaded: boolean }[];
+        gpu_supported: boolean;
+      }>("transcribe_addons_status");
+      vadModels = s.vad_models;
+      gpuSupported = s.gpu_supported;
+      await refreshVadReady();
+    } catch (e) {
+      console.error("Could not read transcription add-ons status:", e);
+    }
+  }
 
   const segmentPresets = [
     { id: "short", value: 10 },
@@ -299,6 +367,8 @@
     window.addEventListener("vesta-ffmpeg-updated", refreshBackends);
 
     refreshModels().catch((e) => console.error("Could not list models:", e));
+    void refreshAddons();
+    window.addEventListener("vesta-vad-updated", refreshAddons);
 
     let activeListener = true;
     let unlisten: (() => void) | null = null;
@@ -366,6 +436,7 @@
       window.removeEventListener("vesta-language-defaults-updated", handleLanguageDefaultsUpdated);
       window.removeEventListener("vesta:transcribe-cloud-updated", handleTranscribeCloudUpdated);
       window.removeEventListener("vesta-ffmpeg-updated", refreshBackends);
+      window.removeEventListener("vesta-vad-updated", refreshAddons);
       if (unlisten) unlisten();
       if (unlistenDD) unlistenDD();
       if (unlistenSegment) unlistenSegment();
@@ -673,6 +744,11 @@
               provider: entry.provider,
               api_key: apiKeyVal,
               api_url: apiUrl,
+              quality: !isCloudEntry && qualityMode,
+              vad: !isCloudEntry && vadEnabled && vadInstalled,
+              vad_model_id: vadSelection.customPath ? null : vadSelection.modelId,
+              vad_custom_path: vadSelection.customPath,
+              use_gpu: !isCloudEntry && useGpu && gpuSupported,
             },
           });
 
@@ -929,6 +1005,70 @@
               ></div>
             </button>
           </div>
+          <!-- Silero VAD (local whisper only; requires the model) -->
+          <div class="flex items-center justify-between p-3 bg-white/5 rounded-lg {vadInstalled ? '' : 'opacity-60'}">
+            <div class="min-w-0 pr-3">
+              <span class="text-gray-200 text-sm">{t("transcribe.vad")}</span>
+              {#if !vadInstalled}
+                <p class="text-[11px] text-gray-500 mt-0.5">{t("transcribe.vadNotInstalled")}</p>
+              {/if}
+            </div>
+            <button
+              onclick={toggleVad}
+              disabled={!vadInstalled}
+              class="shrink-0 w-12 h-6 rounded-full transition-all duration-200 relative {vadEnabled && vadInstalled
+                ? 'bg-cyan-500'
+                : 'bg-gray-600'} {vadInstalled ? '' : 'cursor-not-allowed'}"
+              aria-label="Toggle voice activity detection"
+            >
+              <div
+                class="absolute w-5 h-5 bg-white rounded-full top-0.5 transition-all duration-200 {vadEnabled && vadInstalled
+                  ? 'left-6'
+                  : 'left-0.5'}"
+              ></div>
+            </button>
+          </div>
+          <!-- Quality mode (beam search, local whisper only) -->
+          <div class="flex items-center justify-between p-3 bg-white/5 rounded-lg">
+            <div class="min-w-0 pr-3">
+              <span class="text-gray-200 text-sm">{t("transcribe.quality")}</span>
+            </div>
+            <button
+              onclick={toggleQualityMode}
+              class="shrink-0 w-12 h-6 rounded-full transition-all duration-200 relative {qualityMode
+                ? 'bg-cyan-500'
+                : 'bg-gray-600'}"
+              aria-label="Toggle quality mode"
+            >
+              <div
+                class="absolute w-5 h-5 bg-white rounded-full top-0.5 transition-all duration-200 {qualityMode
+                  ? 'left-6'
+                  : 'left-0.5'}"
+              ></div>
+            </button>
+          </div>
+          <!-- GPU offload (only shown in GPU-capable builds) -->
+          {#if gpuSupported}
+          <div class="flex items-center justify-between p-3 bg-white/5 rounded-lg">
+            <div class="min-w-0 pr-3">
+              <span class="text-gray-200 text-sm">{t("transcribe.useGpu")}</span>
+              <p class="text-[11px] text-gray-500 mt-0.5">{t("transcribe.useGpuHint")}</p>
+            </div>
+            <button
+              onclick={toggleGpu}
+              class="shrink-0 w-12 h-6 rounded-full transition-all duration-200 relative {useGpu
+                ? 'bg-cyan-500'
+                : 'bg-gray-600'}"
+              aria-label="Toggle GPU"
+            >
+              <div
+                class="absolute w-5 h-5 bg-white rounded-full top-0.5 transition-all duration-200 {useGpu
+                  ? 'left-6'
+                  : 'left-0.5'}"
+              ></div>
+            </button>
+          </div>
+          {/if}
           <div>
             <div class="flex items-center justify-between mb-2">
               <span class="text-sm text-gray-400">
@@ -1269,17 +1409,17 @@
   </div>
 
   <!-- Fixed Bottom Band with Action Buttons -->
-  <div class="h-[92px] border-t border-white/10 bg-gray-900 flex items-center justify-between px-6 shrink-0 z-40 relative">
-    
-    <!-- Animated background progress overlay (only when transcribing) -->
-    {#if isTranscribing}
-      <div 
-        class="absolute inset-y-0 left-0 bg-gradient-to-r from-cyan-500/15 to-blue-500/20 transition-all duration-300 ease-out z-0 pointer-events-none"
-        style="width: {progress}%"
-      ></div>
-      <div class="absolute inset-0 bg-shimmer-stripes opacity-15 z-0 pointer-events-none"></div>
-    {/if}
-
+  <FooterActions>
+    {#snippet background()}
+      {#if isTranscribing}
+        <div
+          class="absolute inset-y-0 left-0 bg-gradient-to-r from-cyan-500/15 to-blue-500/20 transition-all duration-300 ease-out z-0 pointer-events-none"
+          style="width: {progress}%"
+        ></div>
+        <div class="absolute inset-0 bg-shimmer-stripes opacity-15 z-0 pointer-events-none"></div>
+      {/if}
+    {/snippet}
+    {#snippet left()}
     <!-- Left side: Progress/Result status info -->
     <div class="flex items-center gap-4 select-none z-10 min-w-0 flex-1">
       {#if isTranscribing}
@@ -1354,7 +1494,8 @@
         </div>
       {/if}
     </div>
-
+    {/snippet}
+    {#snippet right()}
     <!-- Right side: Action Buttons -->
     <div class="flex items-center gap-4 z-10 select-none shrink-0">
       {#if isTranscribing}
@@ -1436,7 +1577,8 @@
         </div>
       {/if}
     </div>
-  </div>
+    {/snippet}
+  </FooterActions>
 
   <PathPreviewModal
     isOpen={!!expandedPathField}

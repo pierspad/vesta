@@ -19,7 +19,7 @@ with a matching headless CLI, so you can build and use any one feature on its ow
 │  • srt-sync                   │   │  • srt-transcribe-cli            │
 │  • srt-autosync     ──────────┼──►│  • srt-autosync-cli              │
 │  • srt-extract                │   └──────────────────────────────────┘
-│  • whisper-common   ──────────┼──►  (srt-transcribe)
+│  • srt-transcribe   ──────────┼──►  (srt-transcribe)
 └───────────────┬──────────────┘
                 │ depends on
 ┌───────────────▼──────────────┐
@@ -32,7 +32,7 @@ with a matching headless CLI, so you can build and use any one feature on its ow
 | Layer | Crates | Rule |
 |---|---|---|
 | **core** | `srt-parser` | Foundational, dependency-light parsing. |
-| **lib** | `srt-flashcards`, `srt-translate`, `srt-refine`, `srt-sync`, `srt-autosync`, `srt-extract`, `whisper-common` | Feature engines. **No GUI coupling.** Progress via callbacks, cancellation via `CancellationToken`, heavy deps (whisper, ffmpeg, sqlite) encapsulated here. |
+| **lib** | `srt-flashcards`, `srt-translate`, `srt-refine`, `srt-sync`, `srt-autosync`, `srt-extract`, `srt-transcribe` | Feature engines. **No GUI coupling.** Progress via callbacks, cancellation via `CancellationToken`, heavy deps (whisper, ffmpeg, sqlite) encapsulated here. |
 | **cli** | `srt-flashcards-cli`, `srt-translate-cli`, `srt-extract-cli`, `srt-transcribe-cli`, `srt-autosync-cli` | Thin `clap` shells. Depend only on their libraries. |
 | **apps** | `srt-gui` (`vesta`) | Tauri commands that translate between the GUI (AppHandle, events, state) and the engines. No business logic. |
 

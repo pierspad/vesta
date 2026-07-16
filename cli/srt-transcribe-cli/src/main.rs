@@ -1,6 +1,6 @@
 //! # srt-transcribe CLI
 //!
-//! Headless front-end for [`whisper_common::pipeline`]: turns a media file
+//! Headless front-end for [`srt_transcribe::pipeline`]: turns a media file
 //! (video or audio) into an SRT subtitle file using whisper.cpp locally or a
 //! cloud provider — the exact same engine the Vesta desktop app uses, with no
 //! GUI dependency.
@@ -14,8 +14,11 @@ use std::sync::Arc;
 use anyhow::Result;
 use clap::{Parser, Subcommand};
 use tokio_util::sync::CancellationToken;
-use whisper_common::model::{download_model, list_models, uninstall_model};
-use whisper_common::pipeline::{transcribe_to_srt, PipelineCallbacks, TranscriptionConfig};
+use srt_transcribe::model::{
+    download_model, download_vad_model, list_models, list_vad_models, uninstall_model,
+    uninstall_vad_model, DEFAULT_VAD_MODEL_ID,
+};
+use srt_transcribe::pipeline::{transcribe_to_srt, PipelineCallbacks, TranscriptionConfig};
 
 #[derive(Parser)]
 #[command(
@@ -33,11 +36,11 @@ struct Cli {
 enum Command {
     /// Transcribe a media file to SRT.
     Run(RunArgs),
-    /// List available Whisper models and their download status.
+    /// List available Whisper models (and the Silero VAD add-on) with status.
     Models,
-    /// Download a Whisper model (e.g. "base", "small", "large-v3").
+    /// Download a Whisper model (e.g. "base", "small") or "vad" (Silero VAD).
     Download { model_id: String },
-    /// Delete a downloaded Whisper model.
+    /// Delete a downloaded Whisper model, or "vad" for the Silero VAD model.
     Remove { model_id: String },
 }
 
@@ -64,6 +67,18 @@ struct RunArgs {
     /// Maximum characters per subtitle line (0 = default of 80).
     #[arg(long, default_value_t = 0)]
     max_segment_length: u32,
+    /// Quality mode: beam-search decoding (width 5) instead of greedy.
+    /// ~2-3x slower, sometimes more accurate on difficult audio (local only).
+    #[arg(long)]
+    quality: bool,
+    /// Run Silero VAD before transcribing: skips silence/music and reduces
+    /// hallucinations (local only; requires `srt-transcribe download vad`).
+    #[arg(long)]
+    vad: bool,
+    /// Offload inference to the GPU (only in builds compiled with a GPU
+    /// backend, e.g. --features vulkan; ignored otherwise).
+    #[arg(long)]
+    gpu: bool,
     /// Transcription engine: "local" (whisper.cpp) or a cloud provider
     /// ("groq" | "openai" | "deepgram" | "assemblyai" | "custom").
     #[arg(long, default_value = "local")]
@@ -82,6 +97,16 @@ struct RunArgs {
     quiet: bool,
 }
 
+/// Resolve a `--model-id` value into a VAD variant id, if it refers to one:
+/// bare `"vad"` means the default variant, `"vad:<id>"` an explicit one.
+fn vad_variant_id(model_id: &str) -> Option<&str> {
+    if model_id == "vad" {
+        Some(DEFAULT_VAD_MODEL_ID)
+    } else {
+        model_id.strip_prefix("vad:")
+    }
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
     let cli = Cli::parse();
@@ -95,21 +120,39 @@ async fn main() -> Result<()> {
                     model.id, model.name, model.size, model.speed, status
                 );
             }
+            // "vad" is shorthand for the default variant; other variants are
+            // addressed as "vad:<id>" (e.g. "vad:v6.2.0").
+            for vad in list_vad_models() {
+                let status = if vad.downloaded { "[downloaded]" } else { "" };
+                let id_label = if vad.id == DEFAULT_VAD_MODEL_ID {
+                    "vad".to_string()
+                } else {
+                    format!("vad:{}", vad.id)
+                };
+                println!(
+                    "{:<8} {:<8} {:>8}  {:<11} {}",
+                    id_label, "Silero", vad.size, "(VAD add-on)", status
+                );
+            }
             Ok(())
         }
         Command::Download { model_id } => {
             let label = model_id.clone();
-            let path = download_model(
-                &model_id,
-                move |pct| eprint!("\rDownloading {label}... {pct}%"),
-                None,
-            )
-            .await?;
+            let progress = move |pct| eprint!("\rDownloading {label}... {pct}%");
+            let path = if let Some(vad_id) = vad_variant_id(&model_id) {
+                download_vad_model(vad_id, progress, None).await?
+            } else {
+                download_model(&model_id, progress, None).await?
+            };
             eprintln!("\nModel saved to {}", path.display());
             Ok(())
         }
         Command::Remove { model_id } => {
-            let removed = uninstall_model(&model_id)?;
+            let removed = if let Some(vad_id) = vad_variant_id(&model_id) {
+                uninstall_vad_model(vad_id)?
+            } else {
+                uninstall_model(&model_id)?
+            };
             println!("{}", if removed { "Model removed." } else { "Model was not installed." });
             Ok(())
         }
@@ -129,6 +172,9 @@ async fn run(args: RunArgs) -> Result<()> {
         provider: Some(args.provider),
         api_key: args.api_key,
         api_url: args.api_url,
+        quality: args.quality,
+        vad: args.vad,
+        use_gpu: args.gpu,
     };
 
     // Ctrl-C → cooperative cancellation.

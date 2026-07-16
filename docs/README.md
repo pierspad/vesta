@@ -42,7 +42,7 @@ The anchors put by the user have an higher priority in fidelity than the anchors
 
 **Revision**: A built-in SRT editor for when you want to clean things up by hand.
 
-**Transcription**: If you lack also the original srt file you can use Vesta to generate SRT subtitles straight from the audio using Whisper locally. 
+**Transcription**: If you lack also the original srt file you can use Vesta to generate SRT subtitles straight from the audio using Whisper locally — with optional Silero VAD (skips silence, fewer hallucinations), a quality mode (beam search) and GPU offload via Vulkan — or through cloud providers. 
 It is strictly recommended to use this feature only if you really don't have the subtitle file, since the quality of the generated srt is not always perfect as a human vetted one.
 
 ---
@@ -87,7 +87,7 @@ and how to embed it in your own Rust project:
 - [srt-translate](modules/srt-translate.md) — LLM translation with multi-tier failover
 - [srt-sync](modules/srt-sync.md) — anchor-based re-timing engine
 - [srt-autosync](modules/srt-autosync.md) — automatic alignment via Whisper anchors
-- [whisper-common](modules/whisper-common.md) — transcription pipeline (media → SRT)
+- [srt-transcribe](modules/srt-transcribe.md) — transcription pipeline (media → SRT)
 - [srt-flashcards](modules/srt-flashcards.md) — subs2srs-style Anki deck generation
 - [srt-refine](modules/srt-refine.md) — LLM enrichment of existing decks
 

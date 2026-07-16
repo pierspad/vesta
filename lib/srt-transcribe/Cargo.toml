@@ -1,5 +1,5 @@
 [package]
-name = "whisper-common"
+name = "srt-transcribe"
 version = "0.14.0-dev.2"
 edition.workspace = true
 
@@ -12,6 +12,13 @@ serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
 tokio = { workspace = true, features = ["full"] }
 whisper-rs.workspace = true
+num_cpus.workspace = true
 futures.workspace = true
 tokio-util = { version = "0.7" }
 tempfile.workspace = true
+
+[features]
+# GPU offload via Vulkan (portable across AMD/Intel/NVIDIA on Linux/Windows).
+# Compile-time only switch: the runtime decision stays with the caller
+# (`TranscriptionConfig::use_gpu`), with automatic CPU fallback.
+vulkan = ["whisper-rs/vulkan"]

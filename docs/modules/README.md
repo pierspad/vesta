@@ -15,7 +15,7 @@ as a standalone binary or as a Rust dependency — without dragging in the GUI.
 | [srt-translate](srt-translate.md) | LLM subtitle translation (multi-tier failover) | `lib/srt-translate` | `srt-translate` |
 | [srt-sync](srt-sync.md) | Anchor-based subtitle re-timing engine | `lib/srt-sync` | — (see srt-autosync) |
 | [srt-autosync](srt-autosync.md) | Automatic alignment via Whisper anchors | `lib/srt-autosync` | `srt-autosync` |
-| [whisper-common](whisper-common.md) | Transcription pipeline: media → SRT | `lib/whisper-common` | `srt-transcribe` |
+| [srt-transcribe](srt-transcribe.md) | Transcription pipeline: media → SRT | `lib/srt-transcribe` | `srt-transcribe` |
 | [srt-flashcards](srt-flashcards.md) | subs2srs-style Anki deck generation | `lib/srt-flashcards` | `srt-flashcards` |
 | [srt-refine](srt-refine.md) | LLM enrichment of Anki decks (TSV/APKG) | `lib/srt-refine` | — |
 

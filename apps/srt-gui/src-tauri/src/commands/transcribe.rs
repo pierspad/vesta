@@ -1,6 +1,6 @@
 //! Comandi Tauri per la trascrizione audio/video.
 //!
-//! Adapter sottile sopra [`whisper_common::pipeline`]: traduce fra il mondo
+//! Adapter sottile sopra [`srt_transcribe::pipeline`]: traduce fra il mondo
 //! Tauri (AppHandle, stato gestito, eventi `transcribe-progress` /
 //! `transcribe-segment`) e la pipeline headless media → SRT. Tutta la logica
 //! (download modelli, conversione audio, backend locale/cloud, post-processing
@@ -13,8 +13,8 @@ use serde::Serialize;
 use tauri::{AppHandle, Emitter, State};
 use tokio_util::sync::CancellationToken;
 
-use whisper_common::model::{list_models, uninstall_model, WhisperModelInfo};
-use whisper_common::pipeline::{self, PipelineCallbacks, TranscriptionConfig};
+use srt_transcribe::model::{list_models, uninstall_model, WhisperModelInfo};
+use srt_transcribe::pipeline::{self, PipelineCallbacks, TranscriptionConfig};
 
 use crate::state::AppTranscribeState;
 
@@ -116,7 +116,7 @@ pub async fn transcribe_download_model(
     let app_progress = app.clone();
     let model_id_progress = model_id.clone();
 
-    whisper_common::model::download_model(
+    srt_transcribe::model::download_model(
         &model_id,
         move |percentage| {
             let _ = app_progress.emit(
@@ -141,6 +141,67 @@ pub async fn transcribe_download_model(
 #[tauri::command]
 pub async fn transcribe_uninstall_model(model_id: String) -> Result<bool, String> {
     uninstall_model(&model_id).map_err(|e| e.to_string())
+}
+
+/// Status of the optional add-ons for local transcription: the known Silero
+/// VAD variants (with per-variant install status) and whether this build has
+/// a GPU backend.
+#[tauri::command]
+pub async fn transcribe_addons_status() -> serde_json::Value {
+    serde_json::json!({
+        "vad_models": srt_transcribe::model::list_vad_models(),
+        "gpu_supported": srt_transcribe::gpu_supported(),
+    })
+}
+
+/// Download a Silero VAD variant (progress on the `transcribe-progress` event).
+#[tauri::command]
+pub async fn transcribe_download_vad(
+    app: AppHandle,
+    state: State<'_, AppTranscribeState>,
+    model_id: String,
+) -> Result<bool, String> {
+    let cancel_token = {
+        let mut s = state.lock().map_err(|e| e.to_string())?;
+        let token = CancellationToken::new();
+        s.cancellation_token = Some(token.clone());
+        token
+    };
+
+    let app_progress = app.clone();
+    let model_id_for_progress = model_id.clone();
+    srt_transcribe::model::download_vad_model(
+        &model_id,
+        move |percentage| {
+            let _ = app_progress.emit(
+                "transcribe-progress",
+                TranscribeProgressEvent {
+                    stage: "download".to_string(),
+                    message: format!(
+                        "Downloading VAD model {model_id_for_progress} ({percentage}%)..."
+                    ),
+                    percentage: percentage as f64,
+                },
+            );
+        },
+        Some(&cancel_token),
+    )
+    .await
+    .map(|_| true)
+    .map_err(|e| e.to_string())
+}
+
+/// Uninstall (delete) a Silero VAD variant.
+#[tauri::command]
+pub async fn transcribe_uninstall_vad(model_id: String) -> Result<bool, String> {
+    srt_transcribe::model::uninstall_vad_model(&model_id).map_err(|e| e.to_string())
+}
+
+/// Whether an arbitrary path exists on disk. Used to validate a
+/// user-picked custom VAD model without round-tripping through a download.
+#[tauri::command]
+pub async fn transcribe_path_exists(path: String) -> bool {
+    std::path::Path::new(&path).is_file()
 }
 
 /// Start transcription

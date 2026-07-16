@@ -54,6 +54,27 @@ pub struct TranscriptionConfig {
     /// Optional base URL (override / required for "custom").
     #[serde(default)]
     pub api_url: Option<String>,
+    /// Quality mode: decode with beam search (width 5) instead of greedy.
+    /// ~2-3× slower, sometimes more accurate on difficult audio. Local only.
+    #[serde(default)]
+    pub quality: bool,
+    /// Run Silero VAD before transcribing (requires a VAD model, see
+    /// [`crate::model::download_vad_model`]). Local only.
+    #[serde(default)]
+    pub vad: bool,
+    /// Which built-in Silero VAD variant to use when `vad` is true and
+    /// `vad_custom_path` is absent. Defaults to
+    /// [`crate::model::DEFAULT_VAD_MODEL_ID`] when unset.
+    #[serde(default)]
+    pub vad_model_id: Option<String>,
+    /// Absolute path to a user-provided VAD model; overrides `vad_model_id`
+    /// when present. Local only.
+    #[serde(default)]
+    pub vad_custom_path: Option<String>,
+    /// Offload inference to the GPU. Only effective in builds with a GPU
+    /// backend compiled in (see [`crate::gpu_supported`]); otherwise ignored.
+    #[serde(default)]
+    pub use_gpu: bool,
 }
 
 /// Outcome of a successful transcription run.
@@ -314,12 +335,39 @@ pub fn run_local(
 ) -> Result<TranscriptionOutcome> {
     callbacks.progress("transcribe", "Loading Whisper model...", 12.0);
 
+    // The VAD model must be resolved before loading whisper: failing fast on a
+    // missing download beats discovering it after a multi-second model load.
+    let vad_model_path = config
+        .vad
+        .then(|| -> Result<PathBuf> {
+            let path = match &config.vad_custom_path {
+                Some(custom) => PathBuf::from(custom),
+                None => {
+                    let id = config
+                        .vad_model_id
+                        .as_deref()
+                        .unwrap_or(crate::model::DEFAULT_VAD_MODEL_ID);
+                    crate::model::vad_model_path(id)?
+                }
+            };
+            anyhow::ensure!(
+                path.exists(),
+                "VAD is enabled but the Silero model is not installed \
+                 (expected at {})",
+                path.display()
+            );
+            Ok(path)
+        })
+        .transpose()?;
+
+    let mut ctx_params = whisper_rs::WhisperContextParameters::default();
+    // Explicit either way: whisper-rs defaults `use_gpu` to *true* in GPU
+    // builds, and we want the user's toggle to be the single source of truth.
+    ctx_params.use_gpu(config.use_gpu && crate::gpu_supported());
+
     let model_path_str = model_path.to_string_lossy().to_string();
-    let ctx = whisper_rs::WhisperContext::new_with_params(
-        &model_path_str,
-        whisper_rs::WhisperContextParameters::default(),
-    )
-    .map_err(|e| anyhow::anyhow!("Failed to load Whisper model: {e:?}"))?;
+    let ctx = whisper_rs::WhisperContext::new_with_params(&model_path_str, ctx_params)
+        .map_err(|e| anyhow::anyhow!("Failed to load Whisper model: {e:?}"))?;
 
     if cancel_token.is_cancelled() {
         anyhow::bail!("Transcription cancelled");
@@ -350,6 +398,8 @@ pub fn run_local(
         n_threads: None,
         word_timestamps: config.word_timestamps,
         max_segment_length: (config.max_segment_length > 0).then_some(config.max_segment_length),
+        beam_size: config.quality.then_some(5),
+        vad_model_path,
         segment_callback: Some(Arc::new(segment_callback)),
     };
 

@@ -22,6 +22,7 @@ dirs = "6"
 hound = "3"
 tempfile = "3"
 whisper-rs = "0.16"
+num_cpus = "1.16"
 futures = "0.3"
 encoding_rs = "0.8"
 chardetng = "1"
@@ -34,7 +35,9 @@ srt-sync = { path = "./lib/srt-sync", version = "0.14.0-dev.2" }
 srt-autosync = { path = "./lib/srt-autosync", version = "0.14.0-dev.2" }
 srt-flashcards = { path = "./lib/srt-flashcards", version = "0.14.0-dev.2" }
 srt-refine = { path = "./lib/srt-refine", version = "0.14.0-dev.2" }
-whisper-common = { path = "./lib/whisper-common", version = "0.14.0-dev.2" }
+srt-transcribe = { path = "./lib/srt-transcribe", version = "0.14.0-dev.2" }
+srt-condense = { path = "./lib/srt-condense", version = "0.14.0-dev.2" }
+srt-ankiconnect = { path = "./lib/srt-ankiconnect", version = "0.14.0-dev.2" }
 
 [profile.dev]
 opt-level = 0
