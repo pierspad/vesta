@@ -4,7 +4,7 @@
 #
 # Produces target/release/srt-flashcards, the "main" variant the benchmark
 # compares against subs2srs. To benchmark another Vesta build, compile it
-# separately and add it to VESTA_VARIANTS in config.sh.
+# separately and add it to vesta_VARIANTS in config.sh.
 
 source "$(dirname "${BASH_SOURCE[0]}")/config.sh"
 source "$(dirname "${BASH_SOURCE[0]}")/lib/common.sh"

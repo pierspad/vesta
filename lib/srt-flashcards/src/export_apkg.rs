@@ -35,13 +35,13 @@ fn rewrite_template_field_tokens(template: &str, replacements: &[(&str, &str)]) 
     for (index, (canonical, _)) in replacements.iter().enumerate() {
         output = output.replace(
             &anki_field_ref(canonical),
-            &format!("__VESTA_FIELD_TOKEN_{index}__"),
+            &format!("__vesta_FIELD_TOKEN_{index}__"),
         );
     }
 
     for (index, (_, actual)) in replacements.iter().enumerate() {
         output = output.replace(
-            &format!("__VESTA_FIELD_TOKEN_{index}__"),
+            &format!("__vesta_FIELD_TOKEN_{index}__"),
             &anki_field_ref(actual),
         );
     }

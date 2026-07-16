@@ -72,7 +72,7 @@ for (const [key, file] of usedKeys) {
 // Flags element text nodes with 3+ letters that aren't an expression. Curated
 // noise filter — treat findings as review hints, not hard failures.
 console.log("\nHeuristic scan for hardcoded template text…");
-const IGNORE = /^(APKG|TSV|GitHub|Repo|VESTA|OK|ms|px|kb\/s|sub|car\.|v\d|GPL.*|Tauri.*|H\.264.*|MPEG.*|Bitrate|Codec|Preset|RPM|URL|API|LLM|ID|SRT|FFmpeg|Whisper|Anki|&\w+;|\d+.*)$/i;
+const IGNORE = /^(APKG|TSV|GitHub|Repo|vesta|OK|ms|px|kb\/s|sub|car\.|v\d|GPL.*|Tauri.*|H\.264.*|MPEG.*|Bitrate|Codec|Preset|RPM|URL|API|LLM|ID|SRT|FFmpeg|Whisper|Anki|&\w+;|\d+.*)$/i;
 for (const file of walk(srcDir)) {
   if (!file.endsWith(".svelte")) continue;
   const text = readFileSync(file, "utf8");

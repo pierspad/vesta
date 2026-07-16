@@ -34,12 +34,12 @@ VERSION=$(read_pkgbuild "pkgver")
 PKGDESC=$(read_pkgbuild "pkgdesc")
 URL=$(read_pkgbuild "url")
 LICENSE=$(read_pkgbuild "license" | tr -d '()')
-APP_NAME="VESTA"
+APP_NAME="vesta"
 APP_ID="com.vesta.desktop"
 BINARY_NAME="vesta"
 
 echo -e "${BLUE}══════════════════════════════════════════════${NC}"
-echo -e "${BLUE}  VESTA - Update Project Info${NC}"
+echo -e "${BLUE}  vesta - Update Project Info${NC}"
 echo -e "${BLUE}══════════════════════════════════════════════${NC}"
 echo -e "  Versione:     ${GREEN}${VERSION}${NC}"
 echo -e "  Descrizione:  ${GREEN}${PKGDESC}${NC}"

@@ -85,7 +85,7 @@ literal worker count, or `1` for the single-core control. The default config
 ships the max and single-core variants of the local build:
 
 ```bash
-VESTA_VARIANTS=(
+vesta_VARIANTS=(
   "max|target/release/srt-flashcards|MAX"
   "single|target/release/srt-flashcards|1"
   # race a branch/fork too, e.g.:
@@ -95,7 +95,7 @@ VESTA_VARIANTS=(
 
 `3_run_benchmarks.sh` runs every variant × every format and the report charts
 them side by side. A local, gitignored `config.local.sh` can override `TEST_MEDIA`
-/ `VESTA_VARIANTS` without touching the tracked config.
+/ `vesta_VARIANTS` without touching the tracked config.
 
 ## Files
 

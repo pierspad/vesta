@@ -4,7 +4,7 @@
 #
 # For every test medium it runs:
 #   * subs2srs-headless          (TSV — subs2srs has no .apkg export)
-#   * each Vesta variant × each VESTA_FORMATS (tsv, apkg)
+#   * each Vesta variant × each vesta_FORMATS (tsv, apkg)
 # timing the full wall-clock of each invocation. Results are appended to a
 # long-format CSV that 4_generate_report.sh turns into a chart.
 #
@@ -44,7 +44,7 @@ count_media() {  # <media_dir> <ext>  (apkg embeds media, so the dir may not exi
   find "$1" -type f -name "*.$2" 2>/dev/null | wc -l | tr -d ' '
 }
 
-echo -e "${C_BOLD}Benchmark plan:${C_NC} ${#TEST_MEDIA[@]} medium/media, Vesta jobs=${VESTA_JOBS} (of ${CORES} cores), repeats=${REPEATS}"
+echo -e "${C_BOLD}Benchmark plan:${C_NC} ${#TEST_MEDIA[@]} medium/media, Vesta jobs=${vesta_JOBS} (of ${CORES} cores), repeats=${REPEATS}"
 echo
 
 for media in "${TEST_MEDIA[@]}"; do
@@ -67,12 +67,12 @@ for media in "${TEST_MEDIA[@]}"; do
   fi
 
   # ── Vesta variants × formats ────────────────────────────────────────────────
-  for variant in "${VESTA_VARIANTS[@]}"; do
+  for variant in "${vesta_VARIANTS[@]}"; do
     IFS='|' read -r vlabel vbin vjobs <<< "$variant"
     if [ ! -x "$vbin" ]; then warn "skip vesta:$vlabel — binary not found ($vbin)"; continue; fi
     # Resolve the worker count: MAX (or empty) -> the "max" plan (cores-1).
-    if [ -z "$vjobs" ] || [ "$vjobs" = "MAX" ]; then jobs="$VESTA_JOBS"; else jobs="$vjobs"; fi
-    for fmt in "${VESTA_FORMATS[@]}"; do
+    if [ -z "$vjobs" ] || [ "$vjobs" = "MAX" ]; then jobs="$vesta_JOBS"; else jobs="$vjobs"; fi
+    for fmt in "${vesta_FORMATS[@]}"; do
       out="$WORK_DIR/vesta_${vlabel}_${fmt}_${name}"; rm -rf "$out"; mkdir -p "$out"
       log "vesta:$vlabel ($fmt, ${jobs} worker(s))…"
       if ms=$(timed_median "$vbin" generate --target "$target" ${native:+--native "$native"} \

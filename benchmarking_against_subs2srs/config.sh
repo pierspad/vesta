@@ -82,20 +82,20 @@ discover_test_media "$_cfg_repo_root"
 #
 # With the two variants below, each film is timed as 5 series:
 #   subs2srs (TSV) · Vesta export TSV/APKG (max) · Vesta export TSV/APKG (1 core)
-VESTA_VARIANTS=(
+vesta_VARIANTS=(
   "max|target/release/srt-flashcards|MAX"
   "single|target/release/srt-flashcards|1"
 )
 
 # Export formats to benchmark for Vesta (subs2srs only produces TSV).
-VESTA_FORMATS=(tsv apkg)
+vesta_FORMATS=(tsv apkg)
 
 # ── Parallelism ───────────────────────────────────────────────────────────────
 # Vesta runs on its "max" plan: all logical cores minus one.
 # subs2srs is left exactly as written (single-threaded, sequential ffmpeg) — we
 # never add parallelism it does not have. Honest comparison.
 CORES="$(nproc 2>/dev/null || echo 4)"
-VESTA_JOBS="$(( CORES > 1 ? CORES - 1 : 1 ))"
+vesta_JOBS="$(( CORES > 1 ? CORES - 1 : 1 ))"
 
 # ── Repeats ───────────────────────────────────────────────────────────────────
 # Number of timed repetitions per (tool, media, format). The median is reported.
@@ -108,7 +108,7 @@ RESULTS_CSV="${RESULTS_DIR}/results.csv"
 WORK_DIR="benchmarking_against_subs2srs/.work"   # scratch output for generated decks (gitignored)
 
 # Optional local override (gitignored): create benchmarking_against_subs2srs/config.local.sh to
-# point TEST_MEDIA / VESTA_VARIANTS at your own files without editing this file.
+# point TEST_MEDIA / vesta_VARIANTS at your own files without editing this file.
 _cfg_local="$(dirname "${BASH_SOURCE[0]}")/config.local.sh"
 if [ -f "$_cfg_local" ]; then
   source "$_cfg_local"

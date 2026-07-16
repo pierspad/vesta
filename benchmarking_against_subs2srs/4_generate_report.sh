@@ -35,7 +35,7 @@ log "Writing markdown summary…"
 {
   echo "# Vesta vs subs2srs — benchmark results"
   echo
-  echo "_Generated $(date '+%Y-%m-%d %H:%M')_ · CPU cores: ${CORES} · Vesta max workers: ${VESTA_JOBS} · repeats: ${REPEATS}"
+  echo "_Generated $(date '+%Y-%m-%d %H:%M')_ · CPU cores: ${CORES} · Vesta max workers: ${vesta_JOBS} · repeats: ${REPEATS}"
   echo
   echo "Wall-clock time of the full deck build (lower is better). Speed-up = subs2srs ÷ Vesta."
   echo "subs2srs runs exactly as written — single-threaded, sequential ffmpeg; Vesta is timed"

@@ -26,7 +26,7 @@ pub struct AppInfo {
 pub fn get_app_info() -> AppInfo {
     AppInfo {
         version: env!("CARGO_PKG_VERSION").to_string(),
-        name: "VESTA".to_string(),
+        name: "vesta".to_string(),
         license: env!("CARGO_PKG_LICENSE").to_string(),
     }
 }
