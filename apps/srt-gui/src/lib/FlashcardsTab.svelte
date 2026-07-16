@@ -62,6 +62,16 @@
   import GenerationStatusDisplay from "./GenerationStatusDisplay.svelte";
   import GenerationResultPanel from "./GenerationResultPanel.svelte";
   import DeckNamingPanel from "./DeckNamingPanel.svelte";
+  import {
+    type PanelId,
+    type ColumnLayout,
+    loadLayout,
+    loadSeriesLayout,
+    saveLayout,
+    saveSeriesLayout,
+    computeEffectiveColumnCount,
+    computeEffectivePanelLayout,
+  } from "./flashcardLayout";
 
   interface Props {
     active?: boolean;
@@ -849,64 +859,6 @@
   // hidden while the user only decides which media to include.
   let easyMode = $derived(uiMode.easyMode);
 
-  const PANEL_IDS = [
-    "files",
-    "audioClips",
-    "snapshots",
-    "videoClips",
-    "cardFilters",
-    "naming",
-    "progressResult",
-    "logs",
-  ] as const;
-
-  type PanelId = (typeof PANEL_IDS)[number];
-
-  interface ColumnLayout {
-    col1: PanelId[];
-    col2: PanelId[];
-    col3: PanelId[];
-  }
-
-  const MOVIE_LAYOUT_KEY = "vesta-flashcards-layout-v4";
-  const SERIES_LAYOUT_KEY = "vesta-flashcards-series-layout-v4";
-
-  const DEFAULT_LAYOUT: ColumnLayout = {
-    col1: ["files"],
-    col2: ["audioClips", "snapshots", "videoClips"],
-    col3: ["naming", "cardFilters", "progressResult"],
-  };
-
-  const DEFAULT_SERIES_LAYOUT: ColumnLayout = {
-    col1: ["files"],
-    col2: ["audioClips", "snapshots", "videoClips"],
-    col3: ["naming", "cardFilters", "progressResult"],
-  };
-
-  function cloneLayout(layout: ColumnLayout): ColumnLayout {
-    return {
-      col1: [...layout.col1],
-      col2: [...layout.col2],
-      col3: [...layout.col3],
-    };
-  }
-
-  function loadLayout(): ColumnLayout {
-    return cloneLayout(DEFAULT_LAYOUT);
-  }
-
-  function loadSeriesLayout(): ColumnLayout {
-    return cloneLayout(DEFAULT_SERIES_LAYOUT);
-  }
-
-  function saveLayout(layout: ColumnLayout) {
-    localStorage.setItem(MOVIE_LAYOUT_KEY, JSON.stringify(layout));
-  }
-
-  function saveSeriesLayout(layout: ColumnLayout) {
-    localStorage.setItem(SERIES_LAYOUT_KEY, JSON.stringify(layout));
-  }
-
   let movieLayout = $state<ColumnLayout>(loadLayout());
   let seriesLayout = $state<ColumnLayout>(loadSeriesLayout());
 
@@ -923,112 +875,15 @@
   }
 
   // Responsive columns: auto-collapse from 3 -> 2 -> 1 based on available width.
-  const PREFERRED_COLUMN_COUNT = 3;
-  const STACK_TO_ONE_COLUMN_WIDTH = 900;
-  const STACK_TO_TWO_COLUMNS_WIDTH = 1200;
   let layoutHostEl = $state<HTMLElement | null>(null);
   let layoutWidth = $state(
     typeof window !== "undefined" ? window.innerWidth : 1700,
   );
-  let effectiveColumnCount = $derived(
-    layoutWidth < STACK_TO_ONE_COLUMN_WIDTH
-      ? 1
-      : layoutWidth < STACK_TO_TWO_COLUMNS_WIDTH
-        ? 2
-        : PREFERRED_COLUMN_COUNT,
+  let effectiveColumnCount = $derived(computeEffectiveColumnCount(layoutWidth));
+
+  let effectivePanelLayout = $derived(
+    computeEffectivePanelLayout(seriesMode, effectiveColumnCount, easyMode),
   );
-
-  let effectivePanelLayout = $derived.by((): ColumnLayout => {
-    if (seriesMode) {
-      if (effectiveColumnCount === 3) {
-        // In easy mode (no expert mode), spread audio/snapshot/video across 3 columns
-        if (easyMode) {
-          return {
-            col1: ["files", "audioClips"],
-            col2: ["snapshots"],
-            col3: ["videoClips", "progressResult"],
-          };
-        }
-        return {
-          col1: ["files", "naming", "audioClips", "snapshots"],
-          col2: ["videoClips"],
-          col3: ["cardFilters", "progressResult"],
-        };
-      }
-
-      if (effectiveColumnCount === 2) {
-        // Easy mode: skip 2-col, collapse to 1 col directly
-        if (easyMode) {
-          return {
-            col1: [
-              "files",
-              "audioClips",
-              "snapshots",
-              "videoClips",
-              "progressResult",
-            ],
-            col2: [],
-            col3: [],
-          };
-        }
-        return {
-          col1: [
-            "files",
-            "audioClips",
-            "snapshots",
-            "videoClips",
-            "progressResult",
-          ],
-          col2: ["naming", "cardFilters"],
-          col3: [],
-        };
-      }
-
-      return {
-        col1: [
-          "files",
-          "naming",
-          "audioClips",
-          "snapshots",
-          "videoClips",
-          "cardFilters",
-          "progressResult",
-        ],
-        col2: [],
-        col3: [],
-      };
-    } else {
-      if (effectiveColumnCount === 3) {
-        return {
-          col1: ["files", "naming"],
-          col2: ["audioClips", "videoClips"],
-          col3: ["snapshots", "cardFilters", "progressResult"],
-        };
-      }
-
-      if (effectiveColumnCount === 2) {
-        return {
-          col1: ["files", "naming", "cardFilters"],
-          col2: ["audioClips", "snapshots", "videoClips", "progressResult"],
-          col3: [],
-        };
-      }
-
-      return {
-        col1: [
-          "files",
-          "naming",
-          "audioClips",
-          "snapshots",
-          "videoClips",
-          "cardFilters",
-          "progressResult",
-        ],
-        col2: [],
-        col3: [],
-      };
-    }
-  });
 
   // Computed column grid class
   // In easy mode + series mode, skip 2-column layout entirely (go straight 3→1)
