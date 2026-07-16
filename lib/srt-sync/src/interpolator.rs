@@ -126,10 +126,10 @@ impl TimeMapper {
             if anchor.is_manual {
                 valid_anchors.push(anchor);
             } else {
-                if let Some(last_valid) = valid_anchors.last() {
-                    if anchor.corrected_time_ms < last_valid.corrected_time_ms {
-                        continue;
-                    }
+                if let Some(last_valid) = valid_anchors.last()
+                    && anchor.corrected_time_ms < last_valid.corrected_time_ms
+                {
+                    continue;
                 }
                 valid_anchors.push(anchor);
             }
@@ -143,10 +143,10 @@ impl TimeMapper {
                 final_anchors.push(anchor);
                 next_valid = Some(anchor);
             } else {
-                if let Some(next_v) = next_valid {
-                    if anchor.corrected_time_ms > next_v.corrected_time_ms {
-                        continue;
-                    }
+                if let Some(next_v) = next_valid
+                    && anchor.corrected_time_ms > next_v.corrected_time_ms
+                {
+                    continue;
                 }
                 final_anchors.push(anchor);
                 next_valid = Some(anchor);

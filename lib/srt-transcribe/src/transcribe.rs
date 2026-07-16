@@ -64,7 +64,8 @@ impl Clone for TranscribeOptions {
 /// Default worker count for whisper.cpp: the *physical* cores, capped at 8.
 ///
 /// GGML's matrix kernels are memory-bandwidth-bound: SMT/hyper-threads add
-
+/// contention without extra memory bandwidth, so using logical core count
+/// hurts throughput rather than helping it.
 pub fn default_n_threads() -> usize {
     num_cpus::get_physical().clamp(1, 8)
 }

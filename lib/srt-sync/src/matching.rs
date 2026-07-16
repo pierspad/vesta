@@ -453,7 +453,7 @@ pub fn suggest_subtitles_for_media(media_path: &Path) -> std::io::Result<Vec<(Pa
 
 /// Assegna i ruoli target (da tradurre/rivedere) e native (originale) a una
 /// lista di candidati sottotitolo per un dato media — tipicamente l'output di
-
+/// [`suggest_subtitles_for_media`].
 pub fn suggest_target_native_subtitles(
     candidates: &[(PathBuf, i32)],
     default_target_lang: Option<&str>,
