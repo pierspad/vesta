@@ -10,6 +10,10 @@ target/
 *.swo
 *~
 
+# Frontend
+node_modules/
+dist/
+
 # Note locali di sviluppo (mai da pushare)
 .notes/
 
@@ -42,6 +46,11 @@ config.toml
 __pycache__/
 *.pyc
 build-scripts/vesta-*.*.*.deb
+# LICENSE/.SRCINFO sono scaricati/generati da makepkg: se restano committati,
+# updpkgsums li trova già presenti e salta il download da GitHub, congelando
+# un hash vecchio invece di quello reale (causa del validity check FAILED).
+build-scripts/LICENSE
+build-scripts/.SRCINFO
 
 # Test_Subs: solo Detour (1945, pubblico dominio) è committato.
 # Ogni altro sottotitolo resta in locale per evitare problemi di licensing.

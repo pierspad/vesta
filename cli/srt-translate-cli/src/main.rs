@@ -6,11 +6,12 @@
 
 use anyhow::Result;
 use clap::Parser;
+use regex::Regex;
 use serde::Deserialize;
 use srt_parser::SrtParser;
 use std::path::PathBuf;
 use std::io::{self, Write};
-use std::sync::Arc;
+use std::sync::{Arc, LazyLock};
 use srt_translate::{
     translate_subtitles_with_rate_limit, 
     repair_translation_with_rate_limit,
@@ -64,17 +65,18 @@ fn default_filename_pattern() -> String {
     "{input_name}.{language}.srt".to_string()
 }
 
+/// Pattern per i placeholder ${VAR_NAME}, compilato una sola volta al primo
+/// utilizzo invece che ad ogni chiamata di `expand_env_vars`.
+static ENV_VAR_PATTERN: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"\$\{([A-Z_][A-Z0-9_]*)\}").expect("Regex pattern is a compile-time constant")
+});
+
 /// Espande le variabili d'ambiente nel formato ${VAR_NAME}
 fn expand_env_vars(content: &str) -> Result<String> {
-    use regex::Regex;
-    
-    // La regex è una costante valida, expect è appropriato qui
-    let re = Regex::new(r"\$\{([A-Z_][A-Z0-9_]*)\}")
-        .expect("Regex pattern is a compile-time constant");
     let mut result = content.to_string();
     let mut missing_vars = Vec::new();
-    
-    for cap in re.captures_iter(content) {
+
+    for cap in ENV_VAR_PATTERN.captures_iter(content) {
         let var_name = &cap[1];
         let placeholder = &cap[0];
         
@@ -443,22 +445,8 @@ async fn main() -> Result<()> {
         }
         
         // Salva la versione riparata dopo ogni iterazione
-        use std::io::Write as _;
-        let mut file = std::fs::File::create(&output_path)?;
-        let mut sorted: Vec<_> = translated.iter().collect();
-        sorted.sort_by_key(|(id, _)| *id);
-        for (id, subtitle) in sorted {
-            writeln!(file, "{}", id)?;
-            writeln!(
-                file,
-                "{} --> {}",
-                subtitle.start.to_srt_string(),
-                subtitle.end.to_srt_string()
-            )?;
-            writeln!(file, "{}", subtitle.text)?;
-            writeln!(file)?;
-        }
-        
+        SrtParser::save_file(&output_path, &translated)?;
+
         println!();
         println!("✅ Repair cycle {} completed, re-verifying...", repair_attempt);
         println!();
@@ -477,25 +465,7 @@ fn save_partial_translation(
     output_path: &PathBuf,
     translated: &std::collections::HashMap<u32, srt_parser::Subtitle>,
 ) -> Result<()> {
-    use std::io::Write as _;
-    
-    let mut file = std::fs::File::create(output_path)?;
-    let mut sorted: Vec<_> = translated.iter().collect();
-    sorted.sort_by_key(|(id, _)| *id);
-    
-    for (id, subtitle) in sorted {
-        writeln!(file, "{}", id)?;
-        writeln!(
-            file,
-            "{} --> {}",
-            subtitle.start.to_srt_string(),
-            subtitle.end.to_srt_string()
-        )?;
-        writeln!(file, "{}", subtitle.text)?;
-        writeln!(file)?;
-    }
-    
-    Ok(())
+    SrtParser::save_file(output_path, translated)
 }
 
 fn check_missing_subtitles(original_path: &PathBuf, translated_path: &PathBuf) -> Result<()> {

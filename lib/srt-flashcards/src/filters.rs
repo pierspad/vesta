@@ -40,20 +40,18 @@ pub(crate) fn apply_filters(lines: &mut [MatchedLine], filters: &SubtitleFilters
         let duration = line.subs1.end_ms - line.subs1.start_ms;
 
         // Include words filter
-        if let Some(ref words) = include_set {
-            if !words.iter().any(|w| text_lower.contains(w)) {
+        if let Some(ref words) = include_set
+            && !words.iter().any(|w| text_lower.contains(w)) {
                 line.active = false;
                 continue;
             }
-        }
 
         // Exclude words filter
-        if let Some(ref words) = exclude_set {
-            if words.iter().any(|w| text_lower.contains(w)) {
+        if let Some(ref words) = exclude_set
+            && words.iter().any(|w| text_lower.contains(w)) {
                 line.active = false;
                 continue;
             }
-        }
 
         // Exclude duplicates subs1
         if filters.exclude_duplicates_subs1 {
@@ -66,8 +64,8 @@ pub(crate) fn apply_filters(lines: &mut [MatchedLine], filters: &SubtitleFilters
         }
 
         // Exclude duplicates subs2
-        if filters.exclude_duplicates_subs2 {
-            if let Some(ref s2) = line.subs2 {
+        if filters.exclude_duplicates_subs2
+            && let Some(ref s2) = line.subs2 {
                 let normalized = s2.text.trim().to_string();
                 if seen_subs2.contains(&normalized) {
                     line.active = false;
@@ -75,35 +73,30 @@ pub(crate) fn apply_filters(lines: &mut [MatchedLine], filters: &SubtitleFilters
                 }
                 seen_subs2.insert(normalized);
             }
-        }
 
         // Min/max character length
-        if let Some(min) = filters.min_chars {
-            if line.subs1.text.chars().count() < min {
+        if let Some(min) = filters.min_chars
+            && line.subs1.text.chars().count() < min {
                 line.active = false;
                 continue;
             }
-        }
-        if let Some(max) = filters.max_chars {
-            if line.subs1.text.chars().count() > max {
+        if let Some(max) = filters.max_chars
+            && line.subs1.text.chars().count() > max {
                 line.active = false;
                 continue;
             }
-        }
 
         // Min/max duration
-        if let Some(min) = filters.min_duration_ms {
-            if duration < min {
+        if let Some(min) = filters.min_duration_ms
+            && duration < min {
                 line.active = false;
                 continue;
             }
-        }
-        if let Some(max) = filters.max_duration_ms {
-            if duration > max {
+        if let Some(max) = filters.max_duration_ms
+            && duration > max {
                 line.active = false;
                 continue;
             }
-        }
 
         // Exclude styled lines (ASS)
         if filters.exclude_styled && line.subs1.text.starts_with('{') {
@@ -113,13 +106,12 @@ pub(crate) fn apply_filters(lines: &mut [MatchedLine], filters: &SubtitleFilters
 
         // Actor filter (ASS only)
         if let Some(ref actors) = actor_filter {
-            if let Some(ref actor) = line.subs1.actor {
-                if !actors.iter().any(|a| a == &actor.to_lowercase()) {
-                    line.active = false;
-                    continue;
-                }
-            } else {
+            let Some(ref actor) = line.subs1.actor else {
                 // No actor info, filter out if actor filter is set
+                line.active = false;
+                continue;
+            };
+            if !actors.iter().any(|a| a == &actor.to_lowercase()) {
                 line.active = false;
                 continue;
             }
@@ -248,15 +240,13 @@ pub(crate) fn apply_span(
     span_end: Option<i64>,
 ) {
     for line in lines.iter_mut() {
-        if let Some(start) = span_start {
-            if line.subs1.end_ms < start {
+        if let Some(start) = span_start
+            && line.subs1.end_ms < start {
                 line.active = false;
             }
-        }
-        if let Some(end) = span_end {
-            if line.subs1.start_ms > end {
+        if let Some(end) = span_end
+            && line.subs1.start_ms > end {
                 line.active = false;
             }
-        }
     }
 }

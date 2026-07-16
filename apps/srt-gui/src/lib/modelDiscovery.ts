@@ -1,4 +1,4 @@
-import { fetch as tauriFetch } from "@tauri-apps/plugin-http";
+import { fetch as tauriFetch } from "./tauriHttp";
 
 export interface DiscoveredModel {
   id: string;
@@ -95,7 +95,7 @@ export async function fetchModelsFromEndpoint(
   const resp = await tauriFetch(url, {
     method: "GET",
     headers,
-    signal: AbortSignal.timeout(timeoutMs),
+    timeoutMs,
   });
 
   if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
@@ -139,7 +139,7 @@ export async function discoverModels(
     const resp = await tauriFetch(url, {
       method: "GET",
       headers: { Accept: "application/json" },
-      signal: AbortSignal.timeout(timeoutMs),
+      timeoutMs,
     });
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
     const data = (await resp.json()) as { models?: any[] };

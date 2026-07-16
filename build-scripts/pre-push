@@ -16,14 +16,37 @@ cd "$PROJECT_ROOT"
 echo "🔎 Running pre-push quality gates..."
 
 # 1. Validate internal crate versions
-echo "  [1/3] Checking internal crate versions..."
+echo "  [1/6] Checking internal crate versions..."
 if ! bash build-scripts/check_internal_crate_versions.sh; then
   echo "❌ Error: Crate versions are inconsistent. Push aborted." >&2
   exit 1
 fi
 
-# 2. Validate i18n translations
-echo "  [2/3] Checking i18n translations..."
+# 2. Check Rust code formatting
+echo "  [2/6] Checking Rust formatting..."
+if ! cargo fmt --all --check; then
+  echo "❌ Error: Rust code is not formatted. Run 'cargo fmt' to fix. Push aborted." >&2
+  exit 1
+fi
+
+# 3. Check Rust clippy lints
+echo "  [3/6] Running cargo clippy..."
+if ! cargo clippy --workspace --all-targets -- -D warnings; then
+  echo "❌ Error: Clippy lints failed. Fix clippy warnings. Push aborted." >&2
+  exit 1
+fi
+
+# 4. Run the Rust test suite (stesso comando del job "test" in ci.yml: qui
+#    dà feedback prima del push, la CI resta la rete di sicurezza per push
+#    fatti con --no-verify o da chi non ha installato l'hook).
+echo "  [4/6] Running cargo test..."
+if ! cargo test --workspace; then
+  echo "❌ Error: Test suite failed. Push aborted." >&2
+  exit 1
+fi
+
+# 5. Validate i18n translations
+echo "  [5/6] Checking i18n translations..."
 if ! python3 apps/srt-gui/scripts/check_missing_translations.py \
   --output apps/srt-gui/reports/missing_translations_report.json \
   --fail-on-issues \
@@ -32,9 +55,9 @@ if ! python3 apps/srt-gui/scripts/check_missing_translations.py \
   exit 1
 fi
 
-# 3. Validate that every t("…") key used in the source exists in en.json
+# 6. Validate that every t("…") key used in the source exists in en.json
 #    (catches raw keys leaking into the UI, e.g. "align.waitingOriginal")
-echo "  [3/3] Checking i18n keys referenced in source..."
+echo "  [6/6] Checking i18n keys referenced in source..."
 if ! node apps/srt-gui/scripts/check-i18n.mjs > /dev/null; then
   echo "❌ Error: source references i18n keys missing from locales. Run 'node apps/srt-gui/scripts/check-i18n.mjs' for details. Push aborted." >&2
   exit 1

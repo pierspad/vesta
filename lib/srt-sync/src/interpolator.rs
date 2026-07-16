@@ -64,11 +64,10 @@ impl TimeMapper {
     pub fn add_anchor(&mut self, anchor: AnchorPoint) {
         // Se esiste già un'ancora manuale, e la nuova non è manuale, ignoriamo la nuova.
         // Le ancore manuali sono la "verità assoluta" e non possono essere sovrascritte da processi automatici come il whisper sync.
-        if let Some(existing) = self.anchors.iter().find(|a| a.subtitle_index == anchor.subtitle_index) {
-            if existing.is_manual && !anchor.is_manual {
+        if let Some(existing) = self.anchors.iter().find(|a| a.subtitle_index == anchor.subtitle_index)
+            && existing.is_manual && !anchor.is_manual {
                 return;
             }
-        }
 
         // Rimuovi eventuali ancore esistenti per lo stesso indice
         self.anchors.retain(|a| a.subtitle_index != anchor.subtitle_index);

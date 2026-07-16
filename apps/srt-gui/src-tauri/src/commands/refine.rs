@@ -53,10 +53,10 @@ pub async fn refine_card_llm_tiered(
         RefineRunConfig { prompt, batch_mode: false, batch_size: 1 },
         pool,
         move |event| {
-            if let RefineEvent::CardDone { id, notes, .. } = event {
-                if id == card_id {
-                    *result_cb.lock().unwrap() = Some(notes);
-                }
+            if let RefineEvent::CardDone { id, notes, .. } = event
+                && id == card_id
+            {
+                *result_cb.lock().unwrap() = Some(notes);
             }
         },
         CancellationToken::new(),

@@ -11,6 +11,9 @@ pub struct TranscribedSegment {
     pub text: String,
 }
 
+pub type SegmentCallback = std::sync::Arc<dyn Fn(i64, i64, &str) + Send + Sync + 'static>;
+
+#[derive(Default)]
 pub struct TranscribeOptions {
     pub language: Option<String>,
     pub translate_to_english: bool,
@@ -25,7 +28,7 @@ pub struct TranscribeOptions {
     /// activity detection first and only transcribes detected speech —
     /// skipping silence/music and reducing hallucinations in quiet sections.
     pub vad_model_path: Option<std::path::PathBuf>,
-    pub segment_callback: Option<std::sync::Arc<dyn Fn(i64, i64, &str) + Send + Sync + 'static>>,
+    pub segment_callback: Option<SegmentCallback>,
 }
 
 impl std::fmt::Debug for TranscribeOptions {
@@ -58,20 +61,6 @@ impl Clone for TranscribeOptions {
     }
 }
 
-impl Default for TranscribeOptions {
-    fn default() -> Self {
-        Self {
-            language: None,
-            translate_to_english: false,
-            n_threads: None,
-            word_timestamps: false,
-            max_segment_length: None,
-            beam_size: None,
-            vad_model_path: None,
-            segment_callback: None,
-        }
-    }
-}
 
 /// Default worker count for whisper.cpp: the *physical* cores, capped at 8.
 ///
@@ -113,11 +102,10 @@ pub fn transcribe_full(
     let mut detected_language = None;
 
     for span in spans {
-        if let Some(token) = cancel_token {
-            if token.is_cancelled() {
+        if let Some(token) = cancel_token
+            && token.is_cancelled() {
                 anyhow::bail!("Transcription cancelled");
             }
-        }
 
         let offset_ms = (span.start / (SAMPLE_RATE / 1000)) as i64;
         let (mut span_segments, span_language) =
@@ -169,11 +157,10 @@ fn transcribe_span(
     params.set_print_timestamps(false);
     params.set_token_timestamps(options.word_timestamps);
     
-    if let Some(max_len) = options.max_segment_length {
-        if max_len > 0 {
+    if let Some(max_len) = options.max_segment_length
+        && max_len > 0 {
             params.set_max_len(max_len as i32);
         }
-    }
     
     if let Some(ref cb) = options.segment_callback {
         let cb = cb.clone();
@@ -212,11 +199,10 @@ fn transcribe_span(
         .full(params, audio_data)
         .map_err(|e| anyhow::anyhow!("Whisper transcription failed: {:?}", e))?;
         
-    if let Some(token) = cancel_token {
-        if token.is_cancelled() {
+    if let Some(token) = cancel_token
+        && token.is_cancelled() {
             anyhow::bail!("Transcription cancelled");
         }
-    }
     
     let detected_language = {
         let lang_id = state.full_lang_id_from_state();

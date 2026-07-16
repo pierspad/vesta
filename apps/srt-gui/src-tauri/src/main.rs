@@ -76,6 +76,7 @@ use commands::auto_sync::*;
 use commands::refine::*;
 use commands::flashcards::*;
 use commands::info::*;
+use commands::net::*;
 use commands::sync::*;
 use commands::transcribe::*;
 use commands::translate::*;
@@ -155,7 +156,6 @@ fn main() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
-        .plugin(tauri_plugin_http::init())
         // Protocollo custom per lo streaming video con supporto Range requests
         .register_asynchronous_uri_scheme_protocol("stream", |_ctx, request, responder| {
             std::thread::spawn(move || {
@@ -344,21 +344,16 @@ fn main() {
                         let webview = wv.inner();
                         let wk: &webkit2gtk::WebView = webview.as_ref();
 
-                        // 1) Block file:// navigations (belt-and-suspenders with JS preventDefault)
                         wk.connect_decide_policy(|_wv, decision, decision_type| {
-                            if decision_type == PolicyDecisionType::NavigationAction
-                                || decision_type == PolicyDecisionType::NewWindowAction
+                            if (decision_type == PolicyDecisionType::NavigationAction
+                                || decision_type == PolicyDecisionType::NewWindowAction)
+                                && let Some(nav) = decision.downcast_ref::<NavigationPolicyDecision>()
+                                && let Some(request) = NavigationPolicyDecisionExt::request(nav)
+                                && let Some(uri) = URIRequestExt::uri(&request)
+                                && uri.starts_with("file://")
                             {
-                                if let Some(nav) = decision.downcast_ref::<NavigationPolicyDecision>() {
-                                    if let Some(request) = NavigationPolicyDecisionExt::request(nav) {
-                                        if let Some(uri) = URIRequestExt::uri(&request) {
-                                            if uri.starts_with("file://") {
-                                                decision.ignore();
-                                                return true;
-                                            }
-                                        }
-                                    }
-                                }
+                                decision.ignore();
+                                return true;
                             }
                             false
                         });
@@ -419,6 +414,7 @@ fn main() {
             // Comandi app info
             get_app_info,
             read_subtitle_file,
+            http_fetch,
             // Comandi traduzione
             load_srt_for_translate,
             start_translation,

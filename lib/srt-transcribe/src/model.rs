@@ -249,12 +249,11 @@ where
     progress_callback(0);
     
     while let Some(chunk_result) = stream.next().await {
-        if let Some(token) = cancel_token {
-            if token.is_cancelled() {
+        if let Some(token) = cancel_token
+            && token.is_cancelled() {
                 let _ = tokio::fs::remove_file(&partial).await;
                 anyhow::bail!("Download cancelled");
             }
-        }
         
         let chunk = chunk_result.context("Error reading response chunk")?;
         tokio::io::AsyncWriteExt::write_all(&mut file, &chunk)

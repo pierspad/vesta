@@ -214,7 +214,11 @@ pub async fn condense(
     // ── Stage 2: parallel segment extraction ─────────────────────────────────
     let temp = tempfile::tempdir().map_err(|e| format!("Directory temporanea: {e}"))?;
     let total = spans.len();
-    let workers = num_cpus::get().saturating_sub(1).max(1);
+    let workers = std::thread::available_parallelism()
+        .map(|n| n.get())
+        .unwrap_or(4)
+        .saturating_sub(1)
+        .max(1);
     let semaphore = Arc::new(tokio::sync::Semaphore::new(workers));
     let ffmpeg: Arc<str> = Arc::from(ffmpeg_cmd);
     let media: Arc<str> = Arc::from(config.media_path.as_str());
@@ -359,7 +363,7 @@ async fn extract_segment(
         "-f",
         "mp3",
     ]);
-    cmd.arg(output_path.as_os_str());
+    cmd.arg(output_path);
 
     let output = cmd.output().await?;
     if !output.status.success() {

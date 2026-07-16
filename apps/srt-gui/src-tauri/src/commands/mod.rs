@@ -1,6 +1,7 @@
 //! Comandi Tauri per l'applicazione.
 
 pub mod info;
+pub mod net;
 pub mod translate;
 pub mod sync;
 pub mod flashcards;

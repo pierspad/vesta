@@ -24,14 +24,11 @@ pub async fn convert_to_wav(
     cancel_token: Option<&CancellationToken>,
 ) -> Result<()> {
     let mut child = ffmpeg_command(ffmpeg_path)
-        .args([
-            "-y",
-            "-i", input_path.to_str().ok_or_else(|| anyhow!("Invalid input path"))?,
-            "-ar", "16000",
-            "-ac", "1",
-            "-c:a", "pcm_s16le",
-            output_path.to_str().ok_or_else(|| anyhow!("Invalid output path"))?,
-        ])
+        .arg("-y")
+        .arg("-i")
+        .arg(input_path)
+        .args(["-ar", "16000", "-ac", "1", "-c:a", "pcm_s16le"])
+        .arg(output_path)
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::piped())
         .spawn()
@@ -84,16 +81,12 @@ pub async fn segment_to_wav_chunks(
 ) -> Result<Vec<std::path::PathBuf>> {
     let pattern = out_dir.join("chunk_%05d.wav");
     let mut child = ffmpeg_command(ffmpeg_path)
-        .args([
-            "-y",
-            "-i", input_path.to_str().ok_or_else(|| anyhow!("Invalid input path"))?,
-            "-ar", "16000",
-            "-ac", "1",
-            "-c:a", "pcm_s16le",
-            "-f", "segment",
-            "-segment_time", &segment_seconds.max(1).to_string(),
-            pattern.to_str().ok_or_else(|| anyhow!("Invalid output pattern"))?,
-        ])
+        .arg("-y")
+        .arg("-i")
+        .arg(input_path)
+        .args(["-ar", "16000", "-ac", "1", "-c:a", "pcm_s16le", "-f", "segment", "-segment_time"])
+        .arg(segment_seconds.max(1).to_string())
+        .arg(&pattern)
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::piped())
         .spawn()

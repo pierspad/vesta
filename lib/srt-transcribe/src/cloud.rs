@@ -119,11 +119,10 @@ async fn openai_compatible(
     form = form.text("timestamp_granularities[]", "segment");
 
     // language valido solo per /audio/transcriptions
-    if !cfg.translate_to_english {
-        if let Some(lang) = cfg.language.as_ref().filter(|l| l.as_str() != "auto") {
+    if !cfg.translate_to_english
+        && let Some(lang) = cfg.language.as_ref().filter(|l| l.as_str() != "auto") {
             form = form.text("language", lang.clone());
         }
-    }
 
     let resp = client
         .post(&endpoint)

@@ -27,15 +27,21 @@ pub fn is_natively_playable(path: &Path) -> bool {
 
 /// Hash stabile ma **non crittografico** del path sorgente, usato solo per
 /// generare un nome di file deterministico in cache. Il nome storico di
-/// questa funzione era `sha1_hash` pur usando `DefaultHasher`: non è SHA-1 e
-/// non offre garanzie crittografiche, quindi non va usata per altro che un
-/// nome di cache a bassa probabilità di collisione.
+/// questa funzione era `sha1_hash` pur usando `DefaultHasher`: non solo non
+/// è SHA-1, ma lo standard library non garantisce nemmeno che l'algoritmo di
+/// `DefaultHasher` resti invariato tra versioni del compilatore, il che
+/// invaliderebbe silenziosamente l'intera cache ad ogni aggiornamento di
+/// rustc. FNV-1a è un algoritmo pubblico e a specifica fissa: stesso input,
+/// stesso hash, per sempre.
 fn stable_path_hash(input: &str) -> String {
-    use std::collections::hash_map::DefaultHasher;
-    use std::hash::{Hash, Hasher};
-    let mut hasher = DefaultHasher::new();
-    input.hash(&mut hasher);
-    format!("{:016x}", hasher.finish())
+    const FNV_OFFSET_BASIS: u64 = 0xcbf29ce484222325;
+    const FNV_PRIME: u64 = 0x100000001b3;
+
+    let hash = input
+        .bytes()
+        .fold(FNV_OFFSET_BASIS, |hash, byte| (hash ^ byte as u64).wrapping_mul(FNV_PRIME));
+
+    format!("{hash:016x}")
 }
 
 /// Prepara `source` per la riproduzione nel player embedded.
@@ -66,11 +72,10 @@ pub fn transcode_for_playback(
     if output_path.exists() {
         let source_modified = std::fs::metadata(source).and_then(|m| m.modified()).ok();
         let cache_modified = std::fs::metadata(&output_path).and_then(|m| m.modified()).ok();
-        if let (Some(src_time), Some(cache_time)) = (source_modified, cache_modified) {
-            if cache_time > src_time {
+        if let (Some(src_time), Some(cache_time)) = (source_modified, cache_modified)
+            && cache_time > src_time {
                 return Ok(output_path);
             }
-        }
     }
 
     eprintln!(

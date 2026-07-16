@@ -36,7 +36,7 @@ source=("${_pkgname}-${pkgver}.deb::${url}/releases/download/v${pkgver}/${_srcna
         "LICENSE::https://raw.githubusercontent.com/pierspad/vesta/main/LICENSE")
 
 sha256sums=('e9112c350ed1e3640d42603aa2fb9ab59df15d3d8248afa12b7f76c48c95f25a'
-            '144ee8f9fbaee3025c001b0b0e854eb6a80c1025a6548ead97ab5fb90df7aca6')
+            '3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986')
 
 package() {
     bsdtar -O -xf "${srcdir}/${_pkgname}-${pkgver}.deb" data.tar* | bsdtar -C "${pkgdir}" -xvf -

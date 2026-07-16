@@ -34,11 +34,6 @@
       }
     ],
     [
-      "@semantic-release/changelog", {
-        "changelogFile": "CHANGELOG.md"
-      }
-    ],
-    [
       "@semantic-release/exec",
       {
         "prepareCmd": "sed -i 's/^pkgver=.*/pkgver=${nextRelease.version}/' build-scripts/PKGBUILD && bash build-scripts/update_project_info.sh",
@@ -49,7 +44,6 @@
       "@semantic-release/git",
       {
         "assets": [
-          "CHANGELOG.md",
           "build-scripts/PKGBUILD",
           "Cargo.toml",
           "Cargo.lock",

@@ -253,11 +253,10 @@ fn extract_episode_number(name: &str) -> Option<u32> {
                 while end < bytes.len() && bytes[end].is_ascii_digit() {
                     end += 1;
                 }
-                if end > start {
-                    if let Ok(v) = lower[start..end].parse::<u32>() {
+                if end > start
+                    && let Ok(v) = lower[start..end].parse::<u32>() {
                         return Some(v);
                     }
-                }
             }
         }
     }
@@ -266,11 +265,9 @@ fn extract_episode_number(name: &str) -> Option<u32> {
     for part in lower.split(|c: char| !c.is_ascii_alphanumeric()) {
         if (1..=3).contains(&part.len())
             && part.chars().all(|c| c.is_ascii_digit())
-        {
-            if let Ok(v) = part.parse::<u32>() {
+            && let Ok(v) = part.parse::<u32>() {
                 return Some(v);
             }
-        }
     }
 
     None

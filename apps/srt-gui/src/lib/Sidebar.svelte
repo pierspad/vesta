@@ -1,7 +1,7 @@
 <script lang="ts">
   import { invoke } from "@tauri-apps/api/core";
   import { onMount } from "svelte";
-  import { fetch as tauriFetch } from "@tauri-apps/plugin-http";
+  import { fetch as tauriFetch } from "./tauriHttp";
   import fireplaceIcon from "../assets/fireplace.svg";
   import authorAvatar from "../assets/avatar.png";
   import { locale } from "./i18n";

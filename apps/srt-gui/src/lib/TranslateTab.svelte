@@ -3,7 +3,7 @@
   import { listen } from "@tauri-apps/api/event";
   import { getCurrentWebview } from "@tauri-apps/api/webview";
   import { guardedOpen, guardedSave } from "./utils/dialogGuard";
-  import { fetch as tauriFetch } from "@tauri-apps/plugin-http";
+  import { fetch as tauriFetch } from "./tauriHttp";
   import { onDestroy, onMount } from "svelte";
   import { locale, currentLanguage } from "./i18n";
   import {
@@ -526,7 +526,7 @@
                 contents: [{ parts: [{ text: "hi" }] }],
                 generationConfig: { maxOutputTokens: 1 },
               }),
-              signal: AbortSignal.timeout(8000),
+              timeoutMs: 8000,
             });
             if (!probeResp.ok) {
               throw new Error(`HTTP ${probeResp.status}`);

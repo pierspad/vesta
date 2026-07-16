@@ -27,10 +27,10 @@ where
 
     // Leading context
     for &ctx_idx in &line.leading_context {
-        if let Some(ctx_line) = all_lines.get(ctx_idx) {
-            if let Some(ctx_text) = get_text(ctx_line) {
-                text.push_str(&format!("<span {}>{}</span><br>", span_attr, ctx_text));
-            }
+        if let Some(ctx_line) = all_lines.get(ctx_idx)
+            && let Some(ctx_text) = get_text(ctx_line)
+        {
+            text.push_str(&format!("<span {}>{}</span><br>", span_attr, ctx_text));
         }
     }
 
@@ -38,10 +38,10 @@ where
 
     // Trailing context
     for &ctx_idx in &line.trailing_context {
-        if let Some(ctx_line) = all_lines.get(ctx_idx) {
-            if let Some(ctx_text) = get_text(ctx_line) {
-                text.push_str(&format!("<br><span {}>{}</span>", span_attr, ctx_text));
-            }
+        if let Some(ctx_line) = all_lines.get(ctx_idx)
+            && let Some(ctx_text) = get_text(ctx_line)
+        {
+            text.push_str(&format!("<br><span {}>{}</span>", span_attr, ctx_text));
         }
     }
 

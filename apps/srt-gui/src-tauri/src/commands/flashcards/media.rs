@@ -22,27 +22,27 @@ async fn resolve(app: Option<&AppHandle>, name: &str) -> String {
     if srt_flashcards::check_ffmpeg(name).await {
         return name.to_string();
     }
-    if let Some(app) = app {
-        if let Ok(app_data) = app.path().app_local_data_dir() {
-            let mut path = app_data.join("ffmpeg_bin").join(name);
-            if cfg!(windows) {
-                path.set_extension("exe");
-            }
-            if path.exists() {
-                return path.to_string_lossy().to_string();
-            }
+    if let Some(app) = app
+        && let Ok(app_data) = app.path().app_local_data_dir()
+    {
+        let mut path = app_data.join("ffmpeg_bin").join(name);
+        if cfg!(windows) {
+            path.set_extension("exe");
+        }
+        if path.exists() {
+            return path.to_string_lossy().to_string();
         }
     }
     // Manual installs: a binary placed next to the Vesta executable.
-    if let Ok(exe) = std::env::current_exe() {
-        if let Some(dir) = exe.parent() {
-            let mut path = dir.join(name);
-            if cfg!(windows) {
-                path.set_extension("exe");
-            }
-            if path.exists() {
-                return path.to_string_lossy().to_string();
-            }
+    if let Ok(exe) = std::env::current_exe()
+        && let Some(dir) = exe.parent()
+    {
+        let mut path = dir.join(name);
+        if cfg!(windows) {
+            path.set_extension("exe");
+        }
+        if path.exists() {
+            return path.to_string_lossy().to_string();
         }
     }
     name.to_string()

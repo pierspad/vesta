@@ -125,10 +125,10 @@ fn hoist_binary(dir: &std::path::Path, name: &str) -> Result<(), String> {
             if path.is_file() && path.file_name().is_some_and(|n| n == file_name) {
                 return Some(path);
             }
-            if depth > 0 && path.is_dir() {
-                if let Some(found) = find(&path, file_name, depth - 1) {
-                    return Some(found);
-                }
+            if depth > 0 && path.is_dir()
+                && let Some(found) = find(&path, file_name, depth - 1)
+            {
+                return Some(found);
             }
         }
         None

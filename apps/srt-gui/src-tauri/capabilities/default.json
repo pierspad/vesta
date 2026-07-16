@@ -53,23 +53,6 @@
         { "path": "$DESKTOP/**" },
         { "path": "$VIDEO/**" }
       ]
-    },
-    {
-      "identifier": "http:default"
-    },
-    {
-      "identifier": "http:allow-fetch",
-      "allow": [
-        { "url": "https://api.openai.com/**" },
-        { "url": "https://generativelanguage.googleapis.com/**" },
-        { "url": "https://api.anthropic.com/**" },
-        { "url": "https://openrouter.ai/**" },
-        { "url": "https://github.com/**" },
-        { "url": "https://api.github.com/**" },
-        { "url": "https://raw.githubusercontent.com/**" },
-        { "url": "http://localhost:**" },
-        { "url": "http://127.0.0.1:**" }
-      ]
     }
   ]
 }

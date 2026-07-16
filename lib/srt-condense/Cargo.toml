@@ -21,7 +21,6 @@ serde = { workspace = true, features = ["derive"] }
 tokio = { workspace = true, features = ["full"] }
 tokio-util = "0.7"
 tempfile.workspace = true
-num_cpus.workspace = true
 
 [features]
 vulkan = ["srt-transcribe/vulkan"]

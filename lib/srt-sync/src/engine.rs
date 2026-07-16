@@ -192,13 +192,12 @@ impl SyncEngine {
     /// Trova il sottotitolo attivo per un dato tempo video (in ms)
     pub fn find_subtitle_at_time(&self, video_time_ms: u64) -> Option<u32> {
         for id in &self.sorted_ids {
-            if let Some(synced) = self.get_synced_subtitle(*id) {
-                if video_time_ms >= synced.start.milliseconds
+            if let Some(synced) = self.get_synced_subtitle(*id)
+                && video_time_ms >= synced.start.milliseconds
                     && video_time_ms <= synced.end.milliseconds
                 {
                     return Some(*id);
                 }
-            }
         }
         None
     }

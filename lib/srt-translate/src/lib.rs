@@ -143,33 +143,6 @@ where
     ).await
 }
 
-/// Salva i sottotitoli tradotti su file
-fn save_translated_subtitles(
-    subtitles: &HashMap<u32, Subtitle>,
-    path: &std::path::Path,
-) -> Result<()> {
-    use std::io::Write;
-
-    let mut sorted: Vec<_> = subtitles.iter().collect();
-    sorted.sort_by_key(|(id, _)| *id);
-
-    let mut file = std::fs::File::create(path)?;
-
-    for (id, subtitle) in sorted {
-        writeln!(file, "{}", id)?;
-        writeln!(
-            file,
-            "{} --> {}",
-            subtitle.start.to_srt_string(), 
-            subtitle.end.to_srt_string()
-        )?;
-        writeln!(file, "{}", subtitle.text)?;
-        writeln!(file)?;
-    }
-
-    Ok(())
-}
-
 /// Verifica che tutti i sottotitoli dell'originale siano presenti nella traduzione
 /// Restituisce gli ID mancanti
 pub fn verify_translation_completeness(
@@ -454,14 +427,13 @@ fn build_repair_context(
     
     // Cerca 2 sottotitoli prima
     for offset in (1..=2).rev() {
-        if let Some(prev_id) = missing_id.checked_sub(offset) {
-            if let (Some(orig), Some(trans)) = (original.get(&prev_id), translated.get(&prev_id)) {
+        if let Some(prev_id) = missing_id.checked_sub(offset)
+            && let (Some(orig), Some(trans)) = (original.get(&prev_id), translated.get(&prev_id)) {
                 context_parts.push(format!(
                     "[{}] Original: {}\nTranslated: {}",
                     prev_id, orig.text, trans.text
                 ));
             }
-        }
     }
     
     // Cerca 2 sottotitoli dopo
@@ -701,7 +673,7 @@ where
 
                     {
                         let trans_map = translated.lock().await;
-                        let _ = save_translated_subtitles(&trans_map, &output_path);
+                        let _ = SrtParser::save_file(&output_path, &trans_map);
                     }
                 }
                 Err(e) => {
@@ -802,7 +774,7 @@ async fn repair_missing_subtitles_cancellable(
                     
                     let mut trans_map = translated.lock().await;
                     trans_map.insert(id, new_subtitle);
-                    let _ = save_translated_subtitles(&trans_map, output_path);
+                    let _ = SrtParser::save_file(output_path, &trans_map);
                 }
                 Err(e) => {
                     let mut callback = progress_callback.lock().await;
@@ -927,11 +899,10 @@ impl TierScheduler {
 
     /// Marca una entry come esaurita (rate-limit/quota raggiunti).
     pub fn report_exhausted(&mut self, tier: usize, idx: usize) {
-        if let Some(t) = self.tiers.get_mut(tier) {
-            if let Some(e) = t.entries.get_mut(idx) {
+        if let Some(t) = self.tiers.get_mut(tier)
+            && let Some(e) = t.entries.get_mut(idx) {
                 e.exhausted = true;
             }
-        }
     }
 
     /// Indice del tier attualmente attivo (1-based per i messaggi all'utente).
@@ -1152,7 +1123,7 @@ where
                                     }
                                     map.insert(*id, new_sub);
                                 }
-                                let _ = save_translated_subtitles(&map, &output_path);
+                                let _ = SrtParser::save_file(&output_path, &map);
                             }
 
                             let dur = batch_start_time.elapsed().as_secs_f64();
@@ -1334,7 +1305,7 @@ async fn repair_missing_tiered(
                     new_sub.text = translation;
                     let mut map = translated.lock().await;
                     map.insert(id, new_sub);
-                    let _ = save_translated_subtitles(&map, output_path);
+                    let _ = SrtParser::save_file(output_path, &map);
                     break;
                 }
                 Err(e) if is_rate_limit_error(&e) => {

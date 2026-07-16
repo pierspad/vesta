@@ -2,7 +2,7 @@
   import { onMount, onDestroy } from "svelte";
   import { invoke } from "@tauri-apps/api/core";
   import { listen } from "@tauri-apps/api/event";
-  import { fetch as tauriFetch } from "@tauri-apps/plugin-http";
+  import { fetch as tauriFetch } from "./tauriHttp";
   import CodeEditor from "./CodeEditor.svelte";
   import ConfirmDialog from "./ConfirmDialog.svelte";
   import FooterActions from "./components/FooterActions.svelte";

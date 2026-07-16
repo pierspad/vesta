@@ -37,14 +37,14 @@ impl Timestamp {
     /// Parse da formato SRT (00:00:20,000)
     pub fn from_srt_string(s: &str) -> Result<Self> {
         let parts: Vec<&str> = s.split(&[':', ',', '.'][..]).collect();
-        if parts.len() != 4 {
+        let &[hours, minutes, seconds, millis] = parts.as_slice() else {
             anyhow::bail!("Formato timestamp invalido: {}", s);
-        }
+        };
 
-        let hours: u32 = parts[0].parse().context("Ore invalide")?;
-        let minutes: u32 = parts[1].parse().context("Minuti invalidi")?;
-        let seconds: u32 = parts[2].parse().context("Secondi invalidi")?;
-        let millis: u32 = parts[3].parse().context("Millisecondi invalidi")?;
+        let hours: u32 = hours.parse().context("Ore invalide")?;
+        let minutes: u32 = minutes.parse().context("Minuti invalidi")?;
+        let seconds: u32 = seconds.parse().context("Secondi invalidi")?;
+        let millis: u32 = millis.parse().context("Millisecondi invalidi")?;
 
         Ok(Self::new(hours, minutes, seconds, millis))
     }
@@ -120,26 +120,25 @@ impl SrtParser {
     /// Parse un singolo blocco di sottotitolo
     fn parse_block(block: &str) -> Result<Subtitle> {
         let lines: Vec<&str> = block.lines().collect();
-        if lines.len() < 2 {
+        let [id_line, timeline, text_lines @ ..] = lines.as_slice() else {
             anyhow::bail!("Blocco sottotitolo invalido");
-        }
+        };
 
         // Parse ID
-        let id: u32 = lines[0].trim().parse().context("ID invalido")?;
+        let id: u32 = id_line.trim().parse().context("ID invalido")?;
 
         // Parse timestamps
-        let timeline = lines[1];
         let parts: Vec<&str> = timeline.split(" --> ").collect();
-        if parts.len() != 2 {
+        let &[start_str, end_str] = parts.as_slice() else {
             anyhow::bail!("Timeline invalida: {}", timeline);
-        }
+        };
 
-        let start = Timestamp::from_srt_string(parts[0].trim())?;
-        let end = Timestamp::from_srt_string(parts[1].trim())?;
+        let start = Timestamp::from_srt_string(start_str.trim())?;
+        let end = Timestamp::from_srt_string(end_str.trim())?;
 
         // Parse testo (può essere multi-linea, può essere vuoto)
-        let text = if lines.len() > 2 {
-            let t = lines[2..].join("\n").trim().to_string();
+        let text = if !text_lines.is_empty() {
+            let t = text_lines.join("\n").trim().to_string();
             if t.is_empty() { "[...]".to_string() } else { t }
         } else {
             "[...]".to_string()

@@ -1,0 +1,85 @@
+name: Bindgen Drift Check
+
+# vendor/whisper-rs-sys-0.15.0/src/bindings.rs è un binding generato a mano
+# (vedi build.rs: con WHISPER_DONT_GENERATE_BINDINGS=1, usato ovunque in CI/
+# release, viene copiato così com'è invece che rigenerato). Se una futura
+# versione di whisper.cpp aggiunge simboli (es. una nuova feature GPU) la
+# desincronizzazione si ripresenta silenziosamente solo al build "vero".
+#
+# Questo job rigenera bindings.rs con bindgen live (senza la variabile
+# WHISPER_DONT_GENERATE_BINDINGS) e lo confronta col file committato.
+# Manuale/pianificato e non bloccante: uno scarto produce un warning +
+# artifact col diff, non un fallimento rosso della CI.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 6 * * 1' # ogni lunedì mattina
+
+jobs:
+  bindgen-diff:
+    name: Rigenera bindings.rs e confronta
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Setup sccache
+        uses: mozilla-actions/sccache-action@v0.0.10
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: '. -> target'
+          shared-key: "v1-sccache-bindgen-diff"
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake pkg-config libclang-dev
+
+      # Stesse feature del build Linux "vero" (build.yml), altrimenti bindgen
+      # non emette i simboli dietro cfg(feature = "vulkan") e il diff segnala
+      # falsi positivi.
+      - name: Install Vulkan SDK
+        run: |
+          wget -qO- https://packages.lunarg.com/lunarg-signing-key-pub.asc \
+            | sudo tee /etc/apt/trusted.gpg.d/lunarg.asc > /dev/null
+          sudo wget -qO /etc/apt/sources.list.d/lunarg-vulkan-jammy.list \
+            https://packages.lunarg.com/vulkan/lunarg-vulkan-jammy.list
+          sudo apt-get update
+          sudo apt-get install -y vulkan-sdk
+
+      # NB: nessuna WHISPER_DONT_GENERATE_BINDINGS qui, di proposito: è
+      # l'unico posto in CI dove build.rs deve chiamare bindgen per davvero.
+      - name: Build whisper-rs-sys (genera bindings.rs con bindgen live)
+        env:
+          SCCACHE_GHA_ENABLED: "true"
+          RUSTC_WRAPPER: "sccache"
+        run: cargo build -p whisper-rs-sys --features vulkan --target-dir /tmp/bindgen-check
+
+      - name: Confronta con vendor/whisper-rs-sys-0.15.0/src/bindings.rs
+        id: diff
+        run: |
+          GENERATED=$(find /tmp/bindgen-check -name bindings.rs -path "*whisper-rs-sys*" | head -n1)
+          if [ -z "$GENERATED" ]; then
+            echo "::error::bindings.rs generato non trovato in /tmp/bindgen-check (build.rs cambiato?)"
+            exit 1
+          fi
+          echo "Generato: $GENERATED"
+          if diff -u vendor/whisper-rs-sys-0.15.0/src/bindings.rs "$GENERATED" > bindgen-drift.diff; then
+            echo "drifted=false" >> "$GITHUB_OUTPUT"
+            echo "Nessuno scarto: bindings.rs committato è allineato con bindgen live."
+          else
+            echo "drifted=true" >> "$GITHUB_OUTPUT"
+            echo "::warning::vendor/whisper-rs-sys-0.15.0/src/bindings.rs è disallineato rispetto a whisper.cpp/wrapper.h attuali. Scarica l'artifact 'bindgen-drift' per il diff e rigeneralo a mano se serve."
+          fi
+
+      - name: Upload diff artifact
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: bindgen-drift
+          path: bindgen-drift.diff
+          if-no-files-found: ignore
