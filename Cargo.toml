@@ -28,16 +28,16 @@ encoding_rs = "0.8"
 chardetng = "1"
 
 # Internal crates
-srt-parser = { path = "./core/srt-parser", version = "0.14.0-dev.6" }
-srt-extract = { path = "./lib/srt-extract", version = "0.14.0-dev.6" }
-srt-translate = { path = "./lib/srt-translate", version = "0.14.0-dev.6" }
-srt-sync = { path = "./lib/srt-sync", version = "0.14.0-dev.6" }
-srt-autosync = { path = "./lib/srt-autosync", version = "0.14.0-dev.6" }
-srt-flashcards = { path = "./lib/srt-flashcards", version = "0.14.0-dev.6" }
-srt-refine = { path = "./lib/srt-refine", version = "0.14.0-dev.6" }
-srt-transcribe = { path = "./lib/srt-transcribe", version = "0.14.0-dev.6" }
-srt-condense = { path = "./lib/srt-condense", version = "0.14.0-dev.6" }
-srt-ankiconnect = { path = "./lib/srt-ankiconnect", version = "0.14.0-dev.6" }
+srt-parser = { path = "./core/srt-parser", version = "0.14.0" }
+srt-extract = { path = "./lib/srt-extract", version = "0.14.0" }
+srt-translate = { path = "./lib/srt-translate", version = "0.14.0" }
+srt-sync = { path = "./lib/srt-sync", version = "0.14.0" }
+srt-autosync = { path = "./lib/srt-autosync", version = "0.14.0" }
+srt-flashcards = { path = "./lib/srt-flashcards", version = "0.14.0" }
+srt-refine = { path = "./lib/srt-refine", version = "0.14.0" }
+srt-transcribe = { path = "./lib/srt-transcribe", version = "0.14.0" }
+srt-condense = { path = "./lib/srt-condense", version = "0.14.0" }
+srt-ankiconnect = { path = "./lib/srt-ankiconnect", version = "0.14.0" }
 
 [profile.dev]
 opt-level = 0
