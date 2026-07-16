@@ -5,8 +5,6 @@ use super::export_tsv::{render_text_with_context, sanitize_filename};
 use super::media::ms_to_ffmpeg_ts;
 use super::types::*;
 
-// ─── APKG Generation ─────────────────────────────────────────────────────────
-
 fn clean_field_name(value: &str, fallback: &str) -> String {
     let trimmed = value.trim();
     if trimmed.is_empty() {
@@ -49,9 +47,6 @@ fn rewrite_template_field_tokens(template: &str, replacements: &[(&str, &str)]) 
     output
 }
 
-/// Generate an APKG file (Anki package) from matched lines.
-/// Builds the SQLite database (collection.anki2) and packages it into a ZIP
-/// along with media files. This approach mirrors the Anki internal format.
 pub(crate) fn generate_apkg(
     lines: &[MatchedLine],
     config: &FlashcardConfig,
@@ -70,10 +65,6 @@ pub(crate) fn generate_apkg(
         .unwrap_or_default()
         .as_secs() as i64;
 
-    // Deterministic IDs derived from *names*, so the same name always maps to the
-    // same Anki object across every export. This is what lets Anki recognise a
-    // re-imported deck and merge it instead of creating duplicates. Decks and note
-    // types live in disjoint numeric bands so their ids can never collide.
     fn stable_id(seed: &str, band_base: i64) -> i64 {
         let mut hash: u64 = 0;
         for b in seed.bytes() {
@@ -82,34 +73,24 @@ pub(crate) fn generate_apkg(
         (hash % 1_000_000_000) as i64 + band_base
     }
 
-    // The note type name — NOT the deck name — drives the model id. Every deck
-    // that shares a note type name therefore shares one model id, so importing
-    // several decks built on the same note type reuses a single note type.
     let note_type_name = config.note_type_name.as_deref().unwrap_or("subs2srs");
 
-    // Deck id stays keyed to the deck name (+1_000_000 keeps it off the reserved
-    // "Default" deck id of 1); model id sits in a separate, higher band.
     let deck_id: i64 = stable_id(&config.deck_name, 1_000_000);
     let model_id: i64 = stable_id(note_type_name, 2_000_000_000);
     let deck_sanitized = sanitize_filename(&config.deck_name);
     let ep = config.episode_number;
 
-    // Create a temp directory for the SQLite DB
     let tmp_dir = tempfile::tempdir().map_err(|e| format!("Cannot create temp dir: {e}"))?;
     let db_path = tmp_dir.path().join("collection.anki2");
 
     {
-        // Open SQLite connection using rusqlite
         let conn = rusqlite::Connection::open(&db_path)
             .map_err(|e| format!("Failed to open SQLite database: {e}"))?;
 
-        // Build SQL commands
         let mut sql = String::with_capacity(active_lines.len() * 512);
 
-        // Wrap all operations in a transaction for performance
         sql.push_str("BEGIN TRANSACTION;\n");
 
-        // Create tables
         sql.push_str(
             "CREATE TABLE col (
             id INTEGER PRIMARY KEY,
@@ -189,7 +170,6 @@ pub(crate) fn generate_apkg(
         );\n",
         );
 
-        // Build model fields based on what the user selected
         let field_names = config.field_names.clone().unwrap_or_default();
         let expression_name = clean_field_name(&field_names.expression, "Expression");
         let meaning_name = clean_field_name(&field_names.meaning, "Meaning");
@@ -201,13 +181,6 @@ pub(crate) fn generate_apkg(
         let sequence_name = clean_field_name(&field_names.sequence_marker, "SequenceMarker");
         let notes_name = clean_field_name(&field_names.notes, "Notes");
 
-        // The schema is a property of the note type, fixed in this canonical order.
-        // Each field is emitted only when its toggle is on, and the SAME inclusion
-        // list is reused when writing every note below — so the model and the notes
-        // always agree on the column set. As long as a given note type *name* is
-        // always exported with the same toggles (predefined note types are locked
-        // to all-on; custom ones save their own fixed set), Anki recognises repeat
-        // imports as the same note type and merges them instead of appending "+".
         let of = &config.output_fields;
         let schema: [(bool, &str); 9] = [
             (of.include_subs1, expression_name.as_str()),
@@ -228,14 +201,12 @@ pub(crate) fn generate_apkg(
                 push_model_field(&mut field_defs, &mut ord, name);
             }
         }
-        // A note type must have at least one field; fall back to the Expression
-        // slot if the caller somehow disabled everything.
+
         if field_defs.is_empty() {
             push_model_field(&mut field_defs, &mut ord, &expression_name);
         }
         let _ = ord;
 
-        // Use custom templates if provided, otherwise use defaults
         let template_replacements = [
             ("Expression", expression_name.as_str()),
             ("Meaning", meaning_name.as_str()),
@@ -296,7 +267,6 @@ pub(crate) fn generate_apkg(
 
         let conf_json = r#"{"activeDecks":[1],"curDeck":1,"newSpread":0,"collapseTime":1200,"timeLim":0,"estTimes":true,"dueCounts":true,"curModel":null,"nextPos":1,"sortType":"noteFld","sortBackwards":false,"addToCur":true}"#;
 
-        // Escape for SQL
         let models_sql = models_json.replace('\'', "''");
         let decks_sql = decks_json.replace('\'', "''");
         let dconf_sql = dconf_json.replace('\'', "''");
@@ -311,23 +281,15 @@ pub(crate) fn generate_apkg(
             dconf = dconf_sql,
         ));
 
-        // Insert notes and cards
         for (seq, line) in active_lines.iter().enumerate() {
             let note_id = timestamp * 1000 + seq as i64;
             let card_id = note_id + 1_000_000;
             let seq_num = seq + 1;
             let start_ts = ms_to_ffmpeg_ts(line.subs1.start_ms);
 
-            // Build the fields (separated by \x1f) in the SAME canonical order and
-            // with the SAME inclusion rules as the model schema above: a field is
-            // written exactly when its toggle is on, so every note's column count
-            // matches the note type. A field that is on but has no data (e.g. a
-            // missing media file, or the manual Reading/Notes slots) is written as
-            // an empty string — present, but blank.
             let of = &config.output_fields;
             let mut fields: Vec<String> = Vec::with_capacity(9);
 
-            // 1. Expression (subs1)
             if of.include_subs1 {
                 fields.push(render_text_with_context(
                     &line.subs1.text,
@@ -339,7 +301,6 @@ pub(crate) fn generate_apkg(
                 ));
             }
 
-            // 2. Meaning (subs2)
             if of.include_subs2 {
                 fields.push(match &line.subs2 {
                     Some(s2) => render_text_with_context(
@@ -354,7 +315,6 @@ pub(crate) fn generate_apkg(
                 });
             }
 
-            // 3. Audio — only reference if the file exists
             if of.include_audio {
                 let filename = format!("{}_{:03}_{:04}.mp3", deck_sanitized, ep, seq_num);
                 fields.push(if media_dir.join(&filename).exists() {
@@ -364,7 +324,6 @@ pub(crate) fn generate_apkg(
                 });
             }
 
-            // 4. Snapshot — only reference if the file exists
             if of.include_snapshot {
                 let filename = format!("{}_{:03}_{:04}.jpg", deck_sanitized, ep, seq_num);
                 fields.push(if media_dir.join(&filename).exists() {
@@ -374,7 +333,6 @@ pub(crate) fn generate_apkg(
                 });
             }
 
-            // 5. Video — only reference if the file exists
             if of.include_video {
                 let ext = if config.video_codec == "h264" {
                     "mp4"
@@ -389,27 +347,22 @@ pub(crate) fn generate_apkg(
                 });
             }
 
-            // 6. Tags
             if of.include_tag {
                 fields.push(format!("{}_{:03}", config.deck_name, ep));
             }
 
-            // 7. SequenceMarker
             if of.include_sequence {
                 fields.push(format!("{:03}_{:04}_{}", ep, seq_num, start_ts));
             }
 
-            // 8. Reading (empty — user fills manually in Anki)
             if of.include_reading {
                 fields.push(String::new());
             }
 
-            // 9. Notes (empty — reserved for user annotations in Anki)
             if of.include_notes {
                 fields.push(String::new());
             }
 
-            // Mirror the model's "at least one field" fallback.
             if fields.is_empty() {
                 fields.push(String::new());
             }
@@ -417,13 +370,11 @@ pub(crate) fn generate_apkg(
             let flds = fields.join("\x1f");
             let sfld = if !fields.is_empty() { &fields[0] } else { "" };
 
-            // Compute checksum: Anki uses first 8 hex characters of SHA-1(sfld) converted to int
             let csum = {
                 let hex_str = sha1_smol::Sha1::from(sfld).digest().to_string();
                 i64::from_str_radix(&hex_str[0..8], 16).unwrap_or(0)
             };
 
-            // GUID
             let guid = format!("{:010x}", note_id as u64);
 
             let flds_sql = flds.replace('\'', "''");
@@ -453,12 +404,10 @@ pub(crate) fn generate_apkg(
 
         sql.push_str("COMMIT;\n");
 
-        // Execute SQL batch using rusqlite
         conn.execute_batch(&sql)
             .map_err(|e| format!("Failed to execute SQLite batch: {e}"))?;
     }
 
-    // Build media map: { "0": "filename.mp3", "1": "filename.jpg", ... }
     let mut media_map: HashMap<String, String> = HashMap::new();
     let mut media_files: Vec<(String, PathBuf)> = Vec::new();
     let mut media_idx = 0u64;
@@ -466,7 +415,6 @@ pub(crate) fn generate_apkg(
     for (seq, _line) in active_lines.iter().enumerate() {
         let seq_num = seq + 1;
 
-        // Audio
         if config.generate_audio {
             let filename = format!("{}_{:03}_{:04}.mp3", deck_sanitized, ep, seq_num);
             let file_path = media_dir.join(&filename);
@@ -477,7 +425,6 @@ pub(crate) fn generate_apkg(
             }
         }
 
-        // Snapshot
         if config.generate_snapshots {
             let filename = format!("{}_{:03}_{:04}.jpg", deck_sanitized, ep, seq_num);
             let file_path = media_dir.join(&filename);
@@ -488,7 +435,6 @@ pub(crate) fn generate_apkg(
             }
         }
 
-        // Video
         if config.generate_video_clips {
             let ext = if config.video_codec == "h264" {
                 "mp4"
@@ -505,7 +451,6 @@ pub(crate) fn generate_apkg(
         }
     }
 
-    // Write media JSON to temp
     let media_json_path = tmp_dir.path().join("media");
     std::fs::write(
         &media_json_path,
@@ -513,21 +458,18 @@ pub(crate) fn generate_apkg(
     )
     .map_err(|e| format!("Cannot write media JSON: {e}"))?;
 
-    // Create the APKG ZIP file
     let apkg_file =
         std::fs::File::create(output_path).map_err(|e| format!("Cannot create APKG: {e}"))?;
     let mut zip = zip::ZipWriter::new(apkg_file);
     let options = zip::write::SimpleFileOptions::default()
         .compression_method(zip::CompressionMethod::Deflated);
 
-    // Add collection.anki2
     zip.start_file("collection.anki2", options)
         .map_err(|e| format!("ZIP error: {e}"))?;
     let db_bytes = std::fs::read(&db_path).map_err(|e| format!("Cannot read DB: {e}"))?;
     zip.write_all(&db_bytes)
         .map_err(|e| format!("ZIP write error: {e}"))?;
 
-    // Add media JSON
     zip.start_file("media", options)
         .map_err(|e| format!("ZIP error: {e}"))?;
     let media_json_bytes =
@@ -535,7 +477,6 @@ pub(crate) fn generate_apkg(
     zip.write_all(&media_json_bytes)
         .map_err(|e| format!("ZIP write error: {e}"))?;
 
-    // Add actual media files (indexed by number)
     for (idx_str, file_path) in &media_files {
         zip.start_file(idx_str, options)
             .map_err(|e| format!("ZIP error adding media: {e}"))?;
@@ -550,18 +491,6 @@ pub(crate) fn generate_apkg(
     Ok(())
 }
 
-// ─── Anki Card Templates ─────────────────────────────────────────────────────
-//
-// These constants define the note type used for APKG export.
-// Edit them to customise how cards look in Anki.
-
-/// The tag-pill `<script>` shared by the front and back card templates: it reads
-/// the hidden timestamp/tags divs and renders them as pills.
-///
-/// Defined as a macro (not a `const`) so the single source of truth can be
-/// `concat!`-ed into the `const` templates below — `concat!` only accepts
-/// compile-time string literals, which a macro expansion satisfies but a `const`
-/// reference does not.
 macro_rules! anki_tag_script {
     () => {
         r#"
@@ -724,7 +653,6 @@ mod tests {
         }
     }
 
-    /// Pull the (model_id, ordered field names, note count) out of a generated apkg.
     fn read_model(path: &Path) -> (String, Vec<String>, i64) {
         let file = std::fs::File::open(path).unwrap();
         let mut zip = zip::ZipArchive::new(file).unwrap();
@@ -765,7 +693,6 @@ mod tests {
         "Notes",
     ];
 
-    /// All nine fields on — the schema a predefined (locked) note type always uses.
     fn all_fields() -> OutputFields {
         OutputFields {
             include_subs1: true,
@@ -780,11 +707,6 @@ mod tests {
         }
     }
 
-    /// Two exports that share a note type name AND the same field set must produce
-    /// a byte-identical schema and the same model id, even when the deck name
-    /// differs. That is what makes Anki merge them into one note type on import
-    /// instead of appending "+". (Predefined note types are locked to this full
-    /// set, so in practice they always satisfy this.)
     #[test]
     fn same_note_type_merges_across_decks() {
         let tmp = tempfile::tempdir().unwrap();
@@ -825,8 +747,6 @@ mod tests {
         );
     }
 
-    /// A custom note type may disable fields: the exported schema then contains
-    /// exactly the enabled fields, in canonical order, and nothing else.
     #[test]
     fn disabled_fields_shrink_the_schema() {
         let tmp = tempfile::tempdir().unwrap();
@@ -834,7 +754,6 @@ mod tests {
         std::fs::create_dir_all(&media).unwrap();
         let lines = vec![line(0, "Hello", Some("Ciao"))];
 
-        // Keep only Expression, Meaning and Reading.
         let reduced = OutputFields {
             include_subs1: true,
             include_subs2: true,
@@ -865,8 +784,6 @@ mod tests {
         assert_eq!(notes, 1);
     }
 
-    /// A different note type name must land in a *different* model id band, so it
-    /// is imported as a separate note type rather than colliding with the first.
     #[test]
     fn different_note_type_names_get_different_model_ids() {
         let tmp = tempfile::tempdir().unwrap();

@@ -3,9 +3,6 @@ use std::path::Path;
 
 use super::types::*;
 
-// ─── Subtitle Parsing ────────────────────────────────────────────────────────
-
-/// Detect format from extension
 pub(crate) fn detect_format(path: &str) -> &'static str {
     let ext = Path::new(path)
         .extension()
@@ -330,7 +327,6 @@ pub(crate) fn strip_vtt_tags(text: &str) -> String {
 
 /// Parse any supported subtitle file
 pub(crate) fn parse_subtitle_file(path: &str) -> Result<(Vec<SubEntry>, &'static str)> {
-    // Encoding rilevato automaticamente (BOM, UTF-8/16, code page legacy).
     let content = srt_parser::encoding::read_text_auto(path)
         .context(format!("Cannot read file: {}", path))?;
 

@@ -1,5 +1,3 @@
-//! Comandi Tauri per la traduzione di sottotitoli.
-
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
@@ -11,14 +9,8 @@ use srt_translate::{TranslationProgress, TranslatorPool, translate_subtitles_tie
 
 use crate::state::AppTranslateState;
 
-/// Una singola entry di un tier: provider + modello + key + opzioni.
-/// È direttamente il tipo della libreria (contratto serde condiviso).
 pub type TierEntryConfig = srt_translate::TierEntry;
 
-/// Configurazione per la traduzione.
-///
-/// La traduzione è guidata interamente dai `tiers` (lista di priorità con
-/// failover automatico). `tiers[0]` ha la priorità massima.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TranslateConfig {
     pub input_path: String,
@@ -28,11 +20,9 @@ pub struct TranslateConfig {
     pub resume_overlap: Option<usize>,
     pub title_context: Option<String>,
 
-    /// Tier in ordine di priorità: `tiers[0]` ha la priorità massima.
     pub tiers: Vec<Vec<TierEntryConfig>>,
 }
 
-/// Evento di progresso emesso al frontend
 #[derive(Debug, Clone, Serialize)]
 pub struct TranslateProgressEvent {
     pub message: String,
@@ -42,7 +32,6 @@ pub struct TranslateProgressEvent {
     pub eta_seconds: Option<f64>,
 }
 
-/// Risultato della traduzione
 #[derive(Debug, Clone, Serialize)]
 pub struct TranslateResult {
     pub success: bool,
@@ -51,13 +40,11 @@ pub struct TranslateResult {
     pub translated_count: usize,
 }
 
-/// Carica un file SRT e ritorna info di base
 #[tauri::command]
 pub async fn load_srt_for_translate(path: String) -> Result<SrtFileInfo, String> {
     let mut subtitles = SrtParser::parse_file(&path)
         .map_err(|e| format!("Errore nel parsing del file SRT: {}", e))?;
 
-    // Normalizza: riempi buchi nella numerazione con "[...]"
     SrtParser::normalize_subtitles(&mut subtitles);
 
     let mut sorted: Vec<_> = subtitles.values().collect();
@@ -82,7 +69,6 @@ pub struct SrtFileInfo {
     pub last_subtitle: String,
 }
 
-/// Avvia la traduzione
 #[tauri::command]
 pub async fn start_translation(
     app: AppHandle,
@@ -169,7 +155,6 @@ async fn perform_translation(
         }
     };
 
-    // Esegui la traduzione a tier con failover automatico e supporto cancellazione.
     let translated: anyhow::Result<std::collections::HashMap<u32, srt_parser::Subtitle>> =
         translate_subtitles_tiered_cancellable(
             pool,
@@ -184,13 +169,11 @@ async fn perform_translation(
         )
         .await;
 
-    // Gestisci la cancellazione
     let translated: std::collections::HashMap<u32, srt_parser::Subtitle> = match translated {
         Ok(t) => t,
         Err(e) => {
             let error_str = e.to_string();
             if error_str.contains("cancelled") || error_str.contains("annullat") {
-                // Emetti evento di cancellazione
                 let _ = app.emit(
                     "translate-complete",
                     TranslateResult {
@@ -211,11 +194,8 @@ async fn perform_translation(
         }
     };
 
-    // Un run che termina senza aver prodotto nemmeno un sottotitolo non è un
-    // successo: il frontend lo mostra come errore/warning invece che in verde.
     let success = !translated.is_empty();
 
-    // Emetti evento di completamento
     let _ = app.emit(
         "translate-complete",
         TranslateResult {
@@ -242,7 +222,6 @@ async fn perform_translation(
     })
 }
 
-/// Annulla la traduzione in corso
 #[tauri::command]
 pub async fn cancel_translation(state: State<'_, AppTranslateState>) -> Result<bool, String> {
     let mut translate_state = state.lock().map_err(|e| e.to_string())?;

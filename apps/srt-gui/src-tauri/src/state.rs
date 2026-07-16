@@ -1,11 +1,8 @@
-//! Gestione dello stato globale dell'applicazione.
-
 use std::sync::Mutex;
 
 use srt_sync::SyncEngine;
 use tokio_util::sync::CancellationToken;
 
-/// Stato per la sincronizzazione sottotitoli
 #[derive(Default)]
 pub struct SyncState {
     pub engine: Option<SyncEngine>,
@@ -13,58 +10,44 @@ pub struct SyncState {
     pub auto_sync_cancellation_token: Option<CancellationToken>,
 }
 
-/// Wrapper thread-safe per lo stato di sincronizzazione
 pub type AppSyncState = Mutex<SyncState>;
 
-/// Stato per la traduzione (run in corso + cancellazione).
-/// La configurazione (tier, key, modelli) viaggia per-run dentro
-/// `TranslateConfig`: non viene mai persistita nel backend.
 #[derive(Default)]
 pub struct TranslateState {
     pub is_translating: bool,
     pub cancellation_token: Option<CancellationToken>,
 }
 
-/// Wrapper thread-safe per lo stato di traduzione
 pub type AppTranslateState = Mutex<TranslateState>;
 
-/// Stato per la generazione di flashcard
 #[derive(Default)]
 pub struct FlashcardState {
     pub is_processing: bool,
     pub cancellation_token: Option<CancellationToken>,
 }
 
-/// Wrapper thread-safe per lo stato flashcard
 pub type AppFlashcardState = Mutex<FlashcardState>;
 
-/// Stato per la trascrizione Whisper
 #[derive(Default)]
 pub struct TranscribeState {
     pub is_transcribing: bool,
     pub cancellation_token: Option<CancellationToken>,
 }
 
-/// Wrapper thread-safe per lo stato trascrizione
 pub type AppTranscribeState = Mutex<TranscribeState>;
 
-/// Stato per il refinement AI delle flashcard (run in corso + cancellazione).
-/// Come per la traduzione, la configurazione dei tier viaggia per-run.
 #[derive(Default)]
 pub struct RefineState {
     pub is_refining: bool,
     pub cancellation_token: Option<CancellationToken>,
 }
 
-/// Wrapper thread-safe per lo stato refinement
 pub type AppRefineState = Mutex<RefineState>;
 
-/// Stato per la generazione di condensed audio (feature sperimentale).
 #[derive(Default)]
 pub struct CondenseState {
     pub is_running: bool,
     pub cancellation_token: Option<CancellationToken>,
 }
 
-/// Wrapper thread-safe per lo stato condense
 pub type AppCondenseState = Mutex<CondenseState>;

@@ -1,8 +1,3 @@
-//! Comandi Tauri per le feature sperimentali: condensed audio e AnkiConnect.
-//!
-//! Adapter sottili sopra [`srt_condense`] e [`srt_ankiconnect`]; la logica
-//! vive nelle librerie headless.
-
 use tauri::{AppHandle, Emitter, State};
 use tokio_util::sync::CancellationToken;
 
@@ -11,10 +6,6 @@ use srt_condense::{CondenseConfig, CondenseResult};
 use super::flashcards::media::resolve_ffmpeg_path;
 use crate::state::AppCondenseState;
 
-// ─── Condensed audio ─────────────────────────────────────────────────────────
-
-/// Avvia la generazione del condensed audio. Il progresso viene emesso come
-/// eventi Tauri `condense-progress` (payload: `srt_condense::CondenseProgress`).
 #[tauri::command]
 pub async fn condense_start(
     app: AppHandle,
@@ -59,26 +50,21 @@ pub async fn condense_cancel(state: State<'_, AppCondenseState>) -> Result<bool,
     }
 }
 
-// ─── AnkiConnect ─────────────────────────────────────────────────────────────
-
 fn anki_url(url: Option<String>) -> String {
     url.filter(|u| !u.trim().is_empty())
         .unwrap_or_else(|| srt_ankiconnect::DEFAULT_URL.to_string())
 }
 
-/// Ping: ritorna la versione dell'API AnkiConnect.
 #[tauri::command]
 pub async fn ankiconnect_ping(url: Option<String>) -> Result<u32, String> {
     srt_ankiconnect::ping(&anki_url(url)).await
 }
 
-/// Elenco dei mazzi del profilo Anki aperto.
 #[tauri::command]
 pub async fn ankiconnect_deck_names(url: Option<String>) -> Result<Vec<String>, String> {
     srt_ankiconnect::deck_names(&anki_url(url)).await
 }
 
-/// Importa un `.apkg` nel profilo Anki aperto.
 #[tauri::command]
 pub async fn ankiconnect_import_package(path: String, url: Option<String>) -> Result<bool, String> {
     srt_ankiconnect::import_package(&anki_url(url), &path).await?;

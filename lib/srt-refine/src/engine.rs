@@ -1,15 +1,3 @@
-//! Motore di refinement batch sopra il pool LLM a tier condiviso.
-//!
-//! Riusa la stessa politica di scheduling di `srt-translate`
-//! ([`TierScheduler`]: round-robin intra-tier, failover inter-tier su
-//! rate-limit/quota, budget per entry, rate limiting per RPM) applicandola
-//! alle chiamate di arricchimento note delle flashcard.
-//!
-//! Modalità batch: più card per richiesta con risposta JSON strutturata;
-//! le card la cui risposta manca o non è parsabile vengono automaticamente
-//! rimesse in coda come richieste singole (stesso fallback della vecchia
-//! implementazione GUI, ma qui è headless e riusabile).
-
 use std::collections::VecDeque;
 use std::sync::Arc;
 
@@ -20,22 +8,18 @@ use tokio_util::sync::CancellationToken;
 
 use crate::{RefineCard, interpolate_prompt, strip_html};
 
-/// Configurazione di un run di refinement.
 #[derive(Debug, Clone, Deserialize)]
 pub struct RefineRunConfig {
-    /// Template per-card (placeholder `{{expression}}`, `{{meaning}}`, `{{notes}}`).
     pub prompt: String,
-    /// Se `true`, invia le card in batch JSON di `batch_size` per richiesta.
+
     pub batch_mode: bool,
-    /// Card per richiesta in modalità batch (default consigliato: 5).
+
     pub batch_size: usize,
 }
 
-/// Evento di progresso emesso durante il run (contratto serde col frontend).
 #[derive(Debug, Clone, Serialize)]
 #[serde(tag = "type", rename_all = "camelCase")]
 pub enum RefineEvent {
-    /// Note generate per una card.
     #[serde(rename_all = "camelCase")]
     CardDone {
         id: String,
@@ -43,32 +27,29 @@ pub enum RefineEvent {
         done: usize,
         total: usize,
     },
-    /// Card fallita definitivamente (errore non di quota).
+
     #[serde(rename_all = "camelCase")]
     CardFailed { id: String, error: String },
-    /// Messaggio informativo (endpoint in uso, fallback, ecc.).
+
     #[serde(rename_all = "camelCase")]
     Info { message: String },
 }
 
-/// Riepilogo del run.
 #[derive(Debug, Clone, Default, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RefineRunSummary {
     pub done: usize,
     pub failed: usize,
-    /// `true` se il run si è fermato perché ogni tier è esaurito.
+
     pub pool_exhausted: bool,
     pub cancelled: bool,
 }
 
-/// Un job in coda: una card singola o un batch di card.
 enum Job {
     Single(RefineCard),
     Batch(Vec<RefineCard>),
 }
 
-/// Stato condiviso fra i worker.
 struct Shared<F: FnMut(RefineEvent) + Send + 'static> {
     scheduler: Mutex<TierScheduler>,
     queue: Mutex<VecDeque<Job>>,
@@ -293,8 +274,6 @@ where
     (shared.on_event.lock().await)(event);
 }
 
-/// Costruisce il prompt batch: istruzione per-card + lista JSON delle card,
-/// con risposta attesa in JSON `{"results": [{"id", "notes"}]}`.
 fn build_batch_prompt(per_card_prompt: &str, cards: &[RefineCard]) -> String {
     #[derive(Serialize)]
     struct BatchCard<'a> {
@@ -361,7 +340,7 @@ where
 
     let cleaned = strip_code_fences(response);
     let Ok(parsed) = serde_json::from_str::<BatchResponse>(cleaned) else {
-        return cards.to_vec(); // risposta non parsabile: riprocessa tutto
+        return cards.to_vec();
     };
 
     let mut missing: Vec<RefineCard> = Vec::new();
@@ -390,13 +369,12 @@ where
     missing
 }
 
-/// Rimuove eventuali code fence markdown attorno a una risposta JSON.
 fn strip_code_fences(response: &str) -> &str {
     let trimmed = response.trim();
     let Some(rest) = trimmed.strip_prefix("```") else {
         return trimmed;
     };
-    // Salta l'eventuale language tag sulla prima riga.
+
     let rest = rest.split_once('\n').map_or(rest, |(_, body)| body);
     rest.strip_suffix("```").unwrap_or(rest).trim()
 }
@@ -429,7 +407,7 @@ mod tests {
         }];
         let p = build_batch_prompt("Explain the grammar", &cards);
         assert!(p.contains("Explain the grammar"));
-        assert!(p.contains("\"expression\": \"Hallo\"")); // HTML stripped
+        assert!(p.contains("\"expression\": \"Hallo\""));
         assert!(p.contains("\"id\": \"42\""));
     }
 }

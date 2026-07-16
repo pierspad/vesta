@@ -1,10 +1,3 @@
-//! Comandi Tauri per il refinement delle flashcard.
-//!
-//! Adapter sottile sopra [`srt_refine`]: caricamento/salvataggio TSV-APKG e
-//! motore LLM (pool a tier condiviso con la traduzione: round-robin,
-//! failover, rate limiting, budget) vivono nella libreria headless; qui
-//! restano solo le firme `#[tauri::command]` e l'emissione degli eventi.
-
 use tauri::{AppHandle, Emitter, State};
 use tokio_util::sync::CancellationToken;
 
@@ -14,16 +7,13 @@ use srt_refine::{RefineEvent, RefineRunConfig, RefineRunSummary};
 use crate::commands::translate::TierEntryConfig;
 use crate::state::AppRefineState;
 
-/// Load flashcards from a TSV or APKG file
 #[tauri::command]
 pub async fn refine_load_file(path: String) -> Result<Vec<RefineCard>, String> {
-    // Blocking I/O (zip + sqlite): keep it off the async runtime.
     tokio::task::spawn_blocking(move || srt_refine::load_cards(&path))
         .await
         .map_err(|e| format!("Task refine fallito: {e}"))?
 }
 
-/// Save refined flashcards back to a TSV or APKG file
 #[tauri::command]
 pub async fn refine_save_file(
     input_path: String,
@@ -36,7 +26,6 @@ pub async fn refine_save_file(
         .map(|_| true)
 }
 
-/// Genera le note per una singola card usando il pool a tier (failover incluso).
 #[tauri::command]
 pub async fn refine_card_llm_tiered(
     card: RefineCard,
@@ -77,10 +66,6 @@ pub async fn refine_card_llm_tiered(
     })
 }
 
-/// Avvia il refinement AI di più card usando il pool a tier.
-///
-/// Il progresso viene emesso come eventi Tauri `refine-progress`
-/// (payload: [`RefineEvent`]); il frontend applica gli aggiornamenti.
 #[tauri::command]
 pub async fn refine_cards_llm_tiered(
     app: AppHandle,

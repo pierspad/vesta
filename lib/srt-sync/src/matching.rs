@@ -1,16 +1,5 @@
-//! Euristiche GUI-agnostiche per abbinare un file di sottotitoli al suo media
-//! o a un sottotitolo "companion" (altra lingua/ruolo) nella stessa cartella.
-//!
-//! Logica pura (solo `std`): nessun accoppiamento con Tauri o con la GUI, così
-//! può essere usata sia dall'app desktop sia da test e tool headless.
-
 use std::path::{Path, PathBuf};
 
-// ─── Public API ────────────────────────────────────────────────────────────
-
-/// Suggerisce, in modo best-effort, il file media più probabile per `srt_path`
-/// cercando nella stessa cartella. Restituisce `None` se nessun candidato è
-/// abbastanza convincente. Propaga gli errori di lettura della cartella.
 pub fn suggest_media_for_srt(srt_path: &Path) -> std::io::Result<Option<PathBuf>> {
     let Some(parent) = srt_path.parent() else {
         return Ok(None);
@@ -69,9 +58,6 @@ pub fn suggest_media_for_srt(srt_path: &Path) -> std::io::Result<Option<PathBuf>
     Ok(best_confident(candidates, 12))
 }
 
-/// Suggerisce, in modo best-effort, un sottotitolo "companion" (es. lingua o
-/// ruolo diverso) nella stessa cartella di `srt_path`. Restituisce `None` se
-/// nessun candidato è abbastanza convincente.
 pub fn suggest_companion_subtitle_for_srt(srt_path: &Path) -> std::io::Result<Option<PathBuf>> {
     let Some(parent) = srt_path.parent() else {
         return Ok(None);
@@ -154,10 +140,6 @@ pub fn suggest_companion_subtitle_for_srt(srt_path: &Path) -> std::io::Result<Op
     Ok(best_confident(candidates, 10))
 }
 
-// ─── Scoring / selezione ─────────────────────────────────────────────────────
-
-/// Sceglie il candidato col punteggio massimo se "abbastanza convincente":
-/// almeno 45 punti e o stacca il secondo di `lead` punti o il secondo è < 40.
 fn best_confident(mut candidates: Vec<(PathBuf, i32)>, lead: i32) -> Option<PathBuf> {
     if candidates.is_empty() {
         return None;
@@ -173,8 +155,6 @@ fn best_confident(mut candidates: Vec<(PathBuf, i32)>, lead: i32) -> Option<Path
     };
     confident.then(|| best_path.clone())
 }
-
-// ─── Euristiche pure ─────────────────────────────────────────────────────────
 
 fn is_media_path(path: &Path) -> bool {
     let ext = path
@@ -216,8 +196,6 @@ fn is_subtitle_path(path: &Path) -> bool {
     matches!(ext.as_str(), "srt" | "ass" | "ssa" | "vtt")
 }
 
-/// Spezza un nome file in token alfanumerici minuscoli, scartando le stopword
-/// tipiche dei nomi di release (codec, risoluzioni, tag lingua, ecc.).
 fn normalized_tokens(name: &str) -> Vec<String> {
     const STOPWORDS: &[&str] = &[
         "srt",
@@ -276,8 +254,6 @@ fn normalized_tokens(name: &str) -> Vec<String> {
         .collect()
 }
 
-/// Punteggio di sovrapposizione (0-50) tra due insiemi di token, normalizzato
-/// sul più lungo dei due.
 fn token_overlap_score(a: &[String], b: &[String]) -> i32 {
     if a.is_empty() || b.is_empty() {
         return 0;
@@ -287,13 +263,10 @@ fn token_overlap_score(a: &[String], b: &[String]) -> i32 {
     (common * 50) / denom
 }
 
-/// Estrae il numero di episodio: prima il pattern `SxxEyy`, poi come fallback il
-/// primo token isolato di 1-3 cifre.
 fn extract_episode_number(name: &str) -> Option<u32> {
     let lower = name.to_ascii_lowercase();
     let bytes = lower.as_bytes();
 
-    // Pattern SxxEyy
     for i in 0..bytes.len() {
         if bytes[i] == b's' {
             let mut j = i + 1;
@@ -315,7 +288,6 @@ fn extract_episode_number(name: &str) -> Option<u32> {
         }
     }
 
-    // Fallback: primo token isolato di 1-3 cifre
     for part in lower.split(|c: char| !c.is_ascii_alphanumeric()) {
         if (1..=3).contains(&part.len())
             && part.chars().all(|c| c.is_ascii_digit())
@@ -481,17 +453,7 @@ pub fn suggest_subtitles_for_media(media_path: &Path) -> std::io::Result<Vec<(Pa
 
 /// Assegna i ruoli target (da tradurre/rivedere) e native (originale) a una
 /// lista di candidati sottotitolo per un dato media — tipicamente l'output di
-/// [`suggest_subtitles_for_media`], già filtrato per punteggio dal chiamante.
-///
-/// Estratta da `sync_suggest_subtitles_for_media`: prima viveva solo nel
-/// layer Tauri (non testabile headless, e a rischio di divergere in silenzio
-/// dal resto di questo modulo). Passi, in ordine:
-/// 1. Ruolo esplicito nel nome file (keyword "translated/reference/..." →
-///    target, "native/original/..." → native; a parità sullo stesso file,
-///    target ha priorità).
-/// 2. Corrispondenza di lingua con i default forniti dal chiamante.
-/// 3. Fallback posizionale sui candidati rimasti: il primo libero (nell'ordine
-///    ricevuto) va a target, il successivo a native.
+
 pub fn suggest_target_native_subtitles(
     candidates: &[(PathBuf, i32)],
     default_target_lang: Option<&str>,
@@ -514,7 +476,6 @@ pub fn suggest_target_native_subtitles(
     ];
     const ORIGINAL_KEYWORDS: &[&str] = &["native", "original", "orig", "source"];
 
-    // 1. Ruoli espliciti nel nome file.
     for (path, _) in candidates {
         let Some(stem) = path.file_stem().and_then(|s| s.to_str()) else {
             continue;
@@ -530,7 +491,6 @@ pub fn suggest_target_native_subtitles(
         }
     }
 
-    // 2. Corrispondenza di lingua coi default.
     let matches_lang = |path: &Path, lang: Option<&str>| -> bool {
         let Some(lang) = lang else { return false };
         let Some(stem) = path.file_stem().and_then(|s| s.to_str()) else {
@@ -556,7 +516,6 @@ pub fn suggest_target_native_subtitles(
         }
     }
 
-    // 3. Fallback posizionale: primo candidato libero -> target, poi -> native.
     if target.is_none() {
         target = candidates
             .iter()
@@ -581,11 +540,10 @@ mod tests {
 
     #[test]
     fn extracts_episode_number() {
-        // Pattern SxxEyy ha priorità.
         assert_eq!(extract_episode_number("Show.S01E04.1080p"), Some(4));
-        // Fallback: primo token isolato di 1-3 cifre.
+
         assert_eq!(extract_episode_number("Anime - 07 [1080p]"), Some(7));
-        // "parte2" non è un token di sole cifre, quindi nessun numero.
+
         assert_eq!(extract_episode_number("Detour_parte2"), None);
         assert_eq!(extract_episode_number("NoNumbersHere"), None);
     }
@@ -658,8 +616,6 @@ mod tests {
 
     #[test]
     fn suggest_target_native_falls_back_positionally_without_roles() {
-        // Nessun ruolo esplicito nel nome: il primo candidato (per punteggio,
-        // già ordinato dal chiamante) diventa target, il secondo native.
         let candidates = vec![
             (PathBuf::from("Show.en.srt"), 60),
             (PathBuf::from("Show.it.srt"), 50),
@@ -675,8 +631,6 @@ mod tests {
 
     #[test]
     fn suggest_target_native_matches_default_languages() {
-        // Nessun ruolo esplicito, ma i default di lingua permettono
-        // un'assegnazione più mirata del semplice ordine posizionale.
         let candidates = vec![
             (PathBuf::from("Show.it.srt"), 60),
             (PathBuf::from("Show.en.srt"), 55),
@@ -692,13 +646,12 @@ mod tests {
 
     #[test]
     fn best_confident_requires_clear_lead() {
-        // Vincitore netto: 60 vs 20 → confident.
         let c = vec![(PathBuf::from("a"), 60), (PathBuf::from("b"), 20)];
         assert_eq!(best_confident(c, 12), Some(PathBuf::from("a")));
-        // Punteggio massimo troppo basso → None.
+
         let c = vec![(PathBuf::from("a"), 30)];
         assert_eq!(best_confident(c, 12), None);
-        // Due candidati vicini e secondo ≥ 40 → non confident.
+
         let c = vec![(PathBuf::from("a"), 50), (PathBuf::from("b"), 46)];
         assert_eq!(best_confident(c, 12), None);
     }

@@ -1,5 +1,3 @@
-//! Comandi Tauri per la sincronizzazione di sottotitoli.
-
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
@@ -9,7 +7,6 @@ use srt_sync::{SamplerStrategy, SyncEngine};
 
 use crate::state::AppSyncState;
 
-/// Informazioni su un sottotitolo per il frontend
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SubtitleInfo {
     pub id: u32,
@@ -22,7 +19,6 @@ pub struct SubtitleInfo {
     pub is_anchor: bool,
 }
 
-/// Stato della sincronizzazione per il frontend
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SyncStatus {
     pub is_loaded: bool,
@@ -36,7 +32,6 @@ pub struct SyncStatus {
     pub suggested_next_id: Option<u32>,
 }
 
-/// Info ancora serializzata
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AnchorInfo {
     pub subtitle_id: u32,
@@ -46,7 +41,6 @@ pub struct AnchorInfo {
     pub is_manual: bool,
 }
 
-/// Carica un file SRT per la sincronizzazione
 #[tauri::command]
 pub fn sync_load_srt(state: State<'_, AppSyncState>, path: String) -> Result<SyncStatus, String> {
     let mut sync_state = state.lock().map_err(|e| e.to_string())?;
@@ -74,7 +68,6 @@ pub fn sync_set_video(state: State<'_, AppSyncState>, path: String) -> Result<Sy
     Ok(get_status_from_engine(engine))
 }
 
-/// Ottiene lo stato corrente della sincronizzazione
 #[tauri::command]
 pub fn sync_get_status(state: State<'_, AppSyncState>) -> Result<SyncStatus, String> {
     let sync_state = state.lock().map_err(|e| e.to_string())?;
@@ -137,7 +130,6 @@ pub fn sync_get_subtitles(state: State<'_, AppSyncState>) -> Result<Vec<Subtitle
     Ok(subtitles)
 }
 
-/// Ottiene sottotitoli paginati (per lazy loading)
 #[tauri::command]
 pub fn sync_get_subtitles_range(
     state: State<'_, AppSyncState>,
@@ -190,7 +182,6 @@ pub fn sync_get_subtitle(state: State<'_, AppSyncState>, id: u32) -> Result<Subt
         .ok_or(format!("Impossibile sincronizzare sottotitolo {}", id))
 }
 
-/// Trova il sottotitolo al tempo video specificato
 #[tauri::command]
 pub fn sync_find_subtitle_at_time(
     state: State<'_, AppSyncState>,
@@ -222,7 +213,6 @@ pub fn sync_find_nearest_subtitle(
     Ok(engine.find_nearest_subtitle(time_ms))
 }
 
-/// Aggiunge un'ancora di sincronizzazione
 #[tauri::command]
 pub fn sync_add_anchor(
     state: State<'_, AppSyncState>,
@@ -286,7 +276,6 @@ pub fn sync_get_anchors(state: State<'_, AppSyncState>) -> Result<Vec<AnchorInfo
     Ok(anchors)
 }
 
-/// Suggerisce il prossimo sottotitolo da controllare
 #[tauri::command]
 pub fn sync_suggest_next(state: State<'_, AppSyncState>) -> Result<Option<u32>, String> {
     let sync_state = state.lock().map_err(|e| e.to_string())?;
@@ -325,7 +314,6 @@ pub fn sync_set_strategy(
     Ok(get_status_from_engine(engine))
 }
 
-/// Salva il file SRT sincronizzato
 #[tauri::command]
 pub fn sync_save_file(
     state: State<'_, AppSyncState>,
@@ -365,7 +353,6 @@ pub fn sync_save_session(
     Ok(session_path)
 }
 
-/// Carica una sessione salvata
 #[tauri::command]
 pub fn sync_load_session(
     state: State<'_, AppSyncState>,
@@ -387,7 +374,6 @@ pub fn sync_load_session(
 pub fn sync_reset(state: State<'_, AppSyncState>) -> Result<SyncStatus, String> {
     let mut sync_state = state.lock().map_err(|e| e.to_string())?;
 
-    // Rimuovi completamente l'engine per liberare SRT e video
     sync_state.engine = None;
 
     Ok(SyncStatus {
@@ -403,11 +389,6 @@ pub fn sync_reset(state: State<'_, AppSyncState>) -> Result<SyncStatus, String> 
     })
 }
 
-/// Suggerisce in modo best-effort un file media nella stessa cartella del file SRT.
-/// Restituisce `None` quando il matching non e' sufficientemente affidabile.
-/// Suggerisce in modo best-effort il file media più probabile per un SRT.
-/// La logica di scoring vive in [`srt_sync::matching`] (GUI-agnostica, testabile);
-/// qui resta solo l'adattamento dei tipi per Tauri.
 #[tauri::command]
 pub fn sync_suggest_media_for_srt(srt_path: String) -> Result<Option<String>, String> {
     srt_sync::suggest_media_for_srt(Path::new(&srt_path))
@@ -415,8 +396,6 @@ pub fn sync_suggest_media_for_srt(srt_path: String) -> Result<Option<String>, St
         .map_err(|e| e.to_string())
 }
 
-/// Suggerisce in modo best-effort un file sottotitoli "companion"
-/// nella stessa cartella del file sorgente (es. lingua diversa).
 #[tauri::command]
 pub fn sync_suggest_companion_subtitle_for_srt(srt_path: String) -> Result<Option<String>, String> {
     srt_sync::suggest_companion_subtitle_for_srt(Path::new(&srt_path))
@@ -430,10 +409,6 @@ pub struct SyncSuggestSubtitlesResult {
     pub native: Option<String>,
 }
 
-/// Suggerisce in modo best-effort i file sottotitoli target e native per un
-/// dato media. Lo scoring dei candidati e l'assegnazione dei ruoli vivono in
-/// [`srt_sync::matching`] (GUI-agnostica, testabile); qui resta solo il
-/// filtro di confidenza (punteggio >= 45) e l'adattamento dei tipi per Tauri.
 #[tauri::command]
 pub fn sync_suggest_subtitles_for_media(
     media_path: String,
@@ -457,16 +432,6 @@ pub fn sync_suggest_subtitles_for_media(
     })
 }
 
-/// Prepara un file media per la riproduzione nel browser.
-/// Per formati non nativamente supportati da WebKitGTK (MKV, AVI, FLV, OGM, VOB),
-/// usa ffmpeg per estrarre l'audio in formato OGG (Opus) nella cache dell'app.
-/// Restituisce il percorso del file da riprodurre (originale o transcodificato).
-///
-/// La whitelist dei formati, l'invocazione ffmpeg (con fallback opus->vorbis)
-/// e la cache su disco vivono in [`srt_sync::playback`] (GUI-agnostica,
-/// sincrona); qui restano solo la risoluzione di `app_cache_dir()`/ffmpeg e lo
-/// scheduling su un thread bloccante (la funzione di libreria usa
-/// `std::process::Command`, non `tokio`).
 #[tauri::command]
 pub async fn sync_prepare_media_for_playback(
     app: tauri::AppHandle,
@@ -493,7 +458,6 @@ pub async fn sync_prepare_media_for_playback(
     Ok(output_path.to_string_lossy().to_string())
 }
 
-/// Helper per estrarre lo stato dall'engine
 fn get_status_from_engine(engine: &SyncEngine) -> SyncStatus {
     SyncStatus {
         is_loaded: true,

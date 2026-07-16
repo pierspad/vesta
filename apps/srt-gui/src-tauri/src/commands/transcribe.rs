@@ -1,11 +1,3 @@
-//! Comandi Tauri per la trascrizione audio/video.
-//!
-//! Adapter sottile sopra [`srt_transcribe::pipeline`]: traduce fra il mondo
-//! Tauri (AppHandle, stato gestito, eventi `transcribe-progress` /
-//! `transcribe-segment`) e la pipeline headless media → SRT. Tutta la logica
-//! (download modelli, conversione audio, backend locale/cloud, post-processing
-//! e scrittura SRT) vive nella libreria, condivisa con la CLI `srt-transcribe`.
-
 use std::path::Path;
 use std::sync::Arc;
 
@@ -18,8 +10,6 @@ use srt_transcribe::pipeline::{self, PipelineCallbacks, TranscriptionConfig};
 
 use crate::state::AppTranscribeState;
 
-/// Config della trascrizione: è direttamente quella della pipeline headless
-/// (i nomi dei campi sono il contratto serde con il frontend).
 pub type TranscribeConfig = TranscriptionConfig;
 
 #[derive(Debug, Clone, Serialize)]
@@ -45,7 +35,6 @@ pub struct TranscribeSegmentEvent {
     pub text: String,
 }
 
-/// Costruisce le callback della pipeline che rilanciano gli eventi Tauri.
 fn tauri_callbacks(app: &AppHandle) -> PipelineCallbacks {
     let app_progress = app.clone();
     let app_segment = app.clone();
@@ -74,9 +63,6 @@ fn tauri_callbacks(app: &AppHandle) -> PipelineCallbacks {
     }
 }
 
-// ─── Tauri Commands ──────────────────────────────────────────────────────────
-
-/// Check what Whisper backends are available
 #[tauri::command]
 pub async fn transcribe_check_backends(app: AppHandle) -> Result<serde_json::Value, String> {
     let ffmpeg_cmd = crate::commands::flashcards::media::resolve_ffmpeg_path(Some(&app)).await;
@@ -87,7 +73,6 @@ pub async fn transcribe_check_backends(app: AppHandle) -> Result<serde_json::Val
         .map(|o| o.status.success())
         .unwrap_or(false);
 
-    // whisper-rs is always available (compiled natively)
     Ok(serde_json::json!({
         "ffmpeg": ffmpeg_available,
         "whisper_cpp": true,
@@ -97,13 +82,11 @@ pub async fn transcribe_check_backends(app: AppHandle) -> Result<serde_json::Val
     }))
 }
 
-/// Get list of models with their download status
 #[tauri::command]
 pub async fn transcribe_list_models() -> Result<Vec<WhisperModelInfo>, String> {
     list_models().map_err(|e| e.to_string())
 }
 
-/// Download a specific Whisper model
 #[tauri::command]
 pub async fn transcribe_download_model(
     app: AppHandle,
@@ -193,20 +176,16 @@ pub async fn transcribe_download_vad(
     .map_err(|e| e.to_string())
 }
 
-/// Uninstall (delete) a Silero VAD variant.
 #[tauri::command]
 pub async fn transcribe_uninstall_vad(model_id: String) -> Result<bool, String> {
     srt_transcribe::model::uninstall_vad_model(&model_id).map_err(|e| e.to_string())
 }
 
-/// Whether an arbitrary path exists on disk. Used to validate a
-/// user-picked custom VAD model without round-tripping through a download.
 #[tauri::command]
 pub async fn transcribe_path_exists(path: String) -> bool {
     std::path::Path::new(&path).is_file()
 }
 
-/// Start transcription
 #[tauri::command]
 pub async fn transcribe_start(
     app: AppHandle,
@@ -270,7 +249,6 @@ pub async fn transcribe_cancel(state: State<'_, AppTranscribeState>) -> Result<(
     Ok(())
 }
 
-/// Check if a file exists at the given path
 #[tauri::command]
 pub async fn transcribe_check_file_exists(path: String) -> bool {
     Path::new(&path).exists()

@@ -1,15 +1,8 @@
-/// Informazioni sulla lingua target per la traduzione
 pub struct LanguageInfo {
     pub full_name: &'static str,
     pub examples: &'static str,
 }
 
-/// Mappa i codici lingua ISO ai nomi completi e agli esempi few-shot.
-///
-/// Un `match` su un numero fisso di lingue note è risolto dal compilatore
-/// come salto diretto: niente allocazione di `HashMap` né hashing a runtime
-/// ad ogni chiamata, a differenza della tabella costruita dinamicamente in
-/// precedenza.
 pub fn get_language_info(lang_code: &str) -> LanguageInfo {
     let (full_name, examples) = match lang_code {
         "it" => (

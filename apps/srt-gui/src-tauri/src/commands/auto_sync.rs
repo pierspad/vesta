@@ -1,12 +1,3 @@
-//! Comandi Tauri per l'auto-sync via Whisper.
-//!
-//! Adapter sottile sopra [`srt_autosync`]: traduce fra il mondo Tauri
-//! (AppHandle, stato gestito, eventi `sync-auto-progress`) e il motore
-//! headless che campiona l'audio, trascrive con Whisper e propone anchor
-//! point. L'algoritmo vive nella libreria, condivisa con la CLI
-//! `srt-autosync`; qui restano solo il wiring degli eventi e l'applicazione
-//! delle proposte al `SyncEngine`.
-
 use std::sync::Arc;
 
 use serde::Serialize;
@@ -17,7 +8,6 @@ use srt_autosync::{AutoSyncConfig, AutoSyncProgress, SubtitleLine};
 
 use crate::state::{AppSyncState, AppTranscribeState};
 
-/// Result of auto-sync
 #[derive(Debug, Clone, Serialize)]
 pub struct AutoSyncResult {
     pub success: bool,
@@ -27,7 +17,6 @@ pub struct AutoSyncResult {
     pub message: String,
 }
 
-/// Guard to ensure auto-sync state is cleaned up when function exits
 struct AutoSyncGuard<'a>(&'a AppSyncState);
 
 impl<'a> Drop for AutoSyncGuard<'a> {

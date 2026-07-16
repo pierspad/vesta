@@ -2,21 +2,16 @@ use anyhow::{Context as _, Result, anyhow};
 use std::path::Path;
 use tokio_util::sync::CancellationToken;
 
-/// Build an ffmpeg command with platform-appropriate flags: on Windows the
-/// console window is suppressed and the priority lowered so long conversions
-/// don't freeze the user's machine.
 fn ffmpeg_command(ffmpeg_path: &str) -> tokio::process::Command {
     #[allow(unused_mut)]
     let mut command = tokio::process::Command::new(ffmpeg_path);
     #[cfg(windows)]
     {
-        // CREATE_NO_WINDOW (0x0800_0000) | BELOW_NORMAL_PRIORITY_CLASS (0x0000_4000)
         command.creation_flags(0x0800_4000);
     }
     command
 }
 
-/// Convert input audio/video to 16kHz mono WAV using ffmpeg, with cancellation support
 pub async fn convert_to_wav(
     ffmpeg_path: &str,
     input_path: &Path,
@@ -39,7 +34,6 @@ pub async fn convert_to_wav(
         .take()
         .ok_or_else(|| anyhow!("Failed to capture stderr"))?;
 
-    // Spawn task to read stderr asynchronously to prevent deadlocks
     let stderr_handle = tokio::spawn(async move {
         use tokio::io::AsyncReadExt;
         let mut buf = Vec::new();
@@ -70,11 +64,6 @@ pub async fn convert_to_wav(
     Ok(())
 }
 
-/// Split input audio/video into fixed-length 16kHz mono WAV chunks using ffmpeg's
-/// segment muxer. Returns the chunk file paths in chronological order.
-///
-/// Used by the cloud transcription path: chunk N has timestamps relative to its
-/// own start, so the caller offsets each chunk by `index * segment_seconds`.
 pub async fn segment_to_wav_chunks(
     ffmpeg_path: &str,
     input_path: &Path,
@@ -135,7 +124,6 @@ pub async fn segment_to_wav_chunks(
         anyhow::bail!("FFmpeg audio segmentation failed: {}", stderr);
     }
 
-    // Collect and sort the produced chunks.
     let mut chunks: Vec<std::path::PathBuf> = std::fs::read_dir(out_dir)
         .context("Failed to read segment output dir")?
         .filter_map(|e| e.ok().map(|e| e.path()))
@@ -155,7 +143,6 @@ pub async fn segment_to_wav_chunks(
     Ok(chunks)
 }
 
-/// Read WAV file into f32 samples for whisper-rs, averaging channels if stereo
 pub fn read_wav_to_f32(wav_path: &Path) -> Result<Vec<f32>> {
     let reader = hound::WavReader::open(wav_path).context("Failed to open WAV file")?;
 
@@ -176,7 +163,6 @@ pub fn read_wav_to_f32(wav_path: &Path) -> Result<Vec<f32>> {
             .collect(),
     };
 
-    // If stereo, convert to mono by averaging channels
     if spec.channels == 2 {
         Ok(samples
             .chunks(2)

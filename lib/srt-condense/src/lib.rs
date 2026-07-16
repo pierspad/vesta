@@ -1,20 +1,3 @@
-//! # srt-condense
-//!
-//! Motore headless per il **condensed audio**: estrae dal media solo i
-//! segmenti parlati e li concatena in un unico file audio — il classico
-//! strumento da language learning (riascolti un episodio in metà del tempo,
-//! senza silenzi né musica).
-//!
-//! Due strategie di rilevamento dei segmenti:
-//! - [`CondenseMode::Subtitles`] — i timestamp di un file SRT (veloce,
-//!   nessun modello richiesto);
-//! - [`CondenseMode::Vad`] — Silero VAD via `srt-transcribe` (non richiede
-//!   sottotitoli; serve il modello VAD installato).
-//!
-//! Come gli altri engine del workspace: nessun accoppiamento GUI, progresso
-//! via callback, cancellazione via `CancellationToken`, errori `String`
-//! già presentabili all'utente.
-
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -22,39 +5,33 @@ use serde::{Deserialize, Serialize};
 use srt_parser::SrtParser;
 use tokio_util::sync::CancellationToken;
 
-// ─── Configuration ───────────────────────────────────────────────────────────
-
-/// Strategia di rilevamento dei segmenti parlati.
 #[derive(Debug, Clone, Deserialize)]
 #[serde(tag = "type", rename_all = "lowercase")]
 pub enum CondenseMode {
-    /// Usa i timestamp di un file SRT.
     Subtitles { srt_path: String },
-    /// Usa Silero VAD sull'audio (richiede il modello VAD installato).
+
     Vad,
 }
 
-/// Configurazione di un run di condensazione.
 #[derive(Debug, Clone, Deserialize)]
 pub struct CondenseConfig {
-    /// File media di ingresso (video o audio).
     pub media_path: String,
-    /// File audio di uscita (`.mp3`).
+
     pub output_path: String,
     pub mode: CondenseMode,
-    /// Padding attorno a ogni segmento (ms). Default consigliato: 150.
+
     #[serde(default = "default_pad_ms")]
     pub pad_ms: i64,
-    /// Gap massimo fra segmenti da fondere in uno solo (ms). Default: 1500.
+
     #[serde(default = "default_merge_gap_ms")]
     pub merge_gap_ms: i64,
-    /// Bitrate MP3 di uscita (kb/s). Default: 128.
+
     #[serde(default = "default_bitrate")]
     pub bitrate_kbps: u32,
-    /// Traccia audio da usare (indice 0-based), `None` = default del file.
+
     #[serde(default)]
     pub audio_track_index: Option<usize>,
-    /// Thread per la VAD (`None` = automatico).
+
     #[serde(default)]
     pub n_threads: Option<usize>,
 }
@@ -69,11 +46,9 @@ fn default_bitrate() -> u32 {
     128
 }
 
-/// Evento di progresso.
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CondenseProgress {
-    /// "detect" | "extract" | "concat"
     pub stage: String,
     pub message: String,
     pub current: usize,
@@ -81,29 +56,22 @@ pub struct CondenseProgress {
     pub percentage: f64,
 }
 
-/// Risultato finale.
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CondenseResult {
     pub success: bool,
     pub message: String,
     pub output_path: String,
-    /// Numero di segmenti concatenati.
+
     pub spans: usize,
-    /// Durata dell'audio condensato (somma dei segmenti, ms).
+
     pub output_duration_ms: i64,
-    /// Durata del media originale (ms, 0 = sconosciuta).
+
     pub input_duration_ms: i64,
 }
 
 pub type CondenseCallback<'a> = &'a (dyn Fn(CondenseProgress) + Send + Sync);
 
-// ─── Engine ──────────────────────────────────────────────────────────────────
-
-/// Costruisce il condensed audio secondo `config`.
-///
-/// `ffmpeg_cmd` può essere un comando in `PATH` ("ffmpeg") o un percorso
-/// assoluto a un binario bundled.
 pub async fn condense(
     config: CondenseConfig,
     ffmpeg_cmd: &str,

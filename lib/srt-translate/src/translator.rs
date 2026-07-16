@@ -9,34 +9,26 @@ use crate::prompts::{
     build_single_translation_prompt,
 };
 
-/// Tipo di API da utilizzare
-/// Supporta provider nativi (Google) e OpenAI-compatible (Local, OpenRouter)
 #[derive(Debug, Clone, PartialEq)]
 pub enum ApiType {
-    /// Server locale (Ollama, LM Studio) - nessuna API key richiesta
     Local,
-    /// Google Gemini API nativa - richiede API key Google (AIza...)
+
     Google,
-    /// Groq API - Inferenza ultra-veloce su LPU (OpenAI-compatible)
+
     Groq,
-    /// OpenRouter o qualsiasi API OpenAI-compatible - richiede API key (DISABILITATO per ora)
+
     #[allow(dead_code)]
     OpenRouter,
 }
 
-/// Configurazione del traduttore
 #[derive(Clone)]
 pub struct TranslatorConfig {
-    /// URL base per l'API
-    /// - Local: http://localhost:11434/v1 (Ollama) o http://localhost:1234/v1 (LM Studio)
-    /// - Google: https://generativelanguage.googleapis.com/v1beta
-    /// - OpenRouter: https://openrouter.ai/api/v1 (disabilitato)
     pub base_url: String,
-    /// Nome del modello (es: llama3.2, gemini-2.0-flash)
+
     pub model: String,
-    /// API key (richiesta per Google/OpenRouter, opzionale per Local)
+
     pub api_key: Option<String>,
-    /// Tipo di API da utilizzare
+
     pub api_type: ApiType,
 }
 
@@ -67,7 +59,6 @@ impl Translator {
         Self { config, client }
     }
 
-    /// Traduce un singolo testo - sceglie il formato in base al tipo di API
     pub async fn translate(
         &self,
         text: &str,
@@ -82,8 +73,6 @@ impl Translator {
         }
     }
 
-    /// Traduce un singolo sottotitolo con contesto aggiuntivo dai sottotitoli circostanti
-    /// Usato principalmente per il repair di sottotitoli mancanti
     pub async fn translate_with_context(
         &self,
         text: &str,
@@ -113,7 +102,6 @@ impl Translator {
         }
     }
 
-    /// Traduce un batch di testi - sceglie il formato in base al tipo di API
     pub async fn translate_batch(
         &self,
         texts_with_ids: &[(u32, String)],
@@ -132,7 +120,6 @@ impl Translator {
         }
     }
 
-    /// Invia un prompt generico all'LLM configurato e ritorna la risposta testuale
     pub async fn generate_response(&self, prompt: &str) -> Result<String> {
         match self.config.api_type {
             ApiType::Google => self.call_google_api(prompt).await,
@@ -142,9 +129,6 @@ impl Translator {
         }
     }
 
-    // ============== GOOGLE GEMINI API NATIVE ==============
-
-    /// Traduzione singola usando Google Gemini API nativa
     async fn translate_google(
         &self,
         text: &str,
@@ -155,7 +139,6 @@ impl Translator {
         self.call_google_api(&prompt).await
     }
 
-    /// Traduzione batch usando Google Gemini API nativa
     async fn translate_batch_google(
         &self,
         texts_with_ids: &[(u32, String)],
@@ -165,12 +148,10 @@ impl Translator {
         let prompt = build_batch_translation_prompt(texts_with_ids, target_lang, context);
         let result_text = self.call_google_api(&prompt).await?;
 
-        // Parse JSON result
         let translations = parse_json_translations(&result_text, texts_with_ids.len())?;
         Ok(translations)
     }
 
-    /// Traduzione con contesto usando Google Gemini API nativa
     async fn translate_with_context_google(
         &self,
         text: &str,
@@ -187,7 +168,6 @@ impl Translator {
         self.call_google_api(&prompt).await
     }
 
-    /// Chiamata generica all'API Google Gemini con retry automatico su 429
     async fn call_google_api(&self, prompt: &str) -> Result<String> {
         #[derive(Serialize)]
         struct Part {
@@ -244,8 +224,6 @@ impl Translator {
             .as_ref()
             .ok_or_else(|| anyhow::anyhow!("Google API key is required"))?;
 
-        // Formato URL Google: /v1beta/models/{model}:generateContent?key=API_KEY
-        // Pass key as both query param AND header for maximum compatibility
         let url = format!(
             "{}/models/{}:generateContent?key={}",
             self.config.base_url.trim_end_matches('/'),
@@ -285,7 +263,6 @@ impl Translator {
             let status = http_response.status();
             let response_text = http_response.text().await?;
 
-            // Retry on 429 / 5xx with backoff; otherwise fall through to parse.
             if let Some(delay) = retry_backoff(status, &response_text, attempt, MAX_RETRIES) {
                 sleep(delay).await;
                 continue;
@@ -308,7 +285,6 @@ impl Translator {
                 )
             })?;
 
-            // Controlla errori
             if let Some(ref error) = response.error {
                 let error_msg = error
                     .message
@@ -318,7 +294,6 @@ impl Translator {
                 anyhow::bail!("Google API error (code {}): {}", error_code, error_msg);
             }
 
-            // Estrai il testo dalla risposta
             let text = response
                 .candidates
                 .and_then(|c| c.into_iter().next())
@@ -343,7 +318,6 @@ impl Translator {
         )
     }
 
-    // ============== OPENAI-COMPATIBLE API ==============
     async fn translate_openai(
         &self,
         text: &str,
@@ -355,7 +329,6 @@ impl Translator {
         Ok(result.trim().trim_matches('"').to_string())
     }
 
-    /// Traduzione batch usando API OpenAI-compatible
     async fn translate_batch_openai(
         &self,
         texts_with_ids: &[(u32, String)],
@@ -365,12 +338,10 @@ impl Translator {
         let prompt = build_batch_translation_prompt(texts_with_ids, target_lang, context);
         let result_text = self.call_openai_api(&prompt).await?;
 
-        // Parse JSON result
         let translations = parse_json_translations(&result_text, texts_with_ids.len())?;
         Ok(translations)
     }
 
-    /// Traduzione con contesto migliorato usando API OpenAI-compatible
     async fn translate_with_context_openai(
         &self,
         text: &str,
@@ -388,7 +359,6 @@ impl Translator {
         Ok(result.trim().trim_matches('"').to_string())
     }
 
-    /// Chiamata generica all'API OpenAI-compatible con retry automatico su 429
     async fn call_openai_api(&self, prompt: &str) -> Result<String> {
         #[derive(Serialize, Deserialize)]
         struct Message {
@@ -453,7 +423,6 @@ impl Translator {
             let status = http_response.status();
             let response_text = http_response.text().await?;
 
-            // Retry on 429 / 5xx with backoff; otherwise fall through to parse.
             if let Some(delay) = retry_backoff(status, &response_text, attempt, MAX_RETRIES) {
                 sleep(delay).await;
                 continue;
@@ -504,12 +473,6 @@ impl Translator {
     }
 }
 
-/// Decide whether an HTTP response should be retried, shared by every API path.
-///
-/// Returns the delay to wait before the next attempt — server-suggested for a
-/// `429`, exponential (`5·2^attempt` s) for a `5xx` — or `None` to stop retrying
-/// and process the response as-is. Logs the reason. Once `attempt` reaches
-/// `max_retries` no further retry is offered.
 fn retry_backoff(
     status: reqwest::StatusCode,
     body: &str,
@@ -543,43 +506,31 @@ fn retry_backoff(
     None
 }
 
-/// Parse the retry delay from a rate-limit error response body.
-/// Looks for patterns like "Please retry in 42.3s" or "retry after 60 seconds".
-/// Returns a Duration capped between 1s and 120s, defaulting to 60s if no hint is found.
 fn parse_retry_delay(response_body: &str) -> Duration {
-    // Try "retry in X.Xs" (Google Gemini format)
     if let Some(pos) = response_body.find("retry in ") {
         let after = &response_body[pos + 9..];
-        // Extract the numeric part (possibly with decimals)
+
         let num_str: String = after
             .chars()
             .take_while(|c| c.is_ascii_digit() || *c == '.')
             .collect();
         if let Ok(secs) = num_str.parse::<f64>() {
             let clamped = secs.clamp(1.0, 120.0);
-            // Add a small buffer to avoid hitting the limit immediately
+
             return Duration::from_secs_f64(clamped + 2.0);
         }
     }
-    // Default: 60 seconds
+
     Duration::from_secs(60)
 }
 
-/// Struttura per deserializzare le traduzioni JSON dall'LLM
 #[derive(Deserialize, Debug)]
 struct TranslationItem {
     id: u32,
     text: String,
 }
 
-/// Parsa la risposta JSON dell'LLM in una HashMap di traduzioni
-///
-/// Questa funzione è robusta e gestisce:
-/// - JSON puro
-/// - JSON racchiuso in code blocks markdown (```json ... ```)
-/// - Variazioni minori nel formato
 fn parse_json_translations(response: &str, expected_count: usize) -> Result<HashMap<u32, String>> {
-    // Rimuovi eventuali code blocks markdown
     let cleaned = response
         .trim()
         .trim_start_matches("```json")
@@ -587,22 +538,19 @@ fn parse_json_translations(response: &str, expected_count: usize) -> Result<Hash
         .trim_end_matches("```")
         .trim();
 
-    // Trova l'array JSON (cerca '[' e ']')
     let json_start = cleaned.find('[');
     let json_end = cleaned.rfind(']');
 
     let json_str = match (json_start, json_end) {
         (Some(start), Some(end)) if end > start => &cleaned[start..=end],
-        _ => cleaned, // Prova comunque con l'intero contenuto
+        _ => cleaned,
     };
 
-    // Prova a parsare come array di TranslationItem
     match serde_json::from_str::<Vec<TranslationItem>>(json_str) {
         Ok(items) => {
             let translations: HashMap<u32, String> =
                 items.into_iter().map(|item| (item.id, item.text)).collect();
 
-            // Verifica che abbiamo tutte le traduzioni
             if translations.len() != expected_count {
                 anyhow::bail!(
                     "Batch translation incomplete: expected {} translations, got {}",
@@ -614,8 +562,6 @@ fn parse_json_translations(response: &str, expected_count: usize) -> Result<Hash
             Ok(translations)
         }
         Err(e) => {
-            // Fallback: prova parsing legacy per retrocompatibilità
-            // (nel caso l'LLM risponda con il vecchio formato)
             if let Some(translations) = try_legacy_parsing(cleaned, expected_count) {
                 return Ok(translations);
             }
@@ -629,7 +575,6 @@ fn parse_json_translations(response: &str, expected_count: usize) -> Result<Hash
     }
 }
 
-/// Fallback al parsing legacy (ID: X | TRANSLATION: Y) per retrocompatibilità
 fn try_legacy_parsing(text: &str, expected_count: usize) -> Option<HashMap<u32, String>> {
     let mut translations = HashMap::new();
     let mut current_id: Option<u32> = None;
@@ -637,20 +582,17 @@ fn try_legacy_parsing(text: &str, expected_count: usize) -> Option<HashMap<u32, 
 
     for line in text.lines() {
         let line_lower = line.to_lowercase();
-        // Supporta varianti: "ID:", "id:", "Subtitle ID:", etc.
+
         if line_lower.starts_with("id:") || line_lower.contains("id:") {
-            // Salva la traduzione precedente se esiste
             if let Some(id) = current_id {
                 translations.insert(id, current_translation.trim().to_string());
             }
 
-            // Cerca il pattern ID e TRANSLATION
             if let Some((id_part, trans_part)) = line.split_once('|') {
-                // Estrai l'ID numerico
                 let id_str: String = id_part.chars().filter(|c| c.is_ascii_digit()).collect();
                 if let Ok(id) = id_str.parse::<u32>() {
                     current_id = Some(id);
-                    // Rimuovi eventuali prefissi come "TRANSLATION:" (case-insensitive)
+
                     let trans = trans_part
                         .trim()
                         .trim_start_matches(|c: char| !c.is_alphabetic() || c.is_ascii_uppercase())
@@ -662,7 +604,6 @@ fn try_legacy_parsing(text: &str, expected_count: usize) -> Option<HashMap<u32, 
                 }
             }
         } else if current_id.is_some() && !line.trim().is_empty() {
-            // Aggiungi riga alla traduzione corrente
             if !current_translation.is_empty() {
                 current_translation.push('\n');
             }
@@ -670,7 +611,6 @@ fn try_legacy_parsing(text: &str, expected_count: usize) -> Option<HashMap<u32, 
         }
     }
 
-    // Salva l'ultima traduzione
     if let Some(id) = current_id {
         translations.insert(id, current_translation.trim().to_string());
     }

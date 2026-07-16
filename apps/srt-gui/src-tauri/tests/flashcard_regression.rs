@@ -1,34 +1,17 @@
-//! Flashcard regression tests.
-//!
-//! These tests exercise the pure-logic parts of the flashcard pipeline
-//! (parsing, matching, filtering, TSV/APKG generation) using small fixture
-//! clips created from Test_Subs/SERIE_TV/Detour_parte1.
-//!
-//! The tests produce deterministic outputs and compare SHA-256 hashes so
-//! that an agentic LLM can freely refactor the generation code and verify
-//! that the logical output has not changed.
-//!
-//! Run with:
-//!     cargo test --package vesta --test flashcard_regression -- --nocapture
-
 use sha2::{Digest, Sha256};
 use std::path::PathBuf;
 
-// Re-use the library crate which re-exports commands::flashcards
 use vesta_lib::commands::flashcards::*;
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
 fn fixtures_dir() -> PathBuf {
-    // Navigate from src-tauri/tests/ up to project root, then into Test_Subs/fixtures
     let manifest = std::env::var("CARGO_MANIFEST_DIR").unwrap();
     PathBuf::from(manifest)
         .parent()
-        .unwrap() // srt-gui
+        .unwrap()
         .parent()
-        .unwrap() // apps
+        .unwrap()
         .parent()
-        .unwrap() // vesta root
+        .unwrap()
         .join("Test_Subs/fixtures")
 }
 
@@ -43,8 +26,6 @@ fn sha256_str(data: &str) -> String {
     result.iter().map(|b| format!("{:02x}", b)).collect()
 }
 
-/// Build a minimal FlashcardConfig for text-only tests (no media extraction).
-/// Only the subtitle paths, output dir and deck differ from the text-only defaults.
 fn text_only_config(target: &str, native: Option<&str>, deck: &str) -> FlashcardConfig {
     FlashcardConfig {
         target_subs_path: target.to_string(),
@@ -55,8 +36,6 @@ fn text_only_config(target: &str, native: Option<&str>, deck: &str) -> Flashcard
         ..FlashcardConfig::default()
     }
 }
-
-// ─── SRT Parsing Tests ───────────────────────────────────────────────────────
 
 #[test]
 fn test_parse_clip02_en_count() {
@@ -96,8 +75,6 @@ fn test_parse_all_clips_counts() {
     }
 }
 
-// ─── Preview / Matching Tests ────────────────────────────────────────────────
-
 #[test]
 fn test_preview_dual_subs_clip02() {
     let rt = tokio::runtime::Runtime::new().unwrap();
@@ -108,15 +85,12 @@ fn test_preview_dual_subs_clip02() {
     );
     let preview = rt.block_on(flashcard_preview(config)).unwrap();
 
-    // All lines should be active (no filters)
     let active_count = preview.iter().filter(|l| l.active).count();
     assert!(active_count > 0, "Should have active lines");
 
-    // Every line should have a subs2 match (same count, same timestamps)
     let with_subs2 = preview.iter().filter(|l| l.subs2_text.is_some()).count();
     assert!(with_subs2 > 0, "Should have subs2 matches");
 
-    // Verify the text content is stable by hashing all subs1 texts
     let all_subs1: String = preview
         .iter()
         .map(|l| l.subs1_text.as_str())
@@ -124,10 +98,10 @@ fn test_preview_dual_subs_clip02() {
         .join("|");
     let hash = sha256_str(&all_subs1);
     eprintln!("[regression] clip_02 preview subs1 hash: {}", hash);
-    // Store this hash as reference — future runs must match
+
     assert_eq!(
         hash,
-        sha256_str(&all_subs1), // self-check; update with known-good hash after first run
+        sha256_str(&all_subs1),
         "subs1 text hash changed — logic may have been altered"
     );
 }
@@ -138,11 +112,9 @@ fn test_preview_single_sub_clip03() {
     let config = text_only_config(&fixture_path("clip_03_en.srt"), None, "test_single");
     let preview = rt.block_on(flashcard_preview(config)).unwrap();
     assert_eq!(preview.len(), 27, "clip_03 should produce 27 preview lines");
-    // No subs2 when native is None
+
     assert!(preview.iter().all(|l| l.subs2_text.is_none()));
 }
-
-// ─── Filter Tests ────────────────────────────────────────────────────────────
 
 #[test]
 fn test_filter_min_chars() {
@@ -151,7 +123,7 @@ fn test_filter_min_chars() {
     config.filters.min_chars = Some(20);
     let preview = rt.block_on(flashcard_preview(config)).unwrap();
     let active: Vec<_> = preview.iter().filter(|l| l.active).collect();
-    // All active lines should have >= 20 chars
+
     for line in &active {
         assert!(
             line.subs1_text.chars().count() >= 20,
@@ -199,13 +171,11 @@ fn test_filter_max_duration() {
     }
 }
 
-// ─── Span Tests ──────────────────────────────────────────────────────────────
-
 #[test]
 fn test_span_filter() {
     let rt = tokio::runtime::Runtime::new().unwrap();
     let mut config = text_only_config(&fixture_path("clip_02_en.srt"), None, "test_span");
-    // Only include lines between 30s and 60s
+
     config.span_start_ms = Some(30_000);
     config.span_end_ms = Some(60_000);
     let preview = rt.block_on(flashcard_preview(config)).unwrap();
@@ -217,8 +187,6 @@ fn test_span_filter() {
     }
 }
 
-// ─── Context Lines Tests ─────────────────────────────────────────────────────
-
 #[test]
 fn test_context_lines() {
     let rt = tokio::runtime::Runtime::new().unwrap();
@@ -227,7 +195,7 @@ fn test_context_lines() {
     config.context.trailing = 1;
     config.context.max_gap_seconds = 30.0;
     let preview = rt.block_on(flashcard_preview(config)).unwrap();
-    // Middle lines should have both leading and trailing context
+
     if preview.len() > 2 {
         let mid = &preview[preview.len() / 2];
         assert!(
@@ -236,8 +204,6 @@ fn test_context_lines() {
         );
     }
 }
-
-// ─── Sentence Combining Tests ────────────────────────────────────────────────
 
 #[test]
 fn test_sentence_combining() {
@@ -251,7 +217,6 @@ fn test_sentence_combining() {
         text_only_config(&fixture_path("clip_02_en.srt"), None, "test_no_combine");
     let preview_raw = rt.block_on(flashcard_preview(config_no_combine)).unwrap();
 
-    // Combined should have fewer or equal lines
     assert!(
         preview_combined.len() <= preview_raw.len(),
         "Combining should reduce line count: {} > {}",
@@ -259,8 +224,6 @@ fn test_sentence_combining() {
         preview_raw.len()
     );
 }
-
-// ─── Time Shift Tests ────────────────────────────────────────────────────────
 
 #[test]
 fn test_time_shift_target() {
@@ -274,21 +237,13 @@ fn test_time_shift_target() {
     let preview_shifted = rt.block_on(flashcard_preview(config_shifted)).unwrap();
 
     assert_eq!(preview_base.len(), preview_shifted.len());
-    // Each shifted line should be +500ms
+
     for (base, shifted) in preview_base.iter().zip(preview_shifted.iter()) {
         assert_eq!(shifted.start_ms, base.start_ms + 500);
         assert_eq!(shifted.end_ms, base.end_ms + 500);
     }
 }
 
-// ─── Hash Regression: Record Known-Good Hashes ──────────────────────────────
-//
-// This test prints SHA-256 hashes of all preview outputs.
-// After first run, copy the hashes into the assertions below.
-// Future refactors MUST produce identical hashes.
-
-/// Known-good regression hashes. If ANY of these change, the flashcard
-/// pipeline logic has been modified and the change must be validated.
 #[test]
 fn test_regression_hashes() {
     let rt = tokio::runtime::Runtime::new().unwrap();

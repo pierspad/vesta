@@ -1,25 +1,3 @@
-//! # srt-autosync
-//!
-//! GUI-agnostic engine for automatic subtitle-to-audio alignment.
-//!
-//! The algorithm (the same one behind Vesta's "Auto Sync" button):
-//!
-//! 1. sample N strategic positions across the media file (12×20s in quick
-//!    mode, 24×40s in precise mode);
-//! 2. extract each position to 16 kHz mono WAV via FFmpeg, skipping silent
-//!    windows (retrying at shifted positions);
-//! 3. transcribe every segment with Whisper (word timestamps enabled);
-//! 4. fuzzy-match transcribed text against the subtitle lines near that
-//!    time (±45 s window, temporal weighting);
-//! 5. estimate the dominant global offset by density (matches whose offset
-//!    disagrees with the consensus are discarded — "geometric verification");
-//! 6. keep the best match per subtitle and space anchors ≥ 30 s apart.
-//!
-//! The output is a list of [`AnchorSuggestion`]s: the caller decides how to
-//! apply them (e.g. feed them to `srt_sync::SyncEngine::add_anchor`). Progress
-//! is reported through a plain callback and cancellation through a
-//! [`CancellationToken`] — no UI framework involved.
-
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -33,9 +11,6 @@ use srt_transcribe::transcribe::{
     TranscribeOptions, TranscribedSegment, text_similarity, transcribe_full,
 };
 
-// ─── Public types ────────────────────────────────────────────────────────────
-
-/// A subtitle line to align against (id + original start time + text).
 #[derive(Debug, Clone)]
 pub struct SubtitleLine {
     pub id: u32,
@@ -43,26 +18,21 @@ pub struct SubtitleLine {
     pub text: String,
 }
 
-/// Configuration for an auto-sync run.
 #[derive(Debug, Clone)]
 pub struct AutoSyncConfig {
-    /// Media file (video or audio) the subtitles should be aligned to.
     pub media_path: String,
-    /// Path to a downloaded ggml Whisper model
-    /// (see `srt_transcribe::model::model_file_path`).
+
     pub model_path: PathBuf,
-    /// Spoken language hint (None = autodetect).
+
     pub language: Option<String>,
-    /// Quick mode: fewer, shorter samples (12×20 s instead of 24×40 s).
+
     pub quick: bool,
-    /// ffmpeg executable (path or command on PATH).
+
     pub ffmpeg_cmd: String,
-    /// ffprobe executable (path or command on PATH).
+
     pub ffprobe_cmd: String,
 }
 
-/// A suggested anchor point: subtitle `subtitle_id`, whose line originally
-/// starts at `original_start_ms`, actually spoken at `corrected_time_ms`.
 #[derive(Debug, Clone, Serialize)]
 pub struct AnchorSuggestion {
     pub subtitle_id: u32,
@@ -72,7 +42,6 @@ pub struct AnchorSuggestion {
     pub score: f64,
 }
 
-/// Result of an auto-sync run.
 #[derive(Debug, Clone)]
 pub struct AutoSyncOutcome {
     pub suggestions: Vec<AnchorSuggestion>,
@@ -80,8 +49,6 @@ pub struct AutoSyncOutcome {
     pub cancelled: bool,
 }
 
-/// Progress update. `message_key`/`params` carry a stable identifier and its
-/// interpolation parameters so UI layers can localize messages.
 #[derive(Debug, Clone, Serialize)]
 pub struct AutoSyncProgress {
     pub stage: String,
@@ -91,12 +58,8 @@ pub struct AutoSyncProgress {
     pub params: Option<HashMap<String, String>>,
 }
 
-/// Callback invoked with progress updates.
 pub type ProgressCallback = Arc<dyn Fn(AutoSyncProgress) + Send + Sync>;
 
-// ─── Internals ───────────────────────────────────────────────────────────────
-
-/// A candidate match between a transcribed segment and an SRT subtitle.
 #[derive(Debug, Clone)]
 struct MatchCandidate {
     subtitle_id: u32,
@@ -106,7 +69,6 @@ struct MatchCandidate {
     score: f64,
 }
 
-/// Extract a short audio segment from the media file using FFmpeg.
 fn extract_audio_segment(
     media_path: &str,
     start_sec: f64,
@@ -142,7 +104,6 @@ fn extract_audio_segment(
     Ok(())
 }
 
-/// True when the RMS of the samples is under `threshold`.
 fn is_silent(samples: &[f32], threshold: f32) -> bool {
     if samples.is_empty() {
         return true;
@@ -163,8 +124,6 @@ fn format_mm_ss(total_seconds: f64) -> String {
     format!("{:02}:{:02}", clamped / 60, clamped % 60)
 }
 
-/// Penalize weak temporal alignments so text matches far away from their
-/// expected subtitle region are less likely to become anchors.
 fn temporal_weight(time_diff_ms: i64) -> f64 {
     if time_diff_ms <= 8_000 {
         return 1.0;
@@ -176,7 +135,6 @@ fn temporal_weight(time_diff_ms: i64) -> f64 {
     1.0 - (normalized * 0.35)
 }
 
-/// Get media duration in seconds using ffprobe.
 pub async fn get_media_duration(media_path: &str, ffprobe_cmd: &str) -> Result<f64> {
     let output = tokio::process::Command::new(ffprobe_cmd)
         .args([
@@ -210,9 +168,6 @@ struct PreparedSegment {
     _wav_path: PathBuf,
 }
 
-// Worker for a single segment of the auto-sync fan-out: the parameters are
-// independent (positions, durations, paths, ffmpeg command) and the function
-// is internal, so grouping them in a struct would add ceremony over clarity.
 #[allow(clippy::too_many_arguments)]
 async fn prepare_single_segment(
     idx: usize,
@@ -333,13 +288,6 @@ fn emit(
     }
 }
 
-// ─── Entry point ─────────────────────────────────────────────────────────────
-
-/// Run the full auto-sync analysis and return anchor suggestions.
-///
-/// The caller applies the suggestions however it sees fit — typically by
-/// filtering out those too close to already-existing anchors and feeding the
-/// rest to `srt_sync::SyncEngine::add_anchor(id, corrected_time_ms, false)`.
 pub async fn run_auto_sync(
     config: &AutoSyncConfig,
     subtitles: Vec<SubtitleLine>,
@@ -367,7 +315,6 @@ pub async fn run_auto_sync(
         anyhow::bail!("Media file too short or unable to detect duration");
     }
 
-    // Segment duration and sample positions (quick = brief, !quick = precise).
     let quick = config.quick;
     let segment_duration = if quick { 20.0 } else { 40.0 };
     let num_samples = if quick { 12 } else { 24 };
@@ -401,7 +348,6 @@ pub async fn run_auto_sync(
     let temp_dir = tempfile::tempdir().context("Failed to create temp dir")?;
     let temp_dir_path = temp_dir.path().to_path_buf();
 
-    // Concurrently prepare all segments using a CPU-bounded semaphore.
     emit(
         &on_progress,
         "prepare",
@@ -456,7 +402,6 @@ pub async fn run_auto_sync(
         }
     }
 
-    // Sort chronologically to preserve geometric alignment sequence.
     prepared_segments.sort_by_key(|s| s.idx);
 
     emit(
@@ -560,7 +505,6 @@ pub async fn run_auto_sync(
                     .collect();
 
                 for tseg in &adjusted_segments {
-                    // Tiny or one-word fragments are very noisy for alignment.
                     if tseg.text.split_whitespace().count() < 2 {
                         continue;
                     }
@@ -614,8 +558,6 @@ pub async fn run_auto_sync(
         });
     }
 
-    // Estimate the dominant global offset by density: the offset shared by the
-    // largest cluster of matches (±15 s) wins.
     let mut best_offset = 0i64;
     let mut max_dense_count = 0;
 
@@ -634,7 +576,6 @@ pub async fn run_auto_sync(
         }
     }
 
-    // Geometric verification: drop matches disagreeing with the consensus.
     let geometrically_verified: Vec<MatchCandidate> = all_matches
         .into_iter()
         .filter(|m| {
@@ -643,7 +584,6 @@ pub async fn run_auto_sync(
         })
         .collect();
 
-    // Best match per subtitle.
     let mut best_per_sub: HashMap<u32, MatchCandidate> = HashMap::new();
     for m in geometrically_verified {
         let entry = best_per_sub
@@ -657,7 +597,6 @@ pub async fn run_auto_sync(
     let mut final_matches: Vec<MatchCandidate> = best_per_sub.into_values().collect();
     final_matches.sort_by_key(|m| m.original_start_ms);
 
-    // Space anchors at least 30 s apart.
     let mut suggestions: Vec<AnchorSuggestion> = Vec::new();
     let mut last_time: Option<i64> = None;
     for m in final_matches {

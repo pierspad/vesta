@@ -2,8 +2,6 @@ use std::collections::HashSet;
 
 use super::types::*;
 
-// ─── Filters ─────────────────────────────────────────────────────────────────
-
 pub(crate) fn apply_filters(lines: &mut [MatchedLine], filters: &SubtitleFilters) {
     let include_set: Option<Vec<String>> = filters.include_words.as_ref().map(|w| {
         w.split(',')
@@ -19,11 +17,9 @@ pub(crate) fn apply_filters(lines: &mut [MatchedLine], filters: &SubtitleFilters
             .collect()
     });
 
-    // Collect texts for duplicate detection
     let mut seen_subs1: HashSet<String> = HashSet::new();
     let mut seen_subs2: HashSet<String> = HashSet::new();
 
-    // Actor filter
     let actor_filter: Option<Vec<String>> = filters.actor_filter.as_ref().map(|a| {
         a.split(',')
             .map(|s| s.trim().to_lowercase())
@@ -39,7 +35,6 @@ pub(crate) fn apply_filters(lines: &mut [MatchedLine], filters: &SubtitleFilters
         let text_lower = line.subs1.text.to_lowercase();
         let duration = line.subs1.end_ms - line.subs1.start_ms;
 
-        // Include words filter
         if let Some(ref words) = include_set
             && !words.iter().any(|w| text_lower.contains(w))
         {
@@ -47,7 +42,6 @@ pub(crate) fn apply_filters(lines: &mut [MatchedLine], filters: &SubtitleFilters
             continue;
         }
 
-        // Exclude words filter
         if let Some(ref words) = exclude_set
             && words.iter().any(|w| text_lower.contains(w))
         {
@@ -55,7 +49,6 @@ pub(crate) fn apply_filters(lines: &mut [MatchedLine], filters: &SubtitleFilters
             continue;
         }
 
-        // Exclude duplicates subs1
         if filters.exclude_duplicates_subs1 {
             let normalized = line.subs1.text.trim().to_string();
             if seen_subs1.contains(&normalized) {
@@ -65,7 +58,6 @@ pub(crate) fn apply_filters(lines: &mut [MatchedLine], filters: &SubtitleFilters
             seen_subs1.insert(normalized);
         }
 
-        // Exclude duplicates subs2
         if filters.exclude_duplicates_subs2
             && let Some(ref s2) = line.subs2
         {
@@ -77,7 +69,6 @@ pub(crate) fn apply_filters(lines: &mut [MatchedLine], filters: &SubtitleFilters
             seen_subs2.insert(normalized);
         }
 
-        // Min/max character length
         if let Some(min) = filters.min_chars
             && line.subs1.text.chars().count() < min
         {
@@ -91,7 +82,6 @@ pub(crate) fn apply_filters(lines: &mut [MatchedLine], filters: &SubtitleFilters
             continue;
         }
 
-        // Min/max duration
         if let Some(min) = filters.min_duration_ms
             && duration < min
         {
@@ -105,16 +95,13 @@ pub(crate) fn apply_filters(lines: &mut [MatchedLine], filters: &SubtitleFilters
             continue;
         }
 
-        // Exclude styled lines (ASS)
         if filters.exclude_styled && line.subs1.text.starts_with('{') {
             line.active = false;
             continue;
         }
 
-        // Actor filter (ASS only)
         if let Some(ref actors) = actor_filter {
             let Some(ref actor) = line.subs1.actor else {
-                // No actor info, filter out if actor filter is set
                 line.active = false;
                 continue;
             };
@@ -124,14 +111,13 @@ pub(crate) fn apply_filters(lines: &mut [MatchedLine], filters: &SubtitleFilters
             }
         }
 
-        // Only CJK characters
         if filters.only_cjk {
             let has_cjk = line.subs1.text.chars().any(|c| {
                 matches!(c,
-                    '\u{4E00}'..='\u{9FFF}' |  // CJK Unified Ideographs
-                    '\u{3400}'..='\u{4DBF}' |  // CJK Extension A
-                    '\u{3040}'..='\u{309F}' |  // Hiragana
-                    '\u{30A0}'..='\u{30FF}'    // Katakana
+                    '\u{4E00}'..='\u{9FFF}' |
+                    '\u{3400}'..='\u{4DBF}' |
+                    '\u{3040}'..='\u{309F}' |
+                    '\u{30A0}'..='\u{30FF}'
                 )
             });
             if !has_cjk {
@@ -140,14 +126,11 @@ pub(crate) fn apply_filters(lines: &mut [MatchedLine], filters: &SubtitleFilters
             }
         }
 
-        // Remove lines with no subs2 match
         if filters.remove_no_match && line.subs2.is_none() {
             line.active = false;
         }
     }
 }
-
-// ─── Sentence Combining ─────────────────────────────────────────────────────
 
 pub(crate) fn combine_sentences(lines: &mut Vec<MatchedLine>, continuation_chars: &str) {
     if continuation_chars.is_empty() {
@@ -175,25 +158,21 @@ pub(crate) fn combine_sentences(lines: &mut Vec<MatchedLine>, continuation_chars
             lines[i].subs1.text = format!("{} {}", lines[i].subs1.text, next_text);
             lines[i].subs1.end_ms = next_end;
 
-            // Combine subs2 too if both present
             if let (Some(s2), Some(next_s2)) = (&mut lines[i].subs2, next_s2) {
                 s2.text = format!("{} {}", s2.text, next_s2.text);
                 s2.end_ms = next_s2.end_ms;
             }
 
             lines.remove(i + 1);
-            // Reindex
+
             for (j, m) in lines.iter_mut().enumerate() {
                 m.index = j;
             }
-            // Don't advance i - might need to combine more
         } else {
             i += 1;
         }
     }
 }
-
-// ─── Context Lines ───────────────────────────────────────────────────────────
 
 pub(crate) fn compute_context(lines: &mut [MatchedLine], ctx: &ContextConfig) {
     if ctx.leading == 0 && ctx.trailing == 0 {
@@ -207,7 +186,6 @@ pub(crate) fn compute_context(lines: &mut [MatchedLine], ctx: &ContextConfig) {
         let mut leading = Vec::new();
         let mut trailing = Vec::new();
 
-        // Leading context
         for j in 1..=ctx.leading {
             if i < j {
                 break;
@@ -221,7 +199,6 @@ pub(crate) fn compute_context(lines: &mut [MatchedLine], ctx: &ContextConfig) {
         }
         leading.reverse();
 
-        // Trailing context
         for j in 1..=ctx.trailing {
             let next_idx = i + j;
             if next_idx >= len {
@@ -238,8 +215,6 @@ pub(crate) fn compute_context(lines: &mut [MatchedLine], ctx: &ContextConfig) {
         lines[i].trailing_context = trailing;
     }
 }
-
-// ─── Span Filter ─────────────────────────────────────────────────────────────
 
 pub(crate) fn apply_span(
     lines: &mut [MatchedLine],

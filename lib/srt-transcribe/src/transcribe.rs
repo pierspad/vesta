@@ -22,11 +22,8 @@ pub struct TranscribeOptions {
     pub max_segment_length: Option<u32>,
     /// Beam width for beam-search decoding. `None` (or `Some(1)`) keeps the
     /// default greedy decoder; `Some(5)` is whisper.cpp's "quality" setting
-    /// (~2-3× slower, sometimes more accurate on difficult audio).
     pub beam_size: Option<u32>,
-    /// Path to a Silero VAD ggml model. When set, whisper.cpp runs voice
-    /// activity detection first and only transcribes detected speech —
-    /// skipping silence/music and reducing hallucinations in quiet sections.
+
     pub vad_model_path: Option<std::path::PathBuf>,
     pub segment_callback: Option<SegmentCallback>,
 }
@@ -67,21 +64,11 @@ impl Clone for TranscribeOptions {
 /// Default worker count for whisper.cpp: the *physical* cores, capped at 8.
 ///
 /// GGML's matrix kernels are memory-bandwidth-bound: SMT/hyper-threads add
-/// contention instead of throughput (benchmarked on Detour (1945): 8 logical
-/// threads on a 4c/8t CPU burned 2.26× the CPU time of 4 threads for a ~15%
-/// *worse* wall time), and scaling beyond ~8 physical cores is negligible.
+
 pub fn default_n_threads() -> usize {
     num_cpus::get_physical().clamp(1, 8)
 }
 
-/// Run full transcription on the whole audio sample, returning the segments and the detected language.
-///
-/// When `options.vad_model_path` is set, Silero VAD (whisper.cpp's standalone
-/// VAD API) first detects where speech is; only those spans are transcribed,
-/// with timestamps offset back onto the original timeline. This is deliberately
-/// NOT done through `whisper_full_params.vad`: whisper.cpp (1.8.3) only honours
-/// that flag inside `whisper_full`, while whisper-rs drives the
-/// `whisper_full_with_state` entry point where it is silently a no-op.
 pub fn transcribe_full(
     ctx: &WhisperContext,
     audio_data: &[f32],
@@ -96,9 +83,6 @@ pub fn transcribe_full(
         return transcribe_span(&mut state, audio_data, options, 0, cancel_token);
     };
 
-    // One whisper state across all spans: KV caches are allocated once, and
-    // whisper.cpp's rolling text context (prompt_past) flows from span to span
-    // exactly like it would inside a single full-audio pass.
     let spans = vad_speech_spans(vad_model_path, audio_data, options)?;
     let mut segments = Vec::new();
     let mut detected_language = None;
@@ -125,9 +109,6 @@ pub fn transcribe_full(
     Ok((segments, detected_language))
 }
 
-/// Transcribe one contiguous slice of audio on an existing whisper state,
-/// shifting every produced timestamp by `offset_ms` (the slice's position in
-/// the original audio).
 fn transcribe_span(
     state: &mut whisper_rs::WhisperState,
     audio_data: &[f32],
@@ -186,11 +167,7 @@ fn transcribe_span(
         if token.is_cancelled() {
             anyhow::bail!("Transcription cancelled");
         }
-        // SAFETY: whisper.cpp's C callback ABI leaves us no safe alternative — `full()`
-        // below is synchronous and only calls back into `whisper_abort_callback` while
-        // it's running, so `user_data` never outlives the `&CancellationToken` borrow
-        // (`token`) it was cast from a few lines down. Non-null and correctly aligned
-        // because we're the only ones who ever set it, right before this same call.
+
         unsafe extern "C" fn whisper_abort_callback(user_data: *mut std::ffi::c_void) -> bool {
             if user_data.is_null() {
                 return false;
@@ -243,7 +220,6 @@ fn transcribe_span(
             continue;
         }
 
-        // Whisper timestamps are in centiseconds (10ms units)
         segments.push(TranscribedSegment {
             start_ms: offset_ms + seg.start_timestamp() * 10,
             end_ms: offset_ms + seg.end_timestamp() * 10,
@@ -254,21 +230,12 @@ fn transcribe_span(
     Ok((segments, detected_language))
 }
 
-// ─── Voice activity detection (Silero via whisper.cpp's standalone API) ──────
-
 const SAMPLE_RATE: usize = 16_000;
-/// Silence gaps shorter than this stay in the transcribed audio: keeping them
-/// is cheap and preserves acoustic/text context across nearby sentences.
+
 const VAD_MERGE_GAP_MS: i64 = 2_000;
-/// Safety padding around each speech group (on top of Silero's own 30 ms).
+
 const VAD_PAD_MS: i64 = 150;
 
-/// Detect speech with Silero VAD and return `(start_ms, end_ms)` spans on the
-/// original timeline: segments padded by `pad_ms` and coalesced wherever the
-/// silence between them is shorter than `merge_gap_ms`.
-///
-/// Public building block: used by the transcription pipeline below and by
-/// `srt-condense` (condensed-audio export).
 pub fn vad_speech_spans_ms(
     model_path: &std::path::Path,
     samples: &[f32],
@@ -287,7 +254,6 @@ pub fn vad_speech_spans_ms(
 
     let mut spans_ms: Vec<(i64, i64)> = Vec::new();
     for segment in detected {
-        // Silero timestamps are in centiseconds.
         let start_ms = (segment.start as i64) * 10 - pad_ms;
         let end_ms = (segment.end as i64) * 10 + pad_ms;
         match spans_ms.last_mut() {
@@ -300,7 +266,6 @@ pub fn vad_speech_spans_ms(
     Ok(spans_ms)
 }
 
-/// Detect speech and return the sample ranges worth transcribing.
 fn vad_speech_spans(
     model_path: &std::path::Path,
     samples: &[f32],
@@ -325,9 +290,6 @@ fn vad_speech_spans(
         .filter(|span| !span.is_empty())
         .collect())
 }
-
-// ─── Text Similarity Utilities ───────────────────────────────────────────────
-// Used by srt-autosync to match transcribed anchors against subtitle text.
 
 pub fn text_similarity(left: &str, right: &str) -> f64 {
     let token_score = token_overlap_score(left, right);

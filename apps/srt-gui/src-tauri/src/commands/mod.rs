@@ -1,5 +1,3 @@
-//! Comandi Tauri per l'applicazione.
-
 pub mod auto_sync;
 pub mod experimental;
 pub mod flashcards;

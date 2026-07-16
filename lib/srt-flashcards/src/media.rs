@@ -1,34 +1,16 @@
-//! FFmpeg-backed media extraction (audio clips, snapshots, video clips).
-//!
-//! This module is intentionally free of any GUI/Tauri coupling: every function
-//! receives the ffmpeg executable to invoke as a plain `&str`, so the same code
-//! powers the desktop app, the headless CLI and the benchmark harness.
-
 use anyhow::{Context as _, Result};
 use std::path::Path;
 
-// ─── FFmpeg Media Extraction ─────────────────────────────────────────────────
-
-/// Build a `tokio` command for a media tool with platform-appropriate flags.
-///
-/// On Windows this suppresses the console window (no flashing terminals during
-/// batch extraction) and lowers the process priority so that running dozens of
-/// parallel ffmpeg instances doesn't freeze the user's machine.
 pub fn media_command(cmd: &str) -> tokio::process::Command {
     #[allow(unused_mut)]
     let mut command = tokio::process::Command::new(cmd);
     #[cfg(windows)]
     {
-        // CREATE_NO_WINDOW (0x0800_0000) | BELOW_NORMAL_PRIORITY_CLASS (0x0000_4000)
         command.creation_flags(0x0800_4000);
     }
     command
 }
 
-/// Returns `true` if the given ffmpeg executable can be invoked (`<cmd> -version`).
-///
-/// `ffmpeg_cmd` may be a bare command resolved through `PATH` (e.g. `"ffmpeg"`)
-/// or an absolute path to a bundled binary.
 pub async fn check_ffmpeg(ffmpeg_cmd: &str) -> bool {
     media_command(ffmpeg_cmd)
         .arg("-version")
@@ -38,10 +20,6 @@ pub async fn check_ffmpeg(ffmpeg_cmd: &str) -> bool {
         .unwrap_or(false)
 }
 
-/// Returns `true` if `video_path` exposes at least one audio stream, probed via
-/// `ffprobe_cmd`. Any failure to run ffprobe (missing binary, unreadable file)
-/// is treated as "no audio". Synchronous: it is a one-shot startup probe used by
-/// the benchmark harness, not part of the hot extraction loop.
 pub fn video_has_audio(ffprobe_cmd: &str, video_path: &str) -> bool {
     std::process::Command::new(ffprobe_cmd)
         .args([
@@ -58,32 +36,23 @@ pub fn video_has_audio(ffprobe_cmd: &str, video_path: &str) -> bool {
         .unwrap_or(false)
 }
 
-// ─── H.264 hardware encoder detection ────────────────────────────────────────
-
-/// H.264 encoder to use for video clips.
-///
-/// `Libx264` is the software fallback and the only entry guaranteed to exist
-/// in any ffmpeg build; the others are GPU-backed and must be probed with
-/// [`detect_h264_encoder`] before use (being compiled in does not mean the
-/// device is actually usable at runtime).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum H264Encoder {
     #[default]
     Libx264,
-    /// NVIDIA NVENC (Linux/Windows).
+
     Nvenc,
-    /// AMD AMF (Windows).
+
     Amf,
-    /// Intel Quick Sync (Linux/Windows).
+
     Qsv,
-    /// VA-API (Linux: AMD/Intel, portable DRM path).
+
     Vaapi,
-    /// Apple VideoToolbox (macOS).
+
     VideoToolbox,
 }
 
 impl H264Encoder {
-    /// ffmpeg encoder name (`-c:v` value).
     pub fn ffmpeg_name(self) -> &'static str {
         match self {
             Self::Libx264 => "libx264",
@@ -112,8 +81,6 @@ impl H264Encoder {
     }
 }
 
-/// Map a libx264-style preset (`ultrafast`..`placebo`) onto the equivalent
-/// option for a hardware encoder. Returns the extra `-preset`/`-quality` args.
 fn hw_preset_args(encoder: H264Encoder, x264_preset: &str) -> Vec<String> {
     let speed_rank = match x264_preset {
         "ultrafast" => 0,
@@ -124,16 +91,14 @@ fn hw_preset_args(encoder: H264Encoder, x264_preset: &str) -> Vec<String> {
         "medium" => 5,
         "slow" => 6,
         "slower" => 7,
-        _ => 8, // veryslow / placebo
+        _ => 8,
     };
     match encoder {
         H264Encoder::Nvenc => {
-            // NVENC: p1 (fastest) .. p7 (slowest/best).
             let p = ["p1", "p1", "p2", "p3", "p4", "p5", "p6", "p7", "p7"][speed_rank];
             vec!["-preset".into(), p.into()]
         }
         H264Encoder::Qsv => {
-            // QSV accepts the libx264 names from veryfast to veryslow.
             let p = [
                 "veryfast", "veryfast", "veryfast", "faster", "fast", "medium", "slow", "slower",
                 "veryslow",
@@ -150,13 +115,11 @@ fn hw_preset_args(encoder: H264Encoder, x264_preset: &str) -> Vec<String> {
             };
             vec!["-quality".into(), q.into()]
         }
-        // VA-API and VideoToolbox have no preset concept.
+
         _ => Vec::new(),
     }
 }
 
-/// Functional probe: try a tiny synthetic encode with `encoder`. This catches
-/// both "encoder not compiled in" and "no usable GPU/driver at runtime".
 async fn test_h264_encoder(ffmpeg_cmd: &str, encoder: H264Encoder) -> bool {
     let mut cmd = media_command(ffmpeg_cmd);
     cmd.args([
@@ -185,10 +148,6 @@ async fn test_h264_encoder(ffmpeg_cmd: &str, encoder: H264Encoder) -> bool {
         .unwrap_or(false)
 }
 
-/// Detect the best available H.264 encoder, in platform-specific order of
-/// preference, falling back to `libx264`. Run this ONCE per generation run
-/// (it spawns a few short-lived ffmpeg processes), then reuse the result for
-/// every clip.
 pub async fn detect_h264_encoder(ffmpeg_cmd: &str) -> H264Encoder {
     #[cfg(target_os = "macos")]
     let candidates = [H264Encoder::VideoToolbox];
@@ -205,7 +164,6 @@ pub async fn detect_h264_encoder(ffmpeg_cmd: &str) -> H264Encoder {
     H264Encoder::Libx264
 }
 
-/// Format milliseconds as ffmpeg timestamp HH:MM:SS.mmm
 pub(crate) fn ms_to_ffmpeg_ts(ms: i64) -> String {
     let ms = ms.max(0);
     let total_secs = ms / 1000;
@@ -216,15 +174,12 @@ pub(crate) fn ms_to_ffmpeg_ts(ms: i64) -> String {
     format!("{:02}:{:02}:{:02}.{:03}", hours, mins, secs, millis)
 }
 
-/// `-ss` / `-t` timestamps for a padded `[start, end]` window (milliseconds).
-/// The start is clamped at zero so leading padding never seeks before the file.
 fn clip_window(start_ms: i64, end_ms: i64, pad_start_ms: i64, pad_end_ms: i64) -> (String, String) {
     let actual_start = (start_ms - pad_start_ms).max(0);
     let duration_ms = (end_ms + pad_end_ms) - actual_start;
     (ms_to_ffmpeg_ts(actual_start), ms_to_ffmpeg_ts(duration_ms))
 }
 
-/// Build the ffmpeg `-vf` value: an optional bottom crop followed by a scale.
 fn scale_vf(width: u32, height: u32, crop_bottom: u32) -> String {
     let mut filters = Vec::new();
     if crop_bottom > 0 {
@@ -234,8 +189,6 @@ fn scale_vf(width: u32, height: u32, crop_bottom: u32) -> String {
     filters.join(",")
 }
 
-/// Run a fully-built ffmpeg command, turning a non-zero exit into an error that
-/// carries ffmpeg's stderr. `what` names the step (e.g. `"audio"`) for diagnostics.
 async fn run_ffmpeg(mut cmd: tokio::process::Command, what: &str) -> Result<()> {
     let output = cmd
         .output()
@@ -248,7 +201,6 @@ async fn run_ffmpeg(mut cmd: tokio::process::Command, what: &str) -> Result<()> 
     Ok(())
 }
 
-/// Extract audio clip for a single subtitle line
 #[allow(clippy::too_many_arguments)]
 pub(crate) async fn extract_audio_clip(
     source_path: &str,
@@ -298,7 +250,6 @@ pub(crate) async fn extract_audio_clip(
     run_ffmpeg(cmd, "audio").await
 }
 
-/// Extract snapshot at midpoint of subtitle
 #[allow(clippy::too_many_arguments)]
 pub(crate) async fn extract_snapshot(
     video_path: &str,
@@ -340,10 +291,6 @@ pub(crate) async fn extract_snapshot(
     run_ffmpeg(cmd, "snapshot").await
 }
 
-/// Extract video clip for a single subtitle line.
-///
-/// `encoder` is honoured only when `codec == "h264"`; pass the value returned
-/// by [`detect_h264_encoder`] (or [`H264Encoder::Libx264`] to force software).
 #[allow(clippy::too_many_arguments)]
 pub(crate) async fn extract_video_clip(
     video_path: &str,
@@ -379,8 +326,6 @@ pub(crate) async fn extract_video_clip(
         video_path,
     ]);
 
-    // VA-API encodes from GPU surfaces: the scaled frame must be uploaded to
-    // the device at the end of the filter chain.
     let vf = if codec == "h264" && encoder == H264Encoder::Vaapi {
         cmd.args(["-init_hw_device", "vaapi=va", "-filter_hw_device", "va"]);
         format!(
@@ -417,7 +362,6 @@ pub(crate) async fn extract_video_clip(
             ]);
         }
         _ => {
-            // mpeg4
             cmd.args([
                 "-c:v",
                 "mpeg4",
@@ -436,7 +380,6 @@ pub(crate) async fn extract_video_clip(
     run_ffmpeg(cmd, "video").await
 }
 
-/// Loudness-normalize an audio file in place (EBU R128 via ffmpeg `loudnorm`).
 pub(crate) async fn normalize_audio(file_path: &Path, ffmpeg_cmd: &str) -> Result<()> {
     let temp_path = file_path.with_extension("normalized.mp3");
 

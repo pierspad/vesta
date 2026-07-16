@@ -21,7 +21,6 @@ pub const WHISPER_MODELS: &[(&str, &str, &str, &str)] = &[
     ("large", "Large", "~3 GB", "~1x"),
 ];
 
-/// Get the directory where Whisper models are stored
 pub fn get_models_dir() -> Result<PathBuf> {
     let cache_dir = dirs::cache_dir().unwrap_or_else(|| {
         PathBuf::from(std::env::var("HOME").unwrap_or_else(|_| ".".to_string())).join(".cache")
@@ -29,7 +28,6 @@ pub fn get_models_dir() -> Result<PathBuf> {
     Ok(cache_dir.join("whisper"))
 }
 
-/// Check if a whisper model file exists locally and return its path
 pub fn model_file_path(model_id: &str) -> Result<PathBuf> {
     let models_dir = get_models_dir()?;
     let filename = if model_id == "large" {
@@ -40,7 +38,6 @@ pub fn model_file_path(model_id: &str) -> Result<PathBuf> {
     Ok(models_dir.join(filename))
 }
 
-/// Validate if the model_id is a known Whisper model
 pub fn validate_model_id(model_id: &str) -> Result<()> {
     if WHISPER_MODELS.iter().any(|(id, _, _, _)| *id == model_id) {
         Ok(())
@@ -49,7 +46,6 @@ pub fn validate_model_id(model_id: &str) -> Result<()> {
     }
 }
 
-/// List all Whisper models with download status
 pub fn list_models() -> Result<Vec<WhisperModelInfo>> {
     let mut result = Vec::new();
     for &(id, name, size, speed) in WHISPER_MODELS {
@@ -68,26 +64,11 @@ pub fn list_models() -> Result<Vec<WhisperModelInfo>> {
     Ok(result)
 }
 
-/// Uninstall (delete) a specific Whisper model
 pub fn uninstall_model(model_id: &str) -> Result<bool> {
     validate_model_id(model_id)?;
     remove_if_present(&model_file_path(model_id)?)
 }
 
-// ─── Silero VAD models ────────────────────────────────────────────────────────
-// Voice-activity-detection models consumed natively by whisper.cpp (≥ 1.7.6).
-// Stored next to the Whisper models and managed with the same download /
-// uninstall lifecycle, but kept out of `WHISPER_MODELS`: they are an optional
-// add-on, not a transcription model the user picks from.
-//
-// `ggml-org/whisper-vad` on Hugging Face currently publishes two variants,
-// both ~0.9 MB; v5.1.2 stays the pre-selected default (it's what Vesta has
-// shipped with), v6.2.0 is offered as a newer alternative. Users can also
-// point at an arbitrary local `.bin` (see `vad_custom_path` in
-// `TranscriptionConfig`), which bypasses this table entirely and is not
-// tracked here.
-
-/// (id, filename, download URL, human-readable size).
 pub const VAD_MODELS: &[(&str, &str, &str, &str)] = &[
     (
         "v5.1.2",
@@ -103,7 +84,6 @@ pub const VAD_MODELS: &[(&str, &str, &str, &str)] = &[
     ),
 ];
 
-/// Pre-selected variant when the user hasn't chosen one explicitly.
 pub const DEFAULT_VAD_MODEL_ID: &str = "v5.1.2";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -174,7 +154,6 @@ fn remove_if_present(path: &std::path::Path) -> Result<bool> {
     }
 }
 
-/// Download a Whisper model from Hugging Face with progress reporting and cancellation support
 pub async fn download_model<F>(
     model_id: &str,
     progress_callback: F,
@@ -209,13 +188,11 @@ async fn download_to<F>(
 where
     F: Fn(u32) + Send + 'static,
 {
-    // If already exists, return immediately
     if path.exists() {
         progress_callback(100);
         return Ok(path.to_path_buf());
     }
 
-    // Create models directory if needed
     if let Some(parent) = path.parent() {
         tokio::fs::create_dir_all(parent)
             .await

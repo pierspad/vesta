@@ -1,9 +1,3 @@
-//! Tauri command wrappers around the [`srt_flashcards`] engine.
-//!
-//! These functions only translate between the Tauri world (app handle, managed
-//! state, emitted events) and the pure engine API. No flashcard business logic
-//! lives here.
-
 use crate::state::AppFlashcardState;
 use srt_flashcards::{
     AudioTrackInfo, FlashcardConfig, FlashcardProgressEvent, FlashcardResult, MediaTools,
@@ -21,15 +15,11 @@ async fn resolve_media_tools(app: &AppHandle) -> MediaTools {
     }
 }
 
-// ─── Commands ────────────────────────────────────────────────────────────────
-
-/// Load a subtitle file and return summary info.
 #[tauri::command]
 pub async fn flashcard_load_subs(path: String) -> Result<SubFileInfo, String> {
     srt_flashcards::load_sub_file_info(&path)
 }
 
-/// Probe a media file and return its audio streams in ffmpeg `0:a:N` order.
 #[tauri::command]
 pub async fn flashcard_list_audio_tracks(
     app: AppHandle,
@@ -39,14 +29,11 @@ pub async fn flashcard_list_audio_tracks(
     srt_flashcards::list_audio_tracks(&path, &ffprobe).await
 }
 
-/// Generate preview data: parse, match, filter, and return all lines.
 #[tauri::command]
 pub async fn flashcard_preview(config: FlashcardConfig) -> Result<Vec<PreviewLine>, String> {
     srt_flashcards::preview(&config)
 }
 
-/// Main generation command — runs the engine with parallel ffmpeg extraction,
-/// forwarding progress to the frontend and honouring cancellation.
 #[tauri::command]
 pub async fn flashcard_generate(
     app: AppHandle,
@@ -94,19 +81,12 @@ pub async fn flashcard_cancel(state: State<'_, AppFlashcardState>) -> Result<boo
     Ok(true)
 }
 
-/// Check if ffmpeg is available. Uses the exact same resolution logic as every
-/// feature that later *invokes* ffmpeg (system `PATH`, app-data download,
-/// executable directory) and verifies the binary actually runs — so the
-/// "ffmpeg missing" banner can never disagree with the real state.
 #[tauri::command]
 pub async fn flashcard_check_deps(app: AppHandle) -> Result<bool, String> {
     let ffmpeg = resolve_ffmpeg_path(Some(&app)).await;
     Ok(srt_flashcards::check_ffmpeg(&ffmpeg).await)
 }
 
-/// Locate `name` (e.g. `ffmpeg`) anywhere below `dir` and move it to the
-/// directory root. Different `ffmpeg_sidecar` releases (and archive layouts on
-/// Windows) unpack binaries into nested folders like `ffmpeg-xxx/bin/`.
 fn hoist_binary(dir: &std::path::Path, name: &str) -> Result<(), String> {
     let file_name = if cfg!(windows) {
         format!("{name}.exe")
@@ -143,11 +123,6 @@ fn hoist_binary(dir: &std::path::Path, name: &str) -> Result<(), String> {
     Ok(())
 }
 
-/// Download a static ffmpeg build into the app data directory.
-///
-/// After unpacking, the binaries are hoisted to the destination root and the
-/// installation is verified by actually running `ffmpeg -version`: the command
-/// only returns `Ok` when the downloaded ffmpeg is genuinely usable.
 #[tauri::command]
 pub async fn flashcard_download_ffmpeg(app: AppHandle) -> Result<bool, String> {
     use ffmpeg_sidecar::download::{download_ffmpeg_package, ffmpeg_download_url, unpack_ffmpeg};
@@ -175,7 +150,6 @@ pub async fn flashcard_download_ffmpeg(app: AppHandle) -> Result<bool, String> {
     hoist_binary(&dest, "ffmpeg")?;
     hoist_binary(&dest, "ffprobe")?;
 
-    // Final verification: resolve the way every consumer does and run it.
     let ffmpeg = resolve_ffmpeg_path(Some(&app)).await;
     if !srt_flashcards::check_ffmpeg(&ffmpeg).await {
         return Err("ffmpeg was downloaded but could not be executed. \
@@ -185,13 +159,11 @@ pub async fn flashcard_download_ffmpeg(app: AppHandle) -> Result<bool, String> {
     Ok(true)
 }
 
-/// Check if a directory exists.
 #[tauri::command]
 pub async fn flashcard_check_dir_exists(path: String) -> Result<bool, String> {
     Ok(std::path::Path::new(&path).is_dir())
 }
 
-/// Get the number of available CPU cores.
 #[tauri::command]
 pub async fn flashcard_get_cpu_count() -> Result<usize, String> {
     Ok(std::thread::available_parallelism()
@@ -199,22 +171,15 @@ pub async fn flashcard_get_cpu_count() -> Result<usize, String> {
         .unwrap_or(4))
 }
 
-/// Get total physical system memory in megabytes.
-///
-/// Delegates to `sysinfo`, which wraps the platform-specific queries (`/proc/meminfo`
-/// on Linux, `sysctl` on macOS, `GlobalMemoryStatusEx` on Windows) behind a safe API,
-/// so this crate no longer needs its own per-OS `cfg` branches or raw FFI.
 #[tauri::command]
 pub async fn flashcard_get_total_memory_mb() -> Result<u64, String> {
     let mut sys = sysinfo::System::new();
     sys.refresh_memory();
     let total_mb = sys.total_memory() / (1024 * 1024);
-    // Fall back to a conservative default on the rare platform/sandbox where sysinfo
-    // can't read anything (mirrors the previous behaviour's fallback constants).
+
     Ok(if total_mb > 0 { total_mb } else { 4096 })
 }
 
-/// Write a list of preview lines to a temporary subtitle file and return its path.
 #[tauri::command]
 pub async fn save_temp_subtitles(
     app: tauri::AppHandle,
@@ -236,9 +201,6 @@ pub async fn save_temp_subtitles(
         .unwrap_or(0);
     let temp_file_path = temp_dir.join(format!("temp_{}_{}.srt", suffix, now));
 
-    // Riusa il writer di srt_parser invece di riformattare a mano il blocco
-    // SRT (contatore, timestamp, concatenazione stringhe): vedi
-    // REFACTOR-PLAN.md §1.3, stesso pattern già in uso in translate.rs.
     let mut subtitles = std::collections::HashMap::new();
     let mut counter: u32 = 1;
     for line in lines {

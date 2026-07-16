@@ -49,6 +49,7 @@
   import VideoClipsPanel from "./VideoClipsPanel.svelte";
   import EpisodeTable from "./EpisodeTable.svelte";
   import EpisodeContextMenu from "./EpisodeContextMenu.svelte";
+  import { generationStore, EXPORT_FORMAT_KEY, SERIES_OUTPUT_MODE_KEY } from "./generationStore.svelte";
 
   const SUBTITLE_EXTENSIONS = ["srt", "ass", "ssa", "vtt"];
 
@@ -86,8 +87,6 @@
   const FLASHCARD_MEDIA_HEIGHT_KEY = "vesta-flashcards-media-height";
   const DEFAULT_FLASHCARD_MEDIA_WIDTH = 240;
   const DEFAULT_FLASHCARD_MEDIA_HEIGHT = 160;
-  const EXPORT_FORMAT_KEY = "vesta-export-format";
-  const SERIES_OUTPUT_MODE_KEY = "vesta-series-output-mode";
 
   let smartFileMatchingEnabled = $derived(uiMode.easyMode || smartMatchingStore.enabled);
 
@@ -168,14 +167,6 @@
   ];
 
   let episodes = $state<EpisodeEntry[]>([]);
-  let seriesOutputMode = $state<"single" | "separate">(
-    (() => {
-      try {
-        const saved = localStorage.getItem(SERIES_OUTPUT_MODE_KEY);
-        return saved === "single" ? "single" : "separate";
-      } catch { return "separate"; }
-    })()
-  );
   let seriesCurrentEpisode = $state(0);
   let seriesTotalEpisodes = $state(0);
   let editingEpisodeIndex = $state<number | null>(null);
@@ -784,7 +775,7 @@
         await handleFileDrop(selected);
       }
     } catch (e) {
-      error = `${t("flashcards.errorSelectingFile")}: ${e}`;
+      generationStore.error = `${t("flashcards.errorSelectingFile")}: ${e}`;
     }
   }
 
@@ -804,7 +795,7 @@
         await handleFileDrop(selected);
       }
     } catch (e) {
-      error = `${t("flashcards.errorSelectingFile")}: ${e}`;
+      generationStore.error = `${t("flashcards.errorSelectingFile")}: ${e}`;
     }
   }
 
@@ -999,7 +990,7 @@
       };
       syncEpisodeEditor();
     } catch (e) {
-      error = `${t("flashcards.errorSelectingFile")}: ${e}`;
+      generationStore.error = `${t("flashcards.errorSelectingFile")}: ${e}`;
     }
   }
 
@@ -1100,7 +1091,7 @@
   let prevGenerateVideoClips = $state(false);
 
   $effect(() => {
-    if (effectiveExportFormat === "apkg") {
+    if (generationStore.effectiveExportFormat === "apkg") {
       if (mediaSettings.generateSnapshots && mediaSettings.generateVideoClips) {
         if (mediaSettings.generateSnapshots !== prevGenerateSnapshots) {
           mediaSettings.generateVideoClips = false;
@@ -1194,20 +1185,15 @@
     persistDimension(FLASHCARD_MEDIA_HEIGHT_KEY, mediaSettings.snapshotHeight);
   });
 
-  let exportFormat = $state<"tsv" | "apkg" | "anki">(
-    (() => {
-      try {
-        const saved = localStorage.getItem(EXPORT_FORMAT_KEY);
-        if (saved === "tsv" || saved === "anki" || saved === "apkg") {
-          return saved as any;
-        }
-        return "apkg";
-      } catch { return "apkg"; }
-    })()
-  );
-
+  // generationStore.exportFormat/generationStore.seriesOutputMode/generationStore.cpuCores/generationStore.deckName state, plus generation
+  // run-state (isProcessing/progress/logs/result), live in generationStore
+  // (see generationStore.svelte.ts for why). These three $effects stay here
+  // rather than in the store because they react to `active` (a prop of this
+  // component) and to ankiStore.status over the component's lifetime — same
+  // convention as every other store in this codebase (no $effect inside a
+  // store class).
   $effect(() => {
-    try { localStorage.setItem(EXPORT_FORMAT_KEY, exportFormat); } catch {}
+    try { localStorage.setItem(EXPORT_FORMAT_KEY, generationStore.exportFormat); } catch {}
   });
 
   $effect(() => {
@@ -1216,15 +1202,15 @@
         const saved = localStorage.getItem(EXPORT_FORMAT_KEY);
         if (saved === "tsv" || saved === "anki" || saved === "apkg") {
           if (saved === "anki" && ankiStore.status !== "online") {
-            exportFormat = "apkg";
+            generationStore.exportFormat = "apkg";
           } else {
-            exportFormat = saved as any;
+            generationStore.exportFormat = saved as any;
           }
         } else {
           if (ankiStore.status === "online") {
-            exportFormat = "anki";
+            generationStore.exportFormat = "anki";
           } else {
-            exportFormat = "apkg";
+            generationStore.exportFormat = "apkg";
           }
         }
       } catch {}
@@ -1236,76 +1222,32 @@
       try {
         const saved = localStorage.getItem(EXPORT_FORMAT_KEY);
         if (!saved) {
-          exportFormat = "anki";
+          generationStore.exportFormat = "anki";
         }
       } catch {}
-    } else if (exportFormat === "anki") {
-      exportFormat = "apkg";
+    } else if (generationStore.exportFormat === "anki") {
+      generationStore.exportFormat = "apkg";
     }
   });
 
   $effect(() => {
-    try { localStorage.setItem(SERIES_OUTPUT_MODE_KEY, seriesOutputMode); } catch {}
+    try { localStorage.setItem(SERIES_OUTPUT_MODE_KEY, generationStore.seriesOutputMode); } catch {}
   });
 
-
-  let systemCpuCount = $state(4);
-  let cpuCores = $state(2); // will be set properly onMount
   let handleCpuCoresChanged = (e: Event) => {
-    cpuCores = (e as CustomEvent<number>).detail;
+    generationStore.cpuCores = (e as CustomEvent<number>).detail;
   };
   let handleFfmpegUpdated = () => {
     invoke<boolean>("flashcard_check_deps")
       .then((ok) => (ffmpegAvailable = ok))
       .catch(() => {});
   };
-  let minCpuCores = $derived(2);
-  let maxCpuCores = $derived(Math.max(2, systemCpuCount - 1));
-
-  // CPU preset definitions (evenly spaced between min and max cores)
-  let cpuPresets = $derived([
-    { id: "eco", threads: minCpuCores },
-    {
-      id: "balanced",
-      threads: minCpuCores + Math.ceil((maxCpuCores - minCpuCores) / 3),
-    },
-    {
-      id: "performance",
-      threads: minCpuCores + Math.ceil(((maxCpuCores - minCpuCores) * 2) / 3),
-    },
-    { id: "full", threads: maxCpuCores },
-  ] as const);
-
-  let activeCpuPreset = $derived(
-    cpuPresets.find((p) => p.threads === cpuCores)?.id ?? null,
-  );
 
   // ─── Easy/Expert mode ──────────────────────────────────────────────────────
   // In Easy mode advanced choices collapse to sane defaults: forced .apkg
   // export, CPU cores = n-1, automatic deck name. The corresponding UI is
   // hidden while the user only decides which media to include.
   let easyMode = $derived(uiMode.easyMode);
-  let effectiveExportFormat = $derived(exportFormat === "anki" ? "apkg" : exportFormat);
-  let effectiveCpuCores = $derived(cpuCores);
-
-  function cycleExportFormat() {
-    if (exportFormat === "apkg") {
-      exportFormat = "tsv";
-    } else if (exportFormat === "tsv") {
-      if (ankiStore.status === "online") {
-        exportFormat = "anki";
-      } else {
-        exportFormat = "apkg";
-      }
-    } else {
-      exportFormat = "apkg";
-    }
-  }
-
-  function setCpuPreset(presetId: string) {
-    const preset = cpuPresets.find((p) => p.id === presetId);
-    if (preset) cpuCores = preset.threads;
-  }
 
   const PANEL_IDS = [
     "files",
@@ -1597,28 +1539,9 @@
     }
   }
 
-  let deckName = $state("");
-  let deckNameAuto = $state(true);
-  let firstEpisode = $state(1);
-
-  let isProcessing = $state(false);
-  let progress = $state(0);
-  let progressMessage = $state("");
-  let progressStage = $state("");
-
-  let logIdCounter = 0;
-  let logs = $state<LogEntry[]>([]);
-  let error = $state<string | null>(null);
-  let result = $state<{
-    success: boolean;
-    message?: string | null;
-    cardsGenerated: number;
-    audioClips: number;
-    snapshots: number;
-    videoClips: number;
-    tsvPath: string | null;
-    apkgPath: string | null;
-  } | null>(null);
+  // generationStore.deckName/generationStore.deckNameAuto and the generation run-state (generationStore.isProcessing,
+  // generationStore.progress, generationStore.progressMessage, generationStore.progressStage, generationStore.logs, error, generationStore.result) live in
+  // generationStore now — see generationStore.svelte.ts.
 
   let targetSubsInfo = $state<{
     count: number;
@@ -1694,7 +1617,7 @@
     noteTypeList = listNoteTypes();
   }
   let needsDeckName = $derived(
-    !seriesMode || seriesOutputMode === "single",
+    !seriesMode || generationStore.seriesOutputMode === "single",
   );
   let canRunFlashcards = $derived(
     seriesMode
@@ -1702,10 +1625,10 @@
           episodes.length > 0 &&
             episodes.every((ep) => ep.targetSubsPath) &&
             outputDir &&
-            (needsDeckName ? Boolean(deckName || (easyMode && episodes.length > 0)) : true) &&
+            (needsDeckName ? Boolean(generationStore.deckName || (easyMode && episodes.length > 0)) : true) &&
             noteTypeLanguage,
         )
-      : Boolean(targetSubsPath && outputDir && deckName && noteTypeLanguage),
+      : Boolean(targetSubsPath && outputDir && generationStore.deckName && noteTypeLanguage),
   );
 
   type RequirementPanelId = "files" | "naming";
@@ -1744,7 +1667,7 @@
         label: `${t("flashcards.outputDir")}`,
       });
     }
-    if (!easyMode && needsDeckName && !deckName.trim()) {
+    if (!easyMode && needsDeckName && !generationStore.deckName.trim()) {
       missing.push({
         panel: "naming",
         label: `${t("flashcards.deckNameLabel")}`,
@@ -1823,7 +1746,7 @@
         path: ep.mediaPath,
       });
     } catch (e) {
-      addLog(`${t("flashcards.audioTracksError")}: ${e}`, "warning", getFileName(ep.mediaPath));
+      generationStore.addLog(`${t("flashcards.audioTracksError")}: ${e}`, "warning", getFileName(ep.mediaPath));
       return [];
     }
   }
@@ -1850,7 +1773,7 @@
       mediaSettings.audioTrackIndex =
         tracks.length > 1 ? pickBestAudioTrackIndex(tracks, getPreferredAudioLanguageCode()) : null;
     } catch (e) {
-      addLog(`${t("flashcards.audioTracksError")}: ${e}`, "warning");
+      generationStore.addLog(`${t("flashcards.audioTracksError")}: ${e}`, "warning");
     } finally {
       audioTracksLoading = false;
     }
@@ -1959,7 +1882,7 @@
             mediaFiles,
           );
           mergeSeriesDroppedFiles(expanded.subtitleFiles, expanded.mediaFiles);
-          addLog(`${episodes.length} ${t("flashcards.seriesEpisodesAdded")}`, "target-subs");
+          generationStore.addLog(`${episodes.length} ${t("flashcards.seriesEpisodesAdded")}`, "target-subs");
         } catch (e: any) {
           console.error("[DragDrop] Errore nell'elaborazione smart della serie:", e);
         }
@@ -1973,14 +1896,14 @@
             await loadTargetSubtitle(target);
             await tryAutoSelectMediaForSubtitle(target, smartFileMatchingEnabled);
           } catch (e: any) {
-            error = `Error parsing subtitles: ${e}`;
+            generationStore.error = `Error parsing subtitles: ${e}`;
           }
         }
         if (native) {
           try {
             await loadNativeSubtitle(native);
           } catch (e: any) {
-            error = `Error parsing native subtitles: ${e}`;
+            generationStore.error = `Error parsing native subtitles: ${e}`;
           }
         }
       } else if (subtitleFiles.length === 1) {
@@ -1998,7 +1921,7 @@
               smartFileMatchingEnabled,
             );
           } catch (e: any) {
-            error = `Error parsing subtitles: ${e}`;
+            generationStore.error = `Error parsing subtitles: ${e}`;
           }
         } else {
           try {
@@ -2013,7 +1936,7 @@
               smartFileMatchingEnabled,
             );
           } catch (e: any) {
-            error = `Error parsing native subtitles: ${e}`;
+            generationStore.error = `Error parsing native subtitles: ${e}`;
           }
         }
       }
@@ -2158,21 +2081,21 @@
     }
 
     try {
-      systemCpuCount = await invoke<number>("flashcard_get_cpu_count");
-      const startupMaxCores = Math.max(2, systemCpuCount - 1);
+      generationStore.systemCpuCount = await invoke<number>("flashcard_get_cpu_count");
+      const startupMaxCores = Math.max(2, generationStore.systemCpuCount - 1);
       const savedCores = localStorage.getItem("vesta_cpu_cores");
       if (savedCores) {
-        cpuCores = parseInt(savedCores);
+        generationStore.cpuCores = parseInt(savedCores);
       } else {
-        cpuCores = startupMaxCores;
+        generationStore.cpuCores = startupMaxCores;
       }
     } catch {
-      systemCpuCount = 4;
+      generationStore.systemCpuCount = 4;
       const savedCores = localStorage.getItem("vesta_cpu_cores");
       if (savedCores) {
-        cpuCores = parseInt(savedCores);
+        generationStore.cpuCores = parseInt(savedCores);
       } else {
-        cpuCores = Math.max(2, systemCpuCount - 1);
+        generationStore.cpuCores = Math.max(2, generationStore.systemCpuCount - 1);
       }
     }
 
@@ -2188,21 +2111,21 @@
       total: number;
       percentage: number;
       params: Record<string, string>;
-    }>("flashcard-progress", (event) => {
+    }>("flashcard-generationStore.progress", (event) => {
       const p = event.payload;
       const translated = t(p.message, p.params || {});
       
       if (seriesMode && seriesTotalEpisodes > 0) {
-        progress = Math.round(((seriesCurrentEpisode - 1) * 100 / seriesTotalEpisodes) + (p.percentage / seriesTotalEpisodes));
-        progressMessage = `[Ep. ${seriesCurrentEpisode}/${seriesTotalEpisodes}] ${translated}`;
+        generationStore.progress = Math.round(((seriesCurrentEpisode - 1) * 100 / seriesTotalEpisodes) + (p.percentage / seriesTotalEpisodes));
+        generationStore.progressMessage = `[Ep. ${seriesCurrentEpisode}/${seriesTotalEpisodes}] ${translated}`;
       } else {
-        progress = Math.round(p.percentage);
-        progressMessage = translated;
+        generationStore.progress = Math.round(p.percentage);
+        generationStore.progressMessage = translated;
       }
       
-      progressStage = p.stage;
+      generationStore.progressStage = p.stage;
       if (p.stage !== "done") {
-        addLog(progressMessage, "progress", undefined, p.message);
+        generationStore.addLog(generationStore.progressMessage, "generationStore.progress", undefined, p.message);
       }
     }).then((fn) => {
       if (!activeListener) fn();
@@ -2245,53 +2168,14 @@
 
     try {
       await invoke("ankiconnect_import_package", { path: apkgPath, url });
-      addLog(t("flashcards.ankiAutoImportSuccess"), "success");
+      generationStore.addLog(t("flashcards.ankiAutoImportSuccess"), "success");
       snackbar.show(t("flashcards.ankiAutoImportSuccess"), "success");
     } catch (e) {
-      addLog(`${t("flashcards.ankiAutoImportFailed")}: ${e}`, "warning");
+      generationStore.addLog(`${t("flashcards.ankiAutoImportFailed")}: ${e}`, "warning");
     }
   }
 
-  // Track the i18n key of the last progress log so sequential updates
-  // (e.g. "Extracting media… 1/100", "2/100", …) replace the previous
-  // entry instead of appending thousands of lines.
-  let lastProgressKey: string | null = null;
-
-  function addLog(
-    message: string,
-    type: LogEntry["type"] = "info",
-    details?: string,
-    progressKey?: string,
-  ) {
-    const timestamp = new Date().toLocaleTimeString([], {
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-    });
-
-    // For sequential progress messages with the same key, update in-place
-    if (
-      type === "progress" &&
-      progressKey &&
-      progressKey === lastProgressKey &&
-      logs.length > 0
-    ) {
-      const last = logs[logs.length - 1];
-      if (last.type === "progress") {
-        const updated = { ...last, timestamp, message };
-        logs = [...logs.slice(0, -1), updated];
-        return;
-      }
-    }
-
-    if (type === "progress" && progressKey) {
-      lastProgressKey = progressKey;
-    } else if (type !== "progress") {
-      lastProgressKey = null;
-    }
-
-    logs = [...logs, { id: ++logIdCounter, timestamp, message, type, details }];
-  }
+  // addLog/clearLogs now live on generationStore (generationStore.svelte.ts).
 
   function parseTimeToMs(time: string): number | null {
     if (!time || !time.trim()) return null;
@@ -2366,13 +2250,13 @@
       video_audio_bitrate: mediaSettings.videoAudioBitrate,
       video_pad_start_ms: mediaSettings.videoPadStart,
       video_pad_end_ms: mediaSettings.videoPadEnd,
-      deck_name: deckName,
+      deck_name: generationStore.deckName,
       episode_number: 1,
-      export_format: effectiveExportFormat,
+      export_format: generationStore.effectiveExportFormat,
       note_type_name: activeNoteType.name,
       field_names: activeNoteType.fields,
       output_fields: noteTypeOutputFields(activeNoteType),
-      cpu_cores: effectiveCpuCores,
+      cpu_cores: generationStore.effectiveCpuCores,
       card_front_html: loadCardTemplates().frontHtml,
       card_back_html: loadCardTemplates().backHtml,
       card_css: loadCardTemplates().css,
@@ -2395,15 +2279,15 @@
       path: targetSubsPath,
     });
     targetSubsInfo = info;
-    addLog(
+    generationStore.addLog(
       `${info.count} ${t("flashcards.subtitlesLoaded")} (${info.format.toUpperCase()})`,
       "target-subs",
       filename,
     );
 
-    if (deckNameAuto || !deckName.trim()) {
-      deckName = generateDefaultDeckName(filename);
-      deckNameAuto = true;
+    if (generationStore.deckNameAuto || !generationStore.deckName.trim()) {
+      generationStore.deckName = generateDefaultDeckName(filename);
+      generationStore.deckNameAuto = true;
     }
   }
 
@@ -2415,7 +2299,7 @@
       path: nativeSubsPath,
     });
     nativeSubsInfo = info;
-    addLog(
+    generationStore.addLog(
       `${info.count} ${t("flashcards.subtitlesLoaded")} (${info.format.toUpperCase()})`,
       "native-subs",
       filename,
@@ -2431,16 +2315,16 @@
     if (mediaType === "video") {
       mediaSettings.generateAudio = true;
       mediaSettings.generateSnapshots = true;
-      addLog(`${t("flashcards.mediaTypeVideo")}`, "media", filename);
+      generationStore.addLog(`${t("flashcards.mediaTypeVideo")}`, "media", filename);
     } else if (mediaType === "audio") {
       mediaSettings.generateAudio = true;
       mediaSettings.generateSnapshots = false;
       mediaSettings.generateVideoClips = false;
-      addLog(`${t("flashcards.mediaTypeAudio")}`, "media", filename);
+      generationStore.addLog(`${t("flashcards.mediaTypeAudio")}`, "media", filename);
     }
 
     if (autoSelected) {
-      addLog(`Auto-selected media: ${filename}`, "media");
+      generationStore.addLog(`Auto-selected media: ${filename}`, "media");
     }
   }
 
@@ -2558,11 +2442,11 @@
             smartFileMatchingEnabled,
           );
         } catch (e) {
-          error = `Error parsing subtitles: ${e}`;
+          generationStore.error = `Error parsing subtitles: ${e}`;
         }
       }
     } catch (e) {
-      error = `${t("flashcards.errorSelectingFile")}: ${e}`;
+      generationStore.error = `${t("flashcards.errorSelectingFile")}: ${e}`;
     }
   }
 
@@ -2591,11 +2475,11 @@
             smartFileMatchingEnabled,
           );
         } catch (e) {
-          error = `Error parsing native subtitles: ${e}`;
+          generationStore.error = `Error parsing native subtitles: ${e}`;
         }
       }
     } catch (e) {
-      error = `${t("flashcards.errorSelectingFile")}: ${e}`;
+      generationStore.error = `${t("flashcards.errorSelectingFile")}: ${e}`;
     }
   }
 
@@ -2634,7 +2518,7 @@
         await tryAutoSelectSubtitlesForMedia(selected as string, true);
       }
     } catch (e) {
-      error = `${t("flashcards.errorSelectingFile")}: ${e}`;
+      generationStore.error = `${t("flashcards.errorSelectingFile")}: ${e}`;
     }
   }
 
@@ -2644,50 +2528,50 @@
       if (selected) {
         outputDir = selected as string;
         localStorage.setItem(OUTPUT_DIR_KEY, outputDir);
-        addLog(`${t("flashcards.outputDirSet")}`, "output", outputDir);
+        generationStore.addLog(`${t("flashcards.outputDirSet")}`, "output", outputDir);
       }
     } catch (e) {
-      error = `${t("flashcards.errorSelectingDir")}: ${e}`;
+      generationStore.error = `${t("flashcards.errorSelectingDir")}: ${e}`;
     }
   }
 
   async function loadPreview() {
     if (!canRunFlashcards) {
-      error = t("flashcards.requiredFieldsMissing");
+      generationStore.error = t("flashcards.requiredFieldsMissing");
       return;
     }
 
-    error = null;
+    generationStore.error = null;
     try {
       const config = buildConfig();
       await previewStore.load(config, (lines) =>
-        addLog(
+        generationStore.addLog(
           `Preview: ${lines.length} total, ${lines.filter((l) => l.active).length} active`,
           "info",
         ),
       );
     } catch (e) {
-      error = `Preview error: ${e}`;
+      generationStore.error = `Preview error: ${e}`;
     }
   }
 
   async function startSeriesGeneration() {
-    if (easyMode && needsDeckName && !deckName.trim() && episodes.length > 0) {
-      deckName = deriveDeckNameFromFile(episodes[0]);
-      deckNameAuto = true;
+    if (easyMode && needsDeckName && !generationStore.deckName.trim() && episodes.length > 0) {
+      generationStore.deckName = deriveDeckNameFromFile(episodes[0]);
+      generationStore.deckNameAuto = true;
     }
-    error = null;
-    result = null;
-    progress = 0;
-    isProcessing = true;
+    generationStore.error = null;
+    generationStore.result = null;
+    generationStore.progress = 0;
+    generationStore.isProcessing = true;
     seriesTotalEpisodes = episodes.length;
     seriesCurrentEpisode = 0;
 
-    addLog(
+    generationStore.addLog(
       `${t("flashcards.starting")}... (${t("flashcards.modeSeries")}: ${episodes.length} ${t("flashcards.seriesEpisodes")})`,
       "info",
     );
-    addLog(`${t("flashcards.deckName")}: ${deckName}`, "info");
+    generationStore.addLog(`${t("flashcards.generationStore.deckName")}: ${generationStore.deckName}`, "info");
 
     const startTime = Date.now();
     let totalCards = 0;
@@ -2704,7 +2588,7 @@
         const ep = episodes[i];
         const epNum = i + 1;
 
-        addLog(
+        generationStore.addLog(
           `${t("flashcards.processingEpisode", { current: String(epNum), total: String(episodes.length) })}`,
           "info",
         );
@@ -2769,13 +2653,13 @@
           video_audio_bitrate: epMediaSettings.videoAudioBitrate,
           video_pad_start_ms: epMediaSettings.videoPadStart,
           video_pad_end_ms: epMediaSettings.videoPadEnd,
-          deck_name: seriesOutputMode === "separate" ? deriveDeckNameFromFile(ep) : deckName,
+          deck_name: generationStore.seriesOutputMode === "separate" ? deriveDeckNameFromFile(ep) : generationStore.deckName,
           episode_number: epNum,
-          export_format: effectiveExportFormat,
+          export_format: generationStore.effectiveExportFormat,
           note_type_name: activeNoteType.name,
           field_names: activeNoteType.fields,
           output_fields: noteTypeOutputFields(activeNoteType),
-          cpu_cores: effectiveCpuCores,
+          cpu_cores: generationStore.effectiveCpuCores,
           card_front_html: loadCardTemplates().frontHtml,
           card_back_html: loadCardTemplates().backHtml,
           card_css: loadCardTemplates().css,
@@ -2793,17 +2677,17 @@
             totalSnapshots += res.snapshots;
             totalVideoClips += res.video_clips;
             if (res.apkg_path) apkgPaths.push(res.apkg_path);
-            addLog(
+            generationStore.addLog(
               `✓ Ep ${epNum}: ${res.cards_generated} ${t("flashcards.cardsGenerated")}`,
               "success",
             );
           } else {
-            addLog(`⚠ Ep ${epNum}: ${res.message}`, "warning");
+            generationStore.addLog(`⚠ Ep ${epNum}: ${res.message}`, "warning");
             errorMessages.push(`Ep ${epNum}: ${res.message}`);
           }
         } catch (e: any) {
           const errMsg = e ? e.toString() : "Unknown error";
-          addLog(`✗ Ep ${epNum}: ${errMsg}`, "error");
+          generationStore.addLog(`✗ Ep ${epNum}: ${errMsg}`, "error");
           hadError = true;
           errorMessages.push(`Ep ${epNum}: ${errMsg}`);
         }
@@ -2816,29 +2700,29 @@
 
       // Merge APKGs if single mode selected
       if (
-        seriesOutputMode === "single" &&
+        generationStore.seriesOutputMode === "single" &&
         apkgPaths.length > 1 &&
-        effectiveExportFormat === "apkg"
+        generationStore.effectiveExportFormat === "apkg"
       ) {
-        addLog(t("flashcards.mergingApkg"), "info");
+        generationStore.addLog(t("flashcards.mergingApkg"), "info");
         try {
           const mergedPath = await invoke<string>("flashcard_merge_apkg", {
             apkgPaths,
-            outputPath: `${outputDir}/${deckName.replace(/[^a-zA-Z0-9_\-\. ]/g, "_")}.apkg`,
+            outputPath: `${outputDir}/${generationStore.deckName.replace(/[^a-zA-Z0-9_\-\. ]/g, "_")}.apkg`,
           });
           finalApkgPath = mergedPath;
-          addLog(`APKG: ${mergedPath}`, "success");
+          generationStore.addLog(`APKG: ${mergedPath}`, "success");
         } catch (e) {
-          addLog(`${t("flashcards.mergeFailed")}: ${e}`, "error");
+          generationStore.addLog(`${t("flashcards.mergeFailed")}: ${e}`, "error");
           hadError = true;
         }
       }
 
-      if (finalApkgPath && exportFormat === "anki" && !hadError) {
+      if (finalApkgPath && generationStore.exportFormat === "anki" && !hadError) {
         await maybeAutoImportToAnki(finalApkgPath);
       }
 
-      result = {
+      generationStore.result = {
         success: !hadError && totalCards > 0,
         message: errorMessages.length > 0 ? errorMessages.join(", ") : (totalCards === 0 ? "No active subtitle lines after filtering" : null),
         cardsGenerated: totalCards,
@@ -2849,16 +2733,16 @@
         apkgPath: finalApkgPath,
       };
 
-      addLog(
+      generationStore.addLog(
         `${t("flashcards.seriesComplete", { total: String(episodes.length) })}`,
         "success",
       );
 
     } catch (e: any) {
       const errMsg = e ? e.toString() : "Unknown error";
-      error = `${t("flashcards.errorGenerating")}: ${errMsg}`;
-      addLog(`${error}`, "error");
-      result = {
+      generationStore.error = `${t("flashcards.errorGenerating")}: ${errMsg}`;
+      generationStore.addLog(`${generationStore.error}`, "error");
+      generationStore.result = {
         success: false,
         message: errMsg,
         cardsGenerated: 0,
@@ -2869,24 +2753,24 @@
         apkgPath: null,
       };
     } finally {
-      isProcessing = false;
+      generationStore.isProcessing = false;
       seriesCurrentEpisode = 0;
       seriesTotalEpisodes = 0;
-      progress = 0;
-      progressMessage = "";
-      progressStage = "";
+      generationStore.progress = 0;
+      generationStore.progressMessage = "";
+      generationStore.progressStage = "";
       const elapsed = Math.floor((Date.now() - startTime) / 1000);
       const hh = String(Math.floor(elapsed / 3600)).padStart(2, "0");
       const mm = String(Math.floor((elapsed % 3600) / 60)).padStart(2, "0");
       const ss = String(elapsed % 60).padStart(2, "0");
-      addLog(`⏱ ${hh}:${mm}:${ss}`, "info");
+      generationStore.addLog(`⏱ ${hh}:${mm}:${ss}`, "info");
     }
   }
 
   async function startGeneration() {
     if (!canRunFlashcards) {
       promptMissingGenerationRequirements();
-      error = t("flashcards.requiredFieldsMissing");
+      generationStore.error = t("flashcards.requiredFieldsMissing");
       return;
     }
 
@@ -2895,12 +2779,12 @@
       return;
     }
 
-    error = null;
-    result = null;
-    progress = 0;
-    isProcessing = true;
-    addLog(`${t("flashcards.starting")}...`, "info");
-    addLog(`${t("flashcards.deckName")}: ${deckName}`, "info");
+    generationStore.error = null;
+    generationStore.result = null;
+    generationStore.progress = 0;
+    generationStore.isProcessing = true;
+    generationStore.addLog(`${t("flashcards.starting")}...`, "info");
+    generationStore.addLog(`${t("flashcards.generationStore.deckName")}: ${generationStore.deckName}`, "info");
 
     const startTime = Date.now();
 
@@ -2910,7 +2794,7 @@
       await previewStore.applyOverrides(config);
 
       const res = await invoke<any>("flashcard_generate", { config });
-      result = {
+      generationStore.result = {
         success: res.success,
         message: res.message || null,
         cardsGenerated: res.cards_generated,
@@ -2923,27 +2807,27 @@
 
 
       if (res.success) {
-        addLog(
+        generationStore.addLog(
           `${res.cards_generated} ${t("flashcards.cardsGenerated")}`,
           "success",
         );
         if (res.tsv_path) {
-          addLog(`TSV: ${res.tsv_path}`, "success");
+          generationStore.addLog(`TSV: ${res.tsv_path}`, "success");
         }
         if (res.apkg_path) {
-          addLog(`APKG: ${res.apkg_path}`, "success");
-          if (exportFormat === "anki") {
+          generationStore.addLog(`APKG: ${res.apkg_path}`, "success");
+          if (generationStore.exportFormat === "anki") {
             await maybeAutoImportToAnki(res.apkg_path);
           }
         }
       } else {
-        addLog(res.message, "warning");
+        generationStore.addLog(res.message, "warning");
       }
     } catch (e: any) {
       const errMsg = e ? e.toString() : "Unknown error";
-      error = `${t("flashcards.errorGenerating")}: ${errMsg}`;
-      addLog(`${error}`, "error");
-      result = {
+      generationStore.error = `${t("flashcards.errorGenerating")}: ${errMsg}`;
+      generationStore.addLog(`${generationStore.error}`, "error");
+      generationStore.result = {
         success: false,
         message: errMsg,
         cardsGenerated: 0,
@@ -2954,45 +2838,31 @@
         apkgPath: null,
       };
     } finally {
-      isProcessing = false;
-      progress = 0;
-      progressMessage = "";
-      progressStage = "";
+      generationStore.isProcessing = false;
+      generationStore.progress = 0;
+      generationStore.progressMessage = "";
+      generationStore.progressStage = "";
       const elapsed = Math.floor((Date.now() - startTime) / 1000);
       const hh = String(Math.floor(elapsed / 3600)).padStart(2, "0");
       const mm = String(Math.floor((elapsed % 3600) / 60)).padStart(2, "0");
       const ss = String(elapsed % 60).padStart(2, "0");
-      addLog(`⏱ ${hh}:${mm}:${ss}`, "info");
+      generationStore.addLog(`⏱ ${hh}:${mm}:${ss}`, "info");
     }
   }
 
   async function cancelGeneration() {
     try {
       await invoke("flashcard_cancel");
-      isProcessing = false;
-      progress = 0;
-      progressMessage = "";
-      addLog(`${t("flashcards.cancelled")}`, "warning");
+      generationStore.cancelRun();
+      generationStore.addLog(`${t("flashcards.cancelled")}`, "warning");
     } catch (e) {
-      addLog(`Error cancelling: ${e}`, "error");
+      generationStore.addLog(`Error cancelling: ${e}`, "error");
     }
   }
 
-  function clearLogs() {
-    logs = [];
-    lastProgressKey = null;
-  }
-
   function resetGeneration() {
-    result = null;
-    error = null;
-    progress = 0;
-    progressMessage = "";
-    progressStage = "";
-    logs = [];
-    logIdCounter = 0;
-    lastProgressKey = null;
-    
+    generationStore.resetRun();
+
     // Clear files so the user can insert new ones
     targetSubsPath = "";
     nativeSubsPath = "";
@@ -3004,8 +2874,8 @@
     targetSubsInfo = null;
     nativeSubsInfo = null;
     episodes = [];
-    deckName = "";
-    deckNameAuto = true;
+    generationStore.deckName = "";
+    generationStore.deckNameAuto = true;
   }
 
   function handleGlobalKeydown(e: KeyboardEvent) {
@@ -3072,7 +2942,7 @@
     isDraggingOver = false;
   }}
 >
-  <div class="flex-1 overflow-y-auto overflow-x-hidden p-6 flashcards-scroll min-h-0 flex flex-col gap-4 {isProcessing ? 'pointer-events-none opacity-60 select-none' : ''}">
+  <div class="flex-1 overflow-y-auto overflow-x-hidden p-6 flashcards-scroll min-h-0 flex flex-col gap-4 {generationStore.isProcessing ? 'pointer-events-none opacity-60 select-none' : ''}">
   {#if isDraggingOver}
     <div
       class="absolute inset-0 z-50 {seriesMode ? 'bg-violet-500/10 border-violet-400/80 text-violet-400' : 'bg-emerald-500/10 border-emerald-400/80 text-emerald-400'} border-2 border-dashed rounded-2xl flex items-center justify-center pointer-events-none"
@@ -3128,7 +2998,7 @@
             ffmpegAvailable = await invoke<boolean>("flashcard_check_deps");
             window.dispatchEvent(new CustomEvent("vesta-ffmpeg-updated"));
           } catch (e) {
-            error = `${t("flashcards.ffmpegDownloadFailed")}: ${e}`;
+            generationStore.error = `${t("flashcards.ffmpegDownloadFailed")}: ${e}`;
           } finally {
             isDownloadingFFmpeg = false;
           }
@@ -3391,7 +3261,7 @@
       <SnapshotsPanel
         bind:settings={mediaSettings}
         {hasVideo}
-        {effectiveExportFormat}
+        effectiveExportFormat={generationStore.effectiveExportFormat}
         hintLoadVideoFirst={HINT_LOAD_VIDEO_FIRST}
       />
     {:else if panelId === "videoClips"}
@@ -3399,7 +3269,7 @@
         bind:settings={mediaSettings}
         bind:videoHwAccel
         {hasVideo}
-        {effectiveExportFormat}
+        effectiveExportFormat={generationStore.effectiveExportFormat}
         hintLoadVideoFirst={HINT_LOAD_VIDEO_FIRST}
       />
     {:else if panelId === "cardFilters"}
@@ -3445,9 +3315,9 @@
               </span>
               <input
                 type="text"
-                bind:value={deckName}
+                bind:value={generationStore.deckName}
                 oninput={(event) => {
-                  deckNameAuto =
+                  generationStore.deckNameAuto =
                     (event.currentTarget as HTMLInputElement).value.trim().length === 0;
                 }}
                 class="input-modern w-full text-sm"
@@ -3471,34 +3341,34 @@
 
     {:else if panelId === "progressResult"}
       <div class="space-y-3">
-        {#if isProcessing || progress > 0}
+        {#if generationStore.isProcessing || generationStore.progress > 0}
           <div
-            class="glass-card p-5 {isProcessing ? 'animate-pulse-glow' : ''}"
+            class="glass-card p-5 {generationStore.isProcessing ? 'animate-pulse-glow' : ''}"
           >
             <div class="flex items-center gap-4">
               <div class="flex-1">
                 <div class="progress-modern h-2">
                   <div
                     class="progress-modern-bar bg-gradient-to-r from-emerald-500 to-teal-500"
-                    style="width: {progress}%"
+                    style="width: {generationStore.progress}%"
                   ></div>
                 </div>
               </div>
-              <span class="text-lg font-bold text-emerald-400">{progress}%</span
+              <span class="text-lg font-bold text-emerald-400">{generationStore.progress}%</span
               >
             </div>
-            {#if progressMessage}
-              <p class="text-gray-400 text-xs mt-2">{progressMessage}</p>
+            {#if generationStore.progressMessage}
+              <p class="text-gray-400 text-xs mt-2">{generationStore.progressMessage}</p>
             {/if}
-            {#if progressStage}
+            {#if generationStore.progressStage}
               <div class="flex gap-1.5 mt-2">
                 {#each Array(10) as _, i}
                   {@const threshold = (i + 1) * 10}
                   <div
-                    class="h-1 flex-1 rounded-full transition-colors duration-300 {progress >=
+                    class="h-1 flex-1 rounded-full transition-colors duration-300 {generationStore.progress >=
                     threshold
                       ? 'bg-emerald-700'
-                      : progress >= threshold - 10
+                      : generationStore.progress >= threshold - 10
                         ? 'bg-emerald-400'
                         : 'bg-gray-700'}"
                   ></div>
@@ -3507,13 +3377,13 @@
             {/if}
           </div>
         {/if}
-        {#if result}
+        {#if generationStore.result}
           <div
-            class="glass-card p-5 border-l-4 {result.success
+            class="glass-card p-5 border-l-4 {generationStore.result.success
               ? 'border-green-500 bg-green-500/5'
               : 'border-red-500 bg-red-500/5'}"
           >
-            {#if result.success}
+            {#if generationStore.result.success}
               <div class="space-y-2">
                 <div class="flex items-center gap-3">
                   <svg
@@ -3530,35 +3400,35 @@
                     />
                   </svg>
                   <p class="text-green-400 font-medium">
-                    {result.cardsGenerated}
+                    {generationStore.result.cardsGenerated}
                     {t("flashcards.cardsGenerated")}
                   </p>
                 </div>
                 <div class="flex gap-4 text-xs text-gray-400">
-                  {#if result.audioClips > 0}
-                    <span>🔊 {result.audioClips} {t("flashcards.countAudio")}</span>
+                  {#if generationStore.result.audioClips > 0}
+                    <span>🔊 {generationStore.result.audioClips} {t("flashcards.countAudio")}</span>
                   {/if}
-                  {#if result.snapshots > 0}
-                    <span>📸 {result.snapshots} {t("flashcards.countSnapshots")}</span>
+                  {#if generationStore.result.snapshots > 0}
+                    <span>📸 {generationStore.result.snapshots} {t("flashcards.countSnapshots")}</span>
                   {/if}
-                  {#if result.videoClips > 0}
-                    <span>🎬 {result.videoClips} {t("flashcards.countVideo")}</span>
+                  {#if generationStore.result.videoClips > 0}
+                    <span>🎬 {generationStore.result.videoClips} {t("flashcards.countVideo")}</span>
                   {/if}
                 </div>
-                {#if result.tsvPath}
+                {#if generationStore.result.tsvPath}
                   <p
                     class="text-xs text-gray-500 break-words"
-                    title={result.tsvPath}
+                    title={generationStore.result.tsvPath}
                   >
-                    📄 {result.tsvPath}
+                    📄 {generationStore.result.tsvPath}
                   </p>
                 {/if}
-                {#if result.apkgPath}
+                {#if generationStore.result.apkgPath}
                   <p
                     class="text-xs text-gray-500 break-words"
-                    title={result.apkgPath}
+                    title={generationStore.result.apkgPath}
                   >
-                    📦 {result.apkgPath}
+                    📦 {generationStore.result.apkgPath}
                   </p>
 
                 {/if}
@@ -3579,17 +3449,17 @@
                   />
                 </svg>
                 <p class="text-red-300">
-                  {result.message
-                    ? (result.message.includes("No active")
+                  {generationStore.result.message
+                    ? (generationStore.result.message.includes("No active")
                       ? t("flashcards.noActiveLines")
-                      : result.message)
+                      : generationStore.result.message)
                     : t("flashcards.errorGenerating")}
                 </p>
               </div>
             {/if}
           </div>
         {/if}
-        {#if error}
+        {#if generationStore.error}
           <div class="glass-card p-5 border border-red-500/30 bg-red-500/10">
             <div class="flex items-center gap-3">
               <svg
@@ -3605,9 +3475,9 @@
                   d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
                 />
               </svg>
-              <p class="text-red-300 flex-1 text-sm break-words">{error}</p>
+              <p class="text-red-300 flex-1 text-sm break-words">{generationStore.error}</p>
               <button
-                onclick={() => (error = null)}
+                onclick={() => (generationStore.error = null)}
                 class="text-red-400 hover:text-red-300">✕</button
               >
             </div>
@@ -3619,8 +3489,8 @@
         title={t("flashcards.logs")}
         clearLogText={t("flashcards.clearLog")}
         noLogText={t("translate.noLog")}
-        {logs}
-        onclear={clearLogs}
+        logs={generationStore.logs}
+        onclear={() => generationStore.clearLogs()}
         minHeight="180px"
         maxHeightContent="16rem"
       />
@@ -3882,10 +3752,10 @@
   <!-- Fixed Bottom Band with Action Buttons -->
   <FooterActions>
     {#snippet background()}
-      {#if isProcessing}
+      {#if generationStore.isProcessing}
         <div
           class="absolute inset-y-0 left-0 bg-gradient-to-r from-emerald-500/15 to-teal-500/20 transition-all duration-300 ease-out z-0 pointer-events-none"
-          style="width: {progress}%"
+          style="width: {generationStore.progress}%"
         ></div>
         <div
           class="absolute inset-0 bg-shimmer-stripes opacity-15 z-0 pointer-events-none"
@@ -3893,9 +3763,9 @@
       {/if}
     {/snippet}
     {#snippet left()}
-    <!-- Left side: Note type template AND progress text/result messages -->
+    <!-- Left side: Note type template AND generationStore.progress text/generationStore.result messages -->
     <div class="flex items-center gap-4 select-none z-10 min-w-0 flex-1">
-      {#if !result && !isProcessing}
+      {#if !generationStore.result && !generationStore.isProcessing}
         {#if !easyMode}
           <!-- Template cycle button -->
           <div class="relative group/tmpl">
@@ -3925,7 +3795,7 @@
             </div>
           </div>
         {/if}
-      {:else if isProcessing}
+      {:else if generationStore.isProcessing}
         <!-- Loading status message overlay -->
         <div class="flex items-center gap-4">
           {#if !easyMode}
@@ -3948,15 +3818,15 @@
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
               </svg>
-              {progressMessage || t("refine.btn.generating")}
+              {generationStore.progressMessage || t("refine.btn.generating")}
             </span>
-            <span class="text-[10px] text-emerald-400/80 font-bold mt-0.5">{progress}%</span>
+            <span class="text-[10px] text-emerald-400/80 font-bold mt-0.5">{generationStore.progress}%</span>
           </div>
         </div>
-      {:else if result}
+      {:else if generationStore.result}
         <!-- Result Display -->
         <div class="flex items-center gap-4 min-w-0">
-          {#if result.success}
+          {#if generationStore.result.success}
             <!-- Success icon -->
             <div class="flex items-center justify-center w-8 h-8 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 shrink-0">
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -3967,45 +3837,45 @@
             <div class="flex flex-col min-w-0">
               <div class="flex items-baseline gap-2">
                 <span class="text-sm font-bold text-emerald-400 whitespace-nowrap">
-                  {result.cardsGenerated} {t("flashcards.cardsGenerated")}
+                  {generationStore.result.cardsGenerated} {t("flashcards.cardsGenerated")}
                 </span>
                 <span class="text-[11px] text-gray-400 flex gap-2 font-medium shrink-0">
-                  {#if result.audioClips > 0}
-                    <span>🔊 {result.audioClips}</span>
+                  {#if generationStore.result.audioClips > 0}
+                    <span>🔊 {generationStore.result.audioClips}</span>
                   {/if}
-                  {#if result.snapshots > 0}
-                    <span>📸 {result.snapshots}</span>
+                  {#if generationStore.result.snapshots > 0}
+                    <span>📸 {generationStore.result.snapshots}</span>
                   {/if}
-                  {#if result.videoClips > 0}
-                    <span>🎬 {result.videoClips}</span>
+                  {#if generationStore.result.videoClips > 0}
+                    <span>🎬 {generationStore.result.videoClips}</span>
                   {/if}
                 </span>
               </div>
-              {#if result.apkgPath}
+              {#if generationStore.result.apkgPath}
                 <button
                   onclick={() => {
-                    if (result) {
-                      navigator.clipboard.writeText(result.apkgPath || '');
+                    if (generationStore.result) {
+                      navigator.clipboard.writeText(generationStore.result.apkgPath || '');
                       showSnackbar($currentLanguage === 'it' ? 'Percorso copiato negli appunti!' : 'Path copied to clipboard!', 'success');
                     }
                   }}
                   class="text-[11px] text-gray-500 hover:text-gray-300 transition-colors text-left truncate cursor-pointer font-medium hover:underline flex items-center gap-1 mt-0.5"
-                  title={result.apkgPath}
+                  title={generationStore.result.apkgPath}
                 >
-                  📦 {result.apkgPath.split('/').pop()}
+                  📦 {generationStore.result.apkgPath.split('/').pop()}
                 </button>
-              {:else if result.tsvPath}
+              {:else if generationStore.result.tsvPath}
                 <button
                   onclick={() => {
-                    if (result) {
-                      navigator.clipboard.writeText(result.tsvPath || '');
+                    if (generationStore.result) {
+                      navigator.clipboard.writeText(generationStore.result.tsvPath || '');
                       showSnackbar($currentLanguage === 'it' ? 'Percorso copiato negli appunti!' : 'Path copied to clipboard!', 'success');
                     }
                   }}
                   class="text-[11px] text-gray-500 hover:text-gray-300 transition-colors text-left truncate cursor-pointer font-medium hover:underline flex items-center gap-1 mt-0.5"
-                  title={result.tsvPath}
+                  title={generationStore.result.tsvPath}
                 >
-                  📄 {result.tsvPath.split('/').pop()}
+                  📄 {generationStore.result.tsvPath.split('/').pop()}
                 </button>
               {/if}
             </div>
@@ -4019,8 +3889,8 @@
             <!-- Error details -->
             <div class="flex flex-col min-w-0">
               <span class="text-sm font-bold text-red-400">{t("flashcards.generationFailed") || 'Generation Failed'}</span>
-              <span class="text-[11px] text-gray-400 truncate max-w-[320px]" title={result.message}>
-                {result.message ? (result.message.includes("No active") ? t("flashcards.noActiveLines") : result.message) : t("flashcards.errorGenerating")}
+              <span class="text-[11px] text-gray-400 truncate max-w-[320px]" title={generationStore.result.message}>
+                {generationStore.result.message ? (generationStore.result.message.includes("No active") ? t("flashcards.noActiveLines") : generationStore.result.message) : t("flashcards.errorGenerating")}
               </span>
             </div>
           {/if}
@@ -4036,7 +3906,7 @@
           <div class="relative group/fmt">
             <button
               type="button"
-              onclick={cycleExportFormat}
+              onclick={() => generationStore.cycleExportFormat()}
               oncontextmenu={(e) => openBottomContextMenu(e, "overview")}
               onmousedown={(e) => {
                 if (e.button === 1) {
@@ -4044,13 +3914,13 @@
                   onGoToSettings?.("overview");
                 }
               }}
-              disabled={isProcessing || !!result}
+              disabled={generationStore.isProcessing || !!generationStore.result}
               class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold cursor-pointer select-none transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:active:scale-100
-                {isProcessing || result
+                {generationStore.isProcessing || generationStore.result
                   ? 'border-gray-700 bg-gray-800/40 text-gray-500 opacity-60 pointer-events-none'
-                  : exportFormat === 'apkg'
+                  : generationStore.exportFormat === 'apkg'
                     ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20 hover:border-emerald-500/50 hover:scale-[1.02] active:scale-[0.98]'
-                    : exportFormat === 'tsv'
+                    : generationStore.exportFormat === 'tsv'
                       ? 'border-sky-500/40 bg-sky-500/10 text-sky-300 hover:bg-sky-500/20 hover:border-sky-500/50 hover:scale-[1.02] active:scale-[0.98]'
                       : 'border-violet-500/40 bg-violet-500/10 text-violet-300 hover:bg-violet-500/20 hover:border-violet-500/50 hover:scale-[1.02] active:scale-[0.98]'}"
             >
@@ -4059,15 +3929,15 @@
                   d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
                 />
               </svg>
-              {exportFormat === 'apkg' ? 'APKG' : exportFormat === 'tsv' ? 'TSV' : 'Anki Connect'}
+              {generationStore.exportFormat === 'apkg' ? 'APKG' : generationStore.exportFormat === 'tsv' ? 'TSV' : 'Anki Connect'}
             </button>
-            {#if !isProcessing && !result}
+            {#if !generationStore.isProcessing && !generationStore.result}
               <div class="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-3 z-50
                 rounded-xl bg-gray-950/95 p-3 text-xs shadow-2xl shadow-black/40 ring-1 ring-white/10
                 opacity-0 group-hover/fmt:opacity-100 transition-all duration-150 whitespace-nowrap text-center border
-                {exportFormat === 'apkg'
+                {generationStore.exportFormat === 'apkg'
                   ? 'border-emerald-500/30 text-emerald-300'
-                  : exportFormat === 'tsv'
+                  : generationStore.exportFormat === 'tsv'
                     ? 'border-sky-500/30 text-sky-300'
                     : 'border-violet-500/30 text-violet-300'}">
                 {t("flashcards.clickToToggleFormat")}
@@ -4076,38 +3946,38 @@
           </div>
 
         <!-- Series output mode inline selector (only visible in series mode + apkg) -->
-        {#if seriesMode && effectiveExportFormat === "apkg"}
-          <div class="flex items-center bg-gray-800/60 border border-gray-700/60 rounded-lg p-0.5 select-none relative group/sw {isProcessing || result ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''}">
+        {#if seriesMode && generationStore.effectiveExportFormat === "apkg"}
+          <div class="flex items-center bg-gray-800/60 border border-gray-700/60 rounded-lg p-0.5 select-none relative group/sw {generationStore.isProcessing || generationStore.result ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''}">
             <!-- Sliding indicator background -->
             <div 
               class="absolute top-0.5 bottom-0.5 left-0.5 rounded-md bg-violet-500/20 border border-violet-500/50 transition-all duration-200 ease-out"
-              style="width: 160px; transform: translateX({seriesOutputMode === 'separate' ? '0px' : '160px'});"
+              style="width: 160px; transform: translateX({generationStore.seriesOutputMode === 'separate' ? '0px' : '160px'});"
             ></div>
 
             <button
-              onclick={() => { if(!isProcessing && !result) seriesOutputMode = seriesOutputMode === 'separate' ? 'single' : 'separate'; }}
-              disabled={isProcessing || !!result}
+              onclick={() => { if(!generationStore.isProcessing && !generationStore.result) generationStore.seriesOutputMode = generationStore.seriesOutputMode === 'separate' ? 'single' : 'separate'; }}
+              disabled={generationStore.isProcessing || !!generationStore.result}
               class="w-[160px] py-1 rounded-md text-xs font-semibold transition-colors duration-200 flex items-center justify-center cursor-pointer select-none relative z-10 disabled:cursor-not-allowed
-                {seriesOutputMode === 'separate' ? 'text-violet-200' : 'text-gray-500 hover:text-gray-300'}"
+                {generationStore.seriesOutputMode === 'separate' ? 'text-violet-200' : 'text-gray-500 hover:text-gray-300'}"
             >
               {t("flashcards.outputPerEpisode")}
             </button>
             <button
-              onclick={() => { if(!isProcessing && !result) seriesOutputMode = seriesOutputMode === 'separate' ? 'single' : 'separate'; }}
-              disabled={isProcessing || !!result}
+              onclick={() => { if(!generationStore.isProcessing && !generationStore.result) generationStore.seriesOutputMode = generationStore.seriesOutputMode === 'separate' ? 'single' : 'separate'; }}
+              disabled={generationStore.isProcessing || !!generationStore.result}
               class="w-[160px] py-1 rounded-md text-xs font-semibold transition-colors duration-200 flex items-center justify-center cursor-pointer select-none relative z-10 disabled:cursor-not-allowed
-                {seriesOutputMode === 'single' ? 'text-violet-200' : 'text-gray-500 hover:text-gray-300'}"
+                {generationStore.seriesOutputMode === 'single' ? 'text-violet-200' : 'text-gray-500 hover:text-gray-300'}"
             >
               {t("flashcards.outputSingleApkg")}
             </button>
 
             <!-- Custom premium tooltip -->
-            {#if !isProcessing && !result}
+            {#if !generationStore.isProcessing && !generationStore.result}
               <div 
                 class="pointer-events-none absolute bottom-full z-50 mb-3 -translate-x-1/2 rounded-xl border border-violet-500/30 bg-gray-950/95 p-3 text-center text-xs text-violet-300 shadow-2xl shadow-black/40 ring-1 ring-white/10 transition-all duration-150 delay-0 group-hover/sw:delay-300 opacity-0 group-hover/sw:opacity-100 group-hover/sw:translate-y-0 translate-y-1 whitespace-normal max-w-[280px] w-max"
-                style="left: {seriesOutputMode === 'separate' ? '82px' : '242px'};"
+                style="left: {generationStore.seriesOutputMode === 'separate' ? '82px' : '242px'};"
               >
-                {seriesOutputMode === 'separate' ? t("flashcards.outputPerEpisodeDesc") : t("flashcards.outputSingleApkgDesc")}
+                {generationStore.seriesOutputMode === 'separate' ? t("flashcards.outputPerEpisodeDesc") : t("flashcards.outputSingleApkgDesc")}
               </div>
             {/if}
           </div>
@@ -4115,11 +3985,11 @@
       </div>
 
       <!-- Preview Button -->
-      {#if !result}
+      {#if !generationStore.result}
         <div class="relative group">
           <button
             class="px-5 py-2.5 bg-gray-800 hover:bg-gray-700 disabled:bg-gray-800/40 text-gray-300 disabled:text-gray-600 rounded-xl font-bold text-sm transition-all border border-white/10 flex items-center gap-2 enabled:hover:scale-[1.02] enabled:active:scale-[0.98] disabled:cursor-not-allowed cursor-pointer disabled:border-white/5"
-            disabled={!canRunFlashcards || isProcessing}
+            disabled={!canRunFlashcards || generationStore.isProcessing}
             onclick={loadPreview}
           >
             <svg
@@ -4143,7 +4013,7 @@
             </svg>
             {t("flashcards.preview")}
           </button>
-          {#if !isProcessing}
+          {#if !generationStore.isProcessing}
             <div class="pointer-events-none absolute bottom-full left-1/2 z-50 mb-3 -translate-x-1/2 rounded-xl border border-amber-500/30 bg-gray-950/95 p-3 text-center text-xs text-amber-300 shadow-2xl shadow-black/40 ring-1 ring-white/10 transition-all duration-150 delay-0 group-hover:delay-300 opacity-0 group-hover:opacity-100 group-hover:translate-y-0 translate-y-1 whitespace-normal w-72">
               {!canRunFlashcards ? t("flashcards.completePrefix", { steps: generationRequirementsText }) : t("flashcards.preview")}
             </div>
@@ -4152,7 +4022,7 @@
       {/if}
 
       <!-- Main action button (Generate / Cancel / New Generation) -->
-      {#if isProcessing}
+      {#if generationStore.isProcessing}
         <button
           onclick={cancelGeneration}
           class="px-5 py-2.5 bg-red-600 hover:bg-red-500 text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-red-900/30 flex items-center gap-2 hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
@@ -4173,7 +4043,7 @@
           {t("flashcards.cancel")}
         </button>
       {:else}
-        {#if !result}
+        {#if !generationStore.result}
           <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
           <div
             class="group relative"

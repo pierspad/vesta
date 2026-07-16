@@ -1,22 +1,10 @@
-//! Preparazione di un file media per la riproduzione nel player embedded.
-//!
-//! Whitelist dei formati nativamente supportati, transcodifica via ffmpeg
-//! (Opus con fallback Vorbis se `libopus` non e' disponibile) e caching su
-//! disco con invalidazione basata su mtime. GUI-agnostico (niente Tauri,
-//! niente runtime async assunto): vedi REFACTOR-PLAN.md §1.2 — prima questa
-//! logica viveva solo nel comando Tauri `sync_prepare_media_for_playback`.
-
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-/// Estensioni riproducibili nativamente dal player embedded (WebKitGTK /
-/// GStreamer) senza passare da ffmpeg.
 const NATIVE_PLAYBACK_EXTENSIONS: &[&str] = &[
     "mp4", "m4v", "webm", "mp3", "wav", "ogg", "m4a", "aac", "opus", "flac",
 ];
 
-/// Vero se `path` ha un'estensione riproducibile nativamente, quindi non
-/// richiede transcodifica.
 pub fn is_natively_playable(path: &Path) -> bool {
     let ext = path
         .extension()
@@ -26,14 +14,6 @@ pub fn is_natively_playable(path: &Path) -> bool {
     NATIVE_PLAYBACK_EXTENSIONS.contains(&ext.as_str())
 }
 
-/// Hash stabile ma **non crittografico** del path sorgente, usato solo per
-/// generare un nome di file deterministico in cache. Il nome storico di
-/// questa funzione era `sha1_hash` pur usando `DefaultHasher`: non solo non
-/// è SHA-1, ma lo standard library non garantisce nemmeno che l'algoritmo di
-/// `DefaultHasher` resti invariato tra versioni del compilatore, il che
-/// invaliderebbe silenziosamente l'intera cache ad ogni aggiornamento di
-/// rustc. FNV-1a è un algoritmo pubblico e a specifica fissa: stesso input,
-/// stesso hash, per sempre.
 fn stable_path_hash(input: &str) -> String {
     const FNV_OFFSET_BASIS: u64 = 0xcbf29ce484222325;
     const FNV_PRIME: u64 = 0x100000001b3;
@@ -45,16 +25,6 @@ fn stable_path_hash(input: &str) -> String {
     format!("{hash:016x}")
 }
 
-/// Prepara `source` per la riproduzione nel player embedded.
-///
-/// Se il formato è già nativamente supportato, restituisce `source`
-/// invariato. Altrimenti transcodifica l'audio in OGG (Opus, con fallback
-/// Vorbis se `libopus` non è disponibile) dentro `cache_dir`, riusando il
-/// file già in cache se più recente della sorgente.
-///
-/// Sincrona (usa `std::process::Command`, non `tokio`): la libreria non
-/// assume un runtime async, sta al chiamante decidere come schedularla (es.
-/// `tokio::task::spawn_blocking` da un comando Tauri `async`).
 pub fn transcode_for_playback(
     source: &Path,
     cache_dir: &Path,
@@ -155,7 +125,7 @@ mod tests {
                 "{ext} should be native"
             );
         }
-        // Case-insensitive extension matching.
+
         assert!(is_natively_playable(Path::new("clip.MP3")));
     }
 
@@ -171,7 +141,6 @@ mod tests {
 
     #[test]
     fn transcode_is_a_no_op_for_native_formats() {
-        // Non deve nemmeno toccare cache_dir/ffmpeg per un formato già nativo.
         let source = Path::new("/does/not/exist/clip.mp3");
         let result = transcode_for_playback(
             source,

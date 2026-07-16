@@ -1,42 +1,3 @@
-//! # srt-flashcards
-//!
-//! Headless, GUI-agnostic engine that turns a subtitle file (optionally a pair
-//! of *target* + *native* subtitles) plus a media file into Anki flashcards,
-//! exported either as a subs2srs-style TSV + media folder or as a self-contained
-//! `.apkg` package.
-//!
-//! The crate is deliberately **free of any Tauri / GUI coupling** (see
-//! `.cursorrules` §9): progress is reported through a plain callback and work is
-//! cancelled through a [`CancellationToken`], so the exact same code powers the
-//! Vesta desktop app, the `srt-flashcards` headless CLI and the benchmark
-//! harness.
-//!
-//! ## Pipeline
-//!
-//! ```text
-//! parse → time-shift → match (dual subs) → span → filter → combine → context
-//!       → parallel ffmpeg media extraction → TSV / APKG export
-//! ```
-//!
-//! ## Quick start
-//!
-//! ```no_run
-//! use srt_flashcards::{generate, FlashcardConfig, MediaTools};
-//! use tokio_util::sync::CancellationToken;
-//!
-//! # async fn run(config: FlashcardConfig) -> Result<(), String> {
-//! let result = generate(
-//!     config,
-//!     MediaTools::default(),          // resolve `ffmpeg`/`ffprobe` from PATH
-//!     CancellationToken::new(),
-//!     &|p| eprintln!("[{:>3.0}%] {}", p.percentage, p.stage), // progress sink
-//! )
-//! .await?;
-//! println!("Generated {} cards", result.cards_generated);
-//! # Ok(())
-//! # }
-//! ```
-
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -62,13 +23,6 @@ use matcher::match_subtitles;
 use media::{extract_audio_clip, extract_snapshot, extract_video_clip, normalize_audio};
 use parser::parse_subtitle_file;
 
-// ─── Public support types ────────────────────────────────────────────────────
-
-/// External media tools used for extraction.
-///
-/// Each field is the command the engine will spawn — a bare name resolved via
-/// `PATH` (the [`Default`]) or an absolute path to a bundled binary (used by the
-/// desktop app, which can download ffmpeg into its data directory).
 #[derive(Debug, Clone)]
 pub struct MediaTools {
     pub ffmpeg: String,
@@ -85,7 +39,6 @@ impl Default for MediaTools {
 }
 
 impl MediaTools {
-    /// Build from explicit commands/paths (empty values fall back to PATH).
     pub fn new(ffmpeg: impl Into<String>, ffprobe: impl Into<String>) -> Self {
         let ffmpeg = ffmpeg.into();
         let ffprobe = ffprobe.into();
@@ -104,11 +57,6 @@ impl MediaTools {
     }
 }
 
-/// Progress callback signature.
-///
-/// The engine invokes this from the orchestrating task (never from the parallel
-/// ffmpeg workers); it must be `Send + Sync` so the generation future stays
-/// `Send` on multi-threaded runtimes (e.g. Tauri).
 pub type ProgressCallback<'a> = &'a (dyn Fn(FlashcardProgressEvent) + Send + Sync);
 
 fn emit(
@@ -359,7 +307,6 @@ pub async fn generate(
     cancel: CancellationToken,
     progress: ProgressCallback<'_>,
 ) -> Result<FlashcardResult, String> {
-    // --- Stage 1: Parse + match + filter (shared pipeline) ---
     emit(
         progress,
         "parsing",
@@ -409,12 +356,8 @@ pub async fn generate(
         });
     }
 
-    // --- Output directories ---
     let output_dir = PathBuf::from(&config.output_dir);
-    // Make sure the destination exists up front. TSV gets this for free (its
-    // `<deck>.media` folder lives inside `output_dir`), but APKG packs media in a
-    // temp dir, so without this an APKG export into a not-yet-existing folder
-    // (e.g. `~/Downloads/decks/`) would fail when the `.apkg` file is created.
+
     std::fs::create_dir_all(&output_dir).map_err(|e| {
         format!(
             "Cannot create output directory '{}': {e}",
@@ -423,8 +366,6 @@ pub async fn generate(
     })?;
     let export_format = config.export_format.as_deref().unwrap_or("tsv");
 
-    // APKG packs media from a temp dir; TSV writes a sibling `<deck>.media` folder
-    // matching the classic subs2srs layout.
     let apkg_temp_dir = if export_format == "apkg" {
         Some(tempfile::tempdir().map_err(|e| format!("Cannot create temp dir for media: {}", e))?)
     } else {
@@ -436,13 +377,12 @@ pub async fn generate(
     } else {
         output_dir.join(format!("{}.media", sanitize_filename(&config.deck_name)))
     };
-    // Clean any stale media from a prior run.
+
     if media_dir.exists() {
         let _ = std::fs::remove_dir_all(&media_dir);
     }
     std::fs::create_dir_all(&media_dir).map_err(|e| format!("Cannot create output dir: {}", e))?;
 
-    // Media sources
     let media_source = config
         .audio_path
         .as_deref()
@@ -453,7 +393,6 @@ pub async fn generate(
     let needs_snapshots = config.generate_snapshots && video_source.is_some();
     let needs_video = config.generate_video_clips && video_source.is_some();
 
-    // ffmpeg must exist before we spawn hundreds of workers.
     if (needs_audio || needs_snapshots || needs_video) && !check_ffmpeg(&tools.ffmpeg).await {
         return Err("ffmpeg not found. Install ffmpeg to extract media.".to_string());
     }
@@ -467,8 +406,6 @@ pub async fn generate(
     let video_codec = config.video_codec.clone();
     let h264_preset = config.h264_preset.clone();
 
-    // H.264 encoder: probe the GPU once per run ("auto", the default), unless
-    // the user forced software encoding ("off", expert mode).
     let video_encoder = if needs_video && video_codec == "h264" && config.video_hw_accel != "off" {
         let encoder = detect_h264_encoder(&tools.ffmpeg).await;
         if encoder.is_hardware() {
@@ -489,12 +426,6 @@ pub async fn generate(
 
     let batch_size = resolve_worker_count(config.cpu_cores);
 
-    // --- Stage 4: Parallel media extraction (streaming, bounded concurrency) ---
-    //
-    // A semaphore caps in-flight ffmpeg processes at `batch_size` (max cores-1).
-    // Unlike a fixed batch barrier, work streams continuously: the instant one
-    // ffmpeg job finishes the next starts, so a single slow clip never stalls a
-    // whole batch and every worker stays saturated for the full run.
     let active_lines: Vec<(usize, &MatchedLine)> =
         matched.iter().filter(|m| m.active).enumerate().collect();
 
@@ -508,9 +439,7 @@ pub async fn generate(
 
     if total_media_ops > 0 {
         let semaphore = Arc::new(tokio::sync::Semaphore::new(batch_size));
-        // GPU encoders have concurrent-session limits (NVENC on GeForce: 3-8
-        // depending on driver) and saturate with few sessions anyway: cap
-        // hardware encodes separately from the CPU-bound audio/snapshot jobs.
+
         let hw_video_semaphore = video_encoder
             .is_hardware()
             .then(|| Arc::new(tokio::sync::Semaphore::new(3)));

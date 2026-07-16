@@ -1,11 +1,3 @@
-//! # srt-translate-lib
-//!
-//! Libreria core per la traduzione di sottotitoli SRT usando LLM (locali o remoti).
-//!
-//! Questa libreria implementa il pattern di Inversione del Controllo (IoC),
-//! permettendo al chiamante di definire come gestire gli aggiornamenti di progresso
-//! tramite callback personalizzati.
-
 mod language_info;
 pub mod pool;
 mod prompts;
@@ -20,7 +12,6 @@ use std::time::Instant;
 use tokio::sync::Semaphore;
 use tokio_util::sync::CancellationToken;
 
-// Re-export dei tipi pubblici
 pub use pool::{
     TierEntry, build_pool, build_pool_entry, provider_allows_missing_key, provider_defaults,
 };
@@ -29,51 +20,30 @@ pub use rate_limiter::{
 };
 pub use translator::{ApiType, Translator, TranslatorConfig};
 
-/// Dati di progresso della traduzione passati al callback
 #[derive(Debug, Clone)]
 pub struct TranslationProgress {
-    /// Messaggio descrittivo dello stato corrente
     pub message: String,
-    /// Tempo stimato rimanente in secondi (None se non disponibile)
+
     pub eta_seconds: Option<f64>,
-    /// Numero batch corrente
+
     pub current_batch: usize,
-    /// Numero totale di batch
+
     pub total_batches: usize,
-    /// Numero del primo sottotitolo del batch corrente
+
     pub batch_start: usize,
-    /// Numero dell'ultimo sottotitolo del batch corrente
+
     pub batch_end: usize,
 }
 
-/// Risultato della traduzione batch-by-batch
 #[derive(Debug, Clone)]
 pub struct BatchResult {
-    /// Batch completato con successo
     pub success: bool,
-    /// Numero batch
+
     pub batch_number: usize,
-    /// Errore eventuale
+
     pub error: Option<String>,
 }
 
-/// Traduce tutti i sottotitoli usando multiple API keys in parallelo con rate limiting
-///
-/// # Argomenti
-///
-/// * `translators` - Vector di Translator pre-configurati (uno per API provider)
-/// * `subtitles` - HashMap dei sottotitoli da tradurre
-/// * `target_lang` - Codice lingua target (es: "it", "en", "es")
-/// * `batch_size` - Numero di sottotitoli da tradurre insieme
-/// * `title_context` - Contesto opzionale (es: titolo del film)
-/// * `output_path` - Percorso del file di output per salvataggio incrementale
-/// * `on_progress` - Callback invocato ad ogni aggiornamento di progresso
-///
-/// **Nota**: Questa funzione usa solo il semaforo per limitare la concorrenza.
-/// Per un vero rate limiting basato su RPM, usa `translate_subtitles_with_rate_limit`.
-// API di traduzione pubblica a strati: ogni variante aggiunge una capacità (rate
-// limiting, cancellazione) e delega alla successiva, quindi la lista di parametri
-// è intrinseca al design, non complessità incidentale.
 #[allow(clippy::too_many_arguments)]
 pub async fn translate_subtitles_async<F>(
     translators: Vec<Translator>,
@@ -149,8 +119,6 @@ where
     .await
 }
 
-/// Verifica che tutti i sottotitoli dell'originale siano presenti nella traduzione
-/// Restituisce gli ID mancanti
 pub fn verify_translation_completeness(
     original: &HashMap<u32, Subtitle>,
     translated: &HashMap<u32, Subtitle>,
@@ -158,21 +126,6 @@ pub fn verify_translation_completeness(
     get_missing_or_incorrect_subtitle_ids(original, translated)
 }
 
-/// Funzione modulare che identifica gli ID dei sottotitoli mancanti o con discrepanze nella traduzione
-///
-/// Questa funzione confronta l'originale con la traduzione e restituisce un vettore
-/// contenente gli ID dei sottotitoli che:
-/// - Sono presenti nell'originale ma assenti nella traduzione
-/// - Hanno un numero di linee diverso tra originale e traduzione
-///
-/// # Argomenti
-///
-/// * `original` - HashMap dei sottotitoli originali
-/// * `translated` - HashMap dei sottotitoli tradotti
-///
-/// # Restituisce
-///
-/// Un vettore di ID (u32) dei sottotitoli che devono essere corretti/tradotti
 pub fn get_missing_or_incorrect_subtitle_ids(
     original: &HashMap<u32, Subtitle>,
     translated: &HashMap<u32, Subtitle>,
@@ -180,12 +133,10 @@ pub fn get_missing_or_incorrect_subtitle_ids(
     original
         .iter()
         .filter(|(id, original_sub)| {
-            // Sottotitolo mancante
             if !translated.contains_key(id) {
                 return true;
             }
 
-            // Sottotitolo presente ma con numero di linee diverso
             if let Some(translated_sub) = translated.get(id) {
                 let original_lines = original_sub.text.lines().count();
                 let translated_lines = translated_sub.text.lines().count();
@@ -198,8 +149,6 @@ pub fn get_missing_or_incorrect_subtitle_ids(
         .collect()
 }
 
-/// Funzione legacy che identifica solo gli ID dei sottotitoli completamente mancanti
-/// (senza verificare il numero di linee)
 #[deprecated(note = "Use get_missing_or_incorrect_subtitle_ids instead")]
 pub fn get_missing_subtitle_ids(
     original: &HashMap<u32, Subtitle>,
@@ -212,11 +161,6 @@ pub fn get_missing_subtitle_ids(
         .collect()
 }
 
-/// Ripara una traduzione incompleta traducendo i sottotitoli mancanti in parallelo
-/// con contesto migliorato (sottotitoli prima e dopo)
-///
-/// Utilizza tutti i translators disponibili con un semaforo per massimizzare
-/// l'efficienza del parallelismo
 pub async fn repair_translation<F>(
     translators: Vec<Translator>,
     original: &HashMap<u32, Subtitle>,
@@ -270,14 +214,11 @@ where
     let total = missing_ids.len();
     let translators_len = translators.len();
 
-    // Wrapper thread-safe per il callback e i risultati
     let progress_callback = Arc::new(Mutex::new(on_progress));
     let repaired = Arc::new(Mutex::new(HashMap::new()));
 
-    // Crea un semaforo per controllare il parallelismo (come nella traduzione principale)
     let semaphore = Arc::new(Semaphore::new(translators_len));
 
-    // Wrappa i rate limiters
     let rate_limiters: Option<Vec<Arc<RateLimiter>>> = rate_limiters;
 
     {
@@ -295,21 +236,18 @@ where
         });
     }
 
-    // Timing stats per ETA
-    let timing_stats = Arc::new(Mutex::new((0.0_f64, 0_usize))); // (total_duration, completed)
+    let timing_stats = Arc::new(Mutex::new((0.0_f64, 0_usize)));
     let start_time = Instant::now();
 
-    // Crea tasks per ogni sottotitolo mancante
     let mut handles = vec![];
 
     for (idx, id) in missing_ids.iter().enumerate() {
         if let Some(subtitle) = original.get(id) {
-            // Seleziona translator in round-robin per bilanciare il carico
             let translator_idx = idx % translators_len;
             let translator = translators[translator_idx].clone();
 
             let semaphore = semaphore.clone();
-            // Clona il rate limiter per questo provider (se disponibile)
+
             let rate_limiter = rate_limiters
                 .as_ref()
                 .map(|limiters| limiters[translator_idx % limiters.len()].clone());
@@ -321,17 +259,13 @@ where
             let repaired = repaired.clone();
             let timing_stats = timing_stats.clone();
 
-            // Costruisce il contesto: sottotitoli prima e dopo
             let context_text = build_repair_context(id, original, translated);
 
             let handle = tokio::spawn(async move {
-                // Prima: aspetta il rate limiter RPM (se configurato)
                 if let Some(ref limiter) = rate_limiter {
                     limiter.until_ready().await;
                 }
 
-                // Poi: acquisisce permit dal semaforo per limitare il parallelismo
-                // Questo non fallisce a meno che il semaforo non sia chiuso
                 let _permit = semaphore
                     .acquire()
                     .await
@@ -351,7 +285,6 @@ where
                     }
                 };
 
-                // Notifica inizio
                 {
                     let completed = timing_stats.lock().await.1;
                     let mut callback = progress_callback.lock().await;
@@ -371,7 +304,6 @@ where
                     });
                 }
 
-                // Usa un prompt speciale con contesto
                 match translator
                     .translate_with_context(
                         &subtitle.text,
@@ -386,7 +318,6 @@ where
                         new_subtitle.text = translation;
                         repaired.lock().await.insert(id, new_subtitle);
 
-                        // Aggiorna timing stats
                         let duration = task_start.elapsed().as_secs_f64();
                         let mut stats = timing_stats.lock().await;
                         stats.0 += duration;
@@ -403,7 +334,7 @@ where
                             batch_start: idx + 1,
                             batch_end: total,
                         });
-                        // In caso di errore, inseriamo l'originale
+
                         repaired.lock().await.insert(id, subtitle.clone());
                     }
                 }
@@ -413,12 +344,10 @@ where
         }
     }
 
-    // Attendi completamento di tutti i task
     for handle in handles {
         let _ = handle.await;
     }
 
-    // Applica le riparazioni
     let repaired_subs = repaired.lock().await;
     for (id, subtitle) in repaired_subs.iter() {
         translated.insert(*id, subtitle.clone());
@@ -441,7 +370,6 @@ where
     Ok(())
 }
 
-/// Costruisce il contesto per il repair: sottotitoli prima e dopo quello mancante
 fn build_repair_context(
     missing_id: u32,
     original: &HashMap<u32, Subtitle>,
@@ -449,7 +377,6 @@ fn build_repair_context(
 ) -> Option<String> {
     let mut context_parts = Vec::new();
 
-    // Cerca 2 sottotitoli prima
     for offset in (1..=2).rev() {
         if let Some(prev_id) = missing_id.checked_sub(offset)
             && let (Some(orig), Some(trans)) = (original.get(&prev_id), translated.get(&prev_id))
@@ -461,7 +388,6 @@ fn build_repair_context(
         }
     }
 
-    // Cerca 2 sottotitoli dopo
     for offset in 1..=2 {
         let next_id = missing_id + offset;
         if let (Some(orig), Some(trans)) = (original.get(&next_id), translated.get(&next_id)) {
@@ -482,21 +408,6 @@ fn build_repair_context(
     }
 }
 
-/// Traduce tutti i sottotitoli con supporto per cancellazione
-///
-/// Questa versione permette di cancellare la traduzione in corso tramite un CancellationToken.
-///
-/// # Argomenti
-///
-/// * `translators` - Vector di Translator pre-configurati
-/// * `rate_limiters` - Optional: Vector di RateLimiter
-/// * `subtitles` - HashMap dei sottotitoli da tradurre
-/// * `target_lang` - Codice lingua target
-/// * `batch_size` - Numero di sottotitoli da tradurre insieme
-/// * `title_context` - Contesto opzionale
-/// * `output_path` - Percorso del file di output
-/// * `on_progress` - Callback per il progresso
-/// * `cancellation_token` - Token per cancellare la traduzione
 #[allow(clippy::too_many_arguments)]
 pub async fn translate_subtitles_with_rate_limit_cancellable<F>(
     translators: Vec<Translator>,
@@ -855,46 +766,30 @@ async fn repair_missing_subtitles_cancellable(
 //
 //  Politica di esecuzione:
 //   • All'interno di un tier le entry vengono usate in round-robin (carico bilanciato).
-//   • Quando una entry esaurisce il budget manuale oppure restituisce un errore di
-//     rate-limit/quota (dopo i retry interni), viene marcata come "esaurita" e rimossa
-//     dalla rotazione per il resto del run.
-//   • Quando TUTTE le entry di un tier sono esaurite si passa automaticamente al tier
-//     successivo (failover). Il passaggio è monotòno: non si torna a un tier precedente.
-// =====================================================================================
 
-/// Un singolo endpoint utilizzabile per la traduzione all'interno del pool a tier.
 #[derive(Clone)]
 pub struct PoolEntry {
-    /// Traduttore già configurato (provider + modello + key + base_url).
     pub translator: Translator,
-    /// Rate limiter opzionale (spaziatura richieste in base agli RPM dichiarati).
+
     pub rate_limiter: Option<Arc<RateLimiter>>,
-    /// Budget opzionale di richieste per questo run (None = illimitato).
+
     pub max_requests: Option<u32>,
-    /// Etichetta leggibile per i log/progress (es: "T1 · google · gemini-3-flash").
+
     pub label: String,
 }
 
-/// Pool a tier in ordine di priorità: l'indice 0 è il tier a priorità massima.
 pub type TranslatorPool = Vec<Vec<PoolEntry>>;
 
-/// Stato runtime di una singola entry durante un run.
 struct EntryRuntime {
     exhausted: bool,
     remaining: Option<u32>,
 }
 
-/// Stato runtime di un tier (entry + cursore round-robin).
 struct TierRuntime {
     entries: Vec<EntryRuntime>,
     cursor: usize,
 }
 
-/// Scheduler che assegna le entry rispettando tier e failover.
-///
-/// Pubblico perché è generico rispetto al task: qualsiasi consumer con un
-/// [`TranslatorPool`] (es. `srt-refine`) può riusare la stessa politica
-/// round-robin + failover senza duplicarla.
 pub struct TierScheduler {
     tiers: Vec<TierRuntime>,
     active: usize,
@@ -918,9 +813,6 @@ impl TierScheduler {
         Self { tiers, active: 0 }
     }
 
-    /// Restituisce `(tier, idx)` di una entry disponibile, scalando il budget.
-    /// Avanza automaticamente al tier successivo quando quello attivo è esaurito.
-    /// Restituisce `None` quando ogni tier è esaurito.
     pub fn acquire(&mut self) -> Option<(usize, usize)> {
         while self.active < self.tiers.len() {
             let active = self.active;
@@ -944,13 +836,12 @@ impl TierScheduler {
                     return Some((active, i));
                 }
             }
-            // Tier attivo completamente esaurito: passa al successivo.
+
             self.active += 1;
         }
         None
     }
 
-    /// Marca una entry come esaurita (rate-limit/quota raggiunti).
     pub fn report_exhausted(&mut self, tier: usize, idx: usize) {
         if let Some(t) = self.tiers.get_mut(tier)
             && let Some(e) = t.entries.get_mut(idx)
@@ -959,17 +850,11 @@ impl TierScheduler {
         }
     }
 
-    /// Indice del tier attualmente attivo (1-based per i messaggi all'utente).
     pub fn active_tier_human(&self) -> usize {
         self.active + 1
     }
 }
 
-/// Heuristica per riconoscere un errore di rate-limit / quota esaurita.
-///
-/// Nota: niente match sul solo "exceeded" — frasi come "context length
-/// exceeded" sono errori di richiesta, non di quota, e marcavano
-/// erroneamente la entry come esaurita facendo scalare il tier.
 pub fn is_rate_limit_error(error: &anyhow::Error) -> bool {
     let s = error.to_string().to_lowercase();
     s.contains("429")
@@ -983,17 +868,10 @@ pub fn is_rate_limit_error(error: &anyhow::Error) -> bool {
         || s.contains("insufficient_quota")
 }
 
-/// Concorrenza desiderata: il massimo numero di entry presenti in un tier,
-/// limitato a un tetto ragionevole.
 pub fn pool_concurrency(pool: &TranslatorPool) -> usize {
     pool.iter().map(|t| t.len()).max().unwrap_or(1).clamp(1, 16)
 }
 
-/// Traduce tutti i sottotitoli usando un pool a tier con failover automatico.
-///
-/// È la funzione usata dalla GUI: combina round-robin intra-tier, failover
-/// inter-tier, rate limiting per entry, budget manuale opzionale, salvataggio
-/// incrementale, ripresa da file esistente e cancellazione.
 #[allow(clippy::too_many_arguments)]
 pub async fn translate_subtitles_tiered_cancellable<F>(
     pool: TranslatorPool,
@@ -1032,9 +910,7 @@ where
     //  • pochi buchi sparsi          → salta la fase batch: il repair mirato
     //                                  (uno a uno, con contesto) li sistema
     //  • molti buchi                 → ritraduci in batch dall'inizio con
-    //                                  numerazione corretta (le righe già
-    //                                  presenti restano nel salvataggio
-    //                                  incrementale finché non vengono riscritte)
+
     let (skip_batches, start_idx) = if output_path.exists() {
         match SrtParser::parse_file(output_path) {
             Ok(existing) => {
@@ -1101,7 +977,7 @@ where
 
                 let next = { queue.lock().await.pop_front() };
                 let Some((batch_idx, batch_data)) = next else {
-                    return; // coda vuota: questo worker ha finito
+                    return;
                 };
 
                 let batch_start = batch_idx * batch_size + 1;
@@ -1112,7 +988,6 @@ where
                     .map(|(id, s)| (*id, s.text.clone()))
                     .collect();
 
-                // Failover: prova entry diverse finché il batch non riesce o il pool è esaurito.
                 loop {
                     if token.is_cancelled() {
                         return;
@@ -1120,7 +995,6 @@ where
 
                     let acquired = { scheduler.lock().await.acquire() };
                     let Some((ti, ei)) = acquired else {
-                        // Tutti i tier esauriti: rimetti il batch in coda e segnala.
                         *exhausted_flag.lock().await = true;
                         queue
                             .lock()
@@ -1208,7 +1082,7 @@ where
                                 batch_start,
                                 batch_end,
                             });
-                            break; // batch fatto: passa al prossimo
+                            break;
                         }
                         Err(e) if is_rate_limit_error(&e) => {
                             scheduler.lock().await.report_exhausted(ti, ei);
@@ -1226,7 +1100,6 @@ where
                                 batch_start,
                                 batch_end,
                             });
-                            // ricicla il batch con un'altra entry
                         }
                         Err(e) => {
                             let completed = timing_stats.lock().await.1;
@@ -1242,7 +1115,7 @@ where
                                 batch_start,
                                 batch_end,
                             });
-                            break; // errore non di quota: lascia al repair
+                            break;
                         }
                     }
                 }
@@ -1274,7 +1147,6 @@ where
         });
     }
 
-    // Fase di repair sui sottotitoli mancanti/incoerenti.
     let missing_ids = {
         let map = translated.lock().await;
         get_missing_or_incorrect_subtitle_ids(&subtitles_map, &map)
@@ -1314,8 +1186,6 @@ where
     Ok(result)
 }
 
-/// Repair tiered: ripara i sottotitoli mancanti scegliendo le entry con la stessa
-/// politica tier/round-robin/failover, in modo sequenziale (best effort).
 #[allow(clippy::too_many_arguments)]
 async fn repair_missing_tiered(
     pool: Arc<TranslatorPool>,
@@ -1330,7 +1200,6 @@ async fn repair_missing_tiered(
 ) -> Result<()> {
     use tokio::sync::Mutex;
 
-    // Scheduler fresco: budget e flag azzerati per la fase di repair.
     let scheduler = Arc::new(Mutex::new(TierScheduler::new(&pool)));
     let total = missing_ids.len();
 
@@ -1348,7 +1217,6 @@ async fn repair_missing_tiered(
             build_repair_context(id, original_subtitles, &map)
         };
 
-        // Failover anche in repair.
         loop {
             if cancellation_token.is_cancelled() {
                 anyhow::bail!("Repair cancelled by user");
@@ -1356,7 +1224,6 @@ async fn repair_missing_tiered(
 
             let acquired = { scheduler.lock().await.acquire() };
             let Some((ti, ei)) = acquired else {
-                // Nessuna entry disponibile: lascia l'originale e prosegui.
                 break;
             };
             let entry = pool[ti][ei].clone();
@@ -1388,7 +1255,6 @@ async fn repair_missing_tiered(
                 }
                 Err(e) if is_rate_limit_error(&e) => {
                     scheduler.lock().await.report_exhausted(ti, ei);
-                    // riprova con un'altra entry
                 }
                 Err(e) => {
                     let mut cb = progress_callback.lock().await;

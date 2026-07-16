@@ -1,33 +1,18 @@
-//! # Cloud transcription
-//!
-//! Trascrizione audio tramite provider cloud. Ogni provider ha un formato di
-//! risposta diverso; questo modulo li **normalizza** tutti in
-//! [`TranscribedSegment`] (start_ms / end_ms / text), così il resto della
-//! pipeline (post-processing + scrittura SRT) resta identico al percorso locale.
-//!
-//! Provider supportati:
-//!  - `groq`, `openai`, `custom` → endpoint OpenAI-compatible `/audio/transcriptions`
-//!    (o `/audio/translations` se si traduce in inglese), `response_format=verbose_json`.
-//!  - `deepgram` → `/v1/listen` (body audio grezzo), usa le `utterances`.
-//!  - `assemblyai` → upload asincrono + creazione transcript + polling, parole→segmenti.
-
 use anyhow::{Context, Result};
 use serde::Deserialize;
 
 use crate::transcribe::TranscribedSegment;
 
-/// Configurazione di un provider cloud per la trascrizione.
 #[derive(Debug, Clone)]
 pub struct CloudConfig {
-    /// Id provider: "groq" | "openai" | "deepgram" | "assemblyai" | "custom".
     pub provider: String,
     pub api_key: String,
-    /// Base URL opzionale (override del default del provider; richiesto per "custom").
+
     pub api_url: Option<String>,
     pub model: String,
-    /// Lingua sorgente (None = autodetect).
+
     pub language: Option<String>,
-    /// Tradurre in inglese (supportato solo dai provider OpenAI-compatible).
+
     pub translate_to_english: bool,
 }
 
@@ -45,8 +30,6 @@ impl CloudConfig {
     }
 }
 
-/// HTTP client preconfigurato per le richieste cloud (timeout generoso per upload
-/// e polling). Esposto così il chiamante non deve dipendere direttamente da reqwest.
 pub fn default_client() -> reqwest::Client {
     reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(900))
@@ -75,12 +58,10 @@ pub async fn transcribe_chunk(
     match cfg.provider.to_lowercase().as_str() {
         "deepgram" => deepgram(client, cfg, audio).await,
         "assemblyai" => assemblyai(client, cfg, audio).await,
-        // groq / openai / custom / qualunque endpoint OpenAI-compatible
+
         _ => openai_compatible(client, cfg, audio, file_name).await,
     }
 }
-
-// ─── OpenAI-compatible (Groq, OpenAI, custom) ──────────────────────────────────
 
 #[derive(Deserialize)]
 struct OpenAiSegment {
@@ -120,10 +101,8 @@ async fn openai_compatible(
         .text("response_format", "verbose_json")
         .part("file", part);
 
-    // timestamp_granularities[]=segment (ignorato da chi non lo supporta)
     form = form.text("timestamp_granularities[]", "segment");
 
-    // language valido solo per /audio/transcriptions
     if !cfg.translate_to_english
         && let Some(lang) = cfg.language.as_ref().filter(|l| l.as_str() != "auto")
     {
@@ -168,7 +147,6 @@ async fn openai_compatible(
             .collect());
     }
 
-    // Nessun segmento (es. modelli che restituiscono solo testo): un unico blocco.
     let text = parsed.text.trim().to_string();
     if text.is_empty() {
         return Ok(vec![]);
@@ -180,8 +158,6 @@ async fn openai_compatible(
         text,
     }])
 }
-
-// ─── Deepgram ──────────────────────────────────────────────────────────────────
 
 #[derive(Deserialize)]
 struct DgResponse {
@@ -267,7 +243,6 @@ async fn deepgram(
         .results
         .context("Deepgram response missing results")?;
 
-    // Preferisci le utterances (già segmentate).
     if !results.utterances.is_empty() {
         return Ok(results
             .utterances
@@ -281,7 +256,6 @@ async fn deepgram(
             .collect());
     }
 
-    // Fallback: ricostruisci dai word-level timestamps.
     if let Some(alt) = results
         .channels
         .into_iter()
@@ -313,8 +287,6 @@ async fn deepgram(
     Ok(vec![])
 }
 
-// ─── AssemblyAI ────────────────────────────────────────────────────────────────
-
 #[derive(Deserialize)]
 struct AaiUpload {
     upload_url: String,
@@ -344,7 +316,6 @@ async fn assemblyai(
 ) -> Result<Vec<TranscribedSegment>> {
     let base = cfg.base_url();
 
-    // 1) Upload del file audio.
     let up: AaiUpload = client
         .post(format!("{}/upload", base))
         .header("Authorization", &cfg.api_key)
@@ -359,7 +330,6 @@ async fn assemblyai(
         .await
         .context("Failed to parse AssemblyAI upload response")?;
 
-    // 2) Creazione del transcript.
     let mut create = serde_json::json!({
         "audio_url": up.upload_url,
         "punctuate": true,
@@ -385,7 +355,6 @@ async fn assemblyai(
 
     let id = created.id.context("AssemblyAI transcript id missing")?;
 
-    // 3) Polling fino a completamento.
     loop {
         tokio::time::sleep(std::time::Duration::from_secs(3)).await;
         let poll: AaiTranscript = client
@@ -429,12 +398,10 @@ async fn assemblyai(
                 "AssemblyAI transcription error: {}",
                 poll.error.unwrap_or_else(|| "unknown".to_string())
             ),
-            _ => {} // queued / processing → continua il polling
+            _ => {}
         }
     }
 }
-
-// ─── Word → Segment grouping ───────────────────────────────────────────────────
 
 struct Word {
     start_ms: i64,
@@ -442,8 +409,6 @@ struct Word {
     text: String,
 }
 
-/// Raggruppa parole con timestamp in segmenti, spezzando alla punteggiatura di
-/// fine frase oppure al superamento di `max_chars`.
 fn segments_from_words(words: Vec<Word>, max_chars: usize) -> Vec<TranscribedSegment> {
     let mut segments = Vec::new();
     let mut cur_text = String::new();

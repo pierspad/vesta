@@ -1,4 +1,3 @@
-// Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use std::fs;
@@ -28,20 +27,12 @@ struct MediaParams {
     token: String,
 }
 
-/// Porta e token di sessione del media server locale.
-///
-/// Il server ascolta su 127.0.0.1 ma senza autenticazione qualunque processo
-/// (o pagina web, dato il CORS aperto necessario alla webview) sulla macchina
-/// potrebbe leggere file arbitrari via `/media?path=…`. Il token — generato a
-/// ogni avvio e noto solo alla webview — chiude questa falla.
 #[derive(Clone)]
 struct MediaServerInfo {
     port: u16,
     token: String,
 }
 
-/// Token di sessione imprevedibile senza dipendenze extra: due `RandomState`
-/// (seed SipHash casuale per-processo) forniscono 128 bit di entropia.
 fn generate_media_token() -> String {
     use std::hash::{BuildHasher, Hasher};
     let mut token = String::with_capacity(32);
@@ -92,7 +83,6 @@ use state::{
     TranslateState,
 };
 
-/// Determina il MIME type in base all'estensione
 fn mime_from_ext(path: &str) -> &'static str {
     match Path::new(path)
         .extension()
@@ -127,10 +117,9 @@ fn main() {
     // became `unsafe` (env vars aren't thread-safe on all platforms).
     unsafe {
         std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
-        // Prevent WebKitWebProcess crash when gst-plugins-good is not installed
-        // (missing autoaudiosink element causes the app to go grey/unresponsive)
+
         std::env::set_var("WEBKIT_DISABLE_MEDIA_STREAM", "1");
-        // Prevent WebKit from using GStreamer for content sniffing on dropped files
+
         std::env::set_var("GST_REGISTRY_UPDATE", "no");
     }
 
@@ -161,11 +150,11 @@ fn main() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
-        // Protocollo custom per lo streaming video con supporto Range requests
+
         .register_asynchronous_uri_scheme_protocol("stream", |_ctx, request, responder| {
             std::thread::spawn(move || {
                 let uri = request.uri().to_string();
-                // URI formato: stream://localhost/<encoded_path>
+
                 let path = uri
                     .strip_prefix("stream://localhost/")
                     .or_else(|| uri.strip_prefix("stream://localhost"))
@@ -176,7 +165,7 @@ fn main() {
                 eprintln!("[stream] Request URI: {}", uri);
                 eprintln!("[stream] Decoded path: '{}'", path);
 
-                // Verifica che il file esista
+
                 let metadata = match fs::metadata(&path) {
                     Ok(m) => m,
                     Err(e) => {
@@ -195,12 +184,12 @@ fn main() {
                 let mime = mime_from_ext(&path);
                 eprintln!("[stream] File: '{}', size: {} bytes, mime: {}", path, file_size, mime);
 
-                // Parse Range header
+
                 let range_header = request.headers().get("range").and_then(|v| v.to_str().ok());
 
                 if let Some(range_str) = range_header {
                     eprintln!("[stream] Range request: {}", range_str);
-                    // Parse "bytes=START-END" or "bytes=START-"
+
                     let range_str = range_str.trim_start_matches("bytes=");
                     let parts: Vec<&str> = range_str.split('-').collect();
                     let start: u64 = parts.first().and_then(|s| s.parse().ok()).unwrap_or(0);
@@ -212,7 +201,7 @@ fn main() {
 
                     let chunk_size = end - start + 1;
 
-                    // Leggi il chunk richiesto
+
                     let mut file = match fs::File::open(&path) {
                         Ok(f) => f,
                         Err(_) => {
@@ -234,7 +223,7 @@ fn main() {
                         return;
                     }
 
-                    // Limita chunk a 4MB per evitare uso eccessivo di memoria
+
                     let max_chunk = 4 * 1024 * 1024u64;
                     let read_size = chunk_size.min(max_chunk) as usize;
                     let mut buf = vec![0u8; read_size];
@@ -265,10 +254,10 @@ fn main() {
                         .unwrap();
                     responder.respond(resp);
                 } else {
-                    // Nessun Range: restituisci header con Accept-Ranges 
-                    // ma non l'intero file (potrebbe essere enorme).
-                    // Rispondiamo con 206 Partial Content per i primi bytes,
-                    // così il media player sa la dimensione totale e può fare Range requests.
+
+
+
+
                     let mut file = match fs::File::open(&path) {
                         Ok(f) => f,
                         Err(e) => {
@@ -283,7 +272,7 @@ fn main() {
                         }
                     };
 
-                    let max_initial = 2 * 1024 * 1024u64; // 2MB initial read
+                    let max_initial = 2 * 1024 * 1024u64;
                     let read_size = (file_size).min(max_initial) as usize;
                     let mut buf = vec![0u8; read_size];
                     let bytes_read = file.read(&mut buf).unwrap_or(0);
@@ -292,7 +281,7 @@ fn main() {
                     eprintln!("[stream] Serving initial response for '{}': mime={}, file_size={}, bytes_sent={}", path, mime, file_size, bytes_read);
 
                     if (bytes_read as u64) < file_size {
-                        // File più grande del chunk iniziale: rispondi con 206 Partial Content
+
                         let actual_end = bytes_read as u64 - 1;
                         let resp = tauri::http::Response::builder()
                             .status(206)
@@ -304,7 +293,7 @@ fn main() {
                             .unwrap();
                         responder.respond(resp);
                     } else {
-                        // File piccolo: restituisci tutto con 200
+
                         let resp = tauri::http::Response::builder()
                             .status(200)
                             .header("Content-Type", mime)
@@ -328,10 +317,10 @@ fn main() {
             token: media_token,
         })
         .setup(|app| {
-            // On Linux, prevent WebKit from navigating to file:// URLs when files
-            // are drag-dropped onto the webview. Without this, WebKit tries to
-            // load video files via GStreamer, causing a crash when gst-plugins are
-            // missing (autoaudiosink not found).
+
+
+
+
             #[cfg(target_os = "linux")]
             {
                 use tauri::Manager;
@@ -363,14 +352,14 @@ fn main() {
                             false
                         });
 
-                        // 2) The workaround to prevent WebKit from processing dropped file data via GStreamer
-                        //    has been removed because it was interfering with Tauri's own DragDrop events.
+
+
                         }
                     });
                 }
             }
 
-            // CLI BENCHMARK MODE
+
             let args: Vec<String> = std::env::args().collect();
             if args.len() >= 6 && args[1] == "--benchmark" {
                 let app_handle = app.handle().clone();
@@ -416,16 +405,16 @@ fn main() {
         })
         .invoke_handler(tauri::generate_handler![
             get_media_server_info,
-            // Comandi app info
+
             get_app_info,
             read_subtitle_file,
             http_fetch,
-            // Comandi traduzione
+
             load_srt_for_translate,
             start_translation,
             cancel_translation,
             get_latest_translated_subtitles,
-            // Comandi sincronizzazione
+
             sync_load_srt,
             sync_suggest_media_for_srt,
             sync_suggest_companion_subtitle_for_srt,
@@ -447,7 +436,7 @@ fn main() {
             sync_load_session,
             sync_reset,
             sync_prepare_media_for_playback,
-            // Comandi flashcard
+
             flashcard_load_subs,
             flashcard_preview,
             flashcard_generate,
@@ -459,7 +448,7 @@ fn main() {
             flashcard_get_cpu_count,
             flashcard_get_total_memory_mb,
             save_temp_subtitles,
-            // Comandi trascrizione
+
             transcribe_check_backends,
             transcribe_list_models,
             transcribe_download_model,
@@ -471,16 +460,16 @@ fn main() {
             transcribe_start,
             transcribe_cancel,
             transcribe_check_file_exists,
-            // Comandi auto-sync
+
             sync_auto_sync,
             sync_cancel_auto_sync,
-            // Comandi refine
+
             refine_load_file,
             refine_save_file,
             refine_card_llm_tiered,
             refine_cards_llm_tiered,
             refine_cancel,
-            // Comandi sperimentali (condensed audio, AnkiConnect)
+
             condense_start,
             condense_cancel,
             ankiconnect_ping,

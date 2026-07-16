@@ -1,11 +1,5 @@
-//! # Translation Prompts Module
-//!
-//! Questo modulo contiene tutti i prompt utilizzati per la traduzione dei sottotitoli.
-//! Centralizzare i prompt qui rende il codice più pulito e facilita le modifiche future.
-
 use crate::language_info::get_language_info;
 
-/// Genera il prompt per la traduzione singola di un sottotitolo
 pub fn build_single_translation_prompt(
     text: &str,
     target_lang: &str,
@@ -50,13 +44,11 @@ Translation:",
     )
 }
 
-/// Genera il prompt per la traduzione batch di più sottotitoli (JSON output)
 pub fn build_batch_translation_prompt(
     texts_with_ids: &[(u32, String)],
     target_lang: &str,
     context: Option<&str>,
 ) -> String {
-    // Crea JSON array come input per chiarezza
     let input_json: Vec<serde_json::Value> = texts_with_ids
         .iter()
         .map(|(id, text)| serde_json::json!({"id": id, "text": text}))
@@ -107,7 +99,6 @@ Return ONLY the JSON array:"#,
     )
 }
 
-/// Genera il prompt per la traduzione con contesto migliorato (usato per il repair)
 pub fn build_context_enhanced_translation_prompt(
     text: &str,
     target_lang: &str,

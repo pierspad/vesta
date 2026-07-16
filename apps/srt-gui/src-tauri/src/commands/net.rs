@@ -1,29 +1,8 @@
-//! Comando HTTP generico per il frontend, appoggiato al `reqwest` del workspace.
-//!
-//! Prima queste chiamate (controllo aggiornamenti su GitHub, discovery dei
-//! modelli LLM) passavano da `@tauri-apps/plugin-http`. Quel plugin porta con
-//! sé un secondo stack `reqwest` indipendente da quello già linkato da
-//! `srt-translate` (workspace, v0.13): essendo una major diversa (v0.12),
-//! cargo non può unificarlo con quello esistente, e l'intero albero
-//! hyper/h2/rustls/tower viene duplicato nel lockfile. Esponendo un unico
-//! comando Tauri che riusa il client del workspace, quel secondo stack sparisce.
-//!
-//! L'allowlist qui sotto rispecchia esattamente quella che prima viveva in
-//! `capabilities/default.json` sotto `http:allow-fetch`: la sicurezza (niente
-//! SSRF verso host arbitrari dal webview) resta quindi invariata, solo
-//! applicata lato Rust invece che dal plugin.
-
 use std::time::Duration;
 
 use reqwest::redirect::Policy;
 use serde::{Deserialize, Serialize};
 
-/// Host verso cui questo comando può effettuare richieste: deve coprire
-/// l'`apiUrl` di default di ogni provider `enabled: true` in `models.ts`,
-/// altrimenti il pulsante "scopri modelli" fallisce in silenzio per quel
-/// provider pur essendo selezionabile in UI (la traduzione vera e propria
-/// non passa da qui: usa il reqwest di `srt-translate` lato Rust, non
-/// soggetto a questa allowlist).
 const ALLOWED_HOSTS: &[&str] = &[
     "api.openai.com",
     "generativelanguage.googleapis.com",
@@ -42,8 +21,6 @@ fn is_host_allowed(host: &str) -> bool {
     host == "localhost" || host == "127.0.0.1" || ALLOWED_HOSTS.contains(&host)
 }
 
-/// Coppie header (nome, valore); un `Vec` invece di una `HashMap` per
-/// preservare l'ordine e ammettere header ripetuti, come fa la Fetch API.
 pub type HeaderPairs = Vec<(String, String)>;
 
 #[derive(Debug, Deserialize)]
@@ -56,8 +33,7 @@ pub struct HttpFetchRequest {
     pub headers: HeaderPairs,
     #[serde(default)]
     pub body: Option<String>,
-    /// "follow" (default, come il browser) oppure "manual" per leggere
-    /// l'header `Location` senza seguire il redirect.
+
     #[serde(default = "default_redirect")]
     pub redirect: String,
     #[serde(default = "default_timeout_ms")]
@@ -85,9 +61,6 @@ pub struct HttpFetchResponse {
     pub body: String,
 }
 
-/// Esegue una richiesta HTTP per conto del frontend, verso un host della
-/// allowlist. Sostituisce `@tauri-apps/plugin-http`'s `fetch` — vedi il
-/// commento in testa al modulo.
 #[tauri::command]
 pub async fn http_fetch(req: HttpFetchRequest) -> Result<HttpFetchResponse, String> {
     let url = reqwest::Url::parse(&req.url).map_err(|e| format!("URL non valido: {e}"))?;
@@ -123,9 +96,6 @@ pub async fn http_fetch(req: HttpFetchRequest) -> Result<HttpFetchResponse, Stri
         builder = builder.body(body);
     }
 
-    // Con `Policy::none()` reqwest non segue il redirect ma restituisce
-    // comunque normalmente la risposta 3xx (con l'header `Location`
-    // leggibile), esattamente come `fetch(url, { redirect: "manual" })`.
     let response = builder.send().await.map_err(|e| e.to_string())?;
 
     let status = response.status().as_u16();

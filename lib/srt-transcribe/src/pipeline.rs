@@ -1,19 +1,3 @@
-//! High-level, GUI-agnostic transcription pipeline: media file → SRT.
-//!
-//! This module orchestrates the whole "give me subtitles for this file" flow
-//! on top of the low-level primitives in [`crate::audio`], [`crate::model`],
-//! [`crate::transcribe`] and [`crate::cloud`]:
-//!
-//! 1. (local) download the Whisper model if missing;
-//! 2. convert the input media to 16 kHz mono WAV via FFmpeg;
-//! 3. transcribe locally (whisper.cpp) or through a cloud provider (chunked);
-//! 4. post-process the raw segments (merge tiny ones, split overlong ones);
-//! 5. write a numbered SRT file, optionally suffixing the detected language.
-//!
-//! Progress is reported through plain callbacks, cancellation through a
-//! [`CancellationToken`] — no UI framework involved. The Vesta GUI, the
-//! `srt-transcribe` CLI and any third-party embedder all share this exact code.
-
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -25,73 +9,51 @@ use crate::audio::{convert_to_wav, read_wav_to_f32, segment_to_wav_chunks};
 use crate::cloud::{CloudConfig, transcribe_chunk};
 use crate::transcribe::{TranscribeOptions, TranscribedSegment, transcribe_full};
 
-// ─── Configuration ───────────────────────────────────────────────────────────
-
-/// Full configuration for a media → SRT transcription run.
-///
-/// Field names are part of the (serde) contract shared with the Vesta
-/// frontend; keep them stable.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TranscriptionConfig {
     pub input_path: String,
     pub output_path: String,
-    /// Whisper model id (e.g. "base", "small", "large-v3") for the local
-    /// backend, or the provider-specific model name for cloud backends.
+
     pub model: String,
-    /// ISO language code, or "auto" to autodetect (local backend only).
+
     pub language: String,
     pub translate_to_english: bool,
     pub word_timestamps: bool,
-    /// Maximum characters per SRT line (0 = default of 80).
+
     pub max_segment_length: u32,
-    /// Transcription engine: `None`/"local" (whisper.cpp) or a cloud provider
-    /// ("groq" | "openai" | "deepgram" | "assemblyai" | "custom").
+
     #[serde(default)]
     pub provider: Option<String>,
-    /// API key for cloud providers.
+
     #[serde(default)]
     pub api_key: Option<String>,
-    /// Optional base URL (override / required for "custom").
+
     #[serde(default)]
     pub api_url: Option<String>,
-    /// Quality mode: decode with beam search (width 5) instead of greedy.
-    /// ~2-3× slower, sometimes more accurate on difficult audio. Local only.
+
     #[serde(default)]
     pub quality: bool,
-    /// Run Silero VAD before transcribing (requires a VAD model, see
-    /// [`crate::model::download_vad_model`]). Local only.
+
     #[serde(default)]
     pub vad: bool,
-    /// Which built-in Silero VAD variant to use when `vad` is true and
-    /// `vad_custom_path` is absent. Defaults to
-    /// [`crate::model::DEFAULT_VAD_MODEL_ID`] when unset.
+
     #[serde(default)]
     pub vad_model_id: Option<String>,
-    /// Absolute path to a user-provided VAD model; overrides `vad_model_id`
-    /// when present. Local only.
+
     #[serde(default)]
     pub vad_custom_path: Option<String>,
-    /// Offload inference to the GPU. Only effective in builds with a GPU
-    /// backend compiled in (see [`crate::gpu_supported`]); otherwise ignored.
+
     #[serde(default)]
     pub use_gpu: bool,
 }
 
-/// Outcome of a successful transcription run.
 #[derive(Debug, Clone, Serialize)]
 pub struct TranscriptionOutcome {
-    /// The SRT actually written (may differ from `config.output_path` when
-    /// the detected language is appended to the file name).
     pub output_path: String,
     pub subtitle_count: usize,
     pub detected_language: Option<String>,
 }
 
-// ─── Progress reporting ──────────────────────────────────────────────────────
-
-/// A coarse progress update: `stage` is a stable machine-readable identifier
-/// ("download", "convert", "transcribe", "writing", "done", …), `percentage`
-/// is 0–100 across the whole pipeline.
 #[derive(Debug, Clone, Serialize)]
 pub struct ProgressUpdate {
     pub stage: String,
@@ -99,12 +61,10 @@ pub struct ProgressUpdate {
     pub percentage: f64,
 }
 
-/// Callback invoked with coarse progress updates.
 pub type ProgressCallback = Arc<dyn Fn(ProgressUpdate) + Send + Sync>;
-/// Callback invoked for every transcribed segment (start_ms, end_ms, text).
+
 pub type SegmentCallback = Arc<dyn Fn(i64, i64, &str) + Send + Sync>;
 
-/// Optional callbacks for observing a pipeline run.
 #[derive(Default, Clone)]
 pub struct PipelineCallbacks {
     pub on_progress: Option<ProgressCallback>,
@@ -129,7 +89,6 @@ impl PipelineCallbacks {
     }
 }
 
-/// True when `provider` selects a cloud backend rather than local whisper.cpp.
 pub fn is_cloud_provider(provider: Option<&str>) -> bool {
     !matches!(
         provider.unwrap_or("local").to_lowercase().as_str(),
@@ -137,9 +96,6 @@ pub fn is_cloud_provider(provider: Option<&str>) -> bool {
     )
 }
 
-// ─── Segments & SRT output ───────────────────────────────────────────────────
-
-/// A raw transcribed segment, before SRT post-processing.
 #[derive(Debug, Clone)]
 pub struct RawSegment {
     pub start_ms: i64,
@@ -157,8 +113,6 @@ impl From<TranscribedSegment> for RawSegment {
     }
 }
 
-/// Post-process segments: merge very short ones, split excessively long ones
-/// at sentence boundaries with proportional timestamps.
 pub fn postprocess_segments(raw: Vec<RawSegment>, max_segment_len: u32) -> Vec<RawSegment> {
     if raw.is_empty() {
         return raw;
@@ -170,7 +124,6 @@ pub fn postprocess_segments(raw: Vec<RawSegment>, max_segment_len: u32) -> Vec<R
         80
     };
 
-    // Phase 1: merge segments that are very short (< 1s) or have very little text.
     let mut merged: Vec<RawSegment> = Vec::new();
     for seg in raw {
         let text = seg.text.trim().to_string();
@@ -195,7 +148,6 @@ pub fn postprocess_segments(raw: Vec<RawSegment>, max_segment_len: u32) -> Vec<R
         }
     }
 
-    // Phase 2: split segments that exceed max_chars at sentence boundaries.
     let mut result: Vec<RawSegment> = Vec::new();
     for seg in merged {
         if seg.text.len() <= max_chars {
@@ -212,7 +164,6 @@ pub fn postprocess_segments(raw: Vec<RawSegment>, max_segment_len: u32) -> Vec<R
 
         for (i, c) in text.char_indices() {
             if (c == '.' || c == '!' || c == '?' || c == ';') && i > last_split + 10 {
-                // Check the next char to avoid splitting inside "3.5".
                 let next_char = text[i + c.len_utf8()..].chars().next();
                 if next_char.is_none_or(|nc| nc == ' ' || nc.is_uppercase()) {
                     splits.push(i + c.len_utf8());
@@ -262,7 +213,6 @@ pub fn postprocess_segments(raw: Vec<RawSegment>, max_segment_len: u32) -> Vec<R
     result
 }
 
-/// Format milliseconds as an SRT timestamp `HH:MM:SS,mmm`.
 pub fn ms_to_srt_timestamp(ms: i64) -> String {
     let ms = ms.max(0);
     let total_secs = ms / 1000;
@@ -273,7 +223,6 @@ pub fn ms_to_srt_timestamp(ms: i64) -> String {
     format!("{hours:02}:{mins:02}:{secs:02},{millis:03}")
 }
 
-/// Write segments as a numbered SRT file; returns the subtitle count.
 pub fn write_srt(segments: &[RawSegment], output_path: &str) -> Result<usize> {
     use std::io::Write as _;
 
@@ -295,9 +244,6 @@ pub fn write_srt(segments: &[RawSegment], output_path: &str) -> Result<usize> {
     Ok(segments.len())
 }
 
-/// Insert/replace a language suffix in an `.srt` path ("movie.en.srt" style).
-/// If the stem already ends with a 2–3 letter language-like token it is
-/// replaced, otherwise the language is appended before the extension.
 pub fn apply_language_suffix_to_srt_path(output_path: &str, language: &str) -> String {
     let lang = language.trim().to_lowercase();
     if lang.is_empty() {
@@ -338,10 +284,6 @@ pub fn apply_language_suffix_to_srt_path(output_path: &str, language: &str) -> S
     new_path.to_string_lossy().to_string()
 }
 
-// ─── Local backend (whisper.cpp via whisper-rs) ──────────────────────────────
-
-/// Run local transcription on already-loaded audio samples. Blocking: call it
-/// from a blocking thread (`tokio::task::spawn_blocking`) in async contexts.
 pub fn run_local(
     config: &TranscriptionConfig,
     model_path: &Path,
@@ -351,8 +293,6 @@ pub fn run_local(
 ) -> Result<TranscriptionOutcome> {
     callbacks.progress("transcribe", "Loading Whisper model...", 12.0);
 
-    // The VAD model must be resolved before loading whisper: failing fast on a
-    // missing download beats discovering it after a multi-second model load.
     let vad_model_path = config
         .vad
         .then(|| -> Result<PathBuf> {
@@ -377,8 +317,7 @@ pub fn run_local(
         .transpose()?;
 
     let mut ctx_params = whisper_rs::WhisperContextParameters::default();
-    // Explicit either way: whisper-rs defaults `use_gpu` to *true* in GPU
-    // builds, and we want the user's toggle to be the single source of truth.
+
     ctx_params.use_gpu(config.use_gpu && crate::gpu_supported());
 
     let model_path_str = model_path.to_string_lossy().to_string();
@@ -391,9 +330,6 @@ pub fn run_local(
 
     callbacks.progress("transcribe", "Transcribing audio...", 15.0);
 
-    // Total audio duration in ms (16 kHz mono float samples) — lets the
-    // segment callback map "where we are in the audio" onto the 15–90% window
-    // of the overall progress instead of leaving it frozen at 15%.
     let total_audio_ms = (audio_data.len() as f64 / 16.0).max(1.0);
 
     let callbacks_for_segments = callbacks.clone();
@@ -448,14 +384,8 @@ pub fn run_local(
     })
 }
 
-// ─── Cloud backend ───────────────────────────────────────────────────────────
-
-/// Segment length (seconds) for cloud chunking. ~8 min of 16 kHz mono WAV is
-/// well under every provider's upload limit (~15 MB).
 const CLOUD_CHUNK_SECONDS: i64 = 480;
 
-/// Run transcription through a cloud provider: split the audio into chunks,
-/// transcribe each (offsetting timestamps), then post-process and write SRT.
 pub async fn run_cloud(
     config: &TranscriptionConfig,
     ffmpeg_cmd: &str,
@@ -553,14 +483,6 @@ pub async fn run_cloud(
     })
 }
 
-// ─── Full pipeline ───────────────────────────────────────────────────────────
-
-/// Transcribe a media file to SRT, end to end.
-///
-/// Dispatches to the local (whisper.cpp) or cloud backend based on
-/// `config.provider`. For the local backend the Whisper model is downloaded
-/// on demand (with progress on the "download" stage) and the input is
-/// converted to 16 kHz mono WAV via `ffmpeg_cmd` first.
 pub async fn transcribe_to_srt(
     config: &TranscriptionConfig,
     ffmpeg_cmd: &str,
@@ -584,7 +506,6 @@ pub async fn transcribe_to_srt(
         return Ok(outcome);
     }
 
-    // ── Local whisper.cpp path ────────────────────────────────────────────
     callbacks.progress(
         "download",
         format!("Checking model {}...", config.model),

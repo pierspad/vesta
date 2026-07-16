@@ -1,10 +1,3 @@
-//! Fast, GUI-free regression guard for the subtitle pipeline.
-//!
-//! Runs against the real public-domain *Detour (1945)* subtitles shipped in
-//! `Test_Subs/`. Pure CPU work (parse → match → filter → context), so it needs
-//! neither ffmpeg nor Tauri and finishes in milliseconds. If the test media is
-//! absent (e.g. a slim checkout) the tests skip instead of failing.
-
 use srt_flashcards::{FlashcardConfig, build_matched_lines, load_sub_file_info, preview};
 
 fn test_subs_dir() -> std::path::PathBuf {
@@ -32,8 +25,6 @@ fn media_present() -> bool {
     std::path::Path::new(&en()).exists() && std::path::Path::new(&it()).exists()
 }
 
-/// Minimal text-only config (no media extraction) for pipeline tests.
-/// Everything but the subtitle paths uses [`FlashcardConfig`]'s text-only defaults.
 fn config(target: String, native: Option<String>) -> FlashcardConfig {
     FlashcardConfig {
         target_subs_path: target,
