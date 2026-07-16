@@ -1,16 +1,33 @@
 <script lang="ts">
   import { invoke } from "@tauri-apps/api/core";
+  import { listen } from "@tauri-apps/api/event";
   import { guardedOpen, guardedSave } from "./utils/dialogGuard";
   import { snackbar } from "./snackbarStore.svelte";
   import { onMount, onDestroy, untrack } from "svelte";
   import { locale, currentLanguage } from "./i18n";
-  import { getFileName } from "./models";
+  import {
+    getFileName,
+    loadAndValidateApiKeys,
+    loadTiers,
+    tiersHaveUsableEntries,
+    TIERS_UPDATED_EVENT,
+    type ApiKeyConfig,
+    type Tier,
+  } from "./models";
+  import {
+    buildTiersPayload,
+    checkTiersAvailability,
+    countTiersAndEndpoints,
+    type TierEntryPayload,
+    type TiersUnavailableReason,
+  } from "./llmTiers";
   import { getCurrentWebview } from "@tauri-apps/api/webview";
   import ConfirmDialog from "./ConfirmDialog.svelte";
-  import { fetchModelsFromEndpoint } from "./modelDiscovery";
   import CodeEditor from "./CodeEditor.svelte";
   import { aiStore } from "./aiStore.svelte";
   import { loadRefinementPrompt } from "./refinementPrompt";
+  import EmptyState from "./components/EmptyState.svelte";
+  import FooterActions from "./components/FooterActions.svelte";
 
   interface Props {
     active?: boolean;
@@ -19,8 +36,7 @@
 
   let { active = true, onGoToSettings }: Props = $props();
 
-  type LlmErrorType = "modelRequired" | "offline" | "keyMissing" | "incomplete" | null;
-  let llmError = $state<LlmErrorType>(null);
+  let llmError = $state<TiersUnavailableReason | null>(null);
   let isValidatingLlm = $state(false);
   let llmHighlightPulse = $state(false);
   let pulseTimer: ReturnType<typeof setTimeout> | null = null;
@@ -42,13 +58,6 @@
     meaning: string;
     notes: string;
     initialNotes?: string;
-  }
-
-  interface RefineLlmConfig {
-    api_type: string;
-    api_key: string;
-    api_url: string;
-    model: string;
   }
 
   let filePath = $state("");
@@ -90,13 +99,11 @@
     return singleRefiningCardIds.includes(cardId) || autoRefineGroupCardIds.includes(cardId);
   };
 
-  // LLM Config state
-  let llmConfig = $state<RefineLlmConfig>({
-    api_type: "",
-    api_key: "",
-    api_url: "",
-    model: "",
-  });
+  // LLM tiers (stessa configurazione della traduzione: Settings → LLM)
+  let tiers = $state<Tier[]>([]);
+  let apiKeys = $state<ApiKeyConfig[]>([]);
+  let useTiers = $derived(tiersHaveUsableEntries(tiers));
+  let tierCounts = $derived(countTiersAndEndpoints(tiers));
 
   let filteredCards = $derived(
     cards.filter(
@@ -145,112 +152,47 @@
   // Drag & drop state
   let isDraggingOver = $state(false);
 
-  function loadStoredValue(key: string, fallback = ""): string {
-    try {
-      return localStorage.getItem(key) || fallback;
-    } catch {
-      return fallback;
-    }
-  }
-
-  // Load LLM configuration from localStorage
+  // Carica tiers + API key (stessa fonte di TranslateTab) e il prompt.
   function refreshLlmConfig() {
-    const provider = loadStoredValue("vesta-default-llm-provider", "local");
-    const model = loadStoredValue("vesta-default-llm-model", "");
-    const customProviderId = loadStoredValue("vesta-default-llm-custom-provider", "");
-    const localUrl = loadStoredValue("vesta-local-server-url", "http://localhost:11434/v1");
-    
+    tiers = loadTiers();
+    apiKeys = loadAndValidateApiKeys();
     customPrompt = loadRefinementPrompt();
-
-    let apiKey = "";
-    let apiUrl = "";
-    let activeModel = model;
-
-    try {
-      const keysRaw = loadStoredValue("srt-tools-api-keys", "[]");
-      interface ApiKeyItem { id: string; apiType: string; apiKey: string; apiUrl?: string; model?: string; }
-      const keys: ApiKeyItem[] = JSON.parse(keysRaw);
-
-      if (provider === "google") {
-        const gkey = keys.find((k) => k.apiType === "google");
-        if (gkey) apiKey = gkey.apiKey;
-        apiUrl = "https://generativelanguage.googleapis.com/v1beta";
-        if (!activeModel) activeModel = "gemini-2.0-flash";
-      } else if (provider === "groq") {
-        const gkey = keys.find((k) => k.apiType === "groq");
-        if (gkey) apiKey = gkey.apiKey;
-        apiUrl = "https://api.groq.com/openai/v1";
-        if (!activeModel) activeModel = "llama-3.3-70b-versatile";
-      } else if (provider === "local") {
-        apiKey = "";
-        apiUrl = localUrl;
-        if (!activeModel) activeModel = "llama3.2";
-      } else if (provider === "custom") {
-        const ckey = keys.find((k) => k.id === customProviderId);
-        if (ckey) {
-          apiKey = ckey.apiKey;
-          apiUrl = ckey.apiUrl || "";
-          if (!activeModel) activeModel = ckey.model || "";
-        }
-      }
-    } catch (err) {
-      console.error("Failed to parse API keys:", err);
-    }
-
-    llmConfig = {
-      api_type: provider,
-      api_key: apiKey,
-      api_url: apiUrl,
-      model: activeModel,
-    };
     void updateLlmStatus();
   }
 
   async function updateLlmStatus() {
     const currentCheckId = ++validationCheckCount;
-    
-    // 1. Check if model is missing
-    if (!llmConfig.model) {
-      llmError = "modelRequired";
-      return;
-    }
-    
-    // 2. Validate based on provider type
-    if (llmConfig.api_type === "local") {
-      isValidatingLlm = true;
-      try {
-        const url = llmConfig.api_url || "http://localhost:11434/v1";
-        // Ping endpoint
-        const models = await fetchModelsFromEndpoint(url, "", 3000);
-        if (currentCheckId !== validationCheckCount) return;
-        
-        if (models && models.length > 0) {
-          llmError = null;
-        } else {
-          llmError = "offline";
-        }
-      } catch (err) {
-        if (currentCheckId !== validationCheckCount) return;
-        llmError = "offline";
-      } finally {
-        if (currentCheckId === validationCheckCount) {
-          isValidatingLlm = false;
-        }
-      }
-    } else if (llmConfig.api_type === "custom") {
-      if (!llmConfig.api_url || !llmConfig.api_key) {
-        llmError = "incomplete";
-      } else {
-        llmError = null;
-      }
-    } else {
-      // remote (google, groq)
-      if (!llmConfig.api_key) {
-        llmError = "keyMissing";
-      } else {
-        llmError = null;
+    isValidatingLlm = true;
+    try {
+      const check = await checkTiersAvailability(tiers, apiKeys);
+      if (currentCheckId !== validationCheckCount) return;
+      llmError = check.available ? null : check.reason;
+    } finally {
+      if (currentCheckId === validationCheckCount) {
+        isValidatingLlm = false;
       }
     }
+  }
+
+  function llmErrorMessage(reason: TiersUnavailableReason): string {
+    switch (reason) {
+      case "noneConfigured":
+        return t("tiers.noneConfigured") || "No tiers configured";
+      case "localOffline":
+        return t("settings.llmConfigIncompleteDescLocalOffline") || "Local LLM server is offline";
+      case "keyMissing":
+        return t("settings.llmConfigIncompleteDescKey") || "Missing API key";
+      case "incomplete":
+        return t("settings.llmConfigIncompleteDescCustomEmpty") || "LLM configuration incomplete";
+      default:
+        return t("tiers.noneConfigured") || "No usable LLM endpoint";
+    }
+  }
+
+  /// Payload per i comandi Tauri; `null` se nessun endpoint è utilizzabile.
+  function refineTiersPayload(): TierEntryPayload[][] | null {
+    if (!useTiers) return null;
+    return buildTiersPayload(tiers, apiKeys);
   }
 
   $effect(() => {
@@ -291,11 +233,13 @@
 
   onMount(() => {
     refreshLlmConfig();
-    window.addEventListener("vesta-llm-default-updated", refreshLlmConfig);
+    window.addEventListener(TIERS_UPDATED_EVENT, refreshLlmConfig);
+    window.addEventListener("apikeys-updated", refreshLlmConfig);
   });
 
   onDestroy(() => {
-    window.removeEventListener("vesta-llm-default-updated", refreshLlmConfig);
+    window.removeEventListener(TIERS_UPDATED_EVENT, refreshLlmConfig);
+    window.removeEventListener("apikeys-updated", refreshLlmConfig);
   });
 
   // Load file
@@ -406,24 +350,19 @@
   }
 
 
-  // Refine single card using AI
+  // Refine single card using AI (pool a tier con failover)
   async function refineSingleCardAI() {
     if (selectedCardIndex === null || cards.length === 0) return;
-    
-    // Verify LLM Configuration
+
     if (llmError) {
       triggerLlmHighlight();
-      let errMsg = "";
-      if (llmError === "modelRequired") {
-        errMsg = t("settings.llmConfigIncompleteDescModel") || "Default model required";
-      } else if (llmError === "offline") {
-        errMsg = t("settings.llmConfigIncompleteDescLocalOffline") || "Local LLM server is offline";
-      } else if (llmError === "keyMissing") {
-        errMsg = t("settings.llmConfigIncompleteDescKey") || "Missing API key";
-      } else if (llmError === "incomplete") {
-        errMsg = t("settings.llmConfigIncompleteDescCustomEmpty") || "LLM configuration incomplete";
-      }
-      snackbar.show(errMsg, "error");
+      snackbar.show(llmErrorMessage(llmError), "error");
+      return;
+    }
+    const tiersPayload = refineTiersPayload();
+    if (!tiersPayload) {
+      triggerLlmHighlight();
+      snackbar.show(llmErrorMessage("noneConfigured"), "error");
       return;
     }
 
@@ -431,15 +370,16 @@
     isSingleRefining = true;
     singleRefiningCardIds = [...singleRefiningCardIds, card.id];
     try {
-      const response = await invoke<string>("refine_card_llm_with_config", {
+      // L'engine si occupa di strip HTML e interpolazione del prompt.
+      const response = await invoke<string>("refine_card_llm_tiered", {
         card: {
           id: card.id,
-          expression: card.expression.replace(/<[^>]*>/g, ""), // strip HTML
-          meaning: card.meaning.replace(/<[^>]*>/g, ""), // strip HTML
+          expression: card.expression,
+          meaning: card.meaning,
           notes: card.notes,
         },
         prompt: customPrompt,
-        config: llmConfig,
+        tiers: tiersPayload,
       });
 
       cards[selectedCardIndex].notes = response.trim();
@@ -452,25 +392,34 @@
     }
   }
 
-  // Automatic refinement logic
+  // Payload dell'evento Tauri `refine-progress` (serde tag "type").
+  type RefineProgressPayload =
+    | { type: "cardDone"; id: string; notes: string; done: number; total: number }
+    | { type: "cardFailed"; id: string; error: string }
+    | { type: "info"; message: string };
+
+  interface RefineRunSummary {
+    done: number;
+    failed: number;
+    poolExhausted: boolean;
+    cancelled: boolean;
+  }
+
+  // Automatic refinement: il loop (batching, fallback, failover) vive nel
+  // backend (`srt-refine::refine_cards_tiered`); qui solo eventi e stato UI.
   async function startAutoRefinement() {
     if (cards.length === 0) return;
     if (autoRefining) return;
 
-    // Verify LLM Configuration
     if (llmError) {
       triggerLlmHighlight();
-      let errMsg = "";
-      if (llmError === "modelRequired") {
-        errMsg = t("settings.llmConfigIncompleteDescModel") || "Default model required";
-      } else if (llmError === "offline") {
-        errMsg = t("settings.llmConfigIncompleteDescLocalOffline") || "Local LLM server is offline";
-      } else if (llmError === "keyMissing") {
-        errMsg = t("settings.llmConfigIncompleteDescKey") || "Missing API key";
-      } else if (llmError === "incomplete") {
-        errMsg = t("settings.llmConfigIncompleteDescCustomEmpty") || "LLM configuration incomplete";
-      }
-      snackbar.show(errMsg, "error");
+      snackbar.show(llmErrorMessage(llmError), "error");
+      return;
+    }
+    const tiersPayload = refineTiersPayload();
+    if (!tiersPayload) {
+      triggerLlmHighlight();
+      snackbar.show(llmErrorMessage("noneConfigured"), "error");
       return;
     }
 
@@ -487,147 +436,72 @@
     autoRefineGroupCardIds = cardsToProcess.map((c) => c.id);
     progressTotal = cardsToProcess.length;
     progressCurrent = 0;
-    logs = [t("refine.log.startAuto"), t("refine.log.cardsToProcess", { count: progressTotal })];
+    const endpointCount = tiersPayload.reduce((sum, tier) => sum + tier.length, 0);
+    logs = [
+      t("tiers.logActive", { tiers: tiersPayload.length, endpoints: endpointCount }),
+      t("refine.log.cardsToProcess", { count: progressTotal }),
+      t("refine.log.startAuto"),
+    ];
+
+    const unlisten = await listen<RefineProgressPayload>("refine-progress", (event) => {
+      const p = event.payload;
+      if (p.type === "cardDone") {
+        const idx = cards.findIndex((c) => c.id === p.id);
+        if (idx !== -1) {
+          cards[idx].notes = p.notes;
+          logs = [t("refine.log.success", { text: cards[idx].expression.substring(0, 30) }), ...logs];
+        }
+        progressCurrent = p.done;
+      } else if (p.type === "cardFailed") {
+        const idx = cards.findIndex((c) => c.id === p.id);
+        const text = idx !== -1 ? cards[idx].expression.substring(0, 20) : p.id;
+        logs = [t("refine.log.error", { text, error: p.error }), ...logs];
+      } else {
+        logs = [`[INFO] ${p.message}`, ...logs];
+      }
+    });
 
     try {
-      if (useBatchMode) {
-        const batchSize = 5;
-        for (let i = 0; i < cardsToProcess.length; i += batchSize) {
-          if (!autoRefining) {
-            logs = [t("refine.log.stopped"), ...logs];
-            break;
-          }
+      const summary = await invoke<RefineRunSummary>("refine_cards_llm_tiered", {
+        cards: cardsToProcess.map((c) => ({
+          id: c.id,
+          expression: c.expression,
+          meaning: c.meaning,
+          notes: c.notes,
+        })),
+        prompt: customPrompt,
+        tiers: tiersPayload,
+        batchMode: useBatchMode,
+      });
 
-          const batchCards = cardsToProcess.slice(i, i + batchSize);
-          logs = [t("refine.log.batchGen", { count: batchCards.length }), ...logs];
-
-          try {
-            const promptInstructions = `Sei un assistente AI specializzato nell'arricchimento e nella rifinitura di flashcard per l'apprendimento delle lingue.
-Ti verrà fornito un elenco di flashcard in formato JSON.
-Il tuo compito è generare note dettagliate per CIASCUNA flashcard seguendo SCRUPOLOSAMENTE questa istruzione:
-"${customPrompt}"
-
----
-LISTA DI FLASHCARD DA ELABORARE (formato JSON):
-${JSON.stringify(batchCards.map(c => ({
-  id: c.id,
-  expression: c.expression.replace(/<[^>]*>/g, ""),
-  meaning: c.meaning.replace(/<[^>]*>/g, "")
-})), null, 2)}
----
-
-Rispondi ESCLUSIVAMENTE con un oggetto JSON valido strutturato esattamente come il seguente esempio, senza includere commenti o spiegazioni aggiuntive al di fuori del JSON. Non racchiudere la risposta in blocchi di codice markdown (no \`\`\`json ... \`\`\`), restituisci solo il testo JSON.
-
-Esempio di formato di risposta atteso:
-{
-  "results": [
-    {
-      "id": "id_da_lista",
-      "notes": "spiegazione/note generate..."
-    }
-  ]
-}
-`;
-
-            const response = await invoke<string>("refine_card_llm_with_config", {
-              card: { id: "", expression: "", meaning: "", notes: "" },
-              prompt: promptInstructions,
-              config: llmConfig,
-            });
-
-            let cleaned = response.trim();
-            if (cleaned.startsWith("```")) {
-              cleaned = cleaned.replace(/^```[a-zA-Z]*\s*/, "").replace(/\s*```$/, "");
-            }
-
-            const parsed = JSON.parse(cleaned);
-            if (parsed && Array.isArray(parsed.results)) {
-              for (const res of parsed.results) {
-                const cardId = res.id;
-                const notesVal = res.notes || "";
-                const origIdx = cards.findIndex(c => c.id === cardId);
-                if (origIdx !== -1) {
-                  cards[origIdx].notes = notesVal.trim();
-                  progressCurrent++;
-                  logs = [t("refine.log.success", { text: cards[origIdx].expression.substring(0, 30) }), ...logs];
-                }
-              }
-            } else {
-              throw new Error(t("refine.log.jsonFormatError"));
-            }
-          } catch (err: any) {
-            logs = [t("refine.log.batchErrorFallback", { error: err.message || err.toString() }), ...logs];
-            
-            // Fallback to single card refinement for this batch
-            for (const card of batchCards) {
-              if (!autoRefining) break;
-              const origIndex = cards.findIndex((c) => c.id === card.id);
-              if (origIndex === -1) continue;
-
-              logs = [t("refine.log.singleGenFallback", { text: card.expression.substring(0, 30) }), ...logs];
-
-              try {
-                const response = await invoke<string>("refine_card_llm_with_config", {
-                  card: {
-                    id: card.id,
-                    expression: card.expression.replace(/<[^>]*>/g, ""),
-                    meaning: card.meaning.replace(/<[^>]*>/g, ""),
-                    notes: card.notes,
-                  },
-                  prompt: customPrompt,
-                  config: llmConfig,
-                });
-
-                cards[origIndex].notes = response.trim();
-                progressCurrent++;
-                logs = [t("refine.log.successFallback", { text: card.expression.substring(0, 30) }), ...logs];
-              } catch (singleErr: any) {
-                logs = [t("refine.log.errorFallback", { text: card.expression.substring(0, 20), error: singleErr.toString() }), ...logs];
-              }
-            }
-          }
-        }
+      if (summary.cancelled) {
+        logs = [t("refine.log.stopped"), ...logs];
+      } else if (summary.poolExhausted) {
+        snackbar.show(
+          t("refine.msg.poolExhausted") || "All LLM tiers are exhausted (rate limit/quota)",
+          "error",
+        );
       } else {
-        for (const card of cardsToProcess) {
-          if (!autoRefining) {
-            logs = [t("refine.log.stopped"), ...logs];
-            break;
-          }
-
-          const origIndex = cards.findIndex((c) => c.id === card.id);
-          if (origIndex === -1) continue;
-
-          logs = [t("refine.log.singleGen", { text: card.expression.substring(0, 30) }), ...logs];
-
-          try {
-            const response = await invoke<string>("refine_card_llm_with_config", {
-              card: {
-                id: card.id,
-                expression: card.expression.replace(/<[^>]*>/g, ""),
-                meaning: card.meaning.replace(/<[^>]*>/g, ""),
-                notes: card.notes,
-              },
-              prompt: customPrompt,
-              config: llmConfig,
-            });
-
-            cards[origIndex].notes = response.trim();
-            progressCurrent++;
-            logs = [t("refine.log.success", { text: card.expression.substring(0, 30) }), ...logs];
-          } catch (err: any) {
-            logs = [t("refine.log.error", { text: card.expression.substring(0, 20), error: err.toString() }), ...logs];
-          }
-        }
+        snackbar.show(
+          t("refine.log.completed", { success: summary.done, total: progressTotal }),
+          "success",
+        );
       }
-      snackbar.show(t("refine.log.completed", { success: progressCurrent, total: progressTotal }), "success");
+    } catch (err: any) {
+      snackbar.show(t("refine.msg.generateError", { error: err.toString() }), "error");
     } finally {
+      unlisten();
       autoRefining = false;
       autoRefineGroupCardIds = [];
     }
   }
 
-  function stopAutoRefinement() {
-    autoRefining = false;
+  async function stopAutoRefinement() {
+    try {
+      await invoke("refine_cancel");
+    } catch {
+      /* run già terminato */
+    }
   }
 
   // Keyboard navigation
@@ -830,7 +704,16 @@ Esempio di formato di risposta atteso:
 
         <!-- Right Column: Refine Tooling Workspace -->
         <div class="flex-1 flex flex-col overflow-hidden">
-          
+
+          {#snippet selectFileAction()}
+            <button
+              onclick={selectFile}
+              class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold text-xs transition-colors cursor-pointer"
+            >
+              {t('refine.dropzone.browse')}
+            </button>
+          {/snippet}
+
           <!-- Segment control for Manual/Auto modes -->
           {#if !aiStore.killSwitchActive}
             <div class="flex items-center gap-1 bg-white/5 border border-white/5 p-1 rounded-xl w-fit mb-4 shrink-0">
@@ -859,7 +742,14 @@ Esempio di formato di risposta atteso:
           {#if mode === "manual"}
             <!-- MANUAL MODE -->
             <div class="flex-1 flex flex-col bg-white/[0.02] border border-white/5 rounded-2xl overflow-hidden p-6 gap-5 min-h-0">
-              
+              {#if cards.length === 0}
+                <EmptyState
+                  title={t('refine.dropzone.title')}
+                  description={t('refine.dropzone.desc')}
+                  iconPath="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+                  action={selectFileAction}
+                />
+              {:else}
               <!-- Cards content preview -->
               <div class="grid grid-cols-2 gap-4 shrink-0">
                 <!-- Front/Expression -->
@@ -945,57 +835,52 @@ Esempio di formato di risposta atteso:
                   </button>
                 </div>
               </div>
+              {/if}
             </div>
           {:else}
             <!-- AUTOMATIC MODE -->
             <div class="flex-1 flex flex-col bg-white/[0.02] border border-white/5 rounded-2xl p-6 gap-5 overflow-y-auto min-h-0">
               
-              <!-- LLM Status bar (Clickable active model) -->
+              <!-- LLM Tiers status (clickable: apre Settings → LLM) -->
               <button
                 type="button"
                 onclick={() => onGoToSettings?.("llm", "default-refinement-prompt")}
                 class="flex flex-col gap-2.5 bg-white/5 border border-white/10 hover:bg-white/10 hover:border-white/20 rounded-xl p-4 shrink-0 transition-all duration-200 cursor-pointer select-none text-left w-full"
                 class:llm-requirement-pulse={llmHighlightPulse}
               >
-                <!-- Line 1: LLM Engine Type -->
+                <!-- Line 1: tier summary -->
                 <div class="flex items-center gap-2 w-full text-xs text-gray-400">
                   <svg class="w-4 h-4 text-indigo-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
                   </svg>
-                  <span class="font-semibold text-gray-300">{t("refine.llmEngine")}</span>
-                  <span class="text-[10px] {llmError === 'offline' ? 'bg-amber-500/10 border border-amber-500/20 text-amber-300' : 'bg-indigo-500/10 border border-indigo-500/20 text-indigo-300'} px-2 py-0.5 rounded-full border border-current font-bold uppercase tracking-wider ml-1">
-                    {llmConfig.api_type === "local" ? "Local" : "API"}
-                  </span>
-                </div>
-
-                <!-- Line 2: LLM Model in Use -->
-                <div class="flex items-center gap-2 w-full text-xs text-gray-400 flex-wrap">
-                  <svg class="w-4 h-4 {llmError ? 'text-amber-400' : 'text-indigo-400'} shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                  </svg>
-                  <span class="font-semibold text-gray-300">{t("refine.llmModelInUse")}</span>
-                  {#if llmConfig.model && llmError !== "modelRequired" && llmError !== "keyMissing" && llmError !== "incomplete"}
-                    <span class="text-[10px] bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full font-mono font-bold tracking-wide ml-1">
-                      {llmConfig.model}
-                    </span>
-                  {:else if llmConfig.model && llmError === "offline"}
-                    <span class="text-[10px] bg-amber-500/10 border border-amber-500/20 text-amber-300 px-2 py-0.5 rounded-full font-mono font-bold tracking-wide ml-1">
-                      {llmConfig.model}
+                  <span class="font-semibold text-gray-300">{t("refine.llmTiersLabel")}</span>
+                  {#if useTiers}
+                    <span class="text-[10px] bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ml-1">
+                      {t("refine.llmTiersSummary", { tiers: tierCounts.tiers, endpoints: tierCounts.endpoints })}
                     </span>
                   {:else}
-                    <span class="text-[10px] bg-white/5 border border-white/10 text-gray-500 px-2 py-0.5 rounded-full font-mono font-bold tracking-wide ml-1">
+                    <span class="text-[10px] bg-white/5 border border-white/10 text-gray-500 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ml-1">
                       —
                     </span>
                   {/if}
-                  {#if llmError === "modelRequired"}
-                    <span class="font-semibold text-amber-400 italic ml-2">{t('refine.llm.status.modelRequired') || 'default model required'}</span>
-                  {:else if llmError === "offline"}
-                    <span class="text-amber-400 italic text-[11px] ml-2">({t('refine.llm.status.offline') || 'server offline'})</span>
-                  {:else if llmError === "keyMissing"}
-                    <span class="font-semibold text-amber-400 italic ml-2">{t('refine.llm.status.keyMissing') || 'no API keys'}</span>
-                  {:else if llmError === "incomplete"}
-                    <span class="font-semibold text-amber-400 italic ml-2">{t('refine.llm.status.incomplete') || 'configuration incomplete'}</span>
+                </div>
+
+                <!-- Line 2: availability status -->
+                <div class="flex items-center gap-2 w-full text-xs text-gray-400 flex-wrap">
+                  <svg class="w-4 h-4 {llmError ? 'text-amber-400' : 'text-emerald-400'} shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                  </svg>
+                  <span class="font-semibold text-gray-300">{t("refine.llmEngine")}</span>
+                  {#if isValidatingLlm}
+                    <span class="text-[10px] bg-white/5 border border-white/10 text-gray-400 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ml-1">…</span>
+                  {:else if !llmError}
+                    <span class="text-[10px] bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ml-1">
+                      {t("refine.llmTiersReady")}
+                    </span>
+                  {:else}
+                    <span class="font-semibold text-amber-400 italic ml-1">{llmErrorMessage(llmError)}</span>
                   {/if}
+                  <span class="text-[10px] text-gray-500 ml-auto">{t("refine.llmTiersEdit")}</span>
                 </div>
               </button>
 
@@ -1103,9 +988,9 @@ Esempio di formato di risposta atteso:
   </div>
 
   <!-- Fixed Bottom Band with Action Buttons -->
-  <div class="h-[92px] border-t border-white/10 bg-gray-900 flex items-center justify-between px-6 shrink-0 z-40">
-    <!-- Bottom-left: File name pill and Overwrite button -->
-    <div class="flex items-center gap-4">
+  <FooterActions>
+    {#snippet left()}
+      <div class="flex items-center gap-4">
       <div class="text-xs text-gray-400 bg-white/5 border border-white/10 px-3 py-1.5 rounded-lg max-w-[300px] truncate" title={filePath || undefined}>
         <span class="font-bold text-gray-300">{t('refine.action.fileLabel')}</span> {fileName || "—"}
       </div>
@@ -1133,10 +1018,10 @@ Esempio di formato di risposta atteso:
           {t('refine.action.tooltipOverwrite') || ($currentLanguage === 'it' ? 'Sovrascrivi il file originale con le modifiche correnti' : 'Overwrite the original file with your current changes')}
         </div>
       </div>
-    </div>
-
-    <!-- Bottom-right: Save as APKG and Save as TSV buttons -->
-    <div class="flex items-center gap-4">
+      </div>
+    {/snippet}
+    {#snippet right()}
+      <div class="flex items-center gap-4">
       <div class="relative group">
         <button
           onclick={() => saveNewFileWithExtension("apkg")}
@@ -1157,7 +1042,7 @@ Esempio di formato di risposta atteso:
           {/if}
         </button>
         <div class="pointer-events-none absolute bottom-full left-1/2 z-50 mb-3 -translate-x-1/2 rounded-xl border border-emerald-500/30 bg-gray-950/95 p-3 text-center text-xs text-emerald-300 shadow-2xl shadow-black/40 ring-1 ring-white/10 transition-all duration-150 delay-0 group-hover:delay-300 opacity-0 group-hover:opacity-100 group-hover:translate-y-0 translate-y-1 whitespace-normal w-72">
-          {fileExtension === "TSV" 
+          {fileExtension === "TSV"
             ? ($currentLanguage === 'it' ? "Non è possibile salvare un TSV come APKG in questa scheda" : "It is not possible to save a TSV file as APKG in this tab")
             : (t('refine.action.tooltipSaveAsApkg') || ($currentLanguage === 'it' ? 'Salva il mazzo corrente come pacchetto Anki (.apkg)' : 'Save the current deck as an Anki package (.apkg)'))}
         </div>
@@ -1186,8 +1071,9 @@ Esempio di formato di risposta atteso:
           {t('refine.action.tooltipSaveAsTsv') || ($currentLanguage === 'it' ? 'Esporta il mazzo corrente come file di testo separato da tab (.tsv)' : 'Export the current deck as a tab-separated text file (.tsv)')}
         </div>
       </div>
-    </div>
-  </div>
+      </div>
+    {/snippet}
+  </FooterActions>
 
   <ConfirmDialog
     show={showOverwriteConfirm}

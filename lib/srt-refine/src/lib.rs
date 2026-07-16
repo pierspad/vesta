@@ -11,7 +11,9 @@
 //! Layout:
 //! - [`load_cards`] / [`save_cards`] — TSV/APKG round-trip;
 //! - [`refine_card_llm`] — one LLM call for one card, with `{{expression}}`,
-//!   `{{meaning}}`, `{{notes}}` prompt interpolation (via `srt-translate`).
+//!   `{{meaning}}`, `{{notes}}` prompt interpolation (via `srt-translate`);
+//! - [`engine`] — batch refinement over the shared tiered LLM pool
+//!   (round-robin + failover + rate limiting, same policy as translation).
 
 use std::collections::HashMap;
 use std::fs;
@@ -19,6 +21,9 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 use srt_translate::{ApiType, Translator, TranslatorConfig};
+
+pub mod engine;
+pub use engine::{RefineEvent, RefineRunConfig, RefineRunSummary, refine_cards_tiered};
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -629,15 +634,42 @@ pub async fn refine_card_llm(
 
     let translator = Translator::new(TranslatorConfig { api_type, api_key, base_url, model });
 
-    let interpolated_prompt = prompt
-        .replace("{{expression}}", &card.expression)
-        .replace("{{front}}", &card.expression)
-        .replace("{{meaning}}", &card.meaning)
-        .replace("{{back}}", &card.meaning)
-        .replace("{{notes}}", &card.notes);
-
     translator
-        .generate_response(&interpolated_prompt)
+        .generate_response(&interpolate_prompt(prompt, card))
         .await
         .map_err(|e| format!("Errore chiamata LLM: {e}"))
+}
+
+/// Interpolate the per-card prompt template.
+///
+/// Supported placeholders: `{{expression}}`/`{{front}}`, `{{meaning}}`/`{{back}}`
+/// and `{{notes}}`. HTML tags are stripped from expression/meaning so media
+/// markup (`[sound:…]`, `<img …>`) never leaks into the prompt.
+pub fn interpolate_prompt(template: &str, card: &RefineCard) -> String {
+    let expression = strip_html(&card.expression);
+    let meaning = strip_html(&card.meaning);
+    template
+        .replace("{{expression}}", &expression)
+        .replace("{{front}}", &expression)
+        .replace("{{meaning}}", &meaning)
+        .replace("{{back}}", &meaning)
+        .replace("{{notes}}", &card.notes)
+}
+
+/// Remove HTML tags (best-effort, no allocation when there are none).
+pub fn strip_html(text: &str) -> String {
+    if !text.contains('<') {
+        return text.to_string();
+    }
+    let mut out = String::with_capacity(text.len());
+    let mut in_tag = false;
+    for ch in text.chars() {
+        match ch {
+            '<' => in_tag = true,
+            '>' if in_tag => in_tag = false,
+            c if !in_tag => out.push(c),
+            _ => {}
+        }
+    }
+    out
 }
