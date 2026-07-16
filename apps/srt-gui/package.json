@@ -1,7 +1,7 @@
 {
   "name": "vesta",
   "private": true,
-  "version": "0.14.1-dev.3",
+  "version": "0.14.1-dev.4",
   "type": "module",
   "scripts": {
     "dev": "NODE_NO_WARNINGS=1 vite",
