@@ -41,3 +41,9 @@ export function formatAudioTrackLabel(track: AudioTrackInfo): string {
   if (track.channels) parts.push(`${track.channels} ch`);
   return parts.join(" - ");
 }
+
+/** Whether an episode has any per-episode media overrides set (drives the
+ * violet "overridden" dot in the episode table's media-file cell). */
+export function hasMediaOverrides(overrides: EpisodeMediaOverrides | undefined): boolean {
+  return Boolean(overrides && Object.keys(overrides).length > 0);
+}
