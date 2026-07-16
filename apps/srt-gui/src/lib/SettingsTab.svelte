@@ -12,6 +12,8 @@
 import TranscribeTiers from "./TranscribeTiers.svelte";
   import ProviderIcon from "./ProviderIcon.svelte";
   import ApiKeysCard from "./ApiKeysCard.svelte";
+  import AddApiKeyModal from "./AddApiKeyModal.svelte";
+  import { apiKeyEditorStore } from "./apiKeyEditorStore.svelte";
   import { smartMatchingStore } from "./smartMatchingStore.svelte";
   import { snackbar } from "./snackbarStore.svelte";
   import { uiMode } from "./uiModeStore.svelte";
@@ -240,45 +242,7 @@ import TranscribeTiers from "./TranscribeTiers.svelte";
   let localProviderStatus = $state<EndpointStatus>("idle");
   let localProviderCheckRequestId = 0;
 
-  let showAddKey = $state(false);
   let showAddModel = $state(false);
-  let modalContext = $state<"llm" | "whisper">("llm");
-  const llmProviderIds = ["google", "groq", "openai", "openrouter", "mistral", "github", "nvidia", "custom"];
-  const whisperProviderIds = ["groq", "openai", "deepgram", "assemblyai", "custom"];
-
-  const llmApiKeyUrls: Record<string, string> = {
-    google: "https://aistudio.google.com/apikey",
-    groq: "https://console.groq.com/keys",
-    openai: "https://platform.openai.com/api-keys",
-    openrouter: "https://openrouter.ai/keys",
-    mistral: "https://console.mistral.ai/api-keys",
-    github: "https://github.com/settings/personal-access-tokens",
-    nvidia: "https://build.nvidia.com",
-  };
-
-  const llmDocUrls: Record<string, string> = {
-    google: "https://ai.google.dev/gemini-api/docs",
-    groq: "https://console.groq.com/docs",
-    openai: "https://platform.openai.com/docs",
-    openrouter: "https://openrouter.ai/docs",
-    mistral: "https://docs.mistral.ai",
-    github: "https://docs.github.com",
-    nvidia: "https://docs.nvidia.com",
-  };
-
-  const whisperApiKeyUrls: Record<string, string> = {
-    groq: "https://console.groq.com/keys",
-    openai: "https://platform.openai.com/api-keys",
-    deepgram: "https://console.deepgram.com",
-    assemblyai: "https://www.assemblyai.com/app/api-keys",
-  };
-
-  const whisperDocUrls: Record<string, string> = {
-    groq: "https://console.groq.com/docs/speech-to-text",
-    openai: "https://platform.openai.com/guides/speech-to-text",
-    deepgram: "https://developers.deepgram.com/docs/deepgram-whisper-cloud",
-    assemblyai: "https://www.assemblyai.com/docs",
-  };
 
   let translationTiersRef = $state<any>(null);
   let transcribeTiers = $state<TranscribeTier[]>([]);
@@ -1456,13 +1420,6 @@ import TranscribeTiers from "./TranscribeTiers.svelte";
     save();
   }
 
-  let newKeyName = $state("");
-  let newKeyType = $state<ApiKeyConfig["apiType"]>("google");
-  let newKeyValue = $state("");
-  let newKeyUrl = $state("");
-  let showNewKeyPassword = $state(false);
-  let editKeyId = $state<string | null>(null);
-
   let currentProviderModels = $derived(
     getModelsForProvider(selectedProviderType),
   );
@@ -1727,8 +1684,8 @@ import TranscribeTiers from "./TranscribeTiers.svelte";
       if (e.key === "Escape") {
         if (deleteConfirmId) {
           cancelDelete();
-        } else if (showAddKey) {
-          showAddKey = false;
+        } else if (apiKeyEditorStore.showAddKey) {
+          apiKeyEditorStore.close();
         }
       }
     };
@@ -2197,39 +2154,22 @@ import TranscribeTiers from "./TranscribeTiers.svelte";
   }
 
   function openAddKeyModal(providerId?: string) {
-    editKeyId = null;
-    modalContext = activeSettingsSection === "whisper" ? "whisper" : "llm";
-    const allowedIds = modalContext === "whisper" ? whisperProviderIds : llmProviderIds;
-    const defaultProviderId = modalContext === "whisper" ? "groq" : "google";
-    
-    const normalizedProviderId =
-      providerId && allowedIds.includes(providerId) ? providerId : defaultProviderId;
-      
-    if (normalizedProviderId) {
-      newKeyType = normalizedProviderId as ApiKeyConfig["apiType"];
-      newKeyName = normalizedProviderId === "openai" ? "Open AI" : (providers[normalizedProviderId]?.name || "");
-    }
-    newKeyValue = "";
-    newKeyUrl =
-      newKeyType === "local" ? providers.local.defaultApiUrl || "" : "";
-    if (newKeyType === "custom") newKeyName = "";
-    showAddKey = true;
+    apiKeyEditorStore.openAdd(activeSettingsSection === "whisper" ? "whisper" : "llm", providerId);
   }
 
   function openEditKeyModal(id: string) {
     const key = apiKeys.find((k) => k.id === id);
     if (!key) return;
-    editKeyId = id;
-    modalContext = activeSettingsSection === "whisper" ? "whisper" : "llm";
-    newKeyType = key.apiType;
-    newKeyName = key.name;
-    newKeyValue = key.apiKey;
-    newKeyUrl = key.apiUrl || "";
-    showNewKeyPassword = false;
-    showAddKey = true;
+    apiKeyEditorStore.openEdit(key, activeSettingsSection === "whisper" ? "whisper" : "llm");
   }
 
   function addApiKey() {
+    const editKeyId = apiKeyEditorStore.editKeyId;
+    const newKeyType = apiKeyEditorStore.newKeyType;
+    const newKeyName = apiKeyEditorStore.newKeyName;
+    const newKeyValue = apiKeyEditorStore.newKeyValue;
+    const newKeyUrl = apiKeyEditorStore.newKeyUrl;
+
     if (!newKeyName.trim()) {
       showSnackbar(t("settings.errorNameRequired"), "error");
       return;
@@ -2312,11 +2252,7 @@ import TranscribeTiers from "./TranscribeTiers.svelte";
       showSnackbar(t("settings.keyAdded"));
     }
 
-    newKeyName = "";
-    newKeyValue = "";
-    newKeyUrl = "";
-    editKeyId = null;
-    showAddKey = false;
+    apiKeyEditorStore.reset();
   }
 
   let deleteConfirmId = $state<string | null>(null);
@@ -2368,11 +2304,6 @@ import TranscribeTiers from "./TranscribeTiers.svelte";
       isDefault: k.apiType === key.apiType ? k.id === id : k.isDefault,
     }));
     saveApiKeys();
-  }
-
-  function copyToClipboard(text: string) {
-    navigator.clipboard.writeText(text);
-    snackbar.show(t("settings.keyCopied"), "success", 1300);
   }
 
   function onModelClick(model: ModelInfo) {
@@ -3586,248 +3517,7 @@ import TranscribeTiers from "./TranscribeTiers.svelte";
     }}
   />
 
-  {#if showAddKey}
-    <div
-      class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-      role="dialog"
-      tabindex="-1"
-      onmousedown={(e) => {
-        if (e.target === e.currentTarget) showAddKey = false;
-      }}
-    >
-      <div
-        class="w-full max-w-4xl max-h-[92vh] overflow-hidden animate-fade-in shadow-2xl border border-white/20 bg-gray-900/98 backdrop-blur-xl rounded-xl flex flex-col"
-        role="presentation"
-        onmousedown={(e) => e.stopPropagation()}
-      >
-        <div class="p-6 border-b border-white/5 bg-white/5">
-          <h3 class="text-xl font-bold text-white flex items-center gap-2">
-            {editKeyId
-              ? t("settings.modal.editApiKey")
-              : t("settings.modal.addCustomApiKey")}
-          </h3>
-        </div>
-
-        <div class="p-6 flex-1 overflow-hidden flex flex-col">
-          <div class="space-y-5 overflow-y-auto custom-scrollbar pr-1">
-          <div>
-            <span
-              class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2"
-              >{t("settings.modal.provider")}</span
-            >
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 mb-3">
-              {#each (modalContext === "whisper" ? whisperProviderIds : llmProviderIds) as pid (pid)}
-                {@const prov = providers[pid]}
-                {@const isCustom = pid === "custom"}
-                <button
-                  type="button"
-                  onclick={() => {
-                    newKeyType = pid as ApiKeyConfig["apiType"];
-                    newKeyName = isCustom ? "" : (pid === "openai" ? "Open AI" : prov?.name || pid);
-                    newKeyUrl = isCustom ? "" : prov?.defaultApiUrl || "";
-                    newKeyValue = "";
-                  }}
-                  class="flex items-center gap-2.5 p-2.5 rounded-lg transition-all duration-200 border text-left
-                    {newKeyType === pid
-                    ? 'bg-indigo-500/20 border-indigo-500/50 text-white'
-                    : 'bg-white/5 hover:bg-white/10 border-transparent text-gray-400'}"
-                >
-                  <ProviderIcon provider={pid} />
-                  <div class="flex flex-col min-w-0">
-                    <span class="text-sm font-bold truncate"
-                      >{pid === "openai" ? "Open AI" : (isCustom ? t("provider.custom") : prov?.name || pid)}</span
-                    >
-                    <span class="text-[10px] opacity-70 leading-tight line-clamp-2"
-                      >{isCustom ? t("provider.custom.desc") : (pid === "openai" ? (modalContext === "whisper" ? ($currentLanguage === "it" ? "API OpenAI speech-to-text (Whisper)" : "OpenAI speech-to-text API (Whisper)") : ($currentLanguage === "it" ? "Modelli OpenAI (GPT-4o, GPT-4...)" : "OpenAI models (GPT-4o, GPT-4...)")) : prov?.description || "")}</span
-                    >
-                  </div>
-                </button>
-              {/each}
-            </div>
-          </div>
-
-          <div class="space-y-4">
-            <div>
-              <label
-                for="key-name"
-                class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5"
-                >{t("settings.modal.configName")}</label
-              >
-              <input
-                id="key-name"
-                type="text"
-                bind:value={newKeyName}
-                placeholder={t("settings.modal.configNamePlaceholder")}
-                class="w-full bg-black/40 border border-white/10 rounded-lg px-4 py-2.5 text-sm text-white focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 outline-none transition-all placeholder-gray-600"
-              />
-            </div>
-
-            {#if newKeyType === "local" || newKeyType === "custom"}
-              <div>
-                <label
-                  for="api-url"
-                  class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5"
-                >
-                  {t("settings.modal.apiEndpoint")}
-                </label>
-                <input
-                  id="api-url"
-                  type="text"
-                  bind:value={newKeyUrl}
-	                  placeholder={newKeyType === "local"
-	                    ? providers[newKeyType]?.defaultApiUrl || "https://..."
-	                    : "https://api.example.com/v1"}
-                  class="w-full bg-black/40 border border-white/10 rounded-lg px-4 py-2.5 text-sm text-white focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 outline-none transition-all placeholder-gray-600 font-mono"
-                />
-              </div>
-            {/if}
-
-            {#if newKeyType !== "local"}
-              <div>
-                <label
-                  for="api-key"
-                  class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5"
-                  >{t("settings.modal.apiKey")}
-                  {#if newKeyType === "custom"}<span
-                      class="text-gray-600 normal-case font-normal"
-                      >({t("settings.modal.optional")})</span
-                    >{/if}</label
-                >
-                <div class="relative">
-                  <input
-                    id="api-key"
-                    type={showNewKeyPassword ? "text" : "password"}
-                    bind:value={newKeyValue}
-                    placeholder={newKeyType === "custom"
-                      ? t("settings.modal.notRequiredForLocal")
-                      : providers[newKeyType]?.keyPlaceholder || "API key"}
-                    class="w-full bg-black/40 border border-white/10 rounded-lg px-4 py-2.5 pr-20 text-sm text-white focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 outline-none transition-all placeholder-gray-600 font-mono"
-                  />
-                  <div
-                    class="absolute right-2 top-1/2 -translate-y-1/2 flex gap-1"
-                  >
-                    <button
-                      type="button"
-                      onclick={() => (showNewKeyPassword = !showNewKeyPassword)}
-                      class="p-1.5 text-gray-500 hover:text-gray-300 transition-colors"
-                      title={t("settings.toggleVisibility")}
-                    >
-                      {#if showNewKeyPassword}
-                        <svg
-                          class="w-4 h-4"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                            stroke-width="2"
-                            d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"
-                          />
-                        </svg>
-                      {:else}
-                        <svg
-                          class="w-4 h-4"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                            stroke-width="2"
-                            d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                          />
-                          <path
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                            stroke-width="2"
-                            d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-                          />
-                        </svg>
-                      {/if}
-                    </button>
-                    <button
-                      type="button"
-                      onclick={() => copyToClipboard(newKeyValue)}
-                      class="p-1.5 text-gray-500 hover:text-gray-300 transition-colors"
-                      title="Copy"
-                    >
-                      <svg
-                        class="w-4 h-4"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                          stroke-width="2"
-                          d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
-                        />
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-
-                {#if (modalContext === "whisper" ? whisperApiKeyUrls[newKeyType] : llmApiKeyUrls[newKeyType]) || (modalContext === "whisper" ? whisperDocUrls[newKeyType] : llmDocUrls[newKeyType])}
-                  <div class="mt-2.5 flex flex-wrap gap-x-4 gap-y-1 text-xs">
-                    {#if modalContext === "whisper" ? whisperApiKeyUrls[newKeyType] : llmApiKeyUrls[newKeyType]}
-                      <a
-                        href={modalContext === "whisper" ? whisperApiKeyUrls[newKeyType] : llmApiKeyUrls[newKeyType]}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        class="text-indigo-400 hover:text-indigo-300 hover:underline flex items-center gap-1.5 font-semibold transition-colors"
-                      >
-                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m-2 4a2 2 0 012 2m-3-4a3 3 0 11-6 0 3 3 0 016 0zM8 21a4 4 0 014-4h4a4 4 0 014 4H8z" />
-                        </svg>
-                        {t("settings.modal.getApiKey")}
-                      </a>
-                    {/if}
-                    {#if modalContext === "whisper" ? whisperDocUrls[newKeyType] : llmDocUrls[newKeyType]}
-                      <a
-                        href={modalContext === "whisper" ? whisperDocUrls[newKeyType] : llmDocUrls[newKeyType]}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        class="text-cyan-400 hover:text-cyan-300 hover:underline flex items-center gap-1.5 font-semibold transition-colors"
-                      >
-                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5s3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18s-3.332.477-4.5 1.253" />
-                        </svg>
-                        {t("settings.modal.documentation")}
-                      </a>
-                    {/if}
-                  </div>
-                {/if}
-              </div>
-            {/if}
-
-          </div>
-
-          </div>
-
-          <div class="flex gap-3 pt-4 mt-auto border-t border-white/5 shrink-0">
-            <button
-              onclick={() => (showAddKey = false)}
-              class="flex-1 py-2.5 rounded-lg border border-white/10 text-gray-400 hover:bg-white/5 hover:text-white transition-all text-sm font-medium"
-            >
-              {t("settings.modal.cancel")}
-            </button>
-            <button
-              onclick={addApiKey}
-              class="flex-1 py-2.5 rounded-lg bg-indigo-500 hover:bg-indigo-400 text-white shadow-lg shadow-indigo-500/20 transition-all text-sm font-bold"
-            >
-              {t("settings.modal.save")}
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  {/if}
-
-
+  <AddApiKeyModal onSave={addApiKey} />
 
   {#if deleteConfirmId}
     <div
