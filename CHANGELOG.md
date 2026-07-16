@@ -1,3 +1,23 @@
+## [0.14.0-dev.5](https://github.com/pierspad/vesta/compare/v0.14.0-dev.4...v0.14.0-dev.5) (2026-07-16)
+
+### 🐛 Bug Fixes
+
+* **branding:** finish VESTA->vesta rename in remaining scripts, packaging metadata and benchmarks ([32543f5](https://github.com/pierspad/vesta/commit/32543f5e625a0920931dab60e7c0408b9cadd914))
+* **ci:** stop Arch package build from 404ing on the not-yet-published GitHub release ([88139ab](https://github.com/pierspad/vesta/commit/88139ab980c1bac4416f99bdd7619a4ea6bfd52f))
+* **i18n:** add missing AnkiConnect export translations for 13 locales ([4ed2ff0](https://github.com/pierspad/vesta/commit/4ed2ff0c3655797acf419a12c28705fff305e791))
+* **i18n:** sync and backfill translation keys across all 15 locales ([4bb14af](https://github.com/pierspad/vesta/commit/4bb14af11c1d0440ea73196e5823a80235a28997))
+* **packaging:** align product branding to lowercase vesta and declare Vulkan runtime deps ([806c013](https://github.com/pierspad/vesta/commit/806c0133b2e7944ace6849291848eb19628cea06))
+
+### ✨ New Features
+
+* **autosync:** drive auto-sync transcription through the srt-transcribe VAD pipeline ([cd1ef39](https://github.com/pierspad/vesta/commit/cd1ef399d872c3656241109c8138c77f7ca9733f))
+* **experimental:** add condensed-audio generation and direct AnkiConnect import ([0994e10](https://github.com/pierspad/vesta/commit/0994e1005e2e4ad401bb3a1f0b6913bce1996bc0))
+* **flashcards:** extend media handling and flashcard generation options ([91534c3](https://github.com/pierspad/vesta/commit/91534c35059eac17bdf51d35707de7e65410d064))
+* **refine:** move flashcard AI refinement onto the tiered LLM pool with cancellation ([6690008](https://github.com/pierspad/vesta/commit/669000875ce3185b5b8012d21a86ac5771ef8f87))
+* **settings:** add VAD/model management and shared LLM tier helpers ([8f5be2b](https://github.com/pierspad/vesta/commit/8f5be2b8ba79e3291ef31efb52f33ea21c83cd2e))
+* **transcribe:** add VAD-gated decoding and cloud transcription providers to srt-transcribe ([ca106ca](https://github.com/pierspad/vesta/commit/ca106ca2e7dbf8360fb19ba6d4dc6818dc8c4637))
+* **ui:** update align, sync, translate and shortcuts tabs for the new tiered/experimental features ([97ab28e](https://github.com/pierspad/vesta/commit/97ab28e425d556c0a9762b632edffddf4d3b9585))
+
 ## [0.14.0-dev.4](https://github.com/pierspad/vesta/compare/v0.14.0-dev.3...v0.14.0-dev.4) (2026-07-14)
 
 ### 🐛 Bug Fixes
