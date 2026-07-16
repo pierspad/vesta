@@ -40,6 +40,8 @@
   import { previewStore } from "./previewStore.svelte";
   import type { EpisodeMediaOverrides, AudioTrackInfo, EpisodeMediaOverrideKey } from "./flashcardMediaTypes";
   import { formatAudioTrackLabel } from "./flashcardMediaTypes";
+  import type { CardFilterSettings } from "./flashcardFilterTypes";
+  import CardFiltersPanel from "./CardFiltersPanel.svelte";
   import { episodeMediaEditorStore } from "./episodeMediaEditorStore.svelte";
   import EpisodeMediaSettingsModal from "./EpisodeMediaSettingsModal.svelte";
   import AudioClipsPanel from "./AudioClipsPanel.svelte";
@@ -1116,18 +1118,22 @@
   });
 
   // ─── Card Filters ────────────────────────────────────────────────────────
-  let cardFiltersEnabled = $state(false);
-  let combineSentences = $state(false);
-  let continuationChars = $state(",、→");
-  let filterMinChars = $state<number>(8);
-  let filterMaxChars = $state<number>(120);
-  let filterMinDurationMs = $state<number>(500);
-  let filterMaxDurationMs = $state<number>(8000);
-  // Slider enable toggles
-  let filterMinCharsEnabled = $state(false);
-  let filterMaxCharsEnabled = $state(false);
-  let filterMinDurationEnabled = $state(false);
-  let filterMaxDurationEnabled = $state(false);
+  // Card-length/duration filters — single reactive object (see
+  // flashcardFilterTypes.ts) so CardFiltersPanel.svelte can own the panel UI
+  // via one bind:filters prop, same pattern as mediaSettings.
+  let cardFilters = $state<CardFilterSettings>({
+    enabled: false,
+    minChars: 8,
+    maxChars: 120,
+    minCharsEnabled: false,
+    maxCharsEnabled: false,
+    minDurationMs: 500,
+    maxDurationMs: 8000,
+    minDurationEnabled: false,
+    maxDurationEnabled: false,
+    combineSentences: false,
+    continuationChars: ",、→",
+  });
 
   let prevMinChars: number | undefined = undefined;
   let prevMaxChars: number | undefined = undefined;
@@ -1136,49 +1142,49 @@
 
   $effect(() => {
     // Keep within absolute bounds
-    if (filterMinChars < 1) filterMinChars = 1;
-    if (filterMinChars > 2000) filterMinChars = 2000;
-    if (filterMaxChars < 1) filterMaxChars = 1;
-    if (filterMaxChars > 2000) filterMaxChars = 2000;
+    if (cardFilters.minChars < 1) cardFilters.minChars = 1;
+    if (cardFilters.minChars > 2000) cardFilters.minChars = 2000;
+    if (cardFilters.maxChars < 1) cardFilters.maxChars = 1;
+    if (cardFilters.maxChars > 2000) cardFilters.maxChars = 2000;
 
-    if (filterMinDurationMs < 0) filterMinDurationMs = 0;
-    if (filterMinDurationMs > 120000) filterMinDurationMs = 120000;
-    if (filterMaxDurationMs < 0) filterMaxDurationMs = 0;
-    if (filterMaxDurationMs > 120000) filterMaxDurationMs = 120000;
+    if (cardFilters.minDurationMs < 0) cardFilters.minDurationMs = 0;
+    if (cardFilters.minDurationMs > 120000) cardFilters.minDurationMs = 120000;
+    if (cardFilters.maxDurationMs < 0) cardFilters.maxDurationMs = 0;
+    if (cardFilters.maxDurationMs > 120000) cardFilters.maxDurationMs = 120000;
 
     // Initialize trackers on first run
-    if (prevMinChars === undefined) prevMinChars = filterMinChars;
-    if (prevMaxChars === undefined) prevMaxChars = filterMaxChars;
-    if (prevMinDuration === undefined) prevMinDuration = filterMinDurationMs;
-    if (prevMaxDuration === undefined) prevMaxDuration = filterMaxDurationMs;
+    if (prevMinChars === undefined) prevMinChars = cardFilters.minChars;
+    if (prevMaxChars === undefined) prevMaxChars = cardFilters.maxChars;
+    if (prevMinDuration === undefined) prevMinDuration = cardFilters.minDurationMs;
+    if (prevMaxDuration === undefined) prevMaxDuration = cardFilters.maxDurationMs;
 
     // Enforce min <= max coherence based on which one was modified
-    if (filterMinChars !== prevMinChars) {
-      if (filterMinChars > filterMaxChars) {
-        filterMaxChars = filterMinChars;
+    if (cardFilters.minChars !== prevMinChars) {
+      if (cardFilters.minChars > cardFilters.maxChars) {
+        cardFilters.maxChars = cardFilters.minChars;
       }
-      prevMinChars = filterMinChars;
-      prevMaxChars = filterMaxChars;
-    } else if (filterMaxChars !== prevMaxChars) {
-      if (filterMaxChars < filterMinChars) {
-        filterMinChars = filterMaxChars;
+      prevMinChars = cardFilters.minChars;
+      prevMaxChars = cardFilters.maxChars;
+    } else if (cardFilters.maxChars !== prevMaxChars) {
+      if (cardFilters.maxChars < cardFilters.minChars) {
+        cardFilters.minChars = cardFilters.maxChars;
       }
-      prevMinChars = filterMinChars;
-      prevMaxChars = filterMaxChars;
+      prevMinChars = cardFilters.minChars;
+      prevMaxChars = cardFilters.maxChars;
     }
 
-    if (filterMinDurationMs !== prevMinDuration) {
-      if (filterMinDurationMs > filterMaxDurationMs) {
-        filterMaxDurationMs = filterMinDurationMs;
+    if (cardFilters.minDurationMs !== prevMinDuration) {
+      if (cardFilters.minDurationMs > cardFilters.maxDurationMs) {
+        cardFilters.maxDurationMs = cardFilters.minDurationMs;
       }
-      prevMinDuration = filterMinDurationMs;
-      prevMaxDuration = filterMaxDurationMs;
-    } else if (filterMaxDurationMs !== prevMaxDuration) {
-      if (filterMaxDurationMs < filterMinDurationMs) {
-        filterMinDurationMs = filterMaxDurationMs;
+      prevMinDuration = cardFilters.minDurationMs;
+      prevMaxDuration = cardFilters.maxDurationMs;
+    } else if (cardFilters.maxDurationMs !== prevMaxDuration) {
+      if (cardFilters.maxDurationMs < cardFilters.minDurationMs) {
+        cardFilters.minDurationMs = cardFilters.maxDurationMs;
       }
-      prevMinDuration = filterMinDurationMs;
-      prevMaxDuration = filterMaxDurationMs;
+      prevMinDuration = cardFilters.minDurationMs;
+      prevMaxDuration = cardFilters.maxDurationMs;
     }
   });
 
@@ -2328,10 +2334,10 @@
         exclude_words: null,
         exclude_duplicates_subs1: false,
         exclude_duplicates_subs2: false,
-        min_chars: cardFiltersEnabled && filterMinCharsEnabled ? filterMinChars : null,
-        max_chars: cardFiltersEnabled && filterMaxCharsEnabled ? filterMaxChars : null,
-        min_duration_ms: cardFiltersEnabled && filterMinDurationEnabled ? filterMinDurationMs : null,
-        max_duration_ms: cardFiltersEnabled && filterMaxDurationEnabled ? filterMaxDurationMs : null,
+        min_chars: cardFilters.enabled && cardFilters.minCharsEnabled ? cardFilters.minChars : null,
+        max_chars: cardFilters.enabled && cardFilters.maxCharsEnabled ? cardFilters.maxChars : null,
+        min_duration_ms: cardFilters.enabled && cardFilters.minDurationEnabled ? cardFilters.minDurationMs : null,
+        max_duration_ms: cardFilters.enabled && cardFilters.maxDurationEnabled ? cardFilters.maxDurationMs : null,
         exclude_styled: false,
         actor_filter: null,
         only_cjk: false,
@@ -2342,8 +2348,8 @@
         trailing: 0,
         max_gap_seconds: 15.0,
       },
-      combine_sentences: cardFiltersEnabled && combineSentences,
-      continuation_chars: continuationChars,
+      combine_sentences: cardFilters.enabled && cardFilters.combineSentences,
+      continuation_chars: cardFilters.continuationChars,
       generate_audio: mediaSettings.generateAudio,
       audio_bitrate: mediaSettings.audioBitrate,
       audio_track_index: mediaSettings.audioTrackIndex,
@@ -2731,10 +2737,10 @@
             exclude_words: null,
             exclude_duplicates_subs1: false,
             exclude_duplicates_subs2: false,
-            min_chars: cardFiltersEnabled && filterMinCharsEnabled ? filterMinChars : null,
-            max_chars: cardFiltersEnabled && filterMaxCharsEnabled ? filterMaxChars : null,
-            min_duration_ms: cardFiltersEnabled && filterMinDurationEnabled ? filterMinDurationMs : null,
-            max_duration_ms: cardFiltersEnabled && filterMaxDurationEnabled ? filterMaxDurationMs : null,
+            min_chars: cardFilters.enabled && cardFilters.minCharsEnabled ? cardFilters.minChars : null,
+            max_chars: cardFilters.enabled && cardFilters.maxCharsEnabled ? cardFilters.maxChars : null,
+            min_duration_ms: cardFilters.enabled && cardFilters.minDurationEnabled ? cardFilters.minDurationMs : null,
+            max_duration_ms: cardFilters.enabled && cardFilters.maxDurationEnabled ? cardFilters.maxDurationMs : null,
             exclude_styled: false,
             actor_filter: null,
             only_cjk: false,
@@ -2745,8 +2751,8 @@
             trailing: 0,
             max_gap_seconds: 15.0,
           },
-          combine_sentences: cardFiltersEnabled && combineSentences,
-          continuation_chars: continuationChars,
+          combine_sentences: cardFilters.enabled && cardFilters.combineSentences,
+          continuation_chars: cardFilters.continuationChars,
           generate_audio: ep.mediaPath ? epMediaSettings.generateAudio : false,
           audio_bitrate: epMediaSettings.audioBitrate,
           audio_track_index: epAudioTrackIndex,
@@ -3578,205 +3584,11 @@
         hintLoadVideoFirst={HINT_LOAD_VIDEO_FIRST}
       />
     {:else if panelId === "cardFilters"}
-      <div
-        inert={!hasAnyFiles}
-        title={!hasAnyFiles ? HINT_LOAD_TARGET_FIRST : undefined}
-        class="glass-card p-5 {!hasAnyFiles ? 'opacity-40' : ''}"
-      >
-        <div class="flex items-center justify-between mb-3">
-          <h3
-            class="text-lg font-semibold flex items-center gap-2 text-amber-400"
-          >
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-.293.707L13 13.414V19a1 1 0 01-.553.894l-4 2A1 1 0 017 21v-7.586L3.293 6.707A1 1 0 013 6V4z" />
-            </svg>
-            {t("flashcards.cardFilters") || "Filtri Carte"}
-          </h3>
-          <button
-            onclick={() => {
-              cardFiltersEnabled = !cardFiltersEnabled;
-            }}
-            class="w-10 h-5 rounded-full transition-all duration-200 relative
-              {cardFiltersEnabled ? 'bg-amber-500' : 'bg-gray-600'}"
-            aria-label="Toggle card filters"
-          >
-            <div
-              class="absolute w-4 h-4 bg-white rounded-full top-0.5 transition-all duration-200
-              {cardFiltersEnabled ? 'left-5' : 'left-0.5'}"
-            ></div>
-          </button>
-        </div>
-
-        <div class="space-y-3 transition-all duration-200 {!cardFiltersEnabled ? 'opacity-40 pointer-events-none' : ''}">
-          <!-- Length Filter -->
-          <div class="space-y-2">
-            <span class="text-xs font-semibold text-gray-400 uppercase tracking-wider">{t("flashcards.filterLength")}</span>
-            <div class="grid grid-cols-2 gap-3">
-              <div class="space-y-1">
-                <div class="flex items-center justify-between">
-                  <span class="text-xs text-gray-400">{t("flashcards.filterMinChars")}</span>
-                  <button
-                    onclick={() => { filterMinCharsEnabled = !filterMinCharsEnabled; }}
-                    class="w-10 h-5 rounded-full transition-all duration-200 relative
-                      {filterMinCharsEnabled ? 'bg-amber-500' : 'bg-gray-600'}"
-                    aria-label="Enable min chars"
-                  >
-                    <div class="absolute w-4 h-4 bg-white rounded-full top-0.5 transition-all duration-200
-                      {filterMinCharsEnabled ? 'left-5' : 'left-0.5'}"></div>
-                  </button>
-                </div>
-                <div class="space-y-1.5">
-                  <div class="flex items-center gap-1">
-                    <input
-                      type="number" min="1"
-                      bind:value={filterMinChars}
-                      disabled={!filterMinCharsEnabled}
-                      class="input-modern w-full text-xs {!filterMinCharsEnabled ? 'opacity-40 cursor-not-allowed' : ''}"
-                      placeholder="8"
-                    />
-                    <span class="text-xs text-gray-500 shrink-0">car.</span>
-                  </div>
-                  <input
-                    type="range" min="1" max="100" step="1"
-                    bind:value={filterMinChars}
-                    disabled={!filterMinCharsEnabled}
-                    class="slider-minimal w-full mt-1.5 transition-opacity duration-200 {!filterMinCharsEnabled ? 'opacity-40 cursor-not-allowed' : ''}"
-                  />
-                </div>
-              </div>
-              <div class="space-y-1">
-                <div class="flex items-center justify-between">
-                  <span class="text-xs text-gray-400">{t("flashcards.filterMaxChars")}</span>
-                  <button
-                    onclick={() => { filterMaxCharsEnabled = !filterMaxCharsEnabled; }}
-                    class="w-10 h-5 rounded-full transition-all duration-200 relative
-                      {filterMaxCharsEnabled ? 'bg-amber-500' : 'bg-gray-600'}"
-                    aria-label="Enable max chars"
-                  >
-                    <div class="absolute w-4 h-4 bg-white rounded-full top-0.5 transition-all duration-200
-                      {filterMaxCharsEnabled ? 'left-5' : 'left-0.5'}"></div>
-                  </button>
-                </div>
-                <div class="space-y-1.5">
-                  <div class="flex items-center gap-1">
-                    <input
-                      type="number" min="1"
-                      bind:value={filterMaxChars}
-                      disabled={!filterMaxCharsEnabled}
-                      class="input-modern w-full text-xs {!filterMaxCharsEnabled ? 'opacity-40 cursor-not-allowed' : ''}"
-                      placeholder="120"
-                    />
-                    <span class="text-xs text-gray-500 shrink-0">car.</span>
-                  </div>
-                  <input
-                    type="range" min="1" max="500" step="1"
-                    bind:value={filterMaxChars}
-                    disabled={!filterMaxCharsEnabled}
-                    class="slider-minimal w-full mt-1.5 transition-opacity duration-200 {!filterMaxCharsEnabled ? 'opacity-40 cursor-not-allowed' : ''}"
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Duration Filter -->
-          <div class="space-y-2">
-            <span class="text-xs font-semibold text-gray-400 uppercase tracking-wider">{t("flashcards.filterDuration")}</span>
-            <div class="grid grid-cols-2 gap-3">
-              <div class="space-y-1">
-                <div class="flex items-center justify-between">
-                  <span class="text-xs text-gray-400">{t("flashcards.filterMinDuration")}</span>
-                  <button
-                    onclick={() => { filterMinDurationEnabled = !filterMinDurationEnabled; }}
-                    class="w-10 h-5 rounded-full transition-all duration-200 relative
-                      {filterMinDurationEnabled ? 'bg-amber-500' : 'bg-gray-600'}"
-                    aria-label="Enable min duration"
-                  >
-                    <div class="absolute w-4 h-4 bg-white rounded-full top-0.5 transition-all duration-200
-                      {filterMinDurationEnabled ? 'left-5' : 'left-0.5'}"></div>
-                  </button>
-                </div>
-                <div class="space-y-1.5">
-                  <div class="flex items-center gap-1">
-                    <input
-                      type="number" min="0" step="100"
-                      bind:value={filterMinDurationMs}
-                      disabled={!filterMinDurationEnabled}
-                      class="input-modern w-full text-xs {!filterMinDurationEnabled ? 'opacity-40 cursor-not-allowed' : ''}"
-                      placeholder="500"
-                    />
-                    <span class="text-xs text-gray-500 shrink-0">ms</span>
-                  </div>
-                  <input
-                    type="range" min="0" max="5000" step="100"
-                    bind:value={filterMinDurationMs}
-                    disabled={!filterMinDurationEnabled}
-                    class="slider-minimal w-full mt-1.5 transition-opacity duration-200 {!filterMinDurationEnabled ? 'opacity-40 cursor-not-allowed' : ''}"
-                  />
-                </div>
-              </div>
-              <div class="space-y-1">
-                <div class="flex items-center justify-between">
-                  <span class="text-xs text-gray-400">{t("flashcards.filterMaxDuration")}</span>
-                  <button
-                    onclick={() => { filterMaxDurationEnabled = !filterMaxDurationEnabled; }}
-                    class="w-10 h-5 rounded-full transition-all duration-200 relative
-                      {filterMaxDurationEnabled ? 'bg-amber-500' : 'bg-gray-600'}"
-                    aria-label="Enable max duration"
-                  >
-                    <div class="absolute w-4 h-4 bg-white rounded-full top-0.5 transition-all duration-200
-                      {filterMaxDurationEnabled ? 'left-5' : 'left-0.5'}"></div>
-                  </button>
-                </div>
-                <div class="space-y-1.5">
-                  <div class="flex items-center gap-1">
-                    <input
-                      type="number" min="0" step="100"
-                      bind:value={filterMaxDurationMs}
-                      disabled={!filterMaxDurationEnabled}
-                      class="input-modern w-full text-xs {!filterMaxDurationEnabled ? 'opacity-40 cursor-not-allowed' : ''}"
-                      placeholder="8000"
-                    />
-                    <span class="text-xs text-gray-500 shrink-0">ms</span>
-                  </div>
-                  <input
-                    type="range" min="0" max="30000" step="500"
-                    bind:value={filterMaxDurationMs}
-                    disabled={!filterMaxDurationEnabled}
-                    class="slider-minimal w-full mt-1.5 transition-opacity duration-200 {!filterMaxDurationEnabled ? 'opacity-40 cursor-not-allowed' : ''}"
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Sentence Combining -->
-          <div class="mt-4 pt-4 border-t border-gray-800/50">
-            <div class="flex items-center justify-between mb-3">
-              <span class="text-xs font-semibold text-gray-400 uppercase tracking-wider">{t("flashcards.combineSentences")}</span>
-              <button
-                onclick={() => (combineSentences = !combineSentences)}
-                class="w-10 h-5 rounded-full transition-all duration-200 relative shrink-0 ml-3
-                  {combineSentences ? 'bg-amber-500' : 'bg-gray-600'}"
-                aria-label="Toggle sentence combining"
-              >
-                <div class="absolute w-4 h-4 bg-white rounded-full top-0.5 transition-all duration-200
-                  {combineSentences ? 'left-5' : 'left-0.5'}"></div>
-              </button>
-            </div>
-            <div class="transition-opacity duration-200 {!combineSentences ? 'opacity-40' : ''}">
-              <span class="block text-xs text-gray-500 mb-1">{t("flashcards.continuationChars")}</span>
-              <input
-                type="text"
-                bind:value={continuationChars}
-                disabled={!combineSentences}
-                class="input-modern w-full text-xs font-mono {!combineSentences ? 'cursor-not-allowed' : ''}"
-                placeholder=",、→"
-              />
-            </div>
-          </div>
-        </div>
-      </div>
+      <CardFiltersPanel
+        bind:filters={cardFilters}
+        {hasAnyFiles}
+        hintLoadTargetFirst={HINT_LOAD_TARGET_FIRST}
+      />
 
     {:else if panelId === "naming"}
       <div
