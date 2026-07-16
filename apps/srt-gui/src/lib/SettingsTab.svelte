@@ -375,6 +375,8 @@ import TranscribeTiers from "./TranscribeTiers.svelte";
       addProviderTitle: "Add an LLM provider",
       addProviderDesc: "Save API keys or OpenAI-compatible endpoints for translation and remote models.",
       addProviderButton: "Add configuration",
+      activeTemplate: "Active template for Flashcards",
+      locked: "LOCKED",
       fieldPanelKicker: "Fields and note type",
       fieldPanelTitle: "Anki export field preset",
       fieldPanelDesc: "Choose a preset, edit names and save it as a reusable template.",
@@ -442,6 +444,8 @@ import TranscribeTiers from "./TranscribeTiers.svelte";
       addProviderTitle: "Aggiungi un provider LLM",
       addProviderDesc: "Salva API key o endpoint compatibili OpenAI per traduzione e modelli remoti.",
       addProviderButton: "Aggiungi configurazione",
+      activeTemplate: "Template attivo per Flashcard",
+      locked: "BLOCCATO",
       fieldPanelKicker: "Campi e tipo nota",
       fieldPanelTitle: "Preset campi esportazione Anki",
       fieldPanelDesc: "Scegli un preset, modifica i nomi e salvalo come template riutilizzabile.",
@@ -509,6 +513,8 @@ import TranscribeTiers from "./TranscribeTiers.svelte";
       addProviderTitle: "添加 LLM 提供商",
       addProviderDesc: "保存 API key 或 OpenAI 兼容端点，用于翻译和远程模型。",
       addProviderButton: "添加配置",
+      activeTemplate: "激活的闪卡模板",
+      locked: "已锁定",
       fieldPanelKicker: "字段和 note type",
       fieldPanelTitle: "Anki 导出字段预设",
       fieldPanelDesc: "选择预设、编辑名称，并保存为可复用模板。",
@@ -2970,7 +2976,7 @@ import TranscribeTiers from "./TranscribeTiers.svelte";
           </div>
           <div>
             <h3 class="text-sm font-bold text-white tracking-wide">
-              API Keys
+              {s("apiKeysSaved")}
             </h3>
           </div>
         </div>
@@ -3649,7 +3655,7 @@ import TranscribeTiers from "./TranscribeTiers.svelte";
             />
           </div>
           <div>
-            <label for="active-flashcards-template-select" class="block text-xs font-semibold text-gray-400 mb-2">Template attivo per Flashcard</label>
+            <label for="active-flashcards-template-select" class="block text-xs font-semibold text-gray-400 mb-2">{s("activeTemplate")}</label>
             <SearchableSelect
               className="settings-active-template-select"
               noResultsText={t("common.noResults")}
@@ -3673,7 +3679,7 @@ import TranscribeTiers from "./TranscribeTiers.svelte";
               <svg class="h-3.5 w-3.5 text-emerald-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v4H4V5zm0 8h8v7H5a1 1 0 01-1-1v-6zm12 0h4v6a1 1 0 01-1 1h-3v-7z" />
               </svg>
-              <span>Note type</span>
+              <span>{t("settings.noteType") || "Note type"}</span>
             </label>
             <input
               id="note-type-name-inline"
@@ -3702,7 +3708,7 @@ import TranscribeTiers from "./TranscribeTiers.svelte";
                     <svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                     </svg>
-                    <span>LOCKED</span>
+                     <span>{s("locked")}</span>
                   </span>
                 {/if}
               </label>

@@ -1369,7 +1369,7 @@
     <div class="glass-card p-5 space-y-4">
       <div class="flex items-center justify-between">
         <span class="text-[10px] font-bold text-gray-500 uppercase tracking-wide">{t("transcribe.livePhrases")}</span>
-        <span class="text-[10px] text-indigo-400 font-semibold">{transcribedSegments.length} segmenti</span>
+        <span class="text-[10px] text-indigo-400 font-semibold">{transcribedSegments.length} {t("transcribe.segments") || "segments"}</span>
       </div>
       
       {#if transcribedSegments.length === 0}

@@ -10,6 +10,9 @@ target/
 *.swo
 *~
 
+# Note locali di sviluppo (mai da pushare)
+.notes/
+
 # OS
 .DS_Store
 Thumbs.db

@@ -418,7 +418,7 @@
 
                   {#if (entry.provider === "local" || entry.provider === "local_whisper") && downloadingModelId === entry.model}
                     <div class="mt-2.5 flex items-center gap-3 p-2.5 rounded-lg border border-indigo-500/20 bg-indigo-500/5">
-                      <span class="text-xs text-indigo-300 font-medium whitespace-nowrap">Download: {downloadProgress}%</span>
+                      <span class="text-xs text-indigo-300 font-medium whitespace-nowrap">{t("transcribe.downloadProgress", { progress: downloadProgress })}</span>
                       <div class="flex-1 bg-white/10 rounded-full h-1.5 overflow-hidden">
                         <div class="bg-indigo-400 h-1.5 transition-all duration-150" style="width: {downloadProgress}%"></div>
                       </div>

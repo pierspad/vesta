@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onDestroy, onMount } from "svelte";
+  import { locale } from "./i18n";
   import {
     getStoredSettingsActionState,
     hideSettingsNotifications,
@@ -7,6 +8,8 @@
     markSettingsNotificationRead,
     unmarkSettingsNotificationRead,
   } from "./settingsNotifications";
+
+  let t = $derived($locale);
 
   type MenuState = {
     x: number;
@@ -222,7 +225,7 @@
               <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-5 0-9.27-3.11-11-7.5a11.72 11.72 0 013.168-4.457M6.343 6.343A9.97 9.97 0 0112 5c5 0 9.27 3.11 11 7.5a11.72 11.72 0 01-4.168 4.457M6.343 6.343L3 3m3.343 3.343l2.829 2.829m5.657 5.657l2.828 2.828M3 3l18 18m-9-9a3 3 0 01-3-3" />
               </svg>
-              Nascondi notifiche
+              {t("contextMenu.hideNotifications")}
             </span>
             <kbd>H</kbd>
           </button>
@@ -238,7 +241,7 @@
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
               </svg>
-              Mostra notifiche
+              {t("contextMenu.showNotifications")}
             </span>
             <kbd>S</kbd>
           </button>
@@ -252,7 +255,7 @@
               <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6 6 0 10-12 0v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0a3 3 0 11-6 0m6 0H9" />
               </svg>
-              Nessuna notifica impostazioni
+              {t("contextMenu.noNotifications")}
             </span>
           </button>
         {/if}
@@ -268,12 +271,12 @@
                 <svg class="w-3.5 h-3.5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
-                <span class="text-emerald-300">Presa visione ✓</span>
+                <span class="text-emerald-300">{t("contextMenu.acknowledged")}</span>
               {:else}
                 <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
                 </svg>
-                Segna come letta
+                {t("contextMenu.markAsRead")}
               {/if}
             </span>
             <kbd>R</kbd>
@@ -283,21 +286,21 @@
       {/if}
 
       <button type="button" class="vesta-context-menu-item" disabled={!menu.hasSelection} onclick={copy}>
-        <span>Copia</span>
-        <kbd>C / Ctrl C</kbd>
+        <span>{t("common.copy")}</span>
+        <kbd>{t("shortcuts.hint.copy")}</kbd>
       </button>
       <button type="button" class="vesta-context-menu-item" disabled={!menu.editable || !menu.hasSelection} onclick={cut}>
-        <span>Taglia</span>
-        <kbd>X / Ctrl X</kbd>
+        <span>{t("common.cut")}</span>
+        <kbd>{t("shortcuts.hint.cut")}</kbd>
       </button>
       <button type="button" class="vesta-context-menu-item" disabled={!menu.editable} onclick={paste}>
-        <span>Incolla</span>
-        <kbd>V / Ctrl V</kbd>
+        <span>{t("common.paste")}</span>
+        <kbd>{t("shortcuts.hint.paste")}</kbd>
       </button>
       <div class="vesta-context-menu-separator"></div>
       <button type="button" class="vesta-context-menu-item" disabled={!menu.editable} onclick={selectAll}>
-        <span>Seleziona tutto</span>
-        <kbd>A / Ctrl A</kbd>
+        <span>{t("common.selectAll")}</span>
+        <kbd>{t("shortcuts.hint.selectAll")}</kbd>
       </button>
     </div>
   </div>

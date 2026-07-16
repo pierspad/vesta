@@ -72,12 +72,30 @@ for (const [key, file] of usedKeys) {
 // Flags element text nodes with 3+ letters that aren't an expression. Curated
 // noise filter — treat findings as review hints, not hard failures.
 console.log("\nHeuristic scan for hardcoded template text…");
-const IGNORE = /^(APKG|TSV|GitHub|Repo|vesta|OK|ms|px|kb\/s|sub|car\.|v\d|GPL.*|Tauri.*|H\.264.*|MPEG.*|Bitrate|Codec|Preset|RPM|URL|API|LLM|ID|SRT|FFmpeg|Whisper|Anki|&\w+;|\d+.*)$/i;
+const IGNORE = /^(APKG|TSV|GitHub|Repo|vesta|OK|ms|px|kb\/s|sub|car\.|v\d|GPL.*|Tauri.*|H\.264.*|MPEG.*|Bitrate|Codec|Preset|RPM|URL|API|LLM|ID|SRT|FFmpeg|Whisper|Anki|Silero VAD|&\w+;|\d+.*)$/i;
+
+function stripSvelteExpressions(text) {
+  let result = "";
+  let depth = 0;
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i];
+    if (char === "{") {
+      depth++;
+    } else if (char === "}") {
+      if (depth > 0) depth--;
+    } else if (depth === 0) {
+      result += char;
+    }
+  }
+  return result;
+}
+
 for (const file of walk(srcDir)) {
   if (!file.endsWith(".svelte")) continue;
   const text = readFileSync(file, "utf8");
   const template = text.replace(/<script[\s\S]*?<\/script>/g, "").replace(/<style[\s\S]*?<\/style>/g, "");
-  for (const m of template.matchAll(/>([^<>{}]*[A-Za-zÀ-ÿ]{3,}[^<>{}]*)</g)) {
+  const templateClean = stripSvelteExpressions(template);
+  for (const m of templateClean.matchAll(/>([^<>{}]*[A-Za-zÀ-ÿ]{3,}[^<>{}]*)</g)) {
     const s = m[1].trim();
     if (!s || IGNORE.test(s)) continue;
     warn(`${file.replace(root + "/", "")}: possible hardcoded text "${s.slice(0, 60)}"`);

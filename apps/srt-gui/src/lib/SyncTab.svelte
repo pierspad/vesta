@@ -1538,7 +1538,7 @@
               >
                 <div class="flex items-center gap-1">
                   <kbd class="px-2 py-1 bg-white/10 rounded text-gray-400"
-                    >Space</kbd
+                    >{t("keys.space") || "Space"}</kbd
                   ><span>{t("sync.playPause")}</span>
                 </div>
                 <div class="flex items-center gap-1">
@@ -1558,7 +1558,7 @@
                 </div>
                 <div class="flex items-center gap-1">
                   <kbd class="px-2 py-1 bg-white/10 rounded text-gray-400"
-                    >Enter</kbd
+                    >{t("keys.enter") || "Enter"}</kbd
                   ><span>{t("sync.confirm")}</span>
                 </div>
               </div>
@@ -1886,7 +1886,7 @@
               >
                 <div class="flex items-center gap-1">
                   <kbd class="px-2 py-1 bg-white/10 rounded text-gray-400"
-                    >Space</kbd
+                    >{t("keys.space") || "Space"}</kbd
                   ><span>{t("sync.playPause")}</span>
                 </div>
                 <div class="flex items-center gap-1">
@@ -1906,7 +1906,7 @@
                 </div>
                 <div class="flex items-center gap-1">
                   <kbd class="px-2 py-1 bg-white/10 rounded text-gray-400"
-                    >Enter</kbd
+                    >{t("keys.enter") || "Enter"}</kbd
                   ><span>{t("sync.confirm")}</span>
                 </div>
               </div>
@@ -2071,7 +2071,7 @@
               >
                 <div class="flex items-center gap-1">
                   <kbd class="px-2 py-1 bg-white/10 rounded text-gray-400"
-                    >Space</kbd
+                    >{t("keys.space") || "Space"}</kbd
                   ><span>{t("sync.playPause")}</span>
                 </div>
                 <div class="flex items-center gap-1">
@@ -2091,7 +2091,7 @@
                 </div>
                 <div class="flex items-center gap-1">
                   <kbd class="px-2 py-1 bg-white/10 rounded text-gray-400"
-                    >Enter</kbd
+                    >{t("keys.enter") || "Enter"}</kbd
                   ><span>{t("sync.confirm")}</span>
                 </div>
               </div>
@@ -2187,7 +2187,7 @@
             <span>
               {t("sync.subtitles")}
               {#if status?.is_loaded}<span class="text-gray-500 font-normal"
-                  >(Page {currentPage} of {totalPages})</span
+                  >{t("sync.pageOf", { current: currentPage, total: totalPages })}</span
                 >{/if}
             </span>
           </h3>
@@ -2204,7 +2204,7 @@
               <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
               {t("sync.pagination.prev") || "Prev"}
             </button>
-            <span class="text-xs text-gray-400">Page {currentPage} / {totalPages}</span>
+            <span class="text-xs text-gray-400">{t("sync.pageSlash", { current: currentPage, total: totalPages })}</span>
             <button
               onclick={() => loadPage(currentPage + 1)}
               disabled={currentPage >= totalPages}
@@ -2370,7 +2370,7 @@
                 />
               </svg>
             {/if}
-            <span>Autosync</span>
+            <span>{t("sync.autoSync") || "Autosync"}</span>
           </button>
 
           <!-- Selector Capsule Switcher -->

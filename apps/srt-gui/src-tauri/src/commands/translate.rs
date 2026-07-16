@@ -3,9 +3,7 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
-use std::sync::Arc;
 use tauri::{AppHandle, Emitter, State};
-use tokio::sync::Mutex as TokioMutex;
 use tokio_util::sync::CancellationToken;
 
 use srt_parser::SrtParser;
@@ -147,11 +145,13 @@ async fn perform_translation(
 
     let output_path = PathBuf::from(&config.output_path);
 
-    // Wrapper per il callback di progresso che emette eventi Tauri
-    let app_handle = Arc::new(TokioMutex::new(app.clone()));
-    
+    // Callback di progresso: `AppHandle` è già `Clone + Send + Sync` ed `emit`
+    // è sincrono, quindi non serve alcun wrapping (niente Arc<Mutex<..>>, niente
+    // tokio::spawn). La versione precedente spawnava un task per ogni evento e
+    // usava `try_lock`, che sotto contesa perdeva silenziosamente gli eventi di
+    // progresso invece di aspettare — qui l'evento viene sempre emesso.
     let on_progress = {
-        let app_handle = app_handle.clone();
+        let app = app.clone();
         move |progress: TranslationProgress| {
             let percentage = if progress.total_batches > 0 {
                 (progress.current_batch as f64 / progress.total_batches as f64) * 100.0
@@ -167,13 +167,7 @@ async fn perform_translation(
                 eta_seconds: progress.eta_seconds,
             };
 
-            // Usa tokio spawn per emettere l'evento
-            let app_handle = app_handle.clone();
-            tokio::spawn(async move {
-                if let Ok(app) = app_handle.try_lock() {
-                    let _ = app.emit("translate-progress", event);
-                }
-            });
+            let _ = app.emit("translate-progress", event);
         }
     };
 

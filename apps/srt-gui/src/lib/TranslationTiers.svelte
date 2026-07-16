@@ -383,9 +383,9 @@
                       <ProviderIcon provider={entry.provider} size="w-5.5 h-5.5" glyph="w-3 h-3" rounded="rounded-md" />
                       <span class="text-xs font-semibold text-gray-200">{providers[entry.provider]?.name || entry.provider}</span>
                       {#if entry.provider === "local" && localOffline}
-                        <span class="flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20 text-[9px] font-bold">
+                        <span class="flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20 text-[9px] font-bold capitalize">
                           <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
-                          Offline
+                          {t("settings.endpointStatus.offline") || "offline"}
                         </span>
                       {/if}
                     </div>

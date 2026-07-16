@@ -3721,7 +3721,7 @@
                   <div class="flex flex-col gap-2 mt-2 bg-gray-900/40 p-3 rounded-lg border border-gray-850">
                     <div class="flex justify-between items-center text-[11px] font-mono text-gray-500">
                       <span class="bg-gray-850 px-1.5 py-0.5 rounded text-emerald-400 font-semibold">
-                        Riga #{playingLine.index + 1}
+                        {t("flashcards.rowNum", { count: playingLine.index + 1 })}
                       </span>
                       <span>
                         {Math.floor(playingLine.start_ms / 60000)}:{String(Math.floor((playingLine.start_ms % 60000) / 1000)).padStart(2, "0")} - 
@@ -3765,12 +3765,12 @@
                       <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
                         <path fill-rule="evenodd" d="M6.75 5.25a.75.75 0 0 1 .75-.75H9a.75.75 0 0 1 .75.75v13.5a.75.75 0 0 1-.75.75H7.5a.75.75 0 0 1-.75-.75V5.25Zm7.5 0A.75.75 0 0 1 15 4.5h1.5a.75.75 0 0 1 .75.75v13.5a.75.75 0 0 1-.75.75H15a.75.75 0 0 1-.75-.75V5.25Z" clip-rule="evenodd" />
                       </svg>
-                      Pausa
+                      {t("common.pause")}
                     {:else}
                       <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
                         <path fill-rule="evenodd" d="M4.5 5.653c0-1.427 1.529-2.33 2.779-1.643l11.54 6.347c1.295.712 1.295 2.573 0 3.286L7.28 19.99c-1.25.687-2.779-.217-2.779-1.643V5.653Z" clip-rule="evenodd" />
                       </svg>
-                      Riproduci
+                      {t("common.play")}
                     {/if}
                   </button>
                 </div>
@@ -5022,13 +5022,13 @@
                 </div>
                 <div class="flex gap-4 text-xs text-gray-400">
                   {#if result.audioClips > 0}
-                    <span>🔊 {result.audioClips} audio</span>
+                    <span>🔊 {result.audioClips} {t("flashcards.countAudio")}</span>
                   {/if}
                   {#if result.snapshots > 0}
-                    <span>📸 {result.snapshots} snapshots</span>
+                    <span>📸 {result.snapshots} {t("flashcards.countSnapshots")}</span>
                   {/if}
                   {#if result.videoClips > 0}
-                    <span>🎬 {result.videoClips} video</span>
+                    <span>🎬 {result.videoClips} {t("flashcards.countVideo")}</span>
                   {/if}
                 </div>
                 {#if result.tsvPath}
@@ -5215,7 +5215,7 @@
             </svg>
             {t("common.delete")}
           </span>
-          <kbd>D / Del</kbd>
+          <kbd>{t("keys.delShortcut")}</kbd>
         </button>
       </div>
     </div>
@@ -5255,7 +5255,7 @@
             </svg>
             {t("translate.goToSettings")}
           </span>
-          <kbd>Middle click</kbd>
+          <kbd>{t("keys.middleClick")}</kbd>
         </button>
       </div>
     </div>

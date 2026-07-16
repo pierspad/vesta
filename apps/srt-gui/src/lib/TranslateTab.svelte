@@ -1651,7 +1651,7 @@
             <span class="text-xs text-white font-medium truncate max-w-lg">
               {t("translate.batch")} {progress?.current_batch || 0}/{progress?.total_batches || 0} ({Math.round(progress?.percentage || 0)}%)
               {#if progress?.eta_seconds}
-                <span class="text-gray-400 ml-2">ETA: {formatEta(progress.eta_seconds)}</span>
+                <span class="text-gray-400 ml-2">{t("translate.eta", { time: formatEta(progress.eta_seconds) })}</span>
               {/if}
             </span>
           </div>

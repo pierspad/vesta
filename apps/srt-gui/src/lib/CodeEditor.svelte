@@ -1,7 +1,9 @@
 <script lang="ts">
   import { onDestroy } from "svelte";
-  import { t } from "./i18n";
+  import { locale } from "./i18n";
   import { snackbar } from "./snackbarStore.svelte";
+
+  let t = $derived($locale);
 
   let {
     value = $bindable(""),
@@ -436,30 +438,30 @@
         onmousedown={(e) => e.stopPropagation()}
       >
         <button type="button" class="vesta-context-menu-item" onclick={() => { undo(); closeContextMenu(); }}>
-          <span>Undo</span>
-          <kbd>U / Ctrl Z</kbd>
+          <span>{t("common.undo")}</span>
+          <kbd>{t("shortcuts.hint.undo")}</kbd>
         </button>
         <button type="button" class="vesta-context-menu-item" onclick={() => { redo(); closeContextMenu(); }}>
-          <span>Redo</span>
-          <kbd>R / Ctrl Y</kbd>
+          <span>{t("common.redo")}</span>
+          <kbd>{t("shortcuts.hint.redo")}</kbd>
         </button>
         <div class="vesta-context-menu-separator"></div>
         <button type="button" class="vesta-context-menu-item" onclick={copySelection}>
-          <span>Copy</span>
-          <kbd>C / Ctrl C</kbd>
+          <span>{t("common.copy")}</span>
+          <kbd>{t("shortcuts.hint.copy")}</kbd>
         </button>
         <button type="button" class="vesta-context-menu-item" onclick={cutSelection}>
-          <span>Cut</span>
-          <kbd>X / Ctrl X</kbd>
+          <span>{t("common.cut")}</span>
+          <kbd>{t("shortcuts.hint.cut")}</kbd>
         </button>
         <button type="button" class="vesta-context-menu-item" onclick={pasteClipboard}>
-          <span>Paste</span>
-          <kbd>V / Ctrl V</kbd>
+          <span>{t("common.paste")}</span>
+          <kbd>{t("shortcuts.hint.paste")}</kbd>
         </button>
         <div class="vesta-context-menu-separator"></div>
         <button type="button" class="vesta-context-menu-item" onclick={selectAllText}>
-          <span>Select all</span>
-          <kbd>A / Ctrl A</kbd>
+          <span>{t("common.selectAll")}</span>
+          <kbd>{t("shortcuts.hint.selectAll")}</kbd>
         </button>
       </div>
     </div>
