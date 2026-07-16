@@ -17,6 +17,10 @@
   import { ankiTemplateStore } from "./ankiTemplateStore.svelte";
   import WhisperSettingsPanel from "./WhisperSettingsPanel.svelte";
   import { whisperModelsStore } from "./whisperModelsStore.svelte";
+  import OverviewSettingsPanel from "./OverviewSettingsPanel.svelte";
+  import { cpuRamStore } from "./cpuRamStore.svelte";
+  import { exportFormatStore, EXPORT_FORMAT_KEY } from "./exportFormatStore.svelte";
+  import { updateCheckerStore } from "./updateCheckerStore.svelte";
   import { smartMatchingStore } from "./smartMatchingStore.svelte";
   import { snackbar } from "./snackbarStore.svelte";
   import { uiMode } from "./uiModeStore.svelte";
@@ -746,77 +750,6 @@
     }
   });
 
-  // CPU Cores Settings
-  let systemCpuCount = $state(4);
-  let cpuCores = $state(2);
-  let minCpuCores = $derived(1);
-  let maxCpuCores = $derived(Math.max(1, systemCpuCount - 1));
-
-  // RAM slider: stored in MB, max = totalMemory - 512 MB reserve
-  let systemTotalMemoryMb = $state(4096);
-  // min allowed = 256 MB, max allowed = total - 512 MB
-  let minRamMb = $derived(256);
-  let maxRamMb = $derived(Math.max(512, systemTotalMemoryMb - 512));
-  // 0 means "no limit" (use OS default)
-  let ramLimitMb = $state(
-    (() => {
-      const stored = localStorage.getItem("vesta_memory_limit_mb");
-      return stored ? parseInt(stored) : 0;
-    })()
-  );
-
-  // Dynamic RAM tick marks: pick a "nice" GB step so ~6 ticks span the range evenly
-  let ramTicksMb = $derived.by(() => {
-    const maxGb = maxRamMb / 1024;
-    const rawStep = maxGb / 6;
-    const niceStep =
-      rawStep <= 1 ? 1
-      : rawStep <= 2 ? 2
-      : rawStep <= 4 ? 4
-      : rawStep <= 8 ? 8
-      : rawStep <= 16 ? 16
-      : 32;
-    const ticks: number[] = [0];
-    for (let gb = niceStep; gb * 1024 <= maxRamMb; gb += niceStep) {
-      ticks.push(Math.round(gb * 1024));
-    }
-    return ticks;
-  });
-
-  // Dynamic CPU tick step: show every n-th core to avoid crowding
-  let cpuTickStep = $derived(
-    (maxCpuCores - minCpuCores) <= 8 ? 1
-    : (maxCpuCores - minCpuCores) <= 16 ? 2
-    : (maxCpuCores - minCpuCores) <= 32 ? 4
-    : 8
-  );
-
-  let cpuPresets = $derived([
-    { id: "eco", threads: minCpuCores },
-    {
-      id: "balanced",
-      threads: minCpuCores + Math.ceil((maxCpuCores - minCpuCores) / 3),
-    },
-    {
-      id: "performance",
-      threads: minCpuCores + Math.ceil(((maxCpuCores - minCpuCores) * 2) / 3),
-    },
-    { id: "full", threads: maxCpuCores },
-  ] as const);
-
-  let activeCpuPreset = $derived(
-    cpuPresets.find((p) => p.threads === cpuCores)?.id ?? null,
-  );
-
-  function setCpuPreset(presetId: string) {
-    const preset = cpuPresets.find((p) => p.id === presetId);
-    if (preset) {
-      cpuCores = preset.threads;
-      localStorage.setItem("vesta_cpu_cores", cpuCores.toString());
-      window.dispatchEvent(new CustomEvent("vesta-cpu-cores-changed", { detail: cpuCores }));
-    }
-  }
-
   // Smart Matching Settings
   let smartMatchingEnabled = $derived(smartMatchingStore.enabled);
   let smartMatchingRulesDraft = $state("");
@@ -908,20 +841,8 @@
     }
     return t("settings.resetConfirmDesc") || "Tutte le personalizzazioni correnti andranno perse.";
   });
-  const EXPORT_FORMAT_KEY = "vesta-export-format";
-  let exportFormat = $state<"apkg" | "tsv" | "anki">(
-    (() => {
-      try {
-        const saved = localStorage.getItem(EXPORT_FORMAT_KEY);
-        if (saved === "tsv" || saved === "anki" || saved === "apkg") {
-          return saved as any;
-        }
-        return "apkg";
-      } catch { return "apkg"; }
-    })()
-  );
   $effect(() => {
-    try { localStorage.setItem(EXPORT_FORMAT_KEY, exportFormat); } catch {}
+    try { localStorage.setItem(EXPORT_FORMAT_KEY, exportFormatStore.exportFormat); } catch {}
   });
 
   $effect(() => {
@@ -929,17 +850,9 @@
       try {
         const saved = localStorage.getItem(EXPORT_FORMAT_KEY);
         if (saved === "tsv" || saved === "anki" || saved === "apkg") {
-          if (saved === "anki" && ankiStore.status !== "online") {
-            exportFormat = "apkg";
-          } else {
-            exportFormat = saved as any;
-          }
+          exportFormatStore.exportFormat = saved === "anki" && ankiStore.status !== "online" ? "apkg" : saved;
         } else {
-          if (ankiStore.status === "online") {
-            exportFormat = "anki";
-          } else {
-            exportFormat = "apkg";
-          }
+          exportFormatStore.exportFormat = ankiStore.status === "online" ? "anki" : "apkg";
         }
       } catch {}
     }
@@ -950,46 +863,24 @@
     try {
       const saved = localStorage.getItem(EXPORT_FORMAT_KEY);
       if (saved === "tsv" || saved === "anki" || saved === "apkg") {
-        if (saved === "anki" && ankiStore.status !== "online") {
-          exportFormat = "apkg";
-        } else {
-          exportFormat = saved as any;
-        }
+        exportFormatStore.exportFormat = saved === "anki" && ankiStore.status !== "online" ? "apkg" : saved;
       } else {
-        if (ankiStore.status === "online") {
-          exportFormat = "anki";
-        } else {
-          exportFormat = "apkg";
-        }
+        exportFormatStore.exportFormat = ankiStore.status === "online" ? "anki" : "apkg";
       }
     } catch {}
     try {
       const savedCores = localStorage.getItem("vesta_cpu_cores");
       if (savedCores) {
-        cpuCores = parseInt(savedCores);
+        cpuRamStore.cpuCores = parseInt(savedCores);
       }
     } catch {}
   });
 
   $effect(() => {
-    if (ankiStore.status !== "online" && exportFormat === "anki") {
-      exportFormat = "apkg";
+    if (ankiStore.status !== "online" && exportFormatStore.exportFormat === "anki") {
+      exportFormatStore.exportFormat = "apkg";
     }
   });
-
-  function cycleExportFormat() {
-    if (exportFormat === "apkg") {
-      exportFormat = "tsv";
-    } else if (exportFormat === "tsv") {
-      if (ankiStore.status === "online") {
-        exportFormat = "anki";
-      } else {
-        exportFormat = "apkg";
-      }
-    } else {
-      exportFormat = "apkg";
-    }
-  }
 
   $effect(() => {
     if (!uiMode.expertMode) {
@@ -1063,233 +954,11 @@
       : [],
   );
 
-  // Update section states
-  type UpdateStatus = "idle" | "checking" | "available" | "current" | "error" | "disabled" | "offline";
-  let automaticUpdateChecks = $state<boolean>(true);
-  let updateStatus = $state<UpdateStatus>("idle");
-  let latestVersion = $state<string>("");
-  let releaseUrl = $state<string>("https://github.com/pierspad/vesta/releases");
-  let appVersionNum = $state<string>("");
-  let updateError = $state<string>("");
-
-  const RELEASE_API_URL = "https://api.github.com/repos/pierspad/vesta/releases/latest";
-
-  function normalizeVersion(version: string): string {
-    return version.trim().replace(/^v/i, "").split(/[+-]/)[0];
-  }
-
-  function compareVersions(left: string, right: string): number {
-    const leftParts = normalizeVersion(left).split(".").map((part) => Number.parseInt(part, 10) || 0);
-    const rightParts = normalizeVersion(right).split(".").map((part) => Number.parseInt(part, 10) || 0);
-    const length = Math.max(leftParts.length, rightParts.length);
-
-    for (let i = 0; i < length; i += 1) {
-      const diff = (leftParts[i] || 0) - (rightParts[i] || 0);
-      if (diff !== 0) return diff;
-    }
-
-    return 0;
-  }
-
-  async function checkForUpdates(source: "auto" | "manual" = "manual") {
-    if (source === "auto" && !automaticUpdateChecks) {
-      updateStatus = "disabled";
-      return;
-    }
-
-    if (typeof navigator !== "undefined" && navigator.onLine === false) {
-      updateStatus = "offline";
-      if (source === "manual") {
-        snackbar.show($currentLanguage === "it" ? "Connessione assente o GitHub non raggiungibile" : "No connection or GitHub is unreachable", "error");
-      }
-      return;
-    }
-
-    updateStatus = "checking";
-    updateError = "";
-
-    // 1. Primary Strategy: GitHub official API via CORS-free tauriFetch
-    try {
-      const response = await tauriFetch(RELEASE_API_URL, {
-        method: "GET",
-        headers: {
-          "Accept": "application/vnd.github+json",
-          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error(`GitHub API returned status ${response.status}`);
-      }
-
-      const latest = await response.json() as {
-        tag_name?: string;
-        name?: string;
-        html_url?: string;
-      };
-      
-      const tag = latest.tag_name || latest.name || "";
-      if (!tag) {
-        throw new Error("Empty version tag in API response");
-      }
-
-      latestVersion = tag.startsWith("v") || tag.startsWith("V") ? tag : `v${tag}`;
-      releaseUrl = latest.html_url || "https://github.com/pierspad/vesta/releases";
-      
-      processUpdateResult(source);
-      return;
-    } catch (apiError) {
-      console.warn("Vesta update check: GitHub API failed, trying package.json fallback:", apiError);
-    }
-
-    // 2. Secondary Strategy: Raw package.json via CORS-free tauriFetch (rate-limit free!)
-    try {
-      const response = await tauriFetch("https://raw.githubusercontent.com/pierspad/vesta/main/apps/srt-gui/package.json", {
-        method: "GET",
-        headers: {
-          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error(`Raw package.json fetch returned status ${response.status}`);
-      }
-
-      const pkg = await response.json() as { version?: string };
-      const tag = pkg.version || "";
-      if (!tag) {
-        throw new Error("Empty version field in package.json");
-      }
-
-      latestVersion = tag.startsWith("v") || tag.startsWith("V") ? tag : `v${tag}`;
-      releaseUrl = "https://github.com/pierspad/vesta/releases";
-
-      processUpdateResult(source);
-      return;
-    } catch (pkgError) {
-      console.warn("Vesta update check: Raw package.json fallback failed, trying redirect fallback:", pkgError);
-    }
-
-    // 3. Tertiary Strategy: Redirect check via tauriFetch with redirect: "manual"
-    try {
-      const response = await tauriFetch("https://github.com/pierspad/vesta/releases/latest", {
-        method: "GET",
-        redirect: "manual",
-        headers: {
-          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-        }
-      });
-
-      let tag = "";
-      let finalUrl = "";
-
-      const location = response.headers.get("location");
-      if ((response.status >= 300 && response.status < 400) && location) {
-        finalUrl = location;
-        tag = location.substring(location.lastIndexOf("/") + 1);
-      } else if (response.ok) {
-        finalUrl = response.url || "";
-        tag = finalUrl.substring(finalUrl.lastIndexOf("/") + 1);
-      }
-
-      if (!tag || tag === "latest") {
-        throw new Error("Could not parse redirect version tag");
-      }
-
-      latestVersion = tag.startsWith("v") || tag.startsWith("V") ? tag : `v${tag}`;
-      releaseUrl = finalUrl || "https://github.com/pierspad/vesta/releases";
-
-      processUpdateResult(source);
-      return;
-    } catch (redirectError) {
-      console.error("Vesta update check: All strategies failed:", redirectError);
-      updateStatus = "error";
-      updateError = $currentLanguage === "it" ? "Impossibile controllare gli aggiornamenti" : "Could not check for updates";
-      if (source === "manual") {
-        snackbar.show(updateError, "error");
-      }
-    }
-  }
-
-  function processUpdateResult(source: "auto" | "manual") {
-    if (appVersionNum) {
-      if (compareVersions(latestVersion, appVersionNum) > 0) {
-        updateStatus = "available";
-        if (source === "manual") {
-          snackbar.show(($currentLanguage === "it" ? "Nuova versione disponibile: " : "New version available: ") + latestVersion, "info");
-        }
-      } else {
-        updateStatus = "current";
-        if (source === "manual") {
-          snackbar.show($currentLanguage === "it" ? "Il software è aggiornato" : "Software is up to date", "success");
-        }
-      }
-    } else {
-      updateStatus = "current";
-    }
-  }
-
-  function onAutomaticUpdateChecksChange() {
-    localStorage.setItem("vesta-automatic-update-checks", automaticUpdateChecks.toString());
-
-    if (automaticUpdateChecks) {
-      void checkForUpdates("manual");
-    } else {
-      updateStatus = "disabled";
-    }
-  }
-
   onMount(() => {
-    invoke<number>("flashcard_get_cpu_count").then((count) => {
-      systemCpuCount = count;
-      const savedCores = localStorage.getItem("vesta_cpu_cores");
-      if (savedCores) {
-        const parsed = parseInt(savedCores);
-        cpuCores = Math.min(Math.max(parsed, minCpuCores), Math.max(1, systemCpuCount - 1));
-      } else {
-        cpuCores = Math.max(1, systemCpuCount - 1);
-      }
-    }).catch(() => {
-      systemCpuCount = 4;
-      const savedCores = localStorage.getItem("vesta_cpu_cores");
-      if (savedCores) {
-        cpuCores = parseInt(savedCores);
-      } else {
-        cpuCores = Math.max(1, systemCpuCount - 1);
-      }
-    });
-
-    invoke<number>("flashcard_get_total_memory_mb").then((mb) => {
-      systemTotalMemoryMb = mb;
-      // Validate stored ramLimitMb against new bounds
-      if (ramLimitMb > 0) {
-        ramLimitMb = Math.min(Math.max(ramLimitMb, minRamMb), Math.max(512, mb - 512));
-      }
-    }).catch(() => {
-      systemTotalMemoryMb = 4096;
-    });
+    void cpuRamStore.init();
+    void updateCheckerStore.init();
 
     loadApiKeys();
-    const savedAutoCheck = localStorage.getItem("vesta-automatic-update-checks");
-    automaticUpdateChecks = savedAutoCheck !== "false";
-
-    invoke<{ version: string }>("get_app_info")
-      .then((info) => {
-        appVersionNum = `v${info.version}`;
-        if (automaticUpdateChecks) {
-          void checkForUpdates("auto");
-        } else {
-          updateStatus = "disabled";
-        }
-      })
-      .catch(() => {
-        appVersionNum = "v0.14.1-dev.2";
-        if (automaticUpdateChecks) {
-          void checkForUpdates("auto");
-        } else {
-          updateStatus = "disabled";
-        }
-      });
     smartMatchingRulesDraft = formatSmartMatchingRules(smartMatchingStore.rules);
     whisperModelsStore.defaultWhisperModel = localStorage.getItem("srt-default-whisper-model") || "base";
 
@@ -1592,9 +1261,6 @@
     openAddKeyModal(model.provider);
   }
 
-  let showAnki = $derived(ankiStore.status === "online");
-  let numOpts = $derived(showAnki ? 3 : 2);
-  let activeIdx = $derived(exportFormat === "apkg" ? 0 : (exportFormat === "tsv" ? 1 : 2));
 </script>
 
 <div
@@ -1610,413 +1276,7 @@
 
 
   {#if activeSettingsSection === "overview"}
-    <div
-      class="glass-card p-6 mb-6 flex flex-col gap-5 shrink-0"
-    >
-      <div class="ui-language-grid w-full">
-        {#each availableUILanguages as lang}
-          <button
-            onclick={() => setLanguage(lang.code)}
-            class="ui-language-button flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 border text-left min-w-0
-              {$currentLanguage === lang.code
-              ? 'bg-gradient-to-r from-indigo-500/20 to-purple-500/20 border-indigo-500/50 text-white shadow-sm'
-              : 'bg-white/5 hover:bg-white/10 text-gray-400 hover:text-gray-200 border-transparent hover:border-white/10'}"
-          >
-            <span class="text-2xl leading-none shrink-0">{lang.flag}</span>
-            <span class="min-w-0 flex flex-col leading-tight">
-              <span class="block truncate text-sm font-bold text-white">{lang.name}</span>
-              <span class="block truncate text-[11px] font-medium text-gray-400 opacity-80">{lang.nativeName}</span>
-            </span>
-          </button>
-        {/each}
-      </div>
-    </div>
-
-    {#if uiMode.easyMode}
-      <div class="mb-6">
-        {@render defaultLanguagesCard()}
-      </div>
-    {/if}
-
-    <!-- Export Format Card (Expert Mode Only) -->
-    {#if uiMode.expertMode}
-      <div class="glass-card p-6 flex flex-col justify-center mb-6">
-        <div class="relative bg-black/20 border border-white/5 rounded-xl p-1 flex gap-2 w-full select-none">
-          <!-- Sliding indicator background -->
-          <div 
-            class="absolute top-1 bottom-1 left-1 rounded-lg shadow-md transition-all duration-200 ease-out z-0
-              {exportFormat === 'apkg'
-                ? 'bg-emerald-500/15 border border-emerald-500/30'
-                : exportFormat === 'tsv'
-                  ? 'bg-sky-500/15 border border-sky-500/30'
-                  : 'bg-violet-500/15 border border-violet-500/30'}"
-            style="width: calc({100 / numOpts}% - 6px); transform: translateX(calc({activeIdx * 100}% + {activeIdx * 8}px)); left: 4px;"
-          ></div>
-
-          <!-- APKG Option Button -->
-          <button
-            type="button"
-            onclick={cycleExportFormat}
-            class="flex-1 text-left p-4 rounded-lg transition-all duration-200 select-none relative z-10 flex items-center justify-between gap-4 cursor-pointer"
-          >
-            <div class="flex-1 min-w-0">
-              <div class="flex items-center gap-2 flex-wrap">
-                <span class="text-sm font-bold transition-colors duration-200 {exportFormat === 'apkg' ? 'text-white' : 'text-gray-400 hover:text-gray-200'}">
-                  {$currentLanguage === 'it' ? 'Esportazione APKG' : 'APKG export'}
-                </span>
-                <span class="text-[10px] px-1.5 py-0.5 rounded-full font-bold transition-all duration-200
-                  {exportFormat === 'apkg'
-                    ? 'bg-emerald-500/30 text-emerald-300 border border-emerald-500/40'
-                    : 'bg-gray-700/60 text-gray-400 border border-gray-700'}">
-                  {t("flashcards.exportAPKGBadge")}
-                </span>
-              </div>
-              <p class="text-xs text-gray-400 mt-1 leading-relaxed">{t("flashcards.exportAPKGDesc")}</p>
-            </div>
-            
-            <!-- Anki Package / File Zip SVG Icon on the right -->
-            <svg class="w-8 h-8 transition-colors duration-200 shrink-0 {exportFormat === 'apkg' ? 'text-emerald-400' : 'text-gray-500'}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-            </svg>
-          </button>
-
-          <!-- TSV Option Button -->
-          <button
-            type="button"
-            onclick={cycleExportFormat}
-            class="flex-1 text-left p-4 rounded-lg transition-all duration-200 select-none relative z-10 flex items-center justify-between gap-4 cursor-pointer"
-          >
-            <div class="flex-1 min-w-0">
-              <div class="flex items-center gap-2 flex-wrap">
-                <span class="text-sm font-bold transition-colors duration-200 {exportFormat === 'tsv' ? 'text-white' : 'text-gray-400 hover:text-gray-200'}">
-                  {$currentLanguage === 'it' ? 'Esportazione TSV' : 'TSV export'}
-                </span>
-                <span class="text-[10px] px-1.5 py-0.5 rounded-full font-bold transition-all duration-200
-                  {exportFormat === 'tsv'
-                    ? 'bg-sky-500/30 text-sky-300 border border-sky-500/40'
-                    : 'bg-gray-700/60 text-gray-400 border border-gray-700'}">
-                  {t("flashcards.exportTSVBadge")}
-                </span>
-              </div>
-              <p class="text-xs text-gray-400 mt-1 leading-relaxed">{t("flashcards.exportTSVDesc")}</p>
-            </div>
-
-            <!-- Folder SVG Icon on the right -->
-            <svg class="w-8 h-8 transition-colors duration-200 shrink-0 {exportFormat === 'tsv' ? 'text-sky-400' : 'text-gray-500'}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-            </svg>
-          </button>
-
-          <!-- Anki Connect Option Button -->
-          {#if showAnki}
-            <button
-              type="button"
-              onclick={cycleExportFormat}
-              class="flex-1 text-left p-4 rounded-lg transition-all duration-200 select-none relative z-10 flex items-center justify-between gap-4 cursor-pointer"
-            >
-              <div class="flex-1 min-w-0">
-                <div class="flex items-center gap-2 flex-wrap">
-                  <span class="text-sm font-bold transition-colors duration-200 {exportFormat === 'anki' ? 'text-white' : 'text-gray-400 hover:text-gray-200'}">
-                    {$currentLanguage === 'it' ? 'Esportazione Anki Connect' : 'Anki Connect export'}
-                  </span>
-                  <span class="text-[10px] px-1.5 py-0.5 rounded-full font-bold transition-all duration-200
-                    {exportFormat === 'anki'
-                      ? 'bg-violet-500/30 text-violet-300 border border-violet-500/40'
-                      : 'bg-gray-700/60 text-gray-400 border border-gray-700'}">
-                    {t("flashcards.exportAnkiConnectBadge")}
-                  </span>
-                </div>
-                <p class="text-xs text-gray-400 mt-1 leading-relaxed">{t("flashcards.exportAnkiConnectDesc")}</p>
-              </div>
-
-              <!-- Anki Connect/Flash SVG Icon on the right -->
-              <svg class="w-8 h-8 transition-colors duration-200 shrink-0 {exportFormat === 'anki' ? 'text-violet-400' : 'text-gray-500'}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13 10V3L4 14h7v7l9-11h-7z" />
-              </svg>
-            </button>
-          {/if}
-        </div>
-      </div>
-    {/if}
-
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6 items-stretch">
-      <!-- CPU Cores Card -->
-      <div class="glass-card p-6 flex flex-col justify-between h-full">
-        {#if uiMode.expertMode}
-          <div>
-            <div class="flex items-center gap-3 mb-4">
-              <div class="w-9 h-9 rounded-lg bg-orange-500/20 text-orange-300 flex items-center justify-center shrink-0">
-                <svg
-                  class="w-5 h-5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"
-                  />
-                </svg>
-              </div>
-              <div>
-                <h3 class="text-sm font-bold text-white">{t("settings.cpuCoresExpertTitle")}</h3>
-              </div>
-            </div>
-
-            <!-- Granular CPU slider -->
-            <div class="mb-5">
-              <span class="block text-xs text-gray-400 mb-2 font-medium">
-                {t("settings.cpuCoresSliderLabel")}
-              </span>
-              <div class="flex items-center gap-4">
-                <div class="flex-1 min-w-0">
-                  <input
-                    type="range"
-                    min={minCpuCores}
-                    max={maxCpuCores}
-                    value={cpuCores}
-                    class="slider-resource w-full cursor-pointer"
-                    oninput={(e) => {
-                      cpuCores = parseInt((e.target as HTMLInputElement).value);
-                      localStorage.setItem("vesta_cpu_cores", cpuCores.toString());
-                      window.dispatchEvent(new CustomEvent("vesta-cpu-cores-changed", { detail: cpuCores }));
-                    }}
-                  />
-                  <!-- Tick marks — dynamic, proportionally distributed across core range -->
-                  <div class="relative mt-1.5" style="height: 22px;">
-                    {#each Array(maxCpuCores - minCpuCores + 1) as _, i}
-                      {@const val = minCpuCores + i}
-                      {@const pct = ((val - minCpuCores) / (maxCpuCores - minCpuCores)) * 100}
-                      {#if val === minCpuCores || val === maxCpuCores || (val - minCpuCores) % cpuTickStep === 0}
-                        <div
-                          class="absolute flex flex-col items-center gap-0.5"
-                          style="left: {pct}%; transform: translateX(-50%);"
-                        >
-                          <div class="w-px h-1.5 {val === cpuCores ? 'bg-white/60' : 'bg-white/20'}"></div>
-                          <span class="text-[9px] {val === cpuCores ? 'text-white/70' : 'text-white/25'}">{val}</span>
-                        </div>
-                      {/if}
-                    {/each}
-                  </div>
-                </div>
-                <span class="text-white font-mono bg-white/10 px-2.5 py-1 rounded-lg text-xs shrink-0 self-start">
-                  {cpuCores} / {maxCpuCores}
-                </span>
-              </div>
-            </div>
-
-            <!-- RAM Memory slider -->
-            <div class="pt-4 border-t border-white/5">
-              <div class="flex items-center justify-between mb-2">
-                <span class="block text-xs text-gray-400 font-medium">
-                  {t("settings.ramLimitLabel")}
-                </span>
-                <span class="text-white font-mono bg-white/10 px-2.5 py-1 rounded-lg text-xs shrink-0">
-                  {ramLimitMb === 0
-                    ? ($currentLanguage === 'it' ? 'Nessun limite' : 'No limit')
-                    : ramLimitMb >= 1024
-                      ? `${(ramLimitMb / 1024).toFixed(ramLimitMb % 1024 === 0 ? 0 : 1)} GB`
-                      : `${ramLimitMb} MB`}
-                </span>
-              </div>
-              <input
-                type="range"
-                min={0}
-                max={maxRamMb}
-                step={64}
-                value={ramLimitMb}
-                class="slider-resource w-full cursor-pointer"
-                oninput={(e) => {
-                  const raw = parseInt((e.target as HTMLInputElement).value);
-                  // 0 = no limit
-                  ramLimitMb = raw < minRamMb ? 0 : raw;
-                  if (ramLimitMb === 0) {
-                    localStorage.removeItem("vesta_memory_limit_mb");
-                  } else {
-                    localStorage.setItem("vesta_memory_limit_mb", ramLimitMb.toString());
-                  }
-                }}
-              />
-              <!-- Tick marks: dynamic nice step — ~6 equidistant ticks based on system RAM -->
-              <div class="relative mt-1.5" style="height: 22px;">
-                {#each ramTicksMb as v}
-                  {@const pct = (v / maxRamMb) * 100}
-                  <div
-                    class="absolute flex flex-col items-center gap-0.5"
-                    style="left: {pct}%; transform: translateX(-50%);"
-                  >
-                    <div class="w-px h-1.5 {ramLimitMb === v ? 'bg-white/60' : 'bg-white/20'}"></div>
-                    <span class="text-[9px] {ramLimitMb === v ? 'text-white/70' : 'text-white/25'} whitespace-nowrap">
-                      {v === 0
-                        ? ($currentLanguage === 'it' ? 'Nessuno' : 'None')
-                        : v >= 1024 ? `${v / 1024}G` : `${v}M`}
-                    </span>
-                  </div>
-                {/each}
-              </div>
-            </div>
-          </div>
-        {:else}
-          <div>
-            <div class="flex items-center gap-3 mb-3">
-              <div class="w-9 h-9 rounded-lg bg-orange-500/20 text-orange-300 flex items-center justify-center shrink-0">
-                <svg
-                  class="w-5 h-5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"
-                  />
-                </svg>
-              </div>
-              <div>
-                <h3 class="text-sm font-bold text-white">{t("settings.cpuCoresEasyTitle")}</h3>
-              </div>
-            </div>
-            <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-2 xl:grid-cols-4 gap-2.5">
-              <button
-                onclick={() => setCpuPreset("eco")}
-                class="p-3 rounded-xl text-center transition-all duration-200 border text-xs cursor-pointer {activeCpuPreset ===
-                'eco'
-                  ? 'bg-orange-500/20 border-orange-500/50 text-white'
-                  : 'bg-white/5 hover:bg-white/10 border-transparent text-gray-400 hover:text-white'}"
-              >
-                <span class="block mb-1 text-white">
-                  <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M5 14c0-5.523 4.477-10 10-10h4v4c0 5.523-4.477 10-10 10H5v-4z" />
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M7 17c2.5-2.5 5.5-4.5 9-6" />
-                  </svg>
-                </span>
-                <span class="font-semibold block">{t("flashcards.cpuEco")}</span>
-              </button>
-              <button
-                onclick={() => setCpuPreset("balanced")}
-                class="p-3 rounded-xl text-center transition-all duration-200 border text-xs cursor-pointer {activeCpuPreset ===
-                'balanced'
-                  ? 'bg-orange-500/20 border-orange-500/50 text-white'
-                  : 'bg-white/5 hover:bg-white/10 border-transparent text-gray-400 hover:text-white'}"
-              >
-                <span class="block mb-1 text-white">
-                  <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 4v16" />
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M6 7h12" />
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M8 7l-3 5h6L8 7z" />
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M16 7l-3 5h6l-3-5z" />
-                  </svg>
-                </span>
-                <span class="font-semibold block"
-                  >{t("flashcards.cpuBalanced")}</span
-                >
-              </button>
-              <button
-                onclick={() => setCpuPreset("performance")}
-                class="p-3 rounded-xl text-center transition-all duration-200 border text-xs cursor-pointer {activeCpuPreset ===
-                'performance'
-                  ? 'bg-orange-500/20 border-orange-500/50 text-white'
-                  : 'bg-white/5 hover:bg-white/10 border-transparent text-gray-400 hover:text-white'}"
-              >
-                <span class="block mb-1 text-white">
-                  <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M5 16l5-5 3 3 6-7" />
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M14 7h5v5" />
-                  </svg>
-                </span>
-                <span class="font-semibold block"
-                  >{t("flashcards.cpuPerformance")}</span
-                >
-              </button>
-              <button
-                onclick={() => setCpuPreset("full")}
-                class="p-3 rounded-xl text-center transition-all duration-200 border text-xs cursor-pointer {activeCpuPreset ===
-                'full'
-                  ? 'bg-orange-500/20 border-orange-500/50 text-white'
-                  : 'bg-white/5 hover:bg-white/10 border-transparent text-gray-400 hover:text-white'}"
-              >
-                <span class="block mb-1 text-white">
-                  <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M11 3L6 13h5l-1 8 8-12h-5l2-6h-4z" />
-                  </svg>
-                </span>
-                <span class="font-semibold block"
-                  >{t("flashcards.cpuFullPower")}</span
-                >
-              </button>
-            </div>
-          </div>
-        {/if}
-      </div>
-
-      <!-- Aggiornamenti Card -->
-      <div class="glass-card p-6 flex flex-col justify-between h-full">
-        <div class="flex flex-col gap-6">
-          <ToggleRow
-            label={$currentLanguage === 'it' ? 'Verifica aggiornamenti all\'avvio' : 'Check for updates on startup'}
-            bind:checked={automaticUpdateChecks}
-            onchange={onAutomaticUpdateChecksChange}
-            accent="indigo"
-            iconPath="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"
-          />
-
-          <!-- Bottom Row: Dynamic Status / Manual Check Area -->
-          <div class="pt-4 border-t border-white/5 flex items-center justify-between min-h-[44px]">
-            <span class="text-xs text-gray-400">
-              {$currentLanguage === 'it' ? 'Stato degli aggiornamenti' : 'Update status'}
-            </span>
-            <div>
-              {#if updateStatus === "available"}
-                <a
-                  href={releaseUrl}
-                  target="_blank"
-                  class="inline-flex items-center gap-2 rounded-xl border border-amber-500/40 bg-amber-500/15 px-4 py-2 text-left transition-all duration-200 hover:border-amber-500/60 hover:bg-amber-500/25 active:scale-[0.98] cursor-pointer shadow-md shadow-amber-900/20"
-                >
-                  <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse shrink-0"></span>
-                  <span class="text-[11px] font-bold text-amber-200">
-                    {$currentLanguage === 'it' ? `Scarica v${latestVersion}` : `Download v${latestVersion}`}
-                  </span>
-                  <svg class="w-4 h-4 text-amber-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                  </svg>
-                </a>
-              {:else if updateStatus === "checking"}
-                <div class="flex items-center gap-2 text-xs text-gray-400 font-semibold">
-                  <svg class="animate-spin h-3.5 w-3.5 text-indigo-400 shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
-                  </svg>
-                  <span>{$currentLanguage === 'it' ? 'Verifica...' : 'Checking...'}</span>
-                </div>
-              {:else if updateStatus === "current"}
-                <span class="text-xs font-semibold text-emerald-400 flex items-center gap-1.5 animate-fade-in bg-emerald-500/10 border border-emerald-500/25 px-2.5 py-1.5 rounded-lg select-none">
-                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7" />
-                  </svg>
-                  {$currentLanguage === 'it' ? 'Aggiornato' : 'Up to date'}
-                </span>
-              {:else if automaticUpdateChecks}
-                <span class="text-xs text-gray-500 italic">
-                  {$currentLanguage === 'it' ? 'Attivo all\'avvio' : 'Active on startup'}
-                </span>
-              {:else}
-                <button
-                  type="button"
-                  onclick={() => checkForUpdates("manual")}
-                  class="px-4 py-2 bg-white/5 border border-white/10 hover:bg-white/10 hover:border-white/20 text-white rounded-xl text-xs font-semibold transition-all duration-200 active:scale-[0.98] cursor-pointer"
-                >
-                  {$currentLanguage === 'it' ? 'Verifica ora' : 'Check now'}
-                </button>
-              {/if}
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+    <OverviewSettingsPanel {defaultLanguagesCard} />
   {/if}
 
   {#if activeSettingsSection === "language"}
@@ -2387,23 +1647,6 @@
         0 0 24px rgba(249, 115, 22, 0.24);
     }
   }
-
-	  .ui-language-grid {
-	    display: grid;
-	    grid-template-columns: repeat(auto-fill, minmax(11.5rem, 1fr));
-	    gap: 0.75rem;
-	    width: 100%;
-	  }
-
-	  @media (min-width: 1280px) {
-	    .ui-language-grid {
-	      grid-template-columns: repeat(5, minmax(0, 1fr));
-	    }
-	  }
-
-	  .ui-language-button {
-	    min-width: 0;
-	  }
 
 	  :global(.language-select .searchable-select-input) {
     min-height: 3.25rem;
