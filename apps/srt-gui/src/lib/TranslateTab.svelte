@@ -38,8 +38,8 @@
   import {
     getLatestTranslatedSubtitles,
     loadSrtForTranslate,
-    startTranslation,
-    cancelTranslation,
+    startTranslation as apiStartTranslation,
+    cancelTranslation as apiCancelTranslation,
     type SrtFileInfo,
     type TranslateConfig,
     type TranslateResult,
@@ -254,12 +254,6 @@
   let result = $state<TranslateResult | null>(null);
   let expandedPathField = $state<string | null>(null);
 
-  // Live subtitle preview - array of translated subtitle pairs
-  interface SubtitlePair {
-    id: number;
-    original: string;
-    translated: string;
-  }
   let translatedPairs = $state<SubtitlePair[]>([]);
   let previewRefreshInterval: ReturnType<typeof setInterval> | null = null;
 
@@ -716,13 +710,10 @@
     if (!inputPath || !outputPath) return;
 
     try {
-      const pairs = await invoke<SubtitlePair[]>(
-        "get_latest_translated_subtitles",
-        {
-          inputPath: inputPath,
-          outputPath: outputPath,
-          count: 10, // Show last 10 translated subtitles
-        },
+      const pairs = await getLatestTranslatedSubtitles(
+        inputPath,
+        outputPath,
+        10, // Show last 10 translated subtitles
       );
       translatedPairs = pairs;
     } catch (e) {
@@ -795,9 +786,7 @@
       return false;
     }
     try {
-      const exists = await invoke<boolean>("transcribe_check_file_exists", {
-        path: cleaned,
-      });
+      const exists = await transcribeCheckFileExists(cleaned);
       if (!exists) {
         snackbar.show(`File not found: ${cleaned}`, "error", 3500);
         return false;
@@ -825,9 +814,7 @@
     const parentDir = cleaned.substring(0, cleaned.lastIndexOf("/"));
     if (parentDir) {
       try {
-        const exists = await invoke<boolean>("transcribe_check_file_exists", {
-          path: parentDir,
-        });
+        const exists = await transcribeCheckFileExists(parentDir);
         if (!exists) {
           snackbar.show(`Directory not found: ${parentDir}`, "error", 3500);
           return false;
@@ -846,9 +833,7 @@
     if (!inputPath) return;
 
     try {
-      fileInfo = await invoke<SrtFileInfo>("load_srt_for_translate", {
-        path: inputPath,
-      });
+      fileInfo = await loadSrtForTranslate(inputPath);
       addLog(
         `📄 ${t("translate.loadedFile", { count: fileInfo.subtitle_count })}`,
       );
@@ -904,9 +889,7 @@
     };
 
     try {
-      const res = await invoke<TranslateResult>("start_translation", {
-        config,
-      });
+      const res = await apiStartTranslation(config);
       result = res;
       isTranslating = false;
     } catch (e: any) {
@@ -939,7 +922,7 @@
 
   async function cancelTranslation() {
     try {
-      await invoke("cancel_translation");
+      await apiCancelTranslation();
       isTranslating = false;
       progress = null;
       stopPreviewRefresh();

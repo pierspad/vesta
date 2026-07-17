@@ -13,4 +13,7 @@ export default defineConfig({
       ignored: ["**/src-tauri/**"],
     },
   },
+  build: {
+    target: "es2022",
+  },
 });
