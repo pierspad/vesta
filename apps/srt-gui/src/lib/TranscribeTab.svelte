@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { invoke } from "@tauri-apps/api/core";
   import LogPanel, { type LogEntry } from "./LogPanel.svelte";
   import { listen } from "@tauri-apps/api/event";
   import { getCurrentWebview } from "@tauri-apps/api/webview";
@@ -33,6 +32,16 @@
   import { aiStore } from "./aiStore.svelte";
   import FooterActions from "./components/FooterActions.svelte";
   import * as vestaConfig from "./vestaConfig";
+  import {
+    transcribePathExists,
+    transcribeAddonsStatus,
+    transcribeCheckBackends,
+    transcribeListModels,
+    transcribeCheckFileExists,
+    transcribeStart,
+    transcribeCancel,
+  } from "./services/transcribe";
+  import { downloadFfmpeg } from "./services/media";
 
   let { onGoToSettings, active = false } = $props<{
     onGoToSettings?: (section?: "overview" | "llm" | "whisper" | "language" | "anki" | "shortcuts", highlightItemId?: string) => void;
@@ -94,9 +103,7 @@
     vadSelection = loadVadSelection();
     if (vadSelection.customPath) {
       try {
-        vadInstalled = await invoke<boolean>("transcribe_path_exists", {
-          path: vadSelection.customPath,
-        });
+        vadInstalled = await transcribePathExists(vadSelection.customPath);
       } catch {
         vadInstalled = false;
       }
@@ -109,10 +116,7 @@
 
   async function refreshAddons() {
     try {
-      const s = await invoke<{
-        vad_models: { id: string; size: string; downloaded: boolean }[];
-        gpu_supported: boolean;
-      }>("transcribe_addons_status");
+      const s = await transcribeAddonsStatus();
       vadModels = s.vad_models;
       gpuSupported = s.gpu_supported;
       await refreshVadReady();
@@ -359,7 +363,7 @@
     window.addEventListener("vesta:transcribe-cloud-updated", handleTranscribeCloudUpdated);
 
     const refreshBackends = () => {
-      invoke<typeof backends>("transcribe_check_backends")
+      transcribeCheckBackends()
         .then((res) => { backends = res; })
         .catch((e) => console.error("Could not check backends:", e));
     };
@@ -483,9 +487,7 @@
 
   async function refreshModels() {
     try {
-      const models = await invoke<typeof whisperModels>(
-        "transcribe_list_models",
-      );
+      const models = await transcribeListModels();
       whisperModels = models;
     } catch (e) {
       console.error("Could not list models:", e);
@@ -631,9 +633,7 @@
       return false;
     }
     try {
-      const exists = await invoke<boolean>("transcribe_check_file_exists", {
-        path: cleaned,
-      });
+      const exists = await transcribeCheckFileExists(cleaned);
       if (!exists) {
         showSnackbar(`File not found: ${cleaned}`);
         return false;
@@ -664,9 +664,7 @@
     const parentDir = cleaned.substring(0, cleaned.lastIndexOf("/"));
     if (parentDir) {
       try {
-        const exists = await invoke<boolean>("transcribe_check_file_exists", {
-          path: parentDir,
-        });
+        const exists = await transcribeCheckFileExists(parentDir);
         if (!exists) {
           showSnackbar(`Directory not found: ${parentDir}`);
           return false;
@@ -726,30 +724,22 @@
           const apiKeyVal = key?.apiKey?.trim() || null;
           const apiUrl = key?.apiUrl?.trim() || transcribeProviders[entry.provider]?.defaultUrl || null;
 
-          const res = await invoke<{
-            success: boolean;
-            message: string;
-            output_path?: string;
-            subtitle_count?: number;
-            detected_language?: string;
-          }>("transcribe_start", {
-            config: {
-              input_path: inputPath,
-              output_path: outputPath,
-              model: entry.model,
-              language: selectedLanguage,
-              translate_to_english: translateToEnglish,
-              word_timestamps: wordTimestamps,
-              max_segment_length: maxSegmentLength,
-              provider: entry.provider,
-              api_key: apiKeyVal,
-              api_url: apiUrl,
-              quality: !isCloudEntry && qualityMode,
-              vad: !isCloudEntry && vadEnabled && vadInstalled,
-              vad_model_id: vadSelection.customPath ? null : vadSelection.modelId,
-              vad_custom_path: vadSelection.customPath,
-              use_gpu: !isCloudEntry && useGpu && gpuSupported,
-            },
+          const res = await transcribeStart({
+            input_path: inputPath,
+            output_path: outputPath,
+            model: entry.model,
+            language: selectedLanguage,
+            translate_to_english: translateToEnglish,
+            word_timestamps: wordTimestamps,
+            max_segment_length: maxSegmentLength,
+            provider: entry.provider,
+            api_key: apiKeyVal,
+            api_url: apiUrl,
+            quality: !isCloudEntry && qualityMode,
+            vad: !isCloudEntry && vadEnabled && vadInstalled,
+            vad_model_id: vadSelection.customPath ? null : vadSelection.modelId,
+            vad_custom_path: vadSelection.customPath,
+            use_gpu: !isCloudEntry && useGpu && gpuSupported,
           });
 
           result = res;
@@ -794,7 +784,7 @@
 
   async function cancelTranscription() {
     try {
-      await invoke("transcribe_cancel");
+      await transcribeCancel();
       isTranscribing = false;
       progress = 0;
       progressMessage = "";
@@ -905,8 +895,8 @@
         onclick={async () => {
           isDownloadingFFmpeg = true;
           try {
-            await invoke("flashcard_download_ffmpeg");
-            backends = await invoke<typeof backends>("transcribe_check_backends");
+            await downloadFfmpeg();
+            backends = await transcribeCheckBackends();
             window.dispatchEvent(new CustomEvent("vesta-ffmpeg-updated"));
           } catch (e) {
             error = `${t("flashcards.ffmpegDownloadFailed")}: ${e}`;

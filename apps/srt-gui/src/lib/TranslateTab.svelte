@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { invoke } from "@tauri-apps/api/core";
   import { listen } from "@tauri-apps/api/event";
   import { getCurrentWebview } from "@tauri-apps/api/webview";
   import { guardedOpen, guardedSave } from "./utils/dialogGuard";
@@ -36,6 +35,17 @@
     type TiersUnavailableReason,
   } from "./llmTiers";
   import * as vestaConfig from "./vestaConfig";
+  import {
+    getLatestTranslatedSubtitles,
+    loadSrtForTranslate,
+    startTranslation,
+    cancelTranslation,
+    type SrtFileInfo,
+    type TranslateConfig,
+    type TranslateResult,
+    type SubtitlePair,
+  } from "./services/translate";
+  import { transcribeCheckFileExists } from "./services/transcribe";
 
   /**
    * Generates a smart output path by detecting and replacing language codes
@@ -72,36 +82,12 @@
 
   let t = $derived($locale);
 
-  interface SrtFileInfo {
-    path: string;
-    subtitle_count: number;
-    first_subtitle: string;
-    last_subtitle: string;
-  }
-
-  interface TranslateConfig {
-    input_path: string;
-    output_path: string;
-    target_lang: string;
-    batch_size: number;
-    resume_overlap: number;
-    title_context: string | null;
-    tiers: TierEntryPayload[][];
-  }
-
   interface TranslateProgressEvent {
     message: string;
     current_batch: number;
     total_batches: number;
     percentage: number;
     eta_seconds: number | null;
-  }
-
-  interface TranslateResult {
-    success: boolean;
-    message: string;
-    output_path: string | null;
-    translated_count: number;
   }
 
   interface ModelInfo {

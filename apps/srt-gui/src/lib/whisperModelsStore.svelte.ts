@@ -1,4 +1,3 @@
-import { invoke } from "@tauri-apps/api/core";
 import { t } from "./i18n";
 import { snackbar } from "./snackbarStore.svelte";
 import { guardedOpen } from "./utils/dialogGuard";
@@ -9,20 +8,22 @@ import {
   type VadSelection,
 } from "./vadSelection";
 import * as vestaConfig from "./vestaConfig";
+import {
+  transcribeListModels,
+  transcribeDownloadModel,
+  transcribeCancel,
+  transcribeUninstallModel,
+  transcribeAddonsStatus,
+  transcribePathExists,
+  transcribeDownloadVad,
+  transcribeUninstallVad,
+  type WhisperModel,
+  type VadModel,
+} from "./services/transcribe";
 
-export interface WhisperModel {
-  id: string;
-  name: string;
-  size: string;
-  speed: string;
-  downloaded: boolean;
-}
-
-export interface VadModel {
-  id: string;
-  size: string;
-  downloaded: boolean;
-}
+// Ri-esportati per compatibilità: i tipi vivono ora in services/transcribe.ts
+// (è il modulo che conosce la forma dei dati restituiti da Rust).
+export type { WhisperModel, VadModel };
 
 export type WhisperContextMenu = {
   x: number;
@@ -74,7 +75,7 @@ class WhisperModelsStore {
 
   async refreshModels() {
     try {
-      const models = await invoke<WhisperModel[]>("transcribe_list_models");
+      const models = await transcribeListModels();
       this.whisperModels = models;
       window.dispatchEvent(new CustomEvent("vesta-whisper-models-updated", { detail: { models } }));
     } catch (e) {
@@ -107,7 +108,7 @@ class WhisperModelsStore {
     this.downloadingModelId = modelId;
     this.pendingDefaultModelId = setAsDefaultAfterDownload ? modelId : null;
     try {
-      await invoke<boolean>("transcribe_download_model", { modelId });
+      await transcribeDownloadModel(modelId);
       await this.refreshModels();
 
       const downloaded = this.whisperModels.find((m) => m.id === modelId)?.downloaded;
@@ -144,7 +145,7 @@ class WhisperModelsStore {
     if (!this.isDownloading || this.isCancellingDownload) return;
     this.isCancellingDownload = true;
     try {
-      await invoke("transcribe_cancel");
+      await transcribeCancel();
     } catch (e) {
       showSnackbar(t("settings.whisper.cancelFailed", { error: String(e) }), "error");
       this.isCancellingDownload = false;
@@ -154,7 +155,7 @@ class WhisperModelsStore {
   async uninstallModel(modelId: string) {
     if (this.isDownloading) return;
     try {
-      await invoke<boolean>("transcribe_uninstall_model", { modelId });
+      await transcribeUninstallModel(modelId);
       showSnackbar(t("settings.whisper.uninstallSuccess", { model: modelId }));
       await this.refreshModels();
     } catch (e) {
@@ -195,7 +196,7 @@ class WhisperModelsStore {
 
   async refreshAddons() {
     try {
-      const s = await invoke<{ vad_models: VadModel[] }>("transcribe_addons_status");
+      const s = await transcribeAddonsStatus();
       this.vadModels = s.vad_models;
       await this.refreshVadCustomValid();
     } catch (e) {
@@ -209,9 +210,7 @@ class WhisperModelsStore {
       return;
     }
     try {
-      this.vadCustomValid = await invoke<boolean>("transcribe_path_exists", {
-        path: this.vadSelection.customPath,
-      });
+      this.vadCustomValid = await transcribePathExists(this.vadSelection.customPath);
     } catch {
       this.vadCustomValid = false;
     }
@@ -235,7 +234,7 @@ class WhisperModelsStore {
     if (this.isDownloading || this.downloadingVadId) return;
     this.downloadingVadId = modelId;
     try {
-      await invoke<boolean>("transcribe_download_vad", { modelId });
+      await transcribeDownloadVad(modelId);
       await this.refreshAddons();
       this.selectVadModel(modelId);
       showSnackbar(t("settings.whisper.downloadSuccess", { model: `Silero VAD ${modelId}` }));
@@ -260,7 +259,7 @@ class WhisperModelsStore {
   async uninstallVad(modelId: string) {
     if (this.downloadingVadId) return;
     try {
-      await invoke<boolean>("transcribe_uninstall_vad", { modelId });
+      await transcribeUninstallVad(modelId);
       await this.refreshAddons();
       if (!this.vadSelection.customPath && this.vadSelection.modelId === modelId) {
         this.selectVadModel(DEFAULT_VAD_MODEL_ID);

@@ -1,4 +1,4 @@
-import { invoke } from "@tauri-apps/api/core";
+import { invokeCommand } from "./services/tauriClient";
 
 /**
  * Drop-in replacement per `localStorage`, ma persistito da Rust in un file
@@ -25,7 +25,7 @@ let hydrated = false;
 export async function hydrate(): Promise<void> {
   if (hydrated) return;
   try {
-    const all = await invoke<Record<string, string>>("config_load_all");
+    const all = await invokeCommand<Record<string, string>>("config_load_all");
     for (const [key, value] of Object.entries(all)) {
       cache.set(key, value);
     }
@@ -52,14 +52,14 @@ function migrateFromLocalStorage(): void {
     const value = localStorage.getItem(key);
     if (value !== null && !cache.has(key)) {
       cache.set(key, value);
-      void invoke("config_set", { key, value }).catch((e) =>
+      void invokeCommand("config_set", { key, value }).catch((e) =>
         console.error(`[vestaConfig] migrazione fallita per "${key}"`, e),
       );
     }
   }
 
   cache.set(MIGRATION_FLAG_KEY, "true");
-  void invoke("config_set", { key: MIGRATION_FLAG_KEY, value: "true" }).catch((e) =>
+  void invokeCommand("config_set", { key: MIGRATION_FLAG_KEY, value: "true" }).catch((e) =>
     console.error("[vestaConfig] impossibile salvare il flag di migrazione", e),
   );
 }
@@ -70,14 +70,14 @@ export function getItem(key: string): string | null {
 
 export function setItem(key: string, value: string): void {
   cache.set(key, value);
-  void invoke("config_set", { key, value }).catch((e) =>
+  void invokeCommand("config_set", { key, value }).catch((e) =>
     console.error(`[vestaConfig] impossibile salvare "${key}"`, e),
   );
 }
 
 export function removeItem(key: string): void {
   cache.delete(key);
-  void invoke("config_remove", { key }).catch((e) =>
+  void invokeCommand("config_remove", { key }).catch((e) =>
     console.error(`[vestaConfig] impossibile rimuovere "${key}"`, e),
   );
 }

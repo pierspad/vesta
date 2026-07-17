@@ -15,7 +15,7 @@
     TRANSCRIBE_TIERS_UPDATED_EVENT,
   } from "./transcribeTiers";
   import { providers } from "./llmProviders";
-  import { invoke } from "@tauri-apps/api/core";
+  import { transcribeListModels } from "./services/transcribe";
 
   let t = $derived($locale);
 
@@ -62,7 +62,7 @@
 
   async function refreshWhisperModels() {
     try {
-      const models = await invoke<any>("transcribe_list_models");
+      const models = await transcribeListModels();
       if (models && Array.isArray(models)) {
         whisperModels = models;
       }
