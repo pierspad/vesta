@@ -393,6 +393,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      actions: write
     steps:
       - uses: actions/checkout@v6
 
@@ -448,6 +449,8 @@ jobs:
             echo "Tentativo di upload $i di 5..."
             if gh release upload "${{ github.ref_name }}" release/* --clobber; then
               echo "Upload completato con successo!"
+              echo "Avvio automatico del workflow di pubblicazione su AUR..."
+              gh workflow run "Publish to AUR" --ref main || echo "::warning::Impossibile avviare il workflow di pubblicazione su AUR"
               exit 0
             else
               echo "Errore durante l'upload, attesa di 10 secondi prima di riprovare..."
