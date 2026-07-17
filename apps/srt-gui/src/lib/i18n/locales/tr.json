@@ -34,6 +34,7 @@
   "common.delete": "Sil",
   "common.done": "Bitti",
   "common.edit": "Düzenle",
+  "common.error.alreadyRunning": "Bu işlem zaten devam ediyor.",
   "common.filesAndOutput": "Dosyalar ve Çıktı",
   "common.no": "Hayir",
   "common.noResults": "Sonuç yok",

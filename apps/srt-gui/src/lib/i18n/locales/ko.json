@@ -34,6 +34,7 @@
   "common.delete": "삭제",
   "common.done": "완료",
   "common.edit": "편집",
+  "common.error.alreadyRunning": "이 작업은 이미 진행 중입니다.",
   "common.filesAndOutput": "파일 및 출력",
   "common.no": "아니요",
   "common.noResults": "결과 없음",

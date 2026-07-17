@@ -34,6 +34,7 @@
   "common.delete": "Elimina",
   "common.done": "Fatto",
   "common.edit": "Modifica",
+  "common.error.alreadyRunning": "Questa operazione è già in corso.",
   "common.filesAndOutput": "File e output",
   "common.no": "No",
   "common.noResults": "Nessun risultato",

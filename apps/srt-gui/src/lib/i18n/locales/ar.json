@@ -34,6 +34,7 @@
   "common.delete": "حذف",
   "common.done": "تم",
   "common.edit": "تعديل",
+  "common.error.alreadyRunning": "هذه العملية قيد التشغيل بالفعل.",
   "common.filesAndOutput": "الملفات والمخرجات",
   "common.no": "لا",
   "common.noResults": "لا توجد نتائج",

@@ -34,6 +34,7 @@
   "common.delete": "Удалить",
   "common.done": "Готово",
   "common.edit": "Изменить",
+  "common.error.alreadyRunning": "Эта операция уже выполняется.",
   "common.filesAndOutput": "Файлы и вывод",
   "common.no": "Нет",
   "common.noResults": "Нет результатов",

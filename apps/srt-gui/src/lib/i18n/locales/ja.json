@@ -34,6 +34,7 @@
   "common.delete": "削除",
   "common.done": "完了",
   "common.edit": "編集",
+  "common.error.alreadyRunning": "この操作は既に実行中です。",
   "common.filesAndOutput": "ファイルと出力",
   "common.no": "いいえ",
   "common.noResults": "結果なし",

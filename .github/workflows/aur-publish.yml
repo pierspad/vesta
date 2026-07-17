@@ -8,8 +8,6 @@ on:
   workflow_run:
     workflows: ["Build and Release"]
     types: [completed]
-    branches:
-      - 'v*'
   workflow_dispatch: {}  # per retry manuale, nessun input necessario
 
 concurrency:
@@ -22,7 +20,7 @@ jobs:
     runs-on: ubuntu-22.04
     if: >
       github.event_name == 'workflow_dispatch' ||
-      (github.event.workflow_run.conclusion == 'success' && !contains(github.event.workflow_run.head_branch, '-'))
+      (github.event.workflow_run.conclusion == 'success' && startsWith(github.event.workflow_run.head_branch, 'v') && !contains(github.event.workflow_run.head_branch, '-'))
     steps:
       - uses: actions/checkout@v6
         # Checkout del default branch (non del tag): gli script CI (ci-push-aur.sh,

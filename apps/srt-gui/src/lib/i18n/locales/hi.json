@@ -34,6 +34,7 @@
   "common.delete": "हटाएँ",
   "common.done": "हो गया",
   "common.edit": "संपादित करें",
+  "common.error.alreadyRunning": "यह प्रक्रिया पहले से चल रही है।",
   "common.filesAndOutput": "फ़ाइलें और आउटपुट",
   "common.no": "नहीं",
   "common.noResults": "कोई परिणाम नहीं",
