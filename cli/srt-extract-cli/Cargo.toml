@@ -1,6 +1,6 @@
 [package]
 name = "srt-extract-cli"
-version = "0.14.1-dev.5"
+version = "0.14.1"
 edition.workspace = true
 description = "CLI tool for extracting and formatting SRT subtitle data"
 authors = ["Your Name <your.email@example.com>"]

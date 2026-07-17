@@ -1,6 +1,6 @@
 [package]
 name = "srt-autosync-cli"
-version = "0.14.1-dev.5"
+version = "0.14.1"
 edition.workspace = true
 description = "Headless command-line front-end for the srt-autosync engine (align an SRT to a media file using Whisper anchor points)."
 authors = ["Pierpaolo Spadafora <pierpaolospadafora@proton.me>"]

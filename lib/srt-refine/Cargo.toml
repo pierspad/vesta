@@ -1,6 +1,6 @@
 [package]
 name = "srt-refine"
-version = "0.14.1-dev.5"
+version = "0.14.1"
 edition.workspace = true
 authors = ["Pierpaolo Spadafora <pierpaolospadafora@proton.me>"]
 description = "Headless engine to load Anki decks (TSV / APKG), enrich card notes via LLM prompts and save them back — the refinement step of the Vesta pipeline."
