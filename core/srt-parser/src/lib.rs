@@ -152,15 +152,29 @@ impl SrtParser {
         })
     }
 
+    /// Numero massimo di ID placeholder che siamo disposti a generare in un colpo
+    /// solo. Un file malformato con un ID abnorme (es: 999999999) non deve poter
+    /// far allocare/iterare l'app fino all'OOM: oltre questa soglia rinunciamo alla
+    /// normalizzazione anziché tentare di riempire il buco.
+    const MAX_NORMALIZE_GAP: u32 = 50_000;
+
     /// Normalizza i sottotitoli riempiendo buchi nella numerazione con "[...]".
     /// Se mancano ID (es: 1, 3, 5 oppure il file inizia da 2), vengono creati
     /// sottotitoli placeholder con testo "[...]" per riempire ogni lacuna.
+    ///
+    /// Se il gap tra il numero di sottotitoli reali e `max_id` supera
+    /// [`MAX_NORMALIZE_GAP`] (indice di un file corrotto), la normalizzazione
+    /// viene saltata per evitare un'allocazione/iterazione spropositata.
     pub fn normalize_subtitles(subtitles: &mut HashMap<u32, Subtitle>) {
         if subtitles.is_empty() {
             return;
         }
 
         let max_id = *subtitles.keys().max().unwrap();
+        let gap = max_id as u64 - subtitles.len() as u64;
+        if gap > Self::MAX_NORMALIZE_GAP as u64 {
+            return;
+        }
 
         // Raccogli gli ID mancanti e i tempi da interpolare
         let missing: Vec<u32> = (1..=max_id)

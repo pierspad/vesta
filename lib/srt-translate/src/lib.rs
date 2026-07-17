@@ -5,11 +5,11 @@ mod rate_limiter;
 mod translator;
 
 use anyhow::Result;
+use futures::stream::{self, StreamExt};
 use srt_parser::{SrtParser, Subtitle};
 use std::collections::{HashMap, VecDeque};
 use std::sync::Arc;
 use std::time::Instant;
-use tokio::sync::Semaphore;
 use tokio_util::sync::CancellationToken;
 
 pub use pool::{
@@ -217,8 +217,6 @@ where
     let progress_callback = Arc::new(Mutex::new(on_progress));
     let repaired = Arc::new(Mutex::new(HashMap::new()));
 
-    let semaphore = Arc::new(Semaphore::new(translators_len));
-
     let rate_limiters: Option<Vec<Arc<RateLimiter>>> = rate_limiters;
 
     {
@@ -239,114 +237,113 @@ where
     let timing_stats = Arc::new(Mutex::new((0.0_f64, 0_usize)));
     let start_time = Instant::now();
 
-    let mut handles = vec![];
+    // Prepara i lavori in anticipo (dati owned, poco costosi), ma NON spawna
+    // ancora nulla: `for_each_concurrent` estrae dallo stream un nuovo elemento
+    // solo quando si libera uno degli `translators_len` slot, quindi i task
+    // Tokio vengono creati "on demand" invece che tutti insieme in testa.
+    let work_items: Vec<_> = missing_ids
+        .iter()
+        .enumerate()
+        .filter_map(|(idx, id)| {
+            original.get(id).map(|subtitle| {
+                let context_text = build_repair_context(*id, original, translated);
+                (idx, *id, subtitle.clone(), context_text)
+            })
+        })
+        .collect();
 
-    for (idx, id) in missing_ids.iter().enumerate() {
-        if let Some(subtitle) = original.get(id) {
+    stream::iter(work_items)
+        .for_each_concurrent(translators_len, |(idx, id, subtitle, context_text)| {
             let translator_idx = idx % translators_len;
             let translator = translators[translator_idx].clone();
-
-            let semaphore = semaphore.clone();
-
             let rate_limiter = rate_limiters
                 .as_ref()
                 .map(|limiters| limiters[translator_idx % limiters.len()].clone());
-            let id = *id;
-            let subtitle = subtitle.clone();
             let target_lang = target_lang.to_string();
             let title_context = title_context.map(|s| s.to_string());
             let progress_callback = progress_callback.clone();
             let repaired = repaired.clone();
             let timing_stats = timing_stats.clone();
 
-            let context_text = build_repair_context(id, original, translated);
-
-            let handle = tokio::spawn(async move {
-                if let Some(ref limiter) = rate_limiter {
-                    limiter.until_ready().await;
-                }
-
-                let _permit = semaphore
-                    .acquire()
-                    .await
-                    .expect("Semaphore should never be closed during repair");
-
-                let task_start = Instant::now();
-
-                let eta = {
-                    let stats = timing_stats.lock().await;
-                    let (total_duration, completed) = *stats;
-                    if completed > 0 {
-                        let avg_duration = total_duration / completed as f64;
-                        let remaining = total.saturating_sub(completed);
-                        Some(avg_duration * remaining as f64)
-                    } else {
-                        None
+            async move {
+                let handle = tokio::spawn(async move {
+                    if let Some(ref limiter) = rate_limiter {
+                        limiter.until_ready().await;
                     }
-                };
 
-                {
-                    let completed = timing_stats.lock().await.1;
-                    let mut callback = progress_callback.lock().await;
-                    callback(TranslationProgress {
-                        message: format!(
-                            "Repairing subtitle {} ({}/{}) [worker {}]",
-                            id,
-                            idx + 1,
-                            total,
-                            translator_idx + 1
-                        ),
-                        eta_seconds: eta,
-                        current_batch: completed,
-                        total_batches: total,
-                        batch_start: idx + 1,
-                        batch_end: total,
-                    });
-                }
+                    let task_start = Instant::now();
 
-                match translator
-                    .translate_with_context(
-                        &subtitle.text,
-                        &target_lang,
-                        title_context.as_deref(),
-                        context_text.as_deref(),
-                    )
-                    .await
-                {
-                    Ok(translation) => {
-                        let mut new_subtitle = subtitle.clone();
-                        new_subtitle.text = translation;
-                        repaired.lock().await.insert(id, new_subtitle);
+                    let eta = {
+                        let stats = timing_stats.lock().await;
+                        let (total_duration, completed) = *stats;
+                        if completed > 0 {
+                            let avg_duration = total_duration / completed as f64;
+                            let remaining = total.saturating_sub(completed);
+                            Some(avg_duration * remaining as f64)
+                        } else {
+                            None
+                        }
+                    };
 
-                        let duration = task_start.elapsed().as_secs_f64();
-                        let mut stats = timing_stats.lock().await;
-                        stats.0 += duration;
-                        stats.1 += 1;
-                    }
-                    Err(e) => {
+                    {
                         let completed = timing_stats.lock().await.1;
                         let mut callback = progress_callback.lock().await;
                         callback(TranslationProgress {
-                            message: format!("Failed to repair subtitle {}: {}", id, e),
-                            eta_seconds: None,
+                            message: format!(
+                                "Repairing subtitle {} ({}/{}) [worker {}]",
+                                id,
+                                idx + 1,
+                                total,
+                                translator_idx + 1
+                            ),
+                            eta_seconds: eta,
                             current_batch: completed,
                             total_batches: total,
                             batch_start: idx + 1,
                             batch_end: total,
                         });
-
-                        repaired.lock().await.insert(id, subtitle.clone());
                     }
-                }
-            });
 
-            handles.push(handle);
-        }
-    }
+                    match translator
+                        .translate_with_context(
+                            &subtitle.text,
+                            &target_lang,
+                            title_context.as_deref(),
+                            context_text.as_deref(),
+                        )
+                        .await
+                    {
+                        Ok(translation) => {
+                            let mut new_subtitle = subtitle.clone();
+                            new_subtitle.text = translation;
+                            repaired.lock().await.insert(id, new_subtitle);
 
-    for handle in handles {
-        let _ = handle.await;
-    }
+                            let duration = task_start.elapsed().as_secs_f64();
+                            let mut stats = timing_stats.lock().await;
+                            stats.0 += duration;
+                            stats.1 += 1;
+                        }
+                        Err(e) => {
+                            let completed = timing_stats.lock().await.1;
+                            let mut callback = progress_callback.lock().await;
+                            callback(TranslationProgress {
+                                message: format!("Failed to repair subtitle {}: {}", id, e),
+                                eta_seconds: None,
+                                current_batch: completed,
+                                total_batches: total,
+                                batch_start: idx + 1,
+                                batch_end: total,
+                            });
+
+                            repaired.lock().await.insert(id, subtitle.clone());
+                        }
+                    }
+                });
+
+                let _ = handle.await;
+            }
+        })
+        .await;
 
     let repaired_subs = repaired.lock().await;
     for (id, subtitle) in repaired_subs.iter() {
@@ -491,168 +488,163 @@ where
         .collect();
 
     let total_workers = translators.len();
-    let semaphore = Arc::new(Semaphore::new(total_workers));
     let rate_limiters: Option<Vec<Arc<RateLimiter>>> = rate_limiters;
 
-    let mut handles = vec![];
+    // Come nella funzione di repair: lo stream produce (e quindi spawna) un
+    // nuovo batch solo quando uno dei `total_workers` slot si libera, invece
+    // di accodare subito un task Tokio per ogni batch del file. `take_while`
+    // interrompe l'estrazione di nuovi batch non appena arriva la cancellazione,
+    // riproducendo il `break` del vecchio ciclo `for`.
+    let cancel_check = cancellation_token.clone();
+    stream::iter(batches_to_process)
+        .take_while(move |_| {
+            let cancelled = cancel_check.is_cancelled();
+            async move { !cancelled }
+        })
+        .for_each_concurrent(total_workers, |(batch_idx, batch_data)| {
+            let translator_idx = batch_idx % translators.len();
+            let translator = translators[translator_idx].clone();
 
-    for (batch_idx, batch_data) in batches_to_process {
-        // Controlla cancellazione prima di iniziare un nuovo batch
-        if cancellation_token.is_cancelled() {
-            break;
-        }
+            let rate_limiter = rate_limiters
+                .as_ref()
+                .map(|limiters| limiters[translator_idx % limiters.len()].clone());
+            let translated = translated.clone();
+            let progress_callback = progress_callback.clone();
+            let timing_stats = timing_stats.clone();
+            let output_path = output_path.to_path_buf();
+            let target_lang = target_lang.to_string();
+            let title_context = title_context.map(|s| s.to_string());
+            let token = cancellation_token.clone();
 
-        let translator_idx = batch_idx % translators.len();
-        let translator = translators[translator_idx].clone();
+            async move {
+                let handle = tokio::spawn(async move {
+                    // Controlla cancellazione
+                    if token.is_cancelled() {
+                        return;
+                    }
 
-        let semaphore = semaphore.clone();
-        let rate_limiter = rate_limiters
-            .as_ref()
-            .map(|limiters| limiters[translator_idx % limiters.len()].clone());
-        let translated = translated.clone();
-        let progress_callback = progress_callback.clone();
-        let timing_stats = timing_stats.clone();
-        let output_path = output_path.to_path_buf();
-        let target_lang = target_lang.to_string();
-        let title_context = title_context.map(|s| s.to_string());
-        let token = cancellation_token.clone();
+                    // Rate limiting
+                    if let Some(ref limiter) = rate_limiter {
+                        tokio::select! {
+                            _ = token.cancelled() => return,
+                            _ = limiter.until_ready() => {}
+                        }
+                    }
 
-        let handle = tokio::spawn(async move {
-            // Controlla cancellazione
-            if token.is_cancelled() {
-                return;
-            }
+                    let batch_start_time = Instant::now();
+                    let batch_start = batch_idx * batch_size + 1;
+                    let batch_end = (batch_start + batch_data.len() - 1).min(total);
 
-            // Rate limiting
-            if let Some(ref limiter) = rate_limiter {
-                tokio::select! {
-                    _ = token.cancelled() => return,
-                    _ = limiter.until_ready() => {}
-                }
-            }
+                    let eta = {
+                        let stats = timing_stats.lock().await;
+                        let (total_duration, completed) = *stats;
+                        if completed > 0 {
+                            let avg_duration = total_duration / completed as f64;
+                            let remaining = total_batches.saturating_sub(completed);
+                            Some(avg_duration * remaining as f64)
+                        } else {
+                            None
+                        }
+                    };
 
-            // Acquisisci permit
-            let _permit = match semaphore.acquire().await {
-                Ok(p) => p,
-                Err(_) => return,
-            };
-
-            // Controlla cancellazione dopo il permit
-            if token.is_cancelled() {
-                return;
-            }
-
-            let batch_start_time = Instant::now();
-            let batch_start = batch_idx * batch_size + 1;
-            let batch_end = (batch_start + batch_data.len() - 1).min(total);
-
-            let eta = {
-                let stats = timing_stats.lock().await;
-                let (total_duration, completed) = *stats;
-                if completed > 0 {
-                    let avg_duration = total_duration / completed as f64;
-                    let remaining = total_batches.saturating_sub(completed);
-                    Some(avg_duration * remaining as f64)
-                } else {
-                    None
-                }
-            };
-
-            {
-                let completed = timing_stats.lock().await.1;
-                let mut callback = progress_callback.lock().await;
-                callback(TranslationProgress {
-                    message: format!(
-                        "Starting batch [{}-{}]/{} (worker {})...",
-                        batch_start,
-                        batch_end,
-                        total,
-                        translator_idx + 1
-                    ),
-                    eta_seconds: eta,
-                    current_batch: completed,
-                    total_batches,
-                    batch_start,
-                    batch_end,
-                });
-            }
-
-            let texts_with_ids: Vec<(u32, String)> = batch_data
-                .iter()
-                .map(|(id, subtitle)| (*id, subtitle.text.clone()))
-                .collect();
-
-            let result = translator
-                .translate_batch(&texts_with_ids, &target_lang, title_context.as_deref())
-                .await;
-
-            // Controlla cancellazione dopo la traduzione
-            if token.is_cancelled() {
-                return;
-            }
-
-            match result {
-                Ok(translations) => {
-                    let completed_after = timing_stats.lock().await.1 + 1;
                     {
+                        let completed = timing_stats.lock().await.1;
                         let mut callback = progress_callback.lock().await;
                         callback(TranslationProgress {
-                            message: format!("Batch [{}-{}] completed ✓", batch_start, batch_end),
+                            message: format!(
+                                "Starting batch [{}-{}]/{} (worker {})...",
+                                batch_start,
+                                batch_end,
+                                total,
+                                translator_idx + 1
+                            ),
                             eta_seconds: eta,
-                            current_batch: completed_after,
+                            current_batch: completed,
                             total_batches,
                             batch_start,
                             batch_end,
                         });
                     }
 
-                    {
-                        let mut trans_map = translated.lock().await;
-                        for (id, subtitle) in &batch_data {
-                            if let Some(translation) = translations.get(id) {
-                                let mut new_subtitle = subtitle.clone();
-                                new_subtitle.text = translation.clone();
-                                trans_map.insert(*id, new_subtitle);
-                            } else {
-                                trans_map.insert(*id, subtitle.clone());
+                    let texts_with_ids: Vec<(u32, String)> = batch_data
+                        .iter()
+                        .map(|(id, subtitle)| (*id, subtitle.text.clone()))
+                        .collect();
+
+                    let result = translator
+                        .translate_batch(&texts_with_ids, &target_lang, title_context.as_deref())
+                        .await;
+
+                    // Controlla cancellazione dopo la traduzione
+                    if token.is_cancelled() {
+                        return;
+                    }
+
+                    match result {
+                        Ok(translations) => {
+                            let completed_after = timing_stats.lock().await.1 + 1;
+                            {
+                                let mut callback = progress_callback.lock().await;
+                                callback(TranslationProgress {
+                                    message: format!(
+                                        "Batch [{}-{}] completed ✓",
+                                        batch_start, batch_end
+                                    ),
+                                    eta_seconds: eta,
+                                    current_batch: completed_after,
+                                    total_batches,
+                                    batch_start,
+                                    batch_end,
+                                });
+                            }
+
+                            {
+                                let mut trans_map = translated.lock().await;
+                                for (id, subtitle) in &batch_data {
+                                    if let Some(translation) = translations.get(id) {
+                                        let mut new_subtitle = subtitle.clone();
+                                        new_subtitle.text = translation.clone();
+                                        trans_map.insert(*id, new_subtitle);
+                                    } else {
+                                        trans_map.insert(*id, subtitle.clone());
+                                    }
+                                }
+                            }
+
+                            let batch_duration = batch_start_time.elapsed().as_secs_f64();
+                            {
+                                let mut stats = timing_stats.lock().await;
+                                stats.0 += batch_duration;
+                                stats.1 += 1;
+                            }
+
+                            {
+                                let trans_map = translated.lock().await;
+                                let _ = SrtParser::save_file(&output_path, &trans_map);
                             }
                         }
+                        Err(e) => {
+                            let completed = timing_stats.lock().await.1;
+                            let mut callback = progress_callback.lock().await;
+                            callback(TranslationProgress {
+                                message: format!(
+                                    "Batch [{}-{}] error: {} ✗",
+                                    batch_start, batch_end, e
+                                ),
+                                eta_seconds: None,
+                                current_batch: completed,
+                                total_batches,
+                                batch_start,
+                                batch_end,
+                            });
+                        }
                     }
+                });
 
-                    let batch_duration = batch_start_time.elapsed().as_secs_f64();
-                    {
-                        let mut stats = timing_stats.lock().await;
-                        stats.0 += batch_duration;
-                        stats.1 += 1;
-                    }
-
-                    {
-                        let trans_map = translated.lock().await;
-                        let _ = SrtParser::save_file(&output_path, &trans_map);
-                    }
-                }
-                Err(e) => {
-                    let completed = timing_stats.lock().await.1;
-                    let mut callback = progress_callback.lock().await;
-                    callback(TranslationProgress {
-                        message: format!("Batch [{}-{}] error: {} ✗", batch_start, batch_end, e),
-                        eta_seconds: None,
-                        current_batch: completed,
-                        total_batches,
-                        batch_start,
-                        batch_end,
-                    });
-                }
+                let _ = handle.await;
             }
-        });
-
-        handles.push(handle);
-    }
-
-    // Attendi completamento o cancellazione
-    for handle in handles {
-        let _ = handle.await;
-    }
+        })
+        .await;
 
     // Controlla se è stato cancellato
     if cancellation_token.is_cancelled() {

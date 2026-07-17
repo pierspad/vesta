@@ -201,6 +201,39 @@ where
 
     let partial = path.with_extension("bin.partial");
 
+    // Qualunque esito diverso dal successo (errore di rete, scrittura su
+    // disco piena, cancellazione, ...) deve ripulire il file parziale:
+    // altrimenti resta un `.bin.partial` corrotto che, a seconda del punto
+    // in cui il tentativo precedente si è interrotto, può confondere un
+    // eventuale retry. Isoliamo lo streaming in una funzione a parte così
+    // il cleanup vale per ogni via d'uscita, `?` compreso.
+    let stream_result = stream_download(url, &partial, &progress_callback, cancel_token).await;
+
+    if let Err(err) = stream_result {
+        let _ = tokio::fs::remove_file(&partial).await;
+        return Err(err);
+    }
+
+    tokio::fs::rename(&partial, &path)
+        .await
+        .context("Failed to rename partial file to destination")?;
+
+    progress_callback(100);
+    Ok(path.to_path_buf())
+}
+
+/// Scarica `url` scrivendo direttamente in `partial`, senza occuparsi di
+/// rinominarlo o ripulirlo: quello è responsabilità del chiamante, che deve
+/// farlo per ogni esito (successo, errore o cancellazione).
+async fn stream_download<F>(
+    url: &str,
+    partial: &std::path::Path,
+    progress_callback: &F,
+    cancel_token: Option<&CancellationToken>,
+) -> Result<()>
+where
+    F: Fn(u32) + Send + 'static,
+{
     let client = reqwest::Client::new();
     let response = client
         .get(url)
@@ -213,7 +246,7 @@ where
     }
 
     let total_size = response.content_length().unwrap_or(0);
-    let mut file = tokio::fs::File::create(&partial)
+    let mut file = tokio::fs::File::create(partial)
         .await
         .context("Failed to create partial download file")?;
 
@@ -227,7 +260,6 @@ where
         if let Some(token) = cancel_token
             && token.is_cancelled()
         {
-            let _ = tokio::fs::remove_file(&partial).await;
             anyhow::bail!("Download cancelled");
         }
 
@@ -250,10 +282,5 @@ where
         .await
         .context("Failed to flush download file")?;
 
-    tokio::fs::rename(&partial, &path)
-        .await
-        .context("Failed to rename partial file to destination")?;
-
-    progress_callback(100);
-    Ok(path.to_path_buf())
+    Ok(())
 }

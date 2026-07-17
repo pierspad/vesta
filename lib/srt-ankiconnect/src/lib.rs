@@ -1,9 +1,14 @@
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
+use std::sync::LazyLock;
 
 pub const DEFAULT_URL: &str = "http://127.0.0.1:8765";
 
 pub const API_VERSION: u32 = 6;
+
+/// Client HTTP condiviso: riusa il connection pool interno di reqwest invece
+/// di aprire un nuovo socket per ogni chiamata ad AnkiConnect.
+static HTTP_CLIENT: LazyLock<reqwest::Client> = LazyLock::new(reqwest::Client::new);
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AnkiNote {
@@ -17,10 +22,9 @@ pub struct AnkiNote {
 }
 
 async fn invoke(url: &str, action: &str, params: Value) -> Result<Value, String> {
-    let client = reqwest::Client::new();
     let body = json!({ "action": action, "version": API_VERSION, "params": params });
 
-    let response = client
+    let response = HTTP_CLIENT
         .post(url)
         .json(&body)
         .timeout(std::time::Duration::from_secs(15))

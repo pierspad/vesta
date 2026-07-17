@@ -106,7 +106,11 @@
       condenseResult = await invoke<CondenseResult>("condense_start", { config });
       snackbar.show(t("experimental.condense.done"), "success");
     } catch (err: any) {
-      snackbar.show(err.toString(), "error");
+      const message = err?.toString() ?? "";
+      snackbar.show(
+        message.includes("ERR_ALREADY_RUNNING") ? t("common.error.alreadyRunning") : message,
+        "error",
+      );
     } finally {
       unlisten();
       condensing = false;

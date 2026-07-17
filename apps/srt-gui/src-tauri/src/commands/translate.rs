@@ -82,7 +82,11 @@ pub async fn start_translation(
     {
         let mut translate_state = state.lock().map_err(|e| e.to_string())?;
         if translate_state.is_translating {
-            return Err("Traduzione già in corso".to_string());
+            // Codice stabile invece di una frase in italiano: il frontend
+            // (multilingua) lo mappa sulla propria stringa i18n invece di
+            // mostrare questo testo grezzo indipendentemente dalla lingua
+            // scelta dall'utente.
+            return Err("ERR_ALREADY_RUNNING".to_string());
         }
         translate_state.is_translating = true;
         translate_state.cancellation_token = Some(cancellation_token.clone());

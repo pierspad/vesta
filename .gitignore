@@ -58,6 +58,7 @@ build-scripts/vesta-*.*.*.deb
 # updpkgsums li trova già presenti e salta il download da GitHub, congelando
 # un hash vecchio invece di quello reale (causa del validity check FAILED).
 build-scripts/LICENSE
+build-scripts/LICENSE-*
 build-scripts/.SRCINFO
 
 # Test_Subs: solo Detour (1945, pubblico dominio) è committato.

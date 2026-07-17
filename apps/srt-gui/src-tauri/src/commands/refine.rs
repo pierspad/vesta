@@ -81,7 +81,7 @@ pub async fn refine_cards_llm_tiered(
     {
         let mut refine_state = state.lock().map_err(|e| e.to_string())?;
         if refine_state.is_refining {
-            return Err("Refinement già in corso".to_string());
+            return Err("ERR_ALREADY_RUNNING".to_string());
         }
         refine_state.is_refining = true;
         refine_state.cancellation_token = Some(cancellation_token.clone());

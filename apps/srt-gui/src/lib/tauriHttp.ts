@@ -25,6 +25,14 @@ export interface TauriFetchOptions {
   redirect?: "follow" | "manual";
   /** Timeout della richiesta in ms (default lato Rust: 15000). */
   timeoutMs?: number;
+  /**
+   * Da impostare quando `url` proviene da una configurazione esplicita
+   * dell'utente (endpoint custom/locale in Settings) e non da un host
+   * cablato nel codice: bypassa la whitelist statica lato Rust (vedi
+   * `allow_custom_host` in net.rs). Lo schema resta comunque limitato a
+   * http/https.
+   */
+  allowCustomHost?: boolean;
 }
 
 export interface TauriFetchResponse {
@@ -55,6 +63,7 @@ export async function fetch(
       body: options.body,
       redirect: options.redirect ?? "follow",
       timeoutMs: options.timeoutMs,
+      allowCustomHost: options.allowCustomHost ?? false,
     },
   });
 

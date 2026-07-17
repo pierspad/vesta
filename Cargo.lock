@@ -4486,6 +4486,7 @@ name = "srt-translate"
 version = "0.14.3"
 dependencies = [
  "anyhow",
+ "futures",
  "governor",
  "reqwest",
  "serde",

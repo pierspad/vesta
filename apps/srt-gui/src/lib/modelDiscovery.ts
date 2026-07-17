@@ -96,6 +96,10 @@ export async function fetchModelsFromEndpoint(
     method: "GET",
     headers,
     timeoutMs,
+    // baseUrl è sempre un endpoint configurato dall'utente (provider
+    // local/custom o apiUrl personalizzato di una key), non un host
+    // cablato: la whitelist statica non si applica.
+    allowCustomHost: true,
   });
 
   if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
@@ -140,6 +144,9 @@ export async function discoverModels(
       method: "GET",
       headers: { Accept: "application/json" },
       timeoutMs,
+      // Come sopra: `base` può essere l'apiUrl personalizzato dell'utente
+      // per un proxy Gemini-compatible.
+      allowCustomHost: true,
     });
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
     const data = (await resp.json()) as { models?: any[] };

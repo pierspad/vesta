@@ -16,7 +16,7 @@ pub async fn condense_start(
     {
         let mut condense_state = state.lock().map_err(|e| e.to_string())?;
         if condense_state.is_running {
-            return Err("Condensazione già in corso".to_string());
+            return Err("ERR_ALREADY_RUNNING".to_string());
         }
         condense_state.is_running = true;
         condense_state.cancellation_token = Some(token.clone());

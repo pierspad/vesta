@@ -898,7 +898,9 @@
 
       let userMsg = msg;
 
-      if (
+      if (msg.includes("ERR_ALREADY_RUNNING")) {
+        userMsg = t("common.error.alreadyRunning");
+      } else if (
         errorLower.includes("429") ||
         errorLower.includes("quota") ||
         errorLower.includes("rate limit")

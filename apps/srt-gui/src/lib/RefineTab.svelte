@@ -384,7 +384,12 @@
       cards[selectedCardIndex].notes = response.trim();
       snackbar.show(t("refine.msg.generateSuccess"), "success");
     } catch (err: any) {
-      snackbar.show(t("refine.msg.generateError", { error: err.toString() }), "error");
+      const message = err?.toString() ?? "";
+      if (message.includes("ERR_ALREADY_RUNNING")) {
+        snackbar.show(t("common.error.alreadyRunning"), "error");
+      } else {
+        snackbar.show(t("refine.msg.generateError", { error: message }), "error");
+      }
     } finally {
       singleRefiningCardIds = singleRefiningCardIds.filter((id) => id !== card.id);
       isSingleRefining = false;
@@ -487,7 +492,12 @@
         );
       }
     } catch (err: any) {
-      snackbar.show(t("refine.msg.generateError", { error: err.toString() }), "error");
+      const message = err?.toString() ?? "";
+      if (message.includes("ERR_ALREADY_RUNNING")) {
+        snackbar.show(t("common.error.alreadyRunning"), "error");
+      } else {
+        snackbar.show(t("refine.msg.generateError", { error: message }), "error");
+      }
     } finally {
       unlisten();
       autoRefining = false;
