@@ -1,6 +1,6 @@
 [package]
 name = "vesta"
-version = "0.15.0"
+version = "0.15.1"
 edition.workspace = true
 default-run = "vesta"
 description = "Video Extraction, Sync & Translation for Anki"

@@ -1,6 +1,6 @@
 [package]
 name = "srt-flashcards"
-version = "0.15.0"
+version = "0.15.1"
 edition.workspace = true
 description = "Headless, Tauri-free engine that turns subtitle pairs + media into Anki flashcards (TSV / APKG)."
 authors = ["Pierpaolo Spadafora <pierpaolospadafora@proton.me>"]
