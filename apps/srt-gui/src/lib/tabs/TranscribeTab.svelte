@@ -1384,14 +1384,14 @@
     </div>
   {/snippet}
 
-  <div class="flex-1 overflow-y-auto p-6 min-h-0 {isTranscribing ? 'pointer-events-none opacity-60 select-none' : ''}">
-    <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
-      <div class="space-y-3 min-h-[100px]">
+  <div class="flex-1 overflow-hidden p-6 min-h-0 {isTranscribing ? 'pointer-events-none opacity-60 select-none' : ''}">
+    <div class="grid grid-cols-1 xl:grid-cols-2 gap-6 h-full min-h-0">
+      <div class="space-y-3 min-h-0 overflow-y-auto scrollbar-thin">
         {@render panelContent("files")}
         {@render transcribedSentencesCard()}
       </div>
 
-      <div class="space-y-3 min-h-[100px]">
+      <div class="space-y-3 min-h-0 overflow-y-auto scrollbar-thin">
         {@render panelContent("options")}
         <!-- {@render panelContent("logs")} -->
       </div>

@@ -1582,14 +1582,14 @@
     {/if}
   {/snippet}
 
-  <div class="flex-1 overflow-y-auto p-6 min-h-0">
-    <div class="grid grid-cols-1 xl:grid-cols-2 gap-6 transition-opacity">
-      <div class="space-y-3 overflow-x-hidden min-h-[100px]">
+  <div class="flex-1 overflow-hidden p-6 min-h-0">
+    <div class="grid grid-cols-1 xl:grid-cols-2 gap-6 transition-opacity h-full min-h-0">
+      <div class="space-y-3 overflow-x-hidden min-h-0 overflow-y-auto scrollbar-thin">
         {@render panelContent("files")}
         {@render panelContent("livePreview")}
       </div>
 
-      <div class="space-y-3 overflow-x-hidden min-h-[100px]">
+      <div class="space-y-3 overflow-x-hidden min-h-0 overflow-y-auto scrollbar-thin">
         {@render panelContent("options")}
         <!-- {@render panelContent("logs")} -->
       </div>

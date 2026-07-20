@@ -1358,16 +1358,16 @@
     {/if}
   {/snippet}
 
-  <div class="flex-1 overflow-y-auto p-6 min-h-0">
-    <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
-      <div class="space-y-3 min-w-0 flex flex-col">
+  <div class="flex-1 overflow-hidden p-6 min-h-0">
+    <div class="grid grid-cols-1 xl:grid-cols-2 gap-6 h-full min-h-0">
+      <div class="space-y-3 min-w-0 flex flex-col min-h-0 overflow-y-auto scrollbar-thin">
         {@render panelContent("files")}
         {@render panelContent("wizard")}
       </div>
 
-      <div class="space-y-3 min-w-0 flex flex-col">
+      <div class="space-y-3 min-w-0 flex flex-col min-h-0">
         {@render panelContent("status")}
-        <div class="flex flex-col min-h-[520px] flex-1" role="region">
+        <div class="flex flex-col min-h-0 flex-1" role="region">
           {@render panelContent("subtitleList")}
         </div>
       </div>

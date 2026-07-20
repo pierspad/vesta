@@ -653,8 +653,8 @@
       </div>
     </div>
   {/if}
-  <div class="flex-1 overflow-y-auto p-6 min-h-0">
-    <div class="flex flex-col gap-6 min-h-full">
+  <div class="flex-1 overflow-hidden p-6 min-h-0">
+    <div class="flex flex-col gap-6 h-full">
 
       <!-- Top Panel: Files and Output -->
       <div class="glass-card p-5 shrink-0">

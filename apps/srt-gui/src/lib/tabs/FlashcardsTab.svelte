@@ -2260,7 +2260,7 @@
     isDraggingOver = false;
   }}
 >
-  <div class="flex-1 overflow-y-auto overflow-x-hidden p-6 flashcards-scroll min-h-0 flex flex-col gap-4 {generationStore.isProcessing ? 'pointer-events-none opacity-60 select-none' : ''}">
+  <div class="flex-1 overflow-hidden overflow-x-hidden p-6 flashcards-scroll min-h-0 flex flex-col gap-4 {generationStore.isProcessing ? 'pointer-events-none opacity-60 select-none' : ''}">
   {#if isDraggingOver}
     <div
       class="absolute inset-0 z-50 {seriesMode ? 'bg-violet-500/10 border-violet-400/80 text-violet-400' : 'bg-emerald-500/10 border-emerald-400/80 text-emerald-400'} border-2 border-dashed rounded-2xl flex items-center justify-center pointer-events-none"
@@ -2420,14 +2420,19 @@
     {/if}
   {/snippet}
 
-  <div bind:this={layoutHostEl} class="grid {gridColClass} gap-4 min-w-0">
+  <div
+    bind:this={layoutHostEl}
+    class="grid {gridColClass} {seriesMode
+      ? 'grid-rows-[auto_minmax(0,1fr)]'
+      : 'grid-rows-[minmax(0,1fr)]'} gap-4 min-w-0 flex-1 min-h-0"
+  >
     {#if seriesMode}
       <!-- In series mode, render the files panel full-width above the columns -->
       <div class="{effectiveColumnCount >= 2 ? 'col-span-2' : ''} {effectiveColumnCount >= 3 ? 'col-span-3' : ''} mb-1">
         {@render panelContent("files")}
       </div>
     {/if}
-    <div class="space-y-3 min-w-0 pr-1 min-h-[100px]" role="list">
+    <div class="space-y-3 min-w-0 pr-1 min-h-0 overflow-y-auto scrollbar-thin" role="list">
       {#each effectivePanelLayout.col1 as panelId, idx}
         {#if isPanelVisible(panelId)}
         <div class="relative" role="listitem">
@@ -2438,7 +2443,7 @@
     </div>
 
     {#if effectiveColumnCount >= 2}
-      <div class="space-y-3 min-w-0 pr-1 min-h-[100px]" role="list">
+      <div class="space-y-3 min-w-0 pr-1 min-h-0 overflow-y-auto scrollbar-thin" role="list">
         {#each effectivePanelLayout.col2 as panelId, idx}
           {#if isPanelVisible(panelId)}
           <div class="relative" role="listitem">
@@ -2450,7 +2455,7 @@
     {/if}
 
     {#if effectiveColumnCount >= 3}
-      <div class="space-y-3 min-w-0 pr-1 min-h-[100px]" role="list">
+      <div class="space-y-3 min-w-0 pr-1 min-h-0 overflow-y-auto scrollbar-thin" role="list">
         {#each effectivePanelLayout.col3 as panelId, idx}
           {#if isPanelVisible(panelId)}
           <div class="relative" role="listitem">

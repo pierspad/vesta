@@ -624,8 +624,8 @@
   {/if}
 
   <!-- Main Workspace divided into panels -->
-  <div class="flex-1 overflow-y-auto p-6 scrollbar-thin min-h-0">
-    <div class="flex flex-col gap-6 min-h-full">
+  <div class="flex-1 overflow-hidden p-6 min-h-0">
+    <div class="flex flex-col gap-6 h-full">
 
       <!-- 1. Files & Output Panel (Standard Vesta Panel) -->
       <div class="glass-card p-5 shrink-0">
@@ -667,10 +667,10 @@
       </div>
 
       <!-- 2. Main Grid: Left Column (Flashcards List) & Right Column (Workspace) -->
-      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch flex-1 min-h-0">
 
         <!-- Left Column (5 cols): Flashcards List Panel -->
-        <div class="lg:col-span-5 glass-card p-5 flex flex-col h-[580px] overflow-hidden">
+        <div class="lg:col-span-5 glass-card p-5 flex flex-col min-h-0 overflow-hidden">
           <!-- Search Bar -->
           <div class="relative mb-3 shrink-0">
             <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400 z-10">
@@ -737,7 +737,7 @@
         </div>
 
         <!-- Right Column (7 cols): Refinement Panel -->
-        <div class="lg:col-span-7 glass-card p-5 flex flex-col h-[580px] overflow-hidden">
+        <div class="lg:col-span-7 glass-card p-5 flex flex-col min-h-0 overflow-hidden">
           {#snippet modeToggleSnippet()}
             {#if !aiStore.killSwitchActive}
               <div class="relative flex items-center p-1 bg-white/5 border border-white/10 rounded-xl w-[220px] ml-auto shrink-0 select-none">
