@@ -1,4 +1,4 @@
-import { invokeCommand } from "./tauriClient";
+import { invokeCommand } from "$lib/services/tauriClient";
 
 /**
  * Comandi Rust del dominio "transcribe": modelli Whisper, add-on VAD, verifica

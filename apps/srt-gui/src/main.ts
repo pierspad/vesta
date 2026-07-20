@@ -1,6 +1,6 @@
 import { mount } from "svelte";
 import "./app.css";
-import { hydrate as hydrateVestaConfig } from "./lib/vestaConfig";
+import { hydrate as hydrateVestaConfig } from "$lib/config/vestaConfig";
 
 // Prevent WebKit from handling dropped files (triggers GStreamer errors).
 // Only intercept OS file drops (dataTransfer contains "Files").

@@ -1,5 +1,5 @@
-import { invokeCommand } from "./tauriClient";
-import type { TierEntryPayload } from "../llmTiers";
+import { invokeCommand } from "$lib/services/tauriClient";
+import type { TierEntryPayload } from "$lib/config/llmTiers";
 
 /** Comandi Rust del dominio "translate" (traduzione LLM di sottotitoli .srt). */
 

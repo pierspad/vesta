@@ -1,4 +1,4 @@
-import { invokeCommand } from "./tauriClient";
+import { invokeCommand } from "$lib/services/tauriClient";
 
 /**
  * Comando `flashcard_download_ffmpeg`: nonostante il prefisso storico

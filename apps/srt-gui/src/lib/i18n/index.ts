@@ -8,22 +8,22 @@
  */
 
 import { derived, get, writable } from 'svelte/store';
-import ar from './locales/ar.json';
-import de from './locales/de.json';
-import en from './locales/en.json';
-import es from './locales/es.json';
-import fr from './locales/fr.json';
-import hi from './locales/hi.json';
-import it from './locales/it.json';
-import ja from './locales/ja.json';
-import ko from './locales/ko.json';
-import nl from './locales/nl.json';
-import pl from './locales/pl.json';
-import pt from './locales/pt.json';
-import ru from './locales/ru.json';
-import tr from './locales/tr.json';
-import zh from './locales/zh.json';
-import * as vestaConfig from "../vestaConfig";
+import ar from '$lib/i18n/locales/ar.json';
+import de from '$lib/i18n/locales/de.json';
+import en from '$lib/i18n/locales/en.json';
+import es from '$lib/i18n/locales/es.json';
+import fr from '$lib/i18n/locales/fr.json';
+import hi from '$lib/i18n/locales/hi.json';
+import it from '$lib/i18n/locales/it.json';
+import ja from '$lib/i18n/locales/ja.json';
+import ko from '$lib/i18n/locales/ko.json';
+import nl from '$lib/i18n/locales/nl.json';
+import pl from '$lib/i18n/locales/pl.json';
+import pt from '$lib/i18n/locales/pt.json';
+import ru from '$lib/i18n/locales/ru.json';
+import tr from '$lib/i18n/locales/tr.json';
+import zh from '$lib/i18n/locales/zh.json';
+import * as vestaConfig from "$lib/config/vestaConfig";
 
 
 
