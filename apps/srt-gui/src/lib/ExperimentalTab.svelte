@@ -129,24 +129,27 @@
 <div class="h-full flex flex-col bg-gray-900 text-gray-100 overflow-hidden">
   <div class="flex-1 overflow-y-auto p-6 flex flex-col gap-5 scrollbar-thin">
     <!-- Condensed audio -->
-    <Card>
-      <SectionHeader
-        title={t("experimental.condense.title")}
-        accent="amber"
-        iconPath="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2z"
-      />
+    <div class="glass-card p-5 space-y-4">
+      <div class="flex items-center justify-between mb-2">
+        <h3 class="text-lg font-semibold flex items-center gap-2 text-amber-400">
+          <svg class="w-5 h-5 text-amber-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2z" />
+          </svg>
+          {t("experimental.condense.title")}
+        </h3>
+      </div>
 
       <!-- Files -->
       <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
         <div>
-          <span class="block text-xs text-gray-500 mb-1">{t("experimental.condense.mediaFile")} <span class="text-red-400">*</span></span>
+          <span class="block text-xs font-semibold text-gray-400 mb-1.5">{t("experimental.condense.mediaFile")} <span class="text-rose-400">*</span></span>
           <div class="flex gap-2">
             <input type="text" readonly value={getFileName(mediaPath) || ""} placeholder={t("experimental.condense.noFile")} class="input-modern flex-1 text-xs" title={mediaPath || undefined} />
             <button onclick={pickMedia} class="btn-secondary px-3 py-2 text-xs" disabled={condensing}>{t("flashcards.browse")}</button>
           </div>
         </div>
         <div>
-          <span class="block text-xs text-gray-500 mb-1">{t("experimental.condense.outputFile")} <span class="text-red-400">*</span></span>
+          <span class="block text-xs font-semibold text-gray-400 mb-1.5">{t("experimental.condense.outputFile")} <span class="text-rose-400">*</span></span>
           <div class="flex gap-2">
             <input type="text" readonly value={getFileName(outputPath) || ""} placeholder={t("experimental.condense.noFile")} class="input-modern flex-1 text-xs" title={outputPath || undefined} />
             <button onclick={pickOutput} class="btn-secondary px-3 py-2 text-xs" disabled={condensing}>{t("flashcards.browse")}</button>
@@ -156,19 +159,25 @@
 
       <!-- Detection mode -->
       <div>
-        <span class="block text-xs text-gray-500 mb-2">{t("experimental.condense.detection")}</span>
-        <div class="flex items-center gap-1 bg-white/5 border border-white/5 p-1 rounded-xl w-fit">
+        <span class="block text-xs font-semibold text-gray-400 mb-2">{t("experimental.condense.detection")}</span>
+        <div class="relative flex items-center p-1 bg-white/5 border border-white/10 rounded-xl w-[260px] select-none">
+          <div
+            class="absolute top-1 bottom-1 rounded-lg bg-amber-600 shadow-md transition-all duration-300 ease-out pointer-events-none"
+            style="left: {detectMode === 'subtitles' ? '4px' : 'calc(50% + 2px)'}; width: calc(50% - 6px);"
+          ></div>
           <button
-            onclick={() => (detectMode = "subtitles")}
+            type="button"
+            onclick={() => !condensing && (detectMode = "subtitles")}
             disabled={condensing}
-            class="px-4 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer {detectMode === 'subtitles' ? 'bg-amber-600 text-white shadow-md' : 'text-gray-400 hover:text-white hover:bg-white/5'}"
+            class="relative z-10 flex-1 py-1.5 px-3 text-center text-xs transition-colors duration-200 cursor-pointer {detectMode === 'subtitles' ? 'text-white font-bold' : 'text-gray-400 hover:text-white font-semibold'}"
           >
             {t("experimental.condense.modeSubtitles")}
           </button>
           <button
-            onclick={() => (detectMode = "vad")}
+            type="button"
+            onclick={() => !condensing && (detectMode = "vad")}
             disabled={condensing}
-            class="px-4 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer {detectMode === 'vad' ? 'bg-amber-600 text-white shadow-md' : 'text-gray-400 hover:text-white hover:bg-white/5'}"
+            class="relative z-10 flex-1 py-1.5 px-3 text-center text-xs transition-colors duration-200 cursor-pointer {detectMode === 'vad' ? 'text-white font-bold' : 'text-gray-400 hover:text-white font-semibold'}"
           >
             {t("experimental.condense.modeVad")}
           </button>
@@ -180,7 +189,7 @@
 
       {#if detectMode === "subtitles"}
         <div class="md:w-1/2">
-          <span class="block text-xs text-gray-500 mb-1">{t("experimental.condense.srtFile")} <span class="text-red-400">*</span></span>
+          <span class="block text-xs font-semibold text-gray-400 mb-1.5">{t("experimental.condense.srtFile")} <span class="text-rose-400">*</span></span>
           <div class="flex gap-2">
             <input type="text" readonly value={getFileName(srtPath) || ""} placeholder={t("experimental.condense.noFile")} class="input-modern flex-1 text-xs" title={srtPath || undefined} />
             <button onclick={pickSrt} class="btn-secondary px-3 py-2 text-xs" disabled={condensing}>{t("flashcards.browse")}</button>
@@ -191,21 +200,21 @@
       <!-- Options -->
       <div class="grid grid-cols-3 gap-3 md:w-2/3">
         <div>
-          <span class="block text-xs text-gray-500 mb-1">{t("experimental.condense.padding")}</span>
+          <span class="block text-xs font-semibold text-gray-400 mb-1.5">{t("experimental.condense.padding")}</span>
           <div class="flex items-center gap-1">
             <input type="number" bind:value={padMs} min="0" step="50" class="input-modern w-full text-xs" disabled={condensing} />
             <span class="text-xs text-gray-500">ms</span>
           </div>
         </div>
         <div>
-          <span class="block text-xs text-gray-500 mb-1">{t("experimental.condense.mergeGap")}</span>
+          <span class="block text-xs font-semibold text-gray-400 mb-1.5">{t("experimental.condense.mergeGap")}</span>
           <div class="flex items-center gap-1">
             <input type="number" bind:value={mergeGapMs} min="0" step="100" class="input-modern w-full text-xs" disabled={condensing} />
             <span class="text-xs text-gray-500">ms</span>
           </div>
         </div>
         <div>
-          <span class="block text-xs text-gray-500 mb-1">{t("flashcards.audioBitrate")}</span>
+          <span class="block text-xs font-semibold text-gray-400 mb-1.5">{t("flashcards.audioBitrate")}</span>
           <div class="flex items-center gap-1">
             <input type="number" bind:value={bitrate} min="32" step="32" class="input-modern w-full text-xs" disabled={condensing} />
             <span class="text-xs text-gray-500">kb/s</span>
@@ -214,7 +223,7 @@
       </div>
 
       <!-- Actions + progress -->
-      <div class="flex items-center gap-3">
+      <div class="flex items-center gap-3 pt-2">
         {#if condensing}
           <button onclick={cancelCondense} class="rounded-xl bg-red-600/80 hover:bg-red-500/80 border border-red-500/30 text-sm font-bold text-red-100 px-5 py-2.5 shadow-md transition-all cursor-pointer">
             {t("common.cancel")}

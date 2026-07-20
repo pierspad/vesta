@@ -765,7 +765,7 @@
             {#if !aiStore.killSwitchActive}
               <div class="relative flex items-center p-1 bg-white/5 border border-white/10 rounded-xl w-[220px] ml-auto shrink-0 select-none">
                 <div
-                  class="absolute top-1 bottom-1 rounded-lg bg-rose-600 shadow-md shadow-rose-950/40 transition-all duration-300 ease-out pointer-events-none"
+                  class="absolute top-1 bottom-1 rounded-lg bg-indigo-600 shadow-md shadow-indigo-950/40 transition-all duration-300 ease-out pointer-events-none"
                   style="left: {mode === 'manual' ? '4px' : 'calc(50% + 2px)'}; width: calc(50% - 6px);"
                 ></div>
                 <button
@@ -787,8 +787,8 @@
           {/snippet}
 
           <div class="flex items-center justify-between mb-4 shrink-0">
-            <h3 class="text-lg font-semibold flex items-center gap-2 panel-title-refinement">
-              <svg class="w-5 h-5 text-rose-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <h3 class="text-lg font-semibold flex items-center gap-2 text-amber-400">
+              <svg class="w-5 h-5 text-amber-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h14a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
               </svg>
               {$currentLanguage === 'it' ? "Rifinitura" : "Refinement"}
@@ -947,29 +947,33 @@
                 <button
                   type="button"
                   onclick={() => onlyUnannotated = !onlyUnannotated}
-                  class="flex flex-col items-start p-3.5 rounded-xl border text-left transition-all duration-200 cursor-pointer select-none
+                  class="flex items-center justify-between p-3.5 rounded-xl border text-left transition-all duration-200 cursor-pointer select-none
                     {onlyUnannotated
-                      ? 'bg-rose-500/10 border-rose-500/50 text-white'
+                      ? 'bg-indigo-500/10 border-indigo-500/50 text-white'
                       : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10 hover:text-gray-200'}"
                 >
-                  <span class="text-xs font-bold uppercase tracking-wider mb-1">{t('refine.options.onlyUnannotated')}</span>
-                  <p class="text-[10px] text-gray-400">
-                    {$currentLanguage === 'it' ? 'Solo nuove card senza note' : 'Only process cards without notes yet'}
-                  </p>
+                  <span class="text-xs font-bold uppercase tracking-wider">{t('refine.options.onlyUnannotated')}</span>
+                  <div class="w-3.5 h-3.5 rounded-full border border-indigo-400/50 flex items-center justify-center {onlyUnannotated ? 'bg-indigo-500' : ''}">
+                    {#if onlyUnannotated}
+                      <svg class="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" /></svg>
+                    {/if}
+                  </div>
                 </button>
 
                 <button
                   type="button"
                   onclick={() => useBatchMode = !useBatchMode}
-                  class="flex flex-col items-start p-3.5 rounded-xl border text-left transition-all duration-200 cursor-pointer select-none
+                  class="flex items-center justify-between p-3.5 rounded-xl border text-left transition-all duration-200 cursor-pointer select-none
                     {useBatchMode
-                      ? 'bg-rose-500/10 border-rose-500/50 text-white'
+                      ? 'bg-indigo-500/10 border-indigo-500/50 text-white'
                       : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10 hover:text-gray-200'}"
                 >
-                  <span class="text-xs font-bold uppercase tracking-wider mb-1">{t('refine.options.batchMode')}</span>
-                  <p class="text-[10px] text-gray-400">
-                    {$currentLanguage === 'it' ? 'Invia in lotti per velocizzare' : 'Send multiple flashcards at once'}
-                  </p>
+                  <span class="text-xs font-bold uppercase tracking-wider">{t('refine.options.batchMode')}</span>
+                  <div class="w-3.5 h-3.5 rounded-full border border-indigo-400/50 flex items-center justify-center {useBatchMode ? 'bg-indigo-500' : ''}">
+                    {#if useBatchMode}
+                      <svg class="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" /></svg>
+                    {/if}
+                  </div>
                 </button>
               </div>
 
@@ -979,8 +983,8 @@
                   onclick={() => onGoToSettings?.("llm", "default-refinement-prompt")}
                   class="flex-1 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-gray-300 px-4 py-2.5 transition-all cursor-pointer flex items-center justify-center gap-2"
                 >
-                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 h14a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                   </svg>
                   {t('refine.btn.editPrompt') || ($currentLanguage === 'it' ? 'Modifica Prompt' : 'Edit Prompt')}
                 </button>
@@ -996,9 +1000,9 @@
                   <button
                     onclick={startAutoRefinement}
                     disabled={!!llmError || cards.length === 0}
-                    class="flex-1 rounded-xl bg-rose-600/80 hover:bg-rose-500/80 border border-rose-500/30 disabled:bg-rose-600/40 text-xs font-bold text-rose-100 px-4 py-2.5 transition-all cursor-pointer flex items-center justify-center gap-2 {(llmError || cards.length === 0) ? 'opacity-50 cursor-not-allowed' : ''}"
+                    class="flex-1 rounded-xl bg-amber-600 hover:bg-amber-500 border border-amber-500/30 disabled:bg-amber-600/40 text-xs font-bold text-white px-4 py-2.5 shadow-lg shadow-amber-950/30 transition-all cursor-pointer flex items-center justify-center gap-2 {(llmError || cards.length === 0) ? 'opacity-50 cursor-not-allowed' : ''}"
                   >
-                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg class="w-4 h-4 text-amber-100" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
                     </svg>
                     {t('refine.btn.startAI') || ($currentLanguage === 'it' ? 'Avvia Rifinitura AI' : 'Start AI Refinement')}
