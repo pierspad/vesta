@@ -25,10 +25,8 @@
     CARD_TEMPLATES_UPDATED_EVENT,
     NOTE_TYPES_UPDATED_EVENT,
     NOTE_TYPE_FIELD_ORDER,
-    loadCardTemplates,
     listNoteTypes,
     findNoteTypeById,
-    noteTypeOutputFields,
     loadActiveNoteTypeId,
     saveActiveNoteTypeId,
     ACTIVE_NOTE_TYPE_CHANGED_EVENT,
@@ -36,6 +34,7 @@
     type FieldKey,
   } from "$lib/types/noteTypes";
   import PathPreviewModal from "$lib/modals/PathPreviewModal.svelte";
+  import { buildFlashcardConfig } from "$lib/utils/flashcardConfig";
   import SearchableSelect from "$lib/components/SearchableSelect.svelte";
   import LogPanel from "$lib/panels/LogPanel.svelte";
   import CodeEditor from "$lib/components/CodeEditor.svelte";
@@ -1511,15 +1510,6 @@
 
   // addLog/clearLogs now live on generationStore (generationStore.svelte.ts).
 
-  function parseTimeToMs(time: string): number | null {
-    if (!time || !time.trim()) return null;
-    const parts = time.split(":").map(Number);
-    if (parts.length === 3 && parts.every((p) => !isNaN(p))) {
-      return (parts[0] * 3600 + parts[1] * 60 + parts[2]) * 1000;
-    }
-    return null;
-  }
-
   function buildConfig() {
     let tPath = targetSubsPath;
     let nPath = nativeSubsPath || null;
@@ -1534,67 +1524,25 @@
       aPath = ep.mediaType === "audio" ? ep.mediaPath : null;
     }
 
-    return {
-      target_subs_path: tPath,
-      native_subs_path: nPath,
-      video_path: vPath,
-      audio_path: aPath,
-      output_dir: outputDir,
-      use_timings_from: "target",
-      span_start_ms: null,
-      span_end_ms: null,
-      time_shift_target_ms: 0,
-      time_shift_native_ms: 0,
-      filters: {
-        include_words: null,
-        exclude_words: null,
-        exclude_duplicates_subs1: false,
-        exclude_duplicates_subs2: false,
-        min_chars: cardFilters.enabled && cardFilters.minCharsEnabled ? cardFilters.minChars : null,
-        max_chars: cardFilters.enabled && cardFilters.maxCharsEnabled ? cardFilters.maxChars : null,
-        min_duration_ms: cardFilters.enabled && cardFilters.minDurationEnabled ? cardFilters.minDurationMs : null,
-        max_duration_ms: cardFilters.enabled && cardFilters.maxDurationEnabled ? cardFilters.maxDurationMs : null,
-        exclude_styled: false,
-        actor_filter: null,
-        only_cjk: false,
-        remove_no_match: false,
-      },
-      context: {
-        leading: 0,
-        trailing: 0,
-        max_gap_seconds: 15.0,
-      },
-      combine_sentences: cardFilters.enabled && cardFilters.combineSentences,
-      continuation_chars: cardFilters.continuationChars,
-      generate_audio: mediaSettings.generateAudio,
-      audio_bitrate: mediaSettings.audioBitrate,
-      audio_track_index: mediaSettings.audioTrackIndex,
-      normalize_audio: mediaSettings.normalizeAudio,
-      audio_pad_start_ms: mediaSettings.audioPadStart,
-      audio_pad_end_ms: mediaSettings.audioPadEnd,
-      generate_snapshots: mediaSettings.generateSnapshots,
-      snapshot_width: mediaSettings.snapshotWidth,
-      snapshot_height: mediaSettings.snapshotHeight,
-      crop_bottom: mediaSettings.cropBottom,
-      generate_video_clips: mediaSettings.generateVideoClips,
-      video_codec: mediaSettings.videoCodec,
-      h264_preset: mediaSettings.h264Preset,
-      video_hw_accel: videoHwAccel,
-      video_bitrate: mediaSettings.videoBitrate,
-      video_audio_bitrate: mediaSettings.videoAudioBitrate,
-      video_pad_start_ms: mediaSettings.videoPadStart,
-      video_pad_end_ms: mediaSettings.videoPadEnd,
-      deck_name: generationStore.deckName,
-      episode_number: 1,
-      export_format: generationStore.effectiveExportFormat,
-      note_type_name: activeNoteType.name,
-      field_names: activeNoteType.fields,
-      output_fields: noteTypeOutputFields(activeNoteType),
-      cpu_cores: generationStore.effectiveCpuCores,
-      card_front_html: loadCardTemplates().frontHtml,
-      card_back_html: loadCardTemplates().backHtml,
-      card_css: loadCardTemplates().css,
-    };
+    return buildFlashcardConfig({
+      targetSubsPath: tPath,
+      nativeSubsPath: nPath,
+      videoPath: vPath,
+      audioPath: aPath,
+      outputDir,
+      cardFilters,
+      media: mediaSettings,
+      generateAudio: mediaSettings.generateAudio,
+      generateSnapshots: mediaSettings.generateSnapshots,
+      generateVideoClips: mediaSettings.generateVideoClips,
+      audioTrackIndex: mediaSettings.audioTrackIndex,
+      videoHwAccel,
+      deckName: generationStore.deckName,
+      episodeNumber: 1,
+      exportFormat: generationStore.effectiveExportFormat,
+      noteType: activeNoteType,
+      cpuCores: generationStore.effectiveCpuCores,
+    });
   }
 
   async function loadTargetSubtitle(path: string) {
@@ -1921,67 +1869,25 @@
             ? ep.mediaOverrides.audioTrackIndex
             : await pickAudioTrackIndexForEpisode(ep);
 
-        const epConfig = {
-          target_subs_path: ep.targetSubsPath,
-          native_subs_path: ep.nativeSubsPath || null,
-          video_path: epHasVideo ? ep.mediaPath : null,
-          audio_path: epHasMedia && !epHasVideo ? ep.mediaPath : null,
-          output_dir: outputDir,
-          use_timings_from: "target",
-          span_start_ms: null,
-          span_end_ms: null,
-          time_shift_target_ms: 0,
-          time_shift_native_ms: 0,
-          filters: {
-            include_words: null,
-            exclude_words: null,
-            exclude_duplicates_subs1: false,
-            exclude_duplicates_subs2: false,
-            min_chars: cardFilters.enabled && cardFilters.minCharsEnabled ? cardFilters.minChars : null,
-            max_chars: cardFilters.enabled && cardFilters.maxCharsEnabled ? cardFilters.maxChars : null,
-            min_duration_ms: cardFilters.enabled && cardFilters.minDurationEnabled ? cardFilters.minDurationMs : null,
-            max_duration_ms: cardFilters.enabled && cardFilters.maxDurationEnabled ? cardFilters.maxDurationMs : null,
-            exclude_styled: false,
-            actor_filter: null,
-            only_cjk: false,
-            remove_no_match: false,
-          },
-          context: {
-            leading: 0,
-            trailing: 0,
-            max_gap_seconds: 15.0,
-          },
-          combine_sentences: cardFilters.enabled && cardFilters.combineSentences,
-          continuation_chars: cardFilters.continuationChars,
-          generate_audio: ep.mediaPath ? epMediaSettings.generateAudio : false,
-          audio_bitrate: epMediaSettings.audioBitrate,
-          audio_track_index: epAudioTrackIndex,
-          normalize_audio: epMediaSettings.normalizeAudio,
-          audio_pad_start_ms: epMediaSettings.audioPadStart,
-          audio_pad_end_ms: epMediaSettings.audioPadEnd,
-          generate_snapshots: epHasVideo ? epMediaSettings.generateSnapshots : false,
-          snapshot_width: epMediaSettings.snapshotWidth,
-          snapshot_height: epMediaSettings.snapshotHeight,
-          crop_bottom: epMediaSettings.cropBottom,
-          generate_video_clips: epHasVideo ? epMediaSettings.generateVideoClips : false,
-          video_codec: epMediaSettings.videoCodec,
-          h264_preset: epMediaSettings.h264Preset,
-          video_hw_accel: videoHwAccel,
-          video_bitrate: epMediaSettings.videoBitrate,
-          video_audio_bitrate: epMediaSettings.videoAudioBitrate,
-          video_pad_start_ms: epMediaSettings.videoPadStart,
-          video_pad_end_ms: epMediaSettings.videoPadEnd,
-          deck_name: generationStore.seriesOutputMode === "separate" ? deriveDeckNameFromFile(ep) : generationStore.deckName,
-          episode_number: epNum,
-          export_format: generationStore.effectiveExportFormat,
-          note_type_name: activeNoteType.name,
-          field_names: activeNoteType.fields,
-          output_fields: noteTypeOutputFields(activeNoteType),
-          cpu_cores: generationStore.effectiveCpuCores,
-          card_front_html: loadCardTemplates().frontHtml,
-          card_back_html: loadCardTemplates().backHtml,
-          card_css: loadCardTemplates().css,
-        };
+        const epConfig = buildFlashcardConfig({
+          targetSubsPath: ep.targetSubsPath,
+          nativeSubsPath: ep.nativeSubsPath || null,
+          videoPath: epHasVideo ? ep.mediaPath : null,
+          audioPath: epHasMedia && !epHasVideo ? ep.mediaPath : null,
+          outputDir,
+          cardFilters,
+          media: epMediaSettings,
+          generateAudio: ep.mediaPath ? epMediaSettings.generateAudio : false,
+          generateSnapshots: epHasVideo ? epMediaSettings.generateSnapshots : false,
+          generateVideoClips: epHasVideo ? epMediaSettings.generateVideoClips : false,
+          audioTrackIndex: epAudioTrackIndex,
+          videoHwAccel,
+          deckName: generationStore.seriesOutputMode === "separate" ? deriveDeckNameFromFile(ep) : generationStore.deckName,
+          episodeNumber: epNum,
+          exportFormat: generationStore.effectiveExportFormat,
+          noteType: activeNoteType,
+          cpuCores: generationStore.effectiveCpuCores,
+        });
 
         await previewStore.applyOverrides(epConfig);
 
