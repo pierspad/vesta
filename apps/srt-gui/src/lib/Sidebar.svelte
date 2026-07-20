@@ -303,11 +303,8 @@
         </button>
 
         {#if !collapsed}
-          <button
-            type="button"
-            onclick={() => uiMode.toggleReviseUi()}
-            class="flex items-center gap-3 text-left focus:outline-none cursor-pointer group select-none border border-transparent active:scale-[0.98] transition-transform duration-100"
-            title="Toggle Revise UI Mode (Legacy vs Modern)"
+          <div
+            class="flex items-center gap-3 text-left group select-none border border-transparent"
           >
             <div class="w-14 h-14 rounded-xl flex items-center justify-center flex-shrink-0 relative overflow-visible ml-2 group-hover:scale-105 transition-transform duration-200" style="transform: translate3d(0, 0, 0);">
               <div class="absolute -inset-2 bg-orange-500/22 rounded-full blur-lg z-0" style="will-change: filter; transform: translate3d(0, 0, 0);"></div>
@@ -319,7 +316,7 @@
                 {t("app.title")}
               </h1>
             </div>
-          </button>
+          </div>
         {/if}
       </div>
     {/if}

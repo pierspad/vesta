@@ -1,6 +1,3 @@
-import { invoke } from "@tauri-apps/api/core";
-import { smartMatchingStore } from "./smartMatchingStore.svelte";
-import { snackbar } from "./snackbarStore.svelte";
 import * as vestaConfig from "./vestaConfig";
 
 /**
@@ -13,14 +10,14 @@ import * as vestaConfig from "./vestaConfig";
  */
 class UiModeStore {
   expertMode = $state(false);
-  useOldReviseUi = $state(true);
 
   /** Convenience inverse — most call sites gate on "easy". */
   easyMode = $derived(!this.expertMode);
 
   constructor() {
     this.expertMode = vestaConfig.getItem("vesta-expert-mode") === "true";
-    this.useOldReviseUi = true;
+    // Legacy cleanup: the old Legacy/Modern revise-UI toggle has been removed.
+    vestaConfig.removeItem("vesta-use-old-revise-ui");
   }
 
   async toggleExpertMode() {
@@ -46,16 +43,6 @@ class UiModeStore {
 
     this.expertMode = newExpertMode;
     vestaConfig.setItem("vesta-expert-mode", String(this.expertMode));
-  }
-
-  toggleReviseUi() {
-    this.useOldReviseUi = !this.useOldReviseUi;
-    vestaConfig.setItem("vesta-use-old-revise-ui", String(this.useOldReviseUi));
-    if (this.useOldReviseUi) {
-      snackbar.show("UI Mode: Legacy Panels", "info");
-    } else {
-      snackbar.show("UI Mode: Modern Layout", "info");
-    }
   }
 }
 
