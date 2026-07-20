@@ -5,6 +5,7 @@
   import { availableUILanguages, currentLanguage, locale, setLanguage } from "./i18n";
   import { cpuRamStore } from "./cpuRamStore.svelte";
   import { exportFormatStore } from "./exportFormatStore.svelte";
+  import { ankiStore } from "./ankiStore.svelte";
   import { updateCheckerStore } from "./updateCheckerStore.svelte";
 
   let { defaultLanguagesCard }: { defaultLanguagesCard: Snippet } = $props();
@@ -50,13 +51,13 @@
             : exportFormatStore.exportFormat === 'tsv'
               ? 'bg-sky-500/15 border border-sky-500/30'
               : 'bg-violet-500/15 border border-violet-500/30'}"
-        style="width: calc({100 / exportFormatStore.numOpts}% - 6px); transform: translateX(calc({exportFormatStore.activeIdx * 100}% + {exportFormatStore.activeIdx * 8}px)); left: 4px;"
+        style="width: calc(33.333% - 6px); transform: translateX(calc({exportFormatStore.activeIdx * 100}% + {exportFormatStore.activeIdx * 8}px)); left: 4px;"
       ></div>
 
       <!-- APKG Option Button -->
       <button
         type="button"
-        onclick={() => exportFormatStore.cycleExportFormat()}
+        onclick={() => exportFormatStore.setExportFormat('apkg')}
         class="flex-1 text-left p-4 rounded-lg transition-all duration-200 select-none relative z-10 flex items-center justify-between gap-4 cursor-pointer"
       >
         <div class="flex-1 min-w-0">
@@ -83,7 +84,7 @@
       <!-- TSV Option Button -->
       <button
         type="button"
-        onclick={() => exportFormatStore.cycleExportFormat()}
+        onclick={() => exportFormatStore.setExportFormat('tsv')}
         class="flex-1 text-left p-4 rounded-lg transition-all duration-200 select-none relative z-10 flex items-center justify-between gap-4 cursor-pointer"
       >
         <div class="flex-1 min-w-0">
@@ -107,35 +108,79 @@
         </svg>
       </button>
 
-      <!-- Anki Connect Option Button -->
-      {#if exportFormatStore.showAnki}
-        <button
-          type="button"
-          onclick={() => exportFormatStore.cycleExportFormat()}
-          class="flex-1 text-left p-4 rounded-lg transition-all duration-200 select-none relative z-10 flex items-center justify-between gap-4 cursor-pointer"
-        >
-          <div class="flex-1 min-w-0">
-            <div class="flex items-center gap-2 flex-wrap">
-              <span class="text-sm font-bold transition-colors duration-200 {exportFormatStore.exportFormat === 'anki' ? 'text-white' : 'text-gray-400 hover:text-gray-200'}">
-                {$currentLanguage === 'it' ? 'Esportazione Anki Connect' : 'Anki Connect export'}
+      <!-- Anki Connect Option Button (Permanently visible) -->
+      <button
+        type="button"
+        onclick={() => exportFormatStore.setExportFormat('anki')}
+        class="flex-1 text-left p-4 rounded-lg transition-all duration-200 select-none relative z-10 flex items-center justify-between gap-4 cursor-pointer"
+      >
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center gap-2 flex-wrap">
+            <span class="text-sm font-bold transition-colors duration-200 {exportFormatStore.exportFormat === 'anki' ? 'text-white' : 'text-gray-400 hover:text-gray-200'}">
+              {$currentLanguage === 'it' ? 'Esportazione Anki Connect' : 'Anki Connect export'}
+            </span>
+            <span class="text-[10px] px-1.5 py-0.5 rounded-full font-bold transition-all duration-200
+              {exportFormatStore.exportFormat === 'anki'
+                ? 'bg-violet-500/30 text-violet-300 border border-violet-500/40'
+                : 'bg-gray-700/60 text-gray-400 border border-gray-700'}">
+              {t("flashcards.exportAnkiConnectBadge")}
+            </span>
+            {#if ankiStore.status === "online"}
+              <span class="text-[10px] px-1.5 py-0.5 rounded-full font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center gap-1">
+                🟢 {$currentLanguage === 'it' ? 'Anki rilevato' : 'Anki detected'}
               </span>
-              <span class="text-[10px] px-1.5 py-0.5 rounded-full font-bold transition-all duration-200
-                {exportFormatStore.exportFormat === 'anki'
-                  ? 'bg-violet-500/30 text-violet-300 border border-violet-500/40'
-                  : 'bg-gray-700/60 text-gray-400 border border-gray-700'}">
-                {t("flashcards.exportAnkiConnectBadge")}
+            {:else}
+              <span class="text-[10px] px-1.5 py-0.5 rounded-full font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center gap-1">
+                🟠 {$currentLanguage === 'it' ? 'Anki non rilevato' : 'Anki offline'}
               </span>
-            </div>
-            <p class="text-xs text-gray-400 mt-1 leading-relaxed">{t("flashcards.exportAnkiConnectDesc")}</p>
+            {/if}
           </div>
+          <p class="text-xs text-gray-400 mt-1 leading-relaxed">{t("flashcards.exportAnkiConnectDesc")}</p>
+        </div>
 
-          <!-- Anki Connect/Flash SVG Icon on the right -->
-          <svg class="w-8 h-8 transition-colors duration-200 shrink-0 {exportFormatStore.exportFormat === 'anki' ? 'text-violet-400' : 'text-gray-500'}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13 10V3L4 14h7v7l9-11h-7z" />
-          </svg>
-        </button>
-      {/if}
+        <!-- Anki Connect/Flash SVG Icon on the right -->
+        <svg class="w-8 h-8 transition-colors duration-200 shrink-0 {exportFormatStore.exportFormat === 'anki' ? 'text-violet-400' : 'text-gray-500'}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13 10V3L4 14h7v7l9-11h-7z" />
+        </svg>
+      </button>
     </div>
+
+    <!-- Secondary Fallback Hierarchy Selector when AnkiConnect is selected -->
+    {#if exportFormatStore.exportFormat === 'anki'}
+      <div class="mt-4 pt-4 border-t border-white/10 flex items-center justify-between gap-4 flex-wrap">
+        <div class="flex items-center gap-2">
+          <svg class="w-4 h-4 text-amber-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <span class="text-xs font-semibold text-gray-300">
+            {$currentLanguage === 'it' ? 'Formato di ripiego se Anki è chiuso o disconnesso:' : 'Fallback format if Anki is closed or offline:'}
+          </span>
+        </div>
+        <div class="flex items-center gap-2 bg-black/40 p-1 rounded-lg border border-white/10 shrink-0">
+          <button
+            type="button"
+            onclick={() => exportFormatStore.setFallbackFormat('apkg')}
+            class="px-3 py-1.5 rounded-md text-xs font-bold transition-all duration-150 cursor-pointer flex items-center gap-1.5
+              {exportFormatStore.fallbackFormat === 'apkg'
+                ? 'bg-emerald-500/30 text-emerald-300 border border-emerald-500/50 shadow-sm'
+                : 'text-gray-400 hover:text-gray-200 border border-transparent'}"
+          >
+            <span>APKG (.apkg)</span>
+            <span class="text-[9px] uppercase px-1 py-0.2 rounded bg-emerald-500/20 text-emerald-300">{$currentLanguage === 'it' ? 'Consigliato' : 'Recommended'}</span>
+          </button>
+          <button
+            type="button"
+            onclick={() => exportFormatStore.setFallbackFormat('tsv')}
+            class="px-3 py-1.5 rounded-md text-xs font-bold transition-all duration-150 cursor-pointer flex items-center gap-1.5
+              {exportFormatStore.fallbackFormat === 'tsv'
+                ? 'bg-sky-500/30 text-sky-300 border border-sky-500/50 shadow-sm'
+                : 'text-gray-400 hover:text-gray-200 border border-transparent'}"
+          >
+            <span>TSV (.tsv)</span>
+          </button>
+        </div>
+      </div>
+    {/if}
   </div>
 {/if}
 

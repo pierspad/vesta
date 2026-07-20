@@ -1,7 +1,6 @@
 <script lang="ts">
   import { locale } from "./i18n";
   import PathPickerField from "./PathPickerField.svelte";
-  import SectionHeader from "./components/SectionHeader.svelte";
 
   interface Props {
     srtPath: string | null;
@@ -26,12 +25,25 @@
   let t = $derived($locale);
 </script>
 
-<div class="glass-card p-5 flex flex-col min-w-0 gap-4">
-  <SectionHeader
-    title={t("common.filesAndOutput")}
-    accent="emerald"
-    iconPath="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
-  />
+<div class="glass-card p-5">
+  <h3
+    class="text-lg font-semibold mb-4 flex items-center gap-2 panel-title-files-output"
+  >
+    <svg
+      class="w-5 h-5"
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+    >
+      <path
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        stroke-width="2"
+        d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
+      />
+    </svg>
+    {t("common.filesAndOutput")}
+  </h3>
 
   <div class="space-y-3">
     <!-- SRT File input -->

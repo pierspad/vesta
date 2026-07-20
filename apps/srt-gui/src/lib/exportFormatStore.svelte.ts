@@ -2,7 +2,9 @@ import { ankiStore } from "./ankiStore.svelte";
 import * as vestaConfig from "./vestaConfig";
 
 export const EXPORT_FORMAT_KEY = "vesta-export-format";
+export const EXPORT_FALLBACK_KEY = "vesta-export-fallback";
 export type ExportFormat = "apkg" | "tsv" | "anki";
+export type ExportFallbackFormat = "apkg" | "tsv";
 
 function loadInitial(): ExportFormat {
   try {
@@ -14,29 +16,54 @@ function loadInitial(): ExportFormat {
   }
 }
 
-/** Export-format toggle card in Settings -> Overview (expert mode only).
- * State only -- the three `$effect`s that resync `exportFormat` from
- * localStorage on tab-activation/expert-mode-toggle, and persist it back to
- * localStorage on change, stay in SettingsTab.svelte: `$effect` requires a
- * component effect root and can't run inside a module-level store singleton,
- * see [[vesta-settings-refactor]]. `showAnki`/`numOpts` only need a plain
- * `$derived` (reading ankiStore's own reactive state), so those *do* live
- * here safely -- it's specifically the imperative self-referential
- * resync effects that can't. */
+function loadInitialFallback(): ExportFallbackFormat {
+  try {
+    const saved = vestaConfig.getItem(EXPORT_FALLBACK_KEY);
+    if (saved === "tsv" || saved === "apkg") return saved;
+    return "apkg";
+  } catch {
+    return "apkg";
+  }
+}
+
+/** Export-format toggle card in Settings -> Overview & FlashcardsTab.
+ * State only -- all 3 options (apkg, tsv, anki) stay permanently visible.
+ * If AnkiConnect is selected as preferred but Anki is offline, effectiveExportFormat
+ * seamlessly resolves to fallbackFormat (apkg or tsv). */
 class ExportFormatStore {
   exportFormat = $state<ExportFormat>(loadInitial());
+  fallbackFormat = $state<ExportFallbackFormat>(loadInitialFallback());
 
-  showAnki = $derived(ankiStore.status === "online");
-  numOpts = $derived(this.showAnki ? 3 : 2);
+  numOpts = 3;
   activeIdx = $derived(this.exportFormat === "apkg" ? 0 : this.exportFormat === "tsv" ? 1 : 2);
+
+  effectiveExportFormat = $derived<ExportFormat>(
+    this.exportFormat === "anki"
+      ? (ankiStore.status === "online" ? "anki" : this.fallbackFormat)
+      : this.exportFormat
+  );
+
+  setExportFormat(format: ExportFormat) {
+    this.exportFormat = format;
+    try {
+      vestaConfig.setItem(EXPORT_FORMAT_KEY, format);
+    } catch {}
+  }
+
+  setFallbackFormat(fallback: ExportFallbackFormat) {
+    this.fallbackFormat = fallback;
+    try {
+      vestaConfig.setItem(EXPORT_FALLBACK_KEY, fallback);
+    } catch {}
+  }
 
   cycleExportFormat() {
     if (this.exportFormat === "apkg") {
-      this.exportFormat = "tsv";
+      this.setExportFormat("tsv");
     } else if (this.exportFormat === "tsv") {
-      this.exportFormat = ankiStore.status === "online" ? "anki" : "apkg";
+      this.setExportFormat("anki");
     } else {
-      this.exportFormat = "apkg";
+      this.setExportFormat("apkg");
     }
   }
 }

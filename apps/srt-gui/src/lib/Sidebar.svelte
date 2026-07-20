@@ -303,16 +303,23 @@
         </button>
 
         {#if !collapsed}
-          <div class="w-14 h-14 rounded-xl flex items-center justify-center flex-shrink-0 relative overflow-visible ml-2" style="transform: translate3d(0, 0, 0);">
-            <div class="absolute -inset-2 bg-orange-500/22 rounded-full blur-lg z-0" style="will-change: filter; transform: translate3d(0, 0, 0);"></div>
-            <div class="absolute inset-0 bg-amber-300/12 rounded-full blur-md z-0" style="will-change: filter; transform: translate3d(0, 0, 0);"></div>
-            <img src={fireplaceIcon} alt="vesta" class="w-14 h-14 drop-shadow-[0_0_10px_rgba(249,115,22,0.55)] relative z-10" style="will-change: filter; transform: translate3d(0, 0, 0);" />
-          </div>
-          <div class="relative z-10">
-            <h1 class="text-2xl font-bold tracking-wider bg-gradient-to-r from-amber-400 via-orange-400 to-red-400 bg-clip-text text-transparent">
-              {t("app.title")}
-            </h1>
-          </div>
+          <button
+            type="button"
+            onclick={() => uiMode.toggleReviseUi()}
+            class="flex items-center gap-3 text-left focus:outline-none cursor-pointer group select-none border border-transparent active:scale-[0.98] transition-transform duration-100"
+            title="Toggle Revise UI Mode (Legacy vs Modern)"
+          >
+            <div class="w-14 h-14 rounded-xl flex items-center justify-center flex-shrink-0 relative overflow-visible ml-2 group-hover:scale-105 transition-transform duration-200" style="transform: translate3d(0, 0, 0);">
+              <div class="absolute -inset-2 bg-orange-500/22 rounded-full blur-lg z-0" style="will-change: filter; transform: translate3d(0, 0, 0);"></div>
+              <div class="absolute inset-0 bg-amber-300/12 rounded-full blur-md z-0" style="will-change: filter; transform: translate3d(0, 0, 0);"></div>
+              <img src={fireplaceIcon} alt="vesta" class="w-14 h-14 drop-shadow-[0_0_10px_rgba(249,115,22,0.55)] relative z-10" style="will-change: filter; transform: translate3d(0, 0, 0);" />
+            </div>
+            <div class="relative z-10">
+              <h1 class="text-2xl font-bold tracking-wider bg-gradient-to-r from-amber-400 via-orange-400 to-red-400 bg-clip-text text-transparent group-hover:from-amber-300 group-hover:to-red-300 transition-all duration-250">
+                {t("app.title")}
+              </h1>
+            </div>
+          </button>
         {/if}
       </div>
     {/if}
@@ -718,21 +725,21 @@
         </a>
       {:else}
         <div class="flex items-center justify-between w-full">
-          <div class="flex items-center gap-2 min-w-0">
+          <div class="flex items-center gap-2.5 min-w-0">
             <a href={authorUrl} target="_blank" class="flex-shrink-0 transition-transform hover:scale-110 active:scale-95 duration-150 inline-block" title="Pierpaolo Spadafora">
-              <img src={authorIconUrl} alt="Pierpaolo Spadafora" class="w-8 h-8 rounded-full border border-white/10 shadow-sm" />
+              <img src={authorIconUrl} alt="Pierpaolo Spadafora" class="w-9 h-9 rounded-full border border-white/10 shadow-sm" />
             </a>
-            <div class="flex flex-col gap-0.5 min-w-0">
-              <a href={releasesUrl} target="_blank" class="text-sm font-semibold text-gray-200 hover:text-indigo-400 transition-colors truncate leading-none">
+            <div class="flex flex-col gap-1 min-w-0">
+              <a href={releasesUrl} target="_blank" class="text-[15px] font-semibold text-gray-200 hover:text-indigo-400 transition-colors truncate leading-none">
                 {appVersionNum || "v0.15.1"}
               </a>
-              <a href={licenseUrl} target="_blank" class="text-[11px] text-gray-400 hover:text-indigo-400 transition-colors leading-none">
+              <a href={licenseUrl} target="_blank" class="text-xs text-gray-400 hover:text-indigo-400 transition-colors leading-none">
                 {appLicense || "GPL-3.0"}
               </a>
             </div>
           </div>
-          
-          <a href={repoUrl} target="_blank" class="flex items-center gap-1.5 px-2 py-1.5 rounded-lg hover:bg-white/5 text-gray-400 hover:text-white transition-all duration-150 text-right shrink-0 select-none border border-transparent hover:border-white/5">
+
+          <a href={repoUrl} target="_blank" class="flex items-center gap-1.5 px-2.5 py-2 rounded-lg hover:bg-white/5 text-gray-400 hover:text-white transition-all duration-150 text-right shrink-0 select-none border border-transparent hover:border-white/5">
             <div class="flex flex-col text-[10px] font-bold leading-tight uppercase tracking-wider text-right">
               <span>GitHub</span>
               <span class="opacity-75">Repo</span>

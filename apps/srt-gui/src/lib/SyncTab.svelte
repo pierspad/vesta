@@ -1360,19 +1360,15 @@
   {/snippet}
 
   <div class="flex-1 overflow-y-auto p-6 min-h-0">
-    <div class="flex flex-col gap-6 min-h-0">
-      <!-- Row 1: File and Stato side-by-side -->
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+      <div class="space-y-3 min-w-0 flex flex-col">
         {@render panelContent("files")}
-        {@render panelContent("status")}
+        {@render panelContent("wizard")}
       </div>
 
-      <!-- Row 2: Wizard & Sottotitoli stacked vertically -->
-      <div class="space-y-6 min-w-0">
-        <div class="flex flex-col" role="region">
-          {@render panelContent("wizard")}
-        </div>
-        <div class="flex flex-col min-h-[520px]" role="region">
+      <div class="space-y-3 min-w-0 flex flex-col">
+        {@render panelContent("status")}
+        <div class="flex flex-col min-h-[520px] flex-1" role="region">
           {@render panelContent("subtitleList")}
         </div>
       </div>

@@ -39,6 +39,16 @@ if [ ! -f "node_modules/.bin/tauri" ]; then
     echo ""
 fi
 
+# Clean stale build cache if target directory contains references to old paths
+TARGET_BUILD_DIR="$SCRIPT_DIR/target/debug/build"
+if [ -d "$TARGET_BUILD_DIR" ]; then
+    if grep -r -q "GIMP_STUFF" "$TARGET_BUILD_DIR" 2>/dev/null; then
+        echo -e "${YELLOW}🧹 Pulizia cache di build obsoleta (rilevati percorsi non validi)...${NC}"
+        rm -rf "$SCRIPT_DIR/target"
+        echo -e "${GREEN}✅ Cache di build azzerata${NC}"
+    fi
+fi
+
 echo -e "${GREEN}✅ Dependencies OK${NC}"
 
 # 2. Dynamic Port Selection

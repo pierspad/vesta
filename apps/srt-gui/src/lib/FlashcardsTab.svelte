@@ -808,36 +808,21 @@
   });
 
   $effect(() => {
+    try { vestaConfig.setItem(EXPORT_FALLBACK_KEY, generationStore.fallbackFormat); } catch {}
+  });
+
+  $effect(() => {
     if (active) {
       try {
         const saved = vestaConfig.getItem(EXPORT_FORMAT_KEY);
         if (saved === "tsv" || saved === "anki" || saved === "apkg") {
-          if (saved === "anki" && ankiStore.status !== "online") {
-            generationStore.exportFormat = "apkg";
-          } else {
-            generationStore.exportFormat = saved as any;
-          }
-        } else {
-          if (ankiStore.status === "online") {
-            generationStore.exportFormat = "anki";
-          } else {
-            generationStore.exportFormat = "apkg";
-          }
+          generationStore.exportFormat = saved;
+        }
+        const savedFallback = vestaConfig.getItem(EXPORT_FALLBACK_KEY);
+        if (savedFallback === "tsv" || savedFallback === "apkg") {
+          generationStore.fallbackFormat = savedFallback;
         }
       } catch {}
-    }
-  });
-
-  $effect(() => {
-    if (ankiStore.status === "online") {
-      try {
-        const saved = vestaConfig.getItem(EXPORT_FORMAT_KEY);
-        if (!saved) {
-          generationStore.exportFormat = "anki";
-        }
-      } catch {}
-    } else if (generationStore.exportFormat === "anki") {
-      generationStore.exportFormat = "apkg";
     }
   });
 
@@ -1531,7 +1516,15 @@
     try {
       await invoke<number>("ankiconnect_ping", { url });
     } catch {
-      return; // Anki not running / AnkiConnect not installed.
+      if (generationStore.exportFormat === "anki") {
+        const fallbackUpper = generationStore.fallbackFormat.toUpperCase();
+        const msg = $currentLanguage === 'it'
+          ? `Anki non è in esecuzione: esportazione effettuata in formato ${fallbackUpper} come ripiego.`
+          : `Anki is not running: exported as ${fallbackUpper} as fallback.`;
+        generationStore.addLog(`ℹ ${msg}`, "info");
+        snackbar.show(msg, "info");
+      }
+      return;
     }
 
     try {
@@ -2760,7 +2753,13 @@
                   d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
                 />
               </svg>
-              {generationStore.exportFormat === 'apkg' ? 'APKG' : generationStore.exportFormat === 'tsv' ? 'TSV' : 'Anki Connect'}
+              {generationStore.exportFormat === 'apkg'
+                ? 'APKG'
+                : generationStore.exportFormat === 'tsv'
+                  ? 'TSV'
+                  : (ankiStore.status === 'online'
+                    ? 'Anki Connect'
+                    : `Anki Connect (${$currentLanguage === 'it' ? 'Ripiego' : 'Fallback'}: ${generationStore.fallbackFormat.toUpperCase()})`)}
             </button>
             {#if !generationStore.isProcessing && !generationStore.result}
               <div class="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-3 z-50

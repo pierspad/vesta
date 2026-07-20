@@ -3,6 +3,7 @@ import type { LogEntry } from "./LogPanel.svelte";
 import * as vestaConfig from "./vestaConfig";
 
 export const EXPORT_FORMAT_KEY = "vesta-export-format";
+export const EXPORT_FALLBACK_KEY = "vesta-export-fallback";
 export const SERIES_OUTPUT_MODE_KEY = "vesta-series-output-mode";
 
 export interface GenerationResult {
@@ -24,6 +25,14 @@ function loadInitialExportFormat(): "tsv" | "apkg" | "anki" {
   return "apkg";
 }
 
+function loadInitialExportFallback(): "tsv" | "apkg" {
+  try {
+    const saved = vestaConfig.getItem(EXPORT_FALLBACK_KEY);
+    if (saved === "tsv" || saved === "apkg") return saved;
+  } catch {}
+  return "apkg";
+}
+
 function loadInitialSeriesOutputMode(): "single" | "separate" {
   try {
     return vestaConfig.getItem(SERIES_OUTPUT_MODE_KEY) === "single" ? "single" : "separate";
@@ -35,21 +44,7 @@ function loadInitialSeriesOutputMode(): "single" | "separate" {
 /**
  * Generation run-state (progress/log/result of the current flashcard-export
  * run) plus the output settings that feed it (export format, series output
- * mode, deck name, CPU cores). Deliberately does NOT own domain data
- * (episodes, subtitle paths, note-type, media/card-filter settings) — those
- * stay in FlashcardsTab.svelte's buildConfig()/startGeneration()/
- * startSeriesGeneration(), which read this store's fields alongside their
- * own local state (see [[vesta-flashcards-refactor]] memory for why: a
- * $derived declared *inside* this store class cannot see FlashcardsTab's
- * local $state, so validation deriveds like canRunFlashcards/
- * generationRequirements stay in the component, not here).
- *
- * Also deliberately has NO $effect — the three exportFormat-sync effects
- * (persist on change, resync when the tab becomes active, resync on
- * ankiStore.status changes) and the seriesOutputMode-persist effect stay in
- * FlashcardsTab.svelte because they react to `active` (a component prop)
- * and to the component's mount lifecycle, matching the store convention
- * used by every other store in this codebase.
+ * mode, deck name, CPU cores).
  */
 class GenerationStore {
   isProcessing = $state(false);
@@ -65,12 +60,17 @@ class GenerationStore {
   deckNameAuto = $state(true);
 
   exportFormat = $state<"tsv" | "apkg" | "anki">(loadInitialExportFormat());
+  fallbackFormat = $state<"tsv" | "apkg">(loadInitialExportFallback());
   seriesOutputMode = $state<"single" | "separate">(loadInitialSeriesOutputMode());
 
   cpuCores = $state(2);
   systemCpuCount = $state(4);
 
-  effectiveExportFormat = $derived(this.exportFormat === "anki" ? "apkg" : this.exportFormat);
+  effectiveExportFormat = $derived<"tsv" | "apkg" | "anki">(
+    this.exportFormat === "anki"
+      ? (ankiStore.status === "online" ? "anki" : this.fallbackFormat)
+      : this.exportFormat
+  );
   /** Alias kept for parity with effectiveExportFormat; cpuCores has no other
    * derived transform today, but buildConfig() reads this name. */
   effectiveCpuCores = $derived(this.cpuCores);
@@ -109,9 +109,6 @@ class GenerationStore {
     this.lastProgressKey = null;
   }
 
-  /** Resets only the run-state (result/error/progress/logs) — NOT deckName
-   * and NOT any domain data. FlashcardsTab.svelte's resetGeneration() also
-   * clears episodes/subtitle paths/deckName and calls this for its part. */
   resetRun() {
     this.result = null;
     this.error = null;
@@ -123,22 +120,29 @@ class GenerationStore {
     this.lastProgressKey = null;
   }
 
-  /** Stops the visual "in progress" state after a cancel; the caller is
-   * still responsible for invoking the backend cancel command and logging
-   * a translated message (this store has no access to t()). */
   cancelRun() {
     this.isProcessing = false;
     this.progress = 0;
     this.progressMessage = "";
   }
 
+  setExportFormat(format: "tsv" | "apkg" | "anki") {
+    this.exportFormat = format;
+    try { vestaConfig.setItem(EXPORT_FORMAT_KEY, format); } catch {}
+  }
+
+  setFallbackFormat(fallback: "tsv" | "apkg") {
+    this.fallbackFormat = fallback;
+    try { vestaConfig.setItem(EXPORT_FALLBACK_KEY, fallback); } catch {}
+  }
+
   cycleExportFormat() {
     if (this.exportFormat === "apkg") {
-      this.exportFormat = "tsv";
+      this.setExportFormat("tsv");
     } else if (this.exportFormat === "tsv") {
-      this.exportFormat = ankiStore.status === "online" ? "anki" : "apkg";
+      this.setExportFormat("anki");
     } else {
-      this.exportFormat = "apkg";
+      this.setExportFormat("apkg");
     }
   }
 }

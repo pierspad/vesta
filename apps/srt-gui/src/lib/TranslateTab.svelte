@@ -989,7 +989,7 @@
 <div 
   role="region"
   aria-label="Translate content"
-  class="h-full flex flex-col translate-tab-scroll relative overflow-hidden"
+  class="h-full flex flex-col bg-gray-900 relative overflow-hidden"
   ondragover={(e) => { e.preventDefault(); if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy'; }}
   ondrop={(e) => { e.preventDefault(); isDraggingOver = false; }}
   ondragleave={(e) => {
@@ -1802,13 +1802,6 @@
 </div>
 
 <style>
-  .translate-tab-scroll {
-    background: #111827;
-    contain: layout style;
-    -webkit-overflow-scrolling: touch;
-    overflow-y: auto;
-    overscroll-behavior: contain;
-  }
   @keyframes progress-stripes {
     0% { background-position: 0 0; }
     100% { background-position: 40px 0; }

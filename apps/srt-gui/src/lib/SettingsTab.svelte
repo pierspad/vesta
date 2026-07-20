@@ -851,9 +851,7 @@
       try {
         const saved = vestaConfig.getItem(EXPORT_FORMAT_KEY);
         if (saved === "tsv" || saved === "anki" || saved === "apkg") {
-          exportFormatStore.exportFormat = saved === "anki" && ankiStore.status !== "online" ? "apkg" : saved;
-        } else {
-          exportFormatStore.exportFormat = ankiStore.status === "online" ? "anki" : "apkg";
+          exportFormatStore.exportFormat = saved;
         }
       } catch {}
     }
@@ -864,9 +862,7 @@
     try {
       const saved = vestaConfig.getItem(EXPORT_FORMAT_KEY);
       if (saved === "tsv" || saved === "anki" || saved === "apkg") {
-        exportFormatStore.exportFormat = saved === "anki" && ankiStore.status !== "online" ? "apkg" : saved;
-      } else {
-        exportFormatStore.exportFormat = ankiStore.status === "online" ? "anki" : "apkg";
+        exportFormatStore.exportFormat = saved;
       }
     } catch {}
     try {
@@ -875,12 +871,6 @@
         cpuRamStore.cpuCores = parseInt(savedCores);
       }
     } catch {}
-  });
-
-  $effect(() => {
-    if (ankiStore.status !== "online" && exportFormatStore.exportFormat === "anki") {
-      exportFormatStore.exportFormat = "apkg";
-    }
   });
 
   $effect(() => {
@@ -1265,7 +1255,7 @@
 </script>
 
 <div
-  class="h-full flex flex-col bg-gray-900"
+  class="h-full flex flex-col bg-gray-900 overflow-hidden"
 >
   {#if activeSettingsSection === 'shortcuts'}
     <div class="flex-1 flex flex-col min-h-0">

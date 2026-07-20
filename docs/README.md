@@ -139,3 +139,22 @@ breaking_bad_s01e05.mp4
 ```
 
 The bracketed format exists specifically for titles that start with numbers (like "12 Angry Men"), so Vesta doesn't confuse the title with episode metadata. Exported decks will come out as `<DeckName>_<Episode>.apkg`, one per episode.
+
+---
+
+## Contributing
+
+Pull requests are welcome! For major changes, please open an issue first to discuss your ideas.
+
+---
+
+## AI Disclosure
+
+This project was developed with the assistance of Large Language Models, used to support code writing and documentation.
+
+---
+
+## License
+
+This project is licensed under the GPL v3 License — see the [LICENSE](../LICENSE) file for details.
+

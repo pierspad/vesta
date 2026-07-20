@@ -533,7 +533,7 @@
 {/snippet}
 
 <div
-  class="h-full flex flex-col bg-gray-900"
+  class="h-full flex flex-col bg-gray-900 overflow-hidden"
   style="contain: layout style; will-change: transform;"
 >
   <!-- Top Bar with Category Filters & Search Input aligned exactly to Vesta top heights -->

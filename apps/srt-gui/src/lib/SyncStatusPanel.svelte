@@ -76,18 +76,16 @@
     </div>
   </div>
 
-  {#if status?.is_loaded}
-    <div class="space-y-1.5 pt-1.5 border-t border-white/5">
-      <div class="flex justify-between text-[10px] text-gray-400 font-semibold">
-        <span class="uppercase tracking-wider">{t("sync.completed") || "Completato"}</span>
-        <span>{status.completion_percentage.toFixed(1)}%</span>
-      </div>
-      <div class="progress-modern h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
-        <div
-          class="progress-modern-bar bg-indigo-500 h-full rounded-full transition-all duration-300"
-          style="width: {status.completion_percentage}%"
-        ></div>
-      </div>
+  <div class="space-y-1.5 pt-1.5 border-t border-white/5 flex-shrink-0">
+    <div class="flex justify-between text-[10px] text-gray-400 font-semibold">
+      <span class="uppercase tracking-wider">{t("sync.completed") || "Completato"}</span>
+      <span>{status?.is_loaded ? status.completion_percentage.toFixed(1) : "0.0"}%</span>
     </div>
-  {/if}
+    <div class="progress-modern h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
+      <div
+        class="progress-modern-bar bg-indigo-500 h-full rounded-full transition-all duration-300"
+        style="width: {status?.is_loaded ? status.completion_percentage : 0}%"
+      ></div>
+    </div>
+  </div>
 </div>

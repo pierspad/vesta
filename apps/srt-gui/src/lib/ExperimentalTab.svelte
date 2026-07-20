@@ -124,66 +124,6 @@
       /* run già terminato */
     }
   }
-
-  // ─── AnkiConnect ────────────────────────────────────────────────────────────
-
-  let ankiUrl = $state(
-    (() => {
-      try {
-        return vestaConfig.getItem("vesta-ankiconnect-url") || "http://127.0.0.1:8765";
-      } catch {
-        return "http://127.0.0.1:8765";
-      }
-    })(),
-  );
-  $effect(() => {
-    try {
-      vestaConfig.setItem("vesta-ankiconnect-url", ankiUrl);
-    } catch {
-      /* storage unavailable */
-    }
-  });
-
-  let ankiStatus = $state<"unknown" | "checking" | "online" | "offline">("unknown");
-  let ankiVersion = $state<number | null>(null);
-  let ankiDecks = $state<string[]>([]);
-  let apkgPath = $state("");
-  let importing = $state(false);
-
-  async function testAnkiConnection() {
-    ankiStatus = "checking";
-    ankiDecks = [];
-    try {
-      ankiVersion = await invoke<number>("ankiconnect_ping", { url: ankiUrl });
-      ankiDecks = await invoke<string[]>("ankiconnect_deck_names", { url: ankiUrl });
-      ankiStatus = "online";
-    } catch (err: any) {
-      ankiStatus = "offline";
-      ankiVersion = null;
-      snackbar.show(err.toString(), "error");
-    }
-  }
-
-  async function pickApkg() {
-    const selected = await guardedOpen({
-      filters: [{ name: "Anki Deck (.apkg)", extensions: ["apkg"] }],
-    });
-    if (selected && typeof selected === "string") apkgPath = selected;
-  }
-
-  async function importApkg() {
-    if (!apkgPath || importing) return;
-    importing = true;
-    try {
-      await invoke("ankiconnect_import_package", { path: apkgPath, url: ankiUrl });
-      snackbar.show(t("experimental.anki.importDone"), "success");
-      void testAnkiConnection();
-    } catch (err: any) {
-      snackbar.show(err.toString(), "error");
-    } finally {
-      importing = false;
-    }
-  }
 </script>
 
 <div class="h-full flex flex-col bg-gray-900 text-gray-100 overflow-hidden">
@@ -314,65 +254,6 @@
           <span class="text-gray-500 truncate w-full" title={condenseResult.outputPath}>{condenseResult.outputPath}</span>
         </div>
       {/if}
-    </Card>
-
-    <!-- AnkiConnect -->
-    {#snippet ankiStatusBadge()}
-      {#if ankiStatus === "online"}
-        <span class="text-[10px] bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">
-          {t("experimental.anki.online", { version: ankiVersion ?? 0 })}
-        </span>
-      {:else if ankiStatus === "offline"}
-        <span class="text-[10px] bg-red-500/10 border border-red-500/20 text-red-300 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">
-          {t("experimental.anki.offline")}
-        </span>
-      {/if}
-    {/snippet}
-    <Card>
-      <SectionHeader
-        title={t("experimental.anki.title")}
-        accent="sky"
-        iconPath="M13 10V3L4 14h7v7l9-11h-7z"
-        trailing={ankiStatusBadge}
-      />
-
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-3 items-end">
-        <div>
-          <span class="block text-xs text-gray-500 mb-1">{t("experimental.anki.url")}</span>
-          <input type="text" bind:value={ankiUrl} class="input-modern w-full text-xs font-mono" placeholder="http://127.0.0.1:8765" />
-        </div>
-        <div>
-          <button
-            onclick={testAnkiConnection}
-            disabled={ankiStatus === "checking"}
-            class="btn-secondary px-4 py-2 text-xs font-bold disabled:opacity-50"
-          >
-            {ankiStatus === "checking" ? "…" : t("experimental.anki.testConnection")}
-          </button>
-        </div>
-      </div>
-
-      {#if ankiStatus === "online" && ankiDecks.length > 0}
-        <div class="text-[11px] text-gray-500">
-          {t("experimental.anki.decksFound", { count: ankiDecks.length })}
-        </div>
-      {/if}
-
-      <div class="border-t border-white/5 pt-4 flex flex-col gap-2">
-        <span class="block text-xs text-gray-500">{t("experimental.anki.importTitle")}</span>
-        <div class="flex gap-2 md:w-2/3">
-          <input type="text" readonly value={getFileName(apkgPath) || ""} placeholder={t("experimental.condense.noFile")} class="input-modern flex-1 text-xs" title={apkgPath || undefined} />
-          <button onclick={pickApkg} class="btn-secondary px-3 py-2 text-xs" disabled={importing}>{t("flashcards.browse")}</button>
-          <button
-            onclick={importApkg}
-            disabled={!apkgPath || importing}
-            class="rounded-xl bg-sky-600/90 hover:bg-sky-500/90 border border-sky-500/30 disabled:opacity-40 disabled:cursor-not-allowed text-xs font-bold text-sky-50 px-4 py-2 shadow-md transition-all cursor-pointer"
-          >
-            {importing ? "…" : t("experimental.anki.importBtn")}
-          </button>
-        </div>
-        <p class="text-[11px] text-gray-500">{t("experimental.anki.importHint")}</p>
-      </div>
     </Card>
   </div>
 </div>
