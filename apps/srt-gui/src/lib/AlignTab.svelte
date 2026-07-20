@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { uiMode } from "./uiModeStore.svelte";
+  import { uiMode } from "./uiModeStore.svelte.ts";
   import AlignTabNew from "./AlignTabNew.svelte";
   import AlignTabOld from "./AlignTabOld.svelte";
 

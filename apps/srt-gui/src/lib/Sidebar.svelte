@@ -6,7 +6,7 @@
   import authorAvatar from "../assets/avatar.png";
   import { locale } from "./i18n";
   import { aiStore } from "./aiStore.svelte";
-  import { uiMode } from "./uiModeStore.svelte";
+  import { uiMode } from "./uiModeStore.svelte.ts";
   import {
     getStoredSettingsActionState,
     SETTINGS_ACTION_REQUIRED_EVENT,

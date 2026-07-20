@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { uiMode } from "./uiModeStore.svelte";
+  import { uiMode } from "./uiModeStore.svelte.ts";
   import RefineTabNew from "./RefineTabNew.svelte";
   import RefineTabOld from "./RefineTabOld.svelte";
 

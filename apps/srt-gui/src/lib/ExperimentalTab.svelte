@@ -263,6 +263,6 @@
           <span class="text-gray-500 truncate w-full" title={condenseResult.outputPath}>{condenseResult.outputPath}</span>
         </div>
       {/if}
-    </Card>
+    </div>
   </div>
 </div>
