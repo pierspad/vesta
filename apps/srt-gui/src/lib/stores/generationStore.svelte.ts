@@ -1,9 +1,11 @@
-import { ankiStore } from "$lib/stores/ankiStore.svelte";
 import type { LogEntry } from "$lib/panels/LogPanel.svelte";
 import * as vestaConfig from "$lib/config/vestaConfig";
+import {
+  exportFormatStore,
+  type ExportFallbackFormat,
+  type ExportFormat,
+} from "$lib/stores/exportFormatStore.svelte";
 
-export const EXPORT_FORMAT_KEY = "vesta-export-format";
-export const EXPORT_FALLBACK_KEY = "vesta-export-fallback";
 export const SERIES_OUTPUT_MODE_KEY = "vesta-series-output-mode";
 
 export interface GenerationResult {
@@ -15,22 +17,6 @@ export interface GenerationResult {
   videoClips: number;
   tsvPath: string | null;
   apkgPath: string | null;
-}
-
-function loadInitialExportFormat(): "tsv" | "apkg" | "anki" {
-  try {
-    const saved = vestaConfig.getItem(EXPORT_FORMAT_KEY);
-    if (saved === "tsv" || saved === "anki" || saved === "apkg") return saved;
-  } catch {}
-  return "apkg";
-}
-
-function loadInitialExportFallback(): "tsv" | "apkg" {
-  try {
-    const saved = vestaConfig.getItem(EXPORT_FALLBACK_KEY);
-    if (saved === "tsv" || saved === "apkg") return saved;
-  } catch {}
-  return "apkg";
 }
 
 function loadInitialSeriesOutputMode(): "single" | "separate" {
@@ -59,18 +45,28 @@ class GenerationStore {
   deckName = $state("");
   deckNameAuto = $state(true);
 
-  exportFormat = $state<"tsv" | "apkg" | "anki">(loadInitialExportFormat());
-  fallbackFormat = $state<"tsv" | "apkg">(loadInitialExportFallback());
   seriesOutputMode = $state<"single" | "separate">(loadInitialSeriesOutputMode());
 
   cpuCores = $state(2);
   systemCpuCount = $state(4);
 
-  effectiveExportFormat = $derived<"tsv" | "apkg" | "anki">(
-    this.exportFormat === "anki"
-      ? (ankiStore.status === "online" ? "anki" : this.fallbackFormat)
-      : this.exportFormat
-  );
+  // Export format lives in exportFormatStore (single source of truth, shared
+  // with Settings -> Overview); these accessors only delegate.
+  get exportFormat(): ExportFormat {
+    return exportFormatStore.exportFormat;
+  }
+  set exportFormat(format: ExportFormat) {
+    exportFormatStore.setExportFormat(format);
+  }
+  get fallbackFormat(): ExportFallbackFormat {
+    return exportFormatStore.fallbackFormat;
+  }
+  set fallbackFormat(fallback: ExportFallbackFormat) {
+    exportFormatStore.setFallbackFormat(fallback);
+  }
+  get effectiveExportFormat(): ExportFormat {
+    return exportFormatStore.effectiveExportFormat;
+  }
   /** Alias kept for parity with effectiveExportFormat; cpuCores has no other
    * derived transform today, but buildConfig() reads this name. */
   effectiveCpuCores = $derived(this.cpuCores);
@@ -126,24 +122,16 @@ class GenerationStore {
     this.progressMessage = "";
   }
 
-  setExportFormat(format: "tsv" | "apkg" | "anki") {
-    this.exportFormat = format;
-    try { vestaConfig.setItem(EXPORT_FORMAT_KEY, format); } catch {}
+  setExportFormat(format: ExportFormat) {
+    exportFormatStore.setExportFormat(format);
   }
 
-  setFallbackFormat(fallback: "tsv" | "apkg") {
-    this.fallbackFormat = fallback;
-    try { vestaConfig.setItem(EXPORT_FALLBACK_KEY, fallback); } catch {}
+  setFallbackFormat(fallback: ExportFallbackFormat) {
+    exportFormatStore.setFallbackFormat(fallback);
   }
 
   cycleExportFormat() {
-    if (this.exportFormat === "apkg") {
-      this.setExportFormat("tsv");
-    } else if (this.exportFormat === "tsv") {
-      this.setExportFormat("anki");
-    } else {
-      this.setExportFormat("apkg");
-    }
+    exportFormatStore.cycleExportFormat();
   }
 }
 

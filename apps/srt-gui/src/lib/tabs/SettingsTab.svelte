@@ -19,7 +19,7 @@
   import { whisperModelsStore } from "$lib/stores/whisperModelsStore.svelte";
   import OverviewSettingsPanel from "$lib/panels/OverviewSettingsPanel.svelte";
   import { cpuRamStore } from "$lib/stores/cpuRamStore.svelte";
-  import { exportFormatStore, EXPORT_FORMAT_KEY } from "$lib/stores/exportFormatStore.svelte";
+  import { exportFormatStore } from "$lib/stores/exportFormatStore.svelte";
   import { updateCheckerStore } from "$lib/stores/updateCheckerStore.svelte";
   import { smartMatchingStore } from "$lib/stores/smartMatchingStore.svelte";
   import { snackbar } from "$lib/stores/snackbarStore.svelte";
@@ -842,29 +842,10 @@
     }
     return t("settings.resetConfirmDesc") || "Tutte le personalizzazioni correnti andranno perse.";
   });
-  $effect(() => {
-    try { vestaConfig.setItem(EXPORT_FORMAT_KEY, exportFormatStore.exportFormat); } catch {}
-  });
-
-  $effect(() => {
-    if (active) {
-      try {
-        const saved = vestaConfig.getItem(EXPORT_FORMAT_KEY);
-        if (saved === "tsv" || saved === "anki" || saved === "apkg") {
-          exportFormatStore.exportFormat = saved;
-        }
-      } catch {}
-    }
-  });
-
+  // Export format: exportFormatStore is the single source of truth and
+  // persists on its own setters — no sync $effects needed here.
   $effect(() => {
     const _ = uiMode.expertMode;
-    try {
-      const saved = vestaConfig.getItem(EXPORT_FORMAT_KEY);
-      if (saved === "tsv" || saved === "anki" || saved === "apkg") {
-        exportFormatStore.exportFormat = saved;
-      }
-    } catch {}
     try {
       const savedCores = vestaConfig.getItem("vesta_cpu_cores");
       if (savedCores) {

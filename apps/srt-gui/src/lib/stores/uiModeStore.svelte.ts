@@ -1,4 +1,5 @@
 import * as vestaConfig from "$lib/config/vestaConfig";
+import { exportFormatStore, type ExportFormat } from "$lib/stores/exportFormatStore.svelte";
 
 /**
  * Global UI mode: Easy (default) vs Expert.
@@ -28,16 +29,15 @@ class UiModeStore {
       // Disabling expert mode: Backup and set to easy defaults
 
       // 1. Export Format: backup and set to apkg
-      const currentExport = vestaConfig.getItem("vesta-export-format") || "apkg";
-      vestaConfig.setItem("vesta-expert-backup-export-format", currentExport);
-      vestaConfig.setItem("vesta-export-format", "apkg");
+      vestaConfig.setItem("vesta-expert-backup-export-format", exportFormatStore.exportFormat);
+      exportFormatStore.setExportFormat("apkg");
     } else if (!prevExpertMode && newExpertMode) {
       // Enabling expert mode: Restore from backup
 
       // 1. Export Format
       const backupExport = vestaConfig.getItem("vesta-expert-backup-export-format");
-      if (backupExport) {
-        vestaConfig.setItem("vesta-export-format", backupExport);
+      if (backupExport === "apkg" || backupExport === "tsv" || backupExport === "anki") {
+        exportFormatStore.setExportFormat(backupExport as ExportFormat);
       }
     }
 

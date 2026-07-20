@@ -58,7 +58,7 @@
   import VideoClipsPanel from "$lib/panels/VideoClipsPanel.svelte";
   import EpisodeContextMenu from "$lib/components/EpisodeContextMenu.svelte";
   import FilesOutputPanel from "$lib/panels/FilesOutputPanel.svelte";
-  import { generationStore, EXPORT_FORMAT_KEY, EXPORT_FALLBACK_KEY, SERIES_OUTPUT_MODE_KEY } from "$lib/stores/generationStore.svelte";
+  import { generationStore, SERIES_OUTPUT_MODE_KEY } from "$lib/stores/generationStore.svelte";
   import GenerationStatusDisplay from "$lib/panels/GenerationStatusDisplay.svelte";
   import GenerationResultPanel from "$lib/panels/GenerationResultPanel.svelte";
   import DeckNamingPanel from "$lib/panels/DeckNamingPanel.svelte";
@@ -796,36 +796,9 @@
     persistDimension(FLASHCARD_MEDIA_HEIGHT_KEY, mediaSettings.snapshotHeight);
   });
 
-  // exportFormat/seriesOutputMode/cpuCores/deckName state, plus generation
-  // run-state (isProcessing/progress/logs/result), live in generationStore
-  // (see generationStore.svelte.ts for why). These three $effects stay here
-  // rather than in the store because they react to `active` (a prop of this
-  // component) and to ankiStore.status over the component's lifetime — same
-  // convention as every other store in this codebase (no $effect inside a
-  // store class).
-  $effect(() => {
-    try { vestaConfig.setItem(EXPORT_FORMAT_KEY, generationStore.exportFormat); } catch {}
-  });
-
-  $effect(() => {
-    try { vestaConfig.setItem(EXPORT_FALLBACK_KEY, generationStore.fallbackFormat); } catch {}
-  });
-
-  $effect(() => {
-    if (active) {
-      try {
-        const saved = vestaConfig.getItem(EXPORT_FORMAT_KEY);
-        if (saved === "tsv" || saved === "anki" || saved === "apkg") {
-          generationStore.exportFormat = saved;
-        }
-        const savedFallback = vestaConfig.getItem(EXPORT_FALLBACK_KEY);
-        if (savedFallback === "tsv" || savedFallback === "apkg") {
-          generationStore.fallbackFormat = savedFallback;
-        }
-      } catch {}
-    }
-  });
-
+  // Export format state lives in exportFormatStore (generationStore only
+  // delegates to it), and its setters persist to vestaConfig on their own —
+  // no per-tab sync $effects needed.
   $effect(() => {
     try { vestaConfig.setItem(SERIES_OUTPUT_MODE_KEY, generationStore.seriesOutputMode); } catch {}
   });
