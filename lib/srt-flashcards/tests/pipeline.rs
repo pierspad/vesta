@@ -5,6 +5,7 @@ fn test_subs_dir() -> std::path::PathBuf {
         .join("..")
         .join("..")
         .join("Test_Subs")
+        .join("FILM")
 }
 
 fn en() -> String {
@@ -38,7 +39,7 @@ fn config(target: String, native: Option<String>) -> FlashcardConfig {
 #[test]
 fn parses_detour_english() {
     if !media_present() {
-        eprintln!("[skip] Test_Subs not present");
+        eprintln!("[skip] Test_Subs/FILM/Detour-*.srt not present");
         return;
     }
     let info = load_sub_file_info(&en()).expect("parse en");

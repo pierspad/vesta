@@ -74,3 +74,5 @@ commit-plan-final.sh
 commit-plan.sh
 REFACTOR-PLAN.md
 apps/srt-gui/reports/
+!Test_Subs/fixtures/detour/*.srt
+!Test_Subs/fixtures/detour/detour_clip_90s.mp4

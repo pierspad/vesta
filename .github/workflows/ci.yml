@@ -125,7 +125,8 @@ jobs:
             pkg-config \
             libssl-dev \
             libclang-dev \
-            mold
+            mold \
+            ffmpeg
 
       - name: Install frontend dependencies
         working-directory: ${{ env.TAURI_APP_DIR }}
