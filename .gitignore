@@ -73,3 +73,4 @@ commit-plan-continued.sh
 commit-plan-final.sh
 commit-plan.sh
 REFACTOR-PLAN.md
+apps/srt-gui/reports/

@@ -1,31 +1,19 @@
 /**
  * Sistema di internazionalizzazione (i18n)
- * 
+ *
  * Struttura semplice e manutenibile:
  * - Un file JSON per ogni lingua in /locales/
  * - Riferimenti generici nel codice tramite chiavi
  * - Facile aggiungere nuove lingue
+ *
+ * Solo `en` (fallback) è nel bundle principale; le altre lingue sono
+ * chunk separati caricati on-demand da `loadLanguage` — così il main
+ * chunk non trasporta ~800KB di traduzioni mai usate.
  */
 
 import { derived, get, writable } from 'svelte/store';
-import ar from '$lib/i18n/locales/ar.json';
-import de from '$lib/i18n/locales/de.json';
 import en from '$lib/i18n/locales/en.json';
-import es from '$lib/i18n/locales/es.json';
-import fr from '$lib/i18n/locales/fr.json';
-import hi from '$lib/i18n/locales/hi.json';
-import it from '$lib/i18n/locales/it.json';
-import ja from '$lib/i18n/locales/ja.json';
-import ko from '$lib/i18n/locales/ko.json';
-import nl from '$lib/i18n/locales/nl.json';
-import pl from '$lib/i18n/locales/pl.json';
-import pt from '$lib/i18n/locales/pt.json';
-import ru from '$lib/i18n/locales/ru.json';
-import tr from '$lib/i18n/locales/tr.json';
-import zh from '$lib/i18n/locales/zh.json';
 import * as vestaConfig from "$lib/config/vestaConfig";
-
-
 
 export interface UILanguage {
   code: string;
@@ -52,23 +40,37 @@ export const availableUILanguages: UILanguage[] = [
   { code: 'tr', name: 'Turkish', nativeName: 'Türkçe', flag: '🇹🇷' },
 ];
 
+const supportedCodes = new Set(availableUILanguages.map((l) => l.code));
+
 const translations: Record<string, Record<string, string>> = {
-  ar: { ...en, ...ar },
-  de: { ...en, ...de },
   en: { ...en },
-  es: { ...en, ...es },
-  fr: { ...en, ...fr },
-  hi: { ...en, ...hi },
-  it: { ...en, ...it },
-  ja: { ...en, ...ja },
-  ko: { ...en, ...ko },
-  nl: { ...en, ...nl },
-  pl: { ...en, ...pl },
-  pt: { ...en, ...pt },
-  ru: { ...en, ...ru },
-  tr: { ...en, ...tr },
-  zh: { ...en, ...zh },
 };
+
+/** Bumped whenever a locale finishes loading, so `locale` re-derives. */
+const revision = writable(0);
+
+const localeModules = import.meta.glob<Record<string, string>>('./locales/*.json', {
+  import: 'default',
+});
+
+/**
+ * Load (once) the dictionary for `lang` into `translations`.
+ * Resolves to true when the language is available afterwards.
+ */
+export async function loadLanguage(lang: string): Promise<boolean> {
+  if (translations[lang]) return true;
+  const loader = localeModules[`./locales/${lang}.json`];
+  if (!loader) return false;
+  try {
+    const dict = await loader();
+    translations[lang] = { ...en, ...dict };
+    revision.update((n) => n + 1);
+    return true;
+  } catch (e) {
+    console.error(`[i18n] failed to load locale "${lang}"`, e);
+    return false;
+  }
+}
 
 const STORAGE_KEY = 'srt-tools-ui-language';
 
@@ -77,16 +79,16 @@ function getSystemLanguage(): string {
     // Prova prima navigator.language (es: "it-IT", "en-US")
     const fullLang = navigator.language;
     const shortLang = fullLang.split('-')[0].toLowerCase();
-    
-    if (translations[shortLang]) {
+
+    if (supportedCodes.has(shortLang)) {
       return shortLang;
     }
-    
+
     // Prova navigator.languages per lingue alternative
     if (navigator.languages) {
       for (const lang of navigator.languages) {
         const short = lang.split('-')[0].toLowerCase();
-        if (translations[short]) {
+        if (supportedCodes.has(short)) {
           return short;
         }
       }
@@ -97,7 +99,7 @@ function getSystemLanguage(): string {
 
 function getInitialLanguage(): string {
   const saved = vestaConfig.getItem(STORAGE_KEY);
-  if (saved && translations[saved]) {
+  if (saved && supportedCodes.has(saved)) {
     return saved;
   }
   // Usa la lingua del sistema operativo come default
@@ -110,20 +112,29 @@ currentLanguage.subscribe((lang) => {
   vestaConfig.setItem(STORAGE_KEY, lang);
 });
 
+/**
+ * Ensure the dictionary for the initial language is loaded.
+ * main.ts awaits this before mounting App so the first paint is already
+ * in the right language.
+ */
+export async function initI18n(): Promise<void> {
+  await loadLanguage(get(currentLanguage));
+}
+
 function translate(
   lang: string,
   key: string,
   params?: Record<string, string | number>
 ): string {
   const translation = translations[lang]?.[key] || translations['en']?.[key] || key;
-  
+
   if (params) {
     return Object.entries(params).reduce(
       (str, [k, v]) => str.replace(new RegExp(`{{${k}}}`, 'g'), String(v)),
       translation
     );
   }
-  
+
   return translation;
 }
 
@@ -131,16 +142,17 @@ export function t(key: string, params?: Record<string, string | number>): string
   return translate(get(currentLanguage), key, params);
 }
 
-export const locale = derived(currentLanguage, ($lang) => {
+export const locale = derived([currentLanguage, revision], ([$lang]) => {
   return (key: string, params?: Record<string, string | number>): string => {
     return translate($lang, key, params);
   };
 });
 
 export function setLanguage(lang: string): void {
-  if (translations[lang]) {
-    currentLanguage.set(lang);
-  }
+  if (!supportedCodes.has(lang)) return;
+  void loadLanguage(lang).then((ok) => {
+    if (ok) currentLanguage.set(lang);
+  });
 }
 
 export function getLanguage(): string {

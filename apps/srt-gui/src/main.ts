@@ -48,6 +48,11 @@ try {
   // dinamico qui sotto garantisce che App e tutti i suoi store vengano
   // valutati solo dopo che la cache è stata idratata.
   await hydrateVestaConfig();
+  // Carica il dizionario della lingua iniziale (chunk on-demand) prima del
+  // mount, così il primo paint è già nella lingua giusta. L'import dinamico
+  // qui sotto valuta i18n DOPO l'idratazione della config (vedi sopra).
+  const { initI18n } = await import("$lib/i18n");
+  await initI18n();
   const { default: App } = await import("./App.svelte");
 
   const app = mount(App, {

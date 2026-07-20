@@ -22,5 +22,16 @@ export default defineConfig({
   },
   build: {
     target: "es2022",
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (!id.includes("node_modules")) return undefined;
+          // Big self-contained editor dependency: only CodeEditor.svelte uses it.
+          if (id.includes("codemirror") || id.includes("@lezer")) return "codemirror";
+          if (id.includes("@tauri-apps")) return "tauri";
+          return "vendor";
+        },
+      },
+    },
   },
 });
