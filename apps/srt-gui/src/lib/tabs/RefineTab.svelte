@@ -23,6 +23,7 @@
   import { getCurrentWebview } from "@tauri-apps/api/webview";
   import ConfirmDialog from "$lib/modals/ConfirmDialog.svelte";
   import CodeEditor from "$lib/components/CodeEditor.svelte";
+  import PathPickerField from "$lib/components/PathPickerField.svelte";
   import { aiStore } from "$lib/stores/aiStore.svelte";
   import { loadRefinementPrompt } from "$lib/config/refinementPrompt";
   import FooterActions from "$lib/components/FooterActions.svelte";
@@ -637,39 +638,15 @@
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
           <!-- Input File Field -->
-          <div>
-            <span class="block text-xs font-semibold text-gray-400 mb-1.5">
-              {$currentLanguage === 'it' ? "Mazzo Flashcard (.apkg / .tsv)" : "Flashcards Deck (.apkg / .tsv)"} <span class="text-rose-400">*</span>
-            </span>
-            <div class="flex gap-2">
-              <input
-                type="text"
-                readonly
-                value={filePath || ""}
-                placeholder={$currentLanguage === 'it' ? "Seleziona o trascina un file (.apkg / .tsv)" : "Select or drop a file (.apkg / .tsv)"}
-                class="input-modern flex-1 text-xs"
-                title={filePath || undefined}
-              />
-              <button
-                onclick={selectFile}
-                disabled={isLoading}
-                class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white disabled:opacity-50 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer shrink-0"
-              >
-                {#if isLoading}
-                  <svg class="animate-spin h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  {t('refine.dropzone.loading')}
-                {:else}
-                  <svg class="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-                  </svg>
-                  {t('refine.dropzone.browse')}
-                {/if}
-              </button>
-            </div>
-          </div>
+          <PathPickerField
+            label={$currentLanguage === 'it' ? "Mazzo Flashcard (.apkg / .tsv)" : "Flashcards Deck (.apkg / .tsv)"}
+            required
+            value={filePath || ""}
+            placeholder={$currentLanguage === 'it' ? "Seleziona o trascina un file (.apkg / .tsv)" : "Select or drop a file (.apkg / .tsv)"}
+            browseTitle={$currentLanguage === 'it' ? "Sfoglia file flashcard" : "Browse flashcard file"}
+            onbrowse={selectFile}
+            disabled={isLoading}
+          />
 
           <!-- Quick Deck Stats counters -->
           <div class="grid grid-cols-3 gap-3">
@@ -797,22 +774,7 @@
           </div>
 
           {#if mode === "manual"}
-            <!-- MANUAL MODE -->
-            {#if cards.length === 0}
-              <div class="py-16 flex flex-col items-center justify-center text-center my-auto">
-                <svg class="w-12 h-12 text-gray-600 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                </svg>
-                <p class="text-sm font-semibold text-gray-300">{t('refine.dropzone.title')}</p>
-                <p class="text-xs text-gray-500 mt-1 max-w-sm">{t('refine.dropzone.desc')}</p>
-                <button
-                  onclick={selectFile}
-                  class="mt-4 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold text-xs transition-colors cursor-pointer"
-                >
-                  {t('refine.dropzone.browse')}
-                </button>
-              </div>
-            {:else}
+            <!-- MANUAL MODE: always visible; fields stay empty until a deck is loaded -->
               <div class="flex flex-col gap-4 flex-1 min-h-0 pt-3">
                 <!-- Front / Back previews -->
                 <div class="grid grid-cols-2 gap-3 shrink-0">
@@ -899,7 +861,6 @@
                   </div>
                 </div>
               </div>
-            {/if}
           {:else}
             <!-- AUTOMATIC MODE -->
             <div class="flex flex-col gap-4 flex-1 min-h-0 overflow-y-auto scrollbar-thin pt-3">

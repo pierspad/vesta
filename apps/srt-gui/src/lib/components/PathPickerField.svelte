@@ -6,7 +6,8 @@
     value: string;
     placeholder: string;
     browseTitle: string;
-    onexpand: () => void;
+    /** Opens the full-path preview; when omitted the field is display-only. */
+    onexpand?: () => void;
     onbrowse: () => void;
     disabled?: boolean;
     onclear?: () => void;
@@ -21,7 +22,7 @@
     value,
     placeholder,
     browseTitle,
-    onexpand,
+    onexpand = undefined,
     onbrowse,
     disabled = false,
     onclear = undefined,
@@ -45,8 +46,10 @@
     <button
       type="button"
       onclick={onexpand}
-      {disabled}
-      class="input-modern flex-1 text-sm text-left cursor-pointer hover:bg-white/10 transition-colors truncate disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white/5"
+      disabled={disabled || !onexpand}
+      class="input-modern flex-1 text-sm text-left transition-colors truncate disabled:opacity-50 {onexpand
+        ? 'cursor-pointer hover:bg-white/10 disabled:cursor-not-allowed disabled:hover:bg-white/5'
+        : 'cursor-default disabled:opacity-100'}"
       style="direction: rtl; text-align: left;"
       title={value || placeholder}
     >
