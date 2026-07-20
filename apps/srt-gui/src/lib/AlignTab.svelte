@@ -62,22 +62,8 @@
     setItemsPerPageIndex((itemsPerPageIndex + 1) % ITEMS_PER_PAGE_OPTIONS.length);
   }
 
-  let error = $state("");
-  let success = $state("");
-
-  $effect(() => {
-    if (error) {
-      snackbar.show(error, "error", 4000);
-      error = "";
-    }
-  });
-
-  $effect(() => {
-    if (success) {
-      snackbar.show(success, "success", 3000);
-      success = "";
-    }
-  });
+  const showError = (msg: string) => snackbar.show(msg, "error", 4000);
+  const showSuccess = (msg: string) => snackbar.show(msg, "success", 3000);
 
   interface ActivityLogEntry {
     id: number;
@@ -457,10 +443,9 @@
       targetPath = path;
       normalizeAlignments();
       hasUnsavedChanges = false;
-      error = "";
       addActivityLog(`Target loaded: ${getFileName(path)} (${targetSubs.length} subtitles)`, 'success');
     } catch (e) {
-      error = `Error loading target: ${e}`;
+      showError(`Error loading target: ${e}`);
       addActivityLog(`Target load failed: ${e}`, 'error');
     }
   }
@@ -499,10 +484,9 @@
       normalizeAlignments();
       undoStack = []; // Reset undo on new file load
       hasUnsavedChanges = false;
-      error = "";
       addActivityLog(`Source loaded: ${getFileName(path)} (${sourceSubs.length} subtitles)`, 'success');
     } catch (e) {
-      error = `Error loading source: ${e}`;
+      showError(`Error loading source: ${e}`);
       addActivityLog(`Source load failed: ${e}`, 'error');
     }
   }
@@ -560,13 +544,12 @@
       if (savePath) {
         const content = serializeSrt(sourceSubs);
         await writeTextFile(savePath, content);
-        success = `File saved to ${savePath}`;
+        showSuccess(`File saved to ${savePath}`);
         hasUnsavedChanges = false;
         addActivityLog(`Aligned file saved: ${getFileName(savePath)}`, 'success');
-        setTimeout(() => success = "", 3000);
       }
     } catch (e) {
-      error = `Error saving file: ${e}`;
+      showError(`Error saving file: ${e}`);
       addActivityLog(`Save failed: ${e}`, 'error');
     }
   }

@@ -19,7 +19,6 @@
   let shortcuts = $state<ShortcutDefinition[]>([]);
   let editingShortcut = $state<string | null>(null);
   let recordingKey = $state(false);
-  let error = $state<string | null>(null);
   let showResetAllConfirm = $state(false);
   let selectedCategories = $state<string[]>([]);
   let searchQuery = $state<string>("");
@@ -261,11 +260,14 @@
         );
 
         if (conflict) {
-          error = t("shortcuts.conflict", {
-            key: newKey,
-            action: t(conflict.description),
-          });
-          setTimeout(() => (error = null), 3000);
+          snackbar.show(
+            t("shortcuts.conflict", {
+              key: newKey,
+              action: t(conflict.description),
+            }),
+            "error",
+            3000,
+          );
         } else {
           saveShortcutOverride(editingShortcut!, newKey);
           shortcuts = getShortcuts();
@@ -676,31 +678,6 @@
 
   <!-- Scrollable grid area for shortcut cards -->
   <div class="px-6 py-6 flex-1 overflow-y-auto min-h-0">
-    {#if error}
-      <div
-        class="mb-4 p-4 bg-red-500/10 border border-red-500/30 rounded-xl flex items-center gap-3 animate-fade-in"
-      >
-        <svg
-          class="w-5 h-5 text-red-400"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-          />
-        </svg>
-        <span class="text-red-300 flex-1">{error}</span>
-        <button
-          onclick={() => (error = null)}
-          class="text-red-400 hover:text-red-300">✕</button
-        >
-      </div>
-    {/if}
-
     <div class="grid gap-4 grid-cols-1 md:grid-cols-2 xl:grid-cols-3 content-start">
       {#each filteredShortcuts as shortcut}
         {@render shortcutRow(shortcut)}

@@ -1,8 +1,10 @@
 <script lang="ts">
+  import { SNACKBAR_DEFAULT_DURATION, type SnackbarVariant } from "./snackbarStore.svelte";
+
   interface Props {
     message: string;
     onclose: () => void;
-    variant?: "success" | "info" | "warning" | "error";
+    variant?: SnackbarVariant;
     bottomClass?: string;
     duration?: number;
     animationKey?: string | number;
@@ -13,7 +15,7 @@
     onclose,
     variant = "info",
     bottomClass = "bottom-4",
-    duration = 2500,
+    duration = SNACKBAR_DEFAULT_DURATION,
     animationKey = "",
   }: Props = $props();
 

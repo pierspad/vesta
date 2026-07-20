@@ -63,7 +63,6 @@
   let anchors = $state<AnchorInfo[]>([]);
   let currentVideoTime = $state(0);
   let isPlaying = $state(false);
-  let error = $state<string | null>(null);
   let audioSrc = $state<string | null>(null);
   let audioError = $state<string | null>(null);
   let hasAutoPaused = $state(false);
@@ -539,7 +538,7 @@
         void safePlayAudio("goToCheckpoint");
       }
     } catch (e) {
-      error = `Error loading subtitle: ${e}`;
+      showSnackbar(`Error loading subtitle: ${e}`, "error");
     } finally {
       isNavigating = false;
     }
@@ -585,7 +584,7 @@
         await tryAutoSelectMediaForSrt(selectedPath);
       }
     } catch (e) {
-      error = `${t("sync.errorLoadingSrt")} ${e}`;
+      showSnackbar(`${t("sync.errorLoadingSrt")} ${e}`, "error");
       addSyncLog(`SRT load failed: ${e}`, "error");
     }
   }
@@ -629,7 +628,7 @@
         addSyncLog(`Loaded media: ${getFileName(path)}`, "success");
       }
     } catch (e) {
-      error = `${t("sync.errorLoadingAudio")} ${e}`;
+      showSnackbar(`${t("sync.errorLoadingAudio")} ${e}`, "error");
       addSyncLog(`Media load failed: ${e}`, "error");
     }
   }
@@ -649,7 +648,7 @@
         subtitleListElement.scrollTop = 0;
       }
     } catch (e) {
-      error = `${t("sync.errorLoadingSrt")} ${e}`;
+      showSnackbar(`${t("sync.errorLoadingSrt")} ${e}`, "error");
     }
   }
 
@@ -678,7 +677,7 @@
     try {
       anchors = await invoke<AnchorInfo[]>("sync_get_anchors");
     } catch (e) {
-      error = `${t("sync.errorAddingAnchor")} ${e}`;
+      showSnackbar(`${t("sync.errorAddingAnchor")} ${e}`, "error");
     }
   }
 
@@ -730,7 +729,7 @@
         "success",
       );
     } catch (e) {
-      error = `${t("sync.errorAddingAnchor")} ${e}`;
+      showSnackbar(`${t("sync.errorAddingAnchor")} ${e}`, "error");
       syncDebug("confirmCurrentCheckpoint failed", { error: String(e) });
       addSyncLog(`Anchor confirm failed: ${e}`, "error");
     } finally {
@@ -746,7 +745,7 @@
       await loadAnchors();
       addSyncLog(`Removed anchor #${subtitleId}`, "warning");
     } catch (e) {
-      error = `${t("sync.errorRemovingAnchor")} ${e}`;
+      showSnackbar(`${t("sync.errorRemovingAnchor")} ${e}`, "error");
       addSyncLog(`Remove anchor failed: ${e}`, "error");
     }
   }
@@ -795,7 +794,7 @@
         addSyncLog(`Saved synced file: ${getFileName(selected)}`, "success");
       }
     } catch (e) {
-      error = `${t("sync.errorSaving")} ${e}`;
+      showSnackbar(`${t("sync.errorSaving")} ${e}`, "error");
       addSyncLog(`Save file failed: ${e}`, "error");
     }
   }
@@ -812,7 +811,7 @@
         addSyncLog(`Session saved: ${getFileName(selected)}`, "success");
       }
     } catch (e) {
-      error = `${t("sync.errorSaving")} ${e}`;
+      showSnackbar(`${t("sync.errorSaving")} ${e}`, "error");
       addSyncLog(`Save session failed: ${e}`, "error");
     }
   }
@@ -841,7 +840,7 @@
         }
       }
     } catch (e) {
-      error = `${t("sync.errorLoadingSrt")} ${e}`;
+      showSnackbar(`${t("sync.errorLoadingSrt")} ${e}`, "error");
       addSyncLog(`Load session failed: ${e}`, "error");
     }
   }
@@ -869,7 +868,7 @@
       }
       addSyncLog("Session reset", "warning");
     } catch (e) {
-      error = `${t("sync.errorSaving")} ${e}`;
+      showSnackbar(`${t("sync.errorSaving")} ${e}`, "error");
       addSyncLog(`Reset failed: ${e}`, "error");
     }
   }
@@ -928,7 +927,7 @@
           await advanceWizard();
           await tryAutoSelectMediaForSrt(filePath);
         } catch (e: any) {
-          error = `${t("sync.errorLoadingSrt")} ${e}`;
+          showSnackbar(`${t("sync.errorLoadingSrt")} ${e}`, "error");
           addSyncLog(`Dropped SRT failed: ${e}`, "error");
         }
       } else if (isMediaFile(fileName)) {
@@ -945,7 +944,7 @@
           });
           addSyncLog(`Dropped media: ${fileName}`, "success");
         } catch (e: any) {
-          error = `${t("sync.errorLoadingAudio")} ${e}`;
+          showSnackbar(`${t("sync.errorLoadingAudio")} ${e}`, "error");
           addSyncLog(`Dropped media failed: ${e}`, "error");
         }
       }
@@ -979,7 +978,7 @@
       seekToSubtitleStart(sub);
       scrollToSubtitle(sub.id);
     } catch (e) {
-      error = `Undo failed: ${e}`;
+      showSnackbar(`Undo failed: ${e}`, "error");
     }
   }
 
@@ -1528,42 +1527,6 @@
     </div>
   {/if}
 
-  {#if error}
-    <div
-      class="fixed bottom-4 right-4 glass-card bg-red-500/20 border border-red-500/30 text-white px-6 py-4 rounded-xl shadow-xl flex items-center gap-3 animate-fade-in"
-    >
-      <svg
-        class="w-5 h-5 text-red-400"
-        fill="none"
-        stroke="currentColor"
-        viewBox="0 0 24 24"
-        ><path
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          stroke-width="2"
-          d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-        /></svg
-      >
-      <span class="text-red-200">{error}</span>
-      <button
-        onclick={() => (error = null)}
-        class="text-red-400 hover:text-red-300 ml-2"
-        aria-label="Close"
-        ><svg
-          class="w-5 h-5"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-          ><path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M6 18L18 6M6 6l12 12"
-          /></svg
-        ></button
-      >
-    </div>
-  {/if}
 
 
 
