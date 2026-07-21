@@ -1,6 +1,6 @@
 [package]
 name = "srt-transcribe-cli"
-version = "0.17.0"
+version = "0.18.0"
 edition.workspace = true
 description = "Headless command-line front-end for the srt-transcribe pipeline (media → SRT via whisper.cpp or cloud providers)."
 authors = ["Pierpaolo Spadafora <pierpaolospadafora@proton.me>"]

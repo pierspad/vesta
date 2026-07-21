@@ -1,6 +1,6 @@
 [package]
 name = "srt-flashcards-cli"
-version = "0.17.0"
+version = "0.18.0"
 edition.workspace = true
 description = "Headless command-line front-end for the srt-flashcards engine (subs → Anki TSV/APKG)."
 authors = ["Pierpaolo Spadafora <pierpaolospadafora@proton.me>"]

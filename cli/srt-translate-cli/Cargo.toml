@@ -1,6 +1,6 @@
 [package]
 name = "srt-translate-cli"
-version = "0.17.0"
+version = "0.18.0"
 edition.workspace = true
 description = "CLI tool for translating SRT subtitle files using LLM APIs"
 authors = ["Your Name <your.email@example.com>"]
