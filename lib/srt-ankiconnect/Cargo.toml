@@ -1,6 +1,6 @@
 [package]
 name = "srt-ankiconnect"
-version = "0.16.0"
+version = "0.16.1"
 edition.workspace = true
 authors = ["Pierpaolo Spadafora <pierpaolospadafora@proton.me>"]
 description = "Minimal AnkiConnect client — ping, deck listing, APKG import and note pushing against a running Anki instance (localhost:8765)."
