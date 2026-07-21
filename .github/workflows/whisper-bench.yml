@@ -29,6 +29,9 @@ env:
   WHISPER_DONT_GENERATE_BINDINGS: "1"
   APP_DIR: apps/whisper-bench/src-tauri
 
+permissions:
+  contents: write
+
 jobs:
   build:
     name: ${{ matrix.name }}
@@ -134,13 +137,17 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y vulkan-sdk
 
+      # Serve l'SDK LunarG completo (incluso glslc): i soli header/loader
+      # non bastano a ggml-vulkan per compilare gli shader.
       - name: Install Vulkan SDK (Windows)
         if: steps.gate.outputs.skip != 'true' && matrix.gpu == 'vulkan' && runner.os == 'Windows'
-        uses: humbletim/setup-vulkan-sdk@v1.2.1
-        with:
-          vulkan-query-version: latest
-          vulkan-components: Vulkan-Headers, Vulkan-Loader, Glslang, SPIRV-Tools, SPIRV-Headers
-          vulkan-use-cache: true
+        shell: pwsh
+        run: |
+          Invoke-WebRequest -Uri "https://sdk.lunarg.com/sdk/download/latest/windows/vulkan_sdk.exe" -OutFile vulkan_sdk.exe
+          Start-Process -Wait -FilePath .\vulkan_sdk.exe -ArgumentList "--accept-licenses --default-answer --confirm-command install"
+          $sdk = Get-ChildItem "C:\VulkanSDK" -Directory | Sort-Object Name -Descending | Select-Object -First 1
+          "VULKAN_SDK=$($sdk.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          "$($sdk.FullName)\Bin" | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
 
       - name: Install CUDA toolkit
         if: steps.gate.outputs.skip != 'true' && matrix.gpu == 'cuda'
@@ -172,13 +179,65 @@ jobs:
             npx --yes @tauri-apps/cli@^2 build --bundles ${{ matrix.bundles }}
           fi
 
+      # I bundle escono con lo stesso nome per ogni variante (es.
+      # whisper-bench_0.1.0_amd64.AppImage sia per cpu che per vulkan):
+      # rinomina col suffisso della variante prima di pubblicarli.
+      - name: Rename bundles with variant suffix
+        if: steps.gate.outputs.skip != 'true'
+        shell: bash
+        run: |
+          mkdir -p dist-out
+          shopt -s nullglob
+          for f in target/release/bundle/appimage/*.AppImage \
+                   target/release/bundle/deb/*.deb \
+                   target/release/bundle/nsis/*.exe; do
+            base=$(basename "$f")
+            ext="${base##*.}"
+            stem="${base%.*}"
+            cp "$f" "dist-out/${stem}-${{ matrix.name }}.${ext}"
+          done
+          ls -la dist-out
+
       - name: Upload artifacts
         if: steps.gate.outputs.skip != 'true'
         uses: actions/upload-artifact@v4
         with:
           name: whisper-bench-${{ matrix.name }}
-          path: |
-            target/release/bundle/appimage/*.AppImage
-            target/release/bundle/deb/*.deb
-            target/release/bundle/nsis/*.exe
+          path: dist-out/*
           if-no-files-found: error
+
+  # ===========================================================
+  # Prerelease rolling "whisper-bench-latest": un solo URL pubblico,
+  # scaricabile dai tester senza account GitHub (a differenza degli
+  # artifact dei run). Ogni build sovrascrive gli asset omonimi.
+  # ===========================================================
+  publish:
+    name: Publish rolling prerelease
+    needs: build
+    # always(): i job GPU "experimental" possono fallire (continue-on-error),
+    # ma gli artifact delle varianti riuscite vanno pubblicati comunque.
+    if: always()
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Attach to whisper-bench-latest prerelease
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: whisper-bench-latest
+          name: "whisper-bench (rolling build)"
+          prerelease: true
+          body: |
+            Build automatiche della mini-app di benchmark Whisper (`apps/whisper-bench`).
+            Scarica il file per il tuo sistema, avvia, scegli un media, premi **Run benchmark**
+            e rimanda indietro il CSV finale.
+
+            - `*-linux-cpu` / `*-windows-cpu`: gira ovunque, solo CPU
+            - `*-linux-vulkan` / `*-windows-vulkan`: aggiunge le varianti GPU (AMD/NVIDIA/Intel)
+
+            Aggiornata ad ogni push che tocca l'app. Commit: ${{ github.sha }}
+          files: dist/*
