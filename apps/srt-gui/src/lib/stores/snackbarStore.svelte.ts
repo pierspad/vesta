@@ -36,3 +36,24 @@ class SnackbarStore {
 }
 
 export const snackbar = new SnackbarStore();
+
+/**
+ * Returns a `showSnackbar(message, variant?, duration?)` function bound to a
+ * given default duration.
+ *
+ * Several tabs/stores used to redeclare an identical one-line wrapper around
+ * `snackbar.show` purely to pick a different default duration (1300ms for
+ * quick confirmations, 3500ms for messages the user needs more time to
+ * read). This factory keeps that per-call-site flexibility without
+ * duplicating the wrapper body — call sites are unchanged, only the
+ * declaration collapses to one line:
+ *
+ * ```ts
+ * const showSnackbar = createSnackbarNotifier(1300);
+ * ```
+ */
+export function createSnackbarNotifier(defaultDuration: number = SNACKBAR_DEFAULT_DURATION) {
+  return (message: string, variant: SnackbarVariant = "info", duration: number = defaultDuration) => {
+    snackbar.show(message, variant, duration);
+  };
+}

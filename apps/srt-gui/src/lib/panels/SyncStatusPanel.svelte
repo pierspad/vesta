@@ -67,18 +67,18 @@
         </p>
         <p class="text-[10px] text-gray-500 uppercase tracking-wider mt-1 truncate">{t("sync.averageOffset")}</p>
       </div>
-      <div class="bg-white/5 rounded-xl py-2 px-1 text-center flex flex-col justify-center min-w-0" title={t("sync.confidenceHelp") || "Confidence based on anchors"}>
+      <div class="bg-white/5 rounded-xl py-2 px-1 text-center flex flex-col justify-center min-w-0" title={t("sync.confidenceHelp")}>
         <p class="text-xl font-bold text-indigo-300 truncate">
           {status?.is_loaded ? confidenceScore : 0}%
         </p>
-        <p class="text-[10px] text-gray-500 uppercase tracking-wider mt-1 truncate">{t("sync.confidence") || "Confidence"}</p>
+        <p class="text-[10px] text-gray-500 uppercase tracking-wider mt-1 truncate">{t("sync.confidence")}</p>
       </div>
     </div>
   </div>
 
   <div class="space-y-1.5 pt-1.5 border-t border-white/5 flex-shrink-0">
     <div class="flex justify-between text-[10px] text-gray-400 font-semibold">
-      <span class="uppercase tracking-wider">{t("sync.completed") || "Completato"}</span>
+      <span class="uppercase tracking-wider">{t("sync.completed")}</span>
       <span>{status?.is_loaded ? status.completion_percentage.toFixed(1) : "0.0"}%</span>
     </div>
     <div class="progress-modern h-1.5 w-full bg-white/5 rounded-full overflow-hidden">

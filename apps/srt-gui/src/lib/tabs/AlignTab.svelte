@@ -1,10 +1,10 @@
 <script lang="ts">
   import { invoke } from '@tauri-apps/api/core';
   import { listen } from '@tauri-apps/api/event';
-  import { getCurrentWebview } from '@tauri-apps/api/webview';
   import { writeTextFile } from '@tauri-apps/plugin-fs';
   import { onDestroy, onMount } from 'svelte';
   import { guardedOpen, guardedSave } from '$lib/utils/dialogGuard';
+  import { setupWebviewDragDrop } from '$lib/utils/dragDrop';
   import { locale } from '$lib/i18n';
   import { getFileName, inferLanguageFromPath, getFlagForPath } from '$lib/utils/models';
   import { languages } from '$lib/config/languages';
@@ -65,28 +65,6 @@
   const showError = (msg: string) => snackbar.show(msg, "error", 4000);
   const showSuccess = (msg: string) => snackbar.show(msg, "success", 3000);
 
-  interface ActivityLogEntry {
-    id: number;
-    timestamp: string;
-    message: string;
-    level: 'info' | 'success' | 'warning' | 'error';
-  }
-  let activityLogs = $state<ActivityLogEntry[]>([]);
-  let activityLogId = 0;
-
-  function addActivityLog(message: string, level: ActivityLogEntry['level'] = 'info') {
-    const timestamp = new Date().toLocaleTimeString([], {
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-    });
-    activityLogs = [...activityLogs, { id: ++activityLogId, timestamp, message, level }].slice(-80);
-  }
-
-  function clearActivityLogs() {
-    activityLogs = [];
-    activityLogId = 0;
-  }
 
   // Expanded path field
   let expandedPathField = $state<string | null>(null);
@@ -131,7 +109,6 @@
     try {
       const parsed = JSON.parse(snapshot) as Subtitle[];
       sourceSubs = parsed;
-      addActivityLog('Undo applied', 'warning');
     } catch {}
   }
 
@@ -282,30 +259,15 @@
   onMount(() => {
     window.addEventListener('keydown', handleKeydown);
 
-    let activeListener = true;
-    let unlistenDD: (() => void) | null = null;
-
-    getCurrentWebview().onDragDropEvent((event) => {
-      if (!active) return;
-      if (event.payload.type === "over") {
-        isDraggingOver = true;
-      } else if (event.payload.type === "drop") {
-        isDraggingOver = false;
-        if (event.payload.paths && event.payload.paths.length > 0) {
-          handleDroppedFiles(event.payload.paths);
-        }
-      } else if (event.payload.type === "leave") {
-        isDraggingOver = false;
-      }
-    }).then((fn) => {
-      if (!activeListener) fn();
-      else unlistenDD = fn;
-    }).catch(console.error);
+    const cleanupDragDrop = setupWebviewDragDrop({
+      isActive: () => active,
+      setDraggingOver: (v) => (isDraggingOver = v),
+      onDrop: handleDroppedFiles,
+    });
 
     return () => {
-      activeListener = false;
+      cleanupDragDrop();
       window.removeEventListener('keydown', handleKeydown);
-      if (unlistenDD) unlistenDD();
       if (undoDebounceTimer) clearTimeout(undoDebounceTimer);
     };
   });
@@ -443,10 +405,8 @@
       targetPath = path;
       normalizeAlignments();
       hasUnsavedChanges = false;
-      addActivityLog(`Target loaded: ${getFileName(path)} (${targetSubs.length} subtitles)`, 'success');
     } catch (e) {
       showError(`Error loading target: ${e}`);
-      addActivityLog(`Target load failed: ${e}`, 'error');
     }
   }
 
@@ -484,10 +444,8 @@
       normalizeAlignments();
       undoStack = []; // Reset undo on new file load
       hasUnsavedChanges = false;
-      addActivityLog(`Source loaded: ${getFileName(path)} (${sourceSubs.length} subtitles)`, 'success');
     } catch (e) {
       showError(`Error loading source: ${e}`);
-      addActivityLog(`Source load failed: ${e}`, 'error');
     }
   }
 
@@ -530,7 +488,6 @@
     sourceSubs = tempSubs;
     
     normalizeAlignments();
-    addActivityLog('Target and source swapped', 'info');
   }
 
   async function saveSource() {
@@ -546,11 +503,9 @@
         await writeTextFile(savePath, content);
         showSuccess(`File saved to ${savePath}`);
         hasUnsavedChanges = false;
-        addActivityLog(`Aligned file saved: ${getFileName(savePath)}`, 'success');
       }
     } catch (e) {
       showError(`Error saving file: ${e}`);
-      addActivityLog(`Save failed: ${e}`, 'error');
     }
   }
 
@@ -792,7 +747,7 @@
                     class="flex-1 w-full bg-transparent p-3 text-sm text-gray-300 resize-none min-h-[90px] focus:outline-none min-w-0 placeholder-gray-600/70"
                     readonly
                     value={item.target.text}
-                    placeholder={!isLoaded ? (t("align.waitingOriginal") || "In attesa del file originale...") : ""}
+                    placeholder={!isLoaded ? (t("align.waitingOriginal")) : ""}
                     onwheel={handleTextareaWheel}
                   ></textarea>
                 {:else}
@@ -837,7 +792,7 @@
                       class="flex-1 w-full bg-transparent p-3 text-[15px] leading-relaxed text-indigo-100/30 resize-none min-h-[90px] focus:outline-none placeholder-indigo-900/30 min-w-0 cursor-not-allowed"
                       disabled
                       value=""
-                      placeholder={t("align.waitingTranslation") || "In attesa del file di traduzione..."}
+                      placeholder={t("align.waitingTranslation")}
                     ></textarea>
                   </div>
                 {/if}

@@ -275,15 +275,15 @@
 {#snippet noKeysWarning()}
   {#if apiKeys.filter(isWhisperKey).length === 0}
     <div class="rounded-lg border border-amber-400/20 bg-amber-500/10 px-3 py-2.5 text-xs text-amber-100">
-      {t("tiers.noKeys") || "Nessuna API key configurata. Aggiungi prima una chiave sopra, quindi selezionala qui."}
+      {t("tiers.noKeys")}
     </div>
   {/if}
 {/snippet}
 
 <TierList
   {tiers}
-  emptyMessage={t("tiers.empty") || "Nessun tier. Aggiungi un tier per iniziare."}
-  priorityLabel={(i) => (i === 0 ? (t("tiers.highestPriority") || "priorità massima") : (t("tiers.fallback") || "fallback"))}
+  emptyMessage={t("tiers.empty")}
+  priorityLabel={(i) => (i === 0 ? (t("tiers.highestPriority")) : (t("tiers.fallback")))}
   moveUpLabel={t("tiers.moveUp")}
   moveDownLabel={t("tiers.moveDown")}
   removeTierLabel={t("tiers.removeTier")}
@@ -293,7 +293,7 @@
 >
   {#snippet tierBody(tier, tierIndex)}
               {#if tier.entries.length === 0}
-                <p class="text-xs text-gray-500 px-1 py-1">{t("tiers.tierEmpty") || "Tier vuoto — aggiungi almeno un endpoint."}</p>
+                <p class="text-xs text-gray-500 px-1 py-1">{t("tiers.tierEmpty")}</p>
               {/if}
 
               {#each tier.entries as entry, entryIndex (entry.id)}
@@ -311,7 +311,7 @@
                       onclick={() => removeEntry(tierIndex, entryIndex)}
                       class="px-2.5 py-1 rounded-lg text-xs text-red-400 bg-red-500/5 border border-red-500/10 hover:text-white hover:bg-red-500/20 hover:border-red-500/30 transition cursor-pointer font-semibold"
                     >
-                      {t("tiers.removeEntry") || "Rimuovi"}
+                      {t("tiers.removeEntry")}
                     </button>
                   </div>
 
@@ -320,21 +320,21 @@
                     <!-- API key -->
                     <div class="sm:col-span-5">
                       <span class="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">
-                        {(entry.provider === "local" || entry.provider === "local_whisper") ? (t("translate.provider") || "Provider") : (t("tiers.apiKey") || "API Key")}
+                        {(entry.provider === "local" || entry.provider === "local_whisper") ? (t("translate.provider")) : (t("tiers.apiKey"))}
                       </span>
                       <SearchableSelect
                         options={apiKeys.filter(isWhisperKey).length === 0
-                          ? [{ value: "", label: t("tiers.noKeysOption") || "Nessuna key" }]
+                          ? [{ value: "", label: t("tiers.noKeysOption") }]
                           : apiKeys.filter(isWhisperKey).map((key) => ({ value: key.id, label: keyLabel(key), provider: key.apiType }))}
                         value={entry.apiKeyId}
                         onchange={(val) => onKeyChange(tierIndex, entryIndex, val)}
-                        placeholder={t("tiers.noKeysOption") || "Nessuna key"}
+                        placeholder={t("tiers.noKeysOption")}
                       />
                     </div>
 
                     <!-- Model -->
                     <div class="sm:col-span-7">
-                      <span class="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">{t("tiers.model") || "Modello"}</span>
+                      <span class="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">{t("tiers.model")}</span>
                       <div class="flex items-center gap-2">
                         <div class="flex-1 min-w-0">
                           <SearchableSelect
@@ -353,7 +353,7 @@
                                   icon: isLocal ? (isDownloaded ? readyIcon : notDownloadedIcon) : ""
                                 };
                               }),
-                              ...((entry.provider === "local" || entry.provider === "local_whisper") ? [] : [{ value: "__custom__", label: t("tiers.customModel") || "Modello personalizzato..." }])
+                              ...((entry.provider === "local" || entry.provider === "local_whisper") ? [] : [{ value: "__custom__", label: t("tiers.customModel") }])
                             ]}
                             value={isCustomModel(entry) ? "__custom__" : entry.model}
                             onchange={(v) => {
@@ -365,7 +365,7 @@
                                 onModelChange(tierIndex, entryIndex, v);
                               }
                             }}
-                            placeholder={t("tiers.model") || "Modello"}
+                            placeholder={t("tiers.model")}
                           />
                         </div>
 
@@ -383,7 +383,7 @@
                                   ? 'bg-white/5 border border-white/10 text-gray-500 cursor-not-allowed'
                                   : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-500/20'}"
                             >
-                              {t("settings.download") || "Scarica"}
+                              {t("settings.download")}
                             </button>
 
                             <!-- Uninstall button -->
@@ -396,7 +396,7 @@
                                   ? 'bg-white/5 border border-white/10 text-gray-500 cursor-not-allowed'
                                   : 'bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20 hover:border-red-500/30'}"
                             >
-                              {t("settings.uninstall") || "Disinstalla"}
+                              {t("settings.uninstall")}
                             </button>
                           </div>
                         {/if}
@@ -409,7 +409,7 @@
                       type="text"
                       value={entry.model}
                       oninput={(e) => onModelChange(tierIndex, entryIndex, (e.currentTarget as HTMLInputElement).value)}
-                      placeholder={t("tiers.customModelPlaceholder") || "exact model id"}
+                      placeholder={t("tiers.customModelPlaceholder")}
                       class="input-modern w-full text-xs font-mono mt-1"
                     />
                   {/if}
@@ -432,7 +432,7 @@
                   onclick={() => addEntry(tierIndex)}
                   class="inline-flex items-center gap-1.5 py-1.5 px-3 rounded-lg border border-indigo-500/20 text-xs font-semibold text-indigo-400 hover:text-indigo-300 hover:bg-indigo-500/10 hover:border-indigo-500/40 transition cursor-pointer"
                 >
-                  + {t("tiers.addEntry") || "Aggiungi endpoint"}
+                  + {t("tiers.addEntry")}
                 </button>
               </div>
   {/snippet}

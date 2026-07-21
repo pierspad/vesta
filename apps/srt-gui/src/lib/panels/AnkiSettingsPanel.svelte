@@ -238,7 +238,7 @@
           <svg class="h-3.5 w-3.5 text-emerald-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v4H4V5zm0 8h8v7H5a1 1 0 01-1-1v-6zm12 0h4v6a1 1 0 01-1 1h-3v-7z" />
           </svg>
-          <span>{t("settings.noteType") || "Note type"}</span>
+          <span>{t("settings.noteType")}</span>
         </label>
         <input
           id="note-type-name-inline"

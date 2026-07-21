@@ -81,7 +81,7 @@
         class="btn-secondary py-1 px-2.5 text-xs flex items-center gap-1 disabled:opacity-30"
       >
         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
-        {t("sync.pagination.prev") || "Prev"}
+        {t("sync.pagination.prev")}
       </button>
       <span class="text-xs text-gray-400">{t("sync.pageSlash", { current: currentPage, total: totalPages })}</span>
       <button
@@ -89,7 +89,7 @@
         disabled={currentPage >= totalPages}
         class="btn-secondary py-1 px-2.5 text-xs flex items-center gap-1 disabled:opacity-30"
       >
-        {t("sync.pagination.next") || "Next"}
+        {t("sync.pagination.next")}
         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
       </button>
     </div>

@@ -1,8 +1,10 @@
 <script lang="ts">
   import LogPanel, { type LogEntry } from "$lib/panels/LogPanel.svelte";
+  import CopyPathChip from "$lib/components/CopyPathChip.svelte";
   import { listen } from "@tauri-apps/api/event";
-  import { getCurrentWebview } from "@tauri-apps/api/webview";
   import { guardedOpen, guardedSave } from "$lib/utils/dialogGuard";
+  import { setupWebviewDragDrop } from "$lib/utils/dragDrop";
+  import { createLogPanelBuffer } from "$lib/utils/logPanelBuffer.svelte";
   import { onDestroy, onMount } from "svelte";
   import { locale } from "$lib/i18n";
   import { getFileName } from "$lib/utils/models";
@@ -26,7 +28,7 @@
   import PathPickerField from "$lib/components/PathPickerField.svelte";
   import PathPreviewModal from "$lib/modals/PathPreviewModal.svelte";
   import SearchableSelect from "$lib/components/SearchableSelect.svelte";
-  import { snackbar } from "$lib/stores/snackbarStore.svelte";
+  import { createSnackbarNotifier } from "$lib/stores/snackbarStore.svelte";
   import { uiMode } from "$lib/stores/uiModeStore.svelte";
   import ConfirmDialog from "$lib/modals/ConfirmDialog.svelte";
   import { aiStore } from "$lib/stores/aiStore.svelte";
@@ -155,12 +157,9 @@
     detected_language?: string;
   } | null>(null);
 
-  function showSnackbar(message: string, variant: "success" | "info" | "warning" | "error" = "info", duration = 3500) {
-    snackbar.show(message, variant, duration);
-  }
+  const showSnackbar = createSnackbarNotifier(3500);
 
-  let logIdCounter = 0;
-  let logs = $state<LogEntry[]>([]);
+  const logBuffer = createLogPanelBuffer();
 
   let expandedPathField = $state<string | null>(null);
 
@@ -376,25 +375,14 @@
 
     let activeListener = true;
     let unlisten: (() => void) | null = null;
-    let unlistenDD: (() => void) | null = null;
     let unlistenSegment: (() => void) | null = null;
 
-    getCurrentWebview().onDragDropEvent((event) => {
-      if (!active) return;
-      if (event.payload.type === "over") {
-        isDraggingOver = true;
-      } else if (event.payload.type === "drop") {
-        isDraggingOver = false;
-        if (event.payload.paths && event.payload.paths.length > 0) {
-          handleDroppedFiles(event.payload.paths);
-        }
-      } else if (event.payload.type === "leave") {
-        isDraggingOver = false;
-      }
-    }).then((fn) => {
-      if (!activeListener) fn();
-      else unlistenDD = fn;
-    }).catch(console.error);
+    const cleanupDragDrop = setupWebviewDragDrop({
+      isActive: () => active,
+      setDraggingOver: (v) => (isDraggingOver = v),
+      onDrop: handleDroppedFiles,
+      onError: console.error,
+    });
 
     listen<{
       stage: string;
@@ -442,7 +430,7 @@
       window.removeEventListener("vesta-ffmpeg-updated", refreshBackends);
       window.removeEventListener("vesta-vad-updated", refreshAddons);
       if (unlisten) unlisten();
-      if (unlistenDD) unlistenDD();
+      cleanupDragDrop();
       if (unlistenSegment) unlistenSegment();
     };
   });
@@ -495,17 +483,11 @@
   }
 
   function addLog(message: string, type: LogEntry["type"] = "info") {
-    const timestamp = new Date().toLocaleTimeString([], {
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-    });
-    logs = [...logs, { id: ++logIdCounter, timestamp, message, type }];
+    logBuffer.addLog(message, type);
   }
 
   function clearLogs() {
-    logs = [];
-    logIdCounter = 0;
+    logBuffer.clearLogs();
   }
 
 
@@ -908,7 +890,7 @@
       >
         {#if isDownloadingFFmpeg}
           <svg class="animate-spin w-3.5 h-3.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-          {t("flashcards.downloading") || "Downloading..."}
+          {t("flashcards.downloading")}
         {:else}
           <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
           {t("flashcards.downloadAuto")}
@@ -1347,7 +1329,7 @@
         title={t("transcribe.log")}
         clearLogText={t("transcribe.clearLog")}
         noLogText={t("translate.noLog")}
-        {logs}
+        logs={logBuffer.logs}
         onclear={clearLogs}
         minHeight="170px"
         maxHeightContent="100%"
@@ -1359,7 +1341,7 @@
     <div class="glass-card p-5 space-y-4">
       <div class="flex items-center justify-between">
         <span class="text-[10px] font-bold text-gray-500 uppercase tracking-wide">{t("transcribe.livePhrases")}</span>
-        <span class="text-[10px] text-indigo-400 font-semibold">{transcribedSegments.length} {t("transcribe.segments") || "segments"}</span>
+        <span class="text-[10px] text-indigo-400 font-semibold">{transcribedSegments.length} {t("transcribe.segments")}</span>
       </div>
       
       {#if transcribedSegments.length === 0}
@@ -1417,9 +1399,9 @@
         <div class="flex items-center gap-3">
           <div class="w-5 h-5 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin"></div>
           <div class="flex flex-col">
-            <span class="text-[10px] text-cyan-400 font-bold uppercase tracking-wider">{t("transcribe.transcribing") || "Trascrizione..."}</span>
+            <span class="text-[10px] text-cyan-400 font-bold uppercase tracking-wider">{t("transcribe.transcribing")}</span>
             <span class="text-xs text-white font-medium truncate max-w-lg">
-              {progressMessage || t("transcribe.running") || "Elaborazione in corso"} ({progress}%)
+              {progressMessage || t("transcribe.running")} ({progress}%)
             </span>
           </div>
         </div>
@@ -1433,25 +1415,13 @@
               </svg>
             </div>
             <div class="flex flex-col">
-              <span class="text-[10px] text-emerald-400 font-bold uppercase tracking-wider">{t("transcribe.finished") || "Completato"}</span>
+              <span class="text-[10px] text-emerald-400 font-bold uppercase tracking-wider">{t("transcribe.finished")}</span>
               {#if result.output_path}
-                <!-- svelte-ignore a11y_click_events_have_key_events -->
-                <!-- svelte-ignore a11y_no_static_element_interactions -->
-                <div 
-                  onclick={() => {
-                    if (result?.output_path) {
-                      navigator.clipboard.writeText(result.output_path);
-                      showSnackbar(t("common.pathCopied"), 'success');
-                    }
-                  }}
-                  class="flex items-center gap-1.5 text-xs text-gray-400 mt-0.5 cursor-pointer hover:text-white transition-colors bg-white/5 hover:bg-white/10 px-2 py-0.5 rounded border border-white/5 select-all"
-                  title={t("common.clickToCopyPath")}
-                >
-                  <span class="truncate max-w-sm">📁 {getFileName(result.output_path)}</span>
-                  <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
-                  </svg>
-                </div>
+                <CopyPathChip
+                  path={result.output_path}
+                  copiedMessage={t("common.pathCopied")}
+                  tooltip={t("common.clickToCopyPath")}
+                />
               {:else}
                 <span class="text-xs text-white font-medium">{result.message}</span>
               {/if}
@@ -1464,7 +1434,7 @@
               </svg>
             </div>
             <div class="flex flex-col">
-              <span class="text-[10px] text-red-400 font-bold uppercase tracking-wider">{t("transcribe.error") || "Errore"}</span>
+              <span class="text-[10px] text-red-400 font-bold uppercase tracking-wider">{t("transcribe.error")}</span>
               <span class="text-xs text-red-300 font-medium truncate max-w-lg">{result.message}</span>
             </div>
           {/if}
@@ -1478,7 +1448,7 @@
             </svg>
           </div>
           <div class="flex flex-col">
-            <span class="text-[10px] text-red-400 font-bold uppercase tracking-wider">{t("transcribe.error") || "Errore"}</span>
+            <span class="text-[10px] text-red-400 font-bold uppercase tracking-wider">{t("transcribe.error")}</span>
             <span class="text-xs text-red-300 font-medium truncate max-w-lg">{error}</span>
           </div>
         </div>

@@ -375,7 +375,7 @@
         >
           <div class="flex items-center gap-1">
             <kbd class="px-2 py-1 bg-white/10 rounded text-gray-400"
-              >{t("keys.space") || "Space"}</kbd
+              >{t("keys.space")}</kbd
             ><span>{t("sync.playPause")}</span>
           </div>
           <div class="flex items-center gap-1">
@@ -395,7 +395,7 @@
           </div>
           <div class="flex items-center gap-1">
             <kbd class="px-2 py-1 bg-white/10 rounded text-gray-400"
-              >{t("keys.enter") || "Enter"}</kbd
+              >{t("keys.enter")}</kbd
             ><span>{t("sync.confirm")}</span>
           </div>
         </div>

@@ -1,7 +1,8 @@
 <script lang="ts">
   import { listen } from "@tauri-apps/api/event";
-  import { getCurrentWebview } from "@tauri-apps/api/webview";
   import { guardedOpen, guardedSave } from "$lib/utils/dialogGuard";
+  import { setupWebviewDragDrop } from "$lib/utils/dragDrop";
+  import { createLogPanelBuffer } from "$lib/utils/logPanelBuffer.svelte";
   import { fetch as tauriFetch } from "$lib/services/tauriHttp";
   import { onDestroy, onMount } from "svelte";
   import { locale } from "$lib/i18n";
@@ -22,6 +23,7 @@
   import { snackbar } from "$lib/stores/snackbarStore.svelte";
   import { aiStore } from "$lib/stores/aiStore.svelte";
   import FooterActions from "$lib/components/FooterActions.svelte";
+  import CopyPathChip from "$lib/components/CopyPathChip.svelte";
   import { uiMode } from "$lib/stores/uiModeStore.svelte";
   import {
     extractModelsFromPayload,
@@ -31,6 +33,7 @@
   import {
     buildTiersPayload as buildTiersPayloadShared,
     checkTiersAvailability as checkTiersAvailabilityShared,
+    tiersUnavailableMessage as tiersUnavailableMessageShared,
     type TierEntryPayload,
     type TiersUnavailableReason,
   } from "$lib/config/llmTiers";
@@ -248,8 +251,7 @@
     aiStore.isTranslating = isTranslating;
   });
   let progress = $state<TranslateProgressEvent | null>(null);
-  let logs = $state<LogEntry[]>([]);
-  let logIdCounter = 0;
+  const logBuffer = createLogPanelBuffer();
   let error = $state<string | null>(null);
   let result = $state<TranslateResult | null>(null);
   let expandedPathField = $state<string | null>(null);
@@ -277,23 +279,12 @@
   }
 
   function tiersUnavailableMessage(reason: TiersUnavailableReason): string {
-    switch (reason) {
-      case "noneConfigured":
-        return t("tiers.noneConfigured") || "No tiers configured";
-      case "localOffline":
-        return t("settings.llmConfigIncompleteDescLocalOffline") || "The local LLM server is offline. Please start Ollama/LM Studio or verify the endpoint URL.";
-      case "keyMissing":
-        return t("settings.llmConfigIncompleteDescKey") || "Missing API key";
-      case "incomplete":
-        return t("settings.llmConfigIncompleteDescCustomEmpty") || "LLM configuration incomplete";
-      default:
-        return t("translate.errorTranslating") || "No available LLM found in tiers. Check your settings.";
-    }
+    return tiersUnavailableMessageShared(reason, "translate.errorTranslating");
   }
 
   async function checkTiersAvailability(): Promise<{ available: boolean; errorMsg?: string }> {
     if (!useTiers) {
-      return { available: false, errorMsg: t("tiers.noneConfigured") || "No tiers configured" };
+      return { available: false, errorMsg: t("tiers.noneConfigured") };
     }
     const check = await checkTiersAvailabilityShared(tiers, apiKeys);
     if (check.available) return { available: true };
@@ -640,22 +631,13 @@
     window.addEventListener(TIERS_UPDATED_EVENT, refreshTiers);
 
     let activeListener = true;
-    let unlistenDD: (() => void) | null = null;
     let unlistenProg: (() => void) | null = null;
     let unlistenComp: (() => void) | null = null;
 
-    getCurrentWebview().onDragDropEvent((event) => {
-      if (!active) return;
-      if (event.payload.type === "over") isDraggingOver = true;
-      else if (event.payload.type === "drop") {
-        isDraggingOver = false;
-        if (event.payload.paths) handleFileDrop(event.payload.paths);
-      } else if (event.payload.type === "leave") isDraggingOver = false;
-    }).then((fn) => {
-      if (!activeListener) fn();
-      else unlistenDD = fn;
-    }).catch((e) => {
-      console.warn("Failed to set up drag-drop listener:", e);
+    const cleanupDragDrop = setupWebviewDragDrop({
+      isActive: () => active,
+      setDraggingOver: (v) => (isDraggingOver = v),
+      onDrop: handleFileDrop,
     });
 
     listen<TranslateProgressEvent>(
@@ -695,7 +677,7 @@
       window.removeEventListener("apikeys-updated", loadApiKeys);
       window.removeEventListener("vesta-llm-default-updated", loadDefaultLlmSettings);
       window.removeEventListener(TIERS_UPDATED_EVENT, refreshTiers);
-      if (unlistenDD) unlistenDD();
+      cleanupDragDrop();
       if (unlistenProg) unlistenProg();
       if (unlistenComp) unlistenComp();
       stopPreviewRefresh();
@@ -735,8 +717,7 @@
   }
 
   function addLog(message: string, type: LogEntry["type"] = "info") {
-    const timestamp = new Date().toLocaleTimeString();
-    logs = [...logs, { id: logIdCounter++, timestamp, message, type }];
+    logBuffer.addLog(message, type);
   }
 
   async function selectInputFile() {
@@ -938,7 +919,7 @@
     result = null;
     error = null;
     progress = null;
-    logs = [];
+    logBuffer.clearLogs();
     translatedPairs = [];
     inputPath = "";
     outputPath = "";
@@ -962,7 +943,7 @@
   }
 
   function clearLogs() {
-    logs = [];
+    logBuffer.clearLogs();
   }
 
   function handleGoToSettings(section: "overview" | "llm" | "whisper" | "language" | "anki" = "llm") {
@@ -1574,7 +1555,7 @@
         title={t("translate.logs")}
         clearLogText={t("translate.clearLog")}
         noLogText={t("translate.noLog")}
-        {logs}
+        logs={logBuffer.logs}
         onclear={clearLogs}
         minHeight="190px"
         maxHeightContent="16rem"
@@ -1636,23 +1617,11 @@
             <div class="flex flex-col">
               <span class="text-[10px] text-emerald-400 font-bold uppercase tracking-wider">{t("translate.finished")}</span>
               {#if result.output_path}
-                <!-- svelte-ignore a11y_click_events_have_key_events -->
-                <!-- svelte-ignore a11y_no_static_element_interactions -->
-                <div 
-                  onclick={() => {
-                    if (result?.output_path) {
-                      navigator.clipboard.writeText(result.output_path);
-                      snackbar.show(t("common.pathCopied"), 'success');
-                    }
-                  }}
-                  class="flex items-center gap-1.5 text-xs text-gray-400 mt-0.5 cursor-pointer hover:text-white transition-colors bg-white/5 hover:bg-white/10 px-2 py-0.5 rounded border border-white/5 select-all"
-                  title={t("common.clickToCopyPath")}
-                >
-                  <span class="truncate max-w-sm">📁 {getFileName(result.output_path)}</span>
-                  <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
-                  </svg>
-                </div>
+                <CopyPathChip
+                  path={result.output_path}
+                  copiedMessage={t("common.pathCopied")}
+                  tooltip={t("common.clickToCopyPath")}
+                />
               {:else}
                 <span class="text-xs text-white font-medium">{result.message}</span>
               {/if}

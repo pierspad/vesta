@@ -384,7 +384,7 @@
                       {#if entry.provider === "local" && localOffline}
                         <span class="flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20 text-[9px] font-bold capitalize">
                           <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
-                          {t("settings.endpointStatus.offline") || "offline"}
+                          {t("settings.endpointStatus.offline")}
                         </span>
                       {/if}
                     </div>
@@ -402,7 +402,7 @@
                     <!-- API key -->
                     <div>
                       <span class="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">
-                        {entry.provider === "local" ? (t("translate.provider") || "Provider") : (t("tiers.apiKey") || "API Key")}
+                        {entry.provider === "local" ? (t("translate.provider")) : (t("tiers.apiKey"))}
                       </span>
                       <SearchableSelect
                         options={apiKeys.filter((k) => LLM_PROVIDERS.includes(k.apiType)).length === 0

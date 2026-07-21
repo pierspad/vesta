@@ -1,8 +1,8 @@
 <script lang="ts">
   import { invoke } from "@tauri-apps/api/core";
   import { listen } from "@tauri-apps/api/event";
-  import { getCurrentWebview } from "@tauri-apps/api/webview";
   import { guardedOpen } from "$lib/utils/dialogGuard";
+  import { setupWebviewDragDrop } from "$lib/utils/dragDrop";
   import { onDestroy, onMount } from "svelte";
   import { locale } from "$lib/i18n";
   import { getFileName, inferLanguageFromPath } from "$lib/utils/models";
@@ -38,7 +38,7 @@
   import SearchableSelect from "$lib/components/SearchableSelect.svelte";
   import LogPanel from "$lib/panels/LogPanel.svelte";
   import CodeEditor from "$lib/components/CodeEditor.svelte";
-  import { snackbar } from "$lib/stores/snackbarStore.svelte";
+  import { snackbar, createSnackbarNotifier } from "$lib/stores/snackbarStore.svelte";
   import { smartMatchingStore } from "$lib/stores/smartMatchingStore.svelte";
   import { uiMode } from "$lib/stores/uiModeStore.svelte";
   import { ankiStore } from "$lib/stores/ankiStore.svelte";
@@ -178,9 +178,7 @@
   let editingEpisodeIndex = $state<number | null>(null);
   let editingEpisode = $state<EpisodeEntry | null>(null);
   let initialEditingEpisodeStr = $state("");
-  function showSnackbar(message: string, variant: "success" | "info" | "warning" | "error" = "info") {
-    snackbar.show(message, variant, 1300);
-  }
+  const showSnackbar = createSnackbarNotifier(1300);
 
   function loadDefaultLanguage(key: string, fallback = ""): string {
     try {
@@ -992,28 +990,14 @@
 
   $effect(() => {
     if (active) {
-      let unlistenDragDropLocal: (() => void) | null = null;
-      getCurrentWebview().onDragDropEvent((event) => {
-        if (event.payload.type === "over") {
-          isDraggingOver = true;
-        } else if (event.payload.type === "drop") {
-          isDraggingOver = false;
-          if (event.payload.paths && event.payload.paths.length > 0) {
-            handleFileDrop(event.payload.paths);
-          }
-        } else if (event.payload.type === "leave") {
-          isDraggingOver = false;
-        }
-      }).then((fn) => {
-        unlistenDragDropLocal = fn;
-      }).catch((e) => {
-        console.warn("Failed to set up drag-drop listener in FlashcardsTab:", e);
+      const cleanupDragDrop = setupWebviewDragDrop({
+        setDraggingOver: (v) => (isDraggingOver = v),
+        onDrop: handleFileDrop,
+        onError: (e) => console.warn("Failed to set up drag-drop listener in FlashcardsTab:", e),
       });
 
       return () => {
-        if (unlistenDragDropLocal) {
-          unlistenDragDropLocal();
-        }
+        cleanupDragDrop();
       };
     }
   });
@@ -2229,7 +2213,7 @@
       >
         {#if isDownloadingFFmpeg}
           <svg class="animate-spin w-3.5 h-3.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-          {t("flashcards.downloading") || "Downloading..."}
+          {t("flashcards.downloading")}
         {:else}
           <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
           {t("flashcards.downloadAuto")}

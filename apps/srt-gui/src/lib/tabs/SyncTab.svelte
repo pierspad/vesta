@@ -1,10 +1,10 @@
 <script lang="ts">
   import { invoke } from "@tauri-apps/api/core";
-  import { getCurrentWebview } from "@tauri-apps/api/webview";
   import { guardedOpen, guardedSave } from "$lib/utils/dialogGuard";
+  import { setupWebviewDragDrop } from "$lib/utils/dragDrop";
   import PathPreviewModal from "$lib/modals/PathPreviewModal.svelte";
   import ConfirmDialog from "$lib/modals/ConfirmDialog.svelte";
-  import { snackbar } from "$lib/stores/snackbarStore.svelte";
+  import { createSnackbarNotifier } from "$lib/stores/snackbarStore.svelte";
   import { onMount } from "svelte";
   import { locale } from "$lib/i18n";
   import { getFileName } from "$lib/utils/models";
@@ -121,36 +121,7 @@
 
   let expandedPathField = $state<"srt" | "media" | null>(null);
 
-  interface SyncLogEntry {
-    id: number;
-    timestamp: string;
-    message: string;
-    level: "info" | "success" | "warning" | "error";
-  }
-  let syncLogId = 0;
-  let syncLogs = $state<SyncLogEntry[]>([]);
-
   let manualAnchors = $derived(anchors.filter((a) => a.is_manual));
-
-  function addSyncLog(
-    message: string,
-    level: SyncLogEntry["level"] = "info",
-  ) {
-    const timestamp = new Date().toLocaleTimeString([], {
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-    });
-    syncLogs = [
-      ...syncLogs,
-      { id: ++syncLogId, timestamp, message, level },
-    ].slice(-80);
-  }
-
-  function clearSyncLogs() {
-    syncLogs = [];
-    syncLogId = 0;
-  }
 
   // ─── Auto-Sync with Whisper ────────────────────────────
   async function cancelAutoSync() {
@@ -208,7 +179,6 @@
     autoSyncStore.activeMode = quick ? "quick" : "precise";
     autoSyncStore.progress = 0;
     autoSyncStore.message = t("sync.autoSyncInProgress");
-    addSyncLog(`Auto-sync started with model: ${modelId} (mode: ${quick ? 'quick' : 'precise'})`, "info");
 
     // Listen for progress events
     const { listen } = await import("@tauri-apps/api/event");
@@ -235,7 +205,7 @@
       await loadAnchors();
 
       let summaryMessage = "";
-      let summaryLevel: SyncLogEntry["level"] = "warning";
+      let summaryLevel: "success" | "info" | "warning" | "error" = "warning";
 
       if (result.cancelled) {
         summaryMessage = t("sync.autoSyncResult.cancelled");
@@ -249,11 +219,9 @@
       }
 
       showSnackbar(summaryMessage, summaryLevel);
-      addSyncLog(summaryMessage, summaryLevel);
     } catch (e) {
       const msg = `Auto-sync failed: ${e}`;
       showSnackbar(msg, "error");
-      addSyncLog(msg, "error");
     } finally {
       autoSyncStore.isAutoSyncing = false;
       autoSyncStore.activeMode = null;
@@ -287,10 +255,8 @@
       audioSrc = await loadMediaFile(suggestedPath);
       status = await invoke<SyncStatus>("sync_set_video", { path: suggestedPath });
       showSnackbar(`Auto-selected media: ${getFileName(suggestedPath)}`, "success");
-      addSyncLog(`Auto-selected media: ${getFileName(suggestedPath)}`, "success");
     } catch (e) {
       syncDebug("auto-media-suggestion-failed", { error: String(e) });
-      addSyncLog("Auto media match not found", "warning");
     }
   }
 
@@ -416,9 +382,7 @@
     return `${sign}${(ms / 1000).toFixed(2)}s`;
   }
 
-  function showSnackbar(message: string, variant: "success" | "info" | "warning" | "error" = "info") {
-    snackbar.show(message, variant, 3500);
-  }
+  const showSnackbar = createSnackbarNotifier(3500);
 
   const OFFSET_TOLERANCE_MS = 200;
 
@@ -568,7 +532,6 @@
         status = await invoke<SyncStatus>("sync_load_srt", {
           path: selectedPath,
         });
-        addSyncLog(`Loaded SRT: ${getFileName(selectedPath)}`, "success");
         await loadSubtitles();
         await loadAnchors();
         wizardHistory = [];
@@ -585,7 +548,6 @@
       }
     } catch (e) {
       showSnackbar(`${t("sync.errorLoadingSrt")} ${e}`, "error");
-      addSyncLog(`SRT load failed: ${e}`, "error");
     }
   }
 
@@ -625,11 +587,9 @@
         cleanupAudioSrc();
         audioSrc = await loadMediaFile(path);
         status = await invoke<SyncStatus>("sync_set_video", { path });
-        addSyncLog(`Loaded media: ${getFileName(path)}`, "success");
       }
     } catch (e) {
       showSnackbar(`${t("sync.errorLoadingAudio")} ${e}`, "error");
-      addSyncLog(`Media load failed: ${e}`, "error");
     }
   }
 
@@ -724,14 +684,9 @@
       syncDebug("confirmCurrentCheckpoint completed", {
         subtitleId: updated.id,
       });
-      addSyncLog(
-        `Anchor confirmed on #${updated.id} (${formatOffset(updated.offset_ms)})`,
-        "success",
-      );
     } catch (e) {
       showSnackbar(`${t("sync.errorAddingAnchor")} ${e}`, "error");
       syncDebug("confirmCurrentCheckpoint failed", { error: String(e) });
-      addSyncLog(`Anchor confirm failed: ${e}`, "error");
     } finally {
       isConfirmingCheckpoint = false;
     }
@@ -743,10 +698,8 @@
       status = await invoke<SyncStatus>("sync_remove_anchor", { subtitleId });
       await refreshCurrentSubtitles();
       await loadAnchors();
-      addSyncLog(`Removed anchor #${subtitleId}`, "warning");
     } catch (e) {
       showSnackbar(`${t("sync.errorRemovingAnchor")} ${e}`, "error");
-      addSyncLog(`Remove anchor failed: ${e}`, "error");
     }
   }
 
@@ -791,11 +744,9 @@
       if (selected) {
         await invoke<string>("sync_save_file", { outputPath: selected });
         showSnackbar(`${t("sync.fileSaved")} ${selected}`, "success");
-        addSyncLog(`Saved synced file: ${getFileName(selected)}`, "success");
       }
     } catch (e) {
       showSnackbar(`${t("sync.errorSaving")} ${e}`, "error");
-      addSyncLog(`Save file failed: ${e}`, "error");
     }
   }
 
@@ -808,11 +759,9 @@
       if (selected) {
         await invoke<string>("sync_save_session", { sessionPath: selected });
         showSnackbar(`${t("sync.sessionSaved")} ${selected}`, "success");
-        addSyncLog(`Session saved: ${getFileName(selected)}`, "success");
       }
     } catch (e) {
       showSnackbar(`${t("sync.errorSaving")} ${e}`, "error");
-      addSyncLog(`Save session failed: ${e}`, "error");
     }
   }
 
@@ -826,7 +775,6 @@
         status = await invoke<SyncStatus>("sync_load_session", {
           sessionPath: selected as string,
         });
-        addSyncLog(`Session loaded: ${getFileName(selected as string)}`, "success");
         await loadSubtitles();
         await loadAnchors();
         wizardHistory = anchors.map((a) => a.subtitle_id);
@@ -841,7 +789,6 @@
       }
     } catch (e) {
       showSnackbar(`${t("sync.errorLoadingSrt")} ${e}`, "error");
-      addSyncLog(`Load session failed: ${e}`, "error");
     }
   }
 
@@ -866,10 +813,8 @@
         audioElement.pause();
         audioElement.src = "";
       }
-      addSyncLog("Session reset", "warning");
     } catch (e) {
       showSnackbar(`${t("sync.errorSaving")} ${e}`, "error");
-      addSyncLog(`Reset failed: ${e}`, "error");
     }
   }
 
@@ -919,7 +864,6 @@
           status = await invoke<SyncStatus>("sync_load_srt", {
             path: filePath,
           });
-          addSyncLog(`Dropped SRT: ${fileName}`, "success");
           await loadSubtitles();
           await loadAnchors();
           wizardHistory = [];
@@ -928,7 +872,6 @@
           await tryAutoSelectMediaForSrt(filePath);
         } catch (e: any) {
           showSnackbar(`${t("sync.errorLoadingSrt")} ${e}`, "error");
-          addSyncLog(`Dropped SRT failed: ${e}`, "error");
         }
       } else if (isMediaFile(fileName)) {
         if (!status?.is_loaded) {
@@ -942,10 +885,8 @@
           status = await invoke<SyncStatus>("sync_set_video", {
             path: filePath,
           });
-          addSyncLog(`Dropped media: ${fileName}`, "success");
         } catch (e: any) {
           showSnackbar(`${t("sync.errorLoadingAudio")} ${e}`, "error");
-          addSyncLog(`Dropped media failed: ${e}`, "error");
         }
       }
     }
@@ -969,7 +910,6 @@
       await loadAnchors();
       await refreshCurrentSubtitles();
       
-      addSyncLog(`Undo: Removed anchor #${anchorToRemove.subtitle_id}`, "warning");
       
       // Go back to that subtitle to re-adjust
       const sub = await invoke<SubtitleInfo>("sync_get_subtitle", { id: anchorToRemove.subtitle_id });
@@ -1125,34 +1065,19 @@
     syncDebug("mount", { active });
     window.addEventListener("keydown", handleKeydown);
 
-    let activeListener = true;
-    let unlistenDD: (() => void) | null = null;
-
-    getCurrentWebview()
-      .onDragDropEvent((event) => {
-        if (!active) return;
-        if (event.payload.type === "over") {
-          isDraggingOver = true;
-        }
-        else if (event.payload.type === "drop") {
-          isDraggingOver = false;
-          syncDebug("file-drop", { count: event.payload.paths.length });
-          handleDroppedPaths(event.payload.paths);
-        } else if (event.payload.type === "leave") isDraggingOver = false;
-      })
-      .then((fn) => {
-        if (!activeListener) fn();
-        else unlistenDD = fn;
-      })
-      .catch((e) => {
-        console.warn("Failed to set up drag-drop listener:", e);
-      });
+    const cleanupDragDrop = setupWebviewDragDrop({
+      isActive: () => active,
+      setDraggingOver: (v) => (isDraggingOver = v),
+      onDrop: (paths) => {
+        syncDebug("file-drop", { count: paths.length });
+        handleDroppedPaths(paths);
+      },
+    });
 
     return () => {
-      activeListener = false;
+      cleanupDragDrop();
       syncDebug("unmount");
       window.removeEventListener("keydown", handleKeydown);
-      if (unlistenDD) unlistenDD();
       if (singleClickTimer) clearTimeout(singleClickTimer);
     };
   });
@@ -1532,10 +1457,10 @@
 
   <ConfirmDialog
     show={showResetModal}
-    title={t("sync.resetSync") || "Ripristinare sessione?"}
-    message={t("sync.confirmReset") || "Tutti i dati correnti di sincronizzazione andranno persi."}
+    title={t("sync.resetSync")}
+    message={t("sync.confirmReset")}
     confirmText="OK"
-    cancelText={t("sync.cancelReset") || "Annulla"}
+    cancelText={t("sync.cancelReset")}
     variant="danger"
     on:cancel={() => (showResetModal = false)}
     on:confirm={confirmReset}

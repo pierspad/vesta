@@ -15,6 +15,7 @@ import { type ApiKeyConfig } from "$lib/config/apiKeys";
 import { type Tier } from "$lib/config/translationTiers";
 import { providers } from "$lib/config/llmProviders";
 import { fetchModelsFromEndpoint } from "$lib/services/modelDiscovery";
+import { t } from "$lib/i18n";
 
 /** Entry serializzata per i comandi Tauri (contratto serde con `srt_translate::TierEntry`). */
 export interface TierEntryPayload {
@@ -136,6 +137,31 @@ export async function checkTiersAvailability(
   }
   if (hasOfflineLocal) return { available: false, reason: "localOffline" };
   return { available: false, reason: "unknown" };
+}
+
+/**
+ * Traduce un `TiersUnavailableReason` nel messaggio da mostrare in UI.
+ * RefineTab e TranslateTab finivano per ripetere lo stesso switch statement
+ * -- in pratica risolvono sulle stesse chiavi i18n, quindi la mappatura è
+ * condivisa qui; solo il fallback del caso "unknown" resta per-chiamante
+ * (ogni tab ha un messaggio d'errore generico diverso).
+ */
+export function tiersUnavailableMessage(
+  reason: TiersUnavailableReason,
+  fallbackKey: string = "tiers.noneConfigured",
+): string {
+  switch (reason) {
+    case "noneConfigured":
+      return t("tiers.noneConfigured");
+    case "localOffline":
+      return t("settings.llmConfigIncompleteDescLocalOffline");
+    case "keyMissing":
+      return t("settings.llmConfigIncompleteDescKey");
+    case "incomplete":
+      return t("settings.llmConfigIncompleteDescCustomEmpty");
+    default:
+      return t(fallbackKey);
+  }
 }
 
 /** Conteggi per il riepilogo nella UI ("N tier · M endpoint"). */

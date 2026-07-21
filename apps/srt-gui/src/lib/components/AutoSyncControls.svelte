@@ -45,7 +45,7 @@
           />
         </svg>
       {/if}
-      <span>{t("sync.autoSync") || "Autosync"}</span>
+      <span>{t("sync.autoSync")}</span>
     </button>
 
     <!-- Selector Capsule Switcher -->

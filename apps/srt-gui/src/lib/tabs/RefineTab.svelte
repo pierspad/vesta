@@ -17,10 +17,11 @@
     buildTiersPayload,
     checkTiersAvailability,
     countTiersAndEndpoints,
+    tiersUnavailableMessage,
     type TierEntryPayload,
     type TiersUnavailableReason,
   } from "$lib/config/llmTiers";
-  import { getCurrentWebview } from "@tauri-apps/api/webview";
+  import { setupWebviewDragDrop } from "$lib/utils/dragDrop";
   import ConfirmDialog from "$lib/modals/ConfirmDialog.svelte";
   import CodeEditor from "$lib/components/CodeEditor.svelte";
   import PathPickerField from "$lib/components/PathPickerField.svelte";
@@ -190,18 +191,7 @@
   }
 
   function llmErrorMessage(reason: TiersUnavailableReason): string {
-    switch (reason) {
-      case "noneConfigured":
-        return t("tiers.noneConfigured") || "No tiers configured";
-      case "localOffline":
-        return t("settings.llmConfigIncompleteDescLocalOffline") || "Local LLM server is offline";
-      case "keyMissing":
-        return t("settings.llmConfigIncompleteDescKey") || "Missing API key";
-      case "incomplete":
-        return t("settings.llmConfigIncompleteDescCustomEmpty") || "LLM configuration incomplete";
-      default:
-        return t("tiers.noneConfigured") || "No usable LLM endpoint";
-    }
+    return tiersUnavailableMessage(reason);
   }
 
   function refineTiersPayload(): TierEntryPayload[][] | null {
@@ -214,33 +204,21 @@
       untrack(() => {
         refreshLlmConfig();
       });
-      let unlistenDragDropLocal: (() => void) | null = null;
-      getCurrentWebview().onDragDropEvent((event) => {
-        if (event.payload.type === "over") {
-          isDraggingOver = true;
-        } else if (event.payload.type === "drop") {
-          isDraggingOver = false;
-          if (event.payload.paths && event.payload.paths.length > 0) {
-            const path = event.payload.paths[0];
-            if (path && (path.endsWith(".apkg") || path.endsWith(".tsv"))) {
-              void triggerLoadFile(path);
-            } else {
-              snackbar.show(t("refine.msg.unsupportedFormat"), "error");
-            }
+      const cleanupDragDrop = setupWebviewDragDrop({
+        setDraggingOver: (v) => (isDraggingOver = v),
+        onDrop: (paths) => {
+          const path = paths[0];
+          if (path && (path.endsWith(".apkg") || path.endsWith(".tsv"))) {
+            void triggerLoadFile(path);
+          } else {
+            snackbar.show(t("refine.msg.unsupportedFormat"), "error");
           }
-        } else if (event.payload.type === "leave") {
-          isDraggingOver = false;
-        }
-      }).then((fn) => {
-        unlistenDragDropLocal = fn;
-      }).catch((e) => {
-        console.warn("Failed to set up drag-drop listener in RefineTab:", e);
+        },
+        onError: (e) => console.warn("Failed to set up drag-drop listener in RefineTab:", e),
       });
 
       return () => {
-        if (unlistenDragDropLocal) {
-          unlistenDragDropLocal();
-        }
+        cleanupDragDrop();
       };
     }
   });
@@ -488,7 +466,7 @@
         logs = [t("refine.log.stopped"), ...logs];
       } else if (summary.poolExhausted) {
         snackbar.show(
-          t("refine.msg.poolExhausted") || "All LLM tiers are exhausted (rate limit/quota)",
+          t("refine.msg.poolExhausted"),
           "error",
         );
       } else {
@@ -1083,9 +1061,9 @@
 
   <ConfirmDialog
     show={showOverwriteConfirm}
-    title={t('refine.warning.unsavedChangesTitle') || "Modifiche non salvate"}
-    message={t('refine.warning.unsavedChangesMsg') || "Ci sono modifiche non salvate nel file corrente. Caricando un nuovo file, perderai i progressi non salvati. Vuoi procedere comunque?"}
-    confirmText={t('refine.warning.confirmLoad') || "Procedi comunque"}
+    title={t('refine.warning.unsavedChangesTitle')}
+    message={t('refine.warning.unsavedChangesMsg')}
+    confirmText={t('refine.warning.confirmLoad')}
     cancelText={t('common.cancel')}
     variant="warning"
     on:cancel={() => {

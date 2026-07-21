@@ -111,7 +111,7 @@
         </svg>
       </div>
       <div>
-        <h3 class="text-sm font-bold text-white">{t("transcribe.tiers.cardTitle") || "Tier di precedenza per la trascrizione"}</h3>
+        <h3 class="text-sm font-bold text-white">{t("transcribe.tiers.cardTitle")}</h3>
       </div>
     </div>
     <button
@@ -195,7 +195,7 @@
                  onclick={(e) => { e.stopPropagation(); void store.cancelModelDownload(); }}
                 disabled={store.isCancellingDownload}
                 class="text-red-400 hover:text-red-300 transition-colors pointer-events-auto p-1 bg-red-500/10 hover:bg-red-500/20 rounded-md border border-red-500/30 flex items-center justify-center cursor-pointer"
-                title={t("settings.stopModelDownload") || "Ferma download"}
+                title={t("settings.stopModelDownload")}
               >
                 {#if store.isCancellingDownload}
                   <svg class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">

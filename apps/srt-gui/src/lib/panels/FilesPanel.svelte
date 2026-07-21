@@ -64,7 +64,7 @@
       label={t("sync.inputMediaFile")}
       value={mediaPath || ""}
       placeholder={t("sync.noMediaFileSelected")}
-      browseTitle={t("sync.tooltip.loadVideo") || ""}
+      browseTitle={t("sync.tooltip.loadVideo")}
       disabled={!srtLoaded}
       onexpand={() => {
         if (mediaPath) onExpandMedia();
