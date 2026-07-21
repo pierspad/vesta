@@ -1,6 +1,6 @@
 [package]
 name = "srt-condense"
-version = "0.16.1"
+version = "0.17.0"
 edition.workspace = true
 authors = ["Pierpaolo Spadafora <pierpaolospadafora@proton.me>"]
 description = "Headless engine to build condensed audio from media + subtitles or Silero VAD speech detection — concatenates only the spoken segments of an episode into a single audio file."
