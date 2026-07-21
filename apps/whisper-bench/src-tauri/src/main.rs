@@ -1,6 +1,10 @@
 // Prevents an extra console window on Windows in release builds.
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod hardware;
+mod sample;
+mod workers;
+
 use std::path::PathBuf;
 use std::time::Instant;
 
@@ -9,6 +13,7 @@ use tauri::{AppHandle, Emitter, Manager};
 use tauri_plugin_dialog::DialogExt;
 use tokio_util::sync::CancellationToken;
 
+use hardware::DetectedHardware;
 use srt_transcribe::pipeline::{PipelineCallbacks, TranscriptionConfig, transcribe_to_srt};
 use srt_transcribe::{gpu_backend_name, gpu_supported, model};
 
@@ -31,10 +36,20 @@ struct BenchInfo {
     models: Vec<model::WhisperModelInfo>,
     vad_installed: bool,
     os: &'static str,
+    hardware: DetectedHardware,
+    /// Variant labels the app plans to attempt on this machine, in order —
+    /// computed the same way `run_bench` will, so the UI can show it before
+    /// the user even picks a file.
+    planned_variants: Vec<String>,
 }
 
 #[tauri::command]
-fn bench_info() -> Result<BenchInfo, String> {
+async fn bench_info() -> Result<BenchInfo, String> {
+    let hw = hardware::detect().await;
+    let planned_variants = variant_plan(&hw)
+        .into_iter()
+        .map(|(label, _)| label)
+        .collect();
     Ok(BenchInfo {
         app_version: env!("CARGO_PKG_VERSION").to_string(),
         gpu_backend: gpu_backend_name(),
@@ -44,6 +59,8 @@ fn bench_info() -> Result<BenchInfo, String> {
         models: model::list_models().map_err(|e| e.to_string())?,
         vad_installed: model::vad_model_installed(model::DEFAULT_VAD_MODEL_ID),
         os: std::env::consts::OS,
+        hardware: hw,
+        planned_variants,
     })
 }
 
@@ -84,6 +101,15 @@ async fn save_csv(app: AppHandle, csv: String) -> Result<Option<String>, String>
     let path = path.to_string();
     std::fs::write(&path, csv).map_err(|e| format!("Failed to write CSV: {e}"))?;
     Ok(Some(path))
+}
+
+/// Fetches (once) and extracts the bundled sample episode + reference SRTs,
+/// for testers who don't have media of their own handy.
+#[tauri::command]
+async fn use_sample_media(app: AppHandle) -> Result<String, String> {
+    let app2 = app.clone();
+    let path = sample::ensure_sample_media(&app, move |line| log(&app2, line)).await?;
+    Ok(path.to_string_lossy().into_owned())
 }
 
 // ─── Asset preparation (whisper model + VAD model + ffmpeg) ─────────────────
@@ -158,7 +184,25 @@ async fn ensure_ffmpeg(app: &AppHandle) -> Result<String, String> {
     );
     std::fs::create_dir_all(&dest).map_err(|e| e.to_string())?;
     let dest_task = dest.clone();
-    tokio::task::spawn_blocking(move || -> Result<(), String> {
+    let progress_app = app.clone();
+    let started = Instant::now();
+    let heartbeat = tokio::spawn(async move {
+        // The ffmpeg-sidecar download has no progress callback, so without
+        // this the log would just sit on "downloading..." for however long
+        // the connection takes — indistinguishable from a hang. A periodic
+        // heartbeat at least proves the app is still alive and working.
+        loop {
+            tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+            log(
+                &progress_app,
+                format!(
+                    "  ...still downloading ffmpeg ({}s elapsed)",
+                    started.elapsed().as_secs()
+                ),
+            );
+        }
+    });
+    let result = tokio::task::spawn_blocking(move || -> Result<(), String> {
         use ffmpeg_sidecar::download::{
             download_ffmpeg_package, ffmpeg_download_url, unpack_ffmpeg,
         };
@@ -170,7 +214,9 @@ async fn ensure_ffmpeg(app: &AppHandle) -> Result<String, String> {
         Ok(())
     })
     .await
-    .map_err(|e| e.to_string())??;
+    .map_err(|e| e.to_string());
+    heartbeat.abort();
+    result??;
 
     hoist_binary(&dest, "ffmpeg")?;
     let _ = hoist_binary(&dest, "ffprobe");
@@ -257,34 +303,47 @@ async fn media_duration_seconds(input: &str) -> Option<f64> {
     String::from_utf8_lossy(&out.stdout).trim().parse().ok()
 }
 
-fn variant_configs(
-    input: &str,
-    model_id: &str,
-    language: &str,
-    out_dir: &std::path::Path,
-) -> Vec<(String, TranscriptionConfig)> {
-    // (label, use_gpu, vad)
-    let mut variants: Vec<(&str, bool, bool)> =
-        vec![("cpu", false, false), ("cpu+vad", false, true)];
-    if gpu_supported() {
-        variants.push((gpu_backend_name(), true, false));
-        // Owned label like "vulkan+vad" needs a String; build below instead.
+/// Which backend runs a variant: in-process (compiled into this launcher —
+/// currently just CPU and, if a loader was detected, Vulkan) or a fetched
+/// worker binary keyed by backend id ("cuda" | "rocm" | "sycl").
+#[derive(Clone, Copy)]
+enum VariantKind {
+    InProcess,
+    Worker(&'static str),
+}
+
+/// The list of variants this machine will attempt, independent of any
+/// specific input file — same detection logic `bench_info` previews and
+/// `run_bench` executes.
+fn variant_plan(hw: &DetectedHardware) -> Vec<(String, VariantKind)> {
+    let mut out = vec![
+        ("cpu".to_string(), VariantKind::InProcess),
+        ("cpu+vad".to_string(), VariantKind::InProcess),
+    ];
+
+    // Vulkan is compiled into every launcher build; still gate on an actual
+    // loader being present so a GPU-less machine doesn't get a confusing
+    // guaranteed-to-fail "vulkan" row.
+    if gpu_supported() && hw.vulkan_loader {
+        let name = gpu_backend_name();
+        out.push((name.to_string(), VariantKind::InProcess));
+        out.push((format!("{name}+vad"), VariantKind::InProcess));
     }
 
-    let mut out = Vec::new();
-    for (label, use_gpu, vad) in variants {
+    // CUDA/ROCm/SYCL are never compiled into the launcher (see Cargo.toml) —
+    // each is a separate `srt-transcribe` worker binary fetched on demand
+    // only when this OS supports it and matching hardware was detected.
+    for backend in workers::BACKENDS {
+        if !workers::applies_to_this_os(backend.id) || !workers::hardware_wants(backend.id, hw) {
+            continue;
+        }
+        out.push((backend.id.to_string(), VariantKind::Worker(backend.id)));
         out.push((
-            label.to_string(),
-            make_config(input, model_id, language, out_dir, use_gpu, vad, label),
+            format!("{}+vad", backend.id),
+            VariantKind::Worker(backend.id),
         ));
     }
-    if gpu_supported() {
-        let label = format!("{}+vad", gpu_backend_name());
-        out.push((
-            label.clone(),
-            make_config(input, model_id, language, out_dir, true, true, &label),
-        ));
-    }
+
     out
 }
 
@@ -319,6 +378,24 @@ fn make_config(
     }
 }
 
+fn variant_configs(
+    input: &str,
+    model_id: &str,
+    language: &str,
+    out_dir: &std::path::Path,
+    hw: &DetectedHardware,
+) -> Vec<(String, VariantKind, TranscriptionConfig)> {
+    variant_plan(hw)
+        .into_iter()
+        .map(|(label, kind)| {
+            let use_gpu = label != "cpu" && label != "cpu+vad";
+            let vad = label.ends_with("+vad");
+            let config = make_config(input, model_id, language, out_dir, use_gpu, vad, &label);
+            (label, kind, config)
+        })
+        .collect()
+}
+
 #[tauri::command]
 async fn run_bench(
     app: AppHandle,
@@ -333,12 +410,16 @@ async fn run_bench(
     let out_dir = tempfile::tempdir().map_err(|e| e.to_string())?;
     let audio_seconds = media_duration_seconds(&input_path).await;
 
+    log(&app, "Detecting hardware...");
+    let hw = hardware::detect().await;
     log(
         &app,
         format!(
-            "Build backend: {} | gpu_supported: {} | threads: {}",
-            gpu_backend_name(),
-            gpu_supported(),
+            "Hardware: nvidia={} amd={} intel_gpu={} vulkan_loader={} | threads: {}",
+            hw.nvidia,
+            hw.amd,
+            hw.intel_gpu,
+            hw.vulkan_loader,
             srt_transcribe::transcribe::default_n_threads()
         ),
     );
@@ -346,11 +427,22 @@ async fn run_bench(
         log(&app, format!("Media duration: {s:.1}s"));
     }
 
-    let variants = variant_configs(&input_path, &model_id, &language, out_dir.path());
+    let variants = variant_configs(&input_path, &model_id, &language, out_dir.path(), &hw);
     let total = variants.len();
+    log(
+        &app,
+        format!(
+            "Planned {total} variant(s): {}",
+            variants
+                .iter()
+                .map(|(label, ..)| label.as_str())
+                .collect::<Vec<_>>()
+                .join(", ")
+        ),
+    );
     let mut rows = Vec::with_capacity(total);
 
-    for (i, (label, config)) in variants.into_iter().enumerate() {
+    for (i, (label, kind, config)) in variants.into_iter().enumerate() {
         log(
             &app,
             format!("── [{}/{}] variant '{label}' starting...", i + 1, total),
@@ -360,23 +452,53 @@ async fn run_bench(
             serde_json::json!({ "current": i + 1, "total": total, "variant": label }),
         );
 
-        let cb_app = app.clone();
-        let cb_label = label.clone();
-        let callbacks = PipelineCallbacks {
-            on_progress: Some(std::sync::Arc::new(move |p| {
-                if p.percentage >= 0.0 {
-                    let _ = cb_app.emit(
-                        "bench-stage",
-                        serde_json::json!({ "variant": cb_label, "stage": p.stage, "pct": p.percentage }),
-                    );
-                }
-            })),
-            on_segment: None,
+        let backend_label = match kind {
+            VariantKind::InProcess if config.use_gpu => gpu_backend_name().to_string(),
+            VariantKind::InProcess => "cpu".to_string(),
+            VariantKind::Worker(id) => id.to_string(),
         };
 
         let start = Instant::now();
-        let result =
-            transcribe_to_srt(&config, &ffmpeg, callbacks, &CancellationToken::new()).await;
+        let result = match kind {
+            VariantKind::InProcess => {
+                let cb_app = app.clone();
+                let cb_label = label.clone();
+                let callbacks = PipelineCallbacks {
+                    on_progress: Some(std::sync::Arc::new(move |p| {
+                        if p.percentage >= 0.0 {
+                            let _ = cb_app.emit(
+                                "bench-stage",
+                                serde_json::json!({ "variant": cb_label, "stage": p.stage, "pct": p.percentage }),
+                            );
+                        }
+                    })),
+                    on_segment: None,
+                };
+                transcribe_to_srt(&config, &ffmpeg, callbacks, &CancellationToken::new())
+                    .await
+                    .map_err(|e| format!("{e:#}"))
+            }
+            VariantKind::Worker(backend_id) => {
+                let log_app = app.clone();
+                let worker_log = move |line: String| {
+                    log(&log_app, format!("   [{backend_id}] {line}"));
+                };
+                match workers::ensure_worker(&app, backend_id, &worker_log).await {
+                    Ok(worker_path) => {
+                        let cb_app = app.clone();
+                        let cb_label = label.clone();
+                        workers::run_worker_variant(&worker_path, &ffmpeg, &config, move |update| {
+                            let _ = cb_app.emit(
+                                "bench-stage",
+                                serde_json::json!({ "variant": cb_label, "stage": update.stage, "pct": update.percentage }),
+                            );
+                        })
+                        .await
+                    }
+                    Err(e) => Err(e),
+                }
+            }
+        };
         let wall = start.elapsed().as_secs_f64();
 
         let row = match result {
@@ -395,11 +517,7 @@ async fn run_bench(
                 );
                 BenchRow {
                     variant: label.clone(),
-                    backend: if config.use_gpu {
-                        gpu_backend_name().into()
-                    } else {
-                        "cpu".into()
-                    },
+                    backend: backend_label,
                     vad: config.vad,
                     model: model_id.clone(),
                     wall_seconds: wall,
@@ -412,14 +530,10 @@ async fn run_bench(
                 }
             }
             Err(e) => {
-                log(&app, format!("   '{label}' FAILED after {wall:.1}s: {e:#}"));
+                log(&app, format!("   '{label}' FAILED after {wall:.1}s: {e}"));
                 BenchRow {
                     variant: label.clone(),
-                    backend: if config.use_gpu {
-                        gpu_backend_name().into()
-                    } else {
-                        "cpu".into()
-                    },
+                    backend: backend_label,
                     vad: config.vad,
                     model: model_id.clone(),
                     wall_seconds: wall,
@@ -428,7 +542,7 @@ async fn run_bench(
                     subtitle_count: 0,
                     detected_language: None,
                     status: "error".into(),
-                    error: Some(format!("{e:#}")),
+                    error: Some(e),
                 }
             }
         };
@@ -448,6 +562,7 @@ fn main() {
             bench_info,
             pick_media,
             save_csv,
+            use_sample_media,
             prepare_assets,
             run_bench
         ])

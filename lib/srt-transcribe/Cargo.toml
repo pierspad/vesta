@@ -26,3 +26,5 @@ vulkan = ["whisper-rs/vulkan"]
 cuda = ["whisper-rs/cuda"]
 # AMD-only offload via ROCm/hipBLAS (Linux; needs the ROCm stack at build time).
 rocm = ["whisper-rs/hipblas"]
+# Intel offload via oneAPI/SYCL (Linux/Windows; needs the Intel oneAPI DPC++ compiler at build time).
+sycl = ["whisper-rs/intel-sycl"]

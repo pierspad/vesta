@@ -84,10 +84,10 @@ jobs:
         uses: mozilla-actions/sccache-action@v0.0.10
 
       - name: Configure sccache GHA credentials
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
-            core.exportVariable('ACTIONS_CACHE_URL', process.env.ACTIONS_CACHE_URL || '');
+            core.exportVariable('ACTIONS_RESULTS_URL', process.env.ACTIONS_RESULTS_URL || '');
             core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN || '');
 
       - name: Rust cache
@@ -159,10 +159,10 @@ jobs:
         uses: mozilla-actions/sccache-action@v0.0.10
 
       - name: Configure sccache GHA credentials
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
-            core.exportVariable('ACTIONS_CACHE_URL', process.env.ACTIONS_CACHE_URL || '');
+            core.exportVariable('ACTIONS_RESULTS_URL', process.env.ACTIONS_RESULTS_URL || '');
             core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN || '');
 
       - name: Rust cache
@@ -176,6 +176,20 @@ jobs:
           choco install llvm -y
           echo "LIBCLANG_PATH=C:\Program Files\LLVM\lib" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
+      # build-windows in build.yml runs two separate `cargo check` passes
+      # before its real `cargo build` (to fail fast before spending time on
+      # the frontend/bundling steps). `cargo check` and `cargo build` emit
+      # different rustc invocations (metadata-only vs full codegen), so they
+      # land under different sccache keys — warming only the final build
+      # command left these two check passes with zero pre-warmed entries to
+      # hit, which is why the Windows job's sccache hit rate was ~0% even
+      # though writes were succeeding fine. Mirror both checks here too.
+      - name: Preflight Cargo check (whisper-rs-sys)
+        env:
+          SCCACHE_GHA_ENABLED: "true"
+          RUSTC_WRAPPER: "sccache"
+        run: cargo check -p whisper-rs-sys
+
       - name: Install frontend dependencies
         working-directory: ${{ env.TAURI_APP_DIR }}
         run: npm ci
@@ -187,6 +201,13 @@ jobs:
       - name: Build frontend assets (richiesto da generate_context!)
         working-directory: ${{ env.TAURI_APP_DIR }}
         run: npm run build
+
+      - name: Preflight Cargo check
+        shell: pwsh
+        env:
+          SCCACHE_GHA_ENABLED: "true"
+          RUSTC_WRAPPER: "sccache"
+        run: cargo check --manifest-path apps/srt-gui/src-tauri/Cargo.toml --locked
 
       - name: Compile release binary (cache warm-up only, no bundling)
         working-directory: ${{ env.TAURI_APP_DIR }}/src-tauri

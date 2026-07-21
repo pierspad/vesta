@@ -4476,6 +4476,7 @@ version = "0.17.0"
 dependencies = [
  "anyhow",
  "clap",
+ "serde_json",
  "srt-transcribe",
  "tokio",
  "tokio-util",
@@ -6025,13 +6026,16 @@ dependencies = [
 
 [[package]]
 name = "whisper-bench"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "ffmpeg-sidecar",
+ "futures",
  "num_cpus",
+ "reqwest",
  "serde",
  "serde_json",
+ "sha2 0.11.0",
  "srt-transcribe",
  "tauri",
  "tauri-build",
@@ -6039,6 +6043,7 @@ dependencies = [
  "tempfile",
  "tokio",
  "tokio-util",
+ "zip 8.6.0",
 ]
 
 [[package]]

@@ -1,0 +1,76 @@
+name: Cache Cleanup
+
+# GitHub auto-evicts LRU caches once the repo passes its 10GB budget, but
+# sccache's GHA-cache backend leaves one small blob per compilation unit
+# (thousands of entries) that outnumber the few large, still-useful blobs
+# (e.g. warm-release-cache.yml's target-dir snapshot on main) and make that
+# automatic eviction blunt. This prunes caches that can provably never be
+# read again, so the 10GB budget is spent on caches something can still hit:
+#
+#   - tag-scoped caches: per GitHub's own cache scoping rules, a cache
+#     created for one tag is never visible to a workflow run on a different
+#     tag (see the comment at the top of warm-release-cache.yml). Every
+#     release cuts a new tag, so a tag-scoped cache is dead weight the
+#     moment its one build finishes — no future run can ever reuse it.
+#   - branch-scoped caches whose branch no longer exists (merged/deleted PRs).
+on:
+  schedule:
+    - cron: "0 4 * * 1" # every Monday 04:00 UTC
+  workflow_dispatch: {}
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  prune-stale-caches:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Delete unreachable caches
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          echo "=== Caches before cleanup ==="
+          gh cache list --limit 100 || true
+          echo
+
+          gh cache list --limit 1000 --json id,ref,sizeInBytes > /tmp/caches.json
+
+          jq -c '.[]' /tmp/caches.json > /tmp/caches.jsonl
+          kept=0
+          deleted=0
+          while IFS= read -r row; do
+            id=$(jq -r '.id' <<<"$row")
+            ref=$(jq -r '.ref' <<<"$row")
+            size=$(jq -r '.sizeInBytes' <<<"$row")
+
+            if [[ "$ref" == refs/tags/* ]]; then
+              reason="tag ref, never reusable after its one release build"
+            elif [[ "$ref" == refs/heads/* ]]; then
+              branch="${ref#refs/heads/}"
+              if git ls-remote --exit-code --heads origin "$branch" >/dev/null 2>&1; then
+                kept=$((kept + 1))
+                continue
+              fi
+              reason="branch '$branch' no longer exists"
+            else
+              kept=$((kept + 1))
+              continue
+            fi
+
+            echo "Deleting cache $id ($ref, ${size} bytes) — $reason"
+            gh cache delete "$id" || echo "  (already gone, skipping)"
+            deleted=$((deleted + 1))
+          done < /tmp/caches.jsonl
+
+          echo
+          echo "=== Summary ==="
+          echo "Deleted: $deleted, kept: $kept"
+          echo
+          echo "=== Caches after cleanup ==="
+          gh cache list --limit 100 || true

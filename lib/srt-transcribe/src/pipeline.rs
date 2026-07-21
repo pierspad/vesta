@@ -47,14 +47,14 @@ pub struct TranscriptionConfig {
     pub use_gpu: bool,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TranscriptionOutcome {
     pub output_path: String,
     pub subtitle_count: usize,
     pub detected_language: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProgressUpdate {
     pub stage: String,
     pub message: String,

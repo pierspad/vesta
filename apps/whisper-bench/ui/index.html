@@ -36,8 +36,33 @@
     button:disabled { opacity: .45; cursor: not-allowed; }
     button.secondary { background: #ffffff14; color: #d7dae0; }
     button.secondary:hover { background: #ffffff22; }
+
+    /* Always-visible status bar: the whole point is that the app never
+       looks blank or stuck — there is always a current-action line and,
+       while busy, a moving spinner + progress bar. */
+    #status-card { display: flex; flex-direction: column; gap: 8px; }
+    #status-line { display: flex; align-items: center; gap: 10px; font-size: 13px; }
+    #status-line .dot {
+      width: 9px; height: 9px; border-radius: 999px; background: #4b5162; flex: none;
+    }
+    #status-line.busy .dot {
+      background: #34d399; animation: pulse 1s ease-in-out infinite;
+    }
+    #status-line.err .dot { background: #f87171; animation: none; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .25; } }
+    #status-text { flex: 1; }
+    #status-meta { font-size: 11px; color: #6b7280; }
+    #progress-bar-track {
+      height: 6px; border-radius: 999px; background: #ffffff10; overflow: hidden; display: none;
+    }
+    #progress-bar-fill {
+      height: 100%; width: 0%; background: #4f46e5; transition: width .2s ease;
+    }
+    #hw-hint { font-size: 12px; color: #8b90a0; }
+    #hw-hint b { color: #d7dae0; }
+
     #log {
-      flex: 1; min-height: 120px; overflow-y: auto; margin: 0;
+      flex: 1; min-height: 100px; overflow-y: auto; margin: 0;
       background: #0a0c10; border: 1px solid #ffffff10; border-radius: 10px;
       padding: 10px 12px; font: 12px/1.5 ui-monospace, monospace; white-space: pre-wrap;
     }
@@ -53,11 +78,22 @@
 <body>
   <h1>Vesta Whisper Bench <span class="badge" id="backend-badge">…</span></h1>
 
+  <div class="card" id="status-card">
+    <div id="status-line">
+      <span class="dot"></span>
+      <span id="status-text">Starting up…</span>
+      <span id="status-meta"></span>
+    </div>
+    <div id="progress-bar-track"><div id="progress-bar-fill"></div></div>
+    <div id="hw-hint">Detecting hardware…</div>
+  </div>
+
   <div class="card">
     <div class="row" style="margin-bottom: 10px;">
       <label style="width: 70px;">Media</label>
       <input type="text" id="input-path" placeholder="Pick an audio/video file..." readonly />
       <button class="secondary" id="btn-pick">Browse</button>
+      <button class="secondary" id="btn-sample">Use bundled sample episode</button>
     </div>
     <div class="row">
       <label style="width: 70px;">Model</label>
@@ -84,7 +120,8 @@
   </div>
 
   <pre id="log">Ready. Pick a media file and press "Run benchmark".
-Models and (if needed) ffmpeg are downloaded automatically on first run.</pre>
+Models and (if needed) ffmpeg are downloaded automatically on first run.
+GPU backends other than Vulkan (CUDA/ROCm/SYCL) are downloaded automatically too, only if matching hardware is detected.</pre>
 
   <div class="card" id="results-card">
     <div class="row" style="justify-content: space-between; margin-bottom: 8px;">
@@ -110,6 +147,25 @@ Models and (if needed) ffmpeg are downloaded automatically on first run.</pre>
     let rows = [];
     let running = false;
 
+    // ─── Status bar: single source of truth for "what is happening right
+    // now", so the window is never ambiguous about whether it's alive. ───
+    function setStatus(text, { busy = false, err = false, meta = "" } = {}) {
+      $("status-text").textContent = text;
+      $("status-meta").textContent = meta;
+      const line = $("status-line");
+      line.classList.toggle("busy", busy);
+      line.classList.toggle("err", err);
+    }
+    function setProgressBar(pct) {
+      const track = $("progress-bar-track");
+      if (pct == null) {
+        track.style.display = "none";
+        return;
+      }
+      track.style.display = "block";
+      $("progress-bar-fill").style.width = `${Math.max(0, Math.min(100, pct))}%`;
+    }
+
     function logLine(s) {
       const el = $("log");
       el.textContent += "\n" + s;
@@ -117,6 +173,16 @@ Models and (if needed) ffmpeg are downloaded automatically on first run.</pre>
     }
 
     listen("bench-log", (e) => logLine(e.payload));
+
+    listen("bench-progress", (e) => {
+      const p = e.payload;
+      setStatus(`Running variant '${p.variant}' (${p.current}/${p.total})…`, {
+        busy: true,
+        meta: `${p.current}/${p.total}`,
+      });
+      setProgressBar(0);
+    });
+
     listen("bench-stage", (e) => {
       const p = e.payload;
       const el = $("log");
@@ -128,19 +194,32 @@ Models and (if needed) ffmpeg are downloaded automatically on first run.</pre>
       else lines.push(line);
       el.textContent = lines.join("\n");
       el.scrollTop = el.scrollHeight;
+      setStatus(`Running '${p.variant}': ${p.stage}…`, { busy: true, meta: `${Math.round(p.pct)}%` });
+      setProgressBar(p.pct);
     });
+
+    function describeHardware(info) {
+      const hw = info.hardware;
+      const found = [];
+      if (hw.nvidia) found.push("NVIDIA GPU");
+      if (hw.amd) found.push("AMD GPU");
+      if (hw.intel_gpu) found.push("Intel GPU");
+      if (hw.vulkan_loader) found.push("Vulkan loader");
+      const hwLine = found.length ? found.join(", ") : "no GPU detected (CPU only)";
+      return `Detected: <b>${hwLine}</b> · ${info.physical_cores} physical cores, ${info.default_threads} whisper threads, ${info.os}`;
+    }
 
     async function init() {
       try {
+        setStatus("Detecting hardware and planning variants…", { busy: true });
         const info = await invoke("bench_info");
-        $("backend-badge").textContent =
-          info.gpu_supported ? `build: cpu + ${info.gpu_backend}` : "build: cpu-only";
-        const variants = info.gpu_supported
-          ? `Variants to run: cpu, cpu+vad, ${info.gpu_backend}, ${info.gpu_backend}+vad`
-          : "Variants to run: cpu, cpu+vad (this build has no GPU backend)";
+        $("backend-badge").textContent = `launcher: cpu${info.gpu_supported ? " + " + info.gpu_backend : ""}`;
+        $("hw-hint").innerHTML = describeHardware(info);
         $("variants-hint").textContent =
-          `${variants} — ${info.physical_cores} physical cores, ${info.default_threads} whisper threads, ${info.os}`;
+          `Variants to run: ${info.planned_variants.join(", ")}`;
+        setStatus("Ready. Pick a media file and press \"Run benchmark\".", { busy: false });
       } catch (e) {
+        setStatus("Failed to read benchmark info.", { err: true });
         logLine("bench_info failed: " + e);
       }
     }
@@ -150,14 +229,35 @@ Models and (if needed) ffmpeg are downloaded automatically on first run.</pre>
       if (path) $("input-path").value = path;
     };
 
+    $("btn-sample").onclick = async () => {
+      if (running) return;
+      const btn = $("btn-sample");
+      btn.disabled = true;
+      setStatus("Fetching bundled sample episode…", { busy: true });
+      try {
+        const path = await invoke("use_sample_media");
+        $("input-path").value = path;
+        setStatus("Sample ready. Press \"Run benchmark\".", { busy: false });
+      } catch (e) {
+        setStatus("Could not fetch the sample episode.", { err: true });
+        logLine("use_sample_media failed: " + e);
+      } finally {
+        btn.disabled = false;
+      }
+    };
+
     $("btn-run").onclick = async () => {
       if (running) return;
       const inputPath = $("input-path").value;
-      if (!inputPath) { logLine("Pick a media file first."); return; }
+      if (!inputPath) {
+        setStatus("Pick a media file first.", { err: true });
+        return;
+      }
       running = true;
       $("btn-run").disabled = true;
       $("results-card").style.display = "none";
       try {
+        setStatus("Preparing assets (model / VAD / ffmpeg)…", { busy: true });
         logLine("── Preparing assets (model / VAD / ffmpeg)...");
         await invoke("prepare_assets", { modelId: $("model").value });
         rows = await invoke("run_bench", {
@@ -166,8 +266,16 @@ Models and (if needed) ffmpeg are downloaded automatically on first run.</pre>
           language: $("language").value,
         });
         renderRows();
+        const failed = rows.filter((r) => r.status !== "ok").length;
+        setStatus(
+          failed ? `Done — ${failed}/${rows.length} variant(s) failed.` : "Done — all variants succeeded.",
+          { err: failed > 0 }
+        );
+        setProgressBar(null);
       } catch (e) {
+        setStatus("Benchmark failed: " + e, { err: true });
         logLine("BENCH FAILED: " + e);
+        setProgressBar(null);
       } finally {
         running = false;
         $("btn-run").disabled = false;

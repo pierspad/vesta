@@ -1,8 +1,8 @@
 [package]
 name = "whisper-bench"
-version = "0.1.0"
+version = "0.2.0"
 edition.workspace = true
-description = "Standalone Whisper transcription benchmark GUI (CPU / Vulkan / CUDA / ROCm, VAD on/off)"
+description = "Standalone Whisper transcription benchmark GUI. Ships CPU+Vulkan in-process and fetches CUDA/ROCm/SYCL worker binaries on demand based on detected hardware."
 authors = ["Pierpaolo Spadafora <pierpaolospadafora@proton.me>"]
 license = "GPL-3.0-only"
 
@@ -20,6 +20,10 @@ tempfile = { workspace = true }
 num_cpus = { workspace = true }
 srt-transcribe = { workspace = true }
 ffmpeg-sidecar = { version = "2.5.1", features = ["download_ffmpeg"] }
+reqwest = { workspace = true, features = ["stream"] }
+futures = { workspace = true }
+sha2 = "0.11"
+zip = "8"
 
 # Same split as the main vesta app: portal-based dialogs on Linux.
 [target.'cfg(target_os = "linux")'.dependencies]
@@ -30,6 +34,10 @@ tauri-plugin-dialog = "2.7"
 
 [features]
 default = []
+# The launcher itself only ever ships this: CPU always, Vulkan because a
+# single build covers AMD/NVIDIA/Intel and doesn't carry heavy toolkits.
+# CUDA/ROCm/SYCL are never compiled into the launcher — see `workers.rs`:
+# they ship as separate single-backend `srt-transcribe` binaries (built by
+# the same CI matrix that used to produce whole separate app bundles) that
+# get downloaded on demand when matching hardware is detected.
 vulkan = ["srt-transcribe/vulkan"]
-cuda = ["srt-transcribe/cuda"]
-rocm = ["srt-transcribe/rocm"]

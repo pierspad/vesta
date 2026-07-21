@@ -95,6 +95,13 @@ struct RunArgs {
     /// Suppress progress output on stderr.
     #[arg(short, long)]
     quiet: bool,
+    /// Machine-readable mode: one JSON `ProgressUpdate` per line on stdout
+    /// while running, then a final `{"ok":true,"outcome":{...}}` or
+    /// `{"ok":false,"error":"..."}` line. Meant for callers that spawn this
+    /// binary as a subprocess (e.g. whisper-bench's GPU worker binaries)
+    /// rather than for interactive use. Implies --quiet for stderr.
+    #[arg(long)]
+    json: bool,
 }
 
 /// Resolve a `--model-id` value into a VAD variant id, if it refers to one:
@@ -198,6 +205,10 @@ async fn run(args: RunArgs) -> Result<()> {
         });
     }
 
+    if args.json {
+        return run_json(config, &args.ffmpeg, &cancel_token).await;
+    }
+
     // Throttled progress on stderr (at most one line per whole percent).
     let last_pct = Arc::new(AtomicI64::new(-1));
     let callbacks = if args.quiet {
@@ -226,4 +237,38 @@ async fn run(args: RunArgs) -> Result<()> {
             .unwrap_or_default()
     );
     Ok(())
+}
+
+/// `--json` mode: one `ProgressUpdate` JSON object per line on stdout while
+/// running, then a single final result line. Never propagates a transcription
+/// error via `?` — it always reports it as a `{"ok":false,...}` line so a
+/// parent process reading line-by-line always gets a clean terminal message,
+/// then exits non-zero.
+async fn run_json(
+    config: TranscriptionConfig,
+    ffmpeg: &str,
+    cancel_token: &CancellationToken,
+) -> Result<()> {
+    let callbacks = PipelineCallbacks {
+        on_progress: Some(Arc::new(|update| {
+            if let Ok(line) = serde_json::to_string(&update) {
+                println!("{line}");
+            }
+        })),
+        on_segment: None,
+    };
+
+    match transcribe_to_srt(&config, ffmpeg, callbacks, cancel_token).await {
+        Ok(outcome) => {
+            println!("{}", serde_json::json!({ "ok": true, "outcome": outcome }));
+            Ok(())
+        }
+        Err(e) => {
+            println!(
+                "{}",
+                serde_json::json!({ "ok": false, "error": format!("{e:#}") })
+            );
+            std::process::exit(1);
+        }
+    }
 }
