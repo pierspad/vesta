@@ -60,11 +60,25 @@ jobs:
 
       # NB: nessuna WHISPER_DONT_GENERATE_BINDINGS qui, di proposito: è
       # l'unico posto in CI dove build.rs deve chiamare bindgen per davvero.
+      #
+      # Il crate va copiato e buildato FUORI dal repo per due motivi:
+      # 1. è un [patch.crates-io], non un membro del workspace: dalla root
+      #    `cargo build -p whisper-rs-sys --features ...` fallisce con
+      #    "cannot specify features for packages outside of workspace";
+      # 2. .cargo/config.toml del repo setta WHISPER_DONT_GENERATE_BINDINGS=1
+      #    via [env] per QUALSIASI cargo lanciato dentro l'albero del repo, e
+      #    build.rs controlla solo la presenza della variabile: bindgen non
+      #    girerebbe mai e il check confronterebbe bindings.rs con una copia
+      #    di sé stesso, risultando sempre verde. Buildando in /tmp il config
+      #    del repo non viene caricato e bindgen gira davvero.
       - name: Build whisper-rs-sys (genera bindings.rs con bindgen live)
         env:
           SCCACHE_GHA_ENABLED: "true"
           RUSTC_WRAPPER: "sccache"
-        run: cargo build -p whisper-rs-sys --features vulkan --target-dir /tmp/bindgen-check
+        run: |
+          cp -r vendor/whisper-rs-sys-0.15.0 /tmp/whisper-rs-sys-drift
+          cd /tmp/whisper-rs-sys-drift
+          cargo build --features vulkan --target-dir /tmp/bindgen-check
 
       - name: Confronta con vendor/whisper-rs-sys-0.15.0/src/bindings.rs
         id: diff
