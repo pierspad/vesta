@@ -1,12 +1,19 @@
 name: whisper-bench
 
-# Build manuale della mini-app di benchmark Whisper (apps/whisper-bench).
-# Separato dalla CI normale per non allungarla: si lancia da
-# Actions -> whisper-bench -> Run workflow, scegliendo quali backend GPU
-# buildare. CPU e Vulkan sono sempre inclusi (Vulkan copre AMD/NVIDIA/Intel
-# con un solo binario); CUDA e ROCm sono opt-in perché richiedono toolchain
-# pesanti e allungano molto la build.
+# Build della mini-app di benchmark Whisper (apps/whisper-bench).
+# Separato dalla CI normale per non allungarla: parte automaticamente solo
+# quando cambia l'app (o questo workflow), oppure a mano da
+# Actions -> whisper-bench -> Run workflow. CPU e Vulkan sono sempre inclusi
+# (Vulkan copre AMD/NVIDIA/Intel con un solo binario); CUDA e ROCm sono
+# opt-in dal run manuale perché richiedono toolchain pesanti e allungano
+# molto la build.
 on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/whisper-bench/**"
+      - "lib/srt-transcribe/**"
+      - ".github/workflows/whisper-bench.yml"
   workflow_dispatch:
     inputs:
       build_cuda:
