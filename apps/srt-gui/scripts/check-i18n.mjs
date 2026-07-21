@@ -68,6 +68,36 @@ for (const [key, file] of usedKeys) {
   if (!refKeys.has(key)) err(`key "${key}" used in ${file.replace(root + "/", "")} but missing from en.json`);
 }
 
+// ── 3b. Locale hygiene: invisible chars, English leaks, whitespace ───────────
+// Catches the bug classes found in the 2026-07 audit: zero-width spaces pasted
+// from editors, English words leaking into machine-translated strings, and
+// stray leading/trailing whitespace.
+console.log("\nLocale hygiene checks…");
+const INVISIBLE = /[​‌‍﻿­⁠]/;
+for (const file of locales) {
+  const lang = file.replace(".json", "");
+  const data = JSON.parse(readFileSync(join(localesDir, file), "utf8"));
+  for (const [k, v] of Object.entries(data)) {
+    if (typeof v !== "string") continue;
+    if (INVISIBLE.test(v)) err(`${lang}: invisible character (ZWSP/BOM/soft hyphen) in "${k}"`);
+    if (v !== v.trim()) err(`${lang}: leading/trailing whitespace in "${k}"`);
+    if (lang !== "en" && / and /.test(v)) warn(`${lang}: possible English leak (" and ") in "${k}": "${v.slice(0, 60)}"`);
+  }
+}
+
+// ── 3c. Bilingual it/en ternary hacks in source ──────────────────────────────
+// `$currentLanguage === 'it' ? ... : ...` shows English to the other 13
+// locales — every string must go through t(). The language-selector grid in
+// OverviewSettingsPanel legitimately compares codes, so equality against a
+// string literal is what we flag.
+console.log("\nScanning for bilingual ternary hacks…");
+for (const file of walk(srcDir)) {
+  const text = readFileSync(file, "utf8");
+  for (const m of text.matchAll(/currentLanguage\s*===?\s*["'`](\w+)["'`]/g)) {
+    err(`${file.replace(root + "/", "")}: hardcoded language check (currentLanguage === "${m[1]}") — use a t() key instead`);
+  }
+}
+
 // ── 4. Heuristic: hardcoded text in Svelte templates ─────────────────────────
 // Flags element text nodes with 3+ letters that aren't an expression. Curated
 // noise filter — treat findings as review hints, not hard failures.

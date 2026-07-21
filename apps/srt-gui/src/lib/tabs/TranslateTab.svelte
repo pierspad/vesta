@@ -4,7 +4,7 @@
   import { guardedOpen, guardedSave } from "$lib/utils/dialogGuard";
   import { fetch as tauriFetch } from "$lib/services/tauriHttp";
   import { onDestroy, onMount } from "svelte";
-  import { locale, currentLanguage } from "$lib/i18n";
+  import { locale } from "$lib/i18n";
   import { getFileName } from "$lib/utils/models";
   import { loadAndValidateApiKeys, type ApiKeyConfig } from "$lib/config/apiKeys";
   import {
@@ -1615,7 +1615,7 @@
         <div class="flex items-center gap-3">
           <div class="w-5 h-5 border-2 border-purple-400 border-t-transparent rounded-full animate-spin"></div>
           <div class="flex flex-col">
-            <span class="text-[10px] text-purple-400 font-bold uppercase tracking-wider">{t("translate.translating") || ($currentLanguage === 'it' ? 'Traduzione in corso...' : 'Translating...')}</span>
+            <span class="text-[10px] text-purple-400 font-bold uppercase tracking-wider">{t("translate.translating")}</span>
             <span class="text-xs text-white font-medium truncate max-w-lg">
               {t("translate.batch")} {progress?.current_batch || 0}/{progress?.total_batches || 0} ({Math.round(progress?.percentage || 0)}%)
               {#if progress?.eta_seconds}
@@ -1634,7 +1634,7 @@
               </svg>
             </div>
             <div class="flex flex-col">
-              <span class="text-[10px] text-emerald-400 font-bold uppercase tracking-wider">{t("translate.finished") || ($currentLanguage === 'it' ? 'Completato' : 'Completed')}</span>
+              <span class="text-[10px] text-emerald-400 font-bold uppercase tracking-wider">{t("translate.finished")}</span>
               {#if result.output_path}
                 <!-- svelte-ignore a11y_click_events_have_key_events -->
                 <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -1642,11 +1642,11 @@
                   onclick={() => {
                     if (result?.output_path) {
                       navigator.clipboard.writeText(result.output_path);
-                      snackbar.show($currentLanguage === 'it' ? 'Percorso copiato negli appunti!' : 'Path copied to clipboard!', 'success');
+                      snackbar.show(t("common.pathCopied"), 'success');
                     }
                   }}
                   class="flex items-center gap-1.5 text-xs text-gray-400 mt-0.5 cursor-pointer hover:text-white transition-colors bg-white/5 hover:bg-white/10 px-2 py-0.5 rounded border border-white/5 select-all"
-                  title={$currentLanguage === 'it' ? 'Clicca per copiare il percorso' : 'Click to copy path'}
+                  title={t("common.clickToCopyPath")}
                 >
                   <span class="truncate max-w-sm">📁 {getFileName(result.output_path)}</span>
                   <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1665,7 +1665,7 @@
               </svg>
             </div>
             <div class="flex flex-col">
-              <span class="text-[10px] text-red-400 font-bold uppercase tracking-wider">{t("translate.error") || ($currentLanguage === 'it' ? 'Errore' : 'Error')}</span>
+              <span class="text-[10px] text-red-400 font-bold uppercase tracking-wider">{t("translate.error")}</span>
               <span class="text-xs text-red-300 font-medium truncate max-w-lg">{result.message}</span>
             </div>
           {/if}
@@ -1679,7 +1679,7 @@
             </svg>
           </div>
           <div class="flex flex-col">
-            <span class="text-[10px] text-red-400 font-bold uppercase tracking-wider">{t("translate.error") || ($currentLanguage === 'it' ? 'Errore' : 'Error')}</span>
+            <span class="text-[10px] text-red-400 font-bold uppercase tracking-wider">{t("translate.error")}</span>
             <span class="text-xs text-red-300 font-medium truncate max-w-lg">{error}</span>
           </div>
         </div>

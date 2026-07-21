@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { locale, currentLanguage } from "$lib/i18n";
+  import { locale } from "$lib/i18n";
   import { uiMode } from "$lib/stores/uiModeStore.svelte";
   import SearchableSelect from "$lib/components/SearchableSelect.svelte";
   import type { EpisodeMediaOverrides } from "$lib/types/flashcardMediaTypes";
@@ -37,7 +37,7 @@
         <span>{t("flashcards.generateVideoClips")}</span>
         {#if effectiveExportFormat === "apkg"}
           <span class="text-[10px] text-rose-300/60 font-normal normal-case mt-0.5">
-            {$currentLanguage === "it" ? "Mutualmente esclusivo con gli snapshot in APKG" : "Mutually exclusive with snapshots in APKG"}
+            {t("flashcards.videoExclusiveHint")}
           </span>
         {/if}
       </span>
@@ -175,8 +175,8 @@
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
       </svg>
       <div>
-        <p class="font-bold text-amber-300">{$currentLanguage === "it" ? "Audio Disattivato" : "Audio Disabled"}</p>
-        <p class="opacity-90">{$currentLanguage === "it" ? "Le clip video verranno generate senza audio (mute)." : "Video clips will be generated without audio (silent)."}</p>
+        <p class="font-bold text-amber-300">{t("flashcards.videoAudioDisabledTitle")}</p>
+        <p class="opacity-90">{t("flashcards.videoAudioDisabledDesc")}</p>
       </div>
     </div>
   {/if}

@@ -63,7 +63,7 @@
         <div class="flex-1 min-w-0">
           <div class="flex items-center gap-2 flex-wrap">
             <span class="text-sm font-bold transition-colors duration-200 {exportFormatStore.exportFormat === 'apkg' ? 'text-white' : 'text-gray-400 hover:text-gray-200'}">
-              {$currentLanguage === 'it' ? 'Esportazione APKG' : 'APKG export'}
+              {t("flashcards.exportAPKGTitle")}
             </span>
             <span class="text-[10px] px-1.5 py-0.5 rounded-full font-bold transition-all duration-200
               {exportFormatStore.exportFormat === 'apkg'
@@ -90,7 +90,7 @@
         <div class="flex-1 min-w-0">
           <div class="flex items-center gap-2 flex-wrap">
             <span class="text-sm font-bold transition-colors duration-200 {exportFormatStore.exportFormat === 'tsv' ? 'text-white' : 'text-gray-400 hover:text-gray-200'}">
-              {$currentLanguage === 'it' ? 'Esportazione TSV' : 'TSV export'}
+              {t("flashcards.exportTSVTitle")}
             </span>
             <span class="text-[10px] px-1.5 py-0.5 rounded-full font-bold transition-all duration-200
               {exportFormatStore.exportFormat === 'tsv'
@@ -117,7 +117,7 @@
         <div class="flex-1 min-w-0">
           <div class="flex items-center gap-2 flex-wrap">
             <span class="text-sm font-bold transition-colors duration-200 {exportFormatStore.exportFormat === 'anki' ? 'text-white' : 'text-gray-400 hover:text-gray-200'}">
-              {$currentLanguage === 'it' ? 'Esportazione Anki Connect' : 'Anki Connect export'}
+              {t("flashcards.exportAnkiConnectTitle")}
             </span>
             <span class="text-[10px] px-1.5 py-0.5 rounded-full font-bold transition-all duration-200
               {exportFormatStore.exportFormat === 'anki'
@@ -127,11 +127,11 @@
             </span>
             {#if ankiStore.status === "online"}
               <span class="text-[10px] px-1.5 py-0.5 rounded-full font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center gap-1">
-                🟢 {$currentLanguage === 'it' ? 'Anki rilevato' : 'Anki detected'}
+                🟢 {t("flashcards.ankiDetected")}
               </span>
             {:else}
               <span class="text-[10px] px-1.5 py-0.5 rounded-full font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center gap-1">
-                🟠 {$currentLanguage === 'it' ? 'Anki non rilevato' : 'Anki offline'}
+                🟠 {t("flashcards.ankiOffline")}
               </span>
             {/if}
           </div>
@@ -153,7 +153,7 @@
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
           <span class="text-xs font-semibold text-gray-300">
-            {$currentLanguage === 'it' ? 'Formato di ripiego se Anki è chiuso o disconnesso:' : 'Fallback format if Anki is closed or offline:'}
+            {t("flashcards.fallbackFormatLabel")}
           </span>
         </div>
         <div class="flex items-center gap-2 bg-black/40 p-1 rounded-lg border border-white/10 shrink-0">
@@ -165,8 +165,8 @@
                 ? 'bg-emerald-500/30 text-emerald-300 border border-emerald-500/50 shadow-sm'
                 : 'text-gray-400 hover:text-gray-200 border border-transparent'}"
           >
-            <span>APKG (.apkg)</span>
-            <span class="text-[9px] uppercase px-1 py-0.2 rounded bg-emerald-500/20 text-emerald-300">{$currentLanguage === 'it' ? 'Consigliato' : 'Recommended'}</span>
+            <span>{t("flashcards.fallbackApkgOption")}</span>
+            <span class="text-[9px] uppercase px-1 py-0.2 rounded bg-emerald-500/20 text-emerald-300">{t("common.recommended")}</span>
           </button>
           <button
             type="button"
@@ -176,7 +176,7 @@
                 ? 'bg-sky-500/30 text-sky-300 border border-sky-500/50 shadow-sm'
                 : 'text-gray-400 hover:text-gray-200 border border-transparent'}"
           >
-            <span>TSV (.tsv)</span>
+            <span>{t("flashcards.fallbackTsvOption")}</span>
           </button>
         </div>
       </div>
@@ -248,7 +248,7 @@
             </span>
             <span class="text-white font-mono bg-white/10 px-2.5 py-1 rounded-lg text-xs shrink-0">
               {cpuRamStore.ramLimitMb === 0
-                ? ($currentLanguage === 'it' ? 'Nessun limite' : 'No limit')
+                ? t("settings.ramNoLimitBadge")
                 : cpuRamStore.ramLimitMb >= 1024
                   ? `${(cpuRamStore.ramLimitMb / 1024).toFixed(cpuRamStore.ramLimitMb % 1024 === 0 ? 0 : 1)} GB`
                   : `${cpuRamStore.ramLimitMb} MB`}
@@ -271,7 +271,7 @@
                 <div class="w-px h-1.5 {cpuRamStore.ramLimitMb === v ? 'bg-white/60' : 'bg-white/20'}"></div>
                 <span class="text-[9px] {cpuRamStore.ramLimitMb === v ? 'text-white/70' : 'text-white/25'} whitespace-nowrap">
                   {v === 0
-                    ? ($currentLanguage === 'it' ? 'Nessuno' : 'None')
+                    ? t("settings.ramTickNone")
                     : v >= 1024 ? `${v / 1024}G` : `${v}M`}
                 </span>
               </div>
@@ -363,7 +363,7 @@
   <div class="glass-card p-6 flex flex-col justify-between h-full">
     <div class="flex flex-col gap-6">
       <ToggleRow
-        label={$currentLanguage === 'it' ? 'Verifica aggiornamenti all\'avvio' : 'Check for updates on startup'}
+        label={t("settings.updatesCheckOnStartup")}
         bind:checked={updateCheckerStore.automaticUpdateChecks}
         onchange={() => updateCheckerStore.onAutomaticUpdateChecksChange()}
         accent="indigo"
@@ -373,7 +373,7 @@
       <!-- Bottom Row: Dynamic Status / Manual Check Area -->
       <div class="pt-4 border-t border-white/5 flex items-center justify-between min-h-[44px]">
         <span class="text-xs text-gray-400">
-          {$currentLanguage === 'it' ? 'Stato degli aggiornamenti' : 'Update status'}
+          {t("settings.updatesStatus")}
         </span>
         <div>
           {#if updateCheckerStore.updateStatus === "available"}
@@ -384,7 +384,7 @@
             >
               <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse shrink-0"></span>
               <span class="text-[11px] font-bold text-amber-200">
-                {$currentLanguage === 'it' ? `Scarica v${updateCheckerStore.latestVersion}` : `Download v${updateCheckerStore.latestVersion}`}
+                {t("settings.updatesDownload", { version: updateCheckerStore.latestVersion ?? "" })}
               </span>
               <svg class="w-4 h-4 text-amber-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
@@ -396,18 +396,18 @@
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
               </svg>
-              <span>{$currentLanguage === 'it' ? 'Verifica...' : 'Checking...'}</span>
+              <span>{t("settings.updatesChecking")}</span>
             </div>
           {:else if updateCheckerStore.updateStatus === "current"}
             <span class="text-xs font-semibold text-emerald-400 flex items-center gap-1.5 animate-fade-in bg-emerald-500/10 border border-emerald-500/25 px-2.5 py-1.5 rounded-lg select-none">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7" />
               </svg>
-              {$currentLanguage === 'it' ? 'Aggiornato' : 'Up to date'}
+              {t("settings.updatesUpToDate")}
             </span>
           {:else if updateCheckerStore.automaticUpdateChecks}
             <span class="text-xs text-gray-500 italic">
-              {$currentLanguage === 'it' ? 'Attivo all\'avvio' : 'Active on startup'}
+              {t("settings.updatesActiveOnStartup")}
             </span>
           {:else}
             <button
@@ -415,7 +415,7 @@
               onclick={() => updateCheckerStore.checkForUpdates("manual")}
               class="px-4 py-2 bg-white/5 border border-white/10 hover:bg-white/10 hover:border-white/20 text-white rounded-xl text-xs font-semibold transition-all duration-200 active:scale-[0.98] cursor-pointer"
             >
-              {$currentLanguage === 'it' ? 'Verifica ora' : 'Check now'}
+              {t("settings.updatesCheckNow")}
             </button>
           {/if}
         </div>

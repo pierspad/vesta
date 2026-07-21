@@ -18,6 +18,7 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -284,6 +285,59 @@ def audit_all_dirs(
     return combined_missing, combined_counts, all_codes, combined_orphans, en_keys_per_dir, merged_en, merged_locales
 
 
+BLAME_LINE_RE = re.compile(r'^\S+\s+\([^)]*?(\d{10})[^)]*\)\s*"((?:[^"\\]|\\.)+)":')
+
+
+def git_blame_key_dates(path: Path) -> dict[str, int]:
+    """Per-key last-modified unix timestamp via `git blame`.
+
+    Works because locale files are flat JSON with one `"key": "value"` pair per
+    line. Returns {} when git/blame is unavailable (e.g. shallow clone without
+    history, or file not tracked) so the stale check degrades gracefully.
+    """
+    try:
+        out = subprocess.run(
+            ["git", "blame", "-l", "--date=unix", "HEAD", "--", str(path)],
+            capture_output=True,
+            text=True,
+            check=True,
+            cwd=path.parent,
+        ).stdout
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return {}
+    dates: dict[str, int] = {}
+    for line in out.splitlines():
+        m = BLAME_LINE_RE.match(line)
+        if m:
+            dates[m.group(2)] = int(m.group(1))
+    return dates
+
+
+def find_stale_keys(locale_dirs: list[Path]) -> dict[str, list[dict[str, Any]]]:
+    """Keys whose en.json line is newer (per git blame) than the translated line.
+
+    That asymmetry is the signature of drift: someone edited the English copy
+    without re-running the translation pipeline. en+it are edited together in
+    this repo, so it rarely shows up for Italian.
+    """
+    stale: dict[str, list[dict[str, Any]]] = {}
+    for d in locale_dirs:
+        en_dates = git_blame_key_dates(d / "en.json")
+        if not en_dates:
+            continue
+        for path in sorted(d.glob("*.json")):
+            if path.name == "en.json" or not LOCALE_FILE_RE.match(path.name):
+                continue
+            loc_dates = git_blame_key_dates(path)
+            for key, en_ts in en_dates.items():
+                loc_ts = loc_dates.get(key)
+                if loc_ts is not None and en_ts > loc_ts:
+                    stale.setdefault(path.stem, []).append(
+                        {"key": key, "directory": d.name, "en_ts": en_ts, "locale_ts": loc_ts}
+                    )
+    return dict(sorted(stale.items()))
+
+
 def build_translation_tasks(
     missing_by_key: dict[str, list[MissingItem]],
     en_data: dict[str, Any],
@@ -444,6 +498,15 @@ def main() -> int:
         default="missing_locale,missing_key,empty_value,placeholder_mismatch",
         help="Comma-separated reasons that should block when --fail-on-issues is set",
     )
+    parser.add_argument(
+        "--check-stale",
+        action="store_true",
+        help=(
+            "Use per-key git blame to flag translations older than their en.json "
+            "line (drift detection). Requires full git history. Add "
+            "'stale_translation' to --block-reasons to make it blocking."
+        ),
+    )
     args = parser.parse_args()
 
     locales_dir = Path(args.locales_dir)
@@ -452,6 +515,20 @@ def main() -> int:
 
     locale_dirs = discover_locale_dirs(locales_dir)
     report = build_report(locale_dirs)
+
+    if args.check_stale:
+        stale = find_stale_keys(locale_dirs)
+        report["stale_keys"] = stale
+        report["stale_keys_count"] = sum(len(v) for v in stale.values())
+        # Feed stale keys into missing_keys/translation_tasks too, so the
+        # LLM-retranslation pipeline picks them up like any other issue.
+        for locale, entries in stale.items():
+            for e in entries:
+                detail = {"locale": locale, "reason": "stale_translation", "directory": e["directory"]}
+                issue = report["missing_keys"].setdefault(e["key"], {"locales": [], "details": []})
+                if locale not in issue["locales"]:
+                    issue["locales"].append(locale)
+                issue["details"].append(detail)
 
     block_reasons = {
         token.strip()
@@ -529,6 +606,20 @@ def main() -> int:
         print()
         print(f"  ℹ  Use report['translation_tasks']['<locale>'] for the full task list.")
         print(f"     Each task: {{key, reason, en, current_value}}")
+
+    # Stale translations (git-blame drift detection)
+    if args.check_stale:
+        stale = report.get("stale_keys", {})
+        if stale:
+            print()
+            print(f"🕰  Stale translations (en.json line newer than translation): {report['stale_keys_count']}")
+            for locale, entries in stale.items():
+                keys_preview = ", ".join(e["key"] for e in entries[:5])
+                extra = f", ... (+{len(entries) - 5} more)" if len(entries) > 5 else ""
+                print(f"  {locale:<4} {len(entries):>3}  {keys_preview}{extra}")
+        else:
+            print()
+            print("✅ No stale translations detected (git blame per-key)")
 
     # Orphan keys
     orphans = report.get("orphan_keys", [])

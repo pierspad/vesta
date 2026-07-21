@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { locale, currentLanguage } from "$lib/i18n";
+  import { locale } from "$lib/i18n";
   import { uiMode } from "$lib/stores/uiModeStore.svelte";
   import type { EpisodeMediaOverrides } from "$lib/types/flashcardMediaTypes";
 
@@ -34,7 +34,7 @@
         <span>{t("flashcards.generateSnapshots")}</span>
         {#if effectiveExportFormat === "apkg"}
           <span class="text-[10px] text-purple-300/60 font-normal normal-case mt-0.5">
-            {$currentLanguage === "it" ? "Mutualmente esclusivo con i video in APKG" : "Mutually exclusive with video clips in APKG"}
+            {t("flashcards.snapshotsExclusiveHint")}
           </span>
         {/if}
       </span>

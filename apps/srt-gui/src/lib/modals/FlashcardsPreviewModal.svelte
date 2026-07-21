@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { locale, currentLanguage } from "$lib/i18n";
+  import { locale } from "$lib/i18n";
   import { uiMode } from "$lib/stores/uiModeStore.svelte";
   import { previewStore, type PreviewLine } from "$lib/stores/previewStore.svelte";
   import EmptyState from "$lib/components/EmptyState.svelte";
@@ -111,7 +111,7 @@
           <div class="flex items-center gap-2">
             <div class="flex rounded-lg overflow-hidden border border-gray-800">
               {#if uiMode.expertMode}
-                {#each [["all", t("flashcards.previewAll"), "All subtitle lines"], ["active", t("flashcards.previewActive"), "Lines that will become flashcards"], ["inactive", t("flashcards.previewInactive"), "Lines excluded by your filters"]] as [val, label, tooltip]}
+                {#each [["all", t("flashcards.previewAll"), t("flashcards.previewAllTooltip")], ["active", t("flashcards.previewActive"), t("flashcards.previewActiveTooltip")], ["inactive", t("flashcards.previewInactive"), t("flashcards.previewInactiveTooltip")]] as [val, label, tooltip]}
                   <button
                     class="px-3 py-1 text-xs font-medium transition-colors {previewStore.filter === val
                       ? 'bg-emerald-500/20 text-emerald-300'
@@ -398,7 +398,7 @@
         }}
         class="w-full text-left px-4 py-2 text-xs text-gray-300 hover:bg-gray-800 hover:text-white transition-colors cursor-pointer"
       >
-        {$currentLanguage === "it" ? "Copia sottotitolo originale" : "Copy original subtitle"}
+        {t("flashcards.previewCopyOriginal")}
       </button>
 
       {#if nativeSubsPath && previewStore.contextMenuLine.subs2_text}
@@ -410,7 +410,7 @@
           }}
           class="w-full text-left px-4 py-2 text-xs text-gray-300 hover:bg-gray-800 hover:text-white transition-colors cursor-pointer"
         >
-          {$currentLanguage === "it" ? "Copia traduzione di riferimento" : "Copy reference translation"}
+          {t("flashcards.previewCopyReference")}
         </button>
       {/if}
 
@@ -428,9 +428,9 @@
             : 'text-emerald-400 hover:bg-emerald-500/10'}"
       >
         {#if previewStore.contextMenuLine.active}
-          {$currentLanguage === "it" ? "Disabilita sottotitolo" : "Disable subtitle"}
+          {t("flashcards.previewDisableSub")}
         {:else}
-          {$currentLanguage === "it" ? "Abilita sottotitolo" : "Enable subtitle"}
+          {t("flashcards.previewEnableSub")}
         {/if}
       </button>
     </div>

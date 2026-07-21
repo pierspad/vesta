@@ -4,7 +4,7 @@
   import { getCurrentWebview } from "@tauri-apps/api/webview";
   import { guardedOpen } from "$lib/utils/dialogGuard";
   import { onDestroy, onMount } from "svelte";
-  import { locale, currentLanguage } from "$lib/i18n";
+  import { locale } from "$lib/i18n";
   import { getFileName, inferLanguageFromPath } from "$lib/utils/models";
   import { getLanguageSearchTerms, languages } from "$lib/config/languages";
   import {
@@ -1490,9 +1490,7 @@
     } catch {
       if (generationStore.exportFormat === "anki") {
         const fallbackUpper = generationStore.fallbackFormat.toUpperCase();
-        const msg = $currentLanguage === 'it'
-          ? `Anki non è in esecuzione: esportazione effettuata in formato ${fallbackUpper} come ripiego.`
-          : `Anki is not running: exported as ${fallbackUpper} as fallback.`;
+        const msg = t("flashcards.ankiNotRunningFallback", { format: fallbackUpper });
         generationStore.addLog(`ℹ ${msg}`, "info");
         snackbar.show(msg, "info");
       }
@@ -2643,7 +2641,7 @@
                   ? 'TSV'
                   : (ankiStore.status === 'online'
                     ? 'Anki Connect'
-                    : `Anki Connect (${$currentLanguage === 'it' ? 'Ripiego' : 'Fallback'}: ${generationStore.fallbackFormat.toUpperCase()})`)}
+                    : `Anki Connect (${t("common.fallback")}: ${generationStore.fallbackFormat.toUpperCase()})`)}
             </button>
             {#if !generationStore.isProcessing && !generationStore.result}
               <div class="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-3 z-50

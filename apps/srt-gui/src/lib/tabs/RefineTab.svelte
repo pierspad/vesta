@@ -4,7 +4,7 @@
   import { guardedOpen, guardedSave } from "$lib/utils/dialogGuard";
   import { snackbar } from "$lib/stores/snackbarStore.svelte";
   import { onMount, onDestroy, untrack } from "svelte";
-  import { locale, currentLanguage } from "$lib/i18n";
+  import { locale } from "$lib/i18n";
   import { getFileName } from "$lib/utils/models";
   import { loadAndValidateApiKeys, type ApiKeyConfig } from "$lib/config/apiKeys";
   import {
@@ -639,11 +639,11 @@
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
           <!-- Input File Field -->
           <PathPickerField
-            label={$currentLanguage === 'it' ? "Mazzo Flashcard (.apkg / .tsv)" : "Flashcards Deck (.apkg / .tsv)"}
+            label={t('refine.deckLabel')}
             required
             value={filePath || ""}
-            placeholder={$currentLanguage === 'it' ? "Seleziona o trascina un file (.apkg / .tsv)" : "Select or drop a file (.apkg / .tsv)"}
-            browseTitle={$currentLanguage === 'it' ? "Sfoglia file flashcard" : "Browse flashcard file"}
+            placeholder={t('refine.deckPlaceholder')}
+            browseTitle={t('refine.dropzone.browse')}
             onbrowse={selectFile}
             disabled={isLoading}
           />
@@ -651,15 +651,15 @@
           <!-- Quick Deck Stats counters -->
           <div class="grid grid-cols-3 gap-3">
             <div class="bg-white/5 border border-white/10 rounded-xl p-2.5 text-center">
-              <span class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider">{$currentLanguage === 'it' ? "Totale Card" : "Total Cards"}</span>
+              <span class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider">{t('refine.stats.totalCards')}</span>
               <span class="text-sm font-bold text-gray-200">{cards.length}</span>
             </div>
             <div class="bg-white/5 border border-white/10 rounded-xl p-2.5 text-center">
-              <span class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider">{$currentLanguage === 'it' ? "Annotate" : "Annotated"}</span>
+              <span class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider">{t('refine.stats.annotated')}</span>
               <span class="text-sm font-bold text-rose-300">{annotatedCount}</span>
             </div>
             <div class="bg-white/5 border border-white/10 rounded-xl p-2.5 text-center">
-              <span class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider">{$currentLanguage === 'it' ? "Modificate" : "Modified"}</span>
+              <span class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider">{t('refine.stats.modified')}</span>
               <span class="text-sm font-bold text-amber-300">{modifiedCount}</span>
             </div>
           </div>
@@ -691,7 +691,7 @@
           <div class="flex-1 min-h-0 overflow-y-auto p-2 bg-black/20 border border-white/5 rounded-xl space-y-1.5 scrollbar-thin">
             {#if cards.length === 0}
               <div class="h-full py-16 flex flex-col items-center justify-center text-xs text-gray-500 italic">
-                {$currentLanguage === 'it' ? "Nessuna flashcard caricata" : "No flashcards loaded"}
+                {t('refine.noFlashcardsLoaded')}
               </div>
             {:else}
               {#each filteredCards as card, index}
@@ -768,7 +768,7 @@
               <svg class="w-5 h-5 text-amber-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h14a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
               </svg>
-              {$currentLanguage === 'it' ? "Rifinitura" : "Refinement"}
+              {t('refine.title')}
             </h3>
             {@render modeToggleSnippet()}
           </div>
@@ -947,7 +947,7 @@
                   <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                   </svg>
-                  {t('refine.btn.editPrompt') || ($currentLanguage === 'it' ? 'Modifica Prompt' : 'Edit Prompt')}
+                  {t('refine.btn.editPrompt')}
                 </button>
 
                 {#if autoRefining}
@@ -966,7 +966,7 @@
                     <svg class="w-4 h-4 text-amber-100" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
                     </svg>
-                    {t('refine.btn.startAI') || ($currentLanguage === 'it' ? 'Avvia Rifinitura AI' : 'Start AI Refinement')}
+                    {t('refine.btn.startAI')}
                   </button>
                 {/if}
               </div>
@@ -1021,7 +1021,7 @@
           {/if}
         </button>
         <div class="pointer-events-none absolute bottom-full left-1/2 z-50 mb-3 -translate-x-1/2 rounded-xl border border-rose-500/30 bg-gray-950/95 p-3 text-center text-xs text-rose-300 shadow-2xl shadow-black/40 ring-1 ring-white/10 transition-all duration-150 delay-0 group-hover:delay-300 opacity-0 group-hover:opacity-100 group-hover:translate-y-0 translate-y-1 whitespace-normal w-72">
-          {t('refine.action.tooltipOverwrite') || ($currentLanguage === 'it' ? 'Sovrascrivi il file originale con le modifiche correnti' : 'Overwrite the original file with your current changes')}
+          {t('refine.action.tooltipOverwrite')}
         </div>
       </div>
       </div>
@@ -1044,13 +1044,13 @@
             <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6M5 19V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2H7a2 2 0 01-2-2z" />
             </svg>
-            {t('refine.action.saveAsApkg') || ($currentLanguage === 'it' ? 'Salva come APKG' : 'Save as APKG')}
+            {t('refine.action.saveAsApkg')}
           {/if}
         </button>
         <div class="pointer-events-none absolute bottom-full left-1/2 z-50 mb-3 -translate-x-1/2 rounded-xl border border-emerald-500/30 bg-gray-950/95 p-3 text-center text-xs text-emerald-300 shadow-2xl shadow-black/40 ring-1 ring-white/10 transition-all duration-150 delay-0 group-hover:delay-300 opacity-0 group-hover:opacity-100 group-hover:translate-y-0 translate-y-1 whitespace-normal w-72">
           {fileExtension === "TSV"
-            ? ($currentLanguage === 'it' ? "Non è possibile salvare un TSV come APKG in questa scheda" : "It is not possible to save a TSV file as APKG in this tab")
-            : (t('refine.action.tooltipSaveAsApkg') || ($currentLanguage === 'it' ? 'Salva il mazzo corrente come pacchetto Anki (.apkg)' : 'Save the current deck as an Anki package (.apkg)'))}
+            ? t('refine.action.cannotSaveTsvAsApkg')
+            : t('refine.action.tooltipSaveAsApkg')}
         </div>
       </div>
 
@@ -1070,11 +1070,11 @@
             <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6M5 19V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2H7a2 2 0 01-2-2z" />
             </svg>
-            {t('refine.action.saveAsTsv') || ($currentLanguage === 'it' ? 'Salva come TSV' : 'Save as TSV')}
+            {t('refine.action.saveAsTsv')}
           {/if}
         </button>
         <div class="pointer-events-none absolute bottom-full right-0 z-50 mb-3 rounded-xl border border-cyan-500/30 bg-gray-950/95 p-3 text-center text-xs text-cyan-300 shadow-2xl shadow-black/40 ring-1 ring-white/10 transition-all duration-150 delay-0 group-hover:delay-300 opacity-0 group-hover:opacity-100 group-hover:translate-y-0 translate-y-1 whitespace-normal w-72">
-          {t('refine.action.tooltipSaveAsTsv') || ($currentLanguage === 'it' ? 'Esporta il mazzo corrente come file di testo separato da tab (.tsv)' : 'Export the current deck as a tab-separated text file (.tsv)')}
+          {t('refine.action.tooltipSaveAsTsv')}
         </div>
       </div>
       </div>

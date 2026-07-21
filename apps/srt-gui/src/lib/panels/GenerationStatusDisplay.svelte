@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { locale, currentLanguage } from "$lib/i18n";
+  import { locale } from "$lib/i18n";
   import { generationStore } from "$lib/stores/generationStore.svelte";
 
   /** Left side of the bottom action bar: note-type cycle button when idle,
@@ -117,7 +117,7 @@
               onclick={() => {
                 if (generationStore.result) {
                   navigator.clipboard.writeText(generationStore.result.apkgPath || '');
-                  showSnackbar($currentLanguage === 'it' ? 'Percorso copiato negli appunti!' : 'Path copied to clipboard!', 'success');
+                  showSnackbar(t("common.pathCopied"), 'success');
                 }
               }}
               class="text-[11px] text-gray-500 hover:text-gray-300 transition-colors text-left truncate cursor-pointer font-medium hover:underline flex items-center gap-1 mt-0.5"
@@ -130,7 +130,7 @@
               onclick={() => {
                 if (generationStore.result) {
                   navigator.clipboard.writeText(generationStore.result.tsvPath || '');
-                  showSnackbar($currentLanguage === 'it' ? 'Percorso copiato negli appunti!' : 'Path copied to clipboard!', 'success');
+                  showSnackbar(t("common.pathCopied"), 'success');
                 }
               }}
               class="text-[11px] text-gray-500 hover:text-gray-300 transition-colors text-left truncate cursor-pointer font-medium hover:underline flex items-center gap-1 mt-0.5"

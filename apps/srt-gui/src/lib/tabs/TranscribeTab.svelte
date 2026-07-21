@@ -4,7 +4,7 @@
   import { getCurrentWebview } from "@tauri-apps/api/webview";
   import { guardedOpen, guardedSave } from "$lib/utils/dialogGuard";
   import { onDestroy, onMount } from "svelte";
-  import { locale, currentLanguage } from "$lib/i18n";
+  import { locale } from "$lib/i18n";
   import { getFileName } from "$lib/utils/models";
   import {
     transcribeProviders,
@@ -1441,11 +1441,11 @@
                   onclick={() => {
                     if (result?.output_path) {
                       navigator.clipboard.writeText(result.output_path);
-                      showSnackbar($currentLanguage === 'it' ? 'Percorso copiato negli appunti!' : 'Path copied to clipboard!', 'success');
+                      showSnackbar(t("common.pathCopied"), 'success');
                     }
                   }}
                   class="flex items-center gap-1.5 text-xs text-gray-400 mt-0.5 cursor-pointer hover:text-white transition-colors bg-white/5 hover:bg-white/10 px-2 py-0.5 rounded border border-white/5 select-all"
-                  title={$currentLanguage === 'it' ? 'Clicca per copiare il percorso' : 'Click to copy path'}
+                  title={t("common.clickToCopyPath")}
                 >
                   <span class="truncate max-w-sm">📁 {getFileName(result.output_path)}</span>
                   <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">

@@ -467,7 +467,7 @@
           class="flex items-center gap-2 text-xs text-red-100 font-bold animate-pulse bg-red-600/20 border border-red-500/40 px-3 py-1.5 rounded-lg cursor-default"
           onclick={(e) => e.stopPropagation()}
         >
-          <span>{$currentLanguage === "it" ? "Registrazione tasti..." : "Recording keys..."}</span>
+          <span>{t("shortcuts.recordingKeys")}</span>
           <button
             onclick={(e) => {
               e.stopPropagation();

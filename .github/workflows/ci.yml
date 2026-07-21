@@ -145,3 +145,34 @@ jobs:
           SCCACHE_GHA_ENABLED: "true"
           RUSTC_WRAPPER: "sccache"
         run: cargo test --workspace
+
+  # ===========================================================
+  # i18n: parity, placeholder, hygiene e key usate nel sorgente.
+  # Job separato e leggerissimo (solo Node, ~secondi): fallisce
+  # subito senza aspettare le build Rust. Prima girava solo su
+  # release (build.yml), quindi il drift arrivava su main.
+  # ===========================================================
+  i18n:
+    name: i18n checks
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          # check_missing_translations.py --check-stale usa git blame
+          # per confrontare le date per-key: serve la storia completa.
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+
+      - name: i18n consistency (parity, placeholders, hygiene)
+        run: node apps/srt-gui/scripts/check-i18n.mjs
+
+      - name: Missing translations report
+        run: |
+          python3 apps/srt-gui/scripts/check_missing_translations.py \
+            --fail-on-issues \
+            --block-reasons missing_locale,missing_key,empty_value,placeholder_mismatch \
+            --check-stale

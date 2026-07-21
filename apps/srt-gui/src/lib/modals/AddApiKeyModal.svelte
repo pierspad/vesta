@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { locale, currentLanguage } from "$lib/i18n";
+  import { locale } from "$lib/i18n";
   import { snackbar } from "$lib/stores/snackbarStore.svelte";
   import ProviderIcon from "$lib/components/ProviderIcon.svelte";
   import { providers } from "$lib/config/llmProviders";
@@ -72,10 +72,10 @@
                 <ProviderIcon provider={pid} />
                 <div class="flex flex-col min-w-0">
                   <span class="text-sm font-bold truncate"
-                    >{pid === "openai" ? "Open AI" : (isCustom ? t("provider.custom") : prov?.name || pid)}</span
+                    >{pid === "openai" ? "OpenAI" : (isCustom ? t("provider.custom") : prov?.name || pid)}</span
                   >
                   <span class="text-[10px] opacity-70 leading-tight line-clamp-2"
-                    >{isCustom ? t("provider.custom.desc") : (pid === "openai" ? (store.modalContext === "whisper" ? ($currentLanguage === "it" ? "API OpenAI speech-to-text (Whisper)" : "OpenAI speech-to-text API (Whisper)") : ($currentLanguage === "it" ? "Modelli OpenAI (GPT-4o, GPT-4...)" : "OpenAI models (GPT-4o, GPT-4...)")) : prov?.description || "")}</span
+                    >{isCustom ? t("provider.custom.desc") : (pid === "openai" ? (store.modalContext === "whisper" ? t("provider.openai.whisperDesc") : t("provider.openai.desc")) : prov?.description || "")}</span
                   >
                 </div>
               </button>
