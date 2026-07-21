@@ -89,11 +89,13 @@ for (const file of locales) {
 // `$currentLanguage === 'it' ? ... : ...` shows English to the other 13
 // locales — every string must go through t(). The language-selector grid in
 // OverviewSettingsPanel legitimately compares codes, so equality against a
-// string literal is what we flag.
+// string literal is what we flag. The optional `\)?` also catches the same
+// antipattern written as `get(currentLanguage) === "it"` in .ts store files
+// that use svelte/store's get() instead of the `$store` auto-subscribe syntax.
 console.log("\nScanning for bilingual ternary hacks…");
 for (const file of walk(srcDir)) {
   const text = readFileSync(file, "utf8");
-  for (const m of text.matchAll(/currentLanguage\s*===?\s*["'`](\w+)["'`]/g)) {
+  for (const m of text.matchAll(/currentLanguage\)?\s*===?\s*["'`](\w+)["'`]/g)) {
     err(`${file.replace(root + "/", "")}: hardcoded language check (currentLanguage === "${m[1]}") — use a t() key instead`);
   }
 }

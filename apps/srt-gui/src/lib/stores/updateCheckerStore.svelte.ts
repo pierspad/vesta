@@ -1,8 +1,7 @@
-import { get } from "svelte/store";
 import { invoke } from "@tauri-apps/api/core";
 import { fetch as tauriFetch } from "$lib/services/tauriHttp";
 import { snackbar } from "$lib/stores/snackbarStore.svelte";
-import { currentLanguage } from "$lib/i18n";
+import { t } from "$lib/i18n";
 import * as vestaConfig from "$lib/config/vestaConfig";
 
 export type UpdateStatus = "idle" | "checking" | "available" | "current" | "error" | "disabled" | "offline";
@@ -42,17 +41,16 @@ class UpdateCheckerStore {
   updateError = $state("");
 
   private processUpdateResult(source: "auto" | "manual") {
-    const it = get(currentLanguage) === "it";
     if (this.appVersionNum) {
       if (compareVersions(this.latestVersion, this.appVersionNum) > 0) {
         this.updateStatus = "available";
         if (source === "manual") {
-          snackbar.show((it ? "Nuova versione disponibile: " : "New version available: ") + this.latestVersion, "info");
+          snackbar.show(t("settings.updatesNewVersionAvailable", { version: this.latestVersion }), "info");
         }
       } else {
         this.updateStatus = "current";
         if (source === "manual") {
-          snackbar.show(it ? "Il software è aggiornato" : "Software is up to date", "success");
+          snackbar.show(t("settings.updatesUpToDate"), "success");
         }
       }
     } else {
@@ -66,12 +64,10 @@ class UpdateCheckerStore {
       return;
     }
 
-    const it = get(currentLanguage) === "it";
-
     if (typeof navigator !== "undefined" && navigator.onLine === false) {
       this.updateStatus = "offline";
       if (source === "manual") {
-        snackbar.show(it ? "Connessione assente o GitHub non raggiungibile" : "No connection or GitHub is unreachable", "error");
+        snackbar.show(t("settings.updatesOffline"), "error");
       }
       return;
     }
@@ -150,7 +146,7 @@ class UpdateCheckerStore {
     } catch (redirectError) {
       console.error("Vesta update check: All strategies failed:", redirectError);
       this.updateStatus = "error";
-      this.updateError = get(currentLanguage) === "it" ? "Impossibile controllare gli aggiornamenti" : "Could not check for updates";
+      this.updateError = t("settings.updatesCheckFailed");
       if (source === "manual") {
         snackbar.show(this.updateError, "error");
       }

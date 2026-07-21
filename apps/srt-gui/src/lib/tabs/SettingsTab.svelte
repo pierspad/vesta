@@ -786,61 +786,49 @@
       const cleanJson = smartMatchingRulesDraft.replace(/\\"|"(?:\\"|[^"])*"|(\/\/.*|\/\*[\s\S]*?\*\/)/g, (m, g) => g ? "" : m);
       const parsed = JSON.parse(cleanJson);
       smartMatchingStore.saveRules(parsed);
-      snackbar.show("Regole smart matching salvate con successo!", "success", 1300);
+      snackbar.show(t("settings.smartMatching.saveSuccess"), "success", 1300);
     } catch (e: any) {
-      smartMatchingRulesError = e.message || "Salvataggio fallito";
+      smartMatchingRulesError = e.message || t("settings.smartMatching.saveError");
     }
   }
-
-  function resetSmartMatchingRules() {
-    showResetConfirm = "smartMatching";
-  }
-
-
 
   // Card template editor
-  let showResetConfirm = $state<"style" | "fields" | "smartMatching" | "overview" | "llm" | "whisper" | "language" | "anki" | null>(null);
+  let showResetConfirm = $state<"style" | "fields" | "overview" | "llm" | "whisper" | "language" | "anki" | null>(null);
   let resetTitle = $derived.by(() => {
-    if (showResetConfirm === "smartMatching") {
-      return "Ripristinare regole di default?";
-    }
     if (showResetConfirm === "overview") {
-      return "Ripristinare lingua predefinita?";
+      return t("settings.overview.resetConfirmTitle");
     }
     if (showResetConfirm === "llm") {
-      return "Ripristinare impostazioni LLM predefinite?";
+      return t("settings.llm.resetConfirmTitle");
     }
     if (showResetConfirm === "whisper") {
-      return "Ripristinare modello Whisper predefinito?";
+      return t("settings.whisper.resetConfirmTitle");
     }
     if (showResetConfirm === "language") {
-      return "Ripristinare impostazioni lingue e matching?";
+      return t("settings.language.resetConfirmTitle");
     }
     if (showResetConfirm === "anki") {
-      return "Ripristinare template e campi Anki?";
+      return t("settings.anki.resetConfirmTitle");
     }
-    return t("settings.resetConfirmTitle") || "Ripristinare i valori predefiniti?";
+    return t("settings.resetConfirmTitle");
   });
   let resetMessage = $derived.by(() => {
-    if (showResetConfirm === "smartMatching") {
-      return "Tutte le personalizzazioni delle regole dello Smart Matching andranno perse.";
-    }
     if (showResetConfirm === "overview") {
-      return "La lingua dell'interfaccia verrà ripristinata all'italiano.";
+      return t("settings.overview.resetConfirmDesc");
     }
     if (showResetConfirm === "llm") {
-      return "Tutte le configurazioni LLM e URL locali verranno ripristinate ai valori predefiniti.";
+      return t("settings.llm.resetConfirmDesc");
     }
     if (showResetConfirm === "whisper") {
-      return "Il modello Whisper predefinito verrà reimpostato su 'base'.";
+      return t("settings.whisper.resetConfirmDesc");
     }
     if (showResetConfirm === "language") {
-      return "Tutte le preferenze di lingua e le regole dello Smart Matching verranno ripristinate.";
+      return t("settings.language.resetConfirmDesc");
     }
     if (showResetConfirm === "anki") {
-      return "Tutti i template HTML/CSS e i preset dei campi Anki verranno ripristinati.";
+      return t("settings.anki.resetConfirmDesc");
     }
-    return t("settings.resetConfirmDesc") || "Tutte le personalizzazioni correnti andranno perse.";
+    return t("settings.resetConfirmDesc");
   });
   // Export format: exportFormatStore is the single source of truth and
   // persists on its own setters — no sync $effects needed here.
@@ -1419,7 +1407,7 @@
             </svg>
           </div>
           <div>
-            <h3 class="text-sm font-bold text-white">{t("settings.refinementPromptTitle") || "Default Flashcard Refinement Prompt"}</h3>
+            <h3 class="text-sm font-bold text-white">{t("settings.refinementPromptTitle")}</h3>
           </div>
         </div>
         <div class="space-y-3">
@@ -1481,7 +1469,7 @@
             d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
           />
         </svg>
-        {t("settings.resetDefaults") || "Ripristina predefiniti"}
+        {t("settings.resetDefaults")}
       </button>
     {/snippet}
   </FooterActions>
@@ -1492,8 +1480,8 @@
     show={!!showResetConfirm}
     title={resetTitle}
     message={resetMessage}
-    confirmText={t("settings.resetDefaults") || "Ripristina predefiniti"}
-    cancelText={t("common.cancel") || "Annulla"}
+    confirmText={t("settings.resetDefaults")}
+    cancelText={t("common.cancel")}
     variant="danger"
     on:cancel={() => (showResetConfirm = null)}
     on:confirm={() => {
