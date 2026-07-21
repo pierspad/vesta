@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Vesta Whisper Bench</title>
+  <style>
+    :root { color-scheme: dark; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; padding: 20px;
+      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+      background: #0f1117; color: #d7dae0;
+      display: flex; flex-direction: column; gap: 14px; height: 100vh;
+    }
+    h1 { font-size: 18px; margin: 0; display: flex; align-items: center; gap: 10px; }
+    h1 .badge {
+      font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em;
+      padding: 3px 8px; border-radius: 999px; background: #f59e0b22; color: #fbbf24;
+      border: 1px solid #f59e0b55;
+    }
+    .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    .card {
+      background: #171a23; border: 1px solid #ffffff14; border-radius: 12px; padding: 14px;
+    }
+    label { font-size: 12px; color: #8b90a0; font-weight: 600; }
+    input[type=text], select {
+      background: #0f1117; color: #e5e7eb; border: 1px solid #ffffff1f;
+      border-radius: 8px; padding: 8px 10px; font-size: 13px;
+    }
+    input[type=text] { flex: 1; min-width: 200px; }
+    button {
+      background: #4f46e5; color: white; border: 0; border-radius: 8px;
+      padding: 8px 16px; font-size: 13px; font-weight: 700; cursor: pointer;
+    }
+    button:hover { background: #6366f1; }
+    button:disabled { opacity: .45; cursor: not-allowed; }
+    button.secondary { background: #ffffff14; color: #d7dae0; }
+    button.secondary:hover { background: #ffffff22; }
+    #log {
+      flex: 1; min-height: 120px; overflow-y: auto; margin: 0;
+      background: #0a0c10; border: 1px solid #ffffff10; border-radius: 10px;
+      padding: 10px 12px; font: 12px/1.5 ui-monospace, monospace; white-space: pre-wrap;
+    }
+    table { border-collapse: collapse; width: 100%; font-size: 12px; }
+    th, td { text-align: left; padding: 6px 10px; border-bottom: 1px solid #ffffff10; }
+    th { color: #8b90a0; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; }
+    td.ok { color: #34d399; font-weight: 700; }
+    td.error { color: #f87171; font-weight: 700; }
+    #results-card { display: none; }
+    .muted { color: #6b7280; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <h1>Vesta Whisper Bench <span class="badge" id="backend-badge">…</span></h1>
+
+  <div class="card">
+    <div class="row" style="margin-bottom: 10px;">
+      <label style="width: 70px;">Media</label>
+      <input type="text" id="input-path" placeholder="Pick an audio/video file..." readonly />
+      <button class="secondary" id="btn-pick">Browse</button>
+    </div>
+    <div class="row">
+      <label style="width: 70px;">Model</label>
+      <select id="model">
+        <option value="tiny">tiny (~75 MB)</option>
+        <option value="base" selected>base (~150 MB)</option>
+        <option value="small">small (~500 MB)</option>
+        <option value="medium">medium (~1.5 GB)</option>
+      </select>
+      <label>Language</label>
+      <select id="language">
+        <option value="auto" selected>auto</option>
+        <option value="en">en</option>
+        <option value="it">it</option>
+        <option value="es">es</option>
+        <option value="fr">fr</option>
+        <option value="de">de</option>
+        <option value="ja">ja</option>
+      </select>
+      <span style="flex:1"></span>
+      <button id="btn-run">Run benchmark</button>
+    </div>
+    <p class="muted" id="variants-hint" style="margin: 10px 0 0;"></p>
+  </div>
+
+  <pre id="log">Ready. Pick a media file and press "Run benchmark".
+Models and (if needed) ffmpeg are downloaded automatically on first run.</pre>
+
+  <div class="card" id="results-card">
+    <div class="row" style="justify-content: space-between; margin-bottom: 8px;">
+      <label>Results</label>
+      <button id="btn-csv">Download CSV</button>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>Variant</th><th>Backend</th><th>VAD</th><th>Model</th>
+          <th>Wall (s)</th><th>RTF ×</th><th>Subs</th><th>Lang</th><th>Status</th>
+        </tr>
+      </thead>
+      <tbody id="results-body"></tbody>
+    </table>
+  </div>
+
+  <script>
+    const { invoke } = window.__TAURI__.core;
+    const { listen } = window.__TAURI__.event;
+
+    const $ = (id) => document.getElementById(id);
+    let rows = [];
+    let running = false;
+
+    function logLine(s) {
+      const el = $("log");
+      el.textContent += "\n" + s;
+      el.scrollTop = el.scrollHeight;
+    }
+
+    listen("bench-log", (e) => logLine(e.payload));
+    listen("bench-stage", (e) => {
+      const p = e.payload;
+      const el = $("log");
+      const marker = `   [${p.variant}] `;
+      const lines = el.textContent.split("\n");
+      const last = lines[lines.length - 1];
+      const line = `${marker}${p.stage} ${Math.round(p.pct)}%`;
+      if (last.startsWith(marker)) lines[lines.length - 1] = line;
+      else lines.push(line);
+      el.textContent = lines.join("\n");
+      el.scrollTop = el.scrollHeight;
+    });
+
+    async function init() {
+      try {
+        const info = await invoke("bench_info");
+        $("backend-badge").textContent =
+          info.gpu_supported ? `build: cpu + ${info.gpu_backend}` : "build: cpu-only";
+        const variants = info.gpu_supported
+          ? `Variants to run: cpu, cpu+vad, ${info.gpu_backend}, ${info.gpu_backend}+vad`
+          : "Variants to run: cpu, cpu+vad (this build has no GPU backend)";
+        $("variants-hint").textContent =
+          `${variants} — ${info.physical_cores} physical cores, ${info.default_threads} whisper threads, ${info.os}`;
+      } catch (e) {
+        logLine("bench_info failed: " + e);
+      }
+    }
+
+    $("btn-pick").onclick = async () => {
+      const path = await invoke("pick_media");
+      if (path) $("input-path").value = path;
+    };
+
+    $("btn-run").onclick = async () => {
+      if (running) return;
+      const inputPath = $("input-path").value;
+      if (!inputPath) { logLine("Pick a media file first."); return; }
+      running = true;
+      $("btn-run").disabled = true;
+      $("results-card").style.display = "none";
+      try {
+        logLine("── Preparing assets (model / VAD / ffmpeg)...");
+        await invoke("prepare_assets", { modelId: $("model").value });
+        rows = await invoke("run_bench", {
+          inputPath,
+          modelId: $("model").value,
+          language: $("language").value,
+        });
+        renderRows();
+      } catch (e) {
+        logLine("BENCH FAILED: " + e);
+      } finally {
+        running = false;
+        $("btn-run").disabled = false;
+      }
+    };
+
+    function renderRows() {
+      const tbody = $("results-body");
+      tbody.innerHTML = "";
+      for (const r of rows) {
+        const tr = document.createElement("tr");
+        const cells = [
+          r.variant, r.backend, r.vad ? "on" : "off", r.model,
+          r.wall_seconds.toFixed(1),
+          r.realtime_factor ? r.realtime_factor.toFixed(2) : "—",
+          String(r.subtitle_count),
+          r.detected_language ?? "—",
+        ];
+        for (const c of cells) {
+          const td = document.createElement("td");
+          td.textContent = c;
+          tr.appendChild(td);
+        }
+        const status = document.createElement("td");
+        status.textContent = r.status === "ok" ? "ok" : (r.error ?? "error");
+        status.className = r.status;
+        status.title = r.error ?? "";
+        tr.appendChild(status);
+        tbody.appendChild(tr);
+      }
+      $("results-card").style.display = "block";
+    }
+
+    $("btn-csv").onclick = async () => {
+      const header = "variant,backend,vad,model,wall_seconds,audio_seconds,realtime_factor,subtitle_count,detected_language,status,error";
+      const esc = (v) => v == null ? "" : `"${String(v).replaceAll('"', '""')}"`;
+      const csv = [header].concat(rows.map(r => [
+        r.variant, r.backend, r.vad, r.model, r.wall_seconds,
+        r.audio_seconds ?? "", r.realtime_factor ?? "", r.subtitle_count,
+        r.detected_language ?? "", r.status, r.error ?? "",
+      ].map(esc).join(","))).join("\n");
+      const path = await invoke("save_csv", { csv });
+      if (path) logLine("CSV saved to: " + path);
+    };
+
+    init();
+  </script>
+</body>
+</html>

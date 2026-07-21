@@ -22,3 +22,7 @@ tempfile.workspace = true
 # Compile-time only switch: the runtime decision stays with the caller
 # (`TranscriptionConfig::use_gpu`), with automatic CPU fallback.
 vulkan = ["whisper-rs/vulkan"]
+# NVIDIA-only offload via CUDA/cuBLAS (needs the CUDA toolkit at build time).
+cuda = ["whisper-rs/cuda"]
+# AMD-only offload via ROCm/hipBLAS (Linux; needs the ROCm stack at build time).
+rocm = ["whisper-rs/hipblas"]

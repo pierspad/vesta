@@ -5,6 +5,7 @@ members = [
     "lib/*",
     "cli/*",
     "apps/srt-gui/src-tauri",
+    "apps/whisper-bench/src-tauri",
 ]
 
 [workspace.package]

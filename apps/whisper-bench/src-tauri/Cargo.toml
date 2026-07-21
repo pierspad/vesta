@@ -1,0 +1,35 @@
+[package]
+name = "whisper-bench"
+version = "0.1.0"
+edition.workspace = true
+description = "Standalone Whisper transcription benchmark GUI (CPU / Vulkan / CUDA / ROCm, VAD on/off)"
+authors = ["Pierpaolo Spadafora <pierpaolospadafora@proton.me>"]
+license = "GPL-3.0-only"
+
+[build-dependencies]
+tauri-build = { version = "2.6", features = [] }
+
+[dependencies]
+tauri = { version = "2.11", features = [] }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+tokio = { workspace = true, features = ["full"] }
+tokio-util = "0.7"
+tempfile = { workspace = true }
+num_cpus = { workspace = true }
+srt-transcribe = { workspace = true }
+ffmpeg-sidecar = { version = "2.5.1", features = ["download_ffmpeg"] }
+
+# Same split as the main vesta app: portal-based dialogs on Linux.
+[target.'cfg(target_os = "linux")'.dependencies]
+tauri-plugin-dialog = { version = "2.7", default-features = false, features = ["xdg-portal"] }
+
+[target.'cfg(not(target_os = "linux"))'.dependencies]
+tauri-plugin-dialog = "2.7"
+
+[features]
+default = []
+vulkan = ["srt-transcribe/vulkan"]
+cuda = ["srt-transcribe/cuda"]
+rocm = ["srt-transcribe/rocm"]

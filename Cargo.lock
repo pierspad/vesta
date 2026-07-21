@@ -6024,6 +6024,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "whisper-bench"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "ffmpeg-sidecar",
+ "num_cpus",
+ "serde",
+ "serde_json",
+ "srt-transcribe",
+ "tauri",
+ "tauri-build",
+ "tauri-plugin-dialog",
+ "tempfile",
+ "tokio",
+ "tokio-util",
+]
+
+[[package]]
 name = "whisper-rs"
 version = "0.16.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
