@@ -11,6 +11,8 @@
     "check": "svelte-check --tsconfig ./tsconfig.json",
     "i18n:audit": "python3 scripts/check_missing_translations.py",
     "check:i18n": "node scripts/check-i18n.mjs",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "tauri": "tauri"
   },
   "devDependencies": {
@@ -26,6 +28,7 @@
     "svelte-check": "^4.4.8",
     "tailwindcss": "^4.3.0",
     "typescript": "^6.0.3",
-    "vite": "^8.0.13"
+    "vite": "^8.0.13",
+    "vitest": "^4.1.10"
   }
 }

@@ -12,6 +12,7 @@
     "isolatedModules": true,
     "moduleDetection": "force",
     "strict": true,
+    "ignoreDeprecations": "6.0",
     "baseUrl": ".",
     "paths": {
       "$lib/*": ["src/lib/*"]

@@ -176,3 +176,31 @@ jobs:
             --fail-on-issues \
             --block-reasons missing_locale,missing_key,empty_value,placeholder_mismatch \
             --check-stale
+
+  # ===========================================================
+  # Frontend: type-checking (svelte-check) e unit test (vitest)
+  # sulle funzioni pure di lib/utils e lib/config. Anche questo
+  # è solo Node — nessuna dipendenza dalle build Rust/Tauri.
+  # ===========================================================
+  frontend:
+    name: Frontend (svelte-check + vitest)
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+
+      - name: Install frontend dependencies
+        working-directory: ${{ env.TAURI_APP_DIR }}
+        run: npm ci
+
+      - name: svelte-check
+        working-directory: ${{ env.TAURI_APP_DIR }}
+        run: npm run check
+
+      - name: Unit tests (vitest)
+        working-directory: ${{ env.TAURI_APP_DIR }}
+        run: npm test
