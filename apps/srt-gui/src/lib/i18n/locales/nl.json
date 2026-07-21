@@ -36,7 +36,7 @@
   "common.done": "Klaar",
   "common.edit": "Bewerking",
   "common.error.alreadyRunning": "Deze operatie is al in uitvoering.",
-  "common.fallback": "Fallback",
+  "common.fallback": "terugval",
   "common.filesAndOutput": "Bestanden & Output",
   "common.no": "Nee",
   "common.noResults": "Geen resultaten",

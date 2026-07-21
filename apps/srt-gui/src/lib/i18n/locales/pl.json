@@ -93,7 +93,7 @@
   "flashcards.ankiAutoImportSuccess": "Karty zaimportowane automatycznie do Anki",
   "flashcards.ankiDetected": "Wykryto Anki",
   "flashcards.ankiNotRunningFallback": "Anki nie jest uruchomione: wyeksportowano zapasowo w formacie {{format}}.",
-  "flashcards.ankiOffline": "Anki offline",
+  "flashcards.ankiOffline": "Anki poza siecią",
   "flashcards.audioBitrate": "Bitrate audio",
   "flashcards.audioField": "3. Dźwięk",
   "flashcards.audioTrack": "Ścieżka audio",

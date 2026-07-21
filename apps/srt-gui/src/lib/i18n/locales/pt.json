@@ -93,7 +93,7 @@
   "flashcards.ankiAutoImportSuccess": "Cartões importados automaticamente para o Anki",
   "flashcards.ankiDetected": "Anki detectado",
   "flashcards.ankiNotRunningFallback": "O Anki não está em execução: exportado como {{format}} como alternativa.",
-  "flashcards.ankiOffline": "Anki offline",
+  "flashcards.ankiOffline": "Anki desconectado",
   "flashcards.audioBitrate": "Bitrate de áudio",
   "flashcards.audioField": "3. Áudio",
   "flashcards.audioTrack": "Faixa de áudio",

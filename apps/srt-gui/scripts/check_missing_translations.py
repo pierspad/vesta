@@ -97,6 +97,12 @@ SAME_AS_ENGLISH_ALLOWED_KEYS = {
     "translate.overlapMinimal",       # "Minimal" — identical in DE/FR/TR
     "transcribe.error",               # "Error" — identical in ES
     "translate.contextTitle",         # "Context" — identical in NL
+    "common.fallback",                # DE keeps "Fallback" as a loanword, same as tiers.fallback
+    "flashcards.ankiOffline",         # NL keeps "offline" as a loanword, same as settings.endpointStatus.offline
+    "flashcards.fallbackApkgOption",  # "APKG (.apkg)" — file-format label, identical everywhere
+    "flashcards.fallbackTsvOption",   # "TSV (.tsv)" — file-format label, identical everywhere
+    "provider.google",                # "Google Gemini" — brand name, see provider.openrouter
+    "settings.modal.providerGoogle",  # "Google Gemini" — brand name, same as provider.google
     "provider.anthropic",
     "provider.github",
     "provider.mistral",
