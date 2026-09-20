@@ -31,7 +31,6 @@ export interface FlashcardConfigInputs {
   targetLanguage?: string | null;
   autoCardFont?: boolean;
   embedCardFont?: boolean;
-  difficulty?: any;
 }
 
 export function buildFlashcardConfig(i: FlashcardConfigInputs) {
@@ -73,6 +72,7 @@ export function buildFlashcardConfig(i: FlashcardConfigInputs) {
     audio_bitrate: i.media.audioBitrate,
     audio_track_index: i.audioTrackIndex,
     normalize_audio: i.media.normalizeAudio,
+    audio_boost: i.media.audioBoost ?? false,
     audio_pad_start_ms: i.media.audioPadStart,
     audio_pad_end_ms: i.media.audioPadEnd,
     audio_format: i.media.audioFormat,
@@ -105,6 +105,5 @@ export function buildFlashcardConfig(i: FlashcardConfigInputs) {
     target_language: i.targetLanguage ?? null,
     auto_card_font: i.autoCardFont ?? true,
     embed_card_font: i.embedCardFont ?? true,
-    difficulty: i.difficulty ?? null,
   };
 }

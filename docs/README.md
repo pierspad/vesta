@@ -13,7 +13,7 @@ Built with **Rust (Tauri)** + **Svelte 5** + **TypeScript**.
 
 ## What it does
 
-Load a video and its subtitles. Synchronize them, translate them with AI if needed, and export a ready-to-study Anki deck with high-quality audio clips, snapshots, video clips, and difficulty tags synced to the exact lines of dialogue.
+Load a video and its subtitles. Synchronize them, translate them with AI if needed, and export a ready-to-study Anki deck with high-quality audio clips, snapshots, and video clips synced to the exact lines of dialogue.
 
 ![Benchmark comparison: Vesta vs subs2srs](fireplace.png)
 
@@ -21,7 +21,7 @@ Load a video and its subtitles. Synchronize them, translate them with AI if need
 
 - **Parallelized & Multi-core by Default**: Written from scratch in Rust, distributing ffmpeg extractions, media encoding, and database operations across all available CPU cores.
 - **2.3× – 2.6× Faster Than subs2srs**: Completes large multi-episode deck generation workflows in a fraction of the time required by legacy tools.
-- **100% Offline Capable**: Core media processing, local Whisper transcription, VAD speech segmentation, and proficiency vocabulary tagging run entirely on your local machine without mandatory internet access.
+- **100% Offline Capable**: Core media processing, local Whisper transcription, and VAD speech segmentation run entirely on your local machine without mandatory internet access.
 - **Decoupled & Modular Architecture**: Every engine is a standalone, headless Rust crate with matching CLI tools.
 
 ---
@@ -42,37 +42,22 @@ Load a video and its subtitles. Synchronize them, translate them with AI if need
   - **Context & Sentence Merging**: Attach leading/trailing context dialogue lines or automatically join split subtitle sentences.
 - **Card Styling & Dark Mode**: Beautiful, responsive card templates with native dark-mode support and automatic font stack injection tailored for target languages (CJK Noto, Arabic, Thai, Devanagari, Hebrew, Cyrillic, etc.).
 
-### 2. Difficulty Tagging & Vocabulary Profiling
-Vesta automatically analyzes the lexical complexity of each subtitle sentence and tags cards with their proficiency level (e.g., `HSK::3`, `CEFR::B1`, `JLPT::N2`, `TOPIK::3`, `TOCFL::B2`):
-- **Pre-Bundled Official Vocabulary Databases**:
-  - 🇨🇳 **HSK** (Simplified Chinese): 12,500+ official words (HSK 1–6).
-  - 🇹🇼 **TOCFL** (Traditional Chinese): 11,100+ words (Levels 1–6 / A1–C2).
-  - 🇯🇵 **JLPT** (Japanese): 13,900+ words across kanji and kana readings (N5–N1).
-  - 🇰🇷 **TOPIK** (Korean): 6,600+ words (Levels 1–6).
-  - 🇪🇺 **CEFR Multi-lingual**: Dedicated European databases for **English** (8,600+ words), **German** (41,900+ entries), **Italian** (19,900+ entries), **Spanish** (19,900+ entries), **French** (19,900+ entries), **Russian** (19,900+ entries), and **Portuguese** (19,900+ entries) mapped from A1 to C2.
-- **Zero Internet Required & 1-Click Database Export**: Embedded directly into the binary. Export any database to `.tsv` with one click from Settings for inspection, customization, or community sharing.
-- **Custom Vocabulary TSVs & User Schemes**: Load your own custom frequency or vocabulary lists with user-defined tag prefixes.
-- **Configurable Unknown Word Policies**:
-  - `Ignore`: Ignore unlisted words and tag based on known vocabulary.
-  - `Highest`: Treat unlisted/rare words as maximum difficulty.
-  - `Level 0`: Assign explicit Level 0 (e.g. `HSK::0`, `CEFR::0`, `JLPT::0`, `TOPIK::0`, `TOCFL::0`, `Level::0`) for unclassified sentences.
-
-### 3. Speech-to-Text Transcription
+### 2. Speech-to-Text Transcription
 Generate accurate SRT subtitles directly from media files:
 - **Local Whisper (whisper.cpp)**: Offline transcription with GPU acceleration (Vulkan) and beam search quality modes.
 - **Silero VAD (Voice Activity Detection)**: Pre-filters silence and background music, dramatically reducing hallucinations and subtitle drift.
 - **Cloud STT Providers**: Integrated support for Groq, OpenAI, Mistral, and Deepgram for lightning-fast cloud transcription.
 
-### 4. Smart Synchronization & Alignment
+### 3. Smart Synchronization & Alignment
 - **Anchor-based Re-timing (`srt-sync`)**: Align drifting subtitles interactively using waveform anchors.
 - **Automatic Whisper Re-sync (`srt-autosync`)**: Automatically generate phonetic anchors with Whisper to realign out-of-sync subtitles with zero manual effort.
 
-### 5. AI Subtitle Translation (`srt-translate`)
+### 4. AI Subtitle Translation (`srt-translate`)
 - Translate foreign subtitle lines into your native language using Large Language Models.
 - Context-aware batching to preserve dialogue flow, slang, and pronouns.
 - Multi-tier provider failover (Ollama local, OpenAI, Claude, DeepSeek, OpenRouter).
 
-### 6. Smart Episode & Subtitle Matching
+### 5. Smart Episode & Subtitle Matching
 - Drag-and-drop video and subtitle files in bulk.
 - Automatically pairs files across complex naming conventions:
   - Western TV: `S01E05`, `1x05`, `Episode 01`, `Folge 06`, `Episodio 03`, `Серия 09`.
@@ -80,7 +65,7 @@ Generate accurate SRT subtitles directly from media files:
   - Chinese / Korean dramas: `第01话`, `第12集`, `01화`.
 - Auto-detects original vs reference subtitle roles (`source`, `vostfr`, `sub_ita`, `traduzione`, etc.).
 
-### 7. Additional Modules & Integrations
+### 6. Additional Modules & Integrations
 - **Dialogue Condenser (`srt-condense`)**: Strips silence and non-speech intervals to generate condensed audio for listening immersion.
 - **AnkiConnect Direct Sync (`srt-ankiconnect`)**: Push notes, media, and decks directly into a running Anki instance without manual `.apkg` file import.
 - **Deck Refiner (`srt-refine`)**: Enrich existing Anki decks using LLMs with explanations, grammar notes, and usage examples.
@@ -107,7 +92,6 @@ vesta/
 │   └── srt-apkg/          # Native Anki package (.apkg) SQLite collection builder
 ├── lib/
 │   ├── srt-flashcards/    # Flashcard generation, media orchestration & filters
-│   ├── srt-difficulty/    # Lexical complexity analyzer & multi-lingual vocab tables
 │   ├── srt-transcribe/    # Whisper.cpp + Silero VAD + Cloud STT pipeline
 │   ├── srt-autosync/      # Automatic Whisper-assisted subtitle synchronization
 │   ├── srt-sync/          # Anchor-based timing interpolation

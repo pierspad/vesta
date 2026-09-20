@@ -35,6 +35,75 @@ pub async fn flashcard_preview(config: FlashcardConfig) -> Result<Vec<PreviewLin
 }
 
 #[tauri::command]
+pub async fn flashcard_preview_audio(
+    app: AppHandle,
+    media_path: String,
+    sub_path: Option<String>,
+    start_ms: Option<i64>,
+    end_ms: Option<i64>,
+    audio_track_index: Option<usize>,
+    pad_start_ms: Option<i64>,
+    pad_end_ms: Option<i64>,
+    format: Option<srt_flashcards::AudioFormat>,
+    normalize: Option<bool>,
+    boost: Option<bool>,
+    bitrate: Option<u32>,
+) -> Result<String, String> {
+    let (s_ms, e_ms) = if let (Some(s), Some(e)) = (start_ms, end_ms) {
+        (s, e)
+    } else if let Some(ref sp) = sub_path {
+        let (subs, _) = srt_flashcards::parse_subtitle_file(sp).map_err(|e| e.to_string())?;
+        // Find first entry with sensible length (1s to 8s) or first entry
+        let entry = subs
+            .iter()
+            .find(|e| (e.end_ms - e.start_ms) >= 1000 && (e.end_ms - e.start_ms) <= 8000 && !e.text.trim().is_empty())
+            .or_else(|| subs.first());
+        if let Some(e) = entry {
+            (e.start_ms, e.end_ms)
+        } else {
+            (60_000, 63_000)
+        }
+    } else {
+        (60_000, 63_000)
+    };
+
+    let audio_format = format.unwrap_or_default();
+    let pad_s = pad_start_ms.unwrap_or(0);
+    let pad_e = pad_end_ms.unwrap_or(0);
+    let br = bitrate.unwrap_or(128);
+    let norm = normalize.unwrap_or(true);
+    let bst = boost.unwrap_or(false);
+
+    let temp_dir = std::env::temp_dir();
+    let out_file = temp_dir.join(format!(
+        "vesta_audio_preview_{}.{}",
+        std::process::id(),
+        audio_format.extension()
+    ));
+
+    let ffmpeg = resolve_ffmpeg_path(Some(&app)).await;
+
+    srt_flashcards::extract_preview_audio_clip(
+        &media_path,
+        &out_file,
+        s_ms,
+        e_ms,
+        pad_s,
+        pad_e,
+        br,
+        audio_track_index,
+        audio_format,
+        norm,
+        bst,
+        &ffmpeg,
+    )
+    .await
+    .map_err(|e| e.to_string())?;
+
+    Ok(out_file.to_string_lossy().into_owned())
+}
+
+#[tauri::command]
 pub async fn flashcard_generate(
     app: AppHandle,
     state: State<'_, AppFlashcardState>,

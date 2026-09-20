@@ -80,7 +80,7 @@
   <div class="space-y-2 transition-all duration-200 {!settings.generateVideoClips ? 'opacity-40 pointer-events-none' : ''}">
     {#if easyMode}
       <!-- Easy Mode: Simple Video Quality vs Weight Balance Selector -->
-      <div class="space-y-3 bg-gray-950/30 p-3.5 rounded-xl border border-orange-500/15">
+      <div class="space-y-3 bg-gray-950/30 p-3.5 rounded-xl border border-white/5">
         <div class="flex items-center justify-between text-xs">
           <span class="font-medium text-gray-300 flex items-center gap-1.5">
             <svg class="w-4 h-4 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -103,7 +103,7 @@
                   ? 'bg-orange-500 text-white shadow-md shadow-orange-900/40 font-semibold scale-[1.02]'
                   : 'text-gray-400 hover:text-gray-200 hover:bg-white/5'}"
             >
-              <span>{t(`flashcards.quality.${step.id}`)} ({step.width}x{step.height})</span>
+              <span>{t(`flashcards.quality.${step.id}`)}</span>
               <span class="text-[9px] opacity-70">
                 {step.id === 'light' ? '~0.5 MB' : step.id === 'balanced' ? '~1.2 MB' : '~2.5 MB'}
               </span>
@@ -139,7 +139,12 @@
       <!-- Expert Mode: Fine-grained video options -->
       <div class="grid grid-cols-2 gap-2">
         <div class="col-span-2">
-          <span class="block text-xs text-gray-500 mb-1">{t("flashcards.quality")}</span>
+          <span class="flex items-center gap-1.5 text-xs text-gray-400 mb-1 font-medium">
+            <svg class="w-3.5 h-3.5 text-gray-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+            </svg>
+            <span>{t("flashcards.quality")}</span>
+          </span>
           <SearchableSelect
             noResultsText={t("common.noResults")}
             options={[
@@ -159,14 +164,24 @@
       </div>
       <div class="grid grid-cols-2 gap-2">
         <div>
-          <span class="block text-xs text-gray-500 mb-1">{t("flashcards.width")}</span>
+          <span class="flex items-center gap-1.5 text-xs text-gray-400 mb-1 font-medium">
+            <svg class="w-3.5 h-3.5 text-gray-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h8m0 0l-2.5-2.5M16 7l-2.5 2.5M8 7l2.5-2.5M8 7l2.5 2.5M4 4v16m16-16v16" />
+            </svg>
+            <span>{t("flashcards.width")}</span>
+          </span>
           <div class="flex items-center gap-1">
             <input type="number" bind:value={settings.videoWidth} class="input-modern w-full text-xs" />
             <span class="text-xs text-gray-500">px</span>
           </div>
         </div>
         <div>
-          <span class="block text-xs text-gray-500 mb-1">{t("flashcards.height")}</span>
+          <span class="flex items-center gap-1.5 text-xs text-gray-400 mb-1 font-medium">
+            <svg class="w-3.5 h-3.5 text-gray-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8v8m0 0l-2.5-2.5M7 16l2.5-2.5M7 8l-2.5 2.5M7 8l2.5 2.5M4 4h16M4 20h16" />
+            </svg>
+            <span>{t("flashcards.height")}</span>
+          </span>
           <div class="flex items-center gap-1">
             <input type="number" bind:value={settings.videoHeight} class="input-modern w-full text-xs" />
             <span class="text-xs text-gray-500">px</span>
@@ -175,7 +190,12 @@
       </div>
       <div class="grid grid-cols-2 gap-2">
         <div>
-          <span class="block text-xs text-gray-500 mb-1">{t("flashcards.videoCodec")}</span>
+          <span class="flex items-center gap-1.5 text-xs text-gray-400 mb-1 font-medium">
+            <svg class="w-3.5 h-3.5 text-gray-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+            </svg>
+            <span>{t("flashcards.videoCodec")}</span>
+          </span>
           <SearchableSelect
             className="compact-select"
             noResultsText={t("common.noResults")}
@@ -189,7 +209,12 @@
           />
         </div>
         <div>
-          <span class="block text-xs text-gray-500 mb-1">{t("flashcards.h264Preset")}</span>
+          <span class="flex items-center gap-1.5 text-xs text-gray-400 mb-1 font-medium">
+            <svg class="w-3.5 h-3.5 text-gray-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+            <span>{t("flashcards.h264Preset")}</span>
+          </span>
           <SearchableSelect
             className="compact-select"
             noResultsText={t("common.noResults")}
@@ -208,14 +233,24 @@
       </div>
       <div class="grid grid-cols-2 gap-2">
         <div>
-          <span class="block text-xs text-gray-500 mb-1">{t("flashcards.videoBitrate")}</span>
+          <span class="flex items-center gap-1.5 text-xs text-gray-400 mb-1 font-medium">
+            <svg class="w-3.5 h-3.5 text-gray-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+            </svg>
+            <span>{t("flashcards.videoBitrate")}</span>
+          </span>
           <div class="flex items-center gap-1">
             <input type="number" bind:value={settings.videoBitrate} class="input-modern w-full text-xs" />
             <span class="text-xs text-gray-500">kb/s</span>
           </div>
         </div>
         <div>
-          <span class="block text-xs text-gray-500 mb-1">{t("flashcards.audioBitrate")}</span>
+          <span class="flex items-center gap-1.5 text-xs text-gray-400 mb-1 font-medium">
+            <svg class="w-3.5 h-3.5 text-gray-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+            </svg>
+            <span>{t("flashcards.audioBitrate")}</span>
+          </span>
           <SearchableSelect
             className="compact-select"
             noResultsText={t("common.noResults")}
@@ -233,14 +268,24 @@
       </div>
       <div class="grid grid-cols-2 gap-2">
         <div>
-          <span class="block text-xs text-gray-500 mb-1">{t("flashcards.padStart")}</span>
+          <span class="flex items-center gap-1.5 text-xs text-gray-400 mb-1 font-medium">
+            <svg class="w-3.5 h-3.5 text-gray-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 4v16m4-8h11m-3-3l3 3-3 3" />
+            </svg>
+            <span>{t("flashcards.padStart")}</span>
+          </span>
           <div class="flex items-center gap-1">
             <input type="number" bind:value={settings.videoPadStart} class="input-modern w-full text-xs" />
             <span class="text-xs text-gray-500">ms</span>
           </div>
         </div>
         <div>
-          <span class="block text-xs text-gray-500 mb-1">{t("flashcards.padEnd")}</span>
+          <span class="flex items-center gap-1.5 text-xs text-gray-400 mb-1 font-medium">
+            <svg class="w-3.5 h-3.5 text-gray-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 4v16m-4-8H4m3-3l-3 3 3 3" />
+            </svg>
+            <span>{t("flashcards.padEnd")}</span>
+          </span>
           <div class="flex items-center gap-1">
             <input type="number" bind:value={settings.videoPadEnd} class="input-modern w-full text-xs" />
             <span class="text-xs text-gray-500">ms</span>

@@ -55,13 +55,6 @@ describe("buildFlashcardConfig", () => {
     cpuCores: 4,
     targetLanguage: "zh",
     autoCardFont: true,
-    difficulty: {
-      enabled: true,
-      scheme: "hsk",
-      language: "zh",
-      unknown_policy: "highest",
-      tag_prefix: null,
-    },
   };
 
   it("builds a complete config matching domain invariants", () => {
@@ -77,7 +70,6 @@ describe("buildFlashcardConfig", () => {
     expect(config.deck_name).toBe("SampleDeck");
     expect(config.target_language).toBe("zh");
     expect(config.auto_card_font).toBe(true);
-    expect(config.difficulty?.scheme).toBe("hsk");
   });
 
   it("decouples snapshot dimensions from video dimensions", () => {

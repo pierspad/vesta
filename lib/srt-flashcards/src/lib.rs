@@ -14,7 +14,9 @@ mod types;
 pub mod fonts;
 pub mod media;
 
-pub use media::{H264Encoder, check_ffmpeg, detect_h264_encoder, video_has_audio};
+pub use media::{
+    H264Encoder, check_ffmpeg, detect_h264_encoder, extract_preview_audio_clip, video_has_audio,
+};
 pub use types::*;
 
 use export_apkg::generate_apkg;
@@ -25,7 +27,7 @@ use media::{
     MediaKind, extract_audio_clip, extract_snapshot, extract_video_clip, media_filename,
     video_clip_extension,
 };
-use parser::parse_subtitle_file;
+pub use parser::parse_subtitle_file;
 
 #[derive(Debug, Clone)]
 pub struct MediaTools {
@@ -471,6 +473,7 @@ pub async fn generate(
                 let pad_s = config.audio_pad_start_ms;
                 let pad_e = config.audio_pad_end_ms;
                 let normalize = config.normalize_audio;
+                let boost = config.audio_boost;
                 let ffmpeg = ffmpeg_cmd_arc.clone();
                 let permit = semaphore.clone();
 
@@ -487,6 +490,7 @@ pub async fn generate(
                         audio_track_index,
                         audio_format,
                         normalize,
+                        boost,
                         &ffmpeg,
                     )
                     .await;
@@ -544,6 +548,8 @@ pub async fn generate(
                 let audio_track_index = config.audio_track_index;
                 let pad_s = config.video_pad_start_ms;
                 let pad_e = config.video_pad_end_ms;
+                let normalize = config.normalize_audio;
+                let boost = config.audio_boost;
                 let w = config.video_width.unwrap_or(config.snapshot_width);
                 let h = config.video_height.unwrap_or(config.snapshot_height);
                 let crop = config.crop_bottom;
@@ -575,6 +581,8 @@ pub async fn generate(
                         w,
                         h,
                         crop,
+                        normalize,
+                        boost,
                         &ffmpeg,
                     )
                     .await;
@@ -598,6 +606,8 @@ pub async fn generate(
                             w,
                             h,
                             crop,
+                            normalize,
+                            boost,
                             &ffmpeg,
                         )
                         .await;

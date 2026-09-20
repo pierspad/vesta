@@ -255,6 +255,7 @@ pub(crate) async fn extract_audio_clip(
     audio_track_index: Option<usize>,
     format: AudioFormat,
     normalize: bool,
+    boost: bool,
     ffmpeg_cmd: &str,
 ) -> Result<()> {
     let (start_ts, duration_ts) = clip_window(start_ms, end_ms, pad_start_ms, pad_end_ms);
@@ -282,10 +283,18 @@ pub(crate) async fn extract_audio_clip(
     cmd.args(["-ac", "2"]);
 
     // Loudness normalisation rides along with the one encode we already do.
-    // Doing it as a second pass would decode and re-encode an already-lossy
-    // clip -- merely wasteful for MP3, but lossy-on-lossy for Opus.
+    // Target -14 LUFS (modern web / dialogue standard) and optional +6 dB volume boost
+    // with transparent limiting to prevent clipping.
+    let mut af_filters = Vec::new();
     if normalize {
-        cmd.args(["-af", "loudnorm=I=-16:TP=-1.5:LRA=11"]);
+        af_filters.push("loudnorm=I=-14:TP=-1.5:LRA=11".to_string());
+    }
+    if boost {
+        af_filters.push("volume=6dB".to_string());
+        af_filters.push("alimiter=limit=-0.2dB".to_string());
+    }
+    if !af_filters.is_empty() {
+        cmd.args(["-af", &af_filters.join(",")]);
     }
 
     for arg in format.ffmpeg_args(bitrate) {
@@ -355,6 +364,8 @@ pub(crate) async fn extract_video_clip(
     width: u32,
     height: u32,
     crop_bottom: u32,
+    normalize: bool,
+    boost: bool,
     ffmpeg_cmd: &str,
 ) -> Result<()> {
     let (start_ts, duration_ts) = clip_window(start_ms, end_ms, pad_start_ms, pad_end_ms);
@@ -383,6 +394,18 @@ pub(crate) async fn extract_video_clip(
         scale_vf(width, height, crop_bottom)
     };
     cmd.args(["-vf", &vf]);
+
+    let mut af_filters = Vec::new();
+    if normalize {
+        af_filters.push("loudnorm=I=-14:TP=-1.5:LRA=11".to_string());
+    }
+    if boost {
+        af_filters.push("volume=6dB".to_string());
+        af_filters.push("alimiter=limit=-0.2dB".to_string());
+    }
+    if !af_filters.is_empty() {
+        cmd.args(["-af", &af_filters.join(",")]);
+    }
 
     if let Some(track_index) = audio_track_index {
         let audio_map = format!("0:a:{}", track_index);
@@ -425,6 +448,38 @@ pub(crate) async fn extract_video_clip(
     cmd.arg(output_path.as_os_str());
 
     run_ffmpeg(cmd, "video").await
+}
+
+#[allow(clippy::too_many_arguments)]
+pub async fn extract_preview_audio_clip(
+    source_path: &str,
+    output_path: &Path,
+    start_ms: i64,
+    end_ms: i64,
+    pad_start_ms: i64,
+    pad_end_ms: i64,
+    bitrate: u32,
+    audio_track_index: Option<usize>,
+    format: AudioFormat,
+    normalize: bool,
+    boost: bool,
+    ffmpeg_cmd: &str,
+) -> Result<()> {
+    extract_audio_clip(
+        source_path,
+        output_path,
+        start_ms,
+        end_ms,
+        pad_start_ms,
+        pad_end_ms,
+        bitrate,
+        audio_track_index,
+        format,
+        normalize,
+        boost,
+        ffmpeg_cmd,
+    )
+    .await
 }
 
 #[cfg(test)]

@@ -101,7 +101,12 @@
 
                 <div class="grid grid-cols-2 gap-3">
                   <div>
-                    <span class="mb-1 block text-xs text-gray-500">{t("flashcards.bitrate")}</span>
+                    <span class="mb-1 flex items-center gap-1.5 text-xs text-gray-400 font-medium">
+                      <svg class="w-3.5 h-3.5 text-gray-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                      </svg>
+                      <span>{t("flashcards.bitrate")}</span>
+                    </span>
                     <SearchableSelect
                       className={mediaOverrideClass("audioBitrate")}
                       noResultsText={t("common.noResults")}
@@ -130,7 +135,12 @@
 
                 <div class="grid grid-cols-2 gap-3">
                   <div>
-                    <span class="mb-1 block text-xs text-gray-500">{t("flashcards.padStart")}</span>
+                    <span class="mb-1 flex items-center gap-1.5 text-xs text-gray-400 font-medium">
+                      <svg class="w-3.5 h-3.5 text-gray-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 4v16m4-8h11m-3-3l3 3-3 3" />
+                      </svg>
+                      <span>{t("flashcards.padStart")}</span>
+                    </span>
                     <div class="flex items-center gap-1">
                       <input
                         type="number"
@@ -142,7 +152,12 @@
                     </div>
                   </div>
                   <div>
-                    <span class="mb-1 block text-xs text-gray-500">{t("flashcards.padEnd")}</span>
+                    <span class="mb-1 flex items-center gap-1.5 text-xs text-gray-400 font-medium">
+                      <svg class="w-3.5 h-3.5 text-gray-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 4v16m-4-8H4m3-3l-3 3 3 3" />
+                      </svg>
+                      <span>{t("flashcards.padEnd")}</span>
+                    </span>
                     <div class="flex items-center gap-1">
                       <input
                         type="number"
@@ -177,28 +192,48 @@
             {#if editor.overrides.generateSnapshots && editor.episode.mediaType === "video"}
               <div class="grid grid-cols-3 gap-3 animate-fade-in">
                 <div>
-                  <span class="mb-1 block text-xs text-gray-500">{t("flashcards.width")}</span>
+                  <span class="mb-1 flex items-center gap-1.5 text-xs text-gray-400 font-medium">
+                    <svg class="w-3.5 h-3.5 text-gray-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h8m0 0l-2.5-2.5M16 7l-2.5 2.5M8 7l2.5-2.5M8 7l2.5 2.5M4 4v16m16-16v16" />
+                    </svg>
+                    <span>{t("flashcards.width")}</span>
+                  </span>
                   <div class="flex items-center gap-1">
                     <input type="number" value={editor.overrides.snapshotWidth} oninput={(event) => editor.update("snapshotWidth", Number((event.currentTarget as HTMLInputElement).value))} class="input-modern w-full text-xs {mediaOverrideClass('snapshotWidth')}" />
                     <span class="text-xs text-gray-500">px</span>
                   </div>
                 </div>
                 <div>
-                  <span class="mb-1 block text-xs text-gray-500">{t("flashcards.height")}</span>
+                  <span class="mb-1 flex items-center gap-1.5 text-xs text-gray-400 font-medium">
+                    <svg class="w-3.5 h-3.5 text-gray-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8v8m0 0l-2.5-2.5M7 16l2.5-2.5M7 8l-2.5 2.5M7 8l2.5 2.5M4 4h16M4 20h16" />
+                    </svg>
+                    <span>{t("flashcards.height")}</span>
+                  </span>
                   <div class="flex items-center gap-1">
                     <input type="number" value={editor.overrides.snapshotHeight} oninput={(event) => editor.update("snapshotHeight", Number((event.currentTarget as HTMLInputElement).value))} class="input-modern w-full text-xs {mediaOverrideClass('snapshotHeight')}" />
                     <span class="text-xs text-gray-500">px</span>
                   </div>
                 </div>
                 <div>
-                  <span class="mb-1 block text-xs text-gray-500">{t("flashcards.cropBottom")}</span>
+                  <span class="mb-1 flex items-center gap-1.5 text-xs text-gray-400 font-medium">
+                    <svg class="w-3.5 h-3.5 text-gray-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 3v14a2 2 0 002 2h14M3 7h14a2 2 0 012 2v14" />
+                    </svg>
+                    <span>{t("flashcards.cropBottom")}</span>
+                  </span>
                   <div class="flex items-center gap-1">
                     <input type="number" value={editor.overrides.cropBottom} oninput={(event) => editor.update("cropBottom", Number((event.currentTarget as HTMLInputElement).value))} class="input-modern w-full text-xs {mediaOverrideClass('cropBottom')}" />
                     <span class="text-xs text-gray-500">px</span>
                   </div>
                 </div>
                 <div>
-                  <span class="mb-1 block text-xs text-gray-500">{t("flashcards.qualityValue")}</span>
+                  <span class="mb-1 flex items-center gap-1.5 text-xs text-gray-400 font-medium">
+                    <svg class="w-3.5 h-3.5 text-gray-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
+                    </svg>
+                    <span>{t("flashcards.qualityValue")}</span>
+                  </span>
                   <div class="flex items-center gap-1">
                     <input type="number" min="0" max="100" value={editor.overrides.snapshotQuality} oninput={(event) => editor.update("snapshotQuality", Number((event.currentTarget as HTMLInputElement).value))} class="input-modern w-full text-xs {mediaOverrideClass('snapshotQuality')}" />
                     <span class="text-xs text-gray-500">/100</span>
@@ -228,14 +263,24 @@
               <div class="space-y-4 animate-fade-in">
                 <div class="grid grid-cols-2 gap-3">
                   <div>
-                    <span class="mb-1 block text-xs text-gray-500">{t("flashcards.width")}</span>
+                    <span class="mb-1 flex items-center gap-1.5 text-xs text-gray-400 font-medium">
+                      <svg class="w-3.5 h-3.5 text-gray-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h8m0 0l-2.5-2.5M16 7l-2.5 2.5M8 7l2.5-2.5M8 7l2.5 2.5M4 4v16m16-16v16" />
+                      </svg>
+                      <span>{t("flashcards.width")}</span>
+                    </span>
                     <div class="flex items-center gap-1">
                       <input type="number" value={editor.overrides.videoWidth} oninput={(event) => editor.update("videoWidth", Number((event.currentTarget as HTMLInputElement).value))} class="input-modern w-full text-xs {mediaOverrideClass('videoWidth')}" />
                       <span class="text-xs text-gray-500">px</span>
                     </div>
                   </div>
                   <div>
-                    <span class="mb-1 block text-xs text-gray-500">{t("flashcards.height")}</span>
+                    <span class="mb-1 flex items-center gap-1.5 text-xs text-gray-400 font-medium">
+                      <svg class="w-3.5 h-3.5 text-gray-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8v8m0 0l-2.5-2.5M7 16l2.5-2.5M7 8l-2.5 2.5M7 8l2.5 2.5M4 4h16M4 20h16" />
+                      </svg>
+                      <span>{t("flashcards.height")}</span>
+                    </span>
                     <div class="flex items-center gap-1">
                       <input type="number" value={editor.overrides.videoHeight} oninput={(event) => editor.update("videoHeight", Number((event.currentTarget as HTMLInputElement).value))} class="input-modern w-full text-xs {mediaOverrideClass('videoHeight')}" />
                       <span class="text-xs text-gray-500">px</span>
@@ -244,7 +289,12 @@
                 </div>
                 <div class="grid grid-cols-2 gap-3">
                   <div>
-                    <span class="mb-1 block text-xs text-gray-500">{t("flashcards.videoCodec")}</span>
+                    <span class="mb-1 flex items-center gap-1.5 text-xs text-gray-400 font-medium">
+                      <svg class="w-3.5 h-3.5 text-gray-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                      </svg>
+                      <span>{t("flashcards.videoCodec")}</span>
+                    </span>
                     <SearchableSelect
                       className="compact-select {mediaOverrideClass('videoCodec')}"
                       noResultsText={t("common.noResults")}
@@ -258,7 +308,12 @@
                     />
                   </div>
                   <div>
-                    <span class="mb-1 block text-xs text-gray-500">{t("flashcards.h264Preset")}</span>
+                    <span class="mb-1 flex items-center gap-1.5 text-xs text-gray-400 font-medium">
+                      <svg class="w-3.5 h-3.5 text-gray-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                      </svg>
+                      <span>{t("flashcards.h264Preset")}</span>
+                    </span>
                     <SearchableSelect
                       className="compact-select {mediaOverrideClass('h264Preset')}"
                       noResultsText={t("common.noResults")}
@@ -277,14 +332,24 @@
                 </div>
                 <div class="grid grid-cols-2 gap-3">
                   <div>
-                    <span class="mb-1 block text-xs text-gray-500">{t("flashcards.videoBitrate")}</span>
+                    <span class="mb-1 flex items-center gap-1.5 text-xs text-gray-400 font-medium">
+                      <svg class="w-3.5 h-3.5 text-gray-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                      </svg>
+                      <span>{t("flashcards.videoBitrate")}</span>
+                    </span>
                     <div class="flex items-center gap-1">
                       <input type="number" value={editor.overrides.videoBitrate} oninput={(event) => editor.update("videoBitrate", Number((event.currentTarget as HTMLInputElement).value))} class="input-modern w-full text-xs {mediaOverrideClass('videoBitrate')}" />
                       <span class="text-xs text-gray-500">kb/s</span>
                     </div>
                   </div>
                   <div>
-                    <span class="mb-1 block text-xs text-gray-500">{t("flashcards.audioBitrate")}</span>
+                    <span class="mb-1 flex items-center gap-1.5 text-xs text-gray-400 font-medium">
+                      <svg class="w-3.5 h-3.5 text-gray-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+                      </svg>
+                      <span>{t("flashcards.audioBitrate")}</span>
+                    </span>
                     <SearchableSelect
                       className="compact-select {mediaOverrideClass('videoAudioBitrate')}"
                       noResultsText={t("common.noResults")}
@@ -302,14 +367,24 @@
                 </div>
                 <div class="grid grid-cols-2 gap-3">
                   <div>
-                    <span class="mb-1 block text-xs text-gray-500">{t("flashcards.padStart")}</span>
+                    <span class="mb-1 flex items-center gap-1.5 text-xs text-gray-400 font-medium">
+                      <svg class="w-3.5 h-3.5 text-gray-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 4v16m4-8h11m-3-3l3 3-3 3" />
+                      </svg>
+                      <span>{t("flashcards.padStart")}</span>
+                    </span>
                     <div class="flex items-center gap-1">
                       <input type="number" value={editor.overrides.videoPadStart} oninput={(event) => editor.update("videoPadStart", Number((event.currentTarget as HTMLInputElement).value))} class="input-modern w-full text-xs {mediaOverrideClass('videoPadStart')}" />
                       <span class="text-xs text-gray-500">ms</span>
                     </div>
                   </div>
                   <div>
-                    <span class="mb-1 block text-xs text-gray-500">{t("flashcards.padEnd")}</span>
+                    <span class="mb-1 flex items-center gap-1.5 text-xs text-gray-400 font-medium">
+                      <svg class="w-3.5 h-3.5 text-gray-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 4v16m-4-8H4m3-3l-3 3 3 3" />
+                      </svg>
+                      <span>{t("flashcards.padEnd")}</span>
+                    </span>
                     <div class="flex items-center gap-1">
                       <input type="number" value={editor.overrides.videoPadEnd} oninput={(event) => editor.update("videoPadEnd", Number((event.currentTarget as HTMLInputElement).value))} class="input-modern w-full text-xs {mediaOverrideClass('videoPadEnd')}" />
                       <span class="text-xs text-gray-500">ms</span>

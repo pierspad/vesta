@@ -35,7 +35,6 @@
   } from "$lib/types/noteTypes";
   import PathPreviewModal from "$lib/modals/PathPreviewModal.svelte";
   import { buildFlashcardConfig } from "$lib/utils/flashcardConfig";
-  import { inferSchemeForLanguage } from "$lib/utils/difficultySchemes";
   import SearchableSelect from "$lib/components/SearchableSelect.svelte";
   import LogPanel from "$lib/panels/LogPanel.svelte";
   import CodeEditor from "$lib/components/CodeEditor.svelte";
@@ -57,8 +56,6 @@
   } from "$lib/utils/mediaSettings";
   import type { CardFilterSettings } from "$lib/types/flashcardFilterTypes";
   import CardFiltersPanel from "$lib/panels/CardFiltersPanel.svelte";
-  import DifficultyPanel, { type DifficultySettings } from "$lib/panels/DifficultyPanel.svelte";
-  import { difficultyStore } from "$lib/stores/difficultyStore.svelte";
   import { episodeMediaEditorStore } from "$lib/stores/episodeMediaEditorStore.svelte";
   import EpisodeMediaSettingsModal from "$lib/modals/EpisodeMediaSettingsModal.svelte";
   import AudioClipsPanel from "$lib/panels/AudioClipsPanel.svelte";
@@ -147,20 +144,7 @@
 
 
   // ─── Series Mode State ───────────────────────────────────────────────────
-  let seriesMode = $state(loadSeriesMode());
-
-  function loadSeriesMode(): boolean {
-    try {
-      return vestaConfig.getItem(SERIES_MODE_KEY) === "true";
-    } catch {
-      return false;
-    }
-  }
-
-  function toggleSeriesMode() {
-    seriesMode = !seriesMode;
-    vestaConfig.setItem(SERIES_MODE_KEY, String(seriesMode));
-  }
+  const seriesMode = true;
 
   // Episode data for series mode: `EpisodeEntry` lives in seriesFileMatching.ts
   // alongside the pure matching heuristics that produce/consume it.
@@ -714,37 +698,6 @@
     continuationChars: ",、→",
   });
 
-  const DIFFICULTY_SETTINGS_KEY = "vesta-flashcards-difficulty-settings";
-
-  function loadDifficultySettings(): DifficultySettings {
-    try {
-      const saved = vestaConfig.getItem(DIFFICULTY_SETTINGS_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        // Migrate legacy "cefr" scheme to "cefr_en" so the searchable select
-        // always has a valid entry to display.
-        if (parsed.scheme === "cefr") {
-          parsed.scheme = "cefr_en";
-        }
-        return parsed;
-      }
-    } catch {}
-    return {
-      enabled: false,
-      scheme: "cefr_en",
-      unknownPolicy: "ignore",
-      customPrefix: "Level",
-    };
-  }
-
-  let difficultySettings = $state<DifficultySettings>(loadDifficultySettings());
-
-  $effect(() => {
-    try {
-      vestaConfig.setItem(DIFFICULTY_SETTINGS_KEY, JSON.stringify(difficultySettings));
-    } catch {}
-  });
-
   let prevMinChars: number | undefined = undefined;
   let prevMaxChars: number | undefined = undefined;
   let prevMinDuration: number | undefined = undefined;
@@ -1021,18 +974,23 @@
     noteTypeList = listNoteTypes();
   }
   let needsDeckName = $derived(
-    !seriesMode || generationStore.seriesOutputMode === "single",
+    generationStore.seriesOutputMode === "single",
   );
   let canRunFlashcards = $derived(
-    seriesMode
-      ? Boolean(
-          episodes.length > 0 &&
-            episodes.every((ep) => ep.targetSubsPath) &&
-            outputDir &&
-            (needsDeckName ? Boolean(generationStore.deckName || (easyMode && episodes.length > 0)) : true) &&
-            noteTypeLanguage,
-        )
-      : Boolean(targetSubsPath && outputDir && generationStore.deckName && noteTypeLanguage),
+    Boolean(
+      episodes.length > 0 &&
+        episodes.every((ep) => ep.targetSubsPath) &&
+        outputDir &&
+        (needsDeckName ? Boolean(generationStore.deckName || (easyMode && episodes.length > 0)) : true) &&
+        noteTypeLanguage,
+    ),
+  );
+
+  let isApkgSwitchEnabled = $derived(
+    episodes.length > 1 &&
+      generationStore.effectiveExportFormat === "apkg" &&
+      !generationStore.isProcessing &&
+      !generationStore.result,
   );
 
   type RequirementPanelId = "files" | "naming";
@@ -1165,6 +1123,13 @@
   $effect(() => {
     if (audioTracks.length > 1 && audioTrackAutoSelected) {
       mediaSettings.audioTrackIndex = pickBestAudioTrackIndex(audioTracks, getPreferredAudioLanguageCode());
+    }
+  });
+
+  $effect(() => {
+    const firstMedia = episodes[0]?.mediaPath;
+    if (firstMedia && detectMediaType(getFileName(firstMedia)) === "video") {
+      loadAudioTracksForMedia(firstMedia);
     }
   });
 
@@ -1534,17 +1499,6 @@
       targetLanguage: getStudiedLanguagePreference(),
       autoCardFont: ankiStore.autoCardFont,
       embedCardFont: ankiStore.embedCardFont,
-      difficulty: (difficultyStore.enabled && difficultySettings.enabled) ? {
-        enabled: true,
-        scheme: difficultySettings.scheme.startsWith("cefr_") ? "cefr" : difficultySettings.scheme,
-        language: difficultySettings.scheme.startsWith("cefr_")
-          ? difficultySettings.scheme.replace("cefr_", "")
-          : (difficultySettings.language || getStudiedLanguagePreference()),
-        unknown_policy: difficultySettings.unknownPolicy,
-        tag_prefix: difficultySettings.customPrefix?.trim() || null,
-        custom_file_path: difficultySettings.customFilePath?.trim() || null,
-        custom_tsv: difficultySettings.customTsv?.trim() || null,
-      } : null,
     });
   }
 
@@ -1561,14 +1515,6 @@
       vestaConfig.setItem(NOTE_TYPE_LANGUAGE_KEY, inferredFromPath);
     } else if (!noteTypeLanguage) {
       // No token in filename and nothing stored — leave as-is
-    }
-
-    const currentLang = inferredFromPath || noteTypeLanguage;
-    if (currentLang && difficultySettings.scheme !== "custom" && !difficultySettings.customSchemeId) {
-      const inferred = inferSchemeForLanguage(currentLang);
-      if (inferred) {
-        difficultySettings.scheme = inferred;
-      }
     }
 
     const info = await invoke<any>("flashcard_load_subs", {
@@ -1905,17 +1851,6 @@
           targetLanguage: getStudiedLanguagePreference(),
           autoCardFont: ankiStore.autoCardFont,
           embedCardFont: ankiStore.embedCardFont,
-          difficulty: (difficultyStore.enabled && difficultySettings.enabled) ? {
-            enabled: true,
-            scheme: difficultySettings.scheme.startsWith("cefr_") ? "cefr" : difficultySettings.scheme,
-            language: difficultySettings.scheme.startsWith("cefr_")
-              ? difficultySettings.scheme.replace("cefr_", "")
-              : (difficultySettings.language || getStudiedLanguagePreference()),
-            unknown_policy: difficultySettings.unknownPolicy,
-            tag_prefix: difficultySettings.customPrefix?.trim() || null,
-            custom_file_path: difficultySettings.customFilePath?.trim() || null,
-            custom_tsv: difficultySettings.customTsv?.trim() || null,
-          } : null,
         });
 
         await previewStore.applyOverrides(epConfig);
@@ -2335,8 +2270,6 @@
     {#if panelId === "files"}
       <FilesOutputPanel
         highlightClass={panelHighlightClass('files')}
-        {seriesMode}
-        onToggleSeriesMode={toggleSeriesMode}
         {episodes}
         onAddFiles={addSeriesMultipleFiles}
         onClearAll={clearAllEpisodes}
@@ -2347,15 +2280,8 @@
         onMediaSettings={openEpisodeMediaSettings}
         onRemove={removeEpisode}
         onContextMenu={openEpisodeContextMenu}
-        {targetSubsPath}
-        {nativeSubsPath}
-        {mediaPath}
         {outputDir}
-        {activeNoteType}
         onExpand={(field) => (expandedPathField = field)}
-        onSelectTarget={selectTargetSubs}
-        onSelectNative={selectNativeSubs}
-        onSelectMedia={selectMedia}
         onSelectOutput={selectOutputDir}
         onClearField={clearMovieFile}
       />
@@ -2363,10 +2289,12 @@
       <AudioClipsPanel
         bind:settings={mediaSettings}
         {hasAudio}
-        {mediaType}
+        mediaType={previewMediaType}
         {audioTracks}
         {audioTracksLoading}
         hintLoadMediaFirst={HINT_LOAD_MEDIA_FIRST}
+        firstEpisodeMediaPath={episodes[0]?.mediaPath || mediaPath}
+        firstEpisodeSubsPath={episodes[0]?.targetSubsPath || targetSubsPath}
         onTrackPicked={() => (audioTrackAutoSelected = false)}
       />
     {:else if panelId === "snapshots"}
@@ -2390,12 +2318,6 @@
           {hasAnyFiles}
           hintLoadTargetFirst={HINT_LOAD_TARGET_FIRST}
         />
-        {#if difficultyStore.enabled}
-          <DifficultyPanel
-            bind:settings={difficultySettings}
-            studiedLanguage={getStudiedLanguagePreference()}
-          />
-        {/if}
       </div>
 
     {:else if panelId === "naming"}
@@ -2753,43 +2675,43 @@
             {/if}
           </div>
 
-        <!-- Series output mode inline selector (only visible in series mode + apkg) -->
-        {#if seriesMode && generationStore.effectiveExportFormat === "apkg"}
-          <div class="flex items-center bg-gray-800/60 border border-gray-700/60 rounded-lg p-0.5 select-none relative group/sw {generationStore.isProcessing || generationStore.result ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''}">
-            <!-- Sliding indicator background -->
+        <!-- Series output mode inline selector (always present in DOM, disabled when <= 1 episode or format != apkg) -->
+        <div
+          class="flex items-center bg-gray-800/60 border border-gray-700/60 rounded-lg p-0.5 select-none relative group/sw transition-opacity {!isApkgSwitchEnabled ? 'opacity-40 cursor-not-allowed pointer-events-none' : ''}"
+        >
+          <!-- Sliding indicator background -->
+          <div 
+            class="absolute top-0.5 bottom-0.5 left-0.5 rounded-md bg-violet-500/20 border border-violet-500/50 transition-all duration-200 ease-out"
+            style="width: 160px; transform: translateX({generationStore.seriesOutputMode === 'separate' ? '0px' : '160px'});"
+          ></div>
+
+          <button
+            onclick={() => { if(isApkgSwitchEnabled) generationStore.seriesOutputMode = generationStore.seriesOutputMode === 'separate' ? 'single' : 'separate'; }}
+            disabled={!isApkgSwitchEnabled}
+            class="w-[160px] py-1 rounded-md text-xs font-semibold transition-colors duration-200 flex items-center justify-center cursor-pointer select-none relative z-10 disabled:cursor-not-allowed
+              {generationStore.seriesOutputMode === 'separate' ? 'text-violet-200' : 'text-gray-500 hover:text-gray-300'}"
+          >
+            {t("flashcards.outputPerEpisode")}
+          </button>
+          <button
+            onclick={() => { if(isApkgSwitchEnabled) generationStore.seriesOutputMode = generationStore.seriesOutputMode === 'separate' ? 'single' : 'separate'; }}
+            disabled={!isApkgSwitchEnabled}
+            class="w-[160px] py-1 rounded-md text-xs font-semibold transition-colors duration-200 flex items-center justify-center cursor-pointer select-none relative z-10 disabled:cursor-not-allowed
+              {generationStore.seriesOutputMode === 'single' ? 'text-violet-200' : 'text-gray-500 hover:text-gray-300'}"
+          >
+            {t("flashcards.outputSingleApkg")}
+          </button>
+
+          <!-- Custom premium tooltip -->
+          {#if isApkgSwitchEnabled}
             <div 
-              class="absolute top-0.5 bottom-0.5 left-0.5 rounded-md bg-violet-500/20 border border-violet-500/50 transition-all duration-200 ease-out"
-              style="width: 160px; transform: translateX({generationStore.seriesOutputMode === 'separate' ? '0px' : '160px'});"
-            ></div>
-
-            <button
-              onclick={() => { if(!generationStore.isProcessing && !generationStore.result) generationStore.seriesOutputMode = generationStore.seriesOutputMode === 'separate' ? 'single' : 'separate'; }}
-              disabled={generationStore.isProcessing || !!generationStore.result}
-              class="w-[160px] py-1 rounded-md text-xs font-semibold transition-colors duration-200 flex items-center justify-center cursor-pointer select-none relative z-10 disabled:cursor-not-allowed
-                {generationStore.seriesOutputMode === 'separate' ? 'text-violet-200' : 'text-gray-500 hover:text-gray-300'}"
+              class="pointer-events-none absolute bottom-full z-50 mb-3 -translate-x-1/2 rounded-xl border border-violet-500/30 bg-gray-950/95 p-3 text-center text-xs text-violet-300 shadow-2xl shadow-black/40 ring-1 ring-white/10 transition-all duration-150 delay-0 group-hover/sw:delay-300 opacity-0 group-hover/sw:opacity-100 group-hover/sw:translate-y-0 translate-y-1 whitespace-normal max-w-[280px] w-max"
+              style="left: {generationStore.seriesOutputMode === 'separate' ? '82px' : '242px'};"
             >
-              {t("flashcards.outputPerEpisode")}
-            </button>
-            <button
-              onclick={() => { if(!generationStore.isProcessing && !generationStore.result) generationStore.seriesOutputMode = generationStore.seriesOutputMode === 'separate' ? 'single' : 'separate'; }}
-              disabled={generationStore.isProcessing || !!generationStore.result}
-              class="w-[160px] py-1 rounded-md text-xs font-semibold transition-colors duration-200 flex items-center justify-center cursor-pointer select-none relative z-10 disabled:cursor-not-allowed
-                {generationStore.seriesOutputMode === 'single' ? 'text-violet-200' : 'text-gray-500 hover:text-gray-300'}"
-            >
-              {t("flashcards.outputSingleApkg")}
-            </button>
-
-            <!-- Custom premium tooltip -->
-            {#if !generationStore.isProcessing && !generationStore.result}
-              <div 
-                class="pointer-events-none absolute bottom-full z-50 mb-3 -translate-x-1/2 rounded-xl border border-violet-500/30 bg-gray-950/95 p-3 text-center text-xs text-violet-300 shadow-2xl shadow-black/40 ring-1 ring-white/10 transition-all duration-150 delay-0 group-hover/sw:delay-300 opacity-0 group-hover/sw:opacity-100 group-hover/sw:translate-y-0 translate-y-1 whitespace-normal max-w-[280px] w-max"
-                style="left: {generationStore.seriesOutputMode === 'separate' ? '82px' : '242px'};"
-              >
-                {generationStore.seriesOutputMode === 'separate' ? t("flashcards.outputPerEpisodeDesc") : t("flashcards.outputSingleApkgDesc")}
-              </div>
-            {/if}
-          </div>
-        {/if}
+              {generationStore.seriesOutputMode === 'separate' ? t("flashcards.outputPerEpisodeDesc") : t("flashcards.outputSingleApkgDesc")}
+            </div>
+          {/if}
+        </div>
       </div>
 
       <!-- Preview Button -->

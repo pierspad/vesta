@@ -2,6 +2,8 @@
   import { locale } from "$lib/i18n";
   import { uiMode } from "$lib/stores/uiModeStore.svelte";
   import SearchableSelect from "$lib/components/SearchableSelect.svelte";
+  import { invoke } from "@tauri-apps/api/core";
+  import { snackbar } from "$lib/stores/snackbarStore.svelte";
   import {
     bitratesFor,
     equivalentBitrate,
@@ -18,14 +20,82 @@
     audioTracks: AudioTrackInfo[];
     audioTracksLoading: boolean;
     hintLoadMediaFirst: string;
+    firstEpisodeMediaPath?: string | null;
+    firstEpisodeSubsPath?: string | null;
     /** Called (in addition to updating settings.audioTrackIndex) whenever the
      * user manually picks a track, so the caller can stop auto-selecting it. */
     onTrackPicked: () => void;
   }
-  let { settings = $bindable(), hasAudio, mediaType, audioTracks, audioTracksLoading, hintLoadMediaFirst, onTrackPicked }: Props = $props();
+  let {
+    settings = $bindable(),
+    hasAudio,
+    mediaType,
+    audioTracks,
+    audioTracksLoading,
+    hintLoadMediaFirst,
+    firstEpisodeMediaPath = null,
+    firstEpisodeSubsPath = null,
+    onTrackPicked,
+  }: Props = $props();
 
   let t = $derived($locale);
   let easyMode = $derived(!uiMode.expertMode);
+
+  let isPreviewPlaying = $state(false);
+  let isPreviewLoading = $state(false);
+  let audioPlayer: HTMLAudioElement | null = null;
+
+  async function toggleAudioPreview() {
+    if (isPreviewPlaying && audioPlayer) {
+      audioPlayer.pause();
+      isPreviewPlaying = false;
+      return;
+    }
+
+    const media = firstEpisodeMediaPath;
+    if (!media) {
+      snackbar.show(hintLoadMediaFirst, "warning", 2000);
+      return;
+    }
+
+    isPreviewLoading = true;
+    try {
+      const [port, token] = await invoke<[number, string]>("get_media_server_info");
+      const previewFilePath = await invoke<string>("flashcard_preview_audio", {
+        mediaPath: media,
+        subPath: firstEpisodeSubsPath || null,
+        startMs: null,
+        endMs: null,
+        audioTrackIndex: settings.audioTrackIndex,
+        padStartMs: settings.audioPadStart,
+        padEndMs: settings.audioPadEnd,
+        format: settings.audioFormat,
+        normalize: settings.normalizeAudio,
+        boost: settings.audioBoost,
+        bitrate: settings.audioBitrate,
+      });
+
+      const audioUrl = `http://127.0.0.1:${port}/media?path=${encodeURIComponent(previewFilePath)}&token=${token}&_t=${Date.now()}`;
+      if (!audioPlayer) {
+        audioPlayer = new Audio();
+        audioPlayer.onended = () => {
+          isPreviewPlaying = false;
+        };
+        audioPlayer.onerror = () => {
+          isPreviewPlaying = false;
+          snackbar.show(t("flashcards.previewAudioError"), "error", 2000);
+        };
+      }
+      audioPlayer.src = audioUrl;
+      await audioPlayer.play();
+      isPreviewPlaying = true;
+    } catch (e: any) {
+      console.error("Audio preview failed:", e);
+      snackbar.show(String(e), "error", 2500);
+    } finally {
+      isPreviewLoading = false;
+    }
+  }
 
   let bitrateOptions = $derived(
     bitratesFor(settings.audioFormat).map((b) => ({ value: String(b), label: `${b} kb/s` })),
@@ -79,7 +149,12 @@
     <div class="grid grid-cols-2 gap-2">
       {#if mediaType === "video" && (audioTracksLoading || audioTracks.length >= 1)}
         <div class={easyMode ? "col-span-2" : ""}>
-          <span class="block text-xs text-gray-500 mb-1">{t("flashcards.audioTrack")}</span>
+          <span class="flex items-center gap-1.5 text-xs text-gray-400 mb-1 font-medium">
+            <svg class="w-3.5 h-3.5 text-gray-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2z" />
+            </svg>
+            <span>{t("flashcards.audioTrack")}</span>
+          </span>
           {#if audioTracksLoading}
             <div class="input-modern text-xs text-gray-500">
               {t("flashcards.audioTracksLoading")}
@@ -108,7 +183,12 @@
 
       {#if !easyMode}
         <div class={mediaType === "video" && (audioTracksLoading || audioTracks.length >= 1) ? "" : "col-span-2"}>
-          <span class="block text-xs text-gray-500 mb-1">{t("flashcards.bitrate")}</span>
+          <span class="flex items-center gap-1.5 text-xs text-gray-400 mb-1 font-medium">
+            <svg class="w-3.5 h-3.5 text-gray-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+            </svg>
+            <span>{t("flashcards.bitrate")}</span>
+          </span>
           <SearchableSelect
             noResultsText={t("common.noResults")}
             options={bitrateOptions}
@@ -139,14 +219,24 @@
     {#if !easyMode}
       <div class="grid grid-cols-3 gap-2 items-end">
         <div>
-          <span class="block text-xs text-gray-500 mb-1">{t("flashcards.padStart")}</span>
+          <span class="flex items-center gap-1.5 text-xs text-gray-400 mb-1 font-medium">
+            <svg class="w-3.5 h-3.5 text-gray-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 4v16m4-8h11m-3-3l3 3-3 3" />
+            </svg>
+            <span>{t("flashcards.padStart")}</span>
+          </span>
           <div class="flex items-center gap-1">
             <input type="number" bind:value={settings.audioPadStart} class="input-modern w-full text-xs" />
             <span class="text-xs text-gray-500">ms</span>
           </div>
         </div>
         <div>
-          <span class="block text-xs text-gray-500 mb-1">{t("flashcards.padEnd")}</span>
+          <span class="flex items-center gap-1.5 text-xs text-gray-400 mb-1 font-medium">
+            <svg class="w-3.5 h-3.5 text-gray-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 4v16m-4-8H4m3-3l-3 3 3 3" />
+            </svg>
+            <span>{t("flashcards.padEnd")}</span>
+          </span>
           <div class="flex items-center gap-1">
             <input type="number" bind:value={settings.audioPadEnd} class="input-modern w-full text-xs" />
             <span class="text-xs text-gray-500">ms</span>
@@ -170,6 +260,54 @@
               {/if}
             </svg>
             <span class="truncate">{t("flashcards.normalizeAudio")}</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-2 pt-1">
+        <div>
+          <button
+            type="button"
+            onclick={() => (settings.audioBoost = !settings.audioBoost)}
+            class="w-full h-8.5 px-2 rounded-lg border transition-all duration-200 flex items-center justify-center gap-1.5 text-xs font-semibold cursor-pointer select-none
+              {settings.audioBoost
+                ? 'bg-cyan-500/25 border-cyan-400 text-cyan-200 shadow-md shadow-cyan-950/40 ring-1 ring-cyan-400/40'
+                : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10 hover:text-gray-200 hover:border-white/20'}"
+            aria-pressed={settings.audioBoost}
+          >
+            <svg class="w-3.5 h-3.5 shrink-0 {settings.audioBoost ? 'text-cyan-300' : 'text-gray-500'}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              {#if settings.audioBoost}
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 10V3L4 14h7v7l9-11h-7z" />
+              {:else}
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072M12 6v12m-4-8v4" />
+              {/if}
+            </svg>
+            <span class="truncate">{t("flashcards.audioBoost")}</span>
+          </button>
+        </div>
+
+        <div>
+          <button
+            type="button"
+            disabled={!hasAudio || isPreviewLoading}
+            onclick={toggleAudioPreview}
+            class="w-full h-8.5 px-2 rounded-lg border transition-all duration-200 flex items-center justify-center gap-1.5 text-xs font-semibold cursor-pointer select-none disabled:opacity-40 disabled:cursor-not-allowed
+              {isPreviewPlaying
+                ? 'bg-emerald-500/25 border-emerald-400 text-emerald-200 shadow-md shadow-emerald-950/40 ring-1 ring-emerald-400/40'
+                : 'bg-white/5 border-white/10 text-gray-300 hover:bg-white/10 hover:text-white hover:border-white/20'}"
+          >
+            {#if isPreviewLoading}
+              <div class="w-3.5 h-3.5 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin"></div>
+            {:else if isPreviewPlaying}
+              <svg class="w-3.5 h-3.5 shrink-0 text-emerald-300 animate-pulse" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
+              </svg>
+            {:else}
+              <svg class="w-3.5 h-3.5 shrink-0 text-gray-400" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M8 5v14l11-7z"/>
+              </svg>
+            {/if}
+            <span class="truncate">{isPreviewPlaying ? t("flashcards.previewAudioPlaying") : t("flashcards.previewAudio")}</span>
           </button>
         </div>
       </div>

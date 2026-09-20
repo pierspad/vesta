@@ -8,7 +8,6 @@
   import Card from "$lib/components/Card.svelte";
   import SectionHeader from "$lib/components/SectionHeader.svelte";
   import * as vestaConfig from "$lib/config/vestaConfig";
-  import { difficultyStore } from "$lib/stores/difficultyStore.svelte";
 
   let t = $derived($locale);
 
@@ -129,50 +128,6 @@
 
 <div class="h-full flex flex-col bg-gray-900 text-gray-100 overflow-hidden">
   <div class="flex-1 overflow-y-auto p-6 flex flex-col gap-5 scrollbar-thin">
-    <!-- Difficulty Tagging Experimental Switch -->
-    <div class="glass-card p-5 space-y-4">
-      <div class="flex items-center justify-between gap-4">
-        <div class="flex items-start gap-3">
-          <div class="w-10 h-10 rounded-xl bg-violet-500/15 border border-violet-500/25 flex items-center justify-center shrink-0 text-violet-400">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M3 11l8.586-8.586A2 2 0 0113 2h6a2 2 0 012 2v6a2 2 0 01-.586 1.414L11.828 20a2 2 0 01-2.828 0L3 14a2 2 0 010-3z" />
-            </svg>
-          </div>
-          <div>
-            <div class="flex items-center gap-2">
-              <h3 class="text-base font-semibold text-white">
-                {t("experimental.difficulty.title")}
-              </h3>
-              <span class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-violet-500/20 text-violet-300 border border-violet-500/30">
-                {t("experimental.badge")}
-              </span>
-            </div>
-            <p class="text-xs text-gray-400 mt-1 max-w-2xl leading-relaxed">
-              {t("experimental.difficulty.subtitle")}
-            </p>
-          </div>
-        </div>
-
-        <div class="flex items-center gap-3 shrink-0">
-          <button
-            type="button"
-            onclick={() => {
-              difficultyStore.toggleFeature();
-              if (difficultyStore.enabled) {
-                snackbar.show(t("settings.difficulty.title") + ": " + t("settings.difficulty.customTitle"), "info", 2000);
-              }
-            }}
-            class="w-12 h-6 rounded-full transition-colors duration-200 relative cursor-pointer {difficultyStore.enabled ? 'bg-violet-600' : 'bg-white/15'}"
-            aria-label={t("experimental.difficulty.title")}
-          >
-            <div
-              class="absolute w-5 h-5 bg-white rounded-full top-0.5 transition-all duration-200 shadow-sm {difficultyStore.enabled ? 'left-6.5' : 'left-0.5'}"
-            ></div>
-          </button>
-        </div>
-      </div>
-    </div>
-
     <!-- Condensed audio -->
     <div class="glass-card p-5 space-y-4">
       <div class="flex items-center justify-between mb-2">

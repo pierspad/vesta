@@ -174,6 +174,8 @@ pub struct FlashcardConfig {
     pub audio_bitrate: u32,
     pub audio_track_index: Option<usize>,
     pub normalize_audio: bool,
+    #[serde(default)]
+    pub audio_boost: bool,
     pub audio_pad_start_ms: i64,
     pub audio_pad_end_ms: i64,
 
@@ -228,22 +230,6 @@ pub struct FlashcardConfig {
     pub auto_card_font: bool,
     #[serde(default = "default_true")]
     pub embed_card_font: bool,
-
-    #[serde(default)]
-    pub difficulty: Option<DifficultyConfig>,
-}
-
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct DifficultyConfig {
-    pub enabled: bool,
-    pub scheme: srt_difficulty::LevelScheme,
-    pub language: String,
-    pub unknown_policy: srt_difficulty::UnknownPolicy,
-    pub tag_prefix: Option<String>,
-    #[serde(default)]
-    pub custom_file_path: Option<String>,
-    #[serde(default)]
-    pub custom_tsv: Option<String>,
 }
 
 fn default_video_hw_accel() -> String {
@@ -270,7 +256,8 @@ impl Default for FlashcardConfig {
             generate_audio: false,
             audio_bitrate: 128,
             audio_track_index: None,
-            normalize_audio: false,
+            normalize_audio: true,
+            audio_boost: false,
             audio_pad_start_ms: 0,
             audio_pad_end_ms: 0,
             audio_format: AudioFormat::default(),
@@ -303,7 +290,6 @@ impl Default for FlashcardConfig {
             target_language: None,
             auto_card_font: true,
             embed_card_font: true,
-            difficulty: None,
         }
     }
 }

@@ -18,7 +18,6 @@ as a standalone binary or as a Rust dependency — without dragging in the GUI.
 | [srt-autosync](srt-autosync.md) | Automatic alignment via Whisper anchors | `lib/srt-autosync` | `srt-autosync` |
 | [srt-transcribe](srt-transcribe.md) | Transcription pipeline: media → SRT (whisper + VAD + cloud) | `lib/srt-transcribe` | `srt-transcribe` |
 | [srt-flashcards](srt-flashcards.md) | subs2srs-style Anki deck generation | `lib/srt-flashcards` | `srt-flashcards` |
-| srt-difficulty | Lexical difficulty analysis & tagging (CEFR, HSK, JLPT, etc.) | `lib/srt-difficulty` | — |
 | srt-ankiconnect | AnkiConnect integration client | `lib/srt-ankiconnect` | — |
 | srt-condense | Audio dialogue extraction & silence elimination | `lib/srt-condense` | — |
 | [srt-refine](srt-refine.md) | LLM enrichment of Anki decks (TSV/APKG) | `lib/srt-refine` | — |

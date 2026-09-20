@@ -232,7 +232,8 @@ in una `OnceLock<HashMap<…>>`. Dimensioni attese: 100-300 KB per pacchetto
 compresso — accettabile nel binario. Deve esistere anche il caricamento di un
 file utente esterno (stesso formato) per chi vuole la propria lista.
 
-### B1 — Nuova crate `lib/srt-difficulty`
+### B1 — Crate `lib/srt-difficulty` [RIMOSSA]
+*(Nota: funzionalità rimossa su richiesta per evitare complessità eccessiva e sovradimensionamento dell'applicazione).*
 
 Crate pura, nessuna dipendenza da Tauri o ffmpeg. Da aggiungere ai membri del
 workspace (già coperti da `lib/*`) e alle `workspace.dependencies` con la stessa

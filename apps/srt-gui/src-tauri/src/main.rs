@@ -446,6 +446,7 @@ fn main() {
 
             flashcard_load_subs,
             flashcard_preview,
+            flashcard_preview_audio,
             flashcard_generate,
             flashcard_cancel,
             flashcard_list_audio_tracks,

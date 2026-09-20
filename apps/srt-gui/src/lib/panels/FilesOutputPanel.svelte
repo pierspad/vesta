@@ -22,8 +22,8 @@
 
   interface Props {
     highlightClass: string;
-    seriesMode: boolean;
-    onToggleSeriesMode: () => void;
+    seriesMode?: boolean;
+    onToggleSeriesMode?: () => void;
     episodes: EpisodeRow[];
     onAddFiles: () => void;
     onClearAll: () => void;
@@ -34,23 +34,21 @@
     onMediaSettings: (idx: number) => void;
     onRemove: (idx: number) => void;
     onContextMenu: (event: MouseEvent, idx: number) => void;
-    targetSubsPath: string;
-    nativeSubsPath: string;
-    mediaPath: string;
+    targetSubsPath?: string;
+    nativeSubsPath?: string;
+    mediaPath?: string;
     outputDir: string;
-    activeNoteType: NoteTypeDef;
+    activeNoteType?: NoteTypeDef;
     onExpand: (field: ExpandableField) => void;
-    onSelectTarget: () => void;
-    onSelectNative: () => void;
-    onSelectMedia: () => void;
+    onSelectTarget?: () => void;
+    onSelectNative?: () => void;
+    onSelectMedia?: () => void;
     onSelectOutput: () => void;
     onClearField: (field: ClearableField) => void;
   }
 
   let {
     highlightClass,
-    seriesMode,
-    onToggleSeriesMode,
     episodes,
     onAddFiles,
     onClearAll,
@@ -61,15 +59,8 @@
     onMediaSettings,
     onRemove,
     onContextMenu,
-    targetSubsPath,
-    nativeSubsPath,
-    mediaPath,
     outputDir,
-    activeNoteType,
     onExpand,
-    onSelectTarget,
-    onSelectNative,
-    onSelectMedia,
     onSelectOutput,
     onClearField,
   }: Props = $props();
@@ -78,9 +69,9 @@
 </script>
 
 <div class="glass-card p-5 {highlightClass}">
-  <div class="mb-3 flex items-center gap-3">
+  <div class="mb-3 flex items-center justify-between gap-3">
     <h3
-      class="flex min-w-0 items-center gap-2 text-lg font-semibold {seriesMode ? 'text-violet-400' : 'panel-title-files-output'}"
+      class="flex min-w-0 items-center gap-2 text-lg font-semibold text-violet-400"
     >
       <svg
         class="w-5 h-5 shrink-0"
@@ -97,53 +88,7 @@
       </svg>
       {t("common.filesAndOutput")}
     </h3>
-    <span class="flex shrink-0 items-center gap-1.5 rounded-full border border-gray-700/60 bg-gray-900/60 px-2 py-1">
-      <button
-        type="button"
-        onclick={onToggleSeriesMode}
-        class="flex items-center gap-1 text-xs font-semibold transition-colors {!seriesMode
-          ? 'text-emerald-300'
-          : 'text-gray-500 hover:text-gray-300'}"
-        title={t("flashcards.modeMovie")}
-      >
-        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-          <rect x="2" y="4" width="20" height="16" rx="2" />
-          <path d="M2 8h20M7 4v4M17 4v4" stroke-linecap="round" />
-        </svg>
-        {t("flashcards.modeMovieShort")}
-      </button>
-      <button
-        type="button"
-        class="relative h-5 w-9 shrink-0 rounded-full transition-colors {seriesMode ? 'bg-violet-500/60' : 'bg-emerald-500/50'}"
-        onclick={onToggleSeriesMode}
-        role="switch"
-        aria-checked={seriesMode}
-        title={seriesMode ? t("flashcards.modeSeries") : t("flashcards.modeMovie")}
-      >
-        <span
-          class="absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-transform {seriesMode
-            ? 'translate-x-4'
-            : 'translate-x-0'}"
-        ></span>
-      </button>
-      <button
-        type="button"
-        onclick={onToggleSeriesMode}
-        class="flex items-center gap-1 text-xs font-semibold transition-colors {seriesMode
-          ? 'text-violet-300'
-          : 'text-gray-500 hover:text-gray-300'}"
-        title={t("flashcards.modeSeries")}
-      >
-        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-          <rect x="2" y="3" width="20" height="6" rx="1" />
-          <rect x="2" y="11" width="20" height="6" rx="1" />
-          <line x1="6" y1="3" x2="6" y2="9" />
-          <line x1="6" y1="11" x2="6" y2="17" />
-        </svg>
-        {t("flashcards.modeSeriesShort")}
-      </button>
-    </span>
-    {#if seriesMode}
+    <div class="flex items-center gap-2">
       <button
         onclick={onAddFiles}
         class="bg-violet-700 hover:bg-violet-600 text-white font-semibold py-1 px-3 text-xs flex items-center gap-1.5 h-8 rounded-lg shrink-0 transition-colors cursor-pointer"
@@ -182,136 +127,41 @@
           {t("flashcards.clearAll")}
         </button>
       {/if}
-    {/if}
+    </div>
   </div>
 
-  {#if !seriesMode}
-    <div class="space-y-2.5">
-      <!-- Drag & drop has always worked here (the listener is window-wide for
-           the whole tab), but movie mode showed no sign of it while series mode
-           has a visible drop area -- so people browsed for every file. -->
-      <p class="flex items-center gap-1.5 text-[11px] text-gray-500">
-        <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
-          />
+  <div class="space-y-3">
+    <!-- Episode table -->
+    <EpisodeTable
+      {episodes}
+      {showSnackbar}
+      {onSwapAll}
+      {onSwap}
+      {onEdit}
+      {onMediaSettings}
+      {onRemove}
+      {onContextMenu}
+    />
+
+    <!-- Output dir (always visible) -->
+    <div>
+      <span class="flex items-center gap-1.5 text-xs text-gray-400 mb-1 font-medium">
+        <svg class="w-3.5 h-3.5 text-gray-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
         </svg>
-        {t("flashcards.dropHintMovie")}
-      </p>
-      <div>
-        <span class="block text-xs text-gray-400 mb-1">
-          {t("flashcards.targetLangSubs")}
-          <span class="text-red-400">*</span>
-        </span>
-        <PathPickerField
-          value={targetSubsPath}
-          placeholder={t("flashcards.selectFile")}
-          browseTitle={t("flashcards.selectFile")}
-          onexpand={() => {
-            if (targetSubsPath) onExpand("targetSubs");
-          }}
-          onbrowse={onSelectTarget}
-          onclear={() => onClearField("target")}
-        />
-      </div>
-
-       <div>
-        <span class="block text-xs mb-1 transition-colors text-gray-400">
-          <span class={!activeNoteType.included.meaning ? 'text-gray-500 line-through opacity-60' : ''}>
-            {t("flashcards.nativeLangSubs")}
-          </span>
-          {#if !activeNoteType.included.meaning}
-            <span class="text-[10px] text-amber-500/80 ml-1.5 font-normal normal-case italic no-underline">({t("flashcards.inactiveNoteTypeField")})</span>
-          {/if}
-        </span>
-        <PathPickerField
-          value={nativeSubsPath}
-          placeholder={t("flashcards.optional")}
-          browseTitle={t("flashcards.optional")}
-          disabled={!activeNoteType.included.meaning}
-          onexpand={() => {
-            if (nativeSubsPath) onExpand("nativeSubs");
-          }}
-          onbrowse={onSelectNative}
-          onclear={() => onClearField("native")}
-        />
-      </div>
-
-      <div>
-        <span class="block text-xs mb-1 transition-colors text-gray-400">
-          <span class={(!activeNoteType.included.audio && !activeNoteType.included.snapshot && !activeNoteType.included.video) ? 'text-gray-500 line-through opacity-60' : ''}>
-            {t("flashcards.mediaFile")}
-          </span>
-          {#if !activeNoteType.included.audio && !activeNoteType.included.snapshot && !activeNoteType.included.video}
-            <span class="text-[10px] text-amber-500/80 ml-1.5 font-normal normal-case italic no-underline">({t("flashcards.inactiveNoteTypeField")})</span>
-          {/if}
-        </span>
-        <PathPickerField
-          value={mediaPath}
-          placeholder={t("flashcards.mediaPlaceholder")}
-          browseTitle={t("flashcards.mediaPlaceholder")}
-          disabled={!activeNoteType.included.audio && !activeNoteType.included.snapshot && !activeNoteType.included.video}
-          onexpand={() => {
-            if (mediaPath) onExpand("media");
-          }}
-          onbrowse={onSelectMedia}
-          onclear={() => onClearField("media")}
-        />
-      </div>
-
-      <div>
-        <span class="block text-xs text-gray-400 mb-1">
-          {t("flashcards.outputDir")} <span class="text-red-400">*</span>
-        </span>
-        <PathPickerField
-          value={outputDir}
-          placeholder={t("flashcards.selectDir")}
-          browseTitle={t("flashcards.selectDir")}
-          onexpand={() => {
-            if (outputDir) onExpand("output");
-          }}
-          onbrowse={onSelectOutput}
-          onclear={() => onClearField("output")}
-        />
-      </div>
-    </div>
-  {:else}
-    <!-- Series mode: batch file management -->
-    <div class="space-y-3">
-
-      <!-- Episode table -->
-      <EpisodeTable
-        {episodes}
-        {showSnackbar}
-        {onSwapAll}
-        {onSwap}
-        {onEdit}
-        {onMediaSettings}
-        {onRemove}
-        {onContextMenu}
+        <span>{t("flashcards.outputDir")}</span>
+        <span class="text-red-400">*</span>
+      </span>
+      <PathPickerField
+        value={outputDir}
+        placeholder={t("flashcards.selectDir")}
+        browseTitle={t("flashcards.selectDir")}
+        onexpand={() => {
+          if (outputDir) onExpand("output");
+        }}
+        onbrowse={onSelectOutput}
+        onclear={() => onClearField("output")}
       />
-
-      {#if episodes.length > 0}
-        <!-- Output dir (shared with movie mode) -->
-        <div>
-          <span class="block text-xs text-gray-400 mb-1">
-            {t("flashcards.outputDir")}
-            <span class="text-red-400">*</span>
-          </span>
-          <PathPickerField
-            value={outputDir}
-            placeholder={t("flashcards.selectDir")}
-            browseTitle={t("flashcards.selectDir")}
-            onexpand={() => {
-              if (outputDir) onExpand("output");
-            }}
-            onbrowse={onSelectOutput}
-            onclear={() => onClearField("output")}
-          />
-        </div>
-      {/if}
     </div>
-  {/if}
+  </div>
 </div>

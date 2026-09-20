@@ -282,36 +282,6 @@ pub(crate) fn generate_apkg(
             dconf = dconf_sql,
         ));
 
-        let difficulty_table = if let Some(diff) = &config.difficulty {
-            if diff.enabled {
-                if let Some(path) = &diff.custom_file_path {
-                    if !path.trim().is_empty() {
-                        srt_difficulty::LevelTable::from_file(path, diff.scheme).ok()
-                    } else if let Some(tsv) = &diff.custom_tsv {
-                        if !tsv.trim().is_empty() {
-                            srt_difficulty::LevelTable::from_tsv(tsv, diff.scheme).ok()
-                        } else {
-                            srt_difficulty::LevelTable::builtin(diff.scheme, &diff.language).ok()
-                        }
-                    } else {
-                        srt_difficulty::LevelTable::builtin(diff.scheme, &diff.language).ok()
-                    }
-                } else if let Some(tsv) = &diff.custom_tsv {
-                    if !tsv.trim().is_empty() {
-                        srt_difficulty::LevelTable::from_tsv(tsv, diff.scheme).ok()
-                    } else {
-                        srt_difficulty::LevelTable::builtin(diff.scheme, &diff.language).ok()
-                    }
-                } else {
-                    srt_difficulty::LevelTable::builtin(diff.scheme, &diff.language).ok()
-                }
-            } else {
-                None
-            }
-        } else {
-            None
-        };
-
         for (seq, line) in active_lines.iter().enumerate() {
             let note_id = timestamp * 1000 + seq as i64;
             let card_id = note_id + 1_000_000;
@@ -418,41 +388,10 @@ pub(crate) fn generate_apkg(
 
             let guid = format!("{:010x}", note_id as u64);
 
-            let mut tags_val = String::new();
-            let diff_and_table = config
-                .difficulty
-                .as_ref()
-                .filter(|d| d.enabled)
-                .zip(difficulty_table.as_ref());
-            if let Some((diff, table)) = diff_and_table {
-                let opts = srt_difficulty::AnalyzeOptions {
-                    unknown: diff.unknown_policy,
-                    min_token_chars: 1,
-                };
-                let card_level = srt_difficulty::analyze(&line.subs1.text, table, &opts);
-                if let Some(lvl) = card_level.level {
-                    let final_tag = match &diff.tag_prefix {
-                        Some(prefix) if !prefix.trim().is_empty() => {
-                            if diff.scheme == srt_difficulty::LevelScheme::Custom {
-                                format!("{}::{}", prefix.trim(), lvl)
-                            } else {
-                                format!(
-                                    "{}_{}",
-                                    prefix.trim(),
-                                    srt_difficulty::tag_for(diff.scheme, lvl)
-                                )
-                            }
-                        }
-                        _ => srt_difficulty::tag_for(diff.scheme, lvl),
-                    };
-                    tags_val = format!(" {} ", final_tag);
-                }
-            }
-
             let flds_sql = flds.replace('\'', "''");
             let sfld_sql = sfld.replace('\'', "''");
             let guid_sql = guid.replace('\'', "''");
-            let tags_sql = tags_val.replace('\'', "''");
+            let tags_sql = "";
 
             use std::fmt::Write as _;
             let _ = writeln!(
