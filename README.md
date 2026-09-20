@@ -5,9 +5,13 @@
 
 **subs2srs, but actually fast.**
 
-Vesta is a modern desktop application for language learners and power users that turns video and subtitle files into rich, synchronized Anki flashcard decks, auto-aligned subtitles, and translated media in minutes instead of hours — running **~2.5× faster than subs2srs** with parallel multi-core processing.
+Vesta is a modern desktop application for language learners and power users that turns video and subtitle files into rich, synchronized Anki flashcard decks, auto-aligned subtitles, and translated media in minutes instead of hours — running **~2.5× to 5.2× faster than subs2srs** with parallel multi-core processing and transparent GPU hardware acceleration.
 
 ![Benchmark comparison: Vesta vs subs2srs](docs/benchmark.svg)
+
+> ⚡ **GPU Acceleration & Pre-Transcoding**: On heavy 1080p and HEVC videos, Vesta automatically leverages hardware acceleration (VA-API, NVENC, VideoToolbox) to pre-transcode lightweight streams at 50–100× realtime, delivering up to **5.17× speedup over subs2srs** and cutting generation time in half compared to multi-core CPU alone. See the full [Benchmark Report with GPU acceleration](docs/BENCHMARK_REPORT.md#gpu-hardware-acceleration--adaptive-pre-transcoding).
+
+![Benchmark with GPU acceleration](docs/benchmark_gpu.svg)
 
 ---
 

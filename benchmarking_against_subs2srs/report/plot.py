@@ -72,6 +72,7 @@ def load(csv_path):
             series.append(label)
         seconds[(title, label)] = float(r["elapsed_ms"]) / 1000.0
     series.sort(key=series_order)
+    media.sort(key=lambda m: subcount[m], reverse=True)
     return media, subcount, series, seconds
 
 

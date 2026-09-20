@@ -204,6 +204,8 @@ pub struct FlashcardConfig {
     pub video_width: Option<u32>,
     #[serde(default)]
     pub video_height: Option<u32>,
+    #[serde(default = "default_true")]
+    pub optimize_video: bool,
 
     pub deck_name: String,
     pub episode_number: u32,
@@ -290,6 +292,7 @@ impl Default for FlashcardConfig {
             video_pad_end_ms: 0,
             video_width: None,
             video_height: None,
+            optimize_video: true,
             deck_name: String::new(),
             episode_number: 1,
             export_format: Some("tsv".to_string()),

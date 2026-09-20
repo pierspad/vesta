@@ -88,6 +88,9 @@ struct GenerateArgs {
     /// Do not extract video clips.
     #[arg(long)]
     no_video: bool,
+    /// Disable automatic video stream pre-transcoding / optimization.
+    #[arg(long)]
+    no_optimize: bool,
     /// Loudness-normalize audio clips (EBU R128).
     #[arg(long)]
     normalize_audio: bool,
@@ -266,6 +269,7 @@ impl GenerateArgs {
                 ..OutputFields::default()
             },
             cpu_cores: self.jobs,
+            optimize_video: !self.no_optimize,
             ..FlashcardConfig::default()
         }
     }

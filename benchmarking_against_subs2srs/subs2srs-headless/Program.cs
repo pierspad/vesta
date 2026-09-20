@@ -75,7 +75,7 @@ namespace subs2srs
             s.VideoClips.Enabled = genVideo;
             // The GUI sets the audio stream after probing the video; headless we
             // pick the first audio stream (ffmpeg 0:a:0), matching a default run.
-            s.VideoClips.AudioStream = new InfoStream("0", "0", "", "");
+            s.VideoClips.AudioStream = new InfoStream("0:a:0", "0", "Default Audio", "");
 
             s.Snapshots.Enabled = genSnap;
 
