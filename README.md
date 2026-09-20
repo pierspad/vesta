@@ -1,21 +1,21 @@
-# Vesta
+# <img src="docs/fireplace.svg" alt="Vesta" height="42" align="absmiddle"> Vesta
 
 > [!WARNING]
 > **Work in Progress**: This README is currently temporary and a work in progress (WIP), is subject to ongoing reorganization, and will be further refined and expanded.
 
 **subs2srs, but actually fast.**
 
-Vesta is a modern desktop application for language learners and power users that turns video and subtitle files into rich, synchronized Anki flashcard decks, auto-aligned subtitles, and translated media in minutes instead of hours.
+Vesta is a modern desktop application for language learners and power users that turns video and subtitle files into rich, synchronized Anki flashcard decks, auto-aligned subtitles, and translated media in minutes instead of hours — running **~2.5× to 5.2× faster than subs2srs** with parallel multi-core processing and transparent GPU hardware acceleration.
 
-Built with **Rust (Tauri)** + **Svelte 5** + **TypeScript**.
+![Benchmark comparison: Vesta vs subs2srs](docs/benchmark.svg)
 
----
+> ⚡ **GPU Acceleration & Pre-Transcoding**: On heavy 1080p and HEVC videos, Vesta automatically leverages hardware acceleration (VA-API, NVENC, VideoToolbox) to pre-transcode lightweight streams at 50–100× realtime, delivering up to **5.17× speedup over subs2srs** and cutting generation time in half compared to multi-core CPU alone. See the full [Benchmark Report with GPU acceleration](docs/BENCHMARK_REPORT.md#gpu-hardware-acceleration--adaptive-pre-transcoding).
+
+![Benchmark with GPU acceleration](docs/benchmark_gpu.svg)
 
 ## What it does
 
 Load a video and its subtitles. Synchronize them, translate them with AI if needed, and export a ready-to-study Anki deck with high-quality audio clips, snapshots, and video clips synced to the exact lines of dialogue.
-
-![Benchmark comparison: Vesta vs subs2srs](docs/fireplace.png)
 
 ### Why Vesta?
 
@@ -138,8 +138,8 @@ For comprehensive module guides and Rust integration examples, see [`docs/module
 ## Documentation Map
 
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — Architectural design contracts, layering rules, and conventions.
+- [`docs/VOCABULARY_SOURCES.md`](docs/VOCABULARY_SOURCES.md) — Exact linguistic dataset provenance, upstream sources, licenses, and build scripts.
 - [`docs/modules/`](docs/modules/) — Detailed module specifications and embedding instructions.
-- [`docs/plans/`](docs/plans/) — Development roadmaps, design documents, and feature plans.
 - [`docs/superpowers/specs/`](docs/superpowers/specs/) — Technical specifications for media presets, codec evaluations, and format benchmarks.
 - [`benchmarking_against_subs2srs/`](benchmarking_against_subs2srs/) — Reproducible benchmarking scripts and methodology.
 

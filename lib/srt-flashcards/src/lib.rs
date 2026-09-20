@@ -15,7 +15,8 @@ pub mod fonts;
 pub mod media;
 
 pub use media::{
-    H264Encoder, check_ffmpeg, detect_h264_encoder, extract_preview_audio_clip, video_has_audio,
+    H264Encoder, OptimizedVideo, check_ffmpeg, detect_h264_encoder, extract_preview_audio_clip,
+    optimize_video_source, probe_video_stream, video_has_audio,
 };
 pub use types::*;
 
@@ -410,24 +411,96 @@ pub async fn generate(
 
     let ffmpeg_cmd_arc = Arc::<str>::from(tools.ffmpeg.as_str());
     let media_source_arc = media_source.map(Arc::<str>::from);
-    let video_source_arc = video_source.map(Arc::<str>::from);
     let video_codec = config.video_codec.clone();
     let h264_preset = config.h264_preset.clone();
 
-    let video_encoder = if needs_video && video_codec == "h264" && config.video_hw_accel != "off" {
-        let encoder = detect_h264_encoder(&tools.ffmpeg).await;
-        if encoder.is_hardware() {
+    // Transparent GPU auto-detection: if available, used automatically.
+    let detected_gpu_encoder = if config.video_hw_accel != "off" {
+        let enc = detect_h264_encoder(&tools.ffmpeg).await;
+        if enc.is_hardware() {
             emit(
                 progress,
                 "media",
-                &format!("Video encoder: {}", encoder.label()),
+                &format!("Hardware acceleration: {}", enc.label()),
                 0,
                 0,
                 0.0,
-                HashMap::from([("encoder".to_string(), encoder.ffmpeg_name().to_string())]),
+                HashMap::from([("encoder".to_string(), enc.ffmpeg_name().to_string())]),
             );
         }
-        encoder
+        enc
+    } else {
+        H264Encoder::Libx264
+    };
+
+    // Pre-transcode video stream if beneficial (e.g. high-res / heavy-codec source)
+    let opt_video = if (needs_snapshots || needs_video) && config.optimize_video {
+        if let Some(src) = video_source {
+            let target_w = config.video_width.unwrap_or(config.snapshot_width).max(config.snapshot_width);
+            let target_h = config.video_height.unwrap_or(config.snapshot_height).max(config.snapshot_height);
+            let hw_enabled = config.video_hw_accel != "off";
+
+            emit(
+                progress,
+                "optimizing",
+                &format!("Optimizing video stream with {}...", detected_gpu_encoder.label()),
+                12,
+                100,
+                12.0,
+                HashMap::from([("encoder".to_string(), detected_gpu_encoder.ffmpeg_name().to_string())]),
+            );
+
+            match optimize_video_source(
+                src,
+                target_w,
+                target_h,
+                config.crop_bottom,
+                needs_video,
+                hw_enabled,
+                &tools.ffmpeg,
+                &tools.ffprobe,
+                &cancel,
+            )
+            .await
+            {
+                Ok(opt) => {
+                    emit(
+                        progress,
+                        "optimizing",
+                        if opt.original_used {
+                            "Video stream ready (original source used)"
+                        } else {
+                            "Video stream optimized"
+                        },
+                        15,
+                        100,
+                        15.0,
+                        HashMap::new(),
+                    );
+                    Some(opt)
+                }
+                Err(e) => {
+                    eprintln!("Video optimization warning: {e}");
+                    None
+                }
+            }
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+
+    let (effective_video_path, effective_crop) = match &opt_video {
+        Some(opt) if !opt.original_used => {
+            (opt.path.to_str().unwrap_or_else(|| video_source.unwrap_or_default()), if opt.crop_applied { 0 } else { config.crop_bottom })
+        }
+        _ => (video_source.unwrap_or_default(), config.crop_bottom),
+    };
+    let video_source_arc = video_source.is_some().then(|| Arc::<str>::from(effective_video_path));
+
+    let video_encoder = if needs_video && video_codec == "h264" && detected_gpu_encoder.is_hardware() && opt_video.as_ref().map_or(true, |o| o.original_used) {
+        detected_gpu_encoder
     } else {
         H264Encoder::Libx264
     };
@@ -510,7 +583,7 @@ pub async fn generate(
                 let snapshot_quality = config.snapshot_quality;
                 let w = config.snapshot_width;
                 let h = config.snapshot_height;
-                let crop = config.crop_bottom;
+                let crop = effective_crop;
                 let ffmpeg = ffmpeg_cmd_arc.clone();
                 let permit = semaphore.clone();
 
@@ -552,7 +625,7 @@ pub async fn generate(
                 let boost = config.audio_boost;
                 let w = config.video_width.unwrap_or(config.snapshot_width);
                 let h = config.video_height.unwrap_or(config.snapshot_height);
-                let crop = config.crop_bottom;
+                let crop = effective_crop;
                 let ffmpeg = ffmpeg_cmd_arc.clone();
                 let permit = semaphore.clone();
 

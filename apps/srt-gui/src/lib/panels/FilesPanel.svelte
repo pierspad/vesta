@@ -49,6 +49,7 @@
     <!-- SRT File input -->
     <PathPickerField
       label={t("sync.inputSrtFile")}
+      labelIcon="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10"
       value={srtPath || ""}
       placeholder={t("sync.noSrtFileSelected")}
       browseTitle={t("sync.tooltip.loadSrt")}
@@ -62,6 +63,7 @@
     <!-- Media File input -->
     <PathPickerField
       label={t("sync.inputMediaFile")}
+      labelIcon="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 01-2-2V7a2 2 0 012-2z"
       value={mediaPath || ""}
       placeholder={t("sync.noMediaFileSelected")}
       browseTitle={t("sync.tooltip.loadVideo")}

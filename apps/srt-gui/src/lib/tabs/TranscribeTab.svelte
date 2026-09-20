@@ -926,9 +926,12 @@
         </h3>
         <div class="space-y-4">
           <div>
-            <span class="block text-sm text-gray-400 mb-1"
-              >{t("transcribe.sourceLanguage")}</span
-            >
+            <span class="flex items-center gap-1.5 text-sm text-gray-400 mb-1 font-medium">
+              <svg class="w-3.5 h-3.5 text-gray-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10" />
+              </svg>
+              <span>{t("transcribe.sourceLanguage")}</span>
+            </span>
             <SearchableSelect
               noResultsText={t("common.noResults")}
               options={transcriptionLanguages.map((lang) => ({
@@ -1151,6 +1154,7 @@
         <div class="space-y-3">
           <PathPickerField
             label={t("transcribe.inputMediaFile")}
+            labelIcon="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 01-2-2V7a2 2 0 012-2z"
             value={inputPath}
             placeholder={t("transcribe.noInputMediaSelected")}
             browseTitle={t("transcribe.selectFile")}
@@ -1161,6 +1165,7 @@
 
           <PathPickerField
             label={t("transcribe.outputSrtFile")}
+            labelIcon="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
             value={outputPath}
             placeholder={t("transcribe.noOutputFileSelected")}
             browseTitle={t("transcribe.selectDestination")}

@@ -25,8 +25,8 @@ export interface ColumnLayout {
   col3: PanelId[];
 }
 
-const MOVIE_LAYOUT_KEY = "vesta-flashcards-layout-v4";
-const SERIES_LAYOUT_KEY = "vesta-flashcards-series-layout-v4";
+const MOVIE_LAYOUT_KEY = "vesta-flashcards-layout-v5";
+const SERIES_LAYOUT_KEY = "vesta-flashcards-series-layout-v5";
 
 const DEFAULT_LAYOUT: ColumnLayout = {
   col1: ["files", "audioClips"],
@@ -36,8 +36,8 @@ const DEFAULT_LAYOUT: ColumnLayout = {
 
 const DEFAULT_SERIES_LAYOUT: ColumnLayout = {
   col1: ["audioClips", "snapshots"],
-  col2: ["videoClips"],
-  col3: ["naming", "cardFilters", "progressResult"],
+  col2: ["naming", "videoClips"],
+  col3: ["cardFilters", "progressResult"],
 };
 
 export function cloneLayout(layout: ColumnLayout): ColumnLayout {
@@ -92,8 +92,8 @@ export function computeEffectivePanelLayout(
       }
       return {
         col1: ["audioClips", "snapshots"],
-        col2: ["videoClips"],
-        col3: ["naming", "cardFilters", "progressResult"],
+        col2: ["naming", "videoClips"],
+        col3: ["cardFilters", "progressResult"],
       };
     }
 

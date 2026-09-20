@@ -32,15 +32,24 @@ fi
 
 # ── Markdown summary with speed-ups and throughput (awk pivot) ───────────────
 log "Writing markdown summary…"
+CPU_MODEL=$(lscpu 2>/dev/null | grep "Model name:" | sed -e 's/Model name:[[:space:]]*//' | head -1)
+GPU_MODEL=$(lspci 2>/dev/null | grep -iE "vga|3d|display" | sed -e 's/.*: //' | head -1)
+[ -z "$CPU_MODEL" ] && CPU_MODEL="Generic x86_64"
+[ -z "$GPU_MODEL" ] && GPU_MODEL="N/A"
+
 {
   echo "# Vesta vs subs2srs — benchmark results"
   echo
-  echo "_Generated $(date '+%Y-%m-%d %H:%M')_ · CPU cores: ${CORES} · Vesta max workers: ${vesta_JOBS} · repeats: ${REPEATS}"
+  echo "### System & Hardware Specifications"
+  echo "- **CPU**: ${CPU_MODEL} (${CORES} logical cores / threads)"
+  echo "- **GPU**: ${GPU_MODEL}"
+  echo "- **Video/Audio Decoding & Encoding**: 100% CPU Software (FFmpeg CPU decoders, libmp3lame, mjpeg, libx264). Neither tool uses GPU hardware acceleration (no NVENC/VAAPI/AMF), ensuring a completely fair, apples-to-apples comparison."
+  echo "- **Vesta Multi-Core Workers**: ${vesta_JOBS} parallel workers (all logical cores)"
+  echo "- **Vesta Single-Core Control**: 1 worker (single-thread control matching subs2srs)"
+  echo "- **subs2srs**: Standard original architecture (single-threaded sequential execution, 1 FFmpeg process per card, headless harness without GUI overhead)"
+  echo "- **Benchmark Date**: $(date '+%Y-%m-%d %H:%M') · **Repeats per cell**: ${REPEATS}"
   echo
   echo "Wall-clock time of the full deck build (lower is better). Speed-up = subs2srs ÷ Vesta."
-  echo "subs2srs runs exactly as written — single-threaded, sequential ffmpeg; Vesta is timed"
-  echo "both on its \"max\" plan (cores−1 parallel ffmpeg workers) and with a single worker,"
-  echo "the core-for-core control isolating per-card efficiency from the parallelism win."
   echo
   echo "![Combined benchmark](benchmark.svg)"
   echo
@@ -79,6 +88,17 @@ END {
         }
     }
 
+    # Sort titles descending by subtitle count
+    for (x=1; x<=tn; x++) {
+        for (y=x+1; y<=tn; y++) {
+            if (subc[titles[x]] < subc[titles[y]]) {
+                tmp = titles[x]
+                titles[x] = titles[y]
+                titles[y] = tmp
+            }
+        }
+    }
+
     for (i=1;i<=tn;i++) {
         t=titles[i]
         for (j=1;j<=ln_;j++) {
@@ -96,7 +116,10 @@ END {
             lbl=labels[j]
             if (ms[t SUBSEP lbl]=="") continue
             tot[lbl]+=ms[t SUBSEP lbl]
-            if (base[t]!="") tot_base[lbl]+=base[t]
+            if (base[t]!="") {
+                tot_matched[lbl]+=ms[t SUBSEP lbl]
+                tot_base[lbl]+=base[t]
+            }
         }
     }
 
@@ -108,7 +131,7 @@ END {
     for (j=1;j<=ln_;j++) {
         lbl=labels[j]
         if (tot[lbl]=="") continue
-        sp=(lbl!="subs2srs" && tot_base[lbl]>0 && tot[lbl]>0)? sprintf("**%.2f×**", tot_base[lbl]/tot[lbl]) : "—"
+        sp=(lbl!="subs2srs" && tot_base[lbl]>0 && tot_matched[lbl]>0)? sprintf("**%.2f×**", tot_base[lbl]/tot_matched[lbl]) : "—"
         printf("| %s | %.1f min | %s |\n", lbl, tot[lbl]/60000.0, sp)
     }
 

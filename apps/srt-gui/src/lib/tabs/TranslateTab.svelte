@@ -1030,9 +1030,12 @@
           <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
             <!-- Target Language (Anchored on the left) -->
             <div class="lg:col-span-4">
-              <label for="target-lang" class="block text-sm text-gray-400 mb-1"
-                >{t("translate.targetLang")}</label
-              >
+              <label for="target-lang" class="flex items-center gap-1.5 text-sm text-gray-400 mb-1 font-medium">
+                <svg class="w-3.5 h-3.5 text-gray-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10" />
+                </svg>
+                <span>{t("translate.targetLang")}</span>
+              </label>
               <SearchableSelect
                 noResultsText={t("common.noResults")}
                 options={languages.map((lang) => ({
@@ -1297,6 +1300,7 @@
           <div class="lg:col-span-5">
             <PathPickerField
               label={t("translate.inputFile")}
+              labelIcon="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10"
               value={inputPath}
               placeholder={t("translate.selectFile")}
               browseTitle={t("translate.tooltip.upload")}
@@ -1309,6 +1313,7 @@
           <div class="lg:col-span-5">
             <PathPickerField
               label={t("translate.outputFile")}
+              labelIcon="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
               value={outputPath}
               placeholder={t("translate.selectDestination")}
               browseTitle={t("translate.tooltip.save")}

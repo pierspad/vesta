@@ -73,8 +73,8 @@ pub const FONT_CATALOG: &[FontCatalogEntry] = &[
         language_name: "Arabic",
         target_languages: &["ar", "ara", "arb"],
         filename: "_NotoSansArabic.ttf",
-        url: "https://raw.githubusercontent.com/google/fonts/main/ofl/notosansarabic/NotoSansArabic%5Bwght%5D.ttf",
-        approx_size: "~250 KB",
+        url: "https://raw.githubusercontent.com/google/fonts/main/ofl/notosansarabic/NotoSansArabic%5Bwdth%2Cwght%5D.ttf",
+        approx_size: "~850 KB",
     },
     FontCatalogEntry {
         id: "noto-sans-hebrew",
@@ -82,8 +82,8 @@ pub const FONT_CATALOG: &[FontCatalogEntry] = &[
         language_name: "Hebrew",
         target_languages: &["he", "heb"],
         filename: "_NotoSansHebrew.ttf",
-        url: "https://raw.githubusercontent.com/google/fonts/main/ofl/notosanshebrew/NotoSansHebrew%5Bwght%5D.ttf",
-        approx_size: "~70 KB",
+        url: "https://raw.githubusercontent.com/google/fonts/main/ofl/notosanshebrew/NotoSansHebrew%5Bwdth%2Cwght%5D.ttf",
+        approx_size: "~110 KB",
     },
     FontCatalogEntry {
         id: "noto-sans-thai",
@@ -91,8 +91,8 @@ pub const FONT_CATALOG: &[FontCatalogEntry] = &[
         language_name: "Thai",
         target_languages: &["th", "tha"],
         filename: "_NotoSansThai.ttf",
-        url: "https://raw.githubusercontent.com/google/fonts/main/ofl/notosansthai/NotoSansThai%5Bwght%5D.ttf",
-        approx_size: "~60 KB",
+        url: "https://raw.githubusercontent.com/google/fonts/main/ofl/notosansthai/NotoSansThai%5Bwdth%2Cwght%5D.ttf",
+        approx_size: "~220 KB",
     },
     FontCatalogEntry {
         id: "noto-sans-devanagari",
@@ -100,8 +100,8 @@ pub const FONT_CATALOG: &[FontCatalogEntry] = &[
         language_name: "Hindi / Devanagari",
         target_languages: &["hi", "hin"],
         filename: "_NotoSansDevanagari.ttf",
-        url: "https://raw.githubusercontent.com/google/fonts/main/ofl/notosansdevanagari/NotoSansDevanagari%5Bwght%5D.ttf",
-        approx_size: "~200 KB",
+        url: "https://raw.githubusercontent.com/google/fonts/main/ofl/notosansdevanagari/NotoSansDevanagari%5Bwdth%2Cwght%5D.ttf",
+        approx_size: "~650 KB",
     },
 ];
 

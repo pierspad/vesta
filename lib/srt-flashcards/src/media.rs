@@ -1,5 +1,6 @@
 use anyhow::{Context as _, Result};
-use std::path::Path;
+use std::path::{Path, PathBuf};
+use tokio_util::sync::CancellationToken;
 
 use super::types::{AudioFormat, SnapshotFormat};
 
@@ -50,6 +51,7 @@ pub fn media_command(cmd: &str) -> tokio::process::Command {
     {
         command.creation_flags(0x0800_4000);
     }
+    command.kill_on_drop(true);
     command
 }
 
@@ -171,7 +173,7 @@ async fn test_h264_encoder(ffmpeg_cmd: &str, encoder: H264Encoder) -> bool {
         "-f",
         "lavfi",
         "-i",
-        "color=black:s=192x108:d=0.2",
+        "color=black:s=256x144:d=0.2",
     ]);
     if encoder == H264Encoder::Vaapi {
         cmd.args([
@@ -204,6 +206,385 @@ pub async fn detect_h264_encoder(ffmpeg_cmd: &str) -> H264Encoder {
         }
     }
     H264Encoder::Libx264
+}
+
+#[derive(Debug, Clone)]
+pub struct VideoStreamInfo {
+    pub width: u32,
+    pub height: u32,
+    pub codec: String,
+    pub duration_secs: f64,
+}
+
+pub async fn probe_video_stream(ffprobe_cmd: &str, video_path: &str) -> Option<VideoStreamInfo> {
+    let output = media_command(ffprobe_cmd)
+        .args([
+            "-v",
+            "error",
+            "-select_streams",
+            "v:0",
+            "-show_entries",
+            "stream=width,height,codec_name:format=duration",
+            "-of",
+            "json",
+            video_path,
+        ])
+        .output()
+        .await
+        .ok()?;
+
+    if !output.status.success() {
+        return None;
+    }
+
+    let val: serde_json::Value = serde_json::from_slice(&output.stdout).ok()?;
+    let stream = val.get("streams")?.as_array()?.first()?;
+    let width = stream.get("width")?.as_u64()? as u32;
+    let height = stream.get("height")?.as_u64()? as u32;
+    let codec = stream.get("codec_name")?.as_str()?.to_string();
+    let duration = val
+        .get("format")
+        .and_then(|f| f.get("duration"))
+        .and_then(|d| d.as_str())
+        .and_then(|s| s.parse::<f64>().ok())
+        .unwrap_or(0.0);
+
+    Some(VideoStreamInfo {
+        width,
+        height,
+        codec,
+        duration_secs: duration,
+    })
+}
+
+pub struct OptimizedVideo {
+    pub path: PathBuf,
+    pub original_used: bool,
+    pub crop_applied: bool,
+    _temp_file: Option<tempfile::NamedTempFile>,
+}
+
+impl OptimizedVideo {
+    pub fn original(path: impl Into<PathBuf>) -> Self {
+        Self {
+            path: path.into(),
+            original_used: true,
+            crop_applied: false,
+            _temp_file: None,
+        }
+    }
+}
+
+pub fn should_optimize_video(
+    info: &VideoStreamInfo,
+    target_width: u32,
+    target_height: u32,
+    crop_bottom: u32,
+    encoder: H264Encoder,
+) -> bool {
+    if crop_bottom > 0 {
+        return true;
+    }
+
+    let is_heavy_codec = matches!(
+        info.codec.to_lowercase().as_str(),
+        "hevc" | "h265" | "av1" | "vp9" | "vp8" | "prores" | "vc1"
+    );
+    if is_heavy_codec {
+        return true;
+    }
+
+    if encoder.is_hardware() && (info.width > target_width || info.height > target_height) {
+        return true;
+    }
+
+    if info.width >= target_width * 2 || info.height >= target_height * 2 {
+        return true;
+    }
+
+    false
+}
+
+#[allow(clippy::too_many_arguments)]
+pub async fn optimize_video_source(
+    source_path: &str,
+    target_width: u32,
+    target_height: u32,
+    crop_bottom: u32,
+    include_audio: bool,
+    hw_accel_enabled: bool,
+    ffmpeg_cmd: &str,
+    ffprobe_cmd: &str,
+    cancel: &CancellationToken,
+) -> Result<OptimizedVideo> {
+    if cancel.is_cancelled() {
+        return Ok(OptimizedVideo::original(source_path));
+    }
+
+    let Some(stream_info) = probe_video_stream(ffprobe_cmd, source_path).await else {
+        return Ok(OptimizedVideo::original(source_path));
+    };
+
+    let encoder = if hw_accel_enabled {
+        detect_h264_encoder(ffmpeg_cmd).await
+    } else {
+        H264Encoder::Libx264
+    };
+
+    if !should_optimize_video(&stream_info, target_width, target_height, crop_bottom, encoder) {
+        return Ok(OptimizedVideo::original(source_path));
+    }
+
+    let temp_file = tempfile::Builder::new()
+        .prefix("vesta_opt_")
+        .suffix(".mp4")
+        .tempfile()
+        .context("Failed to create temporary file for optimized video")?;
+    let dest_path = temp_file.path().to_path_buf();
+    let dest_str = dest_path.to_str().context("Invalid temp path")?;
+
+    let target_w = (target_width.max(256) / 2) * 2;
+    let target_h = (target_height.max(144) / 2) * 2;
+
+    let mut candidate_args: Vec<(&'static str, Vec<String>)> = Vec::new();
+
+    match encoder {
+        H264Encoder::Vaapi => {
+            if crop_bottom == 0 {
+                let mut full_hw = vec![
+                    "-init_hw_device".into(),
+                    "vaapi=va".into(),
+                    "-filter_hw_device".into(),
+                    "va".into(),
+                    "-hwaccel".into(),
+                    "vaapi".into(),
+                    "-hwaccel_output_format".into(),
+                    "vaapi".into(),
+                    "-i".into(),
+                    source_path.into(),
+                    "-vf".into(),
+                    format!("scale_vaapi=w={target_w}:h={target_h}:format=nv12"),
+                    "-c:v".into(),
+                    "h264_vaapi".into(),
+                    "-b:v".into(),
+                    "1500k".into(),
+                    "-g".into(),
+                    "24".into(),
+                ];
+                if include_audio {
+                    full_hw.extend(["-c:a".into(), "aac".into(), "-b:a".into(), "192k".into()]);
+                } else {
+                    full_hw.push("-an".into());
+                }
+                full_hw.extend(["-sn".into(), "-dn".into(), "-y".into(), dest_str.into()]);
+                candidate_args.push(("vaapi_full_hw", full_hw));
+            }
+
+            let vf = if crop_bottom > 0 {
+                format!("crop=in_w:in_h-{crop_bottom}:0:0,scale={target_w}:{target_h},format=nv12,hwupload")
+            } else {
+                format!("scale={target_w}:{target_h},format=nv12,hwupload")
+            };
+            let mut sw_hw = vec![
+                "-init_hw_device".into(),
+                "vaapi=va".into(),
+                "-filter_hw_device".into(),
+                "va".into(),
+                "-i".into(),
+                source_path.into(),
+                "-vf".into(),
+                vf,
+                "-c:v".into(),
+                "h264_vaapi".into(),
+                "-b:v".into(),
+                "1500k".into(),
+                "-g".into(),
+                "24".into(),
+            ];
+            if include_audio {
+                sw_hw.extend(["-c:a".into(), "aac".into(), "-b:a".into(), "192k".into()]);
+            } else {
+                sw_hw.push("-an".into());
+            }
+            sw_hw.extend(["-sn".into(), "-dn".into(), "-y".into(), dest_str.into()]);
+            candidate_args.push(("vaapi_sw_hw", sw_hw));
+        }
+
+        H264Encoder::Nvenc => {
+            if crop_bottom == 0 {
+                let mut hw_nv = vec![
+                    "-hwaccel".into(),
+                    "cuda".into(),
+                    "-i".into(),
+                    source_path.into(),
+                    "-vf".into(),
+                    format!("scale={target_w}:{target_h}"),
+                    "-c:v".into(),
+                    "h264_nvenc".into(),
+                    "-preset".into(),
+                    "p1".into(),
+                    "-b:v".into(),
+                    "1500k".into(),
+                    "-g".into(),
+                    "24".into(),
+                ];
+                if include_audio {
+                    hw_nv.extend(["-c:a".into(), "aac".into(), "-b:a".into(), "192k".into()]);
+                } else {
+                    hw_nv.push("-an".into());
+                }
+                hw_nv.extend(["-sn".into(), "-dn".into(), "-y".into(), dest_str.into()]);
+                candidate_args.push(("nvenc_hw", hw_nv));
+            }
+
+            let vf = if crop_bottom > 0 {
+                format!("crop=in_w:in_h-{crop_bottom}:0:0,scale={target_w}:{target_h}")
+            } else {
+                format!("scale={target_w}:{target_h}")
+            };
+            let mut sw_nv = vec![
+                "-i".into(),
+                source_path.into(),
+                "-vf".into(),
+                vf,
+                "-c:v".into(),
+                "h264_nvenc".into(),
+                "-preset".into(),
+                "p1".into(),
+                "-b:v".into(),
+                "1500k".into(),
+                "-g".into(),
+                "24".into(),
+            ];
+            if include_audio {
+                sw_nv.extend(["-c:a".into(), "aac".into(), "-b:a".into(), "192k".into()]);
+            } else {
+                sw_nv.push("-an".into());
+            }
+            sw_nv.extend(["-sn".into(), "-dn".into(), "-y".into(), dest_str.into()]);
+            candidate_args.push(("nvenc_sw", sw_nv));
+        }
+
+        H264Encoder::VideoToolbox => {
+            let vf = if crop_bottom > 0 {
+                format!("crop=in_w:in_h-{crop_bottom}:0:0,scale={target_w}:{target_h}")
+            } else {
+                format!("scale={target_w}:{target_h}")
+            };
+            let mut vt = vec![
+                "-i".into(),
+                source_path.into(),
+                "-vf".into(),
+                vf,
+                "-c:v".into(),
+                "h264_videotoolbox".into(),
+                "-b:v".into(),
+                "1500k".into(),
+                "-g".into(),
+                "24".into(),
+            ];
+            if include_audio {
+                vt.extend(["-c:a".into(), "aac".into(), "-b:a".into(), "192k".into()]);
+            } else {
+                vt.push("-an".into());
+            }
+            vt.extend(["-sn".into(), "-dn".into(), "-y".into(), dest_str.into()]);
+            candidate_args.push(("videotoolbox", vt));
+        }
+
+        H264Encoder::Qsv => {
+            let vf = if crop_bottom > 0 {
+                format!("crop=in_w:in_h-{crop_bottom}:0:0,scale={target_w}:{target_h}")
+            } else {
+                format!("scale={target_w}:{target_h}")
+            };
+            let mut qsv = vec![
+                "-init_hw_device".into(),
+                "qsv=hw".into(),
+                "-filter_hw_device".into(),
+                "hw".into(),
+                "-i".into(),
+                source_path.into(),
+                "-vf".into(),
+                vf,
+                "-c:v".into(),
+                "h264_qsv".into(),
+                "-preset".into(),
+                "veryfast".into(),
+                "-b:v".into(),
+                "1500k".into(),
+                "-g".into(),
+                "24".into(),
+            ];
+            if include_audio {
+                qsv.extend(["-c:a".into(), "aac".into(), "-b:a".into(), "192k".into()]);
+            } else {
+                qsv.push("-an".into());
+            }
+            qsv.extend(["-sn".into(), "-dn".into(), "-y".into(), dest_str.into()]);
+            candidate_args.push(("qsv", qsv));
+        }
+
+        _ => {}
+    }
+
+    // Always include fast CPU fallback
+    let cpu_vf = if crop_bottom > 0 {
+        format!("crop=in_w:in_h-{crop_bottom}:0:0,scale={target_w}:{target_h}")
+    } else {
+        format!("scale={target_w}:{target_h}")
+    };
+    let mut cpu = vec![
+        "-i".into(),
+        source_path.into(),
+        "-vf".into(),
+        cpu_vf,
+        "-c:v".into(),
+        "libx264".into(),
+        "-preset".into(),
+        "veryfast".into(),
+        "-crf".into(),
+        "23".into(),
+        "-g".into(),
+        "24".into(),
+    ];
+    if include_audio {
+        cpu.extend(["-c:a".into(), "aac".into(), "-b:a".into(), "192k".into()]);
+    } else {
+        cpu.push("-an".into());
+    }
+    cpu.extend(["-sn".into(), "-dn".into(), "-y".into(), dest_str.into()]);
+    candidate_args.push(("cpu_libx264", cpu));
+
+    for (_name, args) in candidate_args {
+        if cancel.is_cancelled() {
+            return Ok(OptimizedVideo::original(source_path));
+        }
+
+        let mut cmd = media_command(ffmpeg_cmd);
+        cmd.arg("-nostdin");
+        cmd.arg("-loglevel").arg("error");
+        cmd.args(&args);
+
+        let res = cmd.status().await;
+        if let Ok(status) = res {
+            if status.success() {
+                if let Ok(meta) = std::fs::metadata(&dest_path) {
+                    if meta.len() > 1000 {
+                        return Ok(OptimizedVideo {
+                            path: dest_path,
+                            original_used: false,
+                            crop_applied: crop_bottom > 0,
+                            _temp_file: Some(temp_file),
+                        });
+                    }
+                }
+            }
+        }
+    }
+
+    eprintln!("Warning: all video optimization attempts failed; using original video source");
+    Ok(OptimizedVideo::original(source_path))
 }
 
 pub(crate) fn ms_to_ffmpeg_ts(ms: i64) -> String {
@@ -519,5 +900,28 @@ mod tests {
     fn video_extension_follows_codec() {
         assert_eq!(video_clip_extension("h264"), "mp4");
         assert_eq!(video_clip_extension("mpeg4"), "avi");
+    }
+
+    #[tokio::test]
+    async fn detects_vaapi_on_linux_when_available() {
+        let enc = detect_h264_encoder("ffmpeg").await;
+        #[cfg(all(unix, not(target_os = "macos")))]
+        {
+            if Path::new("/dev/dri/renderD128").exists() {
+                assert_eq!(enc, H264Encoder::Vaapi);
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn probes_detour_video_stream() {
+        let path = "../../Test_Subs/FILM/Detour(1945).mp4";
+        if Path::new(path).exists() {
+            let info = probe_video_stream("ffprobe", path).await.expect("probed");
+            assert_eq!(info.width, 412);
+            assert_eq!(info.height, 300);
+            assert_eq!(info.codec, "h264");
+            assert!(info.duration_secs > 4000.0);
+        }
     }
 }

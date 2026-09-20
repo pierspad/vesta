@@ -200,19 +200,28 @@
       {/if}
     </div>
 
-    <!-- Shown in both modes: shrinking a shared deck is the whole reason Opus
-         is here, and that is not an expert-only concern. -->
-    <label class="vesta-check-row">
-      <input
-        type="checkbox"
-        checked={settings.audioFormat === "opus"}
-        onchange={(e) => setAudioFormat(e.currentTarget.checked ? "opus" : "mp3")}
-        class="vesta-check-input shrink-0"
-      />
-      <span class="min-w-0 text-left text-xs font-medium text-gray-300">
-        {t("flashcards.compactAudio")}
-      </span>
-    </label>
+    <!-- Compact Audio (Opus) Toggle Button -->
+    <div>
+      <button
+        type="button"
+        onclick={() => setAudioFormat(settings.audioFormat === "opus" ? "mp3" : "opus")}
+        class="w-full h-8.5 px-3 rounded-lg border transition-all duration-200 flex items-center justify-between text-xs font-semibold cursor-pointer select-none
+          {settings.audioFormat === 'opus'
+            ? 'bg-cyan-500/25 border-cyan-400 text-cyan-200 shadow-md shadow-cyan-950/40 ring-1 ring-cyan-400/40'
+            : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10 hover:text-gray-200 hover:border-white/20'}"
+        aria-pressed={settings.audioFormat === "opus"}
+      >
+        <span class="flex items-center gap-2">
+          <svg class="w-3.5 h-3.5 text-white shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 100-6 3 3 0 000 6z" />
+          </svg>
+          <span>{t("flashcards.compactAudio")}</span>
+        </span>
+        <span class="text-[10px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded {settings.audioFormat === 'opus' ? 'bg-cyan-400/20 text-cyan-200' : 'bg-white/10 text-gray-400'}">
+          {settings.audioFormat.toUpperCase()}
+        </span>
+      </button>
+    </div>
     {#if settings.audioFormat === "opus"}
       <p class="text-[10px] text-amber-500/80 leading-snug">{t("flashcards.opusWarning")}</p>
     {/if}

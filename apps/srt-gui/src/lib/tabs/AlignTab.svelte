@@ -623,8 +623,11 @@
           <!-- Target File -->
           <div class="flex flex-col gap-2 relative z-10 min-w-0">
             <div class="text-xs font-semibold text-gray-400 flex items-center gap-1.5">
+              <svg class="w-3.5 h-3.5 text-gray-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10" />
+              </svg>
               {#if targetFlag}<span class="text-sm">{targetFlag}</span>{/if}
-              {t("align.baseSrt")}
+              <span>{t("align.baseSrt")}</span>
               <span class="text-red-400 font-bold ml-0.5">*</span>
             </div>
             <PathPickerField
@@ -654,8 +657,11 @@
           <!-- Source File -->
           <div class="flex flex-col gap-2 relative z-10 min-w-0">
             <div class="text-xs font-semibold text-gray-400 flex items-center gap-1.5">
+              <svg class="w-3.5 h-3.5 text-gray-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10" />
+              </svg>
               {#if sourceFlag}<span class="text-sm">{sourceFlag}</span>{/if}
-              {t("align.translationSrt")}
+              <span>{t("align.translationSrt")}</span>
               <span class="text-red-400 font-bold ml-0.5">*</span>
             </div>
             <PathPickerField

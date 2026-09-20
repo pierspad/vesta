@@ -179,7 +179,32 @@
   }
 
   function getStudiedLanguagePreference(): string {
-    return noteTypeLanguage || loadDefaultLanguage(DEFAULT_FLASHCARDS_LANGUAGE_KEY);
+    const fromPath = seriesMode
+      ? (episodes.find((e: EpisodeEntry) => e.targetSubsPath)?.targetSubsPath ? inferLanguageFromPath(episodes.find((e: EpisodeEntry) => e.targetSubsPath)!.targetSubsPath) : "")
+      : (targetSubsPath ? inferLanguageFromPath(targetSubsPath) : "");
+    return fromPath || noteTypeLanguage || loadDefaultLanguage(DEFAULT_FLASHCARDS_LANGUAGE_KEY);
+  }
+
+  function isFontBannerDismissed(lang: string): boolean {
+    if (!lang) return true;
+    if (dismissedFontBannerLang === lang) return true;
+    try {
+      return vestaConfig.getItem(`vesta-font-banner-dismissed-${lang}`) === "1";
+    } catch {
+      return false;
+    }
+  }
+
+  function dismissFontBanner(lang: string, permanent: boolean = false) {
+    dismissedFontBannerLang = lang;
+    if (permanent && lang) {
+      try {
+        vestaConfig.setItem(`vesta-font-banner-dismissed-${lang}`, "1");
+        showSnackbar(t("flashcards.dontShowAgain") || "Preferenza salvata");
+      } catch {
+        /* ignore */
+      }
+    }
   }
 
   let proactiveLang = $derived(getStudiedLanguagePreference());
@@ -2212,30 +2237,30 @@
   {#if hasAnyFiles && ankiStore.autoCardFont}
     {@const proactiveLang = getStudiedLanguagePreference()}
     {@const proactiveFont = fontStore.getFontForLanguage(proactiveLang)}
-    {#if proactiveFont && !proactiveFont.downloaded && dismissedFontBannerLang !== proactiveLang}
+    {#if proactiveFont && !proactiveFont.downloaded && !isFontBannerDismissed(proactiveLang)}
       {@const isThisDownloading = fontStore.downloadingFontId === proactiveFont.id}
-      <div class="mb-4 p-3 bg-cyan-500/10 border border-cyan-500/30 rounded-lg flex items-center justify-between gap-3 animate-fade-in">
-        <div class="flex items-center gap-3 min-w-0">
-          <div class="w-8 h-8 rounded-lg bg-cyan-500/20 text-cyan-300 flex items-center justify-center shrink-0">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <div class="mb-4 p-3.5 bg-cyan-500/10 border border-cyan-500/30 rounded-xl flex flex-col md:flex-row md:items-center justify-between gap-3 animate-fade-in shadow-lg shadow-black/20">
+        <div class="flex items-start md:items-center gap-3 min-w-0">
+          <div class="w-9 h-9 rounded-lg bg-cyan-500/20 text-cyan-300 flex items-center justify-center shrink-0 mt-0.5 md:mt-0">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10" />
             </svg>
           </div>
           <div class="min-w-0">
-            <p class="text-xs font-semibold text-cyan-200">
-              {t("flashcards.fontSuggestionTitle") || "Caratteri per"} {proactiveFont.language_name} ({proactiveFont.name})
+            <p class="text-xs font-bold text-cyan-200">
+              {t("flashcards.fontSuggestionTitle") || "Caratteri per"} {proactiveFont.language_name}
             </p>
-            <p class="text-[11px] text-gray-300 mt-0.5 truncate">
-              {t("flashcards.fontSuggestionDesc") || "Scarica il font Noto ottimizzato"} ({proactiveFont.approx_size}) {t("flashcards.fontSuggestionDescEnd") || "per visualizzare correttamente i caratteri su AnkiDroid (Android) e iOS."}
+            <p class="text-[11px] text-gray-300 mt-0.5 leading-relaxed">
+              {t("flashcards.fontSuggestionDesc") || "Scarica ed embedda il font"} ({proactiveFont.approx_size}) {t("flashcards.fontSuggestionDescEnd") || "per visualizzare correttamente i caratteri su dispositivi senza font preinstallati,"} {t("flashcards.fontSuggestionDescLight") || "oppure continua con i font di sistema per un mazzo più leggero."}
             </p>
           </div>
         </div>
-        <div class="flex items-center gap-2 shrink-0">
+        <div class="flex items-center gap-2 shrink-0 self-end md:self-center">
           <button
             type="button"
             disabled={fontStore.isDownloading}
             onclick={() => fontStore.downloadFont(proactiveFont.id)}
-            class="px-3 py-1.5 rounded-lg bg-cyan-500/20 border border-cyan-500/40 text-cyan-200 text-xs font-semibold hover:bg-cyan-500/30 transition-colors flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+            class="px-3 py-1.5 rounded-lg bg-cyan-500/20 border border-cyan-500/40 text-cyan-200 text-xs font-semibold hover:bg-cyan-500/30 transition-colors flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
           >
             {#if isThisDownloading}
               <svg class="animate-spin w-3.5 h-3.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
@@ -2244,13 +2269,21 @@
               <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
               </svg>
-              <span>{t("settings.download") || "Scarica font"}</span>
+              <span>{t("settings.download") || "Scarica ed embedda"} ({proactiveFont.approx_size})</span>
             {/if}
           </button>
           <button
             type="button"
-            onclick={() => (dismissedFontBannerLang = proactiveLang)}
-            class="p-1.5 rounded text-gray-400 hover:text-white hover:bg-white/10 transition-colors"
+            onclick={() => dismissFontBanner(proactiveLang, true)}
+            class="px-2.5 py-1.5 rounded-lg border border-white/10 bg-white/5 text-gray-300 text-xs font-medium hover:bg-white/10 hover:text-white transition-colors"
+            title={t("flashcards.dontShowAgain") || "Non mostrare più"}
+          >
+            <span>{t("flashcards.dontShowAgain") || "Non mostrare più"}</span>
+          </button>
+          <button
+            type="button"
+            onclick={() => dismissFontBanner(proactiveLang, false)}
+            class="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 transition-colors"
             title={t("common.close") || "Chiudi"}
           >
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

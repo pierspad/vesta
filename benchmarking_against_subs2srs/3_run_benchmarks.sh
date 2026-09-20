@@ -87,6 +87,9 @@ for media in "${TEST_MEDIA[@]}"; do
     done
   done
   echo
+  log "Updating charts and summary for completed film(s)..."
+  ./benchmarking_against_subs2srs/4_generate_report.sh || true
+  echo
 done
 
 ok "Wrote $RESULTS_CSV"

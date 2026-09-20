@@ -15,6 +15,7 @@
     browseIconPath?: string;
     browseLabel?: string;
     required?: boolean;
+    labelIcon?: string;
   }
 
   let {
@@ -30,13 +31,19 @@
     browseIconPath = "M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z",
     browseLabel = t("flashcards.browse"),
     required = false,
+    labelIcon = "",
   }: Props = $props();
 </script>
 
 <div>
   {#if label}
-    <span class="block text-xs text-gray-400 mb-1">
-      {label}
+    <span class="flex items-center gap-1.5 text-xs text-gray-400 mb-1 font-medium">
+      {#if labelIcon}
+        <svg class="w-3.5 h-3.5 text-gray-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d={labelIcon} />
+        </svg>
+      {/if}
+      <span>{label}</span>
       {#if required}
         <span class="text-red-400 font-bold ml-0.5">*</span>
       {/if}

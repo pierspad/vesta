@@ -8,26 +8,23 @@ describe('llmTiers', () => {
     {
       id: 'key-google-1',
       apiType: 'google',
-      label: 'My Gemini Key',
+      name: 'My Gemini Key',
       apiKey: 'AIzaSyTestKey123',
       apiUrl: '',
-      createdAt: 1000,
     },
     {
       id: 'key-openai-1',
       apiType: 'openai',
-      label: 'My OpenAI Key',
+      name: 'My OpenAI Key',
       apiKey: 'sk-test456',
       apiUrl: '',
-      createdAt: 1000,
     },
     {
       id: 'key-empty-1',
       apiType: 'anthropic',
-      label: 'Empty Key',
+      name: 'Empty Key',
       apiKey: '',
       apiUrl: '',
-      createdAt: 1000,
     },
   ];
 
@@ -35,7 +32,6 @@ describe('llmTiers', () => {
     const tiers: Tier[] = [
       {
         id: 'tier-1',
-        name: 'Primary Tier',
         entries: [
           {
             id: 'entry-1',
@@ -50,22 +46,17 @@ describe('llmTiers', () => {
             apiKeyId: 'key-openai-1',
             provider: 'openai',
             model: 'gpt-4o-mini',
-            rpm: null,
-            maxRequests: null,
           },
         ],
       },
       {
         id: 'tier-2',
-        name: 'Fallback Tier',
         entries: [
           {
             id: 'entry-3',
             apiKeyId: 'key-empty-1', // Missing key -> must be skipped
             provider: 'anthropic',
             model: 'claude-3-5-haiku',
-            rpm: null,
-            maxRequests: null,
           },
         ],
       },
@@ -91,15 +82,12 @@ describe('llmTiers', () => {
     const tiers: Tier[] = [
       {
         id: 'tier-local',
-        name: 'Local Tier',
         entries: [
           {
             id: 'e-local',
             apiKeyId: 'non-existent-id',
             provider: 'local',
             model: 'qwen2.5:7b',
-            rpm: null,
-            maxRequests: null,
           },
         ],
       },
@@ -116,7 +104,6 @@ describe('llmTiers', () => {
     const tiers: Tier[] = [
       {
         id: 't1',
-        name: 'T1',
         entries: [
           { id: '1', apiKeyId: '', provider: 'google', model: 'model-a' },
           { id: '2', apiKeyId: '', provider: 'google', model: 'model-b' },
@@ -124,7 +111,6 @@ describe('llmTiers', () => {
       },
       {
         id: 't2',
-        name: 'T2',
         entries: [
           { id: '3', apiKeyId: '', provider: 'openai', model: 'model-c' },
           { id: '4', apiKeyId: '', provider: 'openai', model: '' }, // empty model ignored
@@ -132,7 +118,6 @@ describe('llmTiers', () => {
       },
       {
         id: 't3',
-        name: 'T3',
         entries: [], // empty tier ignored
       },
     ];

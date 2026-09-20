@@ -72,6 +72,7 @@ def load(csv_path):
             series.append(label)
         seconds[(title, label)] = float(r["elapsed_ms"]) / 1000.0
     series.sort(key=series_order)
+    media.sort(key=lambda m: subcount[m], reverse=True)
     return media, subcount, series, seconds
 
 
@@ -88,24 +89,42 @@ def combined_chart(media, subcount, series, seconds, out_path):
     n = len(series)
     width = min(0.8 / max(n, 1), 0.16)
 
-    fig, ax = plt.subplots(figsize=(max(9, 1.9 * len(media) + 3), 6.2))
-    for i, label in enumerate(series):
-        vals = [seconds.get((m, label), np.nan) for m in media]
-        offset = (i - (n - 1) / 2) * width
-        bars = ax.bar(x + offset, vals, width, label=label,
-                      color=PALETTE[i % len(PALETTE)], zorder=3)
-        texts = ["" if v != v else f"{v:.1f}s" for v in vals]  # v != v skips NaN
-        ax.bar_label(bars, labels=texts, padding=2, fontsize=6.5, rotation=90)
+    # Compute max/baseline seconds per film to normalize 0-100%
+    baseline_per_film = {}
+    for m in media:
+        film_vals = [seconds.get((m, s), 0.0) for s in series if (m, s) in seconds]
+        baseline_per_film[m] = max(film_vals) if film_vals else 1.0
 
-    ax.set_yscale("log")
+    fig, ax = plt.subplots(figsize=(max(10, 2.2 * len(media) + 3), 6.5))
+    for i, label in enumerate(series):
+        raw_vals = [seconds.get((m, label), np.nan) for m in media]
+        norm_vals = [
+            (v / baseline_per_film[m] * 100.0) if v == v else np.nan
+            for m, v in zip(media, raw_vals)
+        ]
+        offset = (i - (n - 1) / 2) * width
+        bars = ax.bar(x + offset, norm_vals, width, label=label,
+                      color=PALETTE[i % len(PALETTE)], zorder=3)
+        # Format label with thousands separator for seconds (e.g. 1,303.6s)
+        texts = ["" if v != v else f"{v:,.1f}s" for v in raw_vals]
+        ax.bar_label(bars, labels=texts, padding=4, fontsize=7.5, rotation=-45)
+
     style_axes(ax)
-    ax.set_ylabel("Elapsed time — seconds (log scale)")
-    ax.set_title("Vesta vs subs2srs — flashcard generation (lower is better)",
-                 fontweight="bold", pad=14)
-    ax.set_xticks(x, [f"{pretty(m)}\n{subcount[m]:,} subtitles" for m in media],
-                  fontsize=8.5)
+    ax.set_ylim(0, 125)
+    ax.set_ylabel("Relative generation time (% of slowest baseline)")
+    ax.yaxis.set_major_formatter(matplotlib.ticker.PercentFormatter(100))
+    ax.set_title("Vesta vs subs2srs — Flashcard Generation Time in Seconds (lower is better)",
+                 fontweight="bold", pad=16, fontsize=12)
+    ax.set_xticks(x, [f"{pretty(m)}\n({subcount[m]:,} subtitles)" for m in media],
+                  fontsize=9.5)
     ax.legend(frameon=False, ncol=min(n, 5), loc="upper center",
-              bbox_to_anchor=(0.5, -0.10), fontsize=8.5)
+              bbox_to_anchor=(0.5, -0.12), fontsize=8.5)
+
+    # Explanatory caption under legend
+    fig.text(0.5, -0.06,
+             "* Normalized per film: 100% = slowest baseline. Numbers above bars show actual elapsed seconds.",
+             ha="center", fontsize=8, color="#555555", style="italic")
+
     fig.tight_layout()
     fig.savefig(out_path, bbox_inches="tight")
     plt.close(fig)
@@ -119,11 +138,11 @@ def film_chart(title, subcount, series, seconds, out_path):
         return
 
     x = np.arange(len(labels))
-    fig, ax = plt.subplots(figsize=(max(6.5, 1.6 * len(labels) + 2), 4.6))
+    fig, ax = plt.subplots(figsize=(max(7.0, 1.7 * len(labels) + 2), 4.8))
     bars = ax.bar(x, vals, 0.62,
                   color=[PALETTE[series.index(s) % len(PALETTE)] for s in labels],
                   zorder=3)
-    ax.bar_label(bars, labels=[f"{v:.1f}s" for v in vals], padding=3, fontsize=9)
+    ax.bar_label(bars, labels=[f"{v:,.1f}s" for v in vals], padding=3, fontsize=9, rotation=-45)
 
     base = seconds.get((title, "subs2srs"))
     if base:
@@ -131,14 +150,14 @@ def film_chart(title, subcount, series, seconds, out_path):
         for xi, (label, v) in enumerate(zip(labels, vals)):
             if label != "subs2srs" and v > 0:
                 ax.text(xi, v / 2, f"{base / v:.2f}×", ha="center", va="center",
-                        fontsize=9, fontweight="bold", color="white")
+                        fontsize=9.5, fontweight="bold", color="white")
 
     style_axes(ax)
     ax.set_ylabel("Elapsed time — seconds")
     ax.set_title(f"{pretty(title)} — {subcount[title]:,} subtitles (lower is better)",
                  fontweight="bold", pad=12)
     ax.set_xticks(x, labels, fontsize=9)
-    ax.set_ylim(0, max(vals) * 1.18)
+    ax.set_ylim(0, max(vals) * 1.25)
     fig.tight_layout()
     fig.savefig(out_path, bbox_inches="tight")
     plt.close(fig)
