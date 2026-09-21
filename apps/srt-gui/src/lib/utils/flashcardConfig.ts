@@ -73,6 +73,7 @@ export function buildFlashcardConfig(i: FlashcardConfigInputs) {
     audio_track_index: i.audioTrackIndex,
     normalize_audio: i.media.normalizeAudio,
     audio_boost: i.media.audioBoost ?? false,
+    audio_gain_db: i.media.audioGainDb ?? 0,
     audio_pad_start_ms: i.media.audioPadStart,
     audio_pad_end_ms: i.media.audioPadEnd,
     audio_format: i.media.audioFormat,

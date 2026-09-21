@@ -90,3 +90,17 @@ pub fn config_clear(state: State<ConfigState>) -> Result<(), String> {
     guard.clear();
     write_to_disk(&guard)
 }
+
+/// Replaces the complete configuration in one atomic write. Used by the
+/// settings import flow so a failed import cannot leave a half-applied mix of
+/// old and new preferences.
+#[tauri::command]
+pub fn config_replace_all(
+    state: State<ConfigState>,
+    values: HashMap<String, String>,
+) -> Result<(), String> {
+    write_to_disk(&values)?;
+    let mut guard = state.0.lock().unwrap();
+    *guard = values;
+    Ok(())
+}

@@ -636,7 +636,7 @@ pub(crate) async fn extract_audio_clip(
     audio_track_index: Option<usize>,
     format: AudioFormat,
     normalize: bool,
-    boost: bool,
+    gain_db: i32,
     ffmpeg_cmd: &str,
 ) -> Result<()> {
     let (start_ts, duration_ts) = clip_window(start_ms, end_ms, pad_start_ms, pad_end_ms);
@@ -664,14 +664,13 @@ pub(crate) async fn extract_audio_clip(
     cmd.args(["-ac", "2"]);
 
     // Loudness normalisation rides along with the one encode we already do.
-    // Target -14 LUFS (modern web / dialogue standard) and optional +6 dB volume boost
-    // with transparent limiting to prevent clipping.
+    // Target -14 LUFS (modern web / dialogue standard) and optional gain.
     let mut af_filters = Vec::new();
     if normalize {
         af_filters.push("loudnorm=I=-14:TP=-1.5:LRA=11".to_string());
     }
-    if boost {
-        af_filters.push("volume=6dB".to_string());
+    if gain_db != 0 {
+        af_filters.push(format!("volume={gain_db}dB"));
         af_filters.push("alimiter=limit=-0.2dB".to_string());
     }
     if !af_filters.is_empty() {
@@ -746,7 +745,7 @@ pub(crate) async fn extract_video_clip(
     height: u32,
     crop_bottom: u32,
     normalize: bool,
-    boost: bool,
+    gain_db: i32,
     ffmpeg_cmd: &str,
 ) -> Result<()> {
     let (start_ts, duration_ts) = clip_window(start_ms, end_ms, pad_start_ms, pad_end_ms);
@@ -780,8 +779,8 @@ pub(crate) async fn extract_video_clip(
     if normalize {
         af_filters.push("loudnorm=I=-14:TP=-1.5:LRA=11".to_string());
     }
-    if boost {
-        af_filters.push("volume=6dB".to_string());
+    if gain_db != 0 {
+        af_filters.push(format!("volume={gain_db}dB"));
         af_filters.push("alimiter=limit=-0.2dB".to_string());
     }
     if !af_filters.is_empty() {
@@ -843,7 +842,7 @@ pub async fn extract_preview_audio_clip(
     audio_track_index: Option<usize>,
     format: AudioFormat,
     normalize: bool,
-    boost: bool,
+    gain_db: i32,
     ffmpeg_cmd: &str,
 ) -> Result<()> {
     extract_audio_clip(
@@ -857,7 +856,28 @@ pub async fn extract_preview_audio_clip(
         audio_track_index,
         format,
         normalize,
-        boost,
+        gain_db,
+        ffmpeg_cmd,
+    )
+    .await
+}
+
+pub async fn extract_preview_snapshot(
+    video_path: &str,
+    output_path: &Path,
+    time_ms: i64,
+    ffmpeg_cmd: &str,
+) -> Result<()> {
+    extract_snapshot(
+        video_path,
+        output_path,
+        time_ms,
+        time_ms + 1000,
+        320,
+        180,
+        0,
+        SnapshotFormat::Jpeg,
+        80,
         ffmpeg_cmd,
     )
     .await

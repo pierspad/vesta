@@ -77,7 +77,8 @@
     </button>
   </div>
 
-  <div class="space-y-2 transition-all duration-200 {!settings.generateVideoClips ? 'opacity-40 pointer-events-none' : ''}">
+  {#if settings.generateVideoClips}
+  <div class="space-y-2 animate-fade-in">
     {#if easyMode}
       <!-- Easy Mode: Simple Video Quality vs Weight Balance Selector -->
       <div class="space-y-3 bg-gray-950/30 p-3.5 rounded-xl border border-white/5">
@@ -294,6 +295,7 @@
       </div>
     {/if}
   </div>
+  {/if}
 
   {#if settings.generateVideoClips && !settings.generateAudio}
     <div class="mt-3 p-3 bg-amber-500/10 border border-amber-500/20 text-amber-200 rounded-xl text-xs flex items-start gap-2">

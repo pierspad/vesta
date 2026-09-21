@@ -76,7 +76,8 @@
     </button>
   </div>
 
-  <div class="space-y-2 transition-all duration-200 {!settings.generateSnapshots ? 'opacity-40 pointer-events-none' : ''}">
+  {#if settings.generateSnapshots}
+  <div class="space-y-2 animate-fade-in">
     {#if easyMode}
       <!-- Easy Mode: Intuitive Quality vs Deck Size Balance Selector -->
       <div class="space-y-3 bg-gray-950/30 p-3.5 rounded-xl border border-white/5">
@@ -250,4 +251,5 @@
       {/if}
     {/if}
   </div>
+  {/if}
 </div>

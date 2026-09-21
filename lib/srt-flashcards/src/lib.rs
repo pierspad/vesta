@@ -16,7 +16,7 @@ pub mod media;
 
 pub use media::{
     H264Encoder, OptimizedVideo, check_ffmpeg, detect_h264_encoder, extract_preview_audio_clip,
-    optimize_video_source, probe_video_stream, video_has_audio,
+    extract_preview_snapshot, optimize_video_source, probe_video_stream, video_has_audio,
 };
 pub use types::*;
 
@@ -546,7 +546,11 @@ pub async fn generate(
                 let pad_s = config.audio_pad_start_ms;
                 let pad_e = config.audio_pad_end_ms;
                 let normalize = config.normalize_audio;
-                let boost = config.audio_boost;
+                let gain_db = if config.audio_gain_db == 0 && config.audio_boost {
+                    6
+                } else {
+                    config.audio_gain_db
+                };
                 let ffmpeg = ffmpeg_cmd_arc.clone();
                 let permit = semaphore.clone();
 
@@ -563,7 +567,7 @@ pub async fn generate(
                         audio_track_index,
                         audio_format,
                         normalize,
-                        boost,
+                        gain_db,
                         &ffmpeg,
                     )
                     .await;
@@ -622,7 +626,11 @@ pub async fn generate(
                 let pad_s = config.video_pad_start_ms;
                 let pad_e = config.video_pad_end_ms;
                 let normalize = config.normalize_audio;
-                let boost = config.audio_boost;
+                let gain_db = if config.audio_gain_db == 0 && config.audio_boost {
+                    6
+                } else {
+                    config.audio_gain_db
+                };
                 let w = config.video_width.unwrap_or(config.snapshot_width);
                 let h = config.video_height.unwrap_or(config.snapshot_height);
                 let crop = effective_crop;
@@ -655,7 +663,7 @@ pub async fn generate(
                         h,
                         crop,
                         normalize,
-                        boost,
+                        gain_db,
                         &ffmpeg,
                     )
                     .await;
@@ -680,7 +688,7 @@ pub async fn generate(
                             h,
                             crop,
                             normalize,
-                            boost,
+                            gain_db,
                             &ffmpeg,
                         )
                         .await;

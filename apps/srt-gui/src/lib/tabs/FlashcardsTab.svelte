@@ -4,7 +4,7 @@
   import { guardedOpen } from "$lib/utils/dialogGuard";
   import { setupWebviewDragDrop } from "$lib/utils/dragDrop";
   import { onDestroy, onMount } from "svelte";
-  import { locale } from "$lib/i18n";
+  import { currentLanguage, locale } from "$lib/i18n";
   import { getFileName, inferLanguageFromPath } from "$lib/utils/models";
   import { getLanguageSearchTerms, languages } from "$lib/config/languages";
   import {
@@ -87,6 +87,12 @@
   let { active = true, onGoToSettings }: Props = $props();
 
   let t = $derived($locale);
+  let dropMediaHint = $derived(new Set(["it"]).has($currentLanguage)
+    ? "Trascina qui un video o un file audio per sostituire questo campo"
+    : "Drop a video or audio file here to replace this field");
+  let dropSubtitleHint = $derived(new Set(["it"]).has($currentLanguage)
+    ? "Trascina qui un file di sottotitoli per sostituire questo campo"
+    : "Drop a subtitle file here to replace this field");
 
   let targetSubsPath = $state("");
   let nativeSubsPath = $state("");
@@ -233,6 +239,8 @@
     "audioBitrate",
     "audioTrackIndex",
     "normalizeAudio",
+    "audioBoost",
+    "audioGainDb",
     "audioPadStart",
     "audioPadEnd",
   ];
@@ -332,35 +340,60 @@
     subtitleFiles: string[],
     mediaFiles: string[],
   ): Promise<{ subtitleFiles: string[]; mediaFiles: string[] }> {
-    if (!smartFileMatchingEnabled || subtitleFiles.length === 0) {
+    if (!smartFileMatchingEnabled || (subtitleFiles.length === 0 && mediaFiles.length === 0)) {
       return { subtitleFiles, mediaFiles };
     }
 
     const subtitleSet = new Set(subtitleFiles);
     const mediaSet = new Set(mediaFiles);
 
-    await Promise.all(
-      subtitleFiles.map(async (path) => {
-        try {
-          const companion = await invoke<string | null>(
-            "sync_suggest_companion_subtitle_for_srt",
-            { srtPath: path },
-          );
-          if (companion && companion !== path) subtitleSet.add(companion);
-        } catch {
-          // Best-effort suggestion only.
-        }
+    // 1. Expand media files: find candidate subtitles for each media file
+    if (mediaFiles.length > 0) {
+      await Promise.all(
+        mediaFiles.map(async (path) => {
+          try {
+            const suggested = await invoke<{ target: string | null; native: string | null }>(
+              "sync_suggest_subtitles_for_media",
+              {
+                mediaPath: path,
+                defaultTargetLang: getStudiedLanguagePreference() || null,
+                defaultNativeLang: getNativeLanguagePreference() || null,
+              },
+            );
+            if (suggested?.target) subtitleSet.add(suggested.target);
+            if (suggested?.native) subtitleSet.add(suggested.native);
+          } catch {
+            // Best-effort suggestion only.
+          }
+        }),
+      );
+    }
 
-        try {
-          const media = await invoke<string | null>("sync_suggest_media_for_srt", {
-            srtPath: path,
-          });
-          if (media) mediaSet.add(media);
-        } catch {
-          // Best-effort suggestion only.
-        }
-      }),
-    );
+    // 2. Expand subtitle files: find companion subtitles and media
+    if (subtitleSet.size > 0) {
+      await Promise.all(
+        [...subtitleSet].map(async (path) => {
+          try {
+            const companion = await invoke<string | null>(
+              "sync_suggest_companion_subtitle_for_srt",
+              { srtPath: path },
+            );
+            if (companion && companion !== path) subtitleSet.add(companion);
+          } catch {
+            // Best-effort suggestion only.
+          }
+
+          try {
+            const media = await invoke<string | null>("sync_suggest_media_for_srt", {
+              srtPath: path,
+            });
+            if (media) mediaSet.add(media);
+          } catch {
+            // Best-effort suggestion only.
+          }
+        }),
+      );
+    }
 
     return {
       subtitleFiles: [...subtitleSet],
@@ -609,6 +642,37 @@
     } catch (e) {
       generationStore.error = `${t("flashcards.errorSelectingFile")}: ${e}`;
     }
+  }
+
+  function isEpisodeFileCompatible(field: EpisodeFileField, path: string) {
+    const type = detectMediaType(getFileName(path));
+    return field === "mediaPath"
+      ? type === "video" || type === "audio"
+      : /\.(srt|ass|ssa|vtt)$/i.test(path);
+  }
+
+  function replaceEpisodeFileFromDrop(paths: string[], position?: { x: number; y: number }): boolean {
+    if (!editingEpisode || !position) return false;
+    const target = document.elementFromPoint(position.x, position.y)?.closest<HTMLElement>("[data-episode-file-field]");
+    const field = target?.dataset.episodeFileField as EpisodeFileField | undefined;
+    if (!field || target?.dataset.disabled === "true") return true;
+
+    const replacement = paths.find((path) => isEpisodeFileCompatible(field, path));
+    if (!replacement) {
+      showSnackbar(
+        field === "mediaPath" ? dropMediaHint : dropSubtitleHint,
+        "error",
+      );
+      return true;
+    }
+
+    editingEpisode = {
+      ...editingEpisode,
+      [field]: replacement,
+      mediaType: field === "mediaPath" ? detectMediaType(getFileName(replacement)) : editingEpisode.mediaType,
+    };
+    syncEpisodeEditor();
+    return true;
   }
 
   function clearAllEpisodes() {
@@ -976,8 +1040,17 @@
   $effect(() => {
     if (active) {
       const cleanupDragDrop = setupWebviewDragDrop({
-        setDraggingOver: (v) => (isDraggingOver = v),
-        onDrop: handleFileDrop,
+        setDraggingOver: (v) => (isDraggingOver = editingEpisode ? false : v),
+        onDrop: (paths, position) => {
+          // A drop while the editor is open always belongs to the modal. It
+          // either replaces the explicitly hovered field or is ignored; it
+          // must never leak through and append a new Files & Output row.
+          if (editingEpisode) {
+            replaceEpisodeFileFromDrop(paths, position);
+            return;
+          }
+          void handleFileDrop(paths);
+        },
         onError: (e) => console.warn("Failed to set up drag-drop listener in FlashcardsTab:", e),
       });
 
@@ -2150,7 +2223,7 @@
     if (e.dataTransfer) {
       e.dataTransfer.dropEffect = 'copy';
     }
-    isDraggingOver = true;
+    isDraggingOver = editingEpisode ? false : true;
   }}
   ondrop={handleHtmlDrop}
   ondragleave={(e) => {
@@ -2161,7 +2234,7 @@
   }}
 >
   <div class="flex-1 overflow-hidden overflow-x-hidden p-6 flashcards-scroll min-h-0 flex flex-col gap-4 {generationStore.isProcessing ? 'pointer-events-none opacity-60 select-none' : ''}">
-  {#if isDraggingOver}
+  {#if isDraggingOver && !editingEpisode}
     <div
       class="absolute inset-0 z-50 {seriesMode ? 'bg-violet-500/10 border-violet-400/80 text-violet-400' : 'bg-emerald-500/10 border-emerald-400/80 text-emerald-400'} border-2 border-dashed rounded-2xl flex items-center justify-center pointer-events-none"
     >
@@ -2328,6 +2401,7 @@
         hintLoadMediaFirst={HINT_LOAD_MEDIA_FIRST}
         firstEpisodeMediaPath={episodes[0]?.mediaPath || mediaPath}
         firstEpisodeSubsPath={episodes[0]?.targetSubsPath || targetSubsPath}
+        {episodes}
         onTrackPicked={() => (audioTrackAutoSelected = false)}
       />
     {:else if panelId === "snapshots"}
@@ -2429,6 +2503,7 @@
       hasMedia={Boolean(episodes[episodeContextMenu.idx]?.mediaPath)}
       onEdit={() => openEpisodeEditor(episodeContextMenu!.idx)}
       onMediaSettings={() => openEpisodeMediaSettings(episodeContextMenu!.idx)}
+      onPreviewAudio={() => openEpisodeMediaSettings(episodeContextMenu!.idx)}
       onRemove={() => removeEpisode(episodeContextMenu!.idx)}
       onClose={closeEpisodeContextMenu}
     />
@@ -2511,7 +2586,11 @@
             {@const label = t(`flashcards.${item.labelKey}`)}
             {@const placeholder = t(`flashcards.${item.placeholderKey}`)}
             {@const isFieldDisabled = field === "nativeSubsPath" ? !activeNoteType.included.meaning : field === "mediaPath" ? (!activeNoteType.included.audio && !activeNoteType.included.snapshot && !activeNoteType.included.video) : false}
-            <div>
+            <div
+              data-episode-file-field={field}
+              data-disabled={isFieldDisabled}
+              class="rounded-lg border border-transparent p-2 transition-colors hover:border-indigo-400/30 hover:bg-indigo-500/5"
+            >
               <div class="mb-1 flex items-center gap-3">
                 <span class="text-xs font-medium transition-colors text-gray-400">
                   <span class={isFieldDisabled ? 'text-gray-500 line-through opacity-60' : ''}>
@@ -2578,6 +2657,9 @@
                     </svg>
                   </button>
               </div>
+              <p class="mt-1.5 text-[10px] text-gray-500">
+                {field === "mediaPath" ? dropMediaHint : dropSubtitleHint}
+              </p>
             </div>
           {/each}
         </div>
@@ -2989,4 +3071,3 @@
     animation: progress-stripes 1.2s linear infinite;
   }
 </style>
-

@@ -20,6 +20,7 @@ import { invokeCommand } from "$lib/services/tauriClient";
 
 const cache = new Map<string, string>();
 let hydrated = false;
+let newInstallation = false;
 
 /** Deve essere chiamata (e attesa) una sola volta, prima del mount di App. */
 export async function hydrate(): Promise<void> {
@@ -29,11 +30,18 @@ export async function hydrate(): Promise<void> {
     for (const [key, value] of Object.entries(all)) {
       cache.set(key, value);
     }
+    const hasLegacyPreferences = typeof localStorage !== "undefined" && localStorage.length > 0;
+    newInstallation = Object.keys(all).length === 0 && !hasLegacyPreferences;
   } catch (e) {
     console.error("[vestaConfig] impossibile leggere vesta_config.json", e);
   }
   migrateFromLocalStorage();
   hydrated = true;
+}
+
+/** True only when neither the durable store nor the legacy webview store had preferences at startup. */
+export function isNewInstallation(): boolean {
+  return newInstallation;
 }
 
 // Migrazione una tantum: le installazioni esistenti hanno le impostazioni in
@@ -80,4 +88,14 @@ export function removeItem(key: string): void {
   void invokeCommand("config_remove", { key }).catch((e) =>
     console.error(`[vestaConfig] impossibile rimuovere "${key}"`, e),
   );
+}
+
+export function exportSnapshot(): Record<string, string> {
+  return Object.fromEntries(cache.entries());
+}
+
+export async function replaceAll(values: Record<string, string>): Promise<void> {
+  await invokeCommand("config_replace_all", { values });
+  cache.clear();
+  for (const [key, value] of Object.entries(values)) cache.set(key, value);
 }

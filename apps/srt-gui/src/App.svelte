@@ -15,6 +15,7 @@
   import ExperimentalTab from "$lib/tabs/ExperimentalTab.svelte";
   import AppContextMenu from "$lib/components/AppContextMenu.svelte";
   import Snackbar from "$lib/components/Snackbar.svelte";
+  import FirstRunSetupModal from "$lib/modals/FirstRunSetupModal.svelte";
   import { snackbar } from "$lib/stores/snackbarStore.svelte";
   import { aiStore } from "$lib/stores/aiStore.svelte";
   import { getShortcuts } from "$lib/utils/shortcuts";
@@ -23,6 +24,18 @@
   type AppTab = "translate" | "sync" | "transcribe" | "align" | "flashcards" | "settings" | "refine" | "experimental";
 
   let activeTab = $state<AppTab>("flashcards");
+  let showFirstRunSetup = $state(
+    vestaConfig.getItem("vesta-first-run-force") === "true" ||
+      (vestaConfig.isNewInstallation() && vestaConfig.getItem("vesta-first-run-setup-complete") !== "true"),
+  );
+
+  function completeFirstRunSetup(wantsTranscription: boolean) {
+    showFirstRunSetup = false;
+    if (wantsTranscription) goToSettings("whisper");
+    // Stores are constructed at startup; reload once so every selected default
+    // is applied consistently without a half-old, half-new session.
+    window.location.reload();
+  }
   const initialPreference = (() => {
     const savedPref = vestaConfig.getItem("vesta-sidebar-user-pref");
     if (savedPref === "collapsed" || savedPref === "expanded") {
@@ -410,4 +423,5 @@
 
   <ShortcutOverlay {activeTab} />
   <AppContextMenu />
+  {#if showFirstRunSetup}<FirstRunSetupModal onComplete={completeFirstRunSetup} />{/if}
 </main>

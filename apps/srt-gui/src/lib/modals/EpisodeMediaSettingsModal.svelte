@@ -4,6 +4,8 @@
   import { formatAudioTrackLabel, type EpisodeMediaOverrideKey } from "$lib/types/flashcardMediaTypes";
   import { episodeMediaEditorStore as editor } from "$lib/stores/episodeMediaEditorStore.svelte";
   import { getFileName } from "$lib/utils/models";
+  import { invoke } from "@tauri-apps/api/core";
+  import { snackbar } from "$lib/stores/snackbarStore.svelte";
 
   interface Props {
     /** Whether a given override key differs from the generic (movie-mode) setting — drives the "changed" glow. */
@@ -15,7 +17,65 @@
 
   let t = $derived($locale);
 
+  let isPreviewLoading = $state(false);
+  let isPreviewPlaying = $state(false);
+  let previewExpanded = $state(false);
+  let audioPlayer: HTMLAudioElement | null = null;
+
+  async function toggleEpisodeAudioPreview() {
+    if (isPreviewPlaying && audioPlayer) {
+      audioPlayer.pause();
+      isPreviewPlaying = false;
+      return;
+    }
+
+    if (!editor.episode?.mediaPath || !editor.overrides) return;
+
+    isPreviewLoading = true;
+    try {
+      const [port, token] = await invoke<[number, string]>("get_media_server_info");
+      const previewFilePath = await invoke<string>("flashcard_preview_audio", {
+        mediaPath: editor.episode.mediaPath,
+        subPath: editor.episode.targetSubsPath || null,
+        startMs: null,
+        endMs: null,
+        audioTrackIndex: editor.overrides.audioTrackIndex,
+        padStartMs: editor.overrides.audioPadStart,
+        padEndMs: editor.overrides.audioPadEnd,
+        format: editor.overrides.audioFormat || "mp3",
+        normalize: editor.overrides.normalizeAudio ?? true,
+        boost: editor.overrides.audioBoost ?? false,
+        gainDb: editor.overrides.audioGainDb ?? 0,
+        bitrate: editor.overrides.audioBitrate || 128,
+      });
+
+      const audioUrl = `http://127.0.0.1:${port}/media?path=${encodeURIComponent(previewFilePath)}&token=${token}&_t=${Date.now()}`;
+      if (!audioPlayer) {
+        audioPlayer = new Audio();
+        audioPlayer.onended = () => {
+          isPreviewPlaying = false;
+        };
+        audioPlayer.onerror = () => {
+          isPreviewPlaying = false;
+          snackbar.show(t("flashcards.previewAudioError"), "error", 2000);
+        };
+      }
+      audioPlayer.src = audioUrl;
+      await audioPlayer.play();
+      isPreviewPlaying = true;
+    } catch (e: any) {
+      console.error("Episode audio preview failed:", e);
+      snackbar.show(String(e), "error", 2500);
+    } finally {
+      isPreviewLoading = false;
+    }
+  }
+
   function close() {
+    if (audioPlayer) {
+      audioPlayer.pause();
+      isPreviewPlaying = false;
+    }
     editor.close();
   }
 </script>
@@ -34,7 +94,7 @@
   >
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div
-      class="flex max-h-[92vh] w-[96vw] flex-col rounded-xl border border-gray-700 bg-gray-900 shadow-2xl"
+      class="flex max-h-[92vh] w-[94vw] max-w-7xl flex-col rounded-xl border border-gray-700 bg-gray-900 shadow-2xl"
       onclick={(e) => e.stopPropagation()}
       onkeydown={(e) => e.stopPropagation()}
     >
@@ -51,7 +111,7 @@
       </div>
 
       <div class="flex-1 overflow-y-auto p-5">
-        <div class="media-settings-panels">
+        <div class="media-settings-panels grid items-start gap-4 lg:grid-cols-2">
           <!-- AUDIO PANEL -->
           <div class="relative z-30 space-y-4 rounded-xl border border-gray-800 bg-gray-800/30 p-5 shadow-inner">
             <div class="flex items-center justify-between rounded-lg border border-cyan-500/20 bg-cyan-500/10 p-3">
@@ -99,7 +159,7 @@
                   </div>
                 {/if}
 
-                <div class="grid grid-cols-2 gap-3">
+                <div>
                   <div>
                     <span class="mb-1 flex items-center gap-1.5 text-xs text-gray-400 font-medium">
                       <svg class="w-3.5 h-3.5 text-gray-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -122,15 +182,6 @@
                       placeholder="Bitrate"
                     />
                   </div>
-                  <label class="vesta-check-row mt-5">
-                    <input
-                      type="checkbox"
-                      checked={!!editor.overrides.normalizeAudio}
-                      onchange={(event) => editor.update("normalizeAudio", (event.currentTarget as HTMLInputElement).checked)}
-                      class="vesta-check-input shrink-0 {mediaOverrideClass('normalizeAudio')}"
-                    />
-                    <span class="text-xs font-medium text-gray-300">{t("flashcards.normalizeAudio")}</span>
-                  </label>
                 </div>
 
                 <div class="grid grid-cols-2 gap-3">
@@ -169,9 +220,34 @@
                     </div>
                   </div>
                 </div>
+
+                <!-- Compact per-episode audio preview and gain controls. -->
+                <div class="pt-2">
+                  <button
+                    type="button"
+                    onclick={() => (previewExpanded = !previewExpanded)}
+                    class="flex h-8.5 w-full items-center justify-center gap-1.5 rounded-lg border border-cyan-400/35 bg-cyan-500/10 px-3 text-xs font-semibold text-cyan-200 transition-colors hover:bg-cyan-500/15"
+                  >
+                    <span>{t("flashcards.previewAudio")}</span><span>{previewExpanded ? "▴" : "▾"}</span>
+                  </button>
+                  {#if previewExpanded}
+                    <div class="mt-2 space-y-2 rounded-lg border border-cyan-500/25 bg-cyan-950/15 p-3">
+                      <div class="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+                        <button type="button" onclick={() => editor.update("audioGainDb", Math.max(-12, (editor.overrides?.audioGainDb ?? 0) - 2))} class="h-8 rounded-lg border border-white/10 bg-white/5 text-xs text-gray-300 hover:bg-white/10">−2 dB</button>
+                        <span class="min-w-20 text-center text-xs font-mono text-cyan-300">Gain {(editor.overrides.audioGainDb ?? 0) > 0 ? "+" : ""}{editor.overrides.audioGainDb ?? 0} dB</span>
+                        <button type="button" onclick={() => editor.update("audioGainDb", Math.min(12, (editor.overrides?.audioGainDb ?? 0) + 2))} class="h-8 rounded-lg border border-white/10 bg-white/5 text-xs text-gray-300 hover:bg-white/10">+2 dB</button>
+                      </div>
+                      <button type="button" disabled={isPreviewLoading} onclick={toggleEpisodeAudioPreview} class="flex h-8.5 w-full items-center justify-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 text-xs font-semibold text-gray-300 transition-colors hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-40">
+                        {#if isPreviewLoading}<div class="h-3.5 w-3.5 animate-spin rounded-full border-2 border-cyan-400 border-t-transparent"></div>{/if}
+                        <span>{isPreviewPlaying ? t("flashcards.previewAudioPlaying") : "Play audio"}</span>
+                      </button>
+                    </div>
+                  {/if}
+                </div>
               </div>
             {/if}
           </div>
+          <div class="space-y-4">
           <!-- SNAPSHOT PANEL -->
           <div class="relative z-20 space-y-4 rounded-xl border border-gray-800 bg-gray-800/30 p-5 shadow-inner {editor.episode.mediaType !== 'video' ? 'opacity-45' : ''}">
             <div class="flex items-center justify-between rounded-lg border border-purple-500/20 bg-purple-500/10 p-3">
@@ -183,7 +259,7 @@
                 aria-label={t("flashcards.generateSnapshots")}
                 disabled={editor.episode.mediaType !== "video"}
                 class="relative h-5 w-10 rounded-full transition-colors {editor.overrides.generateSnapshots && editor.episode.mediaType === 'video' ? 'bg-purple-500' : 'bg-gray-600'} {mediaOverrideClass('generateSnapshots')}"
-                onclick={() => editor.update("generateSnapshots", !editor.overrides?.generateSnapshots)}
+                onclick={() => { const next = !editor.overrides?.generateSnapshots; editor.update("generateSnapshots", next); if (next) editor.update("generateVideoClips", false); }}
               >
                 <span class="absolute top-0.5 h-4 w-4 rounded-full bg-white transition-all {editor.overrides.generateSnapshots && editor.episode.mediaType === 'video' ? 'left-5' : 'left-0.5'}"></span>
               </button>
@@ -253,7 +329,7 @@
                 aria-label={t("flashcards.generateVideoClips")}
                 disabled={editor.episode.mediaType !== "video"}
                 class="relative h-5 w-10 rounded-full transition-colors {editor.overrides.generateVideoClips && editor.episode.mediaType === 'video' ? 'bg-rose-500' : 'bg-gray-600'} {mediaOverrideClass('generateVideoClips')}"
-                onclick={() => editor.update("generateVideoClips", !editor.overrides?.generateVideoClips)}
+                onclick={() => { const next = !editor.overrides?.generateVideoClips; editor.update("generateVideoClips", next); if (next) editor.update("generateSnapshots", false); }}
               >
                 <span class="absolute top-0.5 h-4 w-4 rounded-full bg-white transition-all {editor.overrides.generateVideoClips && editor.episode.mediaType === 'video' ? 'left-5' : 'left-0.5'}"></span>
               </button>
@@ -393,6 +469,7 @@
                 </div>
               </div>
             {/if}
+          </div>
           </div>
         </div>
       </div>

@@ -45,7 +45,7 @@
     <!-- Length Filter -->
     <div class="space-y-2">
       <span class="flex items-center gap-1.5 text-xs font-semibold text-gray-400 uppercase tracking-wider">
-        <svg class="w-3.5 h-3.5 text-amber-400/80 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg class="w-3.5 h-3.5 text-white shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h10M4 18h16" />
         </svg>
         <span>{t("flashcards.filterLength")}</span>
@@ -131,7 +131,7 @@
     <!-- Duration Filter -->
     <div class="space-y-2">
       <span class="flex items-center gap-1.5 text-xs font-semibold text-gray-400 uppercase tracking-wider">
-        <svg class="w-3.5 h-3.5 text-amber-400/80 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg class="w-3.5 h-3.5 text-white shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
         <span>{t("flashcards.filterDuration")}</span>
@@ -218,7 +218,7 @@
     <div class="mt-4 pt-4 border-t border-gray-800/50">
       <div class="flex items-center justify-between mb-3">
         <span class="flex items-center gap-1.5 text-xs font-semibold text-gray-400 uppercase tracking-wider">
-          <svg class="w-3.5 h-3.5 text-amber-400/80 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg class="w-3.5 h-3.5 text-white shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
           </svg>
           <span>{t("flashcards.combineSentences")}</span>

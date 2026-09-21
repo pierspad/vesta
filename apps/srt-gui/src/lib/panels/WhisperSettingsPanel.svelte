@@ -33,23 +33,23 @@
   function whisperModelIconPath(modelId: string): string {
     const paths: Record<string, string> = {
       tiny: "M13 3L4 14h7l-1 7 9-12h-7l1-6z",
-      base: "M12 4a8 8 0 100 16 8 8 0 000-16zm0 3v5l3 2",
-      small: "M6 20V10m6 10V4m6 16v-7M4 10h4m2-6h4m2 9h4",
-      medium: "M4 13h3l2-6 4 12 2-6h5",
-      large: "M12 3l8 4-8 4-8-4 8-4zm-8 8l8 4 8-4M4 15l8 4 8-4",
+      base: "M5 15v2m4-6v6m4-10v10m4-7v7m4-4v4",
+      small: "M4 12h3l2-5 4 10 2-5h5",
+      medium: "M4 6h16M7 12h10M10 18h4",
+      large: "M12 6v6l4 2m5-2a9 9 0 11-18 0 9 9 0 0118 0z",
     };
     return paths[modelId] || "M9 3h6m-7 4h8a3 3 0 013 3v7a3 3 0 01-3 3H8a3 3 0 01-3-3v-7a3 3 0 013-3zm4 3v4m-2-2h4";
   }
 
   function whisperModelAccent(modelId: string): string {
     const accents: Record<string, string> = {
-      tiny: "from-amber-500/25 to-yellow-500/10 text-amber-200",
-      base: "from-sky-500/25 to-cyan-500/10 text-sky-200",
-      small: "from-emerald-500/25 to-teal-500/10 text-emerald-200",
-      medium: "from-indigo-500/25 to-violet-500/10 text-indigo-200",
-      large: "from-fuchsia-500/25 to-rose-500/10 text-fuchsia-200",
+      tiny: "bg-amber-500/15 text-amber-200",
+      base: "bg-sky-500/15 text-sky-200",
+      small: "bg-emerald-500/15 text-emerald-200",
+      medium: "bg-indigo-500/15 text-indigo-200",
+      large: "bg-fuchsia-500/15 text-fuchsia-200",
     };
-    return accents[modelId] || "from-cyan-500/20 to-blue-500/10 text-cyan-200";
+    return accents[modelId] || "bg-cyan-500/15 text-cyan-200";
   }
 
   function handleModelDblClick(model: { id: string; downloaded: boolean }) {
@@ -132,7 +132,7 @@
 {#if whisperEngine === "local"}
 <div class="mt-6 glass-card p-5 {store.downloadedWhisperCount === 0 ? 'border-glow-amber-slow' : ''}" role="group" oncontextmenu={(e) => store.openWhisperPanelContextMenu(e)}>
   <div class="flex items-center gap-3 mb-4">
-    <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-white shadow-lg">
+    <div class="w-8 h-8 rounded-lg bg-cyan-500/20 flex items-center justify-center text-cyan-200">
       <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
       </svg>
@@ -222,7 +222,7 @@
             {/if}
           {/if}
         </div>
-        <div class="mx-auto mb-2 flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 bg-gradient-to-br {whisperModelAccent(model.id)} shadow-sm">
+        <div class="mx-auto mb-2 flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 {whisperModelAccent(model.id)}">
           <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d={whisperModelIconPath(model.id)} />
           </svg>

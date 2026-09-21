@@ -47,24 +47,41 @@ pub async fn flashcard_preview_audio(
     format: Option<srt_flashcards::AudioFormat>,
     normalize: Option<bool>,
     boost: Option<bool>,
+    gain_db: Option<i32>,
     bitrate: Option<u32>,
 ) -> Result<String, String> {
     let (s_ms, e_ms) = if let (Some(s), Some(e)) = (start_ms, end_ms) {
         (s, e)
+    } else if let Some(s) = start_ms {
+        (s, s + 3500)
     } else if let Some(ref sp) = sub_path {
         let (subs, _) = srt_flashcards::parse_subtitle_file(sp).map_err(|e| e.to_string())?;
-        // Find first entry with sensible length (1s to 8s) or first entry
+        // Find first dialogue entry with sensible length (1.2s to 8s), length >= 10 chars, not bracketed music/cues
         let entry = subs
             .iter()
-            .find(|e| (e.end_ms - e.start_ms) >= 1000 && (e.end_ms - e.start_ms) <= 8000 && !e.text.trim().is_empty())
+            .find(|e| {
+                let dur = e.end_ms - e.start_ms;
+                let text = e.text.trim();
+                dur >= 1200
+                    && dur <= 8000
+                    && text.len() >= 10
+                    && !text.starts_with('[')
+                    && !text.starts_with('(')
+                    && !text.starts_with('♪')
+                    && !text.starts_with('♫')
+            })
+            .or_else(|| {
+                subs.iter()
+                    .find(|e| (e.end_ms - e.start_ms) >= 1000 && !e.text.trim().is_empty())
+            })
             .or_else(|| subs.first());
         if let Some(e) = entry {
             (e.start_ms, e.end_ms)
         } else {
-            (60_000, 63_000)
+            (120_000, 123_500)
         }
     } else {
-        (60_000, 63_000)
+        (120_000, 123_500)
     };
 
     let audio_format = format.unwrap_or_default();
@@ -72,7 +89,7 @@ pub async fn flashcard_preview_audio(
     let pad_e = pad_end_ms.unwrap_or(0);
     let br = bitrate.unwrap_or(128);
     let norm = normalize.unwrap_or(true);
-    let bst = boost.unwrap_or(false);
+    let gain = gain_db.unwrap_or_else(|| if boost.unwrap_or(false) { 6 } else { 0 });
 
     let temp_dir = std::env::temp_dir();
     let out_file = temp_dir.join(format!(
@@ -94,13 +111,44 @@ pub async fn flashcard_preview_audio(
         audio_track_index,
         audio_format,
         norm,
-        bst,
+        gain,
         &ffmpeg,
     )
     .await
     .map_err(|e| e.to_string())?;
 
     Ok(out_file.to_string_lossy().into_owned())
+}
+
+#[tauri::command]
+pub async fn flashcard_preview_snapshot(
+    app: AppHandle,
+    media_path: String,
+    time_ms: i64,
+) -> Result<String, String> {
+    let temp_dir = std::env::temp_dir();
+    let out_file = temp_dir.join(format!(
+        "vesta_snap_preview_{}.jpg",
+        std::process::id()
+    ));
+    let ffmpeg = resolve_ffmpeg_path(Some(&app)).await;
+
+    srt_flashcards::extract_preview_snapshot(
+        &media_path,
+        &out_file,
+        time_ms,
+        &ffmpeg,
+    )
+    .await
+    .map_err(|e| e.to_string())?;
+
+    Ok(out_file.to_string_lossy().into_owned())
+}
+
+#[tauri::command]
+pub fn flashcard_parse_subtitles(path: String) -> Result<Vec<srt_flashcards::SubEntry>, String> {
+    let (entries, _) = srt_flashcards::parse_subtitle_file(&path).map_err(|e| e.to_string())?;
+    Ok(entries)
 }
 
 #[tauri::command]

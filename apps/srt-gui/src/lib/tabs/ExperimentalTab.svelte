@@ -11,6 +11,11 @@
 
   let t = $derived($locale);
 
+  function restartFirstRunSetup() {
+    vestaConfig.setItem("vesta-first-run-force", "true");
+    window.location.reload();
+  }
+
   // ─── Condensed audio ────────────────────────────────────────────────────────
 
   let mediaPath = $state("");
@@ -217,6 +222,13 @@
 
 <div class="h-full flex flex-col bg-gray-900 text-gray-100 overflow-hidden">
   <div class="flex-1 overflow-y-auto p-6 flex flex-col gap-5 scrollbar-thin">
+    <div class="glass-card p-5 flex items-center justify-between gap-5">
+      <div>
+        <h3 class="text-base font-semibold text-white">First-run setup preview</h3>
+        <p class="mt-1 text-xs text-gray-400">Run the introductory setup again and overwrite its configurable defaults.</p>
+      </div>
+      <button type="button" class="btn-secondary shrink-0 px-4 py-2 text-xs" onclick={restartFirstRunSetup}>Restart setup</button>
+    </div>
     <!-- Video Subtitles OCR Extraction -->
     <div class="glass-card p-5 space-y-4">
       <div class="flex items-center justify-between mb-2">
@@ -359,7 +371,6 @@
       {/if}
     </div>
 
->>>>>>> main
     <!-- Condensed audio -->
     <div class="glass-card p-5 space-y-4">
       <div class="flex items-center justify-between mb-2">

@@ -176,6 +176,8 @@ pub struct FlashcardConfig {
     pub normalize_audio: bool,
     #[serde(default)]
     pub audio_boost: bool,
+    #[serde(default)]
+    pub audio_gain_db: i32,
     pub audio_pad_start_ms: i64,
     pub audio_pad_end_ms: i64,
 
@@ -260,6 +262,7 @@ impl Default for FlashcardConfig {
             audio_track_index: None,
             normalize_audio: true,
             audio_boost: false,
+            audio_gain_db: 0,
             audio_pad_start_ms: 0,
             audio_pad_end_ms: 0,
             audio_format: AudioFormat::default(),

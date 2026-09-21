@@ -7,7 +7,7 @@ import * as vestaConfig from "$lib/config/vestaConfig";
 // SettingsTab (download/select/upload) and TranscribeTab (resolves the
 // active choice into `transcribe_start`'s config).
 
-export const DEFAULT_VAD_MODEL_ID = "v5.1.2";
+export const DEFAULT_VAD_MODEL_ID = "v6.2.0";
 
 export interface VadSelection {
   /** Id of the selected built-in variant, ignored when `customPath` is set. */
@@ -24,8 +24,11 @@ export function loadVadSelection(): VadSelection {
     const raw = vestaConfig.getItem(VAD_SELECTION_KEY);
     if (raw) {
       const p = JSON.parse(raw);
+      const modelId = typeof p.modelId === "string" && (p.modelId !== "v5.1.2" || typeof p.customPath === "string")
+        ? p.modelId
+        : DEFAULT_VAD_MODEL_ID;
       return {
-        modelId: typeof p.modelId === "string" ? p.modelId : DEFAULT_VAD_MODEL_ID,
+        modelId,
         customPath: typeof p.customPath === "string" ? p.customPath : null,
       };
     }

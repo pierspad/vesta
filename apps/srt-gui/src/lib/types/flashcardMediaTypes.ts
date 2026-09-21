@@ -11,6 +11,7 @@ export interface EpisodeMediaOverrides {
   audioTrackIndex?: number | null;
   normalizeAudio?: boolean;
   audioBoost?: boolean;
+  audioGainDb?: number;
   audioPadStart?: number;
   audioPadEnd?: number;
   audioFormat?: AudioFormat;

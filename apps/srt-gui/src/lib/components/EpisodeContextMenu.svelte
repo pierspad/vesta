@@ -7,10 +7,11 @@
     hasMedia: boolean;
     onEdit: () => void;
     onMediaSettings: () => void;
+    onPreviewAudio?: () => void;
     onRemove: () => void;
     onClose: () => void;
   }
-  let { x, y, hasMedia, onEdit, onMediaSettings, onRemove, onClose }: Props = $props();
+  let { x, y, hasMedia, onEdit, onMediaSettings, onPreviewAudio, onRemove, onClose }: Props = $props();
 
   let t = $derived($locale);
 </script>
@@ -54,6 +55,21 @@
       </span>
       <kbd>S</kbd>
     </button>
+    {#if onPreviewAudio}
+      <button
+        type="button"
+        class="vesta-context-menu-item"
+        disabled={!hasMedia}
+        onclick={onPreviewAudio}
+      >
+        <span class="inline-flex items-center gap-2">
+          <svg class="h-4 w-4 text-cyan-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072M12 6v12m-4-8v4" />
+          </svg>
+          {t("flashcards.previewAudio")}
+        </span>
+      </button>
+    {/if}
     <div class="vesta-context-menu-separator"></div>
     <button type="button" class="vesta-context-menu-item" onclick={onRemove}>
       <span class="inline-flex items-center gap-2 text-red-300">
