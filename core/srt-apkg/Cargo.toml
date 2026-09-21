@@ -1,6 +1,6 @@
 [package]
 name = "srt-apkg"
-version = "0.22.0"
+version = "0.23.0-dev.1"
 edition.workspace = true
 authors = ["Pierpaolo Spadafora <pierpaolospadafora@proton.me>"]
 description = "Minimal helpers for reading and writing Anki .apkg ZIP archives."
