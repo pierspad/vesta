@@ -19,11 +19,18 @@
 #   ./run_overnight_benchmarks.sh missing   # Run only missing variants (~1.2h)
 #
 
+# --- Ensure running under bash ---
+if [ -z "${BASH_VERSION:-}" ]; then
+  SCRIPT_PATH="$(realpath "$0" 2>/dev/null || echo "$PWD/$0")"
+  exec bash "$SCRIPT_PATH" "$@"
+fi
+
 # --- 0. Prevent system sleep/suspend during overnight benchmarks ---
 if [ -z "${IN_SYSTEMD_INHIBIT:-}" ] && command -v systemd-inhibit >/dev/null 2>&1; then
   export IN_SYSTEMD_INHIBIT=1
+  SCRIPT_PATH="$(realpath "${BASH_SOURCE[0]:-$0}" 2>/dev/null || echo "$PWD/$0")"
   echo "🛡️  Acquiring systemd sleep inhibitor lock (preventing idle suspend)..."
-  exec systemd-inhibit --what=idle:sleep:shutdown --who="VestaBenchmark" --why="Running overnight benchmarks" "$0" "$@"
+  exec systemd-inhibit --what=idle:sleep:shutdown --who="VestaBenchmark" --why="Running overnight benchmarks" bash "$SCRIPT_PATH" "$@"
 fi
 
 set -euo pipefail

@@ -94,14 +94,14 @@ def combined_chart(media, subcount, series, seconds, out_path):
         texts = ["" if v != v else f"{v:,.1f}s" for v in raw_vals]
         ax.bar_label(bars, labels=texts, padding=4, fontsize=8, rotation=-45)
 
-        # Annotate speedup on GPU bars
-        if "GPU" in label:
+        # Annotate speedup on Vesta bars
+        if "Vesta" in label:
             for xi, (m, v) in enumerate(zip(media, raw_vals)):
                 base = seconds.get((m, "subs2srs"))
-                if base and v > 0:
+                if base and v > 0 and norm_vals[xi] > 12:
                     speedup = base / v
                     ax.text(xi + offset, norm_vals[xi] / 2, f"{speedup:.1f}×",
-                            ha="center", va="center", fontsize=8.5,
+                            ha="center", va="center", fontsize=8,
                             fontweight="bold", color="white")
 
     style_axes(ax)

@@ -459,7 +459,7 @@ def main():
     plot_individual_films(media, subcount, series, seconds, out_dir / "films")
     generate_markdown_summary(media, subcount, series, seconds, out_dir / "summary.md")
 
-    # Copy top-level charts to docs/
+    # Copy top-level charts and per-film charts to docs/
     docs_dir = Path("docs")
     if docs_dir.exists():
         for svg_name in ["benchmark_overview.svg", "benchmark_speedup_summary.svg", "benchmark_speedup_range.svg"]:
@@ -468,6 +468,58 @@ def main():
                 shutil.copy(src, docs_dir / svg_name)
         if (out_dir / "summary.md").exists():
             shutil.copy(out_dir / "summary.md", docs_dir / "BENCHMARK_REPORT.md")
+        films_src = out_dir / "films"
+        if films_src.exists():
+            films_dst = docs_dir / "films"
+            films_dst.mkdir(parents=True, exist_ok=True)
+            for f in films_src.glob("*.svg"):
+                shutil.copy(f, films_dst / f.name)
+
+    # Sync legacy results.csv and results_gpu.csv for compatibility
+    with open(csv_path) as f:
+        all_rows = list(csv.DictReader(f))
+    
+    # 1. results.csv
+    res_csv = out_dir / "results.csv"
+    with open(res_csv, "w", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=["title","subtitle_count","tool","variant","format","elapsed_ms","lines","audio","snapshots","video","jobs"])
+        writer.writeheader()
+        for r in all_rows:
+            var = r["variant"]
+            if var == "subs2srs":
+                writer.writerow({k: r[k] for k in writer.fieldnames})
+            elif var == "single_direct":
+                writer.writerow({**{k: r[k] for k in writer.fieldnames}, "variant": "single"})
+            elif var == "multi_direct":
+                writer.writerow({**{k: r[k] for k in writer.fieldnames}, "variant": "max"})
+
+    # 2. results_gpu.csv
+    res_gpu_csv = out_dir / "results_gpu.csv"
+    with open(res_gpu_csv, "w", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=["title","subtitle_count","tool","variant","format","elapsed_ms","lines","audio","snapshots","video","jobs"])
+        writer.writeheader()
+        for r in all_rows:
+            var = r["variant"]
+            fmt = r["format"]
+            if var == "subs2srs":
+                writer.writerow({k: r[k] for k in writer.fieldnames})
+            elif var == "multi_direct" and fmt == "apkg":
+                writer.writerow({**{k: r[k] for k in writer.fieldnames}, "variant": "max"})
+            elif var == "multi_gpu" and fmt == "apkg":
+                writer.writerow({**{k: r[k] for k in writer.fieldnames}, "variant": "gpu"})
+
+    # Regenerate benchmark.svg and benchmark_gpu.svg
+    report_dir = Path(__file__).resolve().parent
+    plot_script = report_dir / "plot.py"
+    plot_gpu_script = report_dir / "plot_gpu.py"
+    if plot_script.exists():
+        import subprocess
+        subprocess.run([sys.executable, str(plot_script), str(res_csv), str(docs_dir)], check=False)
+        subprocess.run([sys.executable, str(plot_script), str(res_csv), str(out_dir)], check=False)
+    if plot_gpu_script.exists():
+        import subprocess
+        subprocess.run([sys.executable, str(plot_gpu_script), str(res_gpu_csv), str(docs_dir / "benchmark_gpu.svg")], check=False)
+        subprocess.run([sys.executable, str(plot_gpu_script), str(res_gpu_csv), str(out_dir / "benchmark_gpu.svg")], check=False)
 
     print(f"Successfully generated all charts and reports under {out_dir}")
 

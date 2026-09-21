@@ -5,13 +5,13 @@
 
 **subs2srs, but actually fast.**
 
-Vesta is a modern desktop application for language learners and power users that turns video and subtitle files into rich, synchronized Anki flashcard decks, auto-aligned subtitles, and translated media in minutes instead of hours — running **~2.5× to 5.2× faster than subs2srs** with parallel multi-core processing and transparent GPU hardware acceleration.
+Vesta is a modern desktop application for language learners and power users that turns video and subtitle files into rich, synchronized Anki flashcard decks, auto-aligned subtitles, and translated media in minutes instead of hours — running **~3.5× to 3.8× faster on average (and up to 6.2× faster)** than subs2srs with parallel multi-core processing and transparent GPU hardware acceleration.
 
-![Benchmark comparison: Vesta vs subs2srs](docs/benchmark.svg)
+![Benchmark comparison: Vesta GPU vs CPU vs subs2srs](docs/benchmark_gpu.svg)
 
-> ⚡ **GPU Acceleration & Pre-Transcoding**: On heavy 1080p and HEVC videos, Vesta automatically leverages hardware acceleration (VA-API, NVENC, VideoToolbox) to pre-transcode lightweight streams at 50–100× realtime, delivering up to **5.17× speedup over subs2srs** and cutting generation time in half compared to multi-core CPU alone. See the full [Benchmark Report with GPU acceleration](docs/BENCHMARK_REPORT.md#gpu-hardware-acceleration--adaptive-pre-transcoding).
+> ⚡ **GPU Acceleration & Multi-Core Speedup**: Across 8 feature films (12,000+ subtitles), Vesta finishes deck generation in minutes instead of hours. On heavy 1080p videos (such as *Good Will Hunting*, *Trainspotting*, *Snatch*), Vesta leverages hardware acceleration (VA-API, NVENC, VideoToolbox) to pre-transcode lightweight streams at 50–100× realtime, delivering up to **5.0× speedup over subs2srs** and cutting generation time in half compared to multi-core CPU alone. On lightweight media, multi-core CPU direct stream cutting reaches up to **6.22× speedup** (e.g. *Interstellar* in 3.6 min vs 22.5 min; *Detour* in 1.0 min vs 6.2 min). See the full [Benchmark Report (8 Films, 9 Test Variants)](docs/BENCHMARK_REPORT.md).
 
-![Benchmark with GPU acceleration](docs/benchmark_gpu.svg)
+![Average Speedup Summary vs subs2srs](docs/benchmark_speedup_summary.svg)
 
 ## What it does
 
@@ -20,7 +20,7 @@ Load a video and its subtitles. Synchronize them, translate them with AI if need
 ### Why Vesta?
 
 - **Parallelized & Multi-core by Default**: Written from scratch in Rust, distributing ffmpeg extractions, media encoding, and database operations across all available CPU cores.
-- **2.3× – 2.6× Faster Than subs2srs**: Completes large multi-episode deck generation workflows in a fraction of the time required by legacy tools.
+- **Up to 6.2× Faster Than subs2srs (3.8× average)**: Completes full feature-length deck generation in minutes instead of hours, processing 300 to 1,000+ flashcards per minute.
 - **100% Offline Capable**: Core media processing, local Whisper transcription, and VAD speech segmentation run entirely on your local machine without mandatory internet access.
 - **Decoupled & Modular Architecture**: Every engine is a standalone, headless Rust crate with matching CLI tools.
 
