@@ -3,15 +3,22 @@
 > [!WARNING]
 > **Work in Progress**: This README is currently temporary and a work in progress (WIP), is subject to ongoing reorganization, and will be further refined and expanded.
 
-**subs2srs, but actually fast.**
+**subs2srs, but faster and with more features**
 
-Vesta is a modern desktop application for language learners and power users that turns video and subtitle files into rich, synchronized Anki flashcard decks, auto-aligned subtitles, and translated media in minutes instead of hours — running **~3.5× to 3.8× faster on average (and up to 6.2× faster)** than subs2srs with parallel multi-core processing and transparent GPU hardware acceleration.
+Vesta is the modernized spiritual son of subs2srs. 
+A desktop application for language learners that turns video/audio files and subtitle files into flashcard decks for anki, allows you to fix desynced subtitles, add missing translation and more 
 
-![Benchmark comparison: Vesta GPU vs CPU vs subs2srs](docs/benchmark_gpu.svg)
+## Benchmarks
 
-> ⚡ **GPU Acceleration & Multi-Core Speedup**: Across 8 feature films (12,000+ subtitles), Vesta finishes deck generation in minutes instead of hours. On heavy 1080p videos (such as *Good Will Hunting*, *Trainspotting*, *Snatch*), Vesta leverages hardware acceleration (VA-API, NVENC, VideoToolbox) to pre-transcode lightweight streams at 50–100× realtime, delivering up to **5.0× speedup over subs2srs** and cutting generation time in half compared to multi-core CPU alone. On lightweight media, multi-core CPU direct stream cutting reaches up to **6.22× speedup** (e.g. *Interstellar* in 3.6 min vs 22.5 min; *Detour* in 1.0 min vs 6.2 min). See the full [Benchmark Report (8 Films, 9 Test Variants)](docs/BENCHMARK_REPORT.md).
+![Vesta Average Speedup vs subs2srs Across All Test Films](docs/benchmark_speedup_summary.svg)
 
-![Average Speedup Summary vs subs2srs](docs/benchmark_speedup_summary.svg)
+> ⚡ **subs2srs, but actually fast**: Tested across **8 feature-length films (~12,000+ subtitles)**, Vesta generates complete multimedia flashcard decks in minutes instead of hours — achieving a **~3.5× to 3.8× average speedup** (and up to **6.22× peak speedup**) compared to subs2srs.
+>
+> - **Multi-Core Direct Stream Cutting**: On lightweight or standard media (*Interstellar*, *Detour*, *Uncut Gems*), Vesta distributes FFmpeg operations across CPU cores for up to **6.22× speedup** (*Interstellar* finished in 3.6 min vs 22.5 min; *Detour* in 60 s vs 6.2 min).
+> - **GPU Pre-Transcoding**: On heavy 1080p/HEVC videos (*Good Will Hunting*, *Trainspotting*, *Snatch*), Vesta leverages hardware acceleration (VA-API, NVENC, VideoToolbox) to pre-transcode intermediate streams at 50–100× realtime, delivering up to **5.00× speedup** and cutting generation time in half compared to CPU multi-core alone.
+> - **Single-Core Efficiency Control**: Even restricted to 1 single core (`1c`), Vesta is **~1.3× to 1.9× faster** than subs2srs due to native Rust performance and zero-copy stream mapping.
+>
+> 📖 **Reproducibility & Methodology**: Both tools were benchmarked fully headless, calling the exact same system FFmpeg binary on identical hardware with matching media outputs. For complete details on the test setup, the vendored subs2srs headless harness, and instructions to run the suite yourself, see [**docs/BENCHMARK_STEPS.md**](docs/BENCHMARK_STEPS.md). For per-film charts and raw data across all 9 variants, see the [**Benchmark Report**](docs/BENCHMARK_REPORT.md).
 
 ## What it does
 
@@ -138,10 +145,12 @@ For comprehensive module guides and Rust integration examples, see [`docs/module
 ## Documentation Map
 
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — Architectural design contracts, layering rules, and conventions.
+- [`docs/BENCHMARK_STEPS.md`](docs/BENCHMARK_STEPS.md) — Step-by-step benchmark reproduction guide, fairness controls, and subs2srs harness explanation.
+- [`docs/BENCHMARK_REPORT.md`](docs/BENCHMARK_REPORT.md) — Full 8-film benchmark results, throughput tables, and per-film charts.
 - [`docs/VOCABULARY_SOURCES.md`](docs/VOCABULARY_SOURCES.md) — Exact linguistic dataset provenance, upstream sources, licenses, and build scripts.
 - [`docs/modules/`](docs/modules/) — Detailed module specifications and embedding instructions.
 - [`docs/superpowers/specs/`](docs/superpowers/specs/) — Technical specifications for media presets, codec evaluations, and format benchmarks.
-- [`benchmarking_against_subs2srs/`](benchmarking_against_subs2srs/) — Reproducible benchmarking scripts and methodology.
+- [`benchmarking_against_subs2srs/`](benchmarking_against_subs2srs/) — Reproducible benchmarking scripts, harnesses, and dataset configs.
 
 ---
 
@@ -171,11 +180,16 @@ cd apps/srt-gui && npx tauri dev
 
 ## Contributing
 
-Pull requests are welcome! For major changes or architectural proposals, please open an issue first to discuss what you would like to change.
+Pull requests are welcome! For major changes, please open an issue first to discuss your ideas.
 
 ---
 
-## License & Disclosures
+## AI Disclosure
 
-- **License**: GNU General Public License v3.0 (GPLv3) — see the [LICENSE](LICENSE) file for details.
-- **AI Disclosure**: This project was developed with the assistance of Large Language Models to support implementation, refactoring, and documentation.
+This project was developed with the assistance of Large Language Models, used to support code writing and documentation.
+
+---
+
+## License
+
+This project is licensed under the GPL v3 License — see the [LICENSE](LICENSE) file for details.

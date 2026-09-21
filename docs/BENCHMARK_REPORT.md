@@ -1,5 +1,7 @@
 # Vesta vs subs2srs — Comprehensive Benchmark Report
 
+> 📖 **Methodology & Reproduction**: For fairness controls, details on the headless subs2srs harness, and instructions on running the benchmarks yourself, see the [Benchmarking Methodology & Step-by-Step Guide](BENCHMARK_STEPS.md).
+
 ### System & Hardware Specifications
 - **CPU**: AMD Ryzen 7 5800X 8-Core Processor (16 logical cores)
 - **GPU**: Advanced Micro Devices, Inc. [AMD/ATI] Navi 32 [Radeon RX 7700 XT / 7800 XT] (rev c8)

@@ -195,7 +195,7 @@ def plot_speedup_summary(media, series, seconds, out_path):
 
     # Reference line at 1.0x (parity with subs2srs)
     ax.axvline(1.0, color="#d9534f", linestyle="--", linewidth=1.5, alpha=0.8, zorder=2)
-    ax.text(1.05, len(labels) - 0.2, "subs2srs parity (1.0×)", color="#d9534f", fontsize=8.5, fontweight="bold")
+    ax.text(1.04, -0.3, "subs2srs parity (1.0×)", color="#d9534f", fontsize=9, fontweight="bold", va="bottom")
 
     # Bar labels
     for bar, val in zip(bars, avg_speedups):
@@ -207,10 +207,11 @@ def plot_speedup_summary(media, series, seconds, out_path):
         ax.spines[spine].set_visible(False)
     ax.grid(axis="x", linestyle="--", alpha=0.35)
     ax.set_axisbelow(True)
+    ax.set_ylim(len(labels) - 0.35, -0.65)
     ax.set_xlim(0, max(avg_speedups, default=1.0) * 1.22)
 
     fig.tight_layout()
-    fig.savefig(out_path, bbox_inches="tight")
+    fig.savefig(out_path, bbox_inches="tight", pad_inches=0.15)
     plt.close(fig)
 
 def plot_speedup_range(media, series, seconds, out_path):
