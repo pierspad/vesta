@@ -5,31 +5,48 @@
 
 **subs2srs, but faster and with more features**
 
-Vesta is the modernized spiritual son of subs2srs. 
+Vesta is a modernized spiritual son of subs2srs. 
 A desktop application for language learners that turns video/audio files and subtitle files into flashcard decks for anki, allows you to fix desynced subtitles, add missing translation and more 
 
 ## Benchmarks
 
 ![Vesta Average Speedup vs subs2srs Across All Test Films](docs/benchmark_speedup_summary.svg)
 
-> ⚡ **subs2srs, but actually fast**: Tested across **8 feature-length films (~12,000+ subtitles)**, Vesta generates complete multimedia flashcard decks in minutes instead of hours — achieving a **~3.5× to 3.8× average speedup** (and up to **6.22× peak speedup**) compared to subs2srs.
+> Tested across **8 feature-length films (~12,000+ subtitles)**, Vesta achieves a **~3.5× to 3.8× average speedup** (and up to **6.22× peak speedup**) compared to subs2srs.
 >
-> - **Multi-Core Direct Stream Cutting**: On lightweight or standard media (*Interstellar*, *Detour*, *Uncut Gems*), Vesta distributes FFmpeg operations across CPU cores for up to **6.22× speedup** (*Interstellar* finished in 3.6 min vs 22.5 min; *Detour* in 60 s vs 6.2 min).
-> - **GPU Pre-Transcoding**: On heavy 1080p/HEVC videos (*Good Will Hunting*, *Trainspotting*, *Snatch*), Vesta leverages hardware acceleration (VA-API, NVENC, VideoToolbox) to pre-transcode intermediate streams at 50–100× realtime, delivering up to **5.00× speedup** and cutting generation time in half compared to CPU multi-core alone.
-> - **Single-Core Efficiency Control**: Even restricted to 1 single core (`1c`), Vesta is **~1.3× to 1.9× faster** than subs2srs due to native Rust performance and zero-copy stream mapping.
+> Even when restricted to a single core (`1c`), Vesta is **~1.3× to 1.9× faster** than subs2srs due to new optimizations.
 >
-> 📖 **Reproducibility & Methodology**: Both tools were benchmarked fully headless, calling the exact same system FFmpeg binary on identical hardware with matching media outputs. For complete details on the test setup, the vendored subs2srs headless harness, and instructions to run the suite yourself, see [**docs/BENCHMARK_STEPS.md**](docs/BENCHMARK_STEPS.md). For per-film charts and raw data across all 9 variants, see the [**Benchmark Report**](docs/BENCHMARK_REPORT.md).
+> For complete details on the test setup, the vendored subs2srs headless harness, and instructions to run the suite yourself, see [**docs/BENCHMARK_STEPS.md**](docs/BENCHMARK_STEPS.md). For per-film charts and raw data across all 9 variants, see the [**Benchmark Report**](docs/BENCHMARK_REPORT.md).
 
 ## What it does
 
-Load a video and its subtitles. Synchronize them, translate them with AI if needed, and export a ready-to-study Anki deck with high-quality audio clips, snapshots, and video clips synced to the exact lines of dialogue.
+Set up with your preferences and drop in your media and subtitle files and create your flashcards.
 
-### Why Vesta?
+#### What if the timestamps of my srt are not synced with the media?
+Go to the **"Synchronize"** tab; here you can add manual anchors and check synchronization step by step.
+A few anchors are enough if the SRT timestamps are just offsetted.
+If there are many discrepancies, use **Auto-Sync** to automatically realign timestamps with help from Whisper.
 
-- **Parallelized & Multi-core by Default**: Written from scratch in Rust, distributing ffmpeg extractions, media encoding, and database operations across all available CPU cores.
-- **Up to 6.2× Faster Than subs2srs (3.8× average)**: Completes full feature-length deck generation in minutes instead of hours, processing 300 to 1,000+ flashcards per minute.
-- **100% Offline Capable**: Core media processing, local Whisper transcription, and VAD speech segmentation run entirely on your local machine without mandatory internet access.
-- **Decoupled & Modular Architecture**: Every engine is a standalone, headless Rust crate with matching CLI tools.
+#### What if I lack an SRT file in my language?
+After setting up your tiers and providers for LLM answers in Settings, go to the **"Translate"** tab and translate your file. Subtitles are translated in context-aware batches, with progress saved incrementally so you can resume at any time.
+
+#### What if I only have a media file and I don't have any SRT file?
+Go to the **"Transcribe"** tab. You can generate a new `.srt` file directly from your audio or video file using local **Whisper** (via `whisper.cpp` with optional GPU acceleration) or by using fast cloud STT providers specified by you.
+
+#### What if I want to check any missing subtitle?
+Go to the **"Revise"** tab. You can load two subtitle files side-by-side (such as a target language SRT and a reference or native SRT) to inspect them line by line. You can quickly jump to missing or empty subtitles, edit lines directly, insert or remove dialogue, and align timings.
+
+#### What if I want to add notes?
+Go to the **"Annotate"** tab. You can load an Anki `.apkg` deck or flashcard collection to enrich your cards with definitions, grammar explanations, and context notes. You can edit notes **manually** for each card with the built-in editor, or generate them **automatically** using LLMs.
+
+#### What are tiers and providers?
+Tiers and providers are a form of load-balancing for generative operations:
+- **Providers** represent individual endpoints (e.g. a Self-Hosted models, OpenRouter, Google, Groq, Mistral, OpenAI, GitHub Models etc.)
+- **Tiers** define priority levels. Within each tier, requests rotate across providers in a round-robin cycle to share the workload while respecting their configured requests per minute and maximum request limits. If all providers in a tier exhaust their rate limits or quotas, Vesta automatically fails over to the next tier without interrupting your process.
+
+#### What do I do if I don't want to use any AI feature?
+Turn on the **AI Kill Switch**! 
+
 
 ---
 
@@ -53,7 +70,7 @@ Load a video and its subtitles. Synchronize them, translate them with AI if need
 Generate accurate SRT subtitles directly from media files:
 - **Local Whisper (whisper.cpp)**: Offline transcription with GPU acceleration (Vulkan) and beam search quality modes.
 - **Silero VAD (Voice Activity Detection)**: Pre-filters silence and background music, dramatically reducing hallucinations and subtitle drift.
-- **Cloud STT Providers**: Integrated support for Groq, OpenAI, Mistral, and Deepgram for lightning-fast cloud transcription.
+- **Cloud STT Providers**: Integrated support for Groq, OpenAI, Deepgram, and AssemblyAI for lightning-fast cloud transcription.
 
 ### 3. Smart Synchronization & Alignment
 - **Anchor-based Re-timing (`srt-sync`)**: Align drifting subtitles interactively using waveform anchors.
@@ -76,15 +93,6 @@ Generate accurate SRT subtitles directly from media files:
 - **Dialogue Condenser (`srt-condense`)**: Strips silence and non-speech intervals to generate condensed audio for listening immersion.
 - **AnkiConnect Direct Sync (`srt-ankiconnect`)**: Push notes, media, and decks directly into a running Anki instance without manual `.apkg` file import.
 - **Deck Refiner (`srt-refine`)**: Enrich existing Anki decks using LLMs with explanations, grammar notes, and usage examples.
-
----
-
-## Pipeline Overview
-
-```
-Video / Audio ──► [Transcribe] ──► [Sync / Autosync] ──► [Translate] ──► [Flashcards & Anki Export]
-```
-*Already have subtitles? Skip directly to Sync or Flashcards generation.*
 
 ---
 
@@ -147,19 +155,18 @@ For comprehensive module guides and Rust integration examples, see [`docs/module
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — Architectural design contracts, layering rules, and conventions.
 - [`docs/BENCHMARK_STEPS.md`](docs/BENCHMARK_STEPS.md) — Step-by-step benchmark reproduction guide, fairness controls, and subs2srs harness explanation.
 - [`docs/BENCHMARK_REPORT.md`](docs/BENCHMARK_REPORT.md) — Full 8-film benchmark results, throughput tables, and per-film charts.
-- [`docs/VOCABULARY_SOURCES.md`](docs/VOCABULARY_SOURCES.md) — Exact linguistic dataset provenance, upstream sources, licenses, and build scripts.
 - [`docs/modules/`](docs/modules/) — Detailed module specifications and embedding instructions.
-- [`docs/superpowers/specs/`](docs/superpowers/specs/) — Technical specifications for media presets, codec evaluations, and format benchmarks.
-- [`benchmarking_against_subs2srs/`](benchmarking_against_subs2srs/) — Reproducible benchmarking scripts, harnesses, and dataset configs.
 
 ---
 
 ## Building from Source
 
 ### Prerequisites
-- **Rust**: 1.85+ (`rustup default stable`)
-- **Node.js**: 18+ and `npm`
-- **System dependencies**: `ffmpeg` and `ffprobe` on your system PATH.
+- **Rust**: 1.97+ (`rustup default stable`)
+- **Node.js**: 20.19+ or 22+ (LTS recommended) and `npm`
+- **System dependencies**:
+  - **Runtime**: `ffmpeg` and `ffprobe` on your system PATH.
+  - **Build (Linux)**: C/C++ compiler (`gcc`/`clang`), `cmake`, `pkg-config`, and Tauri v2 development libraries (`libwebkit2gtk-4.1-dev` or `4.0`, `libappindicator3-dev`, `librsvg2-dev`).
 
 ### Development Setup
 ```bash
@@ -170,8 +177,9 @@ cd vesta
 # Install frontend dependencies
 cd apps/srt-gui && npm install && cd ../..
 
-# Run GUI in development mode
+# Then either run the GUI in development mode
 ./run_gui.sh
+
 # Or manually:
 cd apps/srt-gui && npx tauri dev
 ```

@@ -10,6 +10,7 @@ as a standalone binary or as a Rust dependency — without dragging in the GUI.
 
 | Module | What it does | Library | CLI binary |
 |---|---|---|---|
+| [srt-flashcards](srt-flashcards.md) | Subs2srs-style flashcard generation & media cutting | `lib/srt-flashcards` | `srt-flashcards` |
 | [srt-parser](srt-parser.md) | Parse / write SRT, ASS, VTT with charset detection | `core/srt-parser` | — |
 | [srt-apkg](srt-apkg.md) | Anki package (`.apkg`) archive generator & reader | `core/srt-apkg` | — |
 | [srt-extract](srt-extract.md) | Extract & convert subtitle data (JSON, stats…) | `lib/srt-extract` | `srt-extract` |
