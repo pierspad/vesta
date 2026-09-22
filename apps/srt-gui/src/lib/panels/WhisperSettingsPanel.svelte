@@ -109,7 +109,7 @@
 
 
 {#if whisperEngine === "local"}
-<div class="mt-6 glass-card p-5 {store.downloadedWhisperCount === 0 ? 'border-glow-amber-slow' : ''}" role="group" oncontextmenu={(e) => store.openWhisperPanelContextMenu(e)}>
+<div class="mt-6 glass-card p-5" role="group" oncontextmenu={(e) => store.openWhisperPanelContextMenu(e)}>
   <div class="flex items-center gap-3 mb-4">
     <div class="w-8 h-8 rounded-lg bg-cyan-500/20 flex items-center justify-center text-cyan-200">
       <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

@@ -40,6 +40,13 @@ body,
   background: rgb(29 37 53 / 0.96);
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
+  box-shadow: none;
+  contain: layout style;
+}
+
+.settings-scroll {
+  transform: translateZ(0);
+  scrollbar-gutter: stable;
 }
 
 .panel-title-files-output {

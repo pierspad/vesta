@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { Snippet } from "svelte";
   import ToggleRow from "$lib/components/ToggleRow.svelte";
+  import ExportFallbackSelector from "$lib/components/ExportFallbackSelector.svelte";
   import { uiMode } from "$lib/stores/uiModeStore.svelte";
   import { availableUILanguages, currentLanguage, locale, setLanguage } from "$lib/i18n";
   import { cpuRamStore } from "$lib/stores/cpuRamStore.svelte";
@@ -101,8 +102,8 @@
           {exportFormatStore.exportFormat === 'apkg'
             ? 'bg-emerald-500/15 border border-emerald-500/30'
             : exportFormatStore.exportFormat === 'tsv'
-              ? 'bg-sky-500/15 border border-sky-500/30'
-              : 'bg-violet-500/15 border border-violet-500/30'}"
+              ? 'bg-violet-500/15 border border-violet-500/30'
+              : 'bg-cyan-500/15 border border-cyan-500/30'}"
         style="width: calc(33.333% - 6px); transform: translateX(calc({exportFormatStore.activeIdx * 100}% + {exportFormatStore.activeIdx * 8}px)); left: 4px;"
       ></div>
 
@@ -146,7 +147,7 @@
             </span>
             <span class="text-[10px] px-1.5 py-0.5 rounded-full font-bold transition-all duration-200
               {exportFormatStore.exportFormat === 'tsv'
-                ? 'bg-sky-500/30 text-sky-300 border border-sky-500/40'
+                ? 'bg-violet-500/30 text-violet-300 border border-violet-500/40'
                 : 'bg-gray-700/60 text-gray-400 border border-gray-700'}">
               {t("flashcards.exportTSVBadge")}
             </span>
@@ -155,7 +156,7 @@
         </div>
 
         <!-- Folder SVG Icon on the right -->
-        <svg class="w-8 h-8 transition-colors duration-200 shrink-0 {exportFormatStore.exportFormat === 'tsv' ? 'text-sky-400' : 'text-gray-500'}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg class="w-8 h-8 transition-colors duration-200 shrink-0 {exportFormatStore.exportFormat === 'tsv' ? 'text-violet-400' : 'text-gray-500'}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
         </svg>
       </button>
@@ -173,7 +174,7 @@
             </span>
             <span class="text-[10px] px-1.5 py-0.5 rounded-full font-bold transition-all duration-200
               {exportFormatStore.exportFormat === 'anki'
-                ? 'bg-violet-500/30 text-violet-300 border border-violet-500/40'
+                ? 'bg-cyan-500/30 text-cyan-300 border border-cyan-500/40'
                 : 'bg-gray-700/60 text-gray-400 border border-gray-700'}">
               {t("flashcards.exportAnkiConnectBadge")}
             </span>
@@ -191,7 +192,7 @@
         </div>
 
         <!-- Anki Connect/Flash SVG Icon on the right -->
-        <svg class="w-8 h-8 transition-colors duration-200 shrink-0 {exportFormatStore.exportFormat === 'anki' ? 'text-violet-400' : 'text-gray-500'}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg class="w-8 h-8 transition-colors duration-200 shrink-0 {exportFormatStore.exportFormat === 'anki' ? 'text-cyan-400' : 'text-gray-500'}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13 10V3L4 14h7v7l9-11h-7z" />
         </svg>
       </button>
@@ -199,39 +200,11 @@
 
     <!-- Secondary Fallback Hierarchy Selector when AnkiConnect is selected -->
     {#if exportFormatStore.exportFormat === 'anki'}
-      <div class="mt-4 pt-4 border-t border-white/10 flex items-center justify-between gap-4 flex-wrap">
-        <div class="flex items-center gap-2">
-          <svg class="w-4 h-4 text-amber-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          <span class="text-xs font-semibold text-gray-300">
-            {t("flashcards.fallbackFormatLabel")}
-          </span>
-        </div>
-        <div class="flex items-center gap-2 bg-black/40 p-1 rounded-lg border border-white/10 shrink-0">
-          <button
-            type="button"
-            onclick={() => exportFormatStore.setFallbackFormat('apkg')}
-            class="px-3 py-1.5 rounded-md text-xs font-bold transition-all duration-150 cursor-pointer flex items-center gap-1.5
-              {exportFormatStore.fallbackFormat === 'apkg'
-                ? 'bg-emerald-500/30 text-emerald-300 border border-emerald-500/50 shadow-sm'
-                : 'text-gray-400 hover:text-gray-200 border border-transparent'}"
-          >
-            <span>{t("flashcards.fallbackApkgOption")}</span>
-            <span class="text-[9px] uppercase px-1 py-0.2 rounded bg-emerald-500/20 text-emerald-300">{t("common.recommended")}</span>
-          </button>
-          <button
-            type="button"
-            onclick={() => exportFormatStore.setFallbackFormat('tsv')}
-            class="px-3 py-1.5 rounded-md text-xs font-bold transition-all duration-150 cursor-pointer flex items-center gap-1.5
-              {exportFormatStore.fallbackFormat === 'tsv'
-                ? 'bg-sky-500/30 text-sky-300 border border-sky-500/50 shadow-sm'
-                : 'text-gray-400 hover:text-gray-200 border border-transparent'}"
-          >
-            <span>{t("flashcards.fallbackTsvOption")}</span>
-          </button>
-        </div>
-      </div>
+      <ExportFallbackSelector
+        value={exportFormatStore.fallbackFormat}
+        onchange={(value) => exportFormatStore.setFallbackFormat(value)}
+        className="mt-4 border-t border-white/10 pt-4"
+      />
     {/if}
   </div>
 {/if}
