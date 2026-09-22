@@ -109,7 +109,7 @@
       <!-- APKG Option Button -->
       <button
         type="button"
-        onclick={() => exportFormatStore.setExportFormat('apkg')}
+        onclick={() => exportFormatStore.cycleExportFormat()}
         class="flex-1 text-left p-4 rounded-lg transition-all duration-200 select-none relative z-10 flex items-center justify-between gap-4 cursor-pointer"
       >
         <div class="flex-1 min-w-0">
@@ -136,7 +136,7 @@
       <!-- TSV Option Button -->
       <button
         type="button"
-        onclick={() => exportFormatStore.setExportFormat('tsv')}
+        onclick={() => exportFormatStore.cycleExportFormat()}
         class="flex-1 text-left p-4 rounded-lg transition-all duration-200 select-none relative z-10 flex items-center justify-between gap-4 cursor-pointer"
       >
         <div class="flex-1 min-w-0">
@@ -163,7 +163,7 @@
       <!-- Anki Connect Option Button (Permanently visible) -->
       <button
         type="button"
-        onclick={() => exportFormatStore.setExportFormat('anki')}
+        onclick={() => exportFormatStore.cycleExportFormat()}
         class="flex-1 text-left p-4 rounded-lg transition-all duration-200 select-none relative z-10 flex items-center justify-between gap-4 cursor-pointer"
       >
         <div class="flex-1 min-w-0">
