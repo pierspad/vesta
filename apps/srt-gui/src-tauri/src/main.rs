@@ -79,9 +79,8 @@ use commands::sync::*;
 use commands::transcribe::*;
 use commands::translate::*;
 use state::{
-    AppCondenseState, AppFlashcardState, AppRefineState, AppSyncState, AppTranscribeState,
-    AppTranslateState, CondenseState, FlashcardState, RefineState, SyncState, TranscribeState,
-    TranslateState,
+    AppFlashcardState, AppRefineState, AppSyncState, AppTranscribeState, AppTranslateState,
+    FlashcardState, RefineState, SyncState, TranscribeState, TranslateState,
 };
 
 fn mime_from_ext(path: &str) -> &'static str {
@@ -315,7 +314,6 @@ fn main() {
         .manage(Mutex::new(FlashcardState::default()) as AppFlashcardState)
         .manage(Mutex::new(TranscribeState::default()) as AppTranscribeState)
         .manage(Mutex::new(RefineState::default()) as AppRefineState)
-        .manage(Mutex::new(CondenseState::default()) as AppCondenseState)
         .manage(commands::config::ConfigState::default())
         .manage(MediaServerInfo {
             port,
@@ -482,8 +480,6 @@ fn main() {
             refine_cards_llm_tiered,
             refine_cancel,
 
-            condense_start,
-            condense_cancel,
             ankiconnect_ping,
             ankiconnect_deck_names,
             ankiconnect_import_package,

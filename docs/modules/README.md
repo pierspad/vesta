@@ -19,7 +19,6 @@ as a standalone binary or as a Rust dependency — without dragging in the GUI.
 | [srt-autosync](srt-autosync.md) | Automatic alignment via Whisper/VAD anchors | `lib/srt-autosync` | `srt-autosync` |
 | [srt-transcribe](srt-transcribe.md) | Transcription pipeline: media → SRT (whisper + VAD + cloud) | `lib/srt-transcribe` | `srt-transcribe` |
 | [srt-ankiconnect](srt-ankiconnect.md) | AnkiConnect integration HTTP client | `lib/srt-ankiconnect` | — |
-| [srt-condense](srt-condense.md) | Audio dialogue extraction & silence elimination | `lib/srt-condense` | — |
 | [srt-refine](srt-refine.md) | LLM enrichment of Anki decks (TSV/APKG) | `lib/srt-refine` | — |
 
 ## Two ways to reuse a module
@@ -45,12 +44,12 @@ exact folders to copy and the crates.io dependencies involved).
 
 ## Design contract
 
-All engines follow the same conventions, so they compose predictably:
+Feature engines use these conventions where the operation is long-running:
 
 - **No UI coupling** — no Tauri, no GUI types in any `lib/` crate.
-- **Progress = callbacks** — plain `Fn` callbacks (`Arc<dyn Fn(...) + Send + Sync>`).
-- **Cancellation = `tokio_util::sync::CancellationToken`** — cooperative, safe to drop.
+- **Progress = callbacks** — plain Rust callbacks, without GUI event types.
+- **Cancellation = `tokio_util::sync::CancellationToken`** — cooperative cancellation in pipelines that perform sustained work.
 - **External tools are parameters** — ffmpeg/ffprobe are passed as commands or
   paths, never auto-resolved by the libraries.
-- **CLIs are shells** — every CLI parses arguments and delegates to its
-  library; if you can do it from the CLI, you can do it from Rust.
+- **CLIs are adapters** — each shipped CLI parses arguments and delegates to
+  its corresponding library; support crates need no separate binary.

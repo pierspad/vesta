@@ -19,14 +19,14 @@ import numpy as np
 # Ordered variants and palette
 SERIES_ORDER = [
     ("subs2srs", "subs2srs", "tsv", "subs2srs (TSV)", "#e8770f"),
-    ("vesta", "single_direct", "tsv", "Vesta 1c Direct (TSV)", "#f6b26b"),
-    ("vesta", "single_direct", "apkg", "Vesta 1c Direct (APKG)", "#e69138"),
-    ("vesta", "single_gpu", "tsv", "Vesta 1c GPU (TSV)", "#4ecdc4"),
-    ("vesta", "single_gpu", "apkg", "Vesta 1c GPU (APKG)", "#2ab7ca"),
-    ("vesta", "multi_direct", "tsv", "Vesta Multi Direct (TSV)", "#b3aadd"),
-    ("vesta", "multi_direct", "apkg", "Vesta Multi Direct (APKG)", "#8073c9"),
-    ("vesta", "multi_gpu", "tsv", "Vesta Multi GPU (TSV)", "#12a184"),
-    ("vesta", "multi_gpu", "apkg", "Vesta Multi GPU (APKG)", "#0c7c65"),
+    ("vesta", "single_direct", "tsv", "Vesta 1t Direct (TSV)", "#f6b26b"),
+    ("vesta", "single_direct", "apkg", "Vesta 1t Direct (APKG)", "#e69138"),
+    ("vesta", "single_gpu", "tsv", "Vesta 1t GPU (TSV)", "#4ecdc4"),
+    ("vesta", "single_gpu", "apkg", "Vesta 1t GPU (APKG)", "#2ab7ca"),
+    ("vesta", "multi_direct", "tsv", "Vesta 16t Direct (TSV)", "#b3aadd"),
+    ("vesta", "multi_direct", "apkg", "Vesta 16t Direct (APKG)", "#8073c9"),
+    ("vesta", "multi_gpu", "tsv", "Vesta 16t GPU (TSV)", "#12a184"),
+    ("vesta", "multi_gpu", "apkg", "Vesta 16t GPU (APKG)", "#0c7c65"),
 ]
 
 VARIANT_LOOKUP = { (tool, var, fmt): (lbl, col) for tool, var, fmt, lbl, col in SERIES_ORDER }
@@ -150,7 +150,7 @@ def plot_overview(media, subcount, series, seconds, out_path):
     ax.legend(frameon=False, ncol=min(n, 5), loc="upper center", bbox_to_anchor=(0.5, -0.12), fontsize=8.5)
 
     fig.text(0.5, -0.06,
-             "* Normalized per film: 100% = subs2srs baseline. Values above bars show elapsed seconds; labels inside show speedup vs subs2srs.",
+             "* Normalized per movie: 100% = subs2srs baseline. Values above bars show elapsed seconds; labels inside show speedup vs subs2srs.",
              ha="center", fontsize=8.5, color="#555555", style="italic")
 
     fig.tight_layout()
@@ -191,11 +191,11 @@ def plot_speedup_summary(media, series, seconds, out_path):
     ax.set_yticks(y_pos, labels, fontsize=10)
     ax.invert_yaxis()  # Top-down order
     ax.set_xlabel("Average Speedup vs subs2srs (higher is better)", fontsize=10)
-    ax.set_title("Vesta Average Speedup vs subs2srs Across All Test Films", fontweight="bold", pad=14, fontsize=12)
+    ax.set_title("Vesta Average Speedup vs subs2srs Across All Test Movies", fontweight="bold", pad=14, fontsize=12)
 
-    # Reference line at 1.0x (parity with subs2srs)
+    # Reference line at 1.0x (baseline with subs2srs)
     ax.axvline(1.0, color="#d9534f", linestyle="--", linewidth=1.5, alpha=0.8, zorder=2)
-    ax.text(1.04, -0.3, "subs2srs parity (1.0×)", color="#d9534f", fontsize=9, fontweight="bold", va="bottom")
+    ax.text(1.04, -0.3, "subs2srs baseline (1.0×)", color="#d9534f", fontsize=9, fontweight="bold", va="bottom")
 
     # Bar labels
     for bar, val in zip(bars, avg_speedups):
@@ -348,17 +348,17 @@ def generate_markdown_summary(media, subcount, series, seconds, out_md):
         "# Vesta vs subs2srs — Comprehensive Benchmark Report",
         "",
         "### System & Hardware Specifications",
-        f"- **CPU**: {cpu_model} ({cores} logical cores)",
+        f"- **CPU**: {cpu_model} ({cores} threads)",
         f"- **GPU**: {gpu_model}",
         "- **Pipeline Modes Tested**:",
-        "  - **Direct (No Transcode)**: Direct stream cutting without pre-transcoding (identical methodology to subs2srs).",
-        "  - **GPU Pre-Transcoding**: VA-API hardware acceleration generating intermediate scale stream in ~1-2 min.",
-        "- **Formats Tested**: Raw TSV + media folder vs self-contained Anki `.apkg` packages.",
-        "- **Worker Configurations**: 1-worker (single core control matching subs2srs) vs Multi-core (all logical cores).",
+        "  - **Direct**: Direct stream cutting without pre-transcoding (identical methodology to subs2srs).",
+        "  - **GPU**: Hardware-accelerated (VA-API) pre-transcoding into an intermediate fast-seeking stream.",
+        "- **Formats Tested**: Raw TSV + media folder vs ready-to-import Anki `.apkg` packages.",
+        "- **Threading Tested**: 1t (single-thread control matching subs2srs) vs 16t (all 16 CPU threads).",
         "",
         "## Charts Overview",
         "",
-        "### 1. Suite Comparison (All Films & Variants)",
+        "### 1. Suite Comparison (All Movies & Variants)",
         "![Suite Overview](benchmark_overview.svg)",
         "",
         "### 2. Average Speedup vs subs2srs",
@@ -369,7 +369,7 @@ def generate_markdown_summary(media, subcount, series, seconds, out_md):
         "",
         "## Aggregate Performance Summary",
         "",
-        "| Series | Total Wall-Clock Time | Overall Speed-up | Avg Film Speed-up | Min Speed-up | Max Speed-up |",
+        "| Series | Total Wall-Clock Time | Overall Speed-up | Avg Movie Speed-up | Min Speed-up | Max Speed-up |",
         "|---|---:|---:|---:|---:|---:|",
     ]
 
@@ -409,9 +409,9 @@ def generate_markdown_summary(media, subcount, series, seconds, out_md):
 
     lines.extend([
         "",
-        "## Per-Film Detailed Results",
+        "## Per-Movie Detailed Results",
         "",
-        "| Film | Subtitles | Series | Time | Cards/min | Speed-up vs subs2srs |",
+        "| Movie | Subtitles | Series | Time | Cards/min | Speed-up vs subs2srs |",
         "|---|---:|---|---:|---:|---:|",
     ])
 
@@ -429,7 +429,7 @@ def generate_markdown_summary(media, subcount, series, seconds, out_md):
 
     lines.extend([
         "",
-        "## Per-Film Charts",
+        "## Per-Movie Charts",
         ""
     ])
 

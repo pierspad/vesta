@@ -3,6 +3,8 @@
 > [!WARNING]
 > **Work in Progress**: This README is currently temporary and a work in progress (WIP), is subject to ongoing reorganization, and will be further refined and expanded.
 
+**Contents:** [Overview](#what-it-does) · [Features](#core-features) · [Architecture & CLI](#modular-architecture--headless-cli-use) · [Build](#building-from-source) · [Benchmarks](#benchmarks) · [Documentation](#documentation-map)
+
 **subs2srs, but faster and with more features**
 
 Vesta is a modernized spiritual son of subs2srs. 
@@ -10,13 +12,31 @@ A desktop application for language learners that turns video/audio files and sub
 
 ## Benchmarks
 
-![Vesta Average Speedup vs subs2srs Across All Test Films](docs/benchmark_speedup_summary.svg)
+<img src="docs/benchmark_speedup_summary.svg" alt="Vesta Average Speedup vs subs2srs Across All Test Movies" width="800">
 
-> Tested across **8 feature-length films (~12,000+ subtitles)**, Vesta achieves a **~3.5× to 3.8× average speedup** (and up to **6.22× peak speedup**) compared to subs2srs.
+![Suite Overview](docs/benchmark_overview.svg)
+
+> Tested across **8 feature-length movies (~12,000+ subtitles)**, Vesta achieves a **~3.5× to 3.8× average speedup** (and up to **6.22× peak speedup**) compared to subs2srs.
 >
-> Even when restricted to a single core (`1c`), Vesta is **~1.3× to 1.9× faster** than subs2srs due to new optimizations.
+> Even on a single thread (`1t`), Vesta is **~1.3× to 1.9× faster** than subs2srs due to faster stream seeking and pipe optimizations.
 >
-> For complete details on the test setup, the vendored subs2srs headless harness, and instructions to run the suite yourself, see [**docs/BENCHMARK_STEPS.md**](docs/BENCHMARK_STEPS.md). For per-film charts and raw data across all 9 variants, see the [**Benchmark Report**](docs/BENCHMARK_REPORT.md).
+> For full test details and reproduction steps, see [**docs/BENCHMARK_STEPS.md**](docs/BENCHMARK_STEPS.md). For per-movie charts and raw data across all 9 variants, see the [**Benchmark Report**](docs/BENCHMARK_REPORT.md).
+
+<details closed>
+  <summary><b>Legend & Pipeline Modes</b></summary>
+
+  - **`1t` vs `16t`**: Worker threads.
+    - `1t`: Single-thread control matching subs2srs sequential execution 1:1.
+    - `16t`: Parallel workers across all 16 CPU threads.
+  - **`Direct` vs `GPU`**: Video cutting strategy.
+    - `Direct`: Cuts audio and snapshots directly from the source video (same as subs2srs). Best for standard bitrates and files with frequent keyframes.
+    - `GPU`: Pre-transcodes video first via GPU hardware acceleration (VA-API), making seeking instant on heavy codecs (like 1080p HEVC).
+  - **`TSV` vs `APKG`**: Output format.
+    - `TSV`: Raw text cards + media folder (same as subs2srs).
+    - `APKG`: Bundles cards, media, and SQLite database into an Anki `.apkg` ready to import.
+  - **`subs2srs baseline (1.0×)`**: Original subs2srs runtime. Values above 1.0× mean faster generation (e.g. 3.8× finishes in ~26% of the time).
+
+</details>
 
 ## What it does
 
@@ -52,53 +72,43 @@ Turn on the **AI Kill Switch**!
 
 ## Core Features
 
-### 1. Flashcard Generation & Anki (.apkg / TSV) Export
-- **Self-Contained `.apkg` Packages**: Exports native SQLite Anki collections with zero manual import mapping needed.
-- **Rich Media Cards**: Attach synchronized audio snippets, high-resolution snapshots, or compact video clips to each card.
-- **Modern Codec Support**:
-  - **Audio**: MP3 or Opus (ultra-low bitrate speech compression).
-  - **Snapshots**: WebP, AVIF, or JPEG with customizable resolution presets (144p to 1080p) and quality tuning.
-  - **Video Clips**: H.264 or MPEG-4 with hardware acceleration and ultrafast encoding presets.
-- **Audio & Video Enhancements**:
-  - **EBU R128 Loudness Normalization**: Balances whispering and loud action scenes across cards.
-  - **Audio Track Selection**: Extract from multi-language audio streams (e.g. Japanese audio from dual-audio releases).
-  - **Subtitle Crop**: Automatically crop bottom borders to remove burned-in hardsubs from snapshots.
-  - **Context & Sentence Merging**: Attach leading/trailing context dialogue lines or automatically join split subtitle sentences.
-- **Card Styling & Dark Mode**: Beautiful, responsive card templates with native dark-mode support and automatic font stack injection tailored for target languages (CJK Noto, Arabic, Thai, Devanagari, Hebrew, Cyrillic, etc.).
+### 1. Flashcards and Anki export
 
-### 2. Speech-to-Text Transcription
-Generate accurate SRT subtitles directly from media files:
-- **Local Whisper (whisper.cpp)**: Offline transcription with GPU acceleration (Vulkan) and beam search quality modes.
-- **Silero VAD (Voice Activity Detection)**: Pre-filters silence and background music, dramatically reducing hallucinations and subtitle drift.
-- **Cloud STT Providers**: Integrated support for Groq, OpenAI, Deepgram, and AssemblyAI for lightning-fast cloud transcription.
+- Generate cards from one subtitle track, or match a study-language track with a reference translation by overlapping timestamps.
+- Export a ready-to-import `.apkg`, a TSV file with its media folder, or send the generated package to a running Anki instance through AnkiConnect.
+- Add per-card MP3 or Opus audio, WebP/AVIF/JPEG snapshots, or H.264/MPEG-4 clips. Audio track, margins, bitrate, dimensions, crop, and quality remain configurable per episode.
+- Normalize clip loudness with EBU R128, combine split sentences, include surrounding dialogue, and filter cards by text or duration.
+- Use responsive Anki templates with dark mode and language-specific Noto fonts; required fonts can be embedded in APKG exports.
 
-### 3. Smart Synchronization & Alignment
-- **Anchor-based Re-timing (`srt-sync`)**: Align drifting subtitles interactively using waveform anchors.
-- **Automatic Whisper Re-sync (`srt-autosync`)**: Automatically generate phonetic anchors with Whisper to realign out-of-sync subtitles with zero manual effort.
+### 2. Transcription
 
-### 4. AI Subtitle Translation (`srt-translate`)
-- Translate foreign subtitle lines into your native language using Large Language Models.
-- Context-aware batching to preserve dialogue flow, slang, and pronouns.
-- Multi-tier provider failover (Ollama local, OpenAI, Claude, DeepSeek, OpenRouter).
+- Produce SRT files from audio or video with local `whisper.cpp` models or configured cloud STT endpoints.
+- Use Silero VAD to exclude non-speech regions before transcription and request word timestamps when the selected backend supports them.
+- Local builds can offload Whisper to a compiled GPU backend. Linux release packages enable Vulkan and fall back to CPU when no usable device is available; current Windows packages use CPU.
 
-### 5. Smart Episode & Subtitle Matching
-- Drag-and-drop video and subtitle files in bulk.
-- Automatically pairs files across complex naming conventions:
-  - Western TV: `S01E05`, `1x05`, `Episode 01`, `Folge 06`, `Episodio 03`, `Серия 09`.
-  - Anime / Fansub releases: `[Group] Title - 01 [1080p].mkv`, `OVA 01`, `SP 02`.
-  - Chinese / Korean dramas: `第01话`, `第12集`, `01화`.
-- Auto-detects original vs reference subtitle roles (`source`, `vostfr`, `sub_ita`, `traduzione`, etc.).
+### 3. Synchronization and review
 
-### 6. Additional Modules & Integrations
-- **Dialogue Condenser (`srt-condense`)**: Strips silence and non-speech intervals to generate condensed audio for listening immersion.
-- **AnkiConnect Direct Sync (`srt-ankiconnect`)**: Push notes, media, and decks directly into a running Anki instance without manual `.apkg` file import.
-- **Deck Refiner (`srt-refine`)**: Enrich existing Anki decks using LLMs with explanations, grammar notes, and usage examples.
+- Correct a constant offset or gradual drift by placing timing anchors in the synchronization wizard (`srt-sync`).
+- Generate speech anchors with Whisper for automatic re-alignment (`srt-autosync`), then review the result before saving.
+- Compare two subtitle files side by side, edit text and timings, and jump directly to missing lines in Revise.
+
+### 4. Translation and annotation
+
+- Translate subtitles in overlapping context batches instead of isolated lines, with resumable output.
+- Configure ordered provider tiers: endpoints within a tier share requests; the next tier is used when the current one is unavailable or rate-limited.
+- Add or edit explanations, grammar notes, and examples in existing APKG or TSV decks with the Refine/Annotate workflow.
+
+### 5. File matching and language defaults
+
+- Drop several media and subtitle files at once; Vesta pairs episodes across common western, anime, Chinese, and Korean naming patterns.
+- Classify original and reference tracks from language codes and filename markers, while keeping every match editable.
+- Keep separate defaults for native, study, translation-target, transcription, and interface languages.
 
 ---
 
 ## Modular Architecture & Headless CLI Use
 
-Vesta is organized as a Cargo workspace of decoupled, single-responsibility crates. Every backend engine is a GUI-agnostic library in `lib/` or `core/` paired with a standalone CLI binary in `cli/`.
+Vesta is organized as a Cargo workspace of decoupled crates. Backend engines live in `lib/` or `core/`; the principal workflows also expose a standalone binary in `cli/`.
 
 ```
 vesta/
@@ -111,7 +121,6 @@ vesta/
 │   ├── srt-autosync/      # Automatic Whisper-assisted subtitle synchronization
 │   ├── srt-sync/          # Anchor-based timing interpolation
 │   ├── srt-translate/     # Multi-tier LLM subtitle translation
-│   ├── srt-condense/      # Dialogue extraction and audio condensation
 │   ├── srt-ankiconnect/   # AnkiConnect API client for direct sync
 │   ├── srt-extract/       # Subtitle text and metadata extraction
 │   └── srt-refine/        # LLM-powered deck enrichment
@@ -189,6 +198,8 @@ cd apps/srt-gui && npx tauri dev
 ## Contributing
 
 Pull requests are welcome! For major changes, please open an issue first to discuss your ideas.
+
+If Vesta is useful to you and you want to support its maintenance, you can [sponsor the project on GitHub](https://github.com/sponsors/pierspad). Sponsorship is optional and does not unlock features.
 
 ---
 

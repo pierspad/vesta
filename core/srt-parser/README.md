@@ -1,49 +1,23 @@
 # srt-parser
 
-Fast and reliable SRT (SubRip) subtitle file parser written in Rust.
+Foundational subtitle parser used throughout Vesta. It reads SRT files with automatic character-set detection, normalizes subtitle timing and identifiers, and writes valid UTF-8 SRT output.
 
-## Features
-
-- ✅ Parse SRT files with proper error handling
-- ✅ Support for various timestamp formats
-- ✅ Handle edge cases (empty lines, BOM, etc.)
-- ✅ Serialize/deserialize with serde
-- ✅ Zero dependencies beyond anyhow and serde
-
-## Installation
-
-Add to your `Cargo.toml`:
+The crate is GUI-independent and depends only on `anyhow`, `serde`, `encoding_rs`, and `chardetng`. Workspace crates should use the root `workspace.dependencies` entry; external users can depend on the Git repository:
 
 ```toml
 [dependencies]
-srt-parser = { path = "../core/srt-parser" }
+srt-parser = { git = "https://github.com/pierspad/vesta" }
 ```
-
-Or when published to crates.io:
-
-```toml
-[dependencies]
-srt-parser = "0.1"
-```
-
-## Usage
 
 ```rust
 use srt_parser::SrtParser;
 
 fn main() -> anyhow::Result<()> {
-    // Parse from file
-    let subtitles = SrtParser::parse_file("movie.srt")?;
-    
-    for sub in &subtitles {
-        println!("{}: {} -> {}", sub.id, sub.start_time, sub.end_time);
-        println!("   {}", sub.text);
-    }
-    
+    let mut subtitles = SrtParser::parse_file("movie.srt")?;
+    SrtParser::normalize_subtitles(&mut subtitles);
+    SrtParser::save_file("normalized.srt", &subtitles)?;
     Ok(())
 }
 ```
 
-## License
-
-MIT
+See [`docs/modules/srt-parser.md`](../../docs/modules/srt-parser.md) for the public data model and extraction notes. Licensed GPL-3.0-only.

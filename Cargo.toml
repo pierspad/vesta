@@ -38,7 +38,6 @@ srt-autosync = { path = "./lib/srt-autosync", version = "0.24.0-dev.2" }
 srt-flashcards = { path = "./lib/srt-flashcards", version = "0.24.0-dev.2" }
 srt-refine = { path = "./lib/srt-refine", version = "0.24.0-dev.2" }
 srt-transcribe = { path = "./lib/srt-transcribe", version = "0.24.0-dev.2" }
-srt-condense = { path = "./lib/srt-condense", version = "0.24.0-dev.2" }
 srt-ankiconnect = { path = "./lib/srt-ankiconnect", version = "0.24.0-dev.2" }
 
 [profile.dev]

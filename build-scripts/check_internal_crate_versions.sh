@@ -132,8 +132,8 @@ echo -e "${YELLOW}Controllo [workspace.dependencies] internal crates...${NC}"
 # lib/*/Cargo.toml (stesso find della sezione sopra), non scritta a mano:
 # un elenco statico va fuori sincrono ogni volta che si aggiunge o rinomina
 # un crate — è esattamente quello che è successo il 2026-07-16 quando
-# whisper-common è stato rinominato in srt-transcribe e sono arrivati
-# srt-condense/srt-ankiconnect, tutti assenti da questo controllo mentre
+# whisper-common è stato rinominato in srt-transcribe ed è arrivato
+# srt-ankiconnect, entrambi assenti da questo controllo mentre
 # [workspace.dependencies] nel Cargo.toml radice perdeva le voci corrette
 # durante un merge, senza che nessun gate se ne accorgesse.
 #

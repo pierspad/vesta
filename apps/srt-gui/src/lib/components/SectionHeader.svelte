@@ -8,7 +8,7 @@
    * un componente così ogni tab non lo reimplementa a modo suo.
    *
    * `accent` sceglie il colore del titolo/icona fra le tinte già usate
-   * nell'app per distinguere le sezioni (ambra per condensed audio, blu
+   * nell'app per distinguere le sezioni (ambra per filtri, blu
    * cielo per AnkiConnect, ecc.).
    */
   type Accent = "amber" | "sky" | "emerald" | "violet" | "rose" | "indigo" | "gray";

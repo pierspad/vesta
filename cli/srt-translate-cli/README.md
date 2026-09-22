@@ -73,4 +73,4 @@ from a `.env` file if present, e.g. via `GOOGLE_API_KEY=AIza...`).
 
 ## License
 
-MIT
+GPL-3.0-only

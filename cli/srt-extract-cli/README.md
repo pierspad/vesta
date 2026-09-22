@@ -1,47 +1,21 @@
 # srt-extract-cli
 
-Command-line tool for extracting and analyzing data from SRT subtitle files.
-
-## Installation
-
-### From source
+Command-line adapter for `srt-extract`. It parses an SRT file and emits one of four representations without loading the desktop application.
 
 ```bash
-cargo install --path .
+cargo build --release -p srt-extract-cli
+
+./target/release/srt-extract --input movie.srt --format json
+./target/release/srt-extract --input movie.srt --format stats
+./target/release/srt-extract --input movie.srt --format summary
+./target/release/srt-extract --input movie.srt --format debug --output report.txt
 ```
 
-### Pre-built binaries
+| Format | Output |
+|---|---|
+| `json` | Structured subtitle records |
+| `stats` | Counts, timing, duration, and word statistics |
+| `summary` | Short file overview |
+| `debug` | Detailed diagnostic representation |
 
-Download from the releases page or build using `./build_all.sh` from the project root.
-
-## Usage
-
-```bash
-# Extract as JSON
-srt-extract --input movie.srt --format json
-
-# Get subtitle statistics
-srt-extract --input movie.srt --format stats
-
-# Get a summary
-srt-extract --input movie.srt --format summary
-
-# Debug format (detailed)
-srt-extract --input movie.srt --format debug
-
-# Save to file
-srt-extract --input movie.srt --format json --output subtitles.json
-```
-
-## Output Formats
-
-| Format | Description |
-|--------|-------------|
-| `json` | Full subtitle data as JSON array |
-| `stats` | Statistics (count, duration, words, etc.) |
-| `summary` | Brief overview of the file |
-| `debug` | Detailed output for debugging |
-
-## License
-
-MIT
+Run `srt-extract --help` for the authoritative option list. Licensed GPL-3.0-only.

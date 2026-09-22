@@ -38,7 +38,6 @@ srt-sync = { workspace = true }
 srt-autosync = { workspace = true }
 srt-flashcards = { workspace = true }
 srt-refine = { workspace = true }
-srt-condense = { workspace = true }
 srt-ankiconnect = { workspace = true }
 axum = "0.8.9"
 tower-http = { version = "0.7.0", features = ["cors", "fs"] }
@@ -59,4 +58,4 @@ tokio = { version = "1.52", features = ["full"] }
 default = ["custom-protocol"]
 custom-protocol = ["tauri/custom-protocol"]
 # GPU offload (Vulkan) for local Whisper transcription.
-vulkan = ["srt-transcribe/vulkan", "srt-condense/vulkan"]
+vulkan = ["srt-transcribe/vulkan"]

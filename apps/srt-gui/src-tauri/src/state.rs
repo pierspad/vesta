@@ -43,11 +43,3 @@ pub struct RefineState {
 }
 
 pub type AppRefineState = Mutex<RefineState>;
-
-#[derive(Default)]
-pub struct CondenseState {
-    pub is_running: bool,
-    pub cancellation_token: Option<CancellationToken>,
-}
-
-pub type AppCondenseState = Mutex<CondenseState>;

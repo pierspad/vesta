@@ -2,7 +2,7 @@
 name = "srt-sync"
 version = "0.24.0-dev.2"
 edition.workspace = true
-authors = ["Your Name <your.email@example.com>"]
+authors = ["Pierpaolo Spadafora <pierpaolospadafora@proton.me>"]
 description = "Library for synchronizing SRT subtitles with video using anchor points and interpolation"
 license = "GPL-3.0"
 repository = "https://github.com/pierspad/vesta"

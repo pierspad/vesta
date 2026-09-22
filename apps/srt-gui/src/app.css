@@ -41,11 +41,14 @@ body,
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
   box-shadow: none;
-  contain: layout style;
+  contain: layout paint style;
+  content-visibility: auto;
+  contain-intrinsic-size: auto 280px;
 }
 
 .settings-scroll {
-  transform: translateZ(0);
+  overscroll-behavior: contain;
+  touch-action: pan-y;
   scrollbar-gutter: stable;
 }
 

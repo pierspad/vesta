@@ -4367,19 +4367,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "srt-condense"
-version = "0.24.0-dev.2"
-dependencies = [
- "anyhow",
- "serde",
- "srt-parser",
- "srt-transcribe",
- "tempfile",
- "tokio",
- "tokio-util",
-]
-
-[[package]]
 name = "srt-extract"
 version = "0.24.0-dev.2"
 dependencies = [
@@ -5659,7 +5646,6 @@ dependencies = [
  "sha2 0.11.0",
  "srt-ankiconnect",
  "srt-autosync",
- "srt-condense",
  "srt-flashcards",
  "srt-parser",
  "srt-refine",
