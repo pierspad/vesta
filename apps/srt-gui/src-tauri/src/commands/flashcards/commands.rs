@@ -35,6 +35,7 @@ pub async fn flashcard_preview(config: FlashcardConfig) -> Result<Vec<PreviewLin
 }
 
 #[tauri::command]
+#[allow(clippy::too_many_arguments)] // Tauri exposes command parameters individually to the frontend.
 pub async fn flashcard_preview_audio(
     app: AppHandle,
     media_path: String,
@@ -62,8 +63,7 @@ pub async fn flashcard_preview_audio(
             .find(|e| {
                 let dur = e.end_ms - e.start_ms;
                 let text = e.text.trim();
-                dur >= 1200
-                    && dur <= 8000
+                (1200..=8000).contains(&dur)
                     && text.len() >= 10
                     && !text.starts_with('[')
                     && !text.starts_with('(')
@@ -127,20 +127,12 @@ pub async fn flashcard_preview_snapshot(
     time_ms: i64,
 ) -> Result<String, String> {
     let temp_dir = std::env::temp_dir();
-    let out_file = temp_dir.join(format!(
-        "vesta_snap_preview_{}.jpg",
-        std::process::id()
-    ));
+    let out_file = temp_dir.join(format!("vesta_snap_preview_{}.jpg", std::process::id()));
     let ffmpeg = resolve_ffmpeg_path(Some(&app)).await;
 
-    srt_flashcards::extract_preview_snapshot(
-        &media_path,
-        &out_file,
-        time_ms,
-        &ffmpeg,
-    )
-    .await
-    .map_err(|e| e.to_string())?;
+    srt_flashcards::extract_preview_snapshot(&media_path, &out_file, time_ms, &ffmpeg)
+        .await
+        .map_err(|e| e.to_string())?;
 
     Ok(out_file.to_string_lossy().into_owned())
 }

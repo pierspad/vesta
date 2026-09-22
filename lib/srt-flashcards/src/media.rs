@@ -331,7 +331,13 @@ pub async fn optimize_video_source(
         H264Encoder::Libx264
     };
 
-    if !should_optimize_video(&stream_info, target_width, target_height, crop_bottom, encoder) {
+    if !should_optimize_video(
+        &stream_info,
+        target_width,
+        target_height,
+        crop_bottom,
+        encoder,
+    ) {
         return Ok(OptimizedVideo::original(source_path));
     }
 
@@ -381,7 +387,9 @@ pub async fn optimize_video_source(
             }
 
             let vf = if crop_bottom > 0 {
-                format!("crop=in_w:in_h-{crop_bottom}:0:0,scale={target_w}:{target_h},format=nv12,hwupload")
+                format!(
+                    "crop=in_w:in_h-{crop_bottom}:0:0,scale={target_w}:{target_h},format=nv12,hwupload"
+                )
             } else {
                 format!("scale={target_w}:{target_h},format=nv12,hwupload")
             };
@@ -567,19 +575,17 @@ pub async fn optimize_video_source(
         cmd.args(&args);
 
         let res = cmd.status().await;
-        if let Ok(status) = res {
-            if status.success() {
-                if let Ok(meta) = std::fs::metadata(&dest_path) {
-                    if meta.len() > 1000 {
-                        return Ok(OptimizedVideo {
-                            path: dest_path,
-                            original_used: false,
-                            crop_applied: crop_bottom > 0,
-                            _temp_file: Some(temp_file),
-                        });
-                    }
-                }
-            }
+        if let Ok(status) = res
+            && status.success()
+            && let Ok(meta) = std::fs::metadata(&dest_path)
+            && meta.len() > 1000
+        {
+            return Ok(OptimizedVideo {
+                path: dest_path,
+                original_used: false,
+                crop_applied: crop_bottom > 0,
+                _temp_file: Some(temp_file),
+            });
         }
     }
 

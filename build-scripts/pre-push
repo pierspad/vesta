@@ -58,8 +58,8 @@ fi
 # 6. Validate that every t("…") key used in the source exists in en.json
 #    (catches raw keys leaking into the UI, e.g. "align.waitingOriginal")
 echo "  [6/6] Checking i18n keys referenced in source..."
-if ! node apps/srt-gui/scripts/check-i18n.mjs > /dev/null; then
-  echo "❌ Error: source references i18n keys missing from locales. Run 'node apps/srt-gui/scripts/check-i18n.mjs' for details. Push aborted." >&2
+if ! node apps/srt-gui/scripts/check-i18n.mjs; then
+  echo "❌ Error: source references i18n keys missing from locales. Push aborted." >&2
   exit 1
 fi
 

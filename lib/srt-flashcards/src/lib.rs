@@ -436,18 +436,30 @@ pub async fn generate(
     // Pre-transcode video stream if beneficial (e.g. high-res / heavy-codec source)
     let opt_video = if (needs_snapshots || needs_video) && config.optimize_video {
         if let Some(src) = video_source {
-            let target_w = config.video_width.unwrap_or(config.snapshot_width).max(config.snapshot_width);
-            let target_h = config.video_height.unwrap_or(config.snapshot_height).max(config.snapshot_height);
+            let target_w = config
+                .video_width
+                .unwrap_or(config.snapshot_width)
+                .max(config.snapshot_width);
+            let target_h = config
+                .video_height
+                .unwrap_or(config.snapshot_height)
+                .max(config.snapshot_height);
             let hw_enabled = config.video_hw_accel != "off";
 
             emit(
                 progress,
                 "optimizing",
-                &format!("Optimizing video stream with {}...", detected_gpu_encoder.label()),
+                &format!(
+                    "Optimizing video stream with {}...",
+                    detected_gpu_encoder.label()
+                ),
                 12,
                 100,
                 12.0,
-                HashMap::from([("encoder".to_string(), detected_gpu_encoder.ffmpeg_name().to_string())]),
+                HashMap::from([(
+                    "encoder".to_string(),
+                    detected_gpu_encoder.ffmpeg_name().to_string(),
+                )]),
             );
 
             match optimize_video_source(
@@ -492,14 +504,27 @@ pub async fn generate(
     };
 
     let (effective_video_path, effective_crop) = match &opt_video {
-        Some(opt) if !opt.original_used => {
-            (opt.path.to_str().unwrap_or_else(|| video_source.unwrap_or_default()), if opt.crop_applied { 0 } else { config.crop_bottom })
-        }
+        Some(opt) if !opt.original_used => (
+            opt.path
+                .to_str()
+                .unwrap_or_else(|| video_source.unwrap_or_default()),
+            if opt.crop_applied {
+                0
+            } else {
+                config.crop_bottom
+            },
+        ),
         _ => (video_source.unwrap_or_default(), config.crop_bottom),
     };
-    let video_source_arc = video_source.is_some().then(|| Arc::<str>::from(effective_video_path));
+    let video_source_arc = video_source
+        .is_some()
+        .then(|| Arc::<str>::from(effective_video_path));
 
-    let video_encoder = if needs_video && video_codec == "h264" && detected_gpu_encoder.is_hardware() && opt_video.as_ref().map_or(true, |o| o.original_used) {
+    let video_encoder = if needs_video
+        && video_codec == "h264"
+        && detected_gpu_encoder.is_hardware()
+        && opt_video.as_ref().is_none_or(|o| o.original_used)
+    {
         detected_gpu_encoder
     } else {
         H264Encoder::Libx264

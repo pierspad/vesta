@@ -386,7 +386,10 @@ fn simplify_subtitle_stem(name: &str) -> String {
         let lower = token.to_ascii_lowercase();
         let is_year = lower.len() == 4
             && lower.chars().all(|c| c.is_ascii_digit())
-            && lower.parse::<u32>().map(|yr| (1900..=2099).contains(&yr)).unwrap_or(false);
+            && lower
+                .parse::<u32>()
+                .map(|yr| (1900..=2099).contains(&yr))
+                .unwrap_or(false);
 
         if !is_year && NOISE.binary_search(&lower.as_str()).is_err() {
             if !result.is_empty() {
@@ -605,10 +608,7 @@ mod tests {
             simplify_subtitle_stem("Detour (1945)"),
             simplify_subtitle_stem("Detour-en")
         );
-        assert_eq!(
-            simplify_subtitle_stem("Detour.1945"),
-            "detour"
-        );
+        assert_eq!(simplify_subtitle_stem("Detour.1945"), "detour");
     }
 
     #[test]

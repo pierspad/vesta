@@ -91,7 +91,7 @@
     <div class="flex items-center gap-2">
       <button
         onclick={onAddFiles}
-        class="border border-emerald-500/35 bg-emerald-500/12 hover:bg-emerald-500/20 text-emerald-200 font-semibold py-1 px-3 text-xs flex items-center gap-1.5 h-8 rounded-lg shrink-0 transition-colors cursor-pointer"
+        class="border border-emerald-500/35 bg-emerald-500/12 hover:bg-emerald-500/20 text-emerald-200 font-semibold py-1 px-3 text-xs flex items-center gap-1.5 h-7 rounded-lg shrink-0 transition-colors cursor-pointer"
       >
         <svg
           class="w-3.5 h-3.5"
