@@ -174,7 +174,7 @@
   let editingEpisode = $state<EpisodeEntry | null>(null);
   let initialEditingEpisodeStr = $state("");
   let dismissedFontBannerLang = $state<string | null>(null);
-  const showSnackbar = createSnackbarNotifier(1300);
+  const showSnackbar = createSnackbarNotifier(2300);
 
   function loadDefaultLanguage(key: string, fallback = ""): string {
     try {
@@ -639,6 +639,10 @@
             : editingEpisode.mediaType,
       };
       syncEpisodeEditor();
+      showSnackbar(
+        t("flashcards.fileReplaced", { file: getFileName(selected) }),
+        "success",
+      );
     } catch (e) {
       generationStore.error = `${t("flashcards.errorSelectingFile")}: ${e}`;
     }
@@ -672,6 +676,10 @@
       mediaType: field === "mediaPath" ? detectMediaType(getFileName(replacement)) : editingEpisode.mediaType,
     };
     syncEpisodeEditor();
+    showSnackbar(
+      t("flashcards.fileReplaced", { file: getFileName(replacement) }),
+      "success",
+    );
     return true;
   }
 

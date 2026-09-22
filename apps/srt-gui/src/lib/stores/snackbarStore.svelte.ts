@@ -1,7 +1,7 @@
 export type SnackbarVariant = "success" | "info" | "warning" | "error";
 
 /** Default auto-dismiss duration (ms) for snackbars. */
-export const SNACKBAR_DEFAULT_DURATION = 1800;
+export const SNACKBAR_DEFAULT_DURATION = 2800;
 
 /**
  * Single global snackbar. All transient notifications in the app must go

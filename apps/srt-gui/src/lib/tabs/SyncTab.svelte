@@ -382,7 +382,7 @@
     return `${sign}${(ms / 1000).toFixed(2)}s`;
   }
 
-  const showSnackbar = createSnackbarNotifier(3500);
+  const showSnackbar = createSnackbarNotifier(4500);
 
   const OFFSET_TOLERANCE_MS = 200;
 

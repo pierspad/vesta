@@ -94,7 +94,7 @@
   >
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div
-      class="flex max-h-[92vh] w-[94vw] max-w-7xl flex-col rounded-xl border border-gray-700 bg-gray-900 shadow-2xl"
+      class="flex h-[min(820px,calc(100vh-48px))] w-[94vw] max-w-7xl flex-col rounded-xl border border-gray-700 bg-gray-900 shadow-2xl"
       onclick={(e) => e.stopPropagation()}
       onkeydown={(e) => e.stopPropagation()}
     >
