@@ -32,6 +32,16 @@ body,
   contain: style;
 }
 
+/* Settings contains many large cards. Blurring the app behind every card
+   makes Chromium repaint them continuously while scrolling. The settings
+   surface is already opaque, so an opaque equivalent avoids that work with
+   no useful visual information lost. */
+.settings-scroll .glass-card {
+  background: rgb(29 37 53 / 0.96);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
 .panel-title-files-output {
   color: rgb(74 222 128);
 }

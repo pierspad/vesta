@@ -3,6 +3,7 @@
   import { locale } from "$lib/i18n";
   import ApiKeysCard from "$lib/panels/ApiKeysCard.svelte";
   import TranscribeTiers from "$lib/components/TranscribeTiers.svelte";
+  import WhisperModelSelector from "$lib/components/WhisperModelSelector.svelte";
   import { DEFAULT_VAD_MODEL_ID } from "$lib/config/vadSelection";
   import type { ApiKeyConfig } from "$lib/config/apiKeys";
   import { whisperModelsStore } from "$lib/stores/whisperModelsStore.svelte";
@@ -29,28 +30,6 @@
   let t = $derived($locale);
   let store = whisperModelsStore;
   let transcribeTiersRef = $state<any>(null);
-
-  function whisperModelIconPath(modelId: string): string {
-    const paths: Record<string, string> = {
-      tiny: "M13 3L4 14h7l-1 7 9-12h-7l1-6z",
-      base: "M5 15v2m4-6v6m4-10v10m4-7v7m4-4v4",
-      small: "M4 12h3l2-5 4 10 2-5h5",
-      medium: "M4 6h16M7 12h10M10 18h4",
-      large: "M12 6v6l4 2m5-2a9 9 0 11-18 0 9 9 0 0118 0z",
-    };
-    return paths[modelId] || "M9 3h6m-7 4h8a3 3 0 013 3v7a3 3 0 01-3 3H8a3 3 0 01-3-3v-7a3 3 0 013-3zm4 3v4m-2-2h4";
-  }
-
-  function whisperModelAccent(modelId: string): string {
-    const accents: Record<string, string> = {
-      tiny: "bg-amber-500/15 text-amber-200",
-      base: "bg-sky-500/15 text-sky-200",
-      small: "bg-emerald-500/15 text-emerald-200",
-      medium: "bg-indigo-500/15 text-indigo-200",
-      large: "bg-fuchsia-500/15 text-fuchsia-200",
-    };
-    return accents[modelId] || "bg-cyan-500/15 text-cyan-200";
-  }
 
   function handleModelDblClick(model: { id: string; downloaded: boolean }) {
     if (!model.downloaded && !store.isDownloading) {
@@ -166,85 +145,14 @@
     </div>
   {/if}
 
-  <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-3">
-    {#each store.whisperModels as model}
-      <!-- svelte-ignore a11y_no_static_element_interactions -->
-      <div
-        onclick={() => store.handleWhisperModelClick(model)}
-        ondblclick={() => handleModelDblClick(model)}
-        oncontextmenu={(e) => store.openContextMenu(e, model)}
-        onkeydown={(e) => {
-          if (e.key === "Enter" || e.key === " ") store.handleWhisperModelClick(model);
-        }}
-        role="radio"
-        aria-checked={store.defaultWhisperModel === model.id}
-        tabindex="0"
-        class="relative min-h-[8.5rem] p-4 rounded-xl text-center transition-all duration-200 border cursor-pointer
-          {store.defaultWhisperModel === model.id && model.downloaded
-          ? 'bg-cyan-500/20 border-cyan-500/50 text-white shadow-[0_0_15px_rgba(6,182,212,0.15)]'
-          : model.downloaded
-            ? 'bg-white/10 hover:bg-white/20 border-white/20 text-gray-200'
-            : 'bg-white/5 hover:bg-white/10 border-transparent text-gray-500 opacity-60'}
-          {highlightedModelId === model.id ? 'model-highlight-flash' : ''}"
-        title={model.downloaded ? t("settings.whisperDownloadedHint") : t("settings.whisperNotDownloadedHint")}
-      >
-        <div class="absolute top-1.5 right-1.5 pointer-events-none">
-          {#if !model.downloaded}
-            {#if store.downloadingModelId === model.id}
-              <button
-                 onclick={(e) => { e.stopPropagation(); void store.cancelModelDownload(); }}
-                disabled={store.isCancellingDownload}
-                class="text-red-400 hover:text-red-300 transition-colors pointer-events-auto p-1 bg-red-500/10 hover:bg-red-500/20 rounded-md border border-red-500/30 flex items-center justify-center cursor-pointer"
-                title={t("settings.stopModelDownload")}
-              >
-                {#if store.isCancellingDownload}
-                  <svg class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
-                  </svg>
-                {:else}
-                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 6h12v12H6z" />
-                  </svg>
-                {/if}
-              </button>
-            {:else}
-              <button
-                onclick={(e) => { e.stopPropagation(); void store.downloadModel(model.id, true); }}
-                class="text-amber-400 hover:text-cyan-400 transition-colors animate-pulse pointer-events-auto p-1 hover:bg-white/5 rounded-md"
-                title={t("transcribe.clickToDownload")}
-                disabled={store.isDownloading}
-              >
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
-                </svg>
-              </button>
-            {/if}
-          {/if}
-        </div>
-        <div class="mx-auto mb-2 flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 {whisperModelAccent(model.id)}">
-          <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d={whisperModelIconPath(model.id)} />
-          </svg>
-        </div>
-        <div class="font-bold text-sm">
-          {t(`transcribe.model${model.id.charAt(0).toUpperCase()}${model.id.slice(1)}`) || model.name}
-        </div>
-        <div class="text-[10px] text-gray-500 mt-1">{model.size}</div>
-        {#if !model.downloaded}
-          <div class="text-[9px] text-amber-400/70 mt-0.5">
-            {#if store.downloadingModelId === model.id}
-              {t("settings.downloading")} {store.progress > 0 ? `${store.progress}%` : ""}
-            {:else}
-              {t("settings.notDownloaded")}
-            {/if}
-          </div>
-        {:else if store.defaultWhisperModel === model.id}
-          <div class="text-[9px] text-cyan-400 mt-0.5 font-bold">{t("settings.default")}</div>
-        {/if}
-      </div>
-    {/each}
-  </div>
+  <WhisperModelSelector
+    models={store.whisperModels}
+    value={store.defaultWhisperModel}
+    disabled={store.isDownloading}
+    onselect={(model) => store.handleWhisperModelClick(model)}
+    oncontextmenu={(event, model) => store.openContextMenu(event, model)}
+    ondblclick={handleModelDblClick}
+  />
 
   <!-- Silero VAD add-ons: two downloadable variants + an optional custom model.
        Clicking a downloaded variant makes it the active one (same pattern as

@@ -1232,7 +1232,7 @@
     </div>
   {:else}
     <!-- Scrollable content area -->
-    <div class="flex-1 overflow-y-auto p-6">
+    <div class="settings-scroll flex-1 overflow-y-auto p-6">
 
 
   {#if activeSettingsSection === "overview"}
@@ -1278,14 +1278,31 @@
   {/if}
 
   {#snippet defaultLanguagesCard()}
-    <!-- glass-card creates a stacking context (backdrop-filter), so the card itself
-         must be lifted for the language dropdowns to paint over the cards below -->
+    <!-- Keep the card lifted so language dropdowns paint over the cards below. -->
     <div class="glass-card p-6 relative z-30">
       <div class="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-4 gap-5">
         <div class="relative z-40 rounded-xl border border-transparent bg-white/5 p-5">
           <div class="flex items-center justify-between gap-3 mb-4">
-            <span class="block text-sm font-semibold text-white">{s("studyingLanguage")}</span>
-            <span class="text-4xl">{languages.find((lang) => lang.code === defaultFlashcardsLanguage)?.flag || "🌐"}</span>
+            <span class="flex items-center gap-2 text-sm font-semibold text-white"><span class="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/15 text-emerald-300"><svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 3a4 4 0 110 8 4 4 0 010-8zM5 21a7 7 0 0114 0"/></svg></span>{s("nativeLanguage")}</span>
+            <span class="text-3xl">{languages.find((lang) => lang.code === defaultNativeLanguage)?.flag || "🌐"}</span>
+          </div>
+          <SearchableSelect
+            className="language-select"
+            noResultsText={t("common.noResults")}
+            options={defaultWorkflowLanguageOptions}
+            value={defaultNativeLanguage}
+            onchange={(v) => {
+              defaultNativeLanguage = v;
+              saveDefaultLanguage(DEFAULT_NATIVE_LANGUAGE_KEY, v);
+            }}
+            placeholder={t("flashcards.noteTypeLanguagePlaceholder")}
+          />
+          <p class="mt-3 text-xs leading-relaxed text-gray-500">{s("nativeLanguageHint")}</p>
+        </div>
+        <div class="relative z-30 rounded-xl border border-transparent bg-white/5 p-5">
+          <div class="flex items-center justify-between gap-3 mb-4">
+            <span class="flex items-center gap-2 text-sm font-semibold text-white"><span class="flex h-8 w-8 items-center justify-center rounded-lg bg-violet-500/15 text-violet-300">文</span>{s("studyingLanguage")}</span>
+            <span class="text-3xl">{languages.find((lang) => lang.code === defaultFlashcardsLanguage)?.flag || "🌐"}</span>
           </div>
           <SearchableSelect
             className="language-select"
@@ -1301,28 +1318,10 @@
           />
           <p class="mt-3 text-xs leading-relaxed text-gray-500">{s("studyingLanguageHint")}</p>
         </div>
-        <div class="relative z-30 rounded-xl border border-transparent bg-white/5 p-5">
-          <div class="flex items-center justify-between gap-3 mb-4">
-            <span class="block text-sm font-semibold text-white">{s("nativeLanguage")}</span>
-            <span class="text-4xl">{languages.find((lang) => lang.code === defaultNativeLanguage)?.flag || "🌐"}</span>
-          </div>
-          <SearchableSelect
-            className="language-select"
-            noResultsText={t("common.noResults")}
-            options={defaultWorkflowLanguageOptions}
-            value={defaultNativeLanguage}
-            onchange={(v) => {
-              defaultNativeLanguage = v;
-              saveDefaultLanguage(DEFAULT_NATIVE_LANGUAGE_KEY, v);
-            }}
-            placeholder={t("flashcards.noteTypeLanguagePlaceholder")}
-          />
-          <p class="mt-3 text-xs leading-relaxed text-gray-500">{s("nativeLanguageHint")}</p>
-        </div>
         <div class="relative z-20 rounded-xl border border-transparent bg-white/5 p-5">
           <div class="flex items-center justify-between gap-3 mb-4">
-            <span class="block text-sm font-semibold text-white">{s("translationLanguage")}</span>
-            <span class="text-4xl">{languages.find((lang) => lang.code === defaultTargetLanguage)?.flag || "🌐"}</span>
+            <span class="flex items-center gap-2 text-sm font-semibold text-white"><span class="flex h-8 w-8 items-center justify-center rounded-lg bg-cyan-500/15 text-cyan-300"><svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M7 7h11m0 0-3-3m3 3-3 3M17 17H6m0 0 3 3m-3-3 3-3"/></svg></span>{s("translationLanguage")}</span>
+            <span class="text-3xl">{languages.find((lang) => lang.code === defaultTargetLanguage)?.flag || "🌐"}</span>
           </div>
           <SearchableSelect
             className="language-select"
@@ -1339,8 +1338,8 @@
         </div>
         <div class="relative z-10 rounded-xl border border-transparent bg-white/5 p-5">
           <div class="flex items-center justify-between gap-3 mb-4">
-            <span class="block text-sm font-semibold text-white">{s("transcription")}</span>
-            <span class="text-4xl">{defaultTranscribeLanguage === "auto" ? "🌐" : languages.find((lang) => lang.code === defaultTranscribeLanguage)?.flag || "🌐"}</span>
+            <span class="flex items-center gap-2 text-sm font-semibold text-white"><span class="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-500/15 text-amber-300"><svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 3a3 3 0 00-3 3v6a3 3 0 006 0V6a3 3 0 00-3-3zM5 11a7 7 0 0014 0M12 18v3m-4 0h8"/></svg></span>{s("transcription")}</span>
+            <span class="text-3xl">{defaultTranscribeLanguage === "auto" ? "🌐" : languages.find((lang) => lang.code === defaultTranscribeLanguage)?.flag || "🌐"}</span>
           </div>
           <SearchableSelect
             className="language-select"
