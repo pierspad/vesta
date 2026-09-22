@@ -15,8 +15,8 @@ pub mod fonts;
 pub mod media;
 
 pub use media::{
-    H264Encoder, OptimizedVideo, check_ffmpeg, detect_h264_encoder, optimize_video_source,
-    probe_video_stream, video_has_audio,
+    H264Encoder, OptimizedVideo, check_ffmpeg, detect_h264_encoder, extract_preview_audio_clip,
+    extract_preview_snapshot, optimize_video_source, probe_video_stream, video_has_audio,
 };
 pub use types::*;
 
@@ -28,7 +28,7 @@ use media::{
     MediaKind, extract_audio_clip, extract_snapshot, extract_video_clip, media_filename,
     video_clip_extension,
 };
-use parser::parse_subtitle_file;
+pub use parser::parse_subtitle_file;
 
 #[derive(Debug, Clone)]
 pub struct MediaTools {
@@ -436,18 +436,30 @@ pub async fn generate(
     // Pre-transcode video stream if beneficial (e.g. high-res / heavy-codec source)
     let opt_video = if (needs_snapshots || needs_video) && config.optimize_video {
         if let Some(src) = video_source {
-            let target_w = config.video_width.unwrap_or(config.snapshot_width).max(config.snapshot_width);
-            let target_h = config.video_height.unwrap_or(config.snapshot_height).max(config.snapshot_height);
+            let target_w = config
+                .video_width
+                .unwrap_or(config.snapshot_width)
+                .max(config.snapshot_width);
+            let target_h = config
+                .video_height
+                .unwrap_or(config.snapshot_height)
+                .max(config.snapshot_height);
             let hw_enabled = config.video_hw_accel != "off";
 
             emit(
                 progress,
                 "optimizing",
-                &format!("Optimizing video stream with {}...", detected_gpu_encoder.label()),
+                &format!(
+                    "Optimizing video stream with {}...",
+                    detected_gpu_encoder.label()
+                ),
                 12,
                 100,
                 12.0,
-                HashMap::from([("encoder".to_string(), detected_gpu_encoder.ffmpeg_name().to_string())]),
+                HashMap::from([(
+                    "encoder".to_string(),
+                    detected_gpu_encoder.ffmpeg_name().to_string(),
+                )]),
             );
 
             match optimize_video_source(
@@ -492,14 +504,27 @@ pub async fn generate(
     };
 
     let (effective_video_path, effective_crop) = match &opt_video {
-        Some(opt) if !opt.original_used => {
-            (opt.path.to_str().unwrap_or_else(|| video_source.unwrap_or_default()), if opt.crop_applied { 0 } else { config.crop_bottom })
-        }
+        Some(opt) if !opt.original_used => (
+            opt.path
+                .to_str()
+                .unwrap_or_else(|| video_source.unwrap_or_default()),
+            if opt.crop_applied {
+                0
+            } else {
+                config.crop_bottom
+            },
+        ),
         _ => (video_source.unwrap_or_default(), config.crop_bottom),
     };
-    let video_source_arc = video_source.is_some().then(|| Arc::<str>::from(effective_video_path));
+    let video_source_arc = video_source
+        .is_some()
+        .then(|| Arc::<str>::from(effective_video_path));
 
-    let video_encoder = if needs_video && video_codec == "h264" && detected_gpu_encoder.is_hardware() && opt_video.as_ref().map_or(true, |o| o.original_used) {
+    let video_encoder = if needs_video
+        && video_codec == "h264"
+        && detected_gpu_encoder.is_hardware()
+        && opt_video.as_ref().is_none_or(|o| o.original_used)
+    {
         detected_gpu_encoder
     } else {
         H264Encoder::Libx264
@@ -546,6 +571,11 @@ pub async fn generate(
                 let pad_s = config.audio_pad_start_ms;
                 let pad_e = config.audio_pad_end_ms;
                 let normalize = config.normalize_audio;
+                let gain_db = if config.audio_gain_db == 0 && config.audio_boost {
+                    6
+                } else {
+                    config.audio_gain_db
+                };
                 let ffmpeg = ffmpeg_cmd_arc.clone();
                 let permit = semaphore.clone();
 
@@ -562,6 +592,7 @@ pub async fn generate(
                         audio_track_index,
                         audio_format,
                         normalize,
+                        gain_db,
                         &ffmpeg,
                     )
                     .await;
@@ -619,6 +650,12 @@ pub async fn generate(
                 let audio_track_index = config.audio_track_index;
                 let pad_s = config.video_pad_start_ms;
                 let pad_e = config.video_pad_end_ms;
+                let normalize = config.normalize_audio;
+                let gain_db = if config.audio_gain_db == 0 && config.audio_boost {
+                    6
+                } else {
+                    config.audio_gain_db
+                };
                 let w = config.video_width.unwrap_or(config.snapshot_width);
                 let h = config.video_height.unwrap_or(config.snapshot_height);
                 let crop = effective_crop;
@@ -650,6 +687,8 @@ pub async fn generate(
                         w,
                         h,
                         crop,
+                        normalize,
+                        gain_db,
                         &ffmpeg,
                     )
                     .await;
@@ -673,6 +712,8 @@ pub async fn generate(
                             w,
                             h,
                             crop,
+                            normalize,
+                            gain_db,
                             &ffmpeg,
                         )
                         .await;

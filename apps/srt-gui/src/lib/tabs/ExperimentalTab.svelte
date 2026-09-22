@@ -5,12 +5,14 @@
   import { snackbar } from "$lib/stores/snackbarStore.svelte";
   import { locale } from "$lib/i18n";
   import { getFileName } from "$lib/utils/models";
-  import Card from "$lib/components/Card.svelte";
-  import SectionHeader from "$lib/components/SectionHeader.svelte";
   import * as vestaConfig from "$lib/config/vestaConfig";
-  import { difficultyStore } from "$lib/stores/difficultyStore.svelte";
 
   let t = $derived($locale);
+
+  function restartFirstRunSetup() {
+    vestaConfig.setItem("vesta-first-run-force", "true");
+    window.location.reload();
+  }
 
   // ─── Condensed audio ────────────────────────────────────────────────────────
 
@@ -126,284 +128,17 @@
     }
   }
 
-  // ─── Video Hardcoded Subtitles OCR ──────────────────────────────────────────
-  let ocrVideoPath = $state("");
-  let ocrOutputPath = $state("");
-  let ocrLanguage = $state("zh");
-  let ocrRegion = $state("bottom20");
-  let ocrFps = $state(2);
-  let ocrExtracting = $state(false);
-  let ocrStage = $state<"sampling" | "ocr" | "timing">("sampling");
-  let ocrCurrent = $state(0);
-  let ocrTotal = $state(100);
-
-  interface OcrResult {
-    success: boolean;
-    outputPath: string;
-    lines: number;
-    durationMs: number;
-  }
-  let ocrResult = $state<OcrResult | null>(null);
-
-  const canStartOcr = $derived(!!ocrVideoPath && !!ocrOutputPath && !ocrExtracting);
-
-  async function pickOcrVideo() {
-    const selected = await guardedOpen({
-      filters: [
-        { name: "Video", extensions: ["mp4", "mkv", "webm", "avi", "mov", "ts", "flv", "m4v"] },
-      ],
-    });
-    if (selected && typeof selected === "string") {
-      ocrVideoPath = selected;
-      if (!ocrOutputPath) {
-        ocrOutputPath = selected.replace(/\.[^/.]+$/, "") + ".ocr.srt";
-      }
-    }
-  }
-
-  async function pickOcrOutput() {
-    const selected = await guardedSave({
-      defaultPath: ocrOutputPath || undefined,
-      filters: [{ name: "SubRip (.srt)", extensions: ["srt"] }],
-    });
-    if (selected && typeof selected === "string") ocrOutputPath = selected;
-  }
-
-  async function startOcr() {
-    if (!canStartOcr) return;
-    ocrExtracting = true;
-    ocrResult = null;
-    ocrStage = "sampling";
-    ocrCurrent = 0;
-    ocrTotal = 100;
-
-    try {
-      ocrStage = "sampling";
-      for (let i = 0; i <= 35; i += 5) {
-        if (!ocrExtracting) return;
-        ocrCurrent = i;
-        await new Promise((r) => setTimeout(r, 60));
-      }
-      ocrStage = "ocr";
-      for (let i = 35; i <= 80; i += 5) {
-        if (!ocrExtracting) return;
-        ocrCurrent = i;
-        await new Promise((r) => setTimeout(r, 80));
-      }
-      ocrStage = "timing";
-      for (let i = 80; i <= 100; i += 5) {
-        if (!ocrExtracting) return;
-        ocrCurrent = i;
-        await new Promise((r) => setTimeout(r, 50));
-      }
-
-      ocrResult = {
-        success: true,
-        outputPath: ocrOutputPath,
-        lines: 342,
-        durationMs: 720000,
-      };
-      snackbar.show(t("experimental.ocr.done"), "success");
-    } catch (err: any) {
-      snackbar.show(`OCR error: ${err}`, "error");
-    } finally {
-      ocrExtracting = false;
-    }
-  }
-
-  function cancelOcr() {
-    ocrExtracting = false;
-  }
 </script>
 
 <div class="h-full flex flex-col bg-gray-900 text-gray-100 overflow-hidden">
   <div class="flex-1 overflow-y-auto p-6 flex flex-col gap-5 scrollbar-thin">
-    <!-- Difficulty Tagging Experimental Switch -->
-    <div class="glass-card p-5 space-y-4">
-      <div class="flex items-center justify-between gap-4">
-        <div class="flex items-start gap-3">
-          <div class="w-10 h-10 rounded-xl bg-violet-500/15 border border-violet-500/25 flex items-center justify-center shrink-0 text-violet-400">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M3 11l8.586-8.586A2 2 0 0113 2h6a2 2 0 012 2v6a2 2 0 01-.586 1.414L11.828 20a2 2 0 01-2.828 0L3 14a2 2 0 010-3z" />
-            </svg>
-          </div>
-          <div>
-            <div class="flex items-center gap-2">
-              <h3 class="text-base font-semibold text-white">
-                {t("experimental.difficulty.title")}
-              </h3>
-              <span class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-violet-500/20 text-violet-300 border border-violet-500/30">
-                {t("experimental.badge")}
-              </span>
-            </div>
-            <p class="text-xs text-gray-400 mt-1 max-w-2xl leading-relaxed">
-              {t("experimental.difficulty.subtitle")}
-            </p>
-          </div>
-        </div>
-
-        <div class="flex items-center gap-3 shrink-0">
-          <button
-            type="button"
-            onclick={() => {
-              difficultyStore.toggleFeature();
-              if (difficultyStore.enabled) {
-                snackbar.show(t("settings.difficulty.title") + ": " + t("settings.difficulty.customTitle"), "info", 2000);
-              }
-            }}
-            class="w-12 h-6 rounded-full transition-colors duration-200 relative cursor-pointer {difficultyStore.enabled ? 'bg-violet-600' : 'bg-white/15'}"
-            aria-label={t("experimental.difficulty.title")}
-          >
-            <div
-              class="absolute w-5 h-5 bg-white rounded-full top-0.5 transition-all duration-200 shadow-sm {difficultyStore.enabled ? 'left-6.5' : 'left-0.5'}"
-            ></div>
-          </button>
-        </div>
+    <div class="glass-card p-5 flex items-center justify-between gap-5">
+      <div>
+        <h3 class="text-base font-semibold text-white">First-run setup preview</h3>
+        <p class="mt-1 text-xs text-gray-400">Run the introductory setup again and overwrite its configurable defaults.</p>
       </div>
+      <button type="button" class="btn-secondary shrink-0 px-4 py-2 text-xs" onclick={restartFirstRunSetup}>Restart setup</button>
     </div>
-
-    <!-- Video Subtitles OCR Extraction -->
-    <div class="glass-card p-5 space-y-4">
-      <div class="flex items-center justify-between mb-2">
-        <div class="flex items-center gap-3">
-          <div class="w-10 h-10 rounded-xl bg-teal-500/15 border border-teal-500/25 flex items-center justify-center shrink-0 text-teal-400">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 01-2-2V7a2 2 0 012-2z" />
-            </svg>
-          </div>
-          <div>
-            <div class="flex items-center gap-2">
-              <h3 class="text-base font-semibold text-white">
-                {t("experimental.ocr.title")}
-              </h3>
-              <span class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-teal-500/20 text-teal-300 border border-teal-500/30">
-                {t("experimental.badge")}
-              </span>
-            </div>
-            <p class="text-xs text-gray-400 mt-1 max-w-2xl leading-relaxed">
-              {t("experimental.ocr.subtitle")}
-            </p>
-          </div>
-        </div>
-      </div>
-
-      <!-- Video & Output Files -->
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-        <div>
-          <span class="flex items-center gap-1.5 text-xs font-semibold text-gray-400 mb-1.5">
-            <svg class="w-3.5 h-3.5 text-gray-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 01-2-2V7a2 2 0 012-2z" />
-            </svg>
-            <span>{t("experimental.ocr.videoFile")}</span>
-            <span class="text-rose-400">*</span>
-          </span>
-          <div class="flex gap-2">
-            <input type="text" readonly value={getFileName(ocrVideoPath) || ""} placeholder={t("experimental.ocr.noFile")} class="input-modern flex-1 text-xs" title={ocrVideoPath || undefined} />
-            <button onclick={pickOcrVideo} class="btn-secondary px-3 py-2 text-xs" disabled={ocrExtracting}>{t("flashcards.browse")}</button>
-          </div>
-        </div>
-        <div>
-          <span class="flex items-center gap-1.5 text-xs font-semibold text-gray-400 mb-1.5">
-            <svg class="w-3.5 h-3.5 text-gray-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-            </svg>
-            <span>{t("experimental.ocr.outputFile")}</span>
-            <span class="text-rose-400">*</span>
-          </span>
-          <div class="flex gap-2">
-            <input type="text" readonly value={getFileName(ocrOutputPath) || ""} placeholder={t("experimental.ocr.noFile")} class="input-modern flex-1 text-xs" title={ocrOutputPath || undefined} />
-            <button onclick={pickOcrOutput} class="btn-secondary px-3 py-2 text-xs" disabled={ocrExtracting}>{t("flashcards.browse")}</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- OCR Settings -->
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-        <div>
-          <span class="flex items-center gap-1.5 text-xs font-semibold text-gray-400 mb-1.5">
-            <svg class="w-3.5 h-3.5 text-gray-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10" />
-            </svg>
-            <span>{t("experimental.ocr.language")}</span>
-          </span>
-          <select bind:value={ocrLanguage} class="input-modern w-full text-xs" disabled={ocrExtracting}>
-            <option value="zh">{t("experimental.ocr.langZh")}</option>
-            <option value="ja">{t("experimental.ocr.langJa")}</option>
-            <option value="ko">{t("experimental.ocr.langKo")}</option>
-            <option value="en">{t("experimental.ocr.langEn")}</option>
-            <option value="ar">{t("experimental.ocr.langAr")}</option>
-            <option value="hi">{t("experimental.ocr.langHi")}</option>
-          </select>
-        </div>
-        <div>
-          <span class="flex items-center gap-1.5 text-xs font-semibold text-gray-400 mb-1.5">
-            <svg class="w-3.5 h-3.5 text-gray-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-            </svg>
-            <span>{t("experimental.ocr.region")}</span>
-          </span>
-          <select bind:value={ocrRegion} class="input-modern w-full text-xs" disabled={ocrExtracting}>
-            <option value="bottom20">{t("experimental.ocr.regionBottom20")}</option>
-            <option value="bottom30">{t("experimental.ocr.regionBottom30")}</option>
-            <option value="top20">{t("experimental.ocr.regionTop20")}</option>
-            <option value="full">{t("experimental.ocr.regionFull")}</option>
-          </select>
-        </div>
-        <div>
-          <span class="flex items-center gap-1.5 text-xs font-semibold text-gray-400 mb-1.5">
-            <svg class="w-3.5 h-3.5 text-gray-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <span>{t("experimental.ocr.fps")}</span>
-          </span>
-          <select bind:value={ocrFps} class="input-modern w-full text-xs" disabled={ocrExtracting}>
-            <option value={2}>{t("experimental.ocr.fps2")}</option>
-            <option value={1}>{t("experimental.ocr.fps1")}</option>
-            <option value={4}>{t("experimental.ocr.fps4")}</option>
-          </select>
-        </div>
-      </div>
-
-      <!-- OCR Actions & Progress -->
-      <div class="flex items-center gap-3 pt-2">
-        {#if ocrExtracting}
-          <button onclick={cancelOcr} class="rounded-xl bg-red-600/80 hover:bg-red-500/80 border border-red-500/30 text-sm font-bold text-red-100 px-5 py-2.5 shadow-md transition-all cursor-pointer">
-            {t("common.cancel")}
-          </button>
-          <div class="flex-1 flex items-center gap-3">
-            <div class="flex-1 bg-white/10 h-2 rounded-full overflow-hidden">
-              <div
-                class="bg-gradient-to-r from-teal-500 to-cyan-500 h-full rounded-full transition-all duration-300"
-                style="width: {ocrTotal > 0 ? (ocrCurrent / ocrTotal) * 100 : 5}%"
-              ></div>
-            </div>
-            <span class="text-xs text-gray-400 whitespace-nowrap">
-              {ocrStage === "sampling" ? t("experimental.ocr.stageSampling") : ocrStage === "ocr" ? t("experimental.ocr.stageOcr") : t("experimental.ocr.stageTiming")} ({ocrCurrent}%)
-            </span>
-          </div>
-        {:else}
-          <button
-            onclick={startOcr}
-            disabled={!canStartOcr}
-            class="rounded-xl bg-teal-600/90 hover:bg-teal-500/90 border border-teal-500/30 disabled:opacity-40 disabled:cursor-not-allowed text-sm font-bold text-teal-50 px-5 py-2.5 shadow-md transition-all cursor-pointer flex items-center gap-2"
-          >
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 01-2-2V7a2 2 0 012-2z" />
-            </svg>
-            {t("experimental.ocr.start")}
-          </button>
-        {/if}
-      </div>
-
-      {#if ocrResult}
-        <div class="bg-teal-500/10 border border-teal-500/25 rounded-xl p-4 text-xs text-gray-300 flex flex-wrap gap-x-6 gap-y-1">
-          <span><span class="font-bold text-teal-300">{ocrResult.lines}</span> {t("experimental.ocr.resultLines")}</span>
-          <span>{t("experimental.condense.resultDuration")}: <span class="font-bold text-teal-300">{fmtDuration(ocrResult.durationMs)}</span></span>
-          <span class="text-gray-400 truncate w-full mt-1 font-mono" title={ocrResult.outputPath}>{ocrResult.outputPath}</span>
-        </div>
-      {/if}
-    </div>
-
     <!-- Condensed audio -->
     <div class="glass-card p-5 space-y-4">
       <div class="flex items-center justify-between mb-2">

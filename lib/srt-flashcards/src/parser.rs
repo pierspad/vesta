@@ -377,7 +377,7 @@ pub(crate) fn strip_vtt_tags(text: &str) -> String {
 }
 
 /// Parse any supported subtitle file
-pub(crate) fn parse_subtitle_file(path: &str) -> Result<(Vec<SubEntry>, &'static str)> {
+pub fn parse_subtitle_file(path: &str) -> Result<(Vec<SubEntry>, &'static str)> {
     let content = srt_parser::encoding::read_text_auto(path)
         .context(format!("Cannot read file: {}", path))?;
 

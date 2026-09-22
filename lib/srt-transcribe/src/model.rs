@@ -69,22 +69,14 @@ pub fn uninstall_model(model_id: &str) -> Result<bool> {
     remove_if_present(&model_file_path(model_id)?)
 }
 
-pub const VAD_MODELS: &[(&str, &str, &str, &str)] = &[
-    (
-        "v5.1.2",
-        "ggml-silero-v5.1.2.bin",
-        "https://huggingface.co/ggml-org/whisper-vad/resolve/main/ggml-silero-v5.1.2.bin",
-        "~0.9 MB",
-    ),
-    (
-        "v6.2.0",
-        "ggml-silero-v6.2.0.bin",
-        "https://huggingface.co/ggml-org/whisper-vad/resolve/main/ggml-silero-v6.2.0.bin",
-        "~0.9 MB",
-    ),
-];
+pub const VAD_MODELS: &[(&str, &str, &str, &str)] = &[(
+    "v6.2.0",
+    "ggml-silero-v6.2.0.bin",
+    "https://huggingface.co/ggml-org/whisper-vad/resolve/main/ggml-silero-v6.2.0.bin",
+    "~0.9 MB",
+)];
 
-pub const DEFAULT_VAD_MODEL_ID: &str = "v5.1.2";
+pub const DEFAULT_VAD_MODEL_ID: &str = "v6.2.0";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VadModelInfo {

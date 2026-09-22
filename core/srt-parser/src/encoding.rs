@@ -72,14 +72,15 @@ fn sniff_bomless_utf16(bytes: &[u8]) -> Option<&'static Encoding> {
     }
     let sample = &bytes[..bytes.len().min(4096)];
     let (mut nul_even, mut nul_odd) = (0usize, 0usize);
-    for pair in sample.chunks_exact(2) {
+    let (pairs, _) = sample.as_chunks::<2>();
+    for pair in pairs {
         nul_even += usize::from(pair[0] == 0);
         nul_odd += usize::from(pair[1] == 0);
     }
-    let pairs = sample.len() / 2;
+    let pair_count = pairs.len();
     match () {
-        _ if nul_odd * 10 >= pairs * 3 && nul_even * 20 <= pairs => Some(UTF_16LE),
-        _ if nul_even * 10 >= pairs * 3 && nul_odd * 20 <= pairs => Some(UTF_16BE),
+        _ if nul_odd * 10 >= pair_count * 3 && nul_even * 20 <= pair_count => Some(UTF_16LE),
+        _ if nul_even * 10 >= pair_count * 3 && nul_odd * 20 <= pair_count => Some(UTF_16BE),
         _ => None,
     }
 }

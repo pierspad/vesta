@@ -45,7 +45,7 @@
     {t("common.filesAndOutput")}
   </h3>
 
-  <div class="space-y-3">
+  <div class="grid grid-cols-1 gap-4 md:grid-cols-2 md:items-end">
     <!-- SRT File input -->
     <PathPickerField
       label={t("sync.inputSrtFile")}

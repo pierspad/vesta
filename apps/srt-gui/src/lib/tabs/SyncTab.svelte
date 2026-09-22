@@ -382,7 +382,7 @@
     return `${sign}${(ms / 1000).toFixed(2)}s`;
   }
 
-  const showSnackbar = createSnackbarNotifier(3500);
+  const showSnackbar = createSnackbarNotifier(4500);
 
   const OFFSET_TOLERANCE_MS = 200;
 
@@ -1284,15 +1284,14 @@
   {/snippet}
 
   <div class="flex-1 overflow-hidden p-6 min-h-0">
-    <div class="grid grid-cols-1 xl:grid-cols-2 gap-6 h-full min-h-0">
-      <div class="space-y-3 min-w-0 flex flex-col min-h-0 overflow-y-auto scrollbar-thin">
-        {@render panelContent("files")}
-        {@render panelContent("wizard")}
-      </div>
-
-      <div class="space-y-3 min-w-0 flex flex-col min-h-0">
-        {@render panelContent("status")}
-        <div class="flex flex-col min-h-0 flex-1" role="region">
+    <div class="flex h-full min-h-0 flex-col gap-4">
+      <div class="shrink-0">{@render panelContent("files")}</div>
+      <div class="grid min-h-0 flex-1 grid-cols-1 gap-6 xl:grid-cols-2">
+        <div class="flex min-h-0 min-w-0 flex-col gap-3 overflow-y-auto scrollbar-thin">
+          {@render panelContent("status")}
+          {@render panelContent("wizard")}
+        </div>
+        <div class="flex min-h-0 min-w-0 flex-col" role="region">
           {@render panelContent("subtitleList")}
         </div>
       </div>

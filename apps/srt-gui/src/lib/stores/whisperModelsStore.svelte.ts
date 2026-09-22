@@ -50,10 +50,10 @@ function showSnackbar(message: string, type: "error" | "success" = "success") {
 class WhisperModelsStore {
   whisperModels = $state<WhisperModel[]>([
     { id: "tiny", name: "Tiny", size: "~75MB", speed: "~32x", downloaded: false },
-    { id: "base", name: "Base", size: "~150MB", speed: "~16x", downloaded: false },
-    { id: "small", name: "Small", size: "~500MB", speed: "~6x", downloaded: false },
+    { id: "base", name: "Base", size: "~142MB", speed: "~16x", downloaded: false },
+    { id: "small", name: "Small", size: "~466MB", speed: "~6x", downloaded: false },
     { id: "medium", name: "Medium", size: "~1.5GB", speed: "~2x", downloaded: false },
-    { id: "large", name: "Large", size: "~3GB", speed: "~1x", downloaded: false },
+    { id: "large", name: "Large", size: "~3.1GB", speed: "~1x", downloaded: false },
   ]);
   downloadedWhisperCount = $derived(this.whisperModels.filter((model) => model.downloaded).length);
 
@@ -189,8 +189,8 @@ class WhisperModelsStore {
   }
 
   // ─── Silero VAD add-ons (managed like the whisper models) ───────────────
-  // Two downloadable variants (v5.1.2 default, v6.2.0 newer) plus an optional
-  // arbitrary local .bin. The active choice is persisted client-side
+  // Current whisper.cpp-compatible v6.2.0 model plus an optional arbitrary
+  // local .bin. The active choice is persisted client-side
   // (`vesta-transcribe-vad-selection`) and read back by TranscribeTab when it
   // resolves which path to send to `transcribe_start`.
 

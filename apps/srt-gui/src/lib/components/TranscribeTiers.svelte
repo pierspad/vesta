@@ -23,10 +23,10 @@
   let apiKeys = $state<ApiKeyConfig[]>([]);
   let whisperModels = $state<({ id: string; name: string; size: string; speed: string; downloaded: boolean })[]>([
     { id: "tiny", name: "Tiny", size: "~75MB", speed: "~32x", downloaded: false },
-    { id: "base", name: "Base", size: "~150MB", speed: "~16x", downloaded: false },
-    { id: "small", name: "Small", size: "~500MB", speed: "~6x", downloaded: false },
+    { id: "base", name: "Base", size: "~142MB", speed: "~16x", downloaded: false },
+    { id: "small", name: "Small", size: "~466MB", speed: "~6x", downloaded: false },
     { id: "medium", name: "Medium", size: "~1.5GB", speed: "~2x", downloaded: false },
-    { id: "large", name: "Large", size: "~3GB", speed: "~1x", downloaded: false },
+    { id: "large", name: "Large", size: "~3.1GB", speed: "~1x", downloaded: false },
   ]);
 
   let downloadingModelId = $state<string | null>(null);
@@ -156,6 +156,11 @@
 
   function defaultModelFor(provider: string): string {
     const models = getTranscribeModelsForProvider(provider);
+    if (provider === "local" || provider === "local_whisper") {
+      const downloadedIds = new Set(whisperModels.filter((model) => model.downloaded).map((model) => model.id));
+      const preferredDownloaded = ["small", "base", "tiny", "medium", "large"].find((id) => downloadedIds.has(id));
+      if (preferredDownloaded) return preferredDownloaded;
+    }
     return models.find((m) => m.recommended)?.id || models[0]?.id || "";
   }
 

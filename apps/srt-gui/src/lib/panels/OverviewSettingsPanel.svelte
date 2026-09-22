@@ -7,10 +7,62 @@
   import { exportFormatStore } from "$lib/stores/exportFormatStore.svelte";
   import { ankiStore } from "$lib/stores/ankiStore.svelte";
   import { updateCheckerStore } from "$lib/stores/updateCheckerStore.svelte";
+  import { guardedOpen, guardedSave } from "$lib/utils/dialogGuard";
+  import { readTextFile, writeTextFile } from "@tauri-apps/plugin-fs";
+  import * as vestaConfig from "$lib/config/vestaConfig";
 
   let { defaultLanguagesCard }: { defaultLanguagesCard: Snippet } = $props();
 
   let t = $derived($locale);
+  const transferCopy = {
+    en: { title: "Back up and restore settings", desc: "Export all Vesta preferences to a JSON file or restore them on another installation.", import: "Import", export: "Export", exported: "Settings exported.", exportFailed: "Could not export settings", imported: "Settings imported. Restart Vesta to apply every change.", importFailed: "Could not import settings", invalid: "This is not a valid Vesta settings file.", warning: "The exported file may contain API keys. Store it securely." },
+    it: { title: "Backup e ripristino configurazione", desc: "Esporta tutte le preferenze di Vesta in un file JSON o ripristinale su un'altra installazione.", import: "Importa", export: "Esporta", exported: "Configurazione esportata.", exportFailed: "Impossibile esportare la configurazione", imported: "Configurazione importata. Riavvia Vesta per applicare tutte le modifiche.", importFailed: "Impossibile importare la configurazione", invalid: "Il file non è una configurazione Vesta valida.", warning: "Il file esportato può contenere API key. Conservalo in modo sicuro." },
+  } as const;
+  let c = $derived(transferCopy[new Set(["it"]).has($currentLanguage) ? "it" : "en"]);
+  let configMessage = $state("");
+  let configBusy = $state(false);
+
+  async function exportConfiguration() {
+    const path = await guardedSave({
+      defaultPath: "vesta-settings.json",
+      filters: [{ name: "Vesta settings", extensions: ["json"] }],
+    });
+    if (!path) return;
+    configBusy = true;
+    try {
+      const document = { format: "vesta-settings", version: 1, settings: vestaConfig.exportSnapshot() };
+      await writeTextFile(path, JSON.stringify(document, null, 2));
+      configMessage = c.exported;
+    } catch (error) {
+      configMessage = `${c.exportFailed}: ${String(error)}`;
+    } finally {
+      configBusy = false;
+    }
+  }
+
+  async function importConfiguration() {
+    const path = await guardedOpen({
+      multiple: false,
+      filters: [{ name: "Vesta settings", extensions: ["json"] }],
+    });
+    if (!path || Array.isArray(path)) return;
+    configBusy = true;
+    try {
+      const parsed = JSON.parse(await readTextFile(path));
+      if (parsed?.format !== "vesta-settings" || parsed?.version !== 1 || !parsed.settings || Array.isArray(parsed.settings)) {
+        throw new Error(c.invalid);
+      }
+      if (Object.values(parsed.settings).some((value) => typeof value !== "string")) {
+        throw new Error(c.invalid);
+      }
+      await vestaConfig.replaceAll(parsed.settings as Record<string, string>);
+      configMessage = c.imported;
+    } catch (error) {
+      configMessage = `${c.importFailed}: ${String(error)}`;
+    } finally {
+      configBusy = false;
+    }
+  }
 </script>
 
 <div class="glass-card p-6 mb-6 flex flex-col gap-5 shrink-0">
@@ -20,7 +72,7 @@
         onclick={() => setLanguage(lang.code)}
         class="ui-language-button flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 border text-left min-w-0
           {$currentLanguage === lang.code
-          ? 'bg-gradient-to-r from-indigo-500/20 to-purple-500/20 border-indigo-500/50 text-white shadow-sm'
+          ? 'bg-indigo-500/20 border-indigo-500/50 text-white'
           : 'bg-white/5 hover:bg-white/10 text-gray-400 hover:text-gray-200 border-transparent hover:border-white/10'}"
       >
         <span class="text-2xl leading-none shrink-0">{lang.flag}</span>
@@ -57,7 +109,7 @@
       <!-- APKG Option Button -->
       <button
         type="button"
-        onclick={() => exportFormatStore.setExportFormat('apkg')}
+        onclick={() => exportFormatStore.cycleExportFormat()}
         class="flex-1 text-left p-4 rounded-lg transition-all duration-200 select-none relative z-10 flex items-center justify-between gap-4 cursor-pointer"
       >
         <div class="flex-1 min-w-0">
@@ -84,7 +136,7 @@
       <!-- TSV Option Button -->
       <button
         type="button"
-        onclick={() => exportFormatStore.setExportFormat('tsv')}
+        onclick={() => exportFormatStore.cycleExportFormat()}
         class="flex-1 text-left p-4 rounded-lg transition-all duration-200 select-none relative z-10 flex items-center justify-between gap-4 cursor-pointer"
       >
         <div class="flex-1 min-w-0">
@@ -111,7 +163,7 @@
       <!-- Anki Connect Option Button (Permanently visible) -->
       <button
         type="button"
-        onclick={() => exportFormatStore.setExportFormat('anki')}
+        onclick={() => exportFormatStore.cycleExportFormat()}
         class="flex-1 text-left p-4 rounded-lg transition-all duration-200 select-none relative z-10 flex items-center justify-between gap-4 cursor-pointer"
       >
         <div class="flex-1 min-w-0">
@@ -186,7 +238,7 @@
 
 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6 items-stretch">
   <!-- CPU Cores Card -->
-  <div class="glass-card p-6 flex flex-col justify-between h-full">
+  <div class="glass-card p-4 flex flex-col justify-between">
     {#if uiMode.expertMode}
       <div>
         <div class="flex items-center gap-3 mb-4">
@@ -360,8 +412,9 @@
   </div>
 
   <!-- Aggiornamenti Card -->
+  <div class="flex h-full flex-col gap-3">
   <div class="glass-card p-6 flex flex-col justify-between h-full">
-    <div class="flex flex-col gap-6">
+    <div class="flex flex-col gap-3">
       <ToggleRow
         label={t("settings.updatesCheckOnStartup")}
         bind:checked={updateCheckerStore.automaticUpdateChecks}
@@ -371,7 +424,7 @@
       />
 
       <!-- Bottom Row: Dynamic Status / Manual Check Area -->
-      <div class="pt-4 border-t border-white/5 flex items-center justify-between min-h-[44px]">
+      <div class="pt-3 border-t border-white/5 flex items-center justify-between min-h-[38px]">
         <span class="text-xs text-gray-400">
           {t("settings.updatesStatus")}
         </span>
@@ -421,6 +474,23 @@
         </div>
       </div>
     </div>
+  </div>
+  <div class="glass-card p-4 flex-1">
+    <div class="flex items-start justify-between gap-4">
+      <div class="flex items-start gap-3">
+        <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-sky-500/15 text-sky-300">
+          <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7h16v12H4zM7 7V4h10v3M8 12h8m-8 4h5"/></svg>
+        </span>
+        <div><h3 class="text-sm font-bold text-white">{c.title}</h3><p class="mt-1 text-xs leading-relaxed text-gray-400">{c.desc}</p></div>
+      </div>
+      <div class="flex shrink-0 gap-2">
+        <button type="button" class="btn-secondary px-3 py-2 text-xs" disabled={configBusy} onclick={importConfiguration}>{c.import}</button>
+        <button type="button" class="btn-secondary px-3 py-2 text-xs" disabled={configBusy} onclick={exportConfiguration}>{c.export}</button>
+      </div>
+    </div>
+    <p class="mt-2 text-[10px] text-amber-300/80">{c.warning}</p>
+    {#if configMessage}<p class="mt-2 text-xs text-indigo-200">{configMessage}</p>{/if}
+  </div>
   </div>
 </div>
 

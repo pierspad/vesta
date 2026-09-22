@@ -149,7 +149,7 @@
     detected_language?: string;
   } | null>(null);
 
-  const showSnackbar = createSnackbarNotifier(3500);
+  const showSnackbar = createSnackbarNotifier(4500);
 
   const logBuffer = createLogPanelBuffer();
 
@@ -1151,7 +1151,7 @@
           </svg>
           {t("common.filesAndOutput")}
         </h3>
-        <div class="space-y-3">
+        <div class="grid grid-cols-1 gap-4 md:grid-cols-2 md:items-end">
           <PathPickerField
             label={t("transcribe.inputMediaFile")}
             labelIcon="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 01-2-2V7a2 2 0 012-2z"
@@ -1175,7 +1175,7 @@
           />
           {#if inputPath}
             <div
-              class="p-3 bg-cyan-500/10 border border-cyan-500/30 rounded-lg"
+              class="p-3 bg-cyan-500/10 border border-cyan-500/30 rounded-lg md:col-span-2"
             >
               <div class="flex items-center gap-3">
                 <div
@@ -1342,15 +1342,15 @@
   {/snippet}
 
   <div class="flex-1 overflow-hidden p-6 min-h-0 {isTranscribing ? 'pointer-events-none opacity-60 select-none' : ''}">
-    <div class="grid grid-cols-1 xl:grid-cols-2 gap-6 h-full min-h-0">
-      <div class="space-y-3 min-h-0 overflow-y-auto scrollbar-thin">
-        {@render panelContent("files")}
-        {@render transcribedSentencesCard()}
-      </div>
-
-      <div class="space-y-3 min-h-0 overflow-y-auto scrollbar-thin">
-        {@render panelContent("options")}
-        <!-- {@render panelContent("logs")} -->
+    <div class="flex h-full min-h-0 flex-col gap-4">
+      <div class="shrink-0">{@render panelContent("files")}</div>
+      <div class="grid min-h-0 flex-1 grid-cols-1 gap-6 xl:grid-cols-2">
+        <div class="min-h-0 overflow-y-auto scrollbar-thin">
+          {@render panelContent("options")}
+        </div>
+        <div class="min-h-0 overflow-y-auto scrollbar-thin">
+          {@render transcribedSentencesCard()}
+        </div>
       </div>
     </div>
   </div>

@@ -2,7 +2,7 @@ import { getCurrentWebview } from "@tauri-apps/api/webview";
 
 export interface DragDropHandlers {
   /** Called with the dropped file paths (non-empty). */
-  onDrop: (paths: string[]) => void;
+  onDrop: (paths: string[], position?: { x: number; y: number }) => void;
   /** Reactive setter for "a file is currently hovering over the window". */
   setDraggingOver: (value: boolean) => void;
   /** Re-checked on every event; skip handling entirely when it returns false
@@ -50,7 +50,14 @@ export function setupWebviewDragDrop(handlers: DragDropHandlers): () => void {
       } else if (event.payload.type === "drop") {
         handlers.setDraggingOver(false);
         if (event.payload.paths && event.payload.paths.length > 0) {
-          handlers.onDrop(event.payload.paths);
+          // Tauri reports physical pixels, while elementFromPoint expects CSS
+          // pixels. devicePixelRatio matches the webview scale factor and is
+          // available synchronously when the native event arrives.
+          const scale = window.devicePixelRatio || 1;
+          handlers.onDrop(event.payload.paths, {
+            x: event.payload.position.x / scale,
+            y: event.payload.position.y / scale,
+          });
         }
       } else if (event.payload.type === "leave") {
         handlers.setDraggingOver(false);

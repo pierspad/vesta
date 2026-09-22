@@ -24,8 +24,9 @@
     onMediaSettings: (idx: number) => void;
     onRemove: (idx: number) => void;
     onContextMenu: (event: MouseEvent, idx: number) => void;
+    onClearAll: () => void;
   }
-  let { episodes, showSnackbar, onSwapAll, onSwap, onEdit, onMediaSettings, onRemove, onContextMenu }: Props = $props();
+  let { episodes, showSnackbar, onSwapAll, onSwap, onEdit, onMediaSettings, onRemove, onContextMenu, onClearAll }: Props = $props();
 
   let t = $derived($locale);
 </script>
@@ -76,7 +77,20 @@
             <th class="p-1.5 text-center text-gray-400"
               >{t("flashcards.mediaFile")}</th
             >
-            <th class="p-1.5 w-28"></th>
+            <th class="p-1.5 w-28 text-right">
+              <button
+                type="button"
+                onclick={onClearAll}
+                class="inline-flex h-6 items-center gap-1 rounded-md px-2 text-[10px] font-medium text-red-300 transition-colors hover:bg-red-500/15 hover:text-red-200"
+                title={t("flashcards.clearAll")}
+                aria-label={t("flashcards.clearAll")}
+              >
+                <svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+                {t("flashcards.clearAll")}
+              </button>
+            </th>
           </tr>
         </thead>
         <tbody>

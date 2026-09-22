@@ -14,7 +14,6 @@
   import AddApiKeyModal from "$lib/modals/AddApiKeyModal.svelte";
   import { apiKeyEditorStore } from "$lib/stores/apiKeyEditorStore.svelte";
   import AnkiSettingsPanel from "$lib/panels/AnkiSettingsPanel.svelte";
-  import DifficultySettingsPanel from "$lib/panels/DifficultySettingsPanel.svelte";
   import { ankiTemplateStore } from "$lib/stores/ankiTemplateStore.svelte";
   import WhisperSettingsPanel from "$lib/panels/WhisperSettingsPanel.svelte";
   import { whisperModelsStore } from "$lib/stores/whisperModelsStore.svelte";
@@ -1243,9 +1242,6 @@
   {#if activeSettingsSection === "language"}
   <div class="mb-6 flex flex-col gap-4">
     {@render defaultLanguagesCard()}
-
-    <!-- Difficulty Schemes & Vocabulary Databases Card -->
-    <DifficultySettingsPanel />
 
     <!-- Smart Matching Card -->
     {#if uiMode.expertMode}

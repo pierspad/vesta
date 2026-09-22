@@ -76,10 +76,11 @@
     </button>
   </div>
 
-  <div class="space-y-2 transition-all duration-200 {!settings.generateSnapshots ? 'opacity-40 pointer-events-none' : ''}">
+  {#if settings.generateSnapshots}
+  <div class="space-y-2 animate-fade-in">
     {#if easyMode}
       <!-- Easy Mode: Intuitive Quality vs Deck Size Balance Selector -->
-      <div class="space-y-3 bg-gray-950/30 p-3.5 rounded-xl border border-purple-500/15">
+      <div class="space-y-3 bg-gray-950/30 p-3.5 rounded-xl border border-white/5">
         <div class="flex items-center justify-between text-xs">
           <span class="font-medium text-gray-300 flex items-center gap-1.5">
             <svg class="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -250,4 +251,5 @@
       {/if}
     {/if}
   </div>
+  {/if}
 </div>

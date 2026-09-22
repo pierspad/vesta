@@ -10,6 +10,8 @@ export interface EpisodeMediaOverrides {
   audioBitrate?: number;
   audioTrackIndex?: number | null;
   normalizeAudio?: boolean;
+  audioBoost?: boolean;
+  audioGainDb?: number;
   audioPadStart?: number;
   audioPadEnd?: number;
   audioFormat?: AudioFormat;
@@ -122,8 +124,8 @@ export const VIDEO_QUALITY_STEPS: VideoQualityStep[] = [
   { id: "high", videoBitrate: 1500, videoAudioBitrate: 192, h264Preset: "medium", width: 640, height: 360 },
 ];
 
-export const DEFAULT_QUALITY_STEP = QUALITY_STEPS[1];
-export const DEFAULT_VIDEO_QUALITY_STEP = VIDEO_QUALITY_STEPS[1];
+export const DEFAULT_QUALITY_STEP = QUALITY_STEPS[0];
+export const DEFAULT_VIDEO_QUALITY_STEP = VIDEO_QUALITY_STEPS[0];
 
 export function matchQualityStep(
   snapshotQuality: number,

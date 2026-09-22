@@ -1,0 +1,25 @@
+title,subtitle_count,tool,variant,format,elapsed_ms,lines,audio,snapshots,video,jobs
+Detour,1018,subs2srs,subs2srs,tsv,371487,1018,1016,1016,1016,1
+Detour,1018,vesta,max,apkg,61096,1018,1018,1018,1018,16
+Detour,1018,vesta,gpu,apkg,112472,1018,1018,1018,1018,16
+Good.Will.Hunting,1755,subs2srs,subs2srs,tsv,1156541,1755,1755,1755,1755,1
+Good.Will.Hunting,1755,vesta,max,apkg,432054,1755,1755,1755,1755,16
+Good.Will.Hunting,1755,vesta,gpu,apkg,231901,1755,1755,1755,1755,16
+In.Bruges,1171,subs2srs,subs2srs,tsv,830271,1171,1098,1098,1098,1
+In.Bruges,1171,vesta,max,apkg,481451,1171,1171,1171,1171,16
+In.Bruges,1171,vesta,gpu,apkg,258012,1171,1171,1171,1171,16
+Interstellar,1996,subs2srs,subs2srs,tsv,1354052,1996,1991,1991,1991,1
+Interstellar,1996,vesta,max,apkg,218316,1996,1996,1996,1996,16
+Interstellar,1996,vesta,gpu,apkg,332826,1996,1996,1996,1996,16
+Snatch,1522,subs2srs,subs2srs,tsv,955049,1522,1465,1465,1465,1
+Snatch,1522,vesta,max,apkg,435915,1522,1522,1522,1522,16
+Snatch,1522,vesta,gpu,apkg,277563,1522,1522,1522,1522,16
+Trainspotting,1384,subs2srs,subs2srs,tsv,685044,1384,1174,1174,1174,1
+Trainspotting,1384,vesta,max,apkg,310723,1384,1384,1384,1384,16
+Trainspotting,1384,vesta,gpu,apkg,176611,1384,1384,1384,1384,16
+Uncut Gems,2315,subs2srs,subs2srs,tsv,1348710,2315,2280,2280,2280,1
+Uncut Gems,2315,vesta,max,apkg,329298,2315,2315,2315,2315,16
+Uncut Gems,2315,vesta,gpu,apkg,352335,2315,2315,2315,2315,16
+Zootopia,1698,subs2srs,subs2srs,tsv,973578,1698,1684,1684,1684,1
+Zootopia,1698,vesta,max,apkg,333947,1698,1698,1698,1698,16
+Zootopia,1698,vesta,gpu,apkg,279613,1698,1698,1698,1698,16

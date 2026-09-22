@@ -35,9 +35,9 @@ const DEFAULT_LAYOUT: ColumnLayout = {
 };
 
 const DEFAULT_SERIES_LAYOUT: ColumnLayout = {
-  col1: ["audioClips", "snapshots"],
-  col2: ["naming", "videoClips"],
-  col3: ["cardFilters", "progressResult"],
+  col1: ["audioClips"],
+  col2: ["snapshots", "videoClips"],
+  col3: ["naming", "cardFilters", "progressResult"],
 };
 
 export function cloneLayout(layout: ColumnLayout): ColumnLayout {
@@ -91,9 +91,9 @@ export function computeEffectivePanelLayout(
         };
       }
       return {
-        col1: ["audioClips", "snapshots"],
-        col2: ["naming", "videoClips"],
-        col3: ["cardFilters", "progressResult"],
+        col1: ["audioClips"],
+        col2: ["snapshots", "videoClips"],
+        col3: ["naming", "cardFilters", "progressResult"],
       };
     }
 

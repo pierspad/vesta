@@ -331,7 +331,13 @@ pub async fn optimize_video_source(
         H264Encoder::Libx264
     };
 
-    if !should_optimize_video(&stream_info, target_width, target_height, crop_bottom, encoder) {
+    if !should_optimize_video(
+        &stream_info,
+        target_width,
+        target_height,
+        crop_bottom,
+        encoder,
+    ) {
         return Ok(OptimizedVideo::original(source_path));
     }
 
@@ -381,7 +387,9 @@ pub async fn optimize_video_source(
             }
 
             let vf = if crop_bottom > 0 {
-                format!("crop=in_w:in_h-{crop_bottom}:0:0,scale={target_w}:{target_h},format=nv12,hwupload")
+                format!(
+                    "crop=in_w:in_h-{crop_bottom}:0:0,scale={target_w}:{target_h},format=nv12,hwupload"
+                )
             } else {
                 format!("scale={target_w}:{target_h},format=nv12,hwupload")
             };
@@ -567,19 +575,17 @@ pub async fn optimize_video_source(
         cmd.args(&args);
 
         let res = cmd.status().await;
-        if let Ok(status) = res {
-            if status.success() {
-                if let Ok(meta) = std::fs::metadata(&dest_path) {
-                    if meta.len() > 1000 {
-                        return Ok(OptimizedVideo {
-                            path: dest_path,
-                            original_used: false,
-                            crop_applied: crop_bottom > 0,
-                            _temp_file: Some(temp_file),
-                        });
-                    }
-                }
-            }
+        if let Ok(status) = res
+            && status.success()
+            && let Ok(meta) = std::fs::metadata(&dest_path)
+            && meta.len() > 1000
+        {
+            return Ok(OptimizedVideo {
+                path: dest_path,
+                original_used: false,
+                crop_applied: crop_bottom > 0,
+                _temp_file: Some(temp_file),
+            });
         }
     }
 
@@ -636,6 +642,7 @@ pub(crate) async fn extract_audio_clip(
     audio_track_index: Option<usize>,
     format: AudioFormat,
     normalize: bool,
+    gain_db: i32,
     ffmpeg_cmd: &str,
 ) -> Result<()> {
     let (start_ts, duration_ts) = clip_window(start_ms, end_ms, pad_start_ms, pad_end_ms);
@@ -663,10 +670,17 @@ pub(crate) async fn extract_audio_clip(
     cmd.args(["-ac", "2"]);
 
     // Loudness normalisation rides along with the one encode we already do.
-    // Doing it as a second pass would decode and re-encode an already-lossy
-    // clip -- merely wasteful for MP3, but lossy-on-lossy for Opus.
+    // Target -14 LUFS (modern web / dialogue standard) and optional gain.
+    let mut af_filters = Vec::new();
     if normalize {
-        cmd.args(["-af", "loudnorm=I=-16:TP=-1.5:LRA=11"]);
+        af_filters.push("loudnorm=I=-14:TP=-1.5:LRA=11".to_string());
+    }
+    if gain_db != 0 {
+        af_filters.push(format!("volume={gain_db}dB"));
+        af_filters.push("alimiter=limit=-0.2dB".to_string());
+    }
+    if !af_filters.is_empty() {
+        cmd.args(["-af", &af_filters.join(",")]);
     }
 
     for arg in format.ffmpeg_args(bitrate) {
@@ -736,6 +750,8 @@ pub(crate) async fn extract_video_clip(
     width: u32,
     height: u32,
     crop_bottom: u32,
+    normalize: bool,
+    gain_db: i32,
     ffmpeg_cmd: &str,
 ) -> Result<()> {
     let (start_ts, duration_ts) = clip_window(start_ms, end_ms, pad_start_ms, pad_end_ms);
@@ -764,6 +780,18 @@ pub(crate) async fn extract_video_clip(
         scale_vf(width, height, crop_bottom)
     };
     cmd.args(["-vf", &vf]);
+
+    let mut af_filters = Vec::new();
+    if normalize {
+        af_filters.push("loudnorm=I=-14:TP=-1.5:LRA=11".to_string());
+    }
+    if gain_db != 0 {
+        af_filters.push(format!("volume={gain_db}dB"));
+        af_filters.push("alimiter=limit=-0.2dB".to_string());
+    }
+    if !af_filters.is_empty() {
+        cmd.args(["-af", &af_filters.join(",")]);
+    }
 
     if let Some(track_index) = audio_track_index {
         let audio_map = format!("0:a:{}", track_index);
@@ -806,6 +834,59 @@ pub(crate) async fn extract_video_clip(
     cmd.arg(output_path.as_os_str());
 
     run_ffmpeg(cmd, "video").await
+}
+
+#[allow(clippy::too_many_arguments)]
+pub async fn extract_preview_audio_clip(
+    source_path: &str,
+    output_path: &Path,
+    start_ms: i64,
+    end_ms: i64,
+    pad_start_ms: i64,
+    pad_end_ms: i64,
+    bitrate: u32,
+    audio_track_index: Option<usize>,
+    format: AudioFormat,
+    normalize: bool,
+    gain_db: i32,
+    ffmpeg_cmd: &str,
+) -> Result<()> {
+    extract_audio_clip(
+        source_path,
+        output_path,
+        start_ms,
+        end_ms,
+        pad_start_ms,
+        pad_end_ms,
+        bitrate,
+        audio_track_index,
+        format,
+        normalize,
+        gain_db,
+        ffmpeg_cmd,
+    )
+    .await
+}
+
+pub async fn extract_preview_snapshot(
+    video_path: &str,
+    output_path: &Path,
+    time_ms: i64,
+    ffmpeg_cmd: &str,
+) -> Result<()> {
+    extract_snapshot(
+        video_path,
+        output_path,
+        time_ms,
+        time_ms + 1000,
+        320,
+        180,
+        0,
+        SnapshotFormat::Jpeg,
+        80,
+        ffmpeg_cmd,
+    )
+    .await
 }
 
 #[cfg(test)]

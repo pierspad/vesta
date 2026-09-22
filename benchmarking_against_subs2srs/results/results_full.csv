@@ -1,0 +1,73 @@
+title,subtitle_count,tool,variant,format,pipeline,elapsed_ms,lines,audio,snapshots,video,jobs
+Detour,1018,subs2srs,subs2srs,tsv,direct,371487,1018,1016,1016,1016,1
+Detour,1018,vesta,single_direct,tsv,direct,299580,1018,1018,1018,1018,1
+Detour,1018,vesta,single_direct,apkg,direct,299347,1018,1018,1018,1018,1
+Detour,1018,vesta,single_gpu,tsv,gpu,309164,1018,1018,1018,1018,1
+Detour,1018,vesta,single_gpu,apkg,gpu,310470,1018,1018,1018,1018,1
+Detour,1018,vesta,multi_direct,tsv,direct,60623,1018,1018,1018,1018,16
+Detour,1018,vesta,multi_direct,apkg,direct,61096,1018,1018,1018,1018,16
+Detour,1018,vesta,multi_gpu,tsv,gpu,111635,1018,1018,1018,1018,16
+Detour,1018,vesta,multi_gpu,apkg,gpu,112472,1018,1018,1018,1018,16
+Good.Will.Hunting,1755,subs2srs,subs2srs,tsv,direct,1156541,1755,1755,1755,1755,1
+Good.Will.Hunting,1755,vesta,single_direct,tsv,direct,881420,1755,1755,1755,1755,1
+Good.Will.Hunting,1755,vesta,single_direct,apkg,direct,880694,1755,1755,1755,1755,1
+Good.Will.Hunting,1755,vesta,single_gpu,tsv,gpu,621794,1755,1755,1755,1755,1
+Good.Will.Hunting,1755,vesta,single_gpu,apkg,gpu,622684,1755,1755,1755,1755,1
+Good.Will.Hunting,1755,vesta,multi_direct,tsv,direct,430555,1755,1755,1755,1755,16
+Good.Will.Hunting,1755,vesta,multi_direct,apkg,direct,432054,1755,1755,1755,1755,16
+Good.Will.Hunting,1755,vesta,multi_gpu,tsv,gpu,231255,1755,1755,1755,1755,16
+Good.Will.Hunting,1755,vesta,multi_gpu,apkg,gpu,231901,1755,1755,1755,1755,16
+In.Bruges,1171,subs2srs,subs2srs,tsv,direct,830271,1171,1098,1098,1098,1
+In.Bruges,1171,vesta,single_direct,tsv,direct,748599,1171,1171,1171,1171,1
+In.Bruges,1171,vesta,single_direct,apkg,direct,747954,1171,1171,1171,1171,1
+In.Bruges,1171,vesta,single_gpu,tsv,gpu,539206,1171,1171,1171,1171,1
+In.Bruges,1171,vesta,single_gpu,apkg,gpu,540010,1171,1171,1171,1171,1
+In.Bruges,1171,vesta,multi_direct,tsv,direct,481540,1171,1171,1171,1171,16
+In.Bruges,1171,vesta,multi_direct,apkg,direct,481451,1171,1171,1171,1171,16
+In.Bruges,1171,vesta,multi_gpu,tsv,gpu,257586,1171,1171,1171,1171,16
+In.Bruges,1171,vesta,multi_gpu,apkg,gpu,258012,1171,1171,1171,1171,16
+Interstellar,1996,subs2srs,subs2srs,tsv,direct,1354052,1996,1991,1991,1991,1
+Interstellar,1996,vesta,single_direct,tsv,direct,715193,1996,1996,1996,1996,1
+Interstellar,1996,vesta,single_direct,apkg,direct,715992,1996,1996,1996,1996,1
+Interstellar,1996,vesta,single_gpu,tsv,gpu,795512,1996,1996,1996,1996,1
+Interstellar,1996,vesta,single_gpu,apkg,gpu,795388,1996,1996,1996,1996,1
+Interstellar,1996,vesta,multi_direct,tsv,direct,217647,1996,1996,1996,1996,16
+Interstellar,1996,vesta,multi_direct,apkg,direct,218316,1996,1996,1996,1996,16
+Interstellar,1996,vesta,multi_gpu,tsv,gpu,332588,1996,1996,1996,1996,16
+Interstellar,1996,vesta,multi_gpu,apkg,gpu,332826,1996,1996,1996,1996,16
+Snatch,1522,subs2srs,subs2srs,tsv,direct,955049,1522,1465,1465,1465,1
+Snatch,1522,vesta,single_direct,tsv,direct,917586,1522,1522,1522,1522,1
+Snatch,1522,vesta,single_direct,apkg,direct,918299,1522,1522,1522,1522,1
+Snatch,1522,vesta,single_gpu,tsv,gpu,671722,1522,1522,1522,1522,1
+Snatch,1522,vesta,single_gpu,apkg,gpu,665572,1522,1522,1522,1522,1
+Snatch,1522,vesta,multi_direct,tsv,direct,434568,1522,1522,1522,1522,16
+Snatch,1522,vesta,multi_direct,apkg,direct,435915,1522,1522,1522,1522,16
+Snatch,1522,vesta,multi_gpu,tsv,gpu,309500,1522,1522,1522,1522,16
+Snatch,1522,vesta,multi_gpu,apkg,gpu,277563,1522,1522,1522,1522,16
+Trainspotting,1384,subs2srs,subs2srs,tsv,direct,685044,1384,1174,1174,1174,1
+Trainspotting,1384,vesta,single_direct,tsv,direct,663086,1384,1384,1384,1384,1
+Trainspotting,1384,vesta,single_direct,apkg,direct,663163,1384,1384,1384,1384,1
+Trainspotting,1384,vesta,single_gpu,tsv,gpu,460950,1384,1384,1384,1384,1
+Trainspotting,1384,vesta,single_gpu,apkg,gpu,460863,1384,1384,1384,1384,1
+Trainspotting,1384,vesta,multi_direct,tsv,direct,309168,1384,1384,1384,1384,16
+Trainspotting,1384,vesta,multi_direct,apkg,direct,310723,1384,1384,1384,1384,16
+Trainspotting,1384,vesta,multi_gpu,tsv,gpu,176791,1384,1384,1384,1384,16
+Trainspotting,1384,vesta,multi_gpu,apkg,gpu,176611,1384,1384,1384,1384,16
+Uncut Gems,2315,subs2srs,subs2srs,tsv,direct,1348710,2315,2280,2280,2280,1
+Uncut Gems,2315,vesta,single_direct,tsv,direct,899669,2315,2315,2315,2315,1
+Uncut Gems,2315,vesta,single_direct,apkg,direct,899454,2315,2315,2315,2315,1
+Uncut Gems,2315,vesta,single_gpu,tsv,gpu,921323,2315,2315,2315,2315,1
+Uncut Gems,2315,vesta,single_gpu,apkg,gpu,921061,2315,2315,2315,2315,1
+Uncut Gems,2315,vesta,multi_direct,tsv,direct,328733,2315,2315,2315,2315,16
+Uncut Gems,2315,vesta,multi_direct,apkg,direct,329298,2315,2315,2315,2315,16
+Uncut Gems,2315,vesta,multi_gpu,tsv,gpu,351221,2315,2315,2315,2315,16
+Uncut Gems,2315,vesta,multi_gpu,apkg,gpu,352335,2315,2315,2315,2315,16
+Zootopia,1698,subs2srs,subs2srs,tsv,direct,973578,1698,1684,1684,1684,1
+Zootopia,1698,vesta,single_direct,tsv,direct,843744,1698,1698,1698,1698,1
+Zootopia,1698,vesta,single_direct,apkg,direct,843666,1698,1698,1698,1698,1
+Zootopia,1698,vesta,single_gpu,tsv,gpu,687206,1698,1698,1698,1698,1
+Zootopia,1698,vesta,single_gpu,apkg,gpu,687822,1698,1698,1698,1698,1
+Zootopia,1698,vesta,multi_direct,tsv,direct,334151,1698,1698,1698,1698,16
+Zootopia,1698,vesta,multi_direct,apkg,direct,333947,1698,1698,1698,1698,16
+Zootopia,1698,vesta,multi_gpu,tsv,gpu,279043,1698,1698,1698,1698,16
+Zootopia,1698,vesta,multi_gpu,apkg,gpu,279613,1698,1698,1698,1698,16

@@ -125,8 +125,6 @@ fn main() {
         std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
 
         std::env::set_var("WEBKIT_DISABLE_MEDIA_STREAM", "1");
-
-        std::env::set_var("GST_REGISTRY_UPDATE", "no");
     }
 
     let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("Failed to bind random port");
@@ -446,6 +444,9 @@ fn main() {
 
             flashcard_load_subs,
             flashcard_preview,
+            flashcard_preview_audio,
+            flashcard_preview_snapshot,
+            flashcard_parse_subtitles,
             flashcard_generate,
             flashcard_cancel,
             flashcard_list_audio_tracks,
@@ -491,6 +492,7 @@ fn main() {
             config_set,
             config_remove,
             config_clear,
+            config_replace_all,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
