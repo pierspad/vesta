@@ -1,6 +1,6 @@
 [package]
 name = "srt-translate-cli"
-version = "0.24.0-dev.2"
+version = "0.24.0-dev.3"
 edition.workspace = true
 description = "CLI tool for translating SRT subtitle files using LLM APIs"
 authors = ["Pierpaolo Spadafora <pierpaolospadafora@proton.me>"]
