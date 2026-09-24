@@ -17,6 +17,7 @@ describe("apiKeyEditorStore", () => {
       expect(llmProviderIds).toContain("google");
       expect(llmProviderIds).toContain("openai");
       expect(llmProviderIds).toContain("groq");
+      expect(llmProviderIds).not.toContain("github");
 
       expect(whisperProviderIds).toContain("groq");
       expect(whisperProviderIds).toContain("openai");

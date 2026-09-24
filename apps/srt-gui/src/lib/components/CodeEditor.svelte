@@ -377,13 +377,13 @@
   {#if lineNumbers}
   <div 
     onclick={() => textareaElement?.focus()}
-    class="w-10 bg-black/40 py-3 text-right pr-2 text-sm font-mono text-gray-600 select-none overflow-hidden shrink-0 cursor-text"
+    class="code-editor-lines w-10 bg-black/40 py-3 text-right pr-2 text-sm font-mono text-gray-600 select-none overflow-hidden shrink-0 cursor-text"
   >
     <div style="transform: translateY(-{scrollTop}px)">
       {#each lines as _, i}
         <div
           style="height: {lineHeights[i] ? lineHeights[i] + 'px' : '1.625rem'}"
-          class="leading-relaxed whitespace-pre flex justify-end items-start"
+          class="code-editor-line whitespace-pre flex justify-end items-start"
         >{i + 1}</div>
       {/each}
     </div>
@@ -393,14 +393,14 @@
   <div class="relative flex-1 overflow-hidden h-full">
     <!-- Highlighted Code Layer (replaces <pre> to prevent template whitespace interpolation) -->
     <div
-      class="absolute inset-0 w-full h-full p-3 pr-9 m-0 font-mono text-sm leading-relaxed text-gray-300 pointer-events-none overflow-hidden"
+      class="code-editor-content absolute inset-0 w-full h-full p-3 pr-9 m-0 font-mono text-sm text-gray-300 pointer-events-none overflow-hidden"
       aria-hidden="true"
     >
       <div style="transform: translate(-{wrap ? 0 : scrollLeft}px, -{scrollTop}px)">
         {#each lines as line, i}
           <div
             bind:clientHeight={lineHeights[i]}
-            class="min-h-[1.625rem] {wrap ? 'whitespace-pre-wrap break-words' : 'whitespace-pre'}"
+            class="code-editor-line {wrap ? 'whitespace-pre-wrap break-words' : 'whitespace-pre'}"
           >{@html highlight(line, language) || '&nbsp;'}</div>
         {/each}
       </div>
@@ -421,7 +421,7 @@
         if (!wrap) scrollLeft = e.currentTarget.scrollLeft;
       }}
       wrap={wrap ? "soft" : "off"}
-      class="absolute inset-0 w-full h-full p-3 pr-9 m-0 font-mono text-sm leading-relaxed text-transparent bg-transparent border-none resize-none outline-none caret-white custom-scrollbar {wrap ? 'whitespace-pre-wrap break-words overflow-x-hidden' : 'whitespace-pre break-normal'} {textareaClass}"
+      class="code-editor-content absolute inset-0 w-full h-full p-3 pr-9 m-0 font-mono text-sm text-transparent bg-transparent border-none resize-none outline-none caret-white custom-scrollbar {wrap ? 'whitespace-pre-wrap break-words overflow-x-hidden' : 'whitespace-pre break-normal'} {textareaClass}"
       spellcheck="false"
     ></textarea>
 
@@ -484,6 +484,15 @@
 </div>
 
 <style>
+  .code-editor-content,
+  .code-editor-lines {
+    line-height: 1.625rem;
+  }
+
+  .code-editor-line {
+    min-height: 1.625rem;
+  }
+
   textarea {
     tab-size: 2;
     -moz-tab-size: 2;

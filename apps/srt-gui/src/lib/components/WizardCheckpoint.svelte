@@ -69,7 +69,7 @@
   let t = $derived($locale);
 </script>
 
-<div class="glass-card relative flex flex-col overflow-visible">
+<div class="glass-card relative flex min-h-0 flex-1 flex-col overflow-visible">
   <div class="p-5 pb-3 flex-shrink-0">
     <SectionHeader
       title={t("sync.wizard.title")}
@@ -78,7 +78,7 @@
     />
   </div>
 
-  <div class="flex flex-col items-center justify-center p-5 min-h-0">
+  <div class="flex min-h-0 flex-1 flex-col items-center justify-center p-5">
     {#if !srtLoaded}
       <WizardEmptyState total={0} messageKey="sync.noSrtFileSelected" playButtonGradient={true} />
     {:else if showSaveSuggestion}

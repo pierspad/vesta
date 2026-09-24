@@ -74,36 +74,14 @@ export async function loadLanguage(lang: string): Promise<boolean> {
 
 const STORAGE_KEY = 'srt-tools-ui-language';
 
-function getSystemLanguage(): string {
-  if (typeof navigator !== 'undefined') {
-    // Prova prima navigator.language (es: "it-IT", "en-US")
-    const fullLang = navigator.language;
-    const shortLang = fullLang.split('-')[0].toLowerCase();
-
-    if (supportedCodes.has(shortLang)) {
-      return shortLang;
-    }
-
-    // Prova navigator.languages per lingue alternative
-    if (navigator.languages) {
-      for (const lang of navigator.languages) {
-        const short = lang.split('-')[0].toLowerCase();
-        if (supportedCodes.has(short)) {
-          return short;
-        }
-      }
-    }
-  }
-  return 'en';
-}
-
 function getInitialLanguage(): string {
   const saved = vestaConfig.getItem(STORAGE_KEY);
   if (saved && supportedCodes.has(saved)) {
     return saved;
   }
-  // Usa la lingua del sistema operativo come default
-  return getSystemLanguage();
+  // A fresh install starts in English. The first-run setup then persists the
+  // language explicitly selected by the user.
+  return 'en';
 }
 
 export const currentLanguage = writable<string>(getInitialLanguage());

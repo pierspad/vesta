@@ -236,7 +236,7 @@
             {t("settings.cpuCoresSliderLabel")}
           </span>
           <div class="flex items-center gap-4">
-            <div class="flex-1 min-w-0">
+            <div class="mx-2 min-w-0 flex-1">
               <input
                 type="range"
                 min={cpuRamStore.minCpuCores}
@@ -279,28 +279,30 @@
                   : `${cpuRamStore.ramLimitMb} MB`}
             </span>
           </div>
-          <input
-            type="range"
-            min={0}
-            max={cpuRamStore.maxRamMb}
-            step={64}
-            value={cpuRamStore.ramLimitMb}
-            class="slider-resource w-full cursor-pointer"
-            oninput={(e) => cpuRamStore.setRamLimitMb(parseInt((e.target as HTMLInputElement).value))}
-          />
-          <!-- Tick marks: dynamic nice step — ~6 equidistant ticks based on system RAM -->
-          <div class="relative mt-1.5" style="height: 22px;">
-            {#each cpuRamStore.ramTicksMb as v}
-              {@const pct = (v / cpuRamStore.maxRamMb) * 100}
-              <div class="absolute flex flex-col items-center gap-0.5" style="left: {pct}%; transform: translateX(-50%);">
-                <div class="w-px h-1.5 {cpuRamStore.ramLimitMb === v ? 'bg-white/60' : 'bg-white/20'}"></div>
-                <span class="text-[9px] {cpuRamStore.ramLimitMb === v ? 'text-white/70' : 'text-white/25'} whitespace-nowrap">
-                  {v === 0
-                    ? t("settings.ramTickNone")
-                    : v >= 1024 ? `${v / 1024}G` : `${v}M`}
-                </span>
-              </div>
-            {/each}
+          <div class="mx-2">
+            <input
+              type="range"
+              min={0}
+              max={cpuRamStore.maxRamMb}
+              step={64}
+              value={cpuRamStore.ramLimitMb}
+              class="slider-resource w-full cursor-pointer"
+              oninput={(e) => cpuRamStore.setRamLimitMb(parseInt((e.target as HTMLInputElement).value))}
+            />
+            <!-- Tick marks: dynamic nice step — ~6 equidistant ticks based on system RAM -->
+            <div class="relative mt-1.5" style="height: 22px;">
+              {#each cpuRamStore.ramTicksMb as v}
+                {@const pct = (v / cpuRamStore.maxRamMb) * 100}
+                <div class="absolute flex flex-col items-center gap-0.5" style="left: {pct}%; transform: translateX(-50%);">
+                  <div class="w-px h-1.5 {cpuRamStore.ramLimitMb === v ? 'bg-white/60' : 'bg-white/20'}"></div>
+                  <span class="text-[9px] {cpuRamStore.ramLimitMb === v ? 'text-white/70' : 'text-white/25'} whitespace-nowrap">
+                    {v === 0
+                      ? t("settings.ramTickNone")
+                      : v >= 1024 ? `${v / 1024}G` : `${v}M`}
+                  </span>
+                </div>
+              {/each}
+            </div>
           </div>
         </div>
       </div>

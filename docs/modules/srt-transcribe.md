@@ -35,9 +35,9 @@ primitives to a complete, GUI-agnostic **media → SRT pipeline**
 - `vad` — native whisper.cpp Silero VAD: transcribes only detected speech,
   skipping silence/music and reducing hallucinations. Requires the VAD model
   (`srt-transcribe download vad`, or Settings → Whisper in the GUI).
-- `use_gpu` — offload inference to the GPU. Only effective in builds compiled
-  with the `vulkan` cargo feature (`srt_transcribe::gpu_supported()` tells you
-  at runtime); whisper.cpp falls back to CPU when no usable device exists.
+- `use_gpu` — offload inference to the backend compiled into the binary.
+  `srt_transcribe::gpu_supported()` and `gpu_backend_name()` report build
+  capability; whisper.cpp falls back to CPU when no usable device exists.
 
 ## Use as a binary
 
@@ -54,9 +54,17 @@ cargo build --release -p srt-transcribe-cli
   --provider groq --model whisper-large-v3 --api-key $GROQ_API_KEY
 ```
 
-GPU builds: `cargo build --release -p srt-transcribe-cli --features vulkan`
-(needs the Vulkan SDK — headers, loader and `glslc` — at compile time; at
-runtime only the Vulkan loader, with automatic CPU fallback).
+On Arch Linux, the portable GPU build is:
+
+```bash
+sudo pacman -S --needed vulkan-headers vulkan-icd-loader shaderc
+cargo build --release -p srt-transcribe-cli --features vulkan
+```
+
+Install the Vulkan driver for the actual GPU (`vulkan-radeon`,
+`vulkan-intel`, or `nvidia-utils`). Alternative, mutually exclusive worker
+builds are available through `--features cuda`, `rocm`, or `sycl`; each needs
+its vendor SDK/toolchain. Do not combine all backend features in one binary.
 
 Requires `ffmpeg` on PATH (or `--ffmpeg /path/to/ffmpeg`).
 
@@ -88,7 +96,9 @@ async fn main() -> anyhow::Result<()> {
         api_url: None,
         quality: false, // beam search 5 when true
         vad: false,     // Silero VAD (requires the downloaded model)
-        use_gpu: false, // effective only in `vulkan` builds
+        vad_model_id: None,
+        vad_custom_path: None,
+        use_gpu: true,  // compiled GPU backend when usable; otherwise CPU
     };
 
     let outcome = transcribe_to_srt(
@@ -110,5 +120,6 @@ Copy `lib/srt-transcribe/` — it has no internal dependencies. External deps:
 repo pins a vendored `whisper-rs-sys` via `[patch.crates-io]`, see the root
 `Cargo.toml`), `reqwest`, `hound`, `tokio`, `tokio-util`, `tempfile`,
 `futures`, `dirs`, `serde`, `num_cpus`. FFmpeg is a runtime requirement.
-The optional `vulkan` cargo feature forwards to `whisper-rs/vulkan` for GPU
-offload.
+The optional `vulkan`, `cuda`, `rocm`, and `sycl` features forward one selected
+backend to `whisper-rs`. The official Linux desktop build uses Vulkan and the
+runtime flag defaults to GPU enabled; CPU is the safe fallback.

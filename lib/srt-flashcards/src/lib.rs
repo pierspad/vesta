@@ -287,17 +287,23 @@ pub async fn list_audio_tracks(
 
 /// Clamp the requested worker count into a safe range.
 ///
-/// `None` defaults to ~3/4 of the logical cores. An explicit request is bounded
-/// to `[1, cores-1]`: the upper bound keeps a core free for the OS / UI, while
-/// `1` is allowed so a run can be pinned to a single ffmpeg worker (e.g. an
-/// apples-to-apples comparison against single-threaded tools).
+/// `None` defaults to ~3/4 of the logical cores and keeps one core free when
+/// possible. An explicit request is honored up to the machine's logical core
+/// count; `1` is allowed for apples-to-apples single-worker benchmarks.
 fn resolve_worker_count(requested: Option<usize>) -> usize {
     let num_cores = std::thread::available_parallelism()
         .map(|n| n.get())
         .unwrap_or(4);
+    resolve_worker_count_for(requested, num_cores)
+}
+
+fn resolve_worker_count_for(requested: Option<usize>, num_cores: usize) -> usize {
+    let num_cores = num_cores.max(1);
     match requested {
-        Some(user_cores) => user_cores.max(1).min(num_cores.saturating_sub(1).max(2)),
-        None => (num_cores / 4 * 3).max(2),
+        Some(user_cores) => user_cores.clamp(1, num_cores),
+        None => (num_cores * 3)
+            .div_ceil(4)
+            .clamp(1, num_cores.saturating_sub(1).max(1)),
     }
 }
 
@@ -896,4 +902,24 @@ fn dir_size_bytes(dir: &Path) -> u64 {
         .filter(|m| m.is_file())
         .map(|m| m.len())
         .sum()
+}
+
+#[cfg(test)]
+mod worker_count_tests {
+    use super::resolve_worker_count_for;
+
+    #[test]
+    fn defaults_reserve_one_core_but_explicit_counts_use_the_machine() {
+        assert_eq!(resolve_worker_count_for(Some(99), 16), 16);
+        assert_eq!(resolve_worker_count_for(None, 16), 12);
+        assert_eq!(resolve_worker_count_for(None, 4), 3);
+    }
+
+    #[test]
+    fn never_invents_workers_on_small_machines() {
+        assert_eq!(resolve_worker_count_for(None, 1), 1);
+        assert_eq!(resolve_worker_count_for(Some(8), 1), 1);
+        assert_eq!(resolve_worker_count_for(None, 2), 1);
+        assert_eq!(resolve_worker_count_for(Some(0), 2), 1);
+    }
 }

@@ -23,22 +23,49 @@ The runner verifies card and media counts. The reported time is wall-clock time 
 
 The harness is under `benchmarking_against_subs2srs/`. The original subs2srs source and license notices remain vendored there for reproducibility.
 
-## Requirements
+## Requirements (Arch Linux)
 
-Ubuntu/Debian packages:
-
-```bash
-sudo apt update
-sudo apt install -y mono-mcs ffmpeg python3 python3-matplotlib
-```
-
-Install a current Rust toolchain if needed:
+Install the native build, benchmark, media, and reporting tools:
 
 ```bash
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+sudo pacman -Syu --needed base-devel rustup mono ffmpeg python python-matplotlib
+rustup default stable
 ```
 
-VA-API variants additionally require a working VA-API driver and an encoder supported by the installed FFmpeg build. Direct variants do not require a GPU.
+The workspace currently requires the Rust version declared by
+`workspace.package.rust-version` in the root `Cargo.toml`. Confirm the tools
+before starting a long run:
+
+```bash
+rustc --version
+mcs --version
+ffmpeg -version
+python -c 'import matplotlib; print(matplotlib.__version__)'
+```
+
+Direct variants do not require a GPU. The recorded GPU variant uses VA-API
+pre-transcoding. Install the inspection tool plus the driver for the machine:
+
+```bash
+sudo pacman -S --needed libva-utils
+
+# AMD (Mesa)
+sudo pacman -S --needed libva-mesa-driver
+
+# Intel Gen 8+
+sudo pacman -S --needed intel-media-driver
+```
+
+Only install the driver matching the hardware. Verify that VA-API and FFmpeg
+expose an H.264 encoder before recording GPU results:
+
+```bash
+vainfo
+ffmpeg -hide_banner -encoders | grep -E 'h264_(vaapi|nvenc|qsv)'
+```
+
+If no usable hardware encoder is found, Vesta falls back to `libx264` on the
+CPU. Do not label that run as a GPU result.
 
 ## Procedure
 
@@ -48,7 +75,7 @@ From the repository root:
 
 ```bash
 ./benchmarking_against_subs2srs/1_compile_subs2srs.sh
-cargo build --release -p srt-flashcards-cli
+./benchmarking_against_subs2srs/2_compile_vesta.sh
 ```
 
 The outputs are:
@@ -72,20 +99,31 @@ Test_Subs/FILM/
 ### 3. Run the suite
 
 ```bash
-./run_overnight_benchmarks.sh
+REPEATS=3 ./benchmarking_against_subs2srs/3_run_benchmarks.sh
 ```
 
-Choose a full run to replace prior measurements, or the missing-only mode to keep completed combinations. Do not use the machine for unrelated CPU/GPU work while recording results.
+This replaces `results/results.csv`. For the separate VA-API run use
+`benchmarking_against_subs2srs/run_vesta_gpu.sh`; use
+`run_missing_subs2srs.sh` only to fill missing baseline rows. Do not use the
+machine for unrelated CPU/GPU work while recording results. Keep the CPU
+governor, power profile, worker count, and thermal conditions stable between
+variants.
 
 ### 4. Generate the report
 
 ```bash
-python3 benchmarking_against_subs2srs/report/generate_full_report.py \
+./benchmarking_against_subs2srs/4_generate_report.sh
+```
+
+The script records machine metadata and updates the summary/charts under
+`benchmarking_against_subs2srs/results/`. To regenerate the checked-in full
+report from the historical full matrix, run:
+
+```bash
+python benchmarking_against_subs2srs/report/generate_full_report.py \
   benchmarking_against_subs2srs/results/results_full.csv \
   benchmarking_against_subs2srs/results
 ```
-
-The generator updates the Markdown summary and SVG charts copied into `docs/` and `docs/films/`.
 
 ## Test machine results
 

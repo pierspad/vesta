@@ -6,7 +6,7 @@ Asynchronous HTTP client for direct integration with local Anki instances via th
 
 `srt-ankiconnect` communicates with Anki's local JSON-RPC API (`http://127.0.0.1:8765`, API version 6) to perform direct deck synchronization:
 - **Ping & Version Check**: Confirms Anki is running and reachable.
-- **Deck & Model Inspection**: Fetches existing deck names, model names, and model field lists.
+- **Deck Inspection**: Fetches existing deck names.
 - **Deck Creation**: Creates missing target decks automatically.
 - **Note Injection**: Pushes generated flashcards directly into the user's active Anki database.
 - **Shared Connection Pool**: Uses a persistent `reqwest::Client` with a shared HTTP connection pool.

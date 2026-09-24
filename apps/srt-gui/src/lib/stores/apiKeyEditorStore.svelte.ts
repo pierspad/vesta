@@ -5,7 +5,7 @@ import { providers } from "$lib/config/llmProviders";
  * Static data, only ever consumed by the api-key-editing feature (the
  * modal component and this store's own openAdd), so they live here rather
  * than in a shared providers module. */
-export const llmProviderIds = ["google", "groq", "openai", "openrouter", "mistral", "github", "nvidia", "custom"];
+export const llmProviderIds = ["google", "groq", "openai", "openrouter", "mistral", "nvidia", "custom"];
 export const whisperProviderIds = ["groq", "openai", "deepgram", "assemblyai", "custom"];
 
 export const llmApiKeyUrls: Record<string, string> = {
@@ -14,7 +14,6 @@ export const llmApiKeyUrls: Record<string, string> = {
   openai: "https://platform.openai.com/api-keys",
   openrouter: "https://openrouter.ai/keys",
   mistral: "https://console.mistral.ai/api-keys",
-  github: "https://github.com/settings/personal-access-tokens",
   nvidia: "https://build.nvidia.com",
 };
 
@@ -24,7 +23,6 @@ export const llmDocUrls: Record<string, string> = {
   openai: "https://platform.openai.com/docs",
   openrouter: "https://openrouter.ai/docs",
   mistral: "https://docs.mistral.ai",
-  github: "https://docs.github.com",
   nvidia: "https://docs.nvidia.com",
 };
 
@@ -38,7 +36,7 @@ export const whisperApiKeyUrls: Record<string, string> = {
 export const whisperDocUrls: Record<string, string> = {
   groq: "https://console.groq.com/docs/speech-to-text",
   openai: "https://platform.openai.com/guides/speech-to-text",
-  deepgram: "https://developers.deepgram.com/docs/deepgram-whisper-cloud",
+  deepgram: "https://developers.deepgram.com/docs/models-languages-overview",
   assemblyai: "https://www.assemblyai.com/docs",
 };
 
@@ -69,8 +67,7 @@ class ApiKeyEditorStore {
 
     if (normalizedProviderId) {
       this.newKeyType = normalizedProviderId as ApiKeyConfig["apiType"];
-      this.newKeyName =
-        normalizedProviderId === "openai" ? "Open AI" : providers[normalizedProviderId]?.name || "";
+      this.newKeyName = normalizedProviderId === "openai" ? "OpenAI" : providers[normalizedProviderId]?.name || "";
     }
     this.newKeyValue = "";
     this.newKeyUrl = this.newKeyType === "local" ? providers.local.defaultApiUrl || "" : "";
@@ -93,7 +90,7 @@ class ApiKeyEditorStore {
     const isCustom = pid === "custom";
     const prov = providers[pid];
     this.newKeyType = pid as ApiKeyConfig["apiType"];
-    this.newKeyName = isCustom ? "" : pid === "openai" ? "Open AI" : prov?.name || pid;
+    this.newKeyName = isCustom ? "" : pid === "openai" ? "OpenAI" : prov?.name || pid;
     this.newKeyUrl = isCustom ? "" : prov?.defaultApiUrl || "";
     this.newKeyValue = "";
   }

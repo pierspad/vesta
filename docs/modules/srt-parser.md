@@ -1,7 +1,7 @@
 # srt-parser — SRT parsing & writing
 
-`core/srt-parser` is the foundational crate every other Vesta module builds
-on: a fast, dependency-light parser and writer for SubRip (`.srt`) files.
+`core/srt-parser` is a foundational, dependency-light parser and writer for
+SubRip (`.srt`) files.
 
 **What you get**
 
@@ -41,5 +41,7 @@ bring along when vendoring any other `srt-*` module.
 
 ## Who uses it
 
-Every other module: `srt-extract`, `srt-translate`, `srt-sync`,
-`srt-flashcards` (via its own multi-format parser for ASS/VTT), and the GUI.
+Direct consumers are `srt-extract`, `srt-translate`, `srt-sync`,
+`srt-flashcards`, and the GUI adapter. Other feature crates may consume
+subtitle data through those libraries without depending on `srt-parser`
+directly.

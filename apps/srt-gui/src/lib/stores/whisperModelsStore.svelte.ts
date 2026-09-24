@@ -237,14 +237,14 @@ class WhisperModelsStore {
       await transcribeDownloadVad(modelId);
       await this.refreshAddons();
       this.selectVadModel(modelId);
-      showSnackbar(t("settings.whisper.downloadSuccess", { model: `Silero VAD ${modelId}` }));
+      showSnackbar(t("settings.whisper.downloadSuccess", { model: `Silero Voice Activity Detection ${modelId}` }));
     } catch (e) {
       const message = String(e).toLowerCase();
       if (message.includes("cancelled") || message.includes("canceled")) {
-        showSnackbar(t("settings.modelDownloadCancelled", { model: `Silero VAD ${modelId}` }));
+        showSnackbar(t("settings.modelDownloadCancelled", { model: `Silero Voice Activity Detection ${modelId}` }));
       } else {
         showSnackbar(
-          t("settings.whisper.downloadFailed", { model: `Silero VAD ${modelId}`, error: String(e) }),
+          t("settings.whisper.downloadFailed", { model: `Silero Voice Activity Detection ${modelId}`, error: String(e) }),
           "error",
         );
       }
@@ -264,10 +264,10 @@ class WhisperModelsStore {
       if (!this.vadSelection.customPath && this.vadSelection.modelId === modelId) {
         this.selectVadModel(DEFAULT_VAD_MODEL_ID);
       }
-      showSnackbar(t("settings.whisper.uninstallSuccess", { model: `Silero VAD ${modelId}` }));
+      showSnackbar(t("settings.whisper.uninstallSuccess", { model: `Silero Voice Activity Detection ${modelId}` }));
     } catch (e) {
       showSnackbar(
-        t("settings.whisper.uninstallFailed", { model: `Silero VAD ${modelId}`, error: String(e) }),
+        t("settings.whisper.uninstallFailed", { model: `Silero Voice Activity Detection ${modelId}`, error: String(e) }),
         "error",
       );
     }
@@ -275,7 +275,7 @@ class WhisperModelsStore {
 
   async pickCustomVad() {
     const path = await guardedOpen({
-      filters: [{ name: "VAD model", extensions: ["bin"] }],
+      filters: [{ name: "Voice Activity Detection Model", extensions: ["bin"] }],
       multiple: false,
     });
     if (!path || typeof path !== "string") return;

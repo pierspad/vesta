@@ -322,9 +322,9 @@
       { id: "custom", name: t("provider.custom") },
       { id: "google", name: providers.google?.name || "Google Gemini" },
       { id: "groq", name: providers.groq?.name || "Groq" },
+      { id: "openai", name: "OpenAI" },
       { id: "openrouter", name: providers.openrouter?.name || "OpenRouter" },
       { id: "mistral", name: providers.mistral?.name || "Mistral AI" },
-      { id: "github", name: providers.github?.name || "GitHub Models" },
       { id: "nvidia", name: providers.nvidia?.name || "NVIDIA NIM" },
     ];
   });

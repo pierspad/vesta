@@ -112,7 +112,15 @@ them side by side. A local, gitignored `config.local.sh` can override `TEST_MEDI
 
 ## Requirements
 
-`cargo`, `ffmpeg`/`ffprobe`, and Mono (`mcs` + `mono`) for the subs2srs harness.
-The chart is rendered with **matplotlib** (`report/plot.py`); `4_generate_report.sh`
-prefers the repo's `.venv` (which ships it) and otherwise falls back to system
-`python3` — install matplotlib there with `python3 -m pip install matplotlib`.
+On Arch Linux:
+
+```bash
+sudo pacman -Syu --needed base-devel rustup mono ffmpeg python python-matplotlib
+rustup default stable
+```
+
+This provides Cargo, FFmpeg/ffprobe, Mono (`mcs` + `mono`), Python, and
+Matplotlib. The GPU/VA-API variant additionally needs `libva-utils` plus the
+matching driver (`libva-mesa-driver` for AMD or `intel-media-driver` for
+modern Intel hardware). See [`docs/BENCHMARK_STEPS.md`](../docs/BENCHMARK_STEPS.md)
+for verification commands and the complete reproducibility procedure.

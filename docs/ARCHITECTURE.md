@@ -22,7 +22,7 @@ Vesta is a modular Cargo workspace layered from foundational formats to GUI-agno
                                        │ depends on
 ┌──────────────────────────────────────▼──────────────────────────────────────┐
 │  core/ (foundational utilities)                                             │
-│  • srt-parser       (High-performance SRT/ASS/VTT parser & charset detect) │
+│  • srt-parser       (SRT parser/writer with automatic charset detection)    │
 │  • srt-apkg         (Anki .apkg ZIP archive builder & extractor)            │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -36,7 +36,7 @@ Vesta is a modular Cargo workspace layered from foundational formats to GUI-agno
 | **core** | `srt-parser`, `srt-apkg` | Foundational primitives. Minimal external dependencies, zero knowledge of higher engines or GUI. Auto-charset detection via `chardetng` + `encoding_rs`, lossless timing arithmetic, and direct ZIP/SQLite archive serialization. |
 | **lib** | `srt-flashcards`, `srt-translate`, `srt-transcribe`, `srt-autosync`, `srt-extract`, `srt-refine`, `srt-sync`, `srt-ankiconnect` | Self-contained domain engines. **Zero GUI/Tauri coupling**. Long-running tasks accept a `tokio_util::sync::CancellationToken` and report progress through callbacks. Heavy dependencies (`ffmpeg`, `whisper-rs`, `rusqlite`, `reqwest`) are encapsulated here. |
 | **cli** | `srt-flashcards-cli`, `srt-translate-cli`, `srt-transcribe-cli`, `srt-autosync-cli`, `srt-extract-cli` | Headless, terminal frontends powered by `clap`. Thin wrappers over corresponding `lib/` engines. Perfect for server scripting, batch processing, CI pipelines, and benchmarking. |
-| **apps** | `apps/srt-gui` (`vesta`), `apps/whisper-bench` | Desktop frontends. Tauri commands act as adapters converting GUI state and events into calls to `lib/` crates. Pure presentation, UI state (Svelte 5 runes), and system integrations (file dialogs, window controls). |
+| **apps** | `apps/srt-gui` (`vesta`), `apps/whisper-bench` | Desktop composition roots. Svelte owns presentation/state; Tauri commands adapt IPC to `lib/` crates and own process-level services such as local media streaming, dialogs, and window integration. |
 
 ---
 
@@ -52,10 +52,10 @@ FlashcardConfig ──► build_matched_lines()  (Parse SRT ─► Normalize ─
                            │
               preview() ◄──┤ (Compute card counts, duration statistics, estimated media sizes)
                            │
-             generate() ───┴─► Parallel Media Extraction Pool (ffmpeg / NVENC / VAAPI)
-                                     │ • Audio: MP3 / Opus + EBU R128 Loudness Normalization
-                                     │ • Snapshots: WebP / AVIF / JPEG + Subtitle Border Crop
-                                     │ • Video: H.264 / MPEG-4 ultrafast snippets
+             generate() ───┴─► Optional source optimization + bounded FFmpeg pool
+                                     │ • Audio: MP3 / Opus + loudness normalization
+                                     │ • Snapshots: WebP / AVIF / JPEG + border crop
+                                     │ • Video: H.264 / MPEG-4 snippets
                                      ▼
                                Export Output
                                      ├── TSV Deck (Anki-importable with media filenames)
@@ -121,6 +121,63 @@ Aligned Output Subtitle (.srt)
 
 ---
 
+## Runtime Boundaries
+
+The desktop UI never calls FFmpeg, Whisper, SQLite, or provider APIs directly.
+Svelte invokes typed Tauri commands; those commands translate persisted/UI
+configuration into library structs, hold cancellation state, and forward
+progress events. Domain behavior stays in `lib/`, so the same pipeline is used
+by the CLI and benchmark harness.
+
+Media preview is the one process-level service owned by the desktop adapter:
+an ephemeral loopback HTTP server supports byte-range requests for WebKitGTK.
+On Linux, WebKitGTK decodes preview media through GStreamer. This is separate
+from the FFmpeg-based generation/transcription pipelines.
+
+Long-running work follows the same ownership model:
+
+1. the caller creates a `CancellationToken` and progress callback;
+2. the feature engine owns orchestration and bounded concurrency;
+3. external processes are killed on cancellation/drop where supported;
+4. only serializable progress/results cross the Tauri boundary.
+
+## Acceleration and Fallback Policy
+
+GPU use is selective rather than global:
+
+| Workload | Preferred path | Fallback | Why |
+|---|---|---|---|
+| H.264 video optimization/clips | Runtime-probed NVENC, VA-API, QSV, AMF, or VideoToolbox | `libx264` | Encode/transcode is sufficiently large to amortize device transfer. |
+| Local Whisper inference | One compiled backend: Vulkan, CUDA, ROCm, or SYCL | whisper.cpp CPU backend | Matrix-heavy inference benefits from GPU offload. |
+| Audio decode/resample/encode | FFmpeg CPU path | CPU | Short per-card clips and codec support make GPU transfer unattractive. |
+| Snapshots | FFmpeg CPU filters/encoders | CPU | Small still outputs are normally transfer-bound. |
+| Parsing, matching, retiming, SQLite/ZIP, HTTP | CPU | CPU | Branch-heavy, I/O-bound, or small workloads are not good GPU candidates. |
+
+`video_hw_accel = "auto"` performs an actual test encode before choosing a
+hardware encoder. Local transcription defaults to `use_gpu = true`, but this
+only activates a backend included at compile time. Official Linux desktop
+builds enable Vulkan; development or CLI CPU builds remain valid. A missing or
+unusable GPU must never prevent completion on the CPU.
+
+Do not combine all Whisper GPU Cargo features in one binary: their vendor
+toolchains and link requirements are alternative build targets. The
+`whisper-bench` app handles this by using a Vulkan launcher and separate
+downloadable single-backend workers.
+
+## Linux Media Stack
+
+- FFmpeg/ffprobe: generation, extraction, source optimization, and audio
+  preparation for Whisper.
+- GStreamer through WebKitGTK: playback inside the desktop webview only.
+- Vulkan loader/driver: local Whisper offload in Vulkan-enabled builds.
+- VA-API/NVENC/QSV: selected at runtime by FFmpeg when a real probe succeeds.
+
+On Arch Linux, preview support requires `gstreamer`, `gst-plugins-base`,
+`gst-plugins-good`, `gst-plugins-bad`, `gst-plugins-ugly`, and `gst-libav`.
+The AUR `PKGBUILD` declares these runtime dependencies.
+
+---
+
 ## Headless CLI Tooling
 
 Every key engine can be built and run standalone without Tauri:
@@ -145,12 +202,3 @@ cargo build --release -p srt-extract-cli
 ```
 
 For module-specific documentation and integration examples, see [`docs/modules/`](modules/README.md).
-
----
-
-## Development & Build Notes
-
-- **Rapid Development**: The `core/`, `lib/`, and `cli/` crates compile in seconds without pulling in Tauri or Whisper dependencies. Use `cargo check -p srt-flashcards` for fast feedback loops.
-- **Fast Linking**: Linux development uses the `mold` linker configured in `.cargo/config.toml`.
-- **Version Lockstep**: All internal crates share synchronized version numbers enforced by `build-scripts/check_internal_crate_versions.sh` and pre-push hooks.
-- **Quality Gates**: Pre-push hooks validate crate version consistency, `cargo clippy --workspace --all-targets -D warnings`, `rustfmt`, tests, and i18n key parity across all shipped locales.

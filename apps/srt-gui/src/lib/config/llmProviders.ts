@@ -67,7 +67,7 @@ export const providers: Record<string, ProviderInfo> = {
     name: "Google Gemini",
     icon: "google", // Use icon ID for custom SVG icons
     color: "from-blue-500 to-cyan-500",
-    description: "Gemini 3.1 Pro, 3 Flash (requires AIza... key)",
+    description: "Gemini native API (Gemini 3.8 Flash and 3.1 Pro Preview)",
     requiresApiKey: true,
     requiresApiUrl: false,
     defaultApiUrl: "https://generativelanguage.googleapis.com/v1beta",
@@ -110,7 +110,7 @@ export const providers: Record<string, ProviderInfo> = {
     name: "AssemblyAI",
     icon: "assemblyai",
     color: "from-indigo-500 to-blue-500",
-    description: "Speech-to-text API (best, nano)",
+    description: "Speech-to-text API (Universal-3 Pro, Universal-2)",
     requiresApiKey: true,
     requiresApiUrl: false,
     defaultApiUrl: "https://api.assemblyai.com/v2",
@@ -190,11 +190,11 @@ export const providers: Record<string, ProviderInfo> = {
     name: "GitHub Models",
     icon: "github",
     color: "from-gray-600 to-gray-800",
-    description: "Free tier via GitHub PAT (models:read): GPT, Llama, Mistral, DeepSeek",
+    description: "Retired by GitHub on July 30, 2026",
     requiresApiKey: true,
     requiresApiUrl: false,
     defaultApiUrl: "https://models.github.ai/inference",
-    enabled: true,
+    enabled: false,
     apiKeyUrl: "https://github.com/settings/personal-access-tokens",
     keyPrefix: "github_pat_",
     keyPlaceholder: "github_pat_... or ghp_...",
@@ -243,9 +243,9 @@ export const providers: Record<string, ProviderInfo> = {
 export const providerOrder = [
   "google",
   "groq",
+  "openai",
   "openrouter",
   "mistral",
-  "github",
   "nvidia",
   "local",
   "custom",
@@ -560,14 +560,24 @@ export const modelsByProvider: Record<string, ModelInfo[]> = {
   google: [
     // --- Serie Gemini 3 (Ultima Generazione 2026) ---
     {
-      id: "gemini-3-flash",
-      name: "Gemini 3 Flash",
+      id: "gemini-3.8-flash",
+      name: "Gemini 3.8 Flash",
       provider: "google",
       family: "Gemini 3",
       familyInfo: { type: "proprietary", badge: "Newest" },
       contextWindow: 1048576,
-      description: "Ultimo modello Flash: massima velocità, ragionamento avanzato e capacità agentiche.",
+      description: "Modello Flash stabile, rapido e adatto a traduzione e annotazione.",
       recommended: true,
+    },
+
+    {
+      id: "gemini-3.1-pro-preview",
+      name: "Gemini 3.1 Pro Preview",
+      provider: "google",
+      family: "Gemini 3",
+      familyInfo: { type: "proprietary", badge: "Preview" },
+      contextWindow: 1048576,
+      description: "Modello Pro di qualità elevata; endpoint preview soggetto a cambiamenti.",
     },
 
     // --- Serie Gemma 3 (Modelli Open Weights) ---
@@ -639,6 +649,38 @@ export const modelsByProvider: Record<string, ModelInfo[]> = {
     },
   ],
 
+  // OpenAI Chat Completions-compatible text models.
+  openai: [
+    {
+      id: "gpt-5.1",
+      name: "GPT-5.1",
+      provider: "openai",
+      family: "GPT-5",
+      familyInfo: { type: "proprietary", badge: "Stable" },
+      contextWindow: 400000,
+      description: "Modello general-purpose di qualità elevata per traduzione e annotazione.",
+      recommended: true,
+    },
+    {
+      id: "gpt-5-mini",
+      name: "GPT-5 mini",
+      provider: "openai",
+      family: "GPT-5",
+      familyInfo: { type: "proprietary", badge: "Budget" },
+      contextWindow: 400000,
+      description: "Versione più rapida ed economica per lavori in batch.",
+    },
+    {
+      id: "gpt-4.1-mini",
+      name: "GPT-4.1 mini",
+      provider: "openai",
+      family: "GPT-4.1",
+      familyInfo: { type: "proprietary", badge: "Stable" },
+      contextWindow: 1047576,
+      description: "Modello non-reasoning rapido e affidabile.",
+    },
+  ],
+
   // Groq API - Inferenza ultra-veloce su hardware LPU
   groq: [
     {
@@ -678,15 +720,6 @@ export const modelsByProvider: Record<string, ModelInfo[]> = {
       familyInfo: { type: "open-weights", badge: "Open" },
       contextWindow: 131072,
       description: "OpenAI compact MoE 20B, ottimizzato per costi",
-    },
-    {
-      id: "qwen/qwen3-32b",
-      name: "Qwen 3 32B",
-      provider: "groq",
-      family: "Qwen",
-      familyInfo: { type: "open-source", badge: "OSS" },
-      contextWindow: 131072,
-      description: "Qwen 3 multilingue avanzato, ragionamento dual-mode",
     },
   ],
 
@@ -833,6 +866,15 @@ export const modelsByProvider: Record<string, ModelInfo[]> = {
   // NVIDIA NIM - integrate.api.nvidia.com (OpenAI-compatible)
   nvidia: [
     {
+      id: "deepseek-ai/deepseek-v4-flash",
+      name: "DeepSeek V4 Flash",
+      provider: "nvidia",
+      family: "DeepSeek",
+      familyInfo: { type: "open-weights", badge: "Newest" },
+      description: "Modello DeepSeek Flash disponibile tramite NVIDIA NIM.",
+      recommended: true,
+    },
+    {
       id: "meta/llama-3.3-70b-instruct",
       name: "Llama 3.3 70B",
       provider: "nvidia",
@@ -840,34 +882,15 @@ export const modelsByProvider: Record<string, ModelInfo[]> = {
       familyInfo: { type: "open-weights", badge: "Open" },
       contextWindow: 131072,
       description: "Meta 70B su NVIDIA NIM",
-      recommended: true,
     },
     {
-      id: "nvidia/llama-3.1-nemotron-70b-instruct",
-      name: "Llama 3.1 Nemotron 70B",
+      id: "meta/llama-3.1-8b-instruct",
+      name: "Llama 3.1 8B",
       provider: "nvidia",
-      family: "NVIDIA",
+      family: "Meta",
       familyInfo: { type: "open-weights", badge: "Open" },
       contextWindow: 131072,
-      description: "Nemotron tuned da NVIDIA",
-    },
-    {
-      id: "deepseek-ai/deepseek-r1",
-      name: "DeepSeek R1",
-      provider: "nvidia",
-      family: "DeepSeek",
-      familyInfo: { type: "open-source", badge: "OSS" },
-      contextWindow: 131072,
-      description: "Ragionamento avanzato R1",
-    },
-    {
-      id: "qwen/qwen2.5-72b-instruct",
-      name: "Qwen 2.5 72B",
-      provider: "nvidia",
-      family: "Qwen",
-      familyInfo: { type: "open-source", badge: "OSS" },
-      contextWindow: 131072,
-      description: "Qwen 72B multilingue",
+      description: "Modello Meta compatto e veloce tramite NVIDIA NIM.",
     },
   ],
 };

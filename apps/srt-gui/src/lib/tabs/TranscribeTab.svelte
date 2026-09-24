@@ -28,6 +28,7 @@
   import PathPickerField from "$lib/components/PathPickerField.svelte";
   import PathPreviewModal from "$lib/modals/PathPreviewModal.svelte";
   import SearchableSelect from "$lib/components/SearchableSelect.svelte";
+  import ToggleRow from "$lib/components/ToggleRow.svelte";
   import { createSnackbarNotifier } from "$lib/stores/snackbarStore.svelte";
   import { uiMode } from "$lib/stores/uiModeStore.svelte";
   import ConfirmDialog from "$lib/modals/ConfirmDialog.svelte";
@@ -64,7 +65,6 @@
   let selectedLanguage = $state(initialTranscribeLanguage);
   let previousLanguageForOutput = initialTranscribeLanguage;
   let translateToEnglish = $state(false);
-  let wordTimestamps = $state(true);
   let maxSegmentLength = $state(30);
 
   // ─── Local-whisper add-ons: quality (beam search), VAD ──────────────────────
@@ -82,12 +82,12 @@
   let vadModels = $state<{ id: string; size: string; downloaded: boolean }[]>([]);
   let vadSelection = $state<VadSelection>(loadVadSelection());
 
-  function toggleQualityMode() {
-    qualityMode = !qualityMode;
+  function setQualityMode(enabled: boolean) {
+    qualityMode = enabled;
     vestaConfig.setItem(TRANSCRIBE_QUALITY_KEY, String(qualityMode));
   }
-  function toggleVad() {
-    vadEnabled = !vadEnabled;
+  function setVadEnabled(enabled: boolean) {
+    vadEnabled = enabled;
     vestaConfig.setItem(TRANSCRIBE_VAD_KEY, String(vadEnabled));
   }
 
@@ -690,7 +690,7 @@
 
         addLog(`🎙️ Provando endpoint: ${engineLabel}...`, "info");
         addLog(`Source language: ${selectedLanguageLabel(selectedLanguage)}`, "info");
-        addLog(`Word timestamps: ${wordTimestamps ? "enabled" : "disabled"}; max segment: ${maxSegmentLength}s`, "info");
+        addLog(`Word timestamps: enabled; max segment: ${maxSegmentLength}s`, "info");
         addLog(`Input: ${getFileName(inputPath)} → Output: ${getFileName(outputPath)}`, "file");
 
         try {
@@ -704,7 +704,7 @@
             model: entry.model,
             language: selectedLanguage,
             translate_to_english: translateToEnglish,
-            word_timestamps: wordTimestamps,
+            word_timestamps: true,
             max_segment_length: maxSegmentLength,
             provider: entry.provider,
             api_key: apiKeyVal,
@@ -949,70 +949,13 @@
             />
           </div>
           {#if uiMode.expertMode}
-          <!-- svelte-ignore a11y_no_static_element_interactions -->
-          <div
-            class="flex items-center justify-between p-3 bg-white/5 rounded-lg"
-          >
-            <div>
-              <span class="text-gray-200 text-sm"
-                >{t("transcribe.wordTimestamps")}</span
-              >
-            </div>
-            <button
-              onclick={() => (wordTimestamps = !wordTimestamps)}
-              class="w-12 h-6 rounded-full transition-all duration-200 relative {wordTimestamps
-                ? 'bg-cyan-500'
-                : 'bg-gray-600'}"
-              aria-label="Toggle word timestamps"
-            >
-              <div
-                class="absolute w-5 h-5 bg-white rounded-full top-0.5 transition-all duration-200 {wordTimestamps
-                  ? 'left-6'
-                  : 'left-0.5'}"
-              ></div>
-            </button>
-          </div>
           <!-- Silero VAD (local whisper only; requires the model) -->
-          <div class="flex items-center justify-between p-3 bg-white/5 rounded-lg {vadInstalled ? '' : 'opacity-60'}">
-            <div class="min-w-0 pr-3">
-              <span class="text-gray-200 text-sm">{t("transcribe.vad")}</span>
-              {#if !vadInstalled}
-                <p class="text-[11px] text-gray-500 mt-0.5">{t("transcribe.vadNotInstalled")}</p>
-              {/if}
-            </div>
-            <button
-              onclick={toggleVad}
-              disabled={!vadInstalled}
-              class="shrink-0 w-12 h-6 rounded-full transition-all duration-200 relative {vadEnabled && vadInstalled
-                ? 'bg-cyan-500'
-                : 'bg-gray-600'} {vadInstalled ? '' : 'cursor-not-allowed'}"
-              aria-label="Toggle voice activity detection"
-            >
-              <div
-                class="absolute w-5 h-5 bg-white rounded-full top-0.5 transition-all duration-200 {vadEnabled && vadInstalled
-                  ? 'left-6'
-                  : 'left-0.5'}"
-              ></div>
-            </button>
+          <div class="rounded-lg bg-white/5 p-3">
+            <ToggleRow label={t("transcribe.vad")} description={vadInstalled ? "" : t("transcribe.vadNotInstalled")} checked={vadEnabled && vadInstalled} disabled={!vadInstalled} accent="sky" onchange={setVadEnabled} />
           </div>
           <!-- Quality mode (beam search, local whisper only) -->
-          <div class="flex items-center justify-between p-3 bg-white/5 rounded-lg">
-            <div class="min-w-0 pr-3">
-              <span class="text-gray-200 text-sm">{t("transcribe.quality")}</span>
-            </div>
-            <button
-              onclick={toggleQualityMode}
-              class="shrink-0 w-12 h-6 rounded-full transition-all duration-200 relative {qualityMode
-                ? 'bg-cyan-500'
-                : 'bg-gray-600'}"
-              aria-label="Toggle quality mode"
-            >
-              <div
-                class="absolute w-5 h-5 bg-white rounded-full top-0.5 transition-all duration-200 {qualityMode
-                  ? 'left-6'
-                  : 'left-0.5'}"
-              ></div>
-            </button>
+          <div class="rounded-lg bg-white/5 p-3">
+            <ToggleRow label={t("transcribe.quality")} checked={qualityMode} accent="sky" onchange={setQualityMode} />
           </div>
           <div>
             <div class="flex items-center justify-between mb-2">

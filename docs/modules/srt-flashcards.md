@@ -90,10 +90,15 @@ async fn main() -> Result<(), String> {
 
 ## Extract it standalone
 
-Copy `lib/srt-flashcards/` (self-contained subtitle parsing — it does not
-depend on `srt-parser`). External deps: `rusqlite` (bundled SQLite), `zip`,
+Copy `lib/srt-flashcards/` + `core/srt-parser/`. External deps include
+`rusqlite` (bundled SQLite), `zip`,
 `sha1_smol`, `tokio`, `tokio-util`, `serde`, `serde_json`, `tempfile`.
 FFmpeg/ffprobe are runtime requirements passed in via `MediaTools`.
+
+With `video_hw_accel = "auto"` (the default), the engine runs a real FFmpeg
+encode probe and uses a working platform encoder for H.264/pre-transcoding.
+Unsupported or failing hardware paths transparently use `libx264`. Audio
+encoding, still-image extraction, matching, and packaging remain CPU work.
 
 The benchmark harness in [`benchmarking_against_subs2srs/`](../../benchmarking_against_subs2srs) uses exactly this
 crate through the CLI, pitted against the original subs2srs code.

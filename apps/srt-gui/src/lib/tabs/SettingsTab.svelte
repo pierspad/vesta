@@ -18,6 +18,7 @@
   import WhisperSettingsPanel from "$lib/panels/WhisperSettingsPanel.svelte";
   import { whisperModelsStore } from "$lib/stores/whisperModelsStore.svelte";
   import OverviewSettingsPanel from "$lib/panels/OverviewSettingsPanel.svelte";
+  import DiagnosticsSettingsPanel from "$lib/panels/DiagnosticsSettingsPanel.svelte";
   import { cpuRamStore } from "$lib/stores/cpuRamStore.svelte";
   import { exportFormatStore } from "$lib/stores/exportFormatStore.svelte";
   import { updateCheckerStore } from "$lib/stores/updateCheckerStore.svelte";
@@ -72,7 +73,7 @@
   const allProviderIds = ["local", "google", "groq", "openai", "deepgram", "assemblyai", "openrouter", "mistral", "github", "nvidia", "custom"];
   const apiKeyProviderIds = ["google", "groq", "openai", "deepgram", "assemblyai", "openrouter", "mistral", "github", "nvidia", "custom"];
   type EndpointStatus = "idle" | "checking" | "online" | "offline";
-  type SettingsSection = "overview" | "llm" | "whisper" | "language" | "anki" | "shortcuts";
+  type SettingsSection = "overview" | "llm" | "whisper" | "language" | "anki" | "diagnostics" | "shortcuts";
   type TemplateCodeTab = "front" | "back" | "css";
   let {
     requestedSection = $bindable("overview"),
@@ -113,10 +114,10 @@
   let defaultLlmModel = $state(loadStoredValue(DEFAULT_LLM_MODEL_KEY, ""));
   let defaultLlmCustomProviderId = $state(loadStoredValue(DEFAULT_LLM_CUSTOM_PROVIDER_KEY, ""));
   let defaultLocalServerUrl = $state(loadStoredValue(LOCAL_SERVER_URL_KEY, DEFAULT_LOCAL_URL));
-  let defaultTargetLanguage = $state(loadStoredValue(DEFAULT_TARGET_LANGUAGE_KEY, "it"));
+  let defaultTargetLanguage = $state(loadStoredValue(DEFAULT_TARGET_LANGUAGE_KEY, "en"));
   let defaultTranscribeLanguage = $state(loadStoredValue(DEFAULT_TRANSCRIBE_LANGUAGE_KEY, "auto"));
-  let defaultFlashcardsLanguage = $state(loadStoredValue(DEFAULT_FLASHCARDS_LANGUAGE_KEY, "it"));
-  let defaultNativeLanguage = $state(loadStoredValue(DEFAULT_NATIVE_LANGUAGE_KEY, "it"));
+  let defaultFlashcardsLanguage = $state(loadStoredValue(DEFAULT_FLASHCARDS_LANGUAGE_KEY, "en"));
+  let defaultNativeLanguage = $state(loadStoredValue(DEFAULT_NATIVE_LANGUAGE_KEY, "en"));
   
   const DEFAULT_REFINEMENT_PROMPT_KEY = REFINEMENT_PROMPT_STORAGE_KEY;
   let defaultRefinementPrompt = $state(loadRefinementPrompt());
@@ -771,10 +772,10 @@
   function getSmartMatchingRulesDraftError(): string | null {
     try {
       const parsed = JSON.parse(smartMatchingRulesDraft.replace(/\\"|"(?:\\"|[^"])*"|(\/\/.*|\/\*[\s\S]*?\*\/)/g, (m, g) => g ? "" : m));
-      if (!parsed || typeof parsed !== "object") return "Must be a valid JSON object";
+      if (!parsed || typeof parsed !== "object") return t("settings.smartMatching.invalidObject");
       return null;
     } catch (e: any) {
-      return e.message || "Invalid JSON";
+      return e.message || t("settings.smartMatching.invalidJson");
     }
   }
 
@@ -854,7 +855,7 @@
   });
 
   function resetOverviewSettings() {
-    setLanguage("it");
+    setLanguage("en");
     snackbar.show(t("settings.overview.resetSuccess"), "info", 1300);
   }
 
@@ -869,14 +870,14 @@
   }
 
   function resetLanguageSettings() {
-    defaultTargetLanguage = "it";
+    defaultTargetLanguage = "en";
     defaultTranscribeLanguage = "auto";
-    defaultFlashcardsLanguage = "it";
-    defaultNativeLanguage = "it";
-    saveDefaultLanguage(DEFAULT_TARGET_LANGUAGE_KEY, "it");
+    defaultFlashcardsLanguage = "en";
+    defaultNativeLanguage = "en";
+    saveDefaultLanguage(DEFAULT_TARGET_LANGUAGE_KEY, "en");
     saveDefaultLanguage(DEFAULT_TRANSCRIBE_LANGUAGE_KEY, "auto");
-    saveDefaultLanguage(DEFAULT_FLASHCARDS_LANGUAGE_KEY, "it");
-    saveDefaultLanguage(DEFAULT_NATIVE_LANGUAGE_KEY, "it");
+    saveDefaultLanguage(DEFAULT_FLASHCARDS_LANGUAGE_KEY, "en");
+    saveDefaultLanguage(DEFAULT_NATIVE_LANGUAGE_KEY, "en");
 
     smartMatchingStore.resetRules();
     smartMatchingStore.setEnabled(true);
@@ -1247,7 +1248,7 @@
     {#if uiMode.expertMode}
       <div class="glass-card p-6 flex flex-col gap-4">
         <ToggleRow
-          label="Smart Matching"
+          label={t("settings.smartMatching.title")}
           checked={smartMatchingEnabled}
           onchange={toggleSmartMatching}
           accent="violet"
@@ -1442,16 +1443,21 @@
   {#if activeSettingsSection === "anki"}
     <AnkiSettingsPanel {s} />
   {/if}
+
+  {#if activeSettingsSection === "diagnostics"}
+    <DiagnosticsSettingsPanel />
+  {/if}
   </div>
 
   <!-- Fixed Bottom Band: reset è un'azione rara e distruttiva, quindi piccola
        e in un angolo (con conferma) invece di un bottone rosso gigante al
        centro di ogni sezione di Settings. -->
+  {#if activeSettingsSection !== "diagnostics"}
   <FooterActions justify="end">
     {#snippet right()}
       <button
         onclick={() => {
-          if (activeSettingsSection !== "shortcuts") {
+          if (activeSettingsSection !== "shortcuts" && activeSettingsSection !== "diagnostics") {
             showResetConfirm = activeSettingsSection;
           }
         }}
@@ -1474,6 +1480,7 @@
       </button>
     {/snippet}
   </FooterActions>
+  {/if}
   {/if}
 
   <!-- Reset Confirmation Dialog -->

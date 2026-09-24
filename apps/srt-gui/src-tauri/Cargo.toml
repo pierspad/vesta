@@ -26,7 +26,6 @@ tokio-util = "0.7"
 urlencoding = "2"
 tempfile = "3"
 dirs = "6"
-srt-transcribe = { workspace = true }
 ffmpeg-sidecar = { version = "2.5.1", features = ["download_ffmpeg"] }
 sysinfo = "0.39"
 reqwest = { workspace = true }
@@ -46,9 +45,13 @@ tower = "0.5.3"
 [target.'cfg(target_os = "linux")'.dependencies]
 webkit2gtk = "2.0"
 tauri-plugin-dialog = { version = "2.7", default-features = false, features = ["xdg-portal"] }
+# Linux desktop builds carry the portable Vulkan Whisper backend. Runtime
+# selection still falls back to CPU when no usable Vulkan device is present.
+srt-transcribe = { workspace = true, features = ["vulkan"] }
 
 [target.'cfg(not(target_os = "linux"))'.dependencies]
 tauri-plugin-dialog = "2.7"
+srt-transcribe = { workspace = true }
 
 [dev-dependencies]
 sha2 = "0.11"

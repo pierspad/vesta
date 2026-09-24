@@ -2,7 +2,7 @@
   import { onMount } from "svelte";
   import { availableUILanguages, currentLanguage } from "$lib/i18n";
   import { languages, getLanguageSearchTerms } from "$lib/config/languages";
-  import SearchableSelect from "$lib/components/SearchableSelect.svelte";
+  import SetupLanguageField from "$lib/components/SetupLanguageField.svelte";
   import WhisperModelSelector from "$lib/components/WhisperModelSelector.svelte";
   import ExportFallbackSelector from "$lib/components/ExportFallbackSelector.svelte";
   import { loadMediaSettings, saveMediaSettings } from "$lib/utils/mediaSettings";
@@ -15,11 +15,12 @@
   let { onComplete }: { onComplete: (wantsTranscription: boolean) => void } = $props();
   let mode = $state<"quick" | "custom" | null>(null);
   let step = $state<"languages" | "export" | "transcription">("languages");
-  let uiLanguage = $state($currentLanguage);
-  let nativeLanguage = $state(languages.some((l) => l.code === $currentLanguage) ? $currentLanguage : "en");
+  const initialNativeLanguage = languages.some((l) => l.code === $currentLanguage) ? $currentLanguage : "en";
+  let nativeLanguage = $state(initialNativeLanguage);
   let studyLanguage = $state("en");
-  let targetLanguage = $state(languages.some((l) => l.code === $currentLanguage) ? $currentLanguage : "en");
-  let transcribeLanguage = $state("en");
+  const uiLanguageCodes = new Set(availableUILanguages.map((language) => language.code));
+  const resolveUiLanguage = (language: string) => uiLanguageCodes.has(language) ? language : "en";
+  let uiLanguage = $state(resolveUiLanguage(initialNativeLanguage));
   let exportFormat = $state<ExportFormat>("apkg");
   let fallbackFormat = $state<ExportFallbackFormat>("apkg");
   let compactAudio = $state(false);
@@ -28,11 +29,9 @@
   let vadChoice = $state<"silero" | "custom">("silero");
   let whisperModel = $state("small");
   let installing = $state(false);
-  let installMessage = $state("");
   let installError = $state("");
   let it = $derived(uiLanguage === "it");
 
-  const uiLanguageOptions = availableUILanguages.map((l) => ({ value: l.code, label: `${l.nativeName} — ${l.name}`, icon: l.flag, searchTerms: `${l.code} ${l.name} ${l.nativeName}` }));
   const languageOptions = languages.map((l) => ({ value: l.code, label: l.name === l.nameEn ? l.name : `${l.name} — ${l.nameEn}`, icon: l.flag, searchTerms: getLanguageSearchTerms(l.code) }));
   let selectedWhisperDownloaded = $derived(whisperModelsStore.whisperModels.find((model) => model.id === whisperModel)?.downloaded ?? false);
   let sileroDownloaded = $derived(whisperModelsStore.vadModels.find((model) => model.id === "v6.2.0")?.downloaded ?? false);
@@ -52,29 +51,29 @@
     exportFormat = exportFormat === "apkg" ? "tsv" : exportFormat === "tsv" ? "anki" : "apkg";
   }
 
+  function toggleAudioFormat() {
+    compactAudio = !compactAudio;
+  }
+
   async function finish() {
     if (!mode || installing) return;
     installing = true;
     installError = "";
     try {
       if (mode === "custom" && wantsTranscription) {
-        installMessage = it ? `Download Whisper ${whisperModel}…` : `Downloading Whisper ${whisperModel}…`;
         if (!selectedWhisperDownloaded) await transcribeDownloadModel(whisperModel);
         if (useVad) {
           if (vadChoice === "silero" && !sileroDownloaded) {
-            installMessage = it ? "Download Silero VAD 6.2.0…" : "Downloading Silero VAD 6.2.0…";
             await transcribeDownloadVad("v6.2.0");
           }
         }
       }
-      installMessage = it ? "Controllo dei font per le lingue scelte…" : "Checking fonts for the selected languages…";
       await fontStore.loadFonts();
       const requiredFonts = [studyLanguage, nativeLanguage]
         .map((language) => fontStore.getFontForLanguage(language))
         .filter((font, index, all) => font && all.findIndex((candidate) => candidate?.id === font.id) === index);
       for (const font of requiredFonts) {
         if (font && !font.downloaded) {
-          installMessage = it ? `Download ${font.name} (${font.approx_size})…` : `Downloading ${font.name} (${font.approx_size})…`;
           await fontStore.downloadFont(font.id);
         }
       }
@@ -82,9 +81,9 @@
       vestaConfig.removeItem("vesta-first-run-force");
       vestaConfig.setItem("srt-tools-ui-language", uiLanguage);
       vestaConfig.setItem("vesta-default-native-language", nativeLanguage);
-      vestaConfig.setItem("vesta-default-target-language", mode === "quick" ? nativeLanguage : targetLanguage);
+      vestaConfig.setItem("vesta-default-target-language", nativeLanguage);
       vestaConfig.setItem("vesta-default-flashcards-language", studyLanguage);
-      vestaConfig.setItem("vesta-default-transcribe-language", mode === "quick" ? studyLanguage : transcribeLanguage);
+      vestaConfig.setItem("vesta-default-transcribe-language", studyLanguage);
       vestaConfig.setItem("vesta-export-format", mode === "quick" ? "apkg" : exportFormat);
       vestaConfig.setItem("vesta-export-fallback", fallbackFormat);
       vestaConfig.setItem("vesta-expert-mode", String(mode === "custom"));
@@ -97,20 +96,21 @@
       saveMediaSettings(media);
       onComplete(wantsTranscription);
     } catch (error) { installError = String(error); }
-    finally { installing = false; installMessage = ""; }
+    finally { installing = false; }
   }
 </script>
 
 <div class="fixed inset-0 z-[100] flex items-center justify-center overflow-hidden bg-black/80 p-6" role="dialog" aria-modal="true">
   <div class="flex h-[720px] max-h-[calc(100vh-3rem)] w-full max-w-5xl flex-col overflow-visible rounded-2xl border border-indigo-400/30 bg-gray-900 p-7 shadow-2xl">
     <div class="flex items-start justify-between gap-5">
-      <div><p class="text-xs font-bold uppercase tracking-[0.2em] text-indigo-300">Vesta</p><h1 class="mt-2 text-2xl font-bold text-white">{it ? "Configura la tua esperienza" : "Set up your experience"}</h1><p class="mt-2 text-sm text-gray-400">{it ? "Tre scelte essenziali, poi Vesta prepara il resto." : "Three essential choices, then Vesta prepares the rest."}</p></div>
+      <div><p class="text-xs font-bold uppercase tracking-[0.2em] text-indigo-300">Vesta</p><h1 class="mt-2 text-2xl font-bold text-white">{it ? "Configura la tua esperienza" : "Set up your experience"}</h1><p class="mt-2 text-sm text-gray-400">{it ? "Due lingue essenziali, poi Vesta prepara il resto." : "Two essential languages, then Vesta prepares the rest."}</p></div>
       {#if mode}<span class="rounded-full border border-indigo-400/25 bg-indigo-500/10 px-3 py-1 text-xs text-indigo-200">{mode === "quick" ? (it ? "Rapido" : "Quick") : "Expert"} · {mode === "quick" ? 1 : customStepNumber}/{mode === "custom" ? 3 : 1}</span>{/if}
     </div>
 
     <div class="min-h-0 flex-1">
     {#if mode === null}
-      <div class="mt-7 grid gap-4 sm:grid-cols-2">
+      <div class="flex h-full items-center">
+      <div class="grid w-full gap-4 sm:grid-cols-2">
         <button class="rounded-xl border border-indigo-400/30 bg-indigo-500/10 p-5 text-left hover:bg-indigo-500/20" onclick={() => { mode = "custom"; step = "languages"; }}>
           <span class="mb-3 flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-400/15 text-indigo-200"><svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4 7h10M18 7h2M4 17h2m4 0h10M14 5v4M8 15v4M4 12h4m4 0h8M10 10v4" /></svg></span>
           <strong class="text-white">{it ? "Setup personalizzato" : "Custom setup"}</strong><p class="mt-2 text-xs text-gray-400">{it ? "Modalità Expert, esportazione, audio e trascrizione locale." : "Expert mode, export, audio and local transcription."}</p>
@@ -120,27 +120,27 @@
           <strong class="text-white">{it ? "Setup rapido" : "Quick setup"}</strong><p class="mt-2 text-xs text-gray-400">{it ? "Lingue, interfaccia semplice e impostazioni conservative." : "Languages, a simple interface and conservative defaults."}</p>
         </button>
       </div>
+      </div>
     {:else if step === "languages"}
       <div class="flex h-full flex-col">
-        <div class="mt-5 grid grid-cols-1 gap-3 {mode === 'custom' ? 'lg:grid-cols-3' : 'lg:grid-cols-3'}">
-          <div class="rounded-xl border border-white/10 bg-white/[0.03] p-4"><div class="mb-3 flex items-center gap-2"><span class="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/15 text-emerald-300"><svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 3a4 4 0 110 8 4 4 0 010-8zM5 21a7 7 0 0114 0"/></svg></span><div><p class="text-sm font-semibold text-white">{it ? "La tua lingua madre" : "Your native language"}</p><p class="text-[11px] text-gray-500">{it ? "Significati e riferimenti" : "Meanings and references"}</p></div></div><SearchableSelect options={languageOptions} value={nativeLanguage} onchange={(v) => { nativeLanguage = v; if (mode === 'quick') targetLanguage = v; }} /></div>
-          <div class="rounded-xl border border-white/10 bg-white/[0.03] p-4"><div class="mb-3 flex items-center gap-2"><span class="flex h-8 w-8 items-center justify-center rounded-lg bg-violet-500/15 text-violet-300">文</span><div><p class="text-sm font-semibold text-white">{it ? "Lingua studiata" : "Study language"}</p><p class="text-[11px] text-gray-500">{it ? "Originali delle flashcard" : "Flashcard originals"}</p></div></div><SearchableSelect options={languageOptions} value={studyLanguage} onchange={(v) => { studyLanguage = v; if (mode === 'quick') transcribeLanguage = v; }} /></div>
-          <div class="rounded-xl border border-white/10 bg-white/[0.03] p-4"><div class="mb-3 flex items-center gap-2"><span class="flex h-8 w-8 items-center justify-center rounded-lg bg-sky-500/15 text-sky-300"><svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4 6h16M4 12h10M4 18h7"/></svg></span><div><p class="text-sm font-semibold text-white">{it ? "Interfaccia" : "Interface"}</p><p class="text-[11px] text-gray-500">{it ? "Lingua dei menu" : "Language for menus"}</p></div></div><SearchableSelect options={uiLanguageOptions} value={uiLanguage} onchange={(v) => uiLanguage = v} /></div>
-          {#if mode === "custom"}
-            <div class="rounded-xl border border-white/10 bg-white/[0.03] p-4"><div class="mb-3 flex items-center gap-2"><span class="flex h-8 w-8 items-center justify-center rounded-lg bg-cyan-500/15 text-cyan-300"><svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M7 7h11m0 0-3-3m3 3-3 3M17 17H6m0 0 3 3m-3-3 3-3"/></svg></span><div><p class="text-sm font-semibold text-white">{it ? "Lingua di traduzione" : "Translation language"}</p><p class="text-[11px] text-gray-500">{it ? "Destinazione di Translate" : "Translate destination"}</p></div></div><SearchableSelect options={languageOptions} value={targetLanguage} onchange={(v) => targetLanguage = v} /></div>
-            <div class="rounded-xl border border-white/10 bg-white/[0.03] p-4"><div class="mb-3 flex items-center gap-2"><span class="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-500/15 text-amber-300"><svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 3a3 3 0 00-3 3v6a3 3 0 006 0V6a3 3 0 00-3-3zM5 11a7 7 0 0014 0M12 18v3m-4 0h8"/></svg></span><div><p class="text-sm font-semibold text-white">{it ? "Lingua di trascrizione" : "Transcription language"}</p><p class="text-[11px] text-gray-500">{it ? "Lingua parlata per Whisper" : "Spoken language for Whisper"}</p></div></div><SearchableSelect options={languageOptions} value={transcribeLanguage} onchange={(v) => transcribeLanguage = v} /></div>
-          {/if}
+        <div class="flex min-h-0 flex-1 items-center">
+          <div class="mx-auto grid w-full max-w-3xl grid-cols-1 gap-4 sm:grid-cols-2">
+            <SetupLanguageField kind="native" title={it ? "La tua lingua madre" : "Your native language"} description={it ? "Interfaccia, traduzioni e riferimenti" : "Interface, translations and references"} options={languageOptions} value={nativeLanguage} onchange={(value) => { nativeLanguage = value; uiLanguage = resolveUiLanguage(value); }} />
+            <SetupLanguageField kind="study" title={it ? "Lingua studiata" : "Study language"} description={it ? "Flashcard e trascrizione" : "Flashcards and transcription"} options={languageOptions} value={studyLanguage} onchange={(value) => studyLanguage = value} />
+          </div>
         </div>
         <div class="mt-auto flex justify-between"><button class="btn-secondary px-4 py-2" onclick={() => mode = null}>{it ? "Indietro" : "Back"}</button>{#if mode === "custom"}<button class="rounded-lg bg-indigo-500 px-5 py-2 font-semibold text-white" onclick={() => step = "export"}>{it ? "Continua" : "Continue"}</button>{:else}<button class="rounded-lg bg-indigo-500 px-5 py-2 font-semibold text-white" onclick={finish}>{it ? "Completa setup" : "Finish setup"}</button>{/if}</div>
       </div>
     {:else if step === "export"}
       <div class="flex h-full flex-col">
-        <div class="mt-5 rounded-xl border border-white/10 bg-white/[0.03] p-4">
+        <div class="flex min-h-0 flex-1 items-center">
+        <div class="w-full">
+        <div class="rounded-xl border border-white/10 bg-white/[0.03] p-4">
           <div class="mb-3 flex items-center gap-3"><span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-cyan-500/15 text-cyan-300"><svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 18V5l10-2v13M9 9l10-2M6 18a3 2 0 110 4 3 2 0 010-4zm10-2a3 2 0 110 4 3 2 0 010-4z"/></svg></span><p class="text-sm font-semibold text-white">{it ? "Formato audio" : "Audio format"}</p></div>
           <div class="relative grid grid-cols-2 rounded-lg bg-black/25 p-1">
             <span class="absolute bottom-1 top-1 w-[calc(50%-4px)] rounded-md border border-cyan-400/40 bg-cyan-500/20 transition-transform duration-200 ease-out {compactAudio ? 'translate-x-[calc(100%+4px)]' : 'translate-x-0'}"></span>
-            <button class="relative z-10 px-3 py-2 text-left" onclick={() => compactAudio = false}><span class="block text-sm font-semibold {compactAudio ? 'text-gray-400' : 'text-cyan-100'}">MP3 · {it ? "Funziona ovunque" : "Works everywhere"}</span><span class="block text-[10px] text-gray-500">128 kb/s · Anki Desktop, AnkiDroid, AnkiMobile</span></button>
-            <button class="relative z-10 px-3 py-2 text-left" onclick={() => compactAudio = true}><span class="block text-sm font-semibold {compactAudio ? 'text-cyan-100' : 'text-gray-400'}">Opus · {it ? "Compatto" : "Compressed"}</span><span class="block text-[10px] text-gray-500">64 kb/s · Anki Desktop, AnkiDroid · {it ? "non iOS" : "not iOS"}</span></button>
+            <button class="relative z-10 px-3 py-2 text-left" aria-pressed={!compactAudio} onclick={toggleAudioFormat}><span class="block text-sm font-semibold {compactAudio ? 'text-gray-400' : 'text-cyan-100'}">MP3 · {it ? "Funziona ovunque" : "Works everywhere"}</span><span class="block text-[10px] text-gray-500">128 kb/s · Anki Desktop, AnkiDroid, AnkiMobile</span></button>
+            <button class="relative z-10 px-3 py-2 text-left" aria-pressed={compactAudio} onclick={toggleAudioFormat}><span class="block text-sm font-semibold {compactAudio ? 'text-cyan-100' : 'text-gray-400'}">Opus · {it ? "Compatto" : "Compressed"}</span><span class="block text-[10px] text-gray-500">64 kb/s · Anki Desktop, AnkiDroid · {it ? "non iOS" : "not iOS"}</span></button>
           </div>
         </div>
 
@@ -153,18 +153,22 @@
           <p class="mt-3 text-xs text-gray-400">{exportFormat === "apkg" ? (it ? "Pacchetto completo, consigliato per quasi tutti." : "Complete package, recommended for most people.") : exportFormat === "tsv" ? (it ? "File tabellare e cartella media per importazione manuale." : "Tabular file and media folder for manual import.") : (it ? "Invio diretto ad Anki; usa il formato di riserva se Anki è chiuso." : "Send directly to Anki; use the fallback if Anki is closed.")}</p>
           <ExportFallbackSelector value={fallbackFormat} onchange={(value) => fallbackFormat = value} className="mt-4 min-h-10 border-t border-white/10 pt-4 {exportFormat === 'anki' ? 'visible' : 'invisible'}" />
         </div>
+        </div>
+        </div>
         <div class="mt-auto flex justify-between"><button class="btn-secondary px-4 py-2" onclick={() => step = "languages"}>{it ? "Indietro" : "Back"}</button><button class="rounded-lg bg-indigo-500 px-5 py-2 font-semibold text-white" onclick={() => step = "transcription"}>{it ? "Continua" : "Continue"}</button></div>
       </div>
     {:else}
       <div class="flex h-full flex-col">
-        <div class="mt-4 rounded-xl border border-white/10 bg-white/[0.03] p-5"><div class="flex items-center justify-between gap-4"><div><p class="font-semibold text-white">{it ? "Trascrizione locale" : "Local transcription"}</p><p class="mt-1 text-xs text-gray-400">{it ? "Usa Whisper sul dispositivo; i modelli presenti non saranno riscaricati." : "Run Whisper on this device; existing models will not be downloaded again."}</p></div><button aria-label={it ? "Attiva trascrizione locale" : "Enable local transcription"} class="relative h-6 w-12 rounded-full {wantsTranscription ? 'bg-indigo-500' : 'bg-gray-600'}" onclick={() => wantsTranscription = !wantsTranscription}><span class="absolute top-0.5 h-5 w-5 rounded-full bg-white transition-all {wantsTranscription ? 'left-6' : 'left-0.5'}"></span></button></div>
+        <div class="flex min-h-0 flex-1 items-center">
+        <div class="w-full rounded-xl border border-white/10 bg-white/[0.03] p-5"><div class="flex items-center justify-between gap-6"><div><p class="font-semibold text-white">{it ? "Trascrizione locale" : "Local transcription"}</p><p class="mt-1 text-xs text-gray-400">{it ? "Usa Whisper sul dispositivo; i modelli presenti non saranno riscaricati." : "Run Whisper on this device; existing models will not be downloaded again."}</p></div><button aria-label={it ? "Attiva o disattiva la trascrizione locale" : "Toggle local transcription"} aria-pressed={wantsTranscription} class="group flex h-10 min-w-24 shrink-0 items-center justify-between gap-2 rounded-full border px-2.5 transition-colors {wantsTranscription ? 'border-indigo-400/50 bg-indigo-500 text-white' : 'border-white/10 bg-gray-700 text-gray-300 hover:bg-gray-600'}" onclick={() => wantsTranscription = !wantsTranscription}><span class="pl-1 text-[10px] font-bold uppercase tracking-wider">{wantsTranscription ? 'On' : 'Off'}</span><span class="relative h-6 w-11 rounded-full bg-black/25"><span class="absolute top-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-all {wantsTranscription ? 'left-5.5' : 'left-0.5'}"></span></span></button></div>
           <div class="mt-5 {wantsTranscription ? '' : 'pointer-events-none opacity-45'}"><p class="mb-2 text-xs font-semibold text-gray-300">Whisper model</p><WhisperModelSelector models={whisperModelsStore.whisperModels} value={whisperModel} disabled={!wantsTranscription} onselect={(model) => whisperModel = model.id} /></div>
           <div class="mt-4 grid grid-cols-2 gap-3 {wantsTranscription ? '' : 'pointer-events-none opacity-45'}">
-            <button disabled={!wantsTranscription} class="rounded-xl border p-4 text-left {useVad && vadChoice === 'silero' ? 'border-emerald-400/40 bg-emerald-500/10' : 'border-white/10 bg-white/[0.03]'}" onclick={() => { useVad = true; vadChoice = 'silero'; }}><p class="flex items-center gap-2 text-sm font-semibold text-white"><svg class="h-4 w-4 text-emerald-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4 12h3l2-5 4 10 2-5h5"/></svg>Silero VAD 6.2.0</p><p class="mt-1 text-[11px] {sileroDownloaded ? 'text-emerald-400' : 'text-gray-400'}">{sileroDownloaded ? (it ? "Scaricato · pronto" : "Downloaded · ready") : (it ? "Sarà scaricato al termine" : "Will download when setup finishes")}</p></button>
-            <button disabled={!wantsTranscription} class="rounded-xl border p-4 text-left {useVad && vadChoice === 'custom' ? 'border-sky-400/40 bg-sky-500/10' : 'border-white/10 bg-white/[0.03]'}" onclick={async () => { await whisperModelsStore.pickCustomVad(); if (whisperModelsStore.vadCustomValid) { useVad = true; vadChoice = 'custom'; } }}><p class="flex items-center gap-2 text-sm font-semibold text-white"><svg class="h-4 w-4 text-sky-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 16V4m0 0-4 4m4-4 4 4M5 15v4h14v-4"/></svg>{it ? "Modello VAD personalizzato" : "Custom VAD model"}</p><p class="mt-1 truncate text-[11px] text-gray-400">{whisperModelsStore.vadSelection.customPath ?? (it ? "Carica un file .bin" : "Load a .bin file")}</p></button>
+            <button disabled={!wantsTranscription} class="rounded-xl border p-4 text-left {useVad && vadChoice === 'silero' ? 'border-emerald-400/40 bg-emerald-500/10' : 'border-white/10 bg-white/[0.03]'}" onclick={() => { useVad = true; vadChoice = 'silero'; }}><p class="flex items-center gap-2 text-sm font-semibold text-white"><svg class="h-4 w-4 text-emerald-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4 12h3l2-5 4 10 2-5h5"/></svg>Silero Voice Activity Detection 6.2.0</p><p class="mt-1 text-[11px] {sileroDownloaded ? 'text-emerald-400' : 'text-gray-400'}">{sileroDownloaded ? (it ? "Scaricato · pronto" : "Downloaded · ready") : (it ? "Sarà scaricato al termine" : "Will download when setup finishes")}</p></button>
+            <button disabled={!wantsTranscription} class="rounded-xl border p-4 text-left {useVad && vadChoice === 'custom' ? 'border-sky-400/40 bg-sky-500/10' : 'border-white/10 bg-white/[0.03]'}" onclick={async () => { await whisperModelsStore.pickCustomVad(); if (whisperModelsStore.vadCustomValid) { useVad = true; vadChoice = 'custom'; } }}><p class="flex items-center gap-2 text-sm font-semibold text-white"><svg class="h-4 w-4 text-sky-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 16V4m0 0-4 4m4-4 4 4M5 15v4h14v-4"/></svg>{it ? "Modello Voice Activity Detection personalizzato" : "Custom Voice Activity Detection Model"}</p><p class="mt-1 truncate text-[11px] text-gray-400">{whisperModelsStore.vadSelection.customPath ?? (it ? "Carica un file .bin" : "Load a .bin file")}</p></button>
           </div>
         </div>
-        {#if installMessage}<p class="mt-4 text-sm text-cyan-300">{installMessage}</p>{/if}{#if installError}<p class="mt-4 text-sm text-red-300">{installError}</p>{/if}
+        </div>
+        {#if installError}<p class="mt-4 text-sm text-red-300">{installError}</p>{/if}
         <div class="mt-auto flex justify-between"><button class="btn-secondary px-4 py-2" disabled={installing} onclick={() => step = "export"}>{it ? "Indietro" : "Back"}</button><button class="rounded-lg bg-indigo-500 px-5 py-2 font-semibold text-white disabled:opacity-50" disabled={installing} onclick={finish}>{installing ? (it ? "Installazione…" : "Installing…") : (it ? "Completa setup" : "Finish setup")}</button></div>
       </div>
     {/if}

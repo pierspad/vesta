@@ -13,13 +13,14 @@
     type SettingsActionNotificationDetail,
   } from "$lib/utils/settingsNotifications";
   import * as vestaConfig from "$lib/config/vestaConfig";
+  import SupportModal from "$lib/modals/SupportModal.svelte";
 
   interface Props {
     activeTab: "translate" | "sync" | "transcribe" | "align" | "flashcards" | "settings" | "refine" | "experimental";
     onTabChange: (tab: "translate" | "sync" | "transcribe" | "align" | "flashcards" | "settings" | "refine" | "experimental") => void;
     collapsed?: boolean;
     onToggleCollapse?: () => void;
-    settingsSection?: "overview" | "llm" | "whisper" | "language" | "anki" | "shortcuts";
+    settingsSection?: "overview" | "llm" | "whisper" | "language" | "anki" | "diagnostics" | "shortcuts";
     lastActiveMainTab?: "translate" | "sync" | "transcribe" | "align" | "flashcards" | "refine" | "experimental";
   }
 
@@ -35,7 +36,7 @@
   const RELEASES_URL = "https://github.com/pierspad/Vesta/releases";
   
   const repoUrl = "https://github.com/pierspad/vesta";
-  const sponsorUrl = "https://github.com/sponsors/pierspad";
+  let showSupportModal = $state(false);
   let releasesUrl = $derived(
     appVersionNum
       ? `https://github.com/pierspad/vesta/releases/tag/${appVersionNum}`
@@ -432,6 +433,25 @@
       {/if}
 
       <button
+        class="w-full flex gap-3.5 items-center {collapsed ? 'px-2 justify-center' : 'px-3.5'} h-[60px] rounded-xl transition-all duration-100 ease-out border border-transparent cursor-pointer {settingsSection === 'diagnostics'
+          ? 'bg-gradient-to-r from-teal-600 to-cyan-700 text-white shadow-lg shadow-cyan-500/22 border-cyan-500/30 bg-clip-padding'
+          : 'text-gray-400 hover:bg-cyan-500/10 hover:text-cyan-400 hover:border-cyan-500/20'}"
+        onclick={() => settingsSection = "diagnostics"}
+        title={collapsed ? t("settings.section.diagnostics") : undefined}
+      >
+        <div class="w-9 h-9 rounded-xl {settingsSection === 'diagnostics' ? 'bg-white/20' : 'bg-white/5'} flex items-center justify-center flex-shrink-0 relative transition-all duration-100 ease-out border border-white/5">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16M8 4v4m8 2v4m-6 2v4" />
+          </svg>
+        </div>
+        {#if !collapsed}
+          <div class="text-left flex-1 min-w-0 leading-tight">
+            <span class="block text-[15px] font-semibold">{t("settings.section.diagnostics")}</span>
+          </div>
+        {/if}
+      </button>
+
+      <button
         class="w-full flex gap-3.5 items-center {collapsed ? 'px-2 justify-center' : 'px-3.5'} h-[60px] rounded-xl transition-all duration-100 ease-out border border-transparent cursor-pointer {settingsSection === 'shortcuts'
           ? 'bg-gradient-to-r from-purple-600 to-purple-700 text-white shadow-lg shadow-purple-500/22 border-purple-500/30 bg-clip-padding'
           : 'text-gray-400 hover:bg-purple-500/10 hover:text-purple-400 hover:border-purple-500/20'}"
@@ -737,9 +757,9 @@
           </div>
 
           <div class="flex items-center gap-1 shrink-0">
-            <a href={sponsorUrl} target="_blank" class="flex h-9 w-9 items-center justify-center rounded-lg border border-transparent text-gray-400 transition-colors duration-150 hover:border-pink-400/20 hover:bg-pink-500/10 hover:text-pink-300" title={t("about.sponsor")} aria-label={t("about.sponsor")}>
+            <button type="button" onclick={() => showSupportModal = true} class="flex h-9 w-9 items-center justify-center rounded-lg border border-transparent text-gray-400 transition-colors duration-150 hover:border-pink-400/20 hover:bg-pink-500/10 hover:text-pink-300 cursor-pointer" title={t("about.sponsor")} aria-label={t("about.sponsor")}>
               <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 000-7.78z" /></svg>
-            </a>
+            </button>
             <a href={repoUrl} target="_blank" class="flex h-9 w-9 items-center justify-center rounded-lg border border-transparent text-gray-400 transition-colors duration-150 hover:border-white/5 hover:bg-white/5 hover:text-white" title={t("about.repository")} aria-label={t("about.repository")}>
               <svg class="h-6 w-6" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.05A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" clip-rule="evenodd" /></svg>
             </a>
@@ -749,3 +769,5 @@
     </div>
   </div>
 </aside>
+
+<SupportModal show={showSupportModal} onclose={() => showSupportModal = false} />

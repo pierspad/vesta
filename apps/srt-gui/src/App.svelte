@@ -1,21 +1,12 @@
 <script lang="ts">
   import { PhysicalSize } from "@tauri-apps/api/dpi";
   import { getCurrentWindow } from "@tauri-apps/api/window";
-  import { onMount } from "svelte";
+  import { onMount, type Component } from "svelte";
   import { ankiStore } from "$lib/stores/ankiStore.svelte";
-  import FlashcardsTab from "$lib/tabs/FlashcardsTab.svelte";
-  import SettingsTab from "$lib/tabs/SettingsTab.svelte";
   import ShortcutOverlay from "$lib/components/ShortcutOverlay.svelte";
   import Sidebar from "$lib/components/Sidebar.svelte";
-  import SyncTab from "$lib/tabs/SyncTab.svelte";
-  import TranscribeTab from "$lib/tabs/TranscribeTab.svelte";
-  import TranslateTab from "$lib/tabs/TranslateTab.svelte";
-  import AlignTab from "$lib/tabs/AlignTab.svelte";
-  import RefineTab from "$lib/tabs/RefineTab.svelte";
-  import ExperimentalTab from "$lib/tabs/ExperimentalTab.svelte";
   import AppContextMenu from "$lib/components/AppContextMenu.svelte";
   import Snackbar from "$lib/components/Snackbar.svelte";
-  import FirstRunSetupModal from "$lib/modals/FirstRunSetupModal.svelte";
   import { snackbar } from "$lib/stores/snackbarStore.svelte";
   import { aiStore } from "$lib/stores/aiStore.svelte";
   import { getShortcuts } from "$lib/utils/shortcuts";
@@ -23,11 +14,59 @@
 
   type AppTab = "translate" | "sync" | "transcribe" | "align" | "flashcards" | "settings" | "refine" | "experimental";
 
+  type LazyComponent = Component<any>;
+  const tabLoaders: Record<AppTab, () => Promise<{ default: LazyComponent }>> = {
+    flashcards: () => import("$lib/tabs/FlashcardsTab.svelte"),
+    refine: () => import("$lib/tabs/RefineTab.svelte"),
+    translate: () => import("$lib/tabs/TranslateTab.svelte"),
+    sync: () => import("$lib/tabs/SyncTab.svelte"),
+    align: () => import("$lib/tabs/AlignTab.svelte"),
+    transcribe: () => import("$lib/tabs/TranscribeTab.svelte"),
+    experimental: () => import("$lib/tabs/ExperimentalTab.svelte"),
+    settings: () => import("$lib/tabs/SettingsTab.svelte"),
+  };
+  const pendingTabLoads = new Map<AppTab, Promise<void>>();
+  let loadedTabs = $state<Partial<Record<AppTab, LazyComponent>>>({});
+  let tabLoadErrors = $state<Partial<Record<AppTab, string>>>({});
+  let firstRunSetupModal = $state<LazyComponent | null>(null);
+
+  function ensureTabLoaded(tab: AppTab): Promise<void> {
+    if (loadedTabs[tab]) return Promise.resolve();
+    const pending = pendingTabLoads.get(tab);
+    if (pending) return pending;
+    delete tabLoadErrors[tab];
+    const load = tabLoaders[tab]()
+      .then(({ default: component }) => {
+        loadedTabs[tab] = component;
+      })
+      .catch((error) => {
+        console.error(`Failed to load the ${tab} tab`, error);
+        tabLoadErrors[tab] = error instanceof Error ? error.message : String(error);
+      })
+      .finally(() => {
+        pendingTabLoads.delete(tab);
+      });
+    pendingTabLoads.set(tab, load);
+    return load;
+  }
+
   let activeTab = $state<AppTab>("flashcards");
   let showFirstRunSetup = $state(
     vestaConfig.getItem("vesta-first-run-force") === "true" ||
       (vestaConfig.isNewInstallation() && vestaConfig.getItem("vesta-first-run-setup-complete") !== "true"),
   );
+
+  $effect(() => {
+    void ensureTabLoaded(activeTab);
+  });
+
+  $effect(() => {
+    if (showFirstRunSetup && !firstRunSetupModal) {
+      void import("$lib/modals/FirstRunSetupModal.svelte").then(({ default: component }) => {
+        firstRunSetupModal = component;
+      });
+    }
+  });
 
   function completeFirstRunSetup(wantsTranscription: boolean) {
     showFirstRunSetup = false;
@@ -50,7 +89,7 @@
 
   let userPreference = $state<"collapsed" | "expanded" | null>(initialPreference);
   let sidebarCollapsed = $state(initialPreference === "collapsed");
-  let requestedSettingsSection = $state<"overview" | "llm" | "whisper" | "language" | "anki" | "shortcuts">("overview");
+  let requestedSettingsSection = $state<"overview" | "llm" | "whisper" | "language" | "anki" | "diagnostics" | "shortcuts">("overview");
   let highlightItemId = $state<string | null>(null);
   let lastActiveMainTab = $state<Exclude<AppTab, "settings">>("flashcards");
 
@@ -385,30 +424,48 @@
 
   <!-- Main Content - use CSS visibility to preserve state -->
   <div class="flex-1 overflow-hidden relative">
-    <div class="absolute inset-0" class:hidden={activeTab !== "translate"}>
-      <TranslateTab onGoToSettings={goToSettings} active={activeTab === "translate"} />
-    </div>
-    <div class="absolute inset-0" class:hidden={activeTab !== "sync"}>
-      <SyncTab active={activeTab === "sync"} />
-    </div>
-    <div class="absolute inset-0" class:hidden={activeTab !== "transcribe"}>
-      <TranscribeTab onGoToSettings={goToSettings} active={activeTab === "transcribe"} />
-    </div>
-    <div class="absolute inset-0" class:hidden={activeTab !== "align"}>
-      <AlignTab active={activeTab === "align"} />
-    </div>
-    <div class="absolute inset-0" class:hidden={activeTab !== "flashcards"}>
-      <FlashcardsTab onGoToSettings={goToSettings} active={activeTab === "flashcards"} />
-    </div>
-    <div class="absolute inset-0" class:hidden={activeTab !== "refine"}>
-      <RefineTab onGoToSettings={goToSettings} active={activeTab === "refine"} />
-    </div>
-    <div class="absolute inset-0" class:hidden={activeTab !== "experimental"}>
-      <ExperimentalTab />
-    </div>
-    <div class="absolute inset-0" class:hidden={activeTab !== "settings"}>
-      <SettingsTab active={activeTab === "settings"} bind:requestedSection={requestedSettingsSection} bind:highlightItemId={highlightItemId} />
-    </div>
+    {#if loadedTabs.translate}
+      {@const TranslateTab = loadedTabs.translate}
+      <div class="absolute inset-0" class:hidden={activeTab !== "translate"}><TranslateTab onGoToSettings={goToSettings} active={activeTab === "translate"} /></div>
+    {/if}
+    {#if loadedTabs.sync}
+      {@const SyncTab = loadedTabs.sync}
+      <div class="absolute inset-0" class:hidden={activeTab !== "sync"}><SyncTab active={activeTab === "sync"} /></div>
+    {/if}
+    {#if loadedTabs.transcribe}
+      {@const TranscribeTab = loadedTabs.transcribe}
+      <div class="absolute inset-0" class:hidden={activeTab !== "transcribe"}><TranscribeTab onGoToSettings={goToSettings} active={activeTab === "transcribe"} /></div>
+    {/if}
+    {#if loadedTabs.align}
+      {@const AlignTab = loadedTabs.align}
+      <div class="absolute inset-0" class:hidden={activeTab !== "align"}><AlignTab active={activeTab === "align"} /></div>
+    {/if}
+    {#if loadedTabs.flashcards}
+      {@const FlashcardsTab = loadedTabs.flashcards}
+      <div class="absolute inset-0" class:hidden={activeTab !== "flashcards"}><FlashcardsTab onGoToSettings={goToSettings} active={activeTab === "flashcards"} /></div>
+    {/if}
+    {#if loadedTabs.refine}
+      {@const RefineTab = loadedTabs.refine}
+      <div class="absolute inset-0" class:hidden={activeTab !== "refine"}><RefineTab onGoToSettings={goToSettings} active={activeTab === "refine"} /></div>
+    {/if}
+    {#if loadedTabs.experimental}
+      {@const ExperimentalTab = loadedTabs.experimental}
+      <div class="absolute inset-0" class:hidden={activeTab !== "experimental"}><ExperimentalTab /></div>
+    {/if}
+    {#if loadedTabs.settings}
+      {@const SettingsTab = loadedTabs.settings}
+      <div class="absolute inset-0" class:hidden={activeTab !== "settings"}><SettingsTab active={activeTab === "settings"} bind:requestedSection={requestedSettingsSection} bind:highlightItemId={highlightItemId} /></div>
+    {/if}
+    {#if !loadedTabs[activeTab]}
+      <div class="absolute inset-0 flex flex-col items-center justify-center gap-3 text-sm text-gray-500">
+        {#if tabLoadErrors[activeTab]}
+          <p>Unable to load this section.</p>
+          <button class="btn-secondary px-4 py-2" onclick={() => void ensureTabLoaded(activeTab)}>Retry</button>
+        {:else}
+          <p>Loading…</p>
+        {/if}
+      </div>
+    {/if}
   </div>
 
   {#if snackbar.message}
@@ -423,5 +480,8 @@
 
   <ShortcutOverlay {activeTab} />
   <AppContextMenu />
-  {#if showFirstRunSetup}<FirstRunSetupModal onComplete={completeFirstRunSetup} />{/if}
+  {#if showFirstRunSetup && firstRunSetupModal}
+    {@const FirstRunSetupModal = firstRunSetupModal}
+    <FirstRunSetupModal onComplete={completeFirstRunSetup} />
+  {/if}
 </main>

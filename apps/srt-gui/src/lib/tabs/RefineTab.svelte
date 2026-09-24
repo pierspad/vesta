@@ -667,7 +667,7 @@
           </div>
 
           <!-- Scrollable Cards List (fills available vertical space) -->
-          <div class="flex-1 min-h-0 overflow-y-auto p-2 bg-black/20 border border-white/5 rounded-xl space-y-1.5 scrollbar-thin">
+          <div class="flex-1 min-h-0 overflow-y-auto p-2 bg-white/[0.03] border border-white/10 rounded-xl space-y-1.5 scrollbar-thin">
             {#if cards.length === 0}
               <div class="h-full py-16 flex flex-col items-center justify-center text-xs text-gray-500 italic">
                 {t('refine.noFlashcardsLoaded')}

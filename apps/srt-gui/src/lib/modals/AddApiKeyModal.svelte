@@ -3,6 +3,7 @@
   import { snackbar } from "$lib/stores/snackbarStore.svelte";
   import ProviderIcon from "$lib/components/ProviderIcon.svelte";
   import { providers } from "$lib/config/llmProviders";
+  import { transcribeProviders } from "$lib/config/transcribeProviders";
   import {
     apiKeyEditorStore,
     llmProviderIds,
@@ -60,6 +61,7 @@
           <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 mb-3">
             {#each (store.modalContext === "whisper" ? whisperProviderIds : llmProviderIds) as pid (pid)}
               {@const prov = providers[pid]}
+              {@const speechProv = transcribeProviders[pid]}
               {@const isCustom = pid === "custom"}
               <button
                 type="button"
@@ -72,10 +74,10 @@
                 <ProviderIcon provider={pid} />
                 <div class="flex flex-col min-w-0">
                   <span class="text-sm font-bold truncate"
-                    >{pid === "openai" ? "OpenAI" : (isCustom ? t("provider.custom") : prov?.name || pid)}</span
+                    >{isCustom ? t("provider.custom") : (store.modalContext === "whisper" ? speechProv?.name : prov?.name) || pid}</span
                   >
                   <span class="text-[10px] opacity-70 leading-tight line-clamp-2"
-                    >{isCustom ? t("provider.custom.desc") : (pid === "openai" ? (store.modalContext === "whisper" ? t("provider.openai.whisperDesc") : t("provider.openai.desc")) : prov?.description || "")}</span
+                    >{isCustom ? t("provider.custom.desc") : (store.modalContext === "whisper" ? speechProv?.description : prov?.description) || ""}</span
                   >
                 </div>
               </button>
@@ -137,7 +139,9 @@
                   bind:value={store.newKeyValue}
                   placeholder={store.newKeyType === "custom"
                     ? t("settings.modal.notRequiredForLocal")
-                    : providers[store.newKeyType]?.keyPlaceholder || "API key"}
+                    : (store.modalContext === "whisper"
+                        ? transcribeProviders[store.newKeyType]?.keyPlaceholder
+                        : providers[store.newKeyType]?.keyPlaceholder) || "API key"}
                   class="w-full bg-black/40 border border-white/10 rounded-lg px-4 py-2.5 pr-20 text-sm text-white focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 outline-none transition-all placeholder-gray-600 font-mono"
                 />
                 <div

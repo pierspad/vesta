@@ -171,7 +171,7 @@
           class="min-w-0 text-left flex-1 cursor-pointer disabled:cursor-default"
         >
           <div class="flex items-center gap-2 flex-wrap">
-            <span class="text-sm font-bold text-white">Silero VAD {model.id}</span>
+            <span class="text-sm font-bold text-white">Silero Voice Activity Detection {model.id}</span>
             {#if model.id === DEFAULT_VAD_MODEL_ID}
               <span class="text-[9px] text-gray-500 uppercase tracking-wide">{t("settings.default")}</span>
             {/if}

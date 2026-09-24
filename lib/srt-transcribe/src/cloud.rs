@@ -97,7 +97,7 @@ async fn openai_compatible(
         .mime_str("audio/wav")?;
 
     let mut form = reqwest::multipart::Form::new()
-        .text("model", cfg.model.clone())
+        .text("model", compatible_audio_model(cfg))
         .text("response_format", "verbose_json")
         .part("file", part);
 
@@ -157,6 +157,17 @@ async fn openai_compatible(
         end_ms,
         text,
     }])
+}
+
+fn compatible_audio_model(cfg: &CloudConfig) -> String {
+    if cfg.translate_to_english
+        && cfg.provider.eq_ignore_ascii_case("groq")
+        && cfg.model == "whisper-large-v3-turbo"
+    {
+        "whisper-large-v3".to_string()
+    } else {
+        cfg.model.clone()
+    }
 }
 
 #[derive(Deserialize)]
@@ -334,6 +345,7 @@ async fn assemblyai(
         "audio_url": up.upload_url,
         "punctuate": true,
         "format_text": true,
+        "speech_models": assemblyai_speech_models(&cfg.model),
     });
     match cfg.language.as_ref().filter(|l| l.as_str() != "auto") {
         Some(lang) => create["language_code"] = serde_json::Value::String(lang.clone()),
@@ -403,6 +415,13 @@ async fn assemblyai(
     }
 }
 
+fn assemblyai_speech_models(model: &str) -> Vec<&'static str> {
+    match model.trim() {
+        "universal-2" => vec!["universal-2"],
+        _ => vec!["universal-3-pro", "universal-2"],
+    }
+}
+
 struct Word {
     start_ms: i64,
     end_ms: i64,
@@ -461,5 +480,40 @@ fn truncate(s: &str, n: usize) -> &str {
         s
     } else {
         &s[..s.char_indices().nth(n).map(|(i, _)| i).unwrap_or(s.len())]
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{CloudConfig, assemblyai_speech_models, compatible_audio_model};
+
+    #[test]
+    fn assemblyai_defaults_to_current_model_with_fallback() {
+        assert_eq!(
+            assemblyai_speech_models(""),
+            vec!["universal-3-pro", "universal-2"]
+        );
+        assert_eq!(
+            assemblyai_speech_models("universal-3-pro"),
+            vec!["universal-3-pro", "universal-2"]
+        );
+    }
+
+    #[test]
+    fn assemblyai_can_pin_universal_2() {
+        assert_eq!(assemblyai_speech_models("universal-2"), vec!["universal-2"]);
+    }
+
+    #[test]
+    fn groq_translation_uses_the_model_that_supports_translation() {
+        let cfg = CloudConfig {
+            provider: "groq".into(),
+            api_key: String::new(),
+            api_url: None,
+            model: "whisper-large-v3-turbo".into(),
+            language: None,
+            translate_to_english: true,
+        };
+        assert_eq!(compatible_audio_model(&cfg), "whisper-large-v3");
     }
 }

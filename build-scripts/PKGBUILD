@@ -21,6 +21,8 @@ depends=(
     'pango'
     'hicolor-icon-theme'
     'libappindicator-gtk3'
+    'gstreamer'
+    'gst-plugins-base'
     'gst-plugins-good'
     'gst-plugins-bad'
     'gst-plugins-ugly'

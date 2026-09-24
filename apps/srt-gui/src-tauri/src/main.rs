@@ -410,6 +410,7 @@ fn main() {
             get_media_server_info,
 
             get_app_info,
+            get_system_diagnostics,
             read_subtitle_file,
             http_fetch,
 

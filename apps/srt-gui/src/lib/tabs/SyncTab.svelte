@@ -17,6 +17,7 @@
   import SyncStatusPanel from "$lib/panels/SyncStatusPanel.svelte";
   import SubtitleListPanel from "$lib/panels/SubtitleListPanel.svelte";
   import WizardCheckpoint from "$lib/components/WizardCheckpoint.svelte";
+  import { formatSyncMediaError } from "$lib/utils/syncMediaError";
 
   interface Props {
     active?: boolean;
@@ -1175,26 +1176,11 @@
     onerror={(e) => {
       const el = e.currentTarget as HTMLMediaElement;
       const mediaErr = el?.error;
-      const codeMap: Record<number, string> = {
-        1: "MEDIA_ERR_ABORTED",
-        2: "MEDIA_ERR_NETWORK",
-        3: "MEDIA_ERR_DECODE",
-        4: "MEDIA_ERR_SRC_NOT_SUPPORTED",
-      };
       const code = mediaErr?.code || 0;
-      const codeStr = codeMap[code] || `Unknown error: ${code}`;
       const msg = mediaErr?.message || "";
-      const gstMissingSink = /autoaudiosink|audiosink/i.test(msg);
-      if (gstMissingSink) {
-        audioError = `${codeStr}. Audio backend non disponibile su Linux. Installa almeno gstreamer1.0-plugins-good e, se necessario, gstreamer1.0-pulseaudio o pipewire-audio, poi riavvia l'app. ${msg}`;
-      } else if (code === 3 || code === 4) {
-        audioError = `${codeStr}. Su Linux potrebbe servire: gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly gstreamer1.0-libav. ${msg}`;
-      } else {
-        audioError = `${codeStr}. ${msg}`;
-      }
+      audioError = formatSyncMediaError(code, msg, t);
       syncDebug("audio:onerror", {
         code,
-        codeStr,
         message: msg,
       });
     }}

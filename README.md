@@ -1,26 +1,18 @@
 # <img src="docs/fireplace.svg" alt="Vesta" height="42" align="absmiddle"> Vesta
 
-> [!WARNING]
-> **Work in Progress**: This README is currently temporary and a work in progress (WIP), is subject to ongoing reorganization, and will be further refined and expanded.
-
-**Contents:** [Overview](#what-it-does) · [Features](#core-features) · [Architecture & CLI](#modular-architecture--headless-cli-use) · [Build](#building-from-source) · [Benchmarks](#benchmarks) · [Documentation](#documentation-map)
+**Contents:** [Overview](#what-it-does) · [Workflow](#the-workflow) · [Architecture](#how-vesta-was-built) · [CLI](#headless-cli-use) · [Build](#building-from-source) · [Benchmarks](#benchmarks) · [Documentation](#documentation-map)
 
 **subs2srs, but faster and with more features**
 
-Vesta is a modernized spiritual son of subs2srs. 
-A desktop application for language learners that turns video/audio files and subtitle files into flashcard decks for anki, allows you to fix desynced subtitles, add missing translation and more 
+Vesta is a modern successor to subs2srs: a desktop application for language learners that turns media and subtitle files into Anki decks. It also covers the work usually required around deck generation—transcription, translation, subtitle synchronization, revision, and card annotation—without forcing users to assemble a chain of unrelated tools.
+
+The desktop application is local-first. Media processing, subtitle parsing, APKG creation, and optional Whisper transcription run on the user's machine. Network services are only used when the user explicitly configures cloud transcription or language-model providers.
 
 ## Benchmarks
 
 <img src="docs/benchmark_speedup_summary.svg" alt="Vesta Average Speedup vs subs2srs Across All Test Movies" width="800">
 
 ![Suite Overview](docs/benchmark_overview.svg)
-
-> Tested across **8 feature-length movies (~12,000+ subtitles)**, Vesta achieves a **~3.5× to 3.8× average speedup** (and up to **6.22× peak speedup**) compared to subs2srs.
->
-> Even on a single thread (`1t`), Vesta is **~1.3× to 1.9× faster** than subs2srs due to faster stream seeking and pipe optimizations.
->
-> For full test details and reproduction steps, see [**docs/BENCHMARK_STEPS.md**](docs/BENCHMARK_STEPS.md). For per-movie charts and raw data across all 9 variants, see the [**Benchmark Report**](docs/BENCHMARK_REPORT.md).
 
 <details closed>
   <summary><b>Legend & Pipeline Modes</b></summary>
@@ -38,9 +30,35 @@ A desktop application for language learners that turns video/audio files and sub
 
 </details>
 
+> Tested across **8 feature-length movies (~12,000+ subtitles)**, Vesta achieves a **~3.5× to 3.8× average speedup** (and up to **6.22× peak speedup**) compared to subs2srs.
+>
+> Even on a single thread (`1t`), like subs2srs, Vesta is **~1.3× to 1.9× faster**.
+>
+> For full test details and reproduction steps, see [**docs/BENCHMARK_STEPS.md**](docs/BENCHMARK_STEPS.md). For per-movie charts and raw data across all 9 variants, see the [**Benchmark Report**](docs/BENCHMARK_REPORT.md).
+
 ## What it does
 
 Set up with your preferences and drop in your media and subtitle files and create your flashcards.
+
+## The workflow
+
+The first-run setup asks for two language choices:
+
+- **Native language** — used for the interface when a translation is available, translation targets, meanings, and reference subtitles.
+- **Study language** — used for source flashcards and as the default spoken language for transcription.
+
+Quick setup applies conservative defaults: MP3 audio, APKG export, and the simple interface. Custom setup additionally exposes export format, audio format, Expert Mode, and optional local Whisper installation. Every choice can be changed later in Settings.
+
+The main tabs correspond to independent stages:
+
+1. **Flashcards** matches media and subtitle files, previews cards, applies filters, extracts audio and snapshots with FFmpeg, and exports APKG, TSV, or through AnkiConnect.
+2. **Synchronize** fixes subtitle drift with manual anchors or Whisper-assisted automatic matching.
+3. **Translate** processes subtitles in resumable, context-aware batches through configurable provider tiers.
+4. **Transcribe** converts media to SRT with local whisper.cpp or cloud speech-to-text endpoints. Word-level token timing is always enabled by the GUI for better segment boundaries.
+5. **Revise** compares subtitle tracks side by side and supports timing and text corrections.
+6. **Annotate** loads TSV or APKG decks and adds manual or generated notes while preserving the deck structure.
+
+AI-backed features remain optional and can be disabled globally with the AI Kill Switch.
 
 #### What if the timestamps of my srt are not synced with the media?
 Go to the **"Synchronize"** tab; here you can add manual anchors and check synchronization step by step.
@@ -70,45 +88,11 @@ Turn on the **AI Kill Switch**!
 
 ---
 
-## Core Features
+## How Vesta was built
 
-### 1. Flashcards and Anki export
+Generating cards is only the last step: real source material may have missing subtitles, bad timing, inconsistent encodings, several audio tracks, or no translation. Vesta therefore grew as a collection of small engines rather than one GUI-bound pipeline.
 
-- Generate cards from one subtitle track, or match a study-language track with a reference translation by overlapping timestamps.
-- Export a ready-to-import `.apkg`, a TSV file with its media folder, or send the generated package to a running Anki instance through AnkiConnect.
-- Add per-card MP3 or Opus audio, WebP/AVIF/JPEG snapshots, or H.264/MPEG-4 clips. Audio track, margins, bitrate, dimensions, crop, and quality remain configurable per episode.
-- Normalize clip loudness with EBU R128, combine split sentences, include surrounding dialogue, and filter cards by text or duration.
-- Use responsive Anki templates with dark mode and language-specific Noto fonts; required fonts can be embedded in APKG exports.
-
-### 2. Transcription
-
-- Produce SRT files from audio or video with local `whisper.cpp` models or configured cloud STT endpoints.
-- Use Silero VAD to exclude non-speech regions before transcription and request word timestamps when the selected backend supports them.
-- Local builds can offload Whisper to a compiled GPU backend. Linux release packages enable Vulkan and fall back to CPU when no usable device is available; current Windows packages use CPU.
-
-### 3. Synchronization and review
-
-- Correct a constant offset or gradual drift by placing timing anchors in the synchronization wizard (`srt-sync`).
-- Generate speech anchors with Whisper for automatic re-alignment (`srt-autosync`), then review the result before saving.
-- Compare two subtitle files side by side, edit text and timings, and jump directly to missing lines in Revise.
-
-### 4. Translation and annotation
-
-- Translate subtitles in overlapping context batches instead of isolated lines, with resumable output.
-- Configure ordered provider tiers: endpoints within a tier share requests; the next tier is used when the current one is unavailable or rate-limited.
-- Add or edit explanations, grammar notes, and examples in existing APKG or TSV decks with the Refine/Annotate workflow.
-
-### 5. File matching and language defaults
-
-- Drop several media and subtitle files at once; Vesta pairs episodes across common western, anime, Chinese, and Korean naming patterns.
-- Classify original and reference tracks from language codes and filename markers, while keeping every match editable.
-- Keep separate defaults for native, study, translation-target, transcription, and interface languages.
-
----
-
-## Modular Architecture & Headless CLI Use
-
-Vesta is organized as a Cargo workspace of decoupled crates. Backend engines live in `lib/` or `core/`; the principal workflows also expose a standalone binary in `cli/`.
+The backend is a Rust workspace. `core/` contains low-level formats with few policy decisions; `lib/` contains reusable workflow engines; `cli/` wraps those engines for automation; and the Tauri application is one consumer of the same APIs. This keeps media and subtitle logic testable without opening a window and prevents the interface from owning business logic.
 
 ```
 vesta/
@@ -134,6 +118,16 @@ vesta/
     ├── srt-gui/           # Desktop GUI (Tauri + Svelte 5 + Tailwind)
     └── whisper-bench/     # Transcription benchmarking tool
 ```
+
+Feel free to reuse these crates for your projects, or to optimize them for niche use cases and make a PR!
+
+The GUI uses Tauri 2, Svelte 5, TypeScript, Tailwind CSS, and Vite. Each main tab is loaded as a separate JavaScript chunk on first use and remains mounted afterwards, preserving in-progress work while keeping startup small. Shared state lives in focused Svelte stores, native operations cross typed Tauri commands, and long-running Rust tasks expose progress and cancellation instead of blocking the frontend.
+
+FFmpeg performs media probing, audio extraction, and snapshots. whisper.cpp provides local transcription, with optional Vulkan, CUDA, ROCm, or SYCL builds and automatic CPU fallback. Silero VAD can skip silence before decoding. APKG output is assembled locally through SQLite and ZIP primitives, so generating a deck does not require a running Anki instance.
+
+Provider tiers decouple translation and cloud transcription from any single vendor. Entries in a tier share work while respecting configured limits; exhaustion falls through to the next tier. Progress is saved incrementally so interrupted work does not need to restart from the beginning.
+
+## Headless CLI Use
 
 ### CLI Quick Examples
 
@@ -193,6 +187,23 @@ cd apps/srt-gui && npm install && cd ../..
 cd apps/srt-gui && npx tauri dev
 ```
 
+Frontend validation and tests:
+
+```bash
+cd apps/srt-gui
+pnpm check
+pnpm test
+pnpm build
+```
+
+Run every Rust unit, regression, and documentation test from the repository root:
+
+```bash
+cargo test --workspace
+```
+
+GPU support is selected at compile time. Systems without a usable accelerator fall back to CPU at runtime. See [`docs/modules/srt-transcribe.md`](docs/modules/srt-transcribe.md) for backend-specific requirements.
+
 ---
 
 ## Contributing
@@ -203,7 +214,7 @@ If Vesta is useful to you and you want to support its maintenance, you can [spon
 
 ---
 
-## AI Disclosure
+## LLM Disclosure
 
 This project was developed with the assistance of Large Language Models, used to support code writing and documentation.
 
