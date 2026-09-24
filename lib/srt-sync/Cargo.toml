@@ -1,6 +1,6 @@
 [package]
 name = "srt-sync"
-version = "0.24.0-dev.3"
+version = "0.24.0"
 edition.workspace = true
 authors = ["Pierpaolo Spadafora <pierpaolospadafora@proton.me>"]
 description = "Library for synchronizing SRT subtitles with video using anchor points and interpolation"
