@@ -173,6 +173,7 @@ jobs:
         run: |
           DEB_FILE=$(find deb-artifact -name "*.deb" | head -n 1)
           SHA256=$(sha256sum "$DEB_FILE" | awk '{print $1}')
+          LICENSE_SHA256=$(sha256sum LICENSE | awk '{print $1}')
           cp "$DEB_FILE" "build-scripts/vesta-${VERSION}.deb"
 
           # makepkg vieta colons, slash, spazi e trattini in pkgver: le pre-release
@@ -182,12 +183,17 @@ jobs:
           cd build-scripts
           sed -i "s/^pkgver=.*/pkgver=${PKGVER}/" PKGBUILD
           LOCAL_URI="file:///workspace/build-scripts/vesta-${VERSION}.deb"
+          LOCAL_LICENSE_URI="file:///workspace/LICENSE"
           # NB: nel PKGBUILD la source è "${_pkgname}-${pkgver}.deb::${url}/releases/...",
           # cioè usa la variabile ${url}, non un literal "https://": matchare "https://"
           # qui non intercetta mai la riga e makepkg continua a scaricare dal
           # rilascio GitHub (che a questo punto della pipeline non esiste ancora -> 404).
           sed -i "s|\${_pkgname}-\${pkgver}.deb::\${url}[^ \"]*|\${_pkgname}-\${pkgver}.deb::${LOCAL_URI}|" PKGBUILD
-          sed -i "0,/[a-f0-9]\{64\}/s//${SHA256}/" PKGBUILD
+          # Anche il tag della prerelease non è ancora disponibile: usa la licenza
+          # già presente nel checkout invece di tentare di scaricarla da GitHub.
+          sed -i "s|LICENSE-\${pkgver}::\${url}[^ \"]*|LICENSE-\${pkgver}::${LOCAL_LICENSE_URI}|" PKGBUILD
+          sed -i "s|^sha256sums=.*|sha256sums=('${SHA256}'|" PKGBUILD
+          sed -i "/^sha256sums=/{n;s/[a-f0-9]\{64\}/${LICENSE_SHA256}/;}" PKGBUILD
 
           docker run --rm -v ${{ github.workspace }}:/workspace -w /workspace/build-scripts archlinux:base-devel bash -c "
             pacman -Syu --noconfirm git sudo
