@@ -1,14 +1,14 @@
 name: Publish to AUR
 
 on:
-  # release: published NON funziona quando la release è creata via GITHUB_TOKEN:
-  # GitHub non propaga l'evento ad altri workflow per evitare loop infiniti.
-  # workflow_run si aggancia al completamento di build.yml, che è l'unico trigger
-  # affidabile. Il filtro branches: ['v*'] esclude i run manuali (dispatch su main).
+  # Viene avviato automaticamente da build.yml (step release) via `gh workflow run`
+  # solo per le release stabili (escludendo le prerelease con '-').
+  # workflow_run rimane configurato come fallback.
+  # workflow_dispatch consente il trigger / retry manuale dall'interfaccia Actions.
   workflow_run:
     workflows: ["Build and Release"]
     types: [completed]
-  workflow_dispatch: {}  # per retry manuale, nessun input necessario
+  workflow_dispatch: {}
 
 concurrency:
   group: aur-publish
@@ -82,12 +82,29 @@ jobs:
 
       - name: Prepare SSH materials
         shell: bash
+        env:
+          AUR_SSH_PRIVATE_KEY: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
+          AUR_KNOWN_HOSTS: ${{ secrets.AUR_KNOWN_HOSTS }}
         run: |
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/ssh"
-          printf '%s\n' "${{ secrets.AUR_SSH_PRIVATE_KEY }}" > "$RUNNER_TEMP/ssh/id_aur"
-          printf '%s\n' "${{ secrets.AUR_KNOWN_HOSTS }}" > "$RUNNER_TEMP/ssh/known_hosts"
+
+          if [ -z "${AUR_SSH_PRIVATE_KEY:-}" ]; then
+            echo "::error::Il secret AUR_SSH_PRIVATE_KEY non è configurato o è vuoto!"
+            exit 1
+          fi
+
+          printf '%s\n' "$AUR_SSH_PRIVATE_KEY" > "$RUNNER_TEMP/ssh/id_aur"
+          sed -i 's/\r$//' "$RUNNER_TEMP/ssh/id_aur"
           chmod 600 "$RUNNER_TEMP/ssh/id_aur"
+
+          if [ -n "${AUR_KNOWN_HOSTS:-}" ]; then
+            printf '%s\n' "$AUR_KNOWN_HOSTS" > "$RUNNER_TEMP/ssh/known_hosts"
+          else
+            ssh-keyscan -t ed25519,rsa aur.archlinux.org > "$RUNNER_TEMP/ssh/known_hosts" 2>/dev/null
+          fi
+          sed -i 's/\r$//' "$RUNNER_TEMP/ssh/known_hosts"
+          chmod 644 "$RUNNER_TEMP/ssh/known_hosts"
 
       - name: Write container entrypoint
         shell: bash
