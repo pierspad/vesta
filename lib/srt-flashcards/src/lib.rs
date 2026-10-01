@@ -8,6 +8,8 @@ mod export_apkg;
 mod export_tsv;
 mod filters;
 mod matcher;
+mod merge_apkg;
+pub use merge_apkg::merge_apkg;
 mod parser;
 mod types;
 
@@ -26,7 +28,7 @@ use filters::{apply_filters, apply_span, combine_sentences, compute_context};
 use matcher::match_subtitles;
 use media::{
     MediaKind, extract_audio_clip, extract_snapshot, extract_video_clip, media_filename,
-    video_clip_extension,
+    optimize_video_source_with_progress, video_clip_extension,
 };
 pub use parser::parse_subtitle_file;
 
@@ -421,7 +423,7 @@ pub async fn generate(
     let h264_preset = config.h264_preset.clone();
 
     // Transparent GPU auto-detection: if available, used automatically.
-    let detected_gpu_encoder = if config.video_hw_accel != "off" {
+    let detected_gpu_encoder = if needs_video && config.video_hw_accel != "off" {
         let enc = detect_h264_encoder(&tools.ffmpeg).await;
         if enc.is_hardware() {
             emit(
@@ -439,8 +441,9 @@ pub async fn generate(
         H264Encoder::Libx264
     };
 
-    // Pre-transcode video stream if beneficial (e.g. high-res / heavy-codec source)
-    let opt_video = if (needs_snapshots || needs_video) && config.optimize_video {
+    // Full-film preparation is reserved for video clips. Snapshots use the
+    // original source directly, avoiding a lossy H.264 intermediate and startup delay.
+    let opt_video = if needs_video && config.optimize_video {
         if let Some(src) = video_source {
             let target_w = config
                 .video_width
@@ -468,7 +471,7 @@ pub async fn generate(
                 )]),
             );
 
-            match optimize_video_source(
+            match optimize_video_source_with_progress(
                 src,
                 target_w,
                 target_h,
@@ -478,6 +481,20 @@ pub async fn generate(
                 &tools.ffmpeg,
                 &tools.ffprobe,
                 &cancel,
+                &|percent, encoder| {
+                    emit(
+                        progress,
+                        "optimizing",
+                        "flashcards.progress.optimizingVideo",
+                        percent.round() as usize,
+                        100,
+                        12.0 + percent * 0.03,
+                        HashMap::from([
+                            ("percent".into(), format!("{percent:.0}")),
+                            ("encoder".into(), encoder.into()),
+                        ]),
+                    );
+                },
             )
             .await
             {

@@ -280,7 +280,7 @@ pub fn should_optimize_video(
     target_width: u32,
     target_height: u32,
     crop_bottom: u32,
-    encoder: H264Encoder,
+    _encoder: H264Encoder,
 ) -> bool {
     if crop_bottom > 0 {
         return true;
@@ -291,10 +291,6 @@ pub fn should_optimize_video(
         "hevc" | "h265" | "av1" | "vp9" | "vp8" | "prores" | "vc1"
     );
     if is_heavy_codec {
-        return true;
-    }
-
-    if encoder.is_hardware() && (info.width > target_width || info.height > target_height) {
         return true;
     }
 
@@ -316,6 +312,34 @@ pub async fn optimize_video_source(
     ffmpeg_cmd: &str,
     ffprobe_cmd: &str,
     cancel: &CancellationToken,
+) -> Result<OptimizedVideo> {
+    optimize_video_source_with_progress(
+        source_path,
+        target_width,
+        target_height,
+        crop_bottom,
+        include_audio,
+        hw_accel_enabled,
+        ffmpeg_cmd,
+        ffprobe_cmd,
+        cancel,
+        &|_, _| {},
+    )
+    .await
+}
+
+#[allow(clippy::too_many_arguments)]
+pub async fn optimize_video_source_with_progress(
+    source_path: &str,
+    target_width: u32,
+    target_height: u32,
+    crop_bottom: u32,
+    include_audio: bool,
+    hw_accel_enabled: bool,
+    ffmpeg_cmd: &str,
+    ffprobe_cmd: &str,
+    cancel: &CancellationToken,
+    progress: &(dyn Fn(f64, &str) + Send + Sync),
 ) -> Result<OptimizedVideo> {
     if cancel.is_cancelled() {
         return Ok(OptimizedVideo::original(source_path));
@@ -564,7 +588,7 @@ pub async fn optimize_video_source(
     cpu.extend(["-sn".into(), "-dn".into(), "-y".into(), dest_str.into()]);
     candidate_args.push(("cpu_libx264", cpu));
 
-    for (_name, args) in candidate_args {
+    for (name, args) in candidate_args {
         if cancel.is_cancelled() {
             return Ok(OptimizedVideo::original(source_path));
         }
@@ -572,14 +596,56 @@ pub async fn optimize_video_source(
         let mut cmd = media_command(ffmpeg_cmd);
         cmd.arg("-nostdin");
         cmd.arg("-loglevel").arg("error");
+        cmd.args(["-progress", "pipe:1", "-nostats"]);
         cmd.args(&args);
-
-        let res = cmd.status().await;
+        cmd.stdout(std::process::Stdio::piped());
+        // Drain stderr through output inherited by the parent, preventing a
+        // full pipe from stopping FFmpeg while retaining useful diagnostics.
+        let mut child = match cmd.spawn() {
+            Ok(child) => child,
+            Err(_) => continue,
+        };
+        use tokio::io::{AsyncBufReadExt, BufReader};
+        let stdout = child
+            .stdout
+            .take()
+            .context("FFmpeg progress pipe unavailable")?;
+        let mut lines = BufReader::new(stdout).lines();
+        progress(0.0, name);
+        loop {
+            let line = tokio::select! {
+                _ = cancel.cancelled() => {
+                    let _ = child.kill().await;
+                    anyhow::bail!("Video preparation cancelled");
+                }
+                line = tokio::time::timeout(std::time::Duration::from_secs(60), lines.next_line()) => {
+                    match line {
+                        Ok(Ok(Some(line))) => line,
+                        Ok(Ok(None)) => break,
+                        _ => { let _ = child.kill().await; break; }
+                    }
+                }
+            };
+            if let Some(value) = line.strip_prefix("out_time_us=")
+                && let Ok(micros) = value.parse::<f64>()
+                && stream_info.duration_secs > 0.0
+            {
+                progress(
+                    (micros / 1_000_000.0 / stream_info.duration_secs * 100.0).clamp(0.0, 99.9),
+                    name,
+                );
+            }
+        }
+        let res = tokio::select! {
+            _ = cancel.cancelled() => { let _ = child.kill().await; anyhow::bail!("Video preparation cancelled"); }
+            result = child.wait() => result,
+        };
         if let Ok(status) = res
             && status.success()
             && let Ok(meta) = std::fs::metadata(&dest_path)
             && meta.len() > 1000
         {
+            progress(100.0, name);
             return Ok(OptimizedVideo {
                 path: dest_path,
                 original_used: false,
@@ -892,6 +958,99 @@ pub async fn extract_preview_snapshot(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn preparation_reports_completion_and_honors_cancellation() {
+        let directory = tempfile::tempdir().unwrap();
+        let input = directory.path().join("input.mp4");
+        let status = std::process::Command::new("ffmpeg")
+            .args([
+                "-nostdin",
+                "-v",
+                "error",
+                "-f",
+                "lavfi",
+                "-i",
+                "testsrc2=size=320x240:duration=1",
+                "-c:v",
+                "libx264",
+                "-y",
+            ])
+            .arg(&input)
+            .status()
+            .expect("FFmpeg is required for the preparation integration test");
+        assert!(status.success());
+        let progress = std::sync::Mutex::new(Vec::new());
+        let cancel = CancellationToken::new();
+        let prepared = optimize_video_source_with_progress(
+            input.to_str().unwrap(),
+            256,
+            144,
+            2,
+            false,
+            false,
+            "ffmpeg",
+            "ffprobe",
+            &cancel,
+            &|percent, _| {
+                progress.lock().unwrap().push(percent);
+            },
+        )
+        .await
+        .unwrap();
+        assert!(!prepared.original_used);
+        assert_eq!(progress.lock().unwrap().last(), Some(&100.0));
+        let cancelled = optimize_video_source_with_progress(
+            input.to_str().unwrap(),
+            256,
+            144,
+            2,
+            false,
+            false,
+            "ffmpeg",
+            "ffprobe",
+            &cancel,
+            &|_, _| {
+                cancel.cancel();
+            },
+        )
+        .await;
+        assert!(cancelled.is_err());
+    }
+
+    #[test]
+    fn modest_h264_sources_do_not_need_full_film_conversion() {
+        let info = VideoStreamInfo {
+            width: 512,
+            height: 304,
+            codec: "h264".into(),
+            duration_secs: 6000.0,
+        };
+        assert!(!should_optimize_video(
+            &info,
+            480,
+            270,
+            0,
+            H264Encoder::Vaapi
+        ));
+        assert!(should_optimize_video(
+            &VideoStreamInfo {
+                codec: "hevc".into(),
+                ..info.clone()
+            },
+            480,
+            270,
+            0,
+            H264Encoder::Libx264
+        ));
+        assert!(should_optimize_video(
+            &info,
+            480,
+            270,
+            20,
+            H264Encoder::Libx264
+        ));
+    }
 
     #[test]
     fn filenames_carry_the_extension_of_their_format() {

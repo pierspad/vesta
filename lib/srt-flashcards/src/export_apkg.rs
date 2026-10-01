@@ -753,6 +753,43 @@ mod tests {
         }
     }
 
+    #[test]
+    fn series_merge_remaps_note_ids_and_preserves_both_episodes() {
+        let temp = tempfile::tempdir().unwrap();
+        let a = temp.path().join("a.apkg");
+        let b = temp.path().join("b.apkg");
+        let output = temp.path().join("merged.apkg");
+        let media = temp.path().join("media");
+        std::fs::create_dir(&media).unwrap();
+        let fields = OutputFields {
+            include_audio: false,
+            include_snapshot: false,
+            ..OutputFields::default()
+        };
+        let mut cfg = base_config("Series", "Basic", fields);
+        generate_apkg(&[line(0, "First episode", None)], &cfg, &media, &a).unwrap();
+        cfg.episode_number = 2;
+        generate_apkg(&[line(0, "Second episode", None)], &cfg, &media, &b).unwrap();
+        crate::merge_apkg(&[a, b], &output).unwrap();
+        assert_eq!(read_model(&output).2, 2);
+        let mut archive = zip::ZipArchive::new(std::fs::File::open(&output).unwrap()).unwrap();
+        let db = temp.path().join("verify.sqlite");
+        std::io::copy(
+            &mut archive.by_name("collection.anki2").unwrap(),
+            &mut std::fs::File::create(&db).unwrap(),
+        )
+        .unwrap();
+        let conn = rusqlite::Connection::open(db).unwrap();
+        let dangling: i64 = conn.query_row("SELECT count(*) FROM cards LEFT JOIN notes ON cards.nid=notes.id WHERE notes.id IS NULL", [], |row| row.get(0)).unwrap();
+        assert_eq!(dangling, 0);
+        let count: i64 = conn
+            .query_row("SELECT count(distinct guid) FROM notes", [], |row| {
+                row.get(0)
+            })
+            .unwrap();
+        assert_eq!(count, 2);
+    }
+
     fn read_model(path: &Path) -> (String, Vec<String>, i64) {
         let file = std::fs::File::open(path).unwrap();
         let mut zip = zip::ZipArchive::new(file).unwrap();

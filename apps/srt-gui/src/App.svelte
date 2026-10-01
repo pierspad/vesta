@@ -1,4 +1,8 @@
 <script lang="ts">
+  import { preloadTabs } from "$lib/utils/preloadTabs";
+  import { locale } from "$lib/i18n";
+  let t = $derived($locale);
+  import ExtractTabComponent from "$lib/tabs/ExtractTab.svelte";
   import { PhysicalSize } from "@tauri-apps/api/dpi";
   import { getCurrentWindow } from "@tauri-apps/api/window";
   import { onMount, type Component } from "svelte";
@@ -12,7 +16,7 @@
   import { getShortcuts } from "$lib/utils/shortcuts";
   import * as vestaConfig from "$lib/config/vestaConfig";
 
-  type AppTab = "translate" | "sync" | "transcribe" | "align" | "flashcards" | "settings" | "refine" | "experimental";
+  type AppTab = "translate" | "sync" | "transcribe" | "align" | "flashcards" | "settings" | "refine" | "extract" | "experimental";
 
   type LazyComponent = Component<any>;
   const tabLoaders: Record<AppTab, () => Promise<{ default: LazyComponent }>> = {
@@ -22,11 +26,13 @@
     sync: () => import("$lib/tabs/SyncTab.svelte"),
     align: () => import("$lib/tabs/AlignTab.svelte"),
     transcribe: () => import("$lib/tabs/TranscribeTab.svelte"),
+    extract: () => Promise.resolve({ default: ExtractTabComponent }),
     experimental: () => import("$lib/tabs/ExperimentalTab.svelte"),
     settings: () => import("$lib/tabs/SettingsTab.svelte"),
   };
   const pendingTabLoads = new Map<AppTab, Promise<void>>();
-  let loadedTabs = $state<Partial<Record<AppTab, LazyComponent>>>({});
+  // The lightweight extraction shell is ready on the first tab switch.
+  let loadedTabs = $state<Partial<Record<AppTab, LazyComponent>>>({ extract: ExtractTabComponent });
   let tabLoadErrors = $state<Partial<Record<AppTab, string>>>({});
   let firstRunSetupModal = $state<LazyComponent | null>(null);
 
@@ -204,6 +210,7 @@
     "sync",
     "align",
     "transcribe",
+    "extract",
     "experimental",
     "settings",
   ];
@@ -338,6 +345,14 @@
   // Enforce minimum window size at runtime (Linux WMs may ignore config)
   onMount(() => {
     const appWindow = getCurrentWindow();
+    const stopPreloading = preloadTabs<AppTab>(["settings", "translate", "sync", "transcribe", "refine", "align", "experimental"], ensureTabLoaded, (callback) => {
+      if ("requestIdleCallback" in window) {
+        const id = window.requestIdleCallback(callback, { timeout: 200 });
+        return () => window.cancelIdleCallback(id);
+      }
+      const id = setTimeout(callback, 0);
+      return () => clearTimeout(id);
+    });
     let unlisten: (() => void) | null = null;
 
     window.addEventListener("keydown", handleKeyDown);
@@ -374,6 +389,7 @@
     })();
 
     return () => {
+      stopPreloading();
       unlisten?.();
       window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("shortcuts-updated", reloadShortcuts);
@@ -420,7 +436,7 @@
   ondragover={(e) => { e.preventDefault(); if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy'; }}
   ondrop={(e) => e.preventDefault()}
 >
-  <Sidebar {activeTab} onTabChange={changeTab} collapsed={sidebarCollapsed} onToggleCollapse={toggleSidebar} bind:settingsSection={requestedSettingsSection} {lastActiveMainTab} />
+  <Sidebar {activeTab} onTabChange={changeTab} onTabPreload={(tab) => void ensureTabLoaded(tab)} collapsed={sidebarCollapsed} onToggleCollapse={toggleSidebar} bind:settingsSection={requestedSettingsSection} {lastActiveMainTab} />
 
   <!-- Main Content - use CSS visibility to preserve state -->
   <div class="flex-1 overflow-hidden relative">
@@ -448,6 +464,10 @@
       {@const RefineTab = loadedTabs.refine}
       <div class="absolute inset-0" class:hidden={activeTab !== "refine"}><RefineTab onGoToSettings={goToSettings} active={activeTab === "refine"} /></div>
     {/if}
+    {#if loadedTabs.extract}
+      {@const ExtractTab = loadedTabs.extract}
+      <div class="absolute inset-0" class:hidden={activeTab !== "extract"}><ExtractTab /></div>
+    {/if}
     {#if loadedTabs.experimental}
       {@const ExperimentalTab = loadedTabs.experimental}
       <div class="absolute inset-0" class:hidden={activeTab !== "experimental"}><ExperimentalTab /></div>
@@ -459,10 +479,10 @@
     {#if !loadedTabs[activeTab]}
       <div class="absolute inset-0 flex flex-col items-center justify-center gap-3 text-sm text-gray-500">
         {#if tabLoadErrors[activeTab]}
-          <p>Unable to load this section.</p>
-          <button class="btn-secondary px-4 py-2" onclick={() => void ensureTabLoaded(activeTab)}>Retry</button>
+          <p>{t("common.loadFailed")}</p>
+          <button class="btn-secondary px-4 py-2" onclick={() => void ensureTabLoaded(activeTab)}>{t("common.retry")}</button>
         {:else}
-          <p>Loading…</p>
+          <p>{t("common.loading")}</p>
         {/if}
       </div>
     {/if}

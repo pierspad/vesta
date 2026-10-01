@@ -62,7 +62,10 @@ try {
   window.__app = app;
 } catch (e: any) {
   const message = e instanceof Error ? `${e.message}\n${e.stack || ""}` : String(e);
-  document.body.innerHTML = `<pre style="color:red;padding:2em;white-space:pre-wrap">MOUNT ERROR: ${message}</pre>`;
+  const errorDisplay = document.createElement("pre");
+  errorDisplay.style.cssText = "color:red;padding:2em;white-space:pre-wrap";
+  errorDisplay.textContent = `MOUNT ERROR: ${message}`;
+  document.body.replaceChildren(errorDisplay);
 }
 
 export default {};

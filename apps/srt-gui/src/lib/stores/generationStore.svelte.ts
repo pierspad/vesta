@@ -40,6 +40,7 @@ class GenerationStore {
   progress = $state(0);
   progressMessage = $state("");
   progressStage = $state("");
+  phaseProgress = $state<number | null>(null);
 
   logs = $state<LogEntry[]>([]);
   error = $state<string | null>(null);
@@ -114,6 +115,7 @@ class GenerationStore {
     this.progress = 0;
     this.progressMessage = "";
     this.progressStage = "";
+    this.phaseProgress = null;
     this.logs = [];
     this.logIdCounter = 0;
     this.lastProgressKey = null;
