@@ -1,4 +1,8 @@
 <script lang="ts">
+  import { expandFlashcardFiles } from "$lib/workflows/flashcardFileDiscovery";
+  import { runFlashcardGeneration } from "$lib/workflows/flashcardGeneration";
+  import { runFlashcardSeries } from "$lib/workflows/flashcardSeries";
+  import { audioOverrideKeys, snapshotOverrideKeys, videoOverrideKeys, mediaSettingChanged, episodeMediaDiff } from "$lib/utils/episodeMediaSettings";
   import { invoke } from "@tauri-apps/api/core";
   import { listen } from "@tauri-apps/api/event";
   import { guardedOpen } from "$lib/utils/dialogGuard";
@@ -87,12 +91,8 @@
   let { active = true, onGoToSettings }: Props = $props();
 
   let t = $derived($locale);
-  let dropMediaHint = $derived(new Set(["it"]).has($currentLanguage)
-    ? "Trascina qui un video o un file audio per sostituire questo campo"
-    : "Drop a video or audio file here to replace this field");
-  let dropSubtitleHint = $derived(new Set(["it"]).has($currentLanguage)
-    ? "Trascina qui un file di sottotitoli per sostituire questo campo"
-    : "Drop a subtitle file here to replace this field");
+  let dropMediaHint = $derived(t("flashcards.dropMediaHint"));
+  let dropSubtitleHint = $derived(t("flashcards.dropSubtitleHint"));
 
   let targetSubsPath = $state("");
   let nativeSubsPath = $state("");
@@ -234,74 +234,29 @@
     };
   }
 
-  const audioOverrideKeys: EpisodeMediaOverrideKey[] = [
-    "generateAudio",
-    "audioBitrate",
-    "audioTrackIndex",
-    "normalizeAudio",
-    "audioBoost",
-    "audioGainDb",
-    "audioPadStart",
-    "audioPadEnd",
-  ];
-  const snapshotOverrideKeys: EpisodeMediaOverrideKey[] = [
-    "generateSnapshots",
-    "snapshotWidth",
-    "snapshotHeight",
-    "cropBottom",
-    // Codec choice is deck-wide (a deck mixing webp and jpg helps nobody);
-    // quality and resolution are per-episode, since source quality varies.
-    "snapshotQuality",
-  ];
-  const videoOverrideKeys: EpisodeMediaOverrideKey[] = [
-    "generateVideoClips",
-    "videoCodec",
-    "h264Preset",
-    "videoBitrate",
-    "videoAudioBitrate",
-    "videoPadStart",
-    "videoPadEnd",
-    "videoWidth",
-    "videoHeight",
-  ];
-
   function mediaOverrideValueChanged(key: EpisodeMediaOverrideKey): boolean {
     const overrides = episodeMediaEditorStore.overrides;
     const episode = episodeMediaEditorStore.episode;
     if (!overrides) return false;
     const genericSettings = getGenericMediaSettings();
 
-    if (key === "audioTrackIndex" && episode && genericSettings.audioTrackIndex === null) {
-      const autoPicked = pickBestAudioTrackIndex(
-        episodeMediaEditorStore.audioTracks,
-        getPreferredAudioLanguageCodeForEpisode(episode)
-      );
-      if (overrides.audioTrackIndex === autoPicked) {
-        return false;
-      }
-    }
-
-    return overrides[key] !== genericSettings[key];
+    const autoTrack = key === "audioTrackIndex" && episode && genericSettings.audioTrackIndex === null
+      ? pickBestAudioTrackIndex(episodeMediaEditorStore.audioTracks, getPreferredAudioLanguageCodeForEpisode(episode))
+      : undefined;
+    return mediaSettingChanged(key, overrides, genericSettings, autoTrack);
   }
 
   function mediaOverrideClass(key: EpisodeMediaOverrideKey): string {
-    return mediaOverrideValueChanged(key)
-      ? "media-override-glow"
-      : "";
+    return mediaOverrideValueChanged(key) ? "media-override-glow" : "";
   }
 
   function buildEpisodeMediaOverrideDiff(settings: Required<EpisodeMediaOverrides>): EpisodeMediaOverrides {
-    const diff: EpisodeMediaOverrides = {};
-    ([
-      ...audioOverrideKeys,
-      ...snapshotOverrideKeys,
-      ...videoOverrideKeys,
-    ] as EpisodeMediaOverrideKey[]).forEach((key) => {
-      if (mediaOverrideValueChanged(key)) {
-        diff[key] = settings[key] as never;
-      }
-    });
-    return diff;
+    const episode = episodeMediaEditorStore.episode;
+    const defaults = getGenericMediaSettings();
+    const autoTrack = episode && defaults.audioTrackIndex === null
+      ? pickBestAudioTrackIndex(episodeMediaEditorStore.audioTracks, getPreferredAudioLanguageCodeForEpisode(episode))
+      : undefined;
+    return episodeMediaDiff(settings, defaults, autoTrack);
   }
 
   function getPreferredAudioLanguageCodeForEpisode(ep: { targetSubsPath: string }): string {
@@ -336,69 +291,13 @@
     episodes = autoMatchFiles(targetFiles, nativeFiles, mediaFiles, smartMatchingRules.episodeRegexes);
   }
 
-  async function expandSeriesFilesWithSmartMatches(
-    subtitleFiles: string[],
-    mediaFiles: string[],
-  ): Promise<{ subtitleFiles: string[]; mediaFiles: string[] }> {
-    if (!smartFileMatchingEnabled || (subtitleFiles.length === 0 && mediaFiles.length === 0)) {
-      return { subtitleFiles, mediaFiles };
-    }
-
-    const subtitleSet = new Set(subtitleFiles);
-    const mediaSet = new Set(mediaFiles);
-
-    // 1. Expand media files: find candidate subtitles for each media file
-    if (mediaFiles.length > 0) {
-      await Promise.all(
-        mediaFiles.map(async (path) => {
-          try {
-            const suggested = await invoke<{ target: string | null; native: string | null }>(
-              "sync_suggest_subtitles_for_media",
-              {
-                mediaPath: path,
-                defaultTargetLang: getStudiedLanguagePreference() || null,
-                defaultNativeLang: getNativeLanguagePreference() || null,
-              },
-            );
-            if (suggested?.target) subtitleSet.add(suggested.target);
-            if (suggested?.native) subtitleSet.add(suggested.native);
-          } catch {
-            // Best-effort suggestion only.
-          }
-        }),
-      );
-    }
-
-    // 2. Expand subtitle files: find companion subtitles and media
-    if (subtitleSet.size > 0) {
-      await Promise.all(
-        [...subtitleSet].map(async (path) => {
-          try {
-            const companion = await invoke<string | null>(
-              "sync_suggest_companion_subtitle_for_srt",
-              { srtPath: path },
-            );
-            if (companion && companion !== path) subtitleSet.add(companion);
-          } catch {
-            // Best-effort suggestion only.
-          }
-
-          try {
-            const media = await invoke<string | null>("sync_suggest_media_for_srt", {
-              srtPath: path,
-            });
-            if (media) mediaSet.add(media);
-          } catch {
-            // Best-effort suggestion only.
-          }
-        }),
-      );
-    }
-
-    return {
-      subtitleFiles: [...subtitleSet],
-      mediaFiles: [...mediaSet],
-    };
+  function expandSeriesFilesWithSmartMatches(subtitleFiles: string[], mediaFiles: string[]) {
+    return expandFlashcardFiles(subtitleFiles, mediaFiles, {
+      enabled: smartFileMatchingEnabled,
+      targetLanguage: getStudiedLanguagePreference(),
+      nativeLanguage: getNativeLanguagePreference(),
+      invoke,
+    });
   }
 
   // Normalize open() return: may be string | string[] | null
@@ -1511,6 +1410,8 @@
       }
       
       generationStore.progressStage = p.stage;
+      generationStore.phaseProgress = p.stage === "optimizing" && p.params?.percent
+        ? Number(p.params.percent) : null;
       if (p.stage !== "done") {
         generationStore.addLog(generationStore.progressMessage, "progress", undefined, p.message);
       }
@@ -1887,184 +1788,29 @@
     }
   }
 
+  let cancelRequested = false;
+
   async function startSeriesGeneration() {
-    if (easyMode && needsDeckName && !generationStore.deckName.trim() && episodes.length > 0) {
-      generationStore.deckName = deriveDeckNameFromFile(episodes[0]);
-      generationStore.deckNameAuto = true;
-    }
-    generationStore.error = null;
-    generationStore.result = null;
-    generationStore.progress = 0;
-    generationStore.isProcessing = true;
-    seriesTotalEpisodes = episodes.length;
-    seriesCurrentEpisode = 0;
-
-    generationStore.addLog(
-      `${t("flashcards.starting")}... (${t("flashcards.modeSeries")}: ${episodes.length} ${t("flashcards.seriesEpisodes")})`,
-      "info",
-    );
-    generationStore.addLog(`${t("flashcards.deckName")}: ${generationStore.deckName}`, "info");
-
-    const startTime = Date.now();
-    let totalCards = 0;
-    let totalAudio = 0;
-    let totalSnapshots = 0;
-    let totalVideoClips = 0;
-    let totalOutputBytes = 0;
-    const apkgPaths: string[] = [];
-    let hadError = false;
-    let errorMessages: string[] = [];
-
-    try {
-      for (let i = 0; i < episodes.length; i++) {
-        seriesCurrentEpisode = i + 1;
-        const ep = episodes[i];
-        const epNum = i + 1;
-
-        generationStore.addLog(
-          `${t("flashcards.processingEpisode", { current: String(epNum), total: String(episodes.length) })}`,
-          "info",
-        );
-
-        // Determine media availability for this episode
-        const epMediaType = ep.mediaType;
-        const epHasVideo = epMediaType === "video";
-        const epHasMedia = epMediaType !== "none";
-        const epMediaSettings = getEpisodeMediaSettings(ep);
-        const epAudioTrackIndex =
-          ep.mediaOverrides?.audioTrackIndex !== undefined
-            ? ep.mediaOverrides.audioTrackIndex
-            : await pickAudioTrackIndexForEpisode(ep);
-
-        const epConfig = buildFlashcardConfig({
-          targetSubsPath: ep.targetSubsPath,
-          nativeSubsPath: ep.nativeSubsPath || null,
-          videoPath: epHasVideo ? ep.mediaPath : null,
-          audioPath: epHasMedia && !epHasVideo ? ep.mediaPath : null,
-          outputDir,
-          cardFilters,
-          media: epMediaSettings,
-          generateAudio: ep.mediaPath ? epMediaSettings.generateAudio : false,
-          generateSnapshots: epHasVideo ? epMediaSettings.generateSnapshots : false,
-          generateVideoClips: epHasVideo ? epMediaSettings.generateVideoClips : false,
-          audioTrackIndex: epAudioTrackIndex,
-          videoHwAccel,
-          deckName: generationStore.seriesOutputMode === "separate" ? deriveDeckNameFromFile(ep) : generationStore.deckName,
-          episodeNumber: epNum,
-          exportFormat: generationStore.effectiveExportFormat,
-          noteType: activeNoteType,
-          cpuCores: generationStore.effectiveCpuCores,
-          targetLanguage: getStudiedLanguagePreference(),
-          autoCardFont: ankiStore.autoCardFont,
-          embedCardFont: ankiStore.embedCardFont,
-        });
-
-        await previewStore.applyOverrides(epConfig);
-
-        try {
-          const res = await invoke<any>("flashcard_generate", {
-            config: epConfig,
-          });
-          if (res.success) {
-            totalCards += res.cards_generated;
-            totalAudio += res.audio_clips;
-            totalSnapshots += res.snapshots;
-            totalVideoClips += res.video_clips;
-            totalOutputBytes += res.output_size_bytes ?? 0;
-            if (res.apkg_path) apkgPaths.push(res.apkg_path);
-            generationStore.addLog(
-              `✓ Ep ${epNum}: ${res.cards_generated} ${t("flashcards.cardsGenerated")}`,
-              "success",
-            );
-          } else {
-            generationStore.addLog(`⚠ Ep ${epNum}: ${res.message}`, "warning");
-            errorMessages.push(`Ep ${epNum}: ${res.message}`);
-          }
-        } catch (e: any) {
-          const errMsg = e ? e.toString() : "Unknown error";
-          generationStore.addLog(`✗ Ep ${epNum}: ${errMsg}`, "error");
-          hadError = true;
-          errorMessages.push(`Ep ${epNum}: ${errMsg}`);
-        }
-      }
-
-      let finalApkgPath: string | null = null;
-      if (apkgPaths.length > 0) {
-        finalApkgPath = apkgPaths[apkgPaths.length - 1];
-      }
-
-      // Merge APKGs if single mode selected
-      if (
-        generationStore.seriesOutputMode === "single" &&
-        apkgPaths.length > 1 &&
-        generationStore.effectiveExportFormat === "apkg"
-      ) {
-        generationStore.addLog(t("flashcards.mergingApkg"), "info");
-        try {
-          const mergedPath = await invoke<string>("flashcard_merge_apkg", {
-            apkgPaths,
-            outputPath: `${outputDir}/${generationStore.deckName.replace(/[^a-zA-Z0-9_\-\. ]/g, "_")}.apkg`,
-          });
-          finalApkgPath = mergedPath;
-          generationStore.addLog(`APKG: ${mergedPath}`, "success");
-        } catch (e) {
-          generationStore.addLog(`${t("flashcards.mergeFailed")}: ${e}`, "error");
-          hadError = true;
-        }
-      }
-
-      if (finalApkgPath && generationStore.exportFormat === "anki" && !hadError) {
-        await maybeAutoImportToAnki(finalApkgPath);
-      }
-
-      generationStore.result = {
-        success: !hadError && totalCards > 0,
-        message: errorMessages.length > 0 ? errorMessages.join(", ") : (totalCards === 0 ? "No active subtitle lines after filtering" : null),
-        cardsGenerated: totalCards,
-        audioClips: totalAudio,
-        snapshots: totalSnapshots,
-        videoClips: totalVideoClips,
-        tsvPath: null,
-        apkgPath: finalApkgPath,
-        outputSizeBytes: totalOutputBytes,
-      };
-
-      generationStore.addLog(
-        `${t("flashcards.seriesComplete", { total: String(episodes.length) })}`,
-        "success",
-      );
-
-    } catch (e: any) {
-      const errMsg = e ? e.toString() : "Unknown error";
-      generationStore.error = `${t("flashcards.errorGenerating")}: ${errMsg}`;
-      generationStore.addLog(`${generationStore.error}`, "error");
-      generationStore.result = {
-        success: false,
-        message: errMsg,
-        cardsGenerated: 0,
-        audioClips: 0,
-        snapshots: 0,
-        videoClips: 0,
-        tsvPath: null,
-        apkgPath: null,
-        outputSizeBytes: 0,
-      };
-    } finally {
-      generationStore.isProcessing = false;
-      seriesCurrentEpisode = 0;
-      seriesTotalEpisodes = 0;
-      generationStore.progress = 0;
-      generationStore.progressMessage = "";
-      generationStore.progressStage = "";
-      const elapsed = Math.floor((Date.now() - startTime) / 1000);
-      const hh = String(Math.floor(elapsed / 3600)).padStart(2, "0");
-      const mm = String(Math.floor((elapsed % 3600) / 60)).padStart(2, "0");
-      const ss = String(elapsed % 60).padStart(2, "0");
-      generationStore.addLog(`⏱ ${hh}:${mm}:${ss}`, "info");
-    }
+    cancelRequested = false;
+    await runFlashcardSeries({
+      generationStore, episodes: $state.snapshot(episodes), easyMode, needsDeckName, t,
+      outputDir, cardFilters: $state.snapshot(cardFilters), videoHwAccel, activeNoteType,
+      ankiStore: { autoCardFont: ankiStore.autoCardFont, embedCardFont: ankiStore.embedCardFont },
+      previewStore,
+      getEpisodeMediaSettings: ((defaults) => (episode: EpisodeEntry) => ({ ...defaults, ...episode.mediaOverrides }))($state.snapshot(mediaSettings)),
+      pickAudioTrackIndexForEpisode,
+      getStudiedLanguagePreference, maybeAutoImportToAnki, invoke,
+      isCancelled: () => cancelRequested,
+      setEpisodeProgress: (current, total) => {
+        seriesCurrentEpisode = current;
+        seriesTotalEpisodes = total;
+      },
+    });
   }
 
   async function startGeneration() {
+    if (generationStore.isProcessing) return;
+    cancelRequested = false;
     if (!canRunFlashcards) {
       promptMissingGenerationRequirements();
       generationStore.error = t("flashcards.requiredFieldsMissing");
@@ -2076,83 +1822,18 @@
       return;
     }
 
-    generationStore.error = null;
-    generationStore.result = null;
-    generationStore.progress = 0;
-    generationStore.isProcessing = true;
-    generationStore.addLog(`${t("flashcards.starting")}...`, "info");
-    generationStore.addLog(`${t("flashcards.deckName")}: ${generationStore.deckName}`, "info");
-
-    const startTime = Date.now();
-
-    try {
-      const config = buildConfig();
-
-      await previewStore.applyOverrides(config);
-
-      const res = await invoke<any>("flashcard_generate", { config });
-      generationStore.result = {
-        success: res.success,
-        message: res.message || null,
-        cardsGenerated: res.cards_generated,
-        audioClips: res.audio_clips,
-        snapshots: res.snapshots,
-        videoClips: res.video_clips,
-        tsvPath: res.tsv_path,
-        apkgPath: res.apkg_path,
-        outputSizeBytes: res.output_size_bytes ?? 0,
-      };
-
-
-      if (res.success) {
-        generationStore.addLog(
-          `${res.cards_generated} ${t("flashcards.cardsGenerated")}`,
-          "success",
-        );
-        if (res.tsv_path) {
-          generationStore.addLog(`TSV: ${res.tsv_path}`, "success");
-        }
-        if (res.apkg_path) {
-          generationStore.addLog(`APKG: ${res.apkg_path}`, "success");
-          if (generationStore.exportFormat === "anki") {
-            await maybeAutoImportToAnki(res.apkg_path);
-          }
-        }
-      } else {
-        generationStore.addLog(res.message, "warning");
-      }
-    } catch (e: any) {
-      const errMsg = e ? e.toString() : "Unknown error";
-      generationStore.error = `${t("flashcards.errorGenerating")}: ${errMsg}`;
-      generationStore.addLog(`${generationStore.error}`, "error");
-      generationStore.result = {
-        success: false,
-        message: errMsg,
-        cardsGenerated: 0,
-        audioClips: 0,
-        snapshots: 0,
-        videoClips: 0,
-        tsvPath: null,
-        apkgPath: null,
-        outputSizeBytes: 0,
-      };
-    } finally {
-      generationStore.isProcessing = false;
-      generationStore.progress = 0;
-      generationStore.progressMessage = "";
-      generationStore.progressStage = "";
-      const elapsed = Math.floor((Date.now() - startTime) / 1000);
-      const hh = String(Math.floor(elapsed / 3600)).padStart(2, "0");
-      const mm = String(Math.floor((elapsed % 3600) / 60)).padStart(2, "0");
-      const ss = String(elapsed % 60).padStart(2, "0");
-      generationStore.addLog(`⏱ ${hh}:${mm}:${ss}`, "info");
-    }
+    await runFlashcardGeneration({
+      generationStore, config: buildConfig(), t, invoke,
+      applyOverrides: (config) => previewStore.applyOverrides(config),
+      isCancelled: () => cancelRequested,
+      importToAnki: maybeAutoImportToAnki,
+    });
   }
 
   async function cancelGeneration() {
+    cancelRequested = true;
     try {
       await invoke("flashcard_cancel");
-      generationStore.cancelRun();
       generationStore.addLog(`${t("flashcards.cancelled")}`, "warning");
     } catch (e) {
       generationStore.addLog(`Error cancelling: ${e}`, "error");

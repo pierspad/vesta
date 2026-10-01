@@ -1,29 +1,29 @@
 <script lang="ts">
+  import { TranscriptionResources } from "$lib/workflows/transcriptionResources.svelte";
+  import TranscriptionSegmentsPanel from "$lib/panels/TranscriptionSegmentsPanel.svelte";
+  import { formatElapsedTime } from "$lib/utils/elapsedTime";
+  import { generateTranscriptionOutputPath as generateOutputPathFromInput, rewriteTranscriptionOutputLanguage as rewriteOutputPathLanguage } from "$lib/utils/transcriptionPaths";
+  import { runTranscription, isTranscribeEndpointReady } from "$lib/workflows/transcription";
   import LogPanel, { type LogEntry } from "$lib/panels/LogPanel.svelte";
   import CopyPathChip from "$lib/components/CopyPathChip.svelte";
   import { listen } from "@tauri-apps/api/event";
   import { guardedOpen, guardedSave } from "$lib/utils/dialogGuard";
   import { setupWebviewDragDrop } from "$lib/utils/dragDrop";
   import { createLogPanelBuffer } from "$lib/utils/logPanelBuffer.svelte";
-  import { onDestroy, onMount } from "svelte";
+  import { onMount } from "svelte";
   import { locale } from "$lib/i18n";
   import { getFileName } from "$lib/utils/models";
   import {
     transcribeProviders,
     transcribeProviderOrder,
-    loadTranscribeCloud,
-    saveTranscribeCloud,
-    type TranscribeCloudSettings,
   } from "$lib/config/transcribeProviders";
   import {
     loadTranscribeTiers,
-    transcribeTiersHaveUsableEntries,
     TRANSCRIBE_TIERS_UPDATED_EVENT,
     type TranscribeTier,
     type TranscribeTierEntry,
   } from "$lib/config/transcribeTiers";
   import { loadAndValidateApiKeys, type ApiKeyConfig } from "$lib/config/apiKeys";
-  import { loadVadSelection, type VadSelection } from "$lib/config/vadSelection";
   import { getLanguageSearchTerms, languages as allLanguages } from "$lib/config/languages";
   import PathPickerField from "$lib/components/PathPickerField.svelte";
   import PathPreviewModal from "$lib/modals/PathPreviewModal.svelte";
@@ -36,10 +36,6 @@
   import FooterActions from "$lib/components/FooterActions.svelte";
   import * as vestaConfig from "$lib/config/vestaConfig";
   import {
-    transcribePathExists,
-    transcribeAddonsStatus,
-    transcribeCheckBackends,
-    transcribeListModels,
     transcribeCheckFileExists,
     transcribeStart,
     transcribeCancel,
@@ -77,11 +73,12 @@
   // inert for users without the model.
   const storedVad = vestaConfig.getItem(TRANSCRIBE_VAD_KEY);
   let vadEnabled = $state(storedVad === null ? true : storedVad === "true");
-  let vadInstalled = $state(false);
-  let gpuSupported = $state(false);
-  let vadModels = $state<{ id: string; size: string; downloaded: boolean }[]>([]);
-  let vadSelection = $state<VadSelection>(loadVadSelection());
-
+  const transcriptionResources = new TranscriptionResources();
+  let vadInstalled = $derived(transcriptionResources.vadInstalled);
+  let gpuSupported = $derived(transcriptionResources.gpuSupported);
+  let vadSelection = $derived(transcriptionResources.vadSelection);
+  const refreshAddons = () => transcriptionResources.refreshAddons();
+  const refreshModels = () => transcriptionResources.refreshModels();
   function setQualityMode(enabled: boolean) {
     qualityMode = enabled;
     vestaConfig.setItem(TRANSCRIBE_QUALITY_KEY, String(qualityMode));
@@ -89,34 +86,6 @@
   function setVadEnabled(enabled: boolean) {
     vadEnabled = enabled;
     vestaConfig.setItem(TRANSCRIBE_VAD_KEY, String(vadEnabled));
-  }
-
-  /** Re-derive `vadInstalled` for whichever variant (built-in or custom) is
-   * currently selected in Settings → Whisper. */
-  async function refreshVadReady() {
-    vadSelection = loadVadSelection();
-    if (vadSelection.customPath) {
-      try {
-        vadInstalled = await transcribePathExists(vadSelection.customPath);
-      } catch {
-        vadInstalled = false;
-      }
-    } else {
-      vadInstalled = vadModels.some(
-        (m) => m.id === vadSelection.modelId && m.downloaded,
-      );
-    }
-  }
-
-  async function refreshAddons() {
-    try {
-      const s = await transcribeAddonsStatus();
-      vadModels = s.vad_models;
-      gpuSupported = s.gpu_supported;
-      await refreshVadReady();
-    } catch (e) {
-      console.error("Could not read transcription add-ons status:", e);
-    }
   }
 
   const segmentPresets = [
@@ -159,24 +128,9 @@
   let showOverwriteConfirm = $state(false);
   let pendingDroppedPaths = $state<string[]>([]);
 
-  let backends = $state<{
-    ffmpeg: boolean;
-    whisper_cpp: boolean;
-    python_whisper: boolean;
-    any_whisper: boolean;
-    whisper_binary: string | null;
-  } | null>(null);
+  let backends = $derived(transcriptionResources.backends);
+  let whisperModels = $derived(transcriptionResources.models);
   let isDownloadingFFmpeg = $state(false);
-
-  let whisperModels = $state<
-    {
-      id: string;
-      name: string;
-      size: string;
-      speed: string;
-      downloaded: boolean;
-    }[]
-  >([]);
 
   let isModelDownloaded = $derived(
     whisperModels.find((m) => m.id === selectedModel)?.downloaded ?? false
@@ -187,25 +141,6 @@
   let transcribeTiers = $state<TranscribeTier[]>([]);
   let apiKeys = $state<ApiKeyConfig[]>([]);
   let transcribedSegments = $state<{ start_ms: number; end_ms: number; text: string }[]>([]);
-  let scrollContainer = $state<HTMLDivElement | null>(null);
-
-  function formatTime(ms: number): string {
-    const totalSeconds = Math.floor(ms / 1000);
-    const hours = Math.floor(totalSeconds / 3600);
-    const minutes = Math.floor((totalSeconds % 3600) / 60);
-    const seconds = totalSeconds % 60;
-    const millis = Math.floor(ms % 1000);
-    if (hours > 0) {
-      return `${hours}:${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}.${millis.toString().padStart(3, "0")}`;
-    }
-    return `${minutes}:${seconds.toString().padStart(2, "0")}.${millis.toString().padStart(3, "0")}`;
-  }
-
-  $effect(() => {
-    if (transcribedSegments.length > 0 && scrollContainer) {
-      scrollContainer.scrollTop = scrollContainer.scrollHeight;
-    }
-  });
 
   function refreshTranscribeTiers() {
     transcribeTiers = loadTranscribeTiers();
@@ -214,15 +149,8 @@
     apiKeys = loadAndValidateApiKeys();
   }
 
-  function isTranscribeEntryReady(e: TranscribeTierEntry): boolean {
-    if (e.provider === "local" || e.provider === "local_whisper") {
-      return whisperModels.find((m) => m.id === e.model)?.downloaded ?? false;
-    }
-    const key = apiKeys.find((k) => k.id === e.apiKeyId);
-    if (e.provider === "custom") {
-      return !!key?.apiUrl?.trim();
-    }
-    return !!key?.apiKey?.trim();
+  function isTranscribeEntryReady(entry: TranscribeTierEntry): boolean {
+    return isTranscribeEndpointReady(entry, whisperModels, apiKeys);
   }
 
   let usableEntries = $derived(
@@ -265,41 +193,10 @@
     ...allLanguages,
   ]);
 
-  const knownLangCodes = new Set(allLanguages.map((l) => l.code.toLowerCase()));
 
   function effectiveLanguageCodeForOutput(langCode: string): string {
     if (langCode !== "auto") return langCode;
     return result?.detected_language?.toLowerCase() || "auto";
-  }
-
-  function rewriteOutputPathLanguage(path: string, langCode: string): string {
-    const match = path.match(/^(.*\/)?([^/]+)$/);
-    if (!match) return path;
-
-    const dir = match[1] || "";
-    const fileName = match[2];
-
-    if (!/\.srt$/i.test(fileName)) {
-      return path;
-    }
-
-    const stem = fileName.replace(/\.srt$/i, "");
-    const tokenMatch = stem.match(/^(.*)([\-._])([^\-._]+)$/);
-    if (tokenMatch) {
-      const [, prefix, sep, token] = tokenMatch;
-      const tokenLower = token.toLowerCase();
-      const looksLikeLang = knownLangCodes.has(tokenLower) || tokenLower === "auto" || /^[a-z]{2,3}$/i.test(tokenLower);
-      if (looksLikeLang) {
-        return `${dir}${prefix}${sep}${langCode}.srt`;
-      }
-    }
-
-    return `${dir}${stem}.${langCode}.srt`;
-  }
-
-  function generateOutputPathFromInput(input: string, langCode: string): string {
-    const basePath = input.replace(/\.[^/.]+$/, "");
-    return `${basePath}.${langCode}.srt`;
   }
 
   function selectedLanguageLabel(code: string): string {
@@ -353,11 +250,7 @@
     window.addEventListener("vesta-language-defaults-updated", handleLanguageDefaultsUpdated);
     window.addEventListener("vesta:transcribe-cloud-updated", handleTranscribeCloudUpdated);
 
-    const refreshBackends = () => {
-      transcribeCheckBackends()
-        .then((res) => { backends = res; })
-        .catch((e) => console.error("Could not check backends:", e));
-    };
+    const refreshBackends = () => transcriptionResources.refreshBackends();
     refreshBackends();
     window.addEventListener("vesta-ffmpeg-updated", refreshBackends);
 
@@ -381,6 +274,7 @@
       message: string;
       percentage: number;
     }>("transcribe-progress", (event) => {
+      if (!isTranscribing || transcriptionCancelled) return;
       const p = event.payload;
       if (p.stage === "download") return; // Ignored here, handled in SettingsTab
       
@@ -401,12 +295,13 @@
       end_ms: number;
       text: string;
     }>("transcribe-segment", (event) => {
+      if (!isTranscribing || transcriptionCancelled) return;
       const p = event.payload;
-      transcribedSegments = [...transcribedSegments, {
+      transcribedSegments.push({
         start_ms: p.start_ms,
         end_ms: p.end_ms,
         text: p.text,
-      }];
+      });
     }).then((fn) => {
       if (!activeListener) fn();
       else unlistenSegment = fn;
@@ -414,6 +309,8 @@
 
     return () => {
       activeListener = false;
+      transcriptionResources.dispose();
+      window.removeEventListener("keydown", handleKeydown);
       window.removeEventListener(TRANSCRIBE_TIERS_UPDATED_EVENT, refreshTranscribeTiers);
       window.removeEventListener("apikeys-updated", refreshApiKeys);
       window.removeEventListener("whisper-model-updated", handleWhisperModelUpdated);
@@ -435,6 +332,7 @@
   }
 
   function handleKeydown(e: KeyboardEvent) {
+    if (!active) return;
     if (
       document.activeElement?.tagName === "INPUT" ||
       document.activeElement?.tagName === "TEXTAREA"
@@ -462,15 +360,6 @@
         cancelTranscription();
       }
       return;
-    }
-  }
-
-  async function refreshModels() {
-    try {
-      const models = await transcribeListModels();
-      whisperModels = models;
-    } catch (e) {
-      console.error("Could not list models:", e);
     }
   }
 
@@ -652,7 +541,10 @@
     return true;
   }
 
+  let transcriptionCancelled = false;
+
   async function startTranscription() {
+    if (isTranscribing) return;
     if (!inputPath || !outputPath) {
       error = t("transcribe.selectFilesFirst");
       showSnackbar(t("transcribe.selectFilesFirst"));
@@ -672,94 +564,55 @@
     isTranscribing = true;
 
     const startTime = Date.now();
-    let success = false;
-    let lastErrorMsg = "";
-
-    for (let tIdx = 0; tIdx < transcribeTiers.length; tIdx++) {
-      const tier = transcribeTiers[tIdx];
-      const readyEntries = tier.entries.filter(isTranscribeEntryReady);
-      if (readyEntries.length === 0) continue;
-
-      addLog(`🪜 Avvio Tier ${tIdx + 1} (${readyEntries.length} endpoint pronti)...`, "info");
-
-      for (const entry of readyEntries) {
-        const isCloudEntry = entry.provider !== "local" && entry.provider !== "local_whisper";
-        const engineLabel = isCloudEntry
-          ? `${transcribeProviders[entry.provider]?.name || entry.provider} · ${entry.model || "auto"}`
-          : entry.model;
-
-        addLog(`🎙️ Provando endpoint: ${engineLabel}...`, "info");
-        addLog(`Source language: ${selectedLanguageLabel(selectedLanguage)}`, "info");
-        addLog(`Word timestamps: enabled; max segment: ${maxSegmentLength}s`, "info");
-        addLog(`Input: ${getFileName(inputPath)} → Output: ${getFileName(outputPath)}`, "file");
-
-        try {
-          const key = isCloudEntry ? apiKeys.find((k) => k.id === entry.apiKeyId) : null;
-          const apiKeyVal = key?.apiKey?.trim() || null;
-          const apiUrl = key?.apiUrl?.trim() || transcribeProviders[entry.provider]?.defaultUrl || null;
-
-          const res = await transcribeStart({
-            input_path: inputPath,
-            output_path: outputPath,
-            model: entry.model,
-            language: selectedLanguage,
-            translate_to_english: translateToEnglish,
-            word_timestamps: true,
-            max_segment_length: maxSegmentLength,
-            provider: entry.provider,
-            api_key: apiKeyVal,
-            api_url: apiUrl,
-            quality: !isCloudEntry && qualityMode,
-            vad: !isCloudEntry && vadEnabled && vadInstalled,
-            vad_model_id: vadSelection.customPath ? null : vadSelection.modelId,
-            vad_custom_path: vadSelection.customPath,
-            use_gpu: !isCloudEntry,
-          });
-
-          result = res;
-          if (res.output_path) {
-            outputPath = res.output_path;
-          }
-          if (res.detected_language) {
-            addLog(`Detected language: ${res.detected_language}`, "success");
-          }
-          if (res.output_path) {
-            addLog(`Saved: ${getFileName(res.output_path)}`, "success");
-          }
-          addLog(res.message, "success");
-          await refreshModels();
-          success = true;
-          break; // Break inner loop on success
-        } catch (e: any) {
-          lastErrorMsg = e ? e.toString() : "Unknown error";
-          addLog(`⚠️ Errore su ${engineLabel}: ${lastErrorMsg}`, "warning");
-        }
+    transcriptionCancelled = false;
+    try {
+      const outcome = await runTranscription({
+        tiers: $state.snapshot(transcribeTiers), models: $state.snapshot(whisperModels),
+        keys: $state.snapshot(apiKeys),
+        settings: {
+          input_path: inputPath, output_path: outputPath, language: selectedLanguage,
+          translate_to_english: translateToEnglish, word_timestamps: true,
+          max_segment_length: maxSegmentLength, quality: qualityMode,
+          vad: vadEnabled && vadInstalled,
+          vad_model_id: vadSelection.customPath ? null : vadSelection.modelId,
+          vad_custom_path: vadSelection.customPath,
+        },
+        start: transcribeStart,
+        isCancelled: () => transcriptionCancelled,
+        onTier: (index, count) => addLog(`Tier ${index + 1}: ${count}`, "info"),
+        onAttempt: (entry) => {
+          transcribedSegments = [];
+          progress = 0;
+          progressMessage = "";
+          progressStage = "";
+          addLog(`${transcribeProviders[entry.provider]?.name || entry.provider} · ${entry.model || "auto"}`, "info");
+        },
+        onFailure: (entry, message) => addLog(`${entry.provider} · ${entry.model}: ${message}`, "warning"),
+      });
+      if (outcome.status === "success") {
+        result = outcome.result;
+        if (result.output_path) outputPath = result.output_path;
+        addLog(result.message, "success");
+        await refreshModels();
+      } else if (outcome.status === "failed") {
+        error = `${t("transcribe.error")}: ${outcome.error}`;
+        addLog(error, "error");
       }
-
-      if (success) {
-        break; // Break outer loop on success
+    } catch (e) {
+      if (!transcriptionCancelled) {
+        error = `${t("transcribe.error")}: ${e}`;
+        addLog(error, "error");
       }
+    } finally {
+      isTranscribing = false;
+      addLog(`⏱ ${formatElapsedTime(Date.now() - startTime)}`, "info");
     }
-
-    if (!success) {
-      error = `Tutti i tier di trascrizione sono falliti. Ultimo errore: ${lastErrorMsg}`;
-      addLog(`❌ Errore finale: ${error}`, "error");
-    }
-
-    isTranscribing = false;
-    const elapsedSeconds = Math.floor((Date.now() - startTime) / 1000);
-    const hrs = String(Math.floor(elapsedSeconds / 3600)).padStart(2, "0");
-    const mins = String(
-      Math.floor((elapsedSeconds % 3600) / 60),
-    ).padStart(2, "0");
-    const secs = String(elapsedSeconds % 60).padStart(2, "0");
-    addLog(`⏱ ${hrs}:${mins}:${secs}`, "info");
   }
 
   async function cancelTranscription() {
+    transcriptionCancelled = true;
     try {
       await transcribeCancel();
-      isTranscribing = false;
       progress = 0;
       progressMessage = "";
       addLog(t("transcribe.cancelled"), "warning");
@@ -769,6 +622,8 @@
   }
 
   function resetTranscription() {
+    if (isTranscribing) return;
+    transcribedSegments = [];
     inputPath = "";
     outputPath = "";
     isTranscribing = false;
@@ -792,7 +647,7 @@
 
 <div
   role="region"
-  aria-label="Transcribe content"
+  aria-label={t("nav.transcribe")}
   class="h-full flex flex-col bg-gray-900 relative overflow-hidden"
   ondragover={(e) => {
     if (!active) return;
@@ -870,7 +725,7 @@
           isDownloadingFFmpeg = true;
           try {
             await downloadFfmpeg();
-            backends = await transcribeCheckBackends();
+            await transcriptionResources.refreshBackends();
             window.dispatchEvent(new CustomEvent("vesta-ffmpeg-updated"));
           } catch (e) {
             error = `${t("flashcards.ffmpegDownloadFailed")}: ${e}`;
@@ -1255,34 +1110,6 @@
     {/if}
   {/snippet}
 
-  {#snippet transcribedSentencesCard()}
-    <div class="glass-card p-5 space-y-4">
-      <div class="flex items-center justify-between">
-        <span class="text-[10px] font-bold text-gray-500 uppercase tracking-wide">{t("transcribe.livePhrases")}</span>
-        <span class="text-[10px] text-indigo-400 font-semibold">{transcribedSegments.length} {t("transcribe.segments")}</span>
-      </div>
-      
-      {#if transcribedSegments.length === 0}
-        <div class="rounded-lg border border-indigo-500/20 bg-indigo-500/5 px-3 py-8 text-center text-xs text-indigo-300">
-          {t("transcribe.livePhrasesHint")}
-        </div>
-      {:else}
-        <div 
-          bind:this={scrollContainer} 
-          class="space-y-2 max-h-[220px] overflow-y-auto pr-1 transcribe-scroll"
-        >
-          {#each transcribedSegments as segment}
-            <div class="p-2.5 rounded-lg bg-white/[0.02] border border-white/5 flex gap-3 text-xs hover:bg-white/5 transition-colors">
-              <span class="font-mono text-indigo-300 shrink-0 select-none">
-                {formatTime(segment.start_ms)} → {formatTime(segment.end_ms)}
-              </span>
-              <span class="text-gray-200 break-words">{segment.text}</span>
-            </div>
-          {/each}
-        </div>
-      {/if}
-    </div>
-  {/snippet}
 
   <div class="flex-1 overflow-hidden p-6 min-h-0 {isTranscribing ? 'pointer-events-none opacity-60 select-none' : ''}">
     <div class="flex h-full min-h-0 flex-col gap-4">
@@ -1292,7 +1119,7 @@
           {@render panelContent("options")}
         </div>
         <div class="min-h-0 overflow-y-auto scrollbar-thin">
-          {@render transcribedSentencesCard()}
+          <TranscriptionSegmentsPanel segments={transcribedSegments} />
         </div>
       </div>
     </div>
@@ -1475,10 +1302,10 @@
 
   <ConfirmDialog
     show={showOverwriteConfirm}
-    title="Sovrascrivere il file esistente?"
-    message="Hai già un file caricato per la trascrizione. Se procedi, il file attuale verrà sostituito con quello nuovo."
-    confirmText="Sovrascrivi"
-    cancelText="Annulla"
+    title={t("common.replaceFilesTitle")}
+    message={t("common.replaceFilesMessage")}
+    confirmText={t("sync.confirm")}
+    cancelText={t("common.cancel")}
     variant="warning"
     on:cancel={() => {
       showOverwriteConfirm = false;
