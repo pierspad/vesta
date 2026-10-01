@@ -102,3 +102,15 @@ encoding, still-image extraction, matching, and packaging remain CPU work.
 
 The benchmark harness in [`benchmarking_against_subs2srs/`](../../benchmarking_against_subs2srs) uses exactly this
 crate through the CLI, pitted against the original subs2srs code.
+
+## Preparation and series export
+
+Audio plus snapshots use the original media directly. Optional full-film
+preparation is reserved for video clips; it can trade initial latency and lossy
+re-encoding for faster repeated seeks. The phase reports actual processed media
+seconds separately from overall progress. See [architecture](../ARCHITECTURE.md).
+
+`merge_apkg(paths, output)` combines fresh Vesta APKG exports, remapping note/card
+IDs and merging compatible model/deck metadata and media. Conflicting metadata
+or media names fail before replacing the destination. Packages with review
+history are outside its intended input contract.

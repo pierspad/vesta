@@ -32,6 +32,7 @@ reqwest = { workspace = true }
 
 # Dipendenze dal workspace
 srt-parser = { workspace = true }
+srt-extract = { workspace = true }
 srt-translate = { workspace = true }
 srt-sync = { workspace = true }
 srt-autosync = { workspace = true }

@@ -4371,8 +4371,11 @@ name = "srt-extract"
 version = "0.24.1"
 dependencies = [
  "anyhow",
+ "serde",
  "serde_json",
  "srt-parser",
+ "tempfile",
+ "tokio",
 ]
 
 [[package]]
@@ -5646,6 +5649,7 @@ dependencies = [
  "sha2 0.11.0",
  "srt-ankiconnect",
  "srt-autosync",
+ "srt-extract",
  "srt-flashcards",
  "srt-parser",
  "srt-refine",

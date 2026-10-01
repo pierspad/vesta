@@ -98,8 +98,11 @@ export function getLanguageSearchTerms(code: string): string {
     .join(" ");
 }
 
+const languageTermCache = new Map<string, string[]>();
 function uniqueLanguageTerms(code: string): string[] {
-  return [
+  const cached = languageTermCache.get(code);
+  if (cached) return cached;
+  const terms = [
     code,
     code.split("-")[0],
     getLanguageSearchTerms(code),
@@ -115,6 +118,8 @@ function uniqueLanguageTerms(code: string): string[] {
     .map(normalizeLanguageText)
     .filter(Boolean)
     .filter((term, index, arr) => arr.indexOf(term) === index);
+  languageTermCache.set(code, terms);
+  return terms;
 }
 
 function levenshteinDistance(a: string, b: string): number {
@@ -174,7 +179,19 @@ export function scoreLanguageMatch(value: string, code: string): number {
   return score;
 }
 
+// Exact tags/names dominate the fuzzy score. Preserve first-language tie breaking
+// for shared ISO aliases (e.g. por/chi), while avoiding fuzzy work on common tags.
+const exactLanguageCodes = new Map<string, string>();
+for (const language of languages) {
+  for (const term of [language.code, language.name, language.nameEn, ...(languageAliases[language.code] || [])]) {
+    const normalized = normalizeLanguageText(term);
+    if (normalized && !exactLanguageCodes.has(normalized)) exactLanguageCodes.set(normalized, language.code);
+  }
+}
+
 export function detectLanguageCode(value: string): string | null {
+  const exact = exactLanguageCodes.get(normalizeLanguageText(value));
+  if (exact) return exact;
   let bestCode: string | null = null;
   let bestScore = 0;
 
@@ -187,4 +204,25 @@ export function detectLanguageCode(value: string): string | null {
   }
 
   return bestScore >= 76 ? bestCode : null;
+}
+
+/** Bundled flags use country codes, which differ from language codes. */
+export function languageFlagUrl(code: string): string | null {
+  const flag = languages.find((language) => language.code === code)?.flag;
+  if (!flag) return null;
+  const country = Array.from(flag).map((char) => String.fromCharCode(char.codePointAt(0)! - 0x1f1e6 + 97)).join("");
+  return `/flags/${country}.svg`;
+}
+
+const localizedLanguageNames = new Map<string, Intl.DisplayNames>();
+export function localizedLanguageName(code: string, locale: string): string {
+  const fallback = languages.find(language => language.code === code)?.nameEn || code;
+  try {
+    let names = localizedLanguageNames.get(locale);
+    if (!names) {
+      names = new Intl.DisplayNames([locale], { type: "language" });
+      localizedLanguageNames.set(locale, names);
+    }
+    return names.of(code) || fallback;
+  } catch { return fallback; }
 }

@@ -13,7 +13,7 @@ as a standalone binary or as a Rust dependency — without dragging in the GUI.
 | [srt-flashcards](srt-flashcards.md) | Flashcard generation and media cutting | `lib/srt-flashcards` | `srt-flashcards` | FFmpeg/ffprobe |
 | [srt-parser](srt-parser.md) | Parse/write SRT with charset detection | `core/srt-parser` | — | — |
 | [srt-apkg](srt-apkg.md) | Anki package (`.apkg`) archive generator & reader | `core/srt-apkg` | — | — |
-| [srt-extract](srt-extract.md) | Convert parsed subtitle data (JSON, text, stats) | `lib/srt-extract` | `srt-extract` | — |
+| [srt-extract](srt-extract.md) | Convert parsed subtitle data; discover/extract embedded text tracks | `lib/srt-extract` | `srt-extract` | FFmpeg/ffprobe for embedded tracks |
 | [srt-translate](srt-translate.md) | LLM subtitle translation with tiered failover | `lib/srt-translate` | `srt-translate` | HTTP APIs or local endpoint |
 | [srt-sync](srt-sync.md) | Anchor-based subtitle re-timing engine | `lib/srt-sync` | — (see srt-autosync) | — |
 | [srt-autosync](srt-autosync.md) | Automatic alignment via Whisper/VAD anchors | `lib/srt-autosync` | `srt-autosync` | FFmpeg + Whisper model |

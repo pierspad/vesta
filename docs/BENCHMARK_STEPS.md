@@ -2,6 +2,8 @@
 
 This procedure compares the two media-generation engines without GUI overhead. Both process the same subtitle/media inputs and invoke the same host `ffmpeg` binary.
 
+> The historical GPU preparation variants predate the current snapshot policy. Audio + snapshot generation now uses the original source directly; full-film preparation is reserved for video clips. Do not label a snapshot-only run “GPU pre-transcode” without verifying the actual code path. For quick regression checks, use [QUALITY.md](QUALITY.md).
+
 ## What is measured
 
 - Eight feature-length movies and roughly 12,000 subtitle lines.

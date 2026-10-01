@@ -10,7 +10,7 @@ tutte le varianti che ha senso provare su questa macchina.
 | Sempre incluso nel launcher | Scaricato al volo se rilevato |
 |---|---|
 | `cpu`, `cpu+vad` | — |
-| `vulkan`, `vulkan+vad` (se un loader Vulkan è presente) | — |
+| `vulkan`, `vulkan+vad` (se compilato con `--features vulkan` e driver/loader sono utilizzabili) | — |
 | — | `cuda`, `cuda+vad` (GPU NVIDIA rilevata) |
 | — | `rocm`, `rocm+vad` (GPU AMD rilevata, solo Linux) |
 | — | `sycl`, `sycl+vad` (GPU Intel rilevata) |
@@ -62,3 +62,5 @@ Workflow `whisper-bench` (Actions → whisper-bench → Run workflow):
 
 Tutto finisce sulla stessa prerelease rolling `whisper-bench-latest`: è da lì
 che il launcher costruisce a runtime gli URL dei worker e del sample.
+
+La build Cargo predefinita ha `default = []`: CPU. La presenza del loader non abilita Vulkan in una build CPU; le release del launcher richiedono la feature esplicita. I test del workspace non sostituiscono una prova di inferenza su GPU reale.

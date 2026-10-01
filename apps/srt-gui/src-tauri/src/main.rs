@@ -6,6 +6,7 @@ use std::path::Path;
 use std::sync::Mutex;
 
 mod commands;
+mod media_range;
 mod state;
 
 use axum::{
@@ -71,6 +72,7 @@ async fn media_handler(
 use commands::auto_sync::*;
 use commands::config::*;
 use commands::experimental::*;
+use commands::extract::*;
 use commands::flashcards::*;
 use commands::info::*;
 use commands::net::*;
@@ -193,14 +195,13 @@ fn main() {
                 if let Some(range_str) = range_header {
                     eprintln!("[stream] Range request: {}", range_str);
 
-                    let range_str = range_str.trim_start_matches("bytes=");
-                    let parts: Vec<&str> = range_str.split('-').collect();
-                    let start: u64 = parts.first().and_then(|s| s.parse().ok()).unwrap_or(0);
-                    let end: u64 = parts
-                        .get(1)
-                        .and_then(|s| if s.is_empty() { None } else { s.parse().ok() })
-                        .unwrap_or(file_size - 1)
-                        .min(file_size - 1);
+                    let Some((start, end)) = media_range::parse_byte_range(range_str, file_size) else {
+                        responder.respond(tauri::http::Response::builder()
+                            .status(416)
+                            .header("Content-Range", format!("bytes */{file_size}"))
+                            .body(Vec::new()).unwrap());
+                        return;
+                    };
 
                     let chunk_size = end - start + 1;
 
@@ -243,6 +244,12 @@ fn main() {
                     };
                     buf.truncate(bytes_read);
 
+                    if bytes_read == 0 {
+                        responder.respond(tauri::http::Response::builder().status(416)
+                            .header("Content-Range", format!("bytes */{file_size}"))
+                            .body(Vec::new()).unwrap());
+                        return;
+                    }
                     let actual_end = start + bytes_read as u64 - 1;
 
                     eprintln!("[stream] Range response: bytes {}-{}/{}, chunk={} bytes", start, actual_end, file_size, bytes_read);
@@ -283,6 +290,11 @@ fn main() {
 
                     eprintln!("[stream] Serving initial response for '{}': mime={}, file_size={}, bytes_sent={}", path, mime, file_size, bytes_read);
 
+                    if bytes_read == 0 && file_size > 0 {
+                        responder.respond(tauri::http::Response::builder().status(500)
+                            .body(b"Failed to read file".to_vec()).unwrap());
+                        return;
+                    }
                     if (bytes_read as u64) < file_size {
 
                         let actual_end = bytes_read as u64 - 1;
@@ -408,6 +420,10 @@ fn main() {
         })
         .invoke_handler(tauri::generate_handler![
             get_media_server_info,
+            embedded_subtitle_tracks,
+            extract_embedded_subtitle,
+            preview_embedded_subtitle,
+            open_output_path,
 
             get_app_info,
             get_system_diagnostics,
@@ -447,6 +463,7 @@ fn main() {
             flashcard_preview_snapshot,
             flashcard_parse_subtitles,
             flashcard_generate,
+            flashcard_merge_apkg,
             flashcard_cancel,
             flashcard_list_audio_tracks,
             flashcard_check_deps,

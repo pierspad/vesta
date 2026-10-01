@@ -1,5 +1,7 @@
 # Vesta vs subs2srs — Comprehensive Benchmark Report
 
+> Historical full-film results, not a performance guarantee for the current revision. The 2026-10-01 polishing pass changed snapshot generation to use the original source without full-film preparation. Rerun the suite before comparing the new policy with these figures; use [QUALITY.md](QUALITY.md) for the short smoke benchmark.
+
 ### System & Hardware Specifications
 - **CPU**: AMD Ryzen 7 5800X (8c-16t)
 - **GPU**: AMD Radeon RX 7800 XT

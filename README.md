@@ -6,9 +6,11 @@
 
 Vesta is a modern successor to subs2srs: a desktop application for language learners that turns media and subtitle files into Anki decks. It also covers the work usually required around deck generation—transcription, translation, subtitle synchronization, revision, and card annotation—without forcing users to assemble a chain of unrelated tools.
 
-The desktop application is local-first. Media processing, subtitle parsing, APKG creation, and optional Whisper transcription run on the user's machine. Network services are only used when the user explicitly configures cloud transcription or language-model providers.
+The desktop application is local-first. Media processing, subtitle parsing, APKG creation, and optional Whisper transcription run on the user's machine. Network services support optional cloud transcription and language models, model/font downloads, and the background GitHub update check.
 
 ## Benchmarks
+
+These are historical full-film measurements. Current audio/snapshot generation avoids full-film preparation; see [the dated report](docs/BENCHMARK_REPORT.md) and [the short regression benchmark](docs/QUALITY.md) before applying these figures to a new build.
 
 <img src="docs/benchmark_speedup_summary.svg" alt="Vesta Average Speedup vs subs2srs Across All Test Movies" width="800">
 
@@ -57,6 +59,7 @@ The main tabs correspond to independent stages:
 4. **Transcribe** converts media to SRT with local whisper.cpp or cloud speech-to-text endpoints. Word-level token timing is always enabled by the GUI for better segment boundaries.
 5. **Revise** compares subtitle tracks side by side and supports timing and text corrections.
 6. **Annotate** loads TSV or APKG decks and adds manual or generated notes while preserving the deck structure.
+7. **Extract subtitles** lists embedded tracks in video containers and saves text tracks as SRT. Bitmap subtitles require OCR; ASS/SSA styling is lost in SRT.
 
 AI-backed features remain optional and can be disabled globally with the AI Kill Switch.
 
@@ -79,7 +82,7 @@ Go to the **"Annotate"** tab. You can load an Anki `.apkg` deck or flashcard col
 
 #### What are tiers and providers?
 Tiers and providers are a form of load-balancing for generative operations:
-- **Providers** represent individual endpoints (e.g. a Self-Hosted models, OpenRouter, Google, Groq, Mistral, OpenAI, GitHub Models etc.)
+- **Providers** represent individual endpoints (e.g. a Self-Hosted models, OpenRouter, Google, Groq, Mistral, OpenAI, NVIDIA NIM etc.)
 - **Tiers** define priority levels. Within each tier, requests rotate across providers in a round-robin cycle to share the workload while respecting their configured requests per minute and maximum request limits. If all providers in a tier exhaust their rate limits or quotas, Vesta automatically fails over to the next tier without interrupting your process.
 
 #### What do I do if I don't want to use any AI feature?
@@ -125,7 +128,7 @@ The GUI uses Tauri 2, Svelte 5, TypeScript, Tailwind CSS, and Vite. Each main ta
 
 FFmpeg performs media probing, audio extraction, and snapshots. whisper.cpp provides local transcription, with optional Vulkan, CUDA, ROCm, or SYCL builds and automatic CPU fallback. Silero VAD can skip silence before decoding. APKG output is assembled locally through SQLite and ZIP primitives, so generating a deck does not require a running Anki instance.
 
-Provider tiers decouple translation and cloud transcription from any single vendor. Entries in a tier share work while respecting configured limits; exhaustion falls through to the next tier. Progress is saved incrementally so interrupted work does not need to restart from the beginning.
+Translation and annotation use ordered provider tiers: entries share work while respecting configured limits, and exhaustion falls through to the next tier. Cloud transcription uses one selected engine (Groq, OpenAI, Deepgram, AssemblyAI, or a custom endpoint), without tier failover. Progress is saved incrementally so interrupted work does not need to restart from the beginning.
 
 ## Headless CLI Use
 
@@ -155,6 +158,8 @@ For comprehensive module guides and Rust integration examples, see [`docs/module
 
 ## Documentation Map
 
+- [`docs/QUALITY.md`](docs/QUALITY.md) — Repeatable tests, short benchmarks, and release validation.
+- [`docs/STABILITY_AUDIT.md`](docs/STABILITY_AUDIT.md) — Findings, fixes, endpoint evidence, and remaining release risks (2026-10-01).
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — Architectural design contracts, layering rules, and conventions.
 - [`docs/BENCHMARK_STEPS.md`](docs/BENCHMARK_STEPS.md) — Step-by-step benchmark reproduction guide, fairness controls, and subs2srs harness explanation.
 - [`docs/BENCHMARK_REPORT.md`](docs/BENCHMARK_REPORT.md) — Full 8-film benchmark results, throughput tables, and per-film charts.
@@ -166,10 +171,10 @@ For comprehensive module guides and Rust integration examples, see [`docs/module
 
 ### Prerequisites
 - **Rust**: 1.97+ (`rustup default stable`)
-- **Node.js**: 20.19+ or 22+ (LTS recommended) and `npm`
+- **Node.js**: 20.19+ or 22.12+ (LTS recommended) and `npm`
 - **System dependencies**:
   - **Runtime**: `ffmpeg` and `ffprobe` on your system PATH.
-  - **Build (Linux)**: C/C++ compiler (`gcc`/`clang`), `cmake`, `pkg-config`, and Tauri v2 development libraries (`libwebkit2gtk-4.1-dev` or `4.0`, `libappindicator3-dev`, `librsvg2-dev`).
+  - **Build (Linux)**: C/C++ compiler (`gcc`/`clang`), `cmake`, `pkg-config`, and Tauri v2 development libraries (`libwebkit2gtk-4.1-dev`, `libappindicator3-dev`, `librsvg2-dev`).
 
 ### Development Setup
 ```bash
@@ -196,11 +201,19 @@ pnpm test
 pnpm build
 ```
 
-Run every Rust unit, regression, and documentation test from the repository root:
+Run library/CLI tests without desktop build dependencies:
 
 ```bash
-cargo test --workspace
+cargo test --workspace --exclude vesta --exclude whisper-bench
 ```
+
+For the complete Vesta correctness gate, including desktop command tests and a short synthetic media benchmark:
+
+```bash
+python3 build-scripts/quality_check.py --desktop --smoke
+```
+
+The desktop option needs Tauri native dependencies and the Linux Vulkan toolchain. See [the quality guide](docs/QUALITY.md) for authenticated provider tests and platform release checks.
 
 GPU support is selected at compile time. Systems without a usable accelerator fall back to CPU at runtime. See [`docs/modules/srt-transcribe.md`](docs/modules/srt-transcribe.md) for backend-specific requirements.
 

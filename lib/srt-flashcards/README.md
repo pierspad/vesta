@@ -63,3 +63,13 @@ SQLite), `zip`, and `sha1_smol`. No GUI toolkit, no whisper, no network.
 * `apps/srt-gui/src-tauri` — the desktop app (thin Tauri command wrappers).
 
 Part of the [Vesta](../../README.md) workspace. Licensed GPL-3.0-only.
+
+Audio/snapshot exports now extract from the original source without full-film
+H.264 preparation. Video-clip workflows can prepare a heavy source, reporting
+actual FFmpeg timestamp progress and honoring cancellation. Preparation is a
+throughput tradeoff, not a quality enhancement.
+
+`merge_apkg` merges fresh Vesta exports with remapped note/card IDs and validated
+media/metadata; it is not a merger for scheduled Anki collections. Single-series
+GUI output keeps per-episode packages in separate directories before merging.
+See [QUALITY](../../docs/QUALITY.md) for a short synthetic media smoke benchmark.

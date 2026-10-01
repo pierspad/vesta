@@ -411,3 +411,19 @@ pub async fn flashcard_download_font(app: AppHandle, font_id: String) -> Result<
 pub async fn flashcard_delete_font(font_id: String) -> Result<bool, String> {
     srt_flashcards::fonts::delete_font(&font_id).map_err(|e| e.to_string())
 }
+
+#[tauri::command]
+pub async fn flashcard_merge_apkg(
+    apkg_paths: Vec<String>,
+    output_path: String,
+) -> Result<String, String> {
+    let result_path = output_path.clone();
+    tokio::task::spawn_blocking(move || {
+        let paths: Vec<std::path::PathBuf> = apkg_paths.into_iter().map(Into::into).collect();
+        srt_flashcards::merge_apkg(&paths, std::path::Path::new(&output_path))
+            .map_err(|e| format!("APKG merge failed: {e}"))
+    })
+    .await
+    .map_err(|e| e.to_string())??;
+    Ok(result_path)
+}

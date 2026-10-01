@@ -202,3 +202,5 @@ mod tests {
         assert_eq!(stats.total_duration_seconds, 0.0); // saturating_sub protects from panic
     }
 }
+
+pub mod embedded;

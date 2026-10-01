@@ -34,7 +34,7 @@ Vesta is a modular Cargo workspace layered from foundational formats to GUI-agno
 | Layer | Crates | Responsibilities & Design Rules |
 |---|---|---|
 | **core** | `srt-parser`, `srt-apkg` | Foundational primitives. Minimal external dependencies, zero knowledge of higher engines or GUI. Auto-charset detection via `chardetng` + `encoding_rs`, lossless timing arithmetic, and direct ZIP/SQLite archive serialization. |
-| **lib** | `srt-flashcards`, `srt-translate`, `srt-transcribe`, `srt-autosync`, `srt-extract`, `srt-refine`, `srt-sync`, `srt-ankiconnect` | Self-contained domain engines. **Zero GUI/Tauri coupling**. Long-running tasks accept a `tokio_util::sync::CancellationToken` and report progress through callbacks. Heavy dependencies (`ffmpeg`, `whisper-rs`, `rusqlite`, `reqwest`) are encapsulated here. |
+| **lib** | `srt-flashcards`, `srt-translate`, `srt-transcribe`, `srt-autosync`, `srt-extract`, `srt-refine`, `srt-sync`, `srt-ankiconnect` | Self-contained domain engines. **Zero GUI/Tauri coupling**. Long-running tasks accept a `tokio_util::sync::CancellationToken` and report progress through callbacks. External tools and heavy dependencies (FFmpeg processes, `whisper-rs`, `rusqlite`, `reqwest`) are encapsulated here. |
 | **cli** | `srt-flashcards-cli`, `srt-translate-cli`, `srt-transcribe-cli`, `srt-autosync-cli`, `srt-extract-cli` | Headless, terminal frontends powered by `clap`. Thin wrappers over corresponding `lib/` engines. Perfect for server scripting, batch processing, CI pipelines, and benchmarking. |
 | **apps** | `apps/srt-gui` (`vesta`), `apps/whisper-bench` | Desktop composition roots. Svelte owns presentation/state; Tauri commands adapt IPC to `lib/` crates and own process-level services such as local media streaming, dialogs, and window integration. |
 
@@ -52,7 +52,7 @@ FlashcardConfig ──► build_matched_lines()  (Parse SRT ─► Normalize ─
                            │
               preview() ◄──┤ (Compute card counts, duration statistics, estimated media sizes)
                            │
-             generate() ───┴─► Optional source optimization + bounded FFmpeg pool
+             generate() ───┴─► Optional video-clip source preparation + bounded FFmpeg pool
                                      │ • Audio: MP3 / Opus + loudness normalization
                                      │ • Snapshots: WebP / AVIF / JPEG + border crop
                                      │ • Video: H.264 / MPEG-4 snippets
@@ -92,7 +92,7 @@ Failover Orchestrator (Tier 0 ─► Tier 1 ─► Tier 2 ─► ...)
         │ Dispatches requests in round-robin across active endpoints in the current Tier.
         │ Automatically fails over to the next tier if quota/RPM/rate-limits are exhausted.
         ▼
-LLM Providers (Google Gemini, Groq, OpenAI, Mistral, OpenRouter, GitHub Models, Ollama / Local)
+LLM Providers (Google Gemini, Groq, OpenAI, Mistral, OpenRouter, NVIDIA NIM, Ollama / Local)
         │
         ▼
 Translation & Refine Engine
@@ -120,6 +120,17 @@ Aligned Output Subtitle (.srt)
 ```
 
 ---
+
+## Frontend execution boundaries
+
+The desktop tabs compose UI and event lifetimes. The modules in
+`apps/srt-gui/src/lib/workflows` own flashcard execution/aggregation/merge,
+bounded file discovery, transcription failover and model/backend/VAD discovery.
+Their injected IPC functions and callbacks support headless regression tests.
+Reactive discovery state lives in `TranscriptionResources`; live transcript
+rendering lives in `TranscriptionSegmentsPanel`. Formatting helpers are pure.
+This frontend orchestration chooses and sequences native commands; the Rust
+feature libraries still perform the underlying processing.
 
 ## Runtime Boundaries
 
@@ -202,3 +213,43 @@ cargo build --release -p srt-extract-cli
 ```
 
 For module-specific documentation and integration examples, see [`docs/modules/`](modules/README.md).
+
+## Configuration, embedded subtitles, and output files
+
+`vestaConfig.ts` hydrates a string-keyed cache before dynamically importing the
+Svelte app/stores. Mutations are serialized over IPC. Setup awaits a durable snapshot via `replaceAll()`
+before reloading: an in-memory flag is insufficient to mark onboarding complete.
+Rust serializes disk access under `ConfigState`, writes a unique temporary file,
+syncs it, and publishes it atomically. Invalid/unreadable configuration is surfaced
+instead of silently replaced by defaults. API keys are stored in this configuration
+file; it is not an encrypted keychain.
+
+Embedded subtitle discovery/extraction lives in `srt-extract::embedded` and uses
+FFprobe/FFmpeg. Only text tracks are converted; PGS/VobSub need OCR. The desktop
+Extract tab saves independent SRT files, keeping the existing workflows simple.
+
+Fresh per-episode APKG exports can be merged by `srt-flashcards::merge_apkg`.
+The frontend writes episodes to distinct directories; the merger remaps note/card
+IDs, combines metadata/media, rejects conflicts, and publishes a complete archive.
+It is intended for fresh Vesta exports, not scheduled Anki collections.
+`open_output_path` opens the saved file or its parent with the system association.
+
+## Preparation progress and quality
+
+Audio plus snapshots use the original media directly. A full-film H.264
+intermediate is reserved for video-clip workflows with `optimize_video` enabled;
+it can amortize repeated seeks for heavy codecs/high resolutions, but is lossy
+and does not improve source quality. Modest H.264 downscaling alone does not
+justify converting the whole film, even with a hardware encoder.
+
+FFmpeg preparation emits `out_time_us` progress relative to the source duration.
+The UI displays preparation percentage separately from the overall pipeline
+percentage (12–15%). This is a phase completion measure, not an estimate of
+elapsed time for the entire job. Cancellation kills the active child; a stalled
+progress stream is bounded and a failed attempt falls back to another encoder.
+
+Cloud transcription is one selected engine, not the translation pool. OpenAI
+Whisper returns segment timing; GPT-4o transcription uses JSON and a whole-chunk
+time interval. It cannot provide precise line timing in the current integration.
+Cloud requests/polling are cancellable by dropping the selected future; remote
+AssemblyAI jobs may continue after local cancellation. See [QUALITY](QUALITY.md).

@@ -123,3 +123,11 @@ repo pins a vendored `whisper-rs-sys` via `[patch.crates-io]`, see the root
 The optional `vulkan`, `cuda`, `rocm`, and `sycl` features forward one selected
 backend to `whisper-rs`. The official Linux desktop build uses Vulkan and the
 runtime flag defaults to GPU enabled; CPU is the safe fallback.
+
+## Cloud timing and verification
+
+The GUI selects a single cloud engine (no translation-tier failover). OpenAI
+Whisper supports segment timestamps; GPT-4o transcription is JSON-only here and
+uses whole-WAV-chunk timing. Use a timestamp-capable engine for precise subtitles.
+Loopback provider tests run with `cargo test -p srt-transcribe`; account-dependent
+inference still requires the opt-in release checks in [QUALITY](../QUALITY.md).
