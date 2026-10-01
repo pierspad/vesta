@@ -15,6 +15,7 @@
 
 use std::collections::HashMap;
 use std::fs;
+use std::io::Write;
 use std::path::PathBuf;
 use std::sync::Mutex;
 
@@ -39,24 +40,40 @@ fn config_file() -> PathBuf {
     config_dir().join("vesta_config.json")
 }
 
-fn read_from_disk() -> HashMap<String, String> {
-    fs::read_to_string(config_file())
-        .ok()
-        .and_then(|raw| serde_json::from_str(&raw).ok())
-        .unwrap_or_default()
+fn read_from_disk() -> Result<HashMap<String, String>, String> {
+    read_config_file(&config_file())
+}
+
+fn read_config_file(path: &std::path::Path) -> Result<HashMap<String, String>, String> {
+    match fs::read_to_string(path) {
+        Ok(raw) => {
+            serde_json::from_str(&raw).map_err(|e| format!("Configurazione non valida: {e}"))
+        }
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(HashMap::new()),
+        Err(e) => Err(format!("Impossibile leggere la configurazione: {e}")),
+    }
 }
 
 /// Scrittura atomica: file temporaneo + rename, così un crash a metà
 /// scrittura non lascia mai un `vesta_config.json` troncato/corrotto.
 fn write_to_disk(map: &HashMap<String, String>) -> Result<(), String> {
-    let dir = config_dir();
-    fs::create_dir_all(&dir).map_err(|e| format!("impossibile creare {}: {e}", dir.display()))?;
+    write_config_file(&config_file(), map)
+}
+
+fn write_config_file(path: &std::path::Path, map: &HashMap<String, String>) -> Result<(), String> {
+    let dir = path.parent().ok_or("Configurazione senza cartella")?;
+    fs::create_dir_all(dir).map_err(|e| format!("impossibile creare {}: {e}", dir.display()))?;
 
     let json = serde_json::to_string_pretty(map).map_err(|e| e.to_string())?;
 
-    let tmp_path = dir.join("vesta_config.json.tmp");
-    fs::write(&tmp_path, json).map_err(|e| format!("scrittura fallita: {e}"))?;
-    fs::rename(&tmp_path, config_file()).map_err(|e| format!("rename fallito: {e}"))?;
+    let mut temporary = tempfile::NamedTempFile::new_in(dir).map_err(|e| e.to_string())?;
+    temporary
+        .write_all(json.as_bytes())
+        .map_err(|e| format!("scrittura fallita: {e}"))?;
+    temporary.as_file().sync_all().map_err(|e| e.to_string())?;
+    temporary
+        .persist(path)
+        .map_err(|e| format!("salvataggio fallito: {}", e.error))?;
     Ok(())
 }
 
@@ -64,31 +81,38 @@ fn write_to_disk(map: &HashMap<String, String>) -> Result<(), String> {
 /// frontend. Chiamato una sola volta all'avvio, prima del mount dell'app,
 /// per idratare la cache in-memory lato TypeScript.
 #[tauri::command]
-pub fn config_load_all(state: State<ConfigState>) -> HashMap<String, String> {
-    let mut guard = state.0.lock().unwrap();
-    *guard = read_from_disk();
-    guard.clone()
+pub fn config_load_all(state: State<ConfigState>) -> Result<HashMap<String, String>, String> {
+    let mut guard = state.0.lock().map_err(|e| e.to_string())?;
+    *guard = read_from_disk()?;
+    Ok(guard.clone())
 }
 
 #[tauri::command]
 pub fn config_set(state: State<ConfigState>, key: String, value: String) -> Result<(), String> {
-    let mut guard = state.0.lock().unwrap();
-    guard.insert(key, value);
-    write_to_disk(&guard)
+    let mut guard = state.0.lock().map_err(|e| e.to_string())?;
+    let mut next = guard.clone();
+    next.insert(key, value);
+    write_to_disk(&next)?;
+    *guard = next;
+    Ok(())
 }
 
 #[tauri::command]
 pub fn config_remove(state: State<ConfigState>, key: String) -> Result<(), String> {
-    let mut guard = state.0.lock().unwrap();
-    guard.remove(&key);
-    write_to_disk(&guard)
+    let mut guard = state.0.lock().map_err(|e| e.to_string())?;
+    let mut next = guard.clone();
+    next.remove(&key);
+    write_to_disk(&next)?;
+    *guard = next;
+    Ok(())
 }
 
 #[tauri::command]
 pub fn config_clear(state: State<ConfigState>) -> Result<(), String> {
-    let mut guard = state.0.lock().unwrap();
+    let mut guard = state.0.lock().map_err(|e| e.to_string())?;
+    write_to_disk(&HashMap::new())?;
     guard.clear();
-    write_to_disk(&guard)
+    Ok(())
 }
 
 /// Replaces the complete configuration in one atomic write. Used by the
@@ -99,8 +123,33 @@ pub fn config_replace_all(
     state: State<ConfigState>,
     values: HashMap<String, String>,
 ) -> Result<(), String> {
+    let mut guard = state.0.lock().map_err(|e| e.to_string())?;
     write_to_disk(&values)?;
-    let mut guard = state.0.lock().unwrap();
     *guard = values;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn settings_snapshot_survives_reopen_and_reports_corruption() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("nested/settings.json");
+        let values = HashMap::from([
+            ("setup-complete".into(), "true".into()),
+            ("language".into(), "it".into()),
+        ]);
+        write_config_file(&path, &values).unwrap();
+        assert_eq!(read_config_file(&path).unwrap(), values);
+        assert_eq!(fs::read_dir(path.parent().unwrap()).unwrap().count(), 1);
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            assert_eq!(fs::metadata(&path).unwrap().permissions().mode() & 0o077, 0);
+        }
+        fs::write(&path, "broken json").unwrap();
+        assert!(read_config_file(&path).is_err());
+        assert_eq!(fs::read_to_string(&path).unwrap(), "broken json");
+    }
 }

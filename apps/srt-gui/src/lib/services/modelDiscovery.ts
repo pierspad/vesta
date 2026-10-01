@@ -67,8 +67,15 @@ export function buildModelsUrl(baseUrl: string) {
 
   if (!url) return url;
 
-  // LM Studio exposes /v1/models; users sometimes paste /api/v1.
-  url = url.replace(/\/api(?=\/v1(?:\/models)?$)/, "");
+  // LM Studio exposes /v1/models. Only repair loopback URLs: remote
+  // providers such as OpenRouter require the /api prefix.
+  try {
+    if (["localhost", "127.0.0.1", "[::1]"].includes(new URL(url).hostname)) {
+      url = url.replace(/\/api(?=\/v1(?:\/models)?$)/, "");
+    }
+  } catch {
+    throw new Error("Invalid endpoint URL");
+  }
 
   if (url.endsWith("/models")) {
     return url;
@@ -121,7 +128,7 @@ export async function fetchModelsFromEndpoint(
 
 /**
  * Scopre i modelli disponibili per un provider, gestendo le differenze di API:
- *  - Google Gemini: GET {base}/models?key=KEY, filtra a generateContent, rimuove "models/".
+ *  - Google Gemini: GET {base}/models con x-goog-api-key, filtra a generateContent, rimuove "models/".
  *  - Tutto il resto (OpenAI-compatible): GET {base}/models con Bearer.
  *
  * Pensata per essere chiamata a runtime così che nuovi modelli compaiano senza
@@ -139,10 +146,10 @@ export async function discoverModels(
     const base = (apiUrl || "https://generativelanguage.googleapis.com/v1beta")
       .trim()
       .replace(/\/+$/, "");
-    const url = `${base}/models?key=${encodeURIComponent(apiKey.trim())}`;
+    const url = `${base}/models`;
     const resp = await tauriFetch(url, {
       method: "GET",
-      headers: { Accept: "application/json" },
+      headers: { Accept: "application/json", "x-goog-api-key": apiKey.trim() },
       timeoutMs,
       // Come sopra: `base` può essere l'apiUrl personalizzato dell'utente
       // per un proxy Gemini-compatible.

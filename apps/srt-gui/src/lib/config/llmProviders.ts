@@ -6,7 +6,7 @@ import * as vestaConfig from "$lib/config/vestaConfig";
  * ARCHITETTURA:
  * - Local: per Ollama, LM Studio e altri server locali (API OpenAI-compatible)
  * - Google: API Google Gemini native (richiede chiave API Google AIza...)
- * - OpenRouter: gateway unificato (DISABILITATO per ora)
+ * - OpenRouter e altri provider remoti: API OpenAI-compatible
  *
  * Estratto da models.ts (che restava un grab-bag di feature scollegate:
  * lingue, shortcut, tier di traduzione/trascrizione, note-type, ecc.) —
@@ -48,7 +48,7 @@ export interface ProviderInfo {
   documentationUrl?: string;
 }
 
-// Provider disponibili - solo Local e Google sono abilitati
+// Catalogo condiviso: i provider ritirati/non implementati restano disabilitati.
 export const providers: Record<string, ProviderInfo> = {
   local: {
     id: "local",
@@ -115,7 +115,7 @@ export const providers: Record<string, ProviderInfo> = {
     requiresApiUrl: false,
     defaultApiUrl: "https://api.assemblyai.com/v2",
     enabled: true,
-    apiKeyUrl: "https://www.assemblyai.com/app/api-keys",
+    apiKeyUrl: "https://www.assemblyai.com/dashboard/api-keys",
     keyPlaceholder: "AssemblyAI API key",
     documentationUrl: "https://www.assemblyai.com/docs",
   },
@@ -146,7 +146,7 @@ export const providers: Record<string, ProviderInfo> = {
     name: "Groq API",
     icon: "groq",
     color: "from-orange-400 to-red-500",
-    description: "Ultra-fast inference on LPU (Llama, GPT-OSS, Qwen)",
+    description: "Ultra-fast inference on LPU (GPT-OSS, Qwen)",
     requiresApiKey: true,
     requiresApiUrl: false,
     defaultApiUrl: "https://api.groq.com/openai/v1",
@@ -684,23 +684,12 @@ export const modelsByProvider: Record<string, ModelInfo[]> = {
   // Groq API - Inferenza ultra-veloce su hardware LPU
   groq: [
     {
-      id: "llama-3.3-70b-versatile",
-      name: "Llama 3.3 70B Versatile",
+      id: "qwen/qwen3.8-27b",
+      name: "Qwen 3.8 27B",
       provider: "groq",
-      family: "Meta",
+      family: "Qwen",
       familyInfo: { type: "open-weights", badge: "Open" },
-      contextWindow: 131072,
-      description: "Meta 70B, modello flagship velocissimo su Groq",
-      recommended: true,
-    },
-    {
-      id: "llama-3.1-8b-instant",
-      name: "Llama 3.1 8B Instant",
-      provider: "groq",
-      family: "Meta",
-      familyInfo: { type: "open-weights", badge: "Open" },
-      contextWindow: 131072,
-      description: "Ultra-veloce 8B, latenza minima",
+      description: "Qwen multilingue su Groq",
     },
     {
       id: "openai/gpt-oss-120b",
@@ -743,8 +732,8 @@ export const modelsByProvider: Record<string, ModelInfo[]> = {
       description: "Economico e veloce, ottimo per traduzioni",
     },
     {
-      id: "anthropic/claude-3.5-haiku",
-      name: "Claude 3.5 Haiku",
+      id: "anthropic/claude-haiku-4.5",
+      name: "Claude Haiku 4.5",
       provider: "openrouter",
       family: "Anthropic",
       familyInfo: { type: "proprietary", badge: "Stable" },
@@ -866,31 +855,29 @@ export const modelsByProvider: Record<string, ModelInfo[]> = {
   // NVIDIA NIM - integrate.api.nvidia.com (OpenAI-compatible)
   nvidia: [
     {
-      id: "deepseek-ai/deepseek-v4-flash",
-      name: "DeepSeek V4 Flash",
+      id: "deepseek-ai/deepseek-v4.1-flash",
+      name: "DeepSeek V4.1 Flash",
       provider: "nvidia",
       family: "DeepSeek",
       familyInfo: { type: "open-weights", badge: "Newest" },
-      description: "Modello DeepSeek Flash disponibile tramite NVIDIA NIM.",
+      description: "DeepSeek Flash via NVIDIA NIM.",
       recommended: true,
     },
     {
-      id: "meta/llama-3.3-70b-instruct",
-      name: "Llama 3.3 70B",
+      id: "nvidia/llama-3.1-nemotron-70b-instruct",
+      name: "Nemotron 70B Instruct",
       provider: "nvidia",
-      family: "Meta",
+      family: "NVIDIA",
       familyInfo: { type: "open-weights", badge: "Open" },
-      contextWindow: 131072,
-      description: "Meta 70B su NVIDIA NIM",
+      description: "NVIDIA Nemotron instruction model.",
     },
     {
-      id: "meta/llama-3.1-8b-instruct",
-      name: "Llama 3.1 8B",
+      id: "nvidia/llama-3.1-nemotron-51b-instruct",
+      name: "Nemotron 51B Instruct",
       provider: "nvidia",
-      family: "Meta",
+      family: "NVIDIA",
       familyInfo: { type: "open-weights", badge: "Open" },
-      contextWindow: 131072,
-      description: "Modello Meta compatto e veloce tramite NVIDIA NIM.",
+      description: "NVIDIA Nemotron instruction model.",
     },
   ],
 };

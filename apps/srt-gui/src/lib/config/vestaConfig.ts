@@ -19,6 +19,19 @@ import { invokeCommand } from "$lib/services/tauriClient";
  */
 
 const cache = new Map<string, string>();
+let persistenceQueue: Promise<unknown> = Promise.resolve();
+
+function persist(command: string, args: Record<string, unknown>): Promise<unknown> {
+  const write = persistenceQueue.then(() => invokeCommand(command, args));
+  persistenceQueue = write.catch((error) => console.error("[vestaConfig] persistence failed", error));
+  return write;
+}
+
+/** Await a durable snapshot before reloading or closing a setup/import flow. */
+export async function flush(): Promise<void> {
+  await persist("config_replace_all", { values: exportSnapshot() });
+}
+
 let hydrated = false;
 let newInstallation = false;
 
@@ -34,6 +47,7 @@ export async function hydrate(): Promise<void> {
     newInstallation = Object.keys(all).length === 0 && !hasLegacyPreferences;
   } catch (e) {
     console.error("[vestaConfig] impossibile leggere vesta_config.json", e);
+    throw e;
   }
   migrateFromLocalStorage();
   hydrated = true;
@@ -60,14 +74,14 @@ function migrateFromLocalStorage(): void {
     const value = localStorage.getItem(key);
     if (value !== null && !cache.has(key)) {
       cache.set(key, value);
-      void invokeCommand("config_set", { key, value }).catch((e) =>
+      void persist("config_set", { key, value }).catch((e) =>
         console.error(`[vestaConfig] migrazione fallita per "${key}"`, e),
       );
     }
   }
 
   cache.set(MIGRATION_FLAG_KEY, "true");
-  void invokeCommand("config_set", { key: MIGRATION_FLAG_KEY, value: "true" }).catch((e) =>
+  void persist("config_set", { key: MIGRATION_FLAG_KEY, value: "true" }).catch((e) =>
     console.error("[vestaConfig] impossibile salvare il flag di migrazione", e),
   );
 }
@@ -78,14 +92,14 @@ export function getItem(key: string): string | null {
 
 export function setItem(key: string, value: string): void {
   cache.set(key, value);
-  void invokeCommand("config_set", { key, value }).catch((e) =>
+  void persist("config_set", { key, value }).catch((e) =>
     console.error(`[vestaConfig] impossibile salvare "${key}"`, e),
   );
 }
 
 export function removeItem(key: string): void {
   cache.delete(key);
-  void invokeCommand("config_remove", { key }).catch((e) =>
+  void persist("config_remove", { key }).catch((e) =>
     console.error(`[vestaConfig] impossibile rimuovere "${key}"`, e),
   );
 }
@@ -95,7 +109,7 @@ export function exportSnapshot(): Record<string, string> {
 }
 
 export async function replaceAll(values: Record<string, string>): Promise<void> {
-  await invokeCommand("config_replace_all", { values });
+  await persist("config_replace_all", { values });
   cache.clear();
   for (const [key, value] of Object.entries(values)) cache.set(key, value);
 }

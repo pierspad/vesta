@@ -86,6 +86,15 @@ async fn openai_compatible(
     audio: Vec<u8>,
     file_name: &str,
 ) -> Result<Vec<TranscribedSegment>> {
+    let json_only = cfg.provider.eq_ignore_ascii_case("openai") && cfg.model.starts_with("gpt-4o-");
+    if cfg.translate_to_english && json_only {
+        anyhow::bail!("OpenAI audio translation requires whisper-1");
+    }
+    // JSON-only models do not return a duration. Preserve the chunk's WAV
+    // duration so the resulting subtitle never has a zero-length timestamp.
+    let audio_duration = hound::WavReader::new(std::io::Cursor::new(&audio))
+        .ok()
+        .map(|reader| reader.duration() as f64 / reader.spec().sample_rate as f64);
     let endpoint = if cfg.translate_to_english {
         format!("{}/audio/translations", cfg.base_url())
     } else {
@@ -98,10 +107,15 @@ async fn openai_compatible(
 
     let mut form = reqwest::multipart::Form::new()
         .text("model", compatible_audio_model(cfg))
-        .text("response_format", "verbose_json")
+        .text(
+            "response_format",
+            if json_only { "json" } else { "verbose_json" },
+        )
         .part("file", part);
 
-    form = form.text("timestamp_granularities[]", "segment");
+    if !json_only && !cfg.translate_to_english {
+        form = form.text("timestamp_granularities[]", "segment");
+    }
 
     if !cfg.translate_to_english
         && let Some(lang) = cfg.language.as_ref().filter(|l| l.as_str() != "auto")
@@ -151,7 +165,10 @@ async fn openai_compatible(
     if text.is_empty() {
         return Ok(vec![]);
     }
-    let end_ms = (parsed.duration.unwrap_or(0.0) * 1000.0) as i64;
+    let end_ms = (parsed.duration.or(audio_duration).unwrap_or(0.0) * 1000.0) as i64;
+    if end_ms <= 0 {
+        anyhow::bail!("Transcription returned text without usable timestamps or audio duration");
+    }
     Ok(vec![TranscribedSegment {
         start_ms: 0,
         end_ms,
@@ -367,11 +384,16 @@ async fn assemblyai(
 
     let id = created.id.context("AssemblyAI transcript id missing")?;
 
+    let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(900);
     loop {
+        if tokio::time::Instant::now() >= deadline {
+            anyhow::bail!("AssemblyAI transcription timed out after 15 minutes");
+        }
         tokio::time::sleep(std::time::Duration::from_secs(3)).await;
         let poll: AaiTranscript = client
             .get(format!("{}/transcript/{}", base, id))
             .header("Authorization", &cfg.api_key)
+            .timeout(deadline.saturating_duration_since(tokio::time::Instant::now()))
             .send()
             .await
             .context("AssemblyAI poll failed")?
@@ -485,7 +507,189 @@ fn truncate(s: &str, n: usize) -> &str {
 
 #[cfg(test)]
 mod tests {
-    use super::{CloudConfig, assemblyai_speech_models, compatible_audio_model};
+    use super::*;
+
+    // Real loopback HTTP requests: validate multipart/auth/paths without keys,
+    // network availability or billable inference.
+    fn mock_server(
+        responses: Vec<(u16, String)>,
+    ) -> (String, std::thread::JoinHandle<Vec<String>>) {
+        use std::io::{Read, Write};
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let url = format!("http://{}", listener.local_addr().unwrap());
+        let handle = std::thread::spawn(move || {
+            let mut requests = Vec::new();
+            for (status, body) in responses {
+                let (mut stream, _) = listener.accept().unwrap();
+                stream
+                    .set_read_timeout(Some(std::time::Duration::from_secs(10)))
+                    .unwrap();
+                let mut request = Vec::new();
+                let mut buffer = [0; 4096];
+                loop {
+                    let n = stream.read(&mut buffer).unwrap();
+                    if n == 0 {
+                        break;
+                    }
+                    request.extend_from_slice(&buffer[..n]);
+                    if let Some(end) = request.windows(4).position(|w| w == b"\r\n\r\n") {
+                        let headers = String::from_utf8_lossy(&request[..end]).to_lowercase();
+                        let len = headers
+                            .lines()
+                            .find_map(|line| line.strip_prefix("content-length: "))
+                            .and_then(|v| v.parse::<usize>().ok())
+                            .unwrap_or(0);
+                        if request.len() >= end + 4 + len {
+                            break;
+                        }
+                    }
+                }
+                requests.push(String::from_utf8_lossy(&request).to_string());
+                write!(stream, "HTTP/1.1 {status} OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}", body.len()).unwrap();
+            }
+            requests
+        });
+        (url, handle)
+    }
+
+    fn config(provider: &str, url: String, model: &str) -> CloudConfig {
+        CloudConfig {
+            provider: provider.into(),
+            api_key: "test-key".into(),
+            api_url: Some(url),
+            model: model.into(),
+            language: Some("it".into()),
+            translate_to_english: false,
+        }
+    }
+
+    fn wav() -> Vec<u8> {
+        let mut cursor = std::io::Cursor::new(Vec::new());
+        {
+            let mut writer = hound::WavWriter::new(
+                &mut cursor,
+                hound::WavSpec {
+                    channels: 1,
+                    sample_rate: 16000,
+                    bits_per_sample: 16,
+                    sample_format: hound::SampleFormat::Int,
+                },
+            )
+            .unwrap();
+            for _ in 0..16000 {
+                writer.write_sample(0i16).unwrap();
+            }
+            writer.finalize().unwrap();
+        }
+        cursor.into_inner()
+    }
+
+    #[tokio::test]
+    async fn openai_json_model_uses_chunk_duration_and_no_whisper_parameters() {
+        let (url, server) = mock_server(vec![(200, r#"{"text":"Ciao"}"#.into())]);
+        let segments = transcribe_chunk(
+            &default_client(),
+            &config("openai", url, "gpt-4o-mini-transcribe"),
+            wav(),
+            "audio.wav",
+        )
+        .await
+        .unwrap();
+        assert_eq!(segments[0].end_ms, 1000);
+        let request = &server.join().unwrap()[0];
+        assert!(request.starts_with("POST /audio/transcriptions "));
+        assert!(
+            request
+                .to_lowercase()
+                .contains("authorization: bearer test-key")
+        );
+        assert!(request.contains("name=\"response_format\"\r\n\r\njson"));
+        assert!(!request.contains("timestamp_granularities"));
+    }
+
+    #[tokio::test]
+    async fn groq_segments_and_translation_model_are_preserved() {
+        let (url, server) = mock_server(vec![(
+            200,
+            r#"{"segments":[{"start":0.1,"end":0.8,"text":" Hello "}]}"#.into(),
+        )]);
+        let mut cfg = config("groq", url, "whisper-large-v3-turbo");
+        cfg.translate_to_english = true;
+        let segments = transcribe_chunk(&default_client(), &cfg, wav(), "audio.wav")
+            .await
+            .unwrap();
+        assert_eq!((segments[0].start_ms, segments[0].end_ms), (100, 800));
+        let request = &server.join().unwrap()[0];
+        assert!(request.starts_with("POST /audio/translations "));
+        assert!(request.contains("whisper-large-v3"));
+        assert!(!request.contains("whisper-large-v3-turbo"));
+    }
+
+    #[tokio::test]
+    async fn deepgram_contract() {
+        let (url, server) = mock_server(vec![(
+            200,
+            r#"{"results":{"utterances":[{"start":0.1,"end":0.8,"transcript":"Ciao"}]}}"#.into(),
+        )]);
+        let segments = transcribe_chunk(
+            &default_client(),
+            &config("deepgram", url, "nova-3"),
+            wav(),
+            "audio.wav",
+        )
+        .await
+        .unwrap();
+        assert_eq!(segments[0].text, "Ciao");
+        let request = &server.join().unwrap()[0];
+        assert!(request.starts_with("POST /listen?"));
+        assert!(request.contains("language=it"));
+        assert!(
+            request
+                .to_lowercase()
+                .contains("authorization: token test-key")
+        );
+    }
+
+    #[tokio::test]
+    async fn assemblyai_upload_create_poll_contract() {
+        let (url, server) = mock_server(vec![
+            (200, r#"{"upload_url":"https://example.test/audio"}"#.into()),
+            (200, r#"{"id":"test-id","status":"queued"}"#.into()),
+            (
+                200,
+                r#"{"status":"completed","words":[{"start":100,"end":800,"text":"Ciao."}]}"#.into(),
+            ),
+        ]);
+        let segments = transcribe_chunk(
+            &default_client(),
+            &config("assemblyai", url, "universal-2"),
+            wav(),
+            "audio.wav",
+        )
+        .await
+        .unwrap();
+        assert_eq!(segments[0].end_ms, 800);
+        let requests = server.join().unwrap();
+        assert!(requests[0].starts_with("POST /upload "));
+        assert!(requests[1].starts_with("POST /transcript "));
+        assert!(requests[1].contains("\"speech_models\":[\"universal-2\"]"));
+        assert!(requests[2].starts_with("GET /transcript/test-id "));
+    }
+
+    #[tokio::test]
+    async fn authentication_errors_are_not_empty_successes() {
+        let (url, server) = mock_server(vec![(401, r#"{"error":"bad key"}"#.into())]);
+        let error = transcribe_chunk(
+            &default_client(),
+            &config("openai", url, "whisper-1"),
+            wav(),
+            "audio.wav",
+        )
+        .await
+        .unwrap_err();
+        assert!(error.to_string().contains("401"));
+        server.join().unwrap();
+    }
 
     #[test]
     fn assemblyai_defaults_to_current_model_with_fallback() {

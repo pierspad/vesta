@@ -24,7 +24,7 @@ fn is_host_allowed(host: &str) -> bool {
     // Host/IP di rete locale: coprono sia il loopback sia i server di
     // inferenza in LAN (es. LM Studio/Ollama su un'altra macchina della
     // stessa rete), senza dover mantenere un elenco statico di IP.
-    if let Ok(ip) = host.parse::<std::net::IpAddr>() {
+    if let Ok(ip) = host.trim_matches(['[', ']']).parse::<std::net::IpAddr>() {
         return ip.is_loopback() || is_private_lan_ip(&ip);
     }
     host.ends_with(".local")
@@ -109,7 +109,21 @@ pub async fn http_fetch(req: HttpFetchRequest) -> Result<HttpFetchResponse, Stri
 
     let client = reqwest::Client::builder()
         .redirect(if follow_redirects {
-            Policy::default()
+            let custom = req.allow_custom_host;
+            Policy::custom(move |attempt| {
+                if attempt.previous().len() >= 10 {
+                    attempt.error("Too many redirects")
+                } else if matches!(attempt.url().scheme(), "http" | "https")
+                    && attempt
+                        .url()
+                        .host_str()
+                        .is_some_and(|host| custom || is_host_allowed(host))
+                {
+                    attempt.follow()
+                } else {
+                    attempt.error("Redirect host not allowed")
+                }
+            })
         } else {
             Policy::none()
         })
@@ -152,4 +166,26 @@ pub async fn http_fetch(req: HttpFetchRequest) -> Result<HttpFetchResponse, Stri
         headers,
         body,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn permits_loopback_and_lan_hosts_but_not_arbitrary_public_hosts() {
+        for host in [
+            "localhost",
+            "127.0.0.1",
+            "[::1]",
+            "192.168.1.2",
+            "[fd00::1]",
+            "ollama.local",
+            "api.openai.com",
+        ] {
+            assert!(is_host_allowed(host), "{host}");
+        }
+        for host in ["example.com", "8.8.8.8", "api.openai.com.example.com"] {
+            assert!(!is_host_allowed(host), "{host}");
+        }
+    }
 }

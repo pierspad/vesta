@@ -44,8 +44,8 @@ export const transcribeProviders: Record<string, TranscribeProviderInfo> = {
     keyPlaceholder: "sk-...",
     models: [
       { id: "whisper-1", name: "Whisper-1 (con timestamp)", recommended: true },
-      { id: "gpt-4o-mini-transcribe", name: "GPT-4o mini transcribe" },
-      { id: "gpt-4o-transcribe", name: "GPT-4o transcribe" },
+      { id: "gpt-4o-mini-transcribe", name: "GPT-4o mini transcribe (timing per chunk)" },
+      { id: "gpt-4o-transcribe", name: "GPT-4o transcribe (timing per chunk)" },
     ],
   },
   deepgram: {
@@ -67,7 +67,7 @@ export const transcribeProviders: Record<string, TranscribeProviderInfo> = {
     color: "from-indigo-500 to-blue-500",
     description: "Universal-3 Pro e Universal-2 con timestamp per parola",
     defaultUrl: "https://api.assemblyai.com/v2",
-    apiKeyUrl: "https://www.assemblyai.com/app/api-keys",
+    apiKeyUrl: "https://www.assemblyai.com/dashboard/api-keys",
     keyPlaceholder: "AssemblyAI API key",
     models: [
       { id: "universal-3-pro", name: "Universal-3 Pro", recommended: true },

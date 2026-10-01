@@ -21,6 +21,12 @@ pub struct TierEntry {
 
 pub fn provider_defaults(provider: &str) -> (ApiType, &'static str, u32, &'static str) {
     match provider.to_lowercase().as_str() {
+        "openai" => (
+            ApiType::Local,
+            "https://api.openai.com/v1",
+            0,
+            "gpt-4o-mini",
+        ),
         "google" | "gemini" => (
             ApiType::Google,
             "https://generativelanguage.googleapis.com/v1beta",
@@ -31,13 +37,13 @@ pub fn provider_defaults(provider: &str) -> (ApiType, &'static str, u32, &'stati
             ApiType::Groq,
             "https://api.groq.com/openai/v1",
             30,
-            "llama-3.3-70b-versatile",
+            "openai/gpt-oss-20b",
         ),
         "openrouter" => (
             ApiType::OpenRouter,
             "https://openrouter.ai/api/v1",
             20,
-            "google/gemini-2.0-flash-001",
+            "google/gemini-2.5-flash",
         ),
         "mistral" => (
             ApiType::Local,
@@ -55,7 +61,7 @@ pub fn provider_defaults(provider: &str) -> (ApiType, &'static str, u32, &'stati
             ApiType::Local,
             "https://integrate.api.nvidia.com/v1",
             40,
-            "meta/llama-3.3-70b-instruct",
+            "deepseek-ai/deepseek-v4.1-flash",
         ),
 
         _ => (ApiType::Local, "http://localhost:11434/v1", 0, "llama3.2"),
@@ -134,6 +140,9 @@ mod tests {
 
     #[test]
     fn test_provider_defaults() {
+        let (api_type, url, _, _) = provider_defaults("OPENAI");
+        assert_eq!(api_type, ApiType::Local);
+        assert_eq!(url, "https://api.openai.com/v1");
         let (api_type, url, rpm, model) = provider_defaults("google");
         assert_eq!(api_type, ApiType::Google);
         assert_eq!(url, "https://generativelanguage.googleapis.com/v1beta");
@@ -144,7 +153,7 @@ mod tests {
         assert_eq!(api_type, ApiType::Groq);
         assert_eq!(url, "https://api.groq.com/openai/v1");
         assert_eq!(rpm, 30);
-        assert_eq!(model, "llama-3.3-70b-versatile");
+        assert_eq!(model, "openai/gpt-oss-20b");
 
         let (api_type, url, rpm, model) = provider_defaults("unknown_local");
         assert_eq!(api_type, ApiType::Local);

@@ -225,10 +225,9 @@ impl Translator {
             .ok_or_else(|| anyhow::anyhow!("Google API key is required"))?;
 
         let url = format!(
-            "{}/models/{}:generateContent?key={}",
+            "{}/models/{}:generateContent",
             self.config.base_url.trim_end_matches('/'),
-            self.config.model,
-            api_key
+            self.config.model
         );
 
         let request = GeminiRequest {
@@ -272,7 +271,7 @@ impl Translator {
                 eprintln!(
                     "[srt-translate] Google API error response (status {}): {}",
                     status,
-                    &response_text[..response_text.len().min(500)]
+                    truncate_response(&response_text, 500)
                 );
             }
 
@@ -281,7 +280,7 @@ impl Translator {
                     "Failed to parse Google API response (status {}): {}. Raw: {}",
                     status,
                     e,
-                    &response_text[..response_text.len().min(500)]
+                    truncate_response(&response_text, 500)
                 )
             })?;
 
@@ -305,7 +304,7 @@ impl Translator {
                     anyhow::anyhow!(
                         "Google API response missing text content. Status: {}. Response: {}",
                         status,
-                        &response_text[..response_text.len().min(500)]
+                        truncate_response(&response_text, 500)
                     )
                 })?;
 
@@ -432,7 +431,7 @@ impl Translator {
                 eprintln!(
                     "[srt-translate] API error response (status {}): {}",
                     status,
-                    &response_text[..response_text.len().min(500)]
+                    truncate_response(&response_text, 500)
                 );
             }
 
@@ -442,7 +441,7 @@ impl Translator {
                         "Failed to parse API response (status {}): {}. Raw: {}",
                         status,
                         e,
-                        &response_text[..response_text.len().min(300)]
+                        truncate_response(&response_text, 300)
                     )
                 })?;
 
@@ -459,7 +458,7 @@ impl Translator {
                 anyhow::anyhow!(
                     "API response missing 'choices'. Status: {}. Response: {}",
                     status,
-                    &response_text[..response_text.len().min(300)]
+                    truncate_response(&response_text, 300)
                 )
             })?;
 
@@ -471,6 +470,14 @@ impl Translator {
 
         anyhow::bail!("API rate limit exceeded after {} retries", MAX_RETRIES)
     }
+}
+
+fn truncate_response(text: &str, max_bytes: usize) -> &str {
+    let mut end = text.len().min(max_bytes);
+    while !text.is_char_boundary(end) {
+        end -= 1;
+    }
+    &text[..end]
 }
 
 fn retry_backoff(
@@ -569,7 +576,7 @@ fn parse_json_translations(response: &str, expected_count: usize) -> Result<Hash
             anyhow::bail!(
                 "Failed to parse JSON response: {}. Response was: {}",
                 e,
-                &response[..response.len().min(500)]
+                truncate_response(response, 500)
             )
         }
     }
@@ -625,6 +632,13 @@ fn try_legacy_parsing(text: &str, expected_count: usize) -> Option<HashMap<u32, 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn truncation_preserves_unicode_boundaries() {
+        assert_eq!(truncate_response("a界🙂z", 3), "a");
+        assert_eq!(truncate_response("a界🙂z", 6), "a界");
+        assert_eq!(truncate_response("hello", 0), "");
+    }
 
     #[test]
     fn test_parse_json_translations_clean_json() {

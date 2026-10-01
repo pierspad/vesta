@@ -457,9 +457,12 @@ pub async fn run_cloud(
             .with_context(|| format!("Failed to read audio chunk {}", idx + 1))?;
         let offset_ms = idx as i64 * CLOUD_CHUNK_SECONDS * 1000;
 
-        let segs = transcribe_chunk(&client, &cloud_cfg, bytes, "audio.wav")
-            .await
-            .with_context(|| format!("Cloud transcription failed on chunk {}", idx + 1))?;
+        let segs = tokio::select! {
+            biased;
+            _ = cancel_token.cancelled() => anyhow::bail!("Transcription cancelled"),
+            result = transcribe_chunk(&client, &cloud_cfg, bytes, "audio.wav") =>
+                result.with_context(|| format!("Cloud transcription failed on chunk {}", idx + 1))?,
+        };
 
         for mut s in segs {
             s.start_ms += offset_ms;
