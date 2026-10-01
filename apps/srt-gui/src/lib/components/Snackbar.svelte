@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { locale } from "$lib/i18n";
+  let t = $derived($locale);
   import { SNACKBAR_DEFAULT_DURATION, type SnackbarVariant } from "$lib/stores/snackbarStore.svelte";
 
   interface Props {
@@ -79,7 +81,7 @@
         type="button"
         onclick={onclose}
         class={`${current.close} ml-2`}
-        aria-label="Close"
+        aria-label={t("common.close")}
       >
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path

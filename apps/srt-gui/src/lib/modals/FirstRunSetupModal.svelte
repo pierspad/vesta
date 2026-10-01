@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { availableUILanguages, currentLanguage } from "$lib/i18n";
+  import { availableUILanguages, currentLanguage, loadLanguage, translateForLanguage } from "$lib/i18n";
   import { languages, getLanguageSearchTerms } from "$lib/config/languages";
   import SetupLanguageField from "$lib/components/SetupLanguageField.svelte";
   import WhisperModelSelector from "$lib/components/WhisperModelSelector.svelte";
@@ -30,7 +30,9 @@
   let whisperModel = $state("small");
   let installing = $state(false);
   let installError = $state("");
-  let it = $derived(uiLanguage === "it");
+  let setupRevision = $state(0);
+  $effect(() => { const selected = uiLanguage; void loadLanguage(selected).then((ok) => { if (ok && uiLanguage === selected) { currentLanguage.set(selected); setupRevision += 1; } }); });
+  function setupT(key: string) { void setupRevision; return translateForLanguage(uiLanguage, key); }
 
   const languageOptions = languages.map((l) => ({ value: l.code, label: l.name === l.nameEn ? l.name : `${l.name} — ${l.nameEn}`, icon: l.flag, searchTerms: getLanguageSearchTerms(l.code) }));
   let selectedWhisperDownloaded = $derived(whisperModelsStore.whisperModels.find((model) => model.id === whisperModel)?.downloaded ?? false);
@@ -77,8 +79,6 @@
           await fontStore.downloadFont(font.id);
         }
       }
-      vestaConfig.setItem("vesta-first-run-setup-complete", "true");
-      vestaConfig.removeItem("vesta-first-run-force");
       vestaConfig.setItem("srt-tools-ui-language", uiLanguage);
       vestaConfig.setItem("vesta-default-native-language", nativeLanguage);
       vestaConfig.setItem("vesta-default-target-language", nativeLanguage);
@@ -94,6 +94,10 @@
       media.audioFormat = mode === "custom" && compactAudio ? "opus" : "mp3";
       media.audioBitrate = media.audioFormat === "opus" ? 64 : 128;
       saveMediaSettings(media);
+      const preferences = vestaConfig.exportSnapshot();
+      preferences["vesta-first-run-setup-complete"] = "true";
+      delete preferences["vesta-first-run-force"];
+      await vestaConfig.replaceAll(preferences);
       onComplete(wantsTranscription);
     } catch (error) { installError = String(error); }
     finally { installing = false; }
@@ -103,8 +107,8 @@
 <div class="fixed inset-0 z-[100] flex items-center justify-center overflow-hidden bg-black/80 p-6" role="dialog" aria-modal="true">
   <div class="flex h-[720px] max-h-[calc(100vh-3rem)] w-full max-w-5xl flex-col overflow-visible rounded-2xl border border-indigo-400/30 bg-gray-900 p-7 shadow-2xl">
     <div class="flex items-start justify-between gap-5">
-      <div><p class="text-xs font-bold uppercase tracking-[0.2em] text-indigo-300">Vesta</p><h1 class="mt-2 text-2xl font-bold text-white">{it ? "Configura la tua esperienza" : "Set up your experience"}</h1><p class="mt-2 text-sm text-gray-400">{it ? "Due lingue essenziali, poi Vesta prepara il resto." : "Two essential languages, then Vesta prepares the rest."}</p></div>
-      {#if mode}<span class="rounded-full border border-indigo-400/25 bg-indigo-500/10 px-3 py-1 text-xs text-indigo-200">{mode === "quick" ? (it ? "Rapido" : "Quick") : "Expert"} · {mode === "quick" ? 1 : customStepNumber}/{mode === "custom" ? 3 : 1}</span>{/if}
+      <div><p class="text-xs font-bold uppercase tracking-[0.2em] text-indigo-300">Vesta</p><h1 class="mt-2 text-2xl font-bold text-white">{setupT("setup.setUpYourExperience")}</h1><p class="mt-2 text-sm text-gray-400">{setupT("setup.twoEssentialLanguagesThenVestaPreparesTheRest")}</p></div>
+      {#if mode}<span class="rounded-full border border-indigo-400/25 bg-indigo-500/10 px-3 py-1 text-xs text-indigo-200">{mode === "quick" ? (setupT("setup.quick")) : setupT("setup.expert")} · {mode === "quick" ? 1 : customStepNumber}/{mode === "custom" ? 3 : 1}</span>{/if}
     </div>
 
     <div class="min-h-0 flex-1">
@@ -113,11 +117,11 @@
       <div class="grid w-full gap-4 sm:grid-cols-2">
         <button class="rounded-xl border border-indigo-400/30 bg-indigo-500/10 p-5 text-left hover:bg-indigo-500/20" onclick={() => { mode = "custom"; step = "languages"; }}>
           <span class="mb-3 flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-400/15 text-indigo-200"><svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4 7h10M18 7h2M4 17h2m4 0h10M14 5v4M8 15v4M4 12h4m4 0h8M10 10v4" /></svg></span>
-          <strong class="text-white">{it ? "Setup personalizzato" : "Custom setup"}</strong><p class="mt-2 text-xs text-gray-400">{it ? "Modalità Expert, esportazione, audio e trascrizione locale." : "Expert mode, export, audio and local transcription."}</p>
+          <strong class="text-white">{setupT("setup.customSetup")}</strong><p class="mt-2 text-xs text-gray-400">{setupT("setup.expertModeExportAudioAndLocalTranscription")}</p>
         </button>
         <button class="rounded-xl border border-emerald-400/30 bg-emerald-500/10 p-5 text-left hover:bg-emerald-500/20" onclick={() => { mode = "quick"; step = "languages"; }}>
           <span class="mb-3 flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-400/15 text-emerald-200"><svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M13 2 4 14h7l-1 8 10-13h-7V2z" /></svg></span>
-          <strong class="text-white">{it ? "Setup rapido" : "Quick setup"}</strong><p class="mt-2 text-xs text-gray-400">{it ? "Lingue, interfaccia semplice e impostazioni conservative." : "Languages, a simple interface and conservative defaults."}</p>
+          <strong class="text-white">{setupT("setup.quickSetup")}</strong><p class="mt-2 text-xs text-gray-400">{setupT("setup.languagesASimpleInterfaceAndConservativeDefaults")}</p>
         </button>
       </div>
       </div>
@@ -125,51 +129,51 @@
       <div class="flex h-full flex-col">
         <div class="flex min-h-0 flex-1 items-center">
           <div class="mx-auto grid w-full max-w-3xl grid-cols-1 gap-4 sm:grid-cols-2">
-            <SetupLanguageField kind="native" title={it ? "La tua lingua madre" : "Your native language"} description={it ? "Interfaccia, traduzioni e riferimenti" : "Interface, translations and references"} options={languageOptions} value={nativeLanguage} onchange={(value) => { nativeLanguage = value; uiLanguage = resolveUiLanguage(value); }} />
-            <SetupLanguageField kind="study" title={it ? "Lingua studiata" : "Study language"} description={it ? "Flashcard e trascrizione" : "Flashcards and transcription"} options={languageOptions} value={studyLanguage} onchange={(value) => studyLanguage = value} />
+            <SetupLanguageField kind="native" title={setupT("setup.yourNativeLanguage")} description={setupT("setup.interfaceTranslationsAndReferences")} options={languageOptions} value={nativeLanguage} onchange={(value) => { nativeLanguage = value; uiLanguage = resolveUiLanguage(value); }} />
+            <SetupLanguageField kind="study" title={setupT("setup.studyLanguage")} description={setupT("setup.flashcardsAndTranscription")} options={languageOptions} value={studyLanguage} onchange={(value) => studyLanguage = value} />
           </div>
         </div>
-        <div class="mt-auto flex justify-between"><button class="btn-secondary px-4 py-2" onclick={() => mode = null}>{it ? "Indietro" : "Back"}</button>{#if mode === "custom"}<button class="rounded-lg bg-indigo-500 px-5 py-2 font-semibold text-white" onclick={() => step = "export"}>{it ? "Continua" : "Continue"}</button>{:else}<button class="rounded-lg bg-indigo-500 px-5 py-2 font-semibold text-white" onclick={finish}>{it ? "Completa setup" : "Finish setup"}</button>{/if}</div>
+        <div class="mt-auto flex justify-between"><button class="btn-secondary px-4 py-2" onclick={() => mode = null}>{setupT("setup.back")}</button>{#if mode === "custom"}<button class="rounded-lg bg-indigo-500 px-5 py-2 font-semibold text-white" onclick={() => step = "export"}>{setupT("setup.continue")}</button>{:else}<button class="rounded-lg bg-indigo-500 px-5 py-2 font-semibold text-white" onclick={finish}>{setupT("setup.finishSetup")}</button>{/if}</div>
       </div>
     {:else if step === "export"}
       <div class="flex h-full flex-col">
         <div class="flex min-h-0 flex-1 items-center">
         <div class="w-full">
         <div class="rounded-xl border border-white/10 bg-white/[0.03] p-4">
-          <div class="mb-3 flex items-center gap-3"><span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-cyan-500/15 text-cyan-300"><svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 18V5l10-2v13M9 9l10-2M6 18a3 2 0 110 4 3 2 0 010-4zm10-2a3 2 0 110 4 3 2 0 010-4z"/></svg></span><p class="text-sm font-semibold text-white">{it ? "Formato audio" : "Audio format"}</p></div>
+          <div class="mb-3 flex items-center gap-3"><span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-cyan-500/15 text-cyan-300"><svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 18V5l10-2v13M9 9l10-2M6 18a3 2 0 110 4 3 2 0 010-4zm10-2a3 2 0 110 4 3 2 0 010-4z"/></svg></span><p class="text-sm font-semibold text-white">{setupT("setup.audioFormat")}</p></div>
           <div class="relative grid grid-cols-2 rounded-lg bg-black/25 p-1">
             <span class="absolute bottom-1 top-1 w-[calc(50%-4px)] rounded-md border border-cyan-400/40 bg-cyan-500/20 transition-transform duration-200 ease-out {compactAudio ? 'translate-x-[calc(100%+4px)]' : 'translate-x-0'}"></span>
-            <button class="relative z-10 px-3 py-2 text-left" aria-pressed={!compactAudio} onclick={toggleAudioFormat}><span class="block text-sm font-semibold {compactAudio ? 'text-gray-400' : 'text-cyan-100'}">MP3 · {it ? "Funziona ovunque" : "Works everywhere"}</span><span class="block text-[10px] text-gray-500">128 kb/s · Anki Desktop, AnkiDroid, AnkiMobile</span></button>
-            <button class="relative z-10 px-3 py-2 text-left" aria-pressed={compactAudio} onclick={toggleAudioFormat}><span class="block text-sm font-semibold {compactAudio ? 'text-cyan-100' : 'text-gray-400'}">Opus · {it ? "Compatto" : "Compressed"}</span><span class="block text-[10px] text-gray-500">64 kb/s · Anki Desktop, AnkiDroid · {it ? "non iOS" : "not iOS"}</span></button>
+            <button class="relative z-10 px-3 py-2 text-left" aria-pressed={!compactAudio} onclick={toggleAudioFormat}><span class="block text-sm font-semibold {compactAudio ? 'text-gray-400' : 'text-cyan-100'}">MP3 · {setupT("setup.worksEverywhere")}</span><span class="block text-[10px] text-gray-500">128 kb/s · Anki Desktop, AnkiDroid, AnkiMobile</span></button>
+            <button class="relative z-10 px-3 py-2 text-left" aria-pressed={compactAudio} onclick={toggleAudioFormat}><span class="block text-sm font-semibold {compactAudio ? 'text-cyan-100' : 'text-gray-400'}">Opus · {setupT("setup.compressed")}</span><span class="block text-[10px] text-gray-500">64 kb/s · Anki Desktop, AnkiDroid · {setupT("setup.notIos")}</span></button>
           </div>
         </div>
 
         <div class="mt-4 min-h-[238px] rounded-xl border border-white/10 bg-white/[0.03] p-4">
-          <p class="mb-3 flex items-center gap-2 text-sm font-semibold text-white"><svg class="h-5 w-5 text-violet-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" d="M4 7l8-4 8 4-8 4-8-4zm0 5 8 4 8-4m-16 5 8 4 8-4"/></svg>{it ? "Come vuoi esportare le flashcard?" : "How do you want to export flashcards?"}</p>
+          <p class="mb-3 flex items-center gap-2 text-sm font-semibold text-white"><svg class="h-5 w-5 text-violet-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" d="M4 7l8-4 8 4-8 4-8-4zm0 5 8 4 8-4m-16 5 8 4 8-4"/></svg>{setupT("setup.howDoYouWantToExportFlashcards")}</p>
           <div class="relative grid grid-cols-3 rounded-lg bg-black/20 p-1" role="switch" aria-checked={exportFormat !== "apkg"} tabindex="0" onkeydown={(event) => (event.key === "Enter" || event.key === " ") && cycleExportFormat()}>
             <span class="absolute bottom-1 top-1 w-[calc(33.333%-4px)] rounded-md border transition-transform duration-200 ease-out {exportFormat === 'apkg' ? 'border-emerald-400/40 bg-emerald-500/20' : exportFormat === 'tsv' ? 'border-violet-400/40 bg-violet-500/20' : 'border-cyan-400/40 bg-cyan-500/20'}" style="transform: translateX(calc({exportFormat === 'apkg' ? 0 : exportFormat === 'tsv' ? 100 : 200}% + {exportFormat === 'apkg' ? 0 : exportFormat === 'tsv' ? 4 : 8}px));"></span>
-            <button class="relative z-10 flex items-center justify-center gap-2 px-3 py-3 text-sm font-semibold {exportFormat === 'apkg' ? 'text-emerald-200' : 'text-gray-400'}" onclick={cycleExportFormat}><svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 7l-8-4-8 4m16 0-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>APKG <span class="rounded-full bg-emerald-500/20 px-1.5 py-0.5 text-[8px] uppercase text-emerald-300">{it ? "Consigliato" : "Recommended"}</span></button><button class="relative z-10 flex items-center justify-center gap-2 px-3 py-3 text-sm font-semibold {exportFormat === 'tsv' ? 'text-violet-200' : 'text-gray-400'}" onclick={cycleExportFormat}><svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>TSV</button><button class="relative z-10 flex items-center justify-center gap-2 px-3 py-3 text-sm font-semibold {exportFormat === 'anki' ? 'text-cyan-200' : 'text-gray-400'}" onclick={cycleExportFormat}><svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13 3 4 14h7v7l9-11h-7V3z"/></svg>AnkiConnect</button>
+            <button class="relative z-10 flex items-center justify-center gap-2 px-3 py-3 text-sm font-semibold {exportFormat === 'apkg' ? 'text-emerald-200' : 'text-gray-400'}" onclick={cycleExportFormat}><svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 7l-8-4-8 4m16 0-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>APKG <span class="rounded-full bg-emerald-500/20 px-1.5 py-0.5 text-[8px] uppercase text-emerald-300">{setupT("setup.recommended")}</span></button><button class="relative z-10 flex items-center justify-center gap-2 px-3 py-3 text-sm font-semibold {exportFormat === 'tsv' ? 'text-violet-200' : 'text-gray-400'}" onclick={cycleExportFormat}><svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>TSV</button><button class="relative z-10 flex items-center justify-center gap-2 px-3 py-3 text-sm font-semibold {exportFormat === 'anki' ? 'text-cyan-200' : 'text-gray-400'}" onclick={cycleExportFormat}><svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13 3 4 14h7v7l9-11h-7V3z"/></svg>AnkiConnect</button>
           </div>
-          <p class="mt-3 text-xs text-gray-400">{exportFormat === "apkg" ? (it ? "Pacchetto completo, consigliato per quasi tutti." : "Complete package, recommended for most people.") : exportFormat === "tsv" ? (it ? "File tabellare e cartella media per importazione manuale." : "Tabular file and media folder for manual import.") : (it ? "Invio diretto ad Anki; usa il formato di riserva se Anki è chiuso." : "Send directly to Anki; use the fallback if Anki is closed.")}</p>
+          <p class="mt-3 text-xs text-gray-400">{exportFormat === "apkg" ? (setupT("setup.completePackageRecommendedForMostPeople")) : exportFormat === "tsv" ? (setupT("setup.tabularFileAndMediaFolderForManualImport")) : (setupT("setup.sendDirectlyToAnkiUseTheFallbackIfAnkiIsClosed"))}</p>
           <ExportFallbackSelector value={fallbackFormat} onchange={(value) => fallbackFormat = value} className="mt-4 min-h-10 border-t border-white/10 pt-4 {exportFormat === 'anki' ? 'visible' : 'invisible'}" />
         </div>
         </div>
         </div>
-        <div class="mt-auto flex justify-between"><button class="btn-secondary px-4 py-2" onclick={() => step = "languages"}>{it ? "Indietro" : "Back"}</button><button class="rounded-lg bg-indigo-500 px-5 py-2 font-semibold text-white" onclick={() => step = "transcription"}>{it ? "Continua" : "Continue"}</button></div>
+        <div class="mt-auto flex justify-between"><button class="btn-secondary px-4 py-2" onclick={() => step = "languages"}>{setupT("setup.back")}</button><button class="rounded-lg bg-indigo-500 px-5 py-2 font-semibold text-white" onclick={() => step = "transcription"}>{setupT("setup.continue")}</button></div>
       </div>
     {:else}
       <div class="flex h-full flex-col">
         <div class="flex min-h-0 flex-1 items-center">
-        <div class="w-full rounded-xl border border-white/10 bg-white/[0.03] p-5"><div class="flex items-center justify-between gap-6"><div><p class="font-semibold text-white">{it ? "Trascrizione locale" : "Local transcription"}</p><p class="mt-1 text-xs text-gray-400">{it ? "Usa Whisper sul dispositivo; i modelli presenti non saranno riscaricati." : "Run Whisper on this device; existing models will not be downloaded again."}</p></div><button aria-label={it ? "Attiva o disattiva la trascrizione locale" : "Toggle local transcription"} aria-pressed={wantsTranscription} class="group flex h-10 min-w-24 shrink-0 items-center justify-between gap-2 rounded-full border px-2.5 transition-colors {wantsTranscription ? 'border-indigo-400/50 bg-indigo-500 text-white' : 'border-white/10 bg-gray-700 text-gray-300 hover:bg-gray-600'}" onclick={() => wantsTranscription = !wantsTranscription}><span class="pl-1 text-[10px] font-bold uppercase tracking-wider">{wantsTranscription ? 'On' : 'Off'}</span><span class="relative h-6 w-11 rounded-full bg-black/25"><span class="absolute top-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-all {wantsTranscription ? 'left-5.5' : 'left-0.5'}"></span></span></button></div>
-          <div class="mt-5 {wantsTranscription ? '' : 'pointer-events-none opacity-45'}"><p class="mb-2 text-xs font-semibold text-gray-300">Whisper model</p><WhisperModelSelector models={whisperModelsStore.whisperModels} value={whisperModel} disabled={!wantsTranscription} onselect={(model) => whisperModel = model.id} /></div>
+        <div class="w-full rounded-xl border border-white/10 bg-white/[0.03] p-5"><div class="flex items-center justify-between gap-6"><div><p class="font-semibold text-white">{setupT("setup.localTranscription")}</p><p class="mt-1 text-xs text-gray-400">{setupT("setup.runWhisperOnThisDeviceExistingModelsWillNotBeDownloadedAgain")}</p></div><button aria-label={setupT("setup.toggleLocalTranscription")} aria-pressed={wantsTranscription} class="group flex h-10 min-w-24 shrink-0 items-center justify-between gap-2 rounded-full border px-2.5 transition-colors {wantsTranscription ? 'border-indigo-400/50 bg-indigo-500 text-white' : 'border-white/10 bg-gray-700 text-gray-300 hover:bg-gray-600'}" onclick={() => wantsTranscription = !wantsTranscription}><span class="pl-1 text-[10px] font-bold uppercase tracking-wider">{wantsTranscription ? setupT('common.on') : setupT('common.off')}</span><span class="relative h-6 w-11 rounded-full bg-black/25"><span class="absolute top-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-all {wantsTranscription ? 'left-5.5' : 'left-0.5'}"></span></span></button></div>
+          <div class="mt-5 {wantsTranscription ? '' : 'pointer-events-none opacity-45'}"><p class="mb-2 text-xs font-semibold text-gray-300">{setupT("settings.whisper.modelLabel")}</p><WhisperModelSelector models={whisperModelsStore.whisperModels} value={whisperModel} disabled={!wantsTranscription} onselect={(model) => whisperModel = model.id} /></div>
           <div class="mt-4 grid grid-cols-2 gap-3 {wantsTranscription ? '' : 'pointer-events-none opacity-45'}">
-            <button disabled={!wantsTranscription} class="rounded-xl border p-4 text-left {useVad && vadChoice === 'silero' ? 'border-emerald-400/40 bg-emerald-500/10' : 'border-white/10 bg-white/[0.03]'}" onclick={() => { useVad = true; vadChoice = 'silero'; }}><p class="flex items-center gap-2 text-sm font-semibold text-white"><svg class="h-4 w-4 text-emerald-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4 12h3l2-5 4 10 2-5h5"/></svg>Silero Voice Activity Detection 6.2.0</p><p class="mt-1 text-[11px] {sileroDownloaded ? 'text-emerald-400' : 'text-gray-400'}">{sileroDownloaded ? (it ? "Scaricato · pronto" : "Downloaded · ready") : (it ? "Sarà scaricato al termine" : "Will download when setup finishes")}</p></button>
-            <button disabled={!wantsTranscription} class="rounded-xl border p-4 text-left {useVad && vadChoice === 'custom' ? 'border-sky-400/40 bg-sky-500/10' : 'border-white/10 bg-white/[0.03]'}" onclick={async () => { await whisperModelsStore.pickCustomVad(); if (whisperModelsStore.vadCustomValid) { useVad = true; vadChoice = 'custom'; } }}><p class="flex items-center gap-2 text-sm font-semibold text-white"><svg class="h-4 w-4 text-sky-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 16V4m0 0-4 4m4-4 4 4M5 15v4h14v-4"/></svg>{it ? "Modello Voice Activity Detection personalizzato" : "Custom Voice Activity Detection Model"}</p><p class="mt-1 truncate text-[11px] text-gray-400">{whisperModelsStore.vadSelection.customPath ?? (it ? "Carica un file .bin" : "Load a .bin file")}</p></button>
+            <button disabled={!wantsTranscription} class="rounded-xl border p-4 text-left {useVad && vadChoice === 'silero' ? 'border-emerald-400/40 bg-emerald-500/10' : 'border-white/10 bg-white/[0.03]'}" onclick={() => { useVad = true; vadChoice = 'silero'; }}><p class="flex items-center gap-2 text-sm font-semibold text-white"><svg class="h-4 w-4 text-emerald-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4 12h3l2-5 4 10 2-5h5"/></svg>Silero Voice Activity Detection 6.2.0</p><p class="mt-1 text-[11px] {sileroDownloaded ? 'text-emerald-400' : 'text-gray-400'}">{sileroDownloaded ? (setupT("setup.downloadedReady")) : (setupT("setup.willDownloadWhenSetupFinishes"))}</p></button>
+            <button disabled={!wantsTranscription} class="rounded-xl border p-4 text-left {useVad && vadChoice === 'custom' ? 'border-sky-400/40 bg-sky-500/10' : 'border-white/10 bg-white/[0.03]'}" onclick={async () => { await whisperModelsStore.pickCustomVad(); if (whisperModelsStore.vadCustomValid) { useVad = true; vadChoice = 'custom'; } }}><p class="flex items-center gap-2 text-sm font-semibold text-white"><svg class="h-4 w-4 text-sky-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 16V4m0 0-4 4m4-4 4 4M5 15v4h14v-4"/></svg>{setupT("setup.customVoiceActivityDetectionModel")}</p><p class="mt-1 truncate text-[11px] text-gray-400">{whisperModelsStore.vadSelection.customPath ?? (setupT("setup.loadABinFile"))}</p></button>
           </div>
         </div>
         </div>
         {#if installError}<p class="mt-4 text-sm text-red-300">{installError}</p>{/if}
-        <div class="mt-auto flex justify-between"><button class="btn-secondary px-4 py-2" disabled={installing} onclick={() => step = "export"}>{it ? "Indietro" : "Back"}</button><button class="rounded-lg bg-indigo-500 px-5 py-2 font-semibold text-white disabled:opacity-50" disabled={installing} onclick={finish}>{installing ? (it ? "Installazione…" : "Installing…") : (it ? "Completa setup" : "Finish setup")}</button></div>
+        <div class="mt-auto flex justify-between"><button class="btn-secondary px-4 py-2" disabled={installing} onclick={() => step = "export"}>{setupT("setup.back")}</button><button class="rounded-lg bg-indigo-500 px-5 py-2 font-semibold text-white disabled:opacity-50" disabled={installing} onclick={finish}>{installing ? (setupT("setup.installing")) : (setupT("setup.finishSetup"))}</button></div>
       </div>
     {/if}
     </div>

@@ -562,7 +562,7 @@
 <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 <div 
   role="region"
-  aria-label="Revision content"
+  aria-label={t("nav.revision")}
   class="h-full flex flex-col text-gray-200 bg-gray-900 relative overflow-hidden"
   onkeydown={handleKeydown}
   ondragover={(e) => {
@@ -853,10 +853,10 @@
 
   <ConfirmDialog
     show={showOverwriteConfirm}
-    title="Sovrascrivere i file esistenti?"
-    message="Hai già dei file caricati in questa sessione. Se procedi, i dati correnti verranno sostituiti con quelli nuovi."
-    confirmText="Sovrascrivi"
-    cancelText="Annulla"
+    title={t("common.replaceFilesTitle")}
+    message={t("common.replaceFilesMessage")}
+    confirmText={t("sync.confirm")}
+    cancelText={t("common.cancel")}
     variant="warning"
     on:cancel={() => {
       showOverwriteConfirm = false;
@@ -867,10 +867,10 @@
 
   <ConfirmDialog
     show={showUnsavedWarning}
-    title="Modifiche non salvate"
-    message="Hai delle modifiche non salvate ai sottotitoli. Se procedi e carichi dei nuovi file, le modifiche correnti verranno perse permanentemente."
-    confirmText="Procedi comunque"
-    cancelText="Annulla"
+    title={t("refine.warning.unsavedChangesTitle")}
+    message={t("refine.warning.unsavedChangesMsg")}
+    confirmText={t("sync.confirm")}
+    cancelText={t("common.cancel")}
     variant="warning"
     on:cancel={() => {
       showUnsavedWarning = false;

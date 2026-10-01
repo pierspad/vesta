@@ -116,6 +116,11 @@ function translate(
   return translation;
 }
 
+/** Translation for an explicitly selected language (e.g. the setup wizard). */
+export function translateForLanguage(lang: string, key: string, params?: Record<string, string | number>): string {
+  return translate(lang, key, params);
+}
+
 export function t(key: string, params?: Record<string, string | number>): string {
   return translate(get(currentLanguage), key, params);
 }

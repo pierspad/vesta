@@ -334,7 +334,7 @@
             store.activeNoteTypeId = v;
             saveActiveNoteTypeId(v);
           }}
-          placeholder="Seleziona il template attivo..."
+          placeholder={t("settings.copy.savedTemplate")}
         />
       </div>
     </div>

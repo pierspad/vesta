@@ -41,11 +41,28 @@
 
   let selectedOption = $derived(options.find((opt) => opt.value === value));
 
+  function iconMarkup(icon: string | undefined): string | null {
+    if (!icon) return null;
+    const trimmed = icon.trim();
+    if (trimmed.startsWith("<")) return trimmed;
+    // Region-indicator flag emoji depend on the host OS emoji font. Windows
+    // WebView2 can render these as their fallback letters (for example GB).
+    // Draw flags from bundled inline SVG instead, so every packaged build is stable.
+    const regionalIndicators = [...trimmed].filter((char) => /\p{Regional_Indicator}/u.test(char));
+    if (regionalIndicators.length !== 2) return null;
+    const countryCode = regionalIndicators
+      .map((char) => String.fromCharCode(char.codePointAt(0)! - 0x1f1e6 + 65))
+      .join("")
+      .toLowerCase();
+    return `<img src="/flags/${countryCode}.svg" alt="" class="language-flag" />`;
+  }
+
   let displayValue = $derived.by(() => {
     if (isOpen) return searchQuery;
     if (!selectedOption) return "";
-    const hasHtmlIcon = selectedOption.icon && selectedOption.icon.trim().startsWith("<");
-    return hasHtmlIcon ? selectedOption.label : `${selectedOption.icon || ""} ${selectedOption.label}`.trim();
+    return iconMarkup(selectedOption.icon)
+      ? selectedOption.label
+      : `${selectedOption.icon || ""} ${selectedOption.label}`.trim();
   });
 
   let filteredOptions = $derived.by(() => {
@@ -182,9 +199,9 @@
       </div>
     {/if}
     {#if selectedOption?.icon && !isOpen}
-      {#if selectedOption.icon.trim().startsWith("<")}
+      {#if iconMarkup(selectedOption.icon)}
         <div class="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none z-10 text-gray-400 flex items-center justify-center">
-          {@html selectedOption.icon}
+          {@html iconMarkup(selectedOption.icon)!}
         </div>
       {/if}
     {/if}
@@ -199,7 +216,7 @@
       {placeholder}
       disabled={disabled}
       class="searchable-select-input w-full disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-white/[0.02]"
-      style:padding-left={(selectedOption?.provider || (selectedOption?.icon && selectedOption.icon.trim().startsWith("<"))) && !isOpen ? "38px" : ""}
+      style:padding-left={(selectedOption?.provider || (selectedOption?.icon && iconMarkup(selectedOption.icon))) && !isOpen ? "38px" : ""}
       autocomplete="off"
     />
     <div
@@ -251,8 +268,8 @@
               </span>
             {/if}
             {#if option.icon}
-              {#if option.icon.trim().startsWith("<")}
-                <span class="mr-2 flex items-center justify-center">{@html option.icon}</span>
+              {#if iconMarkup(option.icon)}
+                <span class="mr-2 flex items-center justify-center">{@html iconMarkup(option.icon)!}</span>
               {:else}
                 <span class="mr-2">{option.icon}</span>
               {/if}
@@ -289,6 +306,14 @@
     color: white;
     transition: border-color 0.12s ease, background-color 0.12s ease;
     font-size: 0.875rem;
+  }
+
+  :global(.language-flag) {
+    display: block;
+    width: 1.25rem;
+    height: 0.875rem;
+    object-fit: cover;
+    border-radius: 2px;
   }
 
   .searchable-select-input:focus {

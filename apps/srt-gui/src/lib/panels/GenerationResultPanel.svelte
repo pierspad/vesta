@@ -1,4 +1,6 @@
 <script lang="ts">
+  import MediaIcon from "$lib/components/MediaIcon.svelte";
+  import OutputFileActions from "$lib/components/OutputFileActions.svelte";
   import { locale } from "$lib/i18n";
   import { generationStore } from "$lib/stores/generationStore.svelte";
   import { formatBytes } from "$lib/types/flashcardMediaTypes";
@@ -77,35 +79,20 @@
           </div>
           <div class="flex gap-4 text-xs text-gray-400">
             {#if generationStore.result.audioClips > 0}
-              <span>🔊 {generationStore.result.audioClips} {t("flashcards.countAudio")}</span>
+              <span><MediaIcon kind="audio" /> {generationStore.result.audioClips} {t("flashcards.countAudio")}</span>
             {/if}
             {#if generationStore.result.snapshots > 0}
-              <span>📸 {generationStore.result.snapshots} {t("flashcards.countSnapshots")}</span>
+              <span><MediaIcon kind="snapshot" /> {generationStore.result.snapshots} {t("flashcards.countSnapshots")}</span>
             {/if}
             {#if generationStore.result.videoClips > 0}
-              <span>🎬 {generationStore.result.videoClips} {t("flashcards.countVideo")}</span>
+              <span><MediaIcon kind="video" /> {generationStore.result.videoClips} {t("flashcards.countVideo")}</span>
             {/if}
             {#if generationStore.result.outputSizeBytes > 0}
               <span>💾 {formatBytes(generationStore.result.outputSizeBytes)}</span>
             {/if}
           </div>
-          {#if generationStore.result.tsvPath}
-            <p
-              class="text-xs text-gray-500 break-words"
-              title={generationStore.result.tsvPath}
-            >
-              📄 {generationStore.result.tsvPath}
-            </p>
-          {/if}
-          {#if generationStore.result.apkgPath}
-            <p
-              class="text-xs text-gray-500 break-words"
-              title={generationStore.result.apkgPath}
-            >
-              📦 {generationStore.result.apkgPath}
-            </p>
-
-          {/if}
+          {#if generationStore.result.tsvPath}<OutputFileActions path={generationStore.result.tsvPath} />{/if}
+          {#if generationStore.result.apkgPath}<OutputFileActions path={generationStore.result.apkgPath} packageFile />{/if}
         </div>
       {:else}
         <div class="flex items-center gap-3">

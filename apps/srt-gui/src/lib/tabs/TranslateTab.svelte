@@ -969,7 +969,7 @@
 
 <div 
   role="region"
-  aria-label="Translate content"
+  aria-label={t("nav.translate")}
   class="h-full flex flex-col bg-gray-900 relative overflow-hidden"
   ondragover={(e) => { e.preventDefault(); if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy'; }}
   ondrop={(e) => { e.preventDefault(); isDraggingOver = false; }}

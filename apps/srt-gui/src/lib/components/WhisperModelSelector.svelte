@@ -36,7 +36,7 @@
   })[modelId] ?? "bg-cyan-500/15 text-cyan-200";
 </script>
 
-<div class="grid grid-cols-5 gap-2" role="radiogroup" aria-label="Whisper model">
+<div class="grid grid-cols-5 gap-2" role="radiogroup" aria-label={t("settings.whisper.modelLabel")}>
   {#each models as model (model.id)}
     <button
       type="button"

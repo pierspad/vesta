@@ -1,4 +1,5 @@
 <script lang="ts">
+  import SidebarToggle from "$lib/components/SidebarToggle.svelte";
   import { invoke } from "@tauri-apps/api/core";
   import { onMount } from "svelte";
   import { fetch as tauriFetch } from "$lib/services/tauriHttp";
@@ -16,15 +17,16 @@
   import SupportModal from "$lib/modals/SupportModal.svelte";
 
   interface Props {
-    activeTab: "translate" | "sync" | "transcribe" | "align" | "flashcards" | "settings" | "refine" | "experimental";
-    onTabChange: (tab: "translate" | "sync" | "transcribe" | "align" | "flashcards" | "settings" | "refine" | "experimental") => void;
+    activeTab: "translate" | "sync" | "transcribe" | "align" | "flashcards" | "settings" | "refine" | "extract" | "experimental";
+    onTabChange: (tab: "translate" | "sync" | "transcribe" | "align" | "flashcards" | "settings" | "refine" | "extract" | "experimental") => void;
+    onTabPreload?: (tab: Props["activeTab"]) => void;
     collapsed?: boolean;
     onToggleCollapse?: () => void;
     settingsSection?: "overview" | "llm" | "whisper" | "language" | "anki" | "diagnostics" | "shortcuts";
-    lastActiveMainTab?: "translate" | "sync" | "transcribe" | "align" | "flashcards" | "refine" | "experimental";
+    lastActiveMainTab?: "translate" | "sync" | "transcribe" | "align" | "flashcards" | "refine" | "extract" | "experimental";
   }
 
-  let { activeTab, onTabChange, collapsed = false, onToggleCollapse, settingsSection = $bindable("overview"), lastActiveMainTab = "flashcards" }: Props = $props();
+  let { activeTab, onTabChange, onTabPreload, collapsed = false, onToggleCollapse, settingsSection = $bindable("overview"), lastActiveMainTab = "flashcards" }: Props = $props();
   
   let t = $derived($locale);
 
@@ -285,7 +287,7 @@
     {:else}
       <div class="flex items-center gap-3 w-full {collapsed ? 'justify-center' : ''}">
         <button
-          onclick={() => onTabChange("settings")}
+          onclick={() => onTabChange("settings")} onmouseenter={() => onTabPreload?.("settings")} onfocus={() => onTabPreload?.("settings")}
           class="brand-settings-toggle-btn text-gray-400 hover:text-white transition-all duration-100 ease-out focus:outline-none flex items-center justify-center w-8 h-8 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 relative shrink-0 cursor-pointer"
           title={t("nav.settings")}
         >
@@ -479,7 +481,7 @@
         'flashcards'
           ? 'bg-gradient-to-r from-amber-600 to-orange-700 text-white shadow-lg shadow-amber-500/22 shadow-orange-600/20 border-amber-500/30 bg-clip-padding'
           : 'text-gray-400 hover:bg-amber-500/10 hover:text-amber-400 hover:border-amber-500/20'}"
-        onclick={() => onTabChange("flashcards")}
+        onclick={() => onTabChange("flashcards")} onmouseenter={() => onTabPreload?.("flashcards")} onfocus={() => onTabPreload?.("flashcards")}
         title={collapsed ? t("nav.flashcards") : undefined}
       >
         <div class="w-9 h-9 rounded-xl {activeTab === 'flashcards' ? 'bg-white/20' : 'bg-white/5'} flex items-center justify-center flex-shrink-0 relative transition-all duration-100 ease-out border border-white/5">
@@ -511,7 +513,7 @@
           'transcribe'
             ? 'bg-gradient-to-r from-teal-700 to-emerald-700 text-white shadow-lg shadow-teal-500/20 shadow-emerald-600/20 border-teal-500/30 bg-clip-padding'
             : 'text-gray-400 hover:bg-teal-500/10 hover:text-teal-400 hover:border-teal-500/20'}"
-          onclick={() => onTabChange("transcribe")}
+          onclick={() => onTabChange("transcribe")} onmouseenter={() => onTabPreload?.("transcribe")} onfocus={() => onTabPreload?.("transcribe")}
           title={collapsed ? t("nav.transcribe") : undefined}
         >
           <div class="w-9 h-9 rounded-xl {activeTab === 'transcribe' ? 'bg-white/20' : 'bg-white/5'} flex items-center justify-center flex-shrink-0 relative transition-all duration-100 ease-out border border-white/5">
@@ -544,7 +546,7 @@
           'translate'
             ? 'bg-gradient-to-r from-fuchsia-700 to-rose-700 text-white shadow-lg shadow-fuchsia-500/20 shadow-rose-600/20 border-fuchsia-500/30 bg-clip-padding'
             : 'text-gray-400 hover:bg-fuchsia-500/10 hover:text-fuchsia-400 hover:border-fuchsia-500/20'}"
-          onclick={() => onTabChange("translate")}
+          onclick={() => onTabChange("translate")} onmouseenter={() => onTabPreload?.("translate")} onfocus={() => onTabPreload?.("translate")}
           title={collapsed ? t("nav.translate") : undefined}
         >
           <div class="w-9 h-9 rounded-xl {activeTab === 'translate' ? 'bg-white/20' : 'bg-white/5'} flex items-center justify-center flex-shrink-0 relative transition-all duration-100 ease-out border border-white/5">
@@ -576,7 +578,7 @@
         'sync'
           ? 'bg-gradient-to-r from-sky-700 to-cyan-700 text-white shadow-lg shadow-cyan-500/20 shadow-sky-600/20 border-sky-500/30 bg-clip-padding'
           : 'text-gray-400 hover:bg-sky-500/10 hover:text-sky-400 hover:border-sky-500/20'}"
-        onclick={() => onTabChange("sync")}
+        onclick={() => onTabChange("sync")} onmouseenter={() => onTabPreload?.("sync")} onfocus={() => onTabPreload?.("sync")}
         title={collapsed ? t("nav.sync") : undefined}
       >
         <div class="w-9 h-9 rounded-xl {activeTab === 'sync' ? 'bg-white/20' : 'bg-white/5'} flex items-center justify-center flex-shrink-0 relative transition-all duration-100 ease-out border border-white/5">
@@ -607,7 +609,7 @@
         'align'
           ? 'bg-gradient-to-r from-violet-700 to-indigo-700 text-white shadow-lg shadow-violet-500/20 shadow-indigo-600/20 border-violet-500/30 bg-clip-padding'
           : 'text-gray-400 hover:bg-violet-500/10 hover:text-violet-400 hover:border-violet-500/20'}"
-        onclick={() => onTabChange("align")}
+        onclick={() => onTabChange("align")} onmouseenter={() => onTabPreload?.("align")} onfocus={() => onTabPreload?.("align")}
         title={collapsed ? t("nav.revision") : undefined}
       >
         <div class="w-9 h-9 rounded-xl {activeTab === 'align' ? 'bg-white/20' : 'bg-white/5'} flex items-center justify-center flex-shrink-0 relative transition-all duration-100 ease-out border border-white/5">
@@ -628,7 +630,7 @@
         'refine'
           ? 'bg-gradient-to-r from-rose-600 to-pink-700 text-white shadow-lg shadow-rose-500/22 shadow-pink-600/20 border-rose-500/30 bg-clip-padding'
           : 'text-gray-400 hover:bg-rose-500/10 hover:text-rose-400 hover:border-rose-500/20'}"
-        onclick={() => onTabChange("refine")}
+        onclick={() => onTabChange("refine")} onmouseenter={() => onTabPreload?.("refine")} onfocus={() => onTabPreload?.("refine")}
         title={collapsed ? t("nav.refine") : undefined}
       >
         <div class="w-9 h-9 rounded-xl {activeTab === 'refine' ? 'bg-white/20' : 'bg-white/5'} flex items-center justify-center flex-shrink-0 relative transition-all duration-100 ease-out border border-white/5">
@@ -644,13 +646,18 @@
         {/if}
       </button>
 
+      <button class="order-7 w-full flex gap-3.5 items-center {collapsed ? 'px-2 justify-center' : 'px-3.5'} h-[60px] rounded-xl border border-transparent transition-colors {activeTab === 'extract' ? 'bg-teal-600 text-white' : 'text-gray-400 hover:bg-teal-500/10 hover:text-teal-300'}" onclick={() => onTabChange("extract")} onmouseenter={() => onTabPreload?.("extract")} onfocus={() => onTabPreload?.("extract")} title={collapsed ? t("nav.extract") : undefined}>
+        <div class="w-9 h-9 rounded-xl bg-white/5 flex items-center justify-center shrink-0"><svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path d="M4 4h16v12H4zM7 8h4m2 0h4M7 12h10M12 16v6m-3-3 3 3 3-3" /></svg></div>
+        {#if !collapsed}<span class="text-[15px] font-semibold">{t("nav.extract")}</span>{/if}
+      </button>
+
       <!-- 7. Experimental -->
       <button
-        class="order-7 w-full flex gap-3.5 items-center {collapsed ? 'px-2 justify-center' : 'px-3.5'} h-[60px] rounded-xl transition-all duration-100 ease-out border border-transparent cursor-pointer {activeTab ===
+        class="order-8 w-full flex gap-3.5 items-center {collapsed ? 'px-2 justify-center' : 'px-3.5'} h-[60px] rounded-xl transition-all duration-100 ease-out border border-transparent cursor-pointer {activeTab ===
         'experimental'
           ? 'bg-gradient-to-r from-amber-600 to-orange-700 text-white shadow-lg shadow-amber-500/22 shadow-orange-600/20 border-amber-500/30 bg-clip-padding'
           : 'text-gray-400 hover:bg-amber-500/10 hover:text-amber-400 hover:border-amber-500/20'}"
-        onclick={() => onTabChange("experimental")}
+        onclick={() => onTabChange("experimental")} onmouseenter={() => onTabPreload?.("experimental")} onfocus={() => onTabPreload?.("experimental")}
         title={collapsed ? t("nav.experimental") : undefined}
       >
         <div class="w-9 h-9 rounded-xl {activeTab === 'experimental' ? 'bg-white/20' : 'bg-white/5'} flex items-center justify-center flex-shrink-0 relative transition-all duration-100 ease-out border border-white/5">
@@ -668,67 +675,13 @@
 
     <!-- Expert Mode + AI Kill Switch at the bottom of the nav -->
     <div class="order-8 mt-auto pt-2 flex flex-col gap-2">
-      <button
-        type="button"
-        onclick={() => uiMode.toggleExpertMode()}
-        class="w-full flex h-[60px] items-center {collapsed ? 'justify-center px-2' : 'justify-between px-3.5'} rounded-xl border border-transparent bg-white/5 text-gray-400 hover:bg-white/10 hover:text-gray-300 transition-all duration-100 ease-out cursor-pointer"
-        title={collapsed ? (uiMode.expertMode ? t("nav.expertModeOn") : t("nav.expertModeOff")) : undefined}
-      >
-        <div class="flex items-center gap-3.5">
-          <div class="w-9 h-9 rounded-xl bg-white/5 text-gray-400 border border-white/5 flex items-center justify-center flex-shrink-0 relative transition-all duration-100 ease-out">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75" />
-            </svg>
-          </div>
-          {#if !collapsed}
-            <span class="text-[15px] font-semibold select-none leading-none text-gray-300">{t("nav.expertMode")}</span>
-          {/if}
-        </div>
-        {#if !collapsed}
-          <div
-            class="w-10 h-6 rounded-full p-1 transition-colors duration-100 shrink-0 {uiMode.expertMode ? 'bg-indigo-600' : 'bg-white/10'}"
-            role="switch"
-            aria-checked={uiMode.expertMode}
-          >
-            <div class="bg-white w-4 h-4 rounded-full shadow-md transform transition-transform duration-100 {uiMode.expertMode ? 'translate-x-4' : 'translate-x-0'}"></div>
-          </div>
-        {/if}
-      </button>
-
-      <button
-        type="button"
-        onclick={() => {
-          if (!aiStore.hasActiveAiProcess) {
-            aiStore.toggleKillSwitch();
-          }
-        }}
-        disabled={aiStore.hasActiveAiProcess}
-        class="w-full flex h-[60px] items-center {collapsed ? 'justify-center px-2' : 'justify-between px-3.5'} rounded-xl border border-transparent bg-white/5 text-gray-400 hover:bg-white/10 hover:text-gray-300 transition-all duration-100 ease-out {aiStore.hasActiveAiProcess ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}"
-        title={collapsed ? (aiStore.killSwitchActive ? t("nav.aiKillSwitchOn") : t("nav.aiKillSwitchOff")) : undefined}
-      >
-        <div class="flex items-center gap-3.5">
-          <div class="w-9 h-9 rounded-xl bg-white/5 text-gray-400 border border-white/5 flex items-center justify-center flex-shrink-0 relative transition-all duration-100 ease-out">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
-            </svg>
-            {#if aiStore.hasActiveAiProcess}
-              <span class="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-blue-500 animate-ping"></span>
-            {/if}
-          </div>
-          {#if !collapsed}
-            <span class="text-[15px] font-semibold select-none leading-none text-gray-300">{t("nav.aiKillSwitch")}</span>
-          {/if}
-        </div>
-        {#if !collapsed}
-          <div 
-            class="w-10 h-6 rounded-full p-1 transition-colors duration-100 shrink-0 {aiStore.killSwitchActive ? 'bg-indigo-600' : 'bg-white/10'}"
-            role="switch"
-            aria-checked={aiStore.killSwitchActive}
-          >
-            <div class="bg-white w-4 h-4 rounded-full shadow-md transform transition-transform duration-100 {aiStore.killSwitchActive ? 'translate-x-4' : 'translate-x-0'}"></div>
-          </div>
-        {/if}
-      </button>
+      <SidebarToggle label={t("nav.expertMode")} title={uiMode.expertMode ? t("nav.expertModeOn") : t("nav.expertModeOff")}
+        {collapsed} active={uiMode.expertMode} ontoggle={() => uiMode.toggleExpertMode()}
+        iconPath="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 011.5 1.5m-1.5-1.5a1.5 1.5 0 10-3 0M3.75 18H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75" />
+      <SidebarToggle label={t("nav.aiKillSwitch")} title={aiStore.killSwitchActive ? t("nav.aiKillSwitchOn") : t("nav.aiKillSwitchOff")}
+        {collapsed} active={aiStore.killSwitchActive} disabled={aiStore.hasActiveAiProcess} activity={aiStore.hasActiveAiProcess}
+        ontoggle={() => { if (!aiStore.hasActiveAiProcess) aiStore.toggleKillSwitch(); }}
+        iconPath="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
     </div>
   </nav>
 

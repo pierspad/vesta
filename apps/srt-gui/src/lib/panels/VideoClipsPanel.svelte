@@ -67,7 +67,7 @@
       }}
       class="w-10 h-5 rounded-full transition-all duration-200 relative
         {settings.generateVideoClips ? 'bg-orange-500' : 'bg-gray-600'}"
-      aria-label="Toggle video clips"
+      aria-label={t("flashcards.generateVideoClips")}
       disabled={!hasVideo}
     >
       <div

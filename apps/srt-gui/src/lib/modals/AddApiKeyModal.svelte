@@ -39,7 +39,7 @@
     }}
   >
     <div
-      class="w-full max-w-4xl max-h-[92vh] overflow-hidden animate-fade-in shadow-2xl border border-white/20 bg-gray-900/98 backdrop-blur-xl rounded-xl flex flex-col"
+      class="w-full max-w-4xl h-[min(820px,92vh)] max-h-[92vh] overflow-hidden animate-fade-in shadow-2xl border border-white/20 bg-gray-900/98 backdrop-blur-xl rounded-xl flex flex-col"
       role="presentation"
       onmousedown={(e) => e.stopPropagation()}
     >
@@ -51,8 +51,8 @@
         </h3>
       </div>
 
-      <div class="p-6 flex-1 overflow-hidden flex flex-col">
-        <div class="space-y-5 overflow-y-auto custom-scrollbar pr-1">
+      <div class="p-6 flex-1 min-h-0 overflow-hidden flex flex-col">
+        <div class="space-y-5 overflow-y-auto custom-scrollbar pr-1 pb-6 flex-1 min-h-0">
         <div>
           <span
             class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2"
@@ -77,7 +77,7 @@
                     >{isCustom ? t("provider.custom") : (store.modalContext === "whisper" ? speechProv?.name : prov?.name) || pid}</span
                   >
                   <span class="text-[10px] opacity-70 leading-tight line-clamp-2"
-                    >{isCustom ? t("provider.custom.desc") : (store.modalContext === "whisper" ? speechProv?.description : prov?.description) || ""}</span
+                    >{isCustom ? t("provider.custom.desc") : t(store.modalContext === "whisper" && pid === "openai" ? "provider.openai.whisperDesc" : `provider.${pid}.desc`)}</span
                   >
                 </div>
               </button>
@@ -193,7 +193,7 @@
                     type="button"
                     onclick={() => copyToClipboard(store.newKeyValue)}
                     class="p-1.5 text-gray-500 hover:text-gray-300 transition-colors"
-                    title="Copy"
+                    title={t("common.copy")}
                   >
                     <svg
                       class="w-4 h-4"
@@ -213,7 +213,7 @@
               </div>
 
               {#if (store.modalContext === "whisper" ? whisperApiKeyUrls[store.newKeyType] : llmApiKeyUrls[store.newKeyType]) || (store.modalContext === "whisper" ? whisperDocUrls[store.newKeyType] : llmDocUrls[store.newKeyType])}
-                <div class="mt-2.5 flex flex-wrap gap-x-4 gap-y-1 text-xs">
+                <div class="mt-3 mb-3 flex flex-wrap gap-x-5 gap-y-2 text-xs">
                   {#if store.modalContext === "whisper" ? whisperApiKeyUrls[store.newKeyType] : llmApiKeyUrls[store.newKeyType]}
                     <a
                       href={store.modalContext === "whisper" ? whisperApiKeyUrls[store.newKeyType] : llmApiKeyUrls[store.newKeyType]}

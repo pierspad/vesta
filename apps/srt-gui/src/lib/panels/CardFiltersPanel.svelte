@@ -32,7 +32,7 @@
       }}
       class="w-10 h-5 rounded-full transition-all duration-200 relative
         {filters.enabled ? 'bg-amber-500' : 'bg-gray-600'}"
-      aria-label="Toggle card filters"
+      aria-label={t("flashcards.cardFilters")}
     >
       <div
         class="absolute w-4 h-4 bg-white rounded-full top-0.5 transition-all duration-200
@@ -63,7 +63,7 @@
               onclick={() => { filters.minCharsEnabled = !filters.minCharsEnabled; }}
               class="w-10 h-5 rounded-full transition-all duration-200 relative
                 {filters.minCharsEnabled ? 'bg-amber-500' : 'bg-gray-600'}"
-              aria-label="Enable min chars"
+              aria-label={t("flashcards.filterMinChars")}
             >
               <div class="absolute w-4 h-4 bg-white rounded-full top-0.5 transition-all duration-200
                 {filters.minCharsEnabled ? 'left-5' : 'left-0.5'}"></div>
@@ -100,7 +100,7 @@
               onclick={() => { filters.maxCharsEnabled = !filters.maxCharsEnabled; }}
               class="w-10 h-5 rounded-full transition-all duration-200 relative
                 {filters.maxCharsEnabled ? 'bg-amber-500' : 'bg-gray-600'}"
-              aria-label="Enable max chars"
+              aria-label={t("flashcards.filterMaxChars")}
             >
               <div class="absolute w-4 h-4 bg-white rounded-full top-0.5 transition-all duration-200
                 {filters.maxCharsEnabled ? 'left-5' : 'left-0.5'}"></div>
@@ -149,7 +149,7 @@
               onclick={() => { filters.minDurationEnabled = !filters.minDurationEnabled; }}
               class="w-10 h-5 rounded-full transition-all duration-200 relative
                 {filters.minDurationEnabled ? 'bg-amber-500' : 'bg-gray-600'}"
-              aria-label="Enable min duration"
+              aria-label={t("flashcards.filterMinDuration")}
             >
               <div class="absolute w-4 h-4 bg-white rounded-full top-0.5 transition-all duration-200
                 {filters.minDurationEnabled ? 'left-5' : 'left-0.5'}"></div>
@@ -186,7 +186,7 @@
               onclick={() => { filters.maxDurationEnabled = !filters.maxDurationEnabled; }}
               class="w-10 h-5 rounded-full transition-all duration-200 relative
                 {filters.maxDurationEnabled ? 'bg-amber-500' : 'bg-gray-600'}"
-              aria-label="Enable max duration"
+              aria-label={t("flashcards.filterMaxDuration")}
             >
               <div class="absolute w-4 h-4 bg-white rounded-full top-0.5 transition-all duration-200
                 {filters.maxDurationEnabled ? 'left-5' : 'left-0.5'}"></div>
@@ -227,7 +227,7 @@
           onclick={() => (filters.combineSentences = !filters.combineSentences)}
           class="w-10 h-5 rounded-full transition-all duration-200 relative shrink-0 ml-3
             {filters.combineSentences ? 'bg-amber-500' : 'bg-gray-600'}"
-          aria-label="Toggle sentence combining"
+          aria-label={t("flashcards.combineSentences")}
         >
           <div class="absolute w-4 h-4 bg-white rounded-full top-0.5 transition-all duration-200
             {filters.combineSentences ? 'left-5' : 'left-0.5'}"></div>

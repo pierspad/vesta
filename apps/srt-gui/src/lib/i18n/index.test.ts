@@ -31,3 +31,11 @@ describe('i18n', () => {
     expect(missing).toBe(missingKey);
   });
 });
+
+it('translates a wizard language without changing the active application language', async () => {
+  const { loadLanguage, translateForLanguage, getLanguage } = await import('./index');
+  const active = getLanguage();
+  expect(await loadLanguage('de')).toBe(true);
+  expect(translateForLanguage('de', 'common.cancel')).toBe('Abbrechen');
+  expect(getLanguage()).toBe(active);
+});

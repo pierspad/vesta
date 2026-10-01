@@ -4,8 +4,9 @@
 
   let t = $derived($locale);
 
-  function restartFirstRunSetup() {
+  async function restartFirstRunSetup() {
     vestaConfig.setItem("vesta-first-run-force", "true");
+    await vestaConfig.flush();
     window.location.reload();
   }
 </script>

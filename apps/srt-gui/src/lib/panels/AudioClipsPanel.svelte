@@ -358,7 +358,7 @@
       }}
       class="w-10 h-5 rounded-full transition-all duration-200 relative
         {settings.generateAudio ? 'bg-cyan-500' : 'bg-gray-600'}"
-      aria-label="Toggle audio clips"
+      aria-label={t("flashcards.generateAudioClips")}
       disabled={!hasAudio}
     >
       <div
@@ -515,7 +515,7 @@
 
       <div class="grid grid-cols-[1fr_auto_1fr] gap-2 items-center">
         <button type="button" onclick={() => adjustGain(-2)} class="h-8 rounded-lg border border-white/10 bg-white/5 text-xs font-semibold text-gray-300 hover:bg-white/10">−2 dB</button>
-        <span class="min-w-14 text-center text-xs font-mono text-cyan-300">Gain {settings.audioGainDb > 0 ? "+" : ""}{settings.audioGainDb} dB</span>
+        <span class="min-w-14 text-center text-xs font-mono text-cyan-300">{t("flashcards.gain")} {settings.audioGainDb > 0 ? "+" : ""}{settings.audioGainDb} dB</span>
         <button type="button" onclick={() => adjustGain(2)} class="h-8 rounded-lg border border-white/10 bg-white/5 text-xs font-semibold text-gray-300 hover:bg-white/10">+2 dB</button>
       </div>
 
@@ -529,12 +529,12 @@
         </div>
         <div class="flex items-center gap-1.5">
           {#if effectiveNormalize}
-            <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/30" title="Normalizzazione LUFS (EBU R128 a -14 LUFS)">
+            <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/30" title={t("flashcards.normalizeAudio")}>
               -14 LUFS
             </span>
           {/if}
           {#if effectiveGainDb !== 0}
-            <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30" title="Audio Boost (+6 dB con limiter)">
+            <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30" title={t("flashcards.audioBoost")}>
               {effectiveGainDb > 0 ? "+" : ""}{effectiveGainDb} dB
             </span>
           {/if}

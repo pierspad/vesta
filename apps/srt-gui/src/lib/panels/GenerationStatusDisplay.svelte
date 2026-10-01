@@ -1,4 +1,6 @@
 <script lang="ts">
+  import MediaIcon from "$lib/components/MediaIcon.svelte";
+  import OutputFileActions from "$lib/components/OutputFileActions.svelte";
   import { locale } from "$lib/i18n";
   import { generationStore } from "$lib/stores/generationStore.svelte";
 
@@ -81,6 +83,9 @@
           </svg>
           {generationStore.progressMessage || t("refine.btn.generating")}
         </span>
+        {#if generationStore.phaseProgress !== null}
+          <progress class="mt-1 h-1.5 w-52 max-w-full accent-emerald-400" value={generationStore.phaseProgress} max="100" aria-label={generationStore.progressMessage}></progress>
+        {/if}
         <span class="text-[10px] text-emerald-400/80 font-bold mt-0.5">{generationStore.progress}%</span>
       </div>
     </div>
@@ -102,42 +107,20 @@
             </span>
             <span class="text-[11px] text-gray-400 flex gap-2 font-medium shrink-0">
               {#if generationStore.result.audioClips > 0}
-                <span>🔊 {generationStore.result.audioClips}</span>
+                <span><MediaIcon kind="audio" /> {generationStore.result.audioClips}</span>
               {/if}
               {#if generationStore.result.snapshots > 0}
-                <span>📸 {generationStore.result.snapshots}</span>
+                <span><MediaIcon kind="snapshot" /> {generationStore.result.snapshots}</span>
               {/if}
               {#if generationStore.result.videoClips > 0}
-                <span>🎬 {generationStore.result.videoClips}</span>
+                <span><MediaIcon kind="video" /> {generationStore.result.videoClips}</span>
               {/if}
             </span>
           </div>
           {#if generationStore.result.apkgPath}
-            <button
-              onclick={() => {
-                if (generationStore.result) {
-                  navigator.clipboard.writeText(generationStore.result.apkgPath || '');
-                  showSnackbar(t("common.pathCopied"), 'success');
-                }
-              }}
-              class="text-[11px] text-gray-500 hover:text-gray-300 transition-colors text-left truncate cursor-pointer font-medium hover:underline flex items-center gap-1 mt-0.5"
-              title={generationStore.result.apkgPath}
-            >
-              📦 {generationStore.result.apkgPath.split('/').pop()}
-            </button>
+            <OutputFileActions path={generationStore.result.apkgPath} packageFile />
           {:else if generationStore.result.tsvPath}
-            <button
-              onclick={() => {
-                if (generationStore.result) {
-                  navigator.clipboard.writeText(generationStore.result.tsvPath || '');
-                  showSnackbar(t("common.pathCopied"), 'success');
-                }
-              }}
-              class="text-[11px] text-gray-500 hover:text-gray-300 transition-colors text-left truncate cursor-pointer font-medium hover:underline flex items-center gap-1 mt-0.5"
-              title={generationStore.result.tsvPath}
-            >
-              📄 {generationStore.result.tsvPath.split('/').pop()}
-            </button>
+            <OutputFileActions path={generationStore.result.tsvPath} />
           {/if}
         </div>
       {:else}

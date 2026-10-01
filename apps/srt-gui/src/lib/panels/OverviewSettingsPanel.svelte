@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { languageFlagUrl, localizedLanguageName } from "$lib/config/languages";
   import type { Snippet } from "svelte";
   import ToggleRow from "$lib/components/ToggleRow.svelte";
   import ExportFallbackSelector from "$lib/components/ExportFallbackSelector.svelte";
@@ -15,11 +16,6 @@
   let { defaultLanguagesCard }: { defaultLanguagesCard: Snippet } = $props();
 
   let t = $derived($locale);
-  const transferCopy = {
-    en: { title: "Back up and restore settings", desc: "Export all Vesta preferences to a JSON file or restore them on another installation.", import: "Import", export: "Export", exported: "Settings exported.", exportFailed: "Could not export settings", imported: "Settings imported. Restart Vesta to apply every change.", importFailed: "Could not import settings", invalid: "This is not a valid Vesta settings file.", warning: "The exported file may contain API keys. Store it securely." },
-    it: { title: "Backup e ripristino configurazione", desc: "Esporta tutte le preferenze di Vesta in un file JSON o ripristinale su un'altra installazione.", import: "Importa", export: "Esporta", exported: "Configurazione esportata.", exportFailed: "Impossibile esportare la configurazione", imported: "Configurazione importata. Riavvia Vesta per applicare tutte le modifiche.", importFailed: "Impossibile importare la configurazione", invalid: "Il file non è una configurazione Vesta valida.", warning: "Il file esportato può contenere API key. Conservalo in modo sicuro." },
-  } as const;
-  let c = $derived(transferCopy[new Set(["it"]).has($currentLanguage) ? "it" : "en"]);
   let configMessage = $state("");
   let configBusy = $state(false);
 
@@ -33,9 +29,9 @@
     try {
       const document = { format: "vesta-settings", version: 1, settings: vestaConfig.exportSnapshot() };
       await writeTextFile(path, JSON.stringify(document, null, 2));
-      configMessage = c.exported;
+      configMessage = t("settings.backup.exported");
     } catch (error) {
-      configMessage = `${c.exportFailed}: ${String(error)}`;
+      configMessage = `${t("settings.backup.exportFailed")}: ${String(error)}`;
     } finally {
       configBusy = false;
     }
@@ -51,15 +47,15 @@
     try {
       const parsed = JSON.parse(await readTextFile(path));
       if (parsed?.format !== "vesta-settings" || parsed?.version !== 1 || !parsed.settings || Array.isArray(parsed.settings)) {
-        throw new Error(c.invalid);
+        throw new Error(t("settings.backup.invalid"));
       }
       if (Object.values(parsed.settings).some((value) => typeof value !== "string")) {
-        throw new Error(c.invalid);
+        throw new Error(t("settings.backup.invalid"));
       }
       await vestaConfig.replaceAll(parsed.settings as Record<string, string>);
-      configMessage = c.imported;
+      configMessage = t("settings.backup.imported");
     } catch (error) {
-      configMessage = `${c.importFailed}: ${String(error)}`;
+      configMessage = `${t("settings.backup.importFailed")}: ${String(error)}`;
     } finally {
       configBusy = false;
     }
@@ -76,9 +72,9 @@
           ? 'bg-indigo-500/20 border-indigo-500/50 text-white'
           : 'bg-white/5 hover:bg-white/10 text-gray-400 hover:text-gray-200 border-transparent hover:border-white/10'}"
       >
-        <span class="text-2xl leading-none shrink-0">{lang.flag}</span>
+        <span class="language-flag-large leading-none shrink-0"><img src={languageFlagUrl(lang.code) ?? ""} alt="" /></span>
         <span class="min-w-0 flex flex-col leading-tight">
-          <span class="block truncate text-sm font-bold text-white">{lang.name}</span>
+          <span class="block truncate text-sm font-bold text-white">{localizedLanguageName(lang.code, $currentLanguage)}</span>
           <span class="block truncate text-[11px] font-medium text-gray-400 opacity-80">{lang.nativeName}</span>
         </span>
       </button>
@@ -456,14 +452,14 @@
         <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-sky-500/15 text-sky-300">
           <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7h16v12H4zM7 7V4h10v3M8 12h8m-8 4h5"/></svg>
         </span>
-        <div><h3 class="text-sm font-bold text-white">{c.title}</h3><p class="mt-1 text-xs leading-relaxed text-gray-400">{c.desc}</p></div>
+        <div><h3 class="text-sm font-bold text-white">{t("settings.backup.title")}</h3><p class="mt-1 text-xs leading-relaxed text-gray-400">{t("settings.backup.desc")}</p></div>
       </div>
       <div class="flex shrink-0 gap-2">
-        <button type="button" class="btn-secondary px-3 py-2 text-xs" disabled={configBusy} onclick={importConfiguration}>{c.import}</button>
-        <button type="button" class="btn-secondary px-3 py-2 text-xs" disabled={configBusy} onclick={exportConfiguration}>{c.export}</button>
+        <button type="button" class="btn-secondary px-3 py-2 text-xs" disabled={configBusy} onclick={importConfiguration}>{t("settings.backup.import")}</button>
+        <button type="button" class="btn-secondary px-3 py-2 text-xs" disabled={configBusy} onclick={exportConfiguration}>{t("settings.backup.export")}</button>
       </div>
     </div>
-    <p class="mt-2 text-[10px] text-amber-300/80">{c.warning}</p>
+    <p class="mt-2 text-[10px] text-amber-300/80">{t("settings.backup.warning")}</p>
     {#if configMessage}<p class="mt-2 text-xs text-indigo-200">{configMessage}</p>{/if}
   </div>
   </div>
@@ -485,5 +481,13 @@
 
   .ui-language-button {
     min-width: 0;
+  }
+
+  .language-flag-large img {
+    display: block;
+    width: 2rem;
+    height: 1.35rem;
+    object-fit: cover;
+    border-radius: 3px;
   }
 </style>

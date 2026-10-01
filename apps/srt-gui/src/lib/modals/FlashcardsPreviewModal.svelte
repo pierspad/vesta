@@ -221,7 +221,7 @@
                           type="button"
                           onclick={() => previewStore.playLine(line, mediaPath)}
                           class="text-gray-400 hover:text-emerald-400 transition-colors p-1"
-                          title="Riproduci questa riga"
+                          title={t("sync.playSubtitle")}
                         >
                           {#if previewStore.playingLine && previewStore.playingLine.index === line.index && previewStore.isPlaying}
                             <svg class="w-4 h-4 text-emerald-400" fill="currentColor" viewBox="0 0 24 24">

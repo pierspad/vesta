@@ -66,7 +66,7 @@
       }}
       class="w-10 h-5 rounded-full transition-all duration-200 relative
         {settings.generateSnapshots ? 'bg-purple-500' : 'bg-gray-600'}"
-      aria-label="Toggle snapshots"
+      aria-label={t("flashcards.generateSnapshots")}
       disabled={!hasVideo}
     >
       <div

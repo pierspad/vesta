@@ -99,7 +99,7 @@
       <button
         onclick={() => (visible = false)}
         class="p-1.5 text-gray-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
-        aria-label="Close"
+        aria-label={t("common.close")}
       >
         <svg
           class="w-4 h-4"

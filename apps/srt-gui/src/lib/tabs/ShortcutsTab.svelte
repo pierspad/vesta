@@ -33,17 +33,7 @@
 
   let t = $derived($locale);
 
-  let labels = $derived((() => {
-    const lang = $currentLanguage || "en";
-    const dict = {
-      it: { text: "TESTO", keys: "TASTI", textPlaceholder: "Cerca per testo...", keysPlaceholder: "Cerca per tasti...", pressKeys: "Premi i tasti..." },
-      es: { text: "TEXTO", keys: "TECLAS", textPlaceholder: "Buscar por texto...", keysPlaceholder: "Buscar por teclas...", pressKeys: "Presiona las teclas..." },
-      fr: { text: "TEXTE", keys: "TOUCHES", textPlaceholder: "Rechercher par texte...", keysPlaceholder: "Rechercher par touches...", pressKeys: "Appuyez sur les touches..." },
-      pt: { text: "TEXTO", keys: "TECLAS", textPlaceholder: "Pesquisar por texto...", keysPlaceholder: "Pesquisar por teclas...", pressKeys: "Pressione as teclas..." },
-      en: { text: "TEXT", keys: "KEYS", textPlaceholder: "Search by text...", keysPlaceholder: "Search by keys...", pressKeys: "Press keys..." }
-    };
-    return (dict as Record<string, typeof dict.en>)[lang] || dict["en"];
-  })());
+  let labels = $derived({ text: t("shortcuts.search.text"), keys: t("shortcuts.search.keys"), textPlaceholder: t("shortcuts.search.textPlaceholder"), keysPlaceholder: t("shortcuts.search.keysPlaceholder"), pressKeys: t("shortcuts.search.pressKeys") });
 
   function fuzzyMatch(text: string, query: string): boolean {
     if (!query) return true;
@@ -474,7 +464,7 @@
               cancelEditing();
             }}
             class="text-red-300 hover:text-white p-0.5 transition-colors focus:outline-none cursor-pointer"
-            aria-label="Cancel"
+            aria-label={t("common.cancel")}
           >
             <svg
               class="w-3.5 h-3.5"
@@ -583,7 +573,7 @@
               <button
                 onclick={() => (searchQuery = "")}
                 class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white transition-colors"
-                aria-label="Clear search"
+                aria-label={t("common.clearField")}
               >
                 ✕
               </button>
@@ -634,7 +624,7 @@
                     clearSearchKeys();
                   }}
                   class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white transition-colors"
-                  aria-label="Clear search keys"
+                  aria-label={t("common.clearField")}
                 >
                   ✕
                 </button>

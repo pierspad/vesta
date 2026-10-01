@@ -234,7 +234,7 @@
                     <div class="mt-2 space-y-2 rounded-lg border border-cyan-500/25 bg-cyan-950/15 p-3">
                       <div class="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
                         <button type="button" onclick={() => editor.update("audioGainDb", Math.max(-12, (editor.overrides?.audioGainDb ?? 0) - 2))} class="h-8 rounded-lg border border-white/10 bg-white/5 text-xs text-gray-300 hover:bg-white/10">−2 dB</button>
-                        <span class="min-w-20 text-center text-xs font-mono text-cyan-300">Gain {(editor.overrides.audioGainDb ?? 0) > 0 ? "+" : ""}{editor.overrides.audioGainDb ?? 0} dB</span>
+                        <span class="min-w-20 text-center text-xs font-mono text-cyan-300">{t("flashcards.gain")} {(editor.overrides.audioGainDb ?? 0) > 0 ? "+" : ""}{editor.overrides.audioGainDb ?? 0} dB</span>
                         <button type="button" onclick={() => editor.update("audioGainDb", Math.min(12, (editor.overrides?.audioGainDb ?? 0) + 2))} class="h-8 rounded-lg border border-white/10 bg-white/5 text-xs text-gray-300 hover:bg-white/10">+2 dB</button>
                       </div>
                       <button type="button" disabled={isPreviewLoading} onclick={toggleEpisodeAudioPreview} class="flex h-8.5 w-full items-center justify-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 text-xs font-semibold text-gray-300 transition-colors hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-40">
