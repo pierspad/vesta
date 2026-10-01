@@ -60,8 +60,13 @@ console.log("\nScanning source for t(...) usages…");
 const usedKeys = new Map(); // key -> first file
 for (const file of walk(srcDir)) {
   const text = readFileSync(file, "utf8");
-  for (const m of text.matchAll(/\bt\(\s*["'`]([\w.:-]+)["'`]/g)) {
+  for (const m of text.matchAll(/\b(?:t|setupT)\(\s*["'`]([\w.:-]+)["'`]/g)) {
     if (!usedKeys.has(m[1])) usedKeys.set(m[1], file);
+  }
+  if (file.endsWith("/tabs/SettingsTab.svelte")) {
+    for (const match of text.matchAll(/\bs\(\s*["']([\w]+)["']/g)) {
+      usedKeys.set(`settings.copy.${match[1]}`, file);
+    }
   }
 }
 for (const [key, file] of usedKeys) {

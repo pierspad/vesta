@@ -33,7 +33,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
           cache-dependency-path: apps/srt-gui/package-lock.json
 
@@ -110,7 +110,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
           cache-dependency-path: apps/srt-gui/package-lock.json
 
@@ -196,7 +196,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
           cache-dependency-path: apps/srt-gui/package-lock.json
 
@@ -224,7 +224,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
           cache-dependency-path: apps/srt-gui/package-lock.json
 
@@ -236,6 +236,18 @@ jobs:
         working-directory: ${{ env.TAURI_APP_DIR }}
         run: npm run check
 
+      - name: Complete localization audit
+        working-directory: ${{ env.TAURI_APP_DIR }}
+        run: python3 scripts/check_missing_translations.py --fail-on-issues --block-reasons missing_locale,missing_key,empty_value,placeholder_mismatch,same_as_english --output /tmp/vesta-i18n.json
+
       - name: Unit tests (vitest)
         working-directory: ${{ env.TAURI_APP_DIR }}
         run: npm test
+
+      - name: Cold dev CSS regression
+        working-directory: ${{ env.TAURI_APP_DIR }}
+        run: npm run test:dev-css
+
+      - name: Frontend production build
+        working-directory: ${{ env.TAURI_APP_DIR }}
+        run: npm run build

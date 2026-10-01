@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+# Support the documented invocation with either sh or bash.
+[ -n "${BASH_VERSION:-}" ] || exec bash "$0" "$@"
 set -euo pipefail
 
 RED='\033[0;31m'
@@ -29,24 +31,14 @@ fi
 
 if [ ! -d "node_modules" ]; then
     echo -e "${YELLOW}📦 Installazione dipendenze frontend...${NC}"
-    npm install
+    npm ci
     echo ""
 fi
 
 if [ ! -f "node_modules/.bin/tauri" ]; then
     echo -e "${YELLOW}📦 Installazione Tauri CLI locale...${NC}"
-    npm install @tauri-apps/cli
+    npm ci
     echo ""
-fi
-
-# Clean stale build cache if target directory contains references to old paths
-TARGET_BUILD_DIR="$SCRIPT_DIR/target/debug/build"
-if [ -d "$TARGET_BUILD_DIR" ]; then
-    if grep -r -q "GIMP_STUFF" "$TARGET_BUILD_DIR" 2>/dev/null; then
-        echo -e "${YELLOW}🧹 Pulizia cache di build obsoleta (rilevati percorsi non validi)...${NC}"
-        rm -rf "$SCRIPT_DIR/target"
-        echo -e "${GREEN}✅ Cache di build azzerata${NC}"
-    fi
 fi
 
 echo -e "${GREEN}✅ Dependencies OK${NC}"

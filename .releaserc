@@ -37,7 +37,7 @@
       "@semantic-release/exec",
       {
         "prepareCmd": "sed -i 's/^pkgver=.*/pkgver=${nextRelease.version}/' build-scripts/PKGBUILD && bash build-scripts/update_project_info.sh",
-        "publishCmd": "gh workflow run 'Build and Release' --ref 'v${nextRelease.version}'"
+        "publishCmd": "gh workflow run 'Build and Release' --ref main -f release_tag='v${nextRelease.version}'"
       }
     ],
     [

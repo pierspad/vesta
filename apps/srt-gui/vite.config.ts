@@ -21,18 +21,21 @@ const SVELTE_VIRTUAL_STYLE = /\.svelte\?.*\btype=style\b/;
  * dies on the first TypeScript line (`Invalid declaration: \`Snippet\``).
  *
  * Transforming the component first fills that cache, so we can answer with the
- * real scoped CSS. Must sit after `svelte()` so this `load` runs only on a miss
+ * real scoped CSS. Runs before the Svelte CSS loader, so cold requests are repaired before its warning
  * (`this.load()` is not enough — in dev it resolves without transforming).
  */
 function svelteVirtualCssFallback(): Plugin {
   return {
     name: "vesta:svelte-virtual-css-fallback",
+    enforce: "pre",
     load: {
       filter: { id: SVELTE_VIRTUAL_STYLE },
       async handler(id) {
         const filename = id.split("?")[0];
         const env = this.environment as { transformRequest?: (url: string) => Promise<unknown> };
-        await env.transformRequest?.(filename);
+        if (!this.getModuleInfo(filename)?.meta?.svelte?.css) {
+          await env.transformRequest?.(filename);
+        }
         const cached = this.getModuleInfo(filename)?.meta?.svelte?.css;
         // Empty CSS keeps the server alive if the component genuinely has none
         // (or its compile failed and is reported elsewhere) — anything else here
@@ -68,13 +71,10 @@ export default defineConfig({
     },
   },
   // `vitest` reads its config from this same file (single source of truth).
-  // Scope kept to `lib/utils` and `lib/config` on purpose: those are the pure,
-  // DOM-free modules (see seriesFileMatching.ts docstring) — components and
-  // Tauri-backed services aren't unit-testable without a much heavier harness
-  // (jsdom + mocked `invoke`), which isn't worth it yet for a desktop app
-  // that's manually smoke-tested before every release.
+  // Pure utilities, stores, configuration and mocked IPC services run in Node.
+  // Desktop/webview interactions still require integration and release smoke tests.
   test: {
-    include: ["src/lib/**/*.test.ts"],
+    include: ["src/lib/**/*.test.{ts,js}"],
     environment: "node",
     setupFiles: ["src/lib/test-setup.ts"],
   },

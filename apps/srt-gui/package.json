@@ -4,7 +4,7 @@
   "version": "0.24.1",
   "type": "module",
   "scripts": {
-    "dev": "NODE_NO_WARNINGS=1 vite",
+    "dev": "vite",
     "tauri:prepare": "tauri icon src-tauri/icons/icon.svg -o src-tauri/icons",
     "build": "vite build",
     "preview": "vite preview",
@@ -13,7 +13,8 @@
     "check:i18n": "node scripts/check-i18n.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "test:dev-css": "node scripts/check-dev-css.mjs"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^7.1.2",
@@ -30,5 +31,8 @@
     "typescript": "^6.0.3",
     "vite": "^8.0.13",
     "vitest": "^4.1.10"
+  },
+  "engines": {
+    "node": ">=22.12.0"
   }
 }

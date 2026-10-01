@@ -24,6 +24,16 @@ from pathlib import Path
 from typing import Any
 
 
+# Valid identical terms are scoped narrowly to the language where they are natural.
+SAME_AS_ENGLISH_ALLOWED_BY_LOCALE = {
+    "de": {"settings.diagnostics.system", "shortcuts.search.text"},
+    "pl": {"settings.diagnostics.system"},
+    "fr": {"flashcards.gain", "setup.expert"},
+    "nl": {"setup.expert", "settings.copy.llmLocalOfflineLabel"},
+    "it": {"settings.copy.llmLocalOfflineLabel"},
+    "es": {"settings.copy.overviewTitle"},
+}
+
 LOCALE_FILE_RE = re.compile(r"^[a-z]{2}\.json$", re.IGNORECASE)
 PLACEHOLDER_RE = re.compile(r"\{\{[^}]+\}\}|\{[A-Za-z0-9_.-]+\}")
 EXPECTED_LOCALES = [
@@ -44,6 +54,9 @@ EXPECTED_LOCALES = [
     "zh",
 ]
 SAME_AS_ENGLISH_ALLOWED_KEYS = {
+    "sync.mediaError.generic",  # Only {{code}} and {{detail}}, no human prose.
+    "settings.copy.whisperTitle",  # Product name.
+
     "app.title",
     "common.no",
     "flashcards.audioField",
@@ -229,7 +242,7 @@ def audit_single_dir(
                     reason = "empty_value"
                 elif placeholders(value_text) != placeholders(en_text):
                     reason = "placeholder_mismatch"
-                elif value_text == en_text and key not in SAME_AS_ENGLISH_ALLOWED_KEYS:
+                elif value_text == en_text and key not in SAME_AS_ENGLISH_ALLOWED_KEYS and key not in SAME_AS_ENGLISH_ALLOWED_BY_LOCALE.get(code, set()):
                     reason = "same_as_english"
 
             if reason is not None:

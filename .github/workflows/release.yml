@@ -49,12 +49,24 @@ jobs:
           python3 apps/srt-gui/scripts/check_missing_translations.py \
             --output apps/srt-gui/reports/missing_translations_report.json \
             --fail-on-issues \
-            --block-reasons missing_locale,missing_key,empty_value,placeholder_mismatch
+            --block-reasons missing_locale,missing_key,empty_value,placeholder_mismatch,same_as_english
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: '20'
+          node-version: '22'
+
+      - name: Install frontend dependencies
+        working-directory: apps/srt-gui
+        run: npm ci
+
+      - name: Validate frontend before release
+        working-directory: apps/srt-gui
+        run: |
+          npm run check
+          npm test
+          npm run test:dev-css
+          npm run build
 
       - name: Release via semantic-release
         uses: cycjimmy/semantic-release-action@v5
@@ -68,20 +80,3 @@ jobs:
             conventional-changelog-conventionalcommits
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      # warm-release-cache.yml compila lo stesso identico grafo nativo
-      # (stesso shared-key sccache di build.yml) di questo stesso commit.
-      # Se qui sopra è appena partito un nuovo tag, build.yml sta già
-      # ricompilando tutto da zero per quel tag: far girare ANCHE il warm
-      # in questo istante raddoppierebbe i minuti di CI spesi su questo
-      # commit per zero beneficio (la cache warm non fa in tempo a essere
-      # salvata prima che build.yml la legga, quindi aiuta solo il
-      # *prossimo* tag). Per questo il warm non è più triggerato da push
-      # diretta su main: lo dispatchiamo da qui, e solo quando questo
-      # push NON ha prodotto una release.
-      - name: Warm release cache (solo se questo push non ha taggato una release)
-        if: github.ref == 'refs/heads/main' && steps.release.outputs.new_release_published != 'true'
-        shell: bash
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh workflow run warm-release-cache.yml --ref main
