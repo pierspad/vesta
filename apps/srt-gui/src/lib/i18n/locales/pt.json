@@ -1119,5 +1119,7 @@
   "common.loadFailed": "Não foi possível carregar esta seção.",
   "extract.variant": "Variante de legendas",
   "extract.preview": "Ver legendas",
-  "extract.previewLimit": "Prévia limitada aos primeiros 64 KB."
+  "extract.previewLimit": "Prévia limitada aos primeiros 64 KB.",
+  "extract.select": "Escolher estas legendas",
+  "extract.downloaded": "Já baixadas"
 }

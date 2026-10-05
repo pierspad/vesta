@@ -40,10 +40,10 @@ it("reuses the prepared ordering and searches without rebuilding language metada
 
 it("suggests portable movie names with a two-letter language suffix", async () => {
   const { subtitleOutputName } = await import("./subtitleTracks");
-  expect(subtitleOutputName("/films/La finestra sul cortile.mkv", track(24, "ita"))).toBe("La_finestra_sul_cortile_it.srt");
-  expect(subtitleOutputName("C:\\Films\\Rear Window.mkv", track(8, "eng"))).toBe("Rear_Window_en.srt");
-  expect(subtitleOutputName("movie.mp4", track(4, "pt-br"))).toBe("movie_pt.srt");
-  expect(subtitleOutputName("movie.mkv", track(9, "und"))).toBe("movie_xx.srt");
+  expect(subtitleOutputName("/films/La finestra sul cortile.mkv", track(24, "ita"))).toBe("La_finestra_sul_cortile_it_24.srt");
+  expect(subtitleOutputName("C:\\Films\\Rear Window.mkv", track(8, "eng"))).toBe("Rear_Window_en_8.srt");
+  expect(subtitleOutputName("movie.mp4", track(4, "pt-br"))).toBe("movie_pt_4.srt");
+  expect(subtitleOutputName("movie.mkv", track(9, "und"))).toBe("movie_xx_9.srt");
 });
 
 it("exposes conflicting container metadata and uses explicit title language for grouping", () => {
@@ -73,4 +73,10 @@ it("groups variants by language, prefers ordinary text, and sorts actionable lan
   expect(groups.map(group => group.code)).toEqual(["fr", "en", "tr", "ar"]);
   expect(groups.find(group => group.code === "en")?.tracks.map(track => track.index)).toEqual([8, 9, 11]);
   expect(groups.find(group => group.code === "tr")?.tracks[0].languageConflict).toBe(true);
+});
+
+it("keeps same-language variants distinct and sanitizes portable filenames", async () => {
+  const { subtitleOutputName } = await import("./subtitleTracks");
+  expect(subtitleOutputName("film.mkv", track(1, "fra"))).not.toBe(subtitleOutputName("film.mkv", track(2, "fra")));
+  expect(subtitleOutputName("C:\\Films\\a:b?.mkv", track(7, "eng"))).toBe("a_b__en_7.srt");
 });

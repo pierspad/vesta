@@ -466,7 +466,7 @@
     {/if}
     {#if loadedTabs.extract}
       {@const ExtractTab = loadedTabs.extract}
-      <div class="absolute inset-0" class:hidden={activeTab !== "extract"}><ExtractTab /></div>
+      <div class="absolute inset-0" class:hidden={activeTab !== "extract"}><ExtractTab active={activeTab === "extract"} /></div>
     {/if}
     {#if loadedTabs.experimental}
       {@const ExperimentalTab = loadedTabs.experimental}

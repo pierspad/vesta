@@ -1119,5 +1119,7 @@
   "common.loadFailed": "无法加载此部分。",
   "extract.variant": "字幕版本",
   "extract.preview": "查看字幕",
-  "extract.previewLimit": "预览仅显示前64 KB。"
+  "extract.previewLimit": "预览仅显示前64 KB。",
+  "extract.select": "选择这些字幕",
+  "extract.downloaded": "已下载"
 }

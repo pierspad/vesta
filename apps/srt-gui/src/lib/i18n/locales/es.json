@@ -1119,5 +1119,7 @@
   "common.loadFailed": "No se pudo cargar esta sección.",
   "extract.variant": "Variante de subtítulos",
   "extract.preview": "Ver subtítulos",
-  "extract.previewLimit": "Vista previa limitada a los primeros 64 KB."
+  "extract.previewLimit": "Vista previa limitada a los primeros 64 KB.",
+  "extract.select": "Elegir estos subtítulos",
+  "extract.downloaded": "Ya descargados"
 }

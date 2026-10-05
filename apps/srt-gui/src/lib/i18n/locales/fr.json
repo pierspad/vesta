@@ -1119,5 +1119,7 @@
   "common.loadFailed": "Impossible de charger cette section.",
   "extract.variant": "Variante des sous-titres",
   "extract.preview": "Afficher les sous-titres",
-  "extract.previewLimit": "Aperçu limité aux premiers 64 Ko."
+  "extract.previewLimit": "Aperçu limité aux premiers 64 Ko.",
+  "extract.select": "Choisir ces sous-titres",
+  "extract.downloaded": "Déjà téléchargés"
 }

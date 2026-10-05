@@ -1119,5 +1119,7 @@
   "common.loadFailed": "इस सेक्शन को लोड करने में असमर्थ।",
   "extract.variant": "उपशीर्षक संस्करण",
   "extract.preview": "उपशीर्षक देखें",
-  "extract.previewLimit": "पूर्वावलोकन पहले 64 KB तक सीमित है।"
+  "extract.previewLimit": "पूर्वावलोकन पहले 64 KB तक सीमित है।",
+  "extract.select": "ये उपशीर्षक चुनें",
+  "extract.downloaded": "पहले से डाउनलोड किए गए"
 }

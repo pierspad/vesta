@@ -68,3 +68,65 @@ pub async fn preview_embedded_subtitle(
     .await
     .map_err(|error| error.to_string())
 }
+
+/// Scan only the requested portable output filenames in the chosen directory.
+#[tauri::command]
+pub async fn existing_subtitle_outputs(
+    directory: String,
+    names: Vec<String>,
+) -> Result<Vec<String>, String> {
+    let directory = std::path::PathBuf::from(directory);
+    let mut existing = Vec::new();
+    for name in names {
+        if !name.ends_with(".srt") || name.contains(['/', '\\']) {
+            return Err("Invalid subtitle filename".into());
+        }
+        match tokio::fs::metadata(directory.join(&name)).await {
+            Ok(metadata) if metadata.is_file() => existing.push(name),
+            Ok(_) => {}
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+            Err(error) => return Err(error.to_string()),
+        }
+    }
+    Ok(existing)
+}
+
+#[cfg(test)]
+mod output_tests {
+    use super::*;
+    #[tokio::test]
+    async fn scan_distinguishes_variants_and_ignores_directories() {
+        let directory = tempfile::tempdir().unwrap();
+        std::fs::write(directory.path().join("film_fr_1.srt"), "subtitle").unwrap();
+        std::fs::create_dir(directory.path().join("film_fr_3.srt")).unwrap();
+        let found = existing_subtitle_outputs(
+            directory.path().to_string_lossy().into(),
+            vec![
+                "film_fr_1.srt".into(),
+                "film_fr_2.srt".into(),
+                "film_fr_3.srt".into(),
+            ],
+        )
+        .await
+        .unwrap();
+        assert_eq!(found, vec!["film_fr_1.srt"]);
+        assert!(
+            existing_subtitle_outputs(
+                directory.path().to_string_lossy().into(),
+                vec!["../outside.srt".into()]
+            )
+            .await
+            .is_err()
+        );
+        std::fs::remove_file(directory.path().join("film_fr_1.srt")).unwrap();
+        assert!(
+            existing_subtitle_outputs(
+                directory.path().to_string_lossy().into(),
+                vec!["film_fr_1.srt".into()]
+            )
+            .await
+            .unwrap()
+            .is_empty()
+        );
+    }
+}

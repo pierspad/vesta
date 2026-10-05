@@ -310,3 +310,25 @@ describe("deriveDeckNameFromFile", () => {
     expect(name).toBe("Detour 1945");
   });
 });
+
+it("matches extracted movie tracks with their media in either import order", () => {
+ const subs = ["/x/La_finestra_sul_cortile_en_8.srt", "/x/La_finestra_sul_cortile_it_24.srt"];
+ const media = ["/x/La finestra sul cortile.mkv"];
+ for (const initial of [[], mergeSeriesMediaFiles([], media, rules)]) {
+  const result = mergeSeriesDroppedFiles(initial, subs, initial.length ? [] : media, rules, "en", "it");
+  expect(result).toHaveLength(1);
+  expect(result[0]).toMatchObject({targetSubsPath: subs[0], nativeSubsPath: subs[1], mediaPath: media[0]});
+ }
+ expect(parseSeriesSubtitle(subs[0], rules).episodeNumber).toBeNull();
+});
+it("preserves title numbers and strips release tags separated by spaces", () => {
+ expect(normalizeSeriesBaseKey("Apollo 13_en_8", rules)).toBe("apollo_13");
+ expect(normalizeSeriesBaseKey("Movie 1080p BluRay en", rules)).toBe(normalizeSeriesBaseKey("Movie.it", rules));
+ expect(normalizeSeriesBaseKey("Movie_unknown_24", rules)).toBe("movie_unknown_24");
+});
+
+it("rejects conflicting seasons and ambiguous episode fallback", () => {
+ const episodes = mergeSeriesSubtitleFiles([], ["/x/Show.S01E01.en.srt", "/x/Show.S02E01.en.srt"], "auto", rules, "en", "it");
+ expect(mergeSeriesMediaFiles(episodes, ["/x/Other.E01.mkv"], rules)).toHaveLength(3);
+ expect(mergeSeriesMediaFiles(episodes.slice(0,1), ["/x/Other.S02E01.mkv"], rules)).toHaveLength(2);
+});

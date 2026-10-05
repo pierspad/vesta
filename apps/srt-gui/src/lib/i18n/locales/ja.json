@@ -1119,5 +1119,7 @@
   "common.loadFailed": "このセクションを読み込めませんでした。",
   "extract.variant": "字幕の種類",
   "extract.preview": "字幕を表示",
-  "extract.previewLimit": "プレビューは最初の64 KBまでです。"
+  "extract.previewLimit": "プレビューは最初の64 KBまでです。",
+  "extract.select": "この字幕を選択",
+  "extract.downloaded": "ダウンロード済み"
 }

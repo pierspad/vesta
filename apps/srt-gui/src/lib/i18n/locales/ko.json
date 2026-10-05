@@ -1119,5 +1119,7 @@
   "common.loadFailed": "이 섹션을 불러올 수 없습니다.",
   "extract.variant": "자막 종류",
   "extract.preview": "자막 보기",
-  "extract.previewLimit": "미리보기는 처음 64 KB로 제한됩니다."
+  "extract.previewLimit": "미리보기는 처음 64 KB로 제한됩니다.",
+  "extract.select": "이 자막 선택",
+  "extract.downloaded": "다운로드 완료"
 }

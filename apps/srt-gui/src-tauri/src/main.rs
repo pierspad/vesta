@@ -421,6 +421,7 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             get_media_server_info,
             embedded_subtitle_tracks,
+            existing_subtitle_outputs,
             extract_embedded_subtitle,
             preview_embedded_subtitle,
             open_output_path,

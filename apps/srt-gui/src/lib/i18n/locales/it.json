@@ -230,7 +230,7 @@
   "flashcards.previewActiveTooltip": "Righe che diventeranno flashcard",
   "flashcards.previewAll": "Tutti",
   "flashcards.previewAllTooltip": "Tutte le righe di sottotitoli",
-  "flashcards.previewAudio": "Ascolta anteprima",
+  "flashcards.previewAudio": "Anteprima",
   "flashcards.previewAudioEpisode": "Film / Episodio in anteprima",
   "flashcards.previewAudioError": "Impossibile riprodurre l'anteprima audio",
   "flashcards.previewAudioNextDialogue": "Succ",
@@ -1119,5 +1119,7 @@
   "common.replaceFilesMessage": "I nuovi file sostituiranno quelli attualmente selezionati. Continuare?",
   "extract.variant": "Variante dei sottotitoli",
   "extract.preview": "Visualizza sottotitoli",
-  "extract.previewLimit": "Anteprima limitata ai primi 64 KB."
+  "extract.previewLimit": "Anteprima limitata ai primi 64 KB.",
+  "extract.select": "Scegli questi sottotitoli",
+  "extract.downloaded": "Già scaricati"
 }

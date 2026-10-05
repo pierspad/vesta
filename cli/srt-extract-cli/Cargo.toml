@@ -1,6 +1,6 @@
 [package]
 name = "srt-extract-cli"
-version = "0.25.0"
+version = "0.25.1-dev.1"
 edition.workspace = true
 description = "CLI tool for extracting and formatting SRT subtitle data"
 authors = ["Pierpaolo Spadafora <pierpaolospadafora@proton.me>"]
@@ -17,3 +17,5 @@ srt-parser = { workspace = true }
 srt-extract = { workspace = true }
 anyhow.workspace = true
 clap.workspace = true
+tokio.workspace = true
+serde_json.workspace = true

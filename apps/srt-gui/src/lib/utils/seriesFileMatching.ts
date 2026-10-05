@@ -93,14 +93,21 @@ export function extractEpisodeNumber(filename: string, episodeRegexes: string[])
   return null;
 }
 
+// Vesta exports title_language_streamIndex: the final number is not an episode.
+function stripExtractedTrackSuffix(stem: string): string {
+  return stem.replace(/[._-]([a-z]{2,3})[._-]\d+$/i, (suffix, language: string) =>
+    KNOWN_LANGUAGE_CODES.has(language.toLowerCase()) || detectLanguageCode(language) ? `_${language}` : suffix);
+}
+
 export function normalizeSeriesBaseKey(baseName: string, rules: SmartMatchingRules): string {
-  let stem = baseName.toLowerCase();
+  let stem = stripExtractedTrackSuffix(baseName).normalize("NFC").toLowerCase();
   stem = stem.replace(/\([^)]*\b(?:19|20)\d{2}\b[^)]*\)/g, "");
   stem = stem.replace(/\[[^\]]*\b(?:19|20)\d{2}\b[^\]]*\]/g, "");
   stem = stem.replace(/\b(?:19|20)\d{2}\b/g, "");
+  stem = stem.replace(/[._-]+/g, " ");
   const tokenRegex = removableTokenRegex(rules.removableNameTokens);
   if (tokenRegex) stem = stem.replace(tokenRegex, "");
-  stem = stem.replace(/[\s]+/g, " ");
+  stem = stem.replace(/[\s]+/g, "_");
   const roleHintRegex = delimitedHintRegex(
     [...rules.originalSubtitleHints, ...rules.referenceSubtitleHints],
     "gi",
@@ -147,7 +154,7 @@ export function parseSeriesSubtitle(path: string, rules: SmartMatchingRules): Pa
     baseKey: stripCompoundSubtitleSuffix(baseName, rules) || normalized,
     language,
     roleHint,
-    episodeNumber: extractEpisodeNumber(name, rules.episodeRegexes),
+    episodeNumber: extractEpisodeNumber(`${stripExtractedTrackSuffix(baseName)}.srt`, rules.episodeRegexes),
   };
 }
 
@@ -285,11 +292,11 @@ export function buildSeriesDraftMap(
       mediaPath: episode.mediaPath,
       mediaType: episode.mediaType,
       mediaOverrides: episode.mediaOverrides,
-      episodeNumber:
-        extractEpisodeNumber(
-          getFileName(episode.targetSubsPath || episode.nativeSubsPath || episode.mediaPath),
-          rules.episodeRegexes,
-        ) || null,
+      episodeNumber: episode.targetSubsPath
+        ? parseSeriesSubtitle(episode.targetSubsPath, rules).episodeNumber
+        : episode.nativeSubsPath
+          ? parseSeriesSubtitle(episode.nativeSubsPath, rules).episodeNumber
+          : parseSeriesMedia(episode.mediaPath, rules).episodeNumber,
     });
   });
 
@@ -317,6 +324,18 @@ export function seriesDraftEntriesToEpisodes(draftMap: Map<string, SeriesDraftEn
   }));
 }
 
+function uniqueEpisodeMatch(entries: Iterable<SeriesDraftEntry>, episode: number, name: string, media = false): SeriesDraftEntry | undefined {
+  const season = (value: string) => value.match(/(?:^|[\s._-])s(\d{1,2})e\d/i)?.[1]
+    ?? value.match(/(?:^|[\s._-])(\d{1,2})x\d/i)?.[1];
+  const incomingSeason = season(name);
+  const matches = [...entries].filter(entry => {
+    const existingSeason = season(entry.displayName);
+    return entry.episodeNumber === episode && (!media || !entry.mediaPath)
+      && !(incomingSeason && existingSeason && Number(incomingSeason) !== Number(existingSeason));
+  });
+  return matches.length === 1 ? matches[0] : undefined;
+}
+
 export function mergeSeriesSubtitleFiles(
   episodes: EpisodeEntry[],
   subtitleFiles: string[],
@@ -342,12 +361,7 @@ export function mergeSeriesSubtitleFiles(
 
     // Fallback: match by episode number if baseKey doesn't match
     if (!entry && epNum !== null) {
-      for (const [, existing] of draftMap) {
-        if (existing.episodeNumber === epNum) {
-          entry = existing;
-          break;
-        }
-      }
+      entry = uniqueEpisodeMatch(draftMap.values(), epNum, parsedGroup[0].name);
     }
 
     if (!entry) {
@@ -404,12 +418,7 @@ export function mergeSeriesMediaFiles(
 
     // Fallback: match by episode number if baseKey doesn't match
     if (!entry && parsed.episodeNumber !== null) {
-      for (const [, existing] of draftMap) {
-        if (existing.episodeNumber === parsed.episodeNumber && !existing.mediaPath) {
-          entry = existing;
-          break;
-        }
-      }
+      entry = uniqueEpisodeMatch(draftMap.values(), parsed.episodeNumber, parsed.name, true);
     }
 
     if (!entry) {

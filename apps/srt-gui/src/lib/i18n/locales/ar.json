@@ -1119,5 +1119,7 @@
   "common.loadFailed": "تعذر تحميل هذا القسم.",
   "extract.variant": "نسخة الترجمة",
   "extract.preview": "عرض الترجمة",
-  "extract.previewLimit": "المعاينة محدودة بأول 64 كيلوبايت."
+  "extract.previewLimit": "المعاينة محدودة بأول 64 كيلوبايت.",
+  "extract.select": "اختر هذه الترجمة",
+  "extract.downloaded": "تم التنزيل بالفعل"
 }

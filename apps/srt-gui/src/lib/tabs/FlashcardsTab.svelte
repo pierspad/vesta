@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { defaultOutputDirectory } from "$lib/utils/defaultOutputDirectory";
   import { expandFlashcardFiles } from "$lib/workflows/flashcardFileDiscovery";
   import { runFlashcardGeneration } from "$lib/workflows/flashcardGeneration";
   import { runFlashcardSeries } from "$lib/workflows/flashcardSeries";
@@ -1359,6 +1360,10 @@
         }
       }
     } catch {}
+
+    if (!outputDir) {
+      try { outputDir = await defaultOutputDirectory(); } catch {}
+    }
 
     try {
       ffmpegAvailable = await invoke<boolean>("flashcard_check_deps");
