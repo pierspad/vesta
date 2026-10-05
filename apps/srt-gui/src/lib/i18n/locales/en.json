@@ -1119,5 +1119,7 @@
   "common.replaceFilesMessage": "The new files will replace the files currently selected. Continue?",
   "extract.variant": "Subtitle variant",
   "extract.preview": "View subtitles",
-  "extract.previewLimit": "Preview limited to the first 64 KB."
+  "extract.previewLimit": "Preview limited to the first 64 KB.",
+  "extract.select": "Choose these subtitles",
+  "extract.downloaded": "Already downloaded"
 }

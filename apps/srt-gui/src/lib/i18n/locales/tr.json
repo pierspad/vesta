@@ -1119,5 +1119,7 @@
   "common.loadFailed": "Bu bölüm yüklenemiyor.",
   "extract.variant": "Altyazı çeşidi",
   "extract.preview": "Altyazıları görüntüle",
-  "extract.previewLimit": "Önizleme ilk 64 KB ile sınırlıdır."
+  "extract.previewLimit": "Önizleme ilk 64 KB ile sınırlıdır.",
+  "extract.select": "Bu altyazıları seç",
+  "extract.downloaded": "Zaten indirildi"
 }

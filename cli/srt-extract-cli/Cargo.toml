@@ -17,3 +17,5 @@ srt-parser = { workspace = true }
 srt-extract = { workspace = true }
 anyhow.workspace = true
 clap.workspace = true
+tokio.workspace = true
+serde_json.workspace = true

@@ -29,12 +29,12 @@ export function filterSubtitleTracks(tracks: SubtitleTrack[], search: string, lo
   return filterPreparedSubtitleTracks(prepareSubtitleTracks(tracks, locale), search);
 }
 
-/** Suggested filename; the save dialog still lets users rename duplicate-language tracks. */
+/** Portable filename identifying the exact embedded track, including language variants. */
 export function subtitleOutputName(mediaPath: string, track: SubtitleTrack): string {
   const basename = mediaPath.split(/[\\/]/).pop() || "film";
   const stem = basename.replace(/\.[^.]+$/, "").replace(/[<>:"/\\|?*\x00-\x1f]/g, "_").replace(/\s+/g, "_").replace(/[. ]+$/, "") || "film";
   const code = describeSubtitleTrack(track).code?.split("-")[0] || "xx";
-  return `${stem}_${code}.srt`;
+  return `${stem}_${code}_${track.index}.srt`;
 }
 
 export type PreparedSubtitleTrack = ReturnType<typeof prepareSubtitleTracks>[number];

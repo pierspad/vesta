@@ -1119,5 +1119,7 @@
   "common.loadFailed": "Nie udało się załadować tej sekcji.",
   "extract.variant": "Wariant napisów",
   "extract.preview": "Wyświetl napisy",
-  "extract.previewLimit": "Podgląd ograniczony do pierwszych 64 KB."
+  "extract.previewLimit": "Podgląd ograniczony do pierwszych 64 KB.",
+  "extract.select": "Wybierz te napisy",
+  "extract.downloaded": "Już pobrane"
 }

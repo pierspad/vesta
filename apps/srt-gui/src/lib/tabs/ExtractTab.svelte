@@ -1,11 +1,31 @@
 <script lang="ts">
+  import LoadingSpinner from "$lib/components/LoadingSpinner.svelte";
+  import { setupWebviewDragDrop } from "$lib/utils/dragDrop";
+  import { onMount, onDestroy } from "svelte";
+  import { SubtitlePreviewSession } from "$lib/utils/subtitlePreviewSession";
+  import { join } from "@tauri-apps/api/path";
+  import { defaultOutputDirectory } from "$lib/utils/defaultOutputDirectory";
+  import { snackbar } from "$lib/stores/snackbarStore.svelte";
   import { invoke } from "@tauri-apps/api/core";
-  import { guardedOpen, guardedSave } from "$lib/utils/dialogGuard";
+  import { guardedOpen } from "$lib/utils/dialogGuard";
   import PathPickerField from "$lib/components/PathPickerField.svelte";
   import { prepareSubtitleTracks, filterPreparedSubtitleTracks, subtitleOutputName, groupSubtitleTracks, SUBTITLE_PAGE_SIZE } from "$lib/utils/subtitleTracks";
   import SubtitlePreviewModal from "$lib/modals/SubtitlePreviewModal.svelte";
   import SubtitleTrackCard from "$lib/components/SubtitleTrackCard.svelte";
   import { locale, currentLanguage } from "$lib/i18n";
+  let { active = false }: { active?: boolean } = $props();
+  let isDraggingOver = $state(false);
+  $effect(() => {
+    if (!active) { isDraggingOver = false; return; }
+    return setupWebviewDragDrop({
+      isActive: () => active && !busy && downloadingIndex === null && !previewTrack,
+      setDraggingOver: value => isDraggingOver = value,
+      onDrop: paths => {
+        const media = paths.find(value => /\.(mkv|mp4|m4v|avi|mov|webm|ts|mp3|flac|m4a|wav|ogg|aac)$/i.test(value));
+        if (media) void loadMedia(media);
+      },
+    });
+  });
   let t = $derived($locale);
   interface Track { index: number; codec: string; language: string; title: string; text_based: boolean }
   let tracks = $state<Track[]>([]);
@@ -17,70 +37,129 @@
   let pageCount = $derived(Math.max(1, Math.ceil(groups.length / SUBTITLE_PAGE_SIZE)));
   let visible = $derived(groups.slice(page * SUBTITLE_PAGE_SIZE, (page + 1) * SUBTITLE_PAGE_SIZE));
   $effect(() => { if (page >= pageCount) page = pageCount - 1; });
+  let outputDir = $state("");
+  let downloaded = $state<number[]>([]);
+  let selections = $state<Record<string, number>>({});
+  let previewGroups = $derived(groupSubtitleTracks(prepared, $currentLanguage));
+  let previewVariants = $derived(previewGroups.find(group => group.tracks.some(track => track.index === previewTrack?.index))?.tracks.filter(track => track.text_based) ?? []);
+  let previewPosition = $derived(previewVariants.findIndex(track => track.index === previewTrack?.index));
+  onMount(() => {
+    void defaultOutputDirectory().then(value => { if (!outputDir) { outputDir = value; void refreshDownloaded(); } }).catch(e => { error = String(e); });
+    const refresh = () => { void refreshDownloaded(); };
+    window.addEventListener("focus", refresh);
+    return () => window.removeEventListener("focus", refresh);
+  });
+  async function refreshDownloaded() {
+    const directory = outputDir;
+    const media = path;
+    const candidates = tracks.filter(track => track.text_based);
+    if (!directory || !media) { downloaded = []; return; }
+    try {
+      const names = await invoke<string[]>("existing_subtitle_outputs", { directory, names: candidates.map(track => subtitleOutputName(media, track)) });
+      if (directory === outputDir && media === path) downloaded = candidates.filter(track => names.includes(subtitleOutputName(media, track))).map(track => track.index);
+    } catch (e) { error = String(e); }
+  }
+  async function chooseOutput() {
+    if (busy || downloadingIndex !== null) return;
+    busy = true;
+    try {
+      const selected = await guardedOpen({ directory: true, multiple: false, defaultPath: outputDir || undefined });
+      if (typeof selected === "string") { outputDir = selected; downloaded = []; await refreshDownloaded(); }
+    } catch (e) { error = String(e); }
+    finally { busy = false; }
+  }
+  function selectPreview() {
+    const group = previewGroups.find(group => group.tracks.some(track => track.index === previewTrack?.index));
+    if (group && previewTrack) selections = { ...selections, [group.key]: previewTrack.index };
+    closePreview();
+  }
   let previewTrack = $state<Track | null>(null);
   let previewText = $state("");
   let previewError = $state("");
-  const previews = new Map<number, string>();
+  let previewLoading = $state(false);
+  let previewSession: SubtitlePreviewSession | null = null;
+  let previewRequest = 0;
+  function closePreview() {
+    previewRequest += 1;
+    previewSession?.close();
+    previewSession = null;
+    previewTrack = null;
+    previewText = "";
+    previewError = "";
+    previewLoading = false;
+  }
+  onDestroy(closePreview);
   async function preview(track: Track) {
-    if (busy || !track.text_based) return;
-    previewTrack = track; previewText = ""; previewError = ""; busy = true;
+    if (busy || !track?.text_based) return;
+    if (!previewSession) {
+      const media = path;
+      const variants = previewGroups.find(group => group.tracks.some(variant => variant.index === track.index))?.tracks.filter(variant => variant.text_based) ?? [track];
+      previewSession = new SubtitlePreviewSession(variants.map(variant => variant.index), index => invoke<string>("preview_embedded_subtitle", { path: media, index }));
+    }
+    const session = previewSession;
+    const request = ++previewRequest;
+    previewTrack = track; previewText = ""; previewError = ""; previewLoading = true;
     try {
-      let text = previews.get(track.index);
-      if (text === undefined) {
-        text = await invoke<string>("preview_embedded_subtitle", { path, index: track.index });
-        if (previews.size >= 16) previews.delete(previews.keys().next().value!);
-        previews.set(track.index, text);
-      }
-      previewText = text;
-    } catch (e) { previewError = String(e); }
-    finally { busy = false; }
+      const text = await session.select(track.index);
+      if (request === previewRequest) previewText = text;
+    } catch (e) { if (request === previewRequest) previewError = String(e); }
+    finally { if (request === previewRequest) previewLoading = false; }
   }
   let path = $state("");
   let busy = $state(false);
+  let downloadingIndex = $state<number | null>(null);
   let error = $state("");
-  let saved = $state("");
   async function chooseMedia() {
-    if (busy) return;
+    if (busy || downloadingIndex !== null) return;
     busy = true; error = "";
     try {
       const selected = await guardedOpen({ multiple: false, filters: [{ name: t("extract.media"), extensions: ["mkv", "mp4", "m4v", "avi", "mov", "webm", "ts"] }] });
       if (typeof selected !== "string") return;
-      previews.clear(); previewTrack = null; path = selected; tracks = []; saved = ""; search = ""; page = 0;
-      tracks = await invoke<Track[]>("embedded_subtitle_tracks", { path });
+      await loadMedia(selected, true);
     }
     catch (e) { error = String(e); }
     finally { busy = false; }
   }
-  async function extract(track: Track) {
-    if (busy) return;
-    error = ""; saved = "";
-    busy = true;
+  async function loadMedia(selected: string, fromPicker = false) {
+    if ((!fromPicker && busy) || downloadingIndex !== null) return;
+    busy = true; error = ""; isDraggingOver = false;
+    closePreview(); selections = {}; downloaded = []; path = selected; tracks = []; search = ""; page = 0;
     try {
-      const outputPath = await guardedSave({ defaultPath: subtitleOutputName(path, track), filters: [{ name: "SRT", extensions: ["srt"] }] });
-      if (!outputPath) return;
-      await invoke("extract_embedded_subtitle", { path, index: track.index, outputPath });
-      saved = outputPath;
+      tracks = await invoke<Track[]>("embedded_subtitle_tracks", { path: selected });
+      await refreshDownloaded();
     } catch (e) { error = String(e); }
     finally { busy = false; }
   }
-  async function openFolder() {
-    try { await invoke("open_output_path", { path: saved, folder: true }); }
-    catch (e) { error = String(e); }
+  async function extract(track: Track) {
+    if (busy || downloadingIndex !== null) return;
+    error = "";
+    downloadingIndex = track.index;
+    try {
+      if (!outputDir) outputDir = await defaultOutputDirectory();
+      const outputPath = await join(outputDir, subtitleOutputName(path, track));
+      await invoke("extract_embedded_subtitle", { path, index: track.index, outputPath });
+      await refreshDownloaded();
+      snackbar.show(`${t("extract.saved")} ${outputPath}`, "success");
+    } catch (e) { error = String(e); snackbar.show(error, "error"); }
+    finally { downloadingIndex = null; }
   }
+
 </script>
 <div class="h-full overflow-y-auto bg-gray-900 p-6 text-gray-100 scrollbar-thin">
-  <div class="glass-card p-5">
+  <div class="glass-card p-5" class:ring-2={isDraggingOver} class:ring-teal-400={isDraggingOver}>
     <h2 class="mb-4 text-lg font-semibold text-teal-300">{t("extract.title")}</h2>
-    <PathPickerField label={t("flashcards.mediaFile")} value={path} placeholder={t("extract.choose")}
+    <PathPickerField labelIcon="M15 10l5-3v10l-5-3M4 5h9a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z" label={t("flashcards.mediaFile")} value={path} placeholder={t("extract.choose")}
       browseTitle={t("flashcards.browse")} browseLabel={t("flashcards.browse")} onbrowse={chooseMedia}
-      disabled={busy} onclear={() => { previews.clear(); previewTrack = null; path = ""; tracks = []; saved = ""; error = ""; search = ""; page = 0; }} />
+      disabled={busy || downloadingIndex !== null} onclear={() => { closePreview(); selections = {}; downloaded = []; previewTrack = null; path = ""; tracks = []; error = ""; search = ""; page = 0; }} />
+    <div class="mt-3"><PathPickerField label={t("flashcards.outputDir")} labelIcon="M3 7v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-6l-2-2H5a2 2 0 0 0-2 2Z" value={outputDir} placeholder={t("flashcards.outputDir")} browseTitle={t("flashcards.browse")} browseLabel={t("flashcards.browse")} onbrowse={chooseOutput} disabled={busy || downloadingIndex !== null} /></div>
+    <div class="mt-3 flex min-h-5 items-center text-sm" role="status" aria-live="polite">
     {#if error || busy || (path && tracks.length === 0)}
-    <div class="mt-3 text-sm" role="status" aria-live="polite">
+
       {#if error}<span class="text-red-300">{error}</span>
-      {:else if busy}<span class="text-teal-300">{t("extract.working")}</span>
+      {:else if busy}<span class="inline-flex" aria-label={t("extract.working")}><LoadingSpinner /></span>
       {:else if path && tracks.length === 0}<span class="text-gray-400">{t("extract.empty")}</span>{/if}
-    </div>
     {/if}
+    </div>
       <div class="mt-4 flex flex-wrap items-center justify-between gap-3">
         <div class="relative w-full sm:w-80">
           <svg aria-hidden="true" class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="10.5" cy="10.5" r="6.5" /><path d="m16 16 4 4" /></svg>
@@ -99,7 +178,7 @@
       </div>
       <div class="mt-4 grid min-h-[588px] grid-cols-1 lg:grid-cols-2 content-start gap-3" aria-busy={busy}>
         {#each visible as group (group.key)}
-          <SubtitleTrackCard {group} {busy} ondownload={extract} onpreview={preview} />
+          <SubtitleTrackCard {group} {busy} {downloaded} {downloadingIndex} selectedIndex={selections[group.key]} onselect={(index) => selections = { ...selections, [group.key]: index }} ondownload={extract} onpreview={preview} />
         {/each}
         {#if visible.length === 0}
           {#each Array(SUBTITLE_PAGE_SIZE) as _, index (index)}
@@ -111,10 +190,10 @@
         {/if}
       </div>
       {#if tracks.length > 0 && filtered.length === 0}<p class="mt-4 text-sm text-gray-400" role="status">{t("extract.noMatches")}</p>{/if}
-    {#if saved}<div class="mt-4 flex items-center gap-3 text-sm text-emerald-300" role="status"><span class="break-all">{t("extract.saved")} {saved}</span><button class="btn-secondary shrink-0 px-3 py-2" onclick={openFolder}>{t("common.openOutputFolder")}</button></div>{/if}
+
   </div>
 </div>
 
 {#if previewTrack}
-  <SubtitlePreviewModal title={`${t("extract.preview")} · #${previewTrack.index} · ${previewTrack.title || previewTrack.language}`} text={previewText} error={previewError} loading={busy} onclose={() => previewTrack = null} />
+  <SubtitlePreviewModal title={`${t("extract.preview")} · #${previewTrack.index} · ${previewTrack.title || previewTrack.language}`} text={previewText} error={previewError} loading={previewLoading} saving={downloadingIndex !== null} hasPrevious={previewPosition > 0} hasNext={previewPosition + 1 < previewVariants.length} onprevious={() => preview(previewVariants[previewPosition - 1])} onnext={() => preview(previewVariants[previewPosition + 1])} onselect={selectPreview} ondownload={() => previewTrack && extract(previewTrack)} onclose={closePreview} />
 {/if}

@@ -4384,8 +4384,10 @@ version = "0.25.0"
 dependencies = [
  "anyhow",
  "clap",
+ "serde_json",
  "srt-extract",
  "srt-parser",
+ "tokio",
 ]
 
 [[package]]

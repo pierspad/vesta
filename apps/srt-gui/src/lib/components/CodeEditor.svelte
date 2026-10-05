@@ -41,6 +41,7 @@
   }
 
   function undo() {
+    if (readonly) return;
     if (historyIndex > 0) {
       isUndoRedo = true;
       historyIndex--;
@@ -50,6 +51,7 @@
   }
 
   function redo() {
+    if (readonly) return;
     if (historyIndex < history.length - 1) {
       isUndoRedo = true;
       historyIndex++;
@@ -68,7 +70,7 @@
   }
 
   function replaceSelection(replacement: string) {
-    if (!textareaElement) return;
+    if (readonly || !textareaElement) return;
     const start = textareaElement.selectionStart;
     const end = textareaElement.selectionEnd;
     value = `${value.slice(0, start)}${replacement}${value.slice(end)}`;
@@ -94,6 +96,7 @@
   }
 
   async function cutSelection() {
+    if (readonly) return copySelection();
     const text = selectedText();
     if (!text) return copySelection();
     await navigator.clipboard.writeText(text);
@@ -102,6 +105,7 @@
   }
 
   async function pasteClipboard() {
+    if (readonly) return;
     try {
       replaceSelection(await navigator.clipboard.readText());
     } finally {
@@ -163,6 +167,8 @@
         return;
       }
     }
+
+    if (readonly) return;
 
     // Check for Ctrl+Z and Ctrl+Y / Ctrl+Shift+Z
     if (e.ctrlKey || e.metaKey) {

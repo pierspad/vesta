@@ -1,6 +1,6 @@
 # srt-extract-cli
 
-Command-line adapter for `srt-extract`. It parses an SRT file and emits one of four representations without loading the desktop application.
+Command-line adapter for `srt-extract`. It formats external SRT files and lists or extracts embedded text subtitles without loading the desktop application.
 
 ```bash
 cargo build --release -p srt-extract-cli
@@ -19,3 +19,16 @@ cargo build --release -p srt-extract-cli
 | `debug` | Detailed diagnostic representation |
 
 Run `srt-extract --help` for the authoritative option list. Licensed GPL-3.0-only.
+
+## Embedded tracks
+
+```bash
+srt-extract --input movie.mkv --list-tracks
+srt-extract --input movie.mkv --track 8 --output movie_en_8.srt
+```
+
+Discovery emits JSON with absolute stream indices. Extraction requires `--output`;
+`--list-tracks` and `--track` are mutually exclusive. FFmpeg/ffprobe must be on
+PATH, or supplied with `--ffmpeg /path/to/ffmpeg --ffprobe /path/to/ffprobe`.
+Bitmap tracks require OCR and cannot be exported as text by this tool. Failed
+extraction preserves an existing output; successful extraction replaces it atomically.

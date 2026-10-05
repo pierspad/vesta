@@ -1119,5 +1119,7 @@
   "common.loadFailed": "Dit gedeelte kan niet worden geladen.",
   "extract.variant": "Ondertitelvariant",
   "extract.preview": "Ondertitels bekijken",
-  "extract.previewLimit": "Voorbeeld beperkt tot de eerste 64 KB."
+  "extract.previewLimit": "Voorbeeld beperkt tot de eerste 64 KB.",
+  "extract.select": "Deze ondertitels kiezen",
+  "extract.downloaded": "Al gedownload"
 }

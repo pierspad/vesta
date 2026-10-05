@@ -1119,5 +1119,7 @@
   "common.loadFailed": "Не удалось загрузить этот раздел.",
   "extract.variant": "Вариант субтитров",
   "extract.preview": "Просмотреть субтитры",
-  "extract.previewLimit": "Предпросмотр ограничен первыми 64 КБ."
+  "extract.previewLimit": "Предпросмотр ограничен первыми 64 КБ.",
+  "extract.select": "Выбрать эти субтитры",
+  "extract.downloaded": "Уже скачаны"
 }

@@ -1119,5 +1119,7 @@
   "common.loadFailed": "Dieser Abschnitt konnte nicht geladen werden.",
   "extract.variant": "Untertitelvariante",
   "extract.preview": "Untertitel anzeigen",
-  "extract.previewLimit": "Vorschau auf die ersten 64 KB begrenzt."
+  "extract.previewLimit": "Vorschau auf die ersten 64 KB begrenzt.",
+  "extract.select": "Diese Untertitel auswählen",
+  "extract.downloaded": "Bereits heruntergeladen"
 }
