@@ -1007,7 +1007,7 @@
 
   {#snippet panelContent(panelId: TranslatePanelId)}
     {#if panelId === "options"}
-      <div class="glass-card p-5 shrink-0">
+      <div class="glass-card relative z-10 p-5 shrink-0">
         <h3
           class="text-lg font-semibold mb-4 flex items-center gap-2 text-cyan-400"
         >
@@ -1317,6 +1317,8 @@
               value={outputPath}
               placeholder={t("translate.selectDestination")}
               browseTitle={t("translate.tooltip.save")}
+              browseLabel={t("translate.saveAs")}
+              browseIconPath="M12 4v12m-4-4 4 4 4-4M4 16v4h16v-4"
               onexpand={() => (expandedPathField = "output")}
               onbrowse={selectOutputFile}
               required={true}

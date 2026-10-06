@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { createEventDispatcher } from 'svelte';
+  import { createEventDispatcher, onMount } from 'svelte';
 
   interface Props {
     show?: boolean;
@@ -33,18 +33,28 @@
   }
 
   function handleKeydown(event: KeyboardEvent) {
-    if (!show) return;
+    if (!show || event.isComposing) return;
     if (event.key === 'Escape') {
       event.preventDefault();
+      event.stopImmediatePropagation();
       handleCancel();
     } else if (event.key === 'Enter') {
       event.preventDefault();
-      handleConfirm();
+      event.stopImmediatePropagation();
+      if (!event.repeat) {
+        if ((event.target as HTMLElement)?.closest('.confirm-btn-cancel')) handleCancel();
+        else handleConfirm();
+      }
     }
   }
-</script>
 
-<svelte:window onkeydown={handleKeydown} />
+  // Handle dialog keys before the tab's global shortcuts. In particular,
+  // Enter must not also confirm a sync checkpoint while reset is in flight.
+  onMount(() => {
+    window.addEventListener('keydown', handleKeydown, { capture: true });
+    return () => window.removeEventListener('keydown', handleKeydown, { capture: true });
+  });
+</script>
 
 {#if show}
   <!-- svelte-ignore a11y_click_events_have_key_events -->

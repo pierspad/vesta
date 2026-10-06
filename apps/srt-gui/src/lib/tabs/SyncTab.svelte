@@ -653,7 +653,7 @@
       syncDebug("confirmCurrentCheckpoint ignored (already running)");
       return;
     }
-    if (!wizardSubtitle) return;
+    if (!status?.is_loaded || showResetModal || !wizardSubtitle) return;
     if (!audioSrc || audioError) {
       showSnackbar(t("sync.needAudioForAnchor"), "warning");
       return;
@@ -924,6 +924,13 @@
   }
 
   function handleKeydown(e: KeyboardEvent) {
+    if (!active || showResetModal || expandedPathField || e.defaultPrevented || e.isComposing) return;
+    const target = e.target as HTMLElement | null;
+    if (target?.closest('select, [contenteditable="true"], [role="dialog"]')) return;
+    // Let Enter/Space activate the focused control natively, while preserving
+    // the other shortcuts (including P/G in the subtitle context menu).
+    if ((e.key === "Enter" || e.key === " ") && target?.closest('button, a')) return;
+
     if (subtitleContextMenu) {
       const key = e.key.toLowerCase();
       if (key === "escape") {

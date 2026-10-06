@@ -47,7 +47,7 @@
   let t = $derived($locale);
 </script>
 
-<div class="glass-card flex flex-col flex-1 min-h-0 overflow-hidden">
+<div class="glass-card flex flex-col flex-1 min-h-0 min-w-0 overflow-hidden">
   <!-- Header -->
   <div class="px-5 pt-5 pb-2 flex-shrink-0">
     <h3 class="text-lg font-semibold flex items-center gap-2 text-purple-400">
@@ -73,20 +73,20 @@
   </div>
 
   <!-- Pagination controls — TOP -->
-  {#if isLoaded && totalPages > 1}
+  {#if !isLoaded || totalPages > 1}
     <div class="px-3 pb-2 flex items-center justify-between flex-shrink-0">
       <button
         onclick={() => onPageChange(currentPage - 1)}
-        disabled={currentPage <= 1}
+        disabled={!isLoaded || currentPage <= 1}
         class="btn-secondary py-1 px-2.5 text-xs flex items-center gap-1 disabled:opacity-30"
       >
         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
         {t("sync.pagination.prev")}
       </button>
-      <span class="text-xs text-gray-400">{t("sync.pageSlash", { current: currentPage, total: totalPages })}</span>
+      <span class="text-xs text-gray-400">{t("sync.pageSlash", { current: isLoaded ? currentPage : 0, total: totalPages })}</span>
       <button
         onclick={() => onPageChange(currentPage + 1)}
-        disabled={currentPage >= totalPages}
+        disabled={!isLoaded || currentPage >= totalPages}
         class="btn-secondary py-1 px-2.5 text-xs flex items-center gap-1 disabled:opacity-30"
       >
         {t("sync.pagination.next")}
@@ -97,7 +97,7 @@
 
   <!-- Subtitle list -->
   <div
-    class="grid auto-rows-min grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-2 flex-1 p-2 min-h-0 overflow-y-auto scrollbar-thin"
+    class="grid auto-rows-min grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-2 flex-1 p-2 min-h-0 min-w-0 overflow-y-auto overflow-x-hidden scrollbar-thin"
     bind:this={listElement}
   >
     {#each subtitles as sub (sub.id)}
@@ -106,7 +106,7 @@
         ondblclick={() => onDblClickSub(sub)}
         oncontextmenu={(e) => onContextMenu(e, sub)}
         data-subtitle-id={sub.id}
-        class="w-full text-left p-3 border-b border-white/5 hover:bg-white/5
+        class="w-full min-w-0 text-left p-3 border-b border-white/5 hover:bg-white/5
           {activeSubtitleId === sub.id
           ? 'bg-indigo-500/20 border-l-4 border-l-indigo-500'
           : ''}
@@ -118,7 +118,7 @@
           >
           <div class="flex-1 min-w-0">
             <p class="text-sm truncate text-gray-200">{sub.text}</p>
-            <div class="flex gap-2 text-xs text-gray-500 mt-1">
+            <div class="flex flex-wrap gap-x-2 gap-y-1 text-xs text-gray-500 mt-1">
               <span class="font-mono"
                 >{formatTime(sub.synced_start_ms)}</span
               >

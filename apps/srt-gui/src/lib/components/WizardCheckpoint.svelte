@@ -1,7 +1,6 @@
 <script lang="ts">
   import { locale } from "$lib/i18n";
   import SectionHeader from "$lib/components/SectionHeader.svelte";
-  import WizardEmptyState from "$lib/components/WizardEmptyState.svelte";
 
   interface SubtitleInfo {
     id: number;
@@ -67,9 +66,11 @@
   }: Props = $props();
 
   let t = $derived($locale);
+  let canUseCheckpoint = $derived(srtLoaded && !!wizardSubtitle);
+  let canControlAudio = $derived(canUseCheckpoint && hasAudio);
 </script>
 
-<div class="glass-card relative flex min-h-0 flex-1 flex-col overflow-visible">
+<div class="glass-card relative flex flex-auto shrink-0 flex-col overflow-visible">
   <div class="p-5 pb-3 flex-shrink-0">
     <SectionHeader
       title={t("sync.wizard.title")}
@@ -79,9 +80,7 @@
   </div>
 
   <div class="flex min-h-0 flex-1 flex-col items-center justify-center p-5">
-    {#if !srtLoaded}
-      <WizardEmptyState total={0} messageKey="sync.noSrtFileSelected" playButtonGradient={true} />
-    {:else if showSaveSuggestion}
+    {#if srtLoaded && showSaveSuggestion}
       <div class="text-center max-w-md">
         <div
           class="w-20 h-20 mx-auto mb-6 rounded-full bg-gradient-to-br from-green-500/20 to-emerald-500/20 flex items-center justify-center"
@@ -130,7 +129,7 @@
           </button>
         </div>
       </div>
-    {:else if wizardSubtitle}
+    {:else}
       <div class="w-full max-w-6xl flex flex-col gap-4">
         <div class="text-center flex-shrink-0">
           <span
@@ -148,7 +147,7 @@
                 d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
               /></svg
             >
-            {t("sync.wizard.checkpoint")} — #{wizardSubtitle.id} / {totalSubtitles}
+            {t("sync.wizard.checkpoint")} — #{wizardSubtitle?.id ?? "—"} / {totalSubtitles}
           </span>
         </div>
 
@@ -156,26 +155,27 @@
           class="bg-white/5 rounded-xl p-5 text-center flex-shrink-0 flex flex-col items-center justify-center min-h-[100px]"
         >
           <p class="text-xl text-white font-medium leading-relaxed">
-            {wizardSubtitle.text}
+            {wizardSubtitle?.text ?? t(srtLoaded ? "sync.wizard.selectCheckpoint" : "sync.noSrtFileSelected")}
           </p>
           <p class="text-sm text-gray-500 mt-3 font-mono">
-            {formatTime(wizardSubtitle.start_ms)} → {formatTime(
-              wizardSubtitle.end_ms,
+            {formatTime(wizardSubtitle?.start_ms ?? 0)} → {formatTime(
+              wizardSubtitle?.end_ms ?? 0,
             )}
           </p>
         </div>
 
         <div class="flex-shrink-0">
-          {#if audioSrc && !audioError}
+          {#if !canUseCheckpoint || (audioSrc && !audioError)}
             <div class="flex items-center gap-4">
               <span class="text-sm text-gray-400 font-mono w-24"
-                >{formatTime(currentVideoTime * 1000)}</span
+                >{formatTime(canUseCheckpoint ? currentVideoTime * 1000 : 0)}</span
               >
               <input
                 type="range"
                 min="0"
                 max={audioDuration || 100}
                 step="0.01"
+                disabled={!canControlAudio}
                 bind:value={currentVideoTime}
                 oninput={() => {
                   if (audioElement)
@@ -185,9 +185,7 @@
               />
               <span
                 class="text-sm text-gray-400 font-mono w-24 text-right"
-                >{audioDuration
-                  ? formatTime(audioDuration * 1000)
-                  : "--:--"}</span
+                >{formatTime(canUseCheckpoint ? audioDuration * 1000 : 0)}</span
               >
             </div>
           {:else if isPreparingMedia}
@@ -231,7 +229,7 @@
         >
           <button
             onclick={onTogglePlay}
-            disabled={!hasAudio}
+            disabled={!canControlAudio}
             class="w-14 h-14 flex items-center justify-center rounded-full bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-500/30 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
             title={isPlaying ? t("sync.tooltipPause") : t("sync.tooltipPlay")}
           >
@@ -253,7 +251,7 @@
 
           <button
             onclick={onReplay}
-            disabled={!hasAudio}
+            disabled={!canControlAudio}
             class="w-12 h-12 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             title={t("sync.wizard.replay") + " (R)"}
           >
@@ -272,13 +270,13 @@
           </button>
 
           <div
-            class="flex items-center gap-2 bg-white/5 rounded-xl px-4 py-2 {!hasAudio
+            class="flex items-center gap-2 bg-white/5 rounded-xl px-4 py-2 {!canControlAudio
               ? 'opacity-40 pointer-events-none'
               : ''}"
           >
             <button
               onclick={() => onAdjustOffset(-3000)}
-              disabled={!hasAudio}
+              disabled={!canControlAudio}
               class="w-12 h-8 flex items-center justify-center bg-white/10 hover:bg-white/20 rounded-lg text-[11px] font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
               title="-3s"
             >
@@ -286,7 +284,7 @@
             </button>
             <button
               onclick={() => onAdjustOffset(-500)}
-              disabled={!hasAudio}
+              disabled={!canControlAudio}
               class="w-12 h-8 flex items-center justify-center bg-white/10 hover:bg-white/20 rounded-lg text-[11px] font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
               title="-0.5s"
             >
@@ -294,7 +292,7 @@
             </button>
             <button
               onclick={() => onAdjustOffset(-100)}
-              disabled={!hasAudio}
+              disabled={!canControlAudio}
               class="w-8 h-8 flex items-center justify-center bg-white/10 hover:bg-white/20 rounded-lg text-lg font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
               title="-100ms"
             >
@@ -316,7 +314,7 @@
             </div>
             <button
               onclick={() => onAdjustOffset(100)}
-              disabled={!hasAudio}
+              disabled={!canControlAudio}
               class="w-8 h-8 flex items-center justify-center bg-white/10 hover:bg-white/20 rounded-lg text-lg font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
               title="+100ms"
             >
@@ -324,7 +322,7 @@
             </button>
             <button
               onclick={() => onAdjustOffset(500)}
-              disabled={!hasAudio}
+              disabled={!canControlAudio}
               class="w-12 h-8 flex items-center justify-center bg-white/10 hover:bg-white/20 rounded-lg text-[11px] font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
               title="+0.5s"
             >
@@ -332,7 +330,7 @@
             </button>
             <button
               onclick={() => onAdjustOffset(3000)}
-              disabled={!hasAudio}
+              disabled={!canControlAudio}
               class="w-12 h-8 flex items-center justify-center bg-white/10 hover:bg-white/20 rounded-lg text-[11px] font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
               title="+3s"
             >
@@ -342,7 +340,8 @@
 
           <button
             onclick={onSkip}
-            class="btn-secondary py-3 px-6 flex items-center gap-2 text-base font-medium"
+            disabled={!canUseCheckpoint}
+            class="btn-secondary py-3 px-6 flex items-center gap-2 text-base font-medium disabled:opacity-50 disabled:cursor-not-allowed"
             title={t("sync.wizard.skip")}
           >
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7" /></svg>
@@ -351,7 +350,7 @@
 
           <button
             onclick={onConfirm}
-            disabled={!audioSrc || !!audioError}
+            disabled={!canControlAudio}
             class="btn-success py-3 px-6 flex items-center gap-2 disabled:opacity-50 shadow-lg shadow-green-500/20 text-base font-medium"
           >
             <svg
@@ -400,8 +399,6 @@
           </div>
         </div>
       </div>
-    {:else}
-      <WizardEmptyState total={totalSubtitles} messageKey="sync.wizard.selectCheckpoint" />
     {/if}
   </div>
 </div>

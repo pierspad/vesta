@@ -24,7 +24,7 @@
   let t = $derived($locale);
 </script>
 
-<div class="glass-card p-5 min-h-0 space-y-4 flex flex-col justify-between">
+<div class="glass-card p-5 shrink-0 space-y-4 flex flex-col justify-between">
   <div>
     <h3 class="text-lg font-semibold flex items-center gap-2 mb-4 text-cyan-400">
       <svg
