@@ -981,7 +981,7 @@
   "extract.choose": "Bestand toevoegen",
   "extract.media": "Mediabestanden",
   "extract.working": "Ondertitels lezen of extraheren…",
-  "extract.empty": "Geen ingebedde ondertitelsporen gevonden.",
+  "extract.empty": "Ondertitels ontbreken",
   "extract.ocr": "Beeldondertitels vereisen OCR",
   "extract.save": "SRT opslaan",
   "extract.saved": "Opgeslagen:",

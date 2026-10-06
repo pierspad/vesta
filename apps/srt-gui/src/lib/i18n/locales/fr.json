@@ -981,7 +981,7 @@
   "extract.choose": "Ajouter un fichier",
   "extract.media": "Fichiers multimédias",
   "extract.working": "Lecture ou extraction des sous-titres…",
-  "extract.empty": "Aucune piste de sous-titres intégrée trouvée.",
+  "extract.empty": "Aucun sous-titre",
   "extract.ocr": "Les sous-titres en image nécessitent une OCR",
   "extract.save": "Enregistrer en SRT",
   "extract.saved": "Enregistré :",

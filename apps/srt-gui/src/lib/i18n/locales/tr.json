@@ -981,7 +981,7 @@
   "extract.choose": "Dosya ekle",
   "extract.media": "Medya dosyaları",
   "extract.working": "Altyazılar okunuyor veya çıkarılıyor…",
-  "extract.empty": "Gömülü altyazı izleri bulunamadı.",
+  "extract.empty": "Altyazı yok",
   "extract.ocr": "Görsel altyazılar OCR gerektirir",
   "extract.save": "SRT kaydet",
   "extract.saved": "Kaydedildi:",

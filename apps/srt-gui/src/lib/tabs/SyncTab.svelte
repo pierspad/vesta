@@ -1259,6 +1259,7 @@
       <SyncStatusPanel {status} {confidenceScore} {formatOffset} />
     {:else if panelId === "subtitleList"}
       <SubtitleListPanel
+        pageSize={PAGE_SIZE}
         {subtitles}
         isLoaded={!!status?.is_loaded}
         {currentPage}

@@ -17,6 +17,7 @@
     isLoaded: boolean;
     currentPage: number;
     totalPages: number;
+    pageSize: number;
     activeSubtitleId: number | null;
     formatTime: (ms: number) => string;
     formatOffset: (ms: number) => string;
@@ -33,6 +34,7 @@
     isLoaded,
     currentPage,
     totalPages,
+    pageSize,
     activeSubtitleId,
     formatTime,
     formatOffset,
@@ -65,15 +67,14 @@
       >
       <span>
         {t("sync.subtitles")}
-        {#if isLoaded}<span class="text-gray-500 font-normal"
-            >{t("sync.pageOf", { current: currentPage, total: totalPages })}</span
-          >{/if}
+        <span class="text-gray-500 font-normal"
+          >{t("sync.pageOf", { current: isLoaded ? currentPage : 0, total: totalPages })}</span
+        >
       </span>
     </h3>
   </div>
 
   <!-- Pagination controls — TOP -->
-  {#if !isLoaded || totalPages > 1}
     <div class="px-3 pb-2 flex items-center justify-between flex-shrink-0">
       <button
         onclick={() => onPageChange(currentPage - 1)}
@@ -93,7 +94,6 @@
         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
       </button>
     </div>
-  {/if}
 
   <!-- Subtitle list -->
   <div
@@ -156,6 +156,24 @@
           {/if}
         </div>
       </button>
+    {:else}
+      {#if !isLoaded}
+        {#each Array(pageSize) as _, index (index)}
+          <div aria-hidden="true" class="w-full min-w-0 p-3 border-b border-white/5">
+            <div class="flex items-start gap-2">
+              <div class="w-8 flex-shrink-0 pt-1"><div class="h-2 w-5 rounded bg-white/5"></div></div>
+              <div class="flex-1 min-w-0">
+                <div class="h-5 flex items-center"><div class="h-3 w-4/5 rounded bg-white/5"></div></div>
+                <div class="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1 min-h-4">
+                  <div class="h-2 w-16 rounded bg-white/[0.03]"></div>
+                  <span class="text-xs text-gray-700">→</span>
+                  <div class="h-2 w-16 rounded bg-white/[0.03]"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        {/each}
+      {/if}
     {/each}
   </div>
 </div>

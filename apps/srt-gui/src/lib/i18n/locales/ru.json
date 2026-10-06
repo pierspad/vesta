@@ -981,7 +981,7 @@
   "extract.choose": "Добавить файл",
   "extract.media": "Медиафайлы",
   "extract.working": "Чтение или извлечение субтитров…",
-  "extract.empty": "Встроенные дорожки субтитров не найдены.",
+  "extract.empty": "Субтитры отсутствуют",
   "extract.ocr": "Графические субтитры требуют OCR",
   "extract.save": "Сохранить SRT",
   "extract.saved": "Сохранено:",

@@ -981,7 +981,7 @@
   "extract.choose": "Adicionar arquivo",
   "extract.media": "Arquivos de mídia",
   "extract.working": "Lendo ou extraindo legendas…",
-  "extract.empty": "Nenhuma trilha de legenda incorporada encontrada.",
+  "extract.empty": "Sem legendas",
   "extract.ocr": "Legendas de imagem requerem OCR",
   "extract.save": "Salvar SRT",
   "extract.saved": "Salvo:",

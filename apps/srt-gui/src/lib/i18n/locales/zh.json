@@ -981,7 +981,7 @@
   "extract.choose": "添加文件",
   "extract.media": "媒体文件",
   "extract.working": "正在读取或提取字幕…",
-  "extract.empty": "未找到内嵌字幕轨道。",
+  "extract.empty": "无字幕",
   "extract.ocr": "图像字幕需要 OCR",
   "extract.save": "保存 SRT",
   "extract.saved": "已保存：",

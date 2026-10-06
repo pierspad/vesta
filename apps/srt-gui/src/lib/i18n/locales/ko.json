@@ -981,7 +981,7 @@
   "extract.choose": "파일 추가",
   "extract.media": "미디어 파일",
   "extract.working": "자막을 읽거나 추출하는 중입니다…",
-  "extract.empty": "내장 자막 트랙을 찾을 수 없습니다.",
+  "extract.empty": "자막이 없습니다",
   "extract.ocr": "이미지 자막에는 OCR이 필요합니다",
   "extract.save": "SRT 저장",
   "extract.saved": "저장됨:",

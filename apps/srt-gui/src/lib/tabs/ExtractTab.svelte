@@ -29,6 +29,7 @@
   let t = $derived($locale);
   interface Track { index: number; codec: string; language: string; title: string; text_based: boolean }
   let tracks = $state<Track[]>([]);
+  let tracksScanned = $state(false);
   let search = $state("");
   let page = $state(0);
   let prepared = $derived(prepareSubtitleTracks(tracks, $currentLanguage));
@@ -123,9 +124,10 @@
   async function loadMedia(selected: string, fromPicker = false) {
     if ((!fromPicker && busy) || downloadingIndex !== null) return;
     busy = true; error = ""; isDraggingOver = false;
-    closePreview(); selections = {}; downloaded = []; path = selected; tracks = []; search = ""; page = 0;
+    closePreview(); selections = {}; downloaded = []; path = selected; tracks = []; tracksScanned = false; search = ""; page = 0;
     try {
       tracks = await invoke<Track[]>("embedded_subtitle_tracks", { path: selected });
+      tracksScanned = true;
       await refreshDownloaded();
     } catch (e) { error = String(e); }
     finally { busy = false; }
@@ -150,14 +152,13 @@
     <h2 class="mb-4 text-lg font-semibold text-teal-300">{t("extract.title")}</h2>
     <PathPickerField labelIcon="M15 10l5-3v10l-5-3M4 5h9a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z" label={t("flashcards.mediaFile")} value={path} placeholder={t("extract.choose")}
       browseTitle={t("flashcards.browse")} browseLabel={t("flashcards.browse")} onbrowse={chooseMedia}
-      disabled={busy || downloadingIndex !== null} onclear={() => { closePreview(); selections = {}; downloaded = []; previewTrack = null; path = ""; tracks = []; error = ""; search = ""; page = 0; }} />
+      disabled={busy || downloadingIndex !== null} onclear={() => { closePreview(); selections = {}; downloaded = []; previewTrack = null; path = ""; tracks = []; tracksScanned = false; error = ""; search = ""; page = 0; }} />
     <div class="mt-3"><PathPickerField label={t("flashcards.outputDir")} labelIcon="M3 7v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-6l-2-2H5a2 2 0 0 0-2 2Z" value={outputDir} placeholder={t("flashcards.outputDir")} browseTitle={t("flashcards.browse")} browseLabel={t("flashcards.browse")} onbrowse={chooseOutput} disabled={busy || downloadingIndex !== null} /></div>
     <div class="mt-3 flex min-h-5 items-center text-sm" role="status" aria-live="polite">
-    {#if error || busy || (path && tracks.length === 0)}
+    {#if error || busy}
 
       {#if error}<span class="text-red-300">{error}</span>
-      {:else if busy}<span class="inline-flex" aria-label={t("extract.working")}><LoadingSpinner /></span>
-      {:else if path && tracks.length === 0}<span class="text-gray-400">{t("extract.empty")}</span>{/if}
+      {:else if busy}<span class="inline-flex" aria-label={t("extract.working")}><LoadingSpinner /></span>{/if}
     {/if}
     </div>
       <div class="mt-4 flex flex-wrap items-center justify-between gap-3">
@@ -176,7 +177,7 @@
           </button>
         </div>
       </div>
-      <div class="mt-4 grid min-h-[588px] grid-cols-1 lg:grid-cols-2 content-start gap-3" aria-busy={busy}>
+      <div class="relative mt-4 grid min-h-[588px] grid-cols-1 lg:grid-cols-2 content-start gap-3" aria-busy={busy}>
         {#each visible as group (group.key)}
           <SubtitleTrackCard {group} {busy} {downloaded} {downloadingIndex} selectedIndex={selections[group.key]} onselect={(index) => selections = { ...selections, [group.key]: index }} ondownload={extract} onpreview={preview} />
         {/each}
@@ -187,6 +188,11 @@
               <div class="h-10 w-10 rounded-lg border border-white/5"></div>
             </div>
           {/each}
+        {/if}
+        {#if tracksScanned && tracks.length === 0}
+          <div class="pointer-events-none absolute inset-0 flex items-center justify-center p-4" role="status" aria-live="polite">
+            <span class="rounded-xl border border-red-400/25 bg-gray-900/95 px-5 py-3 text-center text-sm font-semibold text-red-300 shadow-lg">{t("extract.empty")}</span>
+          </div>
         {/if}
       </div>
       {#if tracks.length > 0 && filtered.length === 0}<p class="mt-4 text-sm text-gray-400" role="status">{t("extract.noMatches")}</p>{/if}

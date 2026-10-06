@@ -981,7 +981,7 @@
   "extract.choose": "फ़ाइल जोड़ें",
   "extract.media": "मीडिया फ़ाइलें",
   "extract.working": "सबटाइटल पढ़ रहे हैं या निकाल रहे हैं…",
-  "extract.empty": "कोई एम्बेडेड सबटाइटल ट्रैक नहीं मिली।",
+  "extract.empty": "सबटाइटल मौजूद नहीं हैं",
   "extract.ocr": "इमेज सबटाइटल OCR की आवश्यकता रखते हैं",
   "extract.save": "SRT सहेजें",
   "extract.saved": "सहेजा गया:",

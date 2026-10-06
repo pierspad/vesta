@@ -981,7 +981,7 @@
   "extract.choose": "Add file",
   "extract.media": "Media files",
   "extract.working": "Reading or extracting subtitles…",
-  "extract.empty": "No embedded subtitle tracks found.",
+  "extract.empty": "Subtitles missing",
   "extract.ocr": "Image subtitles require OCR",
   "extract.save": "Save SRT",
   "extract.saved": "Saved:",

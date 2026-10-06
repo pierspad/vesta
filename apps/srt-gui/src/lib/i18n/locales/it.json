@@ -981,7 +981,7 @@
   "extract.choose": "Aggiungi file",
   "extract.media": "File multimediali",
   "extract.working": "Lettura o estrazione dei sottotitoli…",
-  "extract.empty": "Nessuna traccia di sottotitoli incorporata.",
+  "extract.empty": "Sottotitoli assenti",
   "extract.ocr": "Sottotitoli come immagini: serve OCR",
   "extract.save": "Salva SRT",
   "extract.saved": "Salvato:",

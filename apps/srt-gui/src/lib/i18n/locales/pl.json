@@ -981,7 +981,7 @@
   "extract.choose": "Dodaj plik",
   "extract.media": "Pliki multimedialne",
   "extract.working": "Odczytywanie lub wyciąganie napisów…",
-  "extract.empty": "Nie znaleziono osadzonych ścieżek napisów.",
+  "extract.empty": "Brak napisów",
   "extract.ocr": "Napisy obrazowe wymagają OCR",
   "extract.save": "Zapisz SRT",
   "extract.saved": "Zapisano:",

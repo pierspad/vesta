@@ -981,7 +981,7 @@
   "extract.choose": "ファイルを追加",
   "extract.media": "メディアファイル",
   "extract.working": "字幕を読み込み・抽出しています…",
-  "extract.empty": "埋め込み字幕が見つかりませんでした。",
+  "extract.empty": "字幕がありません",
   "extract.ocr": "画像字幕にはOCRが必要です",
   "extract.save": "SRTを保存",
   "extract.saved": "保存先：",

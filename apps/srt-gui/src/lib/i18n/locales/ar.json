@@ -981,7 +981,7 @@
   "extract.choose": "إضافة ملف",
   "extract.media": "ملفات الوسائط",
   "extract.working": "جارٍ قراءة أو استخراج الترجمة النصية…",
-  "extract.empty": "لم يتم العثور على مسارات ترجمة مدمجة.",
+  "extract.empty": "الترجمة النصية غير موجودة",
   "extract.ocr": "تتطلب ترجمات الصور تقنية التعرف الضوئي على الحروف (OCR)",
   "extract.save": "حفظ SRT",
   "extract.saved": "تم الحفظ:",

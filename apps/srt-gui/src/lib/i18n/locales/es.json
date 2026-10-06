@@ -981,7 +981,7 @@
   "extract.choose": "Añadir archivo",
   "extract.media": "Archivos multimedia",
   "extract.working": "Leyendo o extrayendo subtítulos…",
-  "extract.empty": "No se encontraron pistas de subtítulos incrustados.",
+  "extract.empty": "No hay subtítulos",
   "extract.ocr": "Los subtítulos de imagen requieren OCR",
   "extract.save": "Guardar SRT",
   "extract.saved": "Guardado:",

@@ -981,7 +981,7 @@
   "extract.choose": "Datei hinzufügen",
   "extract.media": "Mediendateien",
   "extract.working": "Lese oder extrahiere Untertitel…",
-  "extract.empty": "Keine eingebetteten Untertitel-Spuren gefunden.",
+  "extract.empty": "Keine Untertitel vorhanden",
   "extract.ocr": "Bilduntertitel erfordern OCR",
   "extract.save": "SRT speichern",
   "extract.saved": "Gespeichert:",
