@@ -64,7 +64,7 @@
   }
 
   const showError = (msg: string) => snackbar.show(msg, "error", 4000);
-  const showSuccess = (msg: string) => snackbar.show(msg, "success", 3000);
+  const showSuccess = (msg: string) => snackbar.show(msg, "success", 1700);
 
 
   // Expanded path field

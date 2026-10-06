@@ -96,6 +96,7 @@
   "experimental.badge": "Sperimentale",
   "experimental.setup.description": "Ripeti la configurazione iniziale e sostituisci le preferenze configurabili.",
   "experimental.setup.restart": "Riavvia configurazione",
+  "experimental.setup.try": "Prova senza salvare",
   "experimental.setup.title": "Anteprima della configurazione iniziale",
   "experimental.disclaimer": "Queste funzionalità sono in valutazione: potrebbero cambiare, spostarsi o essere rimosse. I feedback sono benvenuti.",
   "flashcards.automaticNoteType": "Automatico (lingua dei sottotitoli)",

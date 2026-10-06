@@ -5,6 +5,7 @@
   interface Option {
     value: string;
     label: string;
+    displayLabel?: string;
     searchTerms?: string; // Additional terms to search by (e.g., English name)
     icon?: string; // Flag emoji or icon
     provider?: string; // Provider ID for showing provider logo
@@ -20,6 +21,8 @@
     onfocus?: () => void;
     disabled?: boolean;
     placement?: "up" | "down";
+    compact?: boolean;
+    ariaLabel?: string;
   }
 
   let {
@@ -32,6 +35,8 @@
     onfocus,
     disabled = false,
     placement = "down",
+    compact = false,
+    ariaLabel,
   }: Props = $props();
 
   let isOpen = $state(false);
@@ -63,8 +68,8 @@
     if (isOpen) return searchQuery;
     if (!selectedOption) return "";
     return iconMarkup(selectedOption.icon)
-      ? selectedOption.label
-      : `${selectedOption.icon || ""} ${selectedOption.label}`.trim();
+      ? (selectedOption.displayLabel ?? selectedOption.label)
+      : `${selectedOption.icon || ""} ${selectedOption.displayLabel ?? selectedOption.label}`.trim();
   });
 
   let filteredOptions = $derived.by(() => {
@@ -210,6 +215,8 @@
     <input
       bind:this={inputElement}
       type="text"
+      aria-label={ariaLabel ?? placeholder}
+      class:compact
       value={displayValue}
       oninput={handleInput}
       onfocus={handleFocus}
@@ -313,6 +320,13 @@
     color: white;
     transition: border-color 0.12s ease, background-color 0.12s ease;
     font-size: 0.875rem;
+  }
+
+  .searchable-select-input.compact {
+    padding-top: 7px;
+    padding-bottom: 7px;
+    font-size: 0.75rem;
+    border-radius: 8px;
   }
 
   :global(.language-flag) {

@@ -298,7 +298,7 @@ class WhisperModelsStore {
     if (baseModel && baseModel.downloaded) {
       this.defaultWhisperModel = "base";
       vestaConfig.setItem("srt-default-whisper-model", "base");
-      snackbar.show(t("settings.whisper.resetSuccess"), "info", 2000);
+      snackbar.show(t("settings.whisper.resetSuccess"), "info", 1700);
     } else {
       const alternate = this.whisperModels.find((m) => m.downloaded);
       if (alternate) {

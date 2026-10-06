@@ -56,7 +56,9 @@
     return load;
   }
 
-  let activeTab = $state<AppTab>("flashcards");
+  const openWhisperAfterSetup = vestaConfig.getItem("vesta-setup-open-whisper") === "true";
+  if (openWhisperAfterSetup) vestaConfig.removeItem("vesta-setup-open-whisper");
+  let activeTab = $state<AppTab>(openWhisperAfterSetup ? "settings" : "flashcards");
   let showFirstRunSetup = $state(
     vestaConfig.getItem("vesta-first-run-force") === "true" ||
       (vestaConfig.isNewInstallation() && vestaConfig.getItem("vesta-first-run-setup-complete") !== "true"),
@@ -74,9 +76,12 @@
     }
   });
 
-  function completeFirstRunSetup(wantsTranscription: boolean) {
+  async function completeFirstRunSetup(wantsTranscription: boolean) {
+    if (wantsTranscription) {
+      vestaConfig.setItem("vesta-setup-open-whisper", "true");
+      await vestaConfig.flush();
+    }
     showFirstRunSetup = false;
-    if (wantsTranscription) goToSettings("whisper");
     // Stores are constructed at startup; reload once so every selected default
     // is applied consistently without a half-old, half-new session.
     window.location.reload();
@@ -95,7 +100,7 @@
 
   let userPreference = $state<"collapsed" | "expanded" | null>(initialPreference);
   let sidebarCollapsed = $state(initialPreference === "collapsed");
-  let requestedSettingsSection = $state<"overview" | "llm" | "whisper" | "language" | "anki" | "diagnostics" | "shortcuts">("overview");
+  let requestedSettingsSection = $state<"overview" | "llm" | "whisper" | "language" | "anki" | "diagnostics" | "shortcuts">(openWhisperAfterSetup ? "whisper" : "overview");
   let highlightItemId = $state<string | null>(null);
   let lastActiveMainTab = $state<Exclude<AppTab, "settings">>("flashcards");
 

@@ -96,6 +96,7 @@
   "experimental.badge": "Experimenteel",
   "experimental.setup.description": "Voer de introductie opnieuw uit en overschrijf de instelbare standaardwaarden.",
   "experimental.setup.restart": "Configuratie opnieuw starten",
+  "experimental.setup.try": "Proberen zonder opslaan",
   "experimental.setup.title": "Voorbeeld van eerste configuratie",
   "experimental.disclaimer": "Deze functies worden geëvalueerd: ze kunnen veranderen, verplaatst of verwijderd worden. Feedback is welkom.",
   "flashcards.automaticNoteType": "Automatisch (ondertiteltaal)",

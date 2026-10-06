@@ -355,6 +355,9 @@
       });
       const [port, token] = await getMediaServerInfo();
       return `http://127.0.0.1:${port}/media?path=${encodeURIComponent(playbackPath)}&token=${token}`;
+    } catch (error) {
+      audioError = `${t("sync.errorLoadingAudio")} ${error}`;
+      throw error;
     } finally {
       if (needsTranscode) {
         isPreparingMedia = false;
@@ -383,7 +386,7 @@
     return `${sign}${(ms / 1000).toFixed(2)}s`;
   }
 
-  const showSnackbar = createSnackbarNotifier(4500);
+  const showSnackbar = createSnackbarNotifier();
 
   const OFFSET_TOLERANCE_MS = 200;
 

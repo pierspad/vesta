@@ -90,3 +90,15 @@ it("exports mixed-language episodes with their own note types and font language"
  expect(run.invoke).toHaveBeenNthCalledWith(1, "flashcard_generate", { config: expect.objectContaining({ note_type_name: "Japanese_Vesta", target_language: "ja" }) });
  expect(run.invoke).toHaveBeenNthCalledWith(2, "flashcard_generate", { config: expect.objectContaining({ note_type_name: "ChineseTraditional_Vesta", target_language: "zh-tw" }) });
 });
+
+it("ignores the saved single-APKG choice for TSV output", async () => {
+ const run = options();
+ run.generationStore = { ...run.generationStore, effectiveExportFormat: "tsv", exportFormat: "tsv" };
+ run.invoke = vi.fn().mockResolvedValue({ ...response, apkg_path: null, tsv_path: "episode.tsv" });
+ await runFlashcardSeries(run);
+ expect(run.invoke).toHaveBeenCalledTimes(2);
+ expect(run.invoke).toHaveBeenNthCalledWith(1, "flashcard_generate", { config: expect.objectContaining({ output_dir: "/out", export_format: "tsv" }) });
+ expect(run.generationStore.result?.tsvPath).toBe("episode.tsv");
+ expect(run.invoke).not.toHaveBeenCalledWith("flashcard_merge_apkg", expect.anything());
+ expect(run.maybeAutoImportToAnki).not.toHaveBeenCalled();
+});

@@ -16,8 +16,10 @@ over automatic ones.
 - `AdaptiveSampler` / `SamplerStrategy` — which subtitles to review next
 - `matching` module — suggest media/subtitle file pairings by name similarity
 
-No async, no external tools: pure logic over `srt-parser` types, fully
-serializable state (`SyncState`) for session persistence.
+The retiming engine is synchronous pure logic over `srt-parser` types, with
+serializable state (`SyncState`) for session persistence. The separate `playback`
+module invokes FFmpeg to prepare non-native containers and cache audio for the
+desktop player; it is not part of anchor interpolation.
 
 ## Use as a binary
 

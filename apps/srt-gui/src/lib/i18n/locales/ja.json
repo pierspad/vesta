@@ -96,6 +96,7 @@
   "experimental.badge": "実験的",
   "experimental.setup.description": "初回セットアップを再実行し、設定可能な既定値を上書きします。",
   "experimental.setup.restart": "セットアップをやり直す",
+  "experimental.setup.try": "保存せずに試す",
   "experimental.setup.title": "初回セットアップのプレビュー",
   "experimental.disclaimer": "これらの機能は評価中です。変更・移動・削除される可能性があります。フィードバック歓迎です。",
   "flashcards.automaticNoteType": "自動（字幕の言語）",

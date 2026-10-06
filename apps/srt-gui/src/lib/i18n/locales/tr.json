@@ -96,6 +96,7 @@
   "experimental.badge": "Deneysel",
   "experimental.setup.description": "Başlangıç kurulumunu yeniden çalıştırın ve yapılandırılabilir varsayılanları değiştirin.",
   "experimental.setup.restart": "Kurulumu yeniden başlat",
+  "experimental.setup.try": "Kaydetmeden dene",
   "experimental.setup.title": "İlk kurulum önizlemesi",
   "experimental.disclaimer": "Bu özellikler değerlendirme aşamasındadır: değişebilir, taşınabilir veya kaldırılabilir. Geri bildirimlerinizi bekliyoruz.",
   "flashcards.automaticNoteType": "Otomatik (altyazı dili)",

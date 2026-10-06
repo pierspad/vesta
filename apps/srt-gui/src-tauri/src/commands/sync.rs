@@ -440,6 +440,9 @@ pub async fn sync_prepare_media_for_playback(
 ) -> Result<String, String> {
     use tauri::Manager;
 
+    if srt_sync::playback::is_natively_playable(Path::new(&path)) {
+        return Ok(path);
+    }
     let ffmpeg_cmd = super::flashcards::media::resolve_ffmpeg_path(Some(&app)).await;
 
     let cache_dir = app

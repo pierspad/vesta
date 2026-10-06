@@ -175,7 +175,7 @@
   let editingEpisode = $state<EpisodeEntry | null>(null);
   let initialEditingEpisodeStr = $state("");
   let dismissedFontBannerLang = $state<string | null>(null);
-  const showSnackbar = createSnackbarNotifier(2300);
+  const showSnackbar = createSnackbarNotifier();
 
   function loadDefaultLanguage(key: string, fallback = ""): string {
     try {
@@ -848,7 +848,7 @@
   });
 
   let noteTypeOptions = $derived(
-    [{ value: "default", label: `${predefinedNoteTypeForLanguage(proactiveLang).name} · ${t("flashcards.detectedNoteType")}`, icon: languages.find((language) => language.code === predefinedNoteTypeForLanguage(proactiveLang).language)?.flag || '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" class="w-4 h-4"><path stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M4 9V4h5m6 0h5v5M4 15v5h5m6 0h5v-5M8 12h8m-4-4v8" /></svg>' }, ...noteTypeList.filter((nt) => nt.id !== "default").map((nt) => ({
+    [{ value: "default", label: `${t("flashcards.automaticNoteType")} · ${predefinedNoteTypeForLanguage(proactiveLang).name}`, displayLabel: predefinedNoteTypeForLanguage(proactiveLang).name, icon: languages.find((language) => language.code === predefinedNoteTypeForLanguage(proactiveLang).language)?.flag || '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" class="w-4 h-4"><path stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M4 9V4h5m6 0h5v5M4 15v5h5m6 0h5v-5M8 12h8m-4-4v8" /></svg>' }, ...noteTypeList.filter((nt) => nt.id !== "default").map((nt) => ({
       value: nt.id,
       label: nt.name,
       searchTerms: [nt.name, getLanguageSearchTerms(nt.language)]
@@ -963,7 +963,7 @@
     noteTypeList = listNoteTypes();
   }
   let needsDeckName = $derived(
-    generationStore.seriesOutputMode === "single",
+    generationStore.effectiveExportFormat === "apkg" && generationStore.seriesOutputMode === "single",
   );
   let canRunFlashcards = $derived(
     Boolean(
@@ -2381,9 +2381,10 @@
       noteTypeName={activeNoteType.name}
     >
       {#snippet noteTypeControl()}
-        <div class="w-72 max-w-[35vw]" title={`${t("settings.noteType")}: ${activeNoteType.name}`}>
-          <span class="block text-[10px] text-violet-300 mb-1">{t("settings.noteType")}</span>
+        <div class="w-56 max-w-[30vw]" title={`${t("settings.noteType")}: ${activeNoteType.name}`}>
           <SearchableSelect
+            compact
+            ariaLabel={t("settings.noteType")}
             options={noteTypeOptions}
             value={automaticNoteType ? "default" : selectedNoteTypeId}
             onchange={selectNoteType}
@@ -2448,7 +2449,8 @@
             {/if}
           </div>
 
-        <!-- Series output mode inline selector (always present in DOM, disabled when <= 1 episode or format != apkg) -->
+        <!-- Package merging applies only to multi-episode APKG output. -->
+        {#if episodes.length > 1 && generationStore.effectiveExportFormat === "apkg"}
         <div
           class="flex items-center bg-gray-800/60 border border-gray-700/60 rounded-lg p-0.5 select-none relative group/sw transition-opacity {!isApkgSwitchEnabled ? 'opacity-40 cursor-not-allowed pointer-events-none' : ''}"
         >
@@ -2485,6 +2487,7 @@
             </div>
           {/if}
         </div>
+        {/if}
       </div>
 
       <!-- Preview Button -->

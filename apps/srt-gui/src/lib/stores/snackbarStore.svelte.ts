@@ -1,7 +1,7 @@
 export type SnackbarVariant = "success" | "info" | "warning" | "error";
 
 /** Default auto-dismiss duration (ms) for snackbars. */
-export const SNACKBAR_DEFAULT_DURATION = 2800;
+export const SNACKBAR_DEFAULT_DURATION = 1700;
 
 /**
  * Single global snackbar. All transient notifications in the app must go
@@ -15,15 +15,17 @@ class SnackbarStore {
   duration = $state(SNACKBAR_DEFAULT_DURATION);
   private timeout: ReturnType<typeof setTimeout> | null = null;
 
-  show(msg: string, variant: SnackbarVariant = "info", duration = SNACKBAR_DEFAULT_DURATION) {
+  show(msg: string, variant: SnackbarVariant = "info", duration?: number) {
+    const dismissAfter = duration ?? (variant === "error" || variant === "warning" ? 3500 : SNACKBAR_DEFAULT_DURATION);
     if (this.timeout) clearTimeout(this.timeout);
     this.key += 1;
     this.message = msg;
     this.variant = variant;
-    this.duration = duration;
+    this.duration = dismissAfter;
     this.timeout = setTimeout(() => {
       this.message = null;
-    }, duration);
+      this.timeout = null;
+    }, dismissAfter);
   }
 
   close() {
@@ -37,23 +39,9 @@ class SnackbarStore {
 
 export const snackbar = new SnackbarStore();
 
-/**
- * Returns a `showSnackbar(message, variant?, duration?)` function bound to a
- * given default duration.
- *
- * Several tabs/stores used to redeclare an identical one-line wrapper around
- * `snackbar.show` purely to pick a different default duration (1300ms for
- * quick confirmations, 3500ms for messages the user needs more time to
- * read). This factory keeps that per-call-site flexibility without
- * duplicating the wrapper body — call sites are unchanged, only the
- * declaration collapses to one line:
- *
- * ```ts
- * const showSnackbar = createSnackbarNotifier(1300);
- * ```
- */
-export function createSnackbarNotifier(defaultDuration: number = SNACKBAR_DEFAULT_DURATION) {
-  return (message: string, variant: SnackbarVariant = "info", duration: number = defaultDuration) => {
+/** Optional per-call-site override; omitted durations use the variant default. */
+export function createSnackbarNotifier(defaultDuration?: number) {
+  return (message: string, variant: SnackbarVariant = "info", duration: number | undefined = defaultDuration) => {
     snackbar.show(message, variant, duration);
   };
 }

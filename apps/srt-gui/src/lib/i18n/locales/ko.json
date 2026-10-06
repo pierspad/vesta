@@ -96,6 +96,7 @@
   "experimental.badge": "실험적",
   "experimental.setup.description": "초기 설정을 다시 실행하고 구성 가능한 기본값을 덮어씁니다.",
   "experimental.setup.restart": "설정 다시 시작",
+  "experimental.setup.try": "저장하지 않고 체험",
   "experimental.setup.title": "초기 설정 미리보기",
   "experimental.disclaimer": "이 기능들은 평가 중입니다. 변경, 이동 또는 제거될 수 있습니다. 피드백을 환영합니다.",
   "flashcards.automaticNoteType": "자동 (자막 언어)",

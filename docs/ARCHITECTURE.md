@@ -134,7 +134,9 @@ feature libraries still perform the underlying processing.
 
 ## Runtime Boundaries
 
-The desktop UI never calls FFmpeg, Whisper, SQLite, or provider APIs directly.
+The desktop UI never executes FFmpeg, Whisper or SQLite directly. Provider
+discovery, readiness checks and update metadata can use the frontend HTTP adapter
+(`tauriHttp.ts`); translation/transcription/annotation execution uses Rust engines.
 Svelte invokes typed Tauri commands; those commands translate persisted/UI
 configuration into library structs, hold cancellation state, and forward
 progress events. Domain behavior stays in `lib/`, so the same pipeline is used
@@ -248,8 +250,55 @@ percentage (12–15%). This is a phase completion measure, not an estimate of
 elapsed time for the entire job. Cancellation kills the active child; a stalled
 progress stream is bounded and a failed attempt falls back to another encoder.
 
-Cloud transcription is one selected engine, not the translation pool. OpenAI
+Each native transcription request runs one engine. The desktop
+`runTranscription` workflow attempts ready endpoints sequentially across configured
+tiers; it does not use the translation pool for concurrent load balancing.
+Cancellation prevents retries and publication of late results. OpenAI
 Whisper returns segment timing; GPT-4o transcription uses JSON and a whole-chunk
 time interval. It cannot provide precise line timing in the current integration.
 Cloud requests/polling are cancellable by dropping the selected future; remote
 AssemblyAI jobs may continue after local cancellation. See [QUALITY](QUALITY.md).
+
+
+## Playback preparation, setup and desktop maintenance
+
+`sync_prepare_media_for_playback` returns native-format paths directly. Other
+containers are prepared by `srt-sync::playback`: reuse a fresh nonempty cache,
+try copying the first audio track into OGG without re-encoding, then fall back to
+low-complexity mono Opus or Vorbis. This preview policy does not change flashcard
+export settings. A process-local mutex serializes preparation requests; temporary
+files become cache entries only after a successful process. Each FFmpeg child
+has a five-minute timeout. This path currently has no caller cancellation token;
+it is an exception to the general cancellable-engine pattern above.
+
+The loopback media server authenticates requests with a session token and supports
+byte ranges. WebKitGTK/GStreamer still needs a decoder for the prepared media.
+A cached path is not proof that a particular machine can decode that codec.
+
+First-run setup is shown for a new installation or an explicit restart request.
+`FirstRunSetupModal` collects language/export/audio/transcription defaults and
+installs needed fonts and selected local models before committing preferences.
+Its preview mode skips persistence, global language changes and downloads.
+After a real setup, a one-shot persisted navigation flag preserves the requested
+Whisper settings page across the reload that reconstructs the stores.
+
+Support logging and installer updates are desktop services, not feature engines:
+`commands/support_logs.rs` owns log files; `commands/updates.rs` chooses an official
+stable-release installer for the installed channel/architecture, verifies its
+digest, and opens it. Package-manager channels remain managed externally. Release
+creation and package builds are separate GitHub workflows; a published tag alone
+is not evidence that all installable assets are ready.
+
+
+## Export format boundaries
+
+`buildFlashcardConfig` maps media-generation flags and enabled note-type fields
+independently. `export_tsv` writes media references in separate ordered columns;
+it does not embed media or install Anki templates. `export_apkg` embeds media and
+model data. Snapshot/video coexistence is valid in the TSV serializer; the GUI's
+APKG exclusivity is a presentation policy rather than a schema limitation.
+
+`runFlashcardSeries` captures the effective export format at run start and applies
+single-package mode only to APKG. TSV output uses separate episode naming/output
+and preserves its first result path. Format-specific disabled controls should be
+hidden when irrelevant rather than influencing another export format's payload.

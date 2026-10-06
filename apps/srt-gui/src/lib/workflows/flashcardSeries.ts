@@ -48,7 +48,8 @@ export async function runFlashcardSeries(options: FlashcardSeriesOptions) {
   );
   generationStore.addLog(`${t("flashcards.deckName")}: ${generationStore.deckName}`, "info");
 
-  const { seriesOutputMode, effectiveExportFormat, effectiveCpuCores, exportFormat, deckName } = generationStore;
+  const { effectiveExportFormat, effectiveCpuCores, exportFormat, deckName } = generationStore;
+  const seriesOutputMode = effectiveExportFormat === "apkg" ? generationStore.seriesOutputMode : "separate";
   const targetLanguage = getStudiedLanguagePreference();
   const startTime = Date.now();
   let totalCards = 0;
@@ -57,6 +58,7 @@ export async function runFlashcardSeries(options: FlashcardSeriesOptions) {
   let totalVideoClips = 0;
   let totalOutputBytes = 0;
   const apkgPaths: string[] = [];
+  const tsvPaths: string[] = [];
   let hadError = false;
   const errorMessages: string[] = [];
 
@@ -122,6 +124,7 @@ export async function runFlashcardSeries(options: FlashcardSeriesOptions) {
           totalVideoClips += res.video_clips;
           totalOutputBytes += res.output_size_bytes ?? 0;
           if (res.apkg_path) apkgPaths.push(res.apkg_path);
+          if (res.tsv_path) tsvPaths.push(res.tsv_path);
           generationStore.addLog(
             `✓ Ep ${epNum}: ${res.cards_generated} ${t("flashcards.cardsGenerated")}`,
             "success",
@@ -177,7 +180,7 @@ export async function runFlashcardSeries(options: FlashcardSeriesOptions) {
       audioClips: totalAudio,
       snapshots: totalSnapshots,
       videoClips: totalVideoClips,
-      tsvPath: null,
+      tsvPath: tsvPaths[0] ?? null,
       apkgPath: finalApkgPath,
       outputSizeBytes: totalOutputBytes,
     };
@@ -198,7 +201,7 @@ export async function runFlashcardSeries(options: FlashcardSeriesOptions) {
       audioClips: 0,
       snapshots: 0,
       videoClips: 0,
-      tsvPath: null,
+      tsvPath: tsvPaths[0] ?? null,
       apkgPath: null,
       outputSizeBytes: 0,
     };

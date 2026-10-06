@@ -239,6 +239,55 @@ mod tests {
     }
 
     #[test]
+    fn snapshot_and_video_are_exported_as_separate_fields() {
+        let mut config = FlashcardConfig {
+            deck_name: "Media test".into(),
+            generate_snapshots: true,
+            generate_video_clips: true,
+            ..FlashcardConfig::default()
+        };
+        config.output_fields.include_snapshot = true;
+        config.output_fields.include_video = true;
+        let rows = generate_tsv(
+            &[line_with_context(0, "Dialogue", vec![], vec![])],
+            &config,
+            "",
+            "",
+            "",
+        );
+        let fields: Vec<_> = rows.trim_end_matches('\n').split('\t').collect();
+        assert_eq!(
+            fields
+                .iter()
+                .filter(|field| field.starts_with("<img src="))
+                .count(),
+            1
+        );
+        assert_eq!(
+            fields
+                .iter()
+                .filter(|field| field.starts_with("[sound:")
+                    && (field.ends_with(".mp4]") || field.ends_with(".avi]")))
+                .count(),
+            1
+        );
+        config.generate_video_clips = false;
+        let snapshot_only = generate_tsv(
+            &[line_with_context(0, "Dialogue", vec![], vec![])],
+            &config,
+            "",
+            "",
+            "",
+        );
+        assert_eq!(
+            snapshot_only.trim_end_matches('\n').split('\t').count(),
+            fields.len()
+        );
+        assert!(!snapshot_only.contains(".mp4]"));
+        assert!(!snapshot_only.contains(".avi]"));
+    }
+
+    #[test]
     fn test_sanitize_filename() {
         assert_eq!(
             sanitize_filename("Deck: Friends / S01E01?"),

@@ -114,3 +114,31 @@ seconds separately from overall progress. See [architecture](../ARCHITECTURE.md)
 IDs and merging compatible model/deck metadata and media. Conflicting metadata
 or media names fail before replacing the destination. Packages with review
 history are outside its intended input contract.
+
+
+## TSV media and note types
+
+TSV can contain both a snapshot and a video clip for the same card. They occupy
+separate enabled fields: snapshot as `<img src="filename">`, video as
+`[sound:filename.mp4]` (or the configured video extension). Audio has its own
+`[sound:filename]` field. Turning generation off leaves an empty enabled field,
+so later fields retain their column positions. Both media generation and the
+corresponding output field must be enabled for a reference to be written.
+
+The TSV stores references, not embedded media or card templates. Import into an
+existing Anki note type, map the columns, enable HTML, and copy generated media
+files into `collection.media` without subdirectories. See the
+[Anki text import manual](https://docs.ankiweb.net/manual/importing/text-files).
+Client codec support still determines whether a particular video plays.
+
+The desktop's APKG snapshot/video exclusivity is a UI choice, not a TSV or Anki
+file-format restriction. TSV episode overrides permit both media kinds. Series
+TSV output is always per episode; a saved single-APKG preference does not affect
+TSV directories or trigger a package merge. The result exposes the first generated
+TSV for opening, as separate episode files are not merged into one TSV.
+
+The footer note picker shows the actual `_Vesta` name in a compact control.
+Its automatic option remains explicit in the open menu; it chooses the note type
+from the subtitle language with the configured fallback. Manual/custom note types
+remain available. Selecting a note type determines export fields and, for APKG,
+the model/templates; a TSV alone cannot install a new note type in Anki.

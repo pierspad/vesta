@@ -2,6 +2,9 @@
   import { locale } from "$lib/i18n";
   import * as vestaConfig from "$lib/config/vestaConfig";
 
+  import FirstRunSetupModal from "$lib/modals/FirstRunSetupModal.svelte";
+  let showPreview = $state(false);
+
   let t = $derived($locale);
 
   async function restartFirstRunSetup() {
@@ -18,6 +21,8 @@
         <h3 class="text-base font-semibold text-white">{t("experimental.setup.title")}</h3>
         <p class="mt-1 text-xs text-gray-400">{t("experimental.setup.description")}</p>
       </div>
+      <div class="flex flex-wrap gap-2">
+      <button type="button" class="btn-secondary shrink-0 px-4 py-2 text-xs" onclick={() => showPreview = true}>{t("experimental.setup.try")}</button>
       <button
         type="button"
         class="btn-secondary shrink-0 px-4 py-2 text-xs"
@@ -25,6 +30,11 @@
       >
         {t("experimental.setup.restart")}
       </button>
+      </div>
     </div>
   </div>
 </div>
+
+{#if showPreview}
+  <FirstRunSetupModal preview onClose={() => showPreview = false} onComplete={() => { showPreview = false; }} />
+{/if}

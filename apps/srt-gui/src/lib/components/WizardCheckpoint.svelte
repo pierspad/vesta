@@ -203,7 +203,7 @@
                 {t("sync.transcodingHint")}
               </p>
             </div>
-          {:else if !audioSrc}
+          {:else if !audioSrc && !audioError}
             <div class="text-center py-4">
               <p class="text-gray-500">{t("sync.audioPlaceholder")}</p>
               <p class="text-xs text-gray-600 mt-1">
@@ -353,7 +353,7 @@
           <button
             onclick={onConfirm}
             disabled={!canControlAudio}
-            class="btn-success py-3 px-6 flex items-center gap-2 disabled:opacity-50 shadow-lg shadow-green-500/20 text-base font-medium"
+            class="btn-success py-3 px-6 flex items-center gap-2 disabled:opacity-50 disabled:pointer-events-none disabled:shadow-none shadow-lg shadow-green-500/20 text-base font-medium"
           >
             <svg
               class="w-5 h-5"

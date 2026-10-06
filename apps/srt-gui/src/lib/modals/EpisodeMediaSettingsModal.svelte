@@ -5,6 +5,7 @@
   import { episodeMediaEditorStore as editor } from "$lib/stores/episodeMediaEditorStore.svelte";
   import { getFileName } from "$lib/utils/models";
   import { invokeCommand as invoke } from "$lib/services/tauriClient";
+  import { generationStore } from "$lib/stores/generationStore.svelte";
   import { snackbar } from "$lib/stores/snackbarStore.svelte";
 
   interface Props {
@@ -259,7 +260,7 @@
                 aria-label={t("flashcards.generateSnapshots")}
                 disabled={editor.episode.mediaType !== "video"}
                 class="relative h-5 w-10 rounded-full transition-colors {editor.overrides.generateSnapshots && editor.episode.mediaType === 'video' ? 'bg-purple-500' : 'bg-gray-600'} {mediaOverrideClass('generateSnapshots')}"
-                onclick={() => { const next = !editor.overrides?.generateSnapshots; editor.update("generateSnapshots", next); if (next) editor.update("generateVideoClips", false); }}
+                onclick={() => { const next = !editor.overrides?.generateSnapshots; editor.update("generateSnapshots", next); if (next && generationStore.effectiveExportFormat === "apkg") editor.update("generateVideoClips", false); }}
               >
                 <span class="absolute top-0.5 h-4 w-4 rounded-full bg-white transition-all {editor.overrides.generateSnapshots && editor.episode.mediaType === 'video' ? 'left-5' : 'left-0.5'}"></span>
               </button>
@@ -329,7 +330,7 @@
                 aria-label={t("flashcards.generateVideoClips")}
                 disabled={editor.episode.mediaType !== "video"}
                 class="relative h-5 w-10 rounded-full transition-colors {editor.overrides.generateVideoClips && editor.episode.mediaType === 'video' ? 'bg-rose-500' : 'bg-gray-600'} {mediaOverrideClass('generateVideoClips')}"
-                onclick={() => { const next = !editor.overrides?.generateVideoClips; editor.update("generateVideoClips", next); if (next) editor.update("generateSnapshots", false); }}
+                onclick={() => { const next = !editor.overrides?.generateVideoClips; editor.update("generateVideoClips", next); if (next && generationStore.effectiveExportFormat === "apkg") editor.update("generateSnapshots", false); }}
               >
                 <span class="absolute top-0.5 h-4 w-4 rounded-full bg-white transition-all {editor.overrides.generateVideoClips && editor.episode.mediaType === 'video' ? 'left-5' : 'left-0.5'}"></span>
               </button>

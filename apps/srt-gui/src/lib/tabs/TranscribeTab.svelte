@@ -118,7 +118,7 @@
     detected_language?: string;
   } | null>(null);
 
-  const showSnackbar = createSnackbarNotifier(4500);
+  const showSnackbar = createSnackbarNotifier();
 
   const logBuffer = createLogPanelBuffer();
 

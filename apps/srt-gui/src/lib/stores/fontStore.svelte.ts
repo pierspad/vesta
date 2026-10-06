@@ -99,7 +99,7 @@ class FontStore {
     try {
       await invoke<boolean>("flashcard_download_font", { fontId });
       await this.loadFonts();
-      snackbar.show("Font scaricato con successo!", "success", 2000);
+      snackbar.show("Font scaricato con successo!", "success", 1700);
       return true;
     } catch (err) {
       console.error("Font download failed:", err);

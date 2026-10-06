@@ -128,7 +128,7 @@ The GUI uses Tauri 2, Svelte 5, TypeScript, Tailwind CSS, and Vite. Each main ta
 
 FFmpeg performs media probing, audio extraction, and snapshots. whisper.cpp provides local transcription, with optional Vulkan, CUDA, ROCm, or SYCL builds and automatic CPU fallback. Silero VAD can skip silence before decoding. APKG output is assembled locally through SQLite and ZIP primitives, so generating a deck does not require a running Anki instance.
 
-Translation and annotation use ordered provider tiers: entries share work while respecting configured limits, and exhaustion falls through to the next tier. Cloud transcription uses one selected engine (Groq, OpenAI, Deepgram, AssemblyAI, or a custom endpoint), without tier failover. Progress is saved incrementally so interrupted work does not need to restart from the beginning.
+Translation and annotation use ordered provider tiers: entries share work while respecting configured limits, and exhaustion falls through to the next tier. The desktop transcription workflow tries ready endpoints sequentially across configured tiers (local Whisper, Groq, OpenAI, Deepgram, AssemblyAI, or a custom endpoint); each native request runs one engine. Cancellation stops further attempts. Translation saves incremental progress for resume; transcription restarts its current attempt.
 
 ## Headless CLI Use
 
@@ -158,6 +158,7 @@ For comprehensive module guides and Rust integration examples, see [`docs/module
 
 ## Documentation Map
 
+- [`docs/reviews/provare-setup-e-installer-2026-10-07.md`](docs/reviews/provare-setup-e-installer-2026-10-07.md) — Setup preview, installation and update checks.
 - [`docs/QUALITY.md`](docs/QUALITY.md) — Repeatable tests, short benchmarks, and release validation.
 - [`docs/STABILITY_AUDIT.md`](docs/STABILITY_AUDIT.md) — Findings, fixes, endpoint evidence, and remaining release risks (2026-10-01).
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — Architectural design contracts, layering rules, and conventions.
@@ -171,7 +172,7 @@ For comprehensive module guides and Rust integration examples, see [`docs/module
 
 ### Prerequisites
 - **Rust**: 1.97+ (`rustup default stable`)
-- **Node.js**: 20.19+ or 22.12+ (LTS recommended) and `npm`
+- **Node.js**: 22.12+ (LTS recommended) and `npm`
 - **System dependencies**:
   - **Runtime**: `ffmpeg` and `ffprobe` on your system PATH.
   - **Build (Linux)**: C/C++ compiler (`gcc`/`clang`), `cmake`, `pkg-config`, and Tauri v2 development libraries (`libwebkit2gtk-4.1-dev`, `libappindicator3-dev`, `librsvg2-dev`).
@@ -183,7 +184,7 @@ git clone https://github.com/pierspad/vesta.git
 cd vesta
 
 # Install frontend dependencies
-cd apps/srt-gui && npm install && cd ../..
+cd apps/srt-gui && npm ci && cd ../..
 
 # Then either run the GUI in development mode
 ./run_gui.sh
@@ -196,9 +197,9 @@ Frontend validation and tests:
 
 ```bash
 cd apps/srt-gui
-pnpm check
-pnpm test
-pnpm build
+npm run check
+npm test
+npm run build
 ```
 
 Run library/CLI tests without desktop build dependencies:

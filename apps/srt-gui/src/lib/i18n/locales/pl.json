@@ -96,6 +96,7 @@
   "experimental.badge": "Eksperymentalne",
   "experimental.setup.description": "Uruchom konfigurację początkową ponownie i zastąp jej ustawialne wartości domyślne.",
   "experimental.setup.restart": "Uruchom konfigurację ponownie",
+  "experimental.setup.try": "Wypróbuj bez zapisywania",
   "experimental.setup.title": "Podgląd pierwszej konfiguracji",
   "experimental.disclaimer": "Te funkcje są w fazie oceny: mogą się zmienić, zostać przeniesione lub usunięte. Opinie mile widziane.",
   "flashcards.automaticNoteType": "Automatycznie (język napisów)",

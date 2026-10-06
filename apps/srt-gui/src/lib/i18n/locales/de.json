@@ -96,6 +96,7 @@
   "experimental.badge": "Experimentell",
   "experimental.setup.description": "Führe die Einführung erneut aus und überschreibe die konfigurierbaren Vorgaben.",
   "experimental.setup.restart": "Einrichtung neu starten",
+  "experimental.setup.try": "Ohne Speichern ausprobieren",
   "experimental.setup.title": "Vorschau der Ersteinrichtung",
   "experimental.disclaimer": "Diese Funktionen werden noch evaluiert: Sie können sich ändern, verschoben oder entfernt werden. Feedback ist willkommen.",
   "flashcards.automaticNoteType": "Automatisch (Untertitelsprache)",

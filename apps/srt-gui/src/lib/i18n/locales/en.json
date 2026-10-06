@@ -96,6 +96,7 @@
   "experimental.badge": "Experimental",
   "experimental.setup.description": "Run the introductory setup again and overwrite its configurable defaults.",
   "experimental.setup.restart": "Restart setup",
+  "experimental.setup.try": "Try without saving",
   "experimental.setup.title": "First-run setup preview",
   "experimental.disclaimer": "These features are under evaluation: they may change, move, or be removed. Feedback is welcome.",
   "flashcards.automaticNoteType": "Automatic (subtitle language)",

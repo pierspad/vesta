@@ -12,7 +12,7 @@
   import type { ExportFormat, ExportFallbackFormat } from "$lib/stores/exportFormatStore.svelte";
   import * as vestaConfig from "$lib/config/vestaConfig";
 
-  let { onComplete }: { onComplete: (wantsTranscription: boolean) => void } = $props();
+  let { onComplete, preview = false, onClose }: { onComplete: (wantsTranscription: boolean) => void | Promise<void>; preview?: boolean; onClose?: () => void } = $props();
   let mode = $state<"quick" | "custom" | null>(null);
   let step = $state<"languages" | "export" | "transcription">("languages");
   const initialNativeLanguage = languages.some((l) => l.code === $currentLanguage) ? $currentLanguage : "en";
@@ -31,7 +31,7 @@
   let installing = $state(false);
   let installError = $state("");
   let setupRevision = $state(0);
-  $effect(() => { const selected = uiLanguage; void loadLanguage(selected).then((ok) => { if (ok && uiLanguage === selected) { currentLanguage.set(selected); setupRevision += 1; } }); });
+  $effect(() => { const selected = uiLanguage; void loadLanguage(selected).then((ok) => { if (ok && uiLanguage === selected) { if (!preview) currentLanguage.set(selected); setupRevision += 1; } }); });
   function setupT(key: string) { void setupRevision; return translateForLanguage(uiLanguage, key); }
 
   let selectedWhisperDownloaded = $derived(whisperModelsStore.whisperModels.find((model) => model.id === whisperModel)?.downloaded ?? false);
@@ -40,6 +40,7 @@
   const customStepNumber = $derived(step === "languages" ? 1 : step === "export" ? 2 : 3);
 
   onMount(async () => {
+    if (preview) return;
     whisperModelsStore.defaultWhisperModel = vestaConfig.getItem("srt-default-whisper-model") || "small";
     await Promise.all([whisperModelsStore.refreshModels(), whisperModelsStore.refreshAddons()]);
     const preferred = whisperModelsStore.whisperModels.find((model) => model.id === whisperModelsStore.defaultWhisperModel && model.downloaded)
@@ -52,12 +53,10 @@
     exportFormat = exportFormat === "apkg" ? "tsv" : exportFormat === "tsv" ? "anki" : "apkg";
   }
 
-  function toggleAudioFormat() {
-    compactAudio = !compactAudio;
-  }
 
   async function finish() {
     if (!mode || installing) return;
+    if (preview) { onClose?.(); return; }
     installing = true;
     installError = "";
     try {
@@ -97,7 +96,7 @@
       preferences["vesta-first-run-setup-complete"] = "true";
       delete preferences["vesta-first-run-force"];
       await vestaConfig.replaceAll(preferences);
-      onComplete(wantsTranscription);
+      await onComplete(wantsTranscription);
     } catch (error) { installError = String(error); }
     finally { installing = false; }
   }
@@ -107,6 +106,7 @@
   <div class="flex h-[720px] max-h-[calc(100vh-3rem)] w-full max-w-5xl flex-col overflow-visible rounded-2xl border border-indigo-400/30 bg-gray-900 p-7 shadow-2xl">
     <div class="flex items-start justify-between gap-5">
       <div><p class="text-xs font-bold uppercase tracking-[0.2em] text-indigo-300">Vesta</p><h1 class="mt-2 text-2xl font-bold text-white">{setupT("setup.setUpYourExperience")}</h1><p class="mt-2 text-sm text-gray-400">{setupT("setup.twoEssentialLanguagesThenVestaPreparesTheRest")}</p></div>
+      {#if preview}<button type="button" class="btn-secondary px-4 py-2" onclick={onClose}>{setupT("common.close")}</button>{/if}
       {#if mode}<span class="rounded-full border border-indigo-400/25 bg-indigo-500/10 px-3 py-1 text-xs text-indigo-200">{mode === "quick" ? (setupT("setup.quick")) : setupT("setup.expert")} · {mode === "quick" ? 1 : customStepNumber}/{mode === "custom" ? 3 : 1}</span>{/if}
     </div>
 
@@ -132,7 +132,7 @@
             <SetupLanguageField kind="study" title={setupT("setup.studyLanguage")} description={setupT("setup.flashcardsAndTranscription")} value={studyLanguage} onchange={(value) => studyLanguage = value} />
           </div>
         </div>
-        <div class="mt-auto flex justify-between"><button class="btn-secondary px-4 py-2" onclick={() => mode = null}>{setupT("setup.back")}</button>{#if mode === "custom"}<button class="rounded-lg bg-indigo-500 px-5 py-2 font-semibold text-white" onclick={() => step = "export"}>{setupT("setup.continue")}</button>{:else}<button class="rounded-lg bg-indigo-500 px-5 py-2 font-semibold text-white" onclick={finish}>{setupT("setup.finishSetup")}</button>{/if}</div>
+        <div class="mt-auto flex justify-between"><button class="btn-secondary px-4 py-2" onclick={() => mode = null}>{setupT("setup.back")}</button>{#if mode === "custom"}<button class="rounded-lg bg-indigo-500 px-5 py-2 font-semibold text-white" onclick={() => step = "export"}>{setupT("setup.continue")}</button>{:else}<button class="rounded-lg bg-indigo-500 px-5 py-2 font-semibold text-white" disabled={installing} onclick={finish}>{installing ? setupT("setup.installing") : setupT("setup.finishSetup")}</button>{/if}</div>
       </div>
     {:else if step === "export"}
       <div class="flex h-full flex-col">
@@ -142,8 +142,8 @@
           <div class="mb-3 flex items-center gap-3"><span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-cyan-500/15 text-cyan-300"><svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 18V5l10-2v13M9 9l10-2M6 18a3 2 0 110 4 3 2 0 010-4zm10-2a3 2 0 110 4 3 2 0 010-4z"/></svg></span><p class="text-sm font-semibold text-white">{setupT("setup.audioFormat")}</p></div>
           <div class="relative grid grid-cols-2 rounded-lg bg-black/25 p-1">
             <span class="absolute bottom-1 top-1 w-[calc(50%-4px)] rounded-md border border-cyan-400/40 bg-cyan-500/20 transition-transform duration-200 ease-out {compactAudio ? 'translate-x-[calc(100%+4px)]' : 'translate-x-0'}"></span>
-            <button class="relative z-10 px-3 py-2 text-left" aria-pressed={!compactAudio} onclick={toggleAudioFormat}><span class="block text-sm font-semibold {compactAudio ? 'text-gray-400' : 'text-cyan-100'}">MP3 · {setupT("setup.worksEverywhere")}</span><span class="block text-[10px] text-gray-500">128 kb/s · Anki Desktop, AnkiDroid, AnkiMobile</span></button>
-            <button class="relative z-10 px-3 py-2 text-left" aria-pressed={compactAudio} onclick={toggleAudioFormat}><span class="block text-sm font-semibold {compactAudio ? 'text-cyan-100' : 'text-gray-400'}">Opus · {setupT("setup.compressed")}</span><span class="block text-[10px] text-gray-500">64 kb/s · Anki Desktop, AnkiDroid · {setupT("setup.notIos")}</span></button>
+            <button class="relative z-10 px-3 py-2 text-left" aria-pressed={!compactAudio} onclick={() => compactAudio = false}><span class="block text-sm font-semibold {compactAudio ? 'text-gray-400' : 'text-cyan-100'}">MP3 · {setupT("setup.worksEverywhere")}</span><span class="block text-[10px] text-gray-500">128 kb/s · Anki Desktop, AnkiDroid, AnkiMobile</span></button>
+            <button class="relative z-10 px-3 py-2 text-left" aria-pressed={compactAudio} onclick={() => compactAudio = true}><span class="block text-sm font-semibold {compactAudio ? 'text-cyan-100' : 'text-gray-400'}">Opus · {setupT("setup.compressed")}</span><span class="block text-[10px] text-gray-500">64 kb/s · Anki Desktop, AnkiDroid · {setupT("setup.notIos")}</span></button>
           </div>
         </div>
 

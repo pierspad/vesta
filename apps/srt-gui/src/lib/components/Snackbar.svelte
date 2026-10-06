@@ -60,6 +60,7 @@
 
 {#key `${animationKey}:${variant}:${duration}:${message}`}
   <div
+    role={variant === "error" ? "alert" : "status"}
     class={`fixed ${bottomClass} left-1/2 -translate-x-1/2 ${current.container} rounded-xl shadow-xl flex flex-col overflow-hidden animate-fade-in z-50 min-w-[240px] max-w-[min(92vw,420px)]`}
   >
     <div class="px-6 py-3 flex items-center gap-3">

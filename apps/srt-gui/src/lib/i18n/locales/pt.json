@@ -96,6 +96,7 @@
   "experimental.badge": "Experimental",
   "experimental.setup.description": "Execute novamente a configuração inicial e substitua os padrões configuráveis.",
   "experimental.setup.restart": "Reiniciar configuração",
+  "experimental.setup.try": "Experimentar sem guardar",
   "experimental.setup.title": "Pré-visualização da configuração inicial",
   "experimental.disclaimer": "Estes recursos estão em avaliação: podem mudar, ser movidos ou removidos. Feedback é bem-vindo.",
   "flashcards.automaticNoteType": "Automático (idioma das legendas)",

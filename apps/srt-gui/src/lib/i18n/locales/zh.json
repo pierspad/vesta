@@ -96,6 +96,7 @@
   "experimental.badge": "实验性",
   "experimental.setup.description": "重新运行初始设置并覆盖其中可配置的默认值。",
   "experimental.setup.restart": "重新开始设置",
+  "experimental.setup.try": "试用而不保存",
   "experimental.setup.title": "首次设置预览",
   "experimental.disclaimer": "这些功能正在评估中：可能会更改、移动或移除。欢迎反馈。",
   "flashcards.automaticNoteType": "自动（字幕语言）",

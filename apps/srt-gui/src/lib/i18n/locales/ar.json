@@ -96,6 +96,7 @@
   "experimental.badge": "تجريبي",
   "experimental.setup.description": "شغّل الإعداد التمهيدي مرة أخرى واستبدل الخيارات القابلة للتخصيص.",
   "experimental.setup.restart": "إعادة تشغيل الإعداد",
+  "experimental.setup.try": "جرّب دون حفظ",
   "experimental.setup.title": "معاينة الإعداد الأولي",
   "experimental.disclaimer": "هذه الميزات قيد التقييم: قد تتغير أو تُنقل أو تُزال. نرحّب بملاحظاتكم.",
   "flashcards.automaticNoteType": "تلقائي (لغة الترجمة)",
