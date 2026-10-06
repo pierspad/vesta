@@ -354,12 +354,6 @@ jobs:
           choco install llvm -y
           echo "LIBCLANG_PATH=C:\Program Files\LLVM\lib" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
-      - name: Preflight Cargo check (whisper-rs-sys)
-        env:
-          SCCACHE_GHA_ENABLED: "true"
-          RUSTC_WRAPPER: "sccache"
-        run: cargo check -p whisper-rs-sys
-
       - name: Install frontend dependencies
         working-directory: ${{ env.TAURI_APP_DIR }}
         run: npm ci
@@ -379,17 +373,10 @@ jobs:
         working-directory: ${{ env.TAURI_APP_DIR }}
         run: npx tauri icon src-tauri/icons/icon.svg -o src-tauri/icons
 
-      - name: Build frontend assets for Cargo preflight
-        working-directory: ${{ env.TAURI_APP_DIR }}
-        run: npm run build
-
-      - name: Preflight Cargo check
-        shell: pwsh
-        env:
-          SCCACHE_GHA_ENABLED: "true"
-          RUSTC_WRAPPER: "sccache"
-        run: cargo check --manifest-path apps/srt-gui/src-tauri/Cargo.toml --locked
-
+      # Tauri builds the frontend via beforeBuildCommand and compiles the
+      # complete Rust dependency graph, including whisper-rs-sys. Separate
+      # debug cargo checks duplicate native compilation and frontend work.
+      # Keep the lockfile validation in the release build itself.
       - name: Build Tauri app
         working-directory: ${{ env.TAURI_APP_DIR }}
         shell: pwsh
@@ -397,7 +384,7 @@ jobs:
           NO_STRIP: true
           SCCACHE_GHA_ENABLED: "true"
           RUSTC_WRAPPER: "sccache"
-        run: npx tauri build --bundles ${{ steps.bundle_targets.outputs.targets }}
+        run: npx tauri build --bundles ${{ steps.bundle_targets.outputs.targets }} -- --locked
 
       - name: Upload NSIS installer
         uses: actions/upload-artifact@v6
@@ -421,7 +408,8 @@ jobs:
     name: Create Release
     needs: [build-linux, build-linux-arch, build-linux-flatpak, build-windows]
     if: ${{ always() && (inputs.release_tag != '' || startsWith(github.ref, 'refs/tags/')) && needs.build-linux.result == 'success' }}
-    runs-on: ubuntu-latest
+    # Keep the current image when ubuntu-latest migrates to Ubuntu 26.04.
+    runs-on: ubuntu-24.04
     permissions:
       contents: write
       actions: write
