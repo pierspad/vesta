@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { invoke } from '@tauri-apps/api/core';
+  import EmptyStatusLabel from "$lib/components/EmptyStatusLabel.svelte";
+  import { invokeCommand as invoke } from "$lib/services/tauriClient";
   import { listen } from '@tauri-apps/api/event';
   import { writeTextFile } from '@tauri-apps/plugin-fs';
   import { onDestroy, onMount } from 'svelte';
@@ -718,7 +719,10 @@
         </div>
 
         <!-- Content Grid -->
-        <div class="pr-3 pl-1 space-y-6 custom-scrollbar pb-4 min-w-0 overflow-y-auto flex-1">
+        <div class="relative pr-3 pl-1 space-y-6 custom-scrollbar pb-4 min-w-0 overflow-y-auto flex-1">
+          {#if !isLoaded}
+            <EmptyStatusLabel message={t("media.noSubtitlesLoaded")} />
+          {/if}
           {#each currentPageItems as item (item.index)}
             {@const isMissingPair = targetPath && sourcePath && (
               (!!item.source && (!item.source.text || item.source.text.trim() === '')) ||

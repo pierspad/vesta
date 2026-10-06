@@ -19,6 +19,7 @@
     noResultsText?: string;
     onfocus?: () => void;
     disabled?: boolean;
+    placement?: "up" | "down";
   }
 
   let {
@@ -30,6 +31,7 @@
     noResultsText = "No results",
     onfocus,
     disabled = false,
+    placement = "down",
   }: Props = $props();
 
   let isOpen = $state(false);
@@ -244,6 +246,7 @@
     <div
       bind:this={dropdownElement}
       class="searchable-select-dropdown"
+      class:opens-up={placement === "up"}
     >
       {#if filteredOptions.length === 0}
         <div class="px-4 py-3 text-gray-500 text-sm text-center">
@@ -299,6 +302,10 @@
 
 <style>
   .searchable-select-input {
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: none;
+    box-shadow: none;
     background: rgba(24, 24, 42, 0.98) !important;
     border: 1px solid rgba(148, 163, 184, 0.22);
     border-radius: 10px;
@@ -338,10 +345,17 @@
     background: #0f172a !important;
     border: 1px solid rgba(148, 163, 184, 0.25);
     border-radius: 10px;
-    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.6);
+    box-shadow: none;
     z-index: 9999;
     opacity: 1 !important;
     isolation: isolate;
+  }
+
+  .searchable-select-dropdown.opens-up {
+    top: auto;
+    bottom: 100%;
+    margin-top: 0;
+    margin-bottom: 4px;
   }
 
   .searchable-select-option {

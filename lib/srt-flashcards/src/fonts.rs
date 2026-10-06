@@ -125,8 +125,35 @@ pub fn font_file_path(font_id: &str) -> Result<PathBuf> {
     font_file_path_for_entry(entry)
 }
 
+/// Normalize script variants and ISO-639 aliases identically for CSS and embedding.
+fn normalized_font_language(lang: &str) -> String {
+    let lower = lang.trim().to_lowercase().replace('_', "-");
+    if lower == "cht"
+        || ["zh-hant", "zh-tw", "zh-hk"]
+            .iter()
+            .any(|prefix| lower == *prefix || lower.starts_with(&format!("{prefix}-")))
+    {
+        return "zh-tw".into();
+    }
+    let primary = lower.split('-').next().unwrap_or("");
+    match primary {
+        "jpn" => "ja",
+        "kor" => "ko",
+        "chi" | "zho" | "cmn" | "chs" => "zh",
+        "ara" | "arb" => "ar",
+        "heb" => "he",
+        "tha" => "th",
+        "hin" => "hi",
+        "gre" | "ell" => "el",
+        "rus" => "ru",
+        "ukr" => "uk",
+        _ => primary,
+    }
+    .into()
+}
+
 pub fn font_entry_for_lang(lang: &str) -> Option<&'static FontCatalogEntry> {
-    let lower = lang.trim().to_lowercase();
+    let lower = normalized_font_language(lang);
     // Sub-tags first
     if lower == "zh-tw" || lower == "zh-hk" || lower == "zh-hant" || lower == "cht" {
         return FONT_CATALOG.iter().find(|e| e.id == "noto-sans-tc");
@@ -297,7 +324,7 @@ where
 /// Return CSS `font-family` stack for given target language code.
 /// Matches case-insensitively and handles sub-tags (e.g. `zh-tw` before `zh`).
 pub fn font_stack_for(lang: &str) -> &'static str {
-    let lower = lang.trim().to_lowercase();
+    let lower = normalized_font_language(lang);
 
     // Check specific sub-tags first
     if lower == "zh-tw" || lower == "zh-hk" || lower == "zh-hant" || lower == "cht" {
@@ -373,6 +400,25 @@ pub fn maybe_prepend_font_vars(base_css: &str, config: &FlashcardConfig) -> Stri
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn aliases_and_script_variants_match_the_same_font_and_css() {
+        for lang in ["zh_Hant_TW", "zh-Hant-HK", "zh_HK", "cht"] {
+            assert_eq!(font_entry_for_lang(lang).unwrap().id, "noto-sans-tc");
+            assert!(font_stack_for(lang).contains("CJK TC"));
+        }
+        for (lang, id, css) in [
+            ("jpn", "noto-sans-jp", "CJK JP"),
+            ("kor", "noto-sans-kr", "CJK KR"),
+            ("zho", "noto-sans-sc", "CJK SC"),
+            ("arb", "noto-sans-arabic", "Arabic"),
+        ] {
+            assert_eq!(font_entry_for_lang(lang).unwrap().id, id);
+            assert!(font_stack_for(lang).contains(css));
+        }
+        assert!(font_entry_for_lang("en").is_none());
+        assert!(font_entry_for_lang("de").is_none());
+    }
 
     #[test]
     fn test_font_stack_matching() {

@@ -1,3 +1,4 @@
+import { recordSupportEvent } from "$lib/utils/supportLog";
 import type { LogEntry } from "$lib/panels/LogPanel.svelte";
 
 /**
@@ -16,6 +17,7 @@ export function createLogPanelBuffer() {
   let logIdCounter = 0;
 
   function addLog(message: string, type: LogEntry["type"] = "info") {
+    recordSupportEvent(`workflow.${type}`, message);
     const timestamp = new Date().toLocaleTimeString([], {
       hour: "2-digit",
       minute: "2-digit",

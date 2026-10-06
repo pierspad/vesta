@@ -226,3 +226,29 @@ export function localizedLanguageName(code: string, locale: string): string {
     return names.of(code) || fallback;
   } catch { return fallback; }
 }
+
+/** Canonical study code, preserving script/region variants before broad aliases. */
+export function normalizeLanguageCode(value: string | null | undefined): string {
+  const code = (value || "").trim().toLowerCase().replace(/_/g, "-");
+  if (!code) return "";
+  if (/^zh-(hant|tw|hk)(-|$)/.test(code) || code === "cht") return "zh-tw";
+  if (/^zh-(hans|cn|sg)(-|$)/.test(code) || code === "chs") return "zh";
+  const exact = languages.find((language) => language.code === code);
+  if (exact) return exact.code;
+  const alias = languages.find((language) =>
+    languageAliases[language.code]?.includes(code) ||
+    language.nameEn.toLowerCase() === code || language.name.toLowerCase() === code,
+  );
+  if (alias) return alias.code;
+  const primary = code.split("-")[0];
+  return languages.find((language) => language.code === primary)?.code || "";
+}
+
+export function languageFlagPath(code: string): string {
+  const flag = languages.find((language) => language.code === normalizeLanguageCode(code))?.flag;
+  if (!flag) return "";
+  const country = [...flag].map((char) =>
+    String.fromCharCode(char.codePointAt(0)! - 0x1f1e6 + 65),
+  ).join("").toLowerCase();
+  return `/flags/${country}.svg`;
+}

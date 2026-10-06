@@ -1,4 +1,5 @@
 <script lang="ts">
+  import EmptyStatusLabel from "$lib/components/EmptyStatusLabel.svelte";
   import LoadingSpinner from "$lib/components/LoadingSpinner.svelte";
   import { setupWebviewDragDrop } from "$lib/utils/dragDrop";
   import { onMount, onDestroy } from "svelte";
@@ -6,7 +7,7 @@
   import { join } from "@tauri-apps/api/path";
   import { defaultOutputDirectory } from "$lib/utils/defaultOutputDirectory";
   import { snackbar } from "$lib/stores/snackbarStore.svelte";
-  import { invoke } from "@tauri-apps/api/core";
+  import { invokeCommand as invoke } from "$lib/services/tauriClient";
   import { guardedOpen } from "$lib/utils/dialogGuard";
   import PathPickerField from "$lib/components/PathPickerField.svelte";
   import { prepareSubtitleTracks, filterPreparedSubtitleTracks, subtitleOutputName, groupSubtitleTracks, SUBTITLE_PAGE_SIZE } from "$lib/utils/subtitleTracks";
@@ -149,7 +150,10 @@
 </script>
 <div class="h-full overflow-y-auto bg-gray-900 p-6 text-gray-100 scrollbar-thin">
   <div class="glass-card p-5" class:ring-2={isDraggingOver} class:ring-teal-400={isDraggingOver}>
-    <h2 class="mb-4 text-lg font-semibold text-teal-300">{t("extract.title")}</h2>
+    <h3 class="mb-4 text-lg font-semibold text-teal-400 flex items-center gap-2">
+      <svg aria-hidden="true" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4h16v12H4zM8 8h3m2 0h3M8 12h8m-4 4v5m-3-3 3 3 3-3" /></svg>
+      {t("extract.title")}
+    </h3>
     <PathPickerField labelIcon="M15 10l5-3v10l-5-3M4 5h9a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z" label={t("flashcards.mediaFile")} value={path} placeholder={t("extract.choose")}
       browseTitle={t("flashcards.browse")} browseLabel={t("flashcards.browse")} onbrowse={chooseMedia}
       disabled={busy || downloadingIndex !== null} onclear={() => { closePreview(); selections = {}; downloaded = []; previewTrack = null; path = ""; tracks = []; tracksScanned = false; error = ""; search = ""; page = 0; }} />
@@ -178,6 +182,9 @@
         </div>
       </div>
       <div class="relative mt-4 grid min-h-[588px] grid-cols-1 lg:grid-cols-2 content-start gap-3" aria-busy={busy}>
+        {#if !path && !busy}
+          <EmptyStatusLabel message={t("media.noMediaLoaded")} />
+        {/if}
         {#each visible as group (group.key)}
           <SubtitleTrackCard {group} {busy} {downloaded} {downloadingIndex} selectedIndex={selections[group.key]} onselect={(index) => selections = { ...selections, [group.key]: index }} ondownload={extract} onpreview={preview} />
         {/each}

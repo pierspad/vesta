@@ -1,3 +1,4 @@
+import { recordSupportEvent, safeLogValue } from "$lib/utils/supportLog";
 import { invoke } from "@tauri-apps/api/core";
 
 /**
@@ -18,6 +19,15 @@ import { invoke } from "@tauri-apps/api/core";
  * passthrough sottile apposta: non introduce comportamento nuovo, solo un
  * confine architetturale.
  */
-export function invokeCommand<T = unknown>(command: string, args?: Record<string, unknown>): Promise<T> {
-  return invoke<T>(command, args);
+export async function invokeCommand<T = unknown>(command: string, args?: Record<string, unknown>): Promise<T> {
+  const started = Date.now();
+  recordSupportEvent("ipc.start", command);
+  try {
+    const result = await invoke<T>(command, args);
+    recordSupportEvent("ipc.done", `${command} (${Date.now() - started} ms)`);
+    return result;
+  } catch (error) {
+    recordSupportEvent("ipc.error", `${command}: ${safeLogValue(error)}`);
+    throw error;
+  }
 }

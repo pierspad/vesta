@@ -33,15 +33,32 @@ pub struct RefineLlmConfig {
     pub model: Option<String>,
 }
 
-fn backup_path() -> PathBuf {
-    std::env::temp_dir().join("vesta_refine_backup.tmp")
+fn atomic_write(path: &Path, bytes: &[u8]) -> Result<(), String> {
+    use std::io::Write;
+    let parent = path
+        .parent()
+        .filter(|p| !p.as_os_str().is_empty())
+        .unwrap_or(Path::new("."));
+    let mut temporary = tempfile::NamedTempFile::new_in(parent).map_err(|e| e.to_string())?;
+    temporary.write_all(bytes).map_err(|e| e.to_string())?;
+    temporary.as_file().sync_all().map_err(|e| e.to_string())?;
+    if let Ok(metadata) = fs::metadata(path) {
+        temporary
+            .as_file()
+            .set_permissions(metadata.permissions())
+            .map_err(|e| e.to_string())?;
+    }
+    temporary
+        .persist(path)
+        .map_err(|e| format!("Impossibile salvare '{}': {e}", path.display()))?;
+    Ok(())
 }
 
 pub fn analyze_tsv_columns(rows: &[Vec<String>]) -> Vec<usize> {
     if rows.is_empty() {
         return Vec::new();
     }
-    let col_count = rows[0].len();
+    let col_count = rows.iter().map(Vec::len).max().unwrap_or(0);
     let mut text_cols = Vec::new();
 
     for col_idx in 0..col_count {
@@ -79,6 +96,65 @@ pub fn analyze_tsv_columns(rows: &[Vec<String>]) -> Vec<usize> {
     text_cols
 }
 
+fn is_tsv_data(row: &[String]) -> bool {
+    row.iter().any(|cell| !cell.trim().is_empty())
+        && !row.first().is_some_and(|cell| {
+            [
+                "#separator:",
+                "#html:",
+                "#columns:",
+                "#notetype:",
+                "#deck:",
+                "#tags:",
+                "#guid column:",
+                "#notetype column:",
+                "#deck column:",
+                "#tags column:",
+            ]
+            .iter()
+            .any(|prefix| cell.starts_with(prefix))
+        })
+}
+
+fn tsv_indices(rows: &[Vec<String>]) -> Result<(usize, usize, usize), String> {
+    if let Some(header) = rows
+        .iter()
+        .find(|row| row.first().is_some_and(|c| c.starts_with("#columns:")))
+    {
+        let fields = header
+            .iter()
+            .enumerate()
+            .map(|(ord, name)| AnkiField {
+                name: name
+                    .strip_prefix("#columns:")
+                    .unwrap_or(name)
+                    .trim()
+                    .to_string(),
+                ord,
+            })
+            .collect();
+        let model = AnkiModel {
+            id: 0,
+            name: "TSV #columns".into(),
+            flds: fields,
+        };
+        return field_indices(Some(&model), header.len());
+    }
+    let data: Vec<Vec<String>> = rows.iter().filter(|r| is_tsv_data(r)).cloned().collect();
+    let text = analyze_tsv_columns(&data);
+    if text.len() > 3 {
+        return Err("Colonne TSV ambigue. Aggiungi una riga #columns: con i nomi Expression, Meaning e Notes e gli eventuali altri campi.".into());
+    }
+    let expression = text.first().copied().unwrap_or(0);
+    let meaning = text.get(1).copied().unwrap_or(1);
+    let notes = if text.len() == 3 {
+        text[2]
+    } else {
+        data.iter().map(Vec::len).max().unwrap_or(2).max(2)
+    };
+    Ok((expression, meaning, notes))
+}
+
 #[derive(Deserialize)]
 struct AnkiField {
     name: String,
@@ -94,23 +170,43 @@ struct AnkiModel {
     flds: Vec<AnkiField>,
 }
 
-fn field_indices(model: Option<&AnkiModel>, field_count: usize) -> (usize, usize, usize) {
+fn field_indices(
+    model: Option<&AnkiModel>,
+    field_count: usize,
+) -> Result<(usize, usize, usize), String> {
+    let model = model
+        .ok_or("Metadati del modello Anki mancanti: impossibile identificare il campo Notes")?;
     let mut expr_idx = 0;
     let mut mean_idx = 1;
-    let mut notes_idx = field_count.saturating_sub(1);
-
-    if let Some(model) = model {
-        for field in &model.flds {
-            match field.name.to_lowercase().as_str() {
-                "expression" | "front" | "target" | "question" => expr_idx = field.ord,
-                "meaning" | "back" | "native" | "translation" | "answer" => mean_idx = field.ord,
-                "notes" | "note" | "comment" | "spiegazione" => notes_idx = field.ord,
-                _ => {}
-            }
+    let mut notes_indices = Vec::new();
+    for field in &model.flds {
+        match field.name.trim().to_lowercase().as_str() {
+            "expression" | "front" | "target" | "question" => expr_idx = field.ord,
+            "meaning" | "back" | "native" | "translation" | "answer" => mean_idx = field.ord,
+            "notes" | "note" | "comment" | "comments" | "annotation" | "annotations"
+            | "spiegazione" | "annotazioni" => notes_indices.push(field.ord),
+            _ => {}
         }
     }
-
-    (expr_idx, mean_idx, notes_idx)
+    if notes_indices.len() != 1 {
+        return Err(format!(
+            "Il modello '{}' deve avere un solo campo Notes/Annotations identificabile. Rinomina il campo dedicato alle annotazioni in Anki ed esporta nuovamente il mazzo.",
+            model.name
+        ));
+    }
+    let notes_idx = notes_indices[0];
+    if expr_idx >= field_count
+        || mean_idx >= field_count
+        || notes_idx >= field_count
+        || notes_idx == expr_idx
+        || notes_idx == mean_idx
+    {
+        return Err(format!(
+            "Campi Expression, Meaning e Notes non validi o sovrapposti nel modello '{}'",
+            model.name
+        ));
+    }
+    Ok((expr_idx, mean_idx, notes_idx))
 }
 
 fn read_anki_models(conn: &rusqlite::Connection) -> Result<HashMap<String, AnkiModel>, String> {
@@ -126,10 +222,6 @@ pub fn load_cards(path: &str) -> Result<Vec<RefineCard>, String> {
     let path_buf = PathBuf::from(path);
     if !path_buf.exists() {
         return Err("Il file specificato non esiste".to_string());
-    }
-
-    if let Err(e) = fs::copy(&path_buf, backup_path()) {
-        eprintln!("Failed to create backup copy: {e}");
     }
 
     let ext = path_buf
@@ -149,31 +241,23 @@ fn load_cards_tsv(path: &Path) -> Result<Vec<RefineCard>, String> {
     let content =
         fs::read_to_string(path).map_err(|e| format!("Impossibile leggere il file TSV: {e}"))?;
 
-    let mut rows = Vec::new();
-    for line in content.lines() {
-        let cells: Vec<String> = line.split('\t').map(str::to_string).collect();
-        if !cells.is_empty() && !cells[0].trim().is_empty() {
-            rows.push(cells);
-        }
-    }
-
-    if rows.is_empty() {
+    let rows: Vec<Vec<String>> = content
+        .lines()
+        .map(|line| line.split('\t').map(str::to_string).collect())
+        .collect();
+    let data_rows: Vec<Vec<String>> = rows
+        .iter()
+        .filter(|row| is_tsv_data(row))
+        .cloned()
+        .collect();
+    if data_rows.is_empty() {
         return Ok(Vec::new());
     }
-
-    let text_cols = analyze_tsv_columns(&rows);
-    let expr_idx = text_cols.first().copied().unwrap_or(0);
-    let mean_idx = text_cols.get(1).copied().unwrap_or(1);
-
-    let notes_idx = if text_cols.len() >= 3 {
-        *text_cols.last().unwrap()
-    } else {
-        999
-    };
-
+    let (expr_idx, mean_idx, notes_idx) = tsv_indices(&rows)?;
     let cards = rows
         .iter()
         .enumerate()
+        .filter(|(_, row)| is_tsv_data(row))
         .map(|(idx, row)| RefineCard {
             id: idx.to_string(),
             expression: row.get(expr_idx).cloned().unwrap_or_default(),
@@ -202,7 +286,7 @@ fn load_cards_apkg(path: &str) -> Result<Vec<RefineCard>, String> {
     let models = read_anki_models(&conn)?;
 
     let mut stmt = conn
-        .prepare("SELECT id, mid, flds FROM notes")
+        .prepare("SELECT id, mid, flds FROM notes ORDER BY id")
         .map_err(|e| format!("Errore nella preparazione query SQLite: {e}"))?;
 
     let mut rows = stmt
@@ -218,7 +302,7 @@ fn load_cards_apkg(path: &str) -> Result<Vec<RefineCard>, String> {
 
         let fields: Vec<String> = flds.split('\x1f').map(str::to_string).collect();
         let (expr_idx, mean_idx, notes_idx) =
-            field_indices(models.get(&mid.to_string()), fields.len());
+            field_indices(models.get(&mid.to_string()), fields.len())?;
 
         cards.push(RefineCard {
             id: id.to_string(),
@@ -238,19 +322,13 @@ pub fn save_cards(
 ) -> Result<(), String> {
     let input_path_buf = PathBuf::from(input_path);
 
-    let resolved_input_path = if input_path_buf.exists() {
-        input_path_buf
-    } else {
-        let backup = backup_path();
-        if backup.exists() {
-            backup
-        } else {
-            return Err(
-                "Il file di input originale non esiste e non è stata trovata alcuna copia cache di backup."
-                    .to_string(),
-            );
-        }
-    };
+    if !input_path_buf.exists() {
+        return Err(
+            "Il file di input originale non esiste. Ripristinalo prima di salvare le annotazioni."
+                .to_string(),
+        );
+    }
+    let resolved_input_path = input_path_buf;
 
     let output_path_buf = PathBuf::from(output_path);
     if let Some(parent) = output_path_buf.parent()
@@ -304,25 +382,33 @@ fn save_tsv_to_tsv(
         return Err("Il file TSV è vuoto".to_string());
     }
 
-    let text_cols = analyze_tsv_columns(&rows);
+    let (_, _, notes_idx) = tsv_indices(&rows)?;
 
-    let notes_idx = if text_cols.len() >= 3 {
-        *text_cols.last().unwrap()
-    } else {
-        return Err("Impossibile identificare la colonna Notes nel TSV".to_string());
-    };
-
-    let updates_map: HashMap<usize, String> = updates
-        .into_iter()
-        .filter_map(|u| u.id.parse::<usize>().ok().map(|idx| (idx, u.notes)))
-        .collect();
+    let mut updates_map = HashMap::new();
+    for update in updates {
+        let idx = update
+            .id
+            .parse::<usize>()
+            .map_err(|_| "ID TSV non valido")?;
+        if rows.get(idx).is_none_or(|row| !is_tsv_data(row))
+            || updates_map.insert(idx, update.notes).is_some()
+        {
+            return Err(format!("ID TSV {idx} mancante, non annotabile o duplicato"));
+        }
+    }
 
     for (idx, row) in rows.iter_mut().enumerate() {
         if let Some(new_notes) = updates_map.get(&idx) {
             while row.len() <= notes_idx {
                 row.push(String::new());
             }
-            row[notes_idx] = new_notes.clone();
+            if !is_tsv_data(row) {
+                return Err(format!("Riga TSV {idx} non annotabile"));
+            }
+            row[notes_idx] = new_notes
+                .replace('\r', "")
+                .replace('\n', "<br>")
+                .replace('\t', " ");
         }
     }
 
@@ -332,8 +418,7 @@ fn save_tsv_to_tsv(
         output_content.push('\n');
     }
 
-    fs::write(output_path, output_content)
-        .map_err(|e| format!("Impossibile scrivere il file TSV di output: {e}"))
+    atomic_write(Path::new(output_path), output_content.as_bytes())
 }
 
 fn save_apkg_to_tsv(
@@ -359,7 +444,7 @@ fn save_apkg_to_tsv(
     let models = read_anki_models(&conn)?;
 
     let mut stmt = conn
-        .prepare("SELECT id, mid, flds FROM notes")
+        .prepare("SELECT id, mid, flds FROM notes ORDER BY id")
         .map_err(|e| format!("Errore preparazione query note Anki: {e}"))?;
 
     let note_rows = stmt
@@ -373,11 +458,11 @@ fn save_apkg_to_tsv(
         .map_err(|e| format!("Errore esecuzione query note Anki: {e}"))?;
 
     let mut cards = Vec::new();
-    for note in note_rows.flatten() {
-        let (id, mid, flds) = note;
+    for note in note_rows {
+        let (id, mid, flds) = note.map_err(|e| e.to_string())?;
         let fields: Vec<String> = flds.split('\x1f').map(str::to_string).collect();
         let (expr_idx, mean_idx, notes_idx) =
-            field_indices(models.get(&mid.to_string()), fields.len());
+            field_indices(models.get(&mid.to_string()), fields.len())?;
 
         cards.push(RefineCard {
             id: id.to_string(),
@@ -387,8 +472,16 @@ fn save_apkg_to_tsv(
         });
     }
 
-    let updates_map: HashMap<String, String> =
-        updates.into_iter().map(|u| (u.id, u.notes)).collect();
+    let mut updates_map = HashMap::new();
+    for update in updates {
+        if !cards.iter().any(|card| card.id == update.id)
+            || updates_map
+                .insert(update.id.clone(), update.notes)
+                .is_some()
+        {
+            return Err(format!("ID Anki {} mancante o duplicato", update.id));
+        }
+    }
 
     let mut output_content = String::new();
     for card in cards {
@@ -401,8 +494,7 @@ fn save_apkg_to_tsv(
         ));
     }
 
-    fs::write(output_path, output_content)
-        .map_err(|e| format!("Impossibile scrivere il file TSV di output: {e}"))
+    atomic_write(Path::new(output_path), output_content.as_bytes())
 }
 
 fn save_apkg_to_apkg(
@@ -427,10 +519,13 @@ fn save_apkg_to_apkg(
 
     let models = read_anki_models(&conn)?;
 
-    let updates_map: HashMap<i64, String> = updates
-        .into_iter()
-        .filter_map(|u| u.id.parse::<i64>().ok().map(|nid| (nid, u.notes)))
-        .collect();
+    let mut updates_map = HashMap::new();
+    for update in updates {
+        let nid = update.id.parse::<i64>().map_err(|_| "ID Anki non valido")?;
+        if updates_map.insert(nid, update.notes).is_some() {
+            return Err(format!("ID Anki {nid} duplicato"));
+        }
+    }
 
     let timestamp = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -441,7 +536,7 @@ fn save_apkg_to_apkg(
         .prepare("SELECT mid, flds FROM notes WHERE id = ?")
         .map_err(|e| format!("Errore preparazione query SELECT: {e}"))?;
     let mut update_stmt = conn
-        .prepare("UPDATE notes SET flds = ?, sfld = ?, csum = ?, mod = ? WHERE id = ?")
+        .prepare("UPDATE notes SET flds = ?, mod = ?, usn = -1 WHERE id = ?")
         .map_err(|e| format!("Errore preparazione query UPDATE: {e}"))?;
 
     conn.execute("BEGIN TRANSACTION", [])
@@ -451,27 +546,24 @@ fn save_apkg_to_apkg(
         let (mid, flds): (i64, String) =
             match select_stmt.query_row([nid], |row| Ok((row.get(0)?, row.get(1)?))) {
                 Ok(res) => res,
-                Err(_) => continue,
+                Err(e) => return Err(format!("Nota Anki {nid} non trovata: {e}")),
             };
 
         let mut fields: Vec<String> = flds.split('\x1f').map(str::to_string).collect();
-        let (expr_idx, _, notes_idx) = field_indices(models.get(&mid.to_string()), fields.len());
+        let (_, _, notes_idx) = field_indices(models.get(&mid.to_string()), fields.len())?;
 
         while fields.len() <= notes_idx {
             fields.push(String::new());
         }
+        if fields[notes_idx] == *new_notes {
+            continue;
+        }
         fields[notes_idx] = new_notes.clone();
 
         let joined_flds = fields.join("\x1f");
-        let sfld = fields.get(expr_idx).map(String::as_str).unwrap_or("");
-
-        let csum = {
-            let bytes = sha1_smol::Sha1::from(sfld).digest().bytes();
-            u32::from_be_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]) as i64
-        };
 
         update_stmt
-            .execute(rusqlite::params![joined_flds, sfld, csum, timestamp, nid])
+            .execute(rusqlite::params![joined_flds, timestamp, nid])
             .map_err(|e| format!("Errore durante l'aggiornamento SQLite: {e}"))?;
     }
 
@@ -480,7 +572,21 @@ fn save_apkg_to_apkg(
     conn.execute("COMMIT", []).map_err(|e| e.to_string())?;
     drop(conn);
 
-    srt_apkg::zip_from_dir(temp_dir.path(), Path::new(output_path))
+    let parent = Path::new(output_path)
+        .parent()
+        .filter(|p| !p.as_os_str().is_empty())
+        .unwrap_or(Path::new("."));
+    let output = tempfile::NamedTempFile::new_in(parent).map_err(|e| e.to_string())?;
+    srt_apkg::zip_from_dir(temp_dir.path(), output.path())?;
+    output.as_file().sync_all().map_err(|e| e.to_string())?;
+    if let Ok(metadata) = fs::metadata(output_path) {
+        output
+            .as_file()
+            .set_permissions(metadata.permissions())
+            .map_err(|e| e.to_string())?;
+    }
+    output.persist(output_path).map_err(|e| e.to_string())?;
+    Ok(())
 }
 
 pub async fn refine_card_llm(
@@ -578,6 +684,197 @@ pub fn strip_html(text: &str) -> std::borrow::Cow<'_, str> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn update(id: &str, notes: &str) -> RefineUpdate {
+        RefineUpdate {
+            id: id.into(),
+            notes: notes.into(),
+        }
+    }
+
+    #[test]
+    fn tsv_roundtrip_preserves_blank_lines_comments_and_physical_ids() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("cards.tsv");
+        fs::write(
+            &path,
+            "#separator:tab\nHello\tCiao\told\n\n\tEmpty front\tnote\n",
+        )
+        .unwrap();
+        let cards = load_cards(path.to_str().unwrap()).unwrap();
+        assert_eq!(
+            cards.iter().map(|c| c.id.as_str()).collect::<Vec<_>>(),
+            ["1", "3"]
+        );
+        save_cards(
+            path.to_str().unwrap(),
+            path.to_str().unwrap(),
+            vec![update("3", "one\ntwo\tthree")],
+        )
+        .unwrap();
+        let loaded = load_cards(path.to_str().unwrap()).unwrap();
+        assert_eq!(loaded[0].notes, "old");
+        assert_eq!(loaded[1].notes, "one<br>two three");
+        assert!(fs::read_to_string(&path).unwrap().contains("\n\n"));
+    }
+
+    #[test]
+    fn two_column_tsv_appends_notes_without_overwriting_meaning() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("cards.tsv");
+        fs::write(&path, "Hello\tCiao\n").unwrap();
+        assert_eq!(load_cards(path.to_str().unwrap()).unwrap()[0].notes, "");
+        save_cards(
+            path.to_str().unwrap(),
+            path.to_str().unwrap(),
+            vec![update("0", "annotation")],
+        )
+        .unwrap();
+        let loaded = load_cards(path.to_str().unwrap()).unwrap();
+        assert_eq!(loaded[0].meaning, "Ciao");
+        assert_eq!(loaded[0].notes, "annotation");
+    }
+
+    #[test]
+    fn invalid_tsv_updates_leave_original_intact() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("cards.tsv");
+        let original = "Hello\tCiao\told\n";
+        fs::write(&path, original).unwrap();
+        for updates in [
+            vec![update("invalid", "bad")],
+            vec![update("99", "bad")],
+            vec![update("0", "a"), update("0", "b")],
+        ] {
+            assert!(save_cards(path.to_str().unwrap(), path.to_str().unwrap(), updates).is_err());
+            assert_eq!(fs::read_to_string(&path).unwrap(), original);
+        }
+    }
+
+    #[test]
+    fn tsv_named_header_resolves_nonfinal_notes_and_rejects_ambiguous_columns() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("cards.tsv");
+        fs::write(
+            &path,
+            "#columns:Front\tNotes\tBack\tTags\nhello\tannotation\tciao\tvocabulary\n",
+        )
+        .unwrap();
+        let loaded = load_cards(path.to_str().unwrap()).unwrap();
+        assert_eq!(loaded[0].notes, "annotation");
+        assert_eq!(loaded[0].meaning, "ciao");
+        save_cards(
+            path.to_str().unwrap(),
+            path.to_str().unwrap(),
+            vec![update("1", "new")],
+        )
+        .unwrap();
+        assert!(
+            fs::read_to_string(&path)
+                .unwrap()
+                .contains("hello\tnew\tciao\tvocabulary")
+        );
+        fs::write(&path, "hello\tciao\textra\ttags\n").unwrap();
+        assert!(load_cards(path.to_str().unwrap()).is_err());
+    }
+
+    #[test]
+    fn apkg_roundtrip_changes_only_notes_and_sync_metadata() {
+        let directory = tempfile::tempdir().unwrap();
+        let fixture = directory.path().join("fixture");
+        fs::create_dir(&fixture).unwrap();
+        let conn = rusqlite::Connection::open(fixture.join("collection.anki2")).unwrap();
+        conn.execute_batch("CREATE TABLE col(models TEXT); CREATE TABLE notes(id INTEGER PRIMARY KEY, mid INTEGER, flds TEXT, sfld TEXT, csum INTEGER, mod INTEGER, usn INTEGER);").unwrap();
+        let model = serde_json::json!({"1":{"id":1,"name":"Custom","flds":[{"name":"Front","ord":0},{"name":"Back","ord":1},{"name":"Notes","ord":2},{"name":"Audio","ord":3}]}});
+        conn.execute("INSERT INTO col VALUES (?)", [model.to_string()])
+            .unwrap();
+        conn.execute(
+            "INSERT INTO notes VALUES (42,1,?,'original sort field',1234,0,10)",
+            ["hello\x1fciao\x1fold\x1f[sound:hello.mp3]"],
+        )
+        .unwrap();
+        drop(conn);
+        fs::write(fixture.join("media"), "{}").unwrap();
+        fs::write(fixture.join("0"), "fake audio").unwrap();
+        let path = directory.path().join("cards.apkg");
+        let path_str = path.to_str().unwrap();
+        srt_apkg::zip_from_dir(&fixture, &path).unwrap();
+        assert_eq!(load_cards(path_str).unwrap()[0].notes, "old");
+        let original = fs::read(&path).unwrap();
+        assert!(save_cards(path_str, path_str, vec![update("999", "x")]).is_err());
+        assert_eq!(fs::read(&path).unwrap(), original);
+        save_cards(path_str, path_str, vec![update("42", "new")]).unwrap();
+        assert_eq!(load_cards(path_str).unwrap()[0].notes, "new");
+        let output = directory.path().join("unpacked");
+        fs::create_dir(&output).unwrap();
+        srt_apkg::unzip_to(&path, &output).unwrap();
+        assert_eq!(fs::read_to_string(output.join("0")).unwrap(), "fake audio");
+        let conn = rusqlite::Connection::open(output.join("collection.anki2")).unwrap();
+        let row: (String, String, i64, i64) = conn
+            .query_row("SELECT flds,sfld,csum,usn FROM notes", [], |r| {
+                Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?))
+            })
+            .unwrap();
+        assert_eq!(
+            row,
+            (
+                "hello\x1fciao\x1fnew\x1f[sound:hello.mp3]".into(),
+                "original sort field".into(),
+                1234,
+                -1
+            )
+        );
+        let tsv = directory.path().join("export.tsv");
+        save_cards(
+            path_str,
+            tsv.to_str().unwrap(),
+            vec![update("42", "exported")],
+        )
+        .unwrap();
+        assert_eq!(
+            load_cards(tsv.to_str().unwrap()).unwrap()[0].notes,
+            "exported"
+        );
+    }
+
+    #[test]
+    fn field_mapping_never_falls_back_to_translation_or_media() {
+        let make = |names: &[&str]| AnkiModel {
+            id: 1,
+            name: "Test".into(),
+            flds: names
+                .iter()
+                .enumerate()
+                .map(|(ord, name)| AnkiField {
+                    name: (*name).into(),
+                    ord,
+                })
+                .collect(),
+        };
+        assert!(field_indices(Some(&make(&["Front", "Back"])), 2).is_err());
+        assert!(field_indices(Some(&make(&["Front", "Back", "Audio"])), 3).is_err());
+        assert!(field_indices(Some(&make(&["Front", "Back", "Notes", "Comment"])), 4).is_err());
+        assert!(field_indices(None, 3).is_err());
+        assert_eq!(
+            field_indices(Some(&make(&["Front", "Back", " Notes ", "Audio"])), 4).unwrap(),
+            (0, 1, 2)
+        );
+    }
+
+    #[test]
+    fn missing_input_never_uses_another_decks_backup() {
+        let directory = tempfile::tempdir().unwrap();
+        let output = directory.path().join("output.tsv");
+        assert!(
+            save_cards(
+                directory.path().join("missing.tsv").to_str().unwrap(),
+                output.to_str().unwrap(),
+                vec![update("0", "x")]
+            )
+            .is_err()
+        );
+        assert!(!output.exists());
+    }
 
     #[test]
     fn test_analyze_tsv_columns() {

@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount, onDestroy } from "svelte";
+  import { languages, languageFlagPath } from "$lib/config/languages";
   import { locale } from "$lib/i18n";
   import { snackbar } from "$lib/stores/snackbarStore.svelte";
   import CodeEditor from "$lib/components/CodeEditor.svelte";
@@ -9,6 +10,7 @@
     FIELD_NAMES_UPDATED_EVENT,
     ACTIVE_NOTE_TYPE_CHANGED_EVENT,
     saveActiveNoteTypeId,
+    predefinedNoteTypes,
     limitNoteTypeFieldValue,
   } from "$lib/types/noteTypes";
   import { ankiTemplateStore, type AnkiFieldKey, type TemplateCodeTab } from "$lib/stores/ankiTemplateStore.svelte";
@@ -150,6 +152,16 @@
   import { fontStore } from "$lib/stores/fontStore.svelte";
 
   let showFontsList = $state(false);
+  let sortedFonts = $derived([...fontStore.fonts].sort((a, b) => a.language_name.localeCompare(b.language_name, "en")));
+  let activeNoteTypeOptions = $derived([
+    { value: "default", label: t("flashcards.automaticNoteType"), icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" class="w-4 h-4"><path stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M4 9V4h5m6 0h5v5M4 15v5h5m6 0h5v-5M8 12h8m-4-4v8" /></svg>' },
+    ...predefinedNoteTypes().filter((nt) => nt.id !== "default").map((nt) => ({
+      value: nt.id, label: nt.name, icon: languages.find((language) => language.code === nt.language)?.flag || "🃏",
+    })),
+    ...store.savedAnkiFieldPresets.map((preset) => ({
+      value: preset.id.startsWith("custom:") ? preset.id : `custom:${preset.id}`, label: preset.name, icon: "🃏",
+    })),
+  ]);
 </script>
 
 <div class="mt-6 space-y-4">
@@ -184,6 +196,15 @@
               {fontStore.fonts.filter(f => f.downloaded).length} / {fontStore.fonts.length} {t("settings.anki.downloadedBadge") || "scaricati"}
             </span>
           </div>
+          <div class="flex items-center gap-3">
+            <button
+              type="button"
+              onclick={() => fontStore.downloadAllFonts()}
+              disabled={fontStore.isDownloading || !fontStore.fonts.some((font) => !font.downloaded)}
+              class="px-3 py-2 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              {fontStore.downloadingAll ? t("settings.anki.downloadingAllFonts") : t("settings.anki.downloadAllFonts")}
+            </button>
           <button
             type="button"
             onclick={() => (showFontsList = !showFontsList)}
@@ -194,11 +215,12 @@
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
             </svg>
           </button>
+          </div>
         </div>
 
         {#if showFontsList}
           <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mt-3 pt-2">
-            {#each fontStore.fonts as font (font.id)}
+            {#each sortedFonts as font (font.id)}
               {@const isThisDownloading = fontStore.downloadingFontId === font.id}
               <div class="p-3 rounded-lg border bg-black/20 {font.downloaded ? 'border-emerald-500/30 bg-emerald-950/10' : 'border-white/10'} flex flex-col justify-between gap-2">
                 <div>
@@ -210,7 +232,10 @@
                       </span>
                     {/if}
                   </div>
-                  <p class="text-[11px] text-gray-400 truncate">{font.language_name}</p>
+                  <p class="text-[11px] text-gray-400 flex items-center gap-1.5">
+                    <img src={languageFlagPath(font.target_languages[0])} alt="" class="w-4 h-3 rounded-sm object-cover" />
+                    {font.language_name}
+                  </p>
                   <p class="text-[10px] text-gray-500 font-mono mt-0.5">{font.approx_size}</p>
                 </div>
 
@@ -228,8 +253,9 @@
                   {:else if font.downloaded}
                     <button
                       type="button"
+                      disabled={fontStore.isDownloading}
                       onclick={() => fontStore.deleteFont(font.id)}
-                      class="w-full py-1 px-2 rounded border border-red-500/20 bg-red-500/10 text-red-300 hover:bg-red-500/20 hover:border-red-500/40 text-[11px] font-medium transition-colors"
+                      class="w-full py-1 px-2 rounded border border-red-500/20 bg-red-500/10 text-red-300 hover:bg-red-500/20 hover:border-red-500/40 text-[11px] font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                     >
                       {t("settings.delete") || "Elimina"}
                     </button>
@@ -282,7 +308,7 @@
         <button
           type="button"
           onclick={() => store.deleteCurrentAnkiFieldPreset()}
-          disabled={store.selectedAnkiFieldPresetId === "default"}
+          disabled={store.selectedAnkiFieldPresetId === "default" || store.selectedAnkiFieldPresetId.startsWith("predef:")}
           class="px-3 py-2 rounded-lg border border-red-500/30 bg-red-500/10 text-red-300 hover:bg-red-500/20 hover:border-red-500/50 disabled:opacity-40 disabled:cursor-not-allowed disabled:bg-white/5 disabled:border-white/10 disabled:text-gray-400 transition-colors text-xs font-semibold flex items-center gap-2"
         >
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -325,11 +351,8 @@
         <SearchableSelect
           className="settings-active-template-select"
           noResultsText={t("common.noResults")}
-          options={store.allAnkiFieldPresets.map((preset) => ({
-            value: preset.id,
-            label: preset.name,
-          }))}
-          value={store.activeNoteTypeId}
+          options={activeNoteTypeOptions}
+          value={store.activeNoteTypeId === "auto" ? "default" : store.activeNoteTypeId}
           onchange={(v) => {
             store.activeNoteTypeId = v;
             saveActiveNoteTypeId(v);
@@ -352,7 +375,7 @@
           type="text"
           bind:value={store.noteTypeName}
           maxlength="25"
-          disabled={store.selectedAnkiFieldPresetId === "default"}
+          disabled={store.selectedAnkiFieldPresetId === "default" || store.selectedAnkiFieldPresetId.startsWith("predef:")}
           oninput={(event) =>
             syncLimitedInput(event, (value) => (store.noteTypeName = value), () => store.saveTemplates())}
           class="input-modern w-full text-sm disabled:opacity-50 disabled:cursor-not-allowed"

@@ -277,6 +277,8 @@ input[type="number"]::-webkit-inner-spin-button:hover,
 /* Modern select - OPAQUE backgrounds for readability */
 .select-modern,
 .searchable-select-input {
+  background-image: none;
+  box-shadow: none;
   background: rgba(24, 24, 42, 0.98) !important;
   border: 1px solid rgba(148, 163, 184, 0.22);
   border-radius: 10px;

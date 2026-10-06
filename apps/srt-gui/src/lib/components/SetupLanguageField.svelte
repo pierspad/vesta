@@ -1,18 +1,10 @@
 <script lang="ts">
-  import SearchableSelect from "$lib/components/SearchableSelect.svelte";
+  import LanguageSelect from "$lib/components/LanguageSelect.svelte";
 
-  type LanguageOption = {
-    value: string;
-    label: string;
-    searchTerms?: string;
-    icon?: string;
-  };
-
-  let { kind, title, description, options, value, onchange } = $props<{
+  let { kind, title, description, value, onchange } = $props<{
     kind: "native" | "study";
     title: string;
     description: string;
-    options: LanguageOption[];
     value: string;
     onchange: (value: string) => void;
   }>();
@@ -32,5 +24,5 @@
       <p class="text-[11px] text-gray-500">{description}</p>
     </div>
   </div>
-  <SearchableSelect {options} {value} {onchange} />
+  <LanguageSelect {value} {onchange} />
 </div>

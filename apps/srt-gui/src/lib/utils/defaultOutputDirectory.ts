@@ -1,5 +1,5 @@
 import { downloadDir, homeDir } from "@tauri-apps/api/path";
-import { invoke } from "@tauri-apps/api/core";
+import { invokeCommand as invoke } from "$lib/services/tauriClient";
 
 /** Use an existing OS Downloads folder, falling back to the user's home directory. */
 export async function defaultOutputDirectory(): Promise<string> {

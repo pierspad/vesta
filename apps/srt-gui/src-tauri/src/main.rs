@@ -77,9 +77,11 @@ use commands::flashcards::*;
 use commands::info::*;
 use commands::net::*;
 use commands::refine::*;
+use commands::support_logs::*;
 use commands::sync::*;
 use commands::transcribe::*;
 use commands::translate::*;
+use commands::updates::*;
 use state::{
     AppFlashcardState, AppRefineState, AppSyncState, AppTranscribeState, AppTranslateState,
     FlashcardState, RefineState, SyncState, TranscribeState, TranslateState,
@@ -427,11 +429,19 @@ fn main() {
             open_output_path,
 
             get_app_info,
+            get_update_installation,
+            install_release_update,
             get_system_diagnostics,
+            support_log_status,
+            support_log_start,
+            support_log_append,
+            support_log_stop,
+            support_log_export,
             read_subtitle_file,
             http_fetch,
 
             load_srt_for_translate,
+            suggest_translation_context,
             start_translation,
             cancel_translation,
             get_latest_translated_subtitles,

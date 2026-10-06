@@ -15,10 +15,11 @@
     type Tier,
   } from "$lib/config/translationTiers";
   import { getModelsForProvider, providers } from "$lib/config/llmProviders";
-  import { detectLanguageCode, getLanguageSearchTerms, languages } from "$lib/config/languages";
+  import { generateTranslationOutputPath as generateOutputPath } from "$lib/utils/translationPaths";
+  import TranslationPreviewPanel from "$lib/panels/TranslationPreviewPanel.svelte";
   import PathPickerField from "$lib/components/PathPickerField.svelte";
   import PathPreviewModal from "$lib/modals/PathPreviewModal.svelte";
-  import SearchableSelect from "$lib/components/SearchableSelect.svelte";
+  import LanguageSelect from "$lib/components/LanguageSelect.svelte";
   import LogPanel, { type LogEntry } from "$lib/panels/LogPanel.svelte";
   import { snackbar } from "$lib/stores/snackbarStore.svelte";
   import { aiStore } from "$lib/stores/aiStore.svelte";
@@ -41,6 +42,7 @@
   import {
     getLatestTranslatedSubtitles,
     loadSrtForTranslate,
+    suggestTranslationContext,
     startTranslation as apiStartTranslation,
     cancelTranslation as apiCancelTranslation,
     type SrtFileInfo,
@@ -49,32 +51,6 @@
     type SubtitlePair,
   } from "$lib/services/translate";
   import { transcribeCheckFileExists } from "$lib/services/transcribe";
-
-  /**
-   * Generates a smart output path by detecting and replacing language codes
-   * in the filename. If the last segment before .srt (delimited by - . or _)
-   * is a known language code, it replaces it keeping the same separator.
-   * Otherwise, appends .{targetLang} before .srt.
-   *
-   * Examples:
-   *   Detour-en.srt      → Detour-it.srt
-   *   movie.eng.srt       → movie.it.srt
-   *   sub_fr_720p.srt     → sub_fr_720p.it.srt  (fr is not the LAST segment)
-   *   Movie.srt           → Movie.it.srt
-   */
-  function generateOutputPath(input: string, lang: string): string {
-    // Match: (everything)(separator)(segment).srt
-    // where separator is one of - . _
-    const match = input.match(/^(.+)([\-._])([^\-._]+)\.srt$/i);
-    if (match) {
-      const [, prefix, separator, lastSegment] = match;
-      if (detectLanguageCode(lastSegment)) {
-        return `${prefix}${separator}${lang}.srt`;
-      }
-    }
-    // Fallback: append .lang.srt
-    return input.replace(/\.srt$/i, `.${lang}.srt`);
-  }
 
   interface Props {
     onGoToSettings?: (section?: "overview" | "llm" | "whisper" | "language" | "anki") => void;
@@ -119,9 +95,10 @@
 
   let inputPath = $state("");
   let outputPath = $state("");
+  let automaticOutputPath = $state(true);
   const initialTargetLang = loadStoredValue(LAST_TARGET_LANGUAGE_KEY) || loadStoredValue(DEFAULT_TARGET_LANGUAGE_KEY) || "it";
   let targetLang = $state(initialTargetLang);
-  let previousTargetLang = initialTargetLang;
+
   const initialProvider = loadStoredValue(DEFAULT_LLM_PROVIDER_KEY) || loadStoredValue(LAST_PROVIDER_KEY) || "local";
   let selectedProviderFamily = $state(initialProvider);
   let providerConfirmed = $state(true);
@@ -130,7 +107,38 @@
   let localCustomModel = $state(loadStoredValue(LAST_CUSTOM_MODEL_KEY));
   let batchSize = $state(15);
   let resumeOverlap = $state(2);
+  let effectiveBatchSize = $derived(uiMode.easyMode ? 15 : batchSize);
+  let effectiveResumeOverlap = $derived(uiMode.easyMode ? 2 : resumeOverlap);
   let titleContext = $state("");
+  let contextDraft = $state("");
+  let contextDraftPath = $state("");
+  let contextLoading = $state(false);
+  let contextError = $state("");
+  let contextRequest = 0;
+  let previousContextPath = "";
+  $effect(() => {
+    inputPath; targetLang;
+    if (previousContextPath && previousContextPath !== inputPath) titleContext = "";
+    previousContextPath = inputPath;
+    contextDraft = ""; contextError = ""; contextDraftPath = "";
+    contextRequest += 1;
+  });
+  async function suggestContext() {
+    if (contextLoading || isTranslating || aiStore.killSwitchActive) return;
+    const tiersPayload = buildTiersPayload();
+    if (!tiersPayload || !inputPath) return;
+    const check = await checkTiersAvailability();
+    if (!check.available) { if (check.errorMsg) snackbar.show(check.errorMsg, "error"); return; }
+    const request = ++contextRequest;
+    const path = inputPath;
+    contextLoading = true; contextError = "";
+    try {
+      const draft = await suggestTranslationContext(path, targetLang, titleContext, tiersPayload);
+      if (request === contextRequest && path === inputPath && !aiStore.killSwitchActive) { contextDraft = draft; contextDraftPath = path; }
+    } catch (error) { if (request === contextRequest) contextError = String(error); }
+    finally { contextLoading = false; }
+  }
+
   let selectedModel = $state(loadStoredValue(DEFAULT_LLM_MODEL_KEY) || loadStoredValue(LAST_MODEL_KEY));
 
   // Local server URL with persistence
@@ -193,56 +201,6 @@
     } finally {
       isFetchingModels = false;
     }
-  }
-
-  const batchPresets = [
-    { id: "precise", value: 5 },
-    { id: "balanced", value: 15 },
-    { id: "fast", value: 50 },
-    { id: "turbo", value: 100 },
-  ] as const;
-  let activeBatchPreset = $derived(
-    (() => {
-      let closest: typeof batchPresets[number] = batchPresets[0];
-      let minDiff = Math.abs(batchSize - closest.value);
-      for (const preset of batchPresets) {
-        const diff = Math.abs(batchSize - preset.value);
-        if (diff < minDiff) {
-          minDiff = diff;
-          closest = preset;
-        }
-      }
-      return closest.id;
-    })()
-  );
-  function setBatchPreset(presetId: string) {
-    const preset = batchPresets.find((p) => p.id === presetId);
-    if (preset) batchSize = preset.value;
-  }
-
-  const overlapPresets = [
-    { id: "none", value: 0 },
-    { id: "minimal", value: 1 },
-    { id: "balanced", value: 2 },
-    { id: "high", value: 5 },
-  ] as const;
-  let activeOverlapPreset = $derived(
-    (() => {
-      let closest: typeof overlapPresets[number] = overlapPresets[0];
-      let minDiff = Math.abs(resumeOverlap - closest.value);
-      for (const preset of overlapPresets) {
-        const diff = Math.abs(resumeOverlap - preset.value);
-        if (diff < minDiff) {
-          minDiff = diff;
-          closest = preset;
-        }
-      }
-      return closest.id;
-    })()
-  );
-  function setOverlapPreset(presetId: string) {
-    const preset = overlapPresets.find((p) => p.id === presetId);
-    if (preset) resumeOverlap = preset.value;
   }
 
   let fileInfo = $state<SrtFileInfo | null>(null);
@@ -353,27 +311,7 @@
   );
 
   $effect(() => {
-    const currentLang = targetLang;
-    if (currentLang !== previousTargetLang) {
-      if (inputPath && outputPath) {
-        // Try to replace the previous lang code using separator-aware pattern
-        const prevLangPattern = new RegExp(
-          `([\\-._])${previousTargetLang.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\.srt$`,
-          "i"
-        );
-        if (prevLangPattern.test(outputPath)) {
-          outputPath = outputPath.replace(prevLangPattern, `$1${currentLang}.srt`);
-        } else if (outputPath.endsWith(`.${previousTargetLang}.srt`)) {
-          outputPath = outputPath.replace(
-            new RegExp(`\\.${previousTargetLang}\\.srt$`, "i"),
-            `.${currentLang}.srt`,
-          );
-        }
-      } else if (inputPath && !outputPath) {
-        outputPath = generateOutputPath(inputPath, currentLang);
-      }
-      previousTargetLang = currentLang;
-    }
+    if (automaticOutputPath && inputPath) outputPath = generateOutputPath(inputPath, targetLang);
   });
 
   // Auto-select first model when provider changes (if current model invalid)
@@ -691,13 +629,15 @@
   async function refreshTranslatedPreview() {
     if (!inputPath || !outputPath) return;
 
+    const previewInput = inputPath;
+    const previewOutput = outputPath;
     try {
       const pairs = await getLatestTranslatedSubtitles(
-        inputPath,
-        outputPath,
+        previewInput,
+        previewOutput,
         10, // Show last 10 translated subtitles
       );
-      translatedPairs = pairs;
+      if (previewInput === inputPath && previewOutput === outputPath) translatedPairs = pairs;
     } catch (e) {
       // Silently ignore errors (file may not exist yet)
       console.debug("Preview refresh:", e);
@@ -752,6 +692,7 @@
       });
 
       if (selected) {
+        automaticOutputPath = false;
         outputPath = selected;
         addLog(`📤 Output updated: ${getFileName(outputPath)}`);
       }
@@ -805,6 +746,7 @@
         return false;
       }
     }
+    automaticOutputPath = false;
     outputPath = cleaned;
     addLog(`📤 Output updated: ${getFileName(outputPath)}`);
     return true;
@@ -813,19 +755,30 @@
   async function loadFileInfo() {
     if (!inputPath) return;
 
+    const path = inputPath;
+    fileInfo = null;
+    translatedPairs = [];
+    result = null;
+    progress = null;
+    error = null;
+    stopPreviewRefresh();
     try {
-      fileInfo = await loadSrtForTranslate(inputPath);
+      const info = await loadSrtForTranslate(path);
+      if (path !== inputPath) return;
+      fileInfo = info;
       addLog(
         `📄 ${t("translate.loadedFile", { count: fileInfo.subtitle_count })}`,
       );
     } catch (e) {
+      if (path !== inputPath) return;
       error = `${t("translate.errorLoading")} ${e}`;
       fileInfo = null;
     }
   }
 
   async function startTranslation() {
-    if (!inputPath || !outputPath) {
+    if (contextLoading || isTranslating || aiStore.killSwitchActive) return;
+    if (!fileInfo || !inputPath || !outputPath || !fileInfo.subtitle_count) {
       error = t("translate.selectFileAndKey");
       return;
     }
@@ -853,7 +806,7 @@
     translatedPairs = [];
     addLog(`🚀 ${t("translate.starting")}`);
     addLog(`🌐 Target language: ${targetLang}`);
-    addLog(`⚙️ Batch size: ${batchSize}, overlap: ${resumeOverlap}`);
+    addLog(`⚙️ Batch size: ${effectiveBatchSize}, overlap: ${effectiveResumeOverlap}`);
     startPreviewRefresh();
 
     const endpointCount = tiersPayload.reduce((sum, tier) => sum + tier.length, 0);
@@ -863,8 +816,8 @@
       input_path: inputPath,
       output_path: outputPath,
       target_lang: targetLang,
-      batch_size: batchSize,
-      resume_overlap: resumeOverlap,
+      batch_size: effectiveBatchSize,
+      resume_overlap: effectiveResumeOverlap,
       title_context: titleContext || null,
       tiers: tiersPayload,
     };
@@ -923,6 +876,7 @@
     translatedPairs = [];
     inputPath = "";
     outputPath = "";
+    automaticOutputPath = true;
     fileInfo = null;
   }
 
@@ -1026,36 +980,27 @@
           </svg>
           {t("translate.options")}
         </h3>
-        <div class="{!inputPath ? 'opacity-40 pointer-events-none' : ''} transition-opacity space-y-4">
+        <fieldset disabled={isTranslating || contextLoading} class="min-w-0 space-y-4">
           <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
             <!-- Target Language (Anchored on the left) -->
-            <div class="lg:col-span-4">
+            <div class={uiMode.expertMode ? "lg:col-span-4" : "lg:col-span-12"}>
               <label for="target-lang" class="flex items-center gap-1.5 text-sm text-gray-400 mb-1 font-medium">
                 <svg class="w-3.5 h-3.5 text-gray-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10" />
                 </svg>
                 <span>{t("translate.targetLang")}</span>
               </label>
-              <SearchableSelect
+              <LanguageSelect
                 noResultsText={t("common.noResults")}
-                options={languages.map((lang) => ({
-                  value: lang.code,
-                  label:
-                    lang.nameEn === lang.name
-                      ? lang.name
-                      : `${lang.nameEn} — ${lang.name}`,
-                  searchTerms: getLanguageSearchTerms(lang.code),
-                  icon: lang.flag,
-                }))}
                 value={targetLang}
                 onchange={(v) => (targetLang = v)}
                 placeholder={t("translate.targetLang")}
               />
             </div>
 
+            {#if uiMode.expertMode}
             <!-- Batch Size / Speed options -->
             <div class="lg:col-span-4">
-              {#if uiMode.expertMode}
                 <div>
                   <div class="flex items-center justify-between mb-2">
                     <span class="text-sm font-semibold text-white">{t("translate.batchSizeExpert")}</span>
@@ -1083,85 +1028,10 @@
                     {/each}
                   </div>
                 </div>
-              {:else}
-                <div>
-                  <span class="block text-sm font-semibold text-white mb-2">
-                    {t("translate.accuracySpeedTitle")}
-                  </span>
-                  <div class="grid grid-cols-4 gap-1.5">
-                    <button
-                      type="button"
-                      onclick={() => setBatchPreset("precise")}
-                      class="p-2 rounded-lg text-center transition-all duration-200 border text-xs cursor-pointer
-                        {activeBatchPreset === 'precise'
-                          ? 'bg-green-500/20 border-green-500/50 text-white font-semibold shadow-sm'
-                          : 'bg-white/5 hover:bg-white/10 border-transparent text-gray-400 hover:text-white'}"
-                    >
-                      <span class="block mb-1 text-white">
-                        <svg class="w-3.5 h-3.5 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <circle cx="12" cy="12" r="8" stroke-width="1.8" />
-                          <circle cx="12" cy="12" r="2" stroke-width="1.8" />
-                        </svg>
-                      </span>
-                      <span class="block text-[11px] truncate">{t("translate.batchPrecise")}</span>
-                    </button>
-                    <button
-                      type="button"
-                      onclick={() => setBatchPreset("balanced")}
-                      class="p-2 rounded-lg text-center transition-all duration-200 border text-xs cursor-pointer
-                        {activeBatchPreset === 'balanced'
-                          ? 'bg-green-500/20 border-green-500/50 text-white font-semibold shadow-sm'
-                          : 'bg-white/5 hover:bg-white/10 border-transparent text-gray-400 hover:text-white'}"
-                    >
-                      <span class="block mb-1 text-white">
-                        <svg class="w-3.5 h-3.5 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 4v16" />
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M6 8h12" />
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M8 8l-2.5 4h5L8 8z" />
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M16 8l-2.5 4h5L16 8z" />
-                        </svg>
-                      </span>
-                      <span class="block text-[11px] truncate">{t("translate.batchBalanced")}</span>
-                    </button>
-                    <button
-                      type="button"
-                      onclick={() => setBatchPreset("fast")}
-                      class="p-2 rounded-lg text-center transition-all duration-200 border text-xs cursor-pointer
-                        {activeBatchPreset === 'fast'
-                          ? 'bg-green-500/20 border-green-500/50 text-white font-semibold shadow-sm'
-                          : 'bg-white/5 hover:bg-white/10 border-transparent text-gray-400 hover:text-white'}"
-                    >
-                      <span class="block mb-1 text-white">
-                        <svg class="w-3.5 h-3.5 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M5 15l5-5 3 3 6-6" />
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M14 7h5v5" />
-                        </svg>
-                      </span>
-                      <span class="block text-[11px] truncate">{t("translate.batchFast")}</span>
-                    </button>
-                    <button
-                      type="button"
-                      onclick={() => setBatchPreset("turbo")}
-                      class="p-2 rounded-lg text-center transition-all duration-200 border text-xs cursor-pointer
-                        {activeBatchPreset === 'turbo'
-                          ? 'bg-green-500/20 border-green-500/50 text-white font-semibold shadow-sm'
-                          : 'bg-white/5 hover:bg-white/10 border-transparent text-gray-400 hover:text-white'}"
-                    >
-                      <span class="block mb-1 text-white">
-                        <svg class="w-3.5 h-3.5 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M11 3L6 13h5l-1 8 8-12h-5l2-6h-4z" />
-                        </svg>
-                      </span>
-                      <span class="block text-[11px] truncate">{t("translate.batchTurbo")}</span>
-                    </button>
-                  </div>
-                </div>
-              {/if}
             </div>
 
             <!-- Overlap Offset options -->
             <div class="lg:col-span-4">
-              {#if uiMode.expertMode}
                 <div>
                   <div class="flex items-center justify-between mb-2">
                     <span class="text-sm font-semibold text-white">{t("translate.resumeOverlapExpert")}</span>
@@ -1189,91 +1059,43 @@
                     {/each}
                   </div>
                 </div>
-              {:else}
-                <div>
-                  <div class="flex items-center gap-2 mb-2">
-                    <span class="block text-sm font-semibold text-white">
-                      {t("translate.resumeOverlap")}
-                    </span>
-                    <span class="text-[9px] uppercase tracking-wide font-semibold px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400 border border-amber-500/25">
-                      {t("translate.contextCostHint")}
-                    </span>
-                  </div>
-                  <div class="grid grid-cols-4 gap-1.5">
-                    <button
-                      type="button"
-                      onclick={() => setOverlapPreset('none')}
-                      class="p-2 rounded-lg text-center transition-all duration-200 border text-[11px] cursor-pointer truncate
-                        {activeOverlapPreset === 'none'
-                          ? 'bg-green-500/20 border-green-500/50 text-white font-semibold shadow-sm'
-                          : 'bg-white/5 hover:bg-white/10 border-transparent text-gray-400 hover:text-white'}"
-                      title={t("translate.overlapNone")}
-                    >
-                      {t("translate.overlapNone")}
-                    </button>
-                    <button
-                      type="button"
-                      onclick={() => setOverlapPreset('minimal')}
-                      class="p-2 rounded-lg text-center transition-all duration-200 border text-[11px] cursor-pointer truncate
-                        {activeOverlapPreset === 'minimal'
-                          ? 'bg-green-500/20 border-green-500/50 text-white font-semibold shadow-sm'
-                          : 'bg-white/5 hover:bg-white/10 border-transparent text-gray-400 hover:text-white'}"
-                      title={t("translate.overlapMinimal")}
-                    >
-                      {t("translate.overlapMinimal")}
-                    </button>
-                    <button
-                      type="button"
-                      onclick={() => setOverlapPreset('balanced')}
-                      class="p-2 rounded-lg text-center transition-all duration-200 border text-[11px] cursor-pointer truncate
-                        {activeOverlapPreset === 'balanced'
-                          ? 'bg-green-500/20 border-green-500/50 text-white font-semibold shadow-sm'
-                          : 'bg-white/5 hover:bg-white/10 border-transparent text-gray-400 hover:text-white'}"
-                      title={t("translate.overlapNormal")}
-                    >
-                      {t("translate.overlapNormal")}
-                    </button>
-                    <button
-                      type="button"
-                      onclick={() => setOverlapPreset('high')}
-                      class="p-2 rounded-lg text-center transition-all duration-200 border text-[11px] cursor-pointer truncate
-                        {activeOverlapPreset === 'high'
-                          ? 'bg-green-500/20 border-green-500/50 text-white font-semibold shadow-sm'
-                          : 'bg-white/5 hover:bg-white/10 border-transparent text-gray-400 hover:text-white'}"
-                      title={t("translate.overlapHigh")}
-                    >
-                      {t("translate.overlapHigh")}
-                    </button>
-                  </div>
-                </div>
-              {/if}
             </div>
+            {/if}
           </div>
 
-          {#if uiMode.expertMode}
-            <!-- Expert Context Textarea -->
-            <div class="pt-3 border-t border-white/5">
-              <label
-                for="context-input"
-                class="block text-sm font-semibold text-white mb-1"
-              >
-                {t("translate.context")}
-                <span class="text-gray-500 font-normal">({t("translate.contextOptional")})</span>
-              </label>
+          <!-- Context remains useful in simple mode too. -->
+            <details open={uiMode.expertMode} class="pt-3 border-t border-white/5">
+              <summary id="translation-context-label" class="cursor-pointer text-sm font-semibold text-gray-300">{t("translate.context")} <span class="font-normal text-gray-500">({t("translate.contextOptional")})</span></summary>
+              <div class="mt-3">
+              <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+              <button type="button" onclick={suggestContext} disabled={!fileInfo || !useTiers || contextLoading || isTranslating || aiStore.killSwitchActive} class="btn-secondary px-3 py-1.5 text-xs disabled:opacity-40">{t(contextLoading ? "translate.contextGenerating" : "translate.suggestContext")}</button>
+              </div>
+              {#if fileInfo}
+                <p class="text-[11px] text-gray-400 mb-2">{getFileName(fileInfo.path)} · {t("translate.subtitleCoverage")}: {Math.floor(fileInfo.coverage_end_ms / 60000)}:{String(Math.floor(fileInfo.coverage_end_ms / 1000) % 60).padStart(2, "0")}</p>
+              {/if}
               <textarea
                 id="context-input"
+                aria-labelledby="translation-context-label"
                 bind:value={titleContext}
                 rows="2"
                 placeholder={t("translate.contextPlaceholder")}
                 class="input-modern w-full text-xs min-h-[4rem] resize-y"
               ></textarea>
-            </div>
-          {/if}
-        </div>
+              {#if contextError}<p class="mt-2 text-xs text-red-300" role="alert">{contextError}</p>{/if}
+              {#if contextDraft && contextDraftPath === inputPath}
+                <div class="mt-3 rounded-xl border border-cyan-500/25 bg-cyan-500/5 p-3">
+                  <label for="context-draft" class="block text-xs text-cyan-300 mb-2">{t("translate.contextDraft")}</label>
+                  <textarea id="context-draft" bind:value={contextDraft} rows="4" class="input-modern w-full text-xs resize-y"></textarea>
+                  <button type="button" class="btn-secondary mt-2 px-3 py-1.5 text-xs" onclick={() => { titleContext = [titleContext.trim(), contextDraft.trim()].filter(Boolean).join("\n\n"); contextDraft = ""; }}>{t("translate.applyContext")}</button>
+                </div>
+              {/if}
+              </div>
+            </details>
+        </fieldset>
       </div>
     {:else if panelId === "files"}
       <div
-        inert={!canUseFilePanel}
+        inert={!canUseFilePanel || isTranslating || contextLoading}
         title={!canUseFilePanel ? t("translate.selectProviderFirst") : undefined}
         class="glass-card p-5 shrink-0 {!canUseFilePanel ? 'opacity-40' : ''}"
       >
@@ -1330,7 +1152,7 @@
               class="p-2.5 border rounded-lg transition-all h-[42px] flex items-center justify-center {fileInfo ? 'bg-indigo-500/10 border-indigo-500/30' : 'bg-white/5 border-white/10 opacity-70'}"
             >
               <div class="flex items-center gap-2">
-                <span class="text-base">📄</span>
+                <svg aria-hidden="true" class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6M7 21h10a2 2 0 002-2V9l-6-6H7a2 2 0 00-2 2v14a2 2 0 002 2zm6-18v6h6" /></svg>
                 <span class="font-medium text-xs text-white whitespace-nowrap">
                   {fileInfo ? fileInfo.subtitle_count : 0}
                   {t("translate.subtitles")}
@@ -1469,91 +1291,7 @@
         {/if}
       </div>
     {:else if panelId === "livePreview"}
-      <div class="glass-card p-5 shrink-0 min-h-[400px]">
-        <div class="flex items-center justify-between mb-4">
-          <h3
-            class="text-lg font-semibold flex items-center gap-2 text-purple-400"
-          >
-            <svg
-              class="w-5 h-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-              />
-            </svg>
-            {t("translate.livePreview")}
-            {#if translatedPairs.length > 0}
-              <span class="text-xs text-gray-500 font-normal ml-2"
-                >({translatedPairs.length} {t("translate.subtitles")})</span
-              >
-            {/if}
-          </h3>
-        </div>
-        <div class="grid grid-cols-2 gap-4 min-h-[340px]">
-          <div class="bg-white/5 rounded-xl p-4 flex flex-col">
-            <p
-              class="text-xs text-gray-500 uppercase tracking-wide mb-3 shrink-0"
-            >
-              {t("translate.original")}
-            </p>
-            <div class="flex-1 overflow-y-auto space-y-2">
-              {#if translatedPairs.length > 0}
-                {#each translatedPairs as pair}
-                  <div
-                    class="p-2 bg-black/20 rounded-lg border-l-2 border-gray-600"
-                  >
-                    <span class="text-[10px] text-gray-600 font-mono"
-                      >#{pair.id}</span
-                    >
-                    <p class="text-gray-300 text-sm mt-0.5">{pair.original}</p>
-                  </div>
-                {/each}
-              {:else}
-                <div class="flex items-center justify-center h-full">
-                  <p class="text-gray-600 text-sm">
-                    {t("translate.waitingForTranslation")}
-                  </p>
-                </div>
-              {/if}
-            </div>
-          </div>
-          <div class="bg-white/5 rounded-xl p-4 flex flex-col">
-            <p
-              class="text-xs text-gray-500 uppercase tracking-wide mb-3 shrink-0"
-            >
-              {t("translate.translated")}
-            </p>
-            <div class="flex-1 overflow-y-auto space-y-2">
-              {#if translatedPairs.length > 0}
-                {#each translatedPairs as pair}
-                  <div
-                    class="p-2 bg-green-500/5 rounded-lg border-l-2 border-green-500/50"
-                  >
-                    <span class="text-[10px] text-green-600/70 font-mono"
-                      >#{pair.id}</span
-                    >
-                    <p class="text-green-300 text-sm mt-0.5">
-                      {pair.translated}
-                    </p>
-                  </div>
-                {/each}
-              {:else}
-                <div class="flex items-center justify-center h-full">
-                  <p class="text-gray-600 text-sm">
-                    {t("translate.waitingForTranslation")}
-                  </p>
-                </div>
-              {/if}
-            </div>
-          </div>
-        </div>
-      </div>
+      <TranslationPreviewPanel source={fileInfo?.preview_subtitles ?? []} pairs={translatedPairs} loaded={!!fileInfo} translating={isTranslating} />
     {:else if panelId === "logs"}
       <LogPanel
         title={t("translate.logs")}
@@ -1649,6 +1387,13 @@
             <span class="text-xs text-red-300 font-medium truncate max-w-lg">{error}</span>
           </div>
         </div>
+      {:else if translationBlockedReason}
+        <div class="flex min-w-0 flex-wrap items-center gap-2" role="status">
+          <span class="max-w-md text-xs text-gray-400">{t(!useTiers ? "translate.configureLlmFirst" : "translate.blocked.selectFiles")}</span>
+          {#if !useTiers && onGoToSettings}
+            <button type="button" onclick={() => handleGoToSettings("llm")} class="btn-secondary shrink-0 px-3 py-1.5 text-xs">{t("nav.settings")}</button>
+          {/if}
+        </div>
       {/if}
     </div>
     {/snippet}
@@ -1679,6 +1424,7 @@
         <div class="relative group">
           <button
             onclick={startTranslation}
+            disabled={!fileInfo?.subtitle_count || !outputPath || !useTiers || contextLoading}
             class="px-5 py-2.5 bg-emerald-600/80 hover:bg-emerald-500/80 border border-emerald-500/30 text-emerald-100 rounded-xl font-bold text-sm transition-all shadow-lg shadow-emerald-950/20 flex items-center gap-2 hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
           >
             <svg class="w-4 h-4 text-emerald-100" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1718,7 +1464,7 @@
         <div class="relative group">
           <button
             onclick={startTranslation}
-            disabled={!inputPath || !outputPath || !useTiers}
+            disabled={!fileInfo?.subtitle_count || !outputPath || !useTiers || contextLoading}
             class="px-5 py-2.5 bg-emerald-600/80 hover:bg-emerald-500/80 border border-emerald-500/30 disabled:bg-emerald-600/40 text-emerald-100 rounded-xl font-bold text-sm transition-all shadow-lg shadow-emerald-950/20 flex items-center gap-2 enabled:hover:scale-[1.02] enabled:active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-55 cursor-pointer"
           >
             <svg

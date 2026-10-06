@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { invoke } from "@tauri-apps/api/core";
+  import { invokeCommand as invoke } from "$lib/services/tauriClient";
   import { guardedOpen, guardedSave } from "$lib/utils/dialogGuard";
   import { setupWebviewDragDrop } from "$lib/utils/dragDrop";
   import PathPreviewModal from "$lib/modals/PathPreviewModal.svelte";

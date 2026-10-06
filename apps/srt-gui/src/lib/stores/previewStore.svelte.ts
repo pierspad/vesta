@@ -1,4 +1,4 @@
-import { invoke } from "@tauri-apps/api/core";
+import { invokeCommand as invoke } from "$lib/services/tauriClient";
 import { snackbar } from "$lib/stores/snackbarStore.svelte";
 
 export type PreviewFilter = "all" | "active" | "inactive";

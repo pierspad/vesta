@@ -1,4 +1,5 @@
 <script lang="ts">
+  import EmptyStatusLabel from "$lib/components/EmptyStatusLabel.svelte";
   import { locale } from "$lib/i18n";
   import SectionHeader from "$lib/components/SectionHeader.svelte";
 
@@ -164,7 +165,8 @@
           </p>
         </div>
 
-        <div class="flex-shrink-0">
+        <div class="relative flex-shrink-0">
+          {#if !audioSrc && !isPreparingMedia && !audioError}<EmptyStatusLabel message={t("media.noMediaLoaded")} />{/if}
           {#if !canUseCheckpoint || (audioSrc && !audioError)}
             <div class="flex items-center gap-4">
               <span class="text-sm text-gray-400 font-mono w-24"

@@ -1,3 +1,4 @@
+import { recordSupportEvent } from "$lib/utils/supportLog";
 import type { LogEntry } from "$lib/panels/LogPanel.svelte";
 import * as vestaConfig from "$lib/config/vestaConfig";
 import {
@@ -79,6 +80,7 @@ class GenerationStore {
   private lastProgressKey: string | null = null;
 
   addLog(message: string, type: LogEntry["type"] = "info", details?: string, progressKey?: string) {
+    recordSupportEvent(`flashcards.${type}`, message);
     const timestamp = new Date().toLocaleTimeString([], {
       hour: "2-digit",
       minute: "2-digit",

@@ -91,10 +91,10 @@
     <div class="flex items-center gap-2">
       <button
         onclick={onAddFiles}
-        class="border border-emerald-500/35 bg-emerald-500/12 hover:bg-emerald-500/20 text-emerald-200 font-semibold py-1 px-3 text-xs flex items-center gap-1.5 h-7 rounded-lg shrink-0 transition-colors cursor-pointer"
+        class="px-5 py-2.5 min-w-40 bg-cyan-600 hover:bg-cyan-500 text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-cyan-950/20 flex items-center justify-center gap-2 shrink-0 enabled:hover:scale-[1.02] enabled:active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400 cursor-pointer"
       >
         <svg
-          class="w-3.5 h-3.5"
+          class="w-4 h-4"
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"

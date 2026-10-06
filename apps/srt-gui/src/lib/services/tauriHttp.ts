@@ -1,4 +1,4 @@
-import { invoke } from "@tauri-apps/api/core";
+import { invokeCommand as invoke } from "$lib/services/tauriClient";
 
 /**
  * Sostituto locale di `@tauri-apps/plugin-http`'s `fetch`, appoggiato al

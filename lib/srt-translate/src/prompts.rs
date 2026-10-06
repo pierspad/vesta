@@ -7,7 +7,7 @@ pub fn build_single_translation_prompt(
 ) -> String {
     let context_info = if let Some(ctx) = context {
         format!(
-            "\n\nContext: This subtitle is from \"{}\". Use this context to better understand references, names, and cultural elements for more accurate translation.",
+            "\n\nTranslation context and source metadata:\n{}\nUse this context to better understand references, names, and cultural elements for more accurate translation.",
             ctx
         )
     } else {
@@ -60,7 +60,7 @@ pub fn build_batch_translation_prompt(
 
     let context_info = if let Some(ctx) = context {
         format!(
-            "\n\nContext: These subtitles are from \"{}\". Use this context to better understand references, names, and cultural elements for more accurate translation.",
+            "\n\nTranslation context and source metadata:\n{}\nUse this context to better understand references, names, and cultural elements for more accurate translation.",
             ctx
         )
     } else {
@@ -114,7 +114,7 @@ pub fn build_context_enhanced_translation_prompt(
 ) -> String {
     let title_info = if let Some(ctx) = title_context {
         format!(
-            "\n\nTitle Context: This subtitle is from \"{}\". Use this context to better understand references, names, and cultural elements.",
+            "\n\nTitle Translation context and source metadata:\n{}\nUse this context to better understand references, names, and cultural elements.",
             ctx
         )
     } else {

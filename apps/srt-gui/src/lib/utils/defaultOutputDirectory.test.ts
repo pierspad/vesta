@@ -1,7 +1,7 @@
 import { beforeEach, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({ downloadDir: vi.fn(), homeDir: vi.fn(), invoke: vi.fn() }));
 vi.mock("@tauri-apps/api/path", () => mocks);
-vi.mock("@tauri-apps/api/core", () => mocks);
+vi.mock("$lib/services/tauriClient", () => ({ invokeCommand: mocks.invoke }));
 import { defaultOutputDirectory } from "./defaultOutputDirectory";
 beforeEach(() => {
   vi.resetAllMocks();

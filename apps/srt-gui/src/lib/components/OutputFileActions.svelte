@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { invoke } from "@tauri-apps/api/core";
+  import { invokeCommand as invoke } from "$lib/services/tauriClient";
   import { locale } from "$lib/i18n";
   import MediaIcon from "./MediaIcon.svelte";
   let { path, packageFile = false }: { path: string; packageFile?: boolean } = $props();

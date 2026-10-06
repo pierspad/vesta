@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount, onDestroy } from "svelte";
-  import { invoke } from "@tauri-apps/api/core";
+  import { invokeCommand as invoke } from "$lib/services/tauriClient";
   import { listen } from "@tauri-apps/api/event";
   import { fetch as tauriFetch } from "$lib/services/tauriHttp";
   import CodeEditor from "$lib/components/CodeEditor.svelte";
@@ -32,7 +32,7 @@
     locale,
     setLanguage,
   } from "$lib/i18n";
-  import SearchableSelect from "$lib/components/SearchableSelect.svelte";
+  import LanguageSelect from "$lib/components/LanguageSelect.svelte";
   import {
     buildSettingsActionHash,
     publishSettingsActionState,
@@ -67,7 +67,7 @@
     transcribeProviderOrder,
   } from "$lib/config/transcribeProviders";
   import { getModelsForProvider, providers, type ModelInfo } from "$lib/config/llmProviders";
-  import { getLanguageSearchTerms, languages } from "$lib/config/languages";
+  import { languages } from "$lib/config/languages";
   import * as vestaConfig from "$lib/config/vestaConfig";
 
   const allProviderIds = ["local", "google", "groq", "openai", "deepgram", "assemblyai", "openrouter", "mistral", "github", "nvidia", "custom"];
@@ -221,14 +221,6 @@
     }
     return getModelsForProvider(defaultLlmProvider);
   });
-  let defaultWorkflowLanguageOptions = $derived(
-    languages.map((lang) => ({
-      value: lang.code,
-      label: lang.nameEn === lang.name ? lang.name : `${lang.nameEn} — ${lang.name}`,
-      icon: lang.flag,
-      searchTerms: getLanguageSearchTerms(lang.code),
-    })),
-  );
   let configuredApiKeyCount = $derived(apiKeys.filter((key) => key.apiType !== "local").length);
   let hasRemoteApiKey = $derived(configuredApiKeyCount > 0);
   // La traduzione è pronta quando esiste almeno un endpoint tier usabile.
@@ -1076,10 +1068,9 @@
             <span class="flex items-center gap-2 text-sm font-semibold text-white"><span class="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/15 text-emerald-300"><svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 3a4 4 0 110 8 4 4 0 010-8zM5 21a7 7 0 0114 0"/></svg></span>{s("nativeLanguage")}</span>
             <span class="text-3xl">{languages.find((lang) => lang.code === defaultNativeLanguage)?.flag || "🌐"}</span>
           </div>
-          <SearchableSelect
+          <LanguageSelect
             className="language-select"
             noResultsText={t("common.noResults")}
-            options={defaultWorkflowLanguageOptions}
             value={defaultNativeLanguage}
             onchange={(v) => {
               defaultNativeLanguage = v;
@@ -1094,10 +1085,9 @@
             <span class="flex items-center gap-2 text-sm font-semibold text-white"><span class="flex h-8 w-8 items-center justify-center rounded-lg bg-violet-500/15 text-violet-300">文</span>{s("studyingLanguage")}</span>
             <span class="text-3xl">{languages.find((lang) => lang.code === defaultFlashcardsLanguage)?.flag || "🌐"}</span>
           </div>
-          <SearchableSelect
+          <LanguageSelect
             className="language-select"
             noResultsText={t("common.noResults")}
-            options={defaultWorkflowLanguageOptions}
             value={defaultFlashcardsLanguage}
             onchange={(v) => {
               defaultFlashcardsLanguage = v;
@@ -1113,10 +1103,9 @@
             <span class="flex items-center gap-2 text-sm font-semibold text-white"><span class="flex h-8 w-8 items-center justify-center rounded-lg bg-cyan-500/15 text-cyan-300"><svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M7 7h11m0 0-3-3m3 3-3 3M17 17H6m0 0 3 3m-3-3 3-3"/></svg></span>{s("translationLanguage")}</span>
             <span class="text-3xl">{languages.find((lang) => lang.code === defaultTargetLanguage)?.flag || "🌐"}</span>
           </div>
-          <SearchableSelect
+          <LanguageSelect
             className="language-select"
             noResultsText={t("common.noResults")}
-            options={defaultWorkflowLanguageOptions}
             value={defaultTargetLanguage}
             onchange={(v) => {
               defaultTargetLanguage = v;
@@ -1131,13 +1120,10 @@
             <span class="flex items-center gap-2 text-sm font-semibold text-white"><span class="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-500/15 text-amber-300"><svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 3a3 3 0 00-3 3v6a3 3 0 006 0V6a3 3 0 00-3-3zM5 11a7 7 0 0014 0M12 18v3m-4 0h8"/></svg></span>{s("transcription")}</span>
             <span class="text-3xl">{defaultTranscribeLanguage === "auto" ? "🌐" : languages.find((lang) => lang.code === defaultTranscribeLanguage)?.flag || "🌐"}</span>
           </div>
-          <SearchableSelect
+          <LanguageSelect
             className="language-select"
             noResultsText={t("common.noResults")}
-            options={[
-              { value: "auto", label: t("transcribe.autoDetect"), icon: "🌐", searchTerms: "auto detect" },
-              ...defaultWorkflowLanguageOptions,
-            ]}
+            autoDetect
             value={defaultTranscribeLanguage}
             onchange={(v) => {
               defaultTranscribeLanguage = v;

@@ -57,7 +57,8 @@
       ></div>
 
       <button
-        onclick={() => autoSyncStore.toggleMode()}
+        onclick={() => { if (!autoSyncStore.isAutoSyncing) autoSyncStore.selectedMode = "quick"; }}
+        aria-pressed={autoSyncStore.selectedMode === "quick"}
         disabled={autoSyncStore.isAutoSyncing || !canAutoSync}
         class="w-[100px] py-1 rounded-md text-[10px] font-bold transition-colors duration-200 flex items-center justify-center gap-1.5 cursor-pointer disabled:cursor-not-allowed select-none relative z-10
           {autoSyncStore.selectedMode === 'quick' ? 'text-indigo-200' : 'text-gray-500 hover:text-gray-300'}
@@ -69,7 +70,8 @@
         <span>{autoSyncStore.formatModeName("sync.autoSyncFast", "Breve")}</span>
       </button>
       <button
-        onclick={() => autoSyncStore.toggleMode()}
+        onclick={() => { if (!autoSyncStore.isAutoSyncing) autoSyncStore.selectedMode = "precise"; }}
+        aria-pressed={autoSyncStore.selectedMode === "precise"}
         disabled={autoSyncStore.isAutoSyncing || !canAutoSync}
         class="w-[100px] py-1 rounded-md text-[10px] font-bold transition-colors duration-200 flex items-center justify-center gap-1.5 cursor-pointer disabled:cursor-not-allowed select-none relative z-10
           {autoSyncStore.selectedMode === 'precise' ? 'text-indigo-200' : 'text-gray-500 hover:text-gray-300'}

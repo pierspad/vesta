@@ -18,6 +18,7 @@ export interface FlashcardSeriesOptions {
   cardFilters: CardFilterSettings;
   videoHwAccel: string;
   activeNoteType: NoteTypeDef;
+  automaticNoteType?: boolean;
   ankiStore: { autoCardFont: boolean; embedCardFont: boolean };
   previewStore: { applyOverrides: (config: ReturnType<typeof buildFlashcardConfig>) => Promise<unknown> };
   getEpisodeMediaSettings: (episode: EpisodeEntry) => Required<EpisodeMediaOverrides>;
@@ -100,6 +101,7 @@ export async function runFlashcardSeries(options: FlashcardSeriesOptions) {
         episodeNumber: epNum,
         exportFormat: effectiveExportFormat,
         noteType: activeNoteType,
+        automaticNoteType: options.automaticNoteType,
         cpuCores: effectiveCpuCores,
         targetLanguage: targetLanguage,
         autoCardFont: ankiStore.autoCardFont,

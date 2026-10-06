@@ -138,3 +138,20 @@ describe("buildFlashcardConfig", () => {
     expect(defaultNote.output_fields.include_snapshot).toBe(true);
   });
 });
+
+it("resolves automatic note types and fonts independently for each target subtitle", () => {
+  const common = {
+    targetSubsPath: "episode.jpn.srt", nativeSubsPath: "translation.en.srt",
+    noteType: predefinedNoteTypeForLanguage("en"), automaticNoteType: true,
+    targetLanguage: "en", media: defaultMediaSettings, cardFilters: { enabled: false },
+  } as FlashcardConfigInputs;
+  expect(buildFlashcardConfig(common)).toMatchObject({ note_type_name: "Japanese_Vesta", target_language: "ja" });
+  expect(buildFlashcardConfig({ ...common, targetSubsPath: "episode.zh_Hant_TW.srt" }))
+    .toMatchObject({ note_type_name: "ChineseTraditional_Vesta", target_language: "zh-tw" });
+  expect(buildFlashcardConfig({ ...common, targetSubsPath: "episode.srt", targetLanguage: "deu" }))
+    .toMatchObject({ note_type_name: "German_Vesta", target_language: "de" });
+  expect(buildFlashcardConfig({ ...common, targetSubsPath: "episode.srt", targetLanguage: "" }))
+    .toMatchObject({ note_type_name: "Default_Vesta", target_language: null });
+  expect(buildFlashcardConfig({ ...common, automaticNoteType: false, noteType: predefinedNoteTypeForLanguage("ko") }))
+    .toMatchObject({ note_type_name: "Korean_Vesta", target_language: "ko" });
+});

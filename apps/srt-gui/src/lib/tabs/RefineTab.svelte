@@ -1,9 +1,10 @@
 <script lang="ts">
-  import { invoke } from "@tauri-apps/api/core";
+  import { invokeCommand as invoke } from "$lib/services/tauriClient";
   import { listen } from "@tauri-apps/api/event";
   import { guardedOpen, guardedSave } from "$lib/utils/dialogGuard";
   import { snackbar } from "$lib/stores/snackbarStore.svelte";
   import { onMount, onDestroy, untrack } from "svelte";
+  import { SvelteSet } from "svelte/reactivity";
   import { locale } from "$lib/i18n";
   import { getFileName } from "$lib/utils/models";
   import { loadAndValidateApiKeys, type ApiKeyConfig } from "$lib/config/apiKeys";
@@ -77,6 +78,11 @@
   let progressCurrent = $state(0);
   let progressTotal = $state(0);
   let logs = $state<string[]>([]);
+  let runSummary = $state<RefineRunSummary | null>(null);
+  let progressFailed = $state(0);
+  let isStopping = $state(false);
+  const MAX_LOGS = 150;
+  function addLog(message: string) { logs = [message, ...logs].slice(0, MAX_LOGS); }
   let customPrompt = $state("");
   let onlyUnannotated = $state(true);
   let useBatchMode = $state(true);
@@ -84,10 +90,10 @@
 
   // States to track card-specific generation activity
   let singleRefiningCardIds = $state<string[]>([]);
-  let autoRefineGroupCardIds = $state<string[]>([]);
+  let autoRefineGroupCardIds = new SvelteSet<string>();
 
   let annotatedCount = $derived(
-    cards.filter((c) => c.initialNotes && c.initialNotes.trim() !== "").length
+    cards.filter((c) => c.notes.trim() !== "").length
   );
   let modifiedCount = $derived(
     cards.filter((c) => c.notes !== (c.initialNotes || "")).length
@@ -99,18 +105,19 @@
   });
 
   $effect(() => {
-    if (aiStore.killSwitchActive && mode === "auto") {
+    if (aiStore.killSwitchActive) {
+      if (autoRefining || isSingleRefining) void stopAutoRefinement();
       mode = "manual";
     }
   });
 
   const isCardRefining = (cardId: string) => {
-    return singleRefiningCardIds.includes(cardId) || autoRefineGroupCardIds.includes(cardId);
+    return singleRefiningCardIds.includes(cardId) || autoRefineGroupCardIds.has(cardId);
   };
 
-  function toggleMode() {
+  function setMode(next: "manual" | "auto") {
     if (aiStore.killSwitchActive) return;
-    mode = mode === "manual" ? "auto" : "manual";
+    mode = next;
     if (mode === "auto") {
       refreshLlmConfig();
     }
@@ -122,20 +129,40 @@
   let useTiers = $derived(tiersHaveUsableEntries(tiers));
   let tierCounts = $derived(countTiersAndEndpoints(tiers));
 
+  let cardIndices = $derived(new Map(cards.map((card, index) => [card.id, index])));
+  let normalizedSearch = $derived(searchQuery.trim().toLowerCase());
   let filteredCards = $derived(
     cards.filter(
       (c) =>
-        c.expression.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        c.meaning.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        c.notes.toLowerCase().includes(searchQuery.toLowerCase())
+        c.expression.toLowerCase().includes(normalizedSearch) ||
+        c.meaning.toLowerCase().includes(normalizedSearch) ||
+        c.notes.toLowerCase().includes(normalizedSearch)
     )
   );
+
+  let operationBusy = $derived(isLoading || isSaving || autoRefining || isSingleRefining);
+  let selectedFilteredIndex = $derived(filteredCards.findIndex((c) => c === selectedCard));
+  function navigateCard(direction: -1 | 1) {
+    const next = filteredCards[selectedFilteredIndex + direction];
+    if (next) selectedCardIndex = cards.indexOf(next);
+  }
 
   let selectedCard = $derived(
     selectedCardIndex !== null && cards[selectedCardIndex]
       ? cards[selectedCardIndex]
       : null
   );
+
+  // Reconcile selection when the user changes the search, without moving
+  // the editor away while its own Notes value is being edited.
+  $effect(() => {
+    searchQuery;
+    untrack(() => {
+      if (!selectedCard || !filteredCards.includes(selectedCard)) {
+        selectedCardIndex = filteredCards.length ? cards.indexOf(filteredCards[0]) : null;
+      }
+    });
+  });
 
   let notesProxy = {
     get value() {
@@ -158,6 +185,7 @@
   let pendingPathToLoad = $state<string | null>(null);
 
   async function triggerLoadFile(path: string) {
+    if (operationBusy) return;
     if (hasUnsavedChanges) {
       pendingPathToLoad = path;
       showOverwriteConfirm = true;
@@ -208,7 +236,7 @@
         setDraggingOver: (v) => (isDraggingOver = v),
         onDrop: (paths) => {
           const path = paths[0];
-          if (path && (path.endsWith(".apkg") || path.endsWith(".tsv"))) {
+          if (path && (/\.(apkg|tsv)$/i.test(path))) {
             void triggerLoadFile(path);
           } else {
             snackbar.show(t("refine.msg.unsupportedFormat"), "error");
@@ -230,6 +258,8 @@
   });
 
   onDestroy(() => {
+    if (pulseTimer) clearTimeout(pulseTimer);
+    if (autoRefining || isSingleRefining) void invoke("refine_cancel").catch(() => {});
     window.removeEventListener(TIERS_UPDATED_EVENT, refreshLlmConfig);
     window.removeEventListener("apikeys-updated", refreshLlmConfig);
   });
@@ -250,14 +280,21 @@
   }
 
   async function loadFile(path: string) {
+    if (operationBusy) return;
     isLoading = true;
     try {
       const res = await invoke<RefineCard[]>("refine_load_file", { path });
       cards = res.map((c) => ({ ...c, initialNotes: c.notes }));
       filePath = path;
+      searchQuery = "";
+      progressCurrent = 0;
+      progressTotal = 0;
+      logs = [];
+      runSummary = null;
+      progressFailed = 0;
       selectedCardIndex = res.length > 0 ? 0 : null;
       singleRefiningCardIds = [];
-      autoRefineGroupCardIds = [];
+      autoRefineGroupCardIds.clear();
       autoRefining = false;
       snackbar.show(
         t("refine.msg.loadSuccess", { count: res.length }),
@@ -271,7 +308,7 @@
   }
 
   async function overwriteOriginalFile() {
-    if (cards.length === 0 || !filePath) return;
+    if (operationBusy || cards.length === 0 || !filePath) return;
     isSaving = true;
     try {
       const updates = cards.map((c) => ({ id: c.id, notes: c.notes }));
@@ -295,7 +332,9 @@
   }
 
   async function saveNewFileWithExtension(ext: "apkg" | "tsv") {
-    if (cards.length === 0) return;
+    if (operationBusy || cards.length === 0) return;
+    isSaving = true;
+    const selectionBeforeSave = selectedCardIndex;
     try {
       const currentExt = filePath.split(".").pop()?.toLowerCase() || "apkg";
       let defaultName = fileName || `refined_deck.${ext}`;
@@ -324,9 +363,14 @@
         });
 
         if (success) {
-          snackbar.show(t("refine.msg.saveSuccess"), "success");
+
+          // TSV exports use row IDs instead of the original Anki note IDs.
+          const savedCards = await invoke<RefineCard[]>("refine_load_file", { path: selected });
           filePath = selected;
-          cards = cards.map((c) => ({ ...c, initialNotes: c.notes }));
+          cards = savedCards.map((c) => ({ ...c, initialNotes: c.notes }));
+          selectedCardIndex = cards.length > 0 ? Math.min(selectionBeforeSave ?? 0, cards.length - 1) : null;
+          searchQuery = "";
+          snackbar.show(t("refine.msg.saveSuccess"), "success");
         } else {
           snackbar.show(t("refine.msg.saveError"), "error");
         }
@@ -339,7 +383,7 @@
   }
 
   async function refineSingleCardAI() {
-    if (selectedCardIndex === null || cards.length === 0) return;
+    if (operationBusy || aiStore.killSwitchActive || isValidatingLlm || selectedCardIndex === null || cards.length === 0) return;
 
     if (llmError) {
       triggerLlmHighlight();
@@ -368,11 +412,13 @@
         tiers: tiersPayload,
       });
 
-      cards[selectedCardIndex].notes = response.trim();
+      card.notes = response.trim();
       snackbar.show(t("refine.msg.generateSuccess"), "success");
     } catch (err: any) {
       const message = err?.toString() ?? "";
-      if (message.includes("ERR_ALREADY_RUNNING")) {
+      if (message.includes("ERR_CANCELLED")) {
+        snackbar.show(t("refine.log.stopped"), "info");
+      } else if (message.includes("ERR_ALREADY_RUNNING")) {
         snackbar.show(t("common.error.alreadyRunning"), "error");
       } else {
         snackbar.show(t("refine.msg.generateError", { error: message }), "error");
@@ -391,13 +437,14 @@
   interface RefineRunSummary {
     done: number;
     failed: number;
+    remaining: number;
     poolExhausted: boolean;
     cancelled: boolean;
   }
 
   async function startAutoRefinement() {
-    if (cards.length === 0) return;
-    if (autoRefining) return;
+    if (operationBusy || cards.length === 0) return;
+    if (aiStore.killSwitchActive || isValidatingLlm) return;
 
     if (llmError) {
       triggerLlmHighlight();
@@ -421,7 +468,11 @@
     }
 
     autoRefining = true;
-    autoRefineGroupCardIds = cardsToProcess.map((c) => c.id);
+    runSummary = null;
+    progressFailed = 0;
+    isStopping = false;
+    autoRefineGroupCardIds.clear();
+    for (const card of cardsToProcess) autoRefineGroupCardIds.add(card.id);
     progressTotal = cardsToProcess.length;
     progressCurrent = 0;
     const endpointCount = tiersPayload.reduce((sum, tier) => sum + tier.length, 0);
@@ -431,25 +482,31 @@
       t("refine.log.startAuto"),
     ];
 
-    const unlisten = await listen<RefineProgressPayload>("refine-progress", (event) => {
-      const p = event.payload;
-      if (p.type === "cardDone") {
-        const idx = cards.findIndex((c) => c.id === p.id);
-        if (idx !== -1) {
-          cards[idx].notes = p.notes;
-          logs = [t("refine.log.success", { text: cards[idx].expression.substring(0, 30) }), ...logs];
-        }
-        progressCurrent = p.done;
-      } else if (p.type === "cardFailed") {
-        const idx = cards.findIndex((c) => c.id === p.id);
-        const text = idx !== -1 ? cards[idx].expression.substring(0, 20) : p.id;
-        logs = [t("refine.log.error", { text, error: p.error }), ...logs];
-      } else {
-        logs = [`[INFO] ${p.message}`, ...logs];
-      }
-    });
-
+    const runId = crypto.randomUUID();
+    let unlisten: (() => void) | undefined;
     try {
+      unlisten = await listen<{ runId: string; event: RefineProgressPayload }>("refine-progress", (event) => {
+        if (event.payload.runId !== runId) return;
+        const p = event.payload.event;
+        if (p.type === "cardDone") {
+          const idx = cardIndices.get(p.id) ?? -1;
+          if (idx !== -1) {
+            cards[idx].notes = p.notes;
+            autoRefineGroupCardIds.delete(p.id);
+            addLog(t("refine.log.success", { text: cards[idx].expression.substring(0, 30) }));
+          }
+          progressCurrent = Math.max(progressCurrent, p.done);
+        } else if (p.type === "cardFailed") {
+          autoRefineGroupCardIds.delete(p.id);
+          const idx = cardIndices.get(p.id) ?? -1;
+          const text = idx !== -1 ? cards[idx].expression.substring(0, 20) : p.id;
+          progressFailed += 1;
+          addLog(t("refine.log.error", { text, error: p.error }));
+        } else {
+          addLog(p.message);
+        }
+      });
+
       const summary = await invoke<RefineRunSummary>("refine_cards_llm_tiered", {
         cards: cardsToProcess.map((c) => ({
           id: c.id,
@@ -460,21 +517,18 @@
         prompt: customPrompt,
         tiers: tiersPayload,
         batchMode: useBatchMode,
+        runId,
       });
 
-      if (summary.cancelled) {
-        logs = [t("refine.log.stopped"), ...logs];
-      } else if (summary.poolExhausted) {
-        snackbar.show(
-          t("refine.msg.poolExhausted"),
-          "error",
-        );
-      } else {
-        snackbar.show(
-          t("refine.log.completed", { success: summary.done, total: progressTotal }),
-          "success",
-        );
-      }
+      runSummary = summary;
+      progressCurrent = summary.done;
+      progressFailed = summary.failed;
+      const message = t("refine.progress.summary", { success: summary.done, failed: summary.failed, remaining: summary.remaining });
+      addLog(message);
+      if (summary.cancelled) addLog(t("refine.log.stopped"));
+      if (summary.poolExhausted) addLog(t("refine.msg.poolExhausted"));
+      snackbar.show(message, summary.failed > 0 || summary.poolExhausted ? "error" : summary.cancelled ? "info" : "success");
+
     } catch (err: any) {
       const message = err?.toString() ?? "";
       if (message.includes("ERR_ALREADY_RUNNING")) {
@@ -483,21 +537,28 @@
         snackbar.show(t("refine.msg.generateError", { error: message }), "error");
       }
     } finally {
-      unlisten();
+      unlisten?.();
       autoRefining = false;
-      autoRefineGroupCardIds = [];
+      isStopping = false;
+      autoRefineGroupCardIds.clear();
     }
   }
 
   async function stopAutoRefinement() {
+    if (isStopping) return;
+    isStopping = true;
     try {
       await invoke("refine_cancel");
-    } catch {
-      /* run già terminato */
+    } catch (error) {
+      isStopping = false;
+      snackbar.show(String(error), "error");
+    } finally {
+      if (!autoRefining && !isSingleRefining) isStopping = false;
     }
   }
 
   function handleKeyDown(e: KeyboardEvent) {
+    if (!active || mode !== "manual") return;
     if (selectedCardIndex === null || cards.length === 0) return;
     if (document.activeElement?.tagName === "TEXTAREA" || document.activeElement?.tagName === "INPUT") {
       if (e.key === "Escape") {
@@ -508,16 +569,10 @@
 
     if (e.key === "ArrowDown" || e.key === "j") {
       e.preventDefault();
-      if (selectedCardIndex < filteredCards.length - 1) {
-        const nextCard = filteredCards[selectedCardIndex + 1];
-        selectedCardIndex = cards.findIndex((c) => c.id === nextCard.id);
-      }
+      navigateCard(1);
     } else if (e.key === "ArrowUp" || e.key === "k") {
       e.preventDefault();
-      if (selectedCardIndex > 0) {
-        const prevCard = filteredCards[selectedCardIndex - 1];
-        selectedCardIndex = cards.findIndex((c) => c.id === prevCard.id);
-      }
+      navigateCard(-1);
     } else if (e.key === "Enter") {
       e.preventDefault();
       const textarea = document.getElementById("card-notes") as HTMLTextAreaElement | null;
@@ -550,19 +605,21 @@
     if (e.dataTransfer && e.dataTransfer.files.length > 0) {
       const file = e.dataTransfer.files[0];
       const path = (file as any).path;
-      if (path && (path.endsWith(".apkg") || path.endsWith(".tsv"))) {
-        await loadFile(path);
+      if (path && (/\.(apkg|tsv)$/i.test(path))) {
+        await triggerLoadFile(path);
       } else {
-        snackbar.show("Formato file non supportato. Trascina solo file .apkg o .tsv", "error");
+        snackbar.show(t("refine.msg.unsupportedFormat"), "error");
       }
     }
   }
 
-  if (typeof window !== "undefined") {
-    (window as any).loadRefineFile = (path: string) => {
-      void loadFile(path);
+  onMount(() => {
+    const load = (path: string) => { void triggerLoadFile(path); };
+    (window as any).loadRefineFile = load;
+    return () => {
+      if ((window as any).loadRefineFile === load) delete (window as any).loadRefineFile;
     };
-  }
+  });
 </script>
 
 <svelte:window onkeydown={handleKeyDown} />
@@ -624,7 +681,7 @@
             placeholder={t('refine.deckPlaceholder')}
             browseTitle={t('refine.dropzone.browse')}
             onbrowse={selectFile}
-            disabled={isLoading}
+            disabled={operationBusy}
           />
 
           <!-- Quick Deck Stats counters -->
@@ -646,10 +703,10 @@
       </div>
 
       <!-- 2. Main Grid: Left Column (Flashcards List) & Right Column (Workspace) -->
-      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch flex-1 min-h-0">
+      <div class="grid grid-cols-1 md:grid-cols-12 gap-6 items-stretch flex-1 min-h-0">
 
         <!-- Left Column (5 cols): Flashcards List Panel -->
-        <div class="lg:col-span-5 glass-card p-5 flex flex-col min-h-0 overflow-hidden">
+        <div class="md:col-span-5 glass-card p-5 flex flex-col min-h-0 overflow-hidden">
           <!-- Search Bar -->
           <div class="relative mb-3 shrink-0">
             <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400 z-10">
@@ -667,18 +724,31 @@
           </div>
 
           <!-- Scrollable Cards List (fills available vertical space) -->
-          <div class="flex-1 min-h-0 overflow-y-auto p-2 bg-white/[0.03] border border-white/10 rounded-xl space-y-1.5 scrollbar-thin">
+          <div class="flex-1 min-h-0 overflow-y-auto [scrollbar-gutter:stable] p-2 bg-white/[0.03] border border-white/10 rounded-xl space-y-1.5 scrollbar-thin">
             {#if cards.length === 0}
-              <div class="h-full py-16 flex flex-col items-center justify-center text-xs text-gray-500 italic">
-                {t('refine.noFlashcardsLoaded')}
+              <div class="relative min-h-full">
+                <div aria-hidden="true" class="space-y-1.5">
+                  {#each Array(6) as _}
+                    <div class="h-[88px] rounded-xl border border-white/5 bg-white/[0.02] p-3 space-y-2">
+                      <div class="h-2 w-8 rounded bg-white/5"></div>
+                      <div class="h-3 w-2/3 rounded bg-white/5"></div>
+                      <div class="h-2 w-1/2 rounded bg-white/[0.03]"></div>
+                    </div>
+                  {/each}
+                </div>
+                <div class="absolute inset-0 flex items-center justify-center text-xs text-gray-400 italic">
+                  <span class="rounded-lg bg-gray-900/90 px-4 py-2">{t('refine.noFlashcardsLoaded')}</span>
+                </div>
               </div>
+            {:else if filteredCards.length === 0}
+              <div class="flex min-h-full items-center justify-center text-xs text-gray-400">{t("common.noResults")}</div>
             {:else}
-              {#each filteredCards as card, index}
+              {#each filteredCards as card (card.id)}
                 {@const isSelected = selectedCardIndex !== null && cards[selectedCardIndex]?.id === card.id}
-                {@const globalIndex = cards.findIndex(c => c.id === card.id)}
+                {@const globalIndex = cardIndices.get(card.id) ?? -1}
                 <button
                   onclick={() => selectedCardIndex = globalIndex}
-                  class="w-full text-left p-3 rounded-xl transition-all border flex flex-col gap-1 cursor-pointer
+                  class="h-[88px] w-full text-left p-3 rounded-xl transition-all border flex flex-col gap-1 cursor-pointer
                     {isSelected
                       ? 'bg-rose-500/15 border-rose-500/40 text-white'
                       : 'bg-white/5 hover:bg-white/10 border-transparent text-gray-400 hover:text-gray-200'}"
@@ -695,7 +765,7 @@
                           {t('refine.btn.generating')}
                         </span>
                       {/if}
-                      {#if card.initialNotes && card.initialNotes.trim() !== ""}
+                      {#if card.notes.trim() !== ""}
                         <span class="bg-rose-500/20 text-rose-300 px-1.5 py-0.5 rounded-full border border-rose-500/20 text-[9px] font-bold uppercase tracking-wider">{t('refine.badge.annotated')}</span>
                       {/if}
                       {#if card.notes !== (card.initialNotes || "")}
@@ -716,7 +786,7 @@
         </div>
 
         <!-- Right Column (7 cols): Refinement Panel -->
-        <div class="lg:col-span-7 glass-card p-5 flex flex-col min-h-0 overflow-hidden">
+        <div class="md:col-span-7 glass-card p-5 flex flex-col min-h-0 overflow-hidden">
           {#snippet modeToggleSnippet()}
             {#if !aiStore.killSwitchActive}
               <div class="relative flex items-center p-1 bg-white/5 border border-white/10 rounded-xl w-[220px] ml-auto shrink-0 select-none">
@@ -726,14 +796,16 @@
                 ></div>
                 <button
                   type="button"
-                  onclick={toggleMode}
+                  aria-pressed={mode === "manual"}
+                  onclick={() => setMode("manual")}
                   class="relative z-10 flex-1 py-1 px-2.5 text-center text-xs transition-colors duration-200 cursor-pointer {mode === 'manual' ? 'text-white font-bold' : 'text-gray-400 hover:text-white font-semibold'}"
                 >
                   {t('refine.mode.manual')}
                 </button>
                 <button
                   type="button"
-                  onclick={toggleMode}
+                  aria-pressed={mode === "auto"}
+                  onclick={() => setMode("auto")}
                   class="relative z-10 flex-1 py-1 px-2.5 text-center text-xs transition-colors duration-200 cursor-pointer {mode === 'auto' ? 'text-white font-bold' : 'text-gray-400 hover:text-white font-semibold'}"
                 >
                   {t('refine.mode.auto')}
@@ -757,17 +829,17 @@
               <div class="flex flex-col gap-4 flex-1 min-h-0 pt-3">
                 <!-- Front / Back previews -->
                 <div class="grid grid-cols-2 gap-3 shrink-0">
-                  <div class="bg-white/5 border border-white/10 rounded-xl p-3 relative">
+                  <div class="bg-white/5 border border-white/10 rounded-xl p-3 relative h-[68px] overflow-hidden">
                     <span class="absolute top-2 right-3 text-[9px] font-bold text-gray-500 uppercase tracking-wider">{t('refine.card.front')}</span>
                     <div class="text-xs font-semibold text-gray-200 mt-1 line-clamp-2">
-                      {@html selectedCard?.expression || "—"}
+                      {selectedCard?.expression.replace(/<[^>]*>/g, "") || "—"}
                     </div>
                   </div>
 
-                  <div class="bg-white/5 border border-white/10 rounded-xl p-3 relative">
+                  <div class="bg-white/5 border border-white/10 rounded-xl p-3 relative h-[68px] overflow-hidden">
                     <span class="absolute top-2 right-3 text-[9px] font-bold text-gray-500 uppercase tracking-wider">{t('refine.card.back')}</span>
                     <div class="text-xs font-semibold text-gray-200 mt-1 line-clamp-2">
-                      {@html selectedCard?.meaning || "—"}
+                      {selectedCard?.meaning.replace(/<[^>]*>/g, "") || "—"}
                     </div>
                   </div>
                 </div>
@@ -781,11 +853,14 @@
                       </svg>
                       <span>{t('refine.notesLabel')}</span>
                     </label>
+                    {#if isSingleRefining || autoRefining}
+                      <button type="button" onclick={stopAutoRefinement} disabled={isStopping} class="text-xs text-red-300 px-3 py-1">{isStopping ? t("refine.btn.stopping") : t("refine.btn.stop")}</button>
+                    {/if}
                     {#if !aiStore.killSwitchActive}
                       <button
                         type="button"
                         onclick={refineSingleCardAI}
-                        disabled={selectedCardIndex === null || (selectedCard && isCardRefining(selectedCard.id))}
+                        disabled={operationBusy || isValidatingLlm || !!llmError || selectedCardIndex === null}
                         class="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-indigo-500/15 hover:bg-indigo-500/25 border border-indigo-500/30 hover:border-indigo-500/50 text-indigo-300 text-xs font-bold transition-all duration-200 cursor-pointer disabled:opacity-50"
                       >
                         {#if selectedCard && isCardRefining(selectedCard.id)}
@@ -807,7 +882,7 @@
                   <CodeEditor
                     id="card-notes"
                     bind:value={notesProxy.value}
-                    readonly={selectedCardIndex === null || !!(selectedCard && isCardRefining(selectedCard.id))}
+                    readonly={isSaving || isLoading || selectedCardIndex === null || !!(selectedCard && isCardRefining(selectedCard.id))}
                     placeholder={selectedCardIndex === null ? t('refine.notesPlaceholderEmpty') : (!!(selectedCard && isCardRefining(selectedCard.id)) ? t('refine.notesPlaceholderGenerating') : t('refine.notesPlaceholder'))}
                     language="html"
                     heightClass="flex-1 min-h-[160px]"
@@ -825,19 +900,15 @@
 
                   <div class="flex items-center gap-2">
                     <button
-                      onclick={() => {
-                        if (selectedCardIndex !== null && selectedCardIndex > 0) selectedCardIndex--;
-                      }}
-                      disabled={selectedCardIndex === null || selectedCardIndex === 0}
+                      onclick={() => navigateCard(-1)}
+                      disabled={selectedFilteredIndex <= 0}
                       class="bg-white/5 hover:bg-white/10 disabled:opacity-30 border border-white/10 rounded-lg px-3 py-1.5 font-semibold transition-colors cursor-pointer"
                     >
                       {t('refine.btn.prev')}
                     </button>
                     <button
-                      onclick={() => {
-                        if (selectedCardIndex !== null && selectedCardIndex < cards.length - 1) selectedCardIndex++;
-                      }}
-                      disabled={selectedCardIndex === null || selectedCardIndex === cards.length - 1}
+                      onclick={() => navigateCard(1)}
+                      disabled={filteredCards.length === 0 || selectedFilteredIndex >= filteredCards.length - 1}
                       class="bg-white/5 hover:bg-white/10 disabled:opacity-30 border border-white/10 rounded-lg px-3 py-1.5 font-semibold transition-colors cursor-pointer"
                     >
                       {t('refine.btn.next')}
@@ -891,6 +962,8 @@
               <div class="grid grid-cols-2 gap-3 shrink-0">
                 <button
                   type="button"
+                  disabled={operationBusy}
+                  aria-pressed={onlyUnannotated}
                   onclick={() => onlyUnannotated = !onlyUnannotated}
                   class="flex items-center justify-between p-3.5 rounded-xl border text-left transition-all duration-200 cursor-pointer select-none
                     {onlyUnannotated
@@ -907,6 +980,8 @@
 
                 <button
                   type="button"
+                  disabled={operationBusy}
+                  aria-pressed={useBatchMode}
                   onclick={() => useBatchMode = !useBatchMode}
                   class="flex items-center justify-between p-3.5 rounded-xl border text-left transition-all duration-200 cursor-pointer select-none
                     {useBatchMode
@@ -937,14 +1012,15 @@
                 {#if autoRefining}
                   <button
                     onclick={stopAutoRefinement}
+                    disabled={isStopping}
                     class="flex-1 rounded-xl bg-red-600/80 hover:bg-red-500/80 border border-red-500/30 text-xs font-bold text-red-100 px-4 py-2.5 transition-all cursor-pointer flex items-center justify-center gap-2"
                   >
-                    {t('refine.btn.stop')}
+                    {isStopping ? t('refine.btn.stopping') : t('refine.btn.stop')}
                   </button>
                 {:else}
                   <button
                     onclick={startAutoRefinement}
-                    disabled={!!llmError || cards.length === 0}
+                    disabled={operationBusy || isValidatingLlm || !!llmError || cards.length === 0}
                     class="flex-1 rounded-xl bg-amber-600 hover:bg-amber-500 border border-amber-500/30 disabled:bg-amber-600/40 text-xs font-bold text-white px-4 py-2.5 shadow-lg shadow-amber-950/30 transition-all cursor-pointer flex items-center justify-center gap-2 {(llmError || cards.length === 0) ? 'opacity-50 cursor-not-allowed' : ''}"
                   >
                     <svg class="w-4 h-4 text-amber-100" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -956,20 +1032,27 @@
               </div>
 
               <!-- Progress -->
-              {#if autoRefining || progressTotal > 0}
                 <div class="bg-white/5 border border-white/10 rounded-xl p-3 shrink-0">
                   <div class="flex justify-between text-xs text-gray-300 mb-1.5 font-semibold">
                     <span>{t('refine.progress.title')}</span>
-                    <span>{progressCurrent} / {progressTotal} ({Math.round((progressCurrent / progressTotal) * 100)}%)</span>
+                    <span>{progressCurrent + progressFailed} / {progressTotal} ({Math.round((progressTotal > 0 ? (progressCurrent + progressFailed) / progressTotal : 0) * 100)}%)</span>
                   </div>
                   <div class="w-full bg-white/10 h-2 rounded-full overflow-hidden">
                     <div
                       class="bg-gradient-to-r from-rose-500 to-pink-500 h-full rounded-full transition-all duration-300"
-                      style="width: {(progressCurrent / progressTotal) * 100}%"
+                      style="width: {(progressTotal > 0 ? (progressCurrent + progressFailed) / progressTotal : 0) * 100}%"
                     ></div>
                   </div>
+                  {#if runSummary}
+                    <p class="mt-2 text-xs text-gray-300" role="status">{t("refine.progress.summary", { success: runSummary.done, failed: runSummary.failed, remaining: runSummary.remaining })}</p>
+                  {/if}
                 </div>
-              {/if}
+              <details class="rounded-xl border border-white/10 bg-white/5 p-3 text-xs text-gray-400">
+                <summary class="cursor-pointer">{t("refine.progress.activity")} ({logs.length})</summary>
+                <div class="mt-2 h-24 overflow-y-auto [scrollbar-gutter:stable] break-words space-y-1">
+                  {#each logs as log}<p>{log}</p>{/each}
+                </div>
+              </details>
             </div>
           {/if}
         </div>
@@ -980,16 +1063,12 @@
   <!-- Fixed Bottom Band with Action Buttons -->
   <FooterActions>
     {#snippet left()}
-      <div class="flex items-center gap-4">
-      <div class="text-xs text-gray-400 bg-white/5 border border-white/10 px-3 py-1.5 rounded-lg max-w-[300px] truncate" title={filePath || undefined}>
-        <span class="font-bold text-gray-300">{t('refine.action.fileLabel')}</span> {fileName || "—"}
-      </div>
-
-      <div class="relative group">
+      <div class="flex flex-1 min-w-0 items-center gap-3">
+      <div class="relative group shrink-0">
         <button
           onclick={overwriteOriginalFile}
-          disabled={isSaving || cards.length === 0}
-          class="px-5 py-2.5 bg-rose-600 hover:bg-rose-500 disabled:bg-rose-600/40 text-white disabled:opacity-55 rounded-xl font-bold text-sm transition-all shadow-lg shadow-rose-950/30 flex items-center gap-2 enabled:hover:scale-[1.02] enabled:active:scale-[0.98] cursor-pointer border border-rose-500/10"
+          disabled={operationBusy || cards.length === 0}
+          class="min-w-[155px] justify-center px-3 py-2.5 bg-rose-600 hover:bg-rose-500 disabled:bg-rose-600/40 text-white disabled:opacity-55 rounded-xl font-bold text-sm transition-all shadow-lg shadow-rose-950/30 flex items-center gap-2 enabled:hover:scale-[1.02] enabled:active:scale-[0.98] cursor-pointer border border-rose-500/10"
         >
           {#if isSaving}
             <svg class="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
@@ -1008,15 +1087,19 @@
           {t('refine.action.tooltipOverwrite')}
         </div>
       </div>
+      <div class="flex min-w-0 flex-1 max-w-[300px] items-center gap-1.5 text-xs text-gray-400 bg-white/5 border border-white/10 px-3 py-1.5 rounded-lg" title={filePath || undefined}>
+        <span class="shrink-0 font-bold text-gray-300">{t('refine.action.fileLabel')}</span>
+        <span class="min-w-0 truncate">{fileName || "—"}</span>
+      </div>
       </div>
     {/snippet}
     {#snippet right()}
-      <div class="flex items-center gap-4">
+      <div class="flex shrink-0 items-center gap-2">
       <div class="relative group">
         <button
           onclick={() => saveNewFileWithExtension("apkg")}
-          disabled={isSaving || cards.length === 0 || fileExtension === "TSV"}
-          class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:bg-emerald-600/55 disabled:opacity-55 text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-emerald-950/20 flex items-center gap-2 enabled:hover:scale-[1.02] enabled:active:scale-[0.98] disabled:cursor-not-allowed cursor-pointer"
+          disabled={operationBusy || cards.length === 0 || fileExtension === "TSV"}
+          class="min-w-[135px] justify-center px-3 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:bg-emerald-600/55 disabled:opacity-55 text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-emerald-950/20 flex items-center gap-2 enabled:hover:scale-[1.02] enabled:active:scale-[0.98] disabled:cursor-not-allowed cursor-pointer"
         >
           {#if isSaving}
             <svg class="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
@@ -1041,8 +1124,8 @@
       <div class="relative group">
         <button
           onclick={() => saveNewFileWithExtension("tsv")}
-          disabled={isSaving || cards.length === 0}
-          class="px-5 py-2.5 bg-cyan-600 hover:bg-cyan-500 disabled:bg-cyan-600/55 disabled:opacity-55 text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-cyan-950/20 flex items-center gap-2 enabled:hover:scale-[1.02] enabled:active:scale-[0.98] disabled:cursor-not-allowed cursor-pointer"
+          disabled={operationBusy || cards.length === 0}
+          class="min-w-[135px] justify-center px-3 py-2.5 bg-cyan-600 hover:bg-cyan-500 disabled:bg-cyan-600/55 disabled:opacity-55 text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-cyan-950/20 flex items-center gap-2 enabled:hover:scale-[1.02] enabled:active:scale-[0.98] disabled:cursor-not-allowed cursor-pointer"
         >
           {#if isSaving}
             <svg class="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">

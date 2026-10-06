@@ -1,3 +1,4 @@
+import { languages, normalizeLanguageCode } from "$lib/config/languages";
 import * as vestaConfig from "$lib/config/vestaConfig";
 
 // Note-type system: field names, note-type definitions (predefined +
@@ -261,32 +262,34 @@ export function saveCustomNoteTypes(list: NoteTypeDef[]): void {
 
 /** The locked, predefined note type. */
 export function predefinedNoteTypeForLanguage(code: string): NoteTypeDef {
+  const language = languages.find((item) => item.code === normalizeLanguageCode(code));
   return {
-    id: "default",
-    name: "Default_Vesta",
+    id: language ? `predef:${language.code}` : "default",
+    name: language ? `${language.nameEn.replaceAll(" ", "")}_Vesta` : "Default_Vesta",
     predefined: true,
-    language: "",
+    language: language?.code || "",
     fields: { ...defaultFieldNames },
     included: { ...allFieldsIncluded },
   };
 }
 
-/** Predefined note types (just returning the default template now). */
+/** Locked defaults for every supported study language, plus the legacy fallback. */
 export function predefinedNoteTypes(): NoteTypeDef[] {
-  return [predefinedNoteTypeForLanguage("")];
+  return [predefinedNoteTypeForLanguage(""), ...languages.map((language) => predefinedNoteTypeForLanguage(language.code))];
 }
 
 /** All selectable note types: predefined first, then custom (A→Z). */
 export function listNoteTypes(): NoteTypeDef[] {
   const byName = (a: NoteTypeDef, b: NoteTypeDef) => a.name.localeCompare(b.name);
   const custom = loadCustomNoteTypes().slice().sort(byName);
-  const defaultNT = predefinedNoteTypeForLanguage("");
-  return [defaultNT, ...custom];
+  return [...predefinedNoteTypes(), ...custom];
 }
 
 export function findNoteTypeById(id: string): NoteTypeDef | null {
-  if (id === "default" || id.startsWith("predef:")) {
-    return predefinedNoteTypeForLanguage("");
+  if (id === "default" || id === "auto") return predefinedNoteTypeForLanguage("");
+  if (id.startsWith("predef:")) {
+    const code = normalizeLanguageCode(id.slice(7));
+    return code ? predefinedNoteTypeForLanguage(code) : null;
   }
   return loadCustomNoteTypes().find((nt) => nt.id === id) ?? null;
 }
@@ -465,7 +468,7 @@ hr {
   margin-bottom: 4px;
   border: 1px solid var(--vesta-rule);
 }`,
-  noteTypeName: "Vesta_Default",
+  noteTypeName: "Default_Vesta",
 };
 
 export function loadCardTemplates(): CardTemplateConfig {

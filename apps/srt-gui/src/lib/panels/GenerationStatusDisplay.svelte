@@ -1,27 +1,17 @@
 <script lang="ts">
+  import type { Snippet } from "svelte";
   import MediaIcon from "$lib/components/MediaIcon.svelte";
   import OutputFileActions from "$lib/components/OutputFileActions.svelte";
   import { locale } from "$lib/i18n";
   import { generationStore } from "$lib/stores/generationStore.svelte";
 
-  /** Left side of the bottom action bar: note-type cycle button when idle,
-   * a spinner while generating, or the result/error summary once done.
-   * Reads generationStore directly (isProcessing/progress/result are pure
-   * generation run-state, no parent-domain dependency — see
-   * generationStore.svelte.ts) and only takes props for the handful of
-   * things it can't own itself: easyMode/noteTypeName are parent-derived,
-   * and the click handlers call back into parent-owned functions
-   * (cycleTemplates touches note-type selection state, showSnackbar is
-   * shared UI feedback). */
+  /** Generation status with the parent's note-type picker available in both UI modes. */
   interface Props {
     easyMode: boolean;
+    noteTypeControl: Snippet;
     noteTypeName: string;
-    onCycleTemplates: () => void;
-    onNoteTypeContextMenu: (event: MouseEvent) => void;
-    onNoteTypeMiddleClick: () => void;
-    showSnackbar: (message: string, variant?: "success" | "info" | "warning" | "error") => void;
   }
-  let { easyMode, noteTypeName, onCycleTemplates, onNoteTypeContextMenu, onNoteTypeMiddleClick, showSnackbar }: Props = $props();
+  let { noteTypeControl, easyMode, noteTypeName }: Props = $props();
 
   let t = $derived($locale);
 </script>
@@ -29,35 +19,7 @@
 <!-- Left side: Note type template AND progress text/result messages -->
 <div class="flex items-center gap-4 select-none z-10 min-w-0 flex-1">
   {#if !generationStore.result && !generationStore.isProcessing}
-    {#if !easyMode}
-      <!-- Template cycle button -->
-      <div class="relative group/tmpl">
-        <button
-          type="button"
-          onclick={onCycleTemplates}
-          oncontextmenu={onNoteTypeContextMenu}
-          onmousedown={(e) => {
-            if (e.button === 1) {
-              e.preventDefault();
-              onNoteTypeMiddleClick();
-            }
-          }}
-          class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold cursor-pointer transition-all duration-200 border-violet-500/40 bg-violet-500/10 text-violet-300 hover:bg-violet-500/20 hover:border-violet-500/50 hover:scale-[1.02] active:scale-[0.98] select-none"
-        >
-          <svg class="w-3.5 h-3.5 text-violet-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-              d="M4 5a1 1 0 011-1h14a1 1 0 011 1v4H4V5zm0 8h8v7H5a1 1 0 01-1-1v-6zm12 0h4v6a1 1 0 01-1 1h-3v-7z"
-            />
-          </svg>
-          {t("settings.noteType")}: {noteTypeName}
-        </button>
-        <div class="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-3 z-50
-          rounded-xl border border-violet-500/30 bg-gray-950/95 p-3 text-xs text-violet-300 shadow-2xl shadow-black/40 ring-1 ring-white/10
-          opacity-0 group-hover/tmpl:opacity-100 transition-all duration-150 whitespace-nowrap text-center">
-          {t("flashcards.clickToCycleTemplates")}
-        </div>
-      </div>
-    {/if}
+    {@render noteTypeControl()}
   {:else if generationStore.isProcessing}
     <!-- Loading status message overlay -->
     <div class="flex items-center gap-4">

@@ -2,7 +2,7 @@
   import { locale } from "$lib/i18n";
   import { uiMode } from "$lib/stores/uiModeStore.svelte";
   import SearchableSelect from "$lib/components/SearchableSelect.svelte";
-  import { invoke } from "@tauri-apps/api/core";
+  import { invokeCommand as invoke } from "$lib/services/tauriClient";
   import { snackbar } from "$lib/stores/snackbarStore.svelte";
   import { getFileName } from "$lib/utils/models";
   import {

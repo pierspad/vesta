@@ -1,6 +1,7 @@
 <script lang="ts">
+  import { supportLogStore } from "$lib/stores/supportLogStore.svelte";
   import SidebarToggle from "$lib/components/SidebarToggle.svelte";
-  import { invoke } from "@tauri-apps/api/core";
+  import { invokeCommand as invoke } from "$lib/services/tauriClient";
   import { onMount } from "svelte";
   import { fetch as tauriFetch } from "$lib/services/tauriHttp";
   import fireplaceIcon from "../../assets/fireplace.svg";
@@ -675,6 +676,12 @@
 
     <!-- Expert Mode + AI Kill Switch at the bottom of the nav -->
     <div class="order-8 mt-auto pt-2 flex flex-col gap-2">
+      {#if supportLogStore.recording}
+        <button type="button" onclick={() => { settingsSection = "diagnostics"; onTabChange("settings"); }} class="rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-xs text-rose-300 flex items-center justify-center gap-2" title={supportLogStore.path || t("supportLogs.recording")} aria-label={t("supportLogs.recording")}>
+          <span class="w-2 h-2 shrink-0 rounded-full bg-rose-500 animate-pulse"></span>
+          {#if !collapsed}{t("supportLogs.recording")}{/if}
+        </button>
+      {/if}
       <SidebarToggle label={t("nav.expertMode")} title={uiMode.expertMode ? t("nav.expertModeOn") : t("nav.expertModeOff")}
         {collapsed} active={uiMode.expertMode} ontoggle={() => uiMode.toggleExpertMode()}
         iconPath="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 011.5 1.5m-1.5-1.5a1.5 1.5 0 10-3 0M3.75 18H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75" />

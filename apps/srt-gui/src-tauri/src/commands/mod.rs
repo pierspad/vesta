@@ -10,3 +10,7 @@ pub mod transcribe;
 pub mod translate;
 
 pub mod extract;
+
+pub mod support_logs;
+
+pub mod updates;

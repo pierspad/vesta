@@ -4,7 +4,7 @@
   import { formatAudioTrackLabel, type EpisodeMediaOverrideKey } from "$lib/types/flashcardMediaTypes";
   import { episodeMediaEditorStore as editor } from "$lib/stores/episodeMediaEditorStore.svelte";
   import { getFileName } from "$lib/utils/models";
-  import { invoke } from "@tauri-apps/api/core";
+  import { invokeCommand as invoke } from "$lib/services/tauriClient";
   import { snackbar } from "$lib/stores/snackbarStore.svelte";
 
   interface Props {

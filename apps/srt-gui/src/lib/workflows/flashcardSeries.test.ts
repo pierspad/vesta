@@ -81,3 +81,12 @@ it("reports single-run errors and clears transient progress in finally", async (
  expect(run.generationStore.error).toContain("preview failed"); expect(run.generationStore.result?.success).toBe(false);
  expect(run.generationStore.isProcessing).toBe(false); expect(run.generationStore.progress).toBe(0);
 });
+
+it("exports mixed-language episodes with their own note types and font language", async () => {
+ const run = options(); run.automaticNoteType = true;
+ run.episodes[0].targetSubsPath = "episode.ja.srt";
+ run.episodes[1].targetSubsPath = "episode.zh-Hant.srt";
+ await runFlashcardSeries(run);
+ expect(run.invoke).toHaveBeenNthCalledWith(1, "flashcard_generate", { config: expect.objectContaining({ note_type_name: "Japanese_Vesta", target_language: "ja" }) });
+ expect(run.invoke).toHaveBeenNthCalledWith(2, "flashcard_generate", { config: expect.objectContaining({ note_type_name: "ChineseTraditional_Vesta", target_language: "zh-tw" }) });
+});

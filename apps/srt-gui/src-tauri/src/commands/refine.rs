@@ -7,6 +7,33 @@ use srt_refine::{RefineEvent, RefineRunConfig, RefineRunSummary};
 use crate::commands::translate::TierEntryConfig;
 use crate::state::AppRefineState;
 
+// Both manual and automatic generation share the same lock and cancel token.
+// Drop also releases the state if the command future exits early.
+struct RefinementGuard<'a>(&'a AppRefineState);
+impl Drop for RefinementGuard<'_> {
+    fn drop(&mut self) {
+        if let Ok(mut state) = self.0.lock() {
+            if let Some(token) = &state.cancellation_token {
+                token.cancel();
+            }
+            state.is_refining = false;
+            state.cancellation_token = None;
+        }
+    }
+}
+fn begin_refinement(
+    state: &AppRefineState,
+) -> Result<(RefinementGuard<'_>, CancellationToken), String> {
+    let token = CancellationToken::new();
+    let mut current = state.lock().map_err(|e| e.to_string())?;
+    if current.is_refining {
+        return Err("ERR_ALREADY_RUNNING".to_string());
+    }
+    current.is_refining = true;
+    current.cancellation_token = Some(token.clone());
+    Ok((RefinementGuard(state), token))
+}
+
 #[tauri::command]
 pub async fn refine_load_file(path: String) -> Result<Vec<RefineCard>, String> {
     tokio::task::spawn_blocking(move || srt_refine::load_cards(&path))
@@ -31,8 +58,10 @@ pub async fn refine_card_llm_tiered(
     card: RefineCard,
     prompt: String,
     tiers: Vec<Vec<TierEntryConfig>>,
+    state: State<'_, AppRefineState>,
 ) -> Result<String, String> {
     let pool = srt_translate::build_pool(&tiers)?;
+    let (_guard, token) = begin_refinement(&state)?;
     let card_id = card.id.clone();
     let result: std::sync::Arc<std::sync::Mutex<Option<String>>> = Default::default();
     let result_cb = result.clone();
@@ -52,13 +81,15 @@ pub async fn refine_card_llm_tiered(
                 *result_cb.lock().unwrap() = Some(notes);
             }
         },
-        CancellationToken::new(),
+        token,
     )
     .await?;
 
     let notes = result.lock().unwrap().take();
     notes.ok_or_else(|| {
-        if summary.pool_exhausted {
+        if summary.cancelled {
+            "ERR_CANCELLED".to_string()
+        } else if summary.pool_exhausted {
             "Tutti i tier LLM sono esauriti (rate limit/quota)".to_string()
         } else {
             "Nessuna risposta generata".to_string()
@@ -73,28 +104,24 @@ pub async fn refine_cards_llm_tiered(
     prompt: String,
     tiers: Vec<Vec<TierEntryConfig>>,
     batch_mode: bool,
+    run_id: String,
     state: State<'_, AppRefineState>,
 ) -> Result<RefineRunSummary, String> {
     let pool = srt_translate::build_pool(&tiers)?;
 
-    let cancellation_token = CancellationToken::new();
-    {
-        let mut refine_state = state.lock().map_err(|e| e.to_string())?;
-        if refine_state.is_refining {
-            return Err("ERR_ALREADY_RUNNING".to_string());
-        }
-        refine_state.is_refining = true;
-        refine_state.cancellation_token = Some(cancellation_token.clone());
-    }
+    let (_guard, cancellation_token) = begin_refinement(&state)?;
 
     let on_event = {
         let app = app.clone();
         move |event: RefineEvent| {
-            let _ = app.emit("refine-progress", &event);
+            let _ = app.emit(
+                "refine-progress",
+                serde_json::json!({ "runId": run_id, "event": event }),
+            );
         }
     };
 
-    let result = srt_refine::refine_cards_tiered(
+    srt_refine::refine_cards_tiered(
         cards,
         RefineRunConfig {
             prompt,
@@ -105,14 +132,7 @@ pub async fn refine_cards_llm_tiered(
         on_event,
         cancellation_token,
     )
-    .await;
-
-    if let Ok(mut refine_state) = state.lock() {
-        refine_state.is_refining = false;
-        refine_state.cancellation_token = None;
-    }
-
-    result
+    .await
 }
 
 /// Cancella il refinement AI in corso.
@@ -124,5 +144,21 @@ pub async fn refine_cancel(state: State<'_, AppRefineState>) -> Result<bool, Str
         Ok(true)
     } else {
         Ok(false)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn shared_guard_rejects_overlap_and_cancels_on_drop() {
+        let state = AppRefineState::default();
+        let (guard, token) = begin_refinement(&state).unwrap();
+        assert!(begin_refinement(&state).is_err());
+        assert!(state.lock().unwrap().is_refining);
+        drop(guard);
+        assert!(token.is_cancelled());
+        assert!(!state.lock().unwrap().is_refining);
+        assert!(begin_refinement(&state).is_ok());
     }
 }

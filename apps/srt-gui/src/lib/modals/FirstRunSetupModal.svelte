@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { availableUILanguages, currentLanguage, loadLanguage, translateForLanguage } from "$lib/i18n";
-  import { languages, getLanguageSearchTerms } from "$lib/config/languages";
+  import { languages } from "$lib/config/languages";
   import SetupLanguageField from "$lib/components/SetupLanguageField.svelte";
   import WhisperModelSelector from "$lib/components/WhisperModelSelector.svelte";
   import ExportFallbackSelector from "$lib/components/ExportFallbackSelector.svelte";
@@ -34,7 +34,6 @@
   $effect(() => { const selected = uiLanguage; void loadLanguage(selected).then((ok) => { if (ok && uiLanguage === selected) { currentLanguage.set(selected); setupRevision += 1; } }); });
   function setupT(key: string) { void setupRevision; return translateForLanguage(uiLanguage, key); }
 
-  const languageOptions = languages.map((l) => ({ value: l.code, label: l.name === l.nameEn ? l.name : `${l.name} — ${l.nameEn}`, icon: l.flag, searchTerms: getLanguageSearchTerms(l.code) }));
   let selectedWhisperDownloaded = $derived(whisperModelsStore.whisperModels.find((model) => model.id === whisperModel)?.downloaded ?? false);
   let sileroDownloaded = $derived(whisperModelsStore.vadModels.find((model) => model.id === "v6.2.0")?.downloaded ?? false);
 
@@ -129,8 +128,8 @@
       <div class="flex h-full flex-col">
         <div class="flex min-h-0 flex-1 items-center">
           <div class="mx-auto grid w-full max-w-3xl grid-cols-1 gap-4 sm:grid-cols-2">
-            <SetupLanguageField kind="native" title={setupT("setup.yourNativeLanguage")} description={setupT("setup.interfaceTranslationsAndReferences")} options={languageOptions} value={nativeLanguage} onchange={(value) => { nativeLanguage = value; uiLanguage = resolveUiLanguage(value); }} />
-            <SetupLanguageField kind="study" title={setupT("setup.studyLanguage")} description={setupT("setup.flashcardsAndTranscription")} options={languageOptions} value={studyLanguage} onchange={(value) => studyLanguage = value} />
+            <SetupLanguageField kind="native" title={setupT("setup.yourNativeLanguage")} description={setupT("setup.interfaceTranslationsAndReferences")} value={nativeLanguage} onchange={(value) => { nativeLanguage = value; uiLanguage = resolveUiLanguage(value); }} />
+            <SetupLanguageField kind="study" title={setupT("setup.studyLanguage")} description={setupT("setup.flashcardsAndTranscription")} value={studyLanguage} onchange={(value) => studyLanguage = value} />
           </div>
         </div>
         <div class="mt-auto flex justify-between"><button class="btn-secondary px-4 py-2" onclick={() => mode = null}>{setupT("setup.back")}</button>{#if mode === "custom"}<button class="rounded-lg bg-indigo-500 px-5 py-2 font-semibold text-white" onclick={() => step = "export"}>{setupT("setup.continue")}</button>{:else}<button class="rounded-lg bg-indigo-500 px-5 py-2 font-semibold text-white" onclick={finish}>{setupT("setup.finishSetup")}</button>{/if}</div>

@@ -24,10 +24,10 @@
     type TranscribeTierEntry,
   } from "$lib/config/transcribeTiers";
   import { loadAndValidateApiKeys, type ApiKeyConfig } from "$lib/config/apiKeys";
-  import { getLanguageSearchTerms, languages as allLanguages } from "$lib/config/languages";
+  import { languages as allLanguages } from "$lib/config/languages";
   import PathPickerField from "$lib/components/PathPickerField.svelte";
   import PathPreviewModal from "$lib/modals/PathPreviewModal.svelte";
-  import SearchableSelect from "$lib/components/SearchableSelect.svelte";
+  import LanguageSelect from "$lib/components/LanguageSelect.svelte";
   import ToggleRow from "$lib/components/ToggleRow.svelte";
   import { createSnackbarNotifier } from "$lib/stores/snackbarStore.svelte";
   import { uiMode } from "$lib/stores/uiModeStore.svelte";
@@ -753,9 +753,7 @@
   {#snippet panelContent(panelId: TranscribePanelId)}
     {#if panelId === "options"}
       <div
-        class="glass-card p-5 {!inputPath
-          ? 'opacity-50 pointer-events-none'
-          : ''}"
+        class="glass-card p-5"
       >
         <h3 class="text-lg font-semibold mb-4 flex items-center gap-2 text-blue-400">
           <svg
@@ -787,17 +785,9 @@
               </svg>
               <span>{t("transcribe.sourceLanguage")}</span>
             </span>
-            <SearchableSelect
+            <LanguageSelect
               noResultsText={t("common.noResults")}
-              options={transcriptionLanguages.map((lang) => ({
-                value: lang.code,
-                label:
-                  lang.nameEn === lang.name
-                    ? lang.name
-                    : `${lang.nameEn} — ${lang.name}`,
-                searchTerms: getLanguageSearchTerms(lang.code),
-                icon: lang.flag,
-              }))}
+              autoDetect
               value={selectedLanguage}
               onchange={(v) => (selectedLanguage = v)}
               placeholder={t("transcribe.sourceLanguage")}

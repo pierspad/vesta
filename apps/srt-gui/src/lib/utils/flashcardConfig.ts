@@ -1,3 +1,6 @@
+import { normalizeLanguageCode } from "$lib/config/languages";
+import { inferLanguageFromPath } from "$lib/utils/models";
+import { predefinedNoteTypeForLanguage } from "$lib/types/noteTypes";
 import type { CardFilterSettings } from "$lib/types/flashcardFilterTypes";
 import type { EpisodeMediaOverrides } from "$lib/types/flashcardMediaTypes";
 import { loadCardTemplates, noteTypeOutputFields, type NoteTypeDef } from "$lib/types/noteTypes";
@@ -27,6 +30,7 @@ export interface FlashcardConfigInputs {
   episodeNumber: number;
   exportFormat: string;
   noteType: NoteTypeDef;
+  automaticNoteType?: boolean;
   cpuCores: number;
   targetLanguage?: string | null;
   autoCardFont?: boolean;
@@ -35,6 +39,11 @@ export interface FlashcardConfigInputs {
 
 export function buildFlashcardConfig(i: FlashcardConfigInputs) {
   const templates = loadCardTemplates();
+  // A manual language default is an explicit correction and controls its font too.
+  // Automatic exports resolve each subtitle separately (including mixed series).
+  const language = (!i.automaticNoteType && normalizeLanguageCode(i.noteType.language)) ||
+    inferLanguageFromPath(i.targetSubsPath) || normalizeLanguageCode(i.targetLanguage);
+  const noteType = i.automaticNoteType ? predefinedNoteTypeForLanguage(language) : i.noteType;
   const f = i.cardFilters;
   return {
     target_subs_path: i.targetSubsPath,
@@ -96,14 +105,14 @@ export function buildFlashcardConfig(i: FlashcardConfigInputs) {
     deck_name: i.deckName,
     episode_number: i.episodeNumber,
     export_format: i.exportFormat,
-    note_type_name: i.noteType.name,
-    field_names: i.noteType.fields,
-    output_fields: noteTypeOutputFields(i.noteType),
+    note_type_name: noteType.name,
+    field_names: noteType.fields,
+    output_fields: noteTypeOutputFields(noteType),
     cpu_cores: i.cpuCores,
     card_front_html: templates.frontHtml,
     card_back_html: templates.backHtml,
     card_css: templates.css,
-    target_language: i.targetLanguage ?? null,
+    target_language: language || null,
     auto_card_font: i.autoCardFont ?? true,
     embed_card_font: i.embedCardFont ?? true,
   };

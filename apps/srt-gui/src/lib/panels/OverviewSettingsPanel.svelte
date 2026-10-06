@@ -106,7 +106,8 @@
       <!-- APKG Option Button -->
       <button
         type="button"
-        onclick={() => exportFormatStore.cycleExportFormat()}
+        onclick={() => exportFormatStore.setExportFormat("apkg")}
+        aria-pressed={exportFormatStore.exportFormat === "apkg"}
         class="flex-1 text-left p-4 rounded-lg transition-all duration-200 select-none relative z-10 flex items-center justify-between gap-4 cursor-pointer"
       >
         <div class="flex-1 min-w-0">
@@ -133,7 +134,8 @@
       <!-- TSV Option Button -->
       <button
         type="button"
-        onclick={() => exportFormatStore.cycleExportFormat()}
+        onclick={() => exportFormatStore.setExportFormat("tsv")}
+        aria-pressed={exportFormatStore.exportFormat === "tsv"}
         class="flex-1 text-left p-4 rounded-lg transition-all duration-200 select-none relative z-10 flex items-center justify-between gap-4 cursor-pointer"
       >
         <div class="flex-1 min-w-0">
@@ -160,7 +162,8 @@
       <!-- Anki Connect Option Button (Permanently visible) -->
       <button
         type="button"
-        onclick={() => exportFormatStore.cycleExportFormat()}
+        onclick={() => exportFormatStore.setExportFormat("anki")}
+        aria-pressed={exportFormatStore.exportFormat === "anki"}
         class="flex-1 text-left p-4 rounded-lg transition-all duration-200 select-none relative z-10 flex items-center justify-between gap-4 cursor-pointer"
       >
         <div class="flex-1 min-w-0">
@@ -394,6 +397,7 @@
         iconPath="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"
       />
 
+      <button type="button" onclick={() => updateCheckerStore.checkForUpdates("manual")} disabled={updateCheckerStore.updateStatus === "checking" || updateCheckerStore.installing} class="btn-secondary self-end px-3 py-2 text-xs disabled:opacity-50">{t("settings.updatesCheckNow")}</button>
       <!-- Bottom Row: Dynamic Status / Manual Check Area -->
       <div class="pt-3 border-t border-white/5 flex items-center justify-between min-h-[38px]">
         <span class="text-xs text-gray-400">
@@ -401,19 +405,17 @@
         </span>
         <div>
           {#if updateCheckerStore.updateStatus === "available"}
-            <a
-              href={updateCheckerStore.releaseUrl}
-              target="_blank"
-              class="inline-flex items-center gap-2 rounded-xl border border-amber-500/40 bg-amber-500/15 px-4 py-2 text-left transition-all duration-200 hover:border-amber-500/60 hover:bg-amber-500/25 active:scale-[0.98] cursor-pointer shadow-md shadow-amber-900/20"
-            >
-              <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse shrink-0"></span>
-              <span class="text-[11px] font-bold text-amber-200">
-                {t("settings.updatesDownload", { version: updateCheckerStore.latestVersion ?? "" })}
-              </span>
-              <svg class="w-4 h-4 text-amber-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-              </svg>
-            </a>
+            <div class="flex flex-col items-end gap-2">
+              {#if updateCheckerStore.managerHint}
+                <p class="max-w-xs text-xs text-amber-200">{updateCheckerStore.managerHint}</p>
+              {:else if updateCheckerStore.canInstall}
+                <button type="button" onclick={() => updateCheckerStore.installUpdate()} disabled={updateCheckerStore.installing}
+                  class="rounded-xl border border-amber-500/40 bg-amber-500/15 px-4 py-2 text-xs font-bold text-amber-200 hover:bg-amber-500/25 disabled:opacity-60">
+                  {updateCheckerStore.installing ? t("settings.updatesDownloading", { percent: updateCheckerStore.downloadPercent }) : t("settings.updatesInstall", { version: updateCheckerStore.latestVersion })}
+                </button>
+              {/if}
+              <button type="button" onclick={() => updateCheckerStore.openRelease()} class="text-xs text-indigo-300 underline">{t("settings.updatesReleaseDetails")}</button>
+            </div>
           {:else if updateCheckerStore.updateStatus === "checking"}
             <div class="flex items-center gap-2 text-xs text-gray-400 font-semibold">
               <svg class="animate-spin h-3.5 w-3.5 text-indigo-400 shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -429,18 +431,10 @@
               </svg>
               {t("settings.updatesUpToDate")}
             </span>
-          {:else if updateCheckerStore.automaticUpdateChecks}
-            <span class="text-xs text-gray-500 italic">
-              {t("settings.updatesActiveOnStartup")}
-            </span>
           {:else}
-            <button
-              type="button"
-              onclick={() => updateCheckerStore.checkForUpdates("manual")}
-              class="px-4 py-2 bg-white/5 border border-white/10 hover:bg-white/10 hover:border-white/20 text-white rounded-xl text-xs font-semibold transition-all duration-200 active:scale-[0.98] cursor-pointer"
-            >
-              {t("settings.updatesCheckNow")}
-            </button>
+            <span class="text-xs text-gray-400" role="status">
+              {updateCheckerStore.updateStatus === "error" ? t("settings.updatesCheckFailed") : updateCheckerStore.updateStatus === "offline" ? t("settings.updatesOffline") : updateCheckerStore.automaticUpdateChecks ? t("settings.updatesActiveOnStartup") : t("settings.updatesCheckNow")}
+            </span>
           {/if}
         </div>
       </div>

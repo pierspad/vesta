@@ -3,6 +3,7 @@ import { snackbar } from "$lib/stores/snackbarStore.svelte";
 import {
   NOTE_TYPES_UPDATED_EVENT,
   defaultCardTemplates,
+  predefinedNoteTypes,
   defaultFieldNames,
   limitNoteTypeFieldValue,
   loadCardTemplates,
@@ -76,7 +77,7 @@ const initTemplates = loadCardTemplates();
 const initFieldNames = loadFieldNames();
 const initAnkiFieldPresets = loadAnkiFieldPresets();
 const initAnkiFieldPresetId = loadStoredValue(ACTIVE_ANKI_FIELD_PRESET_KEY, "default");
-const initSelectedAnkiFieldPreset = initAnkiFieldPresets.find(
+const initSelectedAnkiFieldPreset = [...predefinedNoteTypes(), ...initAnkiFieldPresets].find(
   (preset) => preset.id === initAnkiFieldPresetId,
 );
 
@@ -106,16 +107,11 @@ class AnkiTemplateStore {
 
   savedAnkiFieldPresets = $state<AnkiFieldPreset[]>(initAnkiFieldPresets);
   selectedAnkiFieldPresetId = $state(initSelectedAnkiFieldPreset?.id || "default");
-  ankiFieldPresetName = $state(initSelectedAnkiFieldPreset?.name || "");
+  ankiFieldPresetName = $state(initSelectedAnkiFieldPreset?.id.startsWith("predef:") || initSelectedAnkiFieldPreset?.id === "default" ? "" : initSelectedAnkiFieldPreset?.name || "");
   activeNoteTypeId = $state(loadActiveNoteTypeId());
 
   allAnkiFieldPresets = $derived<AnkiFieldPreset[]>([
-    {
-      id: "default",
-      name: "Default_Vesta",
-      noteTypeName: defaultCardTemplates.noteTypeName,
-      fields: defaultFieldNames,
-    },
+    ...predefinedNoteTypes().map((nt) => ({ id: nt.id, name: nt.name, noteTypeName: nt.name, fields: nt.fields })),
     ...this.savedAnkiFieldPresets,
   ]);
 
@@ -194,7 +190,7 @@ class AnkiTemplateStore {
     const preset = this.allAnkiFieldPresets.find((item) => item.id === presetId);
     if (!preset) return;
     this.selectedAnkiFieldPresetId = preset.id;
-    this.ankiFieldPresetName = preset.id === "default" ? "" : preset.name;
+    this.ankiFieldPresetName = preset.id === "default" || preset.id.startsWith("predef:") ? "" : preset.name;
     vestaConfig.setItem(ACTIVE_ANKI_FIELD_PRESET_KEY, preset.id);
     this.noteTypeName = preset.noteTypeName;
     this.setCurrentFieldNames(preset.fields);
@@ -231,7 +227,7 @@ class AnkiTemplateStore {
   }
 
   deleteCurrentAnkiFieldPreset() {
-    if (this.selectedAnkiFieldPresetId === "default") return;
+    if (this.selectedAnkiFieldPresetId === "default" || this.selectedAnkiFieldPresetId.startsWith("predef:")) return;
     const deletedId = this.selectedAnkiFieldPresetId;
     this.savedAnkiFieldPresets = this.savedAnkiFieldPresets.filter((preset) => preset.id !== deletedId);
     this.persistAnkiFieldPresets();

@@ -1,0 +1,20 @@
+import { expect, it, vi } from "vitest";
+vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
+vi.mock("@tauri-apps/api/event", () => ({ listen: vi.fn(async () => () => {}) }));
+import { invoke } from "@tauri-apps/api/core";
+import { supportLogStore as store } from "./supportLogStore.svelte";
+import { recordSupportEvent } from "$lib/utils/supportLog";
+it("flushes the complete log snapshot before export and persists before stop", async () => {
+  vi.mocked(invoke).mockImplementation(async command => command === "support_log_start" ? "/tmp/session.jsonl" : command === "support_log_export" ? "/tmp/export.jsonl" : undefined);
+  await store.start(); expect(store.recording).toBe(true);
+  for (let i = 0; i < 250; i++) recordSupportEvent("test", `entry-${i}`);
+  await store.export("/tmp/export.jsonl");
+  const exportedCalls = vi.mocked(invoke).mock.calls;
+  const exportIndex = exportedCalls.findIndex(([command]) => command === "support_log_export");
+  const batches = exportedCalls.slice(0, exportIndex).filter(([command]) => command === "support_log_append");
+  expect(batches.flatMap(([, args]) => (args as { entries: string[] })?.entries)).toHaveLength(251);
+  recordSupportEvent("test", "last entry"); await store.stop();
+  expect(store.recording).toBe(false);
+  expect(invoke).toHaveBeenLastCalledWith("support_log_stop");
+  expect(store.path).toBe("/tmp/session.jsonl");
+});

@@ -1,6 +1,9 @@
+import { installSupportLogging } from "$lib/utils/supportLog";
 import { mount } from "svelte";
 import "./app.css";
 import { hydrate as hydrateVestaConfig } from "$lib/config/vestaConfig";
+
+installSupportLogging();
 
 // Prevent WebKit from handling dropped files (triggers GStreamer errors).
 // Only intercept OS file drops (dataTransfer contains "Files").
@@ -53,6 +56,8 @@ try {
   // qui sotto valuta i18n DOPO l'idratazione della config (vedi sopra).
   const { initI18n } = await import("$lib/i18n");
   await initI18n();
+  const { supportLogStore } = await import("$lib/stores/supportLogStore.svelte");
+  await supportLogStore.initialize();
   const { default: App } = await import("./App.svelte");
 
   const app = mount(App, {

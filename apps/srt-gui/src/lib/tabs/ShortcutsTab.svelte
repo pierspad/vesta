@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount, onDestroy } from "svelte";
-  import { invoke } from "@tauri-apps/api/core";
+  import { invokeCommand as invoke } from "$lib/services/tauriClient";
   import { locale, currentLanguage } from "$lib/i18n";
   import ConfirmDialog from "$lib/modals/ConfirmDialog.svelte";
   import { snackbar } from "$lib/stores/snackbarStore.svelte";

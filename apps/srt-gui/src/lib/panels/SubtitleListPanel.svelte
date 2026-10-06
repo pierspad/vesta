@@ -1,4 +1,5 @@
 <script lang="ts">
+  import EmptyStatusLabel from "$lib/components/EmptyStatusLabel.svelte";
   import { locale } from "$lib/i18n";
 
   interface SubtitleInfo {
@@ -95,6 +96,9 @@
       </button>
     </div>
 
+  <!-- Keep the empty label outside the scrolling placeholder grid. -->
+  <div class="relative flex min-h-0 flex-1 flex-col">
+    {#if !isLoaded}<EmptyStatusLabel message={t("media.noSubtitlesLoaded")} />{/if}
   <!-- Subtitle list -->
   <div
     class="grid auto-rows-min grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-2 flex-1 p-2 min-h-0 min-w-0 overflow-y-auto overflow-x-hidden scrollbar-thin"
@@ -175,5 +179,6 @@
         {/each}
       {/if}
     {/each}
+  </div>
   </div>
 </div>

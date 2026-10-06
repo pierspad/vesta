@@ -4,7 +4,7 @@
   import { runFlashcardGeneration } from "$lib/workflows/flashcardGeneration";
   import { runFlashcardSeries } from "$lib/workflows/flashcardSeries";
   import { audioOverrideKeys, snapshotOverrideKeys, videoOverrideKeys, mediaSettingChanged, episodeMediaDiff } from "$lib/utils/episodeMediaSettings";
-  import { invoke } from "@tauri-apps/api/core";
+  import { invokeCommand as invoke } from "$lib/services/tauriClient";
   import { listen } from "@tauri-apps/api/event";
   import { guardedOpen } from "$lib/utils/dialogGuard";
   import { setupWebviewDragDrop } from "$lib/utils/dragDrop";
@@ -31,6 +31,7 @@
     NOTE_TYPES_UPDATED_EVENT,
     NOTE_TYPE_FIELD_ORDER,
     listNoteTypes,
+    predefinedNoteTypeForLanguage,
     findNoteTypeById,
     loadActiveNoteTypeId,
     saveActiveNoteTypeId,
@@ -109,7 +110,6 @@
   let audioTracksLoading = $state(false);
 
   const OUTPUT_DIR_KEY = "vesta-last-output-dir";
-  const NOTE_TYPE_LANGUAGE_KEY = "vesta-flashcards-note-type-language";
   const DEFAULT_FLASHCARDS_LANGUAGE_KEY = "vesta-default-flashcards-language";
   const DEFAULT_NATIVE_LANGUAGE_KEY = "vesta-default-native-language";
   const DEFAULT_TARGET_LANGUAGE_KEY = "vesta-default-target-language";
@@ -189,7 +189,8 @@
     const fromPath = seriesMode
       ? (episodes.find((e: EpisodeEntry) => e.targetSubsPath)?.targetSubsPath ? inferLanguageFromPath(episodes.find((e: EpisodeEntry) => e.targetSubsPath)!.targetSubsPath) : "")
       : (targetSubsPath ? inferLanguageFromPath(targetSubsPath) : "");
-    return fromPath || noteTypeLanguage || loadDefaultLanguage(DEFAULT_FLASHCARDS_LANGUAGE_KEY);
+    const manualLanguage = !automaticNoteType ? selectedNoteType?.language : "";
+    return manualLanguage || fromPath || noteTypeLanguage || loadDefaultLanguage(DEFAULT_FLASHCARDS_LANGUAGE_KEY);
   }
 
   function isFontBannerDismissed(lang: string): boolean {
@@ -261,7 +262,7 @@
   }
 
   function getPreferredAudioLanguageCodeForEpisode(ep: { targetSubsPath: string }): string {
-    return inferLanguageFromPath(ep.targetSubsPath) || noteTypeLanguage;
+    return (!automaticNoteType && selectedNoteType?.language) || inferLanguageFromPath(ep.targetSubsPath) || noteTypeLanguage;
   }
 
   // Le euristiche pure di parsing/matching (regex su filename, classificazione
@@ -828,12 +829,11 @@
   // active field set is read-only here — editing lives in Settings by design.
   let noteTypeList = $state<NoteTypeDef[]>(listNoteTypes());
   let selectedNoteTypeId = $state(loadActiveNoteTypeId());
-  let selectedNoteType = $derived(
-    findNoteTypeById(selectedNoteTypeId)
-  );
+  let automaticNoteType = $derived(selectedNoteTypeId === "default" || selectedNoteTypeId === "auto");
+  let selectedNoteType = $derived(noteTypeList.find((nt) => nt.id === selectedNoteTypeId) ?? findNoteTypeById(selectedNoteTypeId));
   // Never null — falls back to the default note type.
   let activeNoteType = $derived(
-    selectedNoteType ?? findNoteTypeById("default")!
+    automaticNoteType ? predefinedNoteTypeForLanguage(proactiveLang) : selectedNoteType ?? findNoteTypeById("default")!
   );
   let noteTypeName = $derived(activeNoteType.name);
 
@@ -848,14 +848,14 @@
   });
 
   let noteTypeOptions = $derived(
-    noteTypeList.map((nt) => ({
+    [{ value: "default", label: `${predefinedNoteTypeForLanguage(proactiveLang).name} · ${t("flashcards.detectedNoteType")}`, icon: languages.find((language) => language.code === predefinedNoteTypeForLanguage(proactiveLang).language)?.flag || '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" class="w-4 h-4"><path stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M4 9V4h5m6 0h5v5M4 15v5h5m6 0h5v-5M8 12h8m-4-4v8" /></svg>' }, ...noteTypeList.filter((nt) => nt.id !== "default").map((nt) => ({
       value: nt.id,
       label: nt.name,
-      searchTerms: [nt.name, languages.find((l) => l.code === nt.language)?.nameEn ?? ""]
+      searchTerms: [nt.name, getLanguageSearchTerms(nt.language)]
         .filter(Boolean)
         .join(" "),
       icon: languages.find((l) => l.code === nt.language)?.flag ?? "🃏",
-    })),
+    }))],
   );
 
   let activeFieldKeys = $derived(
@@ -887,24 +887,7 @@
 
   function selectNoteType(id: string) {
     selectedNoteTypeId = id;
-    const nt = findNoteTypeById(id);
-    if (nt?.language) {
-      noteTypeLanguage = nt.language;
-      try {
-        vestaConfig.setItem(NOTE_TYPE_LANGUAGE_KEY, nt.language);
-      } catch {}
-    }
-  }
-
-  function cycleTemplates() {
-    if (noteTypeList.length === 0) return;
-    const currentIndex = noteTypeList.findIndex((nt) => nt.id === selectedNoteTypeId);
-    const nextIndex = (currentIndex + 1) % noteTypeList.length;
-    const nextTemplate = noteTypeList[nextIndex];
-    if (nextTemplate) {
-      selectedNoteTypeId = nextTemplate.id;
-      saveActiveNoteTypeId(nextTemplate.id);
-    }
+    saveActiveNoteTypeId(id);
   }
 
   // deckName/deckNameAuto and the generation run-state (isProcessing,
@@ -987,8 +970,7 @@
       episodes.length > 0 &&
         episodes.every((ep) => ep.targetSubsPath) &&
         outputDir &&
-        (needsDeckName ? Boolean(generationStore.deckName || (easyMode && episodes.length > 0)) : true) &&
-        noteTypeLanguage,
+        (needsDeckName ? Boolean(generationStore.deckName || (easyMode && episodes.length > 0)) : true),
     ),
   );
 
@@ -1080,7 +1062,7 @@
 
 
   function getPreferredAudioLanguageCode(): string {
-    return inferLanguageFromPath(targetSubsPath) || noteTypeLanguage;
+    return getStudiedLanguagePreference();
   }
 
   // scoreAudioTrackForLanguage/pickBestAudioTrackIndex sono importate da
@@ -1327,25 +1309,7 @@
         handleLanguageDefaultsUpdated,
       );
 
-    try {
-      const savedNoteTypeLanguage = vestaConfig.getItem(
-        NOTE_TYPE_LANGUAGE_KEY,
-      );
-      if (
-        savedNoteTypeLanguage &&
-        languages.some((l) => l.code === savedNoteTypeLanguage)
-      ) {
-        noteTypeLanguage = savedNoteTypeLanguage;
-      } else {
-        const defaultNoteTypeLanguage = vestaConfig.getItem(DEFAULT_FLASHCARDS_LANGUAGE_KEY);
-        if (
-          defaultNoteTypeLanguage &&
-          languages.some((l) => l.code === defaultNoteTypeLanguage)
-        ) {
-          noteTypeLanguage = defaultNoteTypeLanguage;
-        }
-      }
-    } catch {}
+    noteTypeLanguage = loadDefaultLanguage(DEFAULT_FLASHCARDS_LANGUAGE_KEY);
 
     try {
       const savedDir = vestaConfig.getItem(OUTPUT_DIR_KEY);
@@ -1507,6 +1471,7 @@
       episodeNumber: 1,
       exportFormat: generationStore.effectiveExportFormat,
       noteType: activeNoteType,
+      automaticNoteType,
       cpuCores: generationStore.effectiveCpuCores,
       targetLanguage: getStudiedLanguagePreference(),
       autoCardFont: ankiStore.autoCardFont,
@@ -1517,17 +1482,6 @@
   async function loadTargetSubtitle(path: string) {
     targetSubsPath = path;
     const filename = getFileName(targetSubsPath);
-
-    // Always try to infer language from the newly loaded file path.
-    // If found, it overrides any previously stored language so that
-    // loading a different-language subtitle always picks the right scheme.
-    const inferredFromPath = inferLanguageFromPath(targetSubsPath);
-    if (inferredFromPath) {
-      noteTypeLanguage = inferredFromPath;
-      vestaConfig.setItem(NOTE_TYPE_LANGUAGE_KEY, inferredFromPath);
-    } else if (!noteTypeLanguage) {
-      // No token in filename and nothing stored — leave as-is
-    }
 
     const info = await invoke<any>("flashcard_load_subs", {
       path: targetSubsPath,
@@ -1799,7 +1753,7 @@
     cancelRequested = false;
     await runFlashcardSeries({
       generationStore, episodes: $state.snapshot(episodes), easyMode, needsDeckName, t,
-      outputDir, cardFilters: $state.snapshot(cardFilters), videoHwAccel, activeNoteType,
+      outputDir, cardFilters: $state.snapshot(cardFilters), videoHwAccel, activeNoteType, automaticNoteType,
       ankiStore: { autoCardFont: ankiStore.autoCardFont, embedCardFont: ankiStore.embedCardFont },
       previewStore,
       getEpisodeMediaSettings: ((defaults) => (episode: EpisodeEntry) => ({ ...defaults, ...episode.mediaOverrides }))($state.snapshot(mediaSettings)),
@@ -2004,7 +1958,7 @@
   {#if hasAnyFiles && ankiStore.autoCardFont}
     {@const proactiveLang = getStudiedLanguagePreference()}
     {@const proactiveFont = fontStore.getFontForLanguage(proactiveLang)}
-    {#if proactiveFont && !proactiveFont.downloaded && !isFontBannerDismissed(proactiveLang)}
+    {#if ankiStore.autoCardFont && ankiStore.embedCardFont && proactiveFont && !proactiveFont.downloaded && !isFontBannerDismissed(proactiveLang)}
       {@const isThisDownloading = fontStore.downloadingFontId === proactiveFont.id}
       <div class="mb-4 p-3.5 bg-cyan-500/10 border border-cyan-500/30 rounded-xl flex flex-col md:flex-row md:items-center justify-between gap-3 animate-fade-in shadow-lg shadow-black/20">
         <div class="flex items-start md:items-center gap-3 min-w-0">
@@ -2425,11 +2379,21 @@
     <GenerationStatusDisplay
       {easyMode}
       noteTypeName={activeNoteType.name}
-      onCycleTemplates={cycleTemplates}
-      onNoteTypeContextMenu={(e) => openBottomContextMenu(e, "anki")}
-      onNoteTypeMiddleClick={() => onGoToSettings?.("anki")}
-      {showSnackbar}
-    />
+    >
+      {#snippet noteTypeControl()}
+        <div class="w-72 max-w-[35vw]" title={`${t("settings.noteType")}: ${activeNoteType.name}`}>
+          <span class="block text-[10px] text-violet-300 mb-1">{t("settings.noteType")}</span>
+          <SearchableSelect
+            options={noteTypeOptions}
+            value={automaticNoteType ? "default" : selectedNoteTypeId}
+            onchange={selectNoteType}
+            placeholder={t("settings.noteType")}
+            noResultsText={t("common.noResults")}
+            placement="up"
+          />
+        </div>
+      {/snippet}
+    </GenerationStatusDisplay>
     {/snippet}
     {#snippet right()}
     <!-- Right side: Export format toggle button, series output mode selector, and action buttons -->
@@ -2495,7 +2459,7 @@
           ></div>
 
           <button
-            onclick={() => { if(isApkgSwitchEnabled) generationStore.seriesOutputMode = generationStore.seriesOutputMode === 'separate' ? 'single' : 'separate'; }}
+            onclick={() => { if(isApkgSwitchEnabled) generationStore.seriesOutputMode = 'separate'; }}
             disabled={!isApkgSwitchEnabled}
             class="w-[160px] py-1 rounded-md text-xs font-semibold transition-colors duration-200 flex items-center justify-center cursor-pointer select-none relative z-10 disabled:cursor-not-allowed
               {generationStore.seriesOutputMode === 'separate' ? 'text-violet-200' : 'text-gray-500 hover:text-gray-300'}"
@@ -2503,7 +2467,7 @@
             {t("flashcards.outputPerEpisode")}
           </button>
           <button
-            onclick={() => { if(isApkgSwitchEnabled) generationStore.seriesOutputMode = generationStore.seriesOutputMode === 'separate' ? 'single' : 'separate'; }}
+            onclick={() => { if(isApkgSwitchEnabled) generationStore.seriesOutputMode = 'single'; }}
             disabled={!isApkgSwitchEnabled}
             class="w-[160px] py-1 rounded-md text-xs font-semibold transition-colors duration-200 flex items-center justify-center cursor-pointer select-none relative z-10 disabled:cursor-not-allowed
               {generationStore.seriesOutputMode === 'single' ? 'text-violet-200' : 'text-gray-500 hover:text-gray-300'}"

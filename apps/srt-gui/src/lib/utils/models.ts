@@ -1,4 +1,4 @@
-import { languages } from "$lib/config/languages";
+import { languages, normalizeLanguageCode } from "$lib/config/languages";
 
 // This file has been fully split apart; what remains are path/language
 // utilities with no other natural home. See:
@@ -21,16 +21,17 @@ export function getFileName(path: string): string {
   return normalized.split("/").pop() || path;
 }
 
-const knownLangCodes = new Set(languages.map((l) => l.code.toLowerCase()));
-
 export function inferLanguageFromPath(filePath: string): string | null {
-  const filename = getFileName(filePath).toLowerCase();
-  const base = filename.replace(/\.[^/.]+$/, "");
-  const tokens = base.split(/[.\-_]+/).filter(Boolean);
+  const base = getFileName(filePath).toLowerCase().replace(/\.[^/.]+$/, "");
+  const tokens = base.split(/[.\-_\s()[\]]+/).filter(Boolean);
   for (let i = tokens.length - 1; i >= 0; i--) {
-    if (knownLangCodes.has(tokens[i])) {
-      const lang = languages.find((l) => l.code.toLowerCase() === tokens[i]);
-      if (lang) return lang.code;
+    // Longest suffix first: zh-Hant-TW must never fall back to simplified zh.
+    for (let length = Math.min(3, i + 1); length >= 1; length--) {
+      const candidate = tokens.slice(i - length + 1, i + 1).join("-");
+      // Only combine actual locale subtags; avoid treating a movie title as a locale.
+      if (length > 1 && !/^(zh-(hant|hans)(-(tw|hk|cn|sg))?|zh-(tw|hk|cn|sg)|pt-br|en-(us|gb)|ar-sa|de-de|es-es|fr-fr|it-it|ja-jp|ko-kr|ru-ru|hi-in|nl-nl|pl-pl|tr-tr)$/.test(candidate)) continue;
+      const code = normalizeLanguageCode(candidate);
+      if (code) return code;
     }
   }
   return null;

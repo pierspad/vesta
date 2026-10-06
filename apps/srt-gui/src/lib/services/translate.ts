@@ -5,7 +5,10 @@ import type { TierEntryPayload } from "$lib/config/llmTiers";
 
 export interface SrtFileInfo {
   path: string;
+  coverage_end_ms: number;
+  automatic_context: string;
   subtitle_count: number;
+  preview_subtitles: { id: number; text: string }[];
   first_subtitle: string;
   last_subtitle: string;
 }
@@ -55,4 +58,8 @@ export function startTranslation(config: TranslateConfig): Promise<TranslateResu
 
 export function cancelTranslation(): Promise<void> {
   return invokeCommand<void>("cancel_translation");
+}
+
+export function suggestTranslationContext(inputPath: string, targetLang: string, context: string, tiers: TierEntryPayload[][]): Promise<string> {
+  return invokeCommand("suggest_translation_context", { inputPath, targetLang, context: context || null, tiers });
 }

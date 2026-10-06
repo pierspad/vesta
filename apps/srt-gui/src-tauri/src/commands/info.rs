@@ -69,13 +69,23 @@ fn detect_gpu_device(backend: &str) -> Option<String> {
 pub async fn get_system_diagnostics() -> SystemDiagnostics {
     let gpu_compiled = srt_transcribe::gpu_supported();
     let gpu_backend = srt_transcribe::gpu_backend_name();
-    let gpu_device = detect_gpu_device(gpu_backend);
-    let ffmpeg_available = srt_flashcards::media::check_ffmpeg("ffmpeg").await;
-    let encoder = if ffmpeg_available {
-        srt_flashcards::media::detect_h264_encoder("ffmpeg").await
-    } else {
-        srt_flashcards::media::H264Encoder::Libx264
+    // Process probes run off the async executor and independently of FFmpeg.
+    let gpu = tokio::task::spawn_blocking(move || detect_gpu_device(gpu_backend));
+    let gst = tokio::task::spawn_blocking(|| command_succeeds("gst-inspect-1.0", &["--version"]));
+    let h264 = tokio::task::spawn_blocking(|| command_succeeds("gst-inspect-1.0", &["avdec_h264"]));
+    let h265 = tokio::task::spawn_blocking(|| command_succeeds("gst-inspect-1.0", &["avdec_h265"]));
+    let media = async {
+        let available = srt_flashcards::media::check_ffmpeg("ffmpeg").await;
+        let encoder = if available {
+            srt_flashcards::media::detect_h264_encoder("ffmpeg").await
+        } else {
+            srt_flashcards::media::H264Encoder::Libx264
+        };
+        (available, encoder)
     };
+    let (gpu_device, gst, h264, h265, (ffmpeg_available, encoder)) =
+        tokio::join!(gpu, gst, h264, h265, media);
+    let gpu_device = gpu_device.unwrap_or(None);
 
     SystemDiagnostics {
         os: std::env::consts::OS.to_string(),
@@ -90,9 +100,9 @@ pub async fn get_system_diagnostics() -> SystemDiagnostics {
         ffmpeg_available,
         video_encoder: encoder.label().to_string(),
         hardware_video_encoder: ffmpeg_available && encoder.is_hardware(),
-        gstreamer_available: command_succeeds("gst-inspect-1.0", &["--version"]),
-        gstreamer_h264: command_succeeds("gst-inspect-1.0", &["avdec_h264"]),
-        gstreamer_h265: command_succeeds("gst-inspect-1.0", &["avdec_h265"]),
+        gstreamer_available: gst.unwrap_or(false),
+        gstreamer_h264: h264.unwrap_or(false),
+        gstreamer_h265: h265.unwrap_or(false),
     }
 }
 

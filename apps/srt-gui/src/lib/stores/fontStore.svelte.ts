@@ -1,4 +1,5 @@
-import { invoke } from "@tauri-apps/api/core";
+import { normalizeLanguageCode } from "$lib/config/languages";
+import { invokeCommand as invoke } from "$lib/services/tauriClient";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { snackbar } from "$lib/stores/snackbarStore.svelte";
 
@@ -21,7 +22,8 @@ class FontStore {
   fonts = $state<FontStatusInfo[]>([]);
   downloadingFontId = $state<string | null>(null);
   downloadProgress = $state<number>(0);
-  isDownloading = $derived(this.downloadingFontId !== null);
+  downloadingAll = $state(false);
+  isDownloading = $derived(this.downloadingFontId !== null || this.downloadingAll);
 
   private unlistenProgress: UnlistenFn | null = null;
 
@@ -59,13 +61,9 @@ class FontStore {
   }
 
   getFontForLanguage(lang: string): FontStatusInfo | undefined {
-    if (!lang || !lang.trim()) return undefined;
-    const lower = lang.trim().toLowerCase();
-    if (lower === "zh-tw" || lower === "zh-hk" || lower === "zh-hant" || lower === "cht") {
-      return this.fonts.find((f) => f.id === "noto-sans-tc");
-    }
-    const primary = lower.split(/[-_]/)[0];
-    return this.fonts.find((f) => f.target_languages.includes(primary));
+    const code = normalizeLanguageCode(lang);
+    if (!code) return undefined;
+    return this.fonts.find((font) => font.target_languages.includes(code));
   }
 
   isFontDownloadedForLanguage(lang: string): boolean {
@@ -78,7 +76,23 @@ class FontStore {
   }
 
   async downloadFont(fontId: string): Promise<boolean> {
-    if (this.downloadingFontId) return false;
+    if (this.isDownloading) return false;
+    return this.performDownload(fontId);
+  }
+
+  async downloadAllFonts(): Promise<void> {
+    if (this.isDownloading) return;
+    this.downloadingAll = true;
+    try {
+      for (const font of this.fonts.filter((font) => !font.downloaded)) {
+        await this.performDownload(font.id);
+      }
+    } finally {
+      this.downloadingAll = false;
+    }
+  }
+
+  private async performDownload(fontId: string): Promise<boolean> {
     this.downloadingFontId = fontId;
     this.downloadProgress = 0;
 
