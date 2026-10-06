@@ -1,6 +1,6 @@
 [package]
 name = "srt-extract"
-version = "0.26.0-dev.1"
+version = "0.26.0-dev.2"
 edition.workspace = true
 authors = ["Pierpaolo Spadafora <pierpaolospadafora@proton.me>"]
 description = "Library for extracting and formatting SRT subtitle data"
