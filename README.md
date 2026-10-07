@@ -1,5 +1,8 @@
 # <img src="docs/fireplace.svg" alt="Vesta" height="42" align="absmiddle"> Vesta
 
+[![CI](https://github.com/pierspad/vesta/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/pierspad/vesta/actions/workflows/ci.yml)
+[![GitHub Sponsors](https://img.shields.io/badge/Sponsor-%E2%9D%A4-ea4aaa?logo=github&style=flat)](https://github.com/sponsors/pierspad) [![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-Donate-yellow?logo=buymeacoffee)](https://buymeacoffee.com/pierspad) [![Ko-fi](https://img.shields.io/badge/Ko--fi-Support-ff5e5b?logo=ko-fi)](https://ko-fi.com/pierspad)
+
 **Contents:** [Overview](#what-it-does) · [Workflow](#the-workflow) · [Architecture](#how-vesta-was-built) · [CLI](#headless-cli-use) · [Build](#building-from-source) · [Benchmarks](#benchmarks) · [Documentation](#documentation-map)
 
 **subs2srs, but faster and with more features**
@@ -222,18 +225,12 @@ GPU support is selected at compile time. Systems without a usable accelerator fa
 
 ## Contributing
 
-Pull requests are welcome! For major changes, please open an issue first to discuss your ideas.
-
-If Vesta is useful to you and you want to support its maintenance, you can [sponsor the project on GitHub](https://github.com/sponsors/pierspad). Sponsorship is optional and does not unlock features.
-
----
+Bug reports and pull requests are welcome. For major changes, open an issue first. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## LLM Disclosure
 
 This project was developed with the assistance of Large Language Models, used to support code writing and documentation.
 
----
-
 ## License
 
-This project is licensed under the GPL v3 License — see the [LICENSE](LICENSE) file for details.
+See [LICENSE](LICENSE).
