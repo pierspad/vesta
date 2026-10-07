@@ -17,7 +17,7 @@ source "$(dirname "${BASH_SOURCE[0]}")/config.sh"
 source "$(dirname "${BASH_SOURCE[0]}")/lib/common.sh"
 cd "$REPO_ROOT"
 
-need mono; need ffmpeg
+need mono; need ffmpeg; need python3
 [ -f "$SUBS2SRS_EXE" ] || die "subs2srs harness missing — run ./benchmarking_against_subs2srs/1_compile_subs2srs.sh"
 
 mkdir -p "$RESULTS_DIR" "$WORK_DIR"
@@ -60,7 +60,7 @@ for media in "${TEST_MEDIA[@]}"; do
   if ms=$(timed_median mono "$SUBS2SRS_EXE" --target "$target" ${native:+--native "$native"} \
             --video "$video" --output "$out" --deck "Bench"); then
     md="$out/Bench.media"
-    a=$(count_media "$md" mp3); s=$(count_media "$md" jpg)
+    a=$(count_media "$md" mp3); s=$(( $(count_media "$md" jpg) + $(count_media "$md" webp) + $(count_media "$md" avif) ))
     v=$(( $(count_media "$md" avi) + $(count_media "$md" mp4) ))
     echo "$name,$subcount,subs2srs,subs2srs,tsv,$ms,$subcount,$a,$s,$v,1" >> "$RESULTS_CSV"
     ok "subs2srs: ${ms} ms (audio=$a snap=$s video=$v)"
@@ -79,8 +79,23 @@ for media in "${TEST_MEDIA[@]}"; do
                 --video "$video" --output "$out" --format "$fmt" --deck "Bench" \
                 -j "$jobs" --quiet); then
         md="$out/Bench.media"
-        a=$(count_media "$md" mp3); s=$(count_media "$md" jpg)
+        a=$(count_media "$md" mp3); s=$(( $(count_media "$md" jpg) + $(count_media "$md" webp) + $(count_media "$md" avif) ))
         v=$(( $(count_media "$md" mp4) + $(count_media "$md" avi) ))
+        if [ "$fmt" = "apkg" ]; then
+          package=$(find "$out" -type f -name '*.apkg' -print -quit)
+          [ -n "$package" ] || die "Missing APKG: $out"
+          counts=$(python3 - "$package" <<'PYCOUNTS'
+import json,sys,zipfile
+with zipfile.ZipFile(sys.argv[1]) as archive:
+    if archive.testzip() is not None: raise SystemExit('Corrupt APKG')
+    names=list(json.loads(archive.read('media')).values())
+    print(sum(n.endswith(('.mp3','.opus')) for n in names),
+          sum(n.endswith(('.jpg','.webp','.avif')) for n in names),
+          sum(n.endswith(('.mp4','.avi')) for n in names))
+PYCOUNTS
+          )
+          read -r a s v <<< "$counts"
+        fi
         echo "$name,$subcount,vesta,$vlabel,$fmt,$ms,$subcount,$a,$s,$v,$jobs" >> "$RESULTS_CSV"
         ok "vesta:$vlabel/$fmt: ${ms} ms (audio=$a snap=$s video=$v)"
       fi

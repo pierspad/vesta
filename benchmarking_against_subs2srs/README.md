@@ -47,9 +47,13 @@ The goal is to compare **pure execution time for the same work**, so:
   one-at-a-time pipeline. This isolates raw per-card efficiency from the
   parallelism win: each film is charted as 5 series — subs2srs (TSV), Vesta
   export TSV/APKG at max cores, and Vesta export TSV/APKG at one core.
-* **Identical inputs and outputs.** Same subtitles, same video, same media types
-  (audio + snapshot + video clip). Both produce the same number of cards/clips
-  (the runner prints the counts so you can check).
+* **Same inputs and requested media types, product defaults.** Same subtitles
+  and video, with audio + snapshots + video clips. Encoding settings differ
+  (subs2srs JPEG versus Vesta WebP, and differing video settings). Counts are
+  reported, but this suite does not prove equal quality or byte-identical output.
+  Vesta may also use automatic source optimization/hardware encoding. The
+  native Rust A/B suite in `benchmarking/snapshot_batch` isolates batching and
+  validates exact media equality.
 * **Wall-clock timing** of the whole invocation, optionally repeated
   (`REPEATS=3 ./3_run_benchmarks.sh` reports the median).
 
@@ -75,8 +79,7 @@ symlinks that to the system ffmpeg, leaving subs2srs's code untouched.
 
 > Note: subs2srs only exports TSV (+ a media folder), so it is benchmarked in
 > TSV mode only. Vesta is benchmarked in both TSV and APKG. For APKG the media is
-> embedded inside the `.apkg`, so the on-disk media counts read 0 — the timing is
-> still the full deck build.
+> embedded inside the `.apkg`; the runner reads its manifest for media counts.
 
 ## Comparing Vesta variants
 

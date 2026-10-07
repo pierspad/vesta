@@ -43,13 +43,14 @@ GPU_MODEL=$(lspci 2>/dev/null | grep -iE "vga|3d|display" | sed -e 's/.*: //' | 
   echo "### System & Hardware Specifications"
   echo "- **CPU**: ${CPU_MODEL} (${CORES} logical cores / threads)"
   echo "- **GPU**: ${GPU_MODEL}"
-  echo "- **Video/Audio Decoding & Encoding**: 100% CPU Software (FFmpeg CPU decoders, libmp3lame, mjpeg, libx264). Neither tool uses GPU hardware acceleration (no NVENC/VAAPI/AMF), ensuring a completely fair, apples-to-apples comparison."
+  echo "- **Scope**: product defaults, audio + snapshots + video clips. Vesta may use automatic source optimization or hardware encoding according to its defaults; this is not a forced CPU-only comparison."
   echo "- **Vesta Multi-Core Workers**: ${vesta_JOBS} parallel workers (all logical cores)"
   echo "- **Vesta Single-Core Control**: 1 worker (single-thread control matching subs2srs)"
   echo "- **subs2srs**: Standard original architecture (single-threaded sequential execution, 1 FFmpeg process per card, headless harness without GUI overhead)"
   echo "- **Benchmark Date**: $(date '+%Y-%m-%d %H:%M') · **Repeats per cell**: ${REPEATS}"
   echo
   echo "Wall-clock time of the full deck build (lower is better). Speed-up = subs2srs ÷ Vesta."
+  echo "JPEG/video settings in subs2srs differ from Vesta defaults (including WebP). These charts do not establish equal output quality or isolate Rust snapshot batching. Use the native A/B benchmark for byte-identical validation."
   echo
   echo "![Combined benchmark](benchmark.svg)"
   echo
@@ -139,8 +140,8 @@ END {
     print "## Reading the numbers"
     print ""
     print "- **Vesta (1 core) vs subs2srs** measures raw per-card efficiency: same"
-    print "  single-ffmpeg-at-a-time pipeline, so any gain is architectural (batched"
-    print "  extraction, no per-card process re-spawn overhead), not parallelism."
+    print "  worker limit. Encoding defaults and preprocessing still differ, so"
+    print "  this does not isolate an algorithmic speed-up at identical quality."
     print "- **Vesta (max) vs Vesta (1 core)** isolates the parallelism win of the"
     print "  cores−1 worker pool."
     print "- **subs2srs cannot be run multi-core as written**: it is a single-threaded"
