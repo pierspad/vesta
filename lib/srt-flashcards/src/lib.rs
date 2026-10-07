@@ -11,6 +11,7 @@ mod matcher;
 mod merge_apkg;
 pub use merge_apkg::merge_apkg;
 mod parser;
+mod snapshot_batch;
 mod types;
 
 pub mod fonts;
@@ -27,7 +28,7 @@ use export_tsv::{generate_tsv, sanitize_filename};
 use filters::{apply_filters, apply_span, combine_sentences, compute_context};
 use matcher::match_subtitles;
 use media::{
-    MediaKind, extract_audio_clip, extract_snapshot, extract_video_clip, media_filename,
+    MediaKind, extract_audio_clip, extract_video_clip, media_filename,
     optimize_video_source_with_progress, video_clip_extension,
 };
 pub use parser::parse_subtitle_file;
@@ -558,6 +559,67 @@ pub async fn generate(
     let active_lines: Vec<(usize, &MatchedLine)> =
         matched.iter().filter(|m| m.active).enumerate().collect();
 
+    let snapshot_requests: Vec<_> = if needs_snapshots {
+        active_lines
+            .iter()
+            .map(|&(seq, line)| snapshot_batch::SnapshotRequest {
+                seq: seq + 1,
+                start_ms: line.subs1.start_ms,
+                end_ms: line.subs1.end_ms,
+                output: media_dir.join(media_filename(
+                    MediaKind::Snapshot(config.snapshot_format),
+                    &deck_sanitized,
+                    ep,
+                    seq + 1,
+                )),
+            })
+            .collect()
+    } else {
+        Vec::new()
+    };
+    let candidate_groups = snapshot_batch::groups(snapshot_requests.clone());
+    let batch_source = if config.optimize_video
+        && config.snapshot_format == SnapshotFormat::Webp
+        && candidate_groups.iter().any(|group| group.len() > 1)
+    {
+        snapshot_batch::probe(effective_video_path, &tools.ffprobe, &cancel).await
+    } else {
+        None
+    };
+    let grouped = if batch_source.is_some() {
+        candidate_groups
+    } else {
+        snapshot_requests
+            .into_iter()
+            .map(|request| vec![request])
+            .collect()
+    };
+    let mut snapshot_groups: HashMap<_, _> = grouped
+        .into_iter()
+        .map(|group| {
+            // Schedule a group at its earliest card, retaining interleaved audio work.
+            (
+                group.iter().map(|request| request.seq).min().unwrap(),
+                group,
+            )
+        })
+        .collect();
+    let snapshot_settings = snapshot_batch::SnapshotSettings {
+        source: effective_video_path.to_string(),
+        ffmpeg: tools.ffmpeg.clone(),
+        ffprobe: tools.ffprobe.clone(),
+        width: config.snapshot_width,
+        height: config.snapshot_height,
+        crop: effective_crop,
+        format: config.snapshot_format,
+        quality: config.snapshot_quality,
+        batch_source,
+        cancel: cancel.clone(),
+    };
+    if cancel.is_cancelled() {
+        return Ok(cancelled_result("Cancelled by user", 0, 0, 0));
+    }
+
     let mut audio_count = 0usize;
     let mut snapshot_count = 0usize;
     let mut video_count = 0usize;
@@ -572,7 +634,7 @@ pub async fn generate(
         let hw_video_semaphore = video_encoder
             .is_hardware()
             .then(|| Arc::new(tokio::sync::Semaphore::new(3)));
-        let mut tasks: tokio::task::JoinSet<(&'static str, anyhow::Result<()>, usize)> =
+        let mut tasks: tokio::task::JoinSet<Vec<(&'static str, anyhow::Result<()>, usize)>> =
             tokio::task::JoinSet::new();
 
         for &(seq, line) in &active_lines {
@@ -619,42 +681,16 @@ pub async fn generate(
                         &ffmpeg,
                     )
                     .await;
-                    ("audio", result, seq_num)
+                    vec![("audio", result, seq_num)]
                 });
             }
 
-            if needs_snapshots {
-                let source = video_source_arc.clone().unwrap();
-                let output_path = media_dir.join(media_filename(
-                    MediaKind::Snapshot(config.snapshot_format),
-                    &deck_sanitized,
-                    ep,
-                    seq_num,
-                ));
-                let snapshot_format = config.snapshot_format;
-                let snapshot_quality = config.snapshot_quality;
-                let w = config.snapshot_width;
-                let h = config.snapshot_height;
-                let crop = effective_crop;
-                let ffmpeg = ffmpeg_cmd_arc.clone();
+            if let Some(requests) = snapshot_groups.remove(&seq_num) {
+                let settings = snapshot_settings.clone();
                 let permit = semaphore.clone();
-
                 tasks.spawn(async move {
                     let _permit = permit.acquire_owned().await.expect("semaphore open");
-                    let result = extract_snapshot(
-                        &source,
-                        &output_path,
-                        start_ms,
-                        end_ms,
-                        w,
-                        h,
-                        crop,
-                        snapshot_format,
-                        snapshot_quality,
-                        &ffmpeg,
-                    )
-                    .await;
-                    ("snapshot", result, seq_num)
+                    settings.extract(requests).await
                 });
             }
 
@@ -691,7 +727,11 @@ pub async fn generate(
                     let _hw_permit = match hw_video_semaphore_acquire(hw_permit_source).await {
                         Ok(p) => p,
                         Err(_) => {
-                            return ("video", Err(anyhow::anyhow!("semaphore closed")), seq_num);
+                            return vec![(
+                                "video",
+                                Err(anyhow::anyhow!("semaphore closed")),
+                                seq_num,
+                            )];
                         }
                     };
                     let mut result = extract_video_clip(
@@ -741,14 +781,27 @@ pub async fn generate(
                         )
                         .await;
                     }
-                    ("video", result, seq_num)
+                    vec![("video", result, seq_num)]
                 });
             }
         }
 
-        while let Some(joined) = tasks.join_next().await {
+        loop {
+            let joined = tokio::select! {
+                biased;
+                _ = cancel.cancelled() => {
+                    tasks.abort_all();
+                    while tasks.join_next().await.is_some() {}
+                    return Ok(cancelled_result("Cancelled by user", audio_count, snapshot_count, video_count));
+                }
+                joined = tasks.join_next() => joined,
+            };
+            let Some(joined) = joined else {
+                break;
+            };
             if cancel.is_cancelled() {
                 tasks.abort_all();
+                while tasks.join_next().await.is_some() {}
                 return Ok(cancelled_result(
                     "Cancelled by user",
                     audio_count,
@@ -757,58 +810,60 @@ pub async fn generate(
                 ));
             }
 
-            let Ok((kind, result, seq_num)) = joined else {
+            let Ok(results) = joined else {
                 continue;
             };
+            for (kind, result, seq_num) in results {
+                completed_ops += 1;
+                let pct = 15.0 + (completed_ops as f64 / total_media_ops.max(1) as f64) * 75.0;
 
-            completed_ops += 1;
-            let pct = 15.0 + (completed_ops as f64 / total_media_ops.max(1) as f64) * 75.0;
+                match (kind, &result) {
+                    ("audio", Ok(())) => audio_count += 1,
+                    ("snapshot", Ok(())) => snapshot_count += 1,
+                    ("video", Ok(())) => video_count += 1,
+                    (kind, Err(e)) => {
+                        let (msg_key, label) = match kind {
+                            "audio" => ("flashcards.progress.audioFailed", "Audio"),
+                            "snapshot" => ("flashcards.progress.snapshotFailed", "Snapshot"),
+                            _ => ("flashcards.progress.videoFailed", "Video"),
+                        };
+                        eprintln!("{} extraction failed for line {}: {}", label, seq_num, e);
+                        emit(
+                            progress,
+                            "media",
+                            msg_key,
+                            completed_ops,
+                            total_media_ops,
+                            pct,
+                            HashMap::from([
+                                ("line".to_string(), seq_num.to_string()),
+                                ("error".to_string(), e.to_string()),
+                            ]),
+                        );
+                    }
+                    _ => {}
+                }
 
-            match (kind, &result) {
-                ("audio", Ok(())) => audio_count += 1,
-                ("snapshot", Ok(())) => snapshot_count += 1,
-                ("video", Ok(())) => video_count += 1,
-                (kind, Err(e)) => {
-                    let (msg_key, label) = match kind {
-                        "audio" => ("flashcards.progress.audioFailed", "Audio"),
-                        "snapshot" => ("flashcards.progress.snapshotFailed", "Snapshot"),
-                        _ => ("flashcards.progress.videoFailed", "Video"),
-                    };
-                    eprintln!("{} extraction failed for line {}: {}", label, seq_num, e);
+                if result.is_ok() {
                     emit(
                         progress,
                         "media",
-                        msg_key,
+                        "flashcards.progress.extractingMedia",
                         completed_ops,
                         total_media_ops,
                         pct,
                         HashMap::from([
-                            ("line".to_string(), seq_num.to_string()),
-                            ("error".to_string(), e.to_string()),
+                            ("current".to_string(), completed_ops.to_string()),
+                            ("total".to_string(), total_media_ops.to_string()),
                         ]),
                     );
                 }
-                _ => {}
-            }
-
-            if result.is_ok() {
-                emit(
-                    progress,
-                    "media",
-                    "flashcards.progress.extractingMedia",
-                    completed_ops,
-                    total_media_ops,
-                    pct,
-                    HashMap::from([
-                        ("current".to_string(), completed_ops.to_string()),
-                        ("total".to_string(), total_media_ops.to_string()),
-                    ]),
-                );
             }
         }
     }
 
-    // Report aggregate media failures.
+    // Report aggregate media failures. Never export dangling media references.
+    let mut failed_media = 0usize;
     for (needs, count, msg_key) in [
         (
             needs_audio,
@@ -827,6 +882,7 @@ pub async fn generate(
         ),
     ] {
         if needs && count < total_active {
+            failed_media += total_active - count;
             emit(
                 progress,
                 "media",
@@ -837,6 +893,20 @@ pub async fn generate(
                 HashMap::from([("count".to_string(), (total_active - count).to_string())]),
             );
         }
+    }
+
+    if cancel.is_cancelled() {
+        return Ok(cancelled_result(
+            "Cancelled by user",
+            audio_count,
+            snapshot_count,
+            video_count,
+        ));
+    }
+    if failed_media > 0 {
+        return Err(format!(
+            "Failed to generate {failed_media} media file(s); no deck was exported."
+        ));
     }
 
     // --- Stage 5: Export ---

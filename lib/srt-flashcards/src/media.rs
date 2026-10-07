@@ -675,7 +675,7 @@ fn clip_window(start_ms: i64, end_ms: i64, pad_start_ms: i64, pad_end_ms: i64) -
     (ms_to_ffmpeg_ts(actual_start), ms_to_ffmpeg_ts(duration_ms))
 }
 
-fn scale_vf(width: u32, height: u32, crop_bottom: u32) -> String {
+pub(crate) fn scale_vf(width: u32, height: u32, crop_bottom: u32) -> String {
     let mut filters = Vec::new();
     if crop_bottom > 0 {
         filters.push(format!("crop=in_w:in_h-{crop_bottom}:0:0"));

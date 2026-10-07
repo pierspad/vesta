@@ -88,7 +88,7 @@ struct GenerateArgs {
     /// Do not extract video clips.
     #[arg(long)]
     no_video: bool,
-    /// Disable automatic video stream pre-transcoding / optimization.
+    /// Disable automatic video pre-transcoding and nearby snapshot batching.
     #[arg(long)]
     no_optimize: bool,
     /// Loudness-normalize audio clips (EBU R128).
