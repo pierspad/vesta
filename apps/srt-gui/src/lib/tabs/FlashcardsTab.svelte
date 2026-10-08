@@ -2381,7 +2381,7 @@
       noteTypeName={activeNoteType.name}
     >
       {#snippet noteTypeControl()}
-        <div class="w-56 max-w-[30vw]" title={`${t("settings.noteType")}: ${activeNoteType.name}`}>
+        <div class="w-80 max-w-[40vw]">
           <SearchableSelect
             compact
             ariaLabel={t("settings.noteType")}
@@ -2480,7 +2480,7 @@
           <!-- Custom premium tooltip -->
           {#if isApkgSwitchEnabled}
             <div 
-              class="pointer-events-none absolute bottom-full z-50 mb-3 -translate-x-1/2 rounded-xl border border-violet-500/30 bg-gray-950/95 p-3 text-center text-xs text-violet-300 shadow-2xl shadow-black/40 ring-1 ring-white/10 transition-all duration-150 delay-0 group-hover/sw:delay-300 opacity-0 group-hover/sw:opacity-100 group-hover/sw:translate-y-0 translate-y-1 whitespace-normal max-w-[280px] w-max"
+              class="pointer-events-none absolute bottom-full z-50 mb-3 -translate-x-1/2 rounded-xl border border-violet-500/30 bg-gray-950/95 p-3 text-center text-xs text-violet-300 shadow-2xl shadow-black/40 ring-1 ring-white/10 transition-[opacity,transform] duration-75 delay-0 opacity-0 group-hover/sw:opacity-100 group-hover/sw:translate-y-0 translate-y-1 whitespace-normal max-w-[280px] w-max"
               style="left: {generationStore.seriesOutputMode === 'separate' ? '82px' : '242px'};"
             >
               {generationStore.seriesOutputMode === 'separate' ? t("flashcards.outputPerEpisodeDesc") : t("flashcards.outputSingleApkgDesc")}

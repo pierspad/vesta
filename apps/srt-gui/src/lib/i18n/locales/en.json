@@ -99,7 +99,7 @@
   "experimental.setup.try": "Try without saving",
   "experimental.setup.title": "First-run setup preview",
   "experimental.disclaimer": "These features are under evaluation: they may change, move, or be removed. Feedback is welcome.",
-  "flashcards.automaticNoteType": "Automatic (subtitle language)",
+  "flashcards.automaticNoteType": "Automatic",
   "flashcards.addFiles": "Upload media",
   "flashcards.ankiAutoImportFailed": "Automatic import into Anki failed, the .apkg file is on disk",
   "flashcards.ankiAutoImportSuccess": "Cards imported into Anki automatically",

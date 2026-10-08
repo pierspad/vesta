@@ -99,7 +99,7 @@
   "experimental.setup.try": "Ohne Speichern ausprobieren",
   "experimental.setup.title": "Vorschau der Ersteinrichtung",
   "experimental.disclaimer": "Diese Funktionen werden noch evaluiert: Sie können sich ändern, verschoben oder entfernt werden. Feedback ist willkommen.",
-  "flashcards.automaticNoteType": "Automatisch (Untertitelsprache)",
+  "flashcards.automaticNoteType": "Automatisch",
   "flashcards.addFiles": "Medien laden",
   "flashcards.ankiAutoImportFailed": "Automatischer Import in Anki fehlgeschlagen, die .apkg-Datei liegt auf der Festplatte",
   "flashcards.ankiAutoImportSuccess": "Karten automatisch in Anki importiert",

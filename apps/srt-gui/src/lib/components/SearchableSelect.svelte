@@ -279,15 +279,15 @@
             {/if}
             {#if option.icon}
               {#if iconMarkup(option.icon)}
-                <span class="mr-2 flex items-center justify-center">{@html iconMarkup(option.icon)!}</span>
+                <span class="mr-2 flex h-4 w-5 shrink-0 items-center justify-center">{@html iconMarkup(option.icon)!}</span>
               {:else}
-                <span class="mr-2">{option.icon}</span>
+                <span class="mr-2 flex h-4 w-5 shrink-0 items-center justify-center">{option.icon}</span>
               {/if}
             {/if}
             <span>{option.label}</span>
             {#if option.value === value}
               <svg
-                class="w-4 h-4 ml-auto text-indigo-400"
+                class="w-4 h-4 ml-auto shrink-0 text-indigo-400"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -331,6 +331,7 @@
 
   :global(.language-flag) {
     display: block;
+    flex-shrink: 0;
     width: 1.25rem;
     height: 0.875rem;
     object-fit: cover;

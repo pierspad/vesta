@@ -99,7 +99,7 @@
   "experimental.setup.try": "Kaydetmeden dene",
   "experimental.setup.title": "İlk kurulum önizlemesi",
   "experimental.disclaimer": "Bu özellikler değerlendirme aşamasındadır: değişebilir, taşınabilir veya kaldırılabilir. Geri bildirimlerinizi bekliyoruz.",
-  "flashcards.automaticNoteType": "Otomatik (altyazı dili)",
+  "flashcards.automaticNoteType": "Otomatik",
   "flashcards.addFiles": "Medya yükle",
   "flashcards.ankiAutoImportFailed": "Anki'ye otomatik içe aktarma başarısız oldu, .apkg dosyası diskte",
   "flashcards.ankiAutoImportSuccess": "Kartlar Anki'ye otomatik olarak içe aktarıldı",

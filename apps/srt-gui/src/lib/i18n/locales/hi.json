@@ -99,7 +99,7 @@
   "experimental.setup.try": "बिना सहेजे आज़माएँ",
   "experimental.setup.title": "प्रारंभिक सेटअप का पूर्वावलोकन",
   "experimental.disclaimer": "ये सुविधाएँ मूल्यांकन के अधीन हैं: ये बदल सकती हैं, स्थानांतरित या हटाई जा सकती हैं। प्रतिक्रिया का स्वागत है।",
-  "flashcards.automaticNoteType": "स्वचालित (उपशीर्षक की भाषा)",
+  "flashcards.automaticNoteType": "स्वचालित",
   "flashcards.addFiles": "मीडिया अपलोड करें",
   "flashcards.ankiAutoImportFailed": "Anki में स्वचालित आयात विफल रहा, .apkg फ़ाइल डिस्क पर है",
   "flashcards.ankiAutoImportSuccess": "कार्ड स्वचालित रूप से Anki में आयात किए गए",

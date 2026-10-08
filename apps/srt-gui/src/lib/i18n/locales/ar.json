@@ -99,7 +99,7 @@
   "experimental.setup.try": "جرّب دون حفظ",
   "experimental.setup.title": "معاينة الإعداد الأولي",
   "experimental.disclaimer": "هذه الميزات قيد التقييم: قد تتغير أو تُنقل أو تُزال. نرحّب بملاحظاتكم.",
-  "flashcards.automaticNoteType": "تلقائي (لغة الترجمة)",
+  "flashcards.automaticNoteType": "تلقائي",
   "flashcards.addFiles": "تحميل الوسائط",
   "flashcards.ankiAutoImportFailed": "فشل الاستيراد التلقائي إلى Anki، ملف .apkg موجود على القرص",
   "flashcards.ankiAutoImportSuccess": "تم استيراد البطاقات تلقائيًا إلى Anki",

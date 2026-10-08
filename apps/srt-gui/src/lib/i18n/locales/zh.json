@@ -99,7 +99,7 @@
   "experimental.setup.try": "试用而不保存",
   "experimental.setup.title": "首次设置预览",
   "experimental.disclaimer": "这些功能正在评估中：可能会更改、移动或移除。欢迎反馈。",
-  "flashcards.automaticNoteType": "自动（字幕语言）",
+  "flashcards.automaticNoteType": "自动",
   "flashcards.addFiles": "加载媒体",
   "flashcards.ankiAutoImportFailed": "自动导入 Anki 失败，.apkg 文件已保存在磁盘上",
   "flashcards.ankiAutoImportSuccess": "卡片已自动导入 Anki",

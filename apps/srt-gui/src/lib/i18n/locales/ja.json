@@ -99,7 +99,7 @@
   "experimental.setup.try": "保存せずに試す",
   "experimental.setup.title": "初回セットアップのプレビュー",
   "experimental.disclaimer": "これらの機能は評価中です。変更・移動・削除される可能性があります。フィードバック歓迎です。",
-  "flashcards.automaticNoteType": "自動（字幕の言語）",
+  "flashcards.automaticNoteType": "自動",
   "flashcards.addFiles": "メディアを読み込む",
   "flashcards.ankiAutoImportFailed": "Ankiへの自動インポートに失敗しました。.apkgファイルはディスクに保存されています",
   "flashcards.ankiAutoImportSuccess": "カードがAnkiに自動インポートされました",

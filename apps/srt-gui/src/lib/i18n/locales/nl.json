@@ -99,7 +99,7 @@
   "experimental.setup.try": "Proberen zonder opslaan",
   "experimental.setup.title": "Voorbeeld van eerste configuratie",
   "experimental.disclaimer": "Deze functies worden geëvalueerd: ze kunnen veranderen, verplaatst of verwijderd worden. Feedback is welkom.",
-  "flashcards.automaticNoteType": "Automatisch (ondertiteltaal)",
+  "flashcards.automaticNoteType": "Automatisch",
   "flashcards.addFiles": "Media laden",
   "flashcards.ankiAutoImportFailed": "Automatisch importeren in Anki mislukt, het .apkg-bestand staat op schijf",
   "flashcards.ankiAutoImportSuccess": "Kaarten automatisch geïmporteerd in Anki",

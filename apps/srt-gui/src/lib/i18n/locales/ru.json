@@ -99,7 +99,7 @@
   "experimental.setup.try": "Попробовать без сохранения",
   "experimental.setup.title": "Предпросмотр первоначальной настройки",
   "experimental.disclaimer": "Эти функции находятся на стадии оценки: они могут измениться, переместиться или быть удалены. Обратная связь приветствуется.",
-  "flashcards.automaticNoteType": "Автоматически (язык субтитров)",
+  "flashcards.automaticNoteType": "Автоматически",
   "flashcards.addFiles": "Загрузить медиа",
   "flashcards.ankiAutoImportFailed": "Не удалось автоматически импортировать в Anki, файл .apkg сохранён на диске",
   "flashcards.ankiAutoImportSuccess": "Карточки автоматически импортированы в Anki",

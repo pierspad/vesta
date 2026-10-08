@@ -99,7 +99,7 @@
   "experimental.setup.try": "저장하지 않고 체험",
   "experimental.setup.title": "초기 설정 미리보기",
   "experimental.disclaimer": "이 기능들은 평가 중입니다. 변경, 이동 또는 제거될 수 있습니다. 피드백을 환영합니다.",
-  "flashcards.automaticNoteType": "자동 (자막 언어)",
+  "flashcards.automaticNoteType": "자동",
   "flashcards.addFiles": "미디어 불러오기",
   "flashcards.ankiAutoImportFailed": "Anki로 자동 가져오기에 실패했습니다. .apkg 파일은 디스크에 있습니다",
   "flashcards.ankiAutoImportSuccess": "카드가 Anki에 자동으로 가져와졌습니다",
