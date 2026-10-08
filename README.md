@@ -4,224 +4,113 @@
 
 [![GitHub Sponsors](https://img.shields.io/badge/Sponsor-%E2%9D%A4-ea4aaa?logo=github&style=flat)](https://github.com/sponsors/pierspad) [![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-Donate-yellow?logo=buymeacoffee)](https://buymeacoffee.com/pierspad) [![Ko-fi](https://img.shields.io/badge/Ko--fi-Support-ff5e5b?logo=ko-fi)](https://ko-fi.com/pierspad)
 
-**Contents:** [Overview](#what-it-does) · [Workflow](#the-workflow) · [Architecture](#how-vesta-was-built) · [CLI](#headless-cli-use) · [Build](#building-from-source) · [Benchmarks](#benchmarks) · [Documentation](#documentation-map)
+**Contents:** [Overview](#what-it-does) · [Get started](#get-started) · [Workflow](#the-workflow) · [Benchmarks](#benchmarks) · [Architecture](#how-vesta-was-built) · [CLI](#headless-cli-use) · [Build](#building-from-source) · [Documentation](#documentation-map)
 
-**subs2srs, but faster and with more features**
+**Turn films, series and audio into Anki decks.**
 
-Vesta is a modern successor to subs2srs: a desktop application for language learners that turns media and subtitle files into Anki decks. It also covers the work usually required around deck generation—transcription, translation, subtitle synchronization, revision, and card annotation—without forcing users to assemble a chain of unrelated tools.
+Vesta is a desktop successor to subs2srs for language learners. Each subtitle becomes a card with dialogue, audio and a snapshot; add a translation or video clip if you want one. Preview and filter cards before exporting to Anki.
 
-The desktop application is local-first. Media processing, subtitle parsing, APKG creation, and optional Whisper transcription run on the user's machine. Network services support optional cloud transcription and language models, model/font downloads, and the background GitHub update check.
+[![Total generation time across eight films: Vesta saves about 95 minutes compared with subs2srs](docs/benchmark_totals.svg)](#benchmarks)
 
-## Benchmarks
-
-Two complementary suites measure the shared Rust engine:
-
-- **Native snapshot A/B, 2026-10-07:** 480 generations across eight films,
-  three alternating A/B pairs per case, at 256×144 and 640×360. Nearby snapshot
-  batching reduced total full-film audio + image + APKG time by **15.3%**;
-  individual eligible films saved **10.6–28.2%**. All media and note fields were
-  identical. Unsupported sources and sparse requests were essentially unchanged.
-- **Vesta versus subs2srs, 2026-10-08:** 120 full-pipeline runs across eight
-  films and 12,859 input subtitles, including audio, snapshots and video clips.
-  The aggregate ratio of median times was **4.13×** with 16 requested workers
-  and **1.58×** with one worker. Encoding defaults and produced media counts
-  differ, so this comparison does not establish equal output quality or isolate
-  the effect of batching.
-
-<img src="docs/benchmark_speedup_summary.svg" alt="Mean per-film runtime ratios against subs2srs, three repetitions per case" width="800">
-
-![Full-pipeline comparison across eight films](docs/benchmark_overview.svg)
-
-The charts show measured wall time, not a guarantee for every source or machine.
-Automatic video preparation may apply in clip workflows; no new separately
-instrumented GPU variant is claimed. A worker limit controls concurrent FFmpeg
-jobs rather than pinning each process to one CPU thread.
-
-See the [native quality-preserving benchmark](docs/BENCHMARK_NATIVE.md),
-[full comparison and media counts](docs/BENCHMARK_REPORT.md), and
-[reproduction commands](docs/BENCHMARK_STEPS.md).
+*Eight films: 126 minutes with subs2srs, 30 minutes with Vesta at 16 workers. [Measurement scope and results](#benchmarks).*
 
 ## What it does
 
-Set up with your preferences and drop in your media and subtitle files and create your flashcards.
+- **Create decks:** export a ready-to-import APKG, a TSV with media, or send cards to Anki through AnkiConnect.
+- **Prepare subtitles:** extract embedded text tracks, correct timing, and compare or edit subtitle files side by side.
+- **Fill the gaps:** transcribe missing subtitles, translate dialogue, and add definitions or grammar notes to existing decks.
+
+Deck generation and subtitle editing run locally. Local Whisper transcription is available; cloud transcription and language models are optional. You can disable AI features in Settings with the **AI Kill Switch**.
+
+## Get started
+
+[Download the latest release](https://github.com/pierspad/vesta/releases/latest) for **Windows or Linux**. Linux packages include DEB, RPM, Arch and Flatpak.
+
+1. Complete setup with your native and study languages.
+2. Open **Flashcards** and add your media and study-language subtitles. Add native-language subtitles if you have them.
+3. Preview the cards, choose what to keep, and export an **APKG**. Open it in Anki to import your deck.
+
+FFmpeg and FFprobe are required for media processing. To automate generation, use the [CLI](#headless-cli-use).
 
 ## The workflow
 
-The first-run setup asks for two language choices:
+Start with **Flashcards** when your subtitles are ready. The other tabs help with source material that needs work:
 
-- **Native language** — used for the interface when a translation is available, translation targets, meanings, and reference subtitles.
-- **Study language** — used for source flashcards and as the default spoken language for transcription.
+| What you need | Where to go |
+|---|---|
+| Subtitles from a video container | **Extract subtitles** — save embedded text tracks as SRT. Bitmap tracks need OCR. |
+| Subtitles for media without a transcript | **Transcribe** — use local Whisper or a configured cloud service. |
+| Subtitles that are early, late or drifting | **Synchronize** — set manual anchors or use Whisper-assisted Auto-Sync. |
+| A translation in your native language | **Translate** — translate in context-aware batches and resume saved progress. |
+| Corrections or a comparison with another track | **Revise** — edit dialogue and timing side by side. |
+| Definitions, explanations or extra notes on cards | **Annotate** — edit TSV/APKG notes manually or with a language model. |
 
-Quick setup applies conservative defaults: MP3 audio, APKG export, and the simple interface. Custom setup additionally exposes export format, audio format, Expert Mode, and optional local Whisper installation. Every choice can be changed later in Settings.
+For cloud features, configure providers in Settings. Provider tiers let Vesta share requests within a tier and move to the next when limits are reached. You can change languages, formats and interface options after setup.
 
-The main tabs correspond to independent stages:
+## Benchmarks
 
-1. **Flashcards** matches media and subtitle files, previews cards, applies filters, extracts audio and snapshots with FFmpeg, and exports APKG, TSV, or through AnkiConnect.
-2. **Synchronize** fixes subtitle drift with manual anchors or Whisper-assisted automatic matching.
-3. **Translate** processes subtitles in resumable, context-aware batches through configurable provider tiers.
-4. **Transcribe** converts media to SRT with local whisper.cpp or cloud speech-to-text endpoints. Word-level token timing is always enabled by the GUI for better segment boundaries.
-5. **Revise** compares subtitle tracks side by side and supports timing and text corrections.
-6. **Annotate** loads TSV or APKG decks and adds manual or generated notes while preserving the deck structure.
-7. **Extract subtitles** lists embedded tracks in video containers and saves text tracks as SRT. Bitmap subtitles require OCR; ASS/SSA styling is lost in SRT.
+**Eight films, 12,859 input subtitles, audio + snapshots + video clips.** On the benchmark machine, generating ready-to-import decks with 16 workers took **30 minutes instead of 2 hours 6 minutes** for subs2srs: about **95 minutes saved (76% less time)** across the dataset.
 
-AI-backed features remain optional and can be disabled globally with the AI Kill Switch.
+Each bar sums the median of three runs for each film. Measurements are from an AMD Ryzen 7 5800X; a worker controls concurrent media jobs, not CPU affinity. The TSV rows compare the same export type; APKG includes packaging for direct import into Anki.
 
-#### What if the timestamps of my srt are not synced with the media?
-Go to the **"Synchronize"** tab; here you can add manual anchors and check synchronization step by step.
-A few anchors are enough if the SRT timestamps are just offsetted.
-If there are many discrepancies, use **Auto-Sync** to automatically realign timestamps with help from Whisper.
+The tools use different encoding defaults and produce different media counts, so this is a practical runtime comparison, not an equal-quality test. Separately, **480 native A/B generations** verified the new snapshot batching technique: **15.3% less full-film generation time with identical media and note fields** for audio + snapshots + APKG, without video clips.
 
-#### What if I lack an SRT file in my language?
-After setting up your tiers and providers for LLM answers in Settings, go to the **"Translate"** tab and translate your file. Subtitles are translated in context-aware batches, with progress saved incrementally so you can resume at any time.
-
-#### What if I only have a media file and I don't have any SRT file?
-Go to the **"Transcribe"** tab. You can generate a new `.srt` file directly from your audio or video file using local **Whisper** (via `whisper.cpp` with optional GPU acceleration) or by using fast cloud STT providers specified by you.
-
-#### What if I want to check any missing subtitle?
-Go to the **"Revise"** tab. You can load two subtitle files side-by-side (such as a target language SRT and a reference or native SRT) to inspect them line by line. You can quickly jump to missing or empty subtitles, edit lines directly, insert or remove dialogue, and align timings.
-
-#### What if I want to add notes?
-Go to the **"Annotate"** tab. You can load an Anki `.apkg` deck or flashcard collection to enrich your cards with definitions, grammar explanations, and context notes. You can edit notes **manually** for each card with the built-in editor, or generate them **automatically** using LLMs.
-
-#### What are tiers and providers?
-Tiers and providers are a form of load-balancing for generative operations:
-- **Providers** represent individual endpoints (e.g. a Self-Hosted models, OpenRouter, Google, Groq, Mistral, OpenAI, NVIDIA NIM etc.)
-- **Tiers** define priority levels. Within each tier, requests rotate across providers in a round-robin cycle to share the workload while respecting their configured requests per minute and maximum request limits. If all providers in a tier exhaust their rate limits or quotas, Vesta automatically fails over to the next tier without interrupting your process.
-
-#### What do I do if I don't want to use any AI feature?
-Turn on the **AI Kill Switch**! 
-
-
----
+[Full results and per-film charts](docs/BENCHMARK_REPORT.md) · [Native A/B evidence](docs/BENCHMARK_NATIVE.md) · [Run the benchmarks](docs/BENCHMARK_STEPS.md)
 
 ## How Vesta was built
 
-Generating cards is only the last step: real source material may have missing subtitles, bad timing, inconsistent encodings, several audio tracks, or no translation. Vesta therefore grew as a collection of small engines rather than one GUI-bound pipeline.
+Vesta uses **Rust** for subtitle and media processing, and **Tauri 2 + Svelte 5** for the desktop interface. The GUI and standalone CLIs share the same engines; deck generation does not require Anki to be running.
 
-The backend is a Rust workspace. `core/` contains low-level formats with few policy decisions; `lib/` contains reusable workflow engines; `cli/` wraps those engines for automation; and the Tauri application is one consumer of the same APIs. This keeps media and subtitle logic testable without opening a window and prevents the interface from owning business logic.
+| Directory | Responsibility |
+|---|---|
+| `core/` | SRT parsing and native Anki package creation |
+| `lib/` | Flashcards, transcription, synchronization, translation and deck annotation |
+| `cli/` | Command-line entry points for the reusable engines |
+| `apps/srt-gui/` | Desktop interface and native commands |
 
-```
-vesta/
-├── core/
-│   ├── srt-parser/        # SRT parsing, timing, and formatting engine
-│   └── srt-apkg/          # Native Anki package (.apkg) SQLite collection builder
-├── lib/
-│   ├── srt-flashcards/    # Flashcard generation, media orchestration & filters
-│   ├── srt-transcribe/    # Whisper.cpp + Silero VAD + Cloud STT pipeline
-│   ├── srt-autosync/      # Automatic Whisper-assisted subtitle synchronization
-│   ├── srt-sync/          # Anchor-based timing interpolation
-│   ├── srt-translate/     # Multi-tier LLM subtitle translation
-│   ├── srt-ankiconnect/   # AnkiConnect API client for direct sync
-│   ├── srt-extract/       # Subtitle text and metadata extraction
-│   └── srt-refine/        # LLM-powered deck enrichment
-├── cli/
-│   ├── srt-flashcards-cli # Headless flashcard & deck generation CLI
-│   ├── srt-transcribe-cli # Media to SRT transcription CLI
-│   ├── srt-autosync-cli   # Subtitle re-sync CLI
-│   ├── srt-translate-cli  # Subtitle translation CLI
-│   └── srt-extract-cli    # Subtitle data extraction CLI
-└── apps/
-    ├── srt-gui/           # Desktop GUI (Tauri + Svelte 5 + Tailwind)
-    └── whisper-bench/     # Transcription benchmarking tool
-```
+FFmpeg handles media extraction. whisper.cpp provides local transcription with optional GPU acceleration and CPU fallback. Long-running operations report progress and support cancellation.
 
-Feel free to reuse these crates for your projects, or to optimize them for niche use cases and make a PR!
-
-The GUI uses Tauri 2, Svelte 5, TypeScript, Tailwind CSS, and Vite. Each main tab is loaded as a separate JavaScript chunk on first use and remains mounted afterwards, preserving in-progress work while keeping startup small. Shared state lives in focused Svelte stores, native operations cross typed Tauri commands, and long-running Rust tasks expose progress and cancellation instead of blocking the frontend.
-
-FFmpeg performs media probing, audio extraction, and snapshots. whisper.cpp provides local transcription, with optional Vulkan, CUDA, ROCm, or SYCL builds and automatic CPU fallback. Silero VAD can skip silence before decoding. APKG output is assembled locally through SQLite and ZIP primitives, so generating a deck does not require a running Anki instance.
-
-Translation and annotation use ordered provider tiers: entries share work while respecting configured limits, and exhaustion falls through to the next tier. The desktop transcription workflow tries ready endpoints sequentially across configured tiers (local Whisper, Groq, OpenAI, Deepgram, AssemblyAI, or a custom endpoint); each native request runs one engine. Cancellation stops further attempts. Translation saves incremental progress for resume; transcription restarts its current attempt.
+See [the architecture guide](docs/ARCHITECTURE.md) for design decisions and [module documentation](docs/modules/README.md) for Rust integration examples.
 
 ## Headless CLI Use
 
-### CLI Quick Examples
-
-Build only the standalone CLI tool you need:
+Build the flashcard CLI and generate a deck:
 
 ```bash
-# Build the flashcards CLI
 cargo build --release -p srt-flashcards-cli
 
-# Generate an Anki .apkg deck from subtitles and video
 ./target/release/srt-flashcards generate \
   --target episode-ja.srt \
   --native episode-en.srt \
   --video episode.mkv \
   --output ./out_deck \
   --format apkg \
-  --deck "Anime Season 1" \
+  --deck "Japanese — Episode 1" \
   --snapshot-format webp \
   --audio-format opus
 ```
 
-For comprehensive module guides and Rust integration examples, see [`docs/modules/README.md`](docs/modules/README.md) and [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
-
----
-
-## Documentation Map
-
-- [`docs/reviews/provare-setup-e-installer-2026-10-07.md`](docs/reviews/provare-setup-e-installer-2026-10-07.md) — Setup preview, installation and update checks.
-- [`docs/QUALITY.md`](docs/QUALITY.md) — Repeatable tests, short benchmarks, and release validation.
-- [`docs/STABILITY_AUDIT.md`](docs/STABILITY_AUDIT.md) — Findings, fixes, endpoint evidence, and remaining release risks (2026-10-01).
-- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — Architectural design contracts, layering rules, and conventions.
-- [`docs/BENCHMARK_STEPS.md`](docs/BENCHMARK_STEPS.md) — Step-by-step benchmark reproduction guide, fairness controls, and subs2srs harness explanation.
-- [`docs/BENCHMARK_REPORT.md`](docs/BENCHMARK_REPORT.md) — Full 8-film benchmark results, throughput tables, and per-film charts.
-- [`docs/modules/`](docs/modules/) — Detailed module specifications and embedding instructions.
-
----
+The native subtitle track is optional. Run `./target/release/srt-flashcards generate --help` for filters and media options. Other CLIs cover transcription, synchronization, translation and subtitle extraction; see [the module guides](docs/modules/README.md).
 
 ## Building from Source
 
-### Prerequisites
-- **Rust**: 1.97+ (`rustup default stable`)
-- **Node.js**: 22.12+ (LTS recommended) and `npm`
-- **System dependencies**:
-  - **Runtime**: `ffmpeg` and `ffprobe` on your system PATH.
-  - **Build (Linux)**: C/C++ compiler (`gcc`/`clang`), `cmake`, `pkg-config`, and Tauri v2 development libraries (`libwebkit2gtk-4.1-dev`, `libappindicator3-dev`, `librsvg2-dev`).
+You need **Rust 1.97+**, **Node.js 22.12+**, npm, FFmpeg and FFprobe. Linux desktop builds also need a C/C++ compiler, CMake, pkg-config and Tauri development libraries (`libwebkit2gtk-4.1-dev`, `libappindicator3-dev`, `librsvg2-dev`). Native Whisper builds may need additional GPU tooling; see [transcription build requirements](docs/modules/srt-transcribe.md).
 
-### Development Setup
 ```bash
-# Clone the repository
 git clone https://github.com/pierspad/vesta.git
-cd vesta
-
-# Install frontend dependencies
-cd apps/srt-gui && npm ci && cd ../..
-
-# Then either run the GUI in development mode
-./run_gui.sh
-
-# Or manually:
-cd apps/srt-gui && npx tauri dev
+cd vesta/apps/srt-gui
+npm ci
+npx tauri dev
 ```
 
-Frontend validation and tests:
+For tests and release checks, see [CONTRIBUTING.md](CONTRIBUTING.md) and [the quality guide](docs/QUALITY.md).
 
-```bash
-cd apps/srt-gui
-npm run check
-npm test
-npm run build
-```
+## Documentation Map
 
-Run library/CLI tests without desktop build dependencies:
-
-```bash
-cargo test --workspace --exclude vesta --exclude whisper-bench
-```
-
-For the complete Vesta correctness gate, including desktop command tests and a short synthetic media benchmark:
-
-```bash
-python3 build-scripts/quality_check.py --desktop --smoke
-```
-
-The desktop option needs Tauri native dependencies and the Linux Vulkan toolchain. See [the quality guide](docs/QUALITY.md) for authenticated provider tests and platform release checks.
-
-GPU support is selected at compile time. Systems without a usable accelerator fall back to CPU at runtime. See [`docs/modules/srt-transcribe.md`](docs/modules/srt-transcribe.md) for backend-specific requirements.
-
----
+- [Architecture](docs/ARCHITECTURE.md) — engine boundaries, desktop integration and media lifecycle.
+- [Modules](docs/modules/README.md) — CLI usage and embedding the Rust engines.
+- [Quality](docs/QUALITY.md) — automated checks and installed-app validation.
+- [Benchmarks](docs/BENCHMARK_STEPS.md) — reproduce the measurements and understand their scope.
 
 ## Contributing
 
@@ -233,4 +122,4 @@ This project was developed with the assistance of Large Language Models, used to
 
 ## License
 
-See [LICENSE](LICENSE).
+Vesta is licensed under the [GNU General Public License v3](LICENSE).

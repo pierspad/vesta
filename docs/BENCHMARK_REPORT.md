@@ -15,6 +15,12 @@
 
 ## Charts Overview
 
+### Total generation time and time saved
+
+![Total generation time across all films](benchmark_totals.svg)
+
+Durations sum the per-film medians; savings use the subs2srs total as the baseline.
+
 ### 1. Suite Comparison (All Movies & Variants)
 ![Suite Overview](benchmark_overview.svg)
 

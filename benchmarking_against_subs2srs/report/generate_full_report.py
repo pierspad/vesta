@@ -157,6 +157,47 @@ def plot_overview(media, subcount, series, seconds, out_path):
     fig.savefig(out_path, bbox_inches="tight")
     plt.close(fig)
 
+def plot_totals(media, series, seconds, out_path):
+    """Sum per-film medians; show elapsed minutes and savings, not mean ratios."""
+    baseline_label = "subs2srs (TSV)"
+    baseline = sum(seconds[(m, baseline_label)] for m in media) / 60
+    # Never compare partial datasets as though they were the complete suite.
+    labels = [label for label in series if all((m, label) in seconds for m in media)]
+    totals = [sum(seconds[(m, label)] for m in media) / 60 for label in labels]
+    colors = [next(color for _, _, _, name, color in SERIES_ORDER if name == label)
+              for label in labels]
+    fig, ax = plt.subplots(figsize=(11, 5.4), facecolor=BG_COLOR)
+    ax.set_facecolor(BG_COLOR)
+    bars = ax.barh(labels, totals, color=colors, height=0.58)
+    ax.invert_yaxis()
+    for bar, label, minutes in zip(bars, labels, totals):
+        ax.text(minutes + 1.5, bar.get_y() + bar.get_height() / 2,
+                f"{minutes:.1f} min", va="center", fontsize=11, fontweight="bold")
+        if label != baseline_label:
+            saved = baseline - minutes
+            ax.text(0.985, bar.get_y() + bar.get_height() / 2,
+                    f"{saved:.1f} min saved · {saved / baseline:.0%} less time",
+                    transform=ax.get_yaxis_transform(), ha="right", va="center",
+                    fontsize=10, color="#334155")
+    ax.set_xlim(0, baseline * 1.9)
+    ax.set_xticks([0, 30, 60, 90, 120])
+    ax.set_xlabel("Total generation time (minutes) — lower is better", labelpad=12)
+    ax.grid(axis="x", alpha=0.15)
+    ax.set_axisbelow(True)
+    for spine in ax.spines.values():
+        spine.set_visible(False)
+    ax.tick_params(axis="y", length=0, pad=12)
+    fig.suptitle("From media and subtitles to flashcards", x=0.035, ha="left",
+                 fontsize=18, fontweight="bold", color="#172033")
+    fig.text(0.035, 0.88, f"{len(media)} films · audio, snapshots and video clips · sum of per-film medians (3 runs each)",
+             fontsize=10, color="#475569")
+    fig.text(0.035, 0.025,
+             "Ryzen 7 5800X · Product encoding defaults and output counts differ; this is not an equal-quality comparison.",
+             fontsize=9, color="#475569")
+    fig.subplots_adjust(left=0.24, right=0.98, top=0.80, bottom=0.15)
+    fig.savefig(out_path)
+    plt.close(fig)
+
 def plot_speedup_summary(media, series, seconds, out_path):
     """Horizontal bar chart showing average speedup vs subs2srs for all Vesta variants."""
     vesta_series = [s for s in series if s != "subs2srs (TSV)"]
@@ -365,6 +406,12 @@ def generate_markdown_summary(media, subcount, series, seconds, out_md, measured
         "",
         "## Charts Overview",
         "",
+        "### Total generation time and time saved",
+        "",
+        "![Total generation time across all films](benchmark_totals.svg)",
+        "",
+        "Durations sum the per-film medians; savings use the subs2srs total as the baseline.",
+        "",
         "### 1. Suite Comparison (All Movies & Variants)",
         "![Suite Overview](benchmark_overview.svg)",
         "",
@@ -461,6 +508,7 @@ def main():
         return
 
     print(f"Loaded {len(media)} media entries, {len(series)} series variants.")
+    plot_totals(media, series, seconds, out_dir / "benchmark_totals.svg")
     plot_overview(media, subcount, series, seconds, out_dir / "benchmark_overview.svg")
     plot_speedup_summary(media, series, seconds, out_dir / "benchmark_speedup_summary.svg")
     plot_speedup_range(media, series, seconds, out_dir / "benchmark_speedup_range.svg")
@@ -477,7 +525,7 @@ def main():
     # Copy top-level charts and per-film charts to docs/
     docs_dir = Path("docs")
     if docs_dir.exists():
-        for svg_name in ["benchmark_overview.svg", "benchmark_speedup_summary.svg", "benchmark_speedup_range.svg"]:
+        for svg_name in ["benchmark_totals.svg", "benchmark_overview.svg", "benchmark_speedup_summary.svg", "benchmark_speedup_range.svg"]:
             src = out_dir / svg_name
             if src.exists():
                 shutil.copy(src, docs_dir / svg_name)

@@ -57,7 +57,7 @@ python3 build-scripts/quality_smoke.py --profile release --samples 5
 Keep correctness assertions. Investigate a repeated median regression before
 adding a hard CI timing threshold; shared runners are noisy. This short fixture
 does not measure HEVC seek costs, film-length source preparation, Whisper quality,
-network latency, GPU fallback, or large-series memory use. Use the historical
+network latency, GPU fallback, or large-series memory use. Use the
 [full-film benchmark guide](BENCHMARK_STEPS.md) for representative throughput
 and add a short HEVC/1080p workload before changing preparation policy again.
 
@@ -135,3 +135,13 @@ The native Rust batching change has a complete 480-generation A/B matrix with
 byte-identical media and note fields. See [the evidence and scope](BENCHMARK_NATIVE.md).
 The full subs2srs suite uses different product defaults and media counts and
 cannot replace the quality-equivalence check.
+
+## Publishing benchmark charts
+
+The README's aggregate chart is generated from the completed suite CSV by
+`benchmarking_against_subs2srs/report/generate_full_report.py`. Durations are sums
+of per-film medians, not sums of every repetition or averages of speedup ratios.
+Time saved is the baseline total minus the measured total; percentage saved uses
+the baseline total as its denominator. Keep all films matched across compared
+series and label export formats, worker counts, hardware and output differences.
+Per-film charts and raw measurements belong in the detailed report.

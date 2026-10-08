@@ -22,7 +22,19 @@ PY="python3"
 if command -v "$PY" >/dev/null 2>&1 || [ -x "$PY" ]; then
   log "Rendering charts with $PY…"
   if "$PY" benchmarking_against_subs2srs/report/plot.py "$RESULTS_CSV" "$RESULTS_DIR"; then
-    ok "Charts written under $RESULTS_DIR (benchmark.svg + films/*.svg)"
+    "$PY" - "$RESULTS_CSV" "$REPO_ROOT/docs/benchmark_totals.svg" <<'PYCHART'
+import importlib.util
+import sys
+from pathlib import Path
+
+module_path = Path("benchmarking_against_subs2srs/report/generate_full_report.py")
+spec = importlib.util.spec_from_file_location("full_report", module_path)
+report = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(report)
+media, _, series, seconds = report.load_data(sys.argv[1])
+report.plot_totals(media, series, seconds, Path(sys.argv[2]))
+PYCHART
+    ok "Charts written under $RESULTS_DIR; README aggregate chart updated"
   else
     warn "Charts failed — is matplotlib installed?  ($PY -m pip install matplotlib)"
   fi
