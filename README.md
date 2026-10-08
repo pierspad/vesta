@@ -1,6 +1,7 @@
 # <img src="docs/fireplace.svg" alt="Vesta" height="42" align="absmiddle"> Vesta
 
-[![CI](https://github.com/pierspad/vesta/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/pierspad/vesta/actions/workflows/ci.yml)
+[![CI](https://github.com/pierspad/vesta/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/pierspad/vesta/actions/workflows/ci.yml) [![Build and Release](https://github.com/pierspad/vesta/actions/workflows/build.yml/badge.svg)](https://github.com/pierspad/vesta/actions/workflows/build.yml) [![Release](https://img.shields.io/github/v/release/pierspad/vesta)](https://github.com/pierspad/vesta/releases/latest)
+
 [![GitHub Sponsors](https://img.shields.io/badge/Sponsor-%E2%9D%A4-ea4aaa?logo=github&style=flat)](https://github.com/sponsors/pierspad) [![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-Donate-yellow?logo=buymeacoffee)](https://buymeacoffee.com/pierspad) [![Ko-fi](https://img.shields.io/badge/Ko--fi-Support-ff5e5b?logo=ko-fi)](https://ko-fi.com/pierspad)
 
 **Contents:** [Overview](#what-it-does) · [Workflow](#the-workflow) · [Architecture](#how-vesta-was-built) · [CLI](#headless-cli-use) · [Build](#building-from-source) · [Benchmarks](#benchmarks) · [Documentation](#documentation-map)
@@ -13,33 +14,32 @@ The desktop application is local-first. Media processing, subtitle parsing, APKG
 
 ## Benchmarks
 
-These are historical full-film measurements. Current audio/snapshot generation avoids full-film preparation; see [the dated report](docs/BENCHMARK_REPORT.md) and [the short regression benchmark](docs/QUALITY.md) before applying these figures to a new build.
+Two complementary suites measure the shared Rust engine:
 
-<img src="docs/benchmark_speedup_summary.svg" alt="Vesta Average Speedup vs subs2srs Across All Test Movies" width="800">
+- **Native snapshot A/B, 2026-10-07:** 480 generations across eight films,
+  three alternating A/B pairs per case, at 256×144 and 640×360. Nearby snapshot
+  batching reduced total full-film audio + image + APKG time by **15.3%**;
+  individual eligible films saved **10.6–28.2%**. All media and note fields were
+  identical. Unsupported sources and sparse requests were essentially unchanged.
+- **Vesta versus subs2srs, 2026-10-08:** 120 full-pipeline runs across eight
+  films and 12,859 input subtitles, including audio, snapshots and video clips.
+  The aggregate ratio of median times was **4.13×** with 16 requested workers
+  and **1.58×** with one worker. Encoding defaults and produced media counts
+  differ, so this comparison does not establish equal output quality or isolate
+  the effect of batching.
 
-![Suite Overview](docs/benchmark_overview.svg)
+<img src="docs/benchmark_speedup_summary.svg" alt="Mean per-film runtime ratios against subs2srs, three repetitions per case" width="800">
 
-<details closed>
-  <summary><b>Legend & Pipeline Modes</b></summary>
+![Full-pipeline comparison across eight films](docs/benchmark_overview.svg)
 
-  - **`1t` vs `16t`**: Worker threads.
-    - `1t`: Single-thread control matching subs2srs sequential execution 1:1.
-    - `16t`: Parallel workers across all 16 CPU threads.
-  - **`Direct` vs `GPU`**: Video cutting strategy.
-    - `Direct`: Cuts audio and snapshots directly from the source video (same as subs2srs). Best for standard bitrates and files with frequent keyframes.
-    - `GPU`: Pre-transcodes video first via GPU hardware acceleration (VA-API), making seeking instant on heavy codecs (like 1080p HEVC).
-  - **`TSV` vs `APKG`**: Output format.
-    - `TSV`: Raw text cards + media folder (same as subs2srs).
-    - `APKG`: Bundles cards, media, and SQLite database into an Anki `.apkg` ready to import.
-  - **`subs2srs baseline (1.0×)`**: Original subs2srs runtime. Values above 1.0× mean faster generation (e.g. 3.8× finishes in ~26% of the time).
+The charts show measured wall time, not a guarantee for every source or machine.
+Automatic video preparation may apply in clip workflows; no new separately
+instrumented GPU variant is claimed. A worker limit controls concurrent FFmpeg
+jobs rather than pinning each process to one CPU thread.
 
-</details>
-
-> Tested across **8 feature-length movies (~12,000+ subtitles)**, Vesta achieves a **~3.5× to 3.8× average speedup** (and up to **6.22× peak speedup**) compared to subs2srs.
->
-> Even on a single thread (`1t`), like subs2srs, Vesta is **~1.3× to 1.9× faster**.
->
-> For full test details and reproduction steps, see [**docs/BENCHMARK_STEPS.md**](docs/BENCHMARK_STEPS.md). For per-movie charts and raw data across all 9 variants, see the [**Benchmark Report**](docs/BENCHMARK_REPORT.md).
+See the [native quality-preserving benchmark](docs/BENCHMARK_NATIVE.md),
+[full comparison and media counts](docs/BENCHMARK_REPORT.md), and
+[reproduction commands](docs/BENCHMARK_STEPS.md).
 
 ## What it does
 

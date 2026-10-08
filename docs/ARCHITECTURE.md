@@ -54,7 +54,7 @@ FlashcardConfig ──► build_matched_lines()  (Parse SRT ─► Normalize ─
                            │
              generate() ───┴─► Optional video-clip source preparation + bounded FFmpeg pool
                                      │ • Audio: MP3 / Opus + loudness normalization
-                                     │ • Snapshots: WebP / AVIF / JPEG + border crop
+                                     │ • Snapshots: bounded WebP PTS batches or individual AVIF / JPEG + crop
                                      │ • Video: H.264 / MPEG-4 snippets
                                      ▼
                                Export Output
@@ -238,7 +238,7 @@ It is intended for fresh Vesta exports, not scheduled Anki collections.
 
 ## Preparation progress and quality
 
-Audio plus snapshots use the original media directly. A full-film H.264
+Audio/snapshot-only workflows use the original media directly. A full-film H.264
 intermediate is reserved for video-clip workflows with `optimize_video` enabled;
 it can amortize repeated seeks for heavy codecs/high resolutions, but is lossy
 and does not improve source quality. Modest H.264 downscaling alone does not
@@ -302,3 +302,24 @@ APKG exclusivity is a presentation policy rather than a schema limitation.
 single-package mode only to APKG. TSV output uses separate episode naming/output
 and preserves its first result path. Format-specific disabled controls should be
 hidden when irrelevant rather than influencing another export format's payload.
+
+## Native snapshot extraction and verification
+
+`lib/srt-flashcards/src/snapshot_batch.rs` is an internal Rust module used by
+both desktop and CLI generation. It groups at most eight nearby WebP requests
+in an eight-second window, probes eligible H.264/HEVC HD streams and selects
+actual packet PTS. Conservative fallbacks preserve original seek semantics at
+reordered keyframes, missing/ambiguous timestamps, VFR and unsupported sources.
+Batch extraction and retries obey the same semaphore as other media operations.
+Each card retains a progress/error result; cancellation aborts and drains tasks
+and terminates direct FFmpeg/FFprobe children. Failed media prevent deck export.
+Temporary images are validated before copying and have generation-scoped
+lifetimes; there is no persistent cache or Python adapter in the runtime.
+
+The eligibility boundary is width 1280–1920, height ≤1080, CFR, WebP and an
+unambiguous video stream. `FlashcardConfig.optimize_video` also gates batching;
+CLI `--no-optimize` disables both batching and optional clip source preparation.
+The latter can be lossy and has a separate quality contract. Default concurrency
+reserves capacity; explicit worker requests are bounded by available cores.
+[Native A/B evidence](BENCHMARK_NATIVE.md) and [the product comparison](BENCHMARK_REPORT.md)
+measure different scopes and must not be pooled.

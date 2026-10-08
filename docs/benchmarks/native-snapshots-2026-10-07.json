@@ -1,0 +1,36 @@
+{
+  "binary_sha256": "c1bb208f7f94e7fb36223da9df0e556e7690029d632d7c9bbdc736a9a8656252",
+  "runner_sha256": "aed8db9fdbb18c62ca1c71090b04318fd58cf62fbbd29949e091a3de189d52c4",
+  "settings": {
+    "sizes": [
+      "25",
+      "100",
+      "300",
+      "all"
+    ],
+    "profiles": [
+      "default",
+      "large"
+    ],
+    "sparse": 100,
+    "repetitions": 3,
+    "jobs": 15,
+    "timeout": 7200,
+    "keep_decks": false,
+    "normalize_audio": true,
+    "audio": "MP3 128k/44100/stereo/track0",
+    "snapshot": "WebP quality80/crop0/padding0",
+    "video_clips": false
+  },
+  "ffmpeg": "ffmpeg version n9.0.2 Copyright (c) 2000-2026 the FFmpeg developers",
+  "ffprobe": "ffprobe version n9.0.2 Copyright (c) 2007-2026 the FFmpeg developers",
+  "platform": "linux",
+  "logical_cpus": 16,
+  "memory_sampling": true,
+  "cache": "OS cache uncontrolled; no persistent optimization cache",
+  "status": "complete",
+  "generations": 480,
+  "quality": "All per-case media and note-field hashes identical across six runs",
+  "validated_media_files": 409416,
+  "raw_results_sha256": "2619d170554dad4db5afbb8fac6cfa8eb9e74cac075cceb558336a6712ead946"
+}

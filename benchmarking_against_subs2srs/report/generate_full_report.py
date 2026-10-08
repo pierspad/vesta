@@ -19,12 +19,12 @@ import numpy as np
 # Ordered variants and palette
 SERIES_ORDER = [
     ("subs2srs", "subs2srs", "tsv", "subs2srs (TSV)", "#e8770f"),
-    ("vesta", "single_direct", "tsv", "Vesta 1t Direct (TSV)", "#f6b26b"),
-    ("vesta", "single_direct", "apkg", "Vesta 1t Direct (APKG)", "#e69138"),
+    ("vesta", "single_direct", "tsv", "Vesta 1 worker (TSV)", "#f6b26b"),
+    ("vesta", "single_direct", "apkg", "Vesta 1 worker (APKG)", "#e69138"),
     ("vesta", "single_gpu", "tsv", "Vesta 1t GPU (TSV)", "#4ecdc4"),
     ("vesta", "single_gpu", "apkg", "Vesta 1t GPU (APKG)", "#2ab7ca"),
-    ("vesta", "multi_direct", "tsv", "Vesta 16t Direct (TSV)", "#b3aadd"),
-    ("vesta", "multi_direct", "apkg", "Vesta 16t Direct (APKG)", "#8073c9"),
+    ("vesta", "multi_direct", "tsv", "Vesta 16 workers (TSV)", "#b3aadd"),
+    ("vesta", "multi_direct", "apkg", "Vesta 16 workers (APKG)", "#8073c9"),
     ("vesta", "multi_gpu", "tsv", "Vesta 16t GPU (TSV)", "#12a184"),
     ("vesta", "multi_gpu", "apkg", "Vesta 16t GPU (APKG)", "#0c7c65"),
 ]
@@ -323,7 +323,7 @@ def plot_individual_films(media, subcount, series, seconds, films_dir):
         fig.savefig(films_dir / f"{slug}.svg", bbox_inches="tight")
         plt.close(fig)
 
-def generate_markdown_summary(media, subcount, series, seconds, out_md):
+def generate_markdown_summary(media, subcount, series, seconds, out_md, measured_rows, measured_date):
     # Hardware info
     import subprocess
     cpu_model = "Generic x86_64"
@@ -342,7 +342,10 @@ def generate_markdown_summary(media, subcount, series, seconds, out_md):
     except Exception:
         pass
 
-    cores = os.cpu_count() or 16
+    cores = os.cpu_count() or 1
+    requested = sorted({int(row['jobs']) for row in measured_rows if row['tool'] == 'vesta'})
+    reference_count = sum(int(row['audio']) for row in measured_rows if row['tool'] == 'subs2srs')
+    vesta_count = sum(int(row['audio']) for row in measured_rows if row['variant'] in ('max', 'multi_direct') and row['format'] == 'tsv')
 
     lines = [
         "# Vesta vs subs2srs — Comprehensive Benchmark Report",
@@ -351,10 +354,14 @@ def generate_markdown_summary(media, subcount, series, seconds, out_md):
         f"- **CPU**: {cpu_model} ({cores} threads)",
         f"- **GPU**: {gpu_model}",
         "- **Pipeline Modes Tested**:",
-        "  - **Direct**: Direct stream cutting without pre-transcoding (identical methodology to subs2srs).",
-        "  - **GPU**: Hardware-accelerated (VA-API) pre-transcoding into an intermediate fast-seeking stream.",
+        "  - **Default**: native Rust pipeline, with automatic source preparation when eligible for video clips and nearby WebP snapshot batching.",
+        "  - No separately measured GPU variant is included in the 2026-10-08 results; hardware use is not instrumented by this suite.",
         "- **Formats Tested**: Raw TSV + media folder vs ready-to-import Anki `.apkg` packages.",
-        "- **Threading Tested**: 1t (single-thread control matching subs2srs) vs 16t (all 16 CPU threads).",
+        f"- **Workers requested**: {requested}; subs2srs remains sequential. A worker count is not a CPU affinity/thread limit.",
+        f"- **Dataset date**: {measured_date}. The published 2026-10-08 run uses three repetitions per cell and median wall-clock times; repetition metadata is retained separately.",
+        "- **Scope**: same subtitle/video inputs and requested media types, but product encoding defaults differ (JPEG versus WebP and different clip settings). This is not a byte-identical or controlled equal-quality comparison.",
+        f"- **Counts**: Vesta multicore TSV produced {vesta_count:,} audio clips; subs2srs produced {reference_count:,}. See the raw CSV for all media types. The reported lines count is the parsed input count, not proof of exported media completeness.",
+        "- **Causality**: use [the native A/B results](https://github.com/pierspad/vesta/blob/main/docs/BENCHMARK_NATIVE.md) to isolate the snapshot technique at identical quality; this full pipeline also includes video preparation and other changes.",
         "",
         "## Charts Overview",
         "",
@@ -458,8 +465,15 @@ def main():
     plot_speedup_summary(media, series, seconds, out_dir / "benchmark_speedup_summary.svg")
     plot_speedup_range(media, series, seconds, out_dir / "benchmark_speedup_range.svg")
     plot_individual_films(media, subcount, series, seconds, out_dir / "films")
-    generate_markdown_summary(media, subcount, series, seconds, out_dir / "summary.md")
+    from datetime import datetime
+    measured_rows = list(csv.DictReader(csv_path.open(newline='')))
+    measured_date = datetime.fromtimestamp(csv_path.stat().st_mtime).strftime('%Y-%m-%d')
+    generate_markdown_summary(media, subcount, series, seconds, out_dir / "summary.md", measured_rows, measured_date)
 
+    # Normalize generated SVG whitespace before publishing.
+    for chart in out_dir.rglob('*.svg'):
+        if chart.name != 'benchmark_gpu.svg':
+            chart.write_text('\n'.join(line.rstrip() for line in chart.read_text().splitlines()) + '\n')
     # Copy top-level charts and per-film charts to docs/
     docs_dir = Path("docs")
     if docs_dir.exists():
@@ -476,53 +490,7 @@ def main():
             for f in films_src.glob("*.svg"):
                 shutil.copy(f, films_dst / f.name)
 
-    # Sync legacy results.csv and results_gpu.csv for compatibility
-    with open(csv_path) as f:
-        all_rows = list(csv.DictReader(f))
-    
-    # 1. results.csv
-    res_csv = out_dir / "results.csv"
-    with open(res_csv, "w", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=["title","subtitle_count","tool","variant","format","elapsed_ms","lines","audio","snapshots","video","jobs"])
-        writer.writeheader()
-        for r in all_rows:
-            var = r["variant"]
-            if var == "subs2srs":
-                writer.writerow({k: r[k] for k in writer.fieldnames})
-            elif var == "single_direct":
-                writer.writerow({**{k: r[k] for k in writer.fieldnames}, "variant": "single"})
-            elif var == "multi_direct":
-                writer.writerow({**{k: r[k] for k in writer.fieldnames}, "variant": "max"})
-
-    # 2. results_gpu.csv
-    res_gpu_csv = out_dir / "results_gpu.csv"
-    with open(res_gpu_csv, "w", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=["title","subtitle_count","tool","variant","format","elapsed_ms","lines","audio","snapshots","video","jobs"])
-        writer.writeheader()
-        for r in all_rows:
-            var = r["variant"]
-            fmt = r["format"]
-            if var == "subs2srs":
-                writer.writerow({k: r[k] for k in writer.fieldnames})
-            elif var == "multi_direct" and fmt == "apkg":
-                writer.writerow({**{k: r[k] for k in writer.fieldnames}, "variant": "max"})
-            elif var == "multi_gpu" and fmt == "apkg":
-                writer.writerow({**{k: r[k] for k in writer.fieldnames}, "variant": "gpu"})
-
-    # Regenerate benchmark.svg and benchmark_gpu.svg
-    report_dir = Path(__file__).resolve().parent
-    plot_script = report_dir / "plot.py"
-    plot_gpu_script = report_dir / "plot_gpu.py"
-    if plot_script.exists():
-        import subprocess
-        subprocess.run([sys.executable, str(plot_script), str(res_csv), str(docs_dir)], check=False)
-        subprocess.run([sys.executable, str(plot_script), str(res_csv), str(out_dir)], check=False)
-    if plot_gpu_script.exists():
-        import subprocess
-        subprocess.run([sys.executable, str(plot_gpu_script), str(res_gpu_csv), str(docs_dir / "benchmark_gpu.svg")], check=False)
-        subprocess.run([sys.executable, str(plot_gpu_script), str(res_gpu_csv), str(out_dir / "benchmark_gpu.svg")], check=False)
-
-    print(f"Successfully generated all charts and reports under {out_dir}")
+    print(f"Successfully generated charts and reports under {out_dir}; input CSV unchanged")
 
 if __name__ == "__main__":
     main()

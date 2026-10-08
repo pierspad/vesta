@@ -80,3 +80,6 @@ apps/srt-gui/scripts/translation_chunks/
 
 # Superpowers design docs/plans: locali, non tracciati.
 docs/superpowers/
+
+# Local benchmark console captures
+/benchmark-subs2srs*.log

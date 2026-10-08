@@ -72,7 +72,7 @@ struct GenerateArgs {
     episode: u32,
 
     // ── Performance ──────────────────────────────────────────────────────
-    /// Number of parallel ffmpeg workers. Clamped to [1, cores-1]
+    /// Number of parallel ffmpeg workers. Clamped to [1, available cores]
     /// (use 1 to run a single ffmpeg at a time, like a single-threaded tool).
     /// Omit to default to ~3/4 of the logical cores.
     #[arg(short = 'j', long)]

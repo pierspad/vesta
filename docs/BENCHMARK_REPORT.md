@@ -1,15 +1,17 @@
 # Vesta vs subs2srs — Comprehensive Benchmark Report
 
-> Historical full-film results, not a performance guarantee for the current revision. The 2026-10-01 polishing pass changed snapshot generation to use the original source without full-film preparation. Rerun the suite before comparing the new policy with these figures; use [QUALITY.md](QUALITY.md) for the short smoke benchmark.
-
 ### System & Hardware Specifications
-- **CPU**: AMD Ryzen 7 5800X (8c-16t)
-- **GPU**: AMD Radeon RX 7800 XT
+- **CPU**: AMD Ryzen 7 5800X 8-Core Processor (16 threads)
+- **GPU**: Advanced Micro Devices, Inc. [AMD/ATI] Navi 32 [Radeon RX 7700 XT / 7800 XT] (rev c8)
 - **Pipeline Modes Tested**:
-  - **Direct**: Direct stream cutting without pre-transcoding (identical to subs2srs).
-  - **GPU**: Hardware-accelerated (VA-API) pre-transcoding into an intermediate low resolution stream.
+  - **Default**: native Rust pipeline, with automatic source preparation when eligible for video clips and nearby WebP snapshot batching.
+  - No separately measured GPU variant is included in the 2026-10-08 results; hardware use is not instrumented by this suite.
 - **Formats Tested**: Raw TSV + media folder vs ready-to-import Anki `.apkg` packages.
-- **Threading Tested**: 1t (single-thread control matching subs2srs) vs 16t (all 16 CPU threads).
+- **Workers requested**: [1, 16]; subs2srs remains sequential. A worker count is not a CPU affinity/thread limit.
+- **Dataset date**: 2026-10-08. The published 2026-10-08 run uses three repetitions per cell and median wall-clock times; repetition metadata is retained separately.
+- **Scope**: same subtitle/video inputs and requested media types, but product encoding defaults differ (JPEG versus WebP and different clip settings). This is not a byte-identical or controlled equal-quality comparison.
+- **Counts**: Vesta multicore TSV produced 12,859 audio clips; subs2srs produced 12,463. See the raw CSV for all media types. The reported lines count is the parsed input count, not proof of exported media completeness.
+- **Causality**: use [the native A/B results](https://github.com/pierspad/vesta/blob/main/docs/BENCHMARK_NATIVE.md) to isolate the snapshot technique at identical quality; this full pipeline also includes video preparation and other changes.
 
 ## Charts Overview
 
@@ -26,92 +28,56 @@
 
 | Series | Total Wall-Clock Time | Overall Speed-up | Avg Movie Speed-up | Min Speed-up | Max Speed-up |
 |---|---:|---:|---:|---:|---:|
-| **subs2srs (TSV)** | 127.9 min | — (baseline) | — | — | — |
-| **Vesta 1t Direct (TSV)** | 99.5 min | **1.29×** | **1.29×** | 1.03× | 1.89× |
-| **Vesta 1t Direct (APKG)** | 99.5 min | **1.29×** | **1.29×** | 1.03× | 1.89× |
-| **Vesta 1t GPU (TSV)** | 83.4 min | **1.53×** | **1.51×** | 1.20× | 1.86× |
-| **Vesta 1t GPU (APKG)** | 83.4 min | **1.53×** | **1.51×** | 1.20× | 1.86× |
-| **Vesta 16t Direct (TSV)** | 43.3 min | **2.96×** | **3.52×** | 1.72× | 6.22× |
-| **Vesta 16t Direct (APKG)** | 43.4 min | **2.95×** | **3.51×** | 1.72× | 6.20× |
-| **Vesta 16t GPU (TSV)** | 34.2 min | **3.74×** | **3.74×** | 3.09× | 5.00× |
-| **Vesta 16t GPU (APKG)** | 33.7 min | **3.80×** | **3.78×** | 3.22× | 4.99× |
+| **subs2srs (TSV)** | 125.5 min | — (baseline) | — | — | — |
+| **Vesta 1 worker (TSV)** | 79.5 min | **1.58×** | **1.56×** | 1.30× | 1.89× |
+| **Vesta 1 worker (APKG)** | 79.5 min | **1.58×** | **1.56×** | 1.30× | 1.89× |
+| **Vesta 16 workers (TSV)** | 30.3 min | **4.14×** | **4.15×** | 3.44× | 5.24× |
+| **Vesta 16 workers (APKG)** | 30.4 min | **4.13×** | **4.14×** | 3.44× | 5.21× |
 
 ## Per-Movie Detailed Results
 
 | Movie | Subtitles | Series | Time | Cards/min | Speed-up vs subs2srs |
 |---|---:|---|---:|---:|---:|
-| Uncut Gems | 2,315 | subs2srs (TSV) | 1,348.7 s | 103 | — |
-| Uncut Gems | 2,315 | Vesta 1t Direct (TSV) | 899.7 s | 154 | **1.50×** |
-| Uncut Gems | 2,315 | Vesta 1t Direct (APKG) | 899.5 s | 154 | **1.50×** |
-| Uncut Gems | 2,315 | Vesta 1t GPU (TSV) | 921.3 s | 151 | **1.46×** |
-| Uncut Gems | 2,315 | Vesta 1t GPU (APKG) | 921.1 s | 151 | **1.46×** |
-| Uncut Gems | 2,315 | Vesta 16t Direct (TSV) | 328.7 s | 423 | **4.10×** |
-| Uncut Gems | 2,315 | Vesta 16t Direct (APKG) | 329.3 s | 422 | **4.10×** |
-| Uncut Gems | 2,315 | Vesta 16t GPU (TSV) | 351.2 s | 395 | **3.84×** |
-| Uncut Gems | 2,315 | Vesta 16t GPU (APKG) | 352.3 s | 394 | **3.83×** |
-| Interstellar | 1,996 | subs2srs (TSV) | 1,354.1 s | 88 | — |
-| Interstellar | 1,996 | Vesta 1t Direct (TSV) | 715.2 s | 167 | **1.89×** |
-| Interstellar | 1,996 | Vesta 1t Direct (APKG) | 716.0 s | 167 | **1.89×** |
-| Interstellar | 1,996 | Vesta 1t GPU (TSV) | 795.5 s | 151 | **1.70×** |
-| Interstellar | 1,996 | Vesta 1t GPU (APKG) | 795.4 s | 151 | **1.70×** |
-| Interstellar | 1,996 | Vesta 16t Direct (TSV) | 217.6 s | 550 | **6.22×** |
-| Interstellar | 1,996 | Vesta 16t Direct (APKG) | 218.3 s | 549 | **6.20×** |
-| Interstellar | 1,996 | Vesta 16t GPU (TSV) | 332.6 s | 360 | **4.07×** |
-| Interstellar | 1,996 | Vesta 16t GPU (APKG) | 332.8 s | 360 | **4.07×** |
-| Good Will Hunting | 1,755 | subs2srs (TSV) | 1,156.5 s | 91 | — |
-| Good Will Hunting | 1,755 | Vesta 1t Direct (TSV) | 881.4 s | 119 | **1.31×** |
-| Good Will Hunting | 1,755 | Vesta 1t Direct (APKG) | 880.7 s | 120 | **1.31×** |
-| Good Will Hunting | 1,755 | Vesta 1t GPU (TSV) | 621.8 s | 169 | **1.86×** |
-| Good Will Hunting | 1,755 | Vesta 1t GPU (APKG) | 622.7 s | 169 | **1.86×** |
-| Good Will Hunting | 1,755 | Vesta 16t Direct (TSV) | 430.6 s | 245 | **2.69×** |
-| Good Will Hunting | 1,755 | Vesta 16t Direct (APKG) | 432.1 s | 244 | **2.68×** |
-| Good Will Hunting | 1,755 | Vesta 16t GPU (TSV) | 231.3 s | 455 | **5.00×** |
-| Good Will Hunting | 1,755 | Vesta 16t GPU (APKG) | 231.9 s | 454 | **4.99×** |
-| Zootopia | 1,698 | subs2srs (TSV) | 973.6 s | 105 | — |
-| Zootopia | 1,698 | Vesta 1t Direct (TSV) | 843.7 s | 121 | **1.15×** |
-| Zootopia | 1,698 | Vesta 1t Direct (APKG) | 843.7 s | 121 | **1.15×** |
-| Zootopia | 1,698 | Vesta 1t GPU (TSV) | 687.2 s | 148 | **1.42×** |
-| Zootopia | 1,698 | Vesta 1t GPU (APKG) | 687.8 s | 148 | **1.42×** |
-| Zootopia | 1,698 | Vesta 16t Direct (TSV) | 334.2 s | 305 | **2.91×** |
-| Zootopia | 1,698 | Vesta 16t Direct (APKG) | 333.9 s | 305 | **2.92×** |
-| Zootopia | 1,698 | Vesta 16t GPU (TSV) | 279.0 s | 365 | **3.49×** |
-| Zootopia | 1,698 | Vesta 16t GPU (APKG) | 279.6 s | 364 | **3.48×** |
-| Snatch | 1,522 | subs2srs (TSV) | 955.0 s | 96 | — |
-| Snatch | 1,522 | Vesta 1t Direct (TSV) | 917.6 s | 100 | **1.04×** |
-| Snatch | 1,522 | Vesta 1t Direct (APKG) | 918.3 s | 99 | **1.04×** |
-| Snatch | 1,522 | Vesta 1t GPU (TSV) | 671.7 s | 136 | **1.42×** |
-| Snatch | 1,522 | Vesta 1t GPU (APKG) | 665.6 s | 137 | **1.43×** |
-| Snatch | 1,522 | Vesta 16t Direct (TSV) | 434.6 s | 210 | **2.20×** |
-| Snatch | 1,522 | Vesta 16t Direct (APKG) | 435.9 s | 209 | **2.19×** |
-| Snatch | 1,522 | Vesta 16t GPU (TSV) | 309.5 s | 295 | **3.09×** |
-| Snatch | 1,522 | Vesta 16t GPU (APKG) | 277.6 s | 329 | **3.44×** |
-| Trainspotting | 1,384 | subs2srs (TSV) | 685.0 s | 121 | — |
-| Trainspotting | 1,384 | Vesta 1t Direct (TSV) | 663.1 s | 125 | **1.03×** |
-| Trainspotting | 1,384 | Vesta 1t Direct (APKG) | 663.2 s | 125 | **1.03×** |
-| Trainspotting | 1,384 | Vesta 1t GPU (TSV) | 460.9 s | 180 | **1.49×** |
-| Trainspotting | 1,384 | Vesta 1t GPU (APKG) | 460.9 s | 180 | **1.49×** |
-| Trainspotting | 1,384 | Vesta 16t Direct (TSV) | 309.2 s | 269 | **2.22×** |
-| Trainspotting | 1,384 | Vesta 16t Direct (APKG) | 310.7 s | 267 | **2.20×** |
-| Trainspotting | 1,384 | Vesta 16t GPU (TSV) | 176.8 s | 470 | **3.87×** |
-| Trainspotting | 1,384 | Vesta 16t GPU (APKG) | 176.6 s | 470 | **3.88×** |
-| In Bruges | 1,171 | subs2srs (TSV) | 830.3 s | 85 | — |
-| In Bruges | 1,171 | Vesta 1t Direct (TSV) | 748.6 s | 94 | **1.11×** |
-| In Bruges | 1,171 | Vesta 1t Direct (APKG) | 748.0 s | 94 | **1.11×** |
-| In Bruges | 1,171 | Vesta 1t GPU (TSV) | 539.2 s | 130 | **1.54×** |
-| In Bruges | 1,171 | Vesta 1t GPU (APKG) | 540.0 s | 130 | **1.54×** |
-| In Bruges | 1,171 | Vesta 16t Direct (TSV) | 481.5 s | 146 | **1.72×** |
-| In Bruges | 1,171 | Vesta 16t Direct (APKG) | 481.5 s | 146 | **1.72×** |
-| In Bruges | 1,171 | Vesta 16t GPU (TSV) | 257.6 s | 273 | **3.22×** |
-| In Bruges | 1,171 | Vesta 16t GPU (APKG) | 258.0 s | 272 | **3.22×** |
-| Detour | 1,018 | subs2srs (TSV) | 371.5 s | 164 | — |
-| Detour | 1,018 | Vesta 1t Direct (TSV) | 299.6 s | 204 | **1.24×** |
-| Detour | 1,018 | Vesta 1t Direct (APKG) | 299.3 s | 204 | **1.24×** |
-| Detour | 1,018 | Vesta 1t GPU (TSV) | 309.2 s | 198 | **1.20×** |
-| Detour | 1,018 | Vesta 1t GPU (APKG) | 310.5 s | 197 | **1.20×** |
-| Detour | 1,018 | Vesta 16t Direct (TSV) | 60.6 s | 1,008 | **6.13×** |
-| Detour | 1,018 | Vesta 16t Direct (APKG) | 61.1 s | 1,000 | **6.08×** |
-| Detour | 1,018 | Vesta 16t GPU (TSV) | 111.6 s | 547 | **3.33×** |
-| Detour | 1,018 | Vesta 16t GPU (APKG) | 112.5 s | 543 | **3.30×** |
+| Uncut Gems | 2,315 | subs2srs (TSV) | 1,307.8 s | 106 | — |
+| Uncut Gems | 2,315 | Vesta 1 worker (TSV) | 863.3 s | 161 | **1.51×** |
+| Uncut Gems | 2,315 | Vesta 1 worker (APKG) | 863.7 s | 161 | **1.51×** |
+| Uncut Gems | 2,315 | Vesta 16 workers (TSV) | 297.2 s | 467 | **4.40×** |
+| Uncut Gems | 2,315 | Vesta 16 workers (APKG) | 298.7 s | 465 | **4.38×** |
+| Interstellar | 1,996 | subs2srs (TSV) | 1,320.0 s | 91 | — |
+| Interstellar | 1,996 | Vesta 1 worker (TSV) | 777.1 s | 154 | **1.70×** |
+| Interstellar | 1,996 | Vesta 1 worker (APKG) | 778.2 s | 154 | **1.70×** |
+| Interstellar | 1,996 | Vesta 16 workers (TSV) | 317.9 s | 377 | **4.15×** |
+| Interstellar | 1,996 | Vesta 16 workers (APKG) | 315.2 s | 380 | **4.19×** |
+| Good Will Hunting | 1,755 | subs2srs (TSV) | 1,140.5 s | 92 | — |
+| Good Will Hunting | 1,755 | Vesta 1 worker (TSV) | 603.7 s | 174 | **1.89×** |
+| Good Will Hunting | 1,755 | Vesta 1 worker (APKG) | 602.1 s | 175 | **1.89×** |
+| Good Will Hunting | 1,755 | Vesta 16 workers (TSV) | 217.7 s | 484 | **5.24×** |
+| Good Will Hunting | 1,755 | Vesta 16 workers (APKG) | 218.9 s | 481 | **5.21×** |
+| Zootopia | 1,698 | subs2srs (TSV) | 955.4 s | 107 | — |
+| Zootopia | 1,698 | Vesta 1 worker (TSV) | 642.6 s | 159 | **1.49×** |
+| Zootopia | 1,698 | Vesta 1 worker (APKG) | 641.1 s | 159 | **1.49×** |
+| Zootopia | 1,698 | Vesta 16 workers (TSV) | 238.4 s | 427 | **4.01×** |
+| Zootopia | 1,698 | Vesta 16 workers (APKG) | 238.8 s | 427 | **4.00×** |
+| Snatch | 1,522 | subs2srs (TSV) | 950.4 s | 96 | — |
+| Snatch | 1,522 | Vesta 1 worker (TSV) | 660.4 s | 138 | **1.44×** |
+| Snatch | 1,522 | Vesta 1 worker (APKG) | 661.1 s | 138 | **1.44×** |
+| Snatch | 1,522 | Vesta 16 workers (TSV) | 275.9 s | 331 | **3.44×** |
+| Snatch | 1,522 | Vesta 16 workers (APKG) | 276.1 s | 331 | **3.44×** |
+| Trainspotting | 1,384 | subs2srs (TSV) | 672.5 s | 123 | — |
+| Trainspotting | 1,384 | Vesta 1 worker (TSV) | 448.5 s | 185 | **1.50×** |
+| Trainspotting | 1,384 | Vesta 1 worker (APKG) | 449.4 s | 185 | **1.50×** |
+| Trainspotting | 1,384 | Vesta 16 workers (TSV) | 167.6 s | 495 | **4.01×** |
+| Trainspotting | 1,384 | Vesta 16 workers (APKG) | 168.2 s | 494 | **4.00×** |
+| In Bruges | 1,171 | subs2srs (TSV) | 822.3 s | 85 | — |
+| In Bruges | 1,171 | Vesta 1 worker (TSV) | 497.8 s | 141 | **1.65×** |
+| In Bruges | 1,171 | Vesta 1 worker (APKG) | 496.9 s | 141 | **1.65×** |
+| In Bruges | 1,171 | Vesta 16 workers (TSV) | 219.6 s | 320 | **3.74×** |
+| In Bruges | 1,171 | Vesta 16 workers (APKG) | 218.7 s | 321 | **3.76×** |
+| Detour | 1,018 | subs2srs (TSV) | 362.1 s | 169 | — |
+| Detour | 1,018 | Vesta 1 worker (TSV) | 279.0 s | 219 | **1.30×** |
+| Detour | 1,018 | Vesta 1 worker (APKG) | 279.2 s | 219 | **1.30×** |
+| Detour | 1,018 | Vesta 16 workers (TSV) | 86.1 s | 709 | **4.21×** |
+| Detour | 1,018 | Vesta 16 workers (APKG) | 88.0 s | 694 | **4.12×** |
 
 ## Per-Movie Charts
 

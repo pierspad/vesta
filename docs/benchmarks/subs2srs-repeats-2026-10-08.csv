@@ -1,0 +1,121 @@
+film,variant,format,repeat,elapsed_ms
+Detour,subs2srs,tsv,1,361630
+Detour,subs2srs,tsv,2,363237
+Detour,subs2srs,tsv,3,362096
+Detour,max,tsv,1,85123
+Detour,max,tsv,2,86097
+Detour,max,tsv,3,86752
+Detour,max,apkg,1,87514
+Detour,max,apkg,2,87957
+Detour,max,apkg,3,88170
+Detour,single,tsv,1,280620
+Detour,single,tsv,2,279009
+Detour,single,tsv,3,278993
+Detour,single,apkg,1,279185
+Detour,single,apkg,2,279298
+Detour,single,apkg,3,278887
+Good.Will.Hunting,subs2srs,tsv,1,1140496
+Good.Will.Hunting,subs2srs,tsv,2,1138952
+Good.Will.Hunting,subs2srs,tsv,3,1140838
+Good.Will.Hunting,max,tsv,1,217712
+Good.Will.Hunting,max,tsv,2,216876
+Good.Will.Hunting,max,tsv,3,217904
+Good.Will.Hunting,max,apkg,1,216564
+Good.Will.Hunting,max,apkg,2,219203
+Good.Will.Hunting,max,apkg,3,218916
+Good.Will.Hunting,single,tsv,1,602429
+Good.Will.Hunting,single,tsv,2,603722
+Good.Will.Hunting,single,tsv,3,604038
+Good.Will.Hunting,single,apkg,1,601949
+Good.Will.Hunting,single,apkg,2,606454
+Good.Will.Hunting,single,apkg,3,602112
+In.Bruges,subs2srs,tsv,1,822283
+In.Bruges,subs2srs,tsv,2,823517
+In.Bruges,subs2srs,tsv,3,822259
+In.Bruges,max,tsv,1,219609
+In.Bruges,max,tsv,2,220476
+In.Bruges,max,tsv,3,218818
+In.Bruges,max,apkg,1,216267
+In.Bruges,max,apkg,2,218720
+In.Bruges,max,apkg,3,219086
+In.Bruges,single,tsv,1,497922
+In.Bruges,single,tsv,2,497806
+In.Bruges,single,tsv,3,497772
+In.Bruges,single,apkg,1,498200
+In.Bruges,single,apkg,2,495627
+In.Bruges,single,apkg,3,496872
+Interstellar,subs2srs,tsv,1,1318049
+Interstellar,subs2srs,tsv,2,1320003
+Interstellar,subs2srs,tsv,3,1324792
+Interstellar,max,tsv,1,318178
+Interstellar,max,tsv,2,313589
+Interstellar,max,tsv,3,317876
+Interstellar,max,apkg,1,313325
+Interstellar,max,apkg,2,319933
+Interstellar,max,apkg,3,315231
+Interstellar,single,tsv,1,777073
+Interstellar,single,tsv,2,777832
+Interstellar,single,tsv,3,775915
+Interstellar,single,apkg,1,778176
+Interstellar,single,apkg,2,777101
+Interstellar,single,apkg,3,778667
+Snatch,subs2srs,tsv,1,952535
+Snatch,subs2srs,tsv,2,949824
+Snatch,subs2srs,tsv,3,950439
+Snatch,max,tsv,1,274586
+Snatch,max,tsv,2,275945
+Snatch,max,tsv,3,276010
+Snatch,max,apkg,1,276131
+Snatch,max,apkg,2,276002
+Snatch,max,apkg,3,276595
+Snatch,single,tsv,1,660549
+Snatch,single,tsv,2,660427
+Snatch,single,tsv,3,660310
+Snatch,single,apkg,1,659610
+Snatch,single,apkg,2,661479
+Snatch,single,apkg,3,661147
+Trainspotting,subs2srs,tsv,1,674119
+Trainspotting,subs2srs,tsv,2,672513
+Trainspotting,subs2srs,tsv,3,671580
+Trainspotting,max,tsv,1,167453
+Trainspotting,max,tsv,2,167642
+Trainspotting,max,tsv,3,168127
+Trainspotting,max,apkg,1,168246
+Trainspotting,max,apkg,2,167881
+Trainspotting,max,apkg,3,168206
+Trainspotting,single,tsv,1,448041
+Trainspotting,single,tsv,2,449360
+Trainspotting,single,tsv,3,448473
+Trainspotting,single,apkg,1,449413
+Trainspotting,single,apkg,2,449189
+Trainspotting,single,apkg,3,450157
+Uncut Gems,subs2srs,tsv,1,1308075
+Uncut Gems,subs2srs,tsv,2,1307816
+Uncut Gems,subs2srs,tsv,3,1301485
+Uncut Gems,max,tsv,1,296766
+Uncut Gems,max,tsv,2,297912
+Uncut Gems,max,tsv,3,297154
+Uncut Gems,max,apkg,1,297902
+Uncut Gems,max,apkg,2,300245
+Uncut Gems,max,apkg,3,298721
+Uncut Gems,single,tsv,1,863311
+Uncut Gems,single,tsv,2,862098
+Uncut Gems,single,tsv,3,864094
+Uncut Gems,single,apkg,1,863736
+Uncut Gems,single,apkg,2,863275
+Uncut Gems,single,apkg,3,864841
+Zootopia,subs2srs,tsv,1,957226
+Zootopia,subs2srs,tsv,2,955047
+Zootopia,subs2srs,tsv,3,955422
+Zootopia,max,tsv,1,237633
+Zootopia,max,tsv,2,238473
+Zootopia,max,tsv,3,238439
+Zootopia,max,apkg,1,238843
+Zootopia,max,apkg,2,239075
+Zootopia,max,apkg,3,238339
+Zootopia,single,tsv,1,643147
+Zootopia,single,tsv,2,642617
+Zootopia,single,tsv,3,641583
+Zootopia,single,apkg,1,641121
+Zootopia,single,apkg,2,641076
+Zootopia,single,apkg,3,641567

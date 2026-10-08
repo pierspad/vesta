@@ -17,7 +17,7 @@ parse (SRT/ASS/VTT) → time-shift → match (dual subs) → span → filter
                      → parallel ffmpeg media extraction → TSV / APKG export
 ```
 
-Media extraction runs ffmpeg across up to `cores-1` workers via a streaming
+Media extraction runs ffmpeg across a bounded number of workers via a streaming
 semaphore (no batch barriers), so the slowest clip never stalls the rest.
 
 ## Public API
@@ -64,7 +64,7 @@ SQLite), `zip`, and `sha1_smol`. No GUI toolkit, no whisper, no network.
 
 Part of the [Vesta](../../README.md) workspace. Licensed GPL-3.0-only.
 
-Audio/snapshot exports now extract from the original source without full-film
+Audio/snapshot-only exports extract from the original source without full-film
 H.264 preparation. Video-clip workflows can prepare a heavy source, reporting
 actual FFmpeg timestamp progress and honoring cancellation. Preparation is a
 throughput tradeoff, not a quality enhancement.
@@ -73,3 +73,24 @@ throughput tradeoff, not a quality enhancement.
 media/metadata; it is not a merger for scheduled Anki collections. Single-series
 GUI output keeps per-episode packages in separate directories before merging.
 See [QUALITY](../../docs/QUALITY.md) for a short synthetic media smoke benchmark.
+
+## Native nearby snapshot batching
+
+The shared Rust engine batches up to eight WebP snapshots within eight seconds
+when `optimize_video` is enabled. Eligibility is conservative: CFR H.264/HEVC,
+width 1280–1920, height ≤1080 and an unambiguous video stream. FFprobe packet
+PTS guide frame selection; reordered keyframe boundaries and uncertain timings
+retain the original individual-seek behavior. Unknown/VFR sources, other image
+formats and isolated requests use individual extraction. Failed batch attempts
+retry the original commands. There is no persistent cache or Python dependency
+in the app; Python is used only by the benchmark harness.
+
+Batch operations share the media semaphore with audio/video work, retain one
+progress result per card and stop their direct child processes on cancellation.
+An extraction failure prevents export of a deck with dangling media references.
+The default worker count is roughly three quarters of logical cores, reserving
+one core when possible; explicit counts are clamped to available logical cores.
+Video-clip preparation can produce a lossy intermediate and is separate from
+the original-source snapshot A/B quality guarantee.
+
+See [native benchmark results](../../docs/BENCHMARK_NATIVE.md).

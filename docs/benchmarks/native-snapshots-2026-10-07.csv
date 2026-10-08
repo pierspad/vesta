@@ -1,0 +1,481 @@
+film,cards,distribution,profile,rep,mode,seconds,peak_tree_rss_bytes,sampled_ffmpeg_processes,sampled_ffprobe_processes,validated
+Detour(1945).mp4,25,nearby,default,0,baseline,1.141476990000001,1429897216,50,0,True
+Detour(1945).mp4,25,nearby,default,0,optimized,1.1841648889999874,1411620864,51,1,True
+Detour(1945).mp4,25,nearby,default,1,optimized,1.1361337640000215,1306722304,51,1,True
+Detour(1945).mp4,25,nearby,default,1,baseline,1.082262524000015,1328463872,51,0,True
+Detour(1945).mp4,25,nearby,default,2,baseline,1.068040644000007,1281269760,51,0,True
+Detour(1945).mp4,25,nearby,default,2,optimized,1.146590238000016,1357406208,51,1,True
+Detour(1945).mp4,25,nearby,large,0,baseline,1.0554911049999873,1296867328,51,0,True
+Detour(1945).mp4,25,nearby,large,0,optimized,1.1111596039999938,1487822848,51,1,True
+Detour(1945).mp4,25,nearby,large,1,optimized,1.1268373120000206,1426374656,50,1,True
+Detour(1945).mp4,25,nearby,large,1,baseline,1.0662006490000238,1442455552,51,0,True
+Detour(1945).mp4,25,nearby,large,2,baseline,1.137059182999991,1319469056,51,0,True
+Detour(1945).mp4,25,nearby,large,2,optimized,1.1763311730000225,1612824576,51,1,True
+Detour(1945).mp4,100,nearby,default,0,baseline,4.1168431540000086,1423343616,201,0,True
+Detour(1945).mp4,100,nearby,default,0,optimized,4.164719673999997,1481048064,201,1,True
+Detour(1945).mp4,100,nearby,default,1,optimized,4.131552692000014,1432023040,201,1,True
+Detour(1945).mp4,100,nearby,default,1,baseline,4.134124737999997,1440239616,200,0,True
+Detour(1945).mp4,100,nearby,default,2,baseline,4.100479014000001,1422766080,201,0,True
+Detour(1945).mp4,100,nearby,default,2,optimized,4.144599216999978,1445273600,201,1,True
+Detour(1945).mp4,100,nearby,large,0,baseline,4.1016943310000045,1498091520,201,0,True
+Detour(1945).mp4,100,nearby,large,0,optimized,4.160577740000008,1488003072,201,1,True
+Detour(1945).mp4,100,nearby,large,1,optimized,4.1641549839999925,1489653760,201,1,True
+Detour(1945).mp4,100,nearby,large,1,baseline,4.125399466000005,1458892800,201,0,True
+Detour(1945).mp4,100,nearby,large,2,baseline,4.118559814000008,1490960384,201,0,True
+Detour(1945).mp4,100,nearby,large,2,optimized,4.171969142999984,1435676672,201,1,True
+Detour(1945).mp4,300,nearby,default,0,baseline,12.050479620999994,1527214080,601,0,True
+Detour(1945).mp4,300,nearby,default,0,optimized,12.136124706999965,1548443648,601,1,True
+Detour(1945).mp4,300,nearby,default,1,optimized,12.089816472999985,1568264192,601,1,True
+Detour(1945).mp4,300,nearby,default,1,baseline,12.011052773000017,1586114560,601,0,True
+Detour(1945).mp4,300,nearby,default,2,baseline,12.034962846000042,1516060672,601,0,True
+Detour(1945).mp4,300,nearby,default,2,optimized,12.081772527999988,1560748032,601,1,True
+Detour(1945).mp4,300,nearby,large,0,baseline,12.11537839500005,1495281664,601,0,True
+Detour(1945).mp4,300,nearby,large,0,optimized,12.170127855999965,1473822720,600,1,True
+Detour(1945).mp4,300,nearby,large,1,optimized,12.217177402000004,1572036608,600,1,True
+Detour(1945).mp4,300,nearby,large,1,baseline,12.18403008200005,1542582272,600,0,True
+Detour(1945).mp4,300,nearby,large,2,baseline,12.150698352000006,1471770624,601,0,True
+Detour(1945).mp4,300,nearby,large,2,optimized,12.188745697000002,1426907136,601,1,True
+Detour(1945).mp4,1018,full,default,0,baseline,41.098480225,1575100416,2037,0,True
+Detour(1945).mp4,1018,full,default,0,optimized,41.15322149399998,1596219392,2037,1,True
+Detour(1945).mp4,1018,full,default,1,optimized,41.124862889999974,1603436544,2037,1,True
+Detour(1945).mp4,1018,full,default,1,baseline,41.10309450700004,1572462592,2037,0,True
+Detour(1945).mp4,1018,full,default,2,baseline,41.020402457000046,1540919296,2037,0,True
+Detour(1945).mp4,1018,full,default,2,optimized,41.33984881599997,1573572608,2037,1,True
+Detour(1945).mp4,1018,full,large,0,baseline,41.46460369800002,1605611520,2037,0,True
+Detour(1945).mp4,1018,full,large,0,optimized,41.516970860000015,1546887168,2037,1,True
+Detour(1945).mp4,1018,full,large,1,optimized,41.90360042200007,1637969920,2037,1,True
+Detour(1945).mp4,1018,full,large,1,baseline,41.806380149999995,1564790784,2037,0,True
+Detour(1945).mp4,1018,full,large,2,baseline,41.46611777199996,1591934976,2037,0,True
+Detour(1945).mp4,1018,full,large,2,optimized,41.52067468500002,1558134784,2037,1,True
+Detour(1945).mp4,100,sparse,default,0,baseline,4.160387104999927,1585815552,200,0,True
+Detour(1945).mp4,100,sparse,default,0,optimized,4.14620190100004,1458343936,201,0,True
+Detour(1945).mp4,100,sparse,default,1,optimized,4.169632959999944,1660481536,200,0,True
+Detour(1945).mp4,100,sparse,default,1,baseline,4.158724430999996,1389977600,201,0,True
+Detour(1945).mp4,100,sparse,default,2,baseline,4.1462518040000305,1393872896,201,0,True
+Detour(1945).mp4,100,sparse,default,2,optimized,4.155822054000055,1485701120,201,0,True
+Detour(1945).mp4,100,sparse,large,0,baseline,4.161914251999974,1611333632,201,0,True
+Detour(1945).mp4,100,sparse,large,0,optimized,4.166104285000074,1501863936,201,0,True
+Detour(1945).mp4,100,sparse,large,1,optimized,4.212052625000069,1471680512,201,0,True
+Detour(1945).mp4,100,sparse,large,1,baseline,4.190332652000052,1522634752,201,0,True
+Detour(1945).mp4,100,sparse,large,2,baseline,4.19409091,1531351040,201,0,True
+Detour(1945).mp4,100,sparse,large,2,optimized,4.181687409000006,1590149120,201,0,True
+Good.Will.Hunting.mp4,25,nearby,default,0,baseline,2.9321809069999745,2629373952,51,0,True
+Good.Will.Hunting.mp4,25,nearby,default,0,optimized,2.551668677000066,2345590784,36,9,True
+Good.Will.Hunting.mp4,25,nearby,default,1,optimized,2.577037680000103,2517307392,36,9,True
+Good.Will.Hunting.mp4,25,nearby,default,1,baseline,2.9362592979999818,2499522560,51,0,True
+Good.Will.Hunting.mp4,25,nearby,default,2,baseline,2.9420396059999803,2645532672,51,0,True
+Good.Will.Hunting.mp4,25,nearby,default,2,optimized,2.547374055999967,2427518976,36,9,True
+Good.Will.Hunting.mp4,25,nearby,large,0,baseline,2.9267363339999974,2519904256,51,0,True
+Good.Will.Hunting.mp4,25,nearby,large,0,optimized,2.5684129080000275,2415382528,36,9,True
+Good.Will.Hunting.mp4,25,nearby,large,1,optimized,2.556771749999939,2384683008,36,9,True
+Good.Will.Hunting.mp4,25,nearby,large,1,baseline,2.914814275000026,2373406720,50,0,True
+Good.Will.Hunting.mp4,25,nearby,large,2,baseline,2.9303430299999036,2444890112,51,0,True
+Good.Will.Hunting.mp4,25,nearby,large,2,optimized,2.565501587999961,2486820864,36,9,True
+Good.Will.Hunting.mp4,100,nearby,default,0,baseline,11.473690071000078,2798096384,201,0,True
+Good.Will.Hunting.mp4,100,nearby,default,0,optimized,9.531914947000018,2784555008,139,35,True
+Good.Will.Hunting.mp4,100,nearby,default,1,optimized,9.503777939000088,2698207232,139,35,True
+Good.Will.Hunting.mp4,100,nearby,default,1,baseline,11.481787397999938,2611511296,201,0,True
+Good.Will.Hunting.mp4,100,nearby,default,2,baseline,11.50301851000006,2577666048,201,0,True
+Good.Will.Hunting.mp4,100,nearby,default,2,optimized,9.582145557999866,2746605568,139,35,True
+Good.Will.Hunting.mp4,100,nearby,large,0,baseline,11.532266046000132,2622627840,200,0,True
+Good.Will.Hunting.mp4,100,nearby,large,0,optimized,9.561973091000027,2712354816,139,35,True
+Good.Will.Hunting.mp4,100,nearby,large,1,optimized,9.635954896000158,2596786176,139,35,True
+Good.Will.Hunting.mp4,100,nearby,large,1,baseline,11.529525149999927,2558992384,201,0,True
+Good.Will.Hunting.mp4,100,nearby,large,2,baseline,11.560674199999994,2590519296,201,0,True
+Good.Will.Hunting.mp4,100,nearby,large,2,optimized,9.51661035799998,2780585984,139,35,True
+Good.Will.Hunting.mp4,300,nearby,default,0,baseline,35.4490106799999,2783969280,601,0,True
+Good.Will.Hunting.mp4,300,nearby,default,0,optimized,29.79858537300015,2774802432,416,104,True
+Good.Will.Hunting.mp4,300,nearby,default,1,optimized,29.81199714499985,2796822528,416,104,True
+Good.Will.Hunting.mp4,300,nearby,default,1,baseline,35.51035103799995,2701062144,601,0,True
+Good.Will.Hunting.mp4,300,nearby,default,2,baseline,35.48598221199995,2684760064,601,0,True
+Good.Will.Hunting.mp4,300,nearby,default,2,optimized,29.85490500900005,2838196224,416,104,True
+Good.Will.Hunting.mp4,300,nearby,large,0,baseline,35.63977901399994,2707628032,601,0,True
+Good.Will.Hunting.mp4,300,nearby,large,0,optimized,29.876969347000113,2917089280,416,104,True
+Good.Will.Hunting.mp4,300,nearby,large,1,optimized,29.768784224,2837315584,415,104,True
+Good.Will.Hunting.mp4,300,nearby,large,1,baseline,35.6419516200001,2697691136,601,0,True
+Good.Will.Hunting.mp4,300,nearby,large,2,baseline,35.645405656000094,2692423680,601,0,True
+Good.Will.Hunting.mp4,300,nearby,large,2,optimized,29.98763712699997,2727288832,416,104,True
+Good.Will.Hunting.mp4,1755,full,default,0,baseline,220.4672549469999,2873397248,3511,0,True
+Good.Will.Hunting.mp4,1755,full,default,0,optimized,171.07792203200006,2815995904,2410,601,True
+Good.Will.Hunting.mp4,1755,full,default,1,optimized,171.07331637900006,2811936768,2410,601,True
+Good.Will.Hunting.mp4,1755,full,default,1,baseline,220.93695907300025,2785267712,3511,0,True
+Good.Will.Hunting.mp4,1755,full,default,2,baseline,221.25436014200022,2864721920,3511,0,True
+Good.Will.Hunting.mp4,1755,full,default,2,optimized,171.26435756699993,2759831552,2410,601,True
+Good.Will.Hunting.mp4,1755,full,large,0,baseline,221.34195040699979,2834022400,3511,0,True
+Good.Will.Hunting.mp4,1755,full,large,0,optimized,171.91550250199998,2868236288,2410,601,True
+Good.Will.Hunting.mp4,1755,full,large,1,optimized,171.80899862100023,2851139584,2410,601,True
+Good.Will.Hunting.mp4,1755,full,large,1,baseline,221.43094289199962,2813079552,3511,0,True
+Good.Will.Hunting.mp4,1755,full,large,2,baseline,221.615617036,2778943488,3511,0,True
+Good.Will.Hunting.mp4,1755,full,large,2,optimized,171.82408513200016,2864951296,2410,601,True
+Good.Will.Hunting.mp4,100,sparse,default,0,baseline,12.529734022999946,2661462016,201,0,True
+Good.Will.Hunting.mp4,100,sparse,default,0,optimized,12.55967052799997,2680975360,201,0,True
+Good.Will.Hunting.mp4,100,sparse,default,1,optimized,12.548405456999717,2673786880,201,0,True
+Good.Will.Hunting.mp4,100,sparse,default,1,baseline,12.609084058000008,2551422976,201,0,True
+Good.Will.Hunting.mp4,100,sparse,default,2,baseline,12.577210845000081,2670641152,201,0,True
+Good.Will.Hunting.mp4,100,sparse,default,2,optimized,12.507309102999898,2732339200,201,0,True
+Good.Will.Hunting.mp4,100,sparse,large,0,baseline,12.588963433000117,2636365824,200,0,True
+Good.Will.Hunting.mp4,100,sparse,large,0,optimized,12.577916638999795,2779758592,201,0,True
+Good.Will.Hunting.mp4,100,sparse,large,1,optimized,12.574023604000104,2673373184,201,0,True
+Good.Will.Hunting.mp4,100,sparse,large,1,baseline,12.598678646999815,2640998400,201,0,True
+Good.Will.Hunting.mp4,100,sparse,large,2,baseline,12.548517087000164,2720276480,201,0,True
+Good.Will.Hunting.mp4,100,sparse,large,2,optimized,12.544865715000014,2719129600,201,0,True
+In.Bruges.mkv,25,nearby,default,0,baseline,5.039457740999751,3266265088,51,0,True
+In.Bruges.mkv,25,nearby,default,0,optimized,3.725243929000044,3013431296,36,8,True
+In.Bruges.mkv,25,nearby,default,1,optimized,3.7425010350002594,2990895104,36,8,True
+In.Bruges.mkv,25,nearby,default,1,baseline,5.024562003000028,3060256768,51,0,True
+In.Bruges.mkv,25,nearby,default,2,baseline,5.072807289999673,3157303296,51,0,True
+In.Bruges.mkv,25,nearby,default,2,optimized,3.734802872000273,3182264320,36,8,True
+In.Bruges.mkv,25,nearby,large,0,baseline,5.0577621289999115,3124609024,51,0,True
+In.Bruges.mkv,25,nearby,large,0,optimized,3.695366913000271,3045330944,36,8,True
+In.Bruges.mkv,25,nearby,large,1,optimized,3.7579973289998634,3261132800,36,8,True
+In.Bruges.mkv,25,nearby,large,1,baseline,5.035730195999804,3380625408,51,0,True
+In.Bruges.mkv,25,nearby,large,2,baseline,4.984869237000112,3329003520,51,0,True
+In.Bruges.mkv,25,nearby,large,2,optimized,3.6730022599999756,2977861632,36,8,True
+In.Bruges.mkv,100,nearby,default,0,baseline,19.829094423000242,3320958976,201,0,True
+In.Bruges.mkv,100,nearby,default,0,optimized,15.90807140600009,3294031872,138,32,True
+In.Bruges.mkv,100,nearby,default,1,optimized,15.863335602999541,3342397440,138,32,True
+In.Bruges.mkv,100,nearby,default,1,baseline,19.88013418799983,3182288896,201,0,True
+In.Bruges.mkv,100,nearby,default,2,baseline,19.914669213999332,3250999296,201,0,True
+In.Bruges.mkv,100,nearby,default,2,optimized,15.948875996000424,3451813888,138,32,True
+In.Bruges.mkv,100,nearby,large,0,baseline,19.99557881599958,3572891648,201,0,True
+In.Bruges.mkv,100,nearby,large,0,optimized,15.907564484000432,3266572288,138,32,True
+In.Bruges.mkv,100,nearby,large,1,optimized,15.968512030000056,3355033600,138,32,True
+In.Bruges.mkv,100,nearby,large,1,baseline,20.002299922999555,3345346560,201,0,True
+In.Bruges.mkv,100,nearby,large,2,baseline,19.957300942000074,3381129216,201,0,True
+In.Bruges.mkv,100,nearby,large,2,optimized,16.005197013000725,3260268544,138,32,True
+In.Bruges.mkv,300,nearby,default,0,baseline,64.33492046599986,3356663808,601,0,True
+In.Bruges.mkv,300,nearby,default,0,optimized,51.67326032300025,3487375360,416,97,True
+In.Bruges.mkv,300,nearby,default,1,optimized,51.494103760000144,3557683200,416,97,True
+In.Bruges.mkv,300,nearby,default,1,baseline,64.41371093499947,3383545856,601,0,True
+In.Bruges.mkv,300,nearby,default,2,baseline,64.51052722500026,3446751232,600,0,True
+In.Bruges.mkv,300,nearby,default,2,optimized,51.965918866999345,3572924416,416,97,True
+In.Bruges.mkv,300,nearby,large,0,baseline,64.57601231999979,3433582592,601,0,True
+In.Bruges.mkv,300,nearby,large,0,optimized,51.67658476399993,3531886592,416,97,True
+In.Bruges.mkv,300,nearby,large,1,optimized,51.7573229110003,3487805440,416,96,True
+In.Bruges.mkv,300,nearby,large,1,baseline,64.5343300530003,3561181184,601,0,True
+In.Bruges.mkv,300,nearby,large,2,baseline,64.86782362400027,3513556992,601,0,True
+In.Bruges.mkv,300,nearby,large,2,optimized,51.96678157899987,3463536640,416,97,True
+In.Bruges.mkv,1171,full,default,0,baseline,252.5305048909995,3541798912,2343,0,True
+In.Bruges.mkv,1171,full,default,0,optimized,201.0494671710003,3532361728,1600,364,True
+In.Bruges.mkv,1171,full,default,1,optimized,200.86101801299992,3537096704,1600,364,True
+In.Bruges.mkv,1171,full,default,1,baseline,252.68797316500059,3545038848,2343,0,True
+In.Bruges.mkv,1171,full,default,2,baseline,252.98136011800034,3410616320,2343,0,True
+In.Bruges.mkv,1171,full,default,2,optimized,201.21812814700024,3629830144,1600,364,True
+In.Bruges.mkv,1171,full,large,0,baseline,253.20491415000015,3484106752,2343,0,True
+In.Bruges.mkv,1171,full,large,0,optimized,201.4840819610008,3620458496,1600,364,True
+In.Bruges.mkv,1171,full,large,1,optimized,201.25074107100045,3597148160,1600,364,True
+In.Bruges.mkv,1171,full,large,1,baseline,253.44435575199986,3419668480,2343,0,True
+In.Bruges.mkv,1171,full,large,2,baseline,253.4111508420001,3639922688,2343,0,True
+In.Bruges.mkv,1171,full,large,2,optimized,201.49417602299945,3571814400,1600,364,True
+In.Bruges.mkv,100,sparse,default,0,baseline,21.665607254999486,3333189632,201,0,True
+In.Bruges.mkv,100,sparse,default,0,optimized,21.657695359000172,3434426368,201,0,True
+In.Bruges.mkv,100,sparse,default,1,optimized,21.556425349000165,3319816192,201,0,True
+In.Bruges.mkv,100,sparse,default,1,baseline,21.603254489999927,3331289088,201,0,True
+In.Bruges.mkv,100,sparse,default,2,baseline,21.578038341000138,3365408768,201,0,True
+In.Bruges.mkv,100,sparse,default,2,optimized,21.57228252999994,3262160896,201,0,True
+In.Bruges.mkv,100,sparse,large,0,baseline,21.584432554999694,3358908416,201,0,True
+In.Bruges.mkv,100,sparse,large,0,optimized,21.638785221000035,3378270208,201,0,True
+In.Bruges.mkv,100,sparse,large,1,optimized,21.624755421000373,3274473472,201,0,True
+In.Bruges.mkv,100,sparse,large,1,baseline,21.60422905699943,3307413504,201,0,True
+In.Bruges.mkv,100,sparse,large,2,baseline,21.772423223999795,3291934720,201,0,True
+In.Bruges.mkv,100,sparse,large,2,optimized,21.650919483000507,3430170624,200,0,True
+Interstellar.mp4,25,nearby,default,0,baseline,1.5710082619998502,2033831936,51,0,True
+Interstellar.mp4,25,nearby,default,0,optimized,1.4533325929996863,1884626944,37,11,True
+Interstellar.mp4,25,nearby,default,1,optimized,1.4949217840003257,1816055808,37,11,True
+Interstellar.mp4,25,nearby,default,1,baseline,1.5515330969992647,1904631808,51,0,True
+Interstellar.mp4,25,nearby,default,2,baseline,1.545192498999313,1951940608,51,0,True
+Interstellar.mp4,25,nearby,default,2,optimized,1.485601348000273,1809072128,37,11,True
+Interstellar.mp4,25,nearby,large,0,baseline,1.554582863000178,1858793472,51,0,True
+Interstellar.mp4,25,nearby,large,0,optimized,1.5106349719999344,1786605568,37,11,True
+Interstellar.mp4,25,nearby,large,1,optimized,1.4877445049996822,1720066048,37,11,True
+Interstellar.mp4,25,nearby,large,1,baseline,1.5483896969999478,1991819264,51,0,True
+Interstellar.mp4,25,nearby,large,2,baseline,1.5811122260001866,1936490496,51,0,True
+Interstellar.mp4,25,nearby,large,2,optimized,1.526650206999875,1854898176,36,11,True
+Interstellar.mp4,100,nearby,default,0,baseline,6.160406706999311,1939980288,200,0,True
+Interstellar.mp4,100,nearby,default,0,optimized,5.3307508819998475,2016329728,138,35,True
+Interstellar.mp4,100,nearby,default,1,optimized,5.344394046000161,1965834240,138,35,True
+Interstellar.mp4,100,nearby,default,1,baseline,6.18511115199999,2014371840,201,0,True
+Interstellar.mp4,100,nearby,default,2,baseline,6.155990483999631,2042155008,201,0,True
+Interstellar.mp4,100,nearby,default,2,optimized,5.394140946000334,2018734080,138,35,True
+Interstellar.mp4,100,nearby,large,0,baseline,6.174099808999927,2111963136,201,0,True
+Interstellar.mp4,100,nearby,large,0,optimized,5.358881332000237,1893847040,138,35,True
+Interstellar.mp4,100,nearby,large,1,optimized,5.344806211000105,1965817856,138,35,True
+Interstellar.mp4,100,nearby,large,1,baseline,6.172947479999493,1919037440,201,0,True
+Interstellar.mp4,100,nearby,large,2,baseline,6.196181088999765,1972137984,201,0,True
+Interstellar.mp4,100,nearby,large,2,optimized,5.353271195999696,2033942528,138,35,True
+Interstellar.mp4,300,nearby,default,0,baseline,19.21944604500004,1932627968,601,0,True
+Interstellar.mp4,300,nearby,default,0,optimized,17.02855675599949,2176524288,417,107,True
+Interstellar.mp4,300,nearby,default,1,optimized,17.06402829900071,2109997056,418,107,True
+Interstellar.mp4,300,nearby,default,1,baseline,19.157324135000636,2037800960,601,0,True
+Interstellar.mp4,300,nearby,default,2,baseline,19.19062168000073,2015109120,601,0,True
+Interstellar.mp4,300,nearby,default,2,optimized,17.00934507400052,1995870208,418,107,True
+Interstellar.mp4,300,nearby,large,0,baseline,19.2244535560003,1944829952,601,0,True
+Interstellar.mp4,300,nearby,large,0,optimized,17.127008785000726,2147700736,418,107,True
+Interstellar.mp4,300,nearby,large,1,optimized,17.100062711000646,2148298752,418,107,True
+Interstellar.mp4,300,nearby,large,1,baseline,19.245722097000908,2117341184,601,0,True
+Interstellar.mp4,300,nearby,large,2,baseline,19.295048164000036,2048098304,601,0,True
+Interstellar.mp4,300,nearby,large,2,optimized,17.152675971999997,1942163456,418,107,True
+Interstellar.mp4,1996,full,default,0,baseline,126.753909568999,2199998464,3993,0,True
+Interstellar.mp4,1996,full,default,0,optimized,113.10096219800107,2150260736,2812,696,True
+Interstellar.mp4,1996,full,default,1,optimized,113.18240921100005,2137886720,2812,696,True
+Interstellar.mp4,1996,full,default,1,baseline,126.57522659700044,2216660992,3993,0,True
+Interstellar.mp4,1996,full,default,2,baseline,126.51583708500038,2121809920,3993,0,True
+Interstellar.mp4,1996,full,default,2,optimized,113.09465692100093,2056486912,2812,696,True
+Interstellar.mp4,1996,full,large,0,baseline,126.9193439039991,2101866496,3993,0,True
+Interstellar.mp4,1996,full,large,0,optimized,113.6223275909997,2097795072,2812,696,True
+Interstellar.mp4,1996,full,large,1,optimized,113.52921337800035,2142240768,2812,696,True
+Interstellar.mp4,1996,full,large,1,baseline,126.97590236200085,2112290816,3993,0,True
+Interstellar.mp4,1996,full,large,2,baseline,127.03200544399988,2155749376,3993,0,True
+Interstellar.mp4,1996,full,large,2,optimized,113.53486705700016,2164637696,2812,696,True
+Interstellar.mp4,100,sparse,default,0,baseline,6.745021302000168,1977196544,201,0,True
+Interstellar.mp4,100,sparse,default,0,optimized,6.684205958999883,1954848768,201,0,True
+Interstellar.mp4,100,sparse,default,1,optimized,6.670203438001408,1905041408,201,0,True
+Interstellar.mp4,100,sparse,default,1,baseline,6.718730882999807,1992159232,201,0,True
+Interstellar.mp4,100,sparse,default,2,baseline,6.704448315000263,2094563328,201,0,True
+Interstellar.mp4,100,sparse,default,2,optimized,6.709741480999583,1999884288,200,0,True
+Interstellar.mp4,100,sparse,large,0,baseline,6.718582125999092,2073194496,201,0,True
+Interstellar.mp4,100,sparse,large,0,optimized,6.77179935499953,1969876992,201,0,True
+Interstellar.mp4,100,sparse,large,1,optimized,6.79429265500039,2090500096,201,0,True
+Interstellar.mp4,100,sparse,large,1,baseline,6.7406509240008745,2134745088,201,0,True
+Interstellar.mp4,100,sparse,large,2,baseline,6.729481094000221,1985945600,201,0,True
+Interstellar.mp4,100,sparse,large,2,optimized,6.745337495000058,1956438016,201,0,True
+Snatch.mp4,25,nearby,default,0,baseline,5.3714883150005335,3319472128,51,0,True
+Snatch.mp4,25,nearby,default,0,optimized,5.521056431998659,3279654912,51,1,True
+Snatch.mp4,25,nearby,default,1,optimized,5.494253758999548,3404869632,51,1,True
+Snatch.mp4,25,nearby,default,1,baseline,5.480211922000308,3429654528,51,0,True
+Snatch.mp4,25,nearby,default,2,baseline,5.465728319000846,3190525952,51,0,True
+Snatch.mp4,25,nearby,default,2,optimized,5.484010006999597,3260919808,51,1,True
+Snatch.mp4,25,nearby,large,0,baseline,5.390575511000861,3264942080,51,0,True
+Snatch.mp4,25,nearby,large,0,optimized,5.5219185589994595,3245789184,51,1,True
+Snatch.mp4,25,nearby,large,1,optimized,5.522067256999435,3398184960,51,1,True
+Snatch.mp4,25,nearby,large,1,baseline,5.513639991999298,3268476928,51,0,True
+Snatch.mp4,25,nearby,large,2,baseline,5.479403371999069,3287375872,51,0,True
+Snatch.mp4,25,nearby,large,2,optimized,5.528460237999752,3306668032,51,1,True
+Snatch.mp4,100,nearby,default,0,baseline,19.124651551999705,3458838528,201,0,True
+Snatch.mp4,100,nearby,default,0,optimized,19.221105572998567,3449610240,201,1,True
+Snatch.mp4,100,nearby,default,1,optimized,19.212599785001657,3360505856,201,1,True
+Snatch.mp4,100,nearby,default,1,baseline,19.150483398001597,3290255360,201,0,True
+Snatch.mp4,100,nearby,default,2,baseline,19.16483701799916,3698855936,201,0,True
+Snatch.mp4,100,nearby,default,2,optimized,19.16369796700019,3389259776,201,1,True
+Snatch.mp4,100,nearby,large,0,baseline,19.189153774999795,3293130752,201,0,True
+Snatch.mp4,100,nearby,large,0,optimized,19.299279488999673,3414773760,201,1,True
+Snatch.mp4,100,nearby,large,1,optimized,19.22615569199843,3325513728,201,1,True
+Snatch.mp4,100,nearby,large,1,baseline,19.16437776500061,3357831168,201,0,True
+Snatch.mp4,100,nearby,large,2,baseline,19.206378901999415,3442307072,201,0,True
+Snatch.mp4,100,nearby,large,2,optimized,19.325252099000863,3452440576,201,1,True
+Snatch.mp4,300,nearby,default,0,baseline,53.36090248400069,3463217152,601,0,True
+Snatch.mp4,300,nearby,default,0,optimized,53.58084395700098,3690258432,601,1,True
+Snatch.mp4,300,nearby,default,1,optimized,53.594979561999935,3371794432,601,1,True
+Snatch.mp4,300,nearby,default,1,baseline,53.407318974999725,3530752000,601,0,True
+Snatch.mp4,300,nearby,default,2,baseline,53.72432802499861,3431456768,601,0,True
+Snatch.mp4,300,nearby,default,2,optimized,53.53598066400082,3390365696,601,1,True
+Snatch.mp4,300,nearby,large,0,baseline,53.68923800799894,3592929280,601,0,True
+Snatch.mp4,300,nearby,large,0,optimized,53.48276318400167,3449593856,601,1,True
+Snatch.mp4,300,nearby,large,1,optimized,53.73016323699994,3465912320,601,1,True
+Snatch.mp4,300,nearby,large,1,baseline,53.6936538760001,3338027008,601,0,True
+Snatch.mp4,300,nearby,large,2,baseline,53.704793835999226,3347787776,601,0,True
+Snatch.mp4,300,nearby,large,2,optimized,53.63531533300011,3379093504,601,1,True
+Snatch.mp4,1522,full,default,0,baseline,251.53475375199923,3535519744,3045,0,True
+Snatch.mp4,1522,full,default,0,optimized,251.81374089900055,3447820288,3045,1,True
+Snatch.mp4,1522,full,default,1,optimized,252.05090354099957,3402506240,3045,1,True
+Snatch.mp4,1522,full,default,1,baseline,251.585500313,3485859840,3045,0,True
+Snatch.mp4,1522,full,default,2,baseline,251.72965538500102,3464695808,3045,0,True
+Snatch.mp4,1522,full,default,2,optimized,251.70576348099894,3457744896,3045,1,True
+Snatch.mp4,1522,full,large,0,baseline,252.21370856700014,3624357888,3045,0,True
+Snatch.mp4,1522,full,large,0,optimized,252.1563142670002,3517677568,3045,1,True
+Snatch.mp4,1522,full,large,1,optimized,252.4113733560007,3512692736,3045,1,True
+Snatch.mp4,1522,full,large,1,baseline,252.42937046299994,3501719552,3045,0,True
+Snatch.mp4,1522,full,large,2,baseline,252.50871380800163,3445059584,3045,0,True
+Snatch.mp4,1522,full,large,2,optimized,252.1189970009982,3416530944,3045,1,True
+Snatch.mp4,100,sparse,default,0,baseline,17.04893196899866,3225112576,201,0,True
+Snatch.mp4,100,sparse,default,0,optimized,16.979599344000235,3233210368,201,0,True
+Snatch.mp4,100,sparse,default,1,optimized,17.152094308001324,3234107392,201,0,True
+Snatch.mp4,100,sparse,default,1,baseline,17.000995762000457,3292053504,201,0,True
+Snatch.mp4,100,sparse,default,2,baseline,17.03508588299883,3348402176,201,0,True
+Snatch.mp4,100,sparse,default,2,optimized,16.954614598000262,3388788736,201,0,True
+Snatch.mp4,100,sparse,large,0,baseline,17.04798632100028,3320143872,201,0,True
+Snatch.mp4,100,sparse,large,0,optimized,17.07519380099984,3382325248,201,0,True
+Snatch.mp4,100,sparse,large,1,optimized,17.04009284499989,3404812288,201,0,True
+Snatch.mp4,100,sparse,large,1,baseline,16.997075414999927,3314696192,201,0,True
+Snatch.mp4,100,sparse,large,2,baseline,17.062824316999468,3464425472,201,0,True
+Snatch.mp4,100,sparse,large,2,optimized,17.112825583999438,3410599936,201,0,True
+Trainspotting.mp4,25,nearby,default,0,baseline,2.4653890919998958,2036056064,51,0,True
+Trainspotting.mp4,25,nearby,default,0,optimized,1.9698774490007054,2060886016,35,7,True
+Trainspotting.mp4,25,nearby,default,1,optimized,1.935516887000631,1883627520,35,7,True
+Trainspotting.mp4,25,nearby,default,1,baseline,2.4368418129997735,2149949440,51,0,True
+Trainspotting.mp4,25,nearby,default,2,baseline,2.422803251000005,2373509120,51,0,True
+Trainspotting.mp4,25,nearby,default,2,optimized,1.9883754679995036,2115407872,35,7,True
+Trainspotting.mp4,25,nearby,large,0,baseline,2.4741561869996076,2638479360,51,0,True
+Trainspotting.mp4,25,nearby,large,0,optimized,1.968907496000611,1873711104,35,7,True
+Trainspotting.mp4,25,nearby,large,1,optimized,2.022244623000006,2178940928,35,7,True
+Trainspotting.mp4,25,nearby,large,1,baseline,2.4585262830005377,2522816512,51,0,True
+Trainspotting.mp4,25,nearby,large,2,baseline,2.423917762000201,2475851776,51,0,True
+Trainspotting.mp4,25,nearby,large,2,optimized,2.000797988001068,2179526656,35,7,True
+Trainspotting.mp4,100,nearby,default,0,baseline,11.505523006999283,2438455296,201,0,True
+Trainspotting.mp4,100,nearby,default,0,optimized,8.651015882998763,2661007360,135,31,True
+Trainspotting.mp4,100,nearby,default,1,optimized,8.599052449999363,2561343488,135,31,True
+Trainspotting.mp4,100,nearby,default,1,baseline,11.545389549000902,2464079872,201,0,True
+Trainspotting.mp4,100,nearby,default,2,baseline,11.571892132998983,2573402112,201,0,True
+Trainspotting.mp4,100,nearby,default,2,optimized,8.718369931999405,2641948672,135,31,True
+Trainspotting.mp4,100,nearby,large,0,baseline,11.604952055000467,2462773248,201,0,True
+Trainspotting.mp4,100,nearby,large,0,optimized,8.68602962100158,2703634432,135,31,True
+Trainspotting.mp4,100,nearby,large,1,optimized,8.664032984999722,2671603712,135,31,True
+Trainspotting.mp4,100,nearby,large,1,baseline,11.5802543159989,2517954560,201,0,True
+Trainspotting.mp4,100,nearby,large,2,baseline,11.60329326899955,2444337152,201,0,True
+Trainspotting.mp4,100,nearby,large,2,optimized,8.659662316998947,2639454208,135,31,True
+Trainspotting.mp4,300,nearby,default,0,baseline,34.08527629400123,2594447360,601,0,True
+Trainspotting.mp4,300,nearby,default,0,optimized,24.491182232999563,2640826368,396,87,True
+Trainspotting.mp4,300,nearby,default,1,optimized,24.479431764000765,2633535488,396,87,True
+Trainspotting.mp4,300,nearby,default,1,baseline,34.186588357999426,2652540928,601,0,True
+Trainspotting.mp4,300,nearby,default,2,baseline,34.18788966200009,2711220224,601,0,True
+Trainspotting.mp4,300,nearby,default,2,optimized,24.45866071599994,2679541760,396,87,True
+Trainspotting.mp4,300,nearby,large,0,baseline,34.18336195499978,2588459008,601,0,True
+Trainspotting.mp4,300,nearby,large,0,optimized,24.46129694099909,2825072640,396,87,True
+Trainspotting.mp4,300,nearby,large,1,optimized,24.545691688999796,2766688256,396,87,True
+Trainspotting.mp4,300,nearby,large,1,baseline,34.20816782099973,2600185856,601,0,True
+Trainspotting.mp4,300,nearby,large,2,baseline,34.28994498499924,2578628608,601,0,True
+Trainspotting.mp4,300,nearby,large,2,optimized,24.596595377000995,2610360320,396,87,True
+Trainspotting.mp4,1384,full,default,0,baseline,156.3671853900014,2617790464,2769,0,True
+Trainspotting.mp4,1384,full,default,0,optimized,112.43085371599955,2694176768,1848,406,True
+Trainspotting.mp4,1384,full,default,1,optimized,112.23615031900044,2752806912,1848,406,True
+Trainspotting.mp4,1384,full,default,1,baseline,156.5331461700007,2761007104,2769,0,True
+Trainspotting.mp4,1384,full,default,2,baseline,156.67924727000172,2679967744,2769,0,True
+Trainspotting.mp4,1384,full,default,2,optimized,112.34595334299956,2777575424,1848,406,True
+Trainspotting.mp4,1384,full,large,0,baseline,156.87208228399868,2665246720,2769,0,True
+Trainspotting.mp4,1384,full,large,0,optimized,112.61524965999888,2641072128,1848,406,True
+Trainspotting.mp4,1384,full,large,1,optimized,112.48829184900023,2671005696,1848,406,True
+Trainspotting.mp4,1384,full,large,1,baseline,156.82606019000013,2707005440,2769,0,True
+Trainspotting.mp4,1384,full,large,2,baseline,156.93694996000158,2663858176,2769,0,True
+Trainspotting.mp4,1384,full,large,2,optimized,112.70284677699965,2789011456,1848,406,True
+Trainspotting.mp4,100,sparse,default,0,baseline,11.399775965999652,2395738112,201,0,True
+Trainspotting.mp4,100,sparse,default,0,optimized,11.32053829600045,2547245056,201,0,True
+Trainspotting.mp4,100,sparse,default,1,optimized,11.38194839300013,2664005632,201,0,True
+Trainspotting.mp4,100,sparse,default,1,baseline,11.330438566001249,2465652736,201,0,True
+Trainspotting.mp4,100,sparse,default,2,baseline,11.32409025800007,2636099584,201,0,True
+Trainspotting.mp4,100,sparse,default,2,optimized,11.358588898001472,2557403136,201,0,True
+Trainspotting.mp4,100,sparse,large,0,baseline,11.29048359599983,2471829504,201,0,True
+Trainspotting.mp4,100,sparse,large,0,optimized,11.353970215999652,2442502144,201,0,True
+Trainspotting.mp4,100,sparse,large,1,optimized,11.38875607800037,2570792960,201,0,True
+Trainspotting.mp4,100,sparse,large,1,baseline,11.382657639000172,2643644416,201,0,True
+Trainspotting.mp4,100,sparse,large,2,baseline,11.397325114001433,2742718464,201,0,True
+Trainspotting.mp4,100,sparse,large,2,optimized,11.435456495000835,2556071936,201,0,True
+Uncut Gems.mkv,25,nearby,default,0,baseline,2.840864623998641,2375274496,51,0,True
+Uncut Gems.mkv,25,nearby,default,0,optimized,2.488091881999935,2382192640,37,10,True
+Uncut Gems.mkv,25,nearby,default,1,optimized,2.5164471919997595,2506383360,37,10,True
+Uncut Gems.mkv,25,nearby,default,1,baseline,2.8388703189993976,2169081856,51,0,True
+Uncut Gems.mkv,25,nearby,default,2,baseline,2.8134063699999388,2368409600,51,0,True
+Uncut Gems.mkv,25,nearby,default,2,optimized,2.478404142000727,2399780864,37,10,True
+Uncut Gems.mkv,25,nearby,large,0,baseline,2.9063062540008104,2318561280,51,0,True
+Uncut Gems.mkv,25,nearby,large,0,optimized,2.5087038750007196,2419765248,37,10,True
+Uncut Gems.mkv,25,nearby,large,1,optimized,2.495658325000477,2308100096,37,10,True
+Uncut Gems.mkv,25,nearby,large,1,baseline,2.9154020940004557,2298793984,51,0,True
+Uncut Gems.mkv,25,nearby,large,2,baseline,2.8664901679985633,2461642752,51,0,True
+Uncut Gems.mkv,25,nearby,large,2,optimized,2.5335769440007425,2386792448,37,10,True
+Uncut Gems.mkv,100,nearby,default,0,baseline,9.368626861998564,2403241984,201,0,True
+Uncut Gems.mkv,100,nearby,default,0,optimized,8.018170392000684,2608852992,134,30,True
+Uncut Gems.mkv,100,nearby,default,1,optimized,8.115933748000316,2590359552,134,30,True
+Uncut Gems.mkv,100,nearby,default,1,baseline,9.368580518999806,2433527808,201,0,True
+Uncut Gems.mkv,100,nearby,default,2,baseline,9.368394415001603,2517434368,201,0,True
+Uncut Gems.mkv,100,nearby,default,2,optimized,8.138237205999758,2672508928,134,30,True
+Uncut Gems.mkv,100,nearby,large,0,baseline,9.434122737999132,2485043200,201,0,True
+Uncut Gems.mkv,100,nearby,large,0,optimized,8.182506569000907,2596597760,134,30,True
+Uncut Gems.mkv,100,nearby,large,1,optimized,8.136972869999227,2575896576,134,30,True
+Uncut Gems.mkv,100,nearby,large,1,baseline,9.390803295000296,2454265856,201,0,True
+Uncut Gems.mkv,100,nearby,large,2,baseline,9.45914359299968,2371330048,201,0,True
+Uncut Gems.mkv,100,nearby,large,2,optimized,8.087543947000086,2577707008,134,30,True
+Uncut Gems.mkv,300,nearby,default,0,baseline,27.63959645000068,2552238080,601,0,True
+Uncut Gems.mkv,300,nearby,default,0,optimized,23.85820566899929,2786832384,394,85,True
+Uncut Gems.mkv,300,nearby,default,1,optimized,23.78518639899994,2655244288,394,85,True
+Uncut Gems.mkv,300,nearby,default,1,baseline,27.526759954002046,2643079168,601,0,True
+Uncut Gems.mkv,300,nearby,default,2,baseline,27.652242416999798,2509496320,601,0,True
+Uncut Gems.mkv,300,nearby,default,2,optimized,23.795050421998894,2620354560,394,85,True
+Uncut Gems.mkv,300,nearby,large,0,baseline,27.765978290997737,2528059392,601,0,True
+Uncut Gems.mkv,300,nearby,large,0,optimized,23.87501335699926,2788892672,394,85,True
+Uncut Gems.mkv,300,nearby,large,1,optimized,23.833701731000474,2739937280,394,85,True
+Uncut Gems.mkv,300,nearby,large,1,baseline,27.713769543002854,2529755136,601,0,True
+Uncut Gems.mkv,300,nearby,large,2,baseline,27.662572749999526,2594242560,601,0,True
+Uncut Gems.mkv,300,nearby,large,2,optimized,23.77815386200018,2881318912,394,85,True
+Uncut Gems.mkv,2315,full,default,0,baseline,217.50324862300113,2850926592,4631,0,True
+Uncut Gems.mkv,2315,full,default,0,optimized,190.80160467699898,3004674048,3068,676,True
+Uncut Gems.mkv,2315,full,default,1,optimized,190.5432275680032,2973716480,3068,676,True
+Uncut Gems.mkv,2315,full,default,1,baseline,217.08244104799815,2731085824,4631,0,True
+Uncut Gems.mkv,2315,full,default,2,baseline,217.13272625600075,2823241728,4631,0,True
+Uncut Gems.mkv,2315,full,default,2,optimized,190.6177300499985,3122581504,3068,676,True
+Uncut Gems.mkv,2315,full,large,0,baseline,217.42182489300103,2996490240,4631,0,True
+Uncut Gems.mkv,2315,full,large,0,optimized,191.13660129100026,2901667840,3068,676,True
+Uncut Gems.mkv,2315,full,large,1,optimized,190.9660968979988,2914426880,3068,676,True
+Uncut Gems.mkv,2315,full,large,1,baseline,217.75016378200235,2833948672,4631,0,True
+Uncut Gems.mkv,2315,full,large,2,baseline,217.66819306199977,2821713920,4631,0,True
+Uncut Gems.mkv,2315,full,large,2,optimized,190.82968506699763,3059826688,3068,676,True
+Uncut Gems.mkv,100,sparse,default,0,baseline,8.771479155002453,2600652800,201,0,True
+Uncut Gems.mkv,100,sparse,default,0,optimized,8.779460035999364,2645438464,201,0,True
+Uncut Gems.mkv,100,sparse,default,1,optimized,8.72280480700283,2434957312,201,0,True
+Uncut Gems.mkv,100,sparse,default,1,baseline,8.80961830600063,2604072960,201,0,True
+Uncut Gems.mkv,100,sparse,default,2,baseline,8.756002820999129,2384838656,201,0,True
+Uncut Gems.mkv,100,sparse,default,2,optimized,8.72321320500123,2396155904,201,0,True
+Uncut Gems.mkv,100,sparse,large,0,baseline,8.82544039899949,2463035392,201,0,True
+Uncut Gems.mkv,100,sparse,large,0,optimized,8.759375929999806,2474143744,201,0,True
+Uncut Gems.mkv,100,sparse,large,1,optimized,8.819728385999042,2488250368,200,0,True
+Uncut Gems.mkv,100,sparse,large,1,baseline,8.901679213002353,2672611328,201,0,True
+Uncut Gems.mkv,100,sparse,large,2,baseline,8.79763188799916,2570321920,201,0,True
+Uncut Gems.mkv,100,sparse,large,2,optimized,8.839158586997655,2569273344,201,0,True
+Zootopia.mkv,25,nearby,default,0,baseline,3.7753919639981177,2570514432,51,0,True
+Zootopia.mkv,25,nearby,default,0,optimized,3.377470714996889,2780139520,39,10,True
+Zootopia.mkv,25,nearby,default,1,optimized,3.386582774000999,2629697536,39,10,True
+Zootopia.mkv,25,nearby,default,1,baseline,3.783822274999693,2923323392,51,0,True
+Zootopia.mkv,25,nearby,default,2,baseline,3.7846424279996427,2701225984,51,0,True
+Zootopia.mkv,25,nearby,default,2,optimized,3.4052310260012746,2675388416,39,10,True
+Zootopia.mkv,25,nearby,large,0,baseline,3.7457014949977747,2790502400,51,0,True
+Zootopia.mkv,25,nearby,large,0,optimized,3.43563594400257,2910318592,39,10,True
+Zootopia.mkv,25,nearby,large,1,optimized,3.415019789001235,2873884672,39,10,True
+Zootopia.mkv,25,nearby,large,1,baseline,3.7392058559998986,2605318144,51,0,True
+Zootopia.mkv,25,nearby,large,2,baseline,3.768380238998361,2693554176,51,0,True
+Zootopia.mkv,25,nearby,large,2,optimized,3.382508336002502,3087872000,39,10,True
+Zootopia.mkv,100,nearby,default,0,baseline,11.98371494100138,2515587072,201,0,True
+Zootopia.mkv,100,nearby,default,0,optimized,10.111721820998355,2680176640,137,30,True
+Zootopia.mkv,100,nearby,default,1,optimized,10.195396467999672,2940076032,137,30,True
+Zootopia.mkv,100,nearby,default,1,baseline,12.00920371400207,2544451584,201,0,True
+Zootopia.mkv,100,nearby,default,2,baseline,11.9427765190012,2695913472,201,0,True
+Zootopia.mkv,100,nearby,default,2,optimized,10.020835854000325,2731597824,137,30,True
+Zootopia.mkv,100,nearby,large,0,baseline,12.039725984999677,2739937280,201,0,True
+Zootopia.mkv,100,nearby,large,0,optimized,10.100171615998988,2697232384,137,30,True
+Zootopia.mkv,100,nearby,large,1,optimized,10.114781737996964,2706018304,137,29,True
+Zootopia.mkv,100,nearby,large,1,baseline,12.0144180770003,2707492864,201,0,True
+Zootopia.mkv,100,nearby,large,2,baseline,12.174062250000134,2790408192,201,0,True
+Zootopia.mkv,100,nearby,large,2,optimized,10.081419421003375,2906435584,137,30,True
+Zootopia.mkv,300,nearby,default,0,baseline,35.7085938679993,2956566528,601,0,True
+Zootopia.mkv,300,nearby,default,0,optimized,29.806274331996974,2910425088,405,89,True
+Zootopia.mkv,300,nearby,default,1,optimized,29.810360799998307,2914349056,405,89,True
+Zootopia.mkv,300,nearby,default,1,baseline,35.70721621100165,2758819840,601,0,True
+Zootopia.mkv,300,nearby,default,2,baseline,35.57292715999938,2725814272,601,0,True
+Zootopia.mkv,300,nearby,default,2,optimized,29.77442279800016,2927259648,405,89,True
+Zootopia.mkv,300,nearby,large,0,baseline,35.63047500999892,2782199808,601,0,True
+Zootopia.mkv,300,nearby,large,0,optimized,29.779832571999577,2957860864,405,89,True
+Zootopia.mkv,300,nearby,large,1,optimized,29.785865169997123,2795573248,405,89,True
+Zootopia.mkv,300,nearby,large,1,baseline,35.708863761999964,2673930240,601,0,True
+Zootopia.mkv,300,nearby,large,2,baseline,35.82525389500006,2690162688,601,0,True
+Zootopia.mkv,300,nearby,large,2,optimized,29.850022152000747,2903855104,405,89,True
+Zootopia.mkv,1698,full,default,0,baseline,202.4220308920012,2851622912,3397,0,True
+Zootopia.mkv,1698,full,default,0,optimized,163.0130323400008,2908463104,2267,502,True
+Zootopia.mkv,1698,full,default,1,optimized,163.2330348630021,3190444032,2267,501,True
+Zootopia.mkv,1698,full,default,1,baseline,201.8113386449986,2947674112,3397,0,True
+Zootopia.mkv,1698,full,default,2,baseline,201.91742370700013,2957119488,3397,0,True
+Zootopia.mkv,1698,full,default,2,optimized,162.97585026999877,3070988288,2267,502,True
+Zootopia.mkv,1698,full,large,0,baseline,202.4659386639978,2966765568,3397,0,True
+Zootopia.mkv,1698,full,large,0,optimized,163.5657580219995,3010154496,2267,502,True
+Zootopia.mkv,1698,full,large,1,optimized,163.30742022900085,3142705152,2267,502,True
+Zootopia.mkv,1698,full,large,1,baseline,202.4920579360005,2989244416,3397,0,True
+Zootopia.mkv,1698,full,large,2,baseline,202.82520824300082,2802548736,3397,0,True
+Zootopia.mkv,1698,full,large,2,optimized,163.51781689400013,3116384256,2267,502,True
+Zootopia.mkv,100,sparse,default,0,baseline,12.308382357001392,2620936192,201,0,True
+Zootopia.mkv,100,sparse,default,0,optimized,12.296629086999019,2611720192,201,0,True
+Zootopia.mkv,100,sparse,default,1,optimized,12.301799886998197,2629648384,201,0,True
+Zootopia.mkv,100,sparse,default,1,baseline,12.2045296230026,2536267776,201,0,True
+Zootopia.mkv,100,sparse,default,2,baseline,12.194139798000833,2616881152,201,0,True
+Zootopia.mkv,100,sparse,default,2,optimized,12.251047352001478,2644525056,201,0,True
+Zootopia.mkv,100,sparse,large,0,baseline,12.288122083002236,2619867136,201,0,True
+Zootopia.mkv,100,sparse,large,0,optimized,12.20346878700002,2590990336,201,0,True
+Zootopia.mkv,100,sparse,large,1,optimized,12.249682929999835,2684485632,201,0,True
+Zootopia.mkv,100,sparse,large,1,baseline,12.263945142000011,2550435840,201,0,True
+Zootopia.mkv,100,sparse,large,2,baseline,12.247360831999686,2580410368,201,0,True
+Zootopia.mkv,100,sparse,large,2,optimized,12.2342800899969,2552299520,201,0,True

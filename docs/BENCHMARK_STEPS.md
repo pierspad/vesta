@@ -1,141 +1,80 @@
-# Reproducing the Vesta vs subs2srs benchmark
+# Reproducing Vesta benchmarks
 
-This procedure compares the two media-generation engines without GUI overhead. Both process the same subtitle/media inputs and invoke the same host `ffmpeg` binary.
+## Two scopes, two datasets
 
-> The historical GPU preparation variants predate the current snapshot policy. Audio + snapshot generation now uses the original source directly; full-film preparation is reserved for video clips. Do not label a snapshot-only run “GPU pre-transcode” without verifying the actual code path. For quick regression checks, use [QUALITY.md](QUALITY.md).
+The [native Rust A/B suite](BENCHMARK_NATIVE.md) isolates nearby snapshot batching
+at byte-identical quality: audio + WebP + APKG, without video clips. The
+[subs2srs comparison](BENCHMARK_REPORT.md) measures full product pipelines,
+including video clips, with their different encoding defaults and output counts.
+Do not combine these datasets or attribute the entire product speed ratio to
+one optimization. CPU worker limits are concurrent-process limits, not affinity.
 
-## What is measured
+## Native snapshot A/B
 
-- Eight feature-length movies and roughly 12,000 subtitle lines.
-- MP3 audio clips, snapshots, MP4 clips, and card output.
-- subs2srs sequential TSV generation as the `1.0×` baseline.
-- Vesta with one worker and with all 16 test-machine threads.
-- Vesta direct extraction and optional VA-API pre-transcoding.
-- Vesta TSV and APKG packaging.
-
-The runner verifies card and media counts. The reported time is wall-clock time for the complete command, including packaging.
-
-## Fairness controls
-
-1. The vendored subs2srs processing classes are compiled into a headless harness; only their WinForms presentation dependencies are replaced with no-op adapters.
-2. Both programs use `/usr/bin/ffmpeg` on the host.
-3. `-j 1` isolates Vesta pipeline overhead from parallelism; `-j 16` measures the configured machine's full throughput.
-4. A direct variant matches subs2srs extraction. GPU variants include the pre-transcode time rather than hiding it.
-5. Every variant receives the same SRT pairs and media files.
-
-The harness is under `benchmarking_against_subs2srs/`. The original subs2srs source and license notices remain vendored there for reproducibility.
-
-## Requirements (Arch Linux)
-
-Install the native build, benchmark, media, and reporting tools:
+From the repository root, when the machine is otherwise idle:
 
 ```bash
-sudo pacman -Syu --needed base-devel rustup mono ffmpeg python python-matplotlib
-rustup default stable
+./benchmarking/snapshot_batch/run-benchmark.sh --dry-run
+./benchmarking/snapshot_batch/run-benchmark.sh
 ```
 
-The workspace currently requires the Rust version declared by
-`workspace.package.rust-version` in the root `Cargo.toml`. Confirm the tools
-before starting a long run:
+The default matrix uses all paired local films, samples and full subtitles,
+three alternating pairs, two resolutions and sparse requests. Python only runs
+and validates the native release binary; it does not optimize media. Results
+are stored outside the checkout in `../vesta-benchmark-results/`. Generate charts
+from a completed result file without repeating the measurements:
 
 ```bash
-rustc --version
-mcs --version
-ffmpeg -version
-python -c 'import matplotlib; print(matplotlib.__version__)'
+./benchmarking/snapshot_batch/plot-results.sh /path/to/results/results.json
 ```
 
-Direct variants do not require a GPU. The recorded GPU variant uses VA-API
-pre-transcoding. Install the inspection tool plus the driver for the machine:
+See the [runner documentation](../benchmarking/snapshot_batch/README.md) for
+resume, timeouts, input selection, quality checks and optional RSS sampling.
 
-```bash
-sudo pacman -S --needed libva-utils
+## Full product comparison against subs2srs
 
-# AMD (Mesa)
-sudo pacman -S --needed libva-mesa-driver
+Requires Rust/Cargo, Mono (`mcs` and `mono`), FFmpeg/FFprobe, Python 3 and
+Matplotlib (the report scripts prefer `.venv` when present). Install the native
+Tauri requirements only when building the desktop, not for these headless CLIs.
 
-# Intel Gen 8+
-sudo pacman -S --needed intel-media-driver
-```
-
-Only install the driver matching the hardware. Verify that VA-API and FFmpeg
-expose an H.264 encoder before recording GPU results:
-
-```bash
-vainfo
-ffmpeg -hide_banner -encoders | grep -E 'h264_(vaapi|nvenc|qsv)'
-```
-
-If no usable hardware encoder is found, Vesta falls back to `libx264` on the
-CPU. Do not label that run as a GPU result.
-
-## Procedure
-
-### 1. Compile both programs
-
-From the repository root:
+Put `Film-en.srt`, `Film-it.srt` and the matching video in `Test_Subs/FILM/`.
+The script discovers complete pairs; media and non-public-domain subtitles
+remain local. `8 e mezzo.mp4` was excluded because subtitles were absent.
 
 ```bash
 ./benchmarking_against_subs2srs/1_compile_subs2srs.sh
 ./benchmarking_against_subs2srs/2_compile_vesta.sh
+set -o pipefail
+REPEATS=3 ./benchmarking_against_subs2srs/3_run_benchmarks.sh </dev/null 2>&1 | tee benchmark-subs2srs.log
+REPEATS=3 ./benchmarking_against_subs2srs/4_generate_report.sh
 ```
 
-The outputs are:
+The 2026-10-08 run completed 120 generations in 17 h 16 min, yielding 40
+median rows: eight films × subs2srs TSV plus Vesta TSV/APKG with one or 16
+requested workers × three repetitions. The runner reports media counts,
+including WebP and embedded APKG manifests. This is a count report, not a
+byte-identical/equal-quality assertion. Some subs2srs media counts are smaller
+than input counts; Vesta produced all 12,859 requested media sets.
 
-- `benchmarking_against_subs2srs/subs2srs-headless/subs2srs-headless.exe`
-- `target/release/srt-flashcards`
+`results/results.csv` is overwritten on a new run; preserve old results first.
+Logs are local and ignored. Each cell's repetitions are sequential and use
+uncontrolled OS cache. Avoid unrelated workload or concurrent benchmarks.
+Video preparation may select hardware or CPU automatically; the current suite
+does not instrument encoder selection or contain a new separate GPU series.
+Historical GPU/full-matrix CSVs are not inputs to the current report.
 
-### 2. Prepare inputs
-
-Place one study-language SRT, one reference SRT, and one matching media file in `Test_Subs/FILM/`:
-
-```text
-Test_Subs/FILM/
-├── Movie-en.srt
-├── Movie-it.srt
-└── Movie.(mp4|mkv|avi|webm)
-```
-
-`benchmarking_against_subs2srs/config.sh` controls discovery and language suffixes. Copyrighted test media is intentionally not stored in the repository.
-
-### 3. Run the suite
+To generate the published overview, speed ratios and per-film charts from only
+the current CSV (Matplotlib required):
 
 ```bash
-REPEATS=3 ./benchmarking_against_subs2srs/3_run_benchmarks.sh
-```
-
-This replaces `results/results.csv`. For the separate VA-API run use
-`benchmarking_against_subs2srs/run_vesta_gpu.sh`; use
-`run_missing_subs2srs.sh` only to fill missing baseline rows. Do not use the
-machine for unrelated CPU/GPU work while recording results. Keep the CPU
-governor, power profile, worker count, and thermal conditions stable between
-variants.
-
-### 4. Generate the report
-
-```bash
-./benchmarking_against_subs2srs/4_generate_report.sh
-```
-
-The script records machine metadata and updates the summary/charts under
-`benchmarking_against_subs2srs/results/`. To regenerate the checked-in full
-report from the historical full matrix, run:
-
-```bash
-python benchmarking_against_subs2srs/report/generate_full_report.py \
-  benchmarking_against_subs2srs/results/results_full.csv \
+.venv/bin/python3 benchmarking_against_subs2srs/report/generate_full_report.py \
+  benchmarking_against_subs2srs/results/results.csv \
   benchmarking_against_subs2srs/results
 ```
 
-## Test machine results
-
-Recorded on an AMD Ryzen 7 5800X (8 cores/16 threads) and Radeon RX 7800 XT:
-
-| Configuration | Total suite time | Average speedup | Peak speedup |
-|---|---:|---:|---:|
-| subs2srs TSV baseline | 127.9 min | 1.00× | 1.00× |
-| Vesta 1t Direct | 99.5 min | 1.29× | 1.89× |
-| Vesta 16t Direct | 43.3 min | 3.52× | 6.22× |
-| Vesta 16t GPU | 33.7 min | 3.78× | 5.00× |
-
-These values describe this hardware and dataset; they are not universal performance guarantees. See the [full report](BENCHMARK_REPORT.md) for per-movie timings and all TSV/APKG variants.
+This refreshes `docs/` charts/report and never rewrites the source CSV. If there
+is no virtual environment, use a Python interpreter with Matplotlib installed.
+[Individual repetition times](benchmarks/subs2srs-repeats-2026-10-08.csv) are
+retained separately from the [median CSV](../benchmarking_against_subs2srs/results/results.csv).
+The product ratios (4.13× multicore, 1.58× one worker) and native A/B reduction
+(15.3%) answer different questions and use different aggregation methods.

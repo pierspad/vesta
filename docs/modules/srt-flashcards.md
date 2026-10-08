@@ -5,7 +5,7 @@ subtitle pairs + a media file into an Anki deck — audio snippets, snapshots
 and video clips per card, exported as TSV + media folder or a self-contained
 `.apkg`. It is the modern, parallel replacement for the subs2srs pipeline
 (media extraction runs on a semaphore-bounded worker pool, saturating
-`cores-1` FFmpeg processes).
+the configured number of FFmpeg processes).
 
 **What's inside**
 
@@ -22,7 +22,7 @@ and video clips per card, exported as TSV + media folder or a self-contained
 
 - `FlashcardConfig` — the one big config struct (inputs, filters, media
   options, export options)
-- `generate(config, tools, on_progress, cancel_token)` — full run;
+- `generate(config, tools, cancel_token, &on_progress)` — full run;
   `MediaTools::new("ffmpeg", "ffprobe")` tells it which binaries to use
 - `preview(config)` — parse/match/filter pipeline without touching media
 - `build_matched_lines(config)` — the shared parse→match→filter pipeline
@@ -105,7 +105,7 @@ crate through the CLI, pitted against the original subs2srs code.
 
 ## Preparation and series export
 
-Audio plus snapshots use the original media directly. Optional full-film
+Audio/snapshot-only workflows use the original media directly. Optional full-film
 preparation is reserved for video clips; it can trade initial latency and lossy
 re-encoding for faster repeated seeks. The phase reports actual processed media
 seconds separately from overall progress. See [architecture](../ARCHITECTURE.md).
@@ -142,3 +142,24 @@ Its automatic option remains explicit in the open menu; it chooses the note type
 from the subtitle language with the configured fallback. Manual/custom note types
 remain available. Selecting a note type determines export fields and, for APKG,
 the model/templates; a TSV alone cannot install a new note type in Anki.
+
+## Native nearby snapshot batching
+
+The shared Rust engine batches up to eight WebP snapshots within eight seconds
+when `optimize_video` is enabled. Eligibility is conservative: CFR H.264/HEVC,
+width 1280–1920, height ≤1080 and an unambiguous video stream. FFprobe packet
+PTS guide frame selection; reordered keyframe boundaries and uncertain timings
+retain the original individual-seek behavior. Unknown/VFR sources, other image
+formats and isolated requests use individual extraction. Failed batch attempts
+retry the original commands. There is no persistent cache or Python dependency
+in the app; Python is used only by the benchmark harness.
+
+Batch operations share the media semaphore with audio/video work, retain one
+progress result per card and stop their direct child processes on cancellation.
+An extraction failure prevents export of a deck with dangling media references.
+The default worker count is roughly three quarters of logical cores, reserving
+one core when possible; explicit counts are clamped to available logical cores.
+Video-clip preparation can produce a lossy intermediate and is separate from
+the original-source snapshot A/B quality guarantee.
+
+See [native benchmark results](../BENCHMARK_NATIVE.md).

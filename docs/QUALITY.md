@@ -128,3 +128,10 @@ Genuine identical terms are explicitly allowed, with language-specific exception
 where appropriate. This is stronger than checking only whether a key exists. Setup,
 settings copy and accessibility labels now use the same catalogs. Names of products,
 file formats and measurement units remain untranslated.
+
+## Measured snapshot integration
+
+The native Rust batching change has a complete 480-generation A/B matrix with
+byte-identical media and note fields. See [the evidence and scope](BENCHMARK_NATIVE.md).
+The full subs2srs suite uses different product defaults and media counts and
+cannot replace the quality-equivalence check.

@@ -24,7 +24,7 @@ loopback media streaming and opening exported files through system associations.
 
 Use **Extract subtitles** for text tracks embedded in MKV/MP4 containers.
 The onboarding wizard awaits durable persistence before reloading. Generation
-uses source snapshots directly and reports real FFmpeg preparation progress for
+uses source snapshots directly in audio/snapshot-only exports and reports real FFmpeg preparation progress for
 video clips. Export filenames open the saved file; the adjacent folder button
 opens its directory. `.apkg` opening requires an Anki file association.
 
@@ -98,3 +98,8 @@ and accessible label. APKG merge controls appear only for multiple episodes with
 an effective APKG export. TSV series always export separate episode files and
 can include both snapshot and video fields. See the
 [TSV import contract](../../docs/modules/srt-flashcards.md#tsv-media-and-note-types).
+
+The shared flashcard engine also batches eligible nearby WebP snapshots in Rust,
+with individual extraction fallbacks and per-card progress. There is no Python
+runtime dependency. See [architecture](../../docs/ARCHITECTURE.md) and
+[native quality benchmark](../../docs/BENCHMARK_NATIVE.md).
