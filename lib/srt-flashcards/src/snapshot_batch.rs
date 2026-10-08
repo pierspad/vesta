@@ -325,28 +325,46 @@ impl SnapshotSettings {
             "select='{expression}',{}",
             scale_vf(self.width, self.height, self.crop)
         );
-        let mut cmd = media_command(&self.ffmpeg);
-        cmd.args([
-            "-nostdin",
-            "-loglevel",
-            "error",
-            "-y",
-            "-copyts",
-            "-ss",
-            &ms_to_ffmpeg_ts(first),
-            "-i",
-            &self.source,
-            "-an",
-            "-sn",
-            "-dn",
-            "-vframes",
-            &selected.len().to_string(),
-            "-vf",
-            &filter,
-        ]);
-        cmd.args(self.format.ffmpeg_args(self.quality));
-        cmd.args(["-fps_mode", "passthrough"]).arg(&pattern);
-        output(cmd, &self.cancel, Duration::from_secs(30)).await?;
+        let extraction = |modern_sync: bool| {
+            let mut cmd = media_command(&self.ffmpeg);
+            cmd.args([
+                "-nostdin",
+                "-loglevel",
+                "error",
+                "-y",
+                "-copyts",
+                "-ss",
+                &ms_to_ffmpeg_ts(first),
+                "-i",
+                &self.source,
+                "-an",
+                "-sn",
+                "-dn",
+                "-vframes",
+                &selected.len().to_string(),
+                "-vf",
+                &filter,
+            ]);
+            cmd.args(self.format.ffmpeg_args(self.quality));
+            if modern_sync {
+                cmd.args(["-fps_mode", "passthrough"]);
+            } else {
+                cmd.args(["-vsync", "0"]);
+            }
+            cmd.arg(&pattern);
+            cmd
+        };
+        let result = output(extraction(true), &self.cancel, Duration::from_secs(30)).await;
+        match result {
+            Err(error) if error.to_string().contains("Unrecognized option 'fps_mode'") => {
+                // FFmpeg 4.x uses -vsync; recent versions removed that alias.
+                // Option parsing fails before decoding or creating output files.
+                output(extraction(false), &self.cancel, Duration::from_secs(30)).await?;
+            }
+            result => {
+                result?;
+            }
+        }
         let selected: Vec<_> = selected.into_iter().collect();
         for n in 1..=selected.len() {
             anyhow::ensure!(
@@ -600,7 +618,18 @@ mod tests {
             "2",
         ]);
         if vfr {
-            command.args(["-vf", "select='not(eq(mod(n,5),0))'", "-fps_mode", "vfr"]);
+            let help = media_command("ffmpeg")
+                .args(["-hide_banner", "-h", "full"])
+                .output()
+                .await
+                .unwrap();
+            let modern = String::from_utf8_lossy(&help.stdout).contains("-fps_mode");
+            command.args(["-vf", "select='not(eq(mod(n,5),0))'"]);
+            if modern {
+                command.args(["-fps_mode", "vfr"]);
+            } else {
+                command.args(["-vsync", "2"]);
+            }
         }
         if offset {
             command.args(["-output_ts_offset", "5"]);
@@ -663,6 +692,13 @@ mod tests {
                 .map(|(i, &mid)| request(i + 1, mid, &batch_dir))
                 .collect();
             for group in groups(requests) {
+                if !vfr && group.len() > 1 {
+                    let copied = settings.batch(&group).await.unwrap();
+                    assert!(
+                        copied.iter().any(|copied| *copied),
+                        "Batch must actually extract frames"
+                    );
+                }
                 for (_, result, _) in settings.extract(group).await {
                     result.unwrap();
                 }
