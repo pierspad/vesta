@@ -1,6 +1,6 @@
 [package]
 name = "srt-translate-cli"
-version = "0.26.1"
+version = "0.26.2"
 edition.workspace = true
 rust-version.workspace = true
 description = "CLI tool for translating SRT subtitle files using LLM APIs"
