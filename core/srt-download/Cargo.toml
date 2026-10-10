@@ -1,0 +1,15 @@
+[package]
+name = "srt-download"
+version = "0.26.1"
+edition.workspace = true
+rust-version.workspace = true
+license = "GPL-3.0-only"
+description = "Cancellable, atomic streaming downloads for Vesta resources."
+
+[dependencies]
+anyhow.workspace = true
+futures.workspace = true
+reqwest = { workspace = true, features = ["stream"] }
+tempfile.workspace = true
+tokio.workspace = true
+tokio-util = "0.7"

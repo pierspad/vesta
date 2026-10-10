@@ -61,7 +61,12 @@ pub async fn list_embedded_subtitles(
             String::from_utf8_lossy(&output.stderr)
         );
     }
-    let data: serde_json::Value = serde_json::from_slice(&output.stdout)?;
+    parse_subtitle_tracks(&output.stdout)
+}
+
+// Keep FFprobe's data contract independent from process execution.
+fn parse_subtitle_tracks(bytes: &[u8]) -> Result<Vec<EmbeddedSubtitleTrack>> {
+    let data: serde_json::Value = serde_json::from_slice(bytes)?;
     Ok(data["streams"]
         .as_array()
         .into_iter()
@@ -164,12 +169,47 @@ pub async fn preview_embedded_subtitle(
     std::fs::File::open(output)?
         .take(64 * 1024)
         .read_to_end(&mut bytes)?;
-    Ok(String::from_utf8_lossy(&bytes).into_owned())
+    Ok(String::from_utf8_lossy_owned(bytes))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn probe_metadata_defaults_and_invalid_indices() {
+        let tracks = parse_subtitle_tracks(
+            r#"{"streams":[
+            {"index":2,"codec_name":"ass","tags":{"language":"ita","title":"日本語"}},
+            {"index":3,"codec_name":"hdmv_pgs_subtitle"},
+            {"index":4294967296,"codec_name":"subrip"},
+            {"index":-1,"codec_name":"subrip"},
+            {"index":4},
+            {"codec_name":"subrip"}
+        ]}"#
+            .as_bytes(),
+        )
+        .unwrap();
+        assert_eq!(tracks.len(), 2);
+        assert_eq!(tracks[0].index, 2);
+        assert_eq!(tracks[0].language, "ita");
+        assert_eq!(tracks[0].title, "日本語");
+        assert!(tracks[0].text_based);
+        assert_eq!(tracks[1].language, "und");
+        assert_eq!(tracks[1].title, "");
+        assert!(!tracks[1].text_based);
+    }
+
+    #[test]
+    fn probe_empty_response_and_malformed_json() {
+        assert!(parse_subtitle_tracks(b"{}").unwrap().is_empty());
+        assert!(
+            parse_subtitle_tracks(br#"{"streams":[]}"#)
+                .unwrap()
+                .is_empty()
+        );
+        assert!(parse_subtitle_tracks(b"not json").is_err());
+    }
+
     #[tokio::test]
     async fn embedded_srt_round_trip_and_invalid_track_preserve_existing_output() {
         let directory = tempfile::tempdir().unwrap();

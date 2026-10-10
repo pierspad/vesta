@@ -1,12 +1,10 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use std::fs;
-use std::io::{Read, Seek, SeekFrom};
-use std::path::Path;
 use std::sync::Mutex;
 
 mod commands;
 mod media_range;
+mod media_stream;
 mod state;
 
 use axum::{
@@ -87,36 +85,6 @@ use state::{
     FlashcardState, RefineState, SyncState, TranscribeState, TranslateState,
 };
 
-fn mime_from_ext(path: &str) -> &'static str {
-    match Path::new(path)
-        .extension()
-        .and_then(|e| e.to_str())
-        .unwrap_or("")
-        .to_lowercase()
-        .as_str()
-    {
-        "mp4" | "m4v" => "video/mp4",
-        "webm" => "video/webm",
-        "mkv" => "video/x-matroska",
-        "avi" => "video/x-msvideo",
-        "mov" => "video/quicktime",
-        "ogv" => "video/ogg",
-        "webp" => "image/webp",
-        "avif" => "image/avif",
-        "jpg" | "jpeg" => "image/jpeg",
-        "png" => "image/png",
-        "mp3" => "audio/mpeg",
-        "opus" => "audio/ogg",
-        "wav" | "wave" => "audio/wav",
-        "ogg" | "oga" => "audio/ogg",
-        "flac" => "audio/flac",
-        "m4a" => "audio/mp4",
-        "aac" => "audio/aac",
-        "wma" => "audio/x-ms-wma",
-        _ => "application/octet-stream",
-    }
-}
-
 fn main() {
     // Fix blurry rendering on Linux (WebKitGTK DMABUF renderer issue)
     #[cfg(target_os = "linux")]
@@ -157,171 +125,8 @@ fn main() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
-
         .register_asynchronous_uri_scheme_protocol("stream", |_ctx, request, responder| {
-            std::thread::spawn(move || {
-                let uri = request.uri().to_string();
-
-                let path = uri
-                    .strip_prefix("stream://localhost/")
-                    .or_else(|| uri.strip_prefix("stream://localhost"))
-                    .unwrap_or("");
-                let path = urlencoding::decode(path).unwrap_or_else(|_| path.into());
-                let path = path.to_string();
-
-                eprintln!("[stream] Request URI: {}", uri);
-                eprintln!("[stream] Decoded path: '{}'", path);
-
-
-                let metadata = match fs::metadata(&path) {
-                    Ok(m) => m,
-                    Err(e) => {
-                        eprintln!("[stream] File not found or inaccessible: '{}' - Error: {}", path, e);
-                        let resp = tauri::http::Response::builder()
-                            .status(404)
-                            .header("Content-Type", "text/plain")
-                            .body(format!("File not found: {} - {}", path, e).into_bytes())
-                            .unwrap();
-                        responder.respond(resp);
-                        return;
-                    }
-                };
-
-                let file_size = metadata.len();
-                let mime = mime_from_ext(&path);
-                eprintln!("[stream] File: '{}', size: {} bytes, mime: {}", path, file_size, mime);
-
-
-                let range_header = request.headers().get("range").and_then(|v| v.to_str().ok());
-
-                if let Some(range_str) = range_header {
-                    eprintln!("[stream] Range request: {}", range_str);
-
-                    let Some((start, end)) = media_range::parse_byte_range(range_str, file_size) else {
-                        responder.respond(tauri::http::Response::builder()
-                            .status(416)
-                            .header("Content-Range", format!("bytes */{file_size}"))
-                            .body(Vec::new()).unwrap());
-                        return;
-                    };
-
-                    let chunk_size = end - start + 1;
-
-
-                    let mut file = match fs::File::open(&path) {
-                        Ok(f) => f,
-                        Err(_) => {
-                            let resp = tauri::http::Response::builder()
-                                .status(500)
-                                .body(b"Failed to open file".to_vec())
-                                .unwrap();
-                            responder.respond(resp);
-                            return;
-                        }
-                    };
-
-                    if file.seek(SeekFrom::Start(start)).is_err() {
-                        let resp = tauri::http::Response::builder()
-                            .status(500)
-                            .body(b"Seek failed".to_vec())
-                            .unwrap();
-                        responder.respond(resp);
-                        return;
-                    }
-
-
-                    let max_chunk = 4 * 1024 * 1024u64;
-                    let read_size = chunk_size.min(max_chunk) as usize;
-                    let mut buf = vec![0u8; read_size];
-                    let bytes_read = match file.read(&mut buf) {
-                        Ok(n) => n,
-                        Err(_) => {
-                            let resp = tauri::http::Response::builder()
-                                .status(500)
-                                .body(b"Read failed".to_vec())
-                                .unwrap();
-                            responder.respond(resp);
-                            return;
-                        }
-                    };
-                    buf.truncate(bytes_read);
-
-                    if bytes_read == 0 {
-                        responder.respond(tauri::http::Response::builder().status(416)
-                            .header("Content-Range", format!("bytes */{file_size}"))
-                            .body(Vec::new()).unwrap());
-                        return;
-                    }
-                    let actual_end = start + bytes_read as u64 - 1;
-
-                    eprintln!("[stream] Range response: bytes {}-{}/{}, chunk={} bytes", start, actual_end, file_size, bytes_read);
-
-                    let resp = tauri::http::Response::builder()
-                        .status(206)
-                        .header("Content-Type", mime)
-                        .header("Accept-Ranges", "bytes")
-                        .header("Content-Range", format!("bytes {}-{}/{}", start, actual_end, file_size))
-                        .header("Content-Length", bytes_read.to_string())
-                        .body(buf)
-                        .unwrap();
-                    responder.respond(resp);
-                } else {
-
-
-
-
-                    let mut file = match fs::File::open(&path) {
-                        Ok(f) => f,
-                        Err(e) => {
-                            eprintln!("[stream] Failed to open file '{}': {}", path, e);
-                            let resp = tauri::http::Response::builder()
-                                .status(500)
-                                .header("Content-Type", "text/plain")
-                                .body(format!("Failed to open file: {}", e).into_bytes())
-                                .unwrap();
-                            responder.respond(resp);
-                            return;
-                        }
-                    };
-
-                    let max_initial = 2 * 1024 * 1024u64;
-                    let read_size = (file_size).min(max_initial) as usize;
-                    let mut buf = vec![0u8; read_size];
-                    let bytes_read = file.read(&mut buf).unwrap_or(0);
-                    buf.truncate(bytes_read);
-
-                    eprintln!("[stream] Serving initial response for '{}': mime={}, file_size={}, bytes_sent={}", path, mime, file_size, bytes_read);
-
-                    if bytes_read == 0 && file_size > 0 {
-                        responder.respond(tauri::http::Response::builder().status(500)
-                            .body(b"Failed to read file".to_vec()).unwrap());
-                        return;
-                    }
-                    if (bytes_read as u64) < file_size {
-
-                        let actual_end = bytes_read as u64 - 1;
-                        let resp = tauri::http::Response::builder()
-                            .status(206)
-                            .header("Content-Type", mime)
-                            .header("Accept-Ranges", "bytes")
-                            .header("Content-Range", format!("bytes 0-{}/{}", actual_end, file_size))
-                            .header("Content-Length", bytes_read.to_string())
-                            .body(buf)
-                            .unwrap();
-                        responder.respond(resp);
-                    } else {
-
-                        let resp = tauri::http::Response::builder()
-                            .status(200)
-                            .header("Content-Type", mime)
-                            .header("Accept-Ranges", "bytes")
-                            .header("Content-Length", bytes_read.to_string())
-                            .body(buf)
-                            .unwrap();
-                        responder.respond(resp);
-                    }
-                }
-            });
+            std::thread::spawn(move || responder.respond(media_stream::response(&request)));
         })
         .manage(Mutex::new(SyncState::default()) as AppSyncState)
         .manage(Mutex::new(TranslateState::default()) as AppTranslateState)
@@ -334,10 +139,6 @@ fn main() {
             token: media_token,
         })
         .setup(|app| {
-
-
-
-
             #[cfg(target_os = "linux")]
             {
                 use tauri::Manager;
@@ -345,37 +146,34 @@ fn main() {
                     let _ = window.with_webview(|wv| {
                         #[allow(deprecated)]
                         {
-                        use webkit2gtk::WebViewExt;
-                        use webkit2gtk::NavigationPolicyDecision;
-                        use webkit2gtk::NavigationPolicyDecisionExt;
-                        use webkit2gtk::PolicyDecisionExt;
-                        use webkit2gtk::PolicyDecisionType;
-                        use webkit2gtk::URIRequestExt;
-                        use webkit2gtk::glib::Cast;
-                        let webview = wv.inner();
-                        let wk: &webkit2gtk::WebView = webview.as_ref();
+                            use webkit2gtk::NavigationPolicyDecision;
+                            use webkit2gtk::NavigationPolicyDecisionExt;
+                            use webkit2gtk::PolicyDecisionExt;
+                            use webkit2gtk::PolicyDecisionType;
+                            use webkit2gtk::URIRequestExt;
+                            use webkit2gtk::WebViewExt;
+                            use webkit2gtk::glib::Cast;
+                            let webview = wv.inner();
+                            let wk: &webkit2gtk::WebView = webview.as_ref();
 
-                        wk.connect_decide_policy(|_wv, decision, decision_type| {
-                            if (decision_type == PolicyDecisionType::NavigationAction
-                                || decision_type == PolicyDecisionType::NewWindowAction)
-                                && let Some(nav) = decision.downcast_ref::<NavigationPolicyDecision>()
-                                && let Some(request) = NavigationPolicyDecisionExt::request(nav)
-                                && let Some(uri) = URIRequestExt::uri(&request)
-                                && uri.starts_with("file://")
-                            {
-                                decision.ignore();
-                                return true;
-                            }
-                            false
-                        });
-
-
-
+                            wk.connect_decide_policy(|_wv, decision, decision_type| {
+                                if (decision_type == PolicyDecisionType::NavigationAction
+                                    || decision_type == PolicyDecisionType::NewWindowAction)
+                                    && let Some(nav) =
+                                        decision.downcast_ref::<NavigationPolicyDecision>()
+                                    && let Some(request) = NavigationPolicyDecisionExt::request(nav)
+                                    && let Some(uri) = URIRequestExt::uri(&request)
+                                    && uri.starts_with("file://")
+                                {
+                                    decision.ignore();
+                                    return true;
+                                }
+                                false
+                            });
                         }
                     });
                 }
             }
-
 
             let args: Vec<String> = std::env::args().collect();
             if args.len() >= 6 && args[1] == "--benchmark" {
@@ -384,11 +182,15 @@ fn main() {
                 let sub2 = args[3].clone();
                 let video = args[4].clone();
                 let out_dir = args[5].clone();
-                let export_fmt = if args.len() >= 7 { args[6].clone() } else { "tsv".to_string() };
+                let export_fmt = if args.len() >= 7 {
+                    args[6].clone()
+                } else {
+                    "tsv".to_string()
+                };
 
                 tauri::async_runtime::spawn(async move {
+                    use crate::commands::flashcards::types::{FlashcardConfig, video_has_audio};
                     use std::time::Instant;
-                    use crate::commands::flashcards::types::{video_has_audio, FlashcardConfig};
                     use tauri::Manager;
 
                     let config = FlashcardConfig::benchmark(
@@ -407,8 +209,9 @@ fn main() {
                     let res = crate::commands::flashcards::commands::flashcard_generate(
                         app_handle.clone(),
                         state,
-                        config
-                    ).await;
+                        config,
+                    )
+                    .await;
                     let duration = start.elapsed();
 
                     match res {
@@ -427,7 +230,6 @@ fn main() {
             extract_embedded_subtitle,
             preview_embedded_subtitle,
             open_output_path,
-
             get_app_info,
             get_update_installation,
             install_release_update,
@@ -439,13 +241,11 @@ fn main() {
             support_log_export,
             read_subtitle_file,
             http_fetch,
-
             load_srt_for_translate,
             suggest_translation_context,
             start_translation,
             cancel_translation,
             get_latest_translated_subtitles,
-
             sync_load_srt,
             sync_suggest_media_for_srt,
             sync_suggest_companion_subtitle_for_srt,
@@ -467,7 +267,6 @@ fn main() {
             sync_load_session,
             sync_reset,
             sync_prepare_media_for_playback,
-
             flashcard_load_subs,
             flashcard_preview,
             flashcard_preview_audio,
@@ -487,7 +286,6 @@ fn main() {
             flashcard_download_font,
             flashcard_delete_font,
             save_temp_subtitles,
-
             transcribe_check_backends,
             transcribe_list_models,
             transcribe_download_model,
@@ -499,20 +297,16 @@ fn main() {
             transcribe_start,
             transcribe_cancel,
             transcribe_check_file_exists,
-
             sync_auto_sync,
             sync_cancel_auto_sync,
-
             refine_load_file,
             refine_save_file,
             refine_card_llm_tiered,
             refine_cards_llm_tiered,
             refine_cancel,
-
             ankiconnect_ping,
             ankiconnect_deck_names,
             ankiconnect_import_package,
-
             config_load_all,
             config_set,
             config_remove,

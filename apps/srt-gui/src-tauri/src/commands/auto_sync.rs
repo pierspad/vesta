@@ -2,11 +2,10 @@ use std::sync::Arc;
 
 use serde::Serialize;
 use tauri::{AppHandle, Emitter, State};
-use tokio_util::sync::CancellationToken;
 
 use srt_autosync::{AutoSyncConfig, AutoSyncProgress, SubtitleLine};
 
-use crate::state::{AppSyncState, AppTranscribeState};
+use crate::state::{AppSyncState, AppTranscribeState, OperationGuard};
 
 #[derive(Debug, Clone, Serialize)]
 pub struct AutoSyncResult {
@@ -17,23 +16,13 @@ pub struct AutoSyncResult {
     pub message: String,
 }
 
-struct AutoSyncGuard<'a>(&'a AppSyncState);
-
-impl<'a> Drop for AutoSyncGuard<'a> {
-    fn drop(&mut self) {
-        if let Ok(mut ss) = self.0.lock() {
-            ss.is_auto_syncing = false;
-            ss.auto_sync_cancellation_token = None;
-        }
-    }
-}
-
 #[tauri::command]
 pub async fn sync_cancel_auto_sync(sync_state: State<'_, AppSyncState>) -> Result<(), String> {
-    let ss = sync_state.lock().map_err(|e| e.to_string())?;
-    if let Some(token) = &ss.auto_sync_cancellation_token {
-        token.cancel();
-    }
+    sync_state
+        .lock()
+        .map_err(|e| e.to_string())?
+        .operation
+        .cancel();
     Ok(())
 }
 
@@ -48,25 +37,18 @@ pub async fn sync_auto_sync(
     language: Option<String>,
     quick: bool,
 ) -> Result<AutoSyncResult, String> {
-    let token = {
-        let mut ss = sync_state.lock().map_err(|e| e.to_string())?;
-        if ss.is_auto_syncing {
-            return Err("Auto-sync is already in progress".to_string());
-        }
-
-        let ts = transcribe_state.lock().map_err(|e| e.to_string())?;
-        if ts.is_transcribing {
-            return Err("A transcription is already in progress".to_string());
-        }
-
-        let token = CancellationToken::new();
-        ss.is_auto_syncing = true;
-        ss.auto_sync_cancellation_token = Some(token.clone());
-        token
-    };
-
-    // Ensure state cleanup when function returns
-    let _guard = AutoSyncGuard(&sync_state);
+    // Reserve the shared transcription resource too; checking a flag alone
+    // would allow a transcription to start immediately after the check.
+    let transcribe_guard = OperationGuard::begin(
+        &transcribe_state,
+        "A transcription or model download is already in progress",
+    )?;
+    let guard = OperationGuard::with_token(
+        &sync_state,
+        "Auto-sync is already in progress",
+        transcribe_guard.token(),
+    )?;
+    let token = guard.token();
 
     // Get media path and subtitle info from sync engine
     let (media_path, subtitles) = {

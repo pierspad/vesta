@@ -539,7 +539,7 @@ pub async fn transcribe_to_srt(
         .suffix(".wav")
         .tempfile()
         .context("Failed to create temp WAV file")?;
-    let wav_path = temp_wav.into_temp_path().to_path_buf();
+    let wav_path = temp_wav.into_temp_path();
 
     callbacks.progress("convert", "Converting audio format...", 5.0);
 
@@ -554,9 +554,7 @@ pub async fn transcribe_to_srt(
 
     callbacks.progress("convert", "Audio converted successfully", 10.0);
 
-    let audio_data = read_wav_to_f32(&wav_path).inspect_err(|_| {
-        let _ = std::fs::remove_file(&wav_path);
-    })?;
+    let audio_data = read_wav_to_f32(&wav_path)?;
 
     let config_clone = config.clone();
     let callbacks_clone = callbacks.clone();
@@ -573,8 +571,6 @@ pub async fn transcribe_to_srt(
     })
     .await
     .context("Transcription task failed")?;
-
-    let _ = std::fs::remove_file(&wav_path);
 
     let outcome = result?;
     callbacks.progress(

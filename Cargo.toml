@@ -10,7 +10,7 @@ members = [
 
 [workspace.package]
 edition = "2024"
-rust-version = "1.97"
+rust-version = "1.99"
 
 [workspace.dependencies]
 anyhow = "1.0"
@@ -29,6 +29,7 @@ encoding_rs = "0.8"
 chardetng = "1"
 
 # Internal crates
+srt-download = { path = "./core/srt-download", version = "0.26.1" }
 srt-parser = { path = "./core/srt-parser", version = "0.26.1" }
 srt-apkg = { path = "./core/srt-apkg", version = "0.26.1" }
 srt-extract = { path = "./lib/srt-extract", version = "0.26.1" }

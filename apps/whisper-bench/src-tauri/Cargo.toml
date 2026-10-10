@@ -2,6 +2,7 @@
 name = "whisper-bench"
 version = "0.2.0"
 edition.workspace = true
+rust-version.workspace = true
 description = "Standalone Whisper transcription benchmark GUI. Ships CPU+Vulkan in-process and fetches CUDA/ROCm/SYCL worker binaries on demand based on detected hardware."
 authors = ["Pierpaolo Spadafora <pierpaolospadafora@proton.me>"]
 license = "GPL-3.0-only"

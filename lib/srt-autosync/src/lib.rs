@@ -6,7 +6,7 @@ use anyhow::{Context as _, Result};
 use serde::Serialize;
 use tokio_util::sync::CancellationToken;
 
-use srt_transcribe::audio::read_wav_to_f32;
+use srt_transcribe::audio::{extract_wav_segment, read_wav_to_f32};
 use srt_transcribe::transcribe::{TranscribeOptions, TranscribedSegment, transcribe_full};
 
 #[derive(Debug, Clone)]
@@ -67,41 +67,6 @@ struct MatchCandidate {
     score: f64,
 }
 
-fn extract_audio_segment(
-    media_path: &str,
-    start_sec: f64,
-    duration_sec: f64,
-    output_wav: &str,
-    ffmpeg_cmd: &str,
-) -> Result<()> {
-    let output = std::process::Command::new(ffmpeg_cmd)
-        .args([
-            "-y",
-            "-ss",
-            &format!("{start_sec:.2}"),
-            "-i",
-            media_path,
-            "-t",
-            &format!("{duration_sec:.2}"),
-            "-ar",
-            "16000",
-            "-ac",
-            "1",
-            "-c:a",
-            "pcm_s16le",
-            output_wav,
-        ])
-        .output()
-        .context("Failed to run ffmpeg for audio segment extraction")?;
-
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        anyhow::bail!("FFmpeg audio extraction failed: {stderr}");
-    }
-
-    Ok(())
-}
-
 fn is_silent(samples: &[f32], threshold: f32) -> bool {
     if samples.is_empty() {
         return true;
@@ -134,29 +99,41 @@ fn temporal_weight(time_diff_ms: i64) -> f64 {
 }
 
 pub async fn get_media_duration(media_path: &str, ffprobe_cmd: &str) -> Result<f64> {
-    let output = tokio::process::Command::new(ffprobe_cmd)
-        .args([
-            "-v",
-            "error",
-            "-show_entries",
-            "format=duration",
-            "-of",
-            "default=noprint_wrappers=1:nokey=1",
-            media_path,
-        ])
-        .output()
-        .await
-        .context("Failed to run ffprobe")?;
+    let mut command = tokio::process::Command::new(ffprobe_cmd);
+    let output = tokio::time::timeout(
+        std::time::Duration::from_secs(30),
+        command
+            .kill_on_drop(true)
+            .stdin(std::process::Stdio::null())
+            .args([
+                "-v",
+                "error",
+                "-show_entries",
+                "format=duration",
+                "-of",
+                "default=noprint_wrappers=1:nokey=1",
+                media_path,
+            ])
+            .output(),
+    )
+    .await
+    .context("Media probe timed out")?
+    .context("Failed to run ffprobe")?;
 
     if !output.status.success() {
         anyhow::bail!("ffprobe failed");
     }
 
     let duration_str = String::from_utf8_lossy(&output.stdout);
-    duration_str
+    let duration = duration_str
         .trim()
         .parse::<f64>()
-        .context("Failed to parse duration from ffprobe")
+        .context("Failed to parse duration from ffprobe")?;
+    anyhow::ensure!(
+        duration.is_finite() && duration > 0.0,
+        "Invalid media duration"
+    );
+    Ok(duration)
 }
 
 struct PreparedSegment {
@@ -176,6 +153,7 @@ async fn prepare_single_segment(
     media_path: String,
     temp_dir_path: PathBuf,
     ffmpeg_cmd: String,
+    cancel: CancellationToken,
 ) -> Result<PreparedSegment, String> {
     let mut current_pos = start_pos;
     let mut attempts = 0;
@@ -187,24 +165,19 @@ async fn prepare_single_segment(
 
     while attempts < max_attempts && current_pos + segment_duration <= duration_sec {
         let temp_wav_path = temp_dir_path.join(format!("segment_{idx}_try{attempts}.wav"));
-        let temp_wav_str = temp_wav_path.to_string_lossy().to_string();
-
-        let media_path_clone = media_path.clone();
-        let ffmpeg_cmd_clone = ffmpeg_cmd.clone();
-        let extract_res = tokio::task::spawn_blocking(move || {
-            extract_audio_segment(
-                &media_path_clone,
-                current_pos,
-                segment_duration,
-                &temp_wav_str,
-                &ffmpeg_cmd_clone,
-            )
-        })
+        let extraction = extract_wav_segment(
+            &ffmpeg_cmd,
+            std::path::Path::new(&media_path),
+            &temp_wav_path,
+            current_pos,
+            segment_duration,
+            Some(&cancel),
+        )
         .await;
-
-        let extract_ok = matches!(extract_res, Ok(Ok(())));
-
-        if !extract_ok {
+        if cancel.is_cancelled() {
+            return Err("Audio preparation cancelled".into());
+        }
+        if extraction.is_err() {
             attempts += 1;
             current_pos += shift_amount;
             continue;
@@ -236,27 +209,22 @@ async fn prepare_single_segment(
     }
 
     if audio_data.is_empty() {
-        let wav_str = wav_path.to_string_lossy().to_string();
-        let media_path_clone = media_path.clone();
-        let ffmpeg_cmd_clone = ffmpeg_cmd.clone();
-        let _ = tokio::task::spawn_blocking(move || {
-            extract_audio_segment(
-                &media_path_clone,
-                start_pos,
-                segment_duration,
-                &wav_str,
-                &ffmpeg_cmd_clone,
-            )
-        })
-        .await;
-
+        extract_wav_segment(
+            &ffmpeg_cmd,
+            std::path::Path::new(&media_path),
+            &wav_path,
+            start_pos,
+            segment_duration,
+            Some(&cancel),
+        )
+        .await
+        .map_err(|error| format!("Failed to prepare segment {idx}: {error:#}"))?;
         let wav_path_clone = wav_path.clone();
-        if let Ok(Ok(samples)) =
-            tokio::task::spawn_blocking(move || read_wav_to_f32(&wav_path_clone)).await
-        {
-            audio_data = samples;
-            current_pos = start_pos;
-        }
+        audio_data = tokio::task::spawn_blocking(move || read_wav_to_f32(&wav_path_clone))
+            .await
+            .map_err(|error| format!("WAV decoding task failed: {error}"))?
+            .map_err(|error| format!("Failed to decode segment {idx}: {error:#}"))?;
+        current_pos = start_pos;
     }
 
     Ok(PreparedSegment {
@@ -306,9 +274,12 @@ pub async fn run_auto_sync(
         anyhow::bail!("FFmpeg is required for auto-sync. Install FFmpeg first.");
     }
 
-    let duration_sec = get_media_duration(&config.media_path, &config.ffprobe_cmd)
-        .await
-        .unwrap_or(0.0);
+    let duration_sec = tokio::select! {
+        _ = cancel_token.cancelled() => return Ok(AutoSyncOutcome {
+            suggestions: Vec::new(), segments_analyzed: 0, cancelled: true,
+        }),
+        result = get_media_duration(&config.media_path, &config.ffprobe_cmd) => result?,
+    };
     if duration_sec < 10.0 {
         anyhow::bail!("Media file too short or unable to detect duration");
     }
@@ -360,7 +331,7 @@ pub async fn run_auto_sync(
 
     let max_concurrency = num_cpus().min(6);
     let semaphore = Arc::new(tokio::sync::Semaphore::new(max_concurrency));
-    let mut prep_handles = Vec::new();
+    let mut prep_handles = tokio::task::JoinSet::new();
 
     for (idx, &start_pos) in sample_positions.iter().enumerate() {
         let sem = semaphore.clone();
@@ -368,8 +339,9 @@ pub async fn run_auto_sync(
         let temp_dir_path = temp_dir_path.clone();
         let ffmpeg_cmd = config.ffmpeg_cmd.clone();
 
-        prep_handles.push(tokio::spawn(async move {
-            let _permit = sem.acquire().await.unwrap();
+        let token = cancel_token.clone();
+        prep_handles.spawn(async move {
+            let _permit = sem.acquire().await.map_err(|e| e.to_string())?;
             prepare_single_segment(
                 idx,
                 start_pos,
@@ -379,26 +351,34 @@ pub async fn run_auto_sync(
                 media_path,
                 temp_dir_path,
                 ffmpeg_cmd,
+                token,
             )
             .await
-        }));
+        });
     }
 
     let mut prepared_segments = Vec::new();
-    for (idx, handle) in prep_handles.into_iter().enumerate() {
-        if cancel_token.is_cancelled() {
-            return Ok(AutoSyncOutcome {
-                suggestions: Vec::new(),
-                segments_analyzed: idx,
-                cancelled: true,
-            });
+    let mut completed = 0;
+    while !prep_handles.is_empty() {
+        let result = tokio::select! {
+            biased;
+            _ = cancel_token.cancelled() => return Ok(AutoSyncOutcome {
+                suggestions: Vec::new(), segments_analyzed: completed, cancelled: true,
+            }),
+            result = prep_handles.join_next() => result,
+        };
+        match result {
+            Some(Ok(Ok(prep))) => prepared_segments.push(prep),
+            Some(Ok(Err(error))) => eprintln!("[auto-sync] Segment preparation failed: {error}"),
+            Some(Err(error)) => return Err(error).context("Audio preparation worker failed"),
+            None => break,
         }
-        match handle.await {
-            Ok(Ok(prep)) => prepared_segments.push(prep),
-            Ok(Err(e)) => eprintln!("[auto-sync] Segment {idx} preparation failed: {e}"),
-            Err(e) => eprintln!("[auto-sync] Segment {idx} task panicked: {e:?}"),
-        }
+        completed += 1;
     }
+    anyhow::ensure!(
+        !prepared_segments.is_empty(),
+        "No audio segments could be prepared"
+    );
 
     prepared_segments.sort_by_key(|s| s.idx);
 
@@ -674,3 +654,6 @@ mod tests {
         assert!((mid - (1.0 - 0.35 * 0.5)).abs() < 1e-6);
     }
 }
+
+#[cfg(all(test, unix))]
+mod lifecycle_tests;

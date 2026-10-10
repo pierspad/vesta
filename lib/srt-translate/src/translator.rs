@@ -108,7 +108,7 @@ impl Translator {
         target_lang: &str,
         context: Option<&str>,
     ) -> Result<HashMap<u32, String>> {
-        match self.config.api_type {
+        let translations = match self.config.api_type {
             ApiType::Google => {
                 self.translate_batch_google(texts_with_ids, target_lang, context)
                     .await
@@ -117,7 +117,14 @@ impl Translator {
                 self.translate_batch_openai(texts_with_ids, target_lang, context)
                     .await
             }
-        }
+        }?;
+        anyhow::ensure!(
+            texts_with_ids
+                .iter()
+                .all(|(id, _)| translations.contains_key(id)),
+            "Batch translation returned IDs that do not match the requested subtitles"
+        );
+        Ok(translations)
     }
 
     pub async fn generate_response(&self, prompt: &str) -> Result<String> {

@@ -2,6 +2,7 @@
 name = "srt-translate-cli"
 version = "0.26.1"
 edition.workspace = true
+rust-version.workspace = true
 description = "CLI tool for translating SRT subtitle files using LLM APIs"
 authors = ["Pierpaolo Spadafora <pierpaolospadafora@proton.me>"]
 license = "GPL-3.0"

@@ -54,22 +54,20 @@ pub(crate) fn apply_filters(lines: &mut [MatchedLine], filters: &SubtitleFilters
 
         if filters.exclude_duplicates_subs1 {
             let normalized = line.subs1.text.trim();
-            if seen_subs1.contains(normalized) {
+            if !seen_subs1.insert(normalized) {
                 line.active = false;
                 continue;
             }
-            seen_subs1.insert(normalized);
         }
 
         if filters.exclude_duplicates_subs2
             && let Some(ref s2) = line.subs2
         {
             let normalized = s2.text.trim();
-            if seen_subs2.contains(normalized) {
+            if !seen_subs2.insert(normalized) {
                 line.active = false;
                 continue;
             }
-            seen_subs2.insert(normalized);
         }
 
         if filters.min_chars.is_some() || filters.max_chars.is_some() {

@@ -110,6 +110,18 @@ pub fn transcribe_full(
     Ok((segments, detected_language))
 }
 
+// Whisper may return a backend error when its abort callback stops inference.
+// Check our cancellation request before reporting that native error to the user.
+fn check_inference_result(
+    result: std::result::Result<(), whisper_rs::WhisperError>,
+    cancel_token: Option<&CancellationToken>,
+) -> Result<()> {
+    if cancel_token.is_some_and(CancellationToken::is_cancelled) {
+        anyhow::bail!("Transcription cancelled");
+    }
+    result.map_err(|error| anyhow::anyhow!("Whisper transcription failed: {error:?}"))
+}
+
 fn transcribe_span(
     state: &mut whisper_rs::WhisperState,
     audio_data: &[f32],
@@ -176,6 +188,8 @@ fn transcribe_span(
             let token = unsafe { &*(user_data as *const tokio_util::sync::CancellationToken) };
             token.is_cancelled()
         }
+        // `full` invokes the callback synchronously and the borrowed token
+        // outlives that call; CancellationToken supports concurrent reads.
         unsafe {
             params.set_abort_callback(Some(whisper_abort_callback));
             params.set_abort_callback_user_data(
@@ -184,15 +198,8 @@ fn transcribe_span(
         }
     }
 
-    state
-        .full(params, audio_data)
-        .map_err(|e| anyhow::anyhow!("Whisper transcription failed: {:?}", e))?;
-
-    if let Some(token) = cancel_token
-        && token.is_cancelled()
-    {
-        anyhow::bail!("Transcription cancelled");
-    }
+    let inference = state.full(params, audio_data);
+    check_inference_result(inference, cancel_token)?;
 
     let detected_language = {
         let lang_id = state.full_lang_id_from_state();
@@ -487,6 +494,29 @@ pub fn normalize_text(value: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn native_abort_error_is_cancellation_only_when_requested() {
+        let token = CancellationToken::new();
+        let native_error = whisper_rs::WhisperError::GenericError(-6);
+        assert!(
+            check_inference_result(Err(native_error), Some(&token))
+                .unwrap_err()
+                .to_string()
+                .contains("Whisper transcription failed")
+        );
+        assert!(check_inference_result(Ok(()), Some(&token)).is_ok());
+        token.cancel();
+        for result in [Ok(()), Err(native_error)] {
+            assert_eq!(
+                check_inference_result(result, Some(&token))
+                    .unwrap_err()
+                    .to_string(),
+                "Transcription cancelled"
+            );
+        }
+        assert!(check_inference_result(Err(native_error), None).is_err());
+    }
 
     #[test]
     fn test_levenshtein_distance_basic() {

@@ -2,6 +2,7 @@
 name = "srt-flashcards"
 version = "0.26.1"
 edition.workspace = true
+rust-version.workspace = true
 description = "Headless, Tauri-free engine that turns subtitle pairs + media into Anki flashcards (TSV / APKG)."
 authors = ["Pierpaolo Spadafora <pierpaolospadafora@proton.me>"]
 license = "GPL-3.0-only"
@@ -10,6 +11,7 @@ license = "GPL-3.0-only"
 name = "srt_flashcards"
 
 [dependencies]
+srt-download.workspace = true
 anyhow = { workspace = true }
 srt-parser = { workspace = true }
 serde = { workspace = true }
@@ -21,6 +23,4 @@ rusqlite = { version = "0.40", features = ["bundled"] }
 sha1_smol = "1.0"
 zip = "8"
 dirs = { workspace = true }
-reqwest = { workspace = true, features = ["stream"] }
-futures = { workspace = true }
 

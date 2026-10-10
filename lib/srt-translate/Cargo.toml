@@ -2,6 +2,7 @@
 name = "srt-translate"
 version = "0.26.1"
 edition.workspace = true
+rust-version.workspace = true
 authors = ["Pierpaolo Spadafora <pierpaolospadafora@proton.me>"]
 description = "Library for translating SRT subtitle files using LLM APIs (Gemini, OpenAI, local)"
 license = "GPL-3.0"
@@ -23,3 +24,6 @@ tokio-util = "0.7"
 [lib]
 name = "srt_translate"
 path = "src/lib.rs"
+
+[dev-dependencies]
+tempfile.workspace = true

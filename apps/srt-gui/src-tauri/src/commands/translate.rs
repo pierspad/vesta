@@ -7,7 +7,7 @@ use tokio_util::sync::CancellationToken;
 use srt_parser::SrtParser;
 use srt_translate::{TranslationProgress, TranslatorPool, translate_subtitles_tiered_cancellable};
 
-use crate::state::AppTranslateState;
+use crate::state::{AppTranslateState, OperationGuard};
 
 pub type TierEntryConfig = srt_translate::TierEntry;
 
@@ -177,35 +177,8 @@ pub async fn start_translation(
     state: State<'_, AppTranslateState>,
     config: TranslateConfig,
 ) -> Result<TranslateResult, String> {
-    // Crea un nuovo cancellation token
-    let cancellation_token = CancellationToken::new();
-
-    // Controlla se già in traduzione e salva il token
-    {
-        let mut translate_state = state.lock().map_err(|e| e.to_string())?;
-        if translate_state.is_translating {
-            // Codice stabile invece di una frase in italiano: il frontend
-            // (multilingua) lo mappa sulla propria stringa i18n invece di
-            // mostrare questo testo grezzo indipendentemente dalla lingua
-            // scelta dall'utente.
-            return Err("ERR_ALREADY_RUNNING".to_string());
-        }
-        translate_state.is_translating = true;
-        translate_state.cancellation_token = Some(cancellation_token.clone());
-    }
-
-    // Esegui la traduzione
-    let result = perform_translation(app.clone(), config, cancellation_token.clone()).await;
-
-    // Reset flag traduzione e rimuovi token
-    {
-        if let Ok(mut translate_state) = state.lock() {
-            translate_state.is_translating = false;
-            translate_state.cancellation_token = None;
-        }
-    }
-
-    result
+    let guard = OperationGuard::begin(&state, "ERR_ALREADY_RUNNING")?;
+    perform_translation(app, config, guard.token()).await
 }
 
 async fn perform_translation(
@@ -341,16 +314,7 @@ async fn perform_translation(
 
 #[tauri::command]
 pub async fn cancel_translation(state: State<'_, AppTranslateState>) -> Result<bool, String> {
-    let mut translate_state = state.lock().map_err(|e| e.to_string())?;
-
-    // Cancella il token se presente - questo fermerà tutte le richieste in corso
-    if let Some(ref token) = translate_state.cancellation_token {
-        token.cancel();
-    }
-
-    translate_state.is_translating = false;
-    translate_state.cancellation_token = None;
-
+    state.lock().map_err(|e| e.to_string())?.operation.cancel();
     Ok(true)
 }
 

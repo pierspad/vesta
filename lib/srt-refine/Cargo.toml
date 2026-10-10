@@ -2,6 +2,7 @@
 name = "srt-refine"
 version = "0.26.1"
 edition.workspace = true
+rust-version.workspace = true
 authors = ["Pierpaolo Spadafora <pierpaolospadafora@proton.me>"]
 description = "Headless engine to load Anki decks (TSV / APKG), enrich card notes via LLM prompts and save them back — the refinement step of the Vesta pipeline."
 license = "GPL-3.0-only"
@@ -21,6 +22,4 @@ serde_json.workspace = true
 tokio = { workspace = true }
 tokio-util = "0.7"
 rusqlite = { version = "0.40", features = ["bundled"] }
-zip = "8"
-sha1_smol = "1.0"
 tempfile.workspace = true

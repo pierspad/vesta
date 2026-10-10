@@ -8,10 +8,10 @@
 //! Strategia di decodifica, dalla più certa alla più euristica:
 //!
 //! 1. **BOM sniffing** — UTF-8 / UTF-16LE / UTF-16BE dichiarati dal BOM;
-//! 2. **UTF-8 strict** — se i byte sono UTF-8 valido, è UTF-8 (falsi
-//!    positivi statisticamente trascurabili);
-//! 3. **UTF-16 senza BOM** — riconosciuto dalla distribuzione dei byte
+//! 2. **UTF-16 senza BOM** — riconosciuto dalla distribuzione dei byte
 //!    NUL su posizioni pari/dispari;
+//! 3. **UTF-8 strict** — se i byte sono UTF-8 valido, è UTF-8 (falsi
+//!    positivi statisticamente trascurabili);
 //! 4. **rilevamento statistico** — [`chardetng`] sceglie la code page
 //!    (GBK, Windows-1252, …) e [`encoding_rs`] decodifica.
 //!
@@ -42,15 +42,16 @@ pub fn decode_auto(bytes: &[u8]) -> String {
         return text.into_owned();
     }
 
-    // 2. UTF-8 valido → nessuna conversione necessaria.
-    if let Ok(text) = std::str::from_utf8(bytes) {
-        return text.to_owned();
-    }
-
-    // 3. UTF-16 senza BOM (Notepad/strumenti Windows d'epoca).
+    // 2. Check UTF-16 before UTF-8: ASCII UTF-16 bytes (including NUL)
+    // are also valid UTF-8, but must still be decoded as UTF-16.
     if let Some(enc) = sniff_bomless_utf16(bytes) {
         let (text, _) = enc.decode_without_bom_handling(bytes);
         return text.into_owned();
+    }
+
+    // 3. UTF-8 valido → nessuna conversione necessaria.
+    if let Ok(text) = std::str::from_utf8(bytes) {
+        return text.to_owned();
     }
 
     // 4. Code page legacy: rilevamento statistico. ISO-2022-JP è permesso
@@ -120,6 +121,45 @@ mod tests {
     fn utf16be_without_bom() {
         let bytes: Vec<u8> = SAMPLE.encode_utf16().flat_map(u16::to_be_bytes).collect();
         assert_eq!(decode_auto(&bytes), SAMPLE);
+    }
+
+    #[test]
+    fn ascii_only_bomless_utf16_is_not_mistaken_for_utf8() {
+        let text = "1\n00:00:01,000 --> 00:00:02,000\nHello!\n";
+        for bytes in [
+            text.encode_utf16()
+                .flat_map(u16::to_le_bytes)
+                .collect::<Vec<_>>(),
+            text.encode_utf16()
+                .flat_map(u16::to_be_bytes)
+                .collect::<Vec<_>>(),
+        ] {
+            assert!(std::str::from_utf8(&bytes).is_ok());
+            assert_eq!(decode_auto(&bytes), text);
+        }
+    }
+
+    #[test]
+    fn utf16_bom_controls_endianness_and_replaces_malformed_units() {
+        for (bom, little_endian) in [([0xff, 0xfe], true), ([0xfe, 0xff], false)] {
+            let mut bytes = bom.to_vec();
+            for unit in [0x0041u16, 0xd83d, 0xde00, 0xd800, 0x0042] {
+                bytes.extend(if little_endian {
+                    unit.to_le_bytes()
+                } else {
+                    unit.to_be_bytes()
+                });
+            }
+            bytes.push(0x41); // Incomplete final code unit.
+            assert_eq!(decode_auto(&bytes), "A😀�B�");
+        }
+    }
+
+    #[test]
+    fn empty_short_and_utf8_with_isolated_nul_remain_unchanged() {
+        for text in ["", "a", "é", "Hello\0world", "日本語 😀"] {
+            assert_eq!(decode_auto(text.as_bytes()), text);
+        }
     }
 
     #[test]

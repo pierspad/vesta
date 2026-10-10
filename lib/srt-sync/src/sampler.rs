@@ -38,11 +38,18 @@ impl AdaptiveSampler {
         self.subtitle_times_ms = times_ms;
     }
 
+    pub fn strategy(&self) -> SamplerStrategy {
+        self.strategy
+    }
+
     pub fn set_strategy(&mut self, strategy: SamplerStrategy) {
         self.strategy = strategy;
     }
 
     pub fn mark_checked(&mut self, index: u32) {
+        if index == 0 || index as usize > self.total_subtitles {
+            return;
+        }
         if let Err(pos) = self.checked_indices.binary_search(&index) {
             self.checked_indices.insert(pos, index);
         }
@@ -232,6 +239,21 @@ impl AdaptiveSampler {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn invalid_checked_indices_do_not_break_uniform_sampling() {
+        let mut sampler = AdaptiveSampler::new(3, SamplerStrategy::UniformTime);
+        sampler.set_subtitle_times(vec![1000, 2000, 3000]);
+        for index in [0, 4, u32::MAX] {
+            sampler.mark_checked(index);
+        }
+        assert_eq!(sampler.checked_count(), 0);
+        assert!(sampler.suggest_next(&TimeMapper::new()).is_some());
+        sampler.mark_checked(2);
+        sampler.mark_checked(2);
+        assert_eq!(sampler.checked_count(), 1);
+        assert_eq!(sampler.strategy(), SamplerStrategy::UniformTime);
+    }
 
     #[test]
     fn test_binary_search_initial() {

@@ -1,6 +1,6 @@
 use anyhow::{Context as _, Result, anyhow};
-use futures::StreamExt as _;
 use serde::{Deserialize, Serialize};
+use srt_download::download_to;
 use std::path::PathBuf;
 use tokio_util::sync::CancellationToken;
 
@@ -29,6 +29,7 @@ pub fn get_models_dir() -> Result<PathBuf> {
 }
 
 pub fn model_file_path(model_id: &str) -> Result<PathBuf> {
+    validate_model_id(model_id)?;
     let models_dir = get_models_dir()?;
     let filename = if model_id == "large" {
         "ggml-large-v3.bin".to_string()
@@ -137,12 +138,12 @@ where
 }
 
 fn remove_if_present(path: &std::path::Path) -> Result<bool> {
-    if path.exists() {
-        std::fs::remove_file(path)
-            .with_context(|| format!("Failed to remove model file: {}", path.display()))?;
-        Ok(true)
-    } else {
-        Ok(false)
+    match std::fs::remove_file(path) {
+        Ok(()) => Ok(true),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(false),
+        Err(error) => {
+            Err(error).with_context(|| format!("Failed to remove model file: {}", path.display()))
+        }
     }
 }
 
@@ -168,111 +169,18 @@ where
     download_to(&url, &path, progress_callback, cancel_token).await
 }
 
-/// Stream `url` into `path` (via a `.partial` sibling renamed on completion),
-/// reporting whole-percent progress and honouring cancellation. Returns
-/// immediately when `path` already exists.
-async fn download_to<F>(
-    url: &str,
-    path: &std::path::Path,
-    progress_callback: F,
-    cancel_token: Option<&CancellationToken>,
-) -> Result<PathBuf>
-where
-    F: Fn(u32) + Send + 'static,
-{
-    if path.exists() {
-        progress_callback(100);
-        return Ok(path.to_path_buf());
-    }
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-    if let Some(parent) = path.parent() {
-        tokio::fs::create_dir_all(parent)
-            .await
-            .with_context(|| format!("Failed to create directory: {}", parent.display()))?;
-    }
-
-    let partial = path.with_extension("bin.partial");
-
-    // Qualunque esito diverso dal successo (errore di rete, scrittura su
-    // disco piena, cancellazione, ...) deve ripulire il file parziale:
-    // altrimenti resta un `.bin.partial` corrotto che, a seconda del punto
-    // in cui il tentativo precedente si è interrotto, può confondere un
-    // eventuale retry. Isoliamo lo streaming in una funzione a parte così
-    // il cleanup vale per ogni via d'uscita, `?` compreso.
-    let stream_result = stream_download(url, &partial, &progress_callback, cancel_token).await;
-
-    if let Err(err) = stream_result {
-        let _ = tokio::fs::remove_file(&partial).await;
-        return Err(err);
-    }
-
-    tokio::fs::rename(&partial, &path)
-        .await
-        .context("Failed to rename partial file to destination")?;
-
-    progress_callback(100);
-    Ok(path.to_path_buf())
-}
-
-/// Scarica `url` scrivendo direttamente in `partial`, senza occuparsi di
-/// rinominarlo o ripulirlo: quello è responsabilità del chiamante, che deve
-/// farlo per ogni esito (successo, errore o cancellazione).
-async fn stream_download<F>(
-    url: &str,
-    partial: &std::path::Path,
-    progress_callback: &F,
-    cancel_token: Option<&CancellationToken>,
-) -> Result<()>
-where
-    F: Fn(u32) + Send + 'static,
-{
-    let client = reqwest::Client::new();
-    let response = client
-        .get(url)
-        .send()
-        .await
-        .context("Failed to send request for model download")?;
-
-    if !response.status().is_success() {
-        anyhow::bail!("Model download failed with status: {}", response.status());
-    }
-
-    let total_size = response.content_length().unwrap_or(0);
-    let mut file = tokio::fs::File::create(partial)
-        .await
-        .context("Failed to create partial download file")?;
-
-    let mut stream = response.bytes_stream();
-    let mut downloaded = 0u64;
-    let mut last_emit = std::time::Instant::now();
-
-    progress_callback(0);
-
-    while let Some(chunk_result) = stream.next().await {
-        if let Some(token) = cancel_token
-            && token.is_cancelled()
-        {
-            anyhow::bail!("Download cancelled");
+    #[test]
+    fn paths_require_catalog_model_ids() {
+        for id in ["../tiny", "tiny/../../outside", "", "unknown"] {
+            assert!(model_file_path(id).is_err());
         }
-
-        let chunk = chunk_result.context("Error reading response chunk")?;
-        tokio::io::AsyncWriteExt::write_all(&mut file, &chunk)
-            .await
-            .context("Failed to write chunk to file")?;
-        downloaded += chunk.len() as u64;
-
-        if total_size > 0 {
-            let percentage = (downloaded as f64 / total_size as f64 * 100.0) as u32;
-            if last_emit.elapsed() >= std::time::Duration::from_millis(150) || percentage == 100 {
-                progress_callback(percentage);
-                last_emit = std::time::Instant::now();
-            }
-        }
+        assert_eq!(
+            model_file_path("tiny").unwrap().file_name().unwrap(),
+            "ggml-tiny.bin"
+        );
     }
-
-    tokio::io::AsyncWriteExt::flush(&mut file)
-        .await
-        .context("Failed to flush download file")?;
-
-    Ok(())
 }

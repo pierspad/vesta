@@ -3,12 +3,11 @@ use std::sync::Arc;
 
 use serde::Serialize;
 use tauri::{AppHandle, Emitter, State};
-use tokio_util::sync::CancellationToken;
 
 use srt_transcribe::model::{WhisperModelInfo, list_models, uninstall_model};
 use srt_transcribe::pipeline::{self, PipelineCallbacks, TranscriptionConfig};
 
-use crate::state::AppTranscribeState;
+use crate::state::{AppTranscribeState, OperationGuard};
 
 pub type TranscribeConfig = TranscriptionConfig;
 
@@ -93,12 +92,11 @@ pub async fn transcribe_download_model(
     state: State<'_, AppTranscribeState>,
     model_id: String,
 ) -> Result<bool, String> {
-    let cancel_token = {
-        let mut s = state.lock().map_err(|e| e.to_string())?;
-        let token = CancellationToken::new();
-        s.cancellation_token = Some(token.clone());
-        token
-    };
+    let guard = OperationGuard::begin(
+        &state,
+        "Transcription or model download already in progress",
+    )?;
+    let cancel_token = guard.token();
 
     let app_progress = app.clone();
     let model_id_progress = model_id.clone();
@@ -146,12 +144,11 @@ pub async fn transcribe_download_vad(
     state: State<'_, AppTranscribeState>,
     model_id: String,
 ) -> Result<bool, String> {
-    let cancel_token = {
-        let mut s = state.lock().map_err(|e| e.to_string())?;
-        let token = CancellationToken::new();
-        s.cancellation_token = Some(token.clone());
-        token
-    };
+    let guard = OperationGuard::begin(
+        &state,
+        "Transcription or model download already in progress",
+    )?;
+    let cancel_token = guard.token();
 
     let app_progress = app.clone();
     let model_id_for_progress = model_id.clone();
@@ -192,17 +189,8 @@ pub async fn transcribe_start(
     state: State<'_, AppTranscribeState>,
     config: TranscribeConfig,
 ) -> Result<TranscribeResult, String> {
-    // Check if already transcribing
-    let cancel_token = {
-        let mut s = state.lock().map_err(|e| e.to_string())?;
-        if s.is_transcribing {
-            return Err("Transcription already in progress".to_string());
-        }
-        s.is_transcribing = true;
-        let token = CancellationToken::new();
-        s.cancellation_token = Some(token.clone());
-        token
-    };
+    let guard = OperationGuard::begin(&state, "Transcription already in progress")?;
+    let cancel_token = guard.token();
 
     let _ = app.emit(
         "transcribe-progress",
@@ -217,11 +205,6 @@ pub async fn transcribe_start(
     let callbacks = tauri_callbacks(&app);
 
     let result = pipeline::transcribe_to_srt(&config, &ffmpeg_cmd, callbacks, &cancel_token).await;
-
-    {
-        let mut s = state.lock().map_err(|e| e.to_string())?;
-        s.is_transcribing = false;
-    }
 
     match result {
         Ok(outcome) => Ok(TranscribeResult {
@@ -241,11 +224,7 @@ pub async fn transcribe_start(
 /// Cancel ongoing transcription
 #[tauri::command]
 pub async fn transcribe_cancel(state: State<'_, AppTranscribeState>) -> Result<(), String> {
-    let mut s = state.lock().map_err(|e| e.to_string())?;
-    if let Some(token) = s.cancellation_token.take() {
-        token.cancel();
-    }
-    s.is_transcribing = false;
+    state.lock().map_err(|e| e.to_string())?.operation.cancel();
     Ok(())
 }
 

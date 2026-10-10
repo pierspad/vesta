@@ -4330,6 +4330,7 @@ dependencies = [
  "reqwest",
  "serde",
  "serde_json",
+ "tokio",
 ]
 
 [[package]]
@@ -4367,6 +4368,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "srt-download"
+version = "0.26.1"
+dependencies = [
+ "anyhow",
+ "futures",
+ "reqwest",
+ "tempfile",
+ "tokio",
+ "tokio-util",
+]
+
+[[package]]
 name = "srt-extract"
 version = "0.26.1"
 dependencies = [
@@ -4396,12 +4409,11 @@ version = "0.26.1"
 dependencies = [
  "anyhow",
  "dirs",
- "futures",
- "reqwest",
  "rusqlite",
  "serde",
  "serde_json",
  "sha1_smol",
+ "srt-download",
  "srt-parser",
  "tempfile",
  "tokio",
@@ -4437,13 +4449,11 @@ dependencies = [
  "rusqlite",
  "serde",
  "serde_json",
- "sha1_smol",
  "srt-apkg",
  "srt-translate",
  "tempfile",
  "tokio",
  "tokio-util",
- "zip 8.6.0",
 ]
 
 [[package]]
@@ -4454,6 +4464,7 @@ dependencies = [
  "serde",
  "serde_json",
  "srt-parser",
+ "tempfile",
 ]
 
 [[package]]
@@ -4462,12 +4473,12 @@ version = "0.26.1"
 dependencies = [
  "anyhow",
  "dirs",
- "futures",
  "hound",
  "num_cpus",
  "reqwest",
  "serde",
  "serde_json",
+ "srt-download",
  "tempfile",
  "tokio",
  "tokio-util",
@@ -4497,6 +4508,7 @@ dependencies = [
  "serde",
  "serde_json",
  "srt-parser",
+ "tempfile",
  "tokio",
  "tokio-util",
 ]

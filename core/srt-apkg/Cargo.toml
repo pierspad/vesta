@@ -2,6 +2,7 @@
 name = "srt-apkg"
 version = "0.26.1"
 edition.workspace = true
+rust-version.workspace = true
 authors = ["Pierpaolo Spadafora <pierpaolospadafora@proton.me>"]
 description = "Minimal helpers for reading and writing Anki .apkg ZIP archives."
 license = "GPL-3.0-only"
@@ -16,5 +17,4 @@ path = "src/lib.rs"
 [dependencies]
 zip = "8"
 
-[dev-dependencies]
 tempfile.workspace = true

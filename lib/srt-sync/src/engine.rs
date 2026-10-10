@@ -122,7 +122,7 @@ impl SyncEngine {
             video_path: self.video_path.clone(),
             time_mapper: self.time_mapper.clone(),
             checked_indices: self.sampler.get_checked_indices().to_vec(),
-            sampler_strategy: SamplerStrategy::BinarySearch,
+            sampler_strategy: self.sampler.strategy(),
         }
     }
 
@@ -424,6 +424,20 @@ impl SyncEngine {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn session_roundtrip_preserves_sampling_strategy() {
+        let directory = tempfile::tempdir().unwrap();
+        let srt = directory.path().join("source.srt");
+        std::fs::write(&srt, "1\n00:00:01,000 --> 00:00:02,000\nHello\n").unwrap();
+        let mut engine = SyncEngine::new(&srt).unwrap();
+        engine.set_sampling_strategy(SamplerStrategy::UniformTime);
+        let restored = SyncEngine::from_state(engine.export_state()).unwrap();
+        assert_eq!(
+            restored.export_state().sampler_strategy,
+            SamplerStrategy::UniformTime
+        );
+    }
 
     #[test]
     fn test_find_subtitle_at_time() {

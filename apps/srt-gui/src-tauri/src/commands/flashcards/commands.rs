@@ -1,10 +1,9 @@
-use crate::state::AppFlashcardState;
+use crate::state::{AppFlashcardState, OperationGuard};
 use srt_flashcards::{
     AudioTrackInfo, FlashcardConfig, FlashcardProgressEvent, FlashcardResult, MediaTools,
     PreviewLine, SubFileInfo,
 };
 use tauri::{AppHandle, Emitter, Manager, State};
-use tokio_util::sync::CancellationToken;
 
 use super::media::{resolve_ffmpeg_path, resolve_ffprobe_path};
 
@@ -149,17 +148,7 @@ pub async fn flashcard_generate(
     state: State<'_, AppFlashcardState>,
     config: FlashcardConfig,
 ) -> Result<FlashcardResult, String> {
-    // Guard against concurrent runs and arm a fresh cancellation token.
-    let cancel_token = {
-        let mut fc_state = state.lock().map_err(|e| e.to_string())?;
-        if fc_state.is_processing {
-            return Err("Already processing flashcards".to_string());
-        }
-        fc_state.is_processing = true;
-        let token = CancellationToken::new();
-        fc_state.cancellation_token = Some(token.clone());
-        token
-    };
+    let guard = OperationGuard::begin(&state, "Already processing flashcards")?;
 
     let tools = resolve_media_tools(&app).await;
 
@@ -168,25 +157,13 @@ pub async fn flashcard_generate(
         let _ = app_for_progress.emit("flashcard-progress", event);
     };
 
-    let result = srt_flashcards::generate(config, tools, cancel_token, &progress).await;
-
-    if let Ok(mut fc_state) = state.lock() {
-        fc_state.is_processing = false;
-        fc_state.cancellation_token = None;
-    }
-
-    result
+    srt_flashcards::generate(config, tools, guard.token(), &progress).await
 }
 
 /// Cancel an in-flight flashcard generation.
 #[tauri::command]
 pub async fn flashcard_cancel(state: State<'_, AppFlashcardState>) -> Result<bool, String> {
-    let mut fc_state = state.lock().map_err(|e| e.to_string())?;
-    if let Some(ref token) = fc_state.cancellation_token {
-        token.cancel();
-    }
-    fc_state.is_processing = false;
-    fc_state.cancellation_token = None;
+    state.lock().map_err(|e| e.to_string())?.operation.cancel();
     Ok(true)
 }
 
@@ -356,26 +333,7 @@ pub async fn flashcard_list_fonts() -> Result<Vec<srt_flashcards::fonts::FontSta
 pub async fn flashcard_check_language_font(
     lang: String,
 ) -> Result<Option<srt_flashcards::fonts::FontStatusInfo>, String> {
-    if let Some(entry) = srt_flashcards::fonts::font_entry_for_lang(&lang) {
-        let downloaded = srt_flashcards::fonts::font_file_path_for_entry(entry)
-            .map(|p| p.exists())
-            .unwrap_or(false);
-        Ok(Some(srt_flashcards::fonts::FontStatusInfo {
-            id: entry.id.to_string(),
-            name: entry.name.to_string(),
-            language_name: entry.language_name.to_string(),
-            target_languages: entry
-                .target_languages
-                .iter()
-                .map(|s| s.to_string())
-                .collect(),
-            filename: entry.filename.to_string(),
-            approx_size: entry.approx_size.to_string(),
-            downloaded,
-        }))
-    } else {
-        Ok(None)
-    }
+    Ok(srt_flashcards::fonts::font_entry_for_lang(&lang).map(srt_flashcards::fonts::font_status))
 }
 
 #[derive(Clone, serde::Serialize)]

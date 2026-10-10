@@ -34,7 +34,9 @@ async fn invoke(url: &str, action: &str, params: Value) -> Result<Value, String>
             format!("AnkiConnect non raggiungibile su {url}: {e}. Anki è aperto e il plugin AnkiConnect è installato?")
         })?;
 
-    let payload: Value = response
+    let mut payload: Value = response
+        .error_for_status()
+        .map_err(|e| format!("AnkiConnect HTTP error: {e}"))?
         .json()
         .await
         .map_err(|e| format!("Risposta AnkiConnect non valida: {e}"))?;
@@ -42,14 +44,17 @@ async fn invoke(url: &str, action: &str, params: Value) -> Result<Value, String>
     if let Some(err) = payload.get("error").filter(|e| !e.is_null()) {
         return Err(format!("AnkiConnect: {err}"));
     }
-    Ok(payload.get("result").cloned().unwrap_or(Value::Null))
+    payload
+        .get_mut("result")
+        .map(Value::take)
+        .ok_or_else(|| "Risposta AnkiConnect senza result".to_string())
 }
 
 pub async fn ping(url: &str) -> Result<u32, String> {
     let result = invoke(url, "version", json!({})).await?;
     result
         .as_u64()
-        .map(|v| v as u32)
+        .and_then(|v| u32::try_from(v).ok())
         .ok_or_else(|| "Versione AnkiConnect non valida".to_string())
 }
 
@@ -136,5 +141,53 @@ mod tests {
         assert_eq!(parsed[0], Some(17000000001i64));
         assert_eq!(parsed[1], None);
         assert_eq!(parsed[2], Some(17000000002i64));
+    }
+}
+
+#[cfg(test)]
+mod protocol_tests {
+    use super::*;
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+    async fn response(status: u16, body: &str) -> String {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let url = format!("http://{}", listener.local_addr().unwrap());
+        let response = format!(
+            "HTTP/1.1 {status} Test\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+            body.len()
+        );
+        tokio::spawn(async move {
+            let (mut stream, _) = listener.accept().await.unwrap();
+            let mut request = [0; 4096];
+            assert!(stream.read(&mut request).await.unwrap() > 0);
+            stream.write_all(response.as_bytes()).await.unwrap();
+        });
+        url
+    }
+
+    #[tokio::test]
+    async fn http_errors_missing_results_and_overflow_are_rejected() {
+        for (status, body, message) in [
+            (503, r#"{"result":6,"error":null}"#, "HTTP error"),
+            (200, r#"{"error":null}"#, "senza result"),
+            (200, r#"{"result":4294967296,"error":null}"#, "Versione"),
+            (200, r#"{"result":6,"error":"failure"}"#, "failure"),
+        ] {
+            let url = response(status, body).await;
+            assert!(ping(&url).await.unwrap_err().contains(message));
+        }
+        assert_eq!(
+            ping(&response(200, r#"{"result":6,"error":null}"#).await)
+                .await
+                .unwrap(),
+            6
+        );
+        // Some successful actions intentionally return null.
+        create_deck(
+            &response(200, r#"{"result":null,"error":null}"#).await,
+            "test",
+        )
+        .await
+        .unwrap();
     }
 }

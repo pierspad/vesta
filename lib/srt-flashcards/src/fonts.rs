@@ -1,7 +1,7 @@
 use crate::types::FlashcardConfig;
 use anyhow::{Context as _, Result, anyhow};
-use futures::StreamExt as _;
 use serde::{Deserialize, Serialize};
+use srt_download::download_to;
 use std::path::PathBuf;
 use tokio_util::sync::CancellationToken;
 
@@ -175,26 +175,24 @@ pub fn get_downloaded_font_for_lang(lang: &str) -> Option<(&'static FontCatalogE
 }
 
 pub fn list_fonts() -> Result<Vec<FontStatusInfo>> {
-    let mut result = Vec::new();
-    for entry in FONT_CATALOG {
-        let downloaded = font_file_path_for_entry(entry)
-            .map(|p| p.exists())
-            .unwrap_or(false);
-        result.push(FontStatusInfo {
-            id: entry.id.to_string(),
-            name: entry.name.to_string(),
-            language_name: entry.language_name.to_string(),
-            target_languages: entry
-                .target_languages
-                .iter()
-                .map(|s| s.to_string())
-                .collect(),
-            filename: entry.filename.to_string(),
-            approx_size: entry.approx_size.to_string(),
-            downloaded,
-        });
+    Ok(FONT_CATALOG.iter().map(font_status).collect())
+}
+
+pub fn font_status(entry: &FontCatalogEntry) -> FontStatusInfo {
+    let downloaded = font_file_path_for_entry(entry).is_ok_and(|path| path.is_file());
+    FontStatusInfo {
+        id: entry.id.to_owned(),
+        name: entry.name.to_owned(),
+        language_name: entry.language_name.to_owned(),
+        target_languages: entry
+            .target_languages
+            .iter()
+            .map(|s| (*s).to_owned())
+            .collect(),
+        filename: entry.filename.to_owned(),
+        approx_size: entry.approx_size.to_owned(),
+        downloaded,
     }
-    Ok(result)
 }
 
 pub fn delete_font(font_id: &str) -> Result<bool> {
@@ -223,102 +221,6 @@ where
     let path = font_file_path_for_entry(entry)?;
 
     download_to(entry.url, &path, progress_callback, cancel_token).await
-}
-
-async fn download_to<F>(
-    url: &str,
-    path: &std::path::Path,
-    progress_callback: F,
-    cancel_token: Option<&CancellationToken>,
-) -> Result<PathBuf>
-where
-    F: Fn(u32) + Send + 'static,
-{
-    if path.exists() {
-        progress_callback(100);
-        return Ok(path.to_path_buf());
-    }
-
-    if let Some(parent) = path.parent() {
-        tokio::fs::create_dir_all(parent)
-            .await
-            .with_context(|| format!("Failed to create directory: {}", parent.display()))?;
-    }
-
-    let partial = path.with_extension("ttf.partial");
-    let stream_result = stream_download(url, &partial, &progress_callback, cancel_token).await;
-
-    if let Err(err) = stream_result {
-        let _ = tokio::fs::remove_file(&partial).await;
-        return Err(err);
-    }
-
-    tokio::fs::rename(&partial, &path)
-        .await
-        .context("Failed to rename partial font file to destination")?;
-
-    progress_callback(100);
-    Ok(path.to_path_buf())
-}
-
-async fn stream_download<F>(
-    url: &str,
-    partial: &std::path::Path,
-    progress_callback: &F,
-    cancel_token: Option<&CancellationToken>,
-) -> Result<()>
-where
-    F: Fn(u32) + Send + 'static,
-{
-    let client = reqwest::Client::new();
-    let response = client
-        .get(url)
-        .send()
-        .await
-        .context("Failed to send request for font download")?;
-
-    if !response.status().is_success() {
-        anyhow::bail!("Font download failed with status: {}", response.status());
-    }
-
-    let total_size = response.content_length().unwrap_or(0);
-    let mut file = tokio::fs::File::create(partial)
-        .await
-        .context("Failed to create partial download file")?;
-
-    let mut stream = response.bytes_stream();
-    let mut downloaded = 0u64;
-    let mut last_emit = std::time::Instant::now();
-
-    progress_callback(0);
-
-    while let Some(chunk_result) = stream.next().await {
-        if let Some(token) = cancel_token
-            && token.is_cancelled()
-        {
-            anyhow::bail!("Download cancelled");
-        }
-
-        let chunk = chunk_result.context("Error reading response chunk")?;
-        tokio::io::AsyncWriteExt::write_all(&mut file, &chunk)
-            .await
-            .context("Failed to write chunk to file")?;
-        downloaded += chunk.len() as u64;
-
-        if total_size > 0 {
-            let percentage = (downloaded as f64 / total_size as f64 * 100.0) as u32;
-            if last_emit.elapsed() >= std::time::Duration::from_millis(150) || percentage == 100 {
-                progress_callback(percentage);
-                last_emit = std::time::Instant::now();
-            }
-        }
-    }
-
-    tokio::io::AsyncWriteExt::flush(&mut file)
-        .await
-        .context("Failed to flush download file")?;
-
-    Ok(())
 }
 
 /// Return CSS `font-family` stack for given target language code.

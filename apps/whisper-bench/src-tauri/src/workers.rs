@@ -215,7 +215,9 @@ pub async fn run_worker_variant(
     on_progress: impl Fn(ProgressUpdate),
 ) -> Result<TranscriptionOutcome, String> {
     let mut cmd = tokio::process::Command::new(worker_path);
-    cmd.arg("run")
+    cmd.kill_on_drop(true)
+        .stdin(Stdio::null())
+        .arg("run")
         .arg(&config.input_path)
         .arg("--output")
         .arg(&config.output_path)
@@ -244,7 +246,11 @@ pub async fn run_worker_variant(
     let mut lines = BufReader::new(stdout).lines();
 
     let mut final_result: Option<Result<TranscriptionOutcome, String>> = None;
-    while let Ok(Some(line)) = lines.next_line().await {
+    while let Some(line) = lines
+        .next_line()
+        .await
+        .map_err(|e| format!("Failed to read worker output: {e}"))?
+    {
         match serde_json::from_str::<WorkerLine>(&line) {
             Ok(WorkerLine::Progress(update)) => on_progress(update),
             Ok(WorkerLine::Result { ok, outcome, error }) => {
@@ -266,9 +272,50 @@ pub async fn run_worker_variant(
         .await
         .map_err(|e| format!("Worker process error: {e}"))?;
 
+    if !status.success() {
+        return Err(format!("Worker exited with {status}"));
+    }
     match final_result {
         Some(result) => result,
-        None if status.success() => Err("Worker exited without reporting a result".to_string()),
-        None => Err(format!("Worker exited with {status} and no result line")),
+        None => Err("Worker exited without reporting a result".to_string()),
+    }
+}
+
+#[cfg(all(test, unix))]
+mod tests {
+    use super::*;
+    use std::os::unix::fs::PermissionsExt;
+
+    #[tokio::test]
+    async fn result_requires_successful_exit_and_readable_output() {
+        let config: TranscriptionConfig = serde_json::from_value(serde_json::json!({
+            "input_path":"in.wav", "output_path":"out.srt", "model":"tiny", "language":"en",
+            "translate_to_english":false, "word_timestamps":false, "max_segment_length":0
+        }))
+        .unwrap();
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("worker");
+        let result = r#"{"ok":true,"outcome":{"output_path":"out.srt","subtitle_count":1,"detected_language":null},"error":null}"#;
+        for exit in [0, 7] {
+            std::fs::write(
+                &path,
+                format!("#!/bin/sh\nprintf '%s\\n' '{result}'\nexit {exit}\n"),
+            )
+            .unwrap();
+            std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o700)).unwrap();
+            let outcome = run_worker_variant(&path, "ffmpeg", &config, |_| {}).await;
+            if exit == 0 {
+                assert_eq!(outcome.unwrap().subtitle_count, 1);
+            } else {
+                assert!(outcome.unwrap_err().contains("exited"));
+            }
+        }
+        std::fs::write(&path, "#!/bin/sh\nprintf '\\377'\n").unwrap();
+        assert!(
+            run_worker_variant(&path, "ffmpeg", &config, |_| {})
+                .await
+                .unwrap_err()
+                .contains("read worker output")
+        );
     }
 }

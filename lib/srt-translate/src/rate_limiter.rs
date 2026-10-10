@@ -7,17 +7,12 @@ use std::sync::Arc;
 pub type RateLimiter = GovRateLimiter<NotKeyed, InMemoryState, DefaultClock>;
 
 pub fn create_rate_limiter(rpm: u32) -> Arc<RateLimiter> {
-    let requests_per_minute = NonZeroU32::new(rpm.max(1)).expect("rpm.max(1) is always >= 1");
-
-    let quota = Quota::per_minute(requests_per_minute)
-        .allow_burst(NonZeroU32::new(1).expect("1 is always >= 1"));
-
-    Arc::new(GovRateLimiter::direct(quota))
+    create_rate_limiter_with_burst(rpm, NonZeroU32::MIN.get())
 }
 
 pub fn create_rate_limiter_with_burst(rpm: u32, burst: u32) -> Arc<RateLimiter> {
-    let requests_per_minute = NonZeroU32::new(rpm.max(1)).expect("rpm.max(1) is always >= 1");
-    let burst_size = NonZeroU32::new(burst.max(1)).expect("burst.max(1) is always >= 1");
+    let requests_per_minute = NonZeroU32::new(rpm).unwrap_or(NonZeroU32::MIN);
+    let burst_size = NonZeroU32::new(burst).unwrap_or(NonZeroU32::MIN);
 
     let quota = Quota::per_minute(requests_per_minute).allow_burst(burst_size);
 
