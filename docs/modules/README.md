@@ -12,6 +12,7 @@ as a standalone binary or as a Rust dependency — without dragging in the GUI.
 |---|---|---|---|---|
 | [srt-flashcards](srt-flashcards.md) | Flashcard generation and media cutting | `lib/srt-flashcards` | `srt-flashcards` | FFmpeg/ffprobe |
 | [srt-parser](srt-parser.md) | Parse/write SRT with charset detection | `core/srt-parser` | — | — |
+| [srt-download](srt-download.md) | Cancellable atomic font/model downloads | `core/srt-download` | — | HTTP endpoint |
 | [srt-apkg](srt-apkg.md) | Anki package (`.apkg`) archive generator & reader | `core/srt-apkg` | — | — |
 | [srt-extract](srt-extract.md) | Convert parsed subtitle data; discover/extract embedded text tracks | `lib/srt-extract` | `srt-extract` | FFmpeg/ffprobe for embedded tracks |
 | [srt-translate](srt-translate.md) | LLM subtitle translation with tiered failover | `lib/srt-translate` | `srt-translate` | HTTP APIs or local endpoint |

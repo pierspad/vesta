@@ -78,8 +78,10 @@ async fn main() -> anyhow::Result<()> {
 
 ## Extract it standalone
 
-Copy `lib/srt-autosync/` + `lib/srt-transcribe/` (+ `lib/srt-sync/` and
+Copy `lib/srt-autosync/`, `lib/srt-transcribe/` and `core/srt-download/`
+(+ `lib/srt-sync/` and
 `core/srt-parser/` if you apply the anchors). External deps: `whisper-rs`
 (compiles whisper.cpp — needs cmake and a C++ toolchain), `tokio`,
 `tokio-util`, `tempfile`, `anyhow`, `serde`. FFmpeg is a runtime requirement,
-not a build one.
+not a build one. Include the transitive dependencies listed in the
+[transcription guide](srt-transcribe.md#extract-it-standalone).

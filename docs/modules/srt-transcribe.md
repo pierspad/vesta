@@ -115,11 +115,11 @@ Progress/segment streaming: fill `PipelineCallbacks::on_progress` /
 
 ## Extract it standalone
 
-Copy `lib/srt-transcribe/` — it has no internal dependencies. External deps:
+Copy `lib/srt-transcribe/` and `core/srt-download/`. External deps:
 `whisper-rs` (compiles whisper.cpp — needs cmake and a C++ toolchain; the
 repo pins a vendored `whisper-rs-sys` via `[patch.crates-io]`, see the root
 `Cargo.toml`), `reqwest`, `hound`, `tokio`, `tokio-util`, `tempfile`,
-`futures`, `dirs`, `serde`, `num_cpus`. FFmpeg is a runtime requirement.
+`futures` (download helper), `dirs`, `serde`, `num_cpus`. FFmpeg is a runtime requirement.
 The optional `vulkan`, `cuda`, `rocm`, and `sycl` features forward one selected
 backend to `whisper-rs`. The official Linux desktop build uses Vulkan and the
 runtime flag defaults to GPU enabled; CPU is the safe fallback.

@@ -61,6 +61,18 @@ network latency, GPU fallback, or large-series memory use. Use the
 [full-film benchmark guide](BENCHMARK_STEPS.md) for representative throughput
 and add a short HEVC/1080p workload before changing preparation policy again.
 
+## Audio decoding and process lifetime
+
+`cargo test -p srt-transcribe audio::tests` covers integer/float WAV downmix,
+truncated and non-finite samples, normalization through 32-bit PCM, and real
+FFmpeg conversion/segmentation. Invalid samples fail with file/sample context
+instead of being skipped, which would shorten audio and shift transcription
+or autosync timing. FFmpeg failures include exit status and the last 64 KiB
+of stderr; earlier diagnostics may be discarded while the pipe is still drained.
+Unix process tests verify cancellation and dropped-future cleanup with real
+children, plus large stderr without a pipe deadlock. Windows/macOS behavior
+still needs platform validation.
+
 ## HTTP contracts and links
 
 `cargo test -p srt-transcribe` exercises real loopback HTTP requests for OpenAI
@@ -145,3 +157,41 @@ Time saved is the baseline total minus the measured total; percentage saved uses
 the baseline total as its denominator. Keep all films matched across compared
 series and label export formats, worker counts, hardware and output differences.
 Per-film charts and raw measurements belong in the detailed report.
+
+
+### Rust lifecycle and persistence regressions
+
+`cargo test --workspace` covers shared download cancellation/concurrent publication,
+APKG flush failures and atomic replacement, translation worker failure and save
+errors, unexpected translation IDs, GUI operation slot ownership, media byte
+ranges, AnkiConnect HTTP/schema/version failures and worker process exit/read
+errors. Auto-sync tests use fake tools and a stub model to prove cancellation
+stops segment preparation without requiring a downloaded Whisper model.
+The audio integration also checks a real one-second FFmpeg extraction.
+Unix-only process/script tests require a Unix host; run platform and GPU release
+checks separately. See [the workspace review](reviews/rust-workspace-2026-10-09.md).
+
+
+### Opt-in real Vulkan inference
+
+On a machine with a supported Vulkan GPU and an already installed Whisper model:
+
+```bash
+cargo build -p srt-transcribe-cli --features vulkan
+python3 build-scripts/gpu_smoke.py --device 'RX 7800 XT' --vad --output-dir /tmp/vesta-gpu-check
+```
+
+The output directory must be new. Omit `--vad` if Silero is not installed; change
+`--device` to a substring of the actual GPU name or omit it. The script makes no
+cloud requests and downloads no models. It verifies CPU, actual Vulkan backend
+selection, no-visible-GPU CPU fallback, valid bounded SRT output, optional VAD,
+and on Unix cancellation after the first decoded segment. Use a sufficiently
+long clip for cancellation; the default is the repository's 90-second Detour
+fixture. Logs and transcripts are retained only when `--output-dir` is supplied.
+These timings are smoke diagnostics, not a release-profile performance benchmark.
+
+The [2026-10-10 release review](reviews/release-readiness-2026-10-10.md) records
+successful real RX 7800 XT inference and the cancellation error found by it.
+Publication now waits for the successful push CI run on the exact release commit,
+including workspace tests and strict Clippy; a missing/failed/skipped run blocks
+`semantic-release`. Manual dispatch also requires that successful push CI evidence.

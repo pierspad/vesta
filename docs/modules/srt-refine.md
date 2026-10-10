@@ -63,6 +63,8 @@ async fn main() -> Result<(), String> {
 
 ## Extract it standalone
 
-Copy `lib/srt-refine/` + `lib/srt-translate/` + `core/srt-parser/`
-(srt-translate depends on it). External deps: `rusqlite` (bundled SQLite),
-`zip`, `sha1_smol`, `tempfile`, `serde`, `serde_json`.
+Copy `lib/srt-refine/`, `lib/srt-translate/`, `core/srt-parser/` and
+`core/srt-apkg/`. External deps include `rusqlite` (bundled SQLite),
+`tempfile`, `serde`, `serde_json`, `tokio` and `tokio-util`; ZIP mechanics
+are supplied by `srt-apkg`. Include the translation dependencies from its
+[module guide](srt-translate.md#extract-it-standalone).

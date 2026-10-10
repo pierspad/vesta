@@ -90,9 +90,10 @@ async fn main() -> Result<(), String> {
 
 ## Extract it standalone
 
-Copy `lib/srt-flashcards/` + `core/srt-parser/`. External deps include
+Copy `lib/srt-flashcards/`, `core/srt-parser/` and `core/srt-download/`. External deps include
 `rusqlite` (bundled SQLite), `zip`,
-`sha1_smol`, `tokio`, `tokio-util`, `serde`, `serde_json`, `tempfile`.
+`sha1_smol`, `tokio`, `tokio-util`, `serde`, `serde_json`, `tempfile`;
+the shared download helper also uses `reqwest`, `futures` and `anyhow`.
 FFmpeg/ffprobe are runtime requirements passed in via `MediaTools`.
 
 With `video_hw_accel = "auto"` (the default), the engine runs a real FFmpeg

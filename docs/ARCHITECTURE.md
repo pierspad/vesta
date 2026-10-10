@@ -33,7 +33,7 @@ Vesta is a modular Cargo workspace layered from foundational formats to GUI-agno
 
 | Layer | Crates | Responsibilities & Design Rules |
 |---|---|---|
-| **core** | `srt-parser`, `srt-apkg` | Foundational primitives. Minimal external dependencies, zero knowledge of higher engines or GUI. Auto-charset detection via `chardetng` + `encoding_rs`, lossless timing arithmetic, and direct ZIP/SQLite archive serialization. |
+| **core** | `srt-parser`, `srt-apkg`, `srt-download` | Foundational primitives. Minimal external dependencies, zero knowledge of higher engines or GUI. Auto-charset detection via `chardetng` + `encoding_rs`, lossless timing arithmetic, direct ZIP/SQLite archive serialization, and cancellable atomic resource downloads. |
 | **lib** | `srt-flashcards`, `srt-translate`, `srt-transcribe`, `srt-autosync`, `srt-extract`, `srt-refine`, `srt-sync`, `srt-ankiconnect` | Self-contained domain engines. **Zero GUI/Tauri coupling**. Long-running tasks accept a `tokio_util::sync::CancellationToken` and report progress through callbacks. External tools and heavy dependencies (FFmpeg processes, `whisper-rs`, `rusqlite`, `reqwest`) are encapsulated here. |
 | **cli** | `srt-flashcards-cli`, `srt-translate-cli`, `srt-transcribe-cli`, `srt-autosync-cli`, `srt-extract-cli` | Headless, terminal frontends powered by `clap`. Thin wrappers over corresponding `lib/` engines. Perfect for server scripting, batch processing, CI pipelines, and benchmarking. |
 | **apps** | `apps/srt-gui` (`vesta`), `apps/whisper-bench` | Desktop composition roots. Svelte owns presentation/state; Tauri commands adapt IPC to `lib/` crates and own process-level services such as local media streaming, dialogs, and window integration. |
@@ -323,3 +323,18 @@ The latter can be lossy and has a separate quality contract. Default concurrency
 reserves capacity; explicit worker requests are bounded by available cores.
 [Native A/B evidence](BENCHMARK_NATIVE.md) and [the product comparison](BENCHMARK_REPORT.md)
 measure different scopes and must not be pooled.
+
+
+### Rust operation and I/O ownership
+
+The desktop command adapters reserve operation slots using `OperationGuard`.
+Cancellation requests stop work without releasing its slot early; normal return,
+error and future drop release the slot through RAII. Auto-sync reserves both
+sync and transcription resources with a shared cancellation token.
+
+`core/srt-download` owns HTTP streaming, unique temporary files, cache checks,
+publication and cancellation. Font and model catalogs retain their domain policy.
+Translation APIs share one worker engine, with tier selection in `scheduler.rs`;
+`JoinSet` owns the workers and propagates failures. `srt-refine::cards` owns TSV
+and APKG persistence separately from LLM orchestration. Desktop `media_stream`
+owns range serving independently of application startup and command registration.
