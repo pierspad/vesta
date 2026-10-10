@@ -14,6 +14,7 @@ concurrency:
 permissions:
   contents: write
   actions: write
+  checks: read
 
 jobs:
   release:
@@ -67,6 +68,35 @@ jobs:
           npm test
           npm run test:dev-css
           npm run build
+
+      - name: Require successful Rust CI for this commit
+        timeout-minutes: 45
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_SHA: ${{ github.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          ci_run=""
+          for attempt in {1..60}; do
+            ci_run=$(gh run list --workflow ci.yml --commit "$RELEASE_SHA" --event push \
+              --limit 1 --json databaseId --jq '.[0].databaseId // empty')
+            if [ -n "$ci_run" ]; then
+              break
+            fi
+            sleep 5
+          done
+          if [ -z "$ci_run" ]; then
+            echo "::error::No push CI run found for $RELEASE_SHA; refusing publication."
+            exit 1
+          fi
+          gh run watch "$ci_run" --exit-status --interval 15
+          conclusion=$(gh run view "$ci_run" --json conclusion --jq '.conclusion')
+          if [ "$conclusion" != success ]; then
+            echo "::error::Rust CI concluded $conclusion; refusing publication."
+            exit 1
+          fi
 
       - name: Release via semantic-release
         uses: cycjimmy/semantic-release-action@v5
