@@ -12,6 +12,7 @@ mod merge_apkg;
 pub use merge_apkg::merge_apkg;
 mod parser;
 mod snapshot_batch;
+mod tsv_publication;
 mod types;
 
 pub mod fonts;
@@ -384,21 +385,15 @@ pub async fn generate(
     })?;
     let export_format = config.export_format.as_deref().unwrap_or("tsv");
 
-    let apkg_temp_dir = if export_format == "apkg" {
-        Some(tempfile::tempdir().map_err(|e| format!("Cannot create temp dir for media: {}", e))?)
+    let media_workspace = if export_format == "apkg" {
+        tempfile::tempdir()
     } else {
-        None
-    };
-
-    let media_dir = if let Some(ref tmp) = apkg_temp_dir {
-        tmp.path().join("collection.media")
-    } else {
-        output_dir.join(format!("{}.media", sanitize_filename(&config.deck_name)))
-    };
-
-    if media_dir.exists() {
-        let _ = std::fs::remove_dir_all(&media_dir);
+        tempfile::Builder::new()
+            .prefix(".vesta-export-")
+            .tempdir_in(&output_dir)
     }
+    .map_err(|error| format!("Cannot create media staging directory: {error}"))?;
+    let media_dir = media_workspace.path().join("collection.media");
     std::fs::create_dir_all(&media_dir).map_err(|e| format!("Cannot create output dir: {}", e))?;
 
     let media_source = config
@@ -910,6 +905,11 @@ pub async fn generate(
     }
 
     // --- Stage 5: Export ---
+    let media_size_bytes = if export_format == "apkg" {
+        0
+    } else {
+        dir_size_bytes(&media_dir)
+    };
     let mut tsv_path_result: Option<String> = None;
     let mut apkg_path_result: Option<String> = None;
 
@@ -924,6 +924,14 @@ pub async fn generate(
             HashMap::new(),
         );
         let apkg_path = output_dir.join(format!("{}.apkg", sanitize_filename(&config.deck_name)));
+        if cancel.is_cancelled() {
+            return Ok(cancelled_result(
+                "Cancelled by user",
+                audio_count,
+                snapshot_count,
+                video_count,
+            ));
+        }
         generate_apkg(&matched, &config, &media_dir, &apkg_path)?;
         apkg_path_result = Some(apkg_path.to_string_lossy().to_string());
     } else {
@@ -939,8 +947,22 @@ pub async fn generate(
         let media_str = media_dir.to_str().unwrap_or("");
         let tsv_content = generate_tsv(&matched, &config, media_str, media_str, media_str);
         let tsv_path = output_dir.join(format!("{}.tsv", sanitize_filename(&config.deck_name)));
-        srt_parser::persistence::atomic_write(&tsv_path, tsv_content.as_bytes())
-            .map_err(|e| format!("Cannot write TSV: {}", e))?;
+        if cancel.is_cancelled() {
+            return Ok(cancelled_result(
+                "Cancelled by user",
+                audio_count,
+                snapshot_count,
+                video_count,
+            ));
+        }
+        let final_media_dir =
+            output_dir.join(format!("{}.media", sanitize_filename(&config.deck_name)));
+        tsv_publication::publish(
+            media_workspace,
+            &final_media_dir,
+            &tsv_path,
+            tsv_content.as_bytes(),
+        )?;
         tsv_path_result = Some(tsv_path.to_string_lossy().to_string());
     }
 
@@ -958,7 +980,7 @@ pub async fn generate(
     // An apkg is self-contained; a TSV leaves its media loose in media_dir.
     let output_size_bytes = match &apkg_path_result {
         Some(path) => std::fs::metadata(path).map(|m| m.len()).unwrap_or(0),
-        None => dir_size_bytes(&media_dir),
+        None => media_size_bytes,
     };
 
     Ok(FlashcardResult {

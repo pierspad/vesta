@@ -71,3 +71,22 @@ Video-clip preparation can produce a lossy intermediate and is separate from
 the original-source snapshot A/B quality guarantee.
 
 See [native benchmark results](../../docs/BENCHMARK_NATIVE.md).
+
+## Regenerating TSV exports
+
+Generation stages new media beside the destination before replacing
+`<deck>.media`. Extraction failure or cancellation before publication preserves
+the previous TSV and media. If writing the new TSV fails, the publisher restores
+the previous media. Publishing the same deck concurrently is rejected while its
+OS lock is held. The hidden `.<deck>.tsv.export.lock` file remains for lock
+identity; do not remove it while exports may be running.
+
+Staging needs disk space for both old and new media. Publication is synchronous:
+cancellation arriving after the final check can still complete successfully.
+A crash between the media swap and TSV replacement is not recovered
+automatically. If an interrupted export leaves `.vesta-export-*` directories,
+inspect `previous.media` there before deleting them. With no export running,
+retain the current media as a backup and restore `previous.media` to
+`<deck>.media` when the TSV still belongs to that older generation. A failed
+rollback reports the staging path explicitly. APKG publication remains a
+single-file atomic replacement.
