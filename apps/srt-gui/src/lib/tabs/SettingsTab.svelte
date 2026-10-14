@@ -43,10 +43,7 @@
     REFINEMENT_PROMPT_STORAGE_KEY,
     loadRefinementPrompt,
   } from "$lib/config/refinementPrompt";
-  import {
-    fetchModelsFromEndpoint,
-    type DiscoveredModel,
-  } from "$lib/services/modelDiscovery";
+  import type { DiscoveredModel } from "$lib/services/modelDiscovery";
   import { loadAndValidateApiKeys, type ApiKeyConfig } from "$lib/config/apiKeys";
   import {
     loadTiers,
@@ -69,6 +66,7 @@
   import { getModelsForProvider, providers, type ModelInfo } from "$lib/config/llmProviders";
   import { languages } from "$lib/config/languages";
   import * as vestaConfig from "$lib/config/vestaConfig";
+  import { LatestModelDiscovery } from "$lib/workflows/latestModelDiscovery";
 
   const allProviderIds = ["local", "google", "groq", "openai", "deepgram", "assemblyai", "openrouter", "mistral", "github", "nvidia", "custom"];
   const apiKeyProviderIds = ["google", "groq", "openai", "deepgram", "assemblyai", "openrouter", "mistral", "github", "nvidia", "custom"];
@@ -136,9 +134,9 @@
   let isCheckingDefaultEndpoint = $state(false);
   let defaultEndpointStatus = $state<EndpointStatus>("idle");
   let defaultEndpointMessage = $state("");
-  let endpointCheckRequestId = 0;
+  const defaultEndpointDiscovery = new LatestModelDiscovery();
   let localProviderStatus = $state<EndpointStatus>("idle");
-  let localProviderCheckRequestId = 0;
+  const localProviderDiscovery = new LatestModelDiscovery();
 
   let showAddModel = $state(false);
 
@@ -386,19 +384,22 @@
     const provider = defaultLlmProvider;
     const endpointUrl = activeDefaultEndpointUrl.trim();
     const endpointApiKey = activeDefaultEndpointApiKey;
-    const requestId = ++endpointCheckRequestId;
 
     if (provider !== "local" && provider !== "custom") {
+      defaultEndpointDiscovery.invalidate();
       defaultEndpointStatus = "idle";
       defaultEndpointMessage = t("settings.endpointStatus.idle");
       discoveredDefaultModels = [];
+      isCheckingDefaultEndpoint = false;
       return;
     }
 
     if (!endpointUrl) {
+      defaultEndpointDiscovery.invalidate();
       defaultEndpointStatus = "offline";
       defaultEndpointMessage = t("settings.endpointStatus.offline");
       discoveredDefaultModels = [];
+      isCheckingDefaultEndpoint = false;
       return;
     }
 
@@ -407,10 +408,11 @@
       defaultEndpointMessage = t("settings.endpointStatus.checking");
     }
     isCheckingDefaultEndpoint = true;
+    let stale = false;
 
     try {
-      const models = await fetchModelsFromEndpoint(endpointUrl, endpointApiKey, 6500);
-      if (requestId !== endpointCheckRequestId) return;
+      const models = await defaultEndpointDiscovery.fetch(endpointUrl, endpointApiKey, 6500);
+      if (models === null) { stale = true; return; }
       discoveredDefaultModels = models;
       defaultEndpointStatus = "online";
       defaultEndpointMessage = t("settings.modelsAvailable", { count: models.length });
@@ -419,22 +421,17 @@
         persistDefaultLlmSettings();
       }
     } catch (error) {
-      if (requestId !== endpointCheckRequestId) return;
       discoveredDefaultModels = [];
       defaultEndpointStatus = "offline";
       defaultEndpointMessage = t("settings.endpointStatus.offline");
-    } finally {
-      if (requestId === endpointCheckRequestId) {
-        isCheckingDefaultEndpoint = false;
-      }
-    }
+    } finally { if (!stale) isCheckingDefaultEndpoint = false; }
   }
 
   async function refreshLocalProviderStatus() {
     const endpointUrl = defaultLocalServerUrl.trim();
-    const requestId = ++localProviderCheckRequestId;
 
     if (!endpointUrl) {
+      localProviderDiscovery.invalidate();
       localProviderStatus = "offline";
       return;
     }
@@ -444,11 +441,10 @@
     }
 
     try {
-      await fetchModelsFromEndpoint(endpointUrl, "", 6500);
-      if (requestId !== localProviderCheckRequestId) return;
+      const models = await localProviderDiscovery.fetch(endpointUrl, "", 6500);
+      if (models === null) return;
       localProviderStatus = "online";
     } catch {
-      if (requestId !== localProviderCheckRequestId) return;
       localProviderStatus = "offline";
     }
   }
@@ -476,9 +472,11 @@
     const endpointApiKey = activeDefaultEndpointApiKey;
 
     if (provider !== "local" && provider !== "custom") {
+      defaultEndpointDiscovery.invalidate();
       defaultEndpointStatus = "idle";
       defaultEndpointMessage = t("settings.endpointStatus.idle");
       discoveredDefaultModels = [];
+      isCheckingDefaultEndpoint = false;
       return;
     }
 
@@ -499,6 +497,8 @@
       void endpointApiKey;
       clearTimeout(timeout);
       clearInterval(interval);
+      defaultEndpointDiscovery.invalidate();
+      isCheckingDefaultEndpoint = false;
     };
   });
 
@@ -516,6 +516,7 @@
       void endpointUrl;
       clearTimeout(timeout);
       clearInterval(interval);
+      localProviderDiscovery.invalidate();
     };
   });
 
