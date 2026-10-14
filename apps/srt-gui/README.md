@@ -50,6 +50,8 @@ settings and desktop event subscriptions. They delegate execution to
 
 Workflows inject IPC and callbacks so their error, cancellation and partial-success
 paths can be tested in Node without a desktop window or provider charges.
+The suite also mounts selected Svelte components in happy-dom to verify DOM event
+and mount/unmount lifecycle behavior; native Tauri IPC remains outside these tests.
 `TranscriptionSegmentsPanel.svelte` owns only live transcript presentation and
 scrolling; path and timestamp transformations live in pure utilities.
 

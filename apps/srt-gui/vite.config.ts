@@ -55,10 +55,11 @@ function svelteVirtualCssFallback(): Plugin {
 }
 
 // https://vitejs.dev/config/
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   plugins: [svelte(), svelteVirtualCssFallback(), tailwindcss()],
   clearScreen: false,
   resolve: {
+    ...(mode === "test" ? { conditions: ["module", "browser", "development|production"] } : {}),
     alias: {
       $lib: fileURLToPath(new URL("./src/lib", import.meta.url)),
     },
@@ -71,12 +72,16 @@ export default defineConfig({
     },
   },
   // `vitest` reads its config from this same file (single source of truth).
-  // Pure utilities, stores, configuration and mocked IPC services run in Node.
-  // Desktop/webview interactions still require integration and release smoke tests.
+  // Pure utilities, stores, configuration and mocked IPC services run in Node;
+  // mounted component tests opt into happy-dom per file. Native webview behavior
+  // still requires integration and release smoke tests.
   test: {
     include: ["src/lib/**/*.test.{ts,js}"],
     environment: "node",
     setupFiles: ["src/lib/test-setup.ts"],
+    // Mounted Svelte component tests need Svelte's browser-conditioned `mount`
+    // implementation instead of Node's server entry point.
+    server: { deps: { inline: ["svelte"] } },
   },
   build: {
     target: "es2022",
@@ -92,4 +97,4 @@ export default defineConfig({
       },
     },
   },
-});
+}));
