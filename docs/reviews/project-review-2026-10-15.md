@@ -219,3 +219,82 @@ Ctrl+C durante il commit sincrono, ora documentato nella CLI.
    GPU/fallback e servizi autenticati. I test offline non certificano tali percorsi.
 5. Valutare keychain di sistema per le credenziali ed errori strutturati negli
    altri confini nativi, in cambiamenti dedicati con migrazione compatibile.
+
+## Terzo ciclo: esportazioni TSV, serie e componenti montati
+
+Il coordinatore ha implementato lo staging dei media TSV; i due worker Luna
+hanno lavorato separatamente sui workflow Flashcards e sui test DOM montati.
+Prima di integrare sono stati revisionati sorgenti e regressioni e richiesti
+ulteriori casi che mancavano nelle prime versioni.
+
+### Export TSV precedente preservato
+
+La generazione non elimina più subito `<deck>.media`. I media nuovi vengono
+completati in staging sul filesystem di destinazione. Un lock OS protegge la
+pubblicazione dello stesso deck, con backup/ripristino della directory media se
+fallisce la sostituzione o la scrittura del TSV. I percorsi e il formato TSV
+pubblicati restano compatibili; la dimensione del risultato viene calcolata
+prima di spostare lo staging.
+
+I test verificano sostituzione riuscita, file TSV read-only, swap media fallita,
+prima pubblicazione fallita, publisher già attivo e symlink TSV nella cartella
+media. Una prova dell'intero pipeline verifica riferimenti media e byte del
+risultato, preservazione su estrazione fallita e cancellazione dal callback
+dello stadio export. Non richiede download o API esterne.
+
+La revisione indipendente Luna ha verificato lock, rollback e byte preservation;
+ha richiesto di esplicitare limiti e recovery. Lo staging richiede spazio per
+due generazioni. Un commit sincrono già iniziato si completa; un crash fra
+swap media e pubblicazione TSV può lasciare una coppia disallineata e una
+directory `.vesta-export-*` con `previous.media`. Il recupero non è automatico.
+La [guida CLI](../../cli/srt-flashcards-cli/README.md#regenerating-tsv-exports)
+spiega la recovery e il dotfile di lock persistente.
+
+### Flashcards: configurazione stabile e risultati conservati
+
+`prepareFlashcardEpisodeConfig` cattura episodio, override, filtri e note type
+prima di attendere la discovery della traccia audio. Alla revisione, il primo
+snapshot copriva solo i media: sono stati aggiunti gli altri input mutabili e
+una regressione che li modifica durante il picker. Un secondo controllo ha
+richiesto snapshot del note type e delle preferenze audio all'inizio dell'intera
+serie; un test con il builder reale modifica queste preferenze durante EP1 e
+verifica EP2. Serie in lingue diverse mantengono l'inferenza per sottotitolo.
+
+Stop durante il picker impedisce di avviare override/lavoro nativo. Se il lavoro
+già avviato termina dopo Stop, conteggi e percorsi vengono conservati come
+risultato parziale, con messaggio di cancellazione e senza import automatico.
+Un errore di importazione Anki non azzera più un export riuscito, né nel runner
+singolo né nella serie: viene registrato come warning distinto.
+
+### Test dei componenti reali
+
+Vitest ora può montare Svelte 5 in happy-dom per i file che richiedono un DOM;
+gli altri test restano in ambiente Node. Le condizioni browser/inline di Svelte
+si applicano solo in modalità test e la build produzione resta indipendente.
+L'harness della snackbar usa lo store reale come il composition root App.
+
+Alla revisione, i primi test verificavano soltanto callback simulati. Sono stati
+aggiunti timer reali dello store con orologio simulato: hover e focus sovrapposti,
+scadenza del residuo dopo focusout, pagina nascosta e rimozione del listener
+all'unmount. CopyPathChip montato verifica clipboard rifiutata e messaggio di
+errore, senza un falso successo. Questo verifica eventi e lifecycle; layout,
+decoder e IPC Tauri reali restano fuori dal DOM simulato.
+
+### Priorità ancora aperte
+
+Verifica finale del coordinatore: gate desktop/smoke passato con 291 test
+frontend in 54 file, check Svelte senza errori/warning, build e CSS a freddo
+passati, localizzazione senza errori bloccanti (6 segnalazioni euristiche note),
+tre APKG da 10 note e 20 media verificati. `cargo test --workspace` conta 313
+test passati; Clippy workspace con `-D warnings`, formatting, whitespace e
+link locali dei documenti sono passati. Nessun test di questo ciclo usa provider
+esterni, importazioni Anki reali o certifica i pacchetti installati.
+
+1. Recovery automatica dopo crash durante la pubblicazione TSV/media, oppure
+   export versionati con un solo riferimento atomico finale. Il rollback degli
+   errori ordinari è ora coperto; non è una transazione resistente ai crash.
+2. Estendere i test montati a dialoghi, navigazione e stop/riprova; proseguire
+   l'estrazione di responsabilità complete da FlashcardsTab.
+3. Eseguire la matrice dei pacchetti installati Linux/Windows, Anki, GPU/fallback
+   e provider autenticati. Nessuna suite locale sostituisce queste prove.
+4. Introdurre keychain e migrazione delle credenziali con un percorso compatibile.

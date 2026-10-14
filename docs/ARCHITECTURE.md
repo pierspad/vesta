@@ -400,6 +400,21 @@ Transcription also checks cancellation immediately before publication begins.
 Existing symlinks are resolved and preserved; dangling links and read-only
 destinations fail. Standard permission bits are retained, but ownership/extended
 ACLs are not copied. Concurrent writers are last-successful-writer-wins, and
-directory durability across power loss is not guaranteed. TSV media directories
-are still generated separately: atomic TSV replacement is not a transaction
-covering the entire media tree. Installed-platform validation remains necessary.
+directory durability across power loss is not guaranteed.
+
+TSV media are generated in a fresh `.vesta-export-*` staging directory on the
+destination filesystem. The publisher takes an OS lock on the stable hidden
+`.<deck>.tsv.export.lock` file, moves existing media into staging as
+`previous.media`, swaps in the complete new media, and atomically publishes the
+TSV. A failed swap or TSV write restores the previous media. If restoration
+itself fails, staging is retained and the error reports its recovery location.
+Media-directory symlinks and TSV symlinks into the media tree are rejected.
+
+This prevents extraction errors and pre-publication cancellation from destroying
+the previous export. It is not a crash-atomic two-file transaction: termination
+between the media swap and TSV replacement can leave mismatched TSV/media and
+`previous.media` in staging. There is no automatic crash recovery. Do not delete
+such staging before inspecting/restoring the previous media. Keep the lock file
+in place; the OS releases its lock when the process exits. Publication is
+synchronous and completes once begun. Staging temporarily requires space for
+both generations. Installed-platform validation remains necessary.

@@ -12,6 +12,14 @@ streaming failure, and prevent cancelled transcription publication. The helper
 tests verify cleanup as well as destination bytes. These are process-level
 failure tests, not power-loss or filesystem-specific durability certification.
 
+`cargo test -p srt-flashcards` additionally checks staged TSV media publication:
+successful replacement, rollback after a failed TSV write or media swap, refusal
+of an overlapping publisher and cleanup after a failed first export. The Unix
+pipeline fixture verifies old TSV/media bytes on extraction failure and
+cancellation at the export stage, plus media references and byte counts on
+success. These do not simulate SIGKILL between filesystem renames; crash recovery
+and installed-platform behavior remain separate validation work.
+
 Prioritize correct exports, recoverable failures, durable settings, cancellation,
 and usable progress. Optimize bottlenecks after measuring them on identical input.
 A passing unit suite is evidence about those cases, not proof that every desktop
