@@ -70,7 +70,10 @@
   <div
     class="bg-gray-900 border border-gray-800 rounded-xl w-full max-w-6xl max-h-[85vh] flex flex-col shadow-2xl"
     onclick={(e) => e.stopPropagation()}
-    onkeydown={(e) => e.stopPropagation()}
+    onkeydown={(e) => {
+      if (e.key === "Escape") close();
+      e.stopPropagation();
+    }}
   >
     <!-- Modal Header -->
     <div class="flex items-center justify-between p-4 border-b border-gray-800/80 bg-gray-900">

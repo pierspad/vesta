@@ -4,6 +4,7 @@
   import { expandFlashcardFiles } from "$lib/workflows/flashcardFileDiscovery";
   import { runFlashcardGeneration } from "$lib/workflows/flashcardGeneration";
   import { runFlashcardSeries } from "$lib/workflows/flashcardSeries";
+  import { FlashcardPreviewController } from "$lib/workflows/flashcardPreview";
   import { audioOverrideKeys, snapshotOverrideKeys, videoOverrideKeys, mediaSettingChanged, episodeMediaDiff } from "$lib/utils/episodeMediaSettings";
   import { invokeCommand as invoke } from "$lib/services/tauriClient";
   import { listen } from "@tauri-apps/api/event";
@@ -1384,6 +1385,7 @@
   });
 
   onDestroy(() => {
+    flashcardPreview.dispose();
     activeListener = false;
     window.removeEventListener("vesta-cpu-cores-changed", handleCpuCoresChanged);
     window.removeEventListener("vesta-ffmpeg-updated", handleFfmpegUpdated);
@@ -1471,6 +1473,18 @@
       embedCardFont: ankiStore.embedCardFont,
     });
   }
+
+  const flashcardPreview = new FlashcardPreviewController({
+    isBusy: () => generationStore.isBusy,
+    canPreview: () => canRunFlashcards,
+    isLoading: () => previewStore.loading,
+    buildConfig,
+    load: (config, onLoaded) => previewStore.load(config, onLoaded),
+    close: () => previewStore.close(),
+    setError: (message) => { generationStore.error = message; },
+    missingRequirementsMessage: () => t("flashcards.requiredFieldsMissing"),
+    addLog: (message, level) => generationStore.addLog(message, level),
+  });
 
   async function loadTargetSubtitle(path: string) {
     targetSubsPath = path;
@@ -1721,24 +1735,7 @@
   }
 
   async function loadPreview() {
-    if (generationStore.isBusy || previewStore.loading) return;
-    if (!canRunFlashcards) {
-      generationStore.error = t("flashcards.requiredFieldsMissing");
-      return;
-    }
-
-    generationStore.error = null;
-    try {
-      const config = buildConfig();
-      await previewStore.load(config, (lines) =>
-        generationStore.addLog(
-          `Preview: ${lines.length} total, ${lines.filter((l) => l.active).length} active`,
-          "info",
-        ),
-      );
-    } catch (e) {
-      generationStore.error = `Preview error: ${e}`;
-    }
+    await flashcardPreview.load();
   }
 
   let cancelRequested = false;
