@@ -137,3 +137,85 @@ Non è stato eseguito push né pubblicata una release.
 Le verifiche automatizzate locali non certificano installer, WebKit/GStreamer,
 Anki reale, servizi cloud autenticati o altre piattaforme. Per questi casi resta
 valida la [matrice di release](../QUALITY.md#release-smoke-matrix).
+
+## Secondo ciclo: implementazione delle priorità
+
+Su richiesta dell'utente, il lavoro è proseguito oltre la prima correzione.
+I commit rimangono in inglese, con tipi Conventional Commits riconosciuti dal
+preset `conventionalcommits` di `.releaserc`. I due worker Luna hanno mantenuto
+ownership separate; il coordinatore ha implementato la persistenza, revisionato
+i cambiamenti e integrato le verifiche.
+
+### Persistere senza troncare il file precedente
+
+`srt-parser::persistence` centralizza la pubblicazione tramite temporaneo nella
+stessa directory. Il callback termina la scrittura, il file viene sincronizzato
+e poi sostituito. Parser SRT, trascrizione, sessioni sync, TSV/APKG flashcard e
+output CLI extract usano questo percorso. Transcribe usa anche un writer
+bufferizzato e ricontrolla la cancellazione prima della pubblicazione.
+
+Le regressioni simulano errori dopo scritture parziali, fallimenti nello
+streaming APKG, destinazioni read-only, symlink e hard link. Verificano i byte
+del file precedente e la rimozione dei temporanei. Un controllo condiviso di
+identità file impedisce a extract/translate di usare il proprio input come
+destinazione, anche attraverso alias; `same-file` era già presente nel lock e
+fornisce il confronto portabile anche oltre Unix.
+
+Questo protegge il singolo file pubblicato. La directory media di un export
+TSV non è ancora transazionale; ownership/ACL estese, coordinamento tra processi
+e durabilità della directory dopo perdita di alimentazione restano fuori dal
+contratto. Una pubblicazione sincrona già iniziata non viene interrotta da Ctrl+C.
+
+### Settings e discovery Flashcards
+
+`DefaultLlmProviderSettings` estrae le regole provider/modello, accesso,
+persistenza, reset e discovery da SettingsTab. Mantiene distinti i due canali
+di discovery e invalida subito i risultati al cambio provider. I test coprono
+fallback di accesso, preferenze persistite, risultati obsoleti e scelta manuale
+del modello mentre una discovery è ancora in corso. La tab conserva rendering,
+traduzioni e lifecycle del polling.
+
+Flashcards avvia insieme i lookup indipendenti per sottotitolo companion e media.
+Il pool di quattro file produce al massimo otto IPC simultanee: i test verificano
+il limite, l'ordine dei risultati e la conservazione del risultato valido quando
+l'altro lookup fallisce. È una riduzione dell'attesa sequenziale, senza una
+nuova rivendicazione di velocità end-to-end.
+
+### Contratti delle CLI
+
+- Transcribe JSON restituisce un record terminale leggibile e status 1 sugli
+  errori; su cancellazione prima della pubblicazione restituisce `cancelled:true`
+  e status 130, senza il messaggio Ctrl+C su stderr. Il ritorno normale dal
+  runtime sostituisce `process::exit`, consentendo il cleanup delle risorse.
+- Translate propaga Ctrl+C al motore, restituisce 130 e conserva l'ultimo
+  checkpoint completato. Il checker `--check-missing` restituisce 1 quando
+  trova righe mancanti o incoerenti, anziché segnalare successo agli script.
+- Extract pubblica gli output atomicamente e rifiuta gli alias dell'input.
+
+I test subprocess usano errori locali, processi simulati o HTTP loopback.
+I test SIGINT attendono un handshake prima di inviare il segnale, con timeout
+e cleanup del processo; non richiedono modelli scaricati o API a pagamento.
+
+### Lavoro successivo consigliato
+
+Verifiche finali del secondo ciclo: 281 test frontend in 52 file, Svelte senza
+errori/warning, build e CSS a freddo passati, 15 cataloghi senza errori bloccanti
+(restano le 6 segnalazioni euristiche già note). Il gate desktop/smoke è passato
+con tre APKG validi da 10 note/20 media ciascuno. L'intero workspace Rust conta
+306 test passati, inclusa `whisper-bench`; Clippy con `-D warnings`, formatting
+e controllo whitespace sono passati. La revisione indipendente dei writer non
+ha trovato difetti di pubblicazione; ha richiesto di chiarire il limite di
+Ctrl+C durante il commit sincrono, ora documentato nella CLI.
+
+1. Aggiungere test con componenti Svelte montati: il nuovo controller è testato,
+   ma focus, tastiera e collegamento dei cleanup richiedono prove dell'interfaccia.
+2. Estrarre da FlashcardsTab il prossimo flusso autonomo di preview/serie/export,
+   con snapshot delle impostazioni e test stop/riprova. La parallelizzazione
+   della discovery non completa questa separazione.
+3. Gestire come transazione l'export TSV con la sua directory media, oppure
+   generare versioni separate e pubblicare un riferimento finale. La sola
+   sostituzione del TSV non protegge i media precedenti durante una rigenerazione.
+4. Eseguire la matrice dei pacchetti installati su Linux/Windows e le prove Anki,
+   GPU/fallback e servizi autenticati. I test offline non certificano tali percorsi.
+5. Valutare keychain di sistema per le credenziali ed errori strutturati negli
+   altri confini nativi, in cambiamenti dedicati con migrazione compatibile.

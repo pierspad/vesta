@@ -1,5 +1,17 @@
 # Stability and performance checks
 
+Atomic output regressions run with:
+
+```bash
+cargo test -p srt-parser -p srt-transcribe -p srt-flashcards
+```
+
+They inject a failed writer, reject read-only targets, verify
+symlink/permission behavior on Unix, preserve an existing APKG after a media
+streaming failure, and prevent cancelled transcription publication. The helper
+tests verify cleanup as well as destination bytes. These are process-level
+failure tests, not power-loss or filesystem-specific durability certification.
+
 Prioritize correct exports, recoverable failures, durable settings, cancellation,
 and usable progress. Optimize bottlenecks after measuring them on identical input.
 A passing unit suite is evidence about those cases, not proof that every desktop

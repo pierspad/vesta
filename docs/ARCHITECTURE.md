@@ -386,3 +386,20 @@ and report a localized error through the same snackbar surface. Explicit
 `flush`/`replaceAll` calls still reject so setup/import flows cannot claim durable
 success or reload after a failed write. Notification imports are lazy to avoid
 a config/i18n initialization cycle.
+
+## Atomic output publication
+
+`srt-parser::persistence` owns temporary-sibling publication for subtitle and
+companion files. Parser saves, manual-sync session saves, transcription SRT,
+flashcard TSV/APKG exports and CLI extraction outputs use it. The streaming
+callback must finish and flush buffered/archive writers before publication;
+the helper then synchronizes the temporary file and replaces the destination.
+Errors before replacement preserve the previous file and remove the temporary.
+Transcription also checks cancellation immediately before publication begins.
+
+Existing symlinks are resolved and preserved; dangling links and read-only
+destinations fail. Standard permission bits are retained, but ownership/extended
+ACLs are not copied. Concurrent writers are last-successful-writer-wins, and
+directory durability across power loss is not guaranteed. TSV media directories
+are still generated separately: atomic TSV replacement is not a transaction
+covering the entire media tree. Installed-platform validation remains necessary.
