@@ -1,6 +1,7 @@
 import type { FlashcardGenerateResult } from "./flashcardGeneration";
+import type { buildFlashcardConfig } from "$lib/utils/flashcardConfig";
 import { formatElapsedTime } from "$lib/utils/elapsedTime";
-import { buildFlashcardConfig } from "$lib/utils/flashcardConfig";
+import { prepareFlashcardEpisodeConfig } from "./flashcardEpisodePreparation";
 import { deriveDeckNameFromFile, type EpisodeEntry } from "$lib/utils/seriesFileMatching";
 import type { EpisodeMediaOverrides } from "$lib/types/flashcardMediaTypes";
 import type { CardFilterSettings } from "$lib/types/flashcardFilterTypes";
@@ -22,7 +23,8 @@ export interface FlashcardSeriesOptions {
   ankiStore: { autoCardFont: boolean; embedCardFont: boolean };
   previewStore: { applyOverrides: (config: ReturnType<typeof buildFlashcardConfig>) => Promise<unknown> };
   getEpisodeMediaSettings: (episode: EpisodeEntry) => Required<EpisodeMediaOverrides>;
-  pickAudioTrackIndexForEpisode: (episode: EpisodeEntry) => Promise<number | null>;
+  getAudioTrackLanguageForEpisode: (episode: EpisodeEntry) => string;
+  pickAudioTrackIndexForEpisode: (episode: EpisodeEntry, language: string) => Promise<number | null>;
   getStudiedLanguagePreference: () => string;
   maybeAutoImportToAnki: (path: string) => Promise<void>;
   invoke: <T>(command: string, args?: Record<string, unknown>) => Promise<T>;
@@ -31,7 +33,17 @@ export interface FlashcardSeriesOptions {
 }
 
 export async function runFlashcardSeries(options: FlashcardSeriesOptions) {
-  const { generationStore, episodes, easyMode, needsDeckName, t, outputDir, cardFilters, videoHwAccel, activeNoteType, ankiStore, previewStore, getEpisodeMediaSettings, pickAudioTrackIndexForEpisode, getStudiedLanguagePreference, maybeAutoImportToAnki, invoke, isCancelled, setEpisodeProgress } = options;
+  const { generationStore, episodes, easyMode, needsDeckName, t, outputDir, cardFilters, videoHwAccel, activeNoteType, ankiStore, previewStore, getEpisodeMediaSettings, getAudioTrackLanguageForEpisode, pickAudioTrackIndexForEpisode, getStudiedLanguagePreference, maybeAutoImportToAnki, invoke, isCancelled, setEpisodeProgress } = options;
+  const runActiveNoteType: NoteTypeDef = {
+    ...activeNoteType,
+    fields: { ...activeNoteType.fields },
+    included: { ...activeNoteType.included },
+  };
+  const runAutomaticNoteType = options.automaticNoteType;
+  // Resolve each episode's preferred track language before the first async step.
+  // The callback may read reactive UI preferences, while path inference remains
+  // episode-specific because it is evaluated separately for each subtitle.
+  const audioTrackLanguages = episodes.map((episode) => getAudioTrackLanguageForEpisode(episode));
   if (easyMode && needsDeckName && !generationStore.deckName.trim() && episodes.length > 0) {
     generationStore.deckName = deriveDeckNameFromFile(episodes[0]);
     generationStore.deckNameAuto = true;
@@ -61,10 +73,15 @@ export async function runFlashcardSeries(options: FlashcardSeriesOptions) {
   const tsvPaths: string[] = [];
   let hadError = false;
   const errorMessages: string[] = [];
+  const recordCancellation = () => {
+    hadError = true;
+    const message = t("flashcards.cancelled");
+    if (!errorMessages.includes(message)) errorMessages.push(message);
+  };
 
   try {
     for (let i = 0; i < episodes.length; i++) {
-      if (isCancelled()) { hadError = true; errorMessages.push(t("flashcards.cancelled")); break; }
+      if (isCancelled()) { recordCancellation(); break; }
       setEpisodeProgress(i + 1, episodes.length);
       const ep = episodes[i];
       const epNum = i + 1;
@@ -74,44 +91,30 @@ export async function runFlashcardSeries(options: FlashcardSeriesOptions) {
         "info",
       );
 
-      // Determine media availability for this episode
-      const epMediaType = ep.mediaType;
-      const epHasVideo = epMediaType === "video";
-      const epHasMedia = epMediaType !== "none";
-      const epMediaSettings = getEpisodeMediaSettings(ep);
-      const epAudioTrackIndex =
-        ep.mediaOverrides?.audioTrackIndex !== undefined
-          ? ep.mediaOverrides.audioTrackIndex
-          : await pickAudioTrackIndexForEpisode(ep);
-
-      const epConfig = buildFlashcardConfig({
-        targetSubsPath: ep.targetSubsPath,
-        nativeSubsPath: ep.nativeSubsPath || null,
-        videoPath: epHasVideo ? ep.mediaPath : null,
-        audioPath: epHasMedia && !epHasVideo ? ep.mediaPath : null,
-        outputDir: seriesOutputMode === "single"
-          ? `${outputDir}/episodes/episode-${epNum}`
-          : outputDir,
-        cardFilters,
-        media: epMediaSettings,
-        generateAudio: ep.mediaPath ? epMediaSettings.generateAudio : false,
-        generateSnapshots: epHasVideo ? epMediaSettings.generateSnapshots : false,
-        generateVideoClips: epHasVideo ? epMediaSettings.generateVideoClips : false,
-        audioTrackIndex: epAudioTrackIndex,
-        videoHwAccel,
-        deckName: seriesOutputMode === "separate" ? deriveDeckNameFromFile(ep) : deckName,
+      const epConfig = await prepareFlashcardEpisodeConfig({
+        episode: ep,
         episodeNumber: epNum,
+        outputDir,
+        seriesOutputMode,
+        deckName,
         exportFormat: effectiveExportFormat,
-        noteType: activeNoteType,
-        automaticNoteType: options.automaticNoteType,
         cpuCores: effectiveCpuCores,
-        targetLanguage: targetLanguage,
+        targetLanguage,
+        cardFilters,
+        videoHwAccel,
+        activeNoteType: runActiveNoteType,
+        automaticNoteType: runAutomaticNoteType,
         autoCardFont: ankiStore.autoCardFont,
         embedCardFont: ankiStore.embedCardFont,
+        getMediaSettings: getEpisodeMediaSettings,
+        getAudioTrackLanguage: () => audioTrackLanguages[i],
+        pickAudioTrackIndex: pickAudioTrackIndexForEpisode,
       });
 
+      if (isCancelled()) { recordCancellation(); break; }
+
       await previewStore.applyOverrides(epConfig);
-      if (isCancelled()) { hadError = true; errorMessages.push(t("flashcards.cancelled")); break; }
+      if (isCancelled()) { recordCancellation(); break; }
 
       try {
         const res = await invoke<FlashcardGenerateResult>("flashcard_generate", {
@@ -169,10 +172,14 @@ export async function runFlashcardSeries(options: FlashcardSeriesOptions) {
     }
 
     if (finalApkgPath && exportFormat === "anki" && !hadError && !isCancelled()) {
-      await maybeAutoImportToAnki(finalApkgPath);
+      try {
+        await maybeAutoImportToAnki(finalApkgPath);
+      } catch (error) {
+        generationStore.addLog(`${t("flashcards.ankiAutoImportFailed")}: ${error}`, "warning");
+      }
     }
 
-    if (isCancelled()) hadError = true;
+    if (isCancelled()) recordCancellation();
     generationStore.result = {
       success: !hadError && totalCards > 0,
       message: errorMessages.length > 0 ? errorMessages.join(", ") : (totalCards === 0 ? "No active subtitle lines after filtering" : null),

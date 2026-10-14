@@ -48,14 +48,25 @@ export async function runFlashcardGeneration(options: FlashcardGenerationOptions
     await applyOverrides(config);
     if (isCancelled()) return;
     const response = await invoke<FlashcardGenerateResult>("flashcard_generate", { config });
-    if (isCancelled()) return;
     state.result = generationResultFromResponse(response);
+    if (isCancelled()) {
+      if (response.success) {
+        state.result = { ...state.result, success: false, message: t("flashcards.cancelled") };
+      }
+      return;
+    }
     if (response.success) {
       state.addLog(`${response.cards_generated} ${t("flashcards.cardsGenerated")}`, "success");
       if (response.tsv_path) state.addLog(`TSV: ${response.tsv_path}`, "success");
       if (response.apkg_path) {
         state.addLog(`APKG: ${response.apkg_path}`, "success");
-        if (importEnabled && !isCancelled()) await importToAnki(response.apkg_path);
+        if (importEnabled && !isCancelled()) {
+          try {
+            await importToAnki(response.apkg_path);
+          } catch (error) {
+            state.addLog(`${t("flashcards.ankiAutoImportFailed")}: ${error}`, "warning");
+          }
+        }
       }
     } else state.addLog(response.message, "warning");
   } catch (error) {

@@ -1072,9 +1072,9 @@
     }
   }
 
-  async function pickAudioTrackIndexForEpisode(ep: EpisodeEntry): Promise<number | null> {
+  async function pickAudioTrackIndexForEpisode(ep: EpisodeEntry, language: string): Promise<number | null> {
     const tracks = await listAudioTracksForEpisode(ep);
-    return pickBestAudioTrackIndex(tracks, getPreferredAudioLanguageCodeForEpisode(ep));
+    return pickBestAudioTrackIndex(tracks, language);
   }
 
 
@@ -1751,6 +1751,7 @@
       ankiStore: { autoCardFont: ankiStore.autoCardFont, embedCardFont: ankiStore.embedCardFont },
       previewStore,
       getEpisodeMediaSettings: ((defaults) => (episode: EpisodeEntry) => ({ ...defaults, ...episode.mediaOverrides }))($state.snapshot(mediaSettings)),
+      getAudioTrackLanguageForEpisode: getPreferredAudioLanguageCodeForEpisode,
       pickAudioTrackIndexForEpisode,
       getStudiedLanguagePreference, maybeAutoImportToAnki, invoke,
       isCancelled: () => cancelRequested,
