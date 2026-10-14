@@ -4363,6 +4363,7 @@ dependencies = [
  "srt-autosync",
  "srt-sync",
  "srt-transcribe",
+ "tempfile",
  "tokio",
  "tokio-util",
 ]
