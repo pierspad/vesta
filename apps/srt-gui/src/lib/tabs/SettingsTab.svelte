@@ -43,7 +43,6 @@
     REFINEMENT_PROMPT_STORAGE_KEY,
     loadRefinementPrompt,
   } from "$lib/config/refinementPrompt";
-  import type { DiscoveredModel } from "$lib/services/modelDiscovery";
   import { loadAndValidateApiKeys, type ApiKeyConfig } from "$lib/config/apiKeys";
   import {
     loadTiers,
@@ -66,11 +65,12 @@
   import { getModelsForProvider, providers, type ModelInfo } from "$lib/config/llmProviders";
   import { languages } from "$lib/config/languages";
   import * as vestaConfig from "$lib/config/vestaConfig";
-  import { LatestModelDiscovery } from "$lib/workflows/latestModelDiscovery";
+  import { DefaultLlmProviderSettings, type ProviderEndpointStatus } from "$lib/workflows/defaultLlmProviderSettings.svelte";
+  import { fetchModelsFromEndpoint } from "$lib/services/modelDiscovery";
 
   const allProviderIds = ["local", "google", "groq", "openai", "deepgram", "assemblyai", "openrouter", "mistral", "github", "nvidia", "custom"];
   const apiKeyProviderIds = ["google", "groq", "openai", "deepgram", "assemblyai", "openrouter", "mistral", "github", "nvidia", "custom"];
-  type EndpointStatus = "idle" | "checking" | "online" | "offline";
+  type EndpointStatus = ProviderEndpointStatus;
   type SettingsSection = "overview" | "llm" | "whisper" | "language" | "anki" | "diagnostics" | "shortcuts";
   type TemplateCodeTab = "front" | "back" | "css";
   let {
@@ -101,6 +101,23 @@
     }
   }
 
+  const defaultLlmSettings = new DefaultLlmProviderSettings(
+    {
+      provider: loadStoredValue(DEFAULT_LLM_PROVIDER_KEY, "local"),
+      model: loadStoredValue(DEFAULT_LLM_MODEL_KEY, ""),
+      customProviderId: loadStoredValue(DEFAULT_LLM_CUSTOM_PROVIDER_KEY, ""),
+      localServerUrl: loadStoredValue(LOCAL_SERVER_URL_KEY, DEFAULT_LOCAL_URL),
+    },
+    (settings) => {
+      vestaConfig.setItem(DEFAULT_LLM_PROVIDER_KEY, settings.provider);
+      vestaConfig.setItem(DEFAULT_LLM_MODEL_KEY, settings.model);
+      vestaConfig.setItem(DEFAULT_LLM_CUSTOM_PROVIDER_KEY, settings.customProviderId);
+      vestaConfig.setItem(LOCAL_SERVER_URL_KEY, settings.localServerUrl);
+      window.dispatchEvent(new CustomEvent("vesta-llm-default-updated"));
+    },
+    fetchModelsFromEndpoint,
+  );
+
   let t = $derived($locale);
   let apiKeys = $state<ApiKeyConfig[]>([]);
   let tiers = $state<Tier[]>([]);
@@ -108,10 +125,6 @@
   let selectedFamily = $state<string | null>(null);
   let activeSettingsSection = $state<SettingsSection>("overview");
   let lastRequestedSection = $state<SettingsSection>("overview");
-  let defaultLlmProvider = $state(loadStoredValue(DEFAULT_LLM_PROVIDER_KEY, "local"));
-  let defaultLlmModel = $state(loadStoredValue(DEFAULT_LLM_MODEL_KEY, ""));
-  let defaultLlmCustomProviderId = $state(loadStoredValue(DEFAULT_LLM_CUSTOM_PROVIDER_KEY, ""));
-  let defaultLocalServerUrl = $state(loadStoredValue(LOCAL_SERVER_URL_KEY, DEFAULT_LOCAL_URL));
   let defaultTargetLanguage = $state(loadStoredValue(DEFAULT_TARGET_LANGUAGE_KEY, "en"));
   let defaultTranscribeLanguage = $state(loadStoredValue(DEFAULT_TRANSCRIBE_LANGUAGE_KEY, "auto"));
   let defaultFlashcardsLanguage = $state(loadStoredValue(DEFAULT_FLASHCARDS_LANGUAGE_KEY, "en"));
@@ -130,13 +143,6 @@
     defaultRefinementPrompt = DEFAULT_REFINEMENT_PROMPT;
     persistRefinementPrompt();
   }
-  let discoveredDefaultModels = $state<DiscoveredModel[]>([]);
-  let isCheckingDefaultEndpoint = $state(false);
-  let defaultEndpointStatus = $state<EndpointStatus>("idle");
-  let defaultEndpointMessage = $state("");
-  const defaultEndpointDiscovery = new LatestModelDiscovery();
-  let localProviderStatus = $state<EndpointStatus>("idle");
-  const localProviderDiscovery = new LatestModelDiscovery();
 
   let showAddModel = $state(false);
 
@@ -193,31 +199,31 @@
   function s(key: string): string {
     return t(`settings.copy.${key}`);
   }
-  let defaultProviderKeys = $derived(apiKeys.filter((k) => k.apiType === defaultLlmProvider));
+  let defaultProviderKeys = $derived(apiKeys.filter((k) => k.apiType === defaultLlmSettings.provider));
   let savedCustomProviders = $derived(
     apiKeys.filter((k) => k.apiType === "custom" && k.apiUrl && k.apiUrl.trim().length > 0),
   );
   let selectedDefaultCustomProvider = $derived(
-    savedCustomProviders.find((key) => key.id === defaultLlmCustomProviderId),
+    savedCustomProviders.find((key) => key.id === defaultLlmSettings.customProviderId),
   );
   let activeDefaultEndpointUrl = $derived.by(() => {
-    if (defaultLlmProvider === "local") return defaultLocalServerUrl;
-    if (defaultLlmProvider === "custom") return selectedDefaultCustomProvider?.apiUrl || "";
+    if (defaultLlmSettings.provider === "local") return defaultLlmSettings.localServerUrl;
+    if (defaultLlmSettings.provider === "custom") return selectedDefaultCustomProvider?.apiUrl || "";
     return "";
   });
   let activeDefaultEndpointApiKey = $derived(
-    defaultLlmProvider === "custom" ? selectedDefaultCustomProvider?.apiKey || "" : "",
+    defaultLlmSettings.provider === "custom" ? selectedDefaultCustomProvider?.apiKey || "" : "",
   );
   let defaultProviderModels = $derived.by<ModelInfo[]>(() => {
-    if (defaultLlmProvider === "local" || defaultLlmProvider === "custom") {
-      return discoveredDefaultModels.map((model) => ({
+    if (defaultLlmSettings.provider === "local" || defaultLlmSettings.provider === "custom") {
+      return defaultLlmSettings.discoveredModels.map((model) => ({
         id: model.id,
         name: model.name,
-        provider: defaultLlmProvider,
+        provider: defaultLlmSettings.provider,
         family: "Endpoint",
       }));
     }
-    return getModelsForProvider(defaultLlmProvider);
+    return getModelsForProvider(defaultLlmSettings.provider);
   });
   let configuredApiKeyCount = $derived(apiKeys.filter((key) => key.apiType !== "local").length);
   let hasRemoteApiKey = $derived(configuredApiKeyCount > 0);
@@ -245,8 +251,8 @@
 
   function getProviderStatus(providerId: string): ProviderStatus {
     if (providerId === "local") {
-      if (localProviderStatus === "online") return "available";
-      if (localProviderStatus === "checking") return "checking";
+      if (defaultLlmSettings.localProviderStatus === "online") return "available";
+      if (defaultLlmSettings.localProviderStatus === "checking") return "checking";
       return "offline";
     }
     if (providerId === "custom") {
@@ -345,11 +351,7 @@
   });
 
   function persistDefaultLlmSettings() {
-    vestaConfig.setItem(DEFAULT_LLM_PROVIDER_KEY, defaultLlmProvider);
-    vestaConfig.setItem(DEFAULT_LLM_MODEL_KEY, defaultLlmModel);
-    vestaConfig.setItem(DEFAULT_LLM_CUSTOM_PROVIDER_KEY, defaultLlmCustomProviderId);
-    vestaConfig.setItem(LOCAL_SERVER_URL_KEY, defaultLocalServerUrl);
-    window.dispatchEvent(new CustomEvent("vesta-llm-default-updated"));
+    defaultLlmSettings.persist();
   }
 
   function hasDefaultProviderAccess(providerId: string) {
@@ -359,130 +361,68 @@
   }
 
   function setDefaultLlmProvider(providerId: string) {
-    if (!hasDefaultProviderAccess(providerId)) {
+    const selected = defaultLlmSettings.selectProvider(
+      providerId,
+      hasDefaultProviderAccess(providerId),
+      savedCustomProviders[0]?.id,
+      getModelsForProvider(providerId),
+    );
+    if (!selected) {
       selectedProviderType = providerId;
       openAddKeyModal(providerId);
       return;
     }
-    defaultLlmProvider = providerId;
     selectedProviderType = providerId;
-    if (providerId !== "custom") {
-      defaultLlmCustomProviderId = "";
-    } else if (!defaultLlmCustomProviderId && savedCustomProviders.length > 0) {
-      defaultLlmCustomProviderId = savedCustomProviders[0].id;
-    }
-    const models = getModelsForProvider(providerId);
-    if (providerId !== "local" && providerId !== "custom" && models.length > 0 && !models.some((model) => model.id === defaultLlmModel)) {
-      defaultLlmModel = models.find((model) => model.recommended)?.id || models[0].id;
-    } else if (providerId === "local" || providerId === "custom") {
-      defaultLlmModel = "";
-    }
-    persistDefaultLlmSettings();
   }
 
   async function refreshDefaultEndpointModels() {
-    const provider = defaultLlmProvider;
     const endpointUrl = activeDefaultEndpointUrl.trim();
-    const endpointApiKey = activeDefaultEndpointApiKey;
-
-    if (provider !== "local" && provider !== "custom") {
-      defaultEndpointDiscovery.invalidate();
-      defaultEndpointStatus = "idle";
-      defaultEndpointMessage = t("settings.endpointStatus.idle");
-      discoveredDefaultModels = [];
-      isCheckingDefaultEndpoint = false;
-      return;
-    }
-
-    if (!endpointUrl) {
-      defaultEndpointDiscovery.invalidate();
-      defaultEndpointStatus = "offline";
-      defaultEndpointMessage = t("settings.endpointStatus.offline");
-      discoveredDefaultModels = [];
-      isCheckingDefaultEndpoint = false;
-      return;
-    }
-
-    if (defaultEndpointStatus === "idle") {
-      defaultEndpointStatus = "checking";
-      defaultEndpointMessage = t("settings.endpointStatus.checking");
-    }
-    isCheckingDefaultEndpoint = true;
-    let stale = false;
-
-    try {
-      const models = await defaultEndpointDiscovery.fetch(endpointUrl, endpointApiKey, 6500);
-      if (models === null) { stale = true; return; }
-      discoveredDefaultModels = models;
-      defaultEndpointStatus = "online";
-      defaultEndpointMessage = t("settings.modelsAvailable", { count: models.length });
-      if (!defaultLlmModel || !models.some((model) => model.id === defaultLlmModel)) {
-        defaultLlmModel = models[0]?.id || "";
-        persistDefaultLlmSettings();
-      }
-    } catch (error) {
-      discoveredDefaultModels = [];
-      defaultEndpointStatus = "offline";
-      defaultEndpointMessage = t("settings.endpointStatus.offline");
-    } finally { if (!stale) isCheckingDefaultEndpoint = false; }
+    await defaultLlmSettings.refreshEndpointModels(
+      {
+        endpointUrl,
+        apiKey: activeDefaultEndpointApiKey,
+        messages: {
+          idle: t("settings.endpointStatus.idle"),
+          checking: t("settings.endpointStatus.checking"),
+          offline: t("settings.endpointStatus.offline"),
+          available: (count) => t("settings.modelsAvailable", { count }),
+        },
+      },
+    );
   }
 
   async function refreshLocalProviderStatus() {
-    const endpointUrl = defaultLocalServerUrl.trim();
-
-    if (!endpointUrl) {
-      localProviderDiscovery.invalidate();
-      localProviderStatus = "offline";
-      return;
-    }
-
-    if (localProviderStatus === "idle") {
-      localProviderStatus = "checking";
-    }
-
-    try {
-      const models = await localProviderDiscovery.fetch(endpointUrl, "", 6500);
-      if (models === null) return;
-      localProviderStatus = "online";
-    } catch {
-      localProviderStatus = "offline";
-    }
+    await defaultLlmSettings.refreshLocalProviderStatus(defaultLlmSettings.localServerUrl);
   }
 
   $effect(() => {
-    if (!hasDefaultProviderAccess(defaultLlmProvider)) {
-      defaultLlmProvider = "local";
-      defaultLlmCustomProviderId = "";
-      defaultLlmModel = "";
-      persistDefaultLlmSettings();
+    if (!hasDefaultProviderAccess(defaultLlmSettings.provider)) {
+      defaultLlmSettings.reconcileAccess(false);
     }
   });
 
   $effect(() => {
-    if (defaultLlmProvider === "custom" && !defaultLlmCustomProviderId && savedCustomProviders.length > 0) {
-      defaultLlmCustomProviderId = savedCustomProviders[0].id;
-      persistDefaultLlmSettings();
-    }
+    defaultLlmSettings.reconcileAccess(true, savedCustomProviders[0]?.id);
   });
 
   $effect(() => {
     if (!active) return;
-    const provider = defaultLlmProvider;
+    const provider = defaultLlmSettings.provider;
     const endpointUrl = activeDefaultEndpointUrl;
     const endpointApiKey = activeDefaultEndpointApiKey;
 
     if (provider !== "local" && provider !== "custom") {
-      defaultEndpointDiscovery.invalidate();
-      defaultEndpointStatus = "idle";
-      defaultEndpointMessage = t("settings.endpointStatus.idle");
-      discoveredDefaultModels = [];
-      isCheckingDefaultEndpoint = false;
+      defaultLlmSettings.invalidateEndpointCheck();
+      defaultLlmSettings.endpointStatus = "idle";
+      defaultLlmSettings.endpointMessage = t("settings.endpointStatus.idle");
+      defaultLlmSettings.discoveredModels = [];
+      defaultLlmSettings.checkingEndpoint = false;
       return;
     }
 
-    if (provider === "local" && localProviderStatus !== "idle" && localProviderStatus !== "checking") {
-      defaultEndpointStatus = localProviderStatus;
-      defaultEndpointMessage = localProviderStatus === "online" ? t("settings.endpointStatus.online") : t("settings.endpointStatus.offline");
+    if (provider === "local" && defaultLlmSettings.localProviderStatus !== "idle" && defaultLlmSettings.localProviderStatus !== "checking") {
+      defaultLlmSettings.endpointStatus = defaultLlmSettings.localProviderStatus;
+      defaultLlmSettings.endpointMessage = defaultLlmSettings.localProviderStatus === "online" ? t("settings.endpointStatus.online") : t("settings.endpointStatus.offline");
     }
 
     const timeout = setTimeout(() => {
@@ -497,14 +437,14 @@
       void endpointApiKey;
       clearTimeout(timeout);
       clearInterval(interval);
-      defaultEndpointDiscovery.invalidate();
-      isCheckingDefaultEndpoint = false;
+      defaultLlmSettings.invalidateEndpointCheck();
+      defaultLlmSettings.checkingEndpoint = false;
     };
   });
 
   $effect(() => {
     if (!active) return;
-    const endpointUrl = defaultLocalServerUrl;
+    const endpointUrl = defaultLlmSettings.localServerUrl;
     const timeout = setTimeout(() => {
       void refreshLocalProviderStatus();
     }, 300);
@@ -516,7 +456,7 @@
       void endpointUrl;
       clearTimeout(timeout);
       clearInterval(interval);
-      localProviderDiscovery.invalidate();
+      defaultLlmSettings.invalidateLocalCheck();
     };
   });
 
@@ -526,11 +466,10 @@
   }
 
   $effect(() => {
-    if (!defaultLlmModel && defaultProviderModels.length > 0) {
-      defaultLlmModel =
-        defaultProviderModels.find((model) => model.recommended)?.id ||
-        defaultProviderModels[0].id;
-      persistDefaultLlmSettings();
+    if (!defaultLlmSettings.model && defaultProviderModels.length > 0) {
+      defaultLlmSettings.selectModel(
+        defaultProviderModels.find((model) => model.recommended)?.id || defaultProviderModels[0].id,
+      );
     }
   });
 
@@ -642,10 +581,7 @@
   }
 
   function resetLlmSettings() {
-    defaultLlmProvider = "local";
-    defaultLocalServerUrl = DEFAULT_LOCAL_URL;
-    defaultLlmCustomProviderId = "";
-    defaultLlmModel = "";
+    defaultLlmSettings.resetLocal(DEFAULT_LOCAL_URL);
     resetRefinementPrompt();
     persistDefaultLlmSettings();
     snackbar.show(t("settings.llm.resetSuccess"), "info");
@@ -928,7 +864,7 @@
           : k,
       );
       saveApiKeys();
-      if (newKeyType === "custom" && defaultLlmCustomProviderId === editKeyId) {
+      if (newKeyType === "custom" && defaultLlmSettings.customProviderId === editKeyId) {
         void refreshDefaultEndpointModels();
       }
       showSnackbar(t("settings.keyUpdated"));

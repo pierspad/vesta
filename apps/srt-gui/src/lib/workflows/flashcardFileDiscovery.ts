@@ -34,10 +34,10 @@ export async function expandFlashcardFiles(subtitleFiles: string[], mediaFiles: 
     if (suggestion?.native) subtitles.add(suggestion.native);
   }
   const companions = await discover([...subtitles], async path => {
-    let subtitle: string | null = null;
-    let mediaPath: string | null = null;
-    try { subtitle = await options.invoke<string | null>("sync_suggest_companion_subtitle_for_srt", { srtPath: path }); } catch { /* best effort */ }
-    try { mediaPath = await options.invoke<string | null>("sync_suggest_media_for_srt", { srtPath: path }); } catch { /* best effort */ }
+    const [subtitle, mediaPath] = await Promise.all([
+      options.invoke<string | null>("sync_suggest_companion_subtitle_for_srt", { srtPath: path }).catch(() => null),
+      options.invoke<string | null>("sync_suggest_media_for_srt", { srtPath: path }).catch(() => null),
+    ]);
     return { subtitle, mediaPath };
   });
   for (const companion of companions) {

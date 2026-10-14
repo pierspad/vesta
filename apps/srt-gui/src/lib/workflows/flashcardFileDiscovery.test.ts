@@ -12,8 +12,17 @@ it("limits concurrent discovery, deduplicates and preserves order despite differ
  });
  const media = Array.from({ length: 12 }, (_, i) => `movie${i}`);
  const result = await expandFlashcardFiles([], media, { enabled: true, targetLanguage: "en", nativeLanguage: "it", invoke });
- expect(maximum).toBe(4); expect(result.mediaFiles).toEqual(media);
+ expect(maximum).toBe(8); expect(result.mediaFiles).toEqual(media);
  expect(result.subtitleFiles).toEqual(["movie0.srt", "shared.srt", ...media.slice(1).map(path => `${path}.srt`)]);
+});
+it("keeps the successful companion suggestion when the independent media lookup fails", async () => {
+ const invoke = vi.fn(async <T>(command: string): Promise<T> => {
+   if (command === "sync_suggest_companion_subtitle_for_srt") return "film.native.srt" as T;
+   if (command === "sync_suggest_media_for_srt") throw new Error("media lookup unavailable");
+   return null as T;
+ }) as unknown as <T>(command: string, args?: Record<string, unknown>) => Promise<T>;
+ expect(await expandFlashcardFiles(["film.srt"], [], { enabled: true, targetLanguage: "en", nativeLanguage: "it", invoke }))
+   .toEqual({ subtitleFiles: ["film.srt", "film.native.srt"], mediaFiles: [] });
 });
 it("keeps supplied files on discovery errors and makes no calls when disabled", async () => {
  const invoke = vi.fn().mockRejectedValue(new Error("offline"));
