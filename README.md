@@ -116,7 +116,8 @@ For tests and release checks, see [CONTRIBUTING.md](CONTRIBUTING.md) and [the qu
 - [Architecture](docs/ARCHITECTURE.md) — engine boundaries, desktop integration and media lifecycle.
 - [Modules](docs/modules/README.md) — CLI usage and embedding the Rust engines.
 - [Quality](docs/QUALITY.md) — automated checks and installed-app validation.
-- [Project review, 15 October 2026](docs/reviews/project-review-2026-10-15.md) — current assessment, targeted improvements and remaining priorities.
+- [Architecture follow-up, 15 October 2026](docs/reviews/architecture-follow-up-2026-10-15.md) — current assessment, implementation plan and verification.
+- [Previous project review](docs/reviews/project-review-2026-10-15.md) — evidence from the earlier reliability and consolidation cycles.
 - [Benchmarks](docs/BENCHMARK_STEPS.md) — reproduce the measurements and understand their scope.
 
 ## Contributing

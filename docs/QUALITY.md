@@ -30,6 +30,10 @@ without Node, Tauri system libraries or a GPU SDK. This checks the default CPU
 dependency graph independently of desktop feature unification. CLI extraction
 tests parse stdout as JSON and verify failed operations preserve existing files;
 manual sync tests exercise both drift correction and rejected anchor/output ranges.
+`cargo test -p srt-flashcards-cli` verifies text summaries, invalid arguments and
+inputs, a successful media-free export, and (on Unix) failed media extraction and
+SIGINT with previous TSV/media preservation. The cancellation fixture waits for
+a child-process handshake before signalling and bounds its exit wait.
 The [reliability audit](RELIABILITY_AUDIT.md) records the current boundary review
 and remaining test priorities.
 

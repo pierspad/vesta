@@ -27,6 +27,9 @@ Vesta is a modular Cargo workspace layered from foundational formats to GUI-agno
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
+The `core/` layer also contains `srt-download`, shared by callers that need
+cancellable resource downloads and atomic publication.
+
 ---
 
 ## Architectural Layers
@@ -141,6 +144,28 @@ Reactive discovery state lives in `TranscriptionResources`; live transcript
 rendering lives in `TranscriptionSegmentsPanel`. Formatting helpers are pure.
 This frontend orchestration chooses and sequences native commands; the Rust
 feature libraries still perform the underlying processing.
+
+### Tab lifecycle and component reuse
+
+`App.svelte` dynamically imports tabs and keeps loaded tabs mounted in hidden
+containers. Idle preloading also mounts tabs before their first visit. Changing
+tabs changes the `active` prop; it does not call `onDestroy`. Visibility-sensitive
+polling and shortcuts must observe `active`. Operation ownership is independent
+of visibility so users can navigate while a job runs. Destruction remains the
+boundary for releasing component-owned listeners and invalidating pending UI work.
+
+Shared presentation belongs in components such as `TierList`, `FooterActions`,
+`PathPickerField` and the media panels. Feature-specific sequencing belongs in
+`workflows/`, with explicit inputs and injected native services where practical.
+Extract a complete responsibility rather than duplicating an existing component
+or introducing one controller for unrelated operation lifecycles. Regression
+tests should exercise stale responses, cancellation and retained results; mounted
+tests additionally verify that the view connects events and cleanup correctly.
+
+For flashcards preview, `FlashcardPreviewController` owns the tab-facing guards,
+configuration, logs/errors and disposal. `PreviewStore` owns dialog data and
+request validity. Destroying the tab closes its preview and prevents late
+callbacks from updating the tab. Hiding the tab is a separate lifecycle event.
 
 ## Runtime Boundaries
 
