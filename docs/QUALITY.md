@@ -195,3 +195,27 @@ successful real RX 7800 XT inference and the cancellation error found by it.
 Publication now waits for the successful push CI run on the exact release commit,
 including workspace tests and strict Clippy; a missing/failed/skipped run blocks
 `semantic-release`. Manual dispatch also requires that successful push CI evidence.
+
+## Git hooks and localization policy
+
+Install the tracked hook dispatchers once in each clone:
+
+```bash
+bash build-scripts/install-hooks.sh
+```
+
+The pre-commit hook audits the actual staged source and locale snapshot. An
+unstaged fix cannot hide a broken commit. The pre-push hook audits each outgoing
+tip before running frontend type checks, tests/build and the existing native
+version, formatting, Clippy and test gates. Remaining frontend/native checks run
+in the working checkout; commit or stash unrelated changes for a reproducible
+full gate. Dispatchers use the current tracked scripts, support Git worktrees
+and `core.hooksPath`, and refuse to replace unrelated hooks.
+
+The translation checker's strict default is shared by CI, release builds, local
+hooks and `quality_check.py`: missing locales/keys, empty values, mismatched
+placeholders and unintended English copies all block. Approved identical labels
+remain in the checker's explicit allowlist. Do not weaken the gate to avoid
+translating UI text. Run the same fast localization gate manually with
+`bash build-scripts/check-i18n.sh`. Regression tests for staged/outgoing snapshots
+and hook installation run with `python3 build-scripts/test_git_hooks.py`.

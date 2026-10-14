@@ -514,7 +514,7 @@ def main() -> int:
     )
     parser.add_argument(
         "--block-reasons",
-        default="missing_locale,missing_key,empty_value,placeholder_mismatch",
+        default="missing_locale,missing_key,empty_value,placeholder_mismatch,same_as_english",
         help="Comma-separated reasons that should block when --fail-on-issues is set",
     )
     parser.add_argument(

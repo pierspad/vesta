@@ -19,7 +19,7 @@ def main():
                 (ROOT / 'apps/srt-gui', ['npm', 'test']),
                 (ROOT / 'apps/srt-gui', ['npm', 'run', 'test:dev-css']),
                 (ROOT / 'apps/srt-gui', ['npm', 'run', 'check:i18n']),
-                (ROOT / 'apps/srt-gui', ['python3', 'scripts/check_missing_translations.py', '--fail-on-issues', '--block-reasons', 'missing_locale,missing_key,empty_value,placeholder_mismatch,same_as_english', '--output', str(Path(tempfile.gettempdir()) / 'vesta-quality-i18n.json')]),
+                (ROOT / 'apps/srt-gui', ['python3', 'scripts/check_missing_translations.py', '--fail-on-issues', '--output', str(Path(tempfile.gettempdir()) / 'vesta-quality-i18n.json')]),
                 (ROOT / 'apps/srt-gui', ['npm', 'run', 'build']),
                 (ROOT, rust), (ROOT, ['bash', 'build-scripts/check_internal_crate_versions.sh'])]
     if args.smoke:

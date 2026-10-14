@@ -207,7 +207,6 @@ jobs:
         run: |
           python3 apps/srt-gui/scripts/check_missing_translations.py \
             --fail-on-issues \
-            --block-reasons missing_locale,missing_key,empty_value,placeholder_mismatch \
             --check-stale
 
   # ===========================================================
@@ -236,9 +235,12 @@ jobs:
         working-directory: ${{ env.TAURI_APP_DIR }}
         run: npm run check
 
+      - name: Git hook regression tests
+        run: python3 build-scripts/test_git_hooks.py
+
       - name: Complete localization audit
         working-directory: ${{ env.TAURI_APP_DIR }}
-        run: python3 scripts/check_missing_translations.py --fail-on-issues --block-reasons missing_locale,missing_key,empty_value,placeholder_mismatch,same_as_english --output /tmp/vesta-i18n.json
+        run: python3 scripts/check_missing_translations.py --fail-on-issues --output /tmp/vesta-i18n.json
 
       - name: Unit tests (vitest)
         working-directory: ${{ env.TAURI_APP_DIR }}

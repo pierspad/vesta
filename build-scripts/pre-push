@@ -4,33 +4,32 @@
 # Prevents pushing if i18n validation or crate consistency checks fail.
 # ===========================================================================
 
-# Imposta la cartella di lavoro sulla radice del progetto
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-if [[ "$SCRIPT_DIR" == */.git/hooks ]]; then
-  PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-else
-  PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-fi
+set -euo pipefail
+PROJECT_ROOT="$(git rev-parse --show-toplevel)"
 cd "$PROJECT_ROOT"
+
+# Fail fast before native compilation, with the same policy used by CI.
+bash build-scripts/check-push-i18n.sh
+(cd apps/srt-gui && npm run check && npm test && npm run build)
 
 echo "🔎 Running pre-push quality gates..."
 
 # 1. Validate internal crate versions
-echo "  [1/6] Checking internal crate versions..."
+echo "  [1/4] Checking internal crate versions..."
 if ! bash build-scripts/check_internal_crate_versions.sh; then
   echo "❌ Error: Crate versions are inconsistent. Push aborted." >&2
   exit 1
 fi
 
 # 2. Check Rust code formatting
-echo "  [2/6] Checking Rust formatting..."
+echo "  [2/4] Checking Rust formatting..."
 if ! cargo fmt --all --check; then
   echo "❌ Error: Rust code is not formatted. Run 'cargo fmt' to fix. Push aborted." >&2
   exit 1
 fi
 
 # 3. Check Rust clippy lints
-echo "  [3/6] Running cargo clippy..."
+echo "  [3/4] Running cargo clippy..."
 if ! cargo clippy --workspace --all-targets -- -D warnings; then
   echo "❌ Error: Clippy lints failed. Fix clippy warnings. Push aborted." >&2
   exit 1
@@ -39,29 +38,10 @@ fi
 # 4. Run the Rust test suite (stesso comando del job "test" in ci.yml: qui
 #    dà feedback prima del push, la CI resta la rete di sicurezza per push
 #    fatti con --no-verify o da chi non ha installato l'hook).
-echo "  [4/6] Running cargo test..."
+echo "  [4/4] Running cargo test..."
 if ! cargo test --workspace; then
   echo "❌ Error: Test suite failed. Push aborted." >&2
   exit 1
 fi
 
-# 5. Validate i18n translations
-echo "  [5/6] Checking i18n translations..."
-if ! python3 apps/srt-gui/scripts/check_missing_translations.py \
-  --output apps/srt-gui/reports/missing_translations_report.json \
-  --fail-on-issues \
-  --block-reasons missing_locale,missing_key,empty_value,placeholder_mismatch; then
-  echo "❌ Error: i18n translation issues found. Push aborted." >&2
-  exit 1
-fi
-
-# 6. Validate that every t("…") key used in the source exists in en.json
-#    (catches raw keys leaking into the UI, e.g. "align.waitingOriginal")
-echo "  [6/6] Checking i18n keys referenced in source..."
-if ! node apps/srt-gui/scripts/check-i18n.mjs; then
-  echo "❌ Error: source references i18n keys missing from locales. Push aborted." >&2
-  exit 1
-fi
-
 echo "✅ All checks passed. Proceeding with push."
-exit 0

@@ -123,8 +123,7 @@ jobs:
         run: |
           python3 apps/srt-gui/scripts/check_missing_translations.py \
             --output apps/srt-gui/reports/missing_translations_report.json \
-            --fail-on-issues \
-            --block-reasons missing_locale,missing_key,empty_value,placeholder_mismatch
+            --fail-on-issues
 
       - name: Validate i18n keys referenced in source
         shell: bash

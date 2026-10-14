@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# Validate the actual staged content; unstaged fixes must not hide bad commits.
+set -euo pipefail
+ROOT="$(git rev-parse --show-toplevel)"
+cd "$ROOT"
+SNAPSHOT="$(mktemp -d "${TMPDIR:-/tmp}/vesta-index.XXXXXX")"
+trap 'rm -rf "$SNAPSHOT"' EXIT
+git ls-files -z -- apps/srt-gui/src apps/srt-gui/scripts | git checkout-index --stdin -z --prefix="$SNAPSHOT/"
+echo "Checking staged localization..."
+bash "$ROOT/build-scripts/check-i18n.sh" "$SNAPSHOT"
