@@ -3,7 +3,8 @@
 Vesta is a Cargo workspace of decoupled crates. Every heavy feature is a
 GUI-agnostic library in `lib/` (progress via callbacks, cancellation via
 `CancellationToken`, zero Tauri coupling); most have a matching headless CLI
-in `cli/`. The desktop app is just a thin adapter on top.
+in `cli/`. The desktop app adapts those engines and also owns presentation,
+workflow orchestration and native services such as media streaming.
 
 That means you can take any single feature and reuse it in your own project —
 as a standalone binary or as a Rust dependency — without dragging in the GUI.
@@ -44,8 +45,11 @@ cargo build --release -p srt-flashcards-cli
 srt-flashcards = { git = "https://github.com/pierspad/vesta" }
 ```
 
-or vendor the crate folder into your own workspace (each module doc lists the
-exact folders to copy and the crates.io dependencies involved).
+Vendoring requires the crate's dependency closure, not only its folder:
+manifests inherit edition, Rust version and dependency definitions from the root
+workspace. Preserve those definitions or make them explicit in the receiving
+workspace. Transcription and autosync also require the root Whisper patch and
+native toolchain; see [the integration audit](../RELIABILITY_AUDIT.md#forking-and-integration).
 
 ## Design contract
 

@@ -1,5 +1,11 @@
 # Reliability and component audit — 14 October 2026
 
+This is a historical record of the 14 October passes. For the current assessment,
+priorities and verification, see [the 15 October review](reviews/project-review-2026-10-15.md).
+In particular, the checkpoint now has a bounded notification queue and the
+localization gate passes; the single-slot policy and dictionary gaps below
+describe earlier snapshots.
+
 ## Architectural assessment
 
 The existing `core → lib → cli/apps` split is worth preserving. No feature engine

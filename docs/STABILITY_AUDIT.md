@@ -1,5 +1,9 @@
 # Stability audit — 2026-10-01
 
+Historical evidence for the dated passes below. Use the
+[15 October project review](reviews/project-review-2026-10-15.md) for current
+priorities and [QUALITY.md](QUALITY.md) for the maintained verification procedure.
+
 ## Recommendation and scope
 
 Stability and polishing should lead this campaign. A faster export with lost
