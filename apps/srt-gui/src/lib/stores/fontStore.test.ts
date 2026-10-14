@@ -39,3 +39,14 @@ describe("bulk font downloads", () => {
     expect(invoke).not.toHaveBeenCalled();
   });
 });
+
+it("a false native download result is not reported as successful", async () => {
+ vi.mocked(invoke).mockReset(); vi.mocked(invoke).mockResolvedValue(false);
+ expect(await fontStore.downloadFont("first")).toBe(false);
+ expect(fontStore.downloadingFontId).toBeNull();
+});
+it("cannot delete a font while a batch is using it", async () => {
+ vi.mocked(invoke).mockReset(); fontStore.downloadingAll = true;
+ try { expect(await fontStore.deleteFont("first")).toBe(false); expect(invoke).not.toHaveBeenCalled(); }
+ finally { fontStore.downloadingAll = false; }
+});

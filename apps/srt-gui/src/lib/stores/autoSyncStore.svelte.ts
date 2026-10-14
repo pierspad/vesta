@@ -1,3 +1,4 @@
+import { AsyncOperation } from "$lib/utils/asyncControl.svelte";
 import { t } from "$lib/i18n";
 
 export interface AutoSyncProgressPayload {
@@ -9,10 +10,11 @@ export interface AutoSyncProgressPayload {
 }
 
 class AutoSyncStore {
-  isAutoSyncing = $state(false);
+  operation = new AsyncOperation();
+  isAutoSyncing = $derived(this.operation.busy);
   activeMode = $state<"quick" | "precise" | null>(null);
   selectedMode = $state<"quick" | "precise">("quick");
-  isCancelling = $state(false);
+  isCancelling = $derived(this.operation.cancelling || this.operation.cancelRequested);
   progress = $state(0);
   message = $state("");
   whisperModelsAvailable = $state<string[]>([]);

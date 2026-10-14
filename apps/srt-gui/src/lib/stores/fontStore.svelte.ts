@@ -1,3 +1,5 @@
+import { t } from "$lib/i18n";
+import { LatestRequest } from "$lib/utils/asyncControl.svelte";
 import { normalizeLanguageCode } from "$lib/config/languages";
 import { invokeCommand as invoke } from "$lib/services/tauriClient";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
@@ -19,11 +21,13 @@ interface FontDownloadProgressEvent {
 }
 
 class FontStore {
+  private listRequests = new LatestRequest();
+  deletingFontId = $state<string | null>(null);
   fonts = $state<FontStatusInfo[]>([]);
   downloadingFontId = $state<string | null>(null);
   downloadProgress = $state<number>(0);
   downloadingAll = $state(false);
-  isDownloading = $derived(this.downloadingFontId !== null || this.downloadingAll);
+  isDownloading = $derived(this.downloadingFontId !== null || this.downloadingAll || this.deletingFontId !== null);
 
   private unlistenProgress: UnlistenFn | null = null;
 
@@ -52,11 +56,15 @@ class FontStore {
     }
   }
 
-  async loadFonts(): Promise<void> {
+  async loadFonts(): Promise<boolean> {
+    const request = this.listRequests.begin();
     try {
-      this.fonts = await invoke<FontStatusInfo[]>("flashcard_list_fonts");
+      const fonts = await invoke<FontStatusInfo[]>("flashcard_list_fonts");
+      if (request.isCurrent()) this.fonts = fonts;
+      return request.isCurrent();
     } catch (err) {
       console.warn("Failed to load fonts list:", err);
+      return false;
     }
   }
 
@@ -97,13 +105,13 @@ class FontStore {
     this.downloadProgress = 0;
 
     try {
-      await invoke<boolean>("flashcard_download_font", { fontId });
-      await this.loadFonts();
-      snackbar.show("Font scaricato con successo!", "success", 1700);
+      if (!await invoke<boolean>("flashcard_download_font", { fontId })) throw new Error(t("setup.resourceCheckFailed"));
+      if (!await this.loadFonts()) throw new Error(t("setup.resourceCheckFailed"));
+      snackbar.show(t("common.downloaded", { name: this.fonts.find(font => font.id === fontId)?.name ?? fontId }), "success");
       return true;
     } catch (err) {
       console.error("Font download failed:", err);
-      snackbar.show(`Errore download font: ${err}`, "error", 3000);
+      snackbar.show(t("common.downloadFailed", { name: fontId, error: String(err) }), "error");
       return false;
     } finally {
       this.downloadingFontId = null;
@@ -112,16 +120,18 @@ class FontStore {
   }
 
   async deleteFont(fontId: string): Promise<boolean> {
+    if (this.isDownloading) return false;
+    this.deletingFontId = fontId;
     try {
       await invoke<boolean>("flashcard_delete_font", { fontId });
-      await this.loadFonts();
-      snackbar.show("Font rimosso dalla cache", "success", 1500);
+      if (!await this.loadFonts()) throw new Error(t("setup.resourceCheckFailed"));
+      snackbar.show(t("common.removed", { name: fontId }), "success");
       return true;
     } catch (err) {
       console.error("Font delete failed:", err);
-      snackbar.show(`Errore rimozione font: ${err}`, "error", 2500);
+      snackbar.show(t("common.removeFailed", { name: fontId, error: String(err) }), "error");
       return false;
-    }
+    } finally { this.deletingFontId = null; }
   }
 }
 

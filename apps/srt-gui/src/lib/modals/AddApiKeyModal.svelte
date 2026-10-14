@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { writeClipboard } from "$lib/utils/clipboard";
   import { locale } from "$lib/i18n";
   import { snackbar } from "$lib/stores/snackbarStore.svelte";
   import ProviderIcon from "$lib/components/ProviderIcon.svelte";
@@ -24,8 +25,7 @@
   let store = apiKeyEditorStore;
 
   function copyToClipboard(text: string) {
-    navigator.clipboard.writeText(text);
-    snackbar.show(t("settings.keyCopied"), "success", 1300);
+    void writeClipboard(text, t("settings.keyCopied"));
   }
 </script>
 

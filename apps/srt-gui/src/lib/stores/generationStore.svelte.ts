@@ -1,3 +1,4 @@
+import { AsyncOperation } from "$lib/utils/asyncControl.svelte";
 import { recordSupportEvent } from "$lib/utils/supportLog";
 import type { LogEntry } from "$lib/panels/LogPanel.svelte";
 import * as vestaConfig from "$lib/config/vestaConfig";
@@ -37,7 +38,9 @@ function loadInitialSeriesOutputMode(): "single" | "separate" {
  * mode, deck name, CPU cores).
  */
 class GenerationStore {
+  operation = new AsyncOperation();
   isProcessing = $state(false);
+  isBusy = $derived(this.isProcessing || this.operation.busy);
   progress = $state(0);
   progressMessage = $state("");
   progressStage = $state("");
@@ -112,6 +115,7 @@ class GenerationStore {
   }
 
   resetRun() {
+    if (this.isBusy) return;
     this.result = null;
     this.error = null;
     this.progress = 0;

@@ -63,8 +63,8 @@
     setItemsPerPageIndex((itemsPerPageIndex + 1) % ITEMS_PER_PAGE_OPTIONS.length);
   }
 
-  const showError = (msg: string) => snackbar.show(msg, "error", 4000);
-  const showSuccess = (msg: string) => snackbar.show(msg, "success", 1700);
+  const showError = (msg: string) => snackbar.show(msg, "error");
+  const showSuccess = (msg: string) => snackbar.show(msg, "success");
 
 
   // Expanded path field

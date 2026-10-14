@@ -265,7 +265,7 @@ class AnkiTemplateStore {
     this.templateCss = defaults.css;
     this.noteTypeName = defaults.noteTypeName;
     this.resetAnkiFieldsToDefault();
-    snackbar.show(t("settings.anki.resetSuccess"), "info", 1300);
+    snackbar.show(t("settings.anki.resetSuccess"), "info");
   }
 }
 

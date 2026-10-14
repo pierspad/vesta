@@ -1,3 +1,4 @@
+import { localWhisperOperation } from "$lib/utils/asyncControl.svelte";
 import * as vestaConfig from "$lib/config/vestaConfig";
 
 class AiStore {
@@ -11,7 +12,8 @@ class AiStore {
     this.isTranslating ||
     this.isTranscribing ||
     this.autoRefining ||
-    this.isSingleRefining
+    this.isSingleRefining ||
+    (localWhisperOperation.busy && (localWhisperOperation.activeAction === "transcription" || localWhisperOperation.activeAction === "autosync"))
   );
 
   constructor() {

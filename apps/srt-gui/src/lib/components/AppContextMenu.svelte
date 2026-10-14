@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { writeClipboard, readClipboard } from "$lib/utils/clipboard";
   import { onDestroy, onMount } from "svelte";
   import { locale } from "$lib/i18n";
   import {
@@ -85,21 +86,26 @@
   async function copy() {
     if (!menu) return;
     const text = selectedText(menu.editable) || window.getSelection()?.toString() || "";
-    if (text) await navigator.clipboard.writeText(text);
+    if (text && !await writeClipboard(text)) return;
     closeMenu();
   }
 
   async function cut() {
     if (!menu?.editable) return;
     const text = selectedText(menu.editable);
-    if (text) await navigator.clipboard.writeText(text);
-    replaceSelection(menu.editable, "");
+    const originalMenu = menu;
+    if (text && !await writeClipboard(text)) return;
+    if (menu !== originalMenu || selectedText(originalMenu.editable) !== text) return;
+    replaceSelection(originalMenu.editable!, "");
     closeMenu();
   }
 
   async function paste() {
     if (!menu?.editable) return;
-    replaceSelection(menu.editable, await navigator.clipboard.readText());
+    const originalMenu = menu;
+    const text = await readClipboard();
+    if (text === null || menu !== originalMenu) return;
+    replaceSelection(originalMenu.editable!, text);
     closeMenu();
   }
 

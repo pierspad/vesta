@@ -1,3 +1,4 @@
+import { localWhisperOperation, LatestRequest } from "$lib/utils/asyncControl.svelte";
 import { t } from "$lib/i18n";
 import { snackbar } from "$lib/stores/snackbarStore.svelte";
 import { guardedOpen } from "$lib/utils/dialogGuard";
@@ -34,7 +35,7 @@ export type WhisperContextMenu = {
 } | null;
 
 function showSnackbar(message: string, type: "error" | "success" = "success") {
-  snackbar.show(message, type === "error" ? "error" : "success", 1300);
+  snackbar.show(message, type === "error" ? "error" : "success");
 }
 
 /** Local Whisper model downloads + Silero VAD add-ons, and the context menu
@@ -47,7 +48,9 @@ function showSnackbar(message: string, type: "error" | "success" = "success") {
  * is genuinely shared with the llm section's refinement-prompt editor, so it
  * deliberately stayed OUT of this store (passed into the panel as a prop) --
  * see [[vesta-settings-refactor]]. */
-class WhisperModelsStore {
+export class WhisperModelsStore {
+  private modelRequests = new LatestRequest();
+  private addonRequests = new LatestRequest();
   whisperModels = $state<WhisperModel[]>([
     { id: "tiny", name: "Tiny", size: "~75MB", speed: "~32x", downloaded: false },
     { id: "base", name: "Base", size: "~142MB", speed: "~16x", downloaded: false },
@@ -57,6 +60,7 @@ class WhisperModelsStore {
   ]);
   downloadedWhisperCount = $derived(this.whisperModels.filter((model) => model.downloaded).length);
 
+  busy = $derived(localWhisperOperation.busy);
   isDownloading = $state(false);
   isCancellingDownload = $state(false);
   downloadingModelId = $state<string | null>(null);
@@ -74,8 +78,10 @@ class WhisperModelsStore {
   vadCustomValid = $state(false);
 
   async refreshModels() {
+    const request = this.modelRequests.begin();
     try {
       const models = await transcribeListModels();
+      if (!request.isCurrent()) return;
       this.whisperModels = models;
       window.dispatchEvent(new CustomEvent("vesta-whisper-models-updated", { detail: { models } }));
     } catch (e) {
@@ -84,6 +90,7 @@ class WhisperModelsStore {
   }
 
   setDefaultWhisperModel(modelId: string, notify = true) {
+    if (this.busy) return;
     this.defaultWhisperModel = modelId;
     vestaConfig.setItem("srt-default-whisper-model", modelId);
     if (notify) {
@@ -94,6 +101,7 @@ class WhisperModelsStore {
   }
 
   handleWhisperModelClick(model: { id: string; downloaded: boolean }) {
+    if (this.busy) return;
     if (model.downloaded) {
       this.setDefaultWhisperModel(model.id);
       return;
@@ -102,7 +110,8 @@ class WhisperModelsStore {
   }
 
   async downloadModel(modelId: string, setAsDefaultAfterDownload = false) {
-    if (this.isDownloading || this.downloadingVadId) return;
+    const run = localWhisperOperation.begin("download");
+    if (!run) return false;
     this.isDownloading = true;
     this.isCancellingDownload = false;
     this.downloadingModelId = modelId;
@@ -112,22 +121,27 @@ class WhisperModelsStore {
       await this.refreshModels();
 
       const downloaded = this.whisperModels.find((m) => m.id === modelId)?.downloaded;
-      if (downloaded && this.pendingDefaultModelId === modelId) {
-        this.setDefaultWhisperModel(modelId, false);
+      if (run.isCancelled()) return false;
+      if (!downloaded) throw new Error(t("setup.resourceCheckFailed"));
+      if (this.pendingDefaultModelId === modelId) {
+        this.defaultWhisperModel = modelId;
+        vestaConfig.setItem("srt-default-whisper-model", modelId);
+        window.dispatchEvent(new CustomEvent("whisper-model-updated", { detail: modelId }));
         showSnackbar(t("settings.whisper.downloadAndSetSuccess", { model: modelId }));
       } else if (downloaded) {
         showSnackbar(t("settings.whisper.downloadSuccess", { model: modelId }));
       }
+      return true;
     } catch (e) {
       const message = String(e).toLowerCase();
       if (message.includes("cancelled") || message.includes("canceled")) {
-        showSnackbar(
-          t("settings.modelDownloadCancelled", { model: modelId }) || `Download cancelled for model ${modelId}`,
-        );
+        snackbar.show(t("settings.modelDownloadCancelled", { model: modelId }), "info");
       } else {
         showSnackbar(t("settings.whisper.downloadFailed", { model: modelId, error: String(e) }), "error");
       }
+      return false;
     } finally {
+      run.finish();
       this.isDownloading = false;
       this.isCancellingDownload = false;
       this.downloadingModelId = null;
@@ -142,10 +156,10 @@ class WhisperModelsStore {
   }
 
   async cancelModelDownload() {
-    if (!this.isDownloading || this.isCancellingDownload) return;
+    if ((!this.isDownloading && !this.downloadingVadId) || this.isCancellingDownload) return;
     this.isCancellingDownload = true;
     try {
-      await transcribeCancel();
+      await localWhisperOperation.cancel(transcribeCancel);
     } catch (e) {
       showSnackbar(t("settings.whisper.cancelFailed", { error: String(e) }), "error");
       this.isCancellingDownload = false;
@@ -153,14 +167,15 @@ class WhisperModelsStore {
   }
 
   async uninstallModel(modelId: string) {
-    if (this.isDownloading) return;
+    const run = localWhisperOperation.begin("uninstall");
+    if (!run) return;
     try {
       await transcribeUninstallModel(modelId);
       showSnackbar(t("settings.whisper.uninstallSuccess", { model: modelId }));
       await this.refreshModels();
     } catch (e) {
       showSnackbar(t("settings.whisper.uninstallFailed", { model: modelId, error: String(e) }), "error");
-    }
+    } finally { run.finish(); }
   }
 
   openContextMenu(e: MouseEvent, model: { id: string; downloaded: boolean }) {
@@ -195,8 +210,10 @@ class WhisperModelsStore {
   // resolves which path to send to `transcribe_start`.
 
   async refreshAddons() {
+    const request = this.addonRequests.begin();
     try {
       const s = await transcribeAddonsStatus();
+      if (!request.isCurrent()) return;
       this.vadModels = s.vad_models;
       await this.refreshVadCustomValid();
     } catch (e) {
@@ -223,6 +240,7 @@ class WhisperModelsStore {
   }
 
   handleVadModelClick(model: { id: string; downloaded: boolean }) {
+    if (this.busy) return;
     if (model.downloaded) {
       this.selectVadModel(model.id);
       return;
@@ -231,24 +249,30 @@ class WhisperModelsStore {
   }
 
   async downloadVad(modelId: string) {
-    if (this.isDownloading || this.downloadingVadId) return;
+    const run = localWhisperOperation.begin("download-vad");
+    if (!run) return false;
     this.downloadingVadId = modelId;
     try {
       await transcribeDownloadVad(modelId);
       await this.refreshAddons();
+      if (run.isCancelled()) return false;
+      if (!this.vadModels.some(model => model.id === modelId && model.downloaded)) throw new Error(t("setup.resourceCheckFailed"));
       this.selectVadModel(modelId);
       showSnackbar(t("settings.whisper.downloadSuccess", { model: `Silero Voice Activity Detection ${modelId}` }));
+      return true;
     } catch (e) {
       const message = String(e).toLowerCase();
       if (message.includes("cancelled") || message.includes("canceled")) {
-        showSnackbar(t("settings.modelDownloadCancelled", { model: `Silero Voice Activity Detection ${modelId}` }));
+        snackbar.show(t("settings.modelDownloadCancelled", { model: `Silero Voice Activity Detection ${modelId}` }), "info");
       } else {
         showSnackbar(
           t("settings.whisper.downloadFailed", { model: `Silero Voice Activity Detection ${modelId}`, error: String(e) }),
           "error",
         );
       }
+      return false;
     } finally {
+      run.finish();
       this.downloadingVadId = null;
       this.progress = 0;
       this.progressMessage = "";
@@ -257,7 +281,8 @@ class WhisperModelsStore {
   }
 
   async uninstallVad(modelId: string) {
-    if (this.downloadingVadId) return;
+    const run = localWhisperOperation.begin("uninstall-vad");
+    if (!run) return;
     try {
       await transcribeUninstallVad(modelId);
       await this.refreshAddons();
@@ -270,7 +295,7 @@ class WhisperModelsStore {
         t("settings.whisper.uninstallFailed", { model: `Silero Voice Activity Detection ${modelId}`, error: String(e) }),
         "error",
       );
-    }
+    } finally { run.finish(); }
   }
 
   async pickCustomVad() {
@@ -298,17 +323,17 @@ class WhisperModelsStore {
     if (baseModel && baseModel.downloaded) {
       this.defaultWhisperModel = "base";
       vestaConfig.setItem("srt-default-whisper-model", "base");
-      snackbar.show(t("settings.whisper.resetSuccess"), "info", 1700);
+      snackbar.show(t("settings.whisper.resetSuccess"), "info");
     } else {
       const alternate = this.whisperModels.find((m) => m.downloaded);
       if (alternate) {
         this.defaultWhisperModel = alternate.id;
         vestaConfig.setItem("srt-default-whisper-model", alternate.id);
-        snackbar.show(t("settings.whisper.resetBaseNotDownloaded", { name: alternate.name }), "warning", 3000);
+        snackbar.show(t("settings.whisper.resetBaseNotDownloaded", { name: alternate.name }), "warning");
       } else {
         this.defaultWhisperModel = "base";
         vestaConfig.setItem("srt-default-whisper-model", "base");
-        snackbar.show(t("settings.whisper.resetBaseDownloadWarning"), "warning", 3000);
+        snackbar.show(t("settings.whisper.resetBaseDownloadWarning"), "warning");
       }
     }
   }

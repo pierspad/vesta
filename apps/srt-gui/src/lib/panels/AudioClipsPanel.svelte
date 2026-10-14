@@ -1,4 +1,9 @@
 <script lang="ts">
+  import { onDestroy } from "svelte";
+  import { LatestRequest } from "$lib/utils/asyncControl.svelte";
+  const audioRequests = new LatestRequest();
+  const snapshotRequests = new LatestRequest();
+  const subtitleRequests = new LatestRequest();
   import { locale } from "$lib/i18n";
   import { uiMode } from "$lib/stores/uiModeStore.svelte";
   import SearchableSelect from "$lib/components/SearchableSelect.svelte";
@@ -148,6 +153,11 @@
   $effect(() => {
     const sub = currentSubsPath;
     const media = currentMediaPath;
+    stopAudioPreview();
+    subtitleRequests.invalidate();
+    snapshotRequests.invalidate();
+    previewSnapshotUrl = null;
+    isSnapshotLoading = false;
     if (sub) {
       loadSubtitles(sub);
     } else {
@@ -162,8 +172,10 @@
   });
 
   async function loadSubtitles(path: string) {
+    const request = subtitleRequests.begin();
     try {
       const entries = await invoke<SubtitleEntry[]>("flashcard_parse_subtitles", { path });
+      if (!request.isCurrent() || path !== currentSubsPath) return;
       subEntries = entries;
       if (entries.length > 0) {
         const goodIdx = entries.findIndex((e) => {
@@ -184,6 +196,7 @@
         updateSnapshot(entries[currentSubIndex].start_ms);
       }
     } catch (e) {
+      if (!request.isCurrent()) return;
       console.error("Failed to parse subtitles for preview:", e);
       subEntries = [];
       currentSubIndex = 0;
@@ -191,7 +204,9 @@
   }
 
   async function updateSnapshot(timeMs: number) {
-    if (!currentMediaPath) return;
+    const request = snapshotRequests.begin();
+    const media = currentMediaPath;
+    if (!media) return;
     const ext = currentMediaPath.split(".").pop()?.toLowerCase() || "";
     if (["mp3", "wav", "flac", "aac", "ogg", "opus", "m4a", "wma"].includes(ext)) {
       previewSnapshotUrl = null;
@@ -200,15 +215,16 @@
     isSnapshotLoading = true;
     try {
       const snapPath = await invoke<string>("flashcard_preview_snapshot", {
-        mediaPath: currentMediaPath,
+        mediaPath: media,
         timeMs: Math.max(0, timeMs),
       });
       const [port, token] = await invoke<[number, string]>("get_media_server_info");
+      if (!request.isCurrent() || media !== currentMediaPath) return;
       previewSnapshotUrl = `http://127.0.0.1:${port}/media?path=${encodeURIComponent(snapPath)}&token=${token}&_t=${Date.now()}`;
     } catch {
       // Snapshot is best-effort visual enhancement
     } finally {
-      isSnapshotLoading = false;
+      if (request.isCurrent()) isSnapshotLoading = false;
     }
   }
 
@@ -258,10 +274,13 @@
   async function playPreview() {
     const media = currentMediaPath;
     if (!media) {
-      snackbar.show(hintLoadMediaFirst, "warning", 2000);
+      snackbar.show(hintLoadMediaFirst, "warning");
       return;
     }
 
+    const request = audioRequests.begin();
+    audioPlayer?.pause();
+    isPreviewPlaying = false;
     isPreviewLoading = true;
     try {
       let startMs: number | null = null;
@@ -275,8 +294,7 @@
         endMs = (previewTimeSec + 4) * 1000;
       }
 
-      const [port, token] = await invoke<[number, string]>("get_media_server_info");
-      const previewFilePath = await invoke<string>("flashcard_preview_audio", {
+      const args = {
         mediaPath: media,
         subPath: currentSubsPath || null,
         startMs,
@@ -289,7 +307,11 @@
         boost: effectiveBoost,
         gainDb: effectiveGainDb,
         bitrate: settings.audioBitrate,
-      });
+      };
+      const [port, token] = await invoke<[number, string]>("get_media_server_info");
+      if (!request.isCurrent()) return;
+      const previewFilePath = await invoke<string>("flashcard_preview_audio", args);
+      if (!request.isCurrent() || media !== currentMediaPath) return;
 
       const audioUrl = `http://127.0.0.1:${port}/media?path=${encodeURIComponent(previewFilePath)}&token=${token}&_t=${Date.now()}`;
       if (!audioPlayer) {
@@ -299,25 +321,34 @@
         };
         audioPlayer.onerror = () => {
           isPreviewPlaying = false;
-          snackbar.show(t("flashcards.previewAudioError"), "error", 2000);
+          snackbar.show(t("flashcards.previewAudioError"), "error");
         };
       }
       audioPlayer.src = audioUrl;
       await audioPlayer.play();
-      isPreviewPlaying = true;
+      if (request.isCurrent()) isPreviewPlaying = true;
     } catch (e: any) {
+      if (!request.isCurrent()) return;
       console.error("Audio preview failed:", e);
-      snackbar.show(String(e), "error", 2500);
+      snackbar.show(String(e), "error");
       isPreviewPlaying = false;
     } finally {
-      isPreviewLoading = false;
+      if (request.isCurrent()) isPreviewLoading = false;
     }
   }
 
+  function stopAudioPreview() {
+    audioRequests.invalidate();
+    audioPlayer?.pause();
+    isPreviewPlaying = false;
+    isPreviewLoading = false;
+  }
+
+  onDestroy(() => { stopAudioPreview(); snapshotRequests.invalidate(); subtitleRequests.invalidate(); });
+
   function toggleAudioPreview() {
     if (isPreviewPlaying && audioPlayer) {
-      audioPlayer.pause();
-      isPreviewPlaying = false;
+      stopAudioPreview();
     } else {
       playPreview();
     }

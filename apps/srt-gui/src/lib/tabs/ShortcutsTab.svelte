@@ -261,7 +261,7 @@
         } else {
           saveShortcutOverride(editingShortcut!, newKey);
           shortcuts = getShortcuts();
-          snackbar.show(t("shortcuts.updated", { key: newKey }), "success", 1700);
+          snackbar.show(t("shortcuts.updated", { key: newKey }), "success");
         }
 
         editingShortcut = null;
@@ -288,7 +288,7 @@
     showResetAllConfirm = false;
     resetShortcuts();
     shortcuts = getShortcuts();
-    snackbar.show(t("shortcuts.reset"), "success", 1700);
+    snackbar.show(t("shortcuts.reset"), "success");
   }
 
   function getDefaultKey(shortcutId: string): string {
@@ -303,7 +303,7 @@
   function resetSingle(shortcutId: string) {
     resetSingleShortcut(shortcutId);
     shortcuts = getShortcuts();
-    snackbar.show(t("shortcuts.resetSingle"), "success", 1700);
+    snackbar.show(t("shortcuts.resetSingle"), "success");
   }
 
   function toggleCategory(cat: string, event: MouseEvent) {

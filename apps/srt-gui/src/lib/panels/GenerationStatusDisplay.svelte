@@ -18,9 +18,9 @@
 
 <!-- Left side: Note type template AND progress text/result messages -->
 <div class="flex items-center gap-4 select-none z-10 min-w-0 flex-1">
-  {#if !generationStore.result && !generationStore.isProcessing}
+  {#if !generationStore.result && !generationStore.isBusy}
     {@render noteTypeControl()}
-  {:else if generationStore.isProcessing}
+  {:else if generationStore.isBusy}
     <!-- Loading status message overlay -->
     <div class="flex items-center gap-4">
       {#if !easyMode}

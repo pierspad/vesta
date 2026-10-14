@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { writeClipboard } from "$lib/utils/clipboard";
   import { locale } from "$lib/i18n";
   import { uiMode } from "$lib/stores/uiModeStore.svelte";
   import { previewStore, type PreviewLine } from "$lib/stores/previewStore.svelte";
@@ -393,7 +394,7 @@
       <button
         type="button"
         onclick={() => {
-          navigator.clipboard.writeText(previewStore.contextMenuLine!.subs1_text);
+          void writeClipboard(previewStore.contextMenuLine!.subs1_text);
           previewStore.closeContextMenu();
         }}
         class="w-full text-left px-4 py-2 text-xs text-gray-300 hover:bg-gray-800 hover:text-white transition-colors cursor-pointer"
@@ -405,7 +406,7 @@
         <button
           type="button"
           onclick={() => {
-            navigator.clipboard.writeText(previewStore.contextMenuLine!.subs2_text || "");
+            void writeClipboard(previewStore.contextMenuLine!.subs2_text || "");
             previewStore.closeContextMenu();
           }}
           class="w-full text-left px-4 py-2 text-xs text-gray-300 hover:bg-gray-800 hover:text-white transition-colors cursor-pointer"

@@ -81,7 +81,7 @@
 />
 
 <!-- Whisper Tiers (priority list + failover) -->
-<div class="glass-card flex flex-col mb-6 mt-10">
+<div id="transcribe-tiers" class="glass-card flex flex-col mb-6 mt-10 {highlightedModelId === 'transcribe-tiers' ? 'requirement-pulse' : ''}">
   <div class="p-4 border-b border-white/5 flex items-center justify-between gap-3 w-full">
     <div class="flex items-center gap-3">
       <div class="w-9 h-9 rounded-lg bg-indigo-500/20 text-indigo-300 flex items-center justify-center shrink-0">
@@ -148,7 +148,7 @@
   <WhisperModelSelector
     models={store.whisperModels}
     value={store.defaultWhisperModel}
-    disabled={store.isDownloading}
+    disabled={store.busy}
     onselect={(model) => store.handleWhisperModelClick(model)}
     oncontextmenu={(event, model) => store.openContextMenu(event, model)}
     ondblclick={handleModelDblClick}
@@ -167,7 +167,7 @@
         <button
           type="button"
           onclick={() => store.handleVadModelClick(model)}
-          disabled={store.downloadingVadId !== null}
+          disabled={store.busy}
           class="min-w-0 text-left flex-1 cursor-pointer disabled:cursor-default"
         >
           <div class="flex items-center gap-2 flex-wrap">
@@ -190,7 +190,7 @@
         {#if model.downloaded}
           <button
             onclick={() => void store.uninstallVad(model.id)}
-            disabled={store.downloadingVadId !== null}
+            disabled={store.busy}
             class="shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold text-red-300 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 transition-colors cursor-pointer disabled:opacity-50"
           >
             {t("settings.uninstall")}
@@ -198,7 +198,7 @@
         {:else}
           <button
             onclick={() => void store.downloadVad(model.id)}
-            disabled={store.isDownloading || store.downloadingVadId !== null}
+            disabled={store.busy}
             class="shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold text-white bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 transition-colors cursor-pointer"
           >
             {t("settings.download")}

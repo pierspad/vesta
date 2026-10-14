@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onMount } from "svelte";
   import { locale } from "$lib/i18n";
   let t = $derived($locale);
   import { SNACKBAR_DEFAULT_DURATION, type SnackbarVariant } from "$lib/stores/snackbarStore.svelte";
@@ -21,8 +22,8 @@
     duration = SNACKBAR_DEFAULT_DURATION,
     animationKey = "",
     paused = false,
-    onpause,
-    onresume,
+    onpause = () => {},
+    onresume = () => {},
   }: Props = $props();
 
   const variantClasses = {
@@ -60,6 +61,12 @@
   } as const;
 
   let current = $derived(variantClasses[variant]);
+  onMount(() => {
+    const visibilityChanged = () => document.hidden ? onpause("visibility") : onresume("visibility");
+    document.addEventListener("visibilitychange", visibilityChanged);
+    visibilityChanged();
+    return () => { document.removeEventListener("visibilitychange", visibilityChanged); onresume("visibility"); };
+  });
 </script>
 
 {#key `${animationKey}:${variant}:${duration}:${message}`}

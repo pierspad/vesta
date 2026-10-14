@@ -672,3 +672,31 @@ kbd {
 .hidden {
   display: none !important;
 }
+
+	  .requirement-pulse {
+	    animation: requirement-pulse 0.9s ease-in-out 2;
+	    border-color: rgba(251, 191, 36, 0.75) !important;
+    box-shadow:
+      0 0 0 1px rgba(251, 191, 36, 0.3),
+      0 0 24px rgba(251, 191, 36, 0.24);
+  }
+
+  @keyframes requirement-pulse {
+    0%,
+    100% {
+      border-color: rgba(251, 191, 36, 0.35);
+      box-shadow: 0 0 0 0 rgba(251, 191, 36, 0);
+    }
+
+    45% {
+      border-color: rgba(251, 191, 36, 0.9);
+      box-shadow:
+        0 0 0 1px rgba(251, 191, 36, 0.45),
+        0 0 28px rgba(251, 191, 36, 0.36);
+    }
+  }
+
+
+@media (prefers-reduced-motion: reduce) {
+  .requirement-pulse { animation: none; }
+}

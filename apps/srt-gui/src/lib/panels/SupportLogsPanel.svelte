@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { writeClipboard } from "$lib/utils/clipboard";
   import { locale } from "$lib/i18n";
   import { guardedSave } from "$lib/utils/dialogGuard";
   import { supportLogStore as logs } from "$lib/stores/supportLogStore.svelte";
@@ -34,7 +35,7 @@
   {#if logs.path}
     <div class="mt-3 flex items-center gap-2 rounded-lg border border-white/10 bg-black/20 p-3">
       <div class="min-w-0 flex-1"><span class="text-[10px] text-gray-400">{t("supportLogs.path")}</span><p class="text-xs text-gray-200 break-all select-text font-mono">{logs.path}</p></div>
-      <button type="button" title={t("supportLogs.copyPath")} aria-label={t("supportLogs.copyPath")} onclick={async () => { try { await navigator.clipboard.writeText(logs.path!); snackbar.show(t("supportLogs.copied"), "success"); } catch (error) { logs.error = String(error); } }} class="btn-secondary p-2 shrink-0"><svg aria-hidden="true" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8"><path d="M9 9h11v11H9zM5 15H4V4h11v1" /></svg></button>
+      <button type="button" title={t("supportLogs.copyPath")} aria-label={t("supportLogs.copyPath")} onclick={() => void writeClipboard(logs.path!, t("supportLogs.copied"))} class="btn-secondary p-2 shrink-0"><svg aria-hidden="true" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8"><path d="M9 9h11v11H9zM5 15H4V4h11v1" /></svg></button>
     </div>
   {/if}
   {#if logs.error}<p class="mt-3 text-xs text-red-300 break-all" role="alert">{logs.error}</p>{/if}

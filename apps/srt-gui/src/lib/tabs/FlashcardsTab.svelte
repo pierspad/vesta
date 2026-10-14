@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { RequirementFeedback } from "$lib/utils/requirementFeedback.svelte";
   import { defaultOutputDirectory } from "$lib/utils/defaultOutputDirectory";
   import { expandFlashcardFiles } from "$lib/workflows/flashcardFileDiscovery";
   import { runFlashcardGeneration } from "$lib/workflows/flashcardGeneration";
@@ -977,7 +978,7 @@
   let isApkgSwitchEnabled = $derived(
     episodes.length > 1 &&
       generationStore.effectiveExportFormat === "apkg" &&
-      !generationStore.isProcessing &&
+      !generationStore.isBusy &&
       !generationStore.result,
   );
 
@@ -988,8 +989,7 @@
   };
 
   let generationPromptOpen = $state(false);
-  let highlightedRequirementPanels = $state<Set<RequirementPanelId>>(new Set());
-  let requirementPulseTimer: ReturnType<typeof setTimeout> | null = null;
+  const requirementFeedback = new RequirementFeedback<RequirementPanelId>();
 
   let generationRequirements = $derived.by((): GenerationRequirement[] => {
     const missing: GenerationRequirement[] = [];
@@ -1039,21 +1039,13 @@
   }
 
   function panelHighlightClass(panelId: RequirementPanelId): string {
-    return highlightedRequirementPanels.has(panelId)
-      ? "flashcard-requirement-pulse"
-      : "";
+    return requirementFeedback.classFor(panelId);
   }
 
   function promptMissingGenerationRequirements() {
     if (canRunFlashcards) return;
     generationPromptOpen = true;
-    highlightedRequirementPanels = new Set(
-      generationRequirements.map((item) => item.panel),
-    );
-    if (requirementPulseTimer) clearTimeout(requirementPulseTimer);
-    requirementPulseTimer = setTimeout(() => {
-      highlightedRequirementPanels = new Set();
-    }, 1800);
+    requirementFeedback.pulse(generationRequirements.map(item => item.panel));
   }
 
   function closeGenerationPrompt() {
@@ -1367,6 +1359,7 @@
       percentage: number;
       params: Record<string, string>;
     }>("flashcard-progress", (event) => {
+      if (!generationStore.isBusy || cancelRequested) return;
       const p = event.payload;
       const translated = t(p.message, p.params || {});
       
@@ -1399,7 +1392,7 @@
     if (removeNoteTypesListener) removeNoteTypesListener();
     if (removeLanguageDefaultsListener) removeLanguageDefaultsListener();
     if (removeLayoutObserver) removeLayoutObserver();
-    if (requirementPulseTimer) clearTimeout(requirementPulseTimer);
+    requirementFeedback.clear();
   });
 
   // ─── AnkiConnect auto-import ─────────────────────────────────────────────
@@ -1728,6 +1721,7 @@
   }
 
   async function loadPreview() {
+    if (generationStore.isBusy || previewStore.loading) return;
     if (!canRunFlashcards) {
       generationStore.error = t("flashcards.requiredFieldsMissing");
       return;
@@ -1768,7 +1762,7 @@
   }
 
   async function startGeneration() {
-    if (generationStore.isProcessing) return;
+    if (generationStore.isBusy || previewStore.loading) return;
     cancelRequested = false;
     if (!canRunFlashcards) {
       promptMissingGenerationRequirements();
@@ -1776,30 +1770,38 @@
       return;
     }
 
-    if (seriesMode) {
-      await startSeriesGeneration();
-      return;
-    }
+    const run = generationStore.operation.begin();
+    if (!run) return;
+    try {
+      if (seriesMode) {
+        await startSeriesGeneration();
+        return;
+      }
 
-    await runFlashcardGeneration({
-      generationStore, config: buildConfig(), t, invoke,
-      applyOverrides: (config) => previewStore.applyOverrides(config),
-      isCancelled: () => cancelRequested,
-      importToAnki: maybeAutoImportToAnki,
-    });
+      await runFlashcardGeneration({
+        generationStore, config: buildConfig(), t, invoke,
+        applyOverrides: (config) => previewStore.applyOverrides(config),
+        isCancelled: () => cancelRequested,
+        importToAnki: maybeAutoImportToAnki,
+      });
+    } finally { run.finish(); }
   }
 
   async function cancelGeneration() {
+    if (!generationStore.isBusy || generationStore.operation.cancelRequested) return;
     cancelRequested = true;
     try {
-      await invoke("flashcard_cancel");
+      if (!await generationStore.operation.cancel(() => invoke("flashcard_cancel"))) return;
       generationStore.addLog(`${t("flashcards.cancelled")}`, "warning");
     } catch (e) {
+      cancelRequested = false;
       generationStore.addLog(`Error cancelling: ${e}`, "error");
+      snackbar.show(String(e), "error");
     }
   }
 
   function resetGeneration() {
+    if (generationStore.isBusy) return;
     generationStore.resetRun();
 
     // Clear files so the user can insert new ones
@@ -1881,7 +1883,7 @@
     isDraggingOver = false;
   }}
 >
-  <div class="flex-1 overflow-hidden overflow-x-hidden p-6 flashcards-scroll min-h-0 flex flex-col gap-4 {generationStore.isProcessing ? 'pointer-events-none opacity-60 select-none' : ''}">
+  <div class="flex-1 overflow-hidden overflow-x-hidden p-6 flashcards-scroll min-h-0 flex flex-col gap-4 {generationStore.isBusy ? 'pointer-events-none opacity-60 select-none' : ''}">
   {#if isDraggingOver && !editingEpisode}
     <div
       class="absolute inset-0 z-50 {seriesMode ? 'bg-violet-500/10 border-violet-400/80 text-violet-400' : 'bg-emerald-500/10 border-emerald-400/80 text-emerald-400'} border-2 border-dashed rounded-2xl flex items-center justify-center pointer-events-none"
@@ -2365,7 +2367,7 @@
   <!-- Fixed Bottom Band with Action Buttons -->
   <FooterActions>
     {#snippet background()}
-      {#if generationStore.isProcessing}
+      {#if generationStore.isBusy}
         <div
           class="absolute inset-y-0 left-0 bg-gradient-to-r from-emerald-500/15 to-teal-500/20 transition-all duration-300 ease-out z-0 pointer-events-none"
           style="width: {generationStore.progress}%"
@@ -2412,9 +2414,9 @@
                   onGoToSettings?.("overview");
                 }
               }}
-              disabled={generationStore.isProcessing || !!generationStore.result}
+              disabled={generationStore.isBusy || !!generationStore.result}
               class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold cursor-pointer select-none transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:active:scale-100
-                {generationStore.isProcessing || generationStore.result
+                {generationStore.isBusy || generationStore.result
                   ? 'border-gray-700 bg-gray-800/40 text-gray-500 opacity-60 pointer-events-none'
                   : generationStore.exportFormat === 'apkg'
                     ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20 hover:border-emerald-500/50 hover:scale-[1.02] active:scale-[0.98]'
@@ -2435,7 +2437,7 @@
                     ? 'Anki Connect'
                     : `Anki Connect (${t("common.fallback")}: ${generationStore.fallbackFormat.toUpperCase()})`)}
             </button>
-            {#if !generationStore.isProcessing && !generationStore.result}
+            {#if !generationStore.isBusy && !generationStore.result}
               <div class="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-3 z-50
                 rounded-xl bg-gray-950/95 p-3 text-xs shadow-2xl shadow-black/40 ring-1 ring-white/10
                 opacity-0 group-hover/fmt:opacity-100 transition-all duration-150 whitespace-nowrap text-center border
@@ -2495,7 +2497,7 @@
         <div class="relative group">
           <button
             class="px-5 py-2.5 bg-gray-800 hover:bg-gray-700 disabled:bg-gray-800/40 text-gray-300 disabled:text-gray-600 rounded-xl font-bold text-sm transition-all border border-white/10 flex items-center gap-2 enabled:hover:scale-[1.02] enabled:active:scale-[0.98] disabled:cursor-not-allowed cursor-pointer disabled:border-white/5"
-            disabled={!canRunFlashcards || generationStore.isProcessing}
+            disabled={!canRunFlashcards || generationStore.isBusy || previewStore.loading}
             onclick={loadPreview}
           >
             <svg
@@ -2519,7 +2521,7 @@
             </svg>
             {t("flashcards.preview")}
           </button>
-          {#if !generationStore.isProcessing}
+          {#if !generationStore.isBusy}
             <div class="pointer-events-none absolute bottom-full left-1/2 z-50 mb-3 -translate-x-1/2 rounded-xl border border-amber-500/30 bg-gray-950/95 p-3 text-center text-xs text-amber-300 shadow-2xl shadow-black/40 ring-1 ring-white/10 transition-all duration-150 delay-0 group-hover:delay-300 opacity-0 group-hover:opacity-100 group-hover:translate-y-0 translate-y-1 whitespace-normal w-72">
               {!canRunFlashcards ? t("flashcards.completePrefix", { steps: generationRequirementsText }) : t("flashcards.preview")}
             </div>
@@ -2528,9 +2530,9 @@
       {/if}
 
       <!-- Main action button (Generate / Cancel / New Generation) -->
-      {#if generationStore.isProcessing}
+      {#if generationStore.isBusy}
         <button
-          onclick={cancelGeneration}
+          disabled={generationStore.operation.cancelling || generationStore.operation.cancelRequested} onclick={cancelGeneration}
           class="px-5 py-2.5 bg-red-600 hover:bg-red-500 text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-red-900/30 flex items-center gap-2 hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
         >
           <svg
@@ -2689,29 +2691,6 @@
 	    top: 0.35rem;
 	    width: 0.42rem;
 	  }
-
-	  :global(.flashcard-requirement-pulse) {
-	    animation: flashcard-requirement-pulse 0.9s ease-in-out 2;
-	    border-color: rgba(251, 191, 36, 0.75) !important;
-    box-shadow:
-      0 0 0 1px rgba(251, 191, 36, 0.3),
-      0 0 24px rgba(251, 191, 36, 0.24);
-  }
-
-  @keyframes flashcard-requirement-pulse {
-    0%,
-    100% {
-      border-color: rgba(251, 191, 36, 0.35);
-      box-shadow: 0 0 0 0 rgba(251, 191, 36, 0);
-    }
-
-    45% {
-      border-color: rgba(251, 191, 36, 0.9);
-      box-shadow:
-        0 0 0 1px rgba(251, 191, 36, 0.45),
-        0 0 28px rgba(251, 191, 36, 0.36);
-    }
-  }
 
   @keyframes progress-stripes {
     0% { background-position: 0 0; }

@@ -1,10 +1,15 @@
 <script lang="ts">
+  import { RequirementFeedback } from "$lib/utils/requirementFeedback.svelte";
+  const requirements = new RequirementFeedback<"files" | "model">();
+  import { validatePickerPath } from "$lib/utils/pathValidation";
+  import { localWhisperOperation } from "$lib/utils/asyncControl.svelte";
   import { TranscriptionResources } from "$lib/workflows/transcriptionResources.svelte";
   import TranscriptionSegmentsPanel from "$lib/panels/TranscriptionSegmentsPanel.svelte";
   import { formatElapsedTime } from "$lib/utils/elapsedTime";
   import { generateTranscriptionOutputPath as generateOutputPathFromInput, rewriteTranscriptionOutputLanguage as rewriteOutputPathLanguage } from "$lib/utils/transcriptionPaths";
   import { runTranscription, isTranscribeEndpointReady, withLocalModelOverride } from "$lib/workflows/transcription";
   import LogPanel, { type LogEntry } from "$lib/panels/LogPanel.svelte";
+  import WhisperModelActionsMenu from "$lib/components/WhisperModelActionsMenu.svelte";
   import WhisperModelSelector from "$lib/components/WhisperModelSelector.svelte";
   import MediaIcon from "$lib/components/MediaIcon.svelte";
   import { whisperModelsStore as modelStore } from "$lib/stores/whisperModelsStore.svelte";
@@ -56,6 +61,8 @@
   let outputPath = $state("");
   let selectedModel = $state("base");
   let localModelOverride = $state<string | null>(null);
+  let modelMenu = $state<{ x: number; y: number; id: string } | null>(null);
+  let contextModel = $derived(modelStore.whisperModels.find(model => model.id === modelMenu?.id));
   const LAST_TRANSCRIBE_LANGUAGE_KEY = "vesta-transcribe-source-language";
   const DEFAULT_TRANSCRIBE_LANGUAGE_KEY = "vesta-default-transcribe-language";
   const initialTranscribeLanguage =
@@ -104,7 +111,7 @@
     if (preset) maxSegmentLength = preset.value;
   }
 
-  let isTranscribing = $state(false);
+  let isTranscribing = $derived(localWhisperOperation.busy && localWhisperOperation.activeAction === "transcription");
   $effect(() => {
     aiStore.isTranscribing = isTranscribing;
   });
@@ -126,6 +133,7 @@
 
   let expandedPathField = $state<string | null>(null);
 
+  $effect(() => { if (!active || !uiMode.expertMode) modelMenu = null; });
   let isDraggingOver = $state(false);
   let showOverwriteConfirm = $state(false);
   let pendingDroppedPaths = $state<string[]>([]);
@@ -161,10 +169,12 @@
   );
 
   let canStart = $derived(
-    !!inputPath && !!outputPath && usableEntries.length > 0 && !modelStore.isDownloading && !modelStore.downloadingVadId
+    !!inputPath && !!outputPath && usableEntries.length > 0 && !localWhisperOperation.busy && !aiStore.killSwitchActive
   );
 
   let transcribeBlockedReason = $derived.by(() => {
+    if (aiStore.killSwitchActive) return t("nav.aiKillSwitchOn");
+    if (localWhisperOperation.busy) return t("common.error.alreadyRunning");
     if (!inputPath || !outputPath) {
       return t("transcribe.blocked.selectFiles");
     }
@@ -320,6 +330,7 @@
     return () => {
       activeListener = false;
       transcriptionResources.dispose();
+      requirements.clear();
       window.removeEventListener("vesta-whisper-models-updated", refreshModels);
       window.removeEventListener("keydown", handleKeydown);
       window.removeEventListener(TRANSCRIBE_TIERS_UPDATED_EVENT, refreshTranscribeTiers);
@@ -486,45 +497,17 @@
   }
 
   async function saveInputPath(newPath: string): Promise<boolean> {
-    let cleaned = newPath.trim().replace(/\/+$/, "");
-    if (!cleaned) {
-      showSnackbar("Path cannot be empty");
-      return false;
-    }
-    try {
-      const exists = await transcribeCheckFileExists(cleaned);
-      if (!exists) {
-        showSnackbar(`File not found: ${cleaned}`);
-        return false;
-      }
-      if (isTranscribing) return false;
+    if (isTranscribing) return false;
+    const cleaned = await validatePickerPath(newPath, "input", transcribeCheckFileExists);
+    if (!cleaned || isTranscribing) return false;
       loadInputMedia(cleaned);
-      return true;
-    } catch (e) {
-      showSnackbar(`Error: ${e}`);
-      return false;
-    }
+    return true;
   }
 
   async function saveOutputPath(newPath: string): Promise<boolean> {
-    let cleaned = newPath.trim().replace(/\/+$/, "");
-    if (!cleaned) {
-      showSnackbar("Path cannot be empty");
-      return false;
-    }
-    const parentDir = cleaned.substring(0, cleaned.lastIndexOf("/"));
-    if (parentDir) {
-      try {
-        const exists = await transcribeCheckFileExists(parentDir);
-        if (!exists) {
-          showSnackbar(`Directory not found: ${parentDir}`);
-          return false;
-        }
-      } catch (e) {
-        showSnackbar(`Error: ${e}`);
-        return false;
-      }
-    }
+    if (isTranscribing) return false;
+    const cleaned = await validatePickerPath(newPath, "output", transcribeCheckFileExists);
+    if (!cleaned || isTranscribing) return false;
     outputPath = cleaned;
     return true;
   }
@@ -532,14 +515,16 @@
   let transcriptionCancelled = false;
 
   async function startTranscription() {
-    if (isTranscribing || modelStore.isDownloading || modelStore.downloadingVadId) return;
+    if (localWhisperOperation.busy || aiStore.killSwitchActive) return;
     if (!inputPath || !outputPath) {
+      requirements.pulse(["files"]);
       error = t("transcribe.selectFilesFirst");
       showSnackbar(t("transcribe.selectFilesFirst"));
       return;
     }
 
     if (!canStart) {
+      requirements.pulse(["model"]);
       error = transcribeBlockedReason;
       showSnackbar(transcribeBlockedReason);
       return;
@@ -549,7 +534,8 @@
     result = null;
     progress = 0;
     transcribedSegments = [];
-    isTranscribing = true;
+    const run = localWhisperOperation.begin("transcription");
+    if (!run) return;
 
     const startTime = Date.now();
     transcriptionCancelled = false;
@@ -566,7 +552,7 @@
           vad_custom_path: vadSelection.customPath,
         },
         start: transcribeStart,
-        isCancelled: () => transcriptionCancelled,
+        isCancelled: () => transcriptionCancelled || run.isCancelled(),
         onTier: (index, count) => addLog(`Tier ${index + 1}: ${count}`, "info"),
         onAttempt: (entry) => {
           transcribedSegments = [];
@@ -592,20 +578,23 @@
         addLog(error, "error");
       }
     } finally {
-      isTranscribing = false;
+      run.finish();
       addLog(`⏱ ${formatElapsedTime(Date.now() - startTime)}`, "info");
     }
   }
 
   async function cancelTranscription() {
+    if (!isTranscribing || localWhisperOperation.cancelRequested) return;
     transcriptionCancelled = true;
     try {
-      await transcribeCancel();
-      progress = 0;
-      progressMessage = "";
-      addLog(t("transcribe.cancelled"), "warning");
+      if (await localWhisperOperation.cancel(transcribeCancel)) {
+        progress = 0; progressMessage = "";
+        addLog(t("transcribe.cancelled"), "warning");
+      }
     } catch (e) {
-      error = `Error: ${e}`;
+      transcriptionCancelled = false;
+      error = `${t("transcribe.error")}: ${e}`;
+      showSnackbar(error, "error");
     }
   }
 
@@ -923,7 +912,7 @@
         </div>
       </div>
     {:else if panelId === "files"}
-      <div class="glass-card p-5">
+      <div class="glass-card p-5 {requirements.classFor('files')}">
         <h3 class="text-lg font-semibold mb-4 flex items-center gap-2 panel-title-files-output">
           <svg
             class="w-5 h-5"
@@ -948,6 +937,7 @@
             placeholder={t("transcribe.noInputMediaSelected")}
             browseTitle={t("transcribe.selectFile")}
             onexpand={() => (expandedPathField = "input")}
+            disabled={isTranscribing}
             onbrowse={selectInputFile}
             required={true}
           />
@@ -959,6 +949,7 @@
             placeholder={t("transcribe.noOutputFileSelected")}
             browseTitle={t("transcribe.selectDestination")}
             onexpand={() => (expandedPathField = "output")}
+            disabled={isTranscribing}
             onbrowse={selectOutputFile}
             required={true}
           />
@@ -1109,12 +1100,15 @@
         <div class="min-h-0 overflow-y-auto scrollbar-thin">
           {@render panelContent("options")}
           {#if uiMode.expertMode}
-            <div class="glass-card p-5 mt-4">
-              <h3 class="text-lg font-semibold text-cyan-300 mb-2">{t("transcribe.whisperModel")}</h3>
-              <p class="text-xs text-gray-400 mb-4">{t("transcribe.modelHelp")}</p>
-              <WhisperModelSelector models={modelStore.whisperModels} value={localModelOverride ?? transcribeTiers.flatMap(tier => tier.entries).find(entry => entry.provider === "local" || entry.provider === "local_whisper")?.model ?? ""} disabled={modelStore.isDownloading || !!modelStore.downloadingVadId}
+            <div class="glass-card p-5 mt-4 {requirements.classFor('model')}">
+              <h3 class="mb-4 flex items-center gap-2 text-lg font-semibold text-cyan-300">
+                <svg aria-hidden="true" class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 3v3m6-3v3M9 18v3m6-3v3M3 9h3m-3 6h3m12-6h3m-3 6h3M6 6h12v12H6zM10 10h4v4h-4z" /></svg>
+                {t("transcribe.whisperModel")}
+              </h3>
+              <WhisperModelSelector models={modelStore.whisperModels} value={localModelOverride ?? transcribeTiers.flatMap(tier => tier.entries).find(entry => entry.provider === "local" || entry.provider === "local_whisper")?.model ?? ""} disabled={modelStore.busy}
+                oncontextmenu={(event, model) => { event.preventDefault(); event.stopPropagation(); const rect = event.currentTarget instanceof HTMLElement ? event.currentTarget.getBoundingClientRect() : null; modelMenu = { id: model.id, x: event.clientX || rect?.left || 8, y: event.clientY || rect?.bottom || 8 }; }}
                 onselect={async (model) => {
-                  if (!model.downloaded) await modelStore.downloadModel(model.id);
+                  if (!model.downloaded && !await modelStore.downloadModel(model.id)) return;
                   if (modelStore.whisperModels.find(m => m.id === model.id)?.downloaded) {
                     selectedModel = model.id;
                     localModelOverride = model.id;
@@ -1126,10 +1120,14 @@
                 <button class="mt-2 text-xs text-red-300 disabled:opacity-50" disabled={modelStore.isCancellingDownload} onclick={() => void modelStore.cancelModelDownload()}>{t("common.cancel")}</button>
               {/if}
               {#if localModelOverride}
-                <button class="mt-3 text-xs text-gray-400 hover:text-white" onclick={() => localModelOverride = null}>{t("transcribe.useTierModels")}</button>
+                <div class="mt-3 flex flex-wrap items-center gap-1 text-xs text-red-400">
+                  <button type="button" disabled={modelStore.busy} class="hover:text-red-200 hover:underline disabled:opacity-50" onclick={() => localModelOverride = null}>{t("transcribe.useTierModels")}</button>
+                  <span>{t("transcribe.configuredIn")}</span>
+                  <button type="button" disabled={!onGoToSettings} class="hover:text-red-200 hover:underline disabled:opacity-50" onclick={() => onGoToSettings?.("whisper", "transcribe-tiers")}>{t("transcribe.tiersLink")}</button>
+                </div>
               {/if}
               {#if !vadInstalled}
-                <button class="mt-3 block text-xs text-cyan-300 disabled:opacity-50" disabled={modelStore.isDownloading || !!modelStore.downloadingVadId} onclick={async () => { await modelStore.downloadVad(vadSelection.modelId); await refreshAddons(); }}>
+                <button class="mt-3 block text-xs text-cyan-300 disabled:opacity-50" disabled={modelStore.busy} onclick={async () => { await modelStore.downloadVad(vadSelection.modelId); await refreshAddons(); }}>
                   {modelStore.downloadingVadId ? t("settings.downloading") : t("transcribe.downloadVad")}
                 </button>
               {/if}
@@ -1223,6 +1221,7 @@
     <div class="flex items-center gap-4 z-10 select-none shrink-0">
       {#if isTranscribing}
         <button
+          disabled={localWhisperOperation.cancelling || localWhisperOperation.cancelRequested}
           onclick={cancelTranscription}
           class="px-5 py-2.5 bg-red-600/80 hover:bg-red-500/80 border border-red-500/30 text-red-100 rounded-xl font-bold text-sm transition-all shadow-lg shadow-red-950/20 flex items-center gap-2 hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
         >
@@ -1353,3 +1352,20 @@
     animation: progress-stripes 1.2s linear infinite;
   }
 </style>
+
+{#if modelMenu && contextModel}
+  <WhisperModelActionsMenu model={contextModel} busy={modelStore.busy} x={modelMenu.x} y={modelMenu.y} onclose={() => modelMenu = null}
+    oninstall={async () => {
+      const model = contextModel;
+      modelMenu = null;
+      if (model && !model.downloaded && !modelStore.busy) await modelStore.downloadModel(model.id);
+    }}
+    onuninstall={async () => {
+      const model = contextModel;
+      modelMenu = null;
+      if (!model?.downloaded || modelStore.busy) return;
+      await modelStore.uninstallModel(model.id);
+      if (!modelStore.whisperModels.find(item => item.id === model.id)?.downloaded && localModelOverride === model.id) localModelOverride = null;
+      await refreshModels();
+    }} />
+{/if}

@@ -358,3 +358,31 @@ Translation APIs share one worker engine, with tier selection in `scheduler.rs`;
 `JoinSet` owns the workers and propagates failures. `srt-refine::cards` owns TSV
 and APKG persistence separately from LLM orchestration. Desktop `media_stream`
 owns range serving independently of application startup and command registration.
+
+## Frontend action lifecycles
+
+`AsyncOperation` owns the frontend lock through asynchronous preparation, native
+work and cancellation. It does not release a run until both work and an
+in-flight cancellation have settled, and only the owning run can finish it.
+Whisper inference, Auto-Sync and model mutation additionally share the local
+Whisper resource lock. UI controls read these locks synchronously. The native
+operation guards remain authoritative for process and file lifecycles.
+
+`LatestRequest` invalidates superseded file discovery, previews and playback
+preparation, including same-input requests and dialog close/reopen. Native IPC
+promises own translation completion; globally broadcast completion events must
+not release a frontend lock. Preview polling has at most one request in flight.
+
+The snackbar store queues concurrent notifications, coalesces duplicates,
+prioritizes queued errors and bounds the backlog. Per-severity minimum durations
+apply to every caller, including legacy shorter overrides. Pointer, keyboard and
+visibility pauses share one timer; old close handlers cannot dismiss a newer
+notification. Notifications are transient, so persistent errors remain in the
+existing panels. Clipboard denial follows the shared notification policy and
+never triggers success feedback or destructive cut behavior.
+
+Background preference writes retain their in-memory session values on failure
+and report a localized error through the same snackbar surface. Explicit
+`flush`/`replaceAll` calls still reject so setup/import flows cannot claim durable
+success or reload after a failed write. Notification imports are lazy to avoid
+a config/i18n initialization cycle.

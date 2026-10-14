@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { localWhisperOperation } from "$lib/utils/asyncControl.svelte";
   import { invokeCommand as invoke } from "$lib/services/tauriClient";
   import { guardedOpen, guardedSave } from "$lib/utils/dialogGuard";
   import { setupWebviewDragDrop } from "$lib/utils/dragDrop";
@@ -127,13 +128,11 @@
   // ─── Auto-Sync with Whisper ────────────────────────────
   async function cancelAutoSync() {
     if (!autoSyncStore.isAutoSyncing || autoSyncStore.isCancelling) return;
-    autoSyncStore.isCancelling = true;
     try {
-      await invoke("sync_cancel_auto_sync");
+      if (!await autoSyncStore.operation.cancel(() => invoke("sync_cancel_auto_sync"))) return;
       autoSyncStore.message = t("sync.autoSyncCancelling");
     } catch (e) {
       showSnackbar(`Cancel failed: ${e}`, "error");
-      autoSyncStore.isCancelling = false;
     }
   }
 
@@ -151,7 +150,7 @@
   }
 
   async function startAutoSync(quick = false) {
-    if (autoSyncStore.isAutoSyncing) return;
+    if (autoSyncStore.isAutoSyncing || aiStore.killSwitchActive) return;
     if (!status?.is_loaded) {
       showSnackbar(t("sync.dropSrtFirst"), "warning");
       return;
@@ -161,34 +160,41 @@
       return;
     }
 
-    await checkWhisperModels();
-    if (autoSyncStore.whisperModelsAvailable.length === 0) {
-      showSnackbar(
-        t("transcribe.noBackendWarning"),
-        "warning"
-      );
-      return;
-    }
-
-    // Prefer small > base > tiny > medium > large
-    const preferredOrder = ["small", "base", "tiny", "medium", "large"];
-    const modelId =
-      preferredOrder.find((m) => autoSyncStore.whisperModelsAvailable.includes(m)) ??
-      autoSyncStore.whisperModelsAvailable[0];
-
-    autoSyncStore.isAutoSyncing = true;
-    autoSyncStore.activeMode = quick ? "quick" : "precise";
-    autoSyncStore.progress = 0;
-    autoSyncStore.message = t("sync.autoSyncInProgress");
-
-    // Listen for progress events
-    const { listen } = await import("@tauri-apps/api/event");
-    const unlisten = await listen<AutoSyncProgressPayload>("sync-auto-progress", (event) => {
-      autoSyncStore.progress = event.payload.percentage;
-      autoSyncStore.message = autoSyncStore.resolveProgressMessage(event.payload);
-    });
-
+    const resource = localWhisperOperation.begin("autosync");
+    if (!resource) { showSnackbar(t("common.error.alreadyRunning"), "warning"); return; }
+    const run = autoSyncStore.operation.begin();
+    if (!run) { resource.finish(); return; }
+    let unlisten: (() => void) | undefined;
     try {
+      await checkWhisperModels();
+      if (run.isCancelled()) return;
+      if (autoSyncStore.whisperModelsAvailable.length === 0) {
+        showSnackbar(
+          t("transcribe.noBackendWarning"),
+          "warning"
+        );
+        return;
+      }
+
+      // Prefer small > base > tiny > medium > large
+      const preferredOrder = ["small", "base", "tiny", "medium", "large"];
+      const modelId =
+        preferredOrder.find((m) => autoSyncStore.whisperModelsAvailable.includes(m)) ??
+        autoSyncStore.whisperModelsAvailable[0];
+
+      autoSyncStore.activeMode = quick ? "quick" : "precise";
+      autoSyncStore.progress = 0;
+      autoSyncStore.message = t("sync.autoSyncInProgress");
+
+      // Listen for progress events
+      const { listen } = await import("@tauri-apps/api/event");
+      unlisten = await listen<AutoSyncProgressPayload>("sync-auto-progress", (event) => {
+        if (!run.isCurrent() || run.isCancelled()) return;
+        autoSyncStore.progress = event.payload.percentage;
+        autoSyncStore.message = autoSyncStore.resolveProgressMessage(event.payload);
+      });
+
+      if (run.isCancelled()) return;
       const result = await invoke<{
         success: boolean;
         cancelled: boolean;
@@ -208,7 +214,8 @@
       let summaryMessage = "";
       let summaryLevel: "success" | "info" | "warning" | "error" = "warning";
 
-      if (result.cancelled) {
+      if (result.cancelled || run.isCancelled()) {
+        summaryLevel = "info";
         summaryMessage = t("sync.autoSyncResult.cancelled");
       } else if (result.success) {
         summaryMessage = t("sync.autoSyncResult.success", {
@@ -221,15 +228,16 @@
 
       showSnackbar(summaryMessage, summaryLevel);
     } catch (e) {
+      if (run.isCancelled()) { showSnackbar(t("sync.autoSyncResult.cancelled"), "info"); return; }
       const msg = `Auto-sync failed: ${e}`;
       showSnackbar(msg, "error");
     } finally {
-      autoSyncStore.isAutoSyncing = false;
+      run.finish();
+      resource.finish();
       autoSyncStore.activeMode = null;
-      autoSyncStore.isCancelling = false;
       autoSyncStore.progress = 0;
       autoSyncStore.message = "";
-      unlisten();
+      unlisten?.();
     }
   }
 
@@ -1331,7 +1339,7 @@
     {/snippet}
     {#snippet center()}
       <AutoSyncControls
-        canAutoSync={!!status?.is_loaded && hasAudio}
+        canAutoSync={!!status?.is_loaded && hasAudio && !localWhisperOperation.busy && !aiStore.killSwitchActive}
         onStart={() => startAutoSync(autoSyncStore.selectedMode === "quick")}
       />
     {/snippet}

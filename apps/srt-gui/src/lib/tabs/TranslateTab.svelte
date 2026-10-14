@@ -1,4 +1,8 @@
 <script lang="ts">
+  import { RequirementFeedback } from "$lib/utils/requirementFeedback.svelte";
+  const requirements = new RequirementFeedback<"files" | "options">();
+  import { validatePickerPath } from "$lib/utils/pathValidation";
+  import { AsyncOperation, LatestRequest } from "$lib/utils/asyncControl.svelte";
   import { listen } from "@tauri-apps/api/event";
   import { guardedOpen, guardedSave } from "$lib/utils/dialogGuard";
   import { setupWebviewDragDrop } from "$lib/utils/dragDrop";
@@ -127,15 +131,18 @@
     if (contextLoading || isTranslating || aiStore.killSwitchActive) return;
     const tiersPayload = buildTiersPayload();
     if (!tiersPayload || !inputPath) return;
-    const check = await checkTiersAvailability();
-    if (!check.available) { if (check.errorMsg) snackbar.show(check.errorMsg, "error"); return; }
     const request = ++contextRequest;
     const path = inputPath;
+    const language = targetLang;
+    const context = titleContext;
     contextLoading = true; contextError = "";
     try {
-      const draft = await suggestTranslationContext(path, targetLang, titleContext, tiersPayload);
-      if (request === contextRequest && path === inputPath && !aiStore.killSwitchActive) { contextDraft = draft; contextDraftPath = path; }
-    } catch (error) { if (request === contextRequest) contextError = String(error); }
+      const check = await checkTiersAvailability();
+      if (request !== contextRequest || path !== inputPath || disposed || aiStore.killSwitchActive) return;
+      if (!check.available) { requirements.pulse(["options"]); if (check.errorMsg) snackbar.show(check.errorMsg, "error"); return; }
+      const draft = await suggestTranslationContext(path, language, context, tiersPayload);
+      if (request === contextRequest && path === inputPath && !aiStore.killSwitchActive && !disposed) { contextDraft = draft; contextDraftPath = path; }
+    } catch (error) { if (request === contextRequest && !disposed) contextError = String(error); }
     finally { contextLoading = false; }
   }
 
@@ -204,7 +211,13 @@
   }
 
   let fileInfo = $state<SrtFileInfo | null>(null);
-  let isTranslating = $state(false);
+  const translationOperation = new AsyncOperation();
+  const fileRequests = new LatestRequest();
+  const previewRequests = new LatestRequest();
+  let fileLoading = $state(false);
+  let previewPending: Promise<void> | null = null;
+  let disposed = false;
+  let isTranslating = $derived(translationOperation.busy);
   $effect(() => {
     aiStore.isTranslating = isTranslating;
   });
@@ -263,6 +276,7 @@
   }
 
   async function handleFileDrop(paths: string[]) {
+    if (isTranslating || contextLoading) return;
     if (!ensureProviderSelectedForFiles()) return;
     const srtFile = paths.find(p => p.toLowerCase().endsWith(".srt"));
     if (srtFile) {
@@ -570,10 +584,9 @@
 
     let activeListener = true;
     let unlistenProg: (() => void) | null = null;
-    let unlistenComp: (() => void) | null = null;
 
     const cleanupDragDrop = setupWebviewDragDrop({
-      isActive: () => active,
+      isActive: () => active && !isTranslating && !contextLoading,
       setDraggingOver: (v) => (isDraggingOver = v),
       onDrop: handleFileDrop,
     });
@@ -581,6 +594,7 @@
     listen<TranslateProgressEvent>(
       "translate-progress",
       (event) => {
+        if (!isTranslating || translationOperation.cancelRequested || disposed) return;
         progress = event.payload;
         addLog(event.payload.message);
       },
@@ -589,35 +603,21 @@
       else unlistenProg = fn;
     }).catch(console.error);
 
-    listen<TranslateResult>(
-      "translate-complete",
-      (event) => {
-        result = event.payload;
-        isTranslating = false;
-        stopPreviewRefresh();
-        refreshTranslatedPreview();
-        if (!event.payload.success || event.payload.translated_count > 0) {
-          progress = null;
-        }
-        if (event.payload.output_path) {
-          addLog(`📁 Saved: ${getFileName(event.payload.output_path)}`);
-        }
-        addLog(`✅ ${event.payload.message} (${event.payload.translated_count} subtitles)`);
-      },
-    ).then((fn) => {
-      if (!activeListener) fn();
-      else unlistenComp = fn;
-    }).catch(console.error);
 
     return () => {
       activeListener = false;
+      disposed = true;
+      requirements.clear();
+      translationOperation.dispose();
+      fileRequests.invalidate();
+      previewRequests.invalidate();
+      contextRequest += 1;
       window.removeEventListener("storage", handleStorageChange);
       window.removeEventListener("apikeys-updated", loadApiKeys);
       window.removeEventListener("vesta-llm-default-updated", loadDefaultLlmSettings);
       window.removeEventListener(TIERS_UPDATED_EVENT, refreshTiers);
       cleanupDragDrop();
       if (unlistenProg) unlistenProg();
-      if (unlistenComp) unlistenComp();
       stopPreviewRefresh();
     };
   });
@@ -626,22 +626,22 @@
     apiKeys = loadAndValidateApiKeys();
   }
 
-  async function refreshTranslatedPreview() {
-    if (!inputPath || !outputPath) return;
-
+  async function refreshTranslatedPreview(waitForCurrent = false) {
+    if (previewPending) {
+      if (!waitForCurrent) return;
+      await previewPending;
+    }
+    if (!inputPath || !outputPath || translationOperation.cancelRequested || disposed) return;
+    const request = previewRequests.begin();
     const previewInput = inputPath;
     const previewOutput = outputPath;
-    try {
-      const pairs = await getLatestTranslatedSubtitles(
-        previewInput,
-        previewOutput,
-        10, // Show last 10 translated subtitles
-      );
-      if (previewInput === inputPath && previewOutput === outputPath) translatedPairs = pairs;
-    } catch (e) {
-      // Silently ignore errors (file may not exist yet)
-      console.debug("Preview refresh:", e);
-    }
+    previewPending = (async () => {
+      try {
+        const pairs = await getLatestTranslatedSubtitles(previewInput, previewOutput, 10);
+        if (request.isCurrent() && previewInput === inputPath && previewOutput === outputPath && !translationOperation.cancelRequested && !disposed) translatedPairs = pairs;
+      } catch (error) { console.debug("Preview refresh:", error); }
+    })().finally(() => { previewPending = null; });
+    await previewPending;
   }
 
   function startPreviewRefresh() {
@@ -650,6 +650,7 @@
   }
 
   function stopPreviewRefresh() {
+    previewRequests.invalidate();
     if (previewRefreshInterval) {
       clearInterval(previewRefreshInterval);
       previewRefreshInterval = null;
@@ -661,6 +662,7 @@
   }
 
   async function selectInputFile() {
+    if (isTranslating || contextLoading) return;
     if (!ensureProviderSelectedForFiles()) return;
     try {
       const selected = await guardedOpen({
@@ -669,6 +671,7 @@
       });
 
       if (selected) {
+        if (isTranslating || contextLoading || disposed) return;
         inputPath = selected as string;
         await loadFileInfo();
 
@@ -684,6 +687,7 @@
   }
 
   async function selectOutputFile() {
+    if (isTranslating || contextLoading) return;
     if (!ensureProviderSelectedForFiles()) return;
     try {
       const selected = await guardedSave({
@@ -692,6 +696,7 @@
       });
 
       if (selected) {
+        if (isTranslating || contextLoading || disposed) return;
         automaticOutputPath = false;
         outputPath = selected;
         addLog(`📤 Output updated: ${getFileName(outputPath)}`);
@@ -702,53 +707,20 @@
   }
 
   async function saveInputPath(newPath: string): Promise<boolean> {
-    let cleaned = newPath.trim().replace(/\/+$/, "");
-    if (!cleaned) {
-      snackbar.show("Path cannot be empty", "error", 3500);
-      return false;
-    }
-    try {
-      const exists = await transcribeCheckFileExists(cleaned);
-      if (!exists) {
-        snackbar.show(`File not found: ${cleaned}`, "error", 3500);
-        return false;
-      }
+    if (isTranslating || contextLoading) return false;
+    const cleaned = await validatePickerPath(newPath, "input", transcribeCheckFileExists);
+    if (!cleaned || isTranslating || contextLoading) return false;
       inputPath = cleaned;
       await loadFileInfo();
-      if (!outputPath) {
-        outputPath = generateOutputPath(inputPath, targetLang);
-      }
-      addLog(`📥 Input selected: ${getFileName(inputPath)}`);
-      addLog(`📤 Output set: ${getFileName(outputPath)}`);
-      return true;
-    } catch (e) {
-      snackbar.show(`Error: ${e}`, "error", 3500);
-      return false;
-    }
+    return true;
   }
 
   async function saveOutputPath(newPath: string): Promise<boolean> {
-    let cleaned = newPath.trim().replace(/\/+$/, "");
-    if (!cleaned) {
-      snackbar.show("Path cannot be empty", "error", 3500);
-      return false;
-    }
-    const parentDir = cleaned.substring(0, cleaned.lastIndexOf("/"));
-    if (parentDir) {
-      try {
-        const exists = await transcribeCheckFileExists(parentDir);
-        if (!exists) {
-          snackbar.show(`Directory not found: ${parentDir}`, "error", 3500);
-          return false;
-        }
-      } catch (e) {
-        snackbar.show(`Error: ${e}`, "error", 3500);
-        return false;
-      }
-    }
+    if (isTranslating || contextLoading) return false;
+    const cleaned = await validatePickerPath(newPath, "output", transcribeCheckFileExists);
+    if (!cleaned || isTranslating || contextLoading) return false;
     automaticOutputPath = false;
     outputPath = cleaned;
-    addLog(`📤 Output updated: ${getFileName(outputPath)}`);
     return true;
   }
 
@@ -756,6 +728,10 @@
     if (!inputPath) return;
 
     const path = inputPath;
+    const request = fileRequests.begin();
+    fileLoading = true;
+    outputPath = generateOutputPath(path, targetLang);
+    automaticOutputPath = true;
     fileInfo = null;
     translatedPairs = [];
     result = null;
@@ -764,69 +740,65 @@
     stopPreviewRefresh();
     try {
       const info = await loadSrtForTranslate(path);
-      if (path !== inputPath) return;
+      if (!request.isCurrent() || path !== inputPath || disposed) return;
       fileInfo = info;
       addLog(
         `📄 ${t("translate.loadedFile", { count: fileInfo.subtitle_count })}`,
       );
     } catch (e) {
-      if (path !== inputPath) return;
+      if (!request.isCurrent() || path !== inputPath || disposed) return;
       error = `${t("translate.errorLoading")} ${e}`;
       fileInfo = null;
-    }
+    } finally { if (request.isCurrent()) fileLoading = false; }
   }
 
   async function startTranslation() {
-    if (contextLoading || isTranslating || aiStore.killSwitchActive) return;
+    if (contextLoading || isTranslating || fileLoading || aiStore.killSwitchActive) return;
     if (!fileInfo || !inputPath || !outputPath || !fileInfo.subtitle_count) {
+      requirements.pulse(["files"]);
       error = t("translate.selectFileAndKey");
       return;
     }
 
-    const check = await checkTiersAvailability();
-    if (!check.available) {
-      if (check.errorMsg) {
-        snackbar.show(check.errorMsg, "error");
-      }
-      return;
-    }
-
-    const tiersPayload = buildTiersPayload();
-
-    // La traduzione è guidata interamente dai tier: serve almeno un endpoint usabile.
-    if (!tiersPayload) {
-      error = t("tiers.noneConfigured");
-      return;
-    }
-
-    error = null;
-    result = null;
-    progress = null;
-    isTranslating = true;
-    translatedPairs = [];
-    addLog(`🚀 ${t("translate.starting")}`);
-    addLog(`🌐 Target language: ${targetLang}`);
-    addLog(`⚙️ Batch size: ${effectiveBatchSize}, overlap: ${effectiveResumeOverlap}`);
-    startPreviewRefresh();
-
-    const endpointCount = tiersPayload.reduce((sum, tier) => sum + tier.length, 0);
-    addLog(`🪜 ${t("tiers.logActive", { tiers: tiersPayload.length, endpoints: endpointCount })}`);
-
-    const config: TranslateConfig = {
-      input_path: inputPath,
-      output_path: outputPath,
-      target_lang: targetLang,
-      batch_size: effectiveBatchSize,
-      resume_overlap: effectiveResumeOverlap,
-      title_context: titleContext || null,
-      tiers: tiersPayload,
-    };
-
+    const run = translationOperation.begin();
+    if (!run) return;
     try {
+      const check = await checkTiersAvailability();
+      if (run.isCancelled() || disposed) return;
+      if (!check.available) { requirements.pulse(["options"]); if (check.errorMsg) snackbar.show(check.errorMsg, "error"); return; }
+      const tiersPayload = buildTiersPayload();
+      if (!tiersPayload) { error = t("tiers.noneConfigured"); return; }
+      error = null;
+      result = null;
+      progress = null;
+      translatedPairs = [];
+      addLog(`🚀 ${t("translate.starting")}`);
+      addLog(`🌐 Target language: ${targetLang}`);
+      addLog(`⚙️ Batch size: ${effectiveBatchSize}, overlap: ${effectiveResumeOverlap}`);
+      startPreviewRefresh();
+
+      const endpointCount = tiersPayload.reduce((sum, tier) => sum + tier.length, 0);
+      addLog(`🪜 ${t("tiers.logActive", { tiers: tiersPayload.length, endpoints: endpointCount })}`);
+
+      const config: TranslateConfig = {
+        input_path: inputPath,
+        output_path: outputPath,
+        target_lang: targetLang,
+        batch_size: effectiveBatchSize,
+        resume_overlap: effectiveResumeOverlap,
+        title_context: titleContext || null,
+        tiers: tiersPayload,
+      };
+
       const res = await apiStartTranslation(config);
+      if (run.isCancelled() || !run.isCurrent()) return;
       result = res;
-      isTranslating = false;
+      if (res.output_path) addLog(`Saved: ${getFileName(res.output_path)}`);
+      addLog(resultMessage(res));
+      stopPreviewRefresh();
+      await refreshTranslatedPreview(true);
     } catch (e: any) {
+      if (run.isCancelled() || !run.isCurrent()) return;
       let msg = e ? e.toString() : "Unknown error";
       const errorLower = msg.toLowerCase();
 
@@ -851,24 +823,29 @@
       }
 
       error = `${t("translate.errorTranslating")} ${userMsg}`;
-      isTranslating = false;
       addLog(`❌ ${t("translate.error")}: ${msg}`);
+    } finally {
+      stopPreviewRefresh();
+      progress = null;
+      run.finish();
     }
   }
 
   async function cancelTranslation() {
     try {
-      await apiCancelTranslation();
-      isTranslating = false;
-      progress = null;
-      stopPreviewRefresh();
-      addLog(`⚠️ ${t("translate.cancelled")}`);
+      const cancelled = await translationOperation.cancel(apiCancelTranslation);
+      if (cancelled && !disposed) { progress = null; stopPreviewRefresh(); addLog(t("translate.cancelled")); }
     } catch (e) {
       error = `${t("translate.errorCancelling")} ${e}`;
+      snackbar.show(error, "error");
     }
   }
 
   function resetTranslation() {
+    if (isTranslating || contextLoading) return;
+    fileRequests.invalidate();
+    fileLoading = false;
+    stopPreviewRefresh();
     result = null;
     error = null;
     progress = null;
@@ -907,7 +884,7 @@
   }
 
   function showNoKeySnackbar(_family: string) {
-    snackbar.show(t("translate.configureLlmFirst"), "warning", 4000);
+    snackbar.show(t("translate.configureLlmFirst"), "warning");
   }
 
   const TRANSLATE_PANEL_IDS = [
@@ -961,7 +938,7 @@
 
   {#snippet panelContent(panelId: TranslatePanelId)}
     {#if panelId === "options"}
-      <div class="glass-card relative z-10 p-5 shrink-0">
+      <div class="glass-card relative z-10 p-5 shrink-0 {requirements.classFor('options')}">
         <h3
           class="text-lg font-semibold mb-4 flex items-center gap-2 text-cyan-400"
         >
@@ -1097,7 +1074,7 @@
       <div
         inert={!canUseFilePanel || isTranslating || contextLoading}
         title={!canUseFilePanel ? t("translate.selectProviderFirst") : undefined}
-        class="glass-card p-5 shrink-0 {!canUseFilePanel ? 'opacity-40' : ''}"
+        class="glass-card p-5 shrink-0 {requirements.classFor('files')} {!canUseFilePanel ? 'opacity-40' : ''}"
       >
         <h3
           class="text-lg font-semibold mb-4 flex items-center gap-2 panel-title-files-output"
@@ -1402,6 +1379,7 @@
     <div class="flex items-center gap-4 z-10 select-none shrink-0">
       {#if isTranslating}
         <button
+          disabled={translationOperation.cancelling || translationOperation.cancelRequested}
           onclick={cancelTranslation}
           class="px-5 py-2.5 bg-red-600/80 hover:bg-red-500/80 border border-red-500/30 text-red-100 rounded-xl font-bold text-sm transition-all shadow-lg shadow-red-950/20 flex items-center gap-2 enabled:hover:scale-[1.02] enabled:active:scale-[0.98] cursor-pointer"
         >
@@ -1424,7 +1402,7 @@
         <div class="relative group">
           <button
             onclick={startTranslation}
-            disabled={!fileInfo?.subtitle_count || !outputPath || !useTiers || contextLoading}
+            disabled={!fileInfo?.subtitle_count || !outputPath || !useTiers || contextLoading || fileLoading || aiStore.killSwitchActive}
             class="px-5 py-2.5 bg-emerald-600/80 hover:bg-emerald-500/80 border border-emerald-500/30 text-emerald-100 rounded-xl font-bold text-sm transition-all shadow-lg shadow-emerald-950/20 flex items-center gap-2 hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
           >
             <svg class="w-4 h-4 text-emerald-100" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1464,7 +1442,7 @@
         <div class="relative group">
           <button
             onclick={startTranslation}
-            disabled={!fileInfo?.subtitle_count || !outputPath || !useTiers || contextLoading}
+            disabled={!fileInfo?.subtitle_count || !outputPath || !useTiers || contextLoading || fileLoading || aiStore.killSwitchActive}
             class="px-5 py-2.5 bg-emerald-600/80 hover:bg-emerald-500/80 border border-emerald-500/30 disabled:bg-emerald-600/40 text-emerald-100 rounded-xl font-bold text-sm transition-all shadow-lg shadow-emerald-950/20 flex items-center gap-2 enabled:hover:scale-[1.02] enabled:active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-55 cursor-pointer"
           >
             <svg

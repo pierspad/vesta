@@ -90,18 +90,26 @@ export function getItem(key: string): string | null {
   return cache.get(key) ?? null;
 }
 
+/** Lazy imports avoid the config/i18n startup cycle. Background write failures
+ * must be visible: an in-memory preference is not proof it reached disk. */
+async function reportBackgroundWriteFailure(error: unknown): Promise<void> {
+  console.error("[vestaConfig] background write failed", error);
+  try {
+    const [{ snackbar }, { t }] = await Promise.all([
+      import("$lib/stores/snackbarStore.svelte"), import("$lib/i18n"),
+    ]);
+    snackbar.show(t("common.settingsNotSaved"), "error");
+  } catch (notificationError) { console.error("[vestaConfig] could not report write failure", notificationError); }
+}
+
 export function setItem(key: string, value: string): void {
   cache.set(key, value);
-  void persist("config_set", { key, value }).catch((e) =>
-    console.error(`[vestaConfig] impossibile salvare "${key}"`, e),
-  );
+  void persist("config_set", { key, value }).catch(reportBackgroundWriteFailure);
 }
 
 export function removeItem(key: string): void {
   cache.delete(key);
-  void persist("config_remove", { key }).catch((e) =>
-    console.error(`[vestaConfig] impossibile rimuovere "${key}"`, e),
-  );
+  void persist("config_remove", { key }).catch(reportBackgroundWriteFailure);
 }
 
 export function exportSnapshot(): Record<string, string> {

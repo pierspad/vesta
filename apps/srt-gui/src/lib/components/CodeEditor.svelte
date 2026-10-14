@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { writeClipboard, readClipboard } from "$lib/utils/clipboard";
   import { onDestroy } from "svelte";
   import { locale } from "$lib/i18n";
   import { snackbar } from "$lib/stores/snackbarStore.svelte";
@@ -91,7 +92,7 @@
 
   async function copySelection() {
     const text = selectedText() || value;
-    await navigator.clipboard.writeText(text);
+    if (!await writeClipboard(text)) return;
     closeContextMenu();
   }
 
@@ -99,7 +100,11 @@
     if (readonly) return copySelection();
     const text = selectedText();
     if (!text) return copySelection();
-    await navigator.clipboard.writeText(text);
+    const previous = value;
+    const start = textareaElement?.selectionStart;
+    const end = textareaElement?.selectionEnd;
+    if (!await writeClipboard(text)) return;
+    if (value !== previous || textareaElement?.selectionStart !== start || textareaElement?.selectionEnd !== end) return;
     replaceSelection("");
     closeContextMenu();
   }
@@ -107,7 +112,8 @@
   async function pasteClipboard() {
     if (readonly) return;
     try {
-      replaceSelection(await navigator.clipboard.readText());
+      const text = await readClipboard();
+      if (text !== null && !readonly) replaceSelection(text);
     } finally {
       closeContextMenu();
     }
@@ -217,16 +223,16 @@
 
   async function handleCopy() {
     try {
-      await navigator.clipboard.writeText(value || "");
+      if (!await writeClipboard(value || "", t("settings.keyCopied"))) return;
       copied = true;
       if (copyTimeout) clearTimeout(copyTimeout);
       copyTimeout = setTimeout(() => {
         copied = false;
       }, 2000);
-      snackbar.show(t("settings.keyCopied"), "success");
+
     } catch (err) {
       console.error("Failed to copy text: ", err);
-      snackbar.show("Failed to copy", "error");
+      snackbar.show(t("common.copyFailed"), "error");
     }
   }
 

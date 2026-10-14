@@ -67,9 +67,19 @@ preview before a file is loaded; simple mode uses batch size 15 and resume overl
 2, preserving expert values for later use.
 
 Transient notifications use `snackbarStore.svelte.ts` and the single `Snackbar`
-in `App.svelte`: 1700 ms for info/success, 3500 ms for warning/error unless a caller
-explicitly overrides the duration. Use panel state for errors that must remain
+in `App.svelte`: at least 1700 ms for info/success, 3500 ms for warnings and
+5000 ms for errors, with extra time for long messages. Notifications queue,
+coalesce duplicates, and pause during pointer/keyboard interaction or when the
+window is hidden. Queued errors take priority, and the bounded queue discards
+lower-priority notifications first. Use panel state for errors that must remain
 available after the notification disappears.
+
+`asyncControl.svelte.ts` supplies action locks and stale-response guards. A lock
+is held until both work and cancellation have settled; late completions cannot
+unlock the next run. Local Whisper inference, model downloads and removal share
+a resource lock. `requirementFeedback.svelte.ts` owns the existing brief missing
+requirement highlight, including timer cleanup. Clipboard writes report success
+only after acceptance; denied cuts preserve the selection.
 
 **Experimental → Try without saving** reuses the first-run UI without persistence
 or downloads. **Restart setup** applies real preferences and downloads selected

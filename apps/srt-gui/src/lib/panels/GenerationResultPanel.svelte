@@ -14,9 +14,9 @@
 </script>
 
 <div class="space-y-3">
-  {#if generationStore.isProcessing || generationStore.progress > 0}
+  {#if generationStore.isBusy || generationStore.progress > 0}
     <div
-      class="glass-card p-5 {generationStore.isProcessing ? 'animate-pulse-glow' : ''}"
+      class="glass-card p-5 {generationStore.isBusy ? 'animate-pulse-glow' : ''}"
     >
       <div class="flex items-center gap-4">
         <div class="flex-1">

@@ -1,16 +1,16 @@
 <script lang="ts">
+  import { writeClipboard } from "$lib/utils/clipboard";
   import { getFileName } from "$lib/utils/models";
   import { snackbar } from "$lib/stores/snackbarStore.svelte";
   import { invokeCommand } from "$lib/services/tauriClient";
   import { locale } from "$lib/i18n";
   import MediaIcon from "./MediaIcon.svelte";
-  import { copyText } from "$lib/utils/clipboard";
   import { errorMessage } from "$lib/utils/errorMessage";
   let { path, copiedMessage, tooltip }: { path: string; copiedMessage: string; tooltip: string } = $props();
   let t = $derived($locale);
   let opening = $state(false);
   async function copyPath() {
-    await copyText(path, copiedMessage, t("common.copy"), (message, variant) => snackbar.show(message, variant));
+    await writeClipboard(path, copiedMessage);
   }
   async function openFolder() {
     opening = true;

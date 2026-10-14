@@ -496,6 +496,7 @@
   </div>
 
   {#if snackbar.message}
+    {@const snackbarKey = snackbar.key}
     <Snackbar
       message={snackbar.message}
       variant={snackbar.variant}
@@ -504,7 +505,7 @@
       paused={snackbar.paused}
       onpause={(reason) => snackbar.pause(reason)}
       onresume={(reason) => snackbar.resume(reason)}
-      onclose={() => snackbar.close()}
+      onclose={() => snackbar.close(snackbarKey)}
     />
   {/if}
 

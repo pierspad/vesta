@@ -1,3 +1,5 @@
+import { LatestRequest } from "$lib/utils/asyncControl.svelte";
+import { t } from "$lib/i18n";
 import { invokeCommand as invoke } from "$lib/services/tauriClient";
 import { snackbar } from "$lib/stores/snackbarStore.svelte";
 
@@ -27,7 +29,9 @@ const TRANSCODE_EXTENSIONS = /\.(mkv|avi|mov|flv|ogm|vob|wma|m4b|m2ts|mpeg|mpg)$
  * the dialog's state machine can be reasoned about (and rendered) on its own;
  * see FlashcardsPreviewModal.svelte for the view.
  */
-class PreviewStore {
+export class PreviewStore {
+  private loadRequests = new LatestRequest();
+  private playbackRequests = new LatestRequest();
   visible = $state(false);
   lines = $state<PreviewLine[]>([]);
   loading = $state(false);
@@ -83,20 +87,30 @@ class PreviewStore {
   /** Fetches preview lines for `config` and opens the dialog. Throws on
    * failure so the caller can surface its own error message. */
   async load(config: Record<string, unknown>, onLoaded?: (lines: PreviewLine[]) => void) {
+    const request = this.loadRequests.begin();
+    this.stopPlayback();
     this.loading = true;
     this.visible = true;
     try {
-      this.lines = await invoke<PreviewLine[]>("flashcard_preview", { config });
+      const lines = await invoke<PreviewLine[]>("flashcard_preview", { config });
+      if (!request.isCurrent()) return;
+      this.lines = lines;
       this.previewedSubsPath = config.target_subs_path as string;
       this.previewedNativeSubsPath = (config.native_subs_path as string | null) ?? null;
       this.undoStack = [];
       onLoaded?.(this.lines);
+    } catch (error) {
+      if (!request.isCurrent()) return;
+      this.visible = false;
+      throw error;
     } finally {
-      this.loading = false;
+      if (request.isCurrent()) this.loading = false;
     }
   }
 
   close() {
+    this.loadRequests.invalidate();
+    this.loading = false;
     this.visible = false;
     this.contextMenuVisible = false;
     this.stopPlayback();
@@ -147,33 +161,41 @@ class PreviewStore {
   }
 
   async playLine(line: PreviewLine, mediaPath: string) {
-    if (this.playingLine?.index === line.index) {
-      if (this.playerElement) {
-        if (this.playerElement.paused) this.playerElement.play().catch(() => {});
-        else this.playerElement.pause();
-      }
-      return;
+    if (!this.visible || this.loading || !mediaPath) return;
+    if (this.playingLine?.index === line.index && this.playerElement) {
+      if (!this.playerElement.paused) { this.stopPlayback(); return; }
     }
-
+    const request = this.playbackRequests.begin();
+    this.playerElement?.pause();
     this.playingLine = line;
-    const [port, token] = await this.getMediaServerInfo();
-
-    let preparedPath = mediaPath;
-    if (TRANSCODE_EXTENSIONS.test(mediaPath)) {
-      snackbar.show("Transcodifica dell'anteprima in corso...", "info", 1300);
-      preparedPath = await invoke<string>("sync_prepare_media_for_playback", { path: mediaPath });
-    }
-
-    const src = `http://127.0.0.1:${port}/media?path=${encodeURIComponent(preparedPath)}&token=${token}#t=${line.start_ms / 1000},${line.end_ms / 1000}`;
-    if (this.playerElement) {
-      this.playerElement.src = src;
-      this.playerElement.load();
-      this.playerElement.play().catch(() => {});
+    this.isPlaying = false;
+    try {
+      const [port, token] = await this.getMediaServerInfo();
+      if (!request.isCurrent() || !this.visible) return;
+      let preparedPath = mediaPath;
+      if (TRANSCODE_EXTENSIONS.test(mediaPath)) {
+        snackbar.show(t("sync.transcodingMedia"), "info");
+        preparedPath = await invoke<string>("sync_prepare_media_for_playback", { path: mediaPath });
+      }
+      if (!request.isCurrent() || !this.visible || !this.playerElement) return;
+      const player = this.playerElement;
+      player.src = `http://127.0.0.1:${port}/media?path=${encodeURIComponent(preparedPath)}&token=${token}#t=${line.start_ms / 1000},${line.end_ms / 1000}`;
+      player.load();
+      await player.play();
+      if (request.isCurrent() && this.visible) this.isPlaying = true;
+    } catch (error) {
+      if (!request.isCurrent()) return;
+      this.playingLine = null;
+      this.isPlaying = false;
+      snackbar.show(t("flashcards.previewAudioError"), "error");
+      console.error("Preview playback:", error);
     }
   }
 
   stopPlayback() {
+    this.playbackRequests.invalidate();
     this.playerElement?.pause();
+    this.isPlaying = false;
     this.playingLine = null;
   }
 
@@ -181,16 +203,17 @@ class PreviewStore {
    * edits, but only where the config still targets what was previewed —
    * shared by both the single-file and per-episode generation paths. */
   async applyOverrides(config: { target_subs_path: string; native_subs_path?: string | null }) {
-    if (this.lines.length === 0) return;
+    if (this.loading || this.lines.length === 0) return;
+    const lines = $state.snapshot(this.lines);
     if (config.target_subs_path === this.previewedSubsPath) {
       config.target_subs_path = await invoke<string>("save_temp_subtitles", {
-        lines: this.lines,
+        lines,
         useNative: false,
       });
     }
     if (config.native_subs_path && config.native_subs_path === this.previewedNativeSubsPath) {
       config.native_subs_path = await invoke<string>("save_temp_subtitles", {
-        lines: this.lines,
+        lines,
         useNative: true,
       });
     }

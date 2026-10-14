@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { writeClipboard } from "$lib/utils/clipboard";
   import { onMount, onDestroy } from "svelte";
   import { languages, languageFlagPath } from "$lib/config/languages";
   import { locale } from "$lib/i18n";
@@ -465,8 +466,7 @@
           <button
             type="button"
             onclick={() => {
-              navigator.clipboard.writeText(store.getFieldVariable(field));
-              snackbar.show(t("settings.keyCopied"), "success", 1300);
+              void writeClipboard(store.getFieldVariable(field), t("settings.keyCopied"));
             }}
             class="px-2.5 py-1.5 rounded-lg border transition-colors {field.colorClass}"
             title={t("settings.clickToCopy") || "Copy variable"}

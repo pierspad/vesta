@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { writeClipboard } from "$lib/utils/clipboard";
   import { locale } from "$lib/i18n";
   import ProviderIcon from "$lib/components/ProviderIcon.svelte";
   import type { ApiKeyConfig } from "$lib/config/apiKeys";
@@ -35,7 +36,7 @@
   }
 
   function copyApiKey(key: string) {
-    navigator.clipboard.writeText(key);
+    void writeClipboard(key);
   }
 
   function maskApiKey(key: string): string {

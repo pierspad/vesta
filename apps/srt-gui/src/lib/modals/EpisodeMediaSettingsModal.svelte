@@ -1,4 +1,7 @@
 <script lang="ts">
+  import { onDestroy } from "svelte";
+  import { LatestRequest } from "$lib/utils/asyncControl.svelte";
+  const audioRequests = new LatestRequest();
   import { locale } from "$lib/i18n";
   import SearchableSelect from "$lib/components/SearchableSelect.svelte";
   import { formatAudioTrackLabel, type EpisodeMediaOverrideKey } from "$lib/types/flashcardMediaTypes";
@@ -30,25 +33,31 @@
       return;
     }
 
-    if (!editor.episode?.mediaPath || !editor.overrides) return;
+    if (isPreviewLoading || !editor.episode?.mediaPath || !editor.overrides) return;
+    const request = audioRequests.begin();
+    const episode = editor.episode;
+    const settings = $state.snapshot(editor.overrides);
 
     isPreviewLoading = true;
     try {
-      const [port, token] = await invoke<[number, string]>("get_media_server_info");
-      const previewFilePath = await invoke<string>("flashcard_preview_audio", {
-        mediaPath: editor.episode.mediaPath,
-        subPath: editor.episode.targetSubsPath || null,
+      const args = {
+        mediaPath: episode.mediaPath,
+        subPath: episode.targetSubsPath || null,
         startMs: null,
         endMs: null,
-        audioTrackIndex: editor.overrides.audioTrackIndex,
-        padStartMs: editor.overrides.audioPadStart,
-        padEndMs: editor.overrides.audioPadEnd,
-        format: editor.overrides.audioFormat || "mp3",
-        normalize: editor.overrides.normalizeAudio ?? true,
-        boost: editor.overrides.audioBoost ?? false,
-        gainDb: editor.overrides.audioGainDb ?? 0,
-        bitrate: editor.overrides.audioBitrate || 128,
-      });
+        audioTrackIndex: settings.audioTrackIndex,
+        padStartMs: settings.audioPadStart,
+        padEndMs: settings.audioPadEnd,
+        format: settings.audioFormat || "mp3",
+        normalize: settings.normalizeAudio ?? true,
+        boost: settings.audioBoost ?? false,
+        gainDb: settings.audioGainDb ?? 0,
+        bitrate: settings.audioBitrate || 128,
+      };
+      const [port, token] = await invoke<[number, string]>("get_media_server_info");
+      if (!request.isCurrent()) return;
+      const previewFilePath = await invoke<string>("flashcard_preview_audio", args);
+      if (!request.isCurrent() || editor.episode !== episode) return;
 
       const audioUrl = `http://127.0.0.1:${port}/media?path=${encodeURIComponent(previewFilePath)}&token=${token}&_t=${Date.now()}`;
       if (!audioPlayer) {
@@ -58,21 +67,32 @@
         };
         audioPlayer.onerror = () => {
           isPreviewPlaying = false;
-          snackbar.show(t("flashcards.previewAudioError"), "error", 2000);
+          snackbar.show(t("flashcards.previewAudioError"), "error");
         };
       }
       audioPlayer.src = audioUrl;
       await audioPlayer.play();
-      isPreviewPlaying = true;
+      if (request.isCurrent()) isPreviewPlaying = true;
     } catch (e: any) {
+      if (!request.isCurrent()) return;
       console.error("Episode audio preview failed:", e);
-      snackbar.show(String(e), "error", 2500);
+      snackbar.show(String(e), "error");
     } finally {
-      isPreviewLoading = false;
+      if (request.isCurrent()) isPreviewLoading = false;
     }
   }
 
+  function stopAudio() {
+    audioRequests.invalidate();
+    audioPlayer?.pause();
+    isPreviewPlaying = false;
+    isPreviewLoading = false;
+  }
+  onDestroy(stopAudio);
+  $effect(() => { editor.episode; return stopAudio; });
+
   function close() {
+    stopAudio();
     if (audioPlayer) {
       audioPlayer.pause();
       isPreviewPlaying = false;

@@ -189,7 +189,7 @@
     message: string,
     type: "error" | "success" = "success",
   ) {
-    snackbar.show(message, type === "error" ? "error" : "success", 1300);
+    snackbar.show(message, type === "error" ? "error" : "success");
   }
 
   function s(key: string): string {
@@ -568,7 +568,7 @@
       const cleanJson = smartMatchingRulesDraft.replace(/\\"|"(?:\\"|[^"])*"|(\/\/.*|\/\*[\s\S]*?\*\/)/g, (m, g) => g ? "" : m);
       const parsed = JSON.parse(cleanJson);
       smartMatchingStore.saveRules(parsed);
-      snackbar.show(t("settings.smartMatching.saveSuccess"), "success", 1300);
+      snackbar.show(t("settings.smartMatching.saveSuccess"), "success");
     } catch (e: any) {
       smartMatchingRulesError = e.message || t("settings.smartMatching.saveError");
     }
@@ -637,7 +637,7 @@
 
   function resetOverviewSettings() {
     setLanguage("en");
-    snackbar.show(t("settings.overview.resetSuccess"), "info", 1300);
+    snackbar.show(t("settings.overview.resetSuccess"), "info");
   }
 
   function resetLlmSettings() {
@@ -647,7 +647,7 @@
     defaultLlmModel = "";
     resetRefinementPrompt();
     persistDefaultLlmSettings();
-    snackbar.show(t("settings.llm.resetSuccess"), "info", 1300);
+    snackbar.show(t("settings.llm.resetSuccess"), "info");
   }
 
   function resetLanguageSettings() {
@@ -665,7 +665,7 @@
     smartMatchingRulesDraft = formatSmartMatchingRules(smartMatchingStore.rules);
     smartMatchingRulesError = null;
 
-    snackbar.show(t("settings.language.resetSuccess"), "info", 1300);
+    snackbar.show(t("settings.language.resetSuccess"), "info");
   }
 
 
@@ -743,6 +743,7 @@
       percentage: number;
     }>("transcribe-progress", (event) => {
       const p = event.payload;
+      if (p.stage !== "download" || !whisperModelsStore.isDownloading && !whisperModelsStore.downloadingVadId) return;
       whisperModelsStore.progress = Math.round(p.percentage);
       whisperModelsStore.progressMessage = p.message;
       whisperModelsStore.progressStage = p.stage;
