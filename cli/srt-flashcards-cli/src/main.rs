@@ -8,6 +8,7 @@
 //! This binary is the "shell": it parses CLI arguments and delegates all logic
 //! to the library, mirroring the `srt-extract` / `srt-translate` CLIs.
 
+use std::process::ExitCode;
 use std::sync::atomic::{AtomicI64, Ordering};
 
 use anyhow::{Context, Result};
@@ -116,7 +117,7 @@ struct GenerateArgs {
     #[arg(long, default_value = "webp", value_parser = ["webp", "jpeg", "avif"])]
     snapshot_format: String,
     /// Snapshot quality, 0-100 (100 = best). Mapped onto each codec's own scale.
-    #[arg(long, default_value_t = 80)]
+    #[arg(long, default_value_t = 80, value_parser = parse_snapshot_quality)]
     snapshot_quality: u8,
     /// Crop N pixels off the bottom (e.g. to remove burned-in subs).
     #[arg(long, default_value_t = 0)]
@@ -203,6 +204,16 @@ struct GenerateArgs {
     quiet: bool,
 }
 
+fn parse_snapshot_quality(value: &str) -> std::result::Result<u8, String> {
+    let quality = value
+        .parse::<u8>()
+        .map_err(|_| "snapshot quality must be an integer from 0 to 100".to_string())?;
+    if quality > 100 {
+        return Err("snapshot quality must be from 0 to 100".to_string());
+    }
+    Ok(quality)
+}
+
 impl GenerateArgs {
     fn to_config(&self) -> FlashcardConfig {
         FlashcardConfig {
@@ -276,7 +287,17 @@ impl GenerateArgs {
 }
 
 #[tokio::main]
-async fn main() -> Result<()> {
+async fn main() -> ExitCode {
+    match run().await {
+        Ok(code) => code,
+        Err(error) => {
+            eprintln!("Error: {error:#}");
+            ExitCode::FAILURE
+        }
+    }
+}
+
+async fn run() -> Result<ExitCode> {
     let cli = Cli::parse();
 
     match cli.command {
@@ -343,7 +364,7 @@ async fn main() -> Result<()> {
             };
 
             let start = std::time::Instant::now();
-            let result = srt_flashcards::generate(config, tools, cancel, &progress)
+            let result = srt_flashcards::generate(config, tools, cancel.clone(), &progress)
                 .await
                 .map_err(|e| anyhow::anyhow!(e))?;
 
@@ -367,10 +388,16 @@ async fn main() -> Result<()> {
                     println!("   APKG: {}", p);
                 }
             } else {
+                if cancel.is_cancelled() {
+                    if !quiet {
+                        eprintln!("Generation cancelled.");
+                    }
+                    return Ok(ExitCode::from(130));
+                }
                 anyhow::bail!("Generation failed: {}", result.message);
             }
         }
     }
 
-    Ok(())
+    Ok(ExitCode::SUCCESS)
 }

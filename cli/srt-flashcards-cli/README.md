@@ -49,6 +49,22 @@ srt-flashcards generate -t Detour-en.srt -n Detour-it.srt \
 Run `srt-flashcards generate --help` for the full list (filters, padding,
 context lines, codecs, bitrates, …).
 
+## Script contract
+
+`info` and `preview` print human-readable summaries to stdout; preview does not
+create the output directory. Successful generation prints its summary and output
+paths to stdout. Progress and errors use stderr; `--quiet` suppresses progress,
+but keeps the success summary and failures visible. These commands do not expose
+a JSON protocol.
+
+Exit codes are `0` for success, `1` for input/processing errors, `2` for invalid
+CLI arguments, and `130` when generation cooperatively returns an unsuccessful
+result after Ctrl+C. An export successfully published during a late cancellation
+still exits `0`. Snapshot quality must be an integer from `0` through `100`.
+
+Run the offline subprocess regressions with `cargo test -p srt-flashcards-cli`.
+The SIGINT and simulated media-process cases currently run on Unix only.
+
 Part of the [Vesta](../../README.md) workspace. Licensed GPL-3.0-only.
 
 ## Native nearby snapshot batching
