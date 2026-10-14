@@ -1,0 +1,22 @@
+[package]
+name = "srt-sync-cli"
+version = "0.26.3-dev.1"
+edition.workspace = true
+rust-version.workspace = true
+description = "Headless manual subtitle retiming using the Vesta sync engine"
+license = "GPL-3.0-only"
+repository = "https://github.com/pierspad/vesta"
+readme = "README.md"
+
+[[bin]]
+name = "srt-sync"
+path = "src/main.rs"
+
+[dependencies]
+anyhow.workspace = true
+clap.workspace = true
+srt-sync.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+srt-parser.workspace = true

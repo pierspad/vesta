@@ -99,7 +99,8 @@ pub fn calculate_stats(subtitles: &HashMap<u32, Subtitle>) -> SubtitleStats {
             .saturating_sub(subtitle.start.total_milliseconds());
         total_duration += duration as f64 / 1000.0;
 
-        let text_len = subtitle.text.len();
+        // Report Unicode scalar values; UTF-8 bytes inflate non-ASCII text.
+        let text_len = subtitle.text.chars().count();
         total_text_length += text_len;
         shortest_text_length = shortest_text_length.min(text_len);
         longest_text_length = longest_text_length.max(text_len);
@@ -189,6 +190,17 @@ mod tests {
         assert_eq!(stats.total_duration_seconds, 0.0);
         assert_eq!(stats.shortest_text_length, 0);
         assert_eq!(stats.longest_text_length, 0);
+    }
+
+    #[test]
+    fn statistics_count_unicode_characters_instead_of_bytes() {
+        let mut subs = HashMap::new();
+        subs.insert(1, create_test_subtitle(1, "日本語", 0, 1000));
+        subs.insert(2, create_test_subtitle(2, "café", 1000, 2000));
+        let stats = calculate_stats(&subs);
+        assert_eq!(stats.shortest_text_length, 3);
+        assert_eq!(stats.longest_text_length, 4);
+        assert_eq!(stats.average_text_length, 3.5);
     }
 
     #[test]

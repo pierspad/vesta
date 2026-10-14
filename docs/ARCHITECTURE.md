@@ -15,8 +15,8 @@ Vesta is a modular Cargo workspace layered from foundational formats to GUI-agno
 │  • srt-transcribe   (Whisper & VAD transcription)──► cli/srt-transcribe-cli │
 │  • srt-autosync     (VAD speech auto-aligner)    ──► cli/srt-autosync-cli   │
 │  • srt-extract      (Media & subtitle extractor) ──► cli/srt-extract-cli    │
-│  • srt-refine       (LLM subtitle & deck refiner / context merger)          │
-│  • srt-sync         (Anchor-based retiming engine)                          │
+│  • srt-refine       (LLM deck annotation)       ──► cli/srt-refine-cli     │
+│  • srt-sync         (Anchor-based retiming)     ──► cli/srt-sync-cli       │
 │  • srt-ankiconnect  (AnkiConnect HTTP client)                               │
 └──────────────────────────────────────┬──────────────────────────────────────┘
                                        │ depends on
@@ -35,7 +35,7 @@ Vesta is a modular Cargo workspace layered from foundational formats to GUI-agno
 |---|---|---|
 | **core** | `srt-parser`, `srt-apkg`, `srt-download` | Foundational primitives. Minimal external dependencies, zero knowledge of higher engines or GUI. Auto-charset detection via `chardetng` + `encoding_rs`, lossless timing arithmetic, direct ZIP/SQLite archive serialization, and cancellable atomic resource downloads. |
 | **lib** | `srt-flashcards`, `srt-translate`, `srt-transcribe`, `srt-autosync`, `srt-extract`, `srt-refine`, `srt-sync`, `srt-ankiconnect` | Self-contained domain engines. **Zero GUI/Tauri coupling**. Long-running tasks accept a `tokio_util::sync::CancellationToken` and report progress through callbacks. External tools and heavy dependencies (FFmpeg processes, `whisper-rs`, `rusqlite`, `reqwest`) are encapsulated here. |
-| **cli** | `srt-flashcards-cli`, `srt-translate-cli`, `srt-transcribe-cli`, `srt-autosync-cli`, `srt-extract-cli` | Headless, terminal frontends powered by `clap`. Thin wrappers over corresponding `lib/` engines. Perfect for server scripting, batch processing, CI pipelines, and benchmarking. |
+| **cli** | `srt-flashcards-cli`, `srt-translate-cli`, `srt-transcribe-cli`, `srt-autosync-cli`, `srt-extract-cli`, `srt-sync-cli`, `srt-refine-cli` | Headless, terminal frontends powered by `clap`. Thin wrappers over corresponding `lib/` engines. Suitable for server scripting, batch processing, CI pipelines, and benchmarking. |
 | **apps** | `apps/srt-gui` (`vesta`), `apps/whisper-bench` | Desktop composition roots. Svelte owns presentation/state; Tauri commands adapt IPC to `lib/` crates and own process-level services such as local media streaming, dialogs, and window integration. |
 
 ---
@@ -123,6 +123,16 @@ Aligned Output Subtitle (.srt)
 
 ## Frontend execution boundaries
 
+Translation provider errors now expose safe typed categories and HTTP status.
+Optional retry observers belong to callers: CLI adapters write numeric metadata
+to stderr; desktop `provider_diagnostics` emits `provider-retry` events for the
+support recorder. The engine neither initializes a logger nor imports Tauri.
+This separates diagnostic policy from retries and preserves embedded consumers.
+
+The refine CLI uses the same tiered annotation and card serialization as the
+desktop. Its adapter owns Ctrl+C, output-format validation and complete/partial
+publication policy; the engine owns batching, failover and cancellation cleanup.
+
 The desktop tabs compose UI and event lifetimes. The modules in
 `apps/srt-gui/src/lib/workflows` own flashcard execution/aggregation/merge,
 bounded file discovery, transcription failover and model/backend/VAD discovery.
@@ -202,6 +212,8 @@ cargo build --release -p srt-transcribe-cli
 cargo build --release -p srt-translate-cli
 cargo build --release -p srt-autosync-cli
 cargo build --release -p srt-extract-cli
+cargo build --release -p srt-sync-cli
+cargo build --release -p srt-refine-cli
 
 # Run flashcard generation from terminal
 ./target/release/srt-flashcards \

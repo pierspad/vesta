@@ -501,6 +501,9 @@
       variant={snackbar.variant}
       duration={snackbar.duration}
       animationKey={snackbar.key}
+      paused={snackbar.paused}
+      onpause={(reason) => snackbar.pause(reason)}
+      onresume={(reason) => snackbar.resume(reason)}
       onclose={() => snackbar.close()}
     />
   {/if}

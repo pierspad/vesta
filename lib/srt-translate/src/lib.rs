@@ -2,11 +2,13 @@ mod scheduler;
 pub use scheduler::{
     PoolEntry, TierScheduler, TranslatorPool, is_rate_limit_error, pool_concurrency,
 };
+mod diagnostics;
 mod language_info;
 pub mod pool;
 mod prompts;
 mod rate_limiter;
 mod translator;
+pub use diagnostics::{ProviderError, ProviderFailureKind, TranslationDiagnostic};
 
 use anyhow::{Context, Result};
 use futures::stream::{self, StreamExt};

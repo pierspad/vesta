@@ -4,17 +4,18 @@
   import { invokeCommand } from "$lib/services/tauriClient";
   import { locale } from "$lib/i18n";
   import MediaIcon from "./MediaIcon.svelte";
+  import { copyText } from "$lib/utils/clipboard";
+  import { errorMessage } from "$lib/utils/errorMessage";
   let { path, copiedMessage, tooltip }: { path: string; copiedMessage: string; tooltip: string } = $props();
   let t = $derived($locale);
   let opening = $state(false);
   async function copyPath() {
-    try { await navigator.clipboard.writeText(path); snackbar.show(copiedMessage, "success"); }
-    catch (error) { snackbar.show(String(error), "error"); }
+    await copyText(path, copiedMessage, t("common.copy"), (message, variant) => snackbar.show(message, variant));
   }
   async function openFolder() {
     opening = true;
     try { await invokeCommand("open_output_path", { path, folder: true }); }
-    catch (error) { snackbar.show(String(error), "error"); }
+    catch (error) { snackbar.show(errorMessage(error, t("common.loadFailed")), "error"); }
     finally { opening = false; }
   }
 </script>

@@ -25,6 +25,21 @@ deck back without losing media or scheduling data.
 
 Errors are user-presentable `String`s, mirroring `srt-flashcards`.
 
+## Use as a CLI
+
+```sh
+cargo run -p srt-refine-cli -- inspect --input deck.tsv
+cargo run -p srt-refine-cli -- enrich --input deck.tsv --output deck.refined.tsv --config refine.json
+```
+
+Inspection prints JSON without contacting a provider. Enrichment uses
+`refine_cards_tiered` with the shared provider pool, cancellation and card
+serialization. It saves only complete success by default; `--allow-partial`
+explicitly permits successful annotations alongside unchanged failed cards and
+still exits nonzero. Ctrl+C cancels active work and prevents publication.
+See the [CLI guide](../../cli/srt-refine-cli/README.md) for the configuration
+schema, JSON summary, supported output conversions and exit codes.
+
 ## Use as a Rust dependency
 
 ```toml

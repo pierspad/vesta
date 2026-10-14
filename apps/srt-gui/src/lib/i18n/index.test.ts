@@ -39,3 +39,12 @@ it('translates a wizard language without changing the active application languag
   expect(translateForLanguage('de', 'common.cancel')).toBe('Abbrechen');
   expect(getLanguage()).toBe(active);
 });
+
+it('honors the latest selection when a previous dictionary is still loading', async () => {
+  const { setLanguage, getLanguage, loadLanguage } = await import('./index');
+  setLanguage('it');
+  setLanguage('en');
+  await loadLanguage('it');
+  await Promise.resolve();
+  expect(getLanguage()).toBe('en');
+});

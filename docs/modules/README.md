@@ -16,11 +16,11 @@ as a standalone binary or as a Rust dependency — without dragging in the GUI.
 | [srt-apkg](srt-apkg.md) | Anki package (`.apkg`) archive generator & reader | `core/srt-apkg` | — | — |
 | [srt-extract](srt-extract.md) | Convert parsed subtitle data; discover/extract embedded text tracks | `lib/srt-extract` | `srt-extract` | FFmpeg/ffprobe for embedded tracks |
 | [srt-translate](srt-translate.md) | LLM subtitle translation with tiered failover | `lib/srt-translate` | `srt-translate` | HTTP APIs or local endpoint |
-| [srt-sync](srt-sync.md) | Anchor-based subtitle re-timing engine | `lib/srt-sync` | — (see srt-autosync) | — |
+| [srt-sync](srt-sync.md) | Anchor-based subtitle re-timing engine | `lib/srt-sync` | `srt-sync` | — |
 | [srt-autosync](srt-autosync.md) | Automatic alignment via Whisper/VAD anchors | `lib/srt-autosync` | `srt-autosync` | FFmpeg + Whisper model |
 | [srt-transcribe](srt-transcribe.md) | Media → SRT with Whisper/VAD or cloud STT | `lib/srt-transcribe` | `srt-transcribe` | FFmpeg + model, or HTTP API |
 | [srt-ankiconnect](srt-ankiconnect.md) | AnkiConnect HTTP client | `lib/srt-ankiconnect` | — | Anki + AnkiConnect |
-| [srt-refine](srt-refine.md) | LLM enrichment of TSV/APKG decks | `lib/srt-refine` | — | HTTP API or local endpoint |
+| [srt-refine](srt-refine.md) | LLM enrichment of TSV/APKG decks | `lib/srt-refine` | `srt-refine` | HTTP API or local endpoint |
 
 The authoritative dependency direction is `apps/cli → lib → core`; lower
 layers never import desktop code. See [the architecture guide](../ARCHITECTURE.md)

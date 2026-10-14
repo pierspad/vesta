@@ -4,6 +4,7 @@ pub mod experimental;
 pub mod flashcards;
 pub mod info;
 pub mod net;
+mod provider_diagnostics;
 pub mod refine;
 pub mod sync;
 pub mod transcribe;

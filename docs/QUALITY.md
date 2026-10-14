@@ -5,6 +5,14 @@ and usable progress. Optimize bottlenecks after measuring them on identical inpu
 A passing unit suite is evidence about those cases, not proof that every desktop
 interaction or third-party API works on every supported machine.
 
+The separate `headless` CI job selects library and CLI packages explicitly,
+without Node, Tauri system libraries or a GPU SDK. This checks the default CPU
+dependency graph independently of desktop feature unification. CLI extraction
+tests parse stdout as JSON and verify failed operations preserve existing files;
+manual sync tests exercise both drift correction and rejected anchor/output ranges.
+The [reliability audit](RELIABILITY_AUDIT.md) records the current boundary review
+and remaining test priorities.
+
 ## One command
 
 From the repository root, after `npm ci` in `apps/srt-gui`:

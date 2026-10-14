@@ -29,9 +29,14 @@ class SupportLogStore {
     });
     this.timer = setInterval(() => { if (!this.busy) void this.flush().catch(error => { this.error = safeLogValue(error); }); }, 500);
     // Progress messages include native processing failures and workflow milestones.
-    for (const name of ["flashcard-progress", "translate-progress", "translate-complete", "transcribe-progress", "transcribe-complete", "refine-progress", "sync-auto-progress", "sync-auto-complete"]) {
+    for (const name of ["flashcard-progress", "translate-progress", "translate-complete", "transcribe-progress", "transcribe-complete", "refine-progress", "sync-auto-progress", "sync-auto-complete", "provider-retry"]) {
       try {
         this.unlisteners.push(await listen<Record<string, unknown>>(name, event => {
+          if (name === "provider-retry") {
+            const { tier, endpoint, status, attempt, max_retries, retry_in_ms } = event.payload || {};
+            recordSupportEvent(name, safeLogValue({ tier, endpoint, status, attempt, max_retries, retry_in_ms }));
+            return;
+          }
           const { message, percentage, current_batch, total_batches, success } = event.payload || {};
           recordSupportEvent(name, safeLogValue({ message, percentage, current_batch, total_batches, success }));
         }));

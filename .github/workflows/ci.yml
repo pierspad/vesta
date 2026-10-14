@@ -19,6 +19,35 @@ env:
   CMAKE_CXX_COMPILER_LAUNCHER: "sccache"
 
 jobs:
+  # Verify embedding/CLI builds without installing GTK, WebKit, Node or a GPU SDK.
+  # Selecting packages also prevents desktop Vulkan features from unifying into
+  # the default CPU Whisper build used by the headless transcription CLI.
+  headless:
+    name: Headless engines and CLIs (CPU, no desktop)
+    runs-on: ubuntu-22.04
+    env:
+      RUSTC_WRAPPER: ""
+      CMAKE_C_COMPILER_LAUNCHER: ""
+      CMAKE_CXX_COMPILER_LAUNCHER: ""
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: swatinem/rust-cache@v2
+        with:
+          shared-key: "headless-cpu"
+      - name: Install native engine build tools and media fixtures runtime
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang mold cmake ffmpeg
+      - name: Test reusable engines and standalone entry points
+        run: >-
+          cargo test --locked --no-fail-fast
+          -p srt-parser -p srt-apkg -p srt-download
+          -p srt-extract -p srt-sync -p srt-translate -p srt-refine
+          -p srt-flashcards -p srt-transcribe -p srt-autosync -p srt-ankiconnect
+          -p srt-extract-cli -p srt-sync-cli -p srt-translate-cli
+          -p srt-flashcards-cli -p srt-transcribe-cli -p srt-autosync-cli -p srt-refine-cli
+
   # ===========================================================
   # Setup condiviso: dipendenze di sistema Tauri/whisper.cpp +
   # dist del frontend, richiesto da `tauri::generate_context!()`

@@ -1,5 +1,33 @@
 # srt-translate — LLM subtitle translation
 
+## Errors and optional diagnostics
+
+HTTP failures cannot become successful translations even when their JSON body
+resembles a success response. Empty/whitespace results, including quote-only
+responses, are errors; batch output also rejects empty text and duplicate IDs.
+
+`ProviderError` exposes `provider`, HTTP `status` and `ProviderFailureKind` through
+an anyhow downcast. Its text contains a safe category, never the raw provider
+body. Transport failures remove credential-bearing URLs; malformed translation
+JSON reports a location rather than echoing private subtitle text.
+
+```rust
+use srt_translate::{ProviderError, Translator, TranslatorConfig};
+
+let translator = Translator::new(TranslatorConfig::default())
+    .with_diagnostics(|event| {
+        // The caller owns logging. Only numeric retry metadata is provided.
+        eprintln!("HTTP {}: retry {} in {} ms", event.status, event.attempt, event.retry_in_ms);
+    });
+```
+
+The observer is optional, retained by clones, and must be fast/nonblocking.
+No global logger is installed and the library itself does not print retry/error
+messages. CLI adapters choose stderr; desktop adapters emit `provider-retry`
+events consumed by the support recorder. GUI notifications remain a separate
+presentation concern. Other feature crates still have some direct stderr
+diagnostics; this contract currently covers the translation provider client.
+
 `lib/srt-translate` translates SRT files with LLMs, batching subtitles with
 overlap for context, with resume support (partial output files are continued,
 holes are repaired), rate limiting, and a **multi-tier failover pool**: you

@@ -1,0 +1,26 @@
+[package]
+name = "srt-refine-cli"
+version = "0.26.3-dev.1"
+edition.workspace = true
+rust-version.workspace = true
+description = "Headless inspection and tiered annotation of TSV/APKG decks"
+license = "GPL-3.0-only"
+repository = "https://github.com/pierspad/vesta"
+readme = "README.md"
+
+[[bin]]
+name = "srt-refine"
+path = "src/main.rs"
+
+[dependencies]
+anyhow.workspace = true
+clap.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+srt-refine.workspace = true
+srt-translate.workspace = true
+tokio.workspace = true
+tokio-util = "0.7"
+
+[dev-dependencies]
+tempfile.workspace = true

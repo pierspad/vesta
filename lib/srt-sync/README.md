@@ -4,6 +4,8 @@ Subtitle synchronization primitives based on anchor points and interpolation.
 
 The crate contains the reusable timing engine, media matching helpers, playback preparation, and subtitle sampling logic used by the GUI and `srt-autosync`.
 
+Manual retiming is also available through the [srt-sync CLI](../../cli/srt-sync-cli/README.md), using the same engine without desktop dependencies.
+
 Playback preparation passes native formats through, otherwise reuses a fresh
 nonempty cache or tries an OGG audio copy before Opus/Vorbis conversion. Outputs
 are published after successful preparation; requests are serialized within the

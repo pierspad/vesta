@@ -146,10 +146,14 @@ impl SyncEngine {
             Subtitle {
                 id: sub.id,
                 start: Timestamp {
-                    milliseconds: (sub.start.milliseconds as i64 + start_offset).max(0) as u64,
+                    milliseconds: (sub.start.milliseconds as i64)
+                        .saturating_add(start_offset)
+                        .max(0) as u64,
                 },
                 end: Timestamp {
-                    milliseconds: (sub.end.milliseconds as i64 + end_offset).max(0) as u64,
+                    milliseconds: (sub.end.milliseconds as i64)
+                        .saturating_add(end_offset)
+                        .max(0) as u64,
                 },
                 text: sub.text.clone(),
             }
@@ -164,8 +168,12 @@ impl SyncEngine {
         let end_offset = self
             .time_mapper
             .calculate_offset(sub.end.milliseconds as i64);
-        let start = (sub.start.milliseconds as i64 + start_offset).max(0) as u64;
-        let end = (sub.end.milliseconds as i64 + end_offset).max(0) as u64;
+        let start = (sub.start.milliseconds as i64)
+            .saturating_add(start_offset)
+            .max(0) as u64;
+        let end = (sub.end.milliseconds as i64)
+            .saturating_add(end_offset)
+            .max(0) as u64;
         (start, end, start_offset)
     }
 
@@ -347,6 +355,18 @@ impl SyncEngine {
             .filter_map(|id| self.get_synced_subtitle(*id).map(|s| (*id, s)))
             .collect();
 
+        // The SRT parser accepts u32 hours. Reject unrepresentable mapped times
+        // before opening the output rather than publishing a file we cannot read.
+        for subtitle in synced.values() {
+            for timestamp in [subtitle.start, subtitle.end] {
+                anyhow::ensure!(
+                    timestamp.milliseconds / 3_600_000 <= u32::MAX as u64,
+                    "Subtitle {} exceeds the supported SRT timestamp range",
+                    subtitle.id
+                );
+            }
+        }
+
         SrtParser::save_file(output_path, &synced)
             .context("Impossibile salvare il file sincronizzato")?;
 
@@ -424,6 +444,26 @@ impl SyncEngine {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn extreme_corrected_time_saturates_instead_of_overflowing() {
+        let directory = tempfile::tempdir().unwrap();
+        let source = directory.path().join("source.srt");
+        std::fs::write(&source, "1\n00:00:01,000 --> 00:00:02,000\nHello\n").unwrap();
+        let mut engine = SyncEngine::new(source).unwrap();
+        engine.add_anchor(1, i64::MAX, true).unwrap();
+        let synced = engine.get_synced_subtitle(1).unwrap();
+        assert_eq!(synced.start.milliseconds, i64::MAX as u64);
+        assert_eq!(synced.end.milliseconds, i64::MAX as u64);
+        assert_eq!(
+            engine.get_synced_times(1),
+            Some((i64::MAX as u64, i64::MAX as u64))
+        );
+        let output = directory.path().join("existing.srt");
+        std::fs::write(&output, "existing output").unwrap();
+        assert!(engine.save_synced_file(&output).is_err());
+        assert_eq!(std::fs::read_to_string(output).unwrap(), "existing output");
+    }
 
     #[test]
     fn session_roundtrip_preserves_sampling_strategy() {

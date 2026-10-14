@@ -23,8 +23,18 @@ desktop player; it is not part of anchor interpolation.
 
 ## Use as a binary
 
-There is no interactive CLI: anchor placement is either a GUI affair or an
-automated one. For the automated path use the
+The standalone CLI applies explicit manual anchors without the GUI:
+
+```sh
+cargo run -p srt-sync-cli -- --input movie.srt --output movie.synced.srt \
+  --anchor 1:2500 --anchor 123:2467300
+```
+
+Each anchor specifies a subtitle ID and its corrected start in milliseconds.
+The CLI validates IDs and time order before writing. One anchor shifts the whole
+file; multiple anchors interpolate drift. See the
+[CLI guide](../../cli/srt-sync-cli/README.md) for validation and output semantics.
+For automatic anchor discovery from media use the
 [`srt-autosync`](srt-autosync.md) CLI, which drives this engine end-to-end
 (`SRT + media → anchors → synced SRT`).
 
@@ -51,5 +61,8 @@ fn main() -> anyhow::Result<()> {
 
 ## Extract it standalone
 
-Copy `lib/srt-sync/` + `core/srt-parser/`. External deps: `anyhow`, `serde`,
-`serde_json` only.
+Copying directories alone is insufficient because manifests inherit workspace
+dependencies, edition and Rust version. Keep the root workspace and select the
+package with `cargo build -p srt-sync-cli`, or rewrite the inherited fields and
+the parser dependency for your own workspace. The parser also needs
+`chardetng` and `encoding_rs` for charset detection.

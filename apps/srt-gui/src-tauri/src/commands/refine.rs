@@ -42,12 +42,13 @@ pub async fn refine_save_file(
 
 #[tauri::command]
 pub async fn refine_card_llm_tiered(
+    app: AppHandle,
     card: RefineCard,
     prompt: String,
     tiers: Vec<Vec<TierEntryConfig>>,
     state: State<'_, AppRefineState>,
 ) -> Result<String, String> {
-    let pool = srt_translate::build_pool(&tiers)?;
+    let pool = super::provider_diagnostics::observe_pool(srt_translate::build_pool(&tiers)?, &app);
     let (_guard, token) = begin_refinement(&state)?;
     let card_id = card.id.clone();
     let result: std::sync::Arc<std::sync::Mutex<Option<String>>> = Default::default();
@@ -94,7 +95,7 @@ pub async fn refine_cards_llm_tiered(
     run_id: String,
     state: State<'_, AppRefineState>,
 ) -> Result<RefineRunSummary, String> {
-    let pool = srt_translate::build_pool(&tiers)?;
+    let pool = super::provider_diagnostics::observe_pool(srt_translate::build_pool(&tiers)?, &app);
 
     let (_guard, cancellation_token) = begin_refinement(&state)?;
 

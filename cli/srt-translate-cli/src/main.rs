@@ -50,6 +50,16 @@ fn default_filename_pattern() -> String {
     "{input_name}.{language}.srt".to_string()
 }
 
+fn parse_config(content: &str) -> Result<Config> {
+    toml::from_str(content).map_err(|error: toml::de::Error| {
+        let location = error
+            .span()
+            .map(|span| format!(" near byte {}", span.start))
+            .unwrap_or_default();
+        anyhow::anyhow!("Failed to parse config.toml{location}; check TOML syntax and field types")
+    })
+}
+
 /// Pattern per i placeholder ${VAR_NAME}, compilato una sola volta al primo
 /// utilizzo invece che ad ogni chiamata di `expand_env_vars`.
 static ENV_VAR_PATTERN: LazyLock<Regex> = LazyLock::new(|| {
@@ -149,15 +159,24 @@ async fn main() -> Result<()> {
     // Sostituisci i placeholder ${VAR_NAME} con i valori dalle variabili d'ambiente
     config_content = expand_env_vars(&config_content)?;
 
-    let config: Config = toml::from_str(&config_content)
-        .map_err(|e| anyhow::anyhow!("Failed to parse config.toml: {}", e))?;
+    let config = parse_config(&config_content)?;
 
     // Il pool a tier (default per provider, filtro delle entry inutilizzabili,
     // rate limiter, concorrenza) è tutto delegato a `srt_translate::build_pool`:
     // la stessa funzione usata dall'app desktop, così CLI e GUI condividono
     // un'unica implementazione del failover invece di due.
     let tiers: Vec<Vec<TierEntry>> = config.tiers.into_iter().map(|t| t.entries).collect();
-    let pool = srt_translate::build_pool(&tiers).map_err(|e| anyhow::anyhow!(e))?;
+    let mut pool = srt_translate::build_pool(&tiers).map_err(|e| anyhow::anyhow!(e))?;
+    for tier in &mut pool {
+        for entry in tier {
+            entry.translator = entry.translator.clone().with_diagnostics(|event| {
+                eprintln!(
+                    "Provider HTTP {}: retry {}/{} in {} ms",
+                    event.status, event.attempt, event.max_retries, event.retry_in_ms
+                );
+            });
+        }
+    }
 
     println!("🔧 Configuration:");
     println!("  📄 Config file: {}", cli.config.display());
@@ -441,4 +460,15 @@ fn print_language_list() {
     println!();
     println!("Note: Other language codes may work but won't have optimized examples.");
     println!("Usage: srt-translate -i file.srt -l <code>");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn invalid_configuration_does_not_print_credential_bearing_source() {
+        let error = parse_config("[translation]\nbatch_size = \"private-key\"\n").unwrap_err();
+        assert!(!format!("{error:#}").contains("private-key"));
+        assert!(error.to_string().contains("config.toml"));
+    }
 }

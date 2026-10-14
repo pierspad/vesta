@@ -227,6 +227,15 @@ export function localizedLanguageName(code: string, locale: string): string {
   } catch { return fallback; }
 }
 
+/** Common selector adapter; it deliberately has no dependency on UI stores. */
+export function getLanguageOptions(locale: string) {
+  return languages.map(language => ({
+    value: language.code,
+    label: `${language.flag} ${localizedLanguageName(language.code, locale)}`,
+    searchTerms: `${getLanguageSearchTerms(language.code)} ${localizedLanguageName(language.code, locale)}`,
+  }));
+}
+
 /** Canonical study code, preserving script/region variants before broad aliases. */
 export function normalizeLanguageCode(value: string | null | undefined): string {
   const code = (value || "").trim().toLowerCase().replace(/_/g, "-");

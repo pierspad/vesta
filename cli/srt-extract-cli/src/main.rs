@@ -4,7 +4,7 @@
 //! Questo è il "guscio" che gestisce l'I/O utente e delega la logica
 //! di business alla libreria `srt-extract`.
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use clap::Parser;
 use srt_extract::{OutputFormat, calculate_stats, extract};
 use srt_parser::SrtParser;
@@ -35,7 +35,7 @@ struct Cli {
     ffprobe: String,
 
     /// Output format: json, debug, summary, stats
-    #[arg(short, long, default_value = "debug")]
+    #[arg(short, long, default_value = "debug", value_parser = ["json", "debug", "summary", "stats"], ignore_case = true)]
     format: String,
 
     /// Output file (optional, otherwise prints to stdout)
@@ -52,7 +52,8 @@ async fn main() -> Result<()> {
             srt_extract::embedded::list_embedded_subtitles(&cli.ffprobe, &cli.input).await?;
         let output = serde_json::to_string_pretty(&tracks)?;
         if let Some(path) = cli.output {
-            std::fs::write(path, output)?;
+            std::fs::write(&path, output)
+                .with_context(|| format!("Failed to write output {}", path.display()))?;
         } else {
             println!("{output}");
         }
@@ -71,12 +72,13 @@ async fn main() -> Result<()> {
     }
 
     // Parse the SRT file
-    println!("📖 Reading file: {:?}", cli.input);
-    let subtitles = SrtParser::parse_file(&cli.input)?;
-    println!("✅ Found {} subtitles", subtitles.len());
+    eprintln!("Reading file: {}", cli.input.display());
+    let subtitles = SrtParser::parse_file(&cli.input)
+        .with_context(|| format!("Failed to read subtitles {}", cli.input.display()))?;
+    eprintln!("Found {} subtitles", subtitles.len());
 
     // Generate output based on format
-    let output = if cli.format == "stats" {
+    let output = if cli.format.eq_ignore_ascii_case("stats") {
         // Special case: statistics
         let stats = calculate_stats(&subtitles);
         format!(
@@ -100,16 +102,17 @@ async fn main() -> Result<()> {
         )
     } else {
         // Use library for standard formats
-        let format = OutputFormat::parse(&cli.format).unwrap_or(OutputFormat::Debug);
+        let format = OutputFormat::parse(&cli.format).context("Unsupported output format")?;
         extract(&subtitles, format)?
     };
 
     // Save or print
     if let Some(output_path) = cli.output {
-        std::fs::write(&output_path, output)?;
-        println!("💾 Output saved to: {:?}", output_path);
+        std::fs::write(&output_path, output)
+            .with_context(|| format!("Failed to write output {}", output_path.display()))?;
+        eprintln!("Output saved to: {}", output_path.display());
     } else {
-        println!("\n{}", output);
+        println!("{output}");
     }
 
     Ok(())

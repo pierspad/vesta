@@ -52,6 +52,7 @@ const revision = writable(0);
 const localeModules = import.meta.glob<Record<string, string>>('./locales/*.json', {
   import: 'default',
 });
+const pendingLanguages = new Map<string, Promise<boolean>>();
 
 /**
  * Load (once) the dictionary for `lang` into `translations`.
@@ -59,17 +60,20 @@ const localeModules = import.meta.glob<Record<string, string>>('./locales/*.json
  */
 export async function loadLanguage(lang: string): Promise<boolean> {
   if (translations[lang]) return true;
+  const pending = pendingLanguages.get(lang);
+  if (pending) return pending;
   const loader = localeModules[`./locales/${lang}.json`];
   if (!loader) return false;
-  try {
-    const dict = await loader();
+  const loading = loader().then(dict => {
     translations[lang] = { ...en, ...dict };
-    revision.update((n) => n + 1);
+    revision.update(n => n + 1);
     return true;
-  } catch (e) {
-    console.error(`[i18n] failed to load locale "${lang}"`, e);
+  }).catch(error => {
+    console.error(`[i18n] failed to load locale "${lang}"`, error);
     return false;
-  }
+  }).finally(() => pendingLanguages.delete(lang));
+  pendingLanguages.set(lang, loading);
+  return loading;
 }
 
 const STORAGE_KEY = 'srt-tools-ui-language';
@@ -131,10 +135,12 @@ export const locale = derived([currentLanguage, revision], ([$lang]) => {
   };
 });
 
+let languageRequest = 0;
 export function setLanguage(lang: string): void {
   if (!supportedCodes.has(lang)) return;
+  const request = ++languageRequest;
   void loadLanguage(lang).then((ok) => {
-    if (ok) currentLanguage.set(lang);
+    if (ok && request === languageRequest) currentLanguage.set(lang);
   });
 }
 

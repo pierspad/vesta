@@ -15,3 +15,8 @@ it("records only while a sink is active and bounds log size", () => {
   expect(sink.mock.calls[0][0].time).toMatch(/Z$/);
   setSupportLogSink(null); recordSupportEvent("error", "ignored"); expect(sink).toHaveBeenCalledOnce();
 });
+
+it("does not let a broken diagnostic sink alter application control flow", () => {
+  setSupportLogSink(() => { throw new Error("disk full"); });
+  expect(() => recordSupportEvent("ipc.done", "completed")).not.toThrow();
+});

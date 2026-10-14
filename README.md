@@ -92,6 +92,12 @@ cargo build --release -p srt-flashcards-cli
 
 The native subtitle track is optional. Run `./target/release/srt-flashcards generate --help` for filters and media options. Other CLIs cover transcription, synchronization, translation and subtitle extraction; see [the module guides](docs/modules/README.md).
 
+For manual synchronization without Whisper or the desktop app, use
+[`srt-sync`](cli/srt-sync-cli/README.md) with explicit subtitle/time anchors.
+For JSON deck inspection and headless annotation, use
+[`srt-refine`](cli/srt-refine-cli/README.md); complete success is required before
+saving unless partial publication is explicitly enabled.
+
 ## Building from Source
 
 You need **Rust 1.99+**, **Node.js 22.12+**, npm, FFmpeg and FFprobe. Linux desktop builds also need a C/C++ compiler, CMake, pkg-config and Tauri development libraries (`libwebkit2gtk-4.1-dev`, `libappindicator3-dev`, `librsvg2-dev`). Native Whisper builds may need additional GPU tooling; see [transcription build requirements](docs/modules/srt-transcribe.md).

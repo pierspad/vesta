@@ -4400,6 +4400,7 @@ dependencies = [
  "serde_json",
  "srt-extract",
  "srt-parser",
+ "tempfile",
  "tokio",
 ]
 
@@ -4457,6 +4458,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "srt-refine-cli"
+version = "0.26.3-dev.1"
+dependencies = [
+ "anyhow",
+ "clap",
+ "serde",
+ "serde_json",
+ "srt-refine",
+ "srt-translate",
+ "tempfile",
+ "tokio",
+ "tokio-util",
+]
+
+[[package]]
 name = "srt-sync"
 version = "0.26.3-dev.1"
 dependencies = [
@@ -4464,6 +4480,17 @@ dependencies = [
  "serde",
  "serde_json",
  "srt-parser",
+ "tempfile",
+]
+
+[[package]]
+name = "srt-sync-cli"
+version = "0.26.3-dev.1"
+dependencies = [
+ "anyhow",
+ "clap",
+ "srt-parser",
+ "srt-sync",
  "tempfile",
 ]
 

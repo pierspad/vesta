@@ -19,7 +19,11 @@ export function safeLogValue(value: unknown): string {
   } catch { return "[unserializable]"; }
 }
 export function recordSupportEvent(kind: string, message: string) {
-  sink?.({ time: new Date().toISOString(), kind, message: redactLogText(message).slice(0, 4000) });
+  try {
+    sink?.({ time: new Date().toISOString(), kind, message: redactLogText(message).slice(0, 4000) });
+  } catch {
+    // Diagnostics are best effort. Logging here would recurse through console.
+  }
 }
 let installed = false;
 export function installSupportLogging() {

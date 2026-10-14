@@ -1,6 +1,10 @@
-use anyhow::Result;
+use crate::diagnostics::{
+    ProviderError, ProviderFailureKind, TranslationDiagnostic, provider_error,
+};
+use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::sync::Arc;
 use std::time::Duration;
 use tokio::time::sleep;
 
@@ -47,6 +51,7 @@ impl Default for TranslatorConfig {
 pub struct Translator {
     config: TranslatorConfig,
     client: reqwest::Client,
+    diagnostics: Option<Arc<dyn Fn(TranslationDiagnostic) + Send + Sync>>,
 }
 
 impl Translator {
@@ -56,7 +61,38 @@ impl Translator {
             .timeout(Duration::from_secs(120))
             .build()
             .unwrap_or_else(|_| reqwest::Client::new());
-        Self { config, client }
+        Self {
+            config,
+            client,
+            diagnostics: None,
+        }
+    }
+
+    /// Attach a fast, nonblocking observer. Cloned translators retain it.
+    /// No request bodies, URLs or keys are included in diagnostic events.
+    pub fn with_diagnostics(
+        mut self,
+        observer: impl Fn(TranslationDiagnostic) + Send + Sync + 'static,
+    ) -> Self {
+        self.diagnostics = Some(Arc::new(observer));
+        self
+    }
+
+    fn report_retry(
+        &self,
+        status: reqwest::StatusCode,
+        attempt: u32,
+        max_retries: u32,
+        delay: Duration,
+    ) {
+        if let Some(observer) = &self.diagnostics {
+            observer(TranslationDiagnostic {
+                status: status.as_u16(),
+                attempt: attempt + 1,
+                max_retries,
+                retry_in_ms: delay.as_millis() as u64,
+            });
+        }
     }
 
     pub async fn translate(
@@ -257,47 +293,48 @@ impl Translator {
                 .json(&request)
                 .send()
                 .await
-                .map_err(|e| {
-                    eprintln!(
-                        "[srt-translate] Google API request failed: {} (url: {})",
-                        e,
-                        &url[..url.find('?').unwrap_or(url.len())]
-                    );
-                    e
-                })?;
+                .map_err(reqwest::Error::without_url)
+                .context("Google API transport failed")?;
 
             let status = http_response.status();
-            let response_text = http_response.text().await?;
+            let response_text = http_response
+                .text()
+                .await
+                .map_err(reqwest::Error::without_url)
+                .context("Google API response read failed")?;
 
             if let Some(delay) = retry_backoff(status, &response_text, attempt, MAX_RETRIES) {
+                self.report_retry(status, attempt, MAX_RETRIES, delay);
                 sleep(delay).await;
                 continue;
             }
 
             if !status.is_success() {
-                eprintln!(
-                    "[srt-translate] Google API error response (status {}): {}",
-                    status,
-                    truncate_response(&response_text, 500)
-                );
+                return Err(provider_error("Google", status.as_u16(), &response_text).into());
             }
 
-            let response: GeminiResponse = serde_json::from_str(&response_text).map_err(|e| {
-                anyhow::anyhow!(
-                    "Failed to parse Google API response (status {}): {}. Raw: {}",
-                    status,
-                    e,
-                    truncate_response(&response_text, 500)
-                )
-            })?;
+            let response: GeminiResponse =
+                serde_json::from_str(&response_text).map_err(|_| ProviderError {
+                    provider: "Google",
+                    status: status.as_u16(),
+                    kind: ProviderFailureKind::InvalidResponse,
+                })?;
 
             if let Some(ref error) = response.error {
-                let error_msg = error
-                    .message
-                    .as_deref()
-                    .unwrap_or("Unknown Google API error");
-                let error_code = error.code.unwrap_or(0);
-                anyhow::bail!("Google API error (code {}): {}", error_code, error_msg);
+                if error.code == Some(429) {
+                    return Err(ProviderError {
+                        provider: "Google",
+                        status: status.as_u16(),
+                        kind: ProviderFailureKind::RateLimit,
+                    }
+                    .into());
+                }
+                return Err(provider_error(
+                    "Google",
+                    status.as_u16(),
+                    error.message.as_deref().unwrap_or(""),
+                )
+                .into());
             }
 
             let text = response
@@ -307,15 +344,22 @@ impl Translator {
                 .and_then(|c| c.parts)
                 .and_then(|p| p.into_iter().next())
                 .and_then(|p| p.text)
-                .ok_or_else(|| {
-                    anyhow::anyhow!(
-                        "Google API response missing text content. Status: {}. Response: {}",
-                        status,
-                        truncate_response(&response_text, 500)
-                    )
+                .ok_or_else(|| ProviderError {
+                    provider: "Google",
+                    status: status.as_u16(),
+                    kind: ProviderFailureKind::EmptyResponse,
                 })?;
 
-            return Ok(text.trim().trim_matches('"').to_string());
+            let text = text.trim().trim_matches('"').trim().to_string();
+            if text.trim_matches('"').trim().is_empty() {
+                return Err(ProviderError {
+                    provider: "Google",
+                    status: status.as_u16(),
+                    kind: ProviderFailureKind::EmptyResponse,
+                }
+                .into());
+            }
+            return Ok(text);
         }
 
         anyhow::bail!(
@@ -425,31 +469,35 @@ impl Translator {
                     .header("X-Title", "SRT Tools");
             }
 
-            let http_response = req_builder.send().await?;
+            let http_response = req_builder
+                .send()
+                .await
+                .map_err(reqwest::Error::without_url)
+                .context("OpenAI-compatible API transport failed")?;
             let status = http_response.status();
-            let response_text = http_response.text().await?;
+            let response_text = http_response
+                .text()
+                .await
+                .map_err(reqwest::Error::without_url)
+                .context("OpenAI-compatible API response read failed")?;
 
             if let Some(delay) = retry_backoff(status, &response_text, attempt, MAX_RETRIES) {
+                self.report_retry(status, attempt, MAX_RETRIES, delay);
                 sleep(delay).await;
                 continue;
             }
 
             if !status.is_success() {
-                eprintln!(
-                    "[srt-translate] API error response (status {}): {}",
-                    status,
-                    truncate_response(&response_text, 500)
+                return Err(
+                    provider_error("OpenAI-compatible", status.as_u16(), &response_text).into(),
                 );
             }
 
             let response: ResponseWithError =
-                serde_json::from_str(&response_text).map_err(|e| {
-                    anyhow::anyhow!(
-                        "Failed to parse API response (status {}): {}. Raw: {}",
-                        status,
-                        e,
-                        truncate_response(&response_text, 300)
-                    )
+                serde_json::from_str(&response_text).map_err(|_| ProviderError {
+                    provider: "OpenAI-compatible",
+                    status: status.as_u16(),
+                    kind: ProviderFailureKind::InvalidResponse,
                 })?;
 
             if let Some(ref api_error) = response.error {
@@ -458,33 +506,32 @@ impl Translator {
                     .as_deref()
                     .or(api_error.error.as_deref())
                     .unwrap_or("Unknown API error");
-                anyhow::bail!("API error: {}", error_msg);
+                return Err(provider_error("OpenAI-compatible", status.as_u16(), error_msg).into());
             }
 
-            let choices = response.choices.ok_or_else(|| {
-                anyhow::anyhow!(
-                    "API response missing 'choices'. Status: {}. Response: {}",
-                    status,
-                    truncate_response(&response_text, 300)
-                )
+            let choices = response.choices.ok_or_else(|| ProviderError {
+                provider: "OpenAI-compatible",
+                status: status.as_u16(),
+                kind: ProviderFailureKind::EmptyResponse,
             })?;
 
-            return Ok(choices
+            let text = choices
                 .first()
                 .map(|c| c.message.content.trim().to_string())
-                .unwrap_or_default());
+                .unwrap_or_default();
+            if text.trim_matches('"').trim().is_empty() {
+                return Err(ProviderError {
+                    provider: "OpenAI-compatible",
+                    status: status.as_u16(),
+                    kind: ProviderFailureKind::EmptyResponse,
+                }
+                .into());
+            }
+            return Ok(text);
         }
 
         anyhow::bail!("API rate limit exceeded after {} retries", MAX_RETRIES)
     }
-}
-
-fn truncate_response(text: &str, max_bytes: usize) -> &str {
-    let mut end = text.len().min(max_bytes);
-    while !text.is_char_boundary(end) {
-        end -= 1;
-    }
-    &text[..end]
 }
 
 fn retry_backoff(
@@ -498,23 +545,10 @@ fn retry_backoff(
     }
     if status == reqwest::StatusCode::TOO_MANY_REQUESTS {
         let delay = parse_retry_delay(body);
-        eprintln!(
-            "[srt-translate] Rate limited (429), retrying in {:.0}s (attempt {}/{})...",
-            delay.as_secs_f64(),
-            attempt + 1,
-            max_retries
-        );
         return Some(delay);
     }
     if status.is_server_error() {
         let delay = Duration::from_secs(2_u64.pow(attempt) * 5);
-        eprintln!(
-            "[srt-translate] Server error ({}), retrying in {:.0}s (attempt {}/{})...",
-            status,
-            delay.as_secs_f64(),
-            attempt + 1,
-            max_retries
-        );
         return Some(delay);
     }
     None
@@ -562,8 +596,19 @@ fn parse_json_translations(response: &str, expected_count: usize) -> Result<Hash
 
     match serde_json::from_str::<Vec<TranslationItem>>(json_str) {
         Ok(items) => {
-            let translations: HashMap<u32, String> =
-                items.into_iter().map(|item| (item.id, item.text)).collect();
+            let mut translations = HashMap::new();
+            for item in items {
+                anyhow::ensure!(
+                    !item.text.trim().is_empty(),
+                    "Empty translation for subtitle {}",
+                    item.id
+                );
+                anyhow::ensure!(
+                    translations.insert(item.id, item.text).is_none(),
+                    "Duplicate translation ID {}",
+                    item.id
+                );
+            }
 
             if translations.len() != expected_count {
                 anyhow::bail!(
@@ -577,13 +622,17 @@ fn parse_json_translations(response: &str, expected_count: usize) -> Result<Hash
         }
         Err(e) => {
             if let Some(translations) = try_legacy_parsing(cleaned, expected_count) {
+                anyhow::ensure!(
+                    translations.values().all(|text| !text.trim().is_empty()),
+                    "Batch translation contains empty text"
+                );
                 return Ok(translations);
             }
 
             anyhow::bail!(
-                "Failed to parse JSON response: {}. Response was: {}",
-                e,
-                truncate_response(response, 500)
+                "Failed to parse translation JSON response at line {}, column {}",
+                e.line(),
+                e.column()
             )
         }
     }
@@ -598,8 +647,12 @@ fn try_legacy_parsing(text: &str, expected_count: usize) -> Option<HashMap<u32, 
         let line_lower = line.to_lowercase();
 
         if line_lower.starts_with("id:") || line_lower.contains("id:") {
-            if let Some(id) = current_id {
-                translations.insert(id, current_translation.trim().to_string());
+            if let Some(id) = current_id
+                && translations
+                    .insert(id, current_translation.trim().to_string())
+                    .is_some()
+            {
+                return None;
             }
 
             if let Some((id_part, trans_part)) = line.split_once('|') {
@@ -625,11 +678,15 @@ fn try_legacy_parsing(text: &str, expected_count: usize) -> Option<HashMap<u32, 
         }
     }
 
-    if let Some(id) = current_id {
-        translations.insert(id, current_translation.trim().to_string());
+    if let Some(id) = current_id
+        && translations
+            .insert(id, current_translation.trim().to_string())
+            .is_some()
+    {
+        return None;
     }
 
-    if translations.len() >= expected_count {
+    if translations.len() == expected_count {
         Some(translations)
     } else {
         None
@@ -639,13 +696,6 @@ fn try_legacy_parsing(text: &str, expected_count: usize) -> Option<HashMap<u32, 
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn truncation_preserves_unicode_boundaries() {
-        assert_eq!(truncate_response("a界🙂z", 3), "a");
-        assert_eq!(truncate_response("a界🙂z", 6), "a界");
-        assert_eq!(truncate_response("hello", 0), "");
-    }
 
     #[test]
     fn test_parse_json_translations_clean_json() {

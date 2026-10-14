@@ -1,6 +1,7 @@
 <script lang="ts">
   import { locale } from "$lib/i18n";
   import { getFileName } from "$lib/utils/models";
+  import { copyText } from "$lib/utils/clipboard";
   import { hasMediaOverrides, type EpisodeMediaOverrides } from "$lib/types/flashcardMediaTypes";
 
   /** Structural subset of FlashcardsTab.svelte's EpisodeEntry — this table
@@ -105,7 +106,7 @@
               <td
                 class="p-1.5 cursor-pointer truncate text-emerald-300 transition-colors hover:bg-violet-500/12 hover:text-emerald-100 rounded-md text-center"
                 title={ep.targetSubsPath}
-                onclick={() => { navigator.clipboard.writeText(ep.targetSubsPath); showSnackbar(t("flashcards.copiedTargetSubs"), "success"); }}
+                onclick={() => void copyText(ep.targetSubsPath, t("flashcards.copiedTargetSubs"), t("common.copy"), showSnackbar)}
               >
                 <span class="px-1.5 py-0.5">{getFileName(ep.targetSubsPath)}</span>
               </td>
@@ -126,7 +127,7 @@
                   ? 'text-blue-300 hover:text-blue-100'
                   : 'text-gray-600 hover:text-gray-400'}"
                 title={ep.nativeSubsPath || "—"}
-                onclick={() => { if(ep.nativeSubsPath) { navigator.clipboard.writeText(ep.nativeSubsPath); showSnackbar(t("flashcards.copiedNativeSubs"), "success"); } }}
+                onclick={() => { if (ep.nativeSubsPath) void copyText(ep.nativeSubsPath, t("flashcards.copiedNativeSubs"), t("common.copy"), showSnackbar); }}
               >
                 <span class="px-1.5 py-0.5">{ep.nativeSubsPath
                   ? getFileName(ep.nativeSubsPath)
@@ -135,7 +136,7 @@
               <td
                 class="p-1.5 cursor-pointer truncate transition-colors hover:bg-violet-500/12 rounded-md text-center {ep.mediaPath ? 'text-purple-300 hover:text-purple-100' : 'text-gray-600 hover:text-gray-400'}"
                 title={ep.mediaPath || "—"}
-                onclick={() => { if(ep.mediaPath) { navigator.clipboard.writeText(ep.mediaPath); showSnackbar(t("flashcards.copiedMediaPath"), "success"); } }}
+                onclick={() => { if (ep.mediaPath) void copyText(ep.mediaPath, t("flashcards.copiedMediaPath"), t("common.copy"), showSnackbar); }}
               >
                 {#if ep.mediaPath}
                   <span class="group inline-flex max-w-full items-center gap-1.5 text-left px-1.5 py-0.5">
