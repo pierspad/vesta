@@ -13,6 +13,7 @@ use serde::Deserialize;
 use srt_parser::SrtParser;
 use srt_translate::{TierEntry, TranslationProgress, translate_subtitles_tiered_cancellable};
 use std::path::PathBuf;
+use std::process::ExitCode;
 use std::sync::LazyLock;
 use tokio_util::sync::CancellationToken;
 
@@ -126,7 +127,17 @@ struct Cli {
 }
 
 #[tokio::main]
-async fn main() -> Result<()> {
+async fn main() -> ExitCode {
+    match run_cli().await {
+        Ok(code) => code,
+        Err(error) => {
+            eprintln!("srt-translate: {error:#}");
+            ExitCode::FAILURE
+        }
+    }
+}
+
+async fn run_cli() -> Result<ExitCode> {
     // Carica le variabili d'ambiente dal file .env
     // Ignora l'errore se il file .env non esiste (non è obbligatorio)
     let _ = dotenvy::dotenv();
@@ -136,7 +147,7 @@ async fn main() -> Result<()> {
     // Se richiesta la lista delle lingue
     if cli.language_list {
         print_language_list();
-        return Ok(());
+        return Ok(ExitCode::SUCCESS);
     }
 
     // Se richiesta la verifica dei sottotitoli mancanti
@@ -244,6 +255,8 @@ async fn main() -> Result<()> {
         parent.join(filename)
     });
 
+    srt_parser::persistence::ensure_distinct_files(&cli.input, &output_path)?;
+
     println!(" Translating to '{}'...", language);
     println!();
 
@@ -262,7 +275,18 @@ async fn main() -> Result<()> {
     // repair automatico delle righe mancanti/incoerenti: tutta questa logica
     // vive in `srt_translate` (vedi `translate_subtitles_tiered_cancellable`),
     // non più duplicata qui nel CLI.
-    let translated = translate_subtitles_tiered_cancellable(
+    let cancel_token = CancellationToken::new();
+    {
+        let token = cancel_token.clone();
+        tokio::spawn(async move {
+            if tokio::signal::ctrl_c().await.is_ok() {
+                eprintln!("\nCancelling translation...");
+                token.cancel();
+            }
+        });
+    }
+
+    let translated_result = translate_subtitles_tiered_cancellable(
         pool,
         original_subtitles.clone(),
         language,
@@ -271,9 +295,18 @@ async fn main() -> Result<()> {
         title_context.as_deref(),
         &output_path,
         cli_progress_handler,
-        CancellationToken::new(),
+        cancel_token.clone(),
     )
-    .await?;
+    .await;
+
+    if cancel_token.is_cancelled() {
+        eprintln!(
+            "Translation cancelled. The latest completed batches remain available at {}.",
+            output_path.display()
+        );
+        return Ok(ExitCode::from(130));
+    }
+    let translated = translated_result?;
 
     println!();
 
@@ -295,10 +328,10 @@ async fn main() -> Result<()> {
     println!("💾 Translation complete: {}", output_path.display());
     println!("✨ Done!");
 
-    Ok(())
+    Ok(ExitCode::SUCCESS)
 }
 
-fn check_missing_subtitles(original_path: &PathBuf, translated_path: &PathBuf) -> Result<()> {
+fn check_missing_subtitles(original_path: &PathBuf, translated_path: &PathBuf) -> Result<ExitCode> {
     println!("🔍 Checking for missing subtitles and line count discrepancies...");
     println!();
 
@@ -321,7 +354,7 @@ fn check_missing_subtitles(original_path: &PathBuf, translated_path: &PathBuf) -
             "   All {} subtitles need to be translated.",
             original_subtitles.len()
         );
-        return Ok(());
+        return Ok(ExitCode::FAILURE);
     }
 
     println!("📖 Reading translation file: {}", translated_path.display());
@@ -412,7 +445,11 @@ fn check_missing_subtitles(original_path: &PathBuf, translated_path: &PathBuf) -
         );
     }
 
-    Ok(())
+    Ok(if has_issues {
+        ExitCode::FAILURE
+    } else {
+        ExitCode::SUCCESS
+    })
 }
 
 /// Raggruppa una lista di ID in intervalli consecutivi per una visualizzazione compatta

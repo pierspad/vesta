@@ -30,6 +30,12 @@ srt-translate -i movie.srt --check-missing movie.it.srt
 srt-translate --language-list
 ```
 
+Ctrl+C stops in-flight requests, exits 130, and leaves the last completed
+translation batches at the output path so a later run can resume. Choose an
+output path distinct from the input; symlink aliases are rejected before any
+provider request. `--check-missing` exits 0 only when every subtitle is present
+with matching line counts; an absent or incomplete translation exits 1.
+
 ## Configuration
 
 Create a `config.toml` file in the working directory. Providers are organized in

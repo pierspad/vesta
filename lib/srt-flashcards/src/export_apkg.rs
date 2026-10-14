@@ -495,40 +495,45 @@ pub(crate) fn generate_apkg(
     )
     .map_err(|e| format!("Cannot write media JSON: {e}"))?;
 
-    let apkg_file =
-        std::fs::File::create(output_path).map_err(|e| format!("Cannot create APKG: {e}"))?;
-    let writer = std::io::BufWriter::with_capacity(256 * 1024, apkg_file);
-    let mut zip = zip::ZipWriter::new(writer);
-    let options_deflated = zip::write::SimpleFileOptions::default()
-        .compression_method(zip::CompressionMethod::Deflated);
-    let options_stored =
-        zip::write::SimpleFileOptions::default().compression_method(zip::CompressionMethod::Stored);
+    srt_parser::persistence::atomic_write_with(output_path, |apkg_file| {
+        let writer = std::io::BufWriter::with_capacity(256 * 1024, apkg_file);
+        let mut zip = zip::ZipWriter::new(writer);
+        let options_deflated = zip::write::SimpleFileOptions::default()
+            .compression_method(zip::CompressionMethod::Deflated);
+        let options_stored = zip::write::SimpleFileOptions::default()
+            .compression_method(zip::CompressionMethod::Stored);
 
-    zip.start_file("collection.anki2", options_deflated)
-        .map_err(|e| format!("ZIP error: {e}"))?;
-    let db_bytes = std::fs::read(&db_path).map_err(|e| format!("Cannot read DB: {e}"))?;
-    zip.write_all(&db_bytes)
-        .map_err(|e| format!("ZIP write error: {e}"))?;
+        zip.start_file("collection.anki2", options_deflated)
+            .map_err(|e| anyhow::anyhow!("ZIP error: {e}"))?;
+        let db_bytes =
+            std::fs::read(&db_path).map_err(|e| anyhow::anyhow!("Cannot read DB: {e}"))?;
+        zip.write_all(&db_bytes)
+            .map_err(|e| anyhow::anyhow!("ZIP write error: {e}"))?;
 
-    zip.start_file("media", options_deflated)
-        .map_err(|e| format!("ZIP error: {e}"))?;
-    let media_json_bytes =
-        std::fs::read(&media_json_path).map_err(|e| format!("Cannot read media JSON: {e}"))?;
-    zip.write_all(&media_json_bytes)
-        .map_err(|e| format!("ZIP write error: {e}"))?;
+        zip.start_file("media", options_deflated)
+            .map_err(|e| anyhow::anyhow!("ZIP error: {e}"))?;
+        let media_json_bytes = std::fs::read(&media_json_path)
+            .map_err(|e| anyhow::anyhow!("Cannot read media JSON: {e}"))?;
+        zip.write_all(&media_json_bytes)
+            .map_err(|e| anyhow::anyhow!("ZIP write error: {e}"))?;
 
-    for (idx_str, file_path) in &media_files {
-        zip.start_file(idx_str, options_stored)
-            .map_err(|e| format!("ZIP error adding media: {e}"))?;
-        let file =
-            std::fs::File::open(file_path).map_err(|e| format!("Cannot read media file: {e}"))?;
-        let mut reader = std::io::BufReader::with_capacity(128 * 1024, file);
-        std::io::copy(&mut reader, &mut zip).map_err(|e| format!("ZIP write error: {e}"))?;
-    }
+        for (idx_str, file_path) in &media_files {
+            zip.start_file(idx_str, options_stored)
+                .map_err(|e| anyhow::anyhow!("ZIP error adding media: {e}"))?;
+            let file = std::fs::File::open(file_path)
+                .map_err(|e| anyhow::anyhow!("Cannot read media file: {e}"))?;
+            let mut reader = std::io::BufReader::with_capacity(128 * 1024, file);
+            std::io::copy(&mut reader, &mut zip)
+                .map_err(|e| anyhow::anyhow!("ZIP write error: {e}"))?;
+        }
 
-    zip.finish().map_err(|e| format!("ZIP finish error: {e}"))?;
-
-    Ok(())
+        let mut writer = zip
+            .finish()
+            .map_err(|e| anyhow::anyhow!("ZIP finish error: {e}"))?;
+        writer.flush()?;
+        Ok(())
+    })
+    .map_err(|error| format!("Cannot publish APKG: {error:#}"))
 }
 
 macro_rules! anki_tag_script {
@@ -751,6 +756,29 @@ mod tests {
             output_fields,
             ..FlashcardConfig::default()
         }
+    }
+
+    #[test]
+    fn archive_failure_preserves_existing_package_and_cleans_temporary() {
+        let dir = tempfile::tempdir().unwrap();
+        let output = dir.path().join("deck.apkg");
+        let media = dir.path().join("media");
+        std::fs::create_dir(&media).unwrap();
+        let mut cfg = base_config("Atomic", "Basic", OutputFields::default());
+        cfg.generate_audio = true;
+        // A directory in place of an audio file fails during archive streaming,
+        // after the collection and manifest have already been written.
+        let filename = media_filename(
+            MediaKind::Audio(cfg.audio_format),
+            "Atomic",
+            cfg.episode_number,
+            1,
+        );
+        std::fs::create_dir(media.join(filename)).unwrap();
+        std::fs::write(&output, b"previous valid package").unwrap();
+        assert!(generate_apkg(&[line(0, "Hello", None)], &cfg, &media, &output).is_err());
+        assert_eq!(std::fs::read(&output).unwrap(), b"previous valid package");
+        assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), 2);
     }
 
     #[test]

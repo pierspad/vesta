@@ -8,6 +8,7 @@
 //! This binary is the "shell": it parses CLI arguments and delegates all logic
 //! to the library, mirroring the `srt-flashcards` / `srt-translate` CLIs.
 
+use std::process::ExitCode;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicI64, Ordering};
 
@@ -115,7 +116,17 @@ fn vad_variant_id(model_id: &str) -> Option<&str> {
 }
 
 #[tokio::main]
-async fn main() -> Result<()> {
+async fn main() -> ExitCode {
+    match run_cli().await {
+        Ok(code) => code,
+        Err(error) => {
+            eprintln!("srt-transcribe: {error:#}");
+            ExitCode::FAILURE
+        }
+    }
+}
+
+async fn run_cli() -> Result<ExitCode> {
     let cli = Cli::parse();
 
     match cli.command {
@@ -141,7 +152,7 @@ async fn main() -> Result<()> {
                     id_label, "Silero", vad.size, "(VAD add-on)", status
                 );
             }
-            Ok(())
+            Ok(ExitCode::SUCCESS)
         }
         Command::Download { model_id } => {
             let label = model_id.clone();
@@ -152,7 +163,7 @@ async fn main() -> Result<()> {
                 download_model(&model_id, progress, None).await?
             };
             eprintln!("\nModel saved to {}", path.display());
-            Ok(())
+            Ok(ExitCode::SUCCESS)
         }
         Command::Remove { model_id } => {
             let removed = if let Some(vad_id) = vad_variant_id(&model_id) {
@@ -168,13 +179,13 @@ async fn main() -> Result<()> {
                     "Model was not installed."
                 }
             );
-            Ok(())
+            Ok(ExitCode::SUCCESS)
         }
-        Command::Run(args) => run(args).await,
+        Command::Run(args) => run_transcription(args).await,
     }
 }
 
-async fn run(args: RunArgs) -> Result<()> {
+async fn run_transcription(args: RunArgs) -> Result<ExitCode> {
     let config = TranscriptionConfig {
         input_path: args.input,
         output_path: args.output,
@@ -199,7 +210,9 @@ async fn run(args: RunArgs) -> Result<()> {
         let token = cancel_token.clone();
         tokio::spawn(async move {
             if tokio::signal::ctrl_c().await.is_ok() {
-                eprintln!("\nCancelling...");
+                if !args.json {
+                    eprintln!("\nCancelling...");
+                }
                 token.cancel();
             }
         });
@@ -225,7 +238,14 @@ async fn run(args: RunArgs) -> Result<()> {
         }
     };
 
-    let outcome = transcribe_to_srt(&config, &args.ffmpeg, callbacks, &cancel_token).await?;
+    let outcome = match transcribe_to_srt(&config, &args.ffmpeg, callbacks, &cancel_token).await {
+        Ok(outcome) => outcome,
+        Err(_) if cancel_token.is_cancelled() => {
+            eprintln!("Transcription cancelled.");
+            return Ok(ExitCode::from(130));
+        }
+        Err(error) => return Err(error),
+    };
 
     println!(
         "Wrote {} subtitles to {}{}",
@@ -236,7 +256,7 @@ async fn run(args: RunArgs) -> Result<()> {
             .map(|l| format!(" (language: {l})"))
             .unwrap_or_default()
     );
-    Ok(())
+    Ok(ExitCode::SUCCESS)
 }
 
 /// `--json` mode: one `ProgressUpdate` JSON object per line on stdout while
@@ -248,7 +268,7 @@ async fn run_json(
     config: TranscriptionConfig,
     ffmpeg: &str,
     cancel_token: &CancellationToken,
-) -> Result<()> {
+) -> Result<ExitCode> {
     let callbacks = PipelineCallbacks {
         on_progress: Some(Arc::new(|update| {
             if let Ok(line) = serde_json::to_string(&update) {
@@ -261,14 +281,23 @@ async fn run_json(
     match transcribe_to_srt(&config, ffmpeg, callbacks, cancel_token).await {
         Ok(outcome) => {
             println!("{}", serde_json::json!({ "ok": true, "outcome": outcome }));
-            Ok(())
+            Ok(ExitCode::SUCCESS)
         }
         Err(e) => {
+            let cancelled = cancel_token.is_cancelled();
             println!(
                 "{}",
-                serde_json::json!({ "ok": false, "error": format!("{e:#}") })
+                serde_json::json!({
+                    "ok": false,
+                    "cancelled": cancelled,
+                    "error": format!("{e:#}")
+                })
             );
-            std::process::exit(1);
+            Ok(if cancelled {
+                ExitCode::from(130)
+            } else {
+                ExitCode::FAILURE
+            })
         }
     }
 }

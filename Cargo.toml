@@ -22,6 +22,7 @@ reqwest = { version = "0.13", default-features = false, features = ["json", "for
 dirs = "6"
 hound = "3"
 tempfile = "3"
+same-file = "1.0.6"
 whisper-rs = "0.16"
 num_cpus = "1.16"
 futures = "0.3"

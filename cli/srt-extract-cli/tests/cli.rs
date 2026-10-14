@@ -49,3 +49,28 @@ fn missing_input_does_not_overwrite_output() {
     assert!(String::from_utf8_lossy(&output.stderr).contains("missing.srt"));
     assert_eq!(std::fs::read_to_string(destination).unwrap(), "existing");
 }
+
+#[test]
+fn output_cannot_replace_the_input_file() {
+    let dir = tempfile::tempdir().unwrap();
+    let input = dir.path().join("input.srt");
+    let original = "1\n00:00:01,000 --> 00:00:02,000\nHello\n";
+    std::fs::write(&input, original).unwrap();
+
+    let output = Command::new(env!("CARGO_BIN_EXE_srt-extract"))
+        .args([
+            "--input",
+            input.to_str().unwrap(),
+            "--format",
+            "json",
+            "--output",
+            input.to_str().unwrap(),
+        ])
+        .output()
+        .unwrap();
+
+    assert_eq!(output.status.code(), Some(1));
+    assert!(output.stdout.is_empty());
+    assert!(String::from_utf8_lossy(&output.stderr).contains("same file"));
+    assert_eq!(std::fs::read_to_string(input).unwrap(), original);
+}

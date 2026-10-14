@@ -939,7 +939,7 @@ pub async fn generate(
         let media_str = media_dir.to_str().unwrap_or("");
         let tsv_content = generate_tsv(&matched, &config, media_str, media_str, media_str);
         let tsv_path = output_dir.join(format!("{}.tsv", sanitize_filename(&config.deck_name)));
-        std::fs::write(&tsv_path, tsv_content.as_bytes())
+        srt_parser::persistence::atomic_write(&tsv_path, tsv_content.as_bytes())
             .map_err(|e| format!("Cannot write TSV: {}", e))?;
         tsv_path_result = Some(tsv_path.to_string_lossy().to_string());
     }

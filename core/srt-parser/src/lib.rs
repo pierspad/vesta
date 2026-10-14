@@ -1,10 +1,10 @@
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::fs;
 use std::path::Path;
 
 pub mod encoding;
+pub mod persistence;
 
 /// Rappresenta un timestamp SRT in millisecondi
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -319,7 +319,8 @@ impl SrtParser {
             }
         }
 
-        fs::write(path, content).context("Impossibile scrivere il file")?;
+        persistence::atomic_write(path, content.as_bytes())
+            .context("Impossibile scrivere il file")?;
         Ok(())
     }
 }

@@ -230,22 +230,33 @@ pub fn ms_to_srt_timestamp(ms: i64) -> String {
 pub fn write_srt(segments: &[RawSegment], output_path: &str) -> Result<usize> {
     use std::io::Write as _;
 
-    let mut file = std::fs::File::create(output_path)
-        .with_context(|| format!("Cannot create output file: {output_path}"))?;
-
-    for (i, seg) in segments.iter().enumerate() {
-        writeln!(file, "{}", i + 1)?;
-        writeln!(
-            file,
-            "{} --> {}",
-            ms_to_srt_timestamp(seg.start_ms),
-            ms_to_srt_timestamp(seg.end_ms)
-        )?;
-        writeln!(file, "{}", seg.text.trim())?;
-        writeln!(file)?;
-    }
-
+    srt_parser::persistence::atomic_write_with(output_path, |file| {
+        let mut file = std::io::BufWriter::new(file);
+        for (i, seg) in segments.iter().enumerate() {
+            writeln!(file, "{}", i + 1)?;
+            writeln!(
+                file,
+                "{} --> {}",
+                ms_to_srt_timestamp(seg.start_ms),
+                ms_to_srt_timestamp(seg.end_ms)
+            )?;
+            writeln!(file, "{}", seg.text.trim())?;
+            writeln!(file)?;
+        }
+        file.flush()?;
+        Ok(())
+    })
+    .with_context(|| format!("Cannot write output file: {output_path}"))?;
     Ok(segments.len())
+}
+
+fn publish_srt(
+    segments: &[RawSegment],
+    output_path: &str,
+    cancel: &CancellationToken,
+) -> Result<usize> {
+    anyhow::ensure!(!cancel.is_cancelled(), "Transcription cancelled");
+    write_srt(segments, output_path)
 }
 
 pub fn apply_language_suffix_to_srt_path(output_path: &str, language: &str) -> String {
@@ -379,7 +390,7 @@ pub fn run_local(
         _ => config.output_path.clone(),
     };
 
-    let count = write_srt(&segments, &effective_output_path)?;
+    let count = publish_srt(&segments, &effective_output_path, cancel_token)?;
 
     Ok(TranscriptionOutcome {
         output_path: effective_output_path,
@@ -479,7 +490,7 @@ pub async fn run_cloud(
 
     callbacks.progress("writing", "Writing SRT file...", 92.0);
 
-    let count = write_srt(&segments, &config.output_path)?;
+    let count = publish_srt(&segments, &config.output_path, cancel_token)?;
 
     let detected_language = (config.language != "auto").then(|| config.language.clone());
 
@@ -583,4 +594,46 @@ pub async fn transcribe_to_srt(
     );
 
     Ok(outcome)
+}
+
+#[cfg(test)]
+mod publication_tests {
+    use super::*;
+
+    #[test]
+    fn cancelled_publication_preserves_existing_output() {
+        let dir = tempfile::tempdir().unwrap();
+        let output = dir.path().join("output.srt");
+        std::fs::write(&output, "previous output").unwrap();
+        let cancel = CancellationToken::new();
+        cancel.cancel();
+        assert!(publish_srt(&[], output.to_str().unwrap(), &cancel).is_err());
+        assert_eq!(std::fs::read_to_string(&output).unwrap(), "previous output");
+        assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), 1);
+    }
+
+    #[test]
+    fn publication_keeps_srt_format_and_replaces_complete_output() {
+        let dir = tempfile::tempdir().unwrap();
+        let output = dir.path().join("output.srt");
+        std::fs::write(&output, "previous output").unwrap();
+        let segments = [RawSegment {
+            start_ms: 1250,
+            end_ms: 2500,
+            text: " 日本語 ".into(),
+        }];
+        assert_eq!(
+            publish_srt(
+                &segments,
+                output.to_str().unwrap(),
+                &CancellationToken::new()
+            )
+            .unwrap(),
+            1
+        );
+        assert_eq!(
+            std::fs::read_to_string(output).unwrap(),
+            "1\n00:00:01,250 --> 00:00:02,500\n日本語\n\n"
+        );
+    }
 }

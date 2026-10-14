@@ -47,12 +47,16 @@ struct Cli {
 async fn main() -> Result<()> {
     let cli = Cli::parse();
 
+    if let Some(output) = &cli.output {
+        srt_parser::persistence::ensure_distinct_files(&cli.input, output)?;
+    }
+
     if cli.list_tracks {
         let tracks =
             srt_extract::embedded::list_embedded_subtitles(&cli.ffprobe, &cli.input).await?;
         let output = serde_json::to_string_pretty(&tracks)?;
         if let Some(path) = cli.output {
-            std::fs::write(&path, output)
+            srt_parser::persistence::atomic_write(&path, output.as_bytes())
                 .with_context(|| format!("Failed to write output {}", path.display()))?;
         } else {
             println!("{output}");
@@ -108,7 +112,7 @@ async fn main() -> Result<()> {
 
     // Save or print
     if let Some(output_path) = cli.output {
-        std::fs::write(&output_path, output)
+        srt_parser::persistence::atomic_write(&output_path, output.as_bytes())
             .with_context(|| format!("Failed to write output {}", output_path.display()))?;
         eprintln!("Output saved to: {}", output_path.display());
     } else {

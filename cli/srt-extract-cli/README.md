@@ -31,4 +31,4 @@ Discovery emits JSON with absolute stream indices. Extraction requires `--output
 `--list-tracks` and `--track` are mutually exclusive. FFmpeg/ffprobe must be on
 PATH, or supplied with `--ffmpeg /path/to/ffmpeg --ffprobe /path/to/ffprobe`.
 Bitmap tracks require OCR and cannot be exported as text by this tool. Failed
-extraction preserves an existing output; successful extraction replaces it atomically.
+extraction preserves an existing output; successful extraction replaces it atomically. Output files may not refer to the input file, including through a symlink or hard link.

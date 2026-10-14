@@ -4441,7 +4441,9 @@ dependencies = [
  "anyhow",
  "chardetng",
  "encoding_rs",
+ "same-file",
  "serde",
+ "tempfile",
 ]
 
 [[package]]
@@ -4507,6 +4509,7 @@ dependencies = [
  "serde",
  "serde_json",
  "srt-download",
+ "srt-parser",
  "tempfile",
  "tokio",
  "tokio-util",
@@ -4521,6 +4524,7 @@ dependencies = [
  "clap",
  "serde_json",
  "srt-transcribe",
+ "tempfile",
  "tokio",
  "tokio-util",
 ]
@@ -4552,6 +4556,7 @@ dependencies = [
  "serde",
  "srt-parser",
  "srt-translate",
+ "tempfile",
  "tokio",
  "tokio-util",
  "toml 1.1.2+spec-1.1.0",

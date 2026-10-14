@@ -24,3 +24,6 @@ vulkan = ["srt-transcribe/vulkan"]
 cuda = ["srt-transcribe/cuda"]
 rocm = ["srt-transcribe/rocm"]
 sycl = ["srt-transcribe/sycl"]
+
+[dev-dependencies]
+tempfile.workspace = true

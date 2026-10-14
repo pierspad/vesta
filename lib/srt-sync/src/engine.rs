@@ -378,7 +378,8 @@ impl SyncEngine {
         let json =
             serde_json::to_string_pretty(&state).context("Impossibile serializzare lo stato")?;
 
-        std::fs::write(session_path, json).context("Impossibile salvare la sessione")?;
+        srt_parser::persistence::atomic_write(session_path, json.as_bytes())
+            .context("Impossibile salvare la sessione")?;
 
         Ok(())
     }

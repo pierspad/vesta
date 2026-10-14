@@ -6,6 +6,7 @@ rust-version.workspace = true
 
 [dependencies]
 srt-download.workspace = true
+srt-parser.workspace = true
 anyhow.workspace = true
 dirs.workspace = true
 hound.workspace = true
