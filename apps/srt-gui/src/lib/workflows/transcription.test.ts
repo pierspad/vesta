@@ -36,3 +36,21 @@ it("does not start cancelled work and reports exhausted failover", async () => {
  run.isCancelled = () => false; run.start = vi.fn().mockRejectedValue(new Error("offline"));
  expect(await runTranscription(run)).toEqual({ status: "failed", error: "Error: offline" });
 });
+
+it("sends the chosen local model while preserving saved tiers and cloud models", async () => {
+ const { withLocalModelOverride } = await import("./transcription");
+ const run = options(); const saved = run.tiers;
+ run.tiers = withLocalModelOverride(saved, "small");
+ run.models.push({ id: "small", downloaded: true, name: "Small", size: "", speed: "" });
+ expect(saved[0].entries[0].model).toBe("base");
+ expect(run.tiers[0].entries[1]).toEqual(cloud);
+ expect((await runTranscription(run)).status).toBe("success");
+ expect(run.start).toHaveBeenCalledWith(expect.objectContaining({ model: "small", provider: "local" }));
+});
+it("supports cloud-only tiers and restores configured models", async () => {
+ const { withLocalModelOverride } = await import("./transcription");
+ for (const tiers of [[], [{ id: "cloud", entries: [cloud] }]]) {
+  expect(withLocalModelOverride(tiers, "small")[0].entries[0]).toMatchObject({ provider: "local", model: "small" });
+  expect(withLocalModelOverride(tiers, null)).toBe(tiers);
+ }
+});

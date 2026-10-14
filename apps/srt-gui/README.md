@@ -73,7 +73,12 @@ available after the notification disappears.
 
 **Experimental → Try without saving** reuses the first-run UI without persistence
 or downloads. **Restart setup** applies real preferences and downloads selected
-resources. The app waits for durable settings before reloading. See the
+resources. Quick Setup prepares Whisper Small, Silero VAD, missing FFmpeg/FFprobe
+and language fonts; Custom Setup lets the user choose the model or disable local
+transcription. Both show download sizes, installation progress, retry failed
+downloads while reusing installed components, and offer a first activity after
+verification. The selected local model is also written into the transcription
+tier. The app waits for durable settings before reloading into the chosen tab. See the
 [setup and installer guide](../../docs/reviews/provare-setup-e-installer-2026-10-07.md).
 
 ## Logs and updates

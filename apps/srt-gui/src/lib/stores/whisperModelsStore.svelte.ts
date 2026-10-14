@@ -102,7 +102,7 @@ class WhisperModelsStore {
   }
 
   async downloadModel(modelId: string, setAsDefaultAfterDownload = false) {
-    if (this.isDownloading) return;
+    if (this.isDownloading || this.downloadingVadId) return;
     this.isDownloading = true;
     this.isCancellingDownload = false;
     this.downloadingModelId = modelId;

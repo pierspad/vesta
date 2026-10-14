@@ -3,8 +3,11 @@
   import TranscriptionSegmentsPanel from "$lib/panels/TranscriptionSegmentsPanel.svelte";
   import { formatElapsedTime } from "$lib/utils/elapsedTime";
   import { generateTranscriptionOutputPath as generateOutputPathFromInput, rewriteTranscriptionOutputLanguage as rewriteOutputPathLanguage } from "$lib/utils/transcriptionPaths";
-  import { runTranscription, isTranscribeEndpointReady } from "$lib/workflows/transcription";
+  import { runTranscription, isTranscribeEndpointReady, withLocalModelOverride } from "$lib/workflows/transcription";
   import LogPanel, { type LogEntry } from "$lib/panels/LogPanel.svelte";
+  import WhisperModelSelector from "$lib/components/WhisperModelSelector.svelte";
+  import MediaIcon from "$lib/components/MediaIcon.svelte";
+  import { whisperModelsStore as modelStore } from "$lib/stores/whisperModelsStore.svelte";
   import CopyPathChip from "$lib/components/CopyPathChip.svelte";
   import { listen } from "@tauri-apps/api/event";
   import { guardedOpen, guardedSave } from "$lib/utils/dialogGuard";
@@ -52,6 +55,7 @@
   let inputPath = $state("");
   let outputPath = $state("");
   let selectedModel = $state("base");
+  let localModelOverride = $state<string | null>(null);
   const LAST_TRANSCRIBE_LANGUAGE_KEY = "vesta-transcribe-source-language";
   const DEFAULT_TRANSCRIBE_LANGUAGE_KEY = "vesta-default-transcribe-language";
   const initialTranscribeLanguage =
@@ -67,10 +71,8 @@
   const TRANSCRIBE_QUALITY_KEY = "vesta-transcribe-quality";
   const TRANSCRIBE_VAD_KEY = "vesta-transcribe-vad";
   let qualityMode = $state(vestaConfig.getItem(TRANSCRIBE_QUALITY_KEY) === "true");
-  // Defaults to ON: once a VAD model is installed it's a strict improvement
-  // for local transcription (skips silence, fewer hallucinations). The toggle
-  // itself stays disabled until `vadInstalled` is true, so this default is
-  // inert for users without the model.
+  // Default ON when installed; users can disable it for quiet speech that
+  // the detector may miss. Never enable VAD without an available model.
   const storedVad = vestaConfig.getItem(TRANSCRIBE_VAD_KEY);
   let vadEnabled = $state(storedVad === null ? true : storedVad === "true");
   const transcriptionResources = new TranscriptionResources();
@@ -139,6 +141,7 @@
 
   // ─── Transcription engine (Local Whisper vs cloud providers) ────────────────
   let transcribeTiers = $state<TranscribeTier[]>([]);
+  let effectiveTiers = $derived(withLocalModelOverride(transcribeTiers, localModelOverride));
   let apiKeys = $state<ApiKeyConfig[]>([]);
   let transcribedSegments = $state<{ start_ms: number; end_ms: number; text: string }[]>([]);
 
@@ -154,22 +157,22 @@
   }
 
   let usableEntries = $derived(
-    transcribeTiers.flatMap((t) => t.entries).filter(isTranscribeEntryReady)
+    effectiveTiers.flatMap((t) => t.entries).filter(isTranscribeEntryReady)
   );
 
   let canStart = $derived(
-    !!inputPath && !!outputPath && usableEntries.length > 0
+    !!inputPath && !!outputPath && usableEntries.length > 0 && !modelStore.isDownloading && !modelStore.downloadingVadId
   );
 
   let transcribeBlockedReason = $derived.by(() => {
     if (!inputPath || !outputPath) {
       return t("transcribe.blocked.selectFiles");
     }
-    if (transcribeTiers.length === 0 || transcribeTiers.flatMap((t) => t.entries).length === 0) {
+    if (effectiveTiers.length === 0 || effectiveTiers.flatMap((t) => t.entries).length === 0) {
       return t("transcribe.blocked.noTiers");
     }
     if (usableEntries.length === 0) {
-      const hasLocalConfigured = transcribeTiers.flatMap((t) => t.entries).some(e => e.provider === "local" || e.provider === "local_whisper");
+      const hasLocalConfigured = effectiveTiers.flatMap((t) => t.entries).some(e => e.provider === "local" || e.provider === "local_whisper");
       if (hasLocalConfigured) {
         return t("transcribe.blocked.missingModel");
       }
@@ -256,6 +259,8 @@
 
     refreshModels().catch((e) => console.error("Could not list models:", e));
     void refreshAddons();
+    void modelStore.refreshModels();
+    window.addEventListener("vesta-whisper-models-updated", refreshModels);
     window.addEventListener("vesta-vad-updated", refreshAddons);
 
     let activeListener = true;
@@ -274,8 +279,13 @@
       message: string;
       percentage: number;
     }>("transcribe-progress", (event) => {
-      if (!isTranscribing || transcriptionCancelled) return;
       const p = event.payload;
+      if (p.stage === "download" && (modelStore.isDownloading || modelStore.downloadingVadId)) {
+        modelStore.progress = Math.round(p.percentage);
+        modelStore.progressMessage = p.message;
+        return;
+      }
+      if (!isTranscribing || transcriptionCancelled) return;
       if (p.stage === "download") return; // Ignored here, handled in SettingsTab
       
       progress = Math.round(p.percentage);
@@ -310,6 +320,7 @@
     return () => {
       activeListener = false;
       transcriptionResources.dispose();
+      window.removeEventListener("vesta-whisper-models-updated", refreshModels);
       window.removeEventListener("keydown", handleKeydown);
       window.removeEventListener(TRANSCRIBE_TIERS_UPDATED_EVENT, refreshTranscribeTiers);
       window.removeEventListener("apikeys-updated", refreshApiKeys);
@@ -373,6 +384,7 @@
 
 
   async function selectInputFile() {
+    if (isTranscribing) return;
     try {
       const selected = await guardedOpen({
         multiple: false,
@@ -411,16 +423,7 @@
       });
 
       if (selected) {
-        inputPath = selected as string;
-        if (!outputPath) {
-          const outputLang = effectiveLanguageCodeForOutput(selectedLanguage);
-          outputPath = generateOutputPathFromInput(inputPath, outputLang);
-        }
-        addLog(
-          `${t("transcribe.fileSelected")}: ${getFileName(inputPath)}`,
-          "file",
-        );
-        addLog(`Output file: ${getFileName(outputPath)}`, "info");
+        loadInputMedia(selected as string);
       }
     } catch (e) {
       error = `${t("transcribe.errorSelectingFile")}: ${e}`;
@@ -440,19 +443,12 @@
 
   async function processFilesToLoad(paths: string[]) {
     if (paths.length > 0) {
-      const newMedia = paths[0];
-      inputPath = newMedia;
-      const outputLang = effectiveLanguageCodeForOutput(selectedLanguage);
-      outputPath = generateOutputPathFromInput(inputPath, outputLang);
-      addLog(
-        `${t("transcribe.fileSelected")}: ${getFileName(inputPath)}`,
-        "file",
-      );
-      addLog(`Output file: ${getFileName(outputPath)}`, "info");
+      loadInputMedia(paths[0]);
     }
   }
 
   function handleDroppedFiles(paths: string[]) {
+    if (isTranscribing) return;
     const mediaPaths = paths.filter(isAudioVideoFile).slice(-1);
     if (mediaPaths.length === 0) return;
 
@@ -501,16 +497,8 @@
         showSnackbar(`File not found: ${cleaned}`);
         return false;
       }
-      inputPath = cleaned;
-      if (!outputPath) {
-        const outputLang = effectiveLanguageCodeForOutput(selectedLanguage);
-        outputPath = generateOutputPathFromInput(inputPath, outputLang);
-      }
-      addLog(
-        `${t("transcribe.fileSelected")}: ${getFileName(inputPath)}`,
-        "file",
-      );
-      addLog(`Output file: ${getFileName(outputPath)}`, "info");
+      if (isTranscribing) return false;
+      loadInputMedia(cleaned);
       return true;
     } catch (e) {
       showSnackbar(`Error: ${e}`);
@@ -544,7 +532,7 @@
   let transcriptionCancelled = false;
 
   async function startTranscription() {
-    if (isTranscribing) return;
+    if (isTranscribing || modelStore.isDownloading || modelStore.downloadingVadId) return;
     if (!inputPath || !outputPath) {
       error = t("transcribe.selectFilesFirst");
       showSnackbar(t("transcribe.selectFilesFirst"));
@@ -567,7 +555,7 @@
     transcriptionCancelled = false;
     try {
       const outcome = await runTranscription({
-        tiers: $state.snapshot(transcribeTiers), models: $state.snapshot(whisperModels),
+        tiers: $state.snapshot(effectiveTiers), models: $state.snapshot(whisperModels),
         keys: $state.snapshot(apiKeys),
         settings: {
           input_path: inputPath, output_path: outputPath, language: selectedLanguage,
@@ -621,12 +609,25 @@
     }
   }
 
+  function loadInputMedia(path: string) {
+    if (isTranscribing || path === inputPath) return;
+    clearTranscriptionResult();
+    inputPath = path;
+    outputPath = generateOutputPathFromInput(path, selectedLanguage);
+    addLog(`${t("transcribe.fileSelected")}: ${getFileName(path)}`, "file");
+    addLog(`Output file: ${getFileName(outputPath)}`, "info");
+  }
+
   function resetTranscription() {
     if (isTranscribing) return;
-    transcribedSegments = [];
+    clearTranscriptionResult();
     inputPath = "";
     outputPath = "";
-    isTranscribing = false;
+  }
+
+  function clearTranscriptionResult() {
+    transcribedSegments = [];
+    transcriptionCancelled = false;
     progress = 0;
     progressMessage = "";
     progressStage = "";
@@ -796,7 +797,7 @@
           {#if uiMode.expertMode}
           <!-- Silero VAD (local whisper only; requires the model) -->
           <div class="rounded-lg bg-white/5 p-3">
-            <ToggleRow label={t("transcribe.vad")} description={vadInstalled ? "" : t("transcribe.vadNotInstalled")} checked={vadEnabled && vadInstalled} disabled={!vadInstalled} accent="sky" onchange={setVadEnabled} />
+            <ToggleRow label={t("transcribe.vad")} description={vadInstalled ? t("transcribe.vadHelp") : t("transcribe.vadNotInstalled")} checked={vadEnabled && vadInstalled} disabled={!vadInstalled} accent="sky" onchange={setVadEnabled} />
           </div>
           <!-- Quality mode (beam search, local whisper only) -->
           <div class="rounded-lg bg-white/5 p-3">
@@ -969,7 +970,7 @@
                 <div
                   class="w-10 h-10 rounded-lg bg-cyan-500/20 flex items-center justify-center"
                 >
-                  <span class="text-xl">🎬</span>
+                  <MediaIcon kind="video" class="w-5 h-5 text-cyan-300" />
                 </div>
                 <div>
                   <p class="font-medium text-white">
@@ -1054,7 +1055,7 @@
               </p>
               {#if result.output_path}
                 <p class="text-xs text-gray-500 mt-1 font-mono truncate">
-                  📁 {result.output_path}
+                  <MediaIcon kind="folder" /> {result.output_path}
                 </p>
               {/if}
             </div>
@@ -1107,6 +1108,33 @@
       <div class="grid min-h-0 flex-1 grid-cols-1 gap-6 xl:grid-cols-2">
         <div class="min-h-0 overflow-y-auto scrollbar-thin">
           {@render panelContent("options")}
+          {#if uiMode.expertMode}
+            <div class="glass-card p-5 mt-4">
+              <h3 class="text-lg font-semibold text-cyan-300 mb-2">{t("transcribe.whisperModel")}</h3>
+              <p class="text-xs text-gray-400 mb-4">{t("transcribe.modelHelp")}</p>
+              <WhisperModelSelector models={modelStore.whisperModels} value={localModelOverride ?? transcribeTiers.flatMap(tier => tier.entries).find(entry => entry.provider === "local" || entry.provider === "local_whisper")?.model ?? ""} disabled={modelStore.isDownloading || !!modelStore.downloadingVadId}
+                onselect={async (model) => {
+                  if (!model.downloaded) await modelStore.downloadModel(model.id);
+                  if (modelStore.whisperModels.find(m => m.id === model.id)?.downloaded) {
+                    selectedModel = model.id;
+                    localModelOverride = model.id;
+                    await refreshModels();
+                  }
+                }} />
+              {#if modelStore.isDownloading}
+                <p class="mt-3 text-xs text-cyan-300" role="status">{t("settings.modelDownloading", { model: modelStore.downloadingModelId ?? "" })} · {modelStore.progress}%</p>
+                <button class="mt-2 text-xs text-red-300 disabled:opacity-50" disabled={modelStore.isCancellingDownload} onclick={() => void modelStore.cancelModelDownload()}>{t("common.cancel")}</button>
+              {/if}
+              {#if localModelOverride}
+                <button class="mt-3 text-xs text-gray-400 hover:text-white" onclick={() => localModelOverride = null}>{t("transcribe.useTierModels")}</button>
+              {/if}
+              {#if !vadInstalled}
+                <button class="mt-3 block text-xs text-cyan-300 disabled:opacity-50" disabled={modelStore.isDownloading || !!modelStore.downloadingVadId} onclick={async () => { await modelStore.downloadVad(vadSelection.modelId); await refreshAddons(); }}>
+                  {modelStore.downloadingVadId ? t("settings.downloading") : t("transcribe.downloadVad")}
+                </button>
+              {/if}
+            </div>
+          {/if}
         </div>
         <div class="min-h-0 overflow-y-auto scrollbar-thin">
           <TranscriptionSegmentsPanel segments={transcribedSegments} />

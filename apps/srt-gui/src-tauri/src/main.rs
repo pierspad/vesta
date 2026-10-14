@@ -278,6 +278,7 @@ fn main() {
             flashcard_list_audio_tracks,
             flashcard_check_deps,
             flashcard_download_ffmpeg,
+            setup_media_status,
             flashcard_check_dir_exists,
             flashcard_get_cpu_count,
             flashcard_get_total_memory_mb,

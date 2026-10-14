@@ -209,6 +209,51 @@ fn hoist_binary(dir: &std::path::Path, name: &str) -> Result<(), String> {
     Ok(())
 }
 
+#[derive(serde::Serialize)]
+pub struct SetupMediaStatus {
+    ready: bool,
+    download_bytes: Option<u64>,
+}
+
+/// Inspect both media tools and the download archive size without downloading it.
+#[tauri::command]
+pub async fn setup_media_status(app: AppHandle) -> Result<SetupMediaStatus, String> {
+    let ffmpeg = resolve_ffmpeg_path(Some(&app)).await;
+    let ffprobe = super::media::resolve_ffprobe_path(Some(&app)).await;
+    let probe_ready = tokio::process::Command::new(&ffprobe)
+        .arg("-version")
+        .output()
+        .await
+        .map(|output| output.status.success())
+        .unwrap_or(false);
+    let ready = srt_flashcards::check_ffmpeg(&ffmpeg).await && probe_ready;
+    let download_bytes = if ready {
+        None
+    } else {
+        match ffmpeg_sidecar::download::ffmpeg_download_url() {
+            Ok(url) => {
+                let client = reqwest::Client::builder()
+                    .timeout(std::time::Duration::from_secs(10))
+                    .build()
+                    .map_err(|error| error.to_string())?;
+                match client.head(url).send().await {
+                    Ok(response) if response.status().is_success() => response
+                        .headers()
+                        .get(reqwest::header::CONTENT_LENGTH)
+                        .and_then(|value| value.to_str().ok())
+                        .and_then(|value| value.parse::<u64>().ok()),
+                    _ => None,
+                }
+            }
+            Err(_) => None,
+        }
+    };
+    Ok(SetupMediaStatus {
+        ready,
+        download_bytes,
+    })
+}
+
 #[tauri::command]
 pub async fn flashcard_download_ffmpeg(app: AppHandle) -> Result<bool, String> {
     use ffmpeg_sidecar::download::{download_ffmpeg_package, ffmpeg_download_url, unpack_ffmpeg};
@@ -241,6 +286,16 @@ pub async fn flashcard_download_ffmpeg(app: AppHandle) -> Result<bool, String> {
         return Err("ffmpeg was downloaded but could not be executed. \
              You can install it manually and place it next to the Vesta executable."
             .to_string());
+    }
+    let ffprobe = super::media::resolve_ffprobe_path(Some(&app)).await;
+    let probe_ready = tokio::process::Command::new(&ffprobe)
+        .arg("-version")
+        .output()
+        .await
+        .map(|output| output.status.success())
+        .unwrap_or(false);
+    if !probe_ready {
+        return Err("FFprobe was downloaded but could not be executed".into());
     }
     Ok(true)
 }

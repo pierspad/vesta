@@ -277,10 +277,18 @@ A cached path is not proof that a particular machine can decode that codec.
 
 First-run setup is shown for a new installation or an explicit restart request.
 `FirstRunSetupModal` collects language/export/audio/transcription defaults and
-installs needed fonts and selected local models before committing preferences.
+uses `firstRunSetup.ts` to plan sequential downloads and `services/setup.ts` to
+discover/install resources. Quick Setup chooses Small + Silero; Custom Setup
+preserves explicit model/VAD/transcription choices. Both include missing media
+tools and language fonts, skip installed resources on retry, and verify readiness
+before committing preferences and the chosen model in the local tier.
+`setup_media_status` checks both FFmpeg and FFprobe and makes a bounded HEAD
+request for the archive size when the tools are missing; unavailable sizes are
+shown explicitly rather than guessed.
 Its preview mode skips persistence, global language changes and downloads.
 After a real setup, a one-shot persisted navigation flag preserves the requested
-Whisper settings page across the reload that reconstructs the stores.
+first activity (flashcards, transcription or subtitle extraction) across the
+reload that reconstructs the stores.
 
 Support logging and installer updates are desktop services, not feature engines:
 `commands/support_logs.rs` owns log files; `commands/updates.rs` chooses an official
