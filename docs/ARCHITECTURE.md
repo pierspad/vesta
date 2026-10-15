@@ -167,6 +167,17 @@ configuration, logs/errors and disposal. `PreviewStore` owns dialog data and
 request validity. Destroying the tab closes its preview and prevents late
 callbacks from updating the tab. Hiding the tab is a separate lifecycle event.
 
+Flashcards passes visibility to its preview modal. Deactivation closes the
+preview, invalidates pending UI requests and releases its media element, while
+retaining subtitle edits for generation. Generation ownership remains independent
+of this dialog. Keyboard handlers respect consumed events, IME composition and
+editable targets; inactive tabs do not process global shortcuts.
+
+Native window resize registration is owned by `manageWindowSize`. It checks
+disposal after asynchronous setup and immediately releases registrations that
+resolve after App teardown. `createTabLoader` deduplicates lazy imports and exposes
+failures for retry; mounted tab state remains owned by App's persistent containers.
+
 ## Runtime Boundaries
 
 The desktop UI never executes FFmpeg, Whisper or SQLite directly. Provider

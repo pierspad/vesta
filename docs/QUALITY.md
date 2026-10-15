@@ -160,6 +160,14 @@ A web preview with mocked IPC can check presentation and disabled controls but
 cannot validate native dialogs, file associations, WebKit/GStreamer playback or
 GPU behavior. Keep this distinction in release notes and test reports.
 
+Mounted Svelte regressions cover App's persistent tab containers and changing
+`active` props, Align's hidden-tab/duplicate keyboard handling, and Flashcards
+preview close/reopen, deactivation, undo and player ownership. App tests use
+fixture tabs to verify composition; they do not run a native job. Preview tests
+use the real store with simulated IPC and media methods, so successful `play()`
+there proves wiring rather than codec support. See the
+[lifecycle review](reviews/navigation-lifecycle-2026-10-15.md).
+
 For development CSS regressions, run `npm run test:dev-css` in `apps/srt-gui`.
 It starts temporary Vite servers on ephemeral ports, requests component CSS before
 component JavaScript, checks scoped style output, and closes each server. The

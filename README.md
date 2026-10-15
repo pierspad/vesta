@@ -113,10 +113,12 @@ For tests and release checks, see [CONTRIBUTING.md](CONTRIBUTING.md) and [the qu
 
 ## Documentation Map
 
+- [Development status and remaining work](docs/README.md) — current state across all areas, priorities and evidence.
 - [Architecture](docs/ARCHITECTURE.md) — engine boundaries, desktop integration and media lifecycle.
 - [Modules](docs/modules/README.md) — CLI usage and embedding the Rust engines.
 - [Quality](docs/QUALITY.md) — automated checks and installed-app validation.
-- [Architecture follow-up, 15 October 2026](docs/reviews/architecture-follow-up-2026-10-15.md) — current assessment, implementation plan and verification.
+- [Navigation and lifecycle review, 15 October 2026](docs/reviews/navigation-lifecycle-2026-10-15.md) — latest fixes and mounted component verification.
+- [Architecture follow-up](docs/reviews/architecture-follow-up-2026-10-15.md) — architectural assessment, implementation plan and verification.
 - [Previous project review](docs/reviews/project-review-2026-10-15.md) — evidence from the earlier reliability and consolidation cycles.
 - [Benchmarks](docs/BENCHMARK_STEPS.md) — reproduce the measurements and understand their scope.
 
