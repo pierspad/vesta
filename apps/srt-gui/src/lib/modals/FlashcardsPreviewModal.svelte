@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onDestroy } from "svelte";
   import { writeClipboard } from "$lib/utils/clipboard";
   import { locale } from "$lib/i18n";
   import { uiMode } from "$lib/stores/uiModeStore.svelte";
@@ -12,8 +13,24 @@
     mediaType: "video" | "audio" | "none";
     /** Reference-language subtitle path — only gates the subs2 column. */
     nativeSubsPath: string;
+    /** The owner tab remains mounted while hidden. */
+    active?: boolean;
   }
-  let { mediaPath, mediaType, nativeSubsPath }: Props = $props();
+  let { mediaPath, mediaType, nativeSubsPath, active = true }: Props = $props();
+  let videoPlayerElement = $state<HTMLVideoElement | null>(null);
+  let audioPlayerElement = $state<HTMLAudioElement | null>(null);
+  let modalElement = $state<HTMLDivElement | null>(null);
+  const dialogSession = previewStore.claimDialogSession();
+
+  $effect(() => {
+    const player = videoPlayerElement ?? audioPlayerElement;
+    if (player) previewStore.attachPlayer(player);
+  });
+
+  onDestroy(() => {
+    previewStore.close(dialogSession);
+    previewStore.releasePlayer(videoPlayerElement ?? audioPlayerElement);
+  });
 
   let t = $derived($locale);
 
@@ -26,14 +43,23 @@
   });
 
   $effect(() => {
+    if (!active) previewStore.close();
+  });
+
+  $effect(() => {
     const handleKeydown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") {
-        e.preventDefault();
-        previewStore.undo();
-      }
+      if (
+        e.defaultPrevented || e.isComposing || e.shiftKey || !active || !previewStore.visible ||
+        !(e.ctrlKey || e.metaKey) || e.key.toLowerCase() !== "z"
+      ) return;
+      const target = e.target instanceof Element ? e.target : null;
+      if (!target || !modalElement?.contains(target)) return;
+      if (target.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"])')) return;
+      if (previewStore.undo()) e.preventDefault();
     };
-    window.addEventListener("keydown", handleKeydown);
-    return () => window.removeEventListener("keydown", handleKeydown);
+    // Capture before the dialog panel stops bubbling from card controls.
+    window.addEventListener("keydown", handleKeydown, true);
+    return () => window.removeEventListener("keydown", handleKeydown, true);
   });
 
   $effect(() => {
@@ -57,6 +83,7 @@
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
+  bind:this={modalElement}
   class="fixed inset-0 z-50 bg-black/70 flex items-center justify-start pl-6 md:pl-16 lg:pl-[8vw] p-6"
   role="dialog"
   aria-modal="true"
@@ -295,7 +322,7 @@
               {#if mediaType === "video"}
                 <div class="w-full aspect-video rounded-lg bg-black overflow-hidden border border-gray-800/80 shadow-md">
                   <video
-                    bind:this={previewStore.playerElement}
+                    bind:this={videoPlayerElement}
                     class="w-full h-full object-contain"
                     onplay={() => (previewStore.isPlaying = true)}
                     onpause={() => (previewStore.isPlaying = false)}
@@ -315,7 +342,7 @@
                   </svg>
                   <span class="text-xs font-mono">{t("flashcards.previewAudioPlaying")}</span>
                   <audio
-                    bind:this={previewStore.playerElement}
+                    bind:this={audioPlayerElement}
                     onplay={() => (previewStore.isPlaying = true)}
                     onpause={() => (previewStore.isPlaying = false)}
                     onended={() => {

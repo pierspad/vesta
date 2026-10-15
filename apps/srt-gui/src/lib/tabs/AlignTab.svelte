@@ -114,7 +114,9 @@
   }
 
   function handleKeydown(e: KeyboardEvent) {
-    if (document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA') return;
+    if (!active || e.defaultPrevented || e.isComposing || showOverwriteConfirm || showUnsavedWarning || expandedPathField) return;
+    const focused = document.activeElement;
+    if (focused?.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"])')) return;
 
     // Ctrl+O → open target (1st SRT)
     if (e.key === 'o' && (e.ctrlKey || e.metaKey) && !e.shiftKey) {

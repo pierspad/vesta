@@ -32,6 +32,7 @@ const TRANSCODE_EXTENSIONS = /\.(mkv|avi|mov|flv|ogm|vob|wma|m4b|m2ts|mpeg|mpg)$
 export class PreviewStore {
   private loadRequests = new LatestRequest();
   private playbackRequests = new LatestRequest();
+  private dialogSession = 0;
   visible = $state(false);
   lines = $state<PreviewLine[]>([]);
   loading = $state(false);
@@ -108,7 +109,14 @@ export class PreviewStore {
     }
   }
 
-  close() {
+  claimDialogSession() {
+    this.dialogSession += 1;
+    return this.dialogSession;
+  }
+
+  close(session?: number) {
+    if (session !== undefined && session !== this.dialogSession) return;
+    this.dialogSession += 1;
     this.loadRequests.invalidate();
     this.loading = false;
     this.visible = false;
@@ -132,9 +140,11 @@ export class PreviewStore {
     );
   }
 
-  undo() {
+  undo(): boolean {
     const previous = this.undoStack.pop();
-    if (previous) this.lines = previous;
+    if (!previous) return false;
+    this.lines = previous;
+    return true;
   }
 
   toggleLineActive(line: PreviewLine) {
@@ -194,9 +204,28 @@ export class PreviewStore {
 
   stopPlayback() {
     this.playbackRequests.invalidate();
-    this.playerElement?.pause();
     this.isPlaying = false;
     this.playingLine = null;
+    this.releasePlayer();
+  }
+
+  /** Releases the dialog's media element when it closes or is destroyed. */
+  attachPlayer(player: HTMLMediaElement | null) {
+    this.playerElement = player;
+  }
+
+  releasePlayer(player: HTMLMediaElement | null = this.playerElement) {
+    if (!player) return;
+    // A modal can finish unmounting after a replacement modal has bound its
+    // own element. Only the current owner may release the shared reference.
+    if (this.playerElement !== player) return;
+    try {
+      player.pause();
+      player.removeAttribute("src");
+      player.load();
+    } finally {
+      this.playerElement = null;
+    }
   }
 
   /** Rewrites `config`'s subtitle paths to temp files reflecting in-dialog

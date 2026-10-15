@@ -29,9 +29,23 @@ it("failed current preview closes the dialog and returns the error to its caller
  await expect(store.load({ target_subs_path: "film.srt" })).rejects.toThrow("bad subtitles"); expect(store.visible).toBe(false); expect(store.loading).toBe(false);
 });
 it("closing during transcoding cannot start playback later", async () => {
- const store = new PreviewStore(); const pending = deferred<string>(); const player = { pause: vi.fn(), play: vi.fn(), load: vi.fn(), src: "" };
+ const store = new PreviewStore(); const pending = deferred<string>(); const player = { pause: vi.fn(), play: vi.fn(), load: vi.fn(), removeAttribute: vi.fn(), src: "" };
  store.visible = true; store.playerElement = player as unknown as HTMLMediaElement;
  vi.mocked(invokeCommand).mockResolvedValueOnce([8765, "token"]).mockReturnValueOnce(pending.promise);
  const playing = store.playLine(line, "film.mkv"); await Promise.resolve(); store.close(); pending.resolve("prepared.mp4"); await playing;
- expect(player.play).not.toHaveBeenCalled(); expect(player.src).toBe(""); expect(store.playingLine).toBeNull();
+ expect(player.play).not.toHaveBeenCalled(); expect(player.removeAttribute).toHaveBeenCalledWith("src"); expect(store.playerElement).toBeNull(); expect(store.playingLine).toBeNull();
+});
+it("closing while media-server discovery is pending prevents late playback", async () => {
+ const store = new PreviewStore(); const pending = deferred<[number, string]>(); const player = { pause: vi.fn(), play: vi.fn(), load: vi.fn(), removeAttribute: vi.fn(), src: "" };
+ store.visible = true; store.playerElement = player as unknown as HTMLMediaElement;
+ vi.mocked(invokeCommand).mockReturnValueOnce(pending.promise);
+ const playing = store.playLine(line, "film.mp4"); store.close(); pending.resolve([8765, "token"]); await playing;
+ expect(player.play).not.toHaveBeenCalled(); expect(player.src).toBe(""); expect(store.playerElement).toBeNull();
+});
+it("undo reports whether it consumed a preview edit", () => {
+ const store = new PreviewStore(); store.lines = [{ ...line }];
+ expect(store.undo()).toBe(false);
+ store.toggleLineActive(store.lines[0]);
+ expect(store.undo()).toBe(true);
+ expect(store.lines[0].active).toBe(true);
 });

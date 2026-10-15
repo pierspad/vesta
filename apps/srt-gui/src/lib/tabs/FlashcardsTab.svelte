@@ -94,6 +94,12 @@
 
   let { active = true, onGoToSettings }: Props = $props();
 
+  // The tab stays mounted while hidden; its preview dialog is visibility-bound
+  // and should not keep keyboard or playback ownership in the background.
+  $effect(() => {
+    if (!active) previewStore.close();
+  });
+
   let t = $derived($locale);
   let dropMediaHint = $derived(t("flashcards.dropMediaHint"));
   let dropSubtitleHint = $derived(t("flashcards.dropSubtitleHint"));
@@ -1347,8 +1353,13 @@
       }
     }
 
-    window.addEventListener("vesta-cpu-cores-changed", handleCpuCoresChanged);
-    window.addEventListener("vesta-ffmpeg-updated", handleFfmpegUpdated);
+    // This async onMount can resume after its component has been destroyed.
+    // Keep the progress subscription's late-resolution guard consistent with
+    // these window listeners so teardown cannot be followed by a fresh leak.
+    if (activeListener) {
+      window.addEventListener("vesta-cpu-cores-changed", handleCpuCoresChanged);
+      window.addEventListener("vesta-ffmpeg-updated", handleFfmpegUpdated);
+    }
 
     // OS-level file drag and drop is handled dynamically via $effect
 
@@ -1818,6 +1829,7 @@
   }
 
   function handleGlobalKeydown(e: KeyboardEvent) {
+    if (!active || e.defaultPrevented || e.isComposing) return;
     if (bottomContextMenu && e.key.toLowerCase() === "escape") {
       closeBottomContextMenu();
       e.preventDefault();
@@ -2017,7 +2029,7 @@
   {/if}
 
   {#if previewStore.visible}
-    <FlashcardsPreviewModal mediaPath={previewMediaPath} mediaType={previewMediaType} nativeSubsPath={nativeSubsPath} />
+    <FlashcardsPreviewModal mediaPath={previewMediaPath} mediaType={previewMediaType} nativeSubsPath={nativeSubsPath} {active} />
   {/if}
 
   {#snippet panelContent(panelId: PanelId)}
