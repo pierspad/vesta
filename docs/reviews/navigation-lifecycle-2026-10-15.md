@@ -46,7 +46,8 @@ Sul checkout finale Linux:
 
 - Gate desktop/smoke passato: **319 test frontend in 60 file**, Svelte senza
   errori/warning, build produzione, CSS a freddo, localizzazione e tre export
-  APKG validi da 10 note/20 media. Restano sei segnalazioni euristiche note.
+  APKG validi da 10 note/20 media. Dieci segnalazioni euristiche non bloccanti:
+  sei note nel prodotto e quattro nei nuovi fixture dei test montati.
 - Test montati su App reale con tab fixture: gli switch mantengono istanze e
   stato locale, aggiornano `active` e rilasciano registrazioni tardive al teardown.
   Il contatore della fixture dimostra continuità di stato, non un job nativo reale.
