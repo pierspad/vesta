@@ -3,9 +3,10 @@
   import { locale } from "$lib/i18n";
   let t = $derived($locale);
   import ExtractTabComponent from "$lib/tabs/ExtractTab.svelte";
-  import { PhysicalSize } from "@tauri-apps/api/dpi";
   import { getCurrentWindow } from "@tauri-apps/api/window";
   import { onMount, type Component } from "svelte";
+  import { manageWindowSize } from "$lib/utils/windowLifecycle";
+  import { createTabLoader } from "$lib/utils/tabLoader";
   import { ankiStore } from "$lib/stores/ankiStore.svelte";
   import ShortcutOverlay from "$lib/components/ShortcutOverlay.svelte";
   import Sidebar from "$lib/components/Sidebar.svelte";
@@ -30,31 +31,19 @@
     experimental: () => import("$lib/tabs/ExperimentalTab.svelte"),
     settings: () => import("$lib/tabs/SettingsTab.svelte"),
   };
-  const pendingTabLoads = new Map<AppTab, Promise<void>>();
   // The lightweight extraction shell is ready on the first tab switch.
   let loadedTabs = $state<Partial<Record<AppTab, LazyComponent>>>({ extract: ExtractTabComponent });
   let tabLoadErrors = $state<Partial<Record<AppTab, string>>>({});
   let firstRunSetupModal = $state<LazyComponent | null>(null);
 
-  function ensureTabLoaded(tab: AppTab): Promise<void> {
-    if (loadedTabs[tab]) return Promise.resolve();
-    const pending = pendingTabLoads.get(tab);
-    if (pending) return pending;
-    delete tabLoadErrors[tab];
-    const load = tabLoaders[tab]()
-      .then(({ default: component }) => {
-        loadedTabs[tab] = component;
-      })
-      .catch((error) => {
-        console.error(`Failed to load the ${tab} tab`, error);
-        tabLoadErrors[tab] = error instanceof Error ? error.message : String(error);
-      })
-      .finally(() => {
-        pendingTabLoads.delete(tab);
-      });
-    pendingTabLoads.set(tab, load);
-    return load;
-  }
+  const ensureTabLoaded = createTabLoader<AppTab, LazyComponent>({
+    loaders: tabLoaders,
+    getLoaded: () => loadedTabs,
+    setLoaded: (tab, component) => { loadedTabs[tab] = component; },
+    clearError: (tab) => { delete tabLoadErrors[tab]; },
+    setError: (tab, message) => { tabLoadErrors[tab] = message; },
+    onError: (tab, error) => console.error(`Failed to load the ${tab} tab`, error),
+  });
 
   const openWhisperAfterSetup = vestaConfig.getItem("vesta-setup-open-whisper") === "true";
   if (openWhisperAfterSetup) vestaConfig.removeItem("vesta-setup-open-whisper");
@@ -266,6 +255,7 @@
   }
 
   function handleKeyDown(e: KeyboardEvent) {
+    if (e.defaultPrevented || e.isComposing) return;
     const inputActive = isInputActive();
 
     // Handle context-sensitive Alt+1..6 and Alt+Shift+1..6 navigation
@@ -360,7 +350,9 @@
       const id = setTimeout(callback, 0);
       return () => clearTimeout(id);
     });
-    let unlisten: (() => void) | null = null;
+    const stopManagingWindowSize = manageWindowSize(appWindow, { width: MIN_WIDTH, height: MIN_HEIGHT }, (logicalWidth) => {
+      applyResponsiveSidebar(logicalWidth);
+    });
 
     window.addEventListener("keydown", handleKeyDown);
     window.addEventListener("shortcuts-updated", reloadShortcuts);
@@ -371,33 +363,11 @@
     };
     window.addEventListener("resize", handleWindowResize);
 
-    (async () => {
-      const scaleFactor = await appWindow.scaleFactor();
-      const physMinW = Math.round(MIN_WIDTH * scaleFactor);
-      const physMinH = Math.round(MIN_HEIGHT * scaleFactor);
-
-      applyResponsiveSidebar(window.innerWidth);
-
-      await appWindow.setMinSize(new PhysicalSize(physMinW, physMinH)).catch(() => {});
-
-      // Fallback: enforce min size on resize events for WMs that ignore setMinSize
-      unlisten = await appWindow.onResized(async ({ payload: size }) => {
-        if (size.width === 0 || size.height === 0) return;
-        if (size.width < physMinW || size.height < physMinH) {
-          const w = Math.max(size.width, physMinW);
-          const h = Math.max(size.height, physMinH);
-          await appWindow.setSize(new PhysicalSize(w, h)).catch(() => {});
-        }
-        const logicalWidth = size.width / scaleFactor;
-        if (logicalWidth >= MIN_WIDTH) {
-          applyResponsiveSidebar(logicalWidth);
-        }
-      });
-    })();
+    applyResponsiveSidebar(window.innerWidth);
 
     return () => {
       stopPreloading();
-      unlisten?.();
+      stopManagingWindowSize();
       window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("shortcuts-updated", reloadShortcuts);
       window.removeEventListener("resize", handleWindowResize);
