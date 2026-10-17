@@ -51,7 +51,7 @@ pub async fn refine_card_llm_tiered(
     let pool = super::provider_diagnostics::observe_pool(srt_translate::build_pool(&tiers)?, &app);
     let (_guard, token) = begin_refinement(&state)?;
     let card_id = card.id.clone();
-    let result: std::sync::Arc<std::sync::Mutex<Option<String>>> = Default::default();
+    let result = std::sync::Arc::new(std::sync::OnceLock::<String>::new());
     let result_cb = result.clone();
 
     let summary = srt_refine::refine_cards_tiered(
@@ -66,14 +66,14 @@ pub async fn refine_card_llm_tiered(
             if let RefineEvent::CardDone { id, notes, .. } = event
                 && id == card_id
             {
-                *result_cb.lock().unwrap() = Some(notes);
+                let _ = result_cb.set(notes);
             }
         },
         token,
     )
     .await?;
 
-    let notes = result.lock().unwrap().take();
+    let notes = result.get().cloned();
     notes.ok_or_else(|| {
         if summary.cancelled {
             "ERR_CANCELLED".to_string()

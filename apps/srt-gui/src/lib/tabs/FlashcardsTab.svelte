@@ -2,7 +2,6 @@
   import { RequirementFeedback } from "$lib/utils/requirementFeedback.svelte";
   import { defaultOutputDirectory } from "$lib/utils/defaultOutputDirectory";
   import { expandFlashcardFiles } from "$lib/workflows/flashcardFileDiscovery";
-  import { runFlashcardGeneration } from "$lib/workflows/flashcardGeneration";
   import { runFlashcardSeries } from "$lib/workflows/flashcardSeries";
   import { FlashcardPreviewController } from "$lib/workflows/flashcardPreview";
   import { audioOverrideKeys, snapshotOverrideKeys, videoOverrideKeys, mediaSettingChanged, episodeMediaDiff } from "$lib/utils/episodeMediaSettings";
@@ -51,7 +50,6 @@
   import { uiMode } from "$lib/stores/uiModeStore.svelte";
   import { ankiStore } from "$lib/stores/ankiStore.svelte";
   import { fontStore } from "$lib/stores/fontStore.svelte";
-  import FooterActions from "$lib/components/FooterActions.svelte";
   import EmptyState from "$lib/components/EmptyState.svelte";
   import FlashcardsPreviewModal from "$lib/modals/FlashcardsPreviewModal.svelte";
   import { previewStore } from "$lib/stores/previewStore.svelte";
@@ -72,20 +70,20 @@
   import EpisodeContextMenu from "$lib/components/EpisodeContextMenu.svelte";
   import FilesOutputPanel from "$lib/panels/FilesOutputPanel.svelte";
   import { generationStore, SERIES_OUTPUT_MODE_KEY } from "$lib/stores/generationStore.svelte";
-  import GenerationStatusDisplay from "$lib/panels/GenerationStatusDisplay.svelte";
   import GenerationResultPanel from "$lib/panels/GenerationResultPanel.svelte";
   import DeckNamingPanel from "$lib/panels/DeckNamingPanel.svelte";
   import {
     type PanelId,
     type ColumnLayout,
-    loadLayout,
     loadSeriesLayout,
-    saveLayout,
     saveSeriesLayout,
     computeEffectiveColumnCount,
     computeEffectivePanelLayout,
   } from "$lib/utils/flashcardLayout";
   import * as vestaConfig from "$lib/config/vestaConfig";
+  import { errorMessage } from "$lib/utils/errorMessage";
+  import EpisodeEditorModal, { type EpisodeFileField } from "./flashcards/EpisodeEditorModal.svelte";
+  import FlashcardsFooterBar, { type GenerationRequirement } from "./flashcards/FlashcardsFooterBar.svelte";
 
   interface Props {
     active?: boolean;
@@ -104,10 +102,6 @@
   let dropMediaHint = $derived(t("flashcards.dropMediaHint"));
   let dropSubtitleHint = $derived(t("flashcards.dropSubtitleHint"));
 
-  let targetSubsPath = $state("");
-  let nativeSubsPath = $state("");
-  let mediaPath = $state("");
-  let mediaType = $state<"none" | "video" | "audio">("none");
   let outputDir = $state("");
 
   // AudioTrackInfo / EpisodeMediaOverrides live in flashcardMediaTypes.ts so
@@ -157,24 +151,8 @@
     bottomContextMenu = null;
   }
 
-
   // ─── Series Mode State ───────────────────────────────────────────────────
   const seriesMode = true;
-
-  // Episode data for series mode: `EpisodeEntry` lives in seriesFileMatching.ts
-  // alongside the pure matching heuristics that produce/consume it.
-  type EpisodeFileField = "targetSubsPath" | "nativeSubsPath" | "mediaPath";
-
-  const episodeEditorFields: {
-    field: EpisodeFileField;
-    labelKey: "targetLangSubs" | "nativeLangSubs" | "mediaFile";
-    placeholderKey: "selectFile" | "optional" | "mediaPlaceholder";
-    required: boolean;
-  }[] = [
-    { field: "targetSubsPath", labelKey: "targetLangSubs", placeholderKey: "selectFile", required: true },
-    { field: "nativeSubsPath", labelKey: "nativeLangSubs", placeholderKey: "optional", required: false },
-    { field: "mediaPath", labelKey: "mediaFile", placeholderKey: "mediaPlaceholder", required: false },
-  ];
 
   let episodes = $state<EpisodeEntry[]>([]);
   let seriesCurrentEpisode = $state(0);
@@ -194,9 +172,9 @@
   }
 
   function getStudiedLanguagePreference(): string {
-    const fromPath = seriesMode
-      ? (episodes.find((e: EpisodeEntry) => e.targetSubsPath)?.targetSubsPath ? inferLanguageFromPath(episodes.find((e: EpisodeEntry) => e.targetSubsPath)!.targetSubsPath) : "")
-      : (targetSubsPath ? inferLanguageFromPath(targetSubsPath) : "");
+    const fromPath = episodes.find((e: EpisodeEntry) => e.targetSubsPath)?.targetSubsPath
+      ? inferLanguageFromPath(episodes.find((e: EpisodeEntry) => e.targetSubsPath)!.targetSubsPath)
+      : "";
     const manualLanguage = !automaticNoteType ? selectedNoteType?.language : "";
     return manualLanguage || fromPath || noteTypeLanguage || loadDefaultLanguage(DEFAULT_FLASHCARDS_LANGUAGE_KEY);
   }
@@ -334,65 +312,7 @@
         await handleFileDrop(selected);
       }
     } catch (e) {
-      generationStore.error = `${t("flashcards.errorSelectingFile")}: ${e}`;
-    }
-  }
-
-  async function addMovieFiles() {
-    try {
-      const raw = await guardedOpen({
-        multiple: true,
-        filters: [
-          {
-            name: "Subtitle and Media Files",
-            extensions: ["srt", "ass", "ssa", "vtt", ...VIDEO_EXTENSIONS, ...AUDIO_EXTENSIONS],
-          },
-        ],
-      });
-      const selected = normalizeSelected(raw);
-      if (selected.length > 0) {
-        await handleFileDrop(selected);
-      }
-    } catch (e) {
-      generationStore.error = `${t("flashcards.errorSelectingFile")}: ${e}`;
-    }
-  }
-
-  function canClearMovieFile(field: "target" | "native" | "media" | "output") {
-    return field === "target"
-      ? !!targetSubsPath
-      : field === "native"
-        ? !!nativeSubsPath
-        : field === "media"
-          ? !!mediaPath
-          : !!outputDir;
-  }
-
-  function clearMovieFileButtonClass(field: "target" | "native" | "media" | "output") {
-    return canClearMovieFile(field)
-      ? "border-red-500/30 bg-red-500/10 text-red-300 hover:border-red-400/60 hover:bg-red-500/20"
-      : "cursor-not-allowed border-white/10 bg-white/5 text-gray-600 opacity-60";
-  }
-
-  function clearMovieFile(field: "target" | "native" | "media" | "output") {
-    if (!canClearMovieFile(field)) return;
-
-    if (field === "target") {
-      targetSubsPath = "";
-      targetSubsInfo = null;
-    } else if (field === "native") {
-      nativeSubsPath = "";
-      nativeSubsInfo = null;
-    } else if (field === "media") {
-      mediaPath = "";
-      mediaType = "none";
-      audioTracks = [];
-      mediaSettings.audioTrackIndex = null;
-      audioTrackAutoSelected = true;
-      mediaSettings.generateSnapshots = false;
-      mediaSettings.generateVideoClips = false;
-    } else if (field === "output") {
-      outputDir = "";
+      generationStore.error = `${t("flashcards.errorSelectingFile")}: ${errorMessage(e)}`;
     }
   }
 
@@ -553,7 +473,7 @@
         "success",
       );
     } catch (e) {
-      generationStore.error = `${t("flashcards.errorSelectingFile")}: ${e}`;
+      generationStore.error = `${t("flashcards.errorSelectingFile")}: ${errorMessage(e)}`;
     }
   }
 
@@ -592,6 +512,16 @@
     return true;
   }
 
+  function clearEpisodeField(field: EpisodeFileField) {
+    if (!editingEpisode || !editingEpisode[field]) return;
+    editingEpisode = {
+      ...editingEpisode,
+      [field]: "",
+      mediaType: field === "mediaPath" ? "none" : editingEpisode.mediaType,
+    };
+    syncEpisodeEditor();
+  }
+
   function clearAllEpisodes() {
     episodes = [];
   }
@@ -616,24 +546,12 @@
     });
   }
 
-  let hasMedia = $derived(
-    seriesMode
-      ? episodes.some((ep) => ep.mediaType !== "none")
-      : mediaType !== "none"
-  );
-  let hasVideo = $derived(
-    seriesMode
-      ? episodes.some((ep) => ep.mediaType === "video")
-      : mediaType === "video"
-  );
+  let hasMedia = $derived(episodes.some((ep) => ep.mediaType !== "none"));
+  let hasVideo = $derived(episodes.some((ep) => ep.mediaType === "video"));
   let hasAudio = $derived(hasMedia);
 
   let showAnkiFields = true;
-  let hasAnyFiles = $derived(
-    seriesMode
-      ? episodes.length > 0
-      : targetSubsPath !== ""
-  );
+  let hasAnyFiles = $derived(episodes.length > 0);
   const HINT_LOAD_TARGET_FIRST =
     "Load the Original subtitle track first in Files & Output to unlock this section.";
   const HINT_LOAD_MEDIA_FIRST =
@@ -785,19 +703,13 @@
   // hidden while the user only decides which media to include.
   let easyMode = $derived(uiMode.easyMode);
 
-  let movieLayout = $state<ColumnLayout>(loadLayout());
   let seriesLayout = $state<ColumnLayout>(loadSeriesLayout());
 
-  let panelLayout = $derived(seriesMode ? seriesLayout : movieLayout);
+  let panelLayout = $derived(seriesLayout);
 
   function updatePanelLayout(newLayout: ColumnLayout) {
-    if (seriesMode) {
-      seriesLayout = newLayout;
-      saveSeriesLayout(newLayout);
-    } else {
-      movieLayout = newLayout;
-      saveLayout(newLayout);
-    }
+    seriesLayout = newLayout;
+    saveSeriesLayout(newLayout);
   }
 
   // Responsive columns: auto-collapse from 3 -> 2 -> 1 based on available width.
@@ -808,13 +720,13 @@
   let effectiveColumnCount = $derived(computeEffectiveColumnCount(layoutWidth));
 
   let effectivePanelLayout = $derived(
-    computeEffectivePanelLayout(seriesMode, effectiveColumnCount, easyMode),
+    computeEffectivePanelLayout(true, effectiveColumnCount, easyMode),
   );
 
   // Computed column grid class
   // In easy mode + series mode, skip 2-column layout entirely (go straight 3→1)
   let gridColClass = $derived(
-    (easyMode && seriesMode && effectiveColumnCount === 2)
+    (easyMode && effectiveColumnCount === 2)
       ? "grid-cols-1"
       : effectiveColumnCount === 1
         ? "grid-cols-1"
@@ -823,9 +735,7 @@
           : "grid-cols-3",
   );
 
-  let filesHelpContent = $derived(
-    seriesMode ? t("flashcards.filesHelp") : t("flashcards.filesHelpMovie"),
-  );
+  let filesHelpContent = $derived(t("flashcards.filesHelp"));
 
   let noteTypeLanguage = $state("");
 
@@ -902,33 +812,21 @@
   // progress, progressMessage, progressStage, logs, error, result) live in
   // generationStore now — see generationStore.svelte.ts.
 
-  let targetSubsInfo = $state<{
-    count: number;
-    first_text: string;
-    format: string;
-    actors: string[];
-    duration_ms: number;
-  } | null>(null);
-  let nativeSubsInfo = $state<{
-    count: number;
-    first_text: string;
-    format: string;
-  } | null>(null);
   let ffmpegAvailable = $state<boolean | null>(null);
   let isDownloadingFFmpeg = $state(false);
 
   let previewMediaPath = $derived.by(() => {
-    if (seriesMode && episodes.length > 0) {
+    if (episodes.length > 0) {
       return episodes[0].mediaPath;
     }
-    return mediaPath;
+    return "";
   });
 
   let previewMediaType = $derived.by(() => {
-    if (seriesMode && episodes.length > 0) {
+    if (episodes.length > 0) {
       return episodes[0].mediaType;
     }
-    return hasVideo ? "video" : (hasAudio ? "audio" : "none");
+    return "none";
   });
 
   let expandedPathField = $state<string | null>(null);
@@ -990,32 +888,21 @@
   );
 
   type RequirementPanelId = "files" | "naming";
-  type GenerationRequirement = {
-    panel: RequirementPanelId;
-    label: string;
-  };
 
   let generationPromptOpen = $state(false);
   const requirementFeedback = new RequirementFeedback<RequirementPanelId>();
 
   let generationRequirements = $derived.by((): GenerationRequirement[] => {
     const missing: GenerationRequirement[] = [];
-    if (seriesMode) {
-      if (episodes.length === 0) {
-        missing.push({
-          panel: "files",
-          label: t("flashcards.reqAddEpisode"),
-        });
-      } else if (episodes.some((ep) => !ep.targetSubsPath)) {
-        missing.push({
-          panel: "files",
-          label: t("flashcards.reqSubsAllEpisodes"),
-        });
-      }
-    } else if (!targetSubsPath) {
+    if (episodes.length === 0) {
       missing.push({
         panel: "files",
-        label: `${t("flashcards.targetLangSubs")}`,
+        label: t("flashcards.reqAddEpisode"),
+      });
+    } else if (episodes.some((ep) => !ep.targetSubsPath)) {
+      missing.push({
+        panel: "files",
+        label: t("flashcards.reqSubsAllEpisodes"),
       });
     }
     if (!outputDir) {
@@ -1040,7 +927,7 @@
   /** Panels rendered in the column layout. Easy mode hides the advanced ones. */
   function isPanelVisible(panelId: PanelId): boolean {
     if (panelId === "progressResult") return false;
-    if (seriesMode && panelId === "files") return false; // rendered full-width above
+    if (panelId === "files") return false; // rendered full-width above
     if (easyMode && (panelId === "cardFilters" || panelId === "naming")) return false;
     return true;
   }
@@ -1074,7 +961,7 @@
         path: ep.mediaPath,
       });
     } catch (e) {
-      generationStore.addLog(`${t("flashcards.audioTracksError")}: ${e}`, "warning", getFileName(ep.mediaPath));
+      generationStore.addLog(`${t("flashcards.audioTracksError")}: ${errorMessage(e)}`, "warning", getFileName(ep.mediaPath));
       return [];
     }
   }
@@ -1101,7 +988,7 @@
       mediaSettings.audioTrackIndex =
         tracks.length > 1 ? pickBestAudioTrackIndex(tracks, getPreferredAudioLanguageCode()) : null;
     } catch (e) {
-      generationStore.addLog(`${t("flashcards.audioTracksError")}: ${e}`, "warning");
+      generationStore.addLog(`${t("flashcards.audioTracksError")}: ${errorMessage(e)}`, "warning");
     } finally {
       audioTracksLoading = false;
     }
@@ -1137,83 +1024,16 @@
       return;
     }
 
-    if (seriesMode) {
-      if (subtitleFiles.length > 0 || mediaFiles.length > 0) {
-        try {
-          const expanded = await expandSeriesFilesWithSmartMatches(
-            subtitleFiles,
-            mediaFiles,
-          );
-          mergeSeriesDroppedFilesIntoEpisodes(expanded.subtitleFiles, expanded.mediaFiles);
-          generationStore.addLog(`${episodes.length} ${t("flashcards.seriesEpisodesAdded")}`, "target-subs");
-        } catch (e: any) {
-          console.error("[DragDrop] Errore nell'elaborazione smart della serie:", e);
-        }
-      }
-    } else {
-      // Single-episode mode
-      if (subtitleFiles.length >= 2) {
-        const { target, native } = classifySubtitles(
+    if (subtitleFiles.length > 0 || mediaFiles.length > 0) {
+      try {
+        const expanded = await expandSeriesFilesWithSmartMatches(
           subtitleFiles,
-          smartMatchingRules,
-          getStudiedLanguagePreference(),
-          getNativeLanguagePreference(),
+          mediaFiles,
         );
-        if (target) {
-          try {
-            await loadTargetSubtitle(target);
-            await tryAutoSelectMediaForSubtitle(target, smartFileMatchingEnabled);
-          } catch (e: any) {
-            generationStore.error = `Error parsing subtitles: ${e}`;
-          }
-        }
-        if (native) {
-          try {
-            await loadNativeSubtitle(native);
-          } catch (e: any) {
-            generationStore.error = `Error parsing native subtitles: ${e}`;
-          }
-        }
-      } else if (subtitleFiles.length === 1) {
-        const subPath = subtitleFiles[0];
-        if (!targetSubsPath) {
-          try {
-            await loadTargetSubtitle(subPath);
-            await tryAutoSelectCompanionSubtitle(
-              subPath,
-              "target",
-              smartFileMatchingEnabled,
-            );
-            await tryAutoSelectMediaForSubtitle(
-              subPath,
-              smartFileMatchingEnabled,
-            );
-          } catch (e: any) {
-            generationStore.error = `Error parsing subtitles: ${e}`;
-          }
-        } else {
-          try {
-            await loadNativeSubtitle(subPath);
-            await tryAutoSelectCompanionSubtitle(
-              subPath,
-              "native",
-              smartFileMatchingEnabled,
-            );
-            await tryAutoSelectMediaForSubtitle(
-              subPath,
-              smartFileMatchingEnabled,
-            );
-          } catch (e: any) {
-            generationStore.error = `Error parsing native subtitles: ${e}`;
-          }
-        }
-      }
-
-      // Handle media files
-      if (mediaFiles.length > 0) {
-        const mediaPath = mediaFiles[0];
-        await applyMediaSelection(mediaPath);
-        await tryAutoSelectSubtitlesForMedia(mediaPath, subtitleFiles.length === 0);
+        mergeSeriesDroppedFilesIntoEpisodes(expanded.subtitleFiles, expanded.mediaFiles);
+        generationStore.addLog(`${episodes.length} ${t("flashcards.seriesEpisodesAdded")}`, "target-subs");
+      } catch (e: any) {
+        console.error("[DragDrop] Errore nell'elaborazione smart della serie:", e);
       }
     }
   }
@@ -1440,25 +1260,18 @@
       generationStore.addLog(t("flashcards.ankiAutoImportSuccess"), "success");
       snackbar.show(t("flashcards.ankiAutoImportSuccess"), "success");
     } catch (e) {
-      generationStore.addLog(`${t("flashcards.ankiAutoImportFailed")}: ${e}`, "warning");
+      generationStore.addLog(`${t("flashcards.ankiAutoImportFailed")}: ${errorMessage(e)}`, "warning");
     }
   }
 
   // addLog/clearLogs now live on generationStore (generationStore.svelte.ts).
 
   function buildConfig() {
-    let tPath = targetSubsPath;
-    let nPath = nativeSubsPath || null;
-    let vPath = hasVideo ? mediaPath : null;
-    let aPath = hasAudio && !hasVideo ? mediaPath : null;
-
-    if (seriesMode && episodes.length > 0) {
-      const ep = episodes[0];
-      tPath = ep.targetSubsPath;
-      nPath = ep.nativeSubsPath || null;
-      vPath = ep.mediaType === "video" ? ep.mediaPath : null;
-      aPath = ep.mediaType === "audio" ? ep.mediaPath : null;
-    }
+    const ep = episodes[0];
+    const tPath = ep?.targetSubsPath || "";
+    const nPath = ep?.nativeSubsPath || null;
+    const vPath = ep?.mediaType === "video" ? ep.mediaPath : null;
+    const aPath = ep?.mediaType === "audio" ? ep.mediaPath : null;
 
     return buildFlashcardConfig({
       targetSubsPath: tPath,
@@ -1496,242 +1309,6 @@
     missingRequirementsMessage: () => t("flashcards.requiredFieldsMissing"),
     addLog: (message, level) => generationStore.addLog(message, level),
   });
-
-  async function loadTargetSubtitle(path: string) {
-    targetSubsPath = path;
-    const filename = getFileName(targetSubsPath);
-
-    const info = await invoke<any>("flashcard_load_subs", {
-      path: targetSubsPath,
-    });
-    targetSubsInfo = info;
-    generationStore.addLog(
-      `${info.count} ${t("flashcards.subtitlesLoaded")} (${info.format.toUpperCase()})`,
-      "target-subs",
-      filename,
-    );
-
-    if (generationStore.deckNameAuto || !generationStore.deckName.trim()) {
-      generationStore.deckName = generateDefaultDeckName(filename);
-      generationStore.deckNameAuto = true;
-    }
-  }
-
-  async function loadNativeSubtitle(path: string) {
-    nativeSubsPath = path;
-    const filename = getFileName(nativeSubsPath);
-
-    const info = await invoke<any>("flashcard_load_subs", {
-      path: nativeSubsPath,
-    });
-    nativeSubsInfo = info;
-    generationStore.addLog(
-      `${info.count} ${t("flashcards.subtitlesLoaded")} (${info.format.toUpperCase()})`,
-      "native-subs",
-      filename,
-    );
-  }
-
-  async function applyMediaSelection(path: string, autoSelected = false) {
-    mediaPath = path;
-    const filename = getFileName(mediaPath);
-    mediaType = detectMediaType(filename);
-    await loadAudioTracksForMedia(path);
-
-    if (mediaType === "video") {
-      mediaSettings.generateAudio = true;
-      mediaSettings.generateSnapshots = true;
-      generationStore.addLog(`${t("flashcards.mediaTypeVideo")}`, "media", filename);
-    } else if (mediaType === "audio") {
-      mediaSettings.generateAudio = true;
-      mediaSettings.generateSnapshots = false;
-      mediaSettings.generateVideoClips = false;
-      generationStore.addLog(`${t("flashcards.mediaTypeAudio")}`, "media", filename);
-    }
-
-    if (autoSelected) {
-      generationStore.addLog(`Auto-selected media: ${filename}`, "media");
-    }
-  }
-
-  async function tryAutoSelectCompanionSubtitle(
-    path: string,
-    selectedRole: "target" | "native",
-    force = false,
-  ) {
-    if (!smartFileMatchingEnabled) return;
-    const needsTarget = selectedRole === "native" && !targetSubsPath;
-    const needsNative = selectedRole === "target" && !nativeSubsPath;
-    if (!force && !needsTarget && !needsNative) return;
-
-    try {
-      const suggested = await invoke<string | null>("sync_suggest_companion_subtitle_for_srt", {
-        srtPath: path,
-      });
-      if (!suggested || suggested === path) {
-        if (force) {
-          if (selectedRole === "target") {
-            nativeSubsPath = "";
-            nativeSubsInfo = null;
-          } else {
-            targetSubsPath = "";
-            targetSubsInfo = null;
-          }
-        }
-        return;
-      }
-
-      if (selectedRole === "target") {
-        await loadNativeSubtitle(suggested);
-      } else {
-        await loadTargetSubtitle(suggested);
-      }
-    } catch {
-      // Best-effort suggestion only.
-    }
-  }
-
-  async function tryAutoSelectMediaForSubtitle(path: string, force = false) {
-    if (!smartFileMatchingEnabled) return;
-    if (!force && mediaPath) return;
-    try {
-      const suggestedPath = await invoke<string | null>("sync_suggest_media_for_srt", {
-        srtPath: path,
-      });
-      if (!suggestedPath) {
-        if (force) {
-          mediaPath = "";
-          mediaType = "none";
-        }
-        return;
-      }
-      await applyMediaSelection(suggestedPath, true);
-    } catch {
-      // Best-effort suggestion only.
-    }
-  }
-
-  async function tryAutoSelectSubtitlesForMedia(path: string, force = false) {
-    if (!smartFileMatchingEnabled) return;
-    const needsTarget = !targetSubsPath;
-    const needsNative = !nativeSubsPath;
-    if (!force && !needsTarget && !needsNative) return;
-
-    try {
-      const defaultTargetLang = getStudiedLanguagePreference();
-      const defaultNativeLang = getNativeLanguagePreference();
-
-      const suggested = await invoke<{ target: string | null; native: string | null }>(
-        "sync_suggest_subtitles_for_media",
-        {
-          mediaPath: path,
-          defaultTargetLang: defaultTargetLang || null,
-          defaultNativeLang: defaultNativeLang || null,
-        }
-      );
-
-      if (suggested) {
-        if (suggested.target && (force || !targetSubsPath)) {
-          await loadTargetSubtitle(suggested.target);
-        }
-        if (suggested.native && (force || !nativeSubsPath)) {
-          await loadNativeSubtitle(suggested.native);
-        }
-      }
-    } catch (e) {
-      console.error("[SmartMatching] Error suggesting subtitles for media:", e);
-    }
-  }
-
-  async function selectTargetSubs() {
-    try {
-      const selected = await guardedOpen({
-        multiple: false,
-        filters: [
-          {
-            name: t("flashcards.subtitleFiles"),
-            extensions: ["srt", "ass", "ssa", "vtt"],
-          },
-        ],
-      });
-      if (selected) {
-        try {
-          const selectedPath = selected as string;
-          await loadTargetSubtitle(selectedPath);
-          await tryAutoSelectCompanionSubtitle(
-            selectedPath,
-            "target",
-            smartFileMatchingEnabled,
-          );
-          await tryAutoSelectMediaForSubtitle(
-            selectedPath,
-            smartFileMatchingEnabled,
-          );
-        } catch (e) {
-          generationStore.error = `Error parsing subtitles: ${e}`;
-        }
-      }
-    } catch (e) {
-      generationStore.error = `${t("flashcards.errorSelectingFile")}: ${e}`;
-    }
-  }
-
-  async function selectNativeSubs() {
-    try {
-      const selected = await guardedOpen({
-        multiple: false,
-        filters: [
-          {
-            name: t("flashcards.subtitleFiles"),
-            extensions: ["srt", "ass", "ssa", "vtt"],
-          },
-        ],
-      });
-      if (selected) {
-        try {
-          const selectedPath = selected as string;
-          await loadNativeSubtitle(selectedPath);
-          await tryAutoSelectCompanionSubtitle(
-            selectedPath,
-            "native",
-            smartFileMatchingEnabled,
-          );
-          await tryAutoSelectMediaForSubtitle(
-            selectedPath,
-            smartFileMatchingEnabled,
-          );
-        } catch (e) {
-          generationStore.error = `Error parsing native subtitles: ${e}`;
-        }
-      }
-    } catch (e) {
-      generationStore.error = `${t("flashcards.errorSelectingFile")}: ${e}`;
-    }
-  }
-
-  // VIDEO_EXTENSIONS/AUDIO_EXTENSIONS/detectMediaType sono importate da
-  // seriesFileMatching.ts (vedi cima del file).
-
-  async function selectMedia() {
-    try {
-      const selected = await guardedOpen({
-        multiple: false,
-        filters: [
-          {
-            name: t("flashcards.mediaFiles"),
-            extensions: [...VIDEO_EXTENSIONS, ...AUDIO_EXTENSIONS],
-          },
-        ],
-      });
-      if (selected) {
-        await applyMediaSelection(selected as string);
-        await tryAutoSelectSubtitlesForMedia(selected as string, true);
-      }
-    } catch (e) {
-      generationStore.error = `${t("flashcards.errorSelectingFile")}: ${e}`;
-    }
-  }
-
   async function selectOutputDir() {
     try {
       const selected = await guardedOpen({ directory: true });
@@ -1741,7 +1318,7 @@
         generationStore.addLog(`${t("flashcards.outputDirSet")}`, "output", outputDir);
       }
     } catch (e) {
-      generationStore.error = `${t("flashcards.errorSelectingDir")}: ${e}`;
+      generationStore.error = `${t("flashcards.errorSelectingDir")}: ${errorMessage(e)}`;
     }
   }
 
@@ -1782,17 +1359,7 @@
     const run = generationStore.operation.begin();
     if (!run) return;
     try {
-      if (seriesMode) {
-        await startSeriesGeneration();
-        return;
-      }
-
-      await runFlashcardGeneration({
-        generationStore, config: buildConfig(), t, invoke,
-        applyOverrides: (config) => previewStore.applyOverrides(config),
-        isCancelled: () => cancelRequested,
-        importToAnki: maybeAutoImportToAnki,
-      });
+      await startSeriesGeneration();
     } finally { run.finish(); }
   }
 
@@ -1804,8 +1371,8 @@
       generationStore.addLog(`${t("flashcards.cancelled")}`, "warning");
     } catch (e) {
       cancelRequested = false;
-      generationStore.addLog(`Error cancelling: ${e}`, "error");
-      snackbar.show(String(e), "error");
+      generationStore.addLog(`Error cancelling: ${errorMessage(e)}`, "error");
+      snackbar.show(errorMessage(e), "error");
     }
   }
 
@@ -1814,15 +1381,9 @@
     generationStore.resetRun();
 
     // Clear files so the user can insert new ones
-    targetSubsPath = "";
-    nativeSubsPath = "";
-    mediaPath = "";
-    mediaType = "none";
     audioTracks = [];
     mediaSettings.audioTrackIndex = null;
     audioTrackAutoSelected = true;
-    targetSubsInfo = null;
-    nativeSubsInfo = null;
     episodes = [];
     generationStore.deckName = "";
     generationStore.deckNameAuto = true;
@@ -1896,11 +1457,11 @@
   <div class="flex-1 overflow-hidden overflow-x-hidden p-6 flashcards-scroll min-h-0 flex flex-col gap-4 {generationStore.isBusy ? 'pointer-events-none opacity-60 select-none' : ''}">
   {#if isDraggingOver && !editingEpisode}
     <div
-      class="absolute inset-0 z-50 {seriesMode ? 'bg-violet-500/10 border-violet-400/80 text-violet-400' : 'bg-emerald-500/10 border-emerald-400/80 text-emerald-400'} border-2 border-dashed rounded-2xl flex items-center justify-center pointer-events-none"
+      class="absolute inset-0 z-50 bg-violet-500/10 border-violet-400/80 text-violet-400 border-2 border-dashed rounded-2xl flex items-center justify-center pointer-events-none"
     >
       <div class="text-center">
         <svg
-          class="w-16 h-16 mx-auto mb-3 {seriesMode ? 'text-violet-400' : 'text-emerald-400'}"
+          class="w-16 h-16 mx-auto mb-3 text-violet-400"
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -1912,7 +1473,7 @@
             d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
           />
         </svg>
-        <p class="text-lg font-medium {seriesMode ? 'text-violet-300' : 'text-emerald-300'}">
+        <p class="text-lg font-medium text-violet-300">
           {t("flashcards.dropFileHere")}
         </p>
         <p class="text-sm text-gray-400 mt-1">{t("flashcards.dropFileHint")}</p>
@@ -1949,7 +1510,7 @@
             ffmpegAvailable = await invoke<boolean>("flashcard_check_deps");
             window.dispatchEvent(new CustomEvent("vesta-ffmpeg-updated"));
           } catch (e) {
-            generationStore.error = `${t("flashcards.ffmpegDownloadFailed")}: ${e}`;
+            generationStore.error = `${t("flashcards.ffmpegDownloadFailed")}: ${errorMessage(e)}`;
           } finally {
             isDownloadingFFmpeg = false;
           }
@@ -2029,7 +1590,7 @@
   {/if}
 
   {#if previewStore.visible}
-    <FlashcardsPreviewModal mediaPath={previewMediaPath} mediaType={previewMediaType} nativeSubsPath={nativeSubsPath} {active} />
+    <FlashcardsPreviewModal mediaPath={previewMediaPath} mediaType={previewMediaType} nativeSubsPath={episodes[0]?.nativeSubsPath || "" } {active} />
   {/if}
 
   {#snippet panelContent(panelId: PanelId)}
@@ -2049,7 +1610,7 @@
         {outputDir}
         onExpand={(field) => (expandedPathField = field)}
         onSelectOutput={selectOutputDir}
-        onClearField={clearMovieFile}
+        onClearField={(field) => { if (field === "output") outputDir = ""; }}
       />
     {:else if panelId === "audioClips"}
       <AudioClipsPanel
@@ -2059,8 +1620,8 @@
         {audioTracks}
         {audioTracksLoading}
         hintLoadMediaFirst={HINT_LOAD_MEDIA_FIRST}
-        firstEpisodeMediaPath={episodes[0]?.mediaPath || mediaPath}
-        firstEpisodeSubsPath={episodes[0]?.targetSubsPath || targetSubsPath}
+        firstEpisodeMediaPath={episodes[0]?.mediaPath || ""}
+        firstEpisodeSubsPath={episodes[0]?.targetSubsPath || ""}
         {episodes}
         onTrackPicked={() => (audioTrackAutoSelected = false)}
       />
@@ -2210,138 +1771,17 @@
   {/if}
 
   {#if editingEpisode}
-    <!-- svelte-ignore a11y_no_static_element_interactions -->
-    <div
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/65 p-6"
-      role="dialog"
-      aria-modal="true"
-      tabindex="-1"
-      onclick={closeEpisodeEditor}
-      onkeydown={(e) => {
-        if (e.key === "Escape") closeEpisodeEditor();
-      }}
-    >
-      <!-- svelte-ignore a11y_no_static_element_interactions -->
-      <div
-        class="w-full max-w-2xl rounded-xl border border-gray-700 bg-gray-900 p-5 shadow-2xl"
-        onclick={(e) => e.stopPropagation()}
-        onkeydown={(e) => e.stopPropagation()}
-      >
-        <div class="mb-4 flex items-center justify-between gap-3">
-          <div>
-            <h3 class="text-lg font-bold text-white">
-              {t("common.edit")} {getFileName(editingEpisode.targetSubsPath || editingEpisode.nativeSubsPath || editingEpisode.mediaPath) || `episodio ${editingEpisode.id}`}
-            </h3>
-          </div>
-          <button
-            type="button"
-            onclick={closeEpisodeEditor}
-	            class="dialog-close-button text-xl leading-none text-gray-400 hover:text-white"
-          >×</button>
-        </div>
-
-        <div class="space-y-3">
-          {#each episodeEditorFields as item}
-            {@const field = item.field}
-            {@const label = t(`flashcards.${item.labelKey}`)}
-            {@const placeholder = t(`flashcards.${item.placeholderKey}`)}
-            {@const isFieldDisabled = field === "nativeSubsPath" ? !activeNoteType.included.meaning : field === "mediaPath" ? (!activeNoteType.included.audio && !activeNoteType.included.snapshot && !activeNoteType.included.video) : false}
-            <div
-              data-episode-file-field={field}
-              data-disabled={isFieldDisabled}
-              class="rounded-lg border border-transparent p-2 transition-colors hover:border-indigo-400/30 hover:bg-indigo-500/5"
-            >
-              <div class="mb-1 flex items-center gap-3">
-                <span class="text-xs font-medium transition-colors text-gray-400">
-                  <span class={isFieldDisabled ? 'text-gray-500 line-through opacity-60' : ''}>
-                    {label}
-                  </span>
-                  {#if isFieldDisabled}
-                    <span class="text-[10px] text-amber-500/80 ml-1.5 font-normal normal-case italic no-underline">({t("flashcards.inactiveNoteTypeField")})</span>
-                  {/if}
-                  {#if item.required && !isFieldDisabled}<span class="text-red-400">*</span>{/if}
-                </span>
-              </div>
-              <div class="flex gap-2">
-                <button
-                  type="button"
-                  class="input-modern flex-1 truncate text-left text-xs disabled:opacity-50 disabled:cursor-not-allowed"
-                  style="direction: rtl; text-align: left;"
-                  disabled={isFieldDisabled}
-                  title={editingEpisode[field] || placeholder}
-                  onclick={() => {
-                    const value = editingEpisode?.[field];
-                    if (value) expandedPathField = field as string;
-                  }}
-                >
-                  <span
-                    class={editingEpisode[field]
-                      ? "text-white"
-                      : "text-gray-500"}
-                    style="unicode-bidi: plaintext;"
-                  >
-                    {editingEpisode[field] || placeholder}
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  onclick={() => selectEpisodeFile(field)}
-                  disabled={isFieldDisabled}
-                  class="btn-secondary flex h-10 shrink-0 items-center gap-1.5 px-4 text-xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-                  </svg>
-                  <span class="text-xs font-semibold">{t("flashcards.browse")}</span>
-                </button>
-                  <button
-                    type="button"
-                    disabled={isFieldDisabled || !editingEpisode[field]}
-                    class={editingEpisode[field] && !isFieldDisabled
-                      ? "inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-red-500/30 bg-red-500/10 text-red-300 shadow-sm transition-colors hover:border-red-400/60 hover:bg-red-500/20 hover:text-red-100"
-                      : "inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-gray-700 bg-gray-800 text-gray-600 transition-colors cursor-default opacity-50 cursor-not-allowed"}
-                    title={t("common.clearField")}
-                    aria-label={t("common.clearField")}
-                    onclick={() => {
-                      if (!editingEpisode || !editingEpisode[field]) return;
-                      editingEpisode = {
-                        ...editingEpisode,
-                        [field]: "",
-                        mediaType: field === "mediaPath" ? "none" : editingEpisode.mediaType,
-                      };
-                      syncEpisodeEditor();
-                    }}
-                  >
-                    <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
-                  </button>
-              </div>
-              <p class="mt-1.5 text-[10px] text-gray-500">
-                {field === "mediaPath" ? dropMediaHint : dropSubtitleHint}
-              </p>
-            </div>
-          {/each}
-        </div>
-
-        <div class="mt-5 flex justify-end gap-2">
-          <button
-            type="button"
-            onclick={revertEpisodeEditor}
-            class="btn-secondary px-4 py-2 text-sm"
-          >
-            {t("common.restore")}
-          </button>
-          <button
-            type="button"
-            onclick={closeEpisodeEditor}
-            class="rounded-lg border border-emerald-400/40 bg-emerald-500/20 px-4 py-2 text-sm font-semibold text-emerald-100 shadow-lg shadow-emerald-500/10 transition-all hover:border-emerald-300/60 hover:bg-emerald-500/30 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {t("common.done")}
-          </button>
-        </div>
-      </div>
-    </div>
+    <EpisodeEditorModal
+      {editingEpisode}
+      {activeNoteType}
+      {dropMediaHint}
+      {dropSubtitleHint}
+      onClose={closeEpisodeEditor}
+      onRevert={revertEpisodeEditor}
+      onSelectFile={selectEpisodeFile}
+      onClearField={clearEpisodeField}
+      onExpandField={(field) => (expandedPathField = field)}
+    />
   {/if}
 
   <EpisodeMediaSettingsModal {mediaOverrideClass} onSave={saveEpisodeMediaSettings} onReset={resetEpisodeMediaSettings} />
@@ -2357,295 +1797,40 @@
           || expandedPathField === "nativeSubsPath"
           ? t("flashcards.nativeLangSubs")
           : t("flashcards.mediaFile")}
-    value={expandedPathField === "targetSubs"
-      ? targetSubsPath
-      : expandedPathField === "targetSubsPath"
-        ? editingEpisode?.targetSubsPath || ""
+    value={expandedPathField === "targetSubs" || expandedPathField === "targetSubsPath"
+      ? editingEpisode?.targetSubsPath || episodes[0]?.targetSubsPath || ""
       : expandedPathField === "output"
         ? outputDir
-        : expandedPathField === "nativeSubs"
-          ? nativeSubsPath
-          : expandedPathField === "nativeSubsPath"
-            ? editingEpisode?.nativeSubsPath || ""
-            : expandedPathField === "mediaPath"
-              ? editingEpisode?.mediaPath || ""
-              : mediaPath}
+        : expandedPathField === "nativeSubs" || expandedPathField === "nativeSubsPath"
+          ? editingEpisode?.nativeSubsPath || episodes[0]?.nativeSubsPath || ""
+          : editingEpisode?.mediaPath || episodes[0]?.mediaPath || ""}
     onclose={() => (expandedPathField = null)}
   />
   </div>
 
   <!-- Fixed Bottom Band with Action Buttons -->
-  <FooterActions>
-    {#snippet background()}
-      {#if generationStore.isBusy}
-        <div
-          class="absolute inset-y-0 left-0 bg-gradient-to-r from-emerald-500/15 to-teal-500/20 transition-all duration-300 ease-out z-0 pointer-events-none"
-          style="width: {generationStore.progress}%"
-        ></div>
-        <div
-          class="absolute inset-0 bg-shimmer-stripes opacity-15 z-0 pointer-events-none"
-        ></div>
-      {/if}
-    {/snippet}
-    {#snippet left()}
-    <GenerationStatusDisplay
-      {easyMode}
-      noteTypeName={activeNoteType.name}
-    >
-      {#snippet noteTypeControl()}
-        <div class="w-80 max-w-[40vw]">
-          <SearchableSelect
-            compact
-            ariaLabel={t("settings.noteType")}
-            options={noteTypeOptions}
-            value={automaticNoteType ? "default" : selectedNoteTypeId}
-            onchange={selectNoteType}
-            placeholder={t("settings.noteType")}
-            noResultsText={t("common.noResults")}
-            placement="up"
-          />
-        </div>
-      {/snippet}
-    </GenerationStatusDisplay>
-    {/snippet}
-    {#snippet right()}
-    <!-- Right side: Export format toggle button, series output mode selector, and action buttons -->
-    <div class="flex items-center gap-4 z-10 select-none shrink-0">
-      <div class="flex items-center gap-2">
-          <!-- Format toggle button -->
-          <div class="relative group/fmt">
-            <button
-              type="button"
-              onclick={() => generationStore.cycleExportFormat()}
-              oncontextmenu={(e) => openBottomContextMenu(e, "overview")}
-              onmousedown={(e) => {
-                if (e.button === 1) {
-                  e.preventDefault();
-                  onGoToSettings?.("overview");
-                }
-              }}
-              disabled={generationStore.isBusy || !!generationStore.result}
-              class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold cursor-pointer select-none transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:active:scale-100
-                {generationStore.isBusy || generationStore.result
-                  ? 'border-gray-700 bg-gray-800/40 text-gray-500 opacity-60 pointer-events-none'
-                  : generationStore.exportFormat === 'apkg'
-                    ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20 hover:border-emerald-500/50 hover:scale-[1.02] active:scale-[0.98]'
-                    : generationStore.exportFormat === 'tsv'
-                      ? 'border-sky-500/40 bg-sky-500/10 text-sky-300 hover:bg-sky-500/20 hover:border-sky-500/50 hover:scale-[1.02] active:scale-[0.98]'
-                      : 'border-violet-500/40 bg-violet-500/10 text-violet-300 hover:bg-violet-500/20 hover:border-violet-500/50 hover:scale-[1.02] active:scale-[0.98]'}"
-            >
-              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                />
-              </svg>
-              {generationStore.exportFormat === 'apkg'
-                ? 'APKG'
-                : generationStore.exportFormat === 'tsv'
-                  ? 'TSV'
-                  : (ankiStore.status === 'online'
-                    ? 'Anki Connect'
-                    : `Anki Connect (${t("common.fallback")}: ${generationStore.fallbackFormat.toUpperCase()})`)}
-            </button>
-            {#if !generationStore.isBusy && !generationStore.result}
-              <div class="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-3 z-50
-                rounded-xl bg-gray-950/95 p-3 text-xs shadow-2xl shadow-black/40 ring-1 ring-white/10
-                opacity-0 group-hover/fmt:opacity-100 transition-all duration-150 whitespace-nowrap text-center border
-                {generationStore.exportFormat === 'apkg'
-                  ? 'border-emerald-500/30 text-emerald-300'
-                  : generationStore.exportFormat === 'tsv'
-                    ? 'border-sky-500/30 text-sky-300'
-                    : 'border-violet-500/30 text-violet-300'}">
-                {t("flashcards.clickToToggleFormat")}
-              </div>
-            {/if}
-          </div>
-
-        <!-- Package merging applies only to multi-episode APKG output. -->
-        {#if episodes.length > 1 && generationStore.effectiveExportFormat === "apkg"}
-        <div
-          class="flex items-center bg-gray-800/60 border border-gray-700/60 rounded-lg p-0.5 select-none relative group/sw transition-opacity {!isApkgSwitchEnabled ? 'opacity-40 cursor-not-allowed pointer-events-none' : ''}"
-        >
-          <!-- Sliding indicator background -->
-          <div 
-            class="absolute top-0.5 bottom-0.5 left-0.5 rounded-md bg-violet-500/20 border border-violet-500/50 transition-all duration-200 ease-out"
-            style="width: 160px; transform: translateX({generationStore.seriesOutputMode === 'separate' ? '0px' : '160px'});"
-          ></div>
-
-          <button
-            onclick={() => { if(isApkgSwitchEnabled) generationStore.seriesOutputMode = 'separate'; }}
-            disabled={!isApkgSwitchEnabled}
-            class="w-[160px] py-1 rounded-md text-xs font-semibold transition-colors duration-200 flex items-center justify-center cursor-pointer select-none relative z-10 disabled:cursor-not-allowed
-              {generationStore.seriesOutputMode === 'separate' ? 'text-violet-200' : 'text-gray-500 hover:text-gray-300'}"
-          >
-            {t("flashcards.outputPerEpisode")}
-          </button>
-          <button
-            onclick={() => { if(isApkgSwitchEnabled) generationStore.seriesOutputMode = 'single'; }}
-            disabled={!isApkgSwitchEnabled}
-            class="w-[160px] py-1 rounded-md text-xs font-semibold transition-colors duration-200 flex items-center justify-center cursor-pointer select-none relative z-10 disabled:cursor-not-allowed
-              {generationStore.seriesOutputMode === 'single' ? 'text-violet-200' : 'text-gray-500 hover:text-gray-300'}"
-          >
-            {t("flashcards.outputSingleApkg")}
-          </button>
-
-          <!-- Custom premium tooltip -->
-          {#if isApkgSwitchEnabled}
-            <div 
-              class="pointer-events-none absolute bottom-full z-50 mb-3 -translate-x-1/2 rounded-xl border border-violet-500/30 bg-gray-950/95 p-3 text-center text-xs text-violet-300 shadow-2xl shadow-black/40 ring-1 ring-white/10 transition-[opacity,transform] duration-75 delay-0 opacity-0 group-hover/sw:opacity-100 group-hover/sw:translate-y-0 translate-y-1 whitespace-normal max-w-[280px] w-max"
-              style="left: {generationStore.seriesOutputMode === 'separate' ? '82px' : '242px'};"
-            >
-              {generationStore.seriesOutputMode === 'separate' ? t("flashcards.outputPerEpisodeDesc") : t("flashcards.outputSingleApkgDesc")}
-            </div>
-          {/if}
-        </div>
-        {/if}
-      </div>
-
-      <!-- Preview Button -->
-      {#if !generationStore.result}
-        <div class="relative group">
-          <button
-            class="px-5 py-2.5 bg-gray-800 hover:bg-gray-700 disabled:bg-gray-800/40 text-gray-300 disabled:text-gray-600 rounded-xl font-bold text-sm transition-all border border-white/10 flex items-center gap-2 enabled:hover:scale-[1.02] enabled:active:scale-[0.98] disabled:cursor-not-allowed cursor-pointer disabled:border-white/5"
-            disabled={!canRunFlashcards || generationStore.isBusy || previewStore.loading}
-            onclick={loadPreview}
-          >
-            <svg
-              class="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-              />
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-              />
-            </svg>
-            {t("flashcards.preview")}
-          </button>
-          {#if !generationStore.isBusy}
-            <div class="pointer-events-none absolute bottom-full left-1/2 z-50 mb-3 -translate-x-1/2 rounded-xl border border-amber-500/30 bg-gray-950/95 p-3 text-center text-xs text-amber-300 shadow-2xl shadow-black/40 ring-1 ring-white/10 transition-all duration-150 delay-0 group-hover:delay-300 opacity-0 group-hover:opacity-100 group-hover:translate-y-0 translate-y-1 whitespace-normal w-72">
-              {!canRunFlashcards ? t("flashcards.completePrefix", { steps: generationRequirementsText }) : t("flashcards.preview")}
-            </div>
-          {/if}
-        </div>
-      {/if}
-
-      <!-- Main action button (Generate / Cancel / New Generation) -->
-      {#if generationStore.isBusy}
-        <button
-          disabled={generationStore.operation.cancelling || generationStore.operation.cancelRequested} onclick={cancelGeneration}
-          class="px-5 py-2.5 bg-red-600 hover:bg-red-500 text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-red-900/30 flex items-center gap-2 hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
-        >
-          <svg
-            class="w-4 h-4"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M6 18L18 6M6 6l12 12"
-            />
-          </svg>
-          {t("flashcards.cancel")}
-        </button>
-      {:else}
-        {#if !generationStore.result}
-          <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
-          <div
-            class="group relative"
-            role={!canRunFlashcards ? "button" : undefined}
-            tabindex={!canRunFlashcards ? 0 : undefined}
-            onclick={() => {
-              if (!canRunFlashcards) promptMissingGenerationRequirements();
-            }}
-            onmouseleave={closeGenerationPrompt}
-            onfocusout={closeGenerationPrompt}
-            onkeydown={(event) => {
-              if (!canRunFlashcards && (event.key === "Enter" || event.key === " ")) {
-                event.preventDefault();
-                promptMissingGenerationRequirements();
-              }
-            }}
-          >
-            <button
-              onclick={startGeneration}
-              disabled={!canRunFlashcards}
-              aria-describedby={!canRunFlashcards ? "flashcards-generate-requirements" : undefined}
-              class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:bg-emerald-600/40 text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-emerald-900/30 flex items-center gap-2 enabled:hover:scale-[1.02] enabled:active:scale-[0.98] disabled:cursor-help disabled:opacity-50 {!canRunFlashcards ? 'pointer-events-none saturate-75' : 'cursor-pointer'}"
-            >
-              <svg
-                class="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M13 10V3L4 14h7v7l9-11h-7z"
-                />
-              </svg>
-              {t("flashcards.generate")}
-            </button>
-            {#if !canRunFlashcards}
-              <div
-                id="flashcards-generate-requirements"
-                class="pointer-events-none absolute bottom-full left-1/2 z-40 mb-3 w-[min(22rem,calc(100vw-3rem))] -translate-x-1/2 rounded-xl border border-amber-400/30 bg-gray-950/95 p-3 text-left text-xs text-gray-200 opacity-0 shadow-2xl shadow-black/40 ring-1 ring-white/10 transition-all duration-150 delay-0 group-hover:delay-300 group-hover:opacity-100 group-hover:translate-y-0 {generationPromptOpen ? 'opacity-100 translate-y-0' : 'translate-y-1'}"
-              >
-                <p class="mb-2 font-semibold text-amber-200">
-                  {t("flashcards.missingSteps")}
-                </p>
-                <ol class="list-decimal space-y-1 pl-4 text-gray-300">
-                  {#each generationRequirements as requirement}
-                    <li>{requirement.label}</li>
-                  {/each}
-                </ol>
-              </div>
-            {/if}
-          </div>
-        {:else}
-          <div class="relative group">
-            <button
-              onclick={resetGeneration}
-              class="px-5 py-2.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 rounded-xl font-bold text-sm transition-all border border-amber-500/30 flex items-center gap-2 hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
-            >
-              <svg
-                class="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-                />
-              </svg>
-              {t("flashcards.newGeneration")}
-            </button>
-            <div class="pointer-events-none absolute bottom-full left-1/2 z-50 mb-3 -translate-x-1/2 rounded-xl border border-amber-500/30 bg-gray-950/95 p-3 text-center text-xs text-amber-300 shadow-2xl shadow-black/40 ring-1 ring-white/10 transition-all duration-150 delay-0 group-hover:delay-300 opacity-0 group-hover:opacity-100 group-hover:translate-y-0 translate-y-1 whitespace-normal w-72">
-              {t("flashcards.newGenerationDesc")}
-            </div>
-          </div>
-        {/if}
-      {/if}
-    </div>
-    {/snippet}
-  </FooterActions>
+  <FlashcardsFooterBar
+    {easyMode}
+    {activeNoteType}
+    {noteTypeOptions}
+    {automaticNoteType}
+    {selectedNoteTypeId}
+    {selectNoteType}
+    {episodes}
+    {isApkgSwitchEnabled}
+    {canRunFlashcards}
+    {generationPromptOpen}
+    {generationRequirements}
+    {generationRequirementsText}
+    onOpenBottomContextMenu={openBottomContextMenu}
+    {onGoToSettings}
+    onPreview={loadPreview}
+    onStartGeneration={startGeneration}
+    onCancelGeneration={cancelGeneration}
+    onResetGeneration={resetGeneration}
+    onPromptMissingRequirements={promptMissingGenerationRequirements}
+    onCloseGenerationPrompt={closeGenerationPrompt}
+  />
 </div>
 
 <style>

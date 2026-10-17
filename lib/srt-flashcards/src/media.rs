@@ -60,12 +60,18 @@ pub async fn check_ffmpeg(ffmpeg_cmd: &str) -> bool {
         .arg("-version")
         .output()
         .await
-        .map(|o| o.status.success())
-        .unwrap_or(false)
+        .is_ok_and(|o| o.status.success())
 }
 
 pub fn video_has_audio(ffprobe_cmd: &str, video_path: &str) -> bool {
-    std::process::Command::new(ffprobe_cmd)
+    #[allow(unused_mut)]
+    let mut command = std::process::Command::new(ffprobe_cmd);
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        command.creation_flags(0x0800_4000);
+    }
+    command
         .args([
             "-v",
             "error",
@@ -76,8 +82,7 @@ pub fn video_has_audio(ffprobe_cmd: &str, video_path: &str) -> bool {
             video_path,
         ])
         .output()
-        .map(|output| String::from_utf8_lossy(&output.stdout).contains("audio"))
-        .unwrap_or(false)
+        .is_ok_and(|output| String::from_utf8_lossy(&output.stdout).contains("audio"))
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -186,10 +191,7 @@ async fn test_h264_encoder(ffmpeg_cmd: &str, encoder: H264Encoder) -> bool {
         ]);
     }
     cmd.args(["-c:v", encoder.ffmpeg_name(), "-f", "null", "-"]);
-    cmd.output()
-        .await
-        .map(|o| o.status.success())
-        .unwrap_or(false)
+    cmd.output().await.is_ok_and(|o| o.status.success())
 }
 
 pub async fn detect_h264_encoder(ffmpeg_cmd: &str) -> H264Encoder {

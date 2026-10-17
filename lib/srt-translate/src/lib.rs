@@ -605,6 +605,7 @@ where
                     .map(|(id, s)| (*id, s.text.clone()))
                     .collect();
 
+                let mut retries = 0;
                 loop {
                     if token.is_cancelled() {
                         return Ok::<(), anyhow::Error>(());
@@ -722,20 +723,43 @@ where
                             });
                         }
                         Err(e) => {
-                            let completed = timing_stats.lock().await.1;
-                            let mut cb = progress_callback.lock().await;
-                            cb(TranslationProgress {
-                                message: format!(
-                                    "Batch [{}-{}] error via {}: {} ✗",
-                                    batch_start, batch_end, entry.label, e
-                                ),
-                                eta_seconds: None,
-                                current_batch: completed,
-                                total_batches,
-                                batch_start,
-                                batch_end,
-                            });
-                            break;
+                            if retries < 2 {
+                                retries += 1;
+                                let completed = timing_stats.lock().await.1;
+                                let mut cb = progress_callback.lock().await;
+                                cb(TranslationProgress {
+                                    message: format!(
+                                        "Batch [{}-{}] error via {}: {} (retry {}/2) ↻",
+                                        batch_start, batch_end, entry.label, e, retries
+                                    ),
+                                    eta_seconds: None,
+                                    current_batch: completed,
+                                    total_batches,
+                                    batch_start,
+                                    batch_end,
+                                });
+                                tokio::select! {
+                                    _ = token.cancelled() => return Ok(()),
+                                    _ = tokio::time::sleep(std::time::Duration::from_millis(
+                                        500 * retries as u64,
+                                    )) => {}
+                                }
+                            } else {
+                                let completed = timing_stats.lock().await.1;
+                                let mut cb = progress_callback.lock().await;
+                                cb(TranslationProgress {
+                                    message: format!(
+                                        "Batch [{}-{}] error via {}: {} ✗",
+                                        batch_start, batch_end, entry.label, e
+                                    ),
+                                    eta_seconds: None,
+                                    current_batch: completed,
+                                    total_batches,
+                                    batch_start,
+                                    batch_end,
+                                });
+                                break;
+                            }
                         }
                     }
                 }
@@ -820,6 +844,7 @@ async fn repair_missing_tiered(
 
     let scheduler = Arc::new(Mutex::new(TierScheduler::new(&pool)));
     let total = missing_ids.len();
+    let mut repaired_since_last_save = 0;
 
     for (idx, &id) in missing_ids.iter().enumerate() {
         if cancellation_token.is_cancelled() {
@@ -865,8 +890,12 @@ async fn repair_missing_tiered(
                     new_sub.text = translation;
                     let mut map = translated.lock().await;
                     map.insert(id, new_sub);
-                    SrtParser::save_file(output_path, &map)
-                        .context("Failed to save repaired subtitles")?;
+                    repaired_since_last_save += 1;
+                    if repaired_since_last_save >= 10 {
+                        SrtParser::save_file(output_path, &map)
+                            .context("Failed to save repaired subtitles")?;
+                        repaired_since_last_save = 0;
+                    }
                     break;
                 }
                 Err(e) if is_rate_limit_error(&e) => {
@@ -886,6 +915,11 @@ async fn repair_missing_tiered(
                 }
             }
         }
+    }
+
+    if repaired_since_last_save > 0 {
+        let map = translated.lock().await;
+        SrtParser::save_file(output_path, &map).context("Failed to save repaired subtitles")?;
     }
 
     Ok(())

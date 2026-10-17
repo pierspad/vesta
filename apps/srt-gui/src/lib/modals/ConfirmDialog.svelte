@@ -1,5 +1,6 @@
 <script lang="ts">
   import { createEventDispatcher, onMount } from 'svelte';
+  import { locale } from '$lib/i18n';
 
   interface Props {
     show?: boolean;
@@ -14,10 +15,14 @@
     show = false,
     title = '',
     message = '',
-    confirmText = 'Conferma',
-    cancelText = 'Annulla',
+    confirmText,
+    cancelText,
     variant = 'danger'
   }: Props = $props();
+
+  let t = $derived($locale);
+  let effectiveConfirmText = $derived(confirmText ?? t('common.confirm'));
+  let effectiveCancelText = $derived(cancelText ?? t('common.cancel'));
 
   const dispatch = createEventDispatcher<{
     confirm: void;
@@ -100,10 +105,10 @@
       </div>
       <div class="confirm-modal-actions flex justify-end gap-3">
         <button class="confirm-btn-cancel px-4 py-2 rounded-lg text-xs font-semibold cursor-pointer border border-white/10 bg-white/5 text-gray-300 hover:bg-white/10 transition-colors" type="button" onclick={handleCancel}>
-          {cancelText}
+          {effectiveCancelText}
         </button>
         <button class="confirm-btn-action {variant} px-4 py-2 rounded-lg text-xs font-semibold cursor-pointer border-none text-white transition-colors" type="button" onclick={handleConfirm}>
-          {confirmText}
+          {effectiveConfirmText}
         </button>
       </div>
     </div>

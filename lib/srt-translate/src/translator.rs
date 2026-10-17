@@ -21,7 +21,6 @@ pub enum ApiType {
 
     Groq,
 
-    #[allow(dead_code)]
     OpenRouter,
 }
 

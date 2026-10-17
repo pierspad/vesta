@@ -388,8 +388,7 @@ fn simplify_subtitle_stem(name: &str) -> String {
             && lower.chars().all(|c| c.is_ascii_digit())
             && lower
                 .parse::<u32>()
-                .map(|yr| (1900..=2099).contains(&yr))
-                .unwrap_or(false);
+                .is_ok_and(|yr| (1900..=2099).contains(&yr));
 
         if !is_year && NOISE.binary_search(&lower.as_str()).is_err() {
             if !result.is_empty() {

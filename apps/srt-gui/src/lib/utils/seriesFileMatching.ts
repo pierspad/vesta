@@ -78,11 +78,12 @@ export function removableTokenRegex(tokens: string[]): RegExp | null {
 
 /** Estrae il numero di episodio da un filename usando i pattern configurabili
  * di smart-matching (vedi `SmartMatchingRules.episodeRegexes`). */
-export function extractEpisodeNumber(filename: string, episodeRegexes: string[]): number | null {
+export function extractEpisodeNumber(filename: string, episodeRegexes: (string | RegExp)[]): number | null {
   const base = filename.replace(/\.[^/.]+$/, "");
   for (const pattern of episodeRegexes) {
     try {
-      const match = base.match(new RegExp(pattern, "i"));
+      const rx = pattern instanceof RegExp ? pattern : new RegExp(pattern, "i");
+      const match = base.match(rx);
       const rawEpisode = match?.[1] ?? match?.[0];
       const numericEpisode = rawEpisode?.match(/\d{1,4}/)?.[0];
       if (numericEpisode) return parseInt(numericEpisode, 10);
@@ -467,11 +468,21 @@ export function autoMatchFiles(
   mediaFiles: string[],
   episodeRegexes: string[],
 ): EpisodeEntry[] {
+  const compiledRegexes = episodeRegexes
+    .map((pattern) => {
+      try {
+        return new RegExp(pattern, "i");
+      } catch {
+        return null;
+      }
+    })
+    .filter((rx): rx is RegExp => rx !== null);
+
   type FileWithEp = { path: string; ep: number | null; name: string };
   const toEntries = (files: string[]): FileWithEp[] =>
     files.map((f) => {
       const name = getFileName(f);
-      return { path: f, ep: extractEpisodeNumber(name, episodeRegexes), name };
+      return { path: f, ep: extractEpisodeNumber(name, compiledRegexes), name };
     });
 
   const targets = toEntries(targetFiles);

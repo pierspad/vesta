@@ -40,8 +40,7 @@ async fn command_ok(cmd: &str, args: &[&str]) -> bool {
         .stderr(Stdio::null())
         .status()
         .await
-        .map(|s| s.success())
-        .unwrap_or(false)
+        .is_ok_and(|s| s.success())
 }
 
 /// Best-effort list of GPU adapter name strings, used only to sniff vendors.

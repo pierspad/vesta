@@ -21,6 +21,7 @@
   import { onMount } from "svelte";
   import { locale } from "$lib/i18n";
   import { getFileName } from "$lib/utils/models";
+  import { errorMessage } from "$lib/utils/errorMessage";
   import {
     transcribeProviders,
     transcribeProviderOrder,
@@ -437,7 +438,7 @@
         loadInputMedia(selected as string);
       }
     } catch (e) {
-      error = `${t("transcribe.errorSelectingFile")}: ${e}`;
+      error = `${t("transcribe.errorSelectingFile")}: ${errorMessage(e)}`;
     }
   }
 
@@ -492,7 +493,7 @@
         addLog(`Output file set manually: ${getFileName(outputPath)}`, "file");
       }
     } catch (e) {
-      error = `${t("transcribe.errorSelectingFile")}: ${e}`;
+      error = `${t("transcribe.errorSelectingFile")}: ${errorMessage(e)}`;
     }
   }
 
@@ -500,7 +501,7 @@
     if (isTranscribing) return false;
     const cleaned = await validatePickerPath(newPath, "input", transcribeCheckFileExists);
     if (!cleaned || isTranscribing) return false;
-      loadInputMedia(cleaned);
+    loadInputMedia(cleaned);
     return true;
   }
 
@@ -574,7 +575,7 @@
       }
     } catch (e) {
       if (!transcriptionCancelled) {
-        error = `${t("transcribe.error")}: ${e}`;
+        error = `${t("transcribe.error")}: ${errorMessage(e)}`;
         addLog(error, "error");
       }
     } finally {
@@ -593,7 +594,7 @@
       }
     } catch (e) {
       transcriptionCancelled = false;
-      error = `${t("transcribe.error")}: ${e}`;
+      error = `${t("transcribe.error")}: ${errorMessage(e)}`;
       showSnackbar(error, "error");
     }
   }
@@ -718,7 +719,7 @@
             await transcriptionResources.refreshBackends();
             window.dispatchEvent(new CustomEvent("vesta-ffmpeg-updated"));
           } catch (e) {
-            error = `${t("flashcards.ffmpegDownloadFailed")}: ${e}`;
+            error = `${t("flashcards.ffmpegDownloadFailed")}: ${errorMessage(e)}`;
           } finally {
             isDownloadingFFmpeg = false;
           }

@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::Path;
 
 use crate::interpolator::{AnchorPoint, TimeMapper};
@@ -24,6 +24,8 @@ pub struct SyncState {
 pub struct SyncEngine {
     subtitles: HashMap<u32, Subtitle>,
 
+    original_ids: HashSet<u32>,
+
     sorted_ids: Vec<u32>,
 
     time_mapper: TimeMapper,
@@ -43,6 +45,8 @@ impl SyncEngine {
         let mut subtitles =
             SrtParser::parse_file(&srt_path).context("Impossibile caricare il file SRT")?;
 
+        let original_ids: HashSet<u32> = subtitles.keys().copied().collect();
+
         SrtParser::normalize_subtitles(&mut subtitles);
 
         let mut sorted_ids: Vec<u32> = subtitles.keys().copied().collect();
@@ -53,6 +57,7 @@ impl SyncEngine {
 
         let mut engine = Self {
             subtitles,
+            original_ids,
             sorted_ids,
             time_mapper: TimeMapper::new(),
             sampler,
@@ -70,6 +75,8 @@ impl SyncEngine {
         let mut subtitles = SrtParser::parse_file(&state.srt_path)
             .context("Impossibile caricare il file SRT dallo stato salvato")?;
 
+        let original_ids: HashSet<u32> = subtitles.keys().copied().collect();
+
         SrtParser::normalize_subtitles(&mut subtitles);
 
         let mut sorted_ids: Vec<u32> = subtitles.keys().copied().collect();
@@ -84,6 +91,7 @@ impl SyncEngine {
 
         let mut engine = Self {
             subtitles,
+            original_ids,
             sorted_ids,
             time_mapper: state.time_mapper,
             sampler,
@@ -352,6 +360,7 @@ impl SyncEngine {
         let synced: HashMap<u32, Subtitle> = self
             .sorted_ids
             .iter()
+            .filter(|id| self.original_ids.contains(id))
             .filter_map(|id| self.get_synced_subtitle(*id).map(|s| (*id, s)))
             .collect();
 
@@ -512,7 +521,8 @@ mod tests {
         );
 
         let engine = SyncEngine {
-            subtitles: subs,
+            subtitles: subs.clone(),
+            original_ids: subs.keys().copied().collect(),
             sorted_ids: vec![1, 2, 3],
             time_mapper: TimeMapper::new(),
             sampler: AdaptiveSampler::new(3, SamplerStrategy::BinarySearch),
@@ -543,5 +553,32 @@ mod tests {
         mapper.add_anchor(AnchorPoint::new(1, 1000, 2000));
 
         assert_eq!(mapper.calculate_offset(1000), 1000);
+    }
+
+    #[test]
+    fn normalized_placeholders_are_excluded_from_saved_file() {
+        let directory = tempfile::tempdir().unwrap();
+        let srt = directory.path().join("source.srt");
+        // Gaps: 1 and 3 are present, 2 is missing and will be filled with [...] by normalization
+        std::fs::write(
+            &srt,
+            "1\n00:00:01,000 --> 00:00:02,000\nHello\n\n3\n00:00:05,000 --> 00:00:06,000\nWorld\n",
+        )
+        .unwrap();
+
+        let engine = SyncEngine::new(&srt).unwrap();
+        // The normalized engine internally contains placeholder ID 2
+        assert_eq!(engine.subtitles.len(), 3);
+        assert!(engine.subtitles.contains_key(&2));
+        assert_eq!(engine.subtitles.get(&2).unwrap().text, "[...]");
+
+        let output = directory.path().join("synced.srt");
+        engine.save_synced_file(&output).unwrap();
+
+        let saved = SrtParser::parse_file(&output).unwrap();
+        assert_eq!(saved.len(), 2);
+        assert!(saved.contains_key(&1));
+        assert!(!saved.contains_key(&2));
+        assert!(saved.contains_key(&3));
     }
 }

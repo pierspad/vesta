@@ -337,6 +337,13 @@ export class WhisperModelsStore {
       }
     }
   }
+
+  reinit() {
+    this.defaultWhisperModel = vestaConfig.getItem("srt-default-whisper-model") || "base";
+    this.vadSelection = loadVadSelection();
+    void this.refreshModels();
+    void this.refreshAddons();
+  }
 }
 
 export const whisperModelsStore = new WhisperModelsStore();

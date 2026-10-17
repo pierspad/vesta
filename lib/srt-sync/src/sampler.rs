@@ -139,17 +139,15 @@ impl AdaptiveSampler {
                 continue;
             }
 
-            if let Some(time_ms) = self.subtitle_times_ms.get(i - 1) {
-                if let Some(error) = time_mapper.estimate_error_at(*time_ms) {
-                    if error > max_error {
-                        max_error = error;
-                        best_index = Some(idx);
-                    }
-                } else {
-                    if max_error < 0.0 {
-                        best_index = Some(idx);
-                    }
+            if let Some(time_ms) = self.subtitle_times_ms.get(i - 1)
+                && let Some(error) = time_mapper.estimate_error_at(*time_ms)
+            {
+                if error > max_error {
+                    max_error = error;
+                    best_index = Some(idx);
                 }
+            } else if max_error < 0.0 {
+                best_index = Some(idx);
             }
         }
 

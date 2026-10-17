@@ -11,6 +11,7 @@
   import { onDestroy, onMount } from "svelte";
   import { locale } from "$lib/i18n";
   import { getFileName } from "$lib/utils/models";
+  import { errorMessage } from "$lib/utils/errorMessage";
   import { loadAndValidateApiKeys, type ApiKeyConfig } from "$lib/config/apiKeys";
   import {
     loadTiers,
@@ -142,7 +143,7 @@
       if (!check.available) { requirements.pulse(["options"]); if (check.errorMsg) snackbar.show(check.errorMsg, "error"); return; }
       const draft = await suggestTranslationContext(path, language, context, tiersPayload);
       if (request === contextRequest && path === inputPath && !aiStore.killSwitchActive && !disposed) { contextDraft = draft; contextDraftPath = path; }
-    } catch (error) { if (request === contextRequest && !disposed) contextError = String(error); }
+    } catch (error) { if (request === contextRequest && !disposed) contextError = errorMessage(error); }
     finally { contextLoading = false; }
   }
 
@@ -203,7 +204,7 @@
         selectedModel = models[0].id;
       }
     } catch (e: any) {
-      fetchModelsError = e?.message || "Connection failed";
+      fetchModelsError = errorMessage(e, "Connection failed");
       fetchedModels = [];
     } finally {
       isFetchingModels = false;
@@ -682,7 +683,7 @@
         addLog(`📤 Output set: ${getFileName(outputPath)}`);
       }
     } catch (e) {
-      error = `${t("translate.errorSelectingFile")} ${e}`;
+      error = `${t("translate.errorSelectingFile")} ${errorMessage(e)}`;
     }
   }
 
@@ -702,7 +703,7 @@
         addLog(`📤 Output updated: ${getFileName(outputPath)}`);
       }
     } catch (e) {
-      error = `${t("translate.errorSelectingFile")} ${e}`;
+      error = `${t("translate.errorSelectingFile")} ${errorMessage(e)}`;
     }
   }
 
@@ -710,8 +711,8 @@
     if (isTranslating || contextLoading) return false;
     const cleaned = await validatePickerPath(newPath, "input", transcribeCheckFileExists);
     if (!cleaned || isTranslating || contextLoading) return false;
-      inputPath = cleaned;
-      await loadFileInfo();
+    inputPath = cleaned;
+    await loadFileInfo();
     return true;
   }
 
@@ -747,7 +748,7 @@
       );
     } catch (e) {
       if (!request.isCurrent() || path !== inputPath || disposed) return;
-      error = `${t("translate.errorLoading")} ${e}`;
+      error = `${t("translate.errorLoading")} ${errorMessage(e)}`;
       fileInfo = null;
     } finally { if (request.isCurrent()) fileLoading = false; }
   }
@@ -799,7 +800,7 @@
       await refreshTranslatedPreview(true);
     } catch (e: any) {
       if (run.isCancelled() || !run.isCurrent()) return;
-      let msg = e ? e.toString() : "Unknown error";
+      let msg = errorMessage(e);
       const errorLower = msg.toLowerCase();
 
       let userMsg = msg;
@@ -836,7 +837,7 @@
       const cancelled = await translationOperation.cancel(apiCancelTranslation);
       if (cancelled && !disposed) { progress = null; stopPreviewRefresh(); addLog(t("translate.cancelled")); }
     } catch (e) {
-      error = `${t("translate.errorCancelling")} ${e}`;
+      error = `${t("translate.errorCancelling")} ${errorMessage(e)}`;
       snackbar.show(error, "error");
     }
   }

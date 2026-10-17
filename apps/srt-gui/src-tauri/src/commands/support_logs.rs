@@ -26,7 +26,7 @@ pub struct RecordingStatus {
 
 #[tauri::command]
 pub fn support_log_status() -> Result<RecordingStatus, String> {
-    let recorder = RECORDER.lock().map_err(|e| e.to_string())?;
+    let recorder = RECORDER.lock().unwrap_or_else(|e| e.into_inner());
     Ok(RecordingStatus {
         path: recorder
             .path
@@ -38,14 +38,11 @@ pub fn support_log_status() -> Result<RecordingStatus, String> {
 
 #[tauri::command]
 pub fn support_log_start(app: AppHandle) -> Result<String, String> {
-    let mut recorder = RECORDER.lock().map_err(|e| e.to_string())?;
-    if recorder.file.is_some() {
-        return Ok(recorder
-            .path
-            .as_ref()
-            .unwrap()
-            .to_string_lossy()
-            .into_owned());
+    let mut recorder = RECORDER.lock().unwrap_or_else(|e| e.into_inner());
+    if recorder.file.is_some()
+        && let Some(ref path) = recorder.path
+    {
+        return Ok(path.to_string_lossy().into_owned());
     }
     let folder = app
         .path()
@@ -76,7 +73,7 @@ pub fn support_log_append(path: String, entries: Vec<String>) -> Result<(), Stri
     if entries.len() > 200 {
         return Err("Too many log entries".into());
     }
-    let mut recorder = RECORDER.lock().map_err(|e| e.to_string())?;
+    let mut recorder = RECORDER.lock().unwrap_or_else(|e| e.into_inner());
     if recorder.path.as_deref() != Some(std::path::Path::new(&path)) {
         return Err("Recording session changed".into());
     }
@@ -93,7 +90,7 @@ pub fn support_log_append(path: String, entries: Vec<String>) -> Result<(), Stri
 
 #[tauri::command]
 pub fn support_log_stop() -> Result<(), String> {
-    let mut recorder = RECORDER.lock().map_err(|e| e.to_string())?;
+    let mut recorder = RECORDER.lock().unwrap_or_else(|e| e.into_inner());
     if let Some(mut file) = recorder.file.take() {
         file.flush().map_err(|e| e.to_string())?;
     }
@@ -102,7 +99,7 @@ pub fn support_log_stop() -> Result<(), String> {
 
 #[tauri::command]
 pub fn support_log_export(destination: String) -> Result<String, String> {
-    let mut recorder = RECORDER.lock().map_err(|e| e.to_string())?;
+    let mut recorder = RECORDER.lock().unwrap_or_else(|e| e.into_inner());
     if let Some(file) = recorder.file.as_mut() {
         file.flush().map_err(|e| e.to_string())?;
     }

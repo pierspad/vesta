@@ -57,6 +57,11 @@ class ExportFormatStore {
     } catch {}
   }
 
+  reinit() {
+    this.exportFormat = loadInitial();
+    this.fallbackFormat = loadInitialFallback();
+  }
+
   cycleExportFormat() {
     if (this.exportFormat === "apkg") {
       this.setExportFormat("tsv");

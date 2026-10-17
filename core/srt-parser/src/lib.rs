@@ -308,6 +308,7 @@ impl SrtParser {
 
     /// Salva i sottotitoli in un file SRT
     pub fn save_file<P: AsRef<Path>>(path: P, subtitles: &HashMap<u32, Subtitle>) -> Result<()> {
+        let path = path.as_ref();
         let mut sorted_subs: Vec<_> = subtitles.values().collect();
         sorted_subs.sort_unstable_by_key(|s| s.id);
 
@@ -328,6 +329,7 @@ impl SrtParser {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fs;
 
     #[test]
     fn test_timestamp_parsing() {
@@ -450,5 +452,49 @@ Come stai?"#;
         assert!(srt_str.contains("42"));
         assert!(srt_str.contains("01:23:45,678 --> 01:23:50,123"));
         assert!(srt_str.contains("Hello\nWorld!"));
+    }
+
+    #[test]
+    fn test_atomic_save_file() {
+        let temp_dir = std::env::temp_dir().join(format!("srt_test_{}", std::process::id()));
+        fs::create_dir_all(&temp_dir).unwrap();
+        let target_path = temp_dir.join("test_atomic.srt");
+
+        let mut subs = HashMap::new();
+        subs.insert(
+            1,
+            Subtitle {
+                id: 1,
+                start: Timestamp::from_milliseconds(1000),
+                end: Timestamp::from_milliseconds(2000),
+                text: "Hello".to_string(),
+            },
+        );
+        subs.insert(
+            2,
+            Subtitle {
+                id: 2,
+                start: Timestamp::from_milliseconds(3000),
+                end: Timestamp::from_milliseconds(4000),
+                text: "World".to_string(),
+            },
+        );
+
+        SrtParser::save_file(&target_path, &subs).unwrap();
+        assert!(target_path.exists());
+
+        // Ensure no leftover temporary files in directory
+        let entries: Vec<_> = fs::read_dir(&temp_dir)
+            .unwrap()
+            .map(|e| e.unwrap().file_name().to_string_lossy().to_string())
+            .collect();
+        assert_eq!(entries, vec!["test_atomic.srt".to_string()]);
+
+        let parsed = SrtParser::parse_file(&target_path).unwrap();
+        assert_eq!(parsed.len(), 2);
+        assert_eq!(parsed.get(&1).unwrap().text, "Hello");
+        assert_eq!(parsed.get(&2).unwrap().text, "World");
+
+        let _ = fs::remove_dir_all(&temp_dir);
     }
 }

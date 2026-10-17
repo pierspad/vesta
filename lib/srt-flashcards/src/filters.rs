@@ -152,8 +152,7 @@ pub(crate) fn combine_sentences(lines: &mut Vec<MatchedLine>, continuation_chars
             .trim_end()
             .chars()
             .last()
-            .map(|c| cont_chars.contains(&c))
-            .unwrap_or(false);
+            .is_some_and(|c| cont_chars.contains(&c));
 
         if ends_with_cont && lines[write_idx].active && lines[read_idx].active {
             let next_end = lines[read_idx].subs1.end_ms;

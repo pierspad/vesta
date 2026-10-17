@@ -119,8 +119,7 @@ async fn command_works(cmd: &str) -> bool {
         .arg("-version")
         .output()
         .await
-        .map(|o| o.status.success())
-        .unwrap_or(false)
+        .is_ok_and(|o| o.status.success())
 }
 
 fn hoist_binary(dir: &std::path::Path, name: &str) -> Result<(), String> {

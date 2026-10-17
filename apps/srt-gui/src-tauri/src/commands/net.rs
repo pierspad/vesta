@@ -1,7 +1,57 @@
+use std::sync::LazyLock;
 use std::time::Duration;
 
 use reqwest::redirect::Policy;
 use serde::{Deserialize, Serialize};
+
+static CLIENT_NO_REDIRECT: LazyLock<reqwest::Client> = LazyLock::new(|| {
+    reqwest::Client::builder()
+        .redirect(Policy::none())
+        .build()
+        .unwrap_or_default()
+});
+
+static CLIENT_FOLLOW_CUSTOM: LazyLock<reqwest::Client> = LazyLock::new(|| {
+    reqwest::Client::builder()
+        .redirect(Policy::custom(|attempt| {
+            if attempt.previous().len() >= 10 {
+                attempt.error("Too many redirects")
+            } else if matches!(attempt.url().scheme(), "http" | "https") {
+                attempt.follow()
+            } else {
+                attempt.error("Redirect host not allowed")
+            }
+        }))
+        .build()
+        .unwrap_or_default()
+});
+
+static CLIENT_FOLLOW: LazyLock<reqwest::Client> = LazyLock::new(|| {
+    reqwest::Client::builder()
+        .redirect(Policy::custom(|attempt| {
+            if attempt.previous().len() >= 10 {
+                attempt.error("Too many redirects")
+            } else if matches!(attempt.url().scheme(), "http" | "https")
+                && attempt.url().host_str().is_some_and(is_host_allowed)
+            {
+                attempt.follow()
+            } else {
+                attempt.error("Redirect host not allowed")
+            }
+        }))
+        .build()
+        .unwrap_or_default()
+});
+
+fn get_client(follow_redirects: bool, allow_custom_host: bool) -> &'static reqwest::Client {
+    if !follow_redirects {
+        &CLIENT_NO_REDIRECT
+    } else if allow_custom_host {
+        &CLIENT_FOLLOW_CUSTOM
+    } else {
+        &CLIENT_FOLLOW
+    }
+}
 
 const ALLOWED_HOSTS: &[&str] = &[
     "api.openai.com",
@@ -106,37 +156,16 @@ pub async fn http_fetch(req: HttpFetchRequest) -> Result<HttpFetchResponse, Stri
     }
 
     let follow_redirects = req.redirect != "manual";
-
-    let client = reqwest::Client::builder()
-        .redirect(if follow_redirects {
-            let custom = req.allow_custom_host;
-            Policy::custom(move |attempt| {
-                if attempt.previous().len() >= 10 {
-                    attempt.error("Too many redirects")
-                } else if matches!(attempt.url().scheme(), "http" | "https")
-                    && attempt
-                        .url()
-                        .host_str()
-                        .is_some_and(|host| custom || is_host_allowed(host))
-                {
-                    attempt.follow()
-                } else {
-                    attempt.error("Redirect host not allowed")
-                }
-            })
-        } else {
-            Policy::none()
-        })
-        .timeout(Duration::from_millis(req.timeout_ms))
-        .build()
-        .map_err(|e| e.to_string())?;
+    let client = get_client(follow_redirects, req.allow_custom_host);
 
     let method = req
         .method
         .parse::<reqwest::Method>()
         .map_err(|e| format!("Metodo HTTP non valido: {e}"))?;
 
-    let mut builder = client.request(method, url);
+    let mut builder = client
+        .request(method, url)
+        .timeout(Duration::from_millis(req.timeout_ms));
     for (name, value) in &req.headers {
         builder = builder.header(name, value);
     }

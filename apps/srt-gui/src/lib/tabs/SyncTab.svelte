@@ -19,6 +19,7 @@
   import SubtitleListPanel from "$lib/panels/SubtitleListPanel.svelte";
   import WizardCheckpoint from "$lib/components/WizardCheckpoint.svelte";
   import { formatSyncMediaError } from "$lib/utils/syncMediaError";
+  import { errorMessage } from "$lib/utils/errorMessage";
 
   interface Props {
     active?: boolean;
@@ -132,7 +133,7 @@
       if (!await autoSyncStore.operation.cancel(() => invoke("sync_cancel_auto_sync"))) return;
       autoSyncStore.message = t("sync.autoSyncCancelling");
     } catch (e) {
-      showSnackbar(`Cancel failed: ${e}`, "error");
+      showSnackbar(`Cancel failed: ${errorMessage(e)}`, "error");
     }
   }
 
@@ -229,7 +230,7 @@
       showSnackbar(summaryMessage, summaryLevel);
     } catch (e) {
       if (run.isCancelled()) { showSnackbar(t("sync.autoSyncResult.cancelled"), "info"); return; }
-      const msg = `Auto-sync failed: ${e}`;
+      const msg = `Auto-sync failed: ${errorMessage(e)}`;
       showSnackbar(msg, "error");
     } finally {
       run.finish();
@@ -364,7 +365,7 @@
       const [port, token] = await getMediaServerInfo();
       return `http://127.0.0.1:${port}/media?path=${encodeURIComponent(playbackPath)}&token=${token}`;
     } catch (error) {
-      audioError = `${t("sync.errorLoadingAudio")} ${error}`;
+      audioError = `${t("sync.errorLoadingAudio")} ${errorMessage(error)}`;
       throw error;
     } finally {
       if (needsTranscode) {
@@ -514,7 +515,7 @@
         void safePlayAudio("goToCheckpoint");
       }
     } catch (e) {
-      showSnackbar(`Error loading subtitle: ${e}`, "error");
+      showSnackbar(`Error loading subtitle: ${errorMessage(e)}`, "error");
     } finally {
       isNavigating = false;
     }
@@ -559,7 +560,7 @@
         await tryAutoSelectMediaForSrt(selectedPath);
       }
     } catch (e) {
-      showSnackbar(`${t("sync.errorLoadingSrt")} ${e}`, "error");
+      showSnackbar(`${t("sync.errorLoadingSrt")} ${errorMessage(e)}`, "error");
     }
   }
 
@@ -601,7 +602,7 @@
         status = await invoke<SyncStatus>("sync_set_video", { path });
       }
     } catch (e) {
-      showSnackbar(`${t("sync.errorLoadingAudio")} ${e}`, "error");
+      showSnackbar(`${t("sync.errorLoadingAudio")} ${errorMessage(e)}`, "error");
     }
   }
 
@@ -620,7 +621,7 @@
         subtitleListElement.scrollTop = 0;
       }
     } catch (e) {
-      showSnackbar(`${t("sync.errorLoadingSrt")} ${e}`, "error");
+      showSnackbar(`${t("sync.errorLoadingSrt")} ${errorMessage(e)}`, "error");
     }
   }
 
@@ -649,7 +650,7 @@
     try {
       anchors = await invoke<AnchorInfo[]>("sync_get_anchors");
     } catch (e) {
-      showSnackbar(`${t("sync.errorAddingAnchor")} ${e}`, "error");
+      showSnackbar(`${t("sync.errorAddingAnchor")} ${errorMessage(e)}`, "error");
     }
   }
 
@@ -697,7 +698,7 @@
         subtitleId: updated.id,
       });
     } catch (e) {
-      showSnackbar(`${t("sync.errorAddingAnchor")} ${e}`, "error");
+      showSnackbar(`${t("sync.errorAddingAnchor")} ${errorMessage(e)}`, "error");
       syncDebug("confirmCurrentCheckpoint failed", { error: String(e) });
     } finally {
       isConfirmingCheckpoint = false;
@@ -711,7 +712,7 @@
       await refreshCurrentSubtitles();
       await loadAnchors();
     } catch (e) {
-      showSnackbar(`${t("sync.errorRemovingAnchor")} ${e}`, "error");
+      showSnackbar(`${t("sync.errorRemovingAnchor")} ${errorMessage(e)}`, "error");
     }
   }
 
@@ -758,7 +759,7 @@
         showSnackbar(`${t("sync.fileSaved")} ${selected}`, "success");
       }
     } catch (e) {
-      showSnackbar(`${t("sync.errorSaving")} ${e}`, "error");
+      showSnackbar(`${t("sync.errorSaving")} ${errorMessage(e)}`, "error");
     }
   }
 
@@ -773,7 +774,7 @@
         showSnackbar(`${t("sync.sessionSaved")} ${selected}`, "success");
       }
     } catch (e) {
-      showSnackbar(`${t("sync.errorSaving")} ${e}`, "error");
+      showSnackbar(`${t("sync.errorSaving")} ${errorMessage(e)}`, "error");
     }
   }
 
@@ -800,7 +801,7 @@
         }
       }
     } catch (e) {
-      showSnackbar(`${t("sync.errorLoadingSrt")} ${e}`, "error");
+      showSnackbar(`${t("sync.errorLoadingSrt")} ${errorMessage(e)}`, "error");
     }
   }
 
@@ -826,7 +827,7 @@
         audioElement.src = "";
       }
     } catch (e) {
-      showSnackbar(`${t("sync.errorSaving")} ${e}`, "error");
+      showSnackbar(`${t("sync.errorSaving")} ${errorMessage(e)}`, "error");
     }
   }
 
@@ -883,7 +884,7 @@
           await advanceWizard();
           await tryAutoSelectMediaForSrt(filePath);
         } catch (e: any) {
-          showSnackbar(`${t("sync.errorLoadingSrt")} ${e}`, "error");
+          showSnackbar(`${t("sync.errorLoadingSrt")} ${errorMessage(e)}`, "error");
         }
       } else if (isMediaFile(fileName)) {
         if (!status?.is_loaded) {
@@ -898,7 +899,7 @@
             path: filePath,
           });
         } catch (e: any) {
-          showSnackbar(`${t("sync.errorLoadingAudio")} ${e}`, "error");
+          showSnackbar(`${t("sync.errorLoadingAudio")} ${errorMessage(e)}`, "error");
         }
       }
     }
@@ -930,7 +931,7 @@
       seekToSubtitleStart(sub);
       scrollToSubtitle(sub.id);
     } catch (e) {
-      showSnackbar(`Undo failed: ${e}`, "error");
+      showSnackbar(`Undo failed: ${errorMessage(e)}`, "error");
     }
   }
 

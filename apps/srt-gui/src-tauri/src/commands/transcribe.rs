@@ -69,8 +69,7 @@ pub async fn transcribe_check_backends(app: AppHandle) -> Result<serde_json::Val
         .arg("-version")
         .output()
         .await
-        .map(|o| o.status.success())
-        .unwrap_or(false);
+        .is_ok_and(|o| o.status.success());
 
     Ok(serde_json::json!({
         "ffmpeg": ffmpeg_available,

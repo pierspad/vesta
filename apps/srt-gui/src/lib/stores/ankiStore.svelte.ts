@@ -10,11 +10,20 @@ class AnkiStore {
   embedCardFont = $state<boolean>(true);
 
   constructor() {
+    this.initFromConfig();
+  }
+
+  private initFromConfig() {
     this.url = vestaConfig.getItem("vesta-ankiconnect-url") || "http://127.0.0.1:8765";
     const savedAutoFont = vestaConfig.getItem("vesta-auto-card-font");
     this.autoCardFont = savedAutoFont !== "false";
     const savedEmbedFont = vestaConfig.getItem("vesta-embed-card-font");
     this.embedCardFont = savedEmbedFont !== "false";
+  }
+
+  reinit() {
+    this.initFromConfig();
+    void this.checkConnection(true);
   }
 
   setUrl(newUrl: string) {
@@ -38,12 +47,18 @@ class AnkiStore {
     } catch {}
   }
 
-  async checkConnection(): Promise<boolean> {
-    this.status = "checking";
+  async checkConnection(silent = false): Promise<boolean> {
+    if (!silent || this.status === "unknown") {
+      this.status = "checking";
+    }
     try {
       this.version = await invoke<number>("ankiconnect_ping", { url: this.url });
-      this.decks = await invoke<string[]>("ankiconnect_deck_names", { url: this.url });
       this.status = "online";
+      try {
+        this.decks = await invoke<string[]>("ankiconnect_deck_names", { url: this.url });
+      } catch {
+        // Ping succeeded; keep status online even if deck list fetch failed
+      }
       return true;
     } catch (err) {
       this.status = "offline";

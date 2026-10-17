@@ -268,8 +268,7 @@ pub async fn run_auto_sync(
         .arg("-version")
         .output()
         .await
-        .map(|o| o.status.success())
-        .unwrap_or(false);
+        .is_ok_and(|o| o.status.success());
     if !ffmpeg_ok {
         anyhow::bail!("FFmpeg is required for auto-sync. Install FFmpeg first.");
     }

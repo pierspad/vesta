@@ -53,9 +53,8 @@ fn parse_srt_block(lines: &[&str]) -> Result<Option<SubEntry>> {
         return Ok(None);
     }
 
-    let id: u32 = match lines[0].trim().parse() {
-        Ok(id) => id,
-        Err(_) => return Ok(None),
+    let Ok(id) = lines[0].trim().parse::<u32>() else {
+        return Ok(None);
     };
 
     let timeline = lines[1];

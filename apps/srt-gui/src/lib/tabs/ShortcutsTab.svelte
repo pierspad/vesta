@@ -139,6 +139,10 @@
   });
 
   onDestroy(() => {
+    if (currentKeyHandler) {
+      window.removeEventListener("keydown", currentKeyHandler, true);
+      currentKeyHandler = null;
+    }
     if (globalSearchKeysHandler) {
       window.removeEventListener("keydown", globalSearchKeysHandler, true);
     }

@@ -3,18 +3,17 @@
   import SidebarToggle from "$lib/components/SidebarToggle.svelte";
   import { invokeCommand as invoke } from "$lib/services/tauriClient";
   import { onMount } from "svelte";
-  import { fetch as tauriFetch } from "$lib/services/tauriHttp";
   import fireplaceIcon from "../../assets/fireplace.svg";
   import authorAvatar from "../../assets/avatar.png";
   import { locale } from "$lib/i18n";
   import { aiStore } from "$lib/stores/aiStore.svelte";
   import { uiMode } from "$lib/stores/uiModeStore.svelte";
+  import { updateCheckerStore } from "$lib/stores/updateCheckerStore.svelte";
   import {
     getStoredSettingsActionState,
     SETTINGS_ACTION_REQUIRED_EVENT,
     type SettingsActionNotificationDetail,
   } from "$lib/utils/settingsNotifications";
-  import * as vestaConfig from "$lib/config/vestaConfig";
   import SupportModal from "$lib/modals/SupportModal.svelte";
 
   interface Props {
@@ -35,9 +34,7 @@
 
   let appVersionNum = $state("");
   let appLicense = $state("");
-  const RELEASE_API_URL = "https://api.github.com/repos/pierspad/Vesta/releases/latest";
-  const RELEASES_URL = "https://github.com/pierspad/Vesta/releases";
-  
+
   const repoUrl = "https://github.com/pierspad/vesta";
   let showSupportModal = $state(false);
   let releasesUrl = $derived(
@@ -48,12 +45,7 @@
   const licenseUrl = "https://github.com/pierspad/vesta/blob/main/LICENSE";
   const authorUrl = "https://pierspad.com";
   const authorIconUrl = authorAvatar;
-  type ReleaseStatus = "idle" | "checking" | "available" | "current" | "offline";
-  let releaseStatus = $state<ReleaseStatus>("idle");
-  let latestVersion = $state("");
-  let releaseUrl = $state(RELEASES_URL);
-  let releaseCheckedAt = $state<Date | null>(null);
-  let hasUpdateNotification = $derived(releaseStatus === "available");
+  let hasUpdateNotification = $derived(updateCheckerStore.updateStatus === "available");
   let hasSettingsActionNotification = $state(false);
   let settingsNotificationRead = $state(false);
   let settingsHash = $state("");
@@ -62,145 +54,6 @@
 
   function formatLicense(license: string): string {
     return license.replace(/-only$/i, "").trim();
-  }
-
-  function normalizeVersion(version: string): string {
-    return version.trim().replace(/^v/i, "").split(/[+-]/)[0];
-  }
-
-  function compareVersions(left: string, right: string): number {
-    const leftParts = normalizeVersion(left).split(".").map((part) => Number.parseInt(part, 10) || 0);
-    const rightParts = normalizeVersion(right).split(".").map((part) => Number.parseInt(part, 10) || 0);
-    const length = Math.max(leftParts.length, rightParts.length);
-
-    for (let i = 0; i < length; i += 1) {
-      const diff = (leftParts[i] || 0) - (rightParts[i] || 0);
-      if (diff !== 0) return diff;
-    }
-
-    return 0;
-  }
-
-  function formatVersionTag(version: string): string {
-    const normalized = version.trim();
-    if (!normalized) return "";
-    return normalized.startsWith("v") || normalized.startsWith("V") ? normalized : `v${normalized}`;
-  }
-
-  function formatCheckedAt(value: Date | null): string {
-    if (!value) return "";
-    return new Intl.DateTimeFormat(undefined, {
-      dateStyle: "short",
-      timeStyle: "short",
-    }).format(value);
-  }
-
-  async function checkForUpdates(currentVersion: string) {
-    if (!currentVersion) return;
-    if (typeof navigator !== "undefined" && navigator.onLine === false) {
-      releaseStatus = "offline";
-      return;
-    }
-
-    releaseStatus = "checking";
-
-    // 1. Primary Strategy: GitHub official API via CORS-free tauriFetch
-    try {
-      const response = await tauriFetch(RELEASE_API_URL, {
-        method: "GET",
-        headers: {
-          "Accept": "application/vnd.github+json",
-          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error(`GitHub API returned status ${response.status}`);
-      }
-
-      const latest = await response.json() as {
-        tag_name?: string;
-        name?: string;
-        html_url?: string;
-      };
-      
-      const tag = latest.tag_name || latest.name || "";
-      if (!tag) {
-        throw new Error("Empty version tag in API response");
-      }
-
-      latestVersion = formatVersionTag(tag);
-      releaseUrl = latest.html_url || RELEASES_URL;
-      releaseCheckedAt = new Date();
-      releaseStatus = compareVersions(latestVersion, currentVersion) > 0 ? "available" : "current";
-      return;
-    } catch (apiError) {
-      console.warn("Vesta background update check: GitHub API failed, trying package.json fallback:", apiError);
-    }
-
-    // 2. Secondary Strategy: Raw package.json via CORS-free tauriFetch (rate-limit free!)
-    try {
-      const response = await tauriFetch("https://raw.githubusercontent.com/pierspad/Vesta/main/apps/srt-gui/package.json", {
-        method: "GET",
-        headers: {
-          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error(`Raw package.json fetch returned status ${response.status}`);
-      }
-
-      const pkg = await response.json() as { version?: string };
-      const tag = pkg.version || "";
-      if (!tag) {
-        throw new Error("Empty version field in package.json");
-      }
-
-      latestVersion = formatVersionTag(tag);
-      releaseUrl = RELEASES_URL;
-      releaseCheckedAt = new Date();
-      releaseStatus = compareVersions(latestVersion, currentVersion) > 0 ? "available" : "current";
-      return;
-    } catch (pkgError) {
-      console.warn("Vesta background update check: Raw package.json fallback failed, trying redirect fallback:", pkgError);
-    }
-
-    // 3. Tertiary Strategy: Redirect check via tauriFetch with redirect: "manual"
-    try {
-      const response = await tauriFetch("https://github.com/pierspad/Vesta/releases/latest", {
-        method: "GET",
-        redirect: "manual",
-        headers: {
-          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-        }
-      });
-
-      let tag = "";
-      let finalUrl = "";
-
-      const location = response.headers.get("location");
-      if ((response.status >= 300 && response.status < 400) && location) {
-        finalUrl = location;
-        tag = location.substring(location.lastIndexOf("/") + 1);
-      } else if (response.ok) {
-        finalUrl = response.url || "";
-        tag = finalUrl.substring(finalUrl.lastIndexOf("/") + 1);
-      }
-
-      if (!tag || tag === "latest") {
-        throw new Error("Could not parse redirect version tag");
-      }
-
-      latestVersion = formatVersionTag(tag);
-      releaseUrl = finalUrl || RELEASES_URL;
-      releaseCheckedAt = new Date();
-      releaseStatus = compareVersions(latestVersion, currentVersion) > 0 ? "available" : "current";
-      return;
-    } catch (redirectError) {
-      console.error("Vesta background update check: All strategies failed:", redirectError);
-      releaseStatus = "offline";
-    }
   }
 
   $effect(() => {
@@ -231,19 +84,13 @@
 
     window.addEventListener(SETTINGS_ACTION_REQUIRED_EVENT, handleSettingsActionRequired);
 
-    const savedAutoCheck = vestaConfig.getItem("vesta-automatic-update-checks");
-    const autoCheckEnabled = savedAutoCheck !== "false";
+    updateCheckerStore.init();
 
     invoke<{ version: string; name: string; license: string }>("get_app_info")
       .then((info) => {
         appVersionNum = `v${info.version}`;
         appLicense = formatLicense(info.license);
         appVersion = `v${info.version} • Tauri + Svelte • ${formatLicense(info.license)}`;
-        if (autoCheckEnabled) {
-          void checkForUpdates(info.version);
-        } else {
-          releaseStatus = "offline";
-        }
       })
       .catch(() => {
         appVersion = "vesta";

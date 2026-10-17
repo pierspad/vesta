@@ -8,6 +8,8 @@
   import { manageWindowSize } from "$lib/utils/windowLifecycle";
   import { createTabLoader } from "$lib/utils/tabLoader";
   import { ankiStore } from "$lib/stores/ankiStore.svelte";
+  import { exportFormatStore } from "$lib/stores/exportFormatStore.svelte";
+  import { whisperModelsStore } from "$lib/stores/whisperModelsStore.svelte";
   import ShortcutOverlay from "$lib/components/ShortcutOverlay.svelte";
   import Sidebar from "$lib/components/Sidebar.svelte";
   import AppContextMenu from "$lib/components/AppContextMenu.svelte";
@@ -73,9 +75,10 @@
     vestaConfig.setItem("vesta-setup-next-tab", destination);
     await vestaConfig.flush();
     showFirstRunSetup = false;
-    // Stores are constructed at startup; reload once so every selected default
-    // is applied consistently without a half-old, half-new session.
-    window.location.reload();
+    ankiStore.reinit();
+    exportFormatStore.reinit();
+    whisperModelsStore.reinit();
+    changeTab(destination);
   }
   const initialPreference = (() => {
     const savedPref = vestaConfig.getItem("vesta-sidebar-user-pref");
@@ -167,12 +170,17 @@
 
   $effect(() => {
     if (activeTab === "flashcards" || activeTab === "settings" || activeTab === "experimental") {
-      ankiStore.checkConnection();
+      void ankiStore.checkConnection(true);
+      const handleFocus = () => {
+        void ankiStore.checkConnection(true);
+      };
+      window.addEventListener("focus", handleFocus);
       const interval = setInterval(() => {
-        ankiStore.checkConnection();
-      }, 5000);
+        void ankiStore.checkConnection(true);
+      }, 30000);
       return () => {
         clearInterval(interval);
+        window.removeEventListener("focus", handleFocus);
       };
     }
   });

@@ -10,6 +10,7 @@
   import { invokeCommand as invoke } from "$lib/services/tauriClient";
   import { snackbar } from "$lib/stores/snackbarStore.svelte";
   import { getFileName } from "$lib/utils/models";
+  import { errorMessage } from "$lib/utils/errorMessage";
   import {
     bitratesFor,
     equivalentBitrate,
@@ -63,10 +64,6 @@
 
   let t = $derived($locale);
   let easyMode = $derived(!uiMode.expertMode);
-
-  $effect(() => {
-    if (!settings.normalizeAudio) settings.normalizeAudio = true;
-  });
 
   let selectedEpisodeIdx = $state(0);
   let activeEpisode = $derived.by(() => {
@@ -330,7 +327,7 @@
     } catch (e: any) {
       if (!request.isCurrent()) return;
       console.error("Audio preview failed:", e);
-      snackbar.show(String(e), "error");
+      snackbar.show(errorMessage(e, t("flashcards.previewAudioError")), "error", 2500);
       isPreviewPlaying = false;
     } finally {
       if (request.isCurrent()) isPreviewLoading = false;
@@ -353,6 +350,13 @@
       playPreview();
     }
   }
+
+  onDestroy(() => {
+    if (audioPlayer) {
+      audioPlayer.pause();
+      audioPlayer.src = "";
+    }
+  });
 
   let bitrateOptions = $derived(
     bitratesFor(settings.audioFormat).map((b) => ({ value: String(b), label: `${b} kb/s` })),

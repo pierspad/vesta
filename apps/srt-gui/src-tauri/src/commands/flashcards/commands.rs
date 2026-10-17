@@ -181,6 +181,11 @@ fn hoist_binary(dir: &std::path::Path, name: &str) -> Result<(), String> {
     };
     let target = dir.join(&file_name);
     if target.exists() {
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let _ = std::fs::set_permissions(&target, std::fs::Permissions::from_mode(0o755));
+        }
         return Ok(());
     }
 
@@ -205,6 +210,12 @@ fn hoist_binary(dir: &std::path::Path, name: &str) -> Result<(), String> {
         std::fs::rename(&found, &target)
             .or_else(|_| std::fs::copy(&found, &target).map(|_| ()))
             .map_err(|e| format!("Failed to move {file_name} into place: {e}"))?;
+
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let _ = std::fs::set_permissions(&target, std::fs::Permissions::from_mode(0o755));
+        }
     }
     Ok(())
 }
@@ -224,8 +235,7 @@ pub async fn setup_media_status(app: AppHandle) -> Result<SetupMediaStatus, Stri
         .arg("-version")
         .output()
         .await
-        .map(|output| output.status.success())
-        .unwrap_or(false);
+        .is_ok_and(|output| output.status.success());
     let ready = srt_flashcards::check_ffmpeg(&ffmpeg).await && probe_ready;
     let download_bytes = if ready {
         None
@@ -292,8 +302,7 @@ pub async fn flashcard_download_ffmpeg(app: AppHandle) -> Result<bool, String> {
         .arg("-version")
         .output()
         .await
-        .map(|output| output.status.success())
-        .unwrap_or(false);
+        .is_ok_and(|output| output.status.success());
     if !probe_ready {
         return Err("FFprobe was downloaded but could not be executed".into());
     }

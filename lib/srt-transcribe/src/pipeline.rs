@@ -565,13 +565,13 @@ pub async fn transcribe_to_srt(
 
     callbacks.progress("convert", "Audio converted successfully", 10.0);
 
-    let audio_data = read_wav_to_f32(&wav_path)?;
-
     let config_clone = config.clone();
     let callbacks_clone = callbacks.clone();
     let cancel_clone = cancel_token.clone();
+    let wav_path_buf = wav_path.to_path_buf();
 
-    let result = tokio::task::spawn_blocking(move || {
+    let result = tokio::task::spawn_blocking(move || -> Result<TranscriptionOutcome> {
+        let audio_data = read_wav_to_f32(&wav_path_buf)?;
         run_local(
             &config_clone,
             &model_path,

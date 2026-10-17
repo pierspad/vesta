@@ -253,7 +253,7 @@ fn plan(
             if keys.iter().any(|packet| {
                 // Past keyframes cannot change this seek even with omitted DTS.
                 // Future keyframes with unknown DTS remain unsafe.
-                target < source.pts(packet.pts.unwrap())
+                packet.pts.is_some_and(|pts| target < source.pts(pts))
                     && packet.dts.is_none_or(|dts| source.pts(dts) <= target)
             }) {
                 return None;
@@ -314,8 +314,9 @@ impl SnapshotSettings {
             return Ok(vec![false; requests.len()]);
         }
         // Keep temporary images alive until every selected image is checked.
+        let ext = self.format.extension();
         let temp = tempfile::tempdir()?;
-        let pattern = temp.path().join("%03d.webp");
+        let pattern = temp.path().join(format!("%03d.{ext}"));
         let expression = selected
             .iter()
             .map(|pts| format!("eq(pts,{pts})"))
@@ -368,7 +369,7 @@ impl SnapshotSettings {
         let selected: Vec<_> = selected.into_iter().collect();
         for n in 1..=selected.len() {
             anyhow::ensure!(
-                std::fs::metadata(temp.path().join(format!("{n:03}.webp")))?.len() > 0,
+                std::fs::metadata(temp.path().join(format!("{n:03}.{ext}")))?.len() > 0,
                 "Incomplete snapshot batch"
             );
         }
@@ -378,8 +379,22 @@ impl SnapshotSettings {
                 anyhow::bail!("Media generation cancelled");
             }
             if let Some(pts) = plan[i] {
-                let n = selected.binary_search(&pts).unwrap() + 1;
-                std::fs::copy(temp.path().join(format!("{n:03}.webp")), &request.output)?;
+                let idx = match selected.binary_search(&pts) {
+                    Ok(idx) => idx,
+                    Err(idx) => {
+                        if idx == 0 {
+                            0
+                        } else if idx >= selected.len() {
+                            selected.len() - 1
+                        } else if pts.abs_diff(selected[idx - 1]) <= selected[idx].abs_diff(pts) {
+                            idx - 1
+                        } else {
+                            idx
+                        }
+                    }
+                };
+                let n = idx + 1;
+                std::fs::copy(temp.path().join(format!("{n:03}.{ext}")), &request.output)?;
                 copied[i] = true;
             }
         }

@@ -148,17 +148,15 @@ async fn run() -> Result<ExitCode> {
         );
     }
 
-    let anchors_created = match apply_suggestions_and_save(
+    let Some(anchors_created) = apply_suggestions_and_save(
         &mut engine,
         &outcome.suggestions,
         &cli.output,
         &cancel_token,
-    )? {
-        Some(count) => count,
-        None => {
-            eprintln!("Auto-sync cancelled before writing output.");
-            return Ok(ExitCode::from(130));
-        }
+    )?
+    else {
+        eprintln!("Auto-sync cancelled before writing output.");
+        return Ok(ExitCode::from(130));
     };
 
     println!(

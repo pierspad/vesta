@@ -20,7 +20,6 @@
     lineNumbers = true,
   } = $props();
 
-  let lineHeights = $state<number[]>([]);
   let history = $state<string[]>([value || ""]);
   let historyIndex = $state(0);
   let isUndoRedo = false;
@@ -394,7 +393,6 @@
     <div style="transform: translateY(-{scrollTop}px)">
       {#each lines as _, i}
         <div
-          style="height: {lineHeights[i] ? lineHeights[i] + 'px' : '1.625rem'}"
           class="code-editor-line whitespace-pre flex justify-end items-start"
         >{i + 1}</div>
       {/each}
@@ -411,7 +409,6 @@
       <div style="transform: translate(-{wrap ? 0 : scrollLeft}px, -{scrollTop}px)">
         {#each lines as line, i}
           <div
-            bind:clientHeight={lineHeights[i]}
             class="code-editor-line {wrap ? 'whitespace-pre-wrap break-words' : 'whitespace-pre'}"
           >{@html highlight(line, language) || '&nbsp;'}</div>
         {/each}
@@ -502,6 +499,7 @@
   }
 
   .code-editor-line {
+    height: 1.625rem;
     min-height: 1.625rem;
   }
 

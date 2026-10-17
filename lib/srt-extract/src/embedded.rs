@@ -36,6 +36,8 @@ pub async fn list_embedded_subtitles(
     input: &Path,
 ) -> Result<Vec<EmbeddedSubtitleTrack>> {
     let mut command = tokio::process::Command::new(ffprobe);
+    #[cfg(windows)]
+    command.creation_flags(0x0800_4000);
     command.kill_on_drop(true);
     let output = tokio::time::timeout(
         Duration::from_secs(30),
@@ -119,6 +121,8 @@ async fn extract_track(
         .unwrap_or(Path::new("."));
     let temporary = tempfile::NamedTempFile::new_in(parent)?;
     let mut command = tokio::process::Command::new(ffmpeg);
+    #[cfg(windows)]
+    command.creation_flags(0x0800_4000);
     command.kill_on_drop(true).stdin(Stdio::null());
     command
         .args(["-nostdin", "-v", "error", "-i"])

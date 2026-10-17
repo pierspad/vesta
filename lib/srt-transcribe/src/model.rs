@@ -50,9 +50,7 @@ pub fn validate_model_id(model_id: &str) -> Result<()> {
 pub fn list_models() -> Result<Vec<WhisperModelInfo>> {
     let mut result = Vec::new();
     for &(id, name, size, speed) in WHISPER_MODELS {
-        let downloaded = model_file_path(id)
-            .map(|path| path.exists())
-            .unwrap_or(false);
+        let downloaded = model_file_path(id).is_ok_and(|path| path.exists());
 
         result.push(WhisperModelInfo {
             id: id.to_string(),
@@ -103,7 +101,7 @@ pub fn vad_model_path(id: &str) -> Result<PathBuf> {
 
 /// Whether a given Silero VAD variant is present on disk.
 pub fn vad_model_installed(id: &str) -> bool {
-    vad_model_path(id).map(|p| p.exists()).unwrap_or(false)
+    vad_model_path(id).is_ok_and(|p| p.exists())
 }
 
 /// List every known VAD variant with its download status.

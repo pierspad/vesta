@@ -14,6 +14,7 @@
   import SubtitlePreviewModal from "$lib/modals/SubtitlePreviewModal.svelte";
   import SubtitleTrackCard from "$lib/components/SubtitleTrackCard.svelte";
   import { locale, currentLanguage } from "$lib/i18n";
+  import { errorMessage } from "$lib/utils/errorMessage";
   let { active = false }: { active?: boolean } = $props();
   let isDraggingOver = $state(false);
   $effect(() => {
@@ -46,7 +47,7 @@
   let previewVariants = $derived(previewGroups.find(group => group.tracks.some(track => track.index === previewTrack?.index))?.tracks.filter(track => track.text_based) ?? []);
   let previewPosition = $derived(previewVariants.findIndex(track => track.index === previewTrack?.index));
   onMount(() => {
-    void defaultOutputDirectory().then(value => { if (!outputDir) { outputDir = value; void refreshDownloaded(); } }).catch(e => { error = String(e); });
+    void defaultOutputDirectory().then(value => { if (!outputDir) { outputDir = value; void refreshDownloaded(); } }).catch(e => { error = errorMessage(e); });
     const refresh = () => { void refreshDownloaded(); };
     window.addEventListener("focus", refresh);
     return () => window.removeEventListener("focus", refresh);
@@ -59,7 +60,7 @@
     try {
       const names = await invoke<string[]>("existing_subtitle_outputs", { directory, names: candidates.map(track => subtitleOutputName(media, track)) });
       if (directory === outputDir && media === path) downloaded = candidates.filter(track => names.includes(subtitleOutputName(media, track))).map(track => track.index);
-    } catch (e) { error = String(e); }
+    } catch (e) { error = errorMessage(e); }
   }
   async function chooseOutput() {
     if (busy || downloadingIndex !== null) return;
@@ -67,7 +68,7 @@
     try {
       const selected = await guardedOpen({ directory: true, multiple: false, defaultPath: outputDir || undefined });
       if (typeof selected === "string") { outputDir = selected; downloaded = []; await refreshDownloaded(); }
-    } catch (e) { error = String(e); }
+    } catch (e) { error = errorMessage(e); }
     finally { busy = false; }
   }
   function selectPreview() {
@@ -104,7 +105,7 @@
     try {
       const text = await session.select(track.index);
       if (request === previewRequest) previewText = text;
-    } catch (e) { if (request === previewRequest) previewError = String(e); }
+    } catch (e) { if (request === previewRequest) previewError = errorMessage(e); }
     finally { if (request === previewRequest) previewLoading = false; }
   }
   let path = $state("");
@@ -119,7 +120,7 @@
       if (typeof selected !== "string") return;
       await loadMedia(selected, true);
     }
-    catch (e) { error = String(e); }
+    catch (e) { error = errorMessage(e); }
     finally { busy = false; }
   }
   async function loadMedia(selected: string, fromPicker = false) {
@@ -130,7 +131,7 @@
       tracks = await invoke<Track[]>("embedded_subtitle_tracks", { path: selected });
       tracksScanned = true;
       await refreshDownloaded();
-    } catch (e) { error = String(e); }
+    } catch (e) { error = errorMessage(e); }
     finally { busy = false; }
   }
   async function extract(track: Track) {
@@ -143,7 +144,7 @@
       await invoke("extract_embedded_subtitle", { path, index: track.index, outputPath });
       await refreshDownloaded();
       snackbar.show(`${t("extract.saved")} ${outputPath}`, "success");
-    } catch (e) { error = String(e); snackbar.show(error, "error"); }
+    } catch (e) { error = errorMessage(e); snackbar.show(error, "error"); }
     finally { downloadingIndex = null; }
   }
 

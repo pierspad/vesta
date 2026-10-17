@@ -7,6 +7,7 @@
   import { SvelteSet } from "svelte/reactivity";
   import { locale } from "$lib/i18n";
   import { getFileName } from "$lib/utils/models";
+  import { errorMessage } from "$lib/utils/errorMessage";
   import { loadAndValidateApiKeys, type ApiKeyConfig } from "$lib/config/apiKeys";
   import {
     loadTiers,
@@ -129,22 +130,112 @@
   let useTiers = $derived(tiersHaveUsableEntries(tiers));
   let tierCounts = $derived(countTiersAndEndpoints(tiers));
 
-  let cardIndices = $derived(new Map(cards.map((card, index) => [card.id, index])));
-  let normalizedSearch = $derived(searchQuery.trim().toLowerCase());
-  let filteredCards = $derived(
-    cards.filter(
-      (c) =>
-        c.expression.toLowerCase().includes(normalizedSearch) ||
-        c.meaning.toLowerCase().includes(normalizedSearch) ||
-        c.notes.toLowerCase().includes(normalizedSearch)
+  const htmlStripCache = new Map<string, string>();
+  function stripHtml(text: string): string {
+    if (!text) return "";
+    let stripped = htmlStripCache.get(text);
+    if (stripped === undefined) {
+      stripped = text.replace(/<[^>]*>/g, "");
+      htmlStripCache.set(text, stripped);
+    }
+    return stripped;
+  }
+
+  interface CardPlainText {
+    expression: string;
+    meaning: string;
+  }
+
+  let cardPlainTexts = $derived(
+    new Map<string, CardPlainText>(
+      cards.map((card) => [
+        card.id,
+        {
+          expression: stripHtml(card.expression),
+          meaning: stripHtml(card.meaning),
+        },
+      ])
     )
   );
+
+  let cardIndices = $derived(new Map(cards.map((card, index) => [card.id, index])));
+  let normalizedSearch = $derived(searchQuery.trim().toLowerCase());
+  let filteredCards = $derived.by(() => {
+    if (!normalizedSearch) return cards;
+    return cards.filter((c) => {
+      const plain = cardPlainTexts.get(c.id);
+      const expr = plain ? plain.expression.toLowerCase() : c.expression.toLowerCase();
+      const mean = plain ? plain.meaning.toLowerCase() : c.meaning.toLowerCase();
+      return (
+        expr.includes(normalizedSearch) ||
+        mean.includes(normalizedSearch) ||
+        c.notes.toLowerCase().includes(normalizedSearch)
+      );
+    });
+  });
+
+  const CARD_ITEM_HEIGHT = 88;
+  const CARD_ITEM_GAP = 6;
+  const ROW_TOTAL_HEIGHT = CARD_ITEM_HEIGHT + CARD_ITEM_GAP;
+  const VIRTUAL_OVERSCAN = 6;
+
+  let cardsContainerEl = $state<HTMLElement | null>(null);
+  let cardListScrollTop = $state(0);
+  let cardListViewportHeight = $state(600);
+
+  let totalVirtualHeight = $derived(
+    filteredCards.length > 0 ? filteredCards.length * ROW_TOTAL_HEIGHT - CARD_ITEM_GAP : 0
+  );
+
+  let virtualStartIndex = $derived.by(() => {
+    if (filteredCards.length === 0) return 0;
+    const raw = Math.floor(cardListScrollTop / ROW_TOTAL_HEIGHT);
+    return Math.max(0, raw - VIRTUAL_OVERSCAN);
+  });
+
+  let virtualEndIndex = $derived.by(() => {
+    if (filteredCards.length === 0) return 0;
+    const countInView = Math.ceil((cardListViewportHeight || 600) / ROW_TOTAL_HEIGHT);
+    const raw = Math.floor(cardListScrollTop / ROW_TOTAL_HEIGHT) + countInView + VIRTUAL_OVERSCAN;
+    return Math.min(filteredCards.length, raw);
+  });
+
+  let virtualVisibleCards = $derived(
+    filteredCards.slice(virtualStartIndex, virtualEndIndex)
+  );
+
+  let virtualTopOffset = $derived(virtualStartIndex * ROW_TOTAL_HEIGHT);
+
+  function handleCardListScroll(e: Event) {
+    cardListScrollTop = (e.currentTarget as HTMLElement).scrollTop;
+  }
+
+  function scrollToCardIndex(filteredIndex: number) {
+    if (!cardsContainerEl || filteredIndex < 0) return;
+    const itemTop = filteredIndex * ROW_TOTAL_HEIGHT;
+    const itemBottom = itemTop + CARD_ITEM_HEIGHT;
+    const currentScroll = cardsContainerEl.scrollTop;
+    const vpHeight = cardListViewportHeight || 600;
+
+    if (itemTop < currentScroll) {
+      cardsContainerEl.scrollTop = itemTop;
+      cardListScrollTop = itemTop;
+    } else if (itemBottom > currentScroll + vpHeight) {
+      const nextScroll = itemBottom - vpHeight;
+      cardsContainerEl.scrollTop = nextScroll;
+      cardListScrollTop = nextScroll;
+    }
+  }
 
   let operationBusy = $derived(isLoading || isSaving || autoRefining || isSingleRefining);
   let selectedFilteredIndex = $derived(filteredCards.findIndex((c) => c === selectedCard));
   function navigateCard(direction: -1 | 1) {
-    const next = filteredCards[selectedFilteredIndex + direction];
-    if (next) selectedCardIndex = cards.indexOf(next);
+    const nextFilteredIdx = selectedFilteredIndex + direction;
+    const next = filteredCards[nextFilteredIdx];
+    if (next) {
+      selectedCardIndex = cards.indexOf(next);
+      scrollToCardIndex(nextFilteredIdx);
+    }
   }
 
   let selectedCard = $derived(
@@ -157,6 +248,10 @@
   // the editor away while its own Notes value is being edited.
   $effect(() => {
     searchQuery;
+    if (cardsContainerEl) {
+      cardsContainerEl.scrollTop = 0;
+      cardListScrollTop = 0;
+    }
     untrack(() => {
       if (!selectedCard || !filteredCards.includes(selectedCard)) {
         selectedCardIndex = filteredCards.length ? cards.indexOf(filteredCards[0]) : null;
@@ -275,7 +370,7 @@
         await triggerLoadFile(selected);
       }
     } catch (err: any) {
-      snackbar.show(err.toString(), "error");
+      snackbar.show(errorMessage(err), "error");
     }
   }
 
@@ -301,7 +396,7 @@
         "success"
       );
     } catch (err: any) {
-      snackbar.show(err.toString(), "error");
+      snackbar.show(errorMessage(err), "error");
     } finally {
       isLoading = false;
     }
@@ -325,7 +420,7 @@
         snackbar.show(t("refine.msg.overwriteError"), "error");
       }
     } catch (err: any) {
-      snackbar.show(err.toString(), "error");
+      snackbar.show(errorMessage(err), "error");
     } finally {
       isSaving = false;
     }
@@ -376,7 +471,7 @@
         }
       }
     } catch (err: any) {
-      snackbar.show(err.toString(), "error");
+      snackbar.show(errorMessage(err), "error");
     } finally {
       isSaving = false;
     }
@@ -551,7 +646,7 @@
       await invoke("refine_cancel");
     } catch (error) {
       isStopping = false;
-      snackbar.show(String(error), "error");
+      snackbar.show(errorMessage(error), "error");
     } finally {
       if (!autoRefining && !isSingleRefining) isStopping = false;
     }
@@ -724,7 +819,12 @@
           </div>
 
           <!-- Scrollable Cards List (fills available vertical space) -->
-          <div class="flex-1 min-h-0 overflow-y-auto [scrollbar-gutter:stable] p-2 bg-white/[0.03] border border-white/10 rounded-xl space-y-1.5 scrollbar-thin">
+          <div
+            bind:this={cardsContainerEl}
+            onscroll={handleCardListScroll}
+            bind:clientHeight={cardListViewportHeight}
+            class="flex-1 min-h-0 overflow-y-auto [scrollbar-gutter:stable] p-2 bg-white/[0.03] border border-white/10 rounded-xl scrollbar-thin"
+          >
             {#if cards.length === 0}
               <div class="relative min-h-full">
                 <div aria-hidden="true" class="space-y-1.5">
@@ -743,44 +843,48 @@
             {:else if filteredCards.length === 0}
               <div class="flex min-h-full items-center justify-center text-xs text-gray-400">{t("common.noResults")}</div>
             {:else}
-              {#each filteredCards as card (card.id)}
-                {@const isSelected = selectedCardIndex !== null && cards[selectedCardIndex]?.id === card.id}
-                {@const globalIndex = cardIndices.get(card.id) ?? -1}
-                <button
-                  onclick={() => selectedCardIndex = globalIndex}
-                  class="h-[88px] w-full text-left p-3 rounded-xl transition-all border flex flex-col gap-1 cursor-pointer
-                    {isSelected
-                      ? 'bg-rose-500/15 border-rose-500/40 text-white'
-                      : 'bg-white/5 hover:bg-white/10 border-transparent text-gray-400 hover:text-gray-200'}"
-                >
-                  <div class="flex justify-between items-center text-[10px] text-gray-500">
-                    <span class="font-mono">#{globalIndex + 1}</span>
-                    <div class="flex items-center gap-1.5">
-                      {#if isCardRefining(card.id)}
-                        <span class="flex items-center gap-1 text-[9px] text-indigo-400 font-bold uppercase tracking-wider">
-                          <svg class="animate-spin h-2.5 w-2.5 text-indigo-400" fill="none" viewBox="0 0 24 24">
-                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                          </svg>
-                          {t('refine.btn.generating')}
-                        </span>
-                      {/if}
-                      {#if card.notes.trim() !== ""}
-                        <span class="bg-rose-500/20 text-rose-300 px-1.5 py-0.5 rounded-full border border-rose-500/20 text-[9px] font-bold uppercase tracking-wider">{t('refine.badge.annotated')}</span>
-                      {/if}
-                      {#if card.notes !== (card.initialNotes || "")}
-                        <span class="bg-amber-500/20 text-amber-300 px-1.5 py-0.5 rounded-full border border-amber-500/20 text-[9px] font-bold uppercase tracking-wider">{t('refine.badge.modified')}</span>
-                      {/if}
-                    </div>
-                  </div>
-                  <p class="text-xs font-semibold line-clamp-1 break-all text-gray-100 select-none">
-                    {card.expression.replace(/<[^>]*>/g, "") || "—"}
-                  </p>
-                  <p class="text-[10px] line-clamp-1 break-all opacity-70 select-none">
-                    {card.meaning.replace(/<[^>]*>/g, "") || "—"}
-                  </p>
-                </button>
-              {/each}
+              <div style="height: {totalVirtualHeight}px; position: relative; width: 100%;">
+                <div style="position: absolute; top: {virtualTopOffset}px; left: 0; right: 0; display: flex; flex-direction: column; gap: 6px;">
+                  {#each virtualVisibleCards as card (card.id)}
+                    {@const isSelected = selectedCardIndex !== null && cards[selectedCardIndex]?.id === card.id}
+                    {@const globalIndex = cardIndices.get(card.id) ?? -1}
+                    <button
+                      onclick={() => selectedCardIndex = globalIndex}
+                      class="h-[88px] w-full text-left p-3 rounded-xl transition-all border flex flex-col gap-1 cursor-pointer
+                        {isSelected
+                          ? 'bg-rose-500/15 border-rose-500/40 text-white'
+                          : 'bg-white/5 hover:bg-white/10 border-transparent text-gray-400 hover:text-gray-200'}"
+                    >
+                      <div class="flex justify-between items-center text-[10px] text-gray-500">
+                        <span class="font-mono">#{globalIndex + 1}</span>
+                        <div class="flex items-center gap-1.5">
+                          {#if isCardRefining(card.id)}
+                            <span class="flex items-center gap-1 text-[9px] text-indigo-400 font-bold uppercase tracking-wider">
+                              <svg class="animate-spin h-2.5 w-2.5 text-indigo-400" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                              </svg>
+                              {t('refine.btn.generating')}
+                            </span>
+                          {/if}
+                          {#if card.notes.trim() !== ""}
+                            <span class="bg-rose-500/20 text-rose-300 px-1.5 py-0.5 rounded-full border border-rose-500/20 text-[9px] font-bold uppercase tracking-wider">{t('refine.badge.annotated')}</span>
+                          {/if}
+                          {#if card.notes !== (card.initialNotes || "")}
+                            <span class="bg-amber-500/20 text-amber-300 px-1.5 py-0.5 rounded-full border border-amber-500/20 text-[9px] font-bold uppercase tracking-wider">{t('refine.badge.modified')}</span>
+                          {/if}
+                        </div>
+                      </div>
+                      <p class="text-xs font-semibold line-clamp-1 break-all text-gray-100 select-none">
+                        {cardPlainTexts.get(card.id)?.expression || "—"}
+                      </p>
+                      <p class="text-[10px] line-clamp-1 break-all opacity-70 select-none">
+                        {cardPlainTexts.get(card.id)?.meaning || "—"}
+                      </p>
+                    </button>
+                  {/each}
+                </div>
+              </div>
             {/if}
           </div>
         </div>
@@ -832,14 +936,14 @@
                   <div class="bg-white/5 border border-white/10 rounded-xl p-3 relative h-[68px] overflow-hidden">
                     <span class="absolute top-2 right-3 text-[9px] font-bold text-gray-500 uppercase tracking-wider">{t('refine.card.front')}</span>
                     <div class="text-xs font-semibold text-gray-200 mt-1 line-clamp-2">
-                      {selectedCard?.expression.replace(/<[^>]*>/g, "") || "—"}
+                      {selectedCard ? (cardPlainTexts.get(selectedCard.id)?.expression || "—") : "—"}
                     </div>
                   </div>
 
                   <div class="bg-white/5 border border-white/10 rounded-xl p-3 relative h-[68px] overflow-hidden">
                     <span class="absolute top-2 right-3 text-[9px] font-bold text-gray-500 uppercase tracking-wider">{t('refine.card.back')}</span>
                     <div class="text-xs font-semibold text-gray-200 mt-1 line-clamp-2">
-                      {selectedCard?.meaning.replace(/<[^>]*>/g, "") || "—"}
+                      {selectedCard ? (cardPlainTexts.get(selectedCard.id)?.meaning || "—") : "—"}
                     </div>
                   </div>
                 </div>

@@ -5,7 +5,11 @@
   let t = $derived($locale);
   let scrollContainer = $state<HTMLDivElement | null>(null);
   $effect(() => {
-    if (segments.length && scrollContainer) scrollContainer.scrollTop = scrollContainer.scrollHeight;
+    if (segments.length && scrollContainer) {
+      if (scrollContainer.scrollHeight - scrollContainer.scrollTop - scrollContainer.clientHeight < 80) {
+        scrollContainer.scrollTop = scrollContainer.scrollHeight;
+      }
+    }
   });
 </script>
 

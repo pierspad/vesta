@@ -14,6 +14,7 @@
   import ConfirmDialog from '$lib/modals/ConfirmDialog.svelte';
   import PathPickerField from '$lib/components/PathPickerField.svelte';
   import FooterActions from '$lib/components/FooterActions.svelte';
+  import { errorMessage } from '$lib/utils/errorMessage';
 
   let { active = false } = $props<{ active?: boolean }>();
 
@@ -409,7 +410,7 @@
       normalizeAlignments();
       hasUnsavedChanges = false;
     } catch (e) {
-      showError(`Error loading target: ${e}`);
+      showError(`Error loading target: ${errorMessage(e)}`);
     }
   }
 
@@ -448,7 +449,7 @@
       undoStack = []; // Reset undo on new file load
       hasUnsavedChanges = false;
     } catch (e) {
-      showError(`Error loading source: ${e}`);
+      showError(`Error loading source: ${errorMessage(e)}`);
     }
   }
 
@@ -508,7 +509,7 @@
         hasUnsavedChanges = false;
       }
     } catch (e) {
-      showError(`Error saving file: ${e}`);
+      showError(`Error saving file: ${errorMessage(e)}`);
     }
   }
 

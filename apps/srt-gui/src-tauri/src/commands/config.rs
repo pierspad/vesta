@@ -46,9 +46,32 @@ fn read_from_disk() -> Result<HashMap<String, String>, String> {
 
 fn read_config_file(path: &std::path::Path) -> Result<HashMap<String, String>, String> {
     match fs::read_to_string(path) {
-        Ok(raw) => {
-            serde_json::from_str(&raw).map_err(|e| format!("Configurazione non valida: {e}"))
-        }
+        Ok(raw) => match serde_json::from_str(&raw) {
+            Ok(map) => Ok(map),
+            Err(e) => {
+                eprintln!(
+                    "Warning: Corrupted configuration file at {}: {e}. Backing up and resetting.",
+                    path.display()
+                );
+                let ts = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .map(|d| d.as_secs())
+                    .unwrap_or(0);
+                let file_name = path
+                    .file_name()
+                    .and_then(|n| n.to_str())
+                    .unwrap_or("vesta_config.json");
+                let corrupt_filename = format!("{file_name}.corrupt.{ts}");
+                let backup_path = path.with_file_name(corrupt_filename);
+                if let Err(backup_err) = fs::rename(path, &backup_path) {
+                    eprintln!(
+                        "Warning: Failed to rename corrupted config file to {}: {backup_err}",
+                        backup_path.display()
+                    );
+                }
+                Ok(HashMap::new())
+            }
+        },
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(HashMap::new()),
         Err(e) => Err(format!("Impossibile leggere la configurazione: {e}")),
     }
@@ -81,34 +104,42 @@ fn write_config_file(path: &std::path::Path, map: &HashMap<String, String>) -> R
 /// frontend. Chiamato una sola volta all'avvio, prima del mount dell'app,
 /// per idratare la cache in-memory lato TypeScript.
 #[tauri::command]
-pub fn config_load_all(state: State<ConfigState>) -> Result<HashMap<String, String>, String> {
+pub fn config_load_all(state: State<'_, ConfigState>) -> Result<HashMap<String, String>, String> {
     let mut guard = state.0.lock().map_err(|e| e.to_string())?;
     *guard = read_from_disk()?;
     Ok(guard.clone())
 }
 
 #[tauri::command]
-pub fn config_set(state: State<ConfigState>, key: String, value: String) -> Result<(), String> {
+pub fn config_set(state: State<'_, ConfigState>, key: String, value: String) -> Result<(), String> {
     let mut guard = state.0.lock().map_err(|e| e.to_string())?;
-    let mut next = guard.clone();
-    next.insert(key, value);
-    write_to_disk(&next)?;
-    *guard = next;
+    let old_value = guard.insert(key.clone(), value);
+    if let Err(e) = write_to_disk(&guard) {
+        if let Some(old) = old_value {
+            guard.insert(key, old);
+        } else {
+            guard.remove(&key);
+        }
+        return Err(e);
+    }
     Ok(())
 }
 
 #[tauri::command]
-pub fn config_remove(state: State<ConfigState>, key: String) -> Result<(), String> {
+pub fn config_remove(state: State<'_, ConfigState>, key: String) -> Result<(), String> {
     let mut guard = state.0.lock().map_err(|e| e.to_string())?;
-    let mut next = guard.clone();
-    next.remove(&key);
-    write_to_disk(&next)?;
-    *guard = next;
+    let old_value = guard.remove(&key);
+    if let Err(e) = write_to_disk(&guard) {
+        if let Some(old) = old_value {
+            guard.insert(key, old);
+        }
+        return Err(e);
+    }
     Ok(())
 }
 
 #[tauri::command]
-pub fn config_clear(state: State<ConfigState>) -> Result<(), String> {
+pub fn config_clear(state: State<'_, ConfigState>) -> Result<(), String> {
     let mut guard = state.0.lock().map_err(|e| e.to_string())?;
     write_to_disk(&HashMap::new())?;
     guard.clear();
@@ -120,7 +151,7 @@ pub fn config_clear(state: State<ConfigState>) -> Result<(), String> {
 /// old and new preferences.
 #[tauri::command]
 pub fn config_replace_all(
-    state: State<ConfigState>,
+    state: State<'_, ConfigState>,
     values: HashMap<String, String>,
 ) -> Result<(), String> {
     let mut guard = state.0.lock().map_err(|e| e.to_string())?;
@@ -133,7 +164,7 @@ pub fn config_replace_all(
 mod tests {
     use super::*;
     #[test]
-    fn settings_snapshot_survives_reopen_and_reports_corruption() {
+    fn settings_snapshot_survives_reopen_and_recovers_from_corruption() {
         let directory = tempfile::tempdir().unwrap();
         let path = directory.path().join("nested/settings.json");
         let values = HashMap::from([
@@ -149,7 +180,16 @@ mod tests {
             assert_eq!(fs::metadata(&path).unwrap().permissions().mode() & 0o077, 0);
         }
         fs::write(&path, "broken json").unwrap();
-        assert!(read_config_file(&path).is_err());
-        assert_eq!(fs::read_to_string(&path).unwrap(), "broken json");
+        let recovered = read_config_file(&path).unwrap();
+        assert!(recovered.is_empty());
+        let parent_entries: Vec<_> = fs::read_dir(path.parent().unwrap())
+            .unwrap()
+            .map(|e| e.unwrap().file_name().to_string_lossy().to_string())
+            .collect();
+        assert!(
+            parent_entries
+                .iter()
+                .any(|name| name.starts_with("settings.json.corrupt."))
+        );
     }
 }

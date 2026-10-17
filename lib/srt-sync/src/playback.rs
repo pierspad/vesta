@@ -6,6 +6,11 @@ use std::time::{Duration, Instant};
 static PREPARING: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
 fn run_ffmpeg(command: &mut Command) -> anyhow::Result<Output> {
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        command.creation_flags(0x0800_4000);
+    }
     let mut child = command
         .stdout(Stdio::null())
         .stderr(Stdio::piped())
@@ -73,9 +78,7 @@ pub fn transcode_for_playback(
         return Ok(source.to_path_buf());
     }
 
-    let _guard = PREPARING
-        .lock()
-        .map_err(|_| anyhow::anyhow!("Audio preparation lock poisoned"))?;
+    let _guard = PREPARING.lock().unwrap_or_else(|e| e.into_inner());
     std::fs::create_dir_all(cache_dir)
         .map_err(|e| anyhow::anyhow!("Cannot create cache dir: {e}"))?;
 
