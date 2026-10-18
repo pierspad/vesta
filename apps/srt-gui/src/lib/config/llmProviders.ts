@@ -60,7 +60,7 @@ export const providers: Record<string, ProviderInfo> = {
     requiresApiUrl: true,
     defaultApiUrl: "http://localhost:11434/v1",
     enabled: true,
-    documentationUrl: "https://ollama.com",
+    documentationUrl: "https://docs.ollama.com/api/openai-compatibility",
   },
   google: {
     id: "google",
@@ -89,7 +89,7 @@ export const providers: Record<string, ProviderInfo> = {
     enabled: true,
     apiKeyUrl: "https://platform.openai.com/api-keys",
     keyPlaceholder: "sk-...",
-    documentationUrl: "https://platform.openai.com/docs",
+    documentationUrl: "https://developers.openai.com/api/docs",
   },
   deepgram: {
     id: "deepgram",
@@ -213,7 +213,7 @@ export const providers: Record<string, ProviderInfo> = {
     apiKeyUrl: "https://build.nvidia.com",
     keyPrefix: "nvapi-",
     keyPlaceholder: "nvapi-...",
-    documentationUrl: "https://docs.nvidia.com",
+    documentationUrl: "https://docs.api.nvidia.com/nim/reference/llm-apis",
   },
   local_whisper: {
     id: "local_whisper",
@@ -224,7 +224,7 @@ export const providers: Record<string, ProviderInfo> = {
     requiresApiKey: false,
     requiresApiUrl: false,
     enabled: true,
-    documentationUrl: "https://github.com/ggerganov/whisper.cpp",
+    documentationUrl: "https://github.com/ggml-org/whisper.cpp",
   },
   custom_whisper: {
     id: "custom_whisper",

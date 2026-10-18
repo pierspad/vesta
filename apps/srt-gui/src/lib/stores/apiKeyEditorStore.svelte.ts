@@ -20,10 +20,10 @@ export const llmApiKeyUrls: Record<string, string> = {
 export const llmDocUrls: Record<string, string> = {
   google: "https://ai.google.dev/gemini-api/docs",
   groq: "https://console.groq.com/docs",
-  openai: "https://platform.openai.com/docs",
+  openai: "https://developers.openai.com/api/docs",
   openrouter: "https://openrouter.ai/docs",
   mistral: "https://docs.mistral.ai",
-  nvidia: "https://docs.nvidia.com",
+  nvidia: "https://docs.api.nvidia.com/nim/reference/llm-apis",
 };
 
 export const whisperApiKeyUrls: Record<string, string> = {
@@ -35,8 +35,8 @@ export const whisperApiKeyUrls: Record<string, string> = {
 
 export const whisperDocUrls: Record<string, string> = {
   groq: "https://console.groq.com/docs/speech-to-text",
-  openai: "https://platform.openai.com/guides/speech-to-text",
-  deepgram: "https://developers.deepgram.com/docs/models-languages-overview",
+  openai: "https://developers.openai.com/api/docs/guides/speech-to-text",
+  deepgram: "https://developers.deepgram.com/reference/speech-to-text/listen-pre-recorded",
   assemblyai: "https://www.assemblyai.com/docs",
 };
 
