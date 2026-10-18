@@ -3,7 +3,6 @@
   import { locale } from "$lib/i18n";
   import ApiKeysCard from "$lib/panels/ApiKeysCard.svelte";
   import TranscribeTiers from "$lib/components/TranscribeTiers.svelte";
-  import WhisperModelSelector from "$lib/components/WhisperModelSelector.svelte";
   import { DEFAULT_VAD_MODEL_ID } from "$lib/config/vadSelection";
   import type { ApiKeyConfig } from "$lib/config/apiKeys";
   import { whisperModelsStore } from "$lib/stores/whisperModelsStore.svelte";
@@ -19,17 +18,31 @@
      * parent-owned, see whisperModelsStore.svelte.ts for why it's a prop
      * here instead of living in the store. */
     highlightedModelId: string | null;
-    /** "local" | "cloud" -- kept in SettingsTab.svelte (there's currently no
-     * UI anywhere that sets it to "cloud", but that's a pre-existing
-     * condition, not something to silently change in a structural refactor). */
-    whisperEngine: string;
+    /** "local" | "cloud" -- kept in SettingsTab.svelte */
+    whisperEngine?: string;
   }
 
-  let { s, apiKeys, onAddKey, onEditKey, onDeleteKey, onSetDefault, highlightedModelId, whisperEngine }: Props = $props();
+  let { s, apiKeys, onAddKey, onEditKey, onDeleteKey, onSetDefault, highlightedModelId }: Props = $props();
 
   let t = $derived($locale);
   let store = whisperModelsStore;
   let transcribeTiersRef = $state<any>(null);
+
+  const whisperModelIconPath = (modelId: string) => ({
+    tiny: "M13 3L4 14h7l-1 7 9-12h-7l1-6z",
+    base: "M5 15v2m4-6v6m4-10v10m4-7v7m4-4v4",
+    small: "M4 12h3l2-5 4 10 2-5h5",
+    medium: "M4 6h16M7 12h10M10 18h4",
+    large: "M12 6v6l4 2m5-2a9 9 0 11-18 0 9 9 0 0118 0z",
+  })[modelId] ?? "M9 3h6m-7 4h8a3 3 0 013 3v7a3 3 0 01-3 3H8a3 3 0 01-3-3v-7a3 3 0 013-3zm4 3v4m-2-2h4";
+
+  const whisperModelAccent = (modelId: string) => ({
+    tiny: "bg-amber-500/15 text-amber-200",
+    base: "bg-sky-500/15 text-sky-200",
+    small: "bg-emerald-500/15 text-emerald-200",
+    medium: "bg-indigo-500/15 text-indigo-200",
+    large: "bg-fuchsia-500/15 text-fuchsia-200",
+  })[modelId] ?? "bg-cyan-500/15 text-cyan-200";
 
   function handleModelDblClick(model: { id: string; downloaded: boolean }) {
     if (!model.downloaded && !store.isDownloading) {
@@ -108,8 +121,12 @@
 
 
 
-{#if whisperEngine === "local"}
-<div class="mt-6 glass-card p-5" role="group" oncontextmenu={(e) => store.openWhisperPanelContextMenu(e)}>
+<div
+  id="whisper-models"
+  class="mt-6 glass-card p-5"
+  role="group"
+  oncontextmenu={(e) => store.openWhisperPanelContextMenu(e)}
+>
   <div class="flex items-center gap-3 mb-4">
     <div class="w-8 h-8 rounded-lg bg-cyan-500/20 flex items-center justify-center text-cyan-200">
       <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -145,23 +162,128 @@
     </div>
   {/if}
 
-  <WhisperModelSelector
-    models={store.whisperModels}
-    value={store.defaultWhisperModel}
-    disabled={store.busy}
-    onselect={(model) => store.handleWhisperModelClick(model)}
-    oncontextmenu={(event, model) => store.openContextMenu(event, model)}
-    ondblclick={handleModelDblClick}
-  />
+  <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-3" role="radiogroup" aria-label={t("settings.whisper.modelLabel")}>
+    {#each store.whisperModels as model (model.id)}
+      <!-- svelte-ignore a11y_no_static_element_interactions -->
+      <div
+        id={model.id}
+        onclick={() => store.handleWhisperModelClick(model)}
+        ondblclick={() => handleModelDblClick(model)}
+        oncontextmenu={(e) => store.openContextMenu(e, model)}
+        onkeydown={(e) => {
+          if (e.key === "Enter" || e.key === " ") store.handleWhisperModelClick(model);
+        }}
+        role="radio"
+        aria-checked={store.defaultWhisperModel === model.id}
+        tabindex="0"
+        class="group relative min-h-[8.5rem] p-4 rounded-xl text-center transition-all duration-200 border cursor-pointer select-none
+          {store.defaultWhisperModel === model.id && model.downloaded
+          ? 'bg-cyan-500/20 border-cyan-500/50 text-white shadow-[0_0_15px_rgba(6,182,212,0.15)]'
+          : model.downloaded
+            ? 'bg-white/10 hover:bg-white/20 border-white/20 text-gray-200'
+            : 'bg-white/5 hover:bg-white/10 border-transparent text-gray-500 opacity-60 hover:opacity-90'}
+          {highlightedModelId === model.id ? 'requirement-pulse' : ''}"
+        title={model.downloaded ? t("settings.whisperDownloadedHint") : t("settings.whisperNotDownloadedHint")}
+      >
+        <!-- Top-Right Action Button -->
+        <div class="absolute top-2 right-2 z-10 flex items-center">
+          {#if !model.downloaded}
+            {#if store.downloadingModelId === model.id}
+              <button
+                type="button"
+                onclick={(e) => { e.stopPropagation(); void store.cancelModelDownload(); }}
+                disabled={store.isCancellingDownload}
+                class="text-red-400 hover:text-red-300 transition-colors p-1 bg-red-500/15 hover:bg-red-500/25 rounded-md border border-red-500/30 flex items-center justify-center cursor-pointer shadow-sm"
+                title={t("settings.stopModelDownload")}
+              >
+                {#if store.isCancellingDownload}
+                  <svg class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                  </svg>
+                {:else}
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 6h12v12H6z" />
+                  </svg>
+                {/if}
+              </button>
+            {:else}
+              <button
+                type="button"
+                onclick={(e) => { e.stopPropagation(); void store.downloadModel(model.id, true); }}
+                class="text-amber-400 hover:text-cyan-300 transition-colors p-1 bg-amber-500/10 hover:bg-cyan-500/20 border border-amber-500/20 hover:border-cyan-500/40 rounded-md cursor-pointer shadow-sm"
+                title={t("settings.download")}
+                disabled={store.isDownloading}
+              >
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                </svg>
+              </button>
+            {/if}
+          {:else}
+            <!-- Subtle uninstall/remove button (trash icon) on hover/top-right -->
+            <button
+              type="button"
+              onclick={(e) => { e.stopPropagation(); void store.uninstallModel(model.id); }}
+              disabled={store.busy}
+              class="opacity-0 group-hover:opacity-100 focus:opacity-100 text-gray-400 hover:text-red-400 hover:bg-red-500/15 p-1 rounded-md transition-all cursor-pointer border border-transparent hover:border-red-500/30"
+              title={t("settings.remove")}
+            >
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+            </button>
+          {/if}
+        </div>
 
-  <!-- Silero VAD add-ons: two downloadable variants + an optional custom model.
-       Clicking a downloaded variant makes it the active one (same pattern as
-       the Whisper model grid above); the active choice is what TranscribeTab
-       resolves into transcribe_start's config. -->
-  <div class="mt-4 space-y-2">
+        <div class="mx-auto mb-2 flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 {whisperModelAccent(model.id)}">
+          <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d={whisperModelIconPath(model.id)} />
+          </svg>
+        </div>
+        <div class="font-bold text-sm">
+          {t(`transcribe.model${model.id.charAt(0).toUpperCase()}${model.id.slice(1)}`) || model.name}
+        </div>
+        <div class="text-[10px] text-gray-500 mt-1">{model.size}</div>
+        {#if !model.downloaded}
+          <div class="text-[9px] text-amber-400/70 mt-0.5">
+            {#if store.downloadingModelId === model.id}
+              {t("settings.downloading")} {store.progress > 0 ? `${store.progress}%` : ""}
+            {:else}
+              {t("settings.notDownloaded")}
+            {/if}
+          </div>
+        {:else if store.defaultWhisperModel === model.id}
+          <div class="text-[9px] text-cyan-400 mt-0.5 font-bold">{t("settings.default")}</div>
+        {:else}
+          <div class="text-[9px] text-emerald-400/80 mt-0.5">{t("settings.ready")}</div>
+        {/if}
+      </div>
+    {/each}
+  </div>
+</div>
+
+<!-- Silero VAD & Custom VAD Card -->
+<div
+  id="silero-vad"
+  class="mt-6 glass-card p-5 {highlightedModelId === 'silero-vad' ? 'requirement-pulse' : ''}"
+>
+  <div class="flex items-center gap-3 mb-4">
+    <div class="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center text-emerald-300">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 100-6 3 3 0 000 6z" />
+      </svg>
+    </div>
+    <div class="flex-1">
+      <h3 class="text-sm font-bold text-white">Silero VAD</h3>
+      <p class="text-xs text-gray-400 mt-0.5">{t("transcribe.vadHelp")}</p>
+    </div>
+  </div>
+
+  <div class="space-y-3">
     {#each store.vadModels as model (model.id)}
       {@const isActive = !store.vadSelection.customPath && store.vadSelection.modelId === model.id}
-      <div class="p-4 rounded-xl border flex items-center justify-between gap-4 {isActive
+      <div class="p-4 rounded-xl border flex items-center justify-between gap-4 transition-colors {isActive
         ? 'bg-emerald-500/10 border-emerald-500/25'
         : 'bg-white/5 border-white/10'}">
         <button
@@ -171,7 +293,7 @@
           class="min-w-0 text-left flex-1 cursor-pointer disabled:cursor-default"
         >
           <div class="flex items-center gap-2 flex-wrap">
-            <span class="text-sm font-bold text-white">Silero Voice Activity Detection {model.id}</span>
+            <span class="text-sm font-bold text-white">Silero VAD {model.id}</span>
             {#if model.id === DEFAULT_VAD_MODEL_ID}
               <span class="text-[9px] text-gray-500 uppercase tracking-wide">{t("settings.default")}</span>
             {/if}
@@ -189,6 +311,7 @@
         </button>
         {#if model.downloaded}
           <button
+            type="button"
             onclick={() => void store.uninstallVad(model.id)}
             disabled={store.busy}
             class="shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold text-red-300 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 transition-colors cursor-pointer disabled:opacity-50"
@@ -197,6 +320,7 @@
           </button>
         {:else}
           <button
+            type="button"
             onclick={() => void store.downloadVad(model.id)}
             disabled={store.busy}
             class="shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold text-white bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 transition-colors cursor-pointer"
@@ -208,7 +332,7 @@
     {/each}
 
     <!-- Custom VAD model: arbitrary local .bin, bypasses the table above -->
-    <div class="p-4 rounded-xl border flex items-center justify-between gap-4 {store.vadSelection.customPath
+    <div class="p-4 rounded-xl border flex items-center justify-between gap-4 transition-colors {store.vadSelection.customPath
       ? 'bg-emerald-500/10 border-emerald-500/25'
       : 'bg-white/5 border-white/10'}">
       <div class="min-w-0">
@@ -228,6 +352,7 @@
       </div>
       <div class="shrink-0 flex items-center gap-2">
         <button
+          type="button"
           onclick={() => void store.pickCustomVad()}
           class="px-3 py-1.5 rounded-lg text-xs font-bold text-white bg-cyan-600 hover:bg-cyan-500 transition-colors cursor-pointer"
         >
@@ -235,6 +360,7 @@
         </button>
         {#if store.vadSelection.customPath}
           <button
+            type="button"
             onclick={() => store.clearCustomVad()}
             class="px-3 py-1.5 rounded-lg text-xs font-bold text-red-300 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 transition-colors cursor-pointer"
           >
@@ -245,7 +371,6 @@
     </div>
   </div>
 </div>
-{/if}
 
 {#if store.contextMenu}
   <!-- svelte-ignore a11y_no_static_element_interactions -->

@@ -1067,7 +1067,6 @@
   "settings.copy.llmConfigMissingLabel": "yapılandırma eksik",
   "settings.copy.llmConfigIncompleteLabel": "yapılandırma eksik",
   "settings.backup.title": "Ayarları yedekle ve geri yükle",
-  "settings.backup.desc": "Tüm Vesta tercihlerini JSON dosyasına aktarın veya başka bir kurulumda geri yükleyin.",
   "settings.backup.import": "İçe aktar",
   "settings.backup.export": "Dışa aktar",
   "settings.backup.exported": "Ayarlar dışa aktarıldı.",

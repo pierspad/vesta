@@ -1067,7 +1067,6 @@
   "settings.copy.llmConfigMissingLabel": "configuratie ontbreekt",
   "settings.copy.llmConfigIncompleteLabel": "configuratie onvolledig",
   "settings.backup.title": "Instellingen back-uppen en herstellen",
-  "settings.backup.desc": "Exporteer alle Vesta-voorkeuren naar een JSON-bestand of herstel ze op een andere installatie.",
   "settings.backup.import": "Importeren",
   "settings.backup.export": "Exporteren",
   "settings.backup.exported": "Instellingen geëxporteerd.",

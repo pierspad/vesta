@@ -43,6 +43,7 @@
   import ConfirmDialog from "$lib/modals/ConfirmDialog.svelte";
   import { aiStore } from "$lib/stores/aiStore.svelte";
   import FooterActions from "$lib/components/FooterActions.svelte";
+  import SettingsJumpButton from "$lib/components/SettingsJumpButton.svelte";
   import * as vestaConfig from "$lib/config/vestaConfig";
   import {
     transcribeCheckFileExists,
@@ -788,6 +789,19 @@
           <!-- Silero VAD (local whisper only; requires the model) -->
           <div class="rounded-lg bg-white/5 p-3">
             <ToggleRow label={t("transcribe.vad")} description={vadInstalled ? t("transcribe.vadHelp") : t("transcribe.vadNotInstalled")} checked={vadEnabled && vadInstalled} disabled={!vadInstalled} accent="sky" onchange={setVadEnabled} />
+            {#if !vadInstalled}
+              <div class="mt-2.5 pt-2 border-t border-white/5 flex items-center justify-between gap-2">
+                <span class="text-xs text-amber-300/80">{t("transcribe.vadNotInstalled")}</span>
+                <SettingsJumpButton
+                  label={t("transcribe.downloadVad")}
+                  section="whisper"
+                  targetId="silero-vad"
+                  disabled={!onGoToSettings}
+                  onclick={() => onGoToSettings?.("whisper", "silero-vad")}
+                  variant="amber"
+                />
+              </div>
+            {/if}
           </div>
           <!-- Quality mode (beam search, local whisper only) -->
           <div class="rounded-lg bg-white/5 p-3">
@@ -1121,16 +1135,30 @@
                 <button class="mt-2 text-xs text-red-300 disabled:opacity-50" disabled={modelStore.isCancellingDownload} onclick={() => void modelStore.cancelModelDownload()}>{t("common.cancel")}</button>
               {/if}
               {#if localModelOverride}
-                <div class="mt-3 flex flex-wrap items-center gap-1 text-xs text-red-400">
+                <div class="mt-3 flex flex-wrap items-center gap-1.5 text-xs text-red-400">
                   <button type="button" disabled={modelStore.busy} class="hover:text-red-200 hover:underline disabled:opacity-50" onclick={() => localModelOverride = null}>{t("transcribe.useTierModels")}</button>
                   <span>{t("transcribe.configuredIn")}</span>
-                  <button type="button" disabled={!onGoToSettings} class="hover:text-red-200 hover:underline disabled:opacity-50" onclick={() => onGoToSettings?.("whisper", "transcribe-tiers")}>{t("transcribe.tiersLink")}</button>
+                  <SettingsJumpButton
+                    label={t("transcribe.tiersLink")}
+                    section="whisper"
+                    targetId="transcribe-tiers"
+                    disabled={!onGoToSettings}
+                    onclick={() => onGoToSettings?.("whisper", "transcribe-tiers")}
+                    variant="subtle"
+                  />
                 </div>
               {/if}
               {#if !vadInstalled}
-                <button class="mt-3 block text-xs text-cyan-300 disabled:opacity-50" disabled={modelStore.busy} onclick={async () => { await modelStore.downloadVad(vadSelection.modelId); await refreshAddons(); }}>
-                  {modelStore.downloadingVadId ? t("settings.downloading") : t("transcribe.downloadVad")}
-                </button>
+                <div class="mt-3">
+                  <SettingsJumpButton
+                    label={t("transcribe.downloadVad")}
+                    section="whisper"
+                    targetId="silero-vad"
+                    disabled={!onGoToSettings}
+                    onclick={() => onGoToSettings?.("whisper", "silero-vad")}
+                    variant="amber"
+                  />
+                </div>
               {/if}
             </div>
           {/if}
@@ -1311,7 +1339,7 @@
     value={expandedPathField === "input" ? inputPath : outputPath}
     onclose={() => (expandedPathField = null)}
     editable={true}
-    secondaryText={`✏️ ${t("transcribe.editPath")}`}
+    secondaryText={t("transcribe.editPath")}
     desc={expandedPathField === "input"
       ? t("transcribe.inputPathDesc")
       : t("transcribe.outputPathDesc")}

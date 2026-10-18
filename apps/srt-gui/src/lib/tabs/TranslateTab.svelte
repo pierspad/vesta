@@ -1484,7 +1484,7 @@
     value={expandedPathField === "input" ? inputPath : outputPath}
     onclose={() => (expandedPathField = null)}
     editable={true}
-    secondaryText={`✏️ ${t("transcribe.editPath")}`}
+    secondaryText={t("transcribe.editPath")}
     desc={expandedPathField === "input"
       ? t("transcribe.inputPathDesc")
       : t("transcribe.outputPathDesc")}

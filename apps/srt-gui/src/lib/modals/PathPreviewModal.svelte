@@ -120,13 +120,26 @@
       {#if isEditing || editable || (secondaryText && onsecondary)}
         <div class="mt-4 flex justify-end gap-2">
           {#if editable}
-            <button
-              type="button"
-              onclick={handleSecondaryClick}
-              class="btn-secondary py-1.5 px-4 text-xs"
-            >
-              {isEditing ? t("common.cancel") : (secondaryText || "✏️ Edit")}
-            </button>
+            {#if isEditing}
+              <button
+                type="button"
+                onclick={handleSecondaryClick}
+                class="btn-secondary py-1.5 px-4 text-xs"
+              >
+                {t("common.cancel")}
+              </button>
+            {:else}
+              <button
+                type="button"
+                onclick={handleSecondaryClick}
+                class="inline-flex items-center gap-1.5 rounded-lg py-1.5 px-4 text-xs font-medium text-amber-300 bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/35 hover:border-amber-400/60 transition-colors cursor-pointer shadow-sm"
+              >
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                </svg>
+                <span>{secondaryText || t("transcribe.editPath")}</span>
+              </button>
+            {/if}
           {:else if secondaryText && onsecondary}
             <button
               type="button"

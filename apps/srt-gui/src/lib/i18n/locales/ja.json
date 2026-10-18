@@ -1067,7 +1067,6 @@
   "settings.copy.llmConfigMissingLabel": "設定なし",
   "settings.copy.llmConfigIncompleteLabel": "設定が不完全",
   "settings.backup.title": "設定のバックアップと復元",
-  "settings.backup.desc": "Vestaの設定をJSONファイルに書き出すか、別の環境から復元します。",
   "settings.backup.import": "インポート",
   "settings.backup.export": "エクスポート",
   "settings.backup.exported": "設定をエクスポートしました。",

@@ -1067,7 +1067,6 @@
   "settings.copy.llmConfigMissingLabel": "구성 누락",
   "settings.copy.llmConfigIncompleteLabel": "구성 불완전",
   "settings.backup.title": "설정 백업 및 복원",
-  "settings.backup.desc": "모든 Vesta 설정을 JSON 파일로 내보내거나 다른 설치 환경에서 복원합니다.",
   "settings.backup.import": "가져오기",
   "settings.backup.export": "내보내기",
   "settings.backup.exported": "설정이 내보내졌습니다.",

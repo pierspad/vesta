@@ -1067,7 +1067,6 @@
   "settings.copy.llmConfigMissingLabel": "कॉन्फ़िगरेशन लुप्त",
   "settings.copy.llmConfigIncompleteLabel": "कॉन्फ़िगरेशन अधूरा",
   "settings.backup.title": "सेटिंग्स का बैकअप और पुनर्स्थापना",
-  "settings.backup.desc": "सभी Vesta पसंदों को JSON फ़ाइल में निर्यात करें या दूसरी स्थापना पर पुनर्स्थापित करें।",
   "settings.backup.import": "आयात",
   "settings.backup.export": "निर्यात",
   "settings.backup.exported": "सेटिंग्स निर्यात की गईं।",

@@ -446,7 +446,7 @@
         <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-sky-500/15 text-sky-300">
           <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7h16v12H4zM7 7V4h10v3M8 12h8m-8 4h5"/></svg>
         </span>
-        <div><h3 class="text-sm font-bold text-white">{t("settings.backup.title")}</h3><p class="mt-1 text-xs leading-relaxed text-gray-400">{t("settings.backup.desc")}</p></div>
+        <div><h3 class="text-sm font-bold text-white">{t("settings.backup.title")}</h3></div>
       </div>
       <div class="flex shrink-0 gap-2">
         <button type="button" class="btn-secondary px-3 py-2 text-xs" disabled={configBusy} onclick={importConfiguration}>{t("settings.backup.import")}</button>

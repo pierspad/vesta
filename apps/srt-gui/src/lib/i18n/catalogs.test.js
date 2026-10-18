@@ -22,7 +22,7 @@ it("provides every UI key and preserves its parameters in all 15 languages", () 
 it("translates the new extraction, setup and backup prose rather than falling back to English", () => {
   for (const name of readdirSync(directory).filter(name => /^[a-z]{2}\.json$/.test(name) && name !== "en.json")) {
     const catalog = read(name);
-    for (const key of ["extract.search", "extract.working", "setup.setUpYourExperience", "settings.backup.desc", "common.loadFailed"]) {
+    for (const key of ["extract.search", "extract.working", "setup.setUpYourExperience", "settings.backup.title", "common.loadFailed"]) {
       expect(catalog[key], `${name}:${key}`).not.toBe(english[key]);
     }
   }

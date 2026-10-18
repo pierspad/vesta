@@ -1067,7 +1067,6 @@
   "common.replaceFilesTitle": "替换已加载的文件？",
   "common.replaceFilesMessage": "新文件将替换当前选中的文件。是否继续？",
   "settings.backup.title": "备份和恢复设置",
-  "settings.backup.desc": "将所有 Vesta 偏好设置导出为 JSON 文件，或在另一台安装中恢复它们。",
   "settings.backup.import": "导入",
   "settings.backup.export": "导出",
   "settings.backup.exported": "设置已导出。",

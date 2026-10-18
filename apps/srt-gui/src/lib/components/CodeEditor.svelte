@@ -235,14 +235,61 @@
     }
   }
 
-  onDestroy(() => {
-    closeContextMenu();
-    if (copyTimeout) clearTimeout(copyTimeout);
-  });
-
   let lines = $derived((value || "").split("\n"));
   let scrollTop = $state(0);
   let scrollLeft = $state(0);
+  let backdropEl = $state<HTMLDivElement | null>(null);
+  let linesContainerEl = $state<HTMLDivElement | null>(null);
+  let lineHeights = $state<number[]>([]);
+  let rafId: number | null = null;
+
+  function syncLineHeights() {
+    if (!linesContainerEl || !wrap) {
+      if (lineHeights.length > 0) lineHeights = [];
+      return;
+    }
+    const children = linesContainerEl.children;
+    const count = children.length;
+    const heights = new Array<number>(count);
+    for (let i = 0; i < count; i++) {
+      heights[i] = (children[i] as HTMLElement).offsetHeight;
+    }
+    lineHeights = heights;
+  }
+
+  function queueSyncLineHeights() {
+    if (typeof window === "undefined") return;
+    if (rafId !== null) cancelAnimationFrame(rafId);
+    rafId = requestAnimationFrame(() => {
+      rafId = null;
+      syncLineHeights();
+    });
+  }
+
+  $effect(() => {
+    void value;
+    void wrap;
+    queueSyncLineHeights();
+  });
+
+  $effect(() => {
+    if (!backdropEl || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(() => {
+      queueSyncLineHeights();
+    });
+    ro.observe(backdropEl);
+    return () => {
+      ro.disconnect();
+    };
+  });
+
+  onDestroy(() => {
+    closeContextMenu();
+    if (copyTimeout) clearTimeout(copyTimeout);
+    if (rafId !== null && typeof cancelAnimationFrame !== "undefined") {
+      cancelAnimationFrame(rafId);
+    }
+  });
   const variableClasses: Record<string, string> = {
     Expression: "var-token-expression",
     Meaning: "var-token-meaning",
@@ -394,6 +441,7 @@
       {#each lines as _, i}
         <div
           class="code-editor-line whitespace-pre flex justify-end items-start"
+          style="height: {wrap && lineHeights[i] ? lineHeights[i] + 'px' : '1.625rem'}"
         >{i + 1}</div>
       {/each}
     </div>
@@ -403,10 +451,11 @@
   <div class="relative flex-1 overflow-hidden h-full">
     <!-- Highlighted Code Layer (replaces <pre> to prevent template whitespace interpolation) -->
     <div
+      bind:this={backdropEl}
       class="code-editor-content absolute inset-0 w-full h-full p-3 pr-9 m-0 font-mono text-sm text-gray-300 pointer-events-none overflow-hidden"
       aria-hidden="true"
     >
-      <div style="transform: translate(-{wrap ? 0 : scrollLeft}px, -{scrollTop}px)">
+      <div bind:this={linesContainerEl} style="transform: translate(-{wrap ? 0 : scrollLeft}px, -{scrollTop}px)">
         {#each lines as line, i}
           <div
             class="code-editor-line {wrap ? 'whitespace-pre-wrap break-words' : 'whitespace-pre'}"
@@ -499,7 +548,6 @@
   }
 
   .code-editor-line {
-    height: 1.625rem;
     min-height: 1.625rem;
   }
 

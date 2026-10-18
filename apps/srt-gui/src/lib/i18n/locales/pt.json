@@ -1072,7 +1072,6 @@
   "settings.copy.llmConfigMissingLabel": "configuração ausente",
   "settings.copy.llmConfigIncompleteLabel": "configuração incompleta",
   "settings.backup.title": "Fazer backup e restaurar configurações",
-  "settings.backup.desc": "Exporte todas as preferências do Vesta para um arquivo JSON ou restaure-as em outra instalação.",
   "settings.backup.import": "Importar",
   "settings.backup.export": "Exportar",
   "settings.backup.exported": "Configurações exportadas.",
