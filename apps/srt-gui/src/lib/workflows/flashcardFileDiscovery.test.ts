@@ -30,3 +30,14 @@ it("keeps supplied files on discovery errors and makes no calls when disabled", 
  expect(await expandFlashcardFiles(["film.srt"], ["film.mkv"], options)).toEqual({ subtitleFiles: ["film.srt"], mediaFiles: ["film.mkv"] });
  invoke.mockClear(); await expandFlashcardFiles(["film.srt"], [], { ...options, enabled: false }); expect(invoke).not.toHaveBeenCalled();
 });
+
+it("filters backend suggestions with the actual custom matching rules", async () => {
+ const { DEFAULT_SMART_MATCHING_RULES: rules } = await import("$lib/stores/smartMatchingStore.svelte");
+ const invoke = vi.fn(async <T>(command: string): Promise<T> => {
+   if (command === "sync_suggest_subtitles_for_media") return { target: "Show.S01E01.en.srt", native: "Show.S02E01.it.srt" } as T;
+   if (command === "sync_suggest_companion_subtitle_for_srt") return "Unrelated.S01E01.it.srt" as T;
+   return null as T;
+ }) as unknown as <T>(command: string, args?: Record<string, unknown>) => Promise<T>;
+ const result = await expandFlashcardFiles([], ["Show.S01E01.mp4"], { enabled: true, rules, targetLanguage: "en", nativeLanguage: "it", invoke });
+ expect(result.subtitleFiles).toEqual(["Show.S01E01.en.srt"]);
+});

@@ -11,7 +11,7 @@ export interface SmartMatchingRules {
 export const DEFAULT_SMART_MATCHING_RULES: SmartMatchingRules = {
   episodeRegexes: [
     "[Ss]\\d{1,2}[\\s_\\-.]?[Ee](\\d{1,4})",
-    "\\b\\d{1,2}[xX](\\d{1,4})\\b",
+    "(?:^|[\\s._-])\\d{1,2}[xX](\\d{1,4})(?=$|[\\s._-])",
     "[Ss]\\d{1,2}[Ee](\\d{1,4})[\\-~_Ee]\\d{1,4}",
     "[Ss]\\d{1,2}[\\s_\\-.]?(?:[Ee][Pp]?|[Ee][Ss][Pp]?)[\\s_\\-.]*(\\d{1,4})",
     "第\\s*(\\d{1,4})\\s*[话話集期]",

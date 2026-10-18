@@ -1,5 +1,9 @@
+import { areMatchingCompanions } from "$lib/utils/seriesFileMatching";
+import type { SmartMatchingRules } from "$lib/stores/smartMatchingStore.svelte";
+
 export interface FileDiscoveryOptions {
   enabled: boolean;
+  rules?: SmartMatchingRules;
   targetLanguage: string;
   nativeLanguage: string;
   invoke: <T>(command: string, args?: Record<string, unknown>) => Promise<T>;
@@ -20,6 +24,7 @@ async function discover<T, R>(items: T[], visit: (item: T) => Promise<R>): Promi
 
 export async function expandFlashcardFiles(subtitleFiles: string[], mediaFiles: string[], options: FileDiscoveryOptions): Promise<{ subtitleFiles: string[]; mediaFiles: string[] }> {
   if (!options.enabled || (!subtitleFiles.length && !mediaFiles.length)) return { subtitleFiles, mediaFiles };
+  const accepts = (a: string, b: string) => !options.rules || areMatchingCompanions(a, b, options.rules);
   const subtitles = new Set(subtitleFiles);
   const media = new Set(mediaFiles);
   const suggestions = await discover([...media], async path => {
@@ -29,9 +34,10 @@ export async function expandFlashcardFiles(subtitleFiles: string[], mediaFiles: 
       });
     } catch { return null; }
   });
-  for (const suggestion of suggestions) {
-    if (suggestion?.target) subtitles.add(suggestion.target);
-    if (suggestion?.native) subtitles.add(suggestion.native);
+  const mediaInputs = [...media];
+  for (const [index, suggestion] of suggestions.entries()) {
+    if (suggestion?.target && accepts(mediaInputs[index], suggestion.target)) subtitles.add(suggestion.target);
+    if (suggestion?.native && accepts(mediaInputs[index], suggestion.native)) subtitles.add(suggestion.native);
   }
   const companions = await discover([...subtitles], async path => {
     const [subtitle, mediaPath] = await Promise.all([
@@ -40,9 +46,10 @@ export async function expandFlashcardFiles(subtitleFiles: string[], mediaFiles: 
     ]);
     return { subtitle, mediaPath };
   });
-  for (const companion of companions) {
-    if (companion.subtitle) subtitles.add(companion.subtitle);
-    if (companion.mediaPath) media.add(companion.mediaPath);
+  const subtitleInputs = [...subtitles];
+  for (const [index, companion] of companions.entries()) {
+    if (companion.subtitle && accepts(subtitleInputs[index], companion.subtitle)) subtitles.add(companion.subtitle);
+    if (companion.mediaPath && accepts(subtitleInputs[index], companion.mediaPath)) media.add(companion.mediaPath);
   }
   return { subtitleFiles: [...subtitles], mediaFiles: [...media] };
 }

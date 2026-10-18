@@ -217,11 +217,11 @@ describe("mergeSeriesMediaFiles", () => {
     expect(withMedia[0].targetSubsPath).toBe("/x/Show.S01E01.srt");
   });
 
-  it("falls back to matching by episode number when the baseKey text differs", () => {
+  it("does not pair unrelated titles merely because their episode numbers agree", () => {
     const withSubs = mergeSeriesSubtitleFiles([], ["/x/My Show - Episode 01.srt"], "auto", rules, "", "");
     const withMedia = mergeSeriesMediaFiles(withSubs, ["/x/Completely Different Name E01.mkv"], rules);
-    expect(withMedia).toHaveLength(1);
-    expect(withMedia[0].mediaPath).toContain("Completely Different Name");
+    expect(withMedia).toHaveLength(2);
+    expect(withMedia.find(e => e.targetSubsPath)?.mediaPath).toBe("");
   });
 });
 
@@ -257,7 +257,7 @@ describe("autoMatchFiles", () => {
     expect(ep1?.mediaType).toBe("video");
   });
 
-  it("falls back to lexicographic index pairing when targets lack episode numbers", () => {
+  it("matches normalized names when targets lack episode numbers", () => {
     const episodes = autoMatchFiles(["/x/Alpha.srt", "/x/Beta.srt"], ["/x/Alpha.native.srt", "/x/Beta.native.srt"], [], rules.episodeRegexes);
     expect(episodes).toHaveLength(2);
     expect(episodes[0].targetSubsPath).toBe("/x/Alpha.srt");
@@ -331,4 +331,73 @@ it("rejects conflicting seasons and ambiguous episode fallback", () => {
  const episodes = mergeSeriesSubtitleFiles([], ["/x/Show.S01E01.en.srt", "/x/Show.S02E01.en.srt"], "auto", rules, "en", "it");
  expect(mergeSeriesMediaFiles(episodes, ["/x/Other.E01.mkv"], rules)).toHaveLength(3);
  expect(mergeSeriesMediaFiles(episodes.slice(0,1), ["/x/Other.S02E01.mkv"], rules)).toHaveLength(2);
+});
+
+describe("conservative matching and recorded evidence", () => {
+  it("pairs equivalent episode syntax and release tags", () => {
+    const subs = mergeSeriesSubtitleFiles([], ["/x/Show.S01E02.en.srt"], "auto", rules, "en", "it");
+    const result = mergeSeriesMediaFiles(subs, ["/x/Show_1x02_1080p_WEB-DL_H.264.mkv"], rules);
+    expect(result).toHaveLength(1);
+    expect(result[0].mediaPath).toContain("1x02");
+  });
+
+  it("never pairs different seasons by list position or reuses a media file", () => {
+    const result = autoMatchFiles(
+      ["/x/Show.S01E01.srt", "/x/Show.S02E01.srt"], [],
+      ["/x/Show.S02E01.mkv"], rules.episodeRegexes);
+    expect(result[0].mediaPath).toBe("");
+    expect(result[1].mediaPath).toBe("/x/Show.S02E01.mkv");
+  });
+
+  it("leaves ambiguous media and missing episodes unpaired", () => {
+    const result = autoMatchFiles(["/x/Show.E01.srt", "/x/Show.E02.srt"], [],
+      ["/x/Show.E02.mp4", "/x/Show.E02.mkv"], rules.episodeRegexes);
+    expect(result.every(row => !row.mediaPath)).toBe(true);
+  });
+
+  it("does not invent a match for unrelated unnumbered files", () => {
+    expect(autoMatchFiles(["/x/Alpha.srt"], [], ["/x/Beta.mp4"], rules.episodeRegexes)[0].mediaPath).toBe("");
+  });
+
+  it("removes technical tokens across underscores, dots and hyphens", () => {
+    expect(normalizeSeriesBaseKey("Show_E01_WEB_DL_H.264_DDP5.1_en", rules)).toBe("show_e01");
+    expect(normalizeSeriesBaseKey("Show.E01.it", rules)).toBe("show_e01");
+  });
+
+  it("ignores release years and resolutions as bare episode numbers", () => {
+    expect(extractEpisodeNumber("Movie.[2024].[1080].mkv", rules.episodeRegexes)).toBeNull();
+    expect(extractEpisodeNumber("Show.E2024.mkv", rules.episodeRegexes)).toBe(2024);
+  });
+
+  it("uses captures from global, named and capture-free custom regexes", () => {
+    expect(extractEpisodeNumber("Show.E03.mkv", [/E(\d+)/g])).toBe(3);
+    expect(extractEpisodeNumber("Show.E03.mkv", ["E(?<episode>\\d+)"])).toBe(3);
+    expect(extractEpisodeNumber("Show.E03.mkv", ["E\\d+"])).toBe(3);
+  });
+
+  it("records actual regex captures and preserves them after rules change", () => {
+    const subs = mergeSeriesSubtitleFiles([], ["/x/Show.S01E02.en.srt"], "auto", rules, "en", "it");
+    const snapshot = subs[0].matching!.files[0];
+    expect(snapshot.episodeRule?.episode).toBe(2);
+    expect(snapshot.episodeRule?.pattern).toBe(rules.episodeRegexes[0]);
+    const changed = { ...rules, episodeRegexes: ["never(\\d+)"] };
+    const result = mergeSeriesMediaFiles(subs, ["/x/Show.S01E02.mkv"], changed);
+    expect(result[0].matching!.files.find(file => file.path.endsWith(".srt"))).toEqual(snapshot);
+  });
+});
+
+it("preserves ambiguous media alternatives without choosing a format arbitrarily", () => {
+ const subs = mergeSeriesSubtitleFiles([], ["Show.E01.en.srt"], "auto", rules, "en", "it");
+ const result = mergeSeriesMediaFiles(subs, ["Show.E01.mp4", "Show.E01.mkv"], rules);
+ expect(result).toHaveLength(3);
+ expect(result.find(row => row.targetSubsPath)?.mediaPath).toBe("");
+ expect(result.filter(row => row.mediaPath)).toHaveLength(2);
+ expect(mergeSeriesMediaFiles(result, [], rules)).toHaveLength(3);
+});
+
+it("does not discard additional subtitle languages in a grouped import", () => {
+ const result = mergeSeriesSubtitleFiles([], ["Show.E01.en.srt", "Show.E01.it.srt", "Show.E01.fr.srt"], "auto", rules, "en", "it");
+ expect(result).toHaveLength(2);
+ expect(result.flatMap(row => [row.targetSubsPath, row.nativeSubsPath]).filter(Boolean).sort()).toEqual(
+   ["Show.E01.en.srt", "Show.E01.fr.srt", "Show.E01.it.srt"]);
 });

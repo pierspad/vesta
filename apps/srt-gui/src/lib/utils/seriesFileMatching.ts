@@ -14,12 +14,14 @@
 
 import { getFileName, inferLanguageFromPath } from "$lib/utils/models";
 import { detectLanguageCode, languages, scoreLanguageMatch } from "$lib/config/languages";
-import type { SmartMatchingRules } from "$lib/stores/smartMatchingStore.svelte";
+import { DEFAULT_SMART_MATCHING_RULES, type SmartMatchingRules } from "$lib/stores/smartMatchingStore.svelte";
 import type { AudioTrackInfo, EpisodeMediaOverrides } from "$lib/types/flashcardMediaTypes";
+
+import { findEpisodeRule, extractSeason, tokenEvidence, type EpisodeMatchEvidence, type FileMatchEvidence } from "./fileMatchEvidence";
 
 export const SUBTITLE_EXTENSIONS = ["srt", "ass", "ssa", "vtt"];
 export const VIDEO_EXTENSIONS = ["mp4", "mkv", "avi", "webm", "mov", "flv", "ogm", "vob"];
-export const AUDIO_EXTENSIONS = ["mp3", "aac", "flac", "m4a", "ogg", "wav", "wma"];
+export const AUDIO_EXTENSIONS = ["mp3", "aac", "flac", "m4a", "ogg", "opus", "wav", "wma"];
 
 export const KNOWN_LANGUAGE_CODES = new Set(languages.map((lang) => lang.code.toLowerCase()));
 
@@ -30,6 +32,7 @@ export interface EpisodeEntry {
   mediaPath: string;
   mediaType: "none" | "video" | "audio";
   mediaOverrides?: EpisodeMediaOverrides;
+  matching?: EpisodeMatchEvidence;
 }
 
 export interface SeriesDraftEntry {
@@ -41,6 +44,7 @@ export interface SeriesDraftEntry {
   mediaType: "none" | "video" | "audio";
   episodeNumber: number | null;
   mediaOverrides?: EpisodeMediaOverrides;
+  matching?: EpisodeMatchEvidence;
 }
 
 export interface ParsedSeriesSubtitle {
@@ -68,30 +72,20 @@ export function escapeRegExp(value: string): string {
 
 export function delimitedHintRegex(hints: string[], flags = "i"): RegExp | null {
   if (hints.length === 0) return null;
-  return new RegExp(`(^|[._-])(${hints.map(escapeRegExp).join("|")})(?=($|[._-]))`, flags);
+  return new RegExp(`(^|[\\s._\\[\\]()-])(${hints.map(escapeRegExp).join("|")})(?=($|[\\s._\\[\\]()-]))`, flags);
 }
 
 export function removableTokenRegex(tokens: string[]): RegExp | null {
   if (tokens.length === 0) return null;
-  return new RegExp(`\\b(?:${tokens.map(escapeRegExp).join("|")})\\b`, "gi");
+  const alternatives = tokens.filter(Boolean).sort((a, b) => b.length - a.length)
+    .map(token => token.split(/[\s._-]+/).map(escapeRegExp).join("[\\s._-]+"));
+  return new RegExp(`(?<![\\p{L}\\p{N}])(?:${alternatives.join("|")})(?![\\p{L}\\p{N}])`, "giu");
 }
 
 /** Estrae il numero di episodio da un filename usando i pattern configurabili
  * di smart-matching (vedi `SmartMatchingRules.episodeRegexes`). */
 export function extractEpisodeNumber(filename: string, episodeRegexes: (string | RegExp)[]): number | null {
-  const base = filename.replace(/\.[^/.]+$/, "");
-  for (const pattern of episodeRegexes) {
-    try {
-      const rx = pattern instanceof RegExp ? pattern : new RegExp(pattern, "i");
-      const match = base.match(rx);
-      const rawEpisode = match?.[1] ?? match?.[0];
-      const numericEpisode = rawEpisode?.match(/\d{1,4}/)?.[0];
-      if (numericEpisode) return parseInt(numericEpisode, 10);
-    } catch {
-      // Invalid custom regexes are blocked on save; ignore stale stored values defensively.
-    }
-  }
-  return null;
+  return findEpisodeRule(filename, episodeRegexes)?.episode ?? null;
 }
 
 // Vesta exports title_language_streamIndex: the final number is not an episode.
@@ -105,9 +99,9 @@ export function normalizeSeriesBaseKey(baseName: string, rules: SmartMatchingRul
   stem = stem.replace(/\([^)]*\b(?:19|20)\d{2}\b[^)]*\)/g, "");
   stem = stem.replace(/\[[^\]]*\b(?:19|20)\d{2}\b[^\]]*\]/g, "");
   stem = stem.replace(/\b(?:19|20)\d{2}\b/g, "");
-  stem = stem.replace(/[._-]+/g, " ");
   const tokenRegex = removableTokenRegex(rules.removableNameTokens);
   if (tokenRegex) stem = stem.replace(tokenRegex, "");
+  stem = stem.replace(/[._-]+/g, " ");
   stem = stem.replace(/[\s]+/g, "_");
   const roleHintRegex = delimitedHintRegex(
     [...rules.originalSubtitleHints, ...rules.referenceSubtitleHints],
@@ -267,6 +261,12 @@ export function classifySubtitles(
 
 // ─── Serie: aggregazione di episodi da liste di file ────────────────────────
 
+function reserveDraftKey(map: Map<string, SeriesDraftEntry>, key: string): string {
+  let candidate = key, counter = 1;
+  while (map.has(candidate)) candidate = `${key}::${counter++}`;
+  return candidate;
+}
+
 export function buildSeriesDraftMap(
   episodes: EpisodeEntry[],
   rules: SmartMatchingRules,
@@ -274,7 +274,7 @@ export function buildSeriesDraftMap(
   const map = new Map<string, SeriesDraftEntry>();
 
   episodes.forEach((episode) => {
-    const baseKey =
+    let baseKey =
       episode.targetSubsPath
         ? parseSeriesSubtitle(episode.targetSubsPath, rules).baseKey
         : episode.nativeSubsPath
@@ -283,6 +283,7 @@ export function buildSeriesDraftMap(
             ? parseSeriesMedia(episode.mediaPath, rules).baseKey
             : `episode-${episode.id}`;
 
+    baseKey = reserveDraftKey(map, baseKey);
     map.set(baseKey, {
       baseKey,
       displayName:
@@ -293,6 +294,7 @@ export function buildSeriesDraftMap(
       mediaPath: episode.mediaPath,
       mediaType: episode.mediaType,
       mediaOverrides: episode.mediaOverrides,
+      matching: episode.matching,
       episodeNumber: episode.targetSubsPath
         ? parseSeriesSubtitle(episode.targetSubsPath, rules).episodeNumber
         : episode.nativeSubsPath
@@ -322,19 +324,58 @@ export function seriesDraftEntriesToEpisodes(draftMap: Map<string, SeriesDraftEn
     mediaPath: entry.mediaPath,
     mediaType: entry.mediaType,
     mediaOverrides: entry.mediaOverrides,
+    matching: entry.matching,
   }));
 }
 
-function uniqueEpisodeMatch(entries: Iterable<SeriesDraftEntry>, episode: number, name: string, media = false): SeriesDraftEntry | undefined {
-  const season = (value: string) => value.match(/(?:^|[\s._-])s(\d{1,2})e\d/i)?.[1]
-    ?? value.match(/(?:^|[\s._-])(\d{1,2})x\d/i)?.[1];
-  const incomingSeason = season(name);
-  const matches = [...entries].filter(entry => {
-    const existingSeason = season(entry.displayName);
-    return entry.episodeNumber === episode && (!media || !entry.mediaPath)
-      && !(incomingSeason && existingSeason && Number(incomingSeason) !== Number(existingSeason));
-  });
+/** Comparable series title independent of episode syntax, release group and language. */
+function seriesTitle(name: string, rules: SmartMatchingRules): string {
+  let stem = name.replace(/\.[^/.]+$/, "").replace(/^\[[^\]]+\]\s*/, "");
+  const evidence = findEpisodeRule(name, rules.episodeRegexes);
+  if (evidence) stem = stem.replace(evidence.matched.trim(), " ");
+  stem = stem.replace(/(?:^|[\s._-])s(?:eason)?[\s._-]*\d{1,2}(?=$|[\s._-])/gi, " ");
+  return normalizeSeriesBaseKey(stem, rules);
+}
+
+function compatibleIdentity(a: string, b: string, rules: SmartMatchingRules): boolean {
+  const sa = extractSeason(a), sb = extractSeason(b);
+  if (sa !== null && sb !== null && sa !== sb) return false;
+  const ta = seriesTitle(a, rules), tb = seriesTitle(b, rules);
+  return !ta || !tb || ta === tb;
+}
+
+function uniqueEpisodeMatch(entries: Iterable<SeriesDraftEntry>, episode: number, name: string, rules: SmartMatchingRules, media = false): SeriesDraftEntry | undefined {
+  const matches = [...entries].filter(entry =>
+    entry.episodeNumber === episode && (!media || !entry.mediaPath)
+    && compatibleIdentity(name, entry.displayName, rules));
   return matches.length === 1 ? matches[0] : undefined;
+}
+
+/** Shared by folder discovery and drag/drop so suggestions obey custom rules too. */
+export function areMatchingCompanions(a: string, b: string, rules: SmartMatchingRules): boolean {
+  const parse = (path: string) => isSubtitleFile(path) ? parseSeriesSubtitle(path, rules) : parseSeriesMedia(path, rules);
+  const left = parse(a), right = parse(b);
+  return left.baseKey === right.baseKey || (left.episodeNumber !== null
+    && left.episodeNumber === right.episodeNumber && compatibleIdentity(left.name, right.name, rules));
+}
+
+/** Snapshot evidence at matching time; later rule edits must not rewrite history. */
+export function captureMatchEvidence(episode: EpisodeEntry, rules: SmartMatchingRules): EpisodeEntry {
+  const paths = [episode.targetSubsPath, episode.nativeSubsPath, episode.mediaPath].filter(Boolean);
+  const files: FileMatchEvidence[] = paths.map(path => {
+    const previous = episode.matching?.files.find(file => file.path === path);
+    if (previous) return previous;
+    const parsed = isSubtitleFile(path) ? parseSeriesSubtitle(path, rules) : parseSeriesMedia(path, rules);
+    return {
+      path, baseKey: parsed.baseKey,
+      episodeRule: findEpisodeRule(isSubtitleFile(path) ? `${stripExtractedTrackSuffix(getFileName(path).replace(/\.[^/.]+$/, ""))}.srt` : getFileName(path), rules.episodeRegexes),
+      language: isSubtitleFile(path) ? inferLanguageFromPath(path) : null,
+      ...tokenEvidence(getFileName(path), rules),
+    };
+  });
+  const method = files.length < 2 ? "unmatched"
+    : files.every(file => file.baseKey === files[0].baseKey) ? "baseKey" : "episode";
+  return { ...episode, matching: { method, files } };
 }
 
 export function mergeSeriesSubtitleFiles(
@@ -357,12 +398,12 @@ export function mergeSeriesSubtitleFiles(
 
   grouped.forEach((paths, baseKey) => {
     const parsedGroup = paths.map((path) => parseSeriesSubtitle(path, rules));
-    const epNum = parsedGroup.find((item) => item.episodeNumber !== null)?.episodeNumber || null;
+    const epNum = parsedGroup.find((item) => item.episodeNumber !== null)?.episodeNumber ?? null;
     let entry = draftMap.get(baseKey);
 
     // Fallback: match by episode number if baseKey doesn't match
     if (!entry && epNum !== null) {
-      entry = uniqueEpisodeMatch(draftMap.values(), epNum, parsedGroup[0].name);
+      entry = uniqueEpisodeMatch(draftMap.values(), epNum, parsedGroup[0].name, rules);
     }
 
     if (!entry) {
@@ -401,9 +442,18 @@ export function mergeSeriesSubtitleFiles(
     }
 
     draftMap.set(entry.baseKey, entry);
+    for (const path of paths.filter(path => path !== entry.targetSubsPath && path !== entry.nativeSubsPath)) {
+      const extraKey = reserveDraftKey(draftMap, baseKey);
+      draftMap.set(extraKey, {
+        baseKey: extraKey, displayName: getFileName(path),
+        targetSubsPath: preferredRole === "native" ? "" : path,
+        nativeSubsPath: preferredRole === "native" ? path : "",
+        mediaPath: "", mediaType: "none", episodeNumber: epNum,
+      });
+    }
   });
 
-  return seriesDraftEntriesToEpisodes(draftMap);
+  return seriesDraftEntriesToEpisodes(draftMap).map(episode => captureMatchEvidence(episode, rules));
 }
 
 export function mergeSeriesMediaFiles(
@@ -413,18 +463,27 @@ export function mergeSeriesMediaFiles(
 ): EpisodeEntry[] {
   const draftMap = buildSeriesDraftMap(episodes, rules);
 
-  mediaFiles.forEach((path) => {
+  const incoming = [...new Set(mediaFiles)];
+  const counts = new Map<string, number>();
+  for (const path of incoming) {
+    const key = parseSeriesMedia(path, rules).baseKey;
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+  incoming.forEach((path) => {
+    if ([...draftMap.values()].some(entry => entry.mediaPath === path)) return;
     const parsed = parseSeriesMedia(path, rules);
-    let entry = draftMap.get(parsed.baseKey);
+    const ambiguous = (counts.get(parsed.baseKey) ?? 0) > 1;
+    let entry = ambiguous ? undefined : draftMap.get(parsed.baseKey);
+    if (entry?.mediaPath) entry = undefined;
 
     // Fallback: match by episode number if baseKey doesn't match
-    if (!entry && parsed.episodeNumber !== null) {
-      entry = uniqueEpisodeMatch(draftMap.values(), parsed.episodeNumber, parsed.name, true);
+    if (!entry && !ambiguous && parsed.episodeNumber !== null) {
+      entry = uniqueEpisodeMatch(draftMap.values(), parsed.episodeNumber, parsed.name, rules, true);
     }
 
     if (!entry) {
       entry = {
-        baseKey: parsed.baseKey,
+        baseKey: reserveDraftKey(draftMap, parsed.baseKey),
         displayName: parsed.name,
         targetSubsPath: "",
         nativeSubsPath: "",
@@ -440,7 +499,7 @@ export function mergeSeriesMediaFiles(
     draftMap.set(entry.baseKey, entry);
   });
 
-  return seriesDraftEntriesToEpisodes(draftMap);
+  return seriesDraftEntriesToEpisodes(draftMap).map(episode => captureMatchEvidence(episode, rules));
 }
 
 export function mergeSeriesDroppedFiles(
@@ -467,73 +526,35 @@ export function autoMatchFiles(
   nativeFiles: string[],
   mediaFiles: string[],
   episodeRegexes: string[],
+  rules: SmartMatchingRules = DEFAULT_SMART_MATCHING_RULES,
 ): EpisodeEntry[] {
-  const compiledRegexes = episodeRegexes
-    .map((pattern) => {
-      try {
-        return new RegExp(pattern, "i");
-      } catch {
-        return null;
-      }
-    })
-    .filter((rx): rx is RegExp => rx !== null);
-
-  type FileWithEp = { path: string; ep: number | null; name: string };
-  const toEntries = (files: string[]): FileWithEp[] =>
-    files.map((f) => {
-      const name = getFileName(f);
-      return { path: f, ep: extractEpisodeNumber(name, compiledRegexes), name };
+  const matchingRules = { ...rules, episodeRegexes };
+  const usedNative = new Set<string>(), usedMedia = new Set<string>();
+  const sort = (files: string[]) => [...files].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+  function select(target: string, candidates: string[], used: Set<string>): string {
+    const parsed = parseSeriesSubtitle(target, matchingRules);
+    const available = candidates.filter(path => !used.has(path));
+    const exact = available.filter(path => {
+      const candidate = isSubtitleFile(path) ? parseSeriesSubtitle(path, matchingRules) : parseSeriesMedia(path, matchingRules);
+      return candidate.baseKey === parsed.baseKey;
     });
-
-  const targets = toEntries(targetFiles);
-  const natives = toEntries(nativeFiles);
-  const medias = toEntries(mediaFiles);
-
-  // Try episode-number matching first
-  const allHaveEps = targets.every((t) => t.ep !== null);
-  if (allHaveEps) {
-    targets.sort((a, b) => (a.ep ?? 0) - (b.ep ?? 0));
-  } else {
-    targets.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+    const matches = exact.length ? exact : available.filter(path => {
+      const name = getFileName(path);
+      return parsed.episodeNumber !== null
+        && extractEpisodeNumber(name, episodeRegexes) === parsed.episodeNumber
+        && compatibleIdentity(getFileName(target), name, matchingRules);
+    });
+    if (matches.length !== 1) return "";
+    used.add(matches[0]);
+    return matches[0];
   }
-
-  // Match natives and medias by episode number or index
-  return targets.map((t, idx) => {
-    let nativePath = "";
-    let mediaPath = "";
-    let mediaType: "none" | "video" | "audio" = "none";
-
-    // Find matching native by episode number
-    if (t.ep !== null) {
-      const matchNative = natives.find((n) => n.ep === t.ep);
-      if (matchNative) nativePath = matchNative.path;
-      const matchMedia = medias.find((m) => m.ep === t.ep);
-      if (matchMedia) {
-        mediaPath = matchMedia.path;
-        mediaType = detectMediaType(matchMedia.name);
-      }
-    }
-
-    // Fall back to index matching
-    if (!nativePath && idx < natives.length) {
-      const sorted = [...natives].sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
-      nativePath = sorted[idx]?.path || "";
-    }
-    if (!mediaPath && idx < medias.length) {
-      const sorted = [...medias].sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
-      if (sorted[idx]) {
-        mediaPath = sorted[idx].path;
-        mediaType = detectMediaType(sorted[idx].name);
-      }
-    }
-
-    return {
-      id: idx + 1,
-      targetSubsPath: t.path,
-      nativeSubsPath: nativePath,
-      mediaPath,
-      mediaType,
-    };
+  return sort(targetFiles).map((target, index) => {
+    const native = select(target, nativeFiles, usedNative);
+    const media = select(target, mediaFiles, usedMedia);
+    return captureMatchEvidence({
+      id: index + 1, targetSubsPath: target, nativeSubsPath: native,
+      mediaPath: media, mediaType: detectMediaType(media),
+    }, matchingRules);
   });
 }
 
