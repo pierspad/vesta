@@ -33,7 +33,7 @@
     onEdit: (idx: number) => void;
     onMediaSettings: (idx: number) => void;
     onRemove: (idx: number) => void;
-    onContextMenu: (event: MouseEvent, idx: number) => void;
+    onContextMenu: (event: MouseEvent, idx: number, field?: "targetSubsPath" | "nativeSubsPath" | "mediaPath") => void;
     targetSubsPath?: string;
     nativeSubsPath?: string;
     mediaPath?: string;

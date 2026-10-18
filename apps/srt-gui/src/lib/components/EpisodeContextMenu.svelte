@@ -6,12 +6,13 @@
     y: number;
     hasMedia: boolean;
     onEdit: () => void;
+    onInspectMatch?: () => void;
     onMediaSettings: () => void;
     onPreviewAudio?: () => void;
     onRemove: () => void;
     onClose: () => void;
   }
-  let { x, y, hasMedia, onEdit, onMediaSettings, onPreviewAudio, onRemove, onClose }: Props = $props();
+  let { x, y, hasMedia, onEdit, onInspectMatch, onMediaSettings, onPreviewAudio, onRemove, onClose }: Props = $props();
 
   let t = $derived($locale);
 </script>
@@ -30,7 +31,7 @@
   role="presentation"
   tabindex="-1"
 >
-  <div class="vesta-context-menu animate-fade-in" style="left: {x}px; top: {y}px;">
+  <div class="vesta-context-menu animate-fade-in" style="left: {Math.max(8, Math.min(x, window.innerWidth - 270))}px; top: {Math.max(8, Math.min(y, window.innerHeight - 240))}px; max-width: calc(100vw - 16px);">
     <button type="button" class="vesta-context-menu-item" onclick={onEdit}>
       <span class="inline-flex items-center gap-2">
         <svg class="h-4 w-4 text-amber-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -69,6 +70,9 @@
           {t("flashcards.previewAudio")}
         </span>
       </button>
+    {/if}
+    {#if onInspectMatch}
+      <button type="button" class="vesta-context-menu-item" onclick={onInspectMatch}>{t("matching.inspect")}</button>
     {/if}
     <div class="vesta-context-menu-separator"></div>
     <button type="button" class="vesta-context-menu-item" onclick={onRemove}>

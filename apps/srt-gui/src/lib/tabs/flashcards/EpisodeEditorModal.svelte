@@ -8,6 +8,7 @@
 
   interface Props {
     editingEpisode: EpisodeEntry;
+    onlyField?: EpisodeFileField | null;
     activeNoteType: NoteTypeDef;
     dropMediaHint: string;
     dropSubtitleHint: string;
@@ -20,6 +21,7 @@
 
   let {
     editingEpisode,
+    onlyField = null,
     activeNoteType,
     dropMediaHint,
     dropSubtitleHint,
@@ -64,7 +66,7 @@
     <div class="mb-4 flex items-center justify-between gap-3">
       <div>
         <h3 class="text-lg font-bold text-white">
-          {t("common.edit")} {getFileName(editingEpisode.targetSubsPath || editingEpisode.nativeSubsPath || editingEpisode.mediaPath) || `episodio ${editingEpisode.id}`}
+          {t("common.edit")} {getFileName((onlyField ? editingEpisode[onlyField] : "") || editingEpisode.targetSubsPath || editingEpisode.nativeSubsPath || editingEpisode.mediaPath) || `episodio ${editingEpisode.id}`}
         </h3>
       </div>
       <button
@@ -75,7 +77,7 @@
     </div>
 
     <div class="space-y-3">
-      {#each episodeEditorFields as item}
+      {#each episodeEditorFields.filter((item) => !onlyField || item.field === onlyField) as item}
         {@const field = item.field}
         {@const label = t(`flashcards.${item.labelKey}`)}
         {@const placeholder = t(`flashcards.${item.placeholderKey}`)}

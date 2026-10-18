@@ -1239,5 +1239,8 @@
   "settings.dictionary.modal.urlTemplate": "Template URL",
   "experimental.reset.title": "Simula una nuova installazione",
   "experimental.reset.description": "Cancella preferenze, chiavi API, template personalizzati e cache temporanee, poi riavvia la configurazione iniziale. Modelli scaricati, file personali ed export restano sul disco.",
-  "experimental.reset.action": "Cancella dati e riavvia"
+  "experimental.reset.action": "Cancella dati e riavvia",
+  "matching.inspect": "Match errato? Analizza regole",
+  "matching.help": "Queste sono le regole registrate durante l’abbinamento. Confronta baseKey, numeri di episodio, indizi di lingua e token rimossi. Correggi la regola in Smart Matching, poi importa di nuovo i file.",
+  "matching.notRecorded": "Non è disponibile una cronologia del match per questo file. Potrebbe essere stato selezionato manualmente o modificato dopo l’abbinamento."
 }

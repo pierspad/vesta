@@ -1239,5 +1239,8 @@
   "settings.dictionary.modal.urlTemplate": "Modelo de URL",
   "experimental.reset.title": "Simular uma nova instalação",
   "experimental.reset.description": "Apaga preferências, chaves API, modelos personalizados e caches temporárias e reabre a configuração inicial. Os modelos descarregados, ficheiros pessoais e exportações são preservados.",
-  "experimental.reset.action": "Apagar dados e reiniciar"
+  "experimental.reset.action": "Apagar dados e reiniciar",
+  "matching.inspect": "Associação incorreta? Ver regras",
+  "matching.help": "Estas regras foram registadas durante a associação. Compare baseKey, números de episódio, idiomas e termos removidos. Corrija a regra em Smart Matching e importe os ficheiros novamente.",
+  "matching.notRecorded": "Não há histórico de associação deste ficheiro. Pode ter sido selecionado manualmente ou alterado depois."
 }

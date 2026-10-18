@@ -1239,5 +1239,8 @@
   "settings.dictionary.modal.urlTemplate": "Szablon URL",
   "experimental.reset.title": "Symuluj nową instalację",
   "experimental.reset.description": "Usuń preferencje, klucze API, własne szablony i pamięć podręczną, a następnie otwórz konfigurację początkową. Pobrane modele, pliki osobiste i eksporty zostaną zachowane.",
-  "experimental.reset.action": "Usuń dane i uruchom ponownie"
+  "experimental.reset.action": "Usuń dane i uruchom ponownie",
+  "matching.inspect": "Błędne dopasowanie? Sprawdź reguły",
+  "matching.help": "Te reguły zapisano podczas dopasowywania plików. Porównaj baseKey, numery odcinków, języki i usunięte wyrazy. Popraw regułę w Smart Matching i ponownie zaimportuj pliki.",
+  "matching.notRecorded": "Brak historii dopasowania tego pliku. Mógł zostać wybrany ręcznie lub później zmieniony."
 }

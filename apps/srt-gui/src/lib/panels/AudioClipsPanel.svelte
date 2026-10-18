@@ -1,6 +1,6 @@
 <script lang="ts">
   import * as vestaConfig from "$lib/config/vestaConfig";
-  import { onDestroy } from "svelte";
+  import { onDestroy, tick } from "svelte";
   import { LatestRequest } from "$lib/utils/asyncControl.svelte";
   const audioRequests = new LatestRequest();
   const snapshotRequests = new LatestRequest();
@@ -66,6 +66,30 @@
   let t = $derived($locale);
   let easyMode = $derived(!uiMode.expertMode);
 
+  let subtitleLoad: Promise<void> = Promise.resolve();
+  let durationLoad: Promise<void> = Promise.resolve();
+  let previewRequest = 0;
+  let previewElement: HTMLDivElement | undefined = $state();
+  let previewGlow = $state(false);
+  let glowTimer: ReturnType<typeof setTimeout> | undefined;
+  export async function previewEpisode(index: number) {
+    if (!episodes[index]?.mediaPath) return;
+    const request = ++previewRequest;
+    const requestedMedia = episodes[index].mediaPath;
+    selectedEpisodeIdx = index;
+    previewExpanded = true;
+    await tick();
+    previewGlow = false;
+    await tick();
+    previewElement?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    previewGlow = true;
+    clearTimeout(glowTimer);
+    glowTimer = setTimeout(() => previewGlow = false, 1500);
+    await Promise.all([subtitleLoad, durationLoad]);
+    if (request === previewRequest && selectedEpisodeIdx === index && currentMediaPath === requestedMedia) await playPreview();
+  }
+  onDestroy(() => { previewRequest++; clearTimeout(glowTimer); });
+
   let selectedEpisodeIdx = $state(0);
   let activeEpisode = $derived.by(() => {
     if (episodes && episodes.length > 0) {
@@ -75,10 +99,10 @@
   });
 
   let currentMediaPath = $derived(
-    activeEpisode?.mediaPath || firstEpisodeMediaPath || ""
+    activeEpisode ? activeEpisode.mediaPath : firstEpisodeMediaPath || ""
   );
   let currentSubsPath = $derived(
-    activeEpisode?.targetSubsPath || activeEpisode?.nativeSubsPath || firstEpisodeSubsPath || ""
+    activeEpisode ? activeEpisode.targetSubsPath || activeEpisode.nativeSubsPath : firstEpisodeSubsPath || ""
   );
 
   let isPreviewPlaying = $state(false);
@@ -93,11 +117,11 @@
     const request = durationRequests.begin();
     mediaDurationSec = null;
     previewTimeSec = 0;
-    if (path) void invoke<number>("flashcard_media_duration", { path }).then((duration) => {
+    durationLoad = path ? invoke<number>("flashcard_media_duration", { path }).then((duration) => {
       if (!request.isCurrent()) return;
       mediaDurationSec = duration;
       previewTimeSec = Math.min(previewTimeSec, Math.max(0, duration - 0.1));
-    }).catch((error) => console.error("Failed to read media duration", error));
+    }).catch((error) => console.error("Failed to read media duration", error)) : Promise.resolve();
   });
   let isPreviewLoading = $state(false);
   let audioPlayer: HTMLAudioElement | null = null;
@@ -174,8 +198,9 @@
     subEntries = [];
     currentSubIndex = 0;
     if (sub) {
-      loadSubtitles(sub);
+      subtitleLoad = loadSubtitles(sub);
     } else {
+      subtitleLoad = Promise.resolve();
       subEntries = [];
       currentSubIndex = 0;
       if (media) {
@@ -536,9 +561,11 @@
       </div>
     {/if}
 
+  </div>
+
     <!-- Interactive Audio Preview Section -->
     {#if previewExpanded}
-    <div class="mt-4 p-3.5 rounded-xl border border-cyan-500/25 bg-cyan-950/20 space-y-3">
+    <div bind:this={previewElement} class:preview-glow={previewGlow} class="mt-4 p-3.5 rounded-xl border border-cyan-500/25 bg-cyan-950/20 space-y-3">
       <!-- Episode Selector if multiple episodes -->
       {#if episodes && episodes.length > 1}
         <div class="pb-1 border-b border-white/5">
@@ -556,6 +583,7 @@
             }))}
             value={String(selectedEpisodeIdx)}
             onchange={(v) => {
+              previewRequest++;
               selectedEpisodeIdx = parseInt(v);
               if (isPreviewPlaying && audioPlayer) {
                 audioPlayer.pause();
@@ -692,5 +720,16 @@
       </div>
     </div>
     {/if}
-  </div>
 </div>
+
+
+<style>
+  .preview-glow { animation: preview-glow 0.5s ease-in-out 3; }
+  @keyframes preview-glow {
+    0%, 100% { box-shadow: 0 0 0 1px rgb(34 211 238 / 0.15); }
+    50% { box-shadow: 0 0 18px 3px rgb(34 211 238 / 0.5); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .preview-glow { animation: none; outline: 2px solid rgb(34 211 238); }
+  }
+</style>

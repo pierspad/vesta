@@ -24,7 +24,7 @@
     onEdit: (idx: number) => void;
     onMediaSettings: (idx: number) => void;
     onRemove: (idx: number) => void;
-    onContextMenu: (event: MouseEvent, idx: number) => void;
+    onContextMenu: (event: MouseEvent, idx: number, field?: "targetSubsPath" | "nativeSubsPath" | "mediaPath") => void;
     onClearAll: () => void;
   }
   let { episodes, showSnackbar, onSwapAll, onSwap, onEdit, onMediaSettings, onRemove, onContextMenu, onClearAll }: Props = $props();
@@ -105,6 +105,7 @@
               <td class="p-1.5 text-center text-gray-500 font-mono">{ep.id}</td>
               <td
                 class="p-1.5 cursor-pointer truncate text-emerald-300 transition-colors hover:bg-violet-500/12 hover:text-emerald-100 rounded-md text-center"
+                oncontextmenu={(e) => { e.stopPropagation(); onContextMenu(e, idx, "targetSubsPath"); }}
                 title={ep.targetSubsPath}
                 onclick={() => { void writeClipboard(ep.targetSubsPath, t("flashcards.copiedTargetSubs")); }}
               >
@@ -126,6 +127,7 @@
                 class="p-1.5 cursor-pointer truncate transition-colors hover:bg-violet-500/12 rounded-md text-center {ep.nativeSubsPath
                   ? 'text-blue-300 hover:text-blue-100'
                   : 'text-gray-600 hover:text-gray-400'}"
+                oncontextmenu={(e) => { e.stopPropagation(); onContextMenu(e, idx, "nativeSubsPath"); }}
                 title={ep.nativeSubsPath || "—"}
                 onclick={() => { if(ep.nativeSubsPath) { void writeClipboard(ep.nativeSubsPath, t("flashcards.copiedNativeSubs")); } }}
               >
@@ -135,6 +137,7 @@
               </td>
               <td
                 class="p-1.5 cursor-pointer truncate transition-colors hover:bg-violet-500/12 rounded-md text-center {ep.mediaPath ? 'text-purple-300 hover:text-purple-100' : 'text-gray-600 hover:text-gray-400'}"
+                oncontextmenu={(e) => { e.stopPropagation(); onContextMenu(e, idx, "mediaPath"); }}
                 title={ep.mediaPath || "—"}
                 onclick={() => { if(ep.mediaPath) { void writeClipboard(ep.mediaPath, t("flashcards.copiedMediaPath")); } }}
               >

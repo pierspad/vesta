@@ -9,7 +9,7 @@
   import { listen } from "@tauri-apps/api/event";
   import { guardedOpen } from "$lib/utils/dialogGuard";
   import { setupWebviewDragDrop } from "$lib/utils/dragDrop";
-  import { onDestroy, onMount } from "svelte";
+  import { onDestroy, onMount, tick } from "svelte";
   import { currentLanguage, locale } from "$lib/i18n";
   import { getFileName, inferLanguageFromPath } from "$lib/utils/models";
   import { getLanguageSearchTerms, languages } from "$lib/config/languages";
@@ -82,6 +82,7 @@
   } from "$lib/utils/flashcardLayout";
   import * as vestaConfig from "$lib/config/vestaConfig";
   import { errorMessage } from "$lib/utils/errorMessage";
+  import MatchDiagnosticsModal from "$lib/modals/MatchDiagnosticsModal.svelte";
   import EpisodeEditorModal, { type EpisodeFileField } from "./flashcards/EpisodeEditorModal.svelte";
   import FlashcardsFooterBar, { type GenerationRequirement } from "./flashcards/FlashcardsFooterBar.svelte";
 
@@ -122,7 +123,7 @@
   let smartFileMatchingEnabled = $derived(uiMode.easyMode || smartMatchingStore.enabled);
 
   let smartMatchingRules = $derived(smartMatchingStore.rules);
-  let episodeContextMenu = $state<{ x: number; y: number; idx: number } | null>(null);
+  let episodeContextMenu = $state<{ x: number; y: number; idx: number; field?: EpisodeFileField } | null>(null);
   let bottomContextMenu = $state<{ x: number; y: number; section: "overview" | "anki" } | null>(null);
 
   function openBottomContextMenu(event: MouseEvent, section: "overview" | "anki") {
@@ -276,12 +277,13 @@
     nativeFiles: string[],
     mediaFiles: string[],
   ) {
-    episodes = autoMatchFiles(targetFiles, nativeFiles, mediaFiles, smartMatchingRules.episodeRegexes);
+    episodes = autoMatchFiles(targetFiles, nativeFiles, mediaFiles, smartMatchingRules.episodeRegexes, smartMatchingRules);
   }
 
   function expandSeriesFilesWithSmartMatches(subtitleFiles: string[], mediaFiles: string[]) {
     return expandFlashcardFiles(subtitleFiles, mediaFiles, {
       enabled: smartFileMatchingEnabled,
+      rules: smartMatchingRules,
       targetLanguage: getStudiedLanguagePreference(),
       nativeLanguage: getNativeLanguagePreference(),
       invoke,
@@ -325,7 +327,24 @@
     closeEpisodeContextMenu();
   }
 
-  function openEpisodeEditor(idx: number) {
+  let inspectedMatch = $state<EpisodeEntry | null>(null);
+  let editingEpisodeField = $state<EpisodeFileField | null>(null);
+  let audioClipsPanel: AudioClipsPanel | undefined = $state();
+  async function previewEpisodeAudio(idx: number) {
+    closeEpisodeContextMenu();
+    await audioClipsPanel?.previewEpisode(idx);
+  }
+  async function editContextEpisode() {
+    const context = episodeContextMenu;
+    if (!context) return;
+    openEpisodeEditor(context.idx, context.field);
+    if (context.field) {
+      await tick();
+      await selectEpisodeFile(context.field);
+    }
+  }
+  function openEpisodeEditor(idx: number, field?: EpisodeFileField) {
+    editingEpisodeField = field ?? null;
     const episode = episodes[idx];
     if (!episode) return;
     closeEpisodeContextMenu();
@@ -334,9 +353,9 @@
     initialEditingEpisodeStr = JSON.stringify(episode);
   }
 
-  function openEpisodeContextMenu(event: MouseEvent, idx: number) {
+  function openEpisodeContextMenu(event: MouseEvent, idx: number, field?: EpisodeFileField) {
     event.preventDefault();
-    episodeContextMenu = { x: event.clientX, y: event.clientY, idx };
+    episodeContextMenu = { x: event.clientX, y: event.clientY, idx, field };
   }
 
   function closeEpisodeContextMenu() {
@@ -387,6 +406,7 @@
         ? detectMediaType(getFileName(editingEpisode.mediaPath))
         : "none",
       mediaOverrides: editingEpisode.mediaPath ? editingEpisode.mediaOverrides : undefined,
+      matching: editingEpisode.matching,
     };
     episodes = episodes.map((episode, idx) =>
       idx === editingEpisodeIndex
@@ -1410,7 +1430,7 @@
         return;
       }
       if (key === "e") {
-        openEpisodeEditor(episodeContextMenu.idx);
+        void editContextEpisode();
         closeEpisodeContextMenu();
         e.preventDefault();
         return;
@@ -1614,6 +1634,7 @@
       />
     {:else if panelId === "audioClips"}
       <AudioClipsPanel
+        bind:this={audioClipsPanel}
         bind:settings={mediaSettings}
         {hasAudio}
         mediaType={previewMediaType}
@@ -1722,9 +1743,10 @@
       x={episodeContextMenu.x}
       y={episodeContextMenu.y}
       hasMedia={Boolean(episodes[episodeContextMenu.idx]?.mediaPath)}
-      onEdit={() => openEpisodeEditor(episodeContextMenu!.idx)}
+      onInspectMatch={() => { inspectedMatch = episodes[episodeContextMenu!.idx]; closeEpisodeContextMenu(); }}
+      onEdit={editContextEpisode}
       onMediaSettings={() => openEpisodeMediaSettings(episodeContextMenu!.idx)}
-      onPreviewAudio={() => openEpisodeMediaSettings(episodeContextMenu!.idx)}
+      onPreviewAudio={() => previewEpisodeAudio(episodeContextMenu!.idx)}
       onRemove={() => removeEpisode(episodeContextMenu!.idx)}
       onClose={closeEpisodeContextMenu}
     />
@@ -1770,9 +1792,14 @@
     </div>
   {/if}
 
+  {#if inspectedMatch}
+    <MatchDiagnosticsModal episode={inspectedMatch} onclose={() => inspectedMatch = null}
+      onrules={() => { inspectedMatch = null; onGoToSettings?.("language", "smart-matching-rules"); }} />
+  {/if}
   {#if editingEpisode}
     <EpisodeEditorModal
       {editingEpisode}
+      onlyField={editingEpisodeField}
       {activeNoteType}
       {dropMediaHint}
       {dropSubtitleHint}

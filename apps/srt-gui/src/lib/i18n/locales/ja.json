@@ -1239,5 +1239,8 @@
   "settings.dictionary.modal.urlTemplate": "URLテンプレート",
   "experimental.reset.title": "新規インストールを再現",
   "experimental.reset.description": "設定、APIキー、カスタムテンプレート、一時キャッシュを削除し、初期設定を開き直します。ダウンロード済みモデル、個人ファイル、エクスポートは保持されます。",
-  "experimental.reset.action": "データを削除して再起動"
+  "experimental.reset.action": "データを削除して再起動",
+  "matching.inspect": "誤った組み合わせ？ルールを確認",
+  "matching.help": "ファイルを対応付けた時点のルールです。baseKey、エピソード番号、言語の手掛かり、除去した語句を比較してください。Smart Matchingでルールを修正し、ファイルを再インポートしてください。",
+  "matching.notRecorded": "このファイルの対応付け履歴はありません。手動で選択したか、対応付け後に変更された可能性があります。"
 }

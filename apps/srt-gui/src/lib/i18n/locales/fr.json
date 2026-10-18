@@ -1239,5 +1239,8 @@
   "settings.dictionary.modal.urlTemplate": "Modèle d'URL",
   "experimental.reset.title": "Simuler une nouvelle installation",
   "experimental.reset.description": "Efface les préférences, clés API, modèles personnalisés et caches temporaires, puis relance la configuration initiale. Les modèles téléchargés, fichiers personnels et exports sont conservés.",
-  "experimental.reset.action": "Effacer les données et redémarrer"
+  "experimental.reset.action": "Effacer les données et redémarrer",
+  "matching.inspect": "Mauvaise association ? Voir les règles",
+  "matching.help": "Ces règles ont été enregistrées lors de l’association. Comparez baseKey, les numéros d’épisode, les langues et les termes retirés. Corrigez la règle dans Smart Matching, puis importez à nouveau les fichiers.",
+  "matching.notRecorded": "Aucun historique d’association pour ce fichier. Il a peut-être été choisi manuellement ou modifié ensuite."
 }

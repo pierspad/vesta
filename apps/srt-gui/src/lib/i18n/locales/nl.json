@@ -1239,5 +1239,8 @@
   "settings.dictionary.modal.urlTemplate": "URL-sjabloon",
   "experimental.reset.title": "Nieuwe installatie simuleren",
   "experimental.reset.description": "Wis voorkeuren, API-sleutels, eigen sjablonen en tijdelijke caches en open de eerste configuratie opnieuw. Gedownloade modellen, persoonlijke bestanden en exports blijven behouden.",
-  "experimental.reset.action": "Gegevens wissen en herstarten"
+  "experimental.reset.action": "Gegevens wissen en herstarten",
+  "matching.inspect": "Verkeerde koppeling? Regels bekijken",
+  "matching.help": "Deze regels zijn vastgelegd bij het koppelen. Vergelijk baseKey, afleveringsnummers, taalhints en verwijderde termen. Pas de regel in Smart Matching aan en importeer de bestanden opnieuw.",
+  "matching.notRecorded": "Er is geen koppelingsgeschiedenis voor dit bestand. Het is mogelijk handmatig geselecteerd of later gewijzigd."
 }

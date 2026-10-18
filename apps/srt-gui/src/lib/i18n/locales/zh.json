@@ -1239,5 +1239,8 @@
   "settings.dictionary.modal.urlTemplate": "URL 模板",
   "experimental.reset.title": "模拟全新安装",
   "experimental.reset.description": "清除偏好设置、API 密钥、自定义模板和临时缓存，然后重新打开首次设置。保留已下载的模型、个人文件和导出文件。",
-  "experimental.reset.action": "清除数据并重新启动"
+  "experimental.reset.action": "清除数据并重新启动",
+  "matching.inspect": "匹配错误？查看规则",
+  "matching.help": "这些规则记录于文件匹配时。请比较 baseKey、集数、语言提示和移除的词语。在 Smart Matching 中修改规则后，重新导入文件。",
+  "matching.notRecorded": "此文件没有匹配记录。它可能是手动选择的，或在匹配后被修改。"
 }

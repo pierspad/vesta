@@ -1239,5 +1239,8 @@
   "settings.dictionary.modal.urlTemplate": "URL Template",
   "experimental.reset.title": "Simulate a fresh installation",
   "experimental.reset.description": "Clear preferences, API keys, custom templates and temporary caches, then reload into first-run setup. Downloaded models, personal files and exports remain on disk.",
-  "experimental.reset.action": "Clear data and restart"
+  "experimental.reset.action": "Clear data and restart",
+  "matching.inspect": "Wrong match? Inspect rules",
+  "matching.help": "These are the rules recorded when the files were matched. Compare baseKey, episode numbers, language hints and removed tokens. Edit Smart Matching to correct a rule, then import the files again.",
+  "matching.notRecorded": "No matching history is available for this file. It may have been selected manually or changed after matching."
 }
