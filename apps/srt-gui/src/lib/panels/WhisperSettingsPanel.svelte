@@ -167,7 +167,7 @@
         role="radio"
         aria-checked={store.defaultWhisperModel === model.id}
         tabindex="0"
-        class="group relative overflow-hidden min-h-[8.5rem] p-4 rounded-xl text-center transition-all duration-200 border cursor-pointer select-none
+        class="group relative overflow-hidden min-h-[8.5rem] p-4 rounded-xl text-center transition-colors duration-200 border cursor-pointer select-none
           {store.defaultWhisperModel === model.id && model.downloaded
           ? 'bg-cyan-500/20 border-cyan-500/50 text-white shadow-[0_0_15px_rgba(6,182,212,0.15)]'
           : model.downloaded
@@ -220,7 +220,7 @@
               type="button"
               onclick={(e) => { e.stopPropagation(); void store.uninstallModel(model.id); }}
               disabled={store.busy}
-              class="opacity-0 group-hover:opacity-100 focus:opacity-100 text-gray-400 hover:text-red-400 hover:bg-red-500/15 p-1 rounded-md transition-all cursor-pointer border border-transparent hover:border-red-500/30"
+              class="opacity-0 group-hover:opacity-100 focus:opacity-100 text-gray-400 hover:text-red-400 hover:bg-red-500/15 p-1 rounded-md transition-colors cursor-pointer border border-transparent hover:border-red-500/30"
               title={t("settings.remove")}
             >
               <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

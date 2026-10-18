@@ -371,7 +371,7 @@
 
               {#each tier.entries as entry, entryIndex (entry.id)}
                 <!-- Flat Endpoint Card -->
-                <div class="rounded-xl border p-4.5 space-y-3.5 shadow-sm transition-all duration-200
+                <div class="rounded-xl border p-4.5 space-y-3.5 shadow-sm transition-colors duration-200
                   {entry.provider === 'local' && localOffline
                     ? 'border-amber-500/40 bg-amber-500/[0.02] shadow-[0_0_12px_rgba(245,158,11,0.05)]'
                     : 'border-white/5 bg-white/[0.02]'}"

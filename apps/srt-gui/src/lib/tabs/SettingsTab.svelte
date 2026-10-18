@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { settledScroll } from "$lib/utils/settledScroll";
   import { onMount, onDestroy } from "svelte";
   import { invokeCommand as invoke } from "$lib/services/tauriClient";
   import { listen } from "@tauri-apps/api/event";
@@ -952,7 +953,7 @@
     </div>
   {:else}
     <!-- Scrollable content area -->
-    <div class="settings-scroll flex-1 overflow-y-auto p-6">
+    <div use:settledScroll data-dense={activeSettingsSection === "llm" || activeSettingsSection === "whisper"} class="settings-scroll flex-1 min-h-0 overflow-y-auto p-6">
 
 
   {#if activeSettingsSection === "overview"}
@@ -965,7 +966,7 @@
 
     <!-- Smart Matching Card -->
     {#if uiMode.expertMode}
-      <div class="glass-card p-6 flex flex-col gap-4">
+      <div id="smart-matching-rules" class="glass-card p-6 flex flex-col gap-4">
         <ToggleRow
           label={t("settings.smartMatching.title")}
           checked={smartMatchingEnabled}

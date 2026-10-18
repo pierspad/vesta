@@ -111,7 +111,7 @@
             onEditKey(key.id);
           }
         }}
-        class="p-3 rounded-xl border transition-all group cursor-pointer bg-white/[0.035] opacity-90 hover:opacity-100 hover:bg-white/[0.075] hover:border-white/30
+        class="p-3 rounded-xl border transition-colors group cursor-pointer bg-white/[0.035] opacity-90 hover:opacity-100 hover:bg-white/[0.075] hover:border-white/30
           {key.isDefault
           ? 'ring-1 ring-indigo-500/50 border-indigo-400/30 bg-indigo-500/10'
           : 'border-white/10'}"

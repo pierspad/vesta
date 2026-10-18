@@ -383,7 +383,7 @@
                               type="button"
                               onclick={() => window.dispatchEvent(new CustomEvent("vesta-download-whisper-model", { detail: { modelId: entry.model } }))}
                               disabled={isDownloaded || downloadingModelId === entry.model}
-                              class="px-3 py-2.5 rounded-lg text-xs font-bold transition-all duration-200 cursor-pointer
+                              class="px-3 py-2.5 rounded-lg text-xs font-bold transition-colors duration-200 cursor-pointer
                                 {isDownloaded
                                   ? 'bg-white/5 border border-white/10 text-gray-500 cursor-not-allowed'
                                   : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-500/20'}"
@@ -396,7 +396,7 @@
                               type="button"
                               onclick={() => window.dispatchEvent(new CustomEvent("vesta-uninstall-whisper-model", { detail: { modelId: entry.model } }))}
                               disabled={!isDownloaded || downloadingModelId === entry.model}
-                              class="px-3 py-2.5 rounded-lg text-xs font-bold transition-all duration-200 cursor-pointer
+                              class="px-3 py-2.5 rounded-lg text-xs font-bold transition-colors duration-200 cursor-pointer
                                 {!isDownloaded
                                   ? 'bg-white/5 border border-white/10 text-gray-500 cursor-not-allowed'
                                   : 'bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20 hover:border-red-500/30'}"
@@ -423,7 +423,7 @@
                     <div class="mt-2.5 flex items-center gap-3 p-2.5 rounded-lg border border-indigo-500/20 bg-indigo-500/5">
                       <span class="text-xs text-indigo-300 font-medium whitespace-nowrap">{t("transcribe.downloadProgress", { progress: downloadProgress })}</span>
                       <div class="flex-1 bg-white/10 rounded-full h-1.5 overflow-hidden">
-                        <div class="bg-indigo-400 h-1.5 transition-all duration-150" style="width: {downloadProgress}%"></div>
+                        <div class="bg-indigo-400 h-1.5 transition-colors duration-150" style="width: {downloadProgress}%"></div>
                       </div>
                     </div>
                   {/if}

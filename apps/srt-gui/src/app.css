@@ -700,3 +700,21 @@ kbd {
 @media (prefers-reduced-motion: reduce) {
   .requirement-pulse { animation: none; }
 }
+
+/* Large tier editors should keep their measured height. Skipping their
+   contents causes repeated layout/ResizeObserver work as they enter view. */
+.settings-scroll[data-dense="true"] .glass-card {
+  content-visibility: visible;
+  contain: layout style;
+}
+.settings-scroll[data-dense="true"] {
+  isolation: isolate;
+}
+.settings-scroll.is-scrolling * {
+  animation-play-state: paused !important;
+  transition-duration: 0s !important;
+}
+.settings-scroll[data-dense="true"] .shadow-lg,
+.settings-scroll[data-dense="true"] .shadow-sm {
+  box-shadow: none;
+}
