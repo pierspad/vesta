@@ -51,7 +51,6 @@ class GenerationStore {
   result = $state<GenerationResult | null>(null);
 
   deckName = $state("");
-  deckNameAuto = $state(true);
 
   seriesOutputMode = $state<"single" | "separate">(loadInitialSeriesOutputMode());
 

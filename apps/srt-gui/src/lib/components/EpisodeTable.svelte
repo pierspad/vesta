@@ -53,7 +53,7 @@
   </div>
 {:else}
   <div class="border border-gray-700/50 rounded-lg overflow-hidden">
-    <div class="overflow-y-auto max-h-[400px]">
+    <div class="overflow-y-auto max-h-[min(22vh,240px)]">
       <table class="w-full text-xs table-fixed">
         <thead class="bg-gray-800/80 sticky top-0">
           <tr>

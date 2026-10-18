@@ -10,10 +10,8 @@ import type { generationStore as store } from "$lib/stores/generationStore.svelt
 
 /** UI-independent orchestration with injected IPC, cancellation and progress callbacks. */
 export interface FlashcardSeriesOptions {
-  generationStore: Pick<typeof store, "deckName" | "deckNameAuto" | "error" | "result" | "progress" | "progressMessage" | "progressStage" | "isProcessing" | "seriesOutputMode" | "effectiveExportFormat" | "effectiveCpuCores" | "exportFormat" | "addLog">;
+  generationStore: Pick<typeof store, "deckName" | "error" | "result" | "progress" | "progressMessage" | "progressStage" | "isProcessing" | "seriesOutputMode" | "effectiveExportFormat" | "effectiveCpuCores" | "exportFormat" | "addLog">;
   episodes: EpisodeEntry[];
-  easyMode: boolean;
-  needsDeckName: boolean;
   t: (key: string, params?: Record<string, string>) => string;
   outputDir: string;
   cardFilters: CardFilterSettings;
@@ -33,7 +31,7 @@ export interface FlashcardSeriesOptions {
 }
 
 export async function runFlashcardSeries(options: FlashcardSeriesOptions) {
-  const { generationStore, episodes, easyMode, needsDeckName, t, outputDir, cardFilters, videoHwAccel, activeNoteType, ankiStore, previewStore, getEpisodeMediaSettings, getAudioTrackLanguageForEpisode, pickAudioTrackIndexForEpisode, getStudiedLanguagePreference, maybeAutoImportToAnki, invoke, isCancelled, setEpisodeProgress } = options;
+  const { generationStore, episodes, t, outputDir, cardFilters, videoHwAccel, activeNoteType, ankiStore, previewStore, getEpisodeMediaSettings, getAudioTrackLanguageForEpisode, pickAudioTrackIndexForEpisode, getStudiedLanguagePreference, maybeAutoImportToAnki, invoke, isCancelled, setEpisodeProgress } = options;
   const runActiveNoteType: NoteTypeDef = {
     ...activeNoteType,
     fields: { ...activeNoteType.fields },
@@ -44,10 +42,8 @@ export async function runFlashcardSeries(options: FlashcardSeriesOptions) {
   // The callback may read reactive UI preferences, while path inference remains
   // episode-specific because it is evaluated separately for each subtitle.
   const audioTrackLanguages = episodes.map((episode) => getAudioTrackLanguageForEpisode(episode));
-  if (easyMode && needsDeckName && !generationStore.deckName.trim() && episodes.length > 0) {
-    generationStore.deckName = deriveDeckNameFromFile(episodes[0]);
-    generationStore.deckNameAuto = true;
-  }
+  // Resolve afresh for every run, including Expert mode and merged APKG output.
+  generationStore.deckName = episodes.length ? deriveDeckNameFromFile(episodes[0]) : "Default Deck";
   generationStore.error = null;
   generationStore.result = null;
   generationStore.progress = 0;

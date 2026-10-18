@@ -33,6 +33,7 @@
       class="w-10 h-5 rounded-full transition-all duration-200 relative
         {filters.enabled ? 'bg-amber-500' : 'bg-gray-600'}"
       aria-label={t("flashcards.cardFilters")}
+      aria-expanded={filters.enabled}
     >
       <div
         class="absolute w-4 h-4 bg-white rounded-full top-0.5 transition-all duration-200
@@ -41,7 +42,8 @@
     </button>
   </div>
 
-  <div class="space-y-3 transition-all duration-200 {!filters.enabled ? 'opacity-40 pointer-events-none' : ''}">
+  {#if filters.enabled}
+  <div class="space-y-3">
     <!-- Length Filter -->
     <div class="space-y-2">
       <span class="flex items-center gap-1.5 text-xs font-semibold text-gray-400 uppercase tracking-wider">
@@ -250,4 +252,5 @@
       </div>
     </div>
   </div>
+  {/if}
 </div>

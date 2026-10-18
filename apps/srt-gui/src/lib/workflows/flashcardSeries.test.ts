@@ -7,9 +7,9 @@ import { predefinedNoteTypeForLanguage } from "$lib/types/noteTypes";
 const response = { success: true, message: "ok", cards_generated: 3, audio_clips: 3, snapshots: 3, video_clips: 0, apkg_path: "episode.apkg", tsv_path: null, output_size_bytes: 100 };
 function options(): FlashcardSeriesOptions {
  return {
- generationStore: { deckName: "Deck", deckNameAuto: false, error: null, result: null, progress: 0, progressMessage: "", progressStage: "", isProcessing: false, seriesOutputMode: "single", effectiveExportFormat: "apkg", effectiveCpuCores: 2, exportFormat: "anki", addLog: vi.fn() },
+ generationStore: { deckName: "Deck", error: null, result: null, progress: 0, progressMessage: "", progressStage: "", isProcessing: false, seriesOutputMode: "single", effectiveExportFormat: "apkg", effectiveCpuCores: 2, exportFormat: "anki", addLog: vi.fn() },
  episodes: [1, 2].map(index => ({ id: index, targetSubsPath: `episode${index}.srt`, nativeSubsPath: "", mediaPath: `episode${index}.mkv`, mediaType: "video" as const })),
- easyMode: false, needsDeckName: true, t: key => key, outputDir: "/out",
+ t: key => key, outputDir: "/out",
  cardFilters: { enabled: false, minChars: 3, minCharsEnabled: false, maxChars: 100, maxCharsEnabled: false, minDurationMs: 500, minDurationEnabled: false, maxDurationMs: 15000, maxDurationEnabled: false, combineSentences: false, continuationChars: "..." },
  videoHwAccel: "auto", activeNoteType: predefinedNoteTypeForLanguage(""),
  ankiStore: { autoCardFont: false, embedCardFont: false }, previewStore: { applyOverrides: vi.fn().mockResolvedValue(undefined) },
@@ -29,8 +29,8 @@ it("aggregates episodes, merges once and imports only the final deck", async () 
 it("freezes output choices for later episodes", async () => {
  const run = options(); run.previewStore.applyOverrides = async () => { run.generationStore.seriesOutputMode = "separate"; run.generationStore.deckName = "Changed"; };
  await runFlashcardSeries(run);
- expect(run.invoke).toHaveBeenNthCalledWith(2, "flashcard_generate", { config: expect.objectContaining({ output_dir: "/out/episodes/episode-2", deck_name: "Deck" }) });
- expect(run.invoke).toHaveBeenLastCalledWith("flashcard_merge_apkg", expect.objectContaining({ outputPath: "/out/Deck.apkg" }));
+ expect(run.invoke).toHaveBeenNthCalledWith(2, "flashcard_generate", { config: expect.objectContaining({ output_dir: "/out/episodes/episode-2", deck_name: "episode1" }) });
+ expect(run.invoke).toHaveBeenLastCalledWith("flashcard_merge_apkg", expect.objectContaining({ outputPath: "/out/episode1.apkg" }));
 });
 it("freezes note type and preferred audio language across a multi-episode run", async () => {
  const run = options();
@@ -158,4 +158,13 @@ it("ignores the saved single-APKG choice for TSV output", async () => {
  expect(run.generationStore.result?.tsvPath).toBe("episode.tsv");
  expect(run.invoke).not.toHaveBeenCalledWith("flashcard_merge_apkg", expect.anything());
  expect(run.maybeAutoImportToAnki).not.toHaveBeenCalled();
+});
+
+it("derives a merged package name afresh instead of requiring or reusing a manual name", async () => {
+ const run = options();
+ run.generationStore.deckName = "Old custom name";
+ run.episodes = [{ ...run.episodes[0], mediaPath: "/media/Detour.mp4" }];
+ await runFlashcardSeries(run);
+ expect(run.generationStore.deckName).toBe("Detour");
+ expect(run.invoke).toHaveBeenCalledWith("flashcard_generate", { config: expect.objectContaining({ deck_name: "Detour" }) });
 });

@@ -11,7 +11,7 @@
   export type SettingsSection = "overview" | "llm" | "whisper" | "language" | "anki" | "shortcuts";
 
   export interface GenerationRequirement {
-    panel: "files" | "naming";
+    panel: "files";
     label: string;
   }
 

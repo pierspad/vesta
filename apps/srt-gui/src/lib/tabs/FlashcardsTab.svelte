@@ -24,7 +24,6 @@
     isMediaFile,
     detectMediaType,
     pickBestAudioTrackIndex,
-    generateDefaultDeckName,
     deriveDeckNameFromFile,
   } from "$lib/utils/seriesFileMatching";
   import {
@@ -43,7 +42,6 @@
   import PathPreviewModal from "$lib/modals/PathPreviewModal.svelte";
   import { buildFlashcardConfig } from "$lib/utils/flashcardConfig";
   import SearchableSelect from "$lib/components/SearchableSelect.svelte";
-  import LogPanel from "$lib/panels/LogPanel.svelte";
   import CodeEditor from "$lib/components/CodeEditor.svelte";
   import { snackbar, createSnackbarNotifier } from "$lib/stores/snackbarStore.svelte";
   import { smartMatchingStore } from "$lib/stores/smartMatchingStore.svelte";
@@ -70,15 +68,10 @@
   import EpisodeContextMenu from "$lib/components/EpisodeContextMenu.svelte";
   import FilesOutputPanel from "$lib/panels/FilesOutputPanel.svelte";
   import { generationStore, SERIES_OUTPUT_MODE_KEY } from "$lib/stores/generationStore.svelte";
-  import GenerationResultPanel from "$lib/panels/GenerationResultPanel.svelte";
-  import DeckNamingPanel from "$lib/panels/DeckNamingPanel.svelte";
+  import FlashcardsWorkspace from "./flashcards/FlashcardsWorkspace.svelte";
   import {
     type PanelId,
-    type ColumnLayout,
-    loadSeriesLayout,
-    saveSeriesLayout,
     computeEffectiveColumnCount,
-    computeEffectivePanelLayout,
   } from "$lib/utils/flashcardLayout";
   import * as vestaConfig from "$lib/config/vestaConfig";
   import { errorMessage } from "$lib/utils/errorMessage";
@@ -154,7 +147,6 @@
   }
 
   // ─── Series Mode State ───────────────────────────────────────────────────
-  const seriesMode = true;
 
   let episodes = $state<EpisodeEntry[]>([]);
   let seriesCurrentEpisode = $state(0);
@@ -710,37 +702,12 @@
   // hidden while the user only decides which media to include.
   let easyMode = $derived(uiMode.easyMode);
 
-  let seriesLayout = $state<ColumnLayout>(loadSeriesLayout());
-
-  let panelLayout = $derived(seriesLayout);
-
-  function updatePanelLayout(newLayout: ColumnLayout) {
-    seriesLayout = newLayout;
-    saveSeriesLayout(newLayout);
-  }
-
   // Responsive columns: auto-collapse from 3 -> 2 -> 1 based on available width.
   let layoutHostEl = $state<HTMLElement | null>(null);
   let layoutWidth = $state(
     typeof window !== "undefined" ? window.innerWidth : 1700,
   );
   let effectiveColumnCount = $derived(computeEffectiveColumnCount(layoutWidth));
-
-  let effectivePanelLayout = $derived(
-    computeEffectivePanelLayout(true, effectiveColumnCount, easyMode),
-  );
-
-  // Computed column grid class
-  // In easy mode + series mode, skip 2-column layout entirely (go straight 3→1)
-  let gridColClass = $derived(
-    (easyMode && effectiveColumnCount === 2)
-      ? "grid-cols-1"
-      : effectiveColumnCount === 1
-        ? "grid-cols-1"
-        : effectiveColumnCount === 2
-          ? "grid-cols-2"
-          : "grid-cols-3",
-  );
 
   let filesHelpContent = $derived(t("flashcards.filesHelp"));
 
@@ -815,7 +782,7 @@
     saveActiveNoteTypeId(id);
   }
 
-  // deckName/deckNameAuto and the generation run-state (isProcessing,
+  // The automatic deck name and generation run-state (isProcessing,
   // progress, progressMessage, progressStage, logs, error, result) live in
   // generationStore now — see generationStore.svelte.ts.
 
@@ -875,16 +842,8 @@
   function refreshNoteTypes() {
     noteTypeList = listNoteTypes();
   }
-  let needsDeckName = $derived(
-    generationStore.effectiveExportFormat === "apkg" && generationStore.seriesOutputMode === "single",
-  );
   let canRunFlashcards = $derived(
-    Boolean(
-      episodes.length > 0 &&
-        episodes.every((ep) => ep.targetSubsPath) &&
-        outputDir &&
-        (needsDeckName ? Boolean(generationStore.deckName || (easyMode && episodes.length > 0)) : true),
-    ),
+    episodes.length > 0 && episodes.every((ep) => ep.targetSubsPath) && Boolean(outputDir),
   );
 
   let isApkgSwitchEnabled = $derived(
@@ -894,7 +853,7 @@
       !generationStore.result,
   );
 
-  type RequirementPanelId = "files" | "naming";
+  type RequirementPanelId = "files";
 
   let generationPromptOpen = $state(false);
   const requirementFeedback = new RequirementFeedback<RequirementPanelId>();
@@ -918,26 +877,12 @@
         label: `${t("flashcards.outputDir")}`,
       });
     }
-    if (!easyMode && needsDeckName && !generationStore.deckName.trim()) {
-      missing.push({
-        panel: "naming",
-        label: `${t("flashcards.deckNameLabel")}`,
-      });
-    }
     return missing;
   });
 
   let generationRequirementsText = $derived(
     generationRequirements.map((item) => item.label).join(", "),
   );
-
-  /** Panels rendered in the column layout. Easy mode hides the advanced ones. */
-  function isPanelVisible(panelId: PanelId): boolean {
-    if (panelId === "progressResult") return false;
-    if (panelId === "files") return false; // rendered full-width above
-    if (easyMode && (panelId === "cardFilters" || panelId === "naming")) return false;
-    return true;
-  }
 
   function panelHighlightClass(panelId: RequirementPanelId): string {
     return requirementFeedback.classFor(panelId);
@@ -1016,7 +961,7 @@
 
   // ─── File Drag-and-Drop Handler ───────────────────────────────────────────
   // getFileExtension/isSubtitleFile/isMediaFile/classifySubtitles/
-  // generateDefaultDeckName/deriveDeckNameFromFile are imported from
+  // deriveDeckNameFromFile is imported from
   // seriesFileMatching.ts (see top of file).
 
   async function handleFileDrop(paths: string[]) {
@@ -1202,7 +1147,7 @@
       const p = event.payload;
       const translated = t(p.message, p.params || {});
       
-      if (seriesMode && seriesTotalEpisodes > 0) {
+      if (seriesTotalEpisodes > 0) {
         generationStore.progress = Math.round(((seriesCurrentEpisode - 1) * 100 / seriesTotalEpisodes) + (p.percentage / seriesTotalEpisodes));
         generationStore.progressMessage = `[Ep. ${seriesCurrentEpisode}/${seriesTotalEpisodes}] ${translated}`;
       } else {
@@ -1293,7 +1238,7 @@
       generateVideoClips: mediaSettings.generateVideoClips,
       audioTrackIndex: mediaSettings.audioTrackIndex,
       videoHwAccel,
-      deckName: generationStore.deckName,
+      deckName: ep ? deriveDeckNameFromFile(ep) : "",
       episodeNumber: 1,
       exportFormat: generationStore.effectiveExportFormat,
       noteType: activeNoteType,
@@ -1338,7 +1283,7 @@
   async function startSeriesGeneration() {
     cancelRequested = false;
     await runFlashcardSeries({
-      generationStore, episodes: $state.snapshot(episodes), easyMode, needsDeckName, t,
+      generationStore, episodes: $state.snapshot(episodes), t,
       outputDir, cardFilters: $state.snapshot(cardFilters), videoHwAccel, activeNoteType, automaticNoteType,
       ankiStore: { autoCardFont: ankiStore.autoCardFont, embedCardFont: ankiStore.embedCardFont },
       previewStore,
@@ -1393,7 +1338,6 @@
     audioTrackAutoSelected = true;
     episodes = [];
     generationStore.deckName = "";
-    generationStore.deckNameAuto = true;
   }
 
   function handleGlobalKeydown(e: KeyboardEvent) {
@@ -1657,73 +1601,13 @@
         />
       </div>
 
-    {:else if panelId === "naming"}
-      <DeckNamingPanel
-        {hasAnyFiles}
-        {needsDeckName}
-        highlightClass={panelHighlightClass('naming')}
-        hintLoadTargetFirst={HINT_LOAD_TARGET_FIRST}
-      />
-    {:else if panelId === "progressResult"}
-      <GenerationResultPanel />
-    {:else if panelId === "logs"}
-      <LogPanel
-        title={t("flashcards.logs")}
-        clearLogText={t("flashcards.clearLog")}
-        noLogText={t("translate.noLog")}
-        logs={generationStore.logs}
-        onclear={() => generationStore.clearLogs()}
-        minHeight="180px"
-        maxHeightContent="16rem"
-      />
     {/if}
   {/snippet}
 
-  <div
-    bind:this={layoutHostEl}
-    class="grid {gridColClass} {seriesMode
-      ? 'grid-rows-[auto_minmax(0,1fr)]'
-      : 'grid-rows-[minmax(0,1fr)]'} gap-4 min-w-0 flex-1 min-h-0"
-  >
-    {#if seriesMode}
-      <!-- In series mode, render the files panel full-width above the columns -->
-      <div class="{effectiveColumnCount >= 2 ? 'col-span-2' : ''} {effectiveColumnCount >= 3 ? 'col-span-3' : ''} mb-1">
-        {@render panelContent("files")}
-      </div>
-    {/if}
-    <div class="space-y-3 min-w-0 pr-1 min-h-0 overflow-y-auto scrollbar-thin" role="list">
-      {#each effectivePanelLayout.col1 as panelId, idx}
-        {#if isPanelVisible(panelId)}
-        <div class="relative" style:z-index={50 - idx * 5} role="listitem">
-          {@render panelContent(panelId)}
-        </div>
-        {/if}
-      {/each}
-    </div>
-
-    {#if effectiveColumnCount >= 2}
-      <div class="space-y-3 min-w-0 pr-1 min-h-0 overflow-y-auto scrollbar-thin" role="list">
-        {#each effectivePanelLayout.col2 as panelId, idx}
-          {#if isPanelVisible(panelId)}
-          <div class="relative" style:z-index={50 - idx * 5} role="listitem">
-            {@render panelContent(panelId)}
-          </div>
-          {/if}
-        {/each}
-      </div>
-    {/if}
-
-    {#if effectiveColumnCount >= 3}
-      <div class="space-y-3 min-w-0 pr-1 min-h-0 overflow-y-auto scrollbar-thin" role="list">
-        {#each effectivePanelLayout.col3 as panelId, idx}
-          {#if isPanelVisible(panelId)}
-          <div class="relative" style:z-index={50 - idx * 5} role="listitem">
-            {@render panelContent(panelId)}
-          </div>
-          {/if}
-        {/each}
-      </div>
-    {/if}
+  <div bind:this={layoutHostEl} class="flex min-h-0 flex-1 flex-col">
+    <FlashcardsWorkspace columns={effectiveColumnCount} {easyMode} panel={panelContent}>
+      {#snippet files()}{@render panelContent("files")}{/snippet}
+    </FlashcardsWorkspace>
   </div>
 
   {#if episodeContextMenu}
@@ -1849,75 +1733,12 @@
 </div>
 
 <style>
-  /* Responsive button labels: hide text on narrow screens */
-  @media (max-width: 900px) {
-    .episode-btn-label {
-      display: none;
-    }
+  :global(.media-override-glow) {
+    border-color: rgba(167, 139, 250, 0.72) !important;
+    box-shadow: 0 0 0 1px rgba(167, 139, 250, 0.28), 0 0 18px rgba(167, 139, 250, 0.22) !important;
   }
-
-  /* Media settings panels: side by side on wide, stacked on narrow */
-  .media-settings-panels {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: 1.25rem;
-  }
-
-	  .dialog-close-button {
-	    border-radius: 0.45rem;
-	    transition:
-	      background-color 0.14s ease,
-	      box-shadow 0.14s ease,
-	      color 0.14s ease;
-	  }
-
-	  .dialog-close-button:hover {
-	    background: rgba(148, 163, 184, 0.1);
-	    box-shadow: 0 0 18px rgba(148, 163, 184, 0.26);
-	  }
-
-	  .media-override-glow,
-	  :global(.media-override-glow) {
-	    border-color: rgba(167, 139, 250, 0.72) !important;
-	    box-shadow:
-	      0 0 0 1px rgba(167, 139, 250, 0.28),
-	      0 0 18px rgba(167, 139, 250, 0.22) !important;
-	  }
-
-	  :global(.media-override-glow .searchable-select-input) {
-	    border-color: rgba(167, 139, 250, 0.72) !important;
-	    box-shadow:
-	      0 0 0 1px rgba(167, 139, 250, 0.28),
-	      0 0 18px rgba(167, 139, 250, 0.22) !important;
-	  }
-
-	  .media-tab-dot {
-	    background: rgb(167 139 250);
-	    border-radius: 9999px;
-	    box-shadow: 0 0 10px rgba(167, 139, 250, 0.8);
-	    height: 0.42rem;
-	    position: absolute;
-	    right: 0.35rem;
-	    top: 0.35rem;
-	    width: 0.42rem;
-	  }
-
-  @keyframes progress-stripes {
-    0% { background-position: 0 0; }
-    100% { background-position: 40px 0; }
-  }
-  .bg-shimmer-stripes {
-    background-image: linear-gradient(
-      45deg,
-      rgba(16, 185, 129, 0.15) 25%,
-      transparent 25%,
-      transparent 50%,
-      rgba(16, 185, 129, 0.15) 50%,
-      rgba(16, 185, 129, 0.15) 75%,
-      transparent 75%,
-      transparent
-    );
-    background-size: 40px 40px;
-    animation: progress-stripes 1.2s linear infinite;
+  :global(.media-override-glow .searchable-select-input) {
+    border-color: rgba(167, 139, 250, 0.72) !important;
+    box-shadow: 0 0 0 1px rgba(167, 139, 250, 0.28), 0 0 18px rgba(167, 139, 250, 0.22) !important;
   }
 </style>
