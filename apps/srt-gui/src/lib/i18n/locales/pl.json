@@ -1240,9 +1240,20 @@
   "experimental.reset.title": "Symuluj nową instalację",
   "experimental.reset.description": "Usuń preferencje, klucze API, własne szablony i pamięć podręczną, a następnie otwórz konfigurację początkową. Pobrane modele, pliki osobiste i eksporty zostaną zachowane.",
   "experimental.reset.action": "Usuń dane i uruchom ponownie",
-  "matching.inspect": "Błędne dopasowanie? Sprawdź reguły",
-  "matching.help": "Te reguły zapisano podczas dopasowywania plików. Porównaj baseKey, numery odcinków, języki i usunięte wyrazy. Popraw regułę w Smart Matching i ponownie zaimportuj pliki.",
+  "matching.inspect": "Dlaczego to dopasowanie?",
   "matching.notRecorded": "Brak historii dopasowania tego pliku. Mógł zostać wybrany ręcznie lub później zmieniony.",
+  "matching.title": "Szczegóły dopasowania",
+  "matching.byName": "Dopasowano według nazwy",
+  "matching.noEpisodeRegex": "Nie użyto wyrażenia odcinka: znormalizowane nazwy są identyczne.",
+  "matching.byEpisode": "Dopasowano według odcinka",
+  "matching.appliedRule": "Zastosowana reguła nr {{number}}",
+  "matching.matchedText": "Przechwycony tekst",
+  "matching.details": "Szczegóły",
+  "matching.normalizedName": "Znormalizowana nazwa",
+  "matching.roleHints": "Wskazówki roli napisów",
+  "matching.ignoredTokens": "Pominięte fragmenty nazwy",
+  "matching.editRules": "Edytuj reguły dopasowania",
   "vad.webrtcDescription": "Lekki, wbudowany, bez pobierania. Mniej niezawodny niż Silero przy mowie w hałasie.",
-  "vad.builtIn": "Wbudowany"
+  "vad.builtIn": "Wbudowany",
+  "matching.singleFile": "Nie zapisano automatycznego dopasowania."
 }

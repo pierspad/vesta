@@ -18,6 +18,7 @@
 
   interface Props {
     episodes: EpisodeRow[];
+    contextTarget?: { idx: number; field?: "targetSubsPath" | "nativeSubsPath" | "mediaPath" } | null;
     showSnackbar: (message: string, variant?: "success" | "info" | "warning" | "error") => void;
     onSwapAll: () => void;
     onSwap: (idx: number) => void;
@@ -27,7 +28,7 @@
     onContextMenu: (event: MouseEvent, idx: number, field?: "targetSubsPath" | "nativeSubsPath" | "mediaPath") => void;
     onClearAll: () => void;
   }
-  let { episodes, showSnackbar, onSwapAll, onSwap, onEdit, onMediaSettings, onRemove, onContextMenu, onClearAll }: Props = $props();
+  let { contextTarget = null, episodes, showSnackbar, onSwapAll, onSwap, onEdit, onMediaSettings, onRemove, onContextMenu, onClearAll }: Props = $props();
 
   let t = $derived($locale);
 </script>
@@ -100,11 +101,13 @@
               class="border-t border-gray-800 cursor-default {idx % 2 === 0
                 ? 'bg-gray-900/30'
                 : 'bg-gray-800/20'} hover:bg-gray-700/20"
+              class:context-selected={contextTarget?.idx === idx && !contextTarget.field}
               oncontextmenu={(e) => onContextMenu(e, idx)}
             >
               <td class="p-1.5 text-center text-gray-500 font-mono">{ep.id}</td>
               <td
                 class="p-1.5 cursor-pointer truncate text-emerald-300 transition-colors hover:bg-violet-500/12 hover:text-emerald-100 rounded-md text-center"
+                class:context-selected={contextTarget?.idx === idx && contextTarget.field === "targetSubsPath"}
                 oncontextmenu={(e) => { e.stopPropagation(); onContextMenu(e, idx, "targetSubsPath"); }}
                 title={ep.targetSubsPath}
                 onclick={() => { void writeClipboard(ep.targetSubsPath, t("flashcards.copiedTargetSubs")); }}
@@ -127,6 +130,7 @@
                 class="p-1.5 cursor-pointer truncate transition-colors hover:bg-violet-500/12 rounded-md text-center {ep.nativeSubsPath
                   ? 'text-blue-300 hover:text-blue-100'
                   : 'text-gray-600 hover:text-gray-400'}"
+                class:context-selected={contextTarget?.idx === idx && contextTarget.field === "nativeSubsPath"}
                 oncontextmenu={(e) => { e.stopPropagation(); onContextMenu(e, idx, "nativeSubsPath"); }}
                 title={ep.nativeSubsPath || "—"}
                 onclick={() => { if(ep.nativeSubsPath) { void writeClipboard(ep.nativeSubsPath, t("flashcards.copiedNativeSubs")); } }}
@@ -137,6 +141,7 @@
               </td>
               <td
                 class="p-1.5 cursor-pointer truncate transition-colors hover:bg-violet-500/12 rounded-md text-center {ep.mediaPath ? 'text-purple-300 hover:text-purple-100' : 'text-gray-600 hover:text-gray-400'}"
+                class:context-selected={contextTarget?.idx === idx && contextTarget.field === "mediaPath"}
                 oncontextmenu={(e) => { e.stopPropagation(); onContextMenu(e, idx, "mediaPath"); }}
                 title={ep.mediaPath || "—"}
                 onclick={() => { if(ep.mediaPath) { void writeClipboard(ep.mediaPath, t("flashcards.copiedMediaPath")); } }}
@@ -239,3 +244,12 @@
     </div>
   </div>
 {/if}
+
+
+<style>
+  td.context-selected, tr.context-selected {
+    background-color: rgb(139 92 246 / 0.16);
+    box-shadow: inset 0 0 0 1px rgb(167 139 250 / 0.35);
+  }
+  td.context-selected { color: rgb(237 233 254); }
+</style>

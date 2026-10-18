@@ -1240,9 +1240,20 @@
   "experimental.reset.title": "Neuinstallation simulieren",
   "experimental.reset.description": "Einstellungen, API-Schlüssel, eigene Vorlagen und temporäre Caches löschen und die Ersteinrichtung neu laden. Heruntergeladene Modelle, persönliche Dateien und Exporte bleiben erhalten.",
   "experimental.reset.action": "Daten löschen und neu starten",
-  "matching.inspect": "Falsche Zuordnung? Regeln prüfen",
-  "matching.help": "Dies sind die bei der Zuordnung erfassten Regeln. Vergleiche baseKey, Episodennummern, Sprachhinweise und entfernte Begriffe. Korrigiere die Regel unter Smart Matching und importiere die Dateien erneut.",
+  "matching.inspect": "Warum diese Zuordnung?",
   "matching.notRecorded": "Für diese Datei liegt kein Zuordnungsverlauf vor. Sie wurde möglicherweise manuell ausgewählt oder nachträglich geändert.",
+  "matching.title": "Zuordnungsdetails",
+  "matching.byName": "Nach Dateiname zugeordnet",
+  "matching.noEpisodeRegex": "Kein Episoden-Regex verwendet: Die normalisierten Dateinamen stimmen überein.",
+  "matching.byEpisode": "Nach Episode zugeordnet",
+  "matching.appliedRule": "Angewandte Regel Nr. {{number}}",
+  "matching.matchedText": "Erfasster Text",
+  "matching.details": "Weitere Angaben",
+  "matching.normalizedName": "Normalisierter Dateiname",
+  "matching.roleHints": "Hinweise zur Untertitelrolle",
+  "matching.ignoredTokens": "Ignorierte Namensteile",
+  "matching.editRules": "Zuordnungsregeln bearbeiten",
   "vad.webrtcDescription": "Leichtgewichtig, integriert und ohne Download. Bei Sprache im Rauschen weniger zuverlässig als Silero.",
-  "vad.builtIn": "Integriert"
+  "vad.builtIn": "Integriert",
+  "matching.singleFile": "Keine automatische Zuordnung aufgezeichnet."
 }

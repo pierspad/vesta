@@ -37,3 +37,22 @@ it("passes the clicked file field to the context menu without also opening a row
   await unmount(component);
   target.remove();
 });
+
+it("keeps the context target highlighted while the pointer moves away", async () => {
+  const target = document.createElement("div");
+  document.body.append(target);
+  const component = mount(EpisodeTable, { target, props: {
+    episodes: [{ id: 1, targetSubsPath: "original.srt", nativeSubsPath: "reference.srt", mediaPath: "movie.mp4" }],
+    contextTarget: { idx: 0, field: "nativeSubsPath" },
+    showSnackbar: vi.fn(), onSwapAll: vi.fn(), onSwap: vi.fn(), onEdit: vi.fn(),
+    onMediaSettings: vi.fn(), onRemove: vi.fn(), onContextMenu: vi.fn(), onClearAll: vi.fn(),
+  } });
+  await tick();
+  const reference = target.querySelector('[title="reference.srt"]')!;
+  reference.dispatchEvent(new MouseEvent("mouseleave", { bubbles: true }));
+  await tick();
+  expect(reference.classList.contains("context-selected")).toBe(true);
+  expect(target.querySelectorAll(".context-selected")).toHaveLength(1);
+  await unmount(component);
+  target.remove();
+});

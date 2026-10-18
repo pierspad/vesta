@@ -1240,9 +1240,20 @@
   "experimental.reset.title": "नई स्थापना का अनुभव लें",
   "experimental.reset.description": "प्राथमिकताएँ, API कुंजियाँ, कस्टम टेम्पलेट और अस्थायी कैश मिटाकर प्रारंभिक सेटअप दोबारा खोलें। डाउनलोड किए गए मॉडल, निजी फ़ाइलें और निर्यात सुरक्षित रहेंगे।",
   "experimental.reset.action": "डेटा मिटाएँ और पुनः आरंभ करें",
-  "matching.inspect": "गलत मिलान? नियम जाँचें",
-  "matching.help": "ये नियम फ़ाइलों के मिलान के समय दर्ज किए गए थे। baseKey, एपिसोड संख्या, भाषा संकेत और हटाए गए शब्दों की तुलना करें। Smart Matching में नियम सुधारकर फ़ाइलें फिर आयात करें।",
+  "matching.inspect": "यह मिलान क्यों?",
   "matching.notRecorded": "इस फ़ाइल का मिलान इतिहास उपलब्ध नहीं है। इसे हाथ से चुना गया या मिलान के बाद बदला गया हो सकता है।",
+  "matching.title": "मिलान का विवरण",
+  "matching.byName": "फ़ाइल नाम से मिलान",
+  "matching.noEpisodeRegex": "एपिसोड regex का उपयोग नहीं हुआ: सामान्यीकृत फ़ाइल नाम समान हैं।",
+  "matching.byEpisode": "एपिसोड से मिलान",
+  "matching.appliedRule": "लागू नियम #{{number}}",
+  "matching.matchedText": "कैप्चर किया गया पाठ",
+  "matching.details": "विवरण",
+  "matching.normalizedName": "सामान्यीकृत फ़ाइल नाम",
+  "matching.roleHints": "उपशीर्षक भूमिका के संकेत",
+  "matching.ignoredTokens": "नाम के अनदेखे टोकन",
+  "matching.editRules": "मिलान नियम बदलें",
   "vad.webrtcDescription": "हल्का और अंतर्निहित, डाउनलोड की आवश्यकता नहीं। शोर में आवाज़ पहचानने में Silero से कम विश्वसनीय।",
-  "vad.builtIn": "अंतर्निहित"
+  "vad.builtIn": "अंतर्निहित",
+  "matching.singleFile": "स्वचालित मिलान दर्ज नहीं है।"
 }

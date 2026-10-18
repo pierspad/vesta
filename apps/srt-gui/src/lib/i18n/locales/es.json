@@ -1240,9 +1240,20 @@
   "experimental.reset.title": "Simular una instalación nueva",
   "experimental.reset.description": "Borra preferencias, claves API, plantillas personalizadas y cachés temporales y vuelve a la configuración inicial. Se conservan los modelos descargados, los archivos personales y las exportaciones.",
   "experimental.reset.action": "Borrar datos y reiniciar",
-  "matching.inspect": "¿Emparejamiento incorrecto? Ver reglas",
-  "matching.help": "Estas reglas se registraron al emparejar los archivos. Compara baseKey, números de episodio, idiomas y términos eliminados. Corrige la regla en Smart Matching e importa los archivos de nuevo.",
+  "matching.inspect": "¿Por qué se emparejaron?",
   "matching.notRecorded": "No hay historial de emparejamiento para este archivo. Puede haberse seleccionado manualmente o cambiado después.",
+  "matching.title": "Detalles del emparejamiento",
+  "matching.byName": "Emparejados por nombre",
+  "matching.noEpisodeRegex": "No se usó ninguna regex de episodio: los nombres normalizados coinciden.",
+  "matching.byEpisode": "Emparejados por episodio",
+  "matching.appliedRule": "Regla aplicada n.º {{number}}",
+  "matching.matchedText": "Texto capturado",
+  "matching.details": "Detalles",
+  "matching.normalizedName": "Nombre normalizado",
+  "matching.roleHints": "Indicios del tipo de subtítulos",
+  "matching.ignoredTokens": "Términos del nombre ignorados",
+  "matching.editRules": "Editar reglas de emparejamiento",
   "vad.webrtcDescription": "Ligero, integrado y sin descargas. Menos fiable que Silero para detectar voz con ruido.",
-  "vad.builtIn": "Integrado"
+  "vad.builtIn": "Integrado",
+  "matching.singleFile": "No se registró ningún emparejamiento automático."
 }

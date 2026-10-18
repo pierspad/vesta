@@ -1240,9 +1240,20 @@
   "experimental.reset.title": "模拟全新安装",
   "experimental.reset.description": "清除偏好设置、API 密钥、自定义模板和临时缓存，然后重新打开首次设置。保留已下载的模型、个人文件和导出文件。",
   "experimental.reset.action": "清除数据并重新启动",
-  "matching.inspect": "匹配错误？查看规则",
-  "matching.help": "这些规则记录于文件匹配时。请比较 baseKey、集数、语言提示和移除的词语。在 Smart Matching 中修改规则后，重新导入文件。",
+  "matching.inspect": "为何这样匹配？",
   "matching.notRecorded": "此文件没有匹配记录。它可能是手动选择的，或在匹配后被修改。",
+  "matching.title": "匹配详情",
+  "matching.byName": "按文件名匹配",
+  "matching.noEpisodeRegex": "未使用集数正则：标准化后的文件名相同。",
+  "matching.byEpisode": "按集数匹配",
+  "matching.appliedRule": "已应用规则 #{{number}}",
+  "matching.matchedText": "捕获的文本",
+  "matching.details": "详细信息",
+  "matching.normalizedName": "标准化文件名",
+  "matching.roleHints": "字幕角色提示",
+  "matching.ignoredTokens": "忽略的名称词元",
+  "matching.editRules": "编辑匹配规则",
   "vad.webrtcDescription": "轻量内置，无需下载。在噪声中识别人声的可靠性低于 Silero。",
-  "vad.builtIn": "内置"
+  "vad.builtIn": "内置",
+  "matching.singleFile": "未记录自动匹配。"
 }

@@ -25,6 +25,7 @@
     seriesMode?: boolean;
     onToggleSeriesMode?: () => void;
     episodes: EpisodeRow[];
+    contextTarget?: { idx: number; field?: "targetSubsPath" | "nativeSubsPath" | "mediaPath" } | null;
     onAddFiles: () => void;
     onClearAll: () => void;
     showSnackbar: (message: string, variant?: "success" | "info" | "warning" | "error") => void;
@@ -49,6 +50,7 @@
 
   let {
     highlightClass,
+    contextTarget = null,
     episodes,
     onAddFiles,
     onClearAll,
@@ -113,6 +115,7 @@
   <div class="space-y-3">
     <!-- Episode table -->
     <EpisodeTable
+      {contextTarget}
       {episodes}
       {showSnackbar}
       {onSwapAll}

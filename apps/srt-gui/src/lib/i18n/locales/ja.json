@@ -1240,9 +1240,20 @@
   "experimental.reset.title": "新規インストールを再現",
   "experimental.reset.description": "設定、APIキー、カスタムテンプレート、一時キャッシュを削除し、初期設定を開き直します。ダウンロード済みモデル、個人ファイル、エクスポートは保持されます。",
   "experimental.reset.action": "データを削除して再起動",
-  "matching.inspect": "誤った組み合わせ？ルールを確認",
-  "matching.help": "ファイルを対応付けた時点のルールです。baseKey、エピソード番号、言語の手掛かり、除去した語句を比較してください。Smart Matchingでルールを修正し、ファイルを再インポートしてください。",
+  "matching.inspect": "この組み合わせの理由",
   "matching.notRecorded": "このファイルの対応付け履歴はありません。手動で選択したか、対応付け後に変更された可能性があります。",
+  "matching.title": "対応付けの詳細",
+  "matching.byName": "ファイル名で対応付け",
+  "matching.noEpisodeRegex": "エピソードの正規表現は未使用です。正規化後のファイル名が一致しています。",
+  "matching.byEpisode": "エピソードで対応付け",
+  "matching.appliedRule": "適用ルール #{{number}}",
+  "matching.matchedText": "抽出されたテキスト",
+  "matching.details": "詳細情報",
+  "matching.normalizedName": "正規化後のファイル名",
+  "matching.roleHints": "字幕の役割の手掛かり",
+  "matching.ignoredTokens": "無視した名前の語句",
+  "matching.editRules": "対応付けルールを編集",
   "vad.webrtcDescription": "軽量で内蔵済み。ダウンロード不要です。雑音中の音声検出はSileroより不安定です。",
-  "vad.builtIn": "内蔵"
+  "vad.builtIn": "内蔵",
+  "matching.singleFile": "自動対応付けの記録はありません。"
 }

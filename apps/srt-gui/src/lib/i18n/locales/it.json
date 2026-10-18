@@ -1240,9 +1240,20 @@
   "experimental.reset.title": "Simula una nuova installazione",
   "experimental.reset.description": "Cancella preferenze, chiavi API, template personalizzati e cache temporanee, poi riavvia la configurazione iniziale. Modelli scaricati, file personali ed export restano sul disco.",
   "experimental.reset.action": "Cancella dati e riavvia",
-  "matching.inspect": "Match errato? Analizza regole",
-  "matching.help": "Queste sono le regole registrate durante l’abbinamento. Confronta baseKey, numeri di episodio, indizi di lingua e token rimossi. Correggi la regola in Smart Matching, poi importa di nuovo i file.",
+  "matching.inspect": "Perché questo match?",
   "matching.notRecorded": "Non è disponibile una cronologia del match per questo file. Potrebbe essere stato selezionato manualmente o modificato dopo l’abbinamento.",
+  "matching.title": "Dettagli dell’abbinamento",
+  "matching.byName": "Abbinati per nome del file",
+  "matching.noEpisodeRegex": "Nessuna regex di episodio utilizzata: i nomi normalizzati coincidono.",
+  "matching.byEpisode": "Abbinati per episodio",
+  "matching.appliedRule": "Regola applicata n. {{number}}",
+  "matching.matchedText": "Testo catturato",
+  "matching.details": "Dettagli",
+  "matching.normalizedName": "Nome normalizzato",
+  "matching.roleHints": "Indizi sul ruolo dei sottotitoli",
+  "matching.ignoredTokens": "Token del nome ignorati",
+  "matching.editRules": "Modifica regole di abbinamento",
   "vad.webrtcDescription": "Leggero, integrato e senza download. Meno affidabile di Silero nel riconoscere il parlato nel rumore.",
-  "vad.builtIn": "Integrato"
+  "vad.builtIn": "Integrato",
+  "matching.singleFile": "Nessun abbinamento automatico registrato."
 }

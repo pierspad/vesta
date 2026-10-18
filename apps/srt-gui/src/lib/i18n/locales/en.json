@@ -1240,9 +1240,20 @@
   "experimental.reset.title": "Simulate a fresh installation",
   "experimental.reset.description": "Clear preferences, API keys, custom templates and temporary caches, then reload into first-run setup. Downloaded models, personal files and exports remain on disk.",
   "experimental.reset.action": "Clear data and restart",
-  "matching.inspect": "Wrong match? Inspect rules",
-  "matching.help": "These are the rules recorded when the files were matched. Compare baseKey, episode numbers, language hints and removed tokens. Edit Smart Matching to correct a rule, then import the files again.",
+  "matching.inspect": "Why this match?",
   "matching.notRecorded": "No matching history is available for this file. It may have been selected manually or changed after matching.",
+  "matching.title": "Match details",
+  "matching.byName": "Matched by filename",
+  "matching.noEpisodeRegex": "No episode regex was used: the normalized filenames are identical.",
+  "matching.byEpisode": "Matched by episode",
+  "matching.appliedRule": "Applied rule #{{number}}",
+  "matching.matchedText": "Captured text",
+  "matching.details": "Details",
+  "matching.normalizedName": "Normalized filename",
+  "matching.roleHints": "Subtitle role hints",
+  "matching.ignoredTokens": "Ignored name tokens",
+  "matching.editRules": "Edit matching rules",
   "vad.webrtcDescription": "Lightweight, built in and requires no download. Less reliable than Silero for speech in noise.",
-  "vad.builtIn": "Built in"
+  "vad.builtIn": "Built in",
+  "matching.singleFile": "No automatic association was recorded."
 }

@@ -9,7 +9,7 @@
   import { listen } from "@tauri-apps/api/event";
   import { guardedOpen } from "$lib/utils/dialogGuard";
   import { setupWebviewDragDrop } from "$lib/utils/dragDrop";
-  import { onDestroy, onMount, tick } from "svelte";
+  import { onDestroy, onMount } from "svelte";
   import { currentLanguage, locale } from "$lib/i18n";
   import { getFileName, inferLanguageFromPath } from "$lib/utils/models";
   import { getLanguageSearchTerms, languages } from "$lib/config/languages";
@@ -82,6 +82,7 @@
   } from "$lib/utils/flashcardLayout";
   import * as vestaConfig from "$lib/config/vestaConfig";
   import { errorMessage } from "$lib/utils/errorMessage";
+  import { pickEpisodeFile } from "$lib/workflows/episodeFilePicker";
   import MatchDiagnosticsModal from "$lib/modals/MatchDiagnosticsModal.svelte";
   import EpisodeEditorModal, { type EpisodeFileField } from "./flashcards/EpisodeEditorModal.svelte";
   import FlashcardsFooterBar, { type GenerationRequirement } from "./flashcards/FlashcardsFooterBar.svelte";
@@ -327,6 +328,7 @@
     closeEpisodeContextMenu();
   }
 
+  let inspectedMatchPath = $state("");
   let inspectedMatch = $state<EpisodeEntry | null>(null);
   let editingEpisodeField = $state<EpisodeFileField | null>(null);
   let audioClipsPanel: AudioClipsPanel | undefined = $state();
@@ -337,10 +339,17 @@
   async function editContextEpisode() {
     const context = episodeContextMenu;
     if (!context) return;
-    openEpisodeEditor(context.idx, context.field);
-    if (context.field) {
-      await tick();
-      await selectEpisodeFile(context.field);
+    if (!context.field) { openEpisodeEditor(context.idx); return; }
+    const episode = episodes[context.idx];
+    closeEpisodeContextMenu();
+    if (!episode) return;
+    try {
+      const replacement = await pickEpisodeFile(episode, context.field);
+      if (!replacement || episodes[context.idx] !== episode) return;
+      episodes = episodes.map((item, idx) => idx === context.idx ? replacement : item);
+      showSnackbar(t("flashcards.fileReplaced", { file: getFileName(replacement[context.field]) }), "success");
+    } catch (error) {
+      generationStore.error = `${t("flashcards.errorSelectingFile")}: ${errorMessage(error)}`;
     }
   }
   function openEpisodeEditor(idx: number, field?: EpisodeFileField) {
@@ -461,35 +470,13 @@
   async function selectEpisodeFile(field: EpisodeFileField) {
     if (!editingEpisode) return;
     try {
-      const selected = await guardedOpen({
-        multiple: false,
-        filters:
-          field === "mediaPath"
-            ? [
-                {
-                  name: t("flashcards.mediaFiles"),
-                  extensions: [...VIDEO_EXTENSIONS, ...AUDIO_EXTENSIONS],
-                },
-              ]
-            : [
-                {
-                  name: t("flashcards.subtitleFiles"),
-                  extensions: ["srt", "ass", "ssa", "vtt"],
-                },
-              ],
-      });
-      if (!selected || Array.isArray(selected)) return;
-      editingEpisode = {
-        ...editingEpisode,
-        [field]: selected,
-        mediaType:
-          field === "mediaPath"
-            ? detectMediaType(getFileName(selected))
-            : editingEpisode.mediaType,
-      };
+      const episode = editingEpisode;
+      const replacement = await pickEpisodeFile(episode, field);
+      if (!replacement || editingEpisode !== episode) return;
+      editingEpisode = replacement;
       syncEpisodeEditor();
       showSnackbar(
-        t("flashcards.fileReplaced", { file: getFileName(selected) }),
+        t("flashcards.fileReplaced", { file: getFileName(replacement[field]) }),
         "success",
       );
     } catch (e) {
@@ -1618,6 +1605,7 @@
       <FilesOutputPanel
         highlightClass={panelHighlightClass('files')}
         {episodes}
+        contextTarget={episodeContextMenu}
         onAddFiles={addSeriesMultipleFiles}
         onClearAll={clearAllEpisodes}
         {showSnackbar}
@@ -1743,7 +1731,7 @@
       x={episodeContextMenu.x}
       y={episodeContextMenu.y}
       hasMedia={Boolean(episodes[episodeContextMenu.idx]?.mediaPath)}
-      onInspectMatch={() => { inspectedMatch = episodes[episodeContextMenu!.idx]; closeEpisodeContextMenu(); }}
+      onInspectMatch={() => { const context = episodeContextMenu!; inspectedMatch = episodes[context.idx]; inspectedMatchPath = context.field ? inspectedMatch[context.field] : ""; closeEpisodeContextMenu(); }}
       onEdit={editContextEpisode}
       onMediaSettings={() => openEpisodeMediaSettings(episodeContextMenu!.idx)}
       onPreviewAudio={() => previewEpisodeAudio(episodeContextMenu!.idx)}
@@ -1793,7 +1781,7 @@
   {/if}
 
   {#if inspectedMatch}
-    <MatchDiagnosticsModal episode={inspectedMatch} onclose={() => inspectedMatch = null}
+    <MatchDiagnosticsModal episode={inspectedMatch} focusedPath={inspectedMatchPath} onclose={() => inspectedMatch = null}
       onrules={() => { inspectedMatch = null; onGoToSettings?.("language", "smart-matching-rules"); }} />
   {/if}
   {#if editingEpisode}

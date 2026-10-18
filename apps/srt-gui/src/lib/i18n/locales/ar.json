@@ -1240,9 +1240,20 @@
   "experimental.reset.title": "محاكاة تثبيت جديد",
   "experimental.reset.description": "امسح التفضيلات ومفاتيح API والقوالب المخصصة والملفات المؤقتة، ثم أعد تحميل الإعداد الأولي. تبقى النماذج المنزلة والملفات الشخصية والصادرات على القرص.",
   "experimental.reset.action": "مسح البيانات وإعادة التشغيل",
-  "matching.inspect": "مطابقة خاطئة؟ افحص القواعد",
-  "matching.help": "هذه القواعد مسجلة وقت مطابقة الملفات. قارن baseKey وأرقام الحلقات وإشارات اللغة والكلمات المحذوفة. صحح القاعدة في Smart Matching ثم استورد الملفات مجددًا.",
+  "matching.inspect": "لماذا هذه المطابقة؟",
   "matching.notRecorded": "لا يوجد سجل مطابقة لهذا الملف. ربما تم اختياره يدويًا أو تغييره بعد المطابقة.",
+  "matching.title": "تفاصيل المطابقة",
+  "matching.byName": "مطابقة حسب اسم الملف",
+  "matching.noEpisodeRegex": "لم يُستخدم تعبير نمطي للحلقة: أسماء الملفات متطابقة بعد التطبيع.",
+  "matching.byEpisode": "مطابقة حسب الحلقة",
+  "matching.appliedRule": "القاعدة المطبقة رقم {{number}}",
+  "matching.matchedText": "النص الملتقط",
+  "matching.details": "التفاصيل",
+  "matching.normalizedName": "اسم الملف بعد التطبيع",
+  "matching.roleHints": "إشارات دور الترجمة",
+  "matching.ignoredTokens": "أجزاء الاسم المتجاهلة",
+  "matching.editRules": "تحرير قواعد المطابقة",
   "vad.webrtcDescription": "خفيف ومدمج ولا يحتاج إلى تنزيل. أقل موثوقية من Silero في اكتشاف الكلام وسط الضوضاء.",
-  "vad.builtIn": "مدمج"
+  "vad.builtIn": "مدمج",
+  "matching.singleFile": "لم تُسجَّل مطابقة تلقائية."
 }

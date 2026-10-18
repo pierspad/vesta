@@ -1240,9 +1240,20 @@
   "experimental.reset.title": "Simular uma nova instalação",
   "experimental.reset.description": "Apaga preferências, chaves API, modelos personalizados e caches temporárias e reabre a configuração inicial. Os modelos descarregados, ficheiros pessoais e exportações são preservados.",
   "experimental.reset.action": "Apagar dados e reiniciar",
-  "matching.inspect": "Associação incorreta? Ver regras",
-  "matching.help": "Estas regras foram registadas durante a associação. Compare baseKey, números de episódio, idiomas e termos removidos. Corrija a regra em Smart Matching e importe os ficheiros novamente.",
+  "matching.inspect": "Porquê esta associação?",
   "matching.notRecorded": "Não há histórico de associação deste ficheiro. Pode ter sido selecionado manualmente ou alterado depois.",
+  "matching.title": "Detalhes da associação",
+  "matching.byName": "Associados pelo nome",
+  "matching.noEpisodeRegex": "Não foi usada uma regex de episódio: os nomes normalizados coincidem.",
+  "matching.byEpisode": "Associados pelo episódio",
+  "matching.appliedRule": "Regra aplicada n.º {{number}}",
+  "matching.matchedText": "Texto capturado",
+  "matching.details": "Detalhes",
+  "matching.normalizedName": "Nome normalizado",
+  "matching.roleHints": "Indícios do tipo de legendas",
+  "matching.ignoredTokens": "Termos do nome ignorados",
+  "matching.editRules": "Editar regras de associação",
   "vad.webrtcDescription": "Leve, integrado e sem transferências. Menos fiável que Silero para detetar fala com ruído.",
-  "vad.builtIn": "Integrado"
+  "vad.builtIn": "Integrado",
+  "matching.singleFile": "Nenhuma associação automática registada."
 }

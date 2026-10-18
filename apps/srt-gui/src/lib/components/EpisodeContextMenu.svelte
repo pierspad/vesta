@@ -72,7 +72,12 @@
       </button>
     {/if}
     {#if onInspectMatch}
-      <button type="button" class="vesta-context-menu-item" onclick={onInspectMatch}>{t("matching.inspect")}</button>
+      <button type="button" class="vesta-context-menu-item" onclick={onInspectMatch}>
+        <span class="inline-flex items-center gap-2">
+          <svg class="h-4 w-4 text-cyan-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4 4M8 10.5h5m-2.5-2.5v5"/></svg>
+          {t("matching.inspect")}
+        </span>
+      </button>
     {/if}
     <div class="vesta-context-menu-separator"></div>
     <button type="button" class="vesta-context-menu-item" onclick={onRemove}>
