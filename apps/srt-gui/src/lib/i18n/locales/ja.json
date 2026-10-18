@@ -1255,5 +1255,10 @@
   "matching.editRules": "対応付けルールを編集",
   "vad.webrtcDescription": "軽量で内蔵済み。ダウンロード不要です。雑音中の音声検出はSileroより不安定です。",
   "vad.builtIn": "内蔵",
-  "matching.singleFile": "自動対応付けの記録はありません。"
+  "matching.singleFile": "自動対応付けの記録はありません。",
+  "vad.fastLight": "高速・軽量",
+  "vad.accurateHeavy": "高精度・高負荷",
+  "vad.fastExpert": "高速 - WebRTC",
+  "vad.accurateExpert": "高精度 - Silero VAD",
+  "tiers.addProvider": "プロバイダーを追加"
 }

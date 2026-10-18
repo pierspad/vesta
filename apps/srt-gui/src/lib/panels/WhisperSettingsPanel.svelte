@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount, onDestroy } from "svelte";
   import { locale } from "$lib/i18n";
+  import { uiMode } from "$lib/stores/uiModeStore.svelte";
   import ProgressFill from "$lib/components/ProgressFill.svelte";
   import ApiKeysCard from "$lib/panels/ApiKeysCard.svelte";
   import TranscribeTiers from "$lib/components/TranscribeTiers.svelte";
@@ -276,7 +277,7 @@
   </div>
 
   <div class="grid grid-cols-1 gap-3 xl:grid-cols-2">
-    {#each store.vadModels as model (model.id)}
+    {#each [...store.vadModels].sort((a, b) => Number(b.id === "webrtc") - Number(a.id === "webrtc")) as model (model.id)}
       {@const isActive = !store.vadSelection.customPath && store.vadSelection.modelId === model.id}
       <div class="relative isolate overflow-hidden p-4 rounded-xl border flex items-center justify-between gap-4 transition-colors {isActive
         ? 'bg-emerald-500/10 border-emerald-500/25'
@@ -291,7 +292,8 @@
           class="relative min-w-0 text-left flex-1 cursor-pointer disabled:cursor-default"
         >
           <div class="flex items-center gap-2 flex-wrap">
-            <span class="text-sm font-bold text-white">{model.id === "webrtc" ? "WebRTC VAD" : `Silero VAD ${model.id}`}</span>
+            <svg class="w-5 h-5 shrink-0 text-emerald-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d={model.id === "webrtc" ? "m13 2-9 12h7l-1 8 10-12h-7l1-8Z" : "M9 12l2 2 4-4M12 3l8 4v5c0 5-8 9-8 9s-8-4-8-9V7l8-4Z"} /></svg>
+            <span class="text-sm font-bold text-white">{uiMode.expertMode ? t(model.id === "webrtc" ? "vad.fastExpert" : "vad.accurateExpert") : t(model.id === "webrtc" ? "vad.fastLight" : "vad.accurateHeavy")}</span>
             {#if model.id === DEFAULT_VAD_MODEL_ID}
               <span class="text-[9px] text-gray-500 uppercase tracking-wide">{t("settings.default")}</span>
             {/if}
@@ -302,8 +304,6 @@
               {/if}
             {:else if store.downloadingVadId === model.id}
               <span class="text-[9px] text-amber-400/70">{t("settings.downloading")} {store.progress > 0 ? `${store.progress}%` : ""}</span>
-            {:else}
-              <span class="text-[9px] text-amber-400/70">{t("settings.notDownloaded")}</span>
             {/if}
           </div>
           {#if model.id === "webrtc"}<p class="mt-1 text-xs text-gray-400">{t("vad.webrtcDescription")}</p>{/if}
@@ -332,6 +332,7 @@
       </div>
     {/each}
 
+    {#if uiMode.expertMode}
     <!-- Custom VAD model: arbitrary local .bin, bypasses the table above -->
     <div class="xl:col-span-2 p-4 rounded-xl border flex items-center justify-between gap-4 transition-colors {store.vadSelection.customPath
       ? 'bg-emerald-500/10 border-emerald-500/25'
@@ -370,6 +371,7 @@
         {/if}
       </div>
     </div>
+    {/if}
   </div>
 </div>
 

@@ -1255,5 +1255,10 @@
   "matching.editRules": "Изменить правила сопоставления",
   "vad.webrtcDescription": "Лёгкий, встроенный, без загрузки. Менее надёжен, чем Silero, при речи на фоне шума.",
   "vad.builtIn": "Встроенный",
-  "matching.singleFile": "Автоматическое сопоставление не записано."
+  "matching.singleFile": "Автоматическое сопоставление не записано.",
+  "vad.fastLight": "БЫСТРЫЙ - ЛЁГКИЙ",
+  "vad.accurateHeavy": "ТОЧНЫЙ - ТЯЖЁЛЫЙ",
+  "vad.fastExpert": "Быстрый - WebRTC",
+  "vad.accurateExpert": "Точный - Silero VAD",
+  "tiers.addProvider": "Добавить провайдера"
 }

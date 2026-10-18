@@ -1255,5 +1255,10 @@
   "matching.editRules": "تحرير قواعد المطابقة",
   "vad.webrtcDescription": "خفيف ومدمج ولا يحتاج إلى تنزيل. أقل موثوقية من Silero في اكتشاف الكلام وسط الضوضاء.",
   "vad.builtIn": "مدمج",
-  "matching.singleFile": "لم تُسجَّل مطابقة تلقائية."
+  "matching.singleFile": "لم تُسجَّل مطابقة تلقائية.",
+  "vad.fastLight": "سريع - خفيف",
+  "vad.accurateHeavy": "دقيق - ثقيل",
+  "vad.fastExpert": "سريع - WebRTC",
+  "vad.accurateExpert": "دقيق - Silero VAD",
+  "tiers.addProvider": "إضافة مزوّد"
 }

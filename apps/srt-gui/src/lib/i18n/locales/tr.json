@@ -1255,5 +1255,10 @@
   "matching.editRules": "Eşleştirme kurallarını düzenle",
   "vad.webrtcDescription": "Hafif, yerleşik ve indirme gerektirmez. Gürültülü konuşmada Silero kadar güvenilir değildir.",
   "vad.builtIn": "Yerleşik",
-  "matching.singleFile": "Otomatik eşleştirme kaydı yok."
+  "matching.singleFile": "Otomatik eşleştirme kaydı yok.",
+  "vad.fastLight": "HIZLI - HAFİF",
+  "vad.accurateHeavy": "HASSAS - AĞIR",
+  "vad.fastExpert": "Hızlı - WebRTC",
+  "vad.accurateExpert": "Hassas - Silero VAD",
+  "tiers.addProvider": "Sağlayıcı ekle"
 }

@@ -1255,5 +1255,10 @@
   "matching.editRules": "Edytuj reguły dopasowania",
   "vad.webrtcDescription": "Lekki, wbudowany, bez pobierania. Mniej niezawodny niż Silero przy mowie w hałasie.",
   "vad.builtIn": "Wbudowany",
-  "matching.singleFile": "Nie zapisano automatycznego dopasowania."
+  "matching.singleFile": "Nie zapisano automatycznego dopasowania.",
+  "vad.fastLight": "SZYBKI - LEKKI",
+  "vad.accurateHeavy": "DOKŁADNY - CIĘŻKI",
+  "vad.fastExpert": "Szybki - WebRTC",
+  "vad.accurateExpert": "Dokładny - Silero VAD",
+  "tiers.addProvider": "Dodaj dostawcę"
 }

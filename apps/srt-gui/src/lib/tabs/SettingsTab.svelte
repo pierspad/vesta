@@ -655,8 +655,9 @@
       }
     };
 
-    const handleOpenAddKeyModalEvent = () => {
-      openAddKeyModal("custom");
+    const handleOpenAddKeyModalEvent = (event: Event) => {
+      const providerId = (event as CustomEvent<{ providerId?: string }>).detail?.providerId;
+      apiKeyEditorStore.openAdd(providerId === "custom_whisper" ? "whisper" : "llm", "custom");
     };
 
     tiers = loadTiers();

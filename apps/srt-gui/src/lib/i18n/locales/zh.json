@@ -1255,5 +1255,10 @@
   "matching.editRules": "编辑匹配规则",
   "vad.webrtcDescription": "轻量内置，无需下载。在噪声中识别人声的可靠性低于 Silero。",
   "vad.builtIn": "内置",
-  "matching.singleFile": "未记录自动匹配。"
+  "matching.singleFile": "未记录自动匹配。",
+  "vad.fastLight": "快速 - 轻量",
+  "vad.accurateHeavy": "精准 - 高负载",
+  "vad.fastExpert": "快速 - WebRTC",
+  "vad.accurateExpert": "精准 - Silero VAD",
+  "tiers.addProvider": "添加提供商"
 }

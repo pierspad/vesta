@@ -1255,5 +1255,10 @@
   "matching.editRules": "Zuordnungsregeln bearbeiten",
   "vad.webrtcDescription": "Leichtgewichtig, integriert und ohne Download. Bei Sprache im Rauschen weniger zuverlässig als Silero.",
   "vad.builtIn": "Integriert",
-  "matching.singleFile": "Keine automatische Zuordnung aufgezeichnet."
+  "matching.singleFile": "Keine automatische Zuordnung aufgezeichnet.",
+  "vad.fastLight": "SCHNELL - LEICHT",
+  "vad.accurateHeavy": "PRÄZISE - AUFWENDIG",
+  "vad.fastExpert": "Schnell - WebRTC",
+  "vad.accurateExpert": "Präzise - Silero VAD",
+  "tiers.addProvider": "Anbieter hinzufügen"
 }

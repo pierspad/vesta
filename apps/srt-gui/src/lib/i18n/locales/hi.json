@@ -1255,5 +1255,10 @@
   "matching.editRules": "मिलान नियम बदलें",
   "vad.webrtcDescription": "हल्का और अंतर्निहित, डाउनलोड की आवश्यकता नहीं। शोर में आवाज़ पहचानने में Silero से कम विश्वसनीय।",
   "vad.builtIn": "अंतर्निहित",
-  "matching.singleFile": "स्वचालित मिलान दर्ज नहीं है।"
+  "matching.singleFile": "स्वचालित मिलान दर्ज नहीं है।",
+  "vad.fastLight": "तेज़ - हल्का",
+  "vad.accurateHeavy": "सटीक - भारी",
+  "vad.fastExpert": "तेज़ - WebRTC",
+  "vad.accurateExpert": "सटीक - Silero VAD",
+  "tiers.addProvider": "प्रदाता जोड़ें"
 }

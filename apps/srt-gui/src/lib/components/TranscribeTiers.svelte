@@ -190,6 +190,10 @@
   }
 
   function onKeyChange(tierIndex: number, entryIndex: number, keyId: string) {
+    if (keyId === "__add_provider__") {
+      window.dispatchEvent(new CustomEvent("vesta-open-add-key-modal", { detail: { providerId: "custom_whisper" } }));
+      return;
+    }
     const key = apiKeys.find((k) => k.id === keyId);
     const provider = key?.apiType || "local_whisper";
     const targetEntry = tiers[tierIndex]?.entries[entryIndex];
@@ -328,9 +332,7 @@
                         {(entry.provider === "local" || entry.provider === "local_whisper") ? (t("translate.provider")) : (t("tiers.apiKey"))}
                       </span>
                       <SearchableSelect
-                        options={apiKeys.filter(isWhisperKey).length === 0
-                          ? [{ value: "", label: t("tiers.noKeysOption") }]
-                          : apiKeys.filter(isWhisperKey).map((key) => ({ value: key.id, label: keyLabel(key), provider: key.apiType }))}
+                        options={[...apiKeys.filter(isWhisperKey).map((key) => ({ value: key.id, label: keyLabel(key), provider: key.apiType })), { value: "__add_provider__", label: `＋ ${t("tiers.addProvider")}` }]}
                         value={entry.apiKeyId}
                         onchange={(val) => onKeyChange(tierIndex, entryIndex, val)}
                         placeholder={t("tiers.noKeysOption")}

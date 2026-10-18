@@ -221,6 +221,10 @@
 
   // Aggiorna l'API key di una entry e riallinea provider + modello.
   function onKeyChange(tierIndex: number, entryIndex: number, keyId: string) {
+    if (keyId === "__add_provider__") {
+      window.dispatchEvent(new CustomEvent("vesta-open-add-key-modal", { detail: { providerId: "custom" } }));
+      return;
+    }
     const key = apiKeys.find((k) => k.id === keyId);
     const provider = (key?.apiType as TierEntry["provider"]) || "google";
     // La scelta del modello custom non sopravvive al cambio provider.
@@ -405,9 +409,7 @@
                         {entry.provider === "local" ? (t("translate.provider")) : (t("tiers.apiKey"))}
                       </span>
                       <SearchableSelect
-                        options={apiKeys.filter((k) => LLM_PROVIDERS.includes(k.apiType)).length === 0
-                          ? [{ value: "", label: t("tiers.noKeysOption") }]
-                          : apiKeys.filter((k) => LLM_PROVIDERS.includes(k.apiType)).map((key) => ({ value: key.id, label: keyLabel(key), provider: key.apiType }))}
+                        options={[...apiKeys.filter((k) => LLM_PROVIDERS.includes(k.apiType)).map((key) => ({ value: key.id, label: keyLabel(key), provider: key.apiType })), { value: "__add_provider__", label: `＋ ${t("tiers.addProvider")}` }]}
                         value={entry.apiKeyId}
                         onchange={(val) => onKeyChange(tierIndex, entryIndex, val)}
                         placeholder={t("tiers.noKeysOption")}

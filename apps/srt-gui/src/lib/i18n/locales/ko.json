@@ -1255,5 +1255,10 @@
   "matching.editRules": "연결 규칙 편집",
   "vad.webrtcDescription": "가볍고 내장되어 다운로드가 필요 없습니다. 소음 속 음성 감지는 Silero보다 덜 정확합니다.",
   "vad.builtIn": "내장",
-  "matching.singleFile": "자동 연결 기록이 없습니다."
+  "matching.singleFile": "자동 연결 기록이 없습니다.",
+  "vad.fastLight": "빠름 - 가벼움",
+  "vad.accurateHeavy": "정확함 - 무거움",
+  "vad.fastExpert": "빠름 - WebRTC",
+  "vad.accurateExpert": "정확함 - Silero VAD",
+  "tiers.addProvider": "공급자 추가"
 }

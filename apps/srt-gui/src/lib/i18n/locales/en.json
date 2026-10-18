@@ -1255,5 +1255,10 @@
   "matching.editRules": "Edit matching rules",
   "vad.webrtcDescription": "Lightweight, built in and requires no download. Less reliable than Silero for speech in noise.",
   "vad.builtIn": "Built in",
-  "matching.singleFile": "No automatic association was recorded."
+  "matching.singleFile": "No automatic association was recorded.",
+  "vad.fastLight": "FAST - LIGHT",
+  "vad.accurateHeavy": "ACCURATE - HEAVY",
+  "vad.fastExpert": "Fast - WebRTC",
+  "vad.accurateExpert": "Accurate - Silero VAD",
+  "tiers.addProvider": "Add provider"
 }

@@ -1255,5 +1255,10 @@
   "matching.editRules": "Koppelingsregels bewerken",
   "vad.webrtcDescription": "Lichtgewicht, ingebouwd en zonder download. Minder betrouwbaar dan Silero bij spraak met ruis.",
   "vad.builtIn": "Ingebouwd",
-  "matching.singleFile": "Geen automatische koppeling vastgelegd."
+  "matching.singleFile": "Geen automatische koppeling vastgelegd.",
+  "vad.fastLight": "SNEL - LICHT",
+  "vad.accurateHeavy": "NAUWKEURIG - ZWAAR",
+  "vad.fastExpert": "Snel - WebRTC",
+  "vad.accurateExpert": "Nauwkeurig - Silero VAD",
+  "tiers.addProvider": "Provider toevoegen"
 }

@@ -1255,5 +1255,10 @@
   "matching.editRules": "Modifier les règles d’association",
   "vad.webrtcDescription": "Léger, intégré et sans téléchargement. Moins fiable que Silero pour détecter la parole dans le bruit.",
   "vad.builtIn": "Intégré",
-  "matching.singleFile": "Aucune association automatique enregistrée."
+  "matching.singleFile": "Aucune association automatique enregistrée.",
+  "vad.fastLight": "RAPIDE - LÉGER",
+  "vad.accurateHeavy": "PRÉCIS - LOURD",
+  "vad.fastExpert": "Rapide - WebRTC",
+  "vad.accurateExpert": "Précis - Silero VAD",
+  "tiers.addProvider": "Ajouter un fournisseur"
 }

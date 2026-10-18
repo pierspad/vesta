@@ -1255,5 +1255,10 @@
   "matching.editRules": "Modifica regole di abbinamento",
   "vad.webrtcDescription": "Leggero, integrato e senza download. Meno affidabile di Silero nel riconoscere il parlato nel rumore.",
   "vad.builtIn": "Integrato",
-  "matching.singleFile": "Nessun abbinamento automatico registrato."
+  "matching.singleFile": "Nessun abbinamento automatico registrato.",
+  "vad.fastLight": "VELOCE - LEGGERO",
+  "vad.accurateHeavy": "ACCURATO - PESANTE",
+  "vad.fastExpert": "Veloce - WebRTC",
+  "vad.accurateExpert": "Accurato - Silero VAD",
+  "tiers.addProvider": "Aggiungi provider"
 }

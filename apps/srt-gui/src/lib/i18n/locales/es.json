@@ -1255,5 +1255,10 @@
   "matching.editRules": "Editar reglas de emparejamiento",
   "vad.webrtcDescription": "Ligero, integrado y sin descargas. Menos fiable que Silero para detectar voz con ruido.",
   "vad.builtIn": "Integrado",
-  "matching.singleFile": "No se registró ningún emparejamiento automático."
+  "matching.singleFile": "No se registró ningún emparejamiento automático.",
+  "vad.fastLight": "RÁPIDO - LIGERO",
+  "vad.accurateHeavy": "PRECISO - PESADO",
+  "vad.fastExpert": "Rápido - WebRTC",
+  "vad.accurateExpert": "Preciso - Silero VAD",
+  "tiers.addProvider": "Añadir proveedor"
 }
