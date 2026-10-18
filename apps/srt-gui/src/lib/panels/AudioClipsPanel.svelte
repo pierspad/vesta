@@ -73,7 +73,7 @@
   let previewGlow = $state(false);
   let glowTimer: ReturnType<typeof setTimeout> | undefined;
   export async function previewEpisode(index: number) {
-    if (!episodes[index]?.mediaPath) return;
+    if (!settings.generateAudio || !episodes[index]?.mediaPath) return;
     const request = ++previewRequest;
     const requestedMedia = episodes[index].mediaPath;
     selectedEpisodeIdx = index;
@@ -86,7 +86,7 @@
     clearTimeout(glowTimer);
     glowTimer = setTimeout(() => previewGlow = false, 1500);
     await Promise.all([subtitleLoad, durationLoad]);
-    if (request === previewRequest && selectedEpisodeIdx === index && currentMediaPath === requestedMedia) await playPreview();
+    if (request === previewRequest && selectedEpisodeIdx === index && currentMediaPath === requestedMedia && settings.generateAudio) await playPreview();
   }
   onDestroy(() => { previewRequest++; clearTimeout(glowTimer); });
 
@@ -312,6 +312,7 @@
   }
 
   async function playPreview() {
+    if (!settings.generateAudio) return;
     const media = currentMediaPath;
     if (!media) {
       snackbar.show(hintLoadMediaFirst, "warning");
@@ -385,6 +386,10 @@
   }
 
   onDestroy(() => { durationRequests.invalidate(); stopAudioPreview(); snapshotRequests.invalidate(); subtitleRequests.invalidate(); });
+
+  $effect(() => {
+    if (!settings.generateAudio) { previewRequest++; stopAudioPreview(); }
+  });
 
   function toggleAudioPreview() {
     if (isPreviewPlaying && audioPlayer) {
@@ -554,7 +559,7 @@
           </div>
         </div>
         <div>
-          <button type="button" onclick={() => (previewExpanded = !previewExpanded)} class="w-full h-8.5 px-2 rounded-lg border border-cyan-400/40 bg-cyan-500/15 text-cyan-200 flex items-center justify-center gap-1.5 text-xs font-semibold">
+          <button type="button" disabled={!settings.generateAudio} onclick={() => (previewExpanded = !previewExpanded)} class="w-full h-8.5 px-2 rounded-lg border border-cyan-400/40 bg-cyan-500/15 text-cyan-200 flex items-center justify-center gap-1.5 text-xs font-semibold">
             <span class="truncate">{t("flashcards.previewAudio")}</span><span>{previewExpanded ? "▴" : "▾"}</span>
           </button>
         </div>
@@ -565,7 +570,7 @@
 
     <!-- Interactive Audio Preview Section -->
     {#if previewExpanded}
-    <div bind:this={previewElement} class:preview-glow={previewGlow} class="mt-4 p-3.5 rounded-xl border border-cyan-500/25 bg-cyan-950/20 space-y-3">
+    <div bind:this={previewElement} inert={!settings.generateAudio} aria-disabled={!settings.generateAudio} class:opacity-40={!settings.generateAudio} class:preview-glow={previewGlow} class="mt-4 p-3.5 rounded-xl border border-cyan-500/25 bg-cyan-950/20 space-y-3">
       <!-- Episode Selector if multiple episodes -->
       {#if episodes && episodes.length > 1}
         <div class="pb-1 border-b border-white/5">

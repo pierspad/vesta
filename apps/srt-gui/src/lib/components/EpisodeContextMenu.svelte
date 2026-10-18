@@ -5,6 +5,7 @@
     x: number;
     y: number;
     hasMedia: boolean;
+    canPreviewAudio?: boolean;
     onEdit: () => void;
     onInspectMatch?: () => void;
     onMediaSettings: () => void;
@@ -12,7 +13,7 @@
     onRemove: () => void;
     onClose: () => void;
   }
-  let { x, y, hasMedia, onEdit, onInspectMatch, onMediaSettings, onPreviewAudio, onRemove, onClose }: Props = $props();
+  let { x, y, hasMedia, canPreviewAudio = true, onEdit, onInspectMatch, onMediaSettings, onPreviewAudio, onRemove, onClose }: Props = $props();
 
   let t = $derived($locale);
 </script>
@@ -60,7 +61,7 @@
       <button
         type="button"
         class="vesta-context-menu-item"
-        disabled={!hasMedia}
+        disabled={!hasMedia || !canPreviewAudio}
         onclick={onPreviewAudio}
       >
         <span class="inline-flex items-center gap-2">

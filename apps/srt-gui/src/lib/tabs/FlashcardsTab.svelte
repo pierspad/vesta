@@ -1618,6 +1618,7 @@
       onInspectMatch={() => { const context = episodeContextMenu!; inspectedMatch = episodes[context.idx]; inspectedMatchPath = context.field ? inspectedMatch[context.field] : ""; closeEpisodeContextMenu(); }}
       onEdit={editContextEpisode}
       onMediaSettings={() => openEpisodeMediaSettings(episodeContextMenu!.idx)}
+      canPreviewAudio={mediaSettings.generateAudio}
       onPreviewAudio={() => previewEpisodeAudio(episodeContextMenu!.idx)}
       onRemove={() => removeEpisode(episodeContextMenu!.idx)}
       onClose={closeEpisodeContextMenu}

@@ -7,9 +7,11 @@ vi.mock("$lib/stores/uiModeStore.svelte", () => ({ uiMode: { expertMode: true } 
 vi.mock("$lib/stores/snackbarStore.svelte", () => ({ snackbar: { show: vi.fn() } }));
 import { invokeCommand } from "$lib/services/tauriClient";
 import { defaultMediaSettings } from "$lib/utils/mediaSettings";
+import AudioPreviewToggleHarness from "$lib/test/fixtures/AudioPreviewToggleHarness.svelte";
 import AudioClipsPanel from "./AudioClipsPanel.svelte";
 
 const invoke = vi.mocked(invokeCommand);
+const pause = vi.fn();
 const play = vi.fn().mockResolvedValue(undefined);
 const instances: ReturnType<typeof mount>[] = [];
 const episodes = [
@@ -20,7 +22,8 @@ const entries = [{ id: 1, start_ms: 3000, end_ms: 5000, text: "Second episode di
 
 beforeEach(() => {
   play.mockClear();
-  vi.stubGlobal("Audio", class { src = ""; pause = vi.fn(); play = play; });
+  pause.mockClear();
+  vi.stubGlobal("Audio", class { src = ""; pause = pause; play = play; });
   vi.spyOn(Element.prototype, "scrollIntoView").mockImplementation(() => {});
   invoke.mockImplementation(async (command) => {
     if (command === "flashcard_media_duration") return 90;
@@ -79,4 +82,23 @@ it("waits for subtitles and rejects an older episode request that finishes late"
   await old;
   expect(invoke.mock.calls.filter(([command]) => command === "flashcard_preview_audio")).toHaveLength(1);
   expect(invoke).toHaveBeenCalledWith("flashcard_preview_audio", expect.objectContaining({ mediaPath: "first.mp3" }));
+});
+
+it("stops playback and blocks preview requests while audio generation is disabled", async () => {
+  const target = document.createElement("div");
+  document.body.append(target);
+  const component = mount(AudioPreviewToggleHarness, { target });
+  instances.push(component);
+  await tick();
+  await component.previewEpisode(0);
+  expect(play).toHaveBeenCalledOnce();
+  target.querySelector<HTMLButtonElement>("button")!.click();
+  await tick();
+  expect(pause).toHaveBeenCalled();
+  expect(target.querySelector('[aria-disabled="true"][inert]')).not.toBeNull();
+  await component.previewEpisode(0);
+  expect(play).toHaveBeenCalledOnce();
+  target.querySelector<HTMLButtonElement>("button")!.click();
+  await tick();
+  expect(target.querySelector('[aria-disabled="true"][inert]')).toBeNull();
 });
