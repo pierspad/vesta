@@ -1242,5 +1242,7 @@
   "experimental.reset.action": "Usuń dane i uruchom ponownie",
   "matching.inspect": "Błędne dopasowanie? Sprawdź reguły",
   "matching.help": "Te reguły zapisano podczas dopasowywania plików. Porównaj baseKey, numery odcinków, języki i usunięte wyrazy. Popraw regułę w Smart Matching i ponownie zaimportuj pliki.",
-  "matching.notRecorded": "Brak historii dopasowania tego pliku. Mógł zostać wybrany ręcznie lub później zmieniony."
+  "matching.notRecorded": "Brak historii dopasowania tego pliku. Mógł zostać wybrany ręcznie lub później zmieniony.",
+  "vad.webrtcDescription": "Lekki, wbudowany, bez pobierania. Mniej niezawodny niż Silero przy mowie w hałasie.",
+  "vad.builtIn": "Wbudowany"
 }

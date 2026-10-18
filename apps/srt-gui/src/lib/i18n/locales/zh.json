@@ -1242,5 +1242,7 @@
   "experimental.reset.action": "清除数据并重新启动",
   "matching.inspect": "匹配错误？查看规则",
   "matching.help": "这些规则记录于文件匹配时。请比较 baseKey、集数、语言提示和移除的词语。在 Smart Matching 中修改规则后，重新导入文件。",
-  "matching.notRecorded": "此文件没有匹配记录。它可能是手动选择的，或在匹配后被修改。"
+  "matching.notRecorded": "此文件没有匹配记录。它可能是手动选择的，或在匹配后被修改。",
+  "vad.webrtcDescription": "轻量内置，无需下载。在噪声中识别人声的可靠性低于 Silero。",
+  "vad.builtIn": "内置"
 }

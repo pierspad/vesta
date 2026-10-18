@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount, onDestroy } from "svelte";
   import { locale } from "$lib/i18n";
+  import ProgressFill from "$lib/components/ProgressFill.svelte";
   import ApiKeysCard from "$lib/panels/ApiKeysCard.svelte";
   import TranscribeTiers from "$lib/components/TranscribeTiers.svelte";
   import { DEFAULT_VAD_MODEL_ID } from "$lib/config/vadSelection";
@@ -177,7 +178,7 @@
         title={model.downloaded ? t("settings.whisperDownloadedHint") : t("settings.whisperNotDownloadedHint")}
       >
         {#if store.isDownloading && store.downloadingModelId === model.id}
-          <div class="pointer-events-none absolute inset-y-0 left-0 bg-cyan-400/20 transition-[width] duration-300 motion-reduce:transition-none" style:width={`${Math.max(0, Math.min(100, store.progress))}%`} aria-hidden="true"></div>
+          <ProgressFill value={store.progress} />
         {/if}
         <!-- Top-Right Action Button -->
         <div class="absolute top-2 right-2 z-10 flex items-center">
@@ -269,29 +270,32 @@
       </svg>
     </div>
     <div class="flex-1">
-      <h3 class="text-sm font-bold text-white">Silero VAD</h3>
+      <h3 class="text-sm font-bold text-white">{t("transcribe.vad")}</h3>
 
     </div>
   </div>
 
-  <div class="space-y-3">
+  <div class="grid grid-cols-1 gap-3 xl:grid-cols-2">
     {#each store.vadModels as model (model.id)}
       {@const isActive = !store.vadSelection.customPath && store.vadSelection.modelId === model.id}
-      <div class="p-4 rounded-xl border flex items-center justify-between gap-4 transition-colors {isActive
+      <div class="relative isolate overflow-hidden p-4 rounded-xl border flex items-center justify-between gap-4 transition-colors {isActive
         ? 'bg-emerald-500/10 border-emerald-500/25'
         : 'bg-white/5 border-white/10'}">
+        {#if store.downloadingVadId === model.id}
+          <ProgressFill value={store.progress} accent="emerald" />
+        {/if}
         <button
           type="button"
           onclick={() => store.handleVadModelClick(model)}
           disabled={store.busy}
-          class="min-w-0 text-left flex-1 cursor-pointer disabled:cursor-default"
+          class="relative min-w-0 text-left flex-1 cursor-pointer disabled:cursor-default"
         >
           <div class="flex items-center gap-2 flex-wrap">
-            <span class="text-sm font-bold text-white">Silero VAD {model.id}</span>
+            <span class="text-sm font-bold text-white">{model.id === "webrtc" ? "WebRTC VAD" : `Silero VAD ${model.id}`}</span>
             {#if model.id === DEFAULT_VAD_MODEL_ID}
               <span class="text-[9px] text-gray-500 uppercase tracking-wide">{t("settings.default")}</span>
             {/if}
-            <span class="text-[10px] text-gray-500">{model.size}</span>
+            {#if model.id !== "webrtc"}<span class="text-[10px] text-gray-500">{model.size}</span>{/if}
             {#if model.downloaded}
               {#if isActive}
                 <span class="text-[9px] font-bold text-emerald-400 uppercase tracking-wide">{t("settings.ready")}</span>
@@ -302,8 +306,11 @@
               <span class="text-[9px] text-amber-400/70">{t("settings.notDownloaded")}</span>
             {/if}
           </div>
+          {#if model.id === "webrtc"}<p class="mt-1 text-xs text-gray-400">{t("vad.webrtcDescription")}</p>{/if}
         </button>
-        {#if model.downloaded}
+        {#if model.id === "webrtc"}
+          <span class="relative text-[10px] text-emerald-300">{t("vad.builtIn")}</span>
+        {:else if model.downloaded}
           <button
             type="button"
             onclick={() => void store.uninstallVad(model.id)}
@@ -326,7 +333,7 @@
     {/each}
 
     <!-- Custom VAD model: arbitrary local .bin, bypasses the table above -->
-    <div class="p-4 rounded-xl border flex items-center justify-between gap-4 transition-colors {store.vadSelection.customPath
+    <div class="xl:col-span-2 p-4 rounded-xl border flex items-center justify-between gap-4 transition-colors {store.vadSelection.customPath
       ? 'bg-emerald-500/10 border-emerald-500/25'
       : 'bg-white/5 border-white/10'}">
       <div class="min-w-0">

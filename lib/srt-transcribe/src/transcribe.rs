@@ -24,6 +24,8 @@ pub struct TranscribeOptions {
     /// default greedy decoder; `Some(5)` is whisper.cpp's "quality" setting
     pub beam_size: Option<u32>,
 
+    /// Model-free alternative. Takes precedence over vad_model_path for direct callers.
+    pub webrtc_vad: bool,
     pub vad_model_path: Option<std::path::PathBuf>,
     pub segment_callback: Option<SegmentCallback>,
 }
@@ -37,6 +39,7 @@ impl std::fmt::Debug for TranscribeOptions {
             .field("word_timestamps", &self.word_timestamps)
             .field("max_segment_length", &self.max_segment_length)
             .field("beam_size", &self.beam_size)
+            .field("webrtc_vad", &self.webrtc_vad)
             .field("vad_model_path", &self.vad_model_path)
             .field(
                 "segment_callback",
@@ -55,6 +58,7 @@ impl Clone for TranscribeOptions {
             word_timestamps: self.word_timestamps,
             max_segment_length: self.max_segment_length,
             beam_size: self.beam_size,
+            webrtc_vad: self.webrtc_vad,
             vad_model_path: self.vad_model_path.clone(),
             segment_callback: self.segment_callback.clone(),
         }
@@ -80,11 +84,13 @@ pub fn transcribe_full(
         .create_state()
         .map_err(|e| anyhow::anyhow!("Failed to create Whisper state: {:?}", e))?;
 
-    let Some(ref vad_model_path) = options.vad_model_path else {
+    let spans = if options.webrtc_vad {
+        crate::webrtc::speech_spans(audio_data, VAD_PAD_MS, VAD_MERGE_GAP_MS, cancel_token)?
+    } else if let Some(ref path) = options.vad_model_path {
+        vad_speech_spans(path, audio_data, options)?
+    } else {
         return transcribe_span(&mut state, audio_data, options, 0, cancel_token);
     };
-
-    let spans = vad_speech_spans(vad_model_path, audio_data, options)?;
     let mut segments = Vec::new();
     let mut detected_language = None;
 

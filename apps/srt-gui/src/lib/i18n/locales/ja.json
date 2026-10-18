@@ -1242,5 +1242,7 @@
   "experimental.reset.action": "データを削除して再起動",
   "matching.inspect": "誤った組み合わせ？ルールを確認",
   "matching.help": "ファイルを対応付けた時点のルールです。baseKey、エピソード番号、言語の手掛かり、除去した語句を比較してください。Smart Matchingでルールを修正し、ファイルを再インポートしてください。",
-  "matching.notRecorded": "このファイルの対応付け履歴はありません。手動で選択したか、対応付け後に変更された可能性があります。"
+  "matching.notRecorded": "このファイルの対応付け履歴はありません。手動で選択したか、対応付け後に変更された可能性があります。",
+  "vad.webrtcDescription": "軽量で内蔵済み。ダウンロード不要です。雑音中の音声検出はSileroより不安定です。",
+  "vad.builtIn": "内蔵"
 }

@@ -1242,5 +1242,7 @@
   "experimental.reset.action": "Apagar dados e reiniciar",
   "matching.inspect": "Associação incorreta? Ver regras",
   "matching.help": "Estas regras foram registadas durante a associação. Compare baseKey, números de episódio, idiomas e termos removidos. Corrija a regra em Smart Matching e importe os ficheiros novamente.",
-  "matching.notRecorded": "Não há histórico de associação deste ficheiro. Pode ter sido selecionado manualmente ou alterado depois."
+  "matching.notRecorded": "Não há histórico de associação deste ficheiro. Pode ter sido selecionado manualmente ou alterado depois.",
+  "vad.webrtcDescription": "Leve, integrado e sem transferências. Menos fiável que Silero para detetar fala com ruído.",
+  "vad.builtIn": "Integrado"
 }

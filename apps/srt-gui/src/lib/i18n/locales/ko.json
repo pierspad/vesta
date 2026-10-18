@@ -1242,5 +1242,7 @@
   "experimental.reset.action": "데이터 삭제 후 다시 시작",
   "matching.inspect": "잘못 연결되었나요? 규칙 확인",
   "matching.help": "파일 연결 시 기록된 규칙입니다. baseKey, 에피소드 번호, 언어 단서와 제거된 단어를 비교하세요. Smart Matching에서 규칙을 수정한 뒤 파일을 다시 가져오세요.",
-  "matching.notRecorded": "이 파일의 연결 기록이 없습니다. 직접 선택했거나 연결 후 변경했을 수 있습니다."
+  "matching.notRecorded": "이 파일의 연결 기록이 없습니다. 직접 선택했거나 연결 후 변경했을 수 있습니다.",
+  "vad.webrtcDescription": "가볍고 내장되어 다운로드가 필요 없습니다. 소음 속 음성 감지는 Silero보다 덜 정확합니다.",
+  "vad.builtIn": "내장"
 }

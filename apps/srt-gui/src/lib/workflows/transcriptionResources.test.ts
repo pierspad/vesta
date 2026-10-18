@@ -17,3 +17,13 @@ it("checks the selected custom VAD file instead of assuming an installed built-i
  const state = new TranscriptionResources(); await state.refreshAddons();
  expect(mocks.exists).toHaveBeenCalledWith("/missing.bin"); expect(state.vadInstalled).toBe(false); expect(state.gpuSupported).toBe(true);
 });
+
+it("accepts the model-free WebRTC engine without checking a model path", async () => {
+ mocks.selection.mockReturnValue({ modelId: "webrtc", customPath: null });
+ mocks.exists.mockClear();
+ mocks.addons.mockResolvedValue({ gpu_supported: false, vad_models: [{ id: "webrtc", size: "", downloaded: true }] });
+ const state = new TranscriptionResources();
+ await state.refreshAddons();
+ expect(state.vadInstalled).toBe(true);
+ expect(mocks.exists).not.toHaveBeenCalled();
+});

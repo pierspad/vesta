@@ -1242,5 +1242,7 @@
   "experimental.reset.action": "Cancella dati e riavvia",
   "matching.inspect": "Match errato? Analizza regole",
   "matching.help": "Queste sono le regole registrate durante l’abbinamento. Confronta baseKey, numeri di episodio, indizi di lingua e token rimossi. Correggi la regola in Smart Matching, poi importa di nuovo i file.",
-  "matching.notRecorded": "Non è disponibile una cronologia del match per questo file. Potrebbe essere stato selezionato manualmente o modificato dopo l’abbinamento."
+  "matching.notRecorded": "Non è disponibile una cronologia del match per questo file. Potrebbe essere stato selezionato manualmente o modificato dopo l’abbinamento.",
+  "vad.webrtcDescription": "Leggero, integrato e senza download. Meno affidabile di Silero nel riconoscere il parlato nel rumore.",
+  "vad.builtIn": "Integrato"
 }

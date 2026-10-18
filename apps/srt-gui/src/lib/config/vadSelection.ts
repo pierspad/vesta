@@ -1,9 +1,9 @@
 import * as vestaConfig from "$lib/config/vestaConfig";
 
 // ─── Silero VAD variant selection ───────────────────────────────────────────
-// Which VAD model to run when the user has VAD enabled: one of the built-in
+// Which VAD engine/model to run when the user has VAD enabled: one of the built-in
 // variants (see `srt_transcribe::model::VAD_MODELS`, mirrored here only by
-// id) or a custom local path picked via file dialog. Shared between
+// id), the built-in "webrtc" engine, or a custom local path picked via file dialog. Shared between
 // SettingsTab (download/select/upload) and TranscribeTab (resolves the
 // active choice into `transcribe_start`'s config).
 

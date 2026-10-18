@@ -1242,5 +1242,7 @@
   "experimental.reset.action": "Borrar datos y reiniciar",
   "matching.inspect": "¿Emparejamiento incorrecto? Ver reglas",
   "matching.help": "Estas reglas se registraron al emparejar los archivos. Compara baseKey, números de episodio, idiomas y términos eliminados. Corrige la regla en Smart Matching e importa los archivos de nuevo.",
-  "matching.notRecorded": "No hay historial de emparejamiento para este archivo. Puede haberse seleccionado manualmente o cambiado después."
+  "matching.notRecorded": "No hay historial de emparejamiento para este archivo. Puede haberse seleccionado manualmente o cambiado después.",
+  "vad.webrtcDescription": "Ligero, integrado y sin descargas. Menos fiable que Silero para detectar voz con ruido.",
+  "vad.builtIn": "Integrado"
 }

@@ -1242,5 +1242,7 @@
   "experimental.reset.action": "Gegevens wissen en herstarten",
   "matching.inspect": "Verkeerde koppeling? Regels bekijken",
   "matching.help": "Deze regels zijn vastgelegd bij het koppelen. Vergelijk baseKey, afleveringsnummers, taalhints en verwijderde termen. Pas de regel in Smart Matching aan en importeer de bestanden opnieuw.",
-  "matching.notRecorded": "Er is geen koppelingsgeschiedenis voor dit bestand. Het is mogelijk handmatig geselecteerd of later gewijzigd."
+  "matching.notRecorded": "Er is geen koppelingsgeschiedenis voor dit bestand. Het is mogelijk handmatig geselecteerd of later gewijzigd.",
+  "vad.webrtcDescription": "Lichtgewicht, ingebouwd en zonder download. Minder betrouwbaar dan Silero bij spraak met ruis.",
+  "vad.builtIn": "Ingebouwd"
 }

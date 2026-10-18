@@ -3,6 +3,7 @@ pub mod cloud;
 pub mod model;
 pub mod pipeline;
 pub mod transcribe;
+mod webrtc;
 
 /// Whether this build carries any GPU offload backend.
 pub const fn gpu_supported() -> bool {

@@ -308,8 +308,10 @@ pub fn run_local(
 ) -> Result<TranscriptionOutcome> {
     callbacks.progress("transcribe", "Loading Whisper model...", 12.0);
 
-    let vad_model_path = config
-        .vad
+    let webrtc_vad = config.vad
+        && config.vad_custom_path.is_none()
+        && config.vad_model_id.as_deref() == Some("webrtc");
+    let vad_model_path = (config.vad && !webrtc_vad)
         .then(|| -> Result<PathBuf> {
             let path = match &config.vad_custom_path {
                 Some(custom) => PathBuf::from(custom),
@@ -367,6 +369,7 @@ pub fn run_local(
         max_segment_length: (config.max_segment_length > 0).then_some(config.max_segment_length),
         beam_size: config.quality.then_some(5),
         vad_model_path,
+        webrtc_vad,
         segment_callback: Some(Arc::new(segment_callback)),
     };
 

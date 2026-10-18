@@ -35,6 +35,7 @@
     }
   },
   "bundle": {
+    "resources": { "../../../THIRD_PARTY_NOTICES.md": "THIRD_PARTY_NOTICES.md" },
     "active": true,
     "targets": [
       "deb",

@@ -1242,5 +1242,7 @@
   "experimental.reset.action": "Verileri sil ve yeniden başlat",
   "matching.inspect": "Yanlış eşleşme mi? Kuralları incele",
   "matching.help": "Bu kurallar dosyalar eşleştirilirken kaydedildi. baseKey, bölüm numaraları, dil ipuçları ve kaldırılan sözcükleri karşılaştırın. Smart Matching kuralını düzeltip dosyaları yeniden içe aktarın.",
-  "matching.notRecorded": "Bu dosya için eşleşme geçmişi yok. Elle seçilmiş veya eşleştirmeden sonra değiştirilmiş olabilir."
+  "matching.notRecorded": "Bu dosya için eşleşme geçmişi yok. Elle seçilmiş veya eşleştirmeden sonra değiştirilmiş olabilir.",
+  "vad.webrtcDescription": "Hafif, yerleşik ve indirme gerektirmez. Gürültülü konuşmada Silero kadar güvenilir değildir.",
+  "vad.builtIn": "Yerleşik"
 }

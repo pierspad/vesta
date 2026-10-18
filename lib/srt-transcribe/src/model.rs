@@ -101,19 +101,25 @@ pub fn vad_model_path(id: &str) -> Result<PathBuf> {
 
 /// Whether a given Silero VAD variant is present on disk.
 pub fn vad_model_installed(id: &str) -> bool {
-    vad_model_path(id).is_ok_and(|p| p.exists())
+    id == "webrtc" || vad_model_path(id).is_ok_and(|p| p.exists())
 }
 
 /// List every known VAD variant with its download status.
 pub fn list_vad_models() -> Vec<VadModelInfo> {
-    VAD_MODELS
+    let mut models: Vec<_> = VAD_MODELS
         .iter()
         .map(|&(id, _, _, size)| VadModelInfo {
             id: id.to_string(),
             size: size.to_string(),
             downloaded: vad_model_installed(id),
         })
-        .collect()
+        .collect();
+    models.push(VadModelInfo {
+        id: "webrtc".into(),
+        size: String::new(),
+        downloaded: true,
+    });
+    models
 }
 
 /// Delete a given Silero VAD variant. Returns `true` if a file was removed.
@@ -170,6 +176,17 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn webrtc_is_available_without_a_downloadable_model_path() {
+        assert!(vad_model_installed("webrtc"));
+        let entry = list_vad_models()
+            .into_iter()
+            .find(|model| model.id == "webrtc")
+            .unwrap();
+        assert!(entry.downloaded);
+        assert!(vad_model_path("webrtc").is_err());
+    }
 
     #[test]
     fn paths_require_catalog_model_ids() {

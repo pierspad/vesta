@@ -1242,5 +1242,7 @@
   "experimental.reset.action": "Daten löschen und neu starten",
   "matching.inspect": "Falsche Zuordnung? Regeln prüfen",
   "matching.help": "Dies sind die bei der Zuordnung erfassten Regeln. Vergleiche baseKey, Episodennummern, Sprachhinweise und entfernte Begriffe. Korrigiere die Regel unter Smart Matching und importiere die Dateien erneut.",
-  "matching.notRecorded": "Für diese Datei liegt kein Zuordnungsverlauf vor. Sie wurde möglicherweise manuell ausgewählt oder nachträglich geändert."
+  "matching.notRecorded": "Für diese Datei liegt kein Zuordnungsverlauf vor. Sie wurde möglicherweise manuell ausgewählt oder nachträglich geändert.",
+  "vad.webrtcDescription": "Leichtgewichtig, integriert und ohne Download. Bei Sprache im Rauschen weniger zuverlässig als Silero.",
+  "vad.builtIn": "Integriert"
 }

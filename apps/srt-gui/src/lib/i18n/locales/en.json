@@ -1242,5 +1242,7 @@
   "experimental.reset.action": "Clear data and restart",
   "matching.inspect": "Wrong match? Inspect rules",
   "matching.help": "These are the rules recorded when the files were matched. Compare baseKey, episode numbers, language hints and removed tokens. Edit Smart Matching to correct a rule, then import the files again.",
-  "matching.notRecorded": "No matching history is available for this file. It may have been selected manually or changed after matching."
+  "matching.notRecorded": "No matching history is available for this file. It may have been selected manually or changed after matching.",
+  "vad.webrtcDescription": "Lightweight, built in and requires no download. Less reliable than Silero for speech in noise.",
+  "vad.builtIn": "Built in"
 }
