@@ -124,7 +124,7 @@
   "flashcards.fileReplaced": "Remplacé par {file}",
   "flashcards.previewAudioEpisode": "Film / épisode à prévisualiser",
   "flashcards.previewAudioNextDialogue": "Suiv.",
-  "flashcards.previewAudioNoSubs": "Aucun sous-titre : utilisez la chronologie pour naviguer",
+  "flashcards.previewAudioNoSubs": "Aperçu audio libre",
   "flashcards.previewAudioPrevDialogue": "Préc.",
   "flashcards.clearLog": "Effacer",
   "flashcards.clickToCycleTemplates": "Cliquez pour faire défiler les types de notes actifs",
@@ -1236,5 +1236,8 @@
   "settings.dictionary.modal.openMode": "Mode d'Ouverture",
   "settings.dictionary.modal.openModeEmbedded": "Fenêtre Intégrée (Recommandé)",
   "settings.dictionary.modal.openModeExternal": "Navigateur Externe",
-  "settings.dictionary.modal.urlTemplate": "Modèle d'URL"
+  "settings.dictionary.modal.urlTemplate": "Modèle d'URL",
+  "experimental.reset.title": "Simuler une nouvelle installation",
+  "experimental.reset.description": "Efface les préférences, clés API, modèles personnalisés et caches temporaires, puis relance la configuration initiale. Les modèles téléchargés, fichiers personnels et exports sont conservés.",
+  "experimental.reset.action": "Effacer les données et redémarrer"
 }

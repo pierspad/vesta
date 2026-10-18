@@ -1,4 +1,5 @@
 <script lang="ts">
+  import * as vestaConfig from "$lib/config/vestaConfig";
   import { onDestroy } from "svelte";
   import { LatestRequest } from "$lib/utils/asyncControl.svelte";
   const audioRequests = new LatestRequest();
@@ -77,17 +78,33 @@
     activeEpisode?.mediaPath || firstEpisodeMediaPath || ""
   );
   let currentSubsPath = $derived(
-    activeEpisode?.targetSubsPath || firstEpisodeSubsPath || ""
+    activeEpisode?.targetSubsPath || activeEpisode?.nativeSubsPath || firstEpisodeSubsPath || ""
   );
 
   let isPreviewPlaying = $state(false);
-  let previewExpanded = $state(false);
+  let previewExpanded = $state(vestaConfig.getItem("vesta-audio-preview-expanded") !== "false");
+  $effect(() => {
+    vestaConfig.setItem("vesta-audio-preview-expanded", String(previewExpanded));
+  });
+  let mediaDurationSec = $state<number | null>(null);
+  const durationRequests = new LatestRequest();
+  $effect(() => {
+    const path = currentMediaPath;
+    const request = durationRequests.begin();
+    mediaDurationSec = null;
+    previewTimeSec = 0;
+    if (path) void invoke<number>("flashcard_media_duration", { path }).then((duration) => {
+      if (!request.isCurrent()) return;
+      mediaDurationSec = duration;
+      previewTimeSec = Math.min(previewTimeSec, Math.max(0, duration - 0.1));
+    }).catch((error) => console.error("Failed to read media duration", error));
+  });
   let isPreviewLoading = $state(false);
   let audioPlayer: HTMLAudioElement | null = null;
 
   let subEntries = $state<SubtitleEntry[]>([]);
   let currentSubIndex = $state(0);
-  let previewTimeSec = $state(120);
+  let previewTimeSec = $state(0);
   let previewSnapshotUrl = $state<string | null>(null);
   let isSnapshotLoading = $state(false);
 
@@ -116,10 +133,9 @@
   );
 
   let maxDurationSec = $derived.by(() => {
-    if (subEntries.length > 0) {
-      return Math.max(120, Math.ceil(subEntries[subEntries.length - 1].end_ms / 1000));
-    }
-    return 7200;
+    if (mediaDurationSec !== null) return mediaDurationSec;
+    if (subEntries.length > 0) return Math.max(...subEntries.map((entry) => entry.end_ms)) / 1000;
+    return 0;
   });
 
   let currentLineStartMs = $derived(
@@ -131,7 +147,7 @@
   let currentLineEndMs = $derived(
     subEntries.length > 0 && subEntries[currentSubIndex]
       ? subEntries[currentSubIndex].end_ms
-      : (previewTimeSec + 4) * 1000
+      : Math.min(previewTimeSec + 4, maxDurationSec) * 1000
   );
 
   let currentLineText = $derived(
@@ -155,6 +171,8 @@
     snapshotRequests.invalidate();
     previewSnapshotUrl = null;
     isSnapshotLoading = false;
+    subEntries = [];
+    currentSubIndex = 0;
     if (sub) {
       loadSubtitles(sub);
     } else {
@@ -242,7 +260,7 @@
 
   function goToNextDialogue() {
     if (subEntries.length === 0) {
-      previewTimeSec += 5;
+      previewTimeSec = Math.min(Math.max(0, maxDurationSec - 0.1), previewTimeSec + 5);
       updateSnapshot(previewTimeSec * 1000);
       if (isPreviewPlaying) playPreview();
       return;
@@ -288,7 +306,7 @@
         endMs = subEntries[currentSubIndex].end_ms;
       } else {
         startMs = previewTimeSec * 1000;
-        endMs = (previewTimeSec + 4) * 1000;
+        endMs = Math.min(previewTimeSec + 4, maxDurationSec) * 1000;
       }
 
       const args = {
@@ -341,7 +359,7 @@
     isPreviewLoading = false;
   }
 
-  onDestroy(() => { stopAudioPreview(); snapshotRequests.invalidate(); subtitleRequests.invalidate(); });
+  onDestroy(() => { durationRequests.invalidate(); stopAudioPreview(); snapshotRequests.invalidate(); subtitleRequests.invalidate(); });
 
   function toggleAudioPreview() {
     if (isPreviewPlaying && audioPlayer) {
@@ -596,7 +614,7 @@
               <span>{formatTime(currentLineStartMs / 1000)} - {formatTime(currentLineEndMs / 1000)}</span>
             {:else}
               <span class="text-cyan-400 font-semibold">{formatTime(previewTimeSec)}</span>
-              <span class="text-gray-500 text-[10px]">{t("flashcards.previewAudioNoSubs")}</span>
+
             {/if}
           </div>
           <p class="text-xs text-gray-200 italic leading-snug break-words max-h-12 overflow-y-auto">

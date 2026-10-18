@@ -124,7 +124,7 @@
   "flashcards.fileReplaced": "{file} に置き換えました",
   "flashcards.previewAudioEpisode": "プレビューする映画 / エピソード",
   "flashcards.previewAudioNextDialogue": "次へ",
-  "flashcards.previewAudioNoSubs": "字幕がありません：タイムラインで移動してください",
+  "flashcards.previewAudioNoSubs": "自由な音声プレビュー",
   "flashcards.previewAudioPrevDialogue": "前へ",
   "flashcards.clearLog": "クリア",
   "flashcards.clickToCycleTemplates": "クリックしてノートタイプを切り替える",
@@ -1236,5 +1236,8 @@
   "settings.dictionary.modal.openMode": "表示モード",
   "settings.dictionary.modal.openModeEmbedded": "内蔵ウィンドウ (推奨)",
   "settings.dictionary.modal.openModeExternal": "外部ブラウザ",
-  "settings.dictionary.modal.urlTemplate": "URLテンプレート"
+  "settings.dictionary.modal.urlTemplate": "URLテンプレート",
+  "experimental.reset.title": "新規インストールを再現",
+  "experimental.reset.description": "設定、APIキー、カスタムテンプレート、一時キャッシュを削除し、初期設定を開き直します。ダウンロード済みモデル、個人ファイル、エクスポートは保持されます。",
+  "experimental.reset.action": "データを削除して再起動"
 }

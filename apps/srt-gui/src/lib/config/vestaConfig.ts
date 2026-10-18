@@ -121,3 +121,11 @@ export async function replaceAll(values: Record<string, string>): Promise<void> 
   cache.clear();
   for (const [key, value] of Object.entries(values)) cache.set(key, value);
 }
+
+/** Serialize reset after pending preference writes. */
+export async function resetInstallation(): Promise<void> {
+  await persist("config_reset_installation", {});
+  cache.clear();
+  if (typeof localStorage !== "undefined") localStorage.clear();
+  if (typeof sessionStorage !== "undefined") sessionStorage.clear();
+}

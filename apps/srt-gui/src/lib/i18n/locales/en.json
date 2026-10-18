@@ -236,7 +236,7 @@
   "flashcards.previewAudioEpisode": "Movie / Episode to preview",
   "flashcards.previewAudioError": "Failed to play audio preview",
   "flashcards.previewAudioNextDialogue": "Next",
-  "flashcards.previewAudioNoSubs": "No subtitles: use timeline slider to navigate",
+  "flashcards.previewAudioNoSubs": "Free audio preview",
   "flashcards.previewAudioPlaying": "Playing...",
   "flashcards.previewAudioPrevDialogue": "Prev",
   "flashcards.previewCopyOriginal": "Copy original subtitle",
@@ -1236,5 +1236,8 @@
   "settings.dictionary.modal.openMode": "Opening Mode",
   "settings.dictionary.modal.openModeEmbedded": "Embedded Window (Recommended)",
   "settings.dictionary.modal.openModeExternal": "External Browser",
-  "settings.dictionary.modal.urlTemplate": "URL Template"
+  "settings.dictionary.modal.urlTemplate": "URL Template",
+  "experimental.reset.title": "Simulate a fresh installation",
+  "experimental.reset.description": "Clear preferences, API keys, custom templates and temporary caches, then reload into first-run setup. Downloaded models, personal files and exports remain on disk.",
+  "experimental.reset.action": "Clear data and restart"
 }

@@ -124,7 +124,7 @@
   "flashcards.fileReplaced": "Vervangen door {file}",
   "flashcards.previewAudioEpisode": "Film / aflevering voor voorbeeld",
   "flashcards.previewAudioNextDialogue": "Volgende",
-  "flashcards.previewAudioNoSubs": "Geen ondertitels: gebruik de tijdlijn om te navigeren",
+  "flashcards.previewAudioNoSubs": "Vrij audiovoorbeeld",
   "flashcards.previewAudioPrevDialogue": "Vorige",
   "flashcards.clearLog": "Duidelijk",
   "flashcards.clickToCycleTemplates": "Klik om door actieve notitietypes te bladeren",
@@ -1236,5 +1236,8 @@
   "settings.dictionary.modal.openMode": "Openingsmodus",
   "settings.dictionary.modal.openModeEmbedded": "Geïntegreerd venster (aanbevolen)",
   "settings.dictionary.modal.openModeExternal": "Externe browser",
-  "settings.dictionary.modal.urlTemplate": "URL-sjabloon"
+  "settings.dictionary.modal.urlTemplate": "URL-sjabloon",
+  "experimental.reset.title": "Nieuwe installatie simuleren",
+  "experimental.reset.description": "Wis voorkeuren, API-sleutels, eigen sjablonen en tijdelijke caches en open de eerste configuratie opnieuw. Gedownloade modellen, persoonlijke bestanden en exports blijven behouden.",
+  "experimental.reset.action": "Gegevens wissen en herstarten"
 }

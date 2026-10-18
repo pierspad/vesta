@@ -313,6 +313,8 @@ fn main() {
             config_remove,
             config_clear,
             config_replace_all,
+            config_reset_installation,
+            flashcard_media_duration,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

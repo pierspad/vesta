@@ -124,7 +124,7 @@
   "flashcards.fileReplaced": "{file} से बदला गया",
   "flashcards.previewAudioEpisode": "पूर्वावलोकन के लिए फ़िल्म / एपिसोड",
   "flashcards.previewAudioNextDialogue": "अगला",
-  "flashcards.previewAudioNoSubs": "कोई उपशीर्षक नहीं: नेविगेट करने के लिए टाइमलाइन का उपयोग करें",
+  "flashcards.previewAudioNoSubs": "स्वतंत्र ऑडियो पूर्वावलोकन",
   "flashcards.previewAudioPrevDialogue": "पिछला",
   "flashcards.clearLog": "साफ़ करें",
   "flashcards.clickToCycleTemplates": "सक्रिय नोट प्रकार को चक्रित करने के लिए क्लिक करें",
@@ -1236,5 +1236,8 @@
   "settings.dictionary.modal.openMode": "खोलने का तरीका",
   "settings.dictionary.modal.openModeEmbedded": "एकीकृत विंडो (अनुशंसित)",
   "settings.dictionary.modal.openModeExternal": "बाहरी ब्राउज़र",
-  "settings.dictionary.modal.urlTemplate": "URL टेम्पलेट"
+  "settings.dictionary.modal.urlTemplate": "URL टेम्पलेट",
+  "experimental.reset.title": "नई स्थापना का अनुभव लें",
+  "experimental.reset.description": "प्राथमिकताएँ, API कुंजियाँ, कस्टम टेम्पलेट और अस्थायी कैश मिटाकर प्रारंभिक सेटअप दोबारा खोलें। डाउनलोड किए गए मॉडल, निजी फ़ाइलें और निर्यात सुरक्षित रहेंगे।",
+  "experimental.reset.action": "डेटा मिटाएँ और पुनः आरंभ करें"
 }

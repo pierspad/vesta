@@ -124,7 +124,7 @@
   "flashcards.fileReplaced": "{file} ile değiştirildi",
   "flashcards.previewAudioEpisode": "Önizlenecek film / bölüm",
   "flashcards.previewAudioNextDialogue": "Sonraki",
-  "flashcards.previewAudioNoSubs": "Altyazı yok: gezinmek için zaman çizelgesini kullanın",
+  "flashcards.previewAudioNoSubs": "Serbest ses önizlemesi",
   "flashcards.previewAudioPrevDialogue": "Önceki",
   "flashcards.clearLog": "Temizle",
   "flashcards.clickToCycleTemplates": "Aktif not türleri arasında geçiş yapmak için tıklayın",
@@ -1236,5 +1236,8 @@
   "settings.dictionary.modal.openMode": "Açılış Modu",
   "settings.dictionary.modal.openModeEmbedded": "Entegre Pencere (Önerilen)",
   "settings.dictionary.modal.openModeExternal": "Harici Tarayıcı",
-  "settings.dictionary.modal.urlTemplate": "URL Şablonu"
+  "settings.dictionary.modal.urlTemplate": "URL Şablonu",
+  "experimental.reset.title": "Yeni kurulumu simüle et",
+  "experimental.reset.description": "Tercihleri, API anahtarlarını, özel şablonları ve geçici önbellekleri silip ilk kurulumu yeniden açar. İndirilen modeller, kişisel dosyalar ve dışa aktarımlar korunur.",
+  "experimental.reset.action": "Verileri sil ve yeniden başlat"
 }

@@ -124,7 +124,7 @@
   "flashcards.fileReplaced": "Sustituido por {file}",
   "flashcards.previewAudioEpisode": "Película / episodio para previsualizar",
   "flashcards.previewAudioNextDialogue": "Sig.",
-  "flashcards.previewAudioNoSubs": "Sin subtítulos: usa la línea de tiempo para navegar",
+  "flashcards.previewAudioNoSubs": "Vista previa libre del audio",
   "flashcards.previewAudioPrevDialogue": "Ant.",
   "flashcards.clearLog": "Limpiar",
   "flashcards.clickToCycleTemplates": "Haz clic para alternar el tipo de nota activo",
@@ -1236,5 +1236,8 @@
   "settings.dictionary.modal.openMode": "Modo de Apertura",
   "settings.dictionary.modal.openModeEmbedded": "Ventana Integrada (Recomendado)",
   "settings.dictionary.modal.openModeExternal": "Navegador Externo",
-  "settings.dictionary.modal.urlTemplate": "Plantilla URL"
+  "settings.dictionary.modal.urlTemplate": "Plantilla URL",
+  "experimental.reset.title": "Simular una instalación nueva",
+  "experimental.reset.description": "Borra preferencias, claves API, plantillas personalizadas y cachés temporales y vuelve a la configuración inicial. Se conservan los modelos descargados, los archivos personales y las exportaciones.",
+  "experimental.reset.action": "Borrar datos y reiniciar"
 }

@@ -31,3 +31,31 @@ it("reports fire-and-forget preference failures and keeps the session value", as
  await config.flush();
  expect(invoke).toHaveBeenLastCalledWith("config_replace_all", { values: { "example-preference": "value" } });
 });
+
+it("serializes installation reset after pending writes and clears legacy preferences", async () => {
+  const legacyClear = vi.fn();
+  const sessionClear = vi.fn();
+  vi.stubGlobal("localStorage", { clear: legacyClear });
+  vi.stubGlobal("sessionStorage", { clear: sessionClear });
+  let release!: () => void;
+  invoke.mockImplementationOnce(() => new Promise<void>((resolve) => release = resolve));
+  config.setItem("preference", "old");
+  const reset = config.resetInstallation();
+  await Promise.resolve(); await Promise.resolve();
+  expect(invoke).toHaveBeenCalledTimes(1);
+  release();
+  await reset;
+  expect(invoke).toHaveBeenLastCalledWith("config_reset_installation", {});
+  expect(config.exportSnapshot()).toEqual({});
+  expect(legacyClear).toHaveBeenCalledOnce();
+  expect(sessionClear).toHaveBeenCalledOnce();
+  vi.unstubAllGlobals();
+});
+
+it("keeps preferences when installation reset fails", async () => {
+  config.setItem("preference", "keep");
+  await config.flush();
+  invoke.mockRejectedValueOnce(new Error("cache locked"));
+  await expect(config.resetInstallation()).rejects.toThrow("cache locked");
+  expect(config.getItem("preference")).toBe("keep");
+});

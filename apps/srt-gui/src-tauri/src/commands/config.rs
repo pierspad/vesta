@@ -193,3 +193,14 @@ mod tests {
         );
     }
 }
+
+#[tauri::command]
+pub fn config_reset_installation(app: tauri::AppHandle, state: State<'_, ConfigState>) -> Result<(), String> {
+    use tauri::Manager;
+    let cache = app.path().app_cache_dir().map_err(|e| e.to_string())?;
+    let temp_subs = app.path().app_local_data_dir().map_err(|e| e.to_string())?.join("temp_subs");
+    for path in [cache, temp_subs] {
+        if path.exists() { fs::remove_dir_all(&path).map_err(|e| format!("{}: {e}", path.display()))?; }
+    }
+    config_clear(state)
+}

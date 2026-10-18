@@ -124,7 +124,7 @@
   "flashcards.fileReplaced": "تم الاستبدال بـ {file}",
   "flashcards.previewAudioEpisode": "الفيلم / الحلقة للمعاينة",
   "flashcards.previewAudioNextDialogue": "التالي",
-  "flashcards.previewAudioNoSubs": "لا توجد ترجمات: استخدم شريط الزمن للتنقل",
+  "flashcards.previewAudioNoSubs": "معاينة صوت حرة",
   "flashcards.previewAudioPrevDialogue": "السابق",
   "flashcards.clearLog": "مسح",
   "flashcards.clickToCycleTemplates": "انقر للتنقل بين أنواع الملاحظات النشطة",
@@ -1236,5 +1236,8 @@
   "settings.dictionary.modal.openMode": "طريقة الفتح",
   "settings.dictionary.modal.openModeEmbedded": "نافذة مدمجة (موصى به)",
   "settings.dictionary.modal.openModeExternal": "متصفح خارجي",
-  "settings.dictionary.modal.urlTemplate": "قالب الرابط"
+  "settings.dictionary.modal.urlTemplate": "قالب الرابط",
+  "experimental.reset.title": "محاكاة تثبيت جديد",
+  "experimental.reset.description": "امسح التفضيلات ومفاتيح API والقوالب المخصصة والملفات المؤقتة، ثم أعد تحميل الإعداد الأولي. تبقى النماذج المنزلة والملفات الشخصية والصادرات على القرص.",
+  "experimental.reset.action": "مسح البيانات وإعادة التشغيل"
 }

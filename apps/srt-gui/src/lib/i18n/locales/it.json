@@ -236,7 +236,7 @@
   "flashcards.previewAudioEpisode": "Film / Episodio in anteprima",
   "flashcards.previewAudioError": "Impossibile riprodurre l'anteprima audio",
   "flashcards.previewAudioNextDialogue": "Succ",
-  "flashcards.previewAudioNoSubs": "Nessun sottotitolo: usa il cursore per navigare",
+  "flashcards.previewAudioNoSubs": "Anteprima libera dell’audio",
   "flashcards.previewAudioPlaying": "In riproduzione...",
   "flashcards.previewAudioPrevDialogue": "Prec",
   "flashcards.previewCopyOriginal": "Copia sottotitolo originale",
@@ -1236,5 +1236,8 @@
   "settings.dictionary.modal.openMode": "Modalità di Apertura",
   "settings.dictionary.modal.openModeEmbedded": "Finestra Integrata (Consigliato)",
   "settings.dictionary.modal.openModeExternal": "Browser Esterno",
-  "settings.dictionary.modal.urlTemplate": "Template URL"
+  "settings.dictionary.modal.urlTemplate": "Template URL",
+  "experimental.reset.title": "Simula una nuova installazione",
+  "experimental.reset.description": "Cancella preferenze, chiavi API, template personalizzati e cache temporanee, poi riavvia la configurazione iniziale. Modelli scaricati, file personali ed export restano sul disco.",
+  "experimental.reset.action": "Cancella dati e riavvia"
 }

@@ -153,15 +153,6 @@
     </div>
   </div>
 
-  {#if store.isDownloading && store.downloadingModelId}
-    <div class="mb-3 text-xs text-gray-400">
-      {t("settings.modelDownloading", { model: store.downloadingModelId }) || `Downloading model: ${store.downloadingModelId}`}
-      {#if store.progress > 0}
-        <span class="text-cyan-300 ml-1">{store.progress}%</span>
-      {/if}
-    </div>
-  {/if}
-
   <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-3" role="radiogroup" aria-label={t("settings.whisper.modelLabel")}>
     {#each store.whisperModels as model (model.id)}
       <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -176,7 +167,7 @@
         role="radio"
         aria-checked={store.defaultWhisperModel === model.id}
         tabindex="0"
-        class="group relative min-h-[8.5rem] p-4 rounded-xl text-center transition-all duration-200 border cursor-pointer select-none
+        class="group relative overflow-hidden min-h-[8.5rem] p-4 rounded-xl text-center transition-all duration-200 border cursor-pointer select-none
           {store.defaultWhisperModel === model.id && model.downloaded
           ? 'bg-cyan-500/20 border-cyan-500/50 text-white shadow-[0_0_15px_rgba(6,182,212,0.15)]'
           : model.downloaded
@@ -185,6 +176,9 @@
           {highlightedModelId === model.id ? 'requirement-pulse' : ''}"
         title={model.downloaded ? t("settings.whisperDownloadedHint") : t("settings.whisperNotDownloadedHint")}
       >
+        {#if store.isDownloading && store.downloadingModelId === model.id}
+          <div class="pointer-events-none absolute inset-y-0 left-0 bg-cyan-400/20 transition-[width] duration-300 motion-reduce:transition-none" style:width={`${Math.max(0, Math.min(100, store.progress))}%`} aria-hidden="true"></div>
+        {/if}
         <!-- Top-Right Action Button -->
         <div class="absolute top-2 right-2 z-10 flex items-center">
           {#if !model.downloaded}
@@ -276,7 +270,7 @@
     </div>
     <div class="flex-1">
       <h3 class="text-sm font-bold text-white">Silero VAD</h3>
-      <p class="text-xs text-gray-400 mt-0.5">{t("transcribe.vadHelp")}</p>
+
     </div>
   </div>
 

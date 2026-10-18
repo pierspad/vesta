@@ -124,7 +124,7 @@
   "flashcards.fileReplaced": "{file}(으)로 교체됨",
   "flashcards.previewAudioEpisode": "미리 볼 영화 / 에피소드",
   "flashcards.previewAudioNextDialogue": "다음",
-  "flashcards.previewAudioNoSubs": "자막 없음: 타임라인을 사용하여 이동하세요",
+  "flashcards.previewAudioNoSubs": "자유 오디오 미리보기",
   "flashcards.previewAudioPrevDialogue": "이전",
   "flashcards.clearLog": "지우기",
   "flashcards.clickToCycleTemplates": "클릭하여 활성 노트 유형 순환",
@@ -1236,5 +1236,8 @@
   "settings.dictionary.modal.openMode": "열기 모드",
   "settings.dictionary.modal.openModeEmbedded": "통합 창 (권장)",
   "settings.dictionary.modal.openModeExternal": "외부 브라우저",
-  "settings.dictionary.modal.urlTemplate": "URL 템플릿"
+  "settings.dictionary.modal.urlTemplate": "URL 템플릿",
+  "experimental.reset.title": "새 설치 환경 재현",
+  "experimental.reset.description": "환경설정, API 키, 사용자 템플릿과 임시 캐시를 삭제하고 초기 설정을 다시 엽니다. 다운로드한 모델, 개인 파일과 내보낸 파일은 유지됩니다.",
+  "experimental.reset.action": "데이터 삭제 후 다시 시작"
 }
