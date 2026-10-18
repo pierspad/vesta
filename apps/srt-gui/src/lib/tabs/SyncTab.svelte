@@ -1,4 +1,5 @@
 <script lang="ts">
+  import WorkflowWorkspace from "$lib/components/WorkflowWorkspace.svelte";
   import { localWhisperOperation } from "$lib/utils/asyncControl.svelte";
   import { invokeCommand as invoke } from "$lib/services/tauriClient";
   import { guardedOpen, guardedSave } from "$lib/utils/dialogGuard";
@@ -509,7 +510,7 @@
       if (scrollList) {
         setTimeout(() => scrollToSubtitle(id), 50);
       } else if (subtitleListElement) {
-        subtitleListElement.scrollTop = 0;
+        subtitleListElement.closest(".glass-card")?.scrollIntoView({ block: "start" });
       }
       if (autoplay) {
         void safePlayAudio("goToCheckpoint");
@@ -618,7 +619,7 @@
         count: PAGE_SIZE,
       });
       if (subtitleListElement) {
-        subtitleListElement.scrollTop = 0;
+        subtitleListElement.closest(".glass-card")?.scrollIntoView({ block: "start" });
       }
     } catch (e) {
       showSnackbar(`${t("sync.errorLoadingSrt")} ${errorMessage(e)}`, "error");
@@ -1289,19 +1290,17 @@
     {/if}
   {/snippet}
 
-  <div class="flex-1 overflow-hidden p-6 min-h-0">
-    <div class="flex h-full min-h-0 flex-col gap-4">
-      <div class="shrink-0">{@render panelContent("files")}</div>
-      <div class="grid min-h-0 flex-1 grid-cols-1 gap-6 xl:grid-cols-2">
-        <div class="flex min-h-0 min-w-0 flex-col gap-3 overflow-y-auto scrollbar-thin">
+  <div class="flex flex-1 flex-col overflow-hidden p-6 min-h-0">
+    <WorkflowWorkspace>
+      {#snippet files()}{@render panelContent("files")}{/snippet}
+      <div class="grid grid-cols-1 items-start gap-6 xl:grid-cols-2">
+        <div class="flex min-w-0 flex-col gap-3">
           {@render panelContent("status")}
           {@render panelContent("wizard")}
         </div>
-        <div class="flex min-h-0 min-w-0 flex-col" role="region">
-          {@render panelContent("subtitleList")}
-        </div>
+        <div class="min-w-0" role="region">{@render panelContent("subtitleList")}</div>
       </div>
-    </div>
+    </WorkflowWorkspace>
   </div>
 
   <!-- Fixed Bottom Band with Action Buttons -->

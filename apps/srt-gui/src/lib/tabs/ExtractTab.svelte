@@ -1,4 +1,5 @@
 <script lang="ts">
+  import WorkflowWorkspace from "$lib/components/WorkflowWorkspace.svelte";
   import EmptyStatusLabel from "$lib/components/EmptyStatusLabel.svelte";
   import LoadingSpinner from "$lib/components/LoadingSpinner.svelte";
   import { setupWebviewDragDrop } from "$lib/utils/dragDrop";
@@ -149,16 +150,21 @@
   }
 
 </script>
-<div class="h-full overflow-y-auto bg-gray-900 p-6 text-gray-100 scrollbar-thin">
+<div class="h-full min-h-0 flex flex-col overflow-hidden bg-gray-900 p-6 text-gray-100">
+  <WorkflowWorkspace>
+  {#snippet files()}
   <div class="glass-card p-5" class:ring-2={isDraggingOver} class:ring-teal-400={isDraggingOver}>
     <h3 class="mb-4 text-lg font-semibold text-teal-400 flex items-center gap-2">
       <svg aria-hidden="true" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4h16v12H4zM8 8h3m2 0h3M8 12h8m-4 4v5m-3-3 3 3 3-3" /></svg>
-      {t("extract.title")}
+      {t("common.filesAndOutput")}
     </h3>
     <PathPickerField labelIcon="M15 10l5-3v10l-5-3M4 5h9a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z" label={t("flashcards.mediaFile")} value={path} placeholder={t("extract.choose")}
       browseTitle={t("flashcards.browse")} browseLabel={t("flashcards.browse")} onbrowse={chooseMedia}
       disabled={busy || downloadingIndex !== null} onclear={() => { closePreview(); selections = {}; downloaded = []; previewTrack = null; path = ""; tracks = []; tracksScanned = false; error = ""; search = ""; page = 0; }} />
     <div class="mt-3"><PathPickerField label={t("flashcards.outputDir")} labelIcon="M3 7v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-6l-2-2H5a2 2 0 0 0-2 2Z" value={outputDir} placeholder={t("flashcards.outputDir")} browseTitle={t("flashcards.browse")} browseLabel={t("flashcards.browse")} onbrowse={chooseOutput} disabled={busy || downloadingIndex !== null} /></div>
+  </div>
+  {/snippet}
+  <div class="glass-card p-5">
     <div class="mt-3 flex min-h-5 items-center text-sm" role="status" aria-live="polite">
     {#if error || busy}
 
@@ -206,6 +212,7 @@
       {#if tracks.length > 0 && filtered.length === 0}<p class="mt-4 text-sm text-gray-400" role="status">{t("extract.noMatches")}</p>{/if}
 
   </div>
+  </WorkflowWorkspace>
 </div>
 
 {#if previewTrack}

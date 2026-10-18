@@ -1,4 +1,5 @@
 <script lang="ts">
+  import WorkflowWorkspace from "$lib/components/WorkflowWorkspace.svelte";
   import { RequirementFeedback } from "$lib/utils/requirementFeedback.svelte";
   const requirements = new RequirementFeedback<"files" | "model">();
   import { validatePickerPath } from "$lib/utils/pathValidation";
@@ -1108,11 +1109,11 @@
   {/snippet}
 
 
-  <div class="flex-1 overflow-hidden p-6 min-h-0 {isTranscribing ? 'pointer-events-none opacity-60 select-none' : ''}">
-    <div class="flex h-full min-h-0 flex-col gap-4">
-      <div class="shrink-0">{@render panelContent("files")}</div>
-      <div class="grid min-h-0 flex-1 grid-cols-1 gap-6 xl:grid-cols-2">
-        <div class="min-h-0 overflow-y-auto scrollbar-thin">
+  <div class="flex flex-col flex-1 overflow-hidden p-6 min-h-0 {isTranscribing ? 'pointer-events-none opacity-60 select-none' : ''}">
+    <WorkflowWorkspace>
+      {#snippet files()}{@render panelContent("files")}{/snippet}
+      <div class="grid grid-cols-1 items-start gap-6 xl:grid-cols-2">
+        <div class="min-w-0">
           {@render panelContent("options")}
           {#if uiMode.expertMode}
             <div class="glass-card p-5 mt-4 {requirements.classFor('model')}">
@@ -1163,11 +1164,9 @@
             </div>
           {/if}
         </div>
-        <div class="min-h-0 overflow-y-auto scrollbar-thin">
-          <TranscriptionSegmentsPanel segments={transcribedSegments} />
-        </div>
+        <div class="min-w-0"><TranscriptionSegmentsPanel segments={transcribedSegments} /></div>
       </div>
-    </div>
+    </WorkflowWorkspace>
   </div>
 
   <!-- Fixed Bottom Band with Action Buttons -->

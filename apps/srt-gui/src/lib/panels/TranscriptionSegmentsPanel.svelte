@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { tick } from "svelte";
   import { locale } from "$lib/i18n";
   import { formatSubtitleTime } from "$lib/utils/transcriptionPaths";
   let { segments } = $props<{ segments: { start_ms: number; end_ms: number; text: string }[] }>();
@@ -6,8 +7,9 @@
   let scrollContainer = $state<HTMLDivElement | null>(null);
   $effect(() => {
     if (segments.length && scrollContainer) {
-      if (scrollContainer.scrollHeight - scrollContainer.scrollTop - scrollContainer.clientHeight < 80) {
-        scrollContainer.scrollTop = scrollContainer.scrollHeight;
+      const scroll = scrollContainer.closest<HTMLElement>("[data-workflow-scroll]");
+      if (scroll && scroll.scrollHeight - scroll.scrollTop - scroll.clientHeight < 80) {
+        void tick().then(() => { if (scroll.isConnected) scroll.scrollTop = scroll.scrollHeight; });
       }
     }
   });
@@ -23,7 +25,7 @@
       {t("transcribe.livePhrasesHint")}
     </div>
   {:else}
-    <div bind:this={scrollContainer} class="space-y-2 max-h-[220px] overflow-y-auto pr-1 transcribe-scroll">
+    <div bind:this={scrollContainer} class="space-y-2 pr-1">
       {#each segments as segment}
         <div class="p-2.5 rounded-lg bg-white/[0.02] border border-white/5 flex gap-3 text-xs hover:bg-white/5 transition-colors">
           <span class="font-mono text-indigo-300 shrink-0 select-none">
