@@ -450,14 +450,32 @@ pub async fn flashcard_merge_apkg(
     Ok(result_path)
 }
 
-
 #[tauri::command]
 pub async fn flashcard_media_duration(app: AppHandle, path: String) -> Result<f64, String> {
     let ffprobe = resolve_ffprobe_path(Some(&app)).await;
     let output = tokio::process::Command::new(ffprobe)
-        .args(["-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", &path])
-        .output().await.map_err(|e| e.to_string())?;
-    if !output.status.success() { return Err(String::from_utf8_lossy(&output.stderr).into_owned()); }
-    let duration: f64 = String::from_utf8_lossy(&output.stdout).trim().parse().map_err(|_| "Invalid media duration")?;
-    if duration.is_finite() && duration > 0.0 { Ok(duration) } else { Err("Invalid media duration".into()) }
+        .args([
+            "-v",
+            "error",
+            "-show_entries",
+            "format=duration",
+            "-of",
+            "default=noprint_wrappers=1:nokey=1",
+            &path,
+        ])
+        .output()
+        .await
+        .map_err(|e| e.to_string())?;
+    if !output.status.success() {
+        return Err(String::from_utf8_lossy(&output.stderr).into_owned());
+    }
+    let duration: f64 = String::from_utf8_lossy(&output.stdout)
+        .trim()
+        .parse()
+        .map_err(|_| "Invalid media duration")?;
+    if duration.is_finite() && duration > 0.0 {
+        Ok(duration)
+    } else {
+        Err("Invalid media duration".into())
+    }
 }
