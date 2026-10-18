@@ -1,53 +1,32 @@
 <script lang="ts">
   import type { Snippet } from "svelte";
-  import { SETTINGS_PANEL_IDS, type PanelId } from "$lib/utils/flashcardLayout";
+  import WorkflowWorkspace from "$lib/components/WorkflowWorkspace.svelte";
+  import type { PanelId } from "$lib/utils/flashcardLayout";
   let { columns, easyMode, files, panel }: {
-    columns: 1 | 2 | 3;
-    easyMode: boolean;
-    files: Snippet;
-    panel: Snippet<[PanelId]>;
+    columns: 1 | 2 | 3; easyMode: boolean; files: Snippet; panel: Snippet<[PanelId]>;
   } = $props();
 </script>
 
-<div class="flex min-h-0 flex-1 flex-col gap-4" data-testid="flashcards-workspace">
-  <div class="shrink-0" data-testid="pinned-files">{@render files()}</div>
-  <div class="min-h-0 flex-1 overflow-y-auto overscroll-contain scrollbar-thin pr-2 pb-2" data-testid="settings-scroll">
-    <div class="panels-grid" data-columns={columns} data-easy={easyMode} role="list">
-      {#each SETTINGS_PANEL_IDS as id, index (id)}
-        {#if id !== "cardFilters" || !easyMode}
-          <div class="relative min-w-0 self-start" style:grid-area={id} style:z-index={40 - index * 5} role="listitem">
-            {@render panel(id)}
-          </div>
-        {/if}
-      {/each}
+<WorkflowWorkspace {files}>
+  <div class="panels-grid" data-columns={columns} data-easy={easyMode} role="list">
+    <div class="relative min-w-0 self-start z-40" role="listitem">{@render panel("audioClips")}</div>
+    <div class="secondary">
+      <div class="visuals">
+        <div class="relative min-w-0 z-30" role="listitem">{@render panel("snapshots")}</div>
+        <div class="relative min-w-0 z-20" role="listitem">{@render panel("videoClips")}</div>
+      </div>
+      {#if !easyMode}<div class="relative min-w-0 z-10" role="listitem">{@render panel("cardFilters")}</div>{/if}
     </div>
   </div>
-</div>
+</WorkflowWorkspace>
 
 <style>
-  .panels-grid {
-    display: grid;
-    gap: 1rem;
-    align-items: start;
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-areas: "audioClips" "snapshots" "videoClips" "cardFilters";
-  }
-  .panels-grid[data-columns="2"] {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    grid-template-areas: "audioClips snapshots" "audioClips videoClips" "audioClips cardFilters";
-    grid-template-rows: min-content min-content min-content;
-  }
-  .panels-grid[data-columns="3"] {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    grid-template-areas: "audioClips snapshots cardFilters" "audioClips videoClips cardFilters";
-    grid-template-rows: min-content min-content;
-  }
-  .panels-grid[data-columns="2"][data-easy="true"] {
-    grid-template-areas: "audioClips snapshots" "audioClips videoClips";
-    grid-template-rows: min-content min-content;
-  }
-  .panels-grid[data-columns="3"][data-easy="true"] {
-    grid-template-areas: "audioClips snapshots videoClips";
-    grid-template-rows: min-content;
-  }
+  .panels-grid { display: grid; gap: 1rem; align-items: start; grid-template-columns: minmax(0, 1fr); }
+  .secondary, .visuals { display: contents; min-width: 0; }
+  .panels-grid[data-columns="2"] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .panels-grid[data-columns="2"] .secondary,
+  .panels-grid[data-columns="2"] .visuals,
+  .panels-grid[data-columns="3"] .visuals { display: flex; flex-direction: column; gap: 1rem; }
+  .panels-grid[data-columns="3"] { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .panels-grid[data-columns="3"][data-easy="true"] .visuals { display: contents; }
 </style>
