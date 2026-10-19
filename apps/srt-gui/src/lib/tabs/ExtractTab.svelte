@@ -154,25 +154,28 @@
   <WorkflowWorkspace>
   {#snippet files()}
   <div class="glass-card p-5" class:ring-2={isDraggingOver} class:ring-teal-400={isDraggingOver}>
-    <h3 class="mb-4 text-lg font-semibold text-teal-400 flex items-center gap-2">
-      <svg aria-hidden="true" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4h16v12H4zM8 8h3m2 0h3M8 12h8m-4 4v5m-3-3 3 3 3-3" /></svg>
+    <h3 class="mb-4 text-lg font-semibold panel-title-files-output flex items-center gap-2">
+      <svg aria-hidden="true" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
       {t("common.filesAndOutput")}
     </h3>
+    <div class="grid grid-cols-1 gap-4 md:grid-cols-2 md:items-end">
     <PathPickerField labelIcon="M15 10l5-3v10l-5-3M4 5h9a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z" label={t("flashcards.mediaFile")} value={path} placeholder={t("extract.choose")}
       browseTitle={t("flashcards.browse")} browseLabel={t("flashcards.browse")} onbrowse={chooseMedia}
       disabled={busy || downloadingIndex !== null} onclear={() => { closePreview(); selections = {}; downloaded = []; previewTrack = null; path = ""; tracks = []; tracksScanned = false; error = ""; search = ""; page = 0; }} />
-    <div class="mt-3"><PathPickerField label={t("flashcards.outputDir")} labelIcon="M3 7v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-6l-2-2H5a2 2 0 0 0-2 2Z" value={outputDir} placeholder={t("flashcards.outputDir")} browseTitle={t("flashcards.browse")} browseLabel={t("flashcards.browse")} onbrowse={chooseOutput} disabled={busy || downloadingIndex !== null} /></div>
+    <PathPickerField label={t("flashcards.outputDir")} labelIcon="M3 7v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-6l-2-2H5a2 2 0 0 0-2 2Z" value={outputDir} placeholder={t("flashcards.outputDir")} browseTitle={t("flashcards.browse")} browseLabel={t("flashcards.browse")} onbrowse={chooseOutput} disabled={busy || downloadingIndex !== null} />
+    </div>
   </div>
   {/snippet}
   <div class="glass-card p-5">
-    <div class="mt-3 flex min-h-5 items-center text-sm" role="status" aria-live="polite">
+    <div role="status" aria-live="polite">
     {#if error || busy}
-
+      <div class="mb-3 flex min-h-5 items-center text-sm">
       {#if error}<span class="text-red-300">{error}</span>
       {:else if busy}<span class="inline-flex" aria-label={t("extract.working")}><LoadingSpinner /></span>{/if}
+      </div>
     {/if}
     </div>
-      <div class="mt-4 flex flex-wrap items-center justify-between gap-3">
+      <div class="flex flex-wrap items-center justify-between gap-3">
         <div class="relative w-full sm:w-80">
           <svg aria-hidden="true" class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="10.5" cy="10.5" r="6.5" /><path d="m16 16 4 4" /></svg>
         <input disabled={busy || tracks.length === 0} type="search" value={search} oninput={(event) => { search = event.currentTarget.value; page = 0; }} aria-label={t("extract.search")} placeholder={t("extract.search")} class="w-full rounded-lg border border-white/10 bg-black/30 pl-10 pr-4 py-2.5 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 disabled:opacity-50" />

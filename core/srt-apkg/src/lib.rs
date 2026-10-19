@@ -40,41 +40,79 @@ fn is_media_extension(ext: &str) -> bool {
 /// Extract the ZIP archive at `zip_path` into `dest_dir`.
 ///
 /// Existing files in `dest_dir` are overwritten. Subdirectories found inside
-/// the archive are created as needed.
+/// the archive are created as needed. Existing symlinks inside the destination
+/// are rejected. Files are replaced rather than truncated through hard links.
+/// The caller must exclusively own the destination during extraction: this is
+/// not a sandbox against another process concurrently replacing directories.
 pub fn unzip_to(zip_path: &Path, dest_dir: &Path) -> Result<(), String> {
     let file = fs::File::open(zip_path).map_err(|e| format!("Cannot open ZIP archive: {e}"))?;
     let reader = BufReader::with_capacity(128 * 1024, file);
     let mut archive =
         zip::ZipArchive::new(reader).map_err(|e| format!("Invalid ZIP archive: {e}"))?;
+    ensure_directory(dest_dir)?;
+    let root = fs::canonicalize(dest_dir).map_err(|error| error.to_string())?;
 
     for i in 0..archive.len() {
         let mut entry = archive
             .by_index(i)
             .map_err(|e| format!("ZIP index error: {e}"))?;
-        let outpath = match entry.enclosed_name() {
-            Some(path) => dest_dir.join(path),
+        let relative = match entry.enclosed_name() {
+            Some(path) => path,
             None => continue,
         };
+        let outpath = root.join(&relative);
+        let directories = if entry.name().ends_with('/') {
+            relative.as_path()
+        } else {
+            relative.parent().unwrap_or(Path::new(""))
+        };
+        let mut parent = root.clone();
+        for component in directories.components() {
+            parent.push(component);
+            ensure_directory(&parent)?;
+        }
 
         if entry.name().ends_with('/') {
-            fs::create_dir_all(&outpath).map_err(|e| e.to_string())?;
+            continue;
         } else {
-            if let Some(parent) = outpath.parent()
-                && !parent.exists()
-            {
-                fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+            match fs::symlink_metadata(&outpath) {
+                Ok(metadata) if !metadata.is_file() || metadata.file_type().is_symlink() => {
+                    return Err(format!(
+                        "Unsafe extraction destination: {}",
+                        outpath.display()
+                    ));
+                }
+                Err(error) if error.kind() != io::ErrorKind::NotFound => {
+                    return Err(error.to_string());
+                }
+                _ => {}
             }
-            let outfile = fs::File::create(&outpath)
+            let mut outfile = tempfile::NamedTempFile::new_in(&parent)
                 .map_err(|e| format!("Cannot create extracted file: {e}"))?;
-            let mut writer = BufWriter::with_capacity(128 * 1024, outfile);
+            let mut writer = BufWriter::with_capacity(128 * 1024, outfile.as_file_mut());
             io::copy(&mut entry, &mut writer)
                 .map_err(|e| format!("Error writing extracted file: {e}"))?;
             writer
                 .flush()
                 .map_err(|e| format!("Error flushing extracted file: {e}"))?;
+            drop(writer);
+            outfile
+                .persist(&outpath)
+                .map_err(|error| format!("Cannot publish extracted file: {error}"))?;
         }
     }
     Ok(())
+}
+
+fn ensure_directory(path: &Path) -> Result<(), String> {
+    match fs::symlink_metadata(path) {
+        Ok(metadata) if metadata.is_dir() && !metadata.file_type().is_symlink() => Ok(()),
+        Ok(_) => Err(format!("Unsafe extraction directory: {}", path.display())),
+        Err(error) if error.kind() == io::ErrorKind::NotFound => {
+            fs::create_dir_all(path).map_err(|error| error.to_string())
+        }
+        Err(error) => Err(error.to_string()),
+    }
 }
 
 /// Create a ZIP archive at `zip_path` containing every *file* (non-recursive)
@@ -219,6 +257,56 @@ mod tests {
 #[cfg(test)]
 mod regression_tests {
     use super::*;
+
+    fn archive_with_file(path: &Path, name: &str) {
+        let mut zip = zip::ZipWriter::new(fs::File::create(path).unwrap());
+        zip.start_file(name, zip::write::SimpleFileOptions::default())
+            .unwrap();
+        zip.write_all(b"new contents").unwrap();
+        zip.finish().unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn extraction_rejects_existing_file_and_directory_symlinks() {
+        use std::os::unix::fs::symlink;
+        let work = tempfile::tempdir().unwrap();
+        let outside = work.path().join("outside");
+        fs::create_dir(&outside).unwrap();
+        let original = outside.join("sentinel");
+        fs::write(&original, b"original").unwrap();
+        let dest = work.path().join("dest");
+        fs::create_dir(&dest).unwrap();
+        let archive = work.path().join("input.zip");
+        symlink(&outside, dest.join("linked")).unwrap();
+        archive_with_file(&archive, "linked/sentinel");
+        assert!(unzip_to(&archive, &dest).is_err());
+        symlink(&original, dest.join("file")).unwrap();
+        archive_with_file(&archive, "file");
+        assert!(unzip_to(&archive, &dest).is_err());
+        assert_eq!(fs::read(&original).unwrap(), b"original");
+    }
+
+    #[test]
+    fn extraction_replaces_hard_links_and_creates_nested_directories() {
+        let work = tempfile::tempdir().unwrap();
+        let original = work.path().join("original");
+        fs::write(&original, b"original").unwrap();
+        let dest = work.path().join("dest");
+        fs::create_dir(&dest).unwrap();
+        fs::hard_link(&original, dest.join("linked")).unwrap();
+        let archive = work.path().join("input.zip");
+        archive_with_file(&archive, "linked");
+        unzip_to(&archive, &dest).unwrap();
+        assert_eq!(fs::read(&original).unwrap(), b"original");
+        assert_eq!(fs::read(dest.join("linked")).unwrap(), b"new contents");
+        archive_with_file(&archive, "nested/folder/file");
+        unzip_to(&archive, &dest).unwrap();
+        assert_eq!(
+            fs::read(dest.join("nested/folder/file")).unwrap(),
+            b"new contents"
+        );
+    }
 
     #[test]
     fn archives_in_the_source_directory_do_not_include_themselves() {

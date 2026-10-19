@@ -55,6 +55,7 @@
   "common.clickToCopyPath": "Click to copy path",
   "common.close": "Close",
   "common.copy": "Copy",
+  "common.copied": "Copied to clipboard",
   "common.cut": "Cut",
   "common.delete": "Delete",
   "common.done": "Done",
@@ -1256,8 +1257,8 @@
   "vad.webrtcDescription": "Lightweight, built in and requires no download. Less reliable than Silero for speech in noise.",
   "vad.builtIn": "Built in",
   "matching.singleFile": "No automatic association was recorded.",
-  "vad.fastLight": "FAST - LIGHT",
-  "vad.accurateHeavy": "ACCURATE - HEAVY",
+  "vad.fastLight": "Fast - Light",
+  "vad.accurateHeavy": "Accurate - Heavy",
   "vad.fastExpert": "Fast - WebRTC",
   "vad.accurateExpert": "Accurate - Silero VAD",
   "tiers.addProvider": "Add provider"

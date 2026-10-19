@@ -99,6 +99,10 @@ impl TierScheduler {
 }
 
 pub fn is_rate_limit_error(error: &anyhow::Error) -> bool {
+    if let Some(provider) = error.downcast_ref::<crate::ProviderError>() {
+        return provider.kind == crate::ProviderFailureKind::RateLimit;
+    }
+    // Preserve compatibility with errors from legacy/custom integrations.
     let s = error.to_string().to_lowercase();
     s.contains("429")
         || s.contains("rate limit")
@@ -113,4 +117,28 @@ pub fn is_rate_limit_error(error: &anyhow::Error) -> bool {
 
 pub fn pool_concurrency(pool: &TranslatorPool) -> usize {
     pool.iter().map(|t| t.len()).max().unwrap_or(1).clamp(1, 16)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn provider_categories_survive_context_without_parsing_messages() {
+        for (kind, expected) in [
+            (crate::ProviderFailureKind::RateLimit, true),
+            (crate::ProviderFailureKind::Authentication, false),
+        ] {
+            let error = anyhow::Error::new(crate::ProviderError {
+                provider: "test",
+                status: 403,
+                kind,
+            })
+            .context("request failed");
+            assert_eq!(is_rate_limit_error(&error), expected);
+        }
+        assert!(is_rate_limit_error(&anyhow::anyhow!(
+            "legacy quota exhausted"
+        )));
+    }
 }

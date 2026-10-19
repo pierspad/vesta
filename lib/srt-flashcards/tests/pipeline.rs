@@ -1,5 +1,40 @@
 use srt_flashcards::{FlashcardConfig, build_matched_lines, load_sub_file_info, preview};
 
+#[test]
+fn overflowing_time_shifts_are_errors_in_both_tracks() {
+    let folder = tempfile::tempdir().unwrap();
+    let path = folder.path().join("input.srt");
+    std::fs::write(&path, "1\n00:00:01,000 --> 00:00:02,000\nHello\n").unwrap();
+    let path = path.to_string_lossy().into_owned();
+    let mut settings = FlashcardConfig {
+        target_subs_path: path.clone(),
+        native_subs_path: Some(path),
+        time_shift_target_ms: i64::MAX,
+        ..Default::default()
+    };
+    assert!(
+        build_matched_lines(&settings)
+            .unwrap_err()
+            .contains("overflows")
+    );
+    settings.time_shift_target_ms = 0;
+    settings.time_shift_native_ms = i64::MAX;
+    assert!(
+        build_matched_lines(&settings)
+            .unwrap_err()
+            .contains("overflows")
+    );
+    settings.time_shift_native_ms = -500;
+    assert_eq!(
+        build_matched_lines(&settings).unwrap()[0]
+            .subs2
+            .as_ref()
+            .unwrap()
+            .start_ms,
+        500
+    );
+}
+
 fn test_subs_dir() -> std::path::PathBuf {
     std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("..")

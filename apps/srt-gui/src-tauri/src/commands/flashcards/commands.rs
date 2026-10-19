@@ -90,12 +90,9 @@ pub async fn flashcard_preview_audio(
     let norm = normalize.unwrap_or(true);
     let gain = gain_db.unwrap_or_else(|| if boost.unwrap_or(false) { 6 } else { 0 });
 
-    let temp_dir = std::env::temp_dir();
-    let out_file = temp_dir.join(format!(
-        "vesta_audio_preview_{}.{}",
-        std::process::id(),
-        audio_format.extension()
-    ));
+    let out_file = app
+        .state::<super::preview::PreviewWorkspace>()
+        .allocate(audio_format.extension())?;
 
     let ffmpeg = resolve_ffmpeg_path(Some(&app)).await;
 
@@ -116,7 +113,8 @@ pub async fn flashcard_preview_audio(
     .await
     .map_err(|e| e.to_string())?;
 
-    Ok(out_file.to_string_lossy().into_owned())
+    let path = out_file.keep().map_err(|error| error.to_string())?;
+    Ok(path.to_string_lossy().into_owned())
 }
 
 #[tauri::command]
@@ -125,15 +123,17 @@ pub async fn flashcard_preview_snapshot(
     media_path: String,
     time_ms: i64,
 ) -> Result<String, String> {
-    let temp_dir = std::env::temp_dir();
-    let out_file = temp_dir.join(format!("vesta_snap_preview_{}.jpg", std::process::id()));
+    let out_file = app
+        .state::<super::preview::PreviewWorkspace>()
+        .allocate("jpg")?;
     let ffmpeg = resolve_ffmpeg_path(Some(&app)).await;
 
     srt_flashcards::extract_preview_snapshot(&media_path, &out_file, time_ms, &ffmpeg)
         .await
         .map_err(|e| e.to_string())?;
 
-    Ok(out_file.to_string_lossy().into_owned())
+    let path = out_file.keep().map_err(|error| error.to_string())?;
+    Ok(path.to_string_lossy().into_owned())
 }
 
 #[tauri::command]

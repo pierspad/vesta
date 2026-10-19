@@ -222,7 +222,7 @@
 
   async function handleCopy() {
     try {
-      if (!await writeClipboard(value || "", t("settings.keyCopied"))) return;
+      if (!await writeClipboard(value || "", t("common.copied"))) return;
       copied = true;
       if (copyTimeout) clearTimeout(copyTimeout);
       copyTimeout = setTimeout(() => {

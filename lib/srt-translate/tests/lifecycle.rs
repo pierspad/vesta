@@ -94,6 +94,84 @@ async fn tiered(
 }
 
 #[tokio::test]
+async fn request_budget_is_shared_with_repair_and_exhausted_entries_stay_exhausted() {
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let url = format!("http://{}/v1", listener.local_addr().unwrap());
+    let requests = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    let observed = requests.clone();
+    let server = tokio::spawn(async move {
+        let (mut stream, _) = tokio::time::timeout(Duration::from_secs(3), listener.accept())
+            .await
+            .expect("unexpected request after provider budget was exhausted")
+            .unwrap();
+        observed.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        let mut bytes = [0u8; 8192];
+        assert!(stream.read(&mut bytes).await.unwrap() > 0);
+        let content = serde_json::json!([{ "id": 1, "text": "Ciao" }]).to_string();
+        let body =
+            serde_json::json!({"choices":[{"message":{"role":"assistant","content":content}}]})
+                .to_string();
+        stream
+            .write_all(
+                format!(
+                    "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                    body.len()
+                )
+                .as_bytes(),
+            )
+            .await
+            .unwrap();
+        // Keep accepting briefly so a reset scheduler fails the test by count too.
+        if let Ok(Ok((mut extra, _))) =
+            tokio::time::timeout(Duration::from_millis(500), listener.accept()).await
+        {
+            observed.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            let _ = extra.read(&mut bytes).await;
+        }
+    });
+
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("output.srt");
+    let mut subtitles = source();
+    subtitles.insert(
+        2,
+        Subtitle {
+            id: 2,
+            start: Timestamp { milliseconds: 3000 },
+            end: Timestamp { milliseconds: 4000 },
+            text: "World".into(),
+        },
+    );
+    let pool = vec![vec![PoolEntry {
+        translator: translator(url),
+        rate_limiter: None,
+        max_requests: Some(1),
+        label: "one-request provider".into(),
+    }]];
+
+    let result = srt_translate::translate_subtitles_tiered_cancellable(
+        pool,
+        subtitles,
+        "it",
+        1,
+        0,
+        None,
+        &path,
+        |_| {},
+        CancellationToken::new(),
+    )
+    .await
+    .unwrap();
+    server.await.unwrap();
+    assert_eq!(requests.load(std::sync::atomic::Ordering::SeqCst), 1);
+    assert_eq!(result.get(&1).unwrap().text, "Ciao");
+    assert!(
+        !result.contains_key(&2),
+        "repair must not bypass exhausted request budget"
+    );
+}
+
+#[tokio::test]
 async fn zero_batch_and_empty_endpoint_or_limiter_lists_are_errors() {
     let directory = tempfile::tempdir().unwrap();
     let path = directory.path().join("output.srt");

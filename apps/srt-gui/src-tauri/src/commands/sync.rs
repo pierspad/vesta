@@ -48,7 +48,7 @@ pub fn sync_load_srt(state: State<'_, AppSyncState>, path: String) -> Result<Syn
     let engine = SyncEngine::new(&path).map_err(|e| format!("Errore caricamento SRT: {}", e))?;
 
     let status = get_status_from_engine(&engine);
-    sync_state.engine = Some(engine);
+    sync_state.replace_engine(Some(engine))?;
 
     Ok(status)
 }
@@ -58,12 +58,12 @@ pub fn sync_load_srt(state: State<'_, AppSyncState>, path: String) -> Result<Syn
 pub fn sync_set_video(state: State<'_, AppSyncState>, path: String) -> Result<SyncStatus, String> {
     let mut sync_state = state.lock().map_err(|e| e.to_string())?;
 
+    sync_state.set_video_path(&path)?;
+
     let engine = sync_state
         .engine
         .as_mut()
         .ok_or("Nessun file SRT caricato")?;
-
-    engine.set_video_path(&path);
 
     Ok(get_status_from_engine(engine))
 }
@@ -365,7 +365,7 @@ pub fn sync_load_session(
         .map_err(|e| format!("Errore caricamento sessione: {}", e))?;
 
     let status = get_status_from_engine(&engine);
-    sync_state.engine = Some(engine);
+    sync_state.replace_engine(Some(engine))?;
 
     Ok(status)
 }
@@ -375,7 +375,7 @@ pub fn sync_load_session(
 pub fn sync_reset(state: State<'_, AppSyncState>) -> Result<SyncStatus, String> {
     let mut sync_state = state.lock().map_err(|e| e.to_string())?;
 
-    sync_state.engine = None;
+    sync_state.replace_engine(None)?;
 
     Ok(SyncStatus {
         is_loaded: false,

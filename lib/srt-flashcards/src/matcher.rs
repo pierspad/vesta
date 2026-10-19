@@ -3,17 +3,28 @@ use super::types::*;
 pub(crate) fn get_overlap(a_start: i64, a_end: i64, b_start: i64, b_end: i64) -> i64 {
     let overlap_start = a_start.max(b_start);
     let overlap_end = a_end.min(b_end);
-    (overlap_end - overlap_start).max(0)
+    overlap_end.saturating_sub(overlap_start).max(0)
 }
 
 pub(crate) fn match_subtitles(subs1: &[SubEntry], subs2: &[SubEntry]) -> Vec<MatchedLine> {
     let mut matched: Vec<MatchedLine> = Vec::with_capacity(subs1.len());
 
+    // Inputs are sorted by start time. End times need not be monotonic, so
+    // partitioning the cue slice by end_ms can skip long cues that began early.
+    // Prefix maxima let us binary-search the earliest cue that could overlap.
+    let mut prefix_max_end = Vec::with_capacity(subs2.len());
+    let mut maximum = i64::MIN;
+    for cue in subs2 {
+        maximum = maximum.max(cue.end_ms);
+        prefix_max_end.push(maximum);
+    }
+
     for (i, s1) in subs1.iter().enumerate() {
         let mut best_match: Option<&SubEntry> = None;
         let mut best_overlap: i64 = 0;
 
-        let search_start = subs2.partition_point(|s2| s2.end_ms < s1.start_ms.saturating_sub(5000));
+        let earliest = s1.start_ms.saturating_sub(5000);
+        let search_start = prefix_max_end.partition_point(|end| *end < earliest);
 
         for s2 in &subs2[search_start..] {
             let overlap = get_overlap(s1.start_ms, s1.end_ms, s2.start_ms, s2.end_ms);
@@ -22,7 +33,7 @@ pub(crate) fn match_subtitles(subs1: &[SubEntry], subs2: &[SubEntry]) -> Vec<Mat
                 best_match = Some(s2);
             }
 
-            if s2.start_ms > s1.end_ms + 5000 {
+            if s2.start_ms > s1.end_ms.saturating_add(5000) {
                 break;
             }
         }
@@ -60,7 +71,7 @@ pub(crate) fn combine_consecutive_repeats(matched: &mut Vec<MatchedLine>) {
             matched[write_idx].subs1.text.reserve(1 + next_text.len());
             matched[write_idx].subs1.text.push(' ');
             matched[write_idx].subs1.text.push_str(&next_text);
-            matched[write_idx].subs1.end_ms = next_end;
+            matched[write_idx].subs1.end_ms = matched[write_idx].subs1.end_ms.max(next_end);
         } else {
             write_idx += 1;
             if write_idx != read_idx {
@@ -94,6 +105,10 @@ mod tests {
 
     #[test]
     fn test_get_overlap() {
+        assert_eq!(
+            get_overlap(i64::MIN, i64::MIN + 1, i64::MAX - 1, i64::MAX),
+            0
+        );
         // Disjoint
         assert_eq!(get_overlap(1000, 2000, 3000, 4000), 0);
         assert_eq!(get_overlap(3000, 4000, 1000, 2000), 0);
@@ -108,6 +123,16 @@ mod tests {
     }
 
     #[test]
+    fn combining_nested_target_cues_preserves_the_outer_end() {
+        let left = [sub(1, 0, 20_000, "outer"), sub(2, 1_000, 2_000, "inner")];
+        let right = [sub(10, 0, 20_000, "translation")];
+        let matched = match_subtitles(&left, &right);
+        assert_eq!(matched.len(), 1);
+        assert_eq!(matched[0].subs1.end_ms, 20_000);
+        assert_eq!(matched[0].subs1.text, "outer inner");
+    }
+
+    #[test]
     fn test_match_subtitles_basic() {
         let s1 = vec![sub(1, 1000, 3000, "Hello"), sub(2, 4000, 6000, "World")];
         let s2 = vec![sub(10, 1050, 2950, "Ciao"), sub(20, 3950, 6050, "Mondo")];
@@ -118,6 +143,55 @@ mod tests {
         assert_eq!(matched[0].subs2.as_ref().unwrap().text, "Ciao");
         assert_eq!(matched[1].subs1.text, "World");
         assert_eq!(matched[1].subs2.as_ref().unwrap().text, "Mondo");
+    }
+
+    #[test]
+    fn long_earlier_cue_is_not_skipped_by_nonmonotonic_end_times() {
+        let left = vec![sub(1, 10_000, 11_000, "left")];
+        let right = vec![sub(10, 0, 20_000, "long"), sub(11, 1_000, 2_000, "short")];
+        let matched = match_subtitles(&left, &right);
+        assert_eq!(matched[0].subs2.as_ref().map(|cue| cue.id), Some(10));
+    }
+
+    #[test]
+    fn matcher_matches_brute_force_reference_for_nested_cues() {
+        let left = vec![sub(1, 8_000, 9_000, "a"), sub(2, 40_000, 41_000, "b")];
+        let right = vec![
+            sub(10, 0, 30_000, "nested-long"),
+            sub(11, 1_000, 2_000, "short"),
+            sub(12, 7_500, 8_500, "overlap"),
+            sub(13, 38_000, 42_000, "later"),
+        ];
+        let actual = match_subtitles(&left, &right);
+        for (i, cue) in left.iter().enumerate() {
+            let expected = right
+                .iter()
+                .filter(|candidate| {
+                    candidate.start_ms <= cue.end_ms.saturating_add(5000)
+                        && candidate.end_ms >= cue.start_ms.saturating_sub(5000)
+                })
+                .map(|candidate| {
+                    (
+                        candidate,
+                        get_overlap(
+                            cue.start_ms,
+                            cue.end_ms,
+                            candidate.start_ms,
+                            candidate.end_ms,
+                        ),
+                    )
+                })
+                .filter(|(_, overlap)| *overlap > 0)
+                .fold(None, |best, (candidate, overlap)| match best {
+                    Some((_, best_overlap)) if best_overlap >= overlap => best,
+                    _ => Some((candidate.id, overlap)),
+                })
+                .map(|(candidate_id, _)| candidate_id);
+            assert_eq!(
+                actual[i].subs2.as_ref().map(|candidate| candidate.id),
+                expected
+            );
+        }
     }
 
     #[test]

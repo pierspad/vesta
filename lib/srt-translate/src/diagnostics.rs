@@ -1,5 +1,18 @@
 use serde::Serialize;
 
+/// A cooperative cancellation, distinct from provider and persistence failures.
+/// Downcast an `anyhow::Error` to this type instead of matching its message.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct TranslationCancelled;
+
+impl std::fmt::Display for TranslationCancelled {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("Translation cancelled by user")
+    }
+}
+
+impl std::error::Error for TranslationCancelled {}
+
 /// Safe provider failure categories; bodies, prompts and credentials are excluded.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]

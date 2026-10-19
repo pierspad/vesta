@@ -187,12 +187,7 @@ async fn perform_translation(
     config: TranslateConfig,
     cancellation_token: CancellationToken,
 ) -> Result<TranslateResult, String> {
-    // Carica i sottotitoli
-    let mut subtitles = SrtParser::parse_file(&config.input_path)
-        .map_err(|e| format!("Errore caricamento SRT: {}", e))?;
-
-    // Normalizza: riempi buchi nella numerazione con "[...]"
-    SrtParser::normalize_subtitles(&mut subtitles);
+    let subtitles = load_translation_source(&config.input_path, &config.output_path)?;
 
     let total_count = subtitles.len();
     let coverage_end = subtitles
@@ -264,8 +259,7 @@ async fn perform_translation(
     let translated: std::collections::HashMap<u32, srt_parser::Subtitle> = match translated {
         Ok(t) => t,
         Err(e) => {
-            let error_str = e.to_string();
-            if error_str.contains("cancelled") || error_str.contains("annullat") {
+            if e.is::<srt_translate::TranslationCancelled>() {
                 let _ = app.emit(
                     "translate-complete",
                     TranslateResult {
@@ -312,6 +306,20 @@ async fn perform_translation(
         output_path: success.then_some(config.output_path),
         translated_count: translated.len(),
     })
+}
+
+fn load_translation_source(
+    input: &str,
+    output: &str,
+) -> Result<std::collections::HashMap<u32, srt_parser::Subtitle>, String> {
+    srt_parser::persistence::ensure_distinct_files(
+        std::path::Path::new(input),
+        std::path::Path::new(output),
+    )
+    .map_err(|error| error.to_string())?;
+    let mut subtitles = SrtParser::parse_file(input).map_err(|error| error.to_string())?;
+    SrtParser::normalize_subtitles(&mut subtitles);
+    Ok(subtitles)
 }
 
 #[tauri::command]
@@ -388,6 +396,28 @@ pub async fn get_latest_translated_subtitles(
 #[cfg(test)]
 mod context_tests {
     use super::subtitle_context;
+    #[test]
+    fn translation_rejects_source_aliases_before_resume() {
+        let folder = tempfile::tempdir().unwrap();
+        let input = folder.path().join("input.srt");
+        let contents = "1\n00:00:01,000 --> 00:00:02,000\nHello\n";
+        std::fs::write(&input, contents).unwrap();
+        let load = |output: &std::path::Path| {
+            super::load_translation_source(input.to_str().unwrap(), output.to_str().unwrap())
+        };
+        assert!(load(&input).is_err());
+        let hard = folder.path().join("hard.srt");
+        std::fs::hard_link(&input, &hard).unwrap();
+        assert!(load(&hard).is_err());
+        #[cfg(unix)]
+        {
+            let link = folder.path().join("link.srt");
+            std::os::unix::fs::symlink(&input, &link).unwrap();
+            assert!(load(&link).is_err());
+        }
+        assert_eq!(load(&folder.path().join("output.srt")).unwrap().len(), 1);
+        assert_eq!(std::fs::read_to_string(&input).unwrap(), contents);
+    }
     #[tokio::test]
     async fn source_preview_is_bounded_and_does_not_modify_the_input() {
         let folder = tempfile::tempdir().unwrap();

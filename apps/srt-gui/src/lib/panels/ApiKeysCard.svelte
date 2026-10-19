@@ -36,7 +36,7 @@
   }
 
   function copyApiKey(key: string) {
-    void writeClipboard(key);
+    void writeClipboard(key, t("settings.keyCopied"));
   }
 
   function maskApiKey(key: string): string {

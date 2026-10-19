@@ -109,7 +109,8 @@ pub(crate) fn parse_ass(content: &str) -> Result<Vec<SubEntry>> {
     let mut text_col = None;
     let mut id_counter: u32 = 1;
 
-    for line in content.lines() {
+    for (line_number, line) in content.lines().enumerate() {
+        let line_number = line_number + 1;
         let line = line.trim();
 
         if line.eq_ignore_ascii_case("[Events]") {
@@ -185,8 +186,14 @@ pub(crate) fn parse_ass(content: &str) -> Result<Vec<SubEntry>> {
                 continue;
             }
 
-            let start_ms = parse_ass_timestamp(&start_str).unwrap_or(0);
-            let end_ms = parse_ass_timestamp(&end_str).unwrap_or(0);
+            let start_ms = parse_ass_timestamp(&start_str)
+                .with_context(|| format!("Invalid ASS start timestamp on line {line_number}"))?;
+            let end_ms = parse_ass_timestamp(&end_str)
+                .with_context(|| format!("Invalid ASS end timestamp on line {line_number}"))?;
+            anyhow::ensure!(
+                end_ms >= start_ms,
+                "ASS end timestamp precedes start on line {line_number}"
+            );
 
             entries.push(SubEntry {
                 id: id_counter,
@@ -208,11 +215,27 @@ pub(crate) fn parse_ass(content: &str) -> Result<Vec<SubEntry>> {
 pub(crate) fn parse_ass_timestamp(s: &str) -> Result<i64> {
     // Format: H:MM:SS.CC (centiseconds)
     let mut parts = s.split([':', '.']);
-    let h: i64 = parts.next().and_then(|p| p.parse().ok()).unwrap_or(0);
-    let m: i64 = parts.next().and_then(|p| p.parse().ok()).unwrap_or(0);
-    let sec: i64 = parts.next().and_then(|p| p.parse().ok()).unwrap_or(0);
-    let cs: i64 = parts.next().and_then(|p| p.parse().ok()).unwrap_or(0);
-    Ok(h * 3_600_000 + m * 60_000 + sec * 1000 + cs * 10)
+    let parse = |part: Option<&str>| -> Result<i64> {
+        part.context("Missing ASS timestamp component")?
+            .parse::<i64>()
+            .context("Invalid ASS timestamp component")
+    };
+    let (h, m, sec, cs) = (
+        parse(parts.next())?,
+        parse(parts.next())?,
+        parse(parts.next())?,
+        parse(parts.next())?,
+    );
+    anyhow::ensure!(parts.next().is_none(), "Too many ASS timestamp components");
+    anyhow::ensure!(
+        h >= 0 && (0..60).contains(&m) && (0..60).contains(&sec) && (0..100).contains(&cs),
+        "ASS timestamp component out of range"
+    );
+    h.checked_mul(3_600_000)
+        .and_then(|value| m.checked_mul(60_000).and_then(|m| value.checked_add(m)))
+        .and_then(|value| sec.checked_mul(1000).and_then(|s| value.checked_add(s)))
+        .and_then(|value| cs.checked_mul(10).and_then(|c| value.checked_add(c)))
+        .context("ASS timestamp is too large")
 }
 
 pub(crate) fn strip_ass_tags(text: &str) -> String {
@@ -433,6 +456,42 @@ Dialogue: 0,0:00:05.00,0:00:08.50,Default,Actor2,0,0,0,,I'm good, thanks, really
         // Commas in dialogue text must not be truncated
         assert_eq!(entries[1].text, "I'm good, thanks, really!");
         assert_eq!(entries[1].actor.as_deref(), Some("Actor2"));
+    }
+
+    #[test]
+    fn malformed_ass_timestamps_skip_only_the_bad_dialogue() {
+        let content = "[Events]\nFormat: Start, End, Text\nDialogue: nope,0:00:02.00,Bad start\nDialogue: 0:00:02.00,0:00:60.00,Bad end\nDialogue: 0:00:03.00,0:00:04.00,Good cue\n";
+        let error = parse_ass(content).unwrap_err();
+        assert!(error.to_string().contains("line 3"));
+        assert!(error.to_string().contains("Invalid ASS start timestamp"));
+    }
+
+    #[test]
+    fn ass_timestamp_rejects_invalid_components_and_overflow() {
+        for invalid in [
+            "",
+            "0:00:01",
+            "x:00:01.00",
+            "0:60:00.00",
+            "0:00:60.00",
+            "0:00:01.100",
+            "9223372036854775807:00:00.00",
+        ] {
+            assert!(
+                parse_ass_timestamp(invalid).is_err(),
+                "accepted {invalid:?}"
+            );
+        }
+        assert_eq!(parse_ass_timestamp("1:02:03.45").unwrap(), 3_723_450);
+    }
+
+    #[test]
+    fn ass_reversed_timeline_is_reported_with_line_number() {
+        let content =
+            "[Events]\nFormat: Start, End, Text\nDialogue: 0:00:04.00,0:00:03.00,Reversed\n";
+        let error = parse_ass(content).unwrap_err();
+        assert!(error.to_string().contains("line 3"));
+        assert!(error.to_string().contains("precedes start"));
     }
 
     #[test]

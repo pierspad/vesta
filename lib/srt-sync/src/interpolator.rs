@@ -31,8 +31,9 @@ impl AnchorPoint {
         }
     }
 
+    /// Offset in milliseconds, saturated when the difference exceeds `i64`.
     pub fn offset(&self) -> i64 {
-        self.corrected_time_ms - self.original_time_ms
+        self.corrected_time_ms.saturating_sub(self.original_time_ms)
     }
 }
 
@@ -98,7 +99,7 @@ impl TimeMapper {
 
             if manual_original_times
                 .iter()
-                .any(|m| (anchor.original_time_ms - *m).abs() <= MANUAL_EXCLUSION_WINDOW_MS)
+                .any(|m| anchor.original_time_ms.abs_diff(*m) <= MANUAL_EXCLUSION_WINDOW_MS as u64)
             {
                 return false;
             }
@@ -183,8 +184,9 @@ impl TimeMapper {
         }
     }
 
+    /// Apply the interpolated offset, saturating at the signed timestamp bounds.
     pub fn map_time(&self, original_time_ms: i64) -> i64 {
-        original_time_ms + self.calculate_offset(original_time_ms)
+        original_time_ms.saturating_add(self.calculate_offset(original_time_ms))
     }
 
     fn interpolate_offset(&self, original_time_ms: i64) -> i64 {
@@ -206,12 +208,15 @@ impl TimeMapper {
         let anchor_before = &self.anchors[idx - 1];
         let anchor_after = &self.anchors[idx];
 
-        let span = (anchor_after.original_time_ms - anchor_before.original_time_ms) as f64;
+        let span = (i128::from(anchor_after.original_time_ms)
+            - i128::from(anchor_before.original_time_ms)) as f64;
         if span <= 0.0 {
             return anchor_before.offset();
         }
 
-        let t = (original_time_ms - anchor_before.original_time_ms) as f64 / span;
+        let elapsed =
+            (i128::from(original_time_ms) - i128::from(anchor_before.original_time_ms)) as f64;
+        let t = elapsed / span;
         let offset_before = anchor_before.offset() as f64;
         let offset_after = anchor_after.offset() as f64;
 
@@ -226,11 +231,13 @@ impl TimeMapper {
         let idx = self
             .anchors
             .partition_point(|a| a.original_time_ms < original_time_ms);
-        let mut min_distance = (self.anchors[idx.min(self.anchors.len() - 1)].original_time_ms
-            - original_time_ms)
-            .abs();
+        let mut min_distance = self.anchors[idx.min(self.anchors.len() - 1)]
+            .original_time_ms
+            .abs_diff(original_time_ms);
         if idx > 0 {
-            let prev_dist = (self.anchors[idx - 1].original_time_ms - original_time_ms).abs();
+            let prev_dist = self.anchors[idx - 1]
+                .original_time_ms
+                .abs_diff(original_time_ms);
             if prev_dist < min_distance {
                 min_distance = prev_dist;
             }
@@ -292,5 +299,59 @@ mod tests {
         assert_eq!(mapper.anchor_count(), 1);
 
         assert!(!mapper.remove_anchor(99));
+    }
+
+    #[test]
+    fn extreme_anchor_offsets_and_mapping_saturate() {
+        let forward = AnchorPoint::new(1, i64::MIN, i64::MAX);
+        assert_eq!(forward.offset(), i64::MAX);
+        let reverse = AnchorPoint::new(1, i64::MAX, i64::MIN);
+        assert_eq!(reverse.offset(), i64::MIN);
+
+        let mut mapper = TimeMapper::new();
+        mapper.add_anchor(AnchorPoint::new(1, i64::MAX - 1, i64::MAX));
+        assert_eq!(mapper.map_time(i64::MAX), i64::MAX);
+        let mut negative = TimeMapper::new();
+        negative.add_anchor(AnchorPoint::new(2, i64::MIN + 1, i64::MIN));
+        assert_eq!(negative.map_time(i64::MIN), i64::MIN);
+    }
+
+    #[test]
+    fn wide_anchor_interval_interpolates_without_integer_overflow() {
+        let mut mapper = TimeMapper::new();
+        mapper.add_anchor(AnchorPoint::new(1, i64::MIN, i64::MIN));
+        mapper.add_anchor(AnchorPoint::new(2, i64::MAX, i64::MAX));
+        assert_eq!(mapper.calculate_offset(0), 0);
+        assert_eq!(mapper.map_time(1234), 1234);
+    }
+
+    #[test]
+    fn estimate_error_at_extremes_and_manual_priority_do_not_overflow() {
+        let mut mapper = TimeMapper::new();
+        mapper.add_anchor(AnchorPoint::new(1, i64::MIN, i64::MIN));
+        mapper.add_anchor(AnchorPoint::new(2, i64::MAX, i64::MAX));
+        let distance = mapper.estimate_error_at(i64::MAX).unwrap();
+        assert_eq!(distance, 0.0);
+        assert_eq!(
+            mapper.estimate_error_at(0).unwrap(),
+            i64::MAX as f64 / 1000.0
+        );
+
+        let mut priority = TimeMapper::new();
+        priority.add_anchor(AnchorPoint::new(10, i64::MIN, i64::MIN));
+        priority.add_anchor(AnchorPoint::new_manual(1, i64::MAX, i64::MAX));
+        assert!(priority.get_anchors().iter().any(|anchor| anchor.is_manual));
+        assert!(
+            priority
+                .get_anchors()
+                .iter()
+                .any(|anchor| anchor.subtitle_index == 10)
+        );
+
+        let mut near = TimeMapper::new();
+        near.add_anchor(AnchorPoint::new(11, i64::MIN + 90_000, i64::MIN + 90_000));
+        near.add_anchor(AnchorPoint::new_manual(12, i64::MIN, i64::MIN));
+        assert_eq!(near.anchor_count(), 1);
+        assert!(near.get_anchors()[0].is_manual);
     }
 }

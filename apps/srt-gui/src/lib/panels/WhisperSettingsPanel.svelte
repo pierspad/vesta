@@ -279,18 +279,24 @@
   <div class="grid grid-cols-1 gap-3 xl:grid-cols-2">
     {#each [...store.vadModels].sort((a, b) => Number(b.id === "webrtc") - Number(a.id === "webrtc")) as model (model.id)}
       {@const isActive = !store.vadSelection.customPath && store.vadSelection.modelId === model.id}
-      <div class="relative isolate overflow-hidden p-4 rounded-xl border flex items-center justify-between gap-4 transition-colors {isActive
-        ? 'bg-emerald-500/10 border-emerald-500/25'
-        : 'bg-white/5 border-white/10'}">
+      <div
+        role="button"
+        tabindex="0"
+        onclick={() => store.handleVadModelClick(model)}
+        onkeydown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            store.handleVadModelClick(model);
+          }
+        }}
+        class="relative isolate overflow-hidden p-4 rounded-xl border flex items-center justify-between gap-4 transition-colors select-none {store.busy ? 'cursor-default' : 'cursor-pointer'} {isActive
+          ? 'bg-emerald-500/10 border-emerald-500/25'
+          : 'bg-white/5 border-white/10 hover:bg-white/10'}"
+      >
         {#if store.downloadingVadId === model.id}
           <ProgressFill value={store.progress} accent="emerald" />
         {/if}
-        <button
-          type="button"
-          onclick={() => store.handleVadModelClick(model)}
-          disabled={store.busy}
-          class="relative min-w-0 text-left flex-1 cursor-pointer disabled:cursor-default"
-        >
+        <div class="relative min-w-0 flex-1">
           <div class="flex items-center gap-2 flex-wrap">
             <svg class="w-5 h-5 shrink-0 text-emerald-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d={model.id === "webrtc" ? "m13 2-9 12h7l-1 8 10-12h-7l1-8Z" : "M9 12l2 2 4-4M12 3l8 4v5c0 5-8 9-8 9s-8-4-8-9V7l8-4Z"} /></svg>
             <span class="text-sm font-bold text-white">{uiMode.expertMode ? t(model.id === "webrtc" ? "vad.fastExpert" : "vad.accurateExpert") : t(model.id === "webrtc" ? "vad.fastLight" : "vad.accurateHeavy")}</span>
@@ -298,36 +304,31 @@
               <span class="text-[9px] text-gray-500 uppercase tracking-wide">{t("settings.default")}</span>
             {/if}
             {#if model.id !== "webrtc"}<span class="text-[10px] text-gray-500">{model.size}</span>{/if}
-            {#if model.downloaded}
-              {#if isActive}
-                <span class="text-[9px] font-bold text-emerald-400 uppercase tracking-wide">{t("settings.ready")}</span>
-              {/if}
-            {:else if store.downloadingVadId === model.id}
-              <span class="text-[9px] text-amber-400/70">{t("settings.downloading")} {store.progress > 0 ? `${store.progress}%` : ""}</span>
+            {#if model.downloaded && isActive}
+              <span class="text-[9px] font-bold text-emerald-400 uppercase tracking-wide">{t("settings.ready")}</span>
             {/if}
           </div>
-          {#if model.id === "webrtc"}<p class="mt-1 text-xs text-gray-400">{t("vad.webrtcDescription")}</p>{/if}
-        </button>
-        {#if model.id === "webrtc"}
-          <span class="relative text-[10px] text-emerald-300">{t("vad.builtIn")}</span>
-        {:else if model.downloaded}
-          <button
-            type="button"
-            onclick={() => void store.uninstallVad(model.id)}
-            disabled={store.busy}
-            class="shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold text-red-300 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 transition-colors cursor-pointer disabled:opacity-50"
-          >
-            {t("settings.uninstall")}
-          </button>
-        {:else}
-          <button
-            type="button"
-            onclick={() => void store.downloadVad(model.id)}
-            disabled={store.busy}
-            class="shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold text-white bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 transition-colors cursor-pointer"
-          >
-            {t("settings.download")}
-          </button>
+        </div>
+        {#if model.id !== "webrtc"}
+          {#if model.downloaded}
+            <button
+              type="button"
+              onclick={(e) => { e.stopPropagation(); void store.uninstallVad(model.id); }}
+              disabled={store.busy}
+              class="relative z-10 shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold text-red-300 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 transition-colors cursor-pointer disabled:opacity-50"
+            >
+              {t("settings.uninstall")}
+            </button>
+          {:else}
+            <button
+              type="button"
+              onclick={(e) => { e.stopPropagation(); void store.downloadVad(model.id); }}
+              disabled={store.busy}
+              class="relative z-10 shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold text-white bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 transition-colors cursor-pointer"
+            >
+              {t("settings.download")}
+            </button>
+          {/if}
         {/if}
       </div>
     {/each}

@@ -24,7 +24,7 @@
       <div class="mt-3 rounded-lg border border-cyan-400/25 bg-cyan-950/25 p-3">
         <div class="mb-2 flex items-center justify-between gap-2">
           <p class="text-xs font-semibold text-cyan-300">{t("matching.appliedRule", { number: evidence.episodeRule.ruleIndex + 1 })}</p>
-          <button type="button" class="text-xs text-gray-400 hover:text-white" title={t("common.copy")} aria-label={t("common.copy")} onclick={() => writeClipboard(evidence!.episodeRule!.pattern)}>
+          <button type="button" class="text-xs text-gray-400 hover:text-white" title={t("common.copy")} aria-label={t("common.copy")} onclick={() => writeClipboard(evidence!.episodeRule!.pattern, t("common.copied"))}>
             <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V4H4v12h4"/></svg>
           </button>
         </div>

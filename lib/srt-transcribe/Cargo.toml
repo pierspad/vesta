@@ -3,6 +3,10 @@ name = "srt-transcribe"
 version = "0.28.0-dev.1"
 edition.workspace = true
 rust-version.workspace = true
+description = "Headless local Whisper and cloud speech-to-text pipelines with cancellation and progress callbacks."
+license = "GPL-3.0-only"
+repository = "https://github.com/pierspad/vesta"
+readme = "README.md"
 
 [dependencies]
 srt-download.workspace = true

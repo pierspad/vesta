@@ -59,6 +59,10 @@ impl Timestamp {
             let millis = ((bytes[9] - b'0') as u32 * 100)
                 + ((bytes[10] - b'0') as u32 * 10)
                 + (bytes[11] - b'0') as u32;
+            anyhow::ensure!(
+                minutes < 60 && seconds < 60,
+                "Timestamp fields out of range"
+            );
             return Ok(Self::new(hours, minutes, seconds, millis));
         }
 
@@ -87,6 +91,10 @@ impl Timestamp {
         if parts.next().is_some() {
             anyhow::bail!("Formato timestamp invalido: {}", s);
         }
+        anyhow::ensure!(
+            minutes < 60 && seconds < 60 && millis < 1000,
+            "Timestamp fields out of range"
+        );
 
         Ok(Self::new(hours, minutes, seconds, millis))
     }
@@ -242,6 +250,7 @@ impl SrtParser {
     /// Se il gap tra il numero di sottotitoli reali e `max_id` supera
     /// [`MAX_NORMALIZE_GAP`] (indice di un file corrotto), la normalizzazione
     /// viene saltata per evitare un'allocazione/iterazione spropositata.
+    /// Se è presente l'ID 0, lascia la mappa invariata: gli ID normalizzati sono 1-based.
     pub fn normalize_subtitles(subtitles: &mut HashMap<u32, Subtitle>) {
         if subtitles.is_empty() {
             return;
@@ -251,6 +260,11 @@ impl SrtParser {
         existing_ids.sort_unstable();
 
         let max_id = *existing_ids.last().unwrap();
+        // ID zero cannot be represented by the 1-based placeholder sequence.
+        // Leave the input untouched instead of underflowing while estimating gaps.
+        if existing_ids[0] == 0 {
+            return;
+        }
         let gap = max_id as u64 - subtitles.len() as u64;
         if gap > Self::MAX_NORMALIZE_GAP as u64 {
             return;
@@ -437,6 +451,47 @@ Come stai?"#;
         assert!(Timestamp::from_srt_string("00:00:20").is_err());
         assert!(Timestamp::from_srt_string("00:aa:20,000").is_err());
         assert!(Timestamp::from_srt_string("00:00:20,000:00").is_err());
+        assert!(Timestamp::from_srt_string("00:60:00,000").is_err());
+        assert!(Timestamp::from_srt_string("00:00:60,000").is_err());
+        assert!(Timestamp::from_srt_string("00:00:00,1000").is_err());
+    }
+
+    #[test]
+    fn normalize_subtitles_with_zero_id_is_safe_and_unchanged() {
+        let mut subs = HashMap::new();
+        subs.insert(
+            0,
+            Subtitle {
+                id: 0,
+                start: Timestamp::from_milliseconds(0),
+                end: Timestamp::from_milliseconds(1000),
+                text: "Zero".into(),
+            },
+        );
+        // This single entry reproduced the original underflow: max_id - len = 0,
+        // then the initial-gap loop tried to iterate 1..0.
+        SrtParser::normalize_subtitles(&mut subs);
+        assert_eq!(subs.len(), 1);
+        assert!(!subs.contains_key(&1));
+    }
+
+    #[test]
+    fn normalize_subtitles_with_contiguous_zero_based_ids_is_unchanged() {
+        let mut subs = HashMap::new();
+        for id in 0..3 {
+            subs.insert(
+                id,
+                Subtitle {
+                    id,
+                    start: Timestamp::from_milliseconds(id * 1000),
+                    end: Timestamp::from_milliseconds((id + 1) * 1000),
+                    text: format!("{id}"),
+                },
+            );
+        }
+        SrtParser::normalize_subtitles(&mut subs);
+        assert_eq!(subs.len(), 3);
+        assert!(!subs.contains_key(&3));
     }
 
     #[test]

@@ -11,6 +11,14 @@ pub struct OperationState {
 }
 
 impl OperationState {
+    pub fn ensure_idle(&self) -> Result<(), String> {
+        if self.token.is_some() {
+            Err("An operation is still using this document; cancel it and wait before changing files".into())
+        } else {
+            Ok(())
+        }
+    }
+
     pub fn cancel(&self) -> bool {
         if let Some(token) = &self.token {
             token.cancel();
@@ -69,6 +77,23 @@ pub struct SyncState {
     pub operation: OperationState,
 }
 
+impl SyncState {
+    pub fn replace_engine(&mut self, engine: Option<SyncEngine>) -> Result<(), String> {
+        self.operation.ensure_idle()?;
+        self.engine = engine;
+        Ok(())
+    }
+
+    pub fn set_video_path(&mut self, path: &str) -> Result<(), String> {
+        self.operation.ensure_idle()?;
+        self.engine
+            .as_mut()
+            .ok_or("Nessun file SRT caricato")?
+            .set_video_path(path);
+        Ok(())
+    }
+}
+
 impl HasOperation for SyncState {
     fn operation(&mut self) -> &mut OperationState {
         &mut self.operation
@@ -100,6 +125,36 @@ operation_state!(RefineState, AppRefineState);
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn document_changes_are_blocked_until_cancelled_work_has_finished() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("source.srt");
+        std::fs::write(&path, "1\n00:00:01,000 --> 00:00:02,000\nHello\n").unwrap();
+        let state = AppSyncState::default();
+        state
+            .lock()
+            .unwrap()
+            .replace_engine(Some(SyncEngine::new(&path).unwrap()))
+            .unwrap();
+        let guard = OperationGuard::begin(&state, "busy").unwrap();
+        {
+            let mut current = state.lock().unwrap();
+            assert!(current.replace_engine(None).is_err());
+            assert!(current.set_video_path("other.mp4").is_err());
+            current.operation.cancel();
+            assert!(
+                current
+                    .replace_engine(Some(SyncEngine::new(&path).unwrap()))
+                    .is_err()
+            );
+            assert!(current.engine.as_ref().unwrap().get_video_path().is_none());
+        }
+        drop(guard);
+        state.lock().unwrap().set_video_path("other.mp4").unwrap();
+        state.lock().unwrap().replace_engine(None).unwrap();
+        assert!(state.lock().unwrap().engine.is_none());
+    }
 
     #[test]
     fn cancellation_does_not_allow_overlap_until_the_owner_exits() {

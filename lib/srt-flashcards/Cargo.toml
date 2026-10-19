@@ -6,6 +6,7 @@ rust-version.workspace = true
 description = "Headless, Tauri-free engine that turns subtitle pairs + media into Anki flashcards (TSV / APKG)."
 authors = ["Pierpaolo Spadafora <pierpaolospadafora@proton.me>"]
 license = "GPL-3.0-only"
+repository = "https://github.com/pierspad/vesta"
 
 [lib]
 name = "srt_flashcards"

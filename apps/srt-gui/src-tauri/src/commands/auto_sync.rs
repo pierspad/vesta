@@ -111,6 +111,17 @@ pub async fn sync_auto_sync(
     // Apply suggestions to the engine, skipping those near existing anchors.
     let anchors_created = {
         let mut ss = sync_state.lock().map_err(|e| e.to_string())?;
+        // The document cannot change while the guard is held. Check cancellation
+        // under the same lock used by the cancel command before committing anchors.
+        if token.is_cancelled() {
+            return Ok(AutoSyncResult {
+                success: false,
+                cancelled: true,
+                anchors_created: 0,
+                segments_analyzed: outcome.segments_analyzed,
+                message: "Auto-sync was cancelled.".into(),
+            });
+        }
         let engine = ss.engine.as_mut().ok_or("No SRT file loaded for sync")?;
 
         let existing_anchors = engine.get_anchors().to_vec();

@@ -5,6 +5,7 @@ edition.workspace = true
 rust-version.workspace = true
 license = "GPL-3.0-only"
 description = "Cancellable, atomic streaming downloads for Vesta resources."
+repository = "https://github.com/pierspad/vesta"
 
 [dependencies]
 anyhow.workspace = true

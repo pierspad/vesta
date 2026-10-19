@@ -8,7 +8,9 @@ pub mod pool;
 mod prompts;
 mod rate_limiter;
 mod translator;
-pub use diagnostics::{ProviderError, ProviderFailureKind, TranslationDiagnostic};
+pub use diagnostics::{
+    ProviderError, ProviderFailureKind, TranslationCancelled, TranslationDiagnostic,
+};
 
 use anyhow::{Context, Result};
 use futures::stream::{self, StreamExt};
@@ -772,7 +774,7 @@ where
     }
 
     if cancellation_token.is_cancelled() {
-        anyhow::bail!("Translation cancelled by user");
+        return Err(TranslationCancelled.into());
     }
 
     if *exhausted_flag.lock().await {
@@ -812,6 +814,7 @@ where
 
         repair_missing_tiered(
             pool.clone(),
+            scheduler.clone(),
             &missing_ids,
             &subtitles_map,
             &translated,
@@ -831,6 +834,7 @@ where
 #[allow(clippy::too_many_arguments)]
 async fn repair_missing_tiered(
     pool: Arc<TranslatorPool>,
+    scheduler: Arc<tokio::sync::Mutex<TierScheduler>>,
     missing_ids: &[u32],
     original_subtitles: &HashMap<u32, Subtitle>,
     translated: &Arc<tokio::sync::Mutex<HashMap<u32, Subtitle>>>,
@@ -840,15 +844,12 @@ async fn repair_missing_tiered(
     progress_callback: Arc<tokio::sync::Mutex<impl FnMut(TranslationProgress) + Send>>,
     cancellation_token: &CancellationToken,
 ) -> Result<()> {
-    use tokio::sync::Mutex;
-
-    let scheduler = Arc::new(Mutex::new(TierScheduler::new(&pool)));
     let total = missing_ids.len();
     let mut repaired_since_last_save = 0;
 
     for (idx, &id) in missing_ids.iter().enumerate() {
         if cancellation_token.is_cancelled() {
-            anyhow::bail!("Repair cancelled by user");
+            return Err(TranslationCancelled.into());
         }
 
         let Some(original) = original_subtitles.get(&id) else {
@@ -862,7 +863,7 @@ async fn repair_missing_tiered(
 
         loop {
             if cancellation_token.is_cancelled() {
-                anyhow::bail!("Repair cancelled by user");
+                return Err(TranslationCancelled.into());
             }
 
             let acquired = { scheduler.lock().await.acquire() };
@@ -873,13 +874,13 @@ async fn repair_missing_tiered(
 
             if let Some(ref limiter) = entry.rate_limiter {
                 tokio::select! {
-                    _ = cancellation_token.cancelled() => anyhow::bail!("Repair cancelled by user"),
+                    _ = cancellation_token.cancelled() => return Err(TranslationCancelled.into()),
                     _ = limiter.until_ready() => {}
                 }
             }
 
             let result = tokio::select! {
-                _ = cancellation_token.cancelled() => anyhow::bail!("Repair cancelled by user"),
+                _ = cancellation_token.cancelled() => return Err(TranslationCancelled.into()),
                 result = entry.translator.translate_with_context(
                     &original.text, target_lang, title_context.as_deref(), context.as_deref()
                 ) => result,

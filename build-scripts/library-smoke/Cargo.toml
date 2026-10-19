@@ -1,0 +1,29 @@
+[package]
+name = "vesta-library-smoke"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[workspace]
+
+[dependencies]
+anyhow = "1"
+tempfile = "3"
+serde_json = "1"
+tokio = { version = "1", features = ["full"] }
+srt-parser = { path = "../../core/srt-parser" }
+srt-apkg = { path = "../../core/srt-apkg" }
+srt-download = { path = "../../core/srt-download" }
+srt-ankiconnect = { path = "../../lib/srt-ankiconnect" }
+srt-autosync = { path = "../../lib/srt-autosync" }
+srt-extract = { path = "../../lib/srt-extract" }
+srt-flashcards = { path = "../../lib/srt-flashcards" }
+srt-refine = { path = "../../lib/srt-refine" }
+srt-sync = { path = "../../lib/srt-sync" }
+srt-transcribe = { path = "../../lib/srt-transcribe" }
+srt-translate = { path = "../../lib/srt-translate" }
+
+[patch.crates-io]
+# Workspace patches do not flow into downstream projects. This patch is needed
+# to reproduce Vesta's supported whisper-rs-sys build configuration.
+whisper-rs-sys = { path = "../../vendor/whisper-rs-sys-0.15.0" }

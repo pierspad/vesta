@@ -1,5 +1,6 @@
 pub mod commands;
 pub mod media;
+pub mod preview;
 
 pub mod types {
     pub use srt_flashcards::*;

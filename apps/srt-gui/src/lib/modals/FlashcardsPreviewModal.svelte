@@ -424,7 +424,7 @@
       <button
         type="button"
         onclick={() => {
-          void writeClipboard(previewStore.contextMenuLine!.subs1_text);
+          void writeClipboard(previewStore.contextMenuLine!.subs1_text, t("common.copied"));
           previewStore.closeContextMenu();
         }}
         class="w-full text-left px-4 py-2 text-xs text-gray-300 hover:bg-gray-800 hover:text-white transition-colors cursor-pointer"
@@ -436,7 +436,7 @@
         <button
           type="button"
           onclick={() => {
-            void writeClipboard(previewStore.contextMenuLine!.subs2_text || "");
+            void writeClipboard(previewStore.contextMenuLine!.subs2_text || "", t("common.copied"));
             previewStore.closeContextMenu();
           }}
           class="w-full text-left px-4 py-2 text-xs text-gray-300 hover:bg-gray-800 hover:text-white transition-colors cursor-pointer"

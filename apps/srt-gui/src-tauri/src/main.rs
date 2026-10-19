@@ -134,6 +134,7 @@ fn main() {
         .manage(Mutex::new(TranscribeState::default()) as AppTranscribeState)
         .manage(Mutex::new(RefineState::default()) as AppRefineState)
         .manage(commands::config::ConfigState::default())
+        .manage(commands::flashcards::preview::PreviewWorkspace::default())
         .manage(MediaServerInfo {
             port,
             token: media_token,

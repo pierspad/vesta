@@ -130,23 +130,13 @@ pub fn build_matched_lines(config: &FlashcardConfig) -> Result<Vec<MatchedLine>,
     // Target subtitles + time shift.
     let (mut subs1, _) =
         parse_subtitle_file(&config.target_subs_path).map_err(|e| e.to_string())?;
-    if config.time_shift_target_ms != 0 {
-        for s in subs1.iter_mut() {
-            s.start_ms += config.time_shift_target_ms;
-            s.end_ms += config.time_shift_target_ms;
-        }
-    }
+    shift_subtitles(&mut subs1, config.time_shift_target_ms)?;
 
     // Optional native subtitles + their own time shift.
     let subs2 = match config.native_subs_path.as_ref() {
         Some(path) => {
             let (mut entries, _) = parse_subtitle_file(path).map_err(|e| e.to_string())?;
-            if config.time_shift_native_ms != 0 {
-                for s in entries.iter_mut() {
-                    s.start_ms += config.time_shift_native_ms;
-                    s.end_ms += config.time_shift_native_ms;
-                }
-            }
+            shift_subtitles(&mut entries, config.time_shift_native_ms)?;
             Some(entries)
         }
         None => None,
@@ -177,6 +167,20 @@ pub fn build_matched_lines(config: &FlashcardConfig) -> Result<Vec<MatchedLine>,
     compute_context(&mut matched, &config.context);
 
     Ok(matched)
+}
+
+fn shift_subtitles(entries: &mut [SubEntry], shift: i64) -> Result<(), String> {
+    for entry in entries {
+        entry.start_ms = entry
+            .start_ms
+            .checked_add(shift)
+            .ok_or_else(|| format!("Time shift overflows subtitle {} start", entry.id))?;
+        entry.end_ms = entry
+            .end_ms
+            .checked_add(shift)
+            .ok_or_else(|| format!("Time shift overflows subtitle {} end", entry.id))?;
+    }
+    Ok(())
 }
 
 /// Parse + match + filter and return every line (active and inactive) as a

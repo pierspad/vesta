@@ -466,7 +466,7 @@
           <button
             type="button"
             onclick={() => {
-              void writeClipboard(store.getFieldVariable(field), t("settings.keyCopied"));
+              void writeClipboard(store.getFieldVariable(field), t("common.copied"));
             }}
             class="px-2.5 py-1.5 rounded-lg border transition-colors {field.colorClass}"
             title={t("settings.clickToCopy") || "Copy variable"}
