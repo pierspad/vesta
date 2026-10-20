@@ -79,10 +79,15 @@
   {#snippet left()}
     <GenerationStatusDisplay
       {easyMode}
-      noteTypeName={activeNoteType.name}
+      noteTypeName={episodes.length > 1 ? t("flashcards.perFilmNoteTypes") : activeNoteType.name}
     >
       {#snippet noteTypeControl()}
         <div class="w-80 max-w-[40vw]">
+          {#if episodes.length > 1}
+            <div class="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-xs text-gray-300" title={t("flashcards.perFilmNoteTypeHint")}>
+              {t("flashcards.perFilmNoteTypes")}
+            </div>
+          {:else}
           <SearchableSelect
             compact
             ariaLabel={t("settings.noteType")}
@@ -93,6 +98,7 @@
             noResultsText={t("common.noResults")}
             placement="up"
           />
+          {/if}
         </div>
       {/snippet}
     </GenerationStatusDisplay>

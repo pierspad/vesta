@@ -1,50 +1,32 @@
-use std::io::Write;
 use std::path::{Path, PathBuf};
 
 use super::export_tsv::{render_text_with_context, sanitize_filename};
 use super::media::{MediaKind, media_filename, ms_to_ffmpeg_ts, video_clip_extension};
 use super::types::*;
+mod database;
+mod model;
+mod package;
+use database::{CollectionMetadata, NoteRecord};
+use model::build_collection_metadata;
 
-fn clean_field_name(value: &str, fallback: &str) -> String {
-    let trimmed = value.trim();
-    if trimmed.is_empty() {
-        fallback.to_string()
+fn stable_id(seed: &str, band_base: i64) -> i64 {
+    let mut hash: u64 = 0;
+    for byte in seed.bytes() {
+        hash = hash.wrapping_mul(31).wrapping_add(byte as u64);
+    }
+    (hash % 1_000_000_000) as i64 + band_base
+}
+
+fn existing_media_field(
+    media_dir: &Path,
+    filename: String,
+    render: impl FnOnce(&str) -> String,
+) -> String {
+    if media_dir.join(&filename).exists() {
+        render(&filename)
     } else {
-        trimmed.to_string()
+        String::new()
     }
-}
-
-fn push_model_field(field_defs: &mut Vec<String>, ord: &mut i32, name: &str) {
-    let json_name = serde_json::to_string(name).unwrap_or_else(|_| "\"Field\"".to_string());
-    field_defs.push(format!(
-        r#"{{"name":{},"ord":{},"sticky":false,"rtl":false,"font":"Arial","size":20,"description":"","plainText":false,"collapsed":false,"excludeFromSearch":false}}"#,
-        json_name, ord
-    ));
-    *ord += 1;
-}
-
-fn anki_field_ref(name: &str) -> String {
-    format!("{{{{{}}}}}", name)
-}
-
-fn rewrite_template_field_tokens(template: &str, replacements: &[(&str, &str)]) -> String {
-    let mut output = template.to_string();
-
-    for (index, (canonical, _)) in replacements.iter().enumerate() {
-        output = output.replace(
-            &anki_field_ref(canonical),
-            &format!("__vesta_FIELD_TOKEN_{index}__"),
-        );
-    }
-
-    for (index, (_, actual)) in replacements.iter().enumerate() {
-        output = output.replace(
-            &format!("__vesta_FIELD_TOKEN_{index}__"),
-            &anki_field_ref(actual),
-        );
-    }
-
-    output
 }
 
 pub(crate) fn generate_apkg(
@@ -65,14 +47,6 @@ pub(crate) fn generate_apkg(
         .unwrap_or_default()
         .as_secs() as i64;
 
-    fn stable_id(seed: &str, band_base: i64) -> i64 {
-        let mut hash: u64 = 0;
-        for b in seed.bytes() {
-            hash = hash.wrapping_mul(31).wrapping_add(b as u64);
-        }
-        (hash % 1_000_000_000) as i64 + band_base
-    }
-
     let note_type_name = config.note_type_name.as_deref().unwrap_or("subs2srs");
 
     let deck_id: i64 = stable_id(&config.deck_name, 1_000_000);
@@ -83,346 +57,122 @@ pub(crate) fn generate_apkg(
     let tmp_dir = tempfile::tempdir().map_err(|e| format!("Cannot create temp dir: {e}"))?;
     let db_path = tmp_dir.path().join("collection.anki2");
 
-    {
-        let conn = rusqlite::Connection::open(&db_path)
-            .map_err(|e| format!("Failed to open SQLite database: {e}"))?;
+    let (conf_json, models_json, decks_json, dconf_json) =
+        build_collection_metadata(config, timestamp, deck_id, model_id);
+    let mut notes = Vec::with_capacity(active_lines.len());
 
-        let mut sql = String::with_capacity(active_lines.len() * 512);
-
-        sql.push_str("BEGIN TRANSACTION;\n");
-
-        sql.push_str(
-            "CREATE TABLE col (
-            id INTEGER PRIMARY KEY,
-            crt INTEGER NOT NULL,
-            mod INTEGER NOT NULL,
-            scm INTEGER NOT NULL,
-            ver INTEGER NOT NULL,
-            dty INTEGER NOT NULL,
-            usn INTEGER NOT NULL,
-            ls INTEGER NOT NULL,
-            conf TEXT NOT NULL,
-            models TEXT NOT NULL,
-            decks TEXT NOT NULL,
-            dconf TEXT NOT NULL,
-            tags TEXT NOT NULL
-        );\n",
-        );
-
-        sql.push_str(
-            "CREATE TABLE notes (
-            id INTEGER PRIMARY KEY,
-            guid TEXT NOT NULL,
-            mid INTEGER NOT NULL,
-            mod INTEGER NOT NULL,
-            usn INTEGER NOT NULL,
-            tags TEXT NOT NULL,
-            flds TEXT NOT NULL,
-            sfld TEXT NOT NULL,
-            csum INTEGER NOT NULL,
-            flags INTEGER NOT NULL,
-            data TEXT NOT NULL
-        );\n",
-        );
-
-        sql.push_str(
-            "CREATE TABLE cards (
-            id INTEGER PRIMARY KEY,
-            nid INTEGER NOT NULL,
-            did INTEGER NOT NULL,
-            ord INTEGER NOT NULL,
-            mod INTEGER NOT NULL,
-            usn INTEGER NOT NULL,
-            type INTEGER NOT NULL,
-            queue INTEGER NOT NULL,
-            due INTEGER NOT NULL,
-            ivl INTEGER NOT NULL,
-            factor INTEGER NOT NULL,
-            reps INTEGER NOT NULL,
-            lapses INTEGER NOT NULL,
-            left INTEGER NOT NULL,
-            odue INTEGER NOT NULL,
-            odid INTEGER NOT NULL,
-            flags INTEGER NOT NULL,
-            data TEXT NOT NULL
-        );\n",
-        );
-
-        sql.push_str(
-            "CREATE TABLE graves (
-            usn INTEGER NOT NULL,
-            oid INTEGER NOT NULL,
-            type INTEGER NOT NULL
-        );\n",
-        );
-
-        sql.push_str(
-            "CREATE TABLE revlog (
-            id INTEGER PRIMARY KEY,
-            cid INTEGER NOT NULL,
-            usn INTEGER NOT NULL,
-            ease INTEGER NOT NULL,
-            ivl INTEGER NOT NULL,
-            lastIvl INTEGER NOT NULL,
-            factor INTEGER NOT NULL,
-            time INTEGER NOT NULL,
-            type INTEGER NOT NULL
-        );\n",
-        );
-
-        let field_names = config.field_names.clone().unwrap_or_default();
-        let expression_name = clean_field_name(&field_names.expression, "Expression");
-        let meaning_name = clean_field_name(&field_names.meaning, "Meaning");
-        let reading_name = clean_field_name(&field_names.reading, "Reading");
-        let audio_name = clean_field_name(&field_names.audio, "Audio");
-        let snapshot_name = clean_field_name(&field_names.snapshot, "Snapshot");
-        let video_name = clean_field_name(&field_names.video, "Video");
-        let tags_name = clean_field_name(&field_names.tags, "Tags");
-        let sequence_name = clean_field_name(&field_names.sequence_marker, "SequenceMarker");
-        let notes_name = clean_field_name(&field_names.notes, "Notes");
-
+    for (seq, line) in active_lines.iter().enumerate() {
+        let note_id = timestamp * 1000 + seq as i64;
+        let card_id = note_id + 1_000_000;
+        let seq_num = seq + 1;
+        let start_ts = ms_to_ffmpeg_ts(line.subs1.start_ms);
         let of = &config.output_fields;
-        let schema: [(bool, &str); 9] = [
-            (of.include_subs1, expression_name.as_str()),
-            (of.include_subs2, meaning_name.as_str()),
-            (of.include_audio, audio_name.as_str()),
-            (of.include_snapshot, snapshot_name.as_str()),
-            (of.include_video, video_name.as_str()),
-            (of.include_tag, tags_name.as_str()),
-            (of.include_sequence, sequence_name.as_str()),
-            (of.include_reading, reading_name.as_str()),
-            (of.include_notes, notes_name.as_str()),
-        ];
+        let mut fields: Vec<String> = Vec::with_capacity(9);
 
-        let mut field_defs = Vec::new();
-        let mut ord = 0;
-        for (included, name) in schema {
-            if included {
-                push_model_field(&mut field_defs, &mut ord, name);
-            }
+        if of.include_subs1 {
+            fields.push(render_text_with_context(
+                &line.subs1.text,
+                line,
+                lines,
+                |m| Some(m.subs1.text.as_str()),
+                "class=\"context\"",
+                false,
+            ));
         }
-
-        if field_defs.is_empty() {
-            push_model_field(&mut field_defs, &mut ord, &expression_name);
-        }
-        let _ = ord;
-
-        let template_replacements = [
-            ("Expression", expression_name.as_str()),
-            ("Meaning", meaning_name.as_str()),
-            ("Reading", reading_name.as_str()),
-            ("Audio", audio_name.as_str()),
-            ("Snapshot", snapshot_name.as_str()),
-            ("Video", video_name.as_str()),
-            ("Tags", tags_name.as_str()),
-            ("Tag", tags_name.as_str()),
-            ("SequenceMarker", sequence_name.as_str()),
-            ("Notes", notes_name.as_str()),
-        ];
-
-        let qfmt = rewrite_template_field_tokens(
-            config
-                .card_front_html
-                .as_deref()
-                .unwrap_or(ANKI_FRONT_TEMPLATE),
-            &template_replacements,
-        );
-        let afmt = rewrite_template_field_tokens(
-            config
-                .card_back_html
-                .as_deref()
-                .unwrap_or(ANKI_BACK_TEMPLATE),
-            &template_replacements,
-        );
-        let base_css = config.card_css.as_deref().unwrap_or(ANKI_CARD_STYLING);
-        let css = crate::fonts::maybe_prepend_font_vars(base_css, config);
-
-        let note_type_json =
-            serde_json::to_string(note_type_name).unwrap_or_else(|_| "\"subs2srs\"".to_string());
-        let qfmt_json = serde_json::to_string(&qfmt).unwrap_or_else(|_| "\"\"".to_string());
-        let afmt_json = serde_json::to_string(&afmt).unwrap_or_else(|_| "\"\"".to_string());
-        let css_json = serde_json::to_string(&css).unwrap_or_else(|_| "\"\"".to_string());
-
-        let models_json = format!(
-            r#"{{"{mid}":{{"id":{mid},"name":{note_type},"type":0,"mod":{ts},"usn":-1,"sortf":0,"did":{did},"tmpls":[{{"name":"Card 1","ord":0,"qfmt":{qfmt},"afmt":{afmt},"did":null,"bqfmt":"","bafmt":""}}],"flds":[{flds}],"css":{css},"latexPre":"\\\\documentclass[12pt]{{article}}\\\\special{{papersize=3in,5in}}\\\\usepackage[utf8]{{inputenc}}\\\\usepackage{{amssymb,amsmath}}\\\\pagestyle{{empty}}\\\\setlength{{\\\\parindent}}{{0in}}\\\\begin{{document}}\\n","latexPost":"\\\\end{{document}}","latexsvg":false,"req":[[0,"all",[0]]]}}}}"#,
-            mid = model_id,
-            note_type = note_type_json,
-            ts = timestamp,
-            did = deck_id,
-            qfmt = qfmt_json,
-            afmt = afmt_json,
-            flds = field_defs.join(","),
-            css = css_json,
-        );
-
-        let deck_name_json =
-            serde_json::to_string(&config.deck_name).unwrap_or_else(|_| "\"Vesta\"".to_string());
-        let decks_json = format!(
-            r#"{{"{did}":{{"id":{did},"name":{name},"mod":{ts},"usn":-1,"lrnToday":[0,0],"revToday":[0,0],"newToday":[0,0],"timeToday":[0,0],"collapsed":false,"browserCollapsed":false,"desc":"","dyn":0,"conf":1,"extendNew":10,"extendRev":50}}}}"#,
-            did = deck_id,
-            name = deck_name_json,
-            ts = timestamp,
-        );
-
-        let dconf_json = r#"{"1":{"id":1,"name":"Default","replayq":true,"lapse":{"delays":[10],"mult":0,"minInt":1,"leechFails":8,"leechAction":0},"rev":{"perDay":200,"ease4":1.3,"fuzz":0.05,"minSpace":1,"ivlFct":1,"maxIvl":36500,"buried":false,"hardFactor":1.2},"timer":0,"maxTaken":60,"usn":0,"new":{"delays":[1,10],"ints":[1,4,0],"initialFactor":2500,"order":1,"perDay":20,"buried":false},"mod":0,"autoplay":true}}"#;
-
-        let conf_json = r#"{"activeDecks":[1],"curDeck":1,"newSpread":0,"collapseTime":1200,"timeLim":0,"estTimes":true,"dueCounts":true,"curModel":null,"nextPos":1,"sortType":"noteFld","sortBackwards":false,"addToCur":true}"#;
-
-        let models_sql = models_json.replace('\'', "''");
-        let decks_sql = decks_json.replace('\'', "''");
-        let dconf_sql = dconf_json.replace('\'', "''");
-        let conf_sql = conf_json.replace('\'', "''");
-
-        sql.push_str(&format!(
-            "INSERT INTO col VALUES (1, {ts}, {ts}, 0, 11, 0, 0, 0, '{conf}', '{models}', '{decks}', '{dconf}', '{{}}');\n",
-            ts = timestamp,
-            conf = conf_sql,
-            models = models_sql,
-            decks = decks_sql,
-            dconf = dconf_sql,
-        ));
-
-        for (seq, line) in active_lines.iter().enumerate() {
-            let note_id = timestamp * 1000 + seq as i64;
-            let card_id = note_id + 1_000_000;
-            let seq_num = seq + 1;
-            let start_ts = ms_to_ffmpeg_ts(line.subs1.start_ms);
-
-            let of = &config.output_fields;
-            let mut fields: Vec<String> = Vec::with_capacity(9);
-
-            if of.include_subs1 {
-                fields.push(render_text_with_context(
-                    &line.subs1.text,
+        if of.include_subs2 {
+            fields.push(match &line.subs2 {
+                Some(s2) => render_text_with_context(
+                    &s2.text,
                     line,
                     lines,
-                    |m| Some(m.subs1.text.as_str()),
+                    |m| m.subs2.as_ref().map(|s| s.text.as_str()),
                     "class=\"context\"",
                     false,
-                ));
-            }
-
-            if of.include_subs2 {
-                fields.push(match &line.subs2 {
-                    Some(s2) => render_text_with_context(
-                        &s2.text,
-                        line,
-                        lines,
-                        |m| m.subs2.as_ref().map(|s| s.text.as_str()),
-                        "class=\"context\"",
-                        false,
-                    ),
-                    None => String::new(),
-                });
-            }
-
-            if of.include_audio {
-                let filename = media_filename(
+                ),
+                None => String::new(),
+            });
+        }
+        if of.include_audio {
+            fields.push(existing_media_field(
+                media_dir,
+                media_filename(
                     MediaKind::Audio(config.audio_format),
                     &deck_sanitized,
                     ep,
                     seq_num,
-                );
-                fields.push(if media_dir.join(&filename).exists() {
-                    format!("[sound:{}]", filename)
-                } else {
-                    String::new()
-                });
-            }
-
-            if of.include_snapshot {
-                let filename = media_filename(
+                ),
+                |name| format!("[sound:{name}]"),
+            ));
+        }
+        if of.include_snapshot {
+            fields.push(existing_media_field(
+                media_dir,
+                media_filename(
                     MediaKind::Snapshot(config.snapshot_format),
                     &deck_sanitized,
                     ep,
                     seq_num,
-                );
-                fields.push(if media_dir.join(&filename).exists() {
-                    format!("<img src=\"{}\">", filename)
-                } else {
-                    String::new()
-                });
-            }
-
-            if of.include_video {
-                let filename = media_filename(
+                ),
+                |name| format!("<img src=\"{name}\">"),
+            ));
+        }
+        if of.include_video {
+            fields.push(existing_media_field(
+                media_dir,
+                media_filename(
                     MediaKind::Video(video_clip_extension(&config.video_codec)),
                     &deck_sanitized,
                     ep,
                     seq_num,
-                );
-                fields.push(if media_dir.join(&filename).exists() {
-                    format!("[sound:{}]", filename)
-                } else {
-                    String::new()
-                });
-            }
-
-            if of.include_tag {
-                fields.push(format!("{}_{:03}", config.deck_name, ep));
-            }
-
-            if of.include_sequence {
-                fields.push(format!("{:03}_{:04}_{}", ep, seq_num, start_ts));
-            }
-
-            if of.include_reading {
-                fields.push(String::new());
-            }
-
-            if of.include_notes {
-                fields.push(String::new());
-            }
-
-            if fields.is_empty() {
-                fields.push(String::new());
-            }
-
-            let flds = fields.join("\x1f");
-            let sfld = if !fields.is_empty() { &fields[0] } else { "" };
-
-            let csum = {
-                let bytes = sha1_smol::Sha1::from(sfld).digest().bytes();
-                u32::from_be_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]) as i64
-            };
-
-            let guid = format!("{:010x}", note_id as u64);
-
-            let flds_sql = flds.replace('\'', "''");
-            let sfld_sql = sfld.replace('\'', "''");
-            let guid_sql = guid.replace('\'', "''");
-            let tags_sql = "";
-
-            use std::fmt::Write as _;
-            let _ = writeln!(
-                sql,
-                "INSERT INTO notes VALUES ({nid}, '{guid}', {mid}, {ts}, 0, '{tags}', '{flds}', '{sfld}', {csum}, 0, '');",
-                nid = note_id,
-                guid = guid_sql,
-                mid = model_id,
-                ts = timestamp,
-                tags = tags_sql,
-                flds = flds_sql,
-                sfld = sfld_sql,
-                csum = csum,
-            );
-
-            let _ = writeln!(
-                sql,
-                "INSERT INTO cards VALUES ({cid}, {nid}, {did}, 0, {ts}, 0, 0, 0, {due}, 0, 2500, 0, 0, 0, 0, 0, 0, '');",
-                cid = card_id,
-                nid = note_id,
-                did = deck_id,
-                ts = timestamp,
-                due = seq + 1,
-            );
+                ),
+                |name| format!("[sound:{name}]"),
+            ));
+        }
+        if of.include_tag {
+            fields.push(format!("{}_{:03}", config.deck_name, ep));
+        }
+        if of.include_sequence {
+            fields.push(format!("{:03}_{:04}_{}", ep, seq_num, start_ts));
+        }
+        if of.include_reading {
+            fields.push(String::new());
+        }
+        if of.include_notes {
+            fields.push(String::new());
+        }
+        if fields.is_empty() {
+            fields.push(String::new());
         }
 
-        sql.push_str("COMMIT;\n");
-
-        conn.execute_batch(&sql)
-            .map_err(|e| format!("Failed to execute SQLite batch: {e}"))?;
+        let fields_joined = fields.join("\x1f");
+        let sort_field = fields[0].clone();
+        let digest = sha1_smol::Sha1::from(sort_field.as_str()).digest().bytes();
+        let checksum = u32::from_be_bytes([digest[0], digest[1], digest[2], digest[3]]) as i64;
+        notes.push(NoteRecord {
+            note_id,
+            card_id,
+            deck_id,
+            model_id,
+            timestamp,
+            due: seq as i64 + 1,
+            guid: format!("{:010x}", note_id as u64),
+            fields: fields_joined,
+            sort_field,
+            checksum,
+        });
     }
+
+    database::write_database(
+        &db_path,
+        &CollectionMetadata {
+            timestamp,
+            conf: &conf_json,
+            models: &models_json,
+            decks: &decks_json,
+            dconf: &dconf_json,
+        },
+        notes,
+    )?;
 
     let mut media_map: HashMap<String, String> = HashMap::new();
     let mut media_files: Vec<(String, PathBuf)> = Vec::new();
@@ -495,45 +245,7 @@ pub(crate) fn generate_apkg(
     )
     .map_err(|e| format!("Cannot write media JSON: {e}"))?;
 
-    srt_parser::persistence::atomic_write_with(output_path, |apkg_file| {
-        let writer = std::io::BufWriter::with_capacity(256 * 1024, apkg_file);
-        let mut zip = zip::ZipWriter::new(writer);
-        let options_deflated = zip::write::SimpleFileOptions::default()
-            .compression_method(zip::CompressionMethod::Deflated);
-        let options_stored = zip::write::SimpleFileOptions::default()
-            .compression_method(zip::CompressionMethod::Stored);
-
-        zip.start_file("collection.anki2", options_deflated)
-            .map_err(|e| anyhow::anyhow!("ZIP error: {e}"))?;
-        let db_bytes =
-            std::fs::read(&db_path).map_err(|e| anyhow::anyhow!("Cannot read DB: {e}"))?;
-        zip.write_all(&db_bytes)
-            .map_err(|e| anyhow::anyhow!("ZIP write error: {e}"))?;
-
-        zip.start_file("media", options_deflated)
-            .map_err(|e| anyhow::anyhow!("ZIP error: {e}"))?;
-        let media_json_bytes = std::fs::read(&media_json_path)
-            .map_err(|e| anyhow::anyhow!("Cannot read media JSON: {e}"))?;
-        zip.write_all(&media_json_bytes)
-            .map_err(|e| anyhow::anyhow!("ZIP write error: {e}"))?;
-
-        for (idx_str, file_path) in &media_files {
-            zip.start_file(idx_str, options_stored)
-                .map_err(|e| anyhow::anyhow!("ZIP error adding media: {e}"))?;
-            let file = std::fs::File::open(file_path)
-                .map_err(|e| anyhow::anyhow!("Cannot read media file: {e}"))?;
-            let mut reader = std::io::BufReader::with_capacity(128 * 1024, file);
-            std::io::copy(&mut reader, &mut zip)
-                .map_err(|e| anyhow::anyhow!("ZIP write error: {e}"))?;
-        }
-
-        let mut writer = zip
-            .finish()
-            .map_err(|e| anyhow::anyhow!("ZIP finish error: {e}"))?;
-        writer.flush()?;
-        Ok(())
-    })
-    .map_err(|error| format!("Cannot publish APKG: {error:#}"))
+    package::write_apkg_archive(output_path, &db_path, &media_json_path, &media_files)
 }
 
 macro_rules! anki_tag_script {

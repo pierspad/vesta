@@ -47,6 +47,8 @@ jobs:
           -p srt-flashcards -p srt-transcribe -p srt-autosync -p srt-ankiconnect
           -p srt-extract-cli -p srt-sync-cli -p srt-translate-cli
           -p srt-flashcards-cli -p srt-transcribe-cli -p srt-autosync-cli -p srt-refine-cli
+      - name: Check external consumers for every library crate
+        run: python3 build-scripts/check_library_integration.py --individual
 
   # ===========================================================
   # Setup condiviso: dipendenze di sistema Tauri/whisper.cpp +

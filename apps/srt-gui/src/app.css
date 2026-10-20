@@ -12,6 +12,17 @@ body,
 /* Custom Modern Theme */
 :root {
   color-scheme: dark;
+  /* Neutral translucent controls follow the surface beneath them. Menus stay
+     opaque so content behind an open list cannot affect readability. */
+  --control-bg: rgb(0 0 0 / 0.16);
+  --control-hover-bg: rgb(255 255 255 / 0.035);
+  --control-focus-bg: rgb(255 255 255 / 0.05);
+  --control-border: rgb(148 163 184 / 0.22);
+  --control-focus-border: rgb(129 140 248 / 0.65);
+  --control-menu-bg: #18212e;
+  --control-option-hover: rgb(255 255 255 / 0.07);
+  --control-option-highlight: rgb(129 140 248 / 0.20);
+  --control-option-selected: rgb(129 140 248 / 0.12);
   --gradient-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   --gradient-secondary: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
   --gradient-success: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
@@ -234,10 +245,10 @@ body,
 
 /* Modern inputs */
 .input-modern {
-  background: #1a1a2e;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 12px;
-  padding: 12px 16px;
+  background: var(--control-bg);
+  border: 1px solid var(--control-border);
+  border-radius: 10px;
+  padding: 11px 14px;
   color: white;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
   position: relative;
@@ -246,7 +257,8 @@ body,
 
 .input-modern:focus {
   outline: none;
-  border-color: #667eea;
+  background: var(--control-focus-bg);
+  border-color: var(--control-focus-border);
   box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
 }
 
@@ -274,13 +286,13 @@ input[type="number"]::-webkit-inner-spin-button:hover,
   opacity: 1;
 }
 
-/* Modern select - OPAQUE backgrounds for readability */
+/* Select fields share the surrounding surface; option menus stay opaque. */
 .select-modern,
 .searchable-select-input {
   background-image: none;
   box-shadow: none;
-  background: rgba(24, 24, 42, 0.98) !important;
-  border: 1px solid rgba(148, 163, 184, 0.22);
+  background: var(--control-bg) !important;
+  border: 1px solid var(--control-border);
   border-radius: 10px;
   padding: 11px 14px;
   color: white;
@@ -291,18 +303,18 @@ input[type="number"]::-webkit-inner-spin-button:hover,
 .select-modern:focus,
 .searchable-select-input:focus {
   outline: none;
-  background: rgba(27, 28, 47, 1) !important;
-  border-color: rgba(129, 140, 248, 0.58);
+  background: var(--control-focus-bg) !important;
+  border-color: var(--control-focus-border);
 }
 
 .select-modern option {
-  background: #1a1a2e !important;
+  background: var(--control-menu-bg) !important;
   color: white;
   padding: 8px 12px;
 }
 
 .searchable-select-dropdown {
-  background: #0f172a !important;
+  background: var(--control-menu-bg) !important;
   border: 1px solid rgba(148, 163, 184, 0.25);
   border-radius: 10px;
   box-shadow: 0 12px 28px rgba(0, 0, 0, 0.6);
@@ -310,7 +322,7 @@ input[type="number"]::-webkit-inner-spin-button:hover,
 }
 
 .searchable-select-option {
-  background: #0f172a !important;
+  background: var(--control-menu-bg) !important;
 }
 
 /* Progress bar modern */
@@ -629,10 +641,10 @@ input[type="range"].slider-minimal:disabled::-moz-range-thumb {
   position: relative;
 }
 
-/* Custom select for language with proper styling - OPAQUE */
+/* Native language select shares the same field and menu surfaces. */
 .select-modern-styled {
-  background: rgba(24, 24, 42, 0.96) !important;
-  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: var(--control-bg) !important;
+  border: 1px solid var(--control-border);
   border-radius: 10px;
   padding: 11px 40px 11px 14px;
   color: white;
@@ -641,12 +653,12 @@ input[type="range"].slider-minimal:disabled::-moz-range-thumb {
 
 .select-modern-styled:focus {
   outline: none;
-  background: rgba(27, 28, 47, 0.98) !important;
-  border-color: rgba(129, 140, 248, 0.58);
+  background: var(--control-focus-bg) !important;
+  border-color: var(--control-focus-border);
 }
 
 .select-modern-styled option {
-  background: #1a1a2e !important;
+  background: var(--control-menu-bg) !important;
   color: white;
   padding: 10px;
 }
@@ -717,4 +729,20 @@ kbd {
 .settings-scroll[data-dense="true"] .shadow-lg,
 .settings-scroll[data-dense="true"] .shadow-sm {
   box-shadow: none;
+}
+
+.input-modern:not(:disabled):hover,
+.select-modern:not(:disabled):hover,
+.select-modern-styled:not(:disabled):hover {
+  background: var(--control-hover-bg);
+}
+.input-modern:focus-visible,
+.select-modern:focus-visible,
+.select-modern-styled:focus-visible {
+  outline: 2px solid var(--control-focus-border);
+  outline-offset: 2px;
+}
+.path-value {
+  color: inherit;
+  overflow-wrap: anywhere;
 }

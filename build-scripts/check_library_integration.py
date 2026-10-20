@@ -57,12 +57,16 @@ def main() -> None:
                 single_manifest.write_text(
                     "[package]\nname = \"vesta-single-smoke\"\nversion = \"0.1.0\"\nedition = \"2024\"\n"
                     f"[dependencies]\n{crate} = {{ path = {json.dumps(str(ROOT / relative))} }}\n"
-                    "[patch.crates-io]\n"
-                    f"whisper-rs-sys = {{ path = {json.dumps(str(ROOT / 'vendor/whisper-rs-sys-0.15.0'))} }}\n"
+                    + (
+                        "[patch.crates-io]\n"
+                        f"whisper-rs-sys = {{ path = {json.dumps(str(ROOT / 'vendor/whisper-rs-sys-0.15.0'))} }}\n"
+                        if crate in {"srt-transcribe", "srt-autosync"}
+                        else ""
+                    )
                 )
                 (single / "src").mkdir()
                 (single / "src" / "lib.rs").write_text("")
-                run(["cargo", "check", "--manifest-path", str(single_manifest), *offline], env=env, cwd=single)
+                run(["cargo", "check", "--quiet", "--manifest-path", str(single_manifest), *offline], env=env, cwd=single)
             print(f"Individually checked all {len(LIBRARIES)} Vesta crates.", flush=True)
 
         metadata = json.loads(run(["cargo", "metadata", "--quiet", "--format-version", "1", "--manifest-path", str(manifest), *offline], env=env, cwd=project, show_output=False))
@@ -107,7 +111,8 @@ def render_manifest(content: str, root: Path) -> str:
         "../../vendor/whisper-rs-sys-0.15.0": root / "vendor/whisper-rs-sys-0.15.0",
     }
     for old, path in replacements.items():
-        content = re.sub(re.escape(f'path = "{old}"'), f"path = {json.dumps(str(path))}", content)
+        replacement = f"path = {json.dumps(str(path))}"
+        content = re.sub(re.escape(f'path = "{old}"'), lambda _: replacement, content)
     return content
 
 

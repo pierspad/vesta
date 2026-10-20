@@ -1,6 +1,7 @@
 <script lang="ts">
   import { locale } from "$lib/i18n";
   import PathPickerField from "$lib/components/PathPickerField.svelte";
+  import type { NoteTypeOption } from "$lib/components/EpisodeTable.svelte";
   import EpisodeTable from "$lib/components/EpisodeTable.svelte";
   import type { EpisodeMediaOverrides } from "$lib/types/flashcardMediaTypes";
   import type { NoteTypeDef } from "$lib/types/noteTypes";
@@ -15,6 +16,8 @@
     nativeSubsPath: string;
     mediaPath: string;
     mediaOverrides?: EpisodeMediaOverrides;
+    noteTypeId?: string;
+    detectedLanguage?: string;
   }
 
   type ExpandableField = "targetSubs" | "nativeSubs" | "media" | "output";
@@ -40,6 +43,8 @@
     mediaPath?: string;
     outputDir: string;
     activeNoteType?: NoteTypeDef;
+    noteTypeOptions?: NoteTypeOption[];
+    getEpisodeNoteType?: (ep: EpisodeRow) => NoteTypeDef;
     onExpand: (field: ExpandableField) => void;
     onSelectTarget?: () => void;
     onSelectNative?: () => void;
@@ -49,6 +54,8 @@
   }
 
   let {
+    noteTypeOptions = [],
+    getEpisodeNoteType,
     highlightClass,
     contextTarget = null,
     episodes,
@@ -117,6 +124,8 @@
     <EpisodeTable
       {contextTarget}
       {episodes}
+      {getEpisodeNoteType}
+      {noteTypeOptions}
       {showSnackbar}
       {onSwapAll}
       {onSwap}

@@ -1,4 +1,6 @@
 {
+  "flashcards.perFilmNoteTypes": "Each film uses its own note type",
+  "flashcards.perFilmNoteTypeHint": "Detected from the original subtitles. If the language is uncertain, the last selected note type is used. Change it for each film in the table or its settings.",
   "about.repository": "GitHub repository",
   "about.sponsor": "Sponsor Vesta",
   "support.title": "Support Vesta",

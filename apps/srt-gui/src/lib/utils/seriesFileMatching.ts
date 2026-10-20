@@ -32,6 +32,10 @@ export interface EpisodeEntry {
   mediaPath: string;
   mediaType: "none" | "video" | "audio";
   mediaOverrides?: EpisodeMediaOverrides;
+  /** Explicit per-episode note type selection; absent means automatic. */
+  noteTypeId?: string;
+  /** Subtitle-content language inference, populated by the caller when available. */
+  detectedLanguage?: string;
   matching?: EpisodeMatchEvidence;
 }
 
@@ -44,6 +48,10 @@ export interface SeriesDraftEntry {
   mediaType: "none" | "video" | "audio";
   episodeNumber: number | null;
   mediaOverrides?: EpisodeMediaOverrides;
+  /** Explicit per-episode note type selection; absent means automatic. */
+  noteTypeId?: string;
+  /** Subtitle-content language inference, populated by the caller when available. */
+  detectedLanguage?: string;
   matching?: EpisodeMatchEvidence;
 }
 
@@ -294,6 +302,8 @@ export function buildSeriesDraftMap(
       mediaPath: episode.mediaPath,
       mediaType: episode.mediaType,
       mediaOverrides: episode.mediaOverrides,
+      noteTypeId: episode.noteTypeId,
+      detectedLanguage: episode.detectedLanguage,
       matching: episode.matching,
       episodeNumber: episode.targetSubsPath
         ? parseSeriesSubtitle(episode.targetSubsPath, rules).episodeNumber
@@ -324,6 +334,8 @@ export function seriesDraftEntriesToEpisodes(draftMap: Map<string, SeriesDraftEn
     mediaPath: entry.mediaPath,
     mediaType: entry.mediaType,
     mediaOverrides: entry.mediaOverrides,
+    noteTypeId: entry.noteTypeId,
+    detectedLanguage: entry.detectedLanguage,
     matching: entry.matching,
   }));
 }

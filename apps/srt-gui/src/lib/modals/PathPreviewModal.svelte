@@ -73,6 +73,7 @@
     class="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-6"
     role="dialog"
     aria-modal="true"
+    aria-label={title}
     tabindex="-1"
     onclick={onclose}
     onkeydown={(e) => {
@@ -90,6 +91,7 @@
         <button
           type="button"
           onclick={onclose}
+          aria-label={t("common.close")}
           class="text-gray-400 hover:text-white text-lg leading-none">✕</button
         >
       </div>
@@ -103,15 +105,15 @@
             type="text"
             bind:value={editValue}
             placeholder={placeholder || ""}
-            class="input-modern w-full text-sm font-mono"
+            class="input-modern path-value w-full text-sm font-mono"
             onkeydown={(e) => {
               if (e.key === "Enter") handlePrimaryClick();
             }}
           />
         </div>
       {:else}
-        <div class="bg-gray-800/80 rounded-lg p-3 border border-gray-700/50">
-          <p class="text-sm text-white font-mono break-all select-all leading-relaxed">
+        <div class="input-modern path-value">
+          <p class="text-sm font-mono select-all leading-relaxed">
             {value || "—"}
           </p>
         </div>

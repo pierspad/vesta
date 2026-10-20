@@ -3,6 +3,15 @@
   import { locale } from "$lib/i18n";
   import { getFileName } from "$lib/utils/models";
   import { hasMediaOverrides, type EpisodeMediaOverrides } from "$lib/types/flashcardMediaTypes";
+  import type { NoteTypeDef } from "$lib/types/noteTypes";
+
+  export interface NoteTypeOption {
+    value: string;
+    label: string;
+    displayLabel?: string;
+    searchTerms?: string;
+    icon?: string;
+  }
 
   /** Structural subset of FlashcardsTab.svelte's EpisodeEntry — this table
    * only renders/reports, it never owns the `episodes` array itself (see
@@ -14,6 +23,7 @@
     nativeSubsPath: string;
     mediaPath: string;
     mediaOverrides?: EpisodeMediaOverrides;
+    noteTypeId?: string;
   }
 
   interface Props {
@@ -27,8 +37,10 @@
     onRemove: (idx: number) => void;
     onContextMenu: (event: MouseEvent, idx: number, field?: "targetSubsPath" | "nativeSubsPath" | "mediaPath") => void;
     onClearAll: () => void;
+    noteTypeOptions?: NoteTypeOption[];
+    getEpisodeNoteType?: (ep: EpisodeRow) => NoteTypeDef;
   }
-  let { contextTarget = null, episodes, showSnackbar, onSwapAll, onSwap, onEdit, onMediaSettings, onRemove, onContextMenu, onClearAll }: Props = $props();
+  let { contextTarget = null, episodes, showSnackbar, onSwapAll, onSwap, onEdit, onMediaSettings, onRemove, onContextMenu, onClearAll, noteTypeOptions = [], getEpisodeNoteType }: Props = $props();
 
   let t = $derived($locale);
 </script>
@@ -79,6 +91,7 @@
             <th class="p-1.5 text-center text-gray-400"
               >{t("flashcards.mediaFile")}</th
             >
+            <th class="p-1.5 w-32 text-center text-gray-400">{t("settings.noteType")}</th>
             <th class="p-1.5 w-28 text-right">
               <button
                 type="button"
@@ -97,6 +110,10 @@
         </thead>
         <tbody>
           {#each episodes as ep, idx}
+            {@const noteTypeId = ep.noteTypeId || "default"}
+            {@const noteType = getEpisodeNoteType?.(ep)}
+            {@const option = noteTypeOptions.find((item) => item.value === (noteTypeId === "default" ? noteType?.id : noteTypeId))
+              ?? noteTypeOptions.find((item) => item.value === noteTypeId)}
             <tr
               class="border-t border-gray-800 cursor-default {idx % 2 === 0
                 ? 'bg-gray-900/30'
@@ -162,6 +179,20 @@
                 {:else}
                   <span class="px-1.5 py-0.5">—</span>
                 {/if}
+              </td>
+              <td class="p-1 text-center">
+                <button
+                  type="button"
+                  class="inline-flex max-w-full items-center gap-1.5 rounded-md px-1.5 py-1 text-[10px] text-gray-300 transition-colors hover:bg-indigo-500/15 hover:text-white"
+                  title={noteTypeId === "default" ? `${t("flashcards.automaticNoteType")} · ${noteType?.name ?? option?.displayLabel ?? option?.label ?? ""}` : noteType?.name ?? option?.label ?? noteTypeId}
+                  aria-label={`${t("settings.noteType")}: ${noteType?.name ?? option?.displayLabel ?? option?.label ?? t("flashcards.automaticNoteType")}`}
+                  onclick={(event) => { event.stopPropagation(); onEdit(idx); }}
+                >
+                  {#if option?.icon}
+                    <span class="shrink-0">{@html option.icon}</span>
+                  {/if}
+                  <span class="truncate">{noteType?.name ?? option?.displayLabel ?? option?.label ?? t("flashcards.automaticNoteType")}</span>
+                </button>
               </td>
               <td class="p-1.5">
                 <div class="flex items-center justify-end gap-1">

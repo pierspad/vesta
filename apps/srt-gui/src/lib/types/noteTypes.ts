@@ -305,9 +305,19 @@ export function loadActiveNoteTypeId(): string {
   return "default";
 }
 
+/** Automatic assignments never replace the user's last explicit selection. */
+export function loadLastUsedNoteTypeId(): string {
+  const saved = vestaConfig.getItem("vesta-last-used-note-type-id");
+  const legacy = loadActiveNoteTypeId();
+  return [saved, legacy].find(id => id && id !== "default" && id !== "auto" && findNoteTypeById(id)) || "default";
+}
+
 export function saveActiveNoteTypeId(id: string): void {
   try {
     vestaConfig.setItem(ACTIVE_NOTE_TYPE_ID_KEY, id);
+    if (id !== "default" && id !== "auto" && findNoteTypeById(id)) {
+      vestaConfig.setItem("vesta-last-used-note-type-id", id);
+    }
     dispatchWindowEvent(ACTIVE_NOTE_TYPE_CHANGED_EVENT);
   } catch { /* ignore */ }
 }

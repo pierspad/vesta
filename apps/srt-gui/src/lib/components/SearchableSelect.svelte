@@ -313,8 +313,8 @@
     -webkit-appearance: none;
     background-image: none;
     box-shadow: none;
-    background: rgba(24, 24, 42, 0.98) !important;
-    border: 1px solid rgba(148, 163, 184, 0.22);
+    background: var(--control-bg) !important;
+    border: 1px solid var(--control-border);
     border-radius: 10px;
     padding: 11px 40px 11px 14px;
     color: white;
@@ -340,8 +340,13 @@
 
   .searchable-select-input:focus {
     outline: none;
-    background: rgba(27, 28, 47, 1) !important;
-    border-color: rgba(129, 140, 248, 0.58);
+    background: var(--control-focus-bg) !important;
+    border-color: var(--control-focus-border);
+  }
+
+  .searchable-select-input:focus-visible {
+    outline: 2px solid var(--control-focus-border);
+    outline-offset: 2px;
   }
 
   .searchable-select-input::placeholder {
@@ -357,7 +362,7 @@
     max-height: 280px;
     overflow-y: auto;
     overflow-x: hidden;
-    background: #0f172a !important;
+    background: var(--control-menu-bg) !important;
     border: 1px solid rgba(148, 163, 184, 0.25);
     border-radius: 10px;
     box-shadow: none;
@@ -383,19 +388,19 @@
     transition: background-color 0.08s ease, color 0.08s ease;
     cursor: pointer;
     border: none;
-    background: #0f172a !important;
+    background: var(--control-menu-bg) !important;
   }
 
   .searchable-select-option:hover {
-    background: #1e293b !important;
+    background: var(--control-option-hover) !important;
   }
 
   .searchable-select-option.highlighted {
-    background: rgba(67, 56, 202, 0.8) !important;
+    background: var(--control-option-highlight) !important;
   }
 
   .searchable-select-option.selected {
-    background: rgba(79, 70, 229, 0.6) !important;
+    background: var(--control-option-selected) !important;
   }
 
   :global(.compact-select) .searchable-select-input {

@@ -23,6 +23,8 @@ vi.mock("$lib/stores/snackbarStore.svelte", () => ({
 import {
   defaultFieldNames,
   defaultCardTemplates,
+  loadLastUsedNoteTypeId,
+  saveActiveNoteTypeId,
   loadFieldNames,
   saveFieldNames,
   loadCardTemplates,
@@ -147,4 +149,18 @@ describe("ankiTemplate & noteTypes logic", () => {
       expect(payload.include_tag).toBe(true);
     });
   });
+});
+
+
+it("preserves the last explicit note type when automatic mode is selected", () => {
+  storage.clear();
+  saveActiveNoteTypeId("predef:en");
+  expect(loadLastUsedNoteTypeId()).toBe("predef:en");
+  saveActiveNoteTypeId("default");
+  expect(loadLastUsedNoteTypeId()).toBe("predef:en");
+  saveActiveNoteTypeId("predef:ja");
+  expect(loadLastUsedNoteTypeId()).toBe("predef:ja");
+  // A deleted custom type must not strand new films on a nonexistent template.
+  storage.set("vesta-last-used-note-type-id", "custom:deleted");
+  expect(loadLastUsedNoteTypeId()).toBe("predef:ja");
 });

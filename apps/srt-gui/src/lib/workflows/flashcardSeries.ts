@@ -17,6 +17,8 @@ export interface FlashcardSeriesOptions {
   cardFilters: CardFilterSettings;
   videoHwAccel: string;
   activeNoteType: NoteTypeDef;
+  /** Optional per-episode resolver; when supplied the workflow uses an explicit type per episode. */
+  getEpisodeNoteType?: (episode: EpisodeEntry) => NoteTypeDef;
   automaticNoteType?: boolean;
   ankiStore: { autoCardFont: boolean; embedCardFont: boolean };
   previewStore: { applyOverrides: (config: ReturnType<typeof buildFlashcardConfig>) => Promise<unknown> };
@@ -38,10 +40,25 @@ export async function runFlashcardSeries(options: FlashcardSeriesOptions) {
     included: { ...activeNoteType.included },
   };
   const runAutomaticNoteType = options.automaticNoteType;
+  const targetLanguage = getStudiedLanguagePreference();
+  const getEpisodeNoteType = options.getEpisodeNoteType;
   // Resolve each episode's preferred track language before the first async step.
   // The callback may read reactive UI preferences, while path inference remains
   // episode-specific because it is evaluated separately for each subtitle.
   const audioTrackLanguages = episodes.map((episode) => getAudioTrackLanguageForEpisode(episode));
+  // Resolve and deep-snapshot note types for the whole run before any async
+  // track discovery, so reactive edits cannot change later episode configs.
+  const episodeNoteTypes = getEpisodeNoteType
+    ? episodes.map((episode) => {
+        const noteType = getEpisodeNoteType(episode);
+        return {
+          ...noteType,
+          language: noteType.language || targetLanguage,
+          fields: { ...noteType.fields },
+          included: { ...noteType.included },
+        };
+      })
+    : null;
   // Resolve afresh for every run, including Expert mode and merged APKG output.
   generationStore.deckName = episodes.length ? deriveDeckNameFromFile(episodes[0]) : "Default Deck";
   generationStore.error = null;
@@ -58,7 +75,6 @@ export async function runFlashcardSeries(options: FlashcardSeriesOptions) {
 
   const { effectiveExportFormat, effectiveCpuCores, exportFormat, deckName } = generationStore;
   const seriesOutputMode = effectiveExportFormat === "apkg" ? generationStore.seriesOutputMode : "separate";
-  const targetLanguage = getStudiedLanguagePreference();
   const startTime = Date.now();
   let totalCards = 0;
   let totalAudio = 0;
@@ -95,11 +111,13 @@ export async function runFlashcardSeries(options: FlashcardSeriesOptions) {
         deckName,
         exportFormat: effectiveExportFormat,
         cpuCores: effectiveCpuCores,
-        targetLanguage,
+        targetLanguage: episodeNoteTypes
+          ? episodeNoteTypes[i].language
+          : targetLanguage,
         cardFilters,
         videoHwAccel,
-        activeNoteType: runActiveNoteType,
-        automaticNoteType: runAutomaticNoteType,
+        activeNoteType: episodeNoteTypes?.[i] ?? runActiveNoteType,
+        automaticNoteType: episodeNoteTypes ? false : runAutomaticNoteType,
         autoCardFont: ankiStore.autoCardFont,
         embedCardFont: ankiStore.embedCardFont,
         getMediaSettings: getEpisodeMediaSettings,

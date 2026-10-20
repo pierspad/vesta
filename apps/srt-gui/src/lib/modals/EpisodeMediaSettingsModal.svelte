@@ -1,4 +1,5 @@
 <script lang="ts">
+  import type { Snippet } from "svelte";
   import { onDestroy } from "svelte";
   import { LatestRequest } from "$lib/utils/asyncControl.svelte";
   const audioRequests = new LatestRequest();
@@ -14,10 +15,12 @@
   interface Props {
     /** Whether a given override key differs from the generic (movie-mode) setting — drives the "changed" glow. */
     mediaOverrideClass: (key: EpisodeMediaOverrideKey) => string;
+    noteTypeControl?: Snippet;
+    noteTypeDirty?: boolean;
     onSave: () => void;
     onReset: () => void;
   }
-  let { mediaOverrideClass, onSave, onReset }: Props = $props();
+  let { mediaOverrideClass, onSave, onReset, noteTypeControl, noteTypeDirty = false }: Props = $props();
 
   let t = $derived($locale);
 
@@ -132,6 +135,7 @@
       </div>
 
       <div class="flex-1 overflow-y-auto p-5">
+        {#if noteTypeControl}{@render noteTypeControl()}{/if}
         <div class="media-settings-panels grid items-start gap-4 lg:grid-cols-2">
           <!-- AUDIO PANEL -->
           <div class="relative z-30 space-y-4 rounded-xl border border-gray-800 bg-gray-800/30 p-5 shadow-inner">
@@ -505,7 +509,7 @@
           </button>
           <button
             type="button"
-            disabled={!editor.isDirty}
+            disabled={!editor.isDirty && !noteTypeDirty}
             onclick={onSave}
             class="rounded-lg border border-violet-400/40 bg-violet-500/20 px-4 py-2 text-sm font-semibold text-violet-100 shadow-lg shadow-violet-500/10 transition-all hover:border-violet-300/60 hover:bg-violet-500/30 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-violet-400/40 disabled:hover:bg-violet-500/20"
           >

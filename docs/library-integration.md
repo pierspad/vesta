@@ -16,7 +16,7 @@ python3 /path/to/vesta/build-scripts/check_library_integration.py --offline
 
 The check resolves all 11 core and library crates, rejects Tauri/GTK/WebKit in the resolved dependency graph, confirms that no Whisper GPU backend is enabled, and compiles/runs a small consumer. Its operations are local: it does not contact providers, download models, access Anki, or invoke FFmpeg.
 
-Add `--individual` to also create a separate temporary consumer and run `cargo check` for each crate before the combined smoke project. This catches dependency or feature assumptions hidden by feature unification in the combined graph.
+The headless CPU CI job runs this command with `--individual`. That option creates a separate temporary consumer and runs `cargo check` for each crate before the combined smoke project. This catches dependency or feature assumptions hidden by feature unification in the combined graph. The combined resolved graph also rejects Tauri, GTK, and WebKit package names and verifies that GPU features are absent from `srt-transcribe`, `srt-autosync`, `whisper-rs`, and `whisper-rs-sys`.
 
 ## Git dependencies
 
@@ -59,3 +59,17 @@ Transcription needs a supported native toolchain and system libraries for the se
 | `srt-translate` | Build a local provider pool and read provider defaults |
 
 The smoke check validates source integration and public APIs. It does not establish publication readiness, contact external services, download models, access Anki, or invoke FFmpeg. License metadata remains in each crate manifest; retain and review it as part of your application's license and distribution process.
+
+## Measuring checkpoint writes
+
+`lib/srt-translate/examples/checkpoint_bench.rs` measures the real `SrtParser::save_file` call used for incremental translation checkpoints, including filesystem writes. Run it manually from the workspace root:
+
+```sh
+cargo run --release -p srt-translate --example checkpoint_bench
+# Or measure the actual filesystem containing your output subtitles:
+cargo run --release -p srt-translate --example checkpoint_bench -- /path/to/output-directory
+```
+
+It prints CSV rows for 100, 1,000, 10,000, and 50,000 subtitle entries, with a warmup write and repeated measurements. The benchmark has no timing assertions and is not part of CI; use results from the target filesystem and hardware when evaluating checkpoint cost. The default temporary directory may reside in RAM, so provide a directory on the actual output filesystem when making performance decisions.
+
+One local release run on the repository's filesystem, using warmup and repeated measurements, reported mean save times of 1.692 ms (100 entries), 2.074 ms (1,000), 4.111 ms (10,000), and 13.015 ms (50,000), with output sizes from about 9.9 KB to 5.2 MB. These measurements are an example from one machine/filesystem, not a performance guarantee. They do not justify weakening checkpoint durability or resume behavior by themselves.

@@ -9,6 +9,7 @@
   import { listen } from "@tauri-apps/api/event";
   import { guardedOpen } from "$lib/utils/dialogGuard";
   import { setupWebviewDragDrop } from "$lib/utils/dragDrop";
+  import { resolveEpisodeNoteType, detectSubtitleLanguage } from "$lib/utils/episodeNoteType";
   import { onDestroy, onMount } from "svelte";
   import { currentLanguage, locale } from "$lib/i18n";
   import { getFileName, inferLanguageFromPath } from "$lib/utils/models";
@@ -31,9 +32,8 @@
     NOTE_TYPES_UPDATED_EVENT,
     NOTE_TYPE_FIELD_ORDER,
     listNoteTypes,
-    predefinedNoteTypeForLanguage,
     findNoteTypeById,
-    loadActiveNoteTypeId,
+    loadLastUsedNoteTypeId,
     saveActiveNoteTypeId,
     ACTIVE_NOTE_TYPE_CHANGED_EVENT,
     type NoteTypeDef,
@@ -166,11 +166,8 @@
   }
 
   function getStudiedLanguagePreference(): string {
-    const fromPath = episodes.find((e: EpisodeEntry) => e.targetSubsPath)?.targetSubsPath
-      ? inferLanguageFromPath(episodes.find((e: EpisodeEntry) => e.targetSubsPath)!.targetSubsPath)
-      : "";
-    const manualLanguage = !automaticNoteType ? selectedNoteType?.language : "";
-    return manualLanguage || fromPath || noteTypeLanguage || loadDefaultLanguage(DEFAULT_FLASHCARDS_LANGUAGE_KEY);
+    const episode = episodes.find(ep => ep.targetSubsPath);
+    return (episode ? getEpisodeNoteType(episode).language : "") || noteTypeLanguage || loadDefaultLanguage(DEFAULT_FLASHCARDS_LANGUAGE_KEY);
   }
 
   function isFontBannerDismissed(lang: string): boolean {
@@ -241,8 +238,8 @@
     return episodeMediaDiff(settings, defaults, autoTrack);
   }
 
-  function getPreferredAudioLanguageCodeForEpisode(ep: { targetSubsPath: string }): string {
-    return (!automaticNoteType && selectedNoteType?.language) || inferLanguageFromPath(ep.targetSubsPath) || noteTypeLanguage;
+  function getPreferredAudioLanguageCodeForEpisode(ep: Pick<EpisodeEntry, "targetSubsPath" | "noteTypeId" | "detectedLanguage">): string {
+    return getEpisodeNoteType(ep).language || noteTypeLanguage;
   }
 
   // Le euristiche pure di parsing/matching (regex su filename, classificazione
@@ -363,11 +360,16 @@
     episodeContextMenu = null;
   }
 
+  let mediaNoteTypeId = $state("default");
+  let initialMediaNoteTypeId = $state("default");
+
   async function openEpisodeMediaSettings(idx: number) {
     const episode = episodes[idx];
     if (!episode || !episode.mediaPath) return;
 
     closeEpisodeContextMenu();
+    mediaNoteTypeId = episode.noteTypeId || "default";
+    initialMediaNoteTypeId = mediaNoteTypeId;
     episodeMediaEditorStore.begin(idx, episode, getEpisodeMediaSettings(episode));
 
     if (episode.mediaType === "video") {
@@ -387,6 +389,10 @@
   }
 
   function closeEpisodeEditor() {
+    const initialId = initialEditingEpisodeStr ? JSON.parse(initialEditingEpisodeStr).noteTypeId : undefined;
+    if (editingEpisode?.noteTypeId && editingEpisode.noteTypeId !== initialId) {
+      saveActiveNoteTypeId(editingEpisode.noteTypeId);
+    }
     editingEpisodeIndex = null;
     editingEpisode = null;
     initialEditingEpisodeStr = "";
@@ -408,6 +414,8 @@
         : "none",
       mediaOverrides: editingEpisode.mediaPath ? editingEpisode.mediaOverrides : undefined,
       matching: editingEpisode.matching,
+      noteTypeId: editingEpisode.noteTypeId,
+      detectedLanguage: episodes[editingEpisodeIndex]?.targetSubsPath === editingEpisode.targetSubsPath ? editingEpisode.detectedLanguage : undefined,
     };
     episodes = episodes.map((episode, idx) =>
       idx === editingEpisodeIndex
@@ -422,6 +430,7 @@
   function revertEpisodeEditor() {
     if (editingEpisodeIndex !== null && initialEditingEpisodeStr) {
       const restored = JSON.parse(initialEditingEpisodeStr);
+      editingEpisode = restored;
       episodes = episodes.map((ep, idx) =>
         idx === editingEpisodeIndex ? restored : ep
       );
@@ -439,9 +448,11 @@
         ? {
             ...episode,
             mediaOverrides: Object.keys(mediaOverrides).length > 0 ? mediaOverrides : undefined,
+            noteTypeId: mediaNoteTypeId === "default" ? undefined : mediaNoteTypeId,
           }
         : episode,
     );
+    if (mediaNoteTypeId !== "default" && mediaNoteTypeId !== initialMediaNoteTypeId) saveActiveNoteTypeId(mediaNoteTypeId);
     closeEpisodeMediaSettings();
   }
 
@@ -453,6 +464,7 @@
         ? {
             ...episode,
             mediaOverrides: undefined,
+            noteTypeId: undefined,
           }
         : episode,
     );
@@ -531,6 +543,7 @@
     const temp = ep.targetSubsPath;
     ep.targetSubsPath = ep.nativeSubsPath;
     ep.nativeSubsPath = temp;
+    ep.detectedLanguage = undefined;
     episodes = [...episodes];
   }
 
@@ -540,7 +553,8 @@
       return {
         ...ep,
         targetSubsPath: ep.nativeSubsPath,
-        nativeSubsPath: temp
+        nativeSubsPath: temp,
+        detectedLanguage: undefined
       };
     });
   }
@@ -720,18 +734,45 @@
   // locked to all fields; custom ones are created and edited in Settings. The
   // active field set is read-only here — editing lives in Settings by design.
   let noteTypeList = $state<NoteTypeDef[]>(listNoteTypes());
-  let selectedNoteTypeId = $state(loadActiveNoteTypeId());
-  let automaticNoteType = $derived(selectedNoteTypeId === "default" || selectedNoteTypeId === "auto");
-  let selectedNoteType = $derived(noteTypeList.find((nt) => nt.id === selectedNoteTypeId) ?? findNoteTypeById(selectedNoteTypeId));
-  // Never null — falls back to the default note type.
-  let activeNoteType = $derived(
-    automaticNoteType ? predefinedNoteTypeForLanguage(proactiveLang) : selectedNoteType ?? findNoteTypeById("default")!
-  );
-  let noteTypeName = $derived(activeNoteType.name);
+  let fallbackNoteTypeId = $state(loadLastUsedNoteTypeId());
+  let selectedNoteTypeId = $derived(episodes[0]?.noteTypeId || "default");
+  let automaticNoteType = $derived(!episodes[0]?.noteTypeId);
+  let activeNoteType = $derived(getEpisodeNoteType(episodes[0] || { targetSubsPath: "" }));
+  let automaticEpisodeNoteType = $derived(getEpisodeNoteType({ ...episodes[0], targetSubsPath: episodes[0]?.targetSubsPath || "", noteTypeId: undefined }));
+  let subtitleLanguages = $state<Record<string, string | null>>({});
+  const languageRequests = new Map<string, Promise<string | null>>();
+
+  function getEpisodeNoteType(ep: Pick<EpisodeEntry, "targetSubsPath" | "noteTypeId" | "detectedLanguage">): NoteTypeDef {
+    return resolveEpisodeNoteType({ ...ep, detectedLanguage: subtitleLanguages[ep.targetSubsPath] || ep.detectedLanguage }, noteTypeList, fallbackNoteTypeId);
+  }
+
+  function detectEpisodeLanguage(path: string): Promise<string | null> {
+    if (!path || inferLanguageFromPath(path)) return Promise.resolve(null);
+    const pending = languageRequests.get(path);
+    if (pending) return pending;
+    const request = invoke<Array<{text: string}>>("flashcard_parse_subtitles", { path })
+      .then(cues => detectSubtitleLanguage((cues || []).slice(0, 160).map(cue => cue.text).join("\n")))
+      .catch(() => null)
+      .then(language => { subtitleLanguages[path] = language; return language; });
+    languageRequests.set(path, request);
+    return request;
+  }
+
+  $effect(() => {
+    const paths = [...new Set(episodes.map(ep => ep.targetSubsPath).filter(Boolean))];
+    void Promise.all(paths.map(detectEpisodeLanguage));
+  });
+
+  function setEpisodeNoteType(index: number, id: string) {
+    const noteTypeId = id === "default" || id === "auto" ? undefined : id;
+    episodes = episodes.map((ep, i) => i === index ? { ...ep, noteTypeId } : ep);
+    if (noteTypeId) { saveActiveNoteTypeId(noteTypeId); fallbackNoteTypeId = loadLastUsedNoteTypeId(); }
+  }
+
 
   $effect(() => {
     const handler = () => {
-      selectedNoteTypeId = loadActiveNoteTypeId();
+      fallbackNoteTypeId = loadLastUsedNoteTypeId();
     };
     window.addEventListener(ACTIVE_NOTE_TYPE_CHANGED_EVENT, handler);
     return () => {
@@ -740,7 +781,7 @@
   });
 
   let noteTypeOptions = $derived(
-    [{ value: "default", label: `${t("flashcards.automaticNoteType")} · ${predefinedNoteTypeForLanguage(proactiveLang).name}`, displayLabel: predefinedNoteTypeForLanguage(proactiveLang).name, icon: languages.find((language) => language.code === predefinedNoteTypeForLanguage(proactiveLang).language)?.flag || '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" class="w-4 h-4"><path stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M4 9V4h5m6 0h5v5M4 15v5h5m6 0h5v-5M8 12h8m-4-4v8" /></svg>' }, ...noteTypeList.filter((nt) => nt.id !== "default").map((nt) => ({
+    [{ value: "default", label: `${t("flashcards.automaticNoteType")} · ${automaticEpisodeNoteType.name}`, displayLabel: automaticEpisodeNoteType.name, icon: languages.find((language) => language.code === automaticEpisodeNoteType.language)?.flag || '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" class="w-4 h-4"><path stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M4 9V4h5m6 0h5v5M4 15v5h5m6 0h5v-5M8 12h8m-4-4v8" /></svg>' }, ...noteTypeList.filter((nt) => nt.id !== "default").map((nt) => ({
       value: nt.id,
       label: nt.name,
       searchTerms: [nt.name, getLanguageSearchTerms(nt.language)]
@@ -778,8 +819,8 @@
   }
 
   function selectNoteType(id: string) {
-    selectedNoteTypeId = id;
-    saveActiveNoteTypeId(id);
+    if (episodes.length === 1) setEpisodeNoteType(0, id);
+    else saveActiveNoteTypeId(id);
   }
 
   // The automatic deck name and generation run-state (isProcessing,
@@ -1241,8 +1282,8 @@
       deckName: ep ? deriveDeckNameFromFile(ep) : "",
       episodeNumber: 1,
       exportFormat: generationStore.effectiveExportFormat,
-      noteType: activeNoteType,
-      automaticNoteType,
+      noteType: ep ? getEpisodeNoteType(ep) : activeNoteType,
+      automaticNoteType: false,
       cpuCores: generationStore.effectiveCpuCores,
       targetLanguage: getStudiedLanguagePreference(),
       autoCardFont: ankiStore.autoCardFont,
@@ -1281,9 +1322,9 @@
   let cancelRequested = false;
 
   async function startSeriesGeneration() {
-    cancelRequested = false;
     await runFlashcardSeries({
-      generationStore, episodes: $state.snapshot(episodes), t,
+      generationStore, episodes: $state.snapshot(episodes).map(ep => ({ ...ep, detectedLanguage: subtitleLanguages[ep.targetSubsPath] || ep.detectedLanguage })), t,
+      getEpisodeNoteType,
       outputDir, cardFilters: $state.snapshot(cardFilters), videoHwAccel, activeNoteType, automaticNoteType,
       ankiStore: { autoCardFont: ankiStore.autoCardFont, embedCardFont: ankiStore.embedCardFont },
       previewStore,
@@ -1311,6 +1352,8 @@
     const run = generationStore.operation.begin();
     if (!run) return;
     try {
+      await Promise.all(episodes.map(ep => detectEpisodeLanguage(ep.targetSubsPath)));
+      if (cancelRequested) return;
       await startSeriesGeneration();
     } finally { run.finish(); }
   }
@@ -1549,6 +1592,8 @@
       <FilesOutputPanel
         highlightClass={panelHighlightClass('files')}
         {episodes}
+        {getEpisodeNoteType}
+        {noteTypeOptions}
         contextTarget={episodeContextMenu}
         onAddFiles={addSeriesMultipleFiles}
         onClearAll={clearAllEpisodes}
@@ -1672,6 +1717,10 @@
   {#if editingEpisode}
     <EpisodeEditorModal
       {editingEpisode}
+      {noteTypeOptions}
+      {getEpisodeNoteType}
+      episodeIndex={editingEpisodeIndex ?? undefined}
+      onNoteTypeChange={(_index, id) => { if (editingEpisode) { editingEpisode.noteTypeId = id === "default" ? undefined : id; syncEpisodeEditor(); } }}
       onlyField={editingEpisodeField}
       {activeNoteType}
       {dropMediaHint}
@@ -1684,7 +1733,14 @@
     />
   {/if}
 
-  <EpisodeMediaSettingsModal {mediaOverrideClass} onSave={saveEpisodeMediaSettings} onReset={resetEpisodeMediaSettings} />
+  <EpisodeMediaSettingsModal {mediaOverrideClass} noteTypeDirty={mediaNoteTypeId !== initialMediaNoteTypeId} onSave={saveEpisodeMediaSettings} onReset={resetEpisodeMediaSettings}>
+    {#snippet noteTypeControl()}
+      <label class="mb-4 block space-y-2 text-sm text-gray-300">
+        <span>{t("settings.noteType")}</span>
+        <SearchableSelect options={noteTypeOptions.map(option => option.value === "default" && episodeMediaEditorStore.episode ? { ...option, label: `${t("flashcards.automaticNoteType")} · ${getEpisodeNoteType({ ...episodeMediaEditorStore.episode, noteTypeId: undefined }).name}`, displayLabel: getEpisodeNoteType({ ...episodeMediaEditorStore.episode, noteTypeId: undefined }).name } : option)} value={mediaNoteTypeId} onchange={(id) => mediaNoteTypeId = id} ariaLabel={t("settings.noteType")} placeholder={t("settings.noteType")} noResultsText={t("common.noResults")} />
+      </label>
+    {/snippet}
+  </EpisodeMediaSettingsModal>
 
   <PathPreviewModal
     isOpen={!!expandedPathField}

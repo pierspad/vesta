@@ -1,8 +1,10 @@
 <script lang="ts">
   import { locale } from "$lib/i18n";
   import { getFileName } from "$lib/utils/models";
+  import SearchableSelect from "$lib/components/SearchableSelect.svelte";
   import type { EpisodeEntry } from "$lib/utils/seriesFileMatching";
   import type { NoteTypeDef } from "$lib/types/noteTypes";
+  import type { NoteTypeOption } from "$lib/components/EpisodeTable.svelte";
 
   export type EpisodeFileField = "targetSubsPath" | "nativeSubsPath" | "mediaPath";
 
@@ -10,6 +12,10 @@
     editingEpisode: EpisodeEntry;
     onlyField?: EpisodeFileField | null;
     activeNoteType: NoteTypeDef;
+    noteTypeOptions?: NoteTypeOption[];
+    getEpisodeNoteType?: (ep: EpisodeEntry) => NoteTypeDef;
+    episodeIndex?: number;
+    onNoteTypeChange?: (idx: number, id: string) => void;
     dropMediaHint: string;
     dropSubtitleHint: string;
     onClose: () => void;
@@ -23,6 +29,10 @@
     editingEpisode,
     onlyField = null,
     activeNoteType,
+    noteTypeOptions = [],
+    getEpisodeNoteType,
+    episodeIndex,
+    onNoteTypeChange,
     dropMediaHint,
     dropSubtitleHint,
     onClose,
@@ -33,6 +43,23 @@
   }: Props = $props();
 
   let t = $derived($locale);
+  let episodeNoteType = $derived(getEpisodeNoteType?.(editingEpisode) ?? activeNoteType);
+  let noteTypeSelectOptions = $derived.by(() => {
+    const currentAutomaticType = getEpisodeNoteType?.({ ...editingEpisode, noteTypeId: undefined }) ?? activeNoteType;
+    const autoOption: NoteTypeOption = {
+      value: "default",
+      label: `${t("flashcards.automaticNoteType")} · ${currentAutomaticType.name}`,
+      displayLabel: currentAutomaticType.name,
+      icon: noteTypeOptions.find((option) => option.value === currentAutomaticType.id)?.icon
+        ?? noteTypeOptions.find((option) => option.value === "default")?.icon,
+    };
+    return [autoOption, ...noteTypeOptions.filter((option) => option.value !== "default")];
+  });
+
+  function selectNoteType(id: string) {
+    editingEpisode.noteTypeId = id === "default" ? undefined : id;
+    if (episodeIndex !== undefined) onNoteTypeChange?.(episodeIndex, id);
+  }
 
   const episodeEditorFields: {
     field: EpisodeFileField;
@@ -77,11 +104,24 @@
     </div>
 
     <div class="space-y-3">
+      {#if !onlyField && noteTypeOptions.length > 0}
+        <div class="px-2 py-3">
+          <span class="mb-1.5 block text-xs font-medium text-gray-400">{t("settings.noteType")}</span>
+          <SearchableSelect
+            options={noteTypeSelectOptions}
+            value={editingEpisode.noteTypeId || "default"}
+            onchange={selectNoteType}
+            placeholder={t("settings.noteType")}
+            noResultsText={t("common.noResults")}
+            ariaLabel={t("settings.noteType")}
+          />
+        </div>
+      {/if}
       {#each episodeEditorFields.filter((item) => !onlyField || item.field === onlyField) as item}
         {@const field = item.field}
         {@const label = t(`flashcards.${item.labelKey}`)}
         {@const placeholder = t(`flashcards.${item.placeholderKey}`)}
-        {@const isFieldDisabled = field === "nativeSubsPath" ? !activeNoteType.included.meaning : field === "mediaPath" ? (!activeNoteType.included.audio && !activeNoteType.included.snapshot && !activeNoteType.included.video) : false}
+        {@const isFieldDisabled = field === "nativeSubsPath" ? !episodeNoteType.included.meaning : field === "mediaPath" ? (!episodeNoteType.included.audio && !episodeNoteType.included.snapshot && !episodeNoteType.included.video) : false}
         <div
           data-episode-file-field={field}
           data-disabled={isFieldDisabled}

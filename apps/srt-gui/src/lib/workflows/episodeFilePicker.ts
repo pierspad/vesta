@@ -20,6 +20,7 @@ export async function pickEpisodeFile(episode: EpisodeEntry, field: EpisodeFileF
   return {
     ...episode,
     [field]: selected,
+    detectedLanguage: field === "targetSubsPath" && selected !== episode.targetSubsPath ? undefined : episode.detectedLanguage,
     mediaType: media ? detectMediaType(getFileName(selected)) : episode.mediaType,
   };
 }

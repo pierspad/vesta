@@ -55,7 +55,7 @@
       onclick={onexpand}
       disabled={disabled || !onexpand}
       class="input-modern flex-1 text-sm text-left transition-colors truncate disabled:opacity-50 {onexpand
-        ? 'cursor-pointer hover:bg-white/10 disabled:cursor-not-allowed disabled:hover:bg-white/5'
+        ? 'cursor-pointer disabled:cursor-not-allowed'
         : 'cursor-default disabled:opacity-100'}"
       style="direction: rtl; text-align: left;"
       title={value || placeholder}

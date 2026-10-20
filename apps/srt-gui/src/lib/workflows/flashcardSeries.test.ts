@@ -168,3 +168,54 @@ it("derives a merged package name afresh instead of requiring or reusing a manua
  expect(run.generationStore.deckName).toBe("Detour");
  expect(run.invoke).toHaveBeenCalledWith("flashcard_generate", { config: expect.objectContaining({ deck_name: "Detour" }) });
 });
+
+it("snapshots per-episode resolved note types before delayed async preparation", async () => {
+ const run = options();
+ const manualOverride = {
+  ...predefinedNoteTypeForLanguage("fr"),
+  id: "custom:film", name: "Film French", language: "fr",
+  fields: { ...predefinedNoteTypeForLanguage("fr").fields, expression: "FilmFrenchExpression" },
+ };
+ const detectedJapanese = {
+  ...predefinedNoteTypeForLanguage("ja"),
+  fields: { ...predefinedNoteTypeForLanguage("ja").fields, expression: "JapaneseExpression" },
+ };
+ const originalFrenchFields = { ...manualOverride.fields };
+ const originalJapaneseFields = { ...detectedJapanese.fields };
+ run.getEpisodeNoteType = episode => episode.id === 1 ? manualOverride : detectedJapanese;
+ let resolveTrack!: (index: number | null) => void;
+ let trackCalls = 0;
+ run.pickAudioTrackIndexForEpisode = vi.fn(() => {
+  trackCalls++;
+  return trackCalls === 1
+   ? new Promise<number | null>(resolve => { resolveTrack = resolve; })
+   : Promise.resolve(0);
+ });
+ const pending = runFlashcardSeries(run);
+ await Promise.resolve();
+ // These represent UI changes while the first async track probe is pending.
+ manualOverride.name = "Changed after start";
+ manualOverride.fields.expression = "ChangedFrenchExpression";
+ detectedJapanese.name = "Changed Japanese";
+ detectedJapanese.fields.expression = "ChangedJapaneseExpression";
+ resolveTrack(0);
+ await pending;
+ expect(run.invoke).toHaveBeenNthCalledWith(1, "flashcard_generate", { config: expect.objectContaining({
+  note_type_name: "Film French", target_language: "fr", field_names: expect.objectContaining({ expression: originalFrenchFields.expression }),
+ }) });
+ expect(run.invoke).toHaveBeenNthCalledWith(2, "flashcard_generate", { config: expect.objectContaining({
+  note_type_name: "Japanese_Vesta", target_language: "ja", field_names: expect.objectContaining({ expression: originalJapaneseFields.expression }),
+ }) });
+});
+
+
+it("uses the saved global language when a resolved manual note type has no language", async () => {
+ const run = options();
+ const manualType = { ...predefinedNoteTypeForLanguage(""), id: "custom:blank", name: "Blank language type" };
+ run.episodes = [run.episodes[0]];
+ run.getEpisodeNoteType = () => manualType;
+ await runFlashcardSeries(run);
+ expect(run.invoke).toHaveBeenCalledWith("flashcard_generate", { config: expect.objectContaining({
+  note_type_name: "Blank language type", target_language: "en",
+ }) });
+});
