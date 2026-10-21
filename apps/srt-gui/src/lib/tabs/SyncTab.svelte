@@ -1288,7 +1288,11 @@
           {@render panelContent("status")}
           {@render panelContent("wizard")}
         </div>
-        <div class="min-w-0" role="region">{@render panelContent("subtitleList")}</div>
+        <div class="flex min-h-0 min-w-0 flex-col xl:relative xl:self-stretch" role="region">
+          <div class="flex max-h-[42rem] min-h-0 flex-col xl:absolute xl:inset-0 xl:max-h-none">
+            {@render panelContent("subtitleList")}
+          </div>
+        </div>
       </div>
     </WorkflowWorkspace>
   </div>
