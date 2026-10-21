@@ -1,4 +1,5 @@
 <script lang="ts">
+  import EmptyStatusLabel from "$lib/components/EmptyStatusLabel.svelte";
   import { invokeCommand } from "$lib/services/tauriClient";
   import MediaIcon from "$lib/components/MediaIcon.svelte";
   import { writeClipboard } from "$lib/utils/clipboard";
@@ -56,7 +57,10 @@
           <svg aria-hidden="true" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 9h11v11H9zM5 15H4V4h11v1" /></svg>
         </button>
       </div>
+      <div class="relative">
+        {#if !logs.preview.length}<EmptyStatusLabel message={t("supportLogs.empty")} />{/if}
       <textarea readonly value={logs.previewText} aria-label={t("supportLogs.title")} spellcheck="false" class="log-preview block h-48 w-full resize-y rounded-lg border border-white/10 bg-black/25 p-3 font-mono text-xs leading-relaxed text-gray-200 focus:border-rose-400/50 focus:outline-none"></textarea>
+      </div>
     </div>
   {#if logs.error}<p class="mt-3 text-xs text-red-300 break-all" role="alert">{logs.error}</p>{/if}
 </section>
