@@ -274,3 +274,37 @@ remain in the checker's explicit allowlist. Do not weaken the gate to avoid
 translating UI text. Run the same fast localization gate manually with
 `bash build-scripts/check-i18n.sh`. Regression tests for staged/outgoing snapshots
 and hook installation run with `python3 build-scripts/test_git_hooks.py`.
+
+## Dependency advisory checks
+
+CI runs a separate `security` job against both checked-in lockfiles:
+
+```bash
+cargo install cargo-audit --locked --version 0.22.2
+cargo audit
+(cd apps/srt-gui && npm audit)
+```
+
+Review informational `unmaintained` and `unsound` advisories as well as the
+vulnerability count. A zero vulnerability count can still include informational
+advisories. The current GTK/Tauri graph retains GLib's VariantStrIter unsoundness
+warning and maintenance warnings. Repeat these checks before release;
+a database lookup does not prove exploitability or absence of unknown defects.
+
+
+## Frontend workflow regression checks
+
+`quality_check.py` first validates the locked Tauri JS/Rust pairs and runs the
+checker fixtures without network. To run just those checks:
+
+```bash
+python3 build-scripts/check_tauri_versions.py
+python3 build-scripts/test_tauri_versions.py
+```
+
+The frontend suite includes pending native-listener cleanup, refinement run IDs,
+provider changes during model discovery, manual versus automatic audio-track
+selection, matching-rule JSONC parsing, grouped alignment undo, and obsolete
+subtitle-output lookups. Mounted tests cover Align shortcuts and Extract lookup
+errors. These tests preserve behavior across controller extraction; native
+webview, installer and authenticated-provider smoke checks remain separate.
