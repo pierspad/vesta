@@ -120,12 +120,8 @@ impl Translator {
         target_lang: &str,
         context: Option<&str>,
     ) -> Result<String> {
-        match self.config.api_type {
-            ApiType::Google => self.translate_google(text, target_lang, context).await,
-            ApiType::Local | ApiType::OpenRouter | ApiType::Groq => {
-                self.translate_openai(text, target_lang, context).await
-            }
-        }
+        let prompt = build_single_translation_prompt(text, target_lang, context);
+        self.translation_response(&prompt).await
     }
 
     pub async fn translate_with_context(
@@ -135,25 +131,23 @@ impl Translator {
         title_context: Option<&str>,
         surrounding_context: Option<&str>,
     ) -> Result<String> {
-        match self.config.api_type {
-            ApiType::Google => {
-                self.translate_with_context_google(
-                    text,
-                    target_lang,
-                    title_context,
-                    surrounding_context,
-                )
-                .await
-            }
-            ApiType::Local | ApiType::OpenRouter | ApiType::Groq => {
-                self.translate_with_context_openai(
-                    text,
-                    target_lang,
-                    title_context,
-                    surrounding_context,
-                )
-                .await
-            }
+        let prompt = build_context_enhanced_translation_prompt(
+            text,
+            target_lang,
+            title_context,
+            surrounding_context,
+        );
+        self.translation_response(&prompt).await
+    }
+
+    // OpenAI-compatible translation historically trims quotes after whitespace;
+    // generate_response and Google's transport retain their own normalization.
+    async fn translation_response(&self, prompt: &str) -> Result<String> {
+        let text = self.generate_response(prompt).await?;
+        if self.config.api_type == ApiType::Google {
+            Ok(text)
+        } else {
+            Ok(text.trim().trim_matches('"').to_string())
         }
     }
 
@@ -163,16 +157,9 @@ impl Translator {
         target_lang: &str,
         context: Option<&str>,
     ) -> Result<HashMap<u32, String>> {
-        let translations = match self.config.api_type {
-            ApiType::Google => {
-                self.translate_batch_google(texts_with_ids, target_lang, context)
-                    .await
-            }
-            ApiType::Local | ApiType::OpenRouter | ApiType::Groq => {
-                self.translate_batch_openai(texts_with_ids, target_lang, context)
-                    .await
-            }
-        }?;
+        let prompt = build_batch_translation_prompt(texts_with_ids, target_lang, context);
+        let response = self.generate_response(&prompt).await?;
+        let translations = parse_json_translations(&response, texts_with_ids.len())?;
         anyhow::ensure!(
             texts_with_ids
                 .iter()
@@ -189,45 +176,6 @@ impl Translator {
                 self.call_openai_api(prompt).await
             }
         }
-    }
-
-    async fn translate_google(
-        &self,
-        text: &str,
-        target_lang: &str,
-        context: Option<&str>,
-    ) -> Result<String> {
-        let prompt = build_single_translation_prompt(text, target_lang, context);
-        self.call_google_api(&prompt).await
-    }
-
-    async fn translate_batch_google(
-        &self,
-        texts_with_ids: &[(u32, String)],
-        target_lang: &str,
-        context: Option<&str>,
-    ) -> Result<HashMap<u32, String>> {
-        let prompt = build_batch_translation_prompt(texts_with_ids, target_lang, context);
-        let result_text = self.call_google_api(&prompt).await?;
-
-        let translations = parse_json_translations(&result_text, texts_with_ids.len())?;
-        Ok(translations)
-    }
-
-    async fn translate_with_context_google(
-        &self,
-        text: &str,
-        target_lang: &str,
-        title_context: Option<&str>,
-        surrounding_context: Option<&str>,
-    ) -> Result<String> {
-        let prompt = build_context_enhanced_translation_prompt(
-            text,
-            target_lang,
-            title_context,
-            surrounding_context,
-        );
-        self.call_google_api(&prompt).await
     }
 
     async fn call_google_api(&self, prompt: &str) -> Result<String> {
@@ -385,47 +333,6 @@ impl Translator {
             "Google API rate limit exceeded after {} retries",
             MAX_RETRIES
         )
-    }
-
-    async fn translate_openai(
-        &self,
-        text: &str,
-        target_lang: &str,
-        context: Option<&str>,
-    ) -> Result<String> {
-        let prompt = build_single_translation_prompt(text, target_lang, context);
-        let result = self.call_openai_api(&prompt).await?;
-        Ok(result.trim().trim_matches('"').to_string())
-    }
-
-    async fn translate_batch_openai(
-        &self,
-        texts_with_ids: &[(u32, String)],
-        target_lang: &str,
-        context: Option<&str>,
-    ) -> Result<HashMap<u32, String>> {
-        let prompt = build_batch_translation_prompt(texts_with_ids, target_lang, context);
-        let result_text = self.call_openai_api(&prompt).await?;
-
-        let translations = parse_json_translations(&result_text, texts_with_ids.len())?;
-        Ok(translations)
-    }
-
-    async fn translate_with_context_openai(
-        &self,
-        text: &str,
-        target_lang: &str,
-        title_context: Option<&str>,
-        surrounding_context: Option<&str>,
-    ) -> Result<String> {
-        let prompt = build_context_enhanced_translation_prompt(
-            text,
-            target_lang,
-            title_context,
-            surrounding_context,
-        );
-        let result = self.call_openai_api(&prompt).await?;
-        Ok(result.trim().trim_matches('"').to_string())
     }
 
     async fn call_openai_api(&self, prompt: &str) -> Result<String> {
