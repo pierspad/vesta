@@ -16,6 +16,7 @@ crate-type = ["lib", "cdylib", "staticlib"]
 tauri-build = { version = "2.6", features = [] }
 
 [dependencies]
+vesta-cli.workspace = true
 tauri = { version = "2.11", features = ["protocol-asset"] }
 tauri-plugin-shell = "2.3"
 tauri-plugin-fs = "2.5"
@@ -31,6 +32,7 @@ ffmpeg-sidecar = { version = "2.5.1", features = ["download_ffmpeg"] }
 sysinfo = "0.39"
 reqwest = { workspace = true }
 sha2 = "0.11"
+chrono = { version = "0.4", default-features = false, features = ["clock"] }
 
 # Dipendenze dal workspace
 srt-parser = { workspace = true }

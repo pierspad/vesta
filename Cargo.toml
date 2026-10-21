@@ -30,6 +30,7 @@ encoding_rs = "0.8"
 chardetng = "1"
 
 # Internal crates
+vesta-cli = { path = "./cli/vesta-cli", version = "0.28.0" }
 srt-download = { path = "./core/srt-download", version = "0.28.0" }
 srt-parser = { path = "./core/srt-parser", version = "0.28.0" }
 srt-apkg = { path = "./core/srt-apkg", version = "0.28.0" }

@@ -112,9 +112,10 @@ fi
 # ===========================================================
 # 4. .desktop file (build-scripts)
 # ===========================================================
-DESKTOP_FILE="$SCRIPT_DIR/com.vesta.desktop.desktop"
-if [ -f "$DESKTOP_FILE" ]; then
-    cat > "$DESKTOP_FILE" <<EOF
+# Both package entry points are needed, but share a single template.
+for DESKTOP_FILE in "$SCRIPT_DIR/com.vesta.desktop.desktop" "$SCRIPT_DIR/vesta.desktop"; do
+    if [ -f "$DESKTOP_FILE" ]; then
+        cat > "$DESKTOP_FILE" <<EOF
 [Desktop Entry]
 Name=${APP_NAME}
 Comment=${PKGDESC}
@@ -125,24 +126,9 @@ Categories=AudioVideo;Education;Utility;
 Terminal=false
 StartupWMClass=${BINARY_NAME}
 EOF
-    update_file "$DESKTOP_FILE" "name, comment, exec, icon"
-fi
-
-DESKTOP_FILE2="$SCRIPT_DIR/vesta.desktop"
-if [ -f "$DESKTOP_FILE2" ]; then
-    cat > "$DESKTOP_FILE2" <<EOF
-[Desktop Entry]
-Name=${APP_NAME}
-Comment=${PKGDESC}
-Exec=${BINARY_NAME}
-Icon=${BINARY_NAME}
-Type=Application
-Categories=AudioVideo;Education;Utility;
-Terminal=false
-StartupWMClass=${BINARY_NAME}
-EOF
-    update_file "$DESKTOP_FILE2" "name, comment, exec, icon"
-fi
+        update_file "$DESKTOP_FILE" "name, comment, exec, icon"
+    fi
+done
 
 # ===========================================================
 # 5. Flatpak manifest

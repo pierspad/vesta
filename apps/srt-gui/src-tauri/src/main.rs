@@ -85,7 +85,13 @@ use state::{
     FlashcardState, RefineState, SyncState, TranscribeState, TranslateState,
 };
 
-fn main() {
+fn main() -> std::process::ExitCode {
+    // Route terminal workflows before starting Tauri, its window or media server.
+    // `vesta-cli` provides the same commands without any desktop dependencies.
+    let args: Vec<_> = std::env::args_os().collect();
+    if args.len() > 1 && args[1] != "--benchmark" {
+        return vesta_cli::run_from(args);
+    }
     // Fix blurry rendering on Linux (WebKitGTK DMABUF renderer issue)
     #[cfg(target_os = "linux")]
     // SAFETY: this runs at the very top of `main`, single-threaded, before any other
@@ -319,4 +325,5 @@ fn main() {
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+    std::process::ExitCode::SUCCESS
 }

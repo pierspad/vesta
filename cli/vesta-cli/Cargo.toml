@@ -1,0 +1,31 @@
+[package]
+name = "vesta-cli"
+version = "0.28.0"
+edition.workspace = true
+rust-version.workspace = true
+description = "Unified headless command-line interface for Vesta library workflows"
+license = "GPL-3.0-only"
+repository = "https://github.com/pierspad/vesta"
+
+[[bin]]
+name = "vesta-cli"
+path = "src/main.rs"
+
+[dependencies]
+clap = { workspace = true }
+srt-autosync-cli = { path = "../srt-autosync-cli" }
+srt-extract-cli = { path = "../srt-extract-cli" }
+srt-flashcards-cli = { path = "../srt-flashcards-cli" }
+srt-refine-cli = { path = "../srt-refine-cli" }
+srt-sync-cli = { path = "../srt-sync-cli" }
+srt-transcribe-cli = { path = "../srt-transcribe-cli" }
+srt-translate-cli = { path = "../srt-translate-cli" }
+
+[dev-dependencies]
+tempfile.workspace = true
+
+[features]
+vulkan = ["srt-transcribe-cli/vulkan"]
+cuda = ["srt-transcribe-cli/cuda"]
+rocm = ["srt-transcribe-cli/rocm"]
+sycl = ["srt-transcribe-cli/sycl"]
