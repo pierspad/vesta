@@ -69,6 +69,7 @@
   import * as vestaConfig from "$lib/config/vestaConfig";
   import { DefaultLlmProviderSettings, type ProviderEndpointStatus } from "$lib/workflows/defaultLlmProviderSettings.svelte";
   import { fetchModelsFromEndpoint } from "$lib/services/modelDiscovery";
+  import { SmartMatchingRulesDraft } from "$lib/workflows/smartMatchingRulesDraft.svelte";
 
   const allProviderIds = ["local", "google", "groq", "openai", "deepgram", "assemblyai", "openrouter", "mistral", "github", "nvidia", "custom"];
   const apiKeyProviderIds = ["google", "groq", "openai", "deepgram", "assemblyai", "openrouter", "mistral", "github", "nvidia", "custom"];
@@ -477,44 +478,18 @@
 
   // Smart Matching Settings
   let smartMatchingEnabled = $derived(smartMatchingStore.enabled);
-  let smartMatchingRulesDraft = $state("");
-  let smartMatchingRulesError = $state<string | null>(null);
-
-  function formatSmartMatchingRules(rules: any): string {
-    return JSON.stringify(rules, null, 2);
-  }
-
-  function toggleSmartMatching() {
-    smartMatchingStore.setEnabled(!smartMatchingStore.enabled);
-    if (smartMatchingStore.enabled) {
-      smartMatchingRulesDraft = formatSmartMatchingRules(smartMatchingStore.rules);
-      smartMatchingRulesError = null;
-    }
-  }
-
-  function getSmartMatchingRulesDraftError(): string | null {
-    try {
-      const parsed = JSON.parse(smartMatchingRulesDraft.replace(/\\"|"(?:\\"|[^"])*"|(\/\/.*|\/\*[\s\S]*?\*\/)/g, (m, g) => g ? "" : m));
-      if (!parsed || typeof parsed !== "object") return t("settings.smartMatching.invalidObject");
-      return null;
-    } catch (e: any) {
-      return e.message || t("settings.smartMatching.invalidJson");
-    }
-  }
-
-  function saveSmartMatchingRules() {
-    const err = getSmartMatchingRulesDraftError();
-    smartMatchingRulesError = err;
-    if (err) return;
-    try {
-      const cleanJson = smartMatchingRulesDraft.replace(/\\"|"(?:\\"|[^"])*"|(\/\/.*|\/\*[\s\S]*?\*\/)/g, (m, g) => g ? "" : m);
-      const parsed = JSON.parse(cleanJson);
-      smartMatchingStore.saveRules(parsed);
-      snackbar.show(t("settings.smartMatching.saveSuccess"), "success");
-    } catch (e: any) {
-      smartMatchingRulesError = e.message || t("settings.smartMatching.saveError");
-    }
-  }
+  const smartMatchingRulesDraft = new SmartMatchingRulesDraft(
+    smartMatchingStore,
+    {
+      invalidObject: () => t("settings.smartMatching.invalidObject"),
+      invalidJson: () => t("settings.smartMatching.invalidJson"),
+      saveSuccess: () => t("settings.smartMatching.saveSuccess"),
+      saveError: () => t("settings.smartMatching.saveError"),
+    },
+    (message) => snackbar.show(message, "success"),
+  );
+  const toggleSmartMatching = () => smartMatchingRulesDraft.toggle();
+  const saveSmartMatchingRules = () => smartMatchingRulesDraft.save();
 
   // Card template editor
   let showResetConfirm = $state<"style" | "fields" | "overview" | "llm" | "whisper" | "language" | "anki" | null>(null);
@@ -601,8 +576,7 @@
 
     smartMatchingStore.resetRules();
     smartMatchingStore.setEnabled(true);
-    smartMatchingRulesDraft = formatSmartMatchingRules(smartMatchingStore.rules);
-    smartMatchingRulesError = null;
+    smartMatchingRulesDraft.loadFromStore();
 
     snackbar.show(t("settings.language.resetSuccess"), "info");
   }
@@ -641,7 +615,7 @@
     void updateCheckerStore.init();
 
     loadApiKeys();
-    smartMatchingRulesDraft = formatSmartMatchingRules(smartMatchingStore.rules);
+    smartMatchingRulesDraft.loadFromStore();
     whisperModelsStore.defaultWhisperModel = vestaConfig.getItem("srt-default-whisper-model") || "base";
 
     whisperModelsStore.refreshModels().catch((e) => console.error("Could not list models:", e));
@@ -994,15 +968,15 @@
           <div class="mt-4 pt-4 border-t border-white/5 space-y-3">
             <div class="relative">
               <CodeEditor
-                bind:value={smartMatchingRulesDraft}
+                bind:value={smartMatchingRulesDraft.value}
                 language="jsonc"
                 heightClass="h-[520px]"
                 onchange={saveSmartMatchingRules}
               />
             </div>
-            {#if smartMatchingRulesError}
+            {#if smartMatchingRulesDraft.error}
               <p class="mt-2 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-200">
-                {smartMatchingRulesError}
+                {smartMatchingRulesDraft.error}
               </p>
             {/if}
           </div>
