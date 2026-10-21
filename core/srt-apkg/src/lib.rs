@@ -62,7 +62,7 @@ pub fn unzip_to(zip_path: &Path, dest_dir: &Path) -> Result<(), String> {
             None => continue,
         };
         let outpath = root.join(&relative);
-        let directories = if entry.name().ends_with('/') {
+        let directories = if entry.is_dir() {
             relative.as_path()
         } else {
             relative.parent().unwrap_or(Path::new(""))
@@ -73,7 +73,7 @@ pub fn unzip_to(zip_path: &Path, dest_dir: &Path) -> Result<(), String> {
             ensure_directory(&parent)?;
         }
 
-        if entry.name().ends_with('/') {
+        if entry.is_dir() {
             continue;
         } else {
             match fs::symlink_metadata(&outpath) {
@@ -239,9 +239,9 @@ mod tests {
         let mut archive = zip::ZipArchive::new(zip_file).unwrap();
         for i in 0..archive.len() {
             let entry = archive.by_index(i).unwrap();
-            if entry.name() == "audio.mp3" {
+            if entry.name().unwrap() == "audio.mp3" {
                 assert_eq!(entry.compression(), zip::CompressionMethod::Stored);
-            } else if entry.name() == "hello.txt" {
+            } else if entry.name().unwrap() == "hello.txt" {
                 assert_eq!(entry.compression(), zip::CompressionMethod::Deflated);
             }
         }
@@ -318,7 +318,7 @@ mod regression_tests {
             zip_from_dir(directory.path(), &output).unwrap();
             let mut archive = zip::ZipArchive::new(fs::File::open(&output).unwrap()).unwrap();
             assert_eq!(archive.len(), 1);
-            assert_eq!(archive.by_index(0).unwrap().name(), "hello.txt");
+            assert_eq!(archive.by_index(0).unwrap().name().unwrap(), "hello.txt");
         }
         assert_eq!(fs::read_dir(directory.path()).unwrap().count(), 2);
     }

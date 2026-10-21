@@ -3,7 +3,7 @@ const mocks = vi.hoisted(() => ({ fetch: vi.fn(), invoke: vi.fn(), listen: vi.fn
 vi.mock('$lib/services/tauriClient', () => ({ invokeCommand: mocks.invoke }));
 vi.mock('$lib/services/tauriHttp', () => ({ fetch: mocks.fetch }));
 vi.mock('@tauri-apps/api/event', () => ({ listen: mocks.listen }));
-vi.mock('@tauri-apps/plugin-shell', () => ({ open: mocks.open }));
+vi.mock('@tauri-apps/plugin-opener', () => ({ openUrl: mocks.open }));
 vi.mock('$lib/stores/snackbarStore.svelte', () => ({ snackbar: { show: mocks.snackbar } }));
 vi.mock('$lib/i18n', () => ({ t: (key: string) => key }));
 vi.mock('$lib/config/vestaConfig', () => ({ getItem: () => 'false', setItem: vi.fn() }));
@@ -23,6 +23,16 @@ beforeEach(() => {
 });
 afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 describe('update checker', () => {
+  it('opens the verified release URL with the opener plugin', async () => {
+    const updates = await store();
+    updates.releaseUrl = 'https://github.com/pierspad/vesta/releases/tag/v1.2.3';
+    await updates.openRelease();
+    expect(mocks.open).toHaveBeenCalledWith(updates.releaseUrl);
+    mocks.open.mockClear();
+    updates.releaseUrl = 'https://example.com/untrusted';
+    await updates.openRelease();
+    expect(mocks.open).toHaveBeenCalledWith('https://github.com/pierspad/vesta/releases');
+  });
   it('retains release notes for the inbox without interpreting them as markup', async () => {
     mocks.fetch.mockResolvedValue(response({ ...release(), body: '<img src=x> Notes' }));
     const updates = await store();

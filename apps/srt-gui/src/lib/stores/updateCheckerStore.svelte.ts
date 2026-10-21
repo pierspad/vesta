@@ -1,7 +1,7 @@
 import { invokeCommand as invoke } from "$lib/services/tauriClient";
 import { fetch as tauriFetch } from "$lib/services/tauriHttp";
 import { listen } from "@tauri-apps/api/event";
-import { open } from "@tauri-apps/plugin-shell";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import { compareVersions, officialReleaseUrl, selectInstaller, type UpdateAsset } from "$lib/utils/updateVersion";
 import { snackbar } from "$lib/stores/snackbarStore.svelte";
 import { t } from "$lib/i18n";
@@ -39,7 +39,7 @@ class UpdateCheckerStore {
     }
   }
   async openRelease() {
-    try { await open(officialReleaseUrl(this.releaseUrl) || RELEASES_PAGE_URL); }
+    try { await openUrl(officialReleaseUrl(this.releaseUrl) || RELEASES_PAGE_URL); }
     catch (error) { snackbar.show(String(error), "error"); }
   }
   async installUpdate() {

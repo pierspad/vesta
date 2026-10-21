@@ -5,7 +5,10 @@
   "windows": ["main"],
   "permissions": [
     "core:default",
-    "shell:allow-open",
+    {
+      "identifier": "opener:allow-open-url",
+      "allow": [{ "url": "https://github.com/pierspad/vesta/releases*" }]
+    },
     "dialog:allow-open",
     "dialog:allow-save",
     "dialog:allow-message",
