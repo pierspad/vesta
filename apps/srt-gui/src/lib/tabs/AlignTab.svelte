@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { SnapshotHistory } from "$lib/workflows/snapshotHistory";
   import EmptyStatusLabel from "$lib/components/EmptyStatusLabel.svelte";
   import { invokeCommand as invoke } from "$lib/services/tauriClient";
   import { listen } from '@tauri-apps/api/event';
@@ -72,47 +73,19 @@
   let expandedPathField = $state<string | null>(null);
 
   // ─── Undo History ──────────────────────────────────────────────────────────
-  const MAX_UNDO = 50;
-  let undoStack = $state<string[]>([]);
-  let undoDebounceTimer: ReturnType<typeof setTimeout> | null = null;
-
-  function pushUndo() {
-    // Serialize current sourceSubs state
-    const snapshot = JSON.stringify(sourceSubs.map(s => ({
-      id: s.id,
-      start: s.start,
-      end: s.end,
-      text: s.text,
-      originalStart: s.originalStart,
-      originalEnd: s.originalEnd
-    })));
-    // Don't push if identical to last snapshot
-    if (undoStack.length > 0 && undoStack[undoStack.length - 1] === snapshot) return;
-    undoStack = [...undoStack.slice(-(MAX_UNDO - 1)), snapshot];
-  }
-
+  const undoHistory = new SnapshotHistory<Subtitle[]>(
+    () => sourceSubs.map(s => ({
+      id: s.id, start: s.start, end: s.end, text: s.text,
+      originalStart: s.originalStart, originalEnd: s.originalEnd,
+    })),
+    snapshot => { sourceSubs = snapshot; },
+  );
+  const pushUndo = () => undoHistory.push();
   function scheduleUndo() {
     hasUnsavedChanges = true;
-    // Push undo snapshot on first keystroke, debounce subsequent ones
-    if (undoDebounceTimer === null) {
-      pushUndo();
-    } else {
-      clearTimeout(undoDebounceTimer);
-    }
-    undoDebounceTimer = setTimeout(() => {
-      undoDebounceTimer = null;
-    }, 500);
+    undoHistory.schedule();
   }
-
-  function performUndo() {
-    if (undoStack.length === 0) return;
-    const snapshot = undoStack[undoStack.length - 1];
-    undoStack = undoStack.slice(0, -1);
-    try {
-      const parsed = JSON.parse(snapshot) as Subtitle[];
-      sourceSubs = parsed;
-    } catch {}
-  }
+  const performUndo = () => undoHistory.undo();
 
   function handleKeydown(e: KeyboardEvent) {
     if (!active || e.defaultPrevented || e.isComposing || showOverwriteConfirm || showUnsavedWarning || expandedPathField) return;
@@ -272,7 +245,7 @@
     return () => {
       cleanupDragDrop();
       window.removeEventListener('keydown', handleKeydown);
-      if (undoDebounceTimer) clearTimeout(undoDebounceTimer);
+      undoHistory.dispose();
     };
   });
 
@@ -446,7 +419,7 @@
       sourceSubs = parseSrt(content);
       sourcePath = path;
       normalizeAlignments();
-      undoStack = []; // Reset undo on new file load
+      undoHistory.reset(); // Reset undo on new file load
       hasUnsavedChanges = false;
     } catch (e) {
       showError(`Error loading source: ${errorMessage(e)}`);
