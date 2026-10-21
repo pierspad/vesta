@@ -39,6 +39,12 @@ see [architecture](ARCHITECTURE.md) and
 [library integration](library-integration.md). This guide is the maintained
 source for repeatable checks and release validation.
 
+The [CLI guide](CLI.md) records each command's output contract and coverage.
+Subprocess regressions also check help examples, standalone language listing,
+conflicting report/track modes, and actionable provider/configuration errors.
+MCP tests connect a real stdio SDK client; it is an optional adapter with a
+smaller feature set, not a replacement for testing the terminal workflows.
+
 ## One command
 
 From the repository root, after `npm ci` in `apps/srt-gui`:

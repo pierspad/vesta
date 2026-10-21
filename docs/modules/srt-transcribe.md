@@ -15,7 +15,7 @@ primitives to a complete, GUI-agnostic **media → SRT pipeline**
 - `audio` — FFmpeg helpers: `convert_to_wav`, `segment_to_wav_chunks`,
   `read_wav_to_f32`
 - `transcribe` — whisper.cpp via `whisper-rs`: `transcribe_full` (greedy or
-  beam-search decoding, threads defaulting to the physical cores; with a VAD
+  beam-search decoding, threads defaulting to physical cores capped at eight; with a VAD
   model set it runs Silero through whisper.cpp's standalone VAD API, then
   transcribes only the detected speech spans with timestamps mapped back to
   the original timeline — `whisper_full_params.vad` is deliberately unused, as
@@ -73,6 +73,7 @@ Requires `ffmpeg` on PATH (or `--ffmpeg /path/to/ffmpeg`).
 ```toml
 [dependencies]
 srt-transcribe = { git = "https://github.com/pierspad/vesta" }
+anyhow = "1"
 tokio          = { version = "1", features = ["full"] }
 tokio-util     = "0.7"
 ```

@@ -6,13 +6,15 @@ Command-line tool for translating SRT subtitle files using AI/LLM APIs.
 
 ### From source
 
+From the repository root:
+
 ```bash
-cargo install --path .
+cargo install --locked --path cli/srt-translate-cli
 ```
 
-### Pre-built binaries
-
-Download from the releases page or build using `./build_all.sh` from the project root.
+The desktop executable also dispatches `vesta translate ...`. Build the standalone
+binary with `cargo build --locked --release -p srt-translate-cli`; this does not
+require Tauri. See the [unified CLI guide](../../docs/CLI.md).
 
 ## Usage
 

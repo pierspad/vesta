@@ -12,13 +12,17 @@ body. Transport failures remove credential-bearing URLs; malformed translation
 JSON reports a location rather than echoing private subtitle text.
 
 ```rust
-use srt_translate::{ProviderError, Translator, TranslatorConfig};
+use srt_translate::{Translator, TranslatorConfig};
 
-let translator = Translator::new(TranslatorConfig::default())
-    .with_diagnostics(|event| {
-        // The caller owns logging. Only numeric retry metadata is provided.
-        eprintln!("HTTP {}: retry {} in {} ms", event.status, event.attempt, event.retry_in_ms);
-    });
+fn main() -> anyhow::Result<()> {
+    let translator = Translator::try_new(TranslatorConfig::default())?
+        .with_diagnostics(|event| {
+            // The caller owns logging. Only numeric retry metadata is provided.
+            eprintln!("HTTP {}: retry {} in {} ms", event.status, event.attempt, event.retry_in_ms);
+        });
+    let _ = translator;
+    Ok(())
+}
 ```
 
 The observer is optional, retained by clones, and must be fast/nonblocking.
@@ -62,6 +66,7 @@ cargo build --release -p srt-translate-cli
 [dependencies]
 srt-parser    = { git = "https://github.com/pierspad/vesta" }
 srt-translate = { git = "https://github.com/pierspad/vesta" }
+anyhow        = "1"
 tokio         = { version = "1", features = ["full"] }
 tokio-util    = "0.7"
 ```

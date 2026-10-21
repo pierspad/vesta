@@ -43,6 +43,7 @@ For automatic anchor discovery from media use the
 ```toml
 [dependencies]
 srt-sync = { git = "https://github.com/pierspad/vesta" }
+anyhow = "1"
 ```
 
 ```rust
@@ -50,10 +51,17 @@ use srt_sync::SyncEngine;
 
 fn main() -> anyhow::Result<()> {
     let mut engine = SyncEngine::new("movie.srt")?;
-    // Dialogue at subtitle #1 actually starts 2.5 s later:
-    engine.add_anchor(1, 2_500, true)?;
-    // …and by the last line the drift has grown to 4 s:
-    engine.add_anchor(engine.total_subtitles() as u32, 5_400_000 + 4_000, true)?;
+    let mut subtitles = engine.get_all_synced_subtitles();
+    subtitles.sort_by_key(|subtitle| subtitle.start.milliseconds);
+    let first = subtitles.first().ok_or_else(|| anyhow::anyhow!("The input subtitle file is empty"))?;
+    // corrected_time_ms is an absolute media timestamp, not a delta.
+    engine.add_anchor(first.id, first.start.milliseconds as i64 + 2_500, true)?;
+    if let Some(last) = subtitles.last().filter(|last| last.id != first.id) {
+        // Use the final subtitle's actual ID; IDs may have gaps.
+        let corrected_last = (last.start.milliseconds as i64 + 4_000)
+            .max(first.start.milliseconds as i64 + 2_501);
+        engine.add_anchor(last.id, corrected_last, true)?;
+    }
     engine.save_synced_file("movie.synced.srt")?;
     Ok(())
 }

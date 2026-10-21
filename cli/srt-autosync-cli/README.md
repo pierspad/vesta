@@ -14,3 +14,6 @@ Successful runs write the synced SRT to `--output` and print a summary to stdout
 ```sh
 cargo test -p srt-autosync-cli
 ```
+
+See the [command-by-command CLI guide](../../docs/CLI.md) for examples, misuse
+corrections and the current GUI/library coverage boundaries.

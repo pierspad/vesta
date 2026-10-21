@@ -1,7 +1,8 @@
 # Manutenzione
 
 Le procedure riproducibili sono in [QUALITY](QUALITY.md); architettura e contratti
-pubblici in [ARCHITECTURE](ARCHITECTURE.md) e [API_COMPATIBILITY](API_COMPATIBILITY.md).
+dei motori in [ARCHITECTURE](ARCHITECTURE.md); la revisione dei contratti dei
+provider è in [API_COMPATIBILITY](API_COMPATIBILITY.md).
 Questo documento descrive i confini da mantenere durante le modifiche.
 
 ## Frontend
@@ -13,10 +14,14 @@ responsabilità verificabili separatamente vivono in `apps/srt-gui/src/lib/workf
   tracce audio. Un probe vecchio non deve modificare la scelta di un altro file.
 - Translate: discovery modelli per identità provider/credenziale; risultati
   obsoleti non devono aggiornare lo stato o la cache. Un errore lascia il fallback
-  statico e non deve generare un ciclo di richieste automatiche.
+  statico e non deve generare un ciclo di richieste automatiche. I tier locali
+  usano un timer esplicito di 15 secondi; rotazione/rimozione delle credenziali
+  invalida i risultati pendenti. Le cache persistenti versionate hanno TTL di
+  24 ore e identità SHA-256 complete, senza segreti nei nomi.
 - Transcribe: risorse Whisper e sottoscrizioni native; le registrazioni che
   terminano dopo lo smontaggio devono essere immediatamente rilasciate.
-- Refine: indicizzazione/ricerca carte e protocollo dei job automatici. Il listener
+- Refine: indicizzazione/ricerca carte con cache limitata ai testi del dataset
+  corrente e protocollo dei job automatici. Il listener
   deve precedere l'invocazione, filtrare il run ID e venire sempre rilasciato.
 - Settings: preferenze provider e bozza JSONC di smart matching. Le regole salvate
   e quelle ricaricate devono attraversare la stessa normalizzazione.

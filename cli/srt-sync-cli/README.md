@@ -28,3 +28,6 @@ cargo test -p srt-sync-cli
 
 GPL-3.0-only. For embedding, use `srt_sync::SyncEngine` directly rather than
 spawning this executable. See [the engine guide](../../docs/modules/srt-sync.md).
+
+See the [command-by-command CLI guide](../../docs/CLI.md) for examples, misuse
+corrections and the current GUI/library coverage boundaries.

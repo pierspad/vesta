@@ -21,6 +21,17 @@ and for callers that want typed results, job IDs, progress and cancellation
 without parsing terminal output. Keeping this adapter optional preserves both
 workflows without duplicating the processing engine.
 
+| Interface | Best fit | Current coverage |
+|---|---|---|
+| `vesta-cli` / `vesta <operation>` | Shell scripts and terminal users | Seven processing workflows; see the [CLI coverage matrix](CLI.md). |
+| `vesta-mcp` | MCP clients discovering structured tools and tracking export jobs | Subtitle inspection, paged card previews and single-episode TSV/APKG exports. |
+| Rust libraries | Applications that need APIs/options not exposed by an adapter | All public engine APIs; caller owns orchestration, configuration and lifecycle. |
+
+The CLI already has progress/cancellation and some JSON output (`transcribe
+run --json`, refinement results and extraction reports). MCP's benefit is one
+discoverable tool/schema/job protocol, especially for clients without shell
+access. It does not add new processing capabilities to the engines.
+
 The client starts a local subprocess for its connection. That process uses local
 memory while connected and exits on disconnect; no remote server subscription,
 listening port or system background service is required.
@@ -51,7 +62,8 @@ configuration format depends on the client):
 }
 ```
 
-Use `vesta-mcp.exe` on Windows. Both roots must be existing directories. Repeat
+Use `vesta-mcp.exe` on Windows. Create the directories before connecting; the
+server requires existing roots and does not create them. Repeat
 `--read-root` for additional input directories. The server exposes no application
 credentials or arbitrary shell execution. Subtitle paths are canonicalized and
 must remain inside a declared read root, including when symlinks are involved.
@@ -100,7 +112,14 @@ Typical workflow:
    false: audio requires an audio/video input; snapshots and video clips require
    a video input. FFmpeg/FFprobe must be on PATH when processing media. Workers
    must be 1–64 and are also capped by the engine to available logical cores.
-   Font downloads are disabled in this adapter.
+   Font downloads are disabled in this adapter. The complete generation parameter
+   set is `target`, `native`, `video`, `audio`, `deck`, `format`, `note_type`,
+   `include_audio`, `include_snapshots`, `include_video`, and `workers`.
+   `target`, `deck` and `format` are required; the others are optional. `note_type`
+   is a name (1–128 characters), not a custom field/template definition. Other
+   engine settings use library defaults; codecs, filters, padding, GUI note-type
+   preferences and multi-episode merging are not MCP parameters. Unknown fields
+   are rejected, so use the CLI/library for options outside this schema.
 
 4. Poll `get_job` with the returned `job_id`. Its `progress` is the latest engine
    event; `result` includes the card count and export paths after success.
@@ -125,7 +144,8 @@ approval policy when tools create files.
 The first implementation covers subtitle inspection and flashcards, including
 optional audio, snapshots and video clips. Translation, transcription, provider
 configuration, GUI state and AnkiConnect are not exposed over MCP yet. Their
-existing CLI/library interfaces remain available. Exposing provider-based work
+CLI workflows and public library APIs remain available, with the different
+coverage documented in [CLI.md](CLI.md). Exposing provider-based work
 will need an explicit configuration and usage-cost contract.
 
 Processing runs locally; previews and tool results are returned to the MCP client.

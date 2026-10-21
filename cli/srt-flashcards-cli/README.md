@@ -25,7 +25,7 @@ srt-flashcards generate \
   --target Detour-en.srt --native Detour-it.srt \
   --video "Detour(1945).mp4" --output out --format tsv --deck Detour
 
-# Generate a self-contained .apkg, on all cores but one
+# Generate a self-contained .apkg with seven requested media workers
 srt-flashcards generate -t Detour-en.srt -n Detour-it.srt \
   -v "Detour(1945).mp4" -o out -f apkg -d Detour -j 7
 ```
@@ -46,8 +46,9 @@ srt-flashcards generate -t Detour-en.srt -n Detour-it.srt \
 | `--min-chars` / `--exclude-words` / … | Subtitle filters (see `--help`). |
 | `--ffmpeg` / `--ffprobe` | Override the binaries to invoke. |
 
-Run `srt-flashcards generate --help` for the full list (filters, padding,
-context lines, codecs, bitrates, …).
+Run `srt-flashcards generate --help` for the full list (filters,
+context lines, codecs, bitrates, …). Padding and several other engine options
+are not exposed by this CLI; see the [coverage matrix](../../docs/CLI.md#coverage-shared-engines-different-interfaces).
 
 ## Script contract
 

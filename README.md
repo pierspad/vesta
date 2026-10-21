@@ -80,7 +80,8 @@ vesta flashcards generate \
   --format apkg \
   --deck "Japanese — Episode 1" \
   --snapshot-format webp \
-  --audio-format opus
+  --audio-format opus \
+  --no-video
 ```
 
 For servers or systems without desktop libraries, build the standalone entry point:
@@ -91,7 +92,7 @@ cargo build --release -p vesta-cli
 ./target/release/vesta-cli flashcards generate --help
 ```
 
-`vesta-cli` runs the same commands as `vesta` without opening a window or depending on Tauri. On Windows, use `vesta-cli.exe` for terminal output; the desktop executable is built as a windowed application. A locally built executable stays in `target/release`; it is not added to `PATH` automatically. `cargo install --path cli/vesta-cli` installs the standalone command in Cargo's binary directory.
+`vesta-cli` runs the same terminal commands as `vesta` without opening a window or depending on Tauri. These commands cover the seven main workflows, but do not expose every GUI option or public library API; they also use their own arguments/configuration rather than the GUI preferences. See the [command-by-command guide and coverage matrix](docs/CLI.md). On Windows, use `vesta-cli.exe` for terminal output; the desktop executable is built as a windowed application. A locally built executable stays in `target/release`; it is not added to `PATH` automatically. `cargo install --path cli/vesta-cli` installs the standalone command in Cargo's binary directory.
 
 | Operation | Purpose | Existing standalone command |
 |---|---|---|
@@ -105,11 +106,11 @@ cargo build --release -p vesta-cli
 
 Each operation has `--help`; commands with further subcommands also expose their own help. The existing `srt-*` binaries remain available. Media operations require FFmpeg/FFprobe; transcription and auto-sync also need their configured model or provider. The [module guides](docs/modules/README.md) describe each library, command and build requirement.
 
-For assistant integration, the optional [MCP server](docs/MCP.md) exposes subtitle inspection, card previews and cancellable export jobs without the GUI.
+For assistant integration, the optional [MCP server](docs/MCP.md) is still available as a separately built `vesta-mcp` executable. It exposes subtitle inspection, card previews and cancellable export jobs through structured tools over local stdio. It covers fewer workflows than the CLI; its advantage is tool/schema discovery and job control for MCP clients, rather than extra processing features.
 
 ## Building from Source
 
-You need **Rust 1.99+**, **Node.js 22.12+**, npm, FFmpeg and FFprobe. Linux desktop builds also need a C/C++ compiler, CMake, pkg-config and Tauri development libraries (`libwebkit2gtk-4.1-dev`, `libappindicator3-dev`, `librsvg2-dev`). Native Whisper builds may need additional GPU tooling; see [transcription build requirements](docs/modules/srt-transcribe.md).
+You need **Rust 1.99+**, **Node.js 22.12+**, npm, FFmpeg and FFprobe. Linux desktop builds also need a C/C++ compiler, CMake, pkg-config and Tauri development libraries (`libwebkit2gtk-4.1-dev`, `libayatana-appindicator3-dev`, `librsvg2-dev`). Native Whisper builds may need additional GPU tooling; see [transcription build requirements](docs/modules/srt-transcribe.md).
 
 ```bash
 git clone https://github.com/pierspad/vesta.git
@@ -122,13 +123,19 @@ For tests and release checks, see [CONTRIBUTING.md](CONTRIBUTING.md) and [the qu
 
 ## Documentation Map
 
-- [Documentation index](docs/README.md) — maintained guides and remaining work.
-- [Architecture](docs/ARCHITECTURE.md) — engine boundaries, desktop integration and media lifecycle.
-- [Modules](docs/modules/README.md) — CLI usage and embedding the Rust engines.
-- [Quality](docs/QUALITY.md) — automated checks and installed-app validation.
-- [Maintenance](docs/MAINTENANCE.md) — consolidated fixes, known limits and open work.
-- [Setup and installer checks](docs/SETUP_TESTING.md) — repeatable desktop validation.
-- [Benchmarks](docs/BENCHMARK_STEPS.md) — reproduce the measurements and understand their scope.
+| Guide | Use it for |
+|---|---|
+| [Documentation index](docs/README.md) | Find maintained guides and review records. |
+| [CLI guide and coverage](docs/CLI.md) | Every command, correct usage, output contracts and differences from the GUI/libraries. |
+| [MCP integration](docs/MCP.md) | Local server setup, six tools, jobs, file roots and current limits. |
+| [Architecture](docs/ARCHITECTURE.md) | Engine boundaries, desktop integration and media lifecycle. |
+| [Modules](docs/modules/README.md) | All 11 engine/support crates, their CLIs and Rust APIs. |
+| [Library integration](docs/library-integration.md) | Downstream dependencies, Whisper patch, GPU features and smoke checks. |
+| [Provider compatibility review](docs/API_COMPATIBILITY.md) | Dated provider API contract/link review; authenticated inference has separate checks. |
+| [Quality](docs/QUALITY.md) | Automated checks and installed-app validation. |
+| [Maintenance](docs/MAINTENANCE.md) | Maintained invariants, known limits and open work. |
+| [Setup and installer checks](docs/SETUP_TESTING.md) | Repeatable desktop validation. |
+| [Benchmark procedures](docs/BENCHMARK_STEPS.md), [native evidence](docs/BENCHMARK_NATIVE.md), [results](docs/BENCHMARK_REPORT.md) | Reproduce measurements and distinguish their scopes. |
 
 ## Contributing
 

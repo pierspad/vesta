@@ -20,3 +20,6 @@ usual stderr output and exit 2.
 Cancellation is checked before publishing the SRT. Once synchronous publication
 has started, it completes atomically and the command may report success even if
 Ctrl+C arrives during that final write. A failed write preserves the previous file.
+
+See the [command-by-command CLI guide](../../docs/CLI.md) for examples, misuse
+corrections and the current GUI/library coverage boundaries.
