@@ -15,7 +15,7 @@
   import MediaIcon from "$lib/components/MediaIcon.svelte";
   import { whisperModelsStore as modelStore } from "$lib/stores/whisperModelsStore.svelte";
   import CopyPathChip from "$lib/components/CopyPathChip.svelte";
-  import { listen } from "@tauri-apps/api/event";
+  import { subscribeTranscriptionEvents } from "$lib/workflows/transcriptionEvents";
   import { guardedOpen, guardedSave } from "$lib/utils/dialogGuard";
   import { setupWebviewDragDrop } from "$lib/utils/dragDrop";
   import { createLogPanelBuffer } from "$lib/utils/logPanelBuffer.svelte";
@@ -276,10 +276,6 @@
     window.addEventListener("vesta-whisper-models-updated", refreshModels);
     window.addEventListener("vesta-vad-updated", refreshAddons);
 
-    let activeListener = true;
-    let unlisten: (() => void) | null = null;
-    let unlistenSegment: (() => void) | null = null;
-
     const cleanupDragDrop = setupWebviewDragDrop({
       isActive: () => active,
       setDraggingOver: (v) => (isDraggingOver = v),
@@ -287,51 +283,24 @@
       onError: console.error,
     });
 
-    listen<{
-      stage: string;
-      message: string;
-      percentage: number;
-    }>("transcribe-progress", (event) => {
-      const p = event.payload;
-      if (p.stage === "download" && (modelStore.isDownloading || modelStore.downloadingVadId)) {
+    const cleanupEvents = subscribeTranscriptionEvents({
+      acceptingResults: () => isTranscribing && !transcriptionCancelled,
+      downloadingModel: () => modelStore.isDownloading || !!modelStore.downloadingVadId,
+      onDownload: p => {
         modelStore.progress = Math.round(p.percentage);
         modelStore.progressMessage = p.message;
-        return;
-      }
-      if (!isTranscribing || transcriptionCancelled) return;
-      if (p.stage === "download") return; // Ignored here, handled in SettingsTab
-      
-      progress = Math.round(p.percentage);
-      progressMessage = p.message;
-      progressStage = p.stage;
-      
-      if (p.stage !== "done") {
-        addLog(p.message, "progress");
-      }
-    }).then((fn) => {
-      if (!activeListener) fn();
-      else unlisten = fn;
-    }).catch(console.error);
-
-    listen<{
-      start_ms: number;
-      end_ms: number;
-      text: string;
-    }>("transcribe-segment", (event) => {
-      if (!isTranscribing || transcriptionCancelled) return;
-      const p = event.payload;
-      transcribedSegments.push({
-        start_ms: p.start_ms,
-        end_ms: p.end_ms,
-        text: p.text,
-      });
-    }).then((fn) => {
-      if (!activeListener) fn();
-      else unlistenSegment = fn;
-    }).catch(console.error);
+      },
+      onProgress: p => {
+        progress = Math.round(p.percentage);
+        progressMessage = p.message;
+        progressStage = p.stage;
+        if (p.stage !== "done") addLog(p.message, "progress");
+      },
+      onSegment: p => { transcribedSegments.push({ ...p }); },
+    });
 
     return () => {
-      activeListener = false;
+      cleanupEvents();
       transcriptionResources.dispose();
       requirements.clear();
       window.removeEventListener("vesta-whisper-models-updated", refreshModels);
@@ -343,9 +312,7 @@
       window.removeEventListener("vesta:transcribe-cloud-updated", handleTranscribeCloudUpdated);
       window.removeEventListener("vesta-ffmpeg-updated", refreshBackends);
       window.removeEventListener("vesta-vad-updated", refreshAddons);
-      if (unlisten) unlisten();
       cleanupDragDrop();
-      if (unlistenSegment) unlistenSegment();
     };
   });
 
