@@ -9,7 +9,6 @@ import {
   deriveDeckNameFromFile,
   escapeRegExp,
   extractEpisodeNumber,
-  generateDefaultDeckName,
   getFileExtension,
   isMediaFile,
   isSubtitleFile,
@@ -286,16 +285,6 @@ describe("scoreAudioTrackForLanguage / pickBestAudioTrackIndex", () => {
 
   it("returns null when there's only one track (nothing to pick)", () => {
     expect(pickBestAudioTrackIndex([audioTrack(0, "eng", "")], "en")).toBeNull();
-  });
-});
-
-describe("generateDefaultDeckName", () => {
-  it("strips role hints, language codes and episode markers", () => {
-    expect(generateDefaultDeckName("Detour.1945.original.en.srt")).not.toMatch(/original|\ben\b/i);
-  });
-
-  it("falls back to a default label when nothing meaningful remains", () => {
-    expect(generateDefaultDeckName("S01E01.srt")).toBe("Default Deck");
   });
 });
 

@@ -154,34 +154,46 @@
 
   let showFontsList = $state(false);
   let sortedFonts = $derived([...fontStore.fonts].sort((a, b) => a.language_name.localeCompare(b.language_name, "en")));
-  let activeNoteTypeOptions = $derived([
-    { value: "default", label: t("flashcards.automaticNoteType"), icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" class="w-4 h-4"><path stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M4 9V4h5m6 0h5v5M4 15v5h5m6 0h5v-5M8 12h8m-4-4v8" /></svg>' },
-    ...predefinedNoteTypes().filter((nt) => nt.id !== "default").map((nt) => ({
-      value: nt.id, label: nt.name, icon: languages.find((language) => language.code === nt.language)?.flag || "🃏",
-    })),
-    ...store.savedAnkiFieldPresets.map((preset) => ({
-      value: preset.id.startsWith("custom:") ? preset.id : `custom:${preset.id}`, label: preset.name, icon: "🃏",
-    })),
+  let presetOptions = $derived(store.allAnkiFieldPresets.map(preset => ({
+    value: preset.id, label: preset.name,
+    icon: languages.find(language => language.code === preset.language)?.flag || "🃏",
+    group: t(store.savedAnkiFieldPresets.some(custom => custom.id === preset.id) ? "settings.anki.customTemplates" : "settings.anki.builtinTemplates"),
+  })));
+  let activeNoteTypeOptions = $derived(presetOptions.map(option => ({
+    ...option, label: option.value === "default" ? t("flashcards.automaticNoteType") : option.label, value: option.value === "default" || option.value.startsWith("predef:") || option.value.startsWith("custom:") ? option.value : `custom:${option.value}`,
+  })));
+  let languageOptions = $derived([
+    { value: "", label: t("flashcards.automaticNoteType") },
+    ...languages.map(language => ({value: language.code, label: language.nameEn, icon: language.flag})),
   ]);
 </script>
 
 <div class="mt-6 space-y-4">
 
-  <div class="glass-card p-5 mb-4 space-y-4">
+  <div class="glass-card p-5">
+    <div class="grid grid-cols-1 xl:grid-cols-3 gap-5 items-start">
     <ToggleRow
-      label={t("settings.anki.autoCardFont") || "Automatic font for language"}
-      description={t("settings.anki.autoCardFontDesc") || "Automatically configures the CSS font stack (Noto Fonts/System) in the Anki model based on target subtitle language to prevent missing glyphs."}
+      label={t("settings.anki.dictionaryLookup")}
+      description={t("settings.anki.dictionaryLookupDesc")}
+      checked={ankiStore.dictionaryLookup}
+      accent="emerald"
+      iconPath="M4 4h7v16H4zM13 4h7v16h-7z"
+      onchange={(val) => ankiStore.setDictionaryLookup(val)}
+    />
+    <ToggleRow
+      label={t("settings.anki.autoCardFont")}
+      description={t("settings.anki.autoCardFontDesc")}
       checked={ankiStore.autoCardFont}
       accent="emerald"
       iconPath="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10"
       onchange={(val) => ankiStore.setAutoCardFont(val)}
     />
 
-    {#if ankiStore.autoCardFont}
-      <div class="border-t border-white/5 pt-3">
+      <div>
         <ToggleRow
-          label={t("settings.anki.embedCardFont") || "Embed Noto fonts in Anki deck (.apkg)"}
-          description={t("settings.anki.embedCardFontDesc") || "Embeds downloaded Noto fonts directly inside the deck package (@font-face) for perfect typography on Android (AnkiDroid), iOS and devices without pre-installed fonts."}
+          label={t("settings.anki.embedCardFont")}
+          description={t("settings.anki.embedCardFontDesc")}
+          disabled={!ankiStore.autoCardFont}
           checked={ankiStore.embedCardFont}
           accent="sky"
           iconPath="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
@@ -189,7 +201,9 @@
         />
       </div>
 
-      <div class="border-t border-white/5 pt-3">
+    </div>
+    {#if ankiStore.autoCardFont}
+      <div class="border-t border-white/5 mt-5 pt-4">
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-2">
             <span class="text-xs font-semibold text-gray-300">{t("settings.anki.fontCatalogTitle") || "Noto Fonts Library"}</span>
@@ -282,7 +296,7 @@
     {/if}
   </div>
 
-  <div class="glass-card p-5">
+  <div class="glass-card p-5 relative z-20">
     <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 mb-5">
       <div class="flex items-center gap-3">
         <div class="w-9 h-9 rounded-lg bg-emerald-500/20 text-emerald-300 flex items-center justify-center shrink-0">
@@ -298,7 +312,8 @@
         <button
           type="button"
           onclick={() => store.saveCurrentAnkiFieldPreset()}
-          disabled={!store.noteTypeName.trim() || !store.getFieldValue("expression").trim()}
+          disabled={Boolean(store.presetValidationError)}
+          title={store.presetValidationError ? t(store.presetValidationError) : ""}
           class="px-3 py-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 text-emerald-200 hover:bg-emerald-500/20 transition-colors text-xs font-semibold flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
         >
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -321,16 +336,13 @@
       </div>
     </div>
 
-    <div class="grid grid-cols-1 lg:grid-cols-[1fr_1fr_1.2fr] gap-4 mb-5">
+    <div class="grid grid-cols-1 xl:grid-cols-4 sm:grid-cols-2 gap-4 mb-5">
       <div>
         <label for="anki-field-preset-select" class="block text-xs font-semibold text-gray-400 mb-2">{s("savedTemplate")}</label>
         <SearchableSelect
           className="settings-template-select"
           noResultsText={t("common.noResults")}
-          options={store.allAnkiFieldPresets.map((preset) => ({
-            value: preset.id,
-            label: preset.name,
-          }))}
+          options={presetOptions}
           value={store.selectedAnkiFieldPresetId}
           onchange={(v) => store.applyAnkiFieldPreset(v)}
           placeholder={s("savedTemplate")}
@@ -348,6 +360,10 @@
         />
       </div>
       <div>
+        <label for="anki-template-language" class="block text-xs font-semibold text-gray-400 mb-2">{t("settings.anki.dictionaryLanguage")}</label>
+        <SearchableSelect options={languageOptions} value={store.noteTypeLanguage} onchange={(language) => store.noteTypeLanguage = language} ariaLabel={t("settings.anki.dictionaryLanguage")} />
+      </div>
+      <div>
         <label for="active-flashcards-template-select" class="block text-xs font-semibold text-gray-400 mb-2">{s("activeTemplate")}</label>
         <SearchableSelect
           className="settings-active-template-select"
@@ -363,6 +379,9 @@
       </div>
     </div>
 
+    {#if store.ankiFieldPresetName.trim() && store.presetValidationError}
+      <p class="mb-4 text-xs text-amber-300" role="status">{t(store.presetValidationError)}</p>
+    {/if}
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
       <div>
         <label for="note-type-name-inline" class="mb-1 flex items-center gap-1.5 text-xs font-semibold text-gray-400">

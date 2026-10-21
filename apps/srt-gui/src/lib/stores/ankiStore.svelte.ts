@@ -6,6 +6,7 @@ class AnkiStore {
   status = $state<"unknown" | "checking" | "online" | "offline">("unknown");
   version = $state<number | null>(null);
   decks = $state<string[]>([]);
+  dictionaryLookup = $state(true);
   autoCardFont = $state<boolean>(true);
   embedCardFont = $state<boolean>(true);
 
@@ -15,6 +16,7 @@ class AnkiStore {
 
   private initFromConfig() {
     this.url = vestaConfig.getItem("vesta-ankiconnect-url") || "http://127.0.0.1:8765";
+    this.dictionaryLookup = vestaConfig.getItem("vesta-dictionary-lookup-enabled") !== "false";
     const savedAutoFont = vestaConfig.getItem("vesta-auto-card-font");
     this.autoCardFont = savedAutoFont !== "false";
     const savedEmbedFont = vestaConfig.getItem("vesta-embed-card-font");
@@ -31,6 +33,11 @@ class AnkiStore {
     try {
       vestaConfig.setItem("vesta-ankiconnect-url", newUrl);
     } catch {}
+  }
+
+  setDictionaryLookup(val: boolean) {
+    this.dictionaryLookup = val;
+    vestaConfig.setItem("vesta-dictionary-lookup-enabled", String(val));
   }
 
   setAutoCardFont(val: boolean) {

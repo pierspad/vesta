@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import { normalizeLanguageCode, languageFlagPath, languages, getLanguageOptions } from "./languages";
+import { normalizeLanguageCode, languageFlagPath, languages, localizedLanguageName, getLanguageSearchTerms } from "./languages";
 import { inferLanguageFromPath } from "$lib/utils/models";
 import { predefinedNoteTypes, findNoteTypeById } from "$lib/types/noteTypes";
 it("normalizes aliases while preserving script variants", () => {
@@ -25,11 +25,8 @@ it("ships distinct stable note types for all supported languages", () => {
   }
 });
 
-it("provides localized selector options with stable values and searchable aliases", () => {
-  const options = getLanguageOptions("it");
-  const japanese = options.find(option => option.value === "ja");
-  expect(japanese?.label).toContain("giapponese");
-  expect(japanese?.searchTerms).toContain("jpn");
-  expect(options.map(option => option.value)).toEqual(languages.map(language => language.code));
-  expect(getLanguageOptions("invalid_locale").find(option => option.value === "ja")?.label).toContain("Japanese");
+it("localizes language names and keeps searchable aliases, with an invalid-locale fallback", () => {
+  expect(localizedLanguageName("ja", "it")).toBe("giapponese");
+  expect(getLanguageSearchTerms("ja")).toContain("jpn");
+  expect(localizedLanguageName("ja", "invalid_locale")).toBe("Japanese");
 });

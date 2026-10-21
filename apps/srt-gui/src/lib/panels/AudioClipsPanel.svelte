@@ -516,6 +516,7 @@
             ? 'bg-cyan-500/25 border-cyan-400 text-cyan-200 shadow-md shadow-cyan-950/40 ring-1 ring-cyan-400/40'
             : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10 hover:text-gray-200 hover:border-white/20'}"
         aria-pressed={settings.audioFormat === "opus"}
+        title={t("flashcards.opusWarning")}
       >
         <span class="flex items-center gap-2">
           <svg class="w-3.5 h-3.5 text-white shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">

@@ -33,6 +33,7 @@ export interface FlashcardConfigInputs {
   automaticNoteType?: boolean;
   cpuCores: number;
   targetLanguage?: string | null;
+  dictionaryLookup?: boolean;
   autoCardFont?: boolean;
   embedCardFont?: boolean;
 }
@@ -113,6 +114,7 @@ export function buildFlashcardConfig(i: FlashcardConfigInputs) {
     card_back_html: templates.backHtml,
     card_css: templates.css,
     target_language: language || null,
+    dictionary_lookup: i.dictionaryLookup ?? true,
     auto_card_font: i.autoCardFont ?? true,
     embed_card_font: i.embedCardFont ?? true,
   };

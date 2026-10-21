@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { filterSubtitleTracks, SUBTITLE_PAGE_SIZE } from "./subtitleTracks";
+import { prepareSubtitleTracks, filterPreparedSubtitleTracks, SUBTITLE_PAGE_SIZE } from "./subtitleTracks";
 import { languageFlagUrl } from "$lib/config/languages";
+// Convenience belongs in the test, not in the production API.
+const filterSubtitleTracks = (tracks: Parameters<typeof prepareSubtitleTracks>[0], search: string, locale = "en") =>
+  filterPreparedSubtitleTracks(prepareSubtitleTracks(tracks, locale), search);
 const track = (index: number, language: string, title = "") => ({ index, language, title, codec: "subrip", text_based: true });
 describe("subtitle language listing", () => {
   it("maps language codes to country flags", () => {

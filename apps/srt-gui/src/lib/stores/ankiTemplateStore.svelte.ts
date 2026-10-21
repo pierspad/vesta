@@ -1,3 +1,4 @@
+import { normalizeLanguageCode } from "$lib/config/languages";
 import { t } from "$lib/i18n";
 import { snackbar } from "$lib/stores/snackbarStore.svelte";
 import {
@@ -25,6 +26,7 @@ export type AnkiFieldPreset = {
   id: string;
   name: string;
   noteTypeName: string;
+  language: string;
   fields: FieldNamesConfig;
 };
 
@@ -45,6 +47,7 @@ function sanitizeAnkiFieldPreset(raw: Partial<AnkiFieldPreset>): AnkiFieldPreset
     id: raw.id,
     name: limitNoteTypeFieldValue(raw.name),
     noteTypeName: limitNoteTypeFieldValue(raw.noteTypeName || defaultCardTemplates.noteTypeName),
+    language: normalizeLanguageCode(raw.language),
     fields: {
       expression: limitNoteTypeFieldValue(fields.expression !== undefined && fields.expression !== "" ? fields.expression : defaultFieldNames.expression),
       meaning: limitNoteTypeFieldValue(fields.meaning !== undefined ? fields.meaning : defaultFieldNames.meaning),
@@ -81,12 +84,8 @@ const initSelectedAnkiFieldPreset = [...predefinedNoteTypes(), ...initAnkiFieldP
   (preset) => preset.id === initAnkiFieldPresetId,
 );
 
-/** Anki note-type field mapping + card-template (front/back/css) editor.
- * Self-contained within SettingsTab.svelte's "anki" section -- state and
- * save/load/preset logic that used to be scattered across ~400 lines of
- * script plus its own markup block. Nothing outside this feature reads any
- * of it (verified via grep before moving), unlike e.g. apiKeyEditorStore
- * which genuinely has two external trigger sites. */
+/** Settings editor for note-type fields, language and shared card templates.
+ * Saved custom presets are also consumed by flashcard configuration builders. */
 class AnkiTemplateStore {
   activeTemplateCodeTab = $state<TemplateCodeTab>("front");
 
@@ -109,10 +108,11 @@ class AnkiTemplateStore {
   selectedAnkiFieldPresetId = $state(initSelectedAnkiFieldPreset?.id || "default");
   ankiFieldPresetName = $state(initSelectedAnkiFieldPreset?.id.startsWith("predef:") || initSelectedAnkiFieldPreset?.id === "default" ? "" : initSelectedAnkiFieldPreset?.name || "");
   activeNoteTypeId = $state(loadActiveNoteTypeId());
+  noteTypeLanguage = $state(initSelectedAnkiFieldPreset?.language || "");
 
   allAnkiFieldPresets = $derived<AnkiFieldPreset[]>([
-    ...predefinedNoteTypes().map((nt) => ({ id: nt.id, name: nt.name, noteTypeName: nt.name, fields: nt.fields })),
-    ...this.savedAnkiFieldPresets,
+    ...[...this.savedAnkiFieldPresets].sort((a, b) => a.name.localeCompare(b.name)),
+    ...predefinedNoteTypes().map((nt) => ({ id: nt.id, name: nt.name, noteTypeName: nt.name, language: nt.language, fields: nt.fields })).sort((a, b) => a.name.localeCompare(b.name)),
   ]);
 
   refreshActiveNoteTypeId() {
@@ -193,20 +193,43 @@ class AnkiTemplateStore {
     this.ankiFieldPresetName = preset.id === "default" || preset.id.startsWith("predef:") ? "" : preset.name;
     vestaConfig.setItem(ACTIVE_ANKI_FIELD_PRESET_KEY, preset.id);
     this.noteTypeName = preset.noteTypeName;
+    this.noteTypeLanguage = preset.language;
     this.setCurrentFieldNames(preset.fields);
     this.saveTemplates();
     this.saveFields();
     window.dispatchEvent(new CustomEvent(NOTE_TYPES_UPDATED_EVENT));
   }
 
+  get presetValidationError(): string | null {
+    const name = limitNoteTypeFieldValue(this.ankiFieldPresetName.trim());
+    if (!name) return "settings.anki.presetNameRequired";
+    const fields = this.getCurrentFieldNames();
+    if (!fields.expression.trim()) return "settings.anki.expressionRequired";
+    const language = normalizeLanguageCode(this.noteTypeLanguage);
+    const duplicate = this.allAnkiFieldPresets.some(preset =>
+      preset.id !== this.selectedAnkiFieldPresetId && (
+        preset.name.trim().toLocaleLowerCase() === name.toLocaleLowerCase() ||
+        (preset.language === language && Object.keys(fields).every(key =>
+          preset.fields[key as AnkiFieldKey].trim() === fields[key as AnkiFieldKey].trim()))
+      ));
+    // A new name on a built-in is still a duplicate if its language/fields match.
+    const selectedBuiltin = this.allAnkiFieldPresets.find(preset => preset.id === this.selectedAnkiFieldPresetId && !this.savedAnkiFieldPresets.some(custom => custom.id === preset.id));
+    if (duplicate || (selectedBuiltin && selectedBuiltin.language === language && Object.keys(fields).every(key => selectedBuiltin.fields[key as AnkiFieldKey].trim() === fields[key as AnkiFieldKey].trim()))) return "settings.anki.presetDuplicate";
+    return null;
+  }
+
   saveCurrentAnkiFieldPreset() {
     const existingPreset = this.savedAnkiFieldPresets.find((preset) => preset.id === this.selectedAnkiFieldPresetId);
-    const fallbackName = existingPreset?.name || this.noteTypeName || "Template Anki";
-    const presetName = limitNoteTypeFieldValue((this.ankiFieldPresetName || fallbackName).trim());
+    if (this.presetValidationError) {
+      snackbar.show(t(this.presetValidationError), "error");
+      return false;
+    }
+    const presetName = limitNoteTypeFieldValue(this.ankiFieldPresetName.trim());
     const preset: AnkiFieldPreset = {
-      id: existingPreset?.id || `custom-${Date.now().toString(36)}`,
+      id: existingPreset?.id || `custom-${crypto.randomUUID()}`,
       name: presetName,
-      noteTypeName: limitNoteTypeFieldValue(this.noteTypeName || defaultCardTemplates.noteTypeName),
+      noteTypeName: presetName,
+      language: normalizeLanguageCode(this.noteTypeLanguage),
       fields: this.getCurrentFieldNames(),
     };
 
@@ -220,10 +243,14 @@ class AnkiTemplateStore {
 
     this.selectedAnkiFieldPresetId = preset.id;
     this.ankiFieldPresetName = preset.name;
+    this.noteTypeName = preset.noteTypeName;
+    this.saveTemplates();
+    this.saveFields();
     vestaConfig.setItem(ACTIVE_ANKI_FIELD_PRESET_KEY, preset.id);
     this.persistAnkiFieldPresets();
     window.dispatchEvent(new CustomEvent(NOTE_TYPES_UPDATED_EVENT));
     snackbar.show(t("settings.anki.presetSaved"));
+    return true;
   }
 
   deleteCurrentAnkiFieldPreset() {
@@ -251,6 +278,7 @@ class AnkiTemplateStore {
     this.ankiFieldPresetName = "";
     vestaConfig.setItem(ACTIVE_ANKI_FIELD_PRESET_KEY, "default");
     this.noteTypeName = defaultCardTemplates.noteTypeName;
+    this.noteTypeLanguage = "";
     this.setCurrentFieldNames(defaultFieldNames);
     this.saveTemplates();
     this.saveFields();

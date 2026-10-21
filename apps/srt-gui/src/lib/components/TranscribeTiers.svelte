@@ -1,11 +1,12 @@
 <script lang="ts">
   import { onMount, onDestroy } from "svelte";
+  import { discoverModels, type DiscoveredModel } from "$lib/services/modelDiscovery";
   import { locale } from "$lib/i18n";
   import ProviderIcon from "$lib/components/ProviderIcon.svelte";
   import SearchableSelect from "$lib/components/SearchableSelect.svelte";
   import TierList from "$lib/components/TierList.svelte";
   import { transcribeProviders } from "$lib/config/transcribeProviders";
-  import { loadAndValidateApiKeys, type ApiKeyConfig } from "$lib/config/apiKeys";
+  import { loadAndValidateApiKeys, supportsCapability, type ApiKeyConfig } from "$lib/config/apiKeys";
   import { newTierId, newTierEntryId } from "$lib/config/translationTiers";
   import {
     loadTranscribeTiers,
@@ -32,9 +33,8 @@
   let downloadingModelId = $state<string | null>(null);
   let downloadProgress = $state<number>(0);
 
-  const WHISPER_PROVIDERS = ["groq", "openai", "deepgram", "assemblyai", "custom_whisper", "local_whisper"];
   function isWhisperKey(k: ApiKeyConfig): boolean {
-    return WHISPER_PROVIDERS.includes(k.apiType);
+    return supportsCapability(k, "stt");
   }
 
   function refreshKeys() {
@@ -259,8 +259,29 @@
     return key.name && key.name !== provName ? `${provName} · ${key.name}` : provName;
   }
 
+  let speechModels = $state<Map<string, DiscoveredModel[]>>(new Map());
+  let speechDiscoveryError = $state<Map<string, string>>(new Map());
+  function speechCacheKey(entry: TranscribeTierEntry) {
+    return `${entry.apiKeyId}|${apiKeys.find(key => key.id === entry.apiKeyId)?.apiUrl || ""}`;
+  }
+  async function discoverSpeechModels(entry: TranscribeTierEntry) {
+    if (!["custom", "custom_whisper"].includes(entry.provider)) return;
+    const key = apiKeys.find(key => key.id === entry.apiKeyId);
+    if (!key?.apiUrl) return;
+    const cacheKey = speechCacheKey(entry);
+    try {
+      const models = await discoverModels("custom", key.apiKey || "", key.apiUrl);
+      speechModels.set(cacheKey, models);
+      speechModels = new Map(speechModels);
+      speechDiscoveryError.delete(cacheKey);
+    } catch {
+      speechDiscoveryError.set(cacheKey, t("settings.modelsManualFallback"));
+    }
+    speechDiscoveryError = new Map(speechDiscoveryError);
+  }
+
   function entryModels(entry: TranscribeTierEntry): { id: string; name: string; recommended?: boolean }[] {
-    return getTranscribeModelsForProvider(entry.provider);
+    return speechModels.get(speechCacheKey(entry)) || getTranscribeModelsForProvider(entry.provider);
   }
 
   let customModeIds = $state<Set<string>>(new Set());
@@ -283,7 +304,7 @@
 
 {#snippet noKeysWarning()}
   {#if apiKeys.filter(isWhisperKey).length === 0}
-    <div class="rounded-lg border border-amber-400/20 bg-amber-500/10 px-3 py-2.5 text-xs text-amber-100">
+    <div class="rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2.5 text-xs leading-relaxed text-gray-400">
       {t("tiers.noKeys")}
     </div>
   {/if}
@@ -324,6 +345,12 @@
                     </button>
                   </div>
 
+                  {#if apiKeys.find(key => key.id === entry.apiKeyId)?.apiUrl}
+                    <div class="flex justify-between gap-2 text-xs text-gray-400">
+                      <span class="truncate font-mono">{apiKeys.find(key => key.id === entry.apiKeyId)?.apiUrl}</span>
+                    </div>
+                  {/if}
+                  {#if speechDiscoveryError.has(speechCacheKey(entry))}<p class="text-xs text-gray-400">{speechDiscoveryError.get(speechCacheKey(entry))}</p>{/if}
                   <!-- Fields grid (API Key & Model) -->
                   <div class="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end">
                     <!-- API key -->
@@ -372,6 +399,7 @@
                                 onModelChange(tierIndex, entryIndex, v);
                               }
                             }}
+                            onfocus={() => { void discoverSpeechModels(entry); }}
                             placeholder={t("tiers.model")}
                           />
                         </div>

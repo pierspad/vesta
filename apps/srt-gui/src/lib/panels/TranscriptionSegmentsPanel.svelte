@@ -1,4 +1,5 @@
 <script lang="ts">
+  import EmptyStatusLabel from "$lib/components/EmptyStatusLabel.svelte";
   import { tick } from "svelte";
   import { locale } from "$lib/i18n";
   import { formatSubtitleTime } from "$lib/utils/transcriptionPaths";
@@ -15,14 +16,22 @@
   });
 </script>
 
-<div class="glass-card p-5 space-y-4">
+<div class="glass-card p-5 space-y-4 min-h-80">
   <div class="flex items-center justify-between">
     <span class="text-[10px] font-bold text-gray-500 uppercase tracking-wide">{t("transcribe.livePhrases")}</span>
     <span class="text-[10px] text-indigo-400 font-semibold">{segments.length} {t("transcribe.segments")}</span>
   </div>
   {#if segments.length === 0}
-    <div class="rounded-lg border border-indigo-500/20 bg-indigo-500/5 px-3 py-8 text-center text-xs text-indigo-300">
-      {t("transcribe.livePhrasesHint")}
+    <div class="relative min-h-64">
+      <EmptyStatusLabel message={t("transcribe.livePhrasesHint")} />
+      <div class="space-y-3 opacity-30" aria-hidden="true">
+        {#each [1, 2, 3] as row}
+          <div class="rounded-lg border border-white/5 bg-white/[0.02] p-3">
+            <div class="mb-3 h-2 w-24 rounded bg-indigo-400/20"></div>
+            <div class="h-2 rounded bg-white/10" style:width={row === 2 ? "65%" : "85%"}></div>
+          </div>
+        {/each}
+      </div>
     </div>
   {:else}
     <div bind:this={scrollContainer} class="space-y-2 pr-1">

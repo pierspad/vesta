@@ -109,7 +109,7 @@ export async function fetchModelsFromEndpoint(
     allowCustomHost: true,
   });
 
-  if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+  if (!resp.ok) throw Object.assign(new Error(`HTTP ${resp.status}`), { status: resp.status });
 
   const responseText = await resp.text();
   let data: unknown = null;

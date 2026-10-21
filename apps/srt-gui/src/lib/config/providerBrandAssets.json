@@ -1,0 +1,52 @@
+{
+  "google": {
+    "file": "google.svg",
+    "source": "https://raw.githubusercontent.com/lobehub/lobe-icons/master/packages/static-svg/icons/gemini-color.svg",
+    "retrieved": "2026-10-21",
+    "background": "transparent",
+    "rasterSource": "https://play-lh.googleusercontent.com/4wVGRJnU0--CWgnqH-8UmF2reB1YOUhHKzhePhQQ0Srv3vBzYNKcz4MzpAcwDuE1SDKp5DoHjc-lYhXBP4S9sZY"
+  },
+  "groq": {
+    "file": "groq.svg",
+    "source": "https://groq.com/favicon.svg",
+    "retrieved": "2026-10-21"
+  },
+  "deepgram": {
+    "file": "deepgram.ico",
+    "source": "https://deepgram.com/favicon.ico?93834efdfdd5438d",
+    "retrieved": "2026-10-21"
+  },
+  "assemblyai": {
+    "file": "assemblyai.ico",
+    "source": "https://www.assemblyai.com/favicon.ico",
+    "retrieved": "2026-10-21"
+  },
+  "openai": {
+    "file": "openai.svg",
+    "source": "https://upload.wikimedia.org/wikipedia/commons/6/66/OpenAI_logo_2025_%28symbol%29.svg",
+    "retrieved": "2026-10-21",
+    "background": "#ffffff",
+    "rasterSource": "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/66/OpenAI_logo_2025_%28symbol%29.svg/960px-OpenAI_logo_2025_%28symbol%29.svg.png?utm_source=commons.wikimedia.org&utm_campaign=index&utm_content=thumbnail"
+  },
+  "mistral": {
+    "file": "mistral.svg",
+    "source": "https://raw.githubusercontent.com/lobehub/lobe-icons/master/packages/static-svg/icons/mistral-color.svg",
+    "retrieved": "2026-10-21",
+    "background": "transparent",
+    "rasterSource": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQAyXOrXfLE_fJGYiA0_42PzsOOglEW_F4FWjjsQdSg5H0Hs6yx-mS0VX8&s=10"
+  },
+  "nvidia": {
+    "file": "nvidia.svg",
+    "source": "https://raw.githubusercontent.com/lobehub/lobe-icons/master/packages/static-svg/icons/nvidia-color.svg",
+    "retrieved": "2026-10-21",
+    "background": "transparent",
+    "rasterSource": "https://raw.githubusercontent.com/lobehub/lobe-icons/refs/heads/master/packages/static-png/dark/nvidia-color.png"
+  },
+  "openrouter": {
+    "file": "openrouter.svg",
+    "source": "https://raw.githubusercontent.com/lobehub/lobe-icons/master/packages/static-svg/icons/openrouter-color.svg",
+    "retrieved": "2026-10-21",
+    "background": "#000000",
+    "rasterSource": "https://raw.githubusercontent.com/lobehub/lobe-icons/refs/heads/master/packages/static-png/dark/openrouter-color.png"
+  }
+}

@@ -58,6 +58,7 @@ class UpdateCheckerStore {
   }
   updateStatus = $state<UpdateStatus>("idle");
   latestVersion = $state("");
+  releaseNotes = $state("");
   releaseUrl = $state(RELEASES_PAGE_URL);
   appVersionNum = $state("");
   updateError = $state("");
@@ -103,13 +104,14 @@ class UpdateCheckerStore {
         });
         if (!response.ok) throw new Error(`GitHub API returned status ${response.status}`);
 
-        const latest = await response.json() as { tag_name?: string; name?: string; html_url?: string; draft?: boolean; prerelease?: boolean; assets?: UpdateAsset[] };
+        const latest = await response.json() as { tag_name?: string; name?: string; html_url?: string; draft?: boolean; prerelease?: boolean; assets?: UpdateAsset[]; body?: string };
         const tag = latest.tag_name || latest.name || "";
         if (!tag || latest.draft || latest.prerelease || !officialReleaseUrl(latest.html_url)) throw new Error("Invalid stable release in API response");
 
         this.latestVersion = tag.startsWith("v") || tag.startsWith("V") ? tag : `v${tag}`;
         this.releaseUrl = officialReleaseUrl(latest.html_url)!;
         this.releaseAssets = latest.assets || [];
+        this.releaseNotes = typeof latest.body === "string" ? latest.body : "";
         this.processUpdateResult(source);
         return;
       } catch (apiError) {
@@ -141,6 +143,7 @@ class UpdateCheckerStore {
         this.latestVersion = tag.startsWith("v") || tag.startsWith("V") ? tag : `v${tag}`;
         this.releaseUrl = officialReleaseUrl(finalUrl)!;
         this.releaseAssets = [];
+        this.releaseNotes = "";
         this.processUpdateResult(source);
         return;
       } catch (redirectError) {

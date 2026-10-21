@@ -1,11 +1,11 @@
-import type { ApiKeyConfig } from "$lib/config/apiKeys";
+import { supportsCapability, type ApiKeyConfig } from "$lib/config/apiKeys";
 import { providers } from "$lib/config/llmProviders";
 
 /** Provider catalogs + doc/signup links for the add/edit API key modal.
  * Static data, only ever consumed by the api-key-editing feature (the
  * modal component and this store's own openAdd), so they live here rather
  * than in a shared providers module. */
-export const llmProviderIds = ["google", "groq", "openai", "openrouter", "mistral", "nvidia", "custom"];
+export const llmProviderIds = ["local", "google", "groq", "openai", "openrouter", "mistral", "nvidia", "custom"];
 export const whisperProviderIds = ["groq", "openai", "deepgram", "assemblyai", "custom"];
 
 export const llmApiKeyUrls: Record<string, string> = {
@@ -54,11 +54,13 @@ class ApiKeyEditorStore {
   newKeyName = $state("");
   newKeyValue = $state("");
   newKeyUrl = $state("");
+  newKeyUsage = $state<"llm" | "stt" | "both">("llm");
   showNewKeyPassword = $state(false);
 
   openAdd(context: "llm" | "whisper", providerId?: string) {
     this.editKeyId = null;
     this.modalContext = context;
+    this.newKeyUsage = context === "whisper" ? "stt" : "llm";
     const allowedIds = context === "whisper" ? whisperProviderIds : llmProviderIds;
     const defaultProviderId = context === "whisper" ? "groq" : "google";
 
@@ -78,7 +80,8 @@ class ApiKeyEditorStore {
   openEdit(key: ApiKeyConfig, context: "llm" | "whisper") {
     this.editKeyId = key.id;
     this.modalContext = context;
-    this.newKeyType = key.apiType;
+    this.newKeyType = key.apiType === "custom_whisper" ? "custom" : key.apiType;
+    this.newKeyUsage = supportsCapability(key, "llm") && supportsCapability(key, "stt") ? "both" : supportsCapability(key, "stt") ? "stt" : "llm";
     this.newKeyName = key.name;
     this.newKeyValue = key.apiKey;
     this.newKeyUrl = key.apiUrl || "";
@@ -87,6 +90,7 @@ class ApiKeyEditorStore {
   }
 
   selectProvider(pid: string) {
+    if ((this.editKeyId === "local" && pid !== "local") || (this.editKeyId === "local_stt_server" && pid !== "custom")) return;
     const isCustom = pid === "custom";
     const prov = providers[pid];
     this.newKeyType = pid as ApiKeyConfig["apiType"];

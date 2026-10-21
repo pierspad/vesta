@@ -11,7 +11,7 @@
  * stringhe i18n.
  */
 
-import { type ApiKeyConfig } from "$lib/config/apiKeys";
+import { supportsCapability, type ApiKeyConfig } from "$lib/config/apiKeys";
 import { type Tier } from "$lib/config/translationTiers";
 import { providers } from "$lib/config/llmProviders";
 import { fetchModelsFromEndpoint } from "$lib/services/modelDiscovery";
@@ -40,7 +40,8 @@ export function buildTiersPayload(
     const entries: TierEntryPayload[] = [];
     for (const e of tier.entries) {
       if (!e.model || !e.model.trim()) continue;
-      const key = apiKeys.find((k) => k.id === e.apiKeyId);
+      const key = apiKeys.find((k) => k.id === e.apiKeyId) || (e.provider === "local" ? apiKeys.find(k => k.id === "local") : undefined);
+      if (key?.capabilities && !supportsCapability(key, "llm")) continue;
       const provider = e.provider || key?.apiType || "google";
       const apiKeyVal = key?.apiKey?.trim() || null;
       const apiUrl = key?.apiUrl?.trim() || providers[provider]?.defaultApiUrl || null;
@@ -96,7 +97,8 @@ export async function checkTiersAvailability(
 
   await Promise.all(
     configuredEntries.map(async (e) => {
-      const key = apiKeys.find((k) => k.id === e.apiKeyId);
+      const key = apiKeys.find((k) => k.id === e.apiKeyId) || (e.provider === "local" ? apiKeys.find(k => k.id === "local") : undefined);
+      if (key?.capabilities && !supportsCapability(key, "llm")) { hasIncomplete = true; return; }
       const provider = e.provider || key?.apiType || "google";
       const apiKeyVal = key?.apiKey?.trim() || null;
 
@@ -106,16 +108,14 @@ export async function checkTiersAvailability(
           hasIncomplete = true;
           return;
         }
-        if (provider === "custom" && !apiKeyVal) {
-          hasKeyMissing = true;
-          return;
-        }
         try {
           const models = await fetchModelsFromEndpoint(apiUrl, apiKeyVal || "", 2000);
           if (models && models.length > 0) hasOnlineLocal = true;
           else hasOfflineLocal = true;
-        } catch {
-          hasOfflineLocal = true;
+        } catch (error) {
+          // A reachable server may omit discovery while supporting manual model IDs.
+          if (error && typeof error === "object" && "status" in error && [404, 405].includes(Number(error.status))) hasOnlineLocal = true;
+          else hasOfflineLocal = true;
         }
       } else if (!apiKeyVal) {
         hasKeyMissing = true;

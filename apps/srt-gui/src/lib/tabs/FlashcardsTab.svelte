@@ -10,7 +10,7 @@
   import { guardedOpen } from "$lib/utils/dialogGuard";
   import { setupWebviewDragDrop } from "$lib/utils/dragDrop";
   import { resolveEpisodeNoteType, detectSubtitleLanguage } from "$lib/utils/episodeNoteType";
-  import { onDestroy, onMount } from "svelte";
+  import { onDestroy, onMount, untrack } from "svelte";
   import { currentLanguage, locale } from "$lib/i18n";
   import { getFileName, inferLanguageFromPath } from "$lib/utils/models";
   import { getLanguageSearchTerms, languages } from "$lib/config/languages";
@@ -781,7 +781,8 @@
   });
 
   let noteTypeOptions = $derived(
-    [{ value: "default", label: `${t("flashcards.automaticNoteType")} · ${automaticEpisodeNoteType.name}`, displayLabel: automaticEpisodeNoteType.name, icon: languages.find((language) => language.code === automaticEpisodeNoteType.language)?.flag || '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" class="w-4 h-4"><path stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M4 9V4h5m6 0h5v5M4 15v5h5m6 0h5v-5M8 12h8m-4-4v8" /></svg>' }, ...noteTypeList.filter((nt) => nt.id !== "default").map((nt) => ({
+    [{ value: "default", label: `${t("flashcards.automaticNoteType")} · ${automaticEpisodeNoteType.name}`, displayLabel: automaticEpisodeNoteType.name, icon: languages.find((language) => language.code === automaticEpisodeNoteType.language)?.flag || '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" class="w-4 h-4"><path stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M4 9V4h5m6 0h5v5M4 15v5h5m6 0h5v-5M8 12h8m-4-4v8" /></svg>' }, ...[...noteTypeList].filter((nt) => nt.id !== "default").sort((a, b) => Number(a.predefined) - Number(b.predefined) || a.name.localeCompare(b.name)).map((nt) => ({
+      group: t(nt.predefined ? "settings.anki.builtinTemplates" : "settings.anki.customTemplates"),
       value: nt.id,
       label: nt.name,
       searchTerms: [nt.name, getLanguageSearchTerms(nt.language)]
@@ -965,7 +966,12 @@
   }
 
 
+  let audioTracksRequest = 0;
+  let loadedAudioMedia: string | undefined;
+
   async function loadAudioTracksForMedia(path: string) {
+    const request = ++audioTracksRequest;
+    audioTracksLoading = false;
     audioTracks = [];
     mediaSettings.audioTrackIndex = null;
     audioTrackAutoSelected = true;
@@ -977,13 +983,15 @@
       const tracks = await invoke<AudioTrackInfo[]>("flashcard_list_audio_tracks", {
         path,
       });
+      if (request !== audioTracksRequest) return;
       audioTracks = tracks;
       mediaSettings.audioTrackIndex =
         tracks.length > 1 ? pickBestAudioTrackIndex(tracks, getPreferredAudioLanguageCode()) : null;
     } catch (e) {
+      if (request !== audioTracksRequest) return;
       generationStore.addLog(`${t("flashcards.audioTracksError")}: ${errorMessage(e)}`, "warning");
     } finally {
-      audioTracksLoading = false;
+      if (request === audioTracksRequest) audioTracksLoading = false;
     }
   }
 
@@ -995,9 +1003,9 @@
 
   $effect(() => {
     const firstMedia = episodes[0]?.mediaPath;
-    if (firstMedia && detectMediaType(getFileName(firstMedia)) === "video") {
-      loadAudioTracksForMedia(firstMedia);
-    }
+    if (firstMedia === loadedAudioMedia) return;
+    loadedAudioMedia = firstMedia;
+    untrack(() => { void loadAudioTracksForMedia(firstMedia || ""); });
   });
 
   // ─── File Drag-and-Drop Handler ───────────────────────────────────────────
@@ -1228,17 +1236,8 @@
   // AnkiConnect URL configured there; silently no-ops when Anki isn't
   // reachable — the .apkg stays on disk either way.
   async function maybeAutoImportToAnki(apkgPath: string) {
-    const url = (() => {
-      try {
-        return vestaConfig.getItem("vesta-ankiconnect-url") || "http://127.0.0.1:8765";
-      } catch {
-        return "http://127.0.0.1:8765";
-      }
-    })();
-
-    try {
-      await invoke<number>("ankiconnect_ping", { url });
-    } catch {
+    const url = ankiStore.url;
+    if (!(await ankiStore.checkConnection(true))) {
       if (generationStore.exportFormat === "anki") {
         const fallbackUpper = generationStore.fallbackFormat.toUpperCase();
         const msg = t("flashcards.ankiNotRunningFallback", { format: fallbackUpper });
@@ -1286,6 +1285,7 @@
       automaticNoteType: false,
       cpuCores: generationStore.effectiveCpuCores,
       targetLanguage: getStudiedLanguagePreference(),
+      dictionaryLookup: ankiStore.dictionaryLookup,
       autoCardFont: ankiStore.autoCardFont,
       embedCardFont: ankiStore.embedCardFont,
     });
@@ -1326,7 +1326,7 @@
       generationStore, episodes: $state.snapshot(episodes).map(ep => ({ ...ep, detectedLanguage: subtitleLanguages[ep.targetSubsPath] || ep.detectedLanguage })), t,
       getEpisodeNoteType,
       outputDir, cardFilters: $state.snapshot(cardFilters), videoHwAccel, activeNoteType, automaticNoteType,
-      ankiStore: { autoCardFont: ankiStore.autoCardFont, embedCardFont: ankiStore.embedCardFont },
+      ankiStore: { dictionaryLookup: ankiStore.dictionaryLookup, autoCardFont: ankiStore.autoCardFont, embedCardFont: ankiStore.embedCardFont },
       previewStore,
       getEpisodeMediaSettings: ((defaults) => (episode: EpisodeEntry) => ({ ...defaults, ...episode.mediaOverrides }))($state.snapshot(mediaSettings)),
       getAudioTrackLanguageForEpisode: getPreferredAudioLanguageCodeForEpisode,
@@ -1476,10 +1476,10 @@
   {/if}
   {#if ffmpegAvailable === false}
     <div
-      class="mb-4 p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg flex items-center gap-3"
+      class="mb-4 p-3 bg-white/[0.03] border border-white/10 rounded-lg flex items-center gap-3"
     >
       <svg
-        class="w-5 h-5 text-amber-400 flex-shrink-0"
+        class="w-5 h-5 text-cyan-400 flex-shrink-0"
         fill="none"
         stroke="currentColor"
         viewBox="0 0 24 24"
@@ -1491,7 +1491,7 @@
           d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"
         />
       </svg>
-      <p class="text-amber-300 text-sm flex-1">
+      <p class="text-gray-200 text-sm flex-1">
         {t("flashcards.ffmpegMissing")}
       </p>
       <button
@@ -1509,7 +1509,7 @@
             isDownloadingFFmpeg = false;
           }
         }}
-        class="flex-shrink-0 px-3 py-1.5 rounded-lg bg-amber-500/20 border border-amber-500/40 text-amber-300 text-xs font-semibold hover:bg-amber-500/30 transition-colors flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+        class="flex-shrink-0 px-3 py-1.5 rounded-lg bg-cyan-500/10 border border-cyan-500/30 text-gray-200 text-xs font-semibold hover:bg-cyan-500/20 transition-colors flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {#if isDownloadingFFmpeg}
           <svg class="animate-spin w-3.5 h-3.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>

@@ -6,6 +6,7 @@
     value: string;
     label: string;
     displayLabel?: string;
+    group?: string;
     searchTerms?: string; // Additional terms to search by (e.g., English name)
     icon?: string; // Flag emoji or icon
     provider?: string; // Provider ID for showing provider logo
@@ -22,6 +23,7 @@
     disabled?: boolean;
     placement?: "up" | "down";
     compact?: boolean;
+    portal?: boolean;
     ariaLabel?: string;
   }
 
@@ -36,6 +38,7 @@
     disabled = false,
     placement = "down",
     compact = false,
+    portal = false,
     ariaLabel,
   }: Props = $props();
 
@@ -106,7 +109,7 @@
     if (disabled) return;
     // Delay to allow click on option
     setTimeout(() => {
-      if (!containerElement?.contains(document.activeElement)) {
+      if (!containerElement?.contains(document.activeElement) && !dropdownElement?.contains(document.activeElement)) {
         isOpen = false;
         searchQuery = "";
       }
@@ -178,8 +181,35 @@
     inputElement?.blur();
   }
 
+  // Escape a modal's scroll clipping while keeping the menu anchored to its input.
+  function placeMenu(node: HTMLDivElement) {
+    if (!portal) return;
+    const anchor = containerElement || node.parentElement;
+    document.body.appendChild(node);
+    function position() {
+      if (!anchor?.isConnected) return;
+      const bounds = anchor.getBoundingClientRect();
+      const gap = 4;
+      Object.assign(node.style, {
+        position: "fixed", left: `${bounds.left}px`, right: "auto",
+        width: `${bounds.width}px`, marginTop: "0", marginBottom: "0",
+        top: placement === "down" ? `${bounds.bottom + gap}px` : "auto",
+        bottom: placement === "up" ? `${window.innerHeight - bounds.top + gap}px` : "auto",
+        maxHeight: `${Math.max(1, Math.min(280, (placement === "down" ? window.innerHeight - bounds.bottom : bounds.top) - gap - 8))}px`,
+      });
+    }
+    position();
+    window.addEventListener("scroll", position, true);
+    window.addEventListener("resize", position);
+    return { destroy() {
+      window.removeEventListener("scroll", position, true);
+      window.removeEventListener("resize", position);
+      node.remove();
+    } };
+  }
+
   function handleClickOutside(e: MouseEvent) {
-    if (containerElement && !containerElement.contains(e.target as Node)) {
+    if (containerElement && !containerElement.contains(e.target as Node) && !dropdownElement?.contains(e.target as Node)) {
       isOpen = false;
       searchQuery = "";
     }
@@ -252,6 +282,7 @@
   {#if isOpen}
     <div
       bind:this={dropdownElement}
+      use:placeMenu
       class="searchable-select-dropdown"
       class:opens-up={placement === "up"}
     >
@@ -261,6 +292,9 @@
         </div>
       {:else}
         {#each filteredOptions as option, index}
+          {#if option.group && (index === 0 || filteredOptions[index - 1].group !== option.group)}
+            <div class="px-4 py-2 text-[10px] font-semibold uppercase tracking-wide text-gray-500 border-t border-white/10" role="presentation">{option.group}</div>
+          {/if}
           <button
             type="button"
             data-index={index}

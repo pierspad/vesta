@@ -28,6 +28,7 @@ export interface ApiKeyConfig {
   apiType: ApiProviderId;
   apiKey: string;
   apiUrl?: string;
+  capabilities?: ("llm" | "stt")[];
   modelName?: string;  // Nome modello preferito
   isDefault?: boolean;
   isValid?: boolean;
@@ -36,11 +37,11 @@ export interface ApiKeyConfig {
 // Helper per caricare e validare le chiavi API
 export function loadAndValidateApiKeys(): ApiKeyConfig[] {
   const saved = vestaConfig.getItem("srt-tools-api-keys");
-  if (!saved) return [];
+  if (!saved) return withBuiltinEndpoints([]);
 
   try {
     const parsed = JSON.parse(saved);
-    if (!Array.isArray(parsed)) return [];
+    if (!Array.isArray(parsed)) return withBuiltinEndpoints([]);
 
     const validTypes = new Set([
       "local",
@@ -81,8 +82,31 @@ export function loadAndValidateApiKeys(): ApiKeyConfig[] {
       return null;
     }).filter((k: any) => k !== null);
 
-    return converted as ApiKeyConfig[];
+    return withBuiltinEndpoints(converted as ApiKeyConfig[]);
   } catch {
-    return [];
+    return withBuiltinEndpoints([]);
   }
+}
+
+/** Provider support is explicit; sharing credentials does not imply API compatibility. */
+export function supportsCapability(key: ApiKeyConfig, capability: "llm" | "stt"): boolean {
+  if (key.capabilities) return key.capabilities.includes(capability);
+  return capability === "stt"
+    ? ["groq", "openai", "deepgram", "assemblyai", "custom_whisper", "local_whisper"].includes(key.apiType)
+    : ["local", "google", "groq", "openai", "openrouter", "mistral", "nvidia", "github", "custom"].includes(key.apiType);
+}
+
+function withBuiltinEndpoints(keys: ApiKeyConfig[]): ApiKeyConfig[] {
+  const defaults: ApiKeyConfig[] = [
+    {id: "local", name: "Local LLM", apiType: "local", apiKey: "", apiUrl: vestaConfig.getItem("vesta-local-server-url") || "http://localhost:11434/v1", capabilities: ["llm"]},
+    {id: "local_stt_server", name: "Local STT server", apiType: "custom", apiKey: "", apiUrl: "http://localhost:8000/v1", capabilities: ["stt"]},
+  ];
+  return [...defaults.filter(item => !keys.some(key => key.id === item.id)), ...keys];
+}
+
+/** Names are unique across all providers, including built-ins and both usages. */
+export function hasProviderNameConflict(keys: ApiKeyConfig[], name: string, editingId: string | null = null): boolean {
+  const normalize = (value: string) => value.normalize("NFKC").trim().replace(/\s+/g, " ").toLowerCase();
+  const normalized = normalize(name);
+  return Boolean(normalized) && keys.some(key => key.id !== editingId && normalize(key.name) === normalized);
 }

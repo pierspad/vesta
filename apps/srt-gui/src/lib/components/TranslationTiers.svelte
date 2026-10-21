@@ -6,7 +6,7 @@
   import SearchableSelect from "$lib/components/SearchableSelect.svelte";
   import TierList from "$lib/components/TierList.svelte";
   import { discoverModels, type DiscoveredModel } from "$lib/services/modelDiscovery";
-  import { loadAndValidateApiKeys, type ApiKeyConfig } from "$lib/config/apiKeys";
+  import { loadAndValidateApiKeys, supportsCapability, type ApiKeyConfig } from "$lib/config/apiKeys";
   import {
     loadTiers,
     saveTiers,
@@ -33,24 +33,6 @@
 
   function refreshKeys() {
     let keys = loadAndValidateApiKeys();
-    if (!keys.some((k) => k.id === "local")) {
-      keys.unshift({
-        id: "local",
-        name: "Local LLM (Open API)",
-        apiType: "local",
-        apiKey: "local-not-needed",
-        apiUrl: vestaConfig.getItem("vesta-local-server-url") || "http://localhost:11434/v1",
-        isValid: true
-      });
-    } else {
-      const idx = keys.findIndex((k) => k.id === "local");
-      if (idx !== -1) {
-        const localKey = keys[idx];
-        localKey.name = "Local LLM (Open API)";
-        keys.splice(idx, 1);
-        keys.unshift(localKey);
-      }
-    }
     apiKeys = keys;
   }
 
@@ -68,7 +50,8 @@
   const DISCOVERY_TTL_MS = 24 * 60 * 60 * 1000;
 
   function discoveryKey(provider: string, apiKeyId: string): string {
-    return `${provider}::${apiKeyId}`;
+    const key = apiKeys.find(key => key.id === apiKeyId) || (provider === "local" ? apiKeys.find(key => key.id === "local") : undefined);
+    return `${provider}::${apiKeyId}::${key?.apiUrl || ""}`;
   }
 
   async function ensureModels(provider: string, apiKeyId: string, force = false) {
@@ -76,7 +59,7 @@
     if (inflight.has(cacheId)) return;
     if (!force && discovered.has(cacheId) && provider !== "local") return;
 
-    const key = apiKeys.find((k) => k.id === apiKeyId);
+    const key = apiKeys.find((k) => k.id === apiKeyId) || (provider === "local" ? apiKeys.find(k => k.id === "local") : undefined);
     const needsKey = provider !== "local" && provider !== "custom";
     if (needsKey && !key?.apiKey?.trim()) return;
 
@@ -191,6 +174,7 @@
   }
 
   function defaultModelFor(provider: string): string {
+    if (provider === "local" || provider === "custom") return "";
     const models = getModelsForProvider(provider);
     return models.find((m) => m.recommended)?.id || models[0]?.id || "";
   }
@@ -346,12 +330,11 @@
 
   let totalEntries = $derived(tiers.reduce((sum, t) => sum + t.entries.length, 0));
 
-  const LLM_PROVIDERS = ["google", "groq", "openai", "openrouter", "mistral", "github", "nvidia", "custom", "local"];
 </script>
 
 {#snippet noKeysWarning()}
   {#if apiKeys.length === 0}
-    <div class="rounded-lg border border-amber-400/20 bg-amber-500/10 px-3 py-2.5 text-xs text-amber-100">
+    <div class="rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2.5 text-xs leading-relaxed text-gray-400">
       {t("tiers.noKeys")}
     </div>
   {/if}
@@ -401,6 +384,11 @@
                     </button>
                   </div>
 
+                  {#if apiKeys.find(key => key.id === entry.apiKeyId)?.apiUrl}
+                    <div class="flex items-center justify-between gap-3 text-xs text-gray-400">
+                      <span class="truncate font-mono">{apiKeys.find(key => key.id === entry.apiKeyId)?.apiUrl}</span>
+                    </div>
+                  {/if}
                   <!-- Fields grid (API Key & Model) -->
                   <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 items-end">
                     <!-- API key -->
@@ -409,8 +397,8 @@
                         {entry.provider === "local" ? (t("translate.provider")) : (t("tiers.apiKey"))}
                       </span>
                       <SearchableSelect
-                        options={[...apiKeys.filter((k) => LLM_PROVIDERS.includes(k.apiType)).map((key) => ({ value: key.id, label: keyLabel(key), provider: key.apiType })), { value: "__add_provider__", label: `＋ ${t("tiers.addProvider")}` }]}
-                        value={entry.apiKeyId}
+                        options={[...apiKeys.filter((k) => supportsCapability(k, "llm")).map((key) => ({ value: key.id, label: keyLabel(key), provider: key.apiType })), { value: "__add_provider__", label: `＋ ${t("tiers.addProvider")}` }]}
+                        value={entry.apiKeyId || (entry.provider === "local" ? "local" : "")}
                         onchange={(val) => onKeyChange(tierIndex, entryIndex, val)}
                         placeholder={t("tiers.noKeysOption")}
                       />
@@ -432,7 +420,7 @@
                       </div>
                       <SearchableSelect
                         options={entry.provider === "local" && entryModels(entry).length === 0
-                          ? [{ value: "", label: localModelsPlaceholder() }]
+                          ? [{ value: "", label: localModelsPlaceholder() }, { value: "__custom__", label: t("tiers.customModel") }]
                           : [
                               ...entryModels(entry).map((m) => ({
                                 value: m.id,
@@ -443,7 +431,7 @@
                         value={entry.provider === "local" && entryModels(entry).length === 0
                           ? ""
                           : (isCustomModel(entry) ? "__custom__" : entry.model)}
-                        disabled={entry.provider === "local" && entryModels(entry).length === 0}
+                        disabled={false}
                         onfocus={() => ensureModels(entry.provider, entry.apiKeyId, true)}
                         onchange={(v) => {
                           if (v === "__custom__") {
@@ -459,7 +447,7 @@
                     </div>
                   </div>
 
-                  {#if isCustomModel(entry)}
+                  {#if customModeIds.has(entry.id) || (isCustomModel(entry) && Boolean(entry.model) && (entry.provider !== "local" || entryModels(entry).length > 0))}
                     <input
                       type="text"
                       value={entry.model}

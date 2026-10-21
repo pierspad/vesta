@@ -9,7 +9,11 @@ it("flushes the complete log snapshot before export and persists before stop", a
   vi.mocked(invoke).mockImplementation(async command => command === "support_log_start" ? "/tmp/session.jsonl" : command === "support_log_export" ? "/tmp/export.jsonl" : undefined);
   await store.start(); expect(store.recording).toBe(true);
   for (let i = 0; i < 250; i++) recordSupportEvent("test", `entry-${i}`);
+  expect(store.preview).toHaveLength(200);
+  expect(store.preview[0].message).toBe("entry-50");
+  expect(store.previewText).toContain("entry-249");
   await store.export("/tmp/export.jsonl");
+  expect(store.preview).toHaveLength(200);
   const exportedCalls = vi.mocked(invoke).mock.calls;
   const exportIndex = exportedCalls.findIndex(([command]) => command === "support_log_export");
   const batches = exportedCalls.slice(0, exportIndex).filter(([command]) => command === "support_log_append");
@@ -34,4 +38,6 @@ it("records retry metadata without copying unexpected provider payload fields", 
   const retry = entries.find(entry => entry.kind === "provider-retry");
   expect(JSON.parse(retry.message)).toEqual({ tier: 1, endpoint: 2, status: 429, attempt: 1, max_retries: 3, retry_in_ms: 3000 });
   expect(JSON.stringify(entries)).not.toMatch(/PRIVATE-SUBTITLE|private-key/);
+  expect(store.previewText).not.toMatch(/PRIVATE-SUBTITLE|private-key/);
+  expect(store.previewText).toContain("Recording stopped");
 });

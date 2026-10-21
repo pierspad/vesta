@@ -746,3 +746,11 @@ kbd {
   color: inherit;
   overflow-wrap: anywhere;
 }
+
+/* Open selectors must escape card paint containment in the real settings scroller. */
+.settings-scroll .glass-card:focus-within {
+  contain: layout style;
+  content-visibility: visible;
+  position: relative;
+  z-index: 40;
+}

@@ -688,10 +688,10 @@
   <!-- FFmpeg Warning (whisper-rs is always available natively) -->
   {#if backends && !backends.ffmpeg}
     <div
-      class="mx-6 mt-4 mb-0 p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl flex items-center gap-3 shrink-0"
+      class="mx-6 mt-4 mb-0 p-3 bg-white/[0.03] border border-white/10 rounded-xl flex items-center gap-3 shrink-0"
     >
       <svg
-        class="w-5 h-5 text-amber-400 flex-shrink-0"
+        class="w-5 h-5 text-cyan-400 flex-shrink-0"
         fill="none"
         stroke="currentColor"
         viewBox="0 0 24 24"
@@ -704,10 +704,10 @@
         />
       </svg>
       <div class="flex-1">
-        <p class="text-amber-300 text-sm font-medium">
+        <p class="text-gray-200 text-sm font-medium">
           {t("transcribe.ffmpegMissing")}
         </p>
-        <p class="text-amber-200/60 text-xs mt-1">
+        <p class="text-gray-400 text-xs mt-1">
           {t("transcribe.ffmpegMissingDesc")}
         </p>
       </div>
@@ -726,7 +726,7 @@
             isDownloadingFFmpeg = false;
           }
         }}
-        class="flex-shrink-0 px-3 py-1.5 rounded-lg bg-amber-500/20 border border-amber-500/40 text-amber-300 text-xs font-semibold hover:bg-amber-500/30 transition-colors flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+        class="flex-shrink-0 px-3 py-1.5 rounded-lg bg-cyan-500/10 border border-cyan-500/30 text-gray-200 text-xs font-semibold hover:bg-cyan-500/20 transition-colors flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {#if isDownloadingFFmpeg}
           <svg class="animate-spin w-3.5 h-3.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>

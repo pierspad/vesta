@@ -534,18 +534,6 @@ export function getLocalizedLanguageName(langCode: string | null | undefined, lo
 }
 
 /**
- * Formats flags for dictionary language pair: e.g. "🇯🇵 ➔ 🇬🇧" or "🇩🇪 ➔ 🇮🇹" or "🇯🇵 ➔ 🇯🇵"
- */
-export function formatDictionaryFlags(targetLang: string, nativeLang?: string): string {
-  const flagTarget = getLanguageFlag(targetLang);
-  if (!nativeLang || nativeLang === targetLang) {
-    return `${flagTarget} ➔ ${flagTarget}`;
-  }
-  const flagNative = getLanguageFlag(nativeLang);
-  return `${flagTarget} ➔ ${flagNative}`;
-}
-
-/**
  * Returns a comprehensive, space-separated string of search keywords for a language code.
  */
 export function getMultilingualSearchTermsForLang(langCode: string | null | undefined): string {

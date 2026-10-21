@@ -1,4 +1,5 @@
 <script lang="ts">
+  import brandAssets from "$lib/config/providerBrandAssets.json";
   import { providers } from "$lib/config/llmProviders";
 
   // Icona provider riutilizzabile: quadrato arrotondato con gradiente del provider
@@ -15,6 +16,8 @@
     rounded?: string;
   } = $props();
 
+  let brand = $derived((brandAssets as Record<string, {file: string; background?: string}>)[provider]);
+  let brandAsset = $derived(brand?.file);
   let color = $derived(providers[provider]?.color || "from-gray-500 to-gray-600");
   // Lettermark di fallback per i provider senza glifo dedicato.
   let letter = $derived(
@@ -29,9 +32,12 @@
 </script>
 
 <div
-  class="{size} {rounded} bg-gradient-to-br {color} flex items-center justify-center text-white shadow-lg shrink-0"
+  style:background-color={brandAsset ? (brand?.background || "transparent") : undefined}
+  class="{size} {rounded} {brandAsset ? "bg-transparent" : `bg-gradient-to-br ${color}`} flex items-center justify-center text-white shadow-lg shrink-0 overflow-hidden"
 >
-  {#if provider === "google"}
+  {#if brandAsset}
+    <img src={`/providers/${brandAsset}`} alt="" class="{size} object-contain p-1" />
+  {:else if provider === "google"}
     <svg class={glyph} viewBox="0 0 24 24" fill="currentColor">
       <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
       <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />

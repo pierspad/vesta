@@ -1,6 +1,7 @@
 <script lang="ts">
   import { settledScroll } from "$lib/utils/settledScroll";
   import { onMount, onDestroy } from "svelte";
+  import { diagnosticsStore } from "$lib/stores/diagnosticsStore.svelte";
   import { invokeCommand as invoke } from "$lib/services/tauriClient";
   import { listen } from "@tauri-apps/api/event";
   import { fetch as tauriFetch } from "$lib/services/tauriHttp";
@@ -44,7 +45,7 @@
     REFINEMENT_PROMPT_STORAGE_KEY,
     loadRefinementPrompt,
   } from "$lib/config/refinementPrompt";
-  import { loadAndValidateApiKeys, type ApiKeyConfig } from "$lib/config/apiKeys";
+  import { loadAndValidateApiKeys, supportsCapability, hasProviderNameConflict, type ApiKeyConfig } from "$lib/config/apiKeys";
   import {
     loadTiers,
     tiersHaveUsableEntries,
@@ -202,7 +203,7 @@
   }
   let defaultProviderKeys = $derived(apiKeys.filter((k) => k.apiType === defaultLlmSettings.provider));
   let savedCustomProviders = $derived(
-    apiKeys.filter((k) => k.apiType === "custom" && k.apiUrl && k.apiUrl.trim().length > 0),
+    apiKeys.filter((k) => k.apiType === "custom" && supportsCapability(k, "llm") && k.apiUrl && k.apiUrl.trim().length > 0),
   );
   let selectedDefaultCustomProvider = $derived(
     savedCustomProviders.find((key) => key.id === defaultLlmSettings.customProviderId),
@@ -226,7 +227,7 @@
     }
     return getModelsForProvider(defaultLlmSettings.provider);
   });
-  let configuredApiKeyCount = $derived(apiKeys.filter((key) => key.apiType !== "local").length);
+  let configuredApiKeyCount = $derived(apiKeys.filter((key) => key.apiType !== "local" && key.apiKey.trim() && supportsCapability(key, "llm")).length);
   let hasRemoteApiKey = $derived(configuredApiKeyCount > 0);
   // La traduzione è pronta quando esiste almeno un endpoint tier usabile.
   let isDefaultLlmReady = $derived(tiersHaveUsableEntries(tiers));
@@ -635,6 +636,7 @@
   );
 
   onMount(() => {
+    void diagnosticsStore.refresh();
     void cpuRamStore.init();
     void updateCheckerStore.init();
 
@@ -802,6 +804,7 @@
     const newKeyName = apiKeyEditorStore.newKeyName;
     const newKeyValue = apiKeyEditorStore.newKeyValue;
     const newKeyUrl = apiKeyEditorStore.newKeyUrl;
+    const capabilities: ("llm" | "stt")[] | undefined = newKeyType === "custom" ? (apiKeyEditorStore.newKeyUsage === "both" ? ["llm", "stt"] : [apiKeyEditorStore.newKeyUsage]) : newKeyType === "local" ? ["llm"] : undefined;
 
     if (!newKeyName.trim()) {
       showSnackbar(t("settings.errorNameRequired"), "error");
@@ -835,13 +838,17 @@
       return;
     }
 
-    // Enforce unique names for custom providers
-    if (newKeyType === "custom" && !editKeyId) {
-      const existingCustom = apiKeys.find(
-        (k) => k.apiType === "custom" && k.name.trim().toLowerCase() === newKeyName.trim().toLowerCase()
-      );
-      if (existingCustom) {
-        showSnackbar(t("settings.errorDuplicateCustomName"), "error");
+    if (hasProviderNameConflict(apiKeys, newKeyName, editKeyId)) {
+      showSnackbar(t("settings.errorDuplicateCustomName"), "error");
+      return;
+    }
+
+    if (newKeyType === "custom" || newKeyType === "local") {
+      try {
+        const endpoint = new URL(newKeyUrl.trim());
+        if (!["http:", "https:"].includes(endpoint.protocol) || endpoint.username || endpoint.password || endpoint.search || endpoint.hash) throw new Error("Invalid base URL");
+      } catch {
+        showSnackbar(t("settings.errorEndpointInvalid"), "error");
         return;
       }
     }
@@ -862,6 +869,7 @@
               apiType: newKeyType,
               apiKey: newKeyValue.trim(),
               apiUrl: resolvedUrl,
+              capabilities,
             }
           : k,
       );
@@ -878,6 +886,7 @@
         apiType: newKeyType,
         apiKey: newKeyValue.trim(),
         apiUrl: resolvedUrl,
+        capabilities,
         isDefault: apiKeys.filter((k) => k.apiType === newKeyType).length === 0,
       };
       apiKeys = [...apiKeys, newKey];
@@ -885,6 +894,10 @@
       showSnackbar(t("settings.keyAdded"));
     }
 
+    if (editKeyId === "local" && newKeyType === "local" && resolvedUrl) {
+      defaultLlmSettings.localServerUrl = resolvedUrl;
+      defaultLlmSettings.persist();
+    }
     apiKeyEditorStore.reset();
   }
 
@@ -1082,7 +1095,7 @@
       title={s("apiKeysSaved")}
       addButtonLabel={s("addProviderButton")}
       defaultProvider="custom"
-      {apiKeys}
+      apiKeys={apiKeys.filter(key => supportsCapability(key, "llm"))}
       onAddKey={openAddKeyModal}
       onEditKey={openEditKeyModal}
       onDeleteKey={askDeleteApiKey}
@@ -1090,7 +1103,7 @@
     />
 
       <!-- Translation Tiers (priority list + failover) -->
-      <div class="glass-card flex flex-col mb-6 mt-10 relative z-20">
+      <div class="glass-card flex flex-col mb-6 mt-4 relative z-20">
         <div class="p-4 border-b border-white/5 flex items-center justify-between gap-3 w-full">
           <div class="flex items-center gap-3">
             <div class="w-9 h-9 rounded-lg bg-indigo-500/20 text-indigo-300 flex items-center justify-center shrink-0">
@@ -1145,7 +1158,7 @@
   {#if activeSettingsSection === "whisper" && !aiStore.killSwitchActive}
     <WhisperSettingsPanel
       {s}
-      {apiKeys}
+      apiKeys={apiKeys.filter(key => supportsCapability(key, "stt"))}
       onAddKey={openAddKeyModal}
       onEditKey={openEditKeyModal}
       onDeleteKey={askDeleteApiKey}

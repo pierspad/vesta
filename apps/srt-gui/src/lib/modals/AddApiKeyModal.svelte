@@ -2,6 +2,8 @@
   import { writeClipboard } from "$lib/utils/clipboard";
   import { locale } from "$lib/i18n";
   import { snackbar } from "$lib/stores/snackbarStore.svelte";
+  import SearchableSelect from "$lib/components/SearchableSelect.svelte";
+  import { hasProviderNameConflict, loadAndValidateApiKeys } from "$lib/config/apiKeys";
   import ProviderIcon from "$lib/components/ProviderIcon.svelte";
   import { providers } from "$lib/config/llmProviders";
   import { transcribeProviders } from "$lib/config/transcribeProviders";
@@ -21,8 +23,16 @@
 
   let { onSave }: Props = $props();
 
+  const usageIcon = (path: string) => `<svg class="w-5 h-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${path}" /></svg>`;
+  const usageOptions = [
+    { value: "llm", label: "LLM", icon: usageIcon("M4 4h16v12H9l-5 4V4zm4 4h8m-8 4h5") },
+    { value: "stt", label: "STT", icon: usageIcon("M9 5a3 3 0 016 0v6a3 3 0 01-6 0V5zm-3 6a6 6 0 0012 0m-6 6v4m-3 0h6") },
+    { value: "both", label: "LLM + STT", icon: usageIcon("M3 4h12v9H8l-5 4V4zm4 4h4m7 3a2 2 0 014 0v4a2 2 0 01-4 0v-4zm-2 4a4 4 0 008 0m-4 4v3m-2 0h4") },
+  ];
+
   let t = $derived($locale);
   let store = apiKeyEditorStore;
+  let duplicateName = $derived(hasProviderNameConflict(loadAndValidateApiKeys(), store.newKeyName, store.editKeyId));
 
   function copyToClipboard(text: string) {
     void writeClipboard(text, t("settings.keyCopied"));
@@ -65,8 +75,9 @@
               {@const isCustom = pid === "custom"}
               <button
                 type="button"
+                disabled={(store.editKeyId === "local" && pid !== "local") || (store.editKeyId === "local_stt_server" && pid !== "custom")}
                 onclick={() => store.selectProvider(pid)}
-                class="flex items-center gap-2.5 p-2.5 rounded-lg transition-all duration-200 border text-left
+                class="flex items-center gap-2.5 p-2.5 rounded-lg transition-all duration-200 border text-left disabled:opacity-35 disabled:cursor-not-allowed
                   {store.newKeyType === pid
                   ? 'bg-indigo-500/20 border-indigo-500/50 text-white'
                   : 'bg-white/5 hover:bg-white/10 border-transparent text-gray-400'}"
@@ -101,6 +112,24 @@
             />
           </div>
 
+          {#if duplicateName}
+            <p role="alert" class="text-xs text-amber-300">{t("settings.errorDuplicateCustomName")}</p>
+          {/if}
+          {#if store.newKeyType === "custom"}
+            <div>
+              <span class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">{t("settings.endpointCapabilities")}</span>
+              <SearchableSelect
+                options={usageOptions}
+                value={store.newKeyUsage}
+                onchange={(value) => { if (value === "llm" || value === "stt" || value === "both") store.newKeyUsage = value; }}
+                placement="down"
+                portal={true}
+                placeholder={t("settings.endpointCapabilities")}
+                ariaLabel={t("settings.endpointCapabilities")}
+                noResultsText={t("common.noResults")}
+              />
+            </div>
+          {/if}
           {#if store.newKeyType === "local" || store.newKeyType === "custom"}
             <div>
               <label
@@ -121,13 +150,13 @@
             </div>
           {/if}
 
-          {#if store.newKeyType !== "local"}
+          {#if true}
             <div>
               <label
                 for="api-key"
                 class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5"
                 >{t("settings.modal.apiKey")}
-                {#if store.newKeyType === "custom"}<span
+                {#if store.newKeyType === "custom" || store.newKeyType === "local"}<span
                     class="text-gray-600 normal-case font-normal"
                     >({t("settings.modal.optional")})</span
                   >{/if}</label
@@ -258,7 +287,9 @@
           </button>
           <button
             onclick={onSave}
-            class="flex-1 py-2.5 rounded-lg bg-indigo-500 hover:bg-indigo-400 text-white shadow-lg shadow-indigo-500/20 transition-all text-sm font-bold"
+            disabled={duplicateName || !store.newKeyName.trim()}
+            title={duplicateName ? t("settings.errorDuplicateCustomName") : ""}
+            class="disabled:opacity-40 disabled:cursor-not-allowed flex-1 py-2.5 rounded-lg bg-indigo-500 hover:bg-indigo-400 text-white shadow-lg shadow-indigo-500/20 transition-all text-sm font-bold"
           >
             {t("settings.modal.save")}
           </button>

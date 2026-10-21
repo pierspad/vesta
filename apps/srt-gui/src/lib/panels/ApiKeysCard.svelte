@@ -92,12 +92,7 @@
   </div>
 
   <div
-    class="p-2 space-y-2 overflow-y-auto"
-    style={apiKeys.length <= 1
-      ? "height: 78px;"
-      : apiKeys.length === 2
-        ? "height: 164px;"
-        : "height: 250px;"}
+    class="p-3 space-y-2 overflow-y-auto max-h-[280px]"
   >
     {#each apiKeys as key}
       <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -260,9 +255,10 @@
             <button
               onclick={(event) => {
                 event.stopPropagation();
-                onDeleteKey(key.id);
+                if (!["local", "local_stt_server"].includes(key.id)) onDeleteKey(key.id);
               }}
               class="p-2.5 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-colors"
+              disabled={["local", "local_stt_server"].includes(key.id)}
               title={t("settings.delete")}
             >
               <svg

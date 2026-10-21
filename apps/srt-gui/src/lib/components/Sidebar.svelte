@@ -14,6 +14,9 @@
     SETTINGS_ACTION_REQUIRED_EVENT,
     type SettingsActionNotificationDetail,
   } from "$lib/utils/settingsNotifications";
+  import NotificationInbox from "$lib/components/NotificationInbox.svelte";
+  import * as vestaConfig from "$lib/config/vestaConfig";
+  import { markSettingsNotificationRead } from "$lib/utils/settingsNotifications";
   import SupportModal from "$lib/modals/SupportModal.svelte";
 
   interface Props {
@@ -37,6 +40,17 @@
 
   const repoUrl = "https://github.com/pierspad/vesta";
   let showSupportModal = $state(false);
+  let showInbox = $state(false);
+  let seenUpdate = $state(vestaConfig.getItem("vesta-inbox-seen-update") || "");
+  function openInbox() {
+    showInbox = true;
+    markSettingsNotificationRead();
+    if (hasUpdateNotification) {
+      seenUpdate = updateCheckerStore.latestVersion;
+      vestaConfig.setItem("vesta-inbox-seen-update", seenUpdate);
+    }
+  }
+
   let releasesUrl = $derived(
     appVersionNum
       ? `https://github.com/pierspad/vesta/releases/tag/${appVersionNum}`
@@ -49,6 +63,7 @@
   let hasSettingsActionNotification = $state(false);
   let settingsNotificationRead = $state(false);
   let settingsHash = $state("");
+  let inboxUnread = $derived((hasSettingsActionNotification && !settingsNotificationRead) || (hasUpdateNotification && seenUpdate !== updateCheckerStore.latestVersion));
   let needsWhisperDot = $derived(settingsHash.includes("whisper-model-missing:v1"));
   let needsLlmDot = $derived(settingsHash.includes("llm-default-unready:v1"));
 
@@ -143,15 +158,6 @@
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
           </svg>
-          {#if hasSettingsActionNotification || hasUpdateNotification}
-            {#if hasSettingsActionNotification && !settingsNotificationRead}
-              <span class="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-red-500 ring-2 ring-gray-900 shadow-[0_0_10px_rgba(239,68,68,0.75)]"></span>
-            {:else if hasUpdateNotification}
-              <span class="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-amber-500 ring-2 ring-gray-900 shadow-[0_0_10px_rgba(245,158,11,0.75)] animate-pulse"></span>
-            {:else}
-              <span class="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-gray-500 ring-2 ring-gray-900"></span>
-            {/if}
-          {/if}
         </button>
 
         {#if !collapsed}
@@ -209,7 +215,7 @@
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3h6m-7 4h8a3 3 0 013 3v7a3 3 0 01-3 3H8a3 3 0 01-3-3v-7a3 3 0 01-3-3zm4 3v4m-2-2h4" />
             </svg>
             {#if needsLlmDot}
-              <span class="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-amber-500 ring-2 ring-gray-900 animate-pulse shadow-[0_0_8px_rgba(245,158,11,0.6)]"></span>
+              <span class="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-indigo-400 ring-2 ring-gray-900"></span>
             {/if}
           </div>
           {#if !collapsed}
@@ -231,7 +237,7 @@
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18a6 6 0 006-6V7a6 6 0 10-12 0v5a6 6 0 006 6zm0 0v3m-4 0h8" />
             </svg>
             {#if needsWhisperDot}
-              <span class="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-amber-500 ring-2 ring-gray-900 animate-pulse shadow-[0_0_8px_rgba(245,158,11,0.6)]"></span>
+              <span class="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-indigo-400 ring-2 ring-gray-900"></span>
             {/if}
           </div>
           {#if !collapsed}
@@ -312,9 +318,6 @@
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7a3 3 0 013-3h10a3 3 0 013 3v10a3 3 0 01-3 3H7a3 3 0 01-3-3V7zm4 2h2m2 0h2m2 0h2M7 13h2m2 0h2m2 0h2M7 17h6" />
           </svg>
-          {#if hasUpdateNotification}
-            <span class="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-amber-500 ring-2 ring-gray-900 animate-pulse shadow-[0_0_8px_rgba(245,158,11,0.6)]"></span>
-          {/if}
         </div>
         {#if !collapsed}
           <div class="text-left flex-1 min-w-0 leading-tight">
@@ -523,6 +526,13 @@
 
     <!-- Expert Mode + AI Kill Switch at the bottom of the nav -->
     <div class="order-8 mt-auto pt-2 flex flex-col gap-2">
+      <button type="button" onclick={openInbox} aria-label={t("notifications.title")} aria-haspopup="dialog" aria-expanded={showInbox}
+        title={collapsed ? t("notifications.title") : undefined}
+        class="relative flex min-h-11 items-center gap-3 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-sm font-semibold text-gray-300 transition-colors hover:border-indigo-400/30 hover:bg-indigo-500/10 hover:text-indigo-200 focus-visible:outline-2 focus-visible:outline-indigo-400 {collapsed ? 'justify-center' : ''}">
+        <svg class="h-5 w-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4 4h16v12l-4 4H8l-4-4V4zm0 10h5l2 3h2l2-3h5" /></svg>
+        {#if !collapsed}<span>{t("notifications.title")}</span>{/if}
+        {#if inboxUnread}<span class="absolute right-2 top-2 h-2 w-2 rounded-full bg-indigo-400 ring-2 ring-gray-900"><span class="sr-only">{t("notifications.unread")}</span></span>{/if}
+      </button>
       {#if supportLogStore.recording}
         <button type="button" onclick={() => { settingsSection = "diagnostics"; onTabChange("settings"); }} class="rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-xs text-rose-300 flex items-center justify-center gap-2" title={supportLogStore.path || t("supportLogs.recording")} aria-label={t("supportLogs.recording")}>
           <span class="w-2 h-2 shrink-0 rounded-full bg-rose-500 animate-pulse"></span>
@@ -554,9 +564,9 @@
               <img src={authorIconUrl} alt="Pierpaolo Spadafora" class="w-9 h-9 rounded-full border border-white/10 shadow-sm" />
             </a>
             <div class="flex flex-col gap-1 min-w-0">
-              <a href={releasesUrl} target="_blank" class="text-[15px] font-semibold text-gray-200 hover:text-indigo-400 transition-colors truncate leading-none">
-                {appVersionNum || "v0.15.1"}
-              </a>
+              <button type="button" onclick={openInbox} class="text-left text-[15px] font-semibold text-gray-200 hover:text-indigo-400 transition-colors truncate leading-none">
+                {appVersionNum || "…"}
+              </button>
               <a href={licenseUrl} target="_blank" class="text-xs text-gray-400 hover:text-indigo-400 transition-colors leading-none">
                 {appLicense || "GPL-3.0"}
               </a>
@@ -578,3 +588,9 @@
 </aside>
 
 <SupportModal show={showSupportModal} onclose={() => showSupportModal = false} />
+
+{#if showInbox}
+  <NotificationInbox hash={aiStore.killSwitchActive ? "" : settingsHash} releaseUrl={releasesUrl}
+    onclose={() => showInbox = false}
+    onsettings={(section) => { showInbox = false; settingsSection = section; onTabChange("settings"); }} />
+{/if}

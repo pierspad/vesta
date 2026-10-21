@@ -25,10 +25,6 @@ export function filterPreparedSubtitleTracks(tracks: ReturnType<typeof prepareSu
   if (!tokens.length) return tracks;
   return tracks.filter((track) => tokens.every((token) => track.searchText.includes(token)));
 }
-export function filterSubtitleTracks(tracks: SubtitleTrack[], search: string, locale = "en") {
-  return filterPreparedSubtitleTracks(prepareSubtitleTracks(tracks, locale), search);
-}
-
 /** Portable filename identifying the exact embedded track, including language variants. */
 export function subtitleOutputName(mediaPath: string, track: SubtitleTrack): string {
   const basename = mediaPath.split(/[\\/]/).pop() || "film";

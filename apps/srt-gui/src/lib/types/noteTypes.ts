@@ -242,7 +242,7 @@ export function loadCustomNoteTypes(): NoteTypeDef[] {
               id: p.id.startsWith("custom:") ? p.id : `custom:${p.id}`,
               name: p.name || p.noteTypeName || "Unnamed Template",
               predefined: false,
-              language: "",
+              language: normalizeLanguageCode(p.language),
               fields,
               included,
             };

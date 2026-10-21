@@ -8,6 +8,8 @@ class SupportLogStore {
   path = $state<string | null>(null);
   busy = $state(false);
   error = $state("");
+  preview = $state<SupportEntry[]>([]);
+  previewText = $derived(this.preview.map(entry => `[${entry.time}] ${entry.kind}: ${entry.message}`).join("\n"));
   private entries: SupportEntry[] = [];
   private droppedEntries = 0;
   private timer: ReturnType<typeof setInterval> | null = null;
@@ -24,6 +26,8 @@ class SupportLogStore {
   private async attach() {
     this.recording = true;
     setSupportLogSink(entry => {
+      // Same redacted entries as the file; bounded independently of the write queue.
+      this.preview = [...this.preview.slice(-199), entry];
       if (this.entries.length < 1000) this.entries.push(entry);
       else this.droppedEntries += 1;
     });
@@ -48,6 +52,7 @@ class SupportLogStore {
     this.busy = true; this.error = "";
     try {
       this.path = await invoke<string>("support_log_start");
+      this.preview = [];
       await this.attach();
       recordSupportEvent("session", "Recording enabled");
     } catch (error) { this.error = safeLogValue(error); }

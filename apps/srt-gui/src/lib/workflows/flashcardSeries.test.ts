@@ -1,6 +1,5 @@
 import { expect, it, vi } from "vitest";
 import { runFlashcardSeries, type FlashcardSeriesOptions } from "./flashcardSeries";
-import { runFlashcardGeneration, type FlashcardGenerationOptions } from "./flashcardGeneration";
 import { defaultMediaSettings } from "$lib/utils/mediaSettings";
 import { inferLanguageFromPath } from "$lib/utils/models";
 import { predefinedNoteTypeForLanguage } from "$lib/types/noteTypes";
@@ -100,40 +99,14 @@ it("continues after an episode failure and cleans up after a preparation error",
  await runFlashcardSeries(failed); expect(failed.generationStore.error).toContain("probe failed"); expect(failed.generationStore.isProcessing).toBe(false);
 });
 
-function singleOptions(): FlashcardGenerationOptions {
- const series = options();
- return { generationStore: series.generationStore, config: {} as FlashcardGenerationOptions["config"], t: series.t, invoke: series.invoke, applyOverrides: series.previewStore.applyOverrides, isCancelled: series.isCancelled, importToAnki: series.maybeAutoImportToAnki };
-}
-it("publishes a single-run result and imports its package", async () => {
- const run = singleOptions(); await runFlashcardGeneration(run);
- expect(run.generationStore.result).toMatchObject({ success: true, cardsGenerated: 3, outputSizeBytes: 100 });
- expect(run.invoke).toHaveBeenCalledExactlyOnceWith("flashcard_generate", { config: run.config });
- expect(run.importToAnki).toHaveBeenCalledExactlyOnceWith("episode.apkg"); expect(run.generationStore.isProcessing).toBe(false);
-});
-it("preserves the generated result when automatic Anki import fails", async () => {
- const run = singleOptions(); run.importToAnki = vi.fn().mockRejectedValue(new Error("Anki unavailable"));
- await runFlashcardGeneration(run);
- expect(run.generationStore.result).toMatchObject({ success: true, cardsGenerated: 3, apkgPath: "episode.apkg" });
- expect(run.generationStore.error).toBeNull();
- expect(run.generationStore.addLog).toHaveBeenCalledWith(expect.stringContaining("ankiAutoImportFailed"), "warning");
-});
-it("skips native work after preparation cancellation and preserves late successful output", async () => {
- for (const duringPreparation of [true, false]) {
- const run = singleOptions(); let cancelled = false; run.isCancelled = () => cancelled;
- if (duringPreparation) run.applyOverrides = async () => { cancelled = true; };
- else run.invoke = vi.fn().mockImplementation(async () => { cancelled = true; return response; });
- await runFlashcardGeneration(run);
- if (duringPreparation) expect(run.invoke).not.toHaveBeenCalled();
- if (duringPreparation) expect(run.generationStore.result).toBeNull();
- else expect(run.generationStore.result).toMatchObject({ success: false, cardsGenerated: 3, apkgPath: "episode.apkg", message: "flashcards.cancelled" });
- expect(run.importToAnki).not.toHaveBeenCalled(); expect(run.generationStore.isProcessing).toBe(false);
- }
-});
-it("reports single-run errors and clears transient progress in finally", async () => {
- const run = singleOptions(); run.applyOverrides = async () => { throw new Error("preview failed"); };
- await runFlashcardGeneration(run);
- expect(run.generationStore.error).toContain("preview failed"); expect(run.generationStore.result?.success).toBe(false);
- expect(run.generationStore.isProcessing).toBe(false); expect(run.generationStore.progress).toBe(0);
+it("generates and imports one film through the same workflow as a series", async () => {
+ const run = options(); run.episodes = run.episodes.slice(0, 1);
+ run.ankiStore.dictionaryLookup = true;
+ await runFlashcardSeries(run);
+ expect(run.invoke).toHaveBeenCalledExactlyOnceWith("flashcard_generate", { config: expect.objectContaining({ dictionary_lookup: true }) });
+ expect(run.generationStore.result).toMatchObject({ success: true, cardsGenerated: 3, apkgPath: "episode.apkg", outputSizeBytes: 100 });
+ expect(run.maybeAutoImportToAnki).toHaveBeenCalledExactlyOnceWith("episode.apkg");
+ expect(run.generationStore.isProcessing).toBe(false);
 });
 
 it("exports mixed-language episodes with their own note types and font language", async () => {

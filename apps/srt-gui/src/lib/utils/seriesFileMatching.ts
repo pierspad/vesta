@@ -598,38 +598,6 @@ export function pickBestAudioTrackIndex(tracks: AudioTrackInfo[], languageCode: 
 
 // ─── Deck naming ─────────────────────────────────────────────────────────────
 
-export function generateDefaultDeckName(filename: string): string {
-  let base = filename.replace(/\.[^/.]+$/, "");
-
-  // Remove known suffixes
-  base = base.replace(/[._-](native|original|orig|source|translated|translation|tradotto|traduzione|reference|ref)(?=(\.|_|-|$))/gi, "");
-
-  // Remove language code
-  const parts = base.split(/[._-]/);
-  if (parts.length > 1) {
-    const lastPart = parts[parts.length - 1].toLowerCase();
-    if (KNOWN_LANGUAGE_CODES.has(lastPart) || detectLanguageCode(lastPart)) {
-      parts.pop();
-      base = parts.join(" ");
-    } else {
-      base = parts.join(" ");
-    }
-  }
-
-  // Remove episode numbers
-  base = base.replace(/[._\-\s]*[Ss]\d{1,2}[Ee]\d{1,4}[._\-\s]*/gi, " ");
-  base = base.replace(/[._\-\s]*[Ee][Pp]?\.?\s*\d{1,4}[._\-\s]*/gi, " ");
-  base = base.replace(/[._\-\s]*[Ee]pisode\.?\s*\d{1,4}[._\-\s]*/gi, " ");
-  base = base.replace(/[._\-\s]*[Xx]\d{1,4}[._\-\s]*/gi, " ");
-
-  // Isolated numbers
-  base = base.replace(/[\s_\-\.]\d{1,4}$/, "");
-  base = base.replace(/[\s_\-\.]\d{1,4}[\s_\-\.]/, " ");
-  base = base.replace(/^\d{1,4}[\s_\-\.]/, "");
-
-  return base.replace(/[._-]/g, " ").replace(/\s+/g, " ").trim() || "Default Deck";
-}
-
 /** Derive a deck name from an episode file path for "separate" mode.
  *  Returns the filename without extension, with known language suffixes
  *  like -en, -it etc. stripped. */

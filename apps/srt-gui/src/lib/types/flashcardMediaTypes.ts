@@ -84,12 +84,6 @@ export const RESOLUTION_PRESETS: ResolutionPreset[] = [
  * forced 3:2 on 16:9 sources, squashing every snapshot. */
 export const DEFAULT_RESOLUTION = RESOLUTION_PRESETS[0];
 
-/** The preset matching these dimensions, or `null` when the user has typed
- *  their own — which is what makes the select show "Custom". */
-export function matchResolutionPreset(width: number, height: number): ResolutionPreset | null {
-  return RESOLUTION_PRESETS.find((p) => p.width === width && p.height === height) ?? null;
-}
-
 /* ── Quality steps ───────────────────────────────────────────────────────
  * Easy mode picks one of three; expert mode edits the underlying numbers
  * directly. Presets *write into* those numbers rather than living beside
@@ -178,13 +172,4 @@ export function equivalentBitrate(from: AudioFormat, to: AudioFormat, bitrate: n
   const target = bitratesFor(to);
   const rank = source.indexOf(bitrate);
   return rank >= 0 ? target[rank] : (to === "opus" ? 64 : 128);
-}
-
-/** Human-readable byte count for the generation result. */
-export function formatBytes(bytes: number): string {
-  if (bytes <= 0) return "0 B";
-  const units = ["B", "KB", "MB", "GB"];
-  const i = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
-  const value = bytes / Math.pow(1024, i);
-  return `${value.toFixed(i === 0 ? 0 : 1)} ${units[i]}`;
 }

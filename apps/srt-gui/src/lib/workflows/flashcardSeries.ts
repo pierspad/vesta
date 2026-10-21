@@ -20,7 +20,7 @@ export interface FlashcardSeriesOptions {
   /** Optional per-episode resolver; when supplied the workflow uses an explicit type per episode. */
   getEpisodeNoteType?: (episode: EpisodeEntry) => NoteTypeDef;
   automaticNoteType?: boolean;
-  ankiStore: { autoCardFont: boolean; embedCardFont: boolean };
+  ankiStore: { dictionaryLookup?: boolean; autoCardFont: boolean; embedCardFont: boolean };
   previewStore: { applyOverrides: (config: ReturnType<typeof buildFlashcardConfig>) => Promise<unknown> };
   getEpisodeMediaSettings: (episode: EpisodeEntry) => Required<EpisodeMediaOverrides>;
   getAudioTrackLanguageForEpisode: (episode: EpisodeEntry) => string;
@@ -127,6 +127,7 @@ export async function runFlashcardSeries(options: FlashcardSeriesOptions) {
 
       if (isCancelled()) { recordCancellation(); break; }
 
+      epConfig.dictionary_lookup = ankiStore.dictionaryLookup ?? true;
       await previewStore.applyOverrides(epConfig);
       if (isCancelled()) { recordCancellation(); break; }
 

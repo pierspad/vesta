@@ -23,6 +23,19 @@ beforeEach(() => {
 });
 afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 describe('update checker', () => {
+  it('retains release notes for the inbox without interpreting them as markup', async () => {
+    mocks.fetch.mockResolvedValue(response({ ...release(), body: '<img src=x> Notes' }));
+    const updates = await store();
+    await updates.checkForUpdates();
+    expect(updates.releaseNotes).toBe('<img src=x> Notes');
+  });
+  it('clears obsolete notes when the release response has no notes', async () => {
+    mocks.fetch.mockResolvedValue(response(release()));
+    const updates = await store();
+    updates.releaseNotes = 'Previous release';
+    await updates.checkForUpdates();
+    expect(updates.releaseNotes).toBe('');
+  });
   it('offers the stable version to a prerelease without inventing an installer', async () => {
     mocks.fetch.mockResolvedValue(response(release()));
     const updates = await store();

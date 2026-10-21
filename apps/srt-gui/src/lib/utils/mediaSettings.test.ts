@@ -7,9 +7,7 @@ import {
 import {
   bitratesFor,
   equivalentBitrate,
-  formatBytes,
   matchQualityStep,
-  matchResolutionPreset,
   matchVideoQualityStep,
 } from "$lib/types/flashcardMediaTypes";
 
@@ -98,16 +96,6 @@ describe("readLegacyDimensions", () => {
 });
 
 describe("resolution and quality presets", () => {
-  it("recognises a preset by its dimensions", () => {
-    expect(matchResolutionPreset(426, 240)?.id).toBe("240p");
-    expect(matchResolutionPreset(854, 480)?.id).toBe("480p");
-  });
-
-  it("reports null for custom dimensions, which is what shows 'Custom'", () => {
-    expect(matchResolutionPreset(240, 160)).toBeNull();
-    expect(matchResolutionPreset(427, 240)).toBeNull();
-  });
-
   it("maps a quality number and dimensions back to its step", () => {
     expect(matchQualityStep(80)?.id).toBe("balanced");
     expect(matchQualityStep(60)?.id).toBe("light");
@@ -142,14 +130,5 @@ describe("audio bitrate ladders", () => {
   it("falls back to a sane rate for a value outside either ladder", () => {
     expect(equivalentBitrate("mp3", "opus", 111)).toBe(64);
     expect(equivalentBitrate("opus", "mp3", 111)).toBe(128);
-  });
-});
-
-describe("formatBytes", () => {
-  it("scales to the right unit", () => {
-    expect(formatBytes(0)).toBe("0 B");
-    expect(formatBytes(512)).toBe("512 B");
-    expect(formatBytes(1024)).toBe("1.0 KB");
-    expect(formatBytes(8.4 * 1024 * 1024)).toBe("8.4 MB");
   });
 });

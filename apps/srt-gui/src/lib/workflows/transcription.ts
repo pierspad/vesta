@@ -1,6 +1,6 @@
 import type { TranscribeConfig, TranscribeStartResult, WhisperModel } from "$lib/services/transcribe";
 import type { TranscribeTier, TranscribeTierEntry } from "$lib/config/transcribeTiers";
-import type { ApiKeyConfig } from "$lib/config/apiKeys";
+import { supportsCapability, type ApiKeyConfig } from "$lib/config/apiKeys";
 import { transcribeProviders } from "$lib/config/transcribeProviders";
 
 export function isLocalTranscribeProvider(provider: string): boolean {
@@ -8,9 +8,11 @@ export function isLocalTranscribeProvider(provider: string): boolean {
 }
 
 export function isTranscribeEndpointReady(entry: TranscribeTierEntry, models: WhisperModel[], keys: ApiKeyConfig[]): boolean {
+  if (!entry.model.trim() && !transcribeProviders[entry.provider]?.modelOptional) return false;
   if (isLocalTranscribeProvider(entry.provider)) return models.some(model => model.id === entry.model && model.downloaded);
   const key = keys.find(key => key.id === entry.apiKeyId);
-  return entry.provider === "custom" ? Boolean(key?.apiUrl?.trim()) : Boolean(key?.apiKey?.trim());
+  if (key?.capabilities && !supportsCapability(key, "stt")) return false;
+  return (entry.provider === "custom" || entry.provider === "custom_whisper") ? Boolean(key?.apiUrl?.trim()) : Boolean(key?.apiKey?.trim());
 }
 
 export type TranscriptionSettings = Omit<TranscribeConfig, "provider" | "model" | "api_key" | "api_url" | "use_gpu">;

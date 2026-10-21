@@ -12,7 +12,7 @@
   import { locale } from "$lib/i18n";
   import { getFileName } from "$lib/utils/models";
   import { errorMessage } from "$lib/utils/errorMessage";
-  import { loadAndValidateApiKeys, type ApiKeyConfig } from "$lib/config/apiKeys";
+  import { loadAndValidateApiKeys, supportsCapability, type ApiKeyConfig } from "$lib/config/apiKeys";
   import {
     loadTiers,
     tiersHaveUsableEntries,
@@ -304,7 +304,7 @@
 
   // Custom providers saved in settings
   let savedCustomProviders = $derived(
-    apiKeys.filter((k) => k.apiType === "custom" && k.apiUrl && k.apiUrl.trim().length > 0)
+    apiKeys.filter((k) => k.apiType === "custom" && supportsCapability(k, "llm") && k.apiUrl && k.apiUrl.trim().length > 0)
   );
 
   let availableModels = $derived.by(() => {
@@ -518,7 +518,7 @@
     return false;
   });
 
-  let hasCustomKey = $derived(apiKeys.some((k) => k.apiType === "custom" && k.apiUrl && k.apiUrl.trim().length > 0));
+  let hasCustomKey = $derived(apiKeys.some((k) => k.apiType === "custom" && supportsCapability(k, "llm") && k.apiUrl && k.apiUrl.trim().length > 0));
   let hasGoogleKey = $derived(apiKeys.some((k) => k.apiType === "google"));
   let hasGroqKey = $derived(apiKeys.some((k) => k.apiType === "groq"));
   let isLlmConfigured = $derived(
