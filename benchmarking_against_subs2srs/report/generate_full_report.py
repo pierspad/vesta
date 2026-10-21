@@ -21,12 +21,12 @@ SERIES_ORDER = [
     ("subs2srs", "subs2srs", "tsv", "subs2srs (TSV)", "#e8770f"),
     ("vesta", "single_direct", "tsv", "Vesta 1 worker (TSV)", "#f6b26b"),
     ("vesta", "single_direct", "apkg", "Vesta 1 worker (APKG)", "#e69138"),
-    ("vesta", "single_gpu", "tsv", "Vesta 1t GPU (TSV)", "#4ecdc4"),
-    ("vesta", "single_gpu", "apkg", "Vesta 1t GPU (APKG)", "#2ab7ca"),
+    ("vesta", "single_gpu", "tsv", "Vesta 1 worker (GPU, TSV)", "#4ecdc4"),
+    ("vesta", "single_gpu", "apkg", "Vesta 1 worker (GPU, APKG)", "#2ab7ca"),
     ("vesta", "multi_direct", "tsv", "Vesta 16 workers (TSV)", "#b3aadd"),
     ("vesta", "multi_direct", "apkg", "Vesta 16 workers (APKG)", "#8073c9"),
-    ("vesta", "multi_gpu", "tsv", "Vesta 16t GPU (TSV)", "#12a184"),
-    ("vesta", "multi_gpu", "apkg", "Vesta 16t GPU (APKG)", "#0c7c65"),
+    ("vesta", "multi_gpu", "tsv", "Vesta 16 workers (GPU, TSV)", "#12a184"),
+    ("vesta", "multi_gpu", "apkg", "Vesta 16 workers (GPU, APKG)", "#0c7c65"),
 ]
 
 VARIANT_LOOKUP = { (tool, var, fmt): (lbl, col) for tool, var, fmt, lbl, col in SERIES_ORDER }
@@ -192,7 +192,7 @@ def plot_totals(media, series, seconds, out_path):
     fig.text(0.035, 0.88, f"{len(media)} films · audio, snapshots and video clips · sum of per-film medians (3 runs each)",
              fontsize=10, color="#475569")
     fig.text(0.035, 0.025,
-             "Ryzen 7 5800X · Product encoding defaults and output counts differ; this is not an equal-quality comparison.",
+             "Ryzen 7 5800X · Worker count limits concurrent FFmpeg jobs.",
              fontsize=9, color="#475569")
     fig.subplots_adjust(left=0.24, right=0.98, top=0.80, bottom=0.15)
     fig.savefig(out_path)

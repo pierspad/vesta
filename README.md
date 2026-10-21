@@ -30,6 +30,8 @@ Deck generation and subtitle editing run locally. Local Whisper transcription is
 2. Open **Flashcards** and add your media and study-language subtitles. Add native-language subtitles if you have them.
 3. Preview the cards, choose what to keep, and export an **APKG**. Open it in Anki to import your deck.
 
+Word lookup is enabled by default; change it in **Settings → Anki → Word lookup**. In Anki, click an original-text word to open English Wiktionary. The card uses its note type language, which you can change per film. This requires Internet only when opening a link; it does not download definitions. Standard templates support this directly; custom templates must keep the `.expression` block.
+
 FFmpeg and FFprobe are required for media processing. To automate generation, use the [CLI](#headless-cli-use).
 
 ## The workflow
@@ -59,27 +61,18 @@ The tools use different encoding defaults and produce different media counts, so
 
 ## How Vesta was built
 
-Vesta uses **Rust** for subtitle and media processing, and **Tauri 2 + Svelte 5** for the desktop interface. The GUI and standalone CLIs share the same engines; deck generation does not require Anki to be running.
+**Rust** engines handle subtitles, media and Anki packages; **Tauri 2 + Svelte 5** provide the desktop interface. GUI and CLI commands share those engines. FFmpeg extracts media, and whisper.cpp provides local transcription with optional GPU acceleration and CPU fallback.
 
-| Directory | Responsibility |
-|---|---|
-| `core/` | SRT parsing and native Anki package creation |
-| `lib/` | Flashcards, transcription, synchronization, translation and deck annotation |
-| `cli/` | Command-line entry points for the reusable engines |
-| `apps/srt-gui/` | Desktop interface and native commands |
-
-FFmpeg handles media extraction. whisper.cpp provides local transcription with optional GPU acceleration and CPU fallback. Long-running operations report progress and support cancellation.
-
-See [the architecture guide](docs/ARCHITECTURE.md) for design decisions and [module documentation](docs/modules/README.md) for Rust integration examples.
+The `core/` and `lib/` crates can be embedded in another Rust application without Tauri. See [the architecture guide](docs/ARCHITECTURE.md), [module APIs](docs/modules/README.md) and [downstream integration requirements](docs/library-integration.md).
 
 ## Headless CLI Use
 
-Build the flashcard CLI and generate a deck:
+Use `vesta` without arguments to open the installed desktop app. With an operation name, it runs that workflow in the terminal:
 
 ```bash
-cargo build --release -p srt-flashcards-cli
-
-./target/release/srt-flashcards generate \
+vesta --help
+vesta flashcards generate --help
+vesta flashcards generate \
   --target episode-ja.srt \
   --native episode-en.srt \
   --video episode.mkv \
@@ -90,13 +83,29 @@ cargo build --release -p srt-flashcards-cli
   --audio-format opus
 ```
 
-The native subtitle track is optional. Run `./target/release/srt-flashcards generate --help` for filters and media options. Other CLIs cover transcription, synchronization, translation and subtitle extraction; see [the module guides](docs/modules/README.md).
+For servers or systems without desktop libraries, build the standalone entry point:
 
-For manual synchronization without Whisper or the desktop app, use
-[`srt-sync`](cli/srt-sync-cli/README.md) with explicit subtitle/time anchors.
-For JSON deck inspection and headless annotation, use
-[`srt-refine`](cli/srt-refine-cli/README.md); complete success is required before
-saving unless partial publication is explicitly enabled.
+```bash
+cargo build --release -p vesta-cli
+./target/release/vesta-cli --help
+./target/release/vesta-cli flashcards generate --help
+```
+
+`vesta-cli` runs the same commands as `vesta` without opening a window or depending on Tauri. On Windows, use `vesta-cli.exe` for terminal output; the desktop executable is built as a windowed application. A locally built executable stays in `target/release`; it is not added to `PATH` automatically. `cargo install --path cli/vesta-cli` installs the standalone command in Cargo's binary directory.
+
+| Operation | Purpose | Existing standalone command |
+|---|---|---|
+| `flashcards` | Preview and generate TSV/APKG decks | `srt-flashcards` |
+| `extract` | Extract and convert subtitle tracks | `srt-extract` |
+| `sync` | Retiming with explicit anchors | `srt-sync` |
+| `autosync` | Whisper-assisted alignment | `srt-autosync` |
+| `transcribe` | Local or cloud speech-to-text | `srt-transcribe` |
+| `translate` | Translate subtitles with resume | `srt-translate` |
+| `refine` | Inspect and annotate existing decks | `srt-refine` |
+
+Each operation has `--help`; commands with further subcommands also expose their own help. The existing `srt-*` binaries remain available. Media operations require FFmpeg/FFprobe; transcription and auto-sync also need their configured model or provider. The [module guides](docs/modules/README.md) describe each library, command and build requirement.
+
+For assistant integration, the optional [MCP server](docs/MCP.md) exposes subtitle inspection, card previews and cancellable export jobs without the GUI.
 
 ## Building from Source
 
