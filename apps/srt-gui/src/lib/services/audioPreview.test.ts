@@ -49,7 +49,7 @@ it("does not start playback when closed during generation", async () => {
   invoke.mockImplementation(async command => command === "get_media_server_info" ? [1234, "token"] : generated.promise);
   const preview = new AudioPreview(vi.fn());
   const pending = preview.play({});
-  await Promise.resolve();
+  await vi.waitFor(() => expect(invoke).toHaveBeenCalledWith("flashcard_preview_audio", expect.any(Object)));
   preview.stop();
   generated.resolve("old.mp3");
   await pending;
@@ -61,7 +61,7 @@ it("keeps the newest request when an older generation finishes late", async () =
   invoke.mockImplementation(async (command, args) => command === "get_media_server_info" ? [1234, "token"] : args?.old ? generated.promise : "new.mp3");
   const preview = new AudioPreview(vi.fn());
   const old = preview.play({ old: true });
-  await Promise.resolve();
+  await vi.waitFor(() => expect(invoke).toHaveBeenCalledWith("flashcard_preview_audio", expect.any(Object)));
   await preview.play({});
   generated.resolve("old.mp3");
   await old;
@@ -94,7 +94,7 @@ it("rejects a changed episode before creating a player", async () => {
   invoke.mockImplementation(async command => command === "get_media_server_info" ? [1234, "token"] : generated.promise);
   const preview = new AudioPreview(vi.fn());
   const pending = preview.play({}, () => valid);
-  await Promise.resolve();
+  await vi.waitFor(() => expect(invoke).toHaveBeenCalledWith("flashcard_preview_audio", expect.any(Object)));
   valid = false;
   generated.resolve("old.mp3");
   await pending;

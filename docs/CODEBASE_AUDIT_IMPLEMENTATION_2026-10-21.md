@@ -17,6 +17,8 @@ Prima degli interventi, il checkout preesistente è stato salvato su `dev` in se
 | A13 | Helper condiviso del focus editabile per le shortcut; comportamento conservato. Gli altri wrapper/markup restano invariati. |
 | A16 | Costruttori fallibili aggiuntivi e uso nei percorsi già fallibili. Le firme pubbliche infallibili restano disponibili, con avviso esplicito sul fallback legacy. |
 
+Quando un checkpoint modifica l’output, la successiva anteprima riparsa ancora l’intero file tradotto; riusa soltanto l’input. I tempi degli hit sotto misurano file invariati.
+
 La cache usa fingerprint di metadati, non hash del contenuto: modifiche esterne che conservino deliberatamente dimensione, mtime e identità non sono rilevabili. La cancellazione delle letture async interrompe l’attesa; non promette di interrompere un’operazione filesystem già avviata dal runtime. La cancellazione durante preparazione Rust attende il worker, preservando l’esclusione dell’operazione.
 
 ## Misura riproducibile dell’anteprima
