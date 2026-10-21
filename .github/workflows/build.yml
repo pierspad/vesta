@@ -140,7 +140,7 @@ jobs:
           NO_STRIP: true
           SCCACHE_GHA_ENABLED: "true"
           RUSTC_WRAPPER: "sccache"
-        run: npx tauri build --bundles deb,rpm -- --features vulkan
+        run: npx tauri build --bundles deb,rpm -- --locked --features vulkan
 
       - name: Upload DEB
         uses: actions/upload-artifact@v6

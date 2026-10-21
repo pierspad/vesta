@@ -236,15 +236,45 @@
   }
 
   let lines = $derived((value || "").split("\n"));
-  let scrollTop = $state(0);
-  let scrollLeft = $state(0);
+  let highlightedLines = $derived(lines.map(line => highlight(line, language) || "&nbsp;"));
+  let lineNumbersEl = $state<HTMLDivElement | null>(null);
+  // Scrolling moves only two layers; it must not invalidate Svelte editor state.
+  let scrollFrame: number | null = null;
   let backdropEl = $state<HTMLDivElement | null>(null);
   let linesContainerEl = $state<HTMLDivElement | null>(null);
   let lineHeights = $state<number[]>([]);
   let rafId: number | null = null;
 
+  function syncScroll() {
+    if (!textareaElement) return;
+    const top = textareaElement.scrollTop;
+    const left = wrap ? 0 : textareaElement.scrollLeft;
+    if (lineNumbersEl) lineNumbersEl.style.transform = `translateY(${-top}px)`;
+    if (linesContainerEl) linesContainerEl.style.transform = `translate(${-left}px, ${-top}px)`;
+  }
+
+  function queueScrollSync() {
+    if (scrollFrame !== null) return;
+    scrollFrame = requestAnimationFrame(() => {
+      scrollFrame = null;
+      syncScroll();
+    });
+  }
+
+  $effect(() => {
+    if (!textareaElement) return;
+    // Track layer replacement and wrapping, but never reactive scroll offsets.
+    void linesContainerEl;
+    void lineNumbersEl;
+    void wrap;
+    syncScroll();
+    textareaElement.addEventListener("scroll", queueScrollSync, { passive: true });
+    const element = textareaElement;
+    return () => element.removeEventListener("scroll", queueScrollSync);
+  });
+
   function syncLineHeights() {
-    if (!linesContainerEl || !wrap) {
+    if (!linesContainerEl || !wrap || !lineNumbers) {
       if (lineHeights.length > 0) lineHeights = [];
       return;
     }
@@ -254,7 +284,9 @@
     for (let i = 0; i < count; i++) {
       heights[i] = (children[i] as HTMLElement).offsetHeight;
     }
-    lineHeights = heights;
+    if (heights.length !== lineHeights.length || heights.some((height, i) => height !== lineHeights[i])) {
+      lineHeights = heights;
+    }
   }
 
   function queueSyncLineHeights() {
@@ -269,6 +301,7 @@
   $effect(() => {
     void value;
     void wrap;
+    void lineNumbers;
     queueSyncLineHeights();
   });
 
@@ -285,6 +318,7 @@
 
   onDestroy(() => {
     closeContextMenu();
+    if (scrollFrame !== null) cancelAnimationFrame(scrollFrame);
     if (copyTimeout) clearTimeout(copyTimeout);
     if (rafId !== null && typeof cancelAnimationFrame !== "undefined") {
       cancelAnimationFrame(rafId);
@@ -437,7 +471,7 @@
     onclick={() => textareaElement?.focus()}
     class="code-editor-lines w-10 bg-black/40 py-3 text-right pr-2 text-sm font-mono text-gray-600 select-none overflow-hidden shrink-0 cursor-text"
   >
-    <div style="transform: translateY(-{scrollTop}px)">
+    <div bind:this={lineNumbersEl}>
       {#each lines as _, i}
         <div
           class="code-editor-line whitespace-pre flex justify-end items-start"
@@ -455,11 +489,11 @@
       class="code-editor-content absolute inset-0 w-full h-full p-3 pr-9 m-0 font-mono text-sm text-gray-300 pointer-events-none overflow-hidden"
       aria-hidden="true"
     >
-      <div bind:this={linesContainerEl} style="transform: translate(-{wrap ? 0 : scrollLeft}px, -{scrollTop}px)">
-        {#each lines as line, i}
+      <div bind:this={linesContainerEl}>
+        {#each highlightedLines as html}
           <div
             class="code-editor-line {wrap ? 'whitespace-pre-wrap break-words' : 'whitespace-pre'}"
-          >{@html highlight(line, language) || '&nbsp;'}</div>
+          >{@html html}</div>
         {/each}
       </div>
     </div>
@@ -474,10 +508,6 @@
       oninput={handleInput}
       onkeydown={handleKeydown}
       oncontextmenu={openContextMenu}
-      onscroll={(e) => {
-        scrollTop = e.currentTarget.scrollTop;
-        if (!wrap) scrollLeft = e.currentTarget.scrollLeft;
-      }}
       wrap={wrap ? "soft" : "off"}
       class="code-editor-content absolute inset-0 w-full h-full p-3 pr-9 m-0 font-mono text-sm text-transparent bg-transparent border-none resize-none outline-none caret-white custom-scrollbar {wrap ? 'whitespace-pre-wrap break-words overflow-x-hidden' : 'whitespace-pre break-normal'} {textareaClass}"
       spellcheck="false"

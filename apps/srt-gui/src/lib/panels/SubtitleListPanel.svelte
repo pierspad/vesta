@@ -101,7 +101,7 @@
     {#if !isLoaded}<EmptyStatusLabel message={t("media.noSubtitlesLoaded")} />{/if}
   <!-- Subtitle list -->
   <div
-    class="grid auto-rows-min grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-2 flex-1 p-2 min-h-0 min-w-0"
+    class="grid auto-rows-min grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-2 flex-1 overflow-y-auto p-2 min-h-0 min-w-0"
     bind:this={listElement}
   >
     {#each subtitles as sub (sub.id)}

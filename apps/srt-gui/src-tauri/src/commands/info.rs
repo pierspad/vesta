@@ -1,5 +1,8 @@
 use serde::{Deserialize, Serialize};
-use std::process::Command;
+use std::{process::Stdio, time::Duration};
+use tokio::process::Command;
+
+const PROBE_TIMEOUT: Duration = Duration::from_secs(5);
 
 #[tauri::command]
 pub fn read_subtitle_file(path: String) -> Result<String, String> {
@@ -37,11 +40,16 @@ pub struct SystemDiagnostics {
     pub gstreamer_h265: bool,
 }
 
-fn command_succeeds(program: &str, args: &[&str]) -> bool {
-    Command::new(program)
+async fn command_succeeds(program: &str, args: &[&str]) -> bool {
+    let mut command = Command::new(program);
+    command
         .args(args)
-        .output()
-        .is_ok_and(|output| output.status.success())
+        .kill_on_drop(true)
+        .stdout(Stdio::null())
+        .stderr(Stdio::null());
+    tokio::time::timeout(PROBE_TIMEOUT, command.status())
+        .await
+        .is_ok_and(|result| result.is_ok_and(|status| status.success()))
 }
 
 fn vulkan_device_name(summary: &str) -> Option<String> {
@@ -52,11 +60,19 @@ fn vulkan_device_name(summary: &str) -> Option<String> {
     })
 }
 
-fn detect_gpu_device(backend: &str) -> Option<String> {
+async fn detect_gpu_device(backend: &str) -> Option<String> {
     if backend != "vulkan" {
         return None;
     }
-    let output = Command::new("vulkaninfo").arg("--summary").output().ok()?;
+    let mut command = Command::new("vulkaninfo");
+    command
+        .arg("--summary")
+        .kill_on_drop(true)
+        .stderr(Stdio::null());
+    let output = tokio::time::timeout(PROBE_TIMEOUT, command.output())
+        .await
+        .ok()?
+        .ok()?;
     output
         .status
         .success()
@@ -68,11 +84,11 @@ fn detect_gpu_device(backend: &str) -> Option<String> {
 pub async fn get_system_diagnostics(app: tauri::AppHandle) -> SystemDiagnostics {
     let gpu_compiled = srt_transcribe::gpu_supported();
     let gpu_backend = srt_transcribe::gpu_backend_name();
-    // Process probes run off the async executor and independently of FFmpeg.
-    let gpu = tokio::task::spawn_blocking(move || detect_gpu_device(gpu_backend));
-    let gst = tokio::task::spawn_blocking(|| command_succeeds("gst-inspect-1.0", &["--version"]));
-    let h264 = tokio::task::spawn_blocking(|| command_succeeds("gst-inspect-1.0", &["avdec_h264"]));
-    let h265 = tokio::task::spawn_blocking(|| command_succeeds("gst-inspect-1.0", &["avdec_h265"]));
+    // Async probes have bounded lifetimes and kill their child when dropped.
+    let gpu = detect_gpu_device(gpu_backend);
+    let gst = command_succeeds("gst-inspect-1.0", &["--version"]);
+    let h264 = command_succeeds("gst-inspect-1.0", &["avdec_h264"]);
+    let h265 = command_succeeds("gst-inspect-1.0", &["avdec_h265"]);
     let ffmpeg_cmd = crate::commands::media::resolve_ffmpeg_path(Some(&app)).await;
     let media = async move {
         let available = srt_flashcards::media::check_ffmpeg(&ffmpeg_cmd).await;
@@ -85,7 +101,6 @@ pub async fn get_system_diagnostics(app: tauri::AppHandle) -> SystemDiagnostics 
     };
     let (gpu_device, gst, h264, h265, (ffmpeg_available, encoder)) =
         tokio::join!(gpu, gst, h264, h265, media);
-    let gpu_device = gpu_device.unwrap_or(None);
 
     SystemDiagnostics {
         os: std::env::consts::OS.to_string(),
@@ -100,15 +115,47 @@ pub async fn get_system_diagnostics(app: tauri::AppHandle) -> SystemDiagnostics 
         ffmpeg_available,
         video_encoder: encoder.label().to_string(),
         hardware_video_encoder: ffmpeg_available && encoder.is_hardware(),
-        gstreamer_available: gst.unwrap_or(false),
-        gstreamer_h264: h264.unwrap_or(false),
-        gstreamer_h265: h265.unwrap_or(false),
+        gstreamer_available: gst,
+        gstreamer_h264: h264,
+        gstreamer_h265: h265,
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::vulkan_device_name;
+    #[cfg(target_os = "linux")]
+    use super::{Duration, command_succeeds};
+
+    #[cfg(target_os = "linux")]
+    #[tokio::test]
+    async fn probes_handle_success_failure_and_kill_timed_out_children() {
+        assert!(command_succeeds("sh", &["-c", "exit 0"]).await);
+        assert!(!command_succeeds("sh", &["-c", "exit 1"]).await);
+        assert!(!command_succeeds("/nonexistent-vesta-probe", &[]).await);
+        let directory = tempfile::tempdir().unwrap();
+        let pid_file = directory.path().join("pid");
+        let path = pid_file.to_str().unwrap();
+        // exec keeps the PID written by the shell, so the timeout must kill sleep.
+        let result = tokio::time::timeout(
+            Duration::from_secs(7),
+            command_succeeds(
+                "sh",
+                &["-c", "echo $$ > \"$1\"; exec sleep 30", "probe", path],
+            ),
+        )
+        .await
+        .expect("probe did not respect its deadline");
+        assert!(!result);
+        let pid = std::fs::read_to_string(pid_file).unwrap();
+        for _ in 0..100 {
+            if !std::path::Path::new(&format!("/proc/{}", pid.trim())).exists() {
+                return;
+            }
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+        panic!("timed out child is still alive");
+    }
 
     #[test]
     fn parses_vulkan_device_name() {

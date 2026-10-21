@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { SyncOffsetAdjustment } from "$lib/workflows/syncOffsetAdjustment.svelte";
   import WorkflowWorkspace from "$lib/components/WorkflowWorkspace.svelte";
   import { localWhisperOperation } from "$lib/utils/asyncControl.svelte";
   import { invokeCommand as invoke } from "$lib/services/tauriClient";
@@ -83,22 +84,10 @@
   );
 
   let wizardSubtitle = $state<SubtitleInfo | null>(null);
-  let offsetAdjustment = $state(0);
-  let targetOffset = 0;
-  let offsetUpdateFrame = 0;
-
-  function updateOffset(delta: number) {
-    targetOffset += delta;
-    if (offsetUpdateFrame) cancelAnimationFrame(offsetUpdateFrame);
-    offsetUpdateFrame = requestAnimationFrame(() => {
-      offsetAdjustment = targetOffset;
-    });
-  }
-
-  function resetOffset() {
-    targetOffset = 0;
-    offsetAdjustment = 0;
-  }
+  const offset = new SyncOffsetAdjustment();
+  let offsetAdjustment = $derived(offset.value);
+  const updateOffset = (delta: number) => offset.update(delta);
+  const resetOffset = () => offset.reset();
 
   let wizardHistory = $state<number[]>([]);
   let showSaveSuggestion = $state(false);
@@ -1097,6 +1086,7 @@
 
     return () => {
       cleanupDragDrop();
+      offset.dispose();
       syncDebug("unmount");
       window.removeEventListener("keydown", handleKeydown);
       if (singleClickTimer) clearTimeout(singleClickTimer);
@@ -1298,7 +1288,11 @@
           {@render panelContent("status")}
           {@render panelContent("wizard")}
         </div>
-        <div class="min-w-0" role="region">{@render panelContent("subtitleList")}</div>
+        <div class="flex min-h-0 min-w-0 flex-col xl:relative xl:self-stretch" role="region">
+          <div class="flex max-h-[42rem] min-h-0 flex-col xl:absolute xl:inset-0 xl:max-h-none">
+            {@render panelContent("subtitleList")}
+          </div>
+        </div>
       </div>
     </WorkflowWorkspace>
   </div>

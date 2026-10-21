@@ -1,6 +1,6 @@
 use std::time::Instant;
 
-use srt_flashcards::{FlashcardConfig, MediaTools, generate, video_has_audio};
+use srt_flashcards::{FlashcardConfig, MediaTools, generate, try_video_has_audio};
 use tokio_util::sync::CancellationToken;
 
 #[tokio::main]
@@ -22,13 +22,20 @@ async fn main() {
         .unwrap_or(4)
         .saturating_sub(1)
         .max(2);
+    let has_audio = match try_video_has_audio("ffprobe", &args[3]).await {
+        Ok(value) => value,
+        Err(error) => {
+            eprintln!("vesta_BENCHMARK_ERROR: {error:#}");
+            std::process::exit(1);
+        }
+    };
     let config = FlashcardConfig::benchmark(
         args[1].clone(),
         args[2].clone(),
         args[3].clone(),
         args[4].clone(),
         export_format,
-        video_has_audio("ffprobe", &args[3]),
+        has_audio,
         Some(cpu_cores),
     );
 

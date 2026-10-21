@@ -435,7 +435,13 @@ async fn apkg_media_references_resolve_for_non_default_formats() {
     let mut zip = zip::ZipArchive::new(file).expect("apkg is not a valid zip");
 
     let entry_names: Vec<String> = (0..zip.len())
-        .map(|i| zip.by_index(i).expect("zip entry").name().to_string())
+        .map(|i| {
+            zip.by_index(i)
+                .expect("zip entry")
+                .name()
+                .expect("zip entry name")
+                .to_string()
+        })
         .collect();
 
     let manifest: serde_json::Value = {

@@ -161,6 +161,9 @@ pub fn get_missing_or_incorrect_subtitle_ids(
         .collect()
 }
 
+/// Returns IDs absent from the translation, without validating existing line counts.
+/// For resume/repair use [`get_missing_or_incorrect_subtitle_ids`], which also
+/// includes present entries whose line counts differ from the source.
 #[deprecated(note = "Use get_missing_or_incorrect_subtitle_ids instead")]
 pub fn get_missing_subtitle_ids(
     original: &HashMap<u32, Subtitle>,

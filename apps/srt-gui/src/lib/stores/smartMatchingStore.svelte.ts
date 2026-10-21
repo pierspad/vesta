@@ -1,3 +1,4 @@
+import { parseJsonWithComments } from "$lib/utils/jsonComments";
 import { locale } from "$lib/i18n";
 import * as vestaConfig from "$lib/config/vestaConfig";
 
@@ -212,10 +213,6 @@ export const DEFAULT_SMART_MATCHING_RULES: SmartMatchingRules = {
   ],
 };
 
-function stripJsonComments(jsonString: string): string {
-  return jsonString.replace(/\\"|"(?:\\"|[^"])*"|(\/\/.*|\/\*[\s\S]*?\*\/)/g, (m, g) => g ? "" : m);
-}
-
 function normalizeRules(value: unknown): SmartMatchingRules {
   const obj = value && typeof value === "object" ? (value as Partial<SmartMatchingRules>) : {};
   return {
@@ -246,7 +243,7 @@ class SmartMatchingStore {
     try {
       const saved = vestaConfig.getItem("vesta-flashcards-smart-matching-rules");
       if (saved) {
-        this.rules = normalizeRules(JSON.parse(stripJsonComments(saved)));
+        this.rules = normalizeRules(parseJsonWithComments(saved));
       } else {
         this.rules = normalizeRules(DEFAULT_SMART_MATCHING_RULES);
       }
@@ -261,8 +258,8 @@ class SmartMatchingStore {
   }
 
   saveRules(rules: SmartMatchingRules) {
-    this.rules = rules;
-    vestaConfig.setItem("vesta-flashcards-smart-matching-rules", JSON.stringify(rules, null, 2));
+    this.rules = normalizeRules(rules);
+    vestaConfig.setItem("vesta-flashcards-smart-matching-rules", JSON.stringify(this.rules, null, 2));
   }
 
   resetRules() {

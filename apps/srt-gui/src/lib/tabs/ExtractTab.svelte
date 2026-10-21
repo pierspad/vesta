@@ -1,4 +1,7 @@
 <script lang="ts">
+  import { LatestRequest } from "$lib/utils/asyncControl.svelte";
+  const downloadedRequests = new LatestRequest();
+  let disposed = false;
   import WorkflowWorkspace from "$lib/components/WorkflowWorkspace.svelte";
   import EmptyStatusLabel from "$lib/components/EmptyStatusLabel.svelte";
   import LoadingSpinner from "$lib/components/LoadingSpinner.svelte";
@@ -48,29 +51,34 @@
   let previewVariants = $derived(previewGroups.find(group => group.tracks.some(track => track.index === previewTrack?.index))?.tracks.filter(track => track.text_based) ?? []);
   let previewPosition = $derived(previewVariants.findIndex(track => track.index === previewTrack?.index));
   onMount(() => {
-    void defaultOutputDirectory().then(value => { if (!outputDir) { outputDir = value; void refreshDownloaded(); } }).catch(e => { error = errorMessage(e); });
+    void defaultOutputDirectory().then(value => { if (!disposed && !outputDir) { outputDir = value; void refreshDownloaded(); } }).catch(e => { if (!disposed) error = errorMessage(e); });
     const refresh = () => { void refreshDownloaded(); };
     window.addEventListener("focus", refresh);
     return () => window.removeEventListener("focus", refresh);
   });
   async function refreshDownloaded() {
+    if (disposed) return;
+    const request = downloadedRequests.begin();
     const directory = outputDir;
     const media = path;
     const candidates = tracks.filter(track => track.text_based);
     if (!directory || !media) { downloaded = []; return; }
     try {
       const names = await invoke<string[]>("existing_subtitle_outputs", { directory, names: candidates.map(track => subtitleOutputName(media, track)) });
-      if (directory === outputDir && media === path) downloaded = candidates.filter(track => names.includes(subtitleOutputName(media, track))).map(track => track.index);
-    } catch (e) { error = errorMessage(e); }
+      if (request.isCurrent() && directory === outputDir && media === path) downloaded = candidates.filter(track => names.includes(subtitleOutputName(media, track))).map(track => track.index);
+    } catch (e) {
+      if (request.isCurrent() && directory === outputDir && media === path) error = errorMessage(e);
+    }
   }
   async function chooseOutput() {
-    if (busy || downloadingIndex !== null) return;
+    if (disposed || busy || downloadingIndex !== null) return;
     busy = true;
     try {
       const selected = await guardedOpen({ directory: true, multiple: false, defaultPath: outputDir || undefined });
+      if (disposed) return;
       if (typeof selected === "string") { outputDir = selected; downloaded = []; await refreshDownloaded(); }
-    } catch (e) { error = errorMessage(e); }
-    finally { busy = false; }
+    } catch (e) { if (!disposed) error = errorMessage(e); }
+    finally { if (!disposed) busy = false; }
   }
   function selectPreview() {
     const group = previewGroups.find(group => group.tracks.some(track => track.index === previewTrack?.index));
@@ -92,7 +100,7 @@
     previewError = "";
     previewLoading = false;
   }
-  onDestroy(closePreview);
+  onDestroy(() => { disposed = true; downloadedRequests.invalidate(); closePreview(); });
   async function preview(track: Track) {
     if (busy || !track?.text_based) return;
     if (!previewSession) {
@@ -114,39 +122,48 @@
   let downloadingIndex = $state<number | null>(null);
   let error = $state("");
   async function chooseMedia() {
-    if (busy || downloadingIndex !== null) return;
+    if (disposed || busy || downloadingIndex !== null) return;
     busy = true; error = "";
     try {
       const selected = await guardedOpen({ multiple: false, filters: [{ name: t("extract.media"), extensions: ["mkv", "mp4", "m4v", "avi", "mov", "webm", "ts"] }] });
-      if (typeof selected !== "string") return;
+      if (disposed || typeof selected !== "string") return;
       await loadMedia(selected, true);
     }
-    catch (e) { error = errorMessage(e); }
-    finally { busy = false; }
+    catch (e) { if (!disposed) error = errorMessage(e); }
+    finally { if (!disposed) busy = false; }
   }
   async function loadMedia(selected: string, fromPicker = false) {
-    if ((!fromPicker && busy) || downloadingIndex !== null) return;
+    if (disposed || (!fromPicker && busy) || downloadingIndex !== null) return;
     busy = true; error = ""; isDraggingOver = false;
     closePreview(); selections = {}; downloaded = []; path = selected; tracks = []; tracksScanned = false; search = ""; page = 0;
     try {
-      tracks = await invoke<Track[]>("embedded_subtitle_tracks", { path: selected });
+      const loadedTracks = await invoke<Track[]>("embedded_subtitle_tracks", { path: selected });
+      if (disposed) return;
+      tracks = loadedTracks;
       tracksScanned = true;
       await refreshDownloaded();
-    } catch (e) { error = errorMessage(e); }
-    finally { busy = false; }
+    } catch (e) { if (!disposed) error = errorMessage(e); }
+    finally { if (!disposed) busy = false; }
   }
   async function extract(track: Track) {
-    if (busy || downloadingIndex !== null) return;
+    if (disposed || busy || downloadingIndex !== null) return;
     error = "";
     downloadingIndex = track.index;
     try {
-      if (!outputDir) outputDir = await defaultOutputDirectory();
+      if (!outputDir) {
+        const directory = await defaultOutputDirectory();
+        if (disposed) return;
+        outputDir = directory;
+      }
       const outputPath = await join(outputDir, subtitleOutputName(path, track));
+      if (disposed) return;
       await invoke("extract_embedded_subtitle", { path, index: track.index, outputPath });
+      if (disposed) return;
       await refreshDownloaded();
+      if (disposed) return;
       snackbar.show(`${t("extract.saved")} ${outputPath}`, "success");
-    } catch (e) { error = errorMessage(e); snackbar.show(error, "error"); }
-    finally { downloadingIndex = null; }
+    } catch (e) { if (!disposed) { error = errorMessage(e); snackbar.show(error, "error"); } }
+    finally { if (!disposed) downloadingIndex = null; }
   }
 
 </script>

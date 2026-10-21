@@ -34,7 +34,7 @@ pub async fn extract_embedded_subtitle(
 
 #[tauri::command]
 pub fn open_output_path(app: AppHandle, path: String, folder: bool) -> Result<(), String> {
-    use tauri_plugin_shell::ShellExt;
+    use tauri_plugin_opener::OpenerExt;
     let path = std::path::PathBuf::from(path);
     let path = if folder {
         path.parent().ok_or("Output has no parent folder")?
@@ -44,9 +44,8 @@ pub fn open_output_path(app: AppHandle, path: String, folder: bool) -> Result<()
     if !path.exists() {
         return Err("Output no longer exists".into());
     }
-    #[allow(deprecated)]
-    app.shell()
-        .open(path.to_string_lossy(), None)
+    app.opener()
+        .open_path(path.to_string_lossy(), None::<&str>)
         .map_err(|e| e.to_string())
 }
 

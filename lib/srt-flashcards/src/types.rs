@@ -156,7 +156,8 @@ pub struct FlashcardConfig {
     pub audio_path: Option<String>,
     pub output_dir: String,
 
-    #[allow(dead_code)]
+    /// Compatibility field. Generation always uses target subtitle timings.
+    /// Accepted for existing configs; changing it does not select native timings.
     pub use_timings_from: String,
     pub span_start_ms: Option<i64>,
     pub span_end_ms: Option<i64>,

@@ -5,7 +5,6 @@ import { guardedOpen } from "$lib/utils/dialogGuard";
 import {
   loadVadSelection,
   saveVadSelection,
-  DEFAULT_VAD_MODEL_ID,
   type VadSelection,
 } from "$lib/config/vadSelection";
 import * as vestaConfig from "$lib/config/vestaConfig";
@@ -285,10 +284,10 @@ export class WhisperModelsStore {
     if (!run) return;
     try {
       await transcribeUninstallVad(modelId);
-      await this.refreshAddons();
       if (!this.vadSelection.customPath && this.vadSelection.modelId === modelId) {
-        this.selectVadModel(DEFAULT_VAD_MODEL_ID);
+        this.selectVadModel("webrtc");
       }
+      await this.refreshAddons();
       showSnackbar(t("settings.whisper.uninstallSuccess", { model: `Silero Voice Activity Detection ${modelId}` }));
     } catch (e) {
       showSnackbar(

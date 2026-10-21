@@ -56,33 +56,66 @@ pub fn media_command(cmd: &str) -> tokio::process::Command {
 }
 
 pub async fn check_ffmpeg(ffmpeg_cmd: &str) -> bool {
-    media_command(ffmpeg_cmd)
-        .arg("-version")
-        .output()
-        .await
-        .is_ok_and(|o| o.status.success())
+    tokio::time::timeout(
+        std::time::Duration::from_secs(5),
+        media_command(ffmpeg_cmd).arg("-version").output(),
+    )
+    .await
+    .is_ok_and(|result| result.is_ok_and(|o| o.status.success()))
 }
 
+/// Compatibility wrapper: probe failures retain the historical `false` result.
+/// Prefer `try_video_has_audio` to distinguish missing audio from probe errors.
 pub fn video_has_audio(ffprobe_cmd: &str, video_path: &str) -> bool {
-    #[allow(unused_mut)]
-    let mut command = std::process::Command::new(ffprobe_cmd);
-    #[cfg(windows)]
-    {
-        use std::os::windows::process::CommandExt;
-        command.creation_flags(0x0800_4000);
-    }
-    command
-        .args([
-            "-v",
-            "error",
-            "-show_entries",
-            "stream=codec_type",
-            "-of",
-            "csv=p=0",
-            video_path,
-        ])
-        .output()
-        .is_ok_and(|output| String::from_utf8_lossy(&output.stdout).contains("audio"))
+    let command = ffprobe_cmd.to_owned();
+    let path = video_path.to_owned();
+    // A separate runtime also permits calls from an existing Tokio runtime.
+    std::thread::spawn(move || {
+        tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .ok()
+            .and_then(|runtime| runtime.block_on(try_video_has_audio(&command, &path)).ok())
+            .unwrap_or(false)
+    })
+    .join()
+    .unwrap_or(false)
+}
+
+pub async fn try_video_has_audio(ffprobe_cmd: &str, video_path: &str) -> Result<bool> {
+    probe_audio_with_timeout(ffprobe_cmd, video_path, std::time::Duration::from_secs(5)).await
+}
+
+async fn probe_audio_with_timeout(
+    ffprobe_cmd: &str,
+    video_path: &str,
+    timeout: std::time::Duration,
+) -> Result<bool> {
+    let output = tokio::time::timeout(
+        timeout,
+        media_command(ffprobe_cmd)
+            .args([
+                "-v",
+                "error",
+                "-show_entries",
+                "stream=codec_type",
+                "-of",
+                "csv=p=0",
+                video_path,
+            ])
+            .output(),
+    )
+    .await
+    .context("FFprobe audio probe timed out")?
+    .context("Failed to run FFprobe audio probe")?;
+    anyhow::ensure!(
+        output.status.success(),
+        "FFprobe audio probe failed: {}",
+        output.status
+    );
+    Ok(String::from_utf8_lossy(&output.stdout)
+        .lines()
+        .any(|line| line.trim() == "audio"))
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -191,7 +224,10 @@ async fn test_h264_encoder(ffmpeg_cmd: &str, encoder: H264Encoder) -> bool {
         ]);
     }
     cmd.args(["-c:v", encoder.ffmpeg_name(), "-f", "null", "-"]);
-    cmd.output().await.is_ok_and(|o| o.status.success())
+    cmd.kill_on_drop(true);
+    tokio::time::timeout(std::time::Duration::from_secs(5), cmd.output())
+        .await
+        .is_ok_and(|result| result.is_ok_and(|o| o.status.success()))
 }
 
 pub async fn detect_h264_encoder(ffmpeg_cmd: &str) -> H264Encoder {
@@ -219,21 +255,25 @@ pub struct VideoStreamInfo {
 }
 
 pub async fn probe_video_stream(ffprobe_cmd: &str, video_path: &str) -> Option<VideoStreamInfo> {
-    let output = media_command(ffprobe_cmd)
-        .args([
-            "-v",
-            "error",
-            "-select_streams",
-            "v:0",
-            "-show_entries",
-            "stream=width,height,codec_name:format=duration",
-            "-of",
-            "json",
-            video_path,
-        ])
-        .output()
-        .await
-        .ok()?;
+    let output = tokio::time::timeout(
+        std::time::Duration::from_secs(15),
+        media_command(ffprobe_cmd)
+            .args([
+                "-v",
+                "error",
+                "-select_streams",
+                "v:0",
+                "-show_entries",
+                "stream=width,height,codec_name:format=duration",
+                "-of",
+                "json",
+                video_path,
+            ])
+            .output(),
+    )
+    .await
+    .ok()?
+    .ok()?;
 
     if !output.status.success() {
         return None;
@@ -960,6 +1000,78 @@ pub async fn extract_preview_snapshot(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn audio_probe_reports_missing_executable() {
+        let directory = tempfile::tempdir().unwrap();
+        let missing = directory.path().join("missing-ffprobe");
+        assert!(
+            try_video_has_audio(missing.to_str().unwrap(), "video.mp4")
+                .await
+                .is_err()
+        );
+        assert!(!video_has_audio(missing.to_str().unwrap(), "video.mp4"));
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn audio_probe_distinguishes_streams_failures_and_timeout() {
+        use std::os::unix::fs::PermissionsExt;
+        let directory = tempfile::tempdir().unwrap();
+        for (index, (body, expected)) in [
+            ("printf 'video\\naudio\\n'", Some(true)),
+            ("printf 'video\\n'", Some(false)),
+            ("printf 'notaudio\\n'", Some(false)),
+            ("printf 'audio\\n'; exit 1", None),
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            // Each scenario gets a fresh inode; never rewrite a recently executed file.
+            let script = directory.path().join(format!("ffprobe-{index}"));
+            let executable = script.to_str().unwrap();
+            std::fs::write(&script, format!("#!/bin/sh\n{body}\n")).unwrap();
+            std::fs::set_permissions(&script, std::fs::Permissions::from_mode(0o700)).unwrap();
+            let result = try_video_has_audio(executable, "path with spaces.mp4").await;
+            match expected {
+                Some(value) => assert_eq!(result.unwrap(), value),
+                None => assert!(result.is_err()),
+            }
+        }
+        let pid_file = directory.path().join("pid");
+        let script = directory.path().join("ffprobe-timeout");
+        let executable = script.to_str().unwrap();
+        std::fs::write(
+            &script,
+            format!(
+                "#!/bin/sh\necho $$ > '{}'\nexec sleep 30\n",
+                pid_file.display()
+            ),
+        )
+        .unwrap();
+        std::fs::set_permissions(&script, std::fs::Permissions::from_mode(0o700)).unwrap();
+        let result = probe_audio_with_timeout(
+            executable,
+            "video.mp4",
+            std::time::Duration::from_millis(200),
+        )
+        .await;
+        assert!(format!("{:#}", result.unwrap_err()).contains("timed out"));
+        let pid = std::fs::read_to_string(pid_file).unwrap();
+        for _ in 0..100 {
+            let alive = std::process::Command::new("kill")
+                .args(["-0", pid.trim()])
+                .output()
+                .unwrap()
+                .status
+                .success();
+            if !alive {
+                return;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+        }
+        panic!("Timed-out FFprobe remained alive");
+    }
 
     #[tokio::test]
     async fn preparation_reports_completion_and_honors_cancellation() {

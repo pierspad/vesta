@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { writeClipboard } from "$lib/utils/clipboard";
   import { locale } from "$lib/i18n";
   import PathPickerField from "$lib/components/PathPickerField.svelte";
   import type { NoteTypeOption } from "$lib/components/EpisodeTable.svelte";
@@ -69,7 +70,6 @@
     onRemove,
     onContextMenu,
     outputDir,
-    onExpand,
     onSelectOutput,
     onClearField,
   }: Props = $props();
@@ -150,7 +150,7 @@
         placeholder={t("flashcards.selectDir")}
         browseTitle={t("flashcards.selectDir")}
         onexpand={() => {
-          if (outputDir) onExpand("output");
+          if (outputDir) void writeClipboard(outputDir, t("common.pathCopied"));
         }}
         onbrowse={onSelectOutput}
         onclear={() => onClearField("output")}

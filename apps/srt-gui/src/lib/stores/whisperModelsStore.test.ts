@@ -37,3 +37,29 @@ it("an older discovery response cannot restore outdated installation status", as
  const old = store.refreshModels(); const current = store.refreshModels(); second.resolve([model("medium")]); await current;
  first.resolve([model("small")]); await old; expect(store.whisperModels.map(model => model.id)).toEqual(["medium"]);
 });
+
+it("switches the selected Silero model to persistent WebRTC after uninstall", async () => {
+ const { transcribeUninstallVad, transcribeAddonsStatus } = await import("$lib/services/transcribe");
+ const { loadVadSelection } = await import("$lib/config/vadSelection");
+ const store = new WhisperModelsStore(); store.selectVadModel("v6.2.0");
+ vi.mocked(transcribeUninstallVad).mockResolvedValue(true);
+ vi.mocked(transcribeAddonsStatus).mockResolvedValue({ vad_models: [] } as any);
+ await store.uninstallVad("v6.2.0");
+ expect(store.vadSelection).toEqual({ modelId: "webrtc", customPath: null });
+ expect(loadVadSelection()).toEqual(store.vadSelection);
+});
+it("keeps the selected VAD when uninstall fails", async () => {
+ const { transcribeUninstallVad } = await import("$lib/services/transcribe");
+ const store = new WhisperModelsStore(); store.selectVadModel("v6.2.0");
+ vi.mocked(transcribeUninstallVad).mockRejectedValueOnce(new Error("disk error"));
+ await store.uninstallVad("v6.2.0");
+ expect(store.vadSelection.modelId).toBe("v6.2.0");
+});
+it("preserves a custom VAD when removing an unused built-in model", async () => {
+ const { transcribeUninstallVad, transcribeAddonsStatus } = await import("$lib/services/transcribe");
+ const store = new WhisperModelsStore(); store.vadSelection = { modelId: "v6.2.0", customPath: "/custom.bin" };
+ vi.mocked(transcribeUninstallVad).mockResolvedValue(true);
+ vi.mocked(transcribeAddonsStatus).mockResolvedValue({ vad_models: [] } as any);
+ await store.uninstallVad("v6.2.0");
+ expect(store.vadSelection.customPath).toBe("/custom.bin");
+});

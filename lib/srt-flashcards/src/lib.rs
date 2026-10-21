@@ -18,7 +18,8 @@ pub mod media;
 
 pub use media::{
     H264Encoder, OptimizedVideo, check_ffmpeg, detect_h264_encoder, extract_preview_audio_clip,
-    extract_preview_snapshot, optimize_video_source, probe_video_stream, video_has_audio,
+    extract_preview_snapshot, optimize_video_source, probe_video_stream, try_video_has_audio,
+    video_has_audio,
 };
 pub use types::*;
 
@@ -195,21 +196,25 @@ pub async fn list_audio_tracks(
     path: &str,
     ffprobe_cmd: &str,
 ) -> Result<Vec<AudioTrackInfo>, String> {
-    let output = media::media_command(ffprobe_cmd)
-        .args([
-            "-v",
-            "error",
-            "-select_streams",
-            "a",
-            "-show_entries",
-            "stream=index,codec_name,channels:stream_tags=language,title",
-            "-of",
-            "json",
-            path,
-        ])
-        .output()
-        .await
-        .map_err(|e| format!("Failed to run ffprobe: {}", e))?;
+    let output = tokio::time::timeout(
+        std::time::Duration::from_secs(15),
+        media::media_command(ffprobe_cmd)
+            .args([
+                "-v",
+                "error",
+                "-select_streams",
+                "a",
+                "-show_entries",
+                "stream=index,codec_name,channels:stream_tags=language,title",
+                "-of",
+                "json",
+                path,
+            ])
+            .output(),
+    )
+    .await
+    .map_err(|_| "FFprobe audio track probe timed out".to_string())?
+    .map_err(|e| format!("Failed to run ffprobe: {}", e))?;
 
     if !output.status.success() {
         return Err(String::from_utf8_lossy(&output.stderr).trim().to_string());

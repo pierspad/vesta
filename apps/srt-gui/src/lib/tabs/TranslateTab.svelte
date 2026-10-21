@@ -1,4 +1,5 @@
 <script lang="ts">
+  import WorkflowErrorStatus from "$lib/components/WorkflowErrorStatus.svelte";
   import { RequirementFeedback } from "$lib/utils/requirementFeedback.svelte";
   const requirements = new RequirementFeedback<"files" | "options">();
   import { validatePickerPath } from "$lib/utils/pathValidation";
@@ -7,8 +8,8 @@
   import { guardedOpen, guardedSave } from "$lib/utils/dialogGuard";
   import { setupWebviewDragDrop } from "$lib/utils/dragDrop";
   import { createLogPanelBuffer } from "$lib/utils/logPanelBuffer.svelte";
-  import { fetch as tauriFetch } from "$lib/services/tauriHttp";
-  import { onDestroy, onMount } from "svelte";
+  import { ManagedModelDiscovery } from "$lib/workflows/managedModelDiscovery.svelte";
+  import { onDestroy, onMount, untrack } from "svelte";
   import { locale } from "$lib/i18n";
   import { getFileName } from "$lib/utils/models";
   import { errorMessage } from "$lib/utils/errorMessage";
@@ -31,11 +32,6 @@
   import FooterActions from "$lib/components/FooterActions.svelte";
   import CopyPathChip from "$lib/components/CopyPathChip.svelte";
   import { uiMode } from "$lib/stores/uiModeStore.svelte";
-  import {
-    extractModelsFromPayload,
-    fetchModelsFromEndpoint,
-    type DiscoveredModel,
-  } from "$lib/services/modelDiscovery";
   import {
     buildTiersPayload as buildTiersPayloadShared,
     checkTiersAvailability as checkTiersAvailabilityShared,
@@ -155,60 +151,12 @@
   let localServerUrl = $state(vestaConfig.getItem(LOCAL_SERVER_URL_KEY) || DEFAULT_LOCAL_URL);
 
   // Dynamically fetched models from local/custom server
-  let fetchedModels = $state<DiscoveredModel[]>([]);
-  let isFetchingModels = $state(false);
-  let fetchModelsError = $state("");
+  const modelDiscovery = new ManagedModelDiscovery(vestaConfig);
+  let fetchedModels = $derived(modelDiscovery.models);
 
   function saveLocalServerUrl(url: string) {
     localServerUrl = url;
     vestaConfig.setItem(LOCAL_SERVER_URL_KEY, url);
-  }
-
-  async function fetchModelsFromServer(baseUrl: string, force = false) {
-    // Only cache if it's for the selected custom provider, to avoid mixing URLs.
-    // For local, we don't cache since it runs locally and is fast, but we could. Let's just cache custom.
-    const cacheKey = selectedProviderFamily === "custom" && selectedCustomProviderId
-        ? `vesta-dynamic-models-custom-${selectedCustomProviderId}`
-        : null;
-
-    if (!force && cacheKey) {
-      const cached = vestaConfig.getItem(cacheKey);
-      if (cached) {
-        try {
-          const parsed = JSON.parse(cached);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            fetchedModels = parsed;
-            isFetchingModels = false;
-            fetchModelsError = "";
-            if (!selectedModel || !parsed.find((m) => m.id === selectedModel)) {
-              selectedModel = parsed[0].id;
-            }
-            return;
-          }
-        } catch (e) {}
-      }
-    }
-
-    isFetchingModels = true;
-    fetchModelsError = "";
-    fetchedModels = [];
-    try {
-      const models = await fetchModelsFromEndpoint(baseUrl);
-      fetchedModels = models;
-      if (cacheKey) {
-        vestaConfig.setItem(cacheKey, JSON.stringify(models));
-      }
-      
-      // Auto-select first model if none selected
-      if (!selectedModel || !models.find((m) => m.id === selectedModel)) {
-        selectedModel = models[0].id;
-      }
-    } catch (e: any) {
-      fetchModelsError = errorMessage(e, "Connection failed");
-      fetchedModels = [];
-    } finally {
-      isFetchingModels = false;
-    }
   }
 
   let fileInfo = $state<SrtFileInfo | null>(null);
@@ -354,151 +302,11 @@
 
 
 
-  // Fetch models dynamically for managed providers (Google, Groq)
-  async function fetchProviderModels(family: string, force = false) {
-    if (family !== "google" && family !== "groq") return;
-    
-    // Find the right API key
-    const currentKeys = apiKeys.filter((k) => k.apiType === family && k.apiKey && k.apiKey.trim());
-    if (currentKeys.length === 0) return;
-    const apiKey = currentKeys[0].apiKey.trim();
-
-    // Cache key based on family and a short hash/prefix of the API key to detect changes
-    const cacheKey = `vesta-dynamic-models-${family}-${apiKey.substring(0, 8)}`;
-
-    if (!force) {
-      const cached = vestaConfig.getItem(cacheKey);
-      if (cached) {
-        try {
-          const parsed = JSON.parse(cached);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            fetchedModels = parsed;
-            isFetchingModels = false;
-            fetchModelsError = "";
-            if (!selectedModel || !parsed.find((m) => m.id === selectedModel)) {
-              selectedModel = parsed[0].id;
-            }
-            return;
-          }
-        } catch (e) {}
-      }
-    }
-
-    isFetchingModels = true;
-    fetchModelsError = "";
-    
-    try {
-      let url = "";
-      let headers: Record<string, string> = { "Accept": "application/json" };
-      
-      if (family === "google") {
-        url = `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`;
-      } else if (family === "groq") {
-        url = "https://api.groq.com/openai/v1/models";
-        headers["Authorization"] = `Bearer ${apiKey}`;
-      }
-
-      const resp = await tauriFetch(url, { method: "GET", headers });
-      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-      
-      const responseText = await resp.text();
-      let data: unknown = null;
-      if (responseText.trim().length > 0) {
-         data = JSON.parse(responseText);
-      }
-      
-      let models = extractModelsFromPayload(data);
-      if (models.length === 0) throw new Error("No models found dynamically");
-
-      // For Google, strip 'models/' prefix from the ID, use displayName if available,
-      // and filter to only show models that support text generation (generateContent)
-      if (family === "google") {
-        if (data && typeof data === "object" && Array.isArray((data as any).models)) {
-          models = (data as any).models
-            .filter((m: any) => {
-              // Only show models that support generateContent (text generation)
-              const methods: string[] = m.supportedGenerationMethods || [];
-              return methods.includes("generateContent");
-            })
-            .map((m: any) => {
-               const id = m.name?.replace("models/", "") || m.id;
-               const name = m.displayName || id;
-               return { id, name };
-            });
-        } else {
-             models = models.map(m => {
-                 const id = m.id.replace("models/", "");
-                 return { id, name: m.name.replace("models/", "") };
-             });
-        }
-      }
-
-      if (models.length === 0) throw new Error("No usable text generation models found");
-
-      // For Google, probe each model with generateContent to check actual accessibility.
-      if (family === "google") {
-        const probeResults = await Promise.allSettled(
-          models.map(async (m) => {
-            const probeUrl = `https://generativelanguage.googleapis.com/v1beta/models/${m.id}:generateContent?key=${apiKey}`;
-            const probeResp = await tauriFetch(probeUrl, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                contents: [{ parts: [{ text: "hi" }] }],
-                generationConfig: { maxOutputTokens: 1 },
-              }),
-              timeoutMs: 8000,
-            });
-            if (!probeResp.ok) {
-              throw new Error(`HTTP ${probeResp.status}`);
-            }
-            return m;
-          })
-        );
-        const accessibleModels = probeResults
-          .filter((r): r is PromiseFulfilledResult<{ id: string; name: string }> => r.status === "fulfilled")
-          .map((r) => r.value);
-        if (accessibleModels.length > 0) {
-          models = accessibleModels;
-        }
-        // If all probes fail, keep original list as fallback
-      }
-
-      fetchedModels = models;
-      vestaConfig.setItem(cacheKey, JSON.stringify(models));
-
-      // Auto-select first model if current one is not in the list
-      if (!selectedModel || !models.find((m) => m.id === selectedModel)) {
-        selectedModel = models[0].id;
-      }
-    } catch (e: any) {
-      console.warn(`Failed to fetch dynamic models for ${family}:`, e?.message);
-      // We gracefully swallow errors and naturally fall back to hardcoded models (as fetchedModels remains [])
-    } finally {
-      isFetchingModels = false;
-    }
-  }
-
-  // Auto-fetch provider models upon selection logic
+  // Discovery is scoped to provider/key identity; state changes cannot trigger retry loops.
   $effect(() => {
-    if (providerConfirmed && (selectedProviderFamily === "google" || selectedProviderFamily === "groq")) {
-      // Only trigger if we haven't fetched them yet to avoid loops
-      if (fetchedModels.length === 0 && !isFetchingModels) {
-        fetchProviderModels(selectedProviderFamily);
-      }
-    }
-  });
-
-  // Reset fetched models when switching away from the current provider
-  $effect(() => {
-    // Only reset if it's changing, avoid resetting immediately after we fetch
-    if (!providerConfirmed) {
-      fetchedModels = [];
-      fetchModelsError = "";
-    } else if (selectedProviderFamily !== "local" && selectedProviderFamily !== "custom" && selectedProviderFamily !== "google" && selectedProviderFamily !== "groq") {
-      fetchedModels = [];
-      fetchModelsError = "";
-    }
+    const family = providerConfirmed ? selectedProviderFamily : "";
+    const key = apiKeys.find(key => key.apiType === family && key.apiKey?.trim())?.apiKey.trim() || "";
+    untrack(() => { void modelDiscovery.load(family, key); });
   });
 
   let hasValidKey = $derived.by(() => {
@@ -560,8 +368,6 @@
     selectedCustomProviderId = loadStoredValue(DEFAULT_LLM_CUSTOM_PROVIDER_KEY) || selectedCustomProviderId;
     localServerUrl = vestaConfig.getItem(LOCAL_SERVER_URL_KEY) || DEFAULT_LOCAL_URL;
     providerConfirmed = true;
-    fetchedModels = [];
-    fetchModelsError = "";
   }
 
   $effect(() => {
@@ -608,6 +414,7 @@
     return () => {
       activeListener = false;
       disposed = true;
+      modelDiscovery.dispose();
       requirements.clear();
       translationOperation.dispose();
       fileRequests.invalidate();
@@ -1353,18 +1160,7 @@
           {/if}
         </div>
       {:else if error}
-        <!-- Error State -->
-        <div class="flex items-center gap-3">
-          <div class="flex items-center justify-center w-8 h-8 rounded-full bg-red-500/10 border border-red-500/30 text-red-400">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-            </svg>
-          </div>
-          <div class="flex flex-col">
-            <span class="text-[10px] text-red-400 font-bold uppercase tracking-wider">{t("translate.error")}</span>
-            <span class="text-xs text-red-300 font-medium truncate max-w-lg">{error}</span>
-          </div>
-        </div>
+        <WorkflowErrorStatus title={t("translate.error")} message={error} warning />
       {:else if translationBlockedReason}
         <div class="flex min-w-0 flex-wrap items-center gap-2" role="status">
           <span class="max-w-md text-xs text-gray-400">{t(!useTiers ? "translate.configureLlmFirst" : "translate.blocked.selectFiles")}</span>

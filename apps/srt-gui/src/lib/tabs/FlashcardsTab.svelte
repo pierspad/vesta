@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { FlashcardAudioSelection } from "$lib/workflows/flashcardAudioSelection.svelte";
   import { RequirementFeedback } from "$lib/utils/requirementFeedback.svelte";
   import { defaultOutputDirectory } from "$lib/utils/defaultOutputDirectory";
   import { expandFlashcardFiles } from "$lib/workflows/flashcardFileDiscovery";
@@ -102,9 +103,12 @@
   // AudioTrackInfo / EpisodeMediaOverrides live in flashcardMediaTypes.ts so
   // the extracted media-settings panel components can import them too.
 
-  let audioTracks = $state<AudioTrackInfo[]>([]);
-  let audioTrackAutoSelected = $state(true);
-  let audioTracksLoading = $state(false);
+  const audioSelection = new FlashcardAudioSelection(
+    path => invoke<AudioTrackInfo[]>("flashcard_list_audio_tracks", { path }),
+    () => getPreferredAudioLanguageCode(),
+    index => { mediaSettings.audioTrackIndex = index; },
+    error => generationStore.addLog(`${t("flashcards.audioTracksError")}: ${errorMessage(error)}`, "warning"),
+  );
 
   const OUTPUT_DIR_KEY = "vesta-last-output-dir";
   const DEFAULT_FLASHCARDS_LANGUAGE_KEY = "vesta-default-flashcards-language";
@@ -966,46 +970,15 @@
   }
 
 
-  let audioTracksRequest = 0;
   let loadedAudioMedia: string | undefined;
 
-  async function loadAudioTracksForMedia(path: string) {
-    const request = ++audioTracksRequest;
-    audioTracksLoading = false;
-    audioTracks = [];
-    mediaSettings.audioTrackIndex = null;
-    audioTrackAutoSelected = true;
-
-    if (detectMediaType(getFileName(path)) !== "video") return;
-
-    audioTracksLoading = true;
-    try {
-      const tracks = await invoke<AudioTrackInfo[]>("flashcard_list_audio_tracks", {
-        path,
-      });
-      if (request !== audioTracksRequest) return;
-      audioTracks = tracks;
-      mediaSettings.audioTrackIndex =
-        tracks.length > 1 ? pickBestAudioTrackIndex(tracks, getPreferredAudioLanguageCode()) : null;
-    } catch (e) {
-      if (request !== audioTracksRequest) return;
-      generationStore.addLog(`${t("flashcards.audioTracksError")}: ${errorMessage(e)}`, "warning");
-    } finally {
-      if (request === audioTracksRequest) audioTracksLoading = false;
-    }
-  }
-
-  $effect(() => {
-    if (audioTracks.length > 1 && audioTrackAutoSelected) {
-      mediaSettings.audioTrackIndex = pickBestAudioTrackIndex(audioTracks, getPreferredAudioLanguageCode());
-    }
-  });
+  $effect(() => { audioSelection.updateLanguage(); });
 
   $effect(() => {
     const firstMedia = episodes[0]?.mediaPath;
     if (firstMedia === loadedAudioMedia) return;
     loadedAudioMedia = firstMedia;
-    untrack(() => { void loadAudioTracksForMedia(firstMedia || ""); });
+    untrack(() => { void audioSelection.load(firstMedia || ""); });
   });
 
   // ─── File Drag-and-Drop Handler ───────────────────────────────────────────
@@ -1218,6 +1191,7 @@
 
   onDestroy(() => {
     flashcardPreview.dispose();
+    audioSelection.dispose();
     activeListener = false;
     window.removeEventListener("vesta-cpu-cores-changed", handleCpuCoresChanged);
     window.removeEventListener("vesta-ffmpeg-updated", handleFfmpegUpdated);
@@ -1376,9 +1350,7 @@
     generationStore.resetRun();
 
     // Clear files so the user can insert new ones
-    audioTracks = [];
-    mediaSettings.audioTrackIndex = null;
-    audioTrackAutoSelected = true;
+    audioSelection.reset();
     episodes = [];
     generationStore.deckName = "";
   }
@@ -1615,13 +1587,13 @@
         bind:settings={mediaSettings}
         {hasAudio}
         mediaType={previewMediaType}
-        {audioTracks}
-        {audioTracksLoading}
+        audioTracks={audioSelection.tracks}
+        audioTracksLoading={audioSelection.loading}
         hintLoadMediaFirst={HINT_LOAD_MEDIA_FIRST}
         firstEpisodeMediaPath={episodes[0]?.mediaPath || ""}
         firstEpisodeSubsPath={episodes[0]?.targetSubsPath || ""}
         {episodes}
-        onTrackPicked={() => (audioTrackAutoSelected = false)}
+        onTrackPicked={() => (audioSelection.automatic = false)}
       />
     {:else if panelId === "snapshots"}
       <SnapshotsPanel

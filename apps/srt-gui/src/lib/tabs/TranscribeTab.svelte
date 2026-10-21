@@ -1,4 +1,5 @@
 <script lang="ts">
+  import WorkflowErrorStatus from "$lib/components/WorkflowErrorStatus.svelte";
   import WorkflowWorkspace from "$lib/components/WorkflowWorkspace.svelte";
   import { RequirementFeedback } from "$lib/utils/requirementFeedback.svelte";
   const requirements = new RequirementFeedback<"files" | "model">();
@@ -15,7 +16,7 @@
   import MediaIcon from "$lib/components/MediaIcon.svelte";
   import { whisperModelsStore as modelStore } from "$lib/stores/whisperModelsStore.svelte";
   import CopyPathChip from "$lib/components/CopyPathChip.svelte";
-  import { listen } from "@tauri-apps/api/event";
+  import { subscribeTranscriptionEvents } from "$lib/workflows/transcriptionEvents";
   import { guardedOpen, guardedSave } from "$lib/utils/dialogGuard";
   import { setupWebviewDragDrop } from "$lib/utils/dragDrop";
   import { createLogPanelBuffer } from "$lib/utils/logPanelBuffer.svelte";
@@ -276,10 +277,6 @@
     window.addEventListener("vesta-whisper-models-updated", refreshModels);
     window.addEventListener("vesta-vad-updated", refreshAddons);
 
-    let activeListener = true;
-    let unlisten: (() => void) | null = null;
-    let unlistenSegment: (() => void) | null = null;
-
     const cleanupDragDrop = setupWebviewDragDrop({
       isActive: () => active,
       setDraggingOver: (v) => (isDraggingOver = v),
@@ -287,51 +284,24 @@
       onError: console.error,
     });
 
-    listen<{
-      stage: string;
-      message: string;
-      percentage: number;
-    }>("transcribe-progress", (event) => {
-      const p = event.payload;
-      if (p.stage === "download" && (modelStore.isDownloading || modelStore.downloadingVadId)) {
+    const cleanupEvents = subscribeTranscriptionEvents({
+      acceptingResults: () => isTranscribing && !transcriptionCancelled,
+      downloadingModel: () => modelStore.isDownloading || !!modelStore.downloadingVadId,
+      onDownload: p => {
         modelStore.progress = Math.round(p.percentage);
         modelStore.progressMessage = p.message;
-        return;
-      }
-      if (!isTranscribing || transcriptionCancelled) return;
-      if (p.stage === "download") return; // Ignored here, handled in SettingsTab
-      
-      progress = Math.round(p.percentage);
-      progressMessage = p.message;
-      progressStage = p.stage;
-      
-      if (p.stage !== "done") {
-        addLog(p.message, "progress");
-      }
-    }).then((fn) => {
-      if (!activeListener) fn();
-      else unlisten = fn;
-    }).catch(console.error);
-
-    listen<{
-      start_ms: number;
-      end_ms: number;
-      text: string;
-    }>("transcribe-segment", (event) => {
-      if (!isTranscribing || transcriptionCancelled) return;
-      const p = event.payload;
-      transcribedSegments.push({
-        start_ms: p.start_ms,
-        end_ms: p.end_ms,
-        text: p.text,
-      });
-    }).then((fn) => {
-      if (!activeListener) fn();
-      else unlistenSegment = fn;
-    }).catch(console.error);
+      },
+      onProgress: p => {
+        progress = Math.round(p.percentage);
+        progressMessage = p.message;
+        progressStage = p.stage;
+        if (p.stage !== "done") addLog(p.message, "progress");
+      },
+      onSegment: p => { transcribedSegments.push({ ...p }); },
+    });
 
     return () => {
-      activeListener = false;
+      cleanupEvents();
       transcriptionResources.dispose();
       requirements.clear();
       window.removeEventListener("vesta-whisper-models-updated", refreshModels);
@@ -343,9 +313,7 @@
       window.removeEventListener("vesta:transcribe-cloud-updated", handleTranscribeCloudUpdated);
       window.removeEventListener("vesta-ffmpeg-updated", refreshBackends);
       window.removeEventListener("vesta-vad-updated", refreshAddons);
-      if (unlisten) unlisten();
       cleanupDragDrop();
-      if (unlistenSegment) unlistenSegment();
     };
   });
 
@@ -1229,18 +1197,7 @@
           {/if}
         </div>
       {:else if error}
-        <!-- Error State -->
-        <div class="flex items-center gap-3">
-          <div class="flex items-center justify-center w-8 h-8 rounded-full bg-red-500/10 border border-red-500/30 text-red-400">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-            </svg>
-          </div>
-          <div class="flex flex-col">
-            <span class="text-[10px] text-red-400 font-bold uppercase tracking-wider">{t("transcribe.error")}</span>
-            <span class="text-xs text-red-300 font-medium truncate max-w-lg">{error}</span>
-          </div>
-        </div>
+        <WorkflowErrorStatus title={t("transcribe.error")} message={error} warning />
       {/if}
     </div>
     {/snippet}

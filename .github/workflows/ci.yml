@@ -19,6 +19,41 @@ env:
   CMAKE_CXX_COMPILER_LAUNCHER: "sccache"
 
 jobs:
+  tauri-versions:
+    name: Locked Tauri compatibility
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - run: python3 build-scripts/test_tauri_versions.py
+      - run: python3 build-scripts/check_tauri_versions.py
+
+  security:
+    name: Dependency security advisories
+    runs-on: ubuntu-22.04
+    env:
+      RUSTC_WRAPPER: ""
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: apps/srt-gui/package-lock.json
+      - uses: swatinem/rust-cache@v2
+        with:
+          shared-key: "security-audit"
+      - name: Install pinned advisory checker
+        run: cargo install cargo-audit --locked --version 0.22.2
+      - name: Audit locked Rust dependencies
+        run: cargo audit
+      - name: Audit locked frontend dependencies
+        working-directory: apps/srt-gui
+        run: npm audit
+
   # Verify embedding/CLI builds without installing GTK, WebKit, Node or a GPU SDK.
   # Selecting packages also prevents desktop Vulkan features from unifying into
   # the default CPU Whisper build used by the headless transcription CLI.
@@ -56,6 +91,7 @@ jobs:
   # (il crate `vesta` non compila senza apps/srt-gui/dist).
   # ===========================================================
   clippy:
+    needs: tauri-versions
     name: Clippy (workspace, all-targets)
     runs-on: ubuntu-22.04
     steps:
@@ -130,9 +166,10 @@ jobs:
         env:
           SCCACHE_GHA_ENABLED: "true"
           RUSTC_WRAPPER: "sccache"
-        run: cargo clippy --workspace --all-targets -- -D warnings
+        run: cargo clippy --locked --workspace --all-targets -- -D warnings
 
   test:
+    needs: tauri-versions
     name: Test (workspace)
     runs-on: ubuntu-22.04
     steps:
@@ -206,7 +243,7 @@ jobs:
         env:
           SCCACHE_GHA_ENABLED: "true"
           RUSTC_WRAPPER: "sccache"
-        run: cargo test --workspace
+        run: cargo test --locked --workspace
 
   # ===========================================================
   # i18n: parity, placeholder, hygiene e key usate nel sorgente.

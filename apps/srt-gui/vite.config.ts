@@ -58,6 +58,7 @@ function svelteVirtualCssFallback(): Plugin {
 export default defineConfig(({ mode }) => ({
   plugins: [svelte(), svelteVirtualCssFallback(), tailwindcss()],
   clearScreen: false,
+  optimizeDeps: { include: ["dompurify", "marked"] },
   resolve: {
     ...(mode === "test" ? { conditions: ["module", "browser", "development|production"] } : {}),
     alias: {
