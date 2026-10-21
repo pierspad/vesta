@@ -67,6 +67,12 @@ export default defineConfig(({ mode }) => ({
   server: {
     port: process.env.PORT ? parseInt(process.env.PORT) : 5175,
     strictPort: true,
+    fs: {
+      allow: [
+        fileURLToPath(new URL(".", import.meta.url)),
+        fileURLToPath(new URL("../../lib/srt-flashcards/assets/anki", import.meta.url)),
+      ],
+    },
     watch: {
       ignored: ["**/src-tauri/**"],
     },
