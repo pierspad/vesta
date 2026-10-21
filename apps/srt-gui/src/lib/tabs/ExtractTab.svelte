@@ -1,4 +1,7 @@
 <script lang="ts">
+  import { LatestRequest } from "$lib/utils/asyncControl.svelte";
+  const downloadedRequests = new LatestRequest();
+  let disposed = false;
   import WorkflowWorkspace from "$lib/components/WorkflowWorkspace.svelte";
   import EmptyStatusLabel from "$lib/components/EmptyStatusLabel.svelte";
   import LoadingSpinner from "$lib/components/LoadingSpinner.svelte";
@@ -48,20 +51,24 @@
   let previewVariants = $derived(previewGroups.find(group => group.tracks.some(track => track.index === previewTrack?.index))?.tracks.filter(track => track.text_based) ?? []);
   let previewPosition = $derived(previewVariants.findIndex(track => track.index === previewTrack?.index));
   onMount(() => {
-    void defaultOutputDirectory().then(value => { if (!outputDir) { outputDir = value; void refreshDownloaded(); } }).catch(e => { error = errorMessage(e); });
+    void defaultOutputDirectory().then(value => { if (!disposed && !outputDir) { outputDir = value; void refreshDownloaded(); } }).catch(e => { if (!disposed) error = errorMessage(e); });
     const refresh = () => { void refreshDownloaded(); };
     window.addEventListener("focus", refresh);
     return () => window.removeEventListener("focus", refresh);
   });
   async function refreshDownloaded() {
+    if (disposed) return;
+    const request = downloadedRequests.begin();
     const directory = outputDir;
     const media = path;
     const candidates = tracks.filter(track => track.text_based);
     if (!directory || !media) { downloaded = []; return; }
     try {
       const names = await invoke<string[]>("existing_subtitle_outputs", { directory, names: candidates.map(track => subtitleOutputName(media, track)) });
-      if (directory === outputDir && media === path) downloaded = candidates.filter(track => names.includes(subtitleOutputName(media, track))).map(track => track.index);
-    } catch (e) { error = errorMessage(e); }
+      if (request.isCurrent() && directory === outputDir && media === path) downloaded = candidates.filter(track => names.includes(subtitleOutputName(media, track))).map(track => track.index);
+    } catch (e) {
+      if (request.isCurrent() && directory === outputDir && media === path) error = errorMessage(e);
+    }
   }
   async function chooseOutput() {
     if (busy || downloadingIndex !== null) return;
@@ -92,7 +99,7 @@
     previewError = "";
     previewLoading = false;
   }
-  onDestroy(closePreview);
+  onDestroy(() => { disposed = true; downloadedRequests.invalidate(); closePreview(); });
   async function preview(track: Track) {
     if (busy || !track?.text_based) return;
     if (!previewSession) {
@@ -129,7 +136,9 @@
     busy = true; error = ""; isDraggingOver = false;
     closePreview(); selections = {}; downloaded = []; path = selected; tracks = []; tracksScanned = false; search = ""; page = 0;
     try {
-      tracks = await invoke<Track[]>("embedded_subtitle_tracks", { path: selected });
+      const loadedTracks = await invoke<Track[]>("embedded_subtitle_tracks", { path: selected });
+      if (disposed) return;
+      tracks = loadedTracks;
       tracksScanned = true;
       await refreshDownloaded();
     } catch (e) { error = errorMessage(e); }
