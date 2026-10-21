@@ -1,6 +1,6 @@
 [package]
 name = "vesta-cli"
-version = "0.28.0"
+version = "0.29.0-dev.1"
 edition.workspace = true
 rust-version.workspace = true
 description = "Unified headless command-line interface for Vesta library workflows"
