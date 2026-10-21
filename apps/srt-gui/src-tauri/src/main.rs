@@ -196,17 +196,27 @@ fn main() -> std::process::ExitCode {
                 };
 
                 tauri::async_runtime::spawn(async move {
-                    use crate::commands::flashcards::types::{FlashcardConfig, video_has_audio};
+                    use crate::commands::flashcards::types::{
+                        FlashcardConfig, try_video_has_audio,
+                    };
                     use std::time::Instant;
                     use tauri::Manager;
 
+                    let has_audio = match try_video_has_audio("ffprobe", &video).await {
+                        Ok(value) => value,
+                        Err(error) => {
+                            eprintln!("vesta_BENCHMARK_ERROR: {error:#}");
+                            app_handle.exit(1);
+                            return;
+                        }
+                    };
                     let config = FlashcardConfig::benchmark(
                         sub1,
                         sub2,
                         video.clone(),
                         out_dir,
                         export_fmt,
-                        video_has_audio("ffprobe", &video),
+                        has_audio,
                         None,
                     );
 

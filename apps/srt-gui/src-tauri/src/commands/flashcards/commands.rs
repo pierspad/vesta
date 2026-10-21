@@ -231,11 +231,7 @@ pub struct SetupMediaStatus {
 pub async fn setup_media_status(app: AppHandle) -> Result<SetupMediaStatus, String> {
     let ffmpeg = resolve_ffmpeg_path(Some(&app)).await;
     let ffprobe = crate::commands::media::resolve_ffprobe_path(Some(&app)).await;
-    let probe_ready = tokio::process::Command::new(&ffprobe)
-        .arg("-version")
-        .output()
-        .await
-        .is_ok_and(|output| output.status.success());
+    let probe_ready = srt_flashcards::check_ffmpeg(&ffprobe).await;
     let ready = srt_flashcards::check_ffmpeg(&ffmpeg).await && probe_ready;
     let download_bytes = if ready {
         None
@@ -298,11 +294,7 @@ pub async fn flashcard_download_ffmpeg(app: AppHandle) -> Result<bool, String> {
             .to_string());
     }
     let ffprobe = crate::commands::media::resolve_ffprobe_path(Some(&app)).await;
-    let probe_ready = tokio::process::Command::new(&ffprobe)
-        .arg("-version")
-        .output()
-        .await
-        .is_ok_and(|output| output.status.success());
+    let probe_ready = srt_flashcards::check_ffmpeg(&ffprobe).await;
     if !probe_ready {
         return Err("FFprobe was downloaded but could not be executed".into());
     }

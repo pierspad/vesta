@@ -65,11 +65,7 @@ fn tauri_callbacks(app: &AppHandle) -> PipelineCallbacks {
 #[tauri::command]
 pub async fn transcribe_check_backends(app: AppHandle) -> Result<serde_json::Value, String> {
     let ffmpeg_cmd = crate::commands::media::resolve_ffmpeg_path(Some(&app)).await;
-    let ffmpeg_available = tokio::process::Command::new(&ffmpeg_cmd)
-        .arg("-version")
-        .output()
-        .await
-        .is_ok_and(|o| o.status.success());
+    let ffmpeg_available = srt_flashcards::check_ffmpeg(&ffmpeg_cmd).await;
 
     Ok(serde_json::json!({
         "ffmpeg": ffmpeg_available,

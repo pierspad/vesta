@@ -21,14 +21,18 @@ pub struct UpdateInstallation {
     pub arch: String,
 }
 
-fn owned_by(program: &str, args: &[&str]) -> bool {
-    Command::new(program)
-        .args(args)
-        .output()
-        .is_ok_and(|o| o.status.success())
+async fn owned_by(program: &str, args: &[&str]) -> bool {
+    tokio::time::timeout(
+        Duration::from_secs(5),
+        srt_flashcards::media::media_command(program)
+            .args(args)
+            .output(),
+    )
+    .await
+    .is_ok_and(|result| result.is_ok_and(|output| output.status.success()))
 }
 
-fn installation() -> UpdateInstallation {
+async fn installation() -> UpdateInstallation {
     let executable = std::env::current_exe().unwrap_or_default();
     let path = executable.to_string_lossy();
     let channel = if cfg!(debug_assertions) {
@@ -39,11 +43,11 @@ fn installation() -> UpdateInstallation {
         "snap"
     } else if std::env::var_os("APPIMAGE").is_some() {
         "appimage"
-    } else if cfg!(target_os = "linux") && owned_by("pacman", &["-Qo", &path]) {
+    } else if cfg!(target_os = "linux") && owned_by("pacman", &["-Qo", &path]).await {
         "aur"
-    } else if cfg!(target_os = "linux") && owned_by("dpkg-query", &["-S", &path]) {
+    } else if cfg!(target_os = "linux") && owned_by("dpkg-query", &["-S", &path]).await {
         "deb"
-    } else if cfg!(target_os = "linux") && owned_by("rpm", &["-qf", &path]) {
+    } else if cfg!(target_os = "linux") && owned_by("rpm", &["-qf", &path]).await {
         "rpm"
     } else if cfg!(target_os = "windows") {
         "windows"
@@ -59,9 +63,7 @@ fn installation() -> UpdateInstallation {
 
 #[tauri::command]
 pub async fn get_update_installation() -> Result<UpdateInstallation, String> {
-    tokio::task::spawn_blocking(installation)
-        .await
-        .map_err(|e| e.to_string())
+    Ok(installation().await)
 }
 
 #[derive(Debug, Deserialize)]
