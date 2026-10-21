@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { moveTier as reorderTier } from "$lib/utils/tierOperations";
   import { onMount, onDestroy } from "svelte";
   import { discoverModels, type DiscoveredModel } from "$lib/services/modelDiscovery";
   import { locale } from "$lib/i18n";
@@ -130,11 +131,9 @@
   }
 
   function moveTier(index: number, dir: -1 | 1) {
-    const target = index + dir;
-    if (target < 0 || target >= tiers.length) return;
-    const copy = [...tiers];
-    [copy[index], copy[target]] = [copy[target], copy[index]];
-    tiers = copy;
+    const reordered = reorderTier(tiers, index, dir);
+    if (!reordered) return;
+    tiers = reordered;
     persist();
   }
 

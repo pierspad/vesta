@@ -77,8 +77,9 @@
           <div
             role="button"
             tabindex="0"
+            aria-expanded={!collapsedTiers.has(tier.id)}
             onclick={() => toggleTier(tier.id)}
-            onkeydown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggleTier(tier.id); } }}
+            onkeydown={(e) => { if (e.target === e.currentTarget && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); toggleTier(tier.id); } }}
             class="flex items-center justify-between gap-2 py-3 cursor-pointer group select-none outline-none"
           >
             <div class="flex items-center gap-3">
