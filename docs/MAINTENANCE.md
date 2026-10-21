@@ -60,3 +60,23 @@ Prima della release restano necessari gli smoke installati descritti in QUALITY:
 Anki/associazioni, codec webview, persistenza, cancellazione, provider autenticati,
 installer e hardware reale. Ripetere i controlli advisory dei lockfile; distinguere
 vulnerabilità, manutenzione e unsoundness della catena GTK/Tauri, senza ignore.
+
+
+## Dipendenze desktop transitive
+
+Tauri 2.12 usa ancora GTK3/GLib 0.18. La correzione ufficiale di
+[RUSTSEC-2024-0429](https://rustsec.org/advisories/RUSTSEC-2024-0429) è in GLib
+0.20+, che non sostituisce direttamente i tipi richiesti da GTK3. L'avviso
+riguarda `VariantStrIter`: non viene soppresso né considerato risolto soltanto
+perché il codice Vesta non usa direttamente quell'iteratore. Una copia locale
+con backport richiede test e manutenzione propri; il controllo advisory può
+continuare a segnalarne la versione anche dopo una correzione del sorgente.
+
+Restano inoltre gli avvisi di manutenzione per `proc-macro-error` (macro GTK) e
+`zvariant`, `zvariant_derive`, `zbus_names` (catena D-Bus di dialoghi/Opener).
+La loro rimozione richiede aggiornamenti dei consumatori upstream: aggiungere
+una seconda versione diretta al workspace non elimina quella transitiva.
+Vedere anche le [indicazioni upstream zbus](https://github.com/z-galaxy/zbus/issues/2043).
+Non migrare l'applicazione a release alpha o introdurre ignore solo per ridurre
+il numero di messaggi. Ripetere `cargo audit` e `cargo tree -i NOME_CRATE` quando
+si aggiorna questa catena.
