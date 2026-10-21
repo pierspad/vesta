@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { isInputActive } from "$lib/utils/keyboardFocus";
   import { preloadTabs } from "$lib/utils/preloadTabs";
   import { locale } from "$lib/i18n";
   let t = $derived($locale);
@@ -104,12 +105,6 @@
     shortcutsList = getShortcuts();
   }
 
-  function isInputActive(): boolean {
-    const active = document.activeElement;
-    if (!active) return false;
-    const tag = active.tagName.toLowerCase();
-    return tag === "input" || tag === "textarea" || active.getAttribute("contenteditable") === "true";
-  }
 
   function matchShortcut(e: KeyboardEvent, shortcutKey: string): boolean {
     const parts = shortcutKey.split("+").map((p) => p.trim());

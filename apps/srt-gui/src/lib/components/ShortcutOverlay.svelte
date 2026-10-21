@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { isInputActive } from "$lib/utils/keyboardFocus";
   import { onDestroy, onMount } from "svelte";
   import { locale } from "$lib/i18n";
   import { formatKeyPart, getShortcuts, getSortedKeys, type ShortcutDefinition } from "$lib/utils/shortcuts";
@@ -33,12 +34,6 @@
     return { global, contextual, category };
   });
 
-  function isInputActive(): boolean {
-    const active = document.activeElement;
-    if (!active) return false;
-    const tag = active.tagName.toLowerCase();
-    return tag === "input" || tag === "textarea" || active.getAttribute("contenteditable") === "true";
-  }
 
   function handleKeyDown(e: KeyboardEvent) {
     if (isInputActive()) {
