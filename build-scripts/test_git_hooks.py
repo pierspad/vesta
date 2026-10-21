@@ -22,7 +22,7 @@ class GitHookTests(unittest.TestCase):
             shutil.copy2(SOURCE / "build-scripts" / name, self.root / "build-scripts" / name)
         scripts = self.root / "apps/srt-gui/scripts"
         scripts.mkdir(parents=True)
-        for name in ["check_missing_translations.py", "check-i18n.mjs"]:
+        for name in ["check_missing_translations.py", "check-i18n.mjs", "i18n-scanner.mjs"]:
             shutil.copy2(SOURCE / "apps/srt-gui/scripts" / name, scripts / name)
         self.locales = self.root / "apps/srt-gui/src/lib/i18n/locales"
         self.locales.mkdir(parents=True)
