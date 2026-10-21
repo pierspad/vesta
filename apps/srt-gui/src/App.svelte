@@ -14,6 +14,7 @@
   import ShortcutOverlay from "$lib/components/ShortcutOverlay.svelte";
   import Sidebar from "$lib/components/Sidebar.svelte";
   import AppContextMenu from "$lib/components/AppContextMenu.svelte";
+  import AppTooltip from "$lib/components/AppTooltip.svelte";
   import Snackbar from "$lib/components/Snackbar.svelte";
   import { snackbar } from "$lib/stores/snackbarStore.svelte";
   import { aiStore } from "$lib/stores/aiStore.svelte";
@@ -489,3 +490,5 @@
     <FirstRunSetupModal onComplete={completeFirstRunSetup} />
   {/if}
 </main>
+
+<AppTooltip />
