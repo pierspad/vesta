@@ -412,6 +412,8 @@ For any heavy, optional, or reusable feature (Whisper, yt-dlp downloading, trans
 
 ## 14. Versioning & Release-Notes Governance
 
+* **Commit language: always English.** Write every commit subject and body in English, including Conventional Commit release notes, regardless of the conversation language.
+
 * **Single source of truth: `PKGBUILD` `pkgver`.** Everything else is derived from it. The bump itself is performed **by the Release Action** (§15) — humans and agents never hand-edit version numbers across files.
 * **Propagation** — `update_project_info.sh` writes that version into `apps/<app>-gui/package.json`, `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml`, the workspace `[workspace.package].version`, every `core/*` & `lib/*` `Cargo.toml`, the internal path-dependency `version="…"` pins, and syncs `Cargo.lock`.
 * **Consistency gate** — `check_version_consistency.sh` (vesta: `check_internal_crate_versions.sh`) fails the release if any of the above (incl. `Cargo.lock`'s entry for the app crate) disagrees with `pkgver`.
