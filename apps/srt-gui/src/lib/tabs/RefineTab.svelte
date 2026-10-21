@@ -1,6 +1,5 @@
 <script lang="ts">
   import { invokeCommand as invoke } from "$lib/services/tauriClient";
-  import { listen } from "@tauri-apps/api/event";
   import { guardedOpen, guardedSave } from "$lib/utils/dialogGuard";
   import { snackbar } from "$lib/stores/snackbarStore.svelte";
   import { onMount, onDestroy, untrack } from "svelte";
@@ -33,6 +32,7 @@
   import Card from "$lib/components/Card.svelte";
   import SectionHeader from "$lib/components/SectionHeader.svelte";
   import { createRefineCardSearch } from "$lib/workflows/refineCardSearch";
+  import { runRefineAuto, type RefineRunSummary } from "$lib/workflows/refineAutoRun";
 
   interface Props {
     active?: boolean;
@@ -43,6 +43,7 @@
 
   let llmError = $state<TiersUnavailableReason | null>(null);
   let isValidatingLlm = $state(false);
+  let disposed = false;
   let llmHighlightPulse = $state(false);
   let pulseTimer: ReturnType<typeof setTimeout> | null = null;
   let validationCheckCount = 0;
@@ -319,8 +320,11 @@
   });
 
   onDestroy(() => {
+    disposed = true;
     if (pulseTimer) clearTimeout(pulseTimer);
     if (autoRefining || isSingleRefining) void invoke("refine_cancel").catch(() => {});
+    aiStore.autoRefining = false;
+    aiStore.isSingleRefining = false;
     window.removeEventListener(TIERS_UPDATED_EVENT, refreshLlmConfig);
     window.removeEventListener("apikeys-updated", refreshLlmConfig);
   });
@@ -490,19 +494,6 @@
     }
   }
 
-  type RefineProgressPayload =
-    | { type: "cardDone"; id: string; notes: string; done: number; total: number }
-    | { type: "cardFailed"; id: string; error: string }
-    | { type: "info"; message: string };
-
-  interface RefineRunSummary {
-    done: number;
-    failed: number;
-    remaining: number;
-    poolExhausted: boolean;
-    cancelled: boolean;
-  }
-
   async function startAutoRefinement() {
     if (operationBusy || cards.length === 0) return;
     if (aiStore.killSwitchActive || isValidatingLlm) return;
@@ -543,32 +534,8 @@
       t("refine.log.startAuto"),
     ];
 
-    const runId = crypto.randomUUID();
-    let unlisten: (() => void) | undefined;
     try {
-      unlisten = await listen<{ runId: string; event: RefineProgressPayload }>("refine-progress", (event) => {
-        if (event.payload.runId !== runId) return;
-        const p = event.payload.event;
-        if (p.type === "cardDone") {
-          const idx = cardIndices.get(p.id) ?? -1;
-          if (idx !== -1) {
-            cards[idx].notes = p.notes;
-            autoRefineGroupCardIds.delete(p.id);
-            addLog(t("refine.log.success", { text: cards[idx].expression.substring(0, 30) }));
-          }
-          progressCurrent = Math.max(progressCurrent, p.done);
-        } else if (p.type === "cardFailed") {
-          autoRefineGroupCardIds.delete(p.id);
-          const idx = cardIndices.get(p.id) ?? -1;
-          const text = idx !== -1 ? cards[idx].expression.substring(0, 20) : p.id;
-          progressFailed += 1;
-          addLog(t("refine.log.error", { text, error: p.error }));
-        } else {
-          addLog(p.message);
-        }
-      });
-
-      const summary = await invoke<RefineRunSummary>("refine_cards_llm_tiered", {
+      const summary = await runRefineAuto({
         cards: cardsToProcess.map((c) => ({
           id: c.id,
           expression: c.expression,
@@ -578,8 +545,30 @@
         prompt: customPrompt,
         tiers: tiersPayload,
         batchMode: useBatchMode,
-        runId,
+        isCancelled: () => disposed || isStopping || aiStore.killSwitchActive,
+        onProgress: (p) => {
+          if (disposed) return;
+          if (p.type === "cardDone") {
+            const idx = cardIndices.get(p.id) ?? -1;
+            if (idx !== -1) {
+              cards[idx].notes = p.notes;
+              autoRefineGroupCardIds.delete(p.id);
+              addLog(t("refine.log.success", { text: cards[idx].expression.substring(0, 30) }));
+            }
+            progressCurrent = Math.max(progressCurrent, p.done);
+          } else if (p.type === "cardFailed") {
+            autoRefineGroupCardIds.delete(p.id);
+            const idx = cardIndices.get(p.id) ?? -1;
+            const text = idx !== -1 ? cards[idx].expression.substring(0, 20) : p.id;
+            progressFailed += 1;
+            addLog(t("refine.log.error", { text, error: p.error }));
+          } else {
+            addLog(p.message);
+          }
+        },
       });
+
+      if (!summary || disposed) return;
 
       runSummary = summary;
       progressCurrent = summary.done;
@@ -592,16 +581,19 @@
 
     } catch (err: any) {
       const message = err?.toString() ?? "";
-      if (message.includes("ERR_ALREADY_RUNNING")) {
-        snackbar.show(t("common.error.alreadyRunning"), "error");
-      } else {
-        snackbar.show(t("refine.msg.generateError", { error: message }), "error");
+      if (!disposed) {
+        if (message.includes("ERR_ALREADY_RUNNING")) {
+          snackbar.show(t("common.error.alreadyRunning"), "error");
+        } else {
+          snackbar.show(t("refine.msg.generateError", { error: message }), "error");
+        }
       }
     } finally {
-      unlisten?.();
-      autoRefining = false;
-      isStopping = false;
-      autoRefineGroupCardIds.clear();
+      if (!disposed) {
+        autoRefining = false;
+        isStopping = false;
+        autoRefineGroupCardIds.clear();
+      }
     }
   }
 
@@ -611,10 +603,12 @@
     try {
       await invoke("refine_cancel");
     } catch (error) {
-      isStopping = false;
-      snackbar.show(errorMessage(error), "error");
+      if (!disposed) {
+        isStopping = false;
+        snackbar.show(errorMessage(error), "error");
+      }
     } finally {
-      if (!autoRefining && !isSingleRefining) isStopping = false;
+      if (!disposed && !autoRefining && !isSingleRefining) isStopping = false;
     }
   }
 
