@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::rate_limiter::RateLimitConfig;
-use crate::translator::{ApiType, Translator, TranslatorConfig};
+use crate::translator::{ApiType, DEFAULT_GOOGLE_MODEL, Translator, TranslatorConfig};
 use crate::{PoolEntry, TranslatorPool};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -31,7 +31,7 @@ pub fn provider_defaults(provider: &str) -> (ApiType, &'static str, u32, &'stati
             ApiType::Google,
             "https://generativelanguage.googleapis.com/v1beta",
             15,
-            "gemini-2.5-flash",
+            DEFAULT_GOOGLE_MODEL,
         ),
         "groq" => (
             ApiType::Groq,
@@ -72,57 +72,80 @@ pub fn provider_allows_missing_key(provider: &str) -> bool {
     matches!(provider.to_lowercase().as_str(), "local" | "custom")
 }
 
-pub fn build_pool_entry(entry: &TierEntry, tier_human: usize) -> PoolEntry {
+fn build_pool_entry_with(
+    entry: &TierEntry,
+    tier_human: usize,
+    build_translator: impl FnOnce(TranslatorConfig) -> Result<Translator, reqwest::Error>,
+) -> Result<PoolEntry, reqwest::Error> {
     let (api_type, default_url, default_rpm, default_model) = provider_defaults(&entry.provider);
-
     let base_url = entry
         .api_url
         .clone()
         .filter(|u| !u.trim().is_empty())
         .unwrap_or_else(|| default_url.to_string());
-
     let model = if entry.model.trim().is_empty() {
         default_model.to_string()
     } else {
         entry.model.clone()
     };
-
     let api_key = entry.api_key.clone().filter(|k| !k.trim().is_empty());
-
-    let translator = Translator::new(TranslatorConfig {
+    let translator = build_translator(TranslatorConfig {
         api_type,
         api_key,
         base_url,
         model: model.clone(),
-    });
-
+    })?;
     let rpm = entry.rpm.unwrap_or(default_rpm);
     let rate_limiter = (rpm > 0).then(|| RateLimitConfig::with_burst(rpm, 3).create_limiter());
 
-    PoolEntry {
+    Ok(PoolEntry {
         translator,
         rate_limiter,
         max_requests: entry.max_requests.filter(|n| *n > 0),
         label: format!("T{} · {} · {}", tier_human, entry.provider, model),
-    }
+    })
+}
+
+/// Fallible variant for callers that need to report HTTP client setup errors.
+pub fn try_build_pool_entry(
+    entry: &TierEntry,
+    tier_human: usize,
+) -> Result<PoolEntry, reqwest::Error> {
+    build_pool_entry_with(entry, tier_human, Translator::try_new)
+}
+
+/// Compatibility wrapper that preserves the original infallible API.
+pub fn build_pool_entry(entry: &TierEntry, tier_human: usize) -> PoolEntry {
+    build_pool_entry_with(entry, tier_human, |config| Ok(Translator::new(config)))
+        .expect("legacy translator construction is infallible")
 }
 
 pub fn build_pool(tiers: &[Vec<TierEntry>]) -> Result<TranslatorPool, String> {
-    let pool: TranslatorPool = tiers
-        .iter()
-        .enumerate()
-        .map(|(ti, tier)| {
-            tier.iter()
-                .filter(|e| !e.model.trim().is_empty())
-                .filter(|e| {
-                    provider_allows_missing_key(&e.provider)
-                        || e.api_key.as_deref().is_some_and(|k| !k.trim().is_empty())
-                })
-                .map(|e| build_pool_entry(e, ti + 1))
-                .collect::<Vec<PoolEntry>>()
-        })
-        .filter(|t| !t.is_empty())
-        .collect();
+    let mut pool = Vec::new();
+    for (tier_index, tier) in tiers.iter().enumerate() {
+        let mut built_tier = Vec::new();
+        for entry in tier.iter().filter(|entry| {
+            !entry.model.trim().is_empty()
+                && (provider_allows_missing_key(&entry.provider)
+                    || entry
+                        .api_key
+                        .as_deref()
+                        .is_some_and(|key| !key.trim().is_empty()))
+        }) {
+            built_tier.push(
+                try_build_pool_entry(entry, tier_index + 1).map_err(|error| {
+                    format!(
+                        "Could not configure HTTP client for tier {} provider {}: {error}",
+                        tier_index + 1,
+                        entry.provider
+                    )
+                })?,
+            );
+        }
+        if !built_tier.is_empty() {
+            pool.push(built_tier);
+        }
+    }
 
     if pool.is_empty() {
         return Err(
@@ -147,7 +170,8 @@ mod tests {
         assert_eq!(api_type, ApiType::Google);
         assert_eq!(url, "https://generativelanguage.googleapis.com/v1beta");
         assert_eq!(rpm, 15);
-        assert_eq!(model, "gemini-2.5-flash");
+        assert_eq!(model, DEFAULT_GOOGLE_MODEL);
+        assert_eq!(TranslatorConfig::default().model, DEFAULT_GOOGLE_MODEL);
 
         let (api_type, url, rpm, model) = provider_defaults("groq");
         assert_eq!(api_type, ApiType::Groq);

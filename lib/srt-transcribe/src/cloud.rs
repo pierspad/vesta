@@ -30,11 +30,19 @@ impl CloudConfig {
     }
 }
 
-pub fn default_client() -> reqwest::Client {
+/// Builds the cloud HTTP client and returns configuration errors to the caller.
+pub fn try_default_client() -> Result<reqwest::Client, reqwest::Error> {
     reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(900))
         .build()
-        .unwrap_or_default()
+}
+
+/// Compatibility wrapper that uses reqwest defaults if timeout setup fails.
+pub fn default_client() -> reqwest::Client {
+    try_default_client().unwrap_or_else(|error| {
+        eprintln!("Warning: could not configure cloud HTTP client timeout ({error}); using reqwest defaults");
+        reqwest::Client::new()
+    })
 }
 
 fn default_base_url(provider: &str) -> &'static str {
@@ -512,6 +520,12 @@ fn truncate(s: &str, n: usize) -> &str {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn fallible_cloud_client_constructor_and_compatibility_wrapper_work() {
+        assert!(try_default_client().is_ok());
+        let _legacy_client = default_client();
+    }
 
     // Real loopback HTTP requests: validate multipart/auth/paths without keys,
     // network availability or billable inference.

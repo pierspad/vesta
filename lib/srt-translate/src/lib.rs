@@ -22,6 +22,7 @@ use tokio_util::sync::CancellationToken;
 
 pub use pool::{
     TierEntry, build_pool, build_pool_entry, provider_allows_missing_key, provider_defaults,
+    try_build_pool_entry,
 };
 pub use rate_limiter::{
     RateLimitConfig, RateLimiter, create_rate_limiter, create_rate_limiter_with_burst,

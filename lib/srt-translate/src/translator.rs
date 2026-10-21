@@ -8,6 +8,8 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::time::sleep;
 
+pub(crate) const DEFAULT_GOOGLE_MODEL: &str = "gemini-2.5-flash";
+
 use crate::prompts::{
     build_batch_translation_prompt, build_context_enhanced_translation_prompt,
     build_single_translation_prompt,
@@ -39,7 +41,7 @@ impl Default for TranslatorConfig {
     fn default() -> Self {
         Self {
             base_url: "https://generativelanguage.googleapis.com/v1beta".to_string(),
-            model: "gemini-2.0-flash".to_string(),
+            model: DEFAULT_GOOGLE_MODEL.to_string(),
             api_key: None,
             api_type: ApiType::Google,
         }
@@ -54,16 +56,34 @@ pub struct Translator {
 }
 
 impl Translator {
-    pub fn new(config: TranslatorConfig) -> Self {
+    /// Builds a translator and reports HTTP client configuration errors.
+    pub fn try_new(config: TranslatorConfig) -> Result<Self, reqwest::Error> {
         let client = reqwest::Client::builder()
             .connect_timeout(Duration::from_secs(10))
             .timeout(Duration::from_secs(120))
-            .build()
-            .unwrap_or_else(|_| reqwest::Client::new());
-        Self {
+            .build()?;
+        Ok(Self {
             config,
             client,
             diagnostics: None,
+        })
+    }
+
+    /// Builds a translator, falling back to reqwest defaults if custom timeout
+    /// configuration fails. Prefer [`Self::try_new`] when errors can be handled.
+    pub fn new(config: TranslatorConfig) -> Self {
+        match Self::try_new(config.clone()) {
+            Ok(translator) => translator,
+            Err(error) => {
+                eprintln!(
+                    "Warning: could not configure translation HTTP client timeouts ({error}); using reqwest defaults"
+                );
+                Self {
+                    config,
+                    client: reqwest::Client::new(),
+                    diagnostics: None,
+                }
+            }
         }
     }
 
@@ -695,6 +715,15 @@ fn try_legacy_parsing(text: &str, expected_count: usize) -> Option<HashMap<u32, 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn fallible_constructor_keeps_translator_configuration() {
+        let config = TranslatorConfig::default();
+        let expected_model = config.model.clone();
+        let translator = Translator::try_new(config).unwrap();
+        assert_eq!(translator.config.model, expected_model);
+        assert!(translator.diagnostics.is_none());
+    }
 
     #[test]
     fn test_parse_json_translations_clean_json() {
