@@ -30,7 +30,7 @@ opens its directory. `.apkg` opening requires an Anki file association.
 
 From the repository root, run `python3 build-scripts/quality_check.py --desktop --smoke`.
 See [architecture](../../docs/ARCHITECTURE.md), [quality gates](../../docs/QUALITY.md)
-and [the dated audit](../../docs/STABILITY_AUDIT.md) for test scope and limitations.
+and [maintenance notes](../../docs/MAINTENANCE.md) for test scope and limitations.
 
 ## Frontend workflow boundaries
 
@@ -91,7 +91,7 @@ transcription. Both show download sizes, installation progress, retry failed
 downloads while reusing installed components, and offer a first activity after
 verification. The selected local model is also written into the transcription
 tier. The app waits for durable settings before reloading into the chosen tab. See the
-[setup and installer guide](../../docs/reviews/provare-setup-e-installer-2026-10-07.md).
+[setup and installer guide](../../docs/SETUP_TESTING.md).
 
 ## Logs and updates
 

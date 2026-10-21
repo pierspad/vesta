@@ -57,7 +57,7 @@ Vendoring requires the crate's dependency closure, not only its folder:
 manifests inherit edition, Rust version and dependency definitions from the root
 workspace. Preserve those definitions or make them explicit in the receiving
 workspace. Transcription and autosync also require the root Whisper patch and
-native toolchain; see [the integration audit](../RELIABILITY_AUDIT.md#forking-and-integration).
+native toolchain; see [the library integration guide](../library-integration.md).
 
 ## Design contract
 

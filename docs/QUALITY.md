@@ -34,8 +34,10 @@ manual sync tests exercise both drift correction and rejected anchor/output rang
 inputs, a successful media-free export, and (on Unix) failed media extraction and
 SIGINT with previous TSV/media preservation. The cancellation fixture waits for
 a child-process handshake before signalling and bounds its exit wait.
-The [reliability audit](RELIABILITY_AUDIT.md) records the current boundary review
-and remaining test priorities.
+For the maintained dependency boundaries and downstream integration contract,
+see [architecture](ARCHITECTURE.md) and
+[library integration](library-integration.md). This guide is the maintained
+source for repeatable checks and release validation.
 
 ## One command
 
@@ -165,8 +167,9 @@ Mounted Svelte regressions cover App's persistent tab containers and changing
 preview close/reopen, deactivation, undo and player ownership. App tests use
 fixture tabs to verify composition; they do not run a native job. Preview tests
 use the real store with simulated IPC and media methods, so successful `play()`
-there proves wiring rather than codec support. See the
-[lifecycle review](reviews/navigation-lifecycle-2026-10-15.md).
+there proves wiring rather than codec support. Run the mounted regressions with
+`npm test` in `apps/srt-gui`; use the installed-app checks below for codec,
+WebKit/GStreamer and native-window behavior.
 
 For development CSS regressions, run `npm run test:dev-css` in `apps/srt-gui`.
 It starts temporary Vite servers on ephemeral ports, requests component CSS before
@@ -209,7 +212,8 @@ errors. Auto-sync tests use fake tools and a stub model to prove cancellation
 stops segment preparation without requiring a downloaded Whisper model.
 The audio integration also checks a real one-second FFmpeg extraction.
 Unix-only process/script tests require a Unix host; run platform and GPU release
-checks separately. See [the workspace review](reviews/rust-workspace-2026-10-09.md).
+checks separately. `cargo test --workspace` includes the wider crate and
+documentation-test coverage beyond the focused CI gate above.
 
 
 ### Opt-in real Vulkan inference
@@ -230,8 +234,19 @@ long clip for cancellation; the default is the repository's 90-second Detour
 fixture. Logs and transcripts are retained only when `--output-dir` is supplied.
 These timings are smoke diagnostics, not a release-profile performance benchmark.
 
-The [2026-10-10 release review](reviews/release-readiness-2026-10-10.md) records
-successful real RX 7800 XT inference and the cancellation error found by it.
+### Recorded hardware smoke (10 October 2026)
+
+On an AMD Radeon RX 7800 XT (RADV NAVI32, Mesa 26.2.4, Vulkan 1.4.354), the
+90-second Detour fixture completed with CPU, Vulkan, Vulkan plus cached Silero
+VAD, and CPU fallback when Vulkan devices were hidden. The Vulkan log confirmed
+`Vulkan0`; fallback output matched the explicit CPU output byte-for-byte for
+that run. Cancellation after the first decoded segment returned a nonzero exit,
+reported `Transcription cancelled`, and published no final SRT (about 0.143 s
+from signal in that run). This was an engine smoke using an installed base model,
+not an installed desktop test or a controlled performance benchmark. CPU/GPU
+transcripts differed in one proper-name phrase, so this evidence does not
+establish transcription accuracy. Reproduce the checks with the commands above.
+
 Publication now waits for the successful push CI run on the exact release commit,
 including workspace tests and strict Clippy; a missing/failed/skipped run blocks
 `semantic-release`. Manual dispatch also requires that successful push CI evidence.

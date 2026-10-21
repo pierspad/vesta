@@ -337,6 +337,8 @@ Its preview mode skips persistence, global language changes and downloads.
 After a real setup, a one-shot persisted navigation flag preserves the requested
 first activity (flashcards, transcription or subtitle extraction) across the
 reload that reconstructs the stores.
+For repeatable setup, installer and internal-update checks on installed builds,
+see [setup testing](SETUP_TESTING.md).
 
 Support logging and installer updates are desktop services, not feature engines:
 `commands/support_logs.rs` owns log files; `commands/updates.rs` chooses an official
