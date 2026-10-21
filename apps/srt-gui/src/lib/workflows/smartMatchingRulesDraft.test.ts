@@ -47,6 +47,8 @@ describe("SmartMatchingRulesDraft", () => {
     draft.value = "null";
     expect(draft.save()).toBe(false);
     expect(draft.error).toBe("Expected object");
+    draft.value = "[]";
+    expect(draft.save()).toBe(false);
     expect(saveRules).not.toHaveBeenCalled();
   });
 

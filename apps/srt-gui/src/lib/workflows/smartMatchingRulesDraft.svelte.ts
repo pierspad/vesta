@@ -1,3 +1,4 @@
+import { parseJsonWithComments } from "$lib/utils/jsonComments";
 import type { SmartMatchingRules } from "$lib/stores/smartMatchingStore.svelte";
 
 export interface SmartMatchingRulesStore {
@@ -34,17 +35,13 @@ export class SmartMatchingRulesDraft {
   }
 
   private parseDraft(): unknown {
-    const jsonWithoutComments = this.value.replace(
-      /\\"|"(?:\\"|[^\"])*"|(\/\/.*|\/\*[\s\S]*?\*\/)/g,
-      (match, comment) => comment ? "" : match,
-    );
-    return JSON.parse(jsonWithoutComments);
+    return parseJsonWithComments(this.value);
   }
 
   validate(): string | null {
     try {
       const parsed = this.parseDraft();
-      if (!parsed || typeof parsed !== "object") return this.messages.invalidObject();
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return this.messages.invalidObject();
       return null;
     } catch (error) {
       return error instanceof Error && error.message ? error.message : this.messages.invalidJson();

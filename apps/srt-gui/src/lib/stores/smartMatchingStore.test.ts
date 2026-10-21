@@ -64,3 +64,11 @@ describe("smartMatchingStore", () => {
     expect(smartMatchingStore.rules).toEqual(DEFAULT_SMART_MATCHING_RULES);
   });
 });
+
+it("normalizes partial and malformed rule fields before they reach live matching", () => {
+  smartMatchingStore.saveRules({ episodeRegexes: ["S(\\d+)", 7], originalSubtitleHints: false } as any);
+  expect(smartMatchingStore.rules.episodeRegexes).toEqual(["S(\\d+)"]);
+  expect(smartMatchingStore.rules.originalSubtitleHints).toEqual(DEFAULT_SMART_MATCHING_RULES.originalSubtitleHints);
+  expect(smartMatchingStore.rules.referenceSubtitleHints).toEqual(DEFAULT_SMART_MATCHING_RULES.referenceSubtitleHints);
+  expect(JSON.parse(storage.get("vesta-flashcards-smart-matching-rules")!)).toEqual(smartMatchingStore.rules);
+});
