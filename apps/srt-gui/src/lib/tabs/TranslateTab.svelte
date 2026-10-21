@@ -7,7 +7,7 @@
   import { guardedOpen, guardedSave } from "$lib/utils/dialogGuard";
   import { setupWebviewDragDrop } from "$lib/utils/dragDrop";
   import { createLogPanelBuffer } from "$lib/utils/logPanelBuffer.svelte";
-  import { fetch as tauriFetch } from "$lib/services/tauriHttp";
+  import { discoverManagedProviderModels } from "$lib/services/managedProviderModels";
   import { onDestroy, onMount } from "svelte";
   import { locale } from "$lib/i18n";
   import { getFileName } from "$lib/utils/models";
@@ -32,8 +32,6 @@
   import CopyPathChip from "$lib/components/CopyPathChip.svelte";
   import { uiMode } from "$lib/stores/uiModeStore.svelte";
   import {
-    extractModelsFromPayload,
-    fetchModelsFromEndpoint,
     type DiscoveredModel,
   } from "$lib/services/modelDiscovery";
   import {
@@ -162,53 +160,6 @@
   function saveLocalServerUrl(url: string) {
     localServerUrl = url;
     vestaConfig.setItem(LOCAL_SERVER_URL_KEY, url);
-  }
-
-  async function fetchModelsFromServer(baseUrl: string, force = false) {
-    // Only cache if it's for the selected custom provider, to avoid mixing URLs.
-    // For local, we don't cache since it runs locally and is fast, but we could. Let's just cache custom.
-    const cacheKey = selectedProviderFamily === "custom" && selectedCustomProviderId
-        ? `vesta-dynamic-models-custom-${selectedCustomProviderId}`
-        : null;
-
-    if (!force && cacheKey) {
-      const cached = vestaConfig.getItem(cacheKey);
-      if (cached) {
-        try {
-          const parsed = JSON.parse(cached);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            fetchedModels = parsed;
-            isFetchingModels = false;
-            fetchModelsError = "";
-            if (!selectedModel || !parsed.find((m) => m.id === selectedModel)) {
-              selectedModel = parsed[0].id;
-            }
-            return;
-          }
-        } catch (e) {}
-      }
-    }
-
-    isFetchingModels = true;
-    fetchModelsError = "";
-    fetchedModels = [];
-    try {
-      const models = await fetchModelsFromEndpoint(baseUrl);
-      fetchedModels = models;
-      if (cacheKey) {
-        vestaConfig.setItem(cacheKey, JSON.stringify(models));
-      }
-      
-      // Auto-select first model if none selected
-      if (!selectedModel || !models.find((m) => m.id === selectedModel)) {
-        selectedModel = models[0].id;
-      }
-    } catch (e: any) {
-      fetchModelsError = errorMessage(e, "Connection failed");
-      fetchedModels = [];
-    } finally {
-      isFetchingModels = false;
-    }
   }
 
   let fileInfo = $state<SrtFileInfo | null>(null);
@@ -388,82 +339,7 @@
     fetchModelsError = "";
     
     try {
-      let url = "";
-      let headers: Record<string, string> = { "Accept": "application/json" };
-      
-      if (family === "google") {
-        url = `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`;
-      } else if (family === "groq") {
-        url = "https://api.groq.com/openai/v1/models";
-        headers["Authorization"] = `Bearer ${apiKey}`;
-      }
-
-      const resp = await tauriFetch(url, { method: "GET", headers });
-      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-      
-      const responseText = await resp.text();
-      let data: unknown = null;
-      if (responseText.trim().length > 0) {
-         data = JSON.parse(responseText);
-      }
-      
-      let models = extractModelsFromPayload(data);
-      if (models.length === 0) throw new Error("No models found dynamically");
-
-      // For Google, strip 'models/' prefix from the ID, use displayName if available,
-      // and filter to only show models that support text generation (generateContent)
-      if (family === "google") {
-        if (data && typeof data === "object" && Array.isArray((data as any).models)) {
-          models = (data as any).models
-            .filter((m: any) => {
-              // Only show models that support generateContent (text generation)
-              const methods: string[] = m.supportedGenerationMethods || [];
-              return methods.includes("generateContent");
-            })
-            .map((m: any) => {
-               const id = m.name?.replace("models/", "") || m.id;
-               const name = m.displayName || id;
-               return { id, name };
-            });
-        } else {
-             models = models.map(m => {
-                 const id = m.id.replace("models/", "");
-                 return { id, name: m.name.replace("models/", "") };
-             });
-        }
-      }
-
-      if (models.length === 0) throw new Error("No usable text generation models found");
-
-      // For Google, probe each model with generateContent to check actual accessibility.
-      if (family === "google") {
-        const probeResults = await Promise.allSettled(
-          models.map(async (m) => {
-            const probeUrl = `https://generativelanguage.googleapis.com/v1beta/models/${m.id}:generateContent?key=${apiKey}`;
-            const probeResp = await tauriFetch(probeUrl, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                contents: [{ parts: [{ text: "hi" }] }],
-                generationConfig: { maxOutputTokens: 1 },
-              }),
-              timeoutMs: 8000,
-            });
-            if (!probeResp.ok) {
-              throw new Error(`HTTP ${probeResp.status}`);
-            }
-            return m;
-          })
-        );
-        const accessibleModels = probeResults
-          .filter((r): r is PromiseFulfilledResult<{ id: string; name: string }> => r.status === "fulfilled")
-          .map((r) => r.value);
-        if (accessibleModels.length > 0) {
-          models = accessibleModels;
-        }
-        // If all probes fail, keep original list as fallback
-      }
-
+      const models = await discoverManagedProviderModels(family, apiKey);
       fetchedModels = models;
       vestaConfig.setItem(cacheKey, JSON.stringify(models));
 
