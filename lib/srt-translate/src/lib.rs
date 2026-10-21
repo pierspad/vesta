@@ -673,7 +673,7 @@ where
                     match result {
                         Ok(translations) => {
                             {
-                                let mut map = translated.lock().await;
+                                let mut map = translated.clone().lock_owned().await;
                                 for (id, subtitle) in &batch_data {
                                     let mut new_sub = subtitle.clone();
                                     if let Some(tr) = translations.get(id) {
@@ -681,8 +681,7 @@ where
                                     }
                                     map.insert(*id, new_sub);
                                 }
-                                SrtParser::save_file(&output_path, &map)
-                                    .context("Failed to save translated subtitles")?;
+                                save_translation_checkpoint(output_path.clone(), map).await?;
                             }
 
                             let dur = batch_start_time.elapsed().as_secs_f64();
@@ -889,12 +888,11 @@ async fn repair_missing_tiered(
                 Ok(translation) => {
                     let mut new_sub = original.clone();
                     new_sub.text = translation;
-                    let mut map = translated.lock().await;
+                    let mut map = translated.clone().lock_owned().await;
                     map.insert(id, new_sub);
                     repaired_since_last_save += 1;
                     if repaired_since_last_save >= 10 {
-                        SrtParser::save_file(output_path, &map)
-                            .context("Failed to save repaired subtitles")?;
+                        save_translation_checkpoint(output_path.to_path_buf(), map).await?;
                         repaired_since_last_save = 0;
                     }
                     break;
@@ -919,9 +917,61 @@ async fn repair_missing_tiered(
     }
 
     if repaired_since_last_save > 0 {
-        let map = translated.lock().await;
-        SrtParser::save_file(output_path, &map).context("Failed to save repaired subtitles")?;
+        let map = translated.clone().lock_owned().await;
+        save_translation_checkpoint(output_path.to_path_buf(), map).await?;
     }
 
     Ok(())
+}
+
+// Keep checkpoint ordering and per-batch durability without blocking Tokio's
+// async workers. The owned guard also prevents overlapping writes if the
+// awaiting task is dropped while a blocking write is still finishing.
+async fn save_translation_checkpoint(
+    path: std::path::PathBuf,
+    map: tokio::sync::OwnedMutexGuard<HashMap<u32, Subtitle>>,
+) -> Result<()> {
+    tokio::task::spawn_blocking(move || {
+        SrtParser::save_file(path, &map).context("Failed to save translated subtitles")
+    })
+    .await
+    .context("Translation checkpoint worker failed")?
+}
+
+#[cfg(test)]
+mod checkpoint_tests {
+    use super::*;
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn concurrent_checkpoints_preserve_all_completed_batches() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("translated.srt");
+        let translated = Arc::new(tokio::sync::Mutex::new(HashMap::new()));
+        let mut workers = tokio::task::JoinSet::new();
+        for id in 1..=8 {
+            let translated = translated.clone();
+            let path = path.clone();
+            workers.spawn(async move {
+                let mut map = translated.lock_owned().await;
+                map.insert(
+                    id,
+                    Subtitle {
+                        id,
+                        start: srt_parser::Timestamp { milliseconds: 1000 },
+                        end: srt_parser::Timestamp { milliseconds: 2000 },
+                        text: format!("Translated {id}"),
+                    },
+                );
+                save_translation_checkpoint(path, map).await.unwrap();
+            });
+        }
+        while let Some(result) = workers.join_next().await {
+            result.unwrap();
+        }
+        let saved = SrtParser::parse_file(path).unwrap();
+        assert_eq!(saved.len(), 8);
+        for id in 1..=8 {
+            assert_eq!(saved[&id].text, format!("Translated {id}"));
+        }
+    }
 }
