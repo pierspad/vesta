@@ -308,3 +308,18 @@ selection, matching-rule JSONC parsing, grouped alignment undo, and obsolete
 subtitle-output lookups. Mounted tests cover Align shortcuts and Extract lookup
 errors. These tests preserve behavior across controller extraction; native
 webview, installer and authenticated-provider smoke checks remain separate.
+
+## Static code patterns
+
+Run `npm run check:patterns` from `apps/srt-gui`. `npm test` runs it before
+Vitest, so CI and `quality_check.py` also enforce it. It parses TypeScript and both Svelte script blocks and
+reports file, line, column and rule for async `forEach` callbacks, async Promise
+executors and debugger statements. Tests and application code are both scanned.
+Comments, string literals and component markup do not trigger these AST rules.
+
+These are narrow regression guards, not a replacement for Svelte type checking,
+strict Clippy or behavioral tests for cancellation, stale responses and persistence.
+The checker fixtures cover positive cases, safe alternatives, source offsets and
+malformed components. Add a rule only when it identifies a concrete failure mode;
+avoid blanket bans on `any`, `unwrap`, file size or duplication. Use `rg -n` for
+exploratory searches, then read the surrounding code before classifying a finding.
