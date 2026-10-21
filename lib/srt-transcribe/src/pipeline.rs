@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use tokio_util::sync::CancellationToken;
 
 use crate::audio::{convert_to_wav, read_wav_to_f32, segment_to_wav_chunks};
-use crate::cloud::{CloudConfig, transcribe_chunk};
+use crate::cloud::{CloudConfig, transcribe_chunk, try_default_client};
 use crate::transcribe::{TranscribeOptions, TranscribedSegment, transcribe_full};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -390,6 +390,21 @@ pub fn run_local(
 
 const CLOUD_CHUNK_SECONDS: i64 = 480;
 
+async fn read_chunk_cancellable<F>(
+    chunk_number: usize,
+    cancel_token: &CancellationToken,
+    read: F,
+) -> Result<Vec<u8>>
+where
+    F: std::future::Future<Output = std::io::Result<Vec<u8>>>,
+{
+    tokio::select! {
+        biased;
+        _ = cancel_token.cancelled() => anyhow::bail!("Transcription cancelled"),
+        result = read => result.with_context(|| format!("Failed to read audio chunk {chunk_number}")),
+    }
+}
+
 pub async fn run_cloud(
     config: &TranscriptionConfig,
     ffmpeg_cmd: &str,
@@ -437,7 +452,7 @@ pub async fn run_cloud(
         anyhow::bail!("Missing API key for cloud provider '{provider}'");
     }
 
-    let client = crate::cloud::default_client();
+    let client = try_default_client().context("Failed to configure cloud HTTP client")?;
 
     let total = chunks.len();
     let mut all: Vec<TranscribedSegment> = Vec::new();
@@ -459,8 +474,8 @@ pub async fn run_cloud(
             pct,
         );
 
-        let bytes = std::fs::read(chunk_path)
-            .with_context(|| format!("Failed to read audio chunk {}", idx + 1))?;
+        let bytes =
+            read_chunk_cancellable(idx + 1, cancel_token, tokio::fs::read(chunk_path)).await?;
         let offset_ms = idx as i64 * CLOUD_CHUNK_SECONDS * 1000;
 
         let segs = tokio::select! {
@@ -594,6 +609,62 @@ pub async fn transcribe_to_srt(
 #[cfg(test)]
 mod publication_tests {
     use super::*;
+
+    #[tokio::test]
+    async fn cloud_chunk_read_can_be_cancelled_while_pending() {
+        let cancel = CancellationToken::new();
+        let cancel_read = cancel.clone();
+        let cancellation = tokio::spawn(async move {
+            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+            cancel_read.cancel();
+        });
+        let pending_read = async {
+            tokio::time::sleep(std::time::Duration::from_secs(30)).await;
+            Ok(Vec::new())
+        };
+
+        let error = read_chunk_cancellable(1, &cancel, pending_read)
+            .await
+            .unwrap_err();
+        cancellation.await.unwrap();
+        assert!(error.to_string().contains("Transcription cancelled"));
+    }
+
+    #[tokio::test]
+    async fn cloud_chunk_read_errors_keep_chunk_context() {
+        let directory = tempfile::tempdir().unwrap();
+        let missing_path = directory.path().join("missing.wav");
+        let error =
+            read_chunk_cancellable(3, &CancellationToken::new(), tokio::fs::read(missing_path))
+                .await
+                .unwrap_err();
+        assert!(error.to_string().contains("Failed to read audio chunk 3"));
+    }
+
+    #[tokio::test]
+    async fn cloud_chunk_read_returns_file_contents() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("chunk.wav");
+        tokio::fs::write(&path, b"wav chunk").await.unwrap();
+
+        let bytes = read_chunk_cancellable(1, &CancellationToken::new(), tokio::fs::read(path))
+            .await
+            .unwrap();
+        assert_eq!(bytes, b"wav chunk");
+    }
+
+    #[tokio::test]
+    async fn pre_cancelled_cloud_chunk_read_does_not_read_file() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("missing.wav");
+        let cancel = CancellationToken::new();
+        cancel.cancel();
+
+        let error = read_chunk_cancellable(1, &cancel, tokio::fs::read(path))
+            .await
+            .unwrap_err();
+        assert!(error.to_string().contains("Transcription cancelled"));
+    }
 
     #[test]
     fn cancelled_publication_preserves_existing_output() {
