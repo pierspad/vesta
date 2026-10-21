@@ -58,4 +58,32 @@ fn main() {
             elapsed.as_secs_f64() * 1_000.0 / repetitions as f64,
         );
     }
+    // Simulate growing checkpoints without changing the production durability policy.
+    println!("Growing checkpoints (batch_size=100; no provider or lock contention)");
+    println!("subtitles,checkpoints,total_ms,p50_ms,p95_ms,cumulative_file_bytes");
+    for count in [1_000, 10_000, 50_000] {
+        let mut source: Vec<_> = subtitles(count).into_iter().collect();
+        source.sort_unstable_by_key(|(id, _)| *id);
+        let mut completed = HashMap::new();
+        let mut timings = Vec::new();
+        let mut cumulative_bytes = 0_u64;
+        let started = Instant::now();
+        for batch in source.chunks(100) {
+            completed.extend(batch.iter().cloned());
+            let save_started = Instant::now();
+            SrtParser::save_file(&path, &completed).expect("save growing checkpoint");
+            timings.push(save_started.elapsed().as_secs_f64() * 1_000.0);
+            cumulative_bytes += std::fs::metadata(&path).expect("stat checkpoint").len();
+        }
+        let elapsed = started.elapsed().as_secs_f64() * 1_000.0;
+        timings.sort_by(f64::total_cmp);
+        let percentile =
+            |percent: usize| timings[(timings.len() * percent).div_ceil(100).saturating_sub(1)];
+        println!(
+            "{count},{},{elapsed:.3},{:.3},{:.3},{cumulative_bytes}",
+            timings.len(),
+            percentile(50),
+            percentile(95)
+        );
+    }
 }
