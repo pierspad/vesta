@@ -15,6 +15,7 @@
     saveShortcutOverride,
     type ShortcutDefinition,
   } from "$lib/utils/shortcuts";
+  import { filterAndSortShortcuts } from "$lib/utils/shortcutSearch";
 
   let shortcuts = $state<ShortcutDefinition[]>([]);
   let editingShortcut = $state<string | null>(null);
@@ -29,30 +30,9 @@
 
 
 
-  const categoryOrder = ["global", "flashcards", "translate", "sync", "alignment", "transcribe"];
-
   let t = $derived($locale);
 
   let labels = $derived({ text: t("shortcuts.search.text"), keys: t("shortcuts.search.keys"), textPlaceholder: t("shortcuts.search.textPlaceholder"), keysPlaceholder: t("shortcuts.search.keysPlaceholder"), pressKeys: t("shortcuts.search.pressKeys") });
-
-  function fuzzyMatch(text: string, query: string): boolean {
-    if (!query) return true;
-    if (!text) return false;
-    
-    const q = query.toLowerCase().replace(/\s+/g, "");
-    const t = text.toLowerCase();
-    
-    let queryIdx = 0;
-    for (let i = 0; i < t.length; i++) {
-      if (t[i] === q[queryIdx]) {
-        queryIdx++;
-        if (queryIdx === q.length) {
-          return true;
-        }
-      }
-    }
-    return false;
-  }
 
   function toggleSearchMode() {
     searchMode = searchMode === "text" ? "keys" : "text";
@@ -151,48 +131,13 @@
     }
   });
 
-  let filteredShortcuts = $derived.by(() => {
-    let list = [...shortcuts];
-    // 1. Filter by active category
-    if (selectedCategories.length > 0) {
-      list = list.filter((s) => selectedCategories.includes(s.category));
-    }
-    // 2. Filter by search query / keys
-    if (searchMode === "text") {
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase().trim();
-        list = list.filter((s) => {
-          const desc = t(s.description);
-          const key = s.defaultKey;
-          if (desc.toLowerCase().includes(q) || key.toLowerCase().includes(q)) {
-            return true;
-          }
-          return fuzzyMatch(desc, q) || fuzzyMatch(key, q);
-        });
-      }
-    } else {
-      if (searchKeys.length > 0) {
-        list = list.filter((s) => {
-          const shortcutValue = s.defaultKey.toUpperCase();
-          const shortcutParts = shortcutValue.split("+").map((p) => p.trim());
-          const searchUpper = searchKeys.map((k) => k.toUpperCase());
-          return searchUpper.every((sk) => shortcutParts.some((sp) => sp.includes(sk)));
-        });
-      }
-    }
-    // 3. Sort by category and then alphabetically by localized description
-    list.sort((a, b) => {
-      const catA = categoryOrder.indexOf(a.category);
-      const catB = categoryOrder.indexOf(b.category);
-      if (catA !== catB) {
-        return catA - catB;
-      }
-      return t(a.description).localeCompare(t(b.description), undefined, {
-        sensitivity: "base",
-      });
-    });
-    return list;
-  });
+  let filteredShortcuts = $derived(filterAndSortShortcuts(shortcuts, {
+    categories: selectedCategories,
+    searchMode,
+    searchQuery,
+    searchKeys,
+    translate: t,
+  }));
 
   const categoryLabels: Record<string, string> = {
     global: "shortcuts.category.global",
