@@ -1018,14 +1018,18 @@ mod tests {
     async fn audio_probe_distinguishes_streams_failures_and_timeout() {
         use std::os::unix::fs::PermissionsExt;
         let directory = tempfile::tempdir().unwrap();
-        let script = directory.path().join("ffprobe");
-        let executable = script.to_str().unwrap();
-        for (body, expected) in [
+        for (index, (body, expected)) in [
             ("printf 'video\\naudio\\n'", Some(true)),
             ("printf 'video\\n'", Some(false)),
             ("printf 'notaudio\\n'", Some(false)),
             ("printf 'audio\\n'; exit 1", None),
-        ] {
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            // Each scenario gets a fresh inode; never rewrite a recently executed file.
+            let script = directory.path().join(format!("ffprobe-{index}"));
+            let executable = script.to_str().unwrap();
             std::fs::write(&script, format!("#!/bin/sh\n{body}\n")).unwrap();
             std::fs::set_permissions(&script, std::fs::Permissions::from_mode(0o700)).unwrap();
             let result = try_video_has_audio(executable, "path with spaces.mp4").await;
@@ -1035,6 +1039,8 @@ mod tests {
             }
         }
         let pid_file = directory.path().join("pid");
+        let script = directory.path().join("ffprobe-timeout");
+        let executable = script.to_str().unwrap();
         std::fs::write(
             &script,
             format!(
@@ -1043,6 +1049,7 @@ mod tests {
             ),
         )
         .unwrap();
+        std::fs::set_permissions(&script, std::fs::Permissions::from_mode(0o700)).unwrap();
         let result = probe_audio_with_timeout(
             executable,
             "video.mp4",
