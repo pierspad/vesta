@@ -83,3 +83,6 @@ docs/superpowers/
 
 # Local benchmark console captures
 /benchmark-subs2srs*.log
+
+# Vite dependency cache
+.vite/
