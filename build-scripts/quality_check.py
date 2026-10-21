@@ -13,9 +13,11 @@ def main():
     parser.add_argument('--desktop', action='store_true', help='Include native Vesta tests; requires Tauri/Vulkan build dependencies')
     parser.add_argument('--smoke', action='store_true', help='Build the CLI and validate a synthetic media/APKG export')
     args = parser.parse_args()
-    rust = ['cargo', 'test', '--workspace', '--exclude', 'whisper-bench']
+    rust = ['cargo', 'test', '--locked', '--workspace', '--exclude', 'whisper-bench']
     if not args.desktop: rust += ['--exclude', 'vesta']
-    commands = [(ROOT / 'apps/srt-gui', ['npm', 'run', 'check']),
+    commands = [(ROOT, ['python3', 'build-scripts/check_tauri_versions.py']),
+                (ROOT, ['python3', 'build-scripts/test_tauri_versions.py']),
+                (ROOT / 'apps/srt-gui', ['npm', 'run', 'check']),
                 (ROOT / 'apps/srt-gui', ['npm', 'test']),
                 (ROOT / 'apps/srt-gui', ['npm', 'run', 'test:dev-css']),
                 (ROOT / 'apps/srt-gui', ['npm', 'run', 'check:i18n']),
@@ -23,7 +25,7 @@ def main():
                 (ROOT / 'apps/srt-gui', ['npm', 'run', 'build']),
                 (ROOT, rust), (ROOT, ['bash', 'build-scripts/check_internal_crate_versions.sh'])]
     if args.smoke:
-        commands += [(ROOT, ['cargo', 'build', '-p', 'srt-flashcards-cli']),
+        commands += [(ROOT, ['cargo', 'build', '--locked', '-p', 'srt-flashcards-cli']),
                      (ROOT, ['python3', 'build-scripts/quality_smoke.py'])]
     timings = []
     for cwd, command in commands:
