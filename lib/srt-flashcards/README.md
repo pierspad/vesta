@@ -94,3 +94,7 @@ Video-clip preparation can produce a lossy intermediate and is separate from
 the original-source snapshot A/B quality guarantee.
 
 See [native benchmark results](../../docs/BENCHMARK_NATIVE.md).
+
+`FlashcardConfig::use_timings_from` is retained for configuration compatibility.
+The engine uses target subtitle timings; changing this legacy field does not
+select native timings. The GUI sends `target` and exposes no timing-source switch.
