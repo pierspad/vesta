@@ -65,9 +65,10 @@
 {#if editor.episode && editor.overrides}
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div
-    class="fixed inset-0 z-50 flex items-center justify-center bg-black/65 p-6"
+    class="fixed inset-0 z-50 flex items-center justify-center bg-black/65 p-4 backdrop-blur-sm"
     role="dialog"
     aria-modal="true"
+    aria-label={t("flashcards.perMovieSettings")}
     tabindex="-1"
     onclick={close}
     onkeydown={(e) => {
@@ -76,9 +77,15 @@
   >
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div
-      class="flex h-[min(820px,calc(100vh-48px))] w-[94vw] max-w-7xl flex-col rounded-xl border border-gray-700 bg-gray-900 shadow-2xl"
+      class="flex max-h-[calc(100dvh-32px)] w-full max-w-5xl flex-col rounded-2xl border border-white/10 bg-gray-900 shadow-2xl"
       onclick={(e) => e.stopPropagation()}
-      onkeydown={(e) => e.stopPropagation()}
+      onkeydown={(e) => {
+        e.stopPropagation();
+        if (e.key === "Escape" && !e.isComposing && !e.defaultPrevented) {
+          e.preventDefault();
+          close();
+        }
+      }}
     >
       <div class="flex items-center justify-between gap-3 border-b border-gray-700 px-5 py-4">
         <div class="min-w-0">
@@ -92,17 +99,19 @@
         <button type="button" onclick={close} class="dialog-close-button p-1 text-xl leading-none text-gray-400 hover:text-white" aria-label={t("common.close")}>×</button>
       </div>
 
-      <div class="flex-1 overflow-y-auto p-5">
+      <div class="min-h-0 overflow-y-auto p-5">
         {#if noteTypeControl}{@render noteTypeControl()}{/if}
         <div class="media-settings-panels grid items-start gap-4 lg:grid-cols-2">
           <!-- AUDIO PANEL -->
-          <div class="relative z-30 space-y-4 rounded-xl border border-gray-800 bg-gray-800/30 p-5 shadow-inner">
+          <div class="relative z-30 space-y-4 rounded-xl border border-white/10 bg-white/[0.025] p-4">
             <div class="flex items-center justify-between rounded-lg border border-cyan-500/20 bg-cyan-500/10 p-3">
               <span class="text-sm font-semibold text-cyan-200">
                 {t("flashcards.generateAudioClips")}
               </span>
               <button
                 type="button"
+                role="switch"
+                aria-checked={editor.overrides.generateAudio}
                 aria-label={t("flashcards.generateAudioClips")}
                 class="relative h-5 w-10 rounded-full transition-colors {editor.overrides.generateAudio ? 'bg-cyan-500' : 'bg-gray-600'} {mediaOverrideClass('generateAudio')}"
                 onclick={() => editor.update("generateAudio", !editor.overrides?.generateAudio)}
@@ -232,13 +241,15 @@
           </div>
           <div class="space-y-4">
           <!-- SNAPSHOT PANEL -->
-          <div class="relative z-20 space-y-4 rounded-xl border border-gray-800 bg-gray-800/30 p-5 shadow-inner {editor.episode.mediaType !== 'video' ? 'opacity-45' : ''}">
+          <div class="relative z-20 space-y-4 rounded-xl border border-white/10 bg-white/[0.025] p-4 {editor.episode.mediaType !== 'video' ? 'opacity-45' : ''}">
             <div class="flex items-center justify-between rounded-lg border border-purple-500/20 bg-purple-500/10 p-3">
               <span class="text-sm font-semibold text-purple-200">
                 {t("flashcards.generateSnapshots")}
               </span>
               <button
                 type="button"
+                role="switch"
+                aria-checked={editor.overrides.generateSnapshots && editor.episode.mediaType === "video"}
                 aria-label={t("flashcards.generateSnapshots")}
                 disabled={editor.episode.mediaType !== "video"}
                 class="relative h-5 w-10 rounded-full transition-colors {editor.overrides.generateSnapshots && editor.episode.mediaType === 'video' ? 'bg-purple-500' : 'bg-gray-600'} {mediaOverrideClass('generateSnapshots')}"
@@ -302,13 +313,15 @@
             {/if}
           </div>
           <!-- VIDEO PANEL -->
-          <div class="relative z-10 space-y-4 rounded-xl border border-gray-800 bg-gray-800/30 p-5 shadow-inner {editor.episode.mediaType !== 'video' ? 'opacity-45' : ''}">
+          <div class="relative z-10 space-y-4 rounded-xl border border-white/10 bg-white/[0.025] p-4 {editor.episode.mediaType !== 'video' ? 'opacity-45' : ''}">
             <div class="flex items-center justify-between rounded-lg border border-rose-500/20 bg-rose-500/10 p-3">
               <span class="text-sm font-semibold text-rose-200">
                 {t("flashcards.generateVideoClips")}
               </span>
               <button
                 type="button"
+                role="switch"
+                aria-checked={editor.overrides.generateVideoClips && editor.episode.mediaType === "video"}
                 aria-label={t("flashcards.generateVideoClips")}
                 disabled={editor.episode.mediaType !== "video"}
                 class="relative h-5 w-10 rounded-full transition-colors {editor.overrides.generateVideoClips && editor.episode.mediaType === 'video' ? 'bg-rose-500' : 'bg-gray-600'} {mediaOverrideClass('generateVideoClips')}"
@@ -457,7 +470,7 @@
         </div>
       </div>
 
-      <div class="flex items-center justify-between gap-3 border-t border-gray-700 px-5 py-4">
+      <div class="flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-white/10 bg-white/[0.02] px-5 py-4">
         <button type="button" onclick={onReset} class="btn-secondary px-4 py-2 text-sm">
           {t("flashcards.useGenericSettings")}
         </button>
