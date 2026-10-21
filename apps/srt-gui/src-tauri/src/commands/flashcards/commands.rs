@@ -5,7 +5,7 @@ use srt_flashcards::{
 };
 use tauri::{AppHandle, Emitter, Manager, State};
 
-use super::media::{resolve_ffmpeg_path, resolve_ffprobe_path};
+use crate::commands::media::{resolve_ffmpeg_path, resolve_ffprobe_path};
 
 async fn resolve_media_tools(app: &AppHandle) -> MediaTools {
     MediaTools {
@@ -230,7 +230,7 @@ pub struct SetupMediaStatus {
 #[tauri::command]
 pub async fn setup_media_status(app: AppHandle) -> Result<SetupMediaStatus, String> {
     let ffmpeg = resolve_ffmpeg_path(Some(&app)).await;
-    let ffprobe = super::media::resolve_ffprobe_path(Some(&app)).await;
+    let ffprobe = crate::commands::media::resolve_ffprobe_path(Some(&app)).await;
     let probe_ready = tokio::process::Command::new(&ffprobe)
         .arg("-version")
         .output()
@@ -297,7 +297,7 @@ pub async fn flashcard_download_ffmpeg(app: AppHandle) -> Result<bool, String> {
              You can install it manually and place it next to the Vesta executable."
             .to_string());
     }
-    let ffprobe = super::media::resolve_ffprobe_path(Some(&app)).await;
+    let ffprobe = crate::commands::media::resolve_ffprobe_path(Some(&app)).await;
     let probe_ready = tokio::process::Command::new(&ffprobe)
         .arg("-version")
         .output()

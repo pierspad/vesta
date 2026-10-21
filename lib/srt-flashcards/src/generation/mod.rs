@@ -150,7 +150,17 @@ pub async fn generate(
         video: video_count,
     } = counts;
 
-    let Some(published) = publish_export(&config, &matched, workspace, &cancel, progress)? else {
+    let message = if config.export_format.as_deref() == Some("apkg") {
+        "flashcards.progress.generatingApkg"
+    } else {
+        "flashcards.progress.generatingTsv"
+    };
+    emit(progress, "tsv", message, 90, 100, 90.0, HashMap::new());
+    let published =
+        tokio::task::spawn_blocking(move || publish_export(&config, &matched, workspace, &cancel))
+            .await
+            .map_err(|error| format!("Export worker failed: {error}"))??;
+    let Some(published) = published else {
         return Ok(cancelled_result(
             "Cancelled by user",
             audio_count,

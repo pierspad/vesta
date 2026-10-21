@@ -4,7 +4,6 @@ use std::{
     io::Write,
     path::PathBuf,
     sync::Mutex,
-    time::{SystemTime, UNIX_EPOCH},
 };
 use tauri::{AppHandle, Manager};
 
@@ -50,10 +49,9 @@ pub fn support_log_start(app: AppHandle) -> Result<String, String> {
         .map_err(|e| e.to_string())?
         .join("support");
     std::fs::create_dir_all(&folder).map_err(|e| e.to_string())?;
-    let timestamp = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map_err(|e| e.to_string())?
-        .as_nanos();
+    // Sortable local date/time; hyphens keep the filename valid on Windows.
+    // Nanoseconds distinguish consecutive sessions without opaque epoch identifiers.
+    let timestamp = chrono::Local::now().format("%Y-%m-%d_%H-%M-%S%.9f");
     let path = folder.join(format!("vesta-session-{timestamp}.jsonl"));
     let mut file = OpenOptions::new()
         .write(true)

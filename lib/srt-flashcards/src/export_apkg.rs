@@ -4,6 +4,7 @@ use super::export_tsv::{render_text_with_context, sanitize_filename};
 use super::media::{MediaKind, media_filename, ms_to_ffmpeg_ts, video_clip_extension};
 use super::types::*;
 mod database;
+mod dictionary;
 mod model;
 mod package;
 use database::{CollectionMetadata, NoteRecord};

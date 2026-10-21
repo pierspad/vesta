@@ -230,6 +230,9 @@ pub struct FlashcardConfig {
 
     #[serde(default)]
     pub target_language: Option<String>,
+    /// Add optional external word lookup to APKG card templates. No network at export.
+    #[serde(default = "default_true")]
+    pub dictionary_lookup: bool,
     #[serde(default = "default_true")]
     pub auto_card_font: bool,
     #[serde(default = "default_true")]
@@ -294,6 +297,7 @@ impl Default for FlashcardConfig {
             card_back_html: None,
             card_css: None,
             target_language: None,
+            dictionary_lookup: true,
             auto_card_font: true,
             embed_card_font: true,
         }

@@ -1,7 +1,8 @@
 //! Minimal helpers for reading and writing Anki `.apkg` ZIP archives.
 //!
 //! `.apkg` files are plain ZIP archives. This crate provides two functions
-//! that are shared by `srt-flashcards` and `srt-refine` to avoid duplication:
+//! used by `srt-refine` when modifying existing packages. Flashcard creation
+//! uses a separate streaming writer with an explicit media manifest:
 //!
 //! - [`unzip_to`]: extract a ZIP archive into a directory.
 //! - [`zip_from_dir`]: create a ZIP archive from the flat contents of a directory.

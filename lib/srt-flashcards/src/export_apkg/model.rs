@@ -97,20 +97,25 @@ pub(crate) fn build_collection_metadata(
         ("SequenceMarker", names[7].as_str()),
         ("Notes", names[8].as_str()),
     ];
-    let qfmt = rewrite_template_field_tokens(
+    let mut qfmt = rewrite_template_field_tokens(
         config
             .card_front_html
             .as_deref()
             .unwrap_or(ANKI_FRONT_TEMPLATE),
         &replacements,
     );
-    let afmt = rewrite_template_field_tokens(
+    let mut afmt = rewrite_template_field_tokens(
         config
             .card_back_html
             .as_deref()
             .unwrap_or(ANKI_BACK_TEMPLATE),
         &replacements,
     );
+    if config.dictionary_lookup {
+        let script = super::dictionary::lookup_script(config.target_language.as_deref());
+        qfmt.push_str(&script);
+        afmt.push_str(&script);
+    }
     let css = crate::fonts::maybe_prepend_font_vars(
         config.card_css.as_deref().unwrap_or(ANKI_CARD_STYLING),
         config,

@@ -73,7 +73,7 @@ pub async fn get_system_diagnostics(app: tauri::AppHandle) -> SystemDiagnostics 
     let gst = tokio::task::spawn_blocking(|| command_succeeds("gst-inspect-1.0", &["--version"]));
     let h264 = tokio::task::spawn_blocking(|| command_succeeds("gst-inspect-1.0", &["avdec_h264"]));
     let h265 = tokio::task::spawn_blocking(|| command_succeeds("gst-inspect-1.0", &["avdec_h265"]));
-    let ffmpeg_cmd = crate::commands::flashcards::media::resolve_ffmpeg_path(Some(&app)).await;
+    let ffmpeg_cmd = crate::commands::media::resolve_ffmpeg_path(Some(&app)).await;
     let media = async move {
         let available = srt_flashcards::media::check_ffmpeg(&ffmpeg_cmd).await;
         let encoder = if available {

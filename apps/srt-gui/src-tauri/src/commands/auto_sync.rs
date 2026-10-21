@@ -76,8 +76,8 @@ pub async fn sync_auto_sync(
     let model_path =
         srt_transcribe::model::model_file_path(&model_id).map_err(|e| e.to_string())?;
 
-    let ffmpeg_cmd = crate::commands::flashcards::media::resolve_ffmpeg_path(Some(&app)).await;
-    let ffprobe_cmd = crate::commands::flashcards::media::resolve_ffprobe_path(Some(&app)).await;
+    let ffmpeg_cmd = crate::commands::media::resolve_ffmpeg_path(Some(&app)).await;
+    let ffprobe_cmd = crate::commands::media::resolve_ffprobe_path(Some(&app)).await;
 
     let config = AutoSyncConfig {
         media_path,

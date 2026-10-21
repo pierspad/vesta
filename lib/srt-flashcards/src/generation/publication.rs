@@ -12,7 +12,6 @@ pub(super) fn publish_export(
     matched: &[MatchedLine],
     workspace: ExportWorkspace,
     cancel: &CancellationToken,
-    progress: ProgressCallback<'_>,
 ) -> Result<Option<PublishedExport>, String> {
     let ExportWorkspace {
         directory: media_workspace,
@@ -29,15 +28,6 @@ pub(super) fn publish_export(
     let mut apkg_path_result: Option<String> = None;
 
     if export_format == "apkg" {
-        emit(
-            progress,
-            "tsv",
-            "flashcards.progress.generatingApkg",
-            90,
-            100,
-            90.0,
-            HashMap::new(),
-        );
         let apkg_path = output_dir.join(format!("{}.apkg", sanitize_filename(&config.deck_name)));
         if cancel.is_cancelled() {
             return Ok(None);
@@ -45,15 +35,6 @@ pub(super) fn publish_export(
         generate_apkg(matched, config, &media_dir, &apkg_path)?;
         apkg_path_result = Some(apkg_path.to_string_lossy().to_string());
     } else {
-        emit(
-            progress,
-            "tsv",
-            "flashcards.progress.generatingTsv",
-            90,
-            100,
-            90.0,
-            HashMap::new(),
-        );
         let media_str = media_dir.to_str().unwrap_or("");
         let tsv_content = generate_tsv(matched, config, media_str, media_str, media_str);
         let tsv_path = output_dir.join(format!("{}.tsv", sanitize_filename(&config.deck_name)));

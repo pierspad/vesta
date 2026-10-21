@@ -100,22 +100,8 @@ pub fn is_cloud_provider(provider: Option<&str>) -> bool {
     )
 }
 
-#[derive(Debug, Clone)]
-pub struct RawSegment {
-    pub start_ms: i64,
-    pub end_ms: i64,
-    pub text: String,
-}
-
-impl From<TranscribedSegment> for RawSegment {
-    fn from(s: TranscribedSegment) -> Self {
-        Self {
-            start_ms: s.start_ms,
-            end_ms: s.end_ms,
-            text: s.text,
-        }
-    }
-}
+/// Compatibility name for segments before postprocessing.
+pub type RawSegment = TranscribedSegment;
 
 pub fn postprocess_segments(raw: Vec<RawSegment>, max_segment_len: u32) -> Vec<RawSegment> {
     if raw.is_empty() {
@@ -376,7 +362,7 @@ pub fn run_local(
     let (raw_segments, detected_language) =
         transcribe_full(&ctx, audio_data, &options, Some(cancel_token))?;
 
-    let raw: Vec<RawSegment> = raw_segments.into_iter().map(Into::into).collect();
+    let raw = raw_segments;
     let segments = postprocess_segments(raw, config.max_segment_length);
 
     callbacks.progress(
@@ -441,7 +427,13 @@ pub async fn run_cloud(
         translate_to_english: config.translate_to_english,
     };
 
-    if cloud_cfg.api_key.trim().is_empty() {
+    if cloud_cfg.api_key.trim().is_empty()
+        && !(["custom", "custom_whisper"].contains(&provider.as_str())
+            && cloud_cfg
+                .api_url
+                .as_deref()
+                .is_some_and(|url| !url.trim().is_empty()))
+    {
         anyhow::bail!("Missing API key for cloud provider '{provider}'");
     }
 
@@ -488,7 +480,7 @@ pub async fn run_cloud(
 
     all.sort_by_key(|s| s.start_ms);
 
-    let raw: Vec<RawSegment> = all.into_iter().map(Into::into).collect();
+    let raw = all;
     let segments = postprocess_segments(raw, config.max_segment_length);
 
     callbacks.progress("writing", "Writing SRT file...", 92.0);

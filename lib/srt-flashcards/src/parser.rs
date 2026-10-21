@@ -351,32 +351,33 @@ fn parse_vtt_block(lines: &[&str], id_counter: u32) -> Result<Option<SubEntry>> 
 }
 
 pub(crate) fn parse_vtt_timestamp(s: &str) -> Result<i64> {
-    let mut parts = s.split([':', '.']);
-    let first = parts
-        .next()
-        .ok_or_else(|| anyhow::anyhow!("Invalid VTT timestamp: {}", s))?;
-    let second = parts
-        .next()
-        .ok_or_else(|| anyhow::anyhow!("Invalid VTT timestamp: {}", s))?;
-    let third = parts
-        .next()
-        .ok_or_else(|| anyhow::anyhow!("Invalid VTT timestamp: {}", s))?;
-    let fourth = parts.next();
-
-    if let Some(fourth_part) = fourth {
-        // HH:MM:SS.mmm
-        let h: i64 = first.parse().unwrap_or(0);
-        let m: i64 = second.parse().unwrap_or(0);
-        let sec: i64 = third.parse().unwrap_or(0);
-        let ms: i64 = fourth_part.parse().unwrap_or(0);
-        Ok(h * 3_600_000 + m * 60_000 + sec * 1000 + ms)
-    } else {
-        // MM:SS.mmm
-        let m: i64 = first.parse().unwrap_or(0);
-        let sec: i64 = second.parse().unwrap_or(0);
-        let ms: i64 = third.parse().unwrap_or(0);
-        Ok(m * 60_000 + sec * 1000 + ms)
+    let invalid = || anyhow::anyhow!("Invalid VTT timestamp: {}", s);
+    let (clock, fraction) = s.split_once('.').ok_or_else(invalid)?;
+    let parts: Vec<_> = clock.split(':').collect();
+    let (hours, minutes, seconds) = match parts.as_slice() {
+        [m, sec] => ("00", *m, *sec),
+        [h, m, sec] if h.len() >= 2 => (*h, *m, *sec),
+        _ => return Err(invalid()),
+    };
+    if minutes.len() != 2
+        || seconds.len() != 2
+        || fraction.len() != 3
+        || [hours, minutes, seconds, fraction]
+            .iter()
+            .any(|part| !part.bytes().all(|c| c.is_ascii_digit()))
+    {
+        return Err(invalid());
     }
+    let h: i64 = hours.parse().map_err(|_| invalid())?;
+    let m: i64 = minutes.parse().map_err(|_| invalid())?;
+    let sec: i64 = seconds.parse().map_err(|_| invalid())?;
+    let ms: i64 = fraction.parse().map_err(|_| invalid())?;
+    if m >= 60 || sec >= 60 {
+        return Err(invalid());
+    }
+    h.checked_mul(3_600_000)
+        .and_then(|value| value.checked_add(m * 60_000 + sec * 1000 + ms))
+        .ok_or_else(invalid)
 }
 
 pub(crate) fn strip_vtt_tags(text: &str) -> String {
@@ -538,6 +539,25 @@ with a line break
             entries[1].text,
             "Second line of subtitle\nwith a line break"
         );
+    }
+
+    #[test]
+    fn rejects_malformed_vtt_timestamps() {
+        for value in [
+            "ab:12.345",
+            "00:60.000",
+            "60:00.000",
+            "-1:00.000",
+            "1:02.003",
+            "00:00.12",
+            "00:00.1234",
+            "00:00:00:000",
+            "00:00:00.000:01",
+            "999999999999999999:00:00.000",
+        ] {
+            assert!(parse_vtt_timestamp(value).is_err(), "accepted {value}");
+        }
+        assert_eq!(parse_vtt_timestamp("100:00:00.000").unwrap(), 360_000_000);
     }
 
     #[test]

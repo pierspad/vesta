@@ -1,4 +1,4 @@
-use super::flashcards::media::{resolve_ffmpeg_path, resolve_ffprobe_path};
+use super::media::{resolve_ffmpeg_path, resolve_ffprobe_path};
 use tauri::AppHandle;
 
 #[tauri::command]

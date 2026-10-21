@@ -123,9 +123,13 @@ async fn openai_compatible(
         form = form.text("language", lang.clone());
     }
 
-    let resp = client
-        .post(&endpoint)
-        .bearer_auth(&cfg.api_key)
+    let request = client.post(&endpoint);
+    let request = if cfg.api_key.trim().is_empty() {
+        request
+    } else {
+        request.bearer_auth(&cfg.api_key)
+    };
+    let resp = request
         .multipart(form)
         .send()
         .await
@@ -582,6 +586,23 @@ mod tests {
             writer.finalize().unwrap();
         }
         cursor.into_inner()
+    }
+
+    #[tokio::test]
+    async fn custom_server_without_key_omits_authorization_header() {
+        let (url, server) = mock_server(vec![(
+            200,
+            r#"{"segments":[{"start":0,"end":1,"text":"Hello"}]}"#.into(),
+        )]);
+        let mut cfg = config("custom", url, "speech-model");
+        cfg.api_key.clear();
+        let segments = transcribe_chunk(&default_client(), &cfg, wav(), "audio.wav")
+            .await
+            .unwrap();
+        assert_eq!(segments[0].text, "Hello");
+        let request = &server.join().unwrap()[0];
+        assert!(request.starts_with("POST /audio/transcriptions "));
+        assert!(!request.to_lowercase().contains("authorization:"));
     }
 
     #[tokio::test]
