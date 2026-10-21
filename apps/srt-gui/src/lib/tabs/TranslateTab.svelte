@@ -7,8 +7,8 @@
   import { guardedOpen, guardedSave } from "$lib/utils/dialogGuard";
   import { setupWebviewDragDrop } from "$lib/utils/dragDrop";
   import { createLogPanelBuffer } from "$lib/utils/logPanelBuffer.svelte";
-  import { discoverManagedProviderModels } from "$lib/services/managedProviderModels";
-  import { onDestroy, onMount } from "svelte";
+  import { ManagedModelDiscovery } from "$lib/workflows/managedModelDiscovery.svelte";
+  import { onDestroy, onMount, untrack } from "svelte";
   import { locale } from "$lib/i18n";
   import { getFileName } from "$lib/utils/models";
   import { errorMessage } from "$lib/utils/errorMessage";
@@ -31,9 +31,6 @@
   import FooterActions from "$lib/components/FooterActions.svelte";
   import CopyPathChip from "$lib/components/CopyPathChip.svelte";
   import { uiMode } from "$lib/stores/uiModeStore.svelte";
-  import {
-    type DiscoveredModel,
-  } from "$lib/services/modelDiscovery";
   import {
     buildTiersPayload as buildTiersPayloadShared,
     checkTiersAvailability as checkTiersAvailabilityShared,
@@ -153,9 +150,8 @@
   let localServerUrl = $state(vestaConfig.getItem(LOCAL_SERVER_URL_KEY) || DEFAULT_LOCAL_URL);
 
   // Dynamically fetched models from local/custom server
-  let fetchedModels = $state<DiscoveredModel[]>([]);
-  let isFetchingModels = $state(false);
-  let fetchModelsError = $state("");
+  const modelDiscovery = new ManagedModelDiscovery(vestaConfig);
+  let fetchedModels = $derived(modelDiscovery.models);
 
   function saveLocalServerUrl(url: string) {
     localServerUrl = url;
@@ -305,76 +301,11 @@
 
 
 
-  // Fetch models dynamically for managed providers (Google, Groq)
-  async function fetchProviderModels(family: string, force = false) {
-    if (family !== "google" && family !== "groq") return;
-    
-    // Find the right API key
-    const currentKeys = apiKeys.filter((k) => k.apiType === family && k.apiKey && k.apiKey.trim());
-    if (currentKeys.length === 0) return;
-    const apiKey = currentKeys[0].apiKey.trim();
-
-    // Cache key based on family and a short hash/prefix of the API key to detect changes
-    const cacheKey = `vesta-dynamic-models-${family}-${apiKey.substring(0, 8)}`;
-
-    if (!force) {
-      const cached = vestaConfig.getItem(cacheKey);
-      if (cached) {
-        try {
-          const parsed = JSON.parse(cached);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            fetchedModels = parsed;
-            isFetchingModels = false;
-            fetchModelsError = "";
-            if (!selectedModel || !parsed.find((m) => m.id === selectedModel)) {
-              selectedModel = parsed[0].id;
-            }
-            return;
-          }
-        } catch (e) {}
-      }
-    }
-
-    isFetchingModels = true;
-    fetchModelsError = "";
-    
-    try {
-      const models = await discoverManagedProviderModels(family, apiKey);
-      fetchedModels = models;
-      vestaConfig.setItem(cacheKey, JSON.stringify(models));
-
-      // Auto-select first model if current one is not in the list
-      if (!selectedModel || !models.find((m) => m.id === selectedModel)) {
-        selectedModel = models[0].id;
-      }
-    } catch (e: any) {
-      console.warn(`Failed to fetch dynamic models for ${family}:`, e?.message);
-      // We gracefully swallow errors and naturally fall back to hardcoded models (as fetchedModels remains [])
-    } finally {
-      isFetchingModels = false;
-    }
-  }
-
-  // Auto-fetch provider models upon selection logic
+  // Discovery is scoped to provider/key identity; state changes cannot trigger retry loops.
   $effect(() => {
-    if (providerConfirmed && (selectedProviderFamily === "google" || selectedProviderFamily === "groq")) {
-      // Only trigger if we haven't fetched them yet to avoid loops
-      if (fetchedModels.length === 0 && !isFetchingModels) {
-        fetchProviderModels(selectedProviderFamily);
-      }
-    }
-  });
-
-  // Reset fetched models when switching away from the current provider
-  $effect(() => {
-    // Only reset if it's changing, avoid resetting immediately after we fetch
-    if (!providerConfirmed) {
-      fetchedModels = [];
-      fetchModelsError = "";
-    } else if (selectedProviderFamily !== "local" && selectedProviderFamily !== "custom" && selectedProviderFamily !== "google" && selectedProviderFamily !== "groq") {
-      fetchedModels = [];
-      fetchModelsError = "";
-    }
+    const family = providerConfirmed ? selectedProviderFamily : "";
+    const key = apiKeys.find(key => key.apiType === family && key.apiKey?.trim())?.apiKey.trim() || "";
+    untrack(() => { void modelDiscovery.load(family, key); });
   });
 
   let hasValidKey = $derived.by(() => {
@@ -436,8 +367,6 @@
     selectedCustomProviderId = loadStoredValue(DEFAULT_LLM_CUSTOM_PROVIDER_KEY) || selectedCustomProviderId;
     localServerUrl = vestaConfig.getItem(LOCAL_SERVER_URL_KEY) || DEFAULT_LOCAL_URL;
     providerConfirmed = true;
-    fetchedModels = [];
-    fetchModelsError = "";
   }
 
   $effect(() => {
@@ -484,6 +413,7 @@
     return () => {
       activeListener = false;
       disposed = true;
+      modelDiscovery.dispose();
       requirements.clear();
       translationOperation.dispose();
       fileRequests.invalidate();
