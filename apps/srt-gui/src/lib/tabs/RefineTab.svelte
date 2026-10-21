@@ -32,6 +32,7 @@
   import FooterActions from "$lib/components/FooterActions.svelte";
   import Card from "$lib/components/Card.svelte";
   import SectionHeader from "$lib/components/SectionHeader.svelte";
+  import { createRefineCardSearch } from "$lib/workflows/refineCardSearch";
 
   interface Props {
     active?: boolean;
@@ -130,49 +131,14 @@
   let useTiers = $derived(tiersHaveUsableEntries(tiers));
   let tierCounts = $derived(countTiersAndEndpoints(tiers));
 
-  const htmlStripCache = new Map<string, string>();
-  function stripHtml(text: string): string {
-    if (!text) return "";
-    let stripped = htmlStripCache.get(text);
-    if (stripped === undefined) {
-      stripped = text.replace(/<[^>]*>/g, "");
-      htmlStripCache.set(text, stripped);
-    }
-    return stripped;
-  }
-
-  interface CardPlainText {
-    expression: string;
-    meaning: string;
-  }
-
-  let cardPlainTexts = $derived(
-    new Map<string, CardPlainText>(
-      cards.map((card) => [
-        card.id,
-        {
-          expression: stripHtml(card.expression),
-          meaning: stripHtml(card.meaning),
-        },
-      ])
-    )
-  );
-
-  let cardIndices = $derived(new Map(cards.map((card, index) => [card.id, index])));
+  const refineCardSearch = createRefineCardSearch<RefineCard>();
+  let cardSearchIndex = $derived(refineCardSearch.index(cards));
+  let cardPlainTexts = $derived(cardSearchIndex.plainTexts);
+  let cardIndices = $derived(cardSearchIndex.indices);
   let normalizedSearch = $derived(searchQuery.trim().toLowerCase());
-  let filteredCards = $derived.by(() => {
-    if (!normalizedSearch) return cards;
-    return cards.filter((c) => {
-      const plain = cardPlainTexts.get(c.id);
-      const expr = plain ? plain.expression.toLowerCase() : c.expression.toLowerCase();
-      const mean = plain ? plain.meaning.toLowerCase() : c.meaning.toLowerCase();
-      return (
-        expr.includes(normalizedSearch) ||
-        mean.includes(normalizedSearch) ||
-        c.notes.toLowerCase().includes(normalizedSearch)
-      );
-    });
-  });
+  let filteredCards = $derived(
+    refineCardSearch.filter(cards, cardPlainTexts, searchQuery),
+  );
 
   const CARD_ITEM_HEIGHT = 88;
   const CARD_ITEM_GAP = 6;
