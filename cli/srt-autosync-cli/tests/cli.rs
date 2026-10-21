@@ -1,6 +1,18 @@
 use std::process::Command;
 
 #[test]
+fn help_explains_on_demand_model_and_external_tool_requirements() {
+    let output = Command::new(env!("CARGO_BIN_EXE_srt-autosync"))
+        .arg("--help")
+        .output()
+        .unwrap();
+    assert!(output.status.success());
+    let help = String::from_utf8_lossy(&output.stdout);
+    assert!(help.contains("downloaded on demand"));
+    assert!(help.contains("ffmpeg and ffprobe must be installed"));
+}
+
+#[test]
 fn missing_subtitle_fails_without_touching_output_or_downloading_a_model() {
     let dir = tempfile::tempdir().unwrap();
     let input = dir.path().join("missing.srt");

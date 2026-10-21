@@ -1,6 +1,84 @@
 use std::process::Command;
 
 #[test]
+fn run_help_explains_cloud_requirements_and_local_only_options() {
+    let help = Command::new(env!("CARGO_BIN_EXE_srt-transcribe"))
+        .args(["run", "--help"])
+        .output()
+        .unwrap();
+    assert!(help.status.success());
+    let text = String::from_utf8_lossy(&help.stdout);
+    assert!(text.contains("required for --provider custom"));
+    assert!(text.contains("word-timestamps"));
+    assert!(text.contains("--no-gpu"));
+    assert!(text.contains("local provider only"));
+}
+
+#[test]
+fn cloud_argument_errors_are_reported_before_media_processing() {
+    let missing_url = Command::new(env!("CARGO_BIN_EXE_srt-transcribe"))
+        .args([
+            "run",
+            "missing.wav",
+            "--output",
+            "out.srt",
+            "--provider",
+            "custom",
+        ])
+        .output()
+        .unwrap();
+    assert_eq!(missing_url.status.code(), Some(1));
+    assert!(String::from_utf8_lossy(&missing_url.stderr).contains("--api-url is required"));
+
+    let local_only = Command::new(env!("CARGO_BIN_EXE_srt-transcribe"))
+        .args([
+            "run",
+            "missing.wav",
+            "--output",
+            "out.srt",
+            "--provider",
+            "groq",
+            "--api-key",
+            "key",
+            "--word-timestamps",
+        ])
+        .output()
+        .unwrap();
+    assert_eq!(local_only.status.code(), Some(1));
+    assert!(
+        String::from_utf8_lossy(&local_only.stderr)
+            .contains("--word-timestamps, --quality, --vad, and --no-gpu")
+    );
+}
+
+#[test]
+fn json_mode_keeps_validation_failures_on_stdout_as_terminal_records() {
+    for (provider_args, message) in [
+        (vec!["--provider", "custom"], "--api-url is required"),
+        (vec!["--provider", "groq"], "--api-key is required"),
+    ] {
+        let result = Command::new(env!("CARGO_BIN_EXE_srt-transcribe"))
+            .args(["run", "missing.wav", "--output", "out.srt"])
+            .args(provider_args)
+            .arg("--json")
+            .output()
+            .unwrap();
+        assert_eq!(result.status.code(), Some(1));
+        assert!(result.stderr.is_empty());
+        let lines: Vec<_> = String::from_utf8(result.stdout)
+            .unwrap()
+            .lines()
+            .map(str::to_owned)
+            .collect();
+        assert_eq!(lines.len(), 1);
+        let terminal: serde_json::Value = serde_json::from_str(&lines[0]).unwrap();
+        assert_eq!(terminal["ok"], false);
+        assert_eq!(terminal["cancelled"], false);
+        assert!(terminal["error"].as_str().unwrap().contains(message));
+    }
+}
+
+#[test]
 fn json_failure_is_one_machine_readable_line_and_nonzero() {
     let dir = tempfile::tempdir().unwrap();
     let input = dir.path().join("missing.wav");

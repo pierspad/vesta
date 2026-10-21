@@ -6,7 +6,8 @@ use vesta_mcp::{Paths, VestaMcp};
 #[derive(Parser)]
 #[command(
     version,
-    about = "Local MCP server for Vesta (stdio, no GUI or listening port)"
+    about = "Local MCP server for Vesta (stdio, no GUI or listening port)",
+    after_help = "Example:\n  vesta-mcp --read-root /absolute/path/to/media --output-root /absolute/path/to/exports\n\nBoth roots must already exist. Repeat --read-root for more input directories.\nStart this command from an MCP client: stdin/stdout carry protocol messages, not an interactive prompt.\nTools cover subtitle inspection, previews and cancellable flashcard exports; translation/transcription are not exposed.\nUse vesta-cli <operation> --help for terminal workflows."
 )]
 struct Args {
     /// Existing input directory; repeat to allow more directories.

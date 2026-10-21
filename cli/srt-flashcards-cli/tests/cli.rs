@@ -7,6 +7,25 @@ fn run(args: &[&str]) -> std::process::Output {
         .unwrap()
 }
 
+#[test]
+fn each_leaf_help_explains_usage_and_preview_boundaries() {
+    for (command, expected) in [
+        (
+            "generate",
+            "A media source is needed only for enabled media outputs",
+        ),
+        ("info", "srt-flashcards info subtitles.srt"),
+        ("preview", "never creates the required --output directory"),
+    ] {
+        let output = run(&[command, "--help"]);
+        assert!(output.status.success());
+        assert!(
+            String::from_utf8_lossy(&output.stdout).contains(expected),
+            "{command} help missing {expected}"
+        );
+    }
+}
+
 fn subtitles(path: &std::path::Path) {
     std::fs::write(
         path,

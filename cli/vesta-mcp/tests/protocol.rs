@@ -80,4 +80,7 @@ fn help_explains_directory_boundaries() {
     let help = String::from_utf8_lossy(&output.stdout);
     assert!(help.contains("--read-root"));
     assert!(help.contains("--output-root"));
+    assert!(help.contains("Both roots must already exist"));
+    assert!(help.contains("not an interactive prompt"));
+    assert!(help.contains("vesta-cli <operation> --help"));
 }

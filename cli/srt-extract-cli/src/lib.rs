@@ -13,8 +13,11 @@ use std::path::PathBuf;
 #[derive(Parser)]
 #[command(name = "srt-extract")]
 #[command(about = "Extract data from SRT files", long_about = None)]
+#[command(
+    after_help = "Examples:\n  srt-extract -i subtitles.srt --format summary\n  srt-extract -i movie.mkv --list-tracks\n  srt-extract -i movie.mkv --track 2 -o subtitles.srt\n\nEmbedded-track listing and extraction require ffprobe; extraction also requires ffmpeg. --track requires --output and cannot be combined with --list-tracks. --format applies only to SRT input. Output must be a different file from input."
+)]
 struct Cli {
-    /// Path to the SRT file to read
+    /// SRT file to read, or media container when using --list-tracks/--track
     #[arg(short, long)]
     input: PathBuf,
 
@@ -35,7 +38,7 @@ struct Cli {
     ffprobe: String,
 
     /// Output format: json, debug, summary, stats
-    #[arg(short, long, default_value = "debug", value_parser = ["json", "debug", "summary", "stats"], ignore_case = true)]
+    #[arg(short, long, default_value = "debug", value_parser = ["json", "debug", "summary", "stats"], ignore_case = true, conflicts_with_all = ["list_tracks", "track"])]
     format: String,
 
     /// Output file (optional, otherwise prints to stdout)

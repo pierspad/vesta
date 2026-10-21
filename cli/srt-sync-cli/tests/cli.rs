@@ -9,6 +9,15 @@ fn run(args: &[&str]) -> std::process::Output {
 }
 
 #[test]
+fn help_explains_repeated_anchor_syntax_and_ordering() {
+    let output = run(&["--help"]);
+    assert!(output.status.success());
+    let help = String::from_utf8_lossy(&output.stdout);
+    assert!(help.contains("--anchor SUBTITLE_ID:CORRECTED_MS"));
+    assert!(help.contains("must increase with source time"));
+}
+
+#[test]
 fn retimes_with_the_shared_engine_and_keeps_stdout_clean() {
     let dir = tempfile::tempdir().unwrap();
     let input = dir.path().join("input.srt");

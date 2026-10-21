@@ -10,6 +10,30 @@ fn run(args: &[&str]) -> std::process::Output {
         .unwrap()
 }
 
+#[test]
+fn enrich_help_documents_the_json_contract_and_output_conversions() {
+    let output = run(&["enrich", "--help"]);
+    assert!(output.status.success());
+    let help = String::from_utf8_lossy(&output.stdout);
+    for detail in [
+        "non-empty `prompt`",
+        "batch_size` defaults to 8",
+        "YOUR_API_KEY",
+        "APKG to APKG",
+    ] {
+        assert!(help.contains(detail), "missing {detail} in help:\n{help}");
+    }
+}
+
+#[test]
+fn inspect_help_shows_a_no_provider_example() {
+    let output = run(&["inspect", "--help"]);
+    assert!(output.status.success());
+    let help = String::from_utf8_lossy(&output.stdout);
+    assert!(help.contains("srt-refine inspect --input deck.apkg"));
+    assert!(help.contains("without contacting any provider"));
+}
+
 fn deck(dir: &std::path::Path) -> std::path::PathBuf {
     let path = dir.join("deck.tsv");
     std::fs::write(
