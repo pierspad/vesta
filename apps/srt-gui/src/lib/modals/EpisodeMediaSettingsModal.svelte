@@ -1,14 +1,12 @@
 <script lang="ts">
   import type { Snippet } from "svelte";
   import { onDestroy } from "svelte";
-  import { LatestRequest } from "$lib/utils/asyncControl.svelte";
-  const audioRequests = new LatestRequest();
+  import { AudioPreview } from "$lib/services/audioPreview.svelte";
   import { locale } from "$lib/i18n";
   import SearchableSelect from "$lib/components/SearchableSelect.svelte";
   import { formatAudioTrackLabel, type EpisodeMediaOverrideKey } from "$lib/types/flashcardMediaTypes";
   import { episodeMediaEditorStore as editor } from "$lib/stores/episodeMediaEditorStore.svelte";
   import { getFileName } from "$lib/utils/models";
-  import { invokeCommand as invoke } from "$lib/services/tauriClient";
   import { generationStore } from "$lib/stores/generationStore.svelte";
   import { snackbar } from "$lib/stores/snackbarStore.svelte";
 
@@ -24,82 +22,42 @@
 
   let t = $derived($locale);
 
-  let isPreviewLoading = $state(false);
-  let isPreviewPlaying = $state(false);
+  const audioPreview = new AudioPreview(error => snackbar.show(error === undefined ? t("flashcards.previewAudioError") : String(error), "error"));
+  let isPreviewLoading = $derived(audioPreview.loading);
+  let isPreviewPlaying = $derived(audioPreview.playing);
   let previewExpanded = $state(false);
-  let audioPlayer: HTMLAudioElement | null = null;
 
   async function toggleEpisodeAudioPreview() {
-    if (isPreviewPlaying && audioPlayer) {
-      audioPlayer.pause();
-      isPreviewPlaying = false;
+    if (isPreviewPlaying) {
+      stopAudio();
       return;
     }
-
     if (isPreviewLoading || !editor.episode?.mediaPath || !editor.overrides) return;
-    const request = audioRequests.begin();
     const episode = editor.episode;
     const settings = $state.snapshot(editor.overrides);
-
-    isPreviewLoading = true;
-    try {
-      const args = {
-        mediaPath: episode.mediaPath,
-        subPath: episode.targetSubsPath || null,
-        startMs: null,
-        endMs: null,
-        audioTrackIndex: settings.audioTrackIndex,
-        padStartMs: settings.audioPadStart,
-        padEndMs: settings.audioPadEnd,
-        format: settings.audioFormat || "mp3",
-        normalize: settings.normalizeAudio ?? true,
-        boost: settings.audioBoost ?? false,
-        gainDb: settings.audioGainDb ?? 0,
-        bitrate: settings.audioBitrate || 128,
-      };
-      const [port, token] = await invoke<[number, string]>("get_media_server_info");
-      if (!request.isCurrent()) return;
-      const previewFilePath = await invoke<string>("flashcard_preview_audio", args);
-      if (!request.isCurrent() || editor.episode !== episode) return;
-
-      const audioUrl = `http://127.0.0.1:${port}/media?path=${encodeURIComponent(previewFilePath)}&token=${token}&_t=${Date.now()}`;
-      if (!audioPlayer) {
-        audioPlayer = new Audio();
-        audioPlayer.onended = () => {
-          isPreviewPlaying = false;
-        };
-        audioPlayer.onerror = () => {
-          isPreviewPlaying = false;
-          snackbar.show(t("flashcards.previewAudioError"), "error");
-        };
-      }
-      audioPlayer.src = audioUrl;
-      await audioPlayer.play();
-      if (request.isCurrent()) isPreviewPlaying = true;
-    } catch (e: any) {
-      if (!request.isCurrent()) return;
-      console.error("Episode audio preview failed:", e);
-      snackbar.show(String(e), "error");
-    } finally {
-      if (request.isCurrent()) isPreviewLoading = false;
-    }
+    const args = {
+      mediaPath: episode.mediaPath,
+      subPath: episode.targetSubsPath || null,
+      startMs: null,
+      endMs: null,
+      audioTrackIndex: settings.audioTrackIndex,
+      padStartMs: settings.audioPadStart,
+      padEndMs: settings.audioPadEnd,
+      format: settings.audioFormat || "mp3",
+      normalize: settings.normalizeAudio ?? true,
+      boost: settings.audioBoost ?? false,
+      gainDb: settings.audioGainDb ?? 0,
+      bitrate: settings.audioBitrate || 128,
+    };
+    await audioPreview.play(args, () => editor.episode === episode);
   }
 
-  function stopAudio() {
-    audioRequests.invalidate();
-    audioPlayer?.pause();
-    isPreviewPlaying = false;
-    isPreviewLoading = false;
-  }
+  function stopAudio() { audioPreview.stop(); }
   onDestroy(stopAudio);
   $effect(() => { editor.episode; return stopAudio; });
 
   function close() {
     stopAudio();
-    if (audioPlayer) {
-      audioPlayer.pause();
-      isPreviewPlaying = false;
-    }
     editor.close();
   }
 </script>

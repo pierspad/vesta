@@ -2,7 +2,7 @@
   import * as vestaConfig from "$lib/config/vestaConfig";
   import { onDestroy, tick } from "svelte";
   import { LatestRequest } from "$lib/utils/asyncControl.svelte";
-  const audioRequests = new LatestRequest();
+  import { AudioPreview } from "$lib/services/audioPreview.svelte";
   const snapshotRequests = new LatestRequest();
   const subtitleRequests = new LatestRequest();
   import { locale } from "$lib/i18n";
@@ -105,7 +105,8 @@
     activeEpisode ? activeEpisode.targetSubsPath || activeEpisode.nativeSubsPath : firstEpisodeSubsPath || ""
   );
 
-  let isPreviewPlaying = $state(false);
+  const audioPreview = new AudioPreview(error => snackbar.show(errorMessage(error, t("flashcards.previewAudioError")), "error", 2500));
+  let isPreviewPlaying = $derived(audioPreview.playing);
   let previewExpanded = $state(vestaConfig.getItem("vesta-audio-preview-expanded") !== "false");
   $effect(() => {
     vestaConfig.setItem("vesta-audio-preview-expanded", String(previewExpanded));
@@ -123,8 +124,7 @@
       previewTimeSec = Math.min(previewTimeSec, Math.max(0, duration - 0.1));
     }).catch((error) => console.error("Failed to read media duration", error)) : Promise.resolve();
   });
-  let isPreviewLoading = $state(false);
-  let audioPlayer: HTMLAudioElement | null = null;
+  let isPreviewLoading = $derived(audioPreview.loading);
 
   let subEntries = $state<SubtitleEntry[]>([]);
   let currentSubIndex = $state(0);
@@ -319,71 +319,35 @@
       return;
     }
 
-    const request = audioRequests.begin();
-    audioPlayer?.pause();
-    isPreviewPlaying = false;
-    isPreviewLoading = true;
-    try {
-      let startMs: number | null = null;
-      let endMs: number | null = null;
+    let startMs: number | null = null;
+    let endMs: number | null = null;
 
-      if (subEntries.length > 0 && subEntries[currentSubIndex]) {
-        startMs = subEntries[currentSubIndex].start_ms;
-        endMs = subEntries[currentSubIndex].end_ms;
-      } else {
-        startMs = previewTimeSec * 1000;
-        endMs = Math.min(previewTimeSec + 4, maxDurationSec) * 1000;
-      }
-
-      const args = {
-        mediaPath: media,
-        subPath: currentSubsPath || null,
-        startMs,
-        endMs,
-        audioTrackIndex: effectiveTrackIndex,
-        padStartMs: settings.audioPadStart,
-        padEndMs: settings.audioPadEnd,
-        format: settings.audioFormat,
-        normalize: effectiveNormalize,
-        boost: effectiveBoost,
-        gainDb: effectiveGainDb,
-        bitrate: settings.audioBitrate,
-      };
-      const [port, token] = await invoke<[number, string]>("get_media_server_info");
-      if (!request.isCurrent()) return;
-      const previewFilePath = await invoke<string>("flashcard_preview_audio", args);
-      if (!request.isCurrent() || media !== currentMediaPath) return;
-
-      const audioUrl = `http://127.0.0.1:${port}/media?path=${encodeURIComponent(previewFilePath)}&token=${token}&_t=${Date.now()}`;
-      if (!audioPlayer) {
-        audioPlayer = new Audio();
-        audioPlayer.onended = () => {
-          isPreviewPlaying = false;
-        };
-        audioPlayer.onerror = () => {
-          isPreviewPlaying = false;
-          snackbar.show(t("flashcards.previewAudioError"), "error");
-        };
-      }
-      audioPlayer.src = audioUrl;
-      await audioPlayer.play();
-      if (request.isCurrent()) isPreviewPlaying = true;
-    } catch (e: any) {
-      if (!request.isCurrent()) return;
-      console.error("Audio preview failed:", e);
-      snackbar.show(errorMessage(e, t("flashcards.previewAudioError")), "error", 2500);
-      isPreviewPlaying = false;
-    } finally {
-      if (request.isCurrent()) isPreviewLoading = false;
+    if (subEntries.length > 0 && subEntries[currentSubIndex]) {
+      startMs = subEntries[currentSubIndex].start_ms;
+      endMs = subEntries[currentSubIndex].end_ms;
+    } else {
+      startMs = previewTimeSec * 1000;
+      endMs = Math.min(previewTimeSec + 4, maxDurationSec) * 1000;
     }
+
+    const args = {
+      mediaPath: media,
+      subPath: currentSubsPath || null,
+      startMs,
+      endMs,
+      audioTrackIndex: effectiveTrackIndex,
+      padStartMs: settings.audioPadStart,
+      padEndMs: settings.audioPadEnd,
+      format: settings.audioFormat,
+      normalize: effectiveNormalize,
+      boost: effectiveBoost,
+      gainDb: effectiveGainDb,
+      bitrate: settings.audioBitrate,
+    };
+    await audioPreview.play(args, () => media === currentMediaPath && settings.generateAudio);
   }
 
-  function stopAudioPreview() {
-    audioRequests.invalidate();
-    audioPlayer?.pause();
-    isPreviewPlaying = false;
-    isPreviewLoading = false;
-  }
+  function stopAudioPreview() { audioPreview.stop(); }
 
   onDestroy(() => { durationRequests.invalidate(); stopAudioPreview(); snapshotRequests.invalidate(); subtitleRequests.invalidate(); });
 
@@ -392,19 +356,12 @@
   });
 
   function toggleAudioPreview() {
-    if (isPreviewPlaying && audioPlayer) {
+    if (isPreviewPlaying) {
       stopAudioPreview();
     } else {
       playPreview();
     }
   }
-
-  onDestroy(() => {
-    if (audioPlayer) {
-      audioPlayer.pause();
-      audioPlayer.src = "";
-    }
-  });
 
   let bitrateOptions = $derived(
     bitratesFor(settings.audioFormat).map((b) => ({ value: String(b), label: `${b} kb/s` })),
@@ -591,10 +548,7 @@
             onchange={(v) => {
               previewRequest++;
               selectedEpisodeIdx = parseInt(v);
-              if (isPreviewPlaying && audioPlayer) {
-                audioPlayer.pause();
-                isPreviewPlaying = false;
-              }
+              stopAudioPreview();
             }}
           />
         </div>
