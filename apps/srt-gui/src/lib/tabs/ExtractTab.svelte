@@ -71,13 +71,14 @@
     }
   }
   async function chooseOutput() {
-    if (busy || downloadingIndex !== null) return;
+    if (disposed || busy || downloadingIndex !== null) return;
     busy = true;
     try {
       const selected = await guardedOpen({ directory: true, multiple: false, defaultPath: outputDir || undefined });
+      if (disposed) return;
       if (typeof selected === "string") { outputDir = selected; downloaded = []; await refreshDownloaded(); }
-    } catch (e) { error = errorMessage(e); }
-    finally { busy = false; }
+    } catch (e) { if (!disposed) error = errorMessage(e); }
+    finally { if (!disposed) busy = false; }
   }
   function selectPreview() {
     const group = previewGroups.find(group => group.tracks.some(track => track.index === previewTrack?.index));
@@ -121,18 +122,18 @@
   let downloadingIndex = $state<number | null>(null);
   let error = $state("");
   async function chooseMedia() {
-    if (busy || downloadingIndex !== null) return;
+    if (disposed || busy || downloadingIndex !== null) return;
     busy = true; error = "";
     try {
       const selected = await guardedOpen({ multiple: false, filters: [{ name: t("extract.media"), extensions: ["mkv", "mp4", "m4v", "avi", "mov", "webm", "ts"] }] });
-      if (typeof selected !== "string") return;
+      if (disposed || typeof selected !== "string") return;
       await loadMedia(selected, true);
     }
-    catch (e) { error = errorMessage(e); }
-    finally { busy = false; }
+    catch (e) { if (!disposed) error = errorMessage(e); }
+    finally { if (!disposed) busy = false; }
   }
   async function loadMedia(selected: string, fromPicker = false) {
-    if ((!fromPicker && busy) || downloadingIndex !== null) return;
+    if (disposed || (!fromPicker && busy) || downloadingIndex !== null) return;
     busy = true; error = ""; isDraggingOver = false;
     closePreview(); selections = {}; downloaded = []; path = selected; tracks = []; tracksScanned = false; search = ""; page = 0;
     try {
@@ -141,21 +142,28 @@
       tracks = loadedTracks;
       tracksScanned = true;
       await refreshDownloaded();
-    } catch (e) { error = errorMessage(e); }
-    finally { busy = false; }
+    } catch (e) { if (!disposed) error = errorMessage(e); }
+    finally { if (!disposed) busy = false; }
   }
   async function extract(track: Track) {
-    if (busy || downloadingIndex !== null) return;
+    if (disposed || busy || downloadingIndex !== null) return;
     error = "";
     downloadingIndex = track.index;
     try {
-      if (!outputDir) outputDir = await defaultOutputDirectory();
+      if (!outputDir) {
+        const directory = await defaultOutputDirectory();
+        if (disposed) return;
+        outputDir = directory;
+      }
       const outputPath = await join(outputDir, subtitleOutputName(path, track));
+      if (disposed) return;
       await invoke("extract_embedded_subtitle", { path, index: track.index, outputPath });
+      if (disposed) return;
       await refreshDownloaded();
+      if (disposed) return;
       snackbar.show(`${t("extract.saved")} ${outputPath}`, "success");
-    } catch (e) { error = errorMessage(e); snackbar.show(error, "error"); }
-    finally { downloadingIndex = null; }
+    } catch (e) { if (!disposed) { error = errorMessage(e); snackbar.show(error, "error"); } }
+    finally { if (!disposed) downloadingIndex = null; }
   }
 
 </script>

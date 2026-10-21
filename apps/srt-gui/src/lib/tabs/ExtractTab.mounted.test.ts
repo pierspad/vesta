@@ -2,7 +2,8 @@
 import { afterEach, expect, it, vi } from "vitest";
 import { mount, tick, unmount } from "svelte";
 import ExtractTab from "./ExtractTab.svelte";
-const mocks = vi.hoisted(() => ({ invoke: vi.fn(), drop: null as null | ((paths: string[]) => void) }));
+const mocks = vi.hoisted(() => ({ invoke: vi.fn(), notify: vi.fn(), drop: null as null | ((paths: string[]) => void) }));
+vi.mock("$lib/stores/snackbarStore.svelte", () => ({ snackbar: { show: mocks.notify } }));
 vi.mock("$lib/services/tauriClient", () => ({ invokeCommand: mocks.invoke }));
 vi.mock("$lib/utils/defaultOutputDirectory", () => ({ defaultOutputDirectory: vi.fn().mockResolvedValue("/out") }));
 vi.mock("$lib/utils/dialogGuard", () => ({ guardedOpen: vi.fn() }));
@@ -41,4 +42,22 @@ it("still displays current lookup errors", async () => {
   mocks.invoke.mockRejectedValueOnce(new Error("current lookup failure"));
   window.dispatchEvent(new Event("focus")); await settle();
   expect(target.textContent).toContain("current lookup failure");
+});
+
+it("does not notify when an in-flight extraction fails after unmount", async () => {
+  const target = await render();
+  const track = { index: 0, codec: "srt", language: "en", title: "English", text_based: true };
+  let reject!: (error: unknown) => void;
+  mocks.invoke.mockImplementation((command: string) => {
+    if (command === "embedded_subtitle_tracks") return Promise.resolve([track]);
+    if (command === "extract_embedded_subtitle") return new Promise((_, fail) => { reject = fail; });
+    return Promise.resolve([]);
+  });
+  mocks.drop!(["/with-subtitle.mkv"]); await settle();
+  const download = target.querySelector<HTMLButtonElement>('button[aria-busy="false"]');
+  expect(download).not.toBeNull(); download!.click(); await settle();
+  expect(reject).toBeTypeOf("function");
+  await unmount(mounted.pop()!);
+  reject(new Error("late extraction failure")); await settle();
+  expect(mocks.notify).not.toHaveBeenCalled();
 });
