@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use srt_translate::{ApiType, Translator, TranslatorConfig};
+use srt_translate::{ApiType, Translator, TranslatorConfig, provider_defaults};
 
 mod cards;
 pub use cards::{analyze_tsv_columns, load_cards, save_cards};
@@ -36,63 +36,34 @@ pub async fn refine_card_llm(
     prompt: &str,
     config: RefineLlmConfig,
 ) -> Result<String, String> {
-    let api_type = match config.api_type.to_lowercase().as_str() {
-        "local" => ApiType::Local,
-        "google" | "gemini" => ApiType::Google,
-        "groq" => ApiType::Groq,
-        "custom" => ApiType::Local,
-        _ => return Err(format!("Tipo API non supportato: {}", config.api_type)),
-    };
-
-    let base_url = config.api_url.unwrap_or_else(|| {
-        match api_type {
-            ApiType::Local => "http://localhost:11434/v1",
-            ApiType::Google => "https://generativelanguage.googleapis.com/v1beta",
-            ApiType::Groq => "https://api.groq.com/openai/v1",
-            ApiType::OpenRouter => "https://openrouter.ai/api/v1",
-        }
-        .to_string()
-    });
-
-    let model = config.model.unwrap_or_else(|| {
-        match api_type {
-            ApiType::Local => "llama3.2",
-            ApiType::Google => "gemini-2.0-flash",
-            ApiType::Groq => "llama-3.3-70b-versatile",
-            ApiType::OpenRouter => "google/gemini-2.0-flash-001",
-        }
-        .to_string()
-    });
-
-    let api_key = match &config.api_key {
-        None => {
-            if api_type == ApiType::Local {
-                None
-            } else {
-                return Err("Chiave API mancante".to_string());
-            }
-        }
-        Some(k) if k.is_empty() => {
-            if api_type == ApiType::Local {
-                None
-            } else {
-                return Err("Chiave API mancante".to_string());
-            }
-        }
-        Some(_) => config.api_key.clone(),
-    };
-
-    let translator = Translator::new(TranslatorConfig {
-        api_type,
-        api_key,
-        base_url,
-        model,
-    });
+    let translator = Translator::try_new(resolve_llm_config(config)?)
+        .map_err(|e| format!("Errore configurazione client HTTP: {e}"))?;
 
     translator
         .generate_response(&interpolate_prompt(prompt, card))
         .await
         .map_err(|e| format!("Errore chiamata LLM: {e}"))
+}
+
+fn resolve_llm_config(config: RefineLlmConfig) -> Result<TranslatorConfig, String> {
+    let provider = config.api_type.to_lowercase();
+    if !matches!(
+        provider.as_str(),
+        "local" | "custom" | "google" | "gemini" | "groq" | "openrouter"
+    ) {
+        return Err(format!("Tipo API non supportato: {}", config.api_type));
+    }
+    let (api_type, default_url, _, default_model) = provider_defaults(&provider);
+    let api_key = config.api_key.filter(|key| !key.trim().is_empty());
+    if api_type != ApiType::Local && api_key.is_none() {
+        return Err("Chiave API mancante".to_string());
+    }
+    Ok(TranslatorConfig {
+        api_type,
+        api_key,
+        base_url: config.api_url.unwrap_or_else(|| default_url.to_string()),
+        model: config.model.unwrap_or_else(|| default_model.to_string()),
+    })
 }
 
 pub fn interpolate_prompt(template: &str, card: &RefineCard) -> String {
@@ -121,4 +92,47 @@ pub fn strip_html(text: &str) -> std::borrow::Cow<'_, str> {
         }
     }
     std::borrow::Cow::Owned(out)
+}
+
+#[cfg(test)]
+mod config_tests {
+    use super::*;
+
+    #[test]
+    fn legacy_configuration_uses_shared_defaults_and_preserves_overrides() {
+        for provider in ["google", "gemini", "groq", "openrouter", "local", "custom"] {
+            let config = resolve_llm_config(RefineLlmConfig {
+                api_type: provider.into(),
+                api_key: Some("key".into()),
+                api_url: None,
+                model: None,
+            })
+            .unwrap();
+            let (api_type, url, _, model) = provider_defaults(provider);
+            assert_eq!(config.api_type, api_type);
+            assert_eq!(config.base_url, url);
+            assert_eq!(config.model, model);
+        }
+        let custom = resolve_llm_config(RefineLlmConfig {
+            api_type: "custom".into(),
+            api_key: Some("  ".into()),
+            api_url: Some("http://localhost:8080/v1".into()),
+            model: Some("custom-model".into()),
+        })
+        .unwrap();
+        assert!(custom.api_key.is_none());
+        assert_eq!(custom.base_url, "http://localhost:8080/v1");
+        assert_eq!(custom.model, "custom-model");
+        for provider in ["google", "groq", "openrouter", "unsupported"] {
+            assert!(
+                resolve_llm_config(RefineLlmConfig {
+                    api_type: provider.into(),
+                    api_key: Some("  ".into()),
+                    api_url: None,
+                    model: None,
+                })
+                .is_err()
+            );
+        }
+    }
 }
