@@ -21,6 +21,11 @@
 </WorkflowWorkspace>
 
 <style>
+  .panels-grid :global(.glass-card) {
+    background: var(--control-menu-bg);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
   .panels-grid { display: grid; gap: 1rem; align-items: start; grid-template-columns: minmax(0, 1fr); }
   .secondary, .visuals { display: contents; min-width: 0; }
   .panels-grid[data-columns="2"] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
