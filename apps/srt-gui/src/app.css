@@ -672,7 +672,7 @@ kbd {
 /* Performance optimizations for scrollable lists */
 .overflow-y-auto {
   -webkit-overflow-scrolling: touch;
-  overscroll-behavior: contain;
+  overscroll-behavior: auto;
 }
 
 /* GPU-accelerated transitions */

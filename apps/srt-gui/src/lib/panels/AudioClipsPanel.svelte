@@ -81,7 +81,11 @@
     await tick();
     previewGlow = false;
     await tick();
-    previewElement?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    const scroll = previewElement?.closest<HTMLElement>("[data-workflow-scroll]");
+    if (scroll && previewElement) {
+      const offset = previewElement.getBoundingClientRect().bottom - scroll.getBoundingClientRect().bottom;
+      if (offset > 0) scroll.scrollBy({ top: offset, behavior: "smooth" });
+    }
     previewGlow = true;
     clearTimeout(glowTimer);
     glowTimer = setTimeout(() => previewGlow = false, 1500);
