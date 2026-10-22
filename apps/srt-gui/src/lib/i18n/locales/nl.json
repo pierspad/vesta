@@ -345,7 +345,7 @@
   "keys.shift": "Shift",
   "keys.space": "Spatie",
   "keys.tab": "Tab",
-  "nav.aiKillSwitch": "Noodschakelaar voor AI",
+  "nav.aiKillSwitch": "AI-noodstop",
   "nav.aiKillSwitchOff": "AI actief (noodschakelaar uit)",
   "nav.aiKillSwitchOn": "AI uitgeschakeld (noodschakelaar aan)",
   "nav.experimental": "Experimenteel",
