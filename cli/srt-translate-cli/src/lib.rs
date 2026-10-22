@@ -41,7 +41,7 @@ struct TranslationConfig {
     resume_overlap: Option<usize>,
 }
 
-#[derive(Debug, Deserialize, Default)]
+#[derive(Debug, Deserialize)]
 struct OutputConfig {
     #[serde(default = "default_filename_pattern")]
     filename_pattern: String,
@@ -49,6 +49,14 @@ struct OutputConfig {
 
 fn default_filename_pattern() -> String {
     "{input_name}.{language}.srt".to_string()
+}
+
+impl Default for OutputConfig {
+    fn default() -> Self {
+        Self {
+            filename_pattern: default_filename_pattern(),
+        }
+    }
 }
 
 fn parse_config(content: &str) -> Result<Config> {
@@ -99,30 +107,43 @@ fn expand_env_vars(content: &str) -> Result<String> {
 #[derive(Parser)]
 #[command(name = "srt-translate")]
 #[command(about = "Translate SRT files using LLM APIs with tiered multi-provider failover", long_about = None)]
+#[command(
+    after_help = "Examples:\n  srt-translate --input movie.srt --language it --config config.toml\n  srt-translate --language-list\n  srt-translate --input original.srt --check-missing translated.srt\n\nTranslation requires --input, --language, and a TOML config with at least one usable tier. --language-list is standalone; --check-missing needs --input but does not contact providers."
+)]
 struct Cli {
     /// Path to the SRT file to translate
-    #[arg(short, long)]
-    input: PathBuf,
+    #[arg(
+        short,
+        long,
+        required_unless_present = "language_list",
+        conflicts_with = "language_list"
+    )]
+    input: Option<PathBuf>,
 
     /// Target language (supported with examples: en, it, es, fr, de, pt, ru, ja, zh, ar)
-    #[arg(short, long)]
+    #[arg(short, long, conflicts_with_all = ["language_list", "check_missing"])]
     language: Option<String>,
 
-    /// Show list of supported languages
-    #[arg(long)]
+    /// Show the supported languages without requiring --input or reading config.toml.
+    #[arg(long, conflicts_with_all = ["check_missing", "language", "config", "output"])]
     language_list: bool,
 
     /// Check which subtitles are missing or have line count discrepancies in a translated file
     /// Usage: srt-translate -i original.srt --check-missing translated.srt
-    #[arg(long, value_name = "TRANSLATED_FILE")]
+    #[arg(long, value_name = "TRANSLATED_FILE", conflicts_with_all = ["config", "output"])]
     check_missing: Option<PathBuf>,
 
     /// Path to config file (default: config.toml in current directory)
-    #[arg(short, long, default_value = "config.toml")]
+    #[arg(
+        short,
+        long,
+        default_value = "config.toml",
+        conflicts_with = "language_list"
+    )]
     config: PathBuf,
 
     /// Output file (optional, will use pattern from config if not specified)
-    #[arg(short, long)]
+    #[arg(short, long, conflicts_with_all = ["language_list", "check_missing"])]
     output: Option<PathBuf>,
 }
 
@@ -164,8 +185,17 @@ async fn run_cli(args: Vec<std::ffi::OsString>) -> Result<ExitCode> {
 
     // Se richiesta la verifica dei sottotitoli mancanti
     if let Some(translated_file) = &cli.check_missing {
-        return check_missing_subtitles(&cli.input, translated_file);
+        let input = cli
+            .input
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("--input is required with --check-missing"))?;
+        return check_missing_subtitles(input, translated_file);
     }
+
+    let input = cli
+        .input
+        .as_ref()
+        .ok_or_else(|| anyhow::anyhow!("--input is required for translation"))?;
 
     // Validazione: language è obbligatorio per la traduzione
     let language = cli.language.as_ref()
@@ -216,13 +246,12 @@ async fn run_cli(args: Vec<std::ffi::OsString>) -> Result<ExitCode> {
     println!();
 
     // Parse del file SRT
-    println!("📖 Reading file: {}", cli.input.display());
-    let original_subtitles = SrtParser::parse_file(&cli.input)?;
+    println!("📖 Reading file: {}", input.display());
+    let original_subtitles = SrtParser::parse_file(input)?;
     println!("✅ Found {} subtitles", original_subtitles.len());
 
     // Estrai il titolo del film/show dal nome file per contesto
-    let title_context = cli
-        .input
+    let title_context = input
         .file_stem()
         .and_then(|s| s.to_str())
         .map(|s| s.replace(['_', '.'], " "));
@@ -233,14 +262,10 @@ async fn run_cli(args: Vec<std::ffi::OsString>) -> Result<ExitCode> {
 
     // Determina il percorso di output
     let output_path = cli.output.unwrap_or_else(|| {
-        let parent = cli
-            .input
-            .parent()
-            .unwrap_or_else(|| std::path::Path::new("."));
+        let parent = input.parent().unwrap_or_else(|| std::path::Path::new("."));
 
         // Estrai il nome file senza estensione
-        let input_filename = cli
-            .input
+        let input_filename = input
             .file_stem()
             .and_then(|s| s.to_str())
             .unwrap_or("subtitles");
@@ -267,7 +292,7 @@ async fn run_cli(args: Vec<std::ffi::OsString>) -> Result<ExitCode> {
         parent.join(filename)
     });
 
-    srt_parser::persistence::ensure_distinct_files(&cli.input, &output_path)?;
+    srt_parser::persistence::ensure_distinct_files(input, &output_path)?;
 
     println!(" Translating to '{}'...", language);
     println!();
@@ -514,6 +539,17 @@ fn print_language_list() {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn output_filename_pattern_defaults_with_or_without_output_table() {
+        let missing = parse_config("[translation]\nbatch_size = 1\n").unwrap();
+        let empty = parse_config("[translation]\nbatch_size = 1\n[output]\n").unwrap();
+        assert_eq!(
+            missing.output.filename_pattern,
+            "{input_name}.{language}.srt"
+        );
+        assert_eq!(empty.output.filename_pattern, "{input_name}.{language}.srt");
+    }
+
     #[test]
     fn invalid_configuration_does_not_print_credential_bearing_source() {
         let error = parse_config("[translation]\nbatch_size = \"private-key\"\n").unwrap_err();

@@ -8,6 +8,7 @@ fn command() -> Command {
         .version(env!("CARGO_PKG_VERSION"))
         .about("Vesta headless subtitle and flashcard workflows")
         .long_about("Run headless Vesta operations. Each operation forwards its options to the same CLI implementation used by its standalone srt-* command.")
+        .after_help("Examples:\n  vesta flashcards preview --help\n  vesta translate --language-list\n  vesta transcribe run --help\n\nEach command accepts the standalone adapter's options; use its --help for requirements and examples.")
         .subcommand_required(false)
         .arg_required_else_help(false)
         .subcommand(Command::new("flashcards").about("Create or inspect flashcards (srt-flashcards options)"))

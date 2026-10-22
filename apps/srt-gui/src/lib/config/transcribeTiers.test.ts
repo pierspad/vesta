@@ -53,6 +53,23 @@ describe('transcribeTiers', () => {
     expect(tiers[0].entries[0].provider).toBe('local');
   });
 
+  it('normalizes malformed shared tier fields and skips invalid tiers and entries', () => {
+    vi.spyOn(vestaConfig, 'getItem').mockReturnValue(JSON.stringify([
+      null,
+      { id: 42, entries: 'invalid' },
+      { id: 7, entries: [null, {}, { provider: 12 }, {
+        provider: 'groq', apiKeyId: 9, model: false, rpm: -1, maxRequests: '10',
+      }] },
+    ]));
+    const [tier] = loadTranscribeTiers();
+    expect(tier.id).toMatch(/^tier-/);
+    expect(tier.entries).toHaveLength(1);
+    expect(tier.entries[0]).toMatchObject({ provider: 'groq', apiKeyId: '', model: '' });
+    expect(tier.entries[0].id).toMatch(/^te-/);
+    expect(tier.entries[0].rpm).toBeUndefined();
+    expect(tier.entries[0].maxRequests).toBeUndefined();
+  });
+
   it('transcribeTiersHaveUsableEntries checks for configured models', () => {
     const emptyTiers: TranscribeTier[] = [
       {

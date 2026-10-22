@@ -1,12 +1,12 @@
 <script lang="ts">
   import { moveTier as reorderTier } from "$lib/utils/tierOperations";
-  import { onMount, onDestroy } from "svelte";
+  import { onMount, onDestroy, untrack } from "svelte";
   import { locale, currentLanguage } from "$lib/i18n";
   import { get } from "svelte/store";
   import ProviderIcon from "$lib/components/ProviderIcon.svelte";
   import SearchableSelect from "$lib/components/SearchableSelect.svelte";
   import TierList from "$lib/components/TierList.svelte";
-  import { discoverModels, type DiscoveredModel } from "$lib/services/modelDiscovery";
+  import { discoverModels } from "$lib/services/modelDiscovery";
   import { loadAndValidateApiKeys, supportsCapability, type ApiKeyConfig } from "$lib/config/apiKeys";
   import {
     loadTiers,
@@ -19,6 +19,7 @@
   } from "$lib/config/translationTiers";
   import { providers, getModelsForProvider } from "$lib/config/llmProviders";
   import * as vestaConfig from "$lib/config/vestaConfig";
+  import { TranslationTierDiscovery } from "$lib/workflows/translationTierDiscovery.svelte";
 
   let t = $derived($locale);
 
@@ -30,7 +31,8 @@
     return apiKeys.filter((k) => k.apiType === provider);
   }
 
-  let localOffline = $state(false);
+  const discovery = new TranslationTierDiscovery(vestaConfig, discoverModels);
+  let localOffline = $derived(discovery.localOffline);
 
   function refreshKeys() {
     let keys = loadAndValidateApiKeys();
@@ -46,63 +48,19 @@
   // nuovi modelli compaiono senza dover aggiornare l'app. Cache in memoria + in
   // localStorage (TTL 24h) per non rifare la chiamata a ogni render.
 
-  let discovered = $state<Map<string, DiscoveredModel[]>>(new Map());
-  const inflight = new Set<string>();
-  const DISCOVERY_TTL_MS = 24 * 60 * 60 * 1000;
-
   function discoveryKey(provider: string, apiKeyId: string): string {
     const key = apiKeys.find(key => key.id === apiKeyId) || (provider === "local" ? apiKeys.find(key => key.id === "local") : undefined);
-    return `${provider}::${apiKeyId}::${key?.apiUrl || ""}`;
+    const apiUrl = key?.apiUrl?.trim() || providers[provider]?.defaultApiUrl || "";
+    return discovery.key(provider, apiKeyId, key?.apiKey || "", apiUrl);
   }
 
   async function ensureModels(provider: string, apiKeyId: string, force = false) {
-    const cacheId = discoveryKey(provider, apiKeyId);
-    if (inflight.has(cacheId)) return;
-    if (!force && discovered.has(cacheId) && provider !== "local") return;
-
     const key = apiKeys.find((k) => k.id === apiKeyId) || (provider === "local" ? apiKeys.find(k => k.id === "local") : undefined);
     const needsKey = provider !== "local" && provider !== "custom";
     if (needsKey && !key?.apiKey?.trim()) return;
 
-    const lsKey = `vesta-tier-models-${cacheId}`;
-    if (!force && provider !== "local") {
-      try {
-        const raw = vestaConfig.getItem(lsKey);
-        if (raw) {
-          const parsed = JSON.parse(raw);
-          if (parsed && Array.isArray(parsed.models) && Date.now() - parsed.ts < DISCOVERY_TTL_MS) {
-            discovered.set(cacheId, parsed.models);
-            discovered = new Map(discovered);
-            return;
-          }
-        }
-      } catch {
-        /* ignore */
-      }
-    }
-
-    inflight.add(cacheId);
-    try {
-      const apiUrl = key?.apiUrl?.trim() || providers[provider]?.defaultApiUrl || "";
-      const models = await discoverModels(provider, key?.apiKey || "", apiUrl);
-      discovered.set(cacheId, models);
-      discovered = new Map(discovered);
-      if (provider === "local") {
-        localOffline = false;
-      }
-      try {
-        vestaConfig.setItem(lsKey, JSON.stringify({ ts: Date.now(), models }));
-      } catch {
-        /* ignore quota */
-      }
-    } catch {
-      // Endpoint non raggiungibile o key non valida: si resta sui modelli curati.
-      if (provider === "local") {
-        localOffline = true;
-      }
-    } finally {
-      inflight.delete(cacheId);
-    }
+    const apiUrl = key?.apiUrl?.trim() || providers[provider]?.defaultApiUrl || "";
+    await untrack(() => discovery.ensure(provider, apiKeyId, key?.apiKey || "", apiUrl, force));
   }
 
   function refreshEntryModels(entry: TierEntry) {
@@ -111,11 +69,14 @@
 
   // Avvia la discovery per ogni entry presente (mount, cambio key, nuova entry).
   $effect(() => {
+    const active = new Set<string>();
     for (const tier of tiers) {
       for (const e of tier.entries) {
+        active.add(discoveryKey(e.provider, e.apiKeyId));
         void ensureModels(e.provider, e.apiKeyId);
       }
     }
+    untrack(() => discovery.retain(active));
   });
 
   function syncTiers() {
@@ -134,7 +95,7 @@
       for (const tier of tiers) {
         for (const e of tier.entries) {
           if (e.provider === "local") {
-            void ensureModels(e.provider, e.apiKeyId);
+            void ensureModels(e.provider, e.apiKeyId, true);
           }
         }
       }
@@ -147,6 +108,7 @@
     if (localCheckInterval) {
       clearInterval(localCheckInterval);
     }
+    discovery.dispose();
   });
 
   // ─── Mutations ──────────────────────────────────────────────────────────────
@@ -282,7 +244,7 @@
         merged.set(m.id, { id: m.id, name: m.name, recommended: m.recommended });
       }
     }
-    const disc = discovered.get(discoveryKey(entry.provider, entry.apiKeyId)) || [];
+    const disc = discovery.models.get(discoveryKey(entry.provider, entry.apiKeyId)) || [];
     for (const d of disc) {
       if (!merged.has(d.id)) merged.set(d.id, { id: d.id, name: d.name });
     }

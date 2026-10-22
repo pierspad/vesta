@@ -27,6 +27,7 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: "3.11"
+      - run: python3 build-scripts/test_release_workflows.py
       - run: python3 build-scripts/test_tauri_versions.py
       - run: python3 build-scripts/check_tauri_versions.py
 

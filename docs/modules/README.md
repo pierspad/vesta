@@ -31,13 +31,15 @@ for process boundaries, data flow, and acceleration policy.
 
 Run `vesta --help` with the desktop installation, or build `cargo build --release -p vesta-cli` for a terminal-only executable without Tauri. Both dispatch the seven operations to the same CLI implementations; for example, `vesta-cli flashcards generate --help`. Run `vesta` without arguments to open the desktop interface. On Windows, use the standalone `vesta-cli.exe` for terminal output.
 
+See the [command-line guide](../CLI.md) for the unified and standalone command interfaces.
+
 ## MCP integration
 
-The optional `vesta-mcp` server lets compatible assistants inspect subtitles, preview cards and start/cancel TSV or APKG jobs through the same Rust engine. It uses local stdio and explicitly configured file roots. See [the MCP guide](../MCP.md) for setup, tool parameters and limits.
+The optional `vesta-mcp` server lets compatible assistants inspect subtitles, preview cards and start/cancel TSV/APKG, translation and transcription jobs through the same Rust engines. Translation and transcription require named server-side provider profiles. It uses local stdio and explicitly configured file roots. See [the MCP guide](../MCP.md) for setup, tool parameters and limits.
 
 ## Two ways to reuse a module
 
-**As a binary** — build only the CLI you need; nothing else gets compiled:
+**As a binary** — build the CLI you need and its required dependency closure:
 
 ```bash
 git clone https://github.com/pierspad/vesta && cd vesta

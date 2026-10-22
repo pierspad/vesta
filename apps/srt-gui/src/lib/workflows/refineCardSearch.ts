@@ -32,6 +32,12 @@ export function createRefineCardSearch<Card extends SearchableRefineCard>() {
           meaning: stripHtml(card.meaning),
         }]),
       );
+      // Retain only the current dataset: switching decks must release old text,
+      // while edits to the same deck can reuse all unchanged entries.
+      const currentTexts = new Set(cards.flatMap(card => [card.expression, card.meaning]));
+      for (const text of htmlStripCache.keys()) {
+        if (!currentTexts.has(text)) htmlStripCache.delete(text);
+      }
       const indices = new Map(cards.map((card, index) => [card.id, index]));
       return { plainTexts, indices };
     },

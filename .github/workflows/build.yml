@@ -406,7 +406,7 @@ jobs:
   release:
     name: Create Release
     needs: [build-linux, build-linux-arch, build-linux-flatpak, build-windows]
-    if: ${{ always() && (inputs.release_tag != '' || startsWith(github.ref, 'refs/tags/')) && needs.build-linux.result == 'success' }}
+    if: ${{ always() && (inputs.release_tag != '' || startsWith(github.ref, 'refs/tags/')) && needs.build-linux.result == 'success' && needs.build-linux-arch.result == 'success' && needs.build-linux-flatpak.result == 'success' && needs.build-windows.result == 'success' }}
     # Keep the current image when ubuntu-latest migrates to Ubuntu 26.04.
     runs-on: ubuntu-24.04
     permissions:
@@ -416,6 +416,19 @@ jobs:
       - uses: actions/checkout@v6
         with:
           ref: ${{ env.RELEASE_REF }}
+
+      - name: Verify release tag matches source version
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag || github.ref_name }}
+        run: |
+          set -euo pipefail
+          TAG_VERSION="${RELEASE_TAG#v}"
+          PKGBUILD_VERSION=$(sed -n 's/^pkgver=//p' build-scripts/PKGBUILD | tr -d '\r' | xargs)
+          if [[ "$TAG_VERSION" != "$PKGBUILD_VERSION" ]]; then
+            echo "::error::Release tag $RELEASE_TAG does not match source version $PKGBUILD_VERSION."
+            exit 1
+          fi
 
       - name: Download all artifacts
         uses: actions/download-artifact@v7
@@ -437,11 +450,17 @@ jobs:
           ls -lh release/
 
       - name: Prepare fallback release body
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag || github.ref_name }}
         run: |
+          set -euo pipefail
           # Il body autorevole è creato da semantic-release (@semantic-release/github)
           # dai conventional commits. Questo file serve solo come fallback se la
           # release non esistesse ancora (es. run manuale su un tag orfano).
-          echo "See [CHANGELOG.md](https://github.com/${GITHUB_REPOSITORY}/blob/main/CHANGELOG.md) for details." > release-notes-for-tag.md
+          TAG_SHA=$(git rev-parse HEAD)
+          printf 'Release assets for %s.\n\nSource commit: https://github.com/%s/commit/%s\n' \
+            "$RELEASE_TAG" "$GITHUB_REPOSITORY" "$TAG_SHA" > release-notes-for-tag.md
 
       - name: Create Release and Upload Assets
         shell: bash

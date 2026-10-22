@@ -1,12 +1,11 @@
 # srt-extract — subtitle data extraction
 
-`lib/srt-extract` turns parsed subtitles into other representations: plain
-text, JSON, a human-readable summary, debug dumps, and aggregate statistics
-(count, duration, characters-per-second…).
+`lib/srt-extract` turns parsed subtitles into JSON, a human-readable summary,
+debug dumps, and aggregate statistics (count, duration, and text lengths).
 
 **Library API** (see `lib/srt-extract/src/lib.rs`)
 
-- `OutputFormat` (`Text` / `Json` / `Summary` / `Debug`) + `OutputFormat::parse("json")`
+- `OutputFormat` (`Json` / `Summary` / `Debug`) + `OutputFormat::parse("json")`
 - `extract(&subs, format)` → `String`
 - `calculate_stats(&subs)` → `SubtitleStats`
 
@@ -23,6 +22,7 @@ cargo build --release -p srt-extract-cli
 [dependencies]
 srt-parser  = { git = "https://github.com/pierspad/vesta" }
 srt-extract = { git = "https://github.com/pierspad/vesta" }
+anyhow = "1"
 ```
 
 ```rust

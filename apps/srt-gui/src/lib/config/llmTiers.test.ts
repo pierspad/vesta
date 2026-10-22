@@ -1,9 +1,15 @@
-import { describe, it, expect } from 'vitest';
-import { buildTiersPayload, countTiersAndEndpoints } from './llmTiers';
+import { beforeEach, describe, it, expect, vi } from 'vitest';
+import { buildTiersPayload, checkTiersAvailability, countTiersAndEndpoints } from './llmTiers';
 import type { ApiKeyConfig } from './apiKeys';
 import type { Tier } from './translationTiers';
 
+vi.mock('$lib/services/modelDiscovery', () => ({
+  fetchModelsFromEndpoint: vi.fn(),
+}));
+import { fetchModelsFromEndpoint } from '$lib/services/modelDiscovery';
+
 describe('llmTiers', () => {
+  beforeEach(() => vi.clearAllMocks());
   const mockApiKeys: ApiKeyConfig[] = [
     {
       id: 'key-google-1',
@@ -125,5 +131,33 @@ describe('llmTiers', () => {
     const count = countTiersAndEndpoints(tiers);
     expect(count.tiers).toBe(2);
     expect(count.endpoints).toBe(3);
+  });
+
+  it('probes a shared local endpoint once per availability check', async () => {
+    vi.mocked(fetchModelsFromEndpoint).mockResolvedValue([{ id: 'model-a', name: 'Model A' }]);
+    const tiers: Tier[] = [{ id: 'tier', entries: [
+      { id: 'a', apiKeyId: 'local-key', provider: 'local', model: 'model-a' },
+      { id: 'b', apiKeyId: 'local-key', provider: 'local', model: 'model-b' },
+    ] }];
+    const keys: ApiKeyConfig[] = [{ id: 'local-key', apiType: 'local', name: 'Local', apiKey: '', apiUrl: 'http://localhost:11434' }];
+
+    await expect(checkTiersAvailability(tiers, keys)).resolves.toEqual({ available: true });
+    expect(fetchModelsFromEndpoint).toHaveBeenCalledTimes(1);
+    expect(fetchModelsFromEndpoint).toHaveBeenCalledWith('http://localhost:11434', '', 2000);
+  });
+
+  it('keeps probes separate when credentials differ on the same endpoint', async () => {
+    vi.mocked(fetchModelsFromEndpoint).mockResolvedValue([{ id: 'model-a', name: 'Model A' }]);
+    const tiers: Tier[] = [{ id: 'tier', entries: [
+      { id: 'a', apiKeyId: 'key-a', provider: 'custom', model: 'model-a' },
+      { id: 'b', apiKeyId: 'key-b', provider: 'custom', model: 'model-b' },
+    ] }];
+    const keys: ApiKeyConfig[] = [
+      { id: 'key-a', apiType: 'custom', name: 'A', apiKey: 'secret-a', apiUrl: 'http://localhost:8080' },
+      { id: 'key-b', apiType: 'custom', name: 'B', apiKey: 'secret-b', apiUrl: 'http://localhost:8080' },
+    ];
+
+    await expect(checkTiersAvailability(tiers, keys)).resolves.toEqual({ available: true });
+    expect(fetchModelsFromEndpoint).toHaveBeenCalledTimes(2);
   });
 });

@@ -26,17 +26,32 @@ struct Cli {
 #[derive(Subcommand)]
 enum Command {
     /// Print card fields as JSON without contacting any provider
+    #[command(
+        after_help = "Example:\n  srt-refine inspect --input deck.apkg > cards.json\n\nInput must be a TSV or APKG deck."
+    )]
     Inspect {
+        /// TSV or APKG deck to read.
         #[arg(short, long)]
         input: PathBuf,
     },
     /// Annotate notes using the shared tiered engine
+    #[command(long_about = r#"Annotate notes using the shared tiered engine.
+
+The JSON config must contain a non-empty `prompt` and `tiers` as arrays of
+provider entries. `batch_mode` defaults to false and `batch_size` defaults to 8.
+Each entry needs `provider` and `model`; hosted providers also need `api_key`.
+For example:
+{"prompt":"Explain this phrase","tiers":[[{"provider":"openai","model":"gpt-4o-mini","api_key":"YOUR_API_KEY"}]]}
+
+Supported output conversions are TSV to TSV, APKG to TSV, and APKG to APKG."#)]
     Enrich {
+        /// TSV or APKG deck to annotate.
         #[arg(short, long)]
         input: PathBuf,
+        /// Destination deck path (allowed conversions are listed above).
         #[arg(short, long)]
         output: PathBuf,
-        /// JSON file containing tiers, prompt and optional batch_mode/batch_size
+        /// JSON file with non-empty prompt and tier arrays; batch_mode defaults false, batch_size defaults 8
         #[arg(short, long)]
         config: PathBuf,
         /// Publish successful annotations even if some cards fail; still exits 1

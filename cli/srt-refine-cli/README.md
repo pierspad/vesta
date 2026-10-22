@@ -51,3 +51,6 @@ cargo test -p srt-refine-cli
 
 GPL-3.0-only. Embedding applications should call `srt_refine::{load_cards,
 refine_cards_tiered, save_cards}` directly.
+
+See the [command-by-command CLI guide](../../docs/CLI.md) for examples, misuse
+corrections and the current GUI/library coverage boundaries.

@@ -3,6 +3,32 @@ use schemars::JsonSchema;
 use serde::Deserialize;
 use srt_flashcards::FlashcardConfig;
 
+/// Translate a subtitle file with a provider profile configured by the server.
+/// Provider secrets are never accepted in tool arguments.
+#[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct TranslateRequest {
+    /// Absolute path to an SRT, ASS, SSA, VTT or LRC file within a configured read root.
+    pub input: String,
+    /// Target language name or code, for example "Italian" or "it".
+    pub target_language: String,
+    /// Name of a server-configured translation profile.
+    pub profile_id: String,
+}
+
+/// Transcribe a media file using a provider profile configured by the server.
+/// Provider secrets are never accepted in tool arguments.
+#[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct TranscribeRequest {
+    /// Absolute path to an audio or video file within a configured read root.
+    pub input: String,
+    /// Name of a server-configured transcription profile.
+    pub profile_id: String,
+    /// Optional ISO language code or "auto" for backend language detection.
+    pub language: Option<String>,
+}
+
 #[derive(Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct SubtitleRequest {

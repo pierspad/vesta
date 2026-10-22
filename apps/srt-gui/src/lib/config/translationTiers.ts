@@ -1,5 +1,6 @@
 import type { ApiProviderId } from "$lib/config/apiKeys";
 import * as vestaConfig from "$lib/config/vestaConfig";
+import { normalizeTierList } from "$lib/config/tierNormalization";
 
 // ─── Translation Tiers (priority list with automatic failover) ────────────────
 //
@@ -46,26 +47,8 @@ export function loadTiers(): Tier[] {
     const raw = vestaConfig.getItem(TIERS_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed)) {
-        return parsed
-          .filter((t) => t && Array.isArray(t.entries))
-          .map((t) => ({
-            id: typeof t.id === "string" ? t.id : newTierId(),
-            entries: (t.entries as any[])
-              .filter((e) => e && typeof e.provider === "string")
-              .map((e) => ({
-                id: typeof e.id === "string" ? e.id : newTierEntryId(),
-                provider: e.provider as ApiProviderId,
-                apiKeyId: typeof e.apiKeyId === "string" ? e.apiKeyId : "",
-                model: typeof e.model === "string" ? e.model : "",
-                rpm: typeof e.rpm === "number" && e.rpm > 0 ? e.rpm : undefined,
-                maxRequests:
-                  typeof e.maxRequests === "number" && e.maxRequests > 0
-                    ? e.maxRequests
-                    : undefined,
-              })),
-          }));
-      }
+      const normalized = normalizeTierList(parsed, newTierId, newTierEntryId, (provider) => provider as ApiProviderId);
+      if (normalized) return normalized;
     }
   } catch {
     /* ignore */

@@ -12,7 +12,7 @@ use std::process::ExitCode;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicI64, Ordering};
 
-use anyhow::Result;
+use anyhow::{Result, ensure};
 use clap::{Parser, Subcommand};
 use srt_transcribe::model::{
     DEFAULT_VAD_MODEL_ID, download_model, download_vad_model, list_models, list_vad_models,
@@ -36,12 +36,20 @@ struct Cli {
 #[derive(Subcommand)]
 enum Command {
     /// Transcribe a media file to SRT.
+    #[command(
+        after_help = "Examples:\n  srt-transcribe run movie.mkv -o movie.srt\n  srt-transcribe run audio.wav -o audio.srt --provider groq --model <provider-model> --api-key \"$GROQ_API_KEY\"\n  srt-transcribe run movie.mkv -o movie.en.srt --provider custom --model <provider-model> --api-url http://localhost:8000/v1\n\nReplace <provider-model> with a model supported by your provider. Cloud providers need --api-key except anonymous custom endpoints. Custom providers need --api-url. --word-timestamps, --quality, --vad, and --no-gpu apply only to the local provider."
+    )]
     Run(RunArgs),
     /// List available Whisper models (and the Silero VAD add-on) with status.
+    #[command(after_help = "Example:\n  srt-transcribe models")]
     Models,
     /// Download a Whisper model (e.g. "base", "small") or "vad" (Silero VAD).
+    #[command(
+        after_help = "Examples:\n  srt-transcribe download base\n  srt-transcribe download vad"
+    )]
     Download { model_id: String },
     /// Delete a downloaded Whisper model, or "vad" for the Silero VAD model.
+    #[command(after_help = "Examples:\n  srt-transcribe remove base\n  srt-transcribe remove vad")]
     Remove { model_id: String },
 }
 
@@ -56,38 +64,38 @@ struct RunArgs {
     /// Whisper model id (local backend) or provider model name (cloud).
     #[arg(short, long, default_value = "base")]
     model: String,
-    /// ISO language code, or "auto" to autodetect (local backend only).
+    /// ISO language code, or "auto" to let the selected backend detect it.
     #[arg(short, long, default_value = "auto")]
     language: String,
-    /// Translate the transcription to English (local backend only).
+    /// Translate speech to English where the selected provider supports translation.
     #[arg(long)]
     translate_to_english: bool,
-    /// Enable word-level timestamps for finer segmentation.
+    /// Enable word-level timestamps for finer segmentation (local provider only).
     #[arg(long)]
     word_timestamps: bool,
     /// Maximum characters per subtitle line (0 = default of 80).
     #[arg(long, default_value_t = 0)]
     max_segment_length: u32,
     /// Quality mode: beam-search decoding (width 5) instead of greedy.
-    /// ~2-3x slower, sometimes more accurate on difficult audio (local only).
+    /// ~2-3x slower, sometimes more accurate on difficult audio (local provider only).
     #[arg(long)]
     quality: bool,
     /// Run Silero VAD before transcribing: skips silence/music and reduces
-    /// hallucinations (local only; requires `srt-transcribe download vad`).
+    /// hallucinations (local provider only; requires `srt-transcribe download vad`).
     #[arg(long)]
     vad: bool,
-    /// Force CPU execution even if a GPU backend is compiled in. By default,
+    /// Force CPU execution even if a GPU backend is compiled in (local provider only). By default,
     /// GPU acceleration is used whenever available, with automatic CPU fallback.
     #[arg(long)]
     no_gpu: bool,
     /// Transcription engine: "local" (whisper.cpp) or a cloud provider
     /// ("groq" | "openai" | "deepgram" | "assemblyai" | "custom").
-    #[arg(long, default_value = "local")]
+    #[arg(long, default_value = "local", ignore_case = true, value_parser = ["local", "whisper", "local_whisper", "groq", "openai", "deepgram", "assemblyai", "custom", "custom_whisper"])]
     provider: String,
-    /// API key for cloud providers.
+    /// API key for cloud providers (optional for custom endpoints that allow anonymous access).
     #[arg(long)]
     api_key: Option<String>,
-    /// Base URL override (required for --provider custom).
+    /// Base URL override (required for --provider custom/custom_whisper; may be anonymous if allowed).
     #[arg(long)]
     api_url: Option<String>,
     /// ffmpeg executable (path or command on PATH).
@@ -198,6 +206,16 @@ async fn run_cli(args: Vec<std::ffi::OsString>) -> Result<ExitCode> {
 }
 
 async fn run_transcription(args: RunArgs) -> Result<ExitCode> {
+    if let Err(error) = validate_run_args(&args) {
+        if args.json {
+            println!(
+                "{}",
+                serde_json::json!({ "ok": false, "cancelled": false, "error": format!("{error:#}") })
+            );
+            return Ok(ExitCode::FAILURE);
+        }
+        return Err(error);
+    }
     let config = TranscriptionConfig {
         input_path: args.input,
         output_path: args.output,
@@ -269,6 +287,40 @@ async fn run_transcription(args: RunArgs) -> Result<ExitCode> {
             .unwrap_or_default()
     );
     Ok(ExitCode::SUCCESS)
+}
+
+fn validate_run_args(args: &RunArgs) -> Result<()> {
+    let provider = args.provider.to_ascii_lowercase();
+    ensure!(
+        !["custom", "custom_whisper"].contains(&provider.as_str())
+            || args
+                .api_url
+                .as_deref()
+                .is_some_and(|url| !url.trim().is_empty()),
+        "--api-url is required when --provider is custom"
+    );
+    ensure!(
+        [
+            "local",
+            "whisper",
+            "local_whisper",
+            "custom",
+            "custom_whisper"
+        ]
+        .contains(&provider.as_str())
+            || args
+                .api_key
+                .as_deref()
+                .is_some_and(|key| !key.trim().is_empty()),
+        "--api-key is required for cloud provider '{provider}'"
+    );
+    ensure!(
+        !(args.quality || args.vad || args.word_timestamps || args.no_gpu)
+            || ["local", "whisper", "local_whisper"].contains(&provider.as_str()),
+        "--word-timestamps, --quality, --vad, and --no-gpu are only supported with --provider local"
+    );
+
+    Ok(())
 }
 
 /// `--json` mode: one `ProgressUpdate` JSON object per line on stdout while

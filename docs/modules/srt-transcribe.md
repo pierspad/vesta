@@ -15,7 +15,7 @@ primitives to a complete, GUI-agnostic **media → SRT pipeline**
 - `audio` — FFmpeg helpers: `convert_to_wav`, `segment_to_wav_chunks`,
   `read_wav_to_f32`
 - `transcribe` — whisper.cpp via `whisper-rs`: `transcribe_full` (greedy or
-  beam-search decoding, threads defaulting to the physical cores; with a VAD
+  beam-search decoding, threads defaulting to physical cores capped at eight; with a VAD
   model set it runs Silero through whisper.cpp's standalone VAD API, then
   transcribes only the detected speech spans with timestamps mapped back to
   the original timeline — `whisper_full_params.vad` is deliberately unused, as
@@ -27,6 +27,12 @@ primitives to a complete, GUI-agnostic **media → SRT pipeline**
 - `pipeline` — the orchestration: model download → WAV conversion → local or
   cloud transcription → segment post-processing (merge tiny / split overlong
   at sentence boundaries) → SRT writing with language-suffix handling
+
+`pipeline::transcribe_to_srt` retains its automatic local model download
+behavior. Servers that must keep downloads disabled can call
+`pipeline::transcribe_to_srt_with_download_policy(..., false)`; local
+transcription then requires a valid, already-installed, non-empty catalog
+model file. The policy does not affect cloud providers.
 
 **Decode options (local backend)**
 
@@ -73,6 +79,7 @@ Requires `ffmpeg` on PATH (or `--ffmpeg /path/to/ffmpeg`).
 ```toml
 [dependencies]
 srt-transcribe = { git = "https://github.com/pierspad/vesta" }
+anyhow = "1"
 tokio          = { version = "1", features = ["full"] }
 tokio-util     = "0.7"
 ```

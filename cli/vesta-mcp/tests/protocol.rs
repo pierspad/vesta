@@ -14,13 +14,24 @@ async fn stdio_client_discovers_tools_previews_and_generates_a_deck() -> anyhow:
             .env_remove("DISPLAY").env_remove("WAYLAND_DISPLAY");
         let client = ().serve(TokioChildProcess::new(command)?).await?;
         let tools = client.list_all_tools().await?;
-        assert_eq!(tools.len(), 6);
+        assert_eq!(tools.len(), 8);
         for tool in &tools { assert!(tool.input_schema.contains_key("type")); }
         let call = |name: &'static str, args: Value| {
             client.call_tool(CallToolRequestParams::new(name).with_arguments(args.as_object().unwrap().clone()))
         };
         let configuration = call("get_configuration", json!({})).await?;
-        assert_eq!(configuration.structured_content.unwrap()["max_active_generations"], 1);
+        let settings = configuration.structured_content.unwrap();
+        assert_eq!(settings["max_active_generations"], 1);
+        assert_eq!(settings["translation_available"], false);
+        assert_eq!(settings["transcription_available"], false);
+        for name in ["translate_subtitles", "transcribe_media"] {
+            let args = if name == "translate_subtitles" {
+                json!({"input": source, "profile_id": "missing", "target_language": "it"})
+            } else { json!({"input": source, "profile_id": "missing"}) };
+            let rejected = call(name, args).await?;
+            assert_eq!(rejected.is_error, Some(true));
+        }
+        assert_eq!(std::fs::read_dir(output.path())?.count(), 0);
         let info = call("inspect_subtitles", json!({"path": source})).await?;
         assert_ne!(info.is_error, Some(true));
         assert_eq!(info.structured_content.as_ref().unwrap()["count"], 2);
@@ -80,4 +91,7 @@ fn help_explains_directory_boundaries() {
     let help = String::from_utf8_lossy(&output.stdout);
     assert!(help.contains("--read-root"));
     assert!(help.contains("--output-root"));
+    assert!(help.contains("Both roots must already exist"));
+    assert!(help.contains("not an interactive prompt"));
+    assert!(help.contains("vesta-cli <operation> --help"));
 }

@@ -15,6 +15,37 @@ fn config(path: &std::path::Path, url: &str) {
 }
 
 #[test]
+fn language_list_is_a_standalone_mode_and_rejects_ignored_options() {
+    let help = Command::new(env!("CARGO_BIN_EXE_srt-translate"))
+        .arg("--help")
+        .output()
+        .unwrap();
+    assert!(help.status.success());
+    assert!(String::from_utf8_lossy(&help.stdout).contains("--language-list is standalone"));
+
+    let dir = tempfile::tempdir().unwrap();
+    let result = Command::new(env!("CARGO_BIN_EXE_srt-translate"))
+        .current_dir(dir.path())
+        .arg("--language-list")
+        .output()
+        .unwrap();
+    assert!(
+        result.status.success(),
+        "{}",
+        String::from_utf8_lossy(&result.stderr)
+    );
+    assert!(String::from_utf8_lossy(&result.stdout).contains("English"));
+    assert!(!dir.path().join("config.toml").exists());
+
+    let invalid = Command::new(env!("CARGO_BIN_EXE_srt-translate"))
+        .args(["--language-list", "--check-missing", "translated.srt"])
+        .output()
+        .unwrap();
+    assert_eq!(invalid.status.code(), Some(2));
+    assert!(String::from_utf8_lossy(&invalid.stderr).contains("cannot be used with"));
+}
+
+#[test]
 fn incomplete_check_returns_failure_for_scripts() {
     let dir = tempfile::tempdir().unwrap();
     let input = dir.path().join("original.srt");

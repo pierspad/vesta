@@ -34,13 +34,20 @@ struct Cli {
 #[derive(Subcommand)]
 enum Command {
     /// Generate flashcards (TSV + media folder, or a .apkg package).
+    #[command(
+        after_help = "Examples:\n  srt-flashcards generate -t target.srt -o deck --video movie.mkv\n  srt-flashcards generate -t target.srt -o deck --no-audio --no-snapshots --no-video\n\nA media source is needed only for enabled media outputs. Outputs without a source are skipped: --audio/--video supply audio, while snapshots/clips need --video. Use --format apkg for a packaged deck."
+    )]
     Generate(GenerateArgs),
     /// Print a summary of a subtitle file (count, format, actors, duration).
+    #[command(after_help = "Example:\n  srt-flashcards info subtitles.srt")]
     Info {
         /// Subtitle file to inspect.
         file: String,
     },
     /// Run the parse/match/filter pipeline and report line counts (no media).
+    #[command(
+        after_help = "Example:\n  srt-flashcards preview -t target.srt -o unused --native native.srt --only-cjk\n\nPreview reads subtitle files only and never creates the required --output directory. Its CLI options are shared with generate; media/export options are ignored."
+    )]
     Preview(GenerateArgs),
 }
 
@@ -166,11 +173,13 @@ struct GenerateArgs {
     /// Restrict to lines overlapping [span-start, span-end] (milliseconds).
     #[arg(long)]
     span_start: Option<i64>,
+    /// End of the optional time span in milliseconds.
     #[arg(long)]
     span_end: Option<i64>,
     /// Shift all target / native timestamps by N milliseconds.
     #[arg(long, default_value_t = 0, allow_hyphen_values = true)]
     shift_target: i64,
+    /// Shift native-subtitle timestamps by N milliseconds (negative values advance them).
     #[arg(long, default_value_t = 0, allow_hyphen_values = true)]
     shift_native: i64,
 

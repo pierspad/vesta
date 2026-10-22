@@ -42,6 +42,7 @@ The model is downloaded on demand (Hugging Face, cached in
 srt-autosync   = { git = "https://github.com/pierspad/vesta" }
 srt-sync       = { git = "https://github.com/pierspad/vesta" }
 srt-transcribe = { git = "https://github.com/pierspad/vesta" }
+anyhow          = "1"
 tokio          = { version = "1", features = ["full"] }
 tokio-util     = "0.7"
 ```
@@ -68,8 +69,11 @@ async fn main() -> anyhow::Result<()> {
     };
 
     let outcome = run_auto_sync(&config, subs, None, &CancellationToken::new()).await?;
+    if outcome.cancelled {
+        anyhow::bail!("Auto-sync was cancelled; no output was written");
+    }
     for s in &outcome.suggestions {
-        engine.add_anchor(s.subtitle_id, s.corrected_time_ms, false).ok();
+        engine.add_anchor(s.subtitle_id, s.corrected_time_ms, false)?;
     }
     engine.save_synced_file("movie.synced.srt")?;
     Ok(())

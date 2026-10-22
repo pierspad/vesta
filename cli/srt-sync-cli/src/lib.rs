@@ -29,11 +29,14 @@ fn parse_anchor(value: &str) -> Result<Anchor, String> {
 #[command(
     name = "srt-sync",
     about = "Retime SRT subtitles with manual anchors",
-    version
+    version,
+    after_help = "Example:\n  srt-sync -i input.srt -o synced.srt --anchor 12:14500 --anchor 80:93500\n\nRepeat --anchor SUBTITLE_ID:CORRECTED_MS at each measured timing point. IDs refer to source subtitle numbers; corrected times are non-negative milliseconds and must increase with source time."
 )]
 struct Cli {
+    /// Source SRT file to retime.
     #[arg(short, long)]
     input: PathBuf,
+    /// Destination path for the retimed SRT file.
     #[arg(short, long)]
     output: PathBuf,
     /// Subtitle ID and corrected start time in milliseconds; repeat for drift correction

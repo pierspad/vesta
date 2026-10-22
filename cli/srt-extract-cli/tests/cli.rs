@@ -1,6 +1,27 @@
 use std::process::Command;
 
 #[test]
+fn help_describes_both_file_modes_and_embedded_modes_reject_unused_format() {
+    let help = Command::new(env!("CARGO_BIN_EXE_srt-extract"))
+        .arg("--help")
+        .output()
+        .unwrap();
+    assert!(help.status.success());
+    let help_text = String::from_utf8_lossy(&help.stdout);
+    assert!(help_text.contains("SRT file to read, or media container"));
+    assert!(help_text.contains("--track requires --output"));
+    assert!(help_text.contains("ffprobe"));
+    assert!(help_text.contains("Output must be a different file"));
+
+    let invalid = Command::new(env!("CARGO_BIN_EXE_srt-extract"))
+        .args(["--input", "film.mkv", "--list-tracks", "--format", "json"])
+        .output()
+        .unwrap();
+    assert_eq!(invalid.status.code(), Some(2));
+    assert!(String::from_utf8_lossy(&invalid.stderr).contains("cannot be used with"));
+}
+
+#[test]
 fn json_stdout_is_machine_readable() {
     let dir = tempfile::tempdir().unwrap();
     let input = dir.path().join("input.srt");

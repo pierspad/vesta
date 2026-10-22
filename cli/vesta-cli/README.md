@@ -26,3 +26,6 @@ enable the corresponding native build requirements.
 For embedding the engines rather than invoking commands, see
 [module APIs](../../docs/modules/README.md) and
 [integration requirements](../../docs/library-integration.md).
+
+See the [command-by-command CLI guide](../../docs/CLI.md) for examples, misuse
+corrections and the current GUI/library coverage boundaries.

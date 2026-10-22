@@ -39,6 +39,12 @@ see [architecture](ARCHITECTURE.md) and
 [library integration](library-integration.md). This guide is the maintained
 source for repeatable checks and release validation.
 
+The [CLI guide](CLI.md) records each command's output contract and coverage.
+Subprocess regressions also check help examples, standalone language listing,
+conflicting report/track modes, and actionable provider/configuration errors.
+MCP tests connect a real stdio SDK client; it is an optional adapter with a
+smaller feature set, not a replacement for testing the terminal workflows.
+
 ## One command
 
 From the repository root, after `npm ci` in `apps/srt-gui`:
@@ -308,3 +314,33 @@ selection, matching-rule JSONC parsing, grouped alignment undo, and obsolete
 subtitle-output lookups. Mounted tests cover Align shortcuts and Extract lookup
 errors. These tests preserve behavior across controller extraction; native
 webview, installer and authenticated-provider smoke checks remain separate.
+
+## Static code patterns
+
+Run `npm run check:patterns` from `apps/srt-gui`. `npm test` runs it before
+Vitest, so CI and `quality_check.py` also enforce it. It parses TypeScript and both Svelte script blocks and
+reports file, line, column and rule for async `forEach` callbacks, async Promise
+executors and debugger statements. Tests and application code are both scanned.
+Comments, string literals and component markup do not trigger these AST rules.
+
+These are narrow regression guards, not a replacement for Svelte type checking,
+strict Clippy or behavioral tests for cancellation, stale responses and persistence.
+The checker fixtures cover positive cases, safe alternatives, source offsets and
+malformed components. Add a rule only when it identifies a concrete failure mode;
+avoid blanket bans on `any`, `unwrap`, file size or duplication. Use `rg -n` for
+exploratory searches, then read the surrounding code before classifying a finding.
+
+## MCP processing and release policy checks
+
+`cargo test --locked -p vesta-mcp` exercises all eight tool schemas through a real
+stdio client. Local HTTP fixtures cover successful translation, incomplete
+translation rejection, translation/transcription cancellation, server-only
+credentials, shared job exclusion and real FFmpeg audio conversion. Profile
+unit tests cover disabled defaults, environment references, invalid providers,
+local model IDs and URLs. `srt-transcribe` separately tests the no-download
+policy before invoking FFmpeg. No authenticated provider access is implied.
+
+`python3 build-scripts/test_release_workflows.py` guards release queueing, all
+platform prerequisites and tag/version agreement. It also executes the tag
+validation and fallback-note shell blocks in a temporary Git fixture, including
+a literal tag containing shell syntax. CI and `quality_check.py` run this check.

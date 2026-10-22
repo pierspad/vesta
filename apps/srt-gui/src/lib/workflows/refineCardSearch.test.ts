@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { createRefineCardSearch } from "./refineCardSearch";
 
 const cards = [
@@ -31,4 +31,22 @@ describe("createRefineCardSearch", () => {
     const second = search.index(cards);
     expect(second.plainTexts.get("one")).toEqual(first.plainTexts.get("one"));
   });
+});
+
+it("releases cached text after switching datasets and rebuilds it correctly", () => {
+  const search = createRefineCardSearch<typeof cards[number]>();
+  const replace = vi.spyOn(String.prototype, "replace");
+  try {
+    search.index(cards);
+    replace.mockClear();
+    search.index(cards);
+    expect(replace).not.toHaveBeenCalled();
+    search.index([]);
+    replace.mockClear();
+    const rebuilt = search.index(cards);
+    expect(replace).toHaveBeenCalledTimes(4);
+    expect(search.filter(cards, rebuilt.plainTexts, "hola")).toEqual([cards[0]]);
+  } finally {
+    replace.mockRestore();
+  }
 });

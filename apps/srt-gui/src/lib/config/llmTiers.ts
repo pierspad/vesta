@@ -94,6 +94,10 @@ export async function checkTiersAvailability(
   let hasKeyMissing = false;
   let hasOfflineLocal = false;
   let hasIncomplete = false;
+  // Multiple configured models may use the same local/custom server. Probe
+  // each endpoint once per availability check while preserving per-entry
+  // credential and capability validation above.
+  const probes = new Map<string, Promise<boolean>>();
 
   await Promise.all(
     configuredEntries.map(async (e) => {
@@ -108,15 +112,19 @@ export async function checkTiersAvailability(
           hasIncomplete = true;
           return;
         }
-        try {
-          const models = await fetchModelsFromEndpoint(apiUrl, apiKeyVal || "", 2000);
-          if (models && models.length > 0) hasOnlineLocal = true;
-          else hasOfflineLocal = true;
-        } catch (error) {
-          // A reachable server may omit discovery while supporting manual model IDs.
-          if (error && typeof error === "object" && "status" in error && [404, 405].includes(Number(error.status))) hasOnlineLocal = true;
-          else hasOfflineLocal = true;
+        const probeKey = JSON.stringify([apiUrl, apiKeyVal || ""]);
+        let probe = probes.get(probeKey);
+        if (!probe) {
+          probe = fetchModelsFromEndpoint(apiUrl, apiKeyVal || "", 2000)
+            .then((models) => Boolean(models && models.length > 0))
+            .catch((error) => {
+              // A reachable server may omit discovery while supporting manual model IDs.
+              return Boolean(error && typeof error === "object" && "status" in error && [404, 405].includes(Number(error.status)));
+            });
+          probes.set(probeKey, probe);
         }
+        if (await probe) hasOnlineLocal = true;
+        else hasOfflineLocal = true;
       } else if (!apiKeyVal) {
         hasKeyMissing = true;
       } else {

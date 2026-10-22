@@ -1,7 +1,7 @@
 <script lang="ts">
   import { moveTier as reorderTier } from "$lib/utils/tierOperations";
-  import { onMount, onDestroy } from "svelte";
-  import { discoverModels, type DiscoveredModel } from "$lib/services/modelDiscovery";
+  import { onMount, untrack } from "svelte";
+  import { discoverModels } from "$lib/services/modelDiscovery";
   import { locale } from "$lib/i18n";
   import ProviderIcon from "$lib/components/ProviderIcon.svelte";
   import SearchableSelect from "$lib/components/SearchableSelect.svelte";
@@ -18,6 +18,7 @@
   } from "$lib/config/transcribeTiers";
   import { providers } from "$lib/config/llmProviders";
   import { transcribeListModels } from "$lib/services/transcribe";
+  import { SpeechModelDiscovery } from "$lib/workflows/speechModelDiscovery.svelte";
 
   let t = $derived($locale);
 
@@ -25,8 +26,8 @@
   let apiKeys = $state<ApiKeyConfig[]>([]);
   let whisperModels = $state<({ id: string; name: string; size: string; speed: string; downloaded: boolean })[]>([
     { id: "tiny", name: "Tiny", size: "~75MB", speed: "~32x", downloaded: false },
-    { id: "base", name: "Base", size: "~142MB", speed: "~16x", downloaded: false },
-    { id: "small", name: "Small", size: "~466MB", speed: "~6x", downloaded: false },
+    { id: "base", name: "Base", size: "~150 MB", speed: "~16x", downloaded: false },
+    { id: "small", name: "Small", size: "~500 MB", speed: "~6x", downloaded: false },
     { id: "medium", name: "Medium", size: "~1.5GB", speed: "~2x", downloaded: false },
     { id: "large", name: "Large", size: "~3.1GB", speed: "~1x", downloaded: false },
   ]);
@@ -111,6 +112,7 @@
       window.removeEventListener("vesta-whisper-models-updated", handleModelsUpdated);
       window.removeEventListener("vesta-whisper-download-progress", handleDownloadProgress);
       window.removeEventListener(TRANSCRIBE_TIERS_UPDATED_EVENT, syncTiers);
+      speechDiscovery.dispose();
     };
   });
 
@@ -230,27 +232,6 @@
     persist();
   }
 
-  function onNumberChange(
-    tierIndex: number,
-    entryIndex: number,
-    field: "rpm" | "maxRequests",
-    raw: string,
-  ) {
-    const n = parseInt(raw, 10);
-    const value = Number.isFinite(n) && n > 0 ? n : undefined;
-    tiers = tiers.map((tier, i) =>
-      i === tierIndex
-        ? {
-            ...tier,
-            entries: tier.entries.map((e, j) =>
-              j === entryIndex ? { ...e, [field]: value } : e,
-            ),
-          }
-        : tier,
-    );
-    persist();
-  }
-
   // Label per il dropdown delle key
   function keyLabel(key: ApiKeyConfig): string {
     if (key.apiType === "local_whisper") return "Local Whisper";
@@ -258,30 +239,31 @@
     return key.name && key.name !== provName ? `${provName} · ${key.name}` : provName;
   }
 
-  let speechModels = $state<Map<string, DiscoveredModel[]>>(new Map());
-  let speechDiscoveryError = $state<Map<string, string>>(new Map());
+  const speechDiscovery = new SpeechModelDiscovery((apiKey, apiUrl) => discoverModels("custom", apiKey, apiUrl), () => t("settings.modelsManualFallback"));
+  let speechModels = $derived(speechDiscovery.models);
+  let speechDiscoveryError = $derived(speechDiscovery.errors);
   function speechCacheKey(entry: TranscribeTierEntry) {
-    return `${entry.apiKeyId}|${apiKeys.find(key => key.id === entry.apiKeyId)?.apiUrl || ""}`;
+    const key = apiKeys.find(key => key.id === entry.apiKeyId);
+    return speechDiscovery.identity(entry.apiKeyId, key?.apiKey || "", key?.apiUrl || "");
   }
   async function discoverSpeechModels(entry: TranscribeTierEntry) {
     if (!["custom", "custom_whisper"].includes(entry.provider)) return;
     const key = apiKeys.find(key => key.id === entry.apiKeyId);
     if (!key?.apiUrl) return;
-    const cacheKey = speechCacheKey(entry);
-    try {
-      const models = await discoverModels("custom", key.apiKey || "", key.apiUrl);
-      speechModels.set(cacheKey, models);
-      speechModels = new Map(speechModels);
-      speechDiscoveryError.delete(cacheKey);
-    } catch {
-      speechDiscoveryError.set(cacheKey, t("settings.modelsManualFallback"));
-    }
-    speechDiscoveryError = new Map(speechDiscoveryError);
+    await speechDiscovery.load(speechCacheKey(entry), key.apiKey || "", key.apiUrl, true);
   }
 
   function entryModels(entry: TranscribeTierEntry): { id: string; name: string; recommended?: boolean }[] {
     return speechModels.get(speechCacheKey(entry)) || getTranscribeModelsForProvider(entry.provider);
   }
+
+  $effect(() => {
+    const active = new Set<string>();
+    for (const tier of tiers) for (const entry of tier.entries) {
+      if (["custom", "custom_whisper"].includes(entry.provider)) active.add(speechCacheKey(entry));
+    }
+    untrack(() => speechDiscovery.retain(active));
+  });
 
   let customModeIds = $state<Set<string>>(new Set());
 

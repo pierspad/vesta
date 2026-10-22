@@ -23,7 +23,8 @@ use tokio_util::sync::CancellationToken;
     name = "srt-autosync",
     version,
     about = "Automatically re-sync an SRT file to a media file using Whisper anchor points",
-    long_about = None
+    long_about = None,
+    after_help = "Example:\n  srt-autosync input.srt movie.mkv -o synced.srt --model small --language ja\n\nThe Whisper model is downloaded on demand. ffmpeg and ffprobe must be installed or selected with --ffmpeg/--ffprobe. Use --quick for fewer, faster samples."
 )]
 struct Cli {
     /// SRT file to re-sync.

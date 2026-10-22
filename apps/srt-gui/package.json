@@ -1,7 +1,7 @@
 {
   "name": "vesta",
   "private": true,
-  "version": "0.29.0",
+  "version": "0.29.1",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -11,8 +11,9 @@
     "check": "svelte-check --tsconfig ./tsconfig.json",
     "i18n:audit": "python3 scripts/check_missing_translations.py",
     "check:i18n": "node scripts/check-i18n.mjs",
-    "test": "vitest run",
+    "test": "npm run check:patterns && vitest run",
     "test:watch": "vitest",
+    "check:patterns": "node --test scripts/check-code-patterns.test.mjs && node scripts/check-code-patterns.mjs",
     "tauri": "tauri",
     "test:dev-css": "node scripts/check-dev-css.mjs"
   },
