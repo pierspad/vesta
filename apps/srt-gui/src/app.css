@@ -745,3 +745,6 @@ kbd {
 .number-control-buttons button:hover { background: var(--control-option-hover); }
 .number-control-buttons button:disabled { opacity: 0.35; cursor: default; }
 .number-control-buttons svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+.stable-settings-layout .glass-card,
+.stable-settings-layout .glass-card:focus-within { content-visibility: visible; contain: style; }

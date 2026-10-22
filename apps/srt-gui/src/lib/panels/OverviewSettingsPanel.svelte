@@ -208,7 +208,7 @@
   </div>
 {/if}
 
-<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6 items-stretch">
+<div class="overview-resources gap-6 mb-6 items-stretch">
   <!-- CPU Cores Card -->
   <div class="glass-card p-4 flex flex-col justify-between">
     {#if uiMode.expertMode}
@@ -322,7 +322,7 @@
             <h3 class="text-sm font-bold text-white">{t("settings.cpuCoresEasyTitle")}</h3>
           </div>
         </div>
-        <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-2 xl:grid-cols-4 gap-2.5">
+        <div class="cpu-presets gap-2.5">
           <button
             onclick={() => cpuRamStore.setCpuPreset("eco")}
             class="p-3 rounded-xl text-center transition-all duration-200 border text-xs cursor-pointer {cpuRamStore.activeCpuPreset === 'eco'
@@ -389,7 +389,7 @@
   <div class="flex h-full flex-col gap-3">
   <UpdateSettingsCard />
   <div class="glass-card p-4 flex-1">
-    <div class="flex items-start justify-between gap-4">
+    <div class="flex flex-wrap items-start justify-between gap-4">
       <div class="flex items-start gap-3">
         <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-sky-500/15 text-sky-300">
           <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7h16v12H4zM7 7V4h10v3M8 12h8m-8 4h5"/></svg>
@@ -415,10 +415,14 @@
     width: 100%;
   }
 
-  @media (min-width: 1280px) {
-    .ui-language-grid {
-      grid-template-columns: repeat(5, minmax(0, 1fr));
-    }
+  .overview-resources {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 28rem), 1fr));
+  }
+  .overview-resources > :global(*) { min-width: 0; }
+  .cpu-presets {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 7rem), 1fr));
   }
 
   .ui-language-button {

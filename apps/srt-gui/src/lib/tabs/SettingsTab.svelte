@@ -941,7 +941,7 @@
     </div>
   {:else}
     <!-- Scrollable content area -->
-    <div use:settledScroll data-dense={activeSettingsSection === "llm" || activeSettingsSection === "whisper"} class="settings-scroll flex-1 min-h-0 overflow-y-auto p-6">
+    <div use:settledScroll data-dense={activeSettingsSection === "llm" || activeSettingsSection === "whisper"} class="settings-scroll stable-settings-layout flex-1 min-h-0 overflow-y-auto p-6">
 
 
   {#if activeSettingsSection === "overview"}
