@@ -9,7 +9,7 @@ Vesta provides a local **server**, `vesta-mcp`, using the
 [official Rust SDK](https://github.com/modelcontextprotocol/rust-sdk). An MCP-capable
 application acts as the client and starts it as a subprocess. Communication uses
 JSON-RPC over stdin/stdout. No GUI or listening network port is required. The
-server shares the Rust flashcard engine with the GUI and CLI, rather than
+server shares the Rust flashcard, translation and transcription engines with the GUI and CLI, rather than
 automating windows or parsing terminal output.
 
 ## Why keep MCP alongside the CLI?
@@ -24,7 +24,7 @@ workflows without duplicating the processing engine.
 | Interface | Best fit | Current coverage |
 |---|---|---|
 | `vesta-cli` / `vesta <operation>` | Shell scripts and terminal users | Seven processing workflows; see the [CLI coverage matrix](CLI.md). |
-| `vesta-mcp` | MCP clients discovering structured tools and tracking export jobs | Subtitle inspection, paged card previews and single-episode TSV/APKG exports. |
+| `vesta-mcp` | MCP clients discovering structured tools and tracking export jobs | Subtitle inspection, paged card previews, TSV/APKG exports, translation and transcription jobs. |
 | Rust libraries | Applications that need APIs/options not exposed by an adapter | All public engine APIs; caller owns orchestration, configuration and lifecycle. |
 
 The CLI already has progress/cancellation and some JSON output (`transcribe
@@ -83,7 +83,9 @@ its directory arguments; a configured server then waits for an MCP client.
 | `inspect_subtitles` | Read format, line count, duration, actors and sample text | No |
 | `preview_flashcards` | Match target/native subtitles and return a page of preview rows | No |
 | `generate_flashcards` | Start a TSV/APKG export and return a job ID immediately | New directory |
-| `get_job` | Read progress, status, result and export paths | No |
+| `translate_subtitles` | Start SRT translation using a named server profile | New directory; incremental checkpoints |
+| `transcribe_media` | Start local/cloud transcription using a named server profile | New directory; final SRT |
+| `get_job` | Read operation, progress, status, result and output paths | No |
 | `cancel_job` | Request cancellation; poll until a terminal status | May stop ongoing output |
 
 Typical workflow:
@@ -131,7 +133,7 @@ A completed success remains successful if cancellation arrives afterward.
 
 ## Lifetime and scope
 
-One generation may run at a time per server process. Every export gets a fresh
+One processing job may run at a time per server process. Every export gets a fresh
 `vesta-*` subdirectory beneath the configured output root; existing exports are
 not overwritten. The server retains up to 64 job records in memory. Restarting
 loses job records but preserves exported files. Partial output directories may
@@ -141,16 +143,132 @@ Disconnecting stdin or pressing Ctrl-C cancels active work and waits for engine
 cleanup. stdout is reserved for MCP messages. A client may enforce its own
 approval policy when tools create files.
 
-The first implementation covers subtitle inspection and flashcards, including
-optional audio, snapshots and video clips. Translation, transcription, provider
-configuration, GUI state and AnkiConnect are not exposed over MCP yet. Their
-CLI workflows and public library APIs remain available, with the different
-coverage documented in [CLI.md](CLI.md). Exposing provider-based work
-will need an explicit configuration and usage-cost contract.
+## Translation and transcription profiles
 
-Processing runs locally; previews and tool results are returned to the MCP client.
-If that client uses a cloud model, those returned contents may become model
-context. Subtitle dialogue is source data, not instructions to the assistant.
+These two tools are present in the schema but disabled until server profiles are
+configured. Start the server with `--provider-config /absolute/path/to/providers.json`.
+Profiles load once at startup; restart the MCP connection after changing them.
+The server does not read the GUI preferences/API keys or the CLI's config files.
+
+A local-only configuration (replace the LLM model with one installed in your
+local server, and install Whisper Base with `vesta-cli transcribe download base`):
+
+```json
+{
+  "translation": {
+    "profiles": {
+      "local-translation": {
+        "tiers": [[{
+          "provider": "local",
+          "model": "your-installed-model",
+          "api_url": "http://127.0.0.1:11434/v1",
+          "rpm": 0
+        }]],
+        "batch_size": 25,
+        "resume_overlap": 2
+      }
+    }
+  },
+  "transcription": {
+    "profiles": {
+      "local-speech": {
+        "provider": "local",
+        "model": "base",
+        "allow_model_download": false
+      }
+    }
+  }
+}
+```
+
+Cloud translation tier entries and cloud transcription profiles use `api_key_env`
+to name an environment variable. They do **not** accept `api_key` or `${VAR}`
+interpolation. For example, replace a translation tier entry with:
+
+```json
+{
+  "provider": "openai",
+  "model": "your-provider-model",
+  "api_key_env": "VESTA_OPENAI_KEY",
+  "max_requests": 100
+}
+```
+
+The named variable must exist in the MCP server process environment. Configure
+it using your client's environment/secret settings; the MCP process does not
+load `.env` files automatically. `get_configuration` returns availability and
+`enabled_translation_profiles` / `enabled_transcription_profiles` IDs, never
+keys, credential variable names, endpoints or the raw configuration.
+Unknown fields/providers and unavailable credential references fail startup.
+URLs must be HTTP(S) without userinfo, query strings or fragments; use the
+credential environment reference rather than putting secrets in a URL.
+
+Translation profiles require nonempty `tiers` (arrays of entry arrays). Entries
+support `provider`, explicit `model`, optional `api_url`, `api_key_env`, `rpm`,
+and `max_requests`. Providers are `local`, `custom`, `openai`, `google`/`gemini`,
+`groq`, `openrouter`, `mistral`, `github` and `nvidia`. Hosted providers require
+credentials; custom providers require an explicit URL and may be anonymous.
+`batch_size` defaults to 25 (1–1000), `resume_overlap` to 2; optional
+`title_context` is at most 512 characters. Request limits apply per engine run;
+profiles are not account-wide billing limits.
+
+Transcription profiles require `provider` and explicit `model`; optional fields
+are `api_key_env`, `api_url`, `translate_to_english`, `word_timestamps`, `quality`,
+`vad`, `use_gpu`, `max_segment_length`, and `allow_model_download`.
+Providers are local Whisper (`local`, `whisper`, `local_whisper`), `groq`,
+`openai`, `deepgram`, `assemblyai`, or `custom`/`custom_whisper`. Hosted providers
+need credentials, custom endpoints need an explicit URL. Cloud models use the
+provider's model ID, not a local ID such as `base`.
+Local options `word_timestamps`, `quality` and `vad` default false; `use_gpu`
+defaults true and uses a compiled backend when available. `use_gpu: false` is
+local-only. The default server build is CPU-only; for example build with
+`cargo install --locked --path cli/vesta-mcp --features vulkan` if the required
+native toolchain is installed. GPU backends are alternative build targets.
+
+`allow_model_download` defaults false: a local run requires an already installed
+Whisper model, or an administrator must explicitly enable downloads in that
+profile. This option is rejected for cloud profiles. `vad: true` uses the default
+installed Silero VAD model (`vesta-cli transcribe download vad`); there is no
+model-management or arbitrary model-path tool in MCP. FFmpeg must be on PATH.
+
+### Start and inspect processing jobs
+
+```json
+{"input":"/absolute/path/to/media/episode.srt","target_language":"it","profile_id":"local-translation"}
+```
+
+Call `translate_subtitles` with the above arguments. Input must be SRT, within a
+read root and at most 16 MiB. `target_language` is a code or language name using
+letters, spaces and hyphens (2–64 characters). The job writes `translated.srt`
+in a fresh output directory. Checkpoints are saved after completed batches;
+failed/cancelled jobs may retain partial files. An incomplete translation is a
+failed job, even if some checkpoints were saved. There is no automatic retry or
+cross-job resume tool; the retained files can be inspected or resumed via CLI.
+
+```json
+{"input":"/absolute/path/to/media/episode.mkv","profile_id":"local-speech","language":"auto"}
+```
+
+Call `transcribe_media` with the above arguments. `language` is optional
+(default `auto`), using a 2–32 character code with letters/hyphens. The job
+returns the engine's actual SRT path: local autodetection may add a language
+suffix. Transcription publishes only after success; a late cancellation after
+publication begins can still complete successfully.
+
+Both tools return a job snapshot immediately. Use the same `get_job` and
+`cancel_job` as for flashcards. `operation` identifies `flashcards`, `translation`
+or `transcription`. Exactly **one processing job** may run at a time per server,
+across all three kinds; `max_active_jobs` is 1 (`max_active_generations` remains
+as a compatibility field). Job history is bounded to 64 session-local records.
+No existing user output is overwritten. Cancel, then poll for a terminal state;
+shutdown/disconnect cancels active work and waits for cleanup.
+
+Invoking a configured cloud profile can send subtitle text/audio to its provider
+and incur account charges. Use these tools only for user-authorized work. Source
+text is data, not instructions. Previews/results also enter the MCP client's
+context; a cloud-model client may receive those returned contents. GUI control,
+AnkiConnect, refinement and automatic synchronization are not exposed as MCP
+tools. The [CLI/library coverage guide](CLI.md) describes the remaining adapters.
 
 ## Validation
 
@@ -160,7 +278,9 @@ cargo clippy --locked -p vesta-mcp --all-targets -- -D warnings
 ```
 
 Tests connect a real SDK client to the standalone server over stdio, discover
-tool schemas, inspect/preview subtitles, generate TSV and APKG exports, validate
-errors, and check cancellation, shutdown and path boundaries. Client-specific
+all eight tool schemas, inspect/preview subtitles, generate TSV/APKG exports,
+translate via loopback HTTP, transcribe a real FFmpeg audio fixture through a
+stub provider, and verify cancellation, incomplete translation, disabled profiles,
+credential handling, shutdown and path boundaries. Client-specific
 configuration and hardware/media combinations still need their normal
 integration checks.

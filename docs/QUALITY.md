@@ -329,3 +329,18 @@ The checker fixtures cover positive cases, safe alternatives, source offsets and
 malformed components. Add a rule only when it identifies a concrete failure mode;
 avoid blanket bans on `any`, `unwrap`, file size or duplication. Use `rg -n` for
 exploratory searches, then read the surrounding code before classifying a finding.
+
+## MCP processing and release policy checks
+
+`cargo test --locked -p vesta-mcp` exercises all eight tool schemas through a real
+stdio client. Local HTTP fixtures cover successful translation, incomplete
+translation rejection, translation/transcription cancellation, server-only
+credentials, shared job exclusion and real FFmpeg audio conversion. Profile
+unit tests cover disabled defaults, environment references, invalid providers,
+local model IDs and URLs. `srt-transcribe` separately tests the no-download
+policy before invoking FFmpeg. No authenticated provider access is implied.
+
+`python3 build-scripts/test_release_workflows.py` guards release queueing, all
+platform prerequisites and tag/version agreement. It also executes the tag
+validation and fallback-note shell blocks in a temporary Git fixture, including
+a literal tag containing shell syntax. CI and `quality_check.py` run this check.

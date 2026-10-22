@@ -28,6 +28,12 @@ primitives to a complete, GUI-agnostic **media → SRT pipeline**
   cloud transcription → segment post-processing (merge tiny / split overlong
   at sentence boundaries) → SRT writing with language-suffix handling
 
+`pipeline::transcribe_to_srt` retains its automatic local model download
+behavior. Servers that must keep downloads disabled can call
+`pipeline::transcribe_to_srt_with_download_policy(..., false)`; local
+transcription then requires a valid, already-installed, non-empty catalog
+model file. The policy does not affect cloud providers.
+
 **Decode options (local backend)**
 
 - `quality` — beam-search decoding (width 5) instead of greedy: ~2-3× slower,

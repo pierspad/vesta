@@ -219,7 +219,8 @@ assuming all commands share a JSON protocol.
 
 The CLI subprocess tests exercise real commands, help, offline fixtures, usage
 errors and publication/cancellation contracts. MCP protocol tests connect a real
-stdio SDK client and generate TSV/APKG outputs. See [QUALITY](QUALITY.md).
+stdio SDK client, generate TSV/APKG outputs, and exercise translation/transcription
+with local HTTP fixtures, real FFmpeg conversion and cooperative cancellation. See [QUALITY](QUALITY.md).
 These checks do not certify authenticated provider access, every media codec,
 GPU driver or installed Windows terminal behavior. Re-run the appropriate
 release smoke checks for those environments.
