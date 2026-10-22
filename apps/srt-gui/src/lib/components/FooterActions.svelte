@@ -11,6 +11,7 @@
   interface Props {
     /** "between" (default, azione secondaria a sx + primaria a dx), "end" o "center". */
     justify?: "between" | "end" | "center";
+    wrap?: boolean;
     left?: Snippet;
     right?: Snippet;
     /** Terzo gruppo centrale (es. Autosync in SyncTab). Se presente, left/right/center diventano 3 colonne flex-1 (start/center/end) invece di condividere `justify`. */
@@ -19,7 +20,7 @@
     background?: Snippet;
   }
 
-  let { justify = "between", left, right, center, background }: Props = $props();
+  let { justify = "between", wrap = false, left, right, center, background }: Props = $props();
 
   const justifyClass = {
     between: "justify-between",
@@ -28,7 +29,7 @@
   } as const;
 </script>
 
-<div class="h-[92px] border-t border-white/10 bg-gray-900 flex items-center {justifyClass[justify]} gap-4 px-6 shrink-0 z-40 relative">
+<div class="{wrap ? 'min-h-[92px] flex-wrap py-3' : 'h-[92px]'} border-t border-white/10 bg-gray-900 flex items-center {justifyClass[justify]} gap-4 px-6 shrink-0 z-40 relative">
   {#if background}
     {@render background()}
   {/if}

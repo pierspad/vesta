@@ -17,7 +17,7 @@
   title={!hasAnyFiles ? hintLoadTargetFirst : undefined}
   class="glass-card p-5 {!hasAnyFiles ? 'opacity-40' : ''}"
 >
-  <div class="flex items-center justify-between mb-3">
+  <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
     <h3
       class="text-lg font-semibold flex items-center gap-2 text-amber-400"
     >
@@ -52,7 +52,7 @@
         </svg>
         <span>{t("flashcards.filterLength")}</span>
       </span>
-      <div class="grid grid-cols-2 gap-3">
+      <div class="panel-fields grid gap-3">
         <div class="space-y-1">
           <div class="flex items-center justify-between">
             <span class="flex items-center gap-1 text-xs text-gray-400">
@@ -138,7 +138,7 @@
         </svg>
         <span>{t("flashcards.filterDuration")}</span>
       </span>
-      <div class="grid grid-cols-2 gap-3">
+      <div class="panel-fields grid gap-3">
         <div class="space-y-1">
           <div class="flex items-center justify-between">
             <span class="flex items-center gap-1 text-xs text-gray-400">
@@ -218,7 +218,7 @@
 
     <!-- Sentence Combining -->
     <div class="mt-4 pt-4 border-t border-gray-800/50">
-      <div class="flex items-center justify-between mb-3">
+      <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
         <span class="flex items-center gap-1.5 text-xs font-semibold text-gray-400 uppercase tracking-wider">
           <svg class="w-3.5 h-3.5 text-white shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
@@ -254,3 +254,10 @@
   </div>
   {/if}
 </div>
+
+<style>
+  .panel-fields { grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr)); }
+  .panel-fields > :global(*) { min-width: 0; }
+  .panel-fields > :global(.col-span-2) { grid-column: 1 / -1; }
+  input { min-width: 0; }
+</style>

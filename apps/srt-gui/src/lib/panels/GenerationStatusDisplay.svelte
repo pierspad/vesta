@@ -17,12 +17,12 @@
 </script>
 
 <!-- Left side: Note type template AND progress text/result messages -->
-<div class="flex items-center gap-4 select-none z-10 min-w-0 flex-1">
+<div class="flex items-center gap-4 select-none z-10 min-w-0 flex-1 basis-60">
   {#if !generationStore.result && !generationStore.isBusy}
     {@render noteTypeControl()}
   {:else if generationStore.isBusy}
     <!-- Loading status message overlay -->
-    <div class="flex items-center gap-4">
+    <div class="flex min-w-0 flex-wrap items-center gap-4">
       {#if !easyMode}
         <!-- Disabled Template Cycle button during loading just for aesthetic presence -->
         <button

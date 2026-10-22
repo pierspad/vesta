@@ -384,7 +384,7 @@
   title={!hasAudio ? hintLoadMediaFirst : undefined}
   class="glass-card p-5 relative z-30 overflow-visible {!hasAudio ? 'opacity-40' : ''}"
 >
-  <div class="flex items-center justify-between mb-3">
+  <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
     <h3 class="text-lg font-semibold flex items-center gap-2 text-cyan-400">
       <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path
@@ -413,7 +413,7 @@
   </div>
 
   <div class="space-y-3 transition-all duration-200 {!settings.generateAudio ? 'opacity-40 pointer-events-none' : ''}">
-    <div class="grid grid-cols-2 gap-2">
+    <div class="panel-fields grid gap-2">
       {#if mediaType === "video" && (audioTracksLoading || audioTracks.length >= 1)}
         <div class={easyMode ? "col-span-2" : ""}>
           <span class="flex items-center gap-1.5 text-xs text-gray-400 mb-1 font-medium">
@@ -688,6 +688,10 @@
 
 
 <style>
+  .panel-fields { grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr)); }
+  .panel-fields > :global(*) { min-width: 0; }
+  .panel-fields > :global(.col-span-2) { grid-column: 1 / -1; }
+  input { min-width: 0; }
   .preview-glow { animation: preview-glow 0.5s ease-in-out 3; }
   @keyframes preview-glow {
     0%, 100% { box-shadow: 0 0 0 1px rgb(34 211 238 / 0.15); }

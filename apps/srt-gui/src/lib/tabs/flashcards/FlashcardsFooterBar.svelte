@@ -64,7 +64,7 @@
   let t = $derived($locale);
 </script>
 
-<FooterActions>
+<FooterActions wrap>
   {#snippet background()}
     {#if generationStore.isProcessing}
       <div
@@ -82,7 +82,7 @@
       noteTypeName={episodes.length > 1 ? t("flashcards.perFilmNoteTypes") : activeNoteType.name}
     >
       {#snippet noteTypeControl()}
-        <div class="w-80 max-w-[40vw]">
+        <div class="w-80 max-w-full min-w-0">
           {#if episodes.length > 1}
             <div class="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-xs text-gray-300" title={t("flashcards.perFilmNoteTypeHint")}>
               {t("flashcards.perFilmNoteTypes")}
@@ -105,7 +105,7 @@
   {/snippet}
   {#snippet right()}
     <!-- Right side: Export format toggle button, series output mode selector, and action buttons -->
-    <div class="flex items-center gap-4 z-10 select-none shrink-0">
+    <div class="flex min-w-0 flex-wrap items-center gap-4 z-10 select-none">
       <div class="flex items-center gap-2">
         <!-- Format toggle button -->
         <div class="relative group/fmt">

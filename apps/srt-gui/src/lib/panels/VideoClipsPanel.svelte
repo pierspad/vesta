@@ -42,7 +42,7 @@
   title={!hasVideo ? hintLoadVideoFirst : undefined}
   class="glass-card p-5 relative z-20 overflow-visible {!hasVideo ? 'opacity-40' : ''}"
 >
-  <div class="flex items-center justify-between mb-3">
+  <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
     <h3 class="text-lg font-semibold flex items-center gap-2 text-orange-400">
       <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path
@@ -138,7 +138,7 @@
       </div>
     {:else}
       <!-- Expert Mode: Fine-grained video options -->
-      <div class="grid grid-cols-2 gap-2">
+      <div class="panel-fields grid gap-2">
         <div class="col-span-2">
           <span class="flex items-center gap-1.5 text-xs text-gray-400 mb-1 font-medium">
             <svg class="w-3.5 h-3.5 text-gray-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -163,7 +163,7 @@
           />
         </div>
       </div>
-      <div class="grid grid-cols-2 gap-2">
+      <div class="panel-fields grid gap-2">
         <div>
           <span class="flex items-center gap-1.5 text-xs text-gray-400 mb-1 font-medium">
             <svg class="w-3.5 h-3.5 text-gray-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -189,7 +189,7 @@
           </div>
         </div>
       </div>
-      <div class="grid grid-cols-2 gap-2">
+      <div class="panel-fields grid gap-2">
         <div>
           <span class="flex items-center gap-1.5 text-xs text-gray-400 mb-1 font-medium">
             <svg class="w-3.5 h-3.5 text-gray-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -232,7 +232,7 @@
           />
         </div>
       </div>
-      <div class="grid grid-cols-2 gap-2">
+      <div class="panel-fields grid gap-2">
         <div>
           <span class="flex items-center gap-1.5 text-xs text-gray-400 mb-1 font-medium">
             <svg class="w-3.5 h-3.5 text-gray-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -267,7 +267,7 @@
           />
         </div>
       </div>
-      <div class="grid grid-cols-2 gap-2">
+      <div class="panel-fields grid gap-2">
         <div>
           <span class="flex items-center gap-1.5 text-xs text-gray-400 mb-1 font-medium">
             <svg class="w-3.5 h-3.5 text-gray-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -309,3 +309,10 @@
     </div>
   {/if}
 </div>
+
+<style>
+  .panel-fields { grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr)); }
+  .panel-fields > :global(*) { min-width: 0; }
+  .panel-fields > :global(.col-span-2) { grid-column: 1 / -1; }
+  input { min-width: 0; }
+</style>
