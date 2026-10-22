@@ -5,6 +5,9 @@ import { hydrate as hydrateVestaConfig } from "$lib/config/vestaConfig";
 
 installSupportLogging();
 
+import { installExternalLinks } from "$lib/utils/externalLinks";
+installExternalLinks(document, error => console.error("[ExternalLink]", error));
+
 // Prevent WebKit from handling dropped files (triggers GStreamer errors).
 // Only intercept OS file drops (dataTransfer contains "Files").
 // Must use capture phase to intercept before WebKit's native media handling.

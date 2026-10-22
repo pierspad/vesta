@@ -7,7 +7,7 @@
     "core:default",
     {
       "identifier": "opener:allow-open-url",
-      "allow": [{ "url": "https://github.com/pierspad/vesta/releases*" }]
+      "allow": [{ "url": "https://*" }, { "url": "http://*" }, { "url": "mailto:*" }]
     },
     "dialog:allow-open",
     "dialog:allow-save",
