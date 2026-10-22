@@ -555,6 +555,9 @@
   function resetOverviewSettings() {
     setLanguage("en");
     resetDefaultLanguages();
+    cpuRamStore.setCores(cpuRamStore.maxCpuCores);
+    cpuRamStore.setRamLimitMb(0);
+    exportFormatStore.setExportFormat("apkg");
     snackbar.show(t("settings.overview.resetSuccess"), "info");
   }
 
@@ -1210,6 +1213,10 @@
         resetLanguageSettings();
       } else if (showResetConfirm === "anki") {
         ankiTemplateStore.resetAll();
+        ankiStore.setUrl("http://127.0.0.1:8765");
+        ankiStore.setDictionaryLookup(true);
+        ankiStore.setAutoCardFont(true);
+        ankiStore.setEmbedCardFont(true);
       }
       showResetConfirm = null;
     }}

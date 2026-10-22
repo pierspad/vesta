@@ -44,3 +44,11 @@ it("resets languages from the easy-mode overview", async () => {
   await reset("overview");
   expect(config.getItem("vesta-default-native-language")).toBe("en");
 });
+it("restores Anki connection and card options in expert mode", async () => {
+  uiMode.expertMode = true;
+  ankiStore.setUrl("http://localhost:9000"); ankiStore.setDictionaryLookup(false);
+  ankiStore.setAutoCardFont(false); ankiStore.setEmbedCardFont(false);
+  await reset("anki");
+  expect(ankiStore.url).toBe("http://127.0.0.1:8765");
+  expect(ankiStore.dictionaryLookup && ankiStore.autoCardFont && ankiStore.embedCardFont).toBe(true);
+});

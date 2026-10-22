@@ -115,9 +115,9 @@ class AnkiTemplateStore {
     ...predefinedNoteTypes().map((nt) => ({ id: nt.id, name: nt.name, noteTypeName: nt.name, language: nt.language, fields: nt.fields })).sort((a, b) => a.name.localeCompare(b.name)),
   ]);
 
-  refreshActiveNoteTypeId() {
+  refreshActiveNoteTypeId = () => {
     this.activeNoteTypeId = loadActiveNoteTypeId();
-  }
+  };
 
   saveTemplates() {
     saveCardTemplates({
@@ -128,10 +128,10 @@ class AnkiTemplateStore {
     });
   }
 
-  syncTemplateStateFromStorage() {
+  syncTemplateStateFromStorage = () => {
     const templates = loadCardTemplates();
     this.noteTypeName = templates.noteTypeName;
-  }
+  };
 
   getCurrentFieldNames(): FieldNamesConfig {
     return {
@@ -178,9 +178,9 @@ class AnkiTemplateStore {
     saveFieldNames(this.getCurrentFieldNames());
   }
 
-  syncFieldStateFromStorage() {
+  syncFieldStateFromStorage = () => {
     this.setCurrentFieldNames(loadFieldNames());
-  }
+  };
 
   private persistAnkiFieldPresets() {
     vestaConfig.setItem(ANKI_FIELD_PRESETS_KEY, JSON.stringify(this.savedAnkiFieldPresets));
