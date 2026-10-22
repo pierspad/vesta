@@ -1,4 +1,6 @@
 <script lang="ts">
+  import AspectRatioLock from "$lib/components/AspectRatioLock.svelte";
+  import { linkedDimensions } from "$lib/utils/aspectRatio";
   import { numberControl } from "$lib/utils/numberControl";
   import { locale } from "$lib/i18n";
   import { uiMode } from "$lib/stores/uiModeStore.svelte";
@@ -22,6 +24,15 @@
   let easyMode = $derived(!uiMode.expertMode);
 
   const CUSTOM = "__custom__";
+  let lockedRatio = $state<number | null>(null);
+  function resizeDimension(axis: "width" | "height", event: Event) {
+    if (lockedRatio === null) return;
+    const dimensions = linkedDimensions(lockedRatio, axis, (event.currentTarget as HTMLInputElement).valueAsNumber);
+    if (!dimensions) return;
+    settings.snapshotWidth = dimensions.width;
+    settings.snapshotHeight = dimensions.height;
+  }
+
 
   let activeQuality = $derived(
     matchQualityStep(settings.snapshotQuality, settings.snapshotWidth, settings.snapshotHeight)
@@ -33,6 +44,7 @@
     settings.snapshotQuality = step.snapshotQuality;
     settings.snapshotWidth = step.snapshotWidth;
     settings.snapshotHeight = step.snapshotHeight;
+    if (lockedRatio !== null) lockedRatio = settings.snapshotWidth / settings.snapshotHeight;
     if (settings.audioFormat === "opus") settings.audioBitrate = step.opusBitrate;
   }
 </script>
@@ -185,7 +197,7 @@
       </div>
 
       <!-- Row 2: Width (Left) + Height (Right) -->
-      <div class="panel-fields grid gap-2">
+      <div class="dimensions-row">
         <div>
           <span class="flex items-center gap-1.5 text-xs text-gray-400 mb-1 font-medium">
             <svg class="w-3.5 h-3.5 text-gray-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -194,10 +206,11 @@
             <span>{t("flashcards.width")}</span>
           </span>
           <div class="flex items-center gap-1">
-            <input use:numberControl type="number" bind:value={settings.snapshotWidth} class="input-modern w-full text-xs" />
+            <input use:numberControl type="number" value={settings.snapshotWidth} min="16" max="7680" oninput={(event) => { if (lockedRatio === null) settings.snapshotWidth = event.currentTarget.valueAsNumber; else resizeDimension("width", event); }} class="input-modern w-full text-xs" />
             <span class="text-xs text-gray-500">px</span>
           </div>
         </div>
+      <AspectRatioLock bind:ratio={lockedRatio} width={settings.snapshotWidth} height={settings.snapshotHeight} />
         <div>
           <span class="flex items-center gap-1.5 text-xs text-gray-400 mb-1 font-medium">
             <svg class="w-3.5 h-3.5 text-gray-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -206,7 +219,7 @@
             <span>{t("flashcards.height")}</span>
           </span>
           <div class="flex items-center gap-1">
-            <input use:numberControl type="number" bind:value={settings.snapshotHeight} class="input-modern w-full text-xs" />
+            <input use:numberControl type="number" value={settings.snapshotHeight} min="16" max="4320" oninput={(event) => { if (lockedRatio === null) settings.snapshotHeight = event.currentTarget.valueAsNumber; else resizeDimension("height", event); }} class="input-modern w-full text-xs" />
             <span class="text-xs text-gray-500">px</span>
           </div>
         </div>
@@ -256,6 +269,8 @@
 </div>
 
 <style>
+  .dimensions-row { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: end; gap: 8px; }
+  .dimensions-row > :global(*) { min-width: 0; }
   .panel-fields { grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr)); }
   .panel-fields > :global(*) { min-width: 0; }
   .panel-fields > :global(.col-span-2) { grid-column: 1 / -1; }

@@ -1280,5 +1280,6 @@
   "notifications.title": "Meldingen",
   "notifications.unread": "Ongelezen meldingen",
   "common.increaseValue": "Waarde verhogen",
-  "common.decreaseValue": "Waarde verlagen"
+  "common.decreaseValue": "Waarde verlagen",
+  "flashcards.keepAspectRatio": "Beeldverhouding behouden"
 }

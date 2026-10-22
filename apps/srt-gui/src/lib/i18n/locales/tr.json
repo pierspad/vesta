@@ -1280,5 +1280,6 @@
   "notifications.title": "Bildirimler",
   "notifications.unread": "Okunmamış bildirimler",
   "common.increaseValue": "Değeri artır",
-  "common.decreaseValue": "Değeri azalt"
+  "common.decreaseValue": "Değeri azalt",
+  "flashcards.keepAspectRatio": "En boy oranını koru"
 }

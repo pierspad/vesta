@@ -1280,5 +1280,6 @@
   "notifications.title": "Notifiche",
   "notifications.unread": "Notifiche non lette",
   "common.increaseValue": "Aumenta valore",
-  "common.decreaseValue": "Diminuisci valore"
+  "common.decreaseValue": "Diminuisci valore",
+  "flashcards.keepAspectRatio": "Mantieni proporzioni"
 }

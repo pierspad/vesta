@@ -1280,5 +1280,6 @@
   "notifications.title": "الإشعارات",
   "notifications.unread": "إشعارات غير مقروءة",
   "common.increaseValue": "زيادة القيمة",
-  "common.decreaseValue": "تقليل القيمة"
+  "common.decreaseValue": "تقليل القيمة",
+  "flashcards.keepAspectRatio": "الحفاظ على نسبة الأبعاد"
 }

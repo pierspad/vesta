@@ -1280,5 +1280,6 @@
   "notifications.title": "Notifications",
   "notifications.unread": "Unread notifications",
   "common.increaseValue": "Increase value",
-  "common.decreaseValue": "Decrease value"
+  "common.decreaseValue": "Decrease value",
+  "flashcards.keepAspectRatio": "Keep aspect ratio"
 }

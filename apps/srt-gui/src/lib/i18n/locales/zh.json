@@ -1280,5 +1280,6 @@
   "notifications.title": "通知",
   "notifications.unread": "未读通知",
   "common.increaseValue": "增大数值",
-  "common.decreaseValue": "减小数值"
+  "common.decreaseValue": "减小数值",
+  "flashcards.keepAspectRatio": "保持宽高比"
 }

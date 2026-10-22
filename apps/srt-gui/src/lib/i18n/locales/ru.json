@@ -1280,5 +1280,6 @@
   "notifications.title": "Уведомления",
   "notifications.unread": "Непрочитанные уведомления",
   "common.increaseValue": "Увеличить значение",
-  "common.decreaseValue": "Уменьшить значение"
+  "common.decreaseValue": "Уменьшить значение",
+  "flashcards.keepAspectRatio": "Сохранять пропорции"
 }

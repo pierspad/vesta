@@ -1280,5 +1280,6 @@
   "notifications.title": "알림",
   "notifications.unread": "읽지 않은 알림",
   "common.increaseValue": "값 증가",
-  "common.decreaseValue": "값 감소"
+  "common.decreaseValue": "값 감소",
+  "flashcards.keepAspectRatio": "종횡비 유지"
 }

@@ -1280,5 +1280,6 @@
   "notifications.title": "Centre de notifications",
   "notifications.unread": "Notifications non lues",
   "common.increaseValue": "Augmenter la valeur",
-  "common.decreaseValue": "Diminuer la valeur"
+  "common.decreaseValue": "Diminuer la valeur",
+  "flashcards.keepAspectRatio": "Conserver les proportions"
 }

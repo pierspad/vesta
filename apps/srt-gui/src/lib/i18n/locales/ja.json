@@ -1280,5 +1280,6 @@
   "notifications.title": "通知",
   "notifications.unread": "未読の通知",
   "common.increaseValue": "値を増やす",
-  "common.decreaseValue": "値を減らす"
+  "common.decreaseValue": "値を減らす",
+  "flashcards.keepAspectRatio": "縦横比を固定"
 }

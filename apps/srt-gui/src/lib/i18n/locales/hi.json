@@ -1280,5 +1280,6 @@
   "notifications.title": "सूचनाएँ",
   "notifications.unread": "अपठित सूचनाएँ",
   "common.increaseValue": "मान बढ़ाएँ",
-  "common.decreaseValue": "मान घटाएँ"
+  "common.decreaseValue": "मान घटाएँ",
+  "flashcards.keepAspectRatio": "पहलू अनुपात बनाए रखें"
 }
