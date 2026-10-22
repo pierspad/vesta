@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { t } from "$lib/i18n";
+  import { locale } from "$lib/i18n";
+  let t = $derived($locale);
 
   interface Props {
     label?: string;
@@ -29,10 +30,11 @@
     onclear = undefined,
     browseButtonClass = "btn-secondary py-2 px-3",
     browseIconPath = "M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z",
-    browseLabel = t("flashcards.browse"),
+    browseLabel,
     required = false,
     labelIcon = "",
   }: Props = $props();
+  let effectiveBrowseLabel = $derived(browseLabel ?? t("flashcards.browse"));
 </script>
 
 <div>
@@ -88,8 +90,8 @@
           d={browseIconPath}
         />
       </svg>
-      {#if browseLabel}
-        <span class="text-xs font-semibold">{browseLabel}</span>
+      {#if effectiveBrowseLabel}
+        <span class="text-xs font-semibold">{effectiveBrowseLabel}</span>
       {/if}
     </button>
 

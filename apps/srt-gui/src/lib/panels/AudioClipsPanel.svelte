@@ -651,7 +651,7 @@
               <path d="M8 5v14l11-7z"/>
             </svg>
           {/if}
-          <span class="truncate">{isPreviewPlaying ? t("flashcards.previewAudioPlaying") : "Play audio"}</span>
+          <span class="truncate">{isPreviewPlaying ? t("flashcards.previewAudioPlaying") : t("common.play")}</span>
         </button>
 
         <button
