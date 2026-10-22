@@ -15,7 +15,8 @@ def main():
     args = parser.parse_args()
     rust = ['cargo', 'test', '--locked', '--workspace', '--exclude', 'whisper-bench']
     if not args.desktop: rust += ['--exclude', 'vesta']
-    commands = [(ROOT, ['python3', 'build-scripts/check_tauri_versions.py']),
+    commands = [(ROOT, ['python3', 'build-scripts/test_release_workflows.py']),
+                (ROOT, ['python3', 'build-scripts/check_tauri_versions.py']),
                 (ROOT, ['python3', 'build-scripts/test_tauri_versions.py']),
                 (ROOT / 'apps/srt-gui', ['npm', 'run', 'check']),
                 (ROOT / 'apps/srt-gui', ['npm', 'test']),
