@@ -4551,7 +4551,7 @@ dependencies = [
 
 [[package]]
 name = "srt-ankiconnect"
-version = "0.29.0"
+version = "0.29.1"
 dependencies = [
  "reqwest",
  "serde",
@@ -4561,7 +4561,7 @@ dependencies = [
 
 [[package]]
 name = "srt-apkg"
-version = "0.29.0"
+version = "0.29.1"
 dependencies = [
  "tempfile",
  "zip",
@@ -4569,7 +4569,7 @@ dependencies = [
 
 [[package]]
 name = "srt-autosync"
-version = "0.29.0"
+version = "0.29.1"
 dependencies = [
  "anyhow",
  "serde",
@@ -4582,7 +4582,7 @@ dependencies = [
 
 [[package]]
 name = "srt-autosync-cli"
-version = "0.29.0"
+version = "0.29.1"
 dependencies = [
  "anyhow",
  "clap",
@@ -4596,7 +4596,7 @@ dependencies = [
 
 [[package]]
 name = "srt-download"
-version = "0.29.0"
+version = "0.29.1"
 dependencies = [
  "anyhow",
  "futures",
@@ -4608,7 +4608,7 @@ dependencies = [
 
 [[package]]
 name = "srt-extract"
-version = "0.29.0"
+version = "0.29.1"
 dependencies = [
  "anyhow",
  "serde",
@@ -4620,7 +4620,7 @@ dependencies = [
 
 [[package]]
 name = "srt-extract-cli"
-version = "0.29.0"
+version = "0.29.1"
 dependencies = [
  "anyhow",
  "clap",
@@ -4633,7 +4633,7 @@ dependencies = [
 
 [[package]]
 name = "srt-flashcards"
-version = "0.29.0"
+version = "0.29.1"
 dependencies = [
  "anyhow",
  "dirs 6.0.0",
@@ -4651,7 +4651,7 @@ dependencies = [
 
 [[package]]
 name = "srt-flashcards-cli"
-version = "0.29.0"
+version = "0.29.1"
 dependencies = [
  "anyhow",
  "clap",
@@ -4663,7 +4663,7 @@ dependencies = [
 
 [[package]]
 name = "srt-parser"
-version = "0.29.0"
+version = "0.29.1"
 dependencies = [
  "anyhow",
  "chardetng",
@@ -4675,7 +4675,7 @@ dependencies = [
 
 [[package]]
 name = "srt-refine"
-version = "0.29.0"
+version = "0.29.1"
 dependencies = [
  "rusqlite",
  "serde",
@@ -4689,7 +4689,7 @@ dependencies = [
 
 [[package]]
 name = "srt-refine-cli"
-version = "0.29.0"
+version = "0.29.1"
 dependencies = [
  "anyhow",
  "clap",
@@ -4704,7 +4704,7 @@ dependencies = [
 
 [[package]]
 name = "srt-sync"
-version = "0.29.0"
+version = "0.29.1"
 dependencies = [
  "anyhow",
  "serde",
@@ -4715,7 +4715,7 @@ dependencies = [
 
 [[package]]
 name = "srt-sync-cli"
-version = "0.29.0"
+version = "0.29.1"
 dependencies = [
  "anyhow",
  "clap",
@@ -4726,7 +4726,7 @@ dependencies = [
 
 [[package]]
 name = "srt-transcribe"
-version = "0.29.0"
+version = "0.29.1"
 dependencies = [
  "anyhow",
  "dirs 6.0.0",
@@ -4746,7 +4746,7 @@ dependencies = [
 
 [[package]]
 name = "srt-transcribe-cli"
-version = "0.29.0"
+version = "0.29.1"
 dependencies = [
  "anyhow",
  "clap",
@@ -4759,7 +4759,7 @@ dependencies = [
 
 [[package]]
 name = "srt-translate"
-version = "0.29.0"
+version = "0.29.1"
 dependencies = [
  "anyhow",
  "futures",
@@ -4775,7 +4775,7 @@ dependencies = [
 
 [[package]]
 name = "srt-translate-cli"
-version = "0.29.0"
+version = "0.29.1"
 dependencies = [
  "anyhow",
  "clap",
@@ -5877,7 +5877,7 @@ checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
 
 [[package]]
 name = "vesta"
-version = "0.29.0"
+version = "0.29.1"
 dependencies = [
  "anyhow",
  "axum",
@@ -5915,7 +5915,7 @@ dependencies = [
 
 [[package]]
 name = "vesta-cli"
-version = "0.29.0"
+version = "0.29.1"
 dependencies = [
  "clap",
  "srt-autosync-cli",
@@ -5930,7 +5930,7 @@ dependencies = [
 
 [[package]]
 name = "vesta-mcp"
-version = "0.29.0"
+version = "0.29.1"
 dependencies = [
  "anyhow",
  "clap",
