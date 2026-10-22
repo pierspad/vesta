@@ -27,3 +27,26 @@ it("closes outside and removes a portalled menu when the select unmounts", async
  input.blur(); input.focus(); await tick(); expect(document.querySelector(".searchable-select-dropdown")).not.toBeNull();
  await unmount(instances.pop()!); expect(document.querySelector(".searchable-select-dropdown")).toBeNull();
 });
+it("closes on outside pointerdown even when bubbling is stopped", async () => {
+ await render();
+ const outside = document.createElement("button"); document.body.append(outside);
+ outside.addEventListener("pointerdown", event => event.stopPropagation());
+ outside.dispatchEvent(new Event("pointerdown", {bubbles:true})); await tick();
+ expect(document.querySelector(".searchable-select-dropdown")).toBeNull();
+});
+it("closes with Escape and allows opening again", async () => {
+ const {input} = await render();
+ input.dispatchEvent(new KeyboardEvent("keydown", {key:"Escape",bubbles:true})); await tick();
+ expect(document.querySelector(".searchable-select-dropdown")).toBeNull();
+ input.focus(); await tick();
+ expect(document.querySelector(".searchable-select-dropdown")).not.toBeNull();
+});
+it("toggles an open select closed with its arrow button", async () => {
+ const {target} = await render();
+ const toggle = target.querySelector<HTMLButtonElement>('button[aria-expanded]')!;
+ expect(toggle.getAttribute("aria-expanded")).toBe("true");
+ toggle.click(); await tick();
+ expect(document.querySelector(".searchable-select-dropdown")).toBeNull();
+ toggle.click(); await tick();
+ expect(document.querySelector(".searchable-select-dropdown")).not.toBeNull();
+});

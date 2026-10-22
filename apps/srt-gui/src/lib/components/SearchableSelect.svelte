@@ -170,7 +170,14 @@
       const highlighted = dropdownElement.querySelector(
         `[data-index="${highlightedIndex}"]`,
       );
-      highlighted?.scrollIntoView({ block: "nearest" });
+      if (highlighted instanceof HTMLElement) {
+        const top = highlighted.offsetTop;
+        const bottom = top + highlighted.offsetHeight;
+        if (top < dropdownElement.scrollTop) dropdownElement.scrollTop = top;
+        else if (bottom > dropdownElement.scrollTop + dropdownElement.clientHeight) {
+          dropdownElement.scrollTop = bottom - dropdownElement.clientHeight;
+        }
+      }
     }
   }
 
@@ -208,7 +215,7 @@
     } };
   }
 
-  function handleClickOutside(e: MouseEvent) {
+  function handleClickOutside(e: Event) {
     if (containerElement && !containerElement.contains(e.target as Node) && !dropdownElement?.contains(e.target as Node)) {
       isOpen = false;
       searchQuery = "";
@@ -216,11 +223,13 @@
   }
 
   onMount(() => {
-    document.addEventListener("click", handleClickOutside);
+    document.addEventListener("pointerdown", handleClickOutside, true);
+    document.addEventListener("click", handleClickOutside, true);
   });
 
   onDestroy(() => {
-    document.removeEventListener("click", handleClickOutside);
+    document.removeEventListener("pointerdown", handleClickOutside, true);
+    document.removeEventListener("click", handleClickOutside, true);
   });
 </script>
 
@@ -258,8 +267,22 @@
       style:padding-left={(selectedOption?.provider || (selectedOption?.icon && iconMarkup(selectedOption.icon))) && !isOpen ? "38px" : ""}
       autocomplete="off"
     />
-    <div
-      class="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400 transition-transform duration-200 {isOpen
+    <button
+      type="button"
+      aria-label={ariaLabel ?? placeholder}
+      aria-expanded={isOpen}
+      {disabled}
+      onpointerdown={(event) => event.preventDefault()}
+      onclick={() => {
+        if (isOpen) {
+          isOpen = false;
+          searchQuery = "";
+          inputElement?.blur();
+        } else {
+          inputElement?.focus();
+        }
+      }}
+      class="absolute right-1 top-1/2 -translate-y-1/2 flex h-9 w-9 items-center justify-center text-gray-400 transition-transform duration-200 {isOpen
         ? 'rotate-180'
         : ''}"
     >
@@ -276,7 +299,7 @@
           d="M19 9l-7 7-7-7"
         />
       </svg>
-    </div>
+    </button>
   </div>
 
   {#if isOpen}
