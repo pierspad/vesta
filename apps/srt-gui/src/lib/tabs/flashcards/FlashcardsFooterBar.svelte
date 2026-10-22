@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { viewportTooltip } from "$lib/utils/viewportTooltip";
   import FooterActions from "$lib/components/FooterActions.svelte";
   import GenerationStatusDisplay from "$lib/panels/GenerationStatusDisplay.svelte";
   import SearchableSelect from "$lib/components/SearchableSelect.svelte";
@@ -143,7 +144,7 @@
                   : `Anki Connect (${t("common.fallback")}: ${generationStore.fallbackFormat.toUpperCase()})`)}
           </button>
           {#if !generationStore.isProcessing && !generationStore.result}
-            <div class="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-3 z-50
+            <div use:viewportTooltip class="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-3 z-50
               rounded-xl bg-gray-950/95 p-3 text-xs shadow-2xl shadow-black/40 ring-1 ring-white/10
               opacity-0 group-hover/fmt:opacity-100 transition-all duration-150 whitespace-nowrap text-center border
               {generationStore.exportFormat === 'apkg'
@@ -186,7 +187,7 @@
 
             <!-- Custom tooltip -->
             {#if isApkgSwitchEnabled}
-              <div 
+              <div use:viewportTooltip
                 class="pointer-events-none absolute bottom-full z-50 mb-3 -translate-x-1/2 rounded-xl border border-violet-500/30 bg-gray-950/95 p-3 text-center text-xs text-violet-300 shadow-2xl shadow-black/40 ring-1 ring-white/10 transition-[opacity,transform] duration-75 delay-0 opacity-0 group-hover/sw:opacity-100 group-hover/sw:translate-y-0 translate-y-1 whitespace-normal max-w-[280px] w-max"
                 style="left: {generationStore.seriesOutputMode === 'separate' ? '82px' : '242px'};"
               >
@@ -227,7 +228,7 @@
             {t("flashcards.preview")}
           </button>
           {#if !generationStore.isProcessing}
-            <div class="pointer-events-none absolute bottom-full left-1/2 z-50 mb-3 -translate-x-1/2 rounded-xl border border-amber-500/30 bg-gray-950/95 p-3 text-center text-xs text-amber-300 shadow-2xl shadow-black/40 ring-1 ring-white/10 transition-all duration-150 delay-0 group-hover:delay-300 opacity-0 group-hover:opacity-100 group-hover:translate-y-0 translate-y-1 whitespace-normal w-72">
+            <div use:viewportTooltip class="pointer-events-none absolute bottom-full left-1/2 z-50 mb-3 -translate-x-1/2 rounded-xl border border-amber-500/30 bg-gray-950/95 p-3 text-center text-xs text-amber-300 shadow-2xl shadow-black/40 ring-1 ring-white/10 transition-all duration-150 delay-0 group-hover:delay-300 opacity-0 group-hover:opacity-100 group-hover:translate-y-0 translate-y-1 whitespace-normal w-72">
               {!canRunFlashcards ? t("flashcards.completePrefix", { steps: generationRequirementsText }) : t("flashcards.preview")}
             </div>
           {/if}
@@ -296,7 +297,7 @@
               {t("flashcards.generate")}
             </button>
             {#if !canRunFlashcards}
-              <div
+              <div use:viewportTooltip={{ visible: generationPromptOpen }}
                 id="flashcards-generate-requirements"
                 class="pointer-events-none absolute bottom-full left-1/2 z-40 mb-3 w-[min(22rem,calc(100vw-3rem))] -translate-x-1/2 rounded-xl border border-amber-400/30 bg-gray-950/95 p-3 text-left text-xs text-gray-200 opacity-0 shadow-2xl shadow-black/40 ring-1 ring-white/10 transition-all duration-150 delay-0 group-hover:delay-300 group-hover:opacity-100 group-hover:translate-y-0 {generationPromptOpen ? 'opacity-100 translate-y-0' : 'translate-y-1'}"
               >
@@ -332,7 +333,7 @@
               </svg>
               {t("flashcards.newGeneration")}
             </button>
-            <div class="pointer-events-none absolute bottom-full left-1/2 z-50 mb-3 -translate-x-1/2 rounded-xl border border-amber-500/30 bg-gray-950/95 p-3 text-center text-xs text-amber-300 shadow-2xl shadow-black/40 ring-1 ring-white/10 transition-all duration-150 delay-0 group-hover:delay-300 opacity-0 group-hover:opacity-100 group-hover:translate-y-0 translate-y-1 whitespace-normal w-72">
+            <div use:viewportTooltip class="pointer-events-none absolute bottom-full left-1/2 z-50 mb-3 -translate-x-1/2 rounded-xl border border-amber-500/30 bg-gray-950/95 p-3 text-center text-xs text-amber-300 shadow-2xl shadow-black/40 ring-1 ring-white/10 transition-all duration-150 delay-0 group-hover:delay-300 opacity-0 group-hover:opacity-100 group-hover:translate-y-0 translate-y-1 whitespace-normal w-72">
               {t("flashcards.newGenerationDesc")}
             </div>
           </div>
