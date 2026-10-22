@@ -1281,5 +1281,7 @@
   "notifications.unread": "إشعارات غير مقروءة",
   "common.increaseValue": "زيادة القيمة",
   "common.decreaseValue": "تقليل القيمة",
-  "flashcards.keepAspectRatio": "الحفاظ على نسبة الأبعاد"
+  "flashcards.keepAspectRatio": "الحفاظ على نسبة الأبعاد",
+  "common.outputFolderLabel": "المجلد",
+  "common.outputFileLabel": "فتح الملف"
 }

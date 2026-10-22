@@ -1281,5 +1281,7 @@
   "notifications.unread": "未读通知",
   "common.increaseValue": "增大数值",
   "common.decreaseValue": "减小数值",
-  "flashcards.keepAspectRatio": "保持宽高比"
+  "flashcards.keepAspectRatio": "保持宽高比",
+  "common.outputFolderLabel": "文件夹",
+  "common.outputFileLabel": "打开文件"
 }

@@ -1281,5 +1281,7 @@
   "notifications.unread": "읽지 않은 알림",
   "common.increaseValue": "값 증가",
   "common.decreaseValue": "값 감소",
-  "flashcards.keepAspectRatio": "종횡비 유지"
+  "flashcards.keepAspectRatio": "종횡비 유지",
+  "common.outputFolderLabel": "폴더",
+  "common.outputFileLabel": "파일 열기"
 }

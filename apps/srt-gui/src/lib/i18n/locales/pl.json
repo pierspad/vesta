@@ -1281,5 +1281,7 @@
   "notifications.unread": "Nieprzeczytane powiadomienia",
   "common.increaseValue": "Zwiększ wartość",
   "common.decreaseValue": "Zmniejsz wartość",
-  "flashcards.keepAspectRatio": "Zachowaj proporcje"
+  "flashcards.keepAspectRatio": "Zachowaj proporcje",
+  "common.outputFolderLabel": "Katalog",
+  "common.outputFileLabel": "Otwórz plik"
 }

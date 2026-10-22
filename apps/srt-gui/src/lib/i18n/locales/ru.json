@@ -1281,5 +1281,7 @@
   "notifications.unread": "Непрочитанные уведомления",
   "common.increaseValue": "Увеличить значение",
   "common.decreaseValue": "Уменьшить значение",
-  "flashcards.keepAspectRatio": "Сохранять пропорции"
+  "flashcards.keepAspectRatio": "Сохранять пропорции",
+  "common.outputFolderLabel": "Папка",
+  "common.outputFileLabel": "Открыть файл"
 }

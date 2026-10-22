@@ -1281,5 +1281,7 @@
   "notifications.unread": "Ungelesene Mitteilungen",
   "common.increaseValue": "Wert erhöhen",
   "common.decreaseValue": "Wert verringern",
-  "flashcards.keepAspectRatio": "Seitenverhältnis beibehalten"
+  "flashcards.keepAspectRatio": "Seitenverhältnis beibehalten",
+  "common.outputFolderLabel": "Ordner",
+  "common.outputFileLabel": "Datei öffnen"
 }

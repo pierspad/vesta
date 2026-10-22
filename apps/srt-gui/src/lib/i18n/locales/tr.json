@@ -1281,5 +1281,7 @@
   "notifications.unread": "Okunmamış bildirimler",
   "common.increaseValue": "Değeri artır",
   "common.decreaseValue": "Değeri azalt",
-  "flashcards.keepAspectRatio": "En boy oranını koru"
+  "flashcards.keepAspectRatio": "En boy oranını koru",
+  "common.outputFolderLabel": "Klasör",
+  "common.outputFileLabel": "Dosyayı aç"
 }

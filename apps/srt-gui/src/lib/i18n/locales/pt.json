@@ -1281,5 +1281,7 @@
   "notifications.unread": "Notificações não lidas",
   "common.increaseValue": "Aumentar valor",
   "common.decreaseValue": "Diminuir valor",
-  "flashcards.keepAspectRatio": "Manter proporções"
+  "flashcards.keepAspectRatio": "Manter proporções",
+  "common.outputFolderLabel": "Pasta",
+  "common.outputFileLabel": "Abrir arquivo"
 }
