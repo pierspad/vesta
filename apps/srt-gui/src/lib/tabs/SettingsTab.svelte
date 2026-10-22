@@ -554,6 +554,7 @@
 
   function resetOverviewSettings() {
     setLanguage("en");
+    resetDefaultLanguages();
     snackbar.show(t("settings.overview.resetSuccess"), "info");
   }
 
@@ -564,7 +565,7 @@
     snackbar.show(t("settings.llm.resetSuccess"), "info");
   }
 
-  function resetLanguageSettings() {
+  function resetDefaultLanguages() {
     defaultTargetLanguage = "en";
     defaultTranscribeLanguage = "auto";
     defaultFlashcardsLanguage = "en";
@@ -573,7 +574,11 @@
     saveDefaultLanguage(DEFAULT_TRANSCRIBE_LANGUAGE_KEY, "auto");
     saveDefaultLanguage(DEFAULT_FLASHCARDS_LANGUAGE_KEY, "en");
     saveDefaultLanguage(DEFAULT_NATIVE_LANGUAGE_KEY, "en");
+    saveDefaultLanguage(NOTE_TYPE_LANGUAGE_KEY, "en");
+  }
 
+  function resetLanguageSettings() {
+    resetDefaultLanguages();
     smartMatchingStore.resetRules();
     smartMatchingStore.setEnabled(true);
     smartMatchingRulesDraft.loadFromStore();
