@@ -19,9 +19,10 @@
 
   interface Props {
     onSave: () => void;
+    onDelete?: (id: string) => void;
   }
 
-  let { onSave }: Props = $props();
+  let { onSave, onDelete }: Props = $props();
 
   const usageIcon = (path: string) => `<svg class="w-5 h-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${path}" /></svg>`;
   const usageOptions = [
@@ -32,6 +33,7 @@
 
   let t = $derived($locale);
   let store = apiKeyEditorStore;
+  let canDelete = $derived(!!onDelete && !!store.editKeyId && !["local", "local_stt_server"].includes(store.editKeyId));
   let duplicateName = $derived(hasProviderNameConflict(loadAndValidateApiKeys(), store.newKeyName, store.editKeyId));
 
   function copyToClipboard(text: string) {
@@ -39,36 +41,50 @@
   }
 </script>
 
+{#snippet icon(path: string)}
+  <svg aria-hidden="true" class="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d={path} /></svg>
+{/snippet}
+
 {#if store.showAddKey}
   <div
     class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4"
     role="dialog"
+    aria-modal="true"
+    aria-labelledby="provider-dialog-title"
     tabindex="-1"
     onmousedown={(e) => {
       if (e.target === e.currentTarget) store.close();
     }}
   >
     <div
-      class="w-full max-w-4xl h-[min(820px,92vh)] max-h-[92vh] overflow-hidden animate-fade-in shadow-2xl border border-white/20 bg-gray-900/98 backdrop-blur-xl rounded-xl flex flex-col"
+      class="provider-dialog w-full max-h-[92dvh] overflow-hidden animate-fade-in shadow-2xl border border-white/20 bg-gray-900/98 backdrop-blur-xl rounded-xl flex flex-col"
+      class:editing={!!store.editKeyId}
       role="presentation"
       onmousedown={(e) => e.stopPropagation()}
     >
-      <div class="p-6 border-b border-white/5 bg-white/5">
-        <h3 class="text-xl font-bold text-white flex items-center gap-2">
+      <div class="p-4 sm:p-5 border-b border-white/5 bg-white/5">
+        <h3 id="provider-dialog-title" class="text-xl font-bold text-white flex items-center gap-2">
+          {@render icon("M12 3H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M16 3l5 5-9 9-5 1 1-5z")}
           {store.editKeyId
             ? t("settings.modal.editApiKey")
             : t("settings.modal.addCustomApiKey")}
         </h3>
       </div>
 
-      <div class="p-6 flex-1 min-h-0 overflow-hidden flex flex-col">
-        <div class="space-y-5 overflow-y-auto custom-scrollbar pr-1 pb-6 flex-1 min-h-0">
+      <div class="p-4 sm:p-5 flex-1 min-h-0 overflow-hidden flex flex-col">
+        <div class="space-y-4 overflow-y-auto custom-scrollbar pr-1 pb-1 min-h-0">
         <div>
           <span
-            class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2"
-            >{t("settings.modal.provider")}</span
+            class="flex items-center gap-2 text-xs font-semibold text-gray-400 mb-2"
+            >{@render icon("M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z")} {t("settings.modal.provider")}</span
           >
-          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 mb-3">
+          {#if store.editKeyId}
+            <div class="flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 p-4" data-testid="editing-provider">
+              <ProviderIcon provider={store.newKeyType} />
+              <span class="text-sm font-semibold text-white">{store.newKeyType === "custom" ? t("provider.custom") : (store.modalContext === "whisper" ? transcribeProviders[store.newKeyType]?.name : providers[store.newKeyType]?.name) || store.newKeyType}</span>
+            </div>
+          {:else}
+          <div class="grid grid-cols-[repeat(auto-fit,minmax(min(100%,12rem),1fr))] gap-2.5 mb-3">
             {#each (store.modalContext === "whisper" ? whisperProviderIds : llmProviderIds) as pid (pid)}
               {@const prov = providers[pid]}
               {@const speechProv = transcribeProviders[pid]}
@@ -94,14 +110,15 @@
               </button>
             {/each}
           </div>
+          {/if}
         </div>
 
         <div class="space-y-4">
           <div>
             <label
               for="key-name"
-              class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5"
-              >{t("settings.modal.configName")}</label
+              class="flex items-center gap-2 text-xs font-semibold text-gray-400 mb-1.5"
+              >{@render icon("M4 5h16M12 5v14M8 19h8")} {t("settings.modal.configName")}</label
             >
             <input
               id="key-name"
@@ -117,7 +134,7 @@
           {/if}
           {#if store.newKeyType === "custom"}
             <div>
-              <span class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">{t("settings.endpointCapabilities")}</span>
+              <span class="flex items-center gap-2 text-xs font-semibold text-gray-400 mb-1.5">{t("settings.endpointCapabilities")}</span>
               <SearchableSelect
                 options={usageOptions}
                 value={store.newKeyUsage}
@@ -134,9 +151,9 @@
             <div>
               <label
                 for="api-url"
-                class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5"
+                class="flex items-center gap-2 text-xs font-semibold text-gray-400 mb-1.5"
               >
-                {t("settings.modal.apiEndpoint")}
+                {@render icon("M10 13a5 5 0 007 0l3-3a5 5 0 00-7-7l-2 2M14 11a5 5 0 00-7 0l-3 3a5 5 0 007 7l2-2")} {t("settings.modal.apiEndpoint")}
               </label>
               <input
                 id="api-url"
@@ -154,8 +171,8 @@
             <div>
               <label
                 for="api-key"
-                class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5"
-                >{t("settings.modal.apiKey")}
+                class="flex items-center gap-2 text-xs font-semibold text-gray-400 mb-1.5"
+                >{@render icon("M15 7a4 4 0 114 4h-2v3h-3v3h-3v4H3v-4l8-8a4 4 0 014-2")} {t("settings.modal.apiKey")}
                 {#if store.newKeyType === "custom" || store.newKeyType === "local"}<span
                     class="text-gray-600 normal-case font-normal"
                     >({t("settings.modal.optional")})</span
@@ -170,7 +187,7 @@
                     ? t("settings.modal.notRequiredForLocal")
                     : (store.modalContext === "whisper"
                         ? transcribeProviders[store.newKeyType]?.keyPlaceholder
-                        : providers[store.newKeyType]?.keyPlaceholder) || "API key"}
+                        : providers[store.newKeyType]?.keyPlaceholder) || t("settings.modal.apiKey")}
                   class="w-full bg-black/40 border border-white/10 rounded-lg px-4 py-2.5 pr-20 text-sm text-white focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 outline-none transition-all placeholder-gray-600 font-mono"
                 />
                 <div
@@ -278,23 +295,29 @@
 
         </div>
 
-        <div class="flex gap-3 pt-4 mt-auto border-t border-white/5 shrink-0">
-          <button
-            onclick={() => store.close()}
-            class="flex-1 py-2.5 rounded-lg border border-white/10 text-gray-400 hover:bg-white/5 hover:text-white transition-all text-sm font-medium"
-          >
-            {t("settings.modal.cancel")}
+        <div class="grid grid-cols-2 gap-2 pt-4 mt-4 border-t border-white/5 shrink-0">
+          <button type="button" onclick={() => store.close()}
+            class="flex items-center justify-center gap-2 py-2.5 rounded-lg border border-white/10 text-gray-300 hover:bg-white/5 hover:text-white transition-colors text-sm font-medium" class:col-span-2={!canDelete}>
+            {@render icon("M6 6l12 12M6 18 18 6")} {t("settings.modal.cancel")}
           </button>
-          <button
-            onclick={onSave}
-            disabled={duplicateName || !store.newKeyName.trim()}
+          {#if canDelete}
+            <button type="button" data-provider-action="delete" onclick={() => { if (store.editKeyId) onDelete?.(store.editKeyId); }}
+              class="flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg border border-red-500/30 bg-red-500/10 text-red-300 hover:bg-red-500/20 transition-colors text-sm font-medium">
+              {@render icon("M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7")} {t("settings.modal.deleteProvider")}
+            </button>
+          {/if}
+          <button type="button" onclick={onSave} disabled={duplicateName || !store.newKeyName.trim()}
             title={duplicateName ? t("settings.errorDuplicateCustomName") : ""}
-            class="disabled:opacity-40 disabled:cursor-not-allowed flex-1 py-2.5 rounded-lg bg-indigo-500 hover:bg-indigo-400 text-white shadow-lg shadow-indigo-500/20 transition-all text-sm font-bold"
-          >
-            {t("settings.modal.save")}
+            class="col-span-2 flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed py-3 rounded-lg bg-indigo-500 hover:bg-indigo-400 text-white transition-colors text-sm font-bold">
+            {@render icon("M4 3h13l4 4v14H3V3zM7 3v6h10V3M7 21v-8h10v8")} {t("settings.modal.save")}
           </button>
         </div>
       </div>
     </div>
   </div>
 {/if}
+
+<style>
+  .provider-dialog { max-width: 48rem; }
+  .provider-dialog.editing { max-width: 36rem; }
+</style>

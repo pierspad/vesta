@@ -1283,5 +1283,6 @@
   "common.decreaseValue": "تقليل القيمة",
   "flashcards.keepAspectRatio": "الحفاظ على نسبة الأبعاد",
   "common.outputFolderLabel": "المجلد",
-  "common.outputFileLabel": "فتح الملف"
+  "common.outputFileLabel": "فتح الملف",
+  "settings.modal.deleteProvider": "حذف المزوّد"
 }

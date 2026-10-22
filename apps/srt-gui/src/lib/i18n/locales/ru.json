@@ -1283,5 +1283,6 @@
   "common.decreaseValue": "Уменьшить значение",
   "flashcards.keepAspectRatio": "Сохранять пропорции",
   "common.outputFolderLabel": "Папка",
-  "common.outputFileLabel": "Открыть файл"
+  "common.outputFileLabel": "Открыть файл",
+  "settings.modal.deleteProvider": "Удалить провайдера"
 }

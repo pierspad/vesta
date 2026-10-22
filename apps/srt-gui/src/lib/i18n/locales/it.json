@@ -1283,5 +1283,6 @@
   "common.decreaseValue": "Diminuisci valore",
   "flashcards.keepAspectRatio": "Mantieni proporzioni",
   "common.outputFolderLabel": "Cartella",
-  "common.outputFileLabel": "Apri file"
+  "common.outputFileLabel": "Apri file",
+  "settings.modal.deleteProvider": "Elimina provider"
 }

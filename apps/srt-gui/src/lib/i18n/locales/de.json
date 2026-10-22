@@ -1283,5 +1283,6 @@
   "common.decreaseValue": "Wert verringern",
   "flashcards.keepAspectRatio": "Seitenverhältnis beibehalten",
   "common.outputFolderLabel": "Ordner",
-  "common.outputFileLabel": "Datei öffnen"
+  "common.outputFileLabel": "Datei öffnen",
+  "settings.modal.deleteProvider": "Anbieter löschen"
 }

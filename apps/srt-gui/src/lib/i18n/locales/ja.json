@@ -1283,5 +1283,6 @@
   "common.decreaseValue": "値を減らす",
   "flashcards.keepAspectRatio": "縦横比を固定",
   "common.outputFolderLabel": "フォルダー",
-  "common.outputFileLabel": "ファイルを開く"
+  "common.outputFileLabel": "ファイルを開く",
+  "settings.modal.deleteProvider": "プロバイダーを削除"
 }

@@ -888,7 +888,7 @@
 
   function askDeleteApiKey(id: string) {
     const key = apiKeys.find((k) => k.id === id);
-    if (!key) return;
+    if (!key || ["local", "local_stt_server"].includes(id)) return;
     deleteConfirmId = id;
     deleteConfirmName = key.name;
   }
@@ -907,6 +907,7 @@
       return;
     }
 
+    if (apiKeyEditorStore.editKeyId === deleteConfirmId) apiKeyEditorStore.reset();
     const wasDefault = key.isDefault;
     const keyType = key.apiType;
     apiKeys = apiKeys.filter((k) => k.id !== deleteConfirmId);
@@ -1222,49 +1223,18 @@
     }}
   />
 
-  <AddApiKeyModal onSave={addApiKey} />
+  <AddApiKeyModal onSave={addApiKey} onDelete={askDeleteApiKey} />
 
-  {#if deleteConfirmId}
-    <div
-      class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-      role="dialog"
-      tabindex="-1"
-      onmousedown={(e) => {
-        if (e.target === e.currentTarget) cancelDelete();
-      }}
-    >
-      <div
-        class="w-full max-w-sm overflow-hidden animate-fade-in shadow-2xl border border-white/20 bg-gray-900/98 backdrop-blur-xl rounded-xl"
-        role="presentation"
-        onmousedown={(e) => e.stopPropagation()}
-      >
-        <div class="p-6 border-b border-white/5 bg-white/5">
-          <h3 class="text-xl font-bold text-white">{t("app.title")}</h3>
-        </div>
-
-        <div class="p-6 space-y-4">
-          <p class="text-gray-300">
-            {t("settings.confirmDeleteKey", { name: deleteConfirmName })}
-          </p>
-
-          <div class="flex gap-3 pt-2">
-            <button
-              onclick={cancelDelete}
-              class="flex-1 py-2.5 rounded-lg border border-white/10 text-gray-400 hover:bg-white/5 hover:text-white transition-all text-sm font-medium"
-            >
-              {t("settings.modal.cancel")}
-            </button>
-            <button
-              onclick={confirmDeleteApiKey}
-              class="flex-1 py-2.5 rounded-lg bg-red-500 hover:bg-red-400 text-white shadow-lg shadow-red-500/20 transition-all text-sm font-bold"
-            >
-              {t("settings.confirmDelete")}
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  {/if}
+  <ConfirmDialog
+    show={!!deleteConfirmId}
+    title={t("settings.modal.deleteProvider")}
+    message={t("settings.confirmDeleteKey", { name: deleteConfirmName })}
+    confirmText={t("settings.confirmDelete")}
+    cancelText={t("settings.modal.cancel")}
+    variant="danger"
+    on:cancel={cancelDelete}
+    on:confirm={confirmDeleteApiKey}
+  />
 </div>
 
 <style>

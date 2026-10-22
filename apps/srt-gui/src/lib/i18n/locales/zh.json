@@ -1283,5 +1283,6 @@
   "common.decreaseValue": "减小数值",
   "flashcards.keepAspectRatio": "保持宽高比",
   "common.outputFolderLabel": "文件夹",
-  "common.outputFileLabel": "打开文件"
+  "common.outputFileLabel": "打开文件",
+  "settings.modal.deleteProvider": "删除提供商"
 }

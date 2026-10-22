@@ -1283,5 +1283,6 @@
   "common.decreaseValue": "Değeri azalt",
   "flashcards.keepAspectRatio": "En boy oranını koru",
   "common.outputFolderLabel": "Klasör",
-  "common.outputFileLabel": "Dosyayı aç"
+  "common.outputFileLabel": "Dosyayı aç",
+  "settings.modal.deleteProvider": "Sağlayıcıyı sil"
 }

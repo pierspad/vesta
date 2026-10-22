@@ -52,3 +52,20 @@ it("restores Anki connection and card options in expert mode", async () => {
   expect(ankiStore.url).toBe("http://127.0.0.1:8765");
   expect(ankiStore.dictionaryLookup && ankiStore.autoCardFont && ankiStore.embedCardFont).toBe(true);
 });
+it("confirms deletion from the provider editor and closes the deleted configuration", async () => {
+  const {apiKeyEditorStore}=await import("$lib/stores/apiKeyEditorStore.svelte");
+  const key={id:"delete-test",apiType:"openai" as const,name:"Delete me",apiKey:"example"};
+  config.setItem("srt-tools-api-keys",JSON.stringify([key]));
+  const target=document.createElement("div");document.body.append(target);
+  mounted.push(mount(SettingsTab,{target,props:{requestedSection:"llm"}}));await tick();await tick();
+  apiKeyEditorStore.openEdit(key,"llm");await tick();
+  target.querySelector<HTMLButtonElement>('[data-provider-action="delete"]')!.click();await tick();
+  expect(JSON.parse(config.getItem("srt-tools-api-keys")!)).toContainEqual(key);
+  target.querySelector<HTMLButtonElement>(".confirm-btn-cancel")!.click();await tick();
+  expect(apiKeyEditorStore.showAddKey).toBe(true);
+  expect(apiKeyEditorStore.newKeyName).toBe("Delete me");
+  target.querySelector<HTMLButtonElement>('[data-provider-action="delete"]')!.click();await tick();
+  target.querySelector<HTMLButtonElement>(".confirm-btn-action")!.click();await tick();
+  expect(JSON.parse(config.getItem("srt-tools-api-keys")!)).not.toContainEqual(key);
+  expect(apiKeyEditorStore.showAddKey).toBe(false);
+});

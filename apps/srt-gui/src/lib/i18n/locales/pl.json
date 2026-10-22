@@ -1283,5 +1283,6 @@
   "common.decreaseValue": "Zmniejsz wartość",
   "flashcards.keepAspectRatio": "Zachowaj proporcje",
   "common.outputFolderLabel": "Katalog",
-  "common.outputFileLabel": "Otwórz plik"
+  "common.outputFileLabel": "Otwórz plik",
+  "settings.modal.deleteProvider": "Usuń dostawcę"
 }

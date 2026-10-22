@@ -1283,5 +1283,6 @@
   "common.decreaseValue": "값 감소",
   "flashcards.keepAspectRatio": "종횡비 유지",
   "common.outputFolderLabel": "폴더",
-  "common.outputFileLabel": "파일 열기"
+  "common.outputFileLabel": "파일 열기",
+  "settings.modal.deleteProvider": "공급자 삭제"
 }

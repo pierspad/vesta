@@ -1283,5 +1283,6 @@
   "common.decreaseValue": "मान घटाएँ",
   "flashcards.keepAspectRatio": "पहलू अनुपात बनाए रखें",
   "common.outputFolderLabel": "फ़ोल्डर",
-  "common.outputFileLabel": "फ़ाइल खोलें"
+  "common.outputFileLabel": "फ़ाइल खोलें",
+  "settings.modal.deleteProvider": "प्रदाता हटाएँ"
 }

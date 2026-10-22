@@ -1283,5 +1283,6 @@
   "common.decreaseValue": "Waarde verlagen",
   "flashcards.keepAspectRatio": "Beeldverhouding behouden",
   "common.outputFolderLabel": "Map",
-  "common.outputFileLabel": "Bestand openen"
+  "common.outputFileLabel": "Bestand openen",
+  "settings.modal.deleteProvider": "Provider verwijderen"
 }
