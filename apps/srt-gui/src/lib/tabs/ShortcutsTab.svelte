@@ -484,10 +484,12 @@
       <div class="flex flex-wrap gap-2 items-center">
         {#each categoryFilterItems as cat}
           <button
+            aria-pressed={selectedCategories.includes(cat)}
+            class:category-selected={selectedCategories.includes(cat)}
             onclick={(e) => toggleCategory(cat, e)}
             class="px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 border
               {selectedCategories.includes(cat)
-              ? 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white border-indigo-500/50 shadow-md shadow-indigo-500/20'
+              ? 'bg-[var(--control-option-selected)] text-white border-[var(--control-focus-border)]'
               : 'bg-white/5 text-gray-400 border-transparent hover:bg-white/10 hover:text-white'}"
           >
             {categoryText(cat)}
@@ -657,3 +659,7 @@
     on:confirm={confirmResetToDefaults}
   />
 </div>
+
+<style>
+  button.category-selected { background: var(--control-focus-border); border-color: var(--control-focus-border); font-weight: 700; }
+</style>
