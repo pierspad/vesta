@@ -277,7 +277,7 @@
         >
           <div class="w-9 h-9 rounded-xl {settingsSection === 'anki' ? 'bg-white/20' : 'bg-white/5'} flex items-center justify-center flex-shrink-0 relative transition-all duration-100 ease-out border border-white/5">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v4H4V5zm0 8h8v7H5a1 1 0 01-1-1v-6zm12 0h4v6a1 1 0 01-1 1h-3v-7z" />
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 7H3v14h14v-2M7 3h14v14H7z M14 5l1.2 3.5H19l-3 2.2 1.1 3.5-3.1-2.1-3.1 2.1 1.1-3.5-3-2.2h3.8z" />
             </svg>
           </div>
           {#if !collapsed}
