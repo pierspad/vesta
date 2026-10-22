@@ -65,8 +65,9 @@
   </div>
 {:else}
   <div class="border border-gray-700/50 rounded-lg overflow-hidden">
-    <div class="overflow-y-auto max-h-[min(22vh,240px)]">
-      <table class="w-full text-xs table-fixed">
+    <!-- svelte-ignore a11y_no_noninteractive_tabindex (Focus makes the two-axis scroll region keyboard accessible.) -->
+    <div class="episode-table-scroll scrollbar-thin overflow-auto max-h-[min(22vh,240px)]" role="region" aria-label={t("common.filesAndOutput")} tabindex="0">
+      <table class="w-full min-w-[56rem] text-xs table-fixed">
         <thead class="bg-gray-800/80 sticky top-0">
           <tr>
             <th class="p-1.5 text-center text-gray-400 w-10">#</th>
@@ -278,6 +279,12 @@
 
 
 <style>
+  .episode-table-scroll { scrollbar-width: thin; scrollbar-color: var(--control-border) var(--control-bg); }
+  .episode-table-scroll::-webkit-scrollbar { width: 8px; height: 8px; }
+  .episode-table-scroll::-webkit-scrollbar-track { background: var(--control-bg); }
+  .episode-table-scroll::-webkit-scrollbar-thumb { background: var(--control-border); border-radius: 4px; }
+  .episode-table-scroll:focus-visible { outline: 2px solid var(--control-focus-border); outline-offset: -2px; }
+
   td.context-selected, tr.context-selected {
     background-color: rgb(139 92 246 / 0.16);
     box-shadow: inset 0 0 0 1px rgb(167 139 250 / 0.35);
