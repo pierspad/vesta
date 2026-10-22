@@ -23,27 +23,39 @@ import TranslationTiers from "./TranslationTiers.svelte";
 let component: ReturnType<typeof mount> | undefined;
 beforeEach(() => vi.clearAllMocks());
 afterEach(async () => { if (component) await unmount(component); component = undefined; vi.useRealTimers(); document.body.replaceChildren(); });
-async function render() { component = mount(TranslationTiers, { target: document.body }); await tick(); }
+async function render() {
+  const intervalStartedAt = Date.now();
+  component = mount(TranslationTiers, { target: document.body });
+  await tick();
+  return intervalStartedAt;
+}
+async function advanceBeforeFirstPoll(intervalStartedAt: number) {
+  // waitFor advances the fake clock while WebCrypto finishes on a real thread.
+  // Measure from mount, rather than adding 14,999 ms after that variable wait.
+  await vi.advanceTimersByTimeAsync(14_999 - (Date.now() - intervalStartedAt));
+}
 
 it("does not rediscover a successful local result before the polling interval", async () => {
   vi.useFakeTimers(); setup.discover.mockResolvedValue([{ id: "local-model", name: "Local model" }]);
-  await render(); await vi.waitFor(() => expect(setup.discover).toHaveBeenCalledOnce());
-  await vi.advanceTimersByTimeAsync(14_999); expect(setup.discover).toHaveBeenCalledOnce();
+  const intervalStartedAt = await render(); await vi.waitFor(() => expect(setup.discover).toHaveBeenCalledOnce());
+  // Keep the boundary check correct even when initial discovery takes time.
+  await vi.advanceTimersByTimeAsync(250);
+  await advanceBeforeFirstPoll(intervalStartedAt); expect(setup.discover).toHaveBeenCalledOnce();
   await vi.advanceTimersByTimeAsync(1); await vi.waitFor(() => expect(setup.discover).toHaveBeenCalledTimes(2));
 });
 
 it("does not immediately retry an empty result and clears its timer on teardown", async () => {
   vi.useFakeTimers(); setup.discover.mockResolvedValue([]);
-  await render(); await vi.waitFor(() => expect(setup.discover).toHaveBeenCalledOnce());
-  await vi.advanceTimersByTimeAsync(14_999); expect(setup.discover).toHaveBeenCalledOnce();
+  const intervalStartedAt = await render(); await vi.waitFor(() => expect(setup.discover).toHaveBeenCalledOnce());
+  await advanceBeforeFirstPoll(intervalStartedAt); expect(setup.discover).toHaveBeenCalledOnce();
   await unmount(component!); component = undefined;
   await vi.advanceTimersByTimeAsync(30_000); expect(setup.discover).toHaveBeenCalledOnce();
 });
 
 it("waits for the polling interval before retrying a failed local endpoint", async () => {
   vi.useFakeTimers(); setup.discover.mockRejectedValue(new Error("offline"));
-  await render(); await vi.waitFor(() => expect(setup.discover).toHaveBeenCalledOnce());
-  await vi.advanceTimersByTimeAsync(14_999); expect(setup.discover).toHaveBeenCalledOnce();
+  const intervalStartedAt = await render(); await vi.waitFor(() => expect(setup.discover).toHaveBeenCalledOnce());
+  await advanceBeforeFirstPoll(intervalStartedAt); expect(setup.discover).toHaveBeenCalledOnce();
   setup.discover.mockResolvedValue([]);
   await vi.advanceTimersByTimeAsync(1); await vi.waitFor(() => expect(setup.discover).toHaveBeenCalledTimes(2));
 });
