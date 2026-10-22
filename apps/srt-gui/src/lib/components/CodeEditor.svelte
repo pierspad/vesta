@@ -238,6 +238,7 @@
   let lines = $derived((value || "").split("\n"));
   let highlightedLines = $derived(lines.map(line => highlight(line, language) || "&nbsp;"));
   let lineNumbersEl = $state<HTMLDivElement | null>(null);
+  let gutterViewportEl = $state<HTMLDivElement | null>(null);
   // Scrolling moves only two layers; it must not invalidate Svelte editor state.
   let scrollFrame: number | null = null;
   let backdropEl = $state<HTMLDivElement | null>(null);
@@ -249,8 +250,11 @@
     if (!textareaElement) return;
     const top = textareaElement.scrollTop;
     const left = wrap ? 0 : textareaElement.scrollLeft;
-    if (lineNumbersEl) lineNumbersEl.style.transform = `translateY(${-top}px)`;
-    if (linesContainerEl) linesContainerEl.style.transform = `translate(${-left}px, ${-top}px)`;
+    if (gutterViewportEl) gutterViewportEl.scrollTop = top;
+    if (backdropEl) {
+      backdropEl.scrollTop = top;
+      backdropEl.scrollLeft = left;
+    }
   }
 
   function queueScrollSync() {
@@ -266,6 +270,8 @@
     // Track layer replacement and wrapping, but never reactive scroll offsets.
     void linesContainerEl;
     void lineNumbersEl;
+    void gutterViewportEl;
+    void backdropEl;
     void wrap;
     syncScroll();
     textareaElement.addEventListener("scroll", queueScrollSync, { passive: true });
@@ -468,6 +474,7 @@
   <!-- Line Numbers -->
   {#if lineNumbers}
   <div 
+    bind:this={gutterViewportEl}
     onclick={() => textareaElement?.focus()}
     class="code-editor-lines w-10 bg-black/40 py-3 text-right pr-2 text-sm font-mono text-gray-600 select-none overflow-hidden shrink-0 cursor-text"
   >
@@ -580,6 +587,8 @@
   .code-editor-line {
     min-height: 1.625rem;
   }
+
+  .code-editor-content { scrollbar-gutter: stable; }
 
   textarea {
     tab-size: 2;

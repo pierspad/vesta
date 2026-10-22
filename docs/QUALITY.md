@@ -344,3 +344,50 @@ policy before invoking FFmpeg. No authenticated provider access is implied.
 platform prerequisites and tag/version agreement. It also executes the tag
 validation and fallback-note shell blocks in a temporary Git fixture, including
 a literal tag containing shell syntax. CI and `quality_check.py` run this check.
+
+## Prompt editor scroll comparison
+
+The editor mirrors its native textarea scroll offsets into clipped highlight and
+line-number viewports. Scrolling does not rebuild highlighted DOM or measure
+line heights; mounted tests cover frame coalescing, stable tokens, wrapped and
+horizontal alignment, and cleanup. Layout reads remain necessary when content
+or width changes, not on each scroll event.
+
+To compare the current editor with a previous implementation, from the repository
+root prepare a temporary baseline (remove it after measuring):
+
+```bash
+git show v0.29.1:apps/srt-gui/src/lib/components/CodeEditor.svelte > apps/srt-gui/src/lib/test/fixtures/CodeEditorScrollBaseline.svelte
+```
+
+Run `npm run dev` in `apps/srt-gui`, open
+`http://localhost:5175/scripts/editor-scroll-benchmark.html`, and select
+**Run benchmark**. Without the temporary baseline, the page tests only the current
+editor. It uses generated prompt text, three alternating samples at 200 and 2,000
+lines, and 120 scrolling frames per sample. It records frame median/p95, frames
+above 25 ms, style-attribute mutations and rendered DOM size. No settings, user
+prompts, credentials, media or cloud calls are used.
+
+The [recorded comparison](performance/editor-scroll-2026-10-23.json) removed 232
+style-attribute mutations per sample. Frame medians stayed about 5.7 ms in both
+versions and no sample had a frame over 25 ms. The isolated p95 improvement in one
+cold long-document sample did not repeat, so this is not evidence of a frame-rate
+speedup or lower native CPU usage. Timings depend on display scheduling, browser,
+background activity and renderer warm-up. The browser test did not reproduce the
+reported desktop slowdown. Repeat with the actual installed WebKit/WebView and
+GPU backend, including parent-panel scrolling and long wrapped prompts, before
+claiming that issue resolved. For a CPU diagnosis, profile the installed renderer
+while scrolling the same fixture rather than inferring CPU work from frame timing.
+
+The same isolated page can run in Tauri's native development webview using its
+normal build hook (run from `apps/srt-gui`, with native build prerequisites):
+
+```bash
+npm run tauri -- dev --config '{"build":{"devUrl":"http://localhost:5175/scripts/editor-scroll-benchmark.html"}}'
+```
+
+This changes neither the checked-in window URL nor the normal app entry point.
+The fixture stubs its IPC calls and uses generated text. Native development
+measurements still need to be distinguished from an installed release and from
+OS CPU profiles; record renderer/GPU, display settings and document size with
+those results.

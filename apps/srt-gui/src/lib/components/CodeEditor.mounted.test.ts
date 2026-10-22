@@ -38,8 +38,10 @@ it("coalesces scrolling without replacing highlighted text or measuring line lay
   textarea.scrollTop = 240; textarea.scrollLeft = 32;
   textarea.dispatchEvent(new Event("scroll"));
   expect(frames.size).toBe(1); await flushFrames();
-  expect((highlighted as HTMLElement).style.transform).toBe("translate(-32px, -240px)");
-  expect((gutter as HTMLElement).style.transform).toBe("translateY(-240px)");
+  expect(highlighted.parentElement!.scrollTop).toBe(240);
+  expect(highlighted.parentElement!.scrollLeft).toBe(32);
+  expect(gutter.parentElement!.scrollTop).toBe(240);
+  expect((highlighted as HTMLElement).style.transform).toBe("");
   expect(highlighted.querySelector("span")).toBe(token);
   expect(layout).not.toHaveBeenCalled();
   textarea.value = '"updated": true';
@@ -50,8 +52,8 @@ it("keeps wrapped text aligned and cancels pending scroll work on teardown", asy
   const { target, textarea, frames, flushFrames } = await render(true);
   textarea.scrollTop = 75; textarea.scrollLeft = 20;
   textarea.dispatchEvent(new Event("scroll")); await flushFrames();
-  expect((target.querySelector(".code-editor-content > div") as HTMLElement).style.transform)
-    .toBe("translate(0px, -75px)");
+  expect(target.querySelector<HTMLElement>(".code-editor-content")!.scrollTop).toBe(75);
+  expect(target.querySelector<HTMLElement>(".code-editor-content")!.scrollLeft).toBe(0);
   textarea.dispatchEvent(new Event("scroll")); expect(frames.size).toBe(1);
   await unmount(instances.pop()!); expect(frames.size).toBe(0);
   textarea.dispatchEvent(new Event("scroll")); expect(frames.size).toBe(0);

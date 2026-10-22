@@ -1,0 +1,133 @@
+{
+  "date": "2026-10-23",
+  "baseline": "v0.29.1",
+  "baseline_source_sha256": "168b6867c43c4c8217b62afc67f906c9045d9f2724ec4e5407f568913957f767",
+  "environment": "Codex in-app Chromium, development Vite build; synthetic RAF-driven scroll, not native WebKit or CPU profiling",
+  "viewport": {
+    "width": 1280,
+    "height": 720
+  },
+  "frames_per_sample": 120,
+  "samples": [
+    {
+      "variant": "baseline",
+      "lines": 200,
+      "repeat": 1,
+      "medianFrameMs": 5.699999999999818,
+      "p95FrameMs": 6.399999999999636,
+      "framesOver25Ms": 0,
+      "styleMutations": 232,
+      "nodes": 610
+    },
+    {
+      "variant": "current",
+      "lines": 200,
+      "repeat": 1,
+      "medianFrameMs": 5.699999999999818,
+      "p95FrameMs": 6.299999999999272,
+      "framesOver25Ms": 0,
+      "styleMutations": 0,
+      "nodes": 610
+    },
+    {
+      "variant": "current",
+      "lines": 200,
+      "repeat": 2,
+      "medianFrameMs": 5.699999999999818,
+      "p95FrameMs": 5.800000000000182,
+      "framesOver25Ms": 0,
+      "styleMutations": 0,
+      "nodes": 610
+    },
+    {
+      "variant": "baseline",
+      "lines": 200,
+      "repeat": 2,
+      "medianFrameMs": 5.699999999999818,
+      "p95FrameMs": 5.899999999999636,
+      "framesOver25Ms": 0,
+      "styleMutations": 232,
+      "nodes": 610
+    },
+    {
+      "variant": "baseline",
+      "lines": 200,
+      "repeat": 3,
+      "medianFrameMs": 5.699999999999818,
+      "p95FrameMs": 6.300000000000182,
+      "framesOver25Ms": 0,
+      "styleMutations": 232,
+      "nodes": 610
+    },
+    {
+      "variant": "current",
+      "lines": 200,
+      "repeat": 3,
+      "medianFrameMs": 5.699999999999818,
+      "p95FrameMs": 6.5,
+      "framesOver25Ms": 0,
+      "styleMutations": 0,
+      "nodes": 610
+    },
+    {
+      "variant": "baseline",
+      "lines": 2000,
+      "repeat": 1,
+      "medianFrameMs": 5.700000000000728,
+      "p95FrameMs": 11.399999999999636,
+      "framesOver25Ms": 0,
+      "styleMutations": 232,
+      "nodes": 6010
+    },
+    {
+      "variant": "current",
+      "lines": 2000,
+      "repeat": 1,
+      "medianFrameMs": 5.700000000000728,
+      "p95FrameMs": 6.300000000001091,
+      "framesOver25Ms": 0,
+      "styleMutations": 0,
+      "nodes": 6010
+    },
+    {
+      "variant": "current",
+      "lines": 2000,
+      "repeat": 2,
+      "medianFrameMs": 5.700000000000728,
+      "p95FrameMs": 5.800000000001091,
+      "framesOver25Ms": 0,
+      "styleMutations": 0,
+      "nodes": 6010
+    },
+    {
+      "variant": "baseline",
+      "lines": 2000,
+      "repeat": 2,
+      "medianFrameMs": 5.700000000000728,
+      "p95FrameMs": 5.800000000001091,
+      "framesOver25Ms": 0,
+      "styleMutations": 232,
+      "nodes": 6010
+    },
+    {
+      "variant": "baseline",
+      "lines": 2000,
+      "repeat": 3,
+      "medianFrameMs": 5.700000000000728,
+      "p95FrameMs": 5.800000000001091,
+      "framesOver25Ms": 0,
+      "styleMutations": 232,
+      "nodes": 6010
+    },
+    {
+      "variant": "current",
+      "lines": 2000,
+      "repeat": 3,
+      "medianFrameMs": 5.700000000000728,
+      "p95FrameMs": 5.800000000001091,
+      "framesOver25Ms": 0,
+      "styleMutations": 0,
+      "nodes": 6010
+    }
+  ]
+}
