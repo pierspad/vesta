@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { numberControl } from "$lib/utils/numberControl";
   import { locale } from "$lib/i18n";
   import { uiMode } from "$lib/stores/uiModeStore.svelte";
   import SearchableSelect from "$lib/components/SearchableSelect.svelte";
@@ -172,7 +173,7 @@
             <span>{t("flashcards.width")}</span>
           </span>
           <div class="flex items-center gap-1">
-            <input type="number" bind:value={settings.videoWidth} class="input-modern w-full text-xs" />
+            <input use:numberControl type="number" bind:value={settings.videoWidth} class="input-modern w-full text-xs" />
             <span class="text-xs text-gray-500">px</span>
           </div>
         </div>
@@ -184,7 +185,7 @@
             <span>{t("flashcards.height")}</span>
           </span>
           <div class="flex items-center gap-1">
-            <input type="number" bind:value={settings.videoHeight} class="input-modern w-full text-xs" />
+            <input use:numberControl type="number" bind:value={settings.videoHeight} class="input-modern w-full text-xs" />
             <span class="text-xs text-gray-500">px</span>
           </div>
         </div>
@@ -241,7 +242,7 @@
             <span>{t("flashcards.videoBitrate")}</span>
           </span>
           <div class="flex items-center gap-1">
-            <input type="number" bind:value={settings.videoBitrate} class="input-modern w-full text-xs" />
+            <input use:numberControl type="number" bind:value={settings.videoBitrate} class="input-modern w-full text-xs" />
             <span class="text-xs text-gray-500">kb/s</span>
           </div>
         </div>
@@ -276,7 +277,7 @@
             <span>{t("flashcards.padStart")}</span>
           </span>
           <div class="flex items-center gap-1">
-            <input type="number" bind:value={settings.videoPadStart} class="input-modern w-full text-xs" />
+            <input use:numberControl type="number" bind:value={settings.videoPadStart} class="input-modern w-full text-xs" />
             <span class="text-xs text-gray-500">ms</span>
           </div>
         </div>
@@ -288,7 +289,7 @@
             <span>{t("flashcards.padEnd")}</span>
           </span>
           <div class="flex items-center gap-1">
-            <input type="number" bind:value={settings.videoPadEnd} class="input-modern w-full text-xs" />
+            <input use:numberControl type="number" bind:value={settings.videoPadEnd} class="input-modern w-full text-xs" />
             <span class="text-xs text-gray-500">ms</span>
           </div>
         </div>

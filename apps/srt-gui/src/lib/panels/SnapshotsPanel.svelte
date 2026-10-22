@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { numberControl } from "$lib/utils/numberControl";
   import { locale } from "$lib/i18n";
   import { uiMode } from "$lib/stores/uiModeStore.svelte";
   import SearchableSelect from "$lib/components/SearchableSelect.svelte";
@@ -171,7 +172,7 @@
             <span>{t("flashcards.qualityValue")}</span>
           </span>
           <div class="flex items-center gap-1">
-            <input
+            <input use:numberControl
               type="number"
               min="0"
               max="100"
@@ -193,7 +194,7 @@
             <span>{t("flashcards.width")}</span>
           </span>
           <div class="flex items-center gap-1">
-            <input type="number" bind:value={settings.snapshotWidth} class="input-modern w-full text-xs" />
+            <input use:numberControl type="number" bind:value={settings.snapshotWidth} class="input-modern w-full text-xs" />
             <span class="text-xs text-gray-500">px</span>
           </div>
         </div>
@@ -205,7 +206,7 @@
             <span>{t("flashcards.height")}</span>
           </span>
           <div class="flex items-center gap-1">
-            <input type="number" bind:value={settings.snapshotHeight} class="input-modern w-full text-xs" />
+            <input use:numberControl type="number" bind:value={settings.snapshotHeight} class="input-modern w-full text-xs" />
             <span class="text-xs text-gray-500">px</span>
           </div>
         </div>
@@ -240,7 +241,7 @@
             <span>{t("flashcards.cropBottom")}</span>
           </span>
           <div class="flex items-center gap-1">
-            <input type="number" bind:value={settings.cropBottom} class="input-modern w-full text-xs" />
+            <input use:numberControl type="number" bind:value={settings.cropBottom} class="input-modern w-full text-xs" />
             <span class="text-xs text-gray-500">px</span>
           </div>
         </div>

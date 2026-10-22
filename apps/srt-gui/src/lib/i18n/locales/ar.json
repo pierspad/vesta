@@ -1278,5 +1278,7 @@
   "vad.accurateExpert": "دقيق - Silero VAD",
   "tiers.addProvider": "إضافة مزوّد",
   "notifications.title": "الإشعارات",
-  "notifications.unread": "إشعارات غير مقروءة"
+  "notifications.unread": "إشعارات غير مقروءة",
+  "common.increaseValue": "زيادة القيمة",
+  "common.decreaseValue": "تقليل القيمة"
 }

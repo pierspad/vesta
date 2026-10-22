@@ -1278,5 +1278,7 @@
   "vad.accurateExpert": "精准 - Silero VAD",
   "tiers.addProvider": "添加提供商",
   "notifications.title": "通知",
-  "notifications.unread": "未读通知"
+  "notifications.unread": "未读通知",
+  "common.increaseValue": "增大数值",
+  "common.decreaseValue": "减小数值"
 }

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { numberControl } from "$lib/utils/numberControl";
   import type { Snippet } from "svelte";
   import { onDestroy } from "svelte";
   import { AudioPreview } from "$lib/services/audioPreview.svelte";
@@ -185,7 +186,7 @@
                       <span>{t("flashcards.padStart")}</span>
                     </span>
                     <div class="flex items-center gap-1">
-                      <input
+                      <input use:numberControl
                         type="number"
                         value={editor.overrides.audioPadStart}
                         oninput={(event) => editor.update("audioPadStart", Number((event.currentTarget as HTMLInputElement).value))}
@@ -202,7 +203,7 @@
                       <span>{t("flashcards.padEnd")}</span>
                     </span>
                     <div class="flex items-center gap-1">
-                      <input
+                      <input use:numberControl
                         type="number"
                         value={editor.overrides.audioPadEnd}
                         oninput={(event) => editor.update("audioPadEnd", Number((event.currentTarget as HTMLInputElement).value))}
@@ -269,7 +270,7 @@
                     <span>{t("flashcards.width")}</span>
                   </span>
                   <div class="flex items-center gap-1">
-                    <input type="number" value={editor.overrides.snapshotWidth} oninput={(event) => editor.update("snapshotWidth", Number((event.currentTarget as HTMLInputElement).value))} class="input-modern w-full text-xs {mediaOverrideClass('snapshotWidth')}" />
+                    <input use:numberControl type="number" value={editor.overrides.snapshotWidth} oninput={(event) => editor.update("snapshotWidth", Number((event.currentTarget as HTMLInputElement).value))} class="input-modern w-full text-xs {mediaOverrideClass('snapshotWidth')}" />
                     <span class="text-xs text-gray-500">px</span>
                   </div>
                 </div>
@@ -281,7 +282,7 @@
                     <span>{t("flashcards.height")}</span>
                   </span>
                   <div class="flex items-center gap-1">
-                    <input type="number" value={editor.overrides.snapshotHeight} oninput={(event) => editor.update("snapshotHeight", Number((event.currentTarget as HTMLInputElement).value))} class="input-modern w-full text-xs {mediaOverrideClass('snapshotHeight')}" />
+                    <input use:numberControl type="number" value={editor.overrides.snapshotHeight} oninput={(event) => editor.update("snapshotHeight", Number((event.currentTarget as HTMLInputElement).value))} class="input-modern w-full text-xs {mediaOverrideClass('snapshotHeight')}" />
                     <span class="text-xs text-gray-500">px</span>
                   </div>
                 </div>
@@ -293,7 +294,7 @@
                     <span>{t("flashcards.cropBottom")}</span>
                   </span>
                   <div class="flex items-center gap-1">
-                    <input type="number" value={editor.overrides.cropBottom} oninput={(event) => editor.update("cropBottom", Number((event.currentTarget as HTMLInputElement).value))} class="input-modern w-full text-xs {mediaOverrideClass('cropBottom')}" />
+                    <input use:numberControl type="number" value={editor.overrides.cropBottom} oninput={(event) => editor.update("cropBottom", Number((event.currentTarget as HTMLInputElement).value))} class="input-modern w-full text-xs {mediaOverrideClass('cropBottom')}" />
                     <span class="text-xs text-gray-500">px</span>
                   </div>
                 </div>
@@ -305,7 +306,7 @@
                     <span>{t("flashcards.qualityValue")}</span>
                   </span>
                   <div class="flex items-center gap-1">
-                    <input type="number" min="0" max="100" value={editor.overrides.snapshotQuality} oninput={(event) => editor.update("snapshotQuality", Number((event.currentTarget as HTMLInputElement).value))} class="input-modern w-full text-xs {mediaOverrideClass('snapshotQuality')}" />
+                    <input use:numberControl type="number" min="0" max="100" value={editor.overrides.snapshotQuality} oninput={(event) => editor.update("snapshotQuality", Number((event.currentTarget as HTMLInputElement).value))} class="input-modern w-full text-xs {mediaOverrideClass('snapshotQuality')}" />
                     <span class="text-xs text-gray-500">/100</span>
                   </div>
                 </div>
@@ -342,7 +343,7 @@
                       <span>{t("flashcards.width")}</span>
                     </span>
                     <div class="flex items-center gap-1">
-                      <input type="number" value={editor.overrides.videoWidth} oninput={(event) => editor.update("videoWidth", Number((event.currentTarget as HTMLInputElement).value))} class="input-modern w-full text-xs {mediaOverrideClass('videoWidth')}" />
+                      <input use:numberControl type="number" value={editor.overrides.videoWidth} oninput={(event) => editor.update("videoWidth", Number((event.currentTarget as HTMLInputElement).value))} class="input-modern w-full text-xs {mediaOverrideClass('videoWidth')}" />
                       <span class="text-xs text-gray-500">px</span>
                     </div>
                   </div>
@@ -354,7 +355,7 @@
                       <span>{t("flashcards.height")}</span>
                     </span>
                     <div class="flex items-center gap-1">
-                      <input type="number" value={editor.overrides.videoHeight} oninput={(event) => editor.update("videoHeight", Number((event.currentTarget as HTMLInputElement).value))} class="input-modern w-full text-xs {mediaOverrideClass('videoHeight')}" />
+                      <input use:numberControl type="number" value={editor.overrides.videoHeight} oninput={(event) => editor.update("videoHeight", Number((event.currentTarget as HTMLInputElement).value))} class="input-modern w-full text-xs {mediaOverrideClass('videoHeight')}" />
                       <span class="text-xs text-gray-500">px</span>
                     </div>
                   </div>
@@ -411,7 +412,7 @@
                       <span>{t("flashcards.videoBitrate")}</span>
                     </span>
                     <div class="flex items-center gap-1">
-                      <input type="number" value={editor.overrides.videoBitrate} oninput={(event) => editor.update("videoBitrate", Number((event.currentTarget as HTMLInputElement).value))} class="input-modern w-full text-xs {mediaOverrideClass('videoBitrate')}" />
+                      <input use:numberControl type="number" value={editor.overrides.videoBitrate} oninput={(event) => editor.update("videoBitrate", Number((event.currentTarget as HTMLInputElement).value))} class="input-modern w-full text-xs {mediaOverrideClass('videoBitrate')}" />
                       <span class="text-xs text-gray-500">kb/s</span>
                     </div>
                   </div>
@@ -446,7 +447,7 @@
                       <span>{t("flashcards.padStart")}</span>
                     </span>
                     <div class="flex items-center gap-1">
-                      <input type="number" value={editor.overrides.videoPadStart} oninput={(event) => editor.update("videoPadStart", Number((event.currentTarget as HTMLInputElement).value))} class="input-modern w-full text-xs {mediaOverrideClass('videoPadStart')}" />
+                      <input use:numberControl type="number" value={editor.overrides.videoPadStart} oninput={(event) => editor.update("videoPadStart", Number((event.currentTarget as HTMLInputElement).value))} class="input-modern w-full text-xs {mediaOverrideClass('videoPadStart')}" />
                       <span class="text-xs text-gray-500">ms</span>
                     </div>
                   </div>
@@ -458,7 +459,7 @@
                       <span>{t("flashcards.padEnd")}</span>
                     </span>
                     <div class="flex items-center gap-1">
-                      <input type="number" value={editor.overrides.videoPadEnd} oninput={(event) => editor.update("videoPadEnd", Number((event.currentTarget as HTMLInputElement).value))} class="input-modern w-full text-xs {mediaOverrideClass('videoPadEnd')}" />
+                      <input use:numberControl type="number" value={editor.overrides.videoPadEnd} oninput={(event) => editor.update("videoPadEnd", Number((event.currentTarget as HTMLInputElement).value))} class="input-modern w-full text-xs {mediaOverrideClass('videoPadEnd')}" />
                       <span class="text-xs text-gray-500">ms</span>
                     </div>
                   </div>

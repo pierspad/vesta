@@ -1278,5 +1278,7 @@
   "vad.accurateExpert": "Точный - Silero VAD",
   "tiers.addProvider": "Добавить провайдера",
   "notifications.title": "Уведомления",
-  "notifications.unread": "Непрочитанные уведомления"
+  "notifications.unread": "Непрочитанные уведомления",
+  "common.increaseValue": "Увеличить значение",
+  "common.decreaseValue": "Уменьшить значение"
 }

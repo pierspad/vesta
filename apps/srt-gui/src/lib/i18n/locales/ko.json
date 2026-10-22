@@ -1278,5 +1278,7 @@
   "vad.accurateExpert": "정확함 - Silero VAD",
   "tiers.addProvider": "공급자 추가",
   "notifications.title": "알림",
-  "notifications.unread": "읽지 않은 알림"
+  "notifications.unread": "읽지 않은 알림",
+  "common.increaseValue": "값 증가",
+  "common.decreaseValue": "값 감소"
 }

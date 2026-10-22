@@ -1278,5 +1278,7 @@
   "vad.accurateExpert": "सटीक - Silero VAD",
   "tiers.addProvider": "प्रदाता जोड़ें",
   "notifications.title": "सूचनाएँ",
-  "notifications.unread": "अपठित सूचनाएँ"
+  "notifications.unread": "अपठित सूचनाएँ",
+  "common.increaseValue": "मान बढ़ाएँ",
+  "common.decreaseValue": "मान घटाएँ"
 }

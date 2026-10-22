@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { numberControl } from "$lib/utils/numberControl";
   import { moveTier as reorderTier } from "$lib/utils/tierOperations";
   import { onMount, onDestroy, untrack } from "svelte";
   import { locale, currentLanguage } from "$lib/i18n";
@@ -422,7 +423,7 @@
                   <div class="flex flex-wrap items-center gap-x-5 gap-y-2 pt-1">
                     <div class="flex items-center gap-2 shrink-0">
                       <span class="text-[10px] font-bold text-gray-500 uppercase tracking-wide">{t("tiers.rpm")}:</span>
-                      <input
+                      <input use:numberControl
                         type="number"
                         min="0"
                         value={entry.rpm ?? ""}
@@ -433,7 +434,7 @@
                     </div>
                     <div class="flex items-center gap-2 shrink-0">
                       <span class="text-[10px] font-bold text-gray-500 uppercase tracking-wide">{t("tiers.budget")}:</span>
-                      <input
+                      <input use:numberControl
                         type="number"
                         min="0"
                         value={entry.maxRequests ?? ""}

@@ -1278,5 +1278,7 @@
   "vad.accurateExpert": "Präzise - Silero VAD",
   "tiers.addProvider": "Anbieter hinzufügen",
   "notifications.title": "Mitteilungen",
-  "notifications.unread": "Ungelesene Mitteilungen"
+  "notifications.unread": "Ungelesene Mitteilungen",
+  "common.increaseValue": "Wert erhöhen",
+  "common.decreaseValue": "Wert verringern"
 }

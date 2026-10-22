@@ -1278,5 +1278,7 @@
   "vad.accurateExpert": "Accurate - Silero VAD",
   "tiers.addProvider": "Add provider",
   "notifications.title": "Notifications",
-  "notifications.unread": "Unread notifications"
+  "notifications.unread": "Unread notifications",
+  "common.increaseValue": "Increase value",
+  "common.decreaseValue": "Decrease value"
 }

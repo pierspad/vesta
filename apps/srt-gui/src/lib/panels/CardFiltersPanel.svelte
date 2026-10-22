@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { numberControl } from "$lib/utils/numberControl";
   import { locale } from "$lib/i18n";
   import type { CardFilterSettings } from "$lib/types/flashcardFilterTypes";
 
@@ -73,7 +74,7 @@
           </div>
           <div class="space-y-1.5">
             <div class="flex items-center gap-1">
-              <input
+              <input use:numberControl
                 type="number" min="1"
                 bind:value={filters.minChars}
                 disabled={!filters.minCharsEnabled}
@@ -110,7 +111,7 @@
           </div>
           <div class="space-y-1.5">
             <div class="flex items-center gap-1">
-              <input
+              <input use:numberControl
                 type="number" min="1"
                 bind:value={filters.maxChars}
                 disabled={!filters.maxCharsEnabled}
@@ -159,7 +160,7 @@
           </div>
           <div class="space-y-1.5">
             <div class="flex items-center gap-1">
-              <input
+              <input use:numberControl
                 type="number" min="0" step="100"
                 bind:value={filters.minDurationMs}
                 disabled={!filters.minDurationEnabled}
@@ -196,7 +197,7 @@
           </div>
           <div class="space-y-1.5">
             <div class="flex items-center gap-1">
-              <input
+              <input use:numberControl
                 type="number" min="0" step="100"
                 bind:value={filters.maxDurationMs}
                 disabled={!filters.maxDurationEnabled}

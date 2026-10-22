@@ -1278,5 +1278,7 @@
   "vad.accurateExpert": "高精度 - Silero VAD",
   "tiers.addProvider": "プロバイダーを追加",
   "notifications.title": "通知",
-  "notifications.unread": "未読の通知"
+  "notifications.unread": "未読の通知",
+  "common.increaseValue": "値を増やす",
+  "common.decreaseValue": "値を減らす"
 }

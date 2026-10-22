@@ -266,26 +266,6 @@ body,
   color: rgba(255, 255, 255, 0.4);
 }
 
-/* Number Input Spinners */
-input[type="number"].input-modern,
-.input-modern[type="number"],
-input[type="number"] {
-  padding-right: 8px;
-}
-
-input[type="number"]::-webkit-inner-spin-button,
-.input-modern[type="number"]::-webkit-inner-spin-button {
-  cursor: pointer;
-  opacity: 0.75;
-  margin-left: 2px;
-  transition: opacity 0.15s ease;
-}
-
-input[type="number"]::-webkit-inner-spin-button:hover,
-.input-modern[type="number"]::-webkit-inner-spin-button:hover {
-  opacity: 1;
-}
-
 /* Select fields share the surrounding surface; option menus stay opaque. */
 .select-modern,
 .searchable-select-input {
@@ -754,3 +734,14 @@ kbd {
   position: relative;
   z-index: 40;
 }
+
+/* Match number controls to the searchable selects rather than OS spinners. */
+.number-control { position: relative; display: inline-flex; min-width: 0; width: 100%; }
+.number-control > input[type="number"] { appearance: textfield; -moz-appearance: textfield; min-width: 0; min-height: 44px; padding-inline-end: 42px; }
+.number-control > input::-webkit-inner-spin-button,
+.number-control > input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+.number-control-buttons { position: absolute; inset-inline-end: 4px; inset-block: 3px; display: grid; grid-template-rows: 1fr 1fr; width: 32px; }
+.number-control-buttons button { display: flex; justify-content: center; align-items: center; border: 0; border-radius: 5px; background: transparent; color: var(--control-focus-border); cursor: pointer; }
+.number-control-buttons button:hover { background: var(--control-option-hover); }
+.number-control-buttons button:disabled { opacity: 0.35; cursor: default; }
+.number-control-buttons svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }

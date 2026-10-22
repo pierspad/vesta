@@ -1278,5 +1278,7 @@
   "vad.accurateExpert": "Hassas - Silero VAD",
   "tiers.addProvider": "Sağlayıcı ekle",
   "notifications.title": "Bildirimler",
-  "notifications.unread": "Okunmamış bildirimler"
+  "notifications.unread": "Okunmamış bildirimler",
+  "common.increaseValue": "Değeri artır",
+  "common.decreaseValue": "Değeri azalt"
 }

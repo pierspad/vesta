@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { numberControl } from "$lib/utils/numberControl";
   import * as vestaConfig from "$lib/config/vestaConfig";
   import { onDestroy, tick } from "svelte";
   import { LatestRequest } from "$lib/utils/asyncControl.svelte";
@@ -504,7 +505,7 @@
             <span>{t("flashcards.padStart")}</span>
           </span>
           <div class="flex items-center gap-1">
-            <input type="number" bind:value={settings.audioPadStart} class="input-modern w-full text-xs" />
+            <input use:numberControl type="number" bind:value={settings.audioPadStart} class="input-modern w-full text-xs" />
             <span class="text-xs text-gray-500">ms</span>
           </div>
         </div>
@@ -516,7 +517,7 @@
             <span>{t("flashcards.padEnd")}</span>
           </span>
           <div class="flex items-center gap-1">
-            <input type="number" bind:value={settings.audioPadEnd} class="input-modern w-full text-xs" />
+            <input use:numberControl type="number" bind:value={settings.audioPadEnd} class="input-modern w-full text-xs" />
             <span class="text-xs text-gray-500">ms</span>
           </div>
         </div>
