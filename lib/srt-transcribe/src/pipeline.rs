@@ -517,6 +517,37 @@ pub async fn transcribe_to_srt(
     callbacks: PipelineCallbacks,
     cancel_token: &CancellationToken,
 ) -> Result<TranscriptionOutcome> {
+    transcribe_to_srt_with_download_policy(config, ffmpeg_cmd, callbacks, cancel_token, true).await
+}
+
+/// Transcribe media with an explicit policy for downloading local Whisper
+/// models. Cloud providers are unaffected by this setting.
+pub async fn transcribe_to_srt_with_download_policy(
+    config: &TranscriptionConfig,
+    ffmpeg_cmd: &str,
+    callbacks: PipelineCallbacks,
+    cancel_token: &CancellationToken,
+    allow_model_download: bool,
+) -> Result<TranscriptionOutcome> {
+    transcribe_with_model_path_resolver(
+        config,
+        ffmpeg_cmd,
+        callbacks,
+        cancel_token,
+        allow_model_download,
+        crate::model::model_file_path,
+    )
+    .await
+}
+
+async fn transcribe_with_model_path_resolver(
+    config: &TranscriptionConfig,
+    ffmpeg_cmd: &str,
+    callbacks: PipelineCallbacks,
+    cancel_token: &CancellationToken,
+    allow_model_download: bool,
+    resolve_model_path: impl Fn(&str) -> Result<std::path::PathBuf>,
+) -> Result<TranscriptionOutcome> {
     if !Path::new(&config.input_path).exists() {
         anyhow::bail!("Input file not found: {}", config.input_path);
     }
@@ -534,27 +565,31 @@ pub async fn transcribe_to_srt(
         return Ok(outcome);
     }
 
-    callbacks.progress(
-        "download",
-        format!("Checking model {}...", config.model),
-        0.0,
-    );
+    let model_path = if allow_model_download {
+        callbacks.progress(
+            "download",
+            format!("Checking model {}...", config.model),
+            0.0,
+        );
 
-    let callbacks_dl = callbacks.clone();
-    let model_label = config.model.clone();
-    let model_path = crate::model::download_model(
-        &config.model,
-        move |percentage| {
-            callbacks_dl.progress(
-                "download",
-                format!("Downloading model {model_label} ({percentage}%)..."),
-                percentage as f64,
-            );
-        },
-        Some(cancel_token),
-    )
-    .await
-    .context("Model download failed")?;
+        let callbacks_dl = callbacks.clone();
+        let model_label = config.model.clone();
+        crate::model::download_model(
+            &config.model,
+            move |percentage| {
+                callbacks_dl.progress(
+                    "download",
+                    format!("Downloading model {model_label} ({percentage}%)..."),
+                    percentage as f64,
+                );
+            },
+            Some(cancel_token),
+        )
+        .await
+        .context("Model download failed")?
+    } else {
+        installed_model_path(&config.model, &resolve_model_path)?
+    };
 
     let temp_wav = tempfile::Builder::new()
         .suffix(".wav")
@@ -606,9 +641,67 @@ pub async fn transcribe_to_srt(
     Ok(outcome)
 }
 
+fn installed_model_path(
+    model_id: &str,
+    resolve_model_path: &impl Fn(&str) -> Result<std::path::PathBuf>,
+) -> Result<std::path::PathBuf> {
+    crate::model::validate_model_id(model_id).context("Unknown local Whisper model ID")?;
+    let path = resolve_model_path(model_id).context("Cannot resolve local Whisper model path")?;
+    let metadata = std::fs::metadata(&path).context(
+        "Local Whisper model is not installed; enable downloads or install the model first",
+    )?;
+    anyhow::ensure!(
+        metadata.is_file() && metadata.len() > 0,
+        "Local Whisper model is not a non-empty file; install the model first"
+    );
+    Ok(path)
+}
+
 #[cfg(test)]
 mod publication_tests {
     use super::*;
+
+    #[tokio::test]
+    async fn no_download_policy_rejects_missing_model_before_ffmpeg() {
+        let input_dir = tempfile::tempdir().unwrap();
+        let input = input_dir.path().join("input.wav");
+        std::fs::write(&input, b"placeholder").unwrap();
+        let missing = input_dir.path().join("missing-model.bin");
+        let config = TranscriptionConfig {
+            input_path: input.to_string_lossy().into_owned(),
+            output_path: input_dir
+                .path()
+                .join("output.srt")
+                .to_string_lossy()
+                .into_owned(),
+            model: "tiny".into(),
+            language: "auto".into(),
+            translate_to_english: false,
+            word_timestamps: false,
+            max_segment_length: 0,
+            provider: Some("local".into()),
+            api_key: None,
+            api_url: None,
+            quality: false,
+            vad: false,
+            vad_model_id: None,
+            vad_custom_path: None,
+            use_gpu: false,
+        };
+
+        let error = transcribe_with_model_path_resolver(
+            &config,
+            "ffmpeg-command-that-must-not-run",
+            PipelineCallbacks::default(),
+            &CancellationToken::new(),
+            false,
+            |_| Ok(missing.clone()),
+        )
+        .await
+        .unwrap_err();
+        assert!(error.to_string().contains("not installed"));
+        assert!(!Path::new(&config.output_path).exists());
+    }
 
     #[tokio::test]
     async fn cloud_chunk_read_can_be_cancelled_while_pending() {

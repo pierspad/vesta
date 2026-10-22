@@ -31,6 +31,7 @@ impl Status {
 pub struct JobSnapshot {
     pub job_id: String,
     pub status: Status,
+    pub operation: String,
     pub output_dir: String,
     pub progress: Option<Value>,
     pub result: Option<Value>,
@@ -47,7 +48,7 @@ struct State {
     shutting_down: bool,
 }
 
-/// One generation at a time, with bounded in-memory history and cooperative shutdown.
+/// One processing job at a time, with bounded in-memory history and cooperative shutdown.
 #[derive(Clone, Default)]
 pub struct Jobs {
     state: Arc<Mutex<State>>,
@@ -60,12 +61,127 @@ impl Jobs {
     }
 
     pub fn start(&self, mut config: FlashcardConfig, paths: &Paths) -> Result<JobSnapshot, String> {
+        self.start_work(
+            paths,
+            "flashcards",
+            move |output, cancel, progress| async move {
+                config.output_dir = output.to_string_lossy().into_owned();
+                let result = srt_flashcards::generate(
+                    config,
+                    MediaTools::default(),
+                    cancel,
+                    &move |event| {
+                        if let Ok(value) = serde_json::to_value(event) {
+                            progress(value);
+                        }
+                    },
+                )
+                .await?;
+                if !result.success {
+                    return Err(result.message);
+                }
+                serde_json::to_value(result)
+                    .map_err(|_| "Cannot serialize generation result".into())
+            },
+        )
+    }
+
+    pub fn start_translation(
+        &self,
+        input: String,
+        language: String,
+        profile: crate::provider_config::TranslationProfile,
+        paths: &Paths,
+    ) -> Result<JobSnapshot, String> {
+        self.start_work(paths, "translation", move |output, cancel, progress| async move {
+            let subtitles = tokio::task::spawn_blocking(move || srt_parser::SrtParser::parse_file(input))
+                .await.map_err(|_| "Cannot read subtitle input".to_string())?
+                .map_err(|e| format!("Cannot parse SRT input: {e}"))?;
+            if cancel.is_cancelled() { return Err("Translation cancelled".into()); }
+            if subtitles.is_empty() { return Err("Input contains no subtitles".into()); }
+            let source = subtitles.clone();
+            let pool = srt_translate::build_pool(&profile.tiers)?;
+            let path = output.join("translated.srt");
+            let translated = srt_translate::translate_subtitles_tiered_cancellable(
+                pool, subtitles, &language, profile.batch_size, profile.resume_overlap,
+                profile.title_context.as_deref(), &path,
+                move |event| progress(serde_json::json!({
+                    "stage": "translate", "current_batch": event.current_batch,
+                    "total_batches": event.total_batches, "eta_seconds": event.eta_seconds,
+                    "batch_start": event.batch_start, "batch_end": event.batch_end,
+                })), cancel,
+            ).await.map_err(|e| e.to_string())?;
+            let missing = srt_translate::get_missing_or_incorrect_subtitle_ids(&source, &translated);
+            if !missing.is_empty() {
+                return Err(format!("Translation incomplete: {} subtitles remain; any completed checkpoints are retained in the job output directory", missing.len()));
+            }
+            Ok(serde_json::json!({"output_path": path, "subtitle_count": translated.len()}))
+        })
+    }
+
+    pub fn start_transcription(
+        &self,
+        input: String,
+        language: Option<String>,
+        profile: crate::provider_config::TranscriptionProfile,
+        paths: &Paths,
+    ) -> Result<JobSnapshot, String> {
+        self.start_work(
+            paths,
+            "transcription",
+            move |output, cancel, progress| async move {
+                let config = profile.config(
+                    input,
+                    output
+                        .join("transcribed.srt")
+                        .to_string_lossy()
+                        .into_owned(),
+                    language,
+                );
+                if cancel.is_cancelled() {
+                    return Err("Transcription cancelled".into());
+                }
+                let callbacks = srt_transcribe::pipeline::PipelineCallbacks {
+                    on_progress: Some(Arc::new(move |event| {
+                        if let Ok(value) = serde_json::to_value(event) {
+                            progress(value);
+                        }
+                    })),
+                    on_segment: None,
+                };
+                let result = srt_transcribe::pipeline::transcribe_to_srt_with_download_policy(
+                    &config,
+                    "ffmpeg",
+                    callbacks,
+                    &cancel,
+                    profile.allow_model_download,
+                )
+                .await
+                .map_err(|e| e.to_string())?;
+                serde_json::to_value(result)
+                    .map_err(|_| "Cannot serialize transcription result".into())
+            },
+        )
+    }
+
+    fn start_work<F, Fut>(
+        &self,
+        paths: &Paths,
+        operation: &str,
+        work: F,
+    ) -> Result<JobSnapshot, String>
+    where
+        F: FnOnce(std::path::PathBuf, CancellationToken, Arc<dyn Fn(Value) + Send + Sync>) -> Fut
+            + Send
+            + 'static,
+        Fut: std::future::Future<Output = Result<Value, String>> + Send + 'static,
+    {
         let mut state = self.lock();
         if state.shutting_down {
             return Err("Server is shutting down".into());
         }
         if state.entries.values().any(|e| e.snapshot.status.active()) {
-            return Err("A generation is already active; wait for it or cancel it first".into());
+            return Err("A job is already active; wait for it or cancel it first".into());
         }
         if state.entries.len() >= HISTORY_LIMIT
             && let Some(id) = state.entries.keys().next().cloned()
@@ -78,14 +194,11 @@ impl Jobs {
             .and_then(|s| s.to_str())
             .ok_or("Invalid output directory")?
             .to_owned();
-        config.output_dir = output
-            .to_str()
-            .ok_or("Output root must be valid UTF-8")?
-            .to_owned();
         let snapshot = JobSnapshot {
             job_id: id.clone(),
+            operation: operation.to_owned(),
             status: Status::Running,
-            output_dir: config.output_dir.clone(),
+            output_dir: output.to_string_lossy().into_owned(),
             progress: None,
             result: None,
             error: None,
@@ -103,24 +216,20 @@ impl Jobs {
         state.handles.push(tokio::spawn(async move {
             let progress_jobs = jobs.clone();
             let progress_id = id.clone();
+            let progress = Arc::new(move |value| {
+                if let Some(entry) = progress_jobs.lock().entries.get_mut(&progress_id) {
+                    entry.snapshot.progress = Some(value);
+                }
+            });
             let worker_cancel = cancel.clone();
-            // Supervise the engine so a task panic becomes an observable failed job.
-            let outcome = tokio::spawn(async move {
-                let progress = move |event| {
-                    if let Some(entry) = progress_jobs.lock().entries.get_mut(&progress_id) {
-                        entry.snapshot.progress = serde_json::to_value(event).ok();
-                    }
-                };
-                srt_flashcards::generate(config, MediaTools::default(), worker_cancel, &progress)
-                    .await
-            })
-            .await;
-            let mut state = jobs.lock();
-            if let Some(entry) = state.entries.get_mut(&id) {
+            // A panicking engine must still leave a terminal, observable job state.
+            let outcome =
+                tokio::spawn(async move { work(output, worker_cancel, progress).await }).await;
+            if let Some(entry) = jobs.lock().entries.get_mut(&id) {
                 match outcome {
-                    Ok(Ok(result)) if result.success => {
+                    Ok(Ok(result)) => {
                         entry.snapshot.status = Status::Succeeded;
-                        entry.snapshot.result = serde_json::to_value(result).ok();
+                        entry.snapshot.result = Some(result);
                     }
                     other => {
                         entry.snapshot.status = if cancel.is_cancelled() {
@@ -129,9 +238,9 @@ impl Jobs {
                             Status::Failed
                         };
                         entry.snapshot.error = Some(match other {
-                            Ok(Ok(result)) => result.message,
                             Ok(Err(error)) => error,
-                            Err(error) => format!("Generation task failed: {error}"),
+                            Err(_) => "Processing task failed".into(),
+                            Ok(Ok(_)) => unreachable!(),
                         });
                     }
                 }
