@@ -69,3 +69,23 @@ it("confirms deletion from the provider editor and closes the deleted configurat
   expect(JSON.parse(config.getItem("srt-tools-api-keys")!)).not.toContainEqual(key);
   expect(apiKeyEditorStore.showAddKey).toBe(false);
 });
+
+it("selects an existing sole provider by default and transfers selection to another configuration", async () => {
+  const first={id:"first-openai",apiType:"openai",name:"First API",apiKey:"example"};
+  config.setItem("srt-tools-api-keys",JSON.stringify([first]));
+  const target=document.createElement("div");document.body.append(target);
+  mounted.push(mount(SettingsTab,{target,props:{requestedSection:"llm"}}));await tick();await tick();
+  expect(target.querySelector('[data-key-default="first-openai"]')?.getAttribute("aria-pressed")).toBe("true");
+  // The selected configuration stays selected; choosing another changes it.
+  target.querySelector<HTMLButtonElement>('[data-key-default="first-openai"]')!.click();await tick();
+  expect(target.querySelector('[data-key-default="first-openai"]')?.getAttribute("aria-pressed")).toBe("true");
+  const {apiKeyEditorStore}=await import("$lib/stores/apiKeyEditorStore.svelte");
+  apiKeyEditorStore.openAdd("llm","openai");
+  apiKeyEditorStore.newKeyName="Second API";apiKeyEditorStore.newKeyValue="example";await tick();
+  target.querySelector<HTMLButtonElement>('[aria-labelledby="provider-dialog-title"] button.bg-indigo-500')!.click();await tick();
+  const second=JSON.parse(config.getItem("srt-tools-api-keys")!).find((key:{name:string})=>key.name==="Second API");
+  expect(target.querySelector(`[data-key-default="${second.id}"]`)?.getAttribute("aria-pressed")).toBe("false");
+  target.querySelector<HTMLButtonElement>(`[data-key-default="${second.id}"]`)!.click();await tick();
+  expect(target.querySelector('[data-key-default="first-openai"]')?.getAttribute("aria-pressed")).toBe("false");
+  expect(JSON.parse(config.getItem("srt-tools-api-keys")!).find((key:{id:string})=>key.id===second.id).isDefault).toBe(true);
+});

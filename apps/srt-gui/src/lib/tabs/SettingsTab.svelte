@@ -45,7 +45,7 @@
     REFINEMENT_PROMPT_STORAGE_KEY,
     loadRefinementPrompt,
   } from "$lib/config/refinementPrompt";
-  import { loadAndValidateApiKeys, supportsCapability, hasProviderNameConflict, type ApiKeyConfig } from "$lib/config/apiKeys";
+  import { loadAndValidateApiKeys, normalizeApiKeyDefaults, apiKeyDefaultGroup, supportsCapability, hasProviderNameConflict, type ApiKeyConfig } from "$lib/config/apiKeys";
   import {
     loadTiers,
     tiersHaveUsableEntries,
@@ -761,6 +761,7 @@
   }
 
   function saveApiKeys() {
+    apiKeys = normalizeApiKeyDefaults(apiKeys);
     vestaConfig.setItem("srt-tools-api-keys", JSON.stringify(apiKeys));
     // Dispatch custom event to notify other tabs in the same window
     window.dispatchEvent(new CustomEvent("apikeys-updated"));
@@ -908,16 +909,7 @@
     }
 
     if (apiKeyEditorStore.editKeyId === deleteConfirmId) apiKeyEditorStore.reset();
-    const wasDefault = key.isDefault;
-    const keyType = key.apiType;
     apiKeys = apiKeys.filter((k) => k.id !== deleteConfirmId);
-
-    if (wasDefault) {
-      const sameTypeKeys = apiKeys.filter((k) => k.apiType === keyType);
-      if (sameTypeKeys.length > 0) {
-        sameTypeKeys[0].isDefault = true;
-      }
-    }
 
     saveApiKeys();
     showSnackbar(t("settings.keyDeleted"));
@@ -930,7 +922,7 @@
 
     apiKeys = apiKeys.map((k) => ({
       ...k,
-      isDefault: k.apiType === key.apiType ? k.id === id : k.isDefault,
+      isDefault: apiKeyDefaultGroup(k) === apiKeyDefaultGroup(key) ? k.id === id : k.isDefault,
     }));
     saveApiKeys();
   }

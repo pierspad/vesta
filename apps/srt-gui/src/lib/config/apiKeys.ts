@@ -101,7 +101,7 @@ function withBuiltinEndpoints(keys: ApiKeyConfig[]): ApiKeyConfig[] {
     {id: "local", name: "Local LLM", apiType: "local", apiKey: "", apiUrl: vestaConfig.getItem("vesta-local-server-url") || "http://localhost:11434/v1", capabilities: ["llm"]},
     {id: "local_stt_server", name: "Local STT server", apiType: "custom", apiKey: "", apiUrl: "http://localhost:8000/v1", capabilities: ["stt"]},
   ];
-  return [...defaults.filter(item => !keys.some(key => key.id === item.id)), ...keys];
+  return normalizeApiKeyDefaults([...defaults.filter(item => !keys.some(key => key.id === item.id)), ...keys]);
 }
 
 /** Names are unique across all providers, including built-ins and both usages. */
@@ -109,4 +109,25 @@ export function hasProviderNameConflict(keys: ApiKeyConfig[], name: string, edit
   const normalize = (value: string) => value.normalize("NFKC").trim().replace(/\s+/g, " ").toLowerCase();
   const normalized = normalize(name);
   return Boolean(normalized) && keys.some(key => key.id !== editingId && normalize(key.name) === normalized);
+}
+
+/** Custom speech-only endpoints do not compete with text-only configurations. */
+export function apiKeyDefaultGroup(key: ApiKeyConfig): string {
+  return key.apiType === "custom" || key.apiType === "custom_whisper"
+    ? `${key.apiType}:${(["llm", "stt"] as const).filter(capability => supportsCapability(key, capability)).join("+")}`
+    : key.apiType;
+}
+
+/** Preserve the first explicit choice; repair missing or duplicate legacy flags. */
+export function normalizeApiKeyDefaults(keys: ApiKeyConfig[]): ApiKeyConfig[] {
+  const selected = new Map<string, string>();
+  for (const key of keys) {
+    const group = apiKeyDefaultGroup(key);
+    if (key.isDefault && !selected.has(group)) selected.set(group, key.id);
+  }
+  for (const key of keys) {
+    const group = apiKeyDefaultGroup(key);
+    if (!selected.has(group)) selected.set(group, key.id);
+  }
+  return keys.map(key => ({ ...key, isDefault: selected.get(apiKeyDefaultGroup(key)) === key.id }));
 }

@@ -214,7 +214,9 @@
                 ? 'text-indigo-300 bg-indigo-500/15 cursor-default'
                 : 'text-gray-500 hover:text-indigo-400 hover:bg-white/10'}"
               title={key.isDefault ? t("settings.default") : t("settings.setAsDefault")}
-              aria-pressed={key.isDefault}
+              aria-label={key.isDefault ? t("settings.default") : t("settings.setAsDefault")}
+              aria-pressed={Boolean(key.isDefault)}
+              data-key-default={key.id}
             >
               <svg
                 class="w-4 h-4"
