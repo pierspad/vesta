@@ -74,12 +74,13 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
           RELEASE_SHA: ${{ github.sha }}
+          RELEASE_BRANCH: ${{ github.ref_name }}
         shell: bash
         run: |
           set -euo pipefail
           ci_run=""
           for attempt in {1..60}; do
-            ci_run=$(gh run list --workflow ci.yml --commit "$RELEASE_SHA" --event push \
+            ci_run=$(gh run list --workflow ci.yml --commit "$RELEASE_SHA" --branch "$RELEASE_BRANCH" --event push \
               --limit 1 --json databaseId --jq '.[0].databaseId // empty')
             if [ -n "$ci_run" ]; then
               break

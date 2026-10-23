@@ -269,6 +269,11 @@ jobs:
           cache: 'npm'
           cache-dependency-path: apps/srt-gui/package-lock.json
 
+      # The source scanner imports svelte/compiler to parse Svelte 5 syntax.
+      - name: Install frontend dependencies
+        working-directory: ${{ env.TAURI_APP_DIR }}
+        run: npm ci
+
       - name: i18n consistency (parity, placeholders, hygiene)
         run: node apps/srt-gui/scripts/check-i18n.mjs
 
