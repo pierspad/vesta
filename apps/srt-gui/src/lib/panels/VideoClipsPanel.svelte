@@ -176,7 +176,7 @@
           />
         </div>
       </div>
-      <div class="dimensions-row">
+      <div class="dimensions-row" class:dimensions-linked={lockedRatio !== null}>
         <div>
           <span class="flex items-center gap-1.5 text-xs text-gray-400 mb-1 font-medium">
             <svg class="w-3.5 h-3.5 text-gray-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -327,6 +327,7 @@
 <style>
   .dimensions-row { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: end; gap: 8px; }
   .dimensions-row > :global(*) { min-width: 0; }
+  .dimensions-row.dimensions-linked :global(.number-control > input) { border-color: var(--control-focus-border); }
   .panel-fields { grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr)); }
   .panel-fields > :global(*) { min-width: 0; }
   .panel-fields > :global(.col-span-2) { grid-column: 1 / -1; }
