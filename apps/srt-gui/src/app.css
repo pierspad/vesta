@@ -12,6 +12,19 @@ body,
 /* Custom Modern Theme */
 :root {
   color-scheme: dark;
+  --bg: var(--color-gray-950);
+  --surface: var(--color-gray-800);
+  --surface-2: var(--color-gray-900);
+  --surface-3: var(--color-gray-700);
+  --text: var(--color-gray-100);
+  --muted: var(--color-gray-400);
+  --border: var(--glass-border);
+  --accent: var(--color-indigo-500);
+  --accent-strong: var(--color-indigo-600);
+  --accent-text: var(--color-white);
+  --done: var(--color-emerald-300);
+  --danger: var(--color-red-400);
+  --shadow: 0 18px 50px color-mix(in srgb, var(--color-black) 40%, transparent);
   /* Neutral translucent controls follow the surface beneath them. Menus stay
      opaque so content behind an open list cannot affect readability. */
   --control-bg: rgb(0 0 0 / 0.16);
