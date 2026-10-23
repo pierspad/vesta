@@ -22,6 +22,7 @@
   interface Props {
     activeTab: "translate" | "sync" | "transcribe" | "align" | "flashcards" | "settings" | "refine" | "extract" | "experimental";
     onTabChange: (tab: "translate" | "sync" | "transcribe" | "align" | "flashcards" | "settings" | "refine" | "extract" | "experimental") => void;
+    onSettingsAction?: (section: "overview" | "llm" | "whisper", targetId: string) => void;
     onTabPreload?: (tab: Props["activeTab"]) => void;
     collapsed?: boolean;
     onToggleCollapse?: () => void;
@@ -29,7 +30,7 @@
     lastActiveMainTab?: "translate" | "sync" | "transcribe" | "align" | "flashcards" | "refine" | "extract" | "experimental";
   }
 
-  let { activeTab, onTabChange, onTabPreload, collapsed = false, onToggleCollapse, settingsSection = $bindable("overview"), lastActiveMainTab = "flashcards" }: Props = $props();
+  let { activeTab, onTabChange, onTabPreload, onSettingsAction, collapsed = false, onToggleCollapse, settingsSection = $bindable("overview"), lastActiveMainTab = "flashcards" }: Props = $props();
   
   let t = $derived($locale);
 
@@ -592,5 +593,5 @@
 {#if showInbox}
   <NotificationInbox hash={aiStore.killSwitchActive ? "" : settingsHash} releaseUrl={releasesUrl}
     onclose={() => showInbox = false}
-    onsettings={(section) => { showInbox = false; settingsSection = section; onTabChange("settings"); }} />
+    onsettings={(section) => { showInbox = false; if (onSettingsAction) onSettingsAction(section, `notification-${section}`); else { settingsSection = section; onTabChange("settings"); } }} />
 {/if}

@@ -89,3 +89,24 @@ it("selects an existing sole provider by default and transfers selection to anot
   expect(target.querySelector('[data-key-default="first-openai"]')?.getAttribute("aria-pressed")).toBe("false");
   expect(JSON.parse(config.getItem("srt-tools-api-keys")!).find((key:{id:string})=>key.id===second.id).isDefault).toBe(true);
 });
+
+it.each(["llm", "whisper"] as const)("highlights the notification target in %s for at most 1.5 seconds", async (section) => {
+  vi.useFakeTimers();
+  const scroll = vi.fn();
+  const originalScroll = HTMLElement.prototype.scrollIntoView;
+  HTMLElement.prototype.scrollIntoView = scroll;
+  try {
+    const target = document.createElement("div"); document.body.append(target);
+    mounted.push(mount(SettingsTab, { target, props: { requestedSection: section, highlightItemId: `notification-${section}` } }));
+    await tick(); await tick();
+    expect(target.querySelector(".notification-target-pulse")).not.toBeNull();
+    await vi.advanceTimersByTimeAsync(1499); await tick();
+    expect(target.querySelector(".notification-target-pulse")).not.toBeNull();
+    expect(scroll).toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(1); await tick();
+    expect(target.querySelector(".notification-target-pulse")).toBeNull();
+  } finally {
+    HTMLElement.prototype.scrollIntoView = originalScroll;
+    vi.useRealTimers();
+  }
+});

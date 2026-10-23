@@ -712,10 +712,10 @@
   $effect(() => {
     if (highlightItemId) {
       highlightedModelId = highlightItemId;
-      const targetId = highlightItemId;
+      const targetId = highlightItemId === "notification-whisper" ? "whisper-models" : highlightItemId;
 
       // Scroll to the element if it exists in the DOM
-      setTimeout(() => {
+      const scrollTimer = setTimeout(() => {
         if (targetId) {
           const el = document.getElementById(targetId);
           if (el) {
@@ -730,8 +730,8 @@
       const timer = setTimeout(() => {
         highlightedModelId = null;
         highlightItemId = null;
-      }, 2000);
-      return () => clearTimeout(timer);
+      }, 1500);
+      return () => { clearTimeout(scrollTimer); clearTimeout(timer); };
     }
   });
 
@@ -1066,6 +1066,7 @@
   {/snippet}
 
   {#if activeSettingsSection === "llm" && !aiStore.killSwitchActive}
+    <div id="notification-llm" class:notification-target-pulse={highlightedModelId === "notification-llm"}>
     <ApiKeysCard
       title={s("apiKeysSaved")}
       addButtonLabel={s("addProviderButton")}
@@ -1103,6 +1104,7 @@
         </div>
       </div>
 
+    </div>
       <!-- Default Flashcard Refinement Prompt -->
       <div class="glass-card p-5 mt-10 mb-6 relative z-10">
         <div class="flex items-center gap-3 mb-4">
@@ -1230,6 +1232,18 @@
 </div>
 
 <style>
+  :global(.notification-target-pulse) {
+    border-radius: 1rem;
+    animation: notification-target-pulse .5s ease-in-out 3;
+  }
+  @keyframes notification-target-pulse {
+    0%, 100% { outline: 2px solid transparent; box-shadow: none; }
+    50% { outline: 2px solid var(--color-yellow-300); box-shadow: 0 0 20px color-mix(in srgb, var(--color-yellow-300) 30%, transparent); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    :global(.notification-target-pulse) { animation: none; outline: 2px solid var(--color-yellow-300); }
+  }
+
   ::-webkit-scrollbar {
     width: 6px;
     height: 6px;

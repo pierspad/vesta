@@ -417,7 +417,7 @@
   ondragover={(e) => { e.preventDefault(); if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy'; }}
   ondrop={(e) => e.preventDefault()}
 >
-  <Sidebar {activeTab} onTabChange={changeTab} onTabPreload={(tab) => void ensureTabLoaded(tab)} collapsed={sidebarCollapsed} onToggleCollapse={toggleSidebar} bind:settingsSection={requestedSettingsSection} {lastActiveMainTab} />
+  <Sidebar onSettingsAction={goToSettings} {activeTab} onTabChange={changeTab} onTabPreload={(tab) => void ensureTabLoaded(tab)} collapsed={sidebarCollapsed} onToggleCollapse={toggleSidebar} bind:settingsSection={requestedSettingsSection} {lastActiveMainTab} />
 
   <!-- Main Content - use CSS visibility to preserve state -->
   <div class="flex-1 overflow-hidden relative">

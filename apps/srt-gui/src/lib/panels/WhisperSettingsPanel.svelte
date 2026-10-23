@@ -127,6 +127,7 @@
 <div
   id="whisper-models"
   class="mt-6 glass-card p-5"
+  class:notification-target-pulse={highlightedModelId === "notification-whisper"}
   role="group"
   oncontextmenu={(e) => store.openWhisperPanelContextMenu(e)}
 >

@@ -66,7 +66,7 @@ it("keeps package manager instructions instead of offering its own installer", a
   const { target } = await renderInbox("");
   const article = target.querySelector("article")!;
   expect(article.textContent).toContain(updates.managerHint);
-  expect(article.querySelectorAll("button")).toHaveLength(1);
+  expect(article.querySelectorAll("button")).toHaveLength(0);
 });
 
 it("closes only when a pointer press starts and ends on the backdrop", async () => {
@@ -104,4 +104,16 @@ it("preserves the opener scroll and restores focus without scrolling on close", 
  await renderInbox(""); expect(scroller.scrollTop).toBe(160);
  await unmount(components.pop()!);
  expect(focus).toHaveBeenCalledWith({preventScroll:true}); expect(scroller.scrollTop).toBe(160);
+});
+
+it("keeps release notes collapsed and exposes a single disclosure action", async () => {
+  const { target } = await renderInbox();
+  const details = target.querySelector<HTMLButtonElement>(".release-summary")!;
+  expect(details.getAttribute("aria-expanded")).toBe("false");
+  expect(target.querySelectorAll("article:first-child button")).toHaveLength(1);
+  details.click();
+  await vi.waitFor(() => expect(details.getAttribute("aria-expanded")).toBe("true"));
+  expect(updates.openRelease).not.toHaveBeenCalled();
+  details.click();
+  await vi.waitFor(() => expect(details.getAttribute("aria-expanded")).toBe("false"));
 });
