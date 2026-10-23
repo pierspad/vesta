@@ -259,7 +259,9 @@
                 event.stopPropagation();
                 if (!["local", "local_stt_server"].includes(key.id)) onDeleteKey(key.id);
               }}
-              class="p-2.5 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-colors"
+              class="icon-action-danger"
+              type="button"
+              aria-label={t("settings.delete")}
               disabled={["local", "local_stt_server"].includes(key.id)}
               title={t("settings.delete")}
             >

@@ -748,3 +748,10 @@ kbd {
 
 .stable-settings-layout .glass-card,
 .stable-settings-layout .glass-card:focus-within { content-visibility: visible; contain: style; }
+
+/* Shared, borderless destructive actions in provider and tier lists. */
+.icon-action-danger { display: inline-flex; align-items: center; justify-content: center; padding: 10px; border: 0; border-radius: 8px; background: transparent; color: var(--color-red-400); cursor: pointer; transition: color .15s, background-color .15s; }
+.icon-action-danger > svg { width: 20px; height: 20px; }
+.icon-action-danger:hover:not(:disabled) { color: var(--color-red-300); background: color-mix(in srgb, var(--color-red-500) 10%, transparent); }
+.icon-action-danger:focus-visible { outline: 2px solid var(--control-focus-border); outline-offset: 2px; }
+.icon-action-danger:disabled { opacity: .35; cursor: default; }
