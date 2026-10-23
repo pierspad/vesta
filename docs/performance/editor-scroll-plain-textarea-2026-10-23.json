@@ -1,0 +1,187 @@
+{
+  "environment": "Codex in-app Chromium, Vite development, synthetic RAF scroll; no native CPU profile",
+  "baseline": "bb9a4f7",
+  "current": "Same editor implementation as baseline; paint containment experiment reverted after no measurable improvement",
+  "samples": [
+    {
+      "variant": "baseline",
+      "lines": 200,
+      "repeat": 1,
+      "medianFrameMs": 5.700000000004366,
+      "p95FrameMs": 5.899999999994179,
+      "framesOver25Ms": 0,
+      "styleMutations": 0,
+      "nodes": 610
+    },
+    {
+      "variant": "current",
+      "lines": 200,
+      "repeat": 1,
+      "medianFrameMs": 5.700000000004366,
+      "p95FrameMs": 5.80000000000291,
+      "framesOver25Ms": 0,
+      "styleMutations": 0,
+      "nodes": 610
+    },
+    {
+      "variant": "plain-textarea",
+      "lines": 200,
+      "repeat": 1,
+      "medianFrameMs": 5.700000000004366,
+      "p95FrameMs": 5.80000000000291,
+      "framesOver25Ms": 0,
+      "styleMutations": 0,
+      "nodes": 1
+    },
+    {
+      "variant": "current",
+      "lines": 200,
+      "repeat": 2,
+      "medianFrameMs": 5.69999999999709,
+      "p95FrameMs": 5.80000000000291,
+      "framesOver25Ms": 0,
+      "styleMutations": 0,
+      "nodes": 610
+    },
+    {
+      "variant": "baseline",
+      "lines": 200,
+      "repeat": 2,
+      "medianFrameMs": 5.700000000004366,
+      "p95FrameMs": 5.80000000000291,
+      "framesOver25Ms": 0,
+      "styleMutations": 0,
+      "nodes": 610
+    },
+    {
+      "variant": "plain-textarea",
+      "lines": 200,
+      "repeat": 2,
+      "medianFrameMs": 5.69999999999709,
+      "p95FrameMs": 5.80000000000291,
+      "framesOver25Ms": 0,
+      "styleMutations": 0,
+      "nodes": 1
+    },
+    {
+      "variant": "baseline",
+      "lines": 200,
+      "repeat": 3,
+      "medianFrameMs": 5.69999999999709,
+      "p95FrameMs": 5.80000000000291,
+      "framesOver25Ms": 0,
+      "styleMutations": 0,
+      "nodes": 610
+    },
+    {
+      "variant": "current",
+      "lines": 200,
+      "repeat": 3,
+      "medianFrameMs": 5.700000000004366,
+      "p95FrameMs": 5.80000000000291,
+      "framesOver25Ms": 0,
+      "styleMutations": 0,
+      "nodes": 610
+    },
+    {
+      "variant": "plain-textarea",
+      "lines": 200,
+      "repeat": 3,
+      "medianFrameMs": 5.69999999999709,
+      "p95FrameMs": 5.80000000000291,
+      "framesOver25Ms": 0,
+      "styleMutations": 0,
+      "nodes": 1
+    },
+    {
+      "variant": "baseline",
+      "lines": 2000,
+      "repeat": 1,
+      "medianFrameMs": 5.700000000004366,
+      "p95FrameMs": 5.80000000000291,
+      "framesOver25Ms": 0,
+      "styleMutations": 0,
+      "nodes": 6010
+    },
+    {
+      "variant": "current",
+      "lines": 2000,
+      "repeat": 1,
+      "medianFrameMs": 5.700000000004366,
+      "p95FrameMs": 5.80000000000291,
+      "framesOver25Ms": 0,
+      "styleMutations": 0,
+      "nodes": 6010
+    },
+    {
+      "variant": "plain-textarea",
+      "lines": 2000,
+      "repeat": 1,
+      "medianFrameMs": 5.700000000004366,
+      "p95FrameMs": 5.80000000000291,
+      "framesOver25Ms": 0,
+      "styleMutations": 0,
+      "nodes": 1
+    },
+    {
+      "variant": "current",
+      "lines": 2000,
+      "repeat": 2,
+      "medianFrameMs": 5.700000000004366,
+      "p95FrameMs": 5.80000000000291,
+      "framesOver25Ms": 0,
+      "styleMutations": 0,
+      "nodes": 6010
+    },
+    {
+      "variant": "baseline",
+      "lines": 2000,
+      "repeat": 2,
+      "medianFrameMs": 5.700000000004366,
+      "p95FrameMs": 5.900000000001455,
+      "framesOver25Ms": 0,
+      "styleMutations": 0,
+      "nodes": 6010
+    },
+    {
+      "variant": "plain-textarea",
+      "lines": 2000,
+      "repeat": 2,
+      "medianFrameMs": 5.700000000004366,
+      "p95FrameMs": 6,
+      "framesOver25Ms": 0,
+      "styleMutations": 0,
+      "nodes": 1
+    },
+    {
+      "variant": "baseline",
+      "lines": 2000,
+      "repeat": 3,
+      "medianFrameMs": 5.700000000004366,
+      "p95FrameMs": 6,
+      "framesOver25Ms": 0,
+      "styleMutations": 0,
+      "nodes": 6010
+    },
+    {
+      "variant": "current",
+      "lines": 2000,
+      "repeat": 3,
+      "medianFrameMs": 5.69999999999709,
+      "p95FrameMs": 5.900000000008731,
+      "framesOver25Ms": 0,
+      "styleMutations": 0,
+      "nodes": 6010
+    },
+    {
+      "variant": "plain-textarea",
+      "lines": 2000,
+      "repeat": 3,
+      "medianFrameMs": 5.69999999999709,
+      "p95FrameMs": 6.30000000000291,
+      "framesOver25Ms": 0,
+      "styleMutations": 0,
+      "nodes": 1
+    }
+  ]
+}

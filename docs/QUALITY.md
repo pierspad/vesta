@@ -391,3 +391,13 @@ The fixture stubs its IPC calls and uses generated text. Native development
 measurements still need to be distinguished from an installed release and from
 OS CPU profiles; record renderer/GPU, display settings and document size with
 those results.
+
+The fixture also runs a plain native textarea with the same text, font, height
+and wrapping. This isolates the extra highlight/gutter layers from the textarea
+scroll path. The [plain-textarea comparison](performance/editor-scroll-plain-textarea-2026-10-23.json)
+found approximately 5.7 ms median frames for both editors and the plain textarea,
+with no frames above 25 ms. This run used the same editor implementation on both
+sides: an experimental paint-containment change showed no measurable benefit and
+was reverted. It does not resolve or reproduce the reported native slowdown.
+Use the plain-textarea variant in the native fixture to determine whether the
+remaining cost belongs to editor layers or the underlying webview scrolling.

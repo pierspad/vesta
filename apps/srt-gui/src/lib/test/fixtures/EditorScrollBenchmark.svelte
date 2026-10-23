@@ -3,7 +3,7 @@
   import CodeEditor from "$lib/components/CodeEditor.svelte";
   const baselines = import.meta.glob("./CodeEditorScrollBaseline.svelte", { eager: true, import: "default" });
   const Baseline = Object.values(baselines)[0] as typeof CodeEditor | undefined;
-  let Editor = $state<typeof CodeEditor>(CodeEditor);
+  let Editor = $state<typeof CodeEditor | null>(CodeEditor);
   let value = $state("");
   let running = $state(false);
   let status = $state("Ready");
@@ -37,7 +37,8 @@
         value=Array.from({length:lines},(_,i)=>`Rule ${i}: Review **{Expression}** and {Meaning}. Preserve punctuation, subtitle timing and the original language of each sentence.`).join("\n");
         // Alternate order so warm-up and temperature do not always favor one variant.
         for (let repeat=1;repeat<=3;repeat++) {
-          const variants: [string, typeof CodeEditor][] = Baseline ? (repeat%2 ? [["baseline",Baseline],["current",CodeEditor]] : [["current",CodeEditor],["baseline",Baseline]]) : [["current",CodeEditor]];
+          const variants: [string, typeof CodeEditor | null][] = Baseline ? (repeat%2 ? [["baseline",Baseline],["current",CodeEditor]] : [["current",CodeEditor],["baseline",Baseline]]) : [["current",CodeEditor]];
+          variants.push(["plain-textarea", null]);
           for (const [label,component] of variants) { Editor=component; await sample(label,lines,repeat); }
         }
       }
@@ -50,6 +51,6 @@
   <p>Wrapped prompt text, 120 scrolling frames, three alternating samples per workload. No media or cloud calls. Browser frame timing includes compositor and display scheduling; this is not a native WebKit CPU profile.</p>
   <button class="btn-secondary" disabled={running} onclick={run}>Run benchmark</button>
   <p role="status">{status}</p>
-  <div class="glass-card p-4" bind:this={host}>{#key Editor}<Editor bind:value language="prompt" heightClass="h-80"/>{/key}</div>
+  <div class="glass-card p-4" bind:this={host}>{#key Editor}{#if Editor}<Editor bind:value language="prompt" heightClass="h-80"/>{:else}<textarea bind:value class="h-80 w-full p-3 pr-9 font-mono text-sm bg-gray-900 text-gray-300 custom-scrollbar resize-none" style="line-height:1.625rem;scrollbar-gutter:stable" spellcheck="false" wrap="soft" aria-label="Plain textarea comparison"></textarea>{/if}{/key}</div>
   <pre class="overflow-auto whitespace-pre-wrap text-xs" data-testid="benchmark-results">{JSON.stringify(results,null,2)}</pre>
 </div>
