@@ -135,6 +135,7 @@ fn main() -> std::process::ExitCode {
         )
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
+        .plugin(tauri_plugin_clipboard_manager::init())
         .register_asynchronous_uri_scheme_protocol("stream", |_ctx, request, responder| {
             std::thread::spawn(move || responder.respond(media_stream::response(&request)));
         })

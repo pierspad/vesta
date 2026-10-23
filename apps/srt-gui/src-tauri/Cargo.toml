@@ -19,6 +19,7 @@ tauri-build = { version = "2.7", features = [] }
 vesta-cli.workspace = true
 tauri = { version = "2.12", features = ["protocol-asset"] }
 tauri-plugin-fs = "=2.7.1"
+tauri-plugin-clipboard-manager = "=2.5.0"
 serde = { workspace = true }
 serde_json = { workspace = true }
 anyhow = { workspace = true }
