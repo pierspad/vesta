@@ -32,3 +32,17 @@ it("does not change readonly controls and restores the DOM on destruction", () =
   expect(document.body.firstElementChild).toBe(input);
   expect(document.querySelector("button")).toBeNull();
 });
+
+it("responds on press and counts rapid clicks exactly once without delayed repeats", () => {
+  const { input, change } = render();
+  const button = document.querySelector<HTMLButtonElement>("button")!;
+  for (let i = 0; i < 30; i++) {
+    button.dispatchEvent(new MouseEvent("pointerdown", { button: 0, bubbles: true, cancelable: true }));
+    expect(input.valueAsNumber).toBe(21 + i);
+    button.dispatchEvent(new MouseEvent("click", { detail: i + 1, bubbles: true }));
+  }
+  expect(input.value).toBe("50");
+  expect(change).toHaveBeenCalledTimes(30);
+  button.dispatchEvent(new MouseEvent("pointerdown", { button: 2, bubbles: true }));
+  expect(input.value).toBe("50");
+});

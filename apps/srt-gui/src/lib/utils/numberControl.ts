@@ -22,8 +22,17 @@ export function numberControl(input: HTMLInputElement) {
     const path = document.createElementNS(svg.namespaceURI, "path");
     path.setAttribute("d", direction > 0 ? "m7 14 5-5 5 5" : "m7 10 5 5 5-5");
     svg.append(path); button.append(svg);
-    button.onpointerdown = event => event.preventDefault();
-    button.onclick = event => { input.focus(); step(direction, event.ctrlKey || event.metaKey ? 100 : event.shiftKey ? 10 : 1); };
+    const activate = (event: MouseEvent) => {
+      input.focus({ preventScroll: true });
+      step(direction, event.ctrlKey || event.metaKey ? 100 : event.shiftKey ? 10 : 1);
+    };
+    button.onpointerdown = event => {
+      if (event.button !== 0) return;
+      event.preventDefault();
+      activate(event);
+    };
+    // Pointer activation already happened on press. Keep synthetic/assistive clicks.
+    button.onclick = event => { if (event.detail === 0) activate(event); };
     controls.append(button); return button;
   });
   const unsubscribe = locale.subscribe(t => {

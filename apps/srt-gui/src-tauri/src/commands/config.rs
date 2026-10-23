@@ -17,16 +17,16 @@ use std::collections::HashMap;
 use std::fs;
 use std::io::Write;
 use std::path::PathBuf;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 use tauri::State;
 
 /// Stato in-memory del config store, tenuto in sync col file su disco.
-pub struct ConfigState(pub Mutex<HashMap<String, String>>);
+pub struct ConfigState(pub Arc<Mutex<HashMap<String, String>>>);
 
 impl Default for ConfigState {
     fn default() -> Self {
-        Self(Mutex::new(HashMap::new()))
+        Self(Arc::new(Mutex::new(HashMap::new())))
     }
 }
 
@@ -111,31 +111,47 @@ pub fn config_load_all(state: State<'_, ConfigState>) -> Result<HashMap<String, 
 }
 
 #[tauri::command]
-pub fn config_set(state: State<'_, ConfigState>, key: String, value: String) -> Result<(), String> {
-    let mut guard = state.0.lock().map_err(|e| e.to_string())?;
-    let old_value = guard.insert(key.clone(), value);
-    if let Err(e) = write_to_disk(&guard) {
-        if let Some(old) = old_value {
-            guard.insert(key, old);
-        } else {
-            guard.remove(&key);
+pub async fn config_set(
+    state: State<'_, ConfigState>,
+    key: String,
+    value: String,
+) -> Result<(), String> {
+    let store = Arc::clone(&state.0);
+    // Atomic writes include fsync; never run them on the webview event thread.
+    tauri::async_runtime::spawn_blocking(move || {
+        let mut guard = store.lock().map_err(|e| e.to_string())?;
+        let old_value = guard.insert(key.clone(), value);
+        if let Err(e) = write_to_disk(&guard) {
+            if let Some(old) = old_value {
+                guard.insert(key, old);
+            } else {
+                guard.remove(&key);
+            }
+            return Err(e);
         }
-        return Err(e);
-    }
-    Ok(())
+        Ok(())
+    })
+    .await
+    .map_err(|error| error.to_string())?
 }
 
 #[tauri::command]
-pub fn config_remove(state: State<'_, ConfigState>, key: String) -> Result<(), String> {
-    let mut guard = state.0.lock().map_err(|e| e.to_string())?;
-    let old_value = guard.remove(&key);
-    if let Err(e) = write_to_disk(&guard) {
-        if let Some(old) = old_value {
-            guard.insert(key, old);
+pub async fn config_remove(state: State<'_, ConfigState>, key: String) -> Result<(), String> {
+    let store = Arc::clone(&state.0);
+    // Atomic writes include fsync; never run them on the webview event thread.
+    tauri::async_runtime::spawn_blocking(move || {
+        let mut guard = store.lock().map_err(|e| e.to_string())?;
+        let old_value = guard.remove(&key);
+        if let Err(e) = write_to_disk(&guard) {
+            if let Some(old) = old_value {
+                guard.insert(key, old);
+            }
+            return Err(e);
         }
-        return Err(e);
-    }
-    Ok(())
+        Ok(())
+    })
+    .await
+    .map_err(|error| error.to_string())?
 }
 
 #[tauri::command]
