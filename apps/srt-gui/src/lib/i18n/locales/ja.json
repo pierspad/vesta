@@ -1284,5 +1284,9 @@
   "flashcards.keepAspectRatio": "縦横比を固定",
   "common.outputFolderLabel": "フォルダー",
   "common.outputFileLabel": "ファイルを開く",
-  "settings.modal.deleteProvider": "プロバイダーを削除"
+  "settings.modal.deleteProvider": "プロバイダーを削除",
+  "nav.expandSidebar": "サイドバーを展開",
+  "nav.collapseSidebar": "サイドバーを折りたたむ",
+  "common.characterUnit": "文字",
+  "flashcards.previewFrame": "プレビューフレーム"
 }

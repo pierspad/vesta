@@ -1284,5 +1284,9 @@
   "flashcards.keepAspectRatio": "保持宽高比",
   "common.outputFolderLabel": "文件夹",
   "common.outputFileLabel": "打开文件",
-  "settings.modal.deleteProvider": "删除提供商"
+  "settings.modal.deleteProvider": "删除提供商",
+  "nav.expandSidebar": "展开侧边栏",
+  "nav.collapseSidebar": "折叠侧边栏",
+  "common.characterUnit": "字符",
+  "flashcards.previewFrame": "预览帧"
 }

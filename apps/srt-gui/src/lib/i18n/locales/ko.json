@@ -1284,5 +1284,9 @@
   "flashcards.keepAspectRatio": "종횡비 유지",
   "common.outputFolderLabel": "폴더",
   "common.outputFileLabel": "파일 열기",
-  "settings.modal.deleteProvider": "공급자 삭제"
+  "settings.modal.deleteProvider": "공급자 삭제",
+  "nav.expandSidebar": "사이드바 펼치기",
+  "nav.collapseSidebar": "사이드바 접기",
+  "common.characterUnit": "자",
+  "flashcards.previewFrame": "미리보기 프레임"
 }

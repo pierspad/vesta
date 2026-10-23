@@ -401,3 +401,29 @@ sides: an experimental paint-containment change showed no measurable benefit and
 was reverted. It does not resolve or reproduce the reported native slowdown.
 Use the plain-textarea variant in the native fixture to determine whether the
 remaining cost belongs to editor layers or the underlying webview scrolling.
+
+## Clipboard and context-menu regressions
+
+Desktop copy/paste uses Tauri's clipboard-manager text API; browser previews use
+`navigator.clipboard`. The native plugin has only read-text/write-text capability
+for the main window. Copy success is reported only after the operation succeeds;
+failed cuts preserve the source. Diagnostics record operation/backend/error type,
+never copied contents or backend error messages. Unit tests cover both backends
+and rejected writes. An installed-platform smoke check still needs repeated copy
+of a generated path, pasting into another application, and cut/paste in editable
+fields with the real OS clipboard; mocked IPC/browser tests cannot prove this.
+
+Mounted menu tests cover readonly actions, selection copying and asynchronous
+clipboard results arriving after edits. The shared menu action measures translated
+content against the viewport, supports arrows/Home/End/Escape, skips disabled
+items and restores focus. Preview, episode, settings, sync and extraction menus
+use it; extraction also exposes Save for supported text subtitle tracks.
+
+The localization audit scans all 15 catalogs for missing/empty keys, accidental
+English copies and parameter mismatches. Its Svelte AST heuristic now also checks
+visible attributes and conditional text, which the text-node scan missed. The
+23 October review fixed hardcoded sidebar labels, preview text/tooltips, filter
+units and path titles, and removed ineffective `t(key) || literal` fallbacks.
+Catalogs contain 1,290 keys each, with no duplicate keys or replacement characters
+in this review. Structural checks and reviewed source literals do not certify
+native-speaker quality of every sentence in all languages.

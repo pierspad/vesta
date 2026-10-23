@@ -123,7 +123,7 @@
   <button
     onclick={onToggleCollapse}
     class="absolute -right-3 top-6 w-6 h-6 bg-gray-800 border border-white/20 rounded-full flex items-center justify-center text-gray-400 hover:text-white hover:bg-gray-700 transition-all z-10 shadow-lg"
-    aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+    aria-label={collapsed ? t("nav.expandSidebar") : t("nav.collapseSidebar")}
   >
     <svg class="w-3 h-3 transition-transform {collapsed ? 'rotate-180' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />

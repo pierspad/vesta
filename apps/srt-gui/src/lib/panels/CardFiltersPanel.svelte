@@ -81,7 +81,7 @@
                 class="input-modern w-full text-xs {!filters.minCharsEnabled ? 'opacity-40 cursor-not-allowed' : ''}"
                 placeholder="8"
               />
-              <span class="text-xs text-gray-500 shrink-0">car.</span>
+              <span class="text-xs text-gray-500 shrink-0">{t("common.characterUnit")}</span>
             </div>
             <input
               type="range" min="1" max="100" step="1"
@@ -118,7 +118,7 @@
                 class="input-modern w-full text-xs {!filters.maxCharsEnabled ? 'opacity-40 cursor-not-allowed' : ''}"
                 placeholder="120"
               />
-              <span class="text-xs text-gray-500 shrink-0">car.</span>
+              <span class="text-xs text-gray-500 shrink-0">{t("common.characterUnit")}</span>
             </div>
             <input
               type="range" min="1" max="500" step="1"

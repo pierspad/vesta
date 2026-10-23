@@ -1284,5 +1284,9 @@
   "flashcards.keepAspectRatio": "En boy oranını koru",
   "common.outputFolderLabel": "Klasör",
   "common.outputFileLabel": "Dosyayı aç",
-  "settings.modal.deleteProvider": "Sağlayıcıyı sil"
+  "settings.modal.deleteProvider": "Sağlayıcıyı sil",
+  "nav.expandSidebar": "Kenar çubuğunu genişlet",
+  "nav.collapseSidebar": "Kenar çubuğunu daralt",
+  "common.characterUnit": "kar.",
+  "flashcards.previewFrame": "Önizleme karesi"
 }

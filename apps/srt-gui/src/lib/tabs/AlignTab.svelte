@@ -800,7 +800,7 @@
               {t("align.saveResult")}
             </button>
             <div class="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 z-50 mb-3 rounded-xl border border-emerald-500/30 bg-gray-950/95 p-3 text-center text-xs text-emerald-300 shadow-2xl shadow-black/40 ring-1 ring-white/10 transition-all duration-150 delay-0 group-hover:delay-300 opacity-0 group-hover:opacity-100 group-hover:translate-y-0 translate-y-1 whitespace-normal w-72">
-              {sourceSubs.length === 0 ? "Carica e allinea i file per salvare" : t("align.saveResult")}
+              {sourceSubs.length === 0 ? t("align.loadPrompt") : t("align.saveResult")}
             </div>
           </div>
         </div>

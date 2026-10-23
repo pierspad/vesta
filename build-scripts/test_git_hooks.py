@@ -24,10 +24,16 @@ class GitHookTests(unittest.TestCase):
         scripts.mkdir(parents=True)
         for name in ["check_missing_translations.py", "check-i18n.mjs", "i18n-scanner.mjs"]:
             shutil.copy2(SOURCE / "apps/srt-gui/scripts" / name, scripts / name)
+        # Source snapshots remain isolated; use the already installed Svelte
+        # compiler to exercise the same AST audit as real hooks.
+        (self.root / "apps/srt-gui/node_modules").symlink_to(
+            SOURCE / "apps/srt-gui/node_modules", target_is_directory=True
+        )
         self.locales = self.root / "apps/srt-gui/src/lib/i18n/locales"
         self.locales.mkdir(parents=True)
         for file in (SOURCE / "apps/srt-gui/src/lib/i18n/locales").glob("*.json"):
             self.write_locale(file.stem, "Original English text" if file.stem == "en" else f"Translation {file.stem}")
+        (self.root / ".gitignore").write_text("node_modules\n")
         self.run_cmd("git", "add", ".")
         self.run_cmd("git", "-c", "core.hooksPath=/dev/null", "commit", "-qm", "fixture")
 
@@ -66,6 +72,15 @@ class GitHookTests(unittest.TestCase):
         result = self.run_cmd("bash", "build-scripts/pre-commit", ok=False)
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("missing.key", result.stdout + result.stderr)
+
+    def test_staged_conditional_copy_uses_the_compiler_even_when_worktree_is_fixed(self):
+        source = self.root / "apps/srt-gui/src/Example.svelte"
+        source.write_text('<button title={open ? "Collapse sidebar" : "Expand sidebar"}>{t("test.label")}</button>')
+        self.run_cmd("git", "add", ".")
+        source.write_text('<button title={t("test.label")}>{t("test.label")}</button>')
+        result = self.run_cmd("bash", "build-scripts/pre-commit")
+        self.assertIn('possible hardcoded text "Collapse sidebar"', result.stdout + result.stderr)
+        self.assertIn('possible hardcoded text "Expand sidebar"', result.stdout + result.stderr)
 
     def test_install_is_idempotent_and_dispatches_current_script(self):
         self.run_cmd("bash", "build-scripts/install-hooks.sh")

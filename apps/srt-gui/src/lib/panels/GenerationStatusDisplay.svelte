@@ -94,7 +94,7 @@
         </div>
         <!-- Error details -->
         <div class="flex flex-col min-w-0">
-          <span class="text-sm font-bold text-red-400">{t("flashcards.generationFailed") || 'Generation Failed'}</span>
+          <span class="text-sm font-bold text-red-400">{t("flashcards.generationFailed")}</span>
           <span class="text-[11px] text-gray-400 truncate max-w-[320px]" title={generationStore.result.message}>
             {generationStore.result.message ? (generationStore.result.message.includes("No active") ? t("flashcards.noActiveLines") : generationStore.result.message) : t("flashcards.errorGenerating")}
           </span>

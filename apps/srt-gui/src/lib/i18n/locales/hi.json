@@ -1284,5 +1284,9 @@
   "flashcards.keepAspectRatio": "पहलू अनुपात बनाए रखें",
   "common.outputFolderLabel": "फ़ोल्डर",
   "common.outputFileLabel": "फ़ाइल खोलें",
-  "settings.modal.deleteProvider": "प्रदाता हटाएँ"
+  "settings.modal.deleteProvider": "प्रदाता हटाएँ",
+  "nav.expandSidebar": "साइडबार फैलाएँ",
+  "nav.collapseSidebar": "साइडबार समेटें",
+  "common.characterUnit": "अक्षर",
+  "flashcards.previewFrame": "पूर्वावलोकन फ़्रेम"
 }

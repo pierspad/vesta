@@ -12,7 +12,7 @@
 import { readFileSync, readdirSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { extractReferencedTranslationKeys, findHardcodedTemplateText } from "./i18n-scanner.mjs";
+import { extractReferencedTranslationKeys, findHardcodedTemplateText, findHardcodedExpressionText } from "./i18n-scanner.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const localesDir = join(root, "src", "lib", "i18n", "locales");
@@ -108,7 +108,7 @@ console.log("\nHeuristic scan for hardcoded template text…");
 for (const file of walk(srcDir)) {
   if (!file.endsWith(".svelte")) continue;
   const text = readFileSync(file, "utf8");
-  for (const value of findHardcodedTemplateText(file, text)) {
+  for (const value of new Set([...findHardcodedTemplateText(file, text), ...findHardcodedExpressionText(file, text)])) {
     warn(`${file.replace(root + "/", "")}: possible hardcoded text "${value.slice(0, 60)}"`);
   }
 }

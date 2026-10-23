@@ -140,8 +140,8 @@
               : generationStore.exportFormat === 'tsv'
                 ? 'TSV'
                 : (ankiStore.status === 'online'
-                  ? 'Anki Connect'
-                  : `Anki Connect (${t("common.fallback")}: ${generationStore.fallbackFormat.toUpperCase()})`)}
+                  ? 'AnkiConnect'
+                  : `AnkiConnect (${t("common.fallback")}: ${generationStore.fallbackFormat.toUpperCase()})`)}
           </button>
           {#if !generationStore.isProcessing && !generationStore.result}
             <div use:viewportTooltip class="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-3 z-50

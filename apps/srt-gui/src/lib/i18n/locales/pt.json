@@ -1284,5 +1284,9 @@
   "flashcards.keepAspectRatio": "Manter proporções",
   "common.outputFolderLabel": "Pasta",
   "common.outputFileLabel": "Abrir arquivo",
-  "settings.modal.deleteProvider": "Excluir provedor"
+  "settings.modal.deleteProvider": "Excluir provedor",
+  "nav.expandSidebar": "Expandir barra lateral",
+  "nav.collapseSidebar": "Recolher barra lateral",
+  "common.characterUnit": "car.",
+  "flashcards.previewFrame": "Quadro de pré-visualização"
 }

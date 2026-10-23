@@ -1284,5 +1284,9 @@
   "flashcards.keepAspectRatio": "Keep aspect ratio",
   "common.outputFolderLabel": "Folder",
   "common.outputFileLabel": "Open file",
-  "settings.modal.deleteProvider": "Delete provider"
+  "settings.modal.deleteProvider": "Delete provider",
+  "nav.expandSidebar": "Expand sidebar",
+  "nav.collapseSidebar": "Collapse sidebar",
+  "common.characterUnit": "chars.",
+  "flashcards.previewFrame": "Preview frame"
 }

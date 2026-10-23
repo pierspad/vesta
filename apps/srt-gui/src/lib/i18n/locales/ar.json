@@ -1284,5 +1284,9 @@
   "flashcards.keepAspectRatio": "الحفاظ على نسبة الأبعاد",
   "common.outputFolderLabel": "المجلد",
   "common.outputFileLabel": "فتح الملف",
-  "settings.modal.deleteProvider": "حذف المزوّد"
+  "settings.modal.deleteProvider": "حذف المزوّد",
+  "nav.expandSidebar": "توسيع الشريط الجانبي",
+  "nav.collapseSidebar": "طي الشريط الجانبي",
+  "common.characterUnit": "أحرف",
+  "flashcards.previewFrame": "إطار المعاينة"
 }

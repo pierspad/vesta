@@ -1284,5 +1284,9 @@
   "flashcards.keepAspectRatio": "Seitenverhältnis beibehalten",
   "common.outputFolderLabel": "Ordner",
   "common.outputFileLabel": "Datei öffnen",
-  "settings.modal.deleteProvider": "Anbieter löschen"
+  "settings.modal.deleteProvider": "Anbieter löschen",
+  "nav.expandSidebar": "Seitenleiste ausklappen",
+  "nav.collapseSidebar": "Seitenleiste einklappen",
+  "common.characterUnit": "Zeichen",
+  "flashcards.previewFrame": "Vorschaubild"
 }

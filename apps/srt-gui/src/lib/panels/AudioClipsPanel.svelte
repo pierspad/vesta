@@ -182,7 +182,7 @@
   let currentLineText = $derived(
     subEntries.length > 0 && subEntries[currentSubIndex]
       ? subEntries[currentSubIndex].text
-      : (t("flashcards.previewAudioNoSubs") || "Nessun sottotitolo: usa il cursore per navigare")
+      : (t("flashcards.previewAudioNoSubs"))
   );
 
   function formatTime(sec: number): string {
@@ -591,7 +591,7 @@
       <div class="flex gap-3 items-start bg-black/35 p-2.5 rounded-lg border border-white/5">
         {#if previewSnapshotUrl}
           <div class="relative w-24 h-15 shrink-0 rounded overflow-hidden border border-white/10 bg-black shadow-inner">
-            <img src={previewSnapshotUrl} alt="Preview frame" class="w-full h-full object-cover" />
+            <img src={previewSnapshotUrl} alt={t("flashcards.previewFrame")} class="w-full h-full object-cover" />
             {#if isSnapshotLoading}
               <div class="absolute inset-0 bg-black/60 flex items-center justify-center">
                 <div class="w-3.5 h-3.5 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin"></div>

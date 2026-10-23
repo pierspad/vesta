@@ -242,7 +242,7 @@
             ]}
             value={settings.h264Preset}
             onchange={(v) => (settings.h264Preset = v)}
-            placeholder="Preset"
+            placeholder={t("flashcards.h264Preset")}
           />
         </div>
       </div>

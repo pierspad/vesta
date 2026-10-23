@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { extractReferencedTranslationKeys, findHardcodedTemplateText } from "../../../scripts/i18n-scanner.mjs";
+import { extractReferencedTranslationKeys, findHardcodedTemplateText, findHardcodedExpressionText } from "../../../scripts/i18n-scanner.mjs";
 
 describe("i18n source scanner helpers", () => {
   it("keeps scanning translation keys in test and fixture sources", () => {
@@ -33,4 +33,8 @@ describe("i18n source scanner helpers", () => {
       "<p>GStreamer is optional</p><button>Transcribe now</button><span>-14 LUFS target</span>",
     )).toEqual(["GStreamer is optional", "Transcribe now", "-14 LUFS target"]);
   });
+});
+
+it("finds untranslated conditional copy and tooltips without flagging code attributes", () => {
+ expect(findHardcodedExpressionText("src/Real.svelte", `<button class="flex items-center" title={open ? "Collapse sidebar" : "Expand sidebar"}>{playing ? t("common.pause") : "Play audio"}</button><input placeholder="Type a name" /><img alt="Preview frame" />`)).toEqual(["Collapse sidebar", "Expand sidebar", "Play audio", "Type a name", "Preview frame"]);
 });

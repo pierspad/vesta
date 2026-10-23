@@ -1,3 +1,5 @@
+import { parse } from "svelte/compiler";
+
 /** Helpers shared by the i18n consistency checker and its regression tests. */
 
 /** @param {string} text @param {string} [filePath] @returns {Set<string>} */
@@ -32,6 +34,7 @@ export function stripSvelteExpressions(text) {
 // be reviewed as UI text.
 const ALLOWED_TECHNICAL_LITERALS = new Set([
   "Opus ·",
+  "Pierpaolo Spadafora",
   "AnkiConnect",
   "Silero Voice Activity Detection 6.2.0",
   "-14 LUFS",
@@ -70,4 +73,45 @@ export function findHardcodedTemplateText(filePath, text) {
     if (value && !isKnownTechnicalLiteral(value)) findings.push(value);
   }
   return findings;
+}
+
+/** Inspect visible attributes and conditional copy hidden inside Svelte expressions.
+ * The text-only heuristic cannot see these. Do not scan CSS, event handlers,
+ * URLs or script examples as though they were interface prose.
+ * @param {string} filePath @param {string} text @returns {string[]}
+ */
+export function findHardcodedExpressionText(filePath, text) {
+  if (/(?:^|[\\/])src[\\/]lib[\\/]test[\\/]fixtures[\\/]/.test(filePath)) return [];
+  const findings = new Set();
+  /** @param {unknown} value */
+  const add = value => {
+    if (typeof value === "string" && /[A-Za-zÀ-ÿ]{2}\s+(?:[A-Za-zÀ-ÿ]+\s+)*[A-Za-zÀ-ÿ]{2}/.test(value) && !isKnownTechnicalLiteral(value)) findings.add(value);
+  };
+  /** @param {any} node Raw compiler expression node. */
+  function expression(node) {
+    if (!node) return;
+    if (node.type === "Literal") add(node.value);
+    else if (node.type === "ConditionalExpression") { expression(node.consequent); expression(node.alternate); }
+    else if (node.type === "LogicalExpression") { expression(node.left); expression(node.right); }
+  }
+  /** @param {any} node Raw Svelte compiler node. */
+  function visit(node) {
+    if (!node || typeof node !== "object") return;
+    if (node.type === "Attribute") {
+      if (!["title", "placeholder", "alt", "aria-label"].includes(node.name)) return;
+      for (const chunk of node.value || []) {
+        if (chunk.type === "Text") add(chunk.data);
+        else expression(chunk.expression);
+      }
+      return;
+    }
+    if (node.type === "MustacheTag") { expression(node.expression); return; }
+    if (node.type === "EventHandler" || node.type === "StyleDirective") return;
+    for (const child of Object.values(node)) {
+      if (Array.isArray(child)) child.forEach(visit);
+      else if (child && typeof child === "object") visit(child);
+    }
+  }
+  visit(parse(text).html);
+  return [...findings];
 }

@@ -206,9 +206,9 @@
       <div class="border-t border-white/5 mt-5 pt-4">
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-2">
-            <span class="text-xs font-semibold text-gray-300">{t("settings.anki.fontCatalogTitle") || "Noto Fonts Library"}</span>
+            <span class="text-xs font-semibold text-gray-300">{t("settings.anki.fontCatalogTitle")}</span>
             <span class="text-[10px] px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-300 border border-cyan-500/20 font-medium">
-              {fontStore.fonts.filter(f => f.downloaded).length} / {fontStore.fonts.length} {t("settings.anki.downloadedBadge") || "scaricati"}
+              {fontStore.fonts.filter(f => f.downloaded).length} / {fontStore.fonts.length} {t("settings.anki.downloadedBadge")}
             </span>
           </div>
           <div class="flex items-center gap-3">
@@ -225,7 +225,7 @@
             onclick={() => (showFontsList = !showFontsList)}
             class="text-xs text-gray-400 hover:text-white transition-colors flex items-center gap-1"
           >
-            <span>{showFontsList ? (t("common.hide") || "Nascondi") : (t("common.manage") || "Gestisci")}</span>
+            <span>{showFontsList ? (t("common.hide")) : (t("common.manage"))}</span>
             <svg class="w-3.5 h-3.5 transition-transform {showFontsList ? 'rotate-180' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
             </svg>
@@ -272,7 +272,7 @@
                       onclick={() => fontStore.deleteFont(font.id)}
                       class="w-full py-1 px-2 rounded border border-red-500/20 bg-red-500/10 text-red-300 hover:bg-red-500/20 hover:border-red-500/40 text-[11px] font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                     >
-                      {t("settings.delete") || "Elimina"}
+                      {t("settings.delete")}
                     </button>
                   {:else}
                     <button
@@ -284,7 +284,7 @@
                       <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                       </svg>
-                      <span>{t("settings.download") || "Scarica"}</span>
+                      <span>{t("settings.download")}</span>
                     </button>
                   {/if}
                 </div>
@@ -356,7 +356,7 @@
           bind:value={store.ankiFieldPresetName}
           maxlength="25"
           class="input-modern w-full text-sm"
-          placeholder="vesta_modificato"
+          placeholder="Vesta_Custom"
         />
       </div>
       <div>
@@ -488,7 +488,7 @@
               void writeClipboard(store.getFieldVariable(field), t("common.copied"));
             }}
             class="px-2.5 py-1.5 rounded-lg border transition-colors {field.colorClass}"
-            title={t("settings.clickToCopy") || "Copy variable"}
+            title={t("settings.clickToCopy")}
           >
             {store.getFieldVariable(field)}
           </button>

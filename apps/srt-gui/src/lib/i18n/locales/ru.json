@@ -1284,5 +1284,9 @@
   "flashcards.keepAspectRatio": "Сохранять пропорции",
   "common.outputFolderLabel": "Папка",
   "common.outputFileLabel": "Открыть файл",
-  "settings.modal.deleteProvider": "Удалить провайдера"
+  "settings.modal.deleteProvider": "Удалить провайдера",
+  "nav.expandSidebar": "Развернуть боковую панель",
+  "nav.collapseSidebar": "Свернуть боковую панель",
+  "common.characterUnit": "симв.",
+  "flashcards.previewFrame": "Кадр предпросмотра"
 }

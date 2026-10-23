@@ -6,5 +6,8 @@ cd "$ROOT"
 SNAPSHOT="$(mktemp -d "${TMPDIR:-/tmp}/vesta-index.XXXXXX")"
 trap 'rm -rf "$SNAPSHOT"' EXIT
 git ls-files -z -- apps/srt-gui/src apps/srt-gui/scripts | git checkout-index --stdin -z --prefix="$SNAPSHOT/"
+# Compiler dependency comes from the installed runtime; source still comes only
+# from the index snapshot, so an unstaged fix cannot conceal a bad commit.
+ln -s "$ROOT/apps/srt-gui/node_modules" "$SNAPSHOT/apps/srt-gui/node_modules"
 echo "Checking staged localization..."
 bash "$ROOT/build-scripts/check-i18n.sh" "$SNAPSHOT"
