@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { contextMenu as fitContextMenu } from "$lib/utils/contextMenu";
   import { writeClipboard, readClipboard } from "$lib/utils/clipboard";
   import { onDestroy } from "svelte";
   import { locale } from "$lib/i18n";
@@ -32,7 +33,7 @@
       return;
     }
     if (history[historyIndex] === newValue) return;
-    
+
     // truncate future history if we are in the middle and making a new edit
     history = history.slice(0, historyIndex + 1);
     history.push(newValue);
@@ -96,7 +97,7 @@
   }
 
   async function cutSelection() {
-    if (readonly) return copySelection();
+    if (readonly) return;
     const text = selectedText();
     if (!text) return copySelection();
     const previous = value;
@@ -111,8 +112,11 @@
   async function pasteClipboard() {
     if (readonly) return;
     try {
+      const previous = value;
+      const start = textareaElement?.selectionStart;
+      const end = textareaElement?.selectionEnd;
       const text = await readClipboard();
-      if (text !== null && !readonly) replaceSelection(text);
+      if (text !== null && !readonly && value === previous && textareaElement?.selectionStart === start && textareaElement?.selectionEnd === end) replaceSelection(text);
     } finally {
       closeContextMenu();
     }
@@ -189,20 +193,20 @@
         redo();
       }
     }
-    
+
     // Auto-indent support on Tab (optional, but good for code editors)
     if (e.key === 'Tab') {
       e.preventDefault();
       const target = e.target as HTMLTextAreaElement;
       const start = target.selectionStart;
       const end = target.selectionEnd;
-      
+
       const v = value || "";
       const before = v.substring(0, start);
       const after = v.substring(end);
-      
+
       value = before + "  " + after;
-      
+
       // Update cursor position after Svelte updates DOM
       setTimeout(() => {
         target.selectionStart = target.selectionEnd = start + 2;
@@ -426,7 +430,7 @@
   function highlight(code: string, lang: string) {
     if (!code) return "";
     let html = escapeHtml(code);
-    
+
     if (lang === "html") {
       html = html.replace(/([a-zA-Z0-9_-]+)=("([^"]*)"|'([^']*)')/g, '<span class="text-amber-300">$1</span>=<span class="text-emerald-300">$2</span>');
       html = html.replace(/(&lt;\/?[\w:-]+)/g, '<span class="text-pink-400">$1</span>');
@@ -543,15 +547,16 @@
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div class="fixed inset-0 z-[80]" onmousedown={closeContextMenu} oncontextmenu={(e) => { e.preventDefault(); closeContextMenu(); }}>
       <div
-        class="vesta-context-menu"
-        style="left: {contextMenu.x}px; top: {contextMenu.y}px;"
+        use:fitContextMenu={{ x: contextMenu.x, y: contextMenu.y, close: closeContextMenu }}
+      class="vesta-context-menu"
+
         onmousedown={(e) => e.stopPropagation()}
       >
-        <button type="button" class="vesta-context-menu-item" onclick={() => { undo(); closeContextMenu(); }}>
+        <button type="button" class="vesta-context-menu-item" disabled={readonly || historyIndex <= 0} onclick={() => { undo(); closeContextMenu(); }}>
           <span>{t("common.undo")}</span>
           <kbd>{t("shortcuts.hint.undo")}</kbd>
         </button>
-        <button type="button" class="vesta-context-menu-item" onclick={() => { redo(); closeContextMenu(); }}>
+        <button type="button" class="vesta-context-menu-item" disabled={readonly || historyIndex >= history.length - 1} onclick={() => { redo(); closeContextMenu(); }}>
           <span>{t("common.redo")}</span>
           <kbd>{t("shortcuts.hint.redo")}</kbd>
         </button>
@@ -560,11 +565,11 @@
           <span>{t("common.copy")}</span>
           <kbd>{t("shortcuts.hint.copy")}</kbd>
         </button>
-        <button type="button" class="vesta-context-menu-item" onclick={cutSelection}>
+        <button type="button" class="vesta-context-menu-item" disabled={readonly || !selectedText()} onclick={cutSelection}>
           <span>{t("common.cut")}</span>
           <kbd>{t("shortcuts.hint.cut")}</kbd>
         </button>
-        <button type="button" class="vesta-context-menu-item" onclick={pasteClipboard}>
+        <button type="button" class="vesta-context-menu-item" disabled={readonly} onclick={pasteClipboard}>
           <span>{t("common.paste")}</span>
           <kbd>{t("shortcuts.hint.paste")}</kbd>
         </button>

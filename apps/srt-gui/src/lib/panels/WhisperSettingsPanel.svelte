@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { contextMenu as fitContextMenu } from "$lib/utils/contextMenu";
   import { onMount, onDestroy } from "svelte";
   import { locale } from "$lib/i18n";
   import { uiMode } from "$lib/stores/uiModeStore.svelte";
@@ -384,8 +385,9 @@
     oncontextmenu={(e) => { e.preventDefault(); store.closeContextMenu(); }}
   >
     <div
+      use:fitContextMenu={{ x: store.contextMenu.x, y: store.contextMenu.y, close: () => store.closeContextMenu() }}
       class="absolute bg-gray-900/98 border border-white/10 rounded-xl shadow-2xl py-1 min-w-[190px] animate-fade-in overflow-hidden"
-      style="left: {store.contextMenu.x}px; top: {store.contextMenu.y}px;"
+
       onmousedown={(e) => e.stopPropagation()}
     >
       <div class="px-3 py-1.5 border-b border-white/5 bg-white/5 mb-1">

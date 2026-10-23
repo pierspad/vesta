@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { contextMenu as fitContextMenu } from "$lib/utils/contextMenu";
   import { locale } from "$lib/i18n";
 
   interface Props {
@@ -32,7 +33,8 @@
   role="presentation"
   tabindex="-1"
 >
-  <div class="vesta-context-menu animate-fade-in" style="left: {Math.max(8, Math.min(x, window.innerWidth - 270))}px; top: {Math.max(8, Math.min(y, window.innerHeight - 240))}px; max-width: calc(100vw - 16px);">
+  <div use:fitContextMenu={{ x, y, close: onClose }}
+      class="vesta-context-menu animate-fade-in" >
     <button type="button" class="vesta-context-menu-item" onclick={onEdit}>
       <span class="inline-flex items-center gap-2">
         <svg class="h-4 w-4 text-amber-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">

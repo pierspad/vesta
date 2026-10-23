@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { contextMenu as fitContextMenu } from "$lib/utils/contextMenu";
   import { writeClipboard, readClipboard } from "$lib/utils/clipboard";
   import { onDestroy, onMount } from "svelte";
   import { locale } from "$lib/i18n";
@@ -16,6 +17,8 @@
     x: number;
     y: number;
     editable: HTMLInputElement | HTMLTextAreaElement | HTMLElement | null;
+    canEdit: boolean;
+    text: string;
     settingsTarget: boolean;
     hasSelection: boolean;
     settingsHash: string;
@@ -28,7 +31,11 @@
   function getEditableTarget(target: EventTarget | null) {
     if (!(target instanceof HTMLElement)) return null;
     const editable = target.closest("input, textarea, [contenteditable='true']");
-    if (editable instanceof HTMLInputElement || editable instanceof HTMLTextAreaElement) return editable;
+    if (editable instanceof HTMLInputElement) {
+      if (editable.disabled || !["text", "search", "url", "tel", "password"].includes(editable.type)) return null;
+      return editable;
+    }
+    if (editable instanceof HTMLTextAreaElement) return editable.disabled ? null : editable;
     if (editable instanceof HTMLElement && editable.isContentEditable) return editable;
     return null;
   }
@@ -58,6 +65,21 @@
     document.execCommand("insertText", false, text);
   }
 
+  function captureEdit(target: NonNullable<MenuState["editable"]>) {
+    if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) {
+      const { value, selectionStart, selectionEnd } = target;
+      return () => target.isConnected && !target.readOnly && !target.disabled && target.value === value && target.selectionStart === selectionStart && target.selectionEnd === selectionEnd;
+    }
+    const text = target.textContent;
+    const selection = window.getSelection();
+    const anchor = selection?.anchorNode, anchorOffset = selection?.anchorOffset;
+    const focus = selection?.focusNode, focusOffset = selection?.focusOffset;
+    return () => {
+      const current = window.getSelection();
+      return target.isConnected && target.isContentEditable && target.textContent === text && current?.anchorNode === anchor && current?.anchorOffset === anchorOffset && current?.focusNode === focus && current?.focusOffset === focusOffset;
+    };
+  }
+
   function closeMenu() {
     menu = null;
   }
@@ -69,14 +91,19 @@
     const settingsState = getStoredSettingsActionState();
     const target = event.target instanceof HTMLElement ? event.target : null;
     const editable = getEditableTarget(event.target);
+    const text = selectedText(editable);
+    const canEdit = !!editable && (!(editable instanceof HTMLInputElement || editable instanceof HTMLTextAreaElement) || !editable.readOnly);
     const settingsTarget = Boolean(target?.closest("[data-context-menu='settings-notifications']"));
 
+    if (!editable && !text && !settingsTarget) return;
     menu = {
-      x: Math.min(event.clientX, window.innerWidth - 240),
-      y: Math.min(event.clientY, window.innerHeight - 280),
+      x: event.clientX,
+      y: event.clientY,
       editable,
+      text,
+      canEdit,
       settingsTarget,
-      hasSelection: selectedText(editable).length > 0 || Boolean(window.getSelection()?.toString()),
+      hasSelection: text.length > 0,
       settingsHash: settingsState.hash,
       settingsHidden: settingsState.hidden,
       settingsRead: settingsState.read,
@@ -85,26 +112,28 @@
 
   async function copy() {
     if (!menu) return;
-    const text = selectedText(menu.editable) || window.getSelection()?.toString() || "";
+    const text = menu.text;
     if (text && !await writeClipboard(text)) return;
     closeMenu();
   }
 
   async function cut() {
-    if (!menu?.editable) return;
-    const text = selectedText(menu.editable);
+    if (!menu?.editable || !menu.canEdit) return;
+    const text = menu.text;
+    const unchanged = captureEdit(menu.editable);
     const originalMenu = menu;
     if (text && !await writeClipboard(text)) return;
-    if (menu !== originalMenu || selectedText(originalMenu.editable) !== text) return;
+    if (menu !== originalMenu || !unchanged()) return;
     replaceSelection(originalMenu.editable!, "");
     closeMenu();
   }
 
   async function paste() {
-    if (!menu?.editable) return;
+    if (!menu?.editable || !menu.canEdit) return;
     const originalMenu = menu;
+    const unchanged = captureEdit(menu.editable);
     const text = await readClipboard();
-    if (text === null || menu !== originalMenu) return;
+    if (text === null || menu !== originalMenu || !unchanged()) return;
     replaceSelection(originalMenu.editable!, text);
     closeMenu();
   }
@@ -215,8 +244,9 @@
     }}
   >
     <div
+      use:fitContextMenu={{ x: menu.x, y: menu.y, close: closeMenu }}
       class="vesta-context-menu"
-      style="left: {menu.x}px; top: {menu.y}px;"
+
       onmousedown={(event) => event.stopPropagation()}
     >
       {#if menu.settingsTarget}
@@ -295,11 +325,11 @@
         <span>{t("common.copy")}</span>
         <kbd>{t("shortcuts.hint.copy")}</kbd>
       </button>
-      <button type="button" class="vesta-context-menu-item" disabled={!menu.editable || !menu.hasSelection} onclick={cut}>
+      <button type="button" class="vesta-context-menu-item" disabled={!menu.canEdit || !menu.hasSelection} onclick={cut}>
         <span>{t("common.cut")}</span>
         <kbd>{t("shortcuts.hint.cut")}</kbd>
       </button>
-      <button type="button" class="vesta-context-menu-item" disabled={!menu.editable} onclick={paste}>
+      <button type="button" class="vesta-context-menu-item" disabled={!menu.canEdit} onclick={paste}>
         <span>{t("common.paste")}</span>
         <kbd>{t("shortcuts.hint.paste")}</kbd>
       </button>

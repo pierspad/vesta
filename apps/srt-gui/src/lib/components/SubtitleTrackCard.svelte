@@ -1,5 +1,6 @@
 <script lang="ts">
   import SearchableSelect from "$lib/components/SearchableSelect.svelte";
+  import { contextMenu as fitContextMenu } from "$lib/utils/contextMenu";
   import { locale } from "$lib/i18n";
   import { languageFlagUrl } from "$lib/config/languages";
   import type { SubtitleLanguageGroup, SubtitleTrack } from "$lib/utils/subtitleTracks";
@@ -7,11 +8,12 @@
   let t = $derived($locale);
   let track = $derived(group.tracks.find(track => track.index === selectedIndex) ?? group.tracks[0]);
   let contextOpen = $state(false);
+  let menuPosition = $state({ x: 0, y: 0 });
   $effect(() => { group.key; contextOpen = false; });
 </script>
 <div class="relative flex min-h-[108px] items-center gap-3 rounded-xl border border-white/10 bg-black/15 p-4 transition-colors hover:border-teal-400/30 hover:bg-teal-500/[0.06] focus-within:border-teal-400/40 focus-within:bg-teal-500/[0.08]"
   ondblclick={() => { if (!busy && track.text_based) onpreview(track); }}
-  oncontextmenu={(event) => { event.preventDefault(); contextOpen = !contextOpen; }}
+  oncontextmenu={(event) => { event.preventDefault(); menuPosition = { x: event.clientX, y: event.clientY }; contextOpen = !contextOpen; }}
   role="group" aria-label={group.languageName}>
   <div class="min-w-0 flex-1">
     <p class="flex items-center gap-2 text-sm font-semibold">
@@ -39,9 +41,14 @@
     </button>
   </div>
   {#if contextOpen}
-    <div class="absolute right-4 top-full z-20 rounded-lg border border-white/10 bg-gray-900 p-1 shadow-xl" role="menu">
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <div class="fixed inset-0 z-[90]" onmousedown={() => contextOpen = false} oncontextmenu={(event) => { event.preventDefault(); event.stopPropagation(); contextOpen = false; }}>
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <div use:fitContextMenu={{ ...menuPosition, close: () => contextOpen = false }} class="vesta-context-menu" onmousedown={(event) => event.stopPropagation()}>
+      <button role="menuitem" class="vesta-context-menu-item" disabled={busy || downloadingIndex !== null || !track.text_based} onclick={() => { contextOpen = false; ondownload(track); }}>{t("extract.save")}</button>
       <button role="menuitem" class="rounded px-3 py-2 text-sm hover:bg-white/10 disabled:opacity-30" disabled={busy || !track.text_based} onclick={() => { contextOpen = false; onpreview(track); }}>{t("extract.preview")}</button>
       <button role="menuitem" class="rounded px-2 py-2 text-sm text-gray-400 hover:bg-white/10" onclick={() => contextOpen = false}>{t("common.cancel")}</button>
+    </div>
     </div>
   {/if}
 </div>

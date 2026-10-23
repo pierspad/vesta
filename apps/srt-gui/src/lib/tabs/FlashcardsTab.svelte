@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { contextMenu as fitContextMenu } from "$lib/utils/contextMenu";
   import { FlashcardAudioSelection } from "$lib/workflows/flashcardAudioSelection.svelte";
   import { RequirementFeedback } from "$lib/utils/requirementFeedback.svelte";
   import { defaultOutputDirectory } from "$lib/utils/defaultOutputDirectory";
@@ -189,7 +190,7 @@
     if (permanent && lang) {
       try {
         vestaConfig.setItem(`vesta-font-banner-dismissed-${lang}`, "1");
-        showSnackbar(t("flashcards.dontShowAgain") || "Preferenza salvata");
+        showSnackbar(t("flashcards.dontShowAgain"));
       } catch {
         /* ignore */
       }
@@ -1020,7 +1021,7 @@
     if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       const files = Array.from(e.dataTransfer.files);
       const paths: string[] = [];
-      
+
       files.forEach((file) => {
         const path = (file as any).path;
         if (path) {
@@ -1168,7 +1169,7 @@
       if (!generationStore.isBusy || cancelRequested) return;
       const p = event.payload;
       const translated = t(p.message, p.params || {});
-      
+
       if (seriesTotalEpisodes > 0) {
         generationStore.progress = Math.round(((seriesCurrentEpisode - 1) * 100 / seriesTotalEpisodes) + (p.percentage / seriesTotalEpisodes));
         generationStore.progressMessage = `[Ep. ${seriesCurrentEpisode}/${seriesTotalEpisodes}] ${translated}`;
@@ -1176,7 +1177,7 @@
         generationStore.progress = Math.round(p.percentage);
         generationStore.progressMessage = translated;
       }
-      
+
       generationStore.progressStage = p.stage;
       generationStore.phaseProgress = p.stage === "optimizing" && p.params?.percent
         ? Number(p.params.percent) : null;
@@ -1508,10 +1509,10 @@
           </div>
           <div class="min-w-0">
             <p class="text-xs font-bold text-cyan-200">
-              {t("flashcards.fontSuggestionTitle") || "Caratteri per"} {proactiveFont.language_name}
+              {t("flashcards.fontSuggestionTitle")} {proactiveFont.language_name}
             </p>
             <p class="text-[11px] text-gray-300 mt-0.5 leading-relaxed">
-              {t("flashcards.fontSuggestionDesc") || "Scarica ed embedda il font"} ({proactiveFont.approx_size}) {t("flashcards.fontSuggestionDescEnd") || "per visualizzare correttamente i caratteri su dispositivi senza font preinstallati,"} {t("flashcards.fontSuggestionDescLight") || "oppure continua con i font di sistema per un mazzo più leggero."}
+              {t("flashcards.fontSuggestionDesc")} ({proactiveFont.approx_size}) {t("flashcards.fontSuggestionDescEnd")} {t("flashcards.fontSuggestionDescLight")}
             </p>
           </div>
         </div>
@@ -1529,22 +1530,22 @@
               <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
               </svg>
-              <span>{t("settings.download") || "Scarica ed embedda"} ({proactiveFont.approx_size})</span>
+              <span>{t("settings.download")} ({proactiveFont.approx_size})</span>
             {/if}
           </button>
           <button
             type="button"
             onclick={() => dismissFontBanner(proactiveLang, true)}
             class="px-2.5 py-1.5 rounded-lg border border-white/10 bg-white/5 text-gray-300 text-xs font-medium hover:bg-white/10 hover:text-white transition-colors"
-            title={t("flashcards.dontShowAgain") || "Non mostrare più"}
+            title={t("flashcards.dontShowAgain")}
           >
-            <span>{t("flashcards.dontShowAgain") || "Non mostrare più"}</span>
+            <span>{t("flashcards.dontShowAgain")}</span>
           </button>
           <button
             type="button"
             onclick={() => dismissFontBanner(proactiveLang, false)}
             class="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 transition-colors"
-            title={t("common.close") || "Chiudi"}
+            title={t("common.close")}
           >
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -1658,8 +1659,9 @@
       tabindex="-1"
     >
       <div
-        class="vesta-context-menu animate-fade-in"
-        style="left: {bottomContextMenu.x}px; top: {bottomContextMenu.y}px;"
+        use:fitContextMenu={{ x: bottomContextMenu.x, y: bottomContextMenu.y, close: closeBottomContextMenu }}
+      class="vesta-context-menu animate-fade-in"
+
       >
         <button
           type="button"

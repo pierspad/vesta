@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { contextMenu as fitContextMenu } from "$lib/utils/contextMenu";
   import { SyncOffsetAdjustment } from "$lib/workflows/syncOffsetAdjustment.svelte";
   import WorkflowWorkspace from "$lib/components/WorkflowWorkspace.svelte";
   import { localWhisperOperation } from "$lib/utils/asyncControl.svelte";
@@ -903,16 +904,16 @@
     // If wizardHistory has it, pop it.
     const lastHistoryId = wizardHistory.length > 0 ? wizardHistory[wizardHistory.length - 1] : null;
     const anchorToRemove = anchors.find(a => a.subtitle_id === lastHistoryId) || anchors[anchors.length - 1];
-    
+
     if (!anchorToRemove) return;
 
     try {
       status = await invoke<SyncStatus>("sync_remove_anchor", { subtitleId: anchorToRemove.subtitle_id });
       wizardHistory = wizardHistory.filter(id => id !== anchorToRemove.subtitle_id);
-      
+
       await loadAnchors();
       await refreshCurrentSubtitles();
-      
+
       
       // Go back to that subtitle to re-adjust
       const sub = await invoke<SubtitleInfo>("sync_get_subtitle", { id: anchorToRemove.subtitle_id });
@@ -1402,8 +1403,9 @@
       tabindex="-1"
     >
       <div
-        class="vesta-context-menu animate-fade-in"
-        style="left: {subtitleContextMenu.x}px; top: {subtitleContextMenu.y}px;"
+        use:fitContextMenu={{ x: subtitleContextMenu.x, y: subtitleContextMenu.y, close: closeSubtitleContextMenu }}
+      class="vesta-context-menu animate-fade-in"
+
       >
         <button
           onclick={() => {
@@ -1466,7 +1468,7 @@
 
   <PathPreviewModal
     isOpen={!!expandedPathField}
-    title={expandedPathField === "srt" ? "SRT Path" : "Media Path"}
+    title={expandedPathField === "srt" ? t("sync.inputSrtFile") : t("sync.inputMediaFile")}
     value={expandedPathField === "srt" ? status?.srt_path || "" : status?.video_path || ""}
     onclose={() => (expandedPathField = null)}
   />

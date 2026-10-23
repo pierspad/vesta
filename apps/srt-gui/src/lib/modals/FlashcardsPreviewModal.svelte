@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { contextMenu as fitContextMenu } from "$lib/utils/contextMenu";
   import { onDestroy } from "svelte";
   import { writeClipboard } from "$lib/utils/clipboard";
   import { locale } from "$lib/i18n";
@@ -281,12 +282,12 @@
                       {#if line.active}
                         <span
                           class="inline-block w-2.5 h-2.5 bg-emerald-400 rounded-full"
-                          title={uiMode.expertMode ? "Tasto destro / clic rotellina per disattivare" : undefined}
+                          title={uiMode.expertMode ? t("flashcards.previewDisableSub") : undefined}
                         ></span>
                       {:else}
                         <span
                           class="inline-block w-2.5 h-2.5 bg-red-400 rounded-full"
-                          title={uiMode.expertMode ? "Tasto destro / clic rotellina per attivare" : undefined}
+                          title={uiMode.expertMode ? t("flashcards.previewEnableSub") : undefined}
                         ></span>
                       {/if}
                     </td>
@@ -417,8 +418,9 @@
     <!-- svelte-ignore a11y_click_events_have_key_events -->
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div
+      use:fitContextMenu={{ x: previewStore.contextMenuX, y: previewStore.contextMenuY, close: () => previewStore.closeContextMenu() }}
       class="fixed z-50 bg-gray-900 border border-gray-800 rounded-lg shadow-xl py-1.5 min-w-[200px]"
-      style="left: {previewStore.contextMenuX}px; top: {previewStore.contextMenuY}px;"
+
       onclick={(e) => e.stopPropagation()}
     >
       <button
