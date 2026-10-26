@@ -11,7 +11,8 @@ export async function discoverManagedProviderModels(
   let headers: Record<string, string> = { "Accept": "application/json" };
 
   if (family === "google") {
-    url = `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`;
+    url = "https://generativelanguage.googleapis.com/v1beta/models";
+    headers["x-goog-api-key"] = apiKey;
   } else if (family === "groq") {
     url = "https://api.groq.com/openai/v1/models";
     headers["Authorization"] = `Bearer ${apiKey}`;
@@ -58,10 +59,13 @@ export async function discoverManagedProviderModels(
   if (family === "google") {
     const probeResults = await Promise.allSettled(
       models.map(async (m) => {
-        const probeUrl = `https://generativelanguage.googleapis.com/v1beta/models/${m.id}:generateContent?key=${apiKey}`;
+        const probeUrl = `https://generativelanguage.googleapis.com/v1beta/models/${m.id}:generateContent`;
         const probeResp = await fetch(probeUrl, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            "x-goog-api-key": apiKey,
+          },
           body: JSON.stringify({
             contents: [{ parts: [{ text: "hi" }] }],
             generationConfig: { maxOutputTokens: 1 },

@@ -18,6 +18,10 @@ it("filters Google generation methods and keeps only accessible models", async (
   ] })).mockResolvedValueOnce(response({}, true)).mockResolvedValueOnce(response({}, false));
   expect(await discoverManagedProviderModels("google", "key", fetch as unknown as typeof tauriFetch)).toEqual([{ id: "allowed", name: "Allowed" }]);
   expect(fetch).toHaveBeenCalledTimes(3);
+  expect(fetch.mock.calls[0][0]).toBe("https://generativelanguage.googleapis.com/v1beta/models");
+  expect(fetch.mock.calls[0][1].headers["x-goog-api-key"]).toBe("key");
+  expect(fetch.mock.calls[1][0]).toBe("https://generativelanguage.googleapis.com/v1beta/models/allowed:generateContent");
+  expect(fetch.mock.calls[1][1].headers["x-goog-api-key"]).toBe("key");
 });
 it("preserves the discovery list when all Google probes fail", async () => {
   const fetch = vi.fn().mockResolvedValueOnce(response({ models: [
