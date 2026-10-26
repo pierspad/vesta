@@ -62,6 +62,8 @@ const ALLOWED_HOSTS: &[&str] = &[
     "api.mistral.ai",
     "models.github.ai",
     "integrate.api.nvidia.com",
+    "api.deepgram.com",
+    "api.assemblyai.com",
     "github.com",
     "api.github.com",
     "raw.githubusercontent.com",
@@ -210,11 +212,19 @@ mod tests {
             "[fd00::1]",
             "ollama.local",
             "api.openai.com",
+            "api.deepgram.com",
+            "api.assemblyai.com",
         ] {
             assert!(is_host_allowed(host), "{host}");
         }
         for host in ["example.com", "8.8.8.8", "api.openai.com.example.com"] {
             assert!(!is_host_allowed(host), "{host}");
         }
+    }
+
+    #[test]
+    fn allows_deepgram_and_assemblyai_hosts() {
+        assert!(is_host_allowed("api.deepgram.com"));
+        assert!(is_host_allowed("api.assemblyai.com"));
     }
 }
