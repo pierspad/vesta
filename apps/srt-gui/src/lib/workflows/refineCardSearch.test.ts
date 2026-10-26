@@ -31,6 +31,21 @@ describe("createRefineCardSearch", () => {
     const second = search.index(cards);
     expect(second.plainTexts.get("one")).toEqual(first.plainTexts.get("one"));
   });
+
+  it("handles in-place card notes edits without re-indexing", () => {
+    const search = createRefineCardSearch<typeof cards[number]>();
+    const mutableCards = [
+      { id: "mod1", expression: "apple", meaning: "mela", notes: "fruit" },
+      { id: "mod2", expression: "dog", meaning: "cane", notes: "animal" },
+    ];
+    const index = search.index(mutableCards);
+    expect(search.filter(mutableCards, index.plainTexts, "fruit")).toEqual([mutableCards[0]]);
+
+    // Mutate notes in place
+    mutableCards[0].notes = "HEALTHY SNACK";
+    expect(search.filter(mutableCards, index.plainTexts, "healthy")).toEqual([mutableCards[0]]);
+    expect(search.filter(mutableCards, index.plainTexts, "fruit")).toEqual([]);
+  });
 });
 
 it("releases cached text after switching datasets and rebuilds it correctly", () => {
