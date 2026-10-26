@@ -40,7 +40,7 @@ round-robins inside a tier, then falls to the next tier when entries exhaust
 their quota or hit rate limits.
 
 Supported endpoints: Google (Gemini), Groq, OpenRouter, and any
-OpenAI-compatible API (Mistral, GitHub Models, NVIDIA, Ollama/local, custom).
+OpenAI-compatible API (Mistral, NVIDIA, Ollama/local, custom; GitHub Models is retired and disabled in the desktop catalog).
 
 **Library API highlights**
 

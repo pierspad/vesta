@@ -1,25 +1,36 @@
-# Documentazione Vesta
+# Vesta Documentation
 
-Vesta separa i motori Rust riutilizzabili dai consumatori desktop, CLI e MCP.
-Questo indice rimanda alle guide mantenute. Le revisioni del codice sono
-snapshot separati: [audit del 21 ottobre](../reports/CODEBASE_AUDIT_2026-10-21.md) e
-[interventi del 22 ottobre](../reports/CODEBASE_AUDIT_FOLLOWUP_2026-10-22.md), con la
-[revisione di documentazione e CLI](../reports/DOCUMENTATION_CLI_REVIEW_2026-10-22.md).
+Vesta decouples reusable Rust feature engines from its desktop, CLI, and MCP consumers.
+This index links to all actively maintained guides. Historical code audits are preserved
+as standalone snapshots: [October 21 audit](../reports/CODEBASE_AUDIT_2026-10-21.md),
+[October 22 follow-up](../reports/CODEBASE_AUDIT_FOLLOWUP_2026-10-22.md), and the
+[documentation and CLI review](../reports/DOCUMENTATION_CLI_REVIEW_2026-10-22.md).
 
-| Guida | Contenuto |
+## User & CLI/MCP Guides
+
+| Guide | Description |
 | --- | --- |
-| [Architettura](ARCHITECTURE.md) | Confini dei moduli, integrazione desktop e ciclo di vita dei media. |
-| [CLI e copertura](CLI.md) | Comandi, esempi, errori d’uso, output e differenze rispetto a GUI/librerie. |
-| [Moduli](modules/README.md) | Uso dei motori e delle CLI. |
-| [Integrazione librerie](library-integration.md) | Dipendenze, feature e verifica dei consumer esterni. |
-| [Compatibilità provider](API_COMPATIBILITY.md) | Revisione datata dei contratti API e dei link dei provider; non è una policy di compatibilità delle librerie Rust. |
-| [MCP](MCP.md) | Server locale, strumenti, directory consentite e gestione dei job. |
-| [Qualità e release](QUALITY.md) | Test, smoke e verifiche del prodotto installato. |
-| [Setup e installer](SETUP_TESTING.md) | Prova del setup, audio e installazione. |
-| [Manutenzione](MAINTENANCE.md) | Correzioni consolidate, limiti e lavoro ancora aperto. |
-| [Riprodurre i benchmark](BENCHMARK_STEPS.md) | Procedure e limiti delle misure. |
-| [Benchmark nativo](BENCHMARK_NATIVE.md) | Confronti con verifica dell’equivalenza degli output. |
-| [Report benchmark](BENCHMARK_REPORT.md) | Risultati e contesto delle misure pubblicate. |
+| [CLI and Coverage](CLI.md) | Commands, examples, safe usage, error handling, output formats, and differences from GUI/libraries. |
+| [MCP Server](MCP.md) | Local stdio server, tools, allowed directory roots, and asynchronous job management. |
+| [Setup and Installer Testing](SETUP_TESTING.md) | First-run setup checks, audio preparation, and installer update validation. |
 
-Una build o una suite verde non certificano installer, GPU, Anki e provider
-remoti. Le verifiche automatizzate e quelle reali sono distinte in QUALITY.
+## Architecture & Module Reference
+
+| Guide | Description |
+| --- | --- |
+| [Architecture](ARCHITECTURE.md) | Module boundaries, desktop integration, and media lifecycles. |
+| [Modules](modules/README.md) | Engine APIs and standalone CLI tools. |
+| [Library Integration](library-integration.md) | Dependencies, feature flags, and validation for external consumers. |
+| [Provider Compatibility](API_COMPATIBILITY.md) | Historical review of API contracts and provider endpoints (not a Rust library compatibility policy). |
+| [Maintenance](MAINTENANCE.md) | Architectural boundaries, persistence contracts, and open tasks. |
+
+## Quality & Benchmarks
+
+| Guide | Description |
+| --- | --- |
+| [Quality & Release](QUALITY.md) | Automated tests, smoke checks, and installed product verification. |
+| [Reproducing Benchmarks](BENCHMARK_STEPS.md) | Step-by-step procedures, scripts, and measurement caveats. |
+| [Native Benchmarks](BENCHMARK_NATIVE.md) | Comparative evaluations with output equivalence checks. |
+| [Benchmark Report](BENCHMARK_REPORT.md) | Context and published performance measurements. |
+
+A passing build or green test suite does not certify installers, real GPUs, Anki connectivity, or remote providers. Automated checks and real-world verifications are distinguished in [QUALITY](QUALITY.md).

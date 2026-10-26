@@ -55,8 +55,8 @@ builds do not verify installer windows or system integration on a real machine.
 
 The internal updater checks the latest stable release, selects an installer for
 the supported system and architecture, downloads it, verifies SHA-256 and opens
-the installer. The in-app flow supports Windows, DEB and RPM packages; AUR,
-Flatpak, Snap and AppImage updates use their package manager or the release page.
+the installer. The in-app flow supports Windows;
+Flatpak, Arch/AUR and system package (.deb/.rpm) updates use their package manager or the release page.
 A `tauri dev` build does not use the installed-app updater flow.
 
 To test updates, install a previous stable release in a VM, open **Settings →

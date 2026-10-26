@@ -1,66 +1,45 @@
 # whisper-bench
 
-Mini-app Tauri standalone per il benchmark della trascrizione Whisper di Vesta.
+Standalone Tauri mini-application for benchmarking Vesta's Whisper transcription engine.
 
-**Un solo eseguibile per OS.** Scegli un file audio/video (o premi
-**Use bundled sample episode** per usarne uno già pronto), premi
-**Run benchmark**: l'app rileva l'hardware disponibile e prova in automatico
-tutte le varianti che ha senso provare su questa macchina.
+**A single binary per OS.** Select an audio or video file (or click
+**Use bundled sample episode** to use a pre-packaged sample), click
+**Run benchmark**, and the application automatically detects available hardware
+and executes all relevant transcription variants for your machine.
 
-| Sempre incluso nel launcher | Scaricato al volo se rilevato |
+| Always bundled in launcher | Downloaded on demand when detected |
 |---|---|
 | `cpu`, `cpu+vad` | — |
-| `vulkan`, `vulkan+vad` (se compilato con `--features vulkan` e driver/loader sono utilizzabili) | — |
-| — | `cuda`, `cuda+vad` (GPU NVIDIA rilevata) |
-| — | `rocm`, `rocm+vad` (GPU AMD rilevata, solo Linux) |
-| — | `sycl`, `sycl+vad` (GPU Intel rilevata) |
+| `vulkan`, `vulkan+vad` (when compiled with `--features vulkan` and drivers/loaders are operational) | — |
+| — | `cuda`, `cuda+vad` (NVIDIA GPU detected) |
+| — | `rocm`, `rocm+vad` (AMD GPU detected, Linux only) |
+| — | `sycl`, `sycl+vad` (Intel GPU detected) |
 
-Il launcher pesa poco perché include solo CPU + Vulkan (un binario copre già
-AMD/NVIDIA/Intel senza toolchain pesanti). CUDA/ROCm/SYCL non entrano mai nel
-binario del launcher: sono `cli/srt-transcribe-cli` — la stessa identica
-pipeline di trascrizione usata da Vesta e dal CLI, `lib/srt-transcribe` — con
-`--features cuda|rocm|sycl`, buildati separatamente e scaricati (con verifica
-sha256, una volta sola, cache locale) dalla stessa release solo se
-l'hardware corrispondente viene rilevato. Il rilevamento è best-effort
-(`nvidia-smi`, `lspci`/CIM, presenza del loader Vulkan): un falso positivo
-produce solo una riga `error` nei risultati, non corrompe nulla.
+The launcher binary stays lightweight because it bundles only CPU + Vulkan support (a single binary covering AMD, NVIDIA, and Intel without massive toolchains). CUDA, ROCm, and SYCL runtimes are never bundled into the launcher binary; instead, they are built as standalone `cli/srt-transcribe-cli` worker binaries using the exact same transcription pipeline (`lib/srt-transcribe`) with `--features cuda|rocm|sycl`. These workers are built separately, cached locally after SHA-256 verification, and downloaded from the corresponding release only when matching hardware is detected. Hardware detection is best-effort (`nvidia-smi`, `lspci`/WMI, and presence of the Vulkan loader); a false positive merely logs an `error` entry in the result table without affecting anything else.
 
-Ogni variante produce una riga con tempo di parete, realtime factor, numero
-di sottotitoli e lingua rilevata; alla fine **Download CSV** salva la
-tabella. Modello Whisper, modello VAD (Silero) e — se manca — una build
-statica di ffmpeg vengono scaricati automaticamente al primo avvio.
+Each variant reports wall-clock execution time, realtime factor, subtitle line count, and detected language; clicking **Download CSV** exports the benchmark table. The Whisper model, Silero VAD model, and a static build of FFmpeg (if not already found on PATH) are downloaded automatically on first launch.
 
-La barra di stato in alto mostra sempre cosa sta succedendo (rilevamento
-hardware, download asset/worker, variante in corso con percentuale) — non
-dovrebbe mai sembrare bloccata o vuota. Il log sottostante resta per il
-dettaglio riga per riga; in caso di errore la variante viene marcata `error`
-con il messaggio completo e il benchmark prosegue con le varianti successive
-(utile per capire se una GPU non è utilizzabile).
+The top status bar continuously displays the current activity (hardware detection, asset/worker downloads, active variant and completion percentage) so that the UI never appears frozen or empty. The detail log below provides line-by-line output; if a variant encounters an error, it is recorded as `error` with the full diagnostic message, and benchmarking continues with subsequent variants (useful for identifying non-functional GPU configurations).
 
-## Build locale
+## Local Builds
 
 ```bash
-# launcher (quello che gira normalmente)
+# Launcher (standard application binary)
 cd apps/whisper-bench/src-tauri
 npx @tauri-apps/cli@^2 build -- --features vulkan
 
-# worker headless per un backend pesante, per test locali
+# Headless worker for heavy backend testing locally
 cargo build --release --features cuda -p srt-transcribe-cli
 ```
 
-## Build CI
+## CI Builds
 
-Workflow `whisper-bench` (Actions → whisper-bench → Run workflow):
+The `whisper-bench` GitHub Actions workflow (Actions → whisper-bench → Run workflow):
 
-- `launcher`: builda sempre linux + windows, CPU + Vulkan, non sperimentale.
-- `worker`: builda `srt-transcribe-cli` con `--features cuda|rocm|sycl`,
-  opt-in dai checkbox del run manuale (toolchain pesanti, build lente),
-  `continue-on-error` — nessuno di questi backend viene testato su GPU reale
-  in CI (i runner GitHub non ne hanno), solo compilato.
-- `zip-sample`: pacchetta la clip già presente in `Test_Subs/fixtures/detour`
-  come sample scaricabile dall'app.
+- `launcher`: Builds Linux and Windows binaries with CPU + Vulkan enabled.
+- `worker`: Builds `srt-transcribe-cli` with `--features cuda|rocm|sycl` as opt-in choices from manual workflow dispatch checkboxes (due to large toolchains and slow compile times), running with `continue-on-error`. These backends are only compiled in CI (GitHub runners lack physical GPUs) and not tested against real hardware.
+- `zip-sample`: Packages the test clip in `Test_Subs/fixtures/detour` into an in-app downloadable sample.
 
-Tutto finisce sulla stessa prerelease rolling `whisper-bench-latest`: è da lì
-che il launcher costruisce a runtime gli URL dei worker e del sample.
+All assets are uploaded to the rolling `whisper-bench-latest` prerelease tag, which the launcher references at runtime to resolve worker and sample URLs.
 
-La build Cargo predefinita ha `default = []`: CPU. La presenza del loader non abilita Vulkan in una build CPU; le release del launcher richiedono la feature esplicita. I test del workspace non sostituiscono una prova di inferenza su GPU reale.
+The default Cargo profile uses `default = []` (CPU only). The presence of a Vulkan loader does not enable Vulkan acceleration in a CPU-only build; launcher releases require the explicit `vulkan` feature. Workspace test suites do not substitute for actual GPU inference validation on real hardware.

@@ -6,6 +6,8 @@ Vesta is a modular Cargo workspace layered from foundational formats to GUI-agno
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │  apps/srt-gui              Tauri v2 + Svelte 5 desktop application           │
 │  apps/whisper-bench        Whisper.cpp & VAD benchmarking utility           │
+│  cli/vesta-cli             Unified CLI dispatcher (vesta-cli <command>)         │
+│  cli/vesta-mcp             Model Context Protocol (stdio MCP server)        │
 └──────────────────────────────────────┬──────────────────────────────────────┘
                                        │ depends on
 ┌──────────────────────────────────────▼──────────────────────────────────────┐
@@ -24,6 +26,7 @@ Vesta is a modular Cargo workspace layered from foundational formats to GUI-agno
 │  core/ (foundational utilities)                                             │
 │  • srt-parser       (SRT parser/writer with automatic charset detection)    │
 │  • srt-apkg         (Anki .apkg ZIP archive builder & extractor)            │
+│  • srt-download     (Cancellable downloads & atomic publication)            │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -38,7 +41,7 @@ cancellable resource downloads and atomic publication.
 |---|---|---|
 | **core** | `srt-parser`, `srt-apkg`, `srt-download` | Foundational primitives. Minimal external dependencies, zero knowledge of higher engines or GUI. Auto-charset detection via `chardetng` + `encoding_rs`, lossless timing arithmetic, direct ZIP/SQLite archive serialization, and cancellable atomic resource downloads. |
 | **lib** | `srt-flashcards`, `srt-translate`, `srt-transcribe`, `srt-autosync`, `srt-extract`, `srt-refine`, `srt-sync`, `srt-ankiconnect` | Self-contained domain engines. **Zero GUI/Tauri coupling**. Long-running tasks accept a `tokio_util::sync::CancellationToken` and report progress through callbacks. External tools and heavy dependencies (FFmpeg processes, `whisper-rs`, `rusqlite`, `reqwest`) are encapsulated here. |
-| **cli** | `srt-flashcards-cli`, `srt-translate-cli`, `srt-transcribe-cli`, `srt-autosync-cli`, `srt-extract-cli`, `srt-sync-cli`, `srt-refine-cli` | Headless, terminal frontends powered by `clap`. Thin wrappers over corresponding `lib/` engines. Suitable for server scripting, batch processing, CI pipelines, and benchmarking. |
+| **cli** | `srt-flashcards-cli`, `srt-translate-cli`, `srt-transcribe-cli`, `srt-autosync-cli`, `srt-extract-cli`, `srt-sync-cli`, `srt-refine-cli`, `vesta-cli`, `vesta-mcp` | Headless, terminal frontends powered by `clap`, plus the `vesta-cli` unified entry point and `vesta-mcp` stdio MCP server (8 tools). Thin wrappers over corresponding `lib/` engines. Suitable for server scripting, batch processing, CI pipelines, AI assistants, and benchmarking. |
 | **apps** | `apps/srt-gui` (`vesta`), `apps/whisper-bench` | Desktop composition roots. Svelte owns presentation/state; Tauri commands adapt IPC to `lib/` crates and own process-level services such as local media streaming, dialogs, and window integration. |
 
 ---
@@ -239,9 +242,13 @@ The AUR `PKGBUILD` declares these runtime dependencies.
 
 ## Headless CLI Tooling
 
-Every key engine can be built and run standalone without Tauri:
+Every key engine can be built and run standalone without Tauri. In addition to individual standalone CLI binaries, Vesta provides `vesta-cli` as a unified entry point (`vesta-cli <operation>`) and `vesta-mcp` as a stdio Model Context Protocol (MCP) server exposing 8 tools for AI assistants and automation agents:
 
 ```bash
+# Build the unified CLI and MCP server
+cargo build --release -p vesta-cli
+cargo build --release -p vesta-mcp
+
 # Build standalone CLIs
 cargo build --release -p srt-flashcards-cli
 cargo build --release -p srt-transcribe-cli
@@ -251,8 +258,8 @@ cargo build --release -p srt-extract-cli
 cargo build --release -p srt-sync-cli
 cargo build --release -p srt-refine-cli
 
-# Run flashcard generation from terminal
-./target/release/srt-flashcards \
+# Run flashcard generation via unified CLI (or standalone binary)
+./target/release/vesta-cli flashcards \
   generate --video episode01.mkv \
   --target japanese.srt \
   --native english.srt \
@@ -261,6 +268,8 @@ cargo build --release -p srt-refine-cli
   --audio-format opus \
   --snapshot-format webp
 ```
+
+The `vesta-mcp` server provides 8 discoverable tools (`get_configuration`, `inspect_subtitles`, `preview_flashcards`, `generate_flashcards`, `translate_subtitles`, `transcribe_media`, `get_job`, `cancel_job`) over stdio JSON-RPC without requiring GUI automation. See [`docs/MCP.md`](MCP.md) for complete details.
 
 For module-specific documentation and integration examples, see [`docs/modules/`](modules/README.md).
 

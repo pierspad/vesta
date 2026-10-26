@@ -26,7 +26,7 @@ jobs:
         # Checkout del default branch (non del tag): gli script CI (ci-push-aur.sh,
         # check_internal_crate_versions.sh) vivono qui e ricevono fix qui.
         # Il PKGBUILD sul default branch riflette sempre l'ultimo release perché
-        # git-release.sh lo aggiorna e committa prima di taggere.
+        # release.yml (semantic-release) lo aggiorna e committa prima di taggere.
         # Checkout del tag significherebbe eseguire potenzialmente una versione
         # vecchia e buggata degli script (come è successo con v0.12.0).
 

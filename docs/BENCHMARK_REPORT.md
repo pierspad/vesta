@@ -11,7 +11,7 @@
 - **Dataset date**: 2026-10-08. The published 2026-10-08 run uses three repetitions per cell and median wall-clock times; repetition metadata is retained separately.
 - **Scope**: same subtitle/video inputs and requested media types, but product encoding defaults differ (JPEG versus WebP and different clip settings). This is not a byte-identical or controlled equal-quality comparison.
 - **Counts**: Vesta multicore TSV produced 12,859 audio clips; subs2srs produced 12,463. See the raw CSV for all media types. The reported lines count is the parsed input count, not proof of exported media completeness.
-- **Causality**: use [the native A/B results](https://github.com/pierspad/vesta/blob/main/docs/BENCHMARK_NATIVE.md) to isolate the snapshot technique at identical quality; this full pipeline also includes video preparation and other changes.
+- **Causality**: use [the native A/B results](BENCHMARK_NATIVE.md) to isolate the snapshot technique at identical quality; this full pipeline also includes video preparation and other changes.
 
 ## Charts Overview
 
