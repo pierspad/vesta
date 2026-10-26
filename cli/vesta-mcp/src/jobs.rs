@@ -12,7 +12,7 @@ use tokio_util::sync::CancellationToken;
 
 const HISTORY_LIMIT: usize = 64;
 
-#[derive(Clone, Copy, Serialize, JsonSchema, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Serialize, JsonSchema, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum Status {
     Running,
@@ -38,11 +38,13 @@ pub struct JobSnapshot {
     pub error: Option<String>,
 }
 struct Entry {
+    seq: u64,
     snapshot: JobSnapshot,
     cancel: CancellationToken,
 }
 #[derive(Default)]
 struct State {
+    next_seq: u64,
     entries: BTreeMap<String, Entry>,
     handles: Vec<JoinHandle<()>>,
     shutting_down: bool,
@@ -183,10 +185,17 @@ impl Jobs {
         if state.entries.values().any(|e| e.snapshot.status.active()) {
             return Err("A job is already active; wait for it or cancel it first".into());
         }
-        if state.entries.len() >= HISTORY_LIMIT
-            && let Some(id) = state.entries.keys().next().cloned()
-        {
-            state.entries.remove(&id);
+        if state.entries.len() >= HISTORY_LIMIT {
+            let candidate = state
+                .entries
+                .iter()
+                .filter(|(_, e)| !e.snapshot.status.active())
+                .min_by_key(|(_, e)| e.seq)
+                .or_else(|| state.entries.iter().min_by_key(|(_, e)| e.seq))
+                .map(|(k, _)| k.clone());
+            if let Some(evict_id) = candidate {
+                state.entries.remove(&evict_id);
+            }
         }
         let output = paths.new_output()?;
         let id = output
@@ -204,9 +213,12 @@ impl Jobs {
             error: None,
         };
         let cancel = CancellationToken::new();
+        let seq = state.next_seq;
+        state.next_seq += 1;
         state.entries.insert(
             id.clone(),
             Entry {
+                seq,
                 snapshot: snapshot.clone(),
                 cancel: cancel.clone(),
             },
@@ -242,6 +254,7 @@ impl Jobs {
                             Err(_) => "Processing task failed".into(),
                             Ok(Ok(_)) => unreachable!(),
                         });
+                        clean_empty_output_dir(&entry.snapshot.output_dir);
                     }
                 }
             }
@@ -279,5 +292,236 @@ impl Jobs {
         for handle in handles {
             let _ = handle.await;
         }
+    }
+}
+
+fn clean_empty_output_dir(dir: &str) {
+    let path = std::path::Path::new(dir);
+    if let Ok(mut entries) = std::fs::read_dir(path)
+        && entries.next().is_none()
+    {
+        let _ = std::fs::remove_dir(path);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn fifo_eviction_orders_by_sequence_not_alphabetical_id() {
+        let jobs = Jobs::default();
+        let mut state = jobs.lock();
+
+        // Populate entries such that the first inserted entry ("vesta-zzz")
+        // is alphabetically AFTER later entries ("vesta-001", etc.)
+        for i in 0..HISTORY_LIMIT {
+            let id = if i == 0 {
+                "vesta-zzz".to_string()
+            } else {
+                format!("vesta-{:03}", i)
+            };
+            let seq = state.next_seq;
+            state.next_seq += 1;
+            state.entries.insert(
+                id.clone(),
+                Entry {
+                    seq,
+                    snapshot: JobSnapshot {
+                        job_id: id,
+                        operation: "test".into(),
+                        status: Status::Succeeded,
+                        output_dir: "/tmp".into(),
+                        progress: None,
+                        result: None,
+                        error: None,
+                    },
+                    cancel: CancellationToken::new(),
+                },
+            );
+        }
+
+        assert_eq!(state.entries.len(), HISTORY_LIMIT);
+        assert!(state.entries.contains_key("vesta-zzz"));
+        assert!(state.entries.contains_key("vesta-001"));
+
+        // Evict the entry with the smallest sequence number.
+        let candidate = state
+            .entries
+            .iter()
+            .filter(|(_, e)| !e.snapshot.status.active())
+            .min_by_key(|(_, e)| e.seq)
+            .or_else(|| state.entries.iter().min_by_key(|(_, e)| e.seq))
+            .map(|(k, _)| k.clone());
+        if let Some(evict_id) = candidate {
+            state.entries.remove(&evict_id);
+        }
+
+        // Under alphabetical order, "vesta-001" would have been evicted.
+        // Under FIFO order, "vesta-zzz" (seq 0) MUST be evicted!
+        assert!(
+            !state.entries.contains_key("vesta-zzz"),
+            "oldest entry vesta-zzz must be evicted first"
+        );
+        assert!(
+            state.entries.contains_key("vesta-001"),
+            "vesta-001 must still exist"
+        );
+    }
+
+    #[tokio::test]
+    async fn start_work_evicts_in_fifo_order_when_limit_reached() {
+        let dir = tempfile::tempdir().unwrap();
+        let paths = Paths::new(vec![dir.path().to_path_buf()], dir.path().to_path_buf()).unwrap();
+        let jobs = Jobs::default();
+
+        // Pre-populate with HISTORY_LIMIT completed jobs
+        {
+            let mut state = jobs.lock();
+            for i in 0..HISTORY_LIMIT {
+                let id = if i == 0 {
+                    "vesta-zzz-oldest".to_string()
+                } else {
+                    format!("vesta-aaa-{:03}", i)
+                };
+                let seq = state.next_seq;
+                state.next_seq += 1;
+                state.entries.insert(
+                    id.clone(),
+                    Entry {
+                        seq,
+                        snapshot: JobSnapshot {
+                            job_id: id,
+                            operation: "test".into(),
+                            status: Status::Succeeded,
+                            output_dir: dir.path().to_string_lossy().into_owned(),
+                            progress: None,
+                            result: None,
+                            error: None,
+                        },
+                        cancel: CancellationToken::new(),
+                    },
+                );
+            }
+        }
+
+        assert!(jobs.get("vesta-zzz-oldest").is_ok());
+        assert!(jobs.get("vesta-aaa-001").is_ok());
+
+        // Now start one more job via start_work
+        let snap = jobs
+            .start_work(&paths, "test", |_out, _cancel, _progress| async move {
+                Ok(serde_json::json!({"done": true}))
+            })
+            .unwrap();
+
+        // The oldest entry (vesta-zzz-oldest) should have been evicted, not vesta-aaa-001
+        assert!(
+            jobs.get("vesta-zzz-oldest").is_err(),
+            "FIFO eviction must remove oldest entry vesta-zzz-oldest"
+        );
+        assert!(
+            jobs.get("vesta-aaa-001").is_ok(),
+            "newer entry vesta-aaa-001 must be retained"
+        );
+        assert!(jobs.get(&snap.job_id).is_ok());
+    }
+
+    #[tokio::test]
+    async fn failed_job_cleans_empty_dir_but_retains_partial_checkpoints() {
+        let dir = tempfile::tempdir().unwrap();
+        let paths = Paths::new(vec![dir.path().to_path_buf()], dir.path().to_path_buf()).unwrap();
+        let jobs = Jobs::default();
+
+        // 1. Job fails without writing files -> directory removed
+        let snap1 = jobs
+            .start_work(
+                &paths,
+                "fail_empty",
+                |_output, _cancel, _progress| async move { Err("immediate failure".to_string()) },
+            )
+            .unwrap();
+
+        let out_dir1 = std::path::PathBuf::from(&snap1.output_dir);
+        assert!(out_dir1.exists(), "directory initially created");
+
+        // Wait for job to finish
+        for _ in 0..100 {
+            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+            if !jobs.get(&snap1.job_id).unwrap().status.active() {
+                break;
+            }
+        }
+        assert_eq!(jobs.get(&snap1.job_id).unwrap().status, Status::Failed);
+        assert!(
+            !out_dir1.exists(),
+            "empty directory must be deleted on failure"
+        );
+
+        // 2. Job fails after writing a partial checkpoint -> directory retained
+        let snap2 = jobs
+            .start_work(
+                &paths,
+                "fail_partial",
+                |output, _cancel, _progress| async move {
+                    std::fs::write(output.join("checkpoint.json"), b"partial checkpoint").unwrap();
+                    Err("failure after checkpoint".to_string())
+                },
+            )
+            .unwrap();
+
+        let out_dir2 = std::path::PathBuf::from(&snap2.output_dir);
+        assert!(out_dir2.exists());
+
+        // Wait for job to finish
+        for _ in 0..100 {
+            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+            if !jobs.get(&snap2.job_id).unwrap().status.active() {
+                break;
+            }
+        }
+        assert_eq!(jobs.get(&snap2.job_id).unwrap().status, Status::Failed);
+        assert!(
+            out_dir2.exists(),
+            "non-empty directory must be retained on failure"
+        );
+        assert!(out_dir2.join("checkpoint.json").exists());
+    }
+
+    #[tokio::test]
+    async fn cancelled_job_cleans_empty_dir() {
+        let dir = tempfile::tempdir().unwrap();
+        let paths = Paths::new(vec![dir.path().to_path_buf()], dir.path().to_path_buf()).unwrap();
+        let jobs = Jobs::default();
+
+        let snap = jobs
+            .start_work(
+                &paths,
+                "cancel_empty",
+                |_output, cancel, _progress| async move {
+                    while !cancel.is_cancelled() {
+                        tokio::time::sleep(std::time::Duration::from_millis(5)).await;
+                    }
+                    Err("cancelled".to_string())
+                },
+            )
+            .unwrap();
+
+        let out_dir = std::path::PathBuf::from(&snap.output_dir);
+        assert!(out_dir.exists());
+
+        jobs.cancel(&snap.job_id).unwrap();
+
+        for _ in 0..100 {
+            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+            if !jobs.get(&snap.job_id).unwrap().status.active() {
+                break;
+            }
+        }
+        assert_eq!(jobs.get(&snap.job_id).unwrap().status, Status::Cancelled);
+        assert!(
+            !out_dir.exists(),
+            "empty directory must be deleted on cancel"
+        );
     }
 }
