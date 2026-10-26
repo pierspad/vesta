@@ -238,15 +238,20 @@ fn load_cards_tsv(path: &Path) -> Result<Vec<RefineCard>, String> {
     Ok(cards)
 }
 
+fn extract_anki_db(apkg_path: &Path, dest_db_path: &Path) -> Result<(), String> {
+    srt_apkg::extract_file_from_zip(apkg_path, "collection.anki2", dest_db_path)
+}
+
 fn load_cards_apkg(path: &str) -> Result<Vec<RefineCard>, String> {
     let temp_dir = tempfile::tempdir()
         .map_err(|e| format!("Impossibile creare la directory temporanea: {e}"))?;
 
-    srt_apkg::unzip_to(Path::new(path), temp_dir.path())?;
-
     let db_path = temp_dir.path().join("collection.anki2");
-    if !db_path.exists() {
-        return Err("Archivio APKG non valido: collection.anki2 mancante".to_string());
+    if let Err(err) = extract_anki_db(Path::new(path), &db_path) {
+        if err.contains("not found in ZIP archive") {
+            return Err("Archivio APKG non valido: collection.anki2 mancante".to_string());
+        }
+        return Err(err);
     }
 
     let conn = rusqlite::Connection::open(db_path)
@@ -400,11 +405,12 @@ fn save_apkg_to_tsv(
         .map_err(|e| format!("Impossibile creare la directory temporanea: {e}"))?;
 
     let input_path_str = resolved_input.to_str().unwrap_or(original_input);
-    srt_apkg::unzip_to(Path::new(input_path_str), temp_dir.path())?;
-
     let db_path = temp_dir.path().join("collection.anki2");
-    if !db_path.exists() {
-        return Err("File di input APKG non valido".to_string());
+    if let Err(err) = extract_anki_db(Path::new(input_path_str), &db_path) {
+        if err.contains("not found in ZIP archive") {
+            return Err("File di input APKG non valido".to_string());
+        }
+        return Err(err);
     }
 
     let conn = rusqlite::Connection::open(&db_path)
@@ -794,5 +800,63 @@ mod tests {
         let res_tagged = strip_html(tagged);
         assert!(matches!(res_tagged, std::borrow::Cow::Owned(_)));
         assert_eq!(res_tagged, "Hello world!");
+    }
+
+    #[test]
+    fn apkg_fast_db_extraction_and_numbered_media_stored_on_save() {
+        let directory = tempfile::tempdir().unwrap();
+        let fixture = directory.path().join("fixture");
+        fs::create_dir(&fixture).unwrap();
+        let conn = rusqlite::Connection::open(fixture.join("collection.anki2")).unwrap();
+        conn.execute_batch("CREATE TABLE col(models TEXT); CREATE TABLE notes(id INTEGER PRIMARY KEY, mid INTEGER, flds TEXT, sfld TEXT, csum INTEGER, mod INTEGER, usn INTEGER);").unwrap();
+        let model = serde_json::json!({"1":{"id":1,"name":"Custom","flds":[{"name":"Front","ord":0},{"name":"Back","ord":1},{"name":"Notes","ord":2},{"name":"Audio","ord":3}]}});
+        conn.execute("INSERT INTO col VALUES (?)", [model.to_string()])
+            .unwrap();
+        conn.execute(
+            "INSERT INTO notes VALUES (101,1,?,'sort field',100,0,1)",
+            ["word\x1fmeaning\x1foriginal note\x1f[sound:0.mp3]"],
+        )
+        .unwrap();
+        drop(conn);
+
+        // Anki media mapping "0" -> "clip.mp3"
+        let media_json = serde_json::json!({"0": "clip.mp3"});
+        fs::write(fixture.join("media"), media_json.to_string()).unwrap();
+        fs::write(fixture.join("0"), b"raw audio stream").unwrap();
+
+        let apkg_path = directory.path().join("deck.apkg");
+        let apkg_str = apkg_path.to_str().unwrap();
+        srt_apkg::zip_from_dir(&fixture, &apkg_path).unwrap();
+
+        // 1. Verify load_cards reads collection.anki2 without extracting media
+        let loaded = load_cards(apkg_str).unwrap();
+        assert_eq!(loaded.len(), 1);
+        assert_eq!(loaded[0].id, "101");
+        assert_eq!(loaded[0].expression, "word");
+        assert_eq!(loaded[0].meaning, "meaning");
+        assert_eq!(loaded[0].notes, "original note");
+
+        // 2. Verify save_apkg_to_tsv works identically
+        let tsv_path = directory.path().join("deck.tsv");
+        let tsv_str = tsv_path.to_str().unwrap();
+        save_cards(apkg_str, tsv_str, vec![update("101", "tsv note")]).unwrap();
+        let tsv_loaded = load_cards(tsv_str).unwrap();
+        assert_eq!(tsv_loaded.len(), 1);
+        assert_eq!(tsv_loaded[0].notes, "tsv note");
+
+        // 3. Verify save_apkg_to_apkg works and repacks numbered media with Stored compression
+        let out_apkg_path = directory.path().join("updated.apkg");
+        let out_apkg_str = out_apkg_path.to_str().unwrap();
+        save_cards(apkg_str, out_apkg_str, vec![update("101", "updated note")]).unwrap();
+
+        let updated_cards = load_cards(out_apkg_str).unwrap();
+        assert_eq!(updated_cards[0].notes, "updated note");
+
+        let zip_file = fs::File::open(&out_apkg_path).unwrap();
+        let mut archive = srt_apkg::zip::ZipArchive::new(zip_file).unwrap();
+        let method_0 = archive.by_name("0").unwrap().compression();
+        assert_eq!(method_0, srt_apkg::zip::CompressionMethod::Stored);
+        let method_col = archive.by_name("collection.anki2").unwrap().compression();
+        assert_eq!(method_col, srt_apkg::zip::CompressionMethod::Deflated);
     }
 }
