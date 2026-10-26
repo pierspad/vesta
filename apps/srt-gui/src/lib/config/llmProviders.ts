@@ -377,6 +377,15 @@ export const modelsByProvider: Record<string, ModelInfo[]> = {
       contextWindow: 1047576,
       description: "Modello non-reasoning rapido e affidabile.",
     },
+    {
+      id: "gpt-4o-mini",
+      name: "GPT-4o mini",
+      provider: "openai",
+      family: "GPT-4o",
+      familyInfo: { type: "proprietary", badge: "Budget" },
+      contextWindow: 128000,
+      description: "Modello rapido ed economico, ideale per traduzioni di sottotitoli.",
+    },
   ],
 
   // Groq API - Inferenza ultra-veloce su hardware LPU
