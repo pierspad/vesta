@@ -17,4 +17,5 @@ path = "src/lib.rs"
 [dependencies]
 zip = "9"
 
+serde_json.workspace = true
 tempfile.workspace = true

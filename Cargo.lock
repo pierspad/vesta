@@ -4711,6 +4711,7 @@ dependencies = [
 name = "srt-apkg"
 version = "0.30.1"
 dependencies = [
+ "serde_json",
  "tempfile",
  "zip",
 ]

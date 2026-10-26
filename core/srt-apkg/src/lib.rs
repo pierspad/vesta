@@ -5,7 +5,10 @@
 //! uses a separate streaming writer with an explicit media manifest:
 //!
 //! - [`unzip_to`]: extract a ZIP archive into a directory.
+//! - [`extract_file_from_zip`]: extract a single entry from a ZIP archive.
 //! - [`zip_from_dir`]: create a ZIP archive from the flat contents of a directory.
+
+pub use zip;
 
 use std::fs;
 use std::io::{self, BufReader, BufWriter, Seek, Write};
@@ -25,6 +28,7 @@ fn is_media_extension(ext: &str) -> bool {
             | "jpeg"
             | "png"
             | "webp"
+            | "avif"
             | "gif"
             | "mp4"
             | "mkv"
@@ -105,6 +109,42 @@ pub fn unzip_to(zip_path: &Path, dest_dir: &Path) -> Result<(), String> {
     Ok(())
 }
 
+/// Extract a single entry `entry_name` from the ZIP archive at `zip_path` into `dest_path`.
+///
+/// Returns an error if the archive cannot be opened or if the entry is not found.
+pub fn extract_file_from_zip(
+    zip_path: &Path,
+    entry_name: &str,
+    dest_path: &Path,
+) -> Result<(), String> {
+    let file = fs::File::open(zip_path).map_err(|e| format!("Cannot open ZIP archive: {e}"))?;
+    let reader = BufReader::with_capacity(128 * 1024, file);
+    let mut archive =
+        zip::ZipArchive::new(reader).map_err(|e| format!("Invalid ZIP archive: {e}"))?;
+    let mut entry = archive
+        .by_name(entry_name)
+        .map_err(|e| format!("Entry '{entry_name}' not found in ZIP archive: {e}"))?;
+
+    let parent = dest_path
+        .parent()
+        .filter(|p| !p.as_os_str().is_empty())
+        .unwrap_or(Path::new("."));
+    ensure_directory(parent)?;
+
+    let mut temporary = tempfile::NamedTempFile::new_in(parent)
+        .map_err(|e| format!("Cannot create temporary extracted file: {e}"))?;
+    let mut writer = BufWriter::with_capacity(128 * 1024, temporary.as_file_mut());
+    io::copy(&mut entry, &mut writer).map_err(|e| format!("Error extracting file: {e}"))?;
+    writer
+        .flush()
+        .map_err(|e| format!("Error flushing extracted file: {e}"))?;
+    drop(writer);
+    temporary
+        .persist(dest_path)
+        .map_err(|e| format!("Cannot publish extracted file: {}", e.error))?;
+    Ok(())
+}
+
 fn ensure_directory(path: &Path) -> Result<(), String> {
     match fs::symlink_metadata(path) {
         Ok(metadata) if metadata.is_dir() && !metadata.file_type().is_symlink() => Ok(()),
@@ -138,6 +178,17 @@ pub fn zip_from_dir(src_dir: &Path, zip_path: &Path) -> Result<(), String> {
     let options_stored =
         zip::write::SimpleFileOptions::default().compression_method(zip::CompressionMethod::Stored);
 
+    let media_map: Option<std::collections::HashMap<String, String>> = {
+        let media_path = src_dir.join("media");
+        if media_path.is_file() {
+            fs::read(&media_path)
+                .ok()
+                .and_then(|bytes| serde_json::from_slice(&bytes).ok())
+        } else {
+            None
+        }
+    };
+
     let entries =
         fs::read_dir(src_dir).map_err(|e| format!("Cannot read source directory: {e}"))?;
 
@@ -165,7 +216,25 @@ pub fn zip_from_dir(src_dir: &Path, zip_path: &Path) -> Result<(), String> {
                 .and_then(|e| e.to_str())
                 .unwrap_or("")
                 .to_lowercase();
-            let opt = if is_media_extension(&ext) {
+            let is_media = if is_media_extension(&ext) {
+                true
+            } else if ext.is_empty() {
+                media_map
+                    .as_ref()
+                    .and_then(|m| m.get(filename))
+                    .map(|logical_name| {
+                        let logical_ext = Path::new(logical_name)
+                            .extension()
+                            .and_then(|e| e.to_str())
+                            .unwrap_or("")
+                            .to_lowercase();
+                        is_media_extension(&logical_ext)
+                    })
+                    .unwrap_or(false)
+            } else {
+                false
+            };
+            let opt = if is_media {
                 options_stored
             } else {
                 options_deflated
@@ -211,6 +280,7 @@ mod tests {
         assert!(is_media_extension("mp3"));
         assert!(is_media_extension("wav"));
         assert!(is_media_extension("webp"));
+        assert!(is_media_extension("avif"));
         assert!(is_media_extension("jpg"));
         assert!(is_media_extension("mp4"));
         assert!(is_media_extension("ttf"));
@@ -252,6 +322,60 @@ mod tests {
         assert_eq!(content, "hello apkg");
         let media_content = fs::read(dest.path().join("audio.mp3")).unwrap();
         assert_eq!(media_content, b"fake audio data");
+    }
+
+    #[test]
+    fn numbered_anki_media_uses_stored_compression() {
+        let dir = tempfile::tempdir().unwrap();
+        fs::write(dir.path().join("collection.anki2"), b"sqlite content").unwrap();
+        let media_json = serde_json::json!({
+            "0": "clip.mp3",
+            "1": "img.webp",
+            "2": "notes.txt"
+        });
+        fs::write(dir.path().join("media"), media_json.to_string()).unwrap();
+        fs::write(dir.path().join("0"), b"audio data").unwrap();
+        fs::write(dir.path().join("1"), b"image data").unwrap();
+        fs::write(dir.path().join("2"), b"text data").unwrap();
+
+        let zip_path = dir.path().join("deck.apkg");
+        zip_from_dir(dir.path(), &zip_path).unwrap();
+
+        let zip_file = fs::File::open(&zip_path).unwrap();
+        let mut archive = zip::ZipArchive::new(zip_file).unwrap();
+
+        let mut get_method =
+            |name: &str| -> zip::CompressionMethod { archive.by_name(name).unwrap().compression() };
+
+        assert_eq!(get_method("0"), zip::CompressionMethod::Stored);
+        assert_eq!(get_method("1"), zip::CompressionMethod::Stored);
+        assert_eq!(get_method("2"), zip::CompressionMethod::Deflated);
+        assert_eq!(
+            get_method("collection.anki2"),
+            zip::CompressionMethod::Deflated
+        );
+        assert_eq!(get_method("media"), zip::CompressionMethod::Deflated);
+    }
+
+    #[test]
+    fn extract_file_from_zip_extracts_only_target_file() {
+        let dir = tempfile::tempdir().unwrap();
+        fs::write(dir.path().join("collection.anki2"), b"sqlite db").unwrap();
+        fs::write(dir.path().join("0"), b"large audio file").unwrap();
+
+        let zip_path = dir.path().join("test.apkg");
+        zip_from_dir(dir.path(), &zip_path).unwrap();
+
+        let out_dir = tempfile::tempdir().unwrap();
+        let target_db = out_dir.path().join("collection.anki2");
+        extract_file_from_zip(&zip_path, "collection.anki2", &target_db).unwrap();
+
+        assert_eq!(fs::read(&target_db).unwrap(), b"sqlite db");
+        assert!(!out_dir.path().join("0").exists());
+
+        // Error on missing entry
+        let missing = out_dir.path().join("missing.txt");
+        assert!(extract_file_from_zip(&zip_path, "nonexistent", &missing).is_err());
     }
 }
 
