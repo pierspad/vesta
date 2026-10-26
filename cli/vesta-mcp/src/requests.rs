@@ -8,7 +8,7 @@ use srt_flashcards::FlashcardConfig;
 #[derive(Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct TranslateRequest {
-    /// Absolute path to an SRT, ASS, SSA, VTT or LRC file within a configured read root.
+    /// Absolute path to an SRT (.srt) file within a configured read root.
     pub input: String,
     /// Target language name or code, for example "Italian" or "it".
     pub target_language: String,

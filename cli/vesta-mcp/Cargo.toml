@@ -3,7 +3,7 @@ name = "vesta-mcp"
 version = "0.30.1"
 edition.workspace = true
 rust-version.workspace = true
-description = "Local MCP server for Vesta subtitle inspection and flashcard generation"
+description = "Local MCP server for Vesta subtitle inspection, flashcard generation, translation and transcription"
 license = "GPL-3.0-only"
 repository = "https://github.com/pierspad/vesta"
 
