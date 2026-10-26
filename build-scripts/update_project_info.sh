@@ -123,6 +123,8 @@ Exec=${BINARY_NAME}
 Icon=${BINARY_NAME}
 Type=Application
 Categories=AudioVideo;Education;Utility;
+Keywords=subtitles;anki;flashcards;translation;sync;video;
+StartupNotify=true
 Terminal=false
 StartupWMClass=${BINARY_NAME}
 EOF

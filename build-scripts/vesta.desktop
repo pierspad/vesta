@@ -5,5 +5,7 @@ Exec=vesta
 Icon=vesta
 Type=Application
 Categories=AudioVideo;Education;Utility;
+Keywords=subtitles;anki;flashcards;translation;sync;video;
+StartupNotify=true
 Terminal=false
 StartupWMClass=vesta

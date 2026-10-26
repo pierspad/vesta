@@ -35,6 +35,8 @@
     }
   },
   "bundle": {
+    "category": "Education",
+    "shortDescription": "Generate Anki flashcards, translations, and synced subtitles from video and audio",
     "resources": { "../../../THIRD_PARTY_NOTICES.md": "THIRD_PARTY_NOTICES.md" },
     "active": true,
     "targets": [
