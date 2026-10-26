@@ -77,13 +77,7 @@ pub fn run_from(args: Vec<OsString>) -> ExitCode {
         "srt-flashcards" => srt_flashcards_cli::run_from(forwarded),
         "srt-translate" => srt_translate_cli::run_from(forwarded),
         "srt-transcribe" => srt_transcribe_cli::run_from(forwarded),
-        "srt-sync" => match srt_sync_cli::run_from(forwarded) {
-            Ok(()) => ExitCode::SUCCESS,
-            Err(error) => {
-                eprintln!("srt-sync: {error:#}");
-                ExitCode::FAILURE
-            }
-        },
+        "srt-sync" => srt_sync_cli::run_from(forwarded),
         "srt-autosync" => srt_autosync_cli::run_from(forwarded),
         "srt-refine" => srt_refine_cli::run_from(forwarded),
         "srt-extract" => match srt_extract_cli::run_from(forwarded) {

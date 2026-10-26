@@ -3,6 +3,8 @@ use clap::Parser;
 use srt_sync::SyncEngine;
 use std::{collections::HashSet, path::PathBuf};
 
+use std::process::ExitCode;
+
 #[derive(Clone, Debug)]
 struct Anchor {
     id: u32,
@@ -44,8 +46,22 @@ struct Cli {
     anchors: Vec<Anchor>,
 }
 
-pub fn run_from(args: Vec<std::ffi::OsString>) -> Result<()> {
-    let cli = Cli::parse_from(args);
+pub fn run_from(args: Vec<std::ffi::OsString>) -> ExitCode {
+    let cli = match Cli::try_parse_from(args) {
+        Ok(cli) => cli,
+        Err(err) => {
+            let _ = err.print();
+            return ExitCode::from(err.exit_code() as u8);
+        }
+    };
+    if let Err(error) = run(cli) {
+        eprintln!("srt-sync: {error:#}");
+        return ExitCode::FAILURE;
+    }
+    ExitCode::SUCCESS
+}
+
+fn run(cli: Cli) -> Result<()> {
     let mut engine = SyncEngine::new(&cli.input)
         .with_context(|| format!("Failed to load subtitles {}", cli.input.display()))?;
     let mut seen = HashSet::new();
