@@ -79,7 +79,7 @@
       {/if}
     {/each}
     {#if updates.releaseNotes || releaseUrl}
-      <article class="release-notice">
+      <article class="release-notice" class:expanded={notesOpen && !!updates.releaseNotes}>
         {#if updates.releaseNotes}
           <div class="release-details">
             <button type="button" class="release-summary" aria-expanded={notesOpen} aria-controls="notification-release-notes" onclick={() => notesOpen = !notesOpen}>
@@ -108,11 +108,12 @@
   .notification-inbox > div:first-child { background: var(--surface-2); border-color: var(--border); }
   .notification-body { display: flex; flex-direction: column; gap: .75rem; flex: 1; min-block-size: 0; overflow: hidden; padding: 1.25rem; }
   .notification-body > article:not(.release-notice) { flex-shrink: 0; }
-  .release-notice { flex: 1; min-block-size: 0; overflow: hidden; }
+  .release-notice { flex: 0 0 auto; min-block-size: 0; overflow: hidden; }
+  .release-notice.expanded { flex: 1; }
   .release-details { display: flex; flex-direction: column; block-size: 100%; min-block-size: 0; }
   .release-summary { flex-shrink: 0; }
   .release-notes { flex: 1; min-block-size: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
-  @media (max-height: 620px) { .notification-body { overflow-y: auto; } .release-notice { flex-shrink: 0; min-block-size: 12rem; } }
+  @media (max-height: 620px) { .notification-body { overflow-y: auto; } .release-notice.expanded { flex-shrink: 0; min-block-size: 12rem; } }
   .notification-body > article { border: 1px solid var(--border); background: var(--surface); border-radius: .85rem; }
   .notice-title { display: flex; align-items: center; gap: .65rem; font-size: .9rem; font-weight: 650; color: var(--text); }
   .notice-title svg { flex-shrink: 0; color: var(--accent-text); }
@@ -120,6 +121,7 @@
   .release-summary { display: flex; align-items: center; gap: .75rem; padding: 1rem; inline-size: 100%; text-align: start; color: var(--text); cursor: pointer; font-size: .875rem; font-weight: 600; }
   .release-summary:hover { background: var(--surface-3); border-radius: .85rem; }
   .release-summary:focus-visible { outline: 2px solid var(--accent); outline-offset: -3px; border-radius: .85rem; }
+  .release-summary[aria-expanded="true"] { border-end-start-radius: 0; border-end-end-radius: 0; }
   .release-version { margin-inline-start: auto; color: var(--muted); font-size: .75rem; font-weight: 400; }
   .release-chevron { flex-shrink: 0; color: var(--muted); transition: transform .15s ease; }
   .release-summary[aria-expanded="true"] .release-chevron { transform: rotate(180deg); }
