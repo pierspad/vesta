@@ -45,7 +45,6 @@ pub fn video_clip_extension(video_codec: &str) -> &'static str {
 }
 
 pub fn media_command(cmd: &str) -> tokio::process::Command {
-    #[allow(unused_mut)]
     let mut command = tokio::process::Command::new(cmd);
     #[cfg(windows)]
     {
@@ -67,19 +66,36 @@ pub async fn check_ffmpeg(ffmpeg_cmd: &str) -> bool {
 /// Compatibility wrapper: probe failures retain the historical `false` result.
 /// Prefer `try_video_has_audio` to distinguish missing audio from probe errors.
 pub fn video_has_audio(ffprobe_cmd: &str, video_path: &str) -> bool {
-    let command = ffprobe_cmd.to_owned();
-    let path = video_path.to_owned();
-    // A separate runtime also permits calls from an existing Tokio runtime.
-    std::thread::spawn(move || {
+    let run = || {
         tokio::runtime::Builder::new_current_thread()
             .enable_all()
             .build()
             .ok()
-            .and_then(|runtime| runtime.block_on(try_video_has_audio(&command, &path)).ok())
+            .and_then(|runtime| {
+                runtime
+                    .block_on(try_video_has_audio(ffprobe_cmd, video_path))
+                    .ok()
+            })
             .unwrap_or(false)
-    })
-    .join()
-    .unwrap_or(false)
+    };
+
+    if tokio::runtime::Handle::try_current().is_ok() {
+        // A separate thread permits calls from an existing Tokio runtime without nested block_on panic.
+        let command = ffprobe_cmd.to_owned();
+        let path = video_path.to_owned();
+        std::thread::spawn(move || {
+            tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .ok()
+                .and_then(|runtime| runtime.block_on(try_video_has_audio(&command, &path)).ok())
+                .unwrap_or(false)
+        })
+        .join()
+        .unwrap_or(false)
+    } else {
+        run()
+    }
 }
 
 pub async fn try_video_has_audio(ffprobe_cmd: &str, video_path: &str) -> Result<bool> {
@@ -1013,10 +1029,31 @@ mod tests {
         assert!(!video_has_audio(missing.to_str().unwrap(), "video.mp4"));
     }
 
+    #[test]
+    fn video_has_audio_sync_outside_tokio() {
+        let directory = tempfile::tempdir().unwrap();
+        let missing = directory.path().join("missing-ffprobe");
+        assert!(!video_has_audio(missing.to_str().unwrap(), "video.mp4"));
+    }
+
+    #[cfg(unix)]
+    fn write_executable_script(path: &Path, content: &str) {
+        use std::io::Write;
+        use std::os::unix::fs::OpenOptionsExt;
+        let mut file = std::fs::OpenOptions::new()
+            .create(true)
+            .truncate(true)
+            .write(true)
+            .mode(0o700)
+            .open(path)
+            .unwrap();
+        file.write_all(content.as_bytes()).unwrap();
+        file.sync_all().unwrap();
+    }
+
     #[cfg(unix)]
     #[tokio::test]
     async fn audio_probe_distinguishes_streams_failures_and_timeout() {
-        use std::os::unix::fs::PermissionsExt;
         let directory = tempfile::tempdir().unwrap();
         for (index, (body, expected)) in [
             ("printf 'video\\naudio\\n'", Some(true)),
@@ -1030,8 +1067,7 @@ mod tests {
             // Each scenario gets a fresh inode; never rewrite a recently executed file.
             let script = directory.path().join(format!("ffprobe-{index}"));
             let executable = script.to_str().unwrap();
-            std::fs::write(&script, format!("#!/bin/sh\n{body}\n")).unwrap();
-            std::fs::set_permissions(&script, std::fs::Permissions::from_mode(0o700)).unwrap();
+            write_executable_script(&script, &format!("#!/bin/sh\n{body}\n"));
             let result = try_video_has_audio(executable, "path with spaces.mp4").await;
             match expected {
                 Some(value) => assert_eq!(result.unwrap(), value),
@@ -1041,15 +1077,13 @@ mod tests {
         let pid_file = directory.path().join("pid");
         let script = directory.path().join("ffprobe-timeout");
         let executable = script.to_str().unwrap();
-        std::fs::write(
+        write_executable_script(
             &script,
-            format!(
+            &format!(
                 "#!/bin/sh\necho $$ > '{}'\nexec sleep 30\n",
                 pid_file.display()
             ),
-        )
-        .unwrap();
-        std::fs::set_permissions(&script, std::fs::Permissions::from_mode(0o700)).unwrap();
+        );
         let result = probe_audio_with_timeout(
             executable,
             "video.mp4",
