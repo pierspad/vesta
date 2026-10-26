@@ -3,12 +3,12 @@ use std::path::Path;
 use tokio_util::sync::CancellationToken;
 
 fn ffmpeg_command(ffmpeg_path: &str) -> tokio::process::Command {
-    #[allow(unused_mut)]
     let mut command = tokio::process::Command::new(ffmpeg_path);
     #[cfg(windows)]
     {
         command.creation_flags(0x0800_4000);
     }
+    command.kill_on_drop(true);
     command
 }
 
