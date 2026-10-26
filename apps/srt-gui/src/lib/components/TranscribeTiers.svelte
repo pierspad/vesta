@@ -25,11 +25,11 @@
   let tiers = $state<TranscribeTier[]>([]);
   let apiKeys = $state<ApiKeyConfig[]>([]);
   let whisperModels = $state<({ id: string; name: string; size: string; speed: string; downloaded: boolean })[]>([
-    { id: "tiny", name: "Tiny", size: "~75MB", speed: "~32x", downloaded: false },
+    { id: "tiny", name: "Tiny", size: "~75 MB", speed: "~32x", downloaded: false },
     { id: "base", name: "Base", size: "~150 MB", speed: "~16x", downloaded: false },
     { id: "small", name: "Small", size: "~500 MB", speed: "~6x", downloaded: false },
-    { id: "medium", name: "Medium", size: "~1.5GB", speed: "~2x", downloaded: false },
-    { id: "large", name: "Large", size: "~3.1GB", speed: "~1x", downloaded: false },
+    { id: "medium", name: "Medium", size: "~1.5 GB", speed: "~2x", downloaded: false },
+    { id: "large", name: "Large", size: "~3 GB", speed: "~1x", downloaded: false },
   ]);
 
   let downloadingModelId = $state<string | null>(null);
