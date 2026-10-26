@@ -6,15 +6,29 @@ pub(crate) fn get_overlap(a_start: i64, a_end: i64, b_start: i64, b_end: i64) ->
     overlap_end.saturating_sub(overlap_start).max(0)
 }
 
+const LONG_CUE_THRESHOLD_MS: i64 = 30_000;
+
 pub(crate) fn match_subtitles(subs1: &[SubEntry], subs2: &[SubEntry]) -> Vec<MatchedLine> {
     let mut matched: Vec<MatchedLine> = Vec::with_capacity(subs1.len());
 
-    // Inputs are sorted by start time. End times need not be monotonic, so
-    // partitioning the cue slice by end_ms can skip long cues that began early.
-    // Prefix maxima let us binary-search the earliest cue that could overlap.
-    let mut prefix_max_end = Vec::with_capacity(subs2.len());
+    // Separate short and long cues in subs2.
+    // If a very long cue (e.g. 1-hour sign or OP) starts at 0, building prefix_max_end
+    // over the whole slice would cause partition_point to always return 0, degrading
+    // matching to O(N * M).
+    let mut short_cues = Vec::with_capacity(subs2.len());
+    let mut long_cues = Vec::new();
+
+    for (orig_idx, cue) in subs2.iter().enumerate() {
+        if cue.end_ms.saturating_sub(cue.start_ms) <= LONG_CUE_THRESHOLD_MS {
+            short_cues.push((orig_idx, cue));
+        } else {
+            long_cues.push((orig_idx, cue));
+        }
+    }
+
+    let mut prefix_max_end = Vec::with_capacity(short_cues.len());
     let mut maximum = i64::MIN;
-    for cue in subs2 {
+    for &(_, cue) in &short_cues {
         maximum = maximum.max(cue.end_ms);
         prefix_max_end.push(maximum);
     }
@@ -22,18 +36,38 @@ pub(crate) fn match_subtitles(subs1: &[SubEntry], subs2: &[SubEntry]) -> Vec<Mat
     for (i, s1) in subs1.iter().enumerate() {
         let mut best_match: Option<&SubEntry> = None;
         let mut best_overlap: i64 = 0;
+        let mut best_orig_idx: usize = usize::MAX;
 
         let earliest = s1.start_ms.saturating_sub(5000);
-        let search_start = prefix_max_end.partition_point(|end| *end < earliest);
+        let latest = s1.end_ms.saturating_add(5000);
 
-        for s2 in &subs2[search_start..] {
+        let search_start = prefix_max_end.partition_point(|end| *end < earliest);
+        for &(orig_idx, s2) in &short_cues[search_start..] {
             let overlap = get_overlap(s1.start_ms, s1.end_ms, s2.start_ms, s2.end_ms);
-            if overlap > best_overlap {
+            if overlap > best_overlap
+                || (overlap == best_overlap && overlap > 0 && orig_idx < best_orig_idx)
+            {
                 best_overlap = overlap;
                 best_match = Some(s2);
+                best_orig_idx = orig_idx;
             }
 
-            if s2.start_ms > s1.end_ms.saturating_add(5000) {
+            if s2.start_ms > latest {
+                break;
+            }
+        }
+
+        for &(orig_idx, s2) in &long_cues {
+            let overlap = get_overlap(s1.start_ms, s1.end_ms, s2.start_ms, s2.end_ms);
+            if overlap > best_overlap
+                || (overlap == best_overlap && overlap > 0 && orig_idx < best_orig_idx)
+            {
+                best_overlap = overlap;
+                best_match = Some(s2);
+                best_orig_idx = orig_idx;
+            }
+
+            if s2.start_ms > latest {
                 break;
             }
         }
@@ -216,5 +250,82 @@ mod tests {
 
         assert_eq!(matched[1].subs1.text, "I am fine");
         assert_eq!(matched[1].subs2.as_ref().unwrap().text, "Sto bene");
+    }
+
+    fn naive_match_subtitles(subs1: &[SubEntry], subs2: &[SubEntry]) -> Vec<MatchedLine> {
+        let mut matched: Vec<MatchedLine> = Vec::with_capacity(subs1.len());
+        for (i, s1) in subs1.iter().enumerate() {
+            let mut best_match: Option<&SubEntry> = None;
+            let mut best_overlap: i64 = 0;
+            for s2 in subs2 {
+                let overlap = get_overlap(s1.start_ms, s1.end_ms, s2.start_ms, s2.end_ms);
+                if overlap > best_overlap {
+                    best_overlap = overlap;
+                    best_match = Some(s2);
+                }
+            }
+            matched.push(MatchedLine {
+                index: i,
+                subs1: s1.clone(),
+                subs2: best_match.cloned(),
+                active: s1.active,
+                leading_context: Vec::new(),
+                trailing_context: Vec::new(),
+            });
+        }
+        combine_consecutive_repeats(&mut matched);
+        matched
+    }
+
+    #[test]
+    fn long_sign_cue_at_index_zero_matches_naive_and_runs_fast() {
+        // Sign cue lasting 1 hour at index 0 (duration 3_600_000 > 30_000)
+        let mut subs2 = vec![sub(0, 0, 3_600_000, "1-hour sign/title")];
+        // Dialogue cues spanning past the 1-hour sign cue
+        for i in 1..=500 {
+            let start = i * 8000;
+            subs2.push(sub(
+                i as u32,
+                start,
+                start + 2500,
+                &format!("Target dialogue {i}"),
+            ));
+        }
+
+        // subs1 with matching dialogue cues (some within 1-hour, some after 1-hour)
+        let mut subs1 = Vec::new();
+        for i in 1..=500 {
+            let start = i * 8000 + 100;
+            subs1.push(sub(
+                1000 + i as u32,
+                start,
+                start + 2000,
+                &format!("Native dialogue {i}"),
+            ));
+        }
+
+        let start_time = std::time::Instant::now();
+        let actual = match_subtitles(&subs1, &subs2);
+        let elapsed = start_time.elapsed();
+        // 500 cues should match in well under 100ms with partitioning
+        assert!(
+            elapsed.as_millis() < 500,
+            "matcher took too long: {:?}",
+            elapsed
+        );
+
+        // Compare against naive exhaustive matching
+        let expected = naive_match_subtitles(&subs1, &subs2);
+        assert_eq!(actual.len(), expected.len());
+        for (a, e) in actual.iter().zip(&expected) {
+            assert_eq!(a.index, e.index);
+            assert_eq!(a.subs1.text, e.subs1.text);
+            assert_eq!(a.subs1.start_ms, e.subs1.start_ms);
+            assert_eq!(a.subs1.end_ms, e.subs1.end_ms);
+            assert_eq!(
+                a.subs2.as_ref().map(|s| s.id),
+                e.subs2.as_ref().map(|s| s.id)
+            );
+        }
     }
 }
