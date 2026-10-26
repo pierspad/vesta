@@ -6,26 +6,37 @@ use std::{
     path::{Path, PathBuf},
 };
 
-fn files_equal(a: &Path, b: &Path) -> Result<bool> {
+fn reader_equals_file(mut reader: impl std::io::Read, file_path: &Path) -> Result<bool> {
     use std::io::Read;
-    let mut a = std::fs::File::open(a)?;
-    let mut b = std::fs::File::open(b)?;
-    let mut remaining = a.metadata()?.len();
-    if remaining != b.metadata()?.len() {
-        return Ok(false);
-    }
-    let mut left = [0u8; 8192];
-    let mut right = [0u8; 8192];
-    while remaining > 0 {
-        let count = remaining.min(left.len() as u64) as usize;
-        a.read_exact(&mut left[..count])?;
-        b.read_exact(&mut right[..count])?;
-        if left[..count] != right[..count] {
+    let mut file = std::fs::File::open(file_path)?;
+    let mut left = [0u8; 16384];
+    let mut right = [0u8; 16384];
+    loop {
+        let mut left_filled = 0;
+        while left_filled < left.len() {
+            match reader.read(&mut left[left_filled..])? {
+                0 => break,
+                n => left_filled += n,
+            }
+        }
+        let mut right_filled = 0;
+        while right_filled < left_filled {
+            match file.read(&mut right[right_filled..left_filled])? {
+                0 => break,
+                n => right_filled += n,
+            }
+        }
+        if left_filled != right_filled {
             return Ok(false);
         }
-        remaining -= count as u64;
+        if left_filled == 0 {
+            let extra = file.read(&mut right[..1])?;
+            return Ok(extra == 0);
+        }
+        if left[..left_filled] != right[..right_filled] {
+            return Ok(false);
+        }
     }
-    Ok(true)
 }
 
 pub fn merge_apkg(paths: &[PathBuf], output: &Path) -> Result<()> {
@@ -38,14 +49,17 @@ pub fn merge_apkg(paths: &[PathBuf], output: &Path) -> Result<()> {
     let mut names = BTreeMap::<String, PathBuf>::new();
     for (index, path) in paths.iter().enumerate() {
         let mut archive = zip::ZipArchive::new(std::fs::File::open(path)?)?;
-        let source_db = work.path().join(format!("source-{index}.sqlite"));
-        std::io::copy(
-            &mut archive.by_name("collection.anki2")?,
-            &mut std::fs::File::create(&source_db)?,
-        )?;
         if index == 0 {
-            std::fs::copy(&source_db, &db_path)?;
+            std::io::copy(
+                &mut archive.by_name("collection.anki2")?,
+                &mut std::fs::File::create(&db_path)?,
+            )?;
         } else {
+            let source_db = work.path().join(format!("source-{index}.sqlite"));
+            std::io::copy(
+                &mut archive.by_name("collection.anki2")?,
+                &mut std::fs::File::create(&source_db)?,
+            )?;
             let conn = rusqlite::Connection::open(&db_path)?;
             conn.execute(
                 "ATTACH DATABASE ?1 AS incoming",
@@ -104,17 +118,18 @@ pub fn merge_apkg(paths: &[PathBuf], output: &Path) -> Result<()> {
         let source_media: BTreeMap<String, String> =
             serde_json::from_reader(archive.by_name("media")?)?;
         for (entry, filename) in source_media {
+            if let Some(existing) = names.get(&filename) {
+                let reader = archive.by_name(&entry)?;
+                if !reader_equals_file(reader, existing)? {
+                    bail!("Conflicting media filename: {filename}");
+                }
+                continue;
+            }
             let target = work.path().join(format!("media-{}", media.len()));
             std::io::copy(
                 &mut archive.by_name(&entry)?,
                 &mut std::fs::File::create(&target)?,
             )?;
-            if let Some(existing) = names.get(&filename) {
-                if !files_equal(existing, &target)? {
-                    bail!("Conflicting media filename: {filename}");
-                }
-                continue;
-            }
             media.insert(media.len().to_string(), filename.clone());
             names.insert(filename, target);
         }
@@ -146,4 +161,107 @@ pub fn merge_apkg(paths: &[PathBuf], output: &Path) -> Result<()> {
     }
     temporary.persist(output).map_err(|e| e.error)?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_reader_equals_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let file_path = dir.path().join("sample.bin");
+        std::fs::write(&file_path, b"hello world 12345").unwrap();
+
+        // Exact match
+        let cursor = std::io::Cursor::new(b"hello world 12345");
+        assert!(reader_equals_file(cursor, &file_path).unwrap());
+
+        // Different content, same length
+        let cursor = std::io::Cursor::new(b"hello world 54321");
+        assert!(!reader_equals_file(cursor, &file_path).unwrap());
+
+        // Shorter stream
+        let cursor = std::io::Cursor::new(b"hello");
+        assert!(!reader_equals_file(cursor, &file_path).unwrap());
+
+        // Longer stream
+        let cursor = std::io::Cursor::new(b"hello world 12345 extra");
+        assert!(!reader_equals_file(cursor, &file_path).unwrap());
+    }
+
+    fn make_test_apkg(path: &Path, media_entries: &[(&str, &str, &[u8])]) {
+        let work = tempfile::tempdir().unwrap();
+        let db_path = work.path().join("collection.anki2");
+        let conn = rusqlite::Connection::open(&db_path).unwrap();
+        conn.execute_batch(
+            "CREATE TABLE col (id INTEGER PRIMARY KEY, models TEXT, decks TEXT, dconf TEXT);
+             INSERT INTO col VALUES (1, '{}', '{}', '{}');
+             CREATE TABLE notes (id INTEGER PRIMARY KEY, guid TEXT, mid INTEGER, mod INTEGER, usn INTEGER, tags TEXT, flds TEXT, sfld TEXT, csum INTEGER, flags INTEGER, data TEXT);
+             CREATE TABLE cards (id INTEGER PRIMARY KEY, nid INTEGER, did INTEGER, ord INTEGER, mod INTEGER, usn INTEGER, type INTEGER, queue INTEGER, due INTEGER, ivl INTEGER, factor INTEGER, reps INTEGER, lapses INTEGER, left INTEGER, odue INTEGER, odid INTEGER, flags INTEGER, data TEXT);
+             CREATE TABLE revlog (id INTEGER PRIMARY KEY);"
+        ).unwrap();
+        drop(conn);
+
+        let mut file = std::fs::File::create(path).unwrap();
+        let mut zip = zip::ZipWriter::new(&mut file);
+        let opt = zip::write::SimpleFileOptions::default();
+        zip.start_file("collection.anki2", opt).unwrap();
+        std::io::copy(&mut std::fs::File::open(&db_path).unwrap(), &mut zip).unwrap();
+
+        let mut media_map = std::collections::BTreeMap::new();
+        for (entry, filename, data) in media_entries {
+            media_map.insert(entry.to_string(), filename.to_string());
+            zip.start_file(*entry, opt).unwrap();
+            zip.write_all(data).unwrap();
+        }
+        zip.start_file("media", opt).unwrap();
+        zip.write_all(serde_json::to_string(&media_map).unwrap().as_bytes())
+            .unwrap();
+        zip.finish().unwrap();
+    }
+
+    #[test]
+    fn merge_apkg_duplicate_shared_media() {
+        let dir = tempfile::tempdir().unwrap();
+        let pkg1 = dir.path().join("pkg1.apkg");
+        let pkg2 = dir.path().join("pkg2.apkg");
+        let output = dir.path().join("merged.apkg");
+
+        make_test_apkg(&pkg1, &[("0", "shared.mp3", b"audio stream 123")]);
+        make_test_apkg(&pkg2, &[("0", "shared.mp3", b"audio stream 123")]);
+
+        merge_apkg(&[pkg1, pkg2], &output).unwrap();
+        assert!(output.exists());
+
+        let mut archive = zip::ZipArchive::new(std::fs::File::open(&output).unwrap()).unwrap();
+        let media_json: BTreeMap<String, String> =
+            serde_json::from_reader(archive.by_name("media").unwrap()).unwrap();
+        // Should only have 1 media entry since "shared.mp3" is identical
+        assert_eq!(media_json.len(), 1);
+        assert_eq!(media_json.get("0").map(|s| s.as_str()), Some("shared.mp3"));
+
+        let mut data = Vec::new();
+        std::io::copy(&mut archive.by_name("0").unwrap(), &mut data).unwrap();
+        assert_eq!(data, b"audio stream 123");
+    }
+
+    #[test]
+    fn merge_apkg_conflicting_media_bails() {
+        let dir = tempfile::tempdir().unwrap();
+        let pkg1 = dir.path().join("pkg1.apkg");
+        let pkg2 = dir.path().join("pkg2.apkg");
+        let output = dir.path().join("merged.apkg");
+
+        make_test_apkg(&pkg1, &[("0", "shared.mp3", b"audio stream 123")]);
+        make_test_apkg(&pkg2, &[("0", "shared.mp3", b"different stream 456")]);
+
+        let err = merge_apkg(&[pkg1, pkg2], &output).unwrap_err();
+        assert!(
+            err.to_string()
+                .contains("Conflicting media filename: shared.mp3"),
+            "unexpected error: {err}"
+        );
+        assert!(!output.exists());
+    }
 }
