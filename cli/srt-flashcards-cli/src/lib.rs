@@ -68,7 +68,7 @@ struct GenerateArgs {
     audio: Option<String>,
     /// Output directory.
     #[arg(short, long)]
-    output: String,
+    output: Option<String>,
     /// Export format.
     #[arg(short, long, default_value = "tsv", value_parser = ["tsv", "apkg"])]
     format: String,
@@ -102,6 +102,15 @@ struct GenerateArgs {
     /// Loudness-normalize audio clips (EBU R128).
     #[arg(long)]
     normalize_audio: bool,
+    /// Additional padding at the start of audio clips (milliseconds).
+    #[arg(long, default_value_t = 0, allow_hyphen_values = true)]
+    pad_audio_start: i64,
+    /// Additional padding at the end of audio clips (milliseconds).
+    #[arg(long, default_value_t = 0, allow_hyphen_values = true)]
+    pad_audio_end: i64,
+    /// Audio gain in dB.
+    #[arg(long, default_value_t = 0, allow_hyphen_values = true)]
+    audio_gain: i32,
     /// Audio bitrate (kbps). Opus needs far less than MP3 for speech: 64 is
     /// roughly equivalent to 128 in MP3.
     #[arg(long, default_value_t = 128)]
@@ -164,6 +173,9 @@ struct GenerateArgs {
     /// Drop duplicate target lines.
     #[arg(long)]
     exclude_duplicates: bool,
+    /// Keep only lines spoken by these actors (comma-separated or repeatable).
+    #[arg(long, value_delimiter = ',')]
+    actor_filter: Vec<String>,
     /// Keep only lines whose script is CJK.
     #[arg(long)]
     only_cjk: bool,
@@ -230,7 +242,7 @@ impl GenerateArgs {
             native_subs_path: self.native.clone(),
             video_path: self.video.clone(),
             audio_path: self.audio.clone(),
-            output_dir: self.output.clone(),
+            output_dir: self.output.clone().unwrap_or_default(),
             span_start_ms: self.span_start,
             span_end_ms: self.span_end,
             time_shift_target_ms: self.shift_target,
@@ -243,6 +255,11 @@ impl GenerateArgs {
                 max_chars: self.max_chars,
                 min_duration_ms: self.min_duration,
                 max_duration_ms: self.max_duration,
+                actor_filter: if self.actor_filter.is_empty() {
+                    None
+                } else {
+                    Some(self.actor_filter.join(","))
+                },
                 only_cjk: self.only_cjk,
                 remove_no_match: self.remove_no_match,
                 ..SubtitleFilters::default()
@@ -258,6 +275,10 @@ impl GenerateArgs {
             audio_bitrate: self.audio_bitrate,
             audio_track_index: self.audio_track,
             normalize_audio: self.normalize_audio,
+            audio_boost: self.audio_gain != 0,
+            audio_gain_db: self.audio_gain,
+            audio_pad_start_ms: self.pad_audio_start,
+            audio_pad_end_ms: self.pad_audio_end,
             audio_format: match self.audio_format.as_str() {
                 "opus" => AudioFormat::Opus,
                 _ => AudioFormat::Mp3,
@@ -348,6 +369,12 @@ async fn run(args: Vec<std::ffi::OsString>) -> Result<ExitCode> {
         }
 
         Command::Generate(args) => {
+            if args.output.as_ref().is_none_or(|s| s.trim().is_empty()) {
+                eprintln!(
+                    "error: the following required arguments were not provided:\n  --output <OUTPUT>\n\nUsage: srt-flashcards generate --target <TARGET> --output <OUTPUT>\n\nFor more information, try '--help'."
+                );
+                return Ok(ExitCode::from(2));
+            }
             let config = args.to_config();
             let tools = MediaTools::new(args.ffmpeg.clone(), args.ffprobe.clone());
 

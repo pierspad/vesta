@@ -282,3 +282,64 @@ fn ctrl_c_returns_130_and_preserves_existing_tsv_and_media() {
     );
     assert_eq!(std::fs::read(media_dir.join("old.mp3")).unwrap(), old_media);
 }
+
+#[test]
+fn preview_works_with_or_without_output_and_accepts_new_flags() {
+    let dir = tempfile::tempdir().unwrap();
+    let input = dir.path().join("input.srt");
+    subtitles(&input);
+
+    // Preview without --output
+    let preview_no_output = run(&[
+        "preview",
+        "--target",
+        input.to_str().unwrap(),
+        "--pad-audio-start",
+        "50",
+        "--pad-audio-end",
+        "50",
+        "--audio-gain",
+        "3",
+        "--actor-filter",
+        "Alice,Bob",
+    ]);
+    assert!(
+        preview_no_output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&preview_no_output.stderr)
+    );
+    assert!(preview_no_output.stderr.is_empty());
+    assert!(String::from_utf8_lossy(&preview_no_output.stdout).contains("Total lines:"));
+
+    // Preview with --output still works
+    let out_path = dir.path().join("preview_out");
+    let preview_with_output = run(&[
+        "preview",
+        "--target",
+        input.to_str().unwrap(),
+        "--output",
+        out_path.to_str().unwrap(),
+    ]);
+    assert!(
+        preview_with_output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&preview_with_output.stderr)
+    );
+    assert!(
+        !out_path.exists(),
+        "preview must not create output directory"
+    );
+}
+
+#[test]
+fn generate_requires_output_argument() {
+    let dir = tempfile::tempdir().unwrap();
+    let input = dir.path().join("input.srt");
+    subtitles(&input);
+
+    let result = run(&["generate", "--target", input.to_str().unwrap()]);
+    assert_eq!(result.status.code(), Some(2));
+    assert!(String::from_utf8_lossy(&result.stderr).contains(
+        "error: the following required arguments were not provided:\n  --output <OUTPUT>"
+    ));
+}

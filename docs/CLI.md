@@ -55,7 +55,7 @@ otherwise. Negative option values such as shifts use `--shift-target=-500`.
 
 ```sh
 vesta-cli flashcards info episode-ja.srt
-vesta-cli flashcards preview --target episode-ja.srt --native episode-en.srt --output out
+vesta-cli flashcards preview --target episode-ja.srt --native episode-en.srt
 vesta-cli flashcards generate --target episode-ja.srt --native episode-en.srt \
   --video episode.mkv --output out --format apkg --deck Episode --no-video
 # Text-only export: disable all three media types explicitly.
@@ -63,7 +63,8 @@ vesta-cli flashcards generate --target episode-ja.srt --output out --deck Text \
   --no-audio --no-snapshots --no-video
 ```
 
-`preview` shares generation's options and requires `--output`, but writes
+`preview` shares generation's options; `--output` is optional for `preview`
+(accepted for compatibility with `generate` flags, but not required), writes
 nothing and reports counts only. For preview rows use the GUI, library or MCP.
 `generate` enables audio, snapshots **and video clips** by default. Use
 `--no-video` for audio + snapshots; for an audio-only source supply `--audio`
