@@ -129,8 +129,8 @@
   }
 
   .confirm-modal-card {
-    background: #1e1e2e;
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: var(--surface-2);
+    border: 1px solid var(--border);
     border-radius: 12px;
     padding: 24px;
     max-width: 440px;

@@ -82,19 +82,19 @@ body,
 
 /* Modern buttons */
 .btn-primary {
-  background: #6366f1; /* Solid Indigo */
+  background: var(--accent);
   border: none;
   border-radius: 12px;
   padding: 12px 24px;
   font-weight: 600;
   transition: background-color 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
-  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
-  color: white;
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--accent) 30%, transparent);
+  color: var(--accent-text);
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: #4f46e5;
-  box-shadow: 0 4px 16px rgba(99, 102, 241, 0.5);
+  background: var(--accent-strong);
+  box-shadow: 0 4px 16px color-mix(in srgb, var(--accent) 50%, transparent);
 }
 
 .btn-primary:disabled {
@@ -118,35 +118,35 @@ body,
 }
 
 .btn-success {
-  background: #10b981; /* Solid Emerald Green */
+  background: var(--done);
   border: none;
   border-radius: 12px;
   padding: 12px 24px;
   font-weight: 600;
   transition: background-color 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
-  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--done) 30%, transparent);
   color: white;
 }
 
 .btn-success:hover:not(:disabled) {
-  background: #059669;
-  box-shadow: 0 4px 16px rgba(16, 185, 129, 0.5);
+  background: color-mix(in srgb, var(--done) 85%, black);
+  box-shadow: 0 4px 16px color-mix(in srgb, var(--done) 50%, transparent);
 }
 
 .btn-danger {
-  background: #ef4444; /* Solid Red */
+  background: var(--danger);
   border: none;
   border-radius: 12px;
   padding: 12px 24px;
   font-weight: 600;
   transition: background-color 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
-  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--danger) 30%, transparent);
   color: white;
 }
 
 .btn-danger:hover:not(:disabled) {
-  background: #dc2626;
-  box-shadow: 0 4px 16px rgba(239, 68, 68, 0.5);
+  background: color-mix(in srgb, var(--danger) 85%, black);
+  box-shadow: 0 4px 16px color-mix(in srgb, var(--danger) 50%, transparent);
 }
 
 /* Shared in-app context menus */
@@ -198,64 +198,6 @@ body,
   background: rgba(255, 255, 255, 0.1);
 }
 
-/* Shared custom checkbox row (used by AudioClipsPanel, EpisodeMediaSettingsModal) */
-.vesta-check-row {
-  align-items: center;
-  border: 1px solid rgba(148, 163, 184, 0.12);
-  border-radius: 8px;
-  cursor: pointer;
-  display: flex;
-  gap: 0.5rem;
-  min-height: 2.1rem;
-  padding: 0.4rem 0.55rem;
-  transition:
-    background-color 0.16s ease,
-    border-color 0.16s ease;
-}
-
-.vesta-check-row:hover {
-  background: rgba(148, 163, 184, 0.07);
-  border-color: rgba(148, 163, 184, 0.22);
-}
-
-.vesta-check-row:has(.vesta-check-input:checked) {
-  background: rgba(99, 102, 241, 0.1);
-  border-color: rgba(129, 140, 248, 0.32);
-}
-
-.vesta-check-input {
-  appearance: none;
-  background: rgba(15, 23, 42, 0.85);
-  border: 1px solid rgba(148, 163, 184, 0.38);
-  border-radius: 5px;
-  display: grid;
-  height: 0.95rem;
-  margin: 0;
-  place-content: center;
-  width: 0.95rem;
-}
-
-.vesta-check-input::before {
-  background: rgb(199 210 254);
-  clip-path: polygon(14% 44%, 0 60%, 40% 100%, 100% 16%, 84% 0, 38% 62%);
-  content: "";
-  height: 0.55rem;
-  opacity: 0;
-  transform: scale(0.75);
-  transition: opacity 0.12s ease, transform 0.12s ease;
-  width: 0.55rem;
-}
-
-.vesta-check-input:checked {
-  background: rgba(79, 70, 229, 0.35);
-  border-color: rgba(165, 180, 252, 0.72);
-}
-
-.vesta-check-input:checked::before {
-  opacity: 1;
-  transform: scale(1);
-}
-
 /* Modern inputs */
 .input-modern {
   background: var(--control-bg);
@@ -280,7 +222,6 @@ body,
 }
 
 /* Select fields share the surrounding surface; option menus stay opaque. */
-.select-modern,
 .searchable-select-input {
   background-image: none;
   box-shadow: none;
@@ -293,17 +234,10 @@ body,
   cursor: pointer;
 }
 
-.select-modern:focus,
 .searchable-select-input:focus {
   outline: none;
   background: var(--control-focus-bg) !important;
   border-color: var(--control-focus-border);
-}
-
-.select-modern option {
-  background: var(--control-menu-bg) !important;
-  color: white;
-  padding: 8px 12px;
 }
 
 .searchable-select-dropdown {
@@ -520,20 +454,7 @@ input[type="range"].slider-minimal:disabled::-moz-range-thumb {
   font-weight: 500;
 }
 
-.badge-primary {
-  background: rgba(102, 126, 234, 0.2);
-  color: #a5b4fc;
-}
 
-.badge-success {
-  background: rgba(56, 239, 125, 0.2);
-  color: #6ee7b7;
-}
-
-.badge-warning {
-  background: rgba(251, 191, 36, 0.2);
-  color: #fcd34d;
-}
 
 /* Animation fade-in - optimized */
 @keyframes fadeIn {
@@ -604,58 +525,6 @@ input[type="range"].slider-minimal:disabled::-moz-range-thumb {
   background: rgba(255, 255, 255, 0.1);
 }
 
-/* Log viewer */
-.log-viewer {
-  background: rgba(0, 0, 0, 0.3);
-  border-radius: 12px;
-  font-family: 'JetBrains Mono', 'Fira Code', monospace;
-  font-size: 12px;
-  line-height: 1.6;
-}
-
-/* API Key tag */
-.api-key-tag {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
-  padding: 8px 12px;
-  font-size: 13px;
-}
-
-.api-key-tag:hover {
-  background: rgba(255, 255, 255, 0.08);
-}
-
-/* Provider card */
-.provider-card {
-  position: relative;
-}
-
-/* Native language select shares the same field and menu surfaces. */
-.select-modern-styled {
-  background: var(--control-bg) !important;
-  border: 1px solid var(--control-border);
-  border-radius: 10px;
-  padding: 11px 40px 11px 14px;
-  color: white;
-  transition: border-color 0.16s ease, background-color 0.16s ease;
-}
-
-.select-modern-styled:focus {
-  outline: none;
-  background: var(--control-focus-bg) !important;
-  border-color: var(--control-focus-border);
-}
-
-.select-modern-styled option {
-  background: var(--control-menu-bg) !important;
-  color: white;
-  padding: 10px;
-}
-
 /* Keyboard key styling */
 kbd {
   font-family: 'JetBrains Mono', 'Fira Code', monospace;
@@ -724,14 +593,10 @@ kbd {
   box-shadow: none;
 }
 
-.input-modern:not(:disabled):hover,
-.select-modern:not(:disabled):hover,
-.select-modern-styled:not(:disabled):hover {
+.input-modern:not(:disabled):hover {
   background: var(--control-hover-bg);
 }
-.input-modern:focus-visible,
-.select-modern:focus-visible,
-.select-modern-styled:focus-visible {
+.input-modern:focus-visible {
   outline: 2px solid var(--control-focus-border);
   outline-offset: 2px;
 }
