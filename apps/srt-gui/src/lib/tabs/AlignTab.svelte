@@ -619,6 +619,7 @@
               disabled={!targetPath || !sourcePath}
               class="p-2.5 rounded-full border transition-colors group {(!targetPath || !sourcePath) ? 'bg-gray-900/40 text-gray-600 border-gray-800 cursor-not-allowed' : 'bg-gray-900/70 hover:bg-teal-500/20 text-gray-400 hover:text-teal-300 border-gray-700 hover:border-teal-500/50'}"
               title={t("align.swapFiles")}
+              aria-label={t("align.swapFiles")}
             >
               <svg class="w-6 h-6 {!targetPath || !sourcePath ? '' : 'group-hover:rotate-180'} transition-transform duration-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
@@ -669,11 +670,11 @@
             </div>
           </div>
           <div class="flex gap-1.5 flex-wrap xl:justify-end">
-            <button onclick={jumpStart} disabled={!isLoaded || currentPage === 0} class="btn-secondary px-3 py-1.5 disabled:opacity-50 flex items-center" title={t("align.goToStart")}>
+            <button onclick={jumpStart} disabled={!isLoaded || currentPage === 0} class="btn-secondary px-3 py-1.5 disabled:opacity-50 flex items-center" title={t("align.goToStart")} aria-label={t("align.goToStart")}>
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7" /></svg>
             </button>
             <!-- Jump to Prev Empty (orange glow) -->
-            <button onclick={jumpToPrevEmpty} disabled={!isLoaded || !hasEmptyBackward} class="btn-secondary px-3 py-1.5 disabled:opacity-30 flex items-center empty-jump-btn" title={t("align.prevEmpty")}>
+            <button onclick={jumpToPrevEmpty} disabled={!isLoaded || !hasEmptyBackward} class="btn-secondary px-3 py-1.5 disabled:opacity-30 flex items-center empty-jump-btn" title={t("align.prevEmpty")} aria-label={t("align.prevEmpty")}>
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 19l-7-7 7-7M22 19l-7-7 7-7" /></svg>
             </button>
             <button onclick={prevPage} disabled={!isLoaded || currentPage === 0} class="btn-secondary px-4 py-1.5 disabled:opacity-50 flex items-center">
@@ -685,10 +686,10 @@
               <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
             </button>
             <!-- Jump to Next Empty (orange glow) -->
-            <button onclick={jumpToNextEmpty} disabled={!isLoaded || !hasEmptyForward} class="btn-secondary px-3 py-1.5 disabled:opacity-30 flex items-center empty-jump-btn" title={t("align.nextEmpty")}>
+            <button onclick={jumpToNextEmpty} disabled={!isLoaded || !hasEmptyForward} class="btn-secondary px-3 py-1.5 disabled:opacity-30 flex items-center empty-jump-btn" title={t("align.nextEmpty")} aria-label={t("align.nextEmpty")}>
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M2 5l7 7-7 7" /></svg>
             </button>
-            <button onclick={jumpEnd} disabled={!isLoaded || currentPage >= totalPages - 1} class="btn-secondary px-3 py-1.5 disabled:opacity-50 flex items-center" title={t("align.goToEnd")}>
+            <button onclick={jumpEnd} disabled={!isLoaded || currentPage >= totalPages - 1} class="btn-secondary px-3 py-1.5 disabled:opacity-50 flex items-center" title={t("align.goToEnd")} aria-label={t("align.goToEnd")}>
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7" /></svg>
             </button>
           </div>

@@ -128,6 +128,7 @@
                 }}
                 class="text-[10px] text-gray-500 font-mono truncate hover:text-gray-300 transition-colors flex items-center gap-1"
                 title={t("settings.toggleVisibility")}
+                aria-label={t("settings.toggleVisibility")}
               >
                 {#if visibleKeyIds.has(key.id)}
                   <svg
@@ -178,6 +179,7 @@
                 }}
                 class="p-1 text-gray-500 hover:text-gray-300 transition-colors flex-shrink-0"
                 title={t("common.copy")}
+                aria-label={t("common.copy")}
               >
                 <svg
                   class="w-3 h-3"

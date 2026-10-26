@@ -234,6 +234,7 @@
             disabled={!canControlAudio}
             class="w-14 h-14 flex items-center justify-center rounded-full bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-500/30 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
             title={isPlaying ? t("sync.tooltipPause") : t("sync.tooltipPlay")}
+            aria-label={isPlaying ? t("sync.tooltipPause") : t("sync.tooltipPlay")}
           >
             {#if isPlaying}
               <svg
@@ -256,6 +257,7 @@
             disabled={!canControlAudio}
             class="w-12 h-12 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             title={t("sync.wizard.replay") + " (R)"}
+            aria-label={t("sync.wizard.replay") + " (R)"}
           >
             <svg
               class="w-6 h-6 text-cyan-400"
@@ -345,6 +347,7 @@
             disabled={!canUseCheckpoint}
             class="btn-secondary py-3 px-6 flex items-center gap-2 text-base font-medium disabled:opacity-50 disabled:cursor-not-allowed"
             title={t("sync.wizard.skip")}
+            aria-label={t("sync.wizard.skip")}
           >
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7" /></svg>
             {t("sync.wizard.skip")}

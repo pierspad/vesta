@@ -530,6 +530,7 @@
       onclick={handleCopy}
       class="absolute top-2.5 right-2.5 z-10 w-8 h-8 rounded-lg bg-gray-900/80 hover:bg-cyan-500/20 text-gray-400 hover:text-cyan-200 border border-white/10 hover:border-cyan-500/30 transition-all flex items-center justify-center cursor-pointer shadow-md opacity-60 hover:opacity-100"
       title={t("common.copy")}
+      aria-label={t("common.copy")}
     >
       {#if copied}
         <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">

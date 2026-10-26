@@ -284,6 +284,7 @@
       <div
         role="button"
         tabindex="0"
+        aria-pressed={isActive}
         onclick={() => store.handleVadModelClick(model)}
         onkeydown={(e) => {
           if (e.key === "Enter" || e.key === " ") {

@@ -588,6 +588,7 @@
         <div class="flex items-center bg-white/5 border border-white/10 rounded-lg p-0.5 shrink-0 select-none mr-0.5">
           <button
             onclick={toggleSearchMode}
+            aria-pressed={searchMode === 'text'}
             class="px-2 py-1 rounded-md text-[9px] font-bold transition-all duration-200 flex items-center gap-1 cursor-pointer
               {searchMode === 'text'
                 ? 'bg-indigo-600 text-white shadow shadow-indigo-600/20'
@@ -601,6 +602,7 @@
           </button>
           <button
             onclick={toggleSearchMode}
+            aria-pressed={searchMode === 'keys'}
             class="px-2 py-1 rounded-md text-[9px] font-bold transition-all duration-200 flex items-center gap-1 cursor-pointer
               {searchMode === 'keys'
                 ? 'bg-indigo-600 text-white shadow shadow-indigo-600/20'
