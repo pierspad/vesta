@@ -270,23 +270,14 @@ async fn run_cli(args: Vec<std::ffi::OsString>) -> Result<ExitCode> {
             .and_then(|s| s.to_str())
             .unwrap_or("subtitles");
 
-        // Rimuovi eventuale codice lingua esistente
-        let base_name = if let Some(last_dot_idx) = input_filename.rfind('.') {
-            let potential_lang = &input_filename[last_dot_idx + 1..];
-            if potential_lang.len() == 2 && potential_lang.chars().all(|c| c.is_ascii_lowercase()) {
-                input_filename[..last_dot_idx].to_string()
-            } else {
-                input_filename.to_string()
-            }
-        } else {
-            input_filename.to_string()
-        };
+        // Rimuovi eventuale codice lingua esistente (2 o 3 lettere ASCII minuscole)
+        let base_name = strip_language_suffix(input_filename);
 
         // Applica il pattern dal config
         let filename = config
             .output
             .filename_pattern
-            .replace("{input_name}", &base_name)
+            .replace("{input_name}", base_name)
             .replace("{language}", language);
 
         parent.join(filename)
@@ -536,6 +527,18 @@ fn print_language_list() {
     println!("Usage: srt-translate -i file.srt -l <code>");
 }
 
+pub(crate) fn strip_language_suffix(input_filename: &str) -> &str {
+    if let Some(last_dot_idx) = input_filename.rfind('.') {
+        let potential_lang = &input_filename[last_dot_idx + 1..];
+        if (2..=3).contains(&potential_lang.len())
+            && potential_lang.chars().all(|c| c.is_ascii_lowercase())
+        {
+            return &input_filename[..last_dot_idx];
+        }
+    }
+    input_filename
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -555,5 +558,23 @@ mod tests {
         let error = parse_config("[translation]\nbatch_size = \"private-key\"\n").unwrap_err();
         assert!(!format!("{error:#}").contains("private-key"));
         assert!(error.to_string().contains("config.toml"));
+    }
+
+    #[test]
+    fn strip_language_suffix_strips_two_and_three_letter_codes() {
+        assert_eq!(strip_language_suffix("movie.en"), "movie");
+        assert_eq!(strip_language_suffix("movie.eng"), "movie");
+        assert_eq!(strip_language_suffix("movie.it"), "movie");
+        assert_eq!(strip_language_suffix("movie.ita"), "movie");
+        assert_eq!(
+            strip_language_suffix("show.s01e01.720p.eng"),
+            "show.s01e01.720p"
+        );
+        // Non-matching suffixes are preserved
+        assert_eq!(strip_language_suffix("movie.720p"), "movie.720p");
+        assert_eq!(strip_language_suffix("movie.EN"), "movie.EN");
+        assert_eq!(strip_language_suffix("movie"), "movie");
+        assert_eq!(strip_language_suffix("movie.toolong"), "movie.toolong");
+        assert_eq!(strip_language_suffix("movie.a"), "movie.a");
     }
 }
