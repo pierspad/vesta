@@ -254,6 +254,17 @@ fn emit(
     }
 }
 
+fn load_whisper_context(
+    model_path: &str,
+) -> Result<whisper_rs::WhisperContext, whisper_rs::WhisperError> {
+    let default_params = whisper_rs::WhisperContextParameters::default();
+    whisper_rs::WhisperContext::new_with_params(model_path, default_params).or_else(|err| {
+        let mut cpu_params = whisper_rs::WhisperContextParameters::default();
+        cpu_params.use_gpu(false);
+        whisper_rs::WhisperContext::new_with_params(model_path, cpu_params).map_err(|_| err)
+    })
+}
+
 pub async fn run_auto_sync(
     config: &AutoSyncConfig,
     subtitles: Vec<SubtitleLine>,
@@ -399,11 +410,8 @@ pub async fn run_auto_sync(
         move || -> Result<(Vec<MatchCandidate>, usize, bool), String> {
             let mut all_matches: Vec<MatchCandidate> = Vec::new();
 
-            let ctx = whisper_rs::WhisperContext::new_with_params(
-                &model_path_str,
-                whisper_rs::WhisperContextParameters::default(),
-            )
-            .map_err(|e| format!("Failed to load Whisper model: {e:?}"))?;
+            let ctx = load_whisper_context(&model_path_str)
+                .map_err(|e| format!("Failed to load Whisper model: {e:?}"))?;
 
             struct SubtitleCandidate {
                 id: u32,
@@ -651,6 +659,12 @@ mod tests {
         // Intermediate value
         let mid = temporal_weight(26500); // exactly halfway between 8000 and 45000
         assert!((mid - (1.0 - 0.35 * 0.5)).abs() < 1e-6);
+    }
+
+    #[test]
+    fn test_load_whisper_context_fallback_on_invalid_path() {
+        let result = load_whisper_context("/non/existent/path/ggml-model.bin");
+        assert!(result.is_err());
     }
 }
 
