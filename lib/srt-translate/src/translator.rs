@@ -55,6 +55,125 @@ pub struct Translator {
     diagnostics: Option<Arc<dyn Fn(TranslationDiagnostic) + Send + Sync>>,
 }
 
+#[derive(Deserialize, Debug)]
+pub(crate) struct GeminiPart {
+    pub text: Option<String>,
+    #[serde(default)]
+    pub thought: Option<bool>,
+}
+
+#[derive(Deserialize, Debug)]
+pub(crate) struct GeminiContent {
+    pub parts: Option<Vec<GeminiPart>>,
+}
+
+#[derive(Deserialize, Debug)]
+pub(crate) struct GeminiCandidate {
+    pub content: Option<GeminiContent>,
+    #[serde(rename = "finishReason")]
+    pub finish_reason: Option<String>,
+}
+
+#[derive(Deserialize, Debug)]
+pub(crate) struct GeminiError {
+    pub message: Option<String>,
+    pub code: Option<i32>,
+}
+
+#[derive(Deserialize, Debug)]
+pub(crate) struct GeminiResponse {
+    pub candidates: Option<Vec<GeminiCandidate>>,
+    pub error: Option<GeminiError>,
+}
+
+pub(crate) fn extract_gemini_text(
+    response: GeminiResponse,
+    status: u16,
+) -> Result<String, ProviderError> {
+    let first_candidate = response.candidates.and_then(|c| c.into_iter().next());
+
+    let (finish_reason, text) = if let Some(candidate) = first_candidate {
+        let finish_reason = candidate.finish_reason;
+        let parts = candidate.content.and_then(|c| c.parts).unwrap_or_default();
+        let non_thought_text = parts
+            .into_iter()
+            .filter(|p| p.thought != Some(true))
+            .filter_map(|p| p.text)
+            .collect::<Vec<_>>()
+            .join("");
+        (finish_reason, non_thought_text)
+    } else {
+        (None, String::new())
+    };
+
+    let trimmed = text.trim().trim_matches('"').trim();
+    if trimmed.is_empty() {
+        if let Some(reason) = finish_reason {
+            let upper = reason.to_ascii_uppercase();
+            if upper.contains("SAFETY")
+                || upper.contains("PROHIBITED_CONTENT")
+                || upper.contains("BLOCKLIST")
+                || upper.contains("RECITATION")
+            {
+                return Err(ProviderError {
+                    provider: "Google",
+                    status,
+                    kind: ProviderFailureKind::InvalidRequest,
+                });
+            }
+        }
+        return Err(ProviderError {
+            provider: "Google",
+            status,
+            kind: ProviderFailureKind::EmptyResponse,
+        });
+    }
+
+    Ok(trimmed.to_string())
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+pub(crate) struct OpenAiMessage {
+    pub role: String,
+    pub content: String,
+}
+
+#[derive(Serialize, Debug)]
+pub(crate) struct OpenAiRequest {
+    pub model: String,
+    pub messages: Vec<OpenAiMessage>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub temperature: Option<f32>,
+}
+
+pub(crate) fn supports_custom_temperature(model: &str) -> bool {
+    let model = model.to_ascii_lowercase();
+    let name = match model.rfind('/') {
+        Some(pos) => &model[pos + 1..],
+        None => &model,
+    };
+    if name.starts_with("o1") || name.starts_with("o3") || name.starts_with("o4") {
+        return false;
+    }
+    true
+}
+
+pub(crate) fn build_openai_request(model: &str, prompt: &str) -> OpenAiRequest {
+    let temperature = if supports_custom_temperature(model) {
+        Some(0.3)
+    } else {
+        None
+    };
+    OpenAiRequest {
+        model: model.to_string(),
+        messages: vec![OpenAiMessage {
+            role: "user".to_string(),
+            content: prompt.to_string(),
+        }],
+        temperature,
+    }
+}
+
 impl Translator {
     /// Builds a translator and reports HTTP client configuration errors.
     pub fn try_new(config: TranslatorConfig) -> Result<Self, reqwest::Error> {
@@ -201,33 +320,6 @@ impl Translator {
             generation_config: GenerationConfig,
         }
 
-        #[derive(Deserialize)]
-        struct GeminiPart {
-            text: Option<String>,
-        }
-
-        #[derive(Deserialize)]
-        struct GeminiContent {
-            parts: Option<Vec<GeminiPart>>,
-        }
-
-        #[derive(Deserialize)]
-        struct GeminiCandidate {
-            content: Option<GeminiContent>,
-        }
-
-        #[derive(Deserialize)]
-        struct GeminiError {
-            message: Option<String>,
-            code: Option<i32>,
-        }
-
-        #[derive(Deserialize)]
-        struct GeminiResponse {
-            candidates: Option<Vec<GeminiCandidate>>,
-            error: Option<GeminiError>,
-        }
-
         let api_key = self
             .config
             .api_key
@@ -304,28 +396,7 @@ impl Translator {
                 .into());
             }
 
-            let text = response
-                .candidates
-                .and_then(|c| c.into_iter().next())
-                .and_then(|c| c.content)
-                .and_then(|c| c.parts)
-                .and_then(|p| p.into_iter().next())
-                .and_then(|p| p.text)
-                .ok_or_else(|| ProviderError {
-                    provider: "Google",
-                    status: status.as_u16(),
-                    kind: ProviderFailureKind::EmptyResponse,
-                })?;
-
-            let text = text.trim().trim_matches('"').trim().to_string();
-            if text.trim_matches('"').trim().is_empty() {
-                return Err(ProviderError {
-                    provider: "Google",
-                    status: status.as_u16(),
-                    kind: ProviderFailureKind::EmptyResponse,
-                }
-                .into());
-            }
+            let text = extract_gemini_text(response, status.as_u16())?;
             return Ok(text);
         }
 
@@ -336,22 +407,9 @@ impl Translator {
     }
 
     async fn call_openai_api(&self, prompt: &str) -> Result<String> {
-        #[derive(Serialize, Deserialize)]
-        struct Message {
-            role: String,
-            content: String,
-        }
-
-        #[derive(Serialize)]
-        struct Request {
-            model: String,
-            messages: Vec<Message>,
-            temperature: f32,
-        }
-
         #[derive(Deserialize)]
         struct Choice {
-            message: Message,
+            message: OpenAiMessage,
         }
 
         #[derive(Deserialize)]
@@ -371,14 +429,7 @@ impl Translator {
             self.config.base_url.trim_end_matches('/')
         );
 
-        let request = Request {
-            model: self.config.model.clone(),
-            messages: vec![Message {
-                role: "user".to_string(),
-                content: prompt.to_string(),
-            }],
-            temperature: 0.3,
-        };
+        let request = build_openai_request(&self.config.model, prompt);
 
         const MAX_RETRIES: u32 = 3;
 
@@ -668,5 +719,99 @@ Hope this helps!
     fn test_parse_json_translations_mismatched_count_errors() {
         let json = r#"[{"id":1,"text":"Only one item"}]"#;
         assert!(parse_json_translations(json, 2).is_err());
+    }
+
+    #[test]
+    fn test_gemini_thinking_model_filters_thought_parts() {
+        let json = r#"{
+            "candidates": [
+                {
+                    "content": {
+                        "parts": [
+                            {
+                                "text": "Analyzing the nuance of the source phrase...\nI should output only the Italian translation.",
+                                "thought": true
+                            },
+                            {
+                                "text": "Ciao mondo"
+                            }
+                        ]
+                    },
+                    "finishReason": "STOP"
+                }
+            ]
+        }"#;
+
+        let response: GeminiResponse = serde_json::from_str(json).unwrap();
+        let extracted = extract_gemini_text(response, 200).unwrap();
+        assert_eq!(extracted, "Ciao mondo");
+    }
+
+    #[test]
+    fn test_gemini_safety_block_without_text_reports_invalid_request() {
+        let json = r#"{
+            "candidates": [
+                {
+                    "content": {
+                        "parts": [
+                            {
+                                "text": "Thinking...",
+                                "thought": true
+                            }
+                        ]
+                    },
+                    "finishReason": "SAFETY"
+                }
+            ]
+        }"#;
+
+        let response: GeminiResponse = serde_json::from_str(json).unwrap();
+        let err = extract_gemini_text(response, 200).unwrap_err();
+        assert_eq!(err.kind, ProviderFailureKind::InvalidRequest);
+    }
+
+    #[test]
+    fn test_openai_reasoning_models_omit_temperature_and_standard_include() {
+        for reasoning_model in [
+            "o1",
+            "o1-mini",
+            "o1-preview",
+            "o3-mini",
+            "o4-mini",
+            "openai/o1-mini",
+            "openai/o3-mini",
+            "openai/o4-mini",
+            "OPENAI/O1-MINI",
+        ] {
+            assert!(
+                !supports_custom_temperature(reasoning_model),
+                "Reasoning model {reasoning_model} should not support custom temperature"
+            );
+            let req = build_openai_request(reasoning_model, "Translate this text");
+            let json = serde_json::to_string(&req).unwrap();
+            assert!(
+                !json.contains("\"temperature\""),
+                "Model {reasoning_model} must omit temperature from request body: {json}"
+            );
+        }
+
+        for standard_model in [
+            "gpt-4o-mini",
+            "gpt-4.1-mini",
+            "gpt-5.1",
+            "openai/gpt-4o-mini",
+            "deepseek/deepseek-chat",
+        ] {
+            assert!(
+                supports_custom_temperature(standard_model),
+                "Standard model {standard_model} should support custom temperature"
+            );
+            let req = build_openai_request(standard_model, "Translate this text");
+            let json = serde_json::to_string(&req).unwrap();
+            assert!(
+                json.contains("\"temperature\":0.3"),
+                "Standard model {standard_model} must include temperature 0.3: {json}"
+            );
+        }
     }
 }
