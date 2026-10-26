@@ -6,5 +6,3 @@ pub mod types {
 }
 
 pub use commands::*;
-#[allow(unused_imports)]
-pub use srt_flashcards::*;

@@ -1,6 +1,7 @@
 use sha2::{Digest, Sha256};
 use std::path::PathBuf;
 
+use vesta_lib::commands::flashcards::types::*;
 use vesta_lib::commands::flashcards::*;
 
 fn fixtures_dir() -> PathBuf {
