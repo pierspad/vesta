@@ -20,11 +20,14 @@
   import { aiStore } from "$lib/stores/aiStore.svelte";
   import { getShortcuts } from "$lib/utils/shortcuts";
   import * as vestaConfig from "$lib/config/vestaConfig";
+  import { pluginsStore } from "$lib/stores/pluginsStore.svelte";
+  import PluginRenderer from "$lib/components/PluginRenderer.svelte";
 
-  type AppTab = "translate" | "sync" | "transcribe" | "align" | "flashcards" | "settings" | "refine" | "extract" | "experimental";
+  type BuiltinTab = "translate" | "sync" | "transcribe" | "align" | "flashcards" | "settings" | "refine" | "extract" | "experimental" | "plugins";
+  type AppTab = BuiltinTab | (string & {});
 
   type LazyComponent = Component<any>;
-  const tabLoaders: Record<AppTab, () => Promise<{ default: LazyComponent }>> = {
+  const tabLoaders: Record<BuiltinTab, () => Promise<{ default: LazyComponent }>> = {
     flashcards: () => import("$lib/tabs/FlashcardsTab.svelte"),
     refine: () => import("$lib/tabs/RefineTab.svelte"),
     translate: () => import("$lib/tabs/TranslateTab.svelte"),
@@ -34,13 +37,14 @@
     extract: () => Promise.resolve({ default: ExtractTabComponent }),
     experimental: () => import("$lib/tabs/ExperimentalTab.svelte"),
     settings: () => import("$lib/tabs/SettingsTab.svelte"),
+    plugins: () => import("$lib/tabs/PluginsTab.svelte"),
   };
   // The lightweight extraction shell is ready on the first tab switch.
-  let loadedTabs = $state<Partial<Record<AppTab, LazyComponent>>>({ extract: ExtractTabComponent });
-  let tabLoadErrors = $state<Partial<Record<AppTab, string>>>({});
+  let loadedTabs = $state<Partial<Record<BuiltinTab, LazyComponent>>>({ extract: ExtractTabComponent });
+  let tabLoadErrors = $state<Partial<Record<BuiltinTab, string>>>({});
   let firstRunSetupModal = $state<LazyComponent | null>(null);
 
-  const ensureTabLoaded = createTabLoader<AppTab, LazyComponent>({
+  const ensureTabLoaded = createTabLoader<BuiltinTab, LazyComponent>({
     loaders: tabLoaders,
     getLoaded: () => loadedTabs,
     setLoaded: (tab, component) => { loadedTabs[tab] = component; },
@@ -61,7 +65,9 @@
   );
 
   $effect(() => {
-    void ensureTabLoaded(activeTab);
+    if (activeTab in tabLoaders) {
+      void ensureTabLoaded(activeTab as BuiltinTab);
+    }
   });
 
   $effect(() => {
@@ -345,8 +351,9 @@
 
   // Enforce minimum window size at runtime (Linux WMs may ignore config)
   onMount(() => {
+    void pluginsStore.init();
     const appWindow = getCurrentWindow();
-    const stopPreloading = preloadTabs<AppTab>(["settings", "translate", "sync", "transcribe", "refine", "align", "experimental"], ensureTabLoaded, (callback) => {
+    const stopPreloading = preloadTabs<BuiltinTab>(["settings", "translate", "sync", "transcribe", "refine", "align", "experimental", "plugins"], ensureTabLoaded, (callback) => {
       if ("requestIdleCallback" in window) {
         const id = window.requestIdleCallback(callback, { timeout: 200 });
         return () => window.cancelIdleCallback(id);
@@ -361,6 +368,11 @@
     window.addEventListener("keydown", handleKeyDown);
     window.addEventListener("shortcuts-updated", reloadShortcuts);
 
+    const handlePluginFlashcards = () => {
+      changeTab("flashcards");
+    };
+    window.addEventListener("vesta-plugin-open-flashcards", handlePluginFlashcards);
+
     const handleWindowResize = () => {
       if (window.innerWidth < MIN_WIDTH) return;
       applyResponsiveSidebar(window.innerWidth);
@@ -374,6 +386,7 @@
       stopManagingWindowSize();
       window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("shortcuts-updated", reloadShortcuts);
+      window.removeEventListener("vesta-plugin-open-flashcards", handlePluginFlashcards);
       window.removeEventListener("resize", handleWindowResize);
     };
   });
@@ -417,7 +430,7 @@
   ondragover={(e) => { e.preventDefault(); if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy'; }}
   ondrop={(e) => e.preventDefault()}
 >
-  <Sidebar onSettingsAction={goToSettings} {activeTab} onTabChange={changeTab} onTabPreload={(tab) => void ensureTabLoaded(tab)} collapsed={sidebarCollapsed} onToggleCollapse={toggleSidebar} bind:settingsSection={requestedSettingsSection} {lastActiveMainTab} />
+  <Sidebar onSettingsAction={goToSettings} {activeTab} onTabChange={changeTab} onTabPreload={(tab) => { if (tab in tabLoaders) void ensureTabLoaded(tab as BuiltinTab); }} collapsed={sidebarCollapsed} onToggleCollapse={toggleSidebar} bind:settingsSection={requestedSettingsSection} {lastActiveMainTab} />
 
   <!-- Main Content - use CSS visibility to preserve state -->
   <div class="flex-1 overflow-hidden relative">
@@ -457,11 +470,22 @@
       {@const SettingsTab = loadedTabs.settings}
       <div class="absolute inset-0" class:hidden={activeTab !== "settings"}><SettingsTab active={activeTab === "settings"} bind:requestedSection={requestedSettingsSection} bind:highlightItemId={highlightItemId} /></div>
     {/if}
-    {#if !loadedTabs[activeTab]}
+    {#if loadedTabs.plugins}
+      {@const PluginsTab = loadedTabs.plugins}
+      <div class="absolute inset-0" class:hidden={activeTab !== "plugins"}><PluginsTab active={activeTab === "plugins"} onGoToTab={changeTab} /></div>
+    {/if}
+    {#if activeTab.startsWith("plugin:")}
+      {@const pluginId = activeTab.slice(7)}
+      <div class="absolute inset-0">
+        <PluginRenderer {pluginId} active={true} />
+      </div>
+    {/if}
+    {#if (activeTab in tabLoaders) && !loadedTabs[activeTab as BuiltinTab]}
+      {@const currentBuiltinTab = activeTab as BuiltinTab}
       <div class="absolute inset-0 flex flex-col items-center justify-center gap-3 text-sm text-gray-500">
-        {#if tabLoadErrors[activeTab]}
+        {#if tabLoadErrors[currentBuiltinTab]}
           <p>{t("common.loadFailed")}</p>
-          <button class="btn-secondary px-4 py-2" onclick={() => void ensureTabLoaded(activeTab)}>{t("common.retry")}</button>
+          <button class="btn-secondary px-4 py-2" onclick={() => void ensureTabLoaded(currentBuiltinTab)}>{t("common.retry")}</button>
         {:else}
           <p>{t("common.loading")}</p>
         {/if}
