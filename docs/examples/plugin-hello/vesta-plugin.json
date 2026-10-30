@@ -1,0 +1,32 @@
+{
+  "id": "plugin-hello",
+  "name": "Hello Counter",
+  "version": "1.0.0",
+  "apiVersion": 1,
+  "description": "Demonstrates declarative widgets, events, counters, and JSON-RPC in Vesta",
+  "author": "Example Developer",
+  "entry": {
+    "command": ["python3", "main.py"],
+    "os": {
+      "windows": ["python", "main.py"]
+    }
+  },
+  "permissions": ["network"],
+  "tab": {
+    "title": "Hello Counter",
+    "icon": "puzzle"
+  },
+  "settings": [
+    {
+      "id": "welcomePrefix",
+      "label": "Welcome Prefix",
+      "type": "text",
+      "description": "Greeting prefix shown on the main screen",
+      "defaultValue": "Welcome",
+      "link": {
+        "label": "Example Documentation",
+        "url": "https://example.com/docs"
+      }
+    }
+  ]
+}
