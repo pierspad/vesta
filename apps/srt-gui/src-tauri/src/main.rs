@@ -5,6 +5,7 @@ use std::sync::Mutex;
 mod commands;
 mod media_range;
 mod media_stream;
+mod plugins;
 mod state;
 
 use axum::{
@@ -74,6 +75,7 @@ use commands::extract::*;
 use commands::flashcards::*;
 use commands::info::*;
 use commands::net::*;
+use commands::plugins::*;
 use commands::refine::*;
 use commands::support_logs::*;
 use commands::sync::*;
@@ -146,6 +148,12 @@ fn main() -> std::process::ExitCode {
         .manage(Mutex::new(RefineState::default()) as AppRefineState)
         .manage(commands::config::ConfigState::default())
         .manage(commands::flashcards::preview::PreviewWorkspace::default())
+        .manage(std::sync::Arc::new(plugins::PluginManager::new(
+            dirs::data_dir()
+                .unwrap_or_else(std::env::temp_dir)
+                .join("vesta")
+                .join("plugins"),
+        )) as AppPluginState)
         .manage(MediaServerInfo {
             port,
             token: media_token,
@@ -335,6 +343,17 @@ fn main() -> std::process::ExitCode {
             config_replace_all,
             config_reset_installation,
             flashcard_media_duration,
+            plugin_inspect,
+            plugin_install,
+            plugin_list,
+            plugin_enable,
+            plugin_disable,
+            plugin_uninstall,
+            plugin_update,
+            plugin_get_settings,
+            plugin_save_settings,
+            plugin_render,
+            plugin_dispatch_event,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

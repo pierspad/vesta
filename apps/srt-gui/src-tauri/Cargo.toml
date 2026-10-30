@@ -33,6 +33,9 @@ sysinfo = "0.39"
 reqwest = { workspace = true }
 sha2 = "0.11"
 chrono = { version = "0.4", default-features = false, features = ["clock"] }
+flate2 = "1.1"
+tar = "0.4"
+zip = "9"
 
 # Dipendenze dal workspace
 srt-parser = { workspace = true }

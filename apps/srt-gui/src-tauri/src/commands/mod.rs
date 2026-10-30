@@ -17,3 +17,4 @@ pub mod support_logs;
 pub mod updates;
 
 pub mod media;
+pub mod plugins;

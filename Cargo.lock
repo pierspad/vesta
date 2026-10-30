@@ -6073,6 +6073,7 @@ dependencies = [
  "chrono",
  "dirs 6.0.0",
  "ffmpeg-sidecar",
+ "flate2",
  "reqwest",
  "serde",
  "serde_json",
@@ -6087,6 +6088,7 @@ dependencies = [
  "srt-transcribe",
  "srt-translate",
  "sysinfo",
+ "tar",
  "tauri",
  "tauri-build",
  "tauri-plugin-clipboard-manager",
@@ -6101,6 +6103,7 @@ dependencies = [
  "urlencoding",
  "vesta-cli",
  "webkit2gtk",
+ "zip",
 ]
 
 [[package]]
