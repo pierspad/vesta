@@ -77,12 +77,14 @@ pub async fn plugin_render(
     screen: Option<String>,
     params: Option<serde_json::Value>,
     locale: Option<String>,
+    expert_mode: Option<bool>,
 ) -> Result<serde_json::Value, String> {
     let screen_name = screen.unwrap_or_else(|| "main".to_string());
     let params_val = params.unwrap_or(serde_json::Value::Null);
     let loc = locale.unwrap_or_else(|| "en".to_string());
+    let is_expert = expert_mode.unwrap_or(false);
     state
-        .render(Some(app), &plugin_id, &screen_name, params_val, &loc)
+        .render(Some(app), &plugin_id, &screen_name, params_val, &loc, is_expert)
         .await
 }
 
@@ -93,9 +95,11 @@ pub async fn plugin_dispatch_event(
     plugin_id: String,
     event: PluginEventPayload,
     locale: Option<String>,
+    expert_mode: Option<bool>,
 ) -> Result<serde_json::Value, String> {
     let loc = locale.unwrap_or_else(|| "en".to_string());
+    let is_expert = expert_mode.or(event.expert_mode).unwrap_or(false);
     state
-        .dispatch_event(Some(app), &plugin_id, &event, &loc)
+        .dispatch_event(Some(app), &plugin_id, &event, &loc, is_expert)
         .await
 }

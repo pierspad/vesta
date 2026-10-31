@@ -9,6 +9,7 @@ export interface PluginSettingField {
   hint?: string | { text?: string; link?: { label: string; url: string } };
   helpText?: string;
   link?: { label: string; url: string };
+  expertOnly?: boolean;
 }
 
 export interface PluginTab {
@@ -72,6 +73,7 @@ export interface PluginEventPayload {
   widgetId: string;
   eventType: string;
   values: Record<string, any>;
+  expertMode?: boolean;
 }
 
 export interface PluginPatch {
@@ -109,6 +111,9 @@ export interface BaseWidget {
   type: WidgetType;
   id?: string;
   hidden?: boolean;
+  expertOnly?: boolean;
+  width?: string | number;
+  flex?: number;
 }
 
 export interface ColumnWidget extends BaseWidget {
@@ -328,12 +333,14 @@ export async function pluginRender(
   screen?: string,
   params?: any,
   locale?: string,
+  expertMode?: boolean,
 ): Promise<{ root?: WidgetNode; [key: string]: any }> {
   return invokeCommand<{ root?: WidgetNode; [key: string]: any }>("plugin_render", {
     pluginId,
     screen,
     params,
     locale,
+    expertMode,
   });
 }
 
@@ -341,10 +348,12 @@ export async function pluginDispatchEvent(
   pluginId: string,
   event: PluginEventPayload,
   locale?: string,
+  expertMode?: boolean,
 ): Promise<{ root?: WidgetNode; [key: string]: any }> {
   return invokeCommand<{ root?: WidgetNode; [key: string]: any }>("plugin_dispatch_event", {
     pluginId,
     event,
     locale,
+    expertMode,
   });
 }

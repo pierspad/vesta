@@ -36,6 +36,8 @@ pub struct PluginEventPayload {
     pub event_type: String,
     #[serde(default)]
     pub values: serde_json::Value,
+    #[serde(default)]
+    pub expert_mode: Option<bool>,
 }
 
 pub struct PluginManager {
@@ -251,6 +253,7 @@ impl PluginManager {
         screen: &str,
         params: serde_json::Value,
         locale: &str,
+        expert_mode: bool,
     ) -> Result<serde_json::Value, String> {
         let (manifest, settings) = {
             let reg = self.registry.lock().await;
@@ -273,10 +276,10 @@ impl PluginManager {
 
         let process = self
             .runtime
-            .ensure_running(&manifest, &plugin_dir, app_handle, locale, &settings)
+            .ensure_running(&manifest, &plugin_dir, app_handle, locale, &settings, expert_mode)
             .await?;
 
-        self.runtime.render(&process, screen, params).await
+        self.runtime.render(&process, screen, params, expert_mode).await
     }
 
     /// Dispatches an event (click, change, etc.) to the plugin.
@@ -286,6 +289,7 @@ impl PluginManager {
         plugin_id: &str,
         event: &PluginEventPayload,
         locale: &str,
+        expert_mode: bool,
     ) -> Result<serde_json::Value, String> {
         let (manifest, settings) = {
             let reg = self.registry.lock().await;
@@ -301,7 +305,7 @@ impl PluginManager {
         let plugin_dir = self.plugins_dir().join(plugin_id);
         let process = self
             .runtime
-            .ensure_running(&manifest, &plugin_dir, app_handle, locale, &settings)
+            .ensure_running(&manifest, &plugin_dir, app_handle, locale, &settings, expert_mode)
             .await?;
 
         let screen_name = event.screen.as_deref().unwrap_or("main");
@@ -313,6 +317,7 @@ impl PluginManager {
                 &event.widget_id,
                 &event.event_type,
                 event.values.clone(),
+                expert_mode,
             )
             .await
     }

@@ -3,6 +3,7 @@ import { mount, tick, unmount } from "svelte";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import PluginRenderer from "./PluginRenderer.svelte";
 import type { WidgetNode } from "$lib/services/pluginClient";
+import { uiMode } from "$lib/stores/uiModeStore.svelte";
 
 const mockDispatch = vi.fn();
 const mockRender = vi.fn();
@@ -225,7 +226,8 @@ it("dispatches actions with current screen values when a button is clicked", asy
         hd_only: false,
       }),
     }),
-    expect.any(String)
+    expect.any(String),
+    expect.any(Boolean),
   );
 
   await vi.waitFor(() => {
@@ -364,4 +366,55 @@ it("applies dynamic ui.update patches to modify elements and visibility", async 
     // Button hidden
     expect(target.querySelector("#widget-toggle_btn")).toBeNull();
   });
+});
+
+it("hides expertOnly widgets in easy mode and reveals them when expertMode is enabled", async () => {
+  uiMode.expertMode = false;
+  const schema: WidgetNode = {
+    type: "column",
+    children: [
+      {
+        type: "text",
+        id: "standard_text",
+        text: "Standard Setting",
+      },
+      {
+        type: "text",
+        id: "expert_text",
+        text: "Advanced Expert Tuning",
+        expertOnly: true,
+      },
+    ],
+  };
+
+  const target = document.createElement("div");
+  document.body.append(target);
+
+  components.push(
+    mount(PluginRenderer, {
+      target,
+      props: {
+        pluginId: "expert-test-plugin",
+        screen: "main",
+        active: true,
+        initialRoot: schema,
+      },
+    })
+  );
+
+  await tick();
+
+  // In easy mode, expertOnly is hidden
+  expect(target.textContent).toContain("Standard Setting");
+  expect(target.textContent).not.toContain("Advanced Expert Tuning");
+
+  // Toggle expertMode on
+  uiMode.expertMode = true;
+  await tick();
+
+  // In expert mode, expertOnly is visible
+  expect(target.textContent).toContain("Advanced Expert Tuning");
+
+  // Clean up uiMode
+  uiMode.expertMode = false;
 });

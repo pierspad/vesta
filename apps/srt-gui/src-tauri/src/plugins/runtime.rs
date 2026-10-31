@@ -111,6 +111,7 @@ impl PluginRuntimeManager {
         app_handle: Option<AppHandle>,
         locale: &str,
         settings: &HashMap<String, serde_json::Value>,
+        expert_mode: bool,
     ) -> Result<Arc<ActivePluginProcess>, String> {
         let mut procs = self.processes.lock().await;
 
@@ -279,6 +280,7 @@ impl PluginRuntimeManager {
             "dataDir": data_dir.to_string_lossy(),
             "locale": locale,
             "settings": settings,
+            "expertMode": expert_mode,
         });
 
         let init_res =
@@ -430,11 +432,12 @@ impl PluginRuntimeManager {
         process: &ActivePluginProcess,
         screen: &str,
         params: serde_json::Value,
+        expert_mode: bool,
     ) -> Result<serde_json::Value, String> {
         Self::send_raw_request(
             process,
             "render",
-            serde_json::json!({ "screen": screen, "params": params }),
+            serde_json::json!({ "screen": screen, "params": params, "expertMode": expert_mode }),
             Duration::from_secs(15),
         )
         .await
@@ -448,6 +451,7 @@ impl PluginRuntimeManager {
         widget_id: &str,
         event_type: &str,
         values: serde_json::Value,
+        expert_mode: bool,
     ) -> Result<serde_json::Value, String> {
         {
             let mut vals = process.latest_values.lock().await;
@@ -462,6 +466,7 @@ impl PluginRuntimeManager {
                 "widgetId": widget_id,
                 "type": event_type,
                 "values": values,
+                "expertMode": expert_mode,
             }),
             Duration::from_secs(30),
         )
