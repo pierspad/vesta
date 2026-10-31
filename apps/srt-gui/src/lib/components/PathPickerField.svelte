@@ -17,6 +17,9 @@
     browseLabel?: string;
     required?: boolean;
     labelIcon?: string;
+    inputClass?: string;
+    clearButtonClass?: string;
+    containerClass?: string;
   }
 
   let {
@@ -33,11 +36,14 @@
     browseLabel,
     required = false,
     labelIcon = "",
+    inputClass = undefined,
+    clearButtonClass = undefined,
+    containerClass = "",
   }: Props = $props();
   let effectiveBrowseLabel = $derived(browseLabel ?? t("flashcards.browse"));
 </script>
 
-<div>
+<div class={containerClass}>
   {#if label}
     <span class="flex items-center gap-1.5 text-xs text-gray-400 mb-1 font-medium">
       {#if labelIcon}
@@ -51,14 +57,14 @@
       {/if}
     </span>
   {/if}
-  <div class="flex gap-2">
+  <div class="flex gap-2 items-center">
     <button
       type="button"
       onclick={onexpand}
       disabled={disabled || !onexpand}
-      class="input-modern flex-1 text-sm text-left transition-colors truncate disabled:opacity-50 {onexpand
-        ? 'cursor-pointer disabled:cursor-not-allowed'
-        : 'cursor-default disabled:opacity-100'}"
+      class={inputClass
+        ? `${inputClass} flex-1 text-sm text-left transition-colors truncate disabled:opacity-50 ${onexpand ? 'cursor-pointer disabled:cursor-not-allowed' : 'cursor-default disabled:opacity-100'}`
+        : `input-modern flex-1 text-sm text-left transition-colors truncate disabled:opacity-50 ${onexpand ? 'cursor-pointer disabled:cursor-not-allowed' : 'cursor-default disabled:opacity-100'}`}
       style="direction: rtl; text-align: left;"
       title={value || placeholder}
     >
@@ -101,7 +107,7 @@
         type="button"
         onclick={onclear}
         disabled={disabled || !value}
-        class="inline-flex py-2 px-3 flex-shrink-0 items-center justify-center rounded-lg border transition-colors cursor-pointer disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-white/5 disabled:text-gray-600 disabled:opacity-60 border-red-500/30 bg-red-500/10 text-red-300 hover:border-red-400/60 hover:bg-red-500/20"
+        class={clearButtonClass || "inline-flex py-2 px-3 flex-shrink-0 items-center justify-center rounded-lg border transition-colors cursor-pointer disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-white/5 disabled:text-gray-600 disabled:opacity-60 border-red-500/30 bg-red-500/10 text-red-300 hover:border-red-400/60 hover:bg-red-500/20"}
         title={t("settings.remove")}
         aria-label={t("settings.remove")}
       >

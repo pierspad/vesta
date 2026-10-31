@@ -233,3 +233,40 @@ it("switches to embedded view with Back button and header bar when opened", asyn
   await tick();
   expect(navigatedTab).toBe("plugins");
 });
+
+it("renders custom image icon when iconUrl is present", async () => {
+  const target = document.createElement("div");
+  document.body.appendChild(target);
+
+  pluginsStore.plugins = [
+    {
+      id: "icon-plugin",
+      name: "Custom Icon Plugin",
+      version: "1.0.0",
+      description: "Plugin with custom icon",
+      enabled: true,
+      sourceUrl: "/path/to/icon-plugin",
+      installedAt: "2026-10-31T12:00:00Z",
+      iconUrl: "data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=",
+      manifest: {
+        id: "icon-plugin",
+        name: "Custom Icon Plugin",
+        version: "1.0.0",
+        apiVersion: 1,
+        entry: { command: ["python3", "main.py"] },
+        permissions: [],
+      },
+      settings: {},
+    },
+  ];
+
+  const component = mount(PluginsTab, {
+    target,
+    props: { active: true },
+  });
+  components.push(component);
+  await tick();
+
+  const iconImg = target.querySelector('img[src="data:image/svg+xml;base64,PHN2Zz48L3N2Zz4="]') as HTMLImageElement;
+  expect(iconImg).not.toBeNull();
+});

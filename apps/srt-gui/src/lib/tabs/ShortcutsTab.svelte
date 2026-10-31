@@ -501,32 +501,36 @@
     <!-- Right side: Unified Search Panel -->
     <div class="flex items-center gap-3 shrink-0">
       <!-- Unified Search Container -->
-      <div class="flex items-center bg-white/5 border rounded-xl p-0.5 transition-all w-96 relative
-        {isListeningForSearchKeys ? 'border-indigo-500/50 ring-1 ring-indigo-500/30 bg-indigo-500/5' : 'border-white/10 focus-within:border-indigo-500/50 focus-within:ring-1 focus-within:ring-indigo-500/30'}"
+      <div class="flex items-center h-9 bg-white/[0.04] border rounded-xl px-1 transition-colors w-96 relative
+        {isListeningForSearchKeys ? 'border-indigo-500/60 ring-1 ring-indigo-500/40 bg-indigo-500/10' : 'border-white/10 focus-within:border-indigo-500/60 focus-within:ring-1 focus-within:ring-indigo-500/40 focus-within:bg-white/[0.06]'}"
       >
         <!-- Search Icon (Left) -->
-        <div class="pl-2.5 pr-2 flex items-center justify-center shrink-0">
-          <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+        <div class="pointer-events-none pl-2 pr-1.5 flex items-center justify-center shrink-0">
+          <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
         </div>
 
         <!-- Middle input area -->
-        <div class="flex-1 min-w-0 pr-8 relative">
+        <div class="flex-1 min-w-0 pr-7 relative">
           {#if searchMode === "text"}
             <input
               type="text"
               bind:value={searchQuery}
               placeholder={labels.textPlaceholder}
-              class="w-full h-8 py-0 bg-transparent border-0 text-sm text-white focus:outline-none placeholder-gray-500"
+              class="w-full h-8 py-0 bg-transparent border-0 text-xs text-white focus:outline-none placeholder-gray-500"
             />
             {#if searchQuery}
               <button
+                type="button"
                 onclick={() => (searchQuery = "")}
-                class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white transition-colors"
+                class="absolute right-1 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors p-1 rounded cursor-pointer leading-none z-10 flex items-center justify-center text-sm"
                 aria-label={t("common.clearField")}
+                title={t("common.clearField")}
               >
-                ✕
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
               </button>
             {/if}
           {:else}
@@ -541,7 +545,7 @@
                   startSearchKeysListening();
                 }
               }}
-              class="w-full h-8 py-0 text-sm text-white flex items-center cursor-pointer select-none"
+              class="w-full h-8 py-0 text-xs text-white flex items-center cursor-pointer select-none"
             >
               <div class="flex-1 flex flex-wrap items-center gap-1 min-w-0">
                 {#if searchKeys.length > 0}
@@ -563,21 +567,25 @@
                     type="text"
                     readonly
                     placeholder={isListeningForSearchKeys ? labels.pressKeys : labels.keysPlaceholder}
-                    class="w-full h-8 py-0 bg-transparent border-0 text-sm focus:outline-none cursor-pointer select-none pointer-events-none
+                    class="w-full h-8 py-0 bg-transparent border-0 text-xs focus:outline-none cursor-pointer select-none pointer-events-none
                       {isListeningForSearchKeys ? 'placeholder-indigo-400 font-medium animate-pulse' : 'placeholder-gray-500'}"
                   />
                 {/if}
               </div>
               {#if searchKeys.length > 0 || isListeningForSearchKeys}
                 <button
+                  type="button"
                   onclick={(e) => {
                     e.stopPropagation();
                     clearSearchKeys();
                   }}
-                  class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white transition-colors"
+                  class="absolute right-1 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors p-1 rounded cursor-pointer leading-none z-10 flex items-center justify-center text-sm"
                   aria-label={t("common.clearField")}
+                  title={t("common.clearField")}
                 >
-                  ✕
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
                 </button>
               {/if}
             </div>

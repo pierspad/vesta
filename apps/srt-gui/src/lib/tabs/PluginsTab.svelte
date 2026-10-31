@@ -8,7 +8,8 @@
   import PluginRenderer from "$lib/components/PluginRenderer.svelte";
   import MarkdownContent from "$lib/components/MarkdownContent.svelte";
   import PathPickerField from "$lib/components/PathPickerField.svelte";
-  import type { InstalledPlugin, PluginInspectResult } from "$lib/services/pluginClient";
+  import SearchInput from "$lib/components/SearchInput.svelte";
+  import type { InstalledPlugin, PluginInspectResult, PluginManifest } from "$lib/services/pluginClient";
 
   interface Props {
     active?: boolean;
@@ -48,13 +49,27 @@
   let showSdkModal = $state(false);
   let selectedPluginScreen = $state<string>("main");
 
+  function getPluginImageSrc(manifest?: PluginManifest, iconUrl?: string): string | null {
+    if (iconUrl) return iconUrl;
+    const raw = manifest?.icon || manifest?.tab?.icon;
+    if (raw && (raw.startsWith("data:image/") || raw.startsWith("https://") || raw.startsWith("http://") || raw.startsWith("/"))) {
+      return raw;
+    }
+    return null;
+  }
+
   const SDK_GUIDE_MARKDOWN = `# Vesta Plugin System & SDK Contract (v1)
 
 Plugins in Vesta are **100% Vesta-agnostic** child processes communicating over **JSON-RPC 2.0 via standard input/output (stdio)**.
 
 As long as Vesta honors this v1 contract, Vesta's internal GUI and Rust core can evolve freely without breaking third-party plugins.
 
-## 1. Host Context & Properties Provided by Vesta
+## 1. Plugin Manifest & Visual Customization
+Every plugin declares a \`vesta-plugin.json\` manifest with \`id\`, \`name\`, \`version\`, \`apiVersion: 1\`, and process execution \`entry\`.
+- \`icon\`: Top-level image or icon specification. Supports named monochrome icons (\`"puzzle"\`, \`"film"\`, \`"search"\`), relative image files within the plugin repository (\`"icon.svg"\`, \`"icon.png"\`, \`"icon.webp"\`, \`"assets/logo.svg"\`, max 512 KB), or \`data:image/...\` / \`https://\` URIs.
+- \`tab\`: Visual metadata for the plugin header and card (\`{ title: string, icon?: string }\`).
+
+## 2. Host Context & Properties Provided by Vesta
 On \`initialize\`, \`render\`, and \`event\`, Vesta automatically passes:
 - \`apiVersion\`: \`1\`
 - \`dataDir\`: Dedicated persistent directory for the plugin (\`<app_data>/plugins/installed/<id>/data\`)
@@ -258,10 +273,12 @@ Every widget supports \`id\`, \`hidden\`, \`expertOnly\` (auto-hidden when Exper
         <div class="h-5 w-px bg-white/10 shrink-0"></div>
 
         <div class="flex items-center gap-2.5 min-w-0">
-          <div class="w-7 h-7 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center shrink-0">
-            {#if currentPlugin.manifest.tab?.icon === "film"}
+          <div class="w-7 h-7 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center shrink-0 overflow-hidden">
+            {#if getPluginImageSrc(currentPlugin.manifest, currentPlugin.iconUrl)}
+              <img src={getPluginImageSrc(currentPlugin.manifest, currentPlugin.iconUrl)} alt="" class="w-full h-full object-contain rounded-lg" />
+            {:else if currentPlugin.manifest.tab?.icon === "film" || currentPlugin.manifest.icon === "film"}
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z"/></svg>
-            {:else if currentPlugin.manifest.tab?.icon === "search"}
+            {:else if currentPlugin.manifest.tab?.icon === "search" || currentPlugin.manifest.icon === "search"}
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
             {:else}
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 00-1-1H4a2 2 0 110-4h1a1 1 0 001-1V7a1 1 0 011-1h3a1 1 0 001-1V4z"/></svg>
@@ -297,14 +314,14 @@ Every widget supports \`id\`, \`hidden\`, \`expertOnly\` (auto-hidden when Exper
             <button
               type="button"
               onclick={() => installMode = "repo"}
-              class="px-3 py-1.5 rounded-lg font-semibold transition-all cursor-pointer {installMode === 'repo' ? 'bg-white/15 text-white shadow-sm' : 'text-gray-400 hover:text-gray-200 hover:bg-white/5'}"
+              class="px-3 py-1.5 rounded-lg font-semibold transition-colors cursor-pointer {installMode === 'repo' ? 'bg-white/15 text-white shadow-sm' : 'text-gray-400 hover:text-gray-200 hover:bg-white/5'}"
             >
               {t("plugins.modeRepo")}
             </button>
             <button
               type="button"
               onclick={() => installMode = "folder"}
-              class="px-3 py-1.5 rounded-lg font-semibold transition-all cursor-pointer {installMode === 'folder' ? 'bg-white/15 text-white shadow-sm' : 'text-gray-400 hover:text-gray-200 hover:bg-white/5'}"
+              class="px-3 py-1.5 rounded-lg font-semibold transition-colors cursor-pointer {installMode === 'folder' ? 'bg-white/15 text-white shadow-sm' : 'text-gray-400 hover:text-gray-200 hover:bg-white/5'}"
             >
               {t("plugins.modeFolder")}
             </button>
@@ -312,7 +329,7 @@ Every widget supports \`id\`, \`hidden\`, \`expertOnly\` (auto-hidden when Exper
         </div>
 
         {#if installMode === "repo"}
-          <div class="flex flex-col sm:flex-row gap-3 items-center">
+          <div class="h-10 min-h-[40px] flex flex-col sm:flex-row gap-3 items-center">
             <input
               type="text"
               placeholder="https://github.com/owner/repository"
@@ -334,8 +351,8 @@ Every widget supports \`id\`, \`hidden\`, \`expertOnly\` (auto-hidden when Exper
             </button>
           </div>
         {:else}
-          <div class="flex flex-col sm:flex-row gap-3 items-center">
-            <div class="flex-1 w-full">
+          <div class="h-10 min-h-[40px] flex flex-col sm:flex-row gap-3 items-center">
+            <div class="flex-1 w-full h-10">
               <PathPickerField
                 value={urlInput}
                 placeholder={t("plugins.localFolderPlaceholder")}
@@ -343,6 +360,10 @@ Every widget supports \`id\`, \`hidden\`, \`expertOnly\` (auto-hidden when Exper
                 browseLabel={t("flashcards.browse")}
                 onbrowse={handleBrowseFolder}
                 onclear={() => (urlInput = "")}
+                containerClass="h-10"
+                inputClass="h-10 px-3.5 rounded-xl border border-white/10 bg-white/5 text-sm text-gray-100 placeholder-gray-500 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                browseButtonClass="btn-secondary h-10 px-3.5 rounded-xl text-xs font-semibold"
+                clearButtonClass="h-10 px-3 inline-flex shrink-0 items-center justify-center rounded-xl border border-red-500/30 bg-red-500/10 text-red-300 hover:border-red-400/60 hover:bg-red-500/20 transition-colors cursor-pointer"
               />
             </div>
             <button
@@ -365,18 +386,31 @@ Every widget supports \`id\`, \`hidden\`, \`expertOnly\` (auto-hidden when Exper
         {#if inspectResult}
           <div class="mt-2 p-5 rounded-xl border border-amber-500/30 bg-amber-500/10 flex flex-col gap-4 animate-in fade-in duration-150">
             <div class="flex items-start justify-between">
-              <div class="flex flex-col gap-1">
-                <div class="flex items-center gap-2.5">
-                  <span class="text-base font-bold text-white">{inspectResult.manifest.name}</span>
-                  <span class="text-xs font-mono px-2 py-0.5 rounded bg-white/10 text-gray-300">v{inspectResult.manifest.version}</span>
-                  <span class="text-xs text-gray-400 font-mono">({inspectResult.manifest.id})</span>
+              <div class="flex items-center gap-3.5 min-w-0">
+                <div class="w-12 h-12 rounded-xl bg-amber-500/20 border border-amber-500/30 text-amber-300 flex items-center justify-center shrink-0 overflow-hidden">
+                  {#if getPluginImageSrc(inspectResult.manifest, inspectResult.iconUrl)}
+                    <img src={getPluginImageSrc(inspectResult.manifest, inspectResult.iconUrl)} alt="" class="w-full h-full object-contain rounded-lg" />
+                  {:else if inspectResult.manifest.tab?.icon === 'film' || inspectResult.manifest.icon === 'film'}
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z"/></svg>
+                  {:else if inspectResult.manifest.tab?.icon === 'search' || inspectResult.manifest.icon === 'search'}
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                  {:else}
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 00-1-1H4a2 2 0 110-4h1a1 1 0 001-1V7a1 1 0 011-1h3a1 1 0 001-1V4z"/></svg>
+                  {/if}
                 </div>
-                {#if inspectResult.manifest.description}
-                  <p class="text-xs text-gray-300 mt-1">{inspectResult.manifest.description}</p>
-                {/if}
-                {#if inspectResult.manifest.author}
-                  <span class="text-xs text-gray-400">{t("plugins.author")}: {inspectResult.manifest.author}</span>
-                {/if}
+                <div class="flex flex-col gap-1 min-w-0">
+                  <div class="flex items-center gap-2.5 flex-wrap">
+                    <span class="text-base font-bold text-white truncate">{inspectResult.manifest.name}</span>
+                    <span class="text-xs font-mono px-2 py-0.5 rounded bg-white/10 text-gray-300">v{inspectResult.manifest.version}</span>
+                    <span class="text-xs text-gray-400 font-mono">({inspectResult.manifest.id})</span>
+                  </div>
+                  {#if inspectResult.manifest.description}
+                    <p class="text-xs text-gray-300 mt-1">{inspectResult.manifest.description}</p>
+                  {/if}
+                  {#if inspectResult.manifest.author}
+                    <span class="text-xs text-gray-400">{t("plugins.author")}: {inspectResult.manifest.author}</span>
+                  {/if}
+                </div>
               </div>
               <button
                 type="button"
@@ -448,17 +482,11 @@ Every widget supports \`id\`, \`hidden\`, \`expertOnly\` (auto-hidden when Exper
             {t("plugins.installedList")} ({pluginsStore.plugins.length})
           </h2>
 
-          <div class="relative w-64">
-            <input
-              type="text"
-              placeholder={t("plugins.searchPlaceholder")}
-              bind:value={searchQuery}
-              class="w-full h-9 pl-9 pr-3 rounded-xl border border-white/10 bg-white/5 text-xs text-gray-200 placeholder-gray-500 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-colors"
-            />
-            <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
-              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-            </div>
-          </div>
+          <SearchInput
+            bind:value={searchQuery}
+            placeholder={t("plugins.searchPlaceholder")}
+            class="w-64"
+          />
         </div>
 
         {#if pluginsStore.loading && pluginsStore.plugins.length === 0}
@@ -498,10 +526,12 @@ Every widget supports \`id\`, \`hidden\`, \`expertOnly\` (auto-hidden when Exper
                 }}
               >
                 <div class="flex items-start gap-4 min-w-0 flex-1">
-                  <div class="w-12 h-12 rounded-xl flex items-center justify-center shrink-0 border {plugin.enabled ? 'bg-indigo-500/10 border-indigo-500/30 text-indigo-400' : 'bg-white/5 border-white/10 text-gray-500'}">
-                    {#if plugin.manifest.tab?.icon === 'film'}
+                  <div class="w-12 h-12 rounded-xl flex items-center justify-center shrink-0 border overflow-hidden {plugin.enabled ? 'bg-indigo-500/10 border-indigo-500/30 text-indigo-400' : 'bg-white/5 border-white/10 text-gray-500'}">
+                    {#if getPluginImageSrc(plugin.manifest, plugin.iconUrl)}
+                      <img src={getPluginImageSrc(plugin.manifest, plugin.iconUrl)} alt="" class="w-full h-full object-contain rounded-lg" />
+                    {:else if plugin.manifest.tab?.icon === 'film' || plugin.manifest.icon === 'film'}
                       <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z"/></svg>
-                    {:else if plugin.manifest.tab?.icon === 'search'}
+                    {:else if plugin.manifest.tab?.icon === 'search' || plugin.manifest.icon === 'search'}
                       <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
                     {:else}
                       <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 00-1-1H4a2 2 0 110-4h1a1 1 0 001-1V7a1 1 0 011-1h3a1 1 0 001-1V4z"/></svg>
@@ -807,8 +837,16 @@ Every widget supports \`id\`, \`hidden\`, \`expertOnly\` (auto-hidden when Exper
         <!-- Header -->
         <div class="flex items-center justify-between border-b border-white/10 pb-4 shrink-0">
           <div class="flex items-center gap-3 min-w-0">
-            <div class="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 flex items-center justify-center shrink-0">
-              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 00-1-1H4a2 2 0 110-4h1a1 1 0 001-1V7a1 1 0 011-1h3a1 1 0 001-1V4z"/></svg>
+            <div class="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 flex items-center justify-center shrink-0 overflow-hidden">
+              {#if getPluginImageSrc(infoTarget.manifest, infoTarget.iconUrl)}
+                <img src={getPluginImageSrc(infoTarget.manifest, infoTarget.iconUrl)} alt="" class="w-full h-full object-contain rounded-lg" />
+              {:else if infoTarget.manifest.tab?.icon === 'film' || infoTarget.manifest.icon === 'film'}
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z"/></svg>
+              {:else if infoTarget.manifest.tab?.icon === 'search' || infoTarget.manifest.icon === 'search'}
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+              {:else}
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 00-1-1H4a2 2 0 110-4h1a1 1 0 001-1V7a1 1 0 011-1h3a1 1 0 001-1V4z"/></svg>
+              {/if}
             </div>
             <div class="min-w-0">
               <div class="flex items-center gap-2 flex-wrap">
