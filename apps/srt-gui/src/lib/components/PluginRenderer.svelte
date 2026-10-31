@@ -18,7 +18,7 @@
   import { guardedOpen } from "$lib/utils/dialogGuard";
   import PathPickerField from "$lib/components/PathPickerField.svelte";
   import SearchableSelect from "$lib/components/SearchableSelect.svelte";
-  import { worldLanguageSelectOptions } from "$lib/config/worldLanguages";
+  import { languages } from "$lib/config/languages";
 
   interface Props {
     pluginId: string;
@@ -405,9 +405,22 @@
   {:else if name === "globe"}
     <svg class={cls} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"/></svg>
   {:else if name === "tmdb"}
-    <svg class={cls} viewBox="0 0 24 24" fill="none"><rect x="2" y="5" width="20" height="14" rx="3" stroke="currentColor" stroke-width="1.75"/><path stroke="currentColor" stroke-width="1.5" stroke-linecap="round" d="M6 9h3m-1.5 0v6M12 9v6l2-3 2 3V9m3 0v6h2a2 2 0 000-4h-2m2 0a1.5 1.5 0 000-3h-2"/></svg>
+    <svg class="h-4 w-auto shrink-0" viewBox="0 0 190 138" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="tmdb-grad" y1="0" x1="0" y2="138" x2="190" gradientUnits="userSpaceOnUse">
+          <stop stop-color="#90cea1" offset="0"/>
+          <stop stop-color="#3cbec9" offset="0.56"/>
+          <stop stop-color="#00b3e5" offset="1"/>
+        </linearGradient>
+      </defs>
+      <rect width="190" height="138" rx="24" fill="#0d253f"/>
+      <path fill="url(#tmdb-grad)" d="M26 30h34v10H48v32H38V40H26V30zm40 0h12l10 22 10-22h12v42h-10V47l-8 18h-8l-8-18v25H66V30zm54 0h18c12 0 20 8 20 21s-8 21-20 21h-18V30zm10 10v22h8c6 0 10-4 10-11s-4-11-10-11h-8zm34-10h20a10 10 0 010 20h-20V30zm0 82h-22a10 10 0 010-20h22a10 10 0 010 20zm-58 0H26V76h18c11 0 18 7 18 18s-7 18-18 18zm-8-26v16h8c5 0 8-3 8-8s-3-8-8-8h-8zm36-10h20c7 0 12 4 12 10 0 4-2 7-6 8 5 1 8 4 8 9 0 6-5 9-13 9H74V76zm10 8v6h9c2 0 4-1 4-3s-2-3-4-3h-9zm0 14v6h10c3 0 4-1 4-3s-1-3-4-3H84z"/>
+    </svg>
   {:else if name === "imdb"}
-    <svg class={cls} viewBox="0 0 24 24" fill="none"><rect x="2" y="5" width="20" height="14" rx="3" stroke="currentColor" stroke-width="1.75"/><path stroke="currentColor" stroke-width="1.5" stroke-linecap="round" d="M6 10v4M9 10v4l1.5-2.5L12 14v-4m3 0v4h1a1.5 1.5 0 000-3h-1m2 0a1.2 1.2 0 000-2.4h-2"/></svg>
+    <svg class="h-4 w-auto shrink-0" viewBox="0 0 64 32" xmlns="http://www.w3.org/2000/svg">
+      <rect width="64" height="32" rx="5" fill="#F5C518"/>
+      <path fill="#000000" d="M8 7h5v18H8V7zm9 0h6.5l2.5 11 2.5-11H35v18h-4.2V13l-3 12h-3.6l-3-12v12H17V7zm21 0h6.8c4.4 0 6.7 2.5 6.7 6.8v4.4c0 4.3-2.3 6.8-6.7 6.8H38V7zm4.8 3.6v10.8h1.6c1.6 0 2.3-.9 2.3-2.9v-5c0-2-.7-2.9-2.3-2.9h-1.6zM53 7h4.4v5.8c.7-.9 1.6-1.4 2.7-1.4 2.2 0 3.4 1.6 3.4 4.5v4.7c0 2.9-1.2 4.6-3.4 4.6-1.2 0-2.1-.5-2.8-1.5V25H53V7zm4.4 8.5v5.2c0 1 .4 1.5 1.1 1.5s1.1-.5 1.1-1.5v-5.2c0-1-.4-1.5-1.1-1.5s-1.1.5-1.1 1.5z"/>
+    </svg>
   {/if}
 {/snippet}
 
@@ -475,12 +488,17 @@
       {@const info = resolveHintAndLink(node.hint, node.helpText, node.link)}
       <div class="field flex flex-col gap-1.5 w-full">
         {#if node.label}
-          <label for="widget-{node.id}" class="text-xs font-medium text-gray-400">
+          <label for="widget-{node.id}" class="text-xs font-medium text-gray-300 flex items-center gap-1.5">
+            {#if (node as any).labelIcon}
+              {@render renderIcon((node as any).labelIcon, "w-4 h-4 shrink-0")}
+            {:else if node.icon === "tmdb" || node.icon === "imdb"}
+              {@render renderIcon(node.icon, "w-4 h-4 shrink-0")}
+            {/if}
             {node.label}
           </label>
         {/if}
         <div class="relative w-full">
-          {#if node.icon}
+          {#if node.icon && node.icon !== "tmdb" && node.icon !== "imdb"}
             <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
               {@render renderIcon(node.icon, "w-4 h-4")}
             </div>
@@ -491,7 +509,7 @@
             disabled={node.disabled}
             placeholder={node.placeholder ?? ""}
             bind:value={values[node.id]}
-            class="h-10 px-3 {node.icon ? 'pl-9' : ''} rounded-xl border border-white/10 bg-white/5 text-sm text-gray-100 placeholder-gray-500 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-colors disabled:opacity-50 w-full"
+            class="h-10 px-3 {node.icon && node.icon !== 'tmdb' && node.icon !== 'imdb' ? 'pl-9' : ''} rounded-xl border border-white/10 bg-white/5 text-sm text-gray-100 placeholder-gray-500 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-colors disabled:opacity-50 w-full"
           />
         </div>
         {#if info.text || info.link}
@@ -519,12 +537,17 @@
       {@const info = resolveHintAndLink(node.hint, node.helpText, node.link)}
       <div class="field flex flex-col gap-1.5 w-full">
         {#if node.label}
-          <label for="widget-{node.id}" class="text-xs font-medium text-gray-400">
+          <label for="widget-{node.id}" class="text-xs font-medium text-gray-300 flex items-center gap-1.5">
+            {#if (node as any).labelIcon}
+              {@render renderIcon((node as any).labelIcon, "w-4 h-4 shrink-0")}
+            {:else if node.icon === "tmdb" || node.icon === "imdb"}
+              {@render renderIcon(node.icon, "w-4 h-4 shrink-0")}
+            {/if}
             {node.label}
           </label>
         {/if}
         <div class="relative w-full">
-          {#if node.icon}
+          {#if node.icon && node.icon !== "tmdb" && node.icon !== "imdb"}
             <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
               {@render renderIcon(node.icon, "w-4 h-4")}
             </div>
@@ -535,7 +558,7 @@
             disabled={node.disabled}
             placeholder={node.placeholder ?? ""}
             bind:value={values[node.id]}
-            class="h-10 px-3 {node.icon ? 'pl-9' : ''} rounded-xl border border-white/10 bg-white/5 text-sm text-gray-100 placeholder-gray-500 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-colors disabled:opacity-50 w-full"
+            class="h-10 px-3 {node.icon && node.icon !== 'tmdb' && node.icon !== 'imdb' ? 'pl-9' : ''} rounded-xl border border-white/10 bg-white/5 text-sm text-gray-100 placeholder-gray-500 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-colors disabled:opacity-50 w-full"
           />
         </div>
         {#if info.text || info.link}
@@ -718,7 +741,7 @@
           </label>
         {/if}
         <SearchableSelect
-          options={worldLanguageSelectOptions}
+          options={languages.map((l: any) => ({ value: l.code, label: l.nameEn === l.name ? l.name : `${l.nameEn} — ${l.name}`, icon: l.flag }))}
           value={values[node.id] ?? node.defaultValue ?? "en"}
           onchange={(val) => {
             values[node.id] = val;

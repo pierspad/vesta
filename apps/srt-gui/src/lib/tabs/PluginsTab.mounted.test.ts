@@ -165,13 +165,13 @@ it("displays plugin card with Open, Info, Settings, Update, Enable/Disable, and 
   // Disable button is neutral secondary
   const disableBtn = Array.from(target.querySelectorAll("button")).find((b) => b.textContent?.trim() === "Disable");
   expect(disableBtn).not.toBeNull();
-  expect(disableBtn?.className).toContain("btn-secondary");
-  expect(disableBtn?.className).not.toContain("text-amber");
+  expect(disableBtn?.className).toContain("text-amber-400");
+  expect(disableBtn?.className).toContain("text-amber-400");
 
   // Uninstall button is styled in red/danger
   const uninstallBtn = target.querySelector('button[title="Uninstall plugin"]') as HTMLButtonElement;
   expect(uninstallBtn).not.toBeNull();
-  expect(uninstallBtn.className).toContain("text-red-400");
+  expect(uninstallBtn.className).toContain("text-rose-400");
 });
 
 it("opens Info modal with metadata, README markdown, and requested permissions", async () => {

@@ -150,6 +150,7 @@ export interface TextInputWidget extends BaseWidget {
   type: "textInput";
   id: string;
   label?: string;
+  labelIcon?: string;
   placeholder?: string;
   defaultValue?: string;
   disabled?: boolean;
@@ -163,6 +164,7 @@ export interface PasswordInputWidget extends BaseWidget {
   type: "passwordInput";
   id: string;
   label?: string;
+  labelIcon?: string;
   placeholder?: string;
   defaultValue?: string;
   disabled?: boolean;

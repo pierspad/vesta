@@ -228,34 +228,7 @@
         </div>
       </div>
 
-      <div class="flex items-center gap-2 shrink-0">
-        <button
-          type="button"
-          class="btn-icon text-gray-300 hover:text-white cursor-pointer"
-          onclick={() => openInfoModal(currentPlugin!)}
-          title={t("plugins.info")}
-          aria-label={t("plugins.info")}
-        >
-          <svg class="w-4 h-4 shrink-0 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-        </button>
 
-        {#if currentPlugin.manifest.settings && currentPlugin.manifest.settings.length > 0}
-          <button
-            type="button"
-            class="btn-icon text-gray-300 hover:text-white cursor-pointer"
-            onclick={() => openSettings(currentPlugin!)}
-            title={t("common.settings")}
-            aria-label={t("common.settings")}
-          >
-            <svg class="w-4 h-4 shrink-0 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-          </button>
-        {/if}
-      </div>
     </div>
 
     <!-- Embedded Renderer Body -->
@@ -522,68 +495,71 @@
                     </button>
                   {/if}
 
-                  <!-- Info Button -->
+                  <!-- Details (i) Button: sky blue -->
                   <button
                     type="button"
-                    class="btn-icon text-gray-300 hover:text-white cursor-pointer"
+                    class="text-sky-400 border border-sky-500/25 bg-sky-500/10 hover:bg-sky-500/20 inline-flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg font-medium transition-colors cursor-pointer"
                     onclick={() => openInfoModal(plugin)}
                     title={t("plugins.info")}
                     aria-label={t("plugins.info")}
                   >
-                    <svg class="w-4 h-4 shrink-0 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                   </button>
 
-                  <!-- Settings Button -->
+                  <!-- Settings Button: subtle slate/indigo -->
                   {#if plugin.manifest.settings && plugin.manifest.settings.length > 0}
                     <button
                       type="button"
-                      class="btn-icon text-gray-300 hover:text-white cursor-pointer"
+                      class="text-gray-300 border border-white/15 bg-white/5 hover:bg-white/10 inline-flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg font-medium transition-colors cursor-pointer"
                       onclick={() => openSettings(plugin)}
                       title={t("common.settings")}
                       aria-label={t("common.settings")}
                     >
-                      <svg class="w-4 h-4 shrink-0 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                       </svg>
                     </button>
                   {/if}
 
-                  <!-- Update Button -->
+                  <!-- Update Button: emerald refresh -->
                   <button
                     type="button"
-                    class="btn-secondary text-xs px-3 py-1.5 cursor-pointer"
+                    class="text-emerald-400 border border-emerald-500/25 bg-emerald-500/10 hover:bg-emerald-500/20 inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg font-medium transition-colors cursor-pointer"
                     onclick={() => handleUpdate(plugin)}
                     title={t("plugins.checkUpdates")}
                   >
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
                     {t("plugins.update")}
                   </button>
 
-                  <!-- Neutral Enable / Disable Button -->
+                  <!-- Enable / Disable Button: color-coded -->
                   {#if plugin.enabled}
                     <button
                       type="button"
-                      class="btn-secondary text-xs px-3 py-1.5 cursor-pointer"
+                      class="text-amber-400 border border-amber-500/25 bg-amber-500/10 hover:bg-amber-500/20 inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg font-medium transition-colors cursor-pointer"
                       onclick={() => pluginsStore.disable(plugin.id)}
                     >
+                      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/></svg>
                       {t("plugins.disable")}
                     </button>
                   {:else}
                     <button
                       type="button"
-                      class="btn-secondary text-xs px-3 py-1.5 cursor-pointer"
+                      class="text-emerald-400 border border-emerald-500/25 bg-emerald-500/10 hover:bg-emerald-500/20 inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg font-medium transition-colors cursor-pointer"
                       onclick={() => pluginsStore.enable(plugin.id)}
                     >
+                      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
                       {t("plugins.enable")}
                     </button>
                   {/if}
 
-                  <!-- Danger Uninstall Button -->
+                  <!-- Delete Button: rose/red -->
                   <button
                     type="button"
-                    class="p-2 rounded-lg text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-colors cursor-pointer"
+                    class="text-rose-400 border border-rose-500/25 bg-rose-500/10 hover:bg-rose-500/20 inline-flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg font-medium transition-colors cursor-pointer"
                     onclick={() => openUninstallConfirm(plugin)}
                     title={t("plugins.uninstall")}
                     aria-label={t("plugins.uninstall")}
