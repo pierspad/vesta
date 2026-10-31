@@ -27,6 +27,7 @@
   import PathPreviewModal from "$lib/modals/PathPreviewModal.svelte";
   import LanguageSelect from "$lib/components/LanguageSelect.svelte";
   import LogPanel, { type LogEntry } from "$lib/panels/LogPanel.svelte";
+  import WorkflowWorkspace from "$lib/components/WorkflowWorkspace.svelte";
   import { snackbar } from "$lib/stores/snackbarStore.svelte";
   import { aiStore } from "$lib/stores/aiStore.svelte";
   import FooterActions from "$lib/components/FooterActions.svelte";
@@ -884,67 +885,57 @@
         title={!canUseFilePanel ? t("translate.selectProviderFirst") : undefined}
         class="glass-card p-5 shrink-0 {requirements.classFor('files')} {!canUseFilePanel ? 'opacity-40' : ''}"
       >
-        <h3
-          class="text-lg font-semibold mb-4 flex items-center gap-2 panel-title-files-output"
-        >
-          <svg
-            class="w-5 h-5 shrink-0"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
+        <div class="flex items-center justify-between mb-4">
+          <h3
+            class="text-lg font-semibold flex items-center gap-2 panel-title-files-output"
           >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
-            />
-          </svg>
-          {t("common.filesAndOutput")}
-        </h3>
-
-        <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 items-end">
-          <div class="lg:col-span-5">
-            <PathPickerField
-              label={t("translate.inputFile")}
-              labelIcon="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10"
-              value={inputPath}
-              placeholder={t("translate.selectFile")}
-              browseTitle={t("translate.tooltip.upload")}
-              onexpand={() => (expandedPathField = "input")}
-              onbrowse={selectInputFile}
-              required={true}
-            />
-          </div>
-
-          <div class="lg:col-span-5">
-            <PathPickerField
-              label={t("translate.outputFile")}
-              labelIcon="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
-              value={outputPath}
-              placeholder={t("translate.selectDestination")}
-              browseTitle={t("translate.tooltip.save")}
-              browseLabel={t("translate.saveAs")}
-              browseIconPath="M12 4v12m-4-4 4 4 4-4M4 16v4h16v-4"
-              onexpand={() => (expandedPathField = "output")}
-              onbrowse={selectOutputFile}
-              required={true}
-            />
-          </div>
-
-          <div class="lg:col-span-2">
-            <div
-              class="p-2.5 border rounded-lg transition-all h-[42px] flex items-center justify-center {fileInfo ? 'bg-indigo-500/10 border-indigo-500/30' : 'bg-white/5 border-white/10 opacity-70'}"
+            <svg
+              class="w-5 h-5 shrink-0"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
             >
-              <div class="flex items-center gap-2">
-                <svg aria-hidden="true" class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6M7 21h10a2 2 0 002-2V9l-6-6H7a2 2 0 00-2 2v14a2 2 0 002 2zm6-18v6h6" /></svg>
-                <span class="font-medium text-xs text-white whitespace-nowrap">
-                  {fileInfo ? fileInfo.subtitle_count : 0}
-                  {t("translate.subtitles")}
-                </span>
-              </div>
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
+              />
+            </svg>
+            {t("common.filesAndOutput")}
+          </h3>
+          {#if fileInfo}
+            <div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-indigo-500/10 text-indigo-300 border border-indigo-500/20">
+              <svg aria-hidden="true" class="w-3.5 h-3.5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6M7 21h10a2 2 0 002-2V9l-6-6H7a2 2 0 00-2 2v14a2 2 0 002 2zm6-18v6h6" /></svg>
+              <span>{fileInfo.subtitle_count} {t("translate.subtitles")}</span>
             </div>
-          </div>
+          {/if}
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 md:items-end">
+          <PathPickerField
+            label={t("translate.inputFile")}
+            labelIcon="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10"
+            value={inputPath}
+            placeholder={t("translate.selectFile")}
+            browseTitle={t("translate.tooltip.upload")}
+            onexpand={() => (expandedPathField = "input")}
+            onbrowse={selectInputFile}
+            required={true}
+          />
+
+          <PathPickerField
+            label={t("translate.outputFile")}
+            labelIcon="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
+            value={outputPath}
+            placeholder={t("translate.selectDestination")}
+            browseTitle={t("translate.tooltip.save")}
+            browseLabel={t("translate.saveAs")}
+            browseIconPath="M12 4v12m-4-4 4 4 4-4M4 16v4h16v-4"
+            onexpand={() => (expandedPathField = "output")}
+            onbrowse={selectOutputFile}
+            required={true}
+          />
         </div>
       </div>
 
@@ -1090,11 +1081,15 @@
     {/if}
   {/snippet}
 
-  <div class="flex-1 overflow-y-auto scrollbar-thin p-6 min-h-0 space-y-6">
-    {@render panelContent("files")}
-    {@render panelContent("options")}
-    {@render panelContent("progress")}
-    {@render panelContent("livePreview")}
+  <div class="flex flex-1 flex-col overflow-hidden p-6 min-h-0">
+    <WorkflowWorkspace>
+      {#snippet files()}{@render panelContent("files")}{/snippet}
+      <div class="flex flex-col gap-6">
+        {@render panelContent("options")}
+        {@render panelContent("progress")}
+        {@render panelContent("livePreview")}
+      </div>
+    </WorkflowWorkspace>
   </div>
 
   <!-- Fixed Bottom Band with Action Buttons -->

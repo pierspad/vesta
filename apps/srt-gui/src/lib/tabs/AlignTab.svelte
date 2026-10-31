@@ -14,6 +14,7 @@
   import { snackbar } from '$lib/stores/snackbarStore.svelte';
   import ConfirmDialog from '$lib/modals/ConfirmDialog.svelte';
   import PathPickerField from '$lib/components/PathPickerField.svelte';
+  import WorkflowWorkspace from '$lib/components/WorkflowWorkspace.svelte';
   import FooterActions from '$lib/components/FooterActions.svelte';
   import { errorMessage } from '$lib/utils/errorMessage';
 
@@ -585,65 +586,64 @@
       </div>
     </div>
   {/if}
-  <div class="flex-1 overflow-hidden p-6 min-h-0">
-    <div class="flex flex-col gap-6 h-full">
+  <div class="flex-1 overflow-hidden p-6 min-h-0 flex flex-col">
+    <WorkflowWorkspace>
+      {#snippet files()}
+        <!-- Top Panel: Files and Output -->
+        <div class="glass-card p-5 shrink-0">
+          <h3 class="text-lg font-semibold mb-4 flex items-center gap-2 panel-title-files-output">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+            </svg>
+            {t("common.filesAndOutput")}
+          </h3>
+          <div class="grid grid-cols-1 md:grid-cols-[1fr_auto_1fr] items-end gap-4 relative min-w-0">
+            <!-- Target File -->
+            <div class="relative z-10 min-w-0">
+              <PathPickerField
+                label={`${targetFlag ? `${targetFlag} ` : ''}${t("align.baseSrt")}${targetSubs.length ? ` · ${t("align.subtitlesLoaded", { count: targetSubs.length })}` : ''}`}
+                labelIcon="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10"
+                required
+                value={targetPath}
+                placeholder={t("align.dragDropSrt")}
+                browseTitle={t("align.openSrt")}
+                onexpand={() => expandedPathField = "target"}
+                onbrowse={() => checkUnsavedAndRun(selectTarget)}
+              />
+            </div>
 
-      <!-- Top Panel: Files and Output -->
-      <div class="glass-card p-5 shrink-0">
-        <h3 class="text-lg font-semibold mb-4 flex items-center gap-2 panel-title-files-output">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-          </svg>
-          {t("common.filesAndOutput")}
-        </h3>
-        <div class="grid grid-cols-1 md:grid-cols-[1fr_auto_1fr] items-center gap-4 relative min-w-0">
-          <!-- Target File -->
-          <div class="relative z-10 min-w-0">
-            <PathPickerField
-              label={`${targetFlag ? `${targetFlag} ` : ''}${t("align.baseSrt")}`}
-              labelIcon="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10"
-              required
-              value={targetPath}
-              placeholder={t("align.dragDropSrt")}
-              browseTitle={t("align.openSrt")}
-              onexpand={() => expandedPathField = "target"}
-              onbrowse={() => checkUnsavedAndRun(selectTarget)}
-            />
-            <div class="mt-1 text-xs text-gray-400">{t("align.subtitlesLoaded", { count: targetSubs.length })}</div>
-          </div>
+            <!-- Swap Button -->
+            <div class="flex items-center justify-center relative z-20 md:px-2 shrink-0 mb-1">
+              <button 
+                onclick={swapFiles}
+                disabled={!targetPath || !sourcePath}
+                class="p-2.5 rounded-full border transition-colors group {(!targetPath || !sourcePath) ? 'bg-gray-900/40 text-gray-600 border-gray-800 cursor-not-allowed' : 'bg-gray-900/70 hover:bg-teal-500/20 text-gray-400 hover:text-teal-300 border-gray-700 hover:border-teal-500/50'}"
+                title={t("align.swapFiles")}
+                aria-label={t("align.swapFiles")}
+              >
+                <svg class="w-6 h-6 {!targetPath || !sourcePath ? '' : 'group-hover:rotate-180'} transition-transform duration-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                </svg>
+              </button>
+            </div>
 
-          <!-- Swap Button -->
-          <div class="flex items-center justify-center relative z-20 md:px-2 shrink-0 mt-4 md:mt-0">
-            <button 
-              onclick={swapFiles}
-              disabled={!targetPath || !sourcePath}
-              class="p-2.5 rounded-full border transition-colors group {(!targetPath || !sourcePath) ? 'bg-gray-900/40 text-gray-600 border-gray-800 cursor-not-allowed' : 'bg-gray-900/70 hover:bg-teal-500/20 text-gray-400 hover:text-teal-300 border-gray-700 hover:border-teal-500/50'}"
-              title={t("align.swapFiles")}
-              aria-label={t("align.swapFiles")}
-            >
-              <svg class="w-6 h-6 {!targetPath || !sourcePath ? '' : 'group-hover:rotate-180'} transition-transform duration-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-              </svg>
-            </button>
-          </div>
-
-          <!-- Source File -->
-          <div class="relative z-10 min-w-0">
-            <PathPickerField
-              label={`${sourceFlag ? `${sourceFlag} ` : ''}${t("align.translationSrt")}`}
-              labelIcon="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10"
-              required
-              value={sourcePath}
-              placeholder={t("align.dragDropSrt")}
-              browseTitle={t("align.openSrt")}
-              disabled={!targetPath}
-              onexpand={() => targetPath && (expandedPathField = "source")}
-              onbrowse={() => checkUnsavedAndRun(selectSource)}
-            />
-            <div class="mt-1 text-xs text-gray-400">{t("align.subtitlesLoaded", { count: sourceSubs.length })}</div>
+            <!-- Source File -->
+            <div class="relative z-10 min-w-0">
+              <PathPickerField
+                label={`${sourceFlag ? `${sourceFlag} ` : ''}${t("align.translationSrt")}${sourceSubs.length ? ` · ${t("align.subtitlesLoaded", { count: sourceSubs.length })}` : ''}`}
+                labelIcon="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10"
+                required
+                value={sourcePath}
+                placeholder={t("align.dragDropSrt")}
+                browseTitle={t("align.openSrt")}
+                disabled={!targetPath}
+                onexpand={() => targetPath && (expandedPathField = "source")}
+                onbrowse={() => checkUnsavedAndRun(selectSource)}
+              />
+            </div>
           </div>
         </div>
-      </div>
+      {/snippet}
 
       <!-- Bottom Section: Editor Area (Single Unified Card) -->
       <div class="glass-card p-5 flex-1 flex flex-col overflow-hidden">
@@ -780,7 +780,7 @@
         </div>
 
       </div>
-    </div>
+    </WorkflowWorkspace>
   </div>
 
   <!-- Fixed Bottom Band with Action Buttons -->

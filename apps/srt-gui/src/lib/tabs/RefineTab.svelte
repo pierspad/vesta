@@ -26,6 +26,8 @@
   import ConfirmDialog from "$lib/modals/ConfirmDialog.svelte";
   import CodeEditor from "$lib/components/CodeEditor.svelte";
   import PathPickerField from "$lib/components/PathPickerField.svelte";
+  import SearchInput from "$lib/components/SearchInput.svelte";
+  import WorkflowWorkspace from "$lib/components/WorkflowWorkspace.svelte";
   import { aiStore } from "$lib/stores/aiStore.svelte";
   import { loadRefinementPrompt } from "$lib/config/refinementPrompt";
   import FooterActions from "$lib/components/FooterActions.svelte";
@@ -714,48 +716,54 @@
   {/if}
 
   <!-- Main Workspace divided into panels -->
-  <div class="flex-1 overflow-hidden p-6 min-h-0">
-    <div class="flex flex-col gap-6 h-full">
+  <div class="flex flex-1 flex-col overflow-hidden p-6 min-h-0">
+    <WorkflowWorkspace>
+      {#snippet files()}
+        <!-- 1. Files & Output Panel (Standard Vesta Panel) -->
+        <div class="glass-card p-5 shrink-0">
+          <h3 class="panel-title-files-output mb-4 flex items-center gap-2 text-lg font-semibold">
+            <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+            </svg>
+            {t("common.filesAndOutput")}
+          </h3>
 
-      <!-- 1. Files & Output Panel (Standard Vesta Panel) -->
-      <div class="glass-card p-5 shrink-0">
-        <h3 class="panel-title-files-output mb-4 flex items-center gap-2 text-lg font-semibold">
-          <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-          </svg>
-          {t("common.filesAndOutput")}
-        </h3>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 md:items-end">
+            <!-- Input File Field -->
+            <PathPickerField
+              label={t('refine.deckLabel')}
+              labelIcon="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
+              required
+              value={filePath || ""}
+              placeholder={t('refine.deckPlaceholder')}
+              browseTitle={t('refine.dropzone.browse')}
+              onbrowse={selectFile}
+              disabled={operationBusy}
+            />
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
-          <!-- Input File Field -->
-          <PathPickerField
-            label={t('refine.deckLabel')}
-            labelIcon="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
-            required
-            value={filePath || ""}
-            placeholder={t('refine.deckPlaceholder')}
-            browseTitle={t('refine.dropzone.browse')}
-            onbrowse={selectFile}
-            disabled={operationBusy}
-          />
-
-          <!-- Quick Deck Stats counters -->
-          <div class="grid grid-cols-3 gap-3">
-            <div class="bg-white/5 border border-white/10 rounded-xl p-2.5 text-center">
-              <span class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider">{t('refine.stats.totalCards')}</span>
-              <span class="text-sm font-bold text-gray-200">{cards.length}</span>
-            </div>
-            <div class="bg-white/5 border border-white/10 rounded-xl p-2.5 text-center">
-              <span class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider">{t('refine.stats.annotated')}</span>
-              <span class="text-sm font-bold text-rose-300">{annotatedCount}</span>
-            </div>
-            <div class="bg-white/5 border border-white/10 rounded-xl p-2.5 text-center">
-              <span class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider">{t('refine.stats.modified')}</span>
-              <span class="text-sm font-bold text-amber-300">{modifiedCount}</span>
+            <!-- Quick Deck Stats counters -->
+            <div>
+              <span class="flex items-center gap-1.5 text-xs text-gray-400 mb-1 font-medium select-none">
+                <span class="invisible">&nbsp;</span>
+              </span>
+              <div class="grid grid-cols-3 gap-3">
+                <div class="bg-white/5 border border-white/10 rounded-xl p-2.5 text-center flex flex-col justify-center">
+                  <span class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider">{t('refine.stats.totalCards')}</span>
+                  <span class="text-sm font-bold text-gray-200">{cards.length}</span>
+                </div>
+                <div class="bg-white/5 border border-white/10 rounded-xl p-2.5 text-center flex flex-col justify-center">
+                  <span class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider">{t('refine.stats.annotated')}</span>
+                  <span class="text-sm font-bold text-rose-300">{annotatedCount}</span>
+                </div>
+                <div class="bg-white/5 border border-white/10 rounded-xl p-2.5 text-center flex flex-col justify-center">
+                  <span class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider">{t('refine.stats.modified')}</span>
+                  <span class="text-sm font-bold text-amber-300">{modifiedCount}</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      {/snippet}
 
       <!-- 2. Main Grid: Left Column (Flashcards List) & Right Column (Workspace) -->
       <div class="grid grid-cols-1 md:grid-cols-12 gap-6 items-stretch flex-1 min-h-0">
@@ -763,18 +771,11 @@
         <!-- Left Column (5 cols): Flashcards List Panel -->
         <div class="md:col-span-5 glass-card p-5 flex flex-col min-h-0 overflow-hidden">
           <!-- Search Bar -->
-          <div class="relative mb-3 shrink-0">
-            <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400 z-10">
-              <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-            </span>
-            <input
-              type="text"
+          <div class="mb-3 shrink-0">
+            <SearchInput
               bind:value={searchQuery}
               placeholder={t('refine.searchPlaceholder')}
-              class="input-modern w-full text-xs pr-4 py-2"
-              style="padding-left: 2.5rem !important;"
+              class="w-full"
             />
           </div>
 
@@ -1121,7 +1122,7 @@
           {/if}
         </div>
       </div>
-    </div>
+    </WorkflowWorkspace>
   </div>
 
   <!-- Fixed Bottom Band with Action Buttons -->
