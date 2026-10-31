@@ -4,6 +4,12 @@
 
   import FirstRunSetupModal from "$lib/modals/FirstRunSetupModal.svelte";
   import ConfirmDialog from "$lib/modals/ConfirmDialog.svelte";
+
+  interface Props {
+    onGoToTab?: (tab: string) => void;
+  }
+  let { onGoToTab }: Props = $props();
+
   let showReset = $state(false);
   let resetting = $state(false);
   let resetError = $state("");
@@ -27,6 +33,16 @@
     vestaConfig.setItem("vesta-first-run-force", "true");
     await vestaConfig.flush();
     window.location.reload();
+  }
+
+  function hideExperimentalTab() {
+    vestaConfig.setItem("vesta-experimental-unlocked", "false");
+    window.dispatchEvent(new CustomEvent("vesta-experimental-toggled", { detail: { unlocked: false } }));
+    if (onGoToTab) {
+      onGoToTab("flashcards");
+    } else if (typeof (window as any).changeTab === "function") {
+      (window as any).changeTab("flashcards");
+    }
   }
 </script>
 
@@ -53,6 +69,19 @@
       <p class="mt-1 mb-4 text-xs text-gray-400">{t("experimental.reset.description")}</p>
       <button type="button" class="btn-secondary px-4 py-2 text-xs" disabled={resetting} onclick={() => showReset = true}>{t("experimental.reset.action")}</button>
       {#if resetError}<p role="alert" class="mt-3 text-xs text-red-400">{resetError}</p>{/if}
+    </div>
+    <div class="glass-card p-5 mt-5 flex items-center justify-between gap-5">
+      <div>
+        <h3 class="text-base font-semibold text-white">{t("experimental.hide.title")}</h3>
+        <p class="mt-1 text-xs text-gray-400">{t("experimental.hide.description")}</p>
+      </div>
+      <button
+        type="button"
+        class="btn-secondary shrink-0 px-4 py-2 text-xs"
+        onclick={hideExperimentalTab}
+      >
+        {t("experimental.hide.action")}
+      </button>
     </div>
   </div>
 </div>

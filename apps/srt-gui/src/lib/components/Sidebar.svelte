@@ -18,6 +18,7 @@
   import * as vestaConfig from "$lib/config/vestaConfig";
   import { markSettingsNotificationRead } from "$lib/utils/settingsNotifications";
   import SupportModal from "$lib/modals/SupportModal.svelte";
+  import { snackbar } from "$lib/stores/snackbarStore.svelte";
 
   interface Props {
     activeTab: string;
@@ -67,6 +68,21 @@
   let inboxUnread = $derived((hasSettingsActionNotification && !settingsNotificationRead) || (hasUpdateNotification && seenUpdate !== updateCheckerStore.latestVersion));
   let needsWhisperDot = $derived(settingsHash.includes("whisper-model-missing:v1"));
   let needsLlmDot = $derived(settingsHash.includes("llm-default-unready:v1"));
+  let experimentalUnlocked = $state(vestaConfig.getItem("vesta-experimental-unlocked") === "true");
+  let logoClicks: number[] = [];
+
+  function handleLogoClick() {
+    const now = Date.now();
+    logoClicks = logoClicks.filter((time) => now - time < 4000);
+    logoClicks.push(now);
+    if (logoClicks.length >= 7) {
+      logoClicks = [];
+      experimentalUnlocked = true;
+      vestaConfig.setItem("vesta-experimental-unlocked", "true");
+      snackbar.show(t("settings.experimentalUnlocked"), "info");
+      window.dispatchEvent(new CustomEvent("vesta-experimental-toggled", { detail: { unlocked: true } }));
+    }
+  }
 
   function formatLicense(license: string): string {
     return license.replace(/-only$/i, "").trim();
@@ -98,7 +114,15 @@
       settingsHash = detail.hash || "";
     };
 
+    const handleExperimentalToggled = (event: Event) => {
+      const detail = (event as CustomEvent).detail;
+      if (detail && typeof detail.unlocked === "boolean") {
+        experimentalUnlocked = detail.unlocked;
+      }
+    };
+
     window.addEventListener(SETTINGS_ACTION_REQUIRED_EVENT, handleSettingsActionRequired);
+    window.addEventListener("vesta-experimental-toggled", handleExperimentalToggled);
 
     updateCheckerStore.init();
 
@@ -116,6 +140,7 @@
 
     return () => {
       window.removeEventListener(SETTINGS_ACTION_REQUIRED_EVENT, handleSettingsActionRequired);
+      window.removeEventListener("vesta-experimental-toggled", handleExperimentalToggled);
     };
   });
 </script>
@@ -162,8 +187,11 @@
         </button>
 
         {#if !collapsed}
-          <div
-            class="flex items-center gap-3 text-left select-none border border-transparent"
+          <button
+            type="button"
+            onclick={handleLogoClick}
+            class="flex items-center gap-3 text-left select-none border border-transparent cursor-pointer bg-transparent p-0 focus:outline-none"
+            aria-label={t("app.title")}
           >
             <div class="w-14 h-14 rounded-xl flex items-center justify-center flex-shrink-0 relative overflow-visible ml-2">
               <div class="absolute -inset-1 bg-orange-500/20 rounded-full blur-md z-0 pointer-events-none"></div>
@@ -174,7 +202,7 @@
                 {t("app.title")}
               </h1>
             </div>
-          </div>
+          </button>
         {/if}
       </div>
     {/if}
@@ -522,25 +550,27 @@
       </button>
 
       <!-- 9. Experimental -->
-      <button
-        class="order-9 w-full flex gap-3.5 items-center {collapsed ? 'px-2 justify-center' : 'px-3.5'} h-[60px] rounded-xl transition-all duration-100 ease-out border border-transparent cursor-pointer {activeTab ===
-        'experimental'
-          ? 'bg-gradient-to-r from-amber-600 to-orange-700 text-white shadow-lg shadow-amber-500/22 shadow-orange-600/20 border-amber-500/30 bg-clip-padding'
-          : 'text-gray-400 hover:bg-amber-500/10 hover:text-amber-400 hover:border-amber-500/20'}"
-        onclick={() => onTabChange("experimental")} onmouseenter={() => onTabPreload?.("experimental")} onfocus={() => onTabPreload?.("experimental")}
-        title={collapsed ? t("nav.experimental") : undefined}
-      >
-        <div class="w-9 h-9 rounded-xl {activeTab === 'experimental' ? 'bg-white/20' : 'bg-white/5'} flex items-center justify-center flex-shrink-0 relative transition-all duration-100 ease-out border border-white/5">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
-          </svg>
-        </div>
-        {#if !collapsed}
-          <div class="text-left flex-1 min-w-0 leading-tight">
-            <span class="block text-[15px] font-semibold {activeTab === 'experimental' ? 'text-white' : ''}">{t("nav.experimental")}</span>
+      {#if experimentalUnlocked}
+        <button
+          class="order-9 w-full flex gap-3.5 items-center {collapsed ? 'px-2 justify-center' : 'px-3.5'} h-[60px] rounded-xl transition-all duration-100 ease-out border border-transparent cursor-pointer {activeTab ===
+          'experimental'
+            ? 'bg-gradient-to-r from-amber-600 to-orange-700 text-white shadow-lg shadow-amber-500/22 shadow-orange-600/20 border-amber-500/30 bg-clip-padding'
+            : 'text-gray-400 hover:bg-amber-500/10 hover:text-amber-400 hover:border-amber-500/20'}"
+          onclick={() => onTabChange("experimental")} onmouseenter={() => onTabPreload?.("experimental")} onfocus={() => onTabPreload?.("experimental")}
+          title={collapsed ? t("nav.experimental") : undefined}
+        >
+          <div class="w-9 h-9 rounded-xl {activeTab === 'experimental' ? 'bg-white/20' : 'bg-white/5'} flex items-center justify-center flex-shrink-0 relative transition-all duration-100 ease-out border border-white/5">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+            </svg>
           </div>
-        {/if}
-      </button>
+          {#if !collapsed}
+            <div class="text-left flex-1 min-w-0 leading-tight">
+              <span class="block text-[15px] font-semibold {activeTab === 'experimental' ? 'text-white' : ''}">{t("nav.experimental")}</span>
+            </div>
+          {/if}
+        </button>
+      {/if}
     {/if}
 
     <!-- Expert Mode + AI Kill Switch at the bottom of the nav -->
