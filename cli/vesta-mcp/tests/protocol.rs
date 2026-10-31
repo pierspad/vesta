@@ -14,11 +14,13 @@ async fn stdio_client_discovers_tools_previews_and_generates_a_deck() -> anyhow:
             .env_remove("DISPLAY").env_remove("WAYLAND_DISPLAY");
         let client = ().serve(TokioChildProcess::new(command)?).await?;
         let tools = client.list_all_tools().await?;
-        assert_eq!(tools.len(), 8);
+        assert_eq!(tools.len(), 10);
         for tool in &tools { assert!(tool.input_schema.contains_key("type")); }
         let call = |name: &'static str, args: Value| {
             client.call_tool(CallToolRequestParams::new(name).with_arguments(args.as_object().unwrap().clone()))
         };
+        let plugins_res = call("list_plugins", json!({})).await?;
+        assert_ne!(plugins_res.is_error, Some(true));
         let configuration = call("get_configuration", json!({})).await?;
         let settings = configuration.structured_content.unwrap();
         assert_eq!(settings["max_active_generations"], 1);

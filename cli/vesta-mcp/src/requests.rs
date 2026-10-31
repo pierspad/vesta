@@ -1,6 +1,7 @@
 use crate::paths::Paths;
 use schemars::JsonSchema;
 use serde::Deserialize;
+use serde_json::Value;
 use srt_flashcards::FlashcardConfig;
 
 /// Translate a subtitle file with a provider profile configured by the server.
@@ -150,4 +151,21 @@ impl GenerateRequest {
         config.cpu_cores = self.workers;
         Ok(config)
     }
+}
+
+#[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct PluginCallRequest {
+    /// ID of the installed plugin to call.
+    pub plugin_id: String,
+    /// Screen name to render or dispatch event on. Defaults to "main".
+    pub screen: Option<String>,
+    /// Optional widget ID for event dispatch.
+    pub widget_id: Option<String>,
+    /// Optional event type (e.g. "click", "change", "submit"). Defaults to "click".
+    pub event_type: Option<String>,
+    /// Optional snapshot of widget values.
+    pub values: Option<Value>,
+    /// Optional expert mode flag.
+    pub expert_mode: Option<bool>,
 }

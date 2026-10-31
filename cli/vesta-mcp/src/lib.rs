@@ -15,12 +15,14 @@ use rmcp::{
     tool, tool_handler, tool_router,
 };
 use serde_json::{Value, json};
+use std::path::PathBuf;
 
 #[derive(Clone)]
 pub struct VestaMcp {
     paths: Paths,
     jobs: Jobs,
     providers: ProviderConfig,
+    plugins_dir: Option<PathBuf>,
     tool_router: ToolRouter<Self>,
 }
 impl VestaMcp {
@@ -28,9 +30,17 @@ impl VestaMcp {
         Self::with_provider_config(paths, ProviderConfig::default())
     }
     pub fn with_provider_config(paths: Paths, providers: ProviderConfig) -> Self {
+        Self::with_plugins_dir(paths, providers, None)
+    }
+    pub fn with_plugins_dir(
+        paths: Paths,
+        providers: ProviderConfig,
+        plugins_dir: Option<PathBuf>,
+    ) -> Self {
         Self {
             paths,
             providers,
+            plugins_dir,
             jobs: Jobs::default(),
             tool_router: Self::tool_router(),
         }
@@ -219,6 +229,217 @@ impl VestaMcp {
         Parameters(request): Parameters<JobRequest>,
     ) -> Result<Json<JobSnapshot>, String> {
         self.jobs.cancel(&request.job_id).map(Json)
+    }
+
+    #[tool(
+        description = "List installed Vesta plugins with safe public metadata (id, name, version, description, enabled, permissions). No settings or secrets are returned.",
+        annotations(
+            read_only_hint = true,
+            destructive_hint = false,
+            open_world_hint = false
+        )
+    )]
+    async fn list_plugins(&self) -> Result<Json<Value>, String> {
+        let dir = self.plugins_dir.clone().unwrap_or_else(|| {
+            std::env::var("HOME")
+                .map(PathBuf::from)
+                .unwrap_or_else(|_| PathBuf::from("."))
+                .join(".config")
+                .join("vesta")
+                .join("plugins")
+        });
+        let registry_path = dir.join("plugins.json");
+        if !registry_path.exists() {
+            return Ok(Json(json!([])));
+        }
+        let content = std::fs::read_to_string(&registry_path).map_err(|e| e.to_string())?;
+        let reg: Value = serde_json::from_str(&content).map_err(|e| e.to_string())?;
+        let plugins = reg
+            .get("plugins")
+            .and_then(|v| v.as_array())
+            .cloned()
+            .unwrap_or_default();
+        let public_plugins: Vec<Value> = plugins
+            .into_iter()
+            .map(|p| {
+                json!({
+                    "id": p["id"],
+                    "name": p["name"],
+                    "version": p["version"],
+                    "description": p["description"],
+                    "enabled": p["enabled"],
+                    "permissions": p["permissions"]
+                })
+            })
+            .collect();
+        Ok(Json(json!(public_plugins)))
+    }
+
+    #[tool(
+        description = "Invoke a render or event action on an enabled plugin via JSON-RPC 2.0 stdio and return the declarative UI response.",
+        annotations(
+            read_only_hint = false,
+            destructive_hint = false,
+            open_world_hint = true
+        )
+    )]
+    async fn call_plugin(
+        &self,
+        Parameters(req): Parameters<PluginCallRequest>,
+    ) -> Result<Json<Value>, String> {
+        let dir = self.plugins_dir.clone().unwrap_or_else(|| {
+            std::env::var("HOME")
+                .map(PathBuf::from)
+                .unwrap_or_else(|_| PathBuf::from("."))
+                .join(".config")
+                .join("vesta")
+                .join("plugins")
+        });
+        let registry_path = dir.join("plugins.json");
+        if !registry_path.exists() {
+            return Err("Plugins registry not found".into());
+        }
+        let content = std::fs::read_to_string(&registry_path).map_err(|e| e.to_string())?;
+        let reg: Value = serde_json::from_str(&content).map_err(|e| e.to_string())?;
+        let plugins = reg
+            .get("plugins")
+            .and_then(|v| v.as_array())
+            .cloned()
+            .unwrap_or_default();
+        let plugin = plugins
+            .into_iter()
+            .find(|p| p["id"].as_str() == Some(&req.plugin_id))
+            .ok_or_else(|| format!("Plugin '{}' not found", req.plugin_id))?;
+        if plugin["enabled"].as_bool() != Some(true) {
+            return Err(format!("Plugin '{}' is disabled", req.plugin_id));
+        }
+
+        let entry = plugin
+            .get("manifest")
+            .and_then(|m| m.get("entry"))
+            .and_then(|e| e.get("command"))
+            .and_then(|c| c.as_array());
+        let cmd_args: Vec<String> = match entry {
+            Some(arr) => arr
+                .iter()
+                .filter_map(|v| v.as_str().map(String::from))
+                .collect(),
+            None => return Err("Invalid plugin entry command".into()),
+        };
+        if cmd_args.is_empty() {
+            return Err("Empty plugin entry command".into());
+        }
+
+        let plugin_dir = dir.join("installed").join(&req.plugin_id);
+        let plugin_dir = if plugin_dir.exists() {
+            plugin_dir
+        } else {
+            dir.join(&req.plugin_id)
+        };
+        let data_dir = plugin_dir.join("data");
+        let _ = std::fs::create_dir_all(&data_dir);
+
+        let mut command = tokio::process::Command::new(&cmd_args[0]);
+        if cmd_args.len() > 1 {
+            command.args(&cmd_args[1..]);
+        }
+        command
+            .current_dir(&plugin_dir)
+            .stdin(std::process::Stdio::piped())
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::null())
+            .env("VESTA_PLUGIN_ID", &req.plugin_id)
+            .env("VESTA_API_VERSION", "1")
+            .env("VESTA_DATA_DIR", data_dir.to_string_lossy().as_ref());
+
+        let mut child = command
+            .spawn()
+            .map_err(|e| format!("Failed to spawn plugin process: {e}"))?;
+        let mut stdin = child.stdin.take().ok_or("Failed to capture stdin")?;
+        let stdout = child.stdout.take().ok_or("Failed to capture stdout")?;
+
+        use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
+        let mut reader = BufReader::new(stdout).lines();
+
+        let init_req = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "initialize",
+            "params": {
+                "apiVersion": 1,
+                "dataDir": data_dir.to_string_lossy(),
+                "locale": "en",
+                "expertMode": req.expert_mode.unwrap_or(false),
+                "settings": plugin.get("settings").cloned().unwrap_or(json!({}))
+            }
+        });
+        let init_line = serde_json::to_string(&init_req).map_err(|e| e.to_string())? + "\n";
+        stdin
+            .write_all(init_line.as_bytes())
+            .await
+            .map_err(|e| e.to_string())?;
+        stdin.flush().await.map_err(|e| e.to_string())?;
+        let _ = reader.next_line().await;
+
+        let method = if req.widget_id.is_some() {
+            "event"
+        } else {
+            "render"
+        };
+
+        let params = if method == "render" {
+            json!({
+                "screen": req.screen.as_deref().unwrap_or("main"),
+                "params": req.values.unwrap_or(json!({})),
+                "locale": "en",
+                "expertMode": req.expert_mode.unwrap_or(false)
+            })
+        } else {
+            json!({
+                "screen": req.screen.as_deref().unwrap_or("main"),
+                "widgetId": req.widget_id.as_deref().unwrap_or(""),
+                "type": req.event_type.as_deref().unwrap_or("click"),
+                "values": req.values.unwrap_or(json!({})),
+                "locale": "en",
+                "expertMode": req.expert_mode.unwrap_or(false)
+            })
+        };
+
+        let call_req = json!({
+            "jsonrpc": "2.0",
+            "id": 2,
+            "method": method,
+            "params": params
+        });
+
+        let call_line = serde_json::to_string(&call_req).map_err(|e| e.to_string())? + "\n";
+        stdin
+            .write_all(call_line.as_bytes())
+            .await
+            .map_err(|e| e.to_string())?;
+        stdin.flush().await.map_err(|e| e.to_string())?;
+
+        let response_line = loop {
+            let line = reader
+                .next_line()
+                .await
+                .map_err(|e| e.to_string())?
+                .ok_or("Plugin process closed stdout")?;
+            if let Ok(val) = serde_json::from_str::<Value>(&line)
+                && val.get("id").and_then(|v| v.as_u64()) == Some(2)
+            {
+                break line;
+            }
+        };
+        let resp: Value = serde_json::from_str(&response_line).map_err(|e| e.to_string())?;
+
+        let _ = child.kill().await;
+
+        if let Some(err) = resp.get("error") {
+            return Err(format!("Plugin RPC error: {err}"));
+        }
+
+        Ok(Json(resp.get("result").cloned().unwrap_or(json!({}))))
     }
 }
 

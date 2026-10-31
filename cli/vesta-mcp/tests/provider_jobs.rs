@@ -83,7 +83,7 @@ async fn stdio_provider_jobs_publish_outputs_and_cancel_without_exposing_credent
         command.arg("--read-root").arg(input.path()).arg("--output-root").arg(output.path()).arg("--provider-config").arg(config).env("VESTA_TEST_KEY", secret);
         let client = ().serve(TokioChildProcess::new(command)?).await?;
         let call = |name: &'static str, args: Value| client.call_tool(CallToolRequestParams::new(name).with_arguments(args.as_object().unwrap().clone()));
-        assert_eq!(client.list_all_tools().await?.len(), 8);
+        assert_eq!(client.list_all_tools().await?.len(), 10);
         let settings = call("get_configuration", json!({})).await?.structured_content.unwrap();
         assert_eq!(settings["translation_available"], true); assert_eq!(settings["transcription_available"], true);
         assert!(!settings.to_string().contains(secret)); assert!(!settings.to_string().contains("api_url"));

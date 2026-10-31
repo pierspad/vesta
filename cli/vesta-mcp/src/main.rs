@@ -19,6 +19,9 @@ struct Args {
     /// Optional server-side JSON profiles; credentials are resolved from named environment variables.
     #[arg(long)]
     provider_config: Option<PathBuf>,
+    /// Optional directory containing installed Vesta plugins.
+    #[arg(long)]
+    plugins_dir: Option<PathBuf>,
 }
 
 #[tokio::main]
@@ -30,8 +33,11 @@ async fn main() -> anyhow::Result<()> {
         .transpose()
         .map_err(anyhow::Error::msg)?
         .unwrap_or_default();
-    let server =
-        VestaMcp::with_provider_config(Paths::new(args.read_root, args.output_root)?, providers);
+    let server = VestaMcp::with_plugins_dir(
+        Paths::new(args.read_root, args.output_root)?,
+        providers,
+        args.plugins_dir,
+    );
     let jobs = server.jobs();
     // stdout belongs exclusively to the SDK's JSON-RPC transport.
     let service = server.serve(rmcp::transport::stdio()).await?;
