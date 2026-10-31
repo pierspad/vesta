@@ -45,6 +45,46 @@
 
   let infoTarget = $state<InstalledPlugin | null>(null);
   let showInfoModal = $state(false);
+  let showSdkModal = $state(false);
+  let selectedPluginScreen = $state<string>("main");
+
+  const SDK_GUIDE_MARKDOWN = `# Vesta Plugin System & SDK Contract (v1)
+
+Plugins in Vesta are **100% Vesta-agnostic** child processes communicating over **JSON-RPC 2.0 via standard input/output (stdio)**.
+
+As long as Vesta honors this v1 contract, Vesta's internal GUI and Rust core can evolve freely without breaking third-party plugins.
+
+## 1. Host Context & Properties Provided by Vesta
+On \`initialize\`, \`render\`, and \`event\`, Vesta automatically passes:
+- \`apiVersion\`: \`1\`
+- \`dataDir\`: Dedicated persistent directory for the plugin (\`<app_data>/plugins/installed/<id>/data\`)
+- \`locale\`: Active Vesta UI language code (e.g. \`"en"\`, \`"it"\`, \`"ja"\`)
+- \`expertMode\`: \`boolean\` indicating whether the user enabled **Expert Mode** in Vesta
+- \`settings\`: Dictionary of saved manifest settings
+- \`values\`: Snapshot of all interactive widget values on the active screen (on \`event\`)
+
+## 2. Declarative Widget Catalog
+Every widget supports \`id\`, \`hidden\`, \`expertOnly\` (auto-hidden when Expert Mode is off), \`tooltip\` (native Vesta hover tooltip), \`flex\`, and \`width\`.
+
+- **Layout**: \`column\` (\`gap\`, \`children\`), \`row\` (\`gap\`, \`align\`: \`"start" | "center" | "end" | "between"\`, \`children\`), \`divider\`, \`heading\` (\`level\`, \`icon\`), \`text\` (\`variant\`, \`size\`)
+- **Inputs**:
+  - \`textInput\` / \`passwordInput\`: \`label\`, \`placeholder\`, \`defaultValue\`, \`icon\` (\`"search"\`, \`"tmdb"\`, \`"imdb"\`, etc.), \`labelTooltip\`, \`submitAction\` (button ID triggered when pressing **Enter**), \`hint\`, \`link\`
+  - \`languageSelect\`: Unified Vesta language selector with bundled SVG flags (\`scope\`: \`"all"\` for 58 world languages or \`"core"\` for 33 study languages)
+  - \`pathInput\`: Native OS file/folder selector (\`pickerType\`: \`"file" | "folder"\`, \`filters\`)
+  - \`select\`, \`segmented\`, \`numberInput\`, \`checkbox\`
+- **Actions & Display**:
+  - \`button\`: \`label\`, \`variant\` (\`"primary" | "secondary" | "danger"\`), \`icon\`, \`tooltip\`
+  - \`list\`: \`items\` with \`title\`, \`subtitle\`, \`badge\`, \`language\` (ISO code automatically rendered by Vesta as **Flag SVG + Localized Language Name** in Vesta's active language), \`meta\`, \`image\`, and \`actions\`
+  - \`fileOutput\`, \`progress\`, \`table\`, \`image\`, \`link\` / \`externalLink\`
+
+## 3. Host Notifications & Integrations (Plugin → Vesta)
+- \`ui.update\`: Push live \`root\` or incremental \`patch\` (\`values\`, \`setProps\`, \`visibility\`, \`insert\`, \`remove\`, \`move\`)
+- \`ui.notify\`: Show native toast (\`level\`: \`"info" | "success" | "warn" | "error"\`, \`msg\`)
+- \`ui.progress\`: Update progress indicator (\`id\`, \`value\`, \`label\`)
+- \`vesta.openInFlashcards\`: Hand off \`videoPath\` and \`subtitlePath\` directly to the Flashcards tab
+
+## 4. MCP Server Support (\`vesta-mcp\`)
+\`vesta-mcp\` exposes \`list_plugins\` (safe public metadata, zero secrets) and \`call_plugin\` (JSON-RPC render/event bridge) for AI agents.`;
 
   let contextMenuPlugin = $state<InstalledPlugin | null>(null);
   let contextMenuPos = $state<{ x: number; y: number } | null>(null);
@@ -104,14 +144,16 @@
     inspectResult = null;
   }
 
-  function handleOpenPlugin(plugin: InstalledPlugin) {
+  function handleOpenPlugin(plugin: InstalledPlugin, screen = "main") {
     if (!plugin.enabled) return;
+    selectedPluginScreen = screen;
     selectedPluginId = plugin.id;
     onGoToTab?.("plugin:" + plugin.id);
   }
 
   function handleBackToPlugins() {
     selectedPluginId = null;
+    selectedPluginScreen = "main";
     onGoToTab?.("plugins");
   }
 
@@ -140,17 +182,19 @@
   }
 
   function openSettings(plugin: InstalledPlugin) {
-    settingsTarget = plugin;
-    editSettingsValues = { ...plugin.settings };
-    if (plugin.manifest.settings) {
+    contextMenuPlugin = null;
+    contextMenuPos = null;
+    if (plugin.manifest.settings && plugin.manifest.settings.length > 0) {
+      settingsTarget = plugin;
+      editSettingsValues = { ...plugin.settings };
       for (const field of plugin.manifest.settings) {
         if (editSettingsValues[field.id] === undefined && field.defaultValue !== undefined) {
           editSettingsValues[field.id] = field.defaultValue;
         }
       }
+    } else if (plugin.enabled) {
+      handleOpenPlugin(plugin, "settings");
     }
-    contextMenuPlugin = null;
-    contextMenuPos = null;
   }
 
   async function savePluginSettings() {
@@ -233,7 +277,7 @@
 
     <!-- Embedded Renderer Body -->
     <div class="flex-1 min-h-0 overflow-hidden relative">
-      <PluginRenderer pluginId={currentPlugin.id} active={true} />
+      <PluginRenderer pluginId={currentPlugin.id} screen={selectedPluginScreen} active={true} />
     </div>
   {:else}
     <!-- Content Band (Scrollable) -->
@@ -484,90 +528,97 @@
                 </div>
 
                 <!-- Action buttons -->
-                <div class="flex items-center gap-2 shrink-0 self-end sm:self-center flex-wrap">
+                <div class="flex items-center gap-2.5 shrink-0 self-end sm:self-center">
                   {#if plugin.enabled}
                     <button
                       type="button"
-                      class="btn-primary text-xs px-3.5 py-1.5 font-semibold cursor-pointer"
+                      class="btn-primary h-8 px-3 text-xs rounded-lg font-semibold inline-flex items-center gap-1.5 cursor-pointer"
                       onclick={() => handleOpenPlugin(plugin)}
+                      title={t("plugins.open")}
                     >
-                      {t("plugins.open")}
-                    </button>
-                  {/if}
-
-                  <!-- Details (i) Button: sky blue -->
-                  <button
-                    type="button"
-                    class="text-sky-400 border border-sky-500/25 bg-sky-500/10 hover:bg-sky-500/20 inline-flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg font-medium transition-colors cursor-pointer"
-                    onclick={() => openInfoModal(plugin)}
-                    title={t("plugins.info")}
-                    aria-label={t("plugins.info")}
-                  >
-                    <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                  </button>
-
-                  <!-- Settings Button: subtle slate/indigo -->
-                  {#if plugin.manifest.settings && plugin.manifest.settings.length > 0}
-                    <button
-                      type="button"
-                      class="text-gray-300 border border-white/15 bg-white/5 hover:bg-white/10 inline-flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg font-medium transition-colors cursor-pointer"
-                      onclick={() => openSettings(plugin)}
-                      title={t("common.settings")}
-                      aria-label={t("common.settings")}
-                    >
-                      <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
                       </svg>
+                      <span>{t("plugins.open")}</span>
                     </button>
                   {/if}
-
-                  <!-- Update Button: emerald refresh -->
-                  <button
-                    type="button"
-                    class="text-emerald-400 border border-emerald-500/25 bg-emerald-500/10 hover:bg-emerald-500/20 inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg font-medium transition-colors cursor-pointer"
-                    onclick={() => handleUpdate(plugin)}
-                    title={t("plugins.checkUpdates")}
-                  >
-                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-                    {t("plugins.update")}
-                  </button>
 
                   <!-- Enable / Disable Button: color-coded -->
                   {#if plugin.enabled}
                     <button
                       type="button"
-                      class="text-amber-400 border border-amber-500/25 bg-amber-500/10 hover:bg-amber-500/20 inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg font-medium transition-colors cursor-pointer"
+                      class="text-amber-400 border border-amber-500/25 bg-amber-500/10 hover:bg-amber-500/20 inline-flex items-center gap-1.5 h-8 px-3 text-xs rounded-lg font-medium transition-colors cursor-pointer"
                       onclick={() => pluginsStore.disable(plugin.id)}
+                      title={t("plugins.disable")}
                     >
-                      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/></svg>
-                      {t("plugins.disable")}
+                      <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/></svg>
+                      <span>{t("plugins.disable")}</span>
                     </button>
                   {:else}
                     <button
                       type="button"
-                      class="text-emerald-400 border border-emerald-500/25 bg-emerald-500/10 hover:bg-emerald-500/20 inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg font-medium transition-colors cursor-pointer"
+                      class="text-emerald-400 border border-emerald-500/25 bg-emerald-500/10 hover:bg-emerald-500/20 inline-flex items-center gap-1.5 h-8 px-3 text-xs rounded-lg font-medium transition-colors cursor-pointer"
                       onclick={() => pluginsStore.enable(plugin.id)}
+                      title={t("plugins.enable")}
                     >
-                      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                      {t("plugins.enable")}
+                      <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                      <span>{t("plugins.enable")}</span>
                     </button>
                   {/if}
 
-                  <!-- Delete Button: rose/red -->
-                  <button
-                    type="button"
-                    class="text-rose-400 border border-rose-500/25 bg-rose-500/10 hover:bg-rose-500/20 inline-flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg font-medium transition-colors cursor-pointer"
-                    onclick={() => openUninstallConfirm(plugin)}
-                    title={t("plugins.uninstall")}
-                    aria-label={t("plugins.uninstall")}
-                  >
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-                    </svg>
-                  </button>
+                  <!-- 2x2 Square Grid of 4 Icon Actions: Update, Details (i), Settings, Delete -->
+                  <div class="grid grid-cols-2 gap-1.5 pl-1 border-l border-white/10">
+                    <!-- Update (icon-only, emerald) -->
+                    <button
+                      type="button"
+                      class="w-7 h-7 text-emerald-400 border border-emerald-500/25 bg-emerald-500/10 hover:bg-emerald-500/20 inline-flex items-center justify-center rounded-lg transition-colors cursor-pointer"
+                      onclick={() => handleUpdate(plugin)}
+                      title={t("plugins.update")}
+                      aria-label={t("plugins.update")}
+                    >
+                      <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                    </button>
+
+                    <!-- Details (i) (icon-only, sky blue) -->
+                    <button
+                      type="button"
+                      class="w-7 h-7 text-sky-400 border border-sky-500/25 bg-sky-500/10 hover:bg-sky-500/20 inline-flex items-center justify-center rounded-lg transition-colors cursor-pointer"
+                      onclick={() => openInfoModal(plugin)}
+                      title={t("plugins.info")}
+                      aria-label={t("plugins.info")}
+                    >
+                      <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </button>
+
+                    <!-- Settings (icon-only, slate) -->
+                    <button
+                      type="button"
+                      class="w-7 h-7 text-gray-300 border border-white/15 bg-white/5 hover:bg-white/10 inline-flex items-center justify-center rounded-lg transition-colors cursor-pointer"
+                      onclick={() => openSettings(plugin)}
+                      title={t("common.settings")}
+                      aria-label={t("common.settings")}
+                    >
+                      <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      </svg>
+                    </button>
+
+                    <!-- Delete (icon-only, rose/red) -->
+                    <button
+                      type="button"
+                      class="w-7 h-7 text-rose-400 border border-rose-500/25 bg-rose-500/10 hover:bg-rose-500/20 inline-flex items-center justify-center rounded-lg transition-colors cursor-pointer"
+                      onclick={() => openUninstallConfirm(plugin)}
+                      title={t("plugins.uninstall")}
+                      aria-label={t("plugins.uninstall")}
+                    >
+                      <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                      </svg>
+                    </button>
+                  </div>
                 </div>
               </div>
             {/each}
@@ -593,17 +644,70 @@
       {/if}
     </div>
     <div class="flex items-center gap-3">
-      <a
-        href="https://github.com/pierspad/vesta/blob/main/docs/PLUGINS.md"
-        target="_blank"
-        rel="noopener noreferrer"
-        onclick={(e) => { e.preventDefault(); void openUrl("https://github.com/pierspad/vesta/blob/main/docs/PLUGINS.md"); }}
+      <button
+        type="button"
+        onclick={() => (showSdkModal = true)}
+        title={t("plugins.developerDocs")}
         class="text-xs text-indigo-400 hover:text-indigo-300 transition-colors inline-flex items-center gap-1 cursor-pointer"
       >
         {t("plugins.developerDocs")} →
-      </a>
+      </button>
     </div>
   </div>
+
+  <!-- Built-in Developer Guide & SDK Modal -->
+  {#if showSdkModal}
+    <!-- svelte-ignore a11y_click_events_have_key_events -->
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <div
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+      onclick={() => (showSdkModal = false)}
+      onkeydown={(e) => { if (e.key === "Escape") showSdkModal = false; }}
+    >
+      <div
+        class="w-full max-w-3xl max-h-[85vh] rounded-2xl border border-white/10 bg-gray-900 p-6 flex flex-col gap-4 shadow-2xl overflow-hidden"
+        onclick={(e) => e.stopPropagation()}
+      >
+        <div class="flex items-center justify-between border-b border-white/10 pb-3 shrink-0">
+          <div class="flex items-center gap-2.5">
+            <h3 class="text-base font-bold text-white">{t("plugins.developerDocs")}</h3>
+            <span class="text-xs font-mono px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">v1</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <button
+              type="button"
+              onclick={() => void openUrl("https://github.com/pierspad/vesta/blob/dev/docs/PLUGINS.md")}
+              class="btn-secondary text-xs px-3 py-1.5 inline-flex items-center gap-1.5 cursor-pointer"
+              title="docs/PLUGINS.md"
+            >
+              <span>GitHub</span>
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+            </button>
+            <button
+              type="button"
+              class="text-gray-400 hover:text-white transition-colors p-1 rounded-lg hover:bg-white/5 cursor-pointer"
+              aria-label={t("common.close")}
+              onclick={() => (showSdkModal = false)}
+            >
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+          </div>
+        </div>
+        <div class="flex-1 min-h-0 overflow-y-auto pr-2 text-xs scrollbar-thin">
+          <MarkdownContent text={SDK_GUIDE_MARKDOWN} />
+        </div>
+        <div class="flex justify-end pt-3 border-t border-white/10 shrink-0">
+          <button
+            type="button"
+            class="btn-secondary text-xs px-5 py-2 font-semibold cursor-pointer"
+            onclick={() => (showSdkModal = false)}
+          >
+            {t("common.close")}
+          </button>
+        </div>
+      </div>
+    </div>
+  {/if}
 
   <!-- Right-Click Context Menu -->
   {#if contextMenuPlugin && contextMenuPos}

@@ -1,8 +1,8 @@
-# Vesta Plugin System Specification (v1)
+# Vesta Plugin System Specification & SDK Contract (v1)
 
-Vesta provides an external plugin architecture allowing developers to extend Vesta with custom tabs and capabilities. Plugins are standalone repositories that communicate with Vesta over **JSON-RPC 2.0 via standard input/output (stdio)**.
+Vesta provides an external plugin architecture allowing developers to extend Vesta with custom workflows and capabilities. Plugins are standalone repositories that communicate with Vesta over **JSON-RPC 2.0 via standard input/output (stdio)**.
 
-Plugins **never write native GUI code**. Instead, they describe their user interface using a declarative schema of standard Vesta widgets. Vesta handles all rendering, accessibility, theming, RTL support, and keyboard interaction.
+Plugins **never write native GUI code**. Instead, they describe their user interface using a declarative schema of standard Vesta widgets. Vesta handles all rendering, accessibility, theming, RTL support, localized language names, bundled flag icons, native tooltips, and keyboard interaction.
 
 ---
 
@@ -16,20 +16,32 @@ Plugins **never write native GUI code**. Instead, they describe their user inter
 
 ## Table of Contents
 
-1. [Plugin Anatomy & Manifest](#1-plugin-anatomy--manifest)
-2. [Lifecycle & Installation](#2-lifecycle--installation)
-3. [JSON-RPC 2.0 Communication Protocol](#3-json-rpc-20-communication-protocol)
-4. [RPC Methods (Vesta → Plugin)](#4-rpc-methods-vesta--plugin)
-5. [Notifications & Host Requests (Plugin → Vesta)](#5-notifications--host-requests-plugin--vesta)
-6. [Declarative Widget Catalog](#6-declarative-widget-catalog)
-7. [Dynamic UI Operations (Patching)](#7-dynamic-ui-operations-patching)
-8. [Permissions & Security Model](#8-permissions--security-model)
-9. [Developing with the Python SDK](#9-developing-with-the-python-sdk)
-10. [Manual Testing & Verification](#10-manual-testing--verification)
+1. [The Vesta-Agnostic Contract Philosophy](#1-the-vesta-agnostic-contract-philosophy)
+2. [Plugin Anatomy & Manifest](#2-plugin-anatomy--manifest)
+3. [Lifecycle & Installation](#3-lifecycle--installation)
+4. [JSON-RPC 2.0 Communication Protocol](#4-json-rpc-20-communication-protocol)
+5. [Host Context & RPC Methods (Vesta → Plugin)](#5-host-context--rpc-methods-vesta--plugin)
+6. [Notifications & Host Requests (Plugin → Vesta)](#6-notifications--host-requests-plugin--vesta)
+7. [Declarative Widget & Property Catalog](#7-declarative-widget--property-catalog)
+8. [Dynamic UI Operations (Patching)](#8-dynamic-ui-operations-patching)
+9. [MCP Server Integration (`vesta-mcp`)](#9-mcp-server-integration-vesta-mcp)
+10. [Permissions & Security Model](#10-permissions--security-model)
+11. [Developing with the Python SDK](#11-developing-with-the-python-sdk)
+12. [Manual Testing & Verification](#12-manual-testing--verification)
 
 ---
 
-## 1. Plugin Anatomy & Manifest
+## 1. The Vesta-Agnostic Contract Philosophy
+
+Plugins are **100% decoupled** from Vesta's internal frontend (Svelte) and backend (Rust/Tauri) implementation details:
+- A plugin does not import any Vesta packages or depend on Vesta's internal source tree.
+- A plugin only speaks JSON-RPC 2.0 over `stdin`/`stdout` and emits declarative JSON widget trees or incremental patches.
+- Vesta exposes application-level capabilities (unified 58-language catalog with bundled SVG flags, localized language names in Vesta's active locale, native OS path pickers, `AppTooltip` hover tooltips, `Expert Mode` filtering, and Flashcards tab handoff) purely through declarative widget properties.
+- **Forward Compatibility Guarantee**: As long as Vesta preserves the v1 JSON-RPC and Declarative Widget Contract documented here, Vesta's internal UI, styling, and Rust core can be refactored or redesigned freely without breaking existing plugins.
+
+---
+
+## 2. Plugin Anatomy & Manifest
 
 A plugin repository must contain a `vesta-plugin.json` manifest at its root:
 
@@ -84,23 +96,23 @@ A plugin repository must contain a `vesta-plugin.json` manifest at its root:
 | `readme` | `string` | No | Inline documentation/README text. If omitted, Vesta automatically reads `README.md` from the plugin root directory if present. |
 | `entry` | `object` | **Yes** | Process execution command: `command: string[]` and optional `os: { windows?, macos?, linux? }` overrides. |
 | `permissions` | `string[]` | No | Requested permissions (e.g. `network`, `filesystem:downloads`). |
-| `tab` | `object` | No | If declared, creates a dedicated tab in Vesta's sidebar: `{ title: string, icon?: "puzzle" \| "film" \| "search" }`. |
-| `settings` | `array` | No | Declarative configuration fields editable in plugin settings. |
+| `tab` | `object` | No | Visual metadata for the plugin header/card: `{ title: string, icon?: "puzzle" \| "film" \| "search" }`. |
+| `settings` | `array` | No | Optional declarative configuration fields editable in Vesta's quick settings modal. Plugins may also implement a rich `"settings"` screen directly. |
 
 ---
 
-## 2. Lifecycle & Installation
+## 3. Lifecycle & Installation
 
 ### Resolution & Sources
 Users can install a plugin by supplying:
-1. **GitHub repository**: `https://github.com/{owner}/{repo}` (or with `@ref`). Automatically resolves to the archive tarball `https://codeload.github.com/{owner}/{repo}/tar.gz/{ref}`.
-2. **GitLab repository**: `https://gitlab.com/{owner}/{repo}`. Resolves to `https://gitlab.com/{owner}/{repo}/-/archive/{ref}/{repo}-{ref}.tar.gz`.
+1. **GitHub repository**: `https://github.com/{owner}/{repo}`. Automatically resolves to the archive tarball.
+2. **GitLab repository**: `https://gitlab.com/{owner}/{repo}`.
 3. **Direct archive**: `https://.../plugin.tar.gz` or `.zip`.
-4. **Local directory / path**: `/absolute/path/to/plugin` or `~/path/to/plugin` or `file:///path/to/plugin` (ideal for local testing). Build artifacts (`.git`, `node_modules`, `__pycache__`, `.venv`, `.env`) are excluded automatically when copying.
+4. **Local folder**: `/absolute/path/to/plugin` or `~/path/to/plugin` or `file:///path/to/plugin` via the **Local Folder** picker. Build artifacts and local secrets (`.git`, `node_modules`, `__pycache__`, `.venv`, `.env`, `.notes`) are excluded automatically when copying.
 5. **Git clone fallback**: If HTTP archive downloads fail, Vesta falls back to `git clone --depth 1`.
 
 ### Pre-installation Inspection & Permission Confirmation
-Vesta extracts the plugin to a temporary staging folder, reads and validates `vesta-plugin.json`, and displays a confirmation dialog presenting the plugin name, author, version, description, and list of required permissions. The user must explicitly confirm before the plugin is activated.
+Vesta extracts the plugin to a temporary staging folder, reads and validates `vesta-plugin.json`, and displays a confirmation banner presenting the plugin name, author, version, description, and list of required permissions. The user must explicitly confirm before the plugin is installed.
 
 ### Storage & Safety Limits
 - Plugins are stored in `<app_data>/plugins/installed/<plugin_id>/`.
@@ -111,40 +123,20 @@ Vesta extracts the plugin to a temporary staging folder, reads and validates `ve
 
 ---
 
-## 3. JSON-RPC 2.0 Communication Protocol
+## 4. JSON-RPC 2.0 Communication Protocol
 
 Plugins execute as a child process with standard streams connected:
 - **`stdin`**: Vesta sends JSON-RPC 2.0 requests and notifications (newline-delimited JSON).
 - **`stdout`**: Plugin writes responses and notifications (newline-delimited JSON).
-- **`stderr`**: Plugin diagnostic logs; captured and displayed in Vesta's support log console.
+- **`stderr`**: Plugin diagnostic logs; captured by Vesta's runtime logger.
 
 Every message must be a single line of valid JSON terminated by `\n`.
 
-### Standard Format
-
-**Request:**
-```json
-{"jsonrpc": "2.0", "id": 1, "method": "render", "params": {"screen": "main", "params": {}}}
-```
-
-**Success Response:**
-```json
-{"jsonrpc": "2.0", "id": 1, "result": {"root": {"type": "column", "children": [...]}}}
-```
-
-**Error Response:**
-```json
-{"jsonrpc": "2.0", "id": 1, "error": {"code": -32600, "message": "Invalid request"}}
-```
-
-**Notification (no `id`):**
-```json
-{"jsonrpc": "2.0", "method": "ui.notify", "params": {"level": "info", "msg": "Task completed"}}
-```
-
 ---
 
-## 4. RPC Methods (Vesta → Plugin)
+## 5. Host Context & RPC Methods (Vesta → Plugin)
+
+Vesta automatically injects host environment properties (`locale`, `expertMode`, `dataDir`, `settings`) into lifecycle and UI calls so plugins can adapt without querying internal state.
 
 ### `initialize`
 Called immediately after spawning the plugin process.
@@ -154,18 +146,21 @@ Called immediately after spawning the plugin process.
     "apiVersion": 1,
     "dataDir": "/path/to/plugin/data",
     "locale": "en",
+    "expertMode": false,
     "settings": { "apiKey": "secret..." }
   }
   ```
 - **Result**: `{"status": "ok"}`
 
 ### `render`
-Requests the declarative UI tree for a given screen.
+Requests the declarative UI tree for a given screen (e.g. `"main"` or `"settings"`).
 - **Params**:
   ```json
   {
     "screen": "main",
-    "params": {}
+    "params": {},
+    "locale": "it",
+    "expertMode": true
   }
   ```
 - **Result**:
@@ -179,33 +174,36 @@ Requests the declarative UI tree for a given screen.
   ```
 
 ### `event`
-Dispatched whenever the user interacts with a widget (e.g., clicking a button, selecting a list action).
+Dispatched whenever the user interacts with a widget (clicking a button, pressing `Enter` in an input with `submitAction`, changing a `languageSelect`, `pathInput`, or `segmented` control, or clicking a `list` item action).
 - **Params**:
   ```json
   {
     "screen": "main",
-    "widgetId": "btn_increment",
+    "widgetId": "btn_do_search",
     "type": "click",
     "values": {
-      "counter_name": "My Counter",
-      "step": 1
-    }
+      "search_languages": "it",
+      "search_query": "Inception",
+      "search_tmdb_id": "27205"
+    },
+    "locale": "it",
+    "expertMode": true
   }
   ```
 - **Result**:
-  Returns either a full new UI tree (`{ "root": ... }`), a patch (`{ "patch": ... }`), or an empty object (`{}`).
+  Returns either a full new UI tree (`{ "root": ... }`), an incremental patch (`{ "patch": ... }`), or an empty object (`{}`).
 
 ### `shutdown`
-Requests graceful termination before closing or uninstalling.
+Requests graceful termination before closing, disabling, updating, or uninstalling.
 - **Params**: `{}`
 - **Result**: `{"status": "ok"}`
 
 ---
 
-## 5. Notifications & Host Requests (Plugin → Vesta)
+## 6. Notifications & Host Requests (Plugin → Vesta)
 
 ### `ui.update` (Notification)
-Pushes an updated UI screen or an incremental patch:
+Pushes an updated UI screen or an incremental patch asynchronously:
 ```json
 {"jsonrpc": "2.0", "method": "ui.update", "params": {"screen": "main", "patch": {"values": {"counter": 5}}}}
 ```
@@ -239,57 +237,69 @@ The plugin can query the current interactive values of any screen:
   ```
 
 ### `vesta.openInFlashcards` (Notification)
-Instructs Vesta to switch to the Flashcards tab prefilled with media and subtitle paths:
+Instructs Vesta to switch to the **Flashcards** tab prefilled with media and subtitle paths:
 ```json
 {"jsonrpc": "2.0", "method": "vesta.openInFlashcards", "params": {"videoPath": "/path/to/media.mp4", "subtitlePath": "/path/to/media.srt"}}
 ```
 
 ---
 
-## 6. Declarative Widget Catalog
+## 7. Declarative Widget & Property Catalog
 
 Every widget in the UI tree is a JSON object with a `type` property. Interactive widgets possess an `id` that maps to their entry in the screen's `values` dictionary.
 
-| Widget `type` | Description | Key Properties |
+### Universal Widget Properties
+All widgets accept the following optional properties:
+- `id?: string`: Unique widget identifier used in events, value binding, and patching.
+- `hidden?: boolean`: If `true`, the widget is not rendered.
+- `expertOnly?: boolean`: If `true`, Vesta automatically hides the widget in standard mode and reveals it when the user enables **Expert Mode** in the sidebar.
+- `tooltip?: string`: Displays a styled Vesta `AppTooltip` on mouse hover or keyboard focus.
+- `flex?: number`: Flex grow/shrink weight when placed inside a `row` (e.g. `flex: 3` vs `flex: 1`).
+- `width?: string | number`: Explicit width inside a `row` (e.g. `"w-48"` or `240`).
+
+### Complete Widget Reference
+
+| Widget `type` | Description | Supported Properties |
 |---|---|---|
 | `column` | Vertical flex container | `gap?: number \| string`, `children: WidgetNode[]` |
-| `row` | Horizontal flex container | `gap?: number \| string`, `align?: "start" \| "center" \| "end" \| "between"`, `children: WidgetNode[]` (children support `flex?: number` and `width?: string \| number`) |
-| `text` | Paragraph or label | `text: string`, `variant?: "normal" \| "muted" \| "danger" \| "success"`, `size?: "sm" \| "base" \| "lg"` |
+| `row` | Horizontal flex container | `gap?: number \| string`, `align?: "start" \| "center" \| "end" \| "between"`, `children: WidgetNode[]` |
+| `text` | Paragraph or status text | `text: string`, `variant?: "normal" \| "muted" \| "danger" \| "success"`, `size?: "sm" \| "base" \| "lg"` |
 | `heading` | Section heading | `text: string`, `level?: 1 \| 2 \| 3 \| 4`, `icon?: string` |
-| `textInput` | Text input field | `id: string`, `label?: string`, `placeholder?: string`, `defaultValue?: string`, `icon?: string`, `hint?: string \| { text?, link? }`, `link?: { label, url }` |
-| `passwordInput`| Password/API key field | `id: string`, `label?: string`, `defaultValue?: string`, `icon?: string`, `hint?: string \| { text?, link? }`, `link?: { label, url }` |
-| `numberInput` | Numeric stepper/field | `id: string`, `label?: string`, `min?: number`, `max?: number`, `step?: number`, `defaultValue?: number` |
+| `textInput` | Text input field | `id: string`, `label?: string`, `labelIcon?: string`, `labelTooltip?: string`, `placeholder?: string`, `defaultValue?: string`, `icon?: string`, `submitAction?: string`, `hint?: string \| { text?, link? }`, `link?: { label, url }` |
+| `passwordInput`| Password / API key field | `id: string`, `label?: string`, `labelIcon?: string`, `labelTooltip?: string`, `placeholder?: string`, `defaultValue?: string`, `icon?: string`, `submitAction?: string`, `hint?: string \| { text?, link? }`, `link?: { label, url }` |
+| `numberInput` | Numeric input field | `id: string`, `label?: string`, `min?: number`, `max?: number`, `step?: number`, `defaultValue?: number` |
 | `select` | Styled dropdown select | `id: string`, `label?: string`, `options: Array<{ label, value }>`, `defaultValue?: string` |
-| `segmented` | Sub-navigation segmented tab pills | `id: string`, `label?: string`, `options: Array<{ value, label, icon?, badge? }>`, `defaultValue?: string` |
-| `pathInput` | Native system file or directory picker | `id: string`, `label?: string`, `placeholder?: string`, `defaultValue?: string`, `pickerType?: "file" \| "folder"`, `filters?: Array<{ name, extensions }>` |
-| `languageSelect` | Searchable 60+ ISO-639-1 world languages | `id: string`, `label?: string`, `defaultValue?: string` (e.g. `"en"`), `placeholder?: string` |
-| `checkbox` | Toggle checkbox | `id: string`, `label: string`, `defaultValue?: boolean` |
-| `button` | Compact action button | `id: string`, `label: string`, `icon?: string`, `variant?: "primary" \| "secondary" \| "danger"`, `disabled?: boolean` |
+| `segmented` | Sub-navigation pill bar | `id: string`, `label?: string`, `options: Array<{ value, label, icon?, badge?, tooltip? }>`, `defaultValue?: string` |
+| `pathInput` | Native OS file/folder picker | `id: string`, `label?: string`, `placeholder?: string`, `defaultValue?: string`, `pickerType?: "file" \| "folder"`, `filters?: Array<{ name, extensions }>` |
+| `languageSelect` | Unified searchable language picker | `id: string`, `label?: string`, `scope?: "all" \| "core"` (defaults to `"all"` for all 58 languages with bundled SVG flags), `defaultValue?: string` (ISO-639-1 code, e.g. `"en"`, `"it"`), `placeholder?: string`, `tooltip?: string` |
+| `checkbox` | Toggle checkbox | `id: string`, `label: string`, `defaultValue?: boolean`, `tooltip?: string` |
+| `button` | Action button | `id: string`, `label: string`, `icon?: string`, `variant?: "primary" \| "secondary" \| "danger"`, `disabled?: boolean`, `tooltip?: string` |
 | `link` / `externalLink` | External hyperlink | `label: string`, `url: string`, `icon?: string` (opens in system browser via Tauri opener) |
-| `list` | Item list with action buttons| `items: Array<{ id, title, subtitle?, badge?, image?, actions?: Array<{ id, label, variant? }> }>` |
+| `list` | Rich item list with actions | `items: Array<{ id, title, subtitle?, badge?, language?, meta?, image?, actions?: Array<{ id, label, variant?, icon?, tooltip? }> }>` |
 | `table` | Responsive data table | `headers: string[]`, `rows: Array<Array<string \| number>>` |
 | `image` | Static image | `src: string`, `alt?: string`, `width?: number`, `height?: number` |
 | `progress` | Progress bar | `value: number`, `max?: number`, `label?: string` |
-| `fileOutput` | File path display with copy/open | `path: string`, `label?: string` |
-| `divider` | Horizontal separator | (None) |
+| `fileOutput` | File path card with copy/open | `path: string`, `label?: string` |
+| `divider` | Horizontal separator | `expertOnly?: boolean` |
 | `settings` | Embedded configuration card | `fields: PluginSettingField[]` |
 
-### Common Widget Properties
-- `id?: string`: Identifier used in events and value binding.
-- `hidden?: boolean`: If `true`, the widget is hidden from display.
-- `expertOnly?: boolean`: If `true`, the widget or setting is hidden in easy mode and only visible when the user enables Expert Mode in Vesta.
-- `width?: string | number`: Child width inside rows (e.g. `"w-48"` or `320`).
-- `flex?: number`: Child flex grow/shrink ratio inside rows (e.g. `1` or `2`).
+### Special Declarative Capabilities
+1. **Keyboard `Enter` Submission (`submitAction`)**:
+   Setting `submitAction: "btn_do_search"` on a `textInput` or `passwordInput` instructs Vesta to automatically trigger `"btn_do_search"` when the user presses `Enter` inside that field. If `submitAction` is omitted, pressing `Enter` dispatches an `event` with `type: "submit"` and `widgetId: <input_id>`.
+2. **Official Brand Badges & Label Tooltips (`icon: "tmdb" | "imdb"`, `labelTooltip`)**:
+   When a `textInput` or `passwordInput` sets `icon: "tmdb"` or `icon: "imdb"`, Vesta renders the official vector badge next to the field's label above the input (e.g. `[TMDB Logo] ID`) with a hover tooltip (`labelTooltip`, defaulting to `"TMDB ID"` or `"IMDb ID"`).
+3. **Automatic Localized Language & Flag Rendering in Lists (`item.language`)**:
+   When a `list` item includes `language: "en"` (or any ISO language code such as `"it"`, `"ja"`, `"pt-br"`), Vesta automatically resolves the bundled country flag SVG (`/flags/*.svg`) and formats the full language name in Vesta's currently selected application language (e.g., `[🇬🇧] Inglese` when Vesta is in Italian, or `[🇬🇧] English` when Vesta is in English), prepending it to the item's `subtitle` and `meta` fields.
 
 ### Icon Registry
-Widgets supporting `icon` (such as `button`, `heading`, `segmented`, `link`, `textInput`, `passwordInput`) accept standard monochrome vector icon names:
+Widgets supporting `icon` accept standard monochrome vector icon names (plus `"tmdb"` and `"imdb"` vector logos):
 - Navigation & Files: `"search"`, `"folder"`, `"file"`, `"globe"`, `"external"`
-- Media & Tools: `"film"`, `"subtitles"`, `"download"`, `"sparkles"` / `"cards"`, `"tmdb"`, `"imdb"`
+- Media & Badges: `"film"`, `"subtitles"`, `"download"`, `"sparkles"` / `"cards"`, `"tmdb"`, `"imdb"`
 - Controls & Actions: `"settings"`, `"key"`, `"info"`, `"check"`, `"refresh"`, `"trash"`
 
 ---
 
-## 7. Dynamic UI Operations (Patching)
+## 8. Dynamic UI Operations (Patching)
 
 Instead of retransmitting the entire UI hierarchy on every small update, a plugin can emit or return an incremental `PluginPatch`:
 
@@ -331,23 +341,29 @@ Instead of retransmitting the entire UI hierarchy on every small update, a plugi
 
 ---
 
-## 8. Permissions & Security Model
+## 9. MCP Server Integration (`vesta-mcp`)
 
-External plugins execute untrusted code on the user's host machine. Vesta enforces security governance:
-- **Explicit confirmation**: Every plugin inspects its manifest and prompts the user with the list of permissions prior to installation.
-- **Directory containment**: Plugin execution occurs within the plugin's isolated directory; path traversal (`../`) is blocked.
-- **Permission Declarations**:
-  - `network`: Allows outbound HTTP/API requests.
-  - `filesystem:downloads`: Allows reading/writing to the user's system Downloads folder.
-- **Secret Isolation**: Vesta never injects global application credentials or external provider keys into a plugin's runtime; plugins only receive their own declared settings.
+Vesta's Model Context Protocol server (`cli/vesta-mcp`) can inspect and interact with installed plugins over the same v1 JSON-RPC contract:
+- **`list_plugins`**: Reads `plugins.json` and returns public metadata (`id`, `name`, `version`, `description`, `enabled`, `permissions`) for all installed plugins. Plugin settings and credentials are never exposed to MCP clients.
+- **`call_plugin`**: Spawns an enabled plugin, initializes it with its configured data directory, and dispatches either a `render` request (when `widget_id` is omitted) or an `event` request (when `widget_id` is provided), returning the declarative JSON response.
 
 ---
 
-## 9. Developing with the Python SDK
+## 10. Permissions & Security Model
+
+External plugins execute untrusted code on the user's host machine. Vesta enforces security governance:
+- **Explicit confirmation**: Every plugin inspects its manifest and prompts the user with the list of permissions prior to installation.
+- **Directory containment**: Plugin installation and archive extraction occur within `<app_data>/plugins/installed/<id>`; path traversal (`../`) and symlinks are blocked.
+- **Permission Declarations**:
+  - `network`: Allows outbound HTTP/API requests.
+  - `filesystem:downloads`: Allows reading/writing to the user's Downloads folder.
+- **Secret Isolation**: Vesta never injects global application credentials or LLM/STT provider keys into a plugin's runtime; plugins only receive their own declared settings.
+
+---
+
+## 11. Developing with the Python SDK
 
 Vesta includes a lightweight Python SDK helper (`vesta_plugin.py`) located under `docs/examples/plugin-hello/`.
-
-A complete plugin in Python:
 
 ```python
 from vesta_plugin import VestaPlugin, Column, Heading, Text, TextInput, Button
@@ -378,20 +394,13 @@ if __name__ == "__main__":
 
 ---
 
-## 10. Manual Testing & Verification
+## 12. Manual Testing & Verification
 
-### Testing a Local Plugin
 1. Start Vesta in development mode:
    ```bash
    cd apps/srt-gui && npm run dev
    ```
-2. Navigate to the **Plugins** tab in the sidebar.
-3. In the repository URL input, enter the path to your local plugin directory:
-   ```
-   docs/examples/plugin-hello
-   ```
-   *(or an absolute path `/path/to/vesta/docs/examples/plugin-hello` / `~/...` / `file://...`)*
-4. Click **Inspect Plugin**. Review the manifest, author, and requested permissions.
-5. Click **Confirm & Install**.
-6. The plugin appears in the **Installed Plugins** list.
-7. Click **Open Tab** or select the plugin's tab in the sidebar to interact with its declarative UI!
+2. Open the **Plugins** tab in the sidebar.
+3. Switch the install bar to **Local Folder** and select `docs/examples/plugin-hello` (or paste a GitHub/GitLab repository URL under **Repository URL**).
+4. Click **Inspect Plugin**, review the manifest and requested permissions, and click **Confirm & Install**.
+5. Click **Open** on the installed plugin card (or use the 2x2 action icons to update, view details, open settings, or uninstall).
