@@ -117,6 +117,27 @@ body,
   border-color: rgba(255, 255, 255, 0.3);
 }
 
+.btn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0 !important;
+  border-radius: 0.5rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: rgb(209, 213, 219);
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.btn-icon:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+}
+
 .btn-success {
   background: var(--done);
   border: none;
