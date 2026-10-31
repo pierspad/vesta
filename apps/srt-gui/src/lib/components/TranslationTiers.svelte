@@ -442,7 +442,7 @@
 
                   <!-- RPM / Budget inline fields -->
                   <div class="flex flex-wrap items-center gap-x-5 gap-y-2 pt-1">
-                    <div class="flex items-center gap-2 shrink-0">
+                    <div class="flex items-center gap-2 shrink-0" title={t("tiers.rpmTooltip")}>
                       <span class="text-[10px] font-bold text-gray-500 uppercase tracking-wide">{t("tiers.rpm")}:</span>
                       <input use:numberControl
                         type="number"
@@ -450,10 +450,10 @@
                         value={entry.rpm ?? ""}
                         oninput={(e) => onNumberChange(tierIndex, entryIndex, "rpm", (e.currentTarget as HTMLInputElement).value)}
                         placeholder={t("tiers.auto")}
-                        class="input-modern w-20 text-xs py-1.5 px-2 text-center"
+                        class="input-modern min-w-[115px] text-xs py-1.5 px-3 text-center"
                       />
                     </div>
-                    <div class="flex items-center gap-2 shrink-0">
+                    <div class="flex items-center gap-2 shrink-0" title={t("tiers.budgetTooltip")}>
                       <span class="text-[10px] font-bold text-gray-500 uppercase tracking-wide">{t("tiers.budget")}:</span>
                       <input use:numberControl
                         type="number"
@@ -461,7 +461,7 @@
                         value={entry.maxRequests ?? ""}
                         oninput={(e) => onNumberChange(tierIndex, entryIndex, "maxRequests", (e.currentTarget as HTMLInputElement).value)}
                         placeholder={t("tiers.unlimited")}
-                        class="input-modern w-20 text-xs py-1.5 px-2 text-center"
+                        class="input-modern min-w-[115px] text-xs py-1.5 px-3 text-center"
                       />
                     </div>
                   </div>
