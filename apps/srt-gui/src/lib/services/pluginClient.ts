@@ -30,6 +30,7 @@ export interface PluginManifest {
   description?: string;
   longDescription?: string;
   readme?: string;
+  icon?: string;
   author?: string;
   homepage?: string;
   repository?: string;
@@ -50,6 +51,7 @@ export interface PluginInspectResult {
   manifest: PluginManifest;
   source: ResolvedPluginSource;
   readme?: string;
+  iconUrl?: string;
 }
 
 export interface InstalledPlugin {
@@ -64,6 +66,7 @@ export interface InstalledPlugin {
   installedAt: string;
   updatedAt?: string;
   readme?: string;
+  iconUrl?: string;
   manifest: PluginManifest;
   settings: Record<string, any>;
 }

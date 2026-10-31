@@ -23,6 +23,8 @@ pub struct InstalledPlugin {
     pub updated_at: Option<String>,
     #[serde(default)]
     pub readme: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub icon_url: Option<String>,
     pub manifest: PluginManifest,
     #[serde(default)]
     pub settings: HashMap<String, serde_json::Value>,
@@ -160,6 +162,7 @@ mod tests {
             description: None,
             long_description: None,
             readme: None,
+            icon: None,
             author: None,
             homepage: None,
             repository: None,
@@ -193,6 +196,7 @@ mod tests {
             installed_at: "2026-10-30T12:00:00Z".to_string(),
             updated_at: None,
             readme: None,
+            icon_url: None,
             manifest: sample_manifest("p1"),
             settings: HashMap::new(),
         };

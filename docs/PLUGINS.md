@@ -95,8 +95,9 @@ A plugin repository must contain a `vesta-plugin.json` manifest at its root:
 | `repository` | `string` | No | Source code repository URL (GitHub, GitLab, etc.). |
 | `readme` | `string` | No | Inline documentation/README text. If omitted, Vesta automatically reads `README.md` from the plugin root directory if present. |
 | `entry` | `object` | **Yes** | Process execution command: `command: string[]` and optional `os: { windows?, macos?, linux? }` overrides. |
+| `icon` | `string` | No | Custom plugin icon/image. Supports named monochrome icons (`"puzzle"`, `"film"`, `"search"`), relative image files inside the plugin root (`"icon.svg"`, `"icon.png"`, `"icon.webp"`, `"assets/logo.svg"`, max 512 KB), or direct `data:image/...` / `https://` URIs. Rendered across plugin cards, inspect dialogs, and embedded headers. |
 | `permissions` | `string[]` | No | Requested permissions (e.g. `network`, `filesystem:downloads`). |
-| `tab` | `object` | No | Visual metadata for the plugin header/card: `{ title: string, icon?: "puzzle" \| "film" \| "search" }`. |
+| `tab` | `object` | No | Visual metadata for the plugin header/card: `{ title: string, icon?: string }`. Supports named icons or relative image files identical to top-level `icon`. |
 | `settings` | `array` | No | Optional declarative configuration fields editable in Vesta's quick settings modal. Plugins may also implement a rich `"settings"` screen directly. |
 
 ---

@@ -25,6 +25,8 @@ pub struct PluginInspectResult {
     pub source: ResolvedPluginSource,
     #[serde(default)]
     pub readme: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub icon_url: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -47,6 +49,103 @@ pub struct PluginManager {
     runtime: PluginRuntimeManager,
 }
 
+fn base64_encode(data: &[u8]) -> String {
+    const TABLE: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let mut out = String::with_capacity(data.len().div_ceil(3) * 4);
+    for chunk in data.chunks(3) {
+        let b0 = chunk[0];
+        let b1 = if chunk.len() > 1 { chunk[1] } else { 0 };
+        let b2 = if chunk.len() > 2 { chunk[2] } else { 0 };
+        out.push(TABLE[(b0 >> 2) as usize] as char);
+        out.push(TABLE[(((b0 & 0x03) << 4) | (b1 >> 4)) as usize] as char);
+        if chunk.len() > 1 {
+            out.push(TABLE[(((b1 & 0x0f) << 2) | (b2 >> 6)) as usize] as char);
+        } else {
+            out.push('=');
+        }
+        if chunk.len() > 2 {
+            out.push(TABLE[(b2 & 0x3f) as usize] as char);
+        } else {
+            out.push('=');
+        }
+    }
+    out
+}
+
+/// Resolves custom icon defined in manifest either via `manifest.icon` or `manifest.tab.icon`.
+/// Supports direct data URIs, HTTP(S) URLs, or relative image files inside `plugin_dir` (<= 512 KB).
+pub fn resolve_plugin_icon_data_url(
+    plugin_dir: &std::path::Path,
+    manifest: &PluginManifest,
+) -> Option<String> {
+    let raw = manifest
+        .icon
+        .as_deref()
+        .or_else(|| manifest.tab.as_ref().and_then(|t| t.icon.as_deref()))?;
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
+        return None;
+    }
+
+    if trimmed.starts_with("data:image/")
+        || trimmed.starts_with("https://")
+        || trimmed.starts_with("http://")
+    {
+        return Some(trimmed.to_string());
+    }
+
+    // Reject path traversal or absolute paths
+    if trimmed.contains("..") || trimmed.starts_with('/') || trimmed.starts_with('\\') {
+        return None;
+    }
+    if trimmed.len() >= 2
+        && trimmed
+            .chars()
+            .next()
+            .is_some_and(|c| c.is_ascii_alphabetic())
+        && trimmed.chars().nth(1) == Some(':')
+    {
+        return None;
+    }
+
+    let full_path = plugin_dir.join(trimmed);
+    if !full_path.exists() || !full_path.is_file() {
+        return None;
+    }
+
+    let canon_plugin = plugin_dir.canonicalize().ok()?;
+    let canon_file = full_path.canonicalize().ok()?;
+    if !canon_file.starts_with(&canon_plugin) {
+        return None;
+    }
+
+    // Enforce 512 KB max file size
+    let metadata = fs::metadata(&canon_file).ok()?;
+    if metadata.len() > 512 * 1024 {
+        return None;
+    }
+
+    let ext = canon_file
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("")
+        .to_ascii_lowercase();
+
+    let mime = match ext.as_str() {
+        "svg" => "image/svg+xml",
+        "png" => "image/png",
+        "jpg" | "jpeg" => "image/jpeg",
+        "webp" => "image/webp",
+        "gif" => "image/gif",
+        "ico" => "image/x-icon",
+        _ => return None,
+    };
+
+    let bytes = fs::read(&canon_file).ok()?;
+    let b64 = base64_encode(&bytes);
+    Some(format!("data:{mime};base64,{b64}"))
+}
+
 impl PluginManager {
     pub fn new(base_dir: PathBuf) -> Self {
         let registry_file = base_dir.join("plugins.json");
@@ -66,7 +165,14 @@ impl PluginManager {
     /// Returns list of all installed plugins.
     pub async fn list(&self) -> Vec<InstalledPlugin> {
         let reg = self.registry.lock().await;
-        reg.list()
+        let mut list = reg.list();
+        for plugin in &mut list {
+            if plugin.icon_url.is_none() {
+                let plugin_dir = self.plugins_dir().join(&plugin.id);
+                plugin.icon_url = resolve_plugin_icon_data_url(&plugin_dir, &plugin.manifest);
+            }
+        }
+        list
     }
 
     /// Inspects a plugin repository/archive without installing it permanently,
@@ -85,11 +191,13 @@ impl PluginManager {
 
         let manifest = fetch_and_extract_plugin(&source, temp_dir.path()).await?;
         let readme = manifest.readme.clone();
+        let icon_url = resolve_plugin_icon_data_url(temp_dir.path(), &manifest);
 
         Ok(PluginInspectResult {
             manifest,
             source,
             readme,
+            icon_url,
         })
     }
 
@@ -146,6 +254,7 @@ impl PluginManager {
         };
 
         let readme = manifest.readme.clone();
+        let icon_url = resolve_plugin_icon_data_url(&target_dir, &manifest);
 
         let installed_plugin = InstalledPlugin {
             id: manifest.id.clone(),
@@ -163,6 +272,7 @@ impl PluginManager {
             installed_at,
             updated_at,
             readme,
+            icon_url,
             manifest,
             settings: existing_settings,
         };
@@ -337,5 +447,93 @@ impl PluginManager {
                 expert_mode,
             )
             .await
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::plugins::manifest::{PluginEntry, PluginTab};
+
+    fn make_test_manifest(icon: Option<&str>, tab_icon: Option<&str>) -> PluginManifest {
+        PluginManifest {
+            id: "test-plugin".to_string(),
+            name: "Test Plugin".to_string(),
+            version: "1.0.0".to_string(),
+            api_version: 1,
+            description: None,
+            long_description: None,
+            readme: None,
+            icon: icon.map(|s| s.to_string()),
+            author: None,
+            homepage: None,
+            repository: None,
+            entry: PluginEntry {
+                command: vec!["python3".to_string(), "main.py".to_string()],
+                os: None,
+            },
+            permissions: vec![],
+            tab: tab_icon.map(|ti| PluginTab {
+                title: "Test".to_string(),
+                icon: Some(ti.to_string()),
+            }),
+            settings: None,
+        }
+    }
+
+    #[test]
+    fn test_base64_encode() {
+        assert_eq!(base64_encode(b""), "");
+        assert_eq!(base64_encode(b"f"), "Zg==");
+        assert_eq!(base64_encode(b"fo"), "Zm8=");
+        assert_eq!(base64_encode(b"foo"), "Zm9v");
+    }
+
+    #[test]
+    fn test_resolve_remote_and_data_icons() {
+        let temp = tempfile::tempdir().unwrap();
+        let manifest = make_test_manifest(Some("https://example.com/logo.svg"), None);
+        assert_eq!(
+            resolve_plugin_icon_data_url(temp.path(), &manifest),
+            Some("https://example.com/logo.svg".to_string())
+        );
+
+        let data_url = "data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=";
+        let manifest_data = make_test_manifest(Some(data_url), None);
+        assert_eq!(
+            resolve_plugin_icon_data_url(temp.path(), &manifest_data),
+            Some(data_url.to_string())
+        );
+    }
+
+    #[test]
+    fn test_resolve_local_image_files() {
+        let temp = tempfile::tempdir().unwrap();
+        let svg_path = temp.path().join("icon.svg");
+        fs::write(&svg_path, "<svg></svg>").unwrap();
+
+        let manifest = make_test_manifest(Some("icon.svg"), None);
+        let resolved = resolve_plugin_icon_data_url(temp.path(), &manifest).unwrap();
+        assert!(resolved.starts_with("data:image/svg+xml;base64,"));
+
+        // Fallback to tab.icon if manifest.icon is not set
+        let manifest_tab = make_test_manifest(None, Some("icon.svg"));
+        let resolved_tab = resolve_plugin_icon_data_url(temp.path(), &manifest_tab).unwrap();
+        assert!(resolved_tab.starts_with("data:image/svg+xml;base64,"));
+    }
+
+    #[test]
+    fn test_resolve_named_icon_fallback() {
+        let temp = tempfile::tempdir().unwrap();
+        // Named icons like "puzzle" or "film" are not image files so they resolve to None
+        let manifest = make_test_manifest(None, Some("puzzle"));
+        assert_eq!(resolve_plugin_icon_data_url(temp.path(), &manifest), None);
+    }
+
+    #[test]
+    fn test_resolve_traversal_rejected() {
+        let temp = tempfile::tempdir().unwrap();
+        let manifest = make_test_manifest(Some("../secret.png"), None);
+        assert_eq!(resolve_plugin_icon_data_url(temp.path(), &manifest), None);
     }
 }
