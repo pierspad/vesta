@@ -29,10 +29,10 @@ it("does not overwrite text changed while awaiting clipboard permission", async 
  item("Paste").click(); input.value="new content"; resolve("clipboard text"); await tick(); await tick();
  expect(input.value).toBe("new content");
 });
-it("does not show a menu of disabled editing actions on empty space", async () => {
+it("opens global context menu on empty space", async () => {
  const input=await render();
  document.querySelector<HTMLElement>('[role="menu"]')!.dispatchEvent(new KeyboardEvent("keydown",{key:"Escape",bubbles:true})); await tick();
  input.blur(); window.getSelection()?.removeAllRanges();
  document.body.dispatchEvent(new MouseEvent("contextmenu",{bubbles:true,cancelable:true})); await tick();
- expect(document.querySelector('[role="menu"]')).toBeNull();
+ expect(document.querySelector('[role="menu"]')).not.toBeNull();
 });

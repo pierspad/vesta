@@ -95,7 +95,7 @@
     const canEdit = !!editable && (!(editable instanceof HTMLInputElement || editable instanceof HTMLTextAreaElement) || !editable.readOnly);
     const settingsTarget = Boolean(target?.closest("[data-context-menu='settings-notifications']"));
 
-    if (!editable && !text && !settingsTarget) return;
+    // Always allow opening the global context menu across the interface
     menu = {
       x: event.clientX,
       y: event.clientY,
