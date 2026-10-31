@@ -1343,5 +1343,18 @@
   "plugins.untrustedCodeWarning": "Les extensions tierces ne sont ni examinées ni approuvées par Vesta, s'exécutent avec vos autorisations utilisateur et vous êtes seul responsable de leur utilisation et de leur légalité.",
   "plugins.untrustedCodeWarningTitle": "Avis de sécurité",
   "plugins.update": "Mettre à jour",
-  "plugins.updatedAt": "Mis à jour"
+  "plugins.updatedAt": "Mis à jour",
+  "plugins.modeRepo": "URL du dépôt",
+  "plugins.modeFolder": "Dossier local",
+  "plugins.localFolderPlaceholder": "/chemin/vers/plugin",
+  "plugins.chooseFile": "Choisir un fichier…",
+  "plugins.chooseFolder": "Choisir un dossier…",
+  "settings.experimentalUnlocked": "Mode expérimental déverrouillé",
+  "experimental.hide.title": "Masquer l'onglet expérimental",
+  "experimental.hide.description": "Verrouille et masque l'onglet Expérimental de la barre latérale. Vous pouvez le réafficher en cliquant 7 fois sur le logo Vesta.",
+  "experimental.hide.action": "Masquer l'onglet",
+  "settings.missingConfig": "Configuration manquante",
+  "tiers.rpmTooltip": "Requêtes maximales par minute autorisées pour ce fournisseur",
+  "tiers.budgetTooltip": "Limite de requêtes pour ce niveau avant basculement",
+  "tiers.batchSizeTooltip": "Nombre de lignes de sous-titres envoyées dans une seule requête"
 }

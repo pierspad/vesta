@@ -1343,5 +1343,18 @@
   "plugins.untrustedCodeWarning": "서드파티 플러그인은 Vesta의 검토나 보증을 받지 않으며, 사용자의 권한으로 실행됩니다. 사용 및 적법성에 대한 책임은 전적으로 사용자에게 있습니다.",
   "plugins.untrustedCodeWarningTitle": "보안 안내",
   "plugins.update": "업데이트",
-  "plugins.updatedAt": "업데이트됨"
+  "plugins.updatedAt": "업데이트됨",
+  "plugins.modeRepo": "저장소 URL",
+  "plugins.modeFolder": "로컬 폴더",
+  "plugins.localFolderPlaceholder": "/플러그인/경로",
+  "plugins.chooseFile": "파일 선택…",
+  "plugins.chooseFolder": "폴더 선택…",
+  "settings.experimentalUnlocked": "실험 모드 잠금 해제됨",
+  "experimental.hide.title": "실험 탭 숨기기",
+  "experimental.hide.description": "사이드바에서 실험 탭을 잠그고 숨깁니다. Vesta 로고를 7번 클릭하면 다시 나타납니다.",
+  "experimental.hide.action": "탭 숨기기",
+  "settings.missingConfig": "설정 필요",
+  "tiers.rpmTooltip": "이 공급자에 허용되는 분당 최대 요청 수",
+  "tiers.budgetTooltip": "다음 계층으로 넘어가기 전 허용되는 최대 요청 수",
+  "tiers.batchSizeTooltip": "단일 프롬프트에서 전송되는 자막 줄 수"
 }

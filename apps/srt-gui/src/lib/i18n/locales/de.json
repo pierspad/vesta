@@ -1343,5 +1343,18 @@
   "plugins.untrustedCodeWarning": "Drittanbieter-Erweiterungen werden von Vesta weder geprüft noch empfohlen, laufen mit Ihren Benutzerrechten und Sie tragen die alleinige Verantwortung für deren Nutzung und Rechtmäßigkeit.",
   "plugins.untrustedCodeWarningTitle": "Sicherheitshinweis",
   "plugins.update": "Aktualisieren",
-  "plugins.updatedAt": "Aktualisiert"
+  "plugins.updatedAt": "Aktualisiert",
+  "plugins.modeRepo": "Repository-URL",
+  "plugins.modeFolder": "Lokaler Ordner",
+  "plugins.localFolderPlaceholder": "/pfad/zum/plugin",
+  "plugins.chooseFile": "Datei wählen…",
+  "plugins.chooseFolder": "Ordner wählen…",
+  "settings.experimentalUnlocked": "Experimenteller Modus freigeschaltet",
+  "experimental.hide.title": "Experimentellen Tab ausblenden",
+  "experimental.hide.description": "Diesen Tab sperren und in der Seitenleiste ausblenden. Sie können ihn durch 7-maliges Klicken auf das Vesta-Logo wieder einblenden.",
+  "experimental.hide.action": "Tab ausblenden",
+  "settings.missingConfig": "Fehlende Konfiguration",
+  "tiers.rpmTooltip": "Maximale Anfragen pro Minute für diesen Anbieter",
+  "tiers.budgetTooltip": "Maximale Anfragen für diese Stufe vor dem Failover",
+  "tiers.batchSizeTooltip": "Anzahl der Untertitelzeilen in einem einzelnen Prompt"
 }

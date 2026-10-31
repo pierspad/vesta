@@ -1343,5 +1343,18 @@
   "plugins.untrustedCodeWarning": "第三方插件未经 Vesta 审核或认可，以您的用户权限运行，您对其使用和合法性承担全部责任。",
   "plugins.untrustedCodeWarningTitle": "安全提示",
   "plugins.update": "更新",
-  "plugins.updatedAt": "已更新"
+  "plugins.updatedAt": "已更新",
+  "plugins.modeRepo": "仓库 URL",
+  "plugins.modeFolder": "本地文件夹",
+  "plugins.localFolderPlaceholder": "/插件/路径",
+  "plugins.chooseFile": "选择文件…",
+  "plugins.chooseFolder": "选择文件夹…",
+  "settings.experimentalUnlocked": "实验性模式已解锁",
+  "experimental.hide.title": "隐藏实验性标签页",
+  "experimental.hide.description": "锁定并从侧边栏隐藏实验性标签页。点击 Vesta 图标 7 次可再次解锁。",
+  "experimental.hide.action": "隐藏标签页",
+  "settings.missingConfig": "缺少配置",
+  "tiers.rpmTooltip": "该提供商每分钟允许的最大请求数",
+  "tiers.budgetTooltip": "故障转移前该层级允许的最大请求数",
+  "tiers.batchSizeTooltip": "在单个提示词中发送给 LLM 的字幕行数"
 }

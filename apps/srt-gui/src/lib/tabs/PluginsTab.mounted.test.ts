@@ -94,10 +94,18 @@ it("renders install section with Browse button, integrated search, and aligned 9
   components.push(component);
   await tick();
 
-  // Install section title
+  // Install section title and segmented toggle
   expect(target.textContent).toContain("Install from Repository or Local Folder");
+  expect(target.textContent).toContain("Repository URL");
+  expect(target.textContent).toContain("Local Folder");
 
-  // Browse folder button is present
+  // Switch to Local Folder mode
+  const folderModeBtn = Array.from(target.querySelectorAll("button")).find(b => b.textContent?.trim() === "Local Folder");
+  expect(folderModeBtn).not.toBeNull();
+  folderModeBtn!.click();
+  await tick();
+
+  // Browse folder button is present in PathPickerField
   const browseBtn = target.querySelector('button[aria-label="Browse…"]') as HTMLButtonElement;
   expect(browseBtn).not.toBeNull();
 
@@ -108,9 +116,8 @@ it("renders install section with Browse button, integrated search, and aligned 9
   await tick();
   expect(guardedOpen).toHaveBeenCalledWith({ directory: true, multiple: false });
 
-  // Input should be populated with selected folder path
-  const urlInput = target.querySelector('input[type="text"]') as HTMLInputElement;
-  expect(urlInput.value).toBe("/path/to/local/plugin");
+  // PathPickerField should display selected folder path
+  expect(target.textContent).toContain("/path/to/local/plugin");
 
   // Search input is integrated in the installed plugins section
   const searchInput = target.querySelector('input[placeholder="Filter installed plugins…"]');

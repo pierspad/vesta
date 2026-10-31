@@ -1343,5 +1343,18 @@
   "plugins.untrustedCodeWarning": "サードパーティ製プラグインは Vesta による審査や推奨を受けておらず、お客様のユーザー権限で動作します。その使用と合法性についてはお客様ご自身が全責任を負います。",
   "plugins.untrustedCodeWarningTitle": "セキュリティに関する注意",
   "plugins.update": "更新",
-  "plugins.updatedAt": "更新日時"
+  "plugins.updatedAt": "更新日時",
+  "plugins.modeRepo": "リポジトリ URL",
+  "plugins.modeFolder": "ローカルフォルダー",
+  "plugins.localFolderPlaceholder": "/プラグインへのパス",
+  "plugins.chooseFile": "ファイルを選択…",
+  "plugins.chooseFolder": "フォルダーを選択…",
+  "settings.experimentalUnlocked": "実験モードがロック解除されました",
+  "experimental.hide.title": "実験タブを非表示",
+  "experimental.hide.description": "サイドバーから実験タブをロックして非表示にします。Vestaロゴを7回クリックすると再度表示されます。",
+  "experimental.hide.action": "タブを非表示",
+  "settings.missingConfig": "設定が未完了です",
+  "tiers.rpmTooltip": "このプロバイダーに許可される1分あたりの最大リクエスト数",
+  "tiers.budgetTooltip": "フェイルオーバー前にこの階層で許可される最大リクエスト数",
+  "tiers.batchSizeTooltip": "1回のリクエストで送信される字幕の行数"
 }

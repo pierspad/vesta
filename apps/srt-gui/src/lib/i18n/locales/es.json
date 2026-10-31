@@ -1343,5 +1343,18 @@
   "plugins.untrustedCodeWarning": "Los complementos de terceros no son revisados ni respaldados por Vesta, se ejecutan con sus permisos de usuario y usted es el único responsable de su uso y legalidad.",
   "plugins.untrustedCodeWarningTitle": "Aviso de seguridad",
   "plugins.update": "Actualizar",
-  "plugins.updatedAt": "Actualizado"
+  "plugins.updatedAt": "Actualizado",
+  "plugins.modeRepo": "URL del repositorio",
+  "plugins.modeFolder": "Carpeta local",
+  "plugins.localFolderPlaceholder": "/ruta/al/plugin",
+  "plugins.chooseFile": "Elegir archivo…",
+  "plugins.chooseFolder": "Elegir carpeta…",
+  "settings.experimentalUnlocked": "Modo experimental desbloqueado",
+  "experimental.hide.title": "Ocultar pestaña experimental",
+  "experimental.hide.description": "Bloquea y oculta la pestaña Experimental de la barra lateral. Puedes mostrarla de nuevo haciendo clic 7 veces en el logo de Vesta.",
+  "experimental.hide.action": "Ocultar pestaña",
+  "settings.missingConfig": "Configuración incompleta",
+  "tiers.rpmTooltip": "Número máximo de solicitudes por minuto para este proveedor",
+  "tiers.budgetTooltip": "Límite de solicitudes para este nivel antes de la conmutación",
+  "tiers.batchSizeTooltip": "Número de líneas de subtítulos enviadas en una sola solicitud"
 }

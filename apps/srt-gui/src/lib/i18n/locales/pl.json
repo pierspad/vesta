@@ -1343,5 +1343,18 @@
   "plugins.untrustedCodeWarning": "Wtyczki innych firm nie są sprawdzane ani popierane przez Vesta, działają z uprawnieniami użytkownika, a Ty ponosisz wyłączną odpowiedzialność za ich używanie i zgodność z prawem.",
   "plugins.untrustedCodeWarningTitle": "Ostrzeżenie o bezpieczeństwie",
   "plugins.update": "Zaktualizuj",
-  "plugins.updatedAt": "Zaktualizowano"
+  "plugins.updatedAt": "Zaktualizowano",
+  "plugins.modeRepo": "URL repozytorium",
+  "plugins.modeFolder": "Folder lokalny",
+  "plugins.localFolderPlaceholder": "/ścieżka/do/wtyczki",
+  "plugins.chooseFile": "Wybierz plik…",
+  "plugins.chooseFolder": "Wybierz folder…",
+  "settings.experimentalUnlocked": "Tryb eksperymentalny odblokowany",
+  "experimental.hide.title": "Ukryj kartę eksperymentalną",
+  "experimental.hide.description": "Zablokuj i ukryj kartę Eksperymentalną na pasku bocznym. Możesz ją odkryć klikając 7 razy w logo Vesta.",
+  "experimental.hide.action": "Ukryj kartę",
+  "settings.missingConfig": "Brak konfiguracji",
+  "tiers.rpmTooltip": "Maksymalna liczba zapytań na minutę dla tego dostawcy",
+  "tiers.budgetTooltip": "Maksymalna liczba zapytań na tym poziomie przed przełączeniem",
+  "tiers.batchSizeTooltip": "Liczba linii napisów w jednym zapytaniu"
 }

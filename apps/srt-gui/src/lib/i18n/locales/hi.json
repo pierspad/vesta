@@ -1343,5 +1343,18 @@
   "plugins.untrustedCodeWarning": "तृतीय-पक्ष प्लगइन्स की Vesta द्वारा समीक्षा या समर्थन नहीं किया जाता है, वे आपकी उपयोगकर्ता अनुमतियों के साथ चलते हैं, और उनके उपयोग व वैधता के लिए पूरी तरह से आप स्वयं जिम्मेदार हैं।",
   "plugins.untrustedCodeWarningTitle": "सुरक्षा सूचना",
   "plugins.update": "अद्यतन करें",
-  "plugins.updatedAt": "अद्यतन किया गया"
+  "plugins.updatedAt": "अद्यतन किया गया",
+  "plugins.modeRepo": "रिपॉजिटरी URL",
+  "plugins.modeFolder": "स्थानीय फ़ोल्डर",
+  "plugins.localFolderPlaceholder": "/प्लगइन/का/पथ",
+  "plugins.chooseFile": "फ़ाइल चुनें…",
+  "plugins.chooseFolder": "फ़ोल्डर चुनें…",
+  "settings.experimentalUnlocked": "प्रायोगिक मोड अनलॉक हो गया",
+  "experimental.hide.title": "प्रायोगिक टैब छुपाएं",
+  "experimental.hide.description": "साइडबार से प्रायोगिक टैब को लॉक और छुपाएं। Vesta लोगो पर 7 बार क्लिक करके आप इसे पुनः दिखा सकते हैं।",
+  "experimental.hide.action": "टैब छुपाएं",
+  "settings.missingConfig": "कॉन्फ़िगरेशन अधूरा है",
+  "tiers.rpmTooltip": "इस प्रदाता के लिए प्रति मिनट अधिकतम अनुमत अनुरोध",
+  "tiers.budgetTooltip": "फ़ेलओवर से पहले इस स्तर के लिए अधिकतम अनुरोध",
+  "tiers.batchSizeTooltip": "एक ही प्रॉम्प्ट में भेजी जाने वाली उपशीर्षक पंक्तियों की संख्या"
 }

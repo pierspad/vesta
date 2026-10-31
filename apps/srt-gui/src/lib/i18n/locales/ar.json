@@ -1343,5 +1343,18 @@
   "plugins.untrustedCodeWarning": "لا تتم مراجعة إضافات الجهات الخارجية أو اعتمادها من قبل Vesta، وهي تعمل بأذونات المستخدم الخاصة بك، وأنت وحدك المسؤول عن استخدامها وقانونيتها.",
   "plugins.untrustedCodeWarningTitle": "تنبيه أمني",
   "plugins.update": "تحديث",
-  "plugins.updatedAt": "تم التحديث"
+  "plugins.updatedAt": "تم التحديث",
+  "plugins.modeRepo": "عنوان URL للمستودع",
+  "plugins.modeFolder": "مجلد محلي",
+  "plugins.localFolderPlaceholder": "/مسار/الملحق",
+  "plugins.chooseFile": "اختر ملفاً…",
+  "plugins.chooseFolder": "اختر مجلداً…",
+  "settings.experimentalUnlocked": "تم إلغاء قفل الوضع التجريبي",
+  "experimental.hide.title": "إخفاء علامة التبويب التجريبية",
+  "experimental.hide.description": "قفل وإخفاء علامة التبويب التجريبية من الشريط الجانبي. يمكنك إظهارها مجدداً بالنقر 7 مرات على شعار Vesta.",
+  "experimental.hide.action": "إخفاء علامة التبويب",
+  "settings.missingConfig": "التكوين مفقود",
+  "tiers.rpmTooltip": "الحد الأقصى للطلبات في الدقيقة لهذا المزود",
+  "tiers.budgetTooltip": "الحد الأقصى للطلبات لهذه الطبقة قبل الانتقال للطبقة التالية",
+  "tiers.batchSizeTooltip": "عدد أسطر الترجمة المرسلة في موجه واحد"
 }

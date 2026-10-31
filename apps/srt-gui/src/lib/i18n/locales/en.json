@@ -1343,5 +1343,18 @@
   "plugins.untrustedCodeWarning": "Third-party plugins are not reviewed or endorsed by Vesta, run with your user permissions, and you are solely responsible for their use and legality.",
   "plugins.untrustedCodeWarningTitle": "Security Notice",
   "plugins.update": "Update",
-  "plugins.updatedAt": "Updated"
+  "plugins.updatedAt": "Updated",
+  "plugins.modeRepo": "Repository URL",
+  "plugins.modeFolder": "Local Folder",
+  "plugins.localFolderPlaceholder": "/path/to/plugin",
+  "plugins.chooseFile": "Choose file…",
+  "plugins.chooseFolder": "Choose folder…",
+  "settings.experimentalUnlocked": "Experimental mode unlocked",
+  "experimental.hide.title": "Hide Experimental Tab",
+  "experimental.hide.description": "Lock and hide the Experimental tab from the sidebar. You can reveal it again by clicking the Vesta logo 7 times.",
+  "experimental.hide.action": "Hide Tab",
+  "settings.missingConfig": "Missing configuration",
+  "tiers.rpmTooltip": "Maximum requests per minute allowed for this provider",
+  "tiers.budgetTooltip": "Maximum requests allowed for this tier before falling over",
+  "tiers.batchSizeTooltip": "Number of subtitle lines sent in a single LLM prompt"
 }

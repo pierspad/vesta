@@ -1343,5 +1343,18 @@
   "plugins.untrustedCodeWarning": "Üçüncü taraf eklentiler Vesta tarafından incelenmez veya onaylanmaz, kullanıcı izinlerinizle çalışır ve bunların kullanımından ve yasallığından yalnızca siz sorumlusunuz.",
   "plugins.untrustedCodeWarningTitle": "Güvenlik Uyarısı",
   "plugins.update": "Güncelle",
-  "plugins.updatedAt": "Güncellendi"
+  "plugins.updatedAt": "Güncellendi",
+  "plugins.modeRepo": "Depo URL'si",
+  "plugins.modeFolder": "Yerel Klasör",
+  "plugins.localFolderPlaceholder": "/klasor/yolu/eklenti",
+  "plugins.chooseFile": "Dosya seç…",
+  "plugins.chooseFolder": "Klasör seç…",
+  "settings.experimentalUnlocked": "Deneysel mod açıldı",
+  "experimental.hide.title": "Deneysel Sekmeyi Gizle",
+  "experimental.hide.description": "Deneysel sekmeyi kenar çubuğundan kilitleyip gizleyin. Vesta logosuna 7 kez tıklayarak tekrar gösterebilirsiniz.",
+  "experimental.hide.action": "Sekmeyi Gizle",
+  "settings.missingConfig": "Eksik yapılandırma",
+  "tiers.rpmTooltip": "Bu sağlayıcı için izin verilen dakikalık maksimum istek",
+  "tiers.budgetTooltip": "Devir öncesinde bu katman için izin verilen maksimum istek",
+  "tiers.batchSizeTooltip": "Tek bir istekte gönderilen altyazı satırı sayısı"
 }

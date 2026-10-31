@@ -1343,5 +1343,18 @@
   "plugins.untrustedCodeWarning": "Сторонние плагины не проверяются и не одобряются Vesta, запускаются с правами вашего пользователя, и вы несете единоличную ответственность за их использование и законность.",
   "plugins.untrustedCodeWarningTitle": "Предупреждение безопасности",
   "plugins.update": "Обновить",
-  "plugins.updatedAt": "Обновлен"
+  "plugins.updatedAt": "Обновлен",
+  "plugins.modeRepo": "URL репозитория",
+  "plugins.modeFolder": "Локальная папка",
+  "plugins.localFolderPlaceholder": "/путь/к/плагину",
+  "plugins.chooseFile": "Выбрать файл…",
+  "plugins.chooseFolder": "Выбрать папку…",
+  "settings.experimentalUnlocked": "Экспериментальный режим разблокирован",
+  "experimental.hide.title": "Скрыть вкладку «Эксперименты»",
+  "experimental.hide.description": "Заблокировать и скрыть вкладку из боковой панели. Вы можете открыть её снова, нажав 7 раз на логотип Vesta.",
+  "experimental.hide.action": "Скрыть вкладку",
+  "settings.missingConfig": "Не настроено",
+  "tiers.rpmTooltip": "Максимум запросов в минуту для этого провайдера",
+  "tiers.budgetTooltip": "Лимит запросов для этого уровня до переключения",
+  "tiers.batchSizeTooltip": "Количество строк субтитров, отправляемых в одном запросе"
 }

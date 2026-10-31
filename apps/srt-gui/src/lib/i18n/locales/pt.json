@@ -1343,5 +1343,18 @@
   "plugins.untrustedCodeWarning": "Extensões de terceiros não são revisadas nem endossadas pelo Vesta, executam com suas permissões de usuário e você é o único responsável pelo uso e legalidade das mesmas.",
   "plugins.untrustedCodeWarningTitle": "Aviso de segurança",
   "plugins.update": "Atualizar",
-  "plugins.updatedAt": "Atualizado"
+  "plugins.updatedAt": "Atualizado",
+  "plugins.modeRepo": "URL do repositório",
+  "plugins.modeFolder": "Pasta local",
+  "plugins.localFolderPlaceholder": "/caminho/para/plugin",
+  "plugins.chooseFile": "Escolher arquivo…",
+  "plugins.chooseFolder": "Escolher pasta…",
+  "settings.experimentalUnlocked": "Modo experimental desbloqueado",
+  "experimental.hide.title": "Ocultar aba experimental",
+  "experimental.hide.description": "Bloqueie e oculte a aba Experimental da barra lateral. Você pode revelá-la novamente clicando 7 vezes no logo do Vesta.",
+  "experimental.hide.action": "Ocultar aba",
+  "settings.missingConfig": "Configuração ausente",
+  "tiers.rpmTooltip": "Máximo de requisições por minuto para este provedor",
+  "tiers.budgetTooltip": "Limite de requisições para este nível antes do failover",
+  "tiers.batchSizeTooltip": "Número de linhas de legenda enviadas em uma única requisição"
 }

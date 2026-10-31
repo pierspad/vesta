@@ -76,6 +76,7 @@
       {disabled}
       class="{browseButtonClass} flex items-center justify-center gap-1.5 whitespace-nowrap shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
       title={browseTitle}
+      aria-label={browseTitle}
     >
       <svg
         class="w-4 h-4"

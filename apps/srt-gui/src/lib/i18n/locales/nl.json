@@ -1343,5 +1343,18 @@
   "plugins.untrustedCodeWarning": "Plug-ins van derden worden niet beoordeeld of goedgekeurd door Vesta, worden uitgevoerd met uw gebruikersmachtigingen en u bent zelf als enige verantwoordelijk voor het gebruik en de wettigheid ervan.",
   "plugins.untrustedCodeWarningTitle": "Beveiligingswaarschuwing",
   "plugins.update": "Bijwerken",
-  "plugins.updatedAt": "Bijgewerkt"
+  "plugins.updatedAt": "Bijgewerkt",
+  "plugins.modeRepo": "Repository-URL",
+  "plugins.modeFolder": "Lokale map",
+  "plugins.localFolderPlaceholder": "/pad/naar/plugin",
+  "plugins.chooseFile": "Bestand kiezen…",
+  "plugins.chooseFolder": "Map kiezen…",
+  "settings.experimentalUnlocked": "Experimentele modus ontgrendeld",
+  "experimental.hide.title": "Experimenteel tabblad verbergen",
+  "experimental.hide.description": "Vergrendel en verberg het experimentele tabblad van de zijbalk. Klik 7 keer op het Vesta-logo om het weer te tonen.",
+  "experimental.hide.action": "Tabblad verbergen",
+  "settings.missingConfig": "Configuratie ontbreekt",
+  "tiers.rpmTooltip": "Maximaal aantal verzoeken per minuut voor deze provider",
+  "tiers.budgetTooltip": "Maximaal aantal verzoeken voor deze laag vóór failover",
+  "tiers.batchSizeTooltip": "Aantal ondertitelregels in één prompt"
 }
