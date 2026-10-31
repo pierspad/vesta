@@ -445,6 +445,7 @@ impl PluginRuntimeManager {
     }
 
     /// Invokes `event` on the plugin child process.
+    #[allow(clippy::too_many_arguments)]
     pub async fn dispatch_event(
         &self,
         process: &ActivePluginProcess,
