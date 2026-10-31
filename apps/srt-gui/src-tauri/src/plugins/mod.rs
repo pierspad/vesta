@@ -276,10 +276,19 @@ impl PluginManager {
 
         let process = self
             .runtime
-            .ensure_running(&manifest, &plugin_dir, app_handle, locale, &settings, expert_mode)
+            .ensure_running(
+                &manifest,
+                &plugin_dir,
+                app_handle,
+                locale,
+                &settings,
+                expert_mode,
+            )
             .await?;
 
-        self.runtime.render(&process, screen, params, expert_mode).await
+        self.runtime
+            .render(&process, screen, params, expert_mode)
+            .await
     }
 
     /// Dispatches an event (click, change, etc.) to the plugin.
@@ -305,7 +314,14 @@ impl PluginManager {
         let plugin_dir = self.plugins_dir().join(plugin_id);
         let process = self
             .runtime
-            .ensure_running(&manifest, &plugin_dir, app_handle, locale, &settings, expert_mode)
+            .ensure_running(
+                &manifest,
+                &plugin_dir,
+                app_handle,
+                locale,
+                &settings,
+                expert_mode,
+            )
             .await?;
 
         let screen_name = event.screen.as_deref().unwrap_or("main");

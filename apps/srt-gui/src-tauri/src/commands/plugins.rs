@@ -84,7 +84,14 @@ pub async fn plugin_render(
     let loc = locale.unwrap_or_else(|| "en".to_string());
     let is_expert = expert_mode.unwrap_or(false);
     state
-        .render(Some(app), &plugin_id, &screen_name, params_val, &loc, is_expert)
+        .render(
+            Some(app),
+            &plugin_id,
+            &screen_name,
+            params_val,
+            &loc,
+            is_expert,
+        )
         .await
 }
 
