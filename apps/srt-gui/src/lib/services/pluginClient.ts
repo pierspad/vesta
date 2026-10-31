@@ -27,7 +27,11 @@ export interface PluginManifest {
   version: string;
   apiVersion: number;
   description?: string;
+  longDescription?: string;
+  readme?: string;
   author?: string;
+  homepage?: string;
+  repository?: string;
   entry: PluginEntry;
   permissions: string[];
   tab?: PluginTab;
@@ -44,6 +48,7 @@ export interface ResolvedPluginSource {
 export interface PluginInspectResult {
   manifest: PluginManifest;
   source: ResolvedPluginSource;
+  readme?: string;
 }
 
 export interface InstalledPlugin {
@@ -56,6 +61,8 @@ export interface InstalledPlugin {
   sourceUrl: string;
   sourceRef?: string;
   installedAt: string;
+  updatedAt?: string;
+  readme?: string;
   manifest: PluginManifest;
   settings: Record<string, any>;
 }

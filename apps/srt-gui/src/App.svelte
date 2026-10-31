@@ -21,7 +21,6 @@
   import { getShortcuts } from "$lib/utils/shortcuts";
   import * as vestaConfig from "$lib/config/vestaConfig";
   import { pluginsStore } from "$lib/stores/pluginsStore.svelte";
-  import PluginRenderer from "$lib/components/PluginRenderer.svelte";
 
   type BuiltinTab = "translate" | "sync" | "transcribe" | "align" | "flashcards" | "settings" | "refine" | "extract" | "experimental" | "plugins";
   type AppTab = BuiltinTab | (string & {});
@@ -217,6 +216,7 @@
     "align",
     "transcribe",
     "extract",
+    "plugins",
     "experimental",
     "settings",
   ];
@@ -472,12 +472,12 @@
     {/if}
     {#if loadedTabs.plugins}
       {@const PluginsTab = loadedTabs.plugins}
-      <div class="absolute inset-0" class:hidden={activeTab !== "plugins"}><PluginsTab active={activeTab === "plugins"} onGoToTab={changeTab} /></div>
-    {/if}
-    {#if activeTab.startsWith("plugin:")}
-      {@const pluginId = activeTab.slice(7)}
-      <div class="absolute inset-0">
-        <PluginRenderer {pluginId} active={true} />
+      <div class="absolute inset-0" class:hidden={activeTab !== "plugins" && !activeTab.startsWith("plugin:")}>
+        <PluginsTab
+          active={activeTab === "plugins" || activeTab.startsWith("plugin:")}
+          activePluginId={activeTab.startsWith("plugin:") ? activeTab.slice(7) : null}
+          onGoToTab={changeTab}
+        />
       </div>
     {/if}
     {#if (activeTab in tabLoaders) && !loadedTabs[activeTab as BuiltinTab]}

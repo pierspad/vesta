@@ -345,8 +345,32 @@ pub fn load_manifest_from_dir(dir: &Path) -> Result<PluginManifest, String> {
     let content = fs::read_to_string(&manifest_path)
         .map_err(|e| format!("Failed to read 'vesta-plugin.json': {e}"))?;
 
-    let manifest: PluginManifest = serde_json::from_str(&content)
+    let mut manifest: PluginManifest = serde_json::from_str(&content)
         .map_err(|e| format!("Failed to parse 'vesta-plugin.json': {e}"))?;
+
+    // If manifest doesn't declare an explicit readme, scan for a markdown README in plugin root
+    if manifest.readme.is_none() {
+        for candidate in &[
+            "README.md",
+            "readme.md",
+            "README",
+            "Readme.md",
+            "README.txt",
+        ] {
+            let readme_path = dir.join(candidate);
+            if readme_path.is_file()
+                && let Ok(readme_content) = fs::read_to_string(&readme_path)
+            {
+                let truncated = if readme_content.len() > 128 * 1024 {
+                    format!("{}...\n\n*(Truncated)*", &readme_content[..128 * 1024])
+                } else {
+                    readme_content
+                };
+                manifest.readme = Some(truncated);
+                break;
+            }
+        }
+    }
 
     manifest.validate()?;
     Ok(manifest)
@@ -525,5 +549,30 @@ mod tests {
         assert!(!temp_dst.path().join(".env").exists());
         assert!(!temp_dst.path().join(".git").exists());
         assert!(!temp_dst.path().join("node_modules").exists());
+    }
+
+    #[test]
+    fn test_load_manifest_reads_readme() {
+        let temp = tempfile::tempdir().unwrap();
+        let manifest_content = r#"{
+            "id": "readme-plugin",
+            "name": "Readme Plugin",
+            "version": "1.0.0",
+            "apiVersion": 1,
+            "entry": { "command": ["python3", "main.py"] }
+        }"#;
+        fs::write(temp.path().join("vesta-plugin.json"), manifest_content).unwrap();
+        fs::write(
+            temp.path().join("README.md"),
+            "# Readme Plugin\nDetailed docs here.",
+        )
+        .unwrap();
+
+        let manifest = load_manifest_from_dir(temp.path()).expect("manifest load failed");
+        assert_eq!(manifest.id, "readme-plugin");
+        assert_eq!(
+            manifest.readme.as_deref(),
+            Some("# Readme Plugin\nDetailed docs here.")
+        );
     }
 }

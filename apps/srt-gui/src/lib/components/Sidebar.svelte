@@ -18,7 +18,6 @@
   import * as vestaConfig from "$lib/config/vestaConfig";
   import { markSettingsNotificationRead } from "$lib/utils/settingsNotifications";
   import SupportModal from "$lib/modals/SupportModal.svelte";
-  import { pluginsStore } from "$lib/stores/pluginsStore.svelte";
 
   interface Props {
     activeTab: string;
@@ -181,7 +180,7 @@
     {/if}
   </div>
 
-  <nav class="flex-1 p-4 flex flex-col justify-start gap-3">
+  <nav class="flex-1 min-h-0 overflow-y-auto scrollbar-thin p-3 flex flex-col justify-start gap-2">
 
     {#if activeTab === "settings"}
       <!-- Settings navigation buttons -->
@@ -504,9 +503,27 @@
         {#if !collapsed}<span class="text-[15px] font-semibold">{t("nav.extract")}</span>{/if}
       </button>
 
-      <!-- 7. Experimental -->
+      <!-- 8. Plugins -->
       <button
-        class="order-8 w-full flex gap-3.5 items-center {collapsed ? 'px-2 justify-center' : 'px-3.5'} h-[60px] rounded-xl transition-all duration-100 ease-out border border-transparent cursor-pointer {activeTab ===
+        class="order-8 w-full flex gap-3.5 items-center {collapsed ? 'px-2 justify-center' : 'px-3.5'} h-[60px] rounded-xl transition-all duration-100 ease-out border border-transparent cursor-pointer {(activeTab === 'plugins' || activeTab.startsWith('plugin:'))
+          ? 'bg-gradient-to-r from-indigo-700 to-purple-800 text-white shadow-lg shadow-indigo-500/20 border-indigo-500/30 bg-clip-padding'
+          : 'text-gray-400 hover:bg-indigo-500/10 hover:text-indigo-300 hover:border-indigo-500/20'}"
+        onclick={() => onTabChange("plugins")} onmouseenter={() => onTabPreload?.("plugins")} onfocus={() => onTabPreload?.("plugins")}
+        title={collapsed ? t("nav.plugins") : undefined}
+      >
+        <div class="w-9 h-9 rounded-xl {(activeTab === 'plugins' || activeTab.startsWith('plugin:')) ? 'bg-white/20' : 'bg-white/5'} flex items-center justify-center shrink-0 border border-white/5">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 00-1-1H4a2 2 0 110-4h1a1 1 0 001-1V7a1 1 0 011-1h3a1 1 0 001-1V4z"/></svg>
+        </div>
+        {#if !collapsed}
+          <div class="text-left flex-1 min-w-0 leading-tight">
+            <span class="block text-[15px] font-semibold {(activeTab === 'plugins' || activeTab.startsWith('plugin:')) ? 'text-white' : ''}">{t("nav.plugins")}</span>
+          </div>
+        {/if}
+      </button>
+
+      <!-- 9. Experimental -->
+      <button
+        class="order-9 w-full flex gap-3.5 items-center {collapsed ? 'px-2 justify-center' : 'px-3.5'} h-[60px] rounded-xl transition-all duration-100 ease-out border border-transparent cursor-pointer {activeTab ===
         'experimental'
           ? 'bg-gradient-to-r from-amber-600 to-orange-700 text-white shadow-lg shadow-amber-500/22 shadow-orange-600/20 border-amber-500/30 bg-clip-padding'
           : 'text-gray-400 hover:bg-amber-500/10 hover:text-amber-400 hover:border-amber-500/20'}"
@@ -524,57 +541,10 @@
           </div>
         {/if}
       </button>
-
-      <!-- Dynamic Plugin Tabs -->
-      {#each pluginsStore.enabledPluginsWithTabs as plugin (plugin.id)}
-        <button
-          class="order-9 w-full flex gap-3.5 items-center {collapsed ? 'px-2 justify-center' : 'px-3.5'} h-[60px] rounded-xl transition-all duration-100 ease-out border border-transparent cursor-pointer {activeTab === 'plugin:' + plugin.id
-            ? 'bg-gradient-to-r from-indigo-600 to-indigo-700 text-white shadow-lg shadow-indigo-500/22 border-indigo-500/30 bg-clip-padding'
-            : 'text-gray-400 hover:bg-indigo-500/10 hover:text-indigo-400 hover:border-indigo-500/20'}"
-          onclick={() => onTabChange("plugin:" + plugin.id)}
-          title={collapsed ? plugin.manifest.tab?.title : undefined}
-        >
-          <div class="w-9 h-9 rounded-xl {activeTab === 'plugin:' + plugin.id ? 'bg-white/20' : 'bg-white/5'} flex items-center justify-center flex-shrink-0 relative transition-all duration-100 ease-out border border-white/5">
-            {#if plugin.manifest.tab?.icon === 'film'}
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z"/></svg>
-            {:else if plugin.manifest.tab?.icon === 'search'}
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-            {:else}
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 00-1-1H4a2 2 0 110-4h1a1 1 0 001-1V7a1 1 0 011-1h3a1 1 0 001-1V4z"/></svg>
-            {/if}
-          </div>
-          {#if !collapsed}
-            <div class="text-left flex-1 min-w-0 leading-tight">
-              <span class="block text-[15px] font-semibold truncate {activeTab === 'plugin:' + plugin.id ? 'text-white' : ''}">
-                {plugin.manifest.tab?.title}
-              </span>
-            </div>
-          {/if}
-        </button>
-      {/each}
-
-      <!-- Plugins Manager tab -->
-      <button
-        class="order-10 w-full flex gap-3.5 items-center {collapsed ? 'px-2 justify-center' : 'px-3.5'} h-[60px] rounded-xl transition-all duration-100 ease-out border border-transparent cursor-pointer {activeTab ===
-        'plugins'
-          ? 'bg-gradient-to-r from-indigo-700 to-purple-800 text-white shadow-lg shadow-indigo-500/20 border-indigo-500/30 bg-clip-padding'
-          : 'text-gray-400 hover:bg-indigo-500/10 hover:text-indigo-300 hover:border-indigo-500/20'}"
-        onclick={() => onTabChange("plugins")} onmouseenter={() => onTabPreload?.("plugins")} onfocus={() => onTabPreload?.("plugins")}
-        title={collapsed ? t("nav.plugins") : undefined}
-      >
-        <div class="w-9 h-9 rounded-xl {activeTab === 'plugins' ? 'bg-white/20' : 'bg-white/5'} flex items-center justify-center shrink-0 border border-white/5">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 00-1-1H4a2 2 0 110-4h1a1 1 0 001-1V7a1 1 0 011-1h3a1 1 0 001-1V4z"/></svg>
-        </div>
-        {#if !collapsed}
-          <div class="text-left flex-1 min-w-0 leading-tight">
-            <span class="block text-[15px] font-semibold {activeTab === 'plugins' ? 'text-white' : ''}">{t("nav.plugins")}</span>
-          </div>
-        {/if}
-      </button>
     {/if}
 
     <!-- Expert Mode + AI Kill Switch at the bottom of the nav -->
-    <div class="order-8 mt-auto pt-2 flex flex-col gap-2">
+    <div class="order-10 mt-auto pt-2 flex flex-col gap-2 shrink-0">
       <button type="button" onclick={openInbox} aria-label={t("notifications.title")} aria-haspopup="dialog" aria-expanded={showInbox}
         title={collapsed ? t("notifications.title") : undefined}
         class="relative flex min-h-11 items-center gap-3 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-sm font-semibold text-gray-300 transition-colors hover:border-indigo-400/30 hover:bg-indigo-500/10 hover:text-indigo-200 focus-visible:outline-2 focus-visible:outline-indigo-400 {collapsed ? 'justify-center' : ''}">

@@ -23,6 +23,8 @@ use url::{ResolvedPluginSource, resolve_plugin_url};
 pub struct PluginInspectResult {
     pub manifest: PluginManifest,
     pub source: ResolvedPluginSource,
+    #[serde(default)]
+    pub readme: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -80,8 +82,13 @@ impl PluginManager {
             .map_err(|e| format!("Failed to create temporary directory for inspection: {e}"))?;
 
         let manifest = fetch_and_extract_plugin(&source, temp_dir.path()).await?;
+        let readme = manifest.readme.clone();
 
-        Ok(PluginInspectResult { manifest, source })
+        Ok(PluginInspectResult {
+            manifest,
+            source,
+            readme,
+        })
     }
 
     /// Installs a plugin from a resolved URL or repository into `<plugins_dir>/<id>`.
@@ -118,6 +125,26 @@ impl PluginManager {
 
         copy_dir_recursive(staging_temp.path(), &target_dir)?;
 
+        let (existing_installed_at, existing_settings) = {
+            let reg = self.registry.lock().await;
+            if let Some(existing) = reg.get(&manifest.id) {
+                (
+                    Some(existing.installed_at.clone()),
+                    existing.settings.clone(),
+                )
+            } else {
+                (None, HashMap::new())
+            }
+        };
+
+        let now = Utc::now().to_rfc3339();
+        let (installed_at, updated_at) = match existing_installed_at {
+            Some(prev) => (prev, Some(now)),
+            None => (now.clone(), Some(now)),
+        };
+
+        let readme = manifest.readme.clone();
+
         let installed_plugin = InstalledPlugin {
             id: manifest.id.clone(),
             name: manifest.name.clone(),
@@ -131,9 +158,11 @@ impl PluginManager {
             } else {
                 None
             },
-            installed_at: Utc::now().to_rfc3339(),
+            installed_at,
+            updated_at,
+            readme,
             manifest,
-            settings: HashMap::new(),
+            settings: existing_settings,
         };
 
         {

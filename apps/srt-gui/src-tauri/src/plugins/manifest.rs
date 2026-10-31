@@ -12,7 +12,15 @@ pub struct PluginManifest {
     #[serde(default)]
     pub description: Option<String>,
     #[serde(default)]
+    pub long_description: Option<String>,
+    #[serde(default)]
+    pub readme: Option<String>,
+    #[serde(default)]
     pub author: Option<String>,
+    #[serde(default)]
+    pub homepage: Option<String>,
+    #[serde(default)]
+    pub repository: Option<String>,
     pub entry: PluginEntry,
     #[serde(default)]
     pub permissions: Vec<String>,
@@ -174,7 +182,11 @@ mod tests {
             version: "1.0.0".to_string(),
             api_version: 1,
             description: None,
+            long_description: None,
+            readme: None,
             author: None,
+            homepage: None,
+            repository: None,
             entry: PluginEntry {
                 command: vec!["echo".to_string()],
                 os: None,
@@ -203,7 +215,11 @@ mod tests {
             version: "1.0.0".to_string(),
             api_version: 2,
             description: None,
+            long_description: None,
+            readme: None,
             author: None,
+            homepage: None,
+            repository: None,
             entry: PluginEntry {
                 command: vec!["echo".to_string()],
                 os: None,
@@ -223,7 +239,11 @@ mod tests {
             version: "1.0.0".to_string(),
             api_version: 1,
             description: None,
+            long_description: None,
+            readme: None,
             author: None,
+            homepage: None,
+            repository: None,
             entry: PluginEntry {
                 command: vec![],
                 os: None,

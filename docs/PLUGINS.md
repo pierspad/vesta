@@ -77,7 +77,11 @@ A plugin repository must contain a `vesta-plugin.json` manifest at its root:
 | `version` | `string` | **Yes** | SemVer version string (e.g. `1.0.0`). |
 | `apiVersion` | `number` | **Yes** | Must be `1` for the v1 runtime. |
 | `description` | `string` | No | Short description of the plugin. |
+| `longDescription` | `string` | No | Extended description formatted as Markdown or plain text. |
 | `author` | `string` | No | Author or organization name. |
+| `homepage` | `string` | No | Official project website or documentation URL. |
+| `repository` | `string` | No | Source code repository URL (GitHub, GitLab, etc.). |
+| `readme` | `string` | No | Inline documentation/README text. If omitted, Vesta automatically reads `README.md` from the plugin root directory if present. |
 | `entry` | `object` | **Yes** | Process execution command: `command: string[]` and optional `os: { windows?, macos?, linux? }` overrides. |
 | `permissions` | `string[]` | No | Requested permissions (e.g. `network`, `filesystem:downloads`). |
 | `tab` | `object` | No | If declared, creates a dedicated tab in Vesta's sidebar: `{ title: string, icon?: "puzzle" \| "film" \| "search" }`. |

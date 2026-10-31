@@ -19,6 +19,10 @@ pub struct InstalledPlugin {
     #[serde(default)]
     pub source_ref: Option<String>,
     pub installed_at: String,
+    #[serde(default)]
+    pub updated_at: Option<String>,
+    #[serde(default)]
+    pub readme: Option<String>,
     pub manifest: PluginManifest,
     #[serde(default)]
     pub settings: HashMap<String, serde_json::Value>,
@@ -154,7 +158,11 @@ mod tests {
             version: "1.0.0".to_string(),
             api_version: 1,
             description: None,
+            long_description: None,
+            readme: None,
             author: None,
+            homepage: None,
+            repository: None,
             entry: PluginEntry {
                 command: vec!["python3".to_string(), "main.py".to_string()],
                 os: None,
@@ -183,6 +191,8 @@ mod tests {
             source_url: "https://github.com/foo/p1".to_string(),
             source_ref: None,
             installed_at: "2026-10-30T12:00:00Z".to_string(),
+            updated_at: None,
+            readme: None,
             manifest: sample_manifest("p1"),
             settings: HashMap::new(),
         };
