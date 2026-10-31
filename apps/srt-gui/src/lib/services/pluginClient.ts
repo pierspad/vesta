@@ -105,7 +105,10 @@ export type WidgetType =
   | "divider"
   | "settings"
   | "link"
-  | "externalLink";
+  | "externalLink"
+  | "segmented"
+  | "pathInput"
+  | "languageSelect";
 
 export interface BaseWidget {
   type: WidgetType;
@@ -140,6 +143,7 @@ export interface HeadingWidget extends BaseWidget {
   type: "heading";
   text: string;
   level?: 1 | 2 | 3 | 4;
+  icon?: string;
 }
 
 export interface TextInputWidget extends BaseWidget {
@@ -149,6 +153,7 @@ export interface TextInputWidget extends BaseWidget {
   placeholder?: string;
   defaultValue?: string;
   disabled?: boolean;
+  icon?: string;
   hint?: string | { text?: string; link?: { label: string; url: string } };
   helpText?: string;
   link?: { label: string; url: string };
@@ -161,6 +166,7 @@ export interface PasswordInputWidget extends BaseWidget {
   placeholder?: string;
   defaultValue?: string;
   disabled?: boolean;
+  icon?: string;
   hint?: string | { text?: string; link?: { label: string; url: string } };
   helpText?: string;
   link?: { label: string; url: string };
@@ -272,6 +278,48 @@ export interface LinkWidget extends BaseWidget {
   icon?: string;
 }
 
+export interface SegmentedOption {
+  value: string;
+  label: string;
+  icon?: string;
+  badge?: string;
+}
+
+export interface SegmentedWidget extends BaseWidget {
+  type: "segmented";
+  id: string;
+  label?: string;
+  options: SegmentedOption[];
+  defaultValue?: string;
+  disabled?: boolean;
+}
+
+export interface PathInputWidget extends BaseWidget {
+  type: "pathInput";
+  id: string;
+  label?: string;
+  placeholder?: string;
+  defaultValue?: string;
+  disabled?: boolean;
+  pickerType?: "file" | "folder";
+  filters?: Array<{ name: string; extensions: string[] }>;
+  hint?: string | { text?: string; link?: { label: string; url: string } };
+  helpText?: string;
+  link?: { label: string; url: string };
+}
+
+export interface LanguageSelectWidget extends BaseWidget {
+  type: "languageSelect";
+  id: string;
+  label?: string;
+  placeholder?: string;
+  defaultValue?: string;
+  disabled?: boolean;
+  hint?: string | { text?: string; link?: { label: string; url: string } };
+  helpText?: string;
+  link?: { label: string; url: string };
+}
+
 export type WidgetNode =
   | ColumnWidget
   | RowWidget
@@ -290,7 +338,10 @@ export type WidgetNode =
   | FileOutputWidget
   | DividerWidget
   | SettingsWidget
-  | LinkWidget;
+  | LinkWidget
+  | SegmentedWidget
+  | PathInputWidget
+  | LanguageSelectWidget;
 
 export async function pluginInspect(url: string, gitRef?: string): Promise<PluginInspectResult> {
   return invokeCommand<PluginInspectResult>("plugin_inspect", { url, gitRef });

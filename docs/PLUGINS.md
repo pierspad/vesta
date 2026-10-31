@@ -253,16 +253,19 @@ Every widget in the UI tree is a JSON object with a `type` property. Interactive
 | Widget `type` | Description | Key Properties |
 |---|---|---|
 | `column` | Vertical flex container | `gap?: number \| string`, `children: WidgetNode[]` |
-| `row` | Horizontal flex container | `gap?: number \| string`, `align?: "start" \| "center" \| "end" \| "between"`, `children: WidgetNode[]` |
+| `row` | Horizontal flex container | `gap?: number \| string`, `align?: "start" \| "center" \| "end" \| "between"`, `children: WidgetNode[]` (children support `flex?: number` and `width?: string \| number`) |
 | `text` | Paragraph or label | `text: string`, `variant?: "normal" \| "muted" \| "danger" \| "success"`, `size?: "sm" \| "base" \| "lg"` |
-| `heading` | Section heading | `text: string`, `level?: 1 \| 2 \| 3 \| 4` |
-| `textInput` | Text input field | `id: string`, `label?: string`, `placeholder?: string`, `defaultValue?: string`, `hint?: string \| { text?, link? }`, `link?: { label, url }` |
-| `passwordInput`| Password/API key field | `id: string`, `label?: string`, `defaultValue?: string`, `hint?: string \| { text?, link? }`, `link?: { label, url }` |
+| `heading` | Section heading | `text: string`, `level?: 1 \| 2 \| 3 \| 4`, `icon?: string` |
+| `textInput` | Text input field | `id: string`, `label?: string`, `placeholder?: string`, `defaultValue?: string`, `icon?: string`, `hint?: string \| { text?, link? }`, `link?: { label, url }` |
+| `passwordInput`| Password/API key field | `id: string`, `label?: string`, `defaultValue?: string`, `icon?: string`, `hint?: string \| { text?, link? }`, `link?: { label, url }` |
 | `numberInput` | Numeric stepper/field | `id: string`, `label?: string`, `min?: number`, `max?: number`, `step?: number`, `defaultValue?: number` |
 | `select` | Styled dropdown select | `id: string`, `label?: string`, `options: Array<{ label, value }>`, `defaultValue?: string` |
+| `segmented` | Sub-navigation segmented tab pills | `id: string`, `label?: string`, `options: Array<{ value, label, icon?, badge? }>`, `defaultValue?: string` |
+| `pathInput` | Native system file or directory picker | `id: string`, `label?: string`, `placeholder?: string`, `defaultValue?: string`, `pickerType?: "file" \| "folder"`, `filters?: Array<{ name, extensions }>` |
+| `languageSelect` | Searchable 60+ ISO-639-1 world languages | `id: string`, `label?: string`, `defaultValue?: string` (e.g. `"en"`), `placeholder?: string` |
 | `checkbox` | Toggle checkbox | `id: string`, `label: string`, `defaultValue?: boolean` |
-| `button` | Action button | `id: string`, `label: string`, `variant?: "primary" \| "secondary" \| "danger"`, `disabled?: boolean` |
-| `link` / `externalLink` | External hyperlink | `label: string`, `url: string` (opens in system browser via Tauri opener) |
+| `button` | Compact action button | `id: string`, `label: string`, `icon?: string`, `variant?: "primary" \| "secondary" \| "danger"`, `disabled?: boolean` |
+| `link` / `externalLink` | External hyperlink | `label: string`, `url: string`, `icon?: string` (opens in system browser via Tauri opener) |
 | `list` | Item list with action buttons| `items: Array<{ id, title, subtitle?, badge?, image?, actions?: Array<{ id, label, variant? }> }>` |
 | `table` | Responsive data table | `headers: string[]`, `rows: Array<Array<string \| number>>` |
 | `image` | Static image | `src: string`, `alt?: string`, `width?: number`, `height?: number` |
@@ -274,6 +277,15 @@ Every widget in the UI tree is a JSON object with a `type` property. Interactive
 ### Common Widget Properties
 - `id?: string`: Identifier used in events and value binding.
 - `hidden?: boolean`: If `true`, the widget is hidden from display.
+- `expertOnly?: boolean`: If `true`, the widget or setting is hidden in easy mode and only visible when the user enables Expert Mode in Vesta.
+- `width?: string | number`: Child width inside rows (e.g. `"w-48"` or `320`).
+- `flex?: number`: Child flex grow/shrink ratio inside rows (e.g. `1` or `2`).
+
+### Icon Registry
+Widgets supporting `icon` (such as `button`, `heading`, `segmented`, `link`, `textInput`, `passwordInput`) accept standard monochrome vector icon names:
+- Navigation & Files: `"search"`, `"folder"`, `"file"`, `"globe"`, `"external"`
+- Media & Tools: `"film"`, `"subtitles"`, `"download"`, `"sparkles"` / `"cards"`, `"tmdb"`, `"imdb"`
+- Controls & Actions: `"settings"`, `"key"`, `"info"`, `"check"`, `"refresh"`, `"trash"`
 
 ---
 

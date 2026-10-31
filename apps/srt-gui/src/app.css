@@ -138,6 +138,13 @@ body,
   color: #ffffff;
 }
 
+.btn-compact {
+  padding: 6px 12px !important;
+  font-size: 0.75rem !important;
+  line-height: 1rem !important;
+  border-radius: 8px !important;
+}
+
 .btn-success {
   background: var(--done);
   border: none;

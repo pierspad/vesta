@@ -9,11 +9,16 @@
     type WidgetNode,
     type PluginSettingField,
     type PluginPatch,
+    type PathInputWidget,
   } from "$lib/services/pluginClient";
   import { currentLanguage, locale } from "$lib/i18n";
   import { snackbar } from "$lib/stores/snackbarStore.svelte";
   import { invokeCommand } from "$lib/services/tauriClient";
   import { uiMode } from "$lib/stores/uiModeStore.svelte";
+  import { guardedOpen } from "$lib/utils/dialogGuard";
+  import PathPickerField from "$lib/components/PathPickerField.svelte";
+  import SearchableSelect from "$lib/components/SearchableSelect.svelte";
+  import { worldLanguageSelectOptions } from "$lib/config/worldLanguages";
 
   interface Props {
     pluginId: string;
@@ -58,8 +63,12 @@
           values[id] = false;
         } else if (node.type === "numberInput") {
           values[id] = 0;
-        } else if (node.type === "textInput" || node.type === "passwordInput") {
+        } else if (node.type === "textInput" || node.type === "passwordInput" || node.type === "pathInput") {
           values[id] = "";
+        } else if (node.type === "languageSelect") {
+          values[id] = "en";
+        } else if (node.type === "segmented") {
+          values[id] = (node as any).options?.[0]?.value ?? "";
         }
       }
     }
@@ -299,12 +308,108 @@
     return "text-sm";
   }
 
+  async function handleBrowsePath(node: PathInputWidget): Promise<void> {
+    const isDirectory = node.pickerType !== "file";
+    try {
+      const selected = await guardedOpen({
+        directory: isDirectory,
+        multiple: false,
+        filters: node.filters,
+      });
+      if (selected && typeof selected === "string") {
+        values[node.id] = selected;
+        void handleAction(node.id, "change");
+      }
+    } catch (e: any) {
+      snackbar.show(e?.message || String(e), "error");
+    }
+  }
+
+  interface ResolvedHintAndLink {
+    text: string;
+    link?: { label: string; url: string };
+  }
+
+  function resolveHintAndLink(
+    hint?: string | { text?: string; link?: { label: string; url: string } },
+    helpText?: string,
+    link?: { label: string; url: string }
+  ): ResolvedHintAndLink {
+    let rawText = "";
+    let extractedLink = link;
+
+    if (typeof hint === "string") {
+      rawText = hint;
+    } else if (hint && typeof hint === "object") {
+      rawText = hint.text ?? "";
+      if (!extractedLink && hint.link) {
+        extractedLink = hint.link;
+      }
+    } else if (helpText) {
+      rawText = helpText;
+    }
+
+    // Check if rawText contains markdown link syntax: [label](url)
+    const mdMatch = rawText.match(/\[([^\]]+)\]\((https?:\/\/[^\)]+)\)/);
+    if (mdMatch) {
+      if (!extractedLink) {
+        extractedLink = { label: mdMatch[1], url: mdMatch[2] };
+      }
+      rawText = rawText.replace(mdMatch[0], "").trim();
+    }
+
+    // Deduplicate redundant bracketed label if extracted link matches
+    if (extractedLink && extractedLink.label) {
+      rawText = rawText.replace(`[${extractedLink.label}]`, "").trim();
+    }
+
+    return { text: rawText, link: extractedLink };
+  }
+
   function getButtonVariantClass(variant?: string): string {
-    if (variant === "secondary") return "btn-secondary";
-    if (variant === "danger") return "bg-rose-600 hover:bg-rose-500 text-white font-medium px-4 py-2 rounded-xl transition-colors";
-    return "btn-primary";
+    if (variant === "secondary") return "btn-secondary btn-compact";
+    if (variant === "danger") return "btn-danger btn-compact";
+    return "btn-primary btn-compact";
   }
 </script>
+
+{#snippet renderIcon(name: string, cls = "w-4 h-4")}
+  {#if name === "search"}
+    <svg class={cls} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+  {:else if name === "folder"}
+    <svg class={cls} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>
+  {:else if name === "file"}
+    <svg class={cls} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+  {:else if name === "film"}
+    <svg class={cls} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z"/></svg>
+  {:else if name === "subtitles"}
+    <svg class={cls} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 0h5M7 16h8M5 4h14a2 2 0 012 2v12a2 2 0 01-2 2H5a2 2 0 01-2-2V6a2 2 0 012-2z"/></svg>
+  {:else if name === "settings"}
+    <svg class={cls} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+  {:else if name === "download"}
+    <svg class={cls} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+  {:else if name === "sparkles" || name === "cards"}
+    <svg class={cls} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/></svg>
+  {:else if name === "info"}
+    <svg class={cls} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+  {:else if name === "check"}
+    <svg class={cls} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+  {:else if name === "refresh"}
+    <svg class={cls} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+  {:else if name === "trash"}
+    <svg class={cls} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+  {:else if name === "external"}
+    <svg class={cls} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+  {:else if name === "key"}
+    <svg class={cls} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>
+  {:else if name === "globe"}
+    <svg class={cls} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"/></svg>
+  {:else if name === "tmdb"}
+    <svg class={cls} viewBox="0 0 24 24" fill="none"><rect x="2" y="5" width="20" height="14" rx="3" stroke="currentColor" stroke-width="1.75"/><path stroke="currentColor" stroke-width="1.5" stroke-linecap="round" d="M6 9h3m-1.5 0v6M12 9v6l2-3 2 3V9m3 0v6h2a2 2 0 000-4h-2m2 0a1.5 1.5 0 000-3h-2"/></svg>
+  {:else if name === "imdb"}
+    <svg class={cls} viewBox="0 0 24 24" fill="none"><rect x="2" y="5" width="20" height="14" rx="3" stroke="currentColor" stroke-width="1.75"/><path stroke="currentColor" stroke-width="1.5" stroke-linecap="round" d="M6 10v4M9 10v4l1.5-2.5L12 14v-4m3 0v4h1a1.5 1.5 0 000-3h-1m2 0a1.2 1.2 0 000-2.4h-2"/></svg>
+  {/if}
+{/snippet}
 
 {#snippet renderNode(node: WidgetNode)}
   {#if !node.hidden && (!node.expertOnly || uiMode.expertMode)}
@@ -318,7 +423,14 @@
     {:else if node.type === "row"}
       <div class="flex flex-row flex-wrap w-full {getRowAlign(node.align)}" style="gap: {formatGap(node.gap)}">
         {#each node.children as child}
-          {@render renderNode(child)}
+          {#if !child.hidden && (!child.expertOnly || uiMode.expertMode)}
+            <div
+              class={child.width && typeof child.width === 'string' && child.width.startsWith('w-') ? child.width : ''}
+              style="{child.flex !== undefined ? `flex: ${child.flex} ${child.flex} 0px; min-width: 0;` : ''}{child.width && typeof child.width === 'number' ? `width: ${child.width}px;` : child.width && typeof child.width === 'string' && !child.width.startsWith('w-') ? `width: ${child.width};` : ''}"
+            >
+              {@render renderNode(child)}
+            </div>
+          {/if}
         {/each}
       </div>
 
@@ -328,15 +440,20 @@
       </p>
 
     {:else if node.type === "heading"}
-      {#if node.level === 1}
-        <h1 class="text-2xl font-bold text-white tracking-tight">{node.text}</h1>
-      {:else if node.level === 3}
-        <h3 class="text-base font-semibold text-gray-200">{node.text}</h3>
-      {:else if node.level === 4}
-        <h4 class="text-sm font-semibold text-gray-300">{node.text}</h4>
-      {:else}
-        <h2 class="text-lg font-semibold text-white">{node.text}</h2>
-      {/if}
+      <div class="flex items-center gap-2">
+        {#if node.icon}
+          {@render renderIcon(node.icon, node.level === 1 ? "w-6 h-6 text-indigo-400 shrink-0" : "w-4 h-4 text-indigo-400 shrink-0")}
+        {/if}
+        {#if node.level === 1}
+          <h1 class="text-2xl font-bold text-white tracking-tight">{node.text}</h1>
+        {:else if node.level === 3}
+          <h3 class="text-base font-semibold text-gray-200">{node.text}</h3>
+        {:else if node.level === 4}
+          <h4 class="text-sm font-semibold text-gray-300">{node.text}</h4>
+        {:else}
+          <h2 class="text-lg font-semibold text-white">{node.text}</h2>
+        {/if}
+      </div>
 
     {:else if node.type === "link" || node.type === "externalLink"}
       <a
@@ -346,45 +463,52 @@
         onclick={(e) => { e.preventDefault(); void openUrl(node.url); }}
         class="text-indigo-400 hover:text-indigo-300 hover:underline inline-flex items-center gap-1.5 text-xs font-semibold transition-colors cursor-pointer"
       >
-        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+        {#if node.icon}
+          {@render renderIcon(node.icon, "w-3.5 h-3.5 shrink-0")}
+        {:else}
+          {@render renderIcon("external", "w-3.5 h-3.5 shrink-0")}
+        {/if}
         {node.label}
       </a>
 
     {:else if node.type === "textInput"}
+      {@const info = resolveHintAndLink(node.hint, node.helpText, node.link)}
       <div class="field flex flex-col gap-1.5 w-full">
         {#if node.label}
           <label for="widget-{node.id}" class="text-xs font-medium text-gray-400">
             {node.label}
           </label>
         {/if}
-        <input
-          id="widget-{node.id}"
-          type="text"
-          disabled={node.disabled}
-          placeholder={node.placeholder ?? ""}
-          bind:value={values[node.id]}
-          class="h-10 px-3 rounded-xl border border-white/10 bg-white/5 text-sm text-gray-100 placeholder-gray-500 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-colors disabled:opacity-50"
-        />
-        {#if node.hint || node.helpText || node.link}
+        <div class="relative w-full">
+          {#if node.icon}
+            <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
+              {@render renderIcon(node.icon, "w-4 h-4")}
+            </div>
+          {/if}
+          <input
+            id="widget-{node.id}"
+            type="text"
+            disabled={node.disabled}
+            placeholder={node.placeholder ?? ""}
+            bind:value={values[node.id]}
+            class="h-10 px-3 {node.icon ? 'pl-9' : ''} rounded-xl border border-white/10 bg-white/5 text-sm text-gray-100 placeholder-gray-500 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-colors disabled:opacity-50 w-full"
+          />
+        </div>
+        {#if info.text || info.link}
           <div class="flex flex-wrap items-center gap-2 mt-0.5">
-            {#if typeof node.hint === 'string'}
-              <span class="text-xs text-gray-500">{node.hint}</span>
-            {:else if typeof node.hint === 'object' && node.hint?.text}
-              <span class="text-xs text-gray-500">{node.hint.text}</span>
-            {:else if node.helpText}
-              <span class="text-xs text-gray-500">{node.helpText}</span>
+            {#if info.text}
+              <span class="text-xs text-gray-500">{info.text}</span>
             {/if}
-            {#if node.link || (typeof node.hint === 'object' && node.hint?.link)}
-              {@const l = node.link || (node.hint as any).link}
+            {#if info.link}
               <a
-                href={l.url}
+                href={info.link.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                onclick={(e) => { e.preventDefault(); void openUrl(l.url); }}
+                onclick={(e) => { e.preventDefault(); void openUrl(info.link!.url); }}
                 class="text-indigo-400 hover:text-indigo-300 hover:underline inline-flex items-center gap-1 text-xs font-medium transition-colors cursor-pointer"
               >
-                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
-                {l.label}
+                {@render renderIcon("external", "w-3 h-3")}
+                {info.link.label}
               </a>
             {/if}
           </div>
@@ -392,40 +516,43 @@
       </div>
 
     {:else if node.type === "passwordInput"}
+      {@const info = resolveHintAndLink(node.hint, node.helpText, node.link)}
       <div class="field flex flex-col gap-1.5 w-full">
         {#if node.label}
           <label for="widget-{node.id}" class="text-xs font-medium text-gray-400">
             {node.label}
           </label>
         {/if}
-        <input
-          id="widget-{node.id}"
-          type="password"
-          disabled={node.disabled}
-          placeholder={node.placeholder ?? ""}
-          bind:value={values[node.id]}
-          class="h-10 px-3 rounded-xl border border-white/10 bg-white/5 text-sm text-gray-100 placeholder-gray-500 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-colors disabled:opacity-50"
-        />
-        {#if node.hint || node.helpText || node.link}
+        <div class="relative w-full">
+          {#if node.icon}
+            <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
+              {@render renderIcon(node.icon, "w-4 h-4")}
+            </div>
+          {/if}
+          <input
+            id="widget-{node.id}"
+            type="password"
+            disabled={node.disabled}
+            placeholder={node.placeholder ?? ""}
+            bind:value={values[node.id]}
+            class="h-10 px-3 {node.icon ? 'pl-9' : ''} rounded-xl border border-white/10 bg-white/5 text-sm text-gray-100 placeholder-gray-500 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-colors disabled:opacity-50 w-full"
+          />
+        </div>
+        {#if info.text || info.link}
           <div class="flex flex-wrap items-center gap-2 mt-0.5">
-            {#if typeof node.hint === 'string'}
-              <span class="text-xs text-gray-500">{node.hint}</span>
-            {:else if typeof node.hint === 'object' && node.hint?.text}
-              <span class="text-xs text-gray-500">{node.hint.text}</span>
-            {:else if node.helpText}
-              <span class="text-xs text-gray-500">{node.helpText}</span>
+            {#if info.text}
+              <span class="text-xs text-gray-500">{info.text}</span>
             {/if}
-            {#if node.link || (typeof node.hint === 'object' && node.hint?.link)}
-              {@const l = node.link || (node.hint as any).link}
+            {#if info.link}
               <a
-                href={l.url}
+                href={info.link.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                onclick={(e) => { e.preventDefault(); void openUrl(l.url); }}
+                onclick={(e) => { e.preventDefault(); void openUrl(info.link!.url); }}
                 class="text-indigo-400 hover:text-indigo-300 hover:underline inline-flex items-center gap-1 text-xs font-medium transition-colors cursor-pointer"
               >
-                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
-                {l.label}
+                {@render renderIcon("external", "w-3 h-3")}
+                {info.link.label}
               </a>
             {/if}
           </div>
@@ -433,6 +560,7 @@
       </div>
 
     {:else if node.type === "numberInput"}
+      {@const info = resolveHintAndLink(node.hint, node.helpText, node.link)}
       <div class="field flex flex-col gap-1.5 w-full">
         {#if node.label}
           <label for="widget-{node.id}" class="text-xs font-medium text-gray-400">
@@ -449,26 +577,21 @@
           bind:value={values[node.id]}
           class="h-10 px-3 rounded-xl border border-white/10 bg-white/5 text-sm text-gray-100 placeholder-gray-500 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-colors disabled:opacity-50"
         />
-        {#if node.hint || node.helpText || node.link}
+        {#if info.text || info.link}
           <div class="flex flex-wrap items-center gap-2 mt-0.5">
-            {#if typeof node.hint === 'string'}
-              <span class="text-xs text-gray-500">{node.hint}</span>
-            {:else if typeof node.hint === 'object' && node.hint?.text}
-              <span class="text-xs text-gray-500">{node.hint.text}</span>
-            {:else if node.helpText}
-              <span class="text-xs text-gray-500">{node.helpText}</span>
+            {#if info.text}
+              <span class="text-xs text-gray-500">{info.text}</span>
             {/if}
-            {#if node.link || (typeof node.hint === 'object' && node.hint?.link)}
-              {@const l = node.link || (node.hint as any).link}
+            {#if info.link}
               <a
-                href={l.url}
+                href={info.link.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                onclick={(e) => { e.preventDefault(); void openUrl(l.url); }}
+                onclick={(e) => { e.preventDefault(); void openUrl(info.link!.url); }}
                 class="text-indigo-400 hover:text-indigo-300 hover:underline inline-flex items-center gap-1 text-xs font-medium transition-colors cursor-pointer"
               >
-                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
-                {l.label}
+                {@render renderIcon("external", "w-3 h-3")}
+                {info.link.label}
               </a>
             {/if}
           </div>
@@ -476,6 +599,7 @@
       </div>
 
     {:else if node.type === "select"}
+      {@const info = resolveHintAndLink(node.hint, node.helpText, node.link)}
       <div class="field flex flex-col gap-1.5 w-full">
         {#if node.label}
           <label for="widget-{node.id}" class="text-xs font-medium text-gray-400">
@@ -497,26 +621,128 @@
             <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
           </div>
         </div>
-        {#if node.hint || node.helpText || node.link}
+        {#if info.text || info.link}
           <div class="flex flex-wrap items-center gap-2 mt-0.5">
-            {#if typeof node.hint === 'string'}
-              <span class="text-xs text-gray-500">{node.hint}</span>
-            {:else if typeof node.hint === 'object' && node.hint?.text}
-              <span class="text-xs text-gray-500">{node.hint.text}</span>
-            {:else if node.helpText}
-              <span class="text-xs text-gray-500">{node.helpText}</span>
+            {#if info.text}
+              <span class="text-xs text-gray-500">{info.text}</span>
             {/if}
-            {#if node.link || (typeof node.hint === 'object' && node.hint?.link)}
-              {@const l = node.link || (node.hint as any).link}
+            {#if info.link}
               <a
-                href={l.url}
+                href={info.link.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                onclick={(e) => { e.preventDefault(); void openUrl(l.url); }}
+                onclick={(e) => { e.preventDefault(); void openUrl(info.link!.url); }}
                 class="text-indigo-400 hover:text-indigo-300 hover:underline inline-flex items-center gap-1 text-xs font-medium transition-colors cursor-pointer"
               >
-                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
-                {l.label}
+                {@render renderIcon("external", "w-3 h-3")}
+                {info.link.label}
+              </a>
+            {/if}
+          </div>
+        {/if}
+      </div>
+
+    {:else if node.type === "segmented"}
+      <div class="flex flex-col gap-1.5">
+        {#if node.label}
+          <span class="text-xs font-medium text-gray-400">{node.label}</span>
+        {/if}
+        <div class="inline-flex p-1 rounded-xl bg-black/40 border border-white/10 gap-1 self-start">
+          {#each node.options as opt}
+            {@const selected = (values[node.id] ?? node.defaultValue) === opt.value}
+            <button
+              type="button"
+              disabled={node.disabled}
+              class="px-3 py-1.5 rounded-lg text-xs font-medium transition-all inline-flex items-center gap-1.5 cursor-pointer {selected ? 'bg-indigo-600 text-white shadow-sm' : 'text-gray-400 hover:text-gray-200 hover:bg-white/5'} disabled:opacity-50"
+              onclick={() => {
+                values[node.id] = opt.value;
+                void handleAction(node.id, "change");
+              }}
+            >
+              {#if opt.icon}
+                {@render renderIcon(opt.icon, "w-3.5 h-3.5 shrink-0")}
+              {/if}
+              <span>{opt.label}</span>
+              {#if opt.badge}
+                <span class="ml-1 px-1.5 py-0.5 rounded text-[10px] {selected ? 'bg-white/20 text-white' : 'bg-white/10 text-gray-400'}">
+                  {opt.badge}
+                </span>
+              {/if}
+            </button>
+          {/each}
+        </div>
+      </div>
+
+    {:else if node.type === "pathInput"}
+      {@const info = resolveHintAndLink(node.hint, node.helpText, node.link)}
+      <div class="field flex flex-col gap-1 w-full">
+        <PathPickerField
+          label={node.label ?? ""}
+          value={values[node.id] ?? ""}
+          placeholder={node.placeholder ?? t("plugins.chooseFolder")}
+          browseTitle={t("common.browse")}
+          disabled={node.disabled}
+          onbrowse={() => handleBrowsePath(node)}
+          onclear={() => {
+            values[node.id] = "";
+            void handleAction(node.id, "change");
+          }}
+        />
+        {#if info.text || info.link}
+          <div class="flex flex-wrap items-center gap-2 mt-0.5">
+            {#if info.text}
+              <span class="text-xs text-gray-500">{info.text}</span>
+            {/if}
+            {#if info.link}
+              <a
+                href={info.link.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                onclick={(e) => { e.preventDefault(); void openUrl(info.link!.url); }}
+                class="text-indigo-400 hover:text-indigo-300 hover:underline inline-flex items-center gap-1 text-xs font-medium transition-colors cursor-pointer"
+              >
+                {@render renderIcon("external", "w-3 h-3")}
+                {info.link.label}
+              </a>
+            {/if}
+          </div>
+        {/if}
+      </div>
+
+    {:else if node.type === "languageSelect"}
+      {@const info = resolveHintAndLink(node.hint, node.helpText, node.link)}
+      <div class="field flex flex-col gap-1.5 w-full">
+        {#if node.label}
+          <label for="widget-{node.id}" class="text-xs font-medium text-gray-400">
+            {node.label}
+          </label>
+        {/if}
+        <SearchableSelect
+          options={worldLanguageSelectOptions}
+          value={values[node.id] ?? node.defaultValue ?? "en"}
+          onchange={(val) => {
+            values[node.id] = val;
+            void handleAction(node.id, "change");
+          }}
+          disabled={node.disabled}
+          placeholder={node.placeholder ?? t("flashcards.noteTypeLanguagePlaceholder")}
+          portal={true}
+        />
+        {#if info.text || info.link}
+          <div class="flex flex-wrap items-center gap-2 mt-0.5">
+            {#if info.text}
+              <span class="text-xs text-gray-500">{info.text}</span>
+            {/if}
+            {#if info.link}
+              <a
+                href={info.link.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                onclick={(e) => { e.preventDefault(); void openUrl(info.link!.url); }}
+                class="text-indigo-400 hover:text-indigo-300 hover:underline inline-flex items-center gap-1 text-xs font-medium transition-colors cursor-pointer"
+              >
+                {@render renderIcon("external", "w-3 h-3")}
+                {info.link.label}
               </a>
             {/if}
           </div>
@@ -544,13 +770,15 @@
         type="button"
         id="widget-{node.id}"
         disabled={node.disabled || actionLoading === node.id}
-        class="inline-flex items-center justify-center gap-2 font-medium px-4 py-2.5 rounded-xl transition-all disabled:opacity-50 cursor-pointer {getButtonVariantClass(node.variant)}"
+        class="inline-flex items-center justify-center gap-1.5 font-medium px-3 py-1.5 text-xs rounded-lg transition-all disabled:opacity-50 cursor-pointer {getButtonVariantClass(node.variant)}"
         onclick={() => handleAction(node.id)}
       >
         {#if actionLoading === node.id}
-          <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+          <svg class="animate-spin -ml-1 mr-1.5 h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+        {:else if node.icon}
+          {@render renderIcon(node.icon, "w-3.5 h-3.5 shrink-0")}
         {/if}
-        {node.label}
+        <span>{node.label}</span>
       </button>
 
     {:else if node.type === "list"}
@@ -655,7 +883,7 @@
             aria-label={t("plugins.copyPath")}
             onclick={() => copyPath(node.path)}
           >
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+            {@render renderIcon("file", "w-4 h-4")}
           </button>
           <button
             type="button"
@@ -664,7 +892,7 @@
             aria-label={t("common.openOutputFile")}
             onclick={() => openPath(node.path)}
           >
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+            {@render renderIcon("external", "w-4 h-4")}
           </button>
         </div>
       </div>
@@ -696,6 +924,7 @@
                 </div>
               </button>
             {:else}
+              {@const info = resolveHintAndLink(field.hint, field.helpText ?? field.description, field.link)}
               <div class="flex flex-col gap-1.5 w-full">
                 <label for="setting-{field.id}" class="text-xs font-medium text-gray-400">{field.label}</label>
                 <input
@@ -705,28 +934,25 @@
                   placeholder={field.description ?? ""}
                   class="h-10 px-3 rounded-xl border border-white/10 bg-white/5 text-sm text-gray-100 placeholder-gray-500 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-colors"
                 />
-                <div class="flex flex-wrap items-center gap-2 mt-0.5">
-                  {#if field.description}
-                    <span class="text-xs text-gray-500">{field.description}</span>
-                  {:else if field.helpText}
-                    <span class="text-xs text-gray-500">{field.helpText}</span>
-                  {:else if typeof field.hint === 'string'}
-                    <span class="text-xs text-gray-500">{field.hint}</span>
-                  {/if}
-                  {#if field.link || (typeof field.hint === 'object' && field.hint?.link)}
-                    {@const l = field.link || (field.hint as any).link}
-                    <a
-                      href={l.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onclick={(e) => { e.preventDefault(); void openUrl(l.url); }}
-                      class="text-indigo-400 hover:text-indigo-300 hover:underline inline-flex items-center gap-1 text-xs font-semibold transition-colors cursor-pointer"
-                    >
-                      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
-                      {l.label}
-                    </a>
-                  {/if}
-                </div>
+                {#if info.text || info.link}
+                  <div class="flex flex-wrap items-center gap-2 mt-0.5">
+                    {#if info.text}
+                      <span class="text-xs text-gray-500">{info.text}</span>
+                    {/if}
+                    {#if info.link}
+                      <a
+                        href={info.link.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onclick={(e) => { e.preventDefault(); void openUrl(info.link!.url); }}
+                        class="text-indigo-400 hover:text-indigo-300 hover:underline inline-flex items-center gap-1 text-xs font-semibold transition-colors cursor-pointer"
+                      >
+                        {@render renderIcon("external", "w-3.5 h-3.5")}
+                        {info.link.label}
+                      </a>
+                    {/if}
+                  </div>
+                {/if}
               </div>
             {/if}
           {/if}

@@ -418,3 +418,92 @@ it("hides expertOnly widgets in easy mode and reveals them when expertMode is en
   // Clean up uiMode
   uiMode.expertMode = false;
 });
+
+it("renders segmented, pathInput, languageSelect and row flex/width widgets", async () => {
+  const schema: WidgetNode = {
+    type: "column",
+    children: [
+      {
+        type: "heading",
+        text: "Media Manager",
+        level: 2,
+        icon: "film",
+      },
+      {
+        type: "segmented",
+        id: "tab_mode",
+        options: [
+          { value: "search", label: "Search Online", icon: "search", badge: "New" },
+          { value: "local", label: "Local Files", icon: "folder" },
+        ],
+        defaultValue: "search",
+      },
+      {
+        type: "row",
+        children: [
+          {
+            type: "pathInput",
+            id: "folder_path",
+            label: "Target Folder",
+            defaultValue: "/media/movies",
+            flex: 2,
+          },
+          {
+            type: "languageSelect",
+            id: "target_lang",
+            label: "Language",
+            defaultValue: "en",
+            width: "w-48",
+          },
+        ],
+      },
+      {
+        type: "button",
+        id: "btn_action",
+        label: "Download",
+        icon: "download",
+      },
+    ],
+  };
+
+  const target = document.createElement("div");
+  document.body.append(target);
+
+  components.push(
+    mount(PluginRenderer, {
+      target,
+      props: {
+        pluginId: "media-test-plugin",
+        screen: "main",
+        active: true,
+        initialRoot: schema,
+      },
+    })
+  );
+
+  await tick();
+
+  expect(target.textContent).toContain("Media Manager");
+  expect(target.textContent).toContain("Search Online");
+  expect(target.textContent).toContain("Local Files");
+  expect(target.textContent).toContain("Target Folder");
+  expect(target.textContent).toContain("Language");
+  expect(target.textContent).toContain("Download");
+
+  // Check segmented interaction
+  const buttons = target.querySelectorAll("button");
+  const localBtn = Array.from(buttons).find((b) => b.textContent?.includes("Local Files"));
+  expect(localBtn).toBeDefined();
+  localBtn?.click();
+  await tick();
+  expect(mockDispatch).toHaveBeenCalledWith(
+    "media-test-plugin",
+    expect.objectContaining({
+      widgetId: "tab_mode",
+      eventType: "change",
+      values: expect.objectContaining({ tab_mode: "local" }),
+    }),
+    expect.any(String),
+    expect.any(Boolean)
+  );
+});
