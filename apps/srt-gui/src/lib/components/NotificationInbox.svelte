@@ -72,7 +72,16 @@
     {#each ["whisper", "llm"] as section}
       {#if hash.includes(section === "whisper" ? "whisper-model-missing:v1" : "llm-default-unready:v1")}
         <article class="rounded-xl border border-white/10 bg-white/[0.03] p-4">
-          <h3 class="notice-title"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v6m0 3v1"/></svg>{t(`settings.section.${section}`)}</h3>
+          <h3 class="notice-title">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v6m0 3v1"/></svg>
+            <span>{t(`settings.section.${section}`)}</span>
+            {#if section === "llm"}
+              <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20 ml-2">
+                <span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+                <span>{t("settings.missingConfig")}</span>
+              </span>
+            {/if}
+          </h3>
           <p class="mt-2 text-xs leading-relaxed text-gray-400">{t(section === "whisper" ? "settings.copy.setupWhisperDesc" : "settings.copy.setupLlmDesc")}</p>
           <button type="button" onclick={() => onsettings(section as "whisper" | "llm")} class="btn-secondary mt-3 px-3 py-2 text-xs">{t("nav.settings")}</button>
         </article>

@@ -45,6 +45,8 @@ it("opens a modal inbox with actionable configuration and update notices", async
   expect(target.querySelector("dialog")?.hasAttribute("open")).toBe(true);
   const articles = target.querySelectorAll("article");
   expect(articles).toHaveLength(4);
+  expect(articles[2].textContent).toContain("Missing configuration");
+  expect(articles[2].querySelector(".bg-amber-400")).not.toBeNull();
   (articles[1].querySelector("button") as HTMLButtonElement).click();
   expect(onsettings).toHaveBeenCalledWith("whisper");
   (articles[0].querySelector("button") as HTMLButtonElement).click();

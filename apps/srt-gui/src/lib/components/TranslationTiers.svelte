@@ -80,14 +80,35 @@
     untrack(() => discovery.retain(active));
   });
 
+  function ensureDefaultTier() {
+    if (tiers.length === 0) {
+      tiers = [
+        {
+          id: newTierId(),
+          entries: [
+            {
+              id: newTierEntryId(),
+              provider: "local",
+              apiKeyId: "",
+              model: "",
+            },
+          ],
+        },
+      ];
+      persist();
+    }
+  }
+
   function syncTiers() {
     tiers = loadTiers();
+    ensureDefaultTier();
   }
 
   let localCheckInterval: any = null;
 
   onMount(() => {
     tiers = loadTiers();
+    ensureDefaultTier();
     refreshKeys();
     window.addEventListener("apikeys-updated", refreshKeys);
     window.addEventListener(TIERS_UPDATED_EVENT, syncTiers);
