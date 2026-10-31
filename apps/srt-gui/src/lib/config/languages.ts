@@ -252,3 +252,72 @@ export function languageFlagPath(code: string): string {
   ).join("").toLowerCase();
   return `/flags/${country}.svg`;
 }
+
+
+export interface WorldLanguage {
+  code: string;
+  name: string;
+  nameEn: string;
+  flag: string;
+}
+
+export const extendedLanguages: WorldLanguage[] = [
+  { code: "af", name: "Afrikaans", nameEn: "Afrikaans", flag: "🇿🇦" },
+  { code: "sq", name: "Shqip", nameEn: "Albanian", flag: "🇦🇱" },
+  { code: "ar", name: "العربية", nameEn: "Arabic", flag: "🇸🇦" },
+  { code: "hy", name: "Հայերեն", nameEn: "Armenian", flag: "🇦🇲" },
+  { code: "az", name: "Azərbaycan", nameEn: "Azerbaijani", flag: "🇦🇿" },
+  { code: "be", name: "Беларуская", nameEn: "Belarusian", flag: "🇧🇾" },
+  { code: "bn", name: "বাংলা", nameEn: "Bengali", flag: "🇧🇩" },
+  { code: "bs", name: "Bosanski", nameEn: "Bosnian", flag: "🇧🇦" },
+  { code: "bg", name: "Български", nameEn: "Bulgarian", flag: "🇧🇬" },
+  { code: "ca", name: "Català", nameEn: "Catalan", flag: "🇪🇸" },
+  { code: "zh", name: "中文 (简体)", nameEn: "Chinese Simplified", flag: "🇨🇳" },
+  { code: "zh-tw", name: "中文 (繁體)", nameEn: "Chinese Traditional", flag: "🇹🇼" },
+  { code: "hr", name: "Hrvatski", nameEn: "Croatian", flag: "🇭🇷" },
+  { code: "cs", name: "Čeština", nameEn: "Czech", flag: "🇨🇿" },
+  { code: "da", name: "Dansk", nameEn: "Danish", flag: "🇩🇰" },
+  { code: "nl", name: "Nederlands", nameEn: "Dutch", flag: "🇳🇱" },
+  { code: "en", name: "English", nameEn: "English", flag: "🇬🇧" },
+  { code: "et", name: "Eesti", nameEn: "Estonian", flag: "🇪🇪" },
+  { code: "fi", name: "Suomi", nameEn: "Finnish", flag: "🇫🇮" },
+  { code: "fr", name: "Français", nameEn: "French", flag: "🇫🇷" },
+  { code: "ka", name: "ქართული", nameEn: "Georgian", flag: "🇬🇪" },
+  { code: "de", name: "Deutsch", nameEn: "German", flag: "🇩🇪" },
+  { code: "el", name: "Ελληνικά", nameEn: "Greek", flag: "🇬🇷" },
+  { code: "he", name: "עברית", nameEn: "Hebrew", flag: "🇮🇱" },
+  { code: "hi", name: "हिंदी", nameEn: "Hindi", flag: "🇮🇳" },
+  { code: "hu", name: "Magyar", nameEn: "Hungarian", flag: "🇭🇺" },
+  { code: "is", name: "Íslenska", nameEn: "Icelandic", flag: "🇮🇸" },
+  { code: "id", name: "Bahasa Indonesia", nameEn: "Indonesian", flag: "🇮🇩" },
+  { code: "it", name: "Italiano", nameEn: "Italian", flag: "🇮🇹" },
+  { code: "ja", name: "日本語", nameEn: "Japanese", flag: "🇯🇵" },
+  { code: "kk", name: "Қазақша", nameEn: "Kazakh", flag: "🇰🇿" },
+  { code: "ko", name: "한국어", nameEn: "Korean", flag: "🇰🇷" },
+  { code: "lv", name: "Latviešu", nameEn: "Latvian", flag: "🇱🇻" },
+  { code: "lt", name: "Lietuvių", nameEn: "Lithuanian", flag: "🇱🇹" },
+  { code: "mk", name: "Македонски", nameEn: "Macedonian", flag: "🇲🇰" },
+  { code: "ms", name: "Bahasa Melayu", nameEn: "Malay", flag: "🇲🇾" },
+  { code: "mn", name: "Монгол", nameEn: "Mongolian", flag: "🇲🇳" },
+  { code: "no", name: "Norsk", nameEn: "Norwegian", flag: "🇳🇴" },
+  { code: "fa", name: "فارسی", nameEn: "Persian", flag: "🇮🇷" },
+  { code: "pl", name: "Polski", nameEn: "Polish", flag: "🇵🇱" },
+  { code: "pt", name: "Português", nameEn: "Portuguese", flag: "🇵🇹" },
+  { code: "pt-br", name: "Português (Brasil)", nameEn: "Portuguese Brazil", flag: "🇧🇷" },
+  { code: "ro", name: "Română", nameEn: "Romanian", flag: "🇷🇴" },
+  { code: "ru", name: "Русский", nameEn: "Russian", flag: "🇷🇺" },
+  { code: "sr", name: "Српски", nameEn: "Serbian", flag: "🇷🇸" },
+  { code: "sk", name: "Slovenčina", nameEn: "Slovak", flag: "🇸🇰" },
+  { code: "sl", name: "Slovenščina", nameEn: "Slovenian", flag: "🇸🇮" },
+  { code: "es", name: "Español", nameEn: "Spanish", flag: "🇪🇸" },
+  { code: "sv", name: "Svenska", nameEn: "Swedish", flag: "🇸🇪" },
+  { code: "tl", name: "Tagalog", nameEn: "Tagalog", flag: "🇵🇭" },
+  { code: "ta", name: "தமிழ்", nameEn: "Tamil", flag: "🇮🇳" },
+  { code: "te", name: "తెలుగు", nameEn: "Telugu", flag: "🇮🇳" },
+  { code: "th", name: "ไทย", nameEn: "Thai", flag: "🇹🇭" },
+  { code: "tr", name: "Türkçe", nameEn: "Turkish", flag: "🇹🇷" },
+  { code: "uk", name: "Українська", nameEn: "Ukrainian", flag: "🇺🇦" },
+  { code: "ur", name: "اردو", nameEn: "Urdu", flag: "🇵🇰" },
+  { code: "uz", name: "Oʻzbekcha", nameEn: "Uzbek", flag: "🇺🇿" },
+  { code: "vi", name: "Tiếng Việt", nameEn: "Vietnamese", flag: "🇻🇳" },
+];
