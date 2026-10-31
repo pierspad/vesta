@@ -432,12 +432,13 @@ impl PluginRuntimeManager {
         process: &ActivePluginProcess,
         screen: &str,
         params: serde_json::Value,
+        locale: &str,
         expert_mode: bool,
     ) -> Result<serde_json::Value, String> {
         Self::send_raw_request(
             process,
             "render",
-            serde_json::json!({ "screen": screen, "params": params, "expertMode": expert_mode }),
+            serde_json::json!({ "screen": screen, "params": params, "locale": locale, "expertMode": expert_mode }),
             Duration::from_secs(15),
         )
         .await
@@ -451,6 +452,7 @@ impl PluginRuntimeManager {
         widget_id: &str,
         event_type: &str,
         values: serde_json::Value,
+        locale: &str,
         expert_mode: bool,
     ) -> Result<serde_json::Value, String> {
         {
@@ -466,6 +468,7 @@ impl PluginRuntimeManager {
                 "widgetId": widget_id,
                 "type": event_type,
                 "values": values,
+                "locale": locale,
                 "expertMode": expert_mode,
             }),
             Duration::from_secs(30),

@@ -117,6 +117,7 @@ export interface BaseWidget {
   expertOnly?: boolean;
   width?: string | number;
   flex?: number;
+  tooltip?: string;
 }
 
 export interface ColumnWidget extends BaseWidget {
@@ -151,10 +152,12 @@ export interface TextInputWidget extends BaseWidget {
   id: string;
   label?: string;
   labelIcon?: string;
+  labelTooltip?: string;
   placeholder?: string;
   defaultValue?: string;
   disabled?: boolean;
   icon?: string;
+  submitAction?: string;
   hint?: string | { text?: string; link?: { label: string; url: string } };
   helpText?: string;
   link?: { label: string; url: string };
@@ -165,10 +168,12 @@ export interface PasswordInputWidget extends BaseWidget {
   id: string;
   label?: string;
   labelIcon?: string;
+  labelTooltip?: string;
   placeholder?: string;
   defaultValue?: string;
   disabled?: boolean;
   icon?: string;
+  submitAction?: string;
   hint?: string | { text?: string; link?: { label: string; url: string } };
   helpText?: string;
   link?: { label: string; url: string };
@@ -221,6 +226,8 @@ export interface ListItemAction {
   id: string;
   label: string;
   variant?: "primary" | "secondary" | "danger";
+  tooltip?: string;
+  icon?: string;
 }
 
 export interface ListItem {
@@ -228,6 +235,8 @@ export interface ListItem {
   title: string;
   subtitle?: string;
   badge?: string;
+  language?: string;
+  meta?: string[];
   image?: string;
   actions?: ListItemAction[];
 }
@@ -314,6 +323,7 @@ export interface LanguageSelectWidget extends BaseWidget {
   type: "languageSelect";
   id: string;
   label?: string;
+  scope?: "all" | "core";
   placeholder?: string;
   defaultValue?: string;
   disabled?: boolean;

@@ -206,9 +206,13 @@ export function detectLanguageCode(value: string): string | null {
   return bestScore >= 76 ? bestCode : null;
 }
 
-/** Bundled flags use country codes, which differ from language codes. */
+/** Bundled flags use country codes, which differ from language codes. Checks both languages and extendedLanguages. */
 export function languageFlagUrl(code: string): string | null {
-  const flag = languages.find((language) => language.code === code)?.flag;
+  const norm = (code || "").trim().toLowerCase().replace(/_/g, "-");
+  const primary = norm.split("-")[0];
+  const lang = extendedLanguages.find((l) => l.code === norm || l.code === primary) ||
+               languages.find((l) => l.code === norm || l.code === primary);
+  const flag = lang?.flag;
   if (!flag) return null;
   const country = Array.from(flag).map((char) => String.fromCharCode(char.codePointAt(0)! - 0x1f1e6 + 97)).join("");
   return `/flags/${country}.svg`;
@@ -216,7 +220,8 @@ export function languageFlagUrl(code: string): string | null {
 
 const localizedLanguageNames = new Map<string, Intl.DisplayNames>();
 export function localizedLanguageName(code: string, locale: string): string {
-  const fallback = languages.find(language => language.code === code)?.nameEn || code;
+  const fallback = extendedLanguages.find(language => language.code === code || language.code === code.split("-")[0])?.nameEn ||
+                   languages.find(language => language.code === code || language.code === code.split("-")[0])?.nameEn || code;
   try {
     let names = localizedLanguageNames.get(locale);
     if (!names) {
@@ -233,19 +238,24 @@ export function normalizeLanguageCode(value: string | null | undefined): string 
   if (!code) return "";
   if (/^zh-(hant|tw|hk)(-|$)/.test(code) || code === "cht") return "zh-tw";
   if (/^zh-(hans|cn|sg)(-|$)/.test(code) || code === "chs") return "zh";
-  const exact = languages.find((language) => language.code === code);
+  const exact = extendedLanguages.find((language) => language.code === code) || languages.find((language) => language.code === code);
   if (exact) return exact.code;
-  const alias = languages.find((language) =>
+  const alias = extendedLanguages.find((language) =>
+    languageAliases[language.code]?.includes(code) ||
+    language.nameEn.toLowerCase() === code || language.name.toLowerCase() === code,
+  ) || languages.find((language) =>
     languageAliases[language.code]?.includes(code) ||
     language.nameEn.toLowerCase() === code || language.name.toLowerCase() === code,
   );
   if (alias) return alias.code;
   const primary = code.split("-")[0];
-  return languages.find((language) => language.code === primary)?.code || "";
+  return extendedLanguages.find((language) => language.code === primary)?.code || languages.find((language) => language.code === primary)?.code || "";
 }
 
 export function languageFlagPath(code: string): string {
-  const flag = languages.find((language) => language.code === normalizeLanguageCode(code))?.flag;
+  const normCode = normalizeLanguageCode(code);
+  const flag = extendedLanguages.find((language) => language.code === normCode)?.flag ||
+               languages.find((language) => language.code === normCode)?.flag;
   if (!flag) return "";
   const country = [...flag].map((char) =>
     String.fromCharCode(char.codePointAt(0)! - 0x1f1e6 + 65),

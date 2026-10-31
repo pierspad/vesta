@@ -287,7 +287,7 @@ impl PluginManager {
             .await?;
 
         self.runtime
-            .render(&process, screen, params, expert_mode)
+            .render(&process, screen, params, locale, expert_mode)
             .await
     }
 
@@ -333,6 +333,7 @@ impl PluginManager {
                 &event.widget_id,
                 &event.event_type,
                 event.values.clone(),
+                locale,
                 expert_mode,
             )
             .await

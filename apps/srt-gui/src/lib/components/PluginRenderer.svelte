@@ -18,7 +18,7 @@
   import { guardedOpen } from "$lib/utils/dialogGuard";
   import PathPickerField from "$lib/components/PathPickerField.svelte";
   import SearchableSelect from "$lib/components/SearchableSelect.svelte";
-  import { languages } from "$lib/config/languages";
+  import { languages, extendedLanguages, languageFlagUrl, localizedLanguageName } from "$lib/config/languages";
 
   interface Props {
     pluginId: string;
@@ -486,15 +486,20 @@
 
     {:else if node.type === "textInput"}
       {@const info = resolveHintAndLink(node.hint, node.helpText, node.link)}
+      {@const iconTooltip = node.labelTooltip || node.tooltip || (node.icon === "tmdb" || (node as any).labelIcon === "tmdb" ? "TMDB ID" : node.icon === "imdb" || (node as any).labelIcon === "imdb" ? "IMDb ID" : undefined)}
       <div class="field flex flex-col gap-1.5 w-full">
         {#if node.label}
           <label for="widget-{node.id}" class="text-xs font-medium text-gray-300 flex items-center gap-1.5">
             {#if (node as any).labelIcon}
-              {@render renderIcon((node as any).labelIcon, "w-4 h-4 shrink-0")}
+              <span class="inline-flex items-center shrink-0" title={iconTooltip}>
+                {@render renderIcon((node as any).labelIcon, "w-4 h-4 shrink-0")}
+              </span>
             {:else if node.icon === "tmdb" || node.icon === "imdb"}
-              {@render renderIcon(node.icon, "w-4 h-4 shrink-0")}
+              <span class="inline-flex items-center shrink-0" title={iconTooltip}>
+                {@render renderIcon(node.icon, "w-4 h-4 shrink-0")}
+              </span>
             {/if}
-            {node.label}
+            <span>{node.label}</span>
           </label>
         {/if}
         <div class="relative w-full">
@@ -508,7 +513,14 @@
             type="text"
             disabled={node.disabled}
             placeholder={node.placeholder ?? ""}
+            title={node.tooltip}
             bind:value={values[node.id]}
+            onkeydown={(e) => {
+              if (e.key === "Enter" && !node.disabled) {
+                e.preventDefault();
+                void handleAction(node.submitAction || node.id, node.submitAction ? "click" : "submit");
+              }
+            }}
             class="h-10 px-3 {node.icon && node.icon !== 'tmdb' && node.icon !== 'imdb' ? 'pl-9' : ''} rounded-xl border border-white/10 bg-white/5 text-sm text-gray-100 placeholder-gray-500 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-colors disabled:opacity-50 w-full"
           />
         </div>
@@ -535,15 +547,20 @@
 
     {:else if node.type === "passwordInput"}
       {@const info = resolveHintAndLink(node.hint, node.helpText, node.link)}
+      {@const iconTooltip = node.labelTooltip || node.tooltip || (node.icon === "tmdb" || (node as any).labelIcon === "tmdb" ? "TMDB ID" : node.icon === "imdb" || (node as any).labelIcon === "imdb" ? "IMDb ID" : undefined)}
       <div class="field flex flex-col gap-1.5 w-full">
         {#if node.label}
           <label for="widget-{node.id}" class="text-xs font-medium text-gray-300 flex items-center gap-1.5">
             {#if (node as any).labelIcon}
-              {@render renderIcon((node as any).labelIcon, "w-4 h-4 shrink-0")}
+              <span class="inline-flex items-center shrink-0" title={iconTooltip}>
+                {@render renderIcon((node as any).labelIcon, "w-4 h-4 shrink-0")}
+              </span>
             {:else if node.icon === "tmdb" || node.icon === "imdb"}
-              {@render renderIcon(node.icon, "w-4 h-4 shrink-0")}
+              <span class="inline-flex items-center shrink-0" title={iconTooltip}>
+                {@render renderIcon(node.icon, "w-4 h-4 shrink-0")}
+              </span>
             {/if}
-            {node.label}
+            <span>{node.label}</span>
           </label>
         {/if}
         <div class="relative w-full">
@@ -557,7 +574,14 @@
             type="password"
             disabled={node.disabled}
             placeholder={node.placeholder ?? ""}
+            title={node.tooltip}
             bind:value={values[node.id]}
+            onkeydown={(e) => {
+              if (e.key === "Enter" && !node.disabled) {
+                e.preventDefault();
+                void handleAction(node.submitAction || node.id, node.submitAction ? "click" : "submit");
+              }
+            }}
             class="h-10 px-3 {node.icon && node.icon !== 'tmdb' && node.icon !== 'imdb' ? 'pl-9' : ''} rounded-xl border border-white/10 bg-white/5 text-sm text-gray-100 placeholder-gray-500 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-colors disabled:opacity-50 w-full"
           />
         </div>
@@ -734,14 +758,15 @@
 
     {:else if node.type === "languageSelect"}
       {@const info = resolveHintAndLink(node.hint, node.helpText, node.link)}
-      <div class="field flex flex-col gap-1.5 w-full">
+      {@const catalog = node.scope === "core" ? languages : extendedLanguages}
+      <div class="field flex flex-col gap-1.5 w-full" title={node.tooltip}>
         {#if node.label}
           <label for="widget-{node.id}" class="text-xs font-medium text-gray-400">
             {node.label}
           </label>
         {/if}
         <SearchableSelect
-          options={languages.map((l: any) => ({ value: l.code, label: l.nameEn === l.name ? l.name : `${l.nameEn} — ${l.name}`, icon: l.flag }))}
+          options={catalog.map((l: any) => ({ value: l.code, label: l.nameEn === l.name ? l.name : `${l.nameEn} (${l.name})`, icon: l.flag }))}
           value={values[node.id] ?? node.defaultValue ?? "en"}
           onchange={(val) => {
             values[node.id] = val;
@@ -778,6 +803,7 @@
         role="checkbox"
         aria-checked={Boolean(values[node.id])}
         disabled={node.disabled}
+        title={node.tooltip}
         class="flex items-center gap-3 p-3 rounded-xl border transition-all text-left cursor-pointer {Boolean(values[node.id]) ? 'border-indigo-500/50 bg-indigo-500/10 text-white' : 'border-white/10 bg-white/[0.03] text-gray-300 hover:bg-white/[0.06]'} disabled:opacity-50"
         onclick={() => { if (!node.disabled) values[node.id] = !values[node.id]; }}
         onkeydown={(e) => { if ((e.key === ' ' || e.key === 'Enter') && !node.disabled) { e.preventDefault(); values[node.id] = !values[node.id]; } }}
@@ -793,7 +819,8 @@
         type="button"
         id="widget-{node.id}"
         disabled={node.disabled || actionLoading === node.id}
-        class="inline-flex items-center justify-center gap-1.5 font-medium px-3 py-1.5 text-xs rounded-lg transition-all disabled:opacity-50 cursor-pointer {getButtonVariantClass(node.variant)}"
+        title={node.tooltip}
+        class="inline-flex items-center justify-center gap-1.5 font-medium h-10 px-4 text-xs rounded-xl transition-all disabled:opacity-50 cursor-pointer {getButtonVariantClass(node.variant)}"
         onclick={() => handleAction(node.id)}
       >
         {#if actionLoading === node.id}
@@ -820,8 +847,31 @@
                   </span>
                 {/if}
               </div>
-              {#if item.subtitle}
-                <span class="text-xs text-gray-400 mt-0.5 truncate">{item.subtitle}</span>
+              {#if item.language || item.subtitle || (item.meta && item.meta.length > 0)}
+                {@const flagUrl = item.language ? languageFlagUrl(item.language) : null}
+                {@const langName = item.language ? localizedLanguageName(item.language, $currentLanguage) : null}
+                <div class="flex items-center gap-1.5 text-xs text-gray-400 mt-1 flex-wrap">
+                  {#if item.language && langName}
+                    <span class="inline-flex items-center gap-1.5 font-medium text-gray-200">
+                      {#if flagUrl}
+                        <img src={flagUrl} alt="" class="w-4 h-3 object-cover rounded-[2px] shrink-0" />
+                      {/if}
+                      <span>{langName}</span>
+                    </span>
+                    {#if item.subtitle || (item.meta && item.meta.length > 0)}
+                      <span class="text-gray-600">•</span>
+                    {/if}
+                  {/if}
+                  {#if item.meta && item.meta.length > 0}
+                    <span>{item.meta.join(" • ")}</span>
+                    {#if item.subtitle}
+                      <span class="text-gray-600">•</span>
+                    {/if}
+                  {/if}
+                  {#if item.subtitle}
+                    <span class="truncate">{item.subtitle}</span>
+                  {/if}
+                </div>
               {/if}
             </div>
             {#if item.actions && item.actions.length > 0}
@@ -829,10 +879,14 @@
                 {#each item.actions as action}
                   <button
                     type="button"
-                    class="text-xs font-semibold px-3 py-1.5 rounded-lg border border-white/10 transition-colors {action.variant === 'primary' ? 'bg-indigo-600 hover:bg-indigo-500 text-white' : action.variant === 'danger' ? 'bg-rose-600 hover:bg-rose-500 text-white' : 'bg-white/5 hover:bg-white/10 text-gray-200'}"
+                    title={action.tooltip}
+                    class="text-xs font-semibold px-3 py-1.5 rounded-lg border border-white/10 transition-colors inline-flex items-center gap-1.5 cursor-pointer {action.variant === 'primary' ? 'bg-indigo-600 hover:bg-indigo-500 text-white' : action.variant === 'danger' ? 'bg-rose-600 hover:bg-rose-500 text-white' : 'bg-white/5 hover:bg-white/10 text-gray-200'}"
                     onclick={() => handleAction(node.id || item.id, action.id)}
                   >
-                    {action.label}
+                    {#if action.icon}
+                      {@render renderIcon(action.icon, "w-3.5 h-3.5 shrink-0")}
+                    {/if}
+                    <span>{action.label}</span>
                   </button>
                 {/each}
               </div>
