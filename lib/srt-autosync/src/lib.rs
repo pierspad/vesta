@@ -13,8 +13,11 @@ pub mod consensus;
 pub mod matching;
 pub mod normalization;
 
-pub use consensus::{LinearModel, extract_consensus_anchors};
-pub use matching::{CandidateCue, MatchCandidate, SubtitleIndex, calculate_temporal_weight};
+pub use consensus::{LinearModel, extract_consensus_anchors, extract_consensus_anchors_guided};
+pub use matching::{
+    AnchorPrior, CandidateCue, MatchCandidate, SubtitleIndex, calculate_guided_temporal_weight,
+    calculate_temporal_weight, refine_speech_onset,
+};
 pub use normalization::{CleanText, detect_subtitle_language, strip_markup_and_sdh};
 
 #[derive(Debug, Clone)]
@@ -22,6 +25,30 @@ pub struct SubtitleLine {
     pub id: u32,
     pub start_ms: i64,
     pub text: String,
+}
+
+/// An existing fixed ground-truth anchor constraint from the user or session.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ExistingAnchor {
+    pub original_time_ms: i64,
+    pub target_time_ms: i64,
+}
+
+impl ExistingAnchor {
+    pub fn new(original_time_ms: i64, target_time_ms: i64) -> Self {
+        Self {
+            original_time_ms,
+            target_time_ms,
+        }
+    }
+
+    pub fn offset(&self) -> i64 {
+        self.target_time_ms.saturating_sub(self.original_time_ms)
+    }
+
+    pub fn corrected_time_ms(&self) -> i64 {
+        self.target_time_ms
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -34,6 +61,7 @@ pub struct AutoSyncConfig {
     pub ffprobe_cmd: String,
     pub use_gpu: Option<bool>,
     pub max_offset_secs: Option<u32>,
+    pub existing_anchors: Vec<ExistingAnchor>,
 }
 
 impl AutoSyncConfig {
@@ -47,6 +75,7 @@ impl AutoSyncConfig {
             ffprobe_cmd: "ffprobe".into(),
             use_gpu: None,
             max_offset_secs: None,
+            existing_anchors: Vec::new(),
         }
     }
 }
@@ -289,8 +318,141 @@ pub fn load_whisper_context_with_gpu(
 }
 
 /// Calculate strategic sample positions across the media duration,
-/// guided by subtitle distribution where dialogue actually occurs.
-fn calculate_sample_positions(
+/// guided by subtitle distribution and existing fixed ground-truth anchors.
+pub fn calculate_sample_positions(
+    duration_sec: f64,
+    segment_duration: f64,
+    num_samples: usize,
+    subtitles: &[SubtitleLine],
+    existing_anchors: &[ExistingAnchor],
+) -> Vec<f64> {
+    if !existing_anchors.is_empty() {
+        let guided = calculate_guided_sample_positions(
+            duration_sec,
+            segment_duration,
+            num_samples,
+            subtitles,
+            existing_anchors,
+        );
+        if !guided.is_empty() {
+            return guided;
+        }
+    }
+
+    calculate_unconstrained_sample_positions(duration_sec, segment_duration, num_samples, subtitles)
+}
+
+/// Sample audio segments specifically in large unanchored spans between or outside existing anchors.
+fn calculate_guided_sample_positions(
+    duration_sec: f64,
+    segment_duration: f64,
+    num_samples: usize,
+    subtitles: &[SubtitleLine],
+    existing_anchors: &[ExistingAnchor],
+) -> Vec<f64> {
+    let prior = AnchorPrior::new(existing_anchors.to_vec());
+    let mut anchor_targets: Vec<f64> = existing_anchors
+        .iter()
+        .map(|a| a.target_time_ms as f64 / 1000.0)
+        .collect();
+    anchor_targets.sort_by(|a, b| a.partial_cmp(b).unwrap());
+
+    // Define unanchored spans across the timeline
+    let mut spans = Vec::new();
+    let mut prev_bound = 0.0f64;
+
+    for &anchor_t in &anchor_targets {
+        if anchor_t > prev_bound {
+            spans.push((prev_bound, anchor_t));
+        }
+        prev_bound = anchor_t;
+    }
+    if prev_bound < duration_sec {
+        spans.push((prev_bound, duration_sec));
+    }
+
+    struct EligibleSpan {
+        s_min: f64,
+        s_max: f64,
+        valid_len: f64,
+    }
+
+    let mut eligible_spans = Vec::new();
+    for (start, end) in spans {
+        let s_min = if start == 0.0 { 5.0 } else { start + 15.0 };
+        let s_max = if end >= duration_sec {
+            (duration_sec - segment_duration).max(0.0)
+        } else {
+            end - 15.0 - segment_duration
+        };
+
+        if s_max >= s_min + 5.0 {
+            eligible_spans.push(EligibleSpan {
+                s_min,
+                s_max,
+                valid_len: s_max - s_min,
+            });
+        }
+    }
+
+    if eligible_spans.is_empty() {
+        return Vec::new();
+    }
+
+    let total_valid_len: f64 = eligible_spans.iter().map(|s| s.valid_len).sum();
+    let mut positions = Vec::new();
+
+    for span in &eligible_spans {
+        let span_ratio = span.valid_len / total_valid_len;
+        let count = ((num_samples as f64) * span_ratio).round() as usize;
+        let span_samples = count.clamp(
+            1,
+            ((span.valid_len / (segment_duration * 0.75)) as usize).max(1),
+        );
+
+        let step = span.valid_len / (span_samples + 1) as f64;
+        for j in 1..=span_samples {
+            let target_time = span.s_min + (step * j as f64);
+            let target_ms = (target_time * 1000.0) as i64;
+            let target_orig_ms = prior.expected_orig_time(target_ms).unwrap_or(target_ms);
+
+            let near_idx = subtitles.partition_point(|s| s.start_ms < target_orig_ms);
+            let candidate_sub = if near_idx < subtitles.len() {
+                Some(&subtitles[near_idx])
+            } else if !subtitles.is_empty() {
+                Some(&subtitles[subtitles.len() - 1])
+            } else {
+                None
+            };
+
+            let pos = if let Some(sub) = candidate_sub {
+                let sub_target_ms = prior
+                    .expected_target_time(sub.start_ms)
+                    .unwrap_or(sub.start_ms);
+                let sub_target_sec = (sub_target_ms as f64 / 1000.0) - 2.0;
+                sub_target_sec.clamp(span.s_min, span.s_max)
+            } else {
+                target_time.clamp(span.s_min, span.s_max)
+            };
+
+            positions.push(pos);
+        }
+    }
+
+    positions.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    positions.dedup_by(|a, b| (*a - *b).abs() < segment_duration * 0.7);
+
+    // Keep at least 10s separation from existing manual anchors
+    positions.retain(|&pos| {
+        !anchor_targets
+            .iter()
+            .any(|&at| (at - pos).abs() < 10.0 || (at - (pos + segment_duration)).abs() < 5.0)
+    });
+
+    positions
+}
+
+fn calculate_unconstrained_sample_positions(
     duration_sec: f64,
     segment_duration: f64,
     num_samples: usize,
@@ -309,7 +471,6 @@ fn calculate_sample_positions(
 
             for i in 1..=num_samples {
                 let target_time = first_sub_sec + (step * i as f64);
-                // Find a nearby subtitle to anchor the audio sample on dialogue
                 let target_ms = (target_time * 1000.0) as i64;
                 let near_idx = subtitles.partition_point(|s| s.start_ms < target_ms);
                 let best_sub = if near_idx < subtitles.len() {
@@ -375,10 +536,31 @@ pub async fn run_auto_sync(
 
     let quick = config.quick;
     let segment_duration = if quick { 20.0 } else { 35.0 };
-    let num_samples = if quick { 12 } else { 20 };
+    let use_gpu = config.use_gpu.unwrap_or_else(srt_transcribe::gpu_supported);
 
-    let sample_positions =
-        calculate_sample_positions(duration_sec, segment_duration, num_samples, &subtitles);
+    // Dense sampling: scale segments up when GPU is available (24-32 segments)
+    let num_samples = if use_gpu {
+        let dynamic_count = (duration_sec / 150.0).round() as usize;
+        if quick {
+            dynamic_count.clamp(16, 24)
+        } else {
+            dynamic_count.clamp(24, 32)
+        }
+    } else if quick {
+        12
+    } else {
+        20
+    };
+    let max_possible = ((duration_sec - 10.0) / (segment_duration * 0.75)) as usize;
+    let num_samples = num_samples.min(max_possible.max(1));
+
+    let sample_positions = calculate_sample_positions(
+        duration_sec,
+        segment_duration,
+        num_samples,
+        &subtitles,
+        &config.existing_anchors,
+    );
     let total_segments = sample_positions.len();
 
     // Detect subtitle language if not provided
@@ -422,7 +604,11 @@ pub async fn run_auto_sync(
         )])),
     );
 
-    let max_concurrency = num_cpus().min(6);
+    let max_concurrency = if use_gpu {
+        num_cpus().clamp(4, 8)
+    } else {
+        num_cpus().min(6)
+    };
     let semaphore = Arc::new(tokio::sync::Semaphore::new(max_concurrency));
     let mut prep_handles = tokio::task::JoinSet::new();
 
@@ -485,9 +671,9 @@ pub async fn run_auto_sync(
     );
 
     let model_path_str = config.model_path.to_string_lossy().to_string();
-    let use_gpu = config.use_gpu.unwrap_or_else(srt_transcribe::gpu_supported);
     let max_offset_ms = (config.max_offset_secs.unwrap_or(120) as i64) * 1000;
     let language = effective_language;
+    let existing_anchors_for_task = config.existing_anchors.clone();
     let token_clone = cancel_token.clone();
     let progress_clone = on_progress.clone();
 
@@ -499,6 +685,8 @@ pub async fn run_auto_sync(
                 .map_err(|e| format!("Failed to load Whisper model: {e:?}"))?;
 
             let subtitle_index = SubtitleIndex::build(&subtitles);
+            let anchor_prior = AnchorPrior::new(existing_anchors_for_task);
+            let has_prior = !anchor_prior.is_empty();
 
             for (idx, prep) in prepared_segments.iter().enumerate() {
                 if token_clone.is_cancelled() {
@@ -545,7 +733,11 @@ pub async fn run_auto_sync(
                 let options = TranscribeOptions {
                     language: language.clone(),
                     translate_to_english: false,
-                    n_threads: None,
+                    n_threads: Some(if use_gpu {
+                        4
+                    } else {
+                        srt_transcribe::transcribe::default_n_threads()
+                    }),
                     word_timestamps: true,
                     max_segment_length: None,
                     segment_callback: None,
@@ -576,10 +768,21 @@ pub async fn run_auto_sync(
                         continue;
                     }
 
-                    let candidates = subtitle_index.find_in_window(tseg.start_ms, max_offset_ms);
+                    let (candidates, expected_offset, local_radius_ms) = if has_prior {
+                        const LOCAL_RADIUS: i64 = 15_000;
+                        let (min_t, max_t) =
+                            anchor_prior.candidate_orig_bounds(tseg.start_ms, LOCAL_RADIUS);
+                        let cands = subtitle_index.find_in_range(min_t, max_t);
+                        let exp_off = anchor_prior
+                            .expected_offset_at_target(tseg.start_ms)
+                            .unwrap_or(0);
+                        (cands, exp_off, LOCAL_RADIUS)
+                    } else {
+                        let cands = subtitle_index.find_in_window(tseg.start_ms, max_offset_ms);
+                        (cands, 0, max_offset_ms)
+                    };
 
                     for cand in candidates {
-                        let time_diff = (cand.start_ms - tseg.start_ms).abs();
                         let sim = tseg_clean.similarity(&cand.text);
 
                         // Adaptive similarity threshold: short phrases require higher similarity, longer phrases 0.40
@@ -589,14 +792,32 @@ pub async fn run_auto_sync(
                             0.40
                         };
                         if sim >= threshold {
-                            let weight = calculate_temporal_weight(time_diff, max_offset_ms);
+                            let weight = if has_prior {
+                                calculate_guided_temporal_weight(
+                                    tseg.start_ms - cand.start_ms,
+                                    expected_offset,
+                                    local_radius_ms,
+                                )
+                            } else {
+                                let time_diff = (cand.start_ms - tseg.start_ms).abs();
+                                calculate_temporal_weight(time_diff, max_offset_ms)
+                            };
+
                             let score = sim * weight;
 
                             if score >= 0.35 {
+                                // Word-level phrase onset refinement
+                                let refined_start_ms = refine_speech_onset(
+                                    tseg.start_ms,
+                                    tseg.end_ms,
+                                    &tseg_clean,
+                                    &cand.text,
+                                );
+
                                 all_matches.push(MatchCandidate {
                                     subtitle_id: cand.subtitle_id,
                                     original_start_ms: cand.start_ms,
-                                    transcribed_start_ms: tseg.start_ms,
+                                    transcribed_start_ms: refined_start_ms,
                                     similarity: sim,
                                     score,
                                 });
@@ -624,7 +845,8 @@ pub async fn run_auto_sync(
     }
 
     // Extract consensus model and well-spaced inlier anchors (spacing >= 30s)
-    let (_model, suggestions) = extract_consensus_anchors(&all_matches, 30_000);
+    let (_model, suggestions) =
+        extract_consensus_anchors_guided(&all_matches, 30_000, &config.existing_anchors);
 
     Ok(AutoSyncOutcome {
         suggestions,
@@ -727,11 +949,59 @@ mod tests {
             })
             .collect::<Vec<_>>();
 
-        let positions = calculate_sample_positions(2000.0, 20.0, 10, &subtitles);
+        let positions = calculate_sample_positions(2000.0, 20.0, 10, &subtitles, &[]);
         assert!(!positions.is_empty());
-        // Positions must fall within the dialogue bounds
         assert!(positions[0] >= 50.0);
         assert!(*positions.last().unwrap() <= 1900.0);
+    }
+
+    #[test]
+    fn test_calculate_sample_positions_with_existing_anchors_targeted_spans() {
+        let subtitles = (0..100)
+            .map(|i| SubtitleLine {
+                id: i,
+                start_ms: (10 + i as i64 * 20) * 1000,
+                text: format!("Subtitle dialogue line {i}"),
+            })
+            .collect::<Vec<_>>();
+
+        // User placed 2 anchors: at 300s (target 310s) and at 900s (target 910s)
+        let anchors = vec![
+            ExistingAnchor::new(300_000, 310_000),
+            ExistingAnchor::new(900_000, 910_000),
+        ];
+
+        let positions = calculate_sample_positions(1800.0, 20.0, 12, &subtitles, &anchors);
+        assert!(!positions.is_empty());
+
+        // Positions should avoid being right on top of 310s or 910s (>= 10s distance)
+        for &pos in &positions {
+            assert!(
+                (pos - 310.0).abs() >= 10.0,
+                "Position {pos} too close to anchor at 310s"
+            );
+            assert!(
+                (pos - 910.0).abs() >= 10.0,
+                "Position {pos} too close to anchor at 910s"
+            );
+        }
+
+        // Must have positions in the middle span (between 310s and 910s)
+        let mid_samples = positions
+            .iter()
+            .filter(|&&p| p > 310.0 && p < 910.0)
+            .count();
+        assert!(
+            mid_samples >= 2,
+            "Expected samples between anchors, got {mid_samples}"
+        );
+
+        // Must have positions in the later span (> 910s)
+        let late_samples = positions.iter().filter(|&&p| p > 910.0).count();
+        assert!(
+            late_samples >= 1,
+            "Expected samples after last anchor, got {late_samples}"
+        );
     }
 }
 

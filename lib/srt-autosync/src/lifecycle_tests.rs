@@ -65,6 +65,7 @@ async fn autosync_cancellation_stops_preparation_children_without_loading_whispe
         ffprobe_cmd: ffprobe.to_string_lossy().into_owned(),
         use_gpu: None,
         max_offset_secs: None,
+        existing_anchors: Vec::new(),
     };
     let token = CancellationToken::new();
     let task_token = token.clone();

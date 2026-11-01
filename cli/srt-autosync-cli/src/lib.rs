@@ -129,6 +129,7 @@ async fn run(args: Vec<std::ffi::OsString>) -> Result<ExitCode> {
         ffprobe_cmd: cli.ffprobe.clone(),
         use_gpu: None,
         max_offset_secs: None,
+        existing_anchors: Vec::new(),
     };
 
     let on_progress = (!cli.quiet).then(|| -> srt_autosync::ProgressCallback {

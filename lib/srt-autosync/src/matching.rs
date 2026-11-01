@@ -1,5 +1,5 @@
-use crate::SubtitleLine;
 use crate::normalization::CleanText;
+use crate::{ExistingAnchor, SubtitleLine};
 
 #[derive(Debug, Clone)]
 pub struct CandidateCue {
@@ -86,11 +86,11 @@ impl SubtitleIndex {
         Self { candidates }
     }
 
-    /// Query candidate cues whose start_ms is within [center_ms - max_offset_ms, center_ms + max_offset_ms]
-    pub fn find_in_window(&self, center_ms: i64, max_offset_ms: i64) -> &[CandidateCue] {
-        let min_time = center_ms - max_offset_ms;
-        let max_time = center_ms + max_offset_ms;
-
+    /// Query candidate cues whose start_ms is within [min_time, max_time]
+    pub fn find_in_range(&self, min_time: i64, max_time: i64) -> &[CandidateCue] {
+        if min_time > max_time {
+            return &[];
+        }
         let start_idx = self.candidates.partition_point(|c| c.start_ms < min_time);
         let end_idx = self.candidates.partition_point(|c| c.start_ms <= max_time);
 
@@ -99,6 +99,160 @@ impl SubtitleIndex {
         } else {
             &[]
         }
+    }
+
+    /// Query candidate cues whose start_ms is within [center_ms - max_offset_ms, center_ms + max_offset_ms]
+    pub fn find_in_window(&self, center_ms: i64, max_offset_ms: i64) -> &[CandidateCue] {
+        self.find_in_range(center_ms - max_offset_ms, center_ms + max_offset_ms)
+    }
+}
+
+/// Piecewise linear interpolation prior derived from existing fixed ground-truth anchors.
+#[derive(Debug, Clone, Default)]
+pub struct AnchorPrior {
+    /// Anchors sorted by original_time_ms ascending
+    anchors: Vec<ExistingAnchor>,
+}
+
+impl AnchorPrior {
+    pub fn new(mut anchors: Vec<ExistingAnchor>) -> Self {
+        anchors.sort_by_key(|a| a.original_time_ms);
+        anchors.dedup_by_key(|a| a.original_time_ms);
+        Self { anchors }
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.anchors.is_empty()
+    }
+
+    pub fn len(&self) -> usize {
+        self.anchors.len()
+    }
+
+    pub fn anchors(&self) -> &[ExistingAnchor] {
+        &self.anchors
+    }
+
+    /// Calculate the expected offset for a given original subtitle timestamp t.
+    ///
+    /// - If no anchors, returns None.
+    /// - If 1 anchor, returns that anchor's offset.
+    /// - If t <= first_anchor, returns first_anchor.offset().
+    /// - If t >= last_anchor, returns last_anchor.offset().
+    /// - Otherwise, linearly interpolates between surrounding anchors A1 and A2.
+    pub fn expected_offset_at_orig(&self, t: i64) -> Option<i64> {
+        if self.anchors.is_empty() {
+            return None;
+        }
+        if self.anchors.len() == 1 {
+            return Some(self.anchors[0].offset());
+        }
+
+        let first = &self.anchors[0];
+        let last = &self.anchors[self.anchors.len() - 1];
+
+        if t <= first.original_time_ms {
+            return Some(first.offset());
+        }
+        if t >= last.original_time_ms {
+            return Some(last.offset());
+        }
+
+        let idx = self.anchors.partition_point(|a| a.original_time_ms <= t);
+        let a1 = &self.anchors[idx - 1];
+        let a2 = &self.anchors[idx];
+
+        let dt = a2.original_time_ms - a1.original_time_ms;
+        if dt == 0 {
+            return Some(a1.offset());
+        }
+
+        let alpha = (t - a1.original_time_ms) as f64 / (dt as f64);
+        let interpolated_offset = a1.offset() as f64 + alpha * (a2.offset() - a1.offset()) as f64;
+        Some(interpolated_offset.round() as i64)
+    }
+
+    /// Calculate the expected offset for a given target audio timestamp tau.
+    ///
+    /// - If no anchors, returns None.
+    /// - If 1 anchor, returns that anchor's offset.
+    /// - If tau <= first_anchor.target_time_ms, returns first_anchor.offset().
+    /// - If tau >= last_anchor.target_time_ms, returns last_anchor.offset().
+    /// - Otherwise, linearly interpolates between surrounding anchors A1 and A2.
+    pub fn expected_offset_at_target(&self, tau: i64) -> Option<i64> {
+        if self.anchors.is_empty() {
+            return None;
+        }
+        if self.anchors.len() == 1 {
+            return Some(self.anchors[0].offset());
+        }
+
+        let first = &self.anchors[0];
+        let last = &self.anchors[self.anchors.len() - 1];
+
+        if tau <= first.target_time_ms {
+            return Some(first.offset());
+        }
+        if tau >= last.target_time_ms {
+            return Some(last.offset());
+        }
+
+        let idx = self.anchors.partition_point(|a| a.target_time_ms <= tau);
+        if idx == 0 {
+            return Some(first.offset());
+        }
+        if idx >= self.anchors.len() {
+            return Some(last.offset());
+        }
+
+        let a1 = &self.anchors[idx - 1];
+        let a2 = &self.anchors[idx];
+
+        let d_tau = a2.target_time_ms - a1.target_time_ms;
+        if d_tau == 0 {
+            return Some(a1.offset());
+        }
+
+        let alpha = (tau - a1.target_time_ms) as f64 / (d_tau as f64);
+        let interpolated_offset = a1.offset() as f64 + alpha * (a2.offset() - a1.offset()) as f64;
+        Some(interpolated_offset.round() as i64)
+    }
+
+    /// Calculate expected original subtitle start time for target audio timestamp tau.
+    pub fn expected_orig_time(&self, tau: i64) -> Option<i64> {
+        self.expected_offset_at_target(tau)
+            .map(|off| tau.saturating_sub(off))
+    }
+
+    /// Calculate expected target audio timestamp for original subtitle timestamp t.
+    pub fn expected_target_time(&self, t: i64) -> Option<i64> {
+        self.expected_offset_at_orig(t)
+            .map(|off| t.saturating_add(off))
+    }
+
+    /// Search bounds for original subtitle time corresponding to audio time tau,
+    /// bounded by a local radius (e.g. 15s) and strictly constrained not to cross surrounding anchors.
+    pub fn candidate_orig_bounds(&self, tau: i64, local_radius_ms: i64) -> (i64, i64) {
+        if self.anchors.is_empty() {
+            return (tau - local_radius_ms, tau + local_radius_ms);
+        }
+
+        let expected_orig = self.expected_orig_time(tau).unwrap_or(tau);
+        let mut min_t = expected_orig - local_radius_ms;
+        let mut max_t = expected_orig + local_radius_ms;
+
+        // Clamp to surrounding anchors so candidates never jump across fixed anchors
+        for a in &self.anchors {
+            if a.target_time_ms < tau {
+                if a.original_time_ms > min_t {
+                    min_t = a.original_time_ms;
+                }
+            } else if a.target_time_ms > tau && a.original_time_ms < max_t {
+                max_t = a.original_time_ms;
+            }
+        }
+
+        (min_t, max_t)
     }
 }
 
@@ -111,6 +265,73 @@ pub fn calculate_temporal_weight(time_diff_ms: i64, max_offset_ms: i64) -> f64 {
     } else {
         let normalized = (diff - 10_000) as f64 / (max_offset_ms - 10_000).max(1) as f64;
         1.0 - (normalized * 0.30)
+    }
+}
+
+/// Compute temporal weight based on deviation from the anchor-guided expected offset.
+pub fn calculate_guided_temporal_weight(
+    actual_offset_ms: i64,
+    expected_offset_ms: i64,
+    local_radius_ms: i64,
+) -> f64 {
+    let deviation = (actual_offset_ms - expected_offset_ms).abs();
+    if deviation <= 2_000 {
+        1.0
+    } else if deviation >= local_radius_ms {
+        0.65
+    } else {
+        let normalized = (deviation - 2_000) as f64 / (local_radius_ms - 2_000).max(1) as f64;
+        1.0 - (normalized * 0.35)
+    }
+}
+
+/// Given a transcribed audio segment and a candidate subtitle cue, refine the anchor's
+/// corrected timestamp to snap directly to the speech onset of the matching words.
+pub fn refine_speech_onset(
+    tseg_start_ms: i64,
+    tseg_end_ms: i64,
+    tseg_clean: &CleanText,
+    cand_clean: &CleanText,
+) -> i64 {
+    if tseg_clean.tokens.is_empty() || cand_clean.tokens.is_empty() || tseg_end_ms <= tseg_start_ms
+    {
+        return tseg_start_ms;
+    }
+
+    let t_len = tseg_clean.tokens.len();
+    let duration = (tseg_end_ms - tseg_start_ms) as f64;
+
+    let mut best_start_idx = 0usize;
+    let mut best_match_score = 0usize;
+
+    // Find the token offset within the transcribed segment where candidate words best align
+    for (i, _) in tseg_clean.tokens.iter().enumerate() {
+        let mut matches = 0;
+        for (k, c_tok) in cand_clean.tokens.iter().enumerate() {
+            if i + k < t_len && &tseg_clean.tokens[i + k] == c_tok {
+                matches += 1;
+            }
+        }
+        if matches > best_match_score {
+            best_match_score = matches;
+            best_start_idx = i;
+        }
+    }
+
+    // Fallback: match the first candidate token
+    if best_match_score == 0
+        && let Some(first_tok) = cand_clean.tokens.first()
+        && let Some(pos) = tseg_clean.tokens.iter().position(|t| t == first_tok)
+    {
+        best_start_idx = pos;
+    }
+
+    if best_start_idx > 0 && t_len > 0 {
+        let onset_ratio = (best_start_idx as f64) / (t_len as f64);
+        let onset_ms = tseg_start_ms + (duration * onset_ratio).round() as i64;
+        onset_ms.min(tseg_end_ms)
+    } else {
+        tseg_start_ms
     }
 }
 
@@ -147,5 +368,88 @@ mod tests {
         // Window of 5s around 15_000 -> covers only 10_000 to 20_000
         let small_win = index.find_in_window(15_000, 6_000);
         assert!(!small_win.iter().any(|c| c.subtitle_id == 3));
+    }
+
+    #[test]
+    fn test_anchor_prior_piecewise_interpolation() {
+        let anchors = vec![
+            ExistingAnchor::new(10_000, 15_000),   // offset +5000ms at t=10s
+            ExistingAnchor::new(100_000, 115_000), // offset +15000ms at t=100s
+        ];
+        let prior = AnchorPrior::new(anchors);
+
+        // Before first anchor: clamps to first anchor's offset (+5000ms)
+        assert_eq!(prior.expected_offset_at_orig(5_000), Some(5_000));
+        assert_eq!(prior.expected_offset_at_target(8_000), Some(5_000));
+
+        // After last anchor: clamps to last anchor's offset (+15000ms)
+        assert_eq!(prior.expected_offset_at_orig(150_000), Some(15_000));
+        assert_eq!(prior.expected_offset_at_target(200_000), Some(15_000));
+
+        // Midpoint: t = 55_000 (halfway between 10_000 and 100_000) -> offset = 10_000ms
+        assert_eq!(prior.expected_offset_at_orig(55_000), Some(10_000));
+
+        // Target midpoint: tau = 65_000 (halfway between 15_000 and 115_000) -> offset = 10_000ms
+        assert_eq!(prior.expected_offset_at_target(65_000), Some(10_000));
+        assert_eq!(prior.expected_orig_time(65_000), Some(55_000));
+        assert_eq!(prior.expected_target_time(55_000), Some(65_000));
+    }
+
+    #[test]
+    fn test_anchor_prior_candidate_orig_bounds_never_crosses_anchors() {
+        let anchors = vec![
+            ExistingAnchor::new(20_000, 25_000),
+            ExistingAnchor::new(80_000, 85_000),
+        ];
+        let prior = AnchorPrior::new(anchors);
+
+        // At audio tau = 55_000, expected orig is 50_000. Radius 15_000 gives [35_000, 65_000].
+        // This is strictly inside [20_000, 80_000].
+        let (min_t, max_t) = prior.candidate_orig_bounds(55_000, 15_000);
+        assert!(min_t >= 20_000);
+        assert!(max_t <= 80_000);
+
+        // At audio tau = 28_000, expected orig is 23_000. Radius 15_000 would reach down to 8_000,
+        // but it MUST be clamped at the preceding anchor's orig_time (20_000)!
+        let (min_t_clamped, _) = prior.candidate_orig_bounds(28_000, 15_000);
+        assert_eq!(min_t_clamped, 20_000);
+    }
+
+    #[test]
+    fn test_refine_speech_onset() {
+        let tseg_clean = CleanText::new("good morning and welcome to the show");
+        let cand_clean = CleanText::new("welcome to the show");
+
+        // tseg starts at 10_000 and ends at 14_000 (duration 4000ms, 7 words)
+        // "welcome to the show" starts at token index 3 ("welcome")
+        // expected onset: 10_000 + 4000 * (3 / 7) = 10_000 + 1714 = 11714
+        let onset = refine_speech_onset(10_000, 14_000, &tseg_clean, &cand_clean);
+        assert!(onset > 10_000);
+        assert_eq!(onset, 11_714);
+
+        // If candidate matches from token index 0, onset is exactly tseg_start_ms
+        let onset_first = refine_speech_onset(10_000, 14_000, &tseg_clean, &tseg_clean);
+        assert_eq!(onset_first, 10_000);
+    }
+
+    #[test]
+    fn test_guided_temporal_weight() {
+        // Deviation <= 2000ms gets weight 1.0
+        assert_eq!(calculate_guided_temporal_weight(5_000, 5_500, 15_000), 1.0);
+        assert_eq!(calculate_guided_temporal_weight(5_000, 7_000, 15_000), 1.0);
+
+        // Deviation >= local_radius gets weight 0.65
+        assert_eq!(
+            calculate_guided_temporal_weight(5_000, 20_000, 15_000),
+            0.65
+        );
+        assert_eq!(
+            calculate_guided_temporal_weight(5_000, 30_000, 15_000),
+            0.65
+        );
+
+        // Midpoint deviation
+        let mid = calculate_guided_temporal_weight(5_000, 13_500, 15_000);
+        assert!(mid > 0.65 && mid < 1.0);
     }
 }

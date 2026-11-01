@@ -3,7 +3,7 @@ use std::sync::Arc;
 use serde::Serialize;
 use tauri::{AppHandle, Emitter, State};
 
-use srt_autosync::{AutoSyncConfig, AutoSyncProgress, SubtitleLine};
+use srt_autosync::{AutoSyncConfig, AutoSyncProgress, ExistingAnchor, SubtitleLine};
 
 use crate::state::{AppSyncState, AppTranscribeState, OperationGuard};
 
@@ -50,8 +50,8 @@ pub async fn sync_auto_sync(
     )?;
     let token = guard.token();
 
-    // Get media path and subtitle info from sync engine
-    let (media_path, subtitles) = {
+    // Get media path, subtitle info, and existing ground-truth anchors from sync engine
+    let (media_path, subtitles, existing_anchors) = {
         let ss = sync_state.lock().map_err(|e| e.to_string())?;
         let engine = ss.engine.as_ref().ok_or("No SRT file loaded for sync")?;
 
@@ -70,7 +70,16 @@ pub async fn sync_auto_sync(
             })
             .collect();
 
-        (media, subs)
+        let anchors: Vec<ExistingAnchor> = engine
+            .get_anchors()
+            .iter()
+            .map(|a| ExistingAnchor {
+                original_time_ms: a.original_time_ms,
+                target_time_ms: a.corrected_time_ms,
+            })
+            .collect();
+
+        (media, subs, anchors)
     };
 
     let model_path =
@@ -88,6 +97,7 @@ pub async fn sync_auto_sync(
         ffprobe_cmd,
         use_gpu: Some(true),
         max_offset_secs: Some(180),
+        existing_anchors,
     };
 
     // Re-emit engine progress as Tauri events.
@@ -127,24 +137,20 @@ pub async fn sync_auto_sync(
         let engine = ss.engine.as_mut().ok_or("No SRT file loaded for sync")?;
 
         let existing_anchors = engine.get_anchors().to_vec();
+        let len_before = existing_anchors.len();
 
-        let mut count = 0;
         for s in &outcome.suggestions {
             let is_near_existing = existing_anchors.iter().any(|a| {
-                (a.original_time_ms - s.original_start_ms).abs() < 10_000
-                    || (a.corrected_time_ms - s.corrected_time_ms).abs() < 10_000
+                (a.original_time_ms - s.original_start_ms).abs() < 15_000
+                    || (a.corrected_time_ms - s.corrected_time_ms).abs() < 15_000
             });
 
-            if !is_near_existing
-                && engine
-                    .add_anchor(s.subtitle_id, s.corrected_time_ms, false)
-                    .is_ok()
-            {
-                count += 1;
+            if !is_near_existing {
+                let _ = engine.add_anchor(s.subtitle_id, s.corrected_time_ms, false);
             }
         }
 
-        count
+        engine.get_anchors().len().saturating_sub(len_before)
     };
 
     if anchors_created == 0 {

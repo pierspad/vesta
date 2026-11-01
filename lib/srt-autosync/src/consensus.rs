@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 
-use crate::AnchorSuggestion;
-use crate::matching::MatchCandidate;
+use crate::matching::{AnchorPrior, MatchCandidate};
+use crate::{AnchorSuggestion, ExistingAnchor};
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct LinearModel {
     pub slope: f64,
     pub intercept_ms: f64,
@@ -27,15 +27,39 @@ impl LinearModel {
     }
 }
 
-/// Find the dominant consensus model (either constant offset or linear drift) and inlier suggestions.
+/// Minimum spacing required from existing fixed manual anchors (15 seconds).
+const MIN_DISTANCE_FROM_EXISTING_MS: i64 = 15_000;
+
+/// Find dominant consensus model and inlier suggestions without prior anchors.
 pub fn extract_consensus_anchors(
     candidates: &[MatchCandidate],
     min_anchor_spacing_ms: i64,
+) -> (Option<LinearModel>, Vec<AnchorSuggestion>) {
+    extract_consensus_anchors_guided(candidates, min_anchor_spacing_ms, &[])
+}
+
+/// Find dominant consensus model and inlier suggestions, guided and constrained by
+/// existing fixed ground-truth anchors.
+pub fn extract_consensus_anchors_guided(
+    candidates: &[MatchCandidate],
+    min_anchor_spacing_ms: i64,
+    existing_anchors: &[ExistingAnchor],
 ) -> (Option<LinearModel>, Vec<AnchorSuggestion>) {
     if candidates.is_empty() {
         return (None, Vec::new());
     }
 
+    if existing_anchors.is_empty() {
+        return extract_unconstrained_consensus(candidates, min_anchor_spacing_ms);
+    }
+
+    extract_constrained_consensus(candidates, min_anchor_spacing_ms, existing_anchors)
+}
+
+fn extract_unconstrained_consensus(
+    candidates: &[MatchCandidate],
+    min_anchor_spacing_ms: i64,
+) -> (Option<LinearModel>, Vec<AnchorSuggestion>) {
     // 1. Estimate 1D dominant offset via score-weighted sliding window
     let mut best_1d_offset = 0i64;
     let mut best_1d_score = 0.0f64;
@@ -61,13 +85,11 @@ pub fn extract_consensus_anchors(
     let mut best_2d_score = 0.0f64;
     let mut best_2d_inliers_count = 0usize;
 
-    // Only attempt 2D RANSAC if we have enough spread in candidate positions
     let n = candidates.len();
     if n >= 4 {
         for i in 0..n {
             for j in (i + 1)..n {
                 let s_diff = candidates[j].original_start_ms - candidates[i].original_start_ms;
-                // Candidates must be separated by at least 60 seconds
                 if s_diff.abs() < 60_000 {
                     continue;
                 }
@@ -75,7 +97,6 @@ pub fn extract_consensus_anchors(
                     candidates[j].transcribed_start_ms - candidates[i].transcribed_start_ms;
                 let slope = t_diff as f64 / s_diff as f64;
 
-                // Accept only realistic framerate conversion drift: slope within [0.94, 1.06]
                 if !(0.94..=1.06).contains(&slope) {
                     continue;
                 }
@@ -157,6 +178,112 @@ pub fn extract_consensus_anchors(
     (Some(chosen_model), suggestions)
 }
 
+fn extract_constrained_consensus(
+    candidates: &[MatchCandidate],
+    min_anchor_spacing_ms: i64,
+    existing_anchors: &[ExistingAnchor],
+) -> (Option<LinearModel>, Vec<AnchorSuggestion>) {
+    let prior = AnchorPrior::new(existing_anchors.to_vec());
+
+    // Evaluate inliers against the piecewise linear prior
+    let inliers: Vec<&MatchCandidate> = candidates
+        .iter()
+        .filter(|m| {
+            if let Some(expected_target) = prior.expected_target_time(m.original_start_ms) {
+                (m.transcribed_start_ms - expected_target).abs() <= 2000
+            } else {
+                false
+            }
+        })
+        .collect();
+
+    // Deduplicate by subtitle_id (highest score)
+    let mut best_per_sub: HashMap<u32, &MatchCandidate> = HashMap::new();
+    for m in inliers {
+        let entry = best_per_sub.entry(m.subtitle_id).or_insert(m);
+        if m.score > entry.score || (m.score == entry.score && m.similarity > entry.similarity) {
+            *entry = m;
+        }
+    }
+
+    let mut sorted_inliers: Vec<&MatchCandidate> = best_per_sub.into_values().collect();
+    sorted_inliers.sort_unstable_by_key(|m| m.original_start_ms);
+
+    // Filter against Immutable Anchor Constraints:
+    // 1. Maintain at least 15s distance from all existing user anchors.
+    // 2. Monotonicity constraint: strictly maintain chronological ordering with all user anchors.
+    let mut valid_candidates = Vec::new();
+    for c in sorted_inliers {
+        let too_close = existing_anchors.iter().any(|a| {
+            (a.original_time_ms - c.original_start_ms).abs() < MIN_DISTANCE_FROM_EXISTING_MS
+                || (a.target_time_ms - c.transcribed_start_ms).abs() < MIN_DISTANCE_FROM_EXISTING_MS
+        });
+        if too_close {
+            continue;
+        }
+
+        let violates_monotonicity = existing_anchors.iter().any(|a| {
+            (c.original_start_ms < a.original_time_ms && c.transcribed_start_ms >= a.target_time_ms)
+                || (c.original_start_ms > a.original_time_ms
+                    && c.transcribed_start_ms <= a.target_time_ms)
+        });
+        if violates_monotonicity {
+            continue;
+        }
+
+        valid_candidates.push(c);
+    }
+
+    // Space suggestions by min_anchor_spacing_ms while maintaining strict mutual monotonicity
+    let mut suggestions = Vec::new();
+    let mut last_cand: Option<&MatchCandidate> = None;
+
+    for c in valid_candidates {
+        if let Some(last) = last_cand {
+            if c.original_start_ms.saturating_sub(last.original_start_ms) < min_anchor_spacing_ms {
+                continue;
+            }
+            if c.transcribed_start_ms <= last.transcribed_start_ms {
+                continue;
+            }
+        }
+        last_cand = Some(c);
+        suggestions.push(AnchorSuggestion {
+            subtitle_id: c.subtitle_id,
+            original_start_ms: c.original_start_ms,
+            corrected_time_ms: c.transcribed_start_ms,
+            similarity: c.similarity,
+            score: c.score,
+        });
+    }
+
+    // Reference linear model
+    let model = if let Some(first) = existing_anchors.first() {
+        if existing_anchors.len() == 1 {
+            Some(LinearModel::constant(first.offset()))
+        } else {
+            let last = existing_anchors.last().unwrap();
+            let s_diff = last.original_time_ms - first.original_time_ms;
+            let t_diff = last.target_time_ms - first.target_time_ms;
+            if s_diff > 0 {
+                let slope = t_diff as f64 / s_diff as f64;
+                let intercept =
+                    first.target_time_ms as f64 - (slope * first.original_time_ms as f64);
+                Some(LinearModel {
+                    slope,
+                    intercept_ms: intercept,
+                })
+            } else {
+                Some(LinearModel::constant(first.offset()))
+            }
+        }
+    } else {
+        None
+    };
+
+    (model, suggestions)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -164,7 +291,6 @@ mod tests {
     #[test]
     fn test_extract_consensus_constant_offset() {
         let mut candidates = Vec::new();
-        // True offset = +56_000ms
         for i in 1..=10 {
             candidates.push(MatchCandidate {
                 subtitle_id: i,
@@ -174,11 +300,10 @@ mod tests {
                 score: 0.80,
             });
         }
-        // Add a couple outliers
         candidates.push(MatchCandidate {
             subtitle_id: 100,
             original_start_ms: 120_000,
-            transcribed_start_ms: 122_640, // +2.64s outlier!
+            transcribed_start_ms: 122_640,
             similarity: 0.45,
             score: 0.42,
         });
@@ -188,7 +313,6 @@ mod tests {
         let m = model.unwrap();
         assert!((m.intercept_ms - 56_000.0).abs() < 200.0);
         assert!((m.slope - 1.0).abs() < 0.01);
-        // Outlier must NOT be present
         assert!(!suggestions.iter().any(|s| s.subtitle_id == 100));
         assert!(suggestions.len() >= 5);
     }
@@ -196,7 +320,6 @@ mod tests {
     #[test]
     fn test_extract_consensus_linear_drift() {
         let mut candidates = Vec::new();
-        // Framerate drift: 23.976 -> 25 fps => slope = 25 / 23.976 ~ 1.04271
         let slope = 25.0 / 23.976;
         let intercept = 10_000.0;
 
@@ -218,5 +341,80 @@ mod tests {
         assert!((m.slope - slope).abs() < 0.005);
         assert!((m.intercept_ms - intercept).abs() < 500.0);
         assert_eq!(suggestions.len(), 10);
+    }
+
+    #[test]
+    fn test_extract_consensus_with_existing_anchors_respects_constraints() {
+        let existing = vec![
+            ExistingAnchor::new(60_000, 65_000),   // Anchor 1: offset +5000ms
+            ExistingAnchor::new(300_000, 315_000), // Anchor 2: offset +15000ms
+        ];
+
+        let mut candidates = Vec::new();
+
+        // 1. Candidate within 10s of existing anchor 1 (should be filtered by MIN_DISTANCE_FROM_EXISTING_MS)
+        candidates.push(MatchCandidate {
+            subtitle_id: 1,
+            original_start_ms: 68_000,
+            transcribed_start_ms: 73_500,
+            similarity: 0.9,
+            score: 0.9,
+        });
+
+        // 2. Inlier at t=120_000. Piecewise expected offset:
+        // alpha = (120 - 60) / (300 - 60) = 60 / 240 = 0.25
+        // expected offset = 5000 + 0.25 * (15000 - 5000) = 7500ms -> target = 127_500
+        candidates.push(MatchCandidate {
+            subtitle_id: 2,
+            original_start_ms: 120_000,
+            transcribed_start_ms: 127_500,
+            similarity: 0.95,
+            score: 0.92,
+        });
+
+        // 3. Inlier at t=210_000.
+        // alpha = (210 - 60) / 240 = 150 / 240 = 0.625
+        // expected offset = 5000 + 0.625 * 10000 = 11250ms -> target = 221_250
+        candidates.push(MatchCandidate {
+            subtitle_id: 3,
+            original_start_ms: 210_000,
+            transcribed_start_ms: 221_250,
+            similarity: 0.93,
+            score: 0.90,
+        });
+
+        // 4. Candidate violating monotonicity: orig is after Anchor 1, but transcribed is before Anchor 1
+        candidates.push(MatchCandidate {
+            subtitle_id: 4,
+            original_start_ms: 90_000,
+            transcribed_start_ms: 60_000,
+            similarity: 0.99,
+            score: 0.99,
+        });
+
+        let (model, suggestions) = extract_consensus_anchors_guided(&candidates, 30_000, &existing);
+        assert!(model.is_some());
+
+        // Suggestions should only contain candidate 2 and candidate 3
+        assert_eq!(suggestions.len(), 2);
+        assert_eq!(suggestions[0].subtitle_id, 2);
+        assert_eq!(suggestions[1].subtitle_id, 3);
+
+        // Verify distance constraint: none of suggestions is within 15s of existing anchors
+        for s in &suggestions {
+            for a in &existing {
+                assert!((s.original_start_ms - a.original_time_ms).abs() >= 15_000);
+                assert!((s.corrected_time_ms - a.target_time_ms).abs() >= 15_000);
+            }
+        }
+
+        // Verify strict monotonicity:
+        // Anchor 1 (60s, 65s) < Suggestion 2 (120s, 127.5s) < Suggestion 3 (210s, 221.25s) < Anchor 2 (300s, 315s)
+        assert!(suggestions[0].original_start_ms > existing[0].original_time_ms);
+        assert!(suggestions[0].corrected_time_ms > existing[0].target_time_ms);
+        assert!(suggestions[1].original_start_ms > suggestions[0].original_start_ms);
+        assert!(suggestions[1].corrected_time_ms > suggestions[0].corrected_time_ms);
+        assert!(suggestions[1].original_start_ms < existing[1].original_time_ms);
+        assert!(suggestions[1].corrected_time_ms < existing[1].target_time_ms);
     }
 }
