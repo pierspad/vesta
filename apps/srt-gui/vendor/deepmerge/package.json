@@ -1,0 +1,7 @@
+{
+  "name": "@vesta/deepmerge",
+  "version": "4.3.1-vesta.1",
+  "private": true,
+  "main": "index.cjs",
+  "license": "MIT"
+}

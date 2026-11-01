@@ -11,11 +11,12 @@
     "check": "svelte-check --tsconfig ./tsconfig.json",
     "i18n:audit": "python3 scripts/check_missing_translations.py",
     "check:i18n": "node scripts/check-i18n.mjs",
-    "test": "npm run check:patterns && vitest run",
+    "test": "npm run test:merge && npm run check:patterns && vitest run",
     "test:watch": "vitest",
     "check:patterns": "node --test scripts/check-code-patterns.test.mjs && node scripts/check-code-patterns.mjs",
     "tauri": "tauri",
-    "test:dev-css": "node scripts/check-dev-css.mjs"
+    "test:dev-css": "node scripts/check-dev-css.mjs",
+    "test:merge": "node --test scripts/deepmerge.test.mjs"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^7.1.2",
@@ -34,7 +35,8 @@
     "tailwindcss": "4.3.3",
     "typescript": "^6.0.3",
     "vite": "^8.0.13",
-    "vitest": "^4.1.10"
+    "vitest": "^4.1.10",
+    "deepmerge": "file:vendor/deepmerge"
   },
   "engines": {
     "node": ">=22.12.0"
@@ -42,5 +44,8 @@
   "dependencies": {
     "dompurify": "^3.4.17",
     "marked": "^18.1.1"
+  },
+  "overrides": {
+    "deepmerge": "$deepmerge"
   }
 }

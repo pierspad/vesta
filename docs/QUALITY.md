@@ -291,6 +291,16 @@ cargo audit
 (cd apps/srt-gui && npm audit)
 ```
 
+The Svelte Vite plugin's `deepmerge` dependency uses a checked-in MIT-licensed
+security fork in `apps/srt-gui/vendor/deepmerge` until an upstream fix for
+GHSA-gcqx-w48m-w2h4 is available. Own data-property writes prevent prototype
+poisoning when copying targets and merging sources. `npm run test:merge` resolves
+the dependency through the installed plugin and checks poisoning regressions
+and config merge compatibility; `npm test` includes it. npm audit cannot inspect
+the vendored implementation, so keep these tests and review any local changes.
+See the fork README for provenance and removal instructions. Audit severity
+thresholds and release prerequisites are unchanged.
+
 Review informational `unmaintained` and `unsound` advisories as well as the
 vulnerability count. A zero vulnerability count can still include informational
 advisories. The current GTK/Tauri graph retains GLib's VariantStrIter unsoundness
