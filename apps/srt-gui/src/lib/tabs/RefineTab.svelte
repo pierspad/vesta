@@ -742,23 +742,18 @@
             />
 
             <!-- Quick Deck Stats counters -->
-            <div>
-              <span class="flex items-center gap-1.5 text-xs text-gray-400 mb-1 font-medium select-none">
-                <span class="invisible">&nbsp;</span>
-              </span>
-              <div class="grid grid-cols-3 gap-3">
-                <div class="bg-white/5 border border-white/10 rounded-xl p-2.5 text-center flex flex-col justify-center">
-                  <span class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider">{t('refine.stats.totalCards')}</span>
-                  <span class="text-sm font-bold text-gray-200">{cards.length}</span>
-                </div>
-                <div class="bg-white/5 border border-white/10 rounded-xl p-2.5 text-center flex flex-col justify-center">
-                  <span class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider">{t('refine.stats.annotated')}</span>
-                  <span class="text-sm font-bold text-rose-300">{annotatedCount}</span>
-                </div>
-                <div class="bg-white/5 border border-white/10 rounded-xl p-2.5 text-center flex flex-col justify-center">
-                  <span class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider">{t('refine.stats.modified')}</span>
-                  <span class="text-sm font-bold text-amber-300">{modifiedCount}</span>
-                </div>
+            <div class="grid grid-cols-3 gap-3">
+              <div class="h-[42px] bg-white/5 border border-white/10 rounded-xl px-2 py-1 text-center flex flex-col justify-center">
+                <span class="block text-[9px] font-bold text-gray-500 uppercase tracking-wider truncate leading-tight">{t('refine.stats.totalCards')}</span>
+                <span class="text-xs font-bold text-gray-200 leading-tight">{cards.length}</span>
+              </div>
+              <div class="h-[42px] bg-white/5 border border-white/10 rounded-xl px-2 py-1 text-center flex flex-col justify-center">
+                <span class="block text-[9px] font-bold text-gray-500 uppercase tracking-wider truncate leading-tight">{t('refine.stats.annotated')}</span>
+                <span class="text-xs font-bold text-rose-300 leading-tight">{annotatedCount}</span>
+              </div>
+              <div class="h-[42px] bg-white/5 border border-white/10 rounded-xl px-2 py-1 text-center flex flex-col justify-center">
+                <span class="block text-[9px] font-bold text-gray-500 uppercase tracking-wider truncate leading-tight">{t('refine.stats.modified')}</span>
+                <span class="text-xs font-bold text-amber-300 leading-tight">{modifiedCount}</span>
               </div>
             </div>
           </div>

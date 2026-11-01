@@ -940,8 +940,9 @@
       </div>
 
     {:else if panelId === "progress"}
-      <div class="space-y-3">
-        {#if isTranslating || progress}
+      {#if isTranslating || progress || result || error}
+        <div class="space-y-3 shrink-0">
+          {#if isTranslating || progress}
           <div
             class="glass-card p-4 animate-fade-in shrink-0 {isTranslating
               ? 'animate-pulse-glow'
@@ -1065,9 +1066,16 @@
             </div>
           </div>
         {/if}
-      </div>
+        </div>
+      {/if}
     {:else if panelId === "livePreview"}
-      <TranslationPreviewPanel source={fileInfo?.preview_subtitles ?? []} pairs={translatedPairs} loaded={!!fileInfo} translating={isTranslating} />
+      <TranslationPreviewPanel
+        class="flex-1 min-h-0"
+        source={fileInfo?.preview_subtitles ?? []}
+        pairs={translatedPairs}
+        loaded={!!fileInfo}
+        translating={isTranslating}
+      />
     {:else if panelId === "logs"}
       <LogPanel
         title={t("translate.logs")}
@@ -1084,9 +1092,11 @@
   <div class="flex flex-1 flex-col overflow-hidden p-6 min-h-0">
     <WorkflowWorkspace>
       {#snippet files()}{@render panelContent("files")}{/snippet}
-      <div class="flex flex-col gap-6">
+      <div class="flex flex-1 min-h-full flex-col gap-4">
         {@render panelContent("options")}
-        {@render panelContent("progress")}
+        {#if isTranslating || progress || result || error}
+          {@render panelContent("progress")}
+        {/if}
         {@render panelContent("livePreview")}
       </div>
     </WorkflowWorkspace>
