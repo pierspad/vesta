@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { whisperModelsStore } from "$lib/stores/whisperModelsStore.svelte";
   import { moveTier as reorderTier } from "$lib/utils/tierOperations";
   import { onMount, untrack } from "svelte";
   import { discoverModels } from "$lib/services/modelDiscovery";
@@ -75,6 +76,7 @@
 
   function persist() {
     saveTranscribeTiers(tiers);
+    syncTiers();
   }
 
   function syncTiers() {
@@ -82,6 +84,8 @@
   }
 
   onMount(() => {
+    const handleDefaultUpdated = () => syncTiers();
+    window.addEventListener("whisper-model-updated", handleDefaultUpdated);
     const handleModelsUpdated = (e: Event) => {
       const customEvent = e as CustomEvent<{ models: any[] }>;
       if (customEvent.detail?.models) {
@@ -110,6 +114,7 @@
       window.removeEventListener("apikeys-updated", refreshWhisperModels);
       window.removeEventListener("vesta:transcribe-cloud-updated", refreshWhisperModels);
       window.removeEventListener("vesta-whisper-models-updated", handleModelsUpdated);
+      window.removeEventListener("whisper-model-updated", handleDefaultUpdated);
       window.removeEventListener("vesta-whisper-download-progress", handleDownloadProgress);
       window.removeEventListener(TRANSCRIBE_TIERS_UPDATED_EVENT, syncTiers);
       speechDiscovery.dispose();
@@ -158,9 +163,7 @@
   function defaultModelFor(provider: string): string {
     const models = getTranscribeModelsForProvider(provider);
     if (provider === "local" || provider === "local_whisper") {
-      const downloadedIds = new Set(whisperModels.filter((model) => model.downloaded).map((model) => model.id));
-      const preferredDownloaded = ["small", "base", "tiny", "medium", "large"].find((id) => downloadedIds.has(id));
-      if (preferredDownloaded) return preferredDownloaded;
+      return whisperModelsStore.defaultWhisperModel;
     }
     return models.find((m) => m.recommended)?.id || models[0]?.id || "";
   }
@@ -219,6 +222,11 @@
   }
 
   function onModelChange(tierIndex: number, entryIndex: number, model: string) {
+    const entry = tiers[tierIndex]?.entries[entryIndex];
+    if (entry && (entry.provider === "local" || entry.provider === "local_whisper")) {
+      whisperModelsStore.setDefaultWhisperModel(model, false);
+      return;
+    }
     tiers = tiers.map((tier, i) =>
       i === tierIndex
         ? {

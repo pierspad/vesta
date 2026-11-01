@@ -82,6 +82,5 @@ export function withLocalModelOverride(tiers: TranscribeTier[], model: string | 
   const mapped = tiers.map(tier => ({ ...tier, entries: tier.entries.map(entry =>
     isLocalTranscribeProvider(entry.provider) ? { ...entry, model } : entry
   ) }));
-  if (mapped.some(tier => tier.entries.some(entry => isLocalTranscribeProvider(entry.provider)))) return mapped;
-  return [{ id: "local-override", entries: [{ id: "local-override", provider: "local", model, apiKeyId: "" }] }, ...mapped];
+  return mapped;
 }

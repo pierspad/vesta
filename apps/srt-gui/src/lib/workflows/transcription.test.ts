@@ -47,10 +47,10 @@ it("sends the chosen local model while preserving saved tiers and cloud models",
  expect((await runTranscription(run)).status).toBe("success");
  expect(run.start).toHaveBeenCalledWith(expect.objectContaining({ model: "small", provider: "local" }));
 });
-it("supports cloud-only tiers and restores configured models", async () => {
+it("preserves cloud-only and empty tiers when the global local model changes", async () => {
  const { withLocalModelOverride } = await import("./transcription");
  for (const tiers of [[], [{ id: "cloud", entries: [cloud] }]]) {
-  expect(withLocalModelOverride(tiers, "small")[0].entries[0]).toMatchObject({ provider: "local", model: "small" });
+  expect(withLocalModelOverride(tiers, "small")).toEqual(tiers);
   expect(withLocalModelOverride(tiers, null)).toBe(tiers);
  }
 });

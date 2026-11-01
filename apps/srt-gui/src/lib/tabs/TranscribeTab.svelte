@@ -63,8 +63,6 @@
 
   let inputPath = $state("");
   let outputPath = $state("");
-  let selectedModel = $state("base");
-  let localModelOverride = $state<string | null>(null);
   let modelMenu = $state<{ x: number; y: number; id: string } | null>(null);
   let contextModel = $derived(modelStore.whisperModels.find(model => model.id === modelMenu?.id));
   const LAST_TRANSCRIBE_LANGUAGE_KEY = "vesta-transcribe-source-language";
@@ -146,14 +144,9 @@
   let whisperModels = $derived(transcriptionResources.models);
   let isDownloadingFFmpeg = $state(false);
 
-  let isModelDownloaded = $derived(
-    whisperModels.find((m) => m.id === selectedModel)?.downloaded ?? false
-  );
-  let hasAnyWhisperModel = $derived(whisperModels.some((m) => m.downloaded));
-
   // ─── Transcription engine (Local Whisper vs cloud providers) ────────────────
   let transcribeTiers = $state<TranscribeTier[]>([]);
-  let effectiveTiers = $derived(withLocalModelOverride(transcribeTiers, localModelOverride));
+  let effectiveTiers = $derived(withLocalModelOverride(transcribeTiers, modelStore.defaultWhisperModel));
   let apiKeys = $state<ApiKeyConfig[]>([]);
   let transcribedSegments = $state<{ start_ms: number; end_ms: number; text: string }[]>([]);
 
@@ -247,12 +240,7 @@
     vestaConfig.setItem(LAST_TRANSCRIBE_LANGUAGE_KEY, selectedLanguage);
   });
 
-  function handleWhisperModelUpdated(e: Event) {
-    const detail = (e as CustomEvent).detail;
-    if (detail) {
-      selectedModel = detail;
-      localModelOverride = detail;
-    }
+  function handleWhisperModelUpdated() {
     refreshModels().catch(console.error);
   }
 
@@ -262,7 +250,6 @@
     refreshApiKeys();
     window.addEventListener(TRANSCRIBE_TIERS_UPDATED_EVENT, refreshTranscribeTiers);
     window.addEventListener("apikeys-updated", refreshApiKeys);
-    selectedModel = vestaConfig.getItem("srt-default-whisper-model") || "base";
 
     window.addEventListener("whisper-model-updated", handleWhisperModelUpdated);
     window.addEventListener("vesta-language-defaults-updated", handleLanguageDefaultsUpdated);
@@ -1092,7 +1079,7 @@
               </h3>
               <WhisperModelSelector
                 models={modelStore.whisperModels}
-                value={modelStore.defaultWhisperModel || selectedModel}
+                value={modelStore.defaultWhisperModel}
                 disabled={modelStore.busy}
                 downloadingModelId={modelStore.downloadingModelId}
                 progress={modelStore.progress}
@@ -1104,10 +1091,6 @@
                 }}
                 onselect={(model) => {
                   modelStore.handleWhisperModelClick(model);
-                  if (model.downloaded) {
-                    selectedModel = model.id;
-                    localModelOverride = model.id;
-                  }
                 }}
                 oncontextmenu={(event, model) => {
                   event.preventDefault();
@@ -1349,7 +1332,6 @@
       modelMenu = null;
       if (!model?.downloaded || modelStore.busy) return;
       await modelStore.uninstallModel(model.id);
-      if (!modelStore.whisperModels.find(item => item.id === model.id)?.downloaded && localModelOverride === model.id) localModelOverride = null;
       await refreshModels();
     }} />
 {/if}

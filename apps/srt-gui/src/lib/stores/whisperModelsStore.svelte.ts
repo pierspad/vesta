@@ -67,7 +67,7 @@ export class WhisperModelsStore {
   progress = $state(0);
   progressMessage = $state("");
   progressStage = $state("");
-  defaultWhisperModel = $state("base");
+  defaultWhisperModel = $state(vestaConfig.getItem("srt-default-whisper-model") || "base");
 
   contextMenu = $state<WhisperContextMenu>(null);
 
@@ -97,10 +97,6 @@ export class WhisperModelsStore {
     }
     // Dispatch event so other tabs can pick up the change if needed
     window.dispatchEvent(new CustomEvent("whisper-model-updated", { detail: modelId }));
-  }
-
-  setDefaultModel(modelId: string, notify = true) {
-    this.setDefaultWhisperModel(modelId, notify);
   }
 
   handleWhisperModelClick(model: { id: string; downloaded: boolean }) {

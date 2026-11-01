@@ -70,6 +70,18 @@ describe('transcribeTiers', () => {
     expect(tier.entries[0].maxRequests).toBeUndefined();
   });
 
+  it('resolves local models from the global selection without changing cloud order', () => {
+    const saved = [{ id: 'tier', entries: [
+      { id: 'cloud', provider: 'groq', apiKeyId: 'key', model: 'whisper-large-v3' },
+      { id: 'local', provider: 'local', apiKeyId: '', model: 'base' },
+    ] }];
+    vi.spyOn(vestaConfig, 'getItem').mockImplementation(key =>
+      key === 'srt-default-whisper-model' ? 'medium' : JSON.stringify(saved));
+    const loaded = loadTranscribeTiers();
+    expect(loaded[0].entries[0]).toEqual(saved[0].entries[0]);
+    expect(loaded[0].entries[1]).toMatchObject({ model: 'medium', apiKeyId: 'local_whisper' });
+  });
+
   it('transcribeTiersHaveUsableEntries checks for configured models', () => {
     const emptyTiers: TranscribeTier[] = [
       {

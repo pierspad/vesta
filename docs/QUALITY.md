@@ -190,6 +190,27 @@ where appropriate. This is stronger than checking only whether a key exists. Set
 settings copy and accessibility labels now use the same catalogs. Names of products,
 file formats and measurement units remain untranslated.
 
+## Autosync constraints and model selection
+
+Autosync reruns use only manual anchors as fixed constraints. A successful new
+result replaces automatic anchors; an empty result preserves the previous ones.
+The mapper allows monotonic automatic refinements between manual points, with a
+15-second exclusion window around each manual point. Tests cover replacement,
+empty results, interpolation and preservation of manual timestamps.
+
+Phrase onset refinement uses Whisper token timestamps only for an unambiguous
+contiguous match of at least two normalized words. Missing, malformed or ambiguous
+timing falls back to the segment onset. The tests use unequal word durations and
+split tokens; they do not establish phoneme-level accuracy on real recordings.
+Sampling uses the CPU budget when GPU support was not compiled in. A runtime GPU
+initialization failure can still fall back to CPU; benchmark the actual selected
+backend before claiming throughput improvements.
+
+The built-in local Whisper model is shared by Settings, Transcribe, Synchronize
+and local transcription tier entries. Cloud tier order and models remain intact;
+changing Whisper never inserts a local endpoint ahead of cloud-only tiers. Mounted
+Sync tests check that model notifications do not trigger recursive discovery.
+
 ## Measured snapshot integration
 
 The native Rust batching change has a complete 480-generation A/B matrix with

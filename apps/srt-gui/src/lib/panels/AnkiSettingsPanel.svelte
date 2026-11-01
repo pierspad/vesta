@@ -189,7 +189,7 @@
       onchange={(val) => ankiStore.setAutoCardFont(val)}
     />
 
-      <div class="transition-opacity duration-200 {!ankiStore.autoCardFont ? 'opacity-40 pointer-events-none' : ''}">
+      <div>
         <ToggleRow
           label={t("settings.anki.embedCardFont")}
           description={t("settings.anki.embedCardFontDesc")}
@@ -202,7 +202,7 @@
       </div>
 
     </div>
-    <div class="border-t border-white/5 mt-5 pt-4 transition-all duration-300 {!ankiStore.autoCardFont ? 'opacity-30 pointer-events-none' : ''}">
+    <div inert={!ankiStore.autoCardFont} class="border-t border-white/5 mt-5 pt-4 transition-opacity duration-300 {!ankiStore.autoCardFont ? 'opacity-30 pointer-events-none' : ''}">
       <div class="flex items-center justify-between">
           <div class="flex items-center gap-2">
             <span class="text-xs font-semibold text-gray-300">{t("settings.anki.fontCatalogTitle")}</span>
