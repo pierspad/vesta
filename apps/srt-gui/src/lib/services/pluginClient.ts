@@ -22,6 +22,19 @@ export interface PluginEntry {
   os?: Record<string, string[]>;
 }
 
+export interface SharedCredentialSpec {
+  id: string;
+  label?: string;
+  description?: string;
+}
+
+export type PluginPermissions =
+  | string[]
+  | {
+      scopes?: string[];
+      sharedCredentials?: string[];
+    };
+
 export interface PluginManifest {
   id: string;
   name: string;
@@ -35,7 +48,8 @@ export interface PluginManifest {
   homepage?: string;
   repository?: string;
   entry: PluginEntry;
-  permissions: string[];
+  permissions: PluginPermissions;
+  sharedCredentials?: Array<string | SharedCredentialSpec>;
   tab?: PluginTab;
   settings?: PluginSettingField[];
 }
@@ -113,6 +127,11 @@ export type WidgetType =
   | "pathInput"
   | "languageSelect";
 
+export interface PluginSnackbar {
+  message: string;
+  type?: "success" | "error" | "info" | "warning";
+}
+
 export interface BaseWidget {
   type: WidgetType;
   id?: string;
@@ -121,6 +140,8 @@ export interface BaseWidget {
   width?: string | number;
   flex?: number;
   tooltip?: string;
+  snackbar?: PluginSnackbar;
+  notification?: PluginSnackbar;
 }
 
 export interface ColumnWidget extends BaseWidget {
@@ -422,4 +443,16 @@ export async function pluginDispatchEvent(
     locale,
     expertMode,
   });
+}
+
+export async function pluginListSharedCredentials(): Promise<Record<string, string>> {
+  return invokeCommand<Record<string, string>>("plugin_list_shared_credentials");
+}
+
+export async function pluginSetSharedCredential(key: string, value: string): Promise<void> {
+  return invokeCommand<void>("plugin_set_shared_credential", { key, value });
+}
+
+export async function pluginDeleteSharedCredential(key: string): Promise<void> {
+  return invokeCommand<void>("plugin_delete_shared_credential", { key });
 }

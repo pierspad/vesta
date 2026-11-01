@@ -354,6 +354,9 @@ fn main() -> std::process::ExitCode {
             plugin_save_settings,
             plugin_render,
             plugin_dispatch_event,
+            plugin_list_shared_credentials,
+            plugin_set_shared_credential,
+            plugin_delete_shared_credential,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

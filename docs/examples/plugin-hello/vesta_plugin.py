@@ -190,11 +190,15 @@ class VestaPlugin:
         self.data_dir = os.environ.get("VESTA_DATA_DIR", "./data")
         self.locale = "en"
         self.settings: Dict[str, Any] = {}
+        self.shared_credentials: Dict[str, str] = {}
 
         self._render_handlers: Dict[str, Callable[[Dict[str, Any]], Any]] = {}
         self._event_handlers: Dict[str, Callable[[str, str, str, Dict[str, Any]], Any]] = {}
         self._init_handler: Optional[Callable[[Dict[str, Any]], None]] = None
         self._req_id = 1000
+
+    def get_shared_credential(self, key: str, default: str = "") -> str:
+        return self.shared_credentials.get(key, default)
 
     def on_initialize(self, func: Callable[[Dict[str, Any]], None]):
         self._init_handler = func
@@ -259,6 +263,8 @@ class VestaPlugin:
                 self.locale = params.get("locale", "en")
                 self.data_dir = params.get("dataDir", self.data_dir)
                 self.settings = params.get("settings", {})
+                if "sharedCredentials" in params and isinstance(params["sharedCredentials"], dict):
+                    self.shared_credentials.update(params["sharedCredentials"])
                 if self._init_handler:
                     try:
                         self._init_handler(params)
@@ -269,6 +275,8 @@ class VestaPlugin:
                     self._reply(req_id, result={"status": "ok"})
 
             elif method == "render":
+                if "sharedCredentials" in params and isinstance(params["sharedCredentials"], dict):
+                    self.shared_credentials.update(params["sharedCredentials"])
                 screen = params.get("screen", "main")
                 handler = self._render_handlers.get(screen) or self._render_handlers.get("main")
                 if handler:
@@ -282,6 +290,8 @@ class VestaPlugin:
                     self._reply_error(req_id, -32601, f"No render handler for screen '{screen}'")
 
             elif method == "event":
+                if "sharedCredentials" in params and isinstance(params["sharedCredentials"], dict):
+                    self.shared_credentials.update(params["sharedCredentials"])
                 screen = params.get("screen", "main")
                 widget_id = params.get("widgetId", "")
                 event_type = params.get("type", "click")

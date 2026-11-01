@@ -76,9 +76,17 @@ On \`initialize\`, \`render\`, and \`event\`, Vesta automatically passes:
 - \`locale\`: Active Vesta UI language code (e.g. \`"en"\`, \`"it"\`, \`"ja"\`)
 - \`expertMode\`: \`boolean\` indicating whether the user enabled **Expert Mode** in Vesta
 - \`settings\`: Dictionary of saved manifest settings
+- \`sharedCredentials\`: Dictionary of resolved shared credentials declared in manifest (\`{ [id: string]: string }\`)
 - \`values\`: Snapshot of all interactive widget values on the active screen (on \`event\`)
 
-## 2. Declarative Widget Catalog
+## 3. Shared Credentials & Permissions
+Plugins can declare shared credentials in manifest to reuse API keys (e.g. TMDB, IMDb, OpenSubtitles) across plugins:
+- Manifest: \`"sharedCredentials": ["tmdb_api_key"]\` or \`"permissions": { "scopes": ["network"], "sharedCredentials": ["tmdb_api_key"] }\`
+- Read: Supplied in \`params.sharedCredentials\` on \`initialize\`, \`render\`, and \`event\`.
+- Write/Update: Return \`"setSharedCredentials": { "tmdb_api_key": "secret" }\` in render or event responses to atomically persist (or \`""\` / \`null\` to remove).
+- User Consent: Users explicitly review and consent to requested shared credentials during plugin inspection before install.
+
+## 4. Declarative Widget Catalog
 Every widget supports \`id\`, \`hidden\`, \`expertOnly\` (auto-hidden when Expert Mode is off), \`tooltip\` (native Vesta hover tooltip), \`flex\`, and \`width\`.
 
 - **Layout**: \`column\` (\`gap\`, \`children\`), \`row\` (\`gap\`, \`align\`: \`"start" | "center" | "end" | "between"\`, \`children\`), \`divider\`, \`heading\` (\`level\`, \`icon\`), \`text\` (\`variant\`, \`size\`)
@@ -92,13 +100,14 @@ Every widget supports \`id\`, \`hidden\`, \`expertOnly\` (auto-hidden when Exper
   - \`list\`: \`items\` with \`title\`, \`subtitle\`, \`badge\`, \`language\` (ISO code automatically rendered by Vesta as **Flag SVG + Localized Language Name** in Vesta's active language), \`meta\`, \`image\`, and \`actions\`
   - \`fileOutput\`, \`progress\`, \`table\`, \`image\`, \`link\` / \`externalLink\`
 
-## 3. Host Notifications & Integrations (Plugin → Vesta)
+## 5. Host Notifications & Integrations (Plugin → Vesta)
+- **Host Snackbar / Toast**: Return \`snackbar: { message: "Saved!", type: "success" | "error" | "info" | "warning" }\` in \`render\` or \`event\` response to trigger native Vesta toast notification.
 - \`ui.update\`: Push live \`root\` or incremental \`patch\` (\`values\`, \`setProps\`, \`visibility\`, \`insert\`, \`remove\`, \`move\`)
 - \`ui.notify\`: Show native toast (\`level\`: \`"info" | "success" | "warn" | "error"\`, \`msg\`)
 - \`ui.progress\`: Update progress indicator (\`id\`, \`value\`, \`label\`)
 - \`vesta.openInFlashcards\`: Hand off \`videoPath\` and \`subtitlePath\` directly to the Flashcards tab
 
-## 4. MCP Server Support (\`vesta-mcp\`)
+## 6. MCP Server Support (\`vesta-mcp\`)
 \`vesta-mcp\` exposes \`list_plugins\` (safe public metadata, zero secrets) and \`call_plugin\` (JSON-RPC render/event bridge) for AI agents.`;
 
   let contextMenuPlugin = $state<InstalledPlugin | null>(null);
@@ -231,6 +240,72 @@ Every widget supports \`id\`, \`hidden\`, \`expertOnly\` (auto-hidden when Exper
     if (perm === "filesystem:downloads") return t("plugins.permDownloads");
     if (perm.startsWith("filesystem:")) return perm.replace("filesystem:", "Filesystem: ");
     return perm;
+  }
+
+  function getPermissionScopes(permissions?: any): string[] {
+    if (!permissions) return [];
+    if (Array.isArray(permissions)) {
+      return permissions.filter(
+        (p) =>
+          typeof p === "string" &&
+          !p.startsWith("sharedCredential:") &&
+          !p.startsWith("shared_credential:") &&
+          !p.startsWith("sharedCredentials:") &&
+          !p.startsWith("shared:")
+      );
+    }
+    if (permissions && Array.isArray(permissions.scopes)) {
+      return permissions.scopes;
+    }
+    return [];
+  }
+
+  function getSharedCredentials(manifest?: PluginManifest | null): Array<{ id: string; label?: string }> {
+    if (!manifest) return [];
+    const creds: Array<{ id: string; label?: string }> = [];
+    const seen = new Set<string>();
+
+    const addCred = (id: string, label?: string) => {
+      const clean = id?.trim();
+      if (clean && !seen.has(clean)) {
+        seen.add(clean);
+        creds.push({ id: clean, label: label?.trim() || undefined });
+      }
+    };
+
+    if (Array.isArray(manifest.sharedCredentials)) {
+      for (const item of manifest.sharedCredentials) {
+        if (typeof item === "string") {
+          addCred(item);
+        } else if (item && typeof item === "object" && (item as any).id) {
+          addCred((item as any).id, (item as any).label);
+        }
+      }
+    }
+
+    const p = manifest.permissions;
+    if (Array.isArray(p)) {
+      for (const item of p) {
+        if (typeof item === "string") {
+          for (const prefix of ["sharedCredential:", "shared_credential:", "sharedCredentials:", "shared:"]) {
+            if (item.startsWith(prefix)) {
+              addCred(item.slice(prefix.length));
+              break;
+            }
+          }
+        }
+      }
+    } else if (p && typeof p === "object" && Array.isArray((p as any).sharedCredentials)) {
+      for (const item of (p as any).sharedCredentials) {
+        if (typeof item === "string") {
+          addCred(item);
+        } else if (item && typeof item === "object" && (item as any).id) {
+          addCred((item as any).id, (item as any).label);
+        }
+      }
+    }
+
+    return creds;
   }
 
   function formatDate(iso?: string | null): string {
@@ -384,6 +459,8 @@ Every widget supports \`id\`, \`hidden\`, \`expertOnly\` (auto-hidden when Exper
 
         <!-- Permission confirmation inspect banner/modal -->
         {#if inspectResult}
+          {@const scopes = getPermissionScopes(inspectResult.manifest.permissions)}
+          {@const sharedCreds = getSharedCredentials(inspectResult.manifest)}
           <div class="mt-2 p-5 rounded-xl border border-amber-500/30 bg-amber-500/10 flex flex-col gap-4 animate-in fade-in duration-150">
             <div class="flex items-start justify-between">
               <div class="flex items-center gap-3.5 min-w-0">
@@ -425,14 +502,20 @@ Every widget supports \`id\`, \`hidden\`, \`expertOnly\` (auto-hidden when Exper
             <!-- Permissions list -->
             <div class="flex flex-col gap-1.5">
               <span class="text-xs font-semibold text-amber-300 uppercase tracking-wider">{t("plugins.requestedPermissions")}:</span>
-              {#if inspectResult.manifest.permissions.length === 0}
+              {#if scopes.length === 0 && sharedCreds.length === 0}
                 <span class="text-xs text-gray-400 italic">{t("plugins.noPermissions")}</span>
               {:else}
                 <div class="flex flex-wrap gap-2 pt-1">
-                  {#each inspectResult.manifest.permissions as perm}
+                  {#each scopes as perm}
                     <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-amber-400/20 text-amber-200 border border-amber-400/30">
                       <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
                       {formatPermission(perm)}
+                    </span>
+                  {/each}
+                  {#each sharedCreds as cred}
+                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-cyan-400/20 text-cyan-200 border border-cyan-400/30">
+                      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>
+                      Shared Credential: {cred.id}{cred.label ? ` (${cred.label})` : ""}
                     </span>
                   {/each}
                 </div>
@@ -823,6 +906,8 @@ Every widget supports \`id\`, \`hidden\`, \`expertOnly\` (auto-hidden when Exper
 
   <!-- Extended Plugin Info Modal -->
   {#if showInfoModal && infoTarget}
+    {@const scopes = getPermissionScopes(infoTarget.manifest.permissions)}
+    {@const sharedCreds = getSharedCredentials(infoTarget.manifest)}
     <!-- svelte-ignore a11y_click_events_have_key_events -->
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div
@@ -930,14 +1015,20 @@ Every widget supports \`id\`, \`hidden\`, \`expertOnly\` (auto-hidden when Exper
           <!-- Permissions Section -->
           <div class="flex flex-col gap-2">
             <span class="text-xs font-semibold text-gray-400 uppercase tracking-wider">{t("plugins.requestedPermissions")}</span>
-            {#if !infoTarget.manifest.permissions || infoTarget.manifest.permissions.length === 0}
+            {#if scopes.length === 0 && sharedCreds.length === 0}
               <span class="text-xs text-gray-500 italic">{t("plugins.noPermissions")}</span>
             {:else}
               <div class="flex flex-wrap gap-2">
-                {#each infoTarget.manifest.permissions as perm}
+                {#each scopes as perm}
                   <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-amber-400/15 text-amber-300 border border-amber-400/25">
                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
                     {formatPermission(perm)}
+                  </span>
+                {/each}
+                {#each sharedCreds as cred}
+                  <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-cyan-400/15 text-cyan-300 border border-cyan-400/25">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>
+                    Shared Credential: {cred.id}{cred.label ? ` (${cred.label})` : ""}
                   </span>
                 {/each}
               </div>

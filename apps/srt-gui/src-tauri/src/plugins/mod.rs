@@ -355,6 +355,61 @@ impl PluginManager {
         Ok(())
     }
 
+    /// Lists all shared credentials.
+    pub async fn list_shared_credentials(&self) -> std::collections::BTreeMap<String, String> {
+        let reg = self.registry.lock().await;
+        reg.get_all_shared_credentials()
+    }
+
+    /// Sets or removes a shared credential.
+    pub async fn set_shared_credential(
+        &self,
+        key: String,
+        value: Option<String>,
+    ) -> Result<(), String> {
+        let mut reg = self.registry.lock().await;
+        reg.set_shared_credential(key, value);
+        reg.save_to_file(&self.registry_file)?;
+        Ok(())
+    }
+
+    async fn process_returned_shared_credentials(
+        &self,
+        manifest: &PluginManifest,
+        res: &serde_json::Value,
+    ) {
+        let set_obj = res
+            .get("setSharedCredentials")
+            .or_else(|| res.get("root").and_then(|r| r.get("setSharedCredentials")));
+
+        if let Some(serde_json::Value::Object(map)) = set_obj {
+            let allowed = manifest.requested_shared_credentials();
+            let mut reg = self.registry.lock().await;
+            let mut changed = false;
+
+            for (k, v) in map {
+                if allowed.contains(k) {
+                    if let Some(s) = v.as_str() {
+                        if !s.trim().is_empty() {
+                            reg.set_shared_credential(k.clone(), Some(s.to_string()));
+                            changed = true;
+                        } else {
+                            reg.set_shared_credential(k.clone(), None);
+                            changed = true;
+                        }
+                    } else if v.is_null() {
+                        reg.set_shared_credential(k.clone(), None);
+                        changed = true;
+                    }
+                }
+            }
+
+            if changed {
+                let _ = reg.save_to_file(&self.registry_file);
+            }
+        }
+    }
+
     /// Renders a screen in a plugin.
     pub async fn render(
         &self,
@@ -365,7 +420,7 @@ impl PluginManager {
         locale: &str,
         expert_mode: bool,
     ) -> Result<serde_json::Value, String> {
-        let (manifest, settings) = {
+        let (manifest, settings, shared_creds) = {
             let reg = self.registry.lock().await;
             let plugin = reg
                 .get(plugin_id)
@@ -373,7 +428,9 @@ impl PluginManager {
             if !plugin.enabled {
                 return Err(format!("Plugin '{plugin_id}' is currently disabled"));
             }
-            (plugin.manifest.clone(), plugin.settings.clone())
+            let allowed = plugin.manifest.requested_shared_credentials();
+            let creds = reg.get_shared_credentials(&allowed);
+            (plugin.manifest.clone(), plugin.settings.clone(), creds)
         };
 
         let plugin_dir = self.plugins_dir().join(plugin_id);
@@ -393,12 +450,18 @@ impl PluginManager {
                 locale,
                 &settings,
                 expert_mode,
+                &shared_creds,
             )
             .await?;
 
-        self.runtime
-            .render(&process, screen, params, locale, expert_mode)
-            .await
+        let res = self
+            .runtime
+            .render(&process, screen, params, locale, expert_mode, &shared_creds)
+            .await?;
+
+        self.process_returned_shared_credentials(&manifest, &res)
+            .await;
+        Ok(res)
     }
 
     /// Dispatches an event (click, change, etc.) to the plugin.
@@ -410,7 +473,7 @@ impl PluginManager {
         locale: &str,
         expert_mode: bool,
     ) -> Result<serde_json::Value, String> {
-        let (manifest, settings) = {
+        let (manifest, settings, shared_creds) = {
             let reg = self.registry.lock().await;
             let plugin = reg
                 .get(plugin_id)
@@ -418,7 +481,9 @@ impl PluginManager {
             if !plugin.enabled {
                 return Err(format!("Plugin '{plugin_id}' is currently disabled"));
             }
-            (plugin.manifest.clone(), plugin.settings.clone())
+            let allowed = plugin.manifest.requested_shared_credentials();
+            let creds = reg.get_shared_credentials(&allowed);
+            (plugin.manifest.clone(), plugin.settings.clone(), creds)
         };
 
         let plugin_dir = self.plugins_dir().join(plugin_id);
@@ -431,12 +496,14 @@ impl PluginManager {
                 locale,
                 &settings,
                 expert_mode,
+                &shared_creds,
             )
             .await?;
 
         let screen_name = event.screen.as_deref().unwrap_or("main");
 
-        self.runtime
+        let res = self
+            .runtime
             .dispatch_event(
                 &process,
                 screen_name,
@@ -445,8 +512,13 @@ impl PluginManager {
                 event.values.clone(),
                 locale,
                 expert_mode,
+                &shared_creds,
             )
-            .await
+            .await?;
+
+        self.process_returned_shared_credentials(&manifest, &res)
+            .await;
+        Ok(res)
     }
 }
 
@@ -472,7 +544,8 @@ mod tests {
                 command: vec!["python3".to_string(), "main.py".to_string()],
                 os: None,
             },
-            permissions: vec![],
+            permissions: crate::plugins::manifest::PluginPermissions::default(),
+            shared_credentials: vec![],
             tab: tab_icon.map(|ti| PluginTab {
                 title: "Test".to_string(),
                 icon: Some(ti.to_string()),

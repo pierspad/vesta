@@ -61,6 +61,7 @@ beforeEach(() => {
         readme: "# Demo Readme\nDetailed information about Demo Plugin.",
         entry: { command: ["python3", "main.py"] },
         permissions: ["network", "filesystem:downloads"],
+        sharedCredentials: [{ id: "tmdb_api_key", label: "TMDB API Key" }],
         tab: { title: "Demo Tab", icon: "film" },
         settings: [
           {
@@ -198,6 +199,7 @@ it("opens Info modal with metadata, README markdown, and requested permissions",
   expect(target.textContent).toContain("https://github.com/example/demo");
   expect(target.textContent).toContain("Network Access");
   expect(target.textContent).toContain("Downloads Folder Access");
+  expect(target.textContent).toContain("Shared Credential: tmdb_api_key (TMDB API Key)");
   expect(target.textContent).toContain("Detailed information about Demo Plugin.");
 });
 

@@ -110,3 +110,27 @@ pub async fn plugin_dispatch_event(
         .dispatch_event(Some(app), &plugin_id, &event, &loc, is_expert)
         .await
 }
+
+#[tauri::command]
+pub async fn plugin_list_shared_credentials(
+    state: State<'_, AppPluginState>,
+) -> Result<std::collections::BTreeMap<String, String>, String> {
+    Ok(state.list_shared_credentials().await)
+}
+
+#[tauri::command]
+pub async fn plugin_set_shared_credential(
+    state: State<'_, AppPluginState>,
+    key: String,
+    value: String,
+) -> Result<(), String> {
+    state.set_shared_credential(key, Some(value)).await
+}
+
+#[tauri::command]
+pub async fn plugin_delete_shared_credential(
+    state: State<'_, AppPluginState>,
+    key: String,
+) -> Result<(), String> {
+    state.set_shared_credential(key, None).await
+}

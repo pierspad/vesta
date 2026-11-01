@@ -507,3 +507,54 @@ it("renders segmented, pathInput, languageSelect and row flex/width widgets", as
     expect.any(Boolean)
   );
 });
+
+it("triggers native snackbar when returned from event or render", async () => {
+  const { snackbar } = await import("$lib/stores/snackbarStore.svelte");
+  const snackbarSpy = vi.spyOn(snackbar, "success");
+
+  mockDispatch.mockResolvedValueOnce({
+    root: {
+      type: "column",
+      children: [
+        { type: "text", text: "Done" },
+      ],
+      snackbar: { message: "Saved successfully!", type: "success" },
+    },
+  });
+
+  const schema: WidgetNode = {
+    type: "column",
+    children: [
+      {
+        type: "button",
+        id: "btn_save",
+        label: "Save",
+      },
+    ],
+  };
+
+  const target = document.createElement("div");
+  document.body.append(target);
+
+  components.push(
+    mount(PluginRenderer, {
+      target,
+      props: {
+        pluginId: "snackbar-test-plugin",
+        screen: "main",
+        active: true,
+        initialRoot: schema,
+      },
+    })
+  );
+
+  await tick();
+
+  const button = target.querySelector("button");
+  button?.click();
+  await tick();
+  await tick();
+
+  expect(snackbarSpy).toHaveBeenCalledWith("Saved successfully!");
+  snackbarSpy.mockRestore();
+});

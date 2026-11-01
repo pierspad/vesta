@@ -35,6 +35,22 @@ export class SnackbarStore {
     this.queue.sort((a, b) => severity[b.variant] - severity[a.variant]);
   }
 
+  success(msg: string, duration?: number) {
+    this.show(msg, "success", duration);
+  }
+
+  error(msg: string, duration?: number) {
+    this.show(msg, "error", duration);
+  }
+
+  info(msg: string, duration?: number) {
+    this.show(msg, "info", duration);
+  }
+
+  warning(msg: string, duration?: number) {
+    this.show(msg, "warning", duration);
+  }
+
   private activate(notification: Notification) {
     this.clearTimer();
     this.pauseReasons = new Set([...this.pauseReasons].filter(reason => reason === "visibility"));

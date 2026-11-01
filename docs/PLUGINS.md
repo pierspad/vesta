@@ -96,7 +96,8 @@ A plugin repository must contain a `vesta-plugin.json` manifest at its root:
 | `readme` | `string` | No | Inline documentation/README text. If omitted, Vesta automatically reads `README.md` from the plugin root directory if present. |
 | `entry` | `object` | **Yes** | Process execution command: `command: string[]` and optional `os: { windows?, macos?, linux? }` overrides. |
 | `icon` | `string` | No | Custom plugin icon/image. Supports named monochrome icons (`"puzzle"`, `"film"`, `"search"`), relative image files inside the plugin root (`"icon.svg"`, `"icon.png"`, `"icon.webp"`, `"assets/logo.svg"`, max 512 KB), or direct `data:image/...` / `https://` URIs. Rendered across plugin cards, inspect dialogs, and embedded headers. |
-| `permissions` | `string[]` | No | Requested permissions (e.g. `network`, `filesystem:downloads`). |
+| `permissions` | `string[] \| object` | No | Requested permissions (e.g. `["network"]` or `{ "scopes": ["network"], "sharedCredentials": ["tmdb_api_key"] }`). |
+| `sharedCredentials` | `array` | No | List of shared credential keys or specs (e.g. `["tmdb_api_key", { "id": "imdb_id", "label": "IMDb Key" }]`). Reusable across plugins with user consent upon install. |
 | `tab` | `object` | No | Visual metadata for the plugin header/card: `{ title: string, icon?: string }`. Supports named icons or relative image files identical to top-level `icon`. |
 | `settings` | `array` | No | Optional declarative configuration fields editable in Vesta's quick settings modal. Plugins may also implement a rich `"settings"` screen directly. |
 
@@ -148,7 +149,8 @@ Called immediately after spawning the plugin process.
     "dataDir": "/path/to/plugin/data",
     "locale": "en",
     "expertMode": false,
-    "settings": { "apiKey": "secret..." }
+    "settings": { "apiKey": "secret..." },
+    "sharedCredentials": { "tmdb_api_key": "abc123xyz" }
   }
   ```
 - **Result**: `{"status": "ok"}`
@@ -161,7 +163,8 @@ Requests the declarative UI tree for a given screen (e.g. `"main"` or `"settings
     "screen": "main",
     "params": {},
     "locale": "it",
-    "expertMode": true
+    "expertMode": true,
+    "sharedCredentials": { "tmdb_api_key": "abc123xyz" }
   }
   ```
 - **Result**:
@@ -170,7 +173,9 @@ Requests the declarative UI tree for a given screen (e.g. `"main"` or `"settings
     "root": {
       "type": "column",
       "children": [...]
-    }
+    },
+    "snackbar": { "message": "Loaded!", "type": "info" },
+    "setSharedCredentials": { "tmdb_api_key": "new_secret_val" }
   }
   ```
 
@@ -188,11 +193,19 @@ Dispatched whenever the user interacts with a widget (clicking a button, pressin
       "search_tmdb_id": "27205"
     },
     "locale": "it",
-    "expertMode": true
+    "expertMode": true,
+    "sharedCredentials": { "tmdb_api_key": "abc123xyz" }
   }
   ```
 - **Result**:
-  Returns either a full new UI tree (`{ "root": ... }`), an incremental patch (`{ "patch": ... }`), or an empty object (`{}`).
+  Returns a new UI tree (`{ "root": ... }`), an incremental patch (`{ "patch": ... }`), or an object with optional `snackbar` and `setSharedCredentials`:
+  ```json
+  {
+    "root": { ... },
+    "snackbar": { "message": "Saved successfully!", "type": "success" },
+    "setSharedCredentials": { "tmdb_api_key": "token_value" }
+  }
+  ```
 
 ### `shutdown`
 Requests graceful termination before closing, disabling, updating, or uninstalling.
@@ -358,7 +371,8 @@ External plugins execute untrusted code on the user's host machine. Vesta enforc
 - **Permission Declarations**:
   - `network`: Allows outbound HTTP/API requests.
   - `filesystem:downloads`: Allows reading/writing to the user's Downloads folder.
-- **Secret Isolation**: Vesta never injects global application credentials or LLM/STT provider keys into a plugin's runtime; plugins only receive their own declared settings.
+  - `sharedCredentials` (e.g. `tmdb_api_key`, `opensubtitles_api_key`): Grants access to read and update specific shared vault credentials.
+- **Secret Isolation & Shared Vault**: Vesta never injects global application credentials or LLM/STT provider keys into a plugin's runtime; plugins only receive their own declared settings. Shared vault credentials are only exposed to a plugin if that plugin's manifest explicitly declares those keys in its `sharedCredentials` permission list, and requires explicit user consent during installation. Returned `setSharedCredentials` writes are strictly constrained to the plugin's declared keys.
 
 ---
 

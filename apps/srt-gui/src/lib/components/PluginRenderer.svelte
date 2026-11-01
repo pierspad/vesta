@@ -48,8 +48,35 @@
       lastRoot = initialRoot;
       uiRoot = initialRoot;
       collectDefaults(uiRoot);
+      triggerPluginSnackbar({ root: initialRoot });
     }
   });
+
+  function triggerPluginSnackbar(res: any): void {
+    if (!res || typeof res !== "object") return;
+    const item =
+      res.snackbar ||
+      res.notification ||
+      res.root?.snackbar ||
+      res.root?.notification ||
+      (res.patch as any)?.snackbar ||
+      (res.patch as any)?.notification;
+    if (!item) return;
+
+    const message = typeof item === "string" ? item : item.message || item.text || item.msg;
+    if (!message || typeof message !== "string") return;
+
+    const rawType = (typeof item === "object" ? (item.type || item.variant || item.level) : "info")?.toLowerCase?.() || "info";
+    if (rawType === "success") {
+      snackbar.success(message);
+    } else if (rawType === "error" || rawType === "danger") {
+      snackbar.error(message);
+    } else if (rawType === "warning" || rawType === "warn") {
+      snackbar.warning(message);
+    } else {
+      snackbar.info(message);
+    }
+  }
 
   // Initialize defaults from widget tree into `values`
   function collectDefaults(node: WidgetNode | null | undefined): void {
@@ -166,6 +193,7 @@
     error = null;
     try {
       const res = await pluginRender(pluginId, screen, {}, get(currentLanguage), uiMode.expertMode);
+      triggerPluginSnackbar(res);
       if (res && res.root) {
         uiRoot = res.root;
         collectDefaults(uiRoot);
@@ -197,6 +225,7 @@
       );
 
       if (res) {
+        triggerPluginSnackbar(res);
         if (res.root) {
           uiRoot = res.root;
           collectDefaults(uiRoot);
