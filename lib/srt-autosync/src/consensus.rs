@@ -350,47 +350,44 @@ mod tests {
             ExistingAnchor::new(300_000, 315_000), // Anchor 2: offset +15000ms
         ];
 
-        let mut candidates = Vec::new();
-
-        // 1. Candidate within 10s of existing anchor 1 (should be filtered by MIN_DISTANCE_FROM_EXISTING_MS)
-        candidates.push(MatchCandidate {
-            subtitle_id: 1,
-            original_start_ms: 68_000,
-            transcribed_start_ms: 73_500,
-            similarity: 0.9,
-            score: 0.9,
-        });
-
-        // 2. Inlier at t=120_000. Piecewise expected offset:
-        // alpha = (120 - 60) / (300 - 60) = 60 / 240 = 0.25
-        // expected offset = 5000 + 0.25 * (15000 - 5000) = 7500ms -> target = 127_500
-        candidates.push(MatchCandidate {
-            subtitle_id: 2,
-            original_start_ms: 120_000,
-            transcribed_start_ms: 127_500,
-            similarity: 0.95,
-            score: 0.92,
-        });
-
-        // 3. Inlier at t=210_000.
-        // alpha = (210 - 60) / 240 = 150 / 240 = 0.625
-        // expected offset = 5000 + 0.625 * 10000 = 11250ms -> target = 221_250
-        candidates.push(MatchCandidate {
-            subtitle_id: 3,
-            original_start_ms: 210_000,
-            transcribed_start_ms: 221_250,
-            similarity: 0.93,
-            score: 0.90,
-        });
-
-        // 4. Candidate violating monotonicity: orig is after Anchor 1, but transcribed is before Anchor 1
-        candidates.push(MatchCandidate {
-            subtitle_id: 4,
-            original_start_ms: 90_000,
-            transcribed_start_ms: 60_000,
-            similarity: 0.99,
-            score: 0.99,
-        });
+        let candidates = vec![
+            // 1. Candidate within 10s of existing anchor 1 (should be filtered by MIN_DISTANCE_FROM_EXISTING_MS)
+            MatchCandidate {
+                subtitle_id: 1,
+                original_start_ms: 68_000,
+                transcribed_start_ms: 73_500,
+                similarity: 0.9,
+                score: 0.9,
+            },
+            // 2. Inlier at t=120_000. Piecewise expected offset:
+            // alpha = (120 - 60) / (300 - 60) = 60 / 240 = 0.25
+            // expected offset = 5000 + 0.25 * (15000 - 5000) = 7500ms -> target = 127_500
+            MatchCandidate {
+                subtitle_id: 2,
+                original_start_ms: 120_000,
+                transcribed_start_ms: 127_500,
+                similarity: 0.95,
+                score: 0.92,
+            },
+            // 3. Inlier at t=210_000.
+            // alpha = (210 - 60) / 240 = 150 / 240 = 0.625
+            // expected offset = 5000 + 0.625 * 10000 = 11250ms -> target = 221_250
+            MatchCandidate {
+                subtitle_id: 3,
+                original_start_ms: 210_000,
+                transcribed_start_ms: 221_250,
+                similarity: 0.93,
+                score: 0.90,
+            },
+            // 4. Candidate violating monotonicity: orig is after Anchor 1, but transcribed is before Anchor 1
+            MatchCandidate {
+                subtitle_id: 4,
+                original_start_ms: 90_000,
+                transcribed_start_ms: 60_000,
+                similarity: 0.99,
+                score: 0.99,
+            },
+        ];
 
         let (model, suggestions) = extract_consensus_anchors_guided(&candidates, 30_000, &existing);
         assert!(model.is_some());
