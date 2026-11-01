@@ -112,8 +112,8 @@ fn span_filter_narrows_active_window() {
         return;
     }
     let mut cfg = config(en(), Some(it()));
-    cfg.span_start_ms = Some(90_000);
-    cfg.span_end_ms = Some(130_000);
+    cfg.span_start_ms = Some(160_000);
+    cfg.span_end_ms = Some(200_000);
     let matched = build_matched_lines(&cfg).expect("matched");
     let active = matched.iter().filter(|m| m.active).count();
     assert!(
@@ -121,7 +121,7 @@ fn span_filter_narrows_active_window() {
         "span should isolate a handful of lines, got {active}"
     );
     for m in matched.iter().filter(|m| m.active) {
-        assert!(m.subs1.end_ms >= 90_000 && m.subs1.start_ms <= 130_000);
+        assert!(m.subs1.end_ms >= 160_000 && m.subs1.start_ms <= 200_000);
     }
 }
 
