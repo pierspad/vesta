@@ -70,12 +70,11 @@ impl PluginRegistry {
             parsed
         };
 
-        if shared_cred_file.exists() {
-            if let Ok(content) = fs::read_to_string(&shared_cred_file) {
-                if let Ok(map) = serde_json::from_str::<BTreeMap<String, String>>(&content) {
-                    registry.shared_credentials = map;
-                }
-            }
+        if shared_cred_file.exists()
+            && let Ok(content) = fs::read_to_string(&shared_cred_file)
+            && let Ok(map) = serde_json::from_str::<BTreeMap<String, String>>(&content)
+        {
+            registry.shared_credentials = map;
         }
 
         Ok(registry)
