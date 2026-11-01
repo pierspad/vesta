@@ -18,6 +18,7 @@ const EXCLUDED_NAMES: &[&str] = &[
     "__pycache__",
     ".venv",
     "venv",
+    ".pytest_cache",
     ".DS_Store",
     "target",
 ];
@@ -332,6 +333,36 @@ fn detect_common_prefix(paths: &[PathBuf]) -> Option<PathBuf> {
     None
 }
 
+/// Finds the plugin directory containing `vesta-plugin.json`.
+/// Checks `dir` first, then scans immediate 1-level subdirectories.
+pub fn find_local_plugin_dir(dir: &Path) -> Result<PathBuf, String> {
+    if dir.join("vesta-plugin.json").is_file() {
+        return Ok(dir.to_path_buf());
+    }
+
+    if let Ok(entries) = fs::read_dir(dir) {
+        for entry in entries.flatten() {
+            let name = entry.file_name().to_string_lossy().to_string();
+            if EXCLUDED_NAMES.contains(&name.as_str()) {
+                continue;
+            }
+            if let Ok(file_type) = entry.file_type() {
+                if file_type.is_dir() {
+                    let sub = entry.path();
+                    if sub.join("vesta-plugin.json").is_file() {
+                        return Ok(sub);
+                    }
+                }
+            }
+        }
+    }
+
+    Err(format!(
+        "No vesta-plugin.json manifest found in '{}'",
+        dir.display()
+    ))
+}
+
 /// Reads and validates `vesta-plugin.json` from the root of an extracted directory.
 pub fn load_manifest_from_dir(dir: &Path) -> Result<PluginManifest, String> {
     let manifest_path = dir.join("vesta-plugin.json");
@@ -430,10 +461,11 @@ pub async fn fetch_and_extract_plugin(
     // Check if source is a local directory or local archive
     let local_path = Path::new(&source.git_clone_url);
     if local_path.is_dir() {
+        let plugin_dir = find_local_plugin_dir(local_path)?;
         if dest_dir.exists() {
             let _ = fs::remove_dir_all(dest_dir);
         }
-        copy_dir_recursive(local_path, dest_dir)?;
+        copy_dir_recursive(&plugin_dir, dest_dir)?;
         return load_manifest_from_dir(dest_dir);
     } else if local_path.is_file() {
         let bytes = fs::read(local_path).map_err(|e| {
@@ -549,6 +581,63 @@ mod tests {
         assert!(!temp_dst.path().join(".env").exists());
         assert!(!temp_dst.path().join(".git").exists());
         assert!(!temp_dst.path().join("node_modules").exists());
+    }
+
+    #[test]
+    fn test_copy_dir_recursive_excludes_pycache_and_venv() {
+        let temp_src = tempfile::tempdir().unwrap();
+        let temp_dst = tempfile::tempdir().unwrap();
+
+        fs::write(temp_src.path().join("vesta-plugin.json"), "{}").unwrap();
+        fs::create_dir(temp_src.path().join("__pycache__")).unwrap();
+        fs::write(
+            temp_src.path().join("__pycache__").join("test.pyc"),
+            "bytecode",
+        )
+        .unwrap();
+        fs::create_dir(temp_src.path().join(".venv")).unwrap();
+        fs::write(temp_src.path().join(".venv").join("pip"), "binary").unwrap();
+        fs::create_dir(temp_src.path().join(".pytest_cache")).unwrap();
+        fs::write(temp_src.path().join(".pytest_cache").join("v"), "cache").unwrap();
+        fs::create_dir(temp_src.path().join("target")).unwrap();
+        fs::write(temp_src.path().join("target").join("debug"), "build").unwrap();
+
+        copy_dir_recursive(temp_src.path(), temp_dst.path()).unwrap();
+
+        assert!(temp_dst.path().join("vesta-plugin.json").exists());
+        assert!(!temp_dst.path().join("__pycache__").exists());
+        assert!(!temp_dst.path().join(".venv").exists());
+        assert!(!temp_dst.path().join(".pytest_cache").exists());
+        assert!(!temp_dst.path().join("target").exists());
+    }
+
+    #[test]
+    fn test_find_local_plugin_dir_root_and_subfolder() {
+        // 1. Manifest directly in root
+        let temp_root = tempfile::tempdir().unwrap();
+        fs::write(temp_root.path().join("vesta-plugin.json"), "{}").unwrap();
+        assert_eq!(
+            find_local_plugin_dir(temp_root.path()).unwrap(),
+            temp_root.path().to_path_buf()
+        );
+
+        // 2. Manifest in 1-level subfolder
+        let temp_parent = tempfile::tempdir().unwrap();
+        let sub = temp_parent.path().join("my-plugin-sub");
+        fs::create_dir(&sub).unwrap();
+        fs::write(sub.join("vesta-plugin.json"), "{}").unwrap();
+        assert_eq!(find_local_plugin_dir(temp_parent.path()).unwrap(), sub);
+
+        // 3. Manifest missing entirely
+        let temp_empty = tempfile::tempdir().unwrap();
+        let err = find_local_plugin_dir(temp_empty.path()).unwrap_err();
+        assert_eq!(
+            err,
+            format!(
+                "No vesta-plugin.json manifest found in '{}'",
+                temp_empty.path().display()
+            )
+        );
     }
 
     #[test]

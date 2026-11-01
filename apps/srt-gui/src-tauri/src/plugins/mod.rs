@@ -4,7 +4,9 @@ pub mod registry;
 pub mod runtime;
 pub mod url;
 
-use archive::{copy_dir_recursive, fetch_and_extract_plugin};
+use archive::{
+    copy_dir_recursive, fetch_and_extract_plugin, find_local_plugin_dir, load_manifest_from_dir,
+};
 use chrono::Utc;
 use manifest::PluginManifest;
 use registry::{InstalledPlugin, PluginRegistry};
@@ -12,7 +14,7 @@ use runtime::PluginRuntimeManager;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tauri::AppHandle;
 use tokio::sync::Mutex;
@@ -184,6 +186,21 @@ impl PluginManager {
     ) -> Result<PluginInspectResult, String> {
         let source = resolve_plugin_url(url, git_ref)?;
 
+        let local_path = Path::new(&source.git_clone_url);
+        if local_path.is_dir() {
+            let local_dir = find_local_plugin_dir(local_path)?;
+            let manifest = load_manifest_from_dir(&local_dir)?;
+            let readme = manifest.readme.clone();
+            let icon_url = resolve_plugin_icon_data_url(&local_dir, &manifest);
+
+            return Ok(PluginInspectResult {
+                manifest,
+                source,
+                readme,
+                icon_url,
+            });
+        }
+
         let temp_dir = tempfile::Builder::new()
             .prefix("vesta-plugin-inspect-")
             .tempdir()
@@ -208,6 +225,11 @@ impl PluginManager {
         git_ref: Option<&str>,
     ) -> Result<InstalledPlugin, String> {
         let source = resolve_plugin_url(url, git_ref)?;
+
+        let local_path = Path::new(&source.git_clone_url);
+        if local_path.is_dir() {
+            find_local_plugin_dir(local_path)?;
+        }
 
         // Download to a staging directory first
         let staging_temp = tempfile::Builder::new()
@@ -608,5 +630,73 @@ mod tests {
         let temp = tempfile::tempdir().unwrap();
         let manifest = make_test_manifest(Some("../secret.png"), None);
         assert_eq!(resolve_plugin_icon_data_url(temp.path(), &manifest), None);
+    }
+
+    #[tokio::test]
+    async fn test_inspect_local_plugin_direct() {
+        let base = tempfile::tempdir().unwrap();
+        let pm = PluginManager::new(base.path().to_path_buf());
+
+        let plugin_dir = tempfile::tempdir().unwrap();
+        let manifest_content = r#"{
+            "id": "direct-inspect-plugin",
+            "name": "Direct Inspect Plugin",
+            "version": "1.0.0",
+            "apiVersion": 1,
+            "entry": { "command": ["python3", "main.py"] }
+        }"#;
+        fs::write(
+            plugin_dir.path().join("vesta-plugin.json"),
+            manifest_content,
+        )
+        .unwrap();
+
+        let inspect_res = pm
+            .inspect(plugin_dir.path().to_str().unwrap(), None)
+            .await
+            .expect("direct local inspect failed");
+
+        assert_eq!(inspect_res.manifest.id, "direct-inspect-plugin");
+        assert_eq!(inspect_res.manifest.name, "Direct Inspect Plugin");
+    }
+
+    #[tokio::test]
+    async fn test_inspect_local_folder_missing_manifest_fails_instantly() {
+        let base = tempfile::tempdir().unwrap();
+        let pm = PluginManager::new(base.path().to_path_buf());
+
+        let empty_dir = tempfile::tempdir().unwrap();
+        let err = pm
+            .inspect(empty_dir.path().to_str().unwrap(), None)
+            .await
+            .unwrap_err();
+
+        assert_eq!(
+            err,
+            format!(
+                "No vesta-plugin.json manifest found in '{}'",
+                empty_dir.path().display()
+            )
+        );
+    }
+
+    #[tokio::test]
+    async fn test_install_local_folder_missing_manifest_fails_instantly() {
+        let base = tempfile::tempdir().unwrap();
+        let pm = PluginManager::new(base.path().to_path_buf());
+
+        let empty_dir = tempfile::tempdir().unwrap();
+        let err = pm
+            .install(empty_dir.path().to_str().unwrap(), None)
+            .await
+            .unwrap_err();
+
+        assert_eq!(
+            err,
+            format!(
+                "No vesta-plugin.json manifest found in '{}'",
+                empty_dir.path().display()
+            )
+        );
     }
 }

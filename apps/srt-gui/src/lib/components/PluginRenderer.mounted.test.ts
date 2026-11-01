@@ -558,3 +558,69 @@ it("triggers native snackbar when returned from event or render", async () => {
   expect(snackbarSpy).toHaveBeenCalledWith("Saved successfully!");
   snackbarSpy.mockRestore();
 });
+
+it("dispatches action with action.id as widgetId and click as eventType when clicking list item action", async () => {
+  const schema: WidgetNode = {
+    type: "column",
+    children: [
+      {
+        type: "list",
+        id: "results_list",
+        items: [
+          {
+            id: "movie_item_123",
+            title: "Test Movie (2024)",
+            actions: [
+              {
+                id: "select_movie_123",
+                label: "Download / Details",
+                variant: "primary",
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  };
+
+  mockDispatch.mockResolvedValueOnce({
+    root: {
+      type: "column",
+      children: [{ type: "text", text: "Detail Screen" }],
+    },
+  });
+
+  const target = document.createElement("div");
+  document.body.append(target);
+
+  components.push(
+    mount(PluginRenderer, {
+      target,
+      props: {
+        pluginId: "vibravid",
+        screen: "main",
+        active: true,
+        initialRoot: schema,
+      },
+    })
+  );
+
+  await tick();
+
+  const actionBtn = Array.from(target.querySelectorAll("button")).find((b) =>
+    b.textContent?.includes("Download / Details")
+  );
+  expect(actionBtn).toBeDefined();
+  actionBtn?.click();
+  await tick();
+
+  expect(mockDispatch).toHaveBeenCalledWith(
+    "vibravid",
+    expect.objectContaining({
+      widgetId: "select_movie_123",
+      eventType: "click",
+    }),
+    expect.any(String),
+    expect.any(Boolean)
+  );
+});
