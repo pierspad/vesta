@@ -127,6 +127,8 @@ async fn run(args: Vec<std::ffi::OsString>) -> Result<ExitCode> {
         quick: cli.quick,
         ffmpeg_cmd: cli.ffmpeg.clone(),
         ffprobe_cmd: cli.ffprobe.clone(),
+        use_gpu: None,
+        max_offset_secs: None,
     };
 
     let on_progress = (!cli.quiet).then(|| -> srt_autosync::ProgressCallback {

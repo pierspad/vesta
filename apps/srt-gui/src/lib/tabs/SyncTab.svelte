@@ -210,10 +210,15 @@
         summaryLevel = "info";
         summaryMessage = t("sync.autoSyncResult.cancelled");
       } else if (result.success) {
-        summaryMessage = t("sync.autoSyncResult.success", {
-          count: result.anchors_created,
-        });
-        summaryLevel = "success";
+        if (result.anchors_created > 0) {
+          summaryMessage = t("sync.autoSyncResult.success", {
+            count: result.anchors_created,
+          });
+          summaryLevel = "success";
+        } else {
+          summaryMessage = result.message;
+          summaryLevel = "info";
+        }
       } else {
         summaryMessage = t("sync.autoSyncResult.noMatches");
       }

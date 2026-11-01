@@ -86,6 +86,8 @@ pub async fn sync_auto_sync(
         quick,
         ffmpeg_cmd,
         ffprobe_cmd,
+        use_gpu: Some(true),
+        max_offset_secs: Some(180),
     };
 
     // Re-emit engine progress as Tauri events.
@@ -146,19 +148,29 @@ pub async fn sync_auto_sync(
     };
 
     if anchors_created == 0 {
-        let message = "No confident matches found. Try with a larger Whisper model or check that the SRT matches the audio.".to_string();
+        let (message, key) = if !outcome.suggestions.is_empty() {
+            (
+                "Auto-sync completed. All suggested anchors are already aligned with existing anchors.".to_string(),
+                "sync.autoSyncProgress.alreadySynced".to_string(),
+            )
+        } else {
+            (
+                "No confident matches found. Try with a larger Whisper model or check that the SRT matches the audio.".to_string(),
+                "sync.autoSyncProgress.noMatches".to_string(),
+            )
+        };
         let _ = app.emit(
             "sync-auto-progress",
             AutoSyncProgress {
                 stage: "done".to_string(),
                 message: message.clone(),
                 percentage: 100.0,
-                message_key: Some("sync.autoSyncProgress.noMatches".to_string()),
+                message_key: Some(key),
                 params: None,
             },
         );
         return Ok(AutoSyncResult {
-            success: false,
+            success: !outcome.suggestions.is_empty(),
             cancelled: false,
             anchors_created: 0,
             segments_analyzed: outcome.segments_analyzed,

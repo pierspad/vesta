@@ -63,6 +63,8 @@ async fn autosync_cancellation_stops_preparation_children_without_loading_whispe
         quick: true,
         ffmpeg_cmd: ffmpeg.to_string_lossy().into_owned(),
         ffprobe_cmd: ffprobe.to_string_lossy().into_owned(),
+        use_gpu: None,
+        max_offset_secs: None,
     };
     let token = CancellationToken::new();
     let task_token = token.clone();

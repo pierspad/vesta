@@ -14,6 +14,13 @@ categories = ["multimedia"]
 name = "srt_autosync"
 path = "src/lib.rs"
 
+[features]
+default = []
+vulkan = ["srt-transcribe/vulkan", "whisper-rs/vulkan"]
+cuda = ["srt-transcribe/cuda", "whisper-rs/cuda"]
+rocm = ["srt-transcribe/rocm", "whisper-rs/hipblas"]
+sycl = ["srt-transcribe/sycl", "whisper-rs/intel-sycl"]
+
 [dependencies]
 srt-transcribe = { workspace = true }
 whisper-rs = { workspace = true }

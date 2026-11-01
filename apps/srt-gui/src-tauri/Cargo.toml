@@ -57,6 +57,7 @@ tauri-plugin-dialog = { version = "=2.8.3", default-features = false, features =
 # Linux desktop builds carry the portable Vulkan Whisper backend. Runtime
 # selection still falls back to CPU when no usable Vulkan device is present.
 srt-transcribe = { workspace = true, features = ["vulkan"] }
+srt-autosync = { workspace = true, features = ["vulkan"] }
 
 [target.'cfg(not(target_os = "linux"))'.dependencies]
 tauri-plugin-dialog = "=2.8.3"
@@ -69,4 +70,4 @@ tokio = { version = "1.52", features = ["full"] }
 default = ["custom-protocol"]
 custom-protocol = ["tauri/custom-protocol"]
 # GPU offload (Vulkan) for local Whisper transcription.
-vulkan = ["srt-transcribe/vulkan"]
+vulkan = ["srt-transcribe/vulkan", "srt-autosync/vulkan"]
