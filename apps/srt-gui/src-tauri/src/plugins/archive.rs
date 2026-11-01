@@ -346,13 +346,11 @@ pub fn find_local_plugin_dir(dir: &Path) -> Result<PathBuf, String> {
             if EXCLUDED_NAMES.contains(&name.as_str()) {
                 continue;
             }
-            if let Ok(file_type) = entry.file_type() {
-                if file_type.is_dir() {
-                    let sub = entry.path();
-                    if sub.join("vesta-plugin.json").is_file() {
-                        return Ok(sub);
-                    }
-                }
+            if let Ok(file_type) = entry.file_type()
+                && file_type.is_dir()
+                && entry.path().join("vesta-plugin.json").is_file()
+            {
+                return Ok(entry.path());
             }
         }
     }
