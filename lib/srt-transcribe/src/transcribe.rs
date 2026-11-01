@@ -11,6 +11,14 @@ pub struct TranscribedSegment {
     pub text: String,
 }
 
+/// Raw UTF-8 token bytes and Whisper's measured onset (milliseconds).
+#[derive(Debug, Clone)]
+pub struct TimedToken {
+    pub bytes: Vec<u8>,
+    pub start_ms: i64,
+}
+pub type TokenCallback = std::sync::Arc<dyn Fn(i64, Vec<TimedToken>) + Send + Sync + 'static>;
+
 pub type SegmentCallback = std::sync::Arc<dyn Fn(i64, i64, &str) + Send + Sync + 'static>;
 
 #[derive(Default)]
@@ -28,6 +36,7 @@ pub struct TranscribeOptions {
     pub webrtc_vad: bool,
     pub vad_model_path: Option<std::path::PathBuf>,
     pub segment_callback: Option<SegmentCallback>,
+    pub token_callback: Option<TokenCallback>,
 }
 
 impl std::fmt::Debug for TranscribeOptions {
@@ -61,6 +70,7 @@ impl Clone for TranscribeOptions {
             webrtc_vad: self.webrtc_vad,
             vad_model_path: self.vad_model_path.clone(),
             segment_callback: self.segment_callback.clone(),
+            token_callback: self.token_callback.clone(),
         }
     }
 }
@@ -232,6 +242,40 @@ fn transcribe_span(
 
         if text.is_empty() {
             continue;
+        }
+
+        if options.word_timestamps
+            && let Some(callback) = &options.token_callback
+        {
+            let mut tokens = Vec::new();
+            for index in 0..seg.n_tokens() {
+                let Some(token) = seg.get_token(index) else {
+                    tokens.clear();
+                    break;
+                };
+                let Ok(bytes) = token.to_bytes() else {
+                    tokens.clear();
+                    break;
+                };
+                if bytes.starts_with(b"<|") {
+                    continue;
+                }
+                let data = token.token_data();
+                // A missing lexical token must invalidate timing for this segment;
+                // dropping it could fabricate a contiguous phrase match.
+                if data.t0 < seg.start_timestamp()
+                    || data.t0 > seg.end_timestamp()
+                    || data.t1 < data.t0
+                {
+                    tokens.clear();
+                    break;
+                }
+                tokens.push(TimedToken {
+                    bytes: bytes.to_vec(),
+                    start_ms: offset_ms + data.t0 * 10,
+                });
+            }
+            callback(offset_ms + seg.start_timestamp() * 10, tokens);
         }
 
         segments.push(TranscribedSegment {

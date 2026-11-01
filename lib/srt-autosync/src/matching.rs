@@ -285,51 +285,51 @@ pub fn calculate_guided_temporal_weight(
     }
 }
 
-/// Given a transcribed audio segment and a candidate subtitle cue, refine the anchor's
-/// corrected timestamp to snap directly to the speech onset of the matching words.
+/// Snap only an unambiguous contiguous phrase to measured Whisper token timing.
+/// Without reliable timing, retain the segment onset rather than inventing one.
 pub fn refine_speech_onset(
     tseg_start_ms: i64,
     tseg_end_ms: i64,
-    tseg_clean: &CleanText,
+    tokens: &[srt_transcribe::transcribe::TimedToken],
     cand_clean: &CleanText,
 ) -> i64 {
-    if tseg_clean.tokens.is_empty() || cand_clean.tokens.is_empty() || tseg_end_ms <= tseg_start_ms
-    {
+    let mut bytes = Vec::new();
+    let mut onsets = Vec::new();
+    for token in tokens {
+        bytes.extend_from_slice(&token.bytes);
+        onsets.extend(std::iter::repeat_n(token.start_ms, token.bytes.len()));
+    }
+    let Ok(text) = std::str::from_utf8(&bytes) else {
+        return tseg_start_ms;
+    };
+    let mut words = Vec::new();
+    let mut position = 0;
+    for raw_word in text.split_whitespace() {
+        let offset = text[position..].find(raw_word).unwrap() + position;
+        position = offset + raw_word.len();
+        for word in CleanText::new(raw_word).tokens {
+            words.push((word, onsets[offset]));
+        }
+    }
+    let count = cand_clean.tokens.len();
+    if count < 2 || words.len() < count {
         return tseg_start_ms;
     }
-
-    let t_len = tseg_clean.tokens.len();
-    let duration = (tseg_end_ms - tseg_start_ms) as f64;
-
-    let mut best_start_idx = 0usize;
-    let mut best_match_score = 0usize;
-
-    // Find the token offset within the transcribed segment where candidate words best align
-    for (i, _) in tseg_clean.tokens.iter().enumerate() {
-        let mut matches = 0;
-        for (k, c_tok) in cand_clean.tokens.iter().enumerate() {
-            if i + k < t_len && &tseg_clean.tokens[i + k] == c_tok {
-                matches += 1;
-            }
-        }
-        if matches > best_match_score {
-            best_match_score = matches;
-            best_start_idx = i;
-        }
+    let mut matches = words.windows(count).filter(|window| {
+        window
+            .iter()
+            .map(|(word, _)| word)
+            .eq(cand_clean.tokens.iter())
+    });
+    let Some(found) = matches.next() else {
+        return tseg_start_ms;
+    };
+    if matches.next().is_some() {
+        return tseg_start_ms;
     }
-
-    // Fallback: match the first candidate token
-    if best_match_score == 0
-        && let Some(first_tok) = cand_clean.tokens.first()
-        && let Some(pos) = tseg_clean.tokens.iter().position(|t| t == first_tok)
-    {
-        best_start_idx = pos;
-    }
-
-    if best_start_idx > 0 && t_len > 0 {
-        let onset_ratio = (best_start_idx as f64) / (t_len as f64);
-        let onset_ms = tseg_start_ms + (duration * onset_ratio).round() as i64;
-        onset_ms.min(tseg_end_ms)
+    let onset = found[0].1;
+    if (tseg_start_ms..tseg_end_ms).contains(&onset) {
+        onset
     } else {
         tseg_start_ms
     }
@@ -416,20 +416,78 @@ mod tests {
     }
 
     #[test]
-    fn test_refine_speech_onset() {
-        let tseg_clean = CleanText::new("good morning and welcome to the show");
-        let cand_clean = CleanText::new("welcome to the show");
+    fn test_refine_speech_onset_uses_measured_timing() {
+        use srt_transcribe::transcribe::TimedToken;
+        let tokens = vec![
+            TimedToken {
+                bytes: b"good morning and".to_vec(),
+                start_ms: 10_000,
+            },
+            TimedToken {
+                bytes: b" wel".to_vec(),
+                start_ms: 12_900,
+            },
+            TimedToken {
+                bytes: b"come to the show".to_vec(),
+                start_ms: 13_000,
+            },
+        ];
+        let phrase = CleanText::new("welcome to the show");
+        assert_eq!(
+            refine_speech_onset(10_000, 14_000, &tokens, &phrase),
+            12_900
+        );
+        assert_eq!(refine_speech_onset(10_000, 14_000, &[], &phrase), 10_000);
+        assert_eq!(
+            refine_speech_onset(10_000, 14_000, &tokens, &CleanText::new("missing words")),
+            10_000
+        );
+    }
 
-        // tseg starts at 10_000 and ends at 14_000 (duration 4000ms, 7 words)
-        // "welcome to the show" starts at token index 3 ("welcome")
-        // expected onset: 10_000 + 4000 * (3 / 7) = 10_000 + 1714 = 11714
-        let onset = refine_speech_onset(10_000, 14_000, &tseg_clean, &cand_clean);
-        assert!(onset > 10_000);
-        assert_eq!(onset, 11_714);
-
-        // If candidate matches from token index 0, onset is exactly tseg_start_ms
-        let onset_first = refine_speech_onset(10_000, 14_000, &tseg_clean, &tseg_clean);
-        assert_eq!(onset_first, 10_000);
+    #[test]
+    fn speech_onset_falls_back_for_ambiguous_or_invalid_tokens() {
+        use srt_transcribe::transcribe::TimedToken;
+        let phrase = CleanText::new("hello world");
+        for tokens in [
+            vec![TimedToken {
+                bytes: b"hello world hello world".to_vec(),
+                start_ms: 11_000,
+            }],
+            vec![TimedToken {
+                bytes: b"hello world".to_vec(),
+                start_ms: 20_000,
+            }],
+            vec![TimedToken {
+                bytes: vec![0xff],
+                start_ms: 11_000,
+            }],
+        ] {
+            assert_eq!(
+                refine_speech_onset(10_000, 14_000, &tokens, &phrase),
+                10_000
+            );
+        }
+        // Whisper can split a UTF-8 code point across tokens. Reassemble bytes
+        // before normalization and retain the onset of the first byte.
+        let raw = " café demain".as_bytes();
+        let tokens = vec![
+            TimedToken {
+                bytes: b"bonjour".to_vec(),
+                start_ms: 10_000,
+            },
+            TimedToken {
+                bytes: raw[..5].to_vec(),
+                start_ms: 12_000,
+            },
+            TimedToken {
+                bytes: raw[5..].to_vec(),
+                start_ms: 12_500,
+            },
+        ];
+        assert_eq!(
+            refine_speech_onset(10_000, 14_000, &tokens, &CleanText::new("café demain")),
+            12_000
+        );
     }
 
     #[test]

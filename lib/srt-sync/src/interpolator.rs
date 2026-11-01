@@ -77,7 +77,7 @@ impl TimeMapper {
             return;
         }
 
-        const MANUAL_EXCLUSION_WINDOW_MS: i64 = 90_000;
+        const MANUAL_EXCLUSION_WINDOW_MS: i64 = 15_000;
 
         let mut manual_original_times: Vec<i64> = self
             .anchors
@@ -102,14 +102,6 @@ impl TimeMapper {
                 .any(|m| anchor.original_time_ms.abs_diff(*m) <= MANUAL_EXCLUSION_WINDOW_MS as u64)
             {
                 return false;
-            }
-
-            for pair in manual_original_times.windows(2) {
-                let left = pair[0];
-                let right = pair[1];
-                if anchor.original_time_ms > left && anchor.original_time_ms < right {
-                    return false;
-                }
             }
 
             true
@@ -256,6 +248,27 @@ mod tests {
     use super::*;
 
     #[test]
+    fn automatic_refinement_between_manual_anchors_preserves_fixed_points() {
+        let mut mapper = TimeMapper::new();
+        mapper.add_anchor(AnchorPoint::new_manual(1, 60_000, 65_000));
+        mapper.add_anchor(AnchorPoint::new_manual(3, 300_000, 315_000));
+        mapper.add_anchor(AnchorPoint::new(2, 180_000, 192_000));
+        assert_eq!(mapper.get_anchors().len(), 3);
+        assert_eq!(mapper.calculate_offset(60_000), 5_000);
+        assert_eq!(mapper.calculate_offset(180_000), 12_000);
+        assert_eq!(mapper.calculate_offset(300_000), 15_000);
+        mapper.add_anchor(AnchorPoint::new(1, 60_000, 70_000));
+        assert_eq!(mapper.calculate_offset(60_000), 5_000);
+        mapper.add_anchor(AnchorPoint::new(4, 200_000, 320_000));
+        assert!(
+            !mapper
+                .get_anchors()
+                .iter()
+                .any(|anchor| anchor.subtitle_index == 4)
+        );
+    }
+
+    #[test]
     fn test_single_anchor() {
         let mut mapper = TimeMapper::new();
         mapper.add_anchor(AnchorPoint::new(1, 10000, 12000));
@@ -349,7 +362,7 @@ mod tests {
         );
 
         let mut near = TimeMapper::new();
-        near.add_anchor(AnchorPoint::new(11, i64::MIN + 90_000, i64::MIN + 90_000));
+        near.add_anchor(AnchorPoint::new(11, i64::MIN + 15_000, i64::MIN + 15_000));
         near.add_anchor(AnchorPoint::new_manual(12, i64::MIN, i64::MIN));
         assert_eq!(near.anchor_count(), 1);
         assert!(near.get_anchors()[0].is_manual);

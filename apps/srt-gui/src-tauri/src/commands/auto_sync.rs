@@ -73,6 +73,7 @@ pub async fn sync_auto_sync(
         let anchors: Vec<ExistingAnchor> = engine
             .get_anchors()
             .iter()
+            .filter(|anchor| anchor.is_manual)
             .map(|a| ExistingAnchor {
                 original_time_ms: a.original_time_ms,
                 target_time_ms: a.corrected_time_ms,
@@ -136,21 +137,7 @@ pub async fn sync_auto_sync(
         }
         let engine = ss.engine.as_mut().ok_or("No SRT file loaded for sync")?;
 
-        let existing_anchors = engine.get_anchors().to_vec();
-        let len_before = existing_anchors.len();
-
-        for s in &outcome.suggestions {
-            let is_near_existing = existing_anchors.iter().any(|a| {
-                (a.original_time_ms - s.original_start_ms).abs() < 15_000
-                    || (a.corrected_time_ms - s.corrected_time_ms).abs() < 15_000
-            });
-
-            if !is_near_existing {
-                let _ = engine.add_anchor(s.subtitle_id, s.corrected_time_ms, false);
-            }
-        }
-
-        engine.get_anchors().len().saturating_sub(len_before)
+        apply_suggestions(engine, &outcome.suggestions)
     };
 
     if anchors_created == 0 {
@@ -207,4 +194,71 @@ pub async fn sync_auto_sync(
         segments_analyzed: outcome.segments_analyzed,
         message: format!("Successfully created {anchors_created} new visual anchor points."),
     })
+}
+
+/// Publish a replacement automatic result while retaining user-confirmed points.
+fn apply_suggestions(
+    engine: &mut srt_sync::SyncEngine,
+    suggestions: &[srt_autosync::AnchorSuggestion],
+) -> usize {
+    // Keep the previous automatic result if no replacement was found.
+    // Only user-confirmed anchors are fixed constraints for the next run.
+    if !suggestions.is_empty() {
+        let automatic_ids: Vec<_> = engine
+            .get_anchors()
+            .iter()
+            .filter(|anchor| !anchor.is_manual)
+            .map(|anchor| anchor.subtitle_index)
+            .collect();
+        for id in automatic_ids {
+            engine.remove_anchor(id);
+        }
+    }
+    let existing_anchors = engine.get_anchors().to_vec();
+    let len_before = existing_anchors.len();
+
+    for s in suggestions {
+        let is_near_existing = existing_anchors.iter().any(|a| {
+            (a.original_time_ms - s.original_start_ms).abs() < 15_000
+                || (a.corrected_time_ms - s.corrected_time_ms).abs() < 15_000
+        });
+
+        if !is_near_existing {
+            let _ = engine.add_anchor(s.subtitle_id, s.corrected_time_ms, false);
+        }
+    }
+
+    engine.get_anchors().len().saturating_sub(len_before)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn rerun_replaces_automatic_anchors_and_retains_manual_constraints() {
+        let source = tempfile::NamedTempFile::new().unwrap();
+        std::fs::write(source.path(), "1\n00:01:00,000 --> 00:01:02,000\nFirst\n\n2\n00:03:00,000 --> 00:03:02,000\nMiddle\n\n3\n00:05:00,000 --> 00:05:02,000\nLast\n").unwrap();
+        let mut engine = srt_sync::SyncEngine::new(source.path()).unwrap();
+        engine.add_anchor(1, 65_000, true).unwrap();
+        engine.add_anchor(3, 315_000, true).unwrap();
+        engine.add_anchor(2, 190_000, false).unwrap();
+        assert_eq!(apply_suggestions(&mut engine, &[]), 0);
+        assert_eq!(engine.get_anchors().len(), 3);
+        let suggestion = srt_autosync::AnchorSuggestion {
+            subtitle_id: 2,
+            original_start_ms: 180_000,
+            corrected_time_ms: 192_000,
+            similarity: 0.95,
+            score: 0.95,
+        };
+        assert_eq!(apply_suggestions(&mut engine, &[suggestion]), 1);
+        let anchors = engine.get_anchors();
+        assert_eq!(anchors.len(), 3);
+        assert!(anchors[0].is_manual);
+        assert_eq!(anchors[0].corrected_time_ms, 65_000);
+        assert_eq!(anchors[1].corrected_time_ms, 192_000);
+        assert!(anchors[2].is_manual);
+        assert_eq!(anchors[2].corrected_time_ms, 315_000);
+    }
 }

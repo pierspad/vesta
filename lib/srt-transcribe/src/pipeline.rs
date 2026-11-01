@@ -357,6 +357,7 @@ pub fn run_local(
         vad_model_path,
         webrtc_vad,
         segment_callback: Some(Arc::new(segment_callback)),
+        token_callback: None,
     };
 
     let (raw_segments, detected_language) =

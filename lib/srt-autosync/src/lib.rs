@@ -536,7 +536,7 @@ pub async fn run_auto_sync(
 
     let quick = config.quick;
     let segment_duration = if quick { 20.0 } else { 35.0 };
-    let use_gpu = config.use_gpu.unwrap_or_else(srt_transcribe::gpu_supported);
+    let use_gpu = config.use_gpu.unwrap_or(true) && srt_transcribe::gpu_supported();
 
     // Dense sampling: scale segments up when GPU is available (24-32 segments)
     let num_samples = if use_gpu {
@@ -730,6 +730,8 @@ pub async fn run_auto_sync(
                     ])),
                 );
 
+                let token_timings = Arc::new(std::sync::Mutex::new(HashMap::new()));
+                let timing_sink = token_timings.clone();
                 let options = TranscribeOptions {
                     language: language.clone(),
                     translate_to_english: false,
@@ -741,6 +743,9 @@ pub async fn run_auto_sync(
                     word_timestamps: true,
                     max_segment_length: None,
                     segment_callback: None,
+                    token_callback: Some(Arc::new(move |start, tokens| {
+                        timing_sink.lock().unwrap().insert(start, tokens);
+                    })),
                     ..TranscribeOptions::default()
                 };
 
@@ -762,6 +767,8 @@ pub async fn run_auto_sync(
                     })
                     .collect();
 
+                let token_timings = token_timings.lock().unwrap();
+                let clip_offset_ms = (prep.current_pos * 1000.0) as i64;
                 for tseg in &adjusted_segments {
                     let tseg_clean = CleanText::new(&tseg.text);
                     if tseg_clean.tokens.len() < 2 {
@@ -808,16 +815,19 @@ pub async fn run_auto_sync(
                             if score >= 0.35 {
                                 // Word-level phrase onset refinement
                                 let refined_start_ms = refine_speech_onset(
-                                    tseg.start_ms,
-                                    tseg.end_ms,
-                                    &tseg_clean,
+                                    tseg.start_ms - clip_offset_ms,
+                                    tseg.end_ms - clip_offset_ms,
+                                    token_timings
+                                        .get(&(tseg.start_ms - clip_offset_ms))
+                                        .map(Vec::as_slice)
+                                        .unwrap_or(&[]),
                                     &cand.text,
                                 );
 
                                 all_matches.push(MatchCandidate {
                                     subtitle_id: cand.subtitle_id,
                                     original_start_ms: cand.start_ms,
-                                    transcribed_start_ms: refined_start_ms,
+                                    transcribed_start_ms: refined_start_ms + clip_offset_ms,
                                     similarity: sim,
                                     score,
                                 });
