@@ -99,6 +99,10 @@ export class WhisperModelsStore {
     window.dispatchEvent(new CustomEvent("whisper-model-updated", { detail: modelId }));
   }
 
+  setDefaultModel(modelId: string, notify = true) {
+    this.setDefaultWhisperModel(modelId, notify);
+  }
+
   handleWhisperModelClick(model: { id: string; downloaded: boolean }) {
     if (this.busy) return;
     if (model.downloaded) {

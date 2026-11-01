@@ -54,7 +54,7 @@
   }
 </script>
 
-<div class="flex items-center justify-between gap-4">
+<div class="flex items-center justify-between gap-4 transition-opacity duration-200 {disabled ? 'opacity-40 cursor-not-allowed select-none' : ''}">
   <div class="flex items-center gap-3.5 min-w-0">
     {#if iconPath}
       <div class="w-9 h-9 rounded-lg {iconBg[accent]} flex items-center justify-center shrink-0">

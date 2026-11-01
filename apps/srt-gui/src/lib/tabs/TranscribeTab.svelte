@@ -251,6 +251,7 @@
     const detail = (e as CustomEvent).detail;
     if (detail) {
       selectedModel = detail;
+      localModelOverride = detail;
     }
     refreshModels().catch(console.error);
   }
@@ -1089,34 +1090,32 @@
                 <svg aria-hidden="true" class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 3v3m6-3v3M9 18v3m6-3v3M3 9h3m-3 6h3m12-6h3m-3 6h3M6 6h12v12H6zM10 10h4v4h-4z" /></svg>
                 {t("transcribe.whisperModel")}
               </h3>
-              <WhisperModelSelector models={modelStore.whisperModels} value={localModelOverride ?? transcribeTiers.flatMap(tier => tier.entries).find(entry => entry.provider === "local" || entry.provider === "local_whisper")?.model ?? ""} disabled={modelStore.busy}
-                oncontextmenu={(event, model) => { event.preventDefault(); event.stopPropagation(); const rect = event.currentTarget instanceof HTMLElement ? event.currentTarget.getBoundingClientRect() : null; modelMenu = { id: model.id, x: event.clientX || rect?.left || 8, y: event.clientY || rect?.bottom || 8 }; }}
-                onselect={async (model) => {
-                  if (!model.downloaded && !await modelStore.downloadModel(model.id)) return;
-                  if (modelStore.whisperModels.find(m => m.id === model.id)?.downloaded) {
+              <WhisperModelSelector
+                models={modelStore.whisperModels}
+                value={modelStore.defaultWhisperModel || selectedModel}
+                disabled={modelStore.busy}
+                downloadingModelId={modelStore.downloadingModelId}
+                progress={modelStore.progress}
+                isDownloading={modelStore.isDownloading}
+                oncancel={() => { void modelStore.cancelModelDownload(); }}
+                ondownload={(id) => {
+                  const model = modelStore.whisperModels.find((m) => m.id === id);
+                  if (model) modelStore.handleWhisperModelClick(model);
+                }}
+                onselect={(model) => {
+                  modelStore.handleWhisperModelClick(model);
+                  if (model.downloaded) {
                     selectedModel = model.id;
                     localModelOverride = model.id;
-                    await refreshModels();
                   }
-                }} />
-              {#if modelStore.isDownloading}
-                <p class="mt-3 text-xs text-cyan-300" role="status">{t("settings.modelDownloading", { model: modelStore.downloadingModelId ?? "" })} · {modelStore.progress}%</p>
-                <button class="mt-2 text-xs text-red-300 disabled:opacity-50" disabled={modelStore.isCancellingDownload} onclick={() => void modelStore.cancelModelDownload()}>{t("common.cancel")}</button>
-              {/if}
-              {#if localModelOverride}
-                <div class="mt-3 flex flex-wrap items-center gap-1.5 text-xs text-red-400">
-                  <button type="button" disabled={modelStore.busy} class="hover:text-red-200 hover:underline disabled:opacity-50" onclick={() => localModelOverride = null}>{t("transcribe.useTierModels")}</button>
-                  <span>{t("transcribe.configuredIn")}</span>
-                  <SettingsJumpButton
-                    label={t("transcribe.tiersLink")}
-                    section="whisper"
-                    targetId="transcribe-tiers"
-                    disabled={!onGoToSettings}
-                    onclick={() => onGoToSettings?.("whisper", "transcribe-tiers")}
-                    variant="subtle"
-                  />
-                </div>
-              {/if}
+                }}
+                oncontextmenu={(event, model) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  const rect = event.currentTarget instanceof HTMLElement ? event.currentTarget.getBoundingClientRect() : null;
+                  modelMenu = { id: model.id, x: event.clientX || rect?.left || 8, y: event.clientY || rect?.bottom || 8 };
+                }}
+              />
               {#if !vadInstalled}
                 <div class="mt-3">
                   <SettingsJumpButton

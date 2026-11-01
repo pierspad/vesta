@@ -23,6 +23,7 @@
   import WizardCheckpoint from "$lib/components/WizardCheckpoint.svelte";
   import { formatSyncMediaError } from "$lib/utils/syncMediaError";
   import { errorMessage } from "$lib/utils/errorMessage";
+  import { whisperModelsStore as modelStore } from "$lib/stores/whisperModelsStore.svelte";
 
   interface Props {
     active?: boolean;
@@ -103,6 +104,36 @@
   let audioDuration = $state(0);
   let hasAudio = $derived(!!audioSrc && !audioError);
 
+  let showWhisperModelMenu = $state(false);
+  let downloadedWhisperModels = $derived(
+    modelStore.whisperModels.filter((m) => m.downloaded)
+  );
+  let currentWhisperModel = $derived(
+    modelStore.whisperModels.find((m) => m.id === modelStore.defaultWhisperModel) ??
+    downloadedWhisperModels[0] ??
+    null
+  );
+  let currentWhisperModelName = $derived(
+    currentWhisperModel
+      ? (t(`transcribe.model${currentWhisperModel.id.charAt(0).toUpperCase()}${currentWhisperModel.id.slice(1)}`) || currentWhisperModel.name)
+      : (modelStore.defaultWhisperModel
+          ? modelStore.defaultWhisperModel.charAt(0).toUpperCase() + modelStore.defaultWhisperModel.slice(1)
+          : t("settings.notDownloaded"))
+  );
+
+  function cycleWhisperModel() {
+    if (downloadedWhisperModels.length === 0) {
+      showSnackbar(t("transcribe.noBackendWarning"), "warning");
+      return;
+    }
+    const currentIndex = downloadedWhisperModels.findIndex(
+      (m) => m.id === (currentWhisperModel?.id ?? modelStore.defaultWhisperModel)
+    );
+    const nextIndex = (currentIndex + 1) % downloadedWhisperModels.length;
+    const nextModel = downloadedWhisperModels[nextIndex];
+    modelStore.setDefaultWhisperModel(nextModel.id);
+  }
+
   let subtitleContextMenu = $state<{
     x: number;
     y: number;
@@ -168,11 +199,14 @@
         return;
       }
 
-      // Prefer small > base > tiny > medium > large
+      // Prefer selected default model if available, otherwise fallback order
       const preferredOrder = ["small", "base", "tiny", "medium", "large"];
+      const currentDefault = modelStore.defaultWhisperModel;
       const modelId =
-        preferredOrder.find((m) => autoSyncStore.whisperModelsAvailable.includes(m)) ??
-        autoSyncStore.whisperModelsAvailable[0];
+        (currentDefault && autoSyncStore.whisperModelsAvailable.includes(currentDefault))
+          ? currentDefault
+          : preferredOrder.find((m) => autoSyncStore.whisperModelsAvailable.includes(m)) ??
+            autoSyncStore.whisperModelsAvailable[0];
 
       autoSyncStore.activeMode = quick ? "quick" : "precise";
       autoSyncStore.progress = 0;
@@ -1081,6 +1115,16 @@
     syncDebug("mount", { active });
     window.addEventListener("keydown", handleKeydown);
 
+    void modelStore.refreshModels();
+    void checkWhisperModels();
+
+    const onWhisperUpdated = () => {
+      void checkWhisperModels();
+      void modelStore.refreshModels();
+    };
+    window.addEventListener("whisper-model-updated", onWhisperUpdated);
+    window.addEventListener("vesta-whisper-models-updated", onWhisperUpdated);
+
     const cleanupDragDrop = setupWebviewDragDrop({
       isActive: () => active,
       setDraggingOver: (v) => (isDraggingOver = v),
@@ -1095,6 +1139,8 @@
       offset.dispose();
       syncDebug("unmount");
       window.removeEventListener("keydown", handleKeydown);
+      window.removeEventListener("whisper-model-updated", onWhisperUpdated);
+      window.removeEventListener("vesta-whisper-models-updated", onWhisperUpdated);
       if (singleClickTimer) clearTimeout(singleClickTimer);
     };
   });
@@ -1321,20 +1367,82 @@
         </div>
       </div>
 
-      <div class="relative group">
-        <button
-          onclick={saveSession}
-          disabled={!status?.is_loaded}
-          class="px-5 py-2.5 bg-teal-600 hover:bg-teal-500 disabled:bg-teal-600/55 text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-teal-950/20 flex items-center gap-2 enabled:hover:scale-[1.02] enabled:active:scale-[0.98] disabled:opacity-55 disabled:cursor-not-allowed cursor-pointer"
-        >
-          <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
-          </svg>
-          {t("sync.saveSession")}
-        </button>
-        <div class="pointer-events-none absolute bottom-full left-1/2 z-50 mb-3 -translate-x-1/2 rounded-xl border border-teal-500/30 bg-gray-950/95 p-3 text-center text-xs text-teal-300 shadow-2xl shadow-black/40 ring-1 ring-white/10 transition-all duration-150 delay-0 group-hover:delay-300 opacity-0 group-hover:opacity-100 group-hover:translate-y-0 translate-y-1 whitespace-normal w-72">
-          {t("sync.tooltipSaveSession")}
+      <!-- Whisper Model Switcher Chip -->
+      <div class="relative flex items-center">
+        <div class="inline-flex items-stretch rounded-xl border border-cyan-500/30 bg-gray-800/80 shadow-lg shadow-black/20 hover:border-cyan-500/50 transition-colors">
+          <button
+            type="button"
+            onclick={cycleWhisperModel}
+            disabled={autoSyncStore.isAutoSyncing || localWhisperOperation.busy}
+            class="flex items-center gap-2 px-3.5 py-2.5 text-sm font-medium text-white transition-all enabled:hover:bg-cyan-500/10 rounded-l-xl cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed select-none"
+            title={downloadedWhisperModels.length > 1 ? `${t("settings.whisper.modelLabel")}: ${currentWhisperModelName} · Click to cycle` : `${t("settings.whisper.modelLabel")}: ${currentWhisperModelName}`}
+          >
+            <svg class="w-4 h-4 text-cyan-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+            </svg>
+            <span class="text-xs text-gray-400 font-normal">Whisper:</span>
+            <span class="text-xs font-bold text-cyan-300">{currentWhisperModelName}</span>
+          </button>
+          <button
+            type="button"
+            onclick={() => (showWhisperModelMenu = !showWhisperModelMenu)}
+            disabled={autoSyncStore.isAutoSyncing || localWhisperOperation.busy}
+            class="flex items-center px-2 text-cyan-400/80 hover:text-cyan-200 transition-all border-l border-white/10 enabled:hover:bg-cyan-500/10 rounded-r-xl cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            title={t("settings.whisper.modelLabel")}
+            aria-label={t("settings.whisper.modelLabel")}
+            aria-expanded={showWhisperModelMenu}
+          >
+            <svg class="w-3.5 h-3.5 transition-transform duration-200 {showWhisperModelMenu ? 'rotate-180' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
         </div>
+
+        {#if showWhisperModelMenu}
+          <!-- Backdrop to close menu -->
+          <button
+            type="button"
+            class="fixed inset-0 z-40 bg-transparent cursor-default border-none p-0"
+            onclick={() => (showWhisperModelMenu = false)}
+            tabindex="-1"
+            aria-label="Close menu"
+          ></button>
+          <div
+            class="absolute bottom-full left-0 mb-2 z-50 min-w-[210px] rounded-xl border border-white/10 bg-gray-950/95 backdrop-blur-md p-1.5 shadow-2xl ring-1 ring-white/10"
+            role="menu"
+            aria-label={t("settings.whisper.modelLabel")}
+          >
+            <div class="px-2.5 py-1.5 text-[10px] uppercase font-bold tracking-wider text-gray-400 border-b border-white/5 mb-1">
+              {t("settings.whisper.modelLabel")}
+            </div>
+            {#each modelStore.whisperModels as model (model.id)}
+              <button
+                type="button"
+                role="menuitem"
+                disabled={!model.downloaded}
+                onclick={() => {
+                  modelStore.setDefaultWhisperModel(model.id);
+                  showWhisperModelMenu = false;
+                }}
+                class="w-full flex items-center justify-between gap-3 px-2.5 py-1.5 rounded-lg text-xs transition-colors text-left
+                  {!model.downloaded ? 'opacity-40 cursor-not-allowed text-gray-500' : 'hover:bg-white/10 cursor-pointer'}
+                  {model.id === (currentWhisperModel?.id ?? modelStore.defaultWhisperModel) ? 'text-cyan-300 font-semibold bg-cyan-500/15' : 'text-gray-300'}"
+              >
+                <span class="flex items-center gap-2">
+                  <span>{t(`transcribe.model${model.id.charAt(0).toUpperCase()}${model.id.slice(1)}`) || model.name}</span>
+                  <span class="text-[10px] text-gray-500">{model.size}</span>
+                </span>
+                {#if model.id === (currentWhisperModel?.id ?? modelStore.defaultWhisperModel)}
+                  <svg class="w-3.5 h-3.5 text-cyan-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                  </svg>
+                {:else if !model.downloaded}
+                  <span class="text-[9px] text-gray-500">{t("settings.notDownloaded")}</span>
+                {/if}
+              </button>
+            {/each}
+          </div>
+        {/if}
       </div>
     {/snippet}
     {#snippet center()}
