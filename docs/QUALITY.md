@@ -597,3 +597,13 @@ files is a reversible edit; loading either new side clears the prior document
 history. Undo/redo restores the saved-state comparison and leaves focused
 textarea text undo to the native control. Mounted tests cover swap, redo,
 new-document isolation and native editable focus.
+
+## Review note history
+
+Review keeps notes-only snapshots keyed by stable card IDs. Manual typing is
+coalesced; a single AI replacement captures one edit, and a batch captures once
+before its first changed result so partial results can be undone after stopping.
+Document history is blocked while processing/saving; native editor undo is not
+intercepted. New-file loads clear history, while saving updates the saved baseline
+without discarding it. Mounted tests cover edit/undo/redo/save, native editor
+shortcuts and inactive tabs; helper tests cover notes-only and document isolation.

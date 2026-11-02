@@ -35,6 +35,8 @@
   import SectionHeader from "$lib/components/SectionHeader.svelte";
   import { createRefineCardSearch } from "$lib/workflows/refineCardSearch";
   import { runRefineAuto, type RefineRunSummary } from "$lib/workflows/refineAutoRun";
+  import { createRefineNotesHistory } from "$lib/workflows/refineNotesHistory";
+  import { historyShortcutAction } from "$lib/utils/shortcuts";
 
   interface Props {
     active?: boolean;
@@ -72,6 +74,17 @@
   let fileName = $derived(getFileName(filePath));
   let fileExtension = $derived(filePath.split(".").pop()?.toUpperCase() || "APKG");
   let cards = $state<RefineCard[]>([]);
+  let historyRevision = $state(0);
+  const documentHistory = createRefineNotesHistory(
+    () => cards,
+    (snapshot) => {
+      const notesById = new Map(snapshot.map((card) => [card.id, card.notes]));
+      cards = cards.map((card) => notesById.has(card.id) ? { ...card, notes: notesById.get(card.id)! } : card);
+      historyRevision++;
+    },
+  );
+  let canUndoDocument = $derived.by(() => { historyRevision; return documentHistory.canUndo; });
+  let canRedoDocument = $derived.by(() => { historyRevision; return documentHistory.canRedo; });
   let selectedCardIndex = $state<number | null>(null);
   let searchQuery = $state("");
   let mode = $state<"manual" | "auto">("manual");
@@ -237,6 +250,9 @@
     },
     set value(val: string) {
       if (selectedCardIndex !== null && cards[selectedCardIndex]) {
+        if (cards[selectedCardIndex].notes === val) return;
+        documentHistory.schedule();
+        historyRevision++;
         cards[selectedCardIndex].notes = val;
       }
     }
@@ -352,6 +368,8 @@
     try {
       const res = await invoke<RefineCard[]>("refine_load_file", { path });
       cards = res.map((c) => ({ ...c, initialNotes: c.notes }));
+      documentHistory.reset();
+      historyRevision++;
       filePath = path;
       searchQuery = "";
       progressCurrent = 0;
@@ -479,7 +497,12 @@
         tiers: tiersPayload,
       });
 
-      card.notes = response.trim();
+      const nextNotes = response.trim();
+      if (nextNotes !== card.notes) {
+        documentHistory.push();
+        historyRevision++;
+        card.notes = nextNotes;
+      }
       snackbar.show(t("refine.msg.generateSuccess"), "success");
     } catch (err: any) {
       const message = err?.toString() ?? "";
@@ -536,6 +559,7 @@
       t("refine.log.startAuto"),
     ];
 
+    let autoHistoryCaptured = false;
     try {
       const summary = await runRefineAuto({
         cards: cardsToProcess.map((c) => ({
@@ -553,6 +577,11 @@
           if (p.type === "cardDone") {
             const idx = cardIndices.get(p.id) ?? -1;
             if (idx !== -1) {
+              if (!autoHistoryCaptured && cards[idx].notes !== p.notes) {
+                documentHistory.push();
+                historyRevision++;
+                autoHistoryCaptured = true;
+              }
               cards[idx].notes = p.notes;
               autoRefineGroupCardIds.delete(p.id);
               addLog(t("refine.log.success", { text: cards[idx].expression.substring(0, 30) }));
@@ -615,15 +644,22 @@
   }
 
   function handleKeyDown(e: KeyboardEvent) {
-    if (!active || mode !== "manual") return;
-    if (selectedCardIndex === null || cards.length === 0) return;
-    if (document.activeElement?.tagName === "TEXTAREA" || document.activeElement?.tagName === "INPUT") {
-      if (e.key === "Escape") {
-        (document.activeElement as HTMLElement).blur();
-      }
+    if (!active || e.defaultPrevented || e.isComposing || showOverwriteConfirm) return;
+    const target = e.target instanceof Element ? e.target : null;
+    if (target?.closest('input, textarea, select')) {
+      if (e.key === "Escape" && document.activeElement instanceof HTMLElement) document.activeElement.blur();
       return;
     }
-
+    if (target?.closest('[contenteditable]:not([contenteditable="false"]), [role="dialog"]')) return;
+    const historyAction = historyShortcutAction(e, "refine");
+    if (historyAction) {
+      if (operationBusy) return;
+      e.preventDefault();
+      applyDocumentHistory(historyAction);
+      return;
+    }
+    if (mode !== "manual") return;
+    if (selectedCardIndex === null || cards.length === 0) return;
     if (e.key === "ArrowDown" || e.key === "j") {
       e.preventDefault();
       navigateCard(1);
@@ -638,6 +674,12 @@
         textarea.setSelectionRange(textarea.value.length, textarea.value.length);
       }
     }
+  }
+
+  function applyDocumentHistory(direction: "undo" | "redo") {
+    if (operationBusy) return;
+    const changed = direction === "undo" ? documentHistory.undo() : documentHistory.redo();
+    historyRevision++;
   }
 
   function handleDragOver(e: DragEvent) {
@@ -677,6 +719,8 @@
       if ((window as any).loadRefineFile === load) delete (window as any).loadRefineFile;
     };
   });
+
+  onDestroy(() => documentHistory.dispose());
 </script>
 
 <svelte:window onkeydown={handleKeyDown} />
@@ -942,7 +986,7 @@
                   <CodeEditor
                     id="card-notes"
                     bind:value={notesProxy.value}
-                    readonly={isSaving || isLoading || selectedCardIndex === null || !!(selectedCard && isCardRefining(selectedCard.id))}
+                    readonly={isSaving || isLoading || autoRefining || selectedCardIndex === null || !!(selectedCard && isCardRefining(selectedCard.id))}
                     placeholder={selectedCardIndex === null ? t('refine.notesPlaceholderEmpty') : (!!(selectedCard && isCardRefining(selectedCard.id)) ? t('refine.notesPlaceholderGenerating') : t('refine.notesPlaceholder'))}
                     language="html"
                     heightClass="flex-1 min-h-[160px]"
@@ -1124,6 +1168,10 @@
   <FooterActions>
     {#snippet left()}
       <div class="flex flex-1 min-w-0 items-center gap-3">
+      <div class="flex shrink-0 gap-1">
+        <button type="button" class="btn-secondary px-2 py-2 text-sm" title={t("common.undo")} aria-label={t("common.undo")} disabled={!canUndoDocument || operationBusy} onclick={() => applyDocumentHistory("undo")}>{t("common.undo")}</button>
+        <button type="button" class="btn-secondary px-2 py-2 text-sm" title={t("common.redo")} aria-label={t("common.redo")} disabled={!canRedoDocument || operationBusy} onclick={() => applyDocumentHistory("redo")}>{t("common.redo")}</button>
+      </div>
       <div class="relative group shrink-0">
         <button
           onclick={overwriteOriginalFile}
