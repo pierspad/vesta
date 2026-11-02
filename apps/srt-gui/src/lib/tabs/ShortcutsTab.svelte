@@ -145,6 +145,7 @@
     translate: "shortcuts.category.translate",
     sync: "shortcuts.category.sync",
     alignment: "shortcuts.category.alignment",
+    refine: "nav.refine",
     transcribe: "shortcuts.category.transcribe",
   };
 

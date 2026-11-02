@@ -553,3 +553,12 @@ the menu and releases portal listeners. Mounted tests cover portal positioning,
 selection, cleanup, disabled-state closure and saved endpoint invalidation.
 The Transcribe engine selector and tier configuration now live inside Options;
 the endpoint-upload hint remains available as a tooltip.
+
+## Document undo/redo shortcuts
+
+The bounded snapshot history groups typing bursts, restores redo states, ends a
+burst at explicit operations and discards redo after a new edit. Shared shortcut
+resolution reads user bindings at dispatch time. Defaults use Ctrl/Cmd+Z and
+Ctrl/Cmd+Shift+Z; Ctrl/Cmd+Y is an alias while redo keeps its default binding.
+Native editable fields keep their own text undo. Undo/redo actions are listed in
+the shortcuts tab for their document scope.

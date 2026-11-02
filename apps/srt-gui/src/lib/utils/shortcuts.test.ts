@@ -37,7 +37,7 @@ describe("shortcuts", () => {
     });
 
     it("has valid categories and default keys", () => {
-      const validCategories = new Set(["global", "translate", "sync", "flashcards", "alignment", "transcribe"]);
+      const validCategories = new Set(["global", "translate", "sync", "flashcards", "alignment", "transcribe", "refine"]);
       for (const s of defaultShortcuts) {
         expect(validCategories.has(s.category)).toBe(true);
         expect(s.defaultKey.length).toBeGreaterThan(0);
@@ -114,4 +114,19 @@ describe("shortcuts", () => {
       expect(formatKeyPart("K", mockTranslate)).toBe("K");
     });
   });
+});
+
+it("dispatches undo/redo aliases and respects custom bindings immediately", async () => {
+  const { historyShortcutAction } = await import("./shortcuts");
+  const key = (key: string, options = {}) => ({ key, ctrlKey: true, metaKey: false, altKey: false, shiftKey: false, defaultPrevented: false, isComposing: false, ...options }) as KeyboardEvent;
+  resetShortcuts();
+  expect(historyShortcutAction(key("z"), "sync")).toBe("undo");
+  expect(historyShortcutAction(key("Z", { shiftKey: true }), "sync")).toBe("redo");
+  expect(historyShortcutAction(key("y"), "sync")).toBe("redo");
+  expect(historyShortcutAction(key("z", { ctrlKey: false, metaKey: true }), "align")).toBe("undo");
+  saveShortcutOverride("sync-redo", "Ctrl+R");
+  expect(historyShortcutAction(key("y"), "sync")).toBeNull();
+  expect(historyShortcutAction(key("r"), "sync")).toBe("redo");
+  expect(historyShortcutAction(key("r", { isComposing: true }), "sync")).toBeNull();
+  resetShortcuts();
 });

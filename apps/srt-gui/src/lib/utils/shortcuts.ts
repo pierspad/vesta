@@ -6,7 +6,7 @@ export interface ShortcutDefinition {
   action: string;
   description: string; // i18n key, resolved via t() in components
   defaultKey: string;
-  category: "global" | "translate" | "sync" | "flashcards" | "alignment" | "transcribe";
+  category: "global" | "translate" | "sync" | "flashcards" | "alignment" | "transcribe" | "refine";
 }
 
 export const defaultShortcuts: ShortcutDefinition[] = [
@@ -26,6 +26,11 @@ export const defaultShortcuts: ShortcutDefinition[] = [
   { id: "flashcards-generate", action: "generateFlashcards", description: "shortcuts.action.generateFlashcards", defaultKey: "Ctrl+Enter", category: "flashcards" },
   { id: "flashcards-cancel", action: "cancelGeneration", description: "shortcuts.action.cancelGeneration", defaultKey: "Escape", category: "flashcards" },
   { id: "flashcards-preview", action: "previewCards", description: "shortcuts.action.previewCards", defaultKey: "Ctrl+P", category: "flashcards" },
+
+  { id: "flashcards-undo", action: "flashcardsUndo", description: "common.undo", defaultKey: "Ctrl+Z", category: "flashcards" },
+  { id: "flashcards-redo", action: "flashcardsRedo", description: "common.redo", defaultKey: "Ctrl+Shift+Z", category: "flashcards" },
+  { id: "refine-undo", action: "refineUndo", description: "common.undo", defaultKey: "Ctrl+Z", category: "refine" },
+  { id: "refine-redo", action: "refineRedo", description: "common.redo", defaultKey: "Ctrl+Shift+Z", category: "refine" },
 
   // Translation
   { id: "translate-open-file", action: "openInputFile", description: "shortcuts.action.openSrt", defaultKey: "Ctrl+O", category: "translate" },
@@ -49,6 +54,7 @@ export const defaultShortcuts: ShortcutDefinition[] = [
   { id: "sync-offset-up-fast", action: "offsetUpFast", description: "shortcuts.action.offsetUpFast", defaultKey: "Shift+ArrowUp", category: "sync" },
   { id: "sync-offset-down-fast", action: "offsetDownFast", description: "shortcuts.action.offsetDownFast", defaultKey: "Shift+ArrowDown", category: "sync" },
   { id: "sync-undo", action: "syncUndo", description: "shortcuts.action.syncUndo", defaultKey: "Ctrl+Z", category: "sync" },
+  { id: "sync-redo", action: "syncRedo", description: "common.redo", defaultKey: "Ctrl+Shift+Z", category: "sync" },
   { id: "sync-confirm", action: "confirmAnchor", description: "shortcuts.action.confirmAnchor", defaultKey: "Enter", category: "sync" },
   { id: "sync-next-sub", action: "nextSubtitle", description: "shortcuts.action.nextSubtitle", defaultKey: "Tab", category: "sync" },
   { id: "sync-prev-sub", action: "prevSubtitle", description: "shortcuts.action.prevSubtitle", defaultKey: "Shift+Tab", category: "sync" },
@@ -63,6 +69,7 @@ export const defaultShortcuts: ShortcutDefinition[] = [
   { id: "align-prev-page", action: "alignPrevPage", description: "shortcuts.action.alignPrevPage", defaultKey: "Shift+Tab", category: "alignment" },
   { id: "align-swap-files", action: "alignSwapFiles", description: "shortcuts.action.alignSwapFiles", defaultKey: "Ctrl+Shift+S", category: "alignment" },
   { id: "align-undo", action: "alignUndo", description: "shortcuts.action.alignUndo", defaultKey: "Ctrl+Z", category: "alignment" },
+  { id: "align-redo", action: "alignRedo", description: "common.redo", defaultKey: "Ctrl+Shift+Z", category: "alignment" },
   { id: "align-save", action: "alignSave", description: "shortcuts.action.alignSave", defaultKey: "Ctrl+S", category: "alignment" },
   { id: "align-cycle-per-page", action: "alignCyclePerPage", description: "shortcuts.action.alignCyclePerPage", defaultKey: "Ctrl+Shift+P", category: "alignment" },
 
@@ -191,4 +198,27 @@ export function formatKeyPart(part: string, translate: (key: string) => string):
   const key = `keys.${part.toLowerCase()}`;
   const label = translate(key);
   return label === key ? part : label;
+}
+
+/** Resolve editable shortcuts at dispatch time so rebinding takes effect immediately. */
+export function matchesConfiguredShortcut(event: KeyboardEvent, id: string): boolean {
+  const shortcut = getShortcuts().find(shortcut => shortcut.id === id);
+  if (!shortcut) return false;
+  const parts = shortcut.defaultKey.toLowerCase().split("+");
+  const key = parts.at(-1);
+  return (parts.includes("ctrl") === (event.ctrlKey || event.metaKey))
+    && parts.includes("alt") === event.altKey
+    && parts.includes("shift") === event.shiftKey
+    && (key === "space" ? event.key === " " : key === event.key.toLowerCase());
+}
+
+export function historyShortcutAction(event: KeyboardEvent, scope: "sync" | "align" | "flashcards" | "refine"): "undo" | "redo" | null {
+  if (event.defaultPrevented || event.isComposing) return null;
+  if (matchesConfiguredShortcut(event, `${scope}-undo`)) return "undo";
+  if (matchesConfiguredShortcut(event, `${scope}-redo`)) return "redo";
+  // Ctrl+Y is a conventional alias while redo retains its default binding.
+  const redo = getShortcuts().find(shortcut => shortcut.id === `${scope}-redo`);
+  if (redo?.defaultKey === "Ctrl+Shift+Z" && (event.ctrlKey || event.metaKey)
+    && !event.altKey && !event.shiftKey && event.key.toLowerCase() === "y") return "redo";
+  return null;
 }
