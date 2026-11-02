@@ -49,3 +49,13 @@ it("undo reports whether it consumed a preview edit", () => {
  expect(store.undo()).toBe(true);
  expect(store.lines[0].active).toBe(true);
 });
+
+it("redo restores preview edits and new toggles discard the redo branch", () => {
+ const store = new PreviewStore(); store.lines = [{ ...line }];
+ store.toggleLineActive(store.lines[0]);
+ expect(store.lines[0].active).toBe(false);
+ store.undo(); expect(store.canRedo).toBe(true);
+ store.redo(); expect(store.lines[0].active).toBe(false);
+ store.undo(); store.toggleLineActive(store.lines[0]);
+ expect(store.redo()).toBe(false);
+});

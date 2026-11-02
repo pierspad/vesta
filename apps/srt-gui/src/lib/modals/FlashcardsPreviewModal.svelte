@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { historyShortcutAction } from "$lib/utils/shortcuts";
   import { contextMenu as fitContextMenu } from "$lib/utils/contextMenu";
   import { onDestroy } from "svelte";
   import { writeClipboard } from "$lib/utils/clipboard";
@@ -50,13 +51,13 @@
   $effect(() => {
     const handleKeydown = (e: KeyboardEvent) => {
       if (
-        e.defaultPrevented || e.isComposing || e.shiftKey || !active || !previewStore.visible ||
-        !(e.ctrlKey || e.metaKey) || e.key.toLowerCase() !== "z"
+        e.defaultPrevented || e.isComposing || !active || !previewStore.visible || previewStore.loading
       ) return;
       const target = e.target instanceof Element ? e.target : null;
       if (!target || !modalElement?.contains(target)) return;
       if (target.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"])')) return;
-      if (previewStore.undo()) e.preventDefault();
+      const action = historyShortcutAction(e, "flashcards");
+      if (action && previewStore[action]()) e.preventDefault();
     };
     // Capture before the dialog panel stops bubbling from card controls.
     window.addEventListener("keydown", handleKeydown, true);

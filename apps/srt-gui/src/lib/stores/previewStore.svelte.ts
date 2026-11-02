@@ -55,6 +55,9 @@ export class PreviewStore {
   playerElement = $state<HTMLMediaElement | null>(null);
 
   private undoStack = $state<PreviewLine[][]>([]);
+  private redoStack = $state<PreviewLine[][]>([]);
+  canUndo = $derived(this.undoStack.length > 0);
+  canRedo = $derived(this.redoStack.length > 0);
   private mediaServerInfo: [number, string] | null = null;
 
   filtered = $derived(
@@ -99,6 +102,7 @@ export class PreviewStore {
       this.previewedSubsPath = config.target_subs_path as string;
       this.previewedNativeSubsPath = (config.native_subs_path as string | null) ?? null;
       this.undoStack = [];
+      this.redoStack = [];
       onLoaded?.(this.lines);
     } catch (error) {
       if (!request.isCurrent()) return;
@@ -129,21 +133,30 @@ export class PreviewStore {
     if (!expertMode) this.filter = "all";
   }
 
+  private copyLines() {
+    return this.lines.map(line => ({ ...line, leading_context: [...line.leading_context], trailing_context: [...line.trailing_context] }));
+  }
+
   private pushUndo() {
+    this.redoStack = [];
     if (this.undoStack.length >= UNDO_LIMIT) this.undoStack.shift();
-    this.undoStack.push(
-      this.lines.map((line) => ({
-        ...line,
-        leading_context: [...line.leading_context],
-        trailing_context: [...line.trailing_context],
-      })),
-    );
+    this.undoStack.push(this.copyLines());
   }
 
   undo(): boolean {
     const previous = this.undoStack.pop();
     if (!previous) return false;
+    this.redoStack.push(this.copyLines());
     this.lines = previous;
+    return true;
+  }
+
+  redo(): boolean {
+    const next = this.redoStack.pop();
+    if (!next) return false;
+    if (this.undoStack.length >= UNDO_LIMIT) this.undoStack.shift();
+    this.undoStack.push(this.copyLines());
+    this.lines = next;
     return true;
   }
 

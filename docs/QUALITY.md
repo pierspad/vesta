@@ -607,3 +607,7 @@ Document history is blocked while processing/saving; native editor undo is not
 intercepted. New-file loads clear history, while saving updates the saved baseline
 without discarding it. Mounted tests cover edit/undo/redo/save, native editor
 shortcuts and inactive tabs; helper tests cover notes-only and document isolation.
+
+Flashcard preview activation edits also support redo. Undo/redo stays within the
+active preview dialog, leaves editable fields alone, clears redo after new
+activation edits and resets both stacks on a successful new preview load.
