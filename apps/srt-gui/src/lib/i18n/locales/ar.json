@@ -739,7 +739,7 @@
   "sync.autoSyncResult.success": "تمت المزامنة بنجاح لـ {{count}} مقاطع",
   "sync.averageOffset": "متوسط الإزاحة",
   "sync.cancelReset": "إلغاء",
-  "sync.completed": "مكتمل",
+  "sync.checkedCoverage": "الترجمات المفحوصة",
   "sync.offsetSpread": "تفاوت الإزاحة",
   "sync.offsetSpreadHelp": "الفرق بين إزاحات نقاط التحقق. تساوي الإزاحات لا يؤكد صحة الترجمات غير المفحوصة.",
   "sync.confirm": "تأكيد",

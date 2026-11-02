@@ -739,7 +739,7 @@
   "sync.autoSyncResult.success": "Успешно синхронизировано для {{count}} сегментов",
   "sync.averageOffset": "Среднее смещение",
   "sync.cancelReset": "Отмена",
-  "sync.completed": "завершено",
+  "sync.checkedCoverage": "Проверенные субтитры",
   "sync.offsetSpread": "Разброс смещений",
   "sync.offsetSpreadHelp": "Разница между смещениями контрольных точек. Равные смещения не подтверждают непроверенные субтитры.",
   "sync.confirm": "Подтвердить",

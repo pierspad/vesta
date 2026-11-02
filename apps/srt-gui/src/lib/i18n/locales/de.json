@@ -739,7 +739,7 @@
   "sync.autoSyncResult.success": "Erfolgreich synchronisiert für {{count}} Segmente",
   "sync.averageOffset": "Durchschnittlicher Offset",
   "sync.cancelReset": "Abbrechen",
-  "sync.completed": "abgeschlossen",
+  "sync.checkedCoverage": "Geprüfte Untertitel",
   "sync.offsetSpread": "Offset-Spanne",
   "sync.offsetSpreadHelp": "Differenz zwischen den Checkpoint-Offsets. Gleiche Offsets bestätigen keine ungeprüften Untertitel.",
   "sync.confirm": "Bestätigen",

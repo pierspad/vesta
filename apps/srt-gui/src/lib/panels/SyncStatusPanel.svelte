@@ -78,8 +78,8 @@
 
   <div class="space-y-1.5 pt-1.5 border-t border-white/5 flex-shrink-0">
     <div class="flex justify-between text-[10px] text-gray-400 font-semibold">
-      <span class="uppercase tracking-wider">{t("sync.completed")}</span>
-      <span>{status?.is_loaded ? status.completion_percentage.toFixed(1) : "0.0"}%</span>
+      <span class="uppercase tracking-wider">{t("sync.checkedCoverage")}</span>
+      <span>{status?.is_loaded ? `${status.checked_count} / ${status.total_subtitles} (${status.completion_percentage.toFixed(1)}%)` : "0 / 0 (0.0%)"}</span>
     </div>
     <div class="progress-modern h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
       <div

@@ -739,7 +739,7 @@
   "sync.autoSyncResult.success": "{{count}} खंडوں के लिए सफलतापूर्वक सिंक किया गया",
   "sync.averageOffset": "औसत ऑफ़सेट",
   "sync.cancelReset": "रद्द करें",
-  "sync.completed": "पूरा हुआ",
+  "sync.checkedCoverage": "जाँचे गए उपशीर्षक",
   "sync.offsetSpread": "ऑफ़सेट का अंतर",
   "sync.offsetSpreadHelp": "चेकपॉइंट के ऑफ़सेट के बीच अंतर। समान ऑफ़सेट से बिना जाँचे उपशीर्षक सत्यापित नहीं होते।",
   "sync.confirm": "पुष्टि करें",

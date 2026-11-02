@@ -739,7 +739,7 @@
   "sync.autoSyncResult.success": "Sincronizzato correttamente per {{count}} segmenti",
   "sync.averageOffset": "Offset medio",
   "sync.cancelReset": "Annulla",
-  "sync.completed": "completato",
+  "sync.checkedCoverage": "Sottotitoli controllati",
   "sync.offsetSpread": "Variazione offset",
   "sync.offsetSpreadHelp": "Differenza tra gli offset dei checkpoint. Offset uguali non verificano i sottotitoli non controllati.",
   "sync.confirm": "Conferma",

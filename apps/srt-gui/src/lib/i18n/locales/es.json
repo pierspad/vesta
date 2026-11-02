@@ -739,7 +739,7 @@
   "sync.autoSyncResult.success": "Sincronizado con éxito para {{count}} segmentos",
   "sync.averageOffset": "Desfase promedio",
   "sync.cancelReset": "Cancelar",
-  "sync.completed": "completado",
+  "sync.checkedCoverage": "Subtítulos revisados",
   "sync.offsetSpread": "Variación del desfase",
   "sync.offsetSpreadHelp": "Diferencia entre los desfases de los puntos de control. Los desfases iguales no verifican los subtítulos sin revisar.",
   "sync.confirm": "Confirmar",

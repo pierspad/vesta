@@ -739,7 +739,7 @@
   "sync.autoSyncResult.success": "已成功同步 {{count}} 个片段",
   "sync.averageOffset": "平均偏移",
   "sync.cancelReset": "取消",
-  "sync.completed": "已完成",
+  "sync.checkedCoverage": "已检查的字幕",
   "sync.offsetSpread": "偏移量范围",
   "sync.offsetSpreadHelp": "检查点之间偏移量的差值。偏移量一致并不代表未检查的字幕已得到验证。",
   "sync.confirm": "确认",

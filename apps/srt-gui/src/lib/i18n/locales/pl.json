@@ -739,7 +739,7 @@
   "sync.autoSyncResult.success": "Pomyślnie zsynchronizowano dla {{count}} segmentów",
   "sync.averageOffset": "Średni offset",
   "sync.cancelReset": "Anuluj",
-  "sync.completed": "ukończono",
+  "sync.checkedCoverage": "Sprawdzone napisy",
   "sync.offsetSpread": "Rozrzut przesunięć",
   "sync.offsetSpreadHelp": "Różnica między przesunięciami punktów kontrolnych. Równe przesunięcia nie potwierdzają niesprawdzonych napisów.",
   "sync.confirm": "Potwierdź",

@@ -739,7 +739,7 @@
   "sync.autoSyncResult.success": "Successfully synced for {{count}} segments",
   "sync.averageOffset": "Average offset",
   "sync.cancelReset": "Cancel",
-  "sync.completed": "completed",
+  "sync.checkedCoverage": "Subtitles checked",
   "sync.offsetSpread": "Offset spread",
   "sync.offsetSpreadHelp": "Difference between checkpoint offsets. Matching offsets do not verify unchecked subtitles.",
   "sync.confirm": "Confirm",

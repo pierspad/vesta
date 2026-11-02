@@ -739,7 +739,7 @@
   "sync.autoSyncResult.success": "Synchronisé avec succès pour {{count}} segments",
   "sync.averageOffset": "Décalage moyen",
   "sync.cancelReset": "Annuler",
-  "sync.completed": "terminé",
+  "sync.checkedCoverage": "Sous-titres vérifiés",
   "sync.offsetSpread": "Écart des décalages",
   "sync.offsetSpreadHelp": "Différence entre les décalages des points de contrôle. Des décalages égaux ne valident pas les sous-titres non vérifiés.",
   "sync.confirm": "Confirmer",

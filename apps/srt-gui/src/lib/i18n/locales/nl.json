@@ -739,7 +739,7 @@
   "sync.autoSyncResult.success": "Gesynchroniseerd voor {{count}} segmenten",
   "sync.averageOffset": "Gemiddelde compensatie",
   "sync.cancelReset": "Annuleren",
-  "sync.completed": "voltooid",
+  "sync.checkedCoverage": "Gecontroleerde ondertitels",
   "sync.offsetSpread": "Verschil in offsets",
   "sync.offsetSpreadHelp": "Verschil tussen de offsets van controlepunten. Gelijke offsets bevestigen geen ongecontroleerde ondertitels.",
   "sync.confirm": "Bevestigen",

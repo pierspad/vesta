@@ -739,7 +739,7 @@
   "sync.autoSyncResult.success": "{{count}} 個のセグメントの同期に成功しました",
   "sync.averageOffset": "平均オフセット",
   "sync.cancelReset": "キャンセル",
-  "sync.completed": "完了しました",
+  "sync.checkedCoverage": "確認済みの字幕",
   "sync.offsetSpread": "オフセットの幅",
   "sync.offsetSpreadHelp": "チェックポイント間のオフセットの差です。一致しても未確認の字幕の正確さは保証されません。",
   "sync.confirm": "確認",

@@ -739,7 +739,7 @@
   "sync.autoSyncResult.success": "Sincronizado com sucesso para {{count}} segmentos",
   "sync.averageOffset": "Ajuste médio",
   "sync.cancelReset": "Cancelar",
-  "sync.completed": "concluído",
+  "sync.checkedCoverage": "Legendas verificadas",
   "sync.offsetSpread": "Variação do desvio",
   "sync.offsetSpreadHelp": "Diferença entre os desvios dos pontos de controlo. Desvios iguais não validam legendas não verificadas.",
   "sync.confirm": "Confirmar",

@@ -739,7 +739,7 @@
   "sync.autoSyncResult.success": "{{count}} segment başarıyla senkronize edildi",
   "sync.averageOffset": "Ortalama ofset",
   "sync.cancelReset": "İptal",
-  "sync.completed": "tamamlandı",
+  "sync.checkedCoverage": "Kontrol edilen altyazılar",
   "sync.offsetSpread": "Ofset aralığı",
   "sync.offsetSpreadHelp": "Kontrol noktalarının ofsetleri arasındaki fark. Eşit ofsetler, kontrol edilmemiş altyazıları doğrulamaz.",
   "sync.confirm": "Onayla",

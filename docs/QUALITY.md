@@ -611,3 +611,13 @@ shortcuts and inactive tabs; helper tests cover notes-only and document isolatio
 Flashcard preview activation edits also support redo. Undo/redo stays within the
 active preview dialog, leaves editable fields alone, clears redo after new
 activation edits and resets both stacks on a successful new preview load.
+
+Sync's coverage bar is labeled "Subtitles checked" and reports the checked count
+alongside the total and percentage. This is independent of completing the wizard's
+sample review or having consistent offsets at a few anchors.
+
+The textarea review found no new measured editor-scroll bottleneck in this
+change. Existing CodeEditor/plain-textarea comparisons remain the evidence;
+they do not reproduce the reported native slowdown. No speculative scroll/CSS
+optimization was applied. Reproduce the specific field in the installed native
+WebView and collect a profile before claiming that report resolved.
