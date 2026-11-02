@@ -37,7 +37,7 @@ impl AnchorPoint {
     }
 }
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct TimeMapper {
     anchors: Vec<AnchorPoint>,
 }

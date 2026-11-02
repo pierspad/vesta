@@ -55,6 +55,12 @@ impl AdaptiveSampler {
         }
     }
 
+    pub fn unmark_checked(&mut self, index: u32) {
+        if let Ok(position) = self.checked_indices.binary_search(&index) {
+            self.checked_indices.remove(position);
+        }
+    }
+
     pub fn is_checked(&self, index: u32) -> bool {
         self.checked_indices.binary_search(&index).is_ok()
     }

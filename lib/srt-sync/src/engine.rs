@@ -20,6 +20,14 @@ pub struct SyncState {
     pub sampler_strategy: SamplerStrategy,
 }
 
+const HISTORY_LIMIT: usize = 100;
+
+#[derive(Debug, Clone, PartialEq)]
+struct AnchorEdit {
+    mapper: TimeMapper,
+    checked: Vec<u32>,
+}
+
 #[derive(Debug)]
 pub struct SyncEngine {
     subtitles: HashMap<u32, Subtitle>,
@@ -42,6 +50,9 @@ pub struct SyncEngine {
     time_index: Vec<(u64, u64, u32)>,
     prefix_max_end: Vec<u64>,
     center_index: Vec<(u64, u32)>,
+    undo: Vec<AnchorEdit>,
+    redo: Vec<AnchorEdit>,
+    grouping: bool,
 }
 
 impl SyncEngine {
@@ -89,6 +100,9 @@ impl SyncEngine {
             time_index: Vec::new(),
             prefix_max_end: Vec::new(),
             center_index: Vec::new(),
+            undo: Vec::new(),
+            redo: Vec::new(),
+            grouping: false,
         };
         engine.update_sampler_times();
         engine.rebuild_time_index();
@@ -275,19 +289,86 @@ impl SyncEngine {
             )
         };
 
+        let before = self.anchor_edit();
         self.time_mapper.add_anchor(anchor);
         self.rebuild_time_index();
         self.sampler.mark_checked(subtitle_id);
+        self.record_anchor_edit(before);
 
         Ok(())
     }
 
     pub fn remove_anchor(&mut self, subtitle_id: u32) -> bool {
+        let before = self.anchor_edit();
         let removed = self.time_mapper.remove_anchor(subtitle_id);
         if removed {
+            self.sampler.unmark_checked(subtitle_id);
             self.rebuild_time_index();
+            self.record_anchor_edit(before);
         }
         removed
+    }
+
+    fn anchor_edit(&self) -> AnchorEdit {
+        AnchorEdit {
+            mapper: self.time_mapper.clone(),
+            checked: self.sampler.get_checked_indices().to_vec(),
+        }
+    }
+
+    fn record_anchor_edit(&mut self, before: AnchorEdit) {
+        if !self.grouping && before != self.anchor_edit() {
+            if self.undo.len() == HISTORY_LIMIT {
+                self.undo.remove(0);
+            }
+            self.undo.push(before);
+            self.redo.clear();
+        }
+    }
+
+    /// Treat a multi-anchor operation, such as automatic alignment, as one edit.
+    pub fn group_anchor_edits<R>(&mut self, operation: impl FnOnce(&mut Self) -> R) -> R {
+        let before = self.anchor_edit();
+        let was_grouping = self.grouping;
+        self.grouping = true;
+        let result = operation(self);
+        self.grouping = was_grouping;
+        self.record_anchor_edit(before);
+        result
+    }
+
+    fn restore_anchor_edit(&mut self, edit: AnchorEdit) {
+        self.time_mapper = edit.mapper;
+        self.sampler.reset();
+        for id in edit.checked {
+            self.sampler.mark_checked(id);
+        }
+        self.rebuild_time_index();
+    }
+
+    pub fn can_undo(&self) -> bool {
+        !self.undo.is_empty()
+    }
+    pub fn can_redo(&self) -> bool {
+        !self.redo.is_empty()
+    }
+
+    pub fn undo(&mut self) -> bool {
+        let Some(previous) = self.undo.pop() else {
+            return false;
+        };
+        self.redo.push(self.anchor_edit());
+        self.restore_anchor_edit(previous);
+        true
+    }
+
+    pub fn redo(&mut self) -> bool {
+        let Some(next) = self.redo.pop() else {
+            return false;
+        };
+        self.undo.push(self.anchor_edit());
+        self.restore_anchor_edit(next);
+        true
     }
 
     pub fn get_current_offset(&self, subtitle_id: u32) -> Option<i64> {
@@ -382,6 +463,8 @@ impl SyncEngine {
     }
 
     pub fn reset(&mut self) {
+        self.undo.clear();
+        self.redo.clear();
         self.time_mapper.clear();
         self.rebuild_time_index();
         self.sampler.reset();
@@ -596,6 +679,9 @@ mod tests {
             time_index: Vec::new(),
             prefix_max_end: Vec::new(),
             center_index: Vec::new(),
+            undo: Vec::new(),
+            redo: Vec::new(),
+            grouping: false,
         };
 
         engine.rebuild_time_index();

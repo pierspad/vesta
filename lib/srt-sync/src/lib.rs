@@ -11,3 +11,6 @@ pub use matching::{
 };
 pub use playback::{is_natively_playable, transcode_for_playback};
 pub use sampler::{AdaptiveSampler, SamplerStrategy};
+
+#[cfg(test)]
+mod history_tests;

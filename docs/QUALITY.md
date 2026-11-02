@@ -571,3 +571,13 @@ anchor count. Wizard checkpoints are bounded for short files and include the
 end of the subtitle file. Completion copy distinguishes a finished checkpoint
 review from verification of every subtitle. Tests cover four zero-offset
 anchors, short-file bounds and status rendering.
+
+## Authoritative synchronization history
+
+`SyncEngine` keeps up to 100 anchor-edit snapshots, including the complete mapper
+and checked checkpoints. Add/update/delete operations are reversible; deleting
+an anchor also unchecks its checkpoint. No-op edits preserve redo, new edits
+clear it, and a grouped multi-anchor operation is one undo step. Loading a new
+engine/session starts a fresh history without reparsing the source on each undo.
+Engine tests cover out-of-order edits, replacement, deletion, restored mapping,
+branching, grouping, bounds and session isolation.
