@@ -91,6 +91,13 @@
     }
   });
 
+  $effect(() => {
+    if (disabled && isOpen) {
+      isOpen = false;
+      searchQuery = "";
+    }
+  });
+
   async function handleFocus() {
     if (disabled) return;
     isOpen = true;
@@ -308,6 +315,7 @@
       use:placeMenu
       class="searchable-select-dropdown"
       class:opens-up={placement === "up"}
+      style="background: var(--control-menu-bg, var(--surface)); backdrop-filter: none; -webkit-backdrop-filter: none"
     >
       {#if filteredOptions.length === 0}
         <div class="px-4 py-3 text-gray-500 text-sm text-center">
@@ -419,7 +427,9 @@
     max-height: 280px;
     overflow-y: auto;
     overflow-x: hidden;
-    background: var(--control-menu-bg) !important;
+    background: var(--control-menu-bg, var(--surface)) !important;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
     border: 1px solid rgba(148, 163, 184, 0.25);
     border-radius: 10px;
     box-shadow: none;
@@ -445,7 +455,7 @@
     transition: background-color 0.08s ease, color 0.08s ease;
     cursor: pointer;
     border: none;
-    background: var(--control-menu-bg) !important;
+    background: var(--control-menu-bg, var(--surface)) !important;
   }
 
   .searchable-select-option:hover {

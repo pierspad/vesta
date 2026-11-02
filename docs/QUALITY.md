@@ -544,3 +544,12 @@ These are debug CLI diagnostics on one Linux/AMD machine. Filesystem cache was
 not controlled. GPU-driver/platform coverage and installed desktop behavior
 remain separate from the passing process fixtures, export comparisons and full
 quality gate. No general absence of regressions is implied.
+
+## Speech-engine popup layering
+
+The speech selector portals its opaque menu to the document body so sibling
+backdrop-filter cards cannot cover it. Disabling or hiding its owning tab closes
+the menu and releases portal listeners. Mounted tests cover portal positioning,
+selection, cleanup, disabled-state closure and saved endpoint invalidation.
+The Transcribe engine selector and tier configuration now live inside Options;
+the endpoint-upload hint remains available as a tooltip.

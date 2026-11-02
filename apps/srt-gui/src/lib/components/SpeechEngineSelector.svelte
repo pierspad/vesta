@@ -37,8 +37,8 @@
   });
 </script>
 
-<div title={compact ? t("speech.externalHint") : undefined}>
-<SearchableSelect {options} {value} {disabled} {compact}
+<div title={t("speech.externalHint")}>
+<SearchableSelect {options} {value} {disabled} {compact} portal
   placement={compact ? "up" : "down"}
   ariaLabel={t("transcribe.engineTitle")}
   placeholder={t("transcribe.engineTitle")}
@@ -46,5 +46,3 @@
   onchange={(id) => { selection = id; config.setItem(`vesta-${purpose}-speech-engine`, id); }}
 />
 </div>
-
-{#if !compact}<p class="mt-2 text-sm" style="color: var(--muted)">{t("speech.externalHint")}</p>{/if}

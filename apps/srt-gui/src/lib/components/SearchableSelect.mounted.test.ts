@@ -16,6 +16,8 @@ async function render() {
 it("escapes scroll clipping, stays below its input, and selects a portalled option", async () => {
  const {target,onchange} = await render();
  const menu = document.body.querySelector<HTMLDivElement>(".searchable-select-dropdown")!;
+ expect(menu.style.background).toContain("--control-menu-bg");
+ expect(menu.style.backdropFilter).toBe("none");
  expect(menu.parentElement).toBe(document.body); expect(target.contains(menu)).toBe(false);
  expect(menu.style.position).toBe("fixed"); expect(menu.style.top).toBe("124px"); expect(menu.style.width).toBe("300px");
  (menu.querySelectorAll("button")[1] as HTMLButtonElement).click(); await tick();

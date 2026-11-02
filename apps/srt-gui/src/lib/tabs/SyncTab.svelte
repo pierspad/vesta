@@ -1345,7 +1345,7 @@
 
       <div class="w-44">
         <SpeechEngineSelector purpose="sync" compact
-          disabled={autoSyncStore.isAutoSyncing || localWhisperOperation.busy}
+          disabled={autoSyncStore.isAutoSyncing || localWhisperOperation.busy || !active}
           onresolve={(entry) => { selectedEngine = entry; }}
         />
       </div>
