@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { anchorOffsetSpread, initialSyncCheckpoints } from "$lib/workflows/syncAssessment";
   import { contextMenu as fitContextMenu } from "$lib/utils/contextMenu";
   import { SyncOffsetAdjustment } from "$lib/workflows/syncOffsetAdjustment.svelte";
   import WorkflowWorkspace from "$lib/components/WorkflowWorkspace.svelte";
@@ -85,11 +86,7 @@
 
 
 
-  let confidenceScore = $derived(
-    status?.total_subtitles
-      ? Math.min(100, Math.round((anchors.length / Math.max(1, status.total_subtitles / 15)) * 100))
-      : 0
-  );
+  let offsetSpread = $derived(anchorOffsetSpread(anchors));
 
   let wizardSubtitle = $state<SubtitleInfo | null>(null);
   const offset = new SyncOffsetAdjustment();
@@ -410,11 +407,7 @@
     if (!status || status.total_subtitles === 0) return null;
     const total = status.total_subtitles;
 
-    const initialCheckpoints = [
-      1,
-      Math.max(2, Math.round(total * 0.33)),
-      Math.max(3, Math.round(total * 0.66)),
-    ];
+    const initialCheckpoints = initialSyncCheckpoints(total);
 
     for (const cp of initialCheckpoints) {
       if (!wizardHistory.includes(cp)) return cp;
@@ -1287,7 +1280,7 @@
         onConfirm={confirmCurrentCheckpoint}
       />
     {:else if panelId === "status"}
-      <SyncStatusPanel {status} {confidenceScore} {formatOffset} />
+      <SyncStatusPanel {status} {offsetSpread} {formatOffset} />
     {:else if panelId === "subtitleList"}
       <SubtitleListPanel
         pageSize={PAGE_SIZE}

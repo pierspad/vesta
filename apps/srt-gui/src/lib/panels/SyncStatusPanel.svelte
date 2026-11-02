@@ -15,11 +15,11 @@
 
   interface Props {
     status: SyncStatus | null;
-    confidenceScore: number;
+    offsetSpread: number | null;
     formatOffset: (ms: number) => string;
   }
 
-  let { status, confidenceScore, formatOffset }: Props = $props();
+  let { status, offsetSpread, formatOffset }: Props = $props();
 
   let t = $derived($locale);
 </script>
@@ -67,11 +67,11 @@
         </p>
         <p class="text-[10px] text-gray-500 uppercase tracking-wider mt-1 truncate">{t("sync.averageOffset")}</p>
       </div>
-      <div class="bg-white/5 rounded-xl py-2 px-1 text-center flex flex-col justify-center min-w-0" title={t("sync.confidenceHelp")}>
+      <div class="bg-white/5 rounded-xl py-2 px-1 text-center flex flex-col justify-center min-w-0" title={t("sync.offsetSpreadHelp")}>
         <p class="text-xl font-bold text-indigo-300 truncate">
-          {status?.is_loaded ? confidenceScore : 0}%
+          {status?.is_loaded && offsetSpread !== null ? `${(offsetSpread / 1000).toFixed(2)}s` : "—"}
         </p>
-        <p class="text-[10px] text-gray-500 uppercase tracking-wider mt-1 truncate">{t("sync.confidence")}</p>
+        <p class="text-[10px] text-gray-500 uppercase tracking-wider mt-1 truncate">{t("sync.offsetSpread")}</p>
       </div>
     </div>
   </div>

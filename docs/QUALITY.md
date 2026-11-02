@@ -562,3 +562,12 @@ resolution reads user bindings at dispatch time. Defaults use Ctrl/Cmd+Z and
 Ctrl/Cmd+Shift+Z; Ctrl/Cmd+Y is an alias while redo keeps its default binding.
 Native editable fields keep their own text undo. Undo/redo actions are listed in
 the shortcuts tab for their document scope.
+
+## Checkpoint agreement instead of synthetic confidence
+
+Sync status displays the spread between anchor offsets in seconds, with no score
+when fewer than two anchors exist. It does not estimate match probability from
+anchor count. Wizard checkpoints are bounded for short files and include the
+end of the subtitle file. Completion copy distinguishes a finished checkpoint
+review from verification of every subtitle. Tests cover four zero-offset
+anchors, short-file bounds and status rendering.
