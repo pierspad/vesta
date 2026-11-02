@@ -30,6 +30,8 @@ pub struct SyncStatus {
     pub completion_percentage: f64,
     pub average_offset_ms: f64,
     pub suggested_next_id: Option<u32>,
+    pub can_undo: bool,
+    pub can_redo: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -84,6 +86,8 @@ pub fn sync_get_status(state: State<'_, AppSyncState>) -> Result<SyncStatus, Str
             completion_percentage: 0.0,
             average_offset_ms: 0.0,
             suggested_next_id: None,
+            can_undo: false,
+            can_redo: false,
         }),
     }
 }
@@ -222,6 +226,8 @@ pub fn sync_add_anchor(
 ) -> Result<SyncStatus, String> {
     let mut sync_state = state.lock().map_err(|e| e.to_string())?;
 
+    sync_state.operation.ensure_idle()?;
+
     let engine = sync_state
         .engine
         .as_mut()
@@ -242,6 +248,8 @@ pub fn sync_remove_anchor(
 ) -> Result<SyncStatus, String> {
     let mut sync_state = state.lock().map_err(|e| e.to_string())?;
 
+    sync_state.operation.ensure_idle()?;
+
     let engine = sync_state
         .engine
         .as_mut()
@@ -249,6 +257,28 @@ pub fn sync_remove_anchor(
 
     engine.remove_anchor(subtitle_id);
 
+    Ok(get_status_from_engine(engine))
+}
+
+#[tauri::command]
+pub fn sync_undo(state: State<'_, AppSyncState>) -> Result<SyncStatus, String> {
+    change_history(&state, false)
+}
+
+#[tauri::command]
+pub fn sync_redo(state: State<'_, AppSyncState>) -> Result<SyncStatus, String> {
+    change_history(&state, true)
+}
+
+fn change_history(state: &AppSyncState, redo: bool) -> Result<SyncStatus, String> {
+    let mut state = state.lock().map_err(|e| e.to_string())?;
+    state.operation.ensure_idle()?;
+    let engine = state.engine.as_mut().ok_or("No SRT file loaded")?;
+    if redo {
+        engine.redo();
+    } else {
+        engine.undo();
+    }
     Ok(get_status_from_engine(engine))
 }
 
@@ -387,6 +417,8 @@ pub fn sync_reset(state: State<'_, AppSyncState>) -> Result<SyncStatus, String> 
         completion_percentage: 0.0,
         average_offset_ms: 0.0,
         suggested_next_id: None,
+        can_undo: false,
+        can_redo: false,
     })
 }
 
@@ -473,5 +505,40 @@ fn get_status_from_engine(engine: &SyncEngine) -> SyncStatus {
         completion_percentage: engine.completion_percentage(),
         average_offset_ms: engine.get_average_offset(),
         suggested_next_id: engine.suggest_next_index(),
+        can_undo: engine.can_undo(),
+        can_redo: engine.can_redo(),
+    }
+}
+
+#[cfg(test)]
+mod history_tests {
+    use super::*;
+    use crate::state::OperationGuard;
+
+    #[test]
+    fn history_is_locked_while_an_operation_owns_the_document() {
+        let source = tempfile::NamedTempFile::new().unwrap();
+        std::fs::write(source.path(), "1\n00:00:01,000 --> 00:00:02,000\nHello\n").unwrap();
+        let mut engine = SyncEngine::new(source.path()).unwrap();
+        engine.add_anchor(1, 1_200, true).unwrap();
+        let state = AppSyncState::default();
+        state.lock().unwrap().replace_engine(Some(engine)).unwrap();
+        let guard = OperationGuard::begin(&state, "busy").unwrap();
+        assert!(change_history(&state, false).is_err());
+        assert_eq!(
+            state
+                .lock()
+                .unwrap()
+                .engine
+                .as_ref()
+                .unwrap()
+                .anchor_count(),
+            1
+        );
+        drop(guard);
+        let undone = change_history(&state, false).unwrap();
+        assert_eq!(undone.anchor_count, 0);
+        assert!(undone.can_redo);
+        assert_eq!(change_history(&state, true).unwrap().anchor_count, 1);
     }
 }

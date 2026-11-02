@@ -287,6 +287,8 @@ fn main() -> std::process::ExitCode {
             sync_find_nearest_subtitle,
             sync_add_anchor,
             sync_remove_anchor,
+            sync_undo,
+            sync_redo,
             sync_get_anchors,
             sync_suggest_next,
             sync_set_strategy,

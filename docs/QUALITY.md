@@ -581,3 +581,11 @@ clear it, and a grouped multi-anchor operation is one undo step. Loading a new
 engine/session starts a fresh history without reparsing the source on each undo.
 Engine tests cover out-of-order edits, replacement, deletion, restored mapping,
 branching, grouping, bounds and session isolation.
+
+The desktop exposes backend `sync_undo`/`sync_redo` with idle-operation guards;
+auto-sync replacement is one grouped edit preserving manual anchors. The Sync
+UI refreshes status, anchors, checkpoint and page after history changes. Removal
+is a separate, keyboard-operable button and a context-menu action. Mounted tests
+verify dispatch to real history commands rather than guessing which anchor to
+remove, disabled/busy states and native input undo. Native command tests verify
+that an active operation blocks history mutations.

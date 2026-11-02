@@ -225,34 +225,36 @@ fn apply_suggestions(
     engine: &mut srt_sync::SyncEngine,
     suggestions: &[srt_autosync::AnchorSuggestion],
 ) -> usize {
-    // Keep the previous automatic result if no replacement was found.
-    // Only user-confirmed anchors are fixed constraints for the next run.
-    if !suggestions.is_empty() {
-        let automatic_ids: Vec<_> = engine
-            .get_anchors()
-            .iter()
-            .filter(|anchor| !anchor.is_manual)
-            .map(|anchor| anchor.subtitle_index)
-            .collect();
-        for id in automatic_ids {
-            engine.remove_anchor(id);
+    engine.group_anchor_edits(|engine| {
+        // Keep the previous automatic result if no replacement was found.
+        // Only user-confirmed anchors are fixed constraints for the next run.
+        if !suggestions.is_empty() {
+            let automatic_ids: Vec<_> = engine
+                .get_anchors()
+                .iter()
+                .filter(|anchor| !anchor.is_manual)
+                .map(|anchor| anchor.subtitle_index)
+                .collect();
+            for id in automatic_ids {
+                engine.remove_anchor(id);
+            }
         }
-    }
-    let existing_anchors = engine.get_anchors().to_vec();
-    let len_before = existing_anchors.len();
+        let existing_anchors = engine.get_anchors().to_vec();
+        let len_before = existing_anchors.len();
 
-    for s in suggestions {
-        let is_near_existing = existing_anchors.iter().any(|a| {
-            (a.original_time_ms - s.original_start_ms).abs() < 15_000
-                || (a.corrected_time_ms - s.corrected_time_ms).abs() < 15_000
-        });
+        for s in suggestions {
+            let is_near_existing = existing_anchors.iter().any(|a| {
+                (a.original_time_ms - s.original_start_ms).abs() < 15_000
+                    || (a.corrected_time_ms - s.corrected_time_ms).abs() < 15_000
+            });
 
-        if !is_near_existing {
-            let _ = engine.add_anchor(s.subtitle_id, s.corrected_time_ms, false);
+            if !is_near_existing {
+                let _ = engine.add_anchor(s.subtitle_id, s.corrected_time_ms, false);
+            }
         }
-    }
 
-    engine.get_anchors().len().saturating_sub(len_before)
+        engine.get_anchors().len().saturating_sub(len_before)
+    })
 }
 
 #[cfg(test)]
@@ -267,6 +269,7 @@ mod tests {
         engine.add_anchor(1, 65_000, true).unwrap();
         engine.add_anchor(3, 315_000, true).unwrap();
         engine.add_anchor(2, 190_000, false).unwrap();
+        let previous_anchors = engine.get_anchors().to_vec();
         assert_eq!(apply_suggestions(&mut engine, &[]), 0);
         assert_eq!(engine.get_anchors().len(), 3);
         let suggestion = srt_autosync::AnchorSuggestion {
@@ -284,5 +287,13 @@ mod tests {
         assert_eq!(anchors[1].corrected_time_ms, 192_000);
         assert!(anchors[2].is_manual);
         assert_eq!(anchors[2].corrected_time_ms, 315_000);
+        let replacement_anchors = anchors.to_vec();
+        assert!(
+            engine.undo(),
+            "a replacement auto-sync should be one undo step"
+        );
+        assert_eq!(engine.get_anchors(), previous_anchors);
+        assert!(engine.redo());
+        assert_eq!(engine.get_anchors(), replacement_anchors);
     }
 }

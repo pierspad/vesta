@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { historyShortcutAction } from "$lib/utils/shortcuts";
   import { anchorOffsetSpread, initialSyncCheckpoints } from "$lib/workflows/syncAssessment";
   import { contextMenu as fitContextMenu } from "$lib/utils/contextMenu";
   import { SyncOffsetAdjustment } from "$lib/workflows/syncOffsetAdjustment.svelte";
@@ -61,6 +62,8 @@
     completion_percentage: number;
     average_offset_ms: number;
     suggested_next_id: number | null;
+    can_undo: boolean;
+    can_redo: boolean;
   }
 
   interface AnchorInfo {
@@ -661,7 +664,7 @@
 
   async function confirmCurrentCheckpoint() {
     console.debug("[SyncTab] confirmCurrentCheckpoint called");
-    if (isConfirmingCheckpoint) {
+    if (syncEditBusy) {
       syncDebug("confirmCurrentCheckpoint ignored (already running)");
       return;
     }
@@ -706,14 +709,18 @@
   }
 
   async function removeAnchor(subtitleId: number) {
-    console.debug(`[SyncTab] removeAnchor(${subtitleId})`);
+    if (syncEditBusy) return;
+    isChangingHistory = true;
     try {
       status = await invoke<SyncStatus>("sync_remove_anchor", { subtitleId });
       await refreshCurrentSubtitles();
       await loadAnchors();
+      wizardHistory = wizardHistory.filter(id => id !== subtitleId);
+      showSaveSuggestion = false;
+      await goToCheckpoint(subtitleId, { autoplay: false });
     } catch (e) {
       showSnackbar(`${t("sync.errorRemovingAnchor")} ${errorMessage(e)}`, "error");
-    }
+    } finally { isChangingHistory = false; }
   }
 
   async function goToSubtitleManual(sub: SubtitleInfo) {
@@ -905,40 +912,38 @@
     }
   }
 
-  async function undoLastAnchor() {
-    if (anchors.length === 0) return;
-    // Remove the most recently *created* anchor? Actually anchors might be sorted by original_time_ms.
-    // Let's just remove the anchor for the last subtitle we visited, or the highest ID anchor if we just advanced.
-    // A simpler approach: find the anchor with the highest subtitle_id that we recently added, or just pop the last anchor.
-    // If wizardHistory has it, pop it.
-    const lastHistoryId = wizardHistory.length > 0 ? wizardHistory[wizardHistory.length - 1] : null;
-    const anchorToRemove = anchors.find(a => a.subtitle_id === lastHistoryId) || anchors[anchors.length - 1];
+  let isChangingHistory = $state(false);
+  let syncEditBusy = $derived(isChangingHistory || isConfirmingCheckpoint || autoSyncStore.isAutoSyncing);
 
-    if (!anchorToRemove) return;
-
+  async function changeSyncHistory(direction: "undo" | "redo") {
+    if (syncEditBusy || !status?.[direction === "undo" ? "can_undo" : "can_redo"]) return;
+    isChangingHistory = true;
+    audioElement?.pause();
+    closeSubtitleContextMenu();
+    if (singleClickTimer) { clearTimeout(singleClickTimer); singleClickTimer = null; }
+    const previous = anchors;
     try {
-      status = await invoke<SyncStatus>("sync_remove_anchor", { subtitleId: anchorToRemove.subtitle_id });
-      wizardHistory = wizardHistory.filter(id => id !== anchorToRemove.subtitle_id);
-
+      status = await invoke<SyncStatus>(direction === "undo" ? "sync_undo" : "sync_redo");
       await loadAnchors();
       await refreshCurrentSubtitles();
-
-      
-      // Go back to that subtitle to re-adjust
-      const sub = await invoke<SubtitleInfo>("sync_get_subtitle", { id: anchorToRemove.subtitle_id });
-      wizardSubtitle = sub;
-      resetOffset();
-      seekToSubtitleStart(sub);
-      scrollToSubtitle(sub.id);
-    } catch (e) {
-      showSnackbar(`Undo failed: ${errorMessage(e)}`, "error");
-    }
+      wizardHistory = anchors.filter(anchor => anchor.is_manual).map(anchor => anchor.subtitle_id);
+      showSaveSuggestion = false;
+      const changed = [...previous, ...anchors].find(anchor => {
+        const old = previous.find(a => a.subtitle_id === anchor.subtitle_id);
+        const next = anchors.find(a => a.subtitle_id === anchor.subtitle_id);
+        return old?.corrected_time_ms !== next?.corrected_time_ms || old?.is_manual !== next?.is_manual;
+      });
+      if (changed) await goToCheckpoint(changed.subtitle_id, { autoplay: false });
+      else if (wizardSubtitle) await goToCheckpoint(wizardSubtitle.id, { autoplay: false });
+    } catch (error) {
+      showSnackbar(errorMessage(error), "error");
+    } finally { isChangingHistory = false; }
   }
 
   function handleKeydown(e: KeyboardEvent) {
     if (!active || showResetModal || expandedPathField || e.defaultPrevented || e.isComposing) return;
     const target = e.target as HTMLElement | null;
-    if (target?.closest('select, [contenteditable="true"], [role="dialog"]')) return;
+    if (target?.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"]), [role="dialog"]')) return;
     // Let Enter/Space activate the focused control natively, while preserving
     // the other shortcuts (including P/G in the subtitle context menu).
     if ((e.key === "Enter" || e.key === " ") && target?.closest('button, a')) return;
@@ -970,10 +975,10 @@
     )
       return;
 
-    // Undo action (Ctrl+Z)
-    if (e.key === "z" && (e.ctrlKey || e.metaKey) && !e.shiftKey) {
+    const historyAction = historyShortcutAction(e, "sync");
+    if (historyAction) {
       e.preventDefault();
-      undoLastAnchor();
+      void changeSyncHistory(historyAction);
       return;
     }
 
@@ -1297,6 +1302,7 @@
         onDblClickSub={handleSubtitleDblClick}
         onContextMenu={openSubtitleContextMenu}
         onRemoveAnchor={removeAnchor}
+        editDisabled={syncEditBusy}
       />
     {/if}
   {/snippet}
@@ -1321,6 +1327,10 @@
   <!-- Fixed Bottom Band with Action Buttons -->
   <FooterActions>
     {#snippet left()}
+      <div class="flex gap-1">
+        <button class="btn-secondary px-2 py-2 text-sm" title={t("common.undo")} disabled={!status?.can_undo || syncEditBusy} onclick={() => changeSyncHistory("undo")}>{t("common.undo")}</button>
+        <button class="btn-secondary px-2 py-2 text-sm" title={t("common.redo")} disabled={!status?.can_redo || syncEditBusy} onclick={() => changeSyncHistory("redo")}>{t("common.redo")}</button>
+      </div>
       <div class="relative group">
         <button
           onclick={loadSession}
@@ -1338,7 +1348,7 @@
 
       <div class="w-44">
         <SpeechEngineSelector purpose="sync" compact
-          disabled={autoSyncStore.isAutoSyncing || localWhisperOperation.busy || !active}
+          disabled={!active || autoSyncStore.isAutoSyncing || localWhisperOperation.busy}
           onresolve={(entry) => { selectedEngine = entry; }}
         />
       </div>
@@ -1418,6 +1428,12 @@
       class="vesta-context-menu animate-fade-in"
 
       >
+        {#if subtitleContextMenu.sub.is_anchor}
+          <button class="vesta-context-menu-item" disabled={syncEditBusy}
+            onclick={() => { const id = subtitleContextMenu?.sub.id; closeSubtitleContextMenu(); if (id !== undefined) void removeAnchor(id); }}>
+            {t("sync.tooltipRemoveAnchor")}
+          </button>
+        {/if}
         <button
           onclick={() => {
             if (subtitleContextMenu)
