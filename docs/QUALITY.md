@@ -514,3 +514,33 @@ cached across separate exports. Existing preparation/clip software fallback and
 cancellation behavior remain in place. The process fixture
 `generation_probes_hardware_once_and_keeps_the_original_source` verifies probe
 count, original-source reuse and explicit CPU mode.
+
+## Accelerator review — 2 November 2026
+
+[Recorded measurements and reproduction protocol](performance/accelerator-review-2026-11-02.json)
+compare isolated baseline/candidate CLI binaries in three alternating pairs.
+The retained changes produced byte-identical media and identical note fields
+across six synthetic exports: 16 VA-API clips, 16 images and 16 audio files each.
+Median export time was 1.064 s before and 0.968 s after. Encoder probe processes
+fell from four to two on this host (failed NVENC then successful VA-API, once
+instead of twice). This primarily removes startup overhead; it is not evidence
+of a uniform 9% full-film speedup.
+
+A broader candidate that acquired the hardware semaphore before the general
+worker semaphore was rejected: on 24 mixed-media film cards, medians were
+9.506 s before and 10.117 s after, despite all media/note comparisons passing.
+The shipped scheduler retains the previous acquisition order and changes only
+the lifetime of the hardware permit during software retry.
+
+Forcing one decoder thread per snapshot was also rejected: the first measured
+sample went from a median 0.939 s to 1.182 s. Other thread budgets sometimes
+improved that file but do not justify a global default change across codecs,
+hardware, image formats and worker counts. Existing snapshot batching, local
+Whisper GPU support, video hardware detection and CPU fallbacks remain enabled.
+Cloud STT request counts/concurrency are unchanged; parallelizing billable
+requests without provider-specific rate/budget handling was not added.
+
+These are debug CLI diagnostics on one Linux/AMD machine. Filesystem cache was
+not controlled. GPU-driver/platform coverage and installed desktop behavior
+remain separate from the passing process fixtures, export comparisons and full
+quality gate. No general absence of regressions is implied.

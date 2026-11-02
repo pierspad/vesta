@@ -1,0 +1,245 @@
+{
+  "date": "2026-11-02",
+  "hardware": {
+    "cpu": "AMD Ryzen 7 5800X, 16 logical CPUs",
+    "gpu": "AMD Navi 32 [Radeon RX 7700 XT / 7800 XT], PCI 1002:747e",
+    "encoder": "h264_vaapi"
+  },
+  "scope": "Local debug-build diagnostics, warm/uncontrolled filesystem cache; not an installed UI or release performance certification.",
+  "retained": {
+    "baseline_commit": "de851a49f063f587d8b6980d12de2f34d65d1c40",
+    "profile": "debug",
+    "source": "synthetic H264/AAC 320x180, 24 fps, 32 seconds",
+    "settings": {
+      "cards": 16,
+      "duration_seconds": 1,
+      "workers": 12,
+      "snapshot_size": [
+        320,
+        180
+      ],
+      "optimize": true,
+      "normalize_audio": true,
+      "video_encoder": "h264_vaapi"
+    },
+    "ffmpeg": "ffmpeg version n9.0.2 Copyright (c) 2000-2026 the FFmpeg developers",
+    "runs": [
+      {
+        "variant": "before",
+        "pair": 0,
+        "seconds": 1.06,
+        "notes": 16,
+        "media_files": 48,
+        "hardware_clips": 16,
+        "software_fallbacks": 0,
+        "encoder_probes": 4,
+        "byte_identical_media": true
+      },
+      {
+        "variant": "after-retained",
+        "pair": 0,
+        "seconds": 0.968,
+        "notes": 16,
+        "media_files": 48,
+        "hardware_clips": 16,
+        "software_fallbacks": 0,
+        "encoder_probes": 2,
+        "byte_identical_media": true
+      },
+      {
+        "variant": "after-retained",
+        "pair": 1,
+        "seconds": 0.984,
+        "notes": 16,
+        "media_files": 48,
+        "hardware_clips": 16,
+        "software_fallbacks": 0,
+        "encoder_probes": 2,
+        "byte_identical_media": true
+      },
+      {
+        "variant": "before",
+        "pair": 1,
+        "seconds": 1.064,
+        "notes": 16,
+        "media_files": 48,
+        "hardware_clips": 16,
+        "software_fallbacks": 0,
+        "encoder_probes": 4,
+        "byte_identical_media": true
+      },
+      {
+        "variant": "before",
+        "pair": 2,
+        "seconds": 1.138,
+        "notes": 16,
+        "media_files": 48,
+        "hardware_clips": 16,
+        "software_fallbacks": 0,
+        "encoder_probes": 4,
+        "byte_identical_media": true
+      },
+      {
+        "variant": "after-retained",
+        "pair": 2,
+        "seconds": 0.963,
+        "notes": 16,
+        "media_files": 48,
+        "hardware_clips": 16,
+        "software_fallbacks": 0,
+        "encoder_probes": 2,
+        "byte_identical_media": true
+      }
+    ],
+    "medians": {
+      "before": 1.064,
+      "after-retained": 0.968
+    },
+    "binary_sha256": {
+      "before": "14357546437db3cec97c0bedda5c71d8bf8260faf708277b031c0272c7b2aea5",
+      "after-retained": "c37618d9228e6ebb908442f31dd69dc84ff7efd8c17988cbc039f5a73a363c49"
+    },
+    "media_reference_sha256": "22735a4497d33a618048a8e88651e2143f4d5bf644dc1b882244077d013e432c",
+    "changes": [
+      "Reuse generation-scoped encoder detection during video preparation",
+      "Release the hardware permit after the GPU attempt, before any software retry"
+    ],
+    "source_fixture": "testsrc2=size=320x180:rate=24:duration=32 plus 16 kHz 440 Hz sine, encoded as libx264 ultrafast + AAC",
+    "subtitle_fixture": "16 unique lines: start 2*i seconds, end 2*i+1 seconds, i=0..15",
+    "note_fields_identical": true,
+    "validation": "ZIP CRC, SQLite integrity, note/media counts, every media SHA-256 and note fields across all six runs; trace confirms hardware clips and no CPU fallback"
+  },
+  "rejected_gpu_first_queue": {
+    "baseline_commit": "de851a49f063f587d8b6980d12de2f34d65d1c40",
+    "profile": "debug",
+    "source": "Good.Will.Hunting.mp4",
+    "settings": {
+      "cards": 24,
+      "duration_seconds": 3,
+      "workers": 12,
+      "snapshot_size": [
+        320,
+        180
+      ],
+      "optimize": false,
+      "normalize_audio": true,
+      "video_encoder": "h264_vaapi"
+    },
+    "ffmpeg": "ffmpeg version n9.0.2 Copyright (c) 2000-2026 the FFmpeg developers",
+    "runs": [
+      {
+        "variant": "before",
+        "pair": 0,
+        "seconds": 9.302,
+        "notes": 24,
+        "media_files": 72,
+        "hardware_clips": 24,
+        "software_fallbacks": 0,
+        "byte_identical_media": true
+      },
+      {
+        "variant": "after",
+        "pair": 0,
+        "seconds": 9.934,
+        "notes": 24,
+        "media_files": 72,
+        "hardware_clips": 24,
+        "software_fallbacks": 0,
+        "byte_identical_media": true
+      },
+      {
+        "variant": "after",
+        "pair": 1,
+        "seconds": 10.117,
+        "notes": 24,
+        "media_files": 72,
+        "hardware_clips": 24,
+        "software_fallbacks": 0,
+        "byte_identical_media": true
+      },
+      {
+        "variant": "before",
+        "pair": 1,
+        "seconds": 10.125,
+        "notes": 24,
+        "media_files": 72,
+        "hardware_clips": 24,
+        "software_fallbacks": 0,
+        "byte_identical_media": true
+      },
+      {
+        "variant": "before",
+        "pair": 2,
+        "seconds": 9.506,
+        "notes": 24,
+        "media_files": 72,
+        "hardware_clips": 24,
+        "software_fallbacks": 0,
+        "byte_identical_media": true
+      },
+      {
+        "variant": "after",
+        "pair": 2,
+        "seconds": 10.153,
+        "notes": 24,
+        "media_files": 72,
+        "hardware_clips": 24,
+        "software_fallbacks": 0,
+        "byte_identical_media": true
+      }
+    ],
+    "medians": {
+      "before": 9.506,
+      "after": 10.117
+    },
+    "binary_sha256": {
+      "before": "14357546437db3cec97c0bedda5c71d8bf8260faf708277b031c0272c7b2aea5",
+      "after": "c63e757f04310ea42c02bc95fc9155ca5fe610a8e2be29d455198da75514ca4a"
+    },
+    "media_reference_sha256": "15d341c0ee337e7cc3d2484fc635d2ba403db1eded9b46613073860818d4828d",
+    "decision": "Rejected: median 6.4% slower; retain the existing general-worker acquisition order.",
+    "subtitle_fixture": "24 unique lines: start 210+10*i seconds, duration 3 seconds, i=0..23",
+    "note_fields_identical": true,
+    "validation": "Same ZIP, SQLite, count, media SHA-256 and note-field checks as retained comparison."
+  },
+  "rejected_single_thread_snapshots": {
+    "decision": "Do not force a one-thread decoder budget globally.",
+    "source": "Good.Will.Hunting.mp4, H264 1920x1040",
+    "positions_seconds": [
+      210,
+      700,
+      1500,
+      2600,
+      3800,
+      5000,
+      6200,
+      7300
+    ],
+    "workers": 4,
+    "output": "WebP quality 80, 640x360 bicubic",
+    "timing_includes": "Image extraction plus decoded SHA-256 verification",
+    "auto_seconds": [
+      0.933,
+      0.939,
+      1.011
+    ],
+    "single_thread_seconds": [
+      1.155,
+      1.182,
+      1.211
+    ],
+    "decoded_pixels_identical": true
+  },
+  "software_fallback_test": {
+    "fixture": "Four failing hardware child processes, three hardware sessions, four general workers; software retries wait for the fourth hardware attempt.",
+    "negative_control": "Without early GPU-permit release the test times out at five seconds.",
+    "corrected": "All four clips complete; no physical GPU required."
+  },
+  "reproduction": {
+    "binary": "cargo build --locked -p srt-flashcards-cli in isolated baseline/candidate checkouts; use separate target dirs or force a candidate rebuild and verify distinct binary hashes.",
+    "order": "Three alternating pairs: before/after, after/before, before/after.",
+    "retained_cli": "generate --target fixture.srt --video fixture.mp4 --output <new-run-dir> --deck SchedulingCheck --format apkg --jobs 12 --snapshot-width 320 --snapshot-height 180 --normalize-audio --quiet",
+    "rejected_cli": "Same command with --no-optimize and the film/subtitle fixture above.",
+    "tracing": "An FFmpeg shell wrapper appends its argv, then execs the real FFmpeg unchanged; export time includes wrapper startup, validation is excluded."
+  }
+}
