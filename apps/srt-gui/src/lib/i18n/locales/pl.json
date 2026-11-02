@@ -730,7 +730,7 @@
   "sync.autoSyncProgress.cancelled": "Anulowano",
   "sync.autoSyncProgress.done": "Automatyczna synchronizacja zakończona! Utworzono {{count}} nowych punktów zakotwiczenia.",
   "sync.autoSyncProgress.loadingModel": "Przygotowanie audio zakończone. Ładowanie modelu Whisper...",
-  "sync.autoSyncProgress.noMatches": "Nie znaleziono pewnych dopasowań. Spróbuj większego modelu Whisper lub sprawdź, czy plik SRT pasuje do dźwięku.",
+  "sync.autoSyncProgress.noMatches": "Nie znaleziono pewnych dopasowań. Spróbuj większego modelu STT lub sprawdź, czy plik SRT pasuje do dźwięku.",
   "sync.autoSyncProgress.preparingSegments": "Przygotowywanie i wyodrębnianie {{total}} segmentów audio równolegle...",
   "sync.autoSyncProgress.transcribingSegment": "Transkrypcja segmentu {{current}} z {{total}}...",
   "sync.autoSyncRequires": "Wymaga pliku SRT i multimediów",

@@ -3,7 +3,7 @@ use serde::Deserialize;
 
 use crate::transcribe::TranscribedSegment;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct CloudConfig {
     pub provider: String,
     pub api_key: String,
@@ -67,7 +67,20 @@ pub async fn transcribe_chunk(
         "deepgram" => deepgram(client, cfg, audio).await,
         "assemblyai" => assemblyai(client, cfg, audio).await,
 
-        _ => openai_compatible(client, cfg, audio, file_name).await,
+        _ => openai_compatible(client, cfg, audio, file_name, false).await,
+    }
+}
+
+/// Alignment must never use synthetic whole-chunk timestamps for text-only responses.
+pub async fn transcribe_timed_chunk(
+    client: &reqwest::Client,
+    cfg: &CloudConfig,
+    audio: Vec<u8>,
+) -> Result<Vec<TranscribedSegment>> {
+    match cfg.provider.to_lowercase().as_str() {
+        "deepgram" => deepgram(client, cfg, audio).await,
+        "assemblyai" => assemblyai(client, cfg, audio).await,
+        _ => openai_compatible(client, cfg, audio, "audio.wav", true).await,
     }
 }
 
@@ -93,8 +106,13 @@ async fn openai_compatible(
     cfg: &CloudConfig,
     audio: Vec<u8>,
     file_name: &str,
+    require_timestamps: bool,
 ) -> Result<Vec<TranscribedSegment>> {
     let json_only = cfg.provider.eq_ignore_ascii_case("openai") && cfg.model.starts_with("gpt-4o-");
+    anyhow::ensure!(
+        !require_timestamps || !json_only,
+        "This STT model does not provide timestamps required for synchronization"
+    );
     if cfg.translate_to_english && json_only {
         anyhow::bail!("OpenAI audio translation requires whisper-1");
     }
@@ -177,6 +195,10 @@ async fn openai_compatible(
     if text.is_empty() {
         return Ok(vec![]);
     }
+    anyhow::ensure!(
+        !require_timestamps,
+        "STT response contains text without segment timestamps; select a timestamp-capable model"
+    );
     let end_ms = (parsed.duration.or(audio_duration).unwrap_or(0.0) * 1000.0) as i64;
     if end_ms <= 0 {
         anyhow::bail!("Transcription returned text without usable timestamps or audio duration");
@@ -617,6 +639,36 @@ mod tests {
         let request = &server.join().unwrap()[0];
         assert!(request.starts_with("POST /audio/transcriptions "));
         assert!(!request.to_lowercase().contains("authorization:"));
+    }
+
+    #[tokio::test]
+    async fn alignment_rejects_synthetic_timing_but_accepts_real_segments() {
+        let (url, server) = mock_server(vec![
+            (200, r#"{"text":"Hello", "duration":1}"#.into()),
+            (
+                200,
+                r#"{"segments":[{"start":0.2,"end":0.8,"text":"Hello"}]}"#.into(),
+            ),
+        ]);
+        let cfg = config("custom", url, "timestamp-model");
+        let error = transcribe_timed_chunk(&default_client(), &cfg, wav())
+            .await
+            .unwrap_err();
+        assert!(error.to_string().contains("without segment timestamps"));
+        let segments = transcribe_timed_chunk(&default_client(), &cfg, wav())
+            .await
+            .unwrap();
+        assert_eq!((segments[0].start_ms, segments[0].end_ms), (200, 800));
+        assert_eq!(server.join().unwrap().len(), 2);
+    }
+
+    #[tokio::test]
+    async fn alignment_rejects_text_only_models_before_upload() {
+        let cfg = config("openai", "http://127.0.0.1:1".into(), "gpt-4o-transcribe");
+        let error = transcribe_timed_chunk(&default_client(), &cfg, wav())
+            .await
+            .unwrap_err();
+        assert!(error.to_string().contains("does not provide timestamps"));
     }
 
     #[tokio::test]

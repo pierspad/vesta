@@ -36,6 +36,7 @@ pub async fn sync_auto_sync(
     model_id: String,
     language: Option<String>,
     quick: bool,
+    cloud: Option<srt_transcribe::cloud::CloudConfig>,
 ) -> Result<AutoSyncResult, String> {
     // Reserve the shared transcription resource too; checking a flag alone
     // would allow a transcription to start immediately after the check.
@@ -83,8 +84,25 @@ pub async fn sync_auto_sync(
         (media, subs, anchors)
     };
 
-    let model_path =
-        srt_transcribe::model::model_file_path(&model_id).map_err(|e| e.to_string())?;
+    if let Some(endpoint) = &cloud {
+        if !srt_transcribe::pipeline::is_cloud_provider(Some(&endpoint.provider)) {
+            return Err("Invalid external STT provider".into());
+        }
+        if endpoint.api_key.trim().is_empty()
+            && !(["custom", "custom_whisper"].contains(&endpoint.provider.as_str())
+                && endpoint
+                    .api_url
+                    .as_deref()
+                    .is_some_and(|url| !url.trim().is_empty()))
+        {
+            return Err("Missing STT API credentials".into());
+        }
+    }
+    let model_path = if cloud.is_some() {
+        std::path::PathBuf::new()
+    } else {
+        srt_transcribe::model::model_file_path(&model_id).map_err(|e| e.to_string())?
+    };
 
     let ffmpeg_cmd = crate::commands::media::resolve_ffmpeg_path(Some(&app)).await;
     let ffprobe_cmd = crate::commands::media::resolve_ffprobe_path(Some(&app)).await;
@@ -107,9 +125,15 @@ pub async fn sync_auto_sync(
         let _ = app_progress.emit("sync-auto-progress", update);
     });
 
-    let outcome = srt_autosync::run_auto_sync(&config, subtitles, Some(on_progress), &token)
-        .await
-        .map_err(|e| e.to_string())?;
+    let outcome = srt_autosync::run_auto_sync_with_cloud(
+        &config,
+        subtitles,
+        Some(on_progress),
+        &token,
+        cloud,
+    )
+    .await
+    .map_err(|e| e.to_string())?;
 
     if outcome.cancelled {
         return Ok(AutoSyncResult {
@@ -148,7 +172,7 @@ pub async fn sync_auto_sync(
             )
         } else {
             (
-                "No confident matches found. Try with a larger Whisper model or check that the SRT matches the audio.".to_string(),
+                "No confident matches found. Try with a larger STT model or check that the SRT matches the audio.".to_string(),
                 "sync.autoSyncProgress.noMatches".to_string(),
             )
         };

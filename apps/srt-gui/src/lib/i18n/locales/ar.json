@@ -730,7 +730,7 @@
   "sync.autoSyncProgress.cancelled": "تم الإلغاء",
   "sync.autoSyncProgress.done": "اكتملت المزامنة التلقائية! تم إنشاء {{count}} نقطة ربط جديدة.",
   "sync.autoSyncProgress.loadingModel": "اكتمل تحضير الصوت. جارٍ تحميل نموذج Whisper...",
-  "sync.autoSyncProgress.noMatches": "لم يتم العثور على تطابقات موثوقة. جرّب نموذج Whisper أكبر أو تحقق من أن ملف SRT يطابق الصوت.",
+  "sync.autoSyncProgress.noMatches": "لم يتم العثور على تطابقات موثوقة. جرّب نموذج STT أكبر أو تحقق من أن ملف SRT يطابق الصوت.",
   "sync.autoSyncProgress.preparingSegments": "جارٍ تحضير واستخراج {{total}} مقطعًا صوتيًا بالتوازي...",
   "sync.autoSyncProgress.transcribingSegment": "نسخ المقطع {{current}} من {{total}}...",
   "sync.autoSyncRequires": "يتطلب ملف SRT وملف وسائط",

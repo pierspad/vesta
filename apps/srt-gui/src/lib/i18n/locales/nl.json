@@ -730,7 +730,7 @@
   "sync.autoSyncProgress.cancelled": "Geannuleerd",
   "sync.autoSyncProgress.done": "Automatische synchronisatie voltooid! {{count}} nieuwe ankerpunten gemaakt.",
   "sync.autoSyncProgress.loadingModel": "Audiovoorbereiding voltooid. Whisper-model laden...",
-  "sync.autoSyncProgress.noMatches": "Geen betrouwbare overeenkomsten gevonden. Probeer een groter Whisper-model of controleer of de SRT bij de audio past.",
+  "sync.autoSyncProgress.noMatches": "Geen betrouwbare overeenkomsten gevonden. Probeer een groter STT-model of controleer of de SRT bij de audio past.",
   "sync.autoSyncProgress.preparingSegments": "{{total}} audiosegmenten parallel voorbereiden en extraheren...",
   "sync.autoSyncProgress.transcribingSegment": "Transcriberen van segment {{current}} van {{total}}...",
   "sync.autoSyncRequires": "Vereist SRT en media",

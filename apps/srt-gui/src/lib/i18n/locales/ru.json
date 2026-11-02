@@ -730,7 +730,7 @@
   "sync.autoSyncProgress.cancelled": "Отменено",
   "sync.autoSyncProgress.done": "Автосинхронизация завершена! Создано {{count}} новых опорных точек.",
   "sync.autoSyncProgress.loadingModel": "Подготовка аудио завершена. Загрузка модели Whisper...",
-  "sync.autoSyncProgress.noMatches": "Надёжных совпадений не найдено. Попробуйте более крупную модель Whisper или проверьте, соответствует ли SRT аудио.",
+  "sync.autoSyncProgress.noMatches": "Надёжных совпадений не найдено. Попробуйте более крупную модель STT или проверьте, соответствует ли SRT аудио.",
   "sync.autoSyncProgress.preparingSegments": "Подготовка и извлечение {{total}} аудиосегментов параллельно...",
   "sync.autoSyncProgress.transcribingSegment": "Транскрибация сегмента {{current}} из {{total}}...",
   "sync.autoSyncRequires": "Требуется SRT и медиафайл",

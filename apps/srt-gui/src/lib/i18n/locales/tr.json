@@ -730,7 +730,7 @@
   "sync.autoSyncProgress.cancelled": "İptal edildi",
   "sync.autoSyncProgress.done": "Otomatik senkronizasyon tamamlandı! {{count}} yeni çapa noktası oluşturuldu.",
   "sync.autoSyncProgress.loadingModel": "Ses hazırlığı tamamlandı. Whisper modeli yükleniyor...",
-  "sync.autoSyncProgress.noMatches": "Güvenilir eşleşme bulunamadı. Daha büyük bir Whisper modeli deneyin veya SRT'nin sesle eşleştiğini kontrol edin.",
+  "sync.autoSyncProgress.noMatches": "Güvenilir eşleşme bulunamadı. Daha büyük bir STT modeli deneyin veya SRT'nin sesle eşleştiğini kontrol edin.",
   "sync.autoSyncProgress.preparingSegments": "{{total}} ses segmenti paralel olarak hazırlanıyor ve çıkarılıyor...",
   "sync.autoSyncProgress.transcribingSegment": "Segment {{current}} / {{total}} deşifre ediliyor...",
   "sync.autoSyncRequires": "SRT ve Medya dosyası gerekli",

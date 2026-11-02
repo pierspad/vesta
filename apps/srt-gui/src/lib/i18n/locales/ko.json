@@ -730,7 +730,7 @@
   "sync.autoSyncProgress.cancelled": "취소됨",
   "sync.autoSyncProgress.done": "자동 동기화 완료! {{count}}개의 새 앵커 포인트를 만들었습니다.",
   "sync.autoSyncProgress.loadingModel": "오디오 준비 완료. Whisper 모델을 불러오는 중...",
-  "sync.autoSyncProgress.noMatches": "신뢰할 만한 일치 항목을 찾지 못했습니다. 더 큰 Whisper 모델을 사용하거나 SRT가 오디오와 일치하는지 확인하세요.",
+  "sync.autoSyncProgress.noMatches": "신뢰할 만한 일치 항목을 찾지 못했습니다. 더 큰 STT 모델을 사용하거나 SRT가 오디오와 일치하는지 확인하세요.",
   "sync.autoSyncProgress.preparingSegments": "{{total}}개의 오디오 세그먼트를 병렬로 준비하고 추출하는 중...",
   "sync.autoSyncProgress.transcribingSegment": "세그먼트 {{current}} / {{total}} 받아쓰기 중...",
   "sync.autoSyncRequires": "SRT와 미디어 파일이 필요합니다",

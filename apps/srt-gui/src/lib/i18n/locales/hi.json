@@ -730,7 +730,7 @@
   "sync.autoSyncProgress.cancelled": "रद्द कर दिया गया",
   "sync.autoSyncProgress.done": "ऑटो-सिंक पूर्ण! {{count}} नए एंकर पॉइंट बनाए गए।",
   "sync.autoSyncProgress.loadingModel": "ऑडियो तैयारी पूर्ण। Whisper मॉडल लोड हो रहा है...",
-  "sync.autoSyncProgress.noMatches": "कोई विश्वसनीय मिलान नहीं मिला। बड़ा Whisper मॉडल आज़माएँ या जाँचें कि SRT ऑडियो से मेल खाता है।",
+  "sync.autoSyncProgress.noMatches": "कोई विश्वसनीय मिलान नहीं मिला। बड़ा STT मॉडल आज़माएँ या जाँचें कि SRT ऑडियो से मेल खाता है।",
   "sync.autoSyncProgress.preparingSegments": "{{total}} ऑडियो सेगमेंट समानांतर में तैयार और निकाले जा रहे हैं...",
   "sync.autoSyncProgress.transcribingSegment": "{{total}} में से खंड {{current}} को ट्रांसक्राइब किया जा रहा है...",
   "sync.autoSyncRequires": "SRT और मीडिया फ़ाइल आवश्यक है",

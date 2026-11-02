@@ -511,7 +511,18 @@ pub async fn run_auto_sync(
     on_progress: Option<ProgressCallback>,
     cancel_token: &CancellationToken,
 ) -> Result<AutoSyncOutcome> {
-    if !config.model_path.exists() {
+    run_auto_sync_with_cloud(config, subtitles, on_progress, cancel_token, None).await
+}
+
+/// Use the same sampling, matching and consensus with an explicitly selected STT endpoint.
+pub async fn run_auto_sync_with_cloud(
+    config: &AutoSyncConfig,
+    subtitles: Vec<SubtitleLine>,
+    on_progress: Option<ProgressCallback>,
+    cancel_token: &CancellationToken,
+    cloud: Option<srt_transcribe::cloud::CloudConfig>,
+) -> Result<AutoSyncOutcome> {
+    if cloud.is_none() && !config.model_path.exists() {
         anyhow::bail!("Whisper model not found at {}", config.model_path.display());
     }
 
@@ -536,7 +547,8 @@ pub async fn run_auto_sync(
 
     let quick = config.quick;
     let segment_duration = if quick { 20.0 } else { 35.0 };
-    let use_gpu = config.use_gpu.unwrap_or(true) && srt_transcribe::gpu_supported();
+    let use_gpu =
+        cloud.is_none() && config.use_gpu.unwrap_or(true) && srt_transcribe::gpu_supported();
 
     // Dense sampling: scale segments up when GPU is available (24-32 segments)
     let num_samples = if use_gpu {
@@ -661,14 +673,50 @@ pub async fn run_auto_sync(
 
     prepared_segments.sort_by_key(|s| s.idx);
 
-    emit(
-        &on_progress,
-        "prepare_done",
-        "Audio preparation complete. Loading Whisper model...".to_string(),
-        10.0,
-        Some("sync.autoSyncProgress.loadingModel"),
-        None,
-    );
+    let mut cloud_segments = HashMap::new();
+    if let Some(mut endpoint) = cloud {
+        endpoint.language = effective_language.clone();
+        endpoint.translate_to_english = false;
+        let client = srt_transcribe::cloud::try_default_client()?;
+        // Sequential requests bound provider load and stop immediately on cancellation.
+        for (idx, prep) in prepared_segments.iter().enumerate() {
+            emit(
+                &on_progress,
+                "transcribe",
+                format!("{} · {}/{}", endpoint.provider, idx + 1, total_segments),
+                10.0 + idx as f64 / total_segments as f64 * 80.0,
+                None,
+                None,
+            );
+            let segments = tokio::select! {
+                biased;
+                _ = cancel_token.cancelled() => return Ok(AutoSyncOutcome {
+                    suggestions: Vec::new(), segments_analyzed: idx, cancelled: true,
+                }),
+                result = async {
+                    let audio = tokio::fs::read(&prep._wav_path).await?;
+                    srt_transcribe::cloud::transcribe_timed_chunk(&client, &endpoint, audio).await
+                } => result?,
+            };
+            anyhow::ensure!(
+                segments.iter().all(|seg| seg.start_ms >= 0
+                    && seg.end_ms > seg.start_ms
+                    && seg.end_ms <= (segment_duration * 1000.0) as i64 + 1000),
+                "STT returned invalid segment timestamps"
+            );
+            cloud_segments.insert(prep.idx, segments);
+        }
+    } else {
+        emit(
+            &on_progress,
+            "prepare_done",
+            "Loading Whisper model...".into(),
+            10.0,
+            Some("sync.autoSyncProgress.loadingModel"),
+            None,
+        );
+    }
+    let is_cloud = !cloud_segments.is_empty();
 
     let model_path_str = config.model_path.to_string_lossy().to_string();
     let max_offset_ms = (config.max_offset_secs.unwrap_or(120) as i64) * 1000;
@@ -681,8 +729,14 @@ pub async fn run_auto_sync(
         move || -> Result<(Vec<MatchCandidate>, usize, bool), String> {
             let mut all_matches: Vec<MatchCandidate> = Vec::new();
 
-            let ctx = load_whisper_context_with_gpu(&model_path_str, use_gpu)
-                .map_err(|e| format!("Failed to load Whisper model: {e:?}"))?;
+            let ctx = if is_cloud {
+                None
+            } else {
+                Some(
+                    load_whisper_context_with_gpu(&model_path_str, use_gpu)
+                        .map_err(|e| format!("Failed to load Whisper model: {e:?}"))?,
+                )
+            };
 
             let subtitle_index = SubtitleIndex::build(&subtitles);
             let anchor_prior = AnchorPrior::new(existing_anchors_for_task);
@@ -701,34 +755,36 @@ pub async fn run_auto_sync(
                     return Ok((all_matches, idx, true));
                 }
 
-                let progress = (idx as f64 / total_segments as f64) * 80.0 + 10.0;
+                if !is_cloud {
+                    let progress = (idx as f64 / total_segments as f64) * 80.0 + 10.0;
 
-                let start_label = format_mm_ss(prep.current_pos);
-                let end_label = format_mm_ss(prep.current_pos + segment_duration);
-                emit(
-                    &progress_clone,
-                    "transcribe",
-                    format!(
-                        "Analyzing segment {}/{} - media {} -> {} ({}s)",
-                        idx + 1,
-                        total_segments,
-                        start_label,
-                        end_label,
-                        segment_duration.round() as i64
-                    ),
-                    progress,
-                    Some("sync.autoSyncProgress.transcribingSegment"),
-                    Some(HashMap::from([
-                        ("current".to_string(), (idx + 1).to_string()),
-                        ("total".to_string(), total_segments.to_string()),
-                        ("start".to_string(), start_label),
-                        ("end".to_string(), end_label),
-                        (
-                            "duration".to_string(),
-                            format!("{}s", segment_duration.round() as i64),
+                    let start_label = format_mm_ss(prep.current_pos);
+                    let end_label = format_mm_ss(prep.current_pos + segment_duration);
+                    emit(
+                        &progress_clone,
+                        "transcribe",
+                        format!(
+                            "Analyzing segment {}/{} - media {} -> {} ({}s)",
+                            idx + 1,
+                            total_segments,
+                            start_label,
+                            end_label,
+                            segment_duration.round() as i64
                         ),
-                    ])),
-                );
+                        progress,
+                        Some("sync.autoSyncProgress.transcribingSegment"),
+                        Some(HashMap::from([
+                            ("current".to_string(), (idx + 1).to_string()),
+                            ("total".to_string(), total_segments.to_string()),
+                            ("start".to_string(), start_label),
+                            ("end".to_string(), end_label),
+                            (
+                                "duration".to_string(),
+                                format!("{}s", segment_duration.round() as i64),
+                            ),
+                        ])),
+                    );
+                }
 
                 let token_timings = Arc::new(std::sync::Mutex::new(HashMap::new()));
                 let timing_sink = token_timings.clone();
@@ -749,14 +805,17 @@ pub async fn run_auto_sync(
                     ..TranscribeOptions::default()
                 };
 
-                let (transcribed, _) =
-                    match transcribe_full(&ctx, &prep.audio_data, &options, Some(&token_clone)) {
-                        Ok(segs) => segs,
+                let transcribed = if let Some(ctx) = &ctx {
+                    match transcribe_full(ctx, &prep.audio_data, &options, Some(&token_clone)) {
+                        Ok((segments, _)) => segments,
                         Err(e) => {
                             eprintln!("[auto-sync] Segment {} transcription failed: {e}", prep.idx);
                             continue;
                         }
-                    };
+                    }
+                } else {
+                    cloud_segments.remove(&prep.idx).unwrap_or_default()
+                };
 
                 let adjusted_segments: Vec<TranscribedSegment> = transcribed
                     .into_iter()

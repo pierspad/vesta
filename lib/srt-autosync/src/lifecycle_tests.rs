@@ -111,3 +111,123 @@ async fn autosync_cancellation_stops_preparation_children_without_loading_whispe
     .await
     .expect("Autosync must not leave FFmpeg preparation processes running");
 }
+
+#[tokio::test]
+async fn external_sync_needs_no_whisper_and_cancels_pending_http() {
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    let directory = tempfile::tempdir().unwrap();
+    let media = directory.path().join("speech.wav");
+    let status = tokio::process::Command::new("ffmpeg")
+        .args([
+            "-nostdin",
+            "-v",
+            "error",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=30",
+            "-ar",
+            "16000",
+            "-ac",
+            "1",
+        ])
+        .arg(&media)
+        .status()
+        .await
+        .unwrap();
+    assert!(status.success());
+
+    for cancel_pending in [false, true] {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let url = format!("http://{}", listener.local_addr().unwrap());
+        let (started_tx, started_rx) = tokio::sync::oneshot::channel();
+        let server = tokio::spawn(async move {
+            let (mut stream, _) = listener.accept().await.unwrap();
+            let mut request = Vec::new();
+            loop {
+                let mut buffer = [0; 4096];
+                let n = stream.read(&mut buffer).await.unwrap();
+                assert!(n > 0);
+                request.extend_from_slice(&buffer[..n]);
+                if let Some(end) = request.windows(4).position(|bytes| bytes == b"\r\n\r\n") {
+                    let headers = String::from_utf8_lossy(&request[..end]).to_lowercase();
+                    let length = headers
+                        .lines()
+                        .find_map(|line| line.strip_prefix("content-length: "))
+                        .unwrap()
+                        .parse::<usize>()
+                        .unwrap();
+                    if request.len() >= end + 4 + length {
+                        break;
+                    }
+                }
+            }
+            assert!(String::from_utf8_lossy(&request).contains("timestamp-model"));
+            let _ = started_tx.send(());
+            if cancel_pending {
+                std::future::pending::<()>().await;
+            }
+            let body = r#"{"segments":[{"start":1.0,"end":2.0,"text":"Hello there friend"}]}"#;
+            stream
+                .write_all(
+                    format!(
+                        "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                        body.len()
+                    )
+                    .as_bytes(),
+                )
+                .await
+                .unwrap();
+        });
+        let mut config = AutoSyncConfig::new(
+            media.to_string_lossy().into_owned(),
+            directory.path().join("no-model.bin"),
+        );
+        config.quick = true;
+        let cloud = srt_transcribe::cloud::CloudConfig {
+            provider: "custom".into(),
+            api_key: String::new(),
+            api_url: Some(url),
+            model: "timestamp-model".into(),
+            language: None,
+            translate_to_english: false,
+        };
+        let token = CancellationToken::new();
+        let task_token = token.clone();
+        let task = tokio::spawn(async move {
+            run_auto_sync_with_cloud(
+                &config,
+                vec![SubtitleLine {
+                    id: 1,
+                    start_ms: 6000,
+                    text: "Hello there friend".into(),
+                }],
+                None,
+                &task_token,
+                Some(cloud),
+            )
+            .await
+        });
+        tokio::time::timeout(Duration::from_secs(10), started_rx)
+            .await
+            .unwrap()
+            .unwrap();
+        if cancel_pending {
+            token.cancel();
+        }
+        let outcome = tokio::time::timeout(Duration::from_secs(3), task)
+            .await
+            .unwrap()
+            .unwrap()
+            .unwrap();
+        assert_eq!(outcome.cancelled, cancel_pending);
+        if cancel_pending {
+            assert!(outcome.suggestions.is_empty());
+            server.abort();
+            let _ = server.await;
+        } else {
+            assert_eq!(outcome.segments_analyzed, 1);
+            server.await.unwrap();
+        }
+    }
+}

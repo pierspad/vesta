@@ -730,7 +730,7 @@
   "sync.autoSyncProgress.cancelled": "キャンセルされました",
   "sync.autoSyncProgress.done": "自動同期が完了しました！{{count}} 個の新しいアンカーポイントを作成しました。",
   "sync.autoSyncProgress.loadingModel": "音声の準備が完了しました。Whisper モデルを読み込んでいます...",
-  "sync.autoSyncProgress.noMatches": "確実な一致が見つかりませんでした。より大きな Whisper モデルを試すか、SRT が音声と一致しているか確認してください。",
+  "sync.autoSyncProgress.noMatches": "確実な一致が見つかりませんでした。より大きな STT モデルを試すか、SRT が音声と一致しているか確認してください。",
   "sync.autoSyncProgress.preparingSegments": "{{total}} 個の音声セグメントを並列で準備・抽出しています...",
   "sync.autoSyncProgress.transcribingSegment": "セグメント {{current}} / {{total}} を文字起こし中...",
   "sync.autoSyncRequires": "SRTとメディアファイルが必要",

@@ -730,7 +730,7 @@
   "sync.autoSyncProgress.cancelled": "已取消",
   "sync.autoSyncProgress.done": "自动同步完成！已创建 {{count}} 个新锚点。",
   "sync.autoSyncProgress.loadingModel": "音频准备完成。正在加载 Whisper 模型...",
-  "sync.autoSyncProgress.noMatches": "未找到可靠的匹配。请尝试更大的 Whisper 模型，或检查 SRT 是否与音频匹配。",
+  "sync.autoSyncProgress.noMatches": "未找到可靠的匹配。请尝试更大的 STT 模型，或检查 SRT 是否与音频匹配。",
   "sync.autoSyncProgress.preparingSegments": "正在并行准备并提取 {{total}} 个音频片段...",
   "sync.autoSyncProgress.transcribingSegment": "正在转录第 {{current}} 个片段（共 {{total}} 个）...",
   "sync.autoSyncRequires": "需要SRT文件和媒体文件",

@@ -730,7 +730,7 @@
   "sync.autoSyncProgress.cancelled": "Cancelled",
   "sync.autoSyncProgress.done": "Auto-sync complete! Created {{count}} new anchor points.",
   "sync.autoSyncProgress.loadingModel": "Audio preparation complete. Loading Whisper model...",
-  "sync.autoSyncProgress.noMatches": "No confident matches found. Try a larger Whisper model or check that the SRT matches the audio.",
+  "sync.autoSyncProgress.noMatches": "No confident matches found. Try a larger STT model or check that the SRT matches the audio.",
   "sync.autoSyncProgress.preparingSegments": "Preparing and extracting {{total}} audio segments in parallel...",
   "sync.autoSyncProgress.transcribingSegment": "Transcribing segment {{current}} of {{total}}...",
   "sync.autoSyncRequires": "Requires SRT and Media",
