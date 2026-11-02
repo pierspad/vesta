@@ -399,6 +399,36 @@ pub async fn optimize_video_source_with_progress(
     cancel: &CancellationToken,
     progress: &(dyn Fn(f64, &str) + Send + Sync),
 ) -> Result<OptimizedVideo> {
+    optimize_video_source_with_encoder(
+        source_path,
+        target_width,
+        target_height,
+        crop_bottom,
+        include_audio,
+        (!hw_accel_enabled).then_some(H264Encoder::Libx264),
+        ffmpeg_cmd,
+        ffprobe_cmd,
+        cancel,
+        progress,
+    )
+    .await
+}
+
+/// Reuse a generation-scoped encoder probe; `None` performs detection for
+/// standalone callers. Never cache hardware availability across operations.
+#[allow(clippy::too_many_arguments)]
+pub(crate) async fn optimize_video_source_with_encoder(
+    source_path: &str,
+    target_width: u32,
+    target_height: u32,
+    crop_bottom: u32,
+    include_audio: bool,
+    selected_encoder: Option<H264Encoder>,
+    ffmpeg_cmd: &str,
+    ffprobe_cmd: &str,
+    cancel: &CancellationToken,
+    progress: &(dyn Fn(f64, &str) + Send + Sync),
+) -> Result<OptimizedVideo> {
     if cancel.is_cancelled() {
         return Ok(OptimizedVideo::original(source_path));
     }
@@ -407,10 +437,9 @@ pub async fn optimize_video_source_with_progress(
         return Ok(OptimizedVideo::original(source_path));
     };
 
-    let encoder = if hw_accel_enabled {
-        detect_h264_encoder(ffmpeg_cmd).await
-    } else {
-        H264Encoder::Libx264
+    let encoder = match selected_encoder {
+        Some(encoder) => encoder,
+        None => detect_h264_encoder(ffmpeg_cmd).await,
     };
 
     if !should_optimize_video(

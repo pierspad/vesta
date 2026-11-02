@@ -7,7 +7,7 @@ use crate::export_apkg::generate_apkg;
 use crate::export_tsv::{generate_tsv, sanitize_filename};
 use crate::media::{
     MediaKind, extract_audio_clip, extract_video_clip, media_filename,
-    optimize_video_source_with_progress, video_clip_extension,
+    optimize_video_source_with_encoder, video_clip_extension,
 };
 use execution::execute_media;
 use publication::{ExportWorkspace, publish_export};

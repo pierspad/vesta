@@ -40,7 +40,6 @@ pub(super) async fn prepare_video(
                 .video_height
                 .unwrap_or(config.snapshot_height)
                 .max(config.snapshot_height);
-            let hw_enabled = config.video_hw_accel != "off";
 
             emit(
                 progress,
@@ -58,13 +57,13 @@ pub(super) async fn prepare_video(
                 )]),
             );
 
-            match optimize_video_source_with_progress(
+            match optimize_video_source_with_encoder(
                 src,
                 target_w,
                 target_h,
                 config.crop_bottom,
                 needs_video,
-                hw_enabled,
+                Some(detected_gpu_encoder),
                 &tools.ffmpeg,
                 &tools.ffprobe,
                 cancel,
@@ -114,4 +113,53 @@ pub(super) async fn prepare_video(
     };
 
     (detected_gpu_encoder, opt_video)
+}
+
+#[cfg(all(test, unix))]
+mod tests {
+    use super::*;
+    use std::os::unix::fs::PermissionsExt;
+
+    #[tokio::test]
+    async fn generation_probes_hardware_once_and_keeps_the_original_source() {
+        let directory = tempfile::tempdir().unwrap();
+        let log = directory.path().join("encoder-probes");
+        let ffmpeg = directory.path().join("ffmpeg");
+        let ffprobe = directory.path().join("ffprobe");
+        std::fs::write(
+            &ffmpeg,
+            format!(
+                "#!/bin/sh\nprintf 'probe\\n' >> '{}'\nexit 0\n",
+                log.display()
+            ),
+        )
+        .unwrap();
+        std::fs::write(&ffprobe, "#!/bin/sh\nprintf '%s' '{\"streams\":[{\"width\":320,\"height\":240,\"codec_name\":\"h264\"}],\"format\":{\"duration\":\"1\"}}'\n").unwrap();
+        for path in [&ffmpeg, &ffprobe] {
+            std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o700)).unwrap();
+        }
+        let tools = MediaTools::new(ffmpeg.to_string_lossy(), ffprobe.to_string_lossy());
+        let mut config = FlashcardConfig {
+            optimize_video: true,
+            video_hw_accel: "auto".into(),
+            snapshot_width: 320,
+            snapshot_height: 240,
+            ..FlashcardConfig::default()
+        };
+        let cancel = CancellationToken::new();
+        let (encoder, optimized) =
+            prepare_video(&config, &tools, &cancel, &|_| {}, true, Some("source.mp4")).await;
+        assert!(encoder.is_hardware());
+        assert!(optimized.unwrap().original_used);
+        assert_eq!(std::fs::read_to_string(&log).unwrap().lines().count(), 1);
+
+        // Explicit CPU mode must not probe or initialize a GPU.
+        std::fs::remove_file(&log).unwrap();
+        config.video_hw_accel = "off".into();
+        let (encoder, optimized) =
+            prepare_video(&config, &tools, &cancel, &|_| {}, true, Some("source.mp4")).await;
+        assert_eq!(encoder, H264Encoder::Libx264);
+        assert!(optimized.unwrap().original_used);
+        assert!(!log.exists());
+    }
 }

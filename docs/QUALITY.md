@@ -504,3 +504,13 @@ A Unix process fixture holds software retries until four hardware attempts have
 started. With four workers and three GPU sessions, the previous code times out;
 the corrected code completes all four clips. This fixture needs no physical GPU.
 Run `cargo test --locked -p srt-flashcards software_retries_release_gpu_sessions_for_pending_clips`.
+
+## Reuse encoder detection within one export
+
+Video preparation reuses the encoder already tested by the generator instead of
+running the same hardware probes twice. Standalone optimization still performs
+its own detection, CPU-only mode never probes hardware, and availability is not
+cached across separate exports. Existing preparation/clip software fallback and
+cancellation behavior remain in place. The process fixture
+`generation_probes_hardware_once_and_keeps_the_original_source` verifies probe
+count, original-source reuse and explicit CPU mode.
