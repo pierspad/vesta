@@ -1356,5 +1356,7 @@
   "settings.missingConfig": "Configuratie ontbreekt",
   "tiers.rpmTooltip": "Maximaal aantal verzoeken per minuut voor deze provider",
   "tiers.budgetTooltip": "Maximaal aantal verzoeken voor deze laag vóór failover",
-  "tiers.batchSizeTooltip": "Aantal ondertitelregels in één prompt"
+  "tiers.batchSizeTooltip": "Aantal ondertitelregels in één prompt",
+  "speech.priorityChain": "Ingestelde prioriteitsketen",
+  "speech.externalHint": "Externe STT stuurt audio naar de gekozen dienst en kan kosten veroorzaken. Synchronisatie vereist echte tijdstempels."
 }

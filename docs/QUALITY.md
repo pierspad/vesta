@@ -474,3 +474,23 @@ track selection. The previous Opus settings (`libopus`, 64k, compression level 0
 bytes. These are FFmpeg preparation timings with a warm filesystem cache,
 measured during development checks, not controlled UI startup benchmarks or a
 promise of the same speedup on other machines. Outputs were temporary and removed.
+
+## Speech engine selection and external synchronization
+
+The Transcribe tab exposes both a persisted explicit speech engine and the
+configured priority chain. Sync has a separate explicit engine selection; an
+unavailable saved endpoint blocks starting rather than choosing a replacement.
+Both selectors consume the same configured STT endpoints. Transcribe also embeds
+the existing tier editor. Local VAD/quality controls are hidden for an explicitly
+selected external provider.
+
+`npm test` covers timestamp capability filtering, removed credentials, restoring
+an external selection without a local model, and selector listener cleanup.
+`cargo test --locked -p srt-sync -p srt-autosync -p srt-transcribe` covers real
+FFmpeg audio-only PCM preview generation/cache reuse, failed preview cleanup,
+external sync without a Whisper model, pending HTTP cancellation, and rejection
+of text-only responses for alignment. HTTP tests use loopback fixtures; they do
+not contact authenticated providers or establish their alignment accuracy.
+
+Auto-sync extracts strategic clips in parallel and sends external STT requests
+sequentially, bounding provider load.

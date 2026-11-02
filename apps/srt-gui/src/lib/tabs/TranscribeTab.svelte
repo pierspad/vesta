@@ -1,4 +1,6 @@
 <script lang="ts">
+  import SpeechEngineSelector from "$lib/components/SpeechEngineSelector.svelte";
+  import TranscribeTiers from "$lib/components/TranscribeTiers.svelte";
   import WorkflowErrorStatus from "$lib/components/WorkflowErrorStatus.svelte";
   import WorkflowWorkspace from "$lib/components/WorkflowWorkspace.svelte";
   import { RequirementFeedback } from "$lib/utils/requirementFeedback.svelte";
@@ -146,7 +148,10 @@
 
   // ─── Transcription engine (Local Whisper vs cloud providers) ────────────────
   let transcribeTiers = $state<TranscribeTier[]>([]);
-  let effectiveTiers = $derived(withLocalModelOverride(transcribeTiers, modelStore.defaultWhisperModel));
+  let selectedEngine = $state<TranscribeTierEntry | null | undefined>(undefined);
+  let effectiveTiers = $derived(selectedEngine === null
+    ? withLocalModelOverride(transcribeTiers, modelStore.defaultWhisperModel)
+    : selectedEngine ? [{ id: "selected", entries: [selectedEngine] }] : []);
   let apiKeys = $state<ApiKeyConfig[]>([]);
   let transcribedSegments = $state<{ start_ms: number; end_ms: number; text: string }[]>([]);
 
@@ -245,6 +250,7 @@
   }
 
   onMount(() => {
+    void modelStore.refreshModels();
     window.addEventListener("keydown", handleKeydown);
     refreshTranscribeTiers();
     refreshApiKeys();
@@ -743,6 +749,7 @@
             />
           </div>
           {#if uiMode.expertMode}
+          {#if !selectedEngine || selectedEngine.provider === "local" || selectedEngine.provider === "local_whisper"}
           <!-- Silero VAD (local whisper only; requires the model) -->
           <div class="rounded-lg bg-white/5 p-3">
             <ToggleRow label={t("transcribe.vad")} description={vadInstalled ? t("transcribe.vadHelp") : t("transcribe.vadNotInstalled")} checked={vadEnabled && vadInstalled} disabled={!vadInstalled} accent="sky" onchange={setVadEnabled} />
@@ -764,6 +771,7 @@
           <div class="rounded-lg bg-white/5 p-3">
             <ToggleRow label={t("transcribe.quality")} checked={qualityMode} accent="sky" onchange={setQualityMode} />
           </div>
+          {/if}
           <div>
             <div class="flex items-center justify-between mb-2">
               <span class="text-sm text-gray-400">
@@ -1070,8 +1078,16 @@
       {#snippet files()}{@render panelContent("files")}{/snippet}
       <div class="grid grid-cols-1 items-start gap-6 xl:grid-cols-2">
         <div class="min-w-0">
+          <div class="glass-card p-5 mb-4">
+            <h3 class="mb-3 font-semibold">{t("transcribe.engineTitle")}</h3>
+            <SpeechEngineSelector purpose="transcribe" disabled={isTranscribing} onresolve={(entry) => { selectedEngine = entry; }} />
+            <details class="mt-4">
+              <summary class="cursor-pointer text-sm">{t("transcribe.tiers.cardTitle")}</summary>
+              <div class="mt-3"><TranscribeTiers /></div>
+            </details>
+          </div>
           {@render panelContent("options")}
-          {#if uiMode.expertMode}
+          {#if uiMode.expertMode && selectedEngine === null}
             <div class="glass-card p-5 mt-4 {requirements.classFor('model')}">
               <h3 class="mb-4 flex items-center gap-2 text-lg font-semibold text-cyan-300">
                 <svg aria-hidden="true" class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 3v3m6-3v3M9 18v3m6-3v3M3 9h3m-3 6h3m12-6h3m-3 6h3M6 6h12v12H6zM10 10h4v4h-4z" /></svg>

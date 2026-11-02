@@ -1356,5 +1356,7 @@
   "settings.missingConfig": "Brak konfiguracji",
   "tiers.rpmTooltip": "Maksymalna liczba zapytań na minutę dla tego dostawcy",
   "tiers.budgetTooltip": "Maksymalna liczba zapytań na tym poziomie przed przełączeniem",
-  "tiers.batchSizeTooltip": "Liczba linii napisów w jednym zapytaniu"
+  "tiers.batchSizeTooltip": "Liczba linii napisów w jednym zapytaniu",
+  "speech.priorityChain": "Skonfigurowany łańcuch priorytetów",
+  "speech.externalHint": "Zewnętrzne STT wysyła dźwięk do wybranej usługi i może wiązać się z kosztami. Synchronizacja wymaga rzeczywistych znaczników czasu."
 }

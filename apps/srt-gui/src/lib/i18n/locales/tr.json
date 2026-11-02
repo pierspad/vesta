@@ -1356,5 +1356,7 @@
   "settings.missingConfig": "Eksik yapılandırma",
   "tiers.rpmTooltip": "Bu sağlayıcı için izin verilen dakikalık maksimum istek",
   "tiers.budgetTooltip": "Devir öncesinde bu katman için izin verilen maksimum istek",
-  "tiers.batchSizeTooltip": "Tek bir istekte gönderilen altyazı satırı sayısı"
+  "tiers.batchSizeTooltip": "Tek bir istekte gönderilen altyazı satırı sayısı",
+  "speech.priorityChain": "Yapılandırılmış öncelik zinciri",
+  "speech.externalHint": "Harici STT, sesi seçilen hizmete gönderir ve ücretli olabilir. Eşzamanlama gerçek zaman damgaları gerektirir."
 }

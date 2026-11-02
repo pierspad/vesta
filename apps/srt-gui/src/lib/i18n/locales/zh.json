@@ -1356,5 +1356,7 @@
   "settings.missingConfig": "缺少配置",
   "tiers.rpmTooltip": "该提供商每分钟允许的最大请求数",
   "tiers.budgetTooltip": "故障转移前该层级允许的最大请求数",
-  "tiers.batchSizeTooltip": "在单个提示词中发送给 LLM 的字幕行数"
+  "tiers.batchSizeTooltip": "在单个提示词中发送给 LLM 的字幕行数",
+  "speech.priorityChain": "已配置的优先级链",
+  "speech.externalHint": "外部语音识别会将音频发送至所选服务，并可能产生费用。同步需要真实的时间戳。"
 }

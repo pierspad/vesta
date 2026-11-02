@@ -1356,5 +1356,7 @@
   "settings.missingConfig": "Configuration manquante",
   "tiers.rpmTooltip": "Requêtes maximales par minute autorisées pour ce fournisseur",
   "tiers.budgetTooltip": "Limite de requêtes pour ce niveau avant basculement",
-  "tiers.batchSizeTooltip": "Nombre de lignes de sous-titres envoyées dans une seule requête"
+  "tiers.batchSizeTooltip": "Nombre de lignes de sous-titres envoyées dans une seule requête",
+  "speech.priorityChain": "Chaîne de priorité configurée",
+  "speech.externalHint": "Le STT externe envoie l’audio au service choisi et peut être payant. La synchronisation exige de vrais horodatages."
 }

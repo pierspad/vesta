@@ -1356,5 +1356,7 @@
   "settings.missingConfig": "Missing configuration",
   "tiers.rpmTooltip": "Maximum requests per minute allowed for this provider",
   "tiers.budgetTooltip": "Maximum requests allowed for this tier before falling over",
-  "tiers.batchSizeTooltip": "Number of subtitle lines sent in a single LLM prompt"
+  "tiers.batchSizeTooltip": "Number of subtitle lines sent in a single LLM prompt",
+  "speech.priorityChain": "Configured priority chain",
+  "speech.externalHint": "External STT sends audio to the selected endpoint and may incur charges. Sync requires real timestamps."
 }

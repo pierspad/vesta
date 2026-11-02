@@ -20,7 +20,11 @@
   import FilesPanel from "$lib/panels/FilesPanel.svelte";
   import SyncStatusPanel from "$lib/panels/SyncStatusPanel.svelte";
   import SubtitleListPanel from "$lib/panels/SubtitleListPanel.svelte";
-  import SearchableSelect from "$lib/components/SearchableSelect.svelte";
+  import SpeechEngineSelector from "$lib/components/SpeechEngineSelector.svelte";
+  import type { TranscribeTierEntry } from "$lib/config/transcribeTiers";
+  import { loadAndValidateApiKeys } from "$lib/config/apiKeys";
+  import { transcribeProviders } from "$lib/config/transcribeProviders";
+  import { isLocalTranscribeProvider } from "$lib/workflows/transcription";
   import WizardCheckpoint from "$lib/components/WizardCheckpoint.svelte";
   import { formatSyncMediaError } from "$lib/utils/syncMediaError";
   import { errorMessage } from "$lib/utils/errorMessage";
@@ -33,6 +37,7 @@
   let { active = true }: Props = $props();
 
   let t = $derived($locale);
+  let selectedEngine = $state<TranscribeTierEntry | null | undefined>(undefined);
 
   interface SubtitleInfo {
     id: number;
@@ -105,9 +110,6 @@
   let audioDuration = $state(0);
   let hasAudio = $derived(!!audioSrc && !audioError);
 
-  let downloadedWhisperModels = $derived(
-    modelStore.whisperModels.filter((m) => m.downloaded)
-  );
 
   let subtitleContextMenu = $state<{
     x: number;
@@ -164,21 +166,23 @@
     if (!run) { resource.finish(); return; }
     let unlisten: (() => void) | undefined;
     try {
-      await checkWhisperModels();
-      if (run.isCancelled()) return;
-      if (autoSyncStore.whisperModelsAvailable.length === 0) {
-        showSnackbar(
-          t("transcribe.noBackendWarning"),
-          "warning"
-        );
-        return;
+      const entry = selectedEngine;
+      if (!entry) { showSnackbar(t("transcribe.blocked.noTiers"), "warning"); return; }
+      const local = isLocalTranscribeProvider(entry.provider);
+      if (local) {
+        await checkWhisperModels();
+        if (run.isCancelled()) return;
+        if (!autoSyncStore.whisperModelsAvailable.includes(entry.model)) {
+          showSnackbar(t("transcribe.blocked.missingModel"), "warning"); return;
+        }
       }
-
-      const modelId = modelStore.defaultWhisperModel;
-      if (!autoSyncStore.whisperModelsAvailable.includes(modelId)) {
-        showSnackbar(t("transcribe.blocked.missingModel"), "warning");
-        return;
-      }
+      const key = local ? undefined : loadAndValidateApiKeys().find(key => key.id === entry.apiKeyId);
+      const cloud = local ? null : {
+        provider: entry.provider, model: entry.model,
+        api_key: key?.apiKey?.trim() || "",
+        api_url: key?.apiUrl?.trim() || transcribeProviders[entry.provider]?.defaultUrl || null,
+        language: null, translate_to_english: false,
+      };
 
       autoSyncStore.activeMode = quick ? "quick" : "precise";
       autoSyncStore.progress = 0;
@@ -200,9 +204,10 @@
         segments_analyzed: number;
         message: string;
       }>("sync_auto_sync", {
-        modelId,
+        modelId: entry.model,
         language: null,
         quick,
+        cloud,
       });
 
       status = await invoke<SyncStatus>("sync_get_status");
@@ -1339,25 +1344,15 @@
       </div>
 
       <div class="w-44">
-        <SearchableSelect
-          options={downloadedWhisperModels.map((model) => ({
-            value: model.id,
-            label: `Whisper · ${model.name}`,
-          }))}
-          value={modelStore.defaultWhisperModel}
-          onchange={(id) => modelStore.setDefaultWhisperModel(id)}
+        <SpeechEngineSelector purpose="sync" compact
           disabled={autoSyncStore.isAutoSyncing || localWhisperOperation.busy}
-          placeholder={t("settings.notDownloaded")}
-          noResultsText={t("settings.notDownloaded")}
-          ariaLabel={t("settings.whisper.modelLabel")}
-          placement="up"
-          compact
+          onresolve={(entry) => { selectedEngine = entry; }}
         />
       </div>
     {/snippet}
     {#snippet center()}
       <AutoSyncControls
-        canAutoSync={!!status?.is_loaded && hasAudio && !localWhisperOperation.busy && !aiStore.killSwitchActive}
+        canAutoSync={!!selectedEngine && !!status?.is_loaded && hasAudio && !localWhisperOperation.busy && !aiStore.killSwitchActive}
         onStart={() => startAutoSync(autoSyncStore.selectedMode === "quick")}
       />
     {/snippet}

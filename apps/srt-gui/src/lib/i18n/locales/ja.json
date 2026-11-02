@@ -1356,5 +1356,7 @@
   "settings.missingConfig": "設定が未完了です",
   "tiers.rpmTooltip": "このプロバイダーに許可される1分あたりの最大リクエスト数",
   "tiers.budgetTooltip": "フェイルオーバー前にこの階層で許可される最大リクエスト数",
-  "tiers.batchSizeTooltip": "1回のリクエストで送信される字幕の行数"
+  "tiers.batchSizeTooltip": "1回のリクエストで送信される字幕の行数",
+  "speech.priorityChain": "設定済みの優先順位チェーン",
+  "speech.externalHint": "外部STTは選択したサービスに音声を送信し、料金が発生する場合があります。同期には実際のタイムスタンプが必要です。"
 }
