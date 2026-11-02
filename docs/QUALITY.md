@@ -494,3 +494,13 @@ not contact authenticated providers or establish their alignment accuracy.
 
 Auto-sync extracts strategic clips in parallel and sends external STT requests
 sequentially, bounding provider load.
+
+## GPU sessions during software fallback
+
+A failed hardware video attempt releases its GPU session before retrying the
+same clip on CPU. The general worker permit remains held, so fallback does not
+increase the configured FFmpeg concurrency or the three-session hardware limit.
+A Unix process fixture holds software retries until four hardware attempts have
+started. With four workers and three GPU sessions, the previous code times out;
+the corrected code completes all four clips. This fixture needs no physical GPU.
+Run `cargo test --locked -p srt-flashcards software_retries_release_gpu_sessions_for_pending_clips`.

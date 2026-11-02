@@ -163,6 +163,9 @@ pub(super) async fn run_jobs(jobs: MediaJobs<'_>) -> Result<MediaOutcome, String
                     // Safety net: a probed GPU encoder can still fail on a
                     // specific clip (driver quirks, session limits); retry
                     // that clip once in software instead of losing it.
+                    // The GPU attempt is finished. A software retry must not
+                    // reserve a hardware session while doing CPU work.
+                    drop(_hw_permit);
                     if result.is_err() && video_encoder.is_hardware() {
                         result = extract_video_clip(
                             &source,
@@ -326,5 +329,109 @@ async fn hw_video_semaphore_acquire(
     match semaphore {
         Some(s) => Ok(Some(s.acquire_owned().await?)),
         None => Ok(None),
+    }
+}
+
+#[cfg(all(test, unix))]
+mod tests {
+    use super::*;
+    use std::os::unix::fs::PermissionsExt;
+    use std::time::Duration;
+
+    #[tokio::test]
+    async fn software_retries_release_gpu_sessions_for_pending_clips() {
+        let directory = tempfile::tempdir().unwrap();
+        let source = directory.path().join("source.srt");
+        std::fs::write(
+            &source,
+            (0..4)
+                .map(|i| {
+                    format!(
+                        "{}\n00:00:0{},000 --> 00:00:0{},000\nLine {}\n\n",
+                        i + 1,
+                        i,
+                        i + 1,
+                        i + 1
+                    )
+                })
+                .collect::<String>(),
+        )
+        .unwrap();
+        let ffmpeg = directory.path().join("ffmpeg");
+        let marker = directory.path().join("all-gpu-attempts-started");
+        std::fs::write(
+            &ffmpeg,
+            format!(
+                r#"#!/bin/sh
+previous=
+codec=
+for arg do
+  [ "$previous" = "-c:v" ] && codec="$arg"
+  previous="$arg"
+  out="$arg"
+done
+if [ "$codec" != libx264 ]; then
+  touch "$out.gpu-attempt"
+  set -- '{root}'/*.gpu-attempt
+  [ "$#" -ge 4 ] && touch '{marker}'
+  exit 1
+fi
+while [ ! -e '{marker}' ]; do sleep 0.01; done
+printf clip > "$out"
+"#,
+                root = directory.path().display(),
+                marker = marker.display()
+            ),
+        )
+        .unwrap();
+        std::fs::set_permissions(&ffmpeg, std::fs::Permissions::from_mode(0o700)).unwrap();
+        let config = FlashcardConfig {
+            target_subs_path: source.to_string_lossy().into(),
+            generate_audio: false,
+            generate_snapshots: false,
+            generate_video_clips: true,
+            ..FlashcardConfig::default()
+        };
+        let matched = build_matched_lines(&config).unwrap();
+        let active: Vec<_> = matched.iter().enumerate().collect();
+        let cancel = CancellationToken::new();
+        let outcome = tokio::time::timeout(
+            Duration::from_secs(5),
+            run_jobs(MediaJobs {
+                config: &config,
+                cancel: &cancel,
+                progress: &|_| {},
+                active_lines: &active,
+                media_dir: directory.path(),
+                audio_source: None,
+                video_source: Some(Arc::from("unused.mp4")),
+                video_encoder: H264Encoder::Nvenc,
+                snapshot_settings: snapshot_batch::SnapshotSettings {
+                    source: String::new(),
+                    ffmpeg: ffmpeg.to_string_lossy().into(),
+                    ffprobe: String::new(),
+                    width: 320,
+                    height: 180,
+                    crop: 0,
+                    format: SnapshotFormat::Webp,
+                    quality: 80,
+                    batch_source: None,
+                    cancel: cancel.clone(),
+                },
+                snapshot_groups: HashMap::new(),
+                crop: 0,
+                // Independent of host CPU count: exercise four workers and three
+                // hardware sessions with real, failing child processes.
+                workers: 4,
+            }),
+        )
+        .await
+        .expect("CPU fallbacks must not block the fourth GPU attempt")
+        .unwrap();
+        match outcome {
+            MediaOutcome::Completed(counts) => assert_eq!(counts.video, 4),
+            MediaOutcome::Cancelled(_) => panic!("Unexpected cancellation"),
+        }
+        assert!(marker.exists());
     }
 }
