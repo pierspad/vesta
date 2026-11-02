@@ -589,3 +589,11 @@ is a separate, keyboard-operable button and a context-menu action. Mounted tests
 verify dispatch to real history commands rather than guessing which anchor to
 remove, disabled/busy states and native input undo. Native command tests verify
 that an active operation blocks history mutations.
+
+## Alignment pair history
+
+Annotate/Align snapshots include both subtitle sides and their paths. Swapping
+files is a reversible edit; loading either new side clears the prior document
+history. Undo/redo restores the saved-state comparison and leaves focused
+textarea text undo to the native control. Mounted tests cover swap, redo,
+new-document isolation and native editable focus.

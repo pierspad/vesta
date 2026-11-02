@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { historyShortcutAction } from "$lib/utils/shortcuts";
   import { SnapshotHistory } from "$lib/workflows/snapshotHistory";
   import EmptyStatusLabel from "$lib/components/EmptyStatusLabel.svelte";
   import { invokeCommand as invoke } from "$lib/services/tauriClient";
@@ -74,12 +75,21 @@
   let expandedPathField = $state<string | null>(null);
 
   // ─── Undo History ──────────────────────────────────────────────────────────
-  const undoHistory = new SnapshotHistory<Subtitle[]>(
-    () => sourceSubs.map(s => ({
-      id: s.id, start: s.start, end: s.end, text: s.text,
-      originalStart: s.originalStart, originalEnd: s.originalEnd,
-    })),
-    snapshot => { sourceSubs = snapshot; },
+  let savedAlignmentSignature = "";
+  const alignmentSignature = () => JSON.stringify({ sourcePath, targetPath, content: serializeSrt(sourceSubs) });
+  const copySubtitles = (subtitles: Subtitle[]) => subtitles.map(s => ({
+    id: s.id, start: s.start, end: s.end, text: s.text,
+    originalStart: s.originalStart, originalEnd: s.originalEnd,
+  }));
+  const undoHistory = new SnapshotHistory<{
+    source: Subtitle[]; target: Subtitle[]; sourcePath: string; targetPath: string;
+  }>(
+    () => ({ source: copySubtitles(sourceSubs), target: copySubtitles(targetSubs), sourcePath, targetPath }),
+    snapshot => {
+      sourceSubs = snapshot.source; targetSubs = snapshot.target;
+      sourcePath = snapshot.sourcePath; targetPath = snapshot.targetPath;
+      hasUnsavedChanges = alignmentSignature() !== savedAlignmentSignature;
+    },
   );
   const pushUndo = () => undoHistory.push();
   function scheduleUndo() {
@@ -99,10 +109,10 @@
       selectTarget();
       return;
     }
-    // Ctrl+Z → undo
-    if (e.key === 'z' && (e.ctrlKey || e.metaKey) && !e.shiftKey) {
+    const historyAction = historyShortcutAction(e, "align");
+    if (historyAction) {
       e.preventDefault();
-      performUndo();
+      if (historyAction === "undo") performUndo(); else undoHistory.redo();
       return;
     }
     // Ctrl+Shift+S → swap files
@@ -382,6 +392,8 @@
       targetSubs = parseSrt(content);
       targetPath = path;
       normalizeAlignments();
+      undoHistory.reset();
+      savedAlignmentSignature = alignmentSignature();
       hasUnsavedChanges = false;
     } catch (e) {
       showError(`Error loading target: ${errorMessage(e)}`);
@@ -421,6 +433,7 @@
       sourcePath = path;
       normalizeAlignments();
       undoHistory.reset(); // Reset undo on new file load
+      savedAlignmentSignature = alignmentSignature();
       hasUnsavedChanges = false;
     } catch (e) {
       showError(`Error loading source: ${errorMessage(e)}`);
@@ -457,6 +470,7 @@
   }
 
   function swapFiles() {
+    pushUndo();
     const tempPath = targetPath;
     targetPath = sourcePath;
     sourcePath = tempPath;
@@ -466,6 +480,7 @@
     sourceSubs = tempSubs;
     
     normalizeAlignments();
+    hasUnsavedChanges = alignmentSignature() !== savedAlignmentSignature;
   }
 
   async function saveSource() {
@@ -480,6 +495,7 @@
         const content = serializeSrt(sourceSubs);
         await writeTextFile(savePath, content);
         showSuccess(`File saved to ${savePath}`);
+        savedAlignmentSignature = alignmentSignature();
         hasUnsavedChanges = false;
       }
     } catch (e) {
