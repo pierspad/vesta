@@ -791,7 +791,7 @@
   "sync.tooltipRemoveAnchor": "이 동기화 앵커 제거 (Del)",
   "sync.tooltipSaveFile": "모든 타이밍 수정이 적용된 동기화된 SRT 파일 내보내기.",
   "sync.tooltipSaveSession": "나중에 계속하려면 현재 진행 상황 저장. SRT 경로, 비디오 위치, 모든 앵커 포함.",
-  "sync.transcodingHint": "MKV/AVI 오디오가 재생을 위해 추출되고 있습니다. 이 절차는 처음에만 필요합니다.",
+  "sync.transcodingHint": "오디오 전용 미리보기를 준비하고 있습니다. 이후 재생을 위해 캐시에 저장됩니다.",
   "sync.transcodingMedia": "오디오 트랙 추출 중...",
   "sync.tryAnotherFile": "다른 파일 시도",
   "sync.video": "비디오",

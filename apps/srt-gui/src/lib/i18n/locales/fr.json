@@ -791,7 +791,7 @@
   "sync.tooltipRemoveAnchor": "Supprimer cette ancre de synchronisation",
   "sync.tooltipSaveFile": "Exporter le fichier SRT final synchronisé (.srt) avec toutes les corrections appliquées.",
   "sync.tooltipSaveSession": "Sauvegarder l'état actuel (.json) pour faire une pause et reprendre plus tard.",
-  "sync.transcodingHint": "L'audio MKV/AVI est en cours d'extraction pour la lecture. Cela n'est nécessaire que la première fois.",
+  "sync.transcodingHint": "Préparation d’un aperçu audio seul, mis en cache pour les prochaines lectures.",
   "sync.transcodingMedia": "Extraction de la piste audio...",
   "sync.tryAnotherFile": "Essayer un autre fichier",
   "sync.video": "Vidéo",

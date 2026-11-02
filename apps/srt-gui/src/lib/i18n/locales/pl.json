@@ -791,7 +791,7 @@
   "sync.tooltipRemoveAnchor": "Usuń tę kotwicę synchronizacji",
   "sync.tooltipSaveFile": "Eksportuj końcowy zsynchronizowany plik SRT (.srt) ze wszystkimi korektami czasowymi z kotwic. To gotowy plik wynikowy.",
   "sync.tooltipSaveSession": "Zapisz bieżący stan synchronizacji do pliku .json. Zawiera: ścieżkę SRT, ścieżkę wideo, wszystkie potwierdzone kotwice i offsety. Przydatne do przerwania i wznowienia pracy później.",
-  "sync.transcodingHint": "Dźwięk MKV/AVI jest wyodrębniany do odtwarzania. Jest to potrzebne tylko za pierwszym razem.",
+  "sync.transcodingHint": "Przygotowywanie podglądu samego dźwięku, zapisywanego w pamięci podręcznej do kolejnego odtwarzania.",
   "sync.transcodingMedia": "Wyodrębnianie ścieżki dźwiękowej...",
   "sync.tryAnotherFile": "Spróbuj innego pliku",
   "sync.video": "Wideo",

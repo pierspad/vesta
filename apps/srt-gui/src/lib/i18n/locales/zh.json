@@ -791,7 +791,7 @@
   "sync.tooltipRemoveAnchor": "移除此同步锚点",
   "sync.tooltipSaveFile": "导出应用了所有锚点时间校正的最终同步 SRT 文件 (.srt)。这是准备就绪的输出文件。",
   "sync.tooltipSaveSession": "将当前同步状态保存为 .json 文件。包含：SRT 路径、视频路径、所有已确认的锚点和偏移。适合稍后暂停并恢复工作。",
-  "sync.transcodingHint": "正在提取MKV/AVI音频以进行播放。这只是第一次需要。",
+  "sync.transcodingHint": "正在准备纯音频预览，并缓存以供后续播放。",
   "sync.transcodingMedia": "正在提取音轨...",
   "sync.tryAnotherFile": "尝试另一个文件",
   "sync.video": "视频",

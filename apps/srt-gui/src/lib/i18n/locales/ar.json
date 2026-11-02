@@ -791,7 +791,7 @@
   "sync.tooltipRemoveAnchor": "إزالة مرساة المزامنة هذه (Del)",
   "sync.tooltipSaveFile": "تصدير ملف SRT المتزامن مع جميع تصحيحات التوقيت.",
   "sync.tooltipSaveSession": "حفظ التقدم الحالي للمتابعة لاحقاً. يشمل مسار SRT وموقع الفيديو وجميع المراسي.",
-  "sync.transcodingHint": "يتم استخراج صوت MKV/AVI للتشغيل. هذا مطلوب فقط في المرة الأولى.",
+  "sync.transcodingHint": "جارٍ إعداد معاينة صوتية فقط وحفظها مؤقتًا لعمليات التشغيل اللاحقة.",
   "sync.transcodingMedia": "جارٍ استخراج المسار الصوتي...",
   "sync.tryAnotherFile": "جرب ملفاً آخر",
   "sync.video": "الفيديو",

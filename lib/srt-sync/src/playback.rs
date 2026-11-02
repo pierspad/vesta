@@ -45,9 +45,9 @@ fn run_ffmpeg(command: &mut Command) -> anyhow::Result<Output> {
     })
 }
 
-const NATIVE_PLAYBACK_EXTENSIONS: &[&str] = &[
-    "mp4", "m4v", "webm", "mp3", "wav", "ogg", "m4a", "aac", "opus", "flac",
-];
+// The sync player only needs audio. Never pass video containers through: a
+// hidden video element still decodes their video track and may fail in WebKit.
+const NATIVE_PLAYBACK_EXTENSIONS: &[&str] = &["mp3", "wav", "ogg", "m4a", "aac", "opus", "flac"];
 
 pub fn is_natively_playable(path: &Path) -> bool {
     let ext = path
@@ -83,7 +83,7 @@ pub fn transcode_for_playback(
         .map_err(|e| anyhow::anyhow!("Cannot create cache dir: {e}"))?;
 
     let hash = stable_path_hash(&source.to_string_lossy());
-    let output_path = cache_dir.join(format!("{hash}.ogg"));
+    let output_path = cache_dir.join(format!("{hash}.wav"));
 
     if std::fs::metadata(&output_path).is_ok_and(|m| m.len() > 0) {
         let source_modified = std::fs::metadata(source).and_then(|m| m.modified()).ok();
@@ -97,32 +97,11 @@ pub fn transcode_for_playback(
         }
     }
 
-    // Publish only complete files; simultaneous preview requests reuse the cache.
-    let temporary_path = cache_dir.join(format!("{hash}.partial.ogg"));
+    // PCM avoids lossy encoding work and needs no optional compressed-audio decoder.
+    let temporary_path = cache_dir.join(format!("{hash}.partial.wav"));
     let output = run_ffmpeg(
         Command::new(ffmpeg_cmd)
             .args(["-nostdin", "-loglevel", "error", "-y", "-i"])
-            .arg(source)
-            .args(["-map", "0:a:0", "-vn", "-sn", "-dn", "-c:a", "copy"])
-            .arg(&temporary_path),
-    )?;
-    if output.status.success() {
-        if output_path.exists() {
-            std::fs::remove_file(&output_path)?;
-        }
-        std::fs::rename(&temporary_path, &output_path)?;
-        return Ok(output_path);
-    }
-
-    eprintln!(
-        "[sync] Transcoding '{}' to OGG for browser playback...",
-        source.display()
-    );
-
-    let output = run_ffmpeg(
-        Command::new(ffmpeg_cmd)
-            .args(["-nostdin", "-loglevel", "error", "-y"])
-            .arg("-i")
             .arg(source)
             .args([
                 "-map",
@@ -131,55 +110,27 @@ pub fn transcode_for_playback(
                 "-sn",
                 "-dn",
                 "-c:a",
-                "libopus",
-                "-b:a",
-                "64k",
-                "-compression_level",
-                "0",
+                "pcm_s16le",
                 "-ar",
-                "48000",
+                "16000",
                 "-ac",
                 "1",
             ])
             .arg(&temporary_path),
-    )
-    .map_err(|e| anyhow::anyhow!("Failed to run ffmpeg: {e}"))?;
-
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr).into_owned();
-        eprintln!("[sync] libopus failed, trying libvorbis fallback: {stderr}");
-
-        let output2 = run_ffmpeg(
-            Command::new(ffmpeg_cmd)
-                .args(["-nostdin", "-loglevel", "error", "-y"])
-                .arg("-i")
-                .arg(source)
-                .args([
-                    "-map",
-                    "0:a:0",
-                    "-vn",
-                    "-sn",
-                    "-dn",
-                    "-c:a",
-                    "libvorbis",
-                    "-b:a",
-                    "128k",
-                    "-ar",
-                    "44100",
-                    "-ac",
-                    "2",
-                ])
-                .arg(&temporary_path),
-        )
-        .map_err(|e| anyhow::anyhow!("Failed to run ffmpeg (vorbis): {e}"))?;
-
-        if !output2.status.success() {
-            let stderr2 = String::from_utf8_lossy(&output2.stderr).into_owned();
-            anyhow::bail!(
-                "ffmpeg transcoding failed: {}",
-                if stderr2.is_empty() { stderr } else { stderr2 }
-            );
+    );
+    let output = match output {
+        Ok(output) => output,
+        Err(error) => {
+            let _ = std::fs::remove_file(&temporary_path);
+            return Err(error);
         }
+    };
+    if !output.status.success() {
+        let _ = std::fs::remove_file(&temporary_path);
+        anyhow::bail!(
+            "ffmpeg audio preparation failed: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
     }
 
     if output_path.exists() {
@@ -202,9 +153,7 @@ mod tests {
 
     #[test]
     fn native_formats_are_recognised() {
-        for ext in [
-            "mp4", "m4v", "webm", "mp3", "wav", "ogg", "m4a", "aac", "opus", "flac",
-        ] {
+        for ext in ["mp3", "wav", "ogg", "m4a", "aac", "opus", "flac"] {
             assert!(
                 is_natively_playable(Path::new(&format!("clip.{ext}"))),
                 "{ext} should be native"
@@ -216,7 +165,9 @@ mod tests {
 
     #[test]
     fn non_native_formats_need_transcoding() {
-        for ext in ["mkv", "avi", "mov", "flv", "ogm", "vob", "wma", "m4b"] {
+        for ext in [
+            "mp4", "m4v", "webm", "mkv", "avi", "mov", "flv", "ogm", "vob", "wma", "m4b",
+        ] {
             assert!(
                 !is_natively_playable(Path::new(&format!("clip.{ext}"))),
                 "{ext} should not be native"
@@ -254,7 +205,7 @@ mod tests {
             std::env::temp_dir().join(format!("vesta-playback-test-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&folder);
         std::fs::create_dir_all(&folder).unwrap();
-        let source = folder.join("clip.mkv");
+        let source = folder.join("clip.mp4");
         std::fs::write(&source, "source").unwrap();
         let fake = folder.join("ffmpeg");
         std::fs::write(
@@ -266,33 +217,82 @@ mod tests {
         let cache = folder.join("cache");
         std::fs::create_dir_all(&cache).unwrap();
         let hash = stable_path_hash(&source.to_string_lossy());
-        std::fs::write(cache.join(format!("{hash}.partial.ogg")), "incomplete").unwrap();
-        std::fs::write(cache.join(format!("{hash}.ogg")), "").unwrap();
+        std::fs::write(cache.join(format!("{hash}.partial.wav")), "incomplete").unwrap();
+        std::fs::write(cache.join(format!("{hash}.wav")), "").unwrap();
         let output = transcode_for_playback(&source, &cache, fake.to_str().unwrap()).unwrap();
         assert_eq!(std::fs::read_to_string(&output).unwrap(), "OggScomplete");
-        assert!(!cache.join(format!("{hash}.partial.ogg")).exists());
+        assert!(!cache.join(format!("{hash}.partial.wav")).exists());
         let cached = transcode_for_playback(&source, &cache, "missing-ffmpeg").unwrap();
         assert_eq!(output, cached);
         std::fs::remove_dir_all(&folder).unwrap();
     }
     #[cfg(unix)]
     #[test]
-    fn unsupported_copy_falls_back_without_publishing_failed_output() {
+    fn failed_preparation_removes_partial_output() {
         use std::os::unix::fs::PermissionsExt;
-        let folder = std::env::temp_dir().join(format!(
-            "vesta-playback-fallback-test-{}",
-            std::process::id()
-        ));
-        let _ = std::fs::remove_dir_all(&folder);
-        std::fs::create_dir_all(&folder).unwrap();
-        let source = folder.join("clip.mkv");
+        let directory = tempfile::tempdir().unwrap();
+        let source = directory.path().join("clip.mp4");
         std::fs::write(&source, "source").unwrap();
-        let fake = folder.join("ffmpeg");
-        std::fs::write(&fake, "#!/bin/sh\ncopy=0\nfor arg do [ \"$arg\" = copy ] && copy=1; out=\"$arg\"; done\nif [ $copy = 1 ]; then printf failed > \"$out\"; exit 1; fi\nprintf 'OggSconverted' > \"$out\"\n").unwrap();
+        let fake = directory.path().join("ffmpeg");
+        std::fs::write(
+            &fake,
+            "#!/bin/sh\nfor arg do out=\"$arg\"; done\nprintf failed > \"$out\"\nexit 1\n",
+        )
+        .unwrap();
         std::fs::set_permissions(&fake, std::fs::Permissions::from_mode(0o700)).unwrap();
-        let output =
-            transcode_for_playback(&source, &folder.join("cache"), fake.to_str().unwrap()).unwrap();
-        assert_eq!(std::fs::read_to_string(output).unwrap(), "OggSconverted");
-        std::fs::remove_dir_all(folder).unwrap();
+        let cache = directory.path().join("cache");
+        assert!(transcode_for_playback(&source, &cache, fake.to_str().unwrap()).is_err());
+        assert_eq!(std::fs::read_dir(cache).unwrap().count(), 0);
+    }
+
+    #[test]
+    fn real_preview_is_audio_only_pcm_and_reuses_cache() {
+        let directory = tempfile::tempdir().unwrap();
+        let source = directory.path().join("clip.mp4");
+        let status = Command::new("ffmpeg")
+            .args([
+                "-nostdin",
+                "-v",
+                "error",
+                "-f",
+                "lavfi",
+                "-i",
+                "color=size=16x16:duration=1",
+                "-f",
+                "lavfi",
+                "-i",
+                "sine=frequency=440:duration=1",
+                "-c:v",
+                "libx264",
+                "-c:a",
+                "aac",
+                "-shortest",
+            ])
+            .arg(&source)
+            .status()
+            .unwrap();
+        assert!(status.success());
+        let cache = directory.path().join("cache");
+        let preview = transcode_for_playback(&source, &cache, "ffmpeg").unwrap();
+        let probe = Command::new("ffprobe")
+            .args([
+                "-v",
+                "error",
+                "-show_entries",
+                "stream=codec_name,codec_type,sample_rate,channels",
+                "-of",
+                "csv=p=0",
+            ])
+            .arg(&preview)
+            .output()
+            .unwrap();
+        assert!(probe.status.success());
+        let streams = String::from_utf8(probe.stdout).unwrap();
+        assert_eq!(streams.lines().count(), 1);
+        assert!(streams.contains("pcm_s16le,audio,16000,1"), "{streams}");
+        assert_eq!(
+            transcode_for_playback(&source, &cache, "missing-ffmpeg").unwrap(),
+            preview
+        );
     }
 }

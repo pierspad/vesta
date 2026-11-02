@@ -791,7 +791,7 @@
   "sync.tooltipRemoveAnchor": "Verwijder dit synchronisatieanker",
   "sync.tooltipSaveFile": "Exporteer het uiteindelijke gesynchroniseerde SRT-bestand (.srt) met alle toegepaste timingcorrecties van ankers. Dit is het kant-en-klare uitvoerbestand.",
   "sync.tooltipSaveSession": "Sla de huidige synchronisatiestatus op in een .json-bestand. Inclusief: SRT-pad, videopad, alle bevestigde ankers en offsets. Handig om het werk te pauzeren en later te hervatten.",
-  "sync.transcodingHint": "MKV/AVI-audio wordt geëxtraheerd voor weergave. Dit is alleen de eerste keer nodig.",
+  "sync.transcodingHint": "Een voorbeeld met alleen audio wordt voorbereid en voor later afspelen opgeslagen.",
   "sync.transcodingMedia": "Audiotrack wordt geëxtraheerd...",
   "sync.tryAnotherFile": "Probeer een ander bestand",
   "sync.video": "Video",

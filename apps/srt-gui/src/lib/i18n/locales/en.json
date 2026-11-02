@@ -791,7 +791,7 @@
   "sync.tooltipRemoveAnchor": "Remove this sync anchor",
   "sync.tooltipSaveFile": "Export the final synchronized SRT file (.srt) with all timing corrections from anchors applied. This is the ready-to-use output file.",
   "sync.tooltipSaveSession": "Save the current sync state to a .json file. Includes: SRT path, video path, all confirmed anchors and offsets. Useful to pause and resume work later.",
-  "sync.transcodingHint": "MKV/AVI audio is being extracted for playback. This is only needed the first time.",
+  "sync.transcodingHint": "Preparing an audio-only preview, cached for subsequent playback.",
   "sync.transcodingMedia": "Extracting audio track...",
   "sync.tryAnotherFile": "Try another file",
   "sync.video": "Video",

@@ -458,3 +458,19 @@ units and path titles, and removed ineffective `t(key) || literal` fallbacks.
 Catalogs contain 1,290 keys each, with no duplicate keys or replacement characters
 in this review. Structural checks and reviewed source literals do not certify
 native-speaker quality of every sentence in all languages.
+
+## Audio-only sync previews
+
+Video-container previews use mono 16 kHz PCM WAV to avoid video decoding and
+compressed-audio encoding. This increases cache use to about 115 MB per hour;
+the source is unchanged. Installed WebKit playback and authenticated provider
+checks still need a desktop smoke test.
+
+A local comparison on 2 November 2026 used the complete 7,593-second
+Good Will Hunting MP4, three sequential runs per codec with identical first-audio
+track selection. The previous Opus settings (`libopus`, 64k, compression level 0,
+48 kHz mono) took 9.863/10.236/12.907 s and produced 58,665,004 bytes. PCM
+(`pcm_s16le`, 16 kHz mono) took 3.375/3.386/3.633 s and produced 242,990,500
+bytes. These are FFmpeg preparation timings with a warm filesystem cache,
+measured during development checks, not controlled UI startup benchmarks or a
+promise of the same speedup on other machines. Outputs were temporary and removed.

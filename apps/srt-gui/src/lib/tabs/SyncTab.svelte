@@ -353,9 +353,9 @@
   }
 
   async function loadMediaFile(filePath: string): Promise<string> {
-    // For non-browser-native formats (mkv, avi, etc.), transcode audio
-    // via ffmpeg to OGG Opus for reliable WebKitGTK playback
-    const needsTranscode = /\.(mkv|avi|mov|flv|ogm|vob|wma|m4b|m2ts|mpeg|mpg)$/i.test(filePath);
+    // Video containers need an audio-only preview, even when their extension
+    // is supported: decoding an unused video track can fail in WebKitGTK.
+    const needsTranscode = !/\.(mp3|wav|ogg|m4a|aac|opus|flac)$/i.test(filePath);
     if (needsTranscode) {
       isPreparingMedia = true;
       showSnackbar(t("sync.transcodingMedia"), "info");

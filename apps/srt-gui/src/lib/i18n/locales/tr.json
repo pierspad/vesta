@@ -791,7 +791,7 @@
   "sync.tooltipRemoveAnchor": "Bu senkronizasyon çapasını kaldır (Del)",
   "sync.tooltipSaveFile": "Tüm zamanlama düzeltmeleri uygulanmış senkronize SRT dosyasını dışa aktar.",
   "sync.tooltipSaveSession": "Daha sonra devam etmek için mevcut ilerlemeyi kaydet. SRT yolu, video konumu ve tüm çapaları içerir.",
-  "sync.transcodingHint": "MKV/AVI sesi oynatılmak üzere çıkarılıyor. Bu sadece ilk seferde gereklidir.",
+  "sync.transcodingHint": "Sonraki oynatmalar için önbelleğe alınan, yalnızca ses içeren bir önizleme hazırlanıyor.",
   "sync.transcodingMedia": "Ses parçası ayıklanıyor...",
   "sync.tryAnotherFile": "Başka bir dosya dene",
   "sync.video": "Video dosyası",

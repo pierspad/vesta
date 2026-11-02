@@ -791,7 +791,7 @@
   "sync.tooltipRemoveAnchor": "Remover esta âncora de sincronia",
   "sync.tooltipSaveFile": "Exportar o arquivo SRT final sincronizado (.srt) com todas as correções de tempo aplicadas. Este é o arquivo de saída pronto para uso.",
   "sync.tooltipSaveSession": "Salvar o estado atual da sincronia em um arquivo .json. Inclui: caminho SRT, caminho do vídeo, todas as âncoras e ajustes. Útil para pausar e retomar o trabalho depois.",
-  "sync.transcodingHint": "O áudio MKV/AVI está sendo extraído para reprodução. Isso só é necessário na primeira vez.",
+  "sync.transcodingHint": "A preparar uma prévia apenas de áudio, guardada em cache para reproduções futuras.",
   "sync.transcodingMedia": "A extrair faixa de áudio...",
   "sync.tryAnotherFile": "Tentar outro arquivo",
   "sync.video": "Vídeo",
