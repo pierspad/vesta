@@ -1157,9 +1157,9 @@
   <!-- Fixed Bottom Band: reset è un'azione rara e distruttiva, quindi piccola
        e in un angolo (con conferma) invece di un bottone rosso gigante al
        centro di ogni sezione di Settings. -->
-  {#if activeSettingsSection !== "diagnostics"}
   <FooterActions justify="end">
     {#snippet right()}
+      {#if activeSettingsSection !== "diagnostics"}
       <button
         onclick={() => {
           if (activeSettingsSection !== "shortcuts" && activeSettingsSection !== "diagnostics") {
@@ -1183,9 +1183,9 @@
         </svg>
         {t("settings.resetDefaults")}
       </button>
+      {/if}
     {/snippet}
   </FooterActions>
-  {/if}
   {/if}
 
   <!-- Reset Confirmation Dialog -->
