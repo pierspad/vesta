@@ -248,6 +248,7 @@ it("switches to embedded view with Back button and header bar when opened", asyn
   // Top header bar inside PluginsTab
   const backBtn = target.querySelector('button[aria-label="Back"]') as HTMLButtonElement;
   expect(backBtn).not.toBeNull();
+  await vi.waitFor(() => expect(backBtn.disabled).toBe(false));
   expect(target.textContent).toContain("Demo Plugin");
 
   // Clicking Back returns to list
@@ -320,22 +321,24 @@ it("walks back from settings to details and search before leaving the plugin", a
   await tick();
   target.querySelector<HTMLButtonElement>('[aria-label="Open · Demo Plugin"]')!.click();
   await tick();
+  const expectPage = (label: string) => vi.waitFor(() => {
+    expect(target.querySelector("#widget-navigate")?.textContent?.trim()).toBe(label);
+  });
   const navigate = () => target.querySelector<HTMLButtonElement>("#widget-navigate")!.click();
   const back = () => target.querySelector<HTMLButtonElement>('[aria-label="Back"]')!.click();
+  await expectPage("main");
   navigate();
-  await tick();
+  await expectPage("detail");
   navigate();
-  await tick();
+  await expectPage("settings");
   expect(pluginDispatchEvent).toHaveBeenLastCalledWith(
     "demo-plugin", expect.objectContaining({ screen: "detail" }), expect.any(String), expect.any(Boolean),
   );
 
   back();
-  await tick();
-  expect(target.querySelector("#widget-navigate")?.textContent?.trim()).toBe("detail");
+  await expectPage("detail");
   back();
-  await tick();
-  expect(target.querySelector("#widget-navigate")?.textContent?.trim()).toBe("main");
+  await expectPage("main");
   expect(onGoToTab).toHaveBeenCalledTimes(1);
   back();
   expect(onGoToTab).toHaveBeenLastCalledWith("plugins");
