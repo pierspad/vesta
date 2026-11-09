@@ -667,3 +667,266 @@ class VestaPlugin:
         }
         sys.stdout.write(json.dumps(payload) + "\n")
         sys.stdout.flush()
+
+
+VALID_WIDGET_TYPES = {
+    "column",
+    "row",
+    "heading",
+    "text",
+    "textInput",
+    "textarea",
+    "pathInput",
+    "passwordInput",
+    "numberInput",
+    "select",
+    "segmented",
+    "languageSelect",
+    "checkbox",
+    "button",
+    "link",
+    "externalLink",
+    "list",
+    "table",
+    "image",
+    "progress",
+    "fileOutput",
+    "divider",
+    "settings",
+}
+
+
+def validate_manifest(plugin_dir: str) -> List[str]:
+    """Validate `vesta-plugin.json` in `plugin_dir` against the v1 manifest contract."""
+    import os
+    import re
+
+    errors: List[str] = []
+    manifest_path = os.path.join(plugin_dir, "vesta-plugin.json")
+    if not os.path.isfile(manifest_path):
+        return [f"Missing vesta-plugin.json in {plugin_dir}"]
+
+    try:
+        with open(manifest_path, "r", encoding="utf-8") as fh:
+            manifest = json.load(fh)
+    except Exception as exc:
+        return [f"Invalid JSON in vesta-plugin.json: {exc}"]
+
+    if not isinstance(manifest, dict):
+        return ["vesta-plugin.json root must be a JSON object"]
+
+    plugin_id = manifest.get("id")
+    if not isinstance(plugin_id, str) or not re.match(r"^[a-zA-Z0-9_-]{1,64}$", plugin_id):
+        errors.append("Manifest 'id' must match ^[a-zA-Z0-9_-]{1,64}$")
+
+    name = manifest.get("name")
+    if not isinstance(name, str) or not name.strip() or len(name) > 100:
+        errors.append("Manifest 'name' must be a non-empty string (max 100 chars)")
+
+    version = manifest.get("version")
+    if not isinstance(version, str) or not version.strip():
+        errors.append("Manifest 'version' must be a non-empty SemVer string")
+
+    if manifest.get("apiVersion") != 1:
+        errors.append("Manifest 'apiVersion' must be 1")
+
+    entry = manifest.get("entry")
+    if not isinstance(entry, dict) or not isinstance(entry.get("command"), list) or not entry["command"]:
+        errors.append("Manifest 'entry.command' must be a non-empty list of strings")
+
+    return errors
+
+
+def validate_widget_tree(node: Any, path: str = "root") -> List[str]:
+    """Recursively validate a declarative widget tree returned by `render`."""
+    errors: List[str] = []
+    if not isinstance(node, dict):
+        return [f"{path}: widget node must be a dict"]
+    wtype = node.get("type")
+    if wtype not in VALID_WIDGET_TYPES:
+        errors.append(f"{path}: unknown widget type {wtype!r}")
+    children = node.get("children")
+    if children is not None:
+        if not isinstance(children, list):
+            errors.append(f"{path}.children: must be a list")
+        else:
+            for idx, child in enumerate(children):
+                errors.extend(validate_widget_tree(child, f"{path}.children[{idx}]"))
+    return errors
+
+
+def smoke_test_plugin(plugin_dir: str, screen: str = "main") -> List[str]:
+    """Validate manifest, spawn the plugin over stdio, and verify `initialize` -> `render` -> `shutdown`."""
+    import os
+    import subprocess
+    import tempfile
+
+    errors = validate_manifest(plugin_dir)
+    if errors:
+        return errors
+
+    with open(os.path.join(plugin_dir, "vesta-plugin.json"), "r", encoding="utf-8") as fh:
+        manifest = json.load(fh)
+
+    entry = manifest["entry"]
+    cmd = entry["command"]
+    os_overrides = entry.get("os") or {}
+    if sys.platform.startswith("win") and os_overrides.get("windows"):
+        cmd = os_overrides["windows"]
+    elif sys.platform == "darwin" and os_overrides.get("macos"):
+        cmd = os_overrides["macos"]
+    elif sys.platform.startswith("linux") and os_overrides.get("linux"):
+        cmd = os_overrides["linux"]
+
+    with tempfile.TemporaryDirectory(prefix="vesta_plugin_test_") as data_dir:
+        proc = subprocess.Popen(
+            cmd,
+            cwd=plugin_dir,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        try:
+            requests = [
+                {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {"dataDir": data_dir, "settings": {}, "locale": "en", "expertMode": False}},
+                {"jsonrpc": "2.0", "id": 2, "method": "render", "params": {"screen": screen, "params": {}, "locale": "en", "expertMode": False}},
+                {"jsonrpc": "2.0", "id": 3, "method": "shutdown", "params": {}},
+            ]
+            assert proc.stdin is not None and proc.stdout is not None
+            for req in requests:
+                proc.stdin.write(json.dumps(req) + "\n")
+                proc.stdin.flush()
+                while True:
+                    line = proc.stdout.readline()
+                    if not line:
+                        stderr_out = proc.stderr.read() if proc.stderr else ""
+                        return [f"Plugin exited unexpectedly while waiting for id={req['id']}: {stderr_out.strip()}"]
+                    msg = json.loads(line)
+                    if msg.get("method") == "ui.getValues" and "id" in msg:
+                        reply = {"jsonrpc": "2.0", "id": msg["id"], "result": {"values": {}}}
+                        proc.stdin.write(json.dumps(reply) + "\n")
+                        proc.stdin.flush()
+                        continue
+                    if msg.get("id") == req["id"]:
+                        if "error" in msg:
+                            return [f"RPC error on {req['method']}: {msg['error']}"]
+                        if req["method"] == "render":
+                            root = (msg.get("result") or {}).get("root")
+                            errors.extend(validate_widget_tree(root))
+                        break
+        finally:
+            try:
+                proc.kill()
+                proc.wait(timeout=2)
+            except Exception:
+                pass
+    return errors
+
+
+def scaffold_plugin(target_dir: str, plugin_id: str = "my-plugin", name: str = "My Vesta Plugin"):
+    """Create a minimal ready-to-run Vesta plugin in `target_dir`."""
+    import os
+    import shutil
+
+    os.makedirs(target_dir, exist_ok=True)
+    sdk_src = os.path.abspath(__file__)
+    sdk_dst = os.path.join(target_dir, "vesta_plugin.py")
+    if os.path.abspath(sdk_src) != os.path.abspath(sdk_dst):
+        shutil.copyfile(sdk_src, sdk_dst)
+
+    manifest = {
+        "id": plugin_id,
+        "name": name,
+        "version": "0.1.0",
+        "apiVersion": 1,
+        "description": "Custom Vesta plugin",
+        "entry": {
+            "command": ["python3", "main.py"],
+            "os": {"windows": ["python", "main.py"]},
+        },
+        "permissions": [],
+        "tab": {"title": name, "icon": "puzzle"},
+        "settings": [],
+    }
+    with open(os.path.join(target_dir, "vesta-plugin.json"), "w", encoding="utf-8") as fh:
+        json.dump(manifest, fh, indent=2)
+        fh.write("\n")
+
+    main_py = '''#!/usr/bin/env python3
+from vesta_plugin import VestaPlugin, Column, Heading, Text, Button
+
+plugin = VestaPlugin()
+
+
+@plugin.on_render("main")
+def render_main(params):
+    return Column([
+        Heading("Hello from Vesta!", level=1),
+        Text("Edit main.py to customize this plugin."),
+        Button("btn_ping", label="Ping", variant="primary"),
+    ])
+
+
+@plugin.on_event("btn_ping")
+def on_ping(screen, widget_id, event_type, values):
+    plugin.notify("Pong!", level="success")
+    return render_main({})
+
+
+if __name__ == "__main__":
+    plugin.run()
+'''
+    main_path = os.path.join(target_dir, "main.py")
+    if not os.path.exists(main_path):
+        with open(main_path, "w", encoding="utf-8") as fh:
+            fh.write(main_py)
+
+
+def _cli_main(argv: List[str]) -> int:
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        prog="vesta_plugin.py",
+        description="Vesta Plugin Python SDK & CLI helper (init, validate, test)",
+    )
+    sub = parser.add_subparsers(dest="cmd", required=True)
+
+    p_init = sub.add_parser("init", help="Scaffold a new Vesta plugin directory")
+    p_init.add_argument("directory", help="Target directory for the new plugin")
+    p_init.add_argument("--id", default="my-plugin", help="Plugin ID (default: my-plugin)")
+    p_init.add_argument("--name", default="My Vesta Plugin", help="Plugin display name")
+
+    p_val = sub.add_parser("validate", help="Validate vesta-plugin.json in a directory")
+    p_val.add_argument("directory", nargs="?", default=".", help="Plugin directory (default: .)")
+
+    p_test = sub.add_parser("test", help="Run a headless JSON-RPC smoke test on a plugin directory")
+    p_test.add_argument("directory", nargs="?", default=".", help="Plugin directory (default: .)")
+    p_test.add_argument("--screen", default="main", help="Screen name to render (default: main)")
+
+    args = parser.parse_args(argv)
+    if args.cmd == "init":
+        scaffold_plugin(args.directory, plugin_id=args.id, name=args.name)
+        print(f"Scaffolded plugin '{args.id}' in {args.directory}")
+        return 0
+    if args.cmd == "validate":
+        errs = validate_manifest(args.directory)
+        if errs:
+            for e in errs:
+                sys.stderr.write(f"ERROR: {e}\n")
+            return 1
+        print(f"Manifest valid: {args.directory}")
+        return 0
+    if args.cmd == "test":
+        errs = smoke_test_plugin(args.directory, screen=args.screen)
+        if errs:
+            for e in errs:
+                sys.stderr.write(f"ERROR: {e}\n")
+            return 1
+        print(f"Smoke test passed: {args.directory} (screen={args.screen})")
+        return 0
+    return 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(_cli_main(sys.argv[1:]))

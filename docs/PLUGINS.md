@@ -494,6 +494,23 @@ if __name__ == "__main__":
 
 ## 12. Manual Testing & Verification
 
+### Headless CLI Scaffolding & Validation
+
+`vesta_plugin.py` includes a built-in CLI for scaffolding new plugins, validating `vesta-plugin.json`, and running a headless JSON-RPC smoke test (`initialize` -> `render` -> widget tree validation -> `shutdown`) without launching the desktop app:
+
+```bash
+# Scaffold a new ready-to-run plugin directory
+python3 docs/examples/plugin-hello/vesta_plugin.py init ./my-plugin --id my-plugin --name "My Plugin"
+
+# Validate vesta-plugin.json against the v1 manifest contract
+python3 docs/examples/plugin-hello/vesta_plugin.py validate ./my-plugin
+
+# Run a headless stdio JSON-RPC smoke test and validate the returned widget tree
+python3 docs/examples/plugin-hello/vesta_plugin.py test ./my-plugin
+```
+
+### Interactive GUI Verification
+
 1. Start Vesta in development mode:
    ```bash
    cd apps/srt-gui && npm run dev

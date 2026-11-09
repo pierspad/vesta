@@ -429,7 +429,7 @@
       }
     },
     "plugin_sdk": {
-      "hash": "66ead05aca917343",
+      "hash": "3c132523c7bf425d",
       "widget_types": [
         "button",
         "checkbox",
@@ -478,7 +478,11 @@
         "Table": "86506297d059c62e",
         "Text": "2d3b3fa7350403e6",
         "TextArea": "f24d97b9470361cb",
-        "TextInput": "f1d2eedea1948d84"
+        "TextInput": "f1d2eedea1948d84",
+        "scaffold_plugin": "f3f0dc573707c3f0",
+        "smoke_test_plugin": "2339aeb028da6f93",
+        "validate_manifest": "cb195a58e0e991c5",
+        "validate_widget_tree": "f6426bc3ef228936"
       },
       "python_builder_types": {
         "Column": "column",

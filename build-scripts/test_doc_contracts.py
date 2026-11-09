@@ -117,6 +117,34 @@ class TestDocContracts(unittest.TestCase):
         self.assertNotIn("--allow-partial", refine_sub["inspect"])
         self.assertIn("--allow-partial", refine_sub["enrich"])
 
+    def test_plugin_sdk_cli_scaffold_validate_and_smoke(self) -> None:
+        import subprocess
+        import tempfile
+
+        sdk_path = cdc.ROOT / "docs/examples/plugin-hello/vesta_plugin.py"
+        with tempfile.TemporaryDirectory() as tmp:
+            res_init = subprocess.run(
+                [sys.executable, str(sdk_path), "init", tmp, "--id", "demo-plugin", "--name", "Demo"],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(res_init.returncode, 0, res_init.stderr)
+            res_val = subprocess.run(
+                [sys.executable, str(sdk_path), "validate", tmp],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(res_val.returncode, 0, res_val.stderr)
+            res_test = subprocess.run(
+                [sys.executable, str(sdk_path), "test", tmp],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(res_test.returncode, 0, res_test.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()
