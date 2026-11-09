@@ -20,13 +20,14 @@ the configured number of FFmpeg processes).
 
 **Library API highlights**
 
-- `FlashcardConfig` — the one big config struct (inputs, filters, media
-  options, export options)
-- `generate(config, tools, cancel_token, &on_progress)` — full run;
-  `MediaTools::new("ffmpeg", "ffprobe")` tells it which binaries to use
-- `preview(config)` — parse/match/filter pipeline without touching media
-- `build_matched_lines(config)` — the shared parse→match→filter pipeline
-- `load_sub_file_info(path)`, `list_audio_tracks(...)`, `check_ffmpeg(...)`
+- `FlashcardConfig` — configuration struct covering inputs, filters, context lines, media options, font/dictionary settings, and export options (`Default` and `FlashcardConfig::benchmark(...)`)
+- `generate(config, tools, cancel_token, &on_progress)` — full pipeline run; `MediaTools::new("ffmpeg", "ffprobe")` specifies the media executables
+- `preview(config)` — parse/match/filter pipeline without extracting media
+- `build_matched_lines(config)` — deterministic parse → match → filter pipeline
+- `merge_apkg(paths, output)` — combines fresh Vesta `.apkg` exports into a single multi-episode package
+- `load_sub_file_info(path)`, `parse_subtitle_file(path)` — multi-format subtitle inspection and parsing (`SRT`, `ASS`/`SSA`, `VTT`, `LRC`)
+- `media` module — `list_audio_tracks`, `check_ffmpeg`, `detect_h264_encoder`, `optimize_video_source_with_progress`, `extract_preview_audio_clip`, `extract_preview_snapshot`
+- `fonts` module — language-aware Google Noto font catalog (`FONT_CATALOG`, `list_fonts`, `font_status`, `download_font`, `delete_font`, `font_stack_for`)
 
 Errors are user-presentable `String`s; progress is a callback; cancellation a
 `CancellationToken`.
@@ -41,7 +42,7 @@ cargo build --release -p srt-flashcards-cli
   --video movie.mp4 --output out --format apkg --deck "Detour"
 
 ./target/release/srt-flashcards info movie-en.srt
-./target/release/srt-flashcards preview --target movie-en.srt --output out
+./target/release/srt-flashcards preview --target movie-en.srt --native movie-it.srt
 ```
 
 Run `srt-flashcards generate --help` for the full option list (filters,
@@ -88,12 +89,13 @@ async fn main() -> Result<(), String> {
 `FlashcardConfig` fields — it implements `Default` — and
 `cli/srt-flashcards-cli/src/main.rs` for a complete mapping.)
 
-## Extract it standalone
+## Vendoring & Standalone Integration
 
-Copy `lib/srt-flashcards/`, `core/srt-parser/` and `core/srt-download/`. External deps include
-`rusqlite` (bundled SQLite), `zip`,
-`sha1_smol`, `tokio`, `tokio-util`, `serde`, `serde_json`, `tempfile`;
-the shared download helper also uses `reqwest`, `futures` and `anyhow`.
+Prefer the Cargo Git dependency above. When vendoring into another workspace,
+include `lib/srt-flashcards/`, `core/srt-parser/`, and `core/srt-download/`,
+and preserve workspace metadata and dependencies (`rusqlite` with bundled SQLite,
+`zip`, `sha1_smol`, `tokio`, `tokio-util`, `serde`, `serde_json`, `tempfile`,
+`reqwest`, `futures`, `anyhow`); see [`docs/library-integration.md`](../library-integration.md).
 FFmpeg/ffprobe are runtime requirements passed in via `MediaTools`.
 
 With `video_hw_accel = "auto"` (the default), the engine runs a real FFmpeg
@@ -132,35 +134,12 @@ files into `collection.media` without subdirectories. See the
 [Anki text import manual](https://docs.ankiweb.net/manual/importing/text-files).
 Client codec support still determines whether a particular video plays.
 
-The desktop's APKG snapshot/video exclusivity is a UI choice, not a TSV or Anki
-file-format restriction. TSV episode overrides permit both media kinds. Series
-TSV output is always per episode; a saved single-APKG preference does not affect
-TSV directories or trigger a package merge. The result exposes the first generated
-TSV for opening, as separate episode files are not merged into one TSV.
+## Snapshot batching and video optimization
 
-The footer note picker shows the actual `_Vesta` name in a compact control.
-Its automatic option remains explicit in the open menu; it chooses the note type
-from the subtitle language with the configured fallback. Manual/custom note types
-remain available. Selecting a note type determines export fields and, for APKG,
-the model/templates; a TSV alone cannot install a new note type in Anki.
-
-## Native nearby snapshot batching
-
-The shared Rust engine batches up to eight WebP snapshots within eight seconds
-when `optimize_video` is enabled. Eligibility is conservative: CFR H.264/HEVC,
-width 1280–1920, height ≤1080 and an unambiguous video stream. FFprobe packet
-PTS guide frame selection; reordered keyframe boundaries and uncertain timings
-retain the original individual-seek behavior. Unknown/VFR sources, other image
-formats and isolated requests use individual extraction. Failed batch attempts
-retry the original commands. There is no persistent cache or Python dependency
-in the app; Python is used only by the benchmark harness.
-
-Batch operations share the media semaphore with audio/video work, retain one
-progress result per card and stop their direct child processes on cancellation.
-An extraction failure prevents export of a deck with dangling media references.
-The default worker count is roughly three quarters of logical cores, reserving
-one core when possible; explicit counts are clamped to available logical cores.
-Video-clip preparation can produce a lossy intermediate and is separate from
-the original-source snapshot A/B quality guarantee.
-
-See [native benchmark results](../BENCHMARK_NATIVE.md).
+When `optimize_video` is enabled (the default), `snapshot_batch` groups up to
+eight nearby WebP snapshot requests within an 8-second window for eligible CFR
+720p/1080p H.264/HEVC streams, using FFprobe packet PTS with fallback to
+individual seeks. Batch operations share the worker semaphore with audio/video
+tasks and terminate child processes on cancellation. See
+[`docs/ARCHITECTURE.md`](../ARCHITECTURE.md#native-snapshot-extraction-and-verification)
+and [`docs/BENCHMARK_NATIVE.md`](../BENCHMARK_NATIVE.md).

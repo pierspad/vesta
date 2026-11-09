@@ -5,15 +5,16 @@ SubRip (`.srt`) files.
 
 **What you get**
 
-- `SrtParser::parse_file(path)` / `parse_string(content)` → `HashMap<u32, Subtitle>`
+- `SrtParser::parse_file(path)` / `parse_string(content)` / `parse_block(block)` → `HashMap<u32, Subtitle>` / `Subtitle`
 - `SrtParser::normalize_subtitles(&mut subs)` — fills numbering gaps with placeholders when the estimated gap is at most 50,000; leaves zero-based input unchanged
-- `SrtParser::save_file(...)` — writes a well-formed SRT back to disk
-- `Timestamp` (ms-precision, `from_srt_string` / `to_srt_string`) and `Subtitle` types
+- `SrtParser::save_file(...)` — writes a well-formed UTF-8 SRT back to disk atomically
+- `Timestamp` (`from_milliseconds`, `total_milliseconds`, `from_srt_string`, `to_srt_string`, `write_srt_to`) and `Subtitle` (`from_srt_block`, `to_srt_string`, `write_srt_to`, `duration_ms`) types
 - `encoding::read_text_auto(path)` / `decode_auto(bytes)` — encoding-tolerant
   reading: BOM sniffing, strict UTF-8 fast path, BOM-less UTF-16 heuristic,
   then statistical detection (`chardetng` + `encoding_rs`) for legacy code
   pages (GBK, Windows-1252, …). `parse_file` uses it to handle common saved
   encodings; statistical detection remains heuristic for ambiguous byte sequences.
+- `persistence` module — `atomic_write`, `atomic_write_with`, and `ensure_distinct_files(input, output)` for safe temporary-sibling file publication and alias detection.
 
 ## Use as a Rust dependency
 
@@ -34,13 +35,14 @@ fn main() -> anyhow::Result<()> {
 }
 ```
 
-## Extract it standalone
+## Vendoring & Standalone Integration
 
-Copy `core/srt-parser/` into your own workspace — its external dependencies are
-`anyhow`, `serde`, `encoding_rs`, `chardetng`, `tempfile` and `same-file`; it has
-no internal Vesta dependency. Bring it along when vendoring a crate that lists
-`srt-parser` as a dependency; support crates such as `srt-download` and
-`srt-apkg` do not require it.
+Prefer the Cargo Git dependency above. When vendoring `core/srt-parser/` into
+another workspace, supply its inherited workspace metadata (`edition`,
+`rust-version`) and dependencies (`anyhow`, `serde`, `encoding_rs`,
+`chardetng`, `tempfile`, `same-file`); see
+[`docs/library-integration.md`](../library-integration.md). It has no internal
+Vesta crate dependencies.
 
 ## Who uses it
 

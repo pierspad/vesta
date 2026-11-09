@@ -4,12 +4,12 @@ Asynchronous HTTP client for direct integration with local Anki instances via th
 
 ## What it does
 
-`srt-ankiconnect` communicates with Anki's local JSON-RPC API (`http://127.0.0.1:8765`, API version 6) to perform direct deck synchronization:
-- **Ping & Version Check**: Confirms Anki is running and reachable.
-- **Deck Inspection**: Fetches existing deck names.
-- **Deck Creation**: Creates a deck when the caller explicitly invokes `create_deck`.
-- **Note Injection**: Pushes generated flashcards directly into the user's active Anki database.
-- **Package and media helpers**: Imports an `.apkg` with `import_package` and stores base64 media with `store_media_file`.
+`srt-ankiconnect` communicates with Anki's local JSON-RPC API (`DEFAULT_URL = "http://127.0.0.1:8765"`, `API_VERSION = 6`) to perform direct deck synchronization:
+- **Ping & Version Check (`ping`)**: Confirms Anki is running and reachable, returning the supported AnkiConnect API version.
+- **Deck Inspection (`deck_names`)**: Fetches existing deck names.
+- **Deck Creation (`create_deck`)**: Creates a deck when the caller explicitly invokes `create_deck`.
+- **Note Injection (`add_notes`)**: Pushes `AnkiNote` items into Anki and returns `Vec<Option<i64>>` (where `None` indicates a skipped duplicate).
+- **Package and Media Helpers (`import_package`, `store_media_file`)**: Imports an `.apkg` archive or stores base64-encoded media files.
 - **Shared Connection Pool**: Uses a persistent `reqwest::Client` with a shared HTTP connection pool.
 
 ## Crate Info

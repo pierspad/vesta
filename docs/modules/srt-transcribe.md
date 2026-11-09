@@ -11,22 +11,21 @@ primitives to a complete, GUI-agnostic **media → SRT pipeline**
   `download_model(id, on_progress, cancel)` (Hugging Face →
   `~/.cache/whisper/`), `model_file_path(id)`, `uninstall_model(id)`; plus the
   optional Silero VAD add-on managed with the same lifecycle
-  (`download_vad_model`, `vad_model_installed`, `uninstall_vad_model`)
-- `audio` — FFmpeg helpers: `convert_to_wav`, `segment_to_wav_chunks`,
-  `read_wav_to_f32`
-- `transcribe` — whisper.cpp via `whisper-rs`: `transcribe_full` (greedy or
-  beam-search decoding, threads defaulting to physical cores capped at eight; with a VAD
-  model set it runs Silero through whisper.cpp's standalone VAD API, then
-  transcribes only the detected speech spans with timestamps mapped back to
-  the original timeline — `whisper_full_params.vad` is deliberately unused, as
-  it is a silent no-op through the `whisper_full_with_state` entry point),
-  plus `text_similarity` / `normalize_text` (fuzzy text matching, also used
-  by [srt-autosync](srt-autosync.md))
-- `cloud` — chunked uploads to Groq / OpenAI / Deepgram / AssemblyAI / custom
-  OpenAI-compatible endpoints
-- `pipeline` — the orchestration: model download → WAV conversion → local or
-  cloud transcription → segment post-processing (merge tiny / split overlong
-  at sentence boundaries) → SRT writing with language-suffix handling
+  (`list_vad_models`, `download_vad_model`, `vad_model_installed`, `vad_model_path`, `uninstall_vad_model`)
+- `audio` — FFmpeg helpers: `convert_to_wav`, `extract_wav_segment`,
+  `segment_to_wav_chunks`, `read_wav_to_f32`
+- `transcribe` — `whisper.cpp` via `whisper-rs`: `transcribe_full` (greedy or
+  beam-search decoding, threads defaulting to physical cores capped at eight;
+  when a VAD model is configured, it runs Silero through `whisper.cpp`'s standalone
+  VAD API (`vad_speech_spans_ms`) and transcribes only detected speech spans with
+  timestamps mapped back to the original timeline), plus `text_similarity` and
+  `normalize_text` (`NormalizedText`)
+- `cloud` — chunked uploads (`transcribe_cloud`, `transcribe_timed_chunk`) to
+  Groq, OpenAI, Deepgram, AssemblyAI, and custom OpenAI-compatible endpoints
+- `pipeline` — full orchestration: model verification/download → WAV conversion →
+  local or cloud transcription (`run_local`, `run_cloud`) → segment post-processing
+  (`postprocess_segments`) → atomic SRT publication (`write_srt`) with automatic
+  language-suffix handling (`apply_language_suffix_to_srt_path`)
 
 `pipeline::transcribe_to_srt` retains its automatic local model download
 behavior. Servers that must keep downloads disabled can call
@@ -51,11 +50,11 @@ model file. The policy does not affect cloud providers.
 cargo build --release -p srt-transcribe-cli
 
 ./target/release/srt-transcribe models                 # list models (+ VAD add-on)
-./target/release/srt-transcribe download vad           # Silero VAD model (~23 MB)
+./target/release/srt-transcribe download vad           # Silero VAD model (~0.9 MB)
 ./target/release/srt-transcribe run movie.mp4 -o movie.srt \
-  --model base --language auto                          # local whisper.cpp
+  --model base --language auto                          # local whisper.cpp (GPU by default if compiled in)
 ./target/release/srt-transcribe run movie.mp4 -o movie.srt \
-  --model small --vad --quality --gpu                   # VAD + beam 5 + GPU
+  --model small --vad --quality                        # VAD + beam search (pass --no-gpu to force CPU)
 ./target/release/srt-transcribe run movie.mp4 -o movie.srt \
   --provider groq --model whisper-large-v3 --api-key $GROQ_API_KEY
 ```
@@ -120,13 +119,12 @@ async fn main() -> anyhow::Result<()> {
 Progress/segment streaming: fill `PipelineCallbacks::on_progress` /
 `on_segment` with `Arc::new(|…| …)` closures.
 
-## Extract it standalone
+## Vendoring & Standalone Integration
 
-Copy `lib/srt-transcribe/` and `core/srt-download/`. External deps:
-`whisper-rs` (compiles whisper.cpp — needs cmake and a C++ toolchain; the
-repo pins a vendored `whisper-rs-sys` via `[patch.crates-io]`, see the root
-`Cargo.toml`), `reqwest`, `hound`, `tokio`, `tokio-util`, `tempfile`,
-`futures` (download helper), `dirs`, `serde`, `num_cpus`. FFmpeg is a runtime requirement.
+Prefer the Cargo Git dependency above. When vendoring into another workspace,
+include `lib/srt-transcribe/`, `core/srt-parser/`, and `core/srt-download/`,
+along with the vendored `whisper-rs-sys` patch (`[patch.crates-io]`) from the
+root `Cargo.toml`; see [`docs/library-integration.md`](../library-integration.md).
 The optional `vulkan`, `cuda`, `rocm`, and `sycl` features forward one selected
 backend to `whisper-rs`. The official Linux desktop build uses Vulkan and the
 runtime flag defaults to GPU enabled; CPU is the safe fallback.

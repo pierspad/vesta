@@ -7,21 +7,23 @@ deck back without losing media or scheduling data.
 
 **What's inside**
 
-- TSV column classification heuristics (skips `[sound:…]`/`<img …>` media
-  columns and sequence markers to find expression/meaning/notes);
-- APKG round-trip: unzip → read `collection.anki2` (SQLite) → map fields by
+- TSV column classification heuristics (`analyze_tsv_columns`: skips `[sound:…]`/`<img …>` media
+  columns and sequence markers to identify expression/meaning/notes columns);
+- APKG round-trip: unzip → read `collection.anki2` / `collection.anki21` (SQLite) → map fields by
   Anki model names (Expression/Front/Target…, Meaning/Back/Native…,
-  Notes/Note/Comment…) → update notes + `csum` → re-zip;
-- prompt interpolation (`{{expression}}`, `{{meaning}}`, `{{notes}}`) and the
-  LLM call itself, through [`srt-translate`](srt-translate.md)'s `Translator`
-  (Gemini, Groq, or any OpenAI-compatible endpoint incl. Ollama).
+  Notes/Note/Comment…) → update `notes.flds`, `mod`, and `usn` → re-zip while preserving media and scheduling;
+- prompt interpolation (`interpolate_prompt`: `{{expression}}`, `{{meaning}}`, `{{notes}}`) and
+  single-card or multi-worker tiered LLM enrichment (`refine_card_llm`, `refine_cards_tiered`) through
+  [`srt-translate`](srt-translate.md)'s `Translator` and `TranslatorPool`.
 
 **Library API**
 
 - `load_cards(path)` → `Vec<RefineCard { id, expression, meaning, notes }>`
 - `save_cards(input_path, output_path, updates)` — TSV→TSV, APKG→TSV,
-  APKG→APKG (in-place note update inside the archive)
-- `refine_card_llm(&card, prompt, RefineLlmConfig)` → new notes text
+  APKG→APKG (atomic note update inside the archive)
+- `refine_card_llm(&card, prompt, RefineLlmConfig)` → single-card notes text
+- `refine_cards_tiered(cards, &tiers, &config, cancel_token, on_event)` → `Result<(Vec<RefineUpdate>, RefineRunSummary), String>`
+- `analyze_tsv_columns(path)`, `interpolate_prompt(template, &card)`, `strip_html(input)`
 
 Errors are user-presentable `String`s, mirroring `srt-flashcards`.
 
@@ -76,10 +78,10 @@ async fn main() -> Result<(), String> {
 }
 ```
 
-## Extract it standalone
+## Vendoring & Standalone Integration
 
-Copy `lib/srt-refine/`, `lib/srt-translate/`, `core/srt-parser/` and
-`core/srt-apkg/`. External deps include `rusqlite` (bundled SQLite),
-`tempfile`, `serde`, `serde_json`, `tokio` and `tokio-util`; ZIP mechanics
-are supplied by `srt-apkg`. Include the translation dependencies from its
-[module guide](srt-translate.md#extract-it-standalone).
+Prefer the Cargo Git dependency above. When vendoring into another workspace,
+include `lib/srt-refine/`, `lib/srt-translate/`, `core/srt-parser/`, and
+`core/srt-apkg/`, and preserve workspace metadata and dependencies (`rusqlite`
+with bundled SQLite, `tempfile`, `serde`, `serde_json`, `tokio`, `tokio-util`);
+see [`docs/library-integration.md`](../library-integration.md).

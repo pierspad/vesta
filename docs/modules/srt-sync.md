@@ -9,12 +9,14 @@ over automatic ones.
 **Library API highlights**
 
 - `SyncEngine::new(srt_path)` / `from_state` / `load_session` / `save_session`
-- `add_anchor(subtitle_id, corrected_time_ms, is_manual)` / `remove_anchor`
-- `get_synced_subtitle(id)`, `get_all_synced_subtitles()`,
-  `find_subtitle_at_time(ms)`, `get_average_offset()`
-- `save_synced_file(output_path)` — writes the re-timed SRT
-- `AdaptiveSampler` / `SamplerStrategy` — which subtitles to review next
-- `matching` module — suggest media/subtitle file pairings by name similarity
+- `add_anchor(subtitle_id, corrected_time_ms, is_manual)` / `remove_anchor` / `group_anchor_edits`
+- `undo()` / `redo()` / `can_undo()` / `can_redo()` — bounded 100-step anchor history
+- `get_synced_subtitle(id)`, `get_all_synced_subtitles()`, `get_synced_info_for(id)`,
+  `find_subtitle_at_time(ms)`, `find_nearest_subtitle(ms)`, `get_average_offset()`
+- `save_synced_file(output_path)` — writes the re-timed SRT atomically
+- `AdaptiveSampler` / `SamplerStrategy` — selects candidate subtitles for checkpoint review
+- `matching` module — `suggest_matching_files`, `suggest_target_native_subtitles`
+- `playback` module — `is_natively_playable`, `transcode_for_playback` (prepares non-native containers into cached 16 kHz mono PCM WAV via FFmpeg)
 
 The retiming engine is synchronous pure logic over `srt-parser` types, with
 serializable state (`SyncState`) for session persistence. The separate `playback`

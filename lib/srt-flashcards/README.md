@@ -30,6 +30,8 @@ semaphore (no batch barriers), so the slowest clip never stalls the rest.
 | `load_sub_file_info(path)` | Summarise a subtitle file (count, format, actors, duration). |
 | `list_audio_tracks(path, ffprobe)` | Probe a media file's audio streams. |
 | `check_ffmpeg(cmd)` | Verify an ffmpeg executable is runnable. |
+| `merge_apkg(paths, output)` | Combine multiple fresh Vesta `.apkg` exports into one deck. |
+| `fonts::*` | Language-aware Google Noto font catalog (`list_fonts`, `font_status`, `download_font`, `delete_font`, `font_stack_for`). |
 
 `MediaTools` selects the ffmpeg/ffprobe executables (PATH by default, or absolute
 paths to a bundled build). The progress callback receives `FlashcardProgressEvent`s.
@@ -74,26 +76,13 @@ media/metadata; it is not a merger for scheduled Anki collections. Single-series
 GUI output keeps per-episode packages in separate directories before merging.
 See [QUALITY](../../docs/QUALITY.md) for a short synthetic media smoke benchmark.
 
-## Native nearby snapshot batching
+## Snapshot batching and timing compatibility
 
-The shared Rust engine batches up to eight WebP snapshots within eight seconds
-when `optimize_video` is enabled. Eligibility is conservative: CFR H.264/HEVC,
-width 1280–1920, height ≤1080 and an unambiguous video stream. FFprobe packet
-PTS guide frame selection; reordered keyframe boundaries and uncertain timings
-retain the original individual-seek behavior. Unknown/VFR sources, other image
-formats and isolated requests use individual extraction. Failed batch attempts
-retry the original commands. There is no persistent cache or Python dependency
-in the app; Python is used only by the benchmark harness.
-
-Batch operations share the media semaphore with audio/video work, retain one
-progress result per card and stop their direct child processes on cancellation.
-An extraction failure prevents export of a deck with dangling media references.
-The default worker count is roughly three quarters of logical cores, reserving
-one core when possible; explicit counts are clamped to available logical cores.
-Video-clip preparation can produce a lossy intermediate and is separate from
-the original-source snapshot A/B quality guarantee.
-
-See [native benchmark results](../../docs/BENCHMARK_NATIVE.md).
+When `optimize_video` is enabled (the default), the engine batches up to eight
+nearby WebP snapshot requests within an 8-second window for eligible CFR
+720p/1080p H.264/HEVC streams, using FFprobe packet PTS with fallback to
+individual seeks. See [`docs/ARCHITECTURE.md`](../../docs/ARCHITECTURE.md#native-snapshot-extraction-and-verification)
+and [`docs/BENCHMARK_NATIVE.md`](../../docs/BENCHMARK_NATIVE.md).
 
 `FlashcardConfig::use_timings_from` is retained for configuration compatibility.
 The engine uses target subtitle timings; changing this legacy field does not

@@ -8,6 +8,4 @@ Supported configurations include Google Gemini, Groq, OpenRouter, and OpenAI-com
 
 The maintained API is based on `TierEntry`, `build_pool`, and `translate_subtitles_tiered_cancellable`. See [`docs/modules/srt-translate.md`](../../docs/modules/srt-translate.md) for a current Rust example and [`cli/srt-translate-cli/README.md`](../../cli/srt-translate-cli/README.md) for the command-line configuration format.
 
-Licensed GPL-3.0-only.
-
-GitHub Models is retired and disabled in the desktop catalog. Provider model suggestions are fallbacks; use runtime discovery and your account’s supported models.
+Licensed GPL-3.0-only. Provider model suggestions in the catalog act as static fallbacks; use runtime discovery and your account's supported models.

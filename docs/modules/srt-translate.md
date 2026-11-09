@@ -40,7 +40,7 @@ round-robins inside a tier, then falls to the next tier when entries exhaust
 their quota or hit rate limits.
 
 Supported endpoints: Google (Gemini), Groq, OpenRouter, and any
-OpenAI-compatible API (Mistral, NVIDIA, Ollama/local, custom; GitHub Models is retired and disabled in the desktop catalog).
+OpenAI-compatible API (OpenAI, Mistral, NVIDIA NIM, Ollama/local, custom).
 
 **Library API highlights**
 
@@ -48,8 +48,10 @@ OpenAI-compatible API (Mistral, NVIDIA, Ollama/local, custom; GitHub Models is r
   per-provider defaults for base URL, RPM and model live here)
 - `translate_subtitles_tiered_cancellable(pool, subs, target_lang, batch_size,
   overlap, title_context, output_path, on_progress, cancel_token)`
+- `verify_translation_completeness(&original, &translated)` / `get_missing_or_incorrect_subtitle_ids(&original, &translated)`
 - `Translator::generate_response(prompt)` — raw single-prompt call (used by
   [srt-refine](srt-refine.md))
+- `ProviderError`, `ProviderFailureKind`, `TranslationCancelled` (`diagnostics` module)
 - Progress via a plain `Fn(TranslationProgress)` callback; cancellation via
   `CancellationToken`.
 
@@ -103,7 +105,10 @@ async fn main() -> anyhow::Result<()> {
 }
 ```
 
-## Extract it standalone
+## Vendoring & Standalone Integration
 
-Copy `lib/srt-translate/` + `core/srt-parser/`. External deps: `anyhow`,
-`tokio`, `tokio-util`, `reqwest` (rustls), `serde`, `serde_json`, `governor`.
+Prefer the Cargo Git dependency above. When vendoring into another workspace,
+include `lib/srt-translate/` and `core/srt-parser/`, and supply the inherited
+workspace metadata and dependencies (`anyhow`, `tokio`, `tokio-util`, `reqwest`
+with `rustls`, `serde`, `serde_json`, `governor`); see
+[`docs/library-integration.md`](../library-integration.md).

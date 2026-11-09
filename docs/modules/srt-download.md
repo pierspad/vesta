@@ -16,6 +16,35 @@ Run `cargo test -p srt-download` for loopback tests of success/cache reuse, HTTP
 failures, truncated/empty bodies, stalled headers/body cancellation, future abort
 and concurrent publication. No real remote assets are needed.
 
-For standalone reuse copy `core/srt-download/` and supply its inherited workspace
-metadata/dependencies: `anyhow`, `futures`, `reqwest` with `stream`, `tempfile`,
-`tokio` and `tokio-util`.
+## Use as a Rust dependency
+
+```toml
+[dependencies]
+srt-download = { git = "https://github.com/pierspad/vesta" }
+tokio = { version = "1", features = ["full"] }
+tokio-util = "0.7"
+```
+
+```rust
+use std::path::Path;
+use srt_download::download_to;
+use tokio_util::sync::CancellationToken;
+
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
+    let cancel = CancellationToken::new();
+    download_to(
+        "https://example.com/resource.bin",
+        Path::new("cache/resource.bin"),
+        |downloaded, total| eprintln!("{downloaded}/{total} bytes"),
+        &cancel,
+    )
+    .await?;
+    Ok(())
+}
+```
+
+When vendoring `core/srt-download/` into another workspace, supply its inherited
+workspace metadata and dependencies (`anyhow`, `futures`, `reqwest` with
+`stream`, `tempfile`, `tokio`, `tokio-util`); see
+[`docs/library-integration.md`](../library-integration.md).
