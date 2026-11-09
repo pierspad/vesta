@@ -1,6 +1,5 @@
 <script lang="ts">
   import SpeechEngineSelector from "$lib/components/SpeechEngineSelector.svelte";
-  import TranscribeTiers from "$lib/components/TranscribeTiers.svelte";
   import WorkflowErrorStatus from "$lib/components/WorkflowErrorStatus.svelte";
   import WorkflowWorkspace from "$lib/components/WorkflowWorkspace.svelte";
   import { RequirementFeedback } from "$lib/utils/requirementFeedback.svelte";
@@ -13,8 +12,6 @@
   import { generateTranscriptionOutputPath as generateOutputPathFromInput, rewriteTranscriptionOutputLanguage as rewriteOutputPathLanguage } from "$lib/utils/transcriptionPaths";
   import { runTranscription, isTranscribeEndpointReady, withLocalModelOverride } from "$lib/workflows/transcription";
   import LogPanel, { type LogEntry } from "$lib/panels/LogPanel.svelte";
-  import WhisperModelActionsMenu from "$lib/components/WhisperModelActionsMenu.svelte";
-  import WhisperModelSelector from "$lib/components/WhisperModelSelector.svelte";
   import MediaIcon from "$lib/components/MediaIcon.svelte";
   import { whisperModelsStore as modelStore } from "$lib/stores/whisperModelsStore.svelte";
   import CopyPathChip from "$lib/components/CopyPathChip.svelte";
@@ -65,8 +62,6 @@
 
   let inputPath = $state("");
   let outputPath = $state("");
-  let modelMenu = $state<{ x: number; y: number; id: string } | null>(null);
-  let contextModel = $derived(modelStore.whisperModels.find(model => model.id === modelMenu?.id));
   const LAST_TRANSCRIBE_LANGUAGE_KEY = "vesta-transcribe-source-language";
   const DEFAULT_TRANSCRIBE_LANGUAGE_KEY = "vesta-default-transcribe-language";
   const initialTranscribeLanguage =
@@ -137,7 +132,6 @@
 
   let expandedPathField = $state<string | null>(null);
 
-  $effect(() => { if (!active || !uiMode.expertMode) modelMenu = null; });
   let isDraggingOver = $state(false);
   let showOverwriteConfirm = $state(false);
   let pendingDroppedPaths = $state<string[]>([]);
@@ -150,7 +144,7 @@
   let transcribeTiers = $state<TranscribeTier[]>([]);
   let selectedEngine = $state<TranscribeTierEntry | null | undefined>(undefined);
   let effectiveTiers = $derived(selectedEngine === null
-    ? withLocalModelOverride(transcribeTiers, modelStore.defaultWhisperModel)
+    ? transcribeTiers
     : selectedEngine ? [{ id: "selected", entries: [selectedEngine] }] : []);
   let apiKeys = $state<ApiKeyConfig[]>([]);
   let transcribedSegments = $state<{ start_ms: number; end_ms: number; text: string }[]>([]);
@@ -738,10 +732,11 @@
             {t("transcribe.engineTitle")}
           </div>
           <SpeechEngineSelector purpose="transcribe" disabled={isTranscribing || !active} onresolve={(entry) => { selectedEngine = entry; }} />
-          <details class="mt-3">
-            <summary class="cursor-pointer text-sm text-gray-400">{t("transcribe.tiers.cardTitle")}</summary>
-            <div class="mt-3"><TranscribeTiers /></div>
-          </details>
+          {#if onGoToSettings}
+            <button type="button" class="mt-2 text-xs text-gray-400 hover:underline" onclick={() => onGoToSettings?.("whisper", "transcribe-tiers")}>
+              {t("transcribe.tiers.cardTitle")} · {t("nav.settings")}
+            </button>
+          {/if}
         </div>
         <div class="space-y-4">
           <div>
@@ -1090,48 +1085,6 @@
       <div class="grid grid-cols-1 items-start gap-6 xl:grid-cols-2">
         <div class="min-w-0">
           {@render panelContent("options")}
-          {#if uiMode.expertMode && selectedEngine === null}
-            <div class="glass-card p-5 mt-4 {requirements.classFor('model')}">
-              <h3 class="mb-4 flex items-center gap-2 text-lg font-semibold text-cyan-300">
-                <svg aria-hidden="true" class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 3v3m6-3v3M9 18v3m6-3v3M3 9h3m-3 6h3m12-6h3m-3 6h3M6 6h12v12H6zM10 10h4v4h-4z" /></svg>
-                {t("transcribe.whisperModel")}
-              </h3>
-              <WhisperModelSelector
-                models={modelStore.whisperModels}
-                value={modelStore.defaultWhisperModel}
-                disabled={modelStore.busy}
-                downloadingModelId={modelStore.downloadingModelId}
-                progress={modelStore.progress}
-                isDownloading={modelStore.isDownloading}
-                oncancel={() => { void modelStore.cancelModelDownload(); }}
-                ondownload={(id) => {
-                  const model = modelStore.whisperModels.find((m) => m.id === id);
-                  if (model) modelStore.handleWhisperModelClick(model);
-                }}
-                onselect={(model) => {
-                  modelStore.handleWhisperModelClick(model);
-                }}
-                oncontextmenu={(event, model) => {
-                  event.preventDefault();
-                  event.stopPropagation();
-                  const rect = event.currentTarget instanceof HTMLElement ? event.currentTarget.getBoundingClientRect() : null;
-                  modelMenu = { id: model.id, x: event.clientX || rect?.left || 8, y: event.clientY || rect?.bottom || 8 };
-                }}
-              />
-              {#if !vadInstalled}
-                <div class="mt-3">
-                  <SettingsJumpButton
-                    label={t("transcribe.downloadVad")}
-                    section="whisper"
-                    targetId="silero-vad"
-                    disabled={!onGoToSettings}
-                    onclick={() => onGoToSettings?.("whisper", "silero-vad")}
-                    variant="amber"
-                  />
-                </div>
-              {/if}
-            </div>
-          {/if}
         </div>
         <div class="min-w-0"><TranscriptionSegmentsPanel segments={transcribedSegments} /></div>
       </div>
@@ -1338,19 +1291,3 @@
     animation: progress-stripes 1.2s linear infinite;
   }
 </style>
-
-{#if modelMenu && contextModel}
-  <WhisperModelActionsMenu model={contextModel} busy={modelStore.busy} x={modelMenu.x} y={modelMenu.y} onclose={() => modelMenu = null}
-    oninstall={async () => {
-      const model = contextModel;
-      modelMenu = null;
-      if (model && !model.downloaded && !modelStore.busy) await modelStore.downloadModel(model.id);
-    }}
-    onuninstall={async () => {
-      const model = contextModel;
-      modelMenu = null;
-      if (!model?.downloaded || modelStore.busy) return;
-      await modelStore.uninstallModel(model.id);
-      await refreshModels();
-    }} />
-{/if}
