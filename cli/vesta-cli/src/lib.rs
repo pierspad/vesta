@@ -14,7 +14,7 @@ fn command() -> Command {
         .subcommand(Command::new("flashcards").about("Create or inspect flashcards (srt-flashcards options)"))
         .subcommand(Command::new("translate").about("Translate subtitles (srt-translate options)"))
         .subcommand(Command::new("transcribe").about("Transcribe media to subtitles (srt-transcribe options)"))
-        .subcommand(Command::new("sync").about("Retiming subtitles (srt-sync options)"))
+        .subcommand(Command::new("sync").about("Retime subtitles (srt-sync options)"))
         .subcommand(Command::new("autosync").about("Align subtitles to media (srt-autosync options)"))
         .subcommand(Command::new("refine").about("Inspect or annotate flashcard decks (srt-refine options)"))
         .subcommand(Command::new("extract").about("Extract subtitle tracks (srt-extract options)"))

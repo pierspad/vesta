@@ -1,8 +1,7 @@
 //! # srt-extract CLI
 //!
-//! Interfaccia a riga di comando per l'estrazione di dati da file SRT.
-//! Questo è il "guscio" che gestisce l'I/O utente e delega la logica
-//! di business alla libreria `srt-extract`.
+//! Command-line interface for extracting data and embedded tracks from SRT and media files.
+//! Parses CLI arguments and delegates processing to the `srt-extract` library.
 
 use anyhow::{Context, Result};
 use clap::Parser;

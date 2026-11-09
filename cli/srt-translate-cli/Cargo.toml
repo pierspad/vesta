@@ -5,7 +5,7 @@ edition.workspace = true
 rust-version.workspace = true
 description = "CLI tool for translating SRT subtitle files using LLM APIs"
 authors = ["Pierpaolo Spadafora <pierpaolospadafora@proton.me>"]
-license = "GPL-3.0"
+license = "GPL-3.0-only"
 repository = "https://github.com/pierspad/vesta"
 readme = "README.md"
 

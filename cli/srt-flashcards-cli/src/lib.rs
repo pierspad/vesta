@@ -46,7 +46,7 @@ enum Command {
     },
     /// Run the parse/match/filter pipeline and report line counts (no media).
     #[command(
-        after_help = "Example:\n  srt-flashcards preview -t target.srt -o unused --native native.srt --only-cjk\n\nPreview reads subtitle files only and never creates the required --output directory. Its CLI options are shared with generate; media/export options are ignored."
+        after_help = "Example:\n  srt-flashcards preview -t target.srt --native native.srt --only-cjk\n\nPreview reads subtitle files only and never creates the --output directory (--output is optional for preview). Its CLI options are shared with generate; media/export options are ignored."
     )]
     Preview(GenerateArgs),
 }

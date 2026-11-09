@@ -1,10 +1,7 @@
 //! # srt-translate CLI
 //!
-//! Interfaccia a riga di comando per la traduzione di sottotitoli SRT.
-//! Questo è il "guscio" che gestisce l'I/O utente e delega la logica
-//! di business alla libreria `srt-translate` — inclusi il pool a tier
-//! e lo scheduler di failover, condivisi con l'app desktop (vedi
-//! `srt_translate::{build_pool, translate_subtitles_tiered_cancellable}`).
+//! Command-line interface for translating SRT subtitles using LLM APIs with
+//! tiered multi-provider failover (`srt_translate::{build_pool, translate_subtitles_tiered_cancellable}`).
 
 use anyhow::Result;
 use clap::Parser;
@@ -17,11 +14,11 @@ use std::process::ExitCode;
 use std::sync::LazyLock;
 use tokio_util::sync::CancellationToken;
 
-/// Configurazione caricata da config.toml
+/// Configuration loaded from `config.toml`.
 #[derive(Debug, Deserialize)]
 struct Config {
-    /// Tier di precedenza: il primo esaurito (rate-limit/quota) fa
-    /// scattare il failover automatico verso il tier successivo.
+    /// Precedence tiers: exhausting a tier (rate-limit or quota) triggers
+    /// automatic failover to the next tier.
     #[serde(default)]
     tiers: Vec<TierConfig>,
     translation: TranslationConfig,
@@ -69,13 +66,12 @@ fn parse_config(content: &str) -> Result<Config> {
     })
 }
 
-/// Pattern per i placeholder ${VAR_NAME}, compilato una sola volta al primo
-/// utilizzo invece che ad ogni chiamata di `expand_env_vars`.
+/// Pattern for `${VAR_NAME}` placeholders, compiled once on first use.
 static ENV_VAR_PATTERN: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"\$\{([A-Z_][A-Z0-9_]*)\}").expect("Regex pattern is a compile-time constant")
 });
 
-/// Espande le variabili d'ambiente nel formato ${VAR_NAME}
+/// Expands environment variables in `${VAR_NAME}` format.
 fn expand_env_vars(content: &str) -> Result<String> {
     let mut result = content.to_string();
     let mut missing_vars = Vec::new();
@@ -128,8 +124,7 @@ struct Cli {
     #[arg(long, conflicts_with_all = ["check_missing", "language", "config", "output"])]
     language_list: bool,
 
-    /// Check which subtitles are missing or have line count discrepancies in a translated file
-    /// Usage: srt-translate -i original.srt --check-missing translated.srt
+    /// Check which subtitles are missing or have line count discrepancies in a translated file.
     #[arg(long, value_name = "TRANSLATED_FILE", conflicts_with_all = ["config", "output"])]
     check_missing: Option<PathBuf>,
 
@@ -171,19 +166,16 @@ pub fn run_from(args: Vec<std::ffi::OsString>) -> ExitCode {
 }
 
 async fn run_cli(args: Vec<std::ffi::OsString>) -> Result<ExitCode> {
-    // Carica le variabili d'ambiente dal file .env
-    // Ignora l'errore se il file .env non esiste (non è obbligatorio)
+    // Load environment variables from .env if present.
     let _ = dotenvy::dotenv();
 
     let cli = Cli::parse_from(args);
 
-    // Se richiesta la lista delle lingue
     if cli.language_list {
         print_language_list();
         return Ok(ExitCode::SUCCESS);
     }
 
-    // Se richiesta la verifica dei sottotitoli mancanti
     if let Some(translated_file) = &cli.check_missing {
         let input = cli
             .input
@@ -197,11 +189,9 @@ async fn run_cli(args: Vec<std::ffi::OsString>) -> Result<ExitCode> {
         .as_ref()
         .ok_or_else(|| anyhow::anyhow!("--input is required for translation"))?;
 
-    // Validazione: language è obbligatorio per la traduzione
     let language = cli.language.as_ref()
         .ok_or_else(|| anyhow::anyhow!("Language is required. Use -l/--language <code> or see --language-list for available languages"))?;
 
-    // Carica il file di configurazione
     let mut config_content = std::fs::read_to_string(&cli.config)
         .map_err(|e| anyhow::anyhow!(
             "Failed to read config file '{}': {}\n\nPlease create a config.toml file or specify --config path.",
@@ -209,15 +199,10 @@ async fn run_cli(args: Vec<std::ffi::OsString>) -> Result<ExitCode> {
             e
         ))?;
 
-    // Sostituisci i placeholder ${VAR_NAME} con i valori dalle variabili d'ambiente
     config_content = expand_env_vars(&config_content)?;
 
     let config = parse_config(&config_content)?;
 
-    // Il pool a tier (default per provider, filtro delle entry inutilizzabili,
-    // rate limiter, concorrenza) è tutto delegato a `srt_translate::build_pool`:
-    // la stessa funzione usata dall'app desktop, così CLI e GUI condividono
-    // un'unica implementazione del failover invece di due.
     let tiers: Vec<Vec<TierEntry>> = config.tiers.into_iter().map(|t| t.entries).collect();
     let mut pool = srt_translate::build_pool(&tiers).map_err(|e| anyhow::anyhow!(e))?;
     for tier in &mut pool {
@@ -245,12 +230,10 @@ async fn run_cli(args: Vec<std::ffi::OsString>) -> Result<ExitCode> {
     );
     println!();
 
-    // Parse del file SRT
     println!("📖 Reading file: {}", input.display());
     let original_subtitles = SrtParser::parse_file(input)?;
     println!("✅ Found {} subtitles", original_subtitles.len());
 
-    // Estrai il titolo del film/show dal nome file per contesto
     let title_context = input
         .file_stem()
         .and_then(|s| s.to_str())
@@ -260,20 +243,16 @@ async fn run_cli(args: Vec<std::ffi::OsString>) -> Result<ExitCode> {
         println!("🎬 Detected title: {}", title);
     }
 
-    // Determina il percorso di output
     let output_path = cli.output.unwrap_or_else(|| {
         let parent = input.parent().unwrap_or_else(|| std::path::Path::new("."));
 
-        // Estrai il nome file senza estensione
         let input_filename = input
             .file_stem()
             .and_then(|s| s.to_str())
             .unwrap_or("subtitles");
 
-        // Rimuovi eventuale codice lingua esistente (2 o 3 lettere ASCII minuscole)
         let base_name = strip_language_suffix(input_filename);
 
-        // Applica il pattern dal config
         let filename = config
             .output
             .filename_pattern
@@ -288,7 +267,6 @@ async fn run_cli(args: Vec<std::ffi::OsString>) -> Result<ExitCode> {
     println!(" Translating to '{}'...", language);
     println!();
 
-    // Callback per il progresso
     let cli_progress_handler = |progress: TranslationProgress| {
         if let Some(eta) = progress.eta_seconds {
             let minutes = (eta / 60.0) as u32;
@@ -299,10 +277,6 @@ async fn run_cli(args: Vec<std::ffi::OsString>) -> Result<ExitCode> {
         }
     };
 
-    // Un'unica chiamata gestisce batching, rate limiting, failover a tier e
-    // repair automatico delle righe mancanti/incoerenti: tutta questa logica
-    // vive in `srt_translate` (vedi `translate_subtitles_tiered_cancellable`),
-    // non più duplicata qui nel CLI.
     let cancel_token = CancellationToken::new();
     {
         let token = cancel_token.clone();
@@ -467,7 +441,7 @@ fn check_missing_subtitles(original_path: &PathBuf, translated_path: &PathBuf) -
         println!();
         println!("💡 Tip: Re-run the translation to fix these issues:");
         println!(
-            "   srt-translate -i {} -o {}",
+            "   srt-translate -i {} -l <lang> -o {}",
             original_path.display(),
             translated_path.display()
         );
@@ -480,7 +454,7 @@ fn check_missing_subtitles(original_path: &PathBuf, translated_path: &PathBuf) -
     })
 }
 
-/// Raggruppa una lista di ID in intervalli consecutivi per una visualizzazione compatta
+/// Groups a list of IDs into consecutive ranges for compact display.
 fn group_ids_into_ranges(ids: &[u32]) -> Vec<(u32, u32)> {
     if ids.is_empty() {
         return Vec::new();

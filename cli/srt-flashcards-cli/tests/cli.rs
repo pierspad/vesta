@@ -15,7 +15,7 @@ fn each_leaf_help_explains_usage_and_preview_boundaries() {
             "A media source is needed only for enabled media outputs",
         ),
         ("info", "srt-flashcards info subtitles.srt"),
-        ("preview", "never creates the required --output directory"),
+        ("preview", "never creates the --output directory"),
     ] {
         let output = run(&[command, "--help"]);
         assert!(output.status.success());
