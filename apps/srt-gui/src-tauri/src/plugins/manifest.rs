@@ -154,6 +154,8 @@ pub struct PluginTab {
     pub title: String,
     #[serde(default)]
     pub icon: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub settings_screen: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -498,12 +500,14 @@ mod tests {
         manifest.tab = Some(PluginTab {
             title: "Test".to_string(),
             icon: Some("../evil.svg".to_string()),
+            settings_screen: None,
         });
         assert!(manifest.validate().is_err());
 
         manifest.tab = Some(PluginTab {
             title: "Test".to_string(),
             icon: Some("puzzle".to_string()),
+            settings_screen: None,
         });
         assert!(manifest.validate().is_ok());
     }

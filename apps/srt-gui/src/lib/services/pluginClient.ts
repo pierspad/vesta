@@ -15,6 +15,7 @@ export interface PluginSettingField {
 export interface PluginTab {
   title: string;
   icon?: string;
+  settingsScreen?: string;
 }
 
 export interface PluginEntry {
@@ -259,7 +260,7 @@ export interface ButtonWidget extends BaseWidget {
   disabled?: boolean;
   icon?: string;
   status?: "attention" | "ready";
-  placement?: "header";
+  placement?: "header" | "body";
   disabledTooltip?: string;
   disabledFocus?: string;
   requiresAny?: string[];

@@ -593,6 +593,7 @@ mod tests {
             tab: tab_icon.map(|ti| PluginTab {
                 title: "Test".to_string(),
                 icon: Some(ti.to_string()),
+                settings_screen: None,
             }),
             settings: None,
         }

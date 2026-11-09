@@ -248,7 +248,9 @@ Every widget supports \`id\`, \`hidden\`, \`expertOnly\` (auto-hidden when Exper
   function openSettings(plugin: InstalledPlugin) {
     contextMenuPlugin = null;
     contextMenuPos = null;
-    if (plugin.manifest.settings && plugin.manifest.settings.length > 0) {
+    if (plugin.manifest.tab?.settingsScreen) {
+      handleOpenPlugin(plugin, plugin.manifest.tab.settingsScreen);
+    } else if (plugin.manifest.settings && plugin.manifest.settings.length > 0) {
       settingsTarget = plugin;
       editSettingsValues = { ...plugin.settings };
       for (const field of plugin.manifest.settings) {
@@ -900,7 +902,7 @@ Every widget supports \`id\`, \`hidden\`, \`expertOnly\` (auto-hidden when Exper
           <svg class="w-4 h-4 text-sky-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
           {t("plugins.info")}
         </button>
-        {#if contextMenuPlugin.manifest.settings && contextMenuPlugin.manifest.settings.length > 0}
+        {#if contextMenuPlugin.manifest.tab?.settingsScreen || contextMenuPlugin.manifest.settings?.length}
           <button
             type="button"
             class="w-full text-left px-3 py-2 rounded-lg text-gray-200 hover:bg-white/10 hover:text-white flex items-center gap-2 cursor-pointer disabled:grayscale disabled:opacity-50 disabled:cursor-not-allowed"
