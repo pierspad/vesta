@@ -303,8 +303,9 @@
         if (res.root) {
           uiRoot = res.root;
           collectDefaults(uiRoot);
-        } else if (res.patch) {
-          applyPatch(res.patch);
+        }
+        if (res.patch) {
+          applyPatch(res.root ? { values: res.patch.values } : res.patch);
         }
       }
     } catch (e: any) {
@@ -372,8 +373,9 @@
         if (detail.root) {
           uiRoot = detail.root;
           collectDefaults(uiRoot);
-        } else if (detail.patch) {
-          applyPatch(detail.patch);
+        }
+        if (detail.patch) {
+          applyPatch(detail.root ? { values: detail.patch.values } : detail.patch);
         }
       }
     };
@@ -866,6 +868,8 @@
           placeholder={node.placeholder ?? t(node.pickerType === "file" ? "plugins.chooseFile" : "plugins.chooseFolder")}
           browseTitle={t("common.browse")}
           disabled={node.disabled}
+          browseFirst={node.pickerType !== "file"}
+          clearLabel={node.pickerType !== "file" ? t("common.clearField") : undefined}
           onbrowse={() => handleBrowsePath(node)}
           onclear={() => {
             values[node.id] = "";

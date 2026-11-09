@@ -19,6 +19,8 @@
     labelIcon?: string;
     inputClass?: string;
     clearButtonClass?: string;
+    browseFirst?: boolean;
+    clearLabel?: string;
     containerClass?: string;
   }
 
@@ -38,44 +40,14 @@
     labelIcon = "",
     inputClass = undefined,
     clearButtonClass = undefined,
+    browseFirst = false,
+    clearLabel,
     containerClass = "",
   }: Props = $props();
   let effectiveBrowseLabel = $derived(browseLabel ?? t("flashcards.browse"));
 </script>
 
-<div class={containerClass}>
-  {#if label}
-    <span class="flex items-center gap-1.5 text-xs text-gray-400 mb-1 font-medium">
-      {#if labelIcon}
-        <svg class="w-3.5 h-3.5 text-gray-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d={labelIcon} />
-        </svg>
-      {/if}
-      <span>{label}</span>
-      {#if required}
-        <span class="text-red-400 font-bold ml-0.5">*</span>
-      {/if}
-    </span>
-  {/if}
-  <div class="flex gap-2 items-center">
-    <button
-      type="button"
-      onclick={onexpand}
-      disabled={disabled || !onexpand}
-      class={inputClass
-        ? `${inputClass} flex-1 text-sm text-left transition-colors truncate disabled:opacity-50 ${onexpand ? 'cursor-pointer disabled:cursor-not-allowed' : 'cursor-default disabled:opacity-100'}`
-        : `input-modern flex-1 text-sm text-left transition-colors truncate disabled:opacity-50 ${onexpand ? 'cursor-pointer disabled:cursor-not-allowed' : 'cursor-default disabled:opacity-100'}`}
-      style="direction: rtl; text-align: left;"
-      title={value || placeholder}
-    >
-      <span
-        class={value ? "text-white" : "text-gray-500"}
-        style="unicode-bidi: plaintext;"
-      >
-        {value || placeholder}
-      </span>
-    </button>
-
+{#snippet browseButton()}
     <button
       type="button"
       onclick={onbrowse}
@@ -101,19 +73,60 @@
         <span class="text-xs font-semibold">{effectiveBrowseLabel}</span>
       {/if}
     </button>
+{/snippet}
+
+<div class={containerClass}>
+  {#if label}
+    <span class="flex items-center gap-1.5 text-xs text-gray-400 mb-1 font-medium">
+      {#if labelIcon}
+        <svg class="w-3.5 h-3.5 text-gray-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d={labelIcon} />
+        </svg>
+      {/if}
+      <span>{label}</span>
+      {#if required}
+        <span class="text-red-400 font-bold ml-0.5">*</span>
+      {/if}
+    </span>
+  {/if}
+  <div class="flex gap-2 items-center">
+    {#if browseFirst}{@render browseButton()}{/if}
+    <button
+      type="button"
+      onclick={onexpand}
+      disabled={disabled || !onexpand}
+      class={inputClass
+        ? `${inputClass} flex-1 text-sm text-left transition-colors truncate disabled:opacity-50 ${onexpand ? 'cursor-pointer disabled:cursor-not-allowed' : 'cursor-default disabled:opacity-100'}`
+        : `input-modern flex-1 text-sm text-left transition-colors truncate disabled:opacity-50 ${onexpand ? 'cursor-pointer disabled:cursor-not-allowed' : 'cursor-default disabled:opacity-100'}`}
+      style="direction: rtl; text-align: left;"
+      title={value || placeholder}
+    >
+      <span
+        class={value ? "text-white" : "text-gray-500"}
+        style="unicode-bidi: plaintext;"
+      >
+        {value || placeholder}
+      </span>
+    </button>
+
+    {#if !browseFirst}{@render browseButton()}{/if}
 
     {#if onclear}
       <button
         type="button"
         onclick={onclear}
         disabled={disabled || !value}
-        class={clearButtonClass || "inline-flex py-2 px-3 flex-shrink-0 items-center justify-center rounded-lg border transition-colors cursor-pointer disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-white/5 disabled:text-gray-600 disabled:opacity-60 border-red-500/30 bg-red-500/10 text-red-300 hover:border-red-400/60 hover:bg-red-500/20"}
-        title={t("settings.remove")}
-        aria-label={t("settings.remove")}
+        class={clearButtonClass || (clearLabel ? "btn-secondary btn-compact shrink-0 disabled:opacity-50" : "inline-flex py-2 px-3 flex-shrink-0 items-center justify-center rounded-lg border transition-colors cursor-pointer disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-white/5 disabled:text-gray-600 disabled:opacity-60 border-red-500/30 bg-red-500/10 text-red-300 hover:border-red-400/60 hover:bg-red-500/20")}
+        title={clearLabel ?? t("settings.remove")}
+        aria-label={clearLabel ?? t("settings.remove")}
       >
-        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-        </svg>
+        {#if clearLabel}
+          {clearLabel}
+        {:else}
+          <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+          </svg>
+        {/if}
       </button>
     {/if}
   </div>
