@@ -3,6 +3,7 @@ import { mount, tick, unmount } from "svelte";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import PluginsTab from "./PluginsTab.svelte";
 import { pluginsStore } from "$lib/stores/pluginsStore.svelte";
+import { pluginRender } from "$lib/services/pluginClient";
 import { guardedOpen } from "$lib/utils/dialogGuard";
 
 vi.mock("$lib/utils/dialogGuard", () => ({
@@ -291,4 +292,14 @@ it("renders custom image icon when iconUrl is present", async () => {
 
   const iconImg = target.querySelector('img[src="data:image/svg+xml;base64,PHN2Zz48L3N2Zz4="]') as HTMLImageElement;
   expect(iconImg).not.toBeNull();
+});
+
+it("opens the declared settings screen even when the manifest has legacy settings fields", async () => {
+  pluginsStore.plugins[0].manifest.tab!.settingsScreen = "settings";
+  const target = document.body.appendChild(document.createElement("div"));
+  components.push(mount(PluginsTab, { target, props: { active: true } }));
+  await tick();
+  target.querySelector<HTMLButtonElement>('button[title="Settings"]')!.click();
+  await tick();
+  expect(pluginRender).toHaveBeenCalledWith("demo-plugin", "settings", {}, expect.any(String), expect.any(Boolean));
 });

@@ -98,7 +98,7 @@ A plugin repository must contain a `vesta-plugin.json` manifest at its root:
 | `icon` | `string` | No | Custom plugin icon/image. Supports named monochrome icons (`"puzzle"`, `"film"`, `"search"`), relative image files inside the plugin root (`"icon.svg"`, `"icon.png"`, `"icon.webp"`, `"assets/logo.svg"`, max 512 KB), or direct `data:image/...` / `https://` URIs. Rendered across plugin cards, inspect dialogs, and embedded headers. |
 | `permissions` | `string[] \| object` | No | Requested permissions (e.g. `["network"]` or `{ "scopes": ["network"], "sharedCredentials": ["tmdb_api_key"] }`). |
 | `sharedCredentials` | `array` | No | List of shared credential keys or specs (e.g. `["tmdb_api_key", { "id": "imdb_id", "label": "IMDb Key" }]`). Reusable across plugins with user consent upon install. |
-| `tab` | `object` | No | Visual metadata for the plugin header/card: `{ title: string, icon?: string }`. Supports named icons or relative image files identical to top-level `icon`. |
+| `tab` | `object` | No | Visual metadata for the plugin header/card: `{ title: string, icon?: string, settingsScreen?: string }`. Supports named icons or relative image files identical to top-level `icon`. |
 | `settings` | `array` | No | Optional declarative configuration fields editable in Vesta's quick settings modal. Plugins may also implement a rich `"settings"` screen directly. |
 
 ---
@@ -335,10 +335,18 @@ Buttons can declare action guidance through the SDK's `Button` builder:
   `status: "attention" | "ready"` adds an indicator. Provide a tooltip that
   describes what the indicator means.
 
-Use `Button(..., placement="header")` for actions such as plugin settings.
-The host places these controls at the end of the title bar and uses their
-widget IDs for events and focus targets. When a renderer has no title bar,
-the actions stay in the widget tree.
+Use `Button(..., variant="settings", icon="settings")` for plugin settings.
+Vesta places this action at the right of the title bar by default. Use
+`placement="body"` to opt out or `placement="header"` for other title bar actions.
+Set `tab.settingsScreen` in the manifest to the screen rendered by the
+plugin. The installed card's Settings action then opens that same screen.
+The host keeps manifest-generated settings for plugins that use them.
+
+When a blocked action declares `disabledFocus`, Vesta focuses the target
+and pulses its amber outline twice. Reduced-motion preferences keep the
+focus change and suppress the pulse. Buttons without a guidance target are
+natively disabled when blocked, including actions gated by `requiresAny`.
+
 
 `LanguageSelect(..., codes=["en", "it", "ja"], names="both")` filters the
 host catalog to the listed codes in that order. `scope` chooses `all` or

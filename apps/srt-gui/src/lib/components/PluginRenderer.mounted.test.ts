@@ -662,6 +662,7 @@ it("guides blocked searches to settings and enforces prerequisites on Enter", as
   renderer.applyPatch({ setProps: { search: { disabled: false } } });
   await tick();
   expect(search.title).toBe("Enter an ID");
+  expect(search.disabled).toBe(true);
   input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
   expect(mockDispatch).not.toHaveBeenCalled();
   input.value = "123";
@@ -696,7 +697,7 @@ it("moves a declared header action into the title bar and keeps focus guidance w
   const root: WidgetNode = {
     type: "column",
     children: [
-      { type: "button", id: "settings", label: "Settings", placement: "header", variant: "settings" },
+      { type: "button", id: "settings", label: "Settings", variant: "settings" },
       { type: "button", id: "search", label: "Search", disabled: true, disabledFocus: "settings" },
     ],
   };

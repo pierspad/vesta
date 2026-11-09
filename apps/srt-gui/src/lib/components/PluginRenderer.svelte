@@ -278,7 +278,7 @@
         .find(button => button.dataset.pluginButton === node.disabledFocus);
       target?.focus();
       if (target?.animate && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-        for (const animation of target.getAnimations()) animation.cancel();
+        for (const animation of target.getAnimations?.() ?? []) animation.cancel();
         target.animate(
           [{ boxShadow: "0 0 0 0 transparent" }, { boxShadow: "0 0 0 3px var(--color-amber-400)" }, { boxShadow: "0 0 0 0 transparent" }],
           { duration: 420, iterations: 2 },
@@ -1285,6 +1285,11 @@
   }
   :is(.plugin-action-accent, .plugin-action-danger):hover:not(:disabled):not([aria-disabled="true"]) {
     background: color-mix(in srgb, var(--action-fill) 90%, var(--surface-2));
+  }
+  .plugin-action:disabled {
+    background: var(--control-bg);
+    border-color: var(--control-border);
+    color: var(--muted);
   }
   .plugin-settings-button { color: var(--text); }
   .plugin-settings-button:focus-visible {
