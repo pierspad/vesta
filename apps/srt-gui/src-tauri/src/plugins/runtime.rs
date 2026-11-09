@@ -439,6 +439,11 @@ impl PluginRuntimeManager {
         expert_mode: bool,
         shared_credentials: &BTreeMap<String, String>,
     ) -> Result<serde_json::Value, String> {
+        if params.is_object() {
+            let mut vals = process.latest_values.lock().await;
+            vals.entry(screen.to_string())
+                .or_insert_with(|| params.clone());
+        }
         Self::send_raw_request(
             process,
             "render",

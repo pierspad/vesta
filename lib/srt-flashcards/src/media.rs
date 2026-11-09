@@ -46,6 +46,7 @@ pub fn video_clip_extension(video_codec: &str) -> &'static str {
 
 pub fn media_command(cmd: &str) -> tokio::process::Command {
     let mut command = tokio::process::Command::new(cmd);
+    command.stdin(std::process::Stdio::null());
     #[cfg(windows)]
     {
         command.creation_flags(0x0800_4000);
@@ -107,8 +108,7 @@ async fn probe_audio_with_timeout(
     video_path: &str,
     timeout: std::time::Duration,
 ) -> Result<bool> {
-    let output = tokio::time::timeout(
-        timeout,
+    let run_probe = || {
         media_command(ffprobe_cmd)
             .args([
                 "-v",
@@ -119,8 +119,20 @@ async fn probe_audio_with_timeout(
                 "csv=p=0",
                 video_path,
             ])
-            .output(),
-    )
+            .output()
+    };
+    let output = tokio::time::timeout(timeout, async {
+        let mut attempts = 0;
+        loop {
+            match run_probe().await {
+                Err(e) if e.raw_os_error() == Some(26) && attempts < 10 => {
+                    attempts += 1;
+                    tokio::time::sleep(std::time::Duration::from_millis(5)).await;
+                }
+                res => break res,
+            }
+        }
+    })
     .await
     .context("FFprobe audio probe timed out")?
     .context("Failed to run FFprobe audio probe")?;

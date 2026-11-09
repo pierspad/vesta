@@ -407,19 +407,22 @@ impl VestaMcp {
             "render"
         };
 
+        let screen_name = req.screen.as_deref().unwrap_or("main").to_string();
+        let snapshot_values = req.values.clone().unwrap_or(json!({}));
+
         let params = if method == "render" {
             json!({
-                "screen": req.screen.as_deref().unwrap_or("main"),
-                "params": req.values.unwrap_or(json!({})),
+                "screen": screen_name,
+                "params": snapshot_values,
                 "locale": "en",
                 "expertMode": req.expert_mode.unwrap_or(false)
             })
         } else {
             json!({
-                "screen": req.screen.as_deref().unwrap_or("main"),
+                "screen": screen_name,
                 "widgetId": req.widget_id.as_deref().unwrap_or(""),
                 "type": req.event_type.as_deref().unwrap_or("click"),
-                "values": req.values.unwrap_or(json!({})),
+                "values": snapshot_values,
                 "locale": "en",
                 "expertMode": req.expert_mode.unwrap_or(false)
             })
@@ -439,18 +442,63 @@ impl VestaMcp {
             .map_err(|e| e.to_string())?;
         stdin.flush().await.map_err(|e| e.to_string())?;
 
-        let response_line = loop {
-            let line = reader
-                .next_line()
-                .await
-                .map_err(|e| e.to_string())?
-                .ok_or("Plugin process closed stdout")?;
-            if let Ok(val) = serde_json::from_str::<Value>(&line)
-                && val.get("id").and_then(|v| v.as_u64()) == Some(2)
-            {
-                break line;
+        let response_line = tokio::time::timeout(std::time::Duration::from_secs(30), async {
+            loop {
+                let line = reader
+                    .next_line()
+                    .await
+                    .map_err(|e| e.to_string())?
+                    .ok_or_else(|| "Plugin process closed stdout".to_string())?;
+                if let Ok(val) = serde_json::from_str::<Value>(&line) {
+                    if let Some(req_method) = val.get("method").and_then(|v| v.as_str())
+                        && let Some(req_id) = val.get("id")
+                        && !req_id.is_null()
+                    {
+                        let reply = if req_method == "ui.getValues" {
+                            let req_screen = val
+                                .get("params")
+                                .and_then(|p| p.get("screen"))
+                                .and_then(|s| s.as_str())
+                                .unwrap_or("main");
+                            let vals = if req_screen == screen_name {
+                                snapshot_values.clone()
+                            } else {
+                                json!({})
+                            };
+                            json!({
+                                "jsonrpc": "2.0",
+                                "id": req_id,
+                                "result": { "values": vals }
+                            })
+                        } else {
+                            json!({
+                                "jsonrpc": "2.0",
+                                "id": req_id,
+                                "error": {
+                                    "code": -32601,
+                                    "message": format!("Unsupported host RPC method: {req_method}")
+                                }
+                            })
+                        };
+                        let reply_line =
+                            serde_json::to_string(&reply).map_err(|e| e.to_string())? + "\n";
+                        stdin
+                            .write_all(reply_line.as_bytes())
+                            .await
+                            .map_err(|e| e.to_string())?;
+                        stdin.flush().await.map_err(|e| e.to_string())?;
+                        continue;
+                    }
+                    if val.get("id").and_then(|v| v.as_u64()) == Some(2)
+                        && val.get("method").is_none()
+                    {
+                        break Ok::<String, String>(line);
+                    }
+                }
             }
-        };
+        })
+        .await
+        .map_err(|_| "Plugin RPC call timed out after 30s".to_string())??;
         let resp: Value = serde_json::from_str(&response_line).map_err(|e| e.to_string())?;
 
         let _ = child.kill().await;
@@ -534,5 +582,154 @@ mod request_tests {
         assert_eq!(resolved, vec!["python3", "main.py"]);
 
         assert!(default_plugins_dir().ends_with(std::path::Path::new("vesta").join("plugins")));
+    }
+
+    #[tokio::test]
+    async fn call_plugin_handles_get_values_during_render_and_event() {
+        let dir = tempfile::tempdir().unwrap();
+        let read_root = dir.path().join("read");
+        let output_root = dir.path().join("output");
+        let plugins_dir = dir.path().join("plugins");
+        let installed_dir = plugins_dir.join("installed").join("test-get-values");
+        std::fs::create_dir_all(&read_root).unwrap();
+        std::fs::create_dir_all(&output_root).unwrap();
+        std::fs::create_dir_all(&installed_dir).unwrap();
+
+        let sdk_src = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .unwrap()
+            .parent()
+            .unwrap()
+            .join("docs/examples/plugin-hello/vesta_plugin.py");
+        std::fs::copy(&sdk_src, installed_dir.join("vesta_plugin.py")).unwrap();
+
+        let main_py = r#"from vesta_plugin import VestaPlugin, Column, Text
+
+plugin = VestaPlugin()
+
+@plugin.on_render("main")
+def render_main(params):
+    vals = plugin.get_values("main")
+    greeting = vals.get("greeting", "default")
+    return Column([Text(f"rendered:{greeting}")])
+
+@plugin.on_event("btn_go")
+def handle_go(screen, widget_id, event_type, values):
+    vals = plugin.get_values(screen)
+    return Column([Text(f"event:{vals.get('greeting', 'none')}")])
+
+if __name__ == "__main__":
+    plugin.run()
+"#;
+        std::fs::write(installed_dir.join("main.py"), main_py).unwrap();
+
+        let registry = json!({
+            "plugins": [{
+                "id": "test-get-values",
+                "name": "Test Get Values",
+                "version": "0.1.0",
+                "enabled": true,
+                "settings": {},
+                "manifest": {
+                    "id": "test-get-values",
+                    "name": "Test Get Values",
+                    "version": "0.1.0",
+                    "apiVersion": 1,
+                    "entry": {
+                        "command": ["python3", "-u", "main.py"]
+                    }
+                }
+            }]
+        });
+        std::fs::write(
+            plugins_dir.join("plugins.json"),
+            serde_json::to_string_pretty(&registry).unwrap(),
+        )
+        .unwrap();
+
+        let paths = Paths::new(vec![read_root], output_root).unwrap();
+        let server = VestaMcp::with_plugins_dir(paths, ProviderConfig::default(), Some(plugins_dir));
+        let render_res = server
+            .call_plugin(Parameters(PluginCallRequest {
+                plugin_id: "test-get-values".to_string(),
+                screen: Some("main".to_string()),
+                widget_id: None,
+                event_type: None,
+                values: Some(json!({ "greeting": "hello-mcp" })),
+                expert_mode: Some(false),
+            }))
+            .await
+            .unwrap()
+            .0;
+        assert_eq!(
+            render_res["root"]["children"][0]["text"],
+            json!("rendered:hello-mcp")
+        );
+
+        let event_res = server
+            .call_plugin(Parameters(PluginCallRequest {
+                plugin_id: "test-get-values".to_string(),
+                screen: Some("main".to_string()),
+                widget_id: Some("btn_go".to_string()),
+                event_type: Some("click".to_string()),
+                values: Some(json!({ "greeting": "from-event" })),
+                expert_mode: Some(true),
+            }))
+            .await
+            .unwrap()
+            .0;
+        assert_eq!(
+            event_res["root"]["children"][0]["text"],
+            json!("event:from-event")
+        );
+    }
+
+    #[test]
+    fn python_sdk_preserves_shutdown_received_while_waiting_for_get_values() {
+        let dir = tempfile::tempdir().unwrap();
+        let sdk_src = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .unwrap()
+            .parent()
+            .unwrap()
+            .join("docs/examples/plugin-hello/vesta_plugin.py");
+        std::fs::copy(&sdk_src, dir.path().join("vesta_plugin.py")).unwrap();
+
+        let script = r#"import io, json, sys
+import vesta_plugin
+
+# Simulate stdin where host sends `render` (id=2), then while plugin awaits `ui.getValues` (id=1001),
+# host sends `shutdown` (id=3) BEFORE sending the `ui.getValues` response (id=1001).
+stdin_lines = [
+    json.dumps({"jsonrpc": "2.0", "id": 2, "method": "render", "params": {"screen": "main", "params": {}}}),
+    json.dumps({"jsonrpc": "2.0", "id": 3, "method": "shutdown", "params": {}}),
+    json.dumps({"jsonrpc": "2.0", "id": 1001, "result": {"values": {"field": "ok"}}}),
+]
+sys.stdin = io.StringIO("\n".join(stdin_lines) + "\n")
+out = io.StringIO()
+sys.stdout = out
+
+plugin = vesta_plugin.VestaPlugin()
+
+@plugin.on_render("main")
+def render_main(params):
+    vals = plugin.get_values("main")
+    return vesta_plugin.Text(vals.get("field", "missing"))
+
+plugin.run()
+
+responses = [json.loads(line) for line in out.getvalue().splitlines() if line.strip()]
+# Expect: 1) ui.getValues request (id=1001), 2) render response (id=2), 3) shutdown response (id=3)
+ids = [(r.get("id"), r.get("method"), r.get("result")) for r in responses]
+assert any(r.get("id") == 2 and r.get("result", {}).get("root", {}).get("text") == "ok" for r in responses), responses
+assert any(r.get("id") == 3 and r.get("result") == {"status": "ok"} for r in responses), responses
+"#;
+        let status = std::process::Command::new("python3")
+            .arg("-c")
+            .arg(script)
+            .current_dir(dir.path())
+            .status()
+            .unwrap();
+        assert!(status.success());
     }
 }

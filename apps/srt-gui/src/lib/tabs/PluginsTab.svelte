@@ -9,6 +9,7 @@
   import MarkdownContent from "$lib/components/MarkdownContent.svelte";
   import PathPickerField from "$lib/components/PathPickerField.svelte";
   import SearchInput from "$lib/components/SearchInput.svelte";
+  import { uiMode } from "$lib/stores/uiModeStore.svelte";
   import type { InstalledPlugin, PluginInspectResult, PluginManifest } from "$lib/services/pluginClient";
 
   interface Props {
@@ -56,6 +57,45 @@
       return raw;
     }
     return null;
+  }
+
+  interface ResolvedHintAndLink {
+    text: string;
+    link?: { label: string; url: string };
+  }
+
+  function resolveHintAndLink(
+    hint?: string | { text?: string; link?: { label: string; url: string } },
+    helpText?: string,
+    link?: { label: string; url: string }
+  ): ResolvedHintAndLink {
+    let rawText = "";
+    let extractedLink = link;
+
+    if (typeof hint === "string") {
+      rawText = hint;
+    } else if (hint && typeof hint === "object") {
+      rawText = hint.text ?? "";
+      if (!extractedLink && hint.link) {
+        extractedLink = hint.link;
+      }
+    } else if (helpText) {
+      rawText = helpText;
+    }
+
+    const mdMatch = rawText.match(/\[([^\]]+)\]\((https?:\/\/[^\)]+)\)/);
+    if (mdMatch) {
+      if (!extractedLink) {
+        extractedLink = { label: mdMatch[1], url: mdMatch[2] };
+      }
+      rawText = rawText.replace(mdMatch[0], "").trim();
+    }
+
+    if (extractedLink && extractedLink.label) {
+      rawText = rawText.replace(`[${extractedLink.label}]`, "").trim();
+    }
+
+    return { text: rawText, link: extractedLink };
   }
 
   const SDK_GUIDE_MARKDOWN = `# Vesta Plugin System & SDK Contract (v1)
@@ -1109,38 +1149,57 @@ Every widget supports \`id\`, \`hidden\`, \`expertOnly\` (auto-hidden when Exper
 
         <div class="flex flex-col gap-4 max-h-[60vh] overflow-y-auto scrollbar-thin">
           {#each settingsTarget.manifest.settings as field}
-            {#if field.type === "checkbox"}
-              <button
-                type="button"
-                role="checkbox"
-                aria-checked={Boolean(editSettingsValues[field.id])}
-                class="flex items-center gap-3 p-3 rounded-xl border transition-all text-left cursor-pointer {Boolean(editSettingsValues[field.id]) ? 'border-indigo-500/50 bg-indigo-500/10 text-white' : 'border-white/10 bg-white/[0.03] text-gray-300 hover:bg-white/[0.06]'}"
-                onclick={() => editSettingsValues[field.id] = !editSettingsValues[field.id]}
-              >
-                <div class="w-5 h-5 rounded-lg border flex items-center justify-center transition-colors {Boolean(editSettingsValues[field.id]) ? 'border-indigo-400 bg-indigo-600 text-white' : 'border-white/20 bg-black/20 text-transparent'}">
-                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
-                </div>
-                <div class="flex flex-col">
-                  <span class="text-sm font-medium">{field.label}</span>
-                  {#if field.description}
-                    <span class="text-xs text-gray-400">{field.description}</span>
+            {#if !field.expertOnly || uiMode.expertMode}
+              {#if field.type === "checkbox"}
+                <button
+                  type="button"
+                  role="checkbox"
+                  aria-checked={Boolean(editSettingsValues[field.id])}
+                  class="flex items-center gap-3 p-3 rounded-xl border transition-all text-left cursor-pointer {Boolean(editSettingsValues[field.id]) ? 'border-indigo-500/50 bg-indigo-500/10 text-white' : 'border-white/10 bg-white/[0.03] text-gray-300 hover:bg-white/[0.06]'}"
+                  onclick={() => editSettingsValues[field.id] = !editSettingsValues[field.id]}
+                >
+                  <div class="w-5 h-5 rounded-lg border flex items-center justify-center transition-colors {Boolean(editSettingsValues[field.id]) ? 'border-indigo-400 bg-indigo-600 text-white' : 'border-white/20 bg-black/20 text-transparent'}">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                  </div>
+                  <div class="flex flex-col">
+                    <span class="text-sm font-medium">{field.label}</span>
+                    {#if field.description}
+                      <span class="text-xs text-gray-400">{field.description}</span>
+                    {/if}
+                  </div>
+                </button>
+              {:else}
+                {@const info = resolveHintAndLink(field.hint, field.helpText ?? field.description, field.link)}
+                <div class="flex flex-col gap-1.5">
+                  <label for="modal-setting-{field.id}" class="text-xs font-medium text-gray-400">{field.label}</label>
+                  <input
+                    id="modal-setting-{field.id}"
+                    type={field.type === "password" ? "password" : field.type === "number" ? "number" : "text"}
+                    bind:value={editSettingsValues[field.id]}
+                    placeholder={field.description ?? ""}
+                    class="h-10 px-3 rounded-xl border border-white/10 bg-white/5 text-sm text-gray-100 placeholder-gray-500 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-colors"
+                  />
+                  {#if info.text || info.link}
+                    <div class="flex flex-wrap items-center gap-2 mt-0.5">
+                      {#if info.text}
+                        <span class="text-xs text-gray-500">{info.text}</span>
+                      {/if}
+                      {#if info.link}
+                        <a
+                          href={info.link.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onclick={(e) => { e.preventDefault(); void openUrl(info.link!.url); }}
+                          class="text-indigo-400 hover:text-indigo-300 hover:underline inline-flex items-center gap-1 text-xs font-semibold transition-colors cursor-pointer"
+                        >
+                          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+                          {info.link.label}
+                        </a>
+                      {/if}
+                    </div>
                   {/if}
                 </div>
-              </button>
-            {:else}
-              <div class="flex flex-col gap-1.5">
-                <label for="modal-setting-{field.id}" class="text-xs font-medium text-gray-400">{field.label}</label>
-                <input
-                  id="modal-setting-{field.id}"
-                  type={field.type === "password" ? "password" : field.type === "number" ? "number" : "text"}
-                  bind:value={editSettingsValues[field.id]}
-                  placeholder={field.description ?? ""}
-                  class="h-10 px-3 rounded-xl border border-white/10 bg-white/5 text-sm text-gray-100 placeholder-gray-500 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-colors"
-                />
-                {#if field.description}
-                  <span class="text-xs text-gray-500">{field.description}</span>
-                {/if}
-              </div>
+              {/if}
             {/if}
           {/each}
         </div>

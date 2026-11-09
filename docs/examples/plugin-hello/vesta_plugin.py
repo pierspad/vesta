@@ -466,6 +466,7 @@ class VestaPlugin:
         self._event_handlers: Dict[str, Callable[[str, str, str, Dict[str, Any]], Any]] = {}
         self._init_handler: Optional[Callable[[Dict[str, Any]], None]] = None
         self._req_id = 1000
+        self._inbox: List[Dict[str, Any]] = []
 
     def get_shared_credential(self, key: str, default: str = "") -> str:
         return self.shared_credentials.get(key, default)
@@ -513,7 +514,7 @@ class VestaPlugin:
         )
 
     def get_values(self, screen: str = "main") -> Dict[str, Any]:
-        """Request the current form values for the specified screen from the host."""
+        """Request the latest interactive values snapshot recorded by the host for `screen`."""
         res = self._send_request("ui.getValues", {"screen": screen})
         if isinstance(res, dict) and isinstance(res.get("values"), dict):
             return res["values"]
@@ -540,8 +541,11 @@ class VestaPlugin:
         sys.stdout.write(json.dumps(msg) + "\n")
         sys.stdout.flush()
 
-        for line in sys.stdin:
-            line = line.strip()
+        while True:
+            raw_line = sys.stdin.readline()
+            if not raw_line:
+                return None
+            line = raw_line.strip()
             if not line:
                 continue
             try:
@@ -552,7 +556,23 @@ class VestaPlugin:
                 if "error" in resp:
                     raise RuntimeError(resp["error"].get("message", "RPC request failed"))
                 return resp.get("result")
-        return None
+            # Preserve any host requests/notifications (e.g. shutdown) that arrived while waiting
+            self._inbox.append(resp)
+
+    def _next_message(self) -> Optional[Dict[str, Any]]:
+        if self._inbox:
+            return self._inbox.pop(0)
+        while True:
+            raw_line = sys.stdin.readline()
+            if not raw_line:
+                return None
+            line = raw_line.strip()
+            if not line:
+                continue
+            try:
+                return json.loads(line)
+            except Exception:
+                continue
 
     def _sync_context(self, params: Dict[str, Any]):
         if "locale" in params and isinstance(params["locale"], str):
@@ -564,15 +584,10 @@ class VestaPlugin:
 
     def run(self):
         """Runs the JSON-RPC dispatch loop over stdin and stdout."""
-        for line in sys.stdin:
-            line = line.strip()
-            if not line:
-                continue
-
-            try:
-                req = json.loads(line)
-            except Exception:
-                continue
+        while True:
+            req = self._next_message()
+            if req is None:
+                break
 
             req_id = req.get("id")
             method = req.get("method")

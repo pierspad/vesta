@@ -244,7 +244,7 @@ Updates progress on long operations:
 ```
 
 ### `ui.getValues` (Request from Plugin → Vesta)
-The plugin can query the current interactive values of any screen:
+Queries the latest interactive values snapshot recorded by the host for a screen (populated from `render` parameters or the most recent dispatched `event`, including under `vesta-mcp`'s `call_plugin`):
 - **Request**:
   ```json
   {"jsonrpc": "2.0", "id": 10, "method": "ui.getValues", "params": {"screen": "main"}}
