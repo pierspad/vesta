@@ -433,8 +433,8 @@ export async function pluginUninstall(id: string): Promise<void> {
   return invokeCommand<void>("plugin_uninstall", { id });
 }
 
-export async function pluginUpdate(id: string): Promise<InstalledPlugin> {
-  return invokeCommand<InstalledPlugin>("plugin_update", { id });
+export async function pluginUpdate(id: string, releaseTag?: string): Promise<InstalledPlugin> {
+  return invokeCommand<InstalledPlugin>("plugin_update", { id, releaseTag });
 }
 
 export async function pluginGetSettings(id: string): Promise<Record<string, any>> {

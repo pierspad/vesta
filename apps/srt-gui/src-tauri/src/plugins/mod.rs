@@ -4,9 +4,7 @@ pub mod registry;
 pub mod runtime;
 pub mod url;
 
-use archive::{
-    copy_dir_recursive, fetch_and_extract_plugin, find_local_plugin_dir, load_manifest_from_dir,
-};
+use archive::{fetch_and_extract_plugin, find_local_plugin_dir, load_manifest_from_dir};
 use chrono::Utc;
 use manifest::PluginManifest;
 use registry::{InstalledPlugin, PluginRegistry};
@@ -224,6 +222,15 @@ impl PluginManager {
         url: &str,
         git_ref: Option<&str>,
     ) -> Result<InstalledPlugin, String> {
+        self.install_source(url, git_ref, None).await
+    }
+
+    async fn install_source(
+        &self,
+        url: &str,
+        git_ref: Option<&str>,
+        update_id: Option<&str>,
+    ) -> Result<InstalledPlugin, String> {
         let source = resolve_plugin_url(url, git_ref)?;
 
         let local_path = Path::new(&source.git_clone_url);
@@ -231,43 +238,68 @@ impl PluginManager {
             find_local_plugin_dir(local_path)?;
         }
 
-        // Download to a staging directory first
-        let staging_temp = tempfile::Builder::new()
-            .prefix("vesta-plugin-staging-")
-            .tempdir()
-            .map_err(|e| format!("Failed to create staging directory: {e}"))?;
-
-        let manifest = fetch_and_extract_plugin(&source, staging_temp.path()).await?;
-
         let plugins_dir = self.plugins_dir();
-        fs::create_dir_all(&plugins_dir)
-            .map_err(|e| format!("Failed to create plugins directory: {e}"))?;
-
-        let target_dir = plugins_dir.join(&manifest.id);
-        if target_dir.exists() {
-            // Stop any active runtime before replacing
-            self.runtime.stop_plugin(&manifest.id).await;
-            fs::remove_dir_all(&target_dir)
-                .map_err(|e| format!("Failed to remove previous plugin directory: {e}"))?;
+        fs::create_dir_all(&plugins_dir).map_err(|e| e.to_string())?;
+        let staging = tempfile::tempdir_in(&plugins_dir).map_err(|e| e.to_string())?;
+        let incoming = staging.path().join("incoming");
+        fs::create_dir(&incoming).map_err(|e| e.to_string())?;
+        let manifest = fetch_and_extract_plugin(&source, &incoming).await?;
+        if update_id.is_some_and(|id| id != manifest.id) {
+            return Err("Update manifest does not match the installed plugin ID".into());
         }
 
-        // Move staging to destination
-        fs::create_dir_all(&target_dir)
-            .map_err(|e| format!("Failed to create target directory: {e}"))?;
-
-        copy_dir_recursive(staging_temp.path(), &target_dir)?;
-
-        let (existing_installed_at, existing_settings) = {
-            let reg = self.registry.lock().await;
-            if let Some(existing) = reg.get(&manifest.id) {
-                (
-                    Some(existing.installed_at.clone()),
-                    existing.settings.clone(),
-                )
-            } else {
-                (None, HashMap::new())
+        if update_id.is_some()
+            && let Some(tag) = git_ref
+            && tag.starts_with('v')
+            && tag[1..].split('.').count() == 3
+            && manifest.version.trim_start_matches('v') != &tag[1..]
+        {
+            return Err("Plugin release tag and manifest version do not match".into());
+        }
+        let mut reg = self.registry.lock().await;
+        let existing = reg.get(&manifest.id);
+        if existing.is_some_and(|plugin| plugin.source_url != source.original_url) {
+            return Err("A plugin with this ID is installed from a different source".into());
+        }
+        if update_id.is_some() && existing.is_none() {
+            return Err("Plugin was uninstalled while checking for an update".into());
+        }
+        if update_id.is_some()
+            && existing.is_some_and(|plugin| {
+                manifest
+                    .permissions
+                    .scopes
+                    .iter()
+                    .any(|scope| !plugin.manifest.permissions.scopes.contains(scope))
+            })
+        {
+            return Err(
+                "Update requests additional permissions. Inspect and install it explicitly.".into(),
+            );
+        }
+        let existing_installed_at = existing.map(|plugin| plugin.installed_at.clone());
+        let existing_settings = existing
+            .map(|plugin| plugin.settings.clone())
+            .unwrap_or_default();
+        let enabled = existing.is_none_or(|plugin| plugin.enabled);
+        let target_dir = plugins_dir.join(&manifest.id);
+        let backup = staging.path().join("previous");
+        let had_previous = target_dir.exists();
+        let data = target_dir.join("data");
+        if had_previous && incoming.join("data").exists() {
+            return Err("Plugin update archive must not contain a data directory".into());
+        }
+        if had_previous {
+            self.runtime.stop_plugin(&manifest.id).await;
+            fs::rename(&target_dir, &backup).map_err(|e| e.to_string())?;
+        }
+        let publish = (|| -> Result<(), String> {
+            fs::rename(&incoming, &target_dir).map_err(|e| e.to_string())?;
+            if backup.join("data").exists() {
+                fs::rename(backup.join("data"), &data).map_err(|e| e.to_string())?;
             }
-        };
+            Ok(())
+        })();
 
         let now = Utc::now().to_rfc3339();
         let (installed_at, updated_at) = match existing_installed_at {
@@ -284,7 +316,7 @@ impl PluginManager {
             version: manifest.version.clone(),
             description: manifest.description.clone(),
             author: manifest.author.clone(),
-            enabled: true,
+            enabled,
             source_url: source.original_url.clone(),
             source_ref: if source.git_ref != "HEAD" {
                 Some(source.git_ref.clone())
@@ -299,11 +331,31 @@ impl PluginManager {
             settings: existing_settings,
         };
 
-        {
-            let mut reg = self.registry.lock().await;
-            reg.add_or_update(installed_plugin.clone());
-            reg.save_to_file(&self.registry_file)?;
+        let mut updated = reg.clone();
+        updated.add_or_update(installed_plugin.clone());
+        if let Err(error) = publish.and_then(|()| updated.save_to_file(&self.registry_file)) {
+            let restore = (|| -> std::io::Result<()> {
+                if had_previous && data.exists() {
+                    fs::rename(&data, backup.join("data"))?;
+                }
+                if target_dir.exists() {
+                    fs::rename(&target_dir, &incoming)?;
+                }
+                if had_previous {
+                    fs::rename(&backup, &target_dir)?;
+                }
+                Ok(())
+            })();
+            if let Err(restore_error) = restore {
+                let recovery = staging.keep();
+                return Err(format!(
+                    "{error}; restore failed: {restore_error}. Recovery files: {}",
+                    recovery.display()
+                ));
+            }
+            return Err(error);
         }
+        *reg = updated;
 
         Ok(installed_plugin)
     }
@@ -341,7 +393,21 @@ impl PluginManager {
     }
 
     /// Updates a plugin by re-fetching from its original source URL.
-    pub async fn update(&self, id: &str) -> Result<InstalledPlugin, String> {
+    pub async fn update(
+        &self,
+        id: &str,
+        release_tag: Option<&str>,
+    ) -> Result<InstalledPlugin, String> {
+        if let Some(tag) = release_tag {
+            let parts: Vec<_> = tag.strip_prefix('v').unwrap_or("").split('.').collect();
+            if parts.len() != 3
+                || parts.iter().any(|part| {
+                    part.parse::<u64>().is_err() || !part.bytes().all(|byte| byte.is_ascii_digit())
+                })
+            {
+                return Err("Invalid plugin release tag".into());
+            }
+        }
         let (source_url, source_ref) = {
             let reg = self.registry.lock().await;
             let plugin = reg
@@ -350,7 +416,8 @@ impl PluginManager {
             (plugin.source_url.clone(), plugin.source_ref.clone())
         };
 
-        self.install(&source_url, source_ref.as_deref()).await
+        self.install_source(&source_url, release_tag.or(source_ref.as_deref()), Some(id))
+            .await
     }
 
     /// Gets current settings for a plugin.
@@ -613,6 +680,35 @@ mod tests {
         let temp = tempfile::tempdir().unwrap();
         let manifest = make_test_manifest(Some("../secret.png"), None);
         assert_eq!(resolve_plugin_icon_data_url(temp.path(), &manifest), None);
+    }
+
+    #[tokio::test]
+    async fn local_update_preserves_data_and_rejects_changed_id() {
+        let base = tempfile::tempdir().unwrap();
+        let manager = PluginManager::new(base.path().join("plugins"));
+        let source = base.path().join("source");
+        fs::create_dir(&source).unwrap();
+        let path = source.to_str().unwrap();
+        let mut manifest = make_test_manifest(None, None);
+        let manifest_path = source.join("vesta-plugin.json");
+        fs::write(&manifest_path, serde_json::to_vec(&manifest).unwrap()).unwrap();
+        manager.install(path, None).await.unwrap();
+
+        let data = manager.plugins_dir().join(&manifest.id).join("data");
+        fs::create_dir(&data).unwrap();
+        fs::write(data.join("settings.json"), b"retained").unwrap();
+        manager.disable(&manifest.id).await.unwrap();
+        manifest.version = "2.0.0".into();
+        fs::write(&manifest_path, serde_json::to_vec(&manifest).unwrap()).unwrap();
+        let updated = manager.update(&manifest.id, None).await.unwrap();
+        assert!(!updated.enabled);
+        assert_eq!(updated.version, "2.0.0");
+        assert_eq!(fs::read(data.join("settings.json")).unwrap(), b"retained");
+
+        manifest.id = "different-id".into();
+        fs::write(&manifest_path, serde_json::to_vec(&manifest).unwrap()).unwrap();
+        assert!(manager.update(&updated.id, None).await.is_err());
+        assert!(data.join("settings.json").is_file());
     }
 
     #[tokio::test]

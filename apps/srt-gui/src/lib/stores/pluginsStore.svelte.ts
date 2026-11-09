@@ -139,10 +139,10 @@ class PluginsStore {
     }
   }
 
-  async update(id: string): Promise<void> {
+  async update(id: string, releaseTag?: string): Promise<void> {
     this.loading = true;
     try {
-      const updated = await pluginUpdate(id);
+      const updated = await pluginUpdate(id, releaseTag);
       await this.refresh();
       snackbar.show(`Plugin '${updated.name}' updated to v${updated.version}`, "success");
     } catch (e: any) {

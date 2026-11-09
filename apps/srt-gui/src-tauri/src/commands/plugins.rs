@@ -48,8 +48,9 @@ pub async fn plugin_uninstall(state: State<'_, AppPluginState>, id: String) -> R
 pub async fn plugin_update(
     state: State<'_, AppPluginState>,
     id: String,
+    release_tag: Option<String>,
 ) -> Result<InstalledPlugin, String> {
-    state.update(&id).await
+    state.update(&id, release_tag.as_deref()).await
 }
 
 #[tauri::command]

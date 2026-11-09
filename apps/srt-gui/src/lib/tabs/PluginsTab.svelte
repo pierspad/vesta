@@ -1,5 +1,8 @@
 <script lang="ts">
-  import { onMount } from "svelte";
+  import { githubReleaseEndpoint, newerPluginRelease } from "$lib/services/pluginReleases";
+  import { updateCheckerStore } from "$lib/stores/updateCheckerStore.svelte";
+  import { snackbar } from "$lib/stores/snackbarStore.svelte";
+  import { onMount, untrack } from "svelte";
   import { pluginsStore } from "$lib/stores/pluginsStore.svelte";
   import { locale } from "$lib/i18n";
   import ConfirmDialog from "$lib/modals/ConfirmDialog.svelte";
@@ -116,15 +119,10 @@ On \`initialize\`, \`render\`, and \`event\`, Vesta automatically passes:
 - \`locale\`: Active Vesta UI language code (e.g. \`"en"\`, \`"it"\`, \`"ja"\`)
 - \`expertMode\`: \`boolean\` indicating whether the user enabled **Expert Mode** in Vesta
 - \`settings\`: Dictionary of saved manifest settings
-- \`sharedCredentials\`: Dictionary of resolved shared credentials declared in manifest (\`{ [id: string]: string }\`)
 - \`values\`: Snapshot of all interactive widget values on the active screen (on \`event\`)
 
-## 3. Shared Credentials & Permissions
-Plugins can declare shared credentials in manifest to reuse API keys (e.g. TMDB, IMDb, OpenSubtitles) across plugins:
-- Manifest: \`"sharedCredentials": ["tmdb_api_key"]\` or \`"permissions": { "scopes": ["network"], "sharedCredentials": ["tmdb_api_key"] }\`
-- Read: Supplied in \`params.sharedCredentials\` on \`initialize\`, \`render\`, and \`event\`.
-- Write/Update: Return \`"setSharedCredentials": { "tmdb_api_key": "secret" }\` in render or event responses to atomically persist (or \`""\` / \`null\` to remove).
-- User Consent: Users explicitly review and consent to requested shared credentials during plugin inspection before install.
+## 3. Plugin credentials
+Store credentials in the plugin's own settings or data directory. Vesta does not forward credentials between plugins.
 
 ## 4. Declarative Widget Catalog
 Every widget supports \`id\`, \`hidden\`, \`expertOnly\` (auto-hidden when Expert Mode is off), \`tooltip\` (native Vesta hover tooltip), \`flex\`, and \`width\`.
@@ -271,10 +269,48 @@ Every widget supports \`id\`, \`hidden\`, \`expertOnly\` (auto-hidden when Exper
     await pluginsStore.saveSettings(id, values);
   }
 
+  const onlinePlugins = $derived(pluginsStore.plugins.filter(plugin => plugin.enabled && githubReleaseEndpoint(plugin)));
+  let checkedOnline = $state(false);
+  let checkingOnline = $state(false);
+  let availableReleases = $state<Record<string, string>>({});
+
+  $effect(() => {
+    if (active && !currentPlugin && updateCheckerStore.automaticUpdateChecks && onlinePlugins.length && !checkedOnline) {
+      untrack(() => { void checkPluginReleases(false); });
+    }
+  });
+
+  async function checkPluginReleases(manual: boolean) {
+    if (checkingOnline) return;
+    checkedOnline = true;
+    checkingOnline = true;
+    try {
+      const releases: Record<string, string> = {};
+      let failures = false;
+      for (const plugin of onlinePlugins) {
+        try {
+          const tag = await newerPluginRelease(plugin);
+          if (tag) releases[plugin.id] = tag;
+        } catch {
+          failures = true;
+        }
+      }
+      availableReleases = releases;
+      if (manual && failures) snackbar.show(t("settings.updatesCheckFailed"), "warning");
+      else if (manual && !Object.keys(releases).length) snackbar.show(t("settings.updatesUpToDate"), "success");
+    } finally {
+      checkingOnline = false;
+    }
+  }
+
   async function handleUpdate(plugin: InstalledPlugin) {
     contextMenuPlugin = null;
     contextMenuPos = null;
-    await pluginsStore.update(plugin.id);
+    const tag = availableReleases[plugin.id];
+    await pluginsStore.update(plugin.id, tag);
+    if (tag && pluginsStore.plugins.some(item => item.id === plugin.id && `v${item.version.replace(/^v/, "")}` === tag)) {
+      delete availableReleases[plugin.id];
+    }
   }
 
   function formatPermission(perm: string): string {
@@ -557,6 +593,12 @@ Every widget supports \`id\`, \`hidden\`, \`expertOnly\` (auto-hidden when Exper
             {t("plugins.installedList")} ({pluginsStore.plugins.length})
           </h2>
 
+          {#if onlinePlugins.length}
+            <button type="button" class="btn-secondary btn-compact" disabled={checkingOnline}
+              onclick={() => checkPluginReleases(true)}>
+              {t(checkingOnline ? "settings.updatesChecking" : "plugins.checkUpdates")}
+            </button>
+          {/if}
           <SearchInput
             bind:value={searchQuery}
             placeholder={t("plugins.searchPlaceholder")}
@@ -616,6 +658,11 @@ Every widget supports \`id\`, \`hidden\`, \`expertOnly\` (auto-hidden when Exper
                     <div class="flex items-center gap-2 flex-wrap">
                       <span class="text-base font-bold text-white truncate">{plugin.name}</span>
                       <span class="text-xs font-mono px-2 py-0.5 rounded bg-white/10 text-gray-300">v{plugin.version}</span>
+                      {#if availableReleases[plugin.id]}
+                        <span class="rounded bg-cyan-500/15 px-2 py-0.5 text-xs text-cyan-300">
+                          {t("settings.updatesNewVersionAvailable", { version: availableReleases[plugin.id] })}
+                        </span>
+                      {/if}
                       {#if plugin.enabled}
                         <span class="px-2 py-0.5 rounded text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">{t("plugins.enabled")}</span>
                       {:else}

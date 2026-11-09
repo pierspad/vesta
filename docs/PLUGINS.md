@@ -96,8 +96,7 @@ A plugin repository must contain a `vesta-plugin.json` manifest at its root:
 | `readme` | `string` | No | Inline documentation/README text. If omitted, Vesta automatically reads `README.md` from the plugin root directory if present. |
 | `entry` | `object` | **Yes** | Process execution command: `command: string[]` and optional `os: { windows?, macos?, linux? }` overrides. |
 | `icon` | `string` | No | Custom plugin icon/image. Supports named monochrome icons (`"puzzle"`, `"film"`, `"search"`), relative image files inside the plugin root (`"icon.svg"`, `"icon.png"`, `"icon.webp"`, `"assets/logo.svg"`, max 512 KB), or direct `data:image/...` / `https://` URIs. Rendered across plugin cards, inspect dialogs, and embedded headers. |
-| `permissions` | `string[] \| object` | No | Requested permissions (e.g. `["network"]` or `{ "scopes": ["network"], "sharedCredentials": ["tmdb_api_key"] }`). |
-| `sharedCredentials` | `array` | No | List of shared credential keys or specs (e.g. `["tmdb_api_key", { "id": "imdb_id", "label": "IMDb Key" }]`). Reusable across plugins with user consent upon install. |
+| `permissions` | `string[] \| object` | No | Requested permissions (e.g. `["network"]` or `{ "scopes": ["network"] }`). |
 | `tab` | `object` | No | Visual metadata for the plugin header/card: `{ title: string, icon?: string, settingsScreen?: string }`. Supports named icons or relative image files identical to top-level `icon`. |
 | `settings` | `array` | No | Optional declarative configuration fields editable in Vesta's quick settings modal. Plugins may also implement a rich `"settings"` screen directly. |
 
@@ -119,6 +118,18 @@ Users can install a plugin by supplying:
 
 ### Pre-installation Inspection & Permission Confirmation
 Vesta extracts the plugin to a temporary staging folder, reads and validates `vesta-plugin.json`, and displays a confirmation banner presenting the plugin name, author, version, description, and list of required permissions. The user must explicitly confirm before the plugin is installed.
+
+### Updates
+
+**Check for updates** in Plugins checks the latest published GitHub release
+for enabled plugins installed from a GitHub repository. Stable release tags
+use `vX.Y.Z`. The app's automatic update preference also controls the initial
+check when opening Plugins. A check only displays available versions.
+Use the update action on a card to install its offered tag. Local folders,
+archive URLs and explicitly pinned branches keep their existing update behavior.
+Updates preserve the installed plugin's `data/` directory and reject a changed
+plugin ID or newly requested permission scopes. Review expanded permissions
+through the installation inspection flow.
 
 ### Storage & Safety Limits
 - Plugins are stored in `<app_data>/plugins/installed/<plugin_id>/`. The Vesta data root is `${XDG_DATA_HOME:-$HOME/.local/share}/vesta` on Linux, `~/Library/Application Support/vesta` on macOS, and `%APPDATA%\vesta` on Windows.
@@ -153,8 +164,7 @@ Called immediately after spawning the plugin process.
     "dataDir": "/path/to/plugin/data",
     "locale": "en",
     "expertMode": false,
-    "settings": { "apiKey": "secret..." },
-    "sharedCredentials": { "tmdb_api_key": "abc123xyz" }
+    "settings": { "apiKey": "secret..." }
   }
   ```
 - **Result**: `{"status": "ok"}`
@@ -167,8 +177,7 @@ Requests the declarative UI tree for a given screen (e.g. `"main"` or `"settings
     "screen": "main",
     "params": {},
     "locale": "it",
-    "expertMode": true,
-    "sharedCredentials": { "tmdb_api_key": "abc123xyz" }
+    "expertMode": true
   }
   ```
 - **Result**:
@@ -178,8 +187,7 @@ Requests the declarative UI tree for a given screen (e.g. `"main"` or `"settings
       "type": "column",
       "children": [...]
     },
-    "snackbar": { "message": "Loaded!", "type": "info" },
-    "setSharedCredentials": { "tmdb_api_key": "new_secret_val" }
+    "snackbar": { "message": "Loaded!", "type": "info" }
   }
   ```
 
@@ -197,17 +205,15 @@ Dispatched whenever the user interacts with a widget (clicking a button, pressin
       "search_tmdb_id": "27205"
     },
     "locale": "it",
-    "expertMode": true,
-    "sharedCredentials": { "tmdb_api_key": "abc123xyz" }
+    "expertMode": true
   }
   ```
 - **Result**:
-  Returns a new UI tree (`{ "root": ... }`), an incremental patch (`{ "patch": ... }`), or an object with optional `snackbar` and `setSharedCredentials`:
+  Returns a new UI tree (`{ "root": ... }`), an incremental patch (`{ "patch": ... }`), or an object with optional `snackbar`:
   ```json
   {
     "root": { ... },
-    "snackbar": { "message": "Saved successfully!", "type": "success" },
-    "setSharedCredentials": { "tmdb_api_key": "token_value" }
+    "snackbar": { "message": "Saved successfully!", "type": "success" }
   }
   ```
 
@@ -294,7 +300,7 @@ All widgets accept the following optional properties:
 | `checkbox` | Toggle checkbox | `id: string`, `label: string`, `defaultValue?: boolean`, `tooltip?: string` |
 | `button` | Action button | `id: string`, `label: string`, `icon?: string`, `variant?: "primary" \| "secondary" \| "danger" \| "settings" \| "accent"`, `disabled?: boolean`, `tooltip?: string` |
 | `link` / `externalLink` | External hyperlink | `label: string`, `url: string`, `icon?: string` (opens in system browser via Tauri opener) |
-| `list` | Rich item list with actions | `items: Array<{ id, title, subtitle?, badge?, language?, meta?, image?, actions?: Array<{ id, label, variant?, icon?, iconOnly?, tooltip? }> }>` |
+| `list` | Rich item list with actions | `items: Array<{ id, title, subtitle?, badge?, language?, meta?, image?, primaryAction?, actions?: Array<{ id, label, variant?, icon?, iconOnly?, tooltip? }> }>` |
 | `table` | Responsive data table | `headers: string[]`, `rows: Array<Array<string \| number>>` |
 | `image` | Static image | `src: string`, `alt?: string`, `width?: number`, `height?: number` |
 | `progress` | Progress bar | `value: number`, `max?: number`, `label?: string` |
@@ -357,6 +363,10 @@ Use `Row(..., separator="or")` for alternative inputs. The host places the
 localized separator between visible children, including when Expert mode changes.
 
 Plugins remain responsible for validating action parameters in their handlers.
+
+Set `reserveImage: true` on a list to keep a thumbnail slot for every item.
+Set an item's `primaryAction` to one of its action IDs to make its card
+activate that action by mouse or keyboard.
 
 ### Icon registry
 
@@ -435,8 +445,7 @@ External plugins execute untrusted code on the user's host machine. Vesta enforc
 - **Permission Declarations**:
   - `network`: Allows outbound HTTP/API requests.
   - `filesystem:downloads`: Allows reading/writing to the user's Downloads folder.
-  - `sharedCredentials` (e.g. `tmdb_api_key`, `opensubtitles_api_key`): Grants access to read and update specific shared vault credentials.
-- **Secret Isolation & Shared Vault**: Vesta never injects global application credentials or LLM/STT provider keys into a plugin's runtime; plugins only receive their own declared settings. Shared vault credentials are only exposed to a plugin if that plugin's manifest explicitly declares those keys in its `sharedCredentials` permission list, and requires explicit user consent during installation. Returned `setSharedCredentials` writes are strictly constrained to the plugin's declared keys.
+- **Plugin credentials**. Store each plugin's keys in its own settings or data directory. Vesta no longer forwards legacy shared vault values or accepts plugin writes to that vault. Existing plugin-local settings are preserved. A local plugin process still runs with the user's OS permissions and may have access to other files or environment variables. Install plugins only from sources you trust.
 
 ---
 
@@ -452,7 +461,6 @@ Vesta includes a zero-dependency Python SDK helper (`vesta_plugin.py`) located u
   - `plugin.notify(msg, level="info")`, `plugin.progress(id, value, label="")`, `plugin.update_ui(screen="main", root=None, patch=None)`
   - `plugin.open_in_flashcards(video_path, subtitle_path)`
   - `plugin.get_values(screen="main") -> dict`
-  - `plugin.get_shared_credential(key, default="") -> str`
   - Runtime properties updated automatically across RPC calls: `plugin.locale`, `plugin.expert_mode`, `plugin.data_dir`, `plugin.settings`, `plugin.shared_credentials`.
 
 ```python
