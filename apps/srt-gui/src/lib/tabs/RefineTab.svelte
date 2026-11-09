@@ -1,4 +1,5 @@
 <script lang="ts">
+  import HistoryButton from "$lib/components/HistoryButton.svelte";
   import { invokeCommand as invoke } from "$lib/services/tauriClient";
   import { guardedOpen, guardedSave } from "$lib/utils/dialogGuard";
   import { snackbar } from "$lib/stores/snackbarStore.svelte";
@@ -810,12 +811,14 @@
         <!-- Left Column (5 cols): Flashcards List Panel -->
         <div class="md:col-span-5 glass-card p-5 flex flex-col min-h-0 overflow-hidden">
           <!-- Search Bar -->
-          <div class="mb-3 shrink-0">
+          <div class="mb-3 flex shrink-0 items-center gap-2">
             <SearchInput
               bind:value={searchQuery}
               placeholder={t('refine.searchPlaceholder')}
               class="w-full"
             />
+            <HistoryButton direction="undo" disabled={!canUndoDocument || operationBusy} onclick={() => applyDocumentHistory("undo")} />
+            <HistoryButton direction="redo" disabled={!canRedoDocument || operationBusy} onclick={() => applyDocumentHistory("redo")} />
           </div>
 
           <!-- Scrollable Cards List (fills available vertical space) -->
@@ -1168,10 +1171,6 @@
   <FooterActions>
     {#snippet left()}
       <div class="flex flex-1 min-w-0 items-center gap-3">
-      <div class="flex shrink-0 gap-1">
-        <button type="button" class="btn-secondary px-2 py-2 text-sm" title={t("common.undo")} aria-label={t("common.undo")} disabled={!canUndoDocument || operationBusy} onclick={() => applyDocumentHistory("undo")}>{t("common.undo")}</button>
-        <button type="button" class="btn-secondary px-2 py-2 text-sm" title={t("common.redo")} aria-label={t("common.redo")} disabled={!canRedoDocument || operationBusy} onclick={() => applyDocumentHistory("redo")}>{t("common.redo")}</button>
-      </div>
       <div class="relative group shrink-0">
         <button
           onclick={overwriteOriginalFile}

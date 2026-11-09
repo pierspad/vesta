@@ -1,4 +1,5 @@
 <script lang="ts">
+  import HistoryButton from "$lib/components/HistoryButton.svelte";
   import EmptyStatusLabel from "$lib/components/EmptyStatusLabel.svelte";
   import { locale } from "$lib/i18n";
   import SectionHeader from "$lib/components/SectionHeader.svelte";
@@ -36,6 +37,9 @@
     onTogglePlay: () => void;
     onReplay: () => void;
     onAdjustOffset: (delta: number) => void;
+    canUndo: boolean;
+    canRedo: boolean;
+    onHistory: (direction: "undo" | "redo") => void;
     onSkip: () => void;
     onConfirm: () => void;
   }
@@ -62,6 +66,9 @@
     onTogglePlay,
     onReplay,
     onAdjustOffset,
+    canUndo,
+    canRedo,
+    onHistory,
     onSkip,
     onConfirm,
   }: Props = $props();
@@ -227,54 +234,11 @@
         </div>
 
         <div
-          class="flex items-center justify-center gap-4 flex-wrap flex-shrink-0 min-h-[60px]"
+          class="flex items-center justify-center gap-2 flex-wrap flex-shrink-0 min-h-[60px]"
         >
-          <button
-            onclick={onTogglePlay}
-            disabled={!canControlAudio}
-            class="w-14 h-14 flex items-center justify-center rounded-full bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-500/30 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-            title={isPlaying ? t("sync.tooltipPause") : t("sync.tooltipPlay")}
-            aria-label={isPlaying ? t("sync.tooltipPause") : t("sync.tooltipPlay")}
-          >
-            {#if isPlaying}
-              <svg
-                class="w-7 h-7 text-white"
-                fill="currentColor"
-                viewBox="0 0 24 24"
-                ><path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z" /></svg
-              >
-            {:else}
-              <svg
-                class="w-7 h-7 text-white ml-1"
-                fill="currentColor"
-                viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg
-              >
-            {/if}
-          </button>
-
-          <button
-            onclick={onReplay}
-            disabled={!canControlAudio}
-            class="w-12 h-12 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-            title={t("sync.wizard.replay") + " (R)"}
-            aria-label={t("sync.wizard.replay") + " (R)"}
-          >
-            <svg
-              class="w-6 h-6 text-cyan-400"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-              ><path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-              /></svg
-            >
-          </button>
-
+          <HistoryButton direction="undo" disabled={!canUndo} onclick={() => onHistory("undo")} />
           <div
-            class="flex items-center gap-2 bg-white/5 rounded-xl px-4 py-2 {!canControlAudio
+            class="flex items-center gap-1 bg-white/5 rounded-xl px-2 py-2 {!canControlAudio
               ? 'opacity-40 pointer-events-none'
               : ''}"
           >
@@ -341,6 +305,53 @@
               +3s
             </button>
           </div>
+
+          <HistoryButton direction="redo" disabled={!canRedo} onclick={() => onHistory("redo")} />
+        </div>
+        <div class="flex flex-wrap items-center justify-center gap-3">
+          <button
+            onclick={onTogglePlay}
+            disabled={!canControlAudio}
+            class="w-14 h-14 flex items-center justify-center rounded-full bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-500/30 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+            title={isPlaying ? t("sync.tooltipPause") : t("sync.tooltipPlay")}
+            aria-label={isPlaying ? t("sync.tooltipPause") : t("sync.tooltipPlay")}
+          >
+            {#if isPlaying}
+              <svg
+                class="w-7 h-7 text-white"
+                fill="currentColor"
+                viewBox="0 0 24 24"
+                ><path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z" /></svg
+              >
+            {:else}
+              <svg
+                class="w-7 h-7 text-white ml-1"
+                fill="currentColor"
+                viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg
+              >
+            {/if}
+          </button>
+
+          <button
+            onclick={onReplay}
+            disabled={!canControlAudio}
+            class="w-12 h-12 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            title={t("sync.wizard.replay") + " (R)"}
+            aria-label={t("sync.wizard.replay") + " (R)"}
+          >
+            <svg
+              class="w-6 h-6 text-cyan-400"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              ><path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+              /></svg
+            >
+          </button>
 
           <button
             onclick={onSkip}

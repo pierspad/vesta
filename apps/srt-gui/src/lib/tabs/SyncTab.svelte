@@ -1281,6 +1281,9 @@
           updateOffset(delta);
           replayCurrentSubtitle();
         }}
+        canUndo={!!status?.can_undo && !syncEditBusy}
+        canRedo={!!status?.can_redo && !syncEditBusy}
+        onHistory={changeSyncHistory}
         onSkip={skipCheckpoint}
         onConfirm={confirmCurrentCheckpoint}
       />
@@ -1328,8 +1331,6 @@
   <FooterActions>
     {#snippet left()}
       <div class="flex gap-1">
-        <button class="btn-secondary px-2 py-2 text-sm" title={t("common.undo")} disabled={!status?.can_undo || syncEditBusy} onclick={() => changeSyncHistory("undo")}>{t("common.undo")}</button>
-        <button class="btn-secondary px-2 py-2 text-sm" title={t("common.redo")} disabled={!status?.can_redo || syncEditBusy} onclick={() => changeSyncHistory("redo")}>{t("common.redo")}</button>
       </div>
       <div class="relative group">
         <button
