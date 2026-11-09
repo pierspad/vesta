@@ -276,7 +276,7 @@ All widgets accept the following optional properties:
 | Widget `type` | Description | Supported Properties |
 |---|---|---|
 | `column` | Vertical flex container | `gap?: number \| string`, `children: WidgetNode[]` |
-| `row` | Horizontal flex container | `gap?: number \| string`, `align?: "start" \| "center" \| "end" \| "between"`, `children: WidgetNode[]` |
+| `row` | Horizontal flex container | `gap?: number \| string`, `align?: "start" \| "center" \| "end" \| "between"`, `separator?: "or"`, `children: WidgetNode[]` |
 | `text` | Paragraph or status text | `text: string`, `variant?: "normal" \| "muted" \| "danger" \| "success"`, `size?: "sm" \| "base" \| "lg"` |
 | `heading` | Section heading | `text: string`, `level?: 1 \| 2 \| 3 \| 4`, `icon?: string` |
 | `textInput` | Text input field | `id: string`, `label?: string`, `labelIcon?: string`, `labelTooltip?: string`, `placeholder?: string`, `defaultValue?: string`, `icon?: string`, `submitAction?: string`, `hint?: string \| { text?, link? }`, `link?: { label, url }` |
@@ -287,7 +287,7 @@ All widgets accept the following optional properties:
 | `pathInput` | Native OS file/folder picker | `id: string`, `label?: string`, `placeholder?: string`, `defaultValue?: string`, `pickerType?: "file" \| "folder"`, `filters?: Array<{ name, extensions }>` |
 | `languageSelect` | Unified searchable language picker | `id: string`, `label?: string`, `scope?: "all" \| "core"` (defaults to `"all"` for all 58 languages with bundled SVG flags), `defaultValue?: string` (ISO-639-1 code, e.g. `"en"`, `"it"`), `placeholder?: string`, `tooltip?: string` |
 | `checkbox` | Toggle checkbox | `id: string`, `label: string`, `defaultValue?: boolean`, `tooltip?: string` |
-| `button` | Action button | `id: string`, `label: string`, `icon?: string`, `variant?: "primary" \| "secondary" \| "danger"`, `disabled?: boolean`, `tooltip?: string` |
+| `button` | Action button | `id: string`, `label: string`, `icon?: string`, `variant?: "primary" \| "secondary" \| "danger" \| "settings"`, `disabled?: boolean`, `tooltip?: string` |
 | `link` / `externalLink` | External hyperlink | `label: string`, `url: string`, `icon?: string` (opens in system browser via Tauri opener) |
 | `list` | Rich item list with actions | `items: Array<{ id, title, subtitle?, badge?, language?, meta?, image?, actions?: Array<{ id, label, variant?, icon?, tooltip? }> }>` |
 | `table` | Responsive data table | `headers: string[]`, `rows: Array<Array<string \| number>>` |
@@ -306,6 +306,25 @@ All widgets accept the following optional properties:
    When a `list` item includes `language: "en"` (or any ISO language code such as `"it"`, `"ja"`, `"pt-br"`), Vesta automatically resolves the bundled country flag SVG (`/flags/*.svg`) and formats the full language name in Vesta's currently selected application language (e.g., `[🇬🇧] Inglese` when Vesta is in Italian, or `[🇬🇧] English` when Vesta is in English), prepending it to the item's `subtitle` and `meta` fields.
 
 ### Icon Registry
+Buttons can declare action guidance through the SDK's `Button` builder:
+
+- `requiresAny` lists input widget IDs. Vesta keeps the action unavailable until
+  at least one listed value is populated and applies the same rule to Enter
+  submissions that target the button.
+- `disabledTooltip` explains an explicit `disabled: true` state. `tooltip` is
+  the ordinary hint and remains available while required inputs are empty.
+- `disabledFocus` names a button in the same rendered screen. Activating an
+  explicitly disabled action focuses that button without sending an event to
+  the plugin. Use this for a setup step such as saving a credential.
+- `variant: "settings"` gives setup actions a distinct style and focus outline.
+  `status: "attention" | "ready"` adds an indicator. Provide a tooltip that
+  describes what the indicator means.
+
+Use `Row(..., separator="or")` for alternative inputs. The host places the
+localized separator between visible children, including when Expert mode changes.
+
+Plugins remain responsible for validating action parameters in their handlers.
+
 Widgets supporting `icon` accept standard monochrome vector icon names (plus `"tmdb"` and `"imdb"` vector logos):
 - Navigation & Files: `"search"`, `"folder"`, `"file"`, `"globe"`, `"external"`
 - Media & Badges: `"film"`, `"subtitles"`, `"download"`, `"sparkles"` / `"cards"`, `"tmdb"`, `"imdb"`

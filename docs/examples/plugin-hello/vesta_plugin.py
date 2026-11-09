@@ -19,8 +19,10 @@ def Column(children: List[Dict[str, Any]], gap: Union[int, str] = 4, id: Optiona
         node["id"] = id
     return node
 
-def Row(children: List[Dict[str, Any]], gap: Union[int, str] = 3, align: str = "center", id: Optional[str] = None) -> Dict[str, Any]:
+def Row(children: List[Dict[str, Any]], gap: Union[int, str] = 3, align: str = "center", id: Optional[str] = None, *, separator: Optional[str] = None) -> Dict[str, Any]:
     node: Dict[str, Any] = {"type": "row", "gap": gap, "align": align, "children": children}
+    if separator is not None:
+        node["separator"] = separator
     if id:
         node["id"] = id
     return node
@@ -136,7 +138,20 @@ def Checkbox(id: str, label: str, defaultValue: bool = False, disabled: bool = F
         "disabled": disabled,
     }
 
-def Button(id: str, label: str, variant: str = "primary", disabled: bool = False, icon: Optional[str] = None) -> Dict[str, Any]:
+def Button(
+    id: str,
+    label: str,
+    variant: str = "primary",
+    disabled: bool = False,
+    icon: Optional[str] = None,
+    *,
+    tooltip: Optional[str] = None,
+    status: Optional[str] = None,
+    disabledTooltip: Optional[str] = None,
+    disabledFocus: Optional[str] = None,
+    requiresAny: Optional[List[str]] = None,
+) -> Dict[str, Any]:
+    """Build a host-rendered action with optional prerequisite guidance."""
     node: Dict[str, Any] = {
         "type": "button",
         "id": id,
@@ -144,8 +159,16 @@ def Button(id: str, label: str, variant: str = "primary", disabled: bool = False
         "variant": variant,
         "disabled": disabled,
     }
-    if icon:
-        node["icon"] = icon
+    for key, value in {
+        "icon": icon,
+        "tooltip": tooltip,
+        "status": status,
+        "disabledTooltip": disabledTooltip,
+        "disabledFocus": disabledFocus,
+        "requiresAny": requiresAny,
+    }.items():
+        if value is not None:
+            node[key] = value
     return node
 
 def Link(label: str, url: str) -> Dict[str, Any]:
