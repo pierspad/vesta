@@ -1331,7 +1331,7 @@
         </div>
       </div>
 
-      <div class="w-44">
+      <div class="w-56 max-w-full min-w-0">
         <SpeechEngineSelector purpose="sync" compact
           disabled={!active || autoSyncStore.isAutoSyncing || localWhisperOperation.busy}
           onresolve={(entry) => { selectedEngine = entry; }}
