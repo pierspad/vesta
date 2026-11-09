@@ -18,6 +18,8 @@ def main():
     commands = [(ROOT, ['python3', 'build-scripts/test_release_workflows.py']),
                 (ROOT, ['python3', 'build-scripts/check_tauri_versions.py']),
                 (ROOT, ['python3', 'build-scripts/test_tauri_versions.py']),
+                (ROOT, ['python3', 'build-scripts/check_doc_contracts.py']),
+                (ROOT, ['python3', 'build-scripts/test_doc_contracts.py']),
                 (ROOT / 'apps/srt-gui', ['npm', 'run', 'check']),
                 (ROOT / 'apps/srt-gui', ['npm', 'test']),
                 (ROOT / 'apps/srt-gui', ['npm', 'run', 'test:dev-css']),
