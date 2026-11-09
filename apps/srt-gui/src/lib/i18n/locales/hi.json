@@ -900,6 +900,7 @@
   "transcribe.sourceLanguage": "स्रोत भाषा",
   "transcribe.startTranscription": "प्रतिलेखन (Transcription) शुरू करें",
   "transcribe.starting": "प्रतिलेखन शुरू हो रहा है...",
+  "transcribe.tiers.managePriority": "इंजन की प्राथमिकता तय करें",
   "transcribe.tiers.cardTitle": "ट्रांसक्रिप्शन के लिए प्राथमिकता के टियर",
   "transcribe.transcribing": "ट्रांसक्राइब हो रहा है...",
   "transcribe.useGpu": "GPU का उपयोग करें",

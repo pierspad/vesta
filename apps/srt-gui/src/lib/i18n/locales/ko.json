@@ -900,6 +900,7 @@
   "transcribe.sourceLanguage": "원본 언어",
   "transcribe.startTranscription": "전사(Transcription) 시작",
   "transcribe.starting": "음성인식 시작 중...",
+  "transcribe.tiers.managePriority": "엔진 우선순위 관리",
   "transcribe.tiers.cardTitle": "전사 우선순위 티어",
   "transcribe.transcribing": "전사 중...",
   "transcribe.useGpu": "GPU 사용",

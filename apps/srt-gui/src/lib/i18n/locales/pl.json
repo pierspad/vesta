@@ -900,6 +900,7 @@
   "transcribe.sourceLanguage": "Język źródłowy",
   "transcribe.startTranscription": "Rozpocznij transkrypcję",
   "transcribe.starting": "Rozpoczynanie transkrypcji...",
+  "transcribe.tiers.managePriority": "Ustaw kolejność silników",
   "transcribe.tiers.cardTitle": "Priorytety usług transkrypcji",
   "transcribe.transcribing": "Transkrypcja...",
   "transcribe.useGpu": "Użyj GPU",

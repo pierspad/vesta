@@ -900,6 +900,7 @@
   "transcribe.sourceLanguage": "Язык оригинала",
   "transcribe.startTranscription": "Запустить",
   "transcribe.starting": "Запуск транскрипции...",
+  "transcribe.tiers.managePriority": "Настроить приоритет движков",
   "transcribe.tiers.cardTitle": "Уровни приоритета для транскрипции",
   "transcribe.transcribing": "Транскрибирование...",
   "transcribe.useGpu": "Использовать GPU",

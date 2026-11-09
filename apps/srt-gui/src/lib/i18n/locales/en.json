@@ -900,6 +900,7 @@
   "transcribe.sourceLanguage": "Source language",
   "transcribe.startTranscription": "Start Transcription",
   "transcribe.starting": "Starting transcription...",
+  "transcribe.tiers.managePriority": "Manage engine priority",
   "transcribe.tiers.cardTitle": "Tiers of Precedence for transcription",
   "transcribe.transcribing": "Transcribing...",
   "transcribe.useGpu": "Use GPU",

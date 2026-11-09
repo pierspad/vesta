@@ -900,6 +900,7 @@
   "transcribe.sourceLanguage": "ソース言語",
   "transcribe.startTranscription": "文字起こしを開始する",
   "transcribe.starting": "文字起こしを開始しています...",
+  "transcribe.tiers.managePriority": "エンジンの優先順位を管理",
   "transcribe.tiers.cardTitle": "文字起こしの優先順位ティア",
   "transcribe.transcribing": "文字起こし中...",
   "transcribe.useGpu": "GPU を使用",

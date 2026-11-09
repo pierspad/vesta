@@ -900,6 +900,7 @@
   "transcribe.sourceLanguage": "源语言",
   "transcribe.startTranscription": "开始转录",
   "transcribe.starting": "正在开始转录...",
+  "transcribe.tiers.managePriority": "管理引擎优先级",
   "transcribe.tiers.cardTitle": "语音转文字优先层级",
   "transcribe.transcribing": "转录中...",
   "transcribe.useGpu": "使用 GPU",

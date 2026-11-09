@@ -900,6 +900,7 @@
   "transcribe.sourceLanguage": "Kaynak Dil",
   "transcribe.startTranscription": "Transkripsiyonu Başlat",
   "transcribe.starting": "Transkripsiyon başlıyor...",
+  "transcribe.tiers.managePriority": "Motor önceliğini yönet",
   "transcribe.tiers.cardTitle": "Deşifre için Öncelik Katmanları",
   "transcribe.transcribing": "Metne dökülüyor...",
   "transcribe.useGpu": "GPU kullan",

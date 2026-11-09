@@ -712,16 +712,22 @@
           </svg>
           {t("transcribe.options")}
         </h3>
-        <div class="mb-4 rounded-xl border p-3 {requirements.classFor('model')}" style="border-color: color-mix(in srgb, var(--accent) 24%, transparent); background: color-mix(in srgb, var(--accent) 7%, transparent)">
-          <div class="mb-2 flex items-center gap-2 text-sm font-medium" style="color: var(--accent)">
-            <svg aria-hidden="true" class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 3v2m0 14v2m9-9h-2M5 12H3m15.364-6.364-1.414 1.414M7.05 16.95l-1.414 1.414m12.728 0-1.414-1.414M7.05 7.05 5.636 5.636M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /></svg>
+        <div class="mb-4 space-y-2 rounded-xl {requirements.classFor('model')}">
+          <div class="flex items-center gap-2 text-sm font-medium" style="color: var(--text)">
+            <svg aria-hidden="true" class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10" />
+            </svg>
             {t("transcribe.engineTitle")}
           </div>
           <SpeechEngineSelector purpose="transcribe" disabled={isTranscribing || !active} onresolve={(entry) => { selectedEngine = entry; }} />
           {#if onGoToSettings}
-            <button type="button" class="mt-2 text-xs text-gray-400 hover:underline" onclick={() => onGoToSettings?.("whisper", "transcribe-tiers")}>
-              {t("transcribe.tiers.cardTitle")} · {t("nav.settings")}
-            </button>
+            <SettingsJumpButton
+              label={t("transcribe.tiers.managePriority")}
+              section="whisper"
+              targetId="transcribe-tiers"
+              onclick={() => onGoToSettings?.("whisper", "transcribe-tiers")}
+              variant="subtle"
+            />
           {/if}
         </div>
         <div class="space-y-4">

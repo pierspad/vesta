@@ -900,6 +900,7 @@
   "transcribe.sourceLanguage": "Brontaal",
   "transcribe.startTranscription": "Transcriptie starten",
   "transcribe.starting": "Transcriptie starten...",
+  "transcribe.tiers.managePriority": "Motorprioriteit beheren",
   "transcribe.tiers.cardTitle": "Prioriteit van transcriptieservices",
   "transcribe.transcribing": "Transcriberen...",
   "transcribe.useGpu": "GPU gebruiken",
