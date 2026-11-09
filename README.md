@@ -137,6 +137,17 @@ For tests and release checks, see [CONTRIBUTING.md](CONTRIBUTING.md) and [the qu
 | [Setup and installer checks](docs/SETUP_TESTING.md) | Repeatable desktop validation. |
 | [Benchmark procedures](docs/BENCHMARK_STEPS.md), [native evidence](docs/BENCHMARK_NATIVE.md), [results](docs/BENCHMARK_REPORT.md) | Reproduce measurements and distinguish their scopes. |
 
+## Plugins
+
+Develop a plugin in any folder or in its own Git repository. Keep
+`vesta-plugin.json` at the root. In Vesta, open **Plugins** and install from
+**Local Folder** during development or from a repository URL or archive when
+sharing. Vesta copies each installation into its own application data directory.
+
+Start with the runnable [Hello Counter plugin](docs/examples/plugin-hello).
+The [Plugin SDK guide](docs/PLUGINS.md) covers installation paths, the Python
+helpers, the JSON-RPC protocol, and the native UI widgets.
+
 ## Contributing
 
 Bug reports and pull requests are welcome. For major changes, open an issue first. See [CONTRIBUTING.md](CONTRIBUTING.md).

@@ -106,6 +106,10 @@ A plugin repository must contain a `vesta-plugin.json` manifest at its root:
 ## 3. Lifecycle & Installation
 
 ### Resolution & Sources
+Keep the source in any local folder or in a separate Git repository, with
+`vesta-plugin.json` at its root. Vesta installs a copy. Edit the source and
+update the plugin from Vesta to refresh the installed copy.
+
 Users can install a plugin by supplying:
 1. **GitHub repository**: `https://github.com/{owner}/{repo}`. Automatically resolves to the archive tarball.
 2. **GitLab repository**: `https://gitlab.com/{owner}/{repo}`.
@@ -117,7 +121,7 @@ Users can install a plugin by supplying:
 Vesta extracts the plugin to a temporary staging folder, reads and validates `vesta-plugin.json`, and displays a confirmation banner presenting the plugin name, author, version, description, and list of required permissions. The user must explicitly confirm before the plugin is installed.
 
 ### Storage & Safety Limits
-- Plugins are stored in `<app_data>/plugins/installed/<plugin_id>/`.
+- Plugins are stored in `<app_data>/plugins/installed/<plugin_id>/`. The Vesta data root is `${XDG_DATA_HOME:-$HOME/.local/share}/vesta` on Linux, `~/Library/Application Support/vesta` on macOS, and `%APPDATA%\vesta` on Windows.
 - Plugin data directory: `<app_data>/plugins/installed/<plugin_id>/data/`.
 - Registry file: `<app_data>/plugins/plugins.json`.
 - Maximum unpacked archive size: 100 MB.
@@ -280,14 +284,15 @@ All widgets accept the following optional properties:
 | `text` | Paragraph or status text | `text: string`, `variant?: "normal" \| "muted" \| "danger" \| "success"`, `size?: "sm" \| "base" \| "lg"` |
 | `heading` | Section heading | `text: string`, `level?: 1 \| 2 \| 3 \| 4`, `icon?: string` |
 | `textInput` | Text input field | `id: string`, `label?: string`, `labelIcon?: string`, `labelTooltip?: string`, `placeholder?: string`, `defaultValue?: string`, `icon?: string`, `submitAction?: string`, `hint?: string \| { text?, link? }`, `link?: { label, url }` |
+| `textArea` | Resizable multiline input | `id: string`, `label: string`, `placeholder?: string`, `defaultValue?: string`, `rows?: number`, `maxLength?: number`, `disabled?: boolean`, `readOnly?: boolean` |
 | `passwordInput`| Password / API key field | `id: string`, `label?: string`, `labelIcon?: string`, `labelTooltip?: string`, `placeholder?: string`, `defaultValue?: string`, `icon?: string`, `submitAction?: string`, `hint?: string \| { text?, link? }`, `link?: { label, url }` |
 | `numberInput` | Numeric input field | `id: string`, `label?: string`, `min?: number`, `max?: number`, `step?: number`, `defaultValue?: number` |
 | `select` | Styled dropdown select | `id: string`, `label?: string`, `options: Array<{ label, value }>`, `defaultValue?: string` |
 | `segmented` | Sub-navigation pill bar | `id: string`, `label?: string`, `options: Array<{ value, label, icon?, badge?, tooltip? }>`, `defaultValue?: string` |
-| `pathInput` | Native OS file/folder picker | `id: string`, `label?: string`, `placeholder?: string`, `defaultValue?: string`, `pickerType?: "file" \| "folder"`, `filters?: Array<{ name, extensions }>` |
+| `pathInput` | Native OS file/folder picker | `id: string`, `label?: string`, `placeholder?: string`, `defaultValue?: string`, `pickerType?: "file" \| "folder"`, `filters?: Array<{ name, extensions }>`, `drop?: boolean`, `dropHint?: string` |
 | `languageSelect` | Unified searchable language picker | `id: string`, `label?: string`, `scope?: "all" \| "core"` (defaults to `"all"` for all 58 languages with bundled SVG flags), `defaultValue?: string` (ISO-639-1 code, e.g. `"en"`, `"it"`), `placeholder?: string`, `tooltip?: string` |
 | `checkbox` | Toggle checkbox | `id: string`, `label: string`, `defaultValue?: boolean`, `tooltip?: string` |
-| `button` | Action button | `id: string`, `label: string`, `icon?: string`, `variant?: "primary" \| "secondary" \| "danger" \| "settings"`, `disabled?: boolean`, `tooltip?: string` |
+| `button` | Action button | `id: string`, `label: string`, `icon?: string`, `variant?: "primary" \| "secondary" \| "danger" \| "settings" \| "accent"`, `disabled?: boolean`, `tooltip?: string` |
 | `link` / `externalLink` | External hyperlink | `label: string`, `url: string`, `icon?: string` (opens in system browser via Tauri opener) |
 | `list` | Rich item list with actions | `items: Array<{ id, title, subtitle?, badge?, language?, meta?, image?, actions?: Array<{ id, label, variant?, icon?, tooltip? }> }>` |
 | `table` | Responsive data table | `headers: string[]`, `rows: Array<Array<string \| number>>` |
@@ -305,7 +310,17 @@ All widgets accept the following optional properties:
 3. **Automatic Localized Language & Flag Rendering in Lists (`item.language`)**:
    When a `list` item includes `language: "en"` (or any ISO language code such as `"it"`, `"ja"`, `"pt-br"`), Vesta automatically resolves the bundled country flag SVG (`/flags/*.svg`) and formats the full language name in Vesta's currently selected application language (e.g., `[🇬🇧] Inglese` when Vesta is in Italian, or `[🇬🇧] English` when Vesta is in English), prepending it to the item's `subtitle` and `meta` fields.
 
-### Icon Registry
+### Multiline input and file selection
+
+A `textArea` keeps Enter for newlines. Edited text is included in the `values` of subsequent actions. Use the Python helper `TextArea("notes", "Notes", rows=5, maxLength=2000)`.
+
+For a native file picker with drag and drop, use `PathInput("subtitle", label="Subtitle", pickerType="file", drop=True, filters=[{"name": "Subtitles", "extensions": ["srt"]}])`. A drop accepts one path over that field and checks the configured extension. The plugin receives a `change` event with the path and should validate its contents before processing. Use `dropHint` for custom help.
+
+Use `fileOutput` to present a generated file with an Open action. Inline
+video playback is outside the current widget contract.
+
+### Button guidance
+
 Buttons can declare action guidance through the SDK's `Button` builder:
 
 - `requiresAny` lists input widget IDs. Vesta keeps the action unavailable until
@@ -334,6 +349,11 @@ Use `Row(..., separator="or")` for alternative inputs. The host places the
 localized separator between visible children, including when Expert mode changes.
 
 Plugins remain responsible for validating action parameters in their handlers.
+
+### Icon registry
+
+Use `variant: "accent"` for a cyan action and `variant: "danger"` with
+`icon: "trash"` for clearing content.
 
 Widgets supporting `icon` accept standard monochrome vector icon names (plus `"tmdb"` and `"imdb"` vector logos):
 - Navigation & Files: `"search"`, `"folder"`, `"file"`, `"globe"`, `"external"`
