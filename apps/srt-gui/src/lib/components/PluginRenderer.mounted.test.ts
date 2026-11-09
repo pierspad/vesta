@@ -8,6 +8,11 @@ import { uiMode } from "$lib/stores/uiModeStore.svelte";
 
 const mockDispatch = vi.fn();
 const mockRender = vi.fn();
+const mockDragDrop = vi.fn<(handlers: import("$lib/utils/dragDrop").DragDropHandlers) => () => void>();
+
+vi.mock("$lib/utils/dragDrop", () => ({
+  setupWebviewDragDrop: (...args: Parameters<typeof mockDragDrop>) => mockDragDrop(...args),
+}));
 
 vi.mock("$lib/services/pluginClient", async () => {
   const actual = await vi.importActual<any>("$lib/services/pluginClient");
@@ -646,6 +651,8 @@ it("guides blocked searches to settings and enforces prerequisites on Enter", as
   const search = target.querySelector<HTMLButtonElement>("#widget-search")!;
   const settings = target.querySelector<HTMLButtonElement>("#widget-settings")!;
   const input = target.querySelector<HTMLInputElement>("#widget-movie")!;
+  expect(settings.querySelector(":scope > .plugin-status-dot")).not.toBeNull();
+  expect(settings.classList.contains("plugin-settings-button")).toBe(true);
   expect(search.title).toBe("Save your key");
   expect(search.getAttribute("aria-disabled")).toBe("true");
   search.click();
@@ -724,4 +731,50 @@ it("filters the language catalog and preserves bilingual names", async () => {
   const menu = document.body.querySelector(".searchable-select-dropdown")!;
   expect([...menu.querySelectorAll("button")].map(option => option.textContent?.trim()))
     .toEqual(["Italian (Italiano)", "Japanese (日本語)"]);
+});
+
+it("dispatches a drop only on the opted-in path field and includes edited multiline text", async () => {
+  const target = document.body.appendChild(document.createElement("div"));
+  const cleanup = vi.fn();
+  mockDragDrop.mockReturnValue(cleanup);
+  const root: WidgetNode = {
+    type: "column",
+    children: [
+      { type: "textArea", id: "notes", label: "Notes", rows: 5 },
+      { type: "pathInput", id: "subtitle", pickerType: "file", drop: true,
+        filters: [{ name: "Subtitles", extensions: ["srt"] }] },
+    ],
+  };
+  mockRender.mockResolvedValue({ root });
+  mockDispatch.mockResolvedValue({});
+  const renderer = mount(PluginRenderer, { target, props: { pluginId: "fixture", initialRoot: root } });
+  await tick();
+  const textarea = target.querySelector("textarea")!;
+  textarea.value = "Line one\nLine two";
+  textarea.dispatchEvent(new Event("input", { bubbles: true }));
+  expect(textarea.rows).toBe(5);
+
+  const hitTest = vi.fn().mockReturnValue(document.body);
+  const original = Object.getOwnPropertyDescriptor(document, "elementFromPoint");
+  Object.defineProperty(document, "elementFromPoint", { configurable: true, value: hitTest });
+  try {
+    const { onDrop } = mockDragDrop.mock.calls[0][0];
+    const position = { x: 10, y: 10 };
+    onDrop(["/tmp/movie.srt"], position);
+    hitTest.mockReturnValue(target.querySelector("[data-plugin-file-drop]"));
+    onDrop(["/tmp/movie.mp4"], position);
+    expect(mockDispatch).not.toHaveBeenCalled();
+
+    onDrop(["/tmp/movie.SRT"], position);
+    expect(mockDispatch).toHaveBeenCalledWith("fixture", expect.objectContaining({
+      widgetId: "subtitle",
+      eventType: "change",
+      values: { subtitle: "/tmp/movie.SRT", notes: "Line one\nLine two" },
+    }), expect.any(String), expect.any(Boolean));
+  } finally {
+    if (original) Object.defineProperty(document, "elementFromPoint", original);
+    else Reflect.deleteProperty(document, "elementFromPoint");
+    await unmount(renderer);
+  }
+  expect(cleanup).toHaveBeenCalled();
 });
