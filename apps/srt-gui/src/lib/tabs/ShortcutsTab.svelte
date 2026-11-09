@@ -359,8 +359,9 @@
     if (id.includes("offset-down") || id.includes("next-page")) {
       return `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" /></svg>`;
     }
-    if (id.includes("undo")) {
-      return `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" /></svg>`;
+    if (id.endsWith("-undo") || id.endsWith("-redo")) {
+      const path = id.endsWith("-undo") ? "M9 5 4 10l5 5M4 10h10a6 6 0 0 1 6 6v2" : "m15 5 5 5-5 5m5-5H10a6 6 0 0 0-6 6v2";
+      return `<svg aria-hidden="true" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="${path}" /></svg>`;
     }
     if (id.includes("confirm")) {
       return `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" /></svg>`;
@@ -396,7 +397,19 @@
       </div>
 
       <div class="min-w-0 flex-1">
-        <p class="text-sm font-semibold truncate">{t(shortcut.description)}</p>
+        {#if shortcut.category === "global"}
+          <p class="flex items-center gap-2 text-sm font-semibold">
+            <span class="truncate">{t(shortcut.description)}</span>
+            <svg aria-hidden="true" class="size-3 shrink-0 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+              <rect x="5" y="11" width="14" height="10" rx="2" /><path d="M8 11V7a4 4 0 1 1 8 0v4" />
+            </svg>
+          </p>
+        {:else}
+          <button type="button" class="block max-w-full truncate text-start text-sm font-semibold" onclick={(event) => {
+            event.stopPropagation();
+            startEditing(shortcut.id);
+          }}>{t(shortcut.description)}</button>
+        {/if}
         {#if isModified(shortcut)}
           <p class="text-[10px] text-amber-400/80 mt-0.5 font-medium">
             {t("shortcuts.modified", { key: getDefaultKey(shortcut.id) })}
