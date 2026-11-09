@@ -6127,6 +6127,7 @@ version = "0.31.0-dev.1"
 dependencies = [
  "anyhow",
  "clap",
+ "dirs 6.0.0",
  "reqwest",
  "rmcp",
  "schemars 1.2.1",
