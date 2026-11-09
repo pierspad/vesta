@@ -59,11 +59,11 @@ struct Shared<F: FnMut(RefineEvent) + Send + 'static> {
     total: usize,
 }
 
-/// Esegue il refinement di `cards` usando il pool a tier.
+/// Refines `cards` concurrently using the tiered provider pool.
 ///
-/// Per ogni card completata invoca `on_event(RefineEvent::CardDone { .. })`;
-/// il chiamante applica gli aggiornamenti (GUI: evento Tauri; CLI: stampa).
-/// Ritorna il riepilogo del run.
+/// Emits `on_event(RefineEvent::CardDone { .. })` as each card completes so the caller
+/// can stream progress (Tauri events in the GUI, stdout in the CLI), and returns the
+/// final [`RefineRunSummary`].
 pub async fn refine_cards_tiered<F>(
     cards: Vec<RefineCard>,
     config: RefineRunConfig,
@@ -347,8 +347,8 @@ Expected response format:
     )
 }
 
-/// Applica una risposta batch: aggiorna le card trovate ed emette gli eventi.
-/// Ritorna le card senza risposta (da riprocessare singolarmente).
+/// Applies a batch LLM response: emits [`RefineEvent::CardDone`] for valid entries and
+/// returns any cards that were missing, empty, or duplicated so the worker can retry them individually.
 async fn apply_batch_response<F>(
     shared: &Shared<F>,
     cards: &[RefineCard],

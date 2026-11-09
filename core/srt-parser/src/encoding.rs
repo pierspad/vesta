@@ -1,21 +1,18 @@
-//! Lettura *encoding-tolerant* dei file di sottotitoli.
+//! Encoding-tolerant reader for subtitle files.
 //!
-//! I sottotitoli "in the wild" arrivano in ogni encoding immaginabile:
-//! UTF-8 con/senza BOM, UTF-16 (con/senza BOM), code page legacy
-//! (Windows-1252, GBK, Shift_JIS, …). Leggerli come UTF-8 strict o
-//! fallisce o produce mojibake (il classico file che "contiene cinese").
+//! Subtitle files in the wild use a wide variety of character encodings:
+//! UTF-8 with or without BOM, UTF-16 (LE/BE, with or without BOM), and legacy
+//! single-byte or multi-byte code pages (Windows-1252, GBK, Shift_JIS, etc.).
 //!
-//! Strategia di decodifica, dalla più certa alla più euristica:
+//! Decoding follows four ordered stages:
 //!
-//! 1. **BOM sniffing** — UTF-8 / UTF-16LE / UTF-16BE dichiarati dal BOM;
-//! 2. **UTF-16 senza BOM** — riconosciuto dalla distribuzione dei byte
-//!    NUL su posizioni pari/dispari;
-//! 3. **UTF-8 strict** — se i byte sono UTF-8 valido, è UTF-8 (falsi
-//!    positivi statisticamente trascurabili);
-//! 4. **rilevamento statistico** — [`chardetng`] sceglie la code page
-//!    (GBK, Windows-1252, …) e [`encoding_rs`] decodifica.
+//! 1. **BOM sniffing** — UTF-8, UTF-16LE, or UTF-16BE declared by a byte-order mark;
+//! 2. **BOM-less UTF-16** — detected from the even/odd NUL byte distribution;
+//! 3. **Strict UTF-8** — zero-copy validation when the byte stream is valid UTF-8;
+//! 4. **Statistical detection** — [`chardetng`] selects the legacy code page and
+//!    [`encoding_rs`] decodes it into UTF-8.
 //!
-//! L'output è sempre una `String` UTF-8 pulita, senza BOM.
+//! The output is always a clean UTF-8 `String` without a leading BOM.
 
 use std::fs;
 use std::path::Path;
@@ -24,9 +21,8 @@ use anyhow::{Context, Result};
 use chardetng::{EncodingDetector, Iso2022JpDetection, Utf8Detection};
 use encoding_rs::{Encoding, UTF_16BE, UTF_16LE};
 
-/// Legge un file di testo (tipicamente un sottotitolo) rilevandone
-/// automaticamente l'encoding. Non fallisce mai per problemi di encoding:
-/// nel caso peggiore i byte non mappabili diventano U+FFFD.
+/// Reads a text file (typically a subtitle file) with automatic encoding detection.
+/// Unmappable bytes in legacy encodings are replaced with `U+FFFD`.
 pub fn read_text_auto<P: AsRef<Path>>(path: P) -> Result<String> {
     let path = path.as_ref();
     let bytes = fs::read(path)
@@ -34,11 +30,11 @@ pub fn read_text_auto<P: AsRef<Path>>(path: P) -> Result<String> {
     Ok(decode_auto(&bytes))
 }
 
-/// Decodifica un buffer di byte in `String` UTF-8, rilevando l'encoding.
+/// Decodes a byte buffer into a UTF-8 `String` using automatic encoding detection.
 pub fn decode_auto(bytes: &[u8]) -> String {
-    // 1. BOM esplicito: fidati di quello (decode() lo rimuove).
+    // 1. Explicit BOM: decode() strips the BOM automatically.
     if Encoding::for_bom(bytes).is_some() {
-        let (text, _, _) = encoding_rs::UTF_8.decode(bytes); // BOM-sniffing interno
+        let (text, _, _) = encoding_rs::UTF_8.decode(bytes);
         return text.into_owned();
     }
 
@@ -49,14 +45,13 @@ pub fn decode_auto(bytes: &[u8]) -> String {
         return text.into_owned();
     }
 
-    // 3. UTF-8 valido → nessuna conversione necessaria.
+    // 3. Valid UTF-8 -> no conversion required.
     if let Ok(text) = std::str::from_utf8(bytes) {
         return text.to_owned();
     }
 
-    // 4. Code page legacy: rilevamento statistico. ISO-2022-JP è permesso
-    // (siamo file locali, non contenuto web scriptabile); UTF-8 è già stato
-    // escluso dal fast path, quindi Deny evita falsi positivi ridondanti.
+    // 4. Legacy code page: statistical detection. ISO-2022-JP is allowed for local
+    // files, and UTF-8 detection is disabled because step 3 already ruled it out.
     let mut detector = EncodingDetector::new(Iso2022JpDetection::Allow);
     detector.feed(bytes, true);
     let encoding = detector.guess(None, Utf8Detection::Deny);
@@ -64,9 +59,8 @@ pub fn decode_auto(bytes: &[u8]) -> String {
     text.into_owned()
 }
 
-/// Euristica per UTF-16 privo di BOM: nel testo prevalentemente latino i
-/// byte "alti" delle coppie sono quasi tutti NUL. Richiede ≥30% di NUL su
-/// una metà delle posizioni e ~nessuno sull'altra.
+/// Heuristic for BOM-less UTF-16: in predominantly Latin text, the high bytes of
+/// 16-bit code units are mostly NUL (`>= 30%` on one parity and `<= 5%` on the other).
 fn sniff_bomless_utf16(bytes: &[u8]) -> Option<&'static Encoding> {
     if bytes.len() < 4 {
         return None;

@@ -67,10 +67,10 @@ pub async fn translate_subtitles_async<F>(
 where
     F: FnMut(TranslationProgress) + Send + 'static,
 {
-    // Delega alla nuova funzione senza rate limiters (usa solo semaforo)
+    // Delegate to the rate-limited entry point without token-bucket limiters (concurrency-only).
     translate_subtitles_with_rate_limit(
         translators,
-        None, // Nessun rate limiter, usa solo semaforo
+        None,
         subtitles,
         target_lang,
         batch_size,
@@ -82,21 +82,19 @@ where
     .await
 }
 
-/// Traduce tutti i sottotitoli usando multiple API keys in parallelo con rate limiting RPM
+/// Translates all subtitles in parallel across configured providers with optional RPM rate limiting.
 ///
-/// Questa versione implementa un vero rate limiter basato su token bucket che rispetta
-/// i limiti RPM (Richieste Per Minuto) delle API, non solo la concorrenza.
+/// # Arguments
 ///
-/// # Argomenti
-///
-/// * `translators` - Vector di Translator pre-configurati (uno per API provider)
-/// * `rate_limiters` - Optional: Vector di RateLimiter (uno per provider), se None usa solo semaforo
-/// * `subtitles` - HashMap dei sottotitoli da tradurre
-/// * `target_lang` - Codice lingua target (es: "it", "en", "es")
-/// * `batch_size` - Numero di sottotitoli da tradurre insieme
-/// * `title_context` - Contesto opzionale (es: titolo del film)
-/// * `output_path` - Percorso del file di output per salvataggio incrementale
-/// * `on_progress` - Callback invocato ad ogni aggiornamento di progresso
+/// * `translators` - Pre-configured [`Translator`] instances (one per worker/endpoint).
+/// * `rate_limiters` - Optional token-bucket [`RateLimiter`] list; if `None`, only worker concurrency bounds apply.
+/// * `subtitles` - Input subtitle map keyed by 1-based cue ID.
+/// * `target_lang` - Target language name or code (e.g. `"Italian"`, `"it"`, `"en"`).
+/// * `batch_size` - Number of cues per batch prompt.
+/// * `resume_overlap` - Number of trailing cues to re-translate when resuming from a clean prefix.
+/// * `title_context` - Optional media title/context string.
+/// * `output_path` - Destination SRT path used for incremental atomic checkpoints.
+/// * `on_progress` - Callback invoked on each progress update.
 #[allow(clippy::too_many_arguments)]
 pub async fn translate_subtitles_with_rate_limit<F>(
     translators: Vec<Translator>,
@@ -188,7 +186,7 @@ pub async fn repair_translation<F>(
 where
     F: FnMut(TranslationProgress) + Send + 'static,
 {
-    // Delega alla versione con rate limiter senza rate limiters
+    // Delegate to the rate-limited repair entry point without token-bucket limiters.
     repair_translation_with_rate_limit(
         translators,
         None,
@@ -202,9 +200,8 @@ where
     .await
 }
 
-/// Ripara una traduzione incompleta con supporto per rate limiting RPM
-///
-/// Versione avanzata che supporta rate limiters per rispettare i limiti RPM delle API.
+/// Repairs missing or line-count-mismatched subtitle cues individually with surrounding context
+/// and optional RPM token-bucket rate limiting.
 #[allow(clippy::too_many_arguments)]
 pub async fn repair_translation_with_rate_limit<F>(
     translators: Vec<Translator>,
@@ -523,16 +520,15 @@ where
     let translated = Arc::new(Mutex::new(HashMap::new()));
     let timing_stats = Arc::new(Mutex::new((0.0_f64, 0_usize)));
 
-    // Ordina i sottotitoli per ID.
+    // Sort subtitles by ascending ID.
     let mut sorted: Vec<_> = subtitles.into_iter().collect();
     sorted.sort_by_key(|(id, _)| *id);
     let subtitles_map: HashMap<u32, Subtitle> = sorted.iter().cloned().collect();
 
-    // Ripresa: se esiste già un output, riparti dal punto giusto.
-    //  • prefisso completo           → salta i batch già fatti (con overlap)
-    //  • pochi buchi sparsi          → salta la fase batch: il repair mirato
-    //                                  (uno a uno, con contesto) li sistema
-    //  • molti buchi                 → ritraduci in batch dall'inizio con
+    // Resume strategy when `output_path` already exists:
+    //  - Complete prefix (0 missing/invalid among existing): skip completed batches with `resume_overlap`
+    //  - Small number of scattered gaps (`<= batch_size * 2`): skip batch phase and let per-cue repair fix them
+    //  - Many gaps (`> batch_size * 2`): re-run batch translation from the beginning
 
     let (skip_batches, start_idx) = if output_path.exists() {
         match SrtParser::parse_file(output_path) {

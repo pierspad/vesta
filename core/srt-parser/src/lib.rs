@@ -6,14 +6,14 @@ use std::path::Path;
 pub mod encoding;
 pub mod persistence;
 
-/// Rappresenta un timestamp SRT in millisecondi
+/// Represents an SRT timestamp in milliseconds.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Timestamp {
     pub milliseconds: u64,
 }
 
 impl Timestamp {
-    /// Crea un timestamp da ore, minuti, secondi e millisecondi
+    /// Creates a timestamp from hours, minutes, seconds, and milliseconds.
     pub fn new(hours: u32, minutes: u32, seconds: u32, millis: u32) -> Self {
         let total_ms =
             (hours as u64 * 3600 + minutes as u64 * 60 + seconds as u64) * 1000 + millis as u64;
@@ -22,19 +22,19 @@ impl Timestamp {
         }
     }
 
-    /// Crea un timestamp direttamente dai millisecondi
+    /// Creates a timestamp directly from milliseconds.
     pub fn from_milliseconds(milliseconds: u32) -> Self {
         Self {
             milliseconds: milliseconds as u64,
         }
     }
 
-    /// Restituisce il totale dei millisecondi
+    /// Returns the total timestamp duration in milliseconds.
     pub fn total_milliseconds(&self) -> u64 {
         self.milliseconds
     }
 
-    /// Parse da formato SRT (00:00:20,000)
+    /// Parses an SRT timestamp string (`00:00:20,000` or `00:00:20.000`).
     pub fn from_srt_string(s: &str) -> Result<Self> {
         let trimmed = s.trim();
         let bytes = trimmed.as_bytes();
@@ -99,7 +99,7 @@ impl Timestamp {
         Ok(Self::new(hours, minutes, seconds, millis))
     }
 
-    /// Scrive il timestamp direttamente in un buffer stringa
+    /// Writes the formatted SRT timestamp directly into a string buffer.
     pub fn write_srt_to(&self, out: &mut String) {
         use std::fmt::Write;
         let total_seconds = self.milliseconds / 1000;
@@ -112,7 +112,7 @@ impl Timestamp {
         let _ = write!(out, "{hours:02}:{minutes:02}:{seconds:02},{millis:03}");
     }
 
-    /// Converte in formato SRT
+    /// Formats the timestamp as an SRT timestamp string (`HH:MM:SS,mmm`).
     pub fn to_srt_string(&self) -> String {
         let mut s = String::with_capacity(12);
         self.write_srt_to(&mut s);
@@ -120,7 +120,7 @@ impl Timestamp {
     }
 }
 
-/// Rappresenta un singolo sottotitolo
+/// Represents a single SRT subtitle cue.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Subtitle {
     pub id: u32,
@@ -130,7 +130,7 @@ pub struct Subtitle {
 }
 
 impl Subtitle {
-    /// Scrive il blocco sottotitolo direttamente in un buffer stringa
+    /// Writes the formatted SRT subtitle block directly into a string buffer.
     pub fn write_srt_to(&self, out: &mut String) {
         use std::fmt::Write;
         let _ = writeln!(out, "{}", self.id);
@@ -140,7 +140,7 @@ impl Subtitle {
         let _ = writeln!(out, "\n{}", self.text);
     }
 
-    /// Converte il sottotitolo in formato SRT
+    /// Formats the subtitle cue as an SRT block string.
     pub fn to_srt_string(&self) -> String {
         let mut s = String::with_capacity(32 + self.text.len());
         self.write_srt_to(&mut s);
@@ -148,20 +148,20 @@ impl Subtitle {
     }
 }
 
-/// Parser per file SRT
+/// Parser and serializer for SubRip (`.srt`) files.
 pub struct SrtParser;
 
 impl SrtParser {
-    /// Parse un file SRT e ritorna una HashMap con id -> sottotitolo.
+    /// Parses an SRT file and returns a `HashMap` mapping 1-based cue IDs to [`Subtitle`] entries.
     ///
-    /// L'encoding del file è rilevato automaticamente (BOM, UTF-8/16,
-    /// code page legacy): vedi [`encoding::read_text_auto`].
+    /// Character encoding is detected automatically (BOM, UTF-8/16, legacy code pages);
+    /// see [`encoding::read_text_auto`].
     pub fn parse_file<P: AsRef<Path>>(path: P) -> Result<HashMap<u32, Subtitle>> {
         let content = encoding::read_text_auto(path)?;
         Self::parse_string(&content)
     }
 
-    /// Parse una stringa SRT
+    /// Parses an SRT string into a map of cue IDs to [`Subtitle`] entries.
     pub fn parse_string(content: &str) -> Result<HashMap<u32, Subtitle>> {
         let mut subtitles = HashMap::new();
         let trimmed = content.trim_start_matches('\u{feff}');
@@ -188,7 +188,7 @@ impl SrtParser {
         Ok(subtitles)
     }
 
-    /// Parse un singolo blocco di sottotitolo
+    /// Parses a single SRT subtitle block.
     pub fn parse_block(block: &str) -> Result<Subtitle> {
         let lines: Vec<&str> = block.lines().collect();
         Self::parse_block_lines(&lines)
@@ -210,7 +210,7 @@ impl SrtParser {
         let start = Timestamp::from_srt_string(start_str.trim())?;
         let end = Timestamp::from_srt_string(end_str.trim())?;
 
-        // Parse testo (può essere multi-linea, può essere vuoto)
+        // Parse text (may span multiple lines or be empty)
         let text = if !text_lines.is_empty() {
             let mut t = String::with_capacity(text_lines.len() * 32);
             for (i, line) in text_lines.iter().enumerate() {
@@ -237,20 +237,15 @@ impl SrtParser {
         })
     }
 
-    /// Numero massimo di ID placeholder che siamo disposti a generare in un colpo
-    /// solo. Un file malformato con un ID abnorme (es: 999999999) non deve poter
-    /// far allocare/iterare l'app fino all'OOM: oltre questa soglia rinunciamo alla
-    /// normalizzazione anziché tentare di riempire il buco.
+    /// Maximum number of placeholder IDs generated in a single normalization pass.
+    /// Prevents malformed files with huge outlier IDs (e.g. `999999999`) from causing
+    /// excessive allocation or iteration.
     const MAX_NORMALIZE_GAP: u32 = 50_000;
 
-    /// Normalizza i sottotitoli riempiendo buchi nella numerazione con "[...]".
-    /// Se mancano ID (es: 1, 3, 5 oppure il file inizia da 2), vengono creati
-    /// sottotitoli placeholder con testo "[...]" per riempire ogni lacuna.
+    /// Normalizes subtitle numbering by filling missing ID gaps with `"[...]"` placeholders.
     ///
-    /// Se il gap tra il numero di sottotitoli reali e `max_id` supera
-    /// [`MAX_NORMALIZE_GAP`] (indice di un file corrotto), la normalizzazione
-    /// viene saltata per evitare un'allocazione/iterazione spropositata.
-    /// Se è presente l'ID 0, lascia la mappa invariata: gli ID normalizzati sono 1-based.
+    /// If the gap between the actual cue count and `max_id` exceeds [`Self::MAX_NORMALIZE_GAP`]
+    /// or if ID `0` is present (since normalized IDs are 1-based), the map is left unchanged.
     pub fn normalize_subtitles(subtitles: &mut HashMap<u32, Subtitle>) {
         if subtitles.is_empty() {
             return;
@@ -272,7 +267,7 @@ impl SrtParser {
 
         let mut placeholders = Vec::new();
 
-        // 1. Buchi iniziali se il primo ID > 1
+        // 1. Leading gaps when the first ID > 1
         let first_id = existing_ids[0];
         if first_id > 1 {
             let next_start = subtitles
@@ -284,7 +279,7 @@ impl SrtParser {
             }
         }
 
-        // 2. Buchi intermedi tra elementi consecutivi
+        // 2. Intermediate gaps between consecutive IDs
         for window in existing_ids.windows(2) {
             let curr_id = window[0];
             let next_id = window[1];
@@ -320,7 +315,7 @@ impl SrtParser {
         }
     }
 
-    /// Salva i sottotitoli in un file SRT
+    /// Writes the subtitle map to an SRT file atomically, sorted by ascending cue ID.
     pub fn save_file<P: AsRef<Path>>(path: P, subtitles: &HashMap<u32, Subtitle>) -> Result<()> {
         let path = path.as_ref();
         let mut sorted_subs: Vec<_> = subtitles.values().collect();

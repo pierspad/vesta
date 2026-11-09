@@ -342,9 +342,8 @@ fn extract_subtitle_role(name: &str) -> Option<&'static str> {
     None
 }
 
-/// Riduce un nome a una "spina dorsale" comparabile: token alfanumerici minuscoli
-/// senza marcatori di ruolo/lingua, così due sottotitoli companion collassano
-/// sullo stesso stem.
+/// Reduces a filename stem to lowercase alphanumeric tokens stripped of release years
+/// and role/language markers so companion subtitle files collapse to the same stem.
 fn simplify_subtitle_stem(name: &str) -> String {
     const NOISE: &[&str] = &[
         "de",
@@ -400,8 +399,8 @@ fn simplify_subtitle_stem(name: &str) -> String {
     result
 }
 
-/// Suggerisce in modo best-effort i file sottotitoli associati a un file media.
-/// Restituisce la lista di candidati ordinati per punteggio decrescente.
+/// Suggests subtitle files in the same directory that match `media_path`,
+/// sorted by descending confidence score.
 pub fn suggest_subtitles_for_media(media_path: &Path) -> std::io::Result<Vec<(PathBuf, i32)>> {
     let Some(parent) = media_path.parent() else {
         return Ok(Vec::new());
@@ -470,9 +469,8 @@ pub fn suggest_subtitles_for_media(media_path: &Path) -> std::io::Result<Vec<(Pa
     Ok(candidates)
 }
 
-/// Assegna i ruoli target (da tradurre/rivedere) e native (originale) a una
-/// lista di candidati sottotitolo per un dato media — tipicamente l'output di
-/// [`suggest_subtitles_for_media`].
+/// Assigns `target` (to retime/review) and `native` (reference) roles from a ranked
+/// list of candidate subtitle files — typically the output of [`suggest_subtitles_for_media`].
 pub fn suggest_target_native_subtitles(
     candidates: &[(PathBuf, i32)],
     default_target_lang: Option<&str>,
