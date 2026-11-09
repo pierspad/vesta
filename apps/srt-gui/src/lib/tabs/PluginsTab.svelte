@@ -594,7 +594,7 @@ Every widget supports \`id\`, \`hidden\`, \`expertOnly\` (auto-hidden when Exper
         {:else}
           <div class="grid grid-cols-1 gap-4">
             {#each filteredPlugins as plugin (plugin.id)}
-              <div
+              <div role="group" aria-label={plugin.name}
                 class="p-5 rounded-2xl border border-white/10 bg-white/[0.03] transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-4 {plugin.enabled ? 'hover:border-white/20' : ''}"
                 oncontextmenu={(e) => {
                   e.preventDefault();
@@ -672,7 +672,7 @@ Every widget supports \`id\`, \`hidden\`, \`expertOnly\` (auto-hidden when Exper
                   {:else}
                     <button
                       type="button"
-                      class="text-emerald-400 border border-emerald-500/25 bg-emerald-500/10 hover:bg-emerald-500/20 inline-flex items-center gap-1.5 h-8 px-3 text-xs rounded-lg font-medium transition-colors cursor-pointer"
+                      class="text-gray-300 border border-white/15 bg-white/5 hover:bg-white/10 inline-flex items-center gap-1.5 h-8 px-3 text-xs rounded-lg font-medium transition-colors cursor-pointer"
                       onclick={() => pluginsStore.enable(plugin.id)}
                       title={t("plugins.enable")}
                     >
@@ -865,7 +865,7 @@ Every widget supports \`id\`, \`hidden\`, \`expertOnly\` (auto-hidden when Exper
             type="button"
             class="w-full text-left px-3 py-2 rounded-lg text-gray-200 hover:bg-white/10 hover:text-white flex items-center gap-2 cursor-pointer disabled:grayscale disabled:opacity-50 disabled:cursor-not-allowed"
             disabled={!contextMenuPlugin.enabled}
-          onclick={() => { const p = contextMenuPlugin!; openSettings(p); }}
+            onclick={() => { const p = contextMenuPlugin!; openSettings(p); }}
           >
             <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
             {t("common.settings")}
@@ -896,7 +896,7 @@ Every widget supports \`id\`, \`hidden\`, \`expertOnly\` (auto-hidden when Exper
             class="w-full text-left px-3 py-2 rounded-lg text-gray-200 hover:bg-white/10 hover:text-white flex items-center gap-2 cursor-pointer"
             onclick={() => { const p = contextMenuPlugin!; contextMenuPlugin = null; contextMenuPos = null; pluginsStore.enable(p.id); }}
           >
-            <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
             {t("plugins.enable")}
           </button>
         {/if}

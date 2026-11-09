@@ -175,6 +175,26 @@ it("displays plugin card with Open, Info, Settings, Update, Enable/Disable, and 
   expect(uninstallBtn.className).toContain("text-rose-400");
 });
 
+it("only allows reopening or uninstalling a disabled plugin and opens active cards from their header", async () => {
+  pluginsStore.plugins[0].enabled = false;
+  const target = document.body.appendChild(document.createElement("div"));
+  const onGoToTab = vi.fn();
+  components.push(mount(PluginsTab, { target, props: { active: true, onGoToTab } }));
+  await tick();
+
+  const card = target.querySelector('[role="group"][aria-label="Demo Plugin"]')!;
+  const button = (title: string) => card.querySelector<HTMLButtonElement>(`button[title="${title}"]`)!;
+  for (const title of ["Update", "Plugin Details", "Settings"]) expect(button(title).disabled).toBe(true);
+  expect(button("Enable").disabled).toBe(false);
+  expect(button("Uninstall plugin").disabled).toBe(false);
+  expect(card.querySelector('[aria-label="Open · Demo Plugin"]')).toBeNull();
+
+  pluginsStore.plugins[0].enabled = true;
+  await tick();
+  card.querySelector<HTMLButtonElement>('[aria-label="Open · Demo Plugin"]')!.click();
+  expect(onGoToTab).toHaveBeenCalledWith("plugin:demo-plugin");
+});
+
 it("opens Info modal with metadata, README markdown, and requested permissions", async () => {
   const target = document.createElement("div");
   document.body.appendChild(target);
