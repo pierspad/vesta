@@ -57,7 +57,7 @@ it("portals the transcription engine menu above sibling cards and cleans it up",
   expect(menu.style.width).toBe("300px");
   expect(menu.style.background).toContain("--control-menu-bg");
 
-  const chain = [...menu.querySelectorAll("button")].find(button => button.textContent?.includes("Configured priority chain"));
+  const chain = [...menu.querySelectorAll("button")].find(button => button.textContent?.includes("Default priority chain"));
   expect(chain).toBeTruthy();
   chain!.click();
   await tick();
