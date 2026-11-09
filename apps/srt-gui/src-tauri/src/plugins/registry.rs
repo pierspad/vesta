@@ -35,7 +35,7 @@ pub struct InstalledPlugin {
 pub struct PluginRegistry {
     pub version: u32,
     pub plugins: Vec<InstalledPlugin>,
-    #[serde(default)]
+    #[serde(default, skip_serializing)]
     pub shared_credentials: BTreeMap<String, String>,
 }
 
@@ -105,6 +105,13 @@ impl PluginRegistry {
             )
         })?;
 
+        self.save_shared_credentials(path)
+    }
+
+    pub fn save_shared_credentials(&self, registry_path: &Path) -> Result<(), String> {
+        let parent = registry_path.parent().unwrap_or(Path::new("."));
+        fs::create_dir_all(parent)
+            .map_err(|e| format!("Failed to create credential directory: {e}"))?;
         // Save shared credentials to shared_credentials.json
         let shared_cred_file = parent.join("shared_credentials.json");
         let cred_content = serde_json::to_string_pretty(&self.shared_credentials)

@@ -390,8 +390,10 @@ impl PluginManager {
         value: Option<String>,
     ) -> Result<(), String> {
         let mut reg = self.registry.lock().await;
-        reg.set_shared_credential(key, value);
-        reg.save_to_file(&self.registry_file)?;
+        let mut updated = reg.clone();
+        updated.set_shared_credential(key, value);
+        updated.save_shared_credentials(&self.registry_file)?;
+        reg.shared_credentials = updated.shared_credentials;
         Ok(())
     }
 
@@ -399,37 +401,34 @@ impl PluginManager {
         &self,
         manifest: &PluginManifest,
         res: &serde_json::Value,
-    ) {
+    ) -> Result<(), String> {
         let set_obj = res
             .get("setSharedCredentials")
             .or_else(|| res.get("root").and_then(|r| r.get("setSharedCredentials")));
+        let Some(serde_json::Value::Object(map)) = set_obj else {
+            return Ok(());
+        };
 
-        if let Some(serde_json::Value::Object(map)) = set_obj {
-            let allowed = manifest.requested_shared_credentials();
-            let mut reg = self.registry.lock().await;
-            let mut changed = false;
-
-            for (k, v) in map {
-                if allowed.contains(k) {
-                    if let Some(s) = v.as_str() {
-                        if !s.trim().is_empty() {
-                            reg.set_shared_credential(k.clone(), Some(s.to_string()));
-                            changed = true;
-                        } else {
-                            reg.set_shared_credential(k.clone(), None);
-                            changed = true;
-                        }
-                    } else if v.is_null() {
-                        reg.set_shared_credential(k.clone(), None);
-                        changed = true;
-                    }
-                }
+        let allowed = manifest.requested_shared_credentials();
+        let mut reg = self.registry.lock().await;
+        let mut updated = reg.clone();
+        for (key, value) in map {
+            if !allowed.contains(key) {
+                continue;
             }
-
-            if changed {
-                let _ = reg.save_to_file(&self.registry_file);
+            if let Some(value) = value.as_str() {
+                let value = (!value.trim().is_empty()).then(|| value.to_owned());
+                updated.set_shared_credential(key.clone(), value);
+            } else if value.is_null() {
+                updated.set_shared_credential(key.clone(), None);
             }
         }
+
+        if updated.shared_credentials != reg.shared_credentials {
+            updated.save_shared_credentials(&self.registry_file)?;
+            reg.shared_credentials = updated.shared_credentials;
+        }
+        Ok(())
     }
 
     /// Renders a screen in a plugin.
@@ -482,7 +481,7 @@ impl PluginManager {
             .await?;
 
         self.process_returned_shared_credentials(&manifest, &res)
-            .await;
+            .await?;
         Ok(res)
     }
 
@@ -539,7 +538,7 @@ impl PluginManager {
             .await?;
 
         self.process_returned_shared_credentials(&manifest, &res)
-            .await;
+            .await?;
         Ok(res)
     }
 }
@@ -548,6 +547,29 @@ impl PluginManager {
 mod tests {
     use super::*;
     use crate::plugins::manifest::{PluginEntry, PluginTab};
+
+    #[tokio::test]
+    async fn credential_write_failure_keeps_last_saved_value() {
+        let directory = tempfile::tempdir().unwrap();
+        let host = PluginManager::new(directory.path().into());
+        let key = "test_api_key".to_owned();
+        host.set_shared_credential(key.clone(), Some("saved".into()))
+            .await
+            .unwrap();
+
+        let reloaded = PluginManager::new(directory.path().into());
+        assert_eq!(reloaded.list_shared_credentials().await[&key], "saved");
+
+        let vault = directory.path().join("shared_credentials.json");
+        fs::remove_file(&vault).unwrap();
+        fs::create_dir(&vault).unwrap();
+        assert!(
+            host.set_shared_credential(key.clone(), Some("unsaved".into()))
+                .await
+                .is_err()
+        );
+        assert_eq!(host.list_shared_credentials().await[&key], "saved");
+    }
 
     fn make_test_manifest(icon: Option<&str>, tab_icon: Option<&str>) -> PluginManifest {
         PluginManifest {
