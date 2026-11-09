@@ -41,7 +41,7 @@ cancellable resource downloads and atomic publication.
 |---|---|---|
 | **core** | `srt-parser`, `srt-apkg`, `srt-download` | Foundational primitives. Minimal external dependencies, zero knowledge of higher engines or GUI. Auto-charset detection via `chardetng` + `encoding_rs`, lossless timing arithmetic, direct ZIP/SQLite archive serialization, and cancellable atomic resource downloads. |
 | **lib** | `srt-flashcards`, `srt-translate`, `srt-transcribe`, `srt-autosync`, `srt-extract`, `srt-refine`, `srt-sync`, `srt-ankiconnect` | Self-contained domain engines. **Zero GUI/Tauri coupling**. Long-running tasks accept a `tokio_util::sync::CancellationToken` and report progress through callbacks. External tools and heavy dependencies (FFmpeg processes, `whisper-rs`, `rusqlite`, `reqwest`) are encapsulated here. |
-| **cli** | `srt-flashcards-cli`, `srt-translate-cli`, `srt-transcribe-cli`, `srt-autosync-cli`, `srt-extract-cli`, `srt-sync-cli`, `srt-refine-cli`, `vesta-cli`, `vesta-mcp` | Headless, terminal frontends powered by `clap`, plus the `vesta-cli` unified entry point and `vesta-mcp` stdio MCP server (8 tools). Thin wrappers over corresponding `lib/` engines. Suitable for server scripting, batch processing, CI pipelines, AI assistants, and benchmarking. |
+| **cli** | `srt-flashcards-cli`, `srt-translate-cli`, `srt-transcribe-cli`, `srt-autosync-cli`, `srt-extract-cli`, `srt-sync-cli`, `srt-refine-cli`, `vesta-cli`, `vesta-mcp` | Headless, terminal frontends powered by `clap`, plus the `vesta-cli` unified entry point and `vesta-mcp` stdio MCP server (10 tools). Thin wrappers over corresponding `lib/` engines. Suitable for server scripting, batch processing, CI pipelines, AI assistants, and benchmarking. |
 | **apps** | `apps/srt-gui` (`vesta`), `apps/whisper-bench` | Desktop composition roots. Svelte owns presentation/state; Tauri commands adapt IPC to `lib/` crates and own process-level services such as local media streaming, dialogs, and window integration. |
 
 ---
@@ -129,7 +129,7 @@ Aligned Output Subtitle (.srt)
 
 ## Frontend execution boundaries
 
-Translation provider errors now expose safe typed categories and HTTP status.
+Translation provider errors expose safe typed categories and HTTP status codes.
 Optional retry observers belong to callers: CLI adapters write numeric metadata
 to stderr; desktop `provider_diagnostics` emits `provider-retry` events for the
 support recorder. The engine neither initializes a logger nor imports Tauri.
@@ -242,7 +242,7 @@ The AUR `PKGBUILD` declares these runtime dependencies.
 
 ## Headless CLI Tooling
 
-Every key engine can be built and run standalone without Tauri. In addition to individual standalone CLI binaries, Vesta provides `vesta-cli` as a unified entry point (`vesta-cli <operation>`) and `vesta-mcp` as a stdio Model Context Protocol (MCP) server exposing 8 tools for AI assistants and automation agents:
+Every key engine can be built and run standalone without Tauri. In addition to individual standalone CLI binaries, Vesta provides `vesta-cli` as a unified entry point (`vesta-cli <operation>`) and `vesta-mcp` as a stdio Model Context Protocol (MCP) server exposing 10 tools for AI assistants and automation agents:
 
 ```bash
 # Build the unified CLI and MCP server
@@ -269,7 +269,7 @@ cargo build --release -p srt-refine-cli
   --snapshot-format webp
 ```
 
-The `vesta-mcp` server provides 8 discoverable tools (`get_configuration`, `inspect_subtitles`, `preview_flashcards`, `generate_flashcards`, `translate_subtitles`, `transcribe_media`, `get_job`, `cancel_job`) over stdio JSON-RPC without requiring GUI automation. See [`docs/MCP.md`](MCP.md) for complete details.
+The `vesta-mcp` server provides 10 discoverable tools (`get_configuration`, `inspect_subtitles`, `preview_flashcards`, `generate_flashcards`, `translate_subtitles`, `transcribe_media`, `get_job`, `cancel_job`, `list_plugins`, `call_plugin`) over stdio JSON-RPC without requiring GUI automation. See [`docs/MCP.md`](MCP.md) for complete details.
 
 For module-specific documentation and integration examples, see [`docs/modules/`](modules/README.md).
 
@@ -319,14 +319,16 @@ AssemblyAI jobs may continue after local cancellation. See [QUALITY](QUALITY.md)
 
 ## Playback preparation, setup and desktop maintenance
 
-`sync_prepare_media_for_playback` returns native-format paths directly. Other
-containers are prepared by `srt-sync::playback`: reuse a fresh nonempty cache,
-try copying the first audio track into OGG without re-encoding, then fall back to
-low-complexity mono Opus or Vorbis. This preview policy does not change flashcard
-export settings. A process-local mutex serializes preparation requests; temporary
-files become cache entries only after a successful process. Each FFmpeg child
-has a five-minute timeout. This path currently has no caller cancellation token;
-it is an exception to the general cancellable-engine pattern above.
+`sync_prepare_media_for_playback` returns natively playable audio paths (`mp3`,
+`wav`, `ogg`, `m4a`, `aac`, `opus`, `flac`) directly. Other containers (such as
+MKV or MP4) are prepared by `srt-sync::playback`: reuse a fresh nonempty cache
+entry (`cache_modified >= source_modified`), or transcode the audio stream via
+FFmpeg into uncompressed 16 kHz mono PCM WAV (`pcm_s16le`, `{hash}.wav`) via an
+atomic `.partial.wav` sibling. This preview policy avoids video decoding and
+compressed-audio encoding overhead, and does not change flashcard export
+settings. A process-local mutex serializes preparation requests; temporary files
+become cache entries only after a successful FFmpeg run. Each FFmpeg child has a
+five-minute timeout. This path has no caller cancellation token.
 
 The loopback media server authenticates requests with a session token and supports
 byte ranges. WebKitGTK/GStreamer still needs a decoder for the prepared media.

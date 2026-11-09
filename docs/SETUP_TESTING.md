@@ -31,18 +31,13 @@ work.
 
 ## Check sync audio preparation
 
-1. Load an SRT and an MP3; playback should work without conversion.
-2. Load an MKV with Opus or Vorbis audio; preparation should first try copying
-   the audio track without re-encoding.
-3. Try an MKV whose audio cannot be copied into OGG; preparation should fall
-   back to audio conversion. Flashcard export must retain its own audio settings.
-4. Load the same file again and verify that the completed preparation is reused.
-5. Load an invalid media file; expect a visible error and a way to choose another
-   file. FFmpeg child processes have a five-minute limit.
-6. With no media loaded, verify that the confirmation action is disabled.
+1. Load an SRT and a natively playable audio file (`.mp3`, `.wav`, `.ogg`, `.m4a`, `.aac`, `.opus`, `.flac`); playback works directly without conversion.
+2. Load a video container (such as `.mkv` or `.mp4`); `srt-sync::playback` extracts and converts the audio stream into a cached 16 kHz mono PCM WAV (`{hash}.wav`). Flashcard export retains its own independent audio settings.
+3. Load the same file again and verify that the cached WAV preparation is reused without re-running FFmpeg (unless the source file timestamp is newer than the cache).
+4. Load an invalid media file; expect a visible error and a way to choose another file. FFmpeg child processes have a five-minute timeout.
+5. With no media loaded, verify that the confirmation action is disabled.
 
-First-time preparation depends on media duration and codec. These checks establish
-behavior, not a performance result.
+First-time preparation depends on media duration and disk speed. These checks establish functional behavior rather than benchmark performance.
 
 ## Check installer and internal updates
 
@@ -55,8 +50,9 @@ builds do not verify installer windows or system integration on a real machine.
 
 The internal updater checks the latest stable release, selects an installer for
 the supported system and architecture, downloads it, verifies SHA-256 and opens
-the installer. The in-app flow supports Windows;
-Flatpak, Arch/AUR and system package (.deb/.rpm) updates use their package manager or the release page.
+the installer. The in-app flow supports Windows (`.exe`), Debian/Ubuntu (`.deb`),
+and Fedora/RHEL (`.rpm`); Flatpak and Arch/AUR updates use their respective
+package managers or the release page.
 A `tauri dev` build does not use the installed-app updater flow.
 
 To test updates, install a previous stable release in a VM, open **Settings →

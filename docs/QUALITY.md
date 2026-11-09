@@ -1,310 +1,106 @@
-# Stability and performance checks
+# Quality and Release Verification
 
-Atomic output regressions run with:
+This manual defines the automated verification gates, regression test scopes, performance benchmarks, and installed-product smoke checks for Vesta. See [`ARCHITECTURE.md`](ARCHITECTURE.md) for system boundaries and [`library-integration.md`](library-integration.md) for downstream crate requirements.
 
-```bash
-cargo test -p srt-parser -p srt-transcribe -p srt-flashcards
-```
+---
 
-They inject a failed writer, reject read-only targets, verify
-symlink/permission behavior on Unix, preserve an existing APKG after a media
-streaming failure, and prevent cancelled transcription publication. The helper
-tests verify cleanup as well as destination bytes. These are process-level
-failure tests, not power-loss or filesystem-specific durability certification.
+## 1. Automated Verification Gates
 
-`cargo test -p srt-flashcards` additionally checks staged TSV media publication:
-successful replacement, rollback after a failed TSV write or media swap, refusal
-of an overlapping publisher and cleanup after a failed first export. The Unix
-pipeline fixture verifies old TSV/media bytes on extraction failure and
-cancellation at the export stage, plus media references and byte counts on
-success. These do not simulate SIGKILL between filesystem renames; crash recovery
-and installed-platform behavior remain separate validation work.
-
-Prioritize correct exports, recoverable failures, durable settings, cancellation,
-and usable progress. Optimize bottlenecks after measuring them on identical input.
-A passing unit suite is evidence about those cases, not proof that every desktop
-interaction or third-party API works on every supported machine.
-
-The separate `headless` CI job selects library and CLI packages explicitly,
-without Node, Tauri system libraries or a GPU SDK. This checks the default CPU
-dependency graph independently of desktop feature unification. CLI extraction
-tests parse stdout as JSON and verify failed operations preserve existing files;
-manual sync tests exercise both drift correction and rejected anchor/output ranges.
-`cargo test -p srt-flashcards-cli` verifies text summaries, invalid arguments and
-inputs, a successful media-free export, and (on Unix) failed media extraction and
-SIGINT with previous TSV/media preservation. The cancellation fixture waits for
-a child-process handshake before signalling and bounds its exit wait.
-For the maintained dependency boundaries and downstream integration contract,
-see [architecture](ARCHITECTURE.md) and
-[library integration](library-integration.md). This guide is the maintained
-source for repeatable checks and release validation.
-
-The [CLI guide](CLI.md) records each command's output contract and coverage.
-Subprocess regressions also check help examples, standalone language listing,
-conflicting report/track modes, and actionable provider/configuration errors.
-MCP tests connect a real stdio SDK client; it is an optional adapter with a
-smaller feature set, not a replacement for testing the terminal workflows.
-
-## One command
-
-From the repository root, after `npm ci` in `apps/srt-gui`:
+Run the complete local verification gate from the repository root (after `npm ci` in `apps/srt-gui`):
 
 ```bash
 python3 build-scripts/quality_check.py --desktop --smoke
 ```
 
-Without `--desktop`, the Rust gate excludes both desktop applications and runs
-libraries/CLIs; this avoids requiring Tauri/Vulkan build dependencies. `--desktop`
-includes Vesta native tests. The separate Whisper benchmarking app is covered by
-`cargo test --workspace`, not this focused gate. FFmpeg and FFprobe are required
-for the new media integration tests. Initial dependency/native compilation can
-be substantial; warmed tests and the synthetic smoke run are short.
+| Command | Scope |
+|---|---|
+| `python3 build-scripts/quality_check.py` | Headless gate: Tauri version sync, release workflow tests, documentation/contract checks, Svelte/TypeScript type checking, AST pattern checks, Vitest suite, dev-CSS check, i18n audit, frontend production build, and Rust library/CLI tests (`--exclude vesta --exclude whisper-bench`). |
+| `python3 build-scripts/quality_check.py --desktop` | Adds desktop native Rust tests (`vesta` Tauri package). |
+| `python3 build-scripts/quality_check.py --desktop --smoke` | Adds the synthetic 20-second FFmpeg/APKG media generation smoke test (`quality_smoke.py`). |
+| `python3 build-scripts/check_doc_contracts.py` | Verifies documentation links/anchors, CLI flags, MCP tools, Tauri IPC commands, Plugin SDK parity, and public API contract hashes against [`docs/contracts_manifest.json`](contracts_manifest.json). |
+| `cargo fmt --all --check` | Rust formatting check across the workspace. |
+| `cargo clippy --locked --workspace --all-targets -- -D warnings` | Strict lint gate across all workspace targets. |
+| `cargo test --locked --workspace` | Full workspace Rust test suite (including `vesta` and `whisper-bench`). |
 
-The gate runs Svelte/TypeScript checks, frontend tests, i18n validation, production
-frontend build, Rust tests, and internal version consistency. Before pushing,
-also run the repository's required formatting and strict Clippy checks:
+Publication in CI waits for the successful push workflow on the exact release commit, including workspace tests and strict Clippy; a missing, failed, or skipped run blocks `semantic-release`. `python3 build-scripts/test_release_workflows.py` validates release queueing, platform prerequisites, and tag/version agreement.
 
-```bash
-cargo fmt --all --check
-cargo clippy --workspace --all-targets -- -D warnings
-cargo test --workspace
-```
+---
 
-## Short smoke benchmark
+## 2. Rust Engine and CLI Regression Suites
 
-```bash
-cargo build -p srt-flashcards-cli
-python3 build-scripts/quality_smoke.py --samples 3
-```
-
-The script creates a 20-second synthetic film with ten subtitle lines, runs
-preview and APKG media generation with two workers, and cleans up its temporary
-outputs. Every sample checks ZIP integrity, the numbered media manifest, nonempty
-media files, SQLite integrity, and exactly ten notes. A missing FFmpeg fails
-explicitly. It prints machine/profile information and per-run, minimum, maximum,
-and median wall time. Each subprocess has a finite timeout.
-
-Build time and fixture creation are outside the reported pipeline measurements.
-Debug results are useful for local regressions, not release-performance claims.
-For optimization comparisons use the same machine, FFmpeg, inputs, settings,
-cache state and release profile, with no other heavy jobs running:
+### Atomic Output and Staged Export Persistence
 
 ```bash
-cargo build --release -p srt-flashcards-cli
-python3 build-scripts/quality_smoke.py --profile release --samples 5
+cargo test -p srt-parser -p srt-transcribe -p srt-flashcards
 ```
 
-Keep correctness assertions. Investigate a repeated median regression before
-adding a hard CI timing threshold; shared runners are noisy. This short fixture
-does not measure HEVC seek costs, film-length source preparation, Whisper quality,
-network latency, GPU fallback, or large-series memory use. Use the
-[full-film benchmark guide](BENCHMARK_STEPS.md) for representative throughput
-and add a short HEVC/1080p workload before changing preparation policy again.
+- **Atomic file publication (`srt-parser::persistence`)**: Injects failed writers, rejects read-only targets, verifies symlink and permission preservation on Unix, preserves existing `.apkg` archives after media streaming failures, and prevents cancelled transcription runs from publishing partial files.
+- **Staged TSV media publication (`srt-flashcards`)**: Verifies replacement via `.vesta-export-*` staging directories and `.<deck>.tsv.export.lock` locks, rollback after a failed TSV write or media swap, rejection of overlapping publishers, and cleanup after a failed initial export.
+- **Scope boundary**: These are process-level failure tests. They do not simulate `SIGKILL` between filesystem renames or power loss across unjournaled filesystems.
 
-## Audio decoding and process lifetime
+### Audio Decoding, Hardware Probes, and Process Lifetimes
 
-`cargo test -p srt-transcribe audio::tests` covers integer/float WAV downmix,
-truncated and non-finite samples, normalization through 32-bit PCM, and real
-FFmpeg conversion/segmentation. Invalid samples fail with file/sample context
-instead of being skipped, which would shorten audio and shift transcription
-or autosync timing. FFmpeg failures include exit status and the last 64 KiB
-of stderr; earlier diagnostics may be discarded while the pipe is still drained.
-Unix process tests verify cancellation and dropped-future cleanup with real
-children, plus large stderr without a pipe deadlock. Windows/macOS behavior
-still needs platform validation.
+- **WAV decoding and FFmpeg extraction (`cargo test -p srt-transcribe audio::tests`)**: Covers integer/float WAV downmix, truncated and non-finite sample rejection (preventing silent audio shortening that would shift timestamps), normalization through 32-bit PCM, and real FFmpeg conversion/segmentation. FFmpeg failures report exit status and the last 64 KiB of stderr while draining pipes to prevent deadlocks.
+- **Hardware encoder fallback (`cargo test --locked -p srt-flashcards`)**:
+  - `software_retries_release_gpu_sessions_for_pending_clips`: Verifies that a failed hardware video encode releases its 3-session GPU permit before retrying on CPU while holding its general worker permit.
+  - `generation_probes_hardware_once_and_keeps_the_original_source`: Verifies that video preparation reuses the encoder already probed by the generator rather than running duplicate probes within the same export.
+- **Sync preview preparation (`cargo test --locked -p srt-sync -p srt-autosync -p srt-transcribe`)**: Covers 16 kHz mono PCM WAV (`pcm_s16le`) preview generation, cache reuse (`cache_modified >= source_modified`), failed preview cleanup, external cloud STT synchronization without a local Whisper model, and rejection of text-only responses for alignment.
 
-## HTTP contracts and links
+### Synchronization and Autosync Invariants
 
-`cargo test -p srt-transcribe` exercises real loopback HTTP requests for OpenAI
-JSON transcription, Groq translation, Deepgram and AssemblyAI upload/create/poll,
-plus an authorization failure. No credentials, uploaded user media, or billable
-inference are involved. Model discovery tests cover URL normalization, Gemini
-capability filtering and HTTP errors. A frontend source test verifies that every
-literal IPC invocation is registered in the desktop handler; dynamic commands
-and argument schemas need additional integration coverage.
+- **Anchor constraints (`srt-autosync`)**: Reruns treat manual anchors as fixed constraints with a 15-second exclusion window around each manual point. A successful run replaces automatic anchors; an empty result preserves previous anchors.
+- **Phrase onset refinement**: Uses Whisper token timestamps only when an unambiguous contiguous match of at least two normalized words is found; otherwise falls back to segment onset.
+- **Authoritative history (`srt-sync::SyncEngine`)**: Retains up to 100 anchor-edit snapshots (including mapper state and checked checkpoints). Add, update, delete, and grouped auto-sync replacements are reversible; no-op edits preserve the redo stack and new edits clear it.
 
-Run the optional online link check separately:
+### Headless CLI and MCP Verification
+
+- **Headless CI job**: Compiles and tests all library and CLI crates without Node, Tauri system libraries, or GPU SDKs, verifying the default CPU dependency graph independently of desktop feature unification.
+- **CLI subprocess tests (`cargo test -p vesta-cli -p srt-flashcards-cli -p srt-translate-cli -p srt-transcribe-cli -p srt-extract-cli -p srt-sync-cli -p srt-autosync-cli -p srt-refine-cli`)**: Verify `--help` contracts, exit codes (`0` success, `1` runtime error, `2` usage error, `130` `SIGINT` cancellation), stdout/stderr separation, and preservation of existing output files on failure or `SIGINT`.
+- **MCP protocol tests (`cargo test --locked -p vesta-mcp`)**: Connect a real stdio MCP client (`rmcp`), discover all 10 tool schemas (`get_configuration`, `inspect_subtitles`, `preview_flashcards`, `generate_flashcards`, `translate_subtitles`, `transcribe_media`, `get_job`, `cancel_job`, `list_plugins`, `call_plugin`), and verify path-root isolation, job cancellation, and server-side credential isolation.
+
+### HTTP Contracts and Provider Links
+
+`cargo test -p srt-transcribe` exercises loopback HTTP requests for OpenAI JSON transcription, Groq translation, Deepgram, and AssemblyAI upload/create/poll, plus authorization failures and model-discovery capability filtering.
+
+To probe external documentation and model-discovery URLs online (optional, not run in offline CI):
 
 ```bash
 python3 build-scripts/check_provider_links.py > provider-links.json
 ```
 
-It probes the key/documentation URLs and model-discovery URLs from the checked-in
-catalogs, with six workers and 12-second request timeouts. It does not make
-inference or upload requests. Login redirects, HTTP 401 and HTTP 403 are recorded
-as access requirements, not authenticated successes. Reachability cannot prove
-that a model remains enabled for a particular account. Review redirections and
-non-success results rather than treating this inventory as a release certificate.
+---
 
-Before release, use explicit test accounts for the enabled cloud providers and a
-short, known speech fixture. Verify successful translation/transcription, expected
-language/timing, invalid keys, unsupported models, 429, offline/timeout, partial
-output and cancellation. Avoid retrying billable requests without bounds. Local
-cancellation of an AssemblyAI polling future does not delete its remote job.
-
-## Release smoke matrix
-
-Test installed bundles on Linux and Windows, and on macOS if distributing there:
-
-- Complete setup, restart twice, verify language/media/export defaults persist;
-  disk-full/unreadable/corrupt settings must show an error without replacing data.
-- Generate audio + snapshots, TSV, APKG, video clips and a two-episode merged APKG.
-  Open the package in Anki and play the actual card media. Confirm no dangling
-  references, collisions or overwritten episode exports.
-- Save embedded SRT tracks with language/title labels. Verify PGS/VobSub are
-  clearly marked as requiring OCR; failed extraction preserves existing output.
-- Preview common codecs and seek; check zero-length/missing files, byte ranges,
-  audio backend/decoder failures and recoverable error messages.
-- Exercise manual retiming/session save-load and Whisper-assisted autosync with
-  an installed model; compare against a known offset, not only successful return.
-- Run local Whisper on CPU and an actual supported GPU; test unavailable GPU
-  fallback, interrupted model downloads and model removal.
-- Translate/annotate using real configured endpoints; test failover, resume,
-  empty/malformed JSON, rate limits and cancellation.
-- Open output filenames and their folders; verify `.apkg` association with Anki
-  and useful errors when the file/application no longer exists.
-
-A web preview with mocked IPC can check presentation and disabled controls but
-cannot validate native dialogs, file associations, WebKit/GStreamer playback or
-GPU behavior. Keep this distinction in release notes and test reports.
-
-Mounted Svelte regressions cover App's persistent tab containers and changing
-`active` props, Align's hidden-tab/duplicate keyboard handling, and Flashcards
-preview close/reopen, deactivation, undo and player ownership. App tests use
-fixture tabs to verify composition; they do not run a native job. Preview tests
-use the real store with simulated IPC and media methods, so successful `play()`
-there proves wiring rather than codec support. Run the mounted regressions with
-`npm test` in `apps/srt-gui`; use the installed-app checks below for codec,
-WebKit/GStreamer and native-window behavior.
-
-For development CSS regressions, run `npm run test:dev-css` in `apps/srt-gui`.
-It starts temporary Vite servers on ephemeral ports, requests component CSS before
-component JavaScript, checks scoped style output, and closes each server. The
-standard Python quality gate runs this automatically. CI and semantic release
-also run it along with a frontend production build before publication.
-
-The full localization gate also rejects untranslated English prose (`same_as_english`).
-All 15 catalogs must provide every English key and preserve its interpolation tokens.
-Genuine identical terms are explicitly allowed, with language-specific exceptions
-where appropriate. This is stronger than checking only whether a key exists. Setup,
-settings copy and accessibility labels now use the same catalogs. Names of products,
-file formats and measurement units remain untranslated.
-
-## Autosync constraints and model selection
-
-Autosync reruns use only manual anchors as fixed constraints. A successful new
-result replaces automatic anchors; an empty result preserves the previous ones.
-The mapper allows monotonic automatic refinements between manual points, with a
-15-second exclusion window around each manual point. Tests cover replacement,
-empty results, interpolation and preservation of manual timestamps.
-
-Phrase onset refinement uses Whisper token timestamps only for an unambiguous
-contiguous match of at least two normalized words. Missing, malformed or ambiguous
-timing falls back to the segment onset. The tests use unequal word durations and
-split tokens; they do not establish phoneme-level accuracy on real recordings.
-Sampling uses the CPU budget when GPU support was not compiled in. A runtime GPU
-initialization failure can still fall back to CPU; benchmark the actual selected
-backend before claiming throughput improvements.
-
-The built-in local Whisper model is shared by Settings, Transcribe, Synchronize
-and local transcription tier entries. Cloud tier order and models remain intact;
-changing Whisper never inserts a local endpoint ahead of cloud-only tiers. Mounted
-Sync tests check that model notifications do not trigger recursive discovery.
-
-## Measured snapshot integration
-
-The native Rust batching change has a complete 480-generation A/B matrix with
-byte-identical media and note fields. See [the evidence and scope](BENCHMARK_NATIVE.md).
-The full subs2srs suite uses different product defaults and media counts and
-cannot replace the quality-equivalence check.
-
-## Publishing benchmark charts
-
-The README's aggregate chart is generated from the completed suite CSV by
-`benchmarking_against_subs2srs/report/generate_full_report.py`. Durations are sums
-of per-film medians, not sums of every repetition or averages of speedup ratios.
-Time saved is the baseline total minus the measured total; percentage saved uses
-the baseline total as its denominator. Keep all films matched across compared
-series and label export formats, worker counts, hardware and output differences.
-Per-film charts and raw measurements belong in the detailed report.
-
-
-### Rust lifecycle and persistence regressions
-
-`cargo test --workspace` covers shared download cancellation/concurrent publication,
-APKG flush failures and atomic replacement, translation worker failure and save
-errors, unexpected translation IDs, GUI operation slot ownership, media byte
-ranges, AnkiConnect HTTP/schema/version failures and worker process exit/read
-errors. Auto-sync tests use fake tools and a stub model to prove cancellation
-stops segment preparation without requiring a downloaded Whisper model.
-The audio integration also checks a real one-second FFmpeg extraction.
-Unix-only process/script tests require a Unix host; run platform and GPU release
-checks separately. `cargo test --workspace` includes the wider crate and
-documentation-test coverage beyond the focused CI gate above.
-
-
-### Opt-in real Vulkan inference
-
-On a machine with a supported Vulkan GPU and an already installed Whisper model:
+## 3. Frontend, Localization, and Static Checks
 
 ```bash
-cargo build -p srt-transcribe-cli --features vulkan
-python3 build-scripts/gpu_smoke.py --device 'RX 7800 XT' --vad --output-dir /tmp/vesta-gpu-check
+python3 build-scripts/check_tauri_versions.py
+python3 build-scripts/test_tauri_versions.py
 ```
 
-The output directory must be new. Omit `--vad` if Silero is not installed; change
-`--device` to a substring of the actual GPU name or omit it. The script makes no
-cloud requests and downloads no models. It verifies CPU, actual Vulkan backend
-selection, no-visible-GPU CPU fallback, valid bounded SRT output, optional VAD,
-and on Unix cancellation after the first decoded segment. Use a sufficiently
-long clip for cancellation; the default is the repository's 90-second Detour
-fixture. Logs and transcripts are retained only when `--output-dir` is supplied.
-These timings are smoke diagnostics, not a release-profile performance benchmark.
+- **Static AST pattern check (`npm run check:patterns` in `apps/srt-gui`)**: Parses TypeScript and Svelte script blocks to reject async `forEach` callbacks, async `Promise` executors, and `debugger` statements.
+- **Development CSS check (`npm run test:dev-css` in `apps/srt-gui`)**: Starts ephemeral Vite servers, requests component CSS before component JavaScript, verifies scoped style output, and shuts down cleanly.
+- **Mounted and workflow regression tests (`npm test` in `apps/srt-gui`)**:
+  - Persistent tab containers (`active` prop transitions without unmounting), keyboard shortcut scoping, and portal menu cleanup (`SpeechEngineSelector`, `SearchableSelect`, context menus).
+  - Document undo/redo stacks across Synchronize (`sync_undo`/`sync_redo`), Revise (dual-column subtitle alignment and file swap history), Annotate (notes-only snapshots keyed by card ID), and Flashcards preview.
+  - Clipboard integration via Tauri's `clipboard-manager` text API with fallback to `navigator.clipboard` in browser previews.
+  - Command registry verification (`commandRegistry.test.js`), ensuring every literal IPC command invoked by the frontend is registered in `apps/srt-gui/src-tauri/src/main.rs`.
 
-### Recorded hardware smoke (10 October 2026)
+### Localization Policy and Git Hooks
 
-On an AMD Radeon RX 7800 XT (RADV NAVI32, Mesa 26.2.4, Vulkan 1.4.354), the
-90-second Detour fixture completed with CPU, Vulkan, Vulkan plus cached Silero
-VAD, and CPU fallback when Vulkan devices were hidden. The Vulkan log confirmed
-`Vulkan0`; fallback output matched the explicit CPU output byte-for-byte for
-that run. Cancellation after the first decoded segment returned a nonzero exit,
-reported `Transcription cancelled`, and published no final SRT (about 0.143 s
-from signal in that run). This was an engine smoke using an installed base model,
-not an installed desktop test or a controlled performance benchmark. CPU/GPU
-transcripts differed in one proper-name phrase, so this evidence does not
-establish transcription accuracy. Reproduce the checks with the commands above.
-
-Publication now waits for the successful push CI run on the exact release commit,
-including workspace tests and strict Clippy; a missing/failed/skipped run blocks
-`semantic-release`. Manual dispatch also requires that successful push CI evidence.
-
-## Git hooks and localization policy
-
-Install the tracked hook dispatchers once in each clone:
+Install the tracked Git hooks once per repository clone:
 
 ```bash
 bash build-scripts/install-hooks.sh
 ```
 
-The pre-commit hook audits the actual staged source and locale snapshot. An
-unstaged fix cannot hide a broken commit. The pre-push hook audits each outgoing
-tip before running frontend type checks, tests/build and the existing native
-version, formatting, Clippy and test gates. Remaining frontend/native checks run
-in the working checkout; commit or stash unrelated changes for a reproducible
-full gate. Dispatchers use the current tracked scripts, support Git worktrees
-and `core.hooksPath`, and refuse to replace unrelated hooks.
+- **Pre-commit / Pre-push hooks**: Audit staged source and locale snapshots before commit and verify frontend/native gates before push (`python3 build-scripts/test_git_hooks.py`).
+- **Localization gate (`bash build-scripts/check-i18n.sh`)**: Verifies all 15 locale catalogs (`ar`, `de`, `en`, `es`, `fr`, `hi`, `it`, `ja`, `ko`, `nl`, `pl`, `pt`, `ru`, `tr`, `zh`). Blocks on missing keys, empty values, mismatched `{placeholder}` tokens, and untranslated English strings (`same_as_english`) outside the explicit technical-term allowlist.
 
-The translation checker's strict default is shared by CI, release builds, local
-hooks and `quality_check.py`: missing locales/keys, empty values, mismatched
-placeholders and unintended English copies all block. Approved identical labels
-remain in the checker's explicit allowlist. Do not weaken the gate to avoid
-translating UI text. Run the same fast localization gate manually with
-`bash build-scripts/check-i18n.sh`. Regression tests for staged/outgoing snapshots
-and hook installation run with `python3 build-scripts/test_git_hooks.py`.
+---
 
-## Dependency advisory checks
+## 4. Security and Dependency Advisories
 
-CI runs a separate `security` job against both checked-in lockfiles:
+CI runs a dedicated `security` job against both checked-in lockfiles:
 
 ```bash
 cargo install cargo-audit --locked --version 0.22.2
@@ -312,312 +108,54 @@ cargo audit
 (cd apps/srt-gui && npm audit)
 ```
 
-The Svelte Vite plugin's `deepmerge` dependency uses a checked-in MIT-licensed
-security fork in `apps/srt-gui/vendor/deepmerge` until an upstream fix for
-GHSA-gcqx-w48m-w2h4 is available. Own data-property writes prevent prototype
-poisoning when copying targets and merging sources. `npm run test:merge` resolves
-the dependency through the installed plugin and checks poisoning regressions
-and config merge compatibility; `npm test` includes it. npm audit cannot inspect
-the vendored implementation, so keep these tests and review any local changes.
-See the fork README for provenance and removal instructions. Audit severity
-thresholds and release prerequisites are unchanged.
+- **Vendored `deepmerge`**: `apps/srt-gui/vendor/deepmerge` provides a checked-in MIT-licensed security fix for `GHSA-gcqx-w48m-w2h4` (preventing prototype poisoning via own data-property writes). `npm run test:merge` tests poisoning regressions and config merge compatibility.
+- **Transitive GTK/Tauri advisories**: See [`MAINTENANCE.md`](MAINTENANCE.md#transitive-desktop-dependencies) for notes on `glib` (`RUSTSEC-2024-0429`) and D-Bus crate maintenance notices in the Tauri 2 / GTK3 dependency graph.
 
-Review informational `unmaintained` and `unsound` advisories as well as the
-vulnerability count. A zero vulnerability count can still include informational
-advisories. The current GTK/Tauri graph retains GLib's VariantStrIter unsoundness
-warning and maintenance warnings. Repeat these checks before release;
-a database lookup does not prove exploitability or absence of unknown defects.
+---
 
+## 5. Performance and Hardware Smoke Checks
 
-## Frontend workflow regression checks
-
-`quality_check.py` first validates the locked Tauri JS/Rust pairs and runs the
-checker fixtures without network. To run just those checks:
+### Synthetic Flashcard Smoke Benchmark
 
 ```bash
-python3 build-scripts/check_tauri_versions.py
-python3 build-scripts/test_tauri_versions.py
+cargo build --release -p srt-flashcards-cli
+python3 build-scripts/quality_smoke.py --profile release --samples 5
 ```
 
-The frontend suite includes pending native-listener cleanup, refinement run IDs,
-provider changes during model discovery, manual versus automatic audio-track
-selection, matching-rule JSONC parsing, grouped alignment undo, and obsolete
-subtitle-output lookups. Mounted tests cover Align shortcuts and Extract lookup
-errors. These tests preserve behavior across controller extraction; native
-webview, installer and authenticated-provider smoke checks remain separate.
+Generates a 20-second synthetic video with 10 subtitle lines, runs `preview` and `generate --format apkg` with 2 workers, and verifies ZIP integrity, the numbered media manifest, nonempty media files, SQLite integrity, and card counts. For full-film comparative benchmarks and native snapshot batching equivalence checks (`480` A/B runs), see [`BENCHMARK_STEPS.md`](BENCHMARK_STEPS.md), [`BENCHMARK_NATIVE.md`](BENCHMARK_NATIVE.md), and [`BENCHMARK_REPORT.md`](BENCHMARK_REPORT.md).
 
-## Static code patterns
+### Opt-In Vulkan GPU Inference Smoke
 
-Run `npm run check:patterns` from `apps/srt-gui`. `npm test` runs it before
-Vitest, so CI and `quality_check.py` also enforce it. It parses TypeScript and both Svelte script blocks and
-reports file, line, column and rule for async `forEach` callbacks, async Promise
-executors and debugger statements. Tests and application code are both scanned.
-Comments, string literals and component markup do not trigger these AST rules.
-
-These are narrow regression guards, not a replacement for Svelte type checking,
-strict Clippy or behavioral tests for cancellation, stale responses and persistence.
-The checker fixtures cover positive cases, safe alternatives, source offsets and
-malformed components. Add a rule only when it identifies a concrete failure mode;
-avoid blanket bans on `any`, `unwrap`, file size or duplication. Use `rg -n` for
-exploratory searches, then read the surrounding code before classifying a finding.
-
-## MCP processing and release policy checks
-
-`cargo test --locked -p vesta-mcp` exercises all eight tool schemas through a real
-stdio client. Local HTTP fixtures cover successful translation, incomplete
-translation rejection, translation/transcription cancellation, server-only
-credentials, shared job exclusion and real FFmpeg audio conversion. Profile
-unit tests cover disabled defaults, environment references, invalid providers,
-local model IDs and URLs. `srt-transcribe` separately tests the no-download
-policy before invoking FFmpeg. No authenticated provider access is implied.
-
-`python3 build-scripts/test_release_workflows.py` guards release queueing, all
-platform prerequisites and tag/version agreement. It also executes the tag
-validation and fallback-note shell blocks in a temporary Git fixture, including
-a literal tag containing shell syntax. CI and `quality_check.py` run this check.
-
-## Prompt editor scroll comparison
-
-The editor mirrors its native textarea scroll offsets into clipped highlight and
-line-number viewports. Scrolling does not rebuild highlighted DOM or measure
-line heights; mounted tests cover frame coalescing, stable tokens, wrapped and
-horizontal alignment, and cleanup. Layout reads remain necessary when content
-or width changes, not on each scroll event.
-
-To compare the current editor with a previous implementation, from the repository
-root prepare a temporary baseline (remove it after measuring):
+On a machine with a supported Vulkan GPU and an installed Whisper model:
 
 ```bash
-git show v0.29.1:apps/srt-gui/src/lib/components/CodeEditor.svelte > apps/srt-gui/src/lib/test/fixtures/CodeEditorScrollBaseline.svelte
+cargo build -p srt-transcribe-cli --features vulkan
+python3 build-scripts/gpu_smoke.py --device 'RX 7800 XT' --vad --output-dir /tmp/vesta-gpu-check
 ```
 
-Run `npm run dev` in `apps/srt-gui`, open
-`http://localhost:5175/scripts/editor-scroll-benchmark.html`, and select
-**Run benchmark**. Without the temporary baseline, the page tests only the current
-editor. It uses generated prompt text, three alternating samples at 200 and 2,000
-lines, and 120 scrolling frames per sample. It records frame median/p95, frames
-above 25 ms, style-attribute mutations and rendered DOM size. No settings, user
-prompts, credentials, media or cloud calls are used.
+Verifies CPU execution, Vulkan backend selection (`Vulkan0`), CPU fallback when Vulkan devices are hidden, Silero VAD integration, valid bounded SRT output, and `SIGINT` cancellation after the first decoded segment without publishing a partial output file.
 
-The [recorded comparison](performance/editor-scroll-2026-10-23.json) removed 232
-style-attribute mutations per sample. Frame medians stayed about 5.7 ms in both
-versions and no sample had a frame over 25 ms. The isolated p95 improvement in one
-cold long-document sample did not repeat, so this is not evidence of a frame-rate
-speedup or lower native CPU usage. Timings depend on display scheduling, browser,
-background activity and renderer warm-up. The browser test did not reproduce the
-reported desktop slowdown. Repeat with the actual installed WebKit/WebView and
-GPU backend, including parent-panel scrolling and long wrapped prompts, before
-claiming that issue resolved. For a CPU diagnosis, profile the installed renderer
-while scrolling the same fixture rather than inferring CPU work from frame timing.
+### Prompt Editor Scroll Benchmark
 
-The same isolated page can run in Tauri's native development webview using its
-normal build hook (run from `apps/srt-gui`, with native build prerequisites):
+`CodeEditor.svelte` mirrors native textarea scroll offsets into clipped highlight and line-number viewports without rebuilding DOM nodes or measuring line heights on scroll events. To benchmark scroll frame times in the native development webview:
 
 ```bash
+cd apps/srt-gui
 npm run tauri -- dev --config '{"build":{"devUrl":"http://localhost:5175/scripts/editor-scroll-benchmark.html"}}'
 ```
 
-This changes neither the checked-in window URL nor the normal app entry point.
-The fixture stubs its IPC calls and uses generated text. Native development
-measurements still need to be distinguished from an installed release and from
-OS CPU profiles; record renderer/GPU, display settings and document size with
-those results.
+Recorded reference baselines are stored in `docs/performance/editor-scroll-2026-10-23.json`, `docs/performance/editor-scroll-plain-textarea-2026-10-23.json`, and `docs/performance/accelerator-review-2026-11-02.json`.
 
-The fixture also runs a plain native textarea with the same text, font, height
-and wrapping. This isolates the extra highlight/gutter layers from the textarea
-scroll path. The [plain-textarea comparison](performance/editor-scroll-plain-textarea-2026-10-23.json)
-found approximately 5.7 ms median frames for both editors and the plain textarea,
-with no frames above 25 ms. This run used the same editor implementation on both
-sides: an experimental paint-containment change showed no measurable benefit and
-was reverted. It does not resolve or reproduce the reported native slowdown.
-Use the plain-textarea variant in the native fixture to determine whether the
-remaining cost belongs to editor layers or the underlying webview scrolling.
+---
 
-## Clipboard and context-menu regressions
+## 6. Release Smoke Matrix (Installed Builds)
 
-Desktop copy/paste uses Tauri's clipboard-manager text API; browser previews use
-`navigator.clipboard`. The native plugin has only read-text/write-text capability
-for the main window. Copy success is reported only after the operation succeeds;
-failed cuts preserve the source. Diagnostics record operation/backend/error type,
-never copied contents or backend error messages. Unit tests cover both backends
-and rejected writes. An installed-platform smoke check still needs repeated copy
-of a generated path, pasting into another application, and cut/paste in editable
-fields with the real OS clipboard; mocked IPC/browser tests cannot prove this.
+Automated unit and mocked-IPC tests do not certify native OS dialogs, file associations, WebKitGTK/GStreamer media decoding, physical GPU drivers, or authenticated cloud accounts. Before publishing a release, validate installed bundles on target platforms (Linux and Windows):
 
-Mounted menu tests cover readonly actions, selection copying and asynchronous
-clipboard results arriving after edits. The shared menu action measures translated
-content against the viewport, supports arrows/Home/End/Escape, skips disabled
-items and restores focus. Preview, episode, settings, sync and extraction menus
-use it; extraction also exposes Save for supported text subtitle tracks.
-
-The localization audit scans all 15 catalogs for missing/empty keys, accidental
-English copies and parameter mismatches. Its Svelte AST heuristic now also checks
-visible attributes and conditional text, which the text-node scan missed. The
-23 October review fixed hardcoded sidebar labels, preview text/tooltips, filter
-units and path titles, and removed ineffective `t(key) || literal` fallbacks.
-Catalogs contain 1,290 keys each, with no duplicate keys or replacement characters
-in this review. Structural checks and reviewed source literals do not certify
-native-speaker quality of every sentence in all languages.
-
-## Audio-only sync previews
-
-Video-container previews use mono 16 kHz PCM WAV to avoid video decoding and
-compressed-audio encoding. This increases cache use to about 115 MB per hour;
-the source is unchanged. Installed WebKit playback and authenticated provider
-checks still need a desktop smoke test.
-
-A local comparison on 2 November 2026 used the complete 7,593-second
-Good Will Hunting MP4, three sequential runs per codec with identical first-audio
-track selection. The previous Opus settings (`libopus`, 64k, compression level 0,
-48 kHz mono) took 9.863/10.236/12.907 s and produced 58,665,004 bytes. PCM
-(`pcm_s16le`, 16 kHz mono) took 3.375/3.386/3.633 s and produced 242,990,500
-bytes. These are FFmpeg preparation timings with a warm filesystem cache,
-measured during development checks, not controlled UI startup benchmarks or a
-promise of the same speedup on other machines. Outputs were temporary and removed.
-
-## Speech engine selection and external synchronization
-
-The Transcribe tab exposes both a persisted explicit speech engine and the
-configured priority chain. Sync has a separate explicit engine selection; an
-unavailable saved endpoint blocks starting rather than choosing a replacement.
-Both selectors consume the same configured STT endpoints. Transcribe also embeds
-the existing tier editor. Local VAD/quality controls are hidden for an explicitly
-selected external provider.
-
-`npm test` covers timestamp capability filtering, removed credentials, restoring
-an external selection without a local model, and selector listener cleanup.
-`cargo test --locked -p srt-sync -p srt-autosync -p srt-transcribe` covers real
-FFmpeg audio-only PCM preview generation/cache reuse, failed preview cleanup,
-external sync without a Whisper model, pending HTTP cancellation, and rejection
-of text-only responses for alignment. HTTP tests use loopback fixtures; they do
-not contact authenticated providers or establish their alignment accuracy.
-
-Auto-sync extracts strategic clips in parallel and sends external STT requests
-sequentially, bounding provider load.
-
-## GPU sessions during software fallback
-
-A failed hardware video attempt releases its GPU session before retrying the
-same clip on CPU. The general worker permit remains held, so fallback does not
-increase the configured FFmpeg concurrency or the three-session hardware limit.
-A Unix process fixture holds software retries until four hardware attempts have
-started. With four workers and three GPU sessions, the previous code times out;
-the corrected code completes all four clips. This fixture needs no physical GPU.
-Run `cargo test --locked -p srt-flashcards software_retries_release_gpu_sessions_for_pending_clips`.
-
-## Reuse encoder detection within one export
-
-Video preparation reuses the encoder already tested by the generator instead of
-running the same hardware probes twice. Standalone optimization still performs
-its own detection, CPU-only mode never probes hardware, and availability is not
-cached across separate exports. Existing preparation/clip software fallback and
-cancellation behavior remain in place. The process fixture
-`generation_probes_hardware_once_and_keeps_the_original_source` verifies probe
-count, original-source reuse and explicit CPU mode.
-
-## Accelerator review — 2 November 2026
-
-[Recorded measurements and reproduction protocol](performance/accelerator-review-2026-11-02.json)
-compare isolated baseline/candidate CLI binaries in three alternating pairs.
-The retained changes produced byte-identical media and identical note fields
-across six synthetic exports: 16 VA-API clips, 16 images and 16 audio files each.
-Median export time was 1.064 s before and 0.968 s after. Encoder probe processes
-fell from four to two on this host (failed NVENC then successful VA-API, once
-instead of twice). This primarily removes startup overhead; it is not evidence
-of a uniform 9% full-film speedup.
-
-A broader candidate that acquired the hardware semaphore before the general
-worker semaphore was rejected: on 24 mixed-media film cards, medians were
-9.506 s before and 10.117 s after, despite all media/note comparisons passing.
-The shipped scheduler retains the previous acquisition order and changes only
-the lifetime of the hardware permit during software retry.
-
-Forcing one decoder thread per snapshot was also rejected: the first measured
-sample went from a median 0.939 s to 1.182 s. Other thread budgets sometimes
-improved that file but do not justify a global default change across codecs,
-hardware, image formats and worker counts. Existing snapshot batching, local
-Whisper GPU support, video hardware detection and CPU fallbacks remain enabled.
-Cloud STT request counts/concurrency are unchanged; parallelizing billable
-requests without provider-specific rate/budget handling was not added.
-
-These are debug CLI diagnostics on one Linux/AMD machine. Filesystem cache was
-not controlled. GPU-driver/platform coverage and installed desktop behavior
-remain separate from the passing process fixtures, export comparisons and full
-quality gate. No general absence of regressions is implied.
-
-## Speech-engine popup layering
-
-The speech selector portals its opaque menu to the document body so sibling
-backdrop-filter cards cannot cover it. Disabling or hiding its owning tab closes
-the menu and releases portal listeners. Mounted tests cover portal positioning,
-selection, cleanup, disabled-state closure and saved endpoint invalidation.
-The Transcribe engine selector and tier configuration now live inside Options;
-the endpoint-upload hint remains available as a tooltip.
-
-## Document undo/redo shortcuts
-
-The bounded snapshot history groups typing bursts, restores redo states, ends a
-burst at explicit operations and discards redo after a new edit. Shared shortcut
-resolution reads user bindings at dispatch time. Defaults use Ctrl/Cmd+Z and
-Ctrl/Cmd+Shift+Z; Ctrl/Cmd+Y is an alias while redo keeps its default binding.
-Native editable fields keep their own text undo. Undo/redo actions are listed in
-the shortcuts tab for their document scope.
-
-## Checkpoint agreement instead of synthetic confidence
-
-Sync status displays the spread between anchor offsets in seconds, with no score
-when fewer than two anchors exist. It does not estimate match probability from
-anchor count. Wizard checkpoints are bounded for short files and include the
-end of the subtitle file. Completion copy distinguishes a finished checkpoint
-review from verification of every subtitle. Tests cover four zero-offset
-anchors, short-file bounds and status rendering.
-
-## Authoritative synchronization history
-
-`SyncEngine` keeps up to 100 anchor-edit snapshots, including the complete mapper
-and checked checkpoints. Add/update/delete operations are reversible; deleting
-an anchor also unchecks its checkpoint. No-op edits preserve redo, new edits
-clear it, and a grouped multi-anchor operation is one undo step. Loading a new
-engine/session starts a fresh history without reparsing the source on each undo.
-Engine tests cover out-of-order edits, replacement, deletion, restored mapping,
-branching, grouping, bounds and session isolation.
-
-The desktop exposes backend `sync_undo`/`sync_redo` with idle-operation guards;
-auto-sync replacement is one grouped edit preserving manual anchors. The Sync
-UI refreshes status, anchors, checkpoint and page after history changes. Removal
-is a separate, keyboard-operable button and a context-menu action. Mounted tests
-verify dispatch to real history commands rather than guessing which anchor to
-remove, disabled/busy states and native input undo. Native command tests verify
-that an active operation blocks history mutations.
-
-## Alignment pair history
-
-Annotate/Align snapshots include both subtitle sides and their paths. Swapping
-files is a reversible edit; loading either new side clears the prior document
-history. Undo/redo restores the saved-state comparison and leaves focused
-textarea text undo to the native control. Mounted tests cover swap, redo,
-new-document isolation and native editable focus.
-
-## Review note history
-
-Review keeps notes-only snapshots keyed by stable card IDs. Manual typing is
-coalesced; a single AI replacement captures one edit, and a batch captures once
-before its first changed result so partial results can be undone after stopping.
-Document history is blocked while processing/saving; native editor undo is not
-intercepted. New-file loads clear history, while saving updates the saved baseline
-without discarding it. Mounted tests cover edit/undo/redo/save, native editor
-shortcuts and inactive tabs; helper tests cover notes-only and document isolation.
-
-Flashcard preview activation edits also support redo. Undo/redo stays within the
-active preview dialog, leaves editable fields alone, clears redo after new
-activation edits and resets both stacks on a successful new preview load.
-
-Sync's coverage bar is labeled "Subtitles checked" and reports the checked count
-alongside the total and percentage. This is independent of completing the wizard's
-sample review or having consistent offsets at a few anchors.
-
-The textarea review found no new measured editor-scroll bottleneck in this
-change. Existing CodeEditor/plain-textarea comparisons remain the evidence;
-they do not reproduce the reported native slowdown. No speculative scroll/CSS
-optimization was applied. Reproduce the specific field in the installed native
-WebView and collect a profile before claiming that report resolved.
+1. **First-run setup and persistence**: Complete onboarding, restart twice, and verify that language, media, and export defaults persist. Verify that unreadable or corrupt configuration files surface an error instead of silently resetting user data (see [`SETUP_TESTING.md`](SETUP_TESTING.md)).
+2. **Flashcard export and Anki import**: Generate audio + snapshots, TSV, APKG, video clips, and a multi-episode merged APKG. Import into Anki and verify audio/video playback, snapshots, and word lookup links.
+3. **Embedded subtitle extraction**: List and extract embedded text tracks with language/title metadata; confirm bitmap tracks (PGS/VobSub) are marked as requiring OCR.
+4. **Media preview and sync**: Preview audio and video containers (verifying 16 kHz mono PCM WAV preparation and cache reuse), test byte-range seeking, run manual anchor retiming with undo/redo, and run Whisper-assisted Auto-Sync.
+5. **Local and cloud transcription**: Run local Whisper on CPU and GPU (verifying CPU fallback when GPU is disabled or unavailable), test interrupted model downloads, and test cloud STT providers with cancellation.
+6. **Translation and deck annotation**: Run multi-tier LLM translation and `.apkg`/`.tsv` refinement, testing rate-limit failover, checkpoint resume, and cancellation.
+7. **System integration and updater**: Verify opening output files/folders in the system file manager, `.apkg` association with Anki, and the in-app updater flow on supported package formats (Windows `.exe`, Linux `.deb` and `.rpm`).
