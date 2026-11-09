@@ -302,53 +302,6 @@ Every widget supports \`id\`, \`hidden\`, \`expertOnly\` (auto-hidden when Exper
     return [];
   }
 
-  function getSharedCredentials(manifest?: PluginManifest | null): Array<{ id: string; label?: string }> {
-    if (!manifest) return [];
-    const creds: Array<{ id: string; label?: string }> = [];
-    const seen = new Set<string>();
-
-    const addCred = (id: string, label?: string) => {
-      const clean = id?.trim();
-      if (clean && !seen.has(clean)) {
-        seen.add(clean);
-        creds.push({ id: clean, label: label?.trim() || undefined });
-      }
-    };
-
-    if (Array.isArray(manifest.sharedCredentials)) {
-      for (const item of manifest.sharedCredentials) {
-        if (typeof item === "string") {
-          addCred(item);
-        } else if (item && typeof item === "object" && (item as any).id) {
-          addCred((item as any).id, (item as any).label);
-        }
-      }
-    }
-
-    const p = manifest.permissions;
-    if (Array.isArray(p)) {
-      for (const item of p) {
-        if (typeof item === "string") {
-          for (const prefix of ["sharedCredential:", "shared_credential:", "sharedCredentials:", "shared:"]) {
-            if (item.startsWith(prefix)) {
-              addCred(item.slice(prefix.length));
-              break;
-            }
-          }
-        }
-      }
-    } else if (p && typeof p === "object" && Array.isArray((p as any).sharedCredentials)) {
-      for (const item of (p as any).sharedCredentials) {
-        if (typeof item === "string") {
-          addCred(item);
-        } else if (item && typeof item === "object" && (item as any).id) {
-          addCred((item as any).id, (item as any).label);
-        }
-      }
-    }
-
-    return creds;
-  }
 
   function formatDate(iso?: string | null): string {
     if (!iso) return "—";
@@ -504,7 +457,7 @@ Every widget supports \`id\`, \`hidden\`, \`expertOnly\` (auto-hidden when Exper
         <!-- Permission confirmation inspect banner/modal -->
         {#if inspectResult}
           {@const scopes = getPermissionScopes(inspectResult.manifest.permissions)}
-          {@const sharedCreds = getSharedCredentials(inspectResult.manifest)}
+
           <div class="mt-2 p-5 rounded-xl border border-amber-500/30 bg-amber-500/10 flex flex-col gap-4 animate-in fade-in duration-150">
             <div class="flex items-start justify-between">
               <div class="flex items-center gap-3.5 min-w-0">
@@ -546,7 +499,7 @@ Every widget supports \`id\`, \`hidden\`, \`expertOnly\` (auto-hidden when Exper
             <!-- Permissions list -->
             <div class="flex flex-col gap-1.5">
               <span class="text-xs font-semibold text-amber-300 uppercase tracking-wider">{t("plugins.requestedPermissions")}:</span>
-              {#if scopes.length === 0 && sharedCreds.length === 0}
+              {#if scopes.length === 0}
                 <span class="text-xs text-gray-400 italic">{t("plugins.noPermissions")}</span>
               {:else}
                 <div class="flex flex-wrap gap-2 pt-1">
@@ -556,12 +509,7 @@ Every widget supports \`id\`, \`hidden\`, \`expertOnly\` (auto-hidden when Exper
                       {formatPermission(perm)}
                     </span>
                   {/each}
-                  {#each sharedCreds as cred}
-                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-cyan-400/20 text-cyan-200 border border-cyan-400/30">
-                      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>
-                      {t("plugins.sharedCredential")} · {cred.id}{cred.label ? ` (${cred.label})` : ""}
-                    </span>
-                  {/each}
+
                 </div>
               {/if}
             </div>
@@ -957,7 +905,7 @@ Every widget supports \`id\`, \`hidden\`, \`expertOnly\` (auto-hidden when Exper
   <!-- Extended Plugin Info Modal -->
   {#if showInfoModal && infoTarget}
     {@const scopes = getPermissionScopes(infoTarget.manifest.permissions)}
-    {@const sharedCreds = getSharedCredentials(infoTarget.manifest)}
+
     <!-- svelte-ignore a11y_click_events_have_key_events -->
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div
@@ -1065,7 +1013,7 @@ Every widget supports \`id\`, \`hidden\`, \`expertOnly\` (auto-hidden when Exper
           <!-- Permissions Section -->
           <div class="flex flex-col gap-2">
             <span class="text-xs font-semibold text-gray-400 uppercase tracking-wider">{t("plugins.requestedPermissions")}</span>
-            {#if scopes.length === 0 && sharedCreds.length === 0}
+            {#if scopes.length === 0}
               <span class="text-xs text-gray-500 italic">{t("plugins.noPermissions")}</span>
             {:else}
               <div class="flex flex-wrap gap-2">
@@ -1075,12 +1023,7 @@ Every widget supports \`id\`, \`hidden\`, \`expertOnly\` (auto-hidden when Exper
                     {formatPermission(perm)}
                   </span>
                 {/each}
-                {#each sharedCreds as cred}
-                  <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-cyan-400/15 text-cyan-300 border border-cyan-400/25">
-                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>
-                    {t("plugins.sharedCredential")} · {cred.id}{cred.label ? ` (${cred.label})` : ""}
-                  </span>
-                {/each}
+
               </div>
             {/if}
           </div>

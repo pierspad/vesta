@@ -220,7 +220,7 @@ it("opens Info modal with metadata, README markdown, and requested permissions",
   expect(target.textContent).toContain("https://github.com/example/demo");
   expect(target.textContent).toContain("Network Access");
   expect(target.textContent).toContain("Downloads Folder Access");
-  expect(target.textContent).toContain("Shared credential · tmdb_api_key (TMDB API Key)");
+  expect(target.textContent).not.toContain("tmdb_api_key");
   expect(target.textContent).toContain("Detailed information about Demo Plugin.");
 });
 

@@ -397,40 +397,6 @@ impl PluginManager {
         Ok(())
     }
 
-    async fn process_returned_shared_credentials(
-        &self,
-        manifest: &PluginManifest,
-        res: &serde_json::Value,
-    ) -> Result<(), String> {
-        let set_obj = res
-            .get("setSharedCredentials")
-            .or_else(|| res.get("root").and_then(|r| r.get("setSharedCredentials")));
-        let Some(serde_json::Value::Object(map)) = set_obj else {
-            return Ok(());
-        };
-
-        let allowed = manifest.requested_shared_credentials();
-        let mut reg = self.registry.lock().await;
-        let mut updated = reg.clone();
-        for (key, value) in map {
-            if !allowed.contains(key) {
-                continue;
-            }
-            if let Some(value) = value.as_str() {
-                let value = (!value.trim().is_empty()).then(|| value.to_owned());
-                updated.set_shared_credential(key.clone(), value);
-            } else if value.is_null() {
-                updated.set_shared_credential(key.clone(), None);
-            }
-        }
-
-        if updated.shared_credentials != reg.shared_credentials {
-            updated.save_shared_credentials(&self.registry_file)?;
-            reg.shared_credentials = updated.shared_credentials;
-        }
-        Ok(())
-    }
-
     /// Renders a screen in a plugin.
     pub async fn render(
         &self,
@@ -441,7 +407,7 @@ impl PluginManager {
         locale: &str,
         expert_mode: bool,
     ) -> Result<serde_json::Value, String> {
-        let (manifest, settings, shared_creds) = {
+        let (manifest, settings) = {
             let reg = self.registry.lock().await;
             let plugin = reg
                 .get(plugin_id)
@@ -449,11 +415,10 @@ impl PluginManager {
             if !plugin.enabled {
                 return Err(format!("Plugin '{plugin_id}' is currently disabled"));
             }
-            let allowed = plugin.manifest.requested_shared_credentials();
-            let creds = reg.get_shared_credentials(&allowed);
-            (plugin.manifest.clone(), plugin.settings.clone(), creds)
+            (plugin.manifest.clone(), plugin.settings.clone())
         };
 
+        let shared_creds = std::collections::BTreeMap::new();
         let plugin_dir = self.plugins_dir().join(plugin_id);
         if !plugin_dir.exists() {
             return Err(format!(
@@ -480,8 +445,6 @@ impl PluginManager {
             .render(&process, screen, params, locale, expert_mode, &shared_creds)
             .await?;
 
-        self.process_returned_shared_credentials(&manifest, &res)
-            .await?;
         Ok(res)
     }
 
@@ -494,7 +457,7 @@ impl PluginManager {
         locale: &str,
         expert_mode: bool,
     ) -> Result<serde_json::Value, String> {
-        let (manifest, settings, shared_creds) = {
+        let (manifest, settings) = {
             let reg = self.registry.lock().await;
             let plugin = reg
                 .get(plugin_id)
@@ -502,11 +465,10 @@ impl PluginManager {
             if !plugin.enabled {
                 return Err(format!("Plugin '{plugin_id}' is currently disabled"));
             }
-            let allowed = plugin.manifest.requested_shared_credentials();
-            let creds = reg.get_shared_credentials(&allowed);
-            (plugin.manifest.clone(), plugin.settings.clone(), creds)
+            (plugin.manifest.clone(), plugin.settings.clone())
         };
 
+        let shared_creds = std::collections::BTreeMap::new();
         let plugin_dir = self.plugins_dir().join(plugin_id);
         let process = self
             .runtime
@@ -537,8 +499,6 @@ impl PluginManager {
             )
             .await?;
 
-        self.process_returned_shared_credentials(&manifest, &res)
-            .await?;
         Ok(res)
     }
 }

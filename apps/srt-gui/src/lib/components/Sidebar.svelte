@@ -580,7 +580,7 @@
         class="relative flex min-h-11 items-center gap-3 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-sm font-semibold text-gray-300 transition-colors hover:border-indigo-400/30 hover:bg-indigo-500/10 hover:text-indigo-200 focus-visible:outline-2 focus-visible:outline-indigo-400 {collapsed ? 'justify-center' : ''}">
         <svg class="h-5 w-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4 4h16v12l-4 4H8l-4-4V4zm0 10h5l2 3h2l2-3h5" /></svg>
         {#if !collapsed}<span>{t("notifications.title")}</span>{/if}
-        {#if inboxUnread}<span class="absolute right-2 top-2 h-2 w-2 rounded-full {needsLlmDot ? 'bg-amber-400' : 'bg-indigo-400'} ring-2 ring-gray-900"><span class="sr-only">{t("notifications.unread")}</span></span>{/if}
+        {#if inboxUnread}<span class="absolute right-2 top-2 h-2 w-2 rounded-full {hasSettingsActionNotification && !settingsNotificationRead ? 'bg-amber-400' : 'bg-indigo-400'} ring-2 ring-gray-900"><span class="sr-only">{t("notifications.unread")}</span></span>{/if}
       </button>
       {#if supportLogStore.recording}
         <button type="button" onclick={() => { settingsSection = "diagnostics"; onTabChange("settings"); }} class="rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-xs text-rose-300 flex items-center justify-center gap-2" title={supportLogStore.path || t("supportLogs.recording")} aria-label={t("supportLogs.recording")}>
