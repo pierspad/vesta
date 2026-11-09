@@ -594,15 +594,8 @@ Every widget supports \`id\`, \`hidden\`, \`expertOnly\` (auto-hidden when Exper
         {:else}
           <div class="grid grid-cols-1 gap-4">
             {#each filteredPlugins as plugin (plugin.id)}
-              <!-- svelte-ignore a11y_click_events_have_key_events -->
-              <!-- svelte-ignore a11y_no_static_element_interactions -->
               <div
-                class="p-5 rounded-2xl border border-white/10 bg-white/[0.03] hover:border-white/20 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4 cursor-pointer"
-                onclick={(e) => {
-                  const target = e.target as HTMLElement;
-                  if (target.closest("button") || target.closest("a") || target.closest("input")) return;
-                  if (plugin.enabled) handleOpenPlugin(plugin);
-                }}
+                class="p-5 rounded-2xl border border-white/10 bg-white/[0.03] transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-4 {plugin.enabled ? 'hover:border-white/20' : ''}"
                 oncontextmenu={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
@@ -610,7 +603,14 @@ Every widget supports \`id\`, \`hidden\`, \`expertOnly\` (auto-hidden when Exper
                   contextMenuPos = { x: e.clientX, y: e.clientY };
                 }}
               >
-                <div class="flex items-start gap-4 min-w-0 flex-1">
+                <div class="relative flex items-start gap-4 min-w-0 flex-1 {plugin.enabled ? '' : 'grayscale opacity-65'}">
+                  {#if plugin.enabled}
+                    <button type="button"
+                      class="absolute inset-0 rounded-xl cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-4"
+                      aria-label={`${t("plugins.open")} · ${plugin.name}`}
+                      onclick={() => handleOpenPlugin(plugin)}
+                    ></button>
+                  {/if}
                   <div class="w-12 h-12 rounded-xl flex items-center justify-center shrink-0 border overflow-hidden {plugin.enabled ? 'bg-indigo-500/10 border-indigo-500/30 text-indigo-400' : 'bg-white/5 border-white/10 text-gray-500'}">
                     {#if getPluginImageSrc(plugin.manifest, plugin.iconUrl)}
                       <img src={getPluginImageSrc(plugin.manifest, plugin.iconUrl)} alt="" class="w-full h-full object-contain rounded-lg" />
@@ -686,7 +686,8 @@ Every widget supports \`id\`, \`hidden\`, \`expertOnly\` (auto-hidden when Exper
                     <!-- Update (icon-only, emerald) -->
                     <button
                       type="button"
-                      class="w-7 h-7 text-emerald-400 border border-emerald-500/25 bg-emerald-500/10 hover:bg-emerald-500/20 inline-flex items-center justify-center rounded-lg transition-colors cursor-pointer"
+                      class="w-7 h-7 text-emerald-400 border border-emerald-500/25 bg-emerald-500/10 hover:bg-emerald-500/20 inline-flex items-center justify-center rounded-lg transition-colors cursor-pointer disabled:grayscale disabled:opacity-50 disabled:cursor-not-allowed"
+                      disabled={!plugin.enabled}
                       onclick={() => handleUpdate(plugin)}
                       title={t("plugins.update")}
                       aria-label={t("plugins.update")}
@@ -697,7 +698,8 @@ Every widget supports \`id\`, \`hidden\`, \`expertOnly\` (auto-hidden when Exper
                     <!-- Details (i) (icon-only, sky blue) -->
                     <button
                       type="button"
-                      class="w-7 h-7 text-sky-400 border border-sky-500/25 bg-sky-500/10 hover:bg-sky-500/20 inline-flex items-center justify-center rounded-lg transition-colors cursor-pointer"
+                      class="w-7 h-7 text-sky-400 border border-sky-500/25 bg-sky-500/10 hover:bg-sky-500/20 inline-flex items-center justify-center rounded-lg transition-colors cursor-pointer disabled:grayscale disabled:opacity-50 disabled:cursor-not-allowed"
+                      disabled={!plugin.enabled}
                       onclick={() => openInfoModal(plugin)}
                       title={t("plugins.info")}
                       aria-label={t("plugins.info")}
@@ -710,7 +712,8 @@ Every widget supports \`id\`, \`hidden\`, \`expertOnly\` (auto-hidden when Exper
                     <!-- Settings (icon-only, slate) -->
                     <button
                       type="button"
-                      class="w-7 h-7 text-gray-300 border border-white/15 bg-white/5 hover:bg-white/10 inline-flex items-center justify-center rounded-lg transition-colors cursor-pointer"
+                      class="w-7 h-7 text-gray-300 border border-white/15 bg-white/5 hover:bg-white/10 inline-flex items-center justify-center rounded-lg transition-colors cursor-pointer disabled:grayscale disabled:opacity-50 disabled:cursor-not-allowed"
+                      disabled={!plugin.enabled}
                       onclick={() => openSettings(plugin)}
                       title={t("common.settings")}
                       aria-label={t("common.settings")}
@@ -850,7 +853,8 @@ Every widget supports \`id\`, \`hidden\`, \`expertOnly\` (auto-hidden when Exper
         {/if}
         <button
           type="button"
-          class="w-full text-left px-3 py-2 rounded-lg text-gray-200 hover:bg-white/10 hover:text-white flex items-center gap-2 cursor-pointer"
+          class="w-full text-left px-3 py-2 rounded-lg text-gray-200 hover:bg-white/10 hover:text-white flex items-center gap-2 cursor-pointer disabled:grayscale disabled:opacity-50 disabled:cursor-not-allowed"
+          disabled={!contextMenuPlugin.enabled}
           onclick={() => { const p = contextMenuPlugin!; openInfoModal(p); }}
         >
           <svg class="w-4 h-4 text-sky-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
@@ -859,8 +863,9 @@ Every widget supports \`id\`, \`hidden\`, \`expertOnly\` (auto-hidden when Exper
         {#if contextMenuPlugin.manifest.settings && contextMenuPlugin.manifest.settings.length > 0}
           <button
             type="button"
-            class="w-full text-left px-3 py-2 rounded-lg text-gray-200 hover:bg-white/10 hover:text-white flex items-center gap-2 cursor-pointer"
-            onclick={() => { const p = contextMenuPlugin!; openSettings(p); }}
+            class="w-full text-left px-3 py-2 rounded-lg text-gray-200 hover:bg-white/10 hover:text-white flex items-center gap-2 cursor-pointer disabled:grayscale disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={!contextMenuPlugin.enabled}
+          onclick={() => { const p = contextMenuPlugin!; openSettings(p); }}
           >
             <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
             {t("common.settings")}
@@ -868,7 +873,8 @@ Every widget supports \`id\`, \`hidden\`, \`expertOnly\` (auto-hidden when Exper
         {/if}
         <button
           type="button"
-          class="w-full text-left px-3 py-2 rounded-lg text-gray-200 hover:bg-white/10 hover:text-white flex items-center gap-2 cursor-pointer"
+          class="w-full text-left px-3 py-2 rounded-lg text-gray-200 hover:bg-white/10 hover:text-white flex items-center gap-2 cursor-pointer disabled:grayscale disabled:opacity-50 disabled:cursor-not-allowed"
+          disabled={!contextMenuPlugin.enabled}
           onclick={() => { const p = contextMenuPlugin!; handleUpdate(p); }}
         >
           <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
