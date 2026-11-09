@@ -358,6 +358,7 @@ pub fn run_local(
         webrtc_vad,
         segment_callback: Some(Arc::new(segment_callback)),
         token_callback: None,
+        ..TranscribeOptions::default()
     };
 
     let (raw_segments, detected_language) =

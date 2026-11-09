@@ -7,7 +7,9 @@ use serde::{Deserialize, Serialize};
 use tokio_util::sync::CancellationToken;
 
 use srt_transcribe::audio::{extract_wav_segment, read_wav_to_f32};
-use srt_transcribe::transcribe::{TranscribeOptions, TranscribedSegment, transcribe_full};
+use srt_transcribe::transcribe::{
+    TranscribeOptions, TranscribedSegment, transcribe_full_with_state,
+};
 
 pub mod consensus;
 pub mod matching;
@@ -417,13 +419,13 @@ fn calculate_guided_sample_positions(
             let target_orig_ms = prior.expected_orig_time(target_ms).unwrap_or(target_ms);
 
             let near_idx = subtitles.partition_point(|s| s.start_ms < target_orig_ms);
-            let candidate_sub = if near_idx < subtitles.len() {
-                Some(&subtitles[near_idx])
-            } else if !subtitles.is_empty() {
-                Some(&subtitles[subtitles.len() - 1])
-            } else {
-                None
-            };
+            let candidate_sub = select_dialogue_dense_subtitle(
+                subtitles,
+                near_idx,
+                target_orig_ms,
+                (step * 400.0) as i64,
+                (segment_duration * 1000.0) as i64,
+            );
 
             let pos = if let Some(sub) = candidate_sub {
                 let sub_target_ms = prior
@@ -473,11 +475,14 @@ fn calculate_unconstrained_sample_positions(
                 let target_time = first_sub_sec + (step * i as f64);
                 let target_ms = (target_time * 1000.0) as i64;
                 let near_idx = subtitles.partition_point(|s| s.start_ms < target_ms);
-                let best_sub = if near_idx < subtitles.len() {
-                    &subtitles[near_idx]
-                } else {
-                    &subtitles[subtitles.len() - 1]
-                };
+                let best_sub = select_dialogue_dense_subtitle(
+                    subtitles,
+                    near_idx,
+                    target_ms,
+                    (step * 400.0) as i64,
+                    (segment_duration * 1000.0) as i64,
+                )
+                .unwrap_or_else(|| &subtitles[subtitles.len() - 1]);
 
                 let pos = ((best_sub.start_ms as f64 / 1000.0) - 2.0)
                     .clamp(0.0, (duration_sec - segment_duration).max(0.0));
@@ -503,6 +508,58 @@ fn calculate_unconstrained_sample_positions(
     positions.sort_by(|a, b| a.partial_cmp(b).unwrap());
     positions.dedup_by(|a, b| (*a - *b).abs() < segment_duration * 0.7);
     positions
+}
+
+/// Selects a subtitle cue near `target_ms` (within `search_radius_ms`) whose window of
+/// `window_ms` contains high multi-word dialogue density, avoiding single-word interjections
+/// or pure SDH sound tags at the window onset.
+fn select_dialogue_dense_subtitle(
+    subtitles: &[SubtitleLine],
+    near_idx: usize,
+    target_ms: i64,
+    search_radius_ms: i64,
+    window_ms: i64,
+) -> Option<&SubtitleLine> {
+    if subtitles.is_empty() {
+        return None;
+    }
+    let fallback_idx = near_idx.min(subtitles.len() - 1);
+    let radius = search_radius_ms.clamp(5_000, 30_000);
+    let start_idx = subtitles.partition_point(|s| s.start_ms < target_ms - radius);
+    let end_idx = subtitles.partition_point(|s| s.start_ms <= target_ms + radius);
+    if start_idx >= end_idx {
+        return Some(&subtitles[fallback_idx]);
+    }
+
+    let mut best_idx = fallback_idx;
+    let mut best_score = i64::MIN;
+    for cand_idx in start_idx..end_idx {
+        let cand = &subtitles[cand_idx];
+        let onset_tokens = CleanText::new(&cand.text).tokens.len() as i64;
+        if onset_tokens < 2 {
+            continue;
+        }
+        let window_end = cand.start_ms + window_ms;
+        let mut window_tokens = 0i64;
+        let mut multiword_cues = 0i64;
+        for sub in &subtitles[cand_idx..] {
+            if sub.start_ms > window_end {
+                break;
+            }
+            let len = CleanText::new(&sub.text).tokens.len() as i64;
+            if len >= 2 {
+                window_tokens += len.min(12);
+                multiword_cues += 1;
+            }
+        }
+        let dist_penalty = (cand.start_ms - target_ms).abs() / 2_000;
+        let score = onset_tokens.min(8) * 4 + window_tokens + multiword_cues * 3 - dist_penalty;
+        if score > best_score {
+            best_score = score;
+            best_idx = cand_idx;
+        }
+    }
+    Some(&subtitles[best_idx])
 }
 
 pub async fn run_auto_sync(
@@ -729,13 +786,15 @@ pub async fn run_auto_sync_with_cloud(
         move || -> Result<(Vec<MatchCandidate>, usize, bool), String> {
             let mut all_matches: Vec<MatchCandidate> = Vec::new();
 
-            let ctx = if is_cloud {
+            let mut whisper_state = if is_cloud {
                 None
             } else {
-                Some(
-                    load_whisper_context_with_gpu(&model_path_str, use_gpu)
-                        .map_err(|e| format!("Failed to load Whisper model: {e:?}"))?,
-                )
+                let ctx = load_whisper_context_with_gpu(&model_path_str, use_gpu)
+                    .map_err(|e| format!("Failed to load Whisper model: {e:?}"))?;
+                let state = ctx
+                    .create_state()
+                    .map_err(|e| format!("Failed to create Whisper state: {e:?}"))?;
+                Some((ctx, state))
             };
 
             let subtitle_index = SubtitleIndex::build(&subtitles);
@@ -797,6 +856,11 @@ pub async fn run_auto_sync_with_cloud(
                         srt_transcribe::transcribe::default_n_threads()
                     }),
                     word_timestamps: true,
+                    webrtc_vad: true,
+                    no_context: true,
+                    single_temperature: true,
+                    suppress_nst: true,
+                    split_on_word: true,
                     max_segment_length: None,
                     segment_callback: None,
                     token_callback: Some(Arc::new(move |start, tokens| {
@@ -805,8 +869,13 @@ pub async fn run_auto_sync_with_cloud(
                     ..TranscribeOptions::default()
                 };
 
-                let transcribed = if let Some(ctx) = &ctx {
-                    match transcribe_full(ctx, &prep.audio_data, &options, Some(&token_clone)) {
+                let transcribed = if let Some((_, state)) = &mut whisper_state {
+                    match transcribe_full_with_state(
+                        state,
+                        &prep.audio_data,
+                        &options,
+                        Some(&token_clone),
+                    ) {
                         Ok((segments, _)) => segments,
                         Err(e) => {
                             eprintln!("[auto-sync] Segment {} transcription failed: {e}", prep.idx);
@@ -1071,6 +1140,36 @@ mod tests {
             late_samples >= 1,
             "Expected samples after last anchor, got {late_samples}"
         );
+    }
+
+    #[test]
+    fn select_dialogue_dense_subtitle_skips_single_word_or_sdh_cues() {
+        let subtitles = vec![
+            SubtitleLine {
+                id: 1,
+                start_ms: 98_000,
+                text: "[Music]".into(),
+            },
+            SubtitleLine {
+                id: 2,
+                start_ms: 100_000,
+                text: "Huh?".into(),
+            },
+            SubtitleLine {
+                id: 3,
+                start_ms: 103_000,
+                text: "We need to get out of this building right now.".into(),
+            },
+            SubtitleLine {
+                id: 4,
+                start_ms: 107_000,
+                text: "Follow me through the back corridor before they lock it.".into(),
+            },
+        ];
+        let near_idx = subtitles.partition_point(|s| s.start_ms < 100_000);
+        let chosen =
+            select_dialogue_dense_subtitle(&subtitles, near_idx, 100_000, 10_000, 20_000).unwrap();
+        assert_eq!(chosen.id, 3);
     }
 }
 

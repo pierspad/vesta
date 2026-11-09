@@ -14,12 +14,14 @@ primitives to a complete, GUI-agnostic **media → SRT pipeline**
   (`list_vad_models`, `download_vad_model`, `vad_model_installed`, `vad_model_path`, `uninstall_vad_model`)
 - `audio` — FFmpeg helpers: `convert_to_wav`, `extract_wav_segment`,
   `segment_to_wav_chunks`, `read_wav_to_f32`
-- `transcribe` — `whisper.cpp` via `whisper-rs`: `transcribe_full` (greedy or
-  beam-search decoding, threads defaulting to physical cores capped at eight;
-  when a VAD model is configured, it runs Silero through `whisper.cpp`'s standalone
-  VAD API (`vad_speech_spans_ms`) and transcribes only detected speech spans with
-  timestamps mapped back to the original timeline), plus `text_similarity` and
-  `normalize_text` (`NormalizedText`)
+- `transcribe` — `whisper.cpp` via `whisper-rs`: `transcribe_full` and
+  `transcribe_full_with_state` (greedy or beam-search decoding, threads
+  defaulting to physical cores capped at eight; supports `webrtc_vad`,
+  `no_context`, `single_temperature`, `suppress_nst`, and `split_on_word` in
+  `TranscribeOptions`; when a VAD model is configured, it runs Silero through
+  `whisper.cpp`'s standalone VAD API (`vad_speech_spans_ms`) and transcribes only
+  detected speech spans with timestamps mapped back to the original timeline),
+  plus `text_similarity` and `normalize_text` (`NormalizedText`)
 - `cloud` — chunked uploads (`transcribe_cloud`, `transcribe_timed_chunk`) to
   Groq, OpenAI, Deepgram, AssemblyAI, and custom OpenAI-compatible endpoints
 - `pipeline` — full orchestration: model verification/download → WAV conversion →

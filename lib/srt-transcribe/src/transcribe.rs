@@ -37,6 +37,14 @@ pub struct TranscribeOptions {
     pub vad_model_path: Option<std::path::PathBuf>,
     pub segment_callback: Option<SegmentCallback>,
     pub token_callback: Option<TokenCallback>,
+    /// Disables feeding previous decoder tokens as context across independent audio clips.
+    pub no_context: bool,
+    /// Disables Whisper's multi-temperature fallback loop (`temperature_inc = 0.0`).
+    pub single_temperature: bool,
+    /// Suppresses non-speech tokens (music notes, sound-effect tags).
+    pub suppress_nst: bool,
+    /// Splits segments on word boundaries when `max_segment_length` or token timestamps are active.
+    pub split_on_word: bool,
 }
 
 impl std::fmt::Debug for TranscribeOptions {
@@ -54,6 +62,10 @@ impl std::fmt::Debug for TranscribeOptions {
                 "segment_callback",
                 &self.segment_callback.as_ref().map(|_| "Some(Fn)"),
             )
+            .field("no_context", &self.no_context)
+            .field("single_temperature", &self.single_temperature)
+            .field("suppress_nst", &self.suppress_nst)
+            .field("split_on_word", &self.split_on_word)
             .finish()
     }
 }
@@ -71,6 +83,10 @@ impl Clone for TranscribeOptions {
             vad_model_path: self.vad_model_path.clone(),
             segment_callback: self.segment_callback.clone(),
             token_callback: self.token_callback.clone(),
+            no_context: self.no_context,
+            single_temperature: self.single_temperature,
+            suppress_nst: self.suppress_nst,
+            split_on_word: self.split_on_word,
         }
     }
 }
@@ -93,13 +109,23 @@ pub fn transcribe_full(
     let mut state = ctx
         .create_state()
         .map_err(|e| anyhow::anyhow!("Failed to create Whisper state: {:?}", e))?;
+    transcribe_full_with_state(&mut state, audio_data, options, cancel_token)
+}
 
+/// Runs full transcription using a caller-owned [`whisper_rs::WhisperState`],
+/// avoiding repeated KV-cache and compute-buffer allocations across multiple clips.
+pub fn transcribe_full_with_state(
+    state: &mut whisper_rs::WhisperState,
+    audio_data: &[f32],
+    options: &TranscribeOptions,
+    cancel_token: Option<&CancellationToken>,
+) -> Result<(Vec<TranscribedSegment>, Option<String>)> {
     let spans = if options.webrtc_vad {
         crate::webrtc::speech_spans(audio_data, VAD_PAD_MS, VAD_MERGE_GAP_MS, cancel_token)?
     } else if let Some(ref path) = options.vad_model_path {
         vad_speech_spans(path, audio_data, options)?
     } else {
-        return transcribe_span(&mut state, audio_data, options, 0, cancel_token);
+        return transcribe_span(state, audio_data, options, 0, cancel_token);
     };
     let mut segments = Vec::new();
     let mut detected_language = None;
@@ -113,7 +139,7 @@ pub fn transcribe_full(
 
         let offset_ms = (span.start / (SAMPLE_RATE / 1000)) as i64;
         let (mut span_segments, span_language) = transcribe_span(
-            &mut state,
+            state,
             &audio_data[span],
             options,
             offset_ms,
@@ -174,6 +200,18 @@ fn transcribe_span(
     params.set_print_special(false);
     params.set_print_timestamps(false);
     params.set_token_timestamps(options.word_timestamps);
+    if options.no_context {
+        params.set_no_context(true);
+    }
+    if options.single_temperature {
+        params.set_temperature_inc(0.0);
+    }
+    if options.suppress_nst {
+        params.set_suppress_nst(true);
+    }
+    if options.split_on_word {
+        params.set_split_on_word(true);
+    }
 
     if let Some(max_len) = options.max_segment_length
         && max_len > 0

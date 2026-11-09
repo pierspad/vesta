@@ -312,27 +312,40 @@ pub fn refine_speech_onset(
         }
     }
     let count = cand_clean.tokens.len();
-    if count < 2 || words.len() < count {
+    if count < 2 || words.len() < 2 {
         return tseg_start_ms;
     }
-    let mut matches = words.windows(count).filter(|window| {
-        window
-            .iter()
-            .map(|(word, _)| word)
-            .eq(cand_clean.tokens.iter())
-    });
-    let Some(found) = matches.next() else {
-        return tseg_start_ms;
-    };
-    if matches.next().is_some() {
-        return tseg_start_ms;
+
+    // Try exact contiguous match first, then fall back to a unique leading prefix
+    // (4 down to 2 words) when Whisper paraphrases or drops trailing words in a cue.
+    let mut candidate_lengths = Vec::with_capacity(4);
+    if words.len() >= count {
+        candidate_lengths.push(count);
     }
-    let onset = found[0].1;
-    if (tseg_start_ms..tseg_end_ms).contains(&onset) {
-        onset
-    } else {
-        tseg_start_ms
+    for prefix_len in (2..=count.saturating_sub(1).min(4)).rev() {
+        if words.len() >= prefix_len && !candidate_lengths.contains(&prefix_len) {
+            candidate_lengths.push(prefix_len);
+        }
     }
+
+    for len in candidate_lengths {
+        let target_slice = &cand_clean.tokens[..len];
+        let mut matches = words.windows(len).filter(|window| {
+            window
+                .iter()
+                .map(|(word, _)| word)
+                .eq(target_slice.iter())
+        });
+        if let Some(found) = matches.next()
+            && matches.next().is_none()
+        {
+            let onset = found[0].1;
+            if (tseg_start_ms..tseg_end_ms).contains(&onset) {
+                return onset;
+            }
+        }
+    }
+    tseg_start_ms
 }
 
 #[cfg(test)]
@@ -509,5 +522,38 @@ mod tests {
         // Midpoint deviation
         let mid = calculate_guided_temporal_weight(5_000, 13_500, 15_000);
         assert!(mid > 0.65 && mid < 1.0);
+    }
+
+    #[test]
+    fn refine_speech_onset_falls_back_to_unique_prefix_when_trailing_words_differ() {
+        use srt_transcribe::transcribe::TimedToken;
+        let tokens = vec![
+            TimedToken {
+                bytes: b"noise".to_vec(),
+                start_ms: 10_000,
+            },
+            TimedToken {
+                bytes: b" commander".to_vec(),
+                start_ms: 11_420,
+            },
+            TimedToken {
+                bytes: b" shepard".to_vec(),
+                start_ms: 11_700,
+            },
+            TimedToken {
+                bytes: b" report".to_vec(),
+                start_ms: 12_050,
+            },
+            TimedToken {
+                bytes: b" immediately".to_vec(),
+                start_ms: 12_400,
+            },
+        ];
+        // Subtitle has different trailing words ("to the bridge"), but shares a unique 3-word prefix.
+        let phrase = CleanText::new("Commander Shepard report to the bridge");
+        assert_eq!(
+            refine_speech_onset(10_000, 14_000, &tokens, &phrase),
+            11_420
+        );
     }
 }

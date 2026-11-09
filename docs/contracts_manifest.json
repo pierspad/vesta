@@ -541,7 +541,7 @@
       ]
     },
     "rust_libraries": {
-      "hash": "453e17f3344edf54",
+      "hash": "606dea32338245c8",
       "crates": {
         "srt-ankiconnect": {
           "path": "lib/srt-ankiconnect",
@@ -683,16 +683,16 @@
         },
         "srt-transcribe": {
           "path": "lib/srt-transcribe",
-          "symbol_count": 65,
+          "symbol_count": 66,
           "files": {
             "src/audio.rs": "0de0f97320d4141e",
             "src/cloud.rs": "2789946161dd0328",
             "src/lib.rs": "2c4eff5dc5f44b9f",
             "src/model.rs": "f92e284040c29893",
             "src/pipeline.rs": "4ac96fefce817af9",
-            "src/transcribe.rs": "91aae242ee5bea1b"
+            "src/transcribe.rs": "15ffea5c8e2372f6"
           },
-          "hash": "275df621d54e789d",
+          "hash": "7a81cc3c7b6abb93",
           "docs": [
             "lib/srt-transcribe/README.md",
             "docs/modules/srt-transcribe.md",

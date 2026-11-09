@@ -52,7 +52,17 @@ pub async fn extract_wav_segment(
         .arg(input)
         .arg("-t")
         .arg(format!("{duration_seconds:.2}"))
-        .args(["-ar", "16000", "-ac", "1", "-c:a", "pcm_s16le"])
+        .args([
+            "-vn",
+            "-sn",
+            "-dn",
+            "-ar",
+            "16000",
+            "-ac",
+            "1",
+            "-c:a",
+            "pcm_s16le",
+        ])
         .arg(output);
     run_audio_command(&mut command, "segment extraction", cancel).await
 }
