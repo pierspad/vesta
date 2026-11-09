@@ -43,9 +43,7 @@ with matching line counts; an absent or incomplete translation exits 1.
 Create a `config.toml` file in the working directory. Providers are organized in
 **tiers**: within a tier, entries are used round-robin; when every entry in a
 tier hits a rate limit or quota error, translation automatically fails over to
-the next tier. This is the same pool/scheduler used by the Vesta desktop app
-(`srt_translate::build_pool` + `translate_subtitles_tiered_cancellable`), so
-CLI and GUI share one failover implementation.
+the next tier. CLI and GUI share the same failover scheduler in `srt-translate`.
 
 ```toml
 [translation]

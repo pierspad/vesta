@@ -26,12 +26,11 @@ separate optional executable; see [its scope and setup](MCP.md).
 
 ## Coverage: shared engines, different interfaces
 
-The CLI covers all seven main processing workflows, **not every GUI feature or
-public Rust API**. These are current adapter boundaries, not promises of parity:
+The CLI covers all seven main processing workflows. The table below summarizes the options exposed by each CLI command compared to the desktop GUI and underlying Rust libraries:
 
 | Area | CLI exposes | GUI/library capabilities not exposed by these commands |
 |---|---|---|
-| Flashcards | Subtitle info, count-only preview, single-episode TSV/APKG generation; filters, context, codecs, sizes, audio track and workers | Interactive row selection/editing and media previews; multi-episode orchestration/APKG merge; custom note templates/field mapping; explicit audio/video padding, gain/boost, font/language/dictionary and hardware-encoder preferences |
+| Flashcards | Subtitle info, count-only preview, single-episode TSV/APKG generation; filters, context, codecs, sizes, audio padding/gain/normalization, audio track and workers | Interactive row selection/editing and media previews; multi-episode orchestration/APKG merge; custom note templates/field mapping; explicit video padding, font/language/dictionary and hardware-encoder preferences |
 | Extract | SRT reports; embedded stream discovery and text-to-SRT extraction | Embedded-track preview and automatic existing-output suggestions; bitmap subtitles still need external OCR |
 | Sync | Apply supplied subtitle-ID/time anchors to SRT | Interactive playback, anchor suggestions/sampling, sessions, undo and side-by-side revision/editing |
 | Auto-sync | Whisper sample analysis followed by applying all suggested anchors | Review/accept individual suggestions interactively |
@@ -219,9 +218,8 @@ assuming all commands share a JSON protocol.
 ## Verification scope
 
 The CLI subprocess tests exercise real commands, help, offline fixtures, usage
-errors and publication/cancellation contracts. MCP protocol tests connect a real
-stdio SDK client, generate TSV/APKG outputs, and exercise translation/transcription
-with local HTTP fixtures, real FFmpeg conversion and cooperative cancellation. See [QUALITY](QUALITY.md).
+errors and publication/cancellation contracts. See [QUALITY](QUALITY.md) for the
+complete test matrix and [MCP](MCP.md) for stdio protocol verification.
 These checks do not certify authenticated provider access, every media codec,
 GPU driver or installed Windows terminal behavior. Re-run the appropriate
 release smoke checks for those environments.

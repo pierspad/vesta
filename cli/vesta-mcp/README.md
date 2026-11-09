@@ -1,7 +1,9 @@
 # Vesta MCP server
 
-A local stdio server using the official Rust MCP SDK. It calls the existing
-`srt-flashcards`, `srt-translate` and `srt-transcribe` engines directly, without Tauri, an HTTP listener or shell commands.
+A local stdio server using the official Rust MCP SDK (`rmcp`). It calls the
+`srt-flashcards`, `srt-translate`, and `srt-transcribe` engines and dispatches
+installed Vesta plugins over JSON-RPC 2.0 stdio, without Tauri, a network
+listening port, or shell execution.
 
 ```sh
 cargo install --locked --path cli/vesta-mcp
@@ -10,9 +12,11 @@ vesta-mcp --read-root /absolute/path/to/media --output-root /absolute/path/to/ex
 ```
 
 Both directories must already exist. Repeat `--read-root` to allow additional
-input directories. Once started, the process speaks MCP on stdin/stdout; it does
-not provide an interactive terminal prompt. See [the integration guide](../../docs/MCP.md)
-for client configuration, tool parameters and lifecycle behavior.
+input directories. Pass `--plugins-dir /path/to/plugins` to override the default
+platform plugin directory (`<app_data>/vesta/plugins`). Once started, the process
+speaks MCP on stdin/stdout; it does not provide an interactive terminal prompt.
+See [the integration guide](../../docs/MCP.md) for client configuration, all 10
+tool schemas, and lifecycle behavior.
 
 Translation and transcription are opt-in: pass `--provider-config /path/to/providers.json`
 with named server-side profiles. The client sends a profile ID rather than credentials.

@@ -406,9 +406,9 @@ Instead of retransmitting the entire UI hierarchy on every small update, a plugi
 
 ## 9. MCP Server Integration (`vesta-mcp`)
 
-Vesta's Model Context Protocol server (`cli/vesta-mcp`) can inspect and interact with installed plugins over the same v1 JSON-RPC contract:
+Vesta's Model Context Protocol server (`cli/vesta-mcp`) can inspect and interact with installed plugins over the same v1 JSON-RPC contract (using the default platform `<app_data>/vesta/plugins` directory or `--plugins-dir <PATH>`):
 - **`list_plugins`**: Reads `plugins.json` and returns public metadata (`id`, `name`, `version`, `description`, `enabled`, `permissions`) for all installed plugins. Plugin settings and credentials are never exposed to MCP clients.
-- **`call_plugin`**: Spawns an enabled plugin, initializes it with its configured data directory, and dispatches either a `render` request (when `widget_id` is omitted) or an `event` request (when `widget_id` is provided), returning the declarative JSON response.
+- **`call_plugin`**: Spawns an enabled plugin (resolving OS-specific `entry.os` command overrides when present), initializes it with its configured data directory, and dispatches either a `render` request (when `widget_id` is omitted) or an `event` request (when `widget_id` is provided), returning the declarative JSON response.
 
 ---
 
@@ -427,7 +427,18 @@ External plugins execute untrusted code on the user's host machine. Vesta enforc
 
 ## 11. Developing with the Python SDK
 
-Vesta includes a lightweight Python SDK helper (`vesta_plugin.py`) located under `docs/examples/plugin-hello/`.
+Vesta includes a zero-dependency Python SDK helper (`vesta_plugin.py`) located under `docs/examples/plugin-hello/`.
+
+### Available Builders and Runtime Methods
+
+- **Widget Builders**: `Column`, `Row`, `Heading`, `Text`, `TextInput`, `TextArea`, `PathInput`, `PasswordInput`, `NumberInput`, `Select`, `Segmented`, `LanguageSelect`, `Checkbox`, `Button`, `Link`, `ExternalLink`, `ListWidget`, `Table`, `Image`, `Progress`, `FileOutput`, `Divider`, `Settings`. All builders accept universal properties (`id`, `hidden`, `expertOnly`, `tooltip`, `flex`, `width`) via keyword arguments.
+- **`VestaPlugin` Methods**:
+  - `@plugin.on_initialize`, `@plugin.on_render(screen="main")`, `@plugin.on_event(widget_id=None)`
+  - `plugin.notify(msg, level="info")`, `plugin.progress(id, value, label="")`, `plugin.update_ui(screen="main", root=None, patch=None)`
+  - `plugin.open_in_flashcards(video_path, subtitle_path)`
+  - `plugin.get_values(screen="main") -> dict`
+  - `plugin.get_shared_credential(key, default="") -> str`
+  - Runtime properties updated automatically across RPC calls: `plugin.locale`, `plugin.expert_mode`, `plugin.data_dir`, `plugin.settings`, `plugin.shared_credentials`.
 
 ```python
 from vesta_plugin import VestaPlugin, Column, Heading, Text, TextInput, Button

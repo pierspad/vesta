@@ -9,28 +9,22 @@ Vesta provides a local **server**, `vesta-mcp`, using the
 [official Rust SDK](https://github.com/modelcontextprotocol/rust-sdk). An MCP-capable
 application acts as the client and starts it as a subprocess. Communication uses
 JSON-RPC over stdin/stdout. No GUI or listening network port is required. The
-server shares the Rust flashcard, translation and transcription engines with the GUI and CLI, rather than
-automating windows or parsing terminal output.
+server shares the Rust flashcard, translation, transcription, and plugin RPC
+engines with the GUI and CLI, rather than automating windows or parsing terminal output.
 
 ## Why keep MCP alongside the CLI?
 
 Both adapters use the same engine: MCP does not improve media quality, speed or
-LLM pricing. A shell-capable agent can use the CLI directly. MCP is useful for
-clients that discover tools and their JSON schemas but do not expose a shell,
-and for callers that want typed results, job IDs, progress and cancellation
-without parsing terminal output. Keeping this adapter optional preserves both
-workflows without duplicating the processing engine.
+LLM pricing. A shell-capable agent can use the CLI directly. MCP is designed for
+clients that discover tools and their JSON schemas without exposing a shell,
+and for callers that need typed results, job IDs, progress, and cancellation
+over a single structured stdio protocol.
 
 | Interface | Best fit | Current coverage |
 |---|---|---|
 | `vesta-cli` / `vesta <operation>` | Shell scripts and terminal users | Seven processing workflows; see the [CLI coverage matrix](CLI.md). |
-| `vesta-mcp` | MCP clients discovering structured tools and tracking export jobs | Subtitle inspection, paged card previews, TSV/APKG exports, translation and transcription jobs. |
+| `vesta-mcp` | MCP clients discovering structured tools and tracking export jobs | Subtitle inspection, paged card previews, TSV/APKG exports, translation, transcription, and installed plugins (10 tools). |
 | Rust libraries | Applications that need APIs/options not exposed by an adapter | All public engine APIs; caller owns orchestration, configuration and lifecycle. |
-
-The CLI already has progress/cancellation and some JSON output (`transcribe
-run --json`, refinement results and extraction reports). MCP's benefit is one
-discoverable tool/schema/job protocol, especially for clients without shell
-access. It does not add new processing capabilities to the engines.
 
 The client starts a local subprocess for its connection. That process uses local
 memory while connected and exits on disconnect; no remote server subscription,
@@ -64,8 +58,10 @@ configuration format depends on the client):
 
 Use `vesta-mcp.exe` on Windows. Create the directories before connecting; the
 server requires existing roots and does not create them. Repeat
-`--read-root` for additional input directories. The server exposes no application
-credentials or arbitrary shell execution. Subtitle paths are canonicalized and
+`--read-root` for additional input directories. Pass `--provider-config <PATH>`
+to enable translation and transcription profiles, and `--plugins-dir <PATH>` to
+override the default platform plugins directory (`<app_data>/vesta/plugins`).
+The server exposes no application credentials or arbitrary shell execution. Subtitle paths are canonicalized and
 must remain inside a declared read root, including when symlinks are involved.
 Subtitle inputs are limited to 16 MiB and supported subtitle extensions.
 These checks are an application policy, not an OS sandbox against a separate
@@ -87,6 +83,8 @@ its directory arguments; a configured server then waits for an MCP client.
 | `transcribe_media` | Start local/cloud transcription using a named server profile | New directory; final SRT |
 | `get_job` | Read operation, progress, status, result and output paths | No |
 | `cancel_job` | Request cancellation; poll until a terminal status | May stop ongoing output |
+| `list_plugins` | List installed Vesta plugins with public metadata (`id`, `name`, `version`, `description`, `enabled`, `permissions`) | No |
+| `call_plugin` | Invoke a `render` or `event` action on an enabled plugin over JSON-RPC 2.0 stdio | Plugin-dependent (`<plugin_dir>/data`) |
 
 Typical workflow:
 
@@ -258,17 +256,15 @@ publication begins can still complete successfully.
 Both tools return a job snapshot immediately. Use the same `get_job` and
 `cancel_job` as for flashcards. `operation` identifies `flashcards`, `translation`
 or `transcription`. Exactly **one processing job** may run at a time per server,
-across all three kinds; `max_active_jobs` is 1 (`max_active_generations` remains
-as a compatibility field). Job history is bounded to 64 session-local records.
+across all three kinds (`max_active_jobs = 1`). Job history is bounded to 64 session-local records.
 No existing user output is overwritten. Cancel, then poll for a terminal state;
 shutdown/disconnect cancels active work and waits for cleanup.
 
 Invoking a configured cloud profile can send subtitle text/audio to its provider
-and incur account charges. Use these tools only for user-authorized work. Source
-text is data, not instructions. Previews/results also enter the MCP client's
-context; a cloud-model client may receive those returned contents. GUI control,
+and incur account charges. Use these tools only for user-authorized work. GUI control,
 AnkiConnect, refinement and automatic synchronization are not exposed as MCP
-tools. The [CLI/library coverage guide](CLI.md) describes the remaining adapters.
+tools. The [CLI/library coverage guide](CLI.md) describes the remaining adapters,
+and [`PLUGINS.md`](PLUGINS.md) documents the `list_plugins` and `call_plugin` protocol.
 
 ## Validation
 
@@ -278,9 +274,9 @@ cargo clippy --locked -p vesta-mcp --all-targets -- -D warnings
 ```
 
 Tests connect a real SDK client to the standalone server over stdio, discover
-all eight tool schemas, inspect/preview subtitles, generate TSV/APKG exports,
+all ten tool schemas, inspect/preview subtitles, generate TSV/APKG exports,
 translate via loopback HTTP, transcribe a real FFmpeg audio fixture through a
-stub provider, and verify cancellation, incomplete translation, disabled profiles,
+stub provider, query the plugin registry, and verify cancellation, incomplete translation, disabled profiles,
 credential handling, shutdown and path boundaries. Client-specific
 configuration and hardware/media combinations still need their normal
 integration checks.

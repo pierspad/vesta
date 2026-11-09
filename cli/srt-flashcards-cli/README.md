@@ -1,14 +1,12 @@
 # srt-flashcards (CLI)
 
-Headless command-line front-end for the [`srt-flashcards`](../../lib/srt-flashcards)
-engine. Turn subtitles + a video into an Anki deck from the terminal — the exact
-same engine the Vesta desktop app uses, with **no GUI dependency**.
-
-Want only the flashcard feature? Clone the repo and build just this binary:
+Headless command-line interface for the [`srt-flashcards`](../../lib/srt-flashcards)
+engine. Generates Anki flashcard decks (`tsv` + media folder or `.apkg`) from
+subtitle and media files without a GUI dependency.
 
 ```bash
 cargo build --release -p srt-flashcards-cli
-# → target/release/srt-flashcards   (needs ffmpeg/ffprobe on PATH)
+# → target/release/srt-flashcards   (requires ffmpeg/ffprobe on PATH for media)
 ```
 
 ## Usage
@@ -17,8 +15,8 @@ cargo build --release -p srt-flashcards-cli
 # Inspect a subtitle file
 srt-flashcards info Detour-en.srt
 
-# Dry-run the pipeline (counts only, no media)
-srt-flashcards preview --target Detour-en.srt --native Detour-it.srt --output out
+# Dry-run the pipeline (counts only, no media, --output not required)
+srt-flashcards preview --target Detour-en.srt --native Detour-it.srt
 
 # Generate a TSV deck + media folder
 srt-flashcards generate \
@@ -34,26 +32,31 @@ srt-flashcards generate -t Detour-en.srt -n Detour-it.srt \
 
 | Flag | Meaning |
 |---|---|
-| `-t, --target` | Target-language subtitles (the language you're learning). Required. |
+| `-t, --target` | Target-language subtitles (the language being studied). Required. |
 | `-n, --native` | Native-language subtitles; enables time-overlap matching. |
 | `-v, --video` | Video file (snapshots, video clips, and audio by default). |
-| `-o, --output` | Output directory. Required. |
+| `--audio` | Separate audio source (defaults to `--video`). |
+| `-o, --output` | Output directory. Required for `generate`, optional for `preview`. |
 | `-f, --format` | `tsv` (default) or `apkg`. |
-| `-j, --jobs` | Parallel ffmpeg workers (clamped to `[1, available cores]`; `1` = single ffmpeg at a time). |
+| `-j, --jobs` | Parallel ffmpeg workers (clamped to `[1, available cores]`). |
+| `--pad-audio-start` / `--pad-audio-end` | Pad audio clip start/end in ms (negative values trim). |
+| `--audio-gain` | Audio gain adjustment in dB (`-20` to `+20`). |
+| `--normalize-audio` | Normalize audio loudness via EBU R128 (`loudnorm`). |
 | `--no-optimize` | Disable automatic clip preparation and nearby snapshot batching. |
 | `--no-audio` / `--no-snapshots` / `--no-video` | Skip a media type. |
 | `--span-start` / `--span-end` | Restrict to a time window (ms). |
 | `--min-chars` / `--exclude-words` / … | Subtitle filters (see `--help`). |
 | `--ffmpeg` / `--ffprobe` | Override the binaries to invoke. |
 
-Run `srt-flashcards generate --help` for the full list (filters,
-context lines, codecs, bitrates, …). Padding and several other engine options
-are not exposed by this CLI; see the [coverage matrix](../../docs/CLI.md#coverage-shared-engines-different-interfaces).
+Run `srt-flashcards generate --help` for the full list of filters, context lines,
+codecs, and bitrates. Video padding, custom note templates, and font management
+are configured through the library or GUI; see the
+[coverage matrix](../../docs/CLI.md#coverage-shared-engines-different-interfaces).
 
 ## Script contract
 
-`info` and `preview` print human-readable summaries to stdout; preview does not
-create the output directory. Successful generation prints its summary and output
+`info` and `preview` print human-readable summaries to stdout; `preview` never
+creates the output directory. Successful generation prints its summary and output
 paths to stdout. Progress and errors use stderr; `--quiet` suppresses progress,
 but keeps the success summary and failures visible. These commands do not expose
 a JSON protocol.
@@ -64,30 +67,19 @@ result after Ctrl+C. An export successfully published during a late cancellation
 still exits `0`. Snapshot quality must be an integer from `0` through `100`.
 
 Run the offline subprocess regressions with `cargo test -p srt-flashcards-cli`.
-The SIGINT and simulated media-process cases currently run on Unix only.
+The SIGINT and simulated media-process cases run on Unix hosts.
 
 Part of the [Vesta](../../README.md) workspace. Licensed GPL-3.0-only.
 
-## Native nearby snapshot batching
+## Snapshot batching and video optimization
 
-The shared Rust engine batches up to eight WebP snapshots within eight seconds
-when `optimize_video` is enabled. Eligibility is conservative: CFR H.264/HEVC,
-width 1280–1920, height ≤1080 and an unambiguous video stream. FFprobe packet
-PTS guide frame selection; reordered keyframe boundaries and uncertain timings
-retain the original individual-seek behavior. Unknown/VFR sources, other image
-formats and isolated requests use individual extraction. Failed batch attempts
-retry the original commands. There is no persistent cache or Python dependency
-in the app; Python is used only by the benchmark harness.
-
-Batch operations share the media semaphore with audio/video work, retain one
-progress result per card and stop their direct child processes on cancellation.
-An extraction failure prevents export of a deck with dangling media references.
-The default worker count is roughly three quarters of logical cores, reserving
-one core when possible; explicit counts are clamped to available logical cores.
-Video-clip preparation can produce a lossy intermediate and is separate from
-the original-source snapshot A/B quality guarantee.
-
-See [native benchmark results](../../docs/BENCHMARK_NATIVE.md).
+When `optimize_video` is enabled (the default unless `--no-optimize` is passed),
+the engine batches up to eight nearby WebP snapshot requests within an 8-second
+window for eligible CFR 720p/1080p H.264/HEVC streams, using FFprobe packet PTS
+with automatic fallback to individual seeks. See
+[`docs/ARCHITECTURE.md`](../../docs/ARCHITECTURE.md#native-snapshot-extraction-and-verification)
+and [`docs/BENCHMARK_NATIVE.md`](../../docs/BENCHMARK_NATIVE.md) for eligibility
+rules and A/B equivalence measurements.
 
 ## Regenerating TSV exports
 

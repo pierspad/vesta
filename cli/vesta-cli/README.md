@@ -12,7 +12,7 @@ vesta-cli translate --help
 
 Operations: `flashcards`, `extract`, `sync`, `autosync`, `transcribe`,
 `translate`, `refine`. Each exposes its full options with `--help`.
-The individual `srt-*` executables remain supported.
+Standalone `srt-*` executables provide the same individual commands.
 
 The desktop executable also accepts these operations as `vesta <operation>`;
 running `vesta` without arguments opens the GUI. On Windows, use the standalone
