@@ -109,6 +109,7 @@ export type WidgetType =
   | "text"
   | "heading"
   | "textInput"
+  | "textArea"
   | "passwordInput"
   | "numberInput"
   | "select"
@@ -186,6 +187,18 @@ export interface TextInputWidget extends BaseWidget {
   hint?: string | { text?: string; link?: { label: string; url: string } };
   helpText?: string;
   link?: { label: string; url: string };
+}
+
+export interface TextAreaWidget extends BaseWidget {
+  type: "textArea";
+  id: string;
+  label: string;
+  placeholder?: string;
+  defaultValue?: string;
+  rows?: number;
+  maxLength?: number;
+  disabled?: boolean;
+  readOnly?: boolean;
 }
 
 export interface PasswordInputWidget extends BaseWidget {
@@ -371,6 +384,7 @@ export type WidgetNode =
   | TextWidget
   | HeadingWidget
   | TextInputWidget
+  | TextAreaWidget
   | PasswordInputWidget
   | NumberInputWidget
   | SelectWidget

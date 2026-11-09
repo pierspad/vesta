@@ -94,7 +94,7 @@
           values[id] = false;
         } else if (node.type === "numberInput") {
           values[id] = 0;
-        } else if (node.type === "textInput" || node.type === "passwordInput" || node.type === "pathInput") {
+        } else if (node.type === "textInput" || node.type === "textArea" || node.type === "passwordInput" || node.type === "pathInput") {
           values[id] = "";
         } else if (node.type === "languageSelect") {
           values[id] = "en";
@@ -561,6 +561,22 @@
         {/if}
         {node.label}
       </a>
+
+    {:else if node.type === "textArea"}
+      <div class="field flex flex-col gap-1.5 w-full">
+        <label for="widget-{node.id}" class="text-xs font-medium text-gray-300">{node.label}</label>
+        <textarea
+          id="widget-{node.id}"
+          bind:value={values[node.id]}
+          rows={Math.min(20, Math.max(2, Math.floor(node.rows || 4)))}
+          maxlength={node.maxLength}
+          placeholder={node.placeholder}
+          title={node.tooltip}
+          disabled={node.disabled}
+          readonly={node.readOnly}
+          class="input-modern w-full resize-y px-3 py-2 text-sm"
+        ></textarea>
+      </div>
 
     {:else if node.type === "textInput"}
       {@const info = resolveHintAndLink(node.hint, node.helpText, node.link)}

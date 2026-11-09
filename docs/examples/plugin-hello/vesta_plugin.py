@@ -63,6 +63,10 @@ def TextInput(
         node["link"] = link
     return node
 
+def TextArea(id: str, label: str, **options: Any) -> Dict[str, Any]:
+    return {**options, "type": "textArea", "id": id, "label": label}
+
+
 def PasswordInput(
     id: str,
     label: Optional[str] = None,
