@@ -356,6 +356,8 @@ export interface PathInputWidget extends BaseWidget {
   defaultValue?: string;
   disabled?: boolean;
   pickerType?: "file" | "folder";
+  drop?: boolean;
+  dropHint?: string;
   filters?: Array<{ name: string; extensions: string[] }>;
   hint?: string | { text?: string; link?: { label: string; url: string } };
   helpText?: string;

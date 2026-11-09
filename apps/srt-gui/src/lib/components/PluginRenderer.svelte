@@ -17,6 +17,7 @@
   import { invokeCommand } from "$lib/services/tauriClient";
   import { uiMode } from "$lib/stores/uiModeStore.svelte";
   import { guardedOpen } from "$lib/utils/dialogGuard";
+  import { setupWebviewDragDrop } from "$lib/utils/dragDrop";
   import PathPickerField from "$lib/components/PathPickerField.svelte";
   import SearchableSelect from "$lib/components/SearchableSelect.svelte";
   import { languages, extendedLanguages, languageFlagUrl, localizedLanguageName } from "$lib/config/languages";
@@ -217,15 +218,47 @@
     return "children" in node ? node.children.flatMap(headerButtons) : [];
   }
 
-  function findButton(node: WidgetNode | null, id: string): ButtonWidget | undefined {
-    if (node?.type === "button" && node.id === id) return node;
+  function findWidget(node: WidgetNode | null, id: string): WidgetNode | undefined {
+    if (node?.id === id) return node;
     if (node && "children" in node) {
       for (const child of node.children) {
-        const match = findButton(child, id);
+        const match = findWidget(child, id);
         if (match) return match;
       }
     }
   }
+
+  function findButton(node: WidgetNode | null, id: string): ButtonWidget | undefined {
+    const match = findWidget(node, id);
+    if (match?.type === "button") return match;
+  }
+
+  function hasFileDrop(node: WidgetNode | null): boolean {
+    if (!node) return false;
+    if (node.type === "pathInput") return node.pickerType === "file" && node.drop === true;
+    return "children" in node && node.children.some(hasFileDrop);
+  }
+
+  const acceptsFileDrop = $derived(hasFileDrop(uiRoot));
+  $effect(() => {
+    if (!active || !acceptsFileDrop) return;
+    return setupWebviewDragDrop({
+      isActive: () => active,
+      setDraggingOver: () => {},
+      onDrop(paths, position) {
+        if (!position || paths.length !== 1 || actionLoading !== null) return;
+        const target = document.elementFromPoint(position.x, position.y)?.closest<HTMLElement>("[data-plugin-file-drop]");
+        if (!target || !renderer?.contains(target)) return;
+        const node = findWidget(uiRoot, target.dataset.pluginFileDrop ?? "");
+        if (node?.type !== "pathInput" || !node.drop || node.disabled || node.pickerType !== "file") return;
+        const path = paths[0];
+        const extensions = node.filters?.flatMap(filter => filter.extensions) ?? [];
+        if (extensions.length && !extensions.some(ext => ext === "*" || path.toLowerCase().endsWith("." + ext.toLowerCase()))) return;
+        values[node.id] = path;
+        void handleAction(node.id, "change");
+      },
+    });
+  });
 
   function missingRequiredInput(node: ButtonWidget): boolean {
     return !!node.requiresAny?.length && !node.requiresAny.some(id => {
@@ -820,11 +853,16 @@
 
     {:else if node.type === "pathInput"}
       {@const info = resolveHintAndLink(node.hint, node.helpText, node.link)}
-      <div class="field flex flex-col gap-1 w-full">
+      {@const droppable = node.pickerType === "file" && node.drop && !node.disabled}
+      <div
+        class="field flex flex-col gap-1 w-full"
+        class:plugin-file-drop={droppable}
+        data-plugin-file-drop={droppable ? node.id : undefined}
+      >
         <PathPickerField
           label={node.label ?? ""}
           value={values[node.id] ?? ""}
-          placeholder={node.placeholder ?? t("plugins.chooseFolder")}
+          placeholder={node.placeholder ?? t(node.pickerType === "file" ? "plugins.chooseFile" : "plugins.chooseFolder")}
           browseTitle={t("common.browse")}
           disabled={node.disabled}
           onbrowse={() => handleBrowsePath(node)}
@@ -833,6 +871,9 @@
             void handleAction(node.id, "change");
           }}
         />
+        {#if droppable}
+          <p class="text-xs text-gray-400">{node.dropHint ?? t("sync.dropFileHere")}</p>
+        {/if}
         {#if info.text || info.link}
           <div class="flex flex-wrap items-center gap-2 mt-0.5">
             {#if info.text}
@@ -1221,6 +1262,12 @@
     outline: 2px solid var(--done);
     outline-offset: 3px;
   }
+  .plugin-file-drop {
+    border: 1px dashed var(--control-border);
+    border-radius: 0.75rem;
+    padding: 0.75rem;
+  }
+
   .plugin-status-dot {
     position: absolute;
     inset-block-start: -0.12rem;

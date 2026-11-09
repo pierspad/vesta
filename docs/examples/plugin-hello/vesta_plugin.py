@@ -67,6 +67,10 @@ def TextArea(id: str, label: str, **options: Any) -> Dict[str, Any]:
     return {**options, "type": "textArea", "id": id, "label": label}
 
 
+def PathInput(id: str, *, pickerType: str = "folder", **options: Any) -> Dict[str, Any]:
+    return {**options, "type": "pathInput", "id": id, "pickerType": pickerType}
+
+
 def PasswordInput(
     id: str,
     label: Optional[str] = None,
