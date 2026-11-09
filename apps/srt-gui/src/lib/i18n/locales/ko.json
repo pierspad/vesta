@@ -924,7 +924,7 @@
   "translate.cancelled": "번역 취소됨",
   "translate.changeProvider": "공급자 변경",
   "translate.clearLog": "지우기",
-  "translate.configureLlmFirst": "먼저 설정 > LLM에서 LLM을 구성하세요.",
+  "translate.configureLlmFirst": "번역을 시작하려면 설정 → LLM에서 제공업체를 설정하세요.",
   "translate.context": "컨텍스트",
   "translate.contextCostHint": "높을수록 정확도가 향상되지만 비용이 더 많이 듭니다",
   "translate.contextOptional": "선택 사항",

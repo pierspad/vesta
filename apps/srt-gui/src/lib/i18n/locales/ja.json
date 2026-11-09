@@ -924,7 +924,7 @@
   "translate.cancelled": "翻訳をキャンセルしました",
   "translate.changeProvider": "プロバイダーを変更",
   "translate.clearLog": "クリア",
-  "translate.configureLlmFirst": "まず設定 > LLM でLLMを構成してください。",
+  "translate.configureLlmFirst": "翻訳を始めるには、設定 → LLM でプロバイダーを設定してください。",
   "translate.context": "コンテキスト",
   "translate.contextCostHint": "高く設定するほど精度は上がりますが、コストが高くなります",
   "translate.contextOptional": "任意",

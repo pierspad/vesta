@@ -924,7 +924,7 @@
   "translate.cancelled": "Translation cancelled",
   "translate.changeProvider": "Change provider",
   "translate.clearLog": "Clear",
-  "translate.configureLlmFirst": "Configure an LLM first in Settings > LLM.",
+  "translate.configureLlmFirst": "To start translating, set up a provider under Settings → LLM.",
   "translate.context": "Context",
   "translate.contextCostHint": "Higher = more accuracy, but costlier",
   "translate.contextOptional": "optional",

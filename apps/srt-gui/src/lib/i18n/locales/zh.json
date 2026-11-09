@@ -924,7 +924,7 @@
   "translate.cancelled": "翻译已取消",
   "translate.changeProvider": "更改提供商",
   "translate.clearLog": "清除",
-  "translate.configureLlmFirst": "请先在 设置 > LLM 中配置 LLM。",
+  "translate.configureLlmFirst": "要开始翻译，请在“设置 → LLM”中配置一个服务提供商。",
   "translate.context": "上下文",
   "translate.contextCostHint": "较高 = 准确度较高，但成本较高",
   "translate.contextOptional": "可选",

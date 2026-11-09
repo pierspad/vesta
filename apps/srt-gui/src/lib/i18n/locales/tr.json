@@ -924,7 +924,7 @@
   "translate.cancelled": "Çeviri iptal edildi",
   "translate.changeProvider": "Sağlayıcıyı değiştir",
   "translate.clearLog": "Temizle",
-  "translate.configureLlmFirst": "Önce Ayarlar > LLM bölümünden bir LLM yapılandırın.",
+  "translate.configureLlmFirst": "Çeviriye başlamak için Ayarlar → LLM bölümünde bir sağlayıcı yapılandırın.",
   "translate.context": "Bağlam",
   "translate.contextCostHint": "Daha yüksek = daha fazla doğruluk, ancak daha maliyetli",
   "translate.contextOptional": "isteğe bağlı",

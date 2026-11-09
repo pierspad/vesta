@@ -924,7 +924,7 @@
   "translate.cancelled": "Übersetzung abgebrochen",
   "translate.changeProvider": "Anbieter wechseln",
   "translate.clearLog": "Löschen",
-  "translate.configureLlmFirst": "Konfigurieren Sie zuerst ein LLM unter Einstellungen > LLM.",
+  "translate.configureLlmFirst": "Richte unter Einstellungen → LLM einen Anbieter ein, um mit der Übersetzung zu beginnen.",
   "translate.context": "Kontext",
   "translate.contextCostHint": "Höher = mehr Genauigkeit, aber teurer",
   "translate.contextOptional": "freiwillig",

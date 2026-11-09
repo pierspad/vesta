@@ -924,7 +924,7 @@
   "translate.cancelled": "Vertaling geannuleerd",
   "translate.changeProvider": "Verander van aanbieder",
   "translate.clearLog": "Duidelijk",
-  "translate.configureLlmFirst": "Configureer eerst een LLM in Instellingen > LLM.",
+  "translate.configureLlmFirst": "Stel een aanbieder in via Instellingen → LLM om te beginnen met vertalen.",
   "translate.context": "Context",
   "translate.contextCostHint": "Hoger = meer nauwkeurigheid, maar duurder",
   "translate.contextOptional": "optioneel",

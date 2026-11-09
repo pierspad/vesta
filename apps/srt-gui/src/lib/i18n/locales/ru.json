@@ -924,7 +924,7 @@
   "translate.cancelled": "Перевод отменен",
   "translate.changeProvider": "Изменить поставщика",
   "translate.clearLog": "Очистить",
-  "translate.configureLlmFirst": "Сначала настройте LLM в Настройки > LLM.",
+  "translate.configureLlmFirst": "Чтобы начать перевод, настройте провайдера в разделе «Настройки → LLM».",
   "translate.context": "Контекст",
   "translate.contextCostHint": "Выше = точнее, но дороже",
   "translate.contextOptional": "необязательно",

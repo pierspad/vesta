@@ -924,7 +924,7 @@
   "translate.cancelled": "अनुवाद रद्द कर दिया गया",
   "translate.changeProvider": "प्रदाता बदलें",
   "translate.clearLog": "साफ़ करें",
-  "translate.configureLlmFirst": "पहले सेटिंग्स > LLM में एक LLM कॉन्फ़िगर करें।",
+  "translate.configureLlmFirst": "अनुवाद शुरू करने के लिए सेटिंग्स → LLM में एक प्रदाता सेट करें।",
   "translate.context": "संदर्भ",
   "translate.contextCostHint": "उच्चतर = अधिक सटीकता, लेकिन अधिक महंगा",
   "translate.contextOptional": "वैकल्पिक",

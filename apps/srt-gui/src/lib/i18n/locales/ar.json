@@ -924,7 +924,7 @@
   "translate.cancelled": "تم إلغاء الترجمة",
   "translate.changeProvider": "غيّر المزوّد",
   "translate.clearLog": "مسح",
-  "translate.configureLlmFirst": "قم أولاً بإعداد LLM في الإعدادات > LLM.",
+  "translate.configureLlmFirst": "لبدء الترجمة، أضف مزود نموذج لغوي في قسم LLM من الإعدادات.",
   "translate.context": "السياق",
   "translate.contextCostHint": "أعلى = دقة أكبر، ولكن تكلفة أعلى",
   "translate.contextOptional": "اختياري",
