@@ -1102,15 +1102,6 @@
     </WorkflowWorkspace>
   </div>
 
-  {#if translationBlockedReason && !useTiers && !isTranslating && !error && !result}
-    <div class="mx-6 mb-3 flex flex-wrap items-center justify-center gap-3 rounded-xl border border-white/10 bg-white/[0.03] p-3 text-center">
-      <p class="text-sm text-gray-300" role="status">{t("translate.configureLlmFirst")}</p>
-      {#if onGoToSettings}
-        <button type="button" onclick={() => handleGoToSettings("llm")} class="btn-secondary shrink-0 px-3 py-1.5 text-xs">{t("nav.settings")}</button>
-      {/if}
-    </div>
-  {/if}
-
   <!-- Fixed Bottom Band with Action Buttons -->
   <FooterActions>
     {#snippet background()}
