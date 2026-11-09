@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount, type Snippet } from "svelte";
+  import { onMount, untrack, type Snippet } from "svelte";
   import { get } from "svelte/store";
   import { openUrl } from "@tauri-apps/plugin-opener";
   import {
@@ -27,7 +27,8 @@
     screen?: string;
     active?: boolean;
     initialRoot?: WidgetNode | null;
-    header?: Snippet<[Snippet]>;
+    header?: Snippet<[Snippet, () => void, boolean]>;
+    onExit?: () => void;
   }
 
   let {
@@ -36,9 +37,13 @@
     active = true,
     initialRoot = null,
     header,
+    onExit,
   }: Props = $props();
 
   let t = $derived($locale);
+
+  let currentScreen = $state(untrack(() => screen));
+  let previousScreens = $state<string[]>([]);
 
   let uiRoot = $state<WidgetNode | null>(null);
   let values = $state<Record<string, any>>({});
@@ -192,23 +197,34 @@
     }
   }
 
-  async function loadScreen(): Promise<void> {
-    if (!pluginId) return;
+  async function loadScreen(targetScreen = currentScreen): Promise<boolean> {
+    if (!pluginId || loading || actionLoading !== null) return false;
     loading = true;
     error = null;
     try {
-      const res = await pluginRender(pluginId, screen, {}, get(currentLanguage), uiMode.expertMode);
+      const res = await pluginRender(pluginId, targetScreen, {}, get(currentLanguage), uiMode.expertMode);
       triggerPluginSnackbar(res);
-      if (res && res.root) {
-        uiRoot = res.root;
-        collectDefaults(uiRoot);
-      } else {
-        uiRoot = null;
-      }
+      if (!res?.root) return false;
+      currentScreen = targetScreen;
+      uiRoot = res.root;
+      collectDefaults(uiRoot);
+      return true;
     } catch (e: any) {
       error = e?.message || String(e);
+      if (uiRoot) snackbar.show(error ?? "", "error");
+      return false;
     } finally {
       loading = false;
+    }
+  }
+
+  async function goBack() {
+    if (loading || actionLoading !== null) return;
+    const previous = previousScreens.at(-1);
+    if (!previous) {
+      onExit?.();
+    } else if (await loadScreen(previous)) {
+      previousScreens = previousScreens.slice(0, -1);
     }
   }
 
@@ -272,7 +288,7 @@
   }
 
   function activateButton(node: ButtonWidget) {
-    if (actionLoading !== null) return;
+    if (loading || actionLoading !== null) return;
     if (node.disabled && node.disabledFocus) {
       const target = Array.from(renderer.querySelectorAll<HTMLButtonElement>("button[data-plugin-button]"))
         .find(button => button.dataset.pluginButton === node.disabledFocus);
@@ -290,7 +306,7 @@
   }
 
   export async function handleAction(widgetId: string, eventType: string = "click"): Promise<void> {
-    if (actionLoading !== null) return;
+    if (loading || actionLoading !== null) return;
     const button = findButton(uiRoot, widgetId);
     if (button && (button.disabled || missingRequiredInput(button))) return;
     actionLoading = widgetId;
@@ -299,7 +315,7 @@
       const res = await pluginDispatchEvent(
         pluginId,
         {
-          screen,
+          screen: currentScreen,
           widgetId,
           eventType,
           values: $state.snapshot(values),
@@ -312,6 +328,10 @@
       if (res) {
         triggerPluginSnackbar(res);
         if (res.root) {
+          if (typeof res.screen === "string" && res.screen.trim() && res.screen !== currentScreen) {
+            previousScreens = [...previousScreens, currentScreen];
+            currentScreen = res.screen;
+          }
           uiRoot = res.root;
           collectDefaults(uiRoot);
         }
@@ -361,25 +381,18 @@
   }
 
   $effect(() => {
-    if (active && pluginId && !initialRoot && !uiRoot) {
-      void loadScreen();
+    if (active && pluginId && !initialRoot) {
+      untrack(() => { if (!uiRoot) void loadScreen(); });
     }
   });
 
   onMount(() => {
-    if (initialRoot) {
-      uiRoot = initialRoot;
-      collectDefaults(uiRoot);
-    } else if (active && pluginId) {
-      void loadScreen();
-    }
-
     const handleUpdate = (e: Event) => {
       const detail = (e as CustomEvent).detail;
       if (
         detail &&
         detail.pluginId === pluginId &&
-        (!detail.screen || detail.screen === screen)
+        (!detail.screen || detail.screen === currentScreen)
       ) {
         if (detail.root) {
           uiRoot = detail.root;
@@ -978,13 +991,13 @@
       </button>
 
     {:else if node.type === "button"}
-      {@const blocked = !!node.disabled || missingRequiredInput(node) || actionLoading !== null}
+      {@const blocked = !!node.disabled || missingRequiredInput(node) || loading || actionLoading !== null}
       {@const guidance = node.disabled ? node.disabledTooltip ?? node.tooltip : node.tooltip}
       <button
         type="button"
         id="widget-{node.id}"
         data-plugin-button={node.id}
-        disabled={blocked && !(actionLoading === null && node.disabled && node.disabledFocus)}
+        disabled={blocked && !(!loading && actionLoading === null && node.disabled && node.disabledFocus)}
         aria-disabled={blocked || undefined}
         title={guidance}
         class="relative inline-flex items-center justify-center gap-1.5 font-medium h-10 px-4 text-xs rounded-xl transition-colors disabled:opacity-50 aria-disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed {getButtonVariantClass(node.variant)}"
@@ -1242,7 +1255,7 @@
 {/snippet}
 
 <div bind:this={renderer} class="w-full h-full flex flex-col">
-  {@render header?.(actions)}
+  {@render header?.(actions, () => { void goBack(); }, loading || actionLoading !== null)}
   <div class="plugin-renderer w-full flex-1 min-h-0 flex flex-col p-6 overflow-y-auto">
     {#if loading && !uiRoot}
       <div class="flex-1 flex flex-col items-center justify-center gap-3 text-sm text-gray-400">
@@ -1256,7 +1269,7 @@
           <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
         </div>
         <p class="text-sm font-semibold text-rose-400">{error}</p>
-        <button class="btn-secondary text-xs px-4 py-2 mt-2" onclick={loadScreen}>
+        <button class="btn-secondary text-xs px-4 py-2 mt-2" onclick={() => loadScreen()}>
           {t("common.retry")}
         </button>
       </div>

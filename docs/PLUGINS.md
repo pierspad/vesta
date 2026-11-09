@@ -348,6 +348,11 @@ Set `tab.settingsScreen` in the manifest to the screen rendered by the
 plugin. The installed card's Settings action then opens that same screen.
 The host keeps manifest-generated settings for plugins that use them.
 
+To navigate from one screen to another, return `screen` with the new
+`root` in the event result. Use the same screen ID in `render` so the host's
+Back button can reload the previous screen. Ordinary updates on the current
+screen leave history unchanged.
+
 When a blocked action declares `disabledFocus`, Vesta focuses the target
 and pulses its amber outline twice. Reduced-motion preferences keep the
 focus change and suppress the pulse. Buttons without a guidance target are

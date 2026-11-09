@@ -364,22 +364,23 @@ Every widget supports \`id\`, \`hidden\`, \`expertOnly\` (auto-hidden when Exper
 
 <div class="tab-layout flex flex-col h-full bg-gray-900 text-gray-100 select-none">
   {#if currentPlugin}
-    <PluginRenderer pluginId={currentPlugin.id} screen={selectedPluginScreen} active={true}>
-      {#snippet header(actions)}
+    {#key `${currentPlugin.id}:${selectedPluginScreen}`}
+    <PluginRenderer pluginId={currentPlugin.id} screen={selectedPluginScreen} onExit={handleBackToPlugins}>
+      {#snippet header(actions, back, busy)}
         <!-- Embedded Plugin View with Top Bar -->
-        <div class="px-6 py-3 border-b border-white/10 bg-gray-900 flex items-center justify-between shrink-0 gap-4">
+        <div class="h-[89px] px-6 border-b border-white/10 bg-gray-900 flex items-center justify-between shrink-0 gap-4">
           <div class="flex items-center gap-3 min-w-0">
             <button
               type="button"
-              onclick={handleBackToPlugins}
-              class="btn-secondary h-9 px-3 text-xs font-semibold inline-flex items-center gap-2 text-gray-300 hover:text-white cursor-pointer shrink-0"
-              title={t("plugins.backToPlugins")}
-              aria-label={t("plugins.backToPlugins")}
+              onclick={back}
+              disabled={busy}
+              class="btn-icon h-9 w-9 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              title={t("setup.back")}
+              aria-label={t("setup.back")}
             >
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
               </svg>
-              <span>{t("plugins.backToPlugins")}</span>
             </button>
 
             <div class="h-5 w-px bg-white/10 shrink-0"></div>
@@ -408,6 +409,7 @@ Every widget supports \`id\`, \`hidden\`, \`expertOnly\` (auto-hidden when Exper
         </div>
       {/snippet}
     </PluginRenderer>
+    {/key}
   {:else}
     <!-- Content Band (Scrollable) -->
     <div class="flex-1 min-h-0 overflow-y-auto p-6 flex flex-col gap-6 scrollbar-thin">

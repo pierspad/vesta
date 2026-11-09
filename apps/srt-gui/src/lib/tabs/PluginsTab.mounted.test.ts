@@ -3,7 +3,7 @@ import { mount, tick, unmount } from "svelte";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import PluginsTab from "./PluginsTab.svelte";
 import { pluginsStore } from "$lib/stores/pluginsStore.svelte";
-import { pluginRender } from "$lib/services/pluginClient";
+import { pluginDispatchEvent, pluginRender } from "$lib/services/pluginClient";
 import { guardedOpen } from "$lib/utils/dialogGuard";
 
 vi.mock("$lib/utils/dialogGuard", () => ({
@@ -246,9 +246,8 @@ it("switches to embedded view with Back button and header bar when opened", asyn
   expect(navigatedTab).toBe("plugin:demo-plugin");
 
   // Top header bar inside PluginsTab
-  const backBtn = target.querySelector('button[aria-label="Back to Plugins"]') as HTMLButtonElement;
+  const backBtn = target.querySelector('button[aria-label="Back"]') as HTMLButtonElement;
   expect(backBtn).not.toBeNull();
-  expect(target.textContent).toContain("Back to Plugins");
   expect(target.textContent).toContain("Demo Plugin");
 
   // Clicking Back returns to list
@@ -302,4 +301,42 @@ it("opens the declared settings screen even when the manifest has legacy setting
   target.querySelector<HTMLButtonElement>('button[title="Settings"]')!.click();
   await tick();
   expect(pluginRender).toHaveBeenCalledWith("demo-plugin", "settings", {}, expect.any(String), expect.any(Boolean));
+});
+
+it("walks back from settings to details and search before leaving the plugin", async () => {
+  const target = document.body.appendChild(document.createElement("div"));
+  const onGoToTab = vi.fn();
+  const page = (label: string) => ({
+    type: "column" as const,
+    children: [{ type: "button" as const, id: "navigate", label }],
+  });
+  vi.mocked(pluginRender).mockImplementation(async (_plugin, screen) => ({
+    root: page(screen ?? "main"),
+  }));
+  vi.mocked(pluginDispatchEvent)
+    .mockResolvedValueOnce({ screen: "detail", root: page("detail") })
+    .mockResolvedValueOnce({ screen: "settings", root: page("settings") });
+  components.push(mount(PluginsTab, { target, props: { active: true, onGoToTab } }));
+  await tick();
+  target.querySelector<HTMLButtonElement>('[aria-label="Open · Demo Plugin"]')!.click();
+  await tick();
+  const navigate = () => target.querySelector<HTMLButtonElement>("#widget-navigate")!.click();
+  const back = () => target.querySelector<HTMLButtonElement>('[aria-label="Back"]')!.click();
+  navigate();
+  await tick();
+  navigate();
+  await tick();
+  expect(pluginDispatchEvent).toHaveBeenLastCalledWith(
+    "demo-plugin", expect.objectContaining({ screen: "detail" }), expect.any(String), expect.any(Boolean),
+  );
+
+  back();
+  await tick();
+  expect(target.querySelector("#widget-navigate")?.textContent?.trim()).toBe("detail");
+  back();
+  await tick();
+  expect(target.querySelector("#widget-navigate")?.textContent?.trim()).toBe("main");
+  expect(onGoToTab).toHaveBeenCalledTimes(1);
+  back();
+  expect(onGoToTab).toHaveBeenLastCalledWith("plugins");
 });
