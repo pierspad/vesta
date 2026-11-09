@@ -445,12 +445,14 @@ impl PluginManager {
     }
 
     /// Lists all shared credentials.
+    #[cfg(test)]
     pub async fn list_shared_credentials(&self) -> std::collections::BTreeMap<String, String> {
         let reg = self.registry.lock().await;
         reg.get_all_shared_credentials()
     }
 
     /// Sets or removes a shared credential.
+    #[cfg(test)]
     pub async fn set_shared_credential(
         &self,
         key: String,

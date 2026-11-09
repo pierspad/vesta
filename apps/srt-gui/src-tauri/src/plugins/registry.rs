@@ -187,6 +187,7 @@ impl PluginRegistry {
         Ok(())
     }
 
+    #[cfg(test)]
     pub fn get_shared_credentials(&self, allowed_keys: &[String]) -> BTreeMap<String, String> {
         let mut result = BTreeMap::new();
         for key in allowed_keys {
@@ -197,6 +198,7 @@ impl PluginRegistry {
         result
     }
 
+    #[cfg(test)]
     pub fn set_shared_credential(&mut self, key: String, value: Option<String>) {
         match value {
             Some(v) if !v.trim().is_empty() => {
@@ -208,6 +210,7 @@ impl PluginRegistry {
         }
     }
 
+    #[cfg(test)]
     pub fn get_all_shared_credentials(&self) -> BTreeMap<String, String> {
         self.shared_credentials.clone()
     }

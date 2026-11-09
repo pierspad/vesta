@@ -474,15 +474,3 @@ export async function pluginDispatchEvent(
     expertMode,
   });
 }
-
-export async function pluginListSharedCredentials(): Promise<Record<string, string>> {
-  return invokeCommand<Record<string, string>>("plugin_list_shared_credentials");
-}
-
-export async function pluginSetSharedCredential(key: string, value: string): Promise<void> {
-  return invokeCommand<void>("plugin_set_shared_credential", { key, value });
-}
-
-export async function pluginDeleteSharedCredential(key: string): Promise<void> {
-  return invokeCommand<void>("plugin_delete_shared_credential", { key });
-}
