@@ -98,6 +98,8 @@ impl PluginRegistry {
         fs::write(temp_file.path(), content)
             .map_err(|e| format!("Failed to write plugins registry: {e}"))?;
 
+        // Preserve legacy inline credentials until their separate store is durable.
+        self.save_shared_credentials(path)?;
         temp_file.persist(path).map_err(|e| {
             format!(
                 "Failed to persist plugins registry to {}: {e}",
@@ -105,7 +107,7 @@ impl PluginRegistry {
             )
         })?;
 
-        self.save_shared_credentials(path)
+        Ok(())
     }
 
     pub fn save_shared_credentials(&self, registry_path: &Path) -> Result<(), String> {
@@ -241,6 +243,19 @@ mod tests {
             tab: None,
             settings: None,
         }
+    }
+
+    #[test]
+    fn failed_vault_write_preserves_legacy_registry_credentials() {
+        let directory = tempfile::tempdir().unwrap();
+        let registry_path = directory.path().join("plugins.json");
+        let legacy = r#"{"version":1,"plugins":[],"sharedCredentials":{"test_key":"legacy"}}"#;
+        fs::write(&registry_path, legacy).unwrap();
+        let registry = PluginRegistry::load_from_file(&registry_path).unwrap();
+        fs::create_dir(directory.path().join("shared_credentials.json")).unwrap();
+
+        assert!(registry.save_to_file(&registry_path).is_err());
+        assert_eq!(fs::read_to_string(registry_path).unwrap(), legacy);
     }
 
     #[test]
