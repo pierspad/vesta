@@ -17,7 +17,7 @@ python3 build-scripts/quality_check.py --desktop --smoke
 | `python3 build-scripts/quality_check.py` | Headless gate: Tauri version sync, release workflow tests, documentation/contract checks, Svelte/TypeScript type checking, AST pattern checks, Vitest suite, dev-CSS check, i18n audit, frontend production build, and Rust library/CLI tests (`--exclude vesta --exclude whisper-bench`). |
 | `python3 build-scripts/quality_check.py --desktop` | Adds desktop native Rust tests (`vesta` Tauri package). |
 | `python3 build-scripts/quality_check.py --desktop --smoke` | Adds the synthetic 20-second FFmpeg/APKG media generation smoke test (`quality_smoke.py`). |
-| `python3 build-scripts/check_doc_contracts.py` | Verifies documentation links/anchors, CLI flags, MCP tools, Tauri IPC commands, Plugin SDK parity, and public API contract hashes against [`docs/contracts_manifest.json`](contracts_manifest.json). |
+| `python3 build-scripts/check_doc_contracts.py` | Verifies documentation links/anchors, per-subcommand CLI flags, MCP tools, Tauri IPC commands, AST-extracted Plugin SDK builder parity, and full Rust public API signature/field hashes against [`docs/contracts_manifest.json`](contracts_manifest.json). Enforced locally in `quality_check.py` and in CI (`ci.yml`, `release.yml`). |
 | `cargo fmt --all --check` | Rust formatting check across the workspace. |
 | `cargo clippy --locked --workspace --all-targets -- -D warnings` | Strict lint gate across all workspace targets. |
 | `cargo test --locked --workspace` | Full workspace Rust test suite (including `vesta` and `whisper-bench`). |

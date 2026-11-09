@@ -30,6 +30,8 @@ jobs:
       - run: python3 build-scripts/test_release_workflows.py
       - run: python3 build-scripts/test_tauri_versions.py
       - run: python3 build-scripts/check_tauri_versions.py
+      - run: python3 build-scripts/check_doc_contracts.py
+      - run: python3 build-scripts/test_doc_contracts.py
 
   security:
     name: Dependency security advisories

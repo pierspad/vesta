@@ -79,6 +79,44 @@ class TestDocContracts(unittest.TestCase):
             any("nonexistent_ghost_tool" in e and "[MCP Docs]" in e for e in errors)
         )
 
+    def test_rust_signature_extraction_detects_parameter_and_field_changes(self) -> None:
+        code_a = """
+        pub struct Config {
+            pub retries: usize,
+        }
+        pub fn undo(&mut self) -> Option<String> {
+            None
+        }
+        """
+        code_b = """
+        pub struct Config {
+            pub retries: usize,
+        }
+        pub fn undo(&mut self, steps: usize) -> Option<String> {
+            None
+        }
+        """
+        code_c = """
+        pub struct Config {
+            pub retries: u64,
+        }
+        pub fn undo(&mut self) -> Option<String> {
+            None
+        }
+        """
+        items_a = cdc._extract_rust_public_items(code_a)
+        items_b = cdc._extract_rust_public_items(code_b)
+        items_c = cdc._extract_rust_public_items(code_c)
+        self.assertNotEqual(cdc.sha256_json(items_a), cdc.sha256_json(items_b))
+        self.assertNotEqual(cdc.sha256_json(items_a), cdc.sha256_json(items_c))
+
+    def test_subcommand_specific_cli_flag_resolution(self) -> None:
+        _, ctx = cdc.build_current_manifest()
+        refine_sub = ctx["cli"]["crates"]["srt-refine-cli"]["subcommand_flags"]
+        self.assertIn("--input", refine_sub["inspect"])
+        self.assertNotIn("--allow-partial", refine_sub["inspect"])
+        self.assertIn("--allow-partial", refine_sub["enrich"])
+
 
 if __name__ == "__main__":
     unittest.main()

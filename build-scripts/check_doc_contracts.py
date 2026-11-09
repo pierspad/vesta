@@ -192,6 +192,28 @@ def extract_mcp_contracts() -> Dict[str, Any]:
 
 # ── 3. CLI Crates (cli/*) ──────────────────────────────────────────────────
 
+def _extract_flags_from_block(block: str) -> List[str]:
+    arg_fields: List[str] = []
+    for m in re.finditer(
+        r"#\[arg\((.*?)\)\]\s*(?:pub\s+)?([a-zA-Z0-9_]+)\s*:",
+        block,
+        re.DOTALL,
+    ):
+        attr = m.group(1)
+        field_name = m.group(2)
+        if "long" in attr or "short" in attr:
+            long_match = re.search(r'long\s*=\s*"([^"]+)"', attr)
+            flag_name = (
+                long_match.group(1)
+                if long_match
+                else field_name.replace("_", "-")
+            )
+            arg_fields.append(f"--{flag_name}")
+        else:
+            arg_fields.append(f"<{field_name}>")
+    return sorted(set(arg_fields))
+
+
 def extract_cli_contracts() -> Dict[str, Any]:
     cli_crates = [
         "vesta-cli",
@@ -207,49 +229,53 @@ def extract_cli_contracts() -> Dict[str, Any]:
     for crate in cli_crates:
         lib_rs = ROOT / "cli" / crate / "src" / "lib.rs"
         content = lib_rs.read_text(encoding="utf-8")
+        subcommand_flags: Dict[str, List[str]] = {}
         if crate == "vesta-cli":
             subcommands = re.findall(r'\.subcommand\(Command::new\("([^"]+)"\)', content)
             flags: List[str] = ["--help", "--version"]
         else:
-            subcommands = [
-                m.group(1).lower()
-                for m in re.finditer(
-                    r"enum\s+Command\s*\{(.*?)\n\}", content, re.DOTALL
-                )
-                for m in re.finditer(r"^\s*([A-Z][a-zA-Z0-9_]*)", m.group(1), re.MULTILINE)
-            ]
-            arg_fields: List[str] = []
-            for m in re.finditer(
-                r"#\[arg\((.*?)\)\]\s*(?:pub\s+)?([a-zA-Z0-9_]+)\s*:",
-                content,
-                re.DOTALL,
-            ):
-                attr = m.group(1)
-                field_name = m.group(2)
-                if "long" in attr or "short" in attr:
-                    long_match = re.search(r'long\s*=\s*"([^"]+)"', attr)
-                    flag_name = (
-                        long_match.group(1)
-                        if long_match
-                        else field_name.replace("_", "-")
-                    )
-                    arg_fields.append(f"--{flag_name}")
-                else:
-                    arg_fields.append(f"<{field_name}>")
-            flags = sorted(set(arg_fields))
+            struct_blocks: Dict[str, str] = {}
+            for sm in re.finditer(r"struct\s+([A-Z][a-zA-Z0-9_]*)\s*\{(.*?)\n\}", content, re.DOTALL):
+                struct_blocks[sm.group(1)] = sm.group(2)
+
+            subcommands = []
+            cmd_enum = re.search(r"enum\s+Command\s*\{(.*?)\n\}", content, re.DOTALL)
+            if cmd_enum:
+                enum_body = cmd_enum.group(1)
+                # Match variants: Variant(StructName), Variant { ... }, or unit Variant
+                for vm in re.finditer(
+                    r"^\s*([A-Z][a-zA-Z0-9_]*)\s*(?:\(\s*([A-Z][a-zA-Z0-9_]*)\s*\)|\{(.*?)\})?\s*,?",
+                    enum_body,
+                    re.MULTILINE | re.DOTALL,
+                ):
+                    vname = vm.group(1).lower()
+                    subcommands.append(vname)
+                    if vm.group(2) and vm.group(2) in struct_blocks:
+                        subcommand_flags[vname] = _extract_flags_from_block(struct_blocks[vm.group(2)])
+                    elif vm.group(3):
+                        subcommand_flags[vname] = _extract_flags_from_block(vm.group(3))
+                    else:
+                        subcommand_flags[vname] = []
+
+            flags = _extract_flags_from_block(content)
 
         module_name = crate.removesuffix("-cli")
         docs = ["docs/CLI.md", f"cli/{crate}/README.md"]
         if (ROOT / "docs" / "modules" / f"{module_name}.md").exists():
             docs.append(f"docs/modules/{module_name}.md")
 
-        entry = {
+        entry: Dict[str, Any] = {
             "subcommands": sorted(subcommands),
+            "subcommand_flags": subcommand_flags,
             "flags": flags,
             "docs": docs,
         }
         entry["hash"] = sha256_json(
-            {"subcommands": entry["subcommands"], "flags": entry["flags"]}
+            {
+                "subcommands": entry["subcommands"],
+                "subcommand_flags": subcommand_flags,
+                "flags": entry["flags"],
+            }
         )
         result[crate] = entry
 
@@ -271,8 +297,10 @@ def extract_plugin_contracts() -> Dict[str, Any]:
         widget_types = sorted(re.findall(r'"([^"]+)"', wt_match.group(1)))
 
     py_sdk_path = ROOT / "docs" / "examples" / "plugin-hello" / "vesta_plugin.py"
-    py_tree = ast.parse(py_sdk_path.read_text(encoding="utf-8"))
+    py_source = py_sdk_path.read_text(encoding="utf-8")
+    py_tree = ast.parse(py_source)
     py_builders: Dict[str, List[str]] = {}
+    py_builder_types: Dict[str, str] = {}
     py_plugin_methods: List[str] = []
     for node in py_tree.body:
         if isinstance(node, ast.FunctionDef) and not node.name.startswith("_"):
@@ -282,6 +310,16 @@ def extract_plugin_contracts() -> Dict[str, Any]:
             if node.args.kwarg:
                 args.append(f"**{node.args.kwarg.arg}")
             py_builders[node.name] = args
+            for sub in ast.walk(node):
+                if isinstance(sub, ast.Dict):
+                    for k, v in zip(sub.keys, sub.values):
+                        if (
+                            isinstance(k, ast.Constant)
+                            and k.value == "type"
+                            and isinstance(v, ast.Constant)
+                            and isinstance(v.value, str)
+                        ):
+                            py_builder_types[node.name] = v.value
         elif isinstance(node, ast.ClassDef) and node.name == "VestaPlugin":
             for item in node.body:
                 if isinstance(item, ast.FunctionDef) and not item.name.startswith("_"):
@@ -302,12 +340,14 @@ def extract_plugin_contracts() -> Dict[str, Any]:
     return {
         "widget_types": widget_types,
         "python_builders": {k: sha256_json(v) for k, v in sorted(py_builders.items())},
+        "python_builder_types": py_builder_types,
         "python_plugin_methods": sorted(py_plugin_methods),
         "manifest_fields": manifest_fields,
         "hash": sha256_json(
             {
                 "widget_types": widget_types,
                 "python_builders": py_builders,
+                "python_builder_types": py_builder_types,
                 "python_plugin_methods": sorted(py_plugin_methods),
                 "manifest_fields": manifest_fields,
             }
@@ -318,13 +358,68 @@ def extract_plugin_contracts() -> Dict[str, Any]:
 
 # ── 5. Core & Library Public Rust APIs (core/*, lib/*) ─────────────────────
 
+def _strip_rust_comments(code: str) -> str:
+    code = re.sub(r"//[^\n]*", "", code)
+    code = re.sub(r"/\*.*?\*/", "", code, flags=re.DOTALL)
+    return code
+
+
+def _extract_rust_public_items(content: str) -> List[str]:
+    clean = _strip_rust_comments(content)
+    items: List[str] = []
+    # Match public functions with full parameter and return signatures
+    fn_pat = re.compile(
+        r"(?:^|\n)\s*pub\s+(?:async\s+)?fn\s+([a-zA-Z0-9_]+)\s*(?:<[^>]*>)?\s*\((.*?)\)\s*(?:->\s*([^{;]+?))?\s*(?:where\s+[^{;]+?)?\{",
+        re.DOTALL,
+    )
+    for m in fn_pat.finditer(clean):
+        name = m.group(1)
+        params = normalize_ws(m.group(2))
+        ret = normalize_ws(m.group(3) or "()")
+        items.append(f"fn {name}({params}) -> {ret}")
+
+    # Match public structs with their public fields
+    struct_pat = re.compile(
+        r"(?:^|\n)\s*pub\s+struct\s+([a-zA-Z0-9_]+)\s*(?:<[^>]*>)?\s*(?:\{(.*?)\}|(\([^;]*\));|;)",
+        re.DOTALL,
+    )
+    for m in struct_pat.finditer(clean):
+        name = m.group(1)
+        if m.group(2) is not None:
+            pub_fields = [
+                normalize_ws(f.group(1))
+                for f in re.finditer(r"\bpub\s+([a-zA-Z0-9_]+\s*:\s*[^,\n}]+)", m.group(2))
+            ]
+            items.append(f"struct {name} {{{', '.join(pub_fields)}}}")
+        elif m.group(3) is not None:
+            items.append(f"struct {name}{normalize_ws(m.group(3))}")
+        else:
+            items.append(f"struct {name}")
+
+    # Match public enums with their variants
+    enum_pat = re.compile(
+        r"(?:^|\n)\s*pub\s+enum\s+([a-zA-Z0-9_]+)\s*(?:<[^>]*>)?\s*\{(.*?)\}",
+        re.DOTALL,
+    )
+    for m in enum_pat.finditer(clean):
+        name = m.group(1)
+        body = normalize_ws(m.group(2))
+        items.append(f"enum {name} {{{body}}}")
+
+    # Match public type, const, mod, trait
+    other_pat = re.compile(
+        r"^\s*pub\s+(type|const|mod|trait)\s+([a-zA-Z0-9_]+[^\n;{]*)",
+        re.MULTILINE,
+    )
+    for m in other_pat.finditer(clean):
+        items.append(f"{m.group(1)} {normalize_ws(m.group(2))}")
+
+    return sorted(set(items))
+
+
 def extract_rust_public_apis() -> Dict[str, Any]:
     crate_dirs = sorted(
         list((ROOT / "core").glob("srt-*")) + list((ROOT / "lib").glob("srt-*"))
-    )
-    pub_item_pattern = re.compile(
-        r"^\s*pub\s+(?:async\s+)?(fn|struct|enum|type|const|mod|trait)\s+([a-zA-Z0-9_]+)",
-        re.MULTILINE,
     )
     crates: Dict[str, Any] = {}
     for cdir in crate_dirs:
@@ -335,13 +430,13 @@ def extract_rust_public_apis() -> Dict[str, Any]:
         for rs_file in sorted((cdir / "src").rglob("*.rs")):
             rel_rs = rs_file.relative_to(cdir).as_posix()
             content = rs_file.read_text(encoding="utf-8")
-            items: List[str] = []
-            for match in pub_item_pattern.finditer(content):
-                kind, name = match.group(1), match.group(2)
-                items.append(f"{kind} {name}")
+            # Strip #[cfg(test)] mod tests from the end of file if present
+            test_mod = re.search(r"#\[cfg\(test\)\]\s*mod\s+tests\b", content)
+            prod_content = content[: test_mod.start()] if test_mod else content
+            items = _extract_rust_public_items(prod_content)
             if items:
-                symbols[rel_rs] = sorted(set(items))
-                file_hashes[rel_rs] = sha256_json(symbols[rel_rs])
+                symbols[rel_rs] = items
+                file_hashes[rel_rs] = sha256_json(items)
 
         docs = [
             f"{rel_dir}/README.md",
@@ -419,51 +514,64 @@ def verify_cross_contracts(
     renderer_svelte = (
         ROOT / "apps" / "srt-gui" / "src" / "lib" / "components" / "PluginRenderer.svelte"
     ).read_text(encoding="utf-8")
-    py_sdk = (
-        ROOT / "docs" / "examples" / "plugin-hello" / "vesta_plugin.py"
-    ).read_text(encoding="utf-8")
+    rendered_types = set(
+        re.findall(r'node\.type\s*===\s*"([^"]+)"', renderer_svelte)
+    )
+    py_emitted_types = set(plugins.get("python_builder_types", {}).values())
 
     for wtype in plugins["widget_types"]:
         if f"`{wtype}`" not in plugins_md:
             errors.append(
                 f"[Plugin Docs] WidgetType `{wtype}` in pluginClient.ts is not documented in docs/PLUGINS.md"
             )
-        if f'"{wtype}"' not in renderer_svelte:
+        if wtype not in rendered_types:
             errors.append(
-                f"[Plugin Renderer] WidgetType `{wtype}` in pluginClient.ts is not handled in PluginRenderer.svelte"
+                f"[Plugin Renderer] WidgetType `{wtype}` in pluginClient.ts has no `node.type === \"{wtype}\"` branch in PluginRenderer.svelte"
             )
-        if f'"type": "{wtype}"' not in py_sdk:
+        # Note: external-link is a legacy alias for link in the renderer; ExternalLink() emits externalLink
+        if wtype != "external-link" and wtype not in py_emitted_types:
             errors.append(
-                f"[Plugin Python SDK] WidgetType `{wtype}` has no builder in docs/examples/plugin-hello/vesta_plugin.py"
+                f"[Plugin Python SDK] WidgetType `{wtype}` has no AST builder emitting `{{\"type\": \"{wtype}\"}}` in vesta_plugin.py"
             )
 
-    # 6d. Verify CLI flags referenced in docs/CLI.md and docs/modules/*.md actually exist
-    cli_flag_map: Dict[str, Set[str]] = {}
+    # 6d. Verify CLI flags referenced in docs/CLI.md and docs/modules/*.md actually exist (per-subcommand aware)
     for crate, info in cli["crates"].items():
         op_name = crate.removesuffix("-cli")
+        if not op_name.startswith("srt-"):
+            continue
         short_op = op_name.removeprefix("srt-")
-        flag_set = set(f for f in info["flags"] if f.startswith("--")) | {
+        mod_doc = ROOT / "docs" / "modules" / f"{op_name}.md"
+        if not mod_doc.exists():
+            continue
+        all_flags = set(f for f in info["flags"] if f.startswith("--")) | {
             "--help",
             "--version",
         }
-        cli_flag_map[op_name] = flag_set
-        cli_flag_map[short_op] = flag_set
-
-    for cname, flag_set in cli_flag_map.items():
-        if not cname.startswith("srt-"):
-            continue
-        mod_doc = ROOT / "docs" / "modules" / f"{cname}.md"
-        if not mod_doc.exists():
-            continue
+        sub_flags: Dict[str, Set[str]] = {
+            sub: set(f for f in flist if f.startswith("--")) | {"--help", "--version"}
+            for sub, flist in info.get("subcommand_flags", {}).items()
+        }
         mod_text = mod_doc.read_text(encoding="utf-8")
         for line in mod_text.splitlines():
-            if cname in line or f"vesta-cli {cname.removeprefix('srt-')}" in line:
-                check_part = line.split(" -- ", 1)[1] if ("cargo " in line and " -- " in line) else ("" if "cargo " in line else line)
+            if op_name in line or f"vesta-cli {short_op}" in line or f"vesta {short_op}" in line:
+                check_part = (
+                    line.split(" -- ", 1)[1]
+                    if ("cargo " in line and " -- " in line)
+                    else ("" if "cargo " in line else line)
+                )
+                if not check_part:
+                    continue
+                # Determine if a specific subcommand is invoked on this line
+                active_flag_set = all_flags
+                for sub_name, sflags in sub_flags.items():
+                    if re.search(rf"\b(?:{re.escape(op_name)}|{re.escape(short_op)})\s+{re.escape(sub_name)}\b", check_part):
+                        active_flag_set = sflags
+                        break
                 for flag_match in re.finditer(r"(--[a-z0-9-]+)", check_part):
                     used_flag = flag_match.group(1)
-                    if used_flag not in flag_set:
+                    if used_flag not in active_flag_set:
                         errors.append(
-                            f"[Module CLI Example] {mod_doc.relative_to(ROOT)} uses unknown flag `{used_flag}` for `{cname}` (valid: {sorted(flag_set)})"
+                            f"[Module CLI Example] {mod_doc.relative_to(ROOT)} uses unknown flag `{used_flag}` for `{op_name}` (valid: {sorted(active_flag_set)})"
                         )
 
     return errors
@@ -599,6 +707,7 @@ def build_current_manifest() -> Tuple[Dict[str, Any], Dict[str, Any]]:
                     k: {
                         "hash": v["hash"],
                         "subcommands": v["subcommands"],
+                        "subcommand_flags": v.get("subcommand_flags", {}),
                         "flags": v["flags"],
                         "docs": v["docs"],
                     }
@@ -609,6 +718,7 @@ def build_current_manifest() -> Tuple[Dict[str, Any], Dict[str, Any]]:
                 "hash": plugins["hash"],
                 "widget_types": plugins["widget_types"],
                 "python_builders": plugins["python_builders"],
+                "python_builder_types": plugins["python_builder_types"],
                 "python_plugin_methods": plugins["python_plugin_methods"],
                 "manifest_fields": plugins["manifest_fields"],
                 "docs": plugins["docs"],

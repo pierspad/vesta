@@ -67,11 +67,12 @@
       ]
     },
     "cli_adapters": {
-      "hash": "ee2d8d6c8ed62e7b",
+      "hash": "5f50820329abccde",
       "crates": {
         "srt-autosync-cli": {
-          "hash": "864bbf55cad36ed8",
+          "hash": "1d2908a1939ffe04",
           "subcommands": [],
+          "subcommand_flags": {},
           "flags": [
             "--ffmpeg",
             "--ffprobe",
@@ -88,8 +89,9 @@
           ]
         },
         "srt-extract-cli": {
-          "hash": "9e1127ac74af1b5e",
+          "hash": "718b13709b382628",
           "subcommands": [],
+          "subcommand_flags": {},
           "flags": [
             "--ffmpeg",
             "--ffprobe",
@@ -106,12 +108,121 @@
           ]
         },
         "srt-flashcards-cli": {
-          "hash": "d5f5a095c974e0bb",
+          "hash": "fd81cdde3d9b9634",
           "subcommands": [
             "generate",
             "info",
             "preview"
           ],
+          "subcommand_flags": {
+            "generate": [
+              "--actor-filter",
+              "--audio",
+              "--audio-bitrate",
+              "--audio-format",
+              "--audio-gain",
+              "--audio-track",
+              "--combine-sentences",
+              "--context-leading",
+              "--context-trailing",
+              "--continuation-chars",
+              "--crop-bottom",
+              "--deck",
+              "--episode",
+              "--exclude-duplicates",
+              "--exclude-words",
+              "--ffmpeg",
+              "--ffprobe",
+              "--format",
+              "--h264-preset",
+              "--include-words",
+              "--jobs",
+              "--max-chars",
+              "--max-duration",
+              "--max-gap",
+              "--min-chars",
+              "--min-duration",
+              "--native",
+              "--no-audio",
+              "--no-optimize",
+              "--no-snapshots",
+              "--no-video",
+              "--normalize-audio",
+              "--only-cjk",
+              "--output",
+              "--pad-audio-end",
+              "--pad-audio-start",
+              "--quiet",
+              "--remove-no-match",
+              "--shift-native",
+              "--shift-target",
+              "--snapshot-format",
+              "--snapshot-height",
+              "--snapshot-quality",
+              "--snapshot-width",
+              "--span-end",
+              "--span-start",
+              "--target",
+              "--video",
+              "--video-audio-bitrate",
+              "--video-bitrate",
+              "--video-codec"
+            ],
+            "info": [],
+            "preview": [
+              "--actor-filter",
+              "--audio",
+              "--audio-bitrate",
+              "--audio-format",
+              "--audio-gain",
+              "--audio-track",
+              "--combine-sentences",
+              "--context-leading",
+              "--context-trailing",
+              "--continuation-chars",
+              "--crop-bottom",
+              "--deck",
+              "--episode",
+              "--exclude-duplicates",
+              "--exclude-words",
+              "--ffmpeg",
+              "--ffprobe",
+              "--format",
+              "--h264-preset",
+              "--include-words",
+              "--jobs",
+              "--max-chars",
+              "--max-duration",
+              "--max-gap",
+              "--min-chars",
+              "--min-duration",
+              "--native",
+              "--no-audio",
+              "--no-optimize",
+              "--no-snapshots",
+              "--no-video",
+              "--normalize-audio",
+              "--only-cjk",
+              "--output",
+              "--pad-audio-end",
+              "--pad-audio-start",
+              "--quiet",
+              "--remove-no-match",
+              "--shift-native",
+              "--shift-target",
+              "--snapshot-format",
+              "--snapshot-height",
+              "--snapshot-quality",
+              "--snapshot-width",
+              "--span-end",
+              "--span-start",
+              "--target",
+              "--video",
+              "--video-audio-bitrate",
+              "--video-bitrate",
+              "--video-codec"
+            ]
+          },
           "flags": [
             "--actor-filter",
             "--audio",
@@ -172,7 +283,7 @@
           ]
         },
         "srt-refine-cli": {
-          "hash": "06e7afc611b13759",
+          "hash": "9d48ec73b9c20ad1",
           "subcommands": [
             "each",
             "enrich",
@@ -181,6 +292,21 @@
             "supported",
             "the"
           ],
+          "subcommand_flags": {
+            "inspect": [
+              "--input"
+            ],
+            "the": [],
+            "each": [],
+            "for": [],
+            "supported": [],
+            "enrich": [
+              "--allow-partial",
+              "--config",
+              "--input",
+              "--output"
+            ]
+          },
           "flags": [
             "--allow-partial",
             "--config",
@@ -194,8 +320,9 @@
           ]
         },
         "srt-sync-cli": {
-          "hash": "6f495e7913b0f441",
+          "hash": "dabef9e5e97784e4",
           "subcommands": [],
+          "subcommand_flags": {},
           "flags": [
             "--anchor",
             "--input",
@@ -208,13 +335,35 @@
           ]
         },
         "srt-transcribe-cli": {
-          "hash": "939cde1daa99838b",
+          "hash": "93f2e44cdcbff0c4",
           "subcommands": [
             "download",
             "models",
             "remove",
             "run"
           ],
+          "subcommand_flags": {
+            "run": [
+              "--api-key",
+              "--api-url",
+              "--ffmpeg",
+              "--json",
+              "--language",
+              "--max-segment-length",
+              "--model",
+              "--no-gpu",
+              "--output",
+              "--provider",
+              "--quality",
+              "--quiet",
+              "--translate-to-english",
+              "--vad",
+              "--word-timestamps"
+            ],
+            "models": [],
+            "download": [],
+            "remove": []
+          },
           "flags": [
             "--api-key",
             "--api-url",
@@ -239,8 +388,9 @@
           ]
         },
         "srt-translate-cli": {
-          "hash": "d5c51025bfa5f65f",
+          "hash": "175e66e157cffe5c",
           "subcommands": [],
+          "subcommand_flags": {},
           "flags": [
             "--check-missing",
             "--config",
@@ -256,7 +406,7 @@
           ]
         },
         "vesta-cli": {
-          "hash": "16e38da48a833e69",
+          "hash": "9cc409cbd1b74fd9",
           "subcommands": [
             "autosync",
             "extract",
@@ -266,6 +416,7 @@
             "transcribe",
             "translate"
           ],
+          "subcommand_flags": {},
           "flags": [
             "--help",
             "--version"
@@ -278,7 +429,7 @@
       }
     },
     "plugin_sdk": {
-      "hash": "6aca9cbc06d14ed3",
+      "hash": "66ead05aca917343",
       "widget_types": [
         "button",
         "checkbox",
@@ -329,6 +480,31 @@
         "TextArea": "f24d97b9470361cb",
         "TextInput": "f1d2eedea1948d84"
       },
+      "python_builder_types": {
+        "Column": "column",
+        "Row": "row",
+        "Heading": "heading",
+        "Text": "text",
+        "TextInput": "textInput",
+        "TextArea": "textArea",
+        "PathInput": "pathInput",
+        "PasswordInput": "passwordInput",
+        "NumberInput": "numberInput",
+        "Select": "select",
+        "Segmented": "segmented",
+        "LanguageSelect": "languageSelect",
+        "Checkbox": "checkbox",
+        "Button": "button",
+        "Link": "link",
+        "ExternalLink": "externalLink",
+        "ListWidget": "list",
+        "Table": "table",
+        "Image": "image",
+        "Progress": "progress",
+        "FileOutput": "fileOutput",
+        "Divider": "divider",
+        "Settings": "settings"
+      },
       "python_plugin_methods": [
         "get_shared_credential",
         "get_values",
@@ -365,15 +541,15 @@
       ]
     },
     "rust_libraries": {
-      "hash": "01c7b898c7b38449",
+      "hash": "453e17f3344edf54",
       "crates": {
         "srt-ankiconnect": {
           "path": "lib/srt-ankiconnect",
           "symbol_count": 9,
           "files": {
-            "src/lib.rs": "5c2b922bf56accc3"
+            "src/lib.rs": "1b4ad168921c4a2f"
           },
-          "hash": "2cccbb8713c1b20a",
+          "hash": "0262697c23583408",
           "docs": [
             "lib/srt-ankiconnect/README.md",
             "docs/modules/srt-ankiconnect.md",
@@ -384,9 +560,9 @@
           "path": "core/srt-apkg",
           "symbol_count": 3,
           "files": {
-            "src/lib.rs": "1bebd23612b7ca37"
+            "src/lib.rs": "51f88c34081e6223"
           },
-          "hash": "74fbc7ed9dfc6680",
+          "hash": "ad4a92ec6955d37f",
           "docs": [
             "core/srt-apkg/README.md",
             "docs/modules/srt-apkg.md",
@@ -395,14 +571,14 @@
         },
         "srt-autosync": {
           "path": "lib/srt-autosync",
-          "symbol_count": 54,
+          "symbol_count": 55,
           "files": {
-            "src/consensus.rs": "1a5385007426a522",
-            "src/lib.rs": "07ee2321f8057d5b",
-            "src/matching.rs": "f975363e78fb0f88",
-            "src/normalization.rs": "4deb0803e337381e"
+            "src/consensus.rs": "d3e5707166f9afd9",
+            "src/lib.rs": "72312f9abaceca8c",
+            "src/matching.rs": "e250e8f618bb57fd",
+            "src/normalization.rs": "0cee2738f819c34c"
           },
-          "hash": "a3bb34dcb488f95e",
+          "hash": "59869be8ad658ccc",
           "docs": [
             "lib/srt-autosync/README.md",
             "docs/modules/srt-autosync.md",
@@ -413,9 +589,9 @@
           "path": "core/srt-download",
           "symbol_count": 1,
           "files": {
-            "src/lib.rs": "71aa20d93eafb17d"
+            "src/lib.rs": "12672ada34d4a523"
           },
-          "hash": "1cf81b68cacea374",
+          "hash": "32b7f6d228811c0a",
           "docs": [
             "core/srt-download/README.md",
             "docs/modules/srt-download.md",
@@ -424,12 +600,12 @@
         },
         "srt-extract": {
           "path": "lib/srt-extract",
-          "symbol_count": 13,
+          "symbol_count": 12,
           "files": {
-            "src/embedded.rs": "5902a1a80482a461",
-            "src/lib.rs": "b4718c0be3e7a822"
+            "src/embedded.rs": "4137abdad707e844",
+            "src/lib.rs": "eb86c23bcd84a320"
           },
-          "hash": "6481bd7642654bab",
+          "hash": "502b75d8d96b9542",
           "docs": [
             "lib/srt-extract/README.md",
             "docs/modules/srt-extract.md",
@@ -438,19 +614,19 @@
         },
         "srt-flashcards": {
           "path": "lib/srt-flashcards",
-          "symbol_count": 67,
+          "symbol_count": 68,
           "files": {
-            "src/fonts.rs": "16635c4a1f2871f5",
-            "src/generation/mod.rs": "d0b298f32b75f64f",
-            "src/generation/publication.rs": "49d34f7e9b90a7c2",
-            "src/lib.rs": "91aecf1e26e023c6",
-            "src/media.rs": "27183bce56c5e1a3",
-            "src/merge_apkg.rs": "241cedfb16c68bab",
-            "src/parser.rs": "ed0ad5da7d9cbca1",
-            "src/snapshot_batch.rs": "ea96f4052e477859",
-            "src/types.rs": "6de566bfafd20cf0"
+            "src/fonts.rs": "5d83fb6e92ecef9e",
+            "src/generation/mod.rs": "e30b723054794bd9",
+            "src/generation/publication.rs": "e9b151b82829423d",
+            "src/lib.rs": "757e060fdce851a1",
+            "src/media.rs": "d26849817223be21",
+            "src/merge_apkg.rs": "94beca6046e0d296",
+            "src/parser.rs": "f8958027f02daa21",
+            "src/snapshot_batch.rs": "936f03e2bbe071bc",
+            "src/types.rs": "9d24f762935ffe9e"
           },
-          "hash": "712268d4cc8e5d87",
+          "hash": "00238b23286d6704",
           "docs": [
             "lib/srt-flashcards/README.md",
             "docs/modules/srt-flashcards.md",
@@ -459,13 +635,13 @@
         },
         "srt-parser": {
           "path": "core/srt-parser",
-          "symbol_count": 21,
+          "symbol_count": 18,
           "files": {
-            "src/encoding.rs": "5dde5a1dcff83602",
-            "src/lib.rs": "7e8026c4c36ec368",
-            "src/persistence.rs": "f9bc9306dea2b220"
+            "src/encoding.rs": "74218009699cb8fe",
+            "src/lib.rs": "95641b6d7cccb507",
+            "src/persistence.rs": "403315deaa700cda"
           },
-          "hash": "24c8497839564f0f",
+          "hash": "52fdf3f75783e62f",
           "docs": [
             "core/srt-parser/README.md",
             "docs/modules/srt-parser.md",
@@ -476,11 +652,11 @@
           "path": "lib/srt-refine",
           "symbol_count": 14,
           "files": {
-            "src/cards.rs": "78d8a00e3dec0a94",
-            "src/engine.rs": "bdaa150e2d89c683",
-            "src/lib.rs": "ffee434badb19b9d"
+            "src/cards.rs": "a745f00079f0f287",
+            "src/engine.rs": "68f0e21720528ab1",
+            "src/lib.rs": "2d0387e937bda1ac"
           },
-          "hash": "761694d30c26dcc4",
+          "hash": "18f4c4042b9d5493",
           "docs": [
             "lib/srt-refine/README.md",
             "docs/modules/srt-refine.md",
@@ -489,16 +665,16 @@
         },
         "srt-sync": {
           "path": "lib/srt-sync",
-          "symbol_count": 76,
+          "symbol_count": 72,
           "files": {
-            "src/engine.rs": "19f3daefb73b2e9b",
-            "src/interpolator.rs": "61a68e4a7a144c93",
+            "src/engine.rs": "edad450d703e69d0",
+            "src/interpolator.rs": "78ae0ca30c495462",
             "src/lib.rs": "67bfd2557fc5152f",
-            "src/matching.rs": "228df7804652e443",
-            "src/playback.rs": "58ca22558c2720be",
-            "src/sampler.rs": "5669e83e34bb955d"
+            "src/matching.rs": "47c737362a96f517",
+            "src/playback.rs": "2679f562ad9838b8",
+            "src/sampler.rs": "053bce60b715f4de"
           },
-          "hash": "554e5495435435d4",
+          "hash": "cb94c51d2af2911c",
           "docs": [
             "lib/srt-sync/README.md",
             "docs/modules/srt-sync.md",
@@ -507,16 +683,16 @@
         },
         "srt-transcribe": {
           "path": "lib/srt-transcribe",
-          "symbol_count": 64,
+          "symbol_count": 65,
           "files": {
-            "src/audio.rs": "41ff487fe1a23728",
-            "src/cloud.rs": "550a8b680755b340",
-            "src/lib.rs": "a7dff1998faddad3",
-            "src/model.rs": "c5aa56cc6b067e2a",
-            "src/pipeline.rs": "bb958835417f9927",
-            "src/transcribe.rs": "4c010d34af9a7172"
+            "src/audio.rs": "0de0f97320d4141e",
+            "src/cloud.rs": "2789946161dd0328",
+            "src/lib.rs": "2c4eff5dc5f44b9f",
+            "src/model.rs": "f92e284040c29893",
+            "src/pipeline.rs": "4ac96fefce817af9",
+            "src/transcribe.rs": "91aae242ee5bea1b"
           },
-          "hash": "8b1176d7353bddf9",
+          "hash": "275df621d54e789d",
           "docs": [
             "lib/srt-transcribe/README.md",
             "docs/modules/srt-transcribe.md",
@@ -527,16 +703,16 @@
           "path": "lib/srt-translate",
           "symbol_count": 53,
           "files": {
-            "src/diagnostics.rs": "31fb0a3c3ca02b90",
-            "src/language_info.rs": "b0d0c885bc2cefe2",
-            "src/lib.rs": "971930bea8468f85",
-            "src/pool.rs": "c0f10395e3395ed3",
-            "src/prompts.rs": "e20167683b76138a",
-            "src/rate_limiter.rs": "e5160ae4f4275ffd",
-            "src/scheduler.rs": "34619919a5ab96f2",
-            "src/translator.rs": "7c2e7d5c461706e7"
+            "src/diagnostics.rs": "96b19fdd79657f24",
+            "src/language_info.rs": "057045e794c4f397",
+            "src/lib.rs": "2e410bdc0047fbe5",
+            "src/pool.rs": "360ada9f6c8a2c05",
+            "src/prompts.rs": "5205d526257af099",
+            "src/rate_limiter.rs": "61e94a71c3e6ef0e",
+            "src/scheduler.rs": "0e6fdadc5739c7d1",
+            "src/translator.rs": "e843905a93b11d01"
           },
-          "hash": "da00848ea7c324b9",
+          "hash": "66b717df15b6e108",
           "docs": [
             "lib/srt-translate/README.md",
             "docs/modules/srt-translate.md",
