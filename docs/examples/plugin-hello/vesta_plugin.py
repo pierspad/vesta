@@ -44,7 +44,7 @@ def TextInput(
     label: Optional[str] = None,
     placeholder: str = "",
     defaultValue: str = "",
-    disabled: bool = false,
+    disabled: bool = False,
     hint: Optional[Union[str, Dict[str, Any]]] = None,
     link: Optional[Dict[str, str]] = None,
 ) -> Dict[str, Any]:
@@ -68,7 +68,7 @@ def PasswordInput(
     label: Optional[str] = None,
     placeholder: str = "",
     defaultValue: str = "",
-    disabled: bool = false,
+    disabled: bool = False,
     hint: Optional[Union[str, Dict[str, Any]]] = None,
     link: Optional[Dict[str, str]] = None,
 ) -> Dict[str, Any]:
@@ -94,7 +94,7 @@ def NumberInput(
     min: Optional[int] = None,
     max: Optional[int] = None,
     step: int = 1,
-    disabled: bool = false,
+    disabled: bool = False,
 ) -> Dict[str, Any]:
     node: Dict[str, Any] = {
         "type": "numberInput",
@@ -116,7 +116,7 @@ def Select(
     options: List[Dict[str, str]],
     label: Optional[str] = None,
     defaultValue: str = "",
-    disabled: bool = false,
+    disabled: bool = False,
 ) -> Dict[str, Any]:
     node: Dict[str, Any] = {
         "type": "select",
