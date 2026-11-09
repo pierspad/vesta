@@ -104,9 +104,9 @@ cargo build --release -p vesta-cli
 | `translate` | Translate subtitles with resume | `srt-translate` |
 | `refine` | Inspect and annotate existing decks | `srt-refine` |
 
-Each operation has `--help`; commands with further subcommands also expose their own help. The existing `srt-*` binaries remain available. Media operations require FFmpeg/FFprobe; transcription and auto-sync also need their configured model or provider. The [module guides](docs/modules/README.md) describe each library, command and build requirement.
+Each operation has `--help`; commands with further subcommands also expose their own help. Standalone `srt-*` binaries provide the same individual commands. Media operations require FFmpeg/FFprobe; transcription and auto-sync also need their configured model or provider. The [module guides](docs/modules/README.md) describe each library, command and build requirement.
 
-For assistant integration, the optional [MCP server](docs/MCP.md) is still available as a separately built `vesta-mcp` executable. It exposes subtitle inspection, card previews, exports, translation and transcription as structured tools and cancellable jobs over local stdio. Translation/transcription use explicitly configured server profiles; credentials stay server-side. It covers fewer workflows than the CLI; its advantage is tool/schema discovery and job control for MCP clients, rather than extra processing features.
+For assistant integration, the optional [MCP server](docs/MCP.md) is available as a separately built `vesta-mcp` executable. It exposes subtitle inspection, card previews, exports, translation, transcription, and installed plugins as structured tools and cancellable jobs over local stdio (10 tools total). Translation/transcription use explicitly configured server profiles; credentials stay server-side. It covers fewer workflows than the CLI; its advantage is tool/schema discovery and job control for MCP clients, rather than extra processing features.
 
 ## Building from Source
 
@@ -127,11 +127,11 @@ For tests and release checks, see [CONTRIBUTING.md](CONTRIBUTING.md) and [the qu
 |---|---|
 | [Documentation index](docs/README.md) | Find maintained guides and review records. |
 | [CLI guide and coverage](docs/CLI.md) | Every command, correct usage, output contracts and differences from the GUI/libraries. |
-| [MCP integration](docs/MCP.md) | Local server setup, eight tools, provider profiles, jobs, file roots and current limits. |
+| [MCP integration](docs/MCP.md) | Local server setup, ten tools, provider profiles, jobs, file roots and current limits. |
 | [Architecture](docs/ARCHITECTURE.md) | Engine boundaries, desktop integration and media lifecycle. |
 | [Modules](docs/modules/README.md) | All 11 engine/support crates, their CLIs and Rust APIs. |
 | [Library integration](docs/library-integration.md) | Downstream dependencies, Whisper patch, GPU features and smoke checks. |
-| [Provider compatibility review](docs/API_COMPATIBILITY.md) | Dated provider API contract/link review; authenticated inference has separate checks. |
+| [Provider compatibility](docs/API_COMPATIBILITY.md) | External provider HTTP contracts and endpoint references. |
 | [Quality](docs/QUALITY.md) | Automated checks and installed-app validation. |
 | [Maintenance](docs/MAINTENANCE.md) | Maintained invariants, known limits and open work. |
 | [Setup and installer checks](docs/SETUP_TESTING.md) | Repeatable desktop validation. |

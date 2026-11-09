@@ -1,17 +1,15 @@
 # Vesta Documentation
 
 Vesta decouples reusable Rust feature engines from its desktop, CLI, and MCP consumers.
-This index links to all actively maintained guides. Historical code audits are preserved
-as standalone snapshots: [October 21 audit](../reports/CODEBASE_AUDIT_2026-10-21.md),
-[October 22 follow-up](../reports/CODEBASE_AUDIT_FOLLOWUP_2026-10-22.md), and the
-[documentation and CLI review](../reports/DOCUMENTATION_CLI_REVIEW_2026-10-22.md).
+This index links to all actively maintained reference manuals and guides.
 
 ## User & CLI/MCP Guides
 
 | Guide | Description |
 | --- | --- |
 | [CLI and Coverage](CLI.md) | Commands, examples, safe usage, error handling, output formats, and differences from GUI/libraries. |
-| [MCP Server](MCP.md) | Local stdio server, tools, allowed directory roots, and asynchronous job management. |
+| [MCP Server](MCP.md) | Local stdio server, 10 tools, allowed directory roots, provider profiles, and asynchronous job management. |
+| [Plugin Specification & SDK](PLUGINS.md) | Declarative JSON-RPC 2.0 plugin architecture, widget catalog, manifest schema, and Python SDK. |
 | [Setup and Installer Testing](SETUP_TESTING.md) | First-run setup checks, audio preparation, and installer update validation. |
 
 ## Architecture & Module Reference
@@ -21,8 +19,8 @@ as standalone snapshots: [October 21 audit](../reports/CODEBASE_AUDIT_2026-10-21
 | [Architecture](ARCHITECTURE.md) | Module boundaries, desktop integration, and media lifecycles. |
 | [Modules](modules/README.md) | Engine APIs and standalone CLI tools. |
 | [Library Integration](library-integration.md) | Dependencies, feature flags, and validation for external consumers. |
-| [Provider Compatibility](API_COMPATIBILITY.md) | Historical review of API contracts and provider endpoints (not a Rust library compatibility policy). |
-| [Maintenance](MAINTENANCE.md) | Architectural boundaries, persistence contracts, and open tasks. |
+| [Provider Compatibility](API_COMPATIBILITY.md) | Public HTTP contracts and endpoint references for cloud STT and LLM integrations. |
+| [Maintenance](MAINTENANCE.md) | Architectural boundaries, persistence contracts, and dependency advisories. |
 
 ## Quality & Benchmarks
 

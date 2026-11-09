@@ -1,123 +1,72 @@
-# Benchmark completo del motore Rust di Vesta
+# Native Snapshot Batching Benchmark Suite
 
-L'ottimizzazione è in `lib/srt-flashcards/src/snapshot_batch.rs`, condivisa da
-CLI e desktop. L'app non usa Python. `verify_native.py` è soltanto un runner di
-benchmark: avvia il binario Rust e verifica i mazzi. Il prototipo Python che
-coordinava FFmpeg è stato rimosso e archiviato fuori dal repository.
+The native snapshot batching implementation lives in `lib/srt-flashcards/src/snapshot_batch.rs` and is shared by both the CLI and desktop application. `verify_native.py` is an external benchmark and verification harness that executes the compiled Rust binary (`srt-flashcards`) and validates output equivalence across A/B runs.
 
-## Avvio quando il PC è libero
+## Running the Benchmark Suite
 
-Dalla radice del repository:
+From the repository root on an idle machine:
 
 ```bash
 ./benchmarking/snapshot_batch/run-benchmark.sh --dry-run
 ./benchmarking/snapshot_batch/run-benchmark.sh
 ```
 
-Il secondo comando compila il binario release **prima** delle misure. Sono
-necessari Cargo, Python 3, FFmpeg e FFprobe. `psutil` è opzionale: se presente
-si misurano anche RSS e processi; senza, tempi e verifica di qualità funzionano
-comunque. Nessun download, modifica ai film o dipendenza Python nell'app.
+The second command builds the release binary before starting measurements. Cargo, Python 3, FFmpeg, and FFprobe are required (`psutil` is optional for sampling RSS and process counts).
 
-Il runner scopre ricorsivamente i film in `Test_Subs/FILM` e cerca i sottotitoli
-`NomeFilm-en.srt`, poi `NomeFilm.srt`. Gestisce anche `Detour(1945).mp4` con
-`Detour-en.srt`. I film senza sottotitoli vengono elencati come esclusi.
-Attualmente trova **8 film utilizzabili**; `8 e mezzo.mp4` manca dei sottotitoli.
+The harness recursively scans `Test_Subs/FILM` and resolves `<FilmName>-en.srt` or `<FilmName>.srt` (including `Detour(1945).mp4` with `Detour-en.srt`). Films without matching subtitles are listed as excluded.
 
-La matrice predefinita comprende, per ogni film:
+The default benchmark matrix evaluates, for each film:
 
-- 25, 100, 300 carte e tutte le carte del film, con tempi reali dei sottotitoli;
-- 100 carte sparse sull'intero film;
-- WebP 256×144 (dimensioni predefinite dell'app) e 640×360;
-- tre coppie A/B alternate: originale `--no-optimize`, poi ottimizzato, invertendo
-  l'ordine nella seconda ripetizione;
-- audio MP3 128k/44.1kHz/stereo, traccia 0, normalizzazione attiva, qualità WebP 80,
-  crop/padding zero, 15 worker richiesti (il motore li limita ai core disponibili).
+- `25`, `100`, `300`, and `all` cards using actual subtitle timestamps;
+- `100` sparse cards distributed across the full film duration;
+- WebP snapshots at `256×144` (application default) and `640×360`;
+- Three alternating A/B pairs: baseline (`--no-optimize`) vs. optimized, reversing execution order on the second repetition to balance warm OS filesystem cache effects;
+- Audio MP3 `128k` / `44.1 kHz` / stereo, track `0`, loudness normalization enabled, WebP quality `80`, zero crop/padding, and `15` requested workers (clamped to available logical cores).
 
-Con gli input attuali sono **480 generazioni**: riservare diverse ore, senza
-altri benchmark, compilazioni o carichi pesanti concorrenti. Non c'è il vecchio
-limite cumulativo di 600 secondi. Ogni generazione ha un timeout di due ore,
-configurabile con `--timeout` (0 lo disabilita).
+Across 8 films, the full matrix comprises **480 generations**. Each generation has a default two-hour timeout (`--timeout`, where `0` disables the limit).
 
-## Risultati e ripresa
+## Results and Resumption
 
-I risultati vengono salvati fuori dal repository, in
-`../vesta-benchmark-results/AAAAMMGG-HHMMSS/`:
+Outputs are written outside the repository under `../vesta-benchmark-results/YYYYMMDD-HHMMSS/`:
 
-- `summary.md`: mediane dei tempi, riduzioni o regressioni, coppie completate,
-  stato ed esclusioni;
-- `results.json`: comandi, versione FFmpeg/FFprobe, hash del binario e sottotitoli,
-  dimensione/data dei video, tempi, hash di ogni media e dei campi delle note;
-- sottotitoli selezionati e log stdout/stderr per ogni generazione.
+- `summary.md`: median timings, speedups or regressions, completed pairs, status, and exclusions;
+- `results.json`: exact commands, FFmpeg/FFprobe versions, binary and subtitle hashes, video sizes/timestamps, wall times, and SHA-256 hashes of every generated media file and note field;
+- selected subtitle subsets and `stdout`/`stderr` logs per generation.
 
-Ogni APKG supera integrità ZIP/SQLite, conteggi delle carte e dei media, controllo
-dei riferimenti, media non vuoti e confronto esatto di MP3/WebP e campi delle
-note. Una differenza o un errore ferma la suite con exit code non zero e conserva
-il mazzo problematico. I mazzi verificati vengono cancellati per limitare lo
-spazio; `--keep-decks` li conserva. Serve comunque spazio per un mazzo completo
-alla volta, più log e risultati.
+Every generated `.apkg` is checked for ZIP and SQLite integrity, card and media counts, media reference completeness, non-empty media files, and byte-for-byte identity of MP3/WebP media and Anki note fields between baseline and optimized runs. Any mismatch halts the suite with a non-zero exit code and retains the failing deck. Verified decks are deleted to conserve disk space unless `--keep-decks` is passed.
 
-Ctrl+C o SIGTERM terminano i processi della generazione attiva e salvano lo
-stato. Per riprendere, usare **gli stessi argomenti** e la directory precedente:
+Pressing `Ctrl+C` or sending `SIGTERM` terminates active child processes and saves progress. To resume an interrupted run, pass the same arguments and output directory:
 
 ```bash
-./benchmarking/snapshot_batch/run-benchmark.sh --resume --output /percorso/risultati
+./benchmarking/snapshot_batch/run-benchmark.sh --resume --output /path/to/results
 ```
 
-La ripresa richiede lo stesso runner, binario, impostazioni, input e versioni degli
-strumenti; salta le generazioni già verificate. Non riprende risultati con
-errori di validazione. L'intervallo fra sessioni può alterare le condizioni del
-PC: per misure più omogenee preferire un'esecuzione ininterrotta.
+## Custom Profiles and Runner Tests
 
-## Varianti
-
-Solo film interi, alle dimensioni predefinite, senza campioni aggiuntivi:
+Run full films only at default dimensions without sparse samples:
 
 ```bash
 ./benchmarking/snapshot_batch/run-benchmark.sh --sizes all --profiles default --sparse 0
 ```
 
-Altra directory, lingua, worker e output:
+Specify a custom input directory, language, worker count, and output path:
 
 ```bash
-./benchmarking/snapshot_batch/run-benchmark.sh --input /percorso/film --language it --jobs 8 --output /percorso/nuovi-risultati
+./benchmarking/snapshot_batch/run-benchmark.sh --input /path/to/films --language it --jobs 8 --output /path/to/new-results
 ```
 
-`--help` elenca tutte le opzioni. Per usare un binario già compilato, chiamare
-`python3 benchmarking/snapshot_batch/verify_native.py` con gli stessi argomenti.
-
-## Cosa dimostra
-
-Il tempo comprende l'intera generazione audio + immagini + APKG: metadati,
-packet scan, estrazione, copie e packaging. Python non estrae o pre-elabora
-media. La cache del sistema operativo non viene svuotata; l'ordine A/B alterna
-il vantaggio di una cache già calda. RSS/processi sono campionati ogni 20 ms e
-possono perdere picchi o processi brevi. Non si misurano rendering della GUI,
-clip video, sincronizzazione o trascrizione. Un risultato negativo indica una
-regressione; coppie incomplete non dimostrano un guadagno.
-
-Il batch Rust è limitato a CFR H.264/HEVC, larghezza 1280–1920 e altezza ≤1080,
-WebP e stream non ambiguo. Raggruppa al massimo otto richieste in otto secondi,
-selezionando PTS reali e preservando il comportamento ai keyframe riordinati.
-Fonti/timestamp incerti, formati non supportati e richieste isolate mantengono
-l'estrazione originale. Non c'è una cache persistente. I guadagni dei casi già
-misurati non provano un'accelerazione universale.
-
-Verifica del runner, senza benchmark completo:
+Run the harness unit tests without executing the full benchmark:
 
 ```bash
 python3 -m unittest discover -s benchmarking/snapshot_batch -p test_runner.py
 ```
 
-## Grafici dai risultati completati
+## Generating Charts from Completed Results
 
-Non serve ripetere le misure per disegnare i grafici. Il comando usa `.venv`
-se presente, altrimenti Python di sistema; richiede Matplotlib:
+To render SVG and PNG charts from a completed `results.json` file (requires `matplotlib` in `.venv` or system Python):
 
 ```bash
-./benchmarking/snapshot_batch/plot-results.sh /percorso/risultati/results.json
+./benchmarking/snapshot_batch/plot-results.sh /path/to/results/results.json
 ```
 
-Produce SVG e PNG in `charts/` accanto ai risultati, per tutti i film interi e
-ogni profilo misurato. Rifiuta suite incomplete o confronti non validati.
-Questi grafici confrontano Vesta originale e ottimizzata, non subs2srs.
+See [`docs/BENCHMARK_NATIVE.md`](../../docs/BENCHMARK_NATIVE.md) for the recorded 480-generation A/B equivalence report.
