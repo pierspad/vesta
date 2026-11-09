@@ -294,7 +294,7 @@ All widgets accept the following optional properties:
 | `checkbox` | Toggle checkbox | `id: string`, `label: string`, `defaultValue?: boolean`, `tooltip?: string` |
 | `button` | Action button | `id: string`, `label: string`, `icon?: string`, `variant?: "primary" \| "secondary" \| "danger" \| "settings" \| "accent"`, `disabled?: boolean`, `tooltip?: string` |
 | `link` / `externalLink` | External hyperlink | `label: string`, `url: string`, `icon?: string` (opens in system browser via Tauri opener) |
-| `list` | Rich item list with actions | `items: Array<{ id, title, subtitle?, badge?, language?, meta?, image?, actions?: Array<{ id, label, variant?, icon?, tooltip? }> }>` |
+| `list` | Rich item list with actions | `items: Array<{ id, title, subtitle?, badge?, language?, meta?, image?, actions?: Array<{ id, label, variant?, icon?, iconOnly?, tooltip? }> }>` |
 | `table` | Responsive data table | `headers: string[]`, `rows: Array<Array<string \| number>>` |
 | `image` | Static image | `src: string`, `alt?: string`, `width?: number`, `height?: number` |
 | `progress` | Progress bar | `value: number`, `max?: number`, `label?: string` |
@@ -363,6 +363,13 @@ Widgets supporting `icon` accept standard monochrome vector icon names (plus `"t
 ---
 
 ## 8. Dynamic UI Operations (Patching)
+
+Return `root` with `patch.values` to replace the widget tree and explicitly
+reset specific fields. Other edited values are preserved. When both are
+present, the replacement tree supplies the structure and the patch supplies
+only the value overrides. For example, after removing a saved credential,
+return the refreshed list and set its password field to an empty string.
+
 
 Instead of retransmitting the entire UI hierarchy on every small update, a plugin can emit or return an incremental `PluginPatch`:
 

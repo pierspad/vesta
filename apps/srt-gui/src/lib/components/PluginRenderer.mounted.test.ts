@@ -778,3 +778,31 @@ it("dispatches a drop only on the opted-in path field and includes edited multil
   }
   expect(cleanup).toHaveBeenCalled();
 });
+
+it("applies explicit credential resets alongside a replacement tree without overwriting other fields", async () => {
+  const target = document.body.appendChild(document.createElement("div"));
+  const root: WidgetNode = {
+    type: "column",
+    children: [
+      { type: "passwordInput", id: "key", label: "API key", defaultValue: "old-key" },
+      { type: "textInput", id: "name", label: "Name", defaultValue: "original" },
+      { type: "list", id: "keys", items: [{ id: "saved", title: "Saved key",
+        actions: [{ id: "remove", label: "Remove", icon: "trash", iconOnly: true }] }] },
+    ],
+  };
+  mockRender.mockResolvedValue({ root });
+  mockDispatch.mockResolvedValue({ root, patch: { values: { key: "" } } });
+  components.push(mount(PluginRenderer, { target, props: { pluginId: "fixture", initialRoot: root } }));
+  await tick();
+
+  const name = target.querySelector<HTMLInputElement>("#widget-name")!;
+  name.value = "unsaved edit";
+  name.dispatchEvent(new Event("input", { bubbles: true }));
+  const remove = target.querySelector<HTMLButtonElement>('button[aria-label="Remove"]')!;
+  expect(remove.textContent?.trim()).toBe("");
+  remove.click();
+  await tick();
+  await tick();
+  expect(target.querySelector<HTMLInputElement>("#widget-key")?.value).toBe("");
+  expect(target.querySelector<HTMLInputElement>("#widget-name")?.value).toBe("unsaved edit");
+});
