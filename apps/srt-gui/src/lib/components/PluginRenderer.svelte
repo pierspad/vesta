@@ -212,9 +212,13 @@
     }
   }
 
+  function inTitleBar(node: WidgetNode): boolean {
+    return node.type === "button" && (node.placement === "header" || (!node.placement && node.variant === "settings"));
+  }
+
   function headerButtons(node: WidgetNode | null): ButtonWidget[] {
     if (!node || node.hidden || (node.expertOnly && !uiMode.expertMode)) return [];
-    if (node.type === "button" && node.placement === "header") return [node];
+    if (node.type === "button" && inTitleBar(node)) return [node];
     return "children" in node ? node.children.flatMap(headerButtons) : [];
   }
 
@@ -273,6 +277,13 @@
       const target = Array.from(renderer.querySelectorAll<HTMLButtonElement>("button[data-plugin-button]"))
         .find(button => button.dataset.pluginButton === node.disabledFocus);
       target?.focus();
+      if (target?.animate && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+        for (const animation of target.getAnimations()) animation.cancel();
+        target.animate(
+          [{ boxShadow: "0 0 0 0 transparent" }, { boxShadow: "0 0 0 3px var(--color-amber-400)" }, { boxShadow: "0 0 0 0 transparent" }],
+          { duration: 420, iterations: 2 },
+        );
+      }
       return;
     }
     void handleAction(node.id);
@@ -536,7 +547,7 @@
 {/snippet}
 
 {#snippet renderNode(node: WidgetNode, inHeader = false)}
-  {#if !node.hidden && (!node.expertOnly || uiMode.expertMode) && (node.type !== "button" || !header || node.placement !== "header" || inHeader)}
+  {#if !node.hidden && (!node.expertOnly || uiMode.expertMode) && (!header || !inTitleBar(node) || inHeader)}
     {#if node.type === "column"}
       <div class="flex flex-col w-full" style="gap: {formatGap(node.gap)}">
         {#each node.children as child}
@@ -545,7 +556,7 @@
       </div>
 
     {:else if node.type === "row"}
-      {@const children = node.children.filter(child => !child.hidden && (!child.expertOnly || uiMode.expertMode) && (child.type !== "button" || !header || child.placement !== "header"))}
+      {@const children = node.children.filter(child => !child.hidden && (!child.expertOnly || uiMode.expertMode) && (!header || !inTitleBar(child)))}
       <div class="flex flex-row flex-wrap w-full {getRowAlign(node.align)}" style="gap: {formatGap(node.gap)}">
         {#each children as child, index}
           {#if index > 0 && node.separator === "or"}
@@ -973,10 +984,10 @@
         type="button"
         id="widget-{node.id}"
         data-plugin-button={node.id}
-        disabled={blocked && (actionLoading !== null || !(guidance || node.disabledFocus))}
+        disabled={blocked && !(actionLoading === null && node.disabled && node.disabledFocus)}
         aria-disabled={blocked || undefined}
         title={guidance}
-        class="relative inline-flex items-center justify-center gap-1.5 font-medium h-10 px-4 text-xs rounded-xl transition-colors disabled:opacity-50 aria-disabled:opacity-50 cursor-pointer {getButtonVariantClass(node.variant)}"
+        class="relative inline-flex items-center justify-center gap-1.5 font-medium h-10 px-4 text-xs rounded-xl transition-colors disabled:opacity-50 aria-disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed {getButtonVariantClass(node.variant)}"
         onclick={() => activateButton(node)}
       >
         {#if actionLoading === node.id}
@@ -1253,26 +1264,31 @@
   }
   .plugin-action-primary {
     color: var(--text);
-    border-color: var(--control-focus-border);
+    background: var(--accent);
+    color: var(--accent-text);
+    border-color: var(--accent);
+  }
+  .plugin-action-primary:hover:not(:disabled):not([aria-disabled="true"]) {
+    background: var(--accent-strong);
   }
   .plugin-action-accent {
     --action-fill: var(--color-cyan-600);
     color: var(--text);
   }
   .plugin-action-danger {
-    --action-fill: var(--danger);
-    color: var(--color-red-200);
+    --action-fill: var(--color-rose-700);
+    color: var(--text);
   }
   :is(.plugin-action-accent, .plugin-action-danger) {
-    background: color-mix(in srgb, var(--action-fill) 34%, var(--surface-2));
-    border-color: color-mix(in srgb, var(--action-fill) 52%, var(--surface-2));
+    background: color-mix(in srgb, var(--action-fill) 78%, var(--surface-2));
+    border-color: color-mix(in srgb, var(--action-fill) 90%, var(--surface-2));
   }
   :is(.plugin-action-accent, .plugin-action-danger):hover:not(:disabled):not([aria-disabled="true"]) {
-    background: color-mix(in srgb, var(--action-fill) 48%, var(--surface-2));
+    background: color-mix(in srgb, var(--action-fill) 90%, var(--surface-2));
   }
   .plugin-settings-button { color: var(--text); }
-  .plugin-settings-button:focus {
-    outline: 2px solid var(--done);
+  .plugin-settings-button:focus-visible {
+    outline: 2px solid var(--color-amber-400);
     outline-offset: 3px;
   }
   .plugin-file-drop {
