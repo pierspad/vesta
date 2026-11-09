@@ -48,6 +48,51 @@ impl VestaMcp {
     pub fn jobs(&self) -> Jobs {
         self.jobs.clone()
     }
+    fn resolve_plugins_dir(&self) -> PathBuf {
+        self.plugins_dir.clone().unwrap_or_else(default_plugins_dir)
+    }
+}
+
+fn default_plugins_dir() -> PathBuf {
+    dirs::data_dir()
+        .unwrap_or_else(std::env::temp_dir)
+        .join("vesta")
+        .join("plugins")
+}
+
+fn resolve_plugin_command(plugin: &Value) -> Result<Vec<String>, String> {
+    let entry = plugin
+        .get("manifest")
+        .and_then(|m| m.get("entry"))
+        .ok_or_else(|| "Invalid plugin entry command".to_string())?;
+    let os_key = if cfg!(target_os = "windows") {
+        "windows"
+    } else if cfg!(target_os = "macos") {
+        "macos"
+    } else {
+        "linux"
+    };
+    if let Some(os_arr) = entry
+        .get("os")
+        .and_then(|o| o.get(os_key))
+        .and_then(|c| c.as_array())
+    {
+        let os_cmd: Vec<String> = os_arr
+            .iter()
+            .filter_map(|v| v.as_str().map(String::from))
+            .collect();
+        if !os_cmd.is_empty() {
+            return Ok(os_cmd);
+        }
+    }
+    let arr = entry
+        .get("command")
+        .and_then(|c| c.as_array())
+        .ok_or_else(|| "Invalid plugin entry command".to_string())?;
+    Ok(arr
+        .iter()
+        .filter_map(|v| v.as_str().map(String::from))
+        .collect())
 }
 
 #[tool_router]
@@ -240,14 +285,7 @@ impl VestaMcp {
         )
     )]
     async fn list_plugins(&self) -> Result<Json<Value>, String> {
-        let dir = self.plugins_dir.clone().unwrap_or_else(|| {
-            std::env::var("HOME")
-                .map(PathBuf::from)
-                .unwrap_or_else(|_| PathBuf::from("."))
-                .join(".config")
-                .join("vesta")
-                .join("plugins")
-        });
+        let dir = self.resolve_plugins_dir();
         let registry_path = dir.join("plugins.json");
         if !registry_path.exists() {
             return Ok(Json(json!([])));
@@ -287,14 +325,7 @@ impl VestaMcp {
         &self,
         Parameters(req): Parameters<PluginCallRequest>,
     ) -> Result<Json<Value>, String> {
-        let dir = self.plugins_dir.clone().unwrap_or_else(|| {
-            std::env::var("HOME")
-                .map(PathBuf::from)
-                .unwrap_or_else(|_| PathBuf::from("."))
-                .join(".config")
-                .join("vesta")
-                .join("plugins")
-        });
+        let dir = self.resolve_plugins_dir();
         let registry_path = dir.join("plugins.json");
         if !registry_path.exists() {
             return Err("Plugins registry not found".into());
@@ -314,18 +345,7 @@ impl VestaMcp {
             return Err(format!("Plugin '{}' is disabled", req.plugin_id));
         }
 
-        let entry = plugin
-            .get("manifest")
-            .and_then(|m| m.get("entry"))
-            .and_then(|e| e.get("command"))
-            .and_then(|c| c.as_array());
-        let cmd_args: Vec<String> = match entry {
-            Some(arr) => arr
-                .iter()
-                .filter_map(|v| v.as_str().map(String::from))
-                .collect(),
-            None => return Err("Invalid plugin entry command".into()),
-        };
+        let cmd_args = resolve_plugin_command(&plugin)?;
         if cmd_args.is_empty() {
             return Err("Empty plugin entry command".into());
         }
@@ -490,5 +510,29 @@ mod request_tests {
         assert!(validate_language("en-US").is_ok());
         assert!(validate_language("auto").is_ok());
         assert!(validate_language("Brazilian Portuguese").is_err());
+    }
+
+    #[test]
+    fn plugin_command_prefers_os_override_and_falls_back_to_default() {
+        let plugin = json!({
+            "manifest": {
+                "entry": {
+                    "command": ["python3", "main.py"],
+                    "os": {
+                        "windows": ["python.exe", "main.py"],
+                        "linux": ["python3", "-u", "main.py"]
+                    }
+                }
+            }
+        });
+        let resolved = resolve_plugin_command(&plugin).unwrap();
+        #[cfg(target_os = "windows")]
+        assert_eq!(resolved, vec!["python.exe", "main.py"]);
+        #[cfg(target_os = "linux")]
+        assert_eq!(resolved, vec!["python3", "-u", "main.py"]);
+        #[cfg(target_os = "macos")]
+        assert_eq!(resolved, vec!["python3", "main.py"]);
+
+        assert!(default_plugins_dir().ends_with(std::path::Path::new("vesta").join("plugins")));
     }
 }
