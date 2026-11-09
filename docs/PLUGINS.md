@@ -320,6 +320,11 @@ Buttons can declare action guidance through the SDK's `Button` builder:
   `status: "attention" | "ready"` adds an indicator. Provide a tooltip that
   describes what the indicator means.
 
+Use `Button(..., placement="header")` for actions such as plugin settings.
+The host places these controls at the end of the title bar and uses their
+widget IDs for events and focus targets. When a renderer has no title bar,
+the actions stay in the widget tree.
+
 Use `Row(..., separator="or")` for alternative inputs. The host places the
 localized separator between visible children, including when Expert mode changes.
 

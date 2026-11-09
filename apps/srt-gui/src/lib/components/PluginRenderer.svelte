@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from "svelte";
+  import { onMount, type Snippet } from "svelte";
   import { get } from "svelte/store";
   import { openUrl } from "@tauri-apps/plugin-opener";
   import {
@@ -26,6 +26,7 @@
     screen?: string;
     active?: boolean;
     initialRoot?: WidgetNode | null;
+    header?: Snippet<[Snippet]>;
   }
 
   let {
@@ -33,6 +34,7 @@
     screen = "main",
     active = true,
     initialRoot = null,
+    header,
   }: Props = $props();
 
   let t = $derived($locale);
@@ -209,6 +211,12 @@
     }
   }
 
+  function headerButtons(node: WidgetNode | null): ButtonWidget[] {
+    if (!node || node.hidden || (node.expertOnly && !uiMode.expertMode)) return [];
+    if (node.type === "button" && node.placement === "header") return [node];
+    return "children" in node ? node.children.flatMap(headerButtons) : [];
+  }
+
   function findButton(node: WidgetNode | null, id: string): ButtonWidget | undefined {
     if (node?.type === "button" && node.id === id) return node;
     if (node && "children" in node) {
@@ -359,7 +367,7 @@
 
   function getTextVariantClass(variant?: string): string {
     if (variant === "muted") return "text-gray-400";
-    if (variant === "settings") return "plugin-settings-button btn-secondary btn-compact";
+    if (variant === "settings") return "plugin-settings-button plugin-action";
     if (variant === "danger") return "text-rose-400";
     if (variant === "success") return "text-emerald-400";
     return "text-gray-200";
@@ -487,8 +495,8 @@
   {/if}
 {/snippet}
 
-{#snippet renderNode(node: WidgetNode)}
-  {#if !node.hidden && (!node.expertOnly || uiMode.expertMode)}
+{#snippet renderNode(node: WidgetNode, inHeader = false)}
+  {#if !node.hidden && (!node.expertOnly || uiMode.expertMode) && (node.type !== "button" || !header || node.placement !== "header" || inHeader)}
     {#if node.type === "column"}
       <div class="flex flex-col w-full" style="gap: {formatGap(node.gap)}">
         {#each node.children as child}
@@ -497,7 +505,7 @@
       </div>
 
     {:else if node.type === "row"}
-      {@const children = node.children.filter(child => !child.hidden && (!child.expertOnly || uiMode.expertMode))}
+      {@const children = node.children.filter(child => !child.hidden && (!child.expertOnly || uiMode.expertMode) && (child.type !== "button" || !header || child.placement !== "header"))}
       <div class="flex flex-row flex-wrap w-full {getRowAlign(node.align)}" style="gap: {formatGap(node.gap)}">
         {#each children as child, index}
           {#if index > 0 && node.separator === "or"}
@@ -1124,32 +1132,40 @@
   {/if}
 {/snippet}
 
-<div bind:this={renderer} class="plugin-renderer w-full h-full flex flex-col p-6 overflow-y-auto">
-  {#if loading && !uiRoot}
-    <div class="flex-1 flex flex-col items-center justify-center gap-3 text-sm text-gray-400">
-      <div class="skeleton w-48 h-6 rounded-lg"></div>
-      <div class="skeleton w-72 h-10 rounded-xl"></div>
-      <div class="skeleton w-64 h-32 rounded-xl"></div>
-    </div>
-  {:else if error && !uiRoot}
-    <div class="flex-1 flex flex-col items-center justify-center gap-3 text-center p-6">
-      <div class="w-12 h-12 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-400 flex items-center justify-center">
-        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
-      </div>
-      <p class="text-sm font-semibold text-rose-400">{error}</p>
-      <button class="btn-secondary text-xs px-4 py-2 mt-2" onclick={loadScreen}>
-        {t("common.retry")}
-      </button>
-    </div>
-  {:else if uiRoot}
-    {@render renderNode(uiRoot)}
-  {:else}
-    <div class="flex-1 flex flex-col items-center justify-center gap-2 text-gray-500 text-sm">
-      <p>{t("plugins.emptyScreen")}</p>
-    </div>
-  {/if}
-</div>
+{#snippet actions()}
+  {#each headerButtons(uiRoot) as button (button.id)}
+    {@render renderNode(button, true)}
+  {/each}
+{/snippet}
 
+<div bind:this={renderer} class="w-full h-full flex flex-col">
+  {@render header?.(actions)}
+  <div class="plugin-renderer w-full flex-1 min-h-0 flex flex-col p-6 overflow-y-auto">
+    {#if loading && !uiRoot}
+      <div class="flex-1 flex flex-col items-center justify-center gap-3 text-sm text-gray-400">
+        <div class="skeleton w-48 h-6 rounded-lg"></div>
+        <div class="skeleton w-72 h-10 rounded-xl"></div>
+        <div class="skeleton w-64 h-32 rounded-xl"></div>
+      </div>
+    {:else if error && !uiRoot}
+      <div class="flex-1 flex flex-col items-center justify-center gap-3 text-center p-6">
+        <div class="w-12 h-12 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-400 flex items-center justify-center">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+        </div>
+        <p class="text-sm font-semibold text-rose-400">{error}</p>
+        <button class="btn-secondary text-xs px-4 py-2 mt-2" onclick={loadScreen}>
+          {t("common.retry")}
+        </button>
+      </div>
+    {:else if uiRoot}
+      {@render renderNode(uiRoot)}
+    {:else}
+      <div class="flex-1 flex flex-col items-center justify-center gap-2 text-gray-500 text-sm">
+        <p>{t("plugins.emptyScreen")}</p>
+      </div>
+    {/if}
+  </div>
+</div>
 
 <style>
   .plugin-settings-button {

@@ -329,48 +329,50 @@ Every widget supports \`id\`, \`hidden\`, \`expertOnly\` (auto-hidden when Exper
 
 <div class="tab-layout flex flex-col h-full bg-gray-900 text-gray-100 select-none">
   {#if currentPlugin}
-    <!-- Embedded Plugin View with Top Bar -->
-    <div class="px-6 py-3 border-b border-white/10 bg-gray-900 flex items-center justify-between shrink-0 gap-4">
-      <div class="flex items-center gap-3 min-w-0">
-        <button
-          type="button"
-          onclick={handleBackToPlugins}
-          class="btn-secondary h-9 px-3 text-xs font-semibold inline-flex items-center gap-2 text-gray-300 hover:text-white cursor-pointer shrink-0"
-          title={t("plugins.backToPlugins")}
-          aria-label={t("plugins.backToPlugins")}
-        >
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-          </svg>
-          <span>{t("plugins.backToPlugins")}</span>
-        </button>
+    <PluginRenderer pluginId={currentPlugin.id} screen={selectedPluginScreen} active={true}>
+      {#snippet header(actions)}
+        <!-- Embedded Plugin View with Top Bar -->
+        <div class="px-6 py-3 border-b border-white/10 bg-gray-900 flex items-center justify-between shrink-0 gap-4">
+          <div class="flex items-center gap-3 min-w-0">
+            <button
+              type="button"
+              onclick={handleBackToPlugins}
+              class="btn-secondary h-9 px-3 text-xs font-semibold inline-flex items-center gap-2 text-gray-300 hover:text-white cursor-pointer shrink-0"
+              title={t("plugins.backToPlugins")}
+              aria-label={t("plugins.backToPlugins")}
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+              </svg>
+              <span>{t("plugins.backToPlugins")}</span>
+            </button>
 
-        <div class="h-5 w-px bg-white/10 shrink-0"></div>
+            <div class="h-5 w-px bg-white/10 shrink-0"></div>
 
-        <div class="flex items-center gap-2.5 min-w-0">
-          <div class="w-7 h-7 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center shrink-0 overflow-hidden">
-            {#if getPluginImageSrc(currentPlugin.manifest, currentPlugin.iconUrl)}
-              <img src={getPluginImageSrc(currentPlugin.manifest, currentPlugin.iconUrl)} alt="" class="w-full h-full object-contain rounded-lg" />
-            {:else if currentPlugin.manifest.tab?.icon === "film" || currentPlugin.manifest.icon === "film"}
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z"/></svg>
-            {:else if currentPlugin.manifest.tab?.icon === "search" || currentPlugin.manifest.icon === "search"}
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-            {:else}
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 00-1-1H4a2 2 0 110-4h1a1 1 0 001-1V7a1 1 0 011-1h3a1 1 0 001-1V4z"/></svg>
-            {/if}
+            <div class="flex items-center gap-2.5 min-w-0">
+              <div class="w-7 h-7 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center shrink-0 overflow-hidden">
+                {#if getPluginImageSrc(currentPlugin.manifest, currentPlugin.iconUrl)}
+                  <img src={getPluginImageSrc(currentPlugin.manifest, currentPlugin.iconUrl)} alt="" class="w-full h-full object-contain rounded-lg" />
+                {:else if currentPlugin.manifest.tab?.icon === "film" || currentPlugin.manifest.icon === "film"}
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z"/></svg>
+                {:else if currentPlugin.manifest.tab?.icon === "search" || currentPlugin.manifest.icon === "search"}
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                {:else}
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 00-1-1H4a2 2 0 110-4h1a1 1 0 001-1V7a1 1 0 011-1h3a1 1 0 001-1V4z"/></svg>
+                {/if}
+              </div>
+              <h2 class="text-sm font-bold text-white truncate">{currentPlugin.name}</h2>
+              <span class="text-xs font-mono px-2 py-0.5 rounded bg-white/10 text-gray-300 shrink-0">v{currentPlugin.version}</span>
+            </div>
           </div>
-          <h2 class="text-sm font-bold text-white truncate">{currentPlugin.name}</h2>
-          <span class="text-xs font-mono px-2 py-0.5 rounded bg-white/10 text-gray-300 shrink-0">v{currentPlugin.version}</span>
+
+
+          <div class="flex items-center gap-2 shrink-0">
+            {@render actions()}
+          </div>
         </div>
-      </div>
-
-
-    </div>
-
-    <!-- Embedded Renderer Body -->
-    <div class="flex-1 min-h-0 overflow-hidden relative">
-      <PluginRenderer pluginId={currentPlugin.id} screen={selectedPluginScreen} active={true} />
-    </div>
+      {/snippet}
+    </PluginRenderer>
   {:else}
     <!-- Content Band (Scrollable) -->
     <div class="flex-1 min-h-0 overflow-y-auto p-6 flex flex-col gap-6 scrollbar-thin">

@@ -246,6 +246,7 @@ export interface ButtonWidget extends BaseWidget {
   disabled?: boolean;
   icon?: string;
   status?: "attention" | "ready";
+  placement?: "header";
   disabledTooltip?: string;
   disabledFocus?: string;
   requiresAny?: string[];

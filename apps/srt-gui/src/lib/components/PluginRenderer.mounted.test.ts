@@ -2,6 +2,7 @@
 import { mount, tick, unmount } from "svelte";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import PluginRenderer from "./PluginRenderer.svelte";
+import PluginHeaderHarness from "$lib/test/fixtures/PluginHeaderHarness.svelte";
 import type { WidgetNode } from "$lib/services/pluginClient";
 import { uiMode } from "$lib/stores/uiModeStore.svelte";
 
@@ -680,4 +681,28 @@ it("renders the localized alternative only between visible row inputs", async ()
   const children = [...target.querySelector(".plugin-renderer > div")!.children];
   expect(children.map(child => child.querySelector("input")?.id ?? child.textContent?.trim()))
     .toEqual(["widget-tmdb", "or", "widget-imdb"]);
+});
+
+it("moves a declared header action into the title bar and keeps focus guidance working", async () => {
+  const target = document.createElement("div");
+  document.body.append(target);
+  const root: WidgetNode = {
+    type: "column",
+    children: [
+      { type: "button", id: "settings", label: "Settings", placement: "header", variant: "settings" },
+      { type: "button", id: "search", label: "Search", disabled: true, disabledFocus: "settings" },
+    ],
+  };
+  mockRender.mockResolvedValue({ root });
+  mockDispatch.mockResolvedValue({});
+  components.push(mount(PluginHeaderHarness, { target, props: { root } }));
+  await tick();
+  const settings = target.querySelector<HTMLButtonElement>("header #widget-settings")!;
+  expect(settings).not.toBeNull();
+  expect(target.querySelectorAll("#widget-settings")).toHaveLength(1);
+  target.querySelector<HTMLButtonElement>("#widget-search")!.click();
+  expect(document.activeElement).toBe(settings);
+  expect(mockDispatch).not.toHaveBeenCalled();
+  settings.click();
+  expect(mockDispatch).toHaveBeenCalledOnce();
 });
