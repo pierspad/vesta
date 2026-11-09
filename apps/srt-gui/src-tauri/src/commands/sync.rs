@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::path::Path;
 use tauri::State;
 
-use srt_sync::{SamplerStrategy, SyncEngine};
+use srt_sync::SyncEngine;
 
 use crate::state::AppSyncState;
 
@@ -113,28 +113,6 @@ fn map_subtitle_to_info(
     })
 }
 
-/// Ottiene tutti i sottotitoli con info di sync
-#[tauri::command]
-pub fn sync_get_subtitles(state: State<'_, AppSyncState>) -> Result<Vec<SubtitleInfo>, String> {
-    let sync_state = state.lock().map_err(|e| e.to_string())?;
-
-    let engine = sync_state
-        .engine
-        .as_ref()
-        .ok_or("Nessun file SRT caricato")?;
-
-    let anchors = engine.get_anchors();
-    let anchor_ids: HashSet<u32> = anchors.iter().map(|a| a.subtitle_index).collect();
-
-    let subtitles: Vec<SubtitleInfo> = engine
-        .get_all_subtitles()
-        .iter()
-        .filter_map(|sub| map_subtitle_to_info(engine, sub, &anchor_ids))
-        .collect();
-
-    Ok(subtitles)
-}
-
 #[tauri::command]
 pub fn sync_get_subtitles_range(
     state: State<'_, AppSyncState>,
@@ -185,37 +163,6 @@ pub fn sync_get_subtitle(state: State<'_, AppSyncState>, id: u32) -> Result<Subt
 
     map_subtitle_to_info(engine, sub, &anchor_ids)
         .ok_or(format!("Impossibile sincronizzare sottotitolo {}", id))
-}
-
-#[tauri::command]
-pub fn sync_find_subtitle_at_time(
-    state: State<'_, AppSyncState>,
-    time_ms: u64,
-) -> Result<Option<u32>, String> {
-    let sync_state = state.lock().map_err(|e| e.to_string())?;
-
-    let engine = sync_state
-        .engine
-        .as_ref()
-        .ok_or("Nessun file SRT caricato")?;
-
-    Ok(engine.find_subtitle_at_time(time_ms))
-}
-
-/// Trova il sottotitolo più vicino al tempo video
-#[tauri::command]
-pub fn sync_find_nearest_subtitle(
-    state: State<'_, AppSyncState>,
-    time_ms: u64,
-) -> Result<Option<u32>, String> {
-    let sync_state = state.lock().map_err(|e| e.to_string())?;
-
-    let engine = sync_state
-        .engine
-        .as_ref()
-        .ok_or("Nessun file SRT caricato")?;
-
-    Ok(engine.find_nearest_subtitle(time_ms))
 }
 
 #[tauri::command]
@@ -305,44 +252,6 @@ pub fn sync_get_anchors(state: State<'_, AppSyncState>) -> Result<Vec<AnchorInfo
         .collect();
 
     Ok(anchors)
-}
-
-#[tauri::command]
-pub fn sync_suggest_next(state: State<'_, AppSyncState>) -> Result<Option<u32>, String> {
-    let sync_state = state.lock().map_err(|e| e.to_string())?;
-
-    let engine = sync_state
-        .engine
-        .as_ref()
-        .ok_or("Nessun file SRT caricato")?;
-
-    Ok(engine.suggest_next_index())
-}
-
-/// Imposta la strategia di campionamento
-#[tauri::command]
-pub fn sync_set_strategy(
-    state: State<'_, AppSyncState>,
-    strategy: String,
-) -> Result<SyncStatus, String> {
-    let mut sync_state = state.lock().map_err(|e| e.to_string())?;
-
-    let engine = sync_state
-        .engine
-        .as_mut()
-        .ok_or("Nessun file SRT caricato")?;
-
-    let strat = match strategy.to_lowercase().as_str() {
-        "binary" | "binarysearch" => SamplerStrategy::BinarySearch,
-        "uncertainty" | "maxuncertainty" => SamplerStrategy::MaxUncertainty,
-        "uniform" | "uniformtime" => SamplerStrategy::UniformTime,
-        "sequential" => SamplerStrategy::Sequential,
-        _ => return Err(format!("Strategia non supportata: {}", strategy)),
-    };
-
-    engine.set_sampling_strategy(strat);
-
-    Ok(get_status_from_engine(engine))
 }
 
 #[tauri::command]

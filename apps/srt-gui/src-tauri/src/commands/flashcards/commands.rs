@@ -1,7 +1,7 @@
 use crate::state::{AppFlashcardState, OperationGuard};
 use srt_flashcards::{
     AudioTrackInfo, FlashcardConfig, FlashcardProgressEvent, FlashcardResult, MediaTools,
-    PreviewLine, SubFileInfo,
+    PreviewLine,
 };
 use tauri::{AppHandle, Emitter, Manager, State};
 
@@ -12,11 +12,6 @@ async fn resolve_media_tools(app: &AppHandle) -> MediaTools {
         ffmpeg: resolve_ffmpeg_path(Some(app)).await,
         ffprobe: resolve_ffprobe_path(Some(app)).await,
     }
-}
-
-#[tauri::command]
-pub async fn flashcard_load_subs(path: String) -> Result<SubFileInfo, String> {
-    srt_flashcards::load_sub_file_info(&path)
 }
 
 #[tauri::command]
@@ -383,13 +378,6 @@ pub async fn save_temp_subtitles(
 #[tauri::command]
 pub async fn flashcard_list_fonts() -> Result<Vec<srt_flashcards::fonts::FontStatusInfo>, String> {
     srt_flashcards::fonts::list_fonts().map_err(|e| e.to_string())
-}
-
-#[tauri::command]
-pub async fn flashcard_check_language_font(
-    lang: String,
-) -> Result<Option<srt_flashcards::fonts::FontStatusInfo>, String> {
-    Ok(srt_flashcards::fonts::font_entry_for_lang(&lang).map(srt_flashcards::fonts::font_status))
 }
 
 #[derive(Clone, serde::Serialize)]

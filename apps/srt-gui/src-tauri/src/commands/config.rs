@@ -154,7 +154,6 @@ pub async fn config_remove(state: State<'_, ConfigState>, key: String) -> Result
     .map_err(|error| error.to_string())?
 }
 
-#[tauri::command]
 pub fn config_clear(state: State<'_, ConfigState>) -> Result<(), String> {
     let mut guard = state.0.lock().map_err(|e| e.to_string())?;
     write_to_disk(&HashMap::new())?;

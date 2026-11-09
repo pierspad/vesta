@@ -3,22 +3,22 @@
   "description": "Structural contract hashes for Vesta macro-areas and micro-areas. Run `python3 build-scripts/check_doc_contracts.py --update` after updating affected documentation.",
   "macro_areas": {
     "tauri_ipc": {
-      "hash": "837ff6d6f524fcdb",
-      "defined_count": 107,
-      "registered_count": 107,
+      "hash": "9a13890f6383bc92",
+      "defined_count": 99,
+      "registered_count": 99,
       "groups": {
         "auto_sync": "1ddf2385d7490a26",
-        "config": "3b6163a1ed41f965",
+        "config": "ecd92b726176c286",
         "experimental": "d07d248dff0f5be4",
         "extract": "6d426a4520fe1d9b",
-        "flashcards": "ce5f1d66dc378417",
+        "flashcards": "8aff156515d1091a",
         "info": "16c26a50c4348e48",
         "main": "838097f6f9c01b6d",
         "net": "03f68af50294afd7",
         "plugins": "dc05ab2ebea303d7",
         "refine": "7c4ec70f03ae9118",
         "support_logs": "68c74fb27161a352",
-        "sync": "9559f3d4ef8a2e86",
+        "sync": "8bd2b242823d7e5a",
         "transcribe": "eabf4dcaa7fb4ddb",
         "translate": "60c20bbb9f1903a8",
         "updates": "7e517c4a89a3d72f"

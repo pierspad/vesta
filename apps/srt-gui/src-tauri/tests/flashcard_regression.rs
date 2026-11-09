@@ -41,10 +41,7 @@ fn text_only_config(target: &str, native: Option<&str>, deck: &str) -> Flashcard
 #[test]
 fn test_parse_clip02_en_count() {
     let path = fixture_path("clip_02_en.srt");
-    let info = tokio::runtime::Runtime::new()
-        .unwrap()
-        .block_on(flashcard_load_subs(path))
-        .unwrap();
+    let info = srt_flashcards::load_sub_file_info(&path).unwrap();
     assert_eq!(info.count, 37, "clip_02 EN should have 37 subtitle entries");
     assert_eq!(info.format, "srt");
 }
@@ -52,16 +49,12 @@ fn test_parse_clip02_en_count() {
 #[test]
 fn test_parse_clip02_it_count() {
     let path = fixture_path("clip_02_it.srt");
-    let info = tokio::runtime::Runtime::new()
-        .unwrap()
-        .block_on(flashcard_load_subs(path))
-        .unwrap();
+    let info = srt_flashcards::load_sub_file_info(&path).unwrap();
     assert_eq!(info.count, 37, "clip_02 IT should have 37 subtitle entries");
 }
 
 #[test]
 fn test_parse_all_clips_counts() {
-    let rt = tokio::runtime::Runtime::new().unwrap();
     let expected: &[(&str, usize)] = &[
         ("clip_01_en.srt", 8),
         ("clip_02_en.srt", 37),
@@ -71,7 +64,7 @@ fn test_parse_all_clips_counts() {
     ];
     for (file, expected_count) in expected {
         let path = fixture_path(file);
-        let info = rt.block_on(flashcard_load_subs(path)).unwrap();
+        let info = srt_flashcards::load_sub_file_info(&path).unwrap();
         assert_eq!(info.count, *expected_count, "Mismatch for {}", file);
     }
 }
