@@ -330,12 +330,9 @@ pub fn refine_speech_onset(
 
     for len in candidate_lengths {
         let target_slice = &cand_clean.tokens[..len];
-        let mut matches = words.windows(len).filter(|window| {
-            window
-                .iter()
-                .map(|(word, _)| word)
-                .eq(target_slice.iter())
-        });
+        let mut matches = words
+            .windows(len)
+            .filter(|window| window.iter().map(|(word, _)| word).eq(target_slice.iter()));
         if let Some(found) = matches.next()
             && matches.next().is_none()
         {

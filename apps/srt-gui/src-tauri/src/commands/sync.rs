@@ -62,10 +62,7 @@ pub fn sync_set_video(state: State<'_, AppSyncState>, path: String) -> Result<Sy
 
     sync_state.set_video_path(&path)?;
 
-    let engine = sync_state
-        .engine
-        .as_mut()
-        .ok_or("No SRT file loaded")?;
+    let engine = sync_state.engine.as_mut().ok_or("No SRT file loaded")?;
 
     Ok(get_status_from_engine(engine))
 }
@@ -121,10 +118,7 @@ pub fn sync_get_subtitles_range(
 ) -> Result<Vec<SubtitleInfo>, String> {
     let sync_state = state.lock().map_err(|e| e.to_string())?;
 
-    let engine = sync_state
-        .engine
-        .as_ref()
-        .ok_or("No SRT file loaded")?;
+    let engine = sync_state.engine.as_ref().ok_or("No SRT file loaded")?;
 
     let anchors = engine.get_anchors();
     let anchor_ids: HashSet<u32> = anchors.iter().map(|a| a.subtitle_index).collect();
@@ -149,10 +143,7 @@ pub fn sync_get_subtitles_range(
 pub fn sync_get_subtitle(state: State<'_, AppSyncState>, id: u32) -> Result<SubtitleInfo, String> {
     let sync_state = state.lock().map_err(|e| e.to_string())?;
 
-    let engine = sync_state
-        .engine
-        .as_ref()
-        .ok_or("No SRT file loaded")?;
+    let engine = sync_state.engine.as_ref().ok_or("No SRT file loaded")?;
 
     let sub = engine
         .get_subtitle(id)
@@ -175,10 +166,7 @@ pub fn sync_add_anchor(
 
     sync_state.operation.ensure_idle()?;
 
-    let engine = sync_state
-        .engine
-        .as_mut()
-        .ok_or("No SRT file loaded")?;
+    let engine = sync_state.engine.as_mut().ok_or("No SRT file loaded")?;
 
     engine
         .add_anchor(subtitle_id, corrected_time_ms, true)
@@ -197,10 +185,7 @@ pub fn sync_remove_anchor(
 
     sync_state.operation.ensure_idle()?;
 
-    let engine = sync_state
-        .engine
-        .as_mut()
-        .ok_or("No SRT file loaded")?;
+    let engine = sync_state.engine.as_mut().ok_or("No SRT file loaded")?;
 
     engine.remove_anchor(subtitle_id);
 
@@ -234,10 +219,7 @@ fn change_history(state: &AppSyncState, redo: bool) -> Result<SyncStatus, String
 pub fn sync_get_anchors(state: State<'_, AppSyncState>) -> Result<Vec<AnchorInfo>, String> {
     let sync_state = state.lock().map_err(|e| e.to_string())?;
 
-    let engine = sync_state
-        .engine
-        .as_ref()
-        .ok_or("No SRT file loaded")?;
+    let engine = sync_state.engine.as_ref().ok_or("No SRT file loaded")?;
 
     let anchors: Vec<AnchorInfo> = engine
         .get_anchors()
@@ -261,10 +243,7 @@ pub fn sync_save_file(
 ) -> Result<String, String> {
     let sync_state = state.lock().map_err(|e| e.to_string())?;
 
-    let engine = sync_state
-        .engine
-        .as_ref()
-        .ok_or("No SRT file loaded")?;
+    let engine = sync_state.engine.as_ref().ok_or("No SRT file loaded")?;
 
     engine
         .save_synced_file(&output_path)
@@ -281,10 +260,7 @@ pub fn sync_save_session(
 ) -> Result<String, String> {
     let sync_state = state.lock().map_err(|e| e.to_string())?;
 
-    let engine = sync_state
-        .engine
-        .as_ref()
-        .ok_or("No SRT file loaded")?;
+    let engine = sync_state.engine.as_ref().ok_or("No SRT file loaded")?;
 
     engine
         .save_session(&session_path)

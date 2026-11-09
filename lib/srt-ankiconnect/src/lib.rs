@@ -170,7 +170,11 @@ mod protocol_tests {
         for (status, body, message) in [
             (503, r#"{"result":6,"error":null}"#, "HTTP error"),
             (200, r#"{"error":null}"#, "missing result"),
-            (200, r#"{"result":4294967296,"error":null}"#, "Invalid AnkiConnect version"),
+            (
+                200,
+                r#"{"result":4294967296,"error":null}"#,
+                "Invalid AnkiConnect version",
+            ),
             (200, r#"{"result":6,"error":"failure"}"#, "failure"),
         ] {
             let url = response(status, body).await;

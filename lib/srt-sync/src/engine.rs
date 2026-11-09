@@ -58,8 +58,7 @@ pub struct SyncEngine {
 impl SyncEngine {
     pub fn new<P: AsRef<Path>>(srt_path: P) -> Result<Self> {
         let path_str = srt_path.as_ref().to_string_lossy().to_string();
-        let subtitles =
-            SrtParser::parse_file(&srt_path).context("Failed to load SRT file")?;
+        let subtitles = SrtParser::parse_file(&srt_path).context("Failed to load SRT file")?;
 
         Ok(Self::from_subtitles(
             subtitles,
@@ -453,8 +452,7 @@ impl SyncEngine {
     }
 
     pub fn load_session<P: AsRef<Path>>(session_path: P) -> Result<Self> {
-        let json = std::fs::read_to_string(&session_path)
-            .context("Failed to read session file")?;
+        let json = std::fs::read_to_string(&session_path).context("Failed to read session file")?;
 
         let state: SyncState =
             serde_json::from_str(&json).context("Failed to deserialize session state")?;

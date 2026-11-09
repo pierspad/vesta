@@ -50,8 +50,8 @@ pub async fn load_srt_for_translate(path: String) -> Result<SrtFileInfo, String>
 }
 
 fn load_srt_info(path: String) -> Result<SrtFileInfo, String> {
-    let mut subtitles = SrtParser::parse_file(&path)
-        .map_err(|e| format!("Failed to parse SRT file: {}", e))?;
+    let mut subtitles =
+        SrtParser::parse_file(&path).map_err(|e| format!("Failed to parse SRT file: {}", e))?;
 
     SrtParser::normalize_subtitles(&mut subtitles);
     let mut sorted: Vec<_> = subtitles.values().collect();

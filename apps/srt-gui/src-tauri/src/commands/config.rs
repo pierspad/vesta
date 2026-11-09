@@ -82,7 +82,9 @@ fn write_to_disk(map: &HashMap<String, String>) -> Result<(), String> {
 }
 
 fn write_config_file(path: &std::path::Path, map: &HashMap<String, String>) -> Result<(), String> {
-    let dir = path.parent().ok_or("Configuration path has no parent directory")?;
+    let dir = path
+        .parent()
+        .ok_or("Configuration path has no parent directory")?;
     fs::create_dir_all(dir).map_err(|e| format!("Failed to create {}: {e}", dir.display()))?;
 
     let json = serde_json::to_string_pretty(map).map_err(|e| e.to_string())?;

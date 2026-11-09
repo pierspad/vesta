@@ -118,7 +118,9 @@ pub async fn install_release_update(app: tauri::AppHandle, version: String) -> R
     // Re-resolve the official release here rather than accepting a URL/path from the webview.
     let install = get_update_installation().await?;
     if !matches!(install.channel.as_str(), "windows" | "deb" | "rpm") {
-        return Err("This installation must be updated via its package manager or the release page.".into());
+        return Err(
+            "This installation must be updated via its package manager or the release page.".into(),
+        );
     }
     let client = reqwest::Client::builder()
         .user_agent("Vesta-update-check")

@@ -148,8 +148,7 @@ fn field_indices(
     model: Option<&AnkiModel>,
     field_count: usize,
 ) -> Result<(usize, usize, usize), String> {
-    let model = model
-        .ok_or("Missing Anki model metadata: cannot identify the Notes field")?;
+    let model = model.ok_or("Missing Anki model metadata: cannot identify the Notes field")?;
     let mut expr_idx = 0;
     let mut mean_idx = 1;
     let mut notes_indices = Vec::new();
@@ -188,8 +187,7 @@ fn read_anki_models(conn: &rusqlite::Connection) -> Result<HashMap<String, AnkiM
         .query_row("SELECT models FROM col LIMIT 1", [], |row| row.get(0))
         .map_err(|e| format!("Failed to read Anki model metadata: {e}"))?;
 
-    serde_json::from_str(&models_json)
-        .map_err(|e| format!("Failed to parse Anki model JSON: {e}"))
+    serde_json::from_str(&models_json).map_err(|e| format!("Failed to parse Anki model JSON: {e}"))
 }
 
 pub fn load_cards(path: &str) -> Result<Vec<RefineCard>, String> {
@@ -212,8 +210,7 @@ pub fn load_cards(path: &str) -> Result<Vec<RefineCard>, String> {
 }
 
 fn load_cards_tsv(path: &Path) -> Result<Vec<RefineCard>, String> {
-    let content =
-        fs::read_to_string(path).map_err(|e| format!("Failed to read TSV file: {e}"))?;
+    let content = fs::read_to_string(path).map_err(|e| format!("Failed to read TSV file: {e}"))?;
 
     let rows: Vec<Vec<String>> = content
         .lines()
@@ -243,8 +240,8 @@ fn extract_anki_db(apkg_path: &Path, dest_db_path: &Path) -> Result<(), String> 
 }
 
 fn load_cards_apkg(path: &str) -> Result<Vec<RefineCard>, String> {
-    let temp_dir = tempfile::tempdir()
-        .map_err(|e| format!("Failed to create temporary directory: {e}"))?;
+    let temp_dir =
+        tempfile::tempdir().map_err(|e| format!("Failed to create temporary directory: {e}"))?;
 
     let db_path = temp_dir.path().join("collection.anki2");
     if let Err(err) = extract_anki_db(Path::new(path), &db_path) {
@@ -298,8 +295,7 @@ pub fn save_cards(
 
     if !input_path_buf.exists() {
         return Err(
-            "Original input file does not exist. Restore it before saving annotations."
-                .to_string(),
+            "Original input file does not exist. Restore it before saving annotations.".to_string(),
         );
     }
     let resolved_input_path = input_path_buf;
@@ -332,9 +328,7 @@ pub fn save_cards(
             save_apkg_to_apkg(&resolved_input_path, input_path, output_path, updates)
         }
         (_, "tsv") => Err("Unsupported input file format for TSV export".to_string()),
-        (_, "apkg") => {
-            Err("Saving a TSV file as APKG is not supported.".to_string())
-        }
+        (_, "apkg") => Err("Saving a TSV file as APKG is not supported.".to_string()),
         _ => Err("Unsupported file format. Use .tsv or .apkg".to_string()),
     }
 }
@@ -344,8 +338,8 @@ fn save_tsv_to_tsv(
     output_path: &str,
     updates: Vec<RefineUpdate>,
 ) -> Result<(), String> {
-    let content = fs::read_to_string(input)
-        .map_err(|e| format!("Failed to read input TSV file: {e}"))?;
+    let content =
+        fs::read_to_string(input).map_err(|e| format!("Failed to read input TSV file: {e}"))?;
 
     let mut rows: Vec<Vec<String>> = content
         .lines()
@@ -367,7 +361,9 @@ fn save_tsv_to_tsv(
         if rows.get(idx).is_none_or(|row| !is_tsv_data(row))
             || updates_map.insert(idx, update.notes).is_some()
         {
-            return Err(format!("TSV row ID {idx} is missing, non-annotatable, or duplicated"));
+            return Err(format!(
+                "TSV row ID {idx} is missing, non-annotatable, or duplicated"
+            ));
         }
     }
 
@@ -401,8 +397,8 @@ fn save_apkg_to_tsv(
     output_path: &str,
     updates: Vec<RefineUpdate>,
 ) -> Result<(), String> {
-    let temp_dir = tempfile::tempdir()
-        .map_err(|e| format!("Failed to create temporary directory: {e}"))?;
+    let temp_dir =
+        tempfile::tempdir().map_err(|e| format!("Failed to create temporary directory: {e}"))?;
 
     let input_path_str = resolved_input.to_str().unwrap_or(original_input);
     let db_path = temp_dir.path().join("collection.anki2");
@@ -454,7 +450,10 @@ fn save_apkg_to_tsv(
                 .insert(update.id.clone(), update.notes)
                 .is_some()
         {
-            return Err(format!("Anki note ID {} is missing or duplicated", update.id));
+            return Err(format!(
+                "Anki note ID {} is missing or duplicated",
+                update.id
+            ));
         }
     }
 
@@ -478,8 +477,8 @@ fn save_apkg_to_apkg(
     output_path: &str,
     updates: Vec<RefineUpdate>,
 ) -> Result<(), String> {
-    let temp_dir = tempfile::tempdir()
-        .map_err(|e| format!("Failed to create temporary directory: {e}"))?;
+    let temp_dir =
+        tempfile::tempdir().map_err(|e| format!("Failed to create temporary directory: {e}"))?;
 
     let input_path_str = resolved_input.to_str().unwrap_or(original_input);
     srt_apkg::unzip_to(Path::new(input_path_str), temp_dir.path())?;
@@ -496,7 +495,10 @@ fn save_apkg_to_apkg(
 
     let mut updates_map = HashMap::new();
     for update in updates {
-        let nid = update.id.parse::<i64>().map_err(|_| "Invalid Anki note ID")?;
+        let nid = update
+            .id
+            .parse::<i64>()
+            .map_err(|_| "Invalid Anki note ID")?;
         if updates_map.insert(nid, update.notes).is_some() {
             return Err(format!("Duplicate Anki note ID {nid}"));
         }

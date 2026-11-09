@@ -138,13 +138,8 @@ pub fn transcribe_full_with_state(
         }
 
         let offset_ms = (span.start / (SAMPLE_RATE / 1000)) as i64;
-        let (mut span_segments, span_language) = transcribe_span(
-            state,
-            &audio_data[span],
-            options,
-            offset_ms,
-            cancel_token,
-        )?;
+        let (mut span_segments, span_language) =
+            transcribe_span(state, &audio_data[span], options, offset_ms, cancel_token)?;
         detected_language = detected_language.or(span_language);
         segments.append(&mut span_segments);
     }

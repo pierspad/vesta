@@ -648,7 +648,8 @@ if __name__ == "__main__":
         .unwrap();
 
         let paths = Paths::new(vec![read_root], output_root).unwrap();
-        let server = VestaMcp::with_plugins_dir(paths, ProviderConfig::default(), Some(plugins_dir));
+        let server =
+            VestaMcp::with_plugins_dir(paths, ProviderConfig::default(), Some(plugins_dir));
         let render_res = server
             .call_plugin(Parameters(PluginCallRequest {
                 plugin_id: "test-get-values".to_string(),
