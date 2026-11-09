@@ -911,7 +911,7 @@
   "transcribe.sourceLanguage": "Kaynak Dil",
   "transcribe.startTranscription": "Transkripsiyonu Başlat",
   "transcribe.starting": "Transkripsiyon başlıyor...",
-  "transcribe.tiers.managePriority": "Motor önceliğini yönet",
+  "transcribe.tiers.managePriority": "Model ve sağlayıcı önceliği",
   "transcribe.tiers.cardTitle": "Deşifre için Öncelik Katmanları",
   "transcribe.transcribing": "Metne dökülüyor...",
   "transcribe.useGpu": "GPU kullan",
@@ -1370,6 +1370,6 @@
   "tiers.rpmTooltip": "Bu sağlayıcı için izin verilen dakikalık maksimum istek",
   "tiers.budgetTooltip": "Devir öncesinde bu katman için izin verilen maksimum istek",
   "tiers.batchSizeTooltip": "Tek bir istekte gönderilen altyazı satırı sayısı",
-  "speech.priorityChain": "Yapılandırılmış öncelik zinciri",
+  "speech.priorityChain": "Varsayılan öncelik zinciri",
   "speech.externalHint": "Harici STT, sesi seçilen hizmete gönderir ve ücretli olabilir. Eşzamanlama gerçek zaman damgaları gerektirir."
 }

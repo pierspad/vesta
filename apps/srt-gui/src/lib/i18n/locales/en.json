@@ -911,7 +911,7 @@
   "transcribe.sourceLanguage": "Source language",
   "transcribe.startTranscription": "Start Transcription",
   "transcribe.starting": "Starting transcription...",
-  "transcribe.tiers.managePriority": "Manage engine priority",
+  "transcribe.tiers.managePriority": "Model and provider priority",
   "transcribe.tiers.cardTitle": "Tiers of Precedence for transcription",
   "transcribe.transcribing": "Transcribing...",
   "transcribe.useGpu": "Use GPU",
@@ -1370,6 +1370,6 @@
   "tiers.rpmTooltip": "Maximum requests per minute allowed for this provider",
   "tiers.budgetTooltip": "Maximum requests allowed for this tier before falling over",
   "tiers.batchSizeTooltip": "Number of subtitle lines sent in a single LLM prompt",
-  "speech.priorityChain": "Configured priority chain",
+  "speech.priorityChain": "Default priority chain",
   "speech.externalHint": "External STT sends audio to the selected endpoint and may incur charges. Sync requires real timestamps."
 }

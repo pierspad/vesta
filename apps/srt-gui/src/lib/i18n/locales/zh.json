@@ -911,7 +911,7 @@
   "transcribe.sourceLanguage": "源语言",
   "transcribe.startTranscription": "开始转录",
   "transcribe.starting": "正在开始转录...",
-  "transcribe.tiers.managePriority": "管理引擎优先级",
+  "transcribe.tiers.managePriority": "模型和服务提供商优先级",
   "transcribe.tiers.cardTitle": "语音转文字优先层级",
   "transcribe.transcribing": "转录中...",
   "transcribe.useGpu": "使用 GPU",
@@ -1370,6 +1370,6 @@
   "tiers.rpmTooltip": "该提供商每分钟允许的最大请求数",
   "tiers.budgetTooltip": "故障转移前该层级允许的最大请求数",
   "tiers.batchSizeTooltip": "在单个提示词中发送给 LLM 的字幕行数",
-  "speech.priorityChain": "已配置的优先级链",
+  "speech.priorityChain": "默认优先级链",
   "speech.externalHint": "外部语音识别会将音频发送至所选服务，并可能产生费用。同步需要真实的时间戳。"
 }

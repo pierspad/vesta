@@ -911,7 +911,7 @@
   "transcribe.sourceLanguage": "ソース言語",
   "transcribe.startTranscription": "文字起こしを開始する",
   "transcribe.starting": "文字起こしを開始しています...",
-  "transcribe.tiers.managePriority": "エンジンの優先順位を管理",
+  "transcribe.tiers.managePriority": "モデルとプロバイダーの優先順位",
   "transcribe.tiers.cardTitle": "文字起こしの優先順位ティア",
   "transcribe.transcribing": "文字起こし中...",
   "transcribe.useGpu": "GPU を使用",
@@ -1370,6 +1370,6 @@
   "tiers.rpmTooltip": "このプロバイダーに許可される1分あたりの最大リクエスト数",
   "tiers.budgetTooltip": "フェイルオーバー前にこの階層で許可される最大リクエスト数",
   "tiers.batchSizeTooltip": "1回のリクエストで送信される字幕の行数",
-  "speech.priorityChain": "設定済みの優先順位チェーン",
+  "speech.priorityChain": "既定の優先順位",
   "speech.externalHint": "外部STTは選択したサービスに音声を送信し、料金が発生する場合があります。同期には実際のタイムスタンプが必要です。"
 }

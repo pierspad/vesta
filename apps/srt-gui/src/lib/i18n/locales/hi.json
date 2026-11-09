@@ -911,7 +911,7 @@
   "transcribe.sourceLanguage": "स्रोत भाषा",
   "transcribe.startTranscription": "प्रतिलेखन (Transcription) शुरू करें",
   "transcribe.starting": "प्रतिलेखन शुरू हो रहा है...",
-  "transcribe.tiers.managePriority": "इंजन की प्राथमिकता तय करें",
+  "transcribe.tiers.managePriority": "मॉडल और प्रदाता की प्राथमिकता",
   "transcribe.tiers.cardTitle": "ट्रांसक्रिप्शन के लिए प्राथमिकता के टियर",
   "transcribe.transcribing": "ट्रांसक्राइब हो रहा है...",
   "transcribe.useGpu": "GPU का उपयोग करें",
@@ -1370,6 +1370,6 @@
   "tiers.rpmTooltip": "इस प्रदाता के लिए प्रति मिनट अधिकतम अनुमत अनुरोध",
   "tiers.budgetTooltip": "फ़ेलओवर से पहले इस स्तर के लिए अधिकतम अनुरोध",
   "tiers.batchSizeTooltip": "एक ही प्रॉम्प्ट में भेजी जाने वाली उपशीर्षक पंक्तियों की संख्या",
-  "speech.priorityChain": "कॉन्फ़िगर की गई प्राथमिकता शृंखला",
+  "speech.priorityChain": "डिफ़ॉल्ट प्राथमिकता क्रम",
   "speech.externalHint": "बाहरी STT ऑडियो को चुनी गई सेवा पर भेजता है और शुल्क लग सकता है। सिंक के लिए वास्तविक टाइमस्टैम्प आवश्यक हैं।"
 }

@@ -911,7 +911,7 @@
   "transcribe.sourceLanguage": "Язык оригинала",
   "transcribe.startTranscription": "Запустить",
   "transcribe.starting": "Запуск транскрипции...",
-  "transcribe.tiers.managePriority": "Настроить приоритет движков",
+  "transcribe.tiers.managePriority": "Приоритет моделей и провайдеров",
   "transcribe.tiers.cardTitle": "Уровни приоритета для транскрипции",
   "transcribe.transcribing": "Транскрибирование...",
   "transcribe.useGpu": "Использовать GPU",
@@ -1370,6 +1370,6 @@
   "tiers.rpmTooltip": "Максимум запросов в минуту для этого провайдера",
   "tiers.budgetTooltip": "Лимит запросов для этого уровня до переключения",
   "tiers.batchSizeTooltip": "Количество строк субтитров, отправляемых в одном запросе",
-  "speech.priorityChain": "Настроенная цепочка приоритетов",
+  "speech.priorityChain": "Цепочка приоритетов по умолчанию",
   "speech.externalHint": "Внешний STT отправляет аудио выбранному сервису и может быть платным. Для синхронизации нужны настоящие временные метки."
 }

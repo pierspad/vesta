@@ -911,7 +911,7 @@
   "transcribe.sourceLanguage": "Język źródłowy",
   "transcribe.startTranscription": "Rozpocznij transkrypcję",
   "transcribe.starting": "Rozpoczynanie transkrypcji...",
-  "transcribe.tiers.managePriority": "Ustaw kolejność silników",
+  "transcribe.tiers.managePriority": "Priorytet modeli i dostawców",
   "transcribe.tiers.cardTitle": "Priorytety usług transkrypcji",
   "transcribe.transcribing": "Transkrypcja...",
   "transcribe.useGpu": "Użyj GPU",
@@ -1370,6 +1370,6 @@
   "tiers.rpmTooltip": "Maksymalna liczba zapytań na minutę dla tego dostawcy",
   "tiers.budgetTooltip": "Maksymalna liczba zapytań na tym poziomie przed przełączeniem",
   "tiers.batchSizeTooltip": "Liczba linii napisów w jednym zapytaniu",
-  "speech.priorityChain": "Skonfigurowany łańcuch priorytetów",
+  "speech.priorityChain": "Domyślna kolejność priorytetów",
   "speech.externalHint": "Zewnętrzne STT wysyła dźwięk do wybranej usługi i może wiązać się z kosztami. Synchronizacja wymaga rzeczywistych znaczników czasu."
 }

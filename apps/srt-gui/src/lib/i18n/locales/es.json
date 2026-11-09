@@ -911,7 +911,7 @@
   "transcribe.sourceLanguage": "Idioma de origen",
   "transcribe.startTranscription": "Iniciar Transcripción",
   "transcribe.starting": "Iniciando transcripción...",
-  "transcribe.tiers.managePriority": "Gestionar la prioridad de los motores",
+  "transcribe.tiers.managePriority": "Prioridad de modelos y proveedores",
   "transcribe.tiers.cardTitle": "Prioridad de los servicios de transcripción",
   "transcribe.transcribing": "Transcribiendo...",
   "transcribe.useGpu": "Usar GPU",
@@ -1370,6 +1370,6 @@
   "tiers.rpmTooltip": "Número máximo de solicitudes por minuto para este proveedor",
   "tiers.budgetTooltip": "Límite de solicitudes para este nivel antes de la conmutación",
   "tiers.batchSizeTooltip": "Número de líneas de subtítulos enviadas en una sola solicitud",
-  "speech.priorityChain": "Cadena de prioridad configurada",
+  "speech.priorityChain": "Cadena de prioridad predeterminada",
   "speech.externalHint": "El STT externo envía audio al servicio elegido y puede generar costes. La sincronización requiere marcas de tiempo reales."
 }

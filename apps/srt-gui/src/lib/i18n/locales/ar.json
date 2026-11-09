@@ -911,7 +911,7 @@
   "transcribe.sourceLanguage": "لغة المصدر",
   "transcribe.startTranscription": "بدء النسخ",
   "transcribe.starting": "بدء النسخ...",
-  "transcribe.tiers.managePriority": "إدارة ترتيب المحركات",
+  "transcribe.tiers.managePriority": "ترتيب النماذج والمزوّدين",
   "transcribe.tiers.cardTitle": "فئات الأسبقية للنسخ",
   "transcribe.transcribing": "جاري النسخ...",
   "transcribe.useGpu": "استخدام GPU",
@@ -1370,6 +1370,6 @@
   "tiers.rpmTooltip": "الحد الأقصى للطلبات في الدقيقة لهذا المزود",
   "tiers.budgetTooltip": "الحد الأقصى للطلبات لهذه الطبقة قبل الانتقال للطبقة التالية",
   "tiers.batchSizeTooltip": "عدد أسطر الترجمة المرسلة في موجه واحد",
-  "speech.priorityChain": "سلسلة الأولوية المضبوطة",
+  "speech.priorityChain": "ترتيب الأولوية الافتراضي",
   "speech.externalHint": "يرسل التعرف الخارجي على الكلام الصوت إلى الخدمة المختارة وقد تترتب عليه رسوم. تتطلب المزامنة طوابع زمنية حقيقية."
 }
