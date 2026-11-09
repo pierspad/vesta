@@ -706,3 +706,22 @@ it("moves a declared header action into the title bar and keeps focus guidance w
   settings.click();
   expect(mockDispatch).toHaveBeenCalledOnce();
 });
+
+it("filters the language catalog and preserves bilingual names", async () => {
+  const target = document.createElement("div");
+  document.body.append(target);
+  const root: WidgetNode = {
+    type: "languageSelect", id: "language", label: "Language",
+    codes: ["it", "ja", "it", "unknown"], defaultValue: "it", names: "both", showFlags: false,
+  };
+  mockRender.mockResolvedValue({ root });
+  components.push(mount(PluginRenderer, { target, props: { pluginId: "fixture", initialRoot: root } }));
+  await tick();
+  const input = target.querySelector<HTMLInputElement>('input[aria-label="Language"]')!;
+  expect(input.value).toBe("Italian (Italiano)");
+  input.focus();
+  await tick();
+  const menu = document.body.querySelector(".searchable-select-dropdown")!;
+  expect([...menu.querySelectorAll("button")].map(option => option.textContent?.trim()))
+    .toEqual(["Italian (Italiano)", "Japanese (日本語)"]);
+});

@@ -325,6 +325,11 @@ The host places these controls at the end of the title bar and uses their
 widget IDs for events and focus targets. When a renderer has no title bar,
 the actions stay in the widget tree.
 
+`LanguageSelect(..., codes=["en", "it", "ja"], names="both")` filters the
+host catalog to the listed codes in that order. `scope` chooses `all` or
+`core`, `names` accepts `both`, `english`, or `native`, and `showFlags=False`
+hides flags. The field value remains a language code in every display mode.
+
 Use `Row(..., separator="or")` for alternative inputs. The host places the
 localized separator between visible children, including when Expert mode changes.
 

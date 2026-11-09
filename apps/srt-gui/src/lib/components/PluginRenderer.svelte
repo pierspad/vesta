@@ -838,6 +838,7 @@
     {:else if node.type === "languageSelect"}
       {@const info = resolveHintAndLink(node.hint, node.helpText, node.link)}
       {@const catalog = node.scope === "core" ? languages : extendedLanguages}
+      {@const available = node.codes ? [...new Set(node.codes)].flatMap(code => catalog.filter(language => language.code === code)) : catalog}
       <div class="field flex flex-col gap-1.5 w-full" title={node.tooltip}>
         {#if node.label}
           <label for="widget-{node.id}" class="text-xs font-medium text-gray-400">
@@ -845,7 +846,13 @@
           </label>
         {/if}
         <SearchableSelect
-          options={catalog.map((l: any) => ({ value: l.code, label: l.nameEn === l.name ? l.name : `${l.nameEn} (${l.name})`, icon: l.flag }))}
+          options={available.map(language => ({
+            value: language.code,
+            label: node.names === "english" ? language.nameEn : node.names === "native" || language.nameEn === language.name
+              ? language.name : `${language.nameEn} (${language.name})`,
+            searchTerms: `${language.nameEn} ${language.name} ${language.code}`,
+            icon: node.showFlags === false ? undefined : language.flag,
+          }))}
           value={values[node.id] ?? node.defaultValue ?? "en"}
           onchange={(val) => {
             values[node.id] = val;
@@ -853,6 +860,7 @@
           }}
           disabled={node.disabled}
           placeholder={node.placeholder ?? t("flashcards.noteTypeLanguagePlaceholder")}
+          ariaLabel={node.label}
           portal={true}
         />
         {#if info.text || info.link}

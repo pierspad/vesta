@@ -354,6 +354,9 @@ export interface LanguageSelectWidget extends BaseWidget {
   id: string;
   label?: string;
   scope?: "all" | "core";
+  codes?: string[];
+  names?: "both" | "english" | "native";
+  showFlags?: boolean;
   placeholder?: string;
   defaultValue?: string;
   disabled?: boolean;

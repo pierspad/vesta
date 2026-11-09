@@ -129,6 +129,32 @@ def Select(
         node["label"] = label
     return node
 
+def LanguageSelect(
+    id: str,
+    label: Optional[str] = None,
+    defaultValue: str = "en",
+    *,
+    scope: str = "all",
+    codes: Optional[List[str]] = None,
+    names: str = "both",
+    showFlags: bool = True,
+    disabled: bool = False,
+) -> Dict[str, Any]:
+    node: Dict[str, Any] = {
+        "type": "languageSelect",
+        "id": id,
+        "defaultValue": defaultValue,
+        "scope": scope,
+        "names": names,
+        "showFlags": showFlags,
+        "disabled": disabled,
+    }
+    if label is not None:
+        node["label"] = label
+    if codes is not None:
+        node["codes"] = codes
+    return node
+
 def Checkbox(id: str, label: str, defaultValue: bool = False, disabled: bool = False) -> Dict[str, Any]:
     return {
         "type": "checkbox",
