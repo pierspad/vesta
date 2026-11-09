@@ -462,7 +462,7 @@
             options={bitrateOptions}
             value={String(settings.audioBitrate)}
             onchange={(v) => (settings.audioBitrate = parseInt(v))}
-            placeholder="Bitrate"
+            placeholder={t("flashcards.bitrate")}
           />
         </div>
       {/if}

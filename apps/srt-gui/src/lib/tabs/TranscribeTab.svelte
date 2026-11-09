@@ -428,13 +428,13 @@
   async function selectOutputFile() {
     try {
       const selected = await guardedSave({
-        filters: [{ name: "SRT Files", extensions: ["srt"] }],
+        filters: [{ name: t("transcribe.outputSrtFile"), extensions: ["srt"] }],
         defaultPath: outputPath || undefined,
       });
 
       if (selected) {
         outputPath = selected;
-        addLog(`Output file set manually: ${getFileName(outputPath)}`, "file");
+        addLog(`${t("transcribe.outputSrtFile")} · ${getFileName(outputPath)}`, "file");
       }
     } catch (e) {
       error = `${t("transcribe.errorSelectingFile")}: ${errorMessage(e)}`;
@@ -498,7 +498,7 @@
         },
         start: transcribeStart,
         isCancelled: () => transcriptionCancelled || run.isCancelled(),
-        onTier: (index, count) => addLog(`Tier ${index + 1}: ${count}`, "info"),
+        onTier: (index, count) => addLog(`${t("tiers.tier")} ${index + 1} · ${count}`, "info"),
         onAttempt: (entry) => {
           transcribedSegments = [];
           progress = 0;
@@ -549,7 +549,7 @@
     inputPath = path;
     outputPath = generateOutputPathFromInput(path, selectedLanguage);
     addLog(`${t("transcribe.fileSelected")}: ${getFileName(path)}`, "file");
-    addLog(`Output file: ${getFileName(outputPath)}`, "info");
+    addLog(`${t("transcribe.outputSrtFile")} · ${getFileName(outputPath)}`, "info");
   }
 
   function resetTranscription() {

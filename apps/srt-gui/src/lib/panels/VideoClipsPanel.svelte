@@ -220,7 +220,7 @@
             ]}
             value={settings.videoCodec}
             onchange={(v) => (settings.videoCodec = v)}
-            placeholder="Codec"
+            placeholder={t("flashcards.videoCodec")}
           />
         </div>
         <div>
@@ -234,11 +234,11 @@
             className="compact-select"
             noResultsText={t("common.noResults")}
             options={[
-              { value: "ultrafast", label: "Ultrafast" },
-              { value: "fast", label: "Fast" },
-              { value: "medium", label: "Medium" },
-              { value: "slow", label: "Slow" },
-              { value: "veryslow", label: "Very slow" },
+              { value: "ultrafast", label: t("flashcards.h264Speed.ultrafast") },
+              { value: "fast", label: t("flashcards.h264Speed.fast") },
+              { value: "medium", label: t("flashcards.h264Speed.medium") },
+              { value: "slow", label: t("flashcards.h264Speed.slow") },
+              { value: "veryslow", label: t("flashcards.h264Speed.veryslow") },
             ]}
             value={settings.h264Preset}
             onchange={(v) => (settings.h264Preset = v)}
@@ -277,7 +277,7 @@
             ]}
             value={String(settings.videoAudioBitrate)}
             onchange={(v) => (settings.videoAudioBitrate = parseInt(v))}
-            placeholder="Bitrate"
+            placeholder={t("flashcards.bitrate")}
           />
         </div>
       </div>

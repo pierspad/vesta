@@ -478,7 +478,7 @@
     try {
       const selected = await guardedOpen({
         multiple: false,
-        filters: [{ name: "SRT Files", extensions: ["srt"] }],
+        filters: [{ name: t("translate.inputFile"), extensions: ["srt"] }],
       });
 
       if (selected) {
@@ -489,8 +489,8 @@
         if (!outputPath) {
           outputPath = generateOutputPath(inputPath, targetLang);
         }
-        addLog(`📥 Input selected: ${getFileName(inputPath)}`);
-        addLog(`📤 Output set: ${getFileName(outputPath)}`);
+        addLog(`📥 ${t("translate.inputFile")} · ${getFileName(inputPath)}`);
+        addLog(`📤 ${t("translate.outputFile")} · ${getFileName(outputPath)}`);
       }
     } catch (e) {
       error = `${t("translate.errorSelectingFile")} ${errorMessage(e)}`;
@@ -502,7 +502,7 @@
     if (!ensureProviderSelectedForFiles()) return;
     try {
       const selected = await guardedSave({
-        filters: [{ name: "SRT Files", extensions: ["srt"] }],
+        filters: [{ name: t("translate.inputFile"), extensions: ["srt"] }],
         defaultPath: outputPath || undefined,
       });
 
@@ -510,7 +510,7 @@
         if (isTranslating || contextLoading || disposed) return;
         automaticOutputPath = false;
         outputPath = selected;
-        addLog(`📤 Output updated: ${getFileName(outputPath)}`);
+        addLog(`📤 ${t("translate.outputFile")} · ${getFileName(outputPath)}`);
       }
     } catch (e) {
       error = `${t("translate.errorSelectingFile")} ${errorMessage(e)}`;
@@ -584,8 +584,8 @@
       progress = null;
       translatedPairs = [];
       addLog(`🚀 ${t("translate.starting")}`);
-      addLog(`🌐 Target language: ${targetLang}`);
-      addLog(`⚙️ Batch size: ${effectiveBatchSize}, overlap: ${effectiveResumeOverlap}`);
+      addLog(`🌐 ${t("translate.targetLang")} · ${targetLang}`);
+      addLog(`⚙️ ${t("translate.batchSize")} · ${effectiveBatchSize} / ${t("translate.resumeOverlapExpert")} · ${effectiveResumeOverlap}`);
       startPreviewRefresh();
 
       const endpointCount = tiersPayload.reduce((sum, tier) => sum + tier.length, 0);
@@ -604,7 +604,7 @@
       const res = await apiStartTranslation(config);
       if (run.isCancelled() || !run.isCurrent()) return;
       result = res;
-      if (res.output_path) addLog(`Saved: ${getFileName(res.output_path)}`);
+      if (res.output_path) addLog(`${t("extract.saved")} ${getFileName(res.output_path)}`);
       addLog(resultMessage(res));
       stopPreviewRefresh();
       await refreshTranslatedPreview(true);

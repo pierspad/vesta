@@ -132,7 +132,7 @@
       if (!await autoSyncStore.operation.cancel(() => invoke("sync_cancel_auto_sync"))) return;
       autoSyncStore.message = t("sync.autoSyncCancelling");
     } catch (e) {
-      showSnackbar(`Cancel failed: ${errorMessage(e)}`, "error");
+      showSnackbar(`${t("sync.cancelFailed")} — ${errorMessage(e)}`, "error");
     }
   }
 
@@ -271,7 +271,7 @@
       cleanupAudioSrc();
       audioSrc = await loadMediaFile(suggestedPath);
       status = await invoke<SyncStatus>("sync_set_video", { path: suggestedPath });
-      showSnackbar(`Auto-selected media: ${getFileName(suggestedPath)}`, "success");
+      showSnackbar(`${t("sync.inputMediaFile")} · ${getFileName(suggestedPath)}`, "success");
     } catch (e) {
       syncDebug("auto-media-suggestion-failed", { error: String(e) });
     }
@@ -311,7 +311,7 @@
         err.toLowerCase().includes("operation was aborted");
       syncDebug(`${source}: play failed`, { error: err });
       if (!isBenignAbort) {
-        showSnackbar(`Play error: ${err}`, "error");
+        showSnackbar(`${t("sync.playbackFailed")} — ${err}`, "error");
       }
       return false;
     } finally {
@@ -518,7 +518,7 @@
         void safePlayAudio("goToCheckpoint");
       }
     } catch (e) {
-      showSnackbar(`Error loading subtitle: ${errorMessage(e)}`, "error");
+      showSnackbar(`${t("sync.subtitleLoadFailed")} — ${errorMessage(e)}`, "error");
     } finally {
       isNavigating = false;
     }
@@ -541,7 +541,7 @@
     try {
       const selected = await guardedOpen({
         multiple: false,
-        filters: [{ name: "SRT Files", extensions: ["srt"] }],
+        filters: [{ name: t("sync.inputSrtFile"), extensions: ["srt"] }],
       });
       if (selected) {
         const selectedPath = selected as string;
@@ -573,7 +573,7 @@
         multiple: false,
         filters: [
           {
-            name: "Audio/Video Files",
+            name: t("flashcards.mediaFiles"),
             extensions: [
               "mp3",
               "wav",
@@ -750,7 +750,7 @@
       setTimeout(() => scrollToSubtitle(id), 50);
       manualGoToId = "";
     } catch (e) {
-      showSnackbar(`Subtitle #${id} not found`, "warning");
+      showSnackbar(t("sync.subtitleNotFound", { id }), "warning");
     }
   }
 
@@ -758,7 +758,7 @@
     console.debug("[SyncTab] saveFile");
     try {
       const selected = await guardedSave({
-        filters: [{ name: "SRT Files", extensions: ["srt"] }],
+        filters: [{ name: t("sync.inputSrtFile"), extensions: ["srt"] }],
         defaultPath: status?.srt_path?.replace(".srt", ".synced.srt"),
       });
       if (selected) {
@@ -774,7 +774,7 @@
     console.debug("[SyncTab] saveSession");
     try {
       const selected = await guardedSave({
-        filters: [{ name: "Session Files", extensions: ["json"] }],
+        filters: [{ name: t("sync.sessionFiles"), extensions: ["json"] }],
       });
       if (selected) {
         await invoke<string>("sync_save_session", { sessionPath: selected });
@@ -789,7 +789,7 @@
     console.debug("[SyncTab] loadSession");
     try {
       const selected = await guardedOpen({
-        filters: [{ name: "Session Files", extensions: ["json"] }],
+        filters: [{ name: t("sync.sessionFiles"), extensions: ["json"] }],
       });
       if (selected) {
         status = await invoke<SyncStatus>("sync_load_session", {

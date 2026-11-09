@@ -242,7 +242,7 @@
 
   // Label per il dropdown delle key
   function keyLabel(key: ApiKeyConfig): string {
-    if (key.apiType === "local_whisper") return "Local Whisper";
+    if (key.apiType === "local_whisper") return t("transcribe.engineLocal");
     const provName = transcribeProviders[key.apiType]?.name || key.apiType;
     return key.name && key.name !== provName ? `${provName} · ${key.name}` : provName;
   }
@@ -323,7 +323,7 @@
                   <div class="flex items-center justify-between gap-2 border-b border-white/5 pb-2.5">
                     <div class="flex items-center gap-2">
                       <ProviderIcon provider={entry.provider} size="w-5.5 h-5.5" glyph="w-3 h-3" rounded="rounded-md" />
-                      <span class="text-xs font-semibold text-gray-200">{providers[entry.provider]?.name || entry.provider}</span>
+                      <span class="text-xs font-semibold text-gray-200">{entry.provider === "local" || entry.provider === "local_whisper" ? t("transcribe.engineLocal") : providers[entry.provider]?.name || entry.provider}</span>
                     </div>
                     <button
                       type="button"

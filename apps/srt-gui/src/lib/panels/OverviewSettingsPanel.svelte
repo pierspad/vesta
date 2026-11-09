@@ -22,7 +22,7 @@
   async function exportConfiguration() {
     const path = await guardedSave({
       defaultPath: "vesta-settings.json",
-      filters: [{ name: "Vesta settings", extensions: ["json"] }],
+      filters: [{ name: `Vesta · ${t("nav.settings")}`, extensions: ["json"] }],
     });
     if (!path) return;
     configBusy = true;
@@ -40,7 +40,7 @@
   async function importConfiguration() {
     const path = await guardedOpen({
       multiple: false,
-      filters: [{ name: "Vesta settings", extensions: ["json"] }],
+      filters: [{ name: `Vesta · ${t("nav.settings")}`, extensions: ["json"] }],
     });
     if (!path || Array.isArray(path)) return;
     configBusy = true;

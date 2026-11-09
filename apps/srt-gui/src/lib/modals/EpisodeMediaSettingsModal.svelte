@@ -172,7 +172,7 @@
                       ]}
                       value={String(editor.overrides.audioBitrate)}
                       onchange={(v) => editor.update("audioBitrate", parseInt(v))}
-                      placeholder="Bitrate"
+                      placeholder={t("flashcards.bitrate")}
                     />
                   </div>
                 </div>
@@ -377,7 +377,7 @@
                       ]}
                       value={editor.overrides.videoCodec}
                       onchange={(v) => editor.update("videoCodec", v)}
-                      placeholder="Codec"
+                      placeholder={t("flashcards.videoCodec")}
                     />
                   </div>
                   <div>
@@ -391,11 +391,11 @@
                       className="compact-select {mediaOverrideClass('h264Preset')}"
                       noResultsText={t("common.noResults")}
                       options={[
-                        { value: "ultrafast", label: "Ultrafast" },
-                        { value: "fast", label: "Fast" },
-                        { value: "medium", label: "Medium" },
-                        { value: "slow", label: "Slow" },
-                        { value: "veryslow", label: "Very slow" },
+                        { value: "ultrafast", label: t("flashcards.h264Speed.ultrafast") },
+                        { value: "fast", label: t("flashcards.h264Speed.fast") },
+                        { value: "medium", label: t("flashcards.h264Speed.medium") },
+                        { value: "slow", label: t("flashcards.h264Speed.slow") },
+                        { value: "veryslow", label: t("flashcards.h264Speed.veryslow") },
                       ]}
                       value={editor.overrides.h264Preset}
                       onchange={(v) => editor.update("h264Preset", v)}
@@ -434,7 +434,7 @@
                       ]}
                       value={String(editor.overrides.videoAudioBitrate)}
                       onchange={(v) => editor.update("videoAudioBitrate", parseInt(v))}
-                      placeholder="Bitrate"
+                      placeholder={t("flashcards.bitrate")}
                     />
                   </div>
                 </div>

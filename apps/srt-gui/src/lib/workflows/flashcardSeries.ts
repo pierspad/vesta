@@ -144,19 +144,19 @@ export async function runFlashcardSeries(options: FlashcardSeriesOptions) {
           if (res.apkg_path) apkgPaths.push(res.apkg_path);
           if (res.tsv_path) tsvPaths.push(res.tsv_path);
           generationStore.addLog(
-            `✓ Ep ${epNum}: ${res.cards_generated} ${t("flashcards.cardsGenerated")}`,
+            `✓ #${epNum}: ${res.cards_generated} ${t("flashcards.cardsGenerated")}`,
             "success",
           );
         } else {
           hadError = true;
-          generationStore.addLog(`⚠ Ep ${epNum}: ${res.message}`, "warning");
-          errorMessages.push(`Ep ${epNum}: ${res.message}`);
+          generationStore.addLog(`⚠ #${epNum}: ${res.message}`, "warning");
+          errorMessages.push(`#${epNum}: ${res.message}`);
         }
       } catch (e: unknown) {
-        const errMsg = e ? e.toString() : "Unknown error";
-        generationStore.addLog(`✗ Ep ${epNum}: ${errMsg}`, "error");
+        const errMsg = e ? e.toString() : t("flashcards.errorGenerating");
+        generationStore.addLog(`✗ #${epNum}: ${errMsg}`, "error");
         hadError = true;
-        errorMessages.push(`Ep ${epNum}: ${errMsg}`);
+        errorMessages.push(`#${epNum}: ${errMsg}`);
       }
     }
 
@@ -197,7 +197,7 @@ export async function runFlashcardSeries(options: FlashcardSeriesOptions) {
     if (isCancelled()) recordCancellation();
     generationStore.result = {
       success: !hadError && totalCards > 0,
-      message: errorMessages.length > 0 ? errorMessages.join(", ") : (totalCards === 0 ? "No active subtitle lines after filtering" : null),
+      message: errorMessages.length > 0 ? errorMessages.join(", ") : (totalCards === 0 ? t("flashcards.noActiveLines") : null),
       cardsGenerated: totalCards,
       audioClips: totalAudio,
       snapshots: totalSnapshots,
@@ -213,7 +213,7 @@ export async function runFlashcardSeries(options: FlashcardSeriesOptions) {
     );
 
   } catch (e: unknown) {
-    const errMsg = e ? e.toString() : "Unknown error";
+    const errMsg = e ? e.toString() : t("flashcards.errorGenerating");
     generationStore.error = `${t("flashcards.errorGenerating")}: ${errMsg}`;
     generationStore.addLog(`${generationStore.error}`, "error");
     generationStore.result = {

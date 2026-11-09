@@ -301,7 +301,7 @@
         multiple: true,
         filters: [
           {
-            name: "Subtitle and Media Files",
+            name: `SRT / ${t("flashcards.mediaFiles")}`,
             extensions: ["srt", "ass", "ssa", "vtt", ...VIDEO_EXTENSIONS, ...AUDIO_EXTENSIONS],
           },
         ],
@@ -1343,7 +1343,7 @@
       generationStore.addLog(`${t("flashcards.cancelled")}`, "warning");
     } catch (e) {
       cancelRequested = false;
-      generationStore.addLog(`Error cancelling: ${errorMessage(e)}`, "error");
+      generationStore.addLog(`${t("sync.cancelFailed")} — ${errorMessage(e)}`, "error");
       snackbar.show(errorMessage(e), "error");
     }
   }

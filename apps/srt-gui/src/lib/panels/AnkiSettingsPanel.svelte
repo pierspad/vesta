@@ -32,9 +32,9 @@
 
 
   const templateCodeTabs: { id: TemplateCodeTab; label: string; hint: string }[] = [
-    { id: "front", label: "Front HTML", hint: "Modifica il file front.html di questo template" },
-    { id: "back", label: "Back HTML", hint: "Modifica il file back.html di questo template" },
-    { id: "css", label: "Style CSS", hint: "Modifica il file style.css condiviso da questo template" },
+    { id: "front", label: "refine.card.front", hint: "front.html" },
+    { id: "back", label: "refine.card.back", hint: "back.html" },
+    { id: "css", label: "", hint: "style.css" },
   ];
 
   const ankiFieldDefinitions: {
@@ -456,7 +456,7 @@
             title={tab.hint}
             class="h-9 px-3 rounded-lg border text-xs font-semibold transition-colors {store.activeTemplateCodeTab === tab.id ? 'bg-cyan-500/20 border-cyan-400/40 text-cyan-100' : 'bg-black/20 border-white/10 text-gray-400 hover:text-white hover:bg-white/10'}"
           >
-            {tab.label}
+            {tab.label ? t(tab.label) : "CSS"}
           </button>
         {/each}
 

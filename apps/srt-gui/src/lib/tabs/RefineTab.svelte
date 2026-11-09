@@ -352,7 +352,7 @@
     try {
       const selected = await guardedOpen({
         filters: [
-          { name: "Anki Deck (.apkg) / TSV (.tsv)", extensions: ["apkg", "tsv"] },
+          { name: "APKG / TSV", extensions: ["apkg", "tsv"] },
         ],
       });
       if (selected && typeof selected === "string") {

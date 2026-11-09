@@ -517,7 +517,7 @@ Every widget supports \`id\`, \`hidden\`, \`expertOnly\` (auto-hidden when Exper
                   {#each sharedCreds as cred}
                     <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-cyan-400/20 text-cyan-200 border border-cyan-400/30">
                       <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>
-                      Shared Credential: {cred.id}{cred.label ? ` (${cred.label})` : ""}
+                      {t("plugins.sharedCredential")} · {cred.id}{cred.label ? ` (${cred.label})` : ""}
                     </span>
                   {/each}
                 </div>
@@ -1030,7 +1030,7 @@ Every widget supports \`id\`, \`hidden\`, \`expertOnly\` (auto-hidden when Exper
                 {#each sharedCreds as cred}
                   <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-cyan-400/15 text-cyan-300 border border-cyan-400/25">
                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>
-                    Shared Credential: {cred.id}{cred.label ? ` (${cred.label})` : ""}
+                    {t("plugins.sharedCredential")} · {cred.id}{cred.label ? ` (${cred.label})` : ""}
                   </span>
                 {/each}
               </div>
