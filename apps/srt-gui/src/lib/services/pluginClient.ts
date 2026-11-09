@@ -283,12 +283,14 @@ export interface ListItem {
   language?: string;
   meta?: string[];
   image?: string;
+  primaryAction?: string;
   actions?: ListItemAction[];
 }
 
 export interface ListWidget extends BaseWidget {
   type: "list";
   items: ListItem[];
+  reserveImage?: boolean;
 }
 
 export interface TableWidget extends BaseWidget {

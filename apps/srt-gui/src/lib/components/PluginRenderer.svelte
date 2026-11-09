@@ -1004,9 +1004,21 @@
     {:else if node.type === "list"}
       <div class="flex flex-col gap-2 w-full">
         {#each node.items as item (item.id)}
-          <div class="flex items-center justify-between p-3.5 rounded-xl border border-white/10 bg-white/[0.03] hover:bg-white/[0.05] transition-colors gap-3">
-            {#if item.image}
-              <img src={item.image} alt="" class="w-12 h-12 rounded-lg object-cover bg-black/30 shrink-0" />
+          {@const primary = item.actions?.find(action => action.id === item.primaryAction)}
+          <div class="relative flex items-center justify-between p-3.5 rounded-xl border border-white/10 bg-white/[0.03] hover:bg-white/[0.05] transition-colors gap-3">
+            {#if primary}
+              <button type="button" class="absolute inset-0 rounded-xl cursor-pointer focus-visible:outline-2"
+                aria-label={item.title} disabled={actionLoading !== null}
+                onclick={() => handleAction(primary.id, "click")}></button>
+            {/if}
+            {#if item.image || node.reserveImage}
+              <div class="w-12 h-12 rounded-lg bg-black/30 shrink-0 grid place-items-center overflow-hidden text-gray-500">
+                {#if item.image}
+                  <img src={item.image} alt="" loading="lazy" class="w-full h-full object-cover" />
+                {:else}
+                  {@render renderIcon("film", "w-5 h-5")}
+                {/if}
+              </div>
             {/if}
             <div class="flex flex-col min-w-0 flex-1">
               <div class="flex items-center gap-2">
@@ -1051,7 +1063,8 @@
                     type="button"
                     title={action.tooltip ?? (action.iconOnly ? action.label : undefined)}
                     aria-label={action.iconOnly ? action.label : undefined}
-                    class="text-xs font-semibold px-3 py-1.5 rounded-lg border border-white/10 transition-colors inline-flex items-center gap-1.5 cursor-pointer {action.variant === 'primary' ? 'bg-indigo-600 hover:bg-indigo-500 text-white' : action.variant === 'danger' ? 'bg-rose-600 hover:bg-rose-500 text-white' : 'bg-white/5 hover:bg-white/10 text-gray-200'}"
+                    disabled={actionLoading !== null}
+                    class="relative text-xs font-semibold px-3 py-1.5 rounded-lg border border-white/10 transition-colors inline-flex items-center gap-1.5 cursor-pointer {action.variant === 'primary' ? 'bg-indigo-600 hover:bg-indigo-500 text-white' : action.variant === 'danger' ? 'bg-rose-600 hover:bg-rose-500 text-white' : 'bg-white/5 hover:bg-white/10 text-gray-200'}"
                     onclick={() => handleAction(action.id, "click")}
                   >
                     {#if action.icon}
@@ -1090,13 +1103,16 @@
 
     {:else if node.type === "image"}
       <div class="w-full overflow-hidden rounded-xl">
-        <img
-          src={node.src}
-          alt={node.alt ?? ""}
-          width={node.width}
-          height={node.height}
-          class="max-w-full rounded-xl object-contain"
-        />
+        {#if node.src}
+          <img src={node.src} alt={node.alt ?? ""} width={node.width} height={node.height}
+            class="max-w-full rounded-xl object-contain" />
+        {:else}
+          <div class="grid max-w-full place-items-center rounded-xl bg-black/20 text-gray-500"
+            style:width={node.width ? `${node.width}px` : undefined}
+            style:height={node.height ? `${node.height}px` : undefined}>
+            {@render renderIcon("film", "w-8 h-8")}
+          </div>
+        {/if}
       </div>
 
     {:else if node.type === "progress"}
