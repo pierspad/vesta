@@ -37,12 +37,12 @@ pub async fn refine_card_llm(
     config: RefineLlmConfig,
 ) -> Result<String, String> {
     let translator = Translator::try_new(resolve_llm_config(config)?)
-        .map_err(|e| format!("Errore configurazione client HTTP: {e}"))?;
+        .map_err(|e| format!("Failed to configure HTTP client: {e}"))?;
 
     translator
         .generate_response(&interpolate_prompt(prompt, card))
         .await
-        .map_err(|e| format!("Errore chiamata LLM: {e}"))
+        .map_err(|e| format!("LLM request failed: {e}"))
 }
 
 fn resolve_llm_config(config: RefineLlmConfig) -> Result<TranslatorConfig, String> {
@@ -51,12 +51,12 @@ fn resolve_llm_config(config: RefineLlmConfig) -> Result<TranslatorConfig, Strin
         provider.as_str(),
         "local" | "custom" | "google" | "gemini" | "groq" | "openrouter"
     ) {
-        return Err(format!("Tipo API non supportato: {}", config.api_type));
+        return Err(format!("Unsupported API provider: {}", config.api_type));
     }
     let (api_type, default_url, _, default_model) = provider_defaults(&provider);
     let api_key = config.api_key.filter(|key| !key.trim().is_empty());
     if api_type != ApiType::Local && api_key.is_none() {
-        return Err("Chiave API mancante".to_string());
+        return Err("Missing API key".to_string());
     }
     Ok(TranslatorConfig {
         api_type,

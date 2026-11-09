@@ -100,7 +100,7 @@ fn matching_asset(asset: &ReleaseAsset, install: &UpdateInstallation) -> bool {
 fn expected_digest(asset: &ReleaseAsset) -> Result<String, String> {
     let digest = asset.digest.as_deref().and_then(|d| d.strip_prefix("sha256:"))
         .filter(|d| d.len() == 64 && d.bytes().all(|b| b.is_ascii_hexdigit()))
-        .ok_or("La release non fornisce un checksum SHA-256 verificabile. Scarica il pacchetto dalla pagina della release.")?;
+        .ok_or("Release does not provide a verifiable SHA-256 checksum. Download the package from the release page.")?;
     Ok(digest.to_lowercase())
 }
 
@@ -113,12 +113,12 @@ pub async fn install_release_update(app: tauri::AppHandle, version: String) -> R
             std::sync::atomic::Ordering::SeqCst,
             std::sync::atomic::Ordering::SeqCst,
         )
-        .map_err(|_| "Download aggiornamento già in corso")?;
+        .map_err(|_| "Update download already in progress")?;
     let _guard = InstallGuard;
     // Re-resolve the official release here rather than accepting a URL/path from the webview.
     let install = get_update_installation().await?;
     if !matches!(install.channel.as_str(), "windows" | "deb" | "rpm") {
-        return Err("Questa installazione va aggiornata tramite il suo gestore o dalla pagina della release.".into());
+        return Err("This installation must be updated via its package manager or the release page.".into());
     }
     let client = reqwest::Client::builder()
         .user_agent("Vesta-update-check")
@@ -136,23 +136,23 @@ pub async fn install_release_update(app: tauri::AppHandle, version: String) -> R
         .await
         .map_err(|e| e.to_string())?;
     if release.tag_name != version || release.prerelease || release.draft {
-        return Err("La release è cambiata. Controlla nuovamente gli aggiornamenti.".into());
+        return Err("Release metadata has changed. Check for updates again.".into());
     }
     let asset = release
         .assets
         .iter()
         .find(|a| matching_asset(a, &install))
-        .ok_or("Nessun installer compatibile disponibile per questa piattaforma e architettura.")?;
+        .ok_or("No compatible installer available for this platform and architecture.")?;
     let digest = expected_digest(asset)?;
     if asset.size == 0 || asset.size > MAX_INSTALLER_SIZE {
-        return Err("Dimensione installer non valida".into());
+        return Err("Invalid installer size".into());
     }
     let prefix = format!(
         "https://github.com/pierspad/vesta/releases/download/{}/",
         release.tag_name
     );
     if !asset.browser_download_url.starts_with(&prefix) {
-        return Err("URL installer non valido".into());
+        return Err("Invalid installer URL".into());
     }
     let directory = app
         .path()
@@ -185,7 +185,7 @@ pub async fn install_release_update(app: tauri::AppHandle, version: String) -> R
     while let Some(chunk) = response.chunk().await.map_err(|e| e.to_string())? {
         downloaded += chunk.len() as u64;
         if downloaded > asset.size || downloaded > MAX_INSTALLER_SIZE {
-            return Err("Dimensione download inattesa".into());
+            return Err("Unexpected download size".into());
         }
         hasher.update(&chunk);
         file.write_all(&chunk).map_err(|e| e.to_string())?;
@@ -205,13 +205,13 @@ pub async fn install_release_update(app: tauri::AppHandle, version: String) -> R
             .collect::<String>()
             != digest
     {
-        return Err("Verifica SHA-256 del download fallita. Installer non aperto.".into());
+        return Err("SHA-256 verification failed. Installer was not opened.".into());
     }
     #[cfg(target_os = "windows")]
     let launched = Command::new(&destination).spawn();
     #[cfg(not(target_os = "windows"))]
     let launched = Command::new("xdg-open").arg(&destination).spawn();
-    launched.map_err(|e| format!("Impossibile aprire l'installer: {e}"))?;
+    launched.map_err(|e| format!("Failed to launch installer: {e}"))?;
     let _ = stage.keep();
     Ok(())
 }

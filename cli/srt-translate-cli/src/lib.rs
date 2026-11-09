@@ -337,7 +337,7 @@ fn check_missing_subtitles(original_path: &PathBuf, translated_path: &PathBuf) -
     println!("🔍 Checking for missing subtitles and line count discrepancies...");
     println!();
 
-    // Parse del file originale
+    // Parse original file
     println!("📖 Reading original file: {}", original_path.display());
     let original_subtitles = SrtParser::parse_file(original_path)?;
     println!(
@@ -346,7 +346,7 @@ fn check_missing_subtitles(original_path: &PathBuf, translated_path: &PathBuf) -
     );
     println!();
 
-    // Verifica se il file tradotto esiste
+    // Check whether the translated file exists
     if !translated_path.exists() {
         println!(
             "❌ Translation file not found: {}",
@@ -367,11 +367,11 @@ fn check_missing_subtitles(original_path: &PathBuf, translated_path: &PathBuf) -
     );
     println!();
 
-    // Verifica completezza
+    // Check completeness
     let missing_ids =
         srt_translate::verify_translation_completeness(&original_subtitles, &translated_subtitles);
 
-    // Verifica discrepanze nel numero di righe
+    // Check line count discrepancies
     let mut line_discrepancies = Vec::new();
     for (id, original_sub) in &original_subtitles {
         if let Some(translated_sub) = translated_subtitles.get(id) {
@@ -397,7 +397,7 @@ fn check_missing_subtitles(original_path: &PathBuf, translated_path: &PathBuf) -
             println!("⚠️  Found {} missing subtitles:", missing_ids.len());
             println!();
 
-            // Raggruppa gli ID mancanti in intervalli per una visualizzazione più pulita
+            // Group missing IDs into contiguous ranges for cleaner display
             let ranges = group_ids_into_ranges(&missing_ids);
 
             println!("Missing subtitle IDs:");
@@ -420,7 +420,7 @@ fn check_missing_subtitles(original_path: &PathBuf, translated_path: &PathBuf) -
             println!("Subtitle ID | Original Lines | Translated Lines");
             println!("------------|----------------|------------------");
 
-            // Mostra i primi 20 e se ce ne sono di più, mostra un sommario
+            // Display up to 20 entries and summarize the rest
             let show_count = line_discrepancies.len().min(20);
             for (id, orig_lines, trans_lines) in &line_discrepancies[..show_count] {
                 println!(

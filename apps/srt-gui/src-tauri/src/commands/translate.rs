@@ -46,12 +46,12 @@ pub struct TranslateResult {
 pub async fn load_srt_for_translate(path: String) -> Result<SrtFileInfo, String> {
     tokio::task::spawn_blocking(move || load_srt_info(path))
         .await
-        .map_err(|error| format!("Errore nel caricamento del file SRT: {error}"))?
+        .map_err(|error| format!("Failed to load SRT file: {error}"))?
 }
 
 fn load_srt_info(path: String) -> Result<SrtFileInfo, String> {
     let mut subtitles = SrtParser::parse_file(&path)
-        .map_err(|e| format!("Errore nel parsing del file SRT: {}", e))?;
+        .map_err(|e| format!("Failed to parse SRT file: {}", e))?;
 
     SrtParser::normalize_subtitles(&mut subtitles);
     let mut sorted: Vec<_> = subtitles.values().collect();
@@ -165,7 +165,7 @@ pub async fn suggest_translation_context(
         Ok::<_, String>((prompt, pool))
     })
     .await
-    .map_err(|error| format!("Errore nella preparazione del contesto: {error}"))??;
+    .map_err(|error| format!("Failed to prepare translation context: {error}"))??;
     let (prompt, pool) = prepared;
     let pool = super::provider_diagnostics::observe_pool(pool, &app);
     let mut last_error = "No translation endpoint configured".to_string();
@@ -226,24 +226,21 @@ async fn perform_translation(
             Ok::<_, String>((subtitles, context, pool))
         })
         .await
-        .map_err(|error| format!("Errore nella preparazione della traduzione: {error}"))??;
+        .map_err(|error| format!("Failed to prepare translation: {error}"))??;
     let total_count = subtitles.len();
     let pool = super::provider_diagnostics::observe_pool(pool, &app);
 
     if pool.is_empty() || pool.iter().all(|t| t.is_empty()) {
         return Err(
-            "Nessun endpoint di traduzione configurato. Aggiungi almeno una key/tier nelle impostazioni."
+            "No translation endpoint configured. Add at least one API key or provider tier in Settings."
                 .to_string(),
         );
     }
 
     let output_path = PathBuf::from(&config.output_path);
 
-    // Callback di progresso: `AppHandle` è già `Clone + Send + Sync` ed `emit`
-    // è sincrono, quindi non serve alcun wrapping (niente Arc<Mutex<..>>, niente
-    // tokio::spawn). La versione precedente spawnava un task per ogni evento e
-    // usava `try_lock`, che sotto contesa perdeva silenziosamente gli eventi di
-    // progresso invece di aspettare — qui l'evento viene sempre emesso.
+    // Progress callback: `AppHandle` is `Clone + Send + Sync` and `emit` is synchronous,
+    // so every progress event is emitted directly without extra locking or task spawning.
     let on_progress = {
         let app = app.clone();
         move |progress: TranslationProgress| {
@@ -287,19 +284,19 @@ async fn perform_translation(
                     "translate-complete",
                     TranslateResult {
                         success: false,
-                        message: "Traduzione annullata dall'utente".to_string(),
+                        message: "Translation cancelled by user".to_string(),
                         output_path: None,
                         translated_count: 0,
                     },
                 );
                 return Ok(TranslateResult {
                     success: false,
-                    message: "Traduzione annullata".to_string(),
+                    message: "Translation cancelled".to_string(),
                     output_path: None,
                     translated_count: 0,
                 });
             }
-            return Err(format!("Errore traduzione: {}", e));
+            return Err(format!("Translation failed: {}", e));
         }
     };
 
@@ -310,7 +307,7 @@ async fn perform_translation(
         TranslateResult {
             success,
             message: format!(
-                "Tradotti {} sottotitoli su {}",
+                "Translated {} of {} subtitles",
                 translated.len(),
                 total_count
             ),
@@ -322,7 +319,7 @@ async fn perform_translation(
     Ok(TranslateResult {
         success,
         message: format!(
-            "Tradotti {} sottotitoli su {}",
+            "Translated {} of {} subtitles",
             translated.len(),
             total_count
         ),

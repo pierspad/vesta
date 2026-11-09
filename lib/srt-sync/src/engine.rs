@@ -59,7 +59,7 @@ impl SyncEngine {
     pub fn new<P: AsRef<Path>>(srt_path: P) -> Result<Self> {
         let path_str = srt_path.as_ref().to_string_lossy().to_string();
         let subtitles =
-            SrtParser::parse_file(&srt_path).context("Impossibile caricare il file SRT")?;
+            SrtParser::parse_file(&srt_path).context("Failed to load SRT file")?;
 
         Ok(Self::from_subtitles(
             subtitles,
@@ -75,7 +75,7 @@ impl SyncEngine {
 
     pub fn from_state(state: SyncState) -> Result<Self> {
         let subtitles = SrtParser::parse_file(&state.srt_path)
-            .context("Impossibile caricare il file SRT dallo stato salvato")?;
+            .context("Failed to load SRT file from saved state")?;
         Ok(Self::from_subtitles(subtitles, state))
     }
 
@@ -273,7 +273,7 @@ impl SyncEngine {
         let subtitle = self
             .subtitles
             .get(&subtitle_id)
-            .context(format!("Sottotitolo {} non trovato", subtitle_id))?;
+            .context(format!("Subtitle {} not found", subtitle_id))?;
 
         let anchor = if is_manual {
             AnchorPoint::new_manual(
@@ -436,7 +436,7 @@ impl SyncEngine {
         }
 
         SrtParser::save_file(output_path, &synced)
-            .context("Impossibile salvare il file sincronizzato")?;
+            .context("Failed to save synchronized subtitle file")?;
 
         Ok(())
     }
@@ -444,20 +444,20 @@ impl SyncEngine {
     pub fn save_session<P: AsRef<Path>>(&self, session_path: P) -> Result<()> {
         let state = self.export_state();
         let json =
-            serde_json::to_string_pretty(&state).context("Impossibile serializzare lo stato")?;
+            serde_json::to_string_pretty(&state).context("Failed to serialize session state")?;
 
         srt_parser::persistence::atomic_write(session_path, json.as_bytes())
-            .context("Impossibile salvare la sessione")?;
+            .context("Failed to save session file")?;
 
         Ok(())
     }
 
     pub fn load_session<P: AsRef<Path>>(session_path: P) -> Result<Self> {
         let json = std::fs::read_to_string(&session_path)
-            .context("Impossibile leggere il file di sessione")?;
+            .context("Failed to read session file")?;
 
         let state: SyncState =
-            serde_json::from_str(&json).context("Impossibile deserializzare lo stato")?;
+            serde_json::from_str(&json).context("Failed to deserialize session state")?;
 
         Self::from_state(state)
     }

@@ -88,7 +88,7 @@ impl SyncState {
         self.operation.ensure_idle()?;
         self.engine
             .as_mut()
-            .ok_or("Nessun file SRT caricato")?
+            .ok_or("No SRT file loaded")?
             .set_video_path(path);
         Ok(())
     }

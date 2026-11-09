@@ -26,7 +26,7 @@ use encoding_rs::{Encoding, UTF_16BE, UTF_16LE};
 pub fn read_text_auto<P: AsRef<Path>>(path: P) -> Result<String> {
     let path = path.as_ref();
     let bytes = fs::read(path)
-        .with_context(|| format!("Impossibile leggere il file {}", path.display()))?;
+        .with_context(|| format!("Failed to read file {}", path.display()))?;
     Ok(decode_auto(&bytes))
 }
 

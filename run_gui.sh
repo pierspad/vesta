@@ -14,7 +14,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 APP_DIR="$SCRIPT_DIR/apps/srt-gui"
 
 if [ ! -d "$APP_DIR" ]; then
-    echo -e "${RED}❌ Error: cartella apps/srt-gui non trovata in $SCRIPT_DIR${NC}"
+    echo -e "${RED}❌ Error: apps/srt-gui directory not found in $SCRIPT_DIR${NC}"
     exit 1
 fi
 
@@ -25,18 +25,18 @@ echo ""
 
 # 1. Prerequisite Checks
 if ! command -v npm &> /dev/null; then
-    echo -e "${RED}❌ Error: npm non trovato. Installa Node.js per continuare.${NC}"
+    echo -e "${RED}❌ Error: npm not found. Install Node.js to continue.${NC}"
     exit 1
 fi
 
 if [ ! -d "node_modules" ]; then
-    echo -e "${YELLOW}📦 Installazione dipendenze frontend...${NC}"
+    echo -e "${YELLOW}📦 Installing frontend dependencies...${NC}"
     npm ci
     echo ""
 fi
 
 if [ ! -f "node_modules/.bin/tauri" ]; then
-    echo -e "${YELLOW}📦 Installazione Tauri CLI locale...${NC}"
+    echo -e "${YELLOW}📦 Installing local Tauri CLI...${NC}"
     npm ci
     echo ""
 fi
@@ -67,7 +67,7 @@ export WEBKIT_DISABLE_COMPOSITING_MODE=1
 export WHISPER_DONT_GENERATE_BINDINGS=1
 
 echo -e "${BLUE}🖥️  Starting Tauri in dev mode on port $PORT...${NC}"
-echo -e "${YELLOW}   (Premi Ctrl+C per fermare)${NC}"
+echo -e "${YELLOW}   (Press Ctrl+C to stop)${NC}"
 echo ""
 
 npx tauri dev --config "{\"build\": {\"devUrl\": \"http://localhost:$PORT\"}}"

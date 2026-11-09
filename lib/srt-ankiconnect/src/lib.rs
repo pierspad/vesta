@@ -6,8 +6,8 @@ pub const DEFAULT_URL: &str = "http://127.0.0.1:8765";
 
 pub const API_VERSION: u32 = 6;
 
-/// Client HTTP condiviso: riusa il connection pool interno di reqwest invece
-/// di aprire un nuovo socket per ogni chiamata ad AnkiConnect.
+/// Shared HTTP client that reuses reqwest's internal connection pool across
+/// AnkiConnect requests instead of opening a new socket per call.
 static HTTP_CLIENT: LazyLock<reqwest::Client> = LazyLock::new(reqwest::Client::new);
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -31,7 +31,7 @@ async fn invoke(url: &str, action: &str, params: Value) -> Result<Value, String>
         .send()
         .await
         .map_err(|e| {
-            format!("AnkiConnect non raggiungibile su {url}: {e}. Anki è aperto e il plugin AnkiConnect è installato?")
+            format!("AnkiConnect is unreachable at {url}: {e}. Is Anki running with the AnkiConnect add-on installed?")
         })?;
 
     let mut payload: Value = response
@@ -39,7 +39,7 @@ async fn invoke(url: &str, action: &str, params: Value) -> Result<Value, String>
         .map_err(|e| format!("AnkiConnect HTTP error: {e}"))?
         .json()
         .await
-        .map_err(|e| format!("Risposta AnkiConnect non valida: {e}"))?;
+        .map_err(|e| format!("Invalid AnkiConnect response: {e}"))?;
 
     if let Some(err) = payload.get("error").filter(|e| !e.is_null()) {
         return Err(format!("AnkiConnect: {err}"));
@@ -47,7 +47,7 @@ async fn invoke(url: &str, action: &str, params: Value) -> Result<Value, String>
     payload
         .get_mut("result")
         .map(Value::take)
-        .ok_or_else(|| "Risposta AnkiConnect senza result".to_string())
+        .ok_or_else(|| "AnkiConnect response missing result field".to_string())
 }
 
 pub async fn ping(url: &str) -> Result<u32, String> {
@@ -55,7 +55,7 @@ pub async fn ping(url: &str) -> Result<u32, String> {
     result
         .as_u64()
         .and_then(|v| u32::try_from(v).ok())
-        .ok_or_else(|| "Versione AnkiConnect non valida".to_string())
+        .ok_or_else(|| "Invalid AnkiConnect version".to_string())
 }
 
 pub async fn deck_names(url: &str) -> Result<Vec<String>, String> {
@@ -67,7 +67,7 @@ pub async fn import_package(url: &str, apkg_path: &str) -> Result<(), String> {
     let result = invoke(url, "importPackage", json!({ "path": apkg_path })).await?;
     match result.as_bool() {
         Some(true) => Ok(()),
-        _ => Err("Import fallito: Anki ha rifiutato il pacchetto".to_string()),
+        _ => Err("Import failed: Anki rejected the package".to_string()),
     }
 }
 
@@ -169,8 +169,8 @@ mod protocol_tests {
     async fn http_errors_missing_results_and_overflow_are_rejected() {
         for (status, body, message) in [
             (503, r#"{"result":6,"error":null}"#, "HTTP error"),
-            (200, r#"{"error":null}"#, "senza result"),
-            (200, r#"{"result":4294967296,"error":null}"#, "Versione"),
+            (200, r#"{"error":null}"#, "missing result"),
+            (200, r#"{"result":4294967296,"error":null}"#, "Invalid AnkiConnect version"),
             (200, r#"{"result":6,"error":"failure"}"#, "failure"),
         ] {
             let url = response(status, body).await;

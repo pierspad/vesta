@@ -96,7 +96,7 @@ OUTPUT FORMAT: You MUST return a valid JSON array. Each object must have "id" (n
 Use \n for line breaks within the text field. Do NOT wrap in markdown code blocks.
 
 Example output:
-[{{"id":1,"text":"Prima riga tradotta\nSeconda riga tradotta"}},{{"id":2,"text":"Altra traduzione"}}]
+[{{"id":1,"text":"First translated line\nSecond translated line"}},{{"id":2,"text":"Another translation"}}]
 
 Input subtitles:
 {}

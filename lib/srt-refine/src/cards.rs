@@ -23,7 +23,7 @@ fn atomic_write(path: &Path, bytes: &[u8]) -> Result<(), String> {
     }
     temporary
         .persist(path)
-        .map_err(|e| format!("Impossibile salvare '{}': {e}", path.display()))?;
+        .map_err(|e| format!("Failed to save '{}': {e}", path.display()))?;
     Ok(())
 }
 
@@ -117,7 +117,7 @@ fn tsv_indices(rows: &[Vec<String>]) -> Result<(usize, usize, usize), String> {
     let data = rows.iter().filter(|row| is_tsv_data(row));
     let text = analyze_tsv_rows(data.clone().map(Vec::as_slice));
     if text.len() > 3 {
-        return Err("Colonne TSV ambigue. Aggiungi una riga #columns: con i nomi Expression, Meaning e Notes e gli eventuali altri campi.".into());
+        return Err("Ambiguous TSV columns. Add a #columns: header line naming Expression, Meaning, Notes, and any additional fields.".into());
     }
     let expression = text.first().copied().unwrap_or(0);
     let meaning = text.get(1).copied().unwrap_or(1);
@@ -149,7 +149,7 @@ fn field_indices(
     field_count: usize,
 ) -> Result<(usize, usize, usize), String> {
     let model = model
-        .ok_or("Metadati del modello Anki mancanti: impossibile identificare il campo Notes")?;
+        .ok_or("Missing Anki model metadata: cannot identify the Notes field")?;
     let mut expr_idx = 0;
     let mut mean_idx = 1;
     let mut notes_indices = Vec::new();
@@ -164,7 +164,7 @@ fn field_indices(
     }
     if notes_indices.len() != 1 {
         return Err(format!(
-            "Il modello '{}' deve avere un solo campo Notes/Annotations identificabile. Rinomina il campo dedicato alle annotazioni in Anki ed esporta nuovamente il mazzo.",
+            "Anki model '{}' must have exactly one identifiable Notes/Annotations field. Rename the annotation field in Anki and export the deck again.",
             model.name
         ));
     }
@@ -176,7 +176,7 @@ fn field_indices(
         || notes_idx == mean_idx
     {
         return Err(format!(
-            "Campi Expression, Meaning e Notes non validi o sovrapposti nel modello '{}'",
+            "Invalid or overlapping Expression, Meaning, and Notes fields in Anki model '{}'",
             model.name
         ));
     }
@@ -186,16 +186,16 @@ fn field_indices(
 fn read_anki_models(conn: &rusqlite::Connection) -> Result<HashMap<String, AnkiModel>, String> {
     let models_json: String = conn
         .query_row("SELECT models FROM col LIMIT 1", [], |row| row.get(0))
-        .map_err(|e| format!("Errore lettura metadati modelli Anki: {e}"))?;
+        .map_err(|e| format!("Failed to read Anki model metadata: {e}"))?;
 
     serde_json::from_str(&models_json)
-        .map_err(|e| format!("Errore nel parsing del modello Anki: {e}"))
+        .map_err(|e| format!("Failed to parse Anki model JSON: {e}"))
 }
 
 pub fn load_cards(path: &str) -> Result<Vec<RefineCard>, String> {
     let path_buf = PathBuf::from(path);
     if !path_buf.exists() {
-        return Err("Il file specificato non esiste".to_string());
+        return Err("Specified file does not exist".to_string());
     }
 
     let ext = path_buf
@@ -207,13 +207,13 @@ pub fn load_cards(path: &str) -> Result<Vec<RefineCard>, String> {
     match ext.as_str() {
         "tsv" => load_cards_tsv(&path_buf),
         "apkg" => load_cards_apkg(path),
-        _ => Err("Formato file non supportato. Usa .tsv o .apkg".to_string()),
+        _ => Err("Unsupported file format. Use .tsv or .apkg".to_string()),
     }
 }
 
 fn load_cards_tsv(path: &Path) -> Result<Vec<RefineCard>, String> {
     let content =
-        fs::read_to_string(path).map_err(|e| format!("Impossibile leggere il file TSV: {e}"))?;
+        fs::read_to_string(path).map_err(|e| format!("Failed to read TSV file: {e}"))?;
 
     let rows: Vec<Vec<String>> = content
         .lines()
@@ -244,28 +244,28 @@ fn extract_anki_db(apkg_path: &Path, dest_db_path: &Path) -> Result<(), String> 
 
 fn load_cards_apkg(path: &str) -> Result<Vec<RefineCard>, String> {
     let temp_dir = tempfile::tempdir()
-        .map_err(|e| format!("Impossibile creare la directory temporanea: {e}"))?;
+        .map_err(|e| format!("Failed to create temporary directory: {e}"))?;
 
     let db_path = temp_dir.path().join("collection.anki2");
     if let Err(err) = extract_anki_db(Path::new(path), &db_path) {
         if err.contains("not found in ZIP archive") {
-            return Err("Archivio APKG non valido: collection.anki2 mancante".to_string());
+            return Err("Invalid APKG archive: missing collection.anki2".to_string());
         }
         return Err(err);
     }
 
     let conn = rusqlite::Connection::open(db_path)
-        .map_err(|e| format!("Impossibile connettersi al database Anki: {e}"))?;
+        .map_err(|e| format!("Failed to open Anki database: {e}"))?;
 
     let models = read_anki_models(&conn)?;
 
     let mut stmt = conn
         .prepare("SELECT id, mid, flds FROM notes ORDER BY id")
-        .map_err(|e| format!("Errore nella preparazione query SQLite: {e}"))?;
+        .map_err(|e| format!("Failed to prepare SQLite query: {e}"))?;
 
     let mut rows = stmt
         .query([])
-        .map_err(|e| format!("Errore nell'esecuzione query SQLite: {e}"))?;
+        .map_err(|e| format!("Failed to execute SQLite query: {e}"))?;
 
     let mut cards = Vec::new();
 
@@ -298,7 +298,7 @@ pub fn save_cards(
 
     if !input_path_buf.exists() {
         return Err(
-            "Il file di input originale non esiste. Ripristinalo prima di salvare le annotazioni."
+            "Original input file does not exist. Restore it before saving annotations."
                 .to_string(),
         );
     }
@@ -310,7 +310,7 @@ pub fn save_cards(
         && !parent.exists()
     {
         return Err(format!(
-            "La cartella di destinazione '{}' non esiste.",
+            "Destination directory '{}' does not exist.",
             parent.display()
         ));
     }
@@ -331,11 +331,11 @@ pub fn save_cards(
         ("apkg", "apkg") => {
             save_apkg_to_apkg(&resolved_input_path, input_path, output_path, updates)
         }
-        (_, "tsv") => Err("Formato file di input non supportato per esportazione TSV".to_string()),
+        (_, "tsv") => Err("Unsupported input file format for TSV export".to_string()),
         (_, "apkg") => {
-            Err("Salvare un file TSV come APKG non è supportato in questa scheda.".to_string())
+            Err("Saving a TSV file as APKG is not supported.".to_string())
         }
-        _ => Err("Formato file non supportato. Usa .tsv o .apkg".to_string()),
+        _ => Err("Unsupported file format. Use .tsv or .apkg".to_string()),
     }
 }
 
@@ -345,7 +345,7 @@ fn save_tsv_to_tsv(
     updates: Vec<RefineUpdate>,
 ) -> Result<(), String> {
     let content = fs::read_to_string(input)
-        .map_err(|e| format!("Impossibile leggere il file TSV di input: {e}"))?;
+        .map_err(|e| format!("Failed to read input TSV file: {e}"))?;
 
     let mut rows: Vec<Vec<String>> = content
         .lines()
@@ -353,7 +353,7 @@ fn save_tsv_to_tsv(
         .collect();
 
     if rows.is_empty() {
-        return Err("Il file TSV è vuoto".to_string());
+        return Err("TSV file is empty".to_string());
     }
 
     let (_, _, notes_idx) = tsv_indices(&rows)?;
@@ -363,11 +363,11 @@ fn save_tsv_to_tsv(
         let idx = update
             .id
             .parse::<usize>()
-            .map_err(|_| "ID TSV non valido")?;
+            .map_err(|_| "Invalid TSV row ID")?;
         if rows.get(idx).is_none_or(|row| !is_tsv_data(row))
             || updates_map.insert(idx, update.notes).is_some()
         {
-            return Err(format!("ID TSV {idx} mancante, non annotabile o duplicato"));
+            return Err(format!("TSV row ID {idx} is missing, non-annotatable, or duplicated"));
         }
     }
 
@@ -377,7 +377,7 @@ fn save_tsv_to_tsv(
                 row.push(String::new());
             }
             if !is_tsv_data(row) {
-                return Err(format!("Riga TSV {idx} non annotabile"));
+                return Err(format!("TSV row {idx} cannot be annotated"));
             }
             row[notes_idx] = new_notes
                 .replace('\r', "")
@@ -402,25 +402,25 @@ fn save_apkg_to_tsv(
     updates: Vec<RefineUpdate>,
 ) -> Result<(), String> {
     let temp_dir = tempfile::tempdir()
-        .map_err(|e| format!("Impossibile creare la directory temporanea: {e}"))?;
+        .map_err(|e| format!("Failed to create temporary directory: {e}"))?;
 
     let input_path_str = resolved_input.to_str().unwrap_or(original_input);
     let db_path = temp_dir.path().join("collection.anki2");
     if let Err(err) = extract_anki_db(Path::new(input_path_str), &db_path) {
         if err.contains("not found in ZIP archive") {
-            return Err("File di input APKG non valido".to_string());
+            return Err("Invalid input APKG file".to_string());
         }
         return Err(err);
     }
 
     let conn = rusqlite::Connection::open(&db_path)
-        .map_err(|e| format!("Impossibile connettersi al database Anki: {e}"))?;
+        .map_err(|e| format!("Failed to open Anki database: {e}"))?;
 
     let models = read_anki_models(&conn)?;
 
     let mut stmt = conn
         .prepare("SELECT id, mid, flds FROM notes ORDER BY id")
-        .map_err(|e| format!("Errore preparazione query note Anki: {e}"))?;
+        .map_err(|e| format!("Failed to prepare Anki notes query: {e}"))?;
 
     let note_rows = stmt
         .query_map([], |row| {
@@ -430,7 +430,7 @@ fn save_apkg_to_tsv(
                 row.get::<_, String>(2)?,
             ))
         })
-        .map_err(|e| format!("Errore esecuzione query note Anki: {e}"))?;
+        .map_err(|e| format!("Failed to execute Anki notes query: {e}"))?;
 
     let mut cards = Vec::new();
     for note in note_rows {
@@ -454,7 +454,7 @@ fn save_apkg_to_tsv(
                 .insert(update.id.clone(), update.notes)
                 .is_some()
         {
-            return Err(format!("ID Anki {} mancante o duplicato", update.id));
+            return Err(format!("Anki note ID {} is missing or duplicated", update.id));
         }
     }
 
@@ -479,26 +479,26 @@ fn save_apkg_to_apkg(
     updates: Vec<RefineUpdate>,
 ) -> Result<(), String> {
     let temp_dir = tempfile::tempdir()
-        .map_err(|e| format!("Impossibile creare la directory temporanea: {e}"))?;
+        .map_err(|e| format!("Failed to create temporary directory: {e}"))?;
 
     let input_path_str = resolved_input.to_str().unwrap_or(original_input);
     srt_apkg::unzip_to(Path::new(input_path_str), temp_dir.path())?;
 
     let db_path = temp_dir.path().join("collection.anki2");
     if !db_path.exists() {
-        return Err("File di input APKG non valido".to_string());
+        return Err("Invalid input APKG file".to_string());
     }
 
     let conn = rusqlite::Connection::open(&db_path)
-        .map_err(|e| format!("Impossibile connettersi al database Anki: {e}"))?;
+        .map_err(|e| format!("Failed to open Anki database: {e}"))?;
 
     let models = read_anki_models(&conn)?;
 
     let mut updates_map = HashMap::new();
     for update in updates {
-        let nid = update.id.parse::<i64>().map_err(|_| "ID Anki non valido")?;
+        let nid = update.id.parse::<i64>().map_err(|_| "Invalid Anki note ID")?;
         if updates_map.insert(nid, update.notes).is_some() {
-            return Err(format!("ID Anki {nid} duplicato"));
+            return Err(format!("Duplicate Anki note ID {nid}"));
         }
     }
 
@@ -509,10 +509,10 @@ fn save_apkg_to_apkg(
 
     let mut select_stmt = conn
         .prepare("SELECT mid, flds FROM notes WHERE id = ?")
-        .map_err(|e| format!("Errore preparazione query SELECT: {e}"))?;
+        .map_err(|e| format!("Failed to prepare SELECT query: {e}"))?;
     let mut update_stmt = conn
         .prepare("UPDATE notes SET flds = ?, mod = ?, usn = -1 WHERE id = ?")
-        .map_err(|e| format!("Errore preparazione query UPDATE: {e}"))?;
+        .map_err(|e| format!("Failed to prepare UPDATE query: {e}"))?;
 
     conn.execute("BEGIN TRANSACTION", [])
         .map_err(|e| e.to_string())?;
@@ -521,7 +521,7 @@ fn save_apkg_to_apkg(
         let (mid, flds): (i64, String) =
             match select_stmt.query_row([nid], |row| Ok((row.get(0)?, row.get(1)?))) {
                 Ok(res) => res,
-                Err(e) => return Err(format!("Nota Anki {nid} non trovata: {e}")),
+                Err(e) => return Err(format!("Anki note {nid} not found: {e}")),
             };
 
         let mut fields: Vec<String> = flds.split('\x1f').map(str::to_string).collect();
@@ -539,7 +539,7 @@ fn save_apkg_to_apkg(
 
         update_stmt
             .execute(rusqlite::params![joined_flds, timestamp, nid])
-            .map_err(|e| format!("Errore durante l'aggiornamento SQLite: {e}"))?;
+            .map_err(|e| format!("Failed to update SQLite note: {e}"))?;
     }
 
     drop(select_stmt);

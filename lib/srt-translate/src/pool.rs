@@ -149,7 +149,7 @@ pub fn build_pool(tiers: &[Vec<TierEntry>]) -> Result<TranslatorPool, String> {
 
     if pool.is_empty() {
         return Err(
-            "Nessun tier configurato. Aggiungi almeno un endpoint nei Tier di precedenza."
+            "No translation tiers configured. Add at least one provider endpoint to the priority tiers."
                 .to_string(),
         );
     }

@@ -69,27 +69,27 @@ impl Timestamp {
         let mut parts = trimmed.split([':', ',', '.']);
         let hours: u32 = parts
             .next()
-            .ok_or_else(|| anyhow::anyhow!("Formato timestamp invalido: {}", s))?
+            .ok_or_else(|| anyhow::anyhow!("Invalid timestamp format: {}", s))?
             .parse()
-            .context("Ore invalide")?;
+            .context("Invalid hours")?;
         let minutes: u32 = parts
             .next()
-            .ok_or_else(|| anyhow::anyhow!("Formato timestamp invalido: {}", s))?
+            .ok_or_else(|| anyhow::anyhow!("Invalid timestamp format: {}", s))?
             .parse()
-            .context("Minuti invalidi")?;
+            .context("Invalid minutes")?;
         let seconds: u32 = parts
             .next()
-            .ok_or_else(|| anyhow::anyhow!("Formato timestamp invalido: {}", s))?
+            .ok_or_else(|| anyhow::anyhow!("Invalid timestamp format: {}", s))?
             .parse()
-            .context("Secondi invalidi")?;
+            .context("Invalid seconds")?;
         let millis: u32 = parts
             .next()
-            .ok_or_else(|| anyhow::anyhow!("Formato timestamp invalido: {}", s))?
+            .ok_or_else(|| anyhow::anyhow!("Invalid timestamp format: {}", s))?
             .parse()
-            .context("Millisecondi invalidi")?;
+            .context("Invalid milliseconds")?;
 
         if parts.next().is_some() {
-            anyhow::bail!("Formato timestamp invalido: {}", s);
+            anyhow::bail!("Invalid timestamp format: {}", s);
         }
         anyhow::ensure!(
             minutes < 60 && seconds < 60 && millis < 1000,
@@ -196,15 +196,15 @@ impl SrtParser {
 
     fn parse_block_lines(lines: &[&str]) -> Result<Subtitle> {
         let [id_line, timeline, text_lines @ ..] = lines else {
-            anyhow::bail!("Blocco sottotitolo invalido");
+            anyhow::bail!("Invalid subtitle block");
         };
 
         // Parse ID
-        let id: u32 = id_line.trim().parse().context("ID invalido")?;
+        let id: u32 = id_line.trim().parse().context("Invalid subtitle ID")?;
 
         // Parse timestamps
         let Some((start_str, end_str)) = timeline.split_once(" --> ") else {
-            anyhow::bail!("Timeline invalida: {}", timeline);
+            anyhow::bail!("Invalid timeline: {}", timeline);
         };
 
         let start = Timestamp::from_srt_string(start_str.trim())?;
@@ -330,7 +330,7 @@ impl SrtParser {
         }
 
         persistence::atomic_write(path, content.as_bytes())
-            .context("Impossibile scrivere il file")?;
+            .context("Failed to write subtitle file")?;
         Ok(())
     }
 }

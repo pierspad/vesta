@@ -1,17 +1,15 @@
-//! Config store persistito su disco (`vesta_config.json`), sostituto del
-//! `localStorage` del Webview.
+//! Persistent on-disk configuration store (`vesta_config.json`), replacing
+//! Webview `localStorage`.
 //!
-//! `localStorage` vive nella cache del Webview: una pulizia della cache o un
-//! aggiornamento di sistema può cancellarlo silenziosamente, perdendo chiavi
-//! API e impostazioni personalizzate (note types, template, ecc.). Qui i
-//! valori vivono in un file JSON gestito da Rust, fuori dalla cache del
-//! Webview, con scrittura atomica (write-to-temp + rename) per evitare file
-//! corrotti in caso di crash a metà scrittura.
+//! `localStorage` lives inside the Webview cache: clearing the cache or
+//! upgrading system packages can silently wipe it, losing API keys and custom
+//! settings (note types, templates, etc.). Here values are stored in a
+//! Rust-managed JSON file outside the Webview cache with atomic writes
+//! (write-to-temp + rename) to prevent corruption on crash.
 //!
-//! Il modello è intenzionalmente `HashMap<String, String>`: rispecchia
-//! `localStorage` (chiave/valore, solo stringhe — gli oggetti restano
-//! serializzati in JSON dal chiamante) così il lato TypeScript può restare
-//! un drop-in replacement 1:1 delle chiamate `localStorage.*`.
+//! The data model is intentionally `HashMap<String, String>` to mirror
+//! `localStorage` (string keys and values, with objects JSON-serialized by the
+//! caller), allowing the TypeScript layer to act as a 1:1 drop-in replacement.
 
 use std::collections::HashMap;
 use std::fs;
@@ -21,7 +19,7 @@ use std::sync::{Arc, Mutex};
 
 use tauri::State;
 
-/// Stato in-memory del config store, tenuto in sync col file su disco.
+/// In-memory configuration store state kept in sync with the on-disk file.
 pub struct ConfigState(pub Arc<Mutex<HashMap<String, String>>>);
 
 impl Default for ConfigState {
@@ -73,36 +71,36 @@ fn read_config_file(path: &std::path::Path) -> Result<HashMap<String, String>, S
             }
         },
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(HashMap::new()),
-        Err(e) => Err(format!("Impossibile leggere la configurazione: {e}")),
+        Err(e) => Err(format!("Failed to read configuration: {e}")),
     }
 }
 
-/// Scrittura atomica: file temporaneo + rename, così un crash a metà
-/// scrittura non lascia mai un `vesta_config.json` troncato/corrotto.
+/// Atomic write via temporary file + rename so a crash mid-write never leaves
+/// a truncated or corrupted `vesta_config.json`.
 fn write_to_disk(map: &HashMap<String, String>) -> Result<(), String> {
     write_config_file(&config_file(), map)
 }
 
 fn write_config_file(path: &std::path::Path, map: &HashMap<String, String>) -> Result<(), String> {
-    let dir = path.parent().ok_or("Configurazione senza cartella")?;
-    fs::create_dir_all(dir).map_err(|e| format!("impossibile creare {}: {e}", dir.display()))?;
+    let dir = path.parent().ok_or("Configuration path has no parent directory")?;
+    fs::create_dir_all(dir).map_err(|e| format!("Failed to create {}: {e}", dir.display()))?;
 
     let json = serde_json::to_string_pretty(map).map_err(|e| e.to_string())?;
 
     let mut temporary = tempfile::NamedTempFile::new_in(dir).map_err(|e| e.to_string())?;
     temporary
         .write_all(json.as_bytes())
-        .map_err(|e| format!("scrittura fallita: {e}"))?;
+        .map_err(|e| format!("Failed to write temporary configuration: {e}"))?;
     temporary.as_file().sync_all().map_err(|e| e.to_string())?;
     temporary
         .persist(path)
-        .map_err(|e| format!("salvataggio fallito: {}", e.error))?;
+        .map_err(|e| format!("Failed to persist configuration: {}", e.error))?;
     Ok(())
 }
 
-/// Carica (o ricarica) l'intero config store dal disco e lo restituisce al
-/// frontend. Chiamato una sola volta all'avvio, prima del mount dell'app,
-/// per idratare la cache in-memory lato TypeScript.
+/// Loads (or reloads) the entire configuration store from disk and returns it
+/// to the frontend. Called once at startup before mounting the app to hydrate
+/// the in-memory TypeScript cache.
 #[tauri::command]
 pub fn config_load_all(state: State<'_, ConfigState>) -> Result<HashMap<String, String>, String> {
     let mut guard = state.0.lock().map_err(|e| e.to_string())?;

@@ -25,7 +25,7 @@ fn begin_refinement(
 pub async fn refine_load_file(path: String) -> Result<Vec<RefineCard>, String> {
     tokio::task::spawn_blocking(move || srt_refine::load_cards(&path))
         .await
-        .map_err(|e| format!("Task refine fallito: {e}"))?
+        .map_err(|e| format!("Refine task failed: {e}"))?
 }
 
 #[tauri::command]
@@ -36,7 +36,7 @@ pub async fn refine_save_file(
 ) -> Result<bool, String> {
     tokio::task::spawn_blocking(move || srt_refine::save_cards(&input_path, &output_path, updates))
         .await
-        .map_err(|e| format!("Task refine fallito: {e}"))?
+        .map_err(|e| format!("Refine task failed: {e}"))?
         .map(|_| true)
 }
 
@@ -78,9 +78,9 @@ pub async fn refine_card_llm_tiered(
         if summary.cancelled {
             "ERR_CANCELLED".to_string()
         } else if summary.pool_exhausted {
-            "Tutti i tier LLM sono esauriti (rate limit/quota)".to_string()
+            "All LLM tiers are exhausted (rate limit or quota reached)".to_string()
         } else {
-            "Nessuna risposta generata".to_string()
+            "No response generated".to_string()
         }
     })
 }
@@ -123,7 +123,7 @@ pub async fn refine_cards_llm_tiered(
     .await
 }
 
-/// Cancella il refinement AI in corso.
+/// Cancels the active AI refinement job.
 #[tauri::command]
 pub async fn refine_cancel(state: State<'_, AppRefineState>) -> Result<bool, String> {
     Ok(state.lock().map_err(|e| e.to_string())?.operation.cancel())

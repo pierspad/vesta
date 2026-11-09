@@ -75,7 +75,7 @@ where
     F: FnMut(RefineEvent) + Send + 'static,
 {
     if pool.is_empty() || pool.iter().all(|t| t.is_empty()) {
-        return Err("Nessun endpoint LLM configurato (pool vuoto)".to_string());
+        return Err("No LLM endpoints configured (empty pool)".to_string());
     }
     if cards.is_empty() {
         return Ok(RefineRunSummary::default());
@@ -123,7 +123,7 @@ where
     for w in workers {
         if let Err(error) = w.await {
             token.cancel();
-            worker_error = Some(format!("Worker annotazione fallito: {error}"));
+            worker_error = Some(format!("Annotation worker failed: {error}"));
         }
     }
     if let Some(error) = worker_error {
@@ -152,7 +152,7 @@ async fn worker_loop<F>(
             return;
         };
 
-        // Failover: prova entry diverse finché il job non riesce o il pool è esaurito.
+        // Failover: try subsequent pool entries until the job succeeds or the pool is exhausted.
         loop {
             if token.is_cancelled() {
                 return;
@@ -198,7 +198,7 @@ async fn worker_loop<F>(
                                     &shared,
                                     RefineEvent::CardFailed {
                                         id: card.id.clone(),
-                                        error: "Risposta LLM vuota".to_string(),
+                                        error: "Empty LLM response".to_string(),
                                     },
                                 )
                                 .await;
@@ -225,7 +225,7 @@ async fn worker_loop<F>(
                             if !missing.is_empty() {
                                 emit(&shared, RefineEvent::Info {
                                     message: format!(
-                                        "Batch incompleto da {}: {} card rimesse in coda singolarmente",
+                                        "Incomplete batch from {}: {} card(s) re-queued individually",
                                         entry.label,
                                         missing.len()
                                     ),
@@ -238,16 +238,16 @@ async fn worker_loop<F>(
                             }
                         }
                     }
-                    break; // job gestito, passa al prossimo
+                    break; // job handled, move to next
                 }
                 Err(e) if is_rate_limit_error(&e) => {
-                    // Entry esaurita: marca e riprova lo stesso job con la prossima.
+                    // Entry exhausted: mark it and retry the same job with the next available entry.
                     shared.scheduler.lock().await.report_exhausted(ti, ei);
                     emit(
                         &shared,
                         RefineEvent::Info {
                             message: format!(
-                                "{}: rate limit/quota raggiunti, failover",
+                                "{}: rate limit/quota reached, failing over",
                                 entry.label
                             ),
                         },
@@ -268,13 +268,12 @@ async fn worker_loop<F>(
                         break;
                     }
                     Job::Batch(cards) => {
-                        // Stesso fallback della vecchia GUI: il batch fallito
-                        // viene riprocessato una card alla volta.
+                        // Re-queue failed batch cards as individual jobs.
                         emit(
                             &shared,
                             RefineEvent::Info {
                                 message: format!(
-                                    "Batch fallito via {} ({e}), fallback a richieste singole",
+                                    "Batch failed via {} ({e}), falling back to single-card requests",
                                     entry.label
                                 ),
                             },
