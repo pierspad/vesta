@@ -624,3 +624,42 @@ it("dispatches action with action.id as widgetId and click as eventType when cli
     expect.any(Boolean)
   );
 });
+
+it("guides blocked searches to settings and enforces prerequisites on Enter", async () => {
+  const target = document.createElement("div");
+  document.body.append(target);
+  const root: WidgetNode = {
+    type: "column",
+    children: [
+      { type: "textInput", id: "movie", submitAction: "search" },
+      { type: "button", id: "settings", label: "Settings", variant: "settings", status: "attention" },
+      { type: "button", id: "search", label: "Search", requiresAny: ["movie"], tooltip: "Enter an ID",
+        disabled: true, disabledTooltip: "Save your key", disabledFocus: "settings" },
+    ],
+  };
+  mockRender.mockResolvedValue({ root });
+  mockDispatch.mockResolvedValue({});
+  const renderer = mount(PluginRenderer, { target, props: { pluginId: "fixture", initialRoot: root } });
+  components.push(renderer);
+  await tick();
+  const search = target.querySelector<HTMLButtonElement>("#widget-search")!;
+  const settings = target.querySelector<HTMLButtonElement>("#widget-settings")!;
+  const input = target.querySelector<HTMLInputElement>("#widget-movie")!;
+  expect(search.title).toBe("Save your key");
+  expect(search.getAttribute("aria-disabled")).toBe("true");
+  search.click();
+  expect(document.activeElement).toBe(settings);
+  expect(mockDispatch).not.toHaveBeenCalled();
+
+  renderer.applyPatch({ setProps: { search: { disabled: false } } });
+  await tick();
+  expect(search.title).toBe("Enter an ID");
+  input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+  expect(mockDispatch).not.toHaveBeenCalled();
+  input.value = "123";
+  input.dispatchEvent(new Event("input", { bubbles: true }));
+  await tick();
+  expect(search.hasAttribute("aria-disabled")).toBe(false);
+  input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+  expect(mockDispatch).toHaveBeenCalledOnce();
+});

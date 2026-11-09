@@ -241,9 +241,13 @@ export interface ButtonWidget extends BaseWidget {
   type: "button";
   id: string;
   label: string;
-  variant?: "primary" | "secondary" | "danger";
+  variant?: "primary" | "secondary" | "danger" | "settings";
   disabled?: boolean;
   icon?: string;
+  status?: "attention" | "ready";
+  disabledTooltip?: string;
+  disabledFocus?: string;
+  requiresAny?: string[];
 }
 
 export interface ListItemAction {

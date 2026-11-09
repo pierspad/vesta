@@ -7,6 +7,7 @@
     pluginDispatchEvent,
     pluginSaveSettings,
     type WidgetNode,
+    type ButtonWidget,
     type PluginSettingField,
     type PluginPatch,
     type PathInputWidget,
@@ -38,6 +39,7 @@
 
   let uiRoot = $state<WidgetNode | null>(null);
   let values = $state<Record<string, any>>({});
+  let renderer: HTMLDivElement;
   let loading = $state(false);
   let actionLoading = $state<string | null>(null);
   let error = $state<string | null>(null);
@@ -207,7 +209,38 @@
     }
   }
 
+  function findButton(node: WidgetNode | null, id: string): ButtonWidget | undefined {
+    if (node?.type === "button" && node.id === id) return node;
+    if (node && "children" in node) {
+      for (const child of node.children) {
+        const match = findButton(child, id);
+        if (match) return match;
+      }
+    }
+  }
+
+  function missingRequiredInput(node: ButtonWidget): boolean {
+    return !!node.requiresAny?.length && !node.requiresAny.some(id => {
+      const value = values[id];
+      return typeof value === "string" ? value.trim().length > 0 : value != null && value !== false;
+    });
+  }
+
+  function activateButton(node: ButtonWidget) {
+    if (actionLoading !== null) return;
+    if (node.disabled && node.disabledFocus) {
+      const target = Array.from(renderer.querySelectorAll<HTMLButtonElement>("button[data-plugin-button]"))
+        .find(button => button.dataset.pluginButton === node.disabledFocus);
+      target?.focus();
+      return;
+    }
+    void handleAction(node.id);
+  }
+
   export async function handleAction(widgetId: string, eventType: string = "click"): Promise<void> {
+    if (actionLoading !== null) return;
+    const button = findButton(uiRoot, widgetId);
+    if (button && (button.disabled || missingRequiredInput(button))) return;
     actionLoading = widgetId;
     error = null;
     try {
@@ -326,6 +359,7 @@
 
   function getTextVariantClass(variant?: string): string {
     if (variant === "muted") return "text-gray-400";
+    if (variant === "settings") return "plugin-settings-button btn-secondary btn-compact";
     if (variant === "danger") return "text-rose-400";
     if (variant === "success") return "text-emerald-400";
     return "text-gray-200";
@@ -547,7 +581,9 @@
             onkeydown={(e) => {
               if (e.key === "Enter" && !node.disabled) {
                 e.preventDefault();
-                void handleAction(node.submitAction || node.id, node.submitAction ? "click" : "submit");
+                const button = node.submitAction ? findButton(uiRoot, node.submitAction) : undefined;
+                if (button) activateButton(button);
+                else void handleAction(node.submitAction || node.id, node.submitAction ? "click" : "submit");
               }
             }}
             class="h-10 px-3 {node.icon && node.icon !== 'tmdb' && node.icon !== 'imdb' ? 'pl-9' : ''} rounded-xl border border-white/10 bg-white/5 text-sm text-gray-100 placeholder-gray-500 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-colors disabled:opacity-50 w-full"
@@ -608,7 +644,9 @@
             onkeydown={(e) => {
               if (e.key === "Enter" && !node.disabled) {
                 e.preventDefault();
-                void handleAction(node.submitAction || node.id, node.submitAction ? "click" : "submit");
+                const button = node.submitAction ? findButton(uiRoot, node.submitAction) : undefined;
+                if (button) activateButton(button);
+                else void handleAction(node.submitAction || node.id, node.submitAction ? "click" : "submit");
               }
             }}
             class="h-10 px-3 {node.icon && node.icon !== 'tmdb' && node.icon !== 'imdb' ? 'pl-9' : ''} rounded-xl border border-white/10 bg-white/5 text-sm text-gray-100 placeholder-gray-500 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-colors disabled:opacity-50 w-full"
@@ -844,13 +882,17 @@
       </button>
 
     {:else if node.type === "button"}
+      {@const blocked = !!node.disabled || missingRequiredInput(node) || actionLoading !== null}
+      {@const guidance = node.disabled ? node.disabledTooltip ?? node.tooltip : node.tooltip}
       <button
         type="button"
         id="widget-{node.id}"
-        disabled={node.disabled || actionLoading === node.id}
-        title={node.tooltip}
-        class="inline-flex items-center justify-center gap-1.5 font-medium h-10 px-4 text-xs rounded-xl transition-all disabled:opacity-50 cursor-pointer {getButtonVariantClass(node.variant)}"
-        onclick={() => handleAction(node.id)}
+        data-plugin-button={node.id}
+        disabled={blocked && (actionLoading !== null || !(guidance || node.disabledFocus))}
+        aria-disabled={blocked || undefined}
+        title={guidance}
+        class="inline-flex items-center justify-center gap-1.5 font-medium h-10 px-4 text-xs rounded-xl transition-all disabled:opacity-50 aria-disabled:opacity-50 cursor-pointer {getButtonVariantClass(node.variant)}"
+        onclick={() => activateButton(node)}
       >
         {#if actionLoading === node.id}
           <svg class="animate-spin -ml-1 mr-1.5 h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
@@ -858,6 +900,9 @@
           {@render renderIcon(node.icon, "w-3.5 h-3.5 shrink-0")}
         {/if}
         <span>{node.label}</span>
+        {#if node.status === "attention" || node.status === "ready"}
+          <span aria-hidden="true" class="plugin-status-dot" class:attention={node.status === "attention"}></span>
+        {/if}
       </button>
 
     {:else if node.type === "list"}
@@ -1077,7 +1122,7 @@
   {/if}
 {/snippet}
 
-<div class="plugin-renderer w-full h-full flex flex-col p-6 overflow-y-auto">
+<div bind:this={renderer} class="plugin-renderer w-full h-full flex flex-col p-6 overflow-y-auto">
   {#if loading && !uiRoot}
     <div class="flex-1 flex flex-col items-center justify-center gap-3 text-sm text-gray-400">
       <div class="skeleton w-48 h-6 rounded-lg"></div>
@@ -1102,3 +1147,23 @@
     </div>
   {/if}
 </div>
+
+
+<style>
+  .plugin-settings-button {
+    color: var(--done);
+  }
+  .plugin-settings-button:focus {
+    outline: 2px solid var(--done);
+    outline-offset: 3px;
+  }
+  .plugin-status-dot {
+    inline-size: 0.45rem;
+    block-size: 0.45rem;
+    border-radius: 50%;
+    background: var(--done);
+  }
+  .plugin-status-dot.attention {
+    background: var(--color-amber-400);
+  }
+</style>
