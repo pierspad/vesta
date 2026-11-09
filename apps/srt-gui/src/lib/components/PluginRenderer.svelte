@@ -1251,12 +1251,19 @@
     border-color: var(--control-focus-border);
   }
   .plugin-action-accent {
-    color: var(--color-cyan-300);
-    border-color: color-mix(in srgb, var(--color-cyan-500) 35%, transparent);
+    --action-fill: var(--color-cyan-600);
+    color: var(--text);
   }
   .plugin-action-danger {
-    color: var(--danger);
-    border-color: color-mix(in srgb, var(--danger) 35%, transparent);
+    --action-fill: var(--danger);
+    color: var(--color-red-200);
+  }
+  :is(.plugin-action-accent, .plugin-action-danger) {
+    background: color-mix(in srgb, var(--action-fill) 34%, var(--surface-2));
+    border-color: color-mix(in srgb, var(--action-fill) 52%, var(--surface-2));
+  }
+  :is(.plugin-action-accent, .plugin-action-danger):hover:not(:disabled):not([aria-disabled="true"]) {
+    background: color-mix(in srgb, var(--action-fill) 48%, var(--surface-2));
   }
   .plugin-settings-button { color: var(--text); }
   .plugin-settings-button:focus {
