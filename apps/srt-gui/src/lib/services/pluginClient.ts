@@ -154,6 +154,7 @@ export interface RowWidget extends BaseWidget {
   type: "row";
   gap?: number | string;
   align?: "start" | "center" | "end" | "between";
+  separator?: "or";
   children: WidgetNode[];
 }
 

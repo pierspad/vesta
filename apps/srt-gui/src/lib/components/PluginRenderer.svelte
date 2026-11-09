@@ -497,16 +497,18 @@
       </div>
 
     {:else if node.type === "row"}
+      {@const children = node.children.filter(child => !child.hidden && (!child.expertOnly || uiMode.expertMode))}
       <div class="flex flex-row flex-wrap w-full {getRowAlign(node.align)}" style="gap: {formatGap(node.gap)}">
-        {#each node.children as child}
-          {#if !child.hidden && (!child.expertOnly || uiMode.expertMode)}
-            <div
-              class={child.width && typeof child.width === 'string' && child.width.startsWith('w-') ? child.width : ''}
-              style="{child.flex !== undefined ? `flex: ${child.flex} ${child.flex} 0px; min-width: 0;` : ''}{child.width && typeof child.width === 'number' ? `width: ${child.width}px;` : child.width && typeof child.width === 'string' && !child.width.startsWith('w-') ? `width: ${child.width};` : ''}"
-            >
-              {@render renderNode(child)}
-            </div>
+        {#each children as child, index}
+          {#if index > 0 && node.separator === "or"}
+            <span class="self-center text-sm" style:color="var(--muted)">{t("common.or")}</span>
           {/if}
+          <div
+            class={child.width && typeof child.width === 'string' && child.width.startsWith('w-') ? child.width : ''}
+            style="{child.flex !== undefined ? `flex: ${child.flex} ${child.flex} 0px; min-width: 0;` : ''}{child.width && typeof child.width === 'number' ? `width: ${child.width}px;` : child.width && typeof child.width === 'string' && !child.width.startsWith('w-') ? `width: ${child.width};` : ''}"
+          >
+            {@render renderNode(child)}
+          </div>
         {/each}
       </div>
 

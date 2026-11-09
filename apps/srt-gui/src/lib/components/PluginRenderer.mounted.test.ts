@@ -663,3 +663,21 @@ it("guides blocked searches to settings and enforces prerequisites on Enter", as
   input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
   expect(mockDispatch).toHaveBeenCalledOnce();
 });
+
+it("renders the localized alternative only between visible row inputs", async () => {
+  const target = document.createElement("div");
+  document.body.append(target);
+  const root: WidgetNode = {
+    type: "row", separator: "or", children: [
+      { type: "textInput", id: "tmdb" },
+      { type: "textInput", id: "hidden", hidden: true },
+      { type: "textInput", id: "imdb" },
+    ],
+  };
+  mockRender.mockResolvedValue({ root });
+  components.push(mount(PluginRenderer, { target, props: { pluginId: "fixture", initialRoot: root } }));
+  await tick();
+  const children = [...target.querySelector(".plugin-renderer > div")!.children];
+  expect(children.map(child => child.querySelector("input")?.id ?? child.textContent?.trim()))
+    .toEqual(["widget-tmdb", "or", "widget-imdb"]);
+});
