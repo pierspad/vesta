@@ -1038,14 +1038,15 @@
                 {#each item.actions as action}
                   <button
                     type="button"
-                    title={action.tooltip}
+                    title={action.tooltip ?? (action.iconOnly ? action.label : undefined)}
+                    aria-label={action.iconOnly ? action.label : undefined}
                     class="text-xs font-semibold px-3 py-1.5 rounded-lg border border-white/10 transition-colors inline-flex items-center gap-1.5 cursor-pointer {action.variant === 'primary' ? 'bg-indigo-600 hover:bg-indigo-500 text-white' : action.variant === 'danger' ? 'bg-rose-600 hover:bg-rose-500 text-white' : 'bg-white/5 hover:bg-white/10 text-gray-200'}"
                     onclick={() => handleAction(action.id, "click")}
                   >
                     {#if action.icon}
                       {@render renderIcon(action.icon, "w-3.5 h-3.5 shrink-0")}
                     {/if}
-                    <span>{action.label}</span>
+                    {#if !action.iconOnly || !action.icon}<span>{action.label}</span>{/if}
                   </button>
                 {/each}
               </div>

@@ -271,6 +271,7 @@ export interface ListItemAction {
   variant?: "primary" | "secondary" | "danger";
   tooltip?: string;
   icon?: string;
+  iconOnly?: boolean;
 }
 
 export interface ListItem {
