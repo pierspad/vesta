@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { localShortcutAction } from "$lib/utils/shortcuts";
+  import { isInputActive } from "$lib/utils/keyboardFocus";
   import SpeechEngineSelector from "$lib/components/SpeechEngineSelector.svelte";
   import WorkflowErrorStatus from "$lib/components/WorkflowErrorStatus.svelte";
   import WorkflowWorkspace from "$lib/components/WorkflowWorkspace.svelte";
@@ -10,7 +12,7 @@
   import TranscriptionSegmentsPanel from "$lib/panels/TranscriptionSegmentsPanel.svelte";
   import { formatElapsedTime } from "$lib/utils/elapsedTime";
   import { generateTranscriptionOutputPath as generateOutputPathFromInput, rewriteTranscriptionOutputLanguage as rewriteOutputPathLanguage } from "$lib/utils/transcriptionPaths";
-  import { runTranscription, isTranscribeEndpointReady, withLocalModelOverride } from "$lib/workflows/transcription";
+  import { runTranscription, isTranscribeEndpointReady } from "$lib/workflows/transcription";
   import LogPanel, { type LogEntry } from "$lib/panels/LogPanel.svelte";
   import MediaIcon from "$lib/components/MediaIcon.svelte";
   import { whisperModelsStore as modelStore } from "$lib/stores/whisperModelsStore.svelte";
@@ -240,6 +242,7 @@
   });
 
   function handleWhisperModelUpdated() {
+    refreshTranscribeTiers();
     refreshModels().catch(console.error);
   }
 
@@ -313,34 +316,17 @@
   }
 
   function handleKeydown(e: KeyboardEvent) {
-    if (!active) return;
-    if (
-      document.activeElement?.tagName === "INPUT" ||
-      document.activeElement?.tagName === "TEXTAREA"
-    )
-      return;
-
-    // Ctrl+O: Open file
-    if (e.key === "o" && (e.ctrlKey || e.metaKey) && !e.shiftKey) {
+    if (!active || showOverwriteConfirm || expandedPathField || isInputActive()) return;
+    const action = localShortcutAction(e, "transcribe");
+    if (action === "openInputFile" && !isTranscribing) {
       e.preventDefault();
-      selectInputFile();
-      return;
-    }
-    
-    // Ctrl+Enter: Start transcription
-    if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+      void selectInputFile();
+    } else if (action === "startTranscription" && canStart) {
       e.preventDefault();
-      if (!isTranscribing) startTranscription();
-      return;
-    }
-
-    // Escape: Cancel transcription
-    if (e.key === "Escape") {
-      if (isTranscribing) {
-        e.preventDefault();
-        cancelTranscription();
-      }
-      return;
+      void startTranscription();
+    } else if (action === "cancelTranscription" && isTranscribing) {
+      e.preventDefault();
+      void cancelTranscription();
     }
   }
 
@@ -726,7 +712,7 @@
           </svg>
           {t("transcribe.options")}
         </h3>
-        <div class="mb-4 rounded-xl border p-3" style="border-color: color-mix(in srgb, var(--accent) 24%, transparent); background: color-mix(in srgb, var(--accent) 7%, transparent)">
+        <div class="mb-4 rounded-xl border p-3 {requirements.classFor('model')}" style="border-color: color-mix(in srgb, var(--accent) 24%, transparent); background: color-mix(in srgb, var(--accent) 7%, transparent)">
           <div class="mb-2 flex items-center gap-2 text-sm font-medium" style="color: var(--accent)">
             <svg aria-hidden="true" class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 3v2m0 14v2m9-9h-2M5 12H3m15.364-6.364-1.414 1.414M7.05 16.95l-1.414 1.414m12.728 0-1.414-1.414M7.05 7.05 5.636 5.636M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /></svg>
             {t("transcribe.engineTitle")}

@@ -19,7 +19,8 @@
     translate: "translate",
     sync: "sync",
     align: "alignment",
-    settings: "global",
+    settings: "settings",
+    refine: "refine",
     shortcuts: "global",
     transcribe: "transcribe",
   };
@@ -36,7 +37,7 @@
 
 
   function handleKeyDown(e: KeyboardEvent) {
-    if (isInputActive()) {
+    if (e.defaultPrevented || e.isComposing || isInputActive()) {
       return;
     }
 
@@ -48,6 +49,7 @@
     }
 
     if (e.key === "Escape" && visible) {
+      e.preventDefault();
       visible = false;
       return;
     }
@@ -118,7 +120,7 @@
           <h4
             class="text-xs font-semibold text-emerald-400 uppercase tracking-wider mb-2"
           >
-            {t(`shortcuts.category.${contextShortcuts.category}`)}
+            {t(contextShortcuts.category === "settings" || contextShortcuts.category === "refine" ? `nav.${contextShortcuts.category}` : `shortcuts.category.${contextShortcuts.category}`)}
           </h4>
           <div class="grid grid-cols-2 gap-2">
             {#each contextShortcuts.contextual as shortcut}

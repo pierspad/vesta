@@ -340,7 +340,7 @@
 
     if (!inputActive) {
       for (const shortcut of shortcutsList) {
-        if ((shortcut.category === "global" || (activeTab === "settings" && shortcut.category === "settings")) && matchShortcut(e, shortcut.defaultKey)) {
+        if (shortcut.action !== "showShortcutHelp" && (shortcut.category === "global" || (activeTab === "settings" && shortcut.category === "settings")) && matchShortcut(e, shortcut.defaultKey)) {
           e.preventDefault();
           triggerGlobalAction(shortcut.action);
           return;

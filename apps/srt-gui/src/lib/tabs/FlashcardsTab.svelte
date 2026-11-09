@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { localShortcutAction } from "$lib/utils/shortcuts";
+  import { isInputActive } from "$lib/utils/keyboardFocus";
   import { contextMenu as fitContextMenu } from "$lib/utils/contextMenu";
   import { FlashcardAudioSelection } from "$lib/workflows/flashcardAudioSelection.svelte";
   import { RequirementFeedback } from "$lib/utils/requirementFeedback.svelte";
@@ -1397,6 +1399,18 @@
         e.preventDefault();
         return;
       }
+    }
+    if (episodeContextMenu || bottomContextMenu || previewStore.visible || isInputActive()) return;
+    const action = localShortcutAction(e, "flashcards");
+    if (action === "generateFlashcards" && canRunFlashcards && !generationStore.isBusy && !previewStore.loading) {
+      e.preventDefault();
+      void startGeneration();
+    } else if (action === "cancelGeneration" && generationStore.isBusy) {
+      e.preventDefault();
+      void cancelGeneration();
+    } else if (action === "previewCards" && canRunFlashcards && !generationStore.isBusy && !previewStore.loading) {
+      e.preventDefault();
+      void loadPreview();
     }
   }
 </script>

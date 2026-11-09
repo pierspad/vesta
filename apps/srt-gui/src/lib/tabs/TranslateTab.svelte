@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { localShortcutAction } from "$lib/utils/shortcuts";
+  import { isInputActive } from "$lib/utils/keyboardFocus";
   import WorkflowErrorStatus from "$lib/components/WorkflowErrorStatus.svelte";
   import { RequirementFeedback } from "$lib/utils/requirementFeedback.svelte";
   const requirements = new RequirementFeedback<"files" | "options">();
@@ -682,6 +684,25 @@
     return `${mins}m ${secs}s`;
   }
 
+  function handleShortcut(event: KeyboardEvent) {
+    if (!active || expandedPathField || isInputActive()) return;
+    const action = localShortcutAction(event, "translate");
+    if (action === "openInputFile" && !isTranslating && !fileLoading) {
+      event.preventDefault();
+      void selectInputFile();
+    } else if (action === "startTranslation" && !isTranslating && fileInfo?.subtitle_count
+      && outputPath && useTiers && !contextLoading && !fileLoading && !aiStore.killSwitchActive) {
+      event.preventDefault();
+      void startTranslation();
+    } else if (action === "cancelTranslation" && isTranslating) {
+      event.preventDefault();
+      void cancelTranslation();
+    } else if (action === "clearLogs") {
+      event.preventDefault();
+      clearLogs();
+    }
+  }
+
   function clearLogs() {
     logBuffer.clearLogs();
   }
@@ -706,6 +727,8 @@
 
   type TranslatePanelId = (typeof TRANSLATE_PANEL_IDS)[number];
 </script>
+
+<svelte:window onkeydown={handleShortcut} />
 
 <div 
   role="region"

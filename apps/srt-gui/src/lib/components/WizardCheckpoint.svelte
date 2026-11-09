@@ -1,8 +1,18 @@
 <script lang="ts">
+  import { onMount } from "svelte";
+  import { formatKeyPart, getShortcuts, getSortedKeys } from "$lib/utils/shortcuts";
   import HistoryButton from "$lib/components/HistoryButton.svelte";
   import EmptyStatusLabel from "$lib/components/EmptyStatusLabel.svelte";
   import { locale } from "$lib/i18n";
   import SectionHeader from "$lib/components/SectionHeader.svelte";
+
+  const hintIds = ["sync-play-pause", "sync-seek-back", "sync-seek-forward", "sync-offset-up", "sync-offset-down", "sync-replay", "sync-confirm"];
+  let shortcuts = $state(getShortcuts());
+  onMount(() => {
+    const refresh = () => { shortcuts = getShortcuts(); };
+    window.addEventListener("shortcuts-updated", refresh);
+    return () => window.removeEventListener("shortcuts-updated", refresh);
+  });
 
   interface SubtitleInfo {
     id: number;
@@ -136,6 +146,12 @@
             {t("sync.wizard.continueChecking")}
           </button>
         </div>
+        {#if canUndo || canRedo}
+          <div class="mt-3 flex justify-center gap-2">
+            <HistoryButton direction="undo" disabled={!canUndo} onclick={() => onHistory("undo")} />
+            <HistoryButton direction="redo" disabled={!canRedo} onclick={() => onHistory("redo")} />
+          </div>
+        {/if}
       </div>
     {:else}
       <div class="w-full max-w-6xl flex flex-col gap-4">
@@ -336,8 +352,8 @@
             onclick={onReplay}
             disabled={!canControlAudio}
             class="w-12 h-12 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-            title={t("sync.wizard.replay") + " (R)"}
-            aria-label={t("sync.wizard.replay") + " (R)"}
+            title={t("sync.wizard.replay")}
+            aria-label={t("sync.wizard.replay")}
           >
             <svg
               class="w-6 h-6 text-cyan-400"
@@ -388,31 +404,17 @@
         <div
           class="flex flex-wrap gap-3 text-xs text-gray-500 justify-center flex-shrink-0"
         >
-          <div class="flex items-center gap-1">
-            <kbd class="px-2 py-1 bg-white/10 rounded text-gray-400"
-              >{t("keys.space")}</kbd
-            ><span>{t("sync.playPause")}</span>
-          </div>
-          <div class="flex items-center gap-1">
-            <kbd class="px-2 py-1 bg-white/10 rounded text-gray-400"
-              >←/→</kbd
-            ><span>{t("sync.seek")}</span>
-          </div>
-          <div class="flex items-center gap-1">
-            <kbd class="px-2 py-1 bg-white/10 rounded text-gray-400"
-              >↑/↓</kbd
-            ><span>{t("sync.offsetAdjust")}</span>
-          </div>
-          <div class="flex items-center gap-1">
-            <kbd class="px-2 py-1 bg-white/10 rounded text-gray-400"
-              >R</kbd
-            ><span>{t("sync.wizard.replay")}</span>
-          </div>
-          <div class="flex items-center gap-1">
-            <kbd class="px-2 py-1 bg-white/10 rounded text-gray-400"
-              >{t("keys.enter")}</kbd
-            ><span>{t("sync.confirm")}</span>
-          </div>
+          {#each hintIds as id (id)}
+            {@const shortcut = shortcuts.find(item => item.id === id)}
+            {#if shortcut}
+              <div class="flex items-center gap-1">
+                <kbd class="px-2 py-1 bg-white/10 rounded text-gray-400">
+                  {getSortedKeys(shortcut.defaultKey).map(key => formatKeyPart(key, t)).join("+")}
+                </kbd>
+                <span>{t(shortcut.description)}</span>
+              </div>
+            {/if}
+          {/each}
         </div>
       </div>
     {/if}

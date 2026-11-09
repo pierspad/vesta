@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { historyShortcutAction } from "$lib/utils/shortcuts";
+  import { historyShortcutAction, localShortcutAction } from "$lib/utils/shortcuts";
   import { SnapshotHistory } from "$lib/workflows/snapshotHistory";
   import EmptyStatusLabel from "$lib/components/EmptyStatusLabel.svelte";
   import { invokeCommand as invoke } from "$lib/services/tauriClient";
@@ -103,45 +103,22 @@
     const focused = document.activeElement;
     if (focused?.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"])')) return;
 
-    // Ctrl+O → open target (1st SRT)
-    if (e.key === 'o' && (e.ctrlKey || e.metaKey) && !e.shiftKey) {
-      e.preventDefault();
-      selectTarget();
-      return;
-    }
     const historyAction = historyShortcutAction(e, "align");
     if (historyAction) {
       e.preventDefault();
       if (historyAction === "undo") performUndo(); else undoHistory.redo();
       return;
     }
-    // Ctrl+Shift+S → swap files
-    if (e.key === 'S' && (e.ctrlKey || e.metaKey) && e.shiftKey) {
-      e.preventDefault();
-      swapFiles();
-      return;
-    }
-    // Ctrl+Shift+P → cycle items per page
-    if (e.key === 'P' && (e.ctrlKey || e.metaKey) && e.shiftKey) {
-      e.preventDefault();
-      cycleItemsPerPage();
-      return;
-    }
-    // Ctrl+S → save
-    if (e.key === 's' && (e.ctrlKey || e.metaKey) && !e.shiftKey) {
-      e.preventDefault();
-      saveSource();
-      return;
-    }
-    // Tab → next page, Shift+Tab → prev page (only when not in a textarea)
-    if (e.key === 'Tab' && !(document.activeElement?.tagName === 'TEXTAREA')) {
-      e.preventDefault();
-      if (e.shiftKey) {
-        prevPage();
-      } else {
-        nextPage();
-      }
-      return;
+    const action = localShortcutAction(e, "alignment");
+    if (!action) return;
+    e.preventDefault();
+    switch (action) {
+      case "openInputFile": void selectTarget(); break;
+      case "alignSwapFiles": void swapFiles(); break;
+      case "alignCyclePerPage": cycleItemsPerPage(); break;
+      case "alignSave": void saveSource(); break;
+      case "alignPrevPage": prevPage(); break;
+      case "alignNextPage": nextPage(); break;
     }
   }
 

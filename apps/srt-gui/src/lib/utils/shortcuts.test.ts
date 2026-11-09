@@ -17,6 +17,7 @@ vi.mock("$lib/config/vestaConfig", () => ({
 import {
   defaultShortcuts,
   getShortcuts,
+  localShortcutAction,
   saveShortcutOverride,
   resetShortcuts,
   resetSingleShortcut,
@@ -73,6 +74,10 @@ describe("shortcuts", () => {
       expect(key("sync-new")).toBe("Ctrl+K");
       expect(key("flashcards-preview")).toBe("Ctrl+K");
       expect(key("tab-flashcards")).toBe("Alt+1");
+      const event = { key: "k", ctrlKey: true, metaKey: false, altKey: false, shiftKey: false } as KeyboardEvent;
+      expect(localShortcutAction(event, "sync")).toBe("newSync");
+      expect(localShortcutAction(event, "flashcards")).toBe("previewCards");
+      expect(localShortcutAction(event, "translate")).toBeUndefined();
     });
 
     it("resets all shortcuts back to defaults", () => {

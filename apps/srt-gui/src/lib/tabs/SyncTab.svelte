@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { historyShortcutAction } from "$lib/utils/shortcuts";
+  import { historyShortcutAction, localShortcutAction } from "$lib/utils/shortcuts";
   import { anchorOffsetSpread, initialSyncCheckpoints } from "$lib/workflows/syncAssessment";
   import { contextMenu as fitContextMenu } from "$lib/utils/contextMenu";
   import { SyncOffsetAdjustment } from "$lib/workflows/syncOffsetAdjustment.svelte";
@@ -982,86 +982,70 @@
       return;
     }
 
-    // Open SRT action (Ctrl+O)
-    if (e.key === "o" && (e.ctrlKey || e.metaKey) && !e.shiftKey) {
-      e.preventDefault();
-      selectSrtFile();
-      return;
-    }
-
-    // Auto-Sync (Ctrl+A)
-    if (e.key === "a" && (e.ctrlKey || e.metaKey) && !e.shiftKey) {
-      e.preventDefault();
-      if (hasAudio && !aiStore.killSwitchActive) startAutoSync();
-      return;
-    }
-
-    // New Sync (Ctrl+N)
-    if (e.key === "n" && (e.ctrlKey || e.metaKey) && !e.shiftKey) {
-      e.preventDefault();
-      if (hasAudio) showResetModal = true;
-      return;
-    }
-
-    // Load Session (Ctrl+L)
-    if (e.key === "l" && (e.ctrlKey || e.metaKey) && !e.shiftKey) {
-      e.preventDefault();
-      loadSession();
-      return;
-    }
-
-    // Save Session (Ctrl+Shift+S)
-    if (e.key === "S" && (e.ctrlKey || e.metaKey) && e.shiftKey) {
-      e.preventDefault();
-      if (hasAudio) saveSession();
-      return;
-    }
-
-
-    switch (e.key) {
-      case " ":
-        e.preventDefault();
+    const action = localShortcutAction(e, "sync");
+    if (!action) return;
+    e.preventDefault();
+    switch (action) {
+      case "openSrt": void selectSrtFile(); break;
+      case "startAutoSync":
+        if (selectedEngine && status?.is_loaded && hasAudio && !localWhisperOperation.busy && !aiStore.killSwitchActive && !syncEditBusy) {
+          void startAutoSync(autoSyncStore.selectedMode === "quick");
+        }
+        break;
+      case "newSync": if ((status?.is_loaded || audioSrc) && !syncEditBusy) showResetModal = true; break;
+      case "loadSession": if (!syncEditBusy) void loadSession(); break;
+      case "saveSession": if (hasAudio && !syncEditBusy) void saveSession(); break;
+      case "saveFile": if (status?.is_loaded && !syncEditBusy) void saveFile(); break;
+      case "playPause":
         if (hasAudio && audioElement) {
-          if (isPlaying) {
-            audioElement.pause();
-          } else {
-            void safePlayAudio("keyboard-space");
+          if (isPlaying) audioElement.pause();
+          else void safePlayAudio("keyboard-play");
+        }
+        break;
+      case "replaySubtitle": replayCurrentSubtitle(); break;
+      case "seekBack":
+      case "seekForward":
+      case "seekBackFast":
+      case "seekForwardFast":
+        if (hasAudio && audioElement) {
+          const distance = action.endsWith("Fast") ? 1 : 0.1;
+          audioElement.currentTime += action.startsWith("seekBack") ? -distance : distance;
+        }
+        break;
+      case "offsetUp":
+      case "offsetDown":
+      case "offsetUpFast":
+      case "offsetDownFast":
+        if (wizardSubtitle && hasAudio && !syncEditBusy) {
+          const amount = action.endsWith("Fast") ? 500 : 100;
+          updateOffset(action.startsWith("offsetDown") ? -amount : amount);
+          seekToSubtitleStart(wizardSubtitle);
+        }
+        break;
+      case "confirmAnchor": void confirmCurrentCheckpoint(); break;
+      case "goToSuggested": if (!syncEditBusy) void advanceWizard(); break;
+      case "prevSubtitle":
+      case "nextSubtitle":
+        if (wizardSubtitle && status && !syncEditBusy) {
+          const id = wizardSubtitle.id + (action === "nextSubtitle" ? 1 : -1);
+          if (id >= 1 && id <= status.total_subtitles) {
+            showSaveSuggestion = false;
+            void goToCheckpoint(id);
           }
         }
         break;
-      case "ArrowLeft":
-        e.preventDefault();
-        if (hasAudio && audioElement)
-          audioElement.currentTime -= e.shiftKey ? 3 : 0.5;
-        break;
-      case "ArrowRight":
-        e.preventDefault();
-        if (hasAudio && audioElement)
-          audioElement.currentTime += e.shiftKey ? 3 : 0.5;
-        break;
-      case "ArrowUp":
-        if (wizardSubtitle) {
-          e.preventDefault();
-          updateOffset(e.altKey ? 3000 : e.shiftKey ? 500 : 100);
-          seekToSubtitleStart(wizardSubtitle);
+      case "prevAnchor":
+      case "nextAnchor": {
+        if (!wizardSubtitle || syncEditBusy) break;
+        const ids = anchors.map(anchor => anchor.subtitle_id).sort((a, b) => a - b);
+        const current = wizardSubtitle.id;
+        const id = action === "nextAnchor" ? ids.find(id => id > current) : ids.findLast(id => id < current);
+        if (id !== undefined) {
+          showSaveSuggestion = false;
+          void goToCheckpoint(id);
         }
         break;
-      case "ArrowDown":
-        if (wizardSubtitle) {
-          e.preventDefault();
-          updateOffset(-(e.altKey ? 3000 : e.shiftKey ? 500 : 100));
-          seekToSubtitleStart(wizardSubtitle);
-        }
-        break;
-      case "Enter":
-        e.preventDefault();
-        confirmCurrentCheckpoint();
-        break;
-      case "r":
-      case "R":
-        e.preventDefault();
-        replayCurrentSubtitle();
-        break;
+      }
     }
   }
 
