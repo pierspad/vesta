@@ -337,6 +337,7 @@ export interface SegmentedOption {
   label: string;
   icon?: string;
   badge?: string;
+  tooltip?: string;
 }
 
 export interface SegmentedWidget extends BaseWidget {

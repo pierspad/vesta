@@ -167,6 +167,14 @@ pub struct PluginSettingField {
     pub description: Option<String>,
     #[serde(default)]
     pub default_value: Option<serde_json::Value>,
+    #[serde(default)]
+    pub hint: Option<serde_json::Value>,
+    #[serde(default)]
+    pub help_text: Option<String>,
+    #[serde(default)]
+    pub link: Option<serde_json::Value>,
+    #[serde(default)]
+    pub expert_only: Option<bool>,
 }
 
 fn validate_icon_path(icon: &str) -> Result<(), String> {

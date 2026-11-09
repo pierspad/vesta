@@ -831,6 +831,7 @@
             <button
               type="button"
               disabled={node.disabled}
+              title={opt.tooltip}
               class="px-3 py-1.5 rounded-lg text-xs font-medium transition-all inline-flex items-center gap-1.5 cursor-pointer {selected ? 'bg-indigo-600 text-white shadow-sm' : 'text-gray-400 hover:text-gray-200 hover:bg-white/5'} disabled:opacity-50"
               onclick={() => {
                 values[node.id] = opt.value;

@@ -11,33 +11,73 @@ import os
 import sys
 from typing import Any, Callable, Dict, List, Optional, Union
 
+
+def _apply_options(node: Dict[str, Any], options: Dict[str, Any]) -> Dict[str, Any]:
+    for key, value in options.items():
+        if value is not None:
+            node[key] = value
+    return node
+
+
 # Widget Builders
 
-def Column(children: List[Dict[str, Any]], gap: Union[int, str] = 4, id: Optional[str] = None) -> Dict[str, Any]:
+def Column(
+    children: List[Dict[str, Any]],
+    gap: Union[int, str] = 4,
+    id: Optional[str] = None,
+    **options: Any,
+) -> Dict[str, Any]:
     node: Dict[str, Any] = {"type": "column", "gap": gap, "children": children}
     if id:
         node["id"] = id
-    return node
+    return _apply_options(node, options)
 
-def Row(children: List[Dict[str, Any]], gap: Union[int, str] = 3, align: str = "center", id: Optional[str] = None, *, separator: Optional[str] = None) -> Dict[str, Any]:
+
+def Row(
+    children: List[Dict[str, Any]],
+    gap: Union[int, str] = 3,
+    align: str = "center",
+    id: Optional[str] = None,
+    *,
+    separator: Optional[str] = None,
+    **options: Any,
+) -> Dict[str, Any]:
     node: Dict[str, Any] = {"type": "row", "gap": gap, "align": align, "children": children}
     if separator is not None:
         node["separator"] = separator
     if id:
         node["id"] = id
-    return node
+    return _apply_options(node, options)
 
-def Heading(text: str, level: int = 1, id: Optional[str] = None) -> Dict[str, Any]:
+
+def Heading(
+    text: str,
+    level: int = 1,
+    id: Optional[str] = None,
+    *,
+    icon: Optional[str] = None,
+    **options: Any,
+) -> Dict[str, Any]:
     node: Dict[str, Any] = {"type": "heading", "text": text, "level": level}
     if id:
         node["id"] = id
-    return node
+    if icon is not None:
+        node["icon"] = icon
+    return _apply_options(node, options)
 
-def Text(text: str, variant: str = "normal", size: str = "base", id: Optional[str] = None) -> Dict[str, Any]:
+
+def Text(
+    text: str,
+    variant: str = "normal",
+    size: str = "base",
+    id: Optional[str] = None,
+    **options: Any,
+) -> Dict[str, Any]:
     node: Dict[str, Any] = {"type": "text", "text": text, "variant": variant, "size": size}
     if id:
         node["id"] = id
-    return node
+    return _apply_options(node, options)
+
 
 def TextInput(
     id: str,
@@ -47,6 +87,12 @@ def TextInput(
     disabled: bool = False,
     hint: Optional[Union[str, Dict[str, Any]]] = None,
     link: Optional[Dict[str, str]] = None,
+    *,
+    icon: Optional[str] = None,
+    labelIcon: Optional[str] = None,
+    labelTooltip: Optional[str] = None,
+    submitAction: Optional[str] = None,
+    **options: Any,
 ) -> Dict[str, Any]:
     node: Dict[str, Any] = {
         "type": "textInput",
@@ -61,14 +107,23 @@ def TextInput(
         node["hint"] = hint
     if link:
         node["link"] = link
-    return node
+    for key, value in {
+        "icon": icon,
+        "labelIcon": labelIcon,
+        "labelTooltip": labelTooltip,
+        "submitAction": submitAction,
+    }.items():
+        if value is not None:
+            node[key] = value
+    return _apply_options(node, options)
+
 
 def TextArea(id: str, label: str, **options: Any) -> Dict[str, Any]:
-    return {**options, "type": "textArea", "id": id, "label": label}
+    return _apply_options({"type": "textArea", "id": id, "label": label}, options)
 
 
 def PathInput(id: str, *, pickerType: str = "folder", **options: Any) -> Dict[str, Any]:
-    return {**options, "type": "pathInput", "id": id, "pickerType": pickerType}
+    return _apply_options({"type": "pathInput", "id": id, "pickerType": pickerType}, options)
 
 
 def PasswordInput(
@@ -79,6 +134,12 @@ def PasswordInput(
     disabled: bool = False,
     hint: Optional[Union[str, Dict[str, Any]]] = None,
     link: Optional[Dict[str, str]] = None,
+    *,
+    icon: Optional[str] = None,
+    labelIcon: Optional[str] = None,
+    labelTooltip: Optional[str] = None,
+    submitAction: Optional[str] = None,
+    **options: Any,
 ) -> Dict[str, Any]:
     node: Dict[str, Any] = {
         "type": "passwordInput",
@@ -93,7 +154,16 @@ def PasswordInput(
         node["hint"] = hint
     if link:
         node["link"] = link
-    return node
+    for key, value in {
+        "icon": icon,
+        "labelIcon": labelIcon,
+        "labelTooltip": labelTooltip,
+        "submitAction": submitAction,
+    }.items():
+        if value is not None:
+            node[key] = value
+    return _apply_options(node, options)
+
 
 def NumberInput(
     id: str,
@@ -103,6 +173,9 @@ def NumberInput(
     max: Optional[int] = None,
     step: int = 1,
     disabled: bool = False,
+    hint: Optional[Union[str, Dict[str, Any]]] = None,
+    link: Optional[Dict[str, str]] = None,
+    **options: Any,
 ) -> Dict[str, Any]:
     node: Dict[str, Any] = {
         "type": "numberInput",
@@ -117,7 +190,12 @@ def NumberInput(
         node["min"] = min
     if max is not None:
         node["max"] = max
-    return node
+    if hint:
+        node["hint"] = hint
+    if link:
+        node["link"] = link
+    return _apply_options(node, options)
+
 
 def Select(
     id: str,
@@ -125,6 +203,9 @@ def Select(
     label: Optional[str] = None,
     defaultValue: str = "",
     disabled: bool = False,
+    hint: Optional[Union[str, Dict[str, Any]]] = None,
+    link: Optional[Dict[str, str]] = None,
+    **extra: Any,
 ) -> Dict[str, Any]:
     node: Dict[str, Any] = {
         "type": "select",
@@ -135,7 +216,32 @@ def Select(
     }
     if label:
         node["label"] = label
-    return node
+    if hint:
+        node["hint"] = hint
+    if link:
+        node["link"] = link
+    return _apply_options(node, extra)
+
+
+def Segmented(
+    id: str,
+    options: List[Dict[str, Any]],
+    label: Optional[str] = None,
+    defaultValue: str = "",
+    disabled: bool = False,
+    **extra: Any,
+) -> Dict[str, Any]:
+    node: Dict[str, Any] = {
+        "type": "segmented",
+        "id": id,
+        "options": options,
+        "defaultValue": defaultValue,
+        "disabled": disabled,
+    }
+    if label is not None:
+        node["label"] = label
+    return _apply_options(node, extra)
+
 
 def LanguageSelect(
     id: str,
@@ -146,7 +252,11 @@ def LanguageSelect(
     codes: Optional[List[str]] = None,
     names: str = "both",
     showFlags: bool = True,
+    placeholder: Optional[str] = None,
     disabled: bool = False,
+    hint: Optional[Union[str, Dict[str, Any]]] = None,
+    link: Optional[Dict[str, str]] = None,
+    **options: Any,
 ) -> Dict[str, Any]:
     node: Dict[str, Any] = {
         "type": "languageSelect",
@@ -161,16 +271,31 @@ def LanguageSelect(
         node["label"] = label
     if codes is not None:
         node["codes"] = codes
-    return node
+    if placeholder is not None:
+        node["placeholder"] = placeholder
+    if hint is not None:
+        node["hint"] = hint
+    if link is not None:
+        node["link"] = link
+    return _apply_options(node, options)
 
-def Checkbox(id: str, label: str, defaultValue: bool = False, disabled: bool = False) -> Dict[str, Any]:
-    return {
+
+def Checkbox(
+    id: str,
+    label: str,
+    defaultValue: bool = False,
+    disabled: bool = False,
+    **options: Any,
+) -> Dict[str, Any]:
+    node: Dict[str, Any] = {
         "type": "checkbox",
         "id": id,
         "label": label,
         "defaultValue": defaultValue,
         "disabled": disabled,
     }
+    return _apply_options(node, options)
+
 
 def Button(
     id: str,
@@ -185,6 +310,7 @@ def Button(
     disabledTooltip: Optional[str] = None,
     disabledFocus: Optional[str] = None,
     requiresAny: Optional[List[str]] = None,
+    **options: Any,
 ) -> Dict[str, Any]:
     """Build a host-rendered action with optional prerequisite guidance."""
     node: Dict[str, Any] = {
@@ -205,41 +331,125 @@ def Button(
     }.items():
         if value is not None:
             node[key] = value
-    return node
+    return _apply_options(node, options)
 
-def Link(label: str, url: str) -> Dict[str, Any]:
-    return {"type": "link", "label": label, "url": url}
 
-def ListWidget(items: List[Dict[str, Any]], id: Optional[str] = None) -> Dict[str, Any]:
+def Link(
+    label: str,
+    url: str,
+    *,
+    icon: Optional[str] = None,
+    **options: Any,
+) -> Dict[str, Any]:
+    node: Dict[str, Any] = {"type": "link", "label": label, "url": url}
+    if icon is not None:
+        node["icon"] = icon
+    return _apply_options(node, options)
+
+
+def ExternalLink(
+    label: str,
+    url: str,
+    *,
+    icon: Optional[str] = None,
+    **options: Any,
+) -> Dict[str, Any]:
+    node: Dict[str, Any] = {"type": "externalLink", "label": label, "url": url}
+    if icon is not None:
+        node["icon"] = icon
+    return _apply_options(node, options)
+
+
+def ListWidget(
+    items: List[Dict[str, Any]],
+    id: Optional[str] = None,
+    **options: Any,
+) -> Dict[str, Any]:
     node: Dict[str, Any] = {"type": "list", "items": items}
     if id:
         node["id"] = id
-    return node
+    return _apply_options(node, options)
 
-def Table(headers: List[str], rows: List[List[Any]], id: Optional[str] = None) -> Dict[str, Any]:
+
+def Table(
+    headers: List[str],
+    rows: List[List[Any]],
+    id: Optional[str] = None,
+    **options: Any,
+) -> Dict[str, Any]:
     node: Dict[str, Any] = {"type": "table", "headers": headers, "rows": rows}
     if id:
         node["id"] = id
-    return node
+    return _apply_options(node, options)
 
-def Progress(value: float, max: float = 100, label: Optional[str] = None, id: Optional[str] = None) -> Dict[str, Any]:
+
+def Image(
+    src: str,
+    alt: str = "",
+    *,
+    width: Optional[int] = None,
+    height: Optional[int] = None,
+    id: Optional[str] = None,
+    **options: Any,
+) -> Dict[str, Any]:
+    node: Dict[str, Any] = {"type": "image", "src": src}
+    if alt:
+        node["alt"] = alt
+    if width is not None:
+        node["width"] = width
+    if height is not None:
+        node["height"] = height
+    if id:
+        node["id"] = id
+    return _apply_options(node, options)
+
+
+def Progress(
+    value: float,
+    max: float = 100,
+    label: Optional[str] = None,
+    id: Optional[str] = None,
+    **options: Any,
+) -> Dict[str, Any]:
     node: Dict[str, Any] = {"type": "progress", "value": value, "max": max}
     if label:
         node["label"] = label
     if id:
         node["id"] = id
-    return node
+    return _apply_options(node, options)
 
-def FileOutput(path: str, label: Optional[str] = None, id: Optional[str] = None) -> Dict[str, Any]:
+
+def FileOutput(
+    path: str,
+    label: Optional[str] = None,
+    id: Optional[str] = None,
+    **options: Any,
+) -> Dict[str, Any]:
     node: Dict[str, Any] = {"type": "fileOutput", "path": path}
     if label:
         node["label"] = label
     if id:
         node["id"] = id
-    return node
+    return _apply_options(node, options)
 
-def Divider() -> Dict[str, Any]:
-    return {"type": "divider"}
+
+def Divider(id: Optional[str] = None, **options: Any) -> Dict[str, Any]:
+    node: Dict[str, Any] = {"type": "divider"}
+    if id:
+        node["id"] = id
+    return _apply_options(node, options)
+
+
+def Settings(
+    fields: List[Dict[str, Any]],
+    id: Optional[str] = None,
+    **options: Any,
+) -> Dict[str, Any]:
+    node: Dict[str, Any] = {"type": "settings", "fields": fields}
+    if id:
+        node["id"] = id
+    return _apply_options(node, options)
+
 
 # Main Plugin Class
 
@@ -248,6 +458,7 @@ class VestaPlugin:
         self.plugin_id = os.environ.get("VESTA_PLUGIN_ID", "unknown")
         self.data_dir = os.environ.get("VESTA_DATA_DIR", "./data")
         self.locale = "en"
+        self.expert_mode = False
         self.settings: Dict[str, Any] = {}
         self.shared_credentials: Dict[str, str] = {}
 
@@ -282,7 +493,12 @@ class VestaPlugin:
     def progress(self, id: str, value: float, label: str = ""):
         self._send_notification("ui.progress", {"id": id, "value": value, "label": label})
 
-    def update_ui(self, screen: str = "main", root: Optional[Dict[str, Any]] = None, patch: Optional[Dict[str, Any]] = None):
+    def update_ui(
+        self,
+        screen: str = "main",
+        root: Optional[Dict[str, Any]] = None,
+        patch: Optional[Dict[str, Any]] = None,
+    ):
         params: Dict[str, Any] = {"screen": screen}
         if root is not None:
             params["root"] = root
@@ -291,7 +507,17 @@ class VestaPlugin:
         self._send_notification("ui.update", params)
 
     def open_in_flashcards(self, video_path: str, subtitle_path: str):
-        self._send_notification("vesta.openInFlashcards", {"videoPath": video_path, "subtitlePath": subtitle_path})
+        self._send_notification(
+            "vesta.openInFlashcards",
+            {"videoPath": video_path, "subtitlePath": subtitle_path},
+        )
+
+    def get_values(self, screen: str = "main") -> Dict[str, Any]:
+        """Request the current form values for the specified screen from the host."""
+        res = self._send_request("ui.getValues", {"screen": screen})
+        if isinstance(res, dict) and isinstance(res.get("values"), dict):
+            return res["values"]
+        return {}
 
     def _send_notification(self, method: str, params: Dict[str, Any]):
         msg = {
@@ -302,6 +528,40 @@ class VestaPlugin:
         sys.stdout.write(json.dumps(msg) + "\n")
         sys.stdout.flush()
 
+    def _send_request(self, method: str, params: Dict[str, Any]) -> Any:
+        self._req_id += 1
+        req_id = self._req_id
+        msg = {
+            "jsonrpc": "2.0",
+            "id": req_id,
+            "method": method,
+            "params": params,
+        }
+        sys.stdout.write(json.dumps(msg) + "\n")
+        sys.stdout.flush()
+
+        for line in sys.stdin:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                resp = json.loads(line)
+            except Exception:
+                continue
+            if resp.get("id") == req_id and "method" not in resp:
+                if "error" in resp:
+                    raise RuntimeError(resp["error"].get("message", "RPC request failed"))
+                return resp.get("result")
+        return None
+
+    def _sync_context(self, params: Dict[str, Any]):
+        if "locale" in params and isinstance(params["locale"], str):
+            self.locale = params["locale"]
+        if "expertMode" in params:
+            self.expert_mode = bool(params["expertMode"])
+        if "sharedCredentials" in params and isinstance(params["sharedCredentials"], dict):
+            self.shared_credentials.update(params["sharedCredentials"])
+
     def run(self):
         """Runs the JSON-RPC dispatch loop over stdin and stdout."""
         for line in sys.stdin:
@@ -311,7 +571,7 @@ class VestaPlugin:
 
             try:
                 req = json.loads(line)
-            except Exception as e:
+            except Exception:
                 continue
 
             req_id = req.get("id")
@@ -319,11 +579,9 @@ class VestaPlugin:
             params = req.get("params", {})
 
             if method == "initialize":
-                self.locale = params.get("locale", "en")
                 self.data_dir = params.get("dataDir", self.data_dir)
                 self.settings = params.get("settings", {})
-                if "sharedCredentials" in params and isinstance(params["sharedCredentials"], dict):
-                    self.shared_credentials.update(params["sharedCredentials"])
+                self._sync_context(params)
                 if self._init_handler:
                     try:
                         self._init_handler(params)
@@ -334,23 +592,23 @@ class VestaPlugin:
                     self._reply(req_id, result={"status": "ok"})
 
             elif method == "render":
-                if "sharedCredentials" in params and isinstance(params["sharedCredentials"], dict):
-                    self.shared_credentials.update(params["sharedCredentials"])
+                self._sync_context(params)
                 screen = params.get("screen", "main")
                 handler = self._render_handlers.get(screen) or self._render_handlers.get("main")
                 if handler:
                     try:
                         res = handler(params.get("params", {}))
-                        root = res if isinstance(res, dict) and "type" in res else res.get("root", res)
-                        self._reply(req_id, result={"root": root})
+                        if isinstance(res, dict) and "type" not in res and "root" in res:
+                            self._reply(req_id, result=res)
+                        else:
+                            self._reply(req_id, result={"root": res})
                     except Exception as e:
                         self._reply_error(req_id, -32000, str(e))
                 else:
                     self._reply_error(req_id, -32601, f"No render handler for screen '{screen}'")
 
             elif method == "event":
-                if "sharedCredentials" in params and isinstance(params["sharedCredentials"], dict):
-                    self.shared_credentials.update(params["sharedCredentials"])
+                self._sync_context(params)
                 screen = params.get("screen", "main")
                 widget_id = params.get("widgetId", "")
                 event_type = params.get("type", "click")
@@ -363,8 +621,6 @@ class VestaPlugin:
                         if isinstance(res, dict):
                             if "type" in res:
                                 self._reply(req_id, result={"root": res})
-                            elif "patch" in res or "root" in res:
-                                self._reply(req_id, result=res)
                             else:
                                 self._reply(req_id, result=res)
                         else:
