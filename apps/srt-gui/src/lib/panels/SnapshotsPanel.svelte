@@ -203,25 +203,19 @@
             <svg class="w-3.5 h-3.5 text-gray-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h8m0 0l-2.5-2.5M16 7l-2.5 2.5M8 7l2.5-2.5M8 7l2.5 2.5M4 4v16m16-16v16" />
             </svg>
-            <span>{t("flashcards.width")}</span>
+            <span>{t("flashcards.width")} <span class="text-gray-500">(px)</span></span>
           </span>
-          <div class="flex items-center gap-1">
-            <input use:numberControl type="number" value={settings.snapshotWidth} min="16" max="7680" oninput={(event) => { if (lockedRatio === null) settings.snapshotWidth = event.currentTarget.valueAsNumber; else resizeDimension("width", event); }} class="input-modern w-full text-xs" />
-            <span class="text-xs text-gray-500">px</span>
-          </div>
+          <input use:numberControl type="number" value={settings.snapshotWidth} min="16" max="7680" oninput={(event) => { if (lockedRatio === null) settings.snapshotWidth = event.currentTarget.valueAsNumber; else resizeDimension("width", event); }} class="input-modern w-full text-xs" />
         </div>
-      <AspectRatioLock bind:ratio={lockedRatio} width={settings.snapshotWidth} height={settings.snapshotHeight} />
+        <AspectRatioLock bind:ratio={lockedRatio} width={settings.snapshotWidth} height={settings.snapshotHeight} />
         <div>
           <span class="flex items-center gap-1.5 text-xs text-gray-400 mb-1 font-medium">
             <svg class="w-3.5 h-3.5 text-gray-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8v8m0 0l-2.5-2.5M7 16l2.5-2.5M7 8l-2.5 2.5M7 8l2.5 2.5M4 4h16M4 20h16" />
             </svg>
-            <span>{t("flashcards.height")}</span>
+            <span>{t("flashcards.height")} <span class="text-gray-500">(px)</span></span>
           </span>
-          <div class="flex items-center gap-1">
-            <input use:numberControl type="number" value={settings.snapshotHeight} min="16" max="4320" oninput={(event) => { if (lockedRatio === null) settings.snapshotHeight = event.currentTarget.valueAsNumber; else resizeDimension("height", event); }} class="input-modern w-full text-xs" />
-            <span class="text-xs text-gray-500">px</span>
-          </div>
+          <input use:numberControl type="number" value={settings.snapshotHeight} min="16" max="4320" oninput={(event) => { if (lockedRatio === null) settings.snapshotHeight = event.currentTarget.valueAsNumber; else resizeDimension("height", event); }} class="input-modern w-full text-xs" />
         </div>
       </div>
 
@@ -269,7 +263,7 @@
 </div>
 
 <style>
-  .dimensions-row { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: end; gap: 8px; }
+  .dimensions-row { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: end; gap: 5px; }
   .dimensions-row > :global(*) { min-width: 0; }
   .dimensions-row.dimensions-linked :global(.number-control > input) { border-color: var(--control-focus-border); }
   .panel-fields { grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr)); }
