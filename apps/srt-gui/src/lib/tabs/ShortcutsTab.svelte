@@ -10,6 +10,8 @@
     formatKeyPart,
     getShortcuts,
     getSortedKeys,
+    isReservedShortcut,
+    shortcutsShareScope,
     resetShortcuts,
     resetSingleShortcut,
     saveShortcutOverride,
@@ -141,6 +143,7 @@
 
   const categoryLabels: Record<string, string> = {
     global: "shortcuts.category.global",
+    settings: "nav.settings",
     flashcards: "shortcuts.category.flashcards",
     translate: "shortcuts.category.translate",
     sync: "shortcuts.category.sync",
@@ -168,7 +171,7 @@
   let currentKeyHandler: ((e: KeyboardEvent) => void) | null = null;
 
   function startEditing(shortcutId: string) {
-    if (editingShortcut === shortcutId) return;
+    if (editingShortcut === shortcutId || shortcuts.find(s => s.id === shortcutId)?.category === "global") return;
 
     if (editingShortcut !== null) {
       cancelEditing();
@@ -195,8 +198,9 @@
         parts.push(keyName);
         const newKey = parts.join("+");
 
+        const edited = shortcuts.find(s => s.id === editingShortcut);
         const conflict = shortcuts.find(
-          (s) => s.id !== editingShortcut && s.defaultKey === newKey,
+          (s) => edited && s.id !== edited.id && s.defaultKey === newKey && shortcutsShareScope(s, edited),
         );
 
         if (conflict) {
@@ -208,6 +212,8 @@
             "error",
             3000,
           );
+        } else if (isReservedShortcut(newKey)) {
+          snackbar.show(t("shortcuts.conflict", { key: newKey, action: categoryText("global") }), "error");
         } else {
           saveShortcutOverride(editingShortcut!, newKey);
           shortcuts = getShortcuts();
@@ -377,7 +383,7 @@
   <!-- svelte-ignore a11y_click_events_have_key_events -->
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div
-    class="flex items-center justify-between p-4 rounded-xl border transition-all duration-200 cursor-pointer
+    class="flex items-center justify-between p-4 rounded-xl border transition-all duration-200 {shortcut.category === "global" ? "" : "cursor-pointer"}
       {editingShortcut === shortcut.id
       ? 'bg-red-500/10 border-red-500/50 shadow-[0_0_15px_rgba(239,68,68,0.25)] text-white font-semibold'
       : 'bg-white/5 border-white/5 hover:bg-white/10 hover:border-white/10 text-gray-300 hover:text-white'}"
@@ -630,11 +636,19 @@
 
   <!-- Scrollable grid area for shortcut cards -->
   <div class="px-6 py-6 flex-1 overflow-y-auto min-h-0">
-    <div class="grid gap-4 grid-cols-1 md:grid-cols-2 xl:grid-cols-3 content-start">
-      {#each filteredShortcuts as shortcut}
-        {@render shortcutRow(shortcut)}
-      {/each}
-    </div>
+    {#each ["global", ...categoryFilterItems.filter(category => category !== "global")] as category (category)}
+      {@const items = filteredShortcuts.filter(shortcut => shortcut.category === category)}
+      {#if items.length}
+        <section class="mb-6 border-b border-white/10 pb-6 last:mb-0 last:border-0 last:pb-0">
+          <h2 class="mb-3 text-sm font-semibold text-gray-300">{categoryText(category)}</h2>
+          <div class="grid gap-3 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
+            {#each items as shortcut (shortcut.id)}
+              {@render shortcutRow(shortcut)}
+            {/each}
+          </div>
+        </section>
+      {/if}
+    {/each}
   </div>
 
   <!-- Fixed Bottom Band: reset è distruttivo e raro, quindi piccolo e in un

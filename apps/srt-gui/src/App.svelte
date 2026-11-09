@@ -119,7 +119,7 @@
     const hasAlt = parts.includes("Alt");
     const hasShift = parts.includes("Shift");
     
-    if (e.ctrlKey !== hasCtrl && e.metaKey !== hasCtrl) return false;
+    if ((e.ctrlKey || e.metaKey) !== hasCtrl) return false;
     if (e.altKey !== hasAlt) return false;
     if (e.shiftKey !== hasShift) return false;
     
@@ -340,7 +340,7 @@
 
     if (!inputActive) {
       for (const shortcut of shortcutsList) {
-        if (shortcut.category === "global" && matchShortcut(e, shortcut.defaultKey)) {
+        if ((shortcut.category === "global" || (activeTab === "settings" && shortcut.category === "settings")) && matchShortcut(e, shortcut.defaultKey)) {
           e.preventDefault();
           triggerGlobalAction(shortcut.action);
           return;

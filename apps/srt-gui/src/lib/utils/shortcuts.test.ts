@@ -37,7 +37,7 @@ describe("shortcuts", () => {
     });
 
     it("has valid categories and default keys", () => {
-      const validCategories = new Set(["global", "translate", "sync", "flashcards", "alignment", "transcribe", "refine"]);
+      const validCategories = new Set(["global", "translate", "sync", "flashcards", "alignment", "transcribe", "refine", "settings"]);
       for (const s of defaultShortcuts) {
         expect(validCategories.has(s.category)).toBe(true);
         expect(s.defaultKey.length).toBeGreaterThan(0);
@@ -62,6 +62,17 @@ describe("shortcuts", () => {
       // Other shortcuts remain untouched
       const cancelSc = shortcuts.find((s) => s.id === "flashcards-cancel");
       expect(cancelSc?.defaultKey).toBe("Escape");
+    });
+
+    it("allows the same custom key in different tabs and reserves global keys", () => {
+      saveShortcutOverride("sync-new", "Ctrl+K");
+      saveShortcutOverride("flashcards-preview", "Ctrl+K");
+      saveShortcutOverride("sync-new", "Alt+1");
+      saveShortcutOverride("tab-flashcards", "Ctrl+K");
+      const key = (id: string) => getShortcuts().find(shortcut => shortcut.id === id)?.defaultKey;
+      expect(key("sync-new")).toBe("Ctrl+K");
+      expect(key("flashcards-preview")).toBe("Ctrl+K");
+      expect(key("tab-flashcards")).toBe("Alt+1");
     });
 
     it("resets all shortcuts back to defaults", () => {

@@ -6,7 +6,7 @@ export interface ShortcutDefinition {
   action: string;
   description: string; // i18n key, resolved via t() in components
   defaultKey: string;
-  category: "global" | "translate" | "sync" | "flashcards" | "alignment" | "transcribe" | "refine";
+  category: "global" | "translate" | "sync" | "flashcards" | "alignment" | "transcribe" | "refine" | "settings";
 }
 
 export const defaultShortcuts: ShortcutDefinition[] = [
@@ -19,7 +19,7 @@ export const defaultShortcuts: ShortcutDefinition[] = [
   { id: "tab-transcribe", action: "switchToTranscribe", description: "shortcuts.action.goToTranscribe", defaultKey: "Alt+6", category: "global" },
   { id: "tab-settings", action: "switchToSettings", description: "shortcuts.action.goToSettings", defaultKey: "Alt+7", category: "global" },
   { id: "tab-shortcuts", action: "switchToShortcuts", description: "shortcuts.action.goToShortcuts", defaultKey: "Alt+8", category: "global" },
-  { id: "settings-add-key", action: "addApiKey", description: "shortcuts.action.addApiKey", defaultKey: "Ctrl+N", category: "global" },
+  { id: "settings-add-key", action: "addApiKey", description: "shortcuts.action.addApiKey", defaultKey: "Ctrl+N", category: "settings" },
   { id: "show-help", action: "showShortcutHelp", description: "shortcuts.action.showHelp", defaultKey: "Shift+?", category: "global" },
 
   // Flashcards
@@ -79,6 +79,15 @@ export const defaultShortcuts: ShortcutDefinition[] = [
   { id: "transcribe-cancel", action: "cancelTranscription", description: "shortcuts.action.cancelTranscription", defaultKey: "Escape", category: "transcribe" },
 ];
 
+export function shortcutsShareScope(a: ShortcutDefinition, b: ShortcutDefinition): boolean {
+  return a.category === b.category || a.category === "global" || b.category === "global";
+}
+
+export function isReservedShortcut(key: string): boolean {
+  return defaultShortcuts.some(shortcut => shortcut.category === "global" && shortcut.defaultKey === key)
+    || /^Alt\+Shift\+[1-6]$|^Ctrl\+Page(?:Up|Down)$/.test(key);
+}
+
 // Funzione per ottenere le shortcut (con override utente)
 export function getShortcuts(): ShortcutDefinition[] {
   const overridesJson = vestaConfig.getItem("srt-tools-shortcut-overrides");
@@ -88,7 +97,8 @@ export function getShortcuts(): ShortcutDefinition[] {
     const overrides: Record<string, string> = JSON.parse(overridesJson);
     return defaultShortcuts.map((shortcut) => ({
       ...shortcut,
-      defaultKey: overrides[shortcut.id] || shortcut.defaultKey,
+      defaultKey: shortcut.category !== "global" && overrides[shortcut.id] && !isReservedShortcut(overrides[shortcut.id])
+        ? overrides[shortcut.id] : shortcut.defaultKey,
     }));
   } catch {
     return defaultShortcuts;
@@ -97,6 +107,8 @@ export function getShortcuts(): ShortcutDefinition[] {
 
 // Funzione per salvare override shortcut
 export function saveShortcutOverride(shortcutId: string, newKey: string): void {
+  if (!defaultShortcuts.some(shortcut => shortcut.id === shortcutId && shortcut.category !== "global")
+    || isReservedShortcut(newKey)) return;
   const overridesJson = vestaConfig.getItem("srt-tools-shortcut-overrides");
   let overrides: Record<string, string> = {};
 
@@ -153,7 +165,7 @@ export function resetSingleShortcut(shortcutId: string): void {
 
     // Coda per il reset tutte le ALTRE scorciatoie che attualmente risolvono a revertedKey
     for (const s of defaultShortcuts) {
-      if (s.id === currentId || processed.has(s.id)) continue;
+      if (s.id === currentId || processed.has(s.id) || !shortcutsShareScope(s, defaultDef)) continue;
 
       const currentKey = overrides[s.id] || s.defaultKey;
       if (currentKey === revertedKey) {
