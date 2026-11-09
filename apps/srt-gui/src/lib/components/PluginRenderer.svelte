@@ -367,7 +367,6 @@
 
   function getTextVariantClass(variant?: string): string {
     if (variant === "muted") return "text-gray-400";
-    if (variant === "settings") return "plugin-settings-button plugin-action";
     if (variant === "danger") return "text-rose-400";
     if (variant === "success") return "text-emerald-400";
     return "text-gray-200";
@@ -438,6 +437,8 @@
   }
 
   function getButtonVariantClass(variant?: string): string {
+    if (variant === "settings") return "plugin-settings-button plugin-action";
+    if (variant === "accent") return "plugin-action plugin-action-accent";
     if (variant === "secondary") return "btn-secondary btn-compact";
     if (variant === "danger") return "plugin-action plugin-action-danger";
     return "plugin-action plugin-action-primary";
@@ -447,6 +448,8 @@
 {#snippet renderIcon(name: string, cls = "w-4 h-4")}
   {#if name === "clear"}
     <svg class={cls} aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-width="2" d="m6 6 12 12M18 6 6 18"/></svg>
+  {:else if name === "trash"}
+    <svg class={cls} aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7h16M9 7V4h6v3m3 0-1 13H7L6 7m4 4v5m4-5v5"/></svg>
   {:else if name === "search"}
     <svg class={cls} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
   {:else if name === "folder"}
@@ -911,18 +914,16 @@
         disabled={blocked && (actionLoading !== null || !(guidance || node.disabledFocus))}
         aria-disabled={blocked || undefined}
         title={guidance}
-        class="inline-flex items-center justify-center gap-1.5 font-medium h-10 px-4 text-xs rounded-xl transition-colors disabled:opacity-50 aria-disabled:opacity-50 cursor-pointer {getButtonVariantClass(node.variant)}"
+        class="relative inline-flex items-center justify-center gap-1.5 font-medium h-10 px-4 text-xs rounded-xl transition-colors disabled:opacity-50 aria-disabled:opacity-50 cursor-pointer {getButtonVariantClass(node.variant)}"
         onclick={() => activateButton(node)}
       >
         {#if actionLoading === node.id}
           <svg class="animate-spin -ml-1 mr-1.5 h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-        {:else if node.icon || node.status}
-          <span class="relative inline-flex">
-            {#if node.icon}{@render renderIcon(node.icon, "w-3.5 h-3.5 shrink-0")}{/if}
-            {#if node.status === "attention" || node.status === "ready"}
-              <span aria-hidden="true" class="plugin-status-dot" class:attention={node.status === "attention"}></span>
-            {/if}
-          </span>
+        {:else if node.icon}
+          {@render renderIcon(node.icon, "w-3.5 h-3.5 shrink-0")}
+        {/if}
+        {#if node.status === "attention" || node.status === "ready"}
+          <span aria-hidden="true" class="plugin-status-dot" class:attention={node.status === "attention"}></span>
         {/if}
         <span>{node.label}</span>
       </button>
@@ -1191,7 +1192,14 @@
     color: var(--text);
     border-color: var(--control-focus-border);
   }
-  .plugin-action-danger { color: var(--danger); }
+  .plugin-action-accent {
+    color: var(--color-cyan-300);
+    border-color: color-mix(in srgb, var(--color-cyan-500) 35%, transparent);
+  }
+  .plugin-action-danger {
+    color: var(--danger);
+    border-color: color-mix(in srgb, var(--danger) 35%, transparent);
+  }
   .plugin-settings-button { color: var(--text); }
   .plugin-settings-button:focus {
     outline: 2px solid var(--done);
@@ -1199,8 +1207,9 @@
   }
   .plugin-status-dot {
     position: absolute;
-    inset-block-start: -0.28rem;
-    inset-inline-end: -0.28rem;
+    inset-block-start: -0.12rem;
+    inset-inline-end: -0.12rem;
+    pointer-events: none;
     box-shadow: 0 0 0 2px var(--bg);
     inline-size: 0.45rem;
     block-size: 0.45rem;
