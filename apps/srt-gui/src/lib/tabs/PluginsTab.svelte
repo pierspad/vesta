@@ -307,6 +307,10 @@ Every widget supports \`id\`, \`hidden\`, \`expertOnly\` (auto-hidden when Exper
     contextMenuPlugin = null;
     contextMenuPos = null;
     const tag = availableReleases[plugin.id];
+    if (!tag && githubReleaseEndpoint(plugin)) {
+      await checkPluginReleases(true);
+      return;
+    }
     await pluginsStore.update(plugin.id, tag);
     if (tag && pluginsStore.plugins.some(item => item.id === plugin.id && `v${item.version.replace(/^v/, "")}` === tag)) {
       delete availableReleases[plugin.id];
