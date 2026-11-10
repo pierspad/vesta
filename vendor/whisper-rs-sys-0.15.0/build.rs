@@ -191,6 +191,38 @@ fn main() {
         println!("cargo:rustc-link-lib=advapi32");
     }
 
+    if target == "aarch64-pc-windows-msvc" {
+        // ggml's ARM CPU backend rejects MSVC's cl.exe (missing C/Clang NEON and
+        // assembly extensions). Use Ninja + clang-cl for whisper.cpp while
+        // keeping default MSVC for the rest of the Rust workspace.
+        let host = env::var("HOST").unwrap_or_default();
+        if !has_cmake_env_var(&host, &target, "CMAKE_GENERATOR") {
+            config.generator("Ninja");
+        }
+        let clang_cl = find_clang_cl().unwrap_or_else(|| "clang-cl".to_string());
+        for var in [
+            "CMAKE_C_COMPILER",
+            "CMAKE_CXX_COMPILER",
+            "CMAKE_ASM_COMPILER",
+        ] {
+            if !has_cmake_env_var(&host, &target, var) {
+                config.define(var, &clang_cl);
+            }
+        }
+        for var in [
+            "CMAKE_C_COMPILER_TARGET",
+            "CMAKE_CXX_COMPILER_TARGET",
+            "CMAKE_ASM_COMPILER_TARGET",
+        ] {
+            if !has_cmake_env_var(&host, &target, var) {
+                config.define(var, "aarch64-pc-windows-msvc");
+            }
+        }
+        if !has_cmake_env_var(&host, &target, "CMAKE_SYSTEM_PROCESSOR") {
+            config.define("CMAKE_SYSTEM_PROCESSOR", "ARM64");
+        }
+    }
+
     if cfg!(feature = "coreml") {
         config.define("WHISPER_COREML", "ON");
         config.define("WHISPER_COREML_ALLOW_FALLBACK", "1");
@@ -388,4 +420,90 @@ fn get_whisper_cpp_version(whisper_root: &std::path::Path) -> std::io::Result<Op
     }
 
     Ok(None)
+}
+
+fn has_cmake_env_var(host: &str, target: &str, var_base: &str) -> bool {
+    let kind = if host == target { "HOST" } else { "TARGET" };
+    let target_u = target.replace('-', "_");
+    [
+        format!("{}_{}", var_base, target),
+        format!("{}_{}", var_base, target_u),
+        format!("{}_{}", kind, var_base),
+        var_base.to_string(),
+    ]
+    .iter()
+    .any(|name| env::var_os(name).is_some())
+}
+
+fn find_clang_cl() -> Option<String> {
+    let normalize =
+        |path: &std::path::Path| -> String { path.to_string_lossy().replace('\\', "/") };
+
+    if let Some(path_var) = env::var_os("PATH") {
+        for dir in env::split_paths(&path_var) {
+            for bin in ["clang-cl.exe", "clang-cl"] {
+                let candidate = dir.join(bin);
+                if candidate.is_file() {
+                    return Some(normalize(&candidate));
+                }
+            }
+        }
+    }
+
+    if let Some(llvm_dir) = env::var_os("LLVM_INSTALL_DIR") {
+        let candidate = PathBuf::from(llvm_dir).join("bin").join("clang-cl.exe");
+        if candidate.is_file() {
+            return Some(normalize(&candidate));
+        }
+    }
+
+    for pf_var in ["ProgramW6432", "ProgramFiles", "ProgramFiles(x86)"] {
+        let Some(pf_dir) = env::var_os(pf_var) else {
+            continue;
+        };
+        let pf_path = PathBuf::from(pf_dir);
+        let standalone = pf_path.join("LLVM").join("bin").join("clang-cl.exe");
+        if standalone.is_file() {
+            return Some(normalize(&standalone));
+        }
+
+        let vs_root = pf_path.join("Microsoft Visual Studio");
+        let Ok(years) = std::fs::read_dir(&vs_root) else {
+            continue;
+        };
+        let mut year_dirs: Vec<PathBuf> = years
+            .filter_map(|e| e.ok().map(|entry| entry.path()))
+            .filter(|p| p.is_dir())
+            .collect();
+        year_dirs.sort();
+        year_dirs.reverse();
+
+        let llvm_archs: &[&str] = if cfg!(target_arch = "aarch64") {
+            &["ARM64", "x64", ""]
+        } else {
+            &["x64", "", "ARM64"]
+        };
+
+        for year_dir in year_dirs {
+            let Ok(editions) = std::fs::read_dir(&year_dir) else {
+                continue;
+            };
+            for edition in editions.filter_map(|e| e.ok().map(|entry| entry.path())) {
+                let llvm_base = edition.join("VC").join("Tools").join("Llvm");
+                for arch in llvm_archs {
+                    let bin_dir = if arch.is_empty() {
+                        llvm_base.join("bin")
+                    } else {
+                        llvm_base.join(arch).join("bin")
+                    };
+                    let candidate = bin_dir.join("clang-cl.exe");
+                    if candidate.is_file() {
+                        return Some(normalize(&candidate));
+                    }
+                }
+            }
+        }
+    }
+
+    None
 }

@@ -59,6 +59,9 @@
       "rpm": {
         "depends": ["vulkan-loader"]
       }
+    },
+    "macOS": {
+      "minimumSystemVersion": "11.0"
     }
   },
   "plugins": {

@@ -133,14 +133,28 @@ jobs:
         working-directory: ${{ env.TAURI_APP_DIR }}
         run: npx tauri icon src-tauri/icons/icon.svg -o src-tauri/icons
 
-      - name: Build Tauri app
+      - name: Build Tauri app (.deb / .rpm)
         working-directory: ${{ env.TAURI_APP_DIR }}
         shell: bash
         env:
           NO_STRIP: true
           SCCACHE_GHA_ENABLED: "true"
           RUSTC_WRAPPER: "sccache"
-        run: npx tauri build --bundles deb,rpm -- --locked --features vulkan
+        run: |
+          set -euo pipefail
+          if [[ "$VERSION" == *-* ]]; then
+            # rpm-rs 0.30 (bundled in Tauri CLI 2.12+) rejects '-' in RPM Version.
+            # Build .deb first, then package .rpm with base X.Y.Z Version and
+            # 0.<prerelease> Release so upgrades to X.Y.Z-1 remain monotonic.
+            npx tauri build --bundles deb -- --locked --features vulkan
+            RPM_VERSION="${VERSION%%-*}"
+            RPM_PRE="${VERSION#*-}"
+            RPM_RELEASE="0.${RPM_PRE//-/.}"
+            RPM_CONFIG=$(node -e 'console.log(JSON.stringify({version: process.argv[1], bundle: {linux: {rpm: {release: process.argv[2]}}}}))' "$RPM_VERSION" "$RPM_RELEASE")
+            npx tauri bundle --bundles rpm --features vulkan --config "$RPM_CONFIG"
+          else
+            npx tauri build --bundles deb,rpm -- --locked --features vulkan
+          fi
 
       - name: Upload DEB
         uses: actions/upload-artifact@v6
@@ -281,7 +295,9 @@ jobs:
           path: build-scripts/vesta-*.flatpak
 
   # ===========================================================
-  # Build Windows (.exe .msi)
+  # Build Windows x64 (.exe .msi)
+  # Windows ARM64 and macOS ARM64 run in the non-blocking
+  # build-arm64.yml workflow triggered after core release upload.
   # ===========================================================
   build-windows:
     name: Build (windows-${{ matrix.arch }})
@@ -293,9 +309,6 @@ jobs:
           - arch: x64
             target: x86_64-pc-windows-msvc
             cache-key: v1-sccache-windows
-          - arch: arm64
-            target: aarch64-pc-windows-msvc
-            cache-key: v1-sccache-windows-arm64
     steps:
       - uses: actions/checkout@v6
         with:
@@ -351,9 +364,9 @@ jobs:
         run: |
           # WiX/MSI requires a purely numeric pre-release identifier (<= 65535):
           # "0.14.0-dev.3" is not a valid format for MSI bundles and fails the build step.
-          # Pre-releases (tags with hyphens, e.g. dev branch builds) and ARM64 builds
-          # generate only the NSIS installer; MSI installers are reserved for stable x64 releases.
-          if [[ "$VERSION" == *-* || "${{ matrix.arch }}" == arm64 ]]; then
+          # Pre-releases (tags with hyphens, e.g. dev branch builds) generate only
+          # the NSIS installer; MSI installers are reserved for stable x64 releases.
+          if [[ "$VERSION" == *-* ]]; then
             echo "targets=nsis" >> "$GITHUB_OUTPUT"
           else
             echo "targets=nsis,msi" >> "$GITHUB_OUTPUT"
@@ -410,121 +423,13 @@ jobs:
 
 
 
-  smoke-windows-arm64:
-    name: Smoke test (windows-arm64)
-    needs: build-windows
-    runs-on: windows-11-arm
-    steps:
-      - uses: actions/download-artifact@v7
-        with:
-          name: packages-windows-arm64-nsis
-          path: installer
-
-      - name: Install and run the native executable
-        shell: pwsh
-        run: |
-          $installer = Get-Item installer/*-setup.exe
-          $installDir = Join-Path $env:RUNNER_TEMP 'vesta-arm64-smoke'
-          $install = Start-Process -FilePath $installer.FullName -ArgumentList "/S /D=$installDir" -Wait -PassThru
-          if ($install.ExitCode -ne 0) {
-            throw "Installer failed with exit code $($install.ExitCode)"
-          }
-
-          $executable = Join-Path $installDir 'vesta.exe'
-          $binary = [IO.File]::ReadAllBytes($executable)
-          $peOffset = [BitConverter]::ToInt32($binary, 0x3c)
-          if ([BitConverter]::ToUInt32($binary, $peOffset) -ne 0x4550 -or
-              [BitConverter]::ToUInt16($binary, $peOffset + 4) -ne 0xaa64) {
-            throw 'Expected a native ARM64 Windows executable'
-          }
-
-          $app = Start-Process -FilePath $executable -ArgumentList '--version' -PassThru
-          if (-not $app.WaitForExit(30000)) {
-            $app.Kill()
-            throw 'The installed executable did not exit after --version'
-          }
-          if ($app.ExitCode -ne 0) {
-            throw "The installed executable failed with exit code $($app.ExitCode)"
-          }
-
-  # ===========================================================
-  # Build macOS (.dmg)
-  # ===========================================================
-  build-macos:
-    name: Build (macos-arm64)
-    runs-on: macos-15
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          ref: ${{ env.RELEASE_REF }}
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: '22'
-          cache: npm
-          cache-dependency-path: apps/srt-gui/package-lock.json
-
-      - name: Install Rust stable
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: aarch64-apple-darwin
-
-      - name: Setup sccache
-        uses: mozilla-actions/sccache-action@v0.0.10
-
-      - name: Configure sccache GHA credentials
-        uses: actions/github-script@v8
-        with:
-          script: |
-            core.exportVariable('ACTIONS_RESULTS_URL', process.env.ACTIONS_RESULTS_URL || '');
-            core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN || '');
-
-      - name: Rust cache
-        uses: swatinem/rust-cache@v2
-        with:
-          workspaces: '. -> target'
-          shared-key: v1-sccache-macos-arm64
-
-      - name: Install frontend dependencies
-        working-directory: ${{ env.TAURI_APP_DIR }}
-        run: npm ci
-
-      - name: Build Tauri app
-        working-directory: ${{ env.TAURI_APP_DIR }}
-        env:
-          APPLE_SIGNING_IDENTITY: '-'
-        run: npx tauri build --target aarch64-apple-darwin --bundles dmg -- --locked
-
-      - name: Verify macOS disk image and app
-        shell: bash
-        run: |
-          set -euo pipefail
-          bundle=target/aarch64-apple-darwin/release/bundle
-          mount_point=$(mktemp -d)
-          hdiutil attach "$bundle"/dmg/*.dmg -readonly -nobrowse -mountpoint "$mount_point"
-          trap 'hdiutil detach "$mount_point"; rmdir "$mount_point"' EXIT
-          app=("$mount_point"/*.app)
-          executable=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "${app[0]}/Contents/Info.plist")
-          lipo -verify_arch arm64 "${app[0]}/Contents/MacOS/$executable"
-          codesign --verify --deep --strict "${app[0]}"
-          "${app[0]}/Contents/MacOS/$executable" --version
-
-      - name: Upload macOS disk image
-        uses: actions/upload-artifact@v6
-        with:
-          name: packages-macos-arm64
-          path: target/aarch64-apple-darwin/release/bundle/dmg/*.dmg
-          if-no-files-found: error
-          compression-level: 0
-
   # ===========================================================
   # GitHub Release
   # ===========================================================
   release:
     name: Create Release
-    needs: [build-linux, build-linux-arch, build-linux-flatpak, build-windows, smoke-windows-arm64, build-macos]
-    if: ${{ always() && (inputs.release_tag != '' || (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/'))) && needs.build-linux.result == 'success' && needs.build-linux-arch.result == 'success' && needs.build-linux-flatpak.result == 'success' && needs.build-windows.result == 'success' && needs.smoke-windows-arm64.result == 'success' && needs.build-macos.result == 'success' }}
+    needs: [build-linux, build-linux-arch, build-linux-flatpak, build-windows]
+    if: ${{ always() && (inputs.release_tag != '' || (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/'))) && needs.build-linux.result == 'success' && needs.build-linux-arch.result == 'success' && needs.build-linux-flatpak.result == 'success' && needs.build-windows.result == 'success' }}
     # Keep the current image when ubuntu-latest migrates to Ubuntu 26.04.
     runs-on: ubuntu-24.04
     permissions:
@@ -615,6 +520,16 @@ jobs:
               else
                 echo "Prerelease ($RELEASE_TAG): skipping AUR publication."
               fi
+              ARM64_REF="${{ github.event_name == 'workflow_dispatch' && github.ref_name || '' }}"
+              if [[ -z "$ARM64_REF" ]]; then
+                if [[ "$RELEASE_TAG" == *-* ]]; then
+                  ARM64_REF="dev"
+                else
+                  ARM64_REF="main"
+                fi
+              fi
+              echo "Triggering non-blocking ARM64 builds (build-arm64.yml) for $RELEASE_TAG on ref $ARM64_REF..."
+              gh workflow run build-arm64.yml --ref "$ARM64_REF" -f release_tag="$RELEASE_TAG" || echo "::warning::Failed to trigger ARM64 build workflow"
               exit 0
             else
               echo "Upload failed; waiting 10 seconds before retrying..."

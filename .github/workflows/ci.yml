@@ -9,6 +9,10 @@ on:
     branches: [main, dev]
   pull_request:
 
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 env:
   TAURI_APP_DIR: apps/srt-gui
   WHISPER_DONT_GENERATE_BINDINGS: "1"
@@ -92,11 +96,14 @@ jobs:
   # Setup condiviso: dipendenze di sistema Tauri/whisper.cpp +
   # dist del frontend, richiesto da `tauri::generate_context!()`
   # (il crate `vesta` non compila senza apps/srt-gui/dist).
+  # Esegue clippy e i test dell'intero workspace sullo stesso runner
+  # usando `libvulkan-dev` e `glslc` di Ubuntu 24.04 invece del
+  # pacchetto `vulkan-sdk` di LunarG (~10m risparmiati a push).
   # ===========================================================
-  clippy:
+  desktop:
     needs: tauri-versions
-    name: Clippy (workspace, all-targets)
-    runs-on: ubuntu-22.04
+    name: Clippy & Test (workspace)
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v6
 
@@ -126,7 +133,7 @@ jobs:
         uses: swatinem/rust-cache@v2
         with:
           workspaces: '. -> target'
-          shared-key: "v1-sccache-ci-clippy"
+          shared-key: "v1-sccache-ci-desktop"
 
       - name: Install system dependencies
         run: |
@@ -136,22 +143,14 @@ jobs:
             librsvg2-dev \
             libgtk-3-dev \
             libayatana-appindicator3-dev \
+            libvulkan-dev \
+            glslc \
             cmake \
             pkg-config \
             libssl-dev \
             libclang-dev \
-            mold
-
-      # Vulkan SDK (LunarG): headers, loader e glslc, richiesti da ggml-vulkan
-      # per compilare gli shader della feature `vulkan` di whisper.cpp.
-      - name: Install Vulkan SDK
-        run: |
-          wget -qO- https://packages.lunarg.com/lunarg-signing-key-pub.asc \
-            | sudo tee /etc/apt/trusted.gpg.d/lunarg.asc > /dev/null
-          sudo wget -qO /etc/apt/sources.list.d/lunarg-vulkan-jammy.list \
-            https://packages.lunarg.com/vulkan/lunarg-vulkan-jammy.list
-          sudo apt-get update
-          sudo apt-get install -y vulkan-sdk
+            mold \
+            ffmpeg
 
       - name: Install frontend dependencies
         working-directory: ${{ env.TAURI_APP_DIR }}
@@ -170,77 +169,6 @@ jobs:
           SCCACHE_GHA_ENABLED: "true"
           RUSTC_WRAPPER: "sccache"
         run: cargo clippy --locked --workspace --all-targets -- -D warnings
-
-  test:
-    needs: tauri-versions
-    name: Test (workspace)
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v6
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: '22'
-          cache: 'npm'
-          cache-dependency-path: apps/srt-gui/package-lock.json
-
-      - name: Install Rust stable
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Setup sccache
-        uses: mozilla-actions/sccache-action@v0.0.10
-
-      - name: Configure sccache GHA credentials
-        uses: actions/github-script@v8
-        with:
-          script: |
-            core.exportVariable('ACTIONS_RESULTS_URL', process.env.ACTIONS_RESULTS_URL || '');
-            core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN || '');
-
-      - name: Rust cache
-        uses: swatinem/rust-cache@v2
-        with:
-          workspaces: '. -> target'
-          shared-key: "v1-sccache-ci-test"
-
-      - name: Install system dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            libwebkit2gtk-4.1-dev \
-            librsvg2-dev \
-            libgtk-3-dev \
-            libayatana-appindicator3-dev \
-            cmake \
-            pkg-config \
-            libssl-dev \
-            libclang-dev \
-            mold \
-            ffmpeg
-
-      # Vulkan SDK (LunarG): headers, loader e glslc, richiesti da ggml-vulkan
-      # per compilare gli shader della feature `vulkan` di whisper.cpp.
-      - name: Install Vulkan SDK
-        run: |
-          wget -qO- https://packages.lunarg.com/lunarg-signing-key-pub.asc \
-            | sudo tee /etc/apt/trusted.gpg.d/lunarg.asc > /dev/null
-          sudo wget -qO /etc/apt/sources.list.d/lunarg-vulkan-jammy.list \
-            https://packages.lunarg.com/vulkan/lunarg-vulkan-jammy.list
-          sudo apt-get update
-          sudo apt-get install -y vulkan-sdk
-
-      - name: Install frontend dependencies
-        working-directory: ${{ env.TAURI_APP_DIR }}
-        run: npm ci
-
-      - name: Generate platform icons
-        working-directory: ${{ env.TAURI_APP_DIR }}
-        run: npx tauri icon src-tauri/icons/icon.svg -o src-tauri/icons
-
-      - name: Build frontend assets (richiesto da generate_context!)
-        working-directory: ${{ env.TAURI_APP_DIR }}
-        run: npm run build
 
       - name: cargo test --workspace
         env:
