@@ -1,6 +1,6 @@
 [package]
 name = "vesta-mcp"
-version = "0.31.0-dev.2"
+version = "0.31.0-dev.3"
 edition.workspace = true
 rust-version.workspace = true
 description = "Local MCP server for Vesta subtitle inspection, flashcard generation, translation and transcription"
