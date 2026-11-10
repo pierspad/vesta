@@ -326,26 +326,14 @@
         </div>
         <div class="flex flex-wrap items-center justify-center gap-3">
           <button
-            onclick={onTogglePlay}
-            disabled={!canControlAudio}
-            class="w-14 h-14 flex items-center justify-center rounded-full bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-500/30 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-            title={isPlaying ? t("sync.tooltipPause") : t("sync.tooltipPlay")}
-            aria-label={isPlaying ? t("sync.tooltipPause") : t("sync.tooltipPlay")}
+            onclick={onSkip}
+            disabled={!canUseCheckpoint}
+            class="btn-secondary py-3 px-6 flex items-center gap-2 text-base font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+            title={t("sync.wizard.skip")}
+            aria-label={t("sync.wizard.skip")}
           >
-            {#if isPlaying}
-              <svg
-                class="w-7 h-7 text-white"
-                fill="currentColor"
-                viewBox="0 0 24 24"
-                ><path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z" /></svg
-              >
-            {:else}
-              <svg
-                class="w-7 h-7 text-white ml-1"
-                fill="currentColor"
-                viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg
-              >
-            {/if}
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7" /></svg>
+            {t("sync.wizard.skip")}
           </button>
 
           <button
@@ -370,20 +358,33 @@
           </button>
 
           <button
-            onclick={onSkip}
-            disabled={!canUseCheckpoint}
-            class="btn-secondary py-3 px-6 flex items-center gap-2 text-base font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-            title={t("sync.wizard.skip")}
-            aria-label={t("sync.wizard.skip")}
+            onclick={onTogglePlay}
+            disabled={!canControlAudio}
+            class="w-14 h-14 flex items-center justify-center rounded-full bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-500/30 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+            title={isPlaying ? t("sync.tooltipPause") : t("sync.tooltipPlay")}
+            aria-label={isPlaying ? t("sync.tooltipPause") : t("sync.tooltipPlay")}
           >
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7" /></svg>
-            {t("sync.wizard.skip")}
+            {#if isPlaying}
+              <svg
+                class="w-7 h-7 text-white"
+                fill="currentColor"
+                viewBox="0 0 24 24"
+                ><path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z" /></svg
+              >
+            {:else}
+              <svg
+                class="w-7 h-7 text-white ml-1"
+                fill="currentColor"
+                viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg
+              >
+            {/if}
           </button>
 
           <button
             onclick={onConfirm}
             disabled={!canControlAudio}
-            class="btn-success py-3 px-6 flex items-center gap-2 disabled:opacity-50 disabled:pointer-events-none disabled:shadow-none shadow-lg shadow-green-500/20 text-base font-medium"
+            title={t("sync.wizard.confirm")}
+            class="rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white py-3 px-6 flex items-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-base font-semibold"
           >
             <svg
               class="w-5 h-5"
@@ -397,7 +398,7 @@
                 d="M5 13l4 4L19 7"
               /></svg
             >
-            {t("sync.wizard.confirm")}
+            {t("shortcuts.action.confirmAnchor")}
           </button>
         </div>
 
