@@ -49,6 +49,13 @@ config.toml
 *.mp3
 *.flac
 .directory
+!/apps/.directory
+!/build-scripts/.directory
+!/cli/.directory
+!/core/.directory
+!/docs/.directory
+!/lib/.directory
+!/plugins/.directory
 
 # Generated/test artifacts
 __pycache__/
