@@ -41,7 +41,7 @@ struct Cli {
     /// Destination path for the retimed SRT file.
     #[arg(short, long)]
     output: PathBuf,
-    /// Subtitle ID and corrected start time in milliseconds; repeat for drift correction
+    /// Subtitle ID and corrected start time in milliseconds; repeat for drift correction.
     #[arg(long = "anchor", required = true, value_parser = parse_anchor)]
     anchors: Vec<Anchor>,
 }

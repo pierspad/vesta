@@ -51,7 +51,7 @@ srt-flashcards generate -t Detour-en.srt -n Detour-it.srt \
 Run `srt-flashcards generate --help` for the full list of filters, context lines,
 codecs, and bitrates. Video padding, custom note templates, and font management
 are configured through the library or GUI; see the
-[coverage matrix](../../docs/CLI.md#coverage-shared-engines-different-interfaces).
+[coverage matrix](../../docs/CLI.md#feature-coverage-by-interface).
 
 ## Script contract
 

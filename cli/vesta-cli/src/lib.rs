@@ -17,7 +17,7 @@ fn command() -> Command {
         .subcommand(Command::new("sync").about("Retime subtitles (srt-sync options)"))
         .subcommand(Command::new("autosync").about("Align subtitles to media (srt-autosync options)"))
         .subcommand(Command::new("refine").about("Inspect or annotate flashcard decks (srt-refine options)"))
-        .subcommand(Command::new("extract").about("Extract subtitle tracks (srt-extract options)"))
+        .subcommand(Command::new("extract").about("Inspect SRT files or list/extract embedded subtitle tracks (srt-extract options)"))
 }
 
 /// Dispatch arguments to the existing command implementations without requiring

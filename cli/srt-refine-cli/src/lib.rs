@@ -25,7 +25,7 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Command {
-    /// Print card fields as JSON without contacting any provider
+    /// Print card fields as JSON without contacting any provider.
     #[command(
         after_help = "Example:\n  srt-refine inspect --input deck.apkg > cards.json\n\nInput must be a TSV or APKG deck."
     )]
@@ -34,7 +34,7 @@ enum Command {
         #[arg(short, long)]
         input: PathBuf,
     },
-    /// Annotate notes using the shared tiered engine
+    /// Annotate notes using the shared tiered engine.
     #[command(long_about = r#"Annotate notes using the shared tiered engine.
 
 The JSON config must contain a non-empty `prompt` and `tiers` as arrays of
@@ -51,10 +51,10 @@ Supported output conversions are TSV to TSV, APKG to TSV, and APKG to APKG."#)]
         /// Destination deck path (allowed conversions are listed above).
         #[arg(short, long)]
         output: PathBuf,
-        /// JSON file with non-empty prompt and tier arrays; batch_mode defaults false, batch_size defaults 8
+        /// JSON file with non-empty prompt and tier arrays; batch_mode defaults false, batch_size defaults 8.
         #[arg(short, long)]
         config: PathBuf,
-        /// Publish successful annotations even if some cards fail; still exits 1
+        /// Publish successful annotations even if some cards fail; still exits 1.
         #[arg(long)]
         allow_partial: bool,
     },

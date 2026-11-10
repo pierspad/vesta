@@ -80,9 +80,7 @@ struct GenerateArgs {
     episode: u32,
 
     // ── Performance ──────────────────────────────────────────────────────
-    /// Number of parallel ffmpeg workers. Clamped to [1, available cores]
-    /// (use 1 to run a single ffmpeg at a time, like a single-threaded tool).
-    /// Omit to default to ~3/4 of the logical cores.
+    /// Number of parallel ffmpeg workers (clamped to [1, available cores]; defaults to ~3/4 of logical cores).
     #[arg(short = 'j', long)]
     jobs: Option<usize>,
 
@@ -111,12 +109,10 @@ struct GenerateArgs {
     /// Audio gain in dB.
     #[arg(long, default_value_t = 0, allow_hyphen_values = true)]
     audio_gain: i32,
-    /// Audio bitrate (kbps). Opus needs far less than MP3 for speech: 64 is
-    /// roughly equivalent to 128 in MP3.
+    /// Audio bitrate in kbps.
     #[arg(long, default_value_t = 128)]
     audio_bitrate: u32,
-    /// Audio codec. Opus is ~2.3x smaller than MP3 but does not play on
-    /// AnkiMobile (iOS), so it is not the default for shared decks.
+    /// Audio codec (`mp3` or `opus`).
     #[arg(long, default_value = "mp3", value_parser = ["mp3", "opus"])]
     audio_format: String,
     /// Explicit audio track index (ffmpeg 0:a:N order).
@@ -128,8 +124,7 @@ struct GenerateArgs {
     /// Snapshot / video height in pixels.
     #[arg(long, default_value_t = 144)]
     snapshot_height: u32,
-    /// Snapshot image codec. WebP is about half the size of JPEG at the same
-    /// perceived quality; AVIF is smaller still but ~2x slower to encode.
+    /// Snapshot image codec (`webp`, `jpeg`, or `avif`).
     #[arg(long, default_value = "webp", value_parser = ["webp", "jpeg", "avif"])]
     snapshot_format: String,
     /// Snapshot quality, 0-100 (100 = best). Mapped onto each codec's own scale.
@@ -188,7 +183,7 @@ struct GenerateArgs {
     /// End of the optional time span in milliseconds.
     #[arg(long)]
     span_end: Option<i64>,
-    /// Shift all target / native timestamps by N milliseconds.
+    /// Shift target-subtitle timestamps by N milliseconds (negative values advance them).
     #[arg(long, default_value_t = 0, allow_hyphen_values = true)]
     shift_target: i64,
     /// Shift native-subtitle timestamps by N milliseconds (negative values advance them).

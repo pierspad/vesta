@@ -47,10 +47,16 @@ enum Command {
     #[command(
         after_help = "Examples:\n  srt-transcribe download base\n  srt-transcribe download vad"
     )]
-    Download { model_id: String },
+    Download {
+        /// Model ID to download (e.g. "base", "small", "vad", or "vad:<variant>"; see `models`).
+        model_id: String,
+    },
     /// Delete a downloaded Whisper model, or "vad" for the Silero VAD model.
     #[command(after_help = "Examples:\n  srt-transcribe remove base\n  srt-transcribe remove vad")]
-    Remove { model_id: String },
+    Remove {
+        /// Model ID to remove (e.g. "base", "small", "vad", or "vad:<variant>").
+        model_id: String,
+    },
 }
 
 #[derive(clap::Args)]
@@ -104,11 +110,7 @@ struct RunArgs {
     /// Suppress progress output on stderr.
     #[arg(short, long)]
     quiet: bool,
-    /// Machine-readable mode: one JSON `ProgressUpdate` per line on stdout
-    /// while running, then a final `{"ok":true,"outcome":{...}}` or
-    /// `{"ok":false,"error":"..."}` line. Meant for callers that spawn this
-    /// binary as a subprocess (e.g. whisper-bench's GPU worker binaries)
-    /// rather than for interactive use. Implies --quiet for stderr.
+    /// Emit JSON-Lines progress and completion events on stdout (`ProgressUpdate` lines followed by `{"ok":...}`). Implies `--quiet` on stderr.
     #[arg(long)]
     json: bool,
 }

@@ -1,9 +1,6 @@
-# Command-line workflows and coverage
+# Command-Line Reference
 
-Use `vesta-cli` for automation without Tauri or desktop libraries. The installed
-GUI executable also accepts `vesta <operation>` before starting its window;
-`vesta` with no arguments opens the GUI, while `vesta-cli` with no arguments
-prints help. On Windows use `vesta-cli.exe` for terminal output.
+`vesta-cli` runs Vesta workflows without Tauri or desktop dependencies. The installed desktop binary also accepts `vesta <operation>` before launching the window (`vesta` with no arguments opens the GUI; `vesta-cli` with no arguments prints help). On Windows, use `vesta-cli.exe` for terminal output.
 
 ```sh
 cargo install --locked --path cli/vesta-cli
@@ -11,83 +8,47 @@ vesta-cli --help
 vesta-cli help flashcards generate
 ```
 
-The seven operations call the individual `srt-*` CLI implementations directly;
-you do not need those executables installed alongside `vesta-cli`. For example,
-`vesta-cli sync ...` and `srt-sync ...` use the same argument parser and engine.
-Delegated usage messages may display the `srt-*` name. Standalone install/build
-paths and engine APIs are listed in the [module index](modules/README.md).
+Each subcommand invokes the corresponding `srt-*` CLI parser and library engine directly; standalone `srt-*` binaries are not required at runtime. Delegated usage output may display the standalone `srt-*` command name. Standalone build paths and library APIs are listed in the [module index](modules/README.md).
 
-CLI arguments/configuration are independent of desktop preferences: the command
-does not import the GUI's API keys, tiers, AI Kill Switch or note-type settings.
-Cloud commands can incur provider charges. Set their configuration explicitly;
-keep files containing secrets out of version control. Translation TOML expands
-`${VAR_NAME}` from the environment/`.env`; refinement JSON does not. MCP is a
-separate optional executable; see [its scope and setup](MCP.md).
+CLI configuration is isolated from desktop preferences: commands do not read the GUI's stored API keys, provider tiers, AI Kill Switch, or note templates. Translation TOML files expand `${VAR_NAME}` from the environment or `.env`; refinement JSON files do not. For the stdio Model Context Protocol server, see [MCP.md](MCP.md).
 
-## Coverage: shared engines, different interfaces
+## Feature Coverage by Interface
 
-The CLI covers all seven main processing workflows. The table below summarizes the options exposed by each CLI command compared to the desktop GUI and underlying Rust libraries:
-
-| Area | CLI exposes | GUI/library capabilities not exposed by these commands |
+| Workflow | CLI Flags & Subcommands | GUI / Library Capabilities Not Exposed via CLI Flags |
 |---|---|---|
-| Flashcards | Subtitle info, count-only preview, single-episode TSV/APKG generation; filters, context, codecs, sizes, audio padding/gain/normalization, audio track and workers | Interactive row selection/editing and media previews; multi-episode orchestration/APKG merge; custom note templates/field mapping; explicit video padding, font/language/dictionary and hardware-encoder preferences |
-| Extract | SRT reports; embedded stream discovery and text-to-SRT extraction | Embedded-track preview and automatic existing-output suggestions; bitmap subtitles still need external OCR |
-| Sync | Apply supplied subtitle-ID/time anchors to SRT | Interactive playback, anchor suggestions/sampling, sessions, undo and side-by-side revision/editing |
-| Auto-sync | Whisper sample analysis followed by applying all suggested anchors | Review/accept individual suggestions interactively |
-| Transcribe | One local/cloud endpoint per run; model download/list/removal; default Silero VAD, quality/segmentation and JSON progress | GUI tier orchestration/fallback, endpoint model discovery, choosing a VAD variant/custom model path per run |
-| Translate | TOML provider tiers, batch size, resume overlap, language list and completeness checks | GUI context preview/editing, interactive subtitle editing and provider/model configuration/discovery |
-| Refine | JSON inspection and tiered annotation of supported TSV/APKG inputs | Interactive manual card editing/selection, TSV column mapping and GUI batch/auto-run controls |
-| AnkiConnect and desktop services | No dedicated command | Direct Anki integration (`srt-ankiconnect` library), setup/download UI, preferences, updates, support logs and media playback server |
+| Flashcards | Subtitle info, count-only preview, single-episode TSV/APKG generation; filters, context lines, codecs, dimensions, audio padding/gain/normalization, audio track index, and worker count | Interactive row selection/editing and media previews; multi-episode orchestration and APKG merge; custom note templates/field mapping; explicit video padding, font/language/dictionary, and hardware-encoder settings |
+| Extract | SRT reports (`json`, `stats`, `summary`, `debug`); embedded stream discovery (`--list-tracks`) and text-to-SRT track extraction (`--track`) | Embedded-track preview and existing-output discovery; bitmap subtitle tracks require external OCR |
+| Sync | Apply subtitle-ID/time anchor pairs (`--anchor ID:MS`) to an SRT file | Interactive playback, anchor sampling, session files, undo/redo stack, and side-by-side editing |
+| Auto-sync | Whisper sample analysis and automatic application of all suggested anchors | Interactive review or selective acceptance of suggested anchors |
+| Transcribe | Single local or cloud endpoint per run; model list/download/removal; default Silero VAD, beam-search quality, segmentation, and JSON-Lines progress | Multi-tier provider failover, remote model discovery, and per-run custom VAD variant or model directory selection |
+| Translate | Tiered TOML provider pools, batch size, resume overlap, language list, and completeness check | Context preview/editing, interactive subtitle table editing, and remote model discovery |
+| Refine | JSON card inspection (`inspect`) and tiered LLM annotation (`enrich`) for TSV/APKG decks | Interactive card selection/editing, custom TSV column mapping, and GUI auto-run controls |
+| AnkiConnect & Desktop | No dedicated CLI command | Direct AnkiConnect import (`srt-ankiconnect`), setup wizard, update installer, support logs, and local media playback server |
 
-For functionality beyond an adapter's flags, use the GUI or call the relevant
-Rust library. A shared engine guarantees shared processing logic only for the
-same effective inputs/options; GUI defaults and orchestration can differ.
+## Subcommands and Options
 
-## Commands and safe usage
+Timestamps, anchor targets, duration filters, and time shifts are expressed in milliseconds unless noted otherwise (`--max-gap` uses seconds). Pass negative numbers using `=` syntax (for example, `--shift-target=-500`).
 
-Examples below use local filenames as placeholders. Run `--help` at the relevant
-level for the full option list, defaults and additional examples. SRT times,
-anchor corrections, filters and shifts use milliseconds unless help says
-otherwise. Negative option values such as shifts use `--shift-target=-500`.
-
-### `flashcards info`, `preview`, `generate`
+### `flashcards` (`info`, `preview`, `generate`)
 
 ```sh
 vesta-cli flashcards info episode-ja.srt
 vesta-cli flashcards preview --target episode-ja.srt --native episode-en.srt
 vesta-cli flashcards generate --target episode-ja.srt --native episode-en.srt \
   --video episode.mkv --output out --format apkg --deck Episode --no-video
-# Text-only export: disable all three media types explicitly.
+# Text-only export:
 vesta-cli flashcards generate --target episode-ja.srt --output out --deck Text \
   --no-audio --no-snapshots --no-video
 ```
 
-`preview` shares generation's options; `--output` is optional for `preview`
-(accepted for compatibility with `generate` flags, but not required), writes
-nothing and reports counts only. For preview rows use the GUI, library or MCP.
-`generate` enables audio, snapshots **and video clips** by default. Use
-`--no-video` for audio + snapshots; for an audio-only source supply `--audio`
-and disable snapshots/video. Enabled audio needs an audio/video source; enabled
-snapshots/video need a video source. The CLI/engine skips extraction when its
-source is absent; it does not treat a missing source as a usage error. Use
-explicit disable flags to make a text-only/audio-only intent clear. MCP instead
-rejects enabled media without its required source. FFmpeg/FFprobe must be
-installed for media.
-
-`--audio-track N` uses the **audio-relative** `0:a:N` index, not the absolute
-subtitle stream index reported by `extract --list-tracks`. `--jobs` is bounded
-to logical cores; it controls concurrent media jobs, not CPU affinity. A media
-source without the requested stream/codec can still fail at runtime.
-
-`--no-optimize` disables both clip preparation and nearby snapshot batching.
-Clip preparation may use a lossy intermediate. MP3 is the default audio format;
-check your target Anki player's codec support before choosing Opus. Reusing a
-deck/output name replaces the previous export after successful processing; see
-[publication and recovery limits](../cli/srt-flashcards-cli/README.md#regenerating-tsv-exports).
+- `preview` accepts the same filter and matching options as `generate`, does not require `--output`, writes no files, and prints card counts only.
+- `generate` enables audio clips, snapshots, and video clips by default. Pass `--no-video`, `--no-snapshots`, or `--no-audio` to disable specific media types. If a media source (`--video` or `--audio`) is omitted, the corresponding media extraction is skipped.
+- `--audio-track N` selects the zero-based audio stream (`0:a:N`), not the absolute container stream index reported by `extract --list-tracks`.
+- `--jobs` clamps the number of concurrent FFmpeg worker processes to `[1, logical_cores]`.
+- `--no-optimize` disables both video clip pre-transcoding and nearby WebP snapshot batching.
+- Re-running `generate` with the same output directory and deck name atomically replaces the previous export after media extraction completes; see [`cli/srt-flashcards-cli/README.md`](../cli/srt-flashcards-cli/README.md#regenerating-tsv-exports).
 
 ### `extract`
-
-This operation uses flags, not `list`/`run` subcommands:
 
 ```sh
 vesta-cli extract --input episode.srt --format stats
@@ -95,12 +56,10 @@ vesta-cli extract --input episode.mkv --list-tracks
 vesta-cli extract --input episode.mkv --track 8 --output episode.en.srt
 ```
 
-Use the absolute subtitle stream index returned by `--list-tracks`, not its row
-position or an audio-track index. Listing and extraction are mutually exclusive;
-`--track` requires an output. SRT report formats are `json`, `stats`, `summary`
-and `debug` (default). `--format` formats external SRT reports; embedded tracks
-are converted to SRT. Bitmap tracks require OCR. FFmpeg/FFprobe are needed only
-for embedded tracks. Output must differ from input, including filesystem aliases.
+- `--format` (`json`, `stats`, `summary`, `debug`) formats external `.srt` files.
+- `--list-tracks` (requires `ffprobe`) prints embedded subtitle tracks as JSON with absolute stream indices.
+- `--track <INDEX>` (requires `ffmpeg`, `ffprobe`, and `--output`) extracts the specified text subtitle stream to SRT. `--list-tracks` and `--track` are mutually exclusive.
+- Output path must not resolve to the input file.
 
 ### `sync`
 
@@ -110,12 +69,9 @@ vesta-cli sync --input episode.srt --output episode.synced.srt \
   --anchor 1:1500 --anchor 100:305000
 ```
 
-An anchor is `SUBTITLE_ID:CORRECTED_START_MS`, not a row number or time delta.
-Use IDs that exist in the SRT. One anchor shifts the track; multiple anchors
-correct drift. IDs must be unique/positive and corrected times non-negative and
-increasing with distinct original times. Invalid anchors are rejected before
-saving. The shared engine may fill small ID gaps with `[...]` placeholders.
-No FFmpeg/model is needed. A separate output path preserves your source.
+- Each `--anchor SUBTITLE_ID:CORRECTED_MS` pairs a 1-based subtitle ID from the input SRT with its target start timestamp in milliseconds.
+- A single anchor applies a constant offset; two or more anchors apply piecewise-linear drift interpolation.
+- Anchor IDs must exist in the input file, be unique, and have strictly increasing original and corrected timestamps.
 
 ### `autosync`
 
@@ -124,14 +80,11 @@ vesta-cli autosync episode.srt episode.mkv --output episode.synced.srt --model b
 vesta-cli autosync episode.srt episode.mkv --output episode.quick.srt --quick
 ```
 
-The two positional inputs are **SRT first, media second**. The local Whisper
-model downloads on demand; FFmpeg/FFprobe are required. `--language` is an
-optional spoken-language hint. `--quick` analyzes fewer/shorter samples and may
-be less precise. All suggestions are applied automatically before writing;
-use the GUI if you need to inspect suggestions individually. Successful output
-replaces the destination; Ctrl-C before saving leaves it unchanged.
+- Positional arguments are `<SRT> <MEDIA>`. Requires `ffmpeg` and `ffprobe`.
+- Downloads the requested local Whisper model on demand if not already cached.
+- `--quick` reduces the number and duration of audio samples. All matched anchors are applied before writing `--output`.
 
-### `transcribe run`, `models`, `download`, `remove`
+### `transcribe` (`run`, `models`, `download`, `remove`)
 
 ```sh
 vesta-cli transcribe models
@@ -142,26 +95,13 @@ vesta-cli transcribe run episode.mkv --output episode.srt --model base --json
 vesta-cli transcribe remove vad
 ```
 
-`run` takes the media path positionally and requires `--output`. Local models
-also download on demand. `download vad` installs the default Silero variant;
-`vad:<id>` addresses an explicitly listed variant for download/removal. The
-current `run --vad` uses the default variant, not the last variant downloaded.
-`--no-gpu` forces CPU; otherwise a usable backend must have been compiled into
-the binary. The standalone default is CPU-only. Optional unified CLI build:
-`cargo install --locked --path cli/vesta-cli --features vulkan` (requires the
-Vulkan native toolchain; choose one supported GPU backend).
+- `run <INPUT> --output <PATH>` transcribes audio or video to SRT. Local Whisper models download on demand.
+- `download` and `remove` accept a Whisper model ID (`tiny`, `base`, `small`, `medium`, `large-v3`, `large-v3-turbo`), `"vad"` (default Silero VAD), or `"vad:<variant>"`.
+- `--word-timestamps`, `--quality`, `--vad`, and `--no-gpu` apply only to `--provider local` and return an error if combined with cloud providers (`groq`, `openai`, `deepgram`, `assemblyai`, `custom`).
+- For cloud providers, pass the provider's model identifier via `--model` and credentials via `--api-key` (`--api-url` is required for `custom`).
+- When `--language auto` is used with local Whisper, the detected ISO code may be inserted before `.srt` in the output filename; check the reported output path.
 
-For cloud runs choose `--provider`, a **provider model name** with `--model`,
-and credentials with `--api-key`; the default `base` is a local Whisper ID.
-`custom` needs an explicit `--api-url`. API-key arguments can be visible in
-shell history/process listings. `--word-timestamps`, `--quality`, `--vad` and `--no-gpu` are local-only
-and are rejected for cloud runs; they do not tune a remote provider. There is no GUI-tier failover in a single CLI run. For OpenAI GPT
-transcription, whole-chunk timing is less precise than Whisper segment timing.
-With automatic local language detection, the actual output filename can gain a
-language suffix: read the returned path rather than assuming the requested one.
-`--json` uses JSON Lines progress plus one terminal result, not one JSON document.
-
-### `translate`, `--language-list`, `--check-missing`
+### `translate`
 
 ```sh
 vesta-cli translate --language-list
@@ -170,56 +110,35 @@ vesta-cli translate --input episode.srt --language it --config translation.toml 
 vesta-cli translate --input episode.srt --check-missing episode.it.srt
 ```
 
-Translation needs TOML configuration; see the [complete example](../cli/srt-translate-cli/README.md#configuration).
-The language-list and completeness-check modes do not contact providers or need
-that config. The check succeeds only if all expected subtitles and line counts
-are present; it does not assess translation quality. `--check-missing` is a flag
-with the translated filename, not a subcommand. Resume uses an existing output;
-never select the input or its alias as the translation output. Use a distinct
-output per language/configuration, since existing text is treated as completed
-work. Ctrl-C retains completed batches for resumption.
+- Translation requires `--input`, `--language`, and `--config` (defaults to `config.toml`; see [`cli/srt-translate-cli/README.md`](../cli/srt-translate-cli/README.md#configuration)).
+- `--language-list` and `--check-missing <TRANSLATED_FILE>` run locally without reading `config.toml` or contacting providers.
+- If the output file already exists, completed cues are preserved and translation resumes from the first missing cue (with `resume_overlap` context). Output must not resolve to the input path.
 
-### `refine inspect`, `enrich`
+### `refine` (`inspect`, `enrich`)
 
 ```sh
 vesta-cli refine inspect --input deck.apkg
 vesta-cli refine enrich --input deck.apkg --output deck.annotated.apkg --config refine.json
 ```
 
-`inspect` returns card fields as JSON, with no provider requests. `enrich` uses
-JSON tiers/prompt settings, not translation TOML or GUI preferences; see the
-[configuration example](../cli/srt-refine-cli/README.md). Supported conversions
-are TSV→TSV, APKG→TSV and APKG→APKG, **not TSV→APKG**. The parent output directory
-must exist. An output equal to input intentionally updates it in place.
-By default any failed/remaining card prevents publication. `--allow-partial`
-can save successful annotations while leaving other cards unchanged, but exits
-1; it is not a success override. Ctrl-C does not publish partial work.
+- `inspect` prints deck cards as JSON to stdout without network requests.
+- `enrich` annotates cards using a JSON configuration file (`prompt`, `tiers`, optional `batch_mode` and `batch_size`; see [`cli/srt-refine-cli/README.md`](../cli/srt-refine-cli/README.md)).
+- Supported input→output pairs: `TSV → TSV`, `APKG → TSV`, and `APKG → APKG`. In-place updates (`--input` equal to `--output`) are written atomically.
+- By default, any failed or unannotated card aborts publication and exits `1`. `--allow-partial` writes completed card updates before exiting `1`.
 
-## Output and exit status
+## Standard Streams and Exit Codes
 
-| Operation | stdout | stderr |
+| Command | `stdout` | `stderr` |
 |---|---|---|
-| Flashcards | Human summaries/counts and export paths | Progress and errors (`--quiet` hides progress) |
-| Extract | SRT report (selected format), or track-list JSON, unless written to `--output` | Read/save diagnostics and errors |
-| Sync | Empty | Completion and errors |
-| Auto-sync | Completion summary | Progress/errors (`--quiet` hides progress) |
-| Transcribe | Human result; with `--json`, JSON Lines progress/result | Progress/errors, quiet in JSON mode except argument parsing |
-| Translate | Human progress/summary/check output | Errors/cancellation |
-| Refine | JSON inspection/result | Progress/errors |
+| `flashcards` | Summary counts and output paths | Progress and errors (`-q, --quiet` hides progress) |
+| `extract` | Formatted SRT report or `--list-tracks` JSON (when `-o` is omitted) | Status messages and errors |
+| `sync` | Empty | Completion summary and errors |
+| `autosync` | Alignment summary | Progress and errors (`--quiet` hides progress) |
+| `transcribe` | Final output path, or JSON-Lines stream with `--json` | Progress and errors (`-q, --quiet` or `--json` hides progress) |
+| `translate` | Progress, summary, or `--check-missing` report | Errors and cancellation notice |
+| `refine` | `inspect` card JSON or `enrich` summary JSON | Progress and errors |
 
-Argument parsing errors exit 2; processing/validation failures generally exit 1;
-success exits 0. Cancellable generation/translation/transcription/auto-sync/
-refinement use 130 for cooperative Ctrl-C failures. A late cancellation can
-still leave a successfully published result and exit 0. Do not treat a return
-from `cancel_job` in MCP as completed cancellation: poll the job's terminal
-status. Inspect stdout according to each command's contract rather than
-assuming all commands share a JSON protocol.
-
-## Verification scope
-
-The CLI subprocess tests exercise real commands, help, offline fixtures, usage
-errors and publication/cancellation contracts. See [QUALITY](QUALITY.md) for the
-complete test matrix and [MCP](MCP.md) for stdio protocol verification.
-These checks do not certify authenticated provider access, every media codec,
-GPU driver or installed Windows terminal behavior. Re-run the appropriate
-release smoke checks for those environments.
+- `0`: Completed without error.
+- `1`: Validation, I/O, or runtime processing error (including partial refinement with `--allow-partial`).
+- `2`: Invalid CLI arguments (`clap` parse failure).
+- `130`: Cooperative interruption via `SIGINT` (`Ctrl+C`). If `SIGINT` arrives after atomic output publication has started, the command may complete publication and exit `0`.

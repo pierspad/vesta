@@ -107,7 +107,7 @@ fn expand_env_vars(content: &str) -> Result<String> {
     after_help = "Examples:\n  srt-translate --input movie.srt --language it --config config.toml\n  srt-translate --language-list\n  srt-translate --input original.srt --check-missing translated.srt\n\nTranslation requires --input, --language, and a TOML config with at least one usable tier. --language-list is standalone; --check-missing needs --input but does not contact providers."
 )]
 struct Cli {
-    /// Path to the SRT file to translate
+    /// Path to the SRT file to translate.
     #[arg(
         short,
         long,
@@ -116,7 +116,7 @@ struct Cli {
     )]
     input: Option<PathBuf>,
 
-    /// Target language (supported with examples: en, it, es, fr, de, pt, ru, ja, zh, ar)
+    /// Target language (supported with examples: en, it, es, fr, de, pt, ru, ja, zh, ar).
     #[arg(short, long, conflicts_with_all = ["language_list", "check_missing"])]
     language: Option<String>,
 
@@ -128,7 +128,7 @@ struct Cli {
     #[arg(long, value_name = "TRANSLATED_FILE", conflicts_with_all = ["config", "output"])]
     check_missing: Option<PathBuf>,
 
-    /// Path to config file (default: config.toml in current directory)
+    /// Path to config file (default: config.toml in current directory).
     #[arg(
         short,
         long,
@@ -137,7 +137,7 @@ struct Cli {
     )]
     config: PathBuf,
 
-    /// Output file (optional, will use pattern from config if not specified)
+    /// Output file (optional, uses filename_pattern from config if not specified).
     #[arg(short, long, conflicts_with_all = ["language_list", "check_missing"])]
     output: Option<PathBuf>,
 }
