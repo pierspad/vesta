@@ -21,11 +21,11 @@ srt-parser.workspace = true
 srt-translate.workspace = true
 srt-transcribe.workspace = true
 tokio-util = "0.7"
-rmcp = { version = "3.6", default-features = false, features = ["server", "macros", "transport-io"] }
+rmcp = { version = "3.9", default-features = false, features = ["server", "macros", "transport-io"] }
 schemars = "1"
 
 [dev-dependencies]
-rmcp = { version = "3.6", default-features = false, features = ["client", "transport-child-process"] }
+rmcp = { version = "3.9", default-features = false, features = ["client", "transport-child-process"] }
 
 [features]
 vulkan = ["srt-transcribe/vulkan"]
