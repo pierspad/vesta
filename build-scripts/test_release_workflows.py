@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Guard release publishing against cancellation, partial builds, and tag mismatch."""
 from pathlib import Path
+import json
 import os
 import subprocess
 import tempfile
@@ -29,6 +30,7 @@ def run_block(text, step_name):
 def check_shell_behavior(build):
     tag_check = run_block(build, 'Verify release tag matches source version')
     fallback = run_block(build, 'Prepare fallback release body')
+    collect = run_block(build, 'Prepare release files')
     with tempfile.TemporaryDirectory() as directory:
         root = Path(directory)
         (root / 'build-scripts').mkdir()
@@ -36,6 +38,16 @@ def check_shell_behavior(build):
         subprocess.run(['git', 'init', '-q', directory], check=True)
         subprocess.run(['git', '-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.invalid',
                         'commit', '--allow-empty', '-qm', 'test fixture'], cwd=root, check=True)
+        artifacts = root / 'artifacts'
+        for name in ('vesta_x64-setup.exe', 'vesta_arm64-setup.exe', 'vesta_aarch64.dmg'):
+            package = artifacts / name
+            package.mkdir(parents=True)
+            (package / name).touch()
+        subprocess.run(['bash', '-c', collect], cwd=root, check=True, capture_output=True)
+        require({path.name for path in (root / 'release').iterdir()} ==
+                {path.name for path in artifacts.iterdir()},
+                'release must collect both Windows architectures and the macOS disk image')
+
         env = {**os.environ, 'GITHUB_REPOSITORY': 'pierspad/vesta'}
         for tag, succeeds in [('v0.29.1', True), ('v0.29.0', False)]:
             result = subprocess.run(['bash', '-c', tag_check], cwd=root, env={**env, 'RELEASE_TAG': tag}, capture_output=True)
@@ -54,13 +66,21 @@ def main():
     release = (ROOT / '.github/workflows/release.yml').read_text(encoding='utf-8')
     build = (ROOT / '.github/workflows/build.yml').read_text(encoding='utf-8')
 
+    config = json.loads((ROOT / '.releaserc').read_text(encoding='utf-8'))
+    publish = next(plugin[1]['publishCmd'] for plugin in config['plugins']
+                   if isinstance(plugin, list) and plugin[0] == '@semantic-release/exec')
+    require("gh workflow run 'Build and Release' --ref '${branch.name}' -f release_tag='v${nextRelease.version}'"
+            in publish, 'releases must dispatch the workflow from their release branch with the exact tag')
+
     require('cancel-in-progress: false' in release,
             'release runs must not cancel an active release')
 
     release_job_start = build.rfind('\n  release:\n')
     require(release_job_start >= 0, 'build workflow must define its final release job')
     release_job = build[release_job_start:]
-    required_builds = ('build-linux', 'build-linux-arch', 'build-linux-flatpak', 'build-windows')
+    require("inputs.release_tag != '' || (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/'))"
+            in release_job, 'a manual run without a release tag must never publish')
+    required_builds = ('build-linux', 'build-linux-arch', 'build-linux-flatpak', 'build-windows', 'smoke-windows-arm64', 'build-macos')
     for job in required_builds:
         require(f"needs.{job}.result == 'success'" in release_job,
                 f'release publishing must require successful {job}')

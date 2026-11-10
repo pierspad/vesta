@@ -18,13 +18,15 @@ Vesta is a desktop successor to subs2srs for language learners. Each subtitle be
 
 - **Create decks:** export a ready-to-import APKG, a TSV with media, or send cards to Anki through AnkiConnect.
 - **Prepare subtitles:** extract embedded text tracks, correct timing, and compare or edit subtitle files side by side.
-- **Fill the gaps:** transcribe missing subtitles, translate dialogue, and add definitions or grammar notes to existing decks.
+- **Transcribe and enrich:** transcribe missing subtitles, translate dialogue, and add definitions or grammar notes to existing decks.
 
 Deck generation and subtitle editing run locally. Local Whisper transcription is available; cloud transcription and language models are optional. You can disable AI features in Settings with the **AI Kill Switch**.
 
 ## Get started
 
-[Download the latest release](https://github.com/pierspad/vesta/releases/latest) for **Windows or Linux**. Linux packages include DEB, RPM, Arch and Flatpak.
+[Download the latest release](https://github.com/pierspad/vesta/releases/latest) for **Windows, macOS or Linux**. Choose the x64 installer for most Windows PCs, the ARM64 setup executable for Windows on ARM, or the ARM64 DMG for Apple silicon Macs. Linux packages include DEB, RPM, Arch and Flatpak.
+
+To test installers from a branch, run **Actions → Build and Release → Run workflow**, select the branch and leave the release tag blank. Download the installer artifacts from the workflow run. The macOS disk image contains an ad-hoc signed app and requires Developer ID signing and notarization for normal Gatekeeper approval.
 
 1. Complete setup with your native and study languages.
 2. Open **Flashcards** and add your media and study-language subtitles. Add native-language subtitles if you have them.
@@ -143,6 +145,12 @@ Develop a plugin in any folder or in its own Git repository. Keep
 `vesta-plugin.json` at the root. In Vesta, open **Plugins** and install from
 **Local Folder** during development or from a repository URL or archive when
 sharing. Vesta copies each installation into its own application data directory.
+
+[Subtitles](plugins/subtitles) is a first-party plugin for OpenSubtitles search
+and downloads, FFmpeg track extraction, and Vesta Flashcards integration. To
+install it from a clone, open **Plugins → Local Folder** and select
+`plugins/subtitles`. Its source is also a working example of plugin settings,
+credential guidance, and native widgets.
 
 Start with the runnable [Hello Counter plugin](docs/examples/plugin-hello).
 The [Plugin SDK guide](docs/PLUGINS.md) covers installation paths, the Python
