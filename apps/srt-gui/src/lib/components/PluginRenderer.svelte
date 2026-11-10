@@ -287,18 +287,27 @@
     });
   }
 
+  function pulseOutline(target: HTMLElement) {
+    if (!target.animate || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    for (const animation of target.getAnimations?.() ?? []) animation.cancel();
+    target.animate(
+      [{ boxShadow: "0 0 0 0 transparent" }, { boxShadow: "0 0 0 3px var(--color-amber-400)" }, { boxShadow: "0 0 0 0 transparent" }],
+      { duration: 420, iterations: 2 },
+    );
+  }
+
+  function pulseMissingPassword(target: HTMLElement, warning: string | undefined) {
+    if (warning) pulseOutline(target);
+  }
+
   function activateButton(node: ButtonWidget) {
     if (loading || actionLoading !== null) return;
-    if (node.disabled && node.disabledFocus) {
-      const target = Array.from(renderer.querySelectorAll<HTMLButtonElement>("button[data-plugin-button]"))
-        .find(button => button.dataset.pluginButton === node.disabledFocus);
-      target?.focus();
-      if (target?.animate && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-        for (const animation of target.getAnimations?.() ?? []) animation.cancel();
-        target.animate(
-          [{ boxShadow: "0 0 0 0 transparent" }, { boxShadow: "0 0 0 3px var(--color-amber-400)" }, { boxShadow: "0 0 0 0 transparent" }],
-          { duration: 420, iterations: 2 },
-        );
+    if ((node.disabled || missingRequiredInput(node)) && node.disabledFocus) {
+      const target = Array.from(renderer.querySelectorAll<HTMLElement>("[id]"))
+        .find(element => element.id === `widget-${node.disabledFocus}`);
+      if (target) {
+        target.focus();
+        pulseOutline(target);
       }
       return;
     }
@@ -509,6 +518,8 @@
     <svg class={cls} aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-width="2" d="m6 6 12 12M18 6 6 18"/></svg>
   {:else if name === "trash"}
     <svg class={cls} aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7h16M9 7V4h6v3m3 0-1 13H7L6 7m4 4v5m4-5v5"/></svg>
+  {:else if name === "save"}
+    <svg class={cls} aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linejoin="round" stroke-width="2" d="M5 3h12l4 4v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Zm2 0v6h10V3M7 21v-8h10v8"/></svg>
   {:else if name === "search"}
     <svg class={cls} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
   {:else if name === "folder"}
@@ -585,7 +596,7 @@
       </div>
 
     {:else if node.type === "text"}
-      <p class="{getTextVariantClass(node.variant)} {getTextSizeClass(node.size)} leading-relaxed">
+      <p class="{getTextVariantClass(node.variant)} {getTextSizeClass(node.size)} leading-relaxed" class:plugin-warning-text={node.variant === "warning"}>
         {node.text}
       </p>
 
@@ -638,6 +649,7 @@
       </div>
 
     {:else if node.type === "textInput"}
+      {@const warning = !String(values[node.id] ?? "").trim() ? node.emptyWarning : undefined}
       {@const info = resolveHintAndLink(node.hint, node.helpText, node.link)}
       {@const iconTooltip = node.labelTooltip || node.tooltip || (node.icon === "tmdb" || (node as any).labelIcon === "tmdb" ? "TMDB ID" : node.icon === "imdb" || (node as any).labelIcon === "imdb" ? "IMDb ID" : undefined)}
       <div class="field flex flex-col gap-1.5 w-full">
@@ -664,6 +676,8 @@
           <input
             id="widget-{node.id}"
             type="text"
+            aria-describedby={warning ? `widget-${node.id}-warning` : undefined}
+            class:plugin-input-warning={!!warning}
             disabled={node.disabled}
             placeholder={node.placeholder ?? ""}
             title={node.tooltip}
@@ -679,6 +693,9 @@
             class="h-10 px-3 {node.icon && node.icon !== 'tmdb' && node.icon !== 'imdb' ? 'pl-9' : ''} rounded-xl border border-white/10 bg-white/5 text-sm text-gray-100 placeholder-gray-500 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-colors disabled:opacity-50 w-full"
           />
         </div>
+        {#if warning}
+          <span id="widget-{node.id}-warning" class="text-xs plugin-warning-text">{warning}</span>
+        {/if}
         {#if info.text || info.link}
           <div class="flex flex-wrap items-center gap-2 mt-0.5">
             {#if info.text}
@@ -701,6 +718,7 @@
       </div>
 
     {:else if node.type === "passwordInput"}
+      {@const warning = !String(values[node.id] ?? "").trim() ? node.emptyWarning : undefined}
       {@const info = resolveHintAndLink(node.hint, node.helpText, node.link)}
       {@const iconTooltip = node.labelTooltip || node.tooltip || (node.icon === "tmdb" || (node as any).labelIcon === "tmdb" ? "TMDB ID" : node.icon === "imdb" || (node as any).labelIcon === "imdb" ? "IMDb ID" : undefined)}
       <div class="field flex flex-col gap-1.5 w-full">
@@ -716,6 +734,9 @@
               </span>
             {/if}
             <span>{node.label}</span>
+            {#if warning}
+              <span aria-hidden="true" class="plugin-field-dot" title={warning}></span>
+            {/if}
           </label>
         {/if}
         <div class="relative w-full">
@@ -727,6 +748,9 @@
           <input
             id="widget-{node.id}"
             type="password"
+            use:pulseMissingPassword={warning}
+            aria-describedby={warning ? `widget-${node.id}-warning` : undefined}
+            class:plugin-input-warning={!!warning}
             disabled={node.disabled}
             placeholder={node.placeholder ?? ""}
             title={node.tooltip}
@@ -742,6 +766,9 @@
             class="h-10 px-3 {node.icon && node.icon !== 'tmdb' && node.icon !== 'imdb' ? 'pl-9' : ''} rounded-xl border border-white/10 bg-white/5 text-sm text-gray-100 placeholder-gray-500 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-colors disabled:opacity-50 w-full"
           />
         </div>
+        {#if warning}
+          <span id="widget-{node.id}-warning" class="sr-only">{warning}</span>
+        {/if}
         {#if info.text || info.link}
           <div class="flex flex-wrap items-center gap-2 mt-0.5">
             {#if info.text}
@@ -997,7 +1024,7 @@
         type="button"
         id="widget-{node.id}"
         data-plugin-button={node.id}
-        disabled={blocked && !(!loading && actionLoading === null && node.disabled && node.disabledFocus)}
+        disabled={blocked && !(!loading && actionLoading === null && node.disabledFocus)}
         aria-disabled={blocked || undefined}
         title={guidance}
         class="relative inline-flex items-center justify-center gap-1.5 font-medium h-10 px-4 text-xs rounded-xl transition-colors disabled:opacity-50 aria-disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed {getButtonVariantClass(node.variant)}"
@@ -1006,7 +1033,7 @@
         {#if actionLoading === node.id}
           <svg class="animate-spin -ml-1 mr-1.5 h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
         {:else if node.icon}
-          {@render renderIcon(node.icon, "w-3.5 h-3.5 shrink-0")}
+          {@render renderIcon(node.icon, "w-3.5 h-3.5 shrink-0 " + (node.icon === "save" || node.icon === "refresh" ? "text-white" : ""))}
         {/if}
         {#if node.status === "attention" || node.status === "ready"}
           <span aria-hidden="true" class="plugin-status-dot" class:attention={node.status === "attention"}></span>
@@ -1341,6 +1368,19 @@
     block-size: 0.45rem;
     border-radius: 50%;
     background: var(--done);
+  }
+  .plugin-field-dot {
+    flex: none;
+    inline-size: 0.4rem;
+    block-size: 0.4rem;
+    border-radius: 50%;
+    background: var(--color-amber-400);
+  }
+  .plugin-input-warning {
+    border-color: var(--color-amber-400);
+  }
+  .plugin-warning-text {
+    color: var(--color-amber-400);
   }
   .plugin-status-dot.attention {
     background: var(--color-amber-400);

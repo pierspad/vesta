@@ -163,7 +163,7 @@ export interface RowWidget extends BaseWidget {
 export interface TextWidget extends BaseWidget {
   type: "text";
   text: string;
-  variant?: "normal" | "muted" | "danger" | "success";
+  variant?: "normal" | "muted" | "danger" | "success" | "warning";
   size?: "sm" | "base" | "lg";
 }
 
@@ -186,6 +186,7 @@ export interface TextInputWidget extends BaseWidget {
   icon?: string;
   submitAction?: string;
   hint?: string | { text?: string; link?: { label: string; url: string } };
+  emptyWarning?: string;
   helpText?: string;
   link?: { label: string; url: string };
 }
@@ -214,6 +215,7 @@ export interface PasswordInputWidget extends BaseWidget {
   icon?: string;
   submitAction?: string;
   hint?: string | { text?: string; link?: { label: string; url: string } };
+  emptyWarning?: string;
   helpText?: string;
   link?: { label: string; url: string };
 }

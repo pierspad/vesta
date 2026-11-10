@@ -92,6 +92,7 @@ def TextInput(
     labelIcon: Optional[str] = None,
     labelTooltip: Optional[str] = None,
     submitAction: Optional[str] = None,
+    emptyWarning: Optional[str] = None,
     **options: Any,
 ) -> Dict[str, Any]:
     node: Dict[str, Any] = {
@@ -112,6 +113,7 @@ def TextInput(
         "labelIcon": labelIcon,
         "labelTooltip": labelTooltip,
         "submitAction": submitAction,
+        "emptyWarning": emptyWarning,
     }.items():
         if value is not None:
             node[key] = value
@@ -139,6 +141,7 @@ def PasswordInput(
     labelIcon: Optional[str] = None,
     labelTooltip: Optional[str] = None,
     submitAction: Optional[str] = None,
+    emptyWarning: Optional[str] = None,
     **options: Any,
 ) -> Dict[str, Any]:
     node: Dict[str, Any] = {
@@ -159,6 +162,7 @@ def PasswordInput(
         "labelIcon": labelIcon,
         "labelTooltip": labelTooltip,
         "submitAction": submitAction,
+        "emptyWarning": emptyWarning,
     }.items():
         if value is not None:
             node[key] = value
@@ -460,16 +464,12 @@ class VestaPlugin:
         self.locale = "en"
         self.expert_mode = False
         self.settings: Dict[str, Any] = {}
-        self.shared_credentials: Dict[str, str] = {}
 
         self._render_handlers: Dict[str, Callable[[Dict[str, Any]], Any]] = {}
         self._event_handlers: Dict[str, Callable[[str, str, str, Dict[str, Any]], Any]] = {}
         self._init_handler: Optional[Callable[[Dict[str, Any]], None]] = None
         self._req_id = 1000
         self._inbox: List[Dict[str, Any]] = []
-
-    def get_shared_credential(self, key: str, default: str = "") -> str:
-        return self.shared_credentials.get(key, default)
 
     def on_initialize(self, func: Callable[[Dict[str, Any]], None]):
         self._init_handler = func
@@ -579,8 +579,6 @@ class VestaPlugin:
             self.locale = params["locale"]
         if "expertMode" in params:
             self.expert_mode = bool(params["expertMode"])
-        if "sharedCredentials" in params and isinstance(params["sharedCredentials"], dict):
-            self.shared_credentials.update(params["sharedCredentials"])
 
     def run(self):
         """Runs the JSON-RPC dispatch loop over stdin and stdout."""
@@ -675,7 +673,7 @@ VALID_WIDGET_TYPES = {
     "heading",
     "text",
     "textInput",
-    "textarea",
+    "textArea",
     "pathInput",
     "passwordInput",
     "numberInput",

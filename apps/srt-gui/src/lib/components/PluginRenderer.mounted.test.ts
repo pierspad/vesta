@@ -659,7 +659,7 @@ it("guides blocked searches to settings and enforces prerequisites on Enter", as
   expect(document.activeElement).toBe(settings);
   expect(mockDispatch).not.toHaveBeenCalled();
 
-  renderer.applyPatch({ setProps: { search: { disabled: false } } });
+  renderer.applyPatch({ setProps: { search: { disabled: false, disabledFocus: undefined } } });
   await tick();
   expect(search.title).toBe("Enter an ID");
   expect(search.disabled).toBe(true);
@@ -671,6 +671,57 @@ it("guides blocked searches to settings and enforces prerequisites on Enter", as
   expect(search.hasAttribute("aria-disabled")).toBe(false);
   input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
   expect(mockDispatch).toHaveBeenCalledOnce();
+});
+
+it("focuses an empty credential field without dispatching Save", async () => {
+  const target = document.createElement("div");
+  document.body.append(target);
+  const root: WidgetNode = {
+    type: "column",
+    children: [
+      { type: "passwordInput", id: "key", label: "API key", emptyWarning: "Add a key" },
+      { type: "button", id: "save", label: "Save", requiresAny: ["key"], disabledFocus: "key" },
+    ],
+  };
+  mockRender.mockResolvedValue({ root });
+  mockDispatch.mockResolvedValue({});
+  components.push(mount(PluginRenderer, { target, props: { pluginId: "fixture", initialRoot: root } }));
+  await tick();
+
+  const input = target.querySelector<HTMLInputElement>("#widget-key")!;
+  const save = target.querySelector<HTMLButtonElement>("#widget-save")!;
+  expect(target.querySelector(".plugin-field-dot")).not.toBeNull();
+  expect(target.querySelector("#widget-key-warning")?.classList.contains("sr-only")).toBe(true);
+  save.click();
+  expect(document.activeElement).toBe(input);
+  expect(mockDispatch).not.toHaveBeenCalled();
+
+  input.value = "configured";
+  input.dispatchEvent(new Event("input", { bubbles: true }));
+  await tick();
+  expect(target.querySelector(".plugin-field-dot")).toBeNull();
+  save.click();
+  expect(mockDispatch).toHaveBeenCalledOnce();
+});
+
+it.each(["textInput", "passwordInput"] as const)("describes an empty %s until a value is entered", async (type) => {
+  const target = document.createElement("div");
+  document.body.append(target);
+  const root: WidgetNode = { type, id: "key", label: "API key", emptyWarning: "Add a key" };
+  mockRender.mockResolvedValue({ root });
+  components.push(mount(PluginRenderer, { target, props: { pluginId: "fixture", initialRoot: root } }));
+  await tick();
+
+  const input = target.querySelector<HTMLInputElement>("#widget-key")!;
+  expect(input.getAttribute("aria-describedby")).toBe("widget-key-warning");
+  expect(target.querySelector("#widget-key-warning")?.textContent).toBe("Add a key");
+  expect(input.classList.contains("plugin-input-warning")).toBe(true);
+
+  input.value = "configured";
+  input.dispatchEvent(new Event("input", { bubbles: true }));
+  await tick();
+  expect(input.hasAttribute("aria-describedby")).toBe(false);
+  expect(target.querySelector("#widget-key-warning")).toBeNull();
 });
 
 it("renders the localized alternative only between visible row inputs", async () => {
