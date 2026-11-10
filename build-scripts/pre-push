@@ -14,31 +14,56 @@ bash build-scripts/check-push-i18n.sh
 
 echo "🔎 Running pre-push quality gates..."
 
-# 1. Validate internal crate versions
-echo "  [1/4] Checking internal crate versions..."
-if ! bash build-scripts/check_internal_crate_versions.sh; then
-  echo "❌ Error: Crate versions are inconsistent. Push aborted." >&2
+# 1. Validate internal crate versions and Tauri version lockstep
+echo "  [1/7] Checking internal crate and Tauri versions..."
+if ! bash build-scripts/check_internal_crate_versions.sh || ! python3 build-scripts/check_tauri_versions.py; then
+  echo "❌ Error: Crate or Tauri versions are inconsistent. Push aborted." >&2
   exit 1
 fi
 
-# 2. Check Rust code formatting
-echo "  [2/4] Checking Rust formatting..."
+# 2. Validate documentation and API contracts
+echo "  [2/7] Checking documentation and API contracts..."
+if ! python3 build-scripts/check_doc_contracts.py || ! python3 build-scripts/test_doc_contracts.py; then
+  echo "❌ Error: Documentation or API contract verification failed. Push aborted." >&2
+  exit 1
+fi
+
+# 3. Validate release workflow syntax and safety
+echo "  [3/7] Checking release workflow rules..."
+if ! python3 build-scripts/test_release_workflows.py; then
+  echo "❌ Error: Release workflow validation failed. Push aborted." >&2
+  exit 1
+fi
+
+# 4. Audit Rust and frontend dependencies for security vulnerabilities
+echo "  [4/7] Auditing dependencies (cargo audit & npm audit)..."
+if command -v cargo-audit >/dev/null 2>&1; then
+  if ! cargo audit; then
+    echo "❌ Error: cargo audit reported vulnerabilities. Update affected crates before pushing." >&2
+    exit 1
+  fi
+fi
+if ! (cd apps/srt-gui && npm audit); then
+  echo "❌ Error: npm audit reported vulnerabilities. Push aborted." >&2
+  exit 1
+fi
+
+# 5. Check Rust code formatting
+echo "  [5/7] Checking Rust formatting..."
 if ! cargo fmt --all --check; then
   echo "❌ Error: Rust code is not formatted. Run 'cargo fmt' to fix. Push aborted." >&2
   exit 1
 fi
 
-# 3. Check Rust clippy lints
-echo "  [3/4] Running cargo clippy..."
+# 6. Check Rust clippy lints
+echo "  [6/7] Running cargo clippy..."
 if ! cargo clippy --workspace --all-targets -- -D warnings; then
   echo "❌ Error: Clippy lints failed. Fix clippy warnings. Push aborted." >&2
   exit 1
 fi
 
-# 4. Run the Rust test suite (stesso comando del job "test" in ci.yml: qui
-#    dà feedback prima del push, la CI resta la rete di sicurezza per push
-#    fatti con --no-verify o da chi non ha installato l'hook).
-echo "  [4/4] Running cargo test..."
+# 7. Run the Rust test suite (same scope as CI's "test" job)
+echo "  [7/7] Running cargo test..."
 if ! cargo test --workspace; then
   echo "❌ Error: Test suite failed. Push aborted." >&2
   exit 1

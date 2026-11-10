@@ -18,6 +18,7 @@ import ast
 import hashlib
 import json
 import re
+import subprocess
 import sys
 from pathlib import Path
 from typing import Any, Dict, List, Set, Tuple
@@ -661,6 +662,19 @@ def extract_headings(md_path: Path) -> Set[str]:
     return anchors
 
 
+def _is_git_ignored(path: Path) -> bool:
+    try:
+        rel = path.resolve().relative_to(ROOT.resolve())
+    except ValueError:
+        return False
+    res = subprocess.run(
+        ["git", "check-ignore", "-q", str(rel)],
+        cwd=ROOT,
+        check=False,
+    )
+    return res.returncode == 0
+
+
 def verify_markdown_links() -> Tuple[int, List[str]]:
     md_files = collect_markdown_files()
     heading_cache: Dict[Path, Set[str]] = {f: extract_headings(f) for f in md_files}
@@ -703,6 +717,11 @@ def verify_markdown_links() -> Tuple[int, List[str]]:
                 if not target_path.exists():
                     errors.append(
                         f"[Broken Link] {rel_src}:{lineno} -> '{raw_target}' (target does not exist)"
+                    )
+                    continue
+                if _is_git_ignored(target_path):
+                    errors.append(
+                        f"[Ignored Link Target] {rel_src}:{lineno} -> '{raw_target}' (target exists locally but is git-ignored and will break in CI)"
                     )
                     continue
 

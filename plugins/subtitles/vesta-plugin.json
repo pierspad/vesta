@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "apiVersion": 1,
   "description": "Subtitle search via OpenSubtitles, local video track extraction, and flashcards integration for Vesta.",
-  "author": "Browzomje",
+  "author": "pierspad",
   "icon": "icon.png",
   "entry": {
     "command": ["python3", "main.py"],

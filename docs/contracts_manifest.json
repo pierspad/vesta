@@ -429,7 +429,7 @@
       }
     },
     "plugin_sdk": {
-      "hash": "a259ec7c862f43d3",
+      "hash": "4a43e5ce0933f7a5",
       "widget_types": [
         "button",
         "checkbox",
@@ -568,7 +568,7 @@
           "id": "subtitles-veplugin",
           "screens": [],
           "settings": [],
-          "hash": "0ef9a7bdc8ef5e60"
+          "hash": "4b135556bc598339"
         }
       },
       "docs": [
