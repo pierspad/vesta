@@ -36,8 +36,8 @@ async fn main() -> anyhow::Result<()> {
     download_to(
         "https://example.com/resource.bin",
         Path::new("cache/resource.bin"),
-        |downloaded, total| eprintln!("{downloaded}/{total} bytes"),
-        &cancel,
+        |percent| eprintln!("{percent}%"),
+        Some(&cancel),
     )
     .await?;
     Ok(())

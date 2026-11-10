@@ -17,11 +17,7 @@ This directory contains a minimal, working reference implementation of an extern
 
 2. Open the **Plugins** manager tab in the sidebar.
 
-3. In the repository URL input field, enter the path to this folder:
-   ```
-   docs/examples/plugin-hello
-   ```
-   *(or an absolute path `/path/to/vesta/docs/examples/plugin-hello` / `~/...` / `file://...`)*
+3. Switch the install source to **Local Folder** and select `docs/examples/plugin-hello` (or enter its path).
 
 4. Click **Inspect Plugin**. You will see:
    - Name: "Hello Counter"
@@ -34,4 +30,4 @@ This directory contains a minimal, working reference implementation of an extern
 
 6. The plugin is installed into Vesta's plugin directory and a new tab titled **Hello Counter** appears in the sidebar.
 
-7. Click the tab in the sidebar to interact with the plugin!
+7. Click the tab in the sidebar to open the plugin.

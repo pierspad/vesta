@@ -2,9 +2,7 @@
 
 Subtitle synchronization primitives based on anchor points and interpolation.
 
-The crate contains the reusable timing engine, media matching helpers, playback preparation, and subtitle sampling logic used by the GUI and `srt-autosync`.
-
-Manual retiming is also available through the [srt-sync CLI](../../cli/srt-sync-cli/README.md), using the same engine without desktop dependencies.
+`SyncEngine` performs piecewise-linear timestamp interpolation across manual and automatic anchors (`add_anchor`, `remove_anchor`, `group_anchor_edits`), maintains a bounded 100-step undo/redo history (`undo`, `redo`), serializes session state (`save_session`, `load_session`), and writes retimed SRT files atomically (`save_synced_file`). Companion modules provide subtitle/media file discovery (`matching`), checkpoint candidate selection (`AdaptiveSampler`), and audio preview caching (`playback`). Manual retiming is also available through the [srt-sync CLI](../../cli/srt-sync-cli/README.md).
 
 Playback preparation (`srt-sync::playback`) passes natively playable audio
 formats (`mp3`, `wav`, `ogg`, `m4a`, `aac`, `opus`, `flac`) through directly.

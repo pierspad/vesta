@@ -42,7 +42,7 @@ cancellable resource downloads and atomic publication.
 | **core** | `srt-parser`, `srt-apkg`, `srt-download` | Foundational primitives. Minimal external dependencies, zero knowledge of higher engines or GUI. Auto-charset detection via `chardetng` + `encoding_rs`, lossless timing arithmetic, direct ZIP/SQLite archive serialization, and cancellable atomic resource downloads. |
 | **lib** | `srt-flashcards`, `srt-translate`, `srt-transcribe`, `srt-autosync`, `srt-extract`, `srt-refine`, `srt-sync`, `srt-ankiconnect` | Self-contained domain engines. **Zero GUI/Tauri coupling**. Long-running tasks accept a `tokio_util::sync::CancellationToken` and report progress through callbacks. External tools and heavy dependencies (FFmpeg processes, `whisper-rs`, `rusqlite`, `reqwest`) are encapsulated here. |
 | **cli** | `srt-flashcards-cli`, `srt-translate-cli`, `srt-transcribe-cli`, `srt-autosync-cli`, `srt-extract-cli`, `srt-sync-cli`, `srt-refine-cli`, `vesta-cli`, `vesta-mcp` | Headless, terminal frontends powered by `clap`, plus the `vesta-cli` unified entry point and `vesta-mcp` stdio MCP server (10 tools). Thin wrappers over corresponding `lib/` engines. Suitable for server scripting, batch processing, CI pipelines, AI assistants, and benchmarking. |
-| **apps** | `apps/srt-gui` (`vesta`), `apps/whisper-bench` | Desktop composition roots. Svelte owns presentation/state; Tauri commands adapt IPC to `lib/` crates and own process-level services such as local media streaming, dialogs, and window integration. |
+| **apps** | `apps/srt-gui` (`vesta`), `apps/whisper-bench` | Desktop composition roots. Svelte owns presentation/state; Tauri commands adapt IPC to `lib/` crates and own process-level services such as local media streaming, declarative plugin subprocess management (`src-tauri/src/plugins`), dialogs, and window integration. |
 
 ---
 
@@ -215,7 +215,7 @@ GPU use is selective rather than global:
 | Snapshots | FFmpeg CPU filters/encoders | CPU | Small still outputs are normally transfer-bound. |
 | Parsing, matching, retiming, SQLite/ZIP, HTTP | CPU | CPU | Branch-heavy, I/O-bound, or small workloads are not good GPU candidates. |
 
-`video_hw_accel = "auto"` performs an actual test encode before choosing a
+`video_hw_accel = "auto"` performs a test encode before selecting a
 hardware encoder. Local transcription defaults to `use_gpu = true`, but this
 only activates a backend included at compile time. Official Linux desktop
 builds enable Vulkan; development or CLI CPU builds remain valid. A missing or
@@ -232,7 +232,7 @@ downloadable single-backend workers.
   preparation for Whisper.
 - GStreamer through WebKitGTK: playback inside the desktop webview only.
 - Vulkan loader/driver: local Whisper offload in Vulkan-enabled builds.
-- VA-API/NVENC/QSV: selected at runtime by FFmpeg when a real probe succeeds.
+- VA-API/NVENC/QSV: selected at runtime by FFmpeg when a hardware probe succeeds.
 
 On Arch Linux, preview support requires `gstreamer`, `gst-plugins-base`,
 `gst-plugins-good`, `gst-plugins-bad`, `gst-plugins-ugly`, and `gst-libav`.
@@ -242,7 +242,7 @@ The AUR `PKGBUILD` declares these runtime dependencies.
 
 ## Headless CLI Tooling
 
-Every key engine can be built and run standalone without Tauri. In addition to individual standalone CLI binaries, Vesta provides `vesta-cli` as a unified entry point (`vesta-cli <operation>`) and `vesta-mcp` as a stdio Model Context Protocol (MCP) server exposing 10 tools for AI assistants and automation agents:
+Every key engine can be built and run standalone without Tauri. In addition to individual standalone CLI binaries, Vesta provides `vesta-cli` as a unified entry point (`vesta-cli <operation>`) and `vesta-mcp` as a stdio Model Context Protocol (MCP) server exposing 10 tools for MCP clients:
 
 ```bash
 # Build the unified CLI and MCP server
@@ -345,14 +345,14 @@ before committing preferences and the chosen model in the local tier.
 request for the archive size when the tools are missing; unavailable sizes are
 shown explicitly rather than guessed.
 Its preview mode skips persistence, global language changes and downloads.
-After a real setup, a one-shot persisted navigation flag preserves the requested
+After persisted setup, a one-shot navigation flag preserves the requested
 first activity (flashcards, transcription or subtitle extraction) across the
 reload that reconstructs the stores.
 For repeatable setup, installer and internal-update checks on installed builds,
 see [setup testing](SETUP_TESTING.md).
 
-Support logging and installer updates are desktop services, not feature engines:
-`commands/support_logs.rs` owns log files; `commands/updates.rs` chooses an official
+Support logging, external plugin hosting, and installer updates are desktop services, not feature engines:
+`commands/support_logs.rs` owns log files; `commands/plugins.rs` and `src-tauri/src/plugins/` manage external JSON-RPC 2.0 plugin processes (`plugin_inspect`, `plugin_install`, `plugin_list`, `plugin_enable`, `plugin_disable`, `plugin_uninstall`, `plugin_update`, `plugin_get_settings`, `plugin_save_settings`, `plugin_render`, `plugin_dispatch_event`; see [PLUGINS.md](PLUGINS.md)); `commands/updates.rs` chooses an official
 stable-release installer for the installed channel/architecture, verifies its
 digest, and opens it. Package-manager channels remain managed externally. Release
 creation and package builds are separate GitHub workflows; a published tag alone

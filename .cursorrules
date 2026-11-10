@@ -453,11 +453,11 @@ changes follow Conventional Commit breaking-change syntax.
 
 ### 15.2 `build.yml` — `Build and Release`
 
-The workflow runs for `v*` tags or by manual dispatch with a required existing
-`release_tag`. It checks out that tag, builds Linux `.deb` and `.rpm` packages,
-an Arch package repacked from the `.deb`, a Flatpak, and Windows NSIS installers
-(plus MSI for stable versions). The release job runs only if all four platform
-jobs succeed and the tag version matches `PKGBUILD` `pkgver`. It uploads the
+The workflow runs for `v*` tags or by manual dispatch (with an optional existing
+`release_tag` to publish, or blank for branch preview artifacts). It checks out the target ref, builds Linux `.deb` and `.rpm` packages,
+an Arch package repacked from the `.deb`, a Flatpak, Windows x64 and ARM64 NSIS installers
+(plus x64 MSI for stable versions and a native `windows-11-arm` smoke test), and a macOS ARM64 `.dmg` disk image. The release job runs only when publishing a tag, all six build/smoke
+jobs succeed, and the tag version matches `PKGBUILD` `pkgver`. It uploads the
 artifacts with GitHub CLI, creating a release only if one does not already
 exist. Stable releases then request the AUR publishing workflow; prereleases
 skip AUR publication.

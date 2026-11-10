@@ -17,10 +17,10 @@ The result is a list of `AnchorSuggestion`s; feeding them to
 **Library API**
 
 - `AutoSyncConfig` (`AutoSyncConfig::new(media_path, model_path)`, language hint, quick mode, `use_gpu`, `max_offset_secs`, `existing_anchors`, ffmpeg/ffprobe commands)
-- `ExistingAnchor { subtitle_id, original_ms, corrected_ms }` — manual anchors used to guide local search and constrain consensus
+- `ExistingAnchor { original_time_ms, target_time_ms }` (`.offset()`, `.corrected_time_ms()`) — manual anchors used to guide local search and constrain consensus
 - `run_auto_sync(&config, subtitles, on_progress, &cancel_token)` →
   `AutoSyncOutcome { suggestions, segments_analyzed, cancelled }`
-- `run_auto_sync_with_cloud(&config, &cloud_endpoint, subtitles, on_progress, &cancel_token)` — cloud speech-to-text alignment without a local Whisper model
+- `run_auto_sync_with_cloud(&config, subtitles, on_progress, &cancel_token, cloud)` — cloud speech-to-text alignment without a local Whisper model (`cloud: Option<srt_transcribe::cloud::CloudConfig>`)
 - Progress callback carries `message_key` + `params` so UIs can localize.
 
 ## Use as a binary

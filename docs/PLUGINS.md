@@ -16,7 +16,7 @@ Plugins **never write native GUI code**. Instead, they describe their user inter
 
 ## Table of Contents
 
-1. [The Vesta-Agnostic Contract Philosophy](#1-the-vesta-agnostic-contract-philosophy)
+1. [Architecture & Boundaries](#1-architecture--boundaries)
 2. [Plugin Anatomy & Manifest](#2-plugin-anatomy--manifest)
 3. [Lifecycle & Installation](#3-lifecycle--installation)
 4. [JSON-RPC 2.0 Communication Protocol](#4-json-rpc-20-communication-protocol)
@@ -31,13 +31,13 @@ Plugins **never write native GUI code**. Instead, they describe their user inter
 
 ---
 
-## 1. The Vesta-Agnostic Contract Philosophy
+## 1. Architecture & Boundaries
 
-Plugins are **100% decoupled** from Vesta's internal frontend (Svelte) and backend (Rust/Tauri) implementation details:
+Plugins are decoupled from Vesta's internal frontend (Svelte) and backend (Rust/Tauri) implementation details:
 - A plugin does not import any Vesta packages or depend on Vesta's internal source tree.
 - A plugin only speaks JSON-RPC 2.0 over `stdin`/`stdout` and emits declarative JSON widget trees or incremental patches.
 - Vesta exposes application-level capabilities (unified 58-language catalog with bundled SVG flags, localized language names in Vesta's active locale, native OS path pickers, `AppTooltip` hover tooltips, `Expert Mode` filtering, and Flashcards tab handoff) purely through declarative widget properties.
-- **Forward Compatibility Guarantee**: As long as Vesta preserves the v1 JSON-RPC and Declarative Widget Contract documented here, Vesta's internal UI, styling, and Rust core can be refactored or redesigned freely without breaking existing plugins.
+- **Forward Compatibility**: As long as Vesta preserves the v1 JSON-RPC and Declarative Widget Contract documented here, Vesta's internal UI, styling, and Rust core can be refactored or redesigned without breaking existing plugins.
 
 ---
 
@@ -125,8 +125,11 @@ Vesta extracts the plugin to a temporary staging folder, reads and validates `ve
 for enabled plugins installed from a GitHub repository. Stable release tags
 use `vX.Y.Z`. The app's automatic update preference also controls the initial
 check when opening Plugins. A check only displays available versions.
-Use the update action on a card to install its offered tag. Local folders,
-archive URLs and explicitly pinned branches keep their existing update behavior.
+Use the update action on a card to install its offered tag. For a local plugin,
+the update action copies the current contents of the original folder again,
+even if the manifest version is unchanged. Vesta does not watch the folder
+for edits. Archive URLs and pinned branches can be refreshed manually from
+their original source.
 Updates preserve the installed plugin's `data/` directory and reject a changed
 plugin ID or newly requested permission scopes. Review expanded permissions
 through the installation inspection flow.
@@ -287,20 +290,20 @@ All widgets accept the following optional properties:
 |---|---|---|
 | `column` | Vertical flex container | `gap?: number \| string`, `children: WidgetNode[]` |
 | `row` | Horizontal flex container | `gap?: number \| string`, `align?: "start" \| "center" \| "end" \| "between"`, `separator?: "or"`, `children: WidgetNode[]` |
-| `text` | Paragraph or status text | `text: string`, `variant?: "normal" \| "muted" \| "danger" \| "success"`, `size?: "sm" \| "base" \| "lg"` |
+| `text` | Paragraph or status text | `text: string`, `variant?: "normal" \| "muted" \| "danger" \| "warning" \| "success"`, `size?: "sm" \| "base" \| "lg"` |
 | `heading` | Section heading | `text: string`, `level?: 1 \| 2 \| 3 \| 4`, `icon?: string` |
-| `textInput` | Text input field | `id: string`, `label?: string`, `labelIcon?: string`, `labelTooltip?: string`, `placeholder?: string`, `defaultValue?: string`, `icon?: string`, `submitAction?: string`, `hint?: string \| { text?, link? }`, `link?: { label, url }` |
+| `textInput` | Text input field | `id: string`, `label?: string`, `labelIcon?: string`, `labelTooltip?: string`, `placeholder?: string`, `defaultValue?: string`, `icon?: string`, `submitAction?: string`, `emptyWarning?: string`, `hint?: string \| { text?, link? }`, `link?: { label, url }` |
 | `textArea` | Resizable multiline input | `id: string`, `label: string`, `placeholder?: string`, `defaultValue?: string`, `rows?: number`, `maxLength?: number`, `disabled?: boolean`, `readOnly?: boolean` |
-| `passwordInput`| Password / API key field | `id: string`, `label?: string`, `labelIcon?: string`, `labelTooltip?: string`, `placeholder?: string`, `defaultValue?: string`, `icon?: string`, `submitAction?: string`, `hint?: string \| { text?, link? }`, `link?: { label, url }` |
+| `passwordInput`| Password / API key field | `id: string`, `label?: string`, `labelIcon?: string`, `labelTooltip?: string`, `placeholder?: string`, `defaultValue?: string`, `icon?: string`, `submitAction?: string`, `emptyWarning?: string`, `hint?: string \| { text?, link? }`, `link?: { label, url }` |
 | `numberInput` | Numeric input field | `id: string`, `label?: string`, `min?: number`, `max?: number`, `step?: number`, `defaultValue?: number` |
 | `select` | Styled dropdown select | `id: string`, `label?: string`, `options: Array<{ label, value }>`, `defaultValue?: string` |
 | `segmented` | Sub-navigation pill bar | `id: string`, `label?: string`, `options: Array<{ value, label, icon?, badge?, tooltip? }>`, `defaultValue?: string` |
 | `pathInput` | Native OS file/folder picker | `id: string`, `label?: string`, `placeholder?: string`, `defaultValue?: string`, `pickerType?: "file" \| "folder"`, `filters?: Array<{ name, extensions }>`, `drop?: boolean`, `dropHint?: string` |
-| `languageSelect` | Unified searchable language picker | `id: string`, `label?: string`, `scope?: "all" \| "core"` (defaults to `"all"` for all 58 languages with bundled SVG flags), `defaultValue?: string` (ISO-639-1 code, e.g. `"en"`, `"it"`), `placeholder?: string`, `tooltip?: string` |
+| `languageSelect` | Unified searchable language picker | `id: string`, `label?: string`, `scope?: "all" \| "core"`, `codes?: string[]`, `names?: "both" \| "english" \| "native"`, `showFlags?: boolean`, `defaultValue?: string` (ISO-639-1 code, e.g. `"en"`, `"it"`), `placeholder?: string`, `tooltip?: string` |
 | `checkbox` | Toggle checkbox | `id: string`, `label: string`, `defaultValue?: boolean`, `tooltip?: string` |
-| `button` | Action button | `id: string`, `label: string`, `icon?: string`, `variant?: "primary" \| "secondary" \| "danger" \| "settings" \| "accent"`, `disabled?: boolean`, `tooltip?: string` |
+| `button` | Action button | `id: string`, `label: string`, `icon?: string`, `variant?: "primary" \| "secondary" \| "danger" \| "settings" \| "accent"`, `status?: "attention" \| "ready"`, `placement?: "header" \| "body"`, `disabled?: boolean`, `tooltip?: string`, `disabledTooltip?: string`, `disabledFocus?: string`, `requiresAny?: string[]` |
 | `link` / `externalLink` | External hyperlink | `label: string`, `url: string`, `icon?: string` (opens in system browser via Tauri opener) |
-| `list` | Rich item list with actions | `items: Array<{ id, title, subtitle?, badge?, language?, meta?, image?, primaryAction?, actions?: Array<{ id, label, variant?, icon?, iconOnly?, tooltip? }> }>` |
+| `list` | Rich item list with actions | `reserveImage?: boolean`, `items: Array<{ id, title, subtitle?, badge?, language?, meta?, image?, primaryAction?, actions?: Array<{ id, label, variant?, icon?, iconOnly?, tooltip? }> }>` |
 | `table` | Responsive data table | `headers: string[]`, `rows: Array<Array<string \| number>>` |
 | `image` | Static image | `src: string`, `alt?: string`, `width?: number`, `height?: number` |
 | `progress` | Progress bar | `value: number`, `max?: number`, `label?: string` |
@@ -308,11 +311,11 @@ All widgets accept the following optional properties:
 | `divider` | Horizontal separator | `expertOnly?: boolean` |
 | `settings` | Embedded configuration card | `fields: PluginSettingField[]` |
 
-### Special Declarative Capabilities
+### Interactive Field & List Features
 1. **Keyboard `Enter` Submission (`submitAction`)**:
    Setting `submitAction: "btn_do_search"` on a `textInput` or `passwordInput` instructs Vesta to automatically trigger `"btn_do_search"` when the user presses `Enter` inside that field. If `submitAction` is omitted, pressing `Enter` dispatches an `event` with `type: "submit"` and `widgetId: <input_id>`.
-2. **Official Brand Badges & Label Tooltips (`icon: "tmdb" | "imdb"`, `labelTooltip`)**:
-   When a `textInput` or `passwordInput` sets `icon: "tmdb"` or `icon: "imdb"`, Vesta renders the official vector badge next to the field's label above the input (e.g. `[TMDB Logo] ID`) with a hover tooltip (`labelTooltip`, defaulting to `"TMDB ID"` or `"IMDb ID"`).
+2. **TMDB and IMDb Logos & Label Tooltips (`icon: "tmdb" | "imdb"`, `labelTooltip`)**:
+   When a `textInput` or `passwordInput` sets `icon: "tmdb"` or `icon: "imdb"`, Vesta renders the vector badge next to the field's label above the input (e.g. `[TMDB Logo] ID`) with a hover tooltip (`labelTooltip`, defaulting to `"TMDB ID"` or `"IMDb ID"`).
 3. **Automatic Localized Language & Flag Rendering in Lists (`item.language`)**:
    When a `list` item includes `language: "en"` (or any ISO language code such as `"it"`, `"ja"`, `"pt-br"`), Vesta automatically resolves the bundled country flag SVG (`/flags/*.svg`) and formats the full language name in Vesta's currently selected application language (e.g., `[🇬🇧] Inglese` when Vesta is in Italian, or `[🇬🇧] English` when Vesta is in English), prepending it to the item's `subtitle` and `meta` fields.
 
@@ -334,12 +337,17 @@ Buttons can declare action guidance through the SDK's `Button` builder:
   submissions that target the button.
 - `disabledTooltip` explains an explicit `disabled: true` state. `tooltip` is
   the ordinary hint and remains available while required inputs are empty.
-- `disabledFocus` names a button in the same rendered screen. Activating an
-  explicitly disabled action focuses that button without sending an event to
-  the plugin. Use this for a setup step such as saving a credential.
+- `disabledFocus` names a focusable widget in the same screen. Activating a
+  blocked action focuses that widget without sending an event to the plugin.
+  Use it to guide users to a missing credential or a setup action.
 - `variant: "settings"` gives setup actions a distinct style and focus outline.
   `status: "attention" | "ready"` adds an indicator. Provide a tooltip that
   describes what the indicator means.
+
+Use `emptyWarning="Add an API key to enable search."` to describe a blank field.
+A `PasswordInput` shows an amber indicator by its label and keeps the
+description available to assistive technology. A `TextInput` displays the
+message below the field. Pass localized text as you would for a field label.
 
 Use `Button(..., variant="settings", icon="settings")` for plugin settings.
 Vesta places this action at the right of the title bar by default. Use
@@ -444,7 +452,7 @@ Vesta's Model Context Protocol server (`cli/vesta-mcp`) can inspect and interact
 
 ## 10. Permissions & Security Model
 
-External plugins execute untrusted code on the user's host machine. Vesta enforces security governance:
+External plugins execute untrusted code on the user's host machine. Vesta enforces security boundaries:
 - **Explicit confirmation**: Every plugin inspects its manifest and prompts the user with the list of permissions prior to installation.
 - **Directory containment**: Plugin installation and archive extraction occur within `<app_data>/plugins/installed/<id>`; path traversal (`../`) and symlinks are blocked.
 - **Permission Declarations**:
@@ -466,7 +474,7 @@ Vesta includes a zero-dependency Python SDK helper (`vesta_plugin.py`) located u
   - `plugin.notify(msg, level="info")`, `plugin.progress(id, value, label="")`, `plugin.update_ui(screen="main", root=None, patch=None)`
   - `plugin.open_in_flashcards(video_path, subtitle_path)`
   - `plugin.get_values(screen="main") -> dict`
-  - Runtime properties updated automatically across RPC calls: `plugin.locale`, `plugin.expert_mode`, `plugin.data_dir`, `plugin.settings`, `plugin.shared_credentials`.
+  - Runtime properties updated automatically across RPC calls: `plugin.locale`, `plugin.expert_mode`, `plugin.data_dir`, `plugin.settings`.
 
 ```python
 from vesta_plugin import VestaPlugin, Column, Heading, Text, TextInput, Button

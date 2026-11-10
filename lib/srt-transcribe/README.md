@@ -2,7 +2,7 @@
 
 Media-to-SRT transcription pipeline used by Vesta and `srt-transcribe-cli`.
 
-It supports local `whisper.cpp`, optional Silero VAD, cloud speech-to-text providers, progress callbacks, cancellation, and GPU backends selected at compile time.
+It supports local `whisper.cpp` (`transcribe_full`, `transcribe_full_with_state`, `TranscribeOptions`), WebRTC and Silero VAD pre-filtering, cloud speech-to-text providers, progress callbacks, cancellation, and GPU backends selected at compile time.
 
 ```bash
 cargo test -p srt-transcribe

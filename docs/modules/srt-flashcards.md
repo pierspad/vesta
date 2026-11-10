@@ -3,9 +3,8 @@
 `lib/srt-flashcards` is the core of Vesta: a headless engine that turns
 subtitle pairs + a media file into an Anki deck — audio snippets, snapshots
 and video clips per card, exported as TSV + media folder or a self-contained
-`.apkg`. It is the modern, parallel replacement for the subs2srs pipeline
-(media extraction runs on a semaphore-bounded worker pool, saturating
-the configured number of FFmpeg processes).
+`.apkg`. Media extraction runs concurrently across a semaphore-bounded FFmpeg
+worker pool.
 
 **What's inside**
 
@@ -25,8 +24,8 @@ the configured number of FFmpeg processes).
 - `preview(config)` — parse/match/filter pipeline without extracting media
 - `build_matched_lines(config)` — deterministic parse → match → filter pipeline
 - `merge_apkg(paths, output)` — combines fresh Vesta `.apkg` exports into a single multi-episode package
-- `load_sub_file_info(path)`, `parse_subtitle_file(path)` — multi-format subtitle inspection and parsing (`SRT`, `ASS`/`SSA`, `VTT`, `LRC`)
-- `media` module — `list_audio_tracks`, `check_ffmpeg`, `detect_h264_encoder`, `optimize_video_source_with_progress`, `extract_preview_audio_clip`, `extract_preview_snapshot`
+- `load_sub_file_info(path)`, `parse_subtitle_file(path)`, `list_audio_tracks(media_path, tools)` — multi-format subtitle inspection/parsing (`SRT`, `ASS`/`SSA`, `VTT`, `LRC`) and audio stream discovery
+- `media` module — `check_ffmpeg`, `detect_h264_encoder`, `optimize_video_source_with_progress`, `extract_preview_audio_clip`, `extract_preview_snapshot`
 - `fonts` module — language-aware Google Noto font catalog (`FONT_CATALOG`, `list_fonts`, `font_status`, `download_font`, `delete_font`, `font_stack_for`)
 
 Errors are user-presentable `String`s; progress is a callback; cancellation a
@@ -103,8 +102,8 @@ encode probe and uses a working platform encoder for H.264/pre-transcoding.
 Unsupported or failing hardware paths transparently use `libx264`. Audio
 encoding, still-image extraction, matching, and packaging remain CPU work.
 
-The benchmark harness in [`benchmarking_against_subs2srs/`](../../benchmarking_against_subs2srs) uses exactly this
-crate through the CLI, pitted against the original subs2srs code.
+The benchmark harness in [`benchmarking_against_subs2srs/`](../../benchmarking_against_subs2srs) runs this
+crate through the CLI against the original subs2srs implementation.
 
 ## Preparation and series export
 

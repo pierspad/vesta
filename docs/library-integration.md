@@ -14,9 +14,9 @@ Use `--offline` when all required crates are already cached:
 python3 /path/to/vesta/build-scripts/check_library_integration.py --offline
 ```
 
-The check resolves all 11 core and library crates, rejects Tauri/GTK/WebKit in the resolved dependency graph, confirms that no Whisper GPU backend is enabled, and compiles/runs a small consumer. Its operations are local: it does not contact providers, download models, access Anki, or invoke FFmpeg.
+The check resolves all 11 core and library crates, rejects Tauri/GTK/WebKit in the resolved dependency graph, confirms that no Whisper GPU backend is enabled (`srt-transcribe`, `srt-autosync`, `whisper-rs`, `whisper-rs-sys`), and compiles/runs a consumer binary locally without network requests, Anki, or FFmpeg.
 
-The headless CPU CI job runs this command with `--individual`. That option creates a separate temporary consumer and runs `cargo check` for each crate before the combined smoke project. This catches dependency or feature assumptions hidden by feature unification in the combined graph. The combined resolved graph also rejects Tauri, GTK, and WebKit package names and verifies that GPU features are absent from `srt-transcribe`, `srt-autosync`, `whisper-rs`, and `whisper-rs-sys`.
+The headless CPU CI job runs this command with `--individual`, which creates a separate temporary consumer and runs `cargo check` for each crate before the combined smoke project to catch dependency or feature assumptions hidden by feature unification.
 
 ## Git dependencies
 
@@ -58,7 +58,7 @@ Transcription needs a supported native toolchain and system libraries for the se
 | `srt-transcribe` | Deserialize config and confirm the default build is CPU-only |
 | `srt-translate` | Build a local provider pool and read provider defaults |
 
-The smoke check validates source integration and public APIs. It does not establish publication readiness, contact external services, download models, access Anki, or invoke FFmpeg. License metadata remains in each crate manifest; retain and review it as part of your application's license and distribution process.
+The smoke check validates source integration and public API signatures only; runtime media and cloud paths require their respective external tools and credentials.
 
 ## Measuring checkpoint writes
 

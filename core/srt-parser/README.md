@@ -28,9 +28,7 @@ module exposes `atomic_write` and `atomic_write_with` for companion exports and
 session files. Buffered callbacks must finish and flush their writers before
 returning. Existing symlinks are followed; dangling links and read-only targets
 are rejected. Permission bits are preserved for existing targets; new files use
-restrictive temporary-file permissions. Ownership, extended ACLs, concurrent
-writer coordination and directory durability after power loss are outside this
-contract.
+restrictive temporary-file permissions.
 
 `ensure_distinct_files` rejects input/output aliases (including hard links),
 so conversion and resume adapters cannot mistake their source for an output.

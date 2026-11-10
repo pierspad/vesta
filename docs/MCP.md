@@ -9,8 +9,8 @@ Vesta provides a local **server**, `vesta-mcp`, using the
 [official Rust SDK](https://github.com/modelcontextprotocol/rust-sdk). An MCP-capable
 application acts as the client and starts it as a subprocess. Communication uses
 JSON-RPC over stdin/stdout. No GUI or listening network port is required. The
-server shares the Rust flashcard, translation, transcription, and plugin RPC
-engines with the GUI and CLI, rather than automating windows or parsing terminal output.
+server directly invokes the shared Rust flashcard, translation, transcription, and plugin RPC
+engines.
 
 ## Why keep MCP alongside the CLI?
 
@@ -115,7 +115,7 @@ Typical workflow:
    Font downloads are disabled in this adapter. The complete generation parameter
    set is `target`, `native`, `video`, `audio`, `deck`, `format`, `note_type`,
    `include_audio`, `include_snapshots`, `include_video`, and `workers`.
-   `target`, `deck` and `format` are required; the others are optional. `note_type`
+   `target`, `deck` (1–256 characters) and `format` are required; the others are optional. `note_type`
    is a name (1–128 characters), not a custom field/template definition. Other
    engine settings use library defaults; codecs, filters, padding, GUI note-type
    preferences and multi-episode merging are not MCP parameters. Unknown fields
@@ -217,7 +217,7 @@ Providers are local Whisper (`local`, `whisper`, `local_whisper`), `groq`,
 `openai`, `deepgram`, `assemblyai`, or `custom`/`custom_whisper`. Hosted providers
 need credentials, custom endpoints need an explicit URL. Cloud models use the
 provider's model ID, not a local ID such as `base`.
-Local options `word_timestamps`, `quality` and `vad` default false; `use_gpu`
+Local options `translate_to_english`, `word_timestamps`, `quality` and `vad` default false; `max_segment_length` defaults to `0` (unconstrained); `use_gpu`
 defaults true and uses a compiled backend when available. `use_gpu: false` is
 local-only. The default server build is CPU-only; for example build with
 `cargo install --locked --path cli/vesta-mcp --features vulkan` if the required
@@ -264,7 +264,7 @@ Invoking a configured cloud profile can send subtitle text/audio to its provider
 and incur account charges. Use these tools only for user-authorized work. GUI control,
 AnkiConnect, refinement and automatic synchronization are not exposed as MCP
 tools. The [CLI/library coverage guide](CLI.md) describes the remaining adapters,
-and [`PLUGINS.md`](PLUGINS.md) documents the `list_plugins` and `call_plugin` protocol.
+and [`PLUGINS.md`](PLUGINS.md) documents the `list_plugins` and `call_plugin` protocol (`call_plugin` accepts required `plugin_id`, plus optional `screen` [default `"main"`], `widget_id` [dispatches `"event"` when set or `"render"` when omitted], `event_type` [default `"click"`], `values`, and `expert_mode` [default `false`]).
 
 ## Validation
 
@@ -273,9 +273,9 @@ cargo test --locked -p vesta-mcp
 cargo clippy --locked -p vesta-mcp --all-targets -- -D warnings
 ```
 
-Tests connect a real SDK client to the standalone server over stdio, discover
+Tests connect an MCP SDK client to the standalone server over stdio, discover
 all ten tool schemas, inspect/preview subtitles, generate TSV/APKG exports,
-translate via loopback HTTP, transcribe a real FFmpeg audio fixture through a
+translate via loopback HTTP, transcribe an FFmpeg audio fixture through a
 stub provider, query the plugin registry, and verify cancellation, incomplete translation, disabled profiles,
 credential handling, shutdown and path boundaries. Client-specific
 configuration and hardware/media combinations still need their normal

@@ -150,7 +150,7 @@ Recorded reference baselines are stored in `docs/performance/editor-scroll-2026-
 
 ## 6. Release Smoke Matrix (Installed Builds)
 
-Automated unit and mocked-IPC tests do not certify native OS dialogs, file associations, WebKitGTK/GStreamer media decoding, physical GPU drivers, or authenticated cloud accounts. Before publishing a release, validate installed bundles on target platforms (Linux and Windows):
+Automated unit and mocked-IPC tests do not certify native OS dialogs, file associations, WebKitGTK/GStreamer media decoding, physical GPU drivers, or authenticated cloud accounts. Before publishing a release, validate installed bundles on target platforms (Linux, Windows x64 and ARM64, and macOS Apple Silicon):
 
 1. **First-run setup and persistence**: Complete onboarding, restart twice, and verify that language, media, and export defaults persist. Verify that unreadable or corrupt configuration files surface an error instead of silently resetting user data (see [`SETUP_TESTING.md`](SETUP_TESTING.md)).
 2. **Flashcard export and Anki import**: Generate audio + snapshots, TSV, APKG, video clips, and a multi-episode merged APKG. Import into Anki and verify audio/video playback, snapshots, and word lookup links.
@@ -158,4 +158,4 @@ Automated unit and mocked-IPC tests do not certify native OS dialogs, file assoc
 4. **Media preview and sync**: Preview audio and video containers (verifying 16 kHz mono PCM WAV preparation and cache reuse), test byte-range seeking, run manual anchor retiming with undo/redo, and run Whisper-assisted Auto-Sync.
 5. **Local and cloud transcription**: Run local Whisper on CPU and GPU (verifying CPU fallback when GPU is disabled or unavailable), test interrupted model downloads, and test cloud STT providers with cancellation.
 6. **Translation and deck annotation**: Run multi-tier LLM translation and `.apkg`/`.tsv` refinement, testing rate-limit failover, checkpoint resume, and cancellation.
-7. **System integration and updater**: Verify opening output files/folders in the system file manager, `.apkg` association with Anki, and the in-app updater flow on supported package formats (Windows `.exe`, Linux `.deb` and `.rpm`).
+7. **System integration and updater**: Verify opening output files/folders in the system file manager, `.apkg` association with Anki, and the in-app updater flow on supported package formats (Windows `.exe` on x64/ARM64, Linux `.deb` and `.rpm`; macOS `.dmg` bundles are updated via the release page).

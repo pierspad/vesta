@@ -1,5 +1,28 @@
 # srt-translate — LLM subtitle translation
 
+`lib/srt-translate` translates SRT files with LLMs, batching subtitles with
+overlap for context, with resume support (partial output files are continued,
+holes are repaired), rate limiting, and a **multi-tier failover pool**: you
+declare an ordered list of endpoints (provider + model + key) and the engine
+round-robins inside a tier, then falls to the next tier when entries exhaust
+their quota or hit rate limits.
+
+Supported endpoints: Google (Gemini), Groq, OpenRouter, and any
+OpenAI-compatible API (OpenAI, Mistral, NVIDIA NIM, Ollama/local, custom).
+
+**Library API highlights**
+
+- `TierEntry` + `build_pool(&tiers)` → `TranslatorPool` (module `pool`:
+  per-provider defaults for base URL, RPM and model live here)
+- `translate_subtitles_tiered_cancellable(pool, subs, target_lang, batch_size,
+  overlap, title_context, output_path, on_progress, cancel_token)`
+- `get_missing_or_incorrect_subtitle_ids(&original, &translated)` (replaces deprecated `verify_translation_completeness(&original, &translated)`)
+- `Translator::generate_response(prompt)` — raw single-prompt call (used by
+  [srt-refine](srt-refine.md))
+- `ProviderError`, `ProviderFailureKind`, `TranslationCancelled` (`diagnostics` module)
+- Progress via a plain `Fn(TranslationProgress)` callback; cancellation via
+  `CancellationToken`.
+
 ## Errors and optional diagnostics
 
 HTTP failures cannot become successful translations even when their JSON body
@@ -28,32 +51,7 @@ fn main() -> anyhow::Result<()> {
 The observer is optional, retained by clones, and must be fast/nonblocking.
 No global logger is installed and the library itself does not print retry/error
 messages. CLI adapters choose stderr; desktop adapters emit `provider-retry`
-events consumed by the support recorder. GUI notifications remain a separate
-presentation concern. Other feature crates still have some direct stderr
-diagnostics; this contract currently covers the translation provider client.
-
-`lib/srt-translate` translates SRT files with LLMs, batching subtitles with
-overlap for context, with resume support (partial output files are continued,
-holes are repaired), rate limiting, and a **multi-tier failover pool**: you
-declare an ordered list of endpoints (provider + model + key) and the engine
-round-robins inside a tier, then falls to the next tier when entries exhaust
-their quota or hit rate limits.
-
-Supported endpoints: Google (Gemini), Groq, OpenRouter, and any
-OpenAI-compatible API (OpenAI, Mistral, NVIDIA NIM, Ollama/local, custom).
-
-**Library API highlights**
-
-- `TierEntry` + `build_pool(&tiers)` → `TranslatorPool` (module `pool`:
-  per-provider defaults for base URL, RPM and model live here)
-- `translate_subtitles_tiered_cancellable(pool, subs, target_lang, batch_size,
-  overlap, title_context, output_path, on_progress, cancel_token)`
-- `verify_translation_completeness(&original, &translated)` / `get_missing_or_incorrect_subtitle_ids(&original, &translated)`
-- `Translator::generate_response(prompt)` — raw single-prompt call (used by
-  [srt-refine](srt-refine.md))
-- `ProviderError`, `ProviderFailureKind`, `TranslationCancelled` (`diagnostics` module)
-- Progress via a plain `Fn(TranslationProgress)` callback; cancellation via
-  `CancellationToken`.
+events consumed by the support recorder.
 
 ## Use as a binary
 

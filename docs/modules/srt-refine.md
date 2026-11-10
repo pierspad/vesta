@@ -22,7 +22,7 @@ deck back without losing media or scheduling data.
 - `save_cards(input_path, output_path, updates)` — TSV→TSV, APKG→TSV,
   APKG→APKG (atomic note update inside the archive)
 - `refine_card_llm(&card, prompt, RefineLlmConfig)` → single-card notes text
-- `refine_cards_tiered(cards, &tiers, &config, cancel_token, on_event)` → `Result<(Vec<RefineUpdate>, RefineRunSummary), String>`
+- `refine_cards_tiered(cards, config, pool, on_event, token)` → `(Vec<RefineUpdate>, RefineRunSummary)` (`Result<(Vec<RefineUpdate>, RefineRunSummary), String>` is returned by higher-level callers after pool construction)
 - `analyze_tsv_columns(path)`, `interpolate_prompt(template, &card)`, `strip_html(input)`
 
 Errors are user-presentable `String`s, mirroring `srt-flashcards`.

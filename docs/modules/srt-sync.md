@@ -15,7 +15,7 @@ over automatic ones.
   `find_subtitle_at_time(ms)`, `find_nearest_subtitle(ms)`, `get_average_offset()`
 - `save_synced_file(output_path)` — writes the re-timed SRT atomically
 - `AdaptiveSampler` / `SamplerStrategy` — selects candidate subtitles for checkpoint review
-- `matching` module — `suggest_matching_files`, `suggest_target_native_subtitles`
+- `matching` module — `suggest_media_for_srt`, `suggest_companion_subtitle_for_srt`, `suggest_subtitles_for_media`, `suggest_target_native_subtitles`
 - `playback` module — `is_natively_playable`, `transcode_for_playback` (prepares non-native containers into cached 16 kHz mono PCM WAV via FFmpeg)
 
 The retiming engine is synchronous pure logic over `srt-parser` types, with

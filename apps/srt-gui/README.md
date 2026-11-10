@@ -17,14 +17,16 @@ Node.js 22.12+ is required. Install the native dependencies listed in the
 ## Runtime map
 
 `src/App.svelte` loads tabs lazily and keeps them mounted. `src/lib/stores`
-holds workflow state; `src/lib/services` wraps native IPC/HTTP; `src/lib/config`
+holds workflow state; `src/lib/services` wraps native IPC/HTTP (`pluginClient.ts`
+for declarative plugins, `tauriHttp.ts` for HTTP); `src/lib/config`
 holds provider catalogs and persisted preferences. `src-tauri/src/commands`
-adapts GUI requests to the workspace libraries. The desktop process also owns
+adapts GUI requests to the workspace libraries and plugin runtime (`PluginsTab.svelte`
+and `PluginRenderer.svelte`). The desktop process also owns
 loopback media streaming and opening exported files through system associations.
 
 Use **Extract subtitles** for text tracks embedded in MKV/MP4 containers.
 The onboarding wizard awaits durable persistence before reloading. Generation
-uses source snapshots directly in audio/snapshot-only exports and reports real FFmpeg preparation progress for
+uses source snapshots directly in audio/snapshot-only exports and reports FFmpeg preparation progress for
 video clips. Export filenames open the saved file; the adjacent folder button
 opens its directory. `.apkg` opening requires an Anki file association.
 
@@ -84,7 +86,7 @@ requirement highlight, including timer cleanup. Clipboard writes report success
 only after acceptance; denied cuts preserve the selection.
 
 **Experimental → Try without saving** reuses the first-run UI without persistence
-or downloads. **Restart setup** applies real preferences and downloads selected
+or downloads. **Restart setup** persists preferences and downloads selected
 resources. Quick Setup prepares Whisper Small, Silero VAD, missing FFmpeg/FFprobe
 and language fonts; Custom Setup lets the user choose the model or disable local
 transcription. Both show download sizes, installation progress, retry failed

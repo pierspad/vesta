@@ -1,6 +1,6 @@
 # Benchmark pipeline
 
-## TL;DR
+## Quick Start
 
 ```bash
 ./benchmarking_against_subs2srs/1_compile_subs2srs.sh    # builds the headless subs2srs harness (mono/mcs)
@@ -29,23 +29,21 @@ A film is benchmarked **only if all three files exist**; anything incomplete
 (e.g. `8 e mezzo.mp4`, which ships without subtitles) is skipped with a warning.
 To add a film, drop the three files into the folder and re-run — no config edits.
 
-## How the comparison is kept fair
+## Benchmark Methodology and Controls
 
-The goal is to compare **pure execution time for the same work**, so:
+The suite measures wall-clock execution time across identical media inputs:
 
-* **Two real headless CLIs.** Both tools run from the command line with no GUI.
-  Vesta's CLI (`srt-flashcards`) is a thin shell over the real engine. subs2srs
-  ships only as a .NET 3.5 WinForms GUI with **no command line**, so we compile a
-  headless harness (see below) that drives its *actual* generation classes.
-* **No invented parallelism.** subs2srs is run exactly as written —
-  single-threaded, sequential ffmpeg calls. We add nothing it didn't have. Vesta
-  runs on its "max" plan: `cores-1` parallel ffmpeg workers (the GUI's top
-  setting). The speed-up therefore reflects a genuine architectural difference,
-  not a handicap.
-* **A core-for-core control.** Alongside the "max" plan, Vesta is also timed with
-  a **single** ffmpeg worker (`-j 1`), the apples-to-apples match for subs2srs's
-  one-at-a-time pipeline. This isolates raw per-card efficiency from the
-  parallelism win: each film is charted as 5 series — subs2srs (TSV), Vesta
+* **Headless CLI execution:** Both tools run from the command line without a GUI.
+  Vesta's CLI (`srt-flashcards`) invokes the library engine directly. subs2srs
+  ships only as a .NET 3.5 WinForms GUI, so a small headless harness
+  (see below) drives its generation classes directly.
+* **Sequential execution for subs2srs:** subs2srs runs single-threaded with
+  sequential FFmpeg invocations, matching its original implementation. Vesta
+  runs with `cores-1` parallel FFmpeg workers in its multi-worker configuration.
+* **Single-worker baseline control:** Alongside the multi-worker configuration, Vesta is also timed with
+  a single FFmpeg worker (`-j 1`) as a baseline comparison against sequential
+  subs2srs execution. This separates per-card processing efficiency from
+  multi-worker scaling: each film is charted across 5 series — subs2srs (TSV), Vesta
   export TSV/APKG at max cores, and Vesta export TSV/APKG at one core.
 * **Same inputs and requested media types, product defaults.** Same subtitles
   and video, with audio + snapshots + video clips. Encoding settings differ
@@ -91,7 +89,7 @@ ships the max and single-core variants of the local build:
 vesta_VARIANTS=(
   "max|target/release/srt-flashcards|MAX"
   "single|target/release/srt-flashcards|1"
-  # race a branch/fork too, e.g.:
+  # benchmark an alternative branch or build, e.g.:
   # "experiment|/path/to/other-checkout/target/release/srt-flashcards|MAX"
 )
 ```

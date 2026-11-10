@@ -8,7 +8,7 @@ SubRip (`.srt`) files.
 - `SrtParser::parse_file(path)` / `parse_string(content)` / `parse_block(block)` → `HashMap<u32, Subtitle>` / `Subtitle`
 - `SrtParser::normalize_subtitles(&mut subs)` — fills numbering gaps with placeholders when the estimated gap is at most 50,000; leaves zero-based input unchanged
 - `SrtParser::save_file(...)` — writes a well-formed UTF-8 SRT back to disk atomically
-- `Timestamp` (`from_milliseconds`, `total_milliseconds`, `from_srt_string`, `to_srt_string`, `write_srt_to`) and `Subtitle` (`from_srt_block`, `to_srt_string`, `write_srt_to`, `duration_ms`) types
+- `Timestamp` (`from_milliseconds`, `total_milliseconds`, `from_srt_string`, `to_srt_string`, `write_srt_to`) and `Subtitle` (`to_srt_string`, `write_srt_to`) types
 - `encoding::read_text_auto(path)` / `decode_auto(bytes)` — encoding-tolerant
   reading: BOM sniffing, strict UTF-8 fast path, BOM-less UTF-16 heuristic,
   then statistical detection (`chardetng` + `encoding_rs`) for legacy code

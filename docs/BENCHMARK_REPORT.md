@@ -1,4 +1,4 @@
-# Vesta vs subs2srs — Comprehensive Benchmark Report
+# Vesta vs subs2srs — Benchmark Report
 
 ### System & Hardware Specifications
 - **CPU**: AMD Ryzen 7 5800X 8-Core Processor (16 threads)

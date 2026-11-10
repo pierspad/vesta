@@ -44,15 +44,15 @@ First-time preparation depends on media duration and disk speed. These checks es
 The first-run setup configures Vesta after installation. The installer places
 the application on the system; test those as separate flows.
 
-In dedicated Windows and Linux VMs, install a release package, launch Vesta,
+In dedicated Windows (x64 and ARM64), macOS (Apple Silicon), and Linux VMs or physical test systems, install a release package, launch Vesta,
 complete setup, close and reopen the app, and uninstall it. Successful package
 builds do not verify installer windows or system integration on a real machine.
 
 The internal updater checks the latest stable release, selects an installer for
 the supported system and architecture, downloads it, verifies SHA-256 and opens
-the installer. The in-app flow supports Windows (`.exe`), Debian/Ubuntu (`.deb`),
-and Fedora/RHEL (`.rpm`); Flatpak and Arch/AUR updates use their respective
-package managers or the release page.
+the installer. The in-app flow supports Windows (`.exe` on x64 and ARM64), Debian/Ubuntu (`.deb`),
+and Fedora/RHEL (`.rpm`). macOS disk images (`.dmg`), Flatpak, and Arch/AUR packages use their respective
+package managers or the GitHub Releases page.
 A `tauri dev` build does not use the installed-app updater flow.
 
 To test updates, install a previous stable release in a VM, open **Settings →
