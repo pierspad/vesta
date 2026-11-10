@@ -526,15 +526,29 @@
         {/if}
       </button>
 
-      <button class="order-7 w-full flex gap-3.5 items-center {collapsed ? 'px-2 justify-center' : 'px-3.5'} h-[60px] rounded-xl border border-transparent transition-colors {activeTab === 'extract' ? 'bg-teal-600 text-white' : 'text-gray-400 hover:bg-teal-500/10 hover:text-teal-300'}" onclick={() => onTabChange("extract")} onmouseenter={() => onTabPreload?.("extract")} onfocus={() => onTabPreload?.("extract")} title={collapsed ? t("nav.extract") : undefined}>
-        <div class="w-9 h-9 rounded-xl bg-white/5 flex items-center justify-center shrink-0"><svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path d="M4 4h16v12H4zM7 8h4m2 0h4M7 12h10M12 16v6m-3-3 3 3 3-3" /></svg></div>
-        {#if !collapsed}<span class="text-[15px] font-semibold">{t("nav.extract")}</span>{/if}
+      <button
+        class="order-7 w-full flex gap-3.5 items-center {collapsed ? 'px-2 justify-center' : 'px-3.5'} h-[60px] rounded-xl transition-all duration-100 ease-out border border-transparent cursor-pointer {activeTab === 'extract'
+          ? 'bg-gradient-to-r from-teal-700 to-emerald-800 text-white shadow-lg shadow-teal-500/20 border-teal-400/50 bg-clip-padding'
+          : 'text-gray-400 hover:bg-teal-500/10 hover:text-teal-300 hover:border-teal-500/20'}"
+        onclick={() => onTabChange("extract")} onmouseenter={() => onTabPreload?.("extract")} onfocus={() => onTabPreload?.("extract")}
+        title={collapsed ? t("nav.extract") : undefined}
+      >
+        <div class="w-9 h-9 rounded-xl {activeTab === 'extract' ? 'bg-white/20' : 'bg-white/5'} flex items-center justify-center shrink-0 border border-white/5">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24">
+            <path d="M4 4h16v12H4zM7 8h4m2 0h4M7 12h10M12 16v6m-3-3 3 3 3-3" />
+          </svg>
+        </div>
+        {#if !collapsed}
+          <div class="text-left flex-1 min-w-0 leading-tight">
+            <span class="block text-[15px] font-semibold">{t("nav.extract")}</span>
+          </div>
+        {/if}
       </button>
 
       <!-- 8. Plugins -->
       <button
         class="order-8 w-full flex gap-3.5 items-center {collapsed ? 'px-2 justify-center' : 'px-3.5'} h-[60px] rounded-xl transition-all duration-100 ease-out border border-transparent cursor-pointer {(activeTab === 'plugins' || activeTab.startsWith('plugin:'))
-          ? 'bg-gradient-to-r from-indigo-700 to-purple-800 text-white shadow-lg shadow-indigo-500/20 border-indigo-500/30 bg-clip-padding'
+          ? 'bg-gradient-to-r from-indigo-700 to-purple-800 text-white shadow-lg shadow-indigo-500/20 border-indigo-400/50 bg-clip-padding'
           : 'text-gray-400 hover:bg-indigo-500/10 hover:text-indigo-300 hover:border-indigo-500/20'}"
         onclick={() => onTabChange("plugins")} onmouseenter={() => onTabPreload?.("plugins")} onfocus={() => onTabPreload?.("plugins")}
         title={collapsed ? t("nav.plugins") : undefined}

@@ -324,38 +324,40 @@
 
           <HistoryButton direction="redo" disabled={!canRedo} onclick={() => onHistory("redo")} />
         </div>
-        <div class="flex flex-wrap items-center justify-center gap-3">
-          <button
-            onclick={onSkip}
-            disabled={!canUseCheckpoint}
-            class="btn-secondary py-3 px-6 flex items-center gap-2 text-base font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-            title={t("sync.wizard.skip")}
-            aria-label={t("sync.wizard.skip")}
-          >
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7" /></svg>
-            {t("sync.wizard.skip")}
-          </button>
-
-          <button
-            onclick={onReplay}
-            disabled={!canControlAudio}
-            class="w-12 h-12 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-            title={t("sync.wizard.replay")}
-            aria-label={t("sync.wizard.replay")}
-          >
-            <svg
-              class="w-6 h-6 text-cyan-400"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-              ><path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-              /></svg
+        <div class="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3">
+          <div class="flex flex-wrap items-center justify-end gap-3">
+            <button
+              onclick={onSkip}
+              disabled={!canUseCheckpoint}
+              class="btn-secondary py-3 px-6 flex items-center gap-2 text-base font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+              title={t("sync.wizard.skip")}
+              aria-label={t("sync.wizard.skip")}
             >
-          </button>
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7" /></svg>
+              {t("sync.wizard.skip")}
+            </button>
+
+            <button
+              onclick={onReplay}
+              disabled={!canControlAudio}
+              class="w-12 h-12 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              title={t("sync.wizard.replay")}
+              aria-label={t("sync.wizard.replay")}
+            >
+              <svg
+                class="w-6 h-6 text-cyan-400"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                ><path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                /></svg
+              >
+            </button>
+          </div>
 
           <button
             onclick={onTogglePlay}
@@ -384,7 +386,7 @@
             onclick={onConfirm}
             disabled={!canControlAudio}
             title={t("sync.wizard.confirm")}
-            class="rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white py-3 px-6 flex items-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-base font-semibold"
+            class="justify-self-start max-w-full rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white py-3 px-6 flex items-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-base font-semibold text-start"
           >
             <svg
               class="w-5 h-5"
@@ -398,7 +400,7 @@
                 d="M5 13l4 4L19 7"
               /></svg
             >
-            {t("shortcuts.action.confirmAnchor")}
+            <span class="min-w-0 wrap-anywhere">{t("shortcuts.action.confirmAnchor")}</span>
           </button>
         </div>
 
