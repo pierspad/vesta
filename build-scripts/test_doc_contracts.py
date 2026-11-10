@@ -145,6 +145,42 @@ class TestDocContracts(unittest.TestCase):
             )
             self.assertEqual(res_test.returncode, 0, res_test.stderr)
 
+    def test_first_party_plugins_validate_and_unit_tests(self) -> None:
+        import subprocess
+
+        sdk_path = cdc.ROOT / "docs/examples/plugin-hello/vesta_plugin.py"
+        subtitles_dir = cdc.ROOT / "plugins/subtitles"
+        res_val = subprocess.run(
+            [sys.executable, str(sdk_path), "validate", str(subtitles_dir)],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(res_val.returncode, 0, res_val.stderr)
+        res_smoke = subprocess.run(
+            [sys.executable, str(sdk_path), "test", str(subtitles_dir)],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(res_smoke.returncode, 0, res_smoke.stderr)
+        res_unit = subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "unittest",
+                "discover",
+                "-s",
+                str(subtitles_dir / "tests"),
+                "-t",
+                str(subtitles_dir),
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(res_unit.returncode, 0, res_unit.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -429,8 +429,33 @@
       }
     },
     "plugin_sdk": {
-      "hash": "3c132523c7bf425d",
+      "hash": "a259ec7c862f43d3",
       "widget_types": [
+        "button",
+        "checkbox",
+        "column",
+        "divider",
+        "externalLink",
+        "fileOutput",
+        "heading",
+        "image",
+        "languageSelect",
+        "link",
+        "list",
+        "numberInput",
+        "passwordInput",
+        "pathInput",
+        "progress",
+        "row",
+        "segmented",
+        "select",
+        "settings",
+        "table",
+        "text",
+        "textArea",
+        "textInput"
+      ],
+      "py_valid_widget_types": [
         "button",
         "checkbox",
         "column",
@@ -468,7 +493,7 @@
         "Link": "65b097ff601c327e",
         "ListWidget": "69c73d114467a95b",
         "NumberInput": "63324316b3683336",
-        "PasswordInput": "f1d2eedea1948d84",
+        "PasswordInput": "c53dae0fc028974b",
         "PathInput": "84918df3d36558e6",
         "Progress": "fe7fd6af97c90a2f",
         "Row": "57ea4a717670409f",
@@ -478,7 +503,7 @@
         "Table": "86506297d059c62e",
         "Text": "2d3b3fa7350403e6",
         "TextArea": "f24d97b9470361cb",
-        "TextInput": "f1d2eedea1948d84",
+        "TextInput": "c53dae0fc028974b",
         "scaffold_plugin": "f3f0dc573707c3f0",
         "smoke_test_plugin": "2339aeb028da6f93",
         "validate_manifest": "cb195a58e0e991c5",
@@ -510,7 +535,6 @@
         "Settings": "settings"
       },
       "python_plugin_methods": [
-        "get_shared_credential",
         "get_values",
         "notify",
         "on_event",
@@ -539,13 +563,21 @@
         "tab",
         "version"
       ],
+      "first_party_plugins": {
+        "subtitles": {
+          "id": "subtitles-veplugin",
+          "screens": [],
+          "settings": [],
+          "hash": "0ef9a7bdc8ef5e60"
+        }
+      },
       "docs": [
         "docs/PLUGINS.md",
         "docs/examples/plugin-hello/vesta_plugin.py"
       ]
     },
     "rust_libraries": {
-      "hash": "606dea32338245c8",
+      "hash": "cadea78a836ed6ed",
       "crates": {
         "srt-ankiconnect": {
           "path": "lib/srt-ankiconnect",
@@ -639,13 +671,13 @@
         },
         "srt-parser": {
           "path": "core/srt-parser",
-          "symbol_count": 18,
+          "symbol_count": 21,
           "files": {
-            "src/encoding.rs": "74218009699cb8fe",
-            "src/lib.rs": "95641b6d7cccb507",
+            "src/encoding.rs": "3941ff9a4a65a000",
+            "src/lib.rs": "219203af2b39eec2",
             "src/persistence.rs": "403315deaa700cda"
           },
-          "hash": "52fdf3f75783e62f",
+          "hash": "646f594911623fb7",
           "docs": [
             "core/srt-parser/README.md",
             "docs/modules/srt-parser.md",
@@ -669,16 +701,16 @@
         },
         "srt-sync": {
           "path": "lib/srt-sync",
-          "symbol_count": 72,
+          "symbol_count": 77,
           "files": {
-            "src/engine.rs": "edad450d703e69d0",
+            "src/engine.rs": "f55fd9342a7bf242",
             "src/interpolator.rs": "78ae0ca30c495462",
             "src/lib.rs": "67bfd2557fc5152f",
             "src/matching.rs": "47c737362a96f517",
             "src/playback.rs": "2679f562ad9838b8",
             "src/sampler.rs": "053bce60b715f4de"
           },
-          "hash": "cb94c51d2af2911c",
+          "hash": "d4e46e5a8c2e1ea1",
           "docs": [
             "lib/srt-sync/README.md",
             "docs/modules/srt-sync.md",

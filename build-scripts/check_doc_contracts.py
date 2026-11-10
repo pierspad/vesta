@@ -302,8 +302,21 @@ def extract_plugin_contracts() -> Dict[str, Any]:
     py_builders: Dict[str, List[str]] = {}
     py_builder_types: Dict[str, str] = {}
     py_plugin_methods: List[str] = []
+    py_valid_widget_types: List[str] = []
     for node in py_tree.body:
-        if isinstance(node, ast.FunctionDef) and not node.name.startswith("_"):
+        if isinstance(node, ast.Assign):
+            for target in node.targets:
+                if (
+                    isinstance(target, ast.Name)
+                    and target.id == "VALID_WIDGET_TYPES"
+                    and isinstance(node.value, ast.Set)
+                ):
+                    py_valid_widget_types = sorted(
+                        elt.value
+                        for elt in node.value.elts
+                        if isinstance(elt, ast.Constant) and isinstance(elt.value, str)
+                    )
+        elif isinstance(node, ast.FunctionDef) and not node.name.startswith("_"):
             args = [a.arg for a in node.args.args] + [
                 a.arg for a in node.args.kwonlyargs
             ]
@@ -337,19 +350,46 @@ def extract_plugin_contracts() -> Dict[str, Any]:
             re.findall(r"pub\s+([a-zA-Z0-9_]+)\s*:", manifest_match.group(1))
         )
 
+    first_party_plugins: Dict[str, Any] = {}
+    plugins_dir = ROOT / "plugins"
+    if plugins_dir.exists():
+        for pmanifest_path in sorted(plugins_dir.glob("*/vesta-plugin.json")):
+            pdir = pmanifest_path.parent
+            pdata = json.loads(pmanifest_path.read_text(encoding="utf-8"))
+            screens = [
+                s.get("id")
+                for s in pdata.get("contributes", {}).get("screens", [])
+                if isinstance(s, dict) and s.get("id")
+            ]
+            settings = [
+                s.get("key")
+                for s in pdata.get("contributes", {}).get("settings", [])
+                if isinstance(s, dict) and s.get("key")
+            ]
+            first_party_plugins[pdir.name] = {
+                "id": pdata.get("id"),
+                "screens": screens,
+                "settings": settings,
+                "hash": sha256_json(pdata),
+            }
+
     return {
         "widget_types": widget_types,
+        "py_valid_widget_types": py_valid_widget_types,
         "python_builders": {k: sha256_json(v) for k, v in sorted(py_builders.items())},
         "python_builder_types": py_builder_types,
         "python_plugin_methods": sorted(py_plugin_methods),
         "manifest_fields": manifest_fields,
+        "first_party_plugins": first_party_plugins,
         "hash": sha256_json(
             {
                 "widget_types": widget_types,
+                "py_valid_widget_types": py_valid_widget_types,
                 "python_builders": py_builders,
                 "python_builder_types": py_builder_types,
                 "python_plugin_methods": sorted(py_plugin_methods),
                 "manifest_fields": manifest_fields,
+                "first_party_plugins": first_party_plugins,
             }
         ),
         "docs": ["docs/PLUGINS.md", "docs/examples/plugin-hello/vesta_plugin.py"],
@@ -367,9 +407,9 @@ def _strip_rust_comments(code: str) -> str:
 def _extract_rust_public_items(content: str) -> List[str]:
     clean = _strip_rust_comments(content)
     items: List[str] = []
-    # Match public functions with full parameter and return signatures
+    # Match public functions with full parameter and return signatures (supporting nested generic bounds like <P: AsRef<Path>>)
     fn_pat = re.compile(
-        r"(?:^|\n)\s*pub\s+(?:async\s+)?fn\s+([a-zA-Z0-9_]+)\s*(?:<[^>]*>)?\s*\((.*?)\)\s*(?:->\s*([^{;]+?))?\s*(?:where\s+[^{;]+?)?\{",
+        r"(?:^|\n)\s*pub\s+(?:async\s+)?fn\s+([a-zA-Z0-9_]+)\s*(?:<[^(;{]*>)?\s*\((.*?)\)\s*(?:->\s*([^{;]+?))?\s*(?:where\s+[^{;]+?)?\{",
         re.DOTALL,
     )
     for m in fn_pat.finditer(clean):
@@ -380,7 +420,7 @@ def _extract_rust_public_items(content: str) -> List[str]:
 
     # Match public structs with their public fields
     struct_pat = re.compile(
-        r"(?:^|\n)\s*pub\s+struct\s+([a-zA-Z0-9_]+)\s*(?:<[^>]*>)?\s*(?:\{(.*?)\}|(\([^;]*\));|;)",
+        r"(?:^|\n)\s*pub\s+struct\s+([a-zA-Z0-9_]+)\s*(?:<[^({;]*>)?\s*(?:\{(.*?)\}|(\([^;]*\));|;)",
         re.DOTALL,
     )
     for m in struct_pat.finditer(clean):
@@ -398,7 +438,7 @@ def _extract_rust_public_items(content: str) -> List[str]:
 
     # Match public enums with their variants
     enum_pat = re.compile(
-        r"(?:^|\n)\s*pub\s+enum\s+([a-zA-Z0-9_]+)\s*(?:<[^>]*>)?\s*\{(.*?)\}",
+        r"(?:^|\n)\s*pub\s+enum\s+([a-zA-Z0-9_]+)\s*(?:<[^({;]*>)?\s*\{(.*?)\}",
         re.DOTALL,
     )
     for m in enum_pat.finditer(clean):
@@ -533,6 +573,14 @@ def verify_cross_contracts(
             errors.append(
                 f"[Plugin Python SDK] WidgetType `{wtype}` has no AST builder emitting `{{\"type\": \"{wtype}\"}}` in vesta_plugin.py"
             )
+        if wtype not in plugins.get("py_valid_widget_types", []):
+            errors.append(
+                f"[Plugin Python SDK] WidgetType `{wtype}` is missing from `VALID_WIDGET_TYPES` in vesta_plugin.py"
+            )
+    for extra_wtype in set(plugins.get("py_valid_widget_types", [])) - set(plugins["widget_types"]):
+        errors.append(
+            f"[Plugin Python SDK] `VALID_WIDGET_TYPES` in vesta_plugin.py contains unknown type `{extra_wtype}` not in pluginClient.ts"
+        )
 
     # 6d. Verify CLI flags referenced in docs/CLI.md and docs/modules/*.md actually exist (per-subcommand aware)
     for crate, info in cli["crates"].items():
@@ -717,10 +765,12 @@ def build_current_manifest() -> Tuple[Dict[str, Any], Dict[str, Any]]:
             "plugin_sdk": {
                 "hash": plugins["hash"],
                 "widget_types": plugins["widget_types"],
+                "py_valid_widget_types": plugins["py_valid_widget_types"],
                 "python_builders": plugins["python_builders"],
                 "python_builder_types": plugins["python_builder_types"],
                 "python_plugin_methods": plugins["python_plugin_methods"],
                 "manifest_fields": plugins["manifest_fields"],
+                "first_party_plugins": plugins["first_party_plugins"],
                 "docs": plugins["docs"],
             },
             "rust_libraries": {
