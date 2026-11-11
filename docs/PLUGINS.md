@@ -464,6 +464,10 @@ External plugins execute untrusted code on the user's host machine. Vesta enforc
 
 ## 11. Developing with the Python SDK
 
+[Subtitles](https://github.com/pierspad/subtitles-veplugin) is a complete example
+of a plugin maintained in its own repository. It demonstrates settings,
+credential guidance, native widgets, and integration with Vesta Flashcards.
+
 Vesta includes a zero-dependency Python SDK helper (`vesta_plugin.py`) located under `docs/examples/plugin-hello/`.
 
 ### Available Builders and Runtime Methods

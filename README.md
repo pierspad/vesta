@@ -146,11 +146,12 @@ Develop a plugin in any folder or in its own Git repository. Keep
 **Local Folder** during development or from a repository URL or archive when
 sharing. Vesta copies each installation into its own application data directory.
 
-[Subtitles](plugins/subtitles) is a first-party plugin for OpenSubtitles search
-and downloads, FFmpeg track extraction, and Vesta Flashcards integration. To
-install it from a clone, open **Plugins → Local Folder** and select
-`plugins/subtitles`. Its source is also a working example of plugin settings,
-credential guidance, and native widgets.
+[Subtitles](https://github.com/pierspad/subtitles-veplugin) is a first-party
+plugin maintained in its own repository. It searches and downloads subtitles
+from OpenSubtitles, extracts embedded tracks with FFmpeg, and integrates with
+Vesta Flashcards. To install it, open **Plugins → Repository URL** and paste
+the repository URL. Its source demonstrates plugin settings, credential
+guidance, and native widgets.
 
 Start with the runnable [Hello Counter plugin](docs/examples/plugin-hello).
 The [Plugin SDK guide](docs/PLUGINS.md) covers installation paths, the Python

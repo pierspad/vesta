@@ -429,7 +429,7 @@
       }
     },
     "plugin_sdk": {
-      "hash": "4a43e5ce0933f7a5",
+      "hash": "be2a217445d04d08",
       "widget_types": [
         "button",
         "checkbox",
@@ -563,14 +563,7 @@
         "tab",
         "version"
       ],
-      "first_party_plugins": {
-        "subtitles": {
-          "id": "subtitles-veplugin",
-          "screens": [],
-          "settings": [],
-          "hash": "4b135556bc598339"
-        }
-      },
+      "first_party_plugins": {},
       "docs": [
         "docs/PLUGINS.md",
         "docs/examples/plugin-hello/vesta_plugin.py"
