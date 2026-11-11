@@ -17,6 +17,7 @@ permissions:
   contents: write
 
 env:
+  GH_REPO: ${{ github.repository }}
   TAURI_APP_DIR: apps/srt-gui
   RELEASE_REF: ${{ inputs.release_tag && format('refs/tags/{0}', inputs.release_tag) || github.ref }}
   WHISPER_DONT_GENERATE_BINDINGS: "1"
@@ -26,11 +27,40 @@ env:
   RUSTC_WRAPPER: "sccache"
 
 jobs:
+  wait-for-release:
+    if: ${{ github.event_name == 'workflow_dispatch' }}
+    name: Wait for published release
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    permissions:
+      contents: read
+    steps:
+      - name: Wait for release publication
+        if: ${{ inputs.release_tag != '' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          set -euo pipefail
+          for attempt in {1..30}; do
+            if published=$(gh release view "$RELEASE_TAG" --json isDraft,publishedAt \
+              --jq '(.isDraft | not) and (.publishedAt != null)') && [[ "$published" == true ]]; then
+              exit 0
+            fi
+            echo "Waiting for $RELEASE_TAG to be published (attempt $attempt/30)."
+            if [[ "$attempt" -lt 30 ]]; then
+              sleep 10
+            fi
+          done
+          echo "::error::Release $RELEASE_TAG was not confirmed published after 30 attempts."
+          exit 1
+
   # ===========================================================
   # Build Windows ARM64 (.exe NSIS installer)
   # ===========================================================
   build-windows-arm64:
     if: ${{ github.event_name == 'workflow_dispatch' }}
+    needs: wait-for-release
     name: Build (windows-arm64)
     runs-on: windows-latest
     steps:
@@ -240,6 +270,7 @@ jobs:
   # ===========================================================
   build-macos-arm64:
     if: ${{ github.event_name == 'workflow_dispatch' }}
+    needs: wait-for-release
     name: Build (macos-arm64)
     runs-on: macos-15
     steps:
