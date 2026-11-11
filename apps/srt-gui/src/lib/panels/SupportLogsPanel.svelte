@@ -41,6 +41,7 @@
       </button>
     </div>
   </div>
+  <p class="mt-3 text-xs text-gray-400">{t("supportLogs.description")}</p>
   <p class="mt-3 min-h-4 text-xs text-rose-300 flex items-center gap-2" class:invisible={!logs.recording} role="status"><span class="h-2 w-2 rounded-full bg-rose-500 animate-pulse"></span>{logs.recording ? t("supportLogs.recording") : ""}</p>
     <div class="mt-4">
       <label for="support-log-path" class="mb-2 block text-xs font-medium text-gray-400">{t("supportLogs.path")}</label>

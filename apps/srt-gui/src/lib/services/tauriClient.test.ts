@@ -19,3 +19,13 @@ it("preserves the original IPC rejection identity", async () => {
   setSupportLogSink(() => { throw new Error("logger failure"); });
   await expect(invokeCommand("example")).rejects.toBe(failure);
 });
+
+it("logs a failed workflow result without dumping its data", async () => {
+  const sink = vi.fn();
+  setSupportLogSink(sink);
+  const result = { success: false, message: "FFmpeg failed", content: "private text" };
+  vi.mocked(invoke).mockResolvedValue(result);
+  expect(await invokeCommand("generate_flashcards")).toBe(result);
+  expect(sink.mock.calls.map(([entry]) => entry.kind)).toEqual(["ipc.start", "ipc.failed"]);
+  expect(sink.mock.lastCall?.[0].message).toMatch(/^generate_flashcards \(\d+ ms\): FFmpeg failed$/);
+});

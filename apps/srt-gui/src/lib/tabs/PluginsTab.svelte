@@ -4,6 +4,7 @@
   import { snackbar } from "$lib/stores/snackbarStore.svelte";
   import { onMount, untrack } from "svelte";
   import { pluginsStore } from "$lib/stores/pluginsStore.svelte";
+  import { getItem, setItem } from "$lib/config/vestaConfig";
   import { locale } from "$lib/i18n";
   import ConfirmDialog from "$lib/modals/ConfirmDialog.svelte";
   import { guardedOpen } from "$lib/utils/dialogGuard";
@@ -41,7 +42,10 @@
   let urlInput = $state("");
   let inspectResult = $state<PluginInspectResult | null>(null);
   let inspecting = $state(false);
+  let inspectOpener: HTMLElement | null = null;
+  let inspectError = $state(false);
   let installing = $state(false);
+  let installError = $state<string | null>(null);
   let searchQuery = $state("");
 
   let uninstallTarget = $state<InstalledPlugin | null>(null);
@@ -157,8 +161,52 @@ Every widget supports \`id\`, \`hidden\`, \`expertOnly\` (auto-hidden when Exper
     }
   });
 
+  const pluginOrderKey = "vesta-plugin-order";
+  function readPluginOrder(): string[] {
+    try {
+      const saved: unknown = JSON.parse(getItem(pluginOrderKey) ?? "[]");
+      return Array.isArray(saved) ? saved.filter(id => typeof id === "string") : [];
+    } catch {
+      return [];
+    }
+  }
+  let pluginOrder = $state(readPluginOrder());
+  let draggedPlugin = $state<string | null>(null);
+  let dropTarget = $state<string | null>(null);
+  let orderedPlugins = $derived.by(() => {
+    const positions = new Map(pluginOrder.map((id, index) => [id, index]));
+    return [...pluginsStore.plugins].sort((a, b) =>
+      (positions.get(a.id) ?? pluginOrder.length) - (positions.get(b.id) ?? pluginOrder.length)
+    );
+  });
+
+  function movePlugin(id: string, target: string) {
+    const order = orderedPlugins.map(plugin => plugin.id);
+    const from = order.indexOf(id);
+    const to = order.indexOf(target);
+    if (from < 0 || to < 0 || from === to) return;
+    order.splice(from, 1);
+    order.splice(to, 0, id);
+    pluginOrder = order;
+    setItem(pluginOrderKey, JSON.stringify(order));
+  }
+
+  function finishPluginDrag() {
+    draggedPlugin = null;
+    dropTarget = null;
+  }
+
+  function movePluginWithKey(event: KeyboardEvent, id: string) {
+    if (event.key !== "ArrowUp" && event.key !== "ArrowDown") return;
+    event.preventDefault();
+    event.stopPropagation();
+    const index = filteredPlugins.findIndex(plugin => plugin.id === id);
+    const target = filteredPlugins[index + (event.key === "ArrowUp" ? -1 : 1)];
+    if (target) movePlugin(id, target.id);
+  }
+
   let filteredPlugins = $derived(
-    pluginsStore.plugins.filter((p) => {
+    orderedPlugins.filter((p) => {
       if (!searchQuery.trim()) return true;
       const q = searchQuery.toLowerCase();
       return (
@@ -179,31 +227,50 @@ Every widget supports \`id\`, \`hidden\`, \`expertOnly\` (auto-hidden when Exper
     }
   }
 
-  async function handleInspect() {
+  async function handleInspect(event: MouseEvent) {
     if (!urlInput.trim()) return;
+    inspectOpener = event.currentTarget as HTMLElement;
     inspecting = true;
     inspectResult = null;
+    inspectError = false;
+    installError = null;
     try {
       inspectResult = await pluginsStore.inspect(urlInput.trim(), undefined);
+    } catch {
+      inspectError = true;
     } finally {
       inspecting = false;
     }
   }
 
   async function handleConfirmInstall() {
-    if (!inspectResult) return;
+    if (!inspectResult || installing) return;
     installing = true;
+    installError = null;
     try {
-      await pluginsStore.install(urlInput.trim(), undefined);
+      await pluginsStore.install(inspectResult.source.originalUrl, undefined);
       inspectResult = null;
       urlInput = "";
+    } catch {
+      installError = pluginsStore.error;
     } finally {
       installing = false;
     }
   }
 
   function handleCancelInspect() {
-    inspectResult = null;
+    if (!installing) inspectResult = null;
+  }
+
+  function openInstallDialog(node: HTMLDialogElement) {
+    const opener = inspectOpener;
+    node.showModal();
+    return {
+      destroy() {
+        node.close();
+        if (opener?.isConnected) opener.focus({ preventScroll: true });
+      },
+    };
   }
 
   function handleOpenPlugin(plugin: InstalledPlugin, screen = "main") {
@@ -417,7 +484,7 @@ Every widget supports \`id\`, \`hidden\`, \`expertOnly\` (auto-hidden when Exper
       <div class="rounded-2xl border border-white/10 bg-white/[0.02] p-5 flex flex-col gap-4 shadow-sm">
         <div class="flex items-center justify-between gap-4 flex-wrap">
           <h2 class="text-sm font-semibold text-white flex items-center gap-2">
-            <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg aria-hidden="true" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
             </svg>
             {t("plugins.installFromRepo")}
@@ -460,7 +527,7 @@ Every widget supports \`id\`, \`hidden\`, \`expertOnly\` (auto-hidden when Exper
                 <svg class="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
                 {t("plugins.inspecting")}
               {:else}
-                {t("plugins.inspect")}
+                {t("plugins.install")}
               {/if}
             </button>
           </div>
@@ -490,105 +557,16 @@ Every widget supports \`id\`, \`hidden\`, \`expertOnly\` (auto-hidden when Exper
                 <svg class="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
                 {t("plugins.inspecting")}
               {:else}
-                {t("plugins.inspect")}
+                {t("plugins.install")}
               {/if}
             </button>
           </div>
         {/if}
 
-        <!-- Permission confirmation inspect banner/modal -->
-        {#if inspectResult}
-          {@const scopes = getPermissionScopes(inspectResult.manifest.permissions)}
-
-          <div class="mt-2 p-5 rounded-xl border border-amber-500/30 bg-amber-500/10 flex flex-col gap-4 animate-in fade-in duration-150">
-            <div class="flex items-start justify-between">
-              <div class="flex items-center gap-3.5 min-w-0">
-                <div class="w-12 h-12 rounded-xl bg-amber-500/20 border border-amber-500/30 text-amber-300 flex items-center justify-center shrink-0 overflow-hidden">
-                  {#if getPluginImageSrc(inspectResult.manifest, inspectResult.iconUrl)}
-                    <img src={getPluginImageSrc(inspectResult.manifest, inspectResult.iconUrl)} alt="" class="w-full h-full object-contain rounded-lg" />
-                  {:else if inspectResult.manifest.tab?.icon === 'film' || inspectResult.manifest.icon === 'film'}
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z"/></svg>
-                  {:else if inspectResult.manifest.tab?.icon === 'search' || inspectResult.manifest.icon === 'search'}
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-                  {:else}
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 00-1-1H4a2 2 0 110-4h1a1 1 0 001-1V7a1 1 0 011-1h3a1 1 0 001-1V4z"/></svg>
-                  {/if}
-                </div>
-                <div class="flex flex-col gap-1 min-w-0">
-                  <div class="flex items-center gap-2.5 flex-wrap">
-                    <span class="text-base font-bold text-white truncate">{inspectResult.manifest.name}</span>
-                    <span class="text-xs font-mono px-2 py-0.5 rounded bg-white/10 text-gray-300">v{inspectResult.manifest.version}</span>
-                    <span class="text-xs text-gray-400 font-mono">({inspectResult.manifest.id})</span>
-                  </div>
-                  {#if inspectResult.manifest.description}
-                    <p class="text-xs text-gray-300 mt-1">{inspectResult.manifest.description}</p>
-                  {/if}
-                  {#if inspectResult.manifest.author}
-                    <span class="text-xs text-gray-400">{t("plugins.author")}: {inspectResult.manifest.author}</span>
-                  {/if}
-                </div>
-              </div>
-              <button
-                type="button"
-                onclick={handleCancelInspect}
-                aria-label={t("common.close")}
-                class="text-gray-400 hover:text-white transition-colors p-1"
-              >
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-              </button>
-            </div>
-
-            <!-- Permissions list -->
-            <div class="flex flex-col gap-1.5">
-              <span class="text-xs font-semibold text-amber-300 uppercase tracking-wider">{t("plugins.requestedPermissions")}:</span>
-              {#if scopes.length === 0}
-                <span class="text-xs text-gray-400 italic">{t("plugins.noPermissions")}</span>
-              {:else}
-                <div class="flex flex-wrap gap-2 pt-1">
-                  {#each scopes as perm}
-                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-amber-400/20 text-amber-200 border border-amber-400/30">
-                      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
-                      {formatPermission(perm)}
-                    </span>
-                  {/each}
-
-                </div>
-              {/if}
-            </div>
-
-            <!-- Untrusted code warning -->
-            <div class="flex items-start gap-3 p-3 rounded-xl bg-black/30 border border-amber-500/20 text-xs text-amber-200/90 leading-relaxed">
-              <svg class="w-5 h-5 text-amber-400 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
-              <div>
-                <strong class="font-semibold">{t("plugins.untrustedCodeWarningTitle")}:</strong>
-                {t("plugins.untrustedCodeWarning")}
-              </div>
-            </div>
-
-            <div class="flex items-center justify-end gap-3 pt-1">
-              <button
-                type="button"
-                class="btn-secondary text-xs px-4 py-2 cursor-pointer"
-                onclick={handleCancelInspect}
-              >
-                {t("common.cancel")}
-              </button>
-              <button
-                type="button"
-                disabled={installing}
-                onclick={handleConfirmInstall}
-                class="btn-primary text-xs px-5 py-2 font-semibold inline-flex items-center gap-2 cursor-pointer"
-              >
-                {#if installing}
-                  <svg class="animate-spin h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                  {t("plugins.installing")}
-                {:else}
-                  {t("plugins.confirmInstall")}
-                {/if}
-              </button>
-            </div>
-          </div>
+        {#if inspectError}
+          <p role="alert" class="mt-3 break-words text-sm text-red-300">{t("plugins.inspectFailed")}</p>
         {/if}
+
       </div>
 
       <!-- Installed Plugins Section -->
@@ -600,8 +578,11 @@ Every widget supports \`id\`, \`hidden\`, \`expertOnly\` (auto-hidden when Exper
           </h2>
 
           {#if onlinePlugins.length}
-            <button type="button" class="btn-secondary btn-compact" disabled={checkingOnline}
+            <button type="button" class="btn-secondary btn-compact inline-flex items-center gap-1.5" disabled={checkingOnline}
               onclick={() => checkPluginReleases(true)}>
+              <svg aria-hidden="true" class="h-3.5 w-3.5 shrink-0" class:animate-spin={checkingOnline} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+              </svg>
               {t(checkingOnline ? "settings.updatesChecking" : "plugins.checkUpdates")}
             </button>
           {/if}
@@ -633,6 +614,28 @@ Every widget supports \`id\`, \`hidden\`, \`expertOnly\` (auto-hidden when Exper
           <div class="grid grid-cols-1 gap-4">
             {#each filteredPlugins as plugin (plugin.id)}
               <div role="group" aria-label={plugin.name}
+                class:ring-2={dropTarget === plugin.id}
+                class:ring-indigo-400={dropTarget === plugin.id}
+                class:opacity-50={draggedPlugin === plugin.id}
+                ondragover={(event) => {
+                  if (!draggedPlugin || draggedPlugin === plugin.id) return;
+                  event.preventDefault();
+                  event.stopPropagation();
+                  if (event.dataTransfer) event.dataTransfer.dropEffect = "move";
+                  dropTarget = plugin.id;
+                }}
+                ondragleave={(event) => {
+                  if (dropTarget === plugin.id && !(event.relatedTarget instanceof Node && event.currentTarget.contains(event.relatedTarget))) {
+                    dropTarget = null;
+                  }
+                }}
+                ondrop={(event) => {
+                  if (!draggedPlugin) return;
+                  event.preventDefault();
+                  event.stopPropagation();
+                  movePlugin(draggedPlugin, plugin.id);
+                  finishPluginDrag();
+                }}
                 class="p-5 rounded-2xl border border-white/10 bg-white/[0.03] transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-4 {plugin.enabled ? 'hover:border-white/20' : ''}"
                 oncontextmenu={(e) => {
                   e.preventDefault();
@@ -648,6 +651,30 @@ Every widget supports \`id\`, \`hidden\`, \`expertOnly\` (auto-hidden when Exper
                       aria-label={`${t("plugins.open")} · ${plugin.name}`}
                       onclick={() => handleOpenPlugin(plugin)}
                     ></button>
+                  {/if}
+                  {#if filteredPlugins.length > 1}
+                    <button
+                      type="button"
+                      draggable="true"
+                      aria-label={`${t("plugins.reorder")} · ${plugin.name}`}
+                      aria-keyshortcuts="ArrowUp ArrowDown"
+                      title={t("plugins.reorder")}
+                      class="relative z-10 inline-flex h-8 w-8 shrink-0 self-center cursor-grab items-center justify-center rounded-lg text-gray-400 hover:bg-white/10 hover:text-white active:cursor-grabbing"
+                      ondragstart={(event) => {
+                        if (!event.dataTransfer) return;
+                        event.dataTransfer.effectAllowed = "move";
+                        event.dataTransfer.setData("text/plain", plugin.id);
+                        draggedPlugin = plugin.id;
+                      }}
+                      ondragend={finishPluginDrag}
+                      onkeydown={(event) => movePluginWithKey(event, plugin.id)}
+                    >
+                      <svg aria-hidden="true" class="h-4 w-4" viewBox="0 0 16 16" fill="currentColor">
+                        <circle cx="5.5" cy="3.5" r="1.25"/><circle cx="10.5" cy="3.5" r="1.25"/>
+                        <circle cx="5.5" cy="8" r="1.25"/><circle cx="10.5" cy="8" r="1.25"/>
+                        <circle cx="5.5" cy="12.5" r="1.25"/><circle cx="10.5" cy="12.5" r="1.25"/>
+                      </svg>
+                    </button>
                   {/if}
                   <div class="w-12 h-12 rounded-xl flex items-center justify-center shrink-0 border overflow-hidden {plugin.enabled ? 'bg-indigo-500/10 border-indigo-500/30 text-indigo-400' : 'bg-white/5 border-white/10 text-gray-500'}">
                     {#if getPluginImageSrc(plugin.manifest, plugin.iconUrl)}
@@ -815,6 +842,115 @@ Every widget supports \`id\`, \`hidden\`, \`expertOnly\` (auto-hidden when Exper
       </button>
     </div>
   </div>
+
+  {#if active && !selectedPluginId && inspectResult}
+    {@const scopes = getPermissionScopes(inspectResult.manifest.permissions)}
+
+    <dialog
+      use:openInstallDialog
+      aria-labelledby="plugin-install-dialog-title"
+      aria-busy={installing}
+      oncancel={(event) => { event.preventDefault(); handleCancelInspect(); }}
+      onclick={(event) => { if (event.target === event.currentTarget) handleCancelInspect(); }}
+      onkeydown={(event) => event.stopPropagation()}
+      class="m-auto max-h-[calc(100dvh_-_2rem)] w-[calc(100%_-_2rem)] max-w-xl overflow-y-auto rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] p-0 text-gray-100 shadow-2xl backdrop:bg-black/65"
+    >
+      <div class="flex flex-col gap-4 p-5 sm:p-6">
+        <div class="flex items-start justify-between">
+          <div class="flex items-center gap-3.5 min-w-0">
+            <div class="w-12 h-12 rounded-xl bg-amber-500/20 border border-amber-500/30 text-amber-300 flex items-center justify-center shrink-0 overflow-hidden">
+              {#if getPluginImageSrc(inspectResult.manifest, inspectResult.iconUrl)}
+                <img src={getPluginImageSrc(inspectResult.manifest, inspectResult.iconUrl)} alt="" class="w-full h-full object-contain rounded-lg" />
+              {:else if inspectResult.manifest.tab?.icon === 'film' || inspectResult.manifest.icon === 'film'}
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z"/></svg>
+              {:else if inspectResult.manifest.tab?.icon === 'search' || inspectResult.manifest.icon === 'search'}
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+              {:else}
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 00-1-1H4a2 2 0 110-4h1a1 1 0 001-1V7a1 1 0 011-1h3a1 1 0 001-1V4z"/></svg>
+              {/if}
+            </div>
+            <div class="flex flex-col gap-1 min-w-0">
+              <div class="flex items-center gap-2.5 flex-wrap">
+                <h2 id="plugin-install-dialog-title" class="text-base font-bold text-white break-words">{inspectResult.manifest.name}</h2>
+                <span class="text-xs font-mono px-2 py-0.5 rounded bg-white/10 text-gray-300">v{inspectResult.manifest.version}</span>
+                <span class="text-xs text-gray-400 font-mono">({inspectResult.manifest.id})</span>
+              </div>
+              {#if inspectResult.manifest.description}
+                <p class="text-xs text-gray-300 mt-1">{inspectResult.manifest.description}</p>
+              {/if}
+              {#if inspectResult.manifest.author}
+                <span class="text-xs text-gray-400">{t("plugins.author")}: {inspectResult.manifest.author}</span>
+              {/if}
+            </div>
+          </div>
+          <button
+            type="button"
+            onclick={handleCancelInspect}
+            disabled={installing}
+            aria-label={t("common.close")}
+            class="text-gray-400 hover:text-white transition-colors p-1"
+          >
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+          </button>
+        </div>
+
+        <!-- Permissions list -->
+        <div class="flex flex-col gap-1.5">
+          <span class="text-xs font-semibold text-amber-300 uppercase tracking-wider">{t("plugins.requestedPermissions")}:</span>
+          {#if scopes.length === 0}
+            <span class="text-xs text-gray-400 italic">{t("plugins.noPermissions")}</span>
+          {:else}
+            <div class="flex flex-wrap gap-2 pt-1">
+              {#each scopes as perm}
+                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-amber-400/20 text-amber-200 border border-amber-400/30">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                  {formatPermission(perm)}
+                </span>
+              {/each}
+
+            </div>
+          {/if}
+        </div>
+
+        <!-- Untrusted code warning -->
+        <div class="flex items-start gap-3 p-3 rounded-xl bg-black/30 border border-amber-500/20 text-xs text-amber-200/90 leading-relaxed">
+          <svg class="w-5 h-5 text-amber-400 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+          <div>
+            <strong class="font-semibold">{t("plugins.untrustedCodeWarningTitle")}:</strong>
+            {t("plugins.untrustedCodeWarning")}
+          </div>
+        </div>
+
+        {#if installError}
+          <p role="alert" class="break-words text-sm text-red-300">{installError}</p>
+        {/if}
+
+        <div class="flex items-center justify-end gap-3 pt-1">
+          <button
+            type="button"
+            class="btn-secondary text-xs px-4 py-2 cursor-pointer"
+            onclick={handleCancelInspect}
+            disabled={installing}
+          >
+            {t("common.cancel")}
+          </button>
+          <button
+            type="button"
+            disabled={installing}
+            onclick={handleConfirmInstall}
+            class="btn-primary text-xs px-5 py-2 font-semibold inline-flex items-center gap-2 cursor-pointer"
+          >
+            {#if installing}
+              <svg class="animate-spin h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+              {t("plugins.installing")}
+            {:else}
+              {t("plugins.confirmInstall")}
+            {/if}
+          </button>
+        </div>
+      </div>
+    </dialog>
+  {/if}
 
   <!-- Built-in Developer Guide & SDK Modal -->
   {#if showSdkModal}

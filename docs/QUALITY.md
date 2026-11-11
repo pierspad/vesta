@@ -26,6 +26,26 @@ Publication in CI waits for the successful push workflow on the exact release co
 
 ---
 
+### Support logs
+
+**Settings → Diagnostics** shows the last 200 support events from the current
+Vesta session. The preview starts at launch and stays available before, during,
+and after recording. It includes desktop command outcomes, workflow progress,
+plugin operations, and file picker and drag-and-drop activity.
+
+**Record** writes the events collected from that point to a local
+`vesta-session-<timestamp>.jsonl` file. The first line contains the Vesta version,
+OS, and architecture. Each subsequent line contains a timestamp, event kind,
+and message. **Stop recording** flushes queued events. **Export logs** copies the
+recording to a destination you choose. Diagnostics shows the resolved path and
+can open its folder.
+
+| Platform | Default folder |
+|---|---|
+| Linux | `$XDG_DATA_HOME/com.vesta.desktop/logs/support` (defaults to `~/.local/share/com.vesta.desktop/logs/support`) |
+| macOS | `~/Library/Logs/com.vesta.desktop/support` |
+| Windows | `%LOCALAPPDATA%/com.vesta.desktop/logs/support` |
+
 ## 2. Rust Engine and CLI Regression Suites
 
 ### Atomic Output and Staged Export Persistence

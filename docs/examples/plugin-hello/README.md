@@ -19,7 +19,7 @@ This directory contains a minimal, working reference implementation of an extern
 
 3. Switch the install source to **Local Folder** and select `docs/examples/plugin-hello` (or enter its path).
 
-4. Click **Inspect Plugin**. You will see:
+4. Click **Install Plugin**. You will see:
    - Name: "Hello Counter"
    - ID: `plugin-hello`
    - Version: `1.0.0`

@@ -3,6 +3,7 @@
   import { preloadTabs } from "$lib/utils/preloadTabs";
   import { locale } from "$lib/i18n";
   let t = $derived($locale);
+  import FlashcardsTabComponent from "$lib/tabs/FlashcardsTab.svelte";
   import ExtractTabComponent from "$lib/tabs/ExtractTab.svelte";
   import { getCurrentWindow } from "@tauri-apps/api/window";
   import { onMount, type Component } from "svelte";
@@ -27,7 +28,7 @@
 
   type LazyComponent = Component<any>;
   const tabLoaders: Record<BuiltinTab, () => Promise<{ default: LazyComponent }>> = {
-    flashcards: () => import("$lib/tabs/FlashcardsTab.svelte"),
+    flashcards: () => Promise.resolve({ default: FlashcardsTabComponent }),
     refine: () => import("$lib/tabs/RefineTab.svelte"),
     translate: () => import("$lib/tabs/TranslateTab.svelte"),
     sync: () => import("$lib/tabs/SyncTab.svelte"),
@@ -38,8 +39,11 @@
     settings: () => import("$lib/tabs/SettingsTab.svelte"),
     plugins: () => import("$lib/tabs/PluginsTab.svelte"),
   };
-  // The lightweight extraction shell is ready on the first tab switch.
-  let loadedTabs = $state<Partial<Record<BuiltinTab, LazyComponent>>>({ extract: ExtractTabComponent });
+  // Flashcards is ready at first paint, and extraction keeps its eager shell.
+  let loadedTabs = $state<Partial<Record<BuiltinTab, LazyComponent>>>({
+    flashcards: FlashcardsTabComponent,
+    extract: ExtractTabComponent,
+  });
   let tabLoadErrors = $state<Partial<Record<BuiltinTab, string>>>({});
   let firstRunSetupModal = $state<LazyComponent | null>(null);
 
@@ -150,6 +154,8 @@
       goToSettings("overview");
     } else if (action === "switchToShortcuts") {
       goToSettings("shortcuts");
+    } else if (action === "switchToDiagnostics") {
+      goToSettings("diagnostics");
     } else if (action === "addApiKey") {
       goToSettings("llm");
       setTimeout(() => {

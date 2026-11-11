@@ -1,5 +1,7 @@
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 
+import { recordSupportEvent } from "$lib/utils/supportLog";
+
 export interface DragDropHandlers {
   /** Called with the dropped file paths (non-empty). */
   onDrop: (paths: string[], position?: { x: number; y: number }) => void;
@@ -53,6 +55,7 @@ export function setupWebviewDragDrop(handlers: DragDropHandlers): () => void {
           // Tauri reports physical pixels, while elementFromPoint expects CSS
           // pixels. devicePixelRatio matches the webview scale factor and is
           // available synchronously when the native event arrives.
+          recordSupportEvent("file.drop", `${event.payload.paths.length} paths`);
           const scale = window.devicePixelRatio || 1;
           handlers.onDrop(event.payload.paths, {
             x: event.payload.position.x / scale,

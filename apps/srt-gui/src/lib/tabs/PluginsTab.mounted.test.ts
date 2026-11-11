@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
 import { mount, tick, unmount } from "svelte";
-import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeEach, expect, it, vi } from "vitest";
 import PluginsTab from "./PluginsTab.svelte";
 import { pluginsStore } from "$lib/stores/pluginsStore.svelte";
-import { pluginDispatchEvent, pluginRender } from "$lib/services/pluginClient";
+import { pluginDispatchEvent, pluginInspect, pluginInstall, pluginRender } from "$lib/services/pluginClient";
+import { getItem, removeItem } from "$lib/config/vestaConfig";
 import { guardedOpen } from "$lib/utils/dialogGuard";
 
 vi.mock("$lib/utils/dialogGuard", () => ({
@@ -33,6 +34,20 @@ vi.mock("$lib/services/pluginClient", async () => {
 vi.mock("@tauri-apps/plugin-opener", () => ({
   openUrl: vi.fn(),
 }));
+
+const dialogPrototype = HTMLDialogElement.prototype;
+const originalShowModal = Object.getOwnPropertyDescriptor(dialogPrototype, "showModal");
+const originalClose = Object.getOwnPropertyDescriptor(dialogPrototype, "close");
+Object.defineProperties(dialogPrototype, {
+  showModal: { configurable: true, value(this: HTMLDialogElement) { this.open = true; } },
+  close: { configurable: true, value(this: HTMLDialogElement) { this.open = false; } },
+});
+afterAll(() => {
+  if (originalShowModal) Object.defineProperty(dialogPrototype, "showModal", originalShowModal);
+  else Reflect.deleteProperty(dialogPrototype, "showModal");
+  if (originalClose) Object.defineProperty(dialogPrototype, "close", originalClose);
+  else Reflect.deleteProperty(dialogPrototype, "close");
+});
 
 const components: ReturnType<typeof mount>[] = [];
 
@@ -342,4 +357,82 @@ it("walks back from settings to details and search before leaving the plugin", a
   expect(onGoToTab).toHaveBeenCalledTimes(1);
   back();
   expect(onGoToTab).toHaveBeenLastCalledWith("plugins");
+});
+
+it("reviews the plugin before installing the inspected source", async () => {
+  const installed = pluginsStore.plugins[0];
+  const url = "https://github.com/example/demo";
+  vi.mocked(pluginInspect).mockResolvedValue({
+    manifest: installed.manifest,
+    source: { originalUrl: url, gitCloneUrl: url, gitRef: "HEAD" },
+  });
+  vi.mocked(pluginInstall).mockResolvedValueOnce(installed);
+  const target = document.createElement("div");
+  document.body.appendChild(target);
+  components.push(mount(PluginsTab, { target, props: { active: true } }));
+  await tick();
+
+  const input = target.querySelector<HTMLInputElement>('input[placeholder="https://github.com/owner/repository"]')!;
+  input.value = url;
+  input.dispatchEvent(new Event("input"));
+  await tick();
+  const install = Array.from(target.querySelectorAll("button")).find(button => button.textContent?.trim() === "Install Plugin")!;
+  install.click();
+  await vi.waitFor(() => expect(target.querySelector("dialog[open]")?.textContent).toContain("Required Permissions"));
+  expect(pluginInspect).toHaveBeenCalledWith(url, undefined);
+  expect(pluginInstall).not.toHaveBeenCalled();
+
+  target.querySelector("dialog[open]")!.dispatchEvent(new Event("cancel", { cancelable: true }));
+  await tick();
+  expect(target.querySelector("dialog")).toBeNull();
+  install.click();
+  await vi.waitFor(() => expect(target.querySelector("dialog[open]")).not.toBeNull());
+  target.querySelector<HTMLDialogElement>("dialog[open]")!.click();
+  await tick();
+  expect(target.querySelector("dialog")).toBeNull();
+  expect(pluginInstall).not.toHaveBeenCalled();
+
+  install.click();
+  await vi.waitFor(() => expect(target.querySelector("dialog[open]")).not.toBeNull());
+  input.value = "https://github.com/example/other";
+  input.dispatchEvent(new Event("input"));
+  Array.from(target.querySelectorAll("button")).find(button => button.textContent?.trim() === "Confirm & Install")!.click();
+  expect(pluginInstall).toHaveBeenCalledWith(url, undefined);
+});
+
+it("reorders installed plugins by dragging and restores the saved order on remount", async () => {
+  const first = pluginsStore.plugins[0];
+  const second = { ...first, id: "second-plugin", name: "Second Plugin" };
+  pluginsStore.plugins = [first, second];
+  const target = document.createElement("div");
+  document.body.appendChild(target);
+  const order = () => Array.from(target.querySelectorAll('[role="group"]'), row => row.getAttribute("aria-label"));
+  const handle = () => target.querySelector<HTMLButtonElement>('[aria-label="Reorder plugin · Second Plugin"]')!;
+  const dataTransfer = { setData: vi.fn(), effectAllowed: "", dropEffect: "" };
+  const dragEvent = (type: string) => Object.assign(new Event(type, { bubbles: true, cancelable: true }), { dataTransfer });
+  try {
+    const component = mount(PluginsTab, { target, props: { active: true } });
+    components.push(component);
+    await tick();
+    expect(order()).toEqual([first.name, second.name]);
+    handle().dispatchEvent(dragEvent("dragstart"));
+    const firstRow = target.querySelector('[aria-label="Demo Plugin"]')!;
+    firstRow.dispatchEvent(dragEvent("dragover"));
+    expect(dataTransfer.dropEffect).toBe("move");
+    firstRow.dispatchEvent(dragEvent("drop"));
+    await tick();
+    expect(order()).toEqual([second.name, first.name]);
+    expect(getItem("vesta-plugin-order")).toBe(JSON.stringify([second.id, first.id]));
+
+    await unmount(component);
+    components.pop();
+    components.push(mount(PluginsTab, { target, props: { active: true } }));
+    await tick();
+    expect(order()).toEqual([second.name, first.name]);
+    handle().dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true, cancelable: true }));
+    await tick();
+    expect(order()).toEqual([first.name, second.name]);
+  } finally {
+    removeItem("vesta-plugin-order");
+  }
 });

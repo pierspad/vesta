@@ -1,9 +1,9 @@
 // This store deliberately uses raw IPC: recording its own writes would recurse.
 import { invoke } from "@tauri-apps/api/core";
-import { listen, type UnlistenFn } from "@tauri-apps/api/event";
+import { listen } from "@tauri-apps/api/event";
 import { setSupportLogSink, recordSupportEvent, safeLogValue, type SupportEntry } from "$lib/utils/supportLog";
 
-class SupportLogStore {
+export class SupportLogStore {
   recording = $state(false);
   path = $state<string | null>(null);
   busy = $state(false);
@@ -11,96 +11,129 @@ class SupportLogStore {
   preview = $state<SupportEntry[]>([]);
   previewText = $derived(this.preview.map(entry => `[${entry.time}] ${entry.kind}: ${entry.message}`).join("\n"));
   private entries: SupportEntry[] = [];
-  private droppedEntries = 0;
+  private recentEntries: SupportEntry[] = [];
+  private previewScheduled = false;
+  private acceptingEntries = false;
   private timer: ReturnType<typeof setInterval> | null = null;
   private pending: Promise<void> | null = null;
-  private unlisteners: UnlistenFn[] = [];
+  private initialization: Promise<void> | null = null;
 
-  async initialize() {
-    try {
-      const status = await invoke<{ path: string | null; recording: boolean }>("support_log_status");
-      this.path = status.path;
-      if (status.recording && !this.recording) await this.attach();
-    } catch (error) { this.error = safeLogValue(error); }
-  }
-  private async attach() {
-    this.recording = true;
+  constructor() {
     setSupportLogSink(entry => {
-      // Same redacted entries as the file; bounded independently of the write queue.
-      this.preview = [...this.preview.slice(-199), entry];
-      if (this.entries.length < 1000) this.entries.push(entry);
-      else this.droppedEntries += 1;
+      if (this.acceptingEntries) this.entries.push(entry);
+      this.recentEntries.push(entry);
+      if (this.recentEntries.length > 200) this.recentEntries.shift();
+      if (this.previewScheduled) return;
+
+      // Commands can log inside Svelte effects. Publish outside their reactive context.
+      this.previewScheduled = true;
+      queueMicrotask(() => {
+        this.previewScheduled = false;
+        this.preview = this.recentEntries.slice();
+      });
     });
-    this.timer = setInterval(() => { if (!this.busy) void this.flush().catch(error => { this.error = safeLogValue(error); }); }, 500);
-    // Progress messages include native processing failures and workflow milestones.
-    for (const name of ["flashcard-progress", "translate-progress", "translate-complete", "transcribe-progress", "transcribe-complete", "refine-progress", "sync-auto-progress", "sync-auto-complete", "provider-retry"]) {
+  }
+
+  initialize(): Promise<void> {
+    return this.initialization ??= this.connect();
+  }
+
+  private async connect() {
+    const events = ["flashcard-progress", "translate-progress", "translate-complete", "transcribe-progress", "transcribe-complete", "refine-progress", "sync-auto-progress", "sync-auto-complete", "provider-retry", "plugin:notify", "plugin:progress", "font-download-progress", "update-download-progress"];
+    await Promise.all(events.map(async name => {
       try {
-        this.unlisteners.push(await listen<Record<string, unknown>>(name, event => {
+        await listen<Record<string, unknown> | number>(name, event => {
+          if (typeof event.payload === "number") {
+            recordSupportEvent(name, safeLogValue(event.payload));
+            return;
+          }
+          if (name === "plugin:notify" || name === "plugin:progress") {
+            const { pluginId, level, value } = event.payload || {};
+            recordSupportEvent(name, safeLogValue({ pluginId, level, value }));
+            return;
+          }
           if (name === "provider-retry") {
             const { tier, endpoint, status, attempt, max_retries, retry_in_ms } = event.payload || {};
             recordSupportEvent(name, safeLogValue({ tier, endpoint, status, attempt, max_retries, retry_in_ms }));
             return;
           }
-          const { message, percentage, current_batch, total_batches, success } = event.payload || {};
-          recordSupportEvent(name, safeLogValue({ message, percentage, current_batch, total_batches, success }));
-        }));
+          const { message, percentage, current_batch, total_batches, success, cancelled, stage, current, total, percent, error } = event.payload || {};
+          recordSupportEvent(name, safeLogValue({ message, percentage, current_batch, total_batches, success, cancelled, stage, current, total, percent, error }));
+        });
       } catch (error) { this.error = safeLogValue(error); }
-    }
+    }));
+    try {
+      const status = await invoke<{ path: string | null; recording: boolean }>("support_log_status");
+      this.path = status.path;
+      if (status.recording) this.startWriter();
+    } catch (error) { this.error = safeLogValue(error); }
+  }
+
+  private startWriter() {
+    this.acceptingEntries = true;
+    this.recording = true;
+    this.timer = setInterval(() => {
+      if (!this.busy && !this.pending) {
+        void this.flush().catch(error => { this.error = safeLogValue(error); });
+      }
+    }, 500);
   }
   async start() {
     if (this.busy || this.recording) return;
     this.busy = true; this.error = "";
     try {
+      await this.initialize();
+      if (this.recording) return;
       this.path = await invoke<string>("support_log_start");
-      this.preview = [];
-      await this.attach();
+      this.startWriter();
       recordSupportEvent("session", "Recording enabled");
     } catch (error) { this.error = safeLogValue(error); }
     finally { this.busy = false; }
   }
-  private flush(): Promise<void> {
-    if (this.pending) return this.pending.then(() => this.flush());
-    if (!this.entries.length || !this.path) return Promise.resolve();
-    if (this.droppedEntries && this.entries.length < 1000) {
-      this.entries.push({ time: new Date().toISOString(), kind: "logger.warning", message: `${this.droppedEntries} entries dropped while the log writer was unavailable or overloaded` });
-      this.droppedEntries = 0;
+  private async writeQueuedEntries() {
+    // Drain the current snapshot so a busy workflow cannot delay export indefinitely.
+    let remaining = this.entries.length;
+    while (remaining > 0) {
+      const entries = this.entries.splice(0, Math.min(remaining, 100));
+      try {
+        await invoke<void>("support_log_append", { path: this.path, entries: entries.map(entry => JSON.stringify(entry)) });
+      } catch (error) {
+        this.entries.unshift(...entries);
+        throw error;
+      }
+      remaining -= entries.length;
     }
-    const entries = this.entries.splice(0, 100);
-    this.pending = invoke<void>("support_log_append", { path: this.path, entries: entries.map(entry => JSON.stringify(entry)) })
-      .catch(error => { this.entries.unshift(...entries); throw error; })
-      .finally(() => { this.pending = null; });
+  }
+
+  private flush(): Promise<void> {
+    this.pending = this.writeQueuedEntries().finally(() => { this.pending = null; });
     return this.pending;
   }
+
   async stop() {
-    if (this.busy) return;
+    if (this.busy || !this.recording) return;
     this.busy = true; this.error = "";
     recordSupportEvent("session", "Recording stopped");
-    setSupportLogSink(null);
+    this.acceptingEntries = false;
+    this.recording = false;
     if (this.timer) clearInterval(this.timer);
     this.timer = null;
-    for (const unlisten of this.unlisteners) unlisten();
-    this.unlisteners = [];
     try {
-      while (this.entries.length || this.pending) await this.flush();
+      if (this.pending) await this.pending;
+      await this.flush();
       await invoke("support_log_stop");
-      this.recording = false;
     } catch (error) {
       this.error = safeLogValue(error);
-      // Restore recording if the file cannot be flushed: never silently discard logs.
-      await this.attach();
+      this.startWriter();
     } finally { this.busy = false; }
   }
+
   async export(destination: string) {
+    if (this.busy || !this.path) return null;
     this.busy = true; this.error = "";
     try {
       if (this.pending) await this.pending;
-      const snapshot = this.entries.splice(0);
-      for (let index = 0; index < snapshot.length; index += 100) {
-        const entries = snapshot.slice(index, index + 100);
-        try {
-          await invoke("support_log_append", { path: this.path, entries: entries.map(entry => JSON.stringify(entry)) });
-        } catch (error) { this.entries.unshift(...snapshot.slice(index)); throw error; }
-      }
+      await this.flush();
       return await invoke<string>("support_log_export", { destination });
     } catch (error) { this.error = safeLogValue(error); return null; }
     finally { this.busy = false; }

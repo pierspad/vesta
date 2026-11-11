@@ -1,4 +1,5 @@
 import { invokeCommand } from "$lib/services/tauriClient";
+import { recordSupportEvent } from "$lib/utils/supportLog";
 
 export interface PluginSettingField {
   id: string;
@@ -412,11 +413,15 @@ export type WidgetNode =
   | LanguageSelectWidget;
 
 export async function pluginInspect(url: string, gitRef?: string): Promise<PluginInspectResult> {
-  return invokeCommand<PluginInspectResult>("plugin_inspect", { url, gitRef });
+  const inspected = await invokeCommand<PluginInspectResult>("plugin_inspect", { url, gitRef });
+  recordSupportEvent("plugin.inspect", `${inspected.manifest.id} v${inspected.manifest.version}`);
+  return inspected;
 }
 
 export async function pluginInstall(url: string, gitRef?: string): Promise<InstalledPlugin> {
-  return invokeCommand<InstalledPlugin>("plugin_install", { url, gitRef });
+  const installed = await invokeCommand<InstalledPlugin>("plugin_install", { url, gitRef });
+  recordSupportEvent("plugin.install", `${installed.id} v${installed.version}`);
+  return installed;
 }
 
 export async function pluginList(): Promise<InstalledPlugin[]> {

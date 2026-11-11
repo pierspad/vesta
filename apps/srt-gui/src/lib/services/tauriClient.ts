@@ -24,7 +24,13 @@ export async function invokeCommand<T = unknown>(command: string, args?: Record<
   recordSupportEvent("ipc.start", command);
   try {
     const result = await invoke<T>(command, args);
-    recordSupportEvent("ipc.done", `${command} (${Date.now() - started} ms)`);
+    const duration = Date.now() - started;
+    if (result && typeof result === "object" && "success" in result && result.success === false) {
+      const message = "message" in result && typeof result.message === "string" ? `: ${result.message}` : "";
+      recordSupportEvent("ipc.failed", `${command} (${duration} ms)${message}`);
+    } else {
+      recordSupportEvent("ipc.done", `${command} (${duration} ms)`);
+    }
     return result;
   } catch (error) {
     recordSupportEvent("ipc.error", `${command}: ${safeLogValue(error)}`);

@@ -4,6 +4,7 @@ export function setSupportLogSink(value: typeof sink) { sink = value; }
 
 export function redactLogText(value: string): string {
   return value
+    .replace(/(https?:\/\/)[^\s/@]+@/gi, "$1[redacted]@")
     .replace(/((?:api[_-]?key|authorization|access[_-]?token|refresh[_-]?token|password|secret|token)["']?\s*[:=]\s*)(["'])(.*?)\2/gi, '$1"[redacted]"')
     .replace(/\bBearer\s+[^\s"',}]+/gi, "Bearer [redacted]")
     .replace(/\b(?:sk-|AIza)[A-Za-z0-9_-]{12,}/g, "[redacted]")
@@ -20,7 +21,7 @@ export function safeLogValue(value: unknown): string {
 }
 export function recordSupportEvent(kind: string, message: string) {
   try {
-    sink?.({ time: new Date().toISOString(), kind, message: redactLogText(message).slice(0, 4000) });
+    sink?.({ time: new Date().toISOString(), kind, message: redactLogText(message).replace(/[\x00-\x08\x0B-\x1F]/g, "").slice(0, 4000) });
   } catch {
     // Diagnostics are best effort. Logging here would recurse through console.
   }

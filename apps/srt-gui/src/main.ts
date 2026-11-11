@@ -1,9 +1,12 @@
-import { installSupportLogging } from "$lib/utils/supportLog";
+import { supportLogStore } from "$lib/stores/supportLogStore.svelte";
+import { installSupportLogging, recordSupportEvent } from "$lib/utils/supportLog";
 import { mount } from "svelte";
 import "./app.css";
 import { hydrate as hydrateVestaConfig } from "$lib/config/vestaConfig";
 
 installSupportLogging();
+recordSupportEvent("app.start", "Vesta started");
+void supportLogStore.initialize();
 
 import { installExternalLinks } from "$lib/utils/externalLinks";
 installExternalLinks(document, error => console.error("[ExternalLink]", error));
@@ -24,24 +27,6 @@ for (const evt of ["dragenter", "dragover", "drop"] as const) {
   );
 }
 
-// Keep global errors visible in logs without destroying the UI state.
-window.onerror = (msg, src, line, col, err) => {
-  console.error("[GlobalError]", {
-    msg,
-    src,
-    line,
-    col,
-    stack: err?.stack,
-  });
-  return false;
-};
-window.onunhandledrejection = (e) => {
-  console.error("[UnhandledRejection]", {
-    reason: e.reason,
-    stack: e.reason?.stack,
-  });
-};
-
 try {
   // Idrata la cache di vesta_config.json PRIMA di importare App.svelte.
   // Molti store (aiStore, ankiStore, uiModeStore, i18n, ...) sono singleton
@@ -59,8 +44,6 @@ try {
   // qui sotto valuta i18n DOPO l'idratazione della config (vedi sopra).
   const { initI18n } = await import("$lib/i18n");
   await initI18n();
-  const { supportLogStore } = await import("$lib/stores/supportLogStore.svelte");
-  await supportLogStore.initialize();
   const { default: App } = await import("./App.svelte");
 
   const app = mount(App, {
@@ -69,6 +52,7 @@ try {
   // @ts-ignore
   window.__app = app;
 } catch (e: any) {
+  console.error("[MountError]", e);
   const message = e instanceof Error ? `${e.message}\n${e.stack || ""}` : String(e);
   const errorDisplay = document.createElement("pre");
   errorDisplay.style.cssText = "color:red;padding:2em;white-space:pre-wrap";

@@ -145,6 +145,9 @@ fn extract_tar_gz(bytes: &[u8], dest_dir: &Path) -> Result<(), String> {
     {
         let entry = entry.map_err(|e| format!("Corrupted tar entry: {e}"))?;
         let entry_type = entry.header().entry_type();
+        if entry_type.is_pax_global_extensions() {
+            continue;
+        }
 
         // Reject symlinks and hardlinks for security
         if entry_type.is_symlink() || entry_type.is_hard_link() {
@@ -171,6 +174,9 @@ fn extract_tar_gz(bytes: &[u8], dest_dir: &Path) -> Result<(), String> {
     for entry in entries {
         let mut entry = entry.map_err(|e| format!("Corrupted tar entry: {e}"))?;
         let entry_type = entry.header().entry_type();
+        if entry_type.is_pax_global_extensions() {
+            continue;
+        }
 
         if entry_type.is_symlink() || entry_type.is_hard_link() {
             return Err("Tar archive contains unsupported symlink or hardlink entry".to_string());
@@ -196,7 +202,7 @@ fn extract_tar_gz(bytes: &[u8], dest_dir: &Path) -> Result<(), String> {
 
         let target_path = dest_dir.join(&stripped_path);
 
-        if entry.header().entry_type().is_dir() {
+        if entry_type.is_dir() {
             fs::create_dir_all(&target_path).map_err(|e| {
                 format!("Failed to create directory {}: {e}", target_path.display())
             })?;
@@ -476,29 +482,24 @@ pub async fn fetch_and_extract_plugin(
         return load_manifest_from_dir(dest_dir);
     }
 
-    let mut downloaded = false;
-
     if let Some(archive_url) = &source.archive_url {
-        match download_archive(archive_url).await {
-            Ok(bytes) => match extract_archive(&bytes, dest_dir) {
-                Ok(()) => {
-                    downloaded = true;
-                }
-                Err(e) => {
-                    eprintln!(
-                        "Warning: Archive extraction failed ({e}), falling back to git clone."
-                    );
-                }
-            },
-            Err(e) => {
-                eprintln!("Warning: Archive download failed ({e}), falling back to git clone.");
+        let archive_result = match download_archive(archive_url).await {
+            Ok(bytes) => extract_archive(&bytes, dest_dir),
+            Err(error) => Err(error),
+        };
+        match archive_result {
+            Ok(()) => return load_manifest_from_dir(dest_dir),
+            Err(error) => {
+                eprintln!("Warning: Plugin archive failed ({error}), falling back to git clone.");
+                git_clone_fallback(&source.git_clone_url, &source.git_ref, dest_dir).map_err(
+                    |clone_error| format!("Plugin archive failed: {error}; {clone_error}"),
+                )?;
+                return load_manifest_from_dir(dest_dir);
             }
         }
     }
 
-    if !downloaded {
-        git_clone_fallback(&source.git_clone_url, &source.git_ref, dest_dir)?;
-    }
+    git_clone_fallback(&source.git_clone_url, &source.git_ref, dest_dir)?;
 
     load_manifest_from_dir(dest_dir)
 }
@@ -527,6 +528,15 @@ mod tests {
         {
             let mut tar = tar::Builder::new(&mut enc);
 
+            // GitHub source archives include a global PAX header before the repository root.
+            let pax_content = b"14 comment=ok\n";
+            let mut pax_header = tar::Header::new_ustar();
+            pax_header.set_entry_type(tar::EntryType::XGlobalHeader);
+            pax_header.set_size(pax_content.len() as u64);
+            pax_header.set_mode(0o644);
+            tar.append_data(&mut pax_header, "pax_global_header", &pax_content[..])
+                .unwrap();
+
             let manifest_content = r#"{
                 "id": "test-plugin",
                 "name": "Test Plugin",
@@ -552,6 +562,7 @@ mod tests {
 
         extract_archive(&gz_bytes, &dest).expect("extraction failed");
 
+        assert!(!dest.join("pax_global_header").exists());
         let manifest = load_manifest_from_dir(&dest).expect("manifest load failed");
         assert_eq!(manifest.id, "test-plugin");
         assert_eq!(manifest.name, "Test Plugin");

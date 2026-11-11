@@ -26,7 +26,6 @@ vi.mock("$lib/config/vestaConfig", () => ({
 vi.mock("$lib/stores/ankiStore.svelte", () => ({ ankiStore: { checkConnection: vi.fn() } }));
 vi.mock("$lib/stores/aiStore.svelte", () => ({ aiStore: { killSwitchActive: false } }));
 vi.mock("$lib/stores/snackbarStore.svelte", () => ({ snackbar: { message: null } }));
-vi.mock("$lib/utils/shortcuts", () => ({ getShortcuts: () => [] }));
 vi.mock("$lib/components/Sidebar.svelte", () => import("./fixtures/AppTestSidebar.svelte"));
 vi.mock("$lib/components/ShortcutOverlay.svelte", () => import("./fixtures/AppTestStub.svelte"));
 vi.mock("$lib/components/AppContextMenu.svelte", () => import("./fixtures/AppTestStub.svelte"));
@@ -34,8 +33,10 @@ vi.mock("$lib/components/Snackbar.svelte", () => import("./fixtures/AppTestStub.
 vi.mock("$lib/tabs/ExtractTab.svelte", () => import("./fixtures/AppTestStub.svelte"));
 vi.mock("$lib/tabs/FlashcardsTab.svelte", () => import("./fixtures/AppTabProbe.svelte"));
 vi.mock("$lib/tabs/TranslateTab.svelte", () => import("./fixtures/AppTabProbe.svelte"));
+vi.mock("$lib/tabs/SettingsTab.svelte", () => import("./fixtures/AppTabProbe.svelte"));
 
 import App from "../../App.svelte";
+import { SupportLogStore } from "$lib/stores/supportLogStore.svelte";
 
 const mounted: any[] = [];
 function deferred<T>() {
@@ -65,8 +66,10 @@ afterEach(async () => {
 });
 
 it("keeps loaded tabs mounted across navigation and updates their active prop", async () => {
+  const diagnostics = new SupportLogStore();
   const { target, component } = await render();
-  await vi.waitFor(() => expect(target.querySelectorAll('[data-testid="tab-probe"]')).toHaveLength(1));
+  expect(target.querySelectorAll('[data-testid="tab-probe"]')).toHaveLength(1);
+  expect(target.textContent).not.toContain("common.loading");
   const active = () => target.querySelector<HTMLElement>('[data-testid="tab-probe"][data-active="true"]');
   active()!.querySelector<HTMLButtonElement>('[data-testid="run-operation"]')!.click();
   await tick();
@@ -95,6 +98,8 @@ it("keeps loaded tabs mounted across navigation and updates their active prop", 
   await unmount(component);
   mounted.splice(mounted.indexOf(component), 1);
   expect((window as any).__appTabLifecycle).toEqual({ mounted: 2, destroyed: 2 });
+  expect(diagnostics.preview.filter(entry => entry.kind === "test.tab").map(entry => entry.message).sort())
+    .toEqual(["active", "active", "active", "inactive", "inactive"]);
 });
 
 it("unlistens when App unmounts while native resize registration is pending", async () => {
@@ -108,4 +113,13 @@ it("unlistens when App unmounts while native resize registration is pending", as
   mounted.splice(mounted.indexOf(component), 1);
   registration.resolve(unlisten);
   await vi.waitFor(() => expect(unlisten).toHaveBeenCalledOnce());
+});
+
+
+it("opens Diagnostics with the global Alt+9 shortcut", async () => {
+  const { target } = await render();
+  const event = new KeyboardEvent("keydown", { key: "9", altKey: true, cancelable: true });
+  window.dispatchEvent(event);
+  expect(event.defaultPrevented).toBe(true);
+  await vi.waitFor(() => expect(target.querySelector('[data-active="true"][data-section="diagnostics"]')).not.toBeNull());
 });

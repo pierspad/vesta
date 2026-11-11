@@ -3,13 +3,12 @@
   import { locale } from "$lib/i18n";
   import { displayComputeBackend } from "$lib/services/systemDiagnostics";
   import { diagnosticsStore as store } from "$lib/stores/diagnosticsStore.svelte";
-  import { supportLogStore } from "$lib/stores/supportLogStore.svelte";
   import SupportLogsPanel from "$lib/panels/SupportLogsPanel.svelte";
   let t = $derived($locale);
   function status(value: boolean | undefined): string {
     return value === undefined ? t("settings.endpointStatus.checking") : t(value ? "settings.endpointStatus.online" : "settings.endpointStatus.offline");
   }
-  onMount(() => { void store.refresh(true); void supportLogStore.initialize(); });
+  onMount(() => { void store.refresh(true); });
 </script>
 <div class="space-y-4">
   {#if store.error}<p class="text-sm text-red-300" role="alert">{t("settings.diagnostics.error")} <button type="button" onclick={() => store.refresh(true)} disabled={store.loading} class="ml-2 underline disabled:opacity-50">{t("settings.diagnostics.refresh")}</button></p>{/if}

@@ -534,5 +534,5 @@ python3 docs/examples/plugin-hello/vesta_plugin.py test ./my-plugin
    ```
 2. Open the **Plugins** tab in the sidebar.
 3. Switch the install bar to **Local Folder** and select `docs/examples/plugin-hello` (or paste a GitHub/GitLab repository URL under **Repository URL**).
-4. Click **Inspect Plugin**, review the manifest and requested permissions, and click **Confirm & Install**.
+4. Click **Install Plugin**, review the manifest and requested permissions, and click **Confirm & Install**.
 5. Click **Open** on the installed plugin card (or use the 2x2 action icons to update, view details, open settings, or uninstall).

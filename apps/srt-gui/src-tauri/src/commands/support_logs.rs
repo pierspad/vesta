@@ -1,7 +1,7 @@
 use serde::Serialize;
 use std::{
     fs::{File, OpenOptions},
-    io::Write,
+    io::{Seek, Write},
     path::PathBuf,
     sync::Mutex,
 };
@@ -76,22 +76,34 @@ pub fn support_log_append(path: String, entries: Vec<String>) -> Result<(), Stri
         return Err("Recording session changed".into());
     }
     let file = recorder.file.as_mut().ok_or("Recording stopped")?;
+    let mut batch = Vec::new();
     for entry in entries {
         if entry.len() > 16_384 {
             return Err("Log entry too large".into());
         }
         let value: serde_json::Value = serde_json::from_str(&entry).map_err(|e| e.to_string())?;
-        writeln!(file, "{value}").map_err(|e| e.to_string())?;
+        writeln!(batch, "{value}").map_err(|e| e.to_string())?;
     }
-    file.flush().map_err(|e| e.to_string())
+    let offset = file.stream_position().map_err(|e| e.to_string())?;
+    if let Err(error) = file.write_all(&batch).and_then(|()| file.flush()) {
+        // Retried batches must not duplicate entries written before the failure.
+        file.set_len(offset)
+            .and_then(|()| file.seek(std::io::SeekFrom::Start(offset)))
+            .map_err(|rollback| {
+                format!("Log write failed: {error}; rollback failed: {rollback}")
+            })?;
+        return Err(error.to_string());
+    }
+    Ok(())
 }
 
 #[tauri::command]
 pub fn support_log_stop() -> Result<(), String> {
     let mut recorder = RECORDER.lock().unwrap_or_else(|e| e.into_inner());
-    if let Some(mut file) = recorder.file.take() {
+    if let Some(file) = recorder.file.as_mut() {
         file.flush().map_err(|e| e.to_string())?;
     }
+    recorder.file = None;
     Ok(())
 }
 
@@ -127,6 +139,15 @@ mod tests {
             vec![r#"{"kind":"error","message":"test"}"#.into()],
         )
         .unwrap();
+        let contents = std::fs::read(&source).unwrap();
+        assert!(
+            support_log_append(
+                source.to_string_lossy().into_owned(),
+                vec!["{}".into(), "invalid JSON".into()],
+            )
+            .is_err()
+        );
+        assert_eq!(std::fs::read(&source).unwrap(), contents);
         let destination = temp.path().join("exported.jsonl");
         support_log_export(destination.to_string_lossy().into_owned()).unwrap();
         assert_eq!(

@@ -1,4 +1,5 @@
 import { invokeCommand as invoke } from "$lib/services/tauriClient";
+import { recordSupportEvent } from "$lib/utils/supportLog";
 
 /**
  * Sostituto locale di `@tauri-apps/plugin-http`'s `fetch`, appoggiato al
@@ -66,6 +67,8 @@ export async function fetch(
       allowCustomHost: options.allowCustomHost ?? false,
     },
   });
+
+  recordSupportEvent("http.response", `${result.status}`);
 
   const headerMap = new Map(
     result.headers.map(([name, value]) => [name.toLowerCase(), value]),
