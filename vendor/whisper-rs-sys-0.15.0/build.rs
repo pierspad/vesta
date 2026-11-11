@@ -199,6 +199,8 @@ fn main() {
         if !has_cmake_env_var(&host, &target, "CMAKE_GENERATOR") {
             config.generator("Ninja");
         }
+        // ggml uses C++ exceptions, which clang-cl disables by default.
+        config.cxxflag("/EHsc");
         let clang_cl = find_clang_cl().unwrap_or_else(|| "clang-cl".to_string());
         for var in [
             "CMAKE_C_COMPILER",

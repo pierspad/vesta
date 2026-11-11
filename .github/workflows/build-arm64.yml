@@ -318,7 +318,7 @@ jobs:
           trap 'hdiutil detach "$mount_point"; rmdir "$mount_point"' EXIT
           app=("$mount_point"/*.app)
           executable=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "${app[0]}/Contents/Info.plist")
-          lipo -verify_arch arm64 "${app[0]}/Contents/MacOS/$executable"
+          lipo "${app[0]}/Contents/MacOS/$executable" -verify_arch arm64
           codesign --verify --deep --strict "${app[0]}"
           "${app[0]}/Contents/MacOS/$executable" --version
 
