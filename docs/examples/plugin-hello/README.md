@@ -12,7 +12,7 @@ This directory contains a minimal, working reference implementation of an extern
 
 1. Start Vesta development server:
    ```bash
-   cd apps/srt-gui && npm run dev
+   cd apps/srt-gui && npx tauri dev
    ```
 
 2. Open the **Plugins** manager tab in the sidebar.
@@ -28,6 +28,6 @@ This directory contains a minimal, working reference implementation of an extern
 
 5. Click **Confirm & Install**.
 
-6. The plugin is installed into Vesta's plugin directory and a new tab titled **Hello Counter** appears in the sidebar.
+6. The plugin is installed into Vesta's plugin directory and **Hello Counter** appears under **Installed Plugins** in the **Plugins** view.
 
-7. Click the tab in the sidebar to open the plugin.
+7. Click **Open** on the **Hello Counter** card (or click the card itself) to open the plugin inside the Plugins workspace.

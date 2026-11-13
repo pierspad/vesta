@@ -19,7 +19,7 @@ Run these scripts from the repository root before considering work complete:
 
 [`build-scripts/check_doc_contracts.py`](build-scripts/check_doc_contracts.py) prevents drift between code and documentation across 6 areas:
 1. **Tauri IPC commands** (`apps/srt-gui/src-tauri/src/main.rs` vs frontend `invoke(...)` and `docs/ARCHITECTURE.md`)
-2. **MCP server tools** (`cli/vesta-mcp/src/lib.rs` vs `docs/modules/vesta-mcp.md`)
+2. **MCP server tools** (`cli/vesta-mcp/src/lib.rs` vs `docs/MCP.md`)
 3. **CLI crates & per-subcommand flags** (`cli/*/src/*.rs` vs `docs/modules/*.md`)
 4. **Plugin SDK widget parity** (`PluginRenderer.svelte` `node.type` branches vs AST-extracted builders in `vesta_plugin.py` and `docs/PLUGINS.md`)
 5. **Rust library public API signatures & fields** (`core/*`, `lib/*` full `pub fn`/`pub struct`/`pub enum` signatures vs `docs/modules/*.md`)

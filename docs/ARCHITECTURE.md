@@ -98,7 +98,7 @@ Failover Orchestrator (Tier 0 ─► Tier 1 ─► Tier 2 ─► ...)
         │ Dispatches requests in round-robin across active endpoints in the current Tier.
         │ Automatically fails over to the next tier if quota/RPM/rate-limits are exhausted.
         ▼
-LLM Providers (Google Gemini, Groq, OpenAI, Mistral, OpenRouter, NVIDIA NIM, Ollama / Local)
+LLM Providers (Google Gemini, Anthropic Claude, Groq, OpenAI, Mistral, OpenRouter, NVIDIA NIM, Ollama / Local)
         │
         ▼
 Translation & Refine Engine

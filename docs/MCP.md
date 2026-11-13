@@ -203,8 +203,8 @@ credential environment reference rather than putting secrets in a URL.
 
 Translation profiles require nonempty `tiers` (arrays of entry arrays). Entries
 support `provider`, explicit `model`, optional `api_url`, `api_key_env`, `rpm`,
-and `max_requests`. Providers are `local`, `custom`, `openai`, `google`/`gemini`,
-`groq`, `openrouter`, `mistral`, `github` and `nvidia`. Hosted providers require
+and `max_requests`. Providers are `local`, `custom`, `openai`, `anthropic`, `google`,
+`gemini`, `groq`, `openrouter`, `mistral`, and `nvidia`. Hosted providers require
 credentials; custom providers require an explicit URL and may be anonymous.
 `batch_size` defaults to 25 (1–1000), `resume_overlap` to 2; optional
 `title_context` is at most 512 characters. Request limits apply per engine run;

@@ -458,7 +458,7 @@ External plugins execute untrusted code on the user's host machine. Vesta enforc
 - **Permission Declarations**:
   - `network`: Allows outbound HTTP/API requests.
   - `filesystem:downloads`: Allows reading/writing to the user's Downloads folder.
-- **Plugin credentials**. Store each plugin's keys in its own settings or data directory. Vesta no longer forwards legacy shared vault values or accepts plugin writes to that vault. Existing plugin-local settings are preserved. A local plugin process still runs with the user's OS permissions and may have access to other files or environment variables. Install plugins only from sources you trust.
+- **Plugin credentials**. Each plugin stores its own credentials in its settings or data directory; Vesta does not provide or persist a shared credential vault (`sharedCredentials` is not supported). A local plugin process still runs with the user's OS permissions and may have access to other files or environment variables. Install plugins only from sources you trust.
 
 ---
 
@@ -530,7 +530,7 @@ python3 docs/examples/plugin-hello/vesta_plugin.py test ./my-plugin
 
 1. Start Vesta in development mode:
    ```bash
-   cd apps/srt-gui && npm run dev
+   cd apps/srt-gui && npx tauri dev
    ```
 2. Open the **Plugins** tab in the sidebar.
 3. Switch the install bar to **Local Folder** and select `docs/examples/plugin-hello` (or paste a GitHub/GitLab repository URL under **Repository URL**).

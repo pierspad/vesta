@@ -7,7 +7,7 @@ declare an ordered list of endpoints (provider + model + key) and the engine
 round-robins inside a tier, then falls to the next tier when entries exhaust
 their quota or hit rate limits.
 
-Supported endpoints: Google (Gemini), Groq, OpenRouter, and any
+Supported endpoints: Google (Gemini), Anthropic (Claude), Groq, OpenRouter, and any
 OpenAI-compatible API (OpenAI, Mistral, NVIDIA NIM, Ollama/local, custom).
 
 **Library API highlights**

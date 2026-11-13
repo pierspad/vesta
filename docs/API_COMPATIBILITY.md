@@ -10,6 +10,7 @@ Account permissions, rate limits, regional availability, and model lifecycles ar
 | **Groq Speech-to-Text** | OpenAI-compatible `POST /openai/v1/audio/transcriptions` (`whisper-large-v3`, `whisper-large-v3-turbo`). | [Groq Speech-to-Text](https://console.groq.com/docs/speech-to-text) |
 | **Deepgram Speech-to-Text** | `POST /v1/listen` with pre-recorded audio payload and utterance/word timing parameters. | [Deepgram Pre-recorded Audio](https://developers.deepgram.com/reference/speech-to-text/listen-pre-recorded) |
 | **AssemblyAI Speech-to-Text** | `POST /v2/upload` followed by `POST /v2/transcript` creation and status polling with `speech_models` selection. | [AssemblyAI Transcripts API](https://www.assemblyai.com/docs/pre-recorded-audio/api-reference/transcripts/submit) |
+| **Anthropic Claude** | Native `POST /v1/messages` with `x-api-key` + `anthropic-version: 2023-06-01` and `GET /v1/models` discovery. | [Anthropic Messages API](https://docs.anthropic.com/en/api/messages) |
 | **Google Gemini** | Native `v1beta` `models/{model}:generateContent` and `GET /v1beta/models` capability discovery. | [Gemini Models API](https://ai.google.dev/gemini-api/docs/models) |
 | **OpenRouter** | OpenAI-compatible `POST /api/v1/chat/completions` and `GET /api/v1/models`. | [OpenRouter API Reference](https://openrouter.ai/docs/api_reference/overview) |
 | **Mistral** | OpenAI-compatible `POST /v1/chat/completions` and `GET /v1/models`. | [Mistral Chat API](https://docs.mistral.ai/api) |
