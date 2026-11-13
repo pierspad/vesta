@@ -108,6 +108,8 @@
   let requestedSettingsSection = $state<"overview" | "llm" | "whisper" | "language" | "anki" | "diagnostics" | "shortcuts">(openWhisperAfterSetup ? "whisper" : "overview");
   let highlightItemId = $state<string | null>(null);
   let lastActiveMainTab = $state<Exclude<AppTab, "settings">>(initialTab === "settings" ? "flashcards" : initialTab);
+  let flashcardsHandoffNonce = 0;
+  let flashcardsHandoff = $state<{ nonce: number; videoPath: string; subtitlePath: string } | null>(null);
 
   let shortcutsList = $state(getShortcuts());
 
@@ -150,6 +152,10 @@
       changeTab("align");
     } else if (action === "switchToTranscribe") {
       if (!aiStore.killSwitchActive) changeTab("transcribe");
+    } else if (action === "switchToExtract") {
+      changeTab("extract");
+    } else if (action === "switchToPlugins") {
+      changeTab("plugins");
     } else if (action === "switchToSettings") {
       goToSettings("overview");
     } else if (action === "switchToShortcuts") {
@@ -374,7 +380,14 @@
     window.addEventListener("keydown", handleKeyDown);
     window.addEventListener("shortcuts-updated", reloadShortcuts);
 
-    const handlePluginFlashcards = () => {
+    const handlePluginFlashcards = (event: Event) => {
+      const detail = (event as CustomEvent<{ videoPath?: unknown; subtitlePath?: unknown } | undefined>).detail;
+      const videoPath = typeof detail?.videoPath === "string" ? detail.videoPath.trim() : "";
+      const subtitlePath = typeof detail?.subtitlePath === "string" ? detail.subtitlePath.trim() : "";
+      if (videoPath || subtitlePath) {
+        flashcardsHandoffNonce += 1;
+        flashcardsHandoff = { nonce: flashcardsHandoffNonce, videoPath, subtitlePath };
+      }
       changeTab("flashcards");
     };
     window.addEventListener("vesta-plugin-open-flashcards", handlePluginFlashcards);
@@ -458,7 +471,7 @@
     {/if}
     {#if loadedTabs.flashcards}
       {@const FlashcardsTab = loadedTabs.flashcards}
-      <div class="absolute inset-0" class:hidden={activeTab !== "flashcards"}><FlashcardsTab onGoToSettings={goToSettings} active={activeTab === "flashcards"} /></div>
+      <div class="absolute inset-0" class:hidden={activeTab !== "flashcards"}><FlashcardsTab onGoToSettings={goToSettings} active={activeTab === "flashcards"} pluginHandoff={flashcardsHandoff} /></div>
     {/if}
     {#if loadedTabs.refine}
       {@const RefineTab = loadedTabs.refine}

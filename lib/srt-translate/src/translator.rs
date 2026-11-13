@@ -24,6 +24,8 @@ pub enum ApiType {
     Groq,
 
     OpenRouter,
+
+    Anthropic,
 }
 
 #[derive(Clone)]
@@ -174,6 +176,80 @@ pub(crate) fn build_openai_request(model: &str, prompt: &str) -> OpenAiRequest {
     }
 }
 
+#[derive(Serialize, Debug)]
+pub(crate) struct AnthropicMessage {
+    pub role: String,
+    pub content: String,
+}
+
+#[derive(Serialize, Debug)]
+pub(crate) struct AnthropicRequest {
+    pub model: String,
+    pub max_tokens: u32,
+    pub temperature: f32,
+    pub messages: Vec<AnthropicMessage>,
+}
+
+#[derive(Deserialize, Debug)]
+pub(crate) struct AnthropicError {
+    pub message: Option<String>,
+}
+
+#[derive(Deserialize, Debug)]
+pub(crate) struct AnthropicContentBlock {
+    #[serde(rename = "type")]
+    pub block_type: Option<String>,
+    pub text: Option<String>,
+}
+
+#[derive(Deserialize, Debug)]
+pub(crate) struct AnthropicResponse {
+    pub content: Option<Vec<AnthropicContentBlock>>,
+    pub error: Option<AnthropicError>,
+}
+
+pub(crate) fn build_anthropic_request(model: &str, prompt: &str) -> AnthropicRequest {
+    AnthropicRequest {
+        model: model.to_string(),
+        max_tokens: 4096,
+        temperature: 0.3,
+        messages: vec![AnthropicMessage {
+            role: "user".to_string(),
+            content: prompt.to_string(),
+        }],
+    }
+}
+
+pub(crate) fn extract_anthropic_text(
+    response: AnthropicResponse,
+    status: u16,
+) -> Result<String, ProviderError> {
+    if let Some(ref error) = response.error {
+        let err_msg = error.message.as_deref().unwrap_or("Unknown API error");
+        return Err(provider_error("Anthropic", status, err_msg));
+    }
+
+    let text = response
+        .content
+        .unwrap_or_default()
+        .into_iter()
+        .filter(|block| block.block_type.as_deref() != Some("thinking"))
+        .filter_map(|block| block.text)
+        .collect::<Vec<_>>()
+        .join("");
+
+    let trimmed = text.trim();
+    if trimmed.trim_matches('"').trim().is_empty() {
+        return Err(ProviderError {
+            provider: "Anthropic",
+            status,
+            kind: ProviderFailureKind::EmptyResponse,
+        });
+    }
+
+    Ok(trimmed.to_string())
+}
+
 impl Translator {
     /// Builds a translator and reports HTTP client configuration errors.
     pub fn try_new(config: TranslatorConfig) -> Result<Self, reqwest::Error> {
@@ -291,6 +367,7 @@ impl Translator {
     pub async fn generate_response(&self, prompt: &str) -> Result<String> {
         match self.config.api_type {
             ApiType::Google => self.call_google_api(prompt).await,
+            ApiType::Anthropic => self.call_anthropic_api(prompt).await,
             ApiType::Local | ApiType::OpenRouter | ApiType::Groq => {
                 self.call_openai_api(prompt).await
             }
@@ -508,6 +585,66 @@ impl Translator {
         }
 
         anyhow::bail!("API rate limit exceeded after {} retries", MAX_RETRIES)
+    }
+
+    async fn call_anthropic_api(&self, prompt: &str) -> Result<String> {
+        let api_key = self
+            .config
+            .api_key
+            .as_deref()
+            .map(str::trim)
+            .filter(|key| !key.is_empty())
+            .ok_or_else(|| anyhow::anyhow!("Anthropic API key is required"))?;
+
+        let url = format!("{}/messages", self.config.base_url.trim_end_matches('/'));
+        let request = build_anthropic_request(&self.config.model, prompt);
+
+        const MAX_RETRIES: u32 = 3;
+
+        for attempt in 0..=MAX_RETRIES {
+            let http_response = self
+                .client
+                .post(&url)
+                .header("x-api-key", api_key)
+                .header("anthropic-version", "2023-06-01")
+                .header("Content-Type", "application/json")
+                .json(&request)
+                .send()
+                .await
+                .map_err(reqwest::Error::without_url)
+                .context("Anthropic API transport failed")?;
+
+            let status = http_response.status();
+            let response_text = http_response
+                .text()
+                .await
+                .map_err(reqwest::Error::without_url)
+                .context("Anthropic API response read failed")?;
+
+            if let Some(delay) = retry_backoff(status, &response_text, attempt, MAX_RETRIES) {
+                self.report_retry(status, attempt, MAX_RETRIES, delay);
+                sleep(delay).await;
+                continue;
+            }
+
+            if !status.is_success() {
+                return Err(provider_error("Anthropic", status.as_u16(), &response_text).into());
+            }
+
+            let response: AnthropicResponse =
+                serde_json::from_str(&response_text).map_err(|_| ProviderError {
+                    provider: "Anthropic",
+                    status: status.as_u16(),
+                    kind: ProviderFailureKind::InvalidResponse,
+                })?;
+
+            return extract_anthropic_text(response, status.as_u16()).map_err(Into::into);
+        }
+
+        anyhow::bail!(
+            "Anthropic API rate limit exceeded after {} retries",
+            MAX_RETRIES
+        )
     }
 }
 
@@ -813,5 +950,159 @@ Hope this helps!
                 "Standard model {standard_model} must include temperature 0.3: {json}"
             );
         }
+    }
+
+    #[test]
+    fn test_anthropic_request_serialization() {
+        let req = build_anthropic_request("claude-haiku-4-5", "Translate hello");
+        let value = serde_json::to_value(&req).unwrap();
+        assert_eq!(value["model"], "claude-haiku-4-5");
+        assert_eq!(value["max_tokens"], 4096);
+        assert!((value["temperature"].as_f64().unwrap() - 0.3).abs() < 1e-6);
+        assert_eq!(
+            value["messages"],
+            serde_json::json!([{"role": "user", "content": "Translate hello"}])
+        );
+    }
+
+    #[test]
+    fn test_anthropic_extract_filters_thinking_and_handles_errors() {
+        let thinking_json = r#"{
+            "content": [
+                {"type": "thinking", "text": "Internal reasoning that must be ignored"},
+                {"type": "text", "text": "  Ciao "},
+                {"type": "text", "text": "mondo  "}
+            ]
+        }"#;
+        let response: AnthropicResponse = serde_json::from_str(thinking_json).unwrap();
+        assert_eq!(extract_anthropic_text(response, 200).unwrap(), "Ciao mondo");
+
+        for empty_json in [
+            r#"{"content":[]}"#,
+            r#"{"content":[{"type":"thinking","text":"Only thought"}]}"#,
+            r#"{"content":[{"type":"text","text":"   "}]}"#,
+            r#"{"content":[{"type":"text","text":"\"\""}]}"#,
+        ] {
+            let empty_resp: AnthropicResponse = serde_json::from_str(empty_json).unwrap();
+            let err = extract_anthropic_text(empty_resp, 200).unwrap_err();
+            assert_eq!(err.provider, "Anthropic");
+            assert_eq!(err.kind, ProviderFailureKind::EmptyResponse);
+        }
+
+        let err_json = r#"{
+            "error": {
+                "type": "rate_limit_error",
+                "message": "Rate limit exceeded"
+            }
+        }"#;
+        let err_resp: AnthropicResponse = serde_json::from_str(err_json).unwrap();
+        let err = extract_anthropic_text(err_resp, 200).unwrap_err();
+        assert_eq!(err.provider, "Anthropic");
+        assert_eq!(err.kind, ProviderFailureKind::RateLimit);
+    }
+
+    #[tokio::test]
+    async fn test_anthropic_requires_non_empty_api_key() {
+        for api_key in [None, Some("   ".to_string())] {
+            let translator = Translator::new(TranslatorConfig {
+                base_url: "http://127.0.0.1:1/v1".to_string(),
+                model: "claude-haiku-4-5".to_string(),
+                api_key,
+                api_type: ApiType::Anthropic,
+            });
+            let err = translator.generate_response("Hello").await.unwrap_err();
+            assert!(err.to_string().contains("Anthropic API key is required"));
+        }
+    }
+
+    #[tokio::test]
+    async fn test_anthropic_http_headers_endpoint_and_response() {
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+
+        let server_task = tokio::spawn(async move {
+            let mut captured = Vec::new();
+            for response_body in [
+                r#"{"content":[{"type":"thinking","text":"Reasoning..."},{"type":"text","text":"Ciao mondo"}]}"#,
+                r#"{"content":[{"type":"text","text":"\"Buongiorno\""}]}"#,
+            ] {
+                let (mut stream, _) =
+                    tokio::time::timeout(Duration::from_secs(5), listener.accept())
+                        .await
+                        .unwrap()
+                        .unwrap();
+
+                let mut buf = Vec::new();
+                let mut chunk = [0u8; 4096];
+                let header_end = loop {
+                    let n = stream.read(&mut chunk).await.unwrap();
+                    assert!(n > 0, "unexpected EOF reading request");
+                    buf.extend_from_slice(&chunk[..n]);
+                    if let Some(pos) = buf.windows(4).position(|w| w == b"\r\n\r\n") {
+                        break pos + 4;
+                    }
+                };
+                let headers_str = String::from_utf8_lossy(&buf[..header_end]).to_string();
+                let content_length = headers_str
+                    .lines()
+                    .find_map(|line| {
+                        let (name, val) = line.split_once(':')?;
+                        name.trim()
+                            .eq_ignore_ascii_case("content-length")
+                            .then(|| val.trim().parse::<usize>().ok())?
+                    })
+                    .unwrap_or(0);
+                while buf.len() < header_end + content_length {
+                    let n = stream.read(&mut chunk).await.unwrap();
+                    assert!(n > 0, "unexpected EOF reading request body");
+                    buf.extend_from_slice(&chunk[..n]);
+                }
+                let body_str =
+                    String::from_utf8_lossy(&buf[header_end..header_end + content_length])
+                        .to_string();
+                captured.push((headers_str, body_str));
+
+                let http_resp = format!(
+                    "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                    response_body.len(),
+                    response_body
+                );
+                stream.write_all(http_resp.as_bytes()).await.unwrap();
+            }
+            captured
+        });
+
+        let translator = Translator::new(TranslatorConfig {
+            base_url: format!("http://{addr}/v1/"),
+            model: "claude-haiku-4-5".to_string(),
+            api_key: Some("anthropic-secret-key".to_string()),
+            api_type: ApiType::Anthropic,
+        });
+
+        let raw = translator.generate_response("Hello world").await.unwrap();
+        assert_eq!(raw, "Ciao mondo");
+
+        let translated = translator
+            .translate("Good morning", "Italian", None)
+            .await
+            .unwrap();
+        assert_eq!(translated, "Buongiorno");
+
+        let captured = server_task.await.unwrap();
+        assert_eq!(captured.len(), 2);
+        let (headers, body) = &captured[0];
+        let headers_lower = headers.to_ascii_lowercase();
+        assert!(headers.starts_with("POST /v1/messages HTTP/"));
+        assert!(headers_lower.contains("x-api-key: anthropic-secret-key\r\n"));
+        assert!(headers_lower.contains("anthropic-version: 2023-06-01\r\n"));
+        assert!(headers_lower.contains("content-type: application/json\r\n"));
+
+        let body_json: serde_json::Value = serde_json::from_str(body).unwrap();
+        assert_eq!(body_json["model"], "claude-haiku-4-5");
+        assert_eq!(body_json["max_tokens"], 4096);
+        assert_eq!(body_json["messages"][0]["role"], "user");
+        assert_eq!(body_json["messages"][0]["content"], "Hello world");
     }
 }

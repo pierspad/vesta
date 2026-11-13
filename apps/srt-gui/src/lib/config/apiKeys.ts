@@ -11,7 +11,6 @@ export type ApiProviderId =
   | "groq"
   | "openrouter"
   | "mistral"
-  | "github"
   | "nvidia"
   | "custom"
   | "deepgram"
@@ -50,9 +49,9 @@ export function loadAndValidateApiKeys(): ApiKeyConfig[] {
       "custom",
       "openrouter",
       "mistral",
-      "github",
       "nvidia",
       "openai",
+      "anthropic",
       "deepgram",
       "assemblyai",
       "local_whisper",
@@ -77,8 +76,8 @@ export function loadAndValidateApiKeys(): ApiKeyConfig[] {
           apiUrl: "https://generativelanguage.googleapis.com/v1beta"
         };
       }
-      // Chiave legacy non riconoscibile: scartala (l'utente la ri-aggiunge
-      // dalle impostazioni con il provider corretto).
+      // Retired provider entries (e.g. legacy "github") and unrecognized
+      // keys are dropped during load so saved configs migrate cleanly.
       return null;
     }).filter((k: any) => k !== null);
 
@@ -93,7 +92,7 @@ export function supportsCapability(key: ApiKeyConfig, capability: "llm" | "stt")
   if (key.capabilities) return key.capabilities.includes(capability);
   return capability === "stt"
     ? ["groq", "openai", "deepgram", "assemblyai", "custom_whisper", "local_whisper"].includes(key.apiType)
-    : ["local", "google", "groq", "openai", "openrouter", "mistral", "nvidia", "github", "custom"].includes(key.apiType);
+    : ["local", "google", "groq", "openai", "anthropic", "openrouter", "mistral", "nvidia", "custom"].includes(key.apiType);
 }
 
 function withBuiltinEndpoints(keys: ApiKeyConfig[]): ApiKeyConfig[] {

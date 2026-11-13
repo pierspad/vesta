@@ -117,7 +117,6 @@ SAME_AS_ENGLISH_ALLOWED_KEYS = {
     "provider.google",                # "Google Gemini" — brand name, see provider.openrouter
     "settings.modal.providerGoogle",  # "Google Gemini" — brand name, same as provider.google
     "provider.anthropic",
-    "provider.github",
     "provider.mistral",
     "provider.nvidia",
     "settings.modal.provider",

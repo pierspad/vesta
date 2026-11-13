@@ -14,7 +14,7 @@ for name in ('llmProviders', 'transcribeProviders'):
     for field, url in re.findall(r'(apiKeyUrl|documentationUrl|defaultApiUrl|defaultUrl): "(https://[^" ]+)"', source):
         if field in ('defaultApiUrl', 'defaultUrl'):
             # Only discovery requests; never upload audio or run inference.
-            if 'assemblyai' in url or 'deepgram' in url or 'anthropic' in url or 'models.github' in url:
+            if 'assemblyai' in url or 'deepgram' in url or 'anthropic' in url:
                 continue
             url += '/models'
             field = 'model discovery (no credentials)'

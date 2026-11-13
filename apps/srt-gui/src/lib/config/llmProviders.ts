@@ -124,11 +124,15 @@ export const providers: Record<string, ProviderInfo> = {
     name: "Anthropic Claude",
     icon: "anthropic", // Use icon ID for custom SVG icons
     color: "from-orange-500 to-amber-500",
-    description: "Opus 4.6, Sonnet 4.6 (Coming Soon)",
+    description: "Claude Opus 4.6, Sonnet 4.6, and Haiku 4.5",
     requiresApiKey: true,
     requiresApiUrl: false,
     defaultApiUrl: "https://api.anthropic.com/v1",
-    enabled: false, // Coming soon
+    enabled: true,
+    apiKeyUrl: "https://console.anthropic.com/settings/keys",
+    keyPrefix: "sk-ant-",
+    keyPlaceholder: "sk-ant-...",
+    documentationUrl: "https://docs.anthropic.com",
   },
   custom: {
     id: "custom",
@@ -185,21 +189,6 @@ export const providers: Record<string, ProviderInfo> = {
     keyPlaceholder: "Mistral API key",
     documentationUrl: "https://docs.mistral.ai",
   },
-  github: {
-    id: "github",
-    name: "GitHub Models",
-    icon: "github",
-    color: "from-gray-600 to-gray-800",
-    description: "Retired by GitHub on July 30, 2026",
-    requiresApiKey: true,
-    requiresApiUrl: false,
-    defaultApiUrl: "https://models.github.ai/inference",
-    enabled: false,
-    apiKeyUrl: "https://github.com/settings/personal-access-tokens",
-    keyPrefix: "github_pat_",
-    keyPlaceholder: "github_pat_... or ghp_...",
-    documentationUrl: "https://docs.github.com",
-  },
   nvidia: {
     id: "nvidia",
     name: "NVIDIA NIM",
@@ -220,7 +209,7 @@ export const providers: Record<string, ProviderInfo> = {
     name: "Local Whisper",
     icon: "local",
     color: "from-purple-500 to-pink-500",
-    description: "Modello Whisper locale eseguito sul tuo PC",
+    description: "Local Whisper model running on your PC",
     requiresApiKey: false,
     requiresApiUrl: false,
     enabled: true,
@@ -244,6 +233,7 @@ export const providerOrder = [
   "google",
   "groq",
   "openai",
+  "anthropic",
   "openrouter",
   "mistral",
   "nvidia",
@@ -388,6 +378,39 @@ export const modelsByProvider: Record<string, ModelInfo[]> = {
     },
   ],
 
+  // Anthropic Messages API (https://api.anthropic.com/v1)
+  anthropic: [
+    {
+      id: "claude-sonnet-4-6",
+      name: "Claude Sonnet 4.6",
+      provider: "anthropic",
+      family: "Claude 4",
+      familyInfo: { type: "proprietary", badge: "Newest" },
+      contextWindow: 200000,
+      description: "Balanced intelligence and speed for high-quality subtitle translation and annotation.",
+      recommended: true,
+    },
+    {
+      id: "claude-haiku-4-5",
+      name: "Claude Haiku 4.5",
+      provider: "anthropic",
+      family: "Claude 4",
+      familyInfo: { type: "proprietary", badge: "Budget" },
+      contextWindow: 200000,
+      description: "Fast, cost-efficient Claude model ideal for batch subtitle translation.",
+      recommended: true,
+    },
+    {
+      id: "claude-opus-4-6",
+      name: "Claude Opus 4.6",
+      provider: "anthropic",
+      family: "Claude 4",
+      familyInfo: { type: "proprietary", badge: "Newest" },
+      contextWindow: 200000,
+      description: "Most capable Claude model for complex nuance and literary translation.",
+    },
+  ],
+
   // Groq API - Inferenza ultra-veloce su hardware LPU
   groq: [
     {
@@ -511,51 +534,6 @@ export const modelsByProvider: Record<string, ModelInfo[]> = {
       familyInfo: { type: "open-weights", badge: "Open" },
       contextWindow: 131072,
       description: "12B multilingue, gratuito su molti tier",
-    },
-  ],
-
-  // GitHub Models - free tier via PAT (models:read). ID con prefisso vendor.
-  github: [
-    {
-      id: "openai/gpt-4o-mini",
-      name: "GPT-4o mini",
-      provider: "github",
-      family: "OpenAI",
-      familyInfo: { type: "proprietary", badge: "Budget" },
-      description: "OpenAI compatto, free tier GitHub",
-      recommended: true,
-    },
-    {
-      id: "openai/gpt-4o",
-      name: "GPT-4o",
-      provider: "github",
-      family: "OpenAI",
-      familyInfo: { type: "proprietary", badge: "Stable" },
-      description: "OpenAI flagship multimodale",
-    },
-    {
-      id: "meta/Llama-3.3-70B-Instruct",
-      name: "Llama 3.3 70B",
-      provider: "github",
-      family: "Meta",
-      familyInfo: { type: "open-weights", badge: "Open" },
-      description: "Meta 70B instruct",
-    },
-    {
-      id: "mistral-ai/Mistral-Large-2411",
-      name: "Mistral Large 2411",
-      provider: "github",
-      family: "Mistral",
-      familyInfo: { type: "proprietary", badge: "Stable" },
-      description: "Mistral Large via GitHub Models",
-    },
-    {
-      id: "deepseek/DeepSeek-V3-0324",
-      name: "DeepSeek V3",
-      provider: "github",
-      family: "DeepSeek",
-      familyInfo: { type: "open-source", badge: "OSS" },
-      description: "DeepSeek V3 via GitHub Models",
     },
   ],
 

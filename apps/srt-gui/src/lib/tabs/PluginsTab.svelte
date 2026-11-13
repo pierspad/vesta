@@ -131,15 +131,16 @@ Store credentials in the plugin's own settings or data directory. Vesta does not
 ## 4. Declarative Widget Catalog
 Every widget supports \`id\`, \`hidden\`, \`expertOnly\` (auto-hidden when Expert Mode is off), \`tooltip\` (native Vesta hover tooltip), \`flex\`, and \`width\`.
 
-- **Layout**: \`column\` (\`gap\`, \`children\`), \`row\` (\`gap\`, \`align\`: \`"start" | "center" | "end" | "between"\`, \`children\`), \`divider\`, \`heading\` (\`level\`, \`icon\`), \`text\` (\`variant\`, \`size\`)
+- **Layout**: \`column\` (\`gap\`, \`children\`), \`row\` (\`gap\`, \`align\`: \`"start" | "center" | "end" | "between"\`, \`separator\`, \`children\`), \`divider\`, \`heading\` (\`level\`, \`icon\`), \`text\` (\`variant\`, \`size\`)
 - **Inputs**:
-  - \`textInput\` / \`passwordInput\`: \`label\`, \`placeholder\`, \`defaultValue\`, \`icon\` (\`"search"\`, \`"tmdb"\`, \`"imdb"\`, etc.), \`labelTooltip\`, \`submitAction\` (button ID triggered when pressing **Enter**), \`hint\`, \`link\`
+  - \`textInput\` / \`passwordInput\`: \`label\`, \`labelIcon\`, \`labelTooltip\`, \`placeholder\`, \`defaultValue\`, \`icon\` (\`"search"\`, \`"tmdb"\`, \`"imdb"\`, etc.), \`submitAction\` (button ID triggered when pressing **Enter**), \`emptyWarning\`, \`hint\`, \`link\`
+  - \`textArea\`: Resizable multiline input (\`label\`, \`placeholder\`, \`defaultValue\`, \`rows\`, \`maxLength\`, \`disabled\`, \`readOnly\`)
   - \`languageSelect\`: Unified Vesta language selector with bundled SVG flags (\`scope\`: \`"all"\` for 58 world languages or \`"core"\` for 33 study languages)
-  - \`pathInput\`: Native OS file/folder selector (\`pickerType\`: \`"file" | "folder"\`, \`filters\`)
+  - \`pathInput\`: Native OS file/folder selector (\`pickerType\`: \`"file" | "folder"\`, \`filters\`, \`drop\`, \`dropHint\`)
   - \`select\`, \`segmented\`, \`numberInput\`, \`checkbox\`
 - **Actions & Display**:
-  - \`button\`: \`label\`, \`variant\` (\`"primary" | "secondary" | "danger"\`), \`icon\`, \`tooltip\`
-  - \`list\`: \`items\` with \`title\`, \`subtitle\`, \`badge\`, \`language\` (ISO code automatically rendered by Vesta as **Flag SVG + Localized Language Name** in Vesta's active language), \`meta\`, \`image\`, and \`actions\`
+  - \`button\`: \`label\`, \`variant\` (\`"primary" | "secondary" | "danger" | "settings" | "accent"\`), \`status\`, \`placement\`, \`icon\`, \`disabled\`, \`tooltip\`, \`disabledTooltip\`, \`disabledFocus\`, \`requiresAny\`
+  - \`list\`: \`items\` with \`title\`, \`subtitle\`, \`badge\`, \`language\` (ISO code automatically rendered by Vesta as **Flag SVG + Localized Language Name** in Vesta's active language), \`meta\`, \`image\`, \`primaryAction\`, and \`actions\`
   - \`fileOutput\`, \`progress\`, \`table\`, \`image\`, \`link\` / \`externalLink\`
 
 ## 5. Host Notifications & Integrations (Plugin → Vesta)
@@ -973,7 +974,7 @@ Every widget supports \`id\`, \`hidden\`, \`expertOnly\` (auto-hidden when Exper
           <div class="flex items-center gap-2">
             <button
               type="button"
-              onclick={() => void openUrl("https://github.com/pierspad/vesta/blob/dev/docs/PLUGINS.md")}
+              onclick={() => void openUrl("https://github.com/pierspad/vesta/blob/main/docs/PLUGINS.md")}
               class="btn-secondary text-xs px-3 py-1.5 inline-flex items-center gap-1.5 cursor-pointer"
               title="docs/PLUGINS.md"
             >

@@ -17,6 +17,8 @@ export const defaultShortcuts: ShortcutDefinition[] = [
   { id: "tab-sync", action: "switchToSync", description: "shortcuts.action.goToSync", defaultKey: "Alt+4", category: "global" },
   { id: "tab-align", action: "switchToAlign", description: "shortcuts.action.goToAlign", defaultKey: "Alt+5", category: "global" },
   { id: "tab-transcribe", action: "switchToTranscribe", description: "shortcuts.action.goToTranscribe", defaultKey: "Alt+6", category: "global" },
+  { id: "tab-extract", action: "switchToExtract", description: "shortcuts.action.goToExtract", defaultKey: "Alt+Shift+E", category: "global" },
+  { id: "tab-plugins", action: "switchToPlugins", description: "shortcuts.action.goToPlugins", defaultKey: "Alt+Shift+P", category: "global" },
   { id: "tab-settings", action: "switchToSettings", description: "shortcuts.action.goToSettings", defaultKey: "Alt+7", category: "global" },
   { id: "tab-shortcuts", action: "switchToShortcuts", description: "shortcuts.action.goToShortcuts", defaultKey: "Alt+8", category: "global" },
   { id: "tab-diagnostics", action: "switchToDiagnostics", description: "settings.section.diagnostics", defaultKey: "Alt+9", category: "global" },

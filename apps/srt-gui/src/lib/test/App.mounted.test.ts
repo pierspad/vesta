@@ -31,6 +31,7 @@ vi.mock("$lib/components/ShortcutOverlay.svelte", () => import("./fixtures/AppTe
 vi.mock("$lib/components/AppContextMenu.svelte", () => import("./fixtures/AppTestStub.svelte"));
 vi.mock("$lib/components/Snackbar.svelte", () => import("./fixtures/AppTestStub.svelte"));
 vi.mock("$lib/tabs/ExtractTab.svelte", () => import("./fixtures/AppTestStub.svelte"));
+vi.mock("$lib/tabs/PluginsTab.svelte", () => import("./fixtures/AppTestStub.svelte"));
 vi.mock("$lib/tabs/FlashcardsTab.svelte", () => import("./fixtures/AppTabProbe.svelte"));
 vi.mock("$lib/tabs/TranslateTab.svelte", () => import("./fixtures/AppTabProbe.svelte"));
 vi.mock("$lib/tabs/SettingsTab.svelte", () => import("./fixtures/AppTabProbe.svelte"));
@@ -122,4 +123,59 @@ it("opens Diagnostics with the global Alt+9 shortcut", async () => {
   window.dispatchEvent(event);
   expect(event.defaultPrevented).toBe(true);
   await vi.waitFor(() => expect(target.querySelector('[data-active="true"][data-section="diagnostics"]')).not.toBeNull());
+});
+
+it("switches to Flashcards when vesta-plugin-open-flashcards is dispatched", async () => {
+  const { target } = await render();
+  target.querySelector<HTMLButtonElement>('[data-testid="switch-translate"]')!.click();
+  await vi.waitFor(() => expect(target.querySelectorAll('[data-testid="tab-probe"]')).toHaveLength(2));
+
+  const probes = [...target.querySelectorAll<HTMLElement>('[data-testid="tab-probe"]')];
+  const flashcardsProbe = probes.find((probe) => probe.getAttribute("data-active") === "false")!;
+  expect(flashcardsProbe).toBeDefined();
+
+  window.dispatchEvent(
+    new CustomEvent("vesta-plugin-open-flashcards", {
+      detail: { videoPath: "/tmp/movie.mp4", subtitlePath: "/tmp/movie.srt" },
+    })
+  );
+  await tick();
+  expect(flashcardsProbe.getAttribute("data-active")).toBe("true");
+});
+
+it("switches to Extract and Plugins with Alt+Shift+E and Alt+Shift+P", async () => {
+  const { target } = await render();
+  const tabStubWrapper = (propCount: string) =>
+    [...target.querySelectorAll<HTMLElement>(".flex-1 > div")].find(
+      (wrapper) => wrapper.querySelector('[data-testid="app-stub"]')?.textContent === propCount
+    );
+  const flashcardsProbe = target.querySelector<HTMLElement>('[data-testid="tab-probe"]')!;
+  expect(flashcardsProbe.getAttribute("data-active")).toBe("true");
+
+  const extractEvent = new KeyboardEvent("keydown", { key: "E", altKey: true, shiftKey: true, cancelable: true });
+  window.dispatchEvent(extractEvent);
+  expect(extractEvent.defaultPrevented).toBe(true);
+  await tick();
+
+  const extractWrapper = tabStubWrapper("1")!;
+  expect(extractWrapper).toBeDefined();
+  expect(extractWrapper.classList.contains("hidden")).toBe(false);
+  expect(flashcardsProbe.getAttribute("data-active")).toBe("false");
+
+  const pluginsEvent = new KeyboardEvent("keydown", { key: "p", altKey: true, shiftKey: true, cancelable: true });
+  window.dispatchEvent(pluginsEvent);
+  expect(pluginsEvent.defaultPrevented).toBe(true);
+  await vi.waitFor(() => expect(tabStubWrapper("3")).toBeDefined());
+
+  const pluginsWrapper = tabStubWrapper("3")!;
+  expect(pluginsWrapper.classList.contains("hidden")).toBe(false);
+  expect(extractWrapper.classList.contains("hidden")).toBe(true);
+
+  const extractLowerEvent = new KeyboardEvent("keydown", { key: "e", altKey: true, shiftKey: true, cancelable: true });
+  window.dispatchEvent(extractLowerEvent);
+  expect(extractLowerEvent.defaultPrevented).toBe(true);
+  await tick();
+
+  expect(extractWrapper.classList.contains("hidden")).toBe(false);
+  expect(pluginsWrapper.classList.contains("hidden")).toBe(true);
 });

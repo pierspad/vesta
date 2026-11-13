@@ -171,8 +171,8 @@ async fn run(args: Vec<std::ffi::OsString>) -> Result<u8> {
                             | "groq"
                             | "openrouter"
                             | "mistral"
-                            | "github"
                             | "nvidia"
+                            | "anthropic"
                     ),
                     "Unsupported provider in refinement configuration"
                 );

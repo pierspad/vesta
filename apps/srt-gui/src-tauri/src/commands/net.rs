@@ -60,7 +60,6 @@ const ALLOWED_HOSTS: &[&str] = &[
     "openrouter.ai",
     "api.groq.com",
     "api.mistral.ai",
-    "models.github.ai",
     "integrate.api.nvidia.com",
     "api.deepgram.com",
     "api.assemblyai.com",
@@ -210,10 +209,18 @@ mod tests {
             "api.openai.com",
             "api.deepgram.com",
             "api.assemblyai.com",
+            "github.com",
+            "api.github.com",
+            "raw.githubusercontent.com",
         ] {
             assert!(is_host_allowed(host), "{host}");
         }
-        for host in ["example.com", "8.8.8.8", "api.openai.com.example.com"] {
+        for host in [
+            "example.com",
+            "8.8.8.8",
+            "api.openai.com.example.com",
+            "models.github.ai",
+        ] {
             assert!(!is_host_allowed(host), "{host}");
         }
     }

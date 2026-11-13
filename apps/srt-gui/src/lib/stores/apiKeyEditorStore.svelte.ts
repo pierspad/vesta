@@ -5,13 +5,14 @@ import { providers } from "$lib/config/llmProviders";
  * Static data, only ever consumed by the api-key-editing feature (the
  * modal component and this store's own openAdd), so they live here rather
  * than in a shared providers module. */
-export const llmProviderIds = ["local", "google", "groq", "openai", "openrouter", "mistral", "nvidia", "custom"];
+export const llmProviderIds = ["local", "google", "groq", "openai", "anthropic", "openrouter", "mistral", "nvidia", "custom"];
 export const whisperProviderIds = ["groq", "openai", "deepgram", "assemblyai", "custom"];
 
 export const llmApiKeyUrls: Record<string, string> = {
   google: "https://aistudio.google.com/apikey",
   groq: "https://console.groq.com/keys",
   openai: "https://platform.openai.com/api-keys",
+  anthropic: "https://console.anthropic.com/settings/keys",
   openrouter: "https://openrouter.ai/keys",
   mistral: "https://console.mistral.ai/api-keys",
   nvidia: "https://build.nvidia.com",
@@ -21,6 +22,7 @@ export const llmDocUrls: Record<string, string> = {
   google: "https://ai.google.dev/gemini-api/docs",
   groq: "https://console.groq.com/docs",
   openai: "https://developers.openai.com/api/docs",
+  anthropic: "https://docs.anthropic.com",
   openrouter: "https://openrouter.ai/docs",
   mistral: "https://docs.mistral.ai",
   nvidia: "https://docs.api.nvidia.com/nim/reference/llm-apis",
