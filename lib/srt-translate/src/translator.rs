@@ -154,10 +154,7 @@ pub(crate) fn supports_custom_temperature(model: &str) -> bool {
         Some(pos) => &model[pos + 1..],
         None => &model,
     };
-    if name.starts_with("o1") || name.starts_with("o3") || name.starts_with("o4") {
-        return false;
-    }
-    true
+    !(name.starts_with("o1") || name.starts_with("o3") || name.starts_with("o4"))
 }
 
 pub(crate) fn build_openai_request(model: &str, prompt: &str) -> OpenAiRequest {
