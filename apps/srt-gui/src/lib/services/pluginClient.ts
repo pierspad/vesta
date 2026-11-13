@@ -24,17 +24,10 @@ export interface PluginEntry {
   os?: Record<string, string[]>;
 }
 
-export interface SharedCredentialSpec {
-  id: string;
-  label?: string;
-  description?: string;
-}
-
 export type PluginPermissions =
   | string[]
   | {
       scopes?: string[];
-      sharedCredentials?: string[];
     };
 
 export interface PluginManifest {
@@ -51,7 +44,6 @@ export interface PluginManifest {
   repository?: string;
   entry: PluginEntry;
   permissions: PluginPermissions;
-  sharedCredentials?: Array<string | SharedCredentialSpec>;
   tab?: PluginTab;
   settings?: PluginSettingField[];
 }

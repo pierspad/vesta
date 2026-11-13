@@ -444,28 +444,6 @@ impl PluginManager {
         Ok(())
     }
 
-    /// Lists all shared credentials.
-    #[cfg(test)]
-    pub async fn list_shared_credentials(&self) -> std::collections::BTreeMap<String, String> {
-        let reg = self.registry.lock().await;
-        reg.get_all_shared_credentials()
-    }
-
-    /// Sets or removes a shared credential.
-    #[cfg(test)]
-    pub async fn set_shared_credential(
-        &self,
-        key: String,
-        value: Option<String>,
-    ) -> Result<(), String> {
-        let mut reg = self.registry.lock().await;
-        let mut updated = reg.clone();
-        updated.set_shared_credential(key, value);
-        updated.save_shared_credentials(&self.registry_file)?;
-        reg.shared_credentials = updated.shared_credentials;
-        Ok(())
-    }
-
     /// Renders a screen in a plugin.
     pub async fn render(
         &self,
@@ -487,7 +465,6 @@ impl PluginManager {
             (plugin.manifest.clone(), plugin.settings.clone())
         };
 
-        let shared_creds = std::collections::BTreeMap::new();
         let plugin_dir = self.plugins_dir().join(plugin_id);
         if !plugin_dir.exists() {
             return Err(format!(
@@ -505,13 +482,12 @@ impl PluginManager {
                 locale,
                 &settings,
                 expert_mode,
-                &shared_creds,
             )
             .await?;
 
         let res = self
             .runtime
-            .render(&process, screen, params, locale, expert_mode, &shared_creds)
+            .render(&process, screen, params, locale, expert_mode)
             .await?;
 
         Ok(res)
@@ -537,7 +513,6 @@ impl PluginManager {
             (plugin.manifest.clone(), plugin.settings.clone())
         };
 
-        let shared_creds = std::collections::BTreeMap::new();
         let plugin_dir = self.plugins_dir().join(plugin_id);
         let process = self
             .runtime
@@ -548,7 +523,6 @@ impl PluginManager {
                 locale,
                 &settings,
                 expert_mode,
-                &shared_creds,
             )
             .await?;
 
@@ -564,7 +538,6 @@ impl PluginManager {
                 event.values.clone(),
                 locale,
                 expert_mode,
-                &shared_creds,
             )
             .await?;
 
@@ -576,29 +549,6 @@ impl PluginManager {
 mod tests {
     use super::*;
     use crate::plugins::manifest::{PluginEntry, PluginTab};
-
-    #[tokio::test]
-    async fn credential_write_failure_keeps_last_saved_value() {
-        let directory = tempfile::tempdir().unwrap();
-        let host = PluginManager::new(directory.path().into());
-        let key = "test_api_key".to_owned();
-        host.set_shared_credential(key.clone(), Some("saved".into()))
-            .await
-            .unwrap();
-
-        let reloaded = PluginManager::new(directory.path().into());
-        assert_eq!(reloaded.list_shared_credentials().await[&key], "saved");
-
-        let vault = directory.path().join("shared_credentials.json");
-        fs::remove_file(&vault).unwrap();
-        fs::create_dir(&vault).unwrap();
-        assert!(
-            host.set_shared_credential(key.clone(), Some("unsaved".into()))
-                .await
-                .is_err()
-        );
-        assert_eq!(host.list_shared_credentials().await[&key], "saved");
-    }
 
     fn make_test_manifest(icon: Option<&str>, tab_icon: Option<&str>) -> PluginManifest {
         PluginManifest {
@@ -618,7 +568,6 @@ mod tests {
                 os: None,
             },
             permissions: crate::plugins::manifest::PluginPermissions::default(),
-            shared_credentials: vec![],
             tab: tab_icon.map(|ti| PluginTab {
                 title: "Test".to_string(),
                 icon: Some(ti.to_string()),

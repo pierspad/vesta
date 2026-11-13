@@ -1,6 +1,6 @@
 use crate::plugins::manifest::PluginManifest;
 use serde::{Deserialize, Serialize};
-use std::collections::{BTreeMap, HashMap};
+use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 
@@ -35,8 +35,6 @@ pub struct InstalledPlugin {
 pub struct PluginRegistry {
     pub version: u32,
     pub plugins: Vec<InstalledPlugin>,
-    #[serde(default, skip_serializing)]
-    pub shared_credentials: BTreeMap<String, String>,
 }
 
 impl Default for PluginRegistry {
@@ -44,7 +42,6 @@ impl Default for PluginRegistry {
         Self {
             version: 1,
             plugins: Vec::new(),
-            shared_credentials: BTreeMap::new(),
         }
     }
 }
@@ -52,35 +49,22 @@ impl Default for PluginRegistry {
 impl PluginRegistry {
     /// Loads the registry from the specified file path, or returns default if not found.
     pub fn load_from_file(path: &Path) -> Result<Self, String> {
-        let parent = path.parent().unwrap_or(Path::new("."));
-        let shared_cred_file = parent.join("shared_credentials.json");
-
-        let mut registry = if !path.exists() {
-            Self::default()
-        } else {
-            let content = fs::read_to_string(path)
-                .map_err(|e| format!("Failed to read plugins registry: {e}"))?;
-
-            let parsed: Self = serde_json::from_str(&content).map_err(|e| {
-                format!(
-                    "Failed to parse plugins registry from {}: {e}",
-                    path.display()
-                )
-            })?;
-            parsed
-        };
-
-        if shared_cred_file.exists()
-            && let Ok(content) = fs::read_to_string(&shared_cred_file)
-            && let Ok(map) = serde_json::from_str::<BTreeMap<String, String>>(&content)
-        {
-            registry.shared_credentials = map;
+        if !path.exists() {
+            return Ok(Self::default());
         }
 
-        Ok(registry)
+        let content = fs::read_to_string(path)
+            .map_err(|e| format!("Failed to read plugins registry: {e}"))?;
+
+        serde_json::from_str(&content).map_err(|e| {
+            format!(
+                "Failed to parse plugins registry from {}: {e}",
+                path.display()
+            )
+        })
     }
 
-    /// Atomically writes the registry and shared credentials to disk.
+    /// Atomically writes the registry to disk.
     pub fn save_to_file(&self, path: &Path) -> Result<(), String> {
         let parent = path.parent().unwrap_or(Path::new("."));
         fs::create_dir_all(parent)
@@ -98,36 +82,10 @@ impl PluginRegistry {
         fs::write(temp_file.path(), content)
             .map_err(|e| format!("Failed to write plugins registry: {e}"))?;
 
-        // Preserve legacy inline credentials until their separate store is durable.
-        self.save_shared_credentials(path)?;
         temp_file.persist(path).map_err(|e| {
             format!(
                 "Failed to persist plugins registry to {}: {e}",
                 path.display()
-            )
-        })?;
-
-        Ok(())
-    }
-
-    pub fn save_shared_credentials(&self, registry_path: &Path) -> Result<(), String> {
-        let parent = registry_path.parent().unwrap_or(Path::new("."));
-        fs::create_dir_all(parent)
-            .map_err(|e| format!("Failed to create credential directory: {e}"))?;
-        // Save shared credentials to shared_credentials.json
-        let shared_cred_file = parent.join("shared_credentials.json");
-        let cred_content = serde_json::to_string_pretty(&self.shared_credentials)
-            .map_err(|e| format!("Failed to serialize shared credentials: {e}"))?;
-        let temp_cred = tempfile::Builder::new()
-            .prefix(".shared_credentials-")
-            .tempfile_in(parent)
-            .map_err(|e| format!("Failed to create temporary file for shared credentials: {e}"))?;
-        fs::write(temp_cred.path(), cred_content)
-            .map_err(|e| format!("Failed to write shared credentials: {e}"))?;
-        temp_cred.persist(&shared_cred_file).map_err(|e| {
-            format!(
-                "Failed to persist shared credentials to {}: {e}",
-                shared_cred_file.display()
             )
         })?;
 
@@ -186,34 +144,6 @@ impl PluginRegistry {
         plugin.settings = settings;
         Ok(())
     }
-
-    #[cfg(test)]
-    pub fn get_shared_credentials(&self, allowed_keys: &[String]) -> BTreeMap<String, String> {
-        let mut result = BTreeMap::new();
-        for key in allowed_keys {
-            if let Some(val) = self.shared_credentials.get(key) {
-                result.insert(key.clone(), val.clone());
-            }
-        }
-        result
-    }
-
-    #[cfg(test)]
-    pub fn set_shared_credential(&mut self, key: String, value: Option<String>) {
-        match value {
-            Some(v) if !v.trim().is_empty() => {
-                self.shared_credentials.insert(key, v);
-            }
-            _ => {
-                self.shared_credentials.remove(&key);
-            }
-        }
-    }
-
-    #[cfg(test)]
-    pub fn get_all_shared_credentials(&self) -> BTreeMap<String, String> {
-        self.shared_credentials.clone()
-    }
 }
 
 #[cfg(test)]
@@ -240,25 +170,28 @@ mod tests {
             },
             permissions: PluginPermissions {
                 scopes: vec!["network".to_string()],
-                shared_credentials: vec!["tmdb_api_key".to_string()],
             },
-            shared_credentials: vec![],
             tab: None,
             settings: None,
         }
     }
 
     #[test]
-    fn failed_vault_write_preserves_legacy_registry_credentials() {
+    fn legacy_registry_shared_credentials_ignored_cleanly() {
         let directory = tempfile::tempdir().unwrap();
         let registry_path = directory.path().join("plugins.json");
         let legacy = r#"{"version":1,"plugins":[],"sharedCredentials":{"test_key":"legacy"}}"#;
         fs::write(&registry_path, legacy).unwrap();
-        let registry = PluginRegistry::load_from_file(&registry_path).unwrap();
-        fs::create_dir(directory.path().join("shared_credentials.json")).unwrap();
 
-        assert!(registry.save_to_file(&registry_path).is_err());
-        assert_eq!(fs::read_to_string(registry_path).unwrap(), legacy);
+        let registry = PluginRegistry::load_from_file(&registry_path).unwrap();
+        assert_eq!(registry.version, 1);
+        assert!(registry.plugins.is_empty());
+
+        registry.save_to_file(&registry_path).unwrap();
+        assert!(!directory.path().join("shared_credentials.json").exists());
+
+        let reloaded = PluginRegistry::load_from_file(&registry_path).unwrap();
+        assert_eq!(reloaded, registry);
     }
 
     #[test]
@@ -289,30 +222,11 @@ mod tests {
         reg.add_or_update(p1.clone());
         assert_eq!(reg.list().len(), 1);
 
-        reg.set_shared_credential("tmdb_api_key".to_string(), Some("tmdb_val".to_string()));
-        reg.set_shared_credential(
-            "unrelated_key".to_string(),
-            Some("unrelated_val".to_string()),
-        );
-
         reg.save_to_file(&path).unwrap();
 
         let mut loaded = PluginRegistry::load_from_file(&path).unwrap();
         assert_eq!(loaded.plugins.len(), 1);
         assert_eq!(loaded.get("p1").unwrap().name, "Plugin 1");
-
-        // Verify shared credentials filtering and persistence
-        let allowed = vec!["tmdb_api_key".to_string()];
-        let filtered = loaded.get_shared_credentials(&allowed);
-        assert_eq!(
-            filtered.get("tmdb_api_key").map(|s| s.as_str()),
-            Some("tmdb_val")
-        );
-        assert_eq!(filtered.get("unrelated_key"), None);
-
-        // Verify deletion
-        loaded.set_shared_credential("tmdb_api_key".to_string(), None);
-        assert!(loaded.get_shared_credentials(&allowed).is_empty());
 
         loaded.set_enabled("p1", false).unwrap();
         assert!(!loaded.get("p1").unwrap().enabled);

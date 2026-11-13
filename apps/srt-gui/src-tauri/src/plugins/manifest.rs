@@ -26,8 +26,6 @@ pub struct PluginManifest {
     pub entry: PluginEntry,
     #[serde(default)]
     pub permissions: PluginPermissions,
-    #[serde(default, rename = "sharedCredentials")]
-    pub shared_credentials: Vec<SharedCredentialSpec>,
     #[serde(default)]
     pub tab: Option<PluginTab>,
     #[serde(default)]
@@ -39,8 +37,6 @@ pub struct PluginManifest {
 pub struct PluginPermissions {
     #[serde(default)]
     pub scopes: Vec<String>,
-    #[serde(default, rename = "sharedCredentials")]
-    pub shared_credentials: Vec<String>,
 }
 
 #[derive(Deserialize)]
@@ -50,8 +46,6 @@ enum RawPermissions {
     Object {
         #[serde(default)]
         scopes: Vec<String>,
-        #[serde(default, rename = "sharedCredentials")]
-        shared_credentials: Vec<String>,
     },
 }
 
@@ -63,79 +57,20 @@ impl<'de> Deserialize<'de> for PluginPermissions {
         let raw = RawPermissions::deserialize(deserializer)?;
         match raw {
             RawPermissions::List(list) => {
-                let mut scopes = Vec::new();
-                let mut shared_credentials = Vec::new();
-                for item in list {
-                    if let Some(rest) = item
-                        .strip_prefix("sharedCredential:")
-                        .or_else(|| item.strip_prefix("shared_credential:"))
-                        .or_else(|| item.strip_prefix("sharedCredentials:"))
-                        .or_else(|| item.strip_prefix("shared:"))
-                    {
-                        shared_credentials.push(rest.trim().to_string());
-                    } else {
-                        scopes.push(item);
-                    }
-                }
-                Ok(PluginPermissions {
-                    scopes,
-                    shared_credentials,
-                })
+                // Ignore legacy shared-credential permission tokens so old manifests
+                // do not surface bogus permission scopes.
+                let scopes = list
+                    .into_iter()
+                    .filter(|item| {
+                        !item.starts_with("sharedCredential:")
+                            && !item.starts_with("shared_credential:")
+                            && !item.starts_with("sharedCredentials:")
+                            && !item.starts_with("shared:")
+                    })
+                    .collect();
+                Ok(PluginPermissions { scopes })
             }
-            RawPermissions::Object {
-                scopes,
-                shared_credentials,
-            } => Ok(PluginPermissions {
-                scopes,
-                shared_credentials,
-            }),
-        }
-    }
-}
-
-#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
-#[serde(rename_all = "camelCase")]
-pub struct SharedCredentialSpec {
-    pub id: String,
-    #[serde(default)]
-    pub label: Option<String>,
-    #[serde(default)]
-    pub description: Option<String>,
-}
-
-#[derive(Deserialize)]
-#[serde(untagged)]
-enum RawSharedCredentialSpec {
-    Id(String),
-    Object {
-        id: String,
-        #[serde(default)]
-        label: Option<String>,
-        #[serde(default)]
-        description: Option<String>,
-    },
-}
-
-impl<'de> Deserialize<'de> for SharedCredentialSpec {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        match RawSharedCredentialSpec::deserialize(deserializer)? {
-            RawSharedCredentialSpec::Id(id) => Ok(SharedCredentialSpec {
-                id,
-                label: None,
-                description: None,
-            }),
-            RawSharedCredentialSpec::Object {
-                id,
-                label,
-                description,
-            } => Ok(SharedCredentialSpec {
-                id,
-                label,
-                description,
-            }),
+            RawPermissions::Object { scopes } => Ok(PluginPermissions { scopes }),
         }
     }
 }
@@ -271,36 +206,7 @@ impl PluginManifest {
             validate_icon_path(icon)?;
         }
 
-        // Validate shared credential IDs
-        for key in self.requested_shared_credentials() {
-            if key.is_empty() {
-                return Err("Shared credential ID cannot be empty".to_string());
-            }
-            if key.len() > 64 {
-                return Err("Shared credential ID must be 64 characters or fewer".to_string());
-            }
-            if !key
-                .chars()
-                .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
-            {
-                return Err(format!(
-                    "Invalid shared credential ID '{key}': only alphanumeric characters, hyphens, and underscores are allowed"
-                ));
-            }
-        }
-
         Ok(())
-    }
-
-    /// Returns the deduplicated list of shared credential keys requested by this plugin.
-    pub fn requested_shared_credentials(&self) -> Vec<String> {
-        let mut keys = self.permissions.shared_credentials.clone();
-        for spec in &self.shared_credentials {
-            if !keys.contains(&spec.id) {
-                keys.push(spec.id.clone());
-            }
-        }
-        keys
     }
 
     /// Resolves the command to execute for the current operating system.
@@ -380,7 +286,6 @@ mod tests {
                 os: None,
             },
             permissions: PluginPermissions::default(),
-            shared_credentials: vec![],
             tab: None,
             settings: None,
         };
@@ -415,7 +320,6 @@ mod tests {
                 os: None,
             },
             permissions: PluginPermissions::default(),
-            shared_credentials: vec![],
             tab: None,
             settings: None,
         };
@@ -441,7 +345,6 @@ mod tests {
                 os: None,
             },
             permissions: PluginPermissions::default(),
-            shared_credentials: vec![],
             tab: None,
             settings: None,
         };
@@ -467,7 +370,6 @@ mod tests {
                 os: None,
             },
             permissions: PluginPermissions::default(),
-            shared_credentials: vec![],
             tab: None,
             settings: None,
         };
@@ -513,8 +415,8 @@ mod tests {
     }
 
     #[test]
-    fn test_shared_credentials_manifest() {
-        let json = r#"{
+    fn test_legacy_shared_credentials_manifest_parses_cleanly() {
+        let object_perms_json = r#"{
             "id": "cred-plugin",
             "name": "Cred Plugin",
             "version": "1.0.0",
@@ -532,30 +434,36 @@ mod tests {
             ]
         }"#;
 
-        let manifest: PluginManifest = serde_json::from_str(json).expect("deserialize failed");
+        let manifest: PluginManifest =
+            serde_json::from_str(object_perms_json).expect("object permissions deserialize failed");
         assert_eq!(manifest.permissions.scopes, vec!["network"]);
-        assert_eq!(
-            manifest.permissions.shared_credentials,
-            vec!["tmdb_api_key"]
-        );
-        assert_eq!(manifest.shared_credentials.len(), 2);
-        assert_eq!(manifest.shared_credentials[0].id, "opensubtitles_api_key");
-        assert_eq!(manifest.shared_credentials[1].id, "imdb_id");
-        assert_eq!(
-            manifest.shared_credentials[1].label,
-            Some("IMDb Key".to_string())
-        );
-
-        let requested = manifest.requested_shared_credentials();
-        assert_eq!(requested.len(), 3);
-        assert!(requested.contains(&"tmdb_api_key".to_string()));
-        assert!(requested.contains(&"opensubtitles_api_key".to_string()));
-        assert!(requested.contains(&"imdb_id".to_string()));
         assert!(manifest.validate().is_ok());
 
-        // Test invalid shared credential ID (traversal or special chars)
-        let mut invalid_manifest = manifest.clone();
-        invalid_manifest.permissions.shared_credentials = vec!["../bad_cred".to_string()];
-        assert!(invalid_manifest.validate().is_err());
+        let list_perms_json = r#"{
+            "id": "cred-plugin-list",
+            "name": "Cred Plugin List",
+            "version": "1.0.0",
+            "apiVersion": 1,
+            "entry": {
+                "command": ["python3", "main.py"]
+            },
+            "permissions": [
+                "network",
+                "sharedCredential:tmdb_api_key",
+                "shared_credential:legacy_key",
+                "sharedCredentials:another_key",
+                "shared:short_key",
+                "filesystem:downloads"
+            ],
+            "sharedCredentials": ["opensubtitles_api_key"]
+        }"#;
+
+        let list_manifest: PluginManifest =
+            serde_json::from_str(list_perms_json).expect("list permissions deserialize failed");
+        assert_eq!(
+            list_manifest.permissions.scopes,
+            vec!["network", "filesystem:downloads"]
+        );
+        assert!(list_manifest.validate().is_ok());
     }
 }

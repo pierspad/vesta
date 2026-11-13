@@ -1,6 +1,6 @@
 use crate::plugins::manifest::PluginManifest;
 use serde::{Deserialize, Serialize};
-use std::collections::{BTreeMap, HashMap};
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
 use std::sync::Arc;
@@ -113,7 +113,6 @@ impl PluginRuntimeManager {
         locale: &str,
         settings: &HashMap<String, serde_json::Value>,
         expert_mode: bool,
-        shared_credentials: &BTreeMap<String, String>,
     ) -> Result<Arc<ActivePluginProcess>, String> {
         let mut procs = self.processes.lock().await;
 
@@ -283,7 +282,6 @@ impl PluginRuntimeManager {
             "locale": locale,
             "settings": settings,
             "expertMode": expert_mode,
-            "sharedCredentials": shared_credentials,
         });
 
         let init_res =
@@ -437,7 +435,6 @@ impl PluginRuntimeManager {
         params: serde_json::Value,
         locale: &str,
         expert_mode: bool,
-        shared_credentials: &BTreeMap<String, String>,
     ) -> Result<serde_json::Value, String> {
         if params.is_object() {
             let mut vals = process.latest_values.lock().await;
@@ -452,7 +449,6 @@ impl PluginRuntimeManager {
                 "params": params,
                 "locale": locale,
                 "expertMode": expert_mode,
-                "sharedCredentials": shared_credentials,
             }),
             Duration::from_secs(15),
         )
@@ -470,7 +466,6 @@ impl PluginRuntimeManager {
         values: serde_json::Value,
         locale: &str,
         expert_mode: bool,
-        shared_credentials: &BTreeMap<String, String>,
     ) -> Result<serde_json::Value, String> {
         {
             let mut vals = process.latest_values.lock().await;
@@ -487,7 +482,6 @@ impl PluginRuntimeManager {
                 "values": values,
                 "locale": locale,
                 "expertMode": expert_mode,
-                "sharedCredentials": shared_credentials,
             }),
             Duration::from_secs(30),
         )
