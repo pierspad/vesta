@@ -63,6 +63,14 @@ jobs:
     needs: wait-for-release
     name: Build (windows-arm64)
     runs-on: windows-latest
+    env:
+      # Disable sccache on Windows: sccache expands Cargo @response files when
+      # spawning rustc.exe (e.g. for --emit dep-info), exceeding Windows'
+      # 32,767-char CreateProcess limit (os error 206) on crates with many -L
+      # paths (whisper-rs-sys + workspace dependencies). swatinem/rust-cache
+      # still caches target/.
+      RUSTC_WRAPPER: ""
+      SCCACHE_GHA_ENABLED: "false"
     steps:
       - uses: actions/checkout@v6
         with:
@@ -93,16 +101,6 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: aarch64-pc-windows-msvc
-
-      - name: Setup sccache
-        uses: mozilla-actions/sccache-action@v0.0.10
-
-      - name: Configure sccache GHA credentials
-        uses: actions/github-script@v8
-        with:
-          script: |
-            core.exportVariable('ACTIONS_RESULTS_URL', process.env.ACTIONS_RESULTS_URL || '');
-            core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN || '');
 
       - name: Rust cache
         uses: swatinem/rust-cache@v2
@@ -185,8 +183,6 @@ jobs:
           NO_STRIP: true
           GGML_NATIVE: "OFF"
           GGML_CCACHE: "OFF"
-          SCCACHE_GHA_ENABLED: "true"
-          RUSTC_WRAPPER: "sccache"
         run: npx tauri build --target aarch64-pc-windows-msvc --bundles nsis -- --locked
 
       - name: Upload NSIS installer
