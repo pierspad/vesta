@@ -65,3 +65,7 @@ rule to requests carrying credentials or custom headers, while unauthenticated
 update discovery retains its existing redirect policy. API endpoints must point
 to the intended provider or proxy directly. Public cloud functions accepting a
 caller-supplied HTTP client retain that client's chosen policy.
+
+New default Google configurations use `gemini-3.8-flash` instead of the deprecated
+`gemini-2.5-flash`; explicitly configured model IDs are preserved. See the
+[Google lifecycle schedule](https://aistudio.google.com/docs/deprecations).

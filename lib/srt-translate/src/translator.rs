@@ -8,7 +8,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::time::sleep;
 
-pub(crate) const DEFAULT_GOOGLE_MODEL: &str = "gemini-2.5-flash";
+pub(crate) const DEFAULT_GOOGLE_MODEL: &str = "gemini-3.8-flash";
 
 use crate::prompts::{
     build_batch_translation_prompt, build_context_enhanced_translation_prompt,

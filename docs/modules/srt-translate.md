@@ -83,7 +83,7 @@ async fn main() -> anyhow::Result<()> {
 
     let tiers = vec![vec![TierEntry {
         provider: "google".into(),
-        model: "gemini-2.5-flash".into(),
+        model: "gemini-3.8-flash".into(),
         api_key: Some(std::env::var("GEMINI_API_KEY")?),
         api_url: None,
         rpm: None,          // provider default
