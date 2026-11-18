@@ -68,6 +68,7 @@ def main():
     release = (ROOT / '.github/workflows/release.yml').read_text(encoding='utf-8')
     build = (ROOT / '.github/workflows/build.yml').read_text(encoding='utf-8')
     arm64 = (ROOT / '.github/workflows/build-arm64.yml').read_text(encoding='utf-8')
+    flatpak_manifest = (ROOT / 'build-scripts/com.vesta.desktop.flatpak.yml').read_text(encoding='utf-8')
 
     config = json.loads((ROOT / '.releaserc').read_text(encoding='utf-8'))
     publish = next(plugin[1]['publishCmd'] for plugin in config['plugins']
@@ -90,6 +91,11 @@ def main():
 
     require('npx tauri bundle --bundles rpm --features vulkan --config "$RPM_CONFIG"' in build,
             'Linux prereleases must normalize RPM version/release via tauri bundle')
+    require('sudo apt-get install -y flatpak flatpak-builder elfutils' in build,
+            'Flatpak build must install elfutils for eu-strip and eu-elfcompress')
+    require("runtime-version: '49'" in flatpak_manifest
+            and 'org.gnome.Platform//49 org.gnome.Sdk//49' in build,
+            'Flatpak manifest and CI workflow must target the supported GNOME 49 runtime')
     require('gh workflow run build-arm64.yml --ref "$ARM64_REF" -f release_tag="$RELEASE_TAG"' in release_job,
             'release job must trigger the non-blocking ARM64 workflow after upload')
 

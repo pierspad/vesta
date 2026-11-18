@@ -271,9 +271,9 @@ jobs:
       - name: Flatpak Build
         run: |
           sudo apt-get update
-          sudo apt-get install -y flatpak flatpak-builder
+          sudo apt-get install -y flatpak flatpak-builder elfutils
           sudo flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
-          sudo flatpak install -y flathub org.gnome.Platform//48 org.gnome.Sdk//48
+          sudo flatpak install -y flathub org.gnome.Platform//49 org.gnome.Sdk//49
 
           DEB_FILE=$(find deb-artifact -name "*.deb" | head -n 1)
           mkdir -p extracted-deb
