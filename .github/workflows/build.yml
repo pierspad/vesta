@@ -76,6 +76,9 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "Detected version: $VERSION"
 
+      - name: Configure bounded Ubuntu package setup
+        run: bash build-scripts/setup_ci_apt.sh
+
       - name: Install system dependencies
         run: |
           sudo apt-get update
@@ -259,6 +262,9 @@ jobs:
         with:
           name: vesta-linux-deb
           path: deb-artifact
+
+      - name: Configure bounded Ubuntu package setup
+        run: bash build-scripts/setup_ci_apt.sh
 
       - name: Flatpak Build
         run: |
