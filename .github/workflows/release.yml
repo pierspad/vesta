@@ -75,7 +75,8 @@ jobs:
           npm run build
 
       - name: Require successful Rust CI for this commit
-        timeout-minutes: 45
+        # Cold desktop setup and Rust builds can exceed the previous 45-minute budget.
+        timeout-minutes: 90
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
