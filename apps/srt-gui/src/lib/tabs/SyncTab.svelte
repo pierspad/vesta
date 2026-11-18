@@ -1,7 +1,5 @@
 <script lang="ts">
-  import { historyShortcutAction, localShortcutAction } from "$lib/utils/shortcuts";
-  import { anchorOffsetSpread, initialSyncCheckpoints } from "$lib/workflows/syncAssessment";
-  import { contextMenu as fitContextMenu } from "$lib/utils/contextMenu";
+  import { anchorOffsetSpread } from "$lib/workflows/syncAssessment";
   import { SyncOffsetAdjustment } from "$lib/workflows/syncOffsetAdjustment.svelte";
   import WorkflowWorkspace from "$lib/components/WorkflowWorkspace.svelte";
   import { localWhisperOperation } from "$lib/utils/asyncControl.svelte";
@@ -15,22 +13,32 @@
   import { locale } from "$lib/i18n";
   import { getFileName } from "$lib/utils/models";
   import { aiStore } from "$lib/stores/aiStore.svelte";
-  import { autoSyncStore, type AutoSyncProgressPayload } from "$lib/stores/autoSyncStore.svelte";
-  import FooterActions from "$lib/components/FooterActions.svelte";
-  import AutoSyncControls from "$lib/components/AutoSyncControls.svelte";
+  import { autoSyncStore } from "$lib/stores/autoSyncStore.svelte";
   import AutoSyncOverlay from "$lib/components/AutoSyncOverlay.svelte";
   import FilesPanel from "$lib/panels/FilesPanel.svelte";
   import SyncStatusPanel from "$lib/panels/SyncStatusPanel.svelte";
   import SubtitleListPanel from "$lib/panels/SubtitleListPanel.svelte";
-  import SpeechEngineSelector from "$lib/components/SpeechEngineSelector.svelte";
   import type { TranscribeTierEntry } from "$lib/config/transcribeTiers";
-  import { loadAndValidateApiKeys } from "$lib/config/apiKeys";
-  import { transcribeProviders } from "$lib/config/transcribeProviders";
-  import { isLocalTranscribeProvider } from "$lib/workflows/transcription";
   import WizardCheckpoint from "$lib/components/WizardCheckpoint.svelte";
   import { formatSyncMediaError } from "$lib/utils/syncMediaError";
   import { errorMessage } from "$lib/utils/errorMessage";
   import { whisperModelsStore as modelStore } from "$lib/stores/whisperModelsStore.svelte";
+  import {
+    type SubtitleInfo,
+    type SyncStatus,
+    type AnchorInfo,
+    formatSyncTime as formatTime,
+    formatSyncOffset as formatOffset,
+    computeNextSyncCheckpoint,
+    SYNC_MEDIA_EXTENSIONS,
+    isSyncSrtFile,
+    isSyncMediaFile,
+  } from "./sync/syncFormatters";
+  import { executeAutoSync } from "./sync/syncAutoRunner";
+  import { handleSyncKeydown } from "./sync/syncKeyboard";
+  import { prepareSyncMediaUrl, playSyncMediaElement } from "./sync/syncMediaPlayback";
+  import SyncFooterBar from "./sync/SyncFooterBar.svelte";
+  import SyncSubtitleContextMenu from "./sync/SyncSubtitleContextMenu.svelte";
 
   interface Props {
     active?: boolean;
@@ -40,39 +48,6 @@
 
   let t = $derived($locale);
   let selectedEngine = $state<TranscribeTierEntry | null | undefined>(undefined);
-
-  interface SubtitleInfo {
-    id: number;
-    start_ms: number;
-    end_ms: number;
-    text: string;
-    synced_start_ms: number;
-    synced_end_ms: number;
-    offset_ms: number;
-    is_anchor: boolean;
-  }
-
-  interface SyncStatus {
-    is_loaded: boolean;
-    srt_path: string | null;
-    video_path: string | null;
-    total_subtitles: number;
-    anchor_count: number;
-    checked_count: number;
-    completion_percentage: number;
-    average_offset_ms: number;
-    suggested_next_id: number | null;
-    can_undo: boolean;
-    can_redo: boolean;
-  }
-
-  interface AnchorInfo {
-    subtitle_id: number;
-    original_time_ms: number;
-    corrected_time_ms: number;
-    offset_ms: number;
-    is_manual: boolean;
-  }
 
   let audioElement = $state<HTMLMediaElement | null>(null);
   let status = $state<SyncStatus | null>(null);
@@ -160,93 +135,18 @@
       return;
     }
 
-    const resource = localWhisperOperation.begin("autosync");
-    if (!resource) { showSnackbar(t("common.error.alreadyRunning"), "warning"); return; }
-    const run = autoSyncStore.operation.begin();
-    if (!run) { resource.finish(); return; }
-    let unlisten: (() => void) | undefined;
-    try {
-      const entry = selectedEngine;
-      if (!entry) { showSnackbar(t("transcribe.blocked.noTiers"), "warning"); return; }
-      const local = isLocalTranscribeProvider(entry.provider);
-      if (local) {
-        await checkWhisperModels();
-        if (run.isCancelled()) return;
-        if (!autoSyncStore.whisperModelsAvailable.includes(entry.model)) {
-          showSnackbar(t("transcribe.blocked.missingModel"), "warning"); return;
-        }
-      }
-      const key = local ? undefined : loadAndValidateApiKeys().find(key => key.id === entry.apiKeyId);
-      const cloud = local ? null : {
-        provider: entry.provider, model: entry.model,
-        api_key: key?.apiKey?.trim() || "",
-        api_url: key?.apiUrl?.trim() || transcribeProviders[entry.provider]?.defaultUrl || null,
-        language: null, translate_to_english: false,
-      };
-
-      autoSyncStore.activeMode = quick ? "quick" : "precise";
-      autoSyncStore.progress = 0;
-      autoSyncStore.message = t("sync.autoSyncInProgress");
-
-      // Listen for progress events
-      const { listen } = await import("@tauri-apps/api/event");
-      unlisten = await listen<AutoSyncProgressPayload>("sync-auto-progress", (event) => {
-        if (!run.isCurrent() || run.isCancelled()) return;
-        autoSyncStore.progress = event.payload.percentage;
-        autoSyncStore.message = autoSyncStore.resolveProgressMessage(event.payload);
-      });
-
-      if (run.isCancelled()) return;
-      const result = await invoke<{
-        success: boolean;
-        cancelled: boolean;
-        anchors_created: number;
-        segments_analyzed: number;
-        message: string;
-      }>("sync_auto_sync", {
-        modelId: entry.model,
-        language: null,
-        quick,
-        cloud,
-      });
-
-      status = await invoke<SyncStatus>("sync_get_status");
-      await refreshCurrentSubtitles();
-      await loadAnchors();
-
-      let summaryMessage = "";
-      let summaryLevel: "success" | "info" | "warning" | "error" = "warning";
-
-      if (result.cancelled || run.isCancelled()) {
-        summaryLevel = "info";
-        summaryMessage = t("sync.autoSyncResult.cancelled");
-      } else if (result.success) {
-        if (result.anchors_created > 0) {
-          summaryMessage = t("sync.autoSyncResult.success", {
-            count: result.anchors_created,
-          });
-          summaryLevel = "success";
-        } else {
-          summaryMessage = result.message;
-          summaryLevel = "info";
-        }
-      } else {
-        summaryMessage = t("sync.autoSyncResult.noMatches");
-      }
-
-      showSnackbar(summaryMessage, summaryLevel);
-    } catch (e) {
-      if (run.isCancelled()) { showSnackbar(t("sync.autoSyncResult.cancelled"), "info"); return; }
-      const msg = `Auto-sync failed: ${errorMessage(e)}`;
-      showSnackbar(msg, "error");
-    } finally {
-      run.finish();
-      resource.finish();
-      autoSyncStore.activeMode = null;
-      autoSyncStore.progress = 0;
-      autoSyncStore.message = "";
-      unlisten?.();
-    }
+    await executeAutoSync({
+      quick,
+      entry: selectedEngine,
+      checkWhisperModels,
+      onStatus: (nextStatus) => { status = nextStatus; },
+      refreshAfterSync: async () => {
+        await refreshCurrentSubtitles();
+        await loadAnchors();
+      },
+      showSnackbar,
+      t,
+    });
   }
 
   type SyncPanelId = "files" | "wizard" | "status" | "subtitleList";
@@ -278,45 +178,16 @@
   }
 
   async function safePlayAudio(source: string): Promise<boolean> {
-    if (!audioElement || !hasAudio) {
-      syncDebug(`${source}: play skipped`, {
-        hasAudio,
-        hasElement: !!audioElement,
-        audioError,
-      });
-      return false;
-    }
-    if (isStartingPlayback) {
-      syncDebug(`${source}: play ignored (already starting)`);
-      return false;
-    }
-
-    isStartingPlayback = true;
-    try {
-      syncDebug(`${source}: play requested`, {
-        currentTime: audioElement.currentTime,
-        paused: audioElement.paused,
-        readyState: audioElement.readyState,
-      });
-      await audioElement.play();
-      syncDebug(`${source}: play started`, {
-        currentTime: audioElement.currentTime,
-        paused: audioElement.paused,
-      });
-      return true;
-    } catch (e) {
-      const err = e instanceof Error ? `${e.name}: ${e.message}` : String(e);
-      const isBenignAbort =
-        err.includes("AbortError") ||
-        err.toLowerCase().includes("operation was aborted");
-      syncDebug(`${source}: play failed`, { error: err });
-      if (!isBenignAbort) {
-        showSnackbar(`${t("sync.playbackFailed")} — ${err}`, "error");
-      }
-      return false;
-    } finally {
-      isStartingPlayback = false;
-    }
+    return playSyncMediaElement(audioElement, {
+      source,
+      hasAudio,
+      audioError,
+      isStartingPlayback,
+      setStartingPlayback: (value) => { isStartingPlayback = value; },
+      debug: syncDebug,
+      showSnackbar,
+      t,
+    });
   }
 
   function openSubtitleContextMenu(e: MouseEvent, sub: SubtitleInfo) {
@@ -347,123 +218,23 @@
     }
   }
 
-  let mediaServerInfo: [number, string] | null = null;
-
-  // Porta + token di sessione del media server locale (il token autentica
-  // ogni richiesta /media: senza, il server risponde 403).
-  async function getMediaServerInfo(): Promise<[number, string]> {
-    if (mediaServerInfo) return mediaServerInfo;
-    mediaServerInfo = await invoke<[number, string]>("get_media_server_info");
-    return mediaServerInfo;
-  }
-
   async function loadMediaFile(filePath: string): Promise<string> {
-    // Video containers need an audio-only preview, even when their extension
-    // is supported: decoding an unused video track can fail in WebKitGTK.
-    const needsTranscode = !/\.(mp3|wav|ogg|m4a|aac|opus|flac)$/i.test(filePath);
-    if (needsTranscode) {
-      isPreparingMedia = true;
-      showSnackbar(t("sync.transcodingMedia"), "info");
-    }
-    try {
-      const playbackPath = await invoke<string>("sync_prepare_media_for_playback", {
-        path: filePath,
-      });
-      const [port, token] = await getMediaServerInfo();
-      return `http://127.0.0.1:${port}/media?path=${encodeURIComponent(playbackPath)}&token=${token}`;
-    } catch (error) {
-      audioError = `${t("sync.errorLoadingAudio")} ${errorMessage(error)}`;
-      throw error;
-    } finally {
-      if (needsTranscode) {
-        isPreparingMedia = false;
-      }
-    }
+    return prepareSyncMediaUrl(filePath, {
+      setPreparing: (value) => { isPreparingMedia = value; },
+      setAudioError: (message) => { audioError = message; },
+      showSnackbar,
+      t,
+    });
   }
 
   function cleanupAudioSrc() {
     audioSrc = null;
   }
 
-  function formatTime(ms: number): string {
-    const totalSeconds = Math.floor(ms / 1000);
-    const hours = Math.floor(totalSeconds / 3600);
-    const minutes = Math.floor((totalSeconds % 3600) / 60);
-    const seconds = totalSeconds % 60;
-    const millis = Math.floor(ms % 1000);
-    if (hours > 0) {
-      return `${hours}:${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}.${millis.toString().padStart(3, "0")}`;
-    }
-    return `${minutes}:${seconds.toString().padStart(2, "0")}.${millis.toString().padStart(3, "0")}`;
-  }
-
-  function formatOffset(ms: number): string {
-    const sign = ms >= 0 ? "+" : "";
-    return `${sign}${(ms / 1000).toFixed(2)}s`;
-  }
-
   const showSnackbar = createSnackbarNotifier();
 
-  const OFFSET_TOLERANCE_MS = 200;
-
   function computeNextCheckpoint(): number | null {
-    if (!status || status.total_subtitles === 0) return null;
-    const total = status.total_subtitles;
-
-    const initialCheckpoints = initialSyncCheckpoints(total);
-
-    for (const cp of initialCheckpoints) {
-      if (!wizardHistory.includes(cp)) return cp;
-    }
-
-    if (areOffsetsConsistent()) return null;
-
-    const sortedAnchors = [...manualAnchors].sort(
-      (a, b) => a.subtitle_id - b.subtitle_id,
-    );
-    if (sortedAnchors.length < 2) {
-      const mid = Math.round(total / 2);
-      return wizardHistory.includes(mid) ? null : mid;
-    }
-
-    let maxDiff = 0;
-    let bestMid = -1;
-    for (let i = 0; i < sortedAnchors.length - 1; i++) {
-      const a = sortedAnchors[i];
-      const b = sortedAnchors[i + 1];
-      const diff = Math.abs(a.offset_ms - b.offset_ms);
-      const gap = b.subtitle_id - a.subtitle_id;
-      if (diff > OFFSET_TOLERANCE_MS && gap > 1) {
-        const mid = Math.round((a.subtitle_id + b.subtitle_id) / 2);
-        if (!wizardHistory.includes(mid) && diff > maxDiff) {
-          maxDiff = diff;
-          bestMid = mid;
-        }
-      }
-    }
-
-    if (bestMid > 0) return bestMid;
-
-    const first = sortedAnchors[0];
-    const last = sortedAnchors[sortedAnchors.length - 1];
-    if (first.subtitle_id > 2) {
-      const mid = Math.round(first.subtitle_id / 2);
-      if (!wizardHistory.includes(mid)) return mid;
-    }
-    if (last.subtitle_id < total - 1) {
-      const mid = Math.round((last.subtitle_id + total) / 2);
-      if (!wizardHistory.includes(mid)) return mid;
-    }
-
-    return null;
-  }
-
-  function areOffsetsConsistent(): boolean {
-    if (manualAnchors.length < 2) return false;
-    const offsets = manualAnchors.map((a) => a.offset_ms);
-    const minOff = Math.min(...offsets);
-    const maxOff = Math.max(...offsets);
-    return maxOff - minOff <= OFFSET_TOLERANCE_MS;
+    return computeNextSyncCheckpoint(status, wizardHistory, manualAnchors);
   }
 
   async function skipCheckpoint() {
@@ -574,26 +345,7 @@
         filters: [
           {
             name: t("flashcards.mediaFiles"),
-            extensions: [
-              "mp3",
-              "wav",
-              "ogg",
-              "flac",
-              "m4a",
-              "aac",
-              "wma",
-              "opus",
-              "m4b",
-              "mp4",
-              "mkv",
-              "avi",
-              "webm",
-              "mov",
-              "m4v",
-              "m2ts",
-              "mpeg",
-              "mpg",
-            ],
+            extensions: SYNC_MEDIA_EXTENSIONS,
           },
         ],
       });
@@ -838,40 +590,13 @@
     }
   }
 
-  function isSrtFile(name: string): boolean {
-    return name.toLowerCase().endsWith(".srt");
-  }
-  function isMediaFile(name: string): boolean {
-    const ext = name.toLowerCase().split(".").pop() || "";
-    return [
-      "mp4",
-      "mkv",
-      "avi",
-      "webm",
-      "mov",
-      "m4v",
-      "m2ts",
-      "mpeg",
-      "mpg",
-      "mp3",
-      "wav",
-      "ogg",
-      "flac",
-      "m4a",
-      "aac",
-      "wma",
-      "opus",
-      "m4b",
-    ].includes(ext);
-  }
-
   async function handleDroppedPaths(paths: string[]) {
     if (paths.length === 0) return;
 
     // Sort paths so SRT files are processed first
     const sortedPaths = [...paths].sort((a, b) => {
-      const isASrt = isSrtFile(a);
-      const isBSrt = isSrtFile(b);
+      const isASrt = isSyncSrtFile(a);
+      const isBSrt = isSyncSrtFile(b);
       if (isASrt && !isBSrt) return -1;
       if (!isASrt && isBSrt) return 1;
       return 0;
@@ -879,7 +604,7 @@
 
     for (const filePath of sortedPaths) {
       const fileName = getFileName(filePath);
-      if (isSrtFile(fileName)) {
+      if (isSyncSrtFile(fileName)) {
         try {
           status = await invoke<SyncStatus>("sync_load_srt", {
             path: filePath,
@@ -893,7 +618,7 @@
         } catch (e: any) {
           showSnackbar(`${t("sync.errorLoadingSrt")} ${errorMessage(e)}`, "error");
         }
-      } else if (isMediaFile(fileName)) {
+      } else if (isSyncMediaFile(fileName)) {
         if (!status?.is_loaded) {
           showSnackbar(t("sync.dropSrtFirst"), "warning");
           return;
@@ -941,112 +666,58 @@
   }
 
   function handleKeydown(e: KeyboardEvent) {
-    if (!active || showResetModal || expandedPathField || e.defaultPrevented || e.isComposing) return;
-    const target = e.target as HTMLElement | null;
-    if (target?.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"]), [role="dialog"]')) return;
-    // Let Enter/Space activate the focused control natively, while preserving
-    // the other shortcuts (including P/G in the subtitle context menu).
-    if ((e.key === "Enter" || e.key === " ") && target?.closest('button, a')) return;
-
-    if (subtitleContextMenu) {
-      const key = e.key.toLowerCase();
-      if (key === "escape") {
-        closeSubtitleContextMenu();
-        e.preventDefault();
-        return;
-      }
-      if (key === "p") {
-        playSubtitleFromList(subtitleContextMenu.sub);
-        closeSubtitleContextMenu();
-        e.preventDefault();
-        return;
-      }
-      if (key === "g") {
-        goToSubtitleManual(subtitleContextMenu.sub);
-        closeSubtitleContextMenu();
-        e.preventDefault();
-        return;
-      }
-    }
-
-    if (
-      document.activeElement?.tagName === "INPUT" ||
-      document.activeElement?.tagName === "TEXTAREA"
-    )
-      return;
-
-    const historyAction = historyShortcutAction(e, "sync");
-    if (historyAction) {
-      e.preventDefault();
-      void changeSyncHistory(historyAction);
-      return;
-    }
-
-    const action = localShortcutAction(e, "sync");
-    if (!action) return;
-    e.preventDefault();
-    switch (action) {
-      case "openSrt": void selectSrtFile(); break;
-      case "startAutoSync":
-        if (selectedEngine && status?.is_loaded && hasAudio && !localWhisperOperation.busy && !aiStore.killSwitchActive && !syncEditBusy) {
-          void startAutoSync(autoSyncStore.selectedMode === "quick");
-        }
-        break;
-      case "newSync": if ((status?.is_loaded || audioSrc) && !syncEditBusy) showResetModal = true; break;
-      case "loadSession": if (!syncEditBusy) void loadSession(); break;
-      case "saveSession": if (hasAudio && !syncEditBusy) void saveSession(); break;
-      case "saveFile": if (status?.is_loaded && !syncEditBusy) void saveFile(); break;
-      case "playPause":
-        if (hasAudio && audioElement) {
-          if (isPlaying) audioElement.pause();
-          else void safePlayAudio("keyboard-play");
-        }
-        break;
-      case "replaySubtitle": replayCurrentSubtitle(); break;
-      case "seekBack":
-      case "seekForward":
-      case "seekBackFast":
-      case "seekForwardFast":
-        if (hasAudio && audioElement) {
-          const distance = action.endsWith("Fast") ? 1 : 0.1;
-          audioElement.currentTime += action.startsWith("seekBack") ? -distance : distance;
-        }
-        break;
-      case "offsetUp":
-      case "offsetDown":
-      case "offsetUpFast":
-      case "offsetDownFast":
-        if (wizardSubtitle && hasAudio && !syncEditBusy) {
-          const amount = action.endsWith("Fast") ? 500 : 100;
-          updateOffset(action.startsWith("offsetDown") ? -amount : amount);
-          seekToSubtitleStart(wizardSubtitle);
-        }
-        break;
-      case "confirmAnchor": void confirmCurrentCheckpoint(); break;
-      case "goToSuggested": if (!syncEditBusy) void advanceWizard(); break;
-      case "prevSubtitle":
-      case "nextSubtitle":
-        if (wizardSubtitle && status && !syncEditBusy) {
-          const id = wizardSubtitle.id + (action === "nextSubtitle" ? 1 : -1);
-          if (id >= 1 && id <= status.total_subtitles) {
-            showSaveSuggestion = false;
-            void goToCheckpoint(id);
-          }
-        }
-        break;
-      case "prevAnchor":
-      case "nextAnchor": {
-        if (!wizardSubtitle || syncEditBusy) break;
-        const ids = anchors.map(anchor => anchor.subtitle_id).sort((a, b) => a - b);
-        const current = wizardSubtitle.id;
-        const id = action === "nextAnchor" ? ids.find(id => id > current) : ids.findLast(id => id < current);
-        if (id !== undefined) {
-          showSaveSuggestion = false;
-          void goToCheckpoint(id);
-        }
-        break;
-      }
-    }
+    handleSyncKeydown(e, {
+      active,
+      showResetModal,
+      expandedPathField,
+      subtitleContextMenu,
+      canStartAutoSync:
+        !!selectedEngine &&
+        !!status?.is_loaded &&
+        hasAudio &&
+        !localWhisperOperation.busy &&
+        !aiStore.killSwitchActive &&
+        !syncEditBusy,
+      canReset: !syncEditBusy,
+      syncEditBusy,
+      hasAudio,
+      isLoaded: !!status?.is_loaded,
+      hasMediaSrc: !!audioSrc,
+      isPlaying,
+      wizardSubtitleId: wizardSubtitle?.id ?? null,
+      totalSubtitles: status?.total_subtitles ?? 0,
+      anchorIds: anchors.map((anchor) => anchor.subtitle_id),
+      onCloseContextMenu: closeSubtitleContextMenu,
+      onPlaySub: (sub) => { void playSubtitleFromList(sub); },
+      onGoToSub: (sub) => { void goToSubtitleManual(sub); },
+      onHistory: (direction) => { void changeSyncHistory(direction); },
+      onSelectSrt: () => { void selectSrtFile(); },
+      onStartAutoSync: () => { void startAutoSync(autoSyncStore.selectedMode === "quick"); },
+      onRequestReset: () => { showResetModal = true; },
+      onLoadSession: () => { void loadSession(); },
+      onSaveSession: () => { void saveSession(); },
+      onSaveFile: () => { void saveFile(); },
+      onTogglePlay: () => {
+        if (!audioElement) return;
+        if (isPlaying) audioElement.pause();
+        else void safePlayAudio("keyboard-play");
+      },
+      onReplaySubtitle: replayCurrentSubtitle,
+      onSeekBy: (seconds) => {
+        if (audioElement) audioElement.currentTime += seconds;
+      },
+      onAdjustOffset: (deltaMs) => {
+        if (!wizardSubtitle) return;
+        updateOffset(deltaMs);
+        seekToSubtitleStart(wizardSubtitle);
+      },
+      onConfirmAnchor: () => { void confirmCurrentCheckpoint(); },
+      onGoToSuggested: () => { void advanceWizard(); },
+      onGoToCheckpoint: (id) => {
+        showSaveSuggestion = false;
+        void goToCheckpoint(id);
+      },
+    });
   }
 
   let singleClickTimer: ReturnType<typeof setTimeout> | null = null;
@@ -1317,155 +988,29 @@
     </WorkflowWorkspace>
   </div>
 
-  <!-- Fixed Bottom Band with Action Buttons -->
-  <FooterActions>
-    {#snippet left()}
-      <div class="relative group">
-        <button
-          onclick={loadSession}
-          class="px-5 py-2.5 bg-cyan-600 hover:bg-cyan-500 text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-cyan-950/20 flex items-center gap-2 enabled:hover:scale-[1.02] enabled:active:scale-[0.98] cursor-pointer"
-        >
-          <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-          </svg>
-          {t("sync.loadSession")}
-        </button>
-        <div class="pointer-events-none absolute bottom-full left-0 z-50 mb-3 rounded-xl border border-cyan-500/30 bg-gray-950/95 p-3 text-center text-xs text-cyan-300 shadow-2xl shadow-black/40 ring-1 ring-white/10 transition-all duration-150 delay-0 group-hover:delay-300 opacity-0 group-hover:opacity-100 group-hover:translate-y-0 translate-y-1 whitespace-normal w-72">
-          {t("sync.tooltipLoadSession")}
-        </div>
-      </div>
-
-      <div class="w-40 min-[961px]:w-56 max-w-full min-w-0">
-        <SpeechEngineSelector purpose="sync" compact
-          disabled={!active || autoSyncStore.isAutoSyncing || localWhisperOperation.busy}
-          onresolve={(entry) => { selectedEngine = entry; }}
-        />
-      </div>
-    {/snippet}
-    {#snippet center()}
-      <AutoSyncControls
-        canAutoSync={!!selectedEngine && !!status?.is_loaded && hasAudio && !localWhisperOperation.busy && !aiStore.killSwitchActive}
-        onStart={() => startAutoSync(autoSyncStore.selectedMode === "quick")}
-      />
-    {/snippet}
-    {#snippet right()}
-      <!-- New Sync -->
-      <div class="relative group">
-        <button
-          onclick={() => (showResetModal = true)}
-          disabled={!(status?.is_loaded || audioSrc)}
-          class="px-5 py-2.5 bg-amber-500 hover:bg-amber-400 disabled:bg-amber-500/55 text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-amber-950/20 flex items-center gap-2 enabled:hover:scale-[1.02] enabled:active:scale-[0.98] disabled:opacity-55 disabled:cursor-not-allowed cursor-pointer"
-        >
-          <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-          </svg>
-          {t("sync.newSync")}
-        </button>
-        <div class="pointer-events-none absolute bottom-full left-1/2 z-50 mb-3 -translate-x-1/2 rounded-xl border border-amber-500/30 bg-gray-950/95 p-3 text-center text-xs text-amber-300 shadow-2xl shadow-black/40 ring-1 ring-white/10 transition-all duration-150 delay-0 group-hover:delay-300 opacity-0 group-hover:opacity-100 group-hover:translate-y-0 translate-y-1 whitespace-normal w-72">
-          {t("sync.newSyncDesc")}
-        </div>
-      </div>
-
-      <!-- Save File -->
-      <div class="relative group">
-        <button
-          onclick={saveFile}
-          disabled={!status?.is_loaded}
-          class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:bg-emerald-600/55 text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-emerald-950/20 flex items-center gap-2 enabled:hover:scale-[1.02] enabled:active:scale-[0.98] disabled:opacity-55 disabled:cursor-not-allowed cursor-pointer"
-        >
-          <svg
-            class="w-4 h-4 text-white"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M5 13l4 4L19 7"
-            />
-          </svg>
-          {t("sync.saveFile")}
-        </button>
-        <div class="pointer-events-none absolute bottom-full right-0 z-50 mb-3 rounded-xl border border-green-500/30 bg-gray-950/95 p-3 text-center text-xs text-green-300 shadow-2xl shadow-black/40 ring-1 ring-white/10 transition-all duration-150 delay-0 group-hover:delay-300 opacity-0 group-hover:opacity-100 group-hover:translate-y-0 translate-y-1 whitespace-normal w-72">
-          {t("sync.tooltipSaveFile")}
-        </div>
-      </div>
-    {/snippet}
-  </FooterActions>
+  <SyncFooterBar
+    {active}
+    canReset={!!(status?.is_loaded || audioSrc)}
+    canSave={!!status?.is_loaded}
+    canAutoSync={!!selectedEngine && !!status?.is_loaded && hasAudio && !localWhisperOperation.busy && !aiStore.killSwitchActive}
+    bind:selectedEngine
+    onLoadSession={loadSession}
+    onStartAutoSync={() => startAutoSync(autoSyncStore.selectedMode === "quick")}
+    onRequestReset={() => (showResetModal = true)}
+    onSaveFile={saveFile}
+  />
 
   <AutoSyncOverlay onCancel={cancelAutoSync} />
 
   {#if subtitleContextMenu}
-    <!-- svelte-ignore a11y_no_static_element_interactions -->
-    <div
-      class="fixed inset-0 z-50"
-      onclick={closeSubtitleContextMenu}
-      oncontextmenu={(e) => {
-        e.preventDefault();
-        closeSubtitleContextMenu();
-      }}
-      onkeydown={(e) => {
-        if (e.key === "Escape") closeSubtitleContextMenu();
-      }}
-      role="presentation"
-      tabindex="-1"
-    >
-      <div
-        use:fitContextMenu={{ x: subtitleContextMenu.x, y: subtitleContextMenu.y, close: closeSubtitleContextMenu }}
-      class="vesta-context-menu animate-fade-in"
-
-      >
-        {#if subtitleContextMenu.sub.is_anchor}
-          <button class="vesta-context-menu-item" disabled={syncEditBusy}
-            onclick={() => { const id = subtitleContextMenu?.sub.id; closeSubtitleContextMenu(); if (id !== undefined) void removeAnchor(id); }}>
-            {t("sync.tooltipRemoveAnchor")}
-          </button>
-        {/if}
-        <button
-          onclick={() => {
-            if (subtitleContextMenu)
-              playSubtitleFromList(subtitleContextMenu.sub);
-            closeSubtitleContextMenu();
-          }}
-          class="vesta-context-menu-item"
-        >
-          <span class="inline-flex items-center gap-2">
-            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"
-              ><path d="M8 5v14l11-7z" /></svg
-            >
-            {t("sync.playSubtitle")}
-          </span>
-          <kbd>P</kbd>
-        </button>
-        <button
-          onclick={() => {
-            if (subtitleContextMenu)
-              goToSubtitleManual(subtitleContextMenu.sub);
-            closeSubtitleContextMenu();
-          }}
-          class="vesta-context-menu-item"
-        >
-          <span class="inline-flex items-center gap-2">
-            <svg
-              class="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-              ><path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M15 12a9 9 0 11-18 0 9 9 0 0118 0z"
-              /></svg
-            >
-            {t("sync.goToSubtitle")}
-          </span>
-          <kbd>G</kbd>
-        </button>
-      </div>
-    </div>
+    <SyncSubtitleContextMenu
+      contextMenu={subtitleContextMenu}
+      {syncEditBusy}
+      onClose={closeSubtitleContextMenu}
+      onRemoveAnchor={(id) => { void removeAnchor(id); }}
+      onPlay={(sub) => { void playSubtitleFromList(sub); }}
+      onGoTo={(sub) => { void goToSubtitleManual(sub); }}
+    />
   {/if}
 
 
