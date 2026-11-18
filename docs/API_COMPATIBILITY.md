@@ -34,3 +34,10 @@ immediately. Ordinary transient failures retain the bounded retry count,
 redacted errors and optional diagnostics. See [Groq rate-limit headers](https://console.groq.com/docs/rate-limits),
 [OpenAI error codes](https://developers.openai.com/api/docs/guides/error-codes)
 and [Claude rate limits](https://platform.claude.com/docs/en/api/rate-limits).
+
+OpenAI original GPT-5, GPT-5.6/GPT-6 and Claude 4.7+ requests omit custom
+`temperature`; supported defaults such as GPT-5.1 retain the existing sampling
+value. Claude requests keep API version
+`2023-06-01` for existing integrations: adopting `2026-10-21` globally would remove
+sampling controls even for older models. See [OpenAI migration guidance](https://developers.openai.com/api/docs/guides/latest-model)
+and [Claude version migration](https://platform.claude.com/docs/en/api/migration-2026-10-21).

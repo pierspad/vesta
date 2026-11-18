@@ -154,7 +154,15 @@ pub(crate) fn supports_custom_temperature(model: &str) -> bool {
         Some(pos) => &model[pos + 1..],
         None => &model,
     };
-    !(name.starts_with("o1") || name.starts_with("o3") || name.starts_with("o4"))
+    let modern_gpt = name == "gpt-5"
+        || name.starts_with("gpt-5-")
+        || name.starts_with("gpt-5.6")
+        || name
+            .strip_prefix("gpt-")
+            .and_then(|version| version.split(['.', '-']).next())
+            .and_then(|major| major.parse::<u32>().ok())
+            .is_some_and(|major| major >= 6);
+    !(modern_gpt || name.starts_with("o1") || name.starts_with("o3") || name.starts_with("o4"))
 }
 
 pub(crate) fn build_openai_request(model: &str, prompt: &str) -> OpenAiRequest {
@@ -183,7 +191,8 @@ pub(crate) struct AnthropicMessage {
 pub(crate) struct AnthropicRequest {
     pub model: String,
     pub max_tokens: u32,
-    pub temperature: f32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub temperature: Option<f32>,
     pub messages: Vec<AnthropicMessage>,
 }
 
@@ -205,11 +214,26 @@ pub(crate) struct AnthropicResponse {
     pub error: Option<AnthropicError>,
 }
 
+fn supports_anthropic_temperature(model: &str) -> bool {
+    let model = model.to_ascii_lowercase();
+    let name = model.rsplit('/').next().unwrap_or(&model);
+    let Some(version) = name.strip_prefix("claude-") else {
+        return true;
+    };
+    let mut numbers = version
+        .split('-')
+        .filter(|part| part.len() <= 2)
+        .filter_map(|part| part.parse::<u32>().ok());
+    let major = numbers.next().unwrap_or(0);
+    let minor = numbers.next().unwrap_or(0);
+    major < 4 || (major == 4 && minor < 7)
+}
+
 pub(crate) fn build_anthropic_request(model: &str, prompt: &str) -> AnthropicRequest {
     AnthropicRequest {
         model: model.to_string(),
         max_tokens: 4096,
-        temperature: 0.3,
+        temperature: supports_anthropic_temperature(model).then_some(0.3),
         messages: vec![AnthropicMessage {
             role: "user".to_string(),
             content: prompt.to_string(),
@@ -809,6 +833,43 @@ fn try_legacy_parsing(text: &str, expected_count: usize) -> Option<HashMap<u32, 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn recent_model_requests_omit_unsupported_sampling_parameters() {
+        for model in [
+            "gpt-5",
+            "gpt-5-mini",
+            "gpt-5.6-sol",
+            "openai/gpt-6-luna",
+            "gpt-6.2-sol",
+        ] {
+            let json = serde_json::to_value(build_openai_request(model, "prompt")).unwrap();
+            assert!(json.get("temperature").is_none(), "{model}");
+        }
+        for model in [
+            "claude-opus-4-7",
+            "claude-opus-4-7-20260416",
+            "claude-sonnet-5-5",
+            "claude-haiku-5-5",
+            "claude-fable-5-2",
+        ] {
+            let json = serde_json::to_value(build_anthropic_request(model, "prompt")).unwrap();
+            assert!(json.get("temperature").is_none(), "{model}");
+            assert_eq!(json["max_tokens"], 4096);
+        }
+        for model in [
+            "claude-sonnet-4-6",
+            "claude-haiku-4-5-20251001",
+            "claude-3-5-haiku-20241022",
+            "claude-opus-4-20250514",
+        ] {
+            let json = serde_json::to_value(build_anthropic_request(model, "prompt")).unwrap();
+            assert!(
+                (json["temperature"].as_f64().unwrap() - 0.3).abs() < 1e-6,
+                "{model}"
+            );
+        }
+    }
 
     #[test]
     fn permanent_billing_errors_do_not_schedule_retries() {
