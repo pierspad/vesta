@@ -1,0 +1,39 @@
+name: Browser regressions
+
+on:
+  pull_request:
+    paths:
+      - apps/srt-gui/**
+      - build-scripts/check_doc_contracts.py
+      - build-scripts/browser_ipc_contract.py
+      - build-scripts/quality_check.py
+      - docs/contracts_manifest.json
+      - .github/workflows/browser.yml
+
+permissions:
+  contents: read
+
+jobs:
+  chromium:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: apps/srt-gui/package-lock.json
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - working-directory: apps/srt-gui
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+          npm run test:browser
+      - uses: actions/upload-artifact@v6
+        if: failure()
+        with:
+          name: browser-failures
+          path: apps/srt-gui/node_modules/.cache/vesta-browser-tests/
+          include-hidden-files: true

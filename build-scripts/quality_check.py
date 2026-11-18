@@ -12,6 +12,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--desktop', action='store_true', help='Include native Vesta tests; requires Tauri/Vulkan build dependencies')
     parser.add_argument('--smoke', action='store_true', help='Build the CLI and validate a synthetic media/APKG export')
+    parser.add_argument('--browser', action='store_true', help='Run the Chromium suite; install Playwright Chromium first')
     args = parser.parse_args()
     rust = ['cargo', 'test', '--locked', '--workspace', '--exclude', 'whisper-bench']
     if not args.desktop: rust += ['--exclude', 'vesta']
@@ -28,6 +29,8 @@ def main():
                 (ROOT / 'apps/srt-gui', ['python3', 'scripts/check_missing_translations.py', '--fail-on-issues', '--output', str(Path(tempfile.gettempdir()) / 'vesta-quality-i18n.json')]),
                 (ROOT / 'apps/srt-gui', ['npm', 'run', 'build']),
                 (ROOT, rust), (ROOT, ['bash', 'build-scripts/check_internal_crate_versions.sh'])]
+    if args.browser:
+        commands.append((ROOT / 'apps/srt-gui', ['npm', 'run', 'test:browser']))
     if args.smoke:
         commands += [(ROOT, ['cargo', 'build', '--locked', '-p', 'srt-flashcards-cli']),
                      (ROOT, ['python3', 'build-scripts/quality_smoke.py'])]

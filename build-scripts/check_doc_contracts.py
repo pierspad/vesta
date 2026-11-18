@@ -63,7 +63,7 @@ def slugify_github(heading: str) -> str:
 # ── 1. Tauri IPC Commands (apps/srt-gui & apps/whisper-bench) ──────────────
 
 def extract_tauri_commands(commands_dir: Path, main_rs: Path) -> Dict[str, Any]:
-    defined: Dict[str, Dict[str, str]] = {}
+    defined: Dict[str, Dict[str, Any]] = {}
     cmd_pattern = re.compile(
         r"#\[tauri::command[^\]]*\]\s*(?:(?:#\[[^\]]*\]\s*|//[^\n]*\n\s*)*)"
         r"(?:pub\s+)?(?:async\s+)?fn\s+([a-zA-Z0-9_]+)\s*\((.*?)\)\s*(?:->\s*([^{]+))?\s*\{",
@@ -84,7 +84,10 @@ def extract_tauri_commands(commands_dir: Path, main_rs: Path) -> Dict[str, Any]:
             params_raw = normalize_ws(match.group(2))
             ret_raw = normalize_ws(match.group(3) or "()")
             sig = f"fn {name}({params_raw}) -> {ret_raw}"
+            command_attr = match.group(0).split("]", 1)[0]
             defined[name] = {
+                "arguments": params_raw,
+                "snake_case_arguments": bool(re.search(r'rename_all\s*=\s*"snake_case"', command_attr)),
                 "group": group,
                 "file": rel_path,
                 "signature": sig,

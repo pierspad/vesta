@@ -26,20 +26,26 @@ Publication in CI waits for the successful push workflow on the exact release co
 
 ---
 
-### Flashcards in Chromium
+### Browser regressions in Chromium
 
-Run the browser regression suite from the repository root after installing the frontend dependencies:
+Install Chromium for the opt-in browser suite:
 
 ```bash
 cd apps/srt-gui
+npm ci
 npx playwright install chromium
-npm run test:browser
+cd ../..
+python3 build-scripts/quality_check.py --browser
 ```
 
 Set `VESTA_TEST_CHROMIUM` to an absolute executable path to use an existing Chromium installation.
 Playwright starts a local Vite server and loads the app with synthetic Tauri responses.
-The suite exercises file selection, preview and retry, export progress and result, and cancellation.
-It saves preview and export screenshots and retains failure traces under
+Run only the browser suite with `npm run test:browser` from `apps/srt-gui`.
+It covers narrow and RTL layout, Flashcards export, synchronization and alignment history,
+translation errors and cancellation, transcription model selection and cancellation, and shortcut persistence.
+The browser suite compares invoked command names and top-level payload keys with registered Rust commands.
+The separate Browser regressions workflow runs on relevant pull requests.
+The suite saves screenshots and retains failure traces under
 `apps/srt-gui/node_modules/.cache/vesta-browser-tests/`.
 Run the synthetic FFmpeg/APKG smoke test to validate real media and packages.
 
@@ -178,6 +184,7 @@ Verifies CPU execution, Vulkan backend selection (`Vulkan0`), CPU fallback when 
 
 ```bash
 cd apps/srt-gui
+npm ci
 npm run tauri -- dev --config '{"build":{"devUrl":"http://localhost:5175/scripts/editor-scroll-benchmark.html"}}'
 ```
 

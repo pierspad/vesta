@@ -1,7 +1,7 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./browser-fixture.mjs";
 
 const callsFor = (page, command) => page.evaluate(
-  (name) => window.flashcardsFixture.calls.filter((call) => call.command === name),
+  (name) => window.browserFixture.calls.filter((call) => call.command === name),
   command,
 );
 
@@ -16,22 +16,13 @@ const previewButton = (page) => page.getByRole("button", { name: "Preview Cards"
 const generateButton = (page) => page.getByRole("button", { name: "Generate Flashcards", exact: true });
 const outputAction = (page) => page.getByRole("button", { name: "Open with default application: /exports/Episode01.apkg" });
 
-const pageErrors = new WeakMap();
-
 test.beforeEach(async ({ page }) => {
-  const errors = [];
-  pageErrors.set(page, errors);
-  page.on("pageerror", (error) => errors.push(error.message));
-  await page.goto("/browser-tests/flashcards.html");
+  await page.goto("/browser-tests/harness.html");
   await page.getByRole("button", { name: "Upload media" }).click();
   await expect(page.getByRole("cell", { name: "Episode01.ja.srt", exact: true })).toBeVisible();
   await expect(page.getByRole("cell", { name: "Episode01.mp4", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "No folder selected", exact: true }).click();
   await expect(page.getByRole("button", { name: "/exports", exact: true })).toBeVisible();
-});
-
-test.afterEach(async ({ page }) => {
-  expect(pageErrors.get(page)).toEqual([]);
 });
 
 test("previews selected files and exports flashcards", async ({ page }, testInfo) => {
@@ -54,11 +45,11 @@ test("previews selected files and exports flashcards", async ({ page }, testInfo
   expect(await callsFor(page, "save_temp_subtitles")).toMatchObject([{
     args: { useNative: false, lines: [{ subs1_text: "Synthetic subtitle for the browser test" }] },
   }]);
-  await page.evaluate(() => window.flashcardsFixture.progress());
+  await page.evaluate(() => window.browserFixture.progress());
   await expect(page.getByText("40%", { exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Cancel", exact: true })).toBeVisible();
 
-  await page.evaluate(() => window.flashcardsFixture.complete());
+  await page.evaluate(() => window.browserFixture.complete());
   await expect(page.getByText("1 cards generated", { exact: true })).toBeVisible();
   await expect(outputAction(page)).toBeVisible();
   await page.mouse.move(0, 0);
@@ -66,12 +57,12 @@ test("previews selected files and exports flashcards", async ({ page }, testInfo
 });
 
 test("shows an unreadable subtitle error and can retry the preview", async ({ page }) => {
-  await page.evaluate(() => window.flashcardsFixture.failPreview("Cannot read subtitle fixture"));
+  await page.evaluate(() => window.browserFixture.failPreview("Cannot read subtitle fixture"));
   await previewButton(page).click();
   await expect(page.getByRole("alert").filter({ hasText: "Cannot read subtitle fixture" })).toBeVisible();
   await expect(page.getByRole("dialog")).toBeHidden();
 
-  await page.evaluate(() => window.flashcardsFixture.failPreview(null));
+  await page.evaluate(() => window.browserFixture.failPreview(null));
   await previewButton(page).click();
   await expect(page.getByRole("dialog").getByText("Synthetic subtitle for the browser test")).toBeVisible();
 });
