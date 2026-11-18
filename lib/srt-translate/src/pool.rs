@@ -55,7 +55,7 @@ pub fn provider_defaults(provider: &str) -> (ApiType, &'static str, u32, &'stati
             ApiType::Local,
             "https://integrate.api.nvidia.com/v1",
             40,
-            "deepseek-ai/deepseek-v4.1-flash",
+            "openai/gpt-oss-20b",
         ),
         "anthropic" => (
             ApiType::Anthropic,
@@ -177,6 +177,11 @@ mod tests {
         assert_eq!(api_type, ApiType::Groq);
         assert_eq!(url, "https://api.groq.com/openai/v1");
         assert_eq!(rpm, 30);
+        assert_eq!(model, "openai/gpt-oss-20b");
+
+        let (api_type, url, _, model) = provider_defaults("nvidia");
+        assert_eq!(api_type, ApiType::Local);
+        assert_eq!(url, "https://integrate.api.nvidia.com/v1");
         assert_eq!(model, "openai/gpt-oss-20b");
 
         let (api_type, url, rpm, model) = provider_defaults("anthropic");

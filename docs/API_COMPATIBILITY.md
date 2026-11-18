@@ -50,3 +50,10 @@ retain them for compatibility; `gpt-transcribe` is an additional text-only
 transcription option, not a replacement for timestamp-based alignment or audio
 translation. See [file transcription](https://developers.openai.com/api/docs/guides/speech-to-text)
 and [deprecations](https://developers.openai.com/api/docs/deprecations).
+
+The NVIDIA fallback uses `openai/gpt-oss-20b`, present in the public catalog and
+[documented Chat Completions example](https://build.nvidia.com/openai/gpt-oss-20b).
+Unavailable static DeepSeek V4.1 and old Nemotron entries were removed; saved
+user selections are not migrated. The fallback catalogs also include current
+Gemini 4, GPT-6.2 Sol and Claude 5.5 choices. Live account discovery remains
+authoritative; new catalog entries do not change existing saved model choices.

@@ -67,7 +67,7 @@ export const providers: Record<string, ProviderInfo> = {
     name: "Google Gemini",
     icon: "google", // Use icon ID for custom SVG icons
     color: "from-blue-500 to-cyan-500",
-    description: "Gemini native API (Gemini 3.8 Flash and 3.1 Pro Preview)",
+    description: "Gemini native API with runtime model discovery",
     requiresApiKey: true,
     requiresApiUrl: false,
     defaultApiUrl: "https://generativelanguage.googleapis.com/v1beta",
@@ -124,15 +124,15 @@ export const providers: Record<string, ProviderInfo> = {
     name: "Anthropic Claude",
     icon: "anthropic", // Use icon ID for custom SVG icons
     color: "from-orange-500 to-amber-500",
-    description: "Claude Opus 4.6, Sonnet 4.6, and Haiku 4.5",
+    description: "Claude Messages API with runtime model discovery",
     requiresApiKey: true,
     requiresApiUrl: false,
     defaultApiUrl: "https://api.anthropic.com/v1",
     enabled: true,
-    apiKeyUrl: "https://console.anthropic.com/settings/keys",
+    apiKeyUrl: "https://platform.claude.com/settings/keys",
     keyPrefix: "sk-ant-",
     keyPlaceholder: "sk-ant-...",
-    documentationUrl: "https://docs.anthropic.com",
+    documentationUrl: "https://platform.claude.com/docs/en/home",
   },
   custom: {
     id: "custom",
@@ -246,13 +246,34 @@ export const modelsByProvider: Record<string, ModelInfo[]> = {
   // Local models are discovered from the configured server, never assumed installed.
   local: [],
   google: [
-    // --- Serie Gemini 3 (Ultima Generazione 2026) ---
+    {
+      id: "gemini-4-hydrogen",
+      name: "Gemini 4 Hydrogen",
+      provider: "google",
+      family: "Gemini 4",
+      familyInfo: { type: "proprietary", badge: "Stable" },
+    },
+    {
+      id: "gemini-4-argon",
+      name: "Gemini 4 Argon",
+      provider: "google",
+      family: "Gemini 4",
+      familyInfo: { type: "proprietary", badge: "Stable" },
+    },
+    {
+      id: "gemini-4-carbon",
+      name: "Gemini 4 Carbon",
+      provider: "google",
+      family: "Gemini 4",
+      familyInfo: { type: "proprietary", badge: "Stable" },
+    },
+    // --- Serie Gemini 3 ---
     {
       id: "gemini-3.8-flash",
       name: "Gemini 3.8 Flash",
       provider: "google",
       family: "Gemini 3",
-      familyInfo: { type: "proprietary", badge: "Newest" },
+      familyInfo: { type: "proprietary", badge: "Stable" },
       contextWindow: 1048576,
       description: "Modello Flash stabile, rapido e adatto a traduzione e annotazione.",
       recommended: true,
@@ -340,6 +361,13 @@ export const modelsByProvider: Record<string, ModelInfo[]> = {
   // OpenAI Chat Completions-compatible text models.
   openai: [
     {
+      id: "gpt-6.2-sol",
+      name: "GPT-6.2 Sol",
+      provider: "openai",
+      family: "GPT-6",
+      familyInfo: { type: "proprietary", badge: "Stable" },
+    },
+    {
       id: "gpt-5.1",
       name: "GPT-5.1",
       provider: "openai",
@@ -381,11 +409,32 @@ export const modelsByProvider: Record<string, ModelInfo[]> = {
   // Anthropic Messages API (https://api.anthropic.com/v1)
   anthropic: [
     {
+      id: "claude-haiku-5-5",
+      name: "Claude Haiku 5.5",
+      provider: "anthropic",
+      family: "Claude 5",
+      familyInfo: { type: "proprietary", badge: "Stable" },
+    },
+    {
+      id: "claude-sonnet-5-5",
+      name: "Claude Sonnet 5.5",
+      provider: "anthropic",
+      family: "Claude 5",
+      familyInfo: { type: "proprietary", badge: "Stable" },
+    },
+    {
+      id: "claude-opus-5-5",
+      name: "Claude Opus 5.5",
+      provider: "anthropic",
+      family: "Claude 5",
+      familyInfo: { type: "proprietary", badge: "Stable" },
+    },
+    {
       id: "claude-sonnet-4-6",
       name: "Claude Sonnet 4.6",
       provider: "anthropic",
       family: "Claude 4",
-      familyInfo: { type: "proprietary", badge: "Newest" },
+      familyInfo: { type: "proprietary", badge: "Stable" },
       contextWindow: 200000,
       description: "Balanced intelligence and speed for high-quality subtitle translation and annotation.",
       recommended: true,
@@ -405,9 +454,9 @@ export const modelsByProvider: Record<string, ModelInfo[]> = {
       name: "Claude Opus 4.6",
       provider: "anthropic",
       family: "Claude 4",
-      familyInfo: { type: "proprietary", badge: "Newest" },
+      familyInfo: { type: "proprietary", badge: "Stable" },
       contextWindow: 200000,
-      description: "Most capable Claude model for complex nuance and literary translation.",
+      description: "Claude model for complex nuance and literary translation.",
     },
   ],
 
@@ -502,7 +551,7 @@ export const modelsByProvider: Record<string, ModelInfo[]> = {
       name: "Mistral Large",
       provider: "mistral",
       family: "Mistral",
-      familyInfo: { type: "proprietary", badge: "Newest" },
+      familyInfo: { type: "proprietary", badge: "Stable" },
       contextWindow: 131072,
       description: "Modello flagship Mistral, massima qualità",
       recommended: true,
@@ -540,25 +589,17 @@ export const modelsByProvider: Record<string, ModelInfo[]> = {
   // NVIDIA NIM - integrate.api.nvidia.com (OpenAI-compatible)
   nvidia: [
     {
-      id: "deepseek-ai/deepseek-v4.1-flash",
-      name: "DeepSeek V4.1 Flash",
+      id: "openai/gpt-oss-20b",
+      name: "GPT-OSS 20B",
       provider: "nvidia",
-      family: "DeepSeek",
-      familyInfo: { type: "open-weights", badge: "Newest" },
-      description: "DeepSeek Flash via NVIDIA NIM.",
+      family: "GPT-OSS",
+      familyInfo: { type: "open-weights", badge: "Stable" },
+      description: "OpenAI GPT-OSS via NVIDIA NIM.",
       recommended: true,
     },
     {
-      id: "nvidia/llama-3.1-nemotron-70b-instruct",
-      name: "Nemotron 70B Instruct",
-      provider: "nvidia",
-      family: "NVIDIA",
-      familyInfo: { type: "open-weights", badge: "Open" },
-      description: "NVIDIA Nemotron instruction model.",
-    },
-    {
-      id: "nvidia/llama-3.1-nemotron-51b-instruct",
-      name: "Nemotron 51B Instruct",
+      id: "nvidia/nemotron-3.5-lightning-30b-a3b",
+      name: "Nemotron 3.5 Lightning 30B A3B",
       provider: "nvidia",
       family: "NVIDIA",
       familyInfo: { type: "open-weights", badge: "Open" },
