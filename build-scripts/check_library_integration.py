@@ -16,7 +16,7 @@ ROOT = Path(__file__).resolve().parents[1]
 FIXTURE = ROOT / "build-scripts" / "library-smoke"
 LIBRARIES = [
     "srt-apkg", "srt-download", "srt-parser", "srt-ankiconnect",
-    "srt-autosync", "srt-extract", "srt-flashcards", "srt-refine",
+    "srt-autosync", "srt-extract", "srt-flashcards", "srt-ocr", "srt-refine",
     "srt-sync", "srt-transcribe", "srt-translate",
 ]
 GPU_FEATURES = {"cuda", "rocm", "sycl", "vulkan"}
@@ -104,6 +104,7 @@ def render_manifest(content: str, root: Path) -> str:
         "../../lib/srt-autosync": root / "lib/srt-autosync",
         "../../lib/srt-extract": root / "lib/srt-extract",
         "../../lib/srt-flashcards": root / "lib/srt-flashcards",
+        "../../lib/srt-ocr": root / "lib/srt-ocr",
         "../../lib/srt-refine": root / "lib/srt-refine",
         "../../lib/srt-sync": root / "lib/srt-sync",
         "../../lib/srt-transcribe": root / "lib/srt-transcribe",

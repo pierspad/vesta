@@ -1,4 +1,5 @@
 import type { WhisperModel, VadModel } from "$lib/services/transcribe";
+import type { OcrModel } from "$lib/services/ocr";
 import type { FontStatusInfo } from "$lib/stores/fontStore.svelte";
 import { normalizeLanguageCode } from "$lib/config/languages";
 
@@ -9,19 +10,22 @@ export interface SetupChoices {
   whisperModel: string;
   useVad: boolean;
   vadChoice: "silero" | "custom";
+  wantsOcr?: boolean;
+  ocrModel?: string;
   nativeLanguage: string;
   studyLanguage: string;
 }
 export interface SetupResources {
   models: WhisperModel[];
   vadModels: VadModel[];
+  ocrModels?: OcrModel[];
   fonts: FontStatusInfo[];
   mediaReady: boolean;
   mediaDownloadBytes: number | null;
 }
 export interface SetupTask {
   id: string;
-  kind: "media" | "whisper" | "vad" | "font";
+  kind: "media" | "whisper" | "vad" | "ocr" | "font";
   resourceId: string;
   name: string;
   size: string;
@@ -29,7 +33,7 @@ export interface SetupTask {
 }
 export function resolveSetupChoices(choices: SetupChoices): SetupChoices {
   return choices.mode === "quick"
-    ? { ...choices, wantsTranscription: true, whisperModel: "small", useVad: true, vadChoice: "silero" }
+    ? { ...choices, wantsTranscription: true, whisperModel: "small", useVad: true, vadChoice: "silero", wantsOcr: false }
     : { ...choices };
 }
 export function buildSetupPlan(raw: SetupChoices, resources: SetupResources): SetupTask[] {
@@ -44,6 +48,13 @@ export function buildSetupPlan(raw: SetupChoices, resources: SetupResources): Se
       const vad = resources.vadModels.find(m => m.id === "v6.2.0");
       if (!vad) throw new Error("Silero VAD unavailable");
       plan.push({ id: "vad", kind: "vad", resourceId: vad.id, name: "Silero VAD 6.2.0", size: vad.size, installed: vad.downloaded });
+    }
+  }
+  if (choices.wantsOcr) {
+    const ocrModelId = choices.ocrModel || "paddleocr-v4-mobile-multi";
+    const ocrModel = (resources.ocrModels ?? []).find(m => m.id === ocrModelId);
+    if (ocrModel) {
+      plan.push({ id: "ocr", kind: "ocr", resourceId: ocrModel.id, name: ocrModel.name, size: ocrModel.size, installed: ocrModel.downloaded });
     }
   }
   for (const font of resources.fonts.filter(font => [choices.nativeLanguage, choices.studyLanguage].some(language => font.target_languages.includes(normalizeLanguageCode(language))))) {

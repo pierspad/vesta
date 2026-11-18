@@ -1390,5 +1390,17 @@
   "extract.ocrInProgress": "Ejecutando OCR ({{current}}/{{total}})…",
   "extract.ocrCancelled": "OCR cancelado.",
   "extract.ocrCancel": "Cancelar OCR",
-  "extract.ocrNoProvider": "Configura un proveedor de LLM o un servidor local de Ollama en Configuración antes de ejecutar OCR."
+  "extract.ocrNoProvider": "Configura un proveedor de LLM o un servidor local de Ollama en Configuración antes de ejecutar OCR.",
+  "extract.hardcodedTitle": "Subtítulos incrustados (OCR por ROI)",
+  "extract.hardcodedDesc": "Seleccione la región donde aparecen los subtítulos incrustados en el fotograma de vídeo.",
+  "extract.hardcodedPreviewFrame": "Actualizar fotograma",
+  "extract.hardcodedPreviewOcr": "Vista previa OCR del ROI",
+  "extract.hardcodedSave": "Extraer ROI a SRT",
+  "extract.hardcodedPresetBottom": "Inferior",
+  "extract.hardcodedPresetTop": "Superior",
+  "extract.hardcodedFps": "Frecuencia de muestreo (FPS)",
+  "setup.localOcr": "OCR local sin conexión",
+  "setup.localOcrDesc": "Descargue un modelo compacto de PaddleOCR para reconocer subtítulos de imagen sin conexión.",
+  "settings.ocrModelsTitle": "Modelos de OCR sin conexión (PaddleOCR)",
+  "settings.ocrModelsDesc": "Ejecute OCR en subtítulos de mapa de bits e incrustados localmente sin costes de LLM en la nube."
 }

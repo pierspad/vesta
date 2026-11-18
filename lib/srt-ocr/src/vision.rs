@@ -144,6 +144,10 @@ impl OcrBackend for VisionLlmBackend {
     ) -> Pin<Box<dyn Future<Output = Result<String>> + Send + 'a>> {
         Box::pin(self.recognize_cue_inner(cue, language_hint, cancel))
     }
+
+    fn recommended_concurrency(&self) -> usize {
+        self.concurrency()
+    }
 }
 
 fn build_ocr_prompt(language_hint: Option<&str>) -> String {

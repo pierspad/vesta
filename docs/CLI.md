@@ -66,12 +66,14 @@ vesta-cli extract --input episode.mkv --track 8 --output episode.en.srt
 
 ```sh
 vesta-cli ocr models
+vesta-cli ocr download paddleocr-v4-mobile-multi
 vesta-cli ocr run --input episode.mkv --track 2 --output episode.en.srt --provider local --model llava
+vesta-cli ocr run --input episode.mp4 --roi 0.08,0.74,0.84,0.20 --fps 2.5 --output episode.hardcoded.srt --provider paddle
 vesta-cli ocr run --input episode.mkv --track 2 --output episode.en.srt --provider google --model gemini-2.5-flash --api-key "$GEMINI_API_KEY" --json
 ```
 
-- `run` extracts a bitmap subtitle track (`hdmv_pgs_subtitle`, `dvd_subtitle`, `dvb_subtitle`, `xsub`) by its absolute `--track` stream index from `extract --list-tracks` and runs Vision LLM OCR to produce `--output`.
-- `--provider local` (default) targets an OpenAI-compatible Vision endpoint (such as Ollama at `http://localhost:11434/v1`). Cloud providers require `--api-key`; `--provider custom` requires `--api-url`.
+- `run` extracts either an embedded bitmap subtitle track (`hdmv_pgs_subtitle`, `dvd_subtitle`, `dvb_subtitle`, `xsub`) by its `--track` stream index from `extract --list-tracks`, or burned-in subtitles from a normalized video region via `--roi X,Y,W,H` (`0.0..=1.0`, sampled at `--fps`, default `2.5`). `--track` and `--roi` are mutually exclusive.
+- `--provider local_ocr` / `paddle` runs offline pure-Rust PaddleOCR v4 ONNX inference using `~/.cache/vesta/ocr/` (defaulting to `paddleocr-v4-mobile-multi`). `--provider local` (default) targets an OpenAI-compatible Vision endpoint (such as Ollama at `http://localhost:11434/v1`). Cloud providers require `--api-key`; `--provider custom` requires `--api-url`.
 - `models`, `download`, and `remove` manage the local OCR model cache (`~/.cache/vesta/ocr/`).
 - Output path must not resolve to `--input`. `--json` emits JSON-Lines `OcrProgress` updates and a terminal `{"ok":...}` record.
 

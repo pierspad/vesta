@@ -11,6 +11,7 @@
   import ExportFallbackSelector from "$lib/components/ExportFallbackSelector.svelte";
   import { loadMediaSettings, saveMediaSettings } from "$lib/utils/mediaSettings";
   import { whisperModelsStore } from "$lib/stores/whisperModelsStore.svelte";
+  import { ocrModelsStore } from "$lib/stores/ocrModelsStore.svelte";
   import { fontStore } from "$lib/stores/fontStore.svelte";
   import type { ExportFormat, ExportFallbackFormat } from "$lib/stores/exportFormatStore.svelte";
   import * as vestaConfig from "$lib/config/vestaConfig";
@@ -31,6 +32,8 @@
   let useVad = $state(true);
   let vadChoice = $state<"silero" | "custom">("silero");
   let whisperModel = $state("small");
+  let wantsOcr = $state(false);
+  let ocrModel = $state("paddleocr-v4-mobile-multi");
   let installing = $state(false);
   let installError = $state("");
   let setupRevision = $state(0);
@@ -48,7 +51,7 @@
   let currentTaskId = $state<string | null>(null);
   let currentProgress = $state<number | null>(null);
   let openingApp = $state(false);
-  let choices = $derived(resolveSetupChoices({ mode: mode ?? "quick", wantsTranscription, whisperModel, useVad, vadChoice, nativeLanguage, studyLanguage }));
+  let choices = $derived(resolveSetupChoices({ mode: mode ?? "quick", wantsTranscription, whisperModel, useVad, vadChoice, wantsOcr, ocrModel, nativeLanguage, studyLanguage }));
   let plan = $derived(resources ? buildSetupPlan(choices, resources) : []);
   let installPlan = $state<typeof plan>([]);
   let displayedPlan = $derived(step === "installing" || step === "complete" ? installPlan : plan);
@@ -61,11 +64,12 @@
     discoveryError = "";
     try {
       if (preview) {
-        resources = { models: whisperModelsStore.whisperModels, vadModels: [{ id: "v6.2.0", size: "~0.9 MB", downloaded: false }], fonts: [], mediaReady: false, mediaDownloadBytes: null };
+        resources = { models: whisperModelsStore.whisperModels, vadModels: [{ id: "v6.2.0", size: "~0.9 MB", downloaded: false }], ocrModels: ocrModelsStore.ocrModels, fonts: [], mediaReady: false, mediaDownloadBytes: null };
       } else {
         resources = await loadSetupResources();
         whisperModelsStore.whisperModels = resources.models;
         whisperModelsStore.vadModels = resources.vadModels;
+        ocrModelsStore.ocrModels = resources.ocrModels ?? [];
         fontStore.fonts = resources.fonts;
       }
     } catch (error) { discoveryError = String(error); }
@@ -87,6 +91,11 @@
       }));
       register(listen<{ font_id: string; percentage: number }>("font-download-progress", event => {
         if (installing && currentTask?.kind === "font" && currentTask.resourceId === event.payload.font_id) {
+          currentProgress = Math.max(0, Math.min(100, Math.round(event.payload.percentage)));
+        }
+      }));
+      register(listen<{ stage: string; percentage: number }>("ocr-progress", event => {
+        if (installing && currentTask?.kind === "ocr" && event.payload.stage === "download") {
           currentProgress = Math.max(0, Math.min(100, Math.round(event.payload.percentage)));
         }
       }));
@@ -141,6 +150,9 @@
       vestaConfig.setItem("vesta-transcribe-vad", String(choices.wantsTranscription && choices.useVad));
       vestaConfig.setItem("srt-default-whisper-model", choices.whisperModel);
       vestaConfig.setItem("vesta-transcribe-tiers", setupTierPreferences(choices.whisperModel, choices.wantsTranscription));
+      if (choices.wantsOcr) {
+        vestaConfig.setItem("vesta-default-ocr-model", choices.ocrModel || "paddleocr-v4-mobile-multi");
+      }
       if (choices.wantsTranscription && choices.useVad && choices.vadChoice === "silero") saveVadSelection({ modelId: "v6.2.0", customPath: null });
       const media = loadMediaSettings();
       media.audioFormat = mode === "custom" && compactAudio ? "opus" : "mp3";
@@ -234,6 +246,24 @@
           </div>
           <button disabled={!wantsTranscription} aria-pressed={!useVad} class="mt-3 text-xs text-gray-400 hover:text-white disabled:opacity-50" onclick={() => useVad = !useVad}>{useVad ? setupT("setup.disableVad") : setupT("setup.enableVad")}</button>
         </div>
+        <div class="mt-4 w-full rounded-xl border border-white/10 bg-white/[0.03] p-5">
+          <div class="flex items-center justify-between gap-6">
+            <div>
+              <p class="font-semibold text-white">{setupT("setup.localOcr")}</p>
+              <p class="mt-1 text-xs text-gray-400">{setupT("setup.localOcrDesc")}</p>
+            </div>
+            <button aria-label={setupT("setup.localOcr")} aria-pressed={wantsOcr} class="group flex h-10 min-w-24 shrink-0 items-center justify-between gap-2 rounded-full border px-2.5 transition-colors {wantsOcr ? 'border-cyan-400/50 bg-cyan-500 text-white' : 'border-white/10 bg-gray-700 text-gray-300 hover:bg-gray-600'}" onclick={() => wantsOcr = !wantsOcr}><span class="pl-1 text-[10px] font-bold uppercase tracking-wider">{wantsOcr ? setupT('common.on') : setupT('common.off')}</span><span class="relative h-6 w-11 rounded-full bg-black/25"><span class="absolute top-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-all {wantsOcr ? 'left-5.5' : 'left-0.5'}"></span></span></button>
+          </div>
+          <div class="mt-4 grid grid-cols-1 gap-2.5 sm:grid-cols-3 {wantsOcr ? '' : 'pointer-events-none opacity-45'}" role="radiogroup" aria-label={setupT("setup.localOcr")}>
+            {#each ocrModelsStore.ocrModels as model (model.id)}
+              <button type="button" role="radio" aria-checked={ocrModel === model.id} disabled={!wantsOcr} onclick={() => ocrModel = model.id} class="rounded-xl border p-3 text-left transition-colors {ocrModel === model.id ? 'border-cyan-400/60 bg-cyan-500/15 text-white' : 'border-white/10 bg-white/[0.035] text-gray-300 hover:border-white/20 hover:bg-white/[0.07]'}">
+                <p class="truncate text-xs font-bold">{model.name}</p>
+                <p class="mt-1 text-[10px] text-gray-400">{model.size}</p>
+                <p class="mt-1 text-[10px] {model.downloaded ? 'text-emerald-400' : 'text-amber-300/80'}">{model.downloaded ? setupT("setup.downloadedReady") : setupT("setup.willDownloadWhenSetupFinishes")}</p>
+              </button>
+            {/each}
+          </div>
+        </div>
         </div>
         {#if installError}<p class="mt-4 text-sm text-red-300">{installError}</p>{/if}
         <div class="mt-auto flex justify-between"><button class="btn-secondary px-4 py-2" disabled={installing} onclick={() => step = "export"}>{setupT("setup.back")}</button><button class="rounded-lg bg-indigo-500 px-5 py-2 font-semibold text-white disabled:opacity-50" disabled={installing} onclick={openReview}>{setupT("setup.continue")}</button></div>
@@ -263,6 +293,7 @@
                       {#if task.kind === "media"}<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m10 9 5 3-5 3zM7 5v14M17 5v14"/>
                       {:else if task.kind === "whisper"}<rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10v2a7 7 0 0 0 14 0v-2M12 19v3m-4 0h8"/>
                       {:else if task.kind === "vad"}<path d="M2 12h4l3-7 6 14 3-7h4"/>
+                      {:else if task.kind === "ocr"}<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9h10M7 13h6M7 17h4"/>
                       {:else}<path d="m4 20 7-16h2l7 16M7 14h10"/>{/if}
                     </svg>
                   </span>

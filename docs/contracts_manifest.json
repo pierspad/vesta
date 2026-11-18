@@ -3,14 +3,14 @@
   "description": "Structural contract hashes for Vesta macro-areas and micro-areas. Run `python3 build-scripts/check_doc_contracts.py --update` after updating affected documentation.",
   "macro_areas": {
     "tauri_ipc": {
-      "hash": "b1ce55ac3fa0dc8b",
-      "defined_count": 103,
-      "registered_count": 103,
+      "hash": "d75316294c295327",
+      "defined_count": 106,
+      "registered_count": 106,
       "groups": {
         "auto_sync": "1ddf2385d7490a26",
         "config": "e64b09924b1a5799",
         "experimental": "d07d248dff0f5be4",
-        "extract": "7b2d1b73631ed267",
+        "extract": "83c3559d98f236ac",
         "flashcards": "9829f77ba3c867b9",
         "info": "16c26a50c4348e48",
         "main": "838097f6f9c01b6d",
@@ -29,7 +29,7 @@
       ]
     },
     "mcp_server": {
-      "hash": "652a4b457ff74fff",
+      "hash": "7f39063a15993c7c",
       "tool_count": 12,
       "tools": {
         "call_plugin": "aefeb191ab2dd457",
@@ -40,7 +40,7 @@
         "inspect_subtitles": "3c87fb1b34678ed1",
         "list_embedded_subtitles": "f507b98887110ea7",
         "list_plugins": "bb1b4d90058caf07",
-        "ocr_subtitles": "8c09aae12381660a",
+        "ocr_subtitles": "3d0ba9337ae38016",
         "preview_flashcards": "59610fa461f61c02",
         "transcribe_media": "1674ebe64dcbfd99",
         "translate_subtitles": "429f188dca35d539"
@@ -49,7 +49,8 @@
         "EmbeddedSubtitlesRequest": "efb44c87d5a9d5e3",
         "GenerateRequest": "a071da9be00d82e8",
         "JobRequest": "c69f275fd4c865a3",
-        "OcrSubtitlesRequest": "55459dc12b21ce05",
+        "OcrRoiRequest": "e2f8d2dffd88e9eb",
+        "OcrSubtitlesRequest": "6928039c78557174",
         "PluginCallRequest": "10d425505cb8b6d7",
         "PreviewRequest": "ada298a5316eacc4",
         "SubtitleRequest": "9d5ebc7ee13ef847",
@@ -71,7 +72,7 @@
       ]
     },
     "cli_adapters": {
-      "hash": "4e28718428b34194",
+      "hash": "bc94f9de1883d6e8",
       "crates": {
         "srt-autosync-cli": {
           "hash": "1d2908a1939ffe04",
@@ -306,7 +307,7 @@
           ]
         },
         "srt-ocr-cli": {
-          "hash": "26e9207d052b0f84",
+          "hash": "8d4895852525139e",
           "subcommands": [
             "download",
             "models",
@@ -319,6 +320,7 @@
               "--api-url",
               "--ffmpeg",
               "--ffprobe",
+              "--fps",
               "--input",
               "--json",
               "--language",
@@ -326,6 +328,7 @@
               "--output",
               "--provider",
               "--quiet",
+              "--roi",
               "--track"
             ],
             "models": [],
@@ -337,6 +340,7 @@
             "--api-url",
             "--ffmpeg",
             "--ffprobe",
+            "--fps",
             "--input",
             "--json",
             "--language",
@@ -344,6 +348,7 @@
             "--output",
             "--provider",
             "--quiet",
+            "--roi",
             "--track"
           ],
           "docs": [
@@ -640,7 +645,7 @@
       ]
     },
     "rust_libraries": {
-      "hash": "8c301a21cc1d6c59",
+      "hash": "c139c430f3ee26f1",
       "crates": {
         "srt-ankiconnect": {
           "path": "lib/srt-ankiconnect",
@@ -735,16 +740,18 @@
         },
         "srt-ocr": {
           "path": "lib/srt-ocr",
-          "symbol_count": 29,
+          "symbol_count": 48,
           "files": {
             "src/backend.rs": "2069b8258b898119",
             "src/bitmap.rs": "624cbb425b66250a",
-            "src/lib.rs": "c71fd2f7afb9c90b",
+            "src/hardcoded.rs": "61781691b015dd1d",
+            "src/lib.rs": "c9cfad566b067656",
+            "src/local.rs": "b1ec1bff0aa96395",
             "src/model.rs": "b591f002e2e724bf",
-            "src/pipeline.rs": "a2c4b4ae32e23a57",
+            "src/pipeline.rs": "5835e779587e08e2",
             "src/vision.rs": "697ef30798c8ff15"
           },
-          "hash": "0c050071a29e834b",
+          "hash": "856abe5fe8ff219f",
           "docs": [
             "lib/srt-ocr/README.md",
             "docs/modules/srt-ocr.md",

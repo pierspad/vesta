@@ -1,15 +1,19 @@
-//! End-to-end bitmap subtitle OCR pipeline and preview generator.
+//! End-to-end bitmap and hardcoded video subtitle OCR pipelines and preview generators.
 
 use crate::backend::OcrBackend;
 use crate::bitmap::{BitmapSubtitleCue, extract_bitmap_subtitles};
+use crate::hardcoded::{VideoRoi, extract_hardcoded_subtitles};
+use crate::local::LocalOcrBackend;
 use crate::vision::VisionLlmBackend;
 use anyhow::{Context as _, Result, bail};
 use serde::{Deserialize, Serialize};
 use srt_parser::{Subtitle, Timestamp, persistence};
-use srt_translate::TierEntry;
+use srt_translate::{TierEntry, TranslationDiagnostic};
 use std::collections::VecDeque;
+use std::future::Future;
 use std::io::Write as _;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+use std::pin::Pin;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use tokio::sync::Mutex;
@@ -18,8 +22,9 @@ use tokio_util::sync::CancellationToken;
 
 const DEFAULT_OCR_CONCURRENCY: usize = 4;
 const DEFAULT_PREVIEW_LIMIT: usize = 15;
+const DEFAULT_LOCAL_OCR_MODEL_ID: &str = "paddleocr-v4-mobile-multi";
 
-/// Progress event emitted during bitmap subtitle extraction and OCR.
+/// Progress event emitted during subtitle extraction and OCR.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OcrProgress {
     /// Pipeline stage (`"extract"`, `"ocr"`, `"done"`).
@@ -58,7 +63,30 @@ pub struct OcrConfig {
     pub track_index: u32,
     /// Optional ISO-639 / language name hint passed to the OCR backend.
     pub language: Option<String>,
-    /// Priority-ordered Vision LLM tiers used by [`ocr_bitmap_track_to_srt`].
+    /// Priority-ordered OCR backend tiers (Vision LLM and/or `local_ocr`).
+    pub tiers: Vec<Vec<TierEntry>>,
+    /// Optional cap on the number of cues processed (primarily for previews).
+    pub preview_limit: Option<usize>,
+    /// Path or executable name for `ffmpeg`.
+    pub ffmpeg_path: String,
+    /// Path or executable name for `ffprobe`.
+    pub ffprobe_path: String,
+}
+
+/// Configuration for burned-in (hardcoded) video subtitle ROI OCR extraction and conversion to SRT.
+#[derive(Debug, Clone)]
+pub struct HardcodedOcrConfig {
+    /// Input video container path.
+    pub input_path: PathBuf,
+    /// Destination `.srt` file path.
+    pub output_path: PathBuf,
+    /// Normalized `[0.0, 1.0]` ROI rectangle where burned-in subtitles appear.
+    pub roi: VideoRoi,
+    /// Frame sampling rate in frames per second (`0.5..=15.0`).
+    pub sample_fps: f64,
+    /// Optional ISO-639 / language name hint passed to the OCR backend.
+    pub language: Option<String>,
+    /// Priority-ordered OCR backend tiers (Vision LLM and/or `local_ocr`).
     pub tiers: Vec<Vec<TierEntry>>,
     /// Optional cap on the number of cues processed (primarily for previews).
     pub preview_limit: Option<usize>,
@@ -77,7 +105,7 @@ pub struct OcrOutcome {
     pub subtitle_count: usize,
 }
 
-/// Optional progress and per-segment streaming callbacks for [`ocr_bitmap_track_to_srt`].
+/// Optional progress and per-segment streaming callbacks for OCR pipelines.
 #[derive(Default, Clone)]
 pub struct OcrCallbacks {
     /// Invoked whenever extraction or OCR progress advances.
@@ -113,6 +141,149 @@ impl OcrCallbacks {
     }
 }
 
+/// Priority-ordered OCR backend wrapper that fails over across heterogeneous backends.
+pub struct CompositeOcrBackend {
+    backends: Vec<Arc<dyn OcrBackend>>,
+}
+
+impl CompositeOcrBackend {
+    /// Creates a composite backend trying `backends` in priority order on non-cancellation errors.
+    pub fn new(backends: Vec<Arc<dyn OcrBackend>>) -> Result<Self> {
+        anyhow::ensure!(
+            !backends.is_empty(),
+            "CompositeOcrBackend requires at least one backend"
+        );
+        Ok(Self { backends })
+    }
+}
+
+impl OcrBackend for CompositeOcrBackend {
+    fn recognize_cue<'a>(
+        &'a self,
+        cue: &'a BitmapSubtitleCue,
+        language_hint: Option<&'a str>,
+        cancel: &'a CancellationToken,
+    ) -> Pin<Box<dyn Future<Output = Result<String>> + Send + 'a>> {
+        Box::pin(async move {
+            let mut last_err: Option<anyhow::Error> = None;
+            for backend in &self.backends {
+                if cancel.is_cancelled() {
+                    bail!("OCR cancelled by user");
+                }
+                match backend.recognize_cue(cue, language_hint, cancel).await {
+                    Ok(text) => return Ok(text),
+                    Err(err) => {
+                        if cancel.is_cancelled() {
+                            return Err(err);
+                        }
+                        last_err = Some(err);
+                    }
+                }
+            }
+            Err(last_err.unwrap_or_else(|| anyhow::anyhow!("All OCR backends failed")))
+        })
+    }
+
+    fn recommended_concurrency(&self) -> usize {
+        self.backends
+            .first()
+            .map_or(DEFAULT_OCR_CONCURRENCY, |b| b.recommended_concurrency())
+    }
+}
+
+fn is_local_ocr_provider(provider: &str) -> bool {
+    let trimmed = provider.trim();
+    trimmed.eq_ignore_ascii_case("local_ocr") || trimmed.eq_ignore_ascii_case("paddle")
+}
+
+fn build_vision_backend(
+    tiers: &[Vec<TierEntry>],
+    diagnostics: Option<&Arc<dyn Fn(TranslationDiagnostic) + Send + Sync>>,
+) -> Result<Arc<dyn OcrBackend>> {
+    let backend = match diagnostics {
+        Some(obs) => VisionLlmBackend::with_diagnostics(tiers, obs.clone())?,
+        None => VisionLlmBackend::new(tiers)?,
+    };
+    Ok(Arc::new(backend))
+}
+
+/// Builds an [`OcrBackend`] (Vision LLM, pure-Rust `LocalOcrBackend`, or composite failover)
+/// from priority-ordered `tiers`.
+pub fn build_backend_from_tiers(
+    tiers: &[Vec<TierEntry>],
+    diagnostics: Option<Arc<dyn Fn(TranslationDiagnostic) + Send + Sync>>,
+) -> Result<Arc<dyn OcrBackend>> {
+    let mut backends: Vec<Arc<dyn OcrBackend>> = Vec::new();
+    let mut pending_vision_tiers: Vec<Vec<TierEntry>> = Vec::new();
+    let mut first_err: Option<anyhow::Error> = None;
+
+    let flush_vision = |pending: &mut Vec<Vec<TierEntry>>,
+                        backends: &mut Vec<Arc<dyn OcrBackend>>,
+                        first_err: &mut Option<anyhow::Error>| {
+        if pending.is_empty() {
+            return;
+        }
+        let chunk = std::mem::take(pending);
+        match build_vision_backend(&chunk, diagnostics.as_ref()) {
+            Ok(b) => backends.push(b),
+            Err(err) => {
+                if first_err.is_none() {
+                    *first_err = Some(err);
+                }
+            }
+        }
+    };
+
+    for tier in tiers {
+        let mut vision_in_tier = Vec::new();
+        let mut local_in_tier = Vec::new();
+        for entry in tier {
+            if is_local_ocr_provider(&entry.provider) {
+                local_in_tier.push(entry);
+            } else {
+                vision_in_tier.push(entry.clone());
+            }
+        }
+
+        if !vision_in_tier.is_empty() {
+            pending_vision_tiers.push(vision_in_tier);
+        }
+
+        if !local_in_tier.is_empty() {
+            flush_vision(&mut pending_vision_tiers, &mut backends, &mut first_err);
+            for entry in local_in_tier {
+                let model_id = if entry.model.trim().is_empty() {
+                    DEFAULT_LOCAL_OCR_MODEL_ID
+                } else {
+                    entry.model.trim()
+                };
+                match LocalOcrBackend::from_model_id(model_id) {
+                    Ok(local) => backends.push(Arc::new(local)),
+                    Err(err) => {
+                        if first_err.is_none() {
+                            first_err = Some(err);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    flush_vision(&mut pending_vision_tiers, &mut backends, &mut first_err);
+
+    if backends.is_empty() {
+        return Err(first_err.unwrap_or_else(|| {
+            anyhow::anyhow!("No valid OCR tiers configured. Add a Vision LLM or local OCR model.")
+        }));
+    }
+
+    if backends.len() == 1 {
+        Ok(backends.remove(0))
+    } else {
+        Ok(Arc::new(CompositeOcrBackend::new(backends)?))
+    }
+}
+
 fn format_srt_segments(segments: &[OcrSegment]) -> String {
     let mut out = String::with_capacity(segments.len() * 64);
     for (idx, seg) in segments.iter().enumerate() {
@@ -134,10 +305,10 @@ fn format_srt_segments(segments: &[OcrSegment]) -> String {
     out
 }
 
-async fn recognize_bitmap_cues(
-    config: &OcrConfig,
+async fn recognize_extracted_cues(
+    cues: Vec<BitmapSubtitleCue>,
+    language: Option<&str>,
     backend: Arc<dyn OcrBackend>,
-    limit: Option<usize>,
     concurrency: usize,
     callbacks: &OcrCallbacks,
     cancel: &CancellationToken,
@@ -146,22 +317,10 @@ async fn recognize_bitmap_cues(
         bail!("OCR cancelled by user");
     }
 
-    callbacks.progress("extract", "Extracting bitmap subtitle frames...", 0.0, 0, 0);
-
-    let cues = extract_bitmap_subtitles(
-        &config.ffmpeg_path,
-        &config.ffprobe_path,
-        &config.input_path,
-        config.track_index,
-        limit,
-        Some(cancel),
-    )
-    .await?;
-
     let total = cues.len();
     callbacks.progress(
         "ocr",
-        format!("Recognizing {total} bitmap subtitle cues..."),
+        format!("Recognizing {total} subtitle cues..."),
         0.0,
         0,
         total,
@@ -177,7 +336,7 @@ async fn recognize_bitmap_cues(
     let queue = Arc::new(Mutex::new(queue_items));
     let results: Arc<Mutex<Vec<Option<String>>>> = Arc::new(Mutex::new(vec![None; total]));
     let completed = Arc::new(AtomicUsize::new(0));
-    let language = config.language.clone();
+    let language = language.map(ToString::to_string);
 
     let mut workers = JoinSet::new();
     for _ in 0..worker_count {
@@ -271,6 +430,38 @@ async fn recognize_bitmap_cues(
     Ok(segments)
 }
 
+fn publish_ocr_srt(
+    output_path: &Path,
+    segments: &[OcrSegment],
+    callbacks: &OcrCallbacks,
+    cancel: &CancellationToken,
+) -> Result<OcrOutcome> {
+    anyhow::ensure!(!cancel.is_cancelled(), "OCR cancelled by user");
+
+    let srt_content = format_srt_segments(segments);
+    persistence::atomic_write_with(output_path, |file| {
+        let mut writer = std::io::BufWriter::new(file);
+        writer.write_all(srt_content.as_bytes())?;
+        writer.flush()?;
+        Ok(())
+    })
+    .with_context(|| format!("Failed to write OCR output file: {}", output_path.display()))?;
+
+    let count = segments.len();
+    callbacks.progress(
+        "done",
+        format!("OCR completed: {count} subtitles"),
+        100.0,
+        count,
+        count,
+    );
+
+    Ok(OcrOutcome {
+        output_path: output_path.to_string_lossy().into_owned(),
+        subtitle_count: count,
+    })
+}
+
 async fn ocr_bitmap_track_with_backend_concurrency(
     config: &OcrConfig,
     backend: Arc<dyn OcrBackend>,
@@ -283,57 +474,40 @@ async fn ocr_bitmap_track_with_backend_concurrency(
     }
 
     persistence::ensure_distinct_files(&config.input_path, &config.output_path)?;
+    callbacks.progress("extract", "Extracting bitmap subtitle frames...", 0.0, 0, 0);
 
-    let segments = recognize_bitmap_cues(
-        config,
-        backend,
+    let cues = extract_bitmap_subtitles(
+        &config.ffmpeg_path,
+        &config.ffprobe_path,
+        &config.input_path,
+        config.track_index,
         config.preview_limit,
+        Some(cancel),
+    )
+    .await?;
+
+    let segments = recognize_extracted_cues(
+        cues,
+        config.language.as_deref(),
+        backend,
         concurrency,
         &callbacks,
         cancel,
     )
     .await?;
 
-    anyhow::ensure!(!cancel.is_cancelled(), "OCR cancelled by user");
-
-    let srt_content = format_srt_segments(&segments);
-    persistence::atomic_write_with(&config.output_path, |file| {
-        let mut writer = std::io::BufWriter::new(file);
-        writer.write_all(srt_content.as_bytes())?;
-        writer.flush()?;
-        Ok(())
-    })
-    .with_context(|| {
-        format!(
-            "Failed to write OCR output file: {}",
-            config.output_path.display()
-        )
-    })?;
-
-    let count = segments.len();
-    callbacks.progress(
-        "done",
-        format!("OCR completed: {count} subtitles"),
-        100.0,
-        count,
-        count,
-    );
-
-    Ok(OcrOutcome {
-        output_path: config.output_path.to_string_lossy().into_owned(),
-        subtitle_count: count,
-    })
+    publish_ocr_srt(&config.output_path, &segments, &callbacks, cancel)
 }
 
-/// Runs bitmap subtitle extraction and OCR using a configured Vision LLM tier pool,
+/// Runs bitmap subtitle extraction and OCR using configured tiers (Vision LLM and/or local OCR),
 /// publishing the resulting `.srt` file atomically.
 pub async fn ocr_bitmap_track_to_srt(
     config: &OcrConfig,
     callbacks: OcrCallbacks,
     cancel: &CancellationToken,
 ) -> Result<OcrOutcome> {
-    let backend = Arc::new(VisionLlmBackend::new(&config.tiers)?);
-    let concurrency = backend.concurrency();
+    let backend = build_backend_from_tiers(&config.tiers, None)?;
+    let concurrency = backend.recommended_concurrency();
     ocr_bitmap_track_with_backend_concurrency(config, backend, concurrency, callbacks, cancel).await
 }
 
@@ -345,14 +519,8 @@ pub async fn ocr_bitmap_track_with_backend(
     callbacks: OcrCallbacks,
     cancel: &CancellationToken,
 ) -> Result<OcrOutcome> {
-    ocr_bitmap_track_with_backend_concurrency(
-        config,
-        backend,
-        DEFAULT_OCR_CONCURRENCY,
-        callbacks,
-        cancel,
-    )
-    .await
+    let concurrency = backend.recommended_concurrency();
+    ocr_bitmap_track_with_backend_concurrency(config, backend, concurrency, callbacks, cancel).await
 }
 
 async fn preview_ocr_bitmap_track_with_backend(
@@ -361,29 +529,150 @@ async fn preview_ocr_bitmap_track_with_backend(
     concurrency: usize,
     cancel: &CancellationToken,
 ) -> Result<String> {
+    if cancel.is_cancelled() {
+        bail!("OCR cancelled by user");
+    }
     let limit = Some(config.preview_limit.unwrap_or(DEFAULT_PREVIEW_LIMIT));
     let callbacks = OcrCallbacks::default();
-    let segments =
-        recognize_bitmap_cues(config, backend, limit, concurrency, &callbacks, cancel).await?;
+    let cues = extract_bitmap_subtitles(
+        &config.ffmpeg_path,
+        &config.ffprobe_path,
+        &config.input_path,
+        config.track_index,
+        limit,
+        Some(cancel),
+    )
+    .await?;
+    let segments = recognize_extracted_cues(
+        cues,
+        config.language.as_deref(),
+        backend,
+        concurrency,
+        &callbacks,
+        cancel,
+    )
+    .await?;
     Ok(format_srt_segments(&segments))
 }
 
-/// Extracts and recognizes up to `config.preview_limit.unwrap_or(15)` cues in memory,
+/// Extracts and recognizes up to `config.preview_limit.unwrap_or(15)` bitmap cues in memory,
 /// returning formatted SRT text without writing to `config.output_path`.
 pub async fn preview_ocr_bitmap_track(
     config: &OcrConfig,
     cancel: &CancellationToken,
 ) -> Result<String> {
-    let backend = Arc::new(VisionLlmBackend::new(&config.tiers)?);
-    let concurrency = backend.concurrency();
+    let backend = build_backend_from_tiers(&config.tiers, None)?;
+    let concurrency = backend.recommended_concurrency();
     preview_ocr_bitmap_track_with_backend(config, backend, concurrency, cancel).await
+}
+
+async fn ocr_hardcoded_with_backend_concurrency(
+    config: &HardcodedOcrConfig,
+    backend: Arc<dyn OcrBackend>,
+    concurrency: usize,
+    callbacks: OcrCallbacks,
+    cancel: &CancellationToken,
+) -> Result<OcrOutcome> {
+    if cancel.is_cancelled() {
+        bail!("OCR cancelled by user");
+    }
+
+    persistence::ensure_distinct_files(&config.input_path, &config.output_path)?;
+    callbacks.progress(
+        "extract",
+        "Sampling hardcoded video subtitle ROI frames...",
+        0.0,
+        0,
+        0,
+    );
+
+    let cues = extract_hardcoded_subtitles(
+        &config.ffmpeg_path,
+        &config.ffprobe_path,
+        &config.input_path,
+        config.roi,
+        config.sample_fps,
+        config.preview_limit,
+        Some(cancel),
+    )
+    .await?;
+
+    let segments = recognize_extracted_cues(
+        cues,
+        config.language.as_deref(),
+        backend,
+        concurrency,
+        &callbacks,
+        cancel,
+    )
+    .await?;
+
+    publish_ocr_srt(&config.output_path, &segments, &callbacks, cancel)
+}
+
+/// Runs burned-in video ROI extraction and OCR using configured tiers (Vision LLM and/or local OCR),
+/// publishing the resulting `.srt` file atomically.
+pub async fn ocr_hardcoded_to_srt(
+    config: &HardcodedOcrConfig,
+    callbacks: OcrCallbacks,
+    cancel: &CancellationToken,
+) -> Result<OcrOutcome> {
+    let backend = build_backend_from_tiers(&config.tiers, None)?;
+    let concurrency = backend.recommended_concurrency();
+    ocr_hardcoded_with_backend_concurrency(config, backend, concurrency, callbacks, cancel).await
+}
+
+/// Runs burned-in video ROI extraction and OCR using a custom [`OcrBackend`] implementation,
+/// publishing the resulting `.srt` file atomically.
+pub async fn ocr_hardcoded_with_backend(
+    config: &HardcodedOcrConfig,
+    backend: Arc<dyn OcrBackend>,
+    callbacks: OcrCallbacks,
+    cancel: &CancellationToken,
+) -> Result<OcrOutcome> {
+    let concurrency = backend.recommended_concurrency();
+    ocr_hardcoded_with_backend_concurrency(config, backend, concurrency, callbacks, cancel).await
+}
+
+/// Extracts and recognizes up to `config.preview_limit.unwrap_or(15)` burned-in ROI cues in memory,
+/// returning formatted SRT text without writing to `config.output_path`.
+pub async fn preview_ocr_hardcoded(
+    config: &HardcodedOcrConfig,
+    cancel: &CancellationToken,
+) -> Result<String> {
+    if cancel.is_cancelled() {
+        bail!("OCR cancelled by user");
+    }
+    let backend = build_backend_from_tiers(&config.tiers, None)?;
+    let concurrency = backend.recommended_concurrency();
+    let limit = Some(config.preview_limit.unwrap_or(DEFAULT_PREVIEW_LIMIT));
+    let callbacks = OcrCallbacks::default();
+    let cues = extract_hardcoded_subtitles(
+        &config.ffmpeg_path,
+        &config.ffprobe_path,
+        &config.input_path,
+        config.roi,
+        config.sample_fps,
+        limit,
+        Some(cancel),
+    )
+    .await?;
+    let segments = recognize_extracted_cues(
+        cues,
+        config.language.as_deref(),
+        backend,
+        concurrency,
+        &callbacks,
+        cancel,
+    )
+    .await?;
+    Ok(format_srt_segments(&segments))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::future::Future;
-    use std::pin::Pin;
+    use std::time::Duration;
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
     struct MockOcrBackend {
@@ -413,7 +702,20 @@ mod tests {
         }
     }
 
-    use std::time::Duration;
+    struct FailingBackend {
+        message: &'static str,
+    }
+
+    impl OcrBackend for FailingBackend {
+        fn recognize_cue<'a>(
+            &'a self,
+            _cue: &'a BitmapSubtitleCue,
+            _language_hint: Option<&'a str>,
+            _cancel: &'a CancellationToken,
+        ) -> Pin<Box<dyn Future<Output = Result<String>> + Send + 'a>> {
+            Box::pin(async move { bail!("{}", self.message) })
+        }
+    }
 
     fn pgs_segment(pts_ms: u64, seg_type: u8, payload: &[u8]) -> Vec<u8> {
         let pts_90k = ((pts_ms * 90_000) / 1000) as u32;
@@ -517,6 +819,36 @@ mod tests {
             .arg(&mkv_path)
             .status()
             .expect("ffmpeg is required for pipeline tests");
+        assert!(status.success());
+        mkv_path
+    }
+
+    fn create_hardcoded_mkv(dir: &std::path::Path) -> PathBuf {
+        let mkv_path = dir.join("hardcoded.mkv");
+        let vf = concat!(
+            "drawbox=x=80:y=270:w=220:h=36:color=white@1.0:t=fill:enable='between(t,0.4,1.4)',",
+            "drawbox=x=320:y=270:w=220:h=36:color=white@1.0:t=fill:enable='between(t,2.0,3.0)'"
+        );
+        let status = std::process::Command::new("ffmpeg")
+            .args([
+                "-nostdin",
+                "-v",
+                "error",
+                "-f",
+                "lavfi",
+                "-i",
+                "color=c=black:s=640x360:d=3.5:r=10",
+                "-vf",
+                vf,
+                "-c:v",
+                "libx264",
+                "-preset",
+                "ultrafast",
+                "-y",
+            ])
+            .arg(&mkv_path)
+            .status()
+            .expect("ffmpeg required for hardcoded pipeline test");
         assert!(status.success());
         mkv_path
     }
@@ -711,5 +1043,195 @@ mod tests {
         assert_eq!(outcome.subtitle_count, 1);
         assert!(output_path.exists());
         server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn hardcoded_pipeline_and_preview_run_end_to_end() {
+        let dir = tempfile::tempdir().unwrap();
+        let mkv = create_hardcoded_mkv(dir.path());
+        let output_path = dir.path().join("hardcoded.srt");
+
+        let config = HardcodedOcrConfig {
+            input_path: mkv,
+            output_path: output_path.clone(),
+            roi: VideoRoi {
+                x: 0.05,
+                y: 0.65,
+                width: 0.90,
+                height: 0.30,
+            },
+            sample_fps: 5.0,
+            language: Some("en".to_string()),
+            tiers: vec![],
+            preview_limit: None,
+            ffmpeg_path: "ffmpeg".to_string(),
+            ffprobe_path: "ffprobe".to_string(),
+        };
+
+        let cancel = CancellationToken::new();
+        let backend: Arc<dyn OcrBackend> = Arc::new(MockOcrBackend { delay_ms: 0 });
+        let outcome =
+            ocr_hardcoded_with_backend(&config, backend, OcrCallbacks::default(), &cancel)
+                .await
+                .unwrap();
+
+        // Cue 1 keeps text, cue 2 returns empty in MockOcrBackend -> 1 cue written.
+        assert_eq!(outcome.subtitle_count, 1);
+        let parsed = srt_parser::SrtParser::parse_file(&output_path).unwrap();
+        assert_eq!(parsed.len(), 1);
+        assert_eq!(parsed[&1].text, "Subtitle cue 1");
+    }
+
+    #[tokio::test]
+    async fn hardcoded_preview_and_to_srt_work_with_vision_http_mock() {
+        let dir = tempfile::tempdir().unwrap();
+        let mkv = create_hardcoded_mkv(dir.path());
+        let output_path = dir.path().join("hardcoded_http.srt");
+
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        let server = tokio::spawn(async move {
+            for idx in 1..=2 {
+                let (mut stream, _) = listener.accept().await.unwrap();
+                let mut buf = Vec::new();
+                let mut chunk = [0u8; 4096];
+                let header_end = loop {
+                    let n = stream.read(&mut chunk).await.unwrap();
+                    assert!(n > 0);
+                    buf.extend_from_slice(&chunk[..n]);
+                    if let Some(pos) = buf.windows(4).position(|w| w == b"\r\n\r\n") {
+                        break pos + 4;
+                    }
+                };
+                let headers = String::from_utf8_lossy(&buf[..header_end]);
+                let content_length = headers
+                    .lines()
+                    .find_map(|line| {
+                        let (k, v) = line.split_once(':')?;
+                        k.trim()
+                            .eq_ignore_ascii_case("content-length")
+                            .then(|| v.trim().parse::<usize>().ok())?
+                    })
+                    .unwrap_or(0);
+                while buf.len() < header_end + content_length {
+                    let n = stream.read(&mut chunk).await.unwrap();
+                    assert!(n > 0);
+                    buf.extend_from_slice(&chunk[..n]);
+                }
+                let body = format!(
+                    r#"{{"choices":[{{"message":{{"role":"assistant","content":"Hardcoded line {idx}"}}}}]}}"#
+                );
+                let http = format!(
+                    "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                    body.len()
+                );
+                stream.write_all(http.as_bytes()).await.unwrap();
+            }
+        });
+
+        let config = HardcodedOcrConfig {
+            input_path: mkv,
+            output_path: output_path.clone(),
+            roi: VideoRoi {
+                x: 0.05,
+                y: 0.65,
+                width: 0.90,
+                height: 0.30,
+            },
+            sample_fps: 5.0,
+            language: Some("en".to_string()),
+            tiers: vec![vec![TierEntry {
+                provider: "local".to_string(),
+                model: "vision-test".to_string(),
+                api_key: None,
+                api_url: Some(format!("http://{addr}/v1")),
+                rpm: Some(0),
+                max_requests: None,
+            }]],
+            preview_limit: Some(1),
+            ffmpeg_path: "ffmpeg".to_string(),
+            ffprobe_path: "ffprobe".to_string(),
+        };
+
+        let cancel = CancellationToken::new();
+        let preview = preview_ocr_hardcoded(&config, &cancel).await.unwrap();
+        assert!(preview.contains("Hardcoded line 1"));
+        assert!(!output_path.exists());
+
+        let outcome = ocr_hardcoded_to_srt(&config, OcrCallbacks::default(), &cancel)
+            .await
+            .unwrap();
+        assert_eq!(outcome.subtitle_count, 1);
+        assert!(output_path.exists());
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn composite_backend_fails_over_on_error_and_respects_cancellation() {
+        let cue = BitmapSubtitleCue {
+            id: 1,
+            start_ms: 0,
+            end_ms: 1000,
+            png_bytes: Vec::new(),
+            width: 10,
+            height: 10,
+        };
+        let composite = CompositeOcrBackend::new(vec![
+            Arc::new(FailingBackend {
+                message: "primary failed",
+            }),
+            Arc::new(MockOcrBackend { delay_ms: 0 }),
+        ])
+        .unwrap();
+
+        let cancel = CancellationToken::new();
+        let text = composite.recognize_cue(&cue, None, &cancel).await.unwrap();
+        assert_eq!(text, "Subtitle cue 1");
+
+        cancel.cancel();
+        let err = composite
+            .recognize_cue(&cue, None, &cancel)
+            .await
+            .unwrap_err();
+        assert!(err.to_string().to_lowercase().contains("cancel"));
+    }
+
+    #[test]
+    fn build_backend_from_tiers_recognizes_local_ocr_and_falls_back() {
+        // Uncached local_ocr with empty model defaults to paddleocr-v4-mobile-multi.
+        let tiers = vec![vec![TierEntry {
+            provider: "Paddle".to_string(),
+            model: String::new(),
+            api_key: None,
+            api_url: None,
+            rpm: None,
+            max_requests: None,
+        }]];
+        let err = match build_backend_from_tiers(&tiers, None) {
+            Ok(_) => panic!("expected error when local OCR model is not downloaded"),
+            Err(err) => err,
+        };
+        assert!(err.to_string().contains(DEFAULT_LOCAL_OCR_MODEL_ID));
+
+        // Mixed tiers: if tier 1 (local_ocr) is uncached, tier 2 (valid Vision LLM) builds.
+        let mixed = vec![
+            vec![TierEntry {
+                provider: "local_ocr".to_string(),
+                model: "paddleocr-v4-mobile-multi".to_string(),
+                api_key: None,
+                api_url: None,
+                rpm: None,
+                max_requests: None,
+            }],
+            vec![TierEntry {
+                provider: "local".to_string(),
+                model: "llava".to_string(),
+                api_key: None,
+                api_url: Some("http://127.0.0.1:11434/v1".to_string()),
+                rpm: None,
+                max_requests: None,
+            }],
+        ];
+        assert!(build_backend_from_tiers(&mixed, None).is_ok());
     }
 }

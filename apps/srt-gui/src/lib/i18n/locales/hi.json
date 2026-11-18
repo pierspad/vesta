@@ -1390,5 +1390,17 @@
   "extract.ocrInProgress": "OCR चल रहा है ({{current}}/{{total}})…",
   "extract.ocrCancelled": "OCR रद्द किया गया।",
   "extract.ocrCancel": "OCR रद्द करें",
-  "extract.ocrNoProvider": "OCR चलाने से पहले सेटिंग्स में एक LLM प्रदाता या स्थानीय Ollama कॉन्फ़िगर करें।"
+  "extract.ocrNoProvider": "OCR चलाने से पहले सेटिंग्स में एक LLM प्रदाता या स्थानीय Ollama कॉन्फ़िगर करें।",
+  "extract.hardcodedTitle": "वीडियो में जुड़े उपशीर्षक (ROI OCR)",
+  "extract.hardcodedDesc": "वीडियो फ़्रेम में वह क्षेत्र चुनें जहाँ जुड़े हुए उपशीर्षक दिखाई देते हैं।",
+  "extract.hardcodedPreviewFrame": "फ़्रेम ताज़ा करें",
+  "extract.hardcodedPreviewOcr": "ROI OCR पूर्वावलोकन",
+  "extract.hardcodedSave": "ROI को SRT में निकालें",
+  "extract.hardcodedPresetBottom": "नीचे",
+  "extract.hardcodedPresetTop": "ऊपर",
+  "extract.hardcodedFps": "सैंपल दर (FPS)",
+  "setup.localOcr": "स्थानीय ऑफ़लाइन OCR",
+  "setup.localOcrDesc": "ऑफ़लाइन इमेज उपशीर्षक पहचान के लिए एक कॉम्पैक्ट PaddleOCR मॉडल डाउनलोड करें।",
+  "settings.ocrModelsTitle": "ऑफ़लाइन OCR मॉडल (PaddleOCR)",
+  "settings.ocrModelsDesc": "क्लाउड LLM लागत के बिना स्थानीय रूप से बिटमैप और हार्डकोडेड उपशीर्षक OCR चलाएँ।"
 }

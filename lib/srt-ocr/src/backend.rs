@@ -18,4 +18,9 @@ pub trait OcrBackend: Send + Sync {
         language_hint: Option<&'a str>,
         cancel: &'a CancellationToken,
     ) -> Pin<Box<dyn Future<Output = Result<String>> + Send + 'a>>;
+
+    /// Recommended bounded cue concurrency for this backend.
+    fn recommended_concurrency(&self) -> usize {
+        4
+    }
 }

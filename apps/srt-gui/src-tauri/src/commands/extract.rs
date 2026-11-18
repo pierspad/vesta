@@ -23,8 +23,7 @@ pub async fn extract_embedded_subtitle(
     index: u32,
     output_path: String,
 ) -> Result<(), String> {
-    let ffprobe = resolve_ffprobe_path(Some(&app)).await;
-    let ffmpeg = resolve_ffmpeg_path(Some(&app)).await;
+    let (ffmpeg, ffprobe) = resolve_media_tools(&app).await;
     srt_extract::embedded::extract_embedded_subtitle(
         &ffmpeg,
         &ffprobe,
@@ -60,8 +59,7 @@ pub async fn preview_embedded_subtitle(
     path: String,
     index: u32,
 ) -> Result<String, String> {
-    let ffprobe = resolve_ffprobe_path(Some(&app)).await;
-    let ffmpeg = resolve_ffmpeg_path(Some(&app)).await;
+    let (ffmpeg, ffprobe) = resolve_media_tools(&app).await;
     srt_extract::embedded::preview_embedded_subtitle(
         &ffmpeg,
         &ffprobe,
@@ -94,6 +92,35 @@ pub async fn existing_subtitle_outputs(
     Ok(existing)
 }
 
+async fn resolve_media_tools(app: &AppHandle) -> (String, String) {
+    let ffprobe_path = resolve_ffprobe_path(Some(app)).await;
+    let ffmpeg_path = resolve_ffmpeg_path(Some(app)).await;
+    (ffmpeg_path, ffprobe_path)
+}
+
+fn ocr_progress_callbacks(app: AppHandle) -> srt_ocr::OcrCallbacks {
+    srt_ocr::OcrCallbacks {
+        on_progress: Some(Arc::new(move |progress: srt_ocr::OcrProgress| {
+            let _ = app.emit("ocr-progress", progress);
+        })),
+        on_segment: None,
+    }
+}
+
+fn validate_hardcoded_params(
+    roi: srt_ocr::VideoRoi,
+    sample_fps: Option<f64>,
+) -> Result<f64, String> {
+    roi.validate().map_err(|e| e.to_string())?;
+    let fps = sample_fps.unwrap_or(2.5);
+    if !fps.is_finite() || !(0.5..=15.0).contains(&fps) {
+        return Err(format!(
+            "Sample FPS must be finite and within 0.5..=15.0 (got {fps})"
+        ));
+    }
+    Ok(fps)
+}
+
 async fn build_ocr_config(
     app: &AppHandle,
     path: String,
@@ -103,8 +130,7 @@ async fn build_ocr_config(
     tiers: Vec<Vec<srt_translate::TierEntry>>,
     preview_limit: Option<usize>,
 ) -> srt_ocr::OcrConfig {
-    let ffprobe_path = resolve_ffprobe_path(Some(app)).await;
-    let ffmpeg_path = resolve_ffmpeg_path(Some(app)).await;
+    let (ffmpeg_path, ffprobe_path) = resolve_media_tools(app).await;
     srt_ocr::OcrConfig {
         input_path: std::path::PathBuf::from(path),
         output_path,
@@ -117,7 +143,33 @@ async fn build_ocr_config(
     }
 }
 
-/// Runs bitmap subtitle extraction and Vision-LLM OCR, writing an `.srt` file.
+#[allow(clippy::too_many_arguments)]
+async fn build_hardcoded_ocr_config(
+    app: &AppHandle,
+    path: String,
+    output_path: std::path::PathBuf,
+    roi: srt_ocr::VideoRoi,
+    sample_fps: Option<f64>,
+    language: Option<String>,
+    tiers: Vec<Vec<srt_translate::TierEntry>>,
+    preview_limit: Option<usize>,
+) -> Result<srt_ocr::HardcodedOcrConfig, String> {
+    let sample_fps = validate_hardcoded_params(roi, sample_fps)?;
+    let (ffmpeg_path, ffprobe_path) = resolve_media_tools(app).await;
+    Ok(srt_ocr::HardcodedOcrConfig {
+        input_path: std::path::PathBuf::from(path),
+        output_path,
+        roi,
+        sample_fps,
+        language,
+        tiers,
+        preview_limit,
+        ffmpeg_path,
+        ffprobe_path,
+    })
+}
+
+/// Runs bitmap subtitle extraction and Vision-LLM or local OCR, writing an `.srt` file.
 #[tauri::command]
 pub async fn ocr_embedded_subtitle(
     app: AppHandle,
@@ -139,13 +191,7 @@ pub async fn ocr_embedded_subtitle(
         None,
     )
     .await;
-    let app_progress = app.clone();
-    let callbacks = srt_ocr::OcrCallbacks {
-        on_progress: Some(Arc::new(move |progress: srt_ocr::OcrProgress| {
-            let _ = app_progress.emit("ocr-progress", progress);
-        })),
-        on_segment: None,
-    };
+    let callbacks = ocr_progress_callbacks(app);
     let cancel_token = guard.token();
     srt_ocr::ocr_bitmap_track_to_srt(&config, callbacks, &cancel_token)
         .await
@@ -177,6 +223,87 @@ pub async fn preview_ocr_embedded_subtitle(
     let cancel_token = guard.token();
     srt_ocr::preview_ocr_bitmap_track(&config, &cancel_token)
         .await
+        .map_err(|e| e.to_string())
+}
+
+/// Extracts a PNG video frame preview for burned-in subtitle ROI selection.
+#[tauri::command]
+pub async fn ocr_video_preview_frame(
+    app: AppHandle,
+    path: String,
+    time_ms: Option<u64>,
+) -> Result<srt_ocr::VideoFramePreview, String> {
+    let (ffmpeg, ffprobe) = resolve_media_tools(&app).await;
+    srt_ocr::extract_video_preview_frame(
+        &ffmpeg,
+        &ffprobe,
+        std::path::Path::new(&path),
+        time_ms,
+        None,
+    )
+    .await
+    .map_err(|e| e.to_string())
+}
+
+/// Previews up to 15 burned-in subtitle cues within `roi` via OCR without writing to disk.
+#[tauri::command]
+pub async fn preview_ocr_hardcoded_subtitle(
+    app: AppHandle,
+    state: State<'_, AppOcrState>,
+    path: String,
+    roi: srt_ocr::VideoRoi,
+    sample_fps: Option<f64>,
+    language: Option<String>,
+    tiers: Vec<Vec<srt_translate::TierEntry>>,
+) -> Result<String, String> {
+    let guard = OperationGuard::begin(&state, "ERR_ALREADY_RUNNING")?;
+    let config = build_hardcoded_ocr_config(
+        &app,
+        path,
+        std::path::PathBuf::new(),
+        roi,
+        sample_fps,
+        language,
+        tiers,
+        Some(15),
+    )
+    .await?;
+    let cancel_token = guard.token();
+    srt_ocr::preview_ocr_hardcoded(&config, &cancel_token)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// Runs burned-in subtitle ROI extraction and OCR, writing an `.srt` file while emitting `ocr-progress`.
+#[allow(clippy::too_many_arguments)]
+#[tauri::command]
+pub async fn ocr_hardcoded_subtitle(
+    app: AppHandle,
+    state: State<'_, AppOcrState>,
+    path: String,
+    output_path: String,
+    roi: srt_ocr::VideoRoi,
+    sample_fps: Option<f64>,
+    language: Option<String>,
+    tiers: Vec<Vec<srt_translate::TierEntry>>,
+) -> Result<(), String> {
+    let guard = OperationGuard::begin(&state, "ERR_ALREADY_RUNNING")?;
+    let config = build_hardcoded_ocr_config(
+        &app,
+        path,
+        std::path::PathBuf::from(output_path),
+        roi,
+        sample_fps,
+        language,
+        tiers,
+        None,
+    )
+    .await?;
+    let callbacks = ocr_progress_callbacks(app);
+    let cancel_token = guard.token();
+    srt_ocr::ocr_hardcoded_to_srt(&config, callbacks, &cancel_token)
+        .await
+        .map(|_| ())
         .map_err(|e| e.to_string())
 }
 
@@ -298,5 +425,31 @@ mod ocr_tests {
     async fn ocr_list_models_returns_catalog() {
         let models = ocr_list_models().await.unwrap();
         assert_eq!(models.len(), srt_ocr::model::OCR_MODELS.len());
+    }
+
+    #[test]
+    fn hardcoded_params_validation_checks_roi_bounds_and_fps() {
+        let valid_roi = srt_ocr::VideoRoi {
+            x: 0.08,
+            y: 0.74,
+            width: 0.84,
+            height: 0.20,
+        };
+        assert_eq!(validate_hardcoded_params(valid_roi, None).unwrap(), 2.5);
+        assert_eq!(
+            validate_hardcoded_params(valid_roi, Some(5.0)).unwrap(),
+            5.0
+        );
+        assert!(validate_hardcoded_params(valid_roi, Some(0.2)).is_err());
+        assert!(validate_hardcoded_params(valid_roi, Some(20.0)).is_err());
+        assert!(validate_hardcoded_params(valid_roi, Some(f64::NAN)).is_err());
+
+        let invalid_roi = srt_ocr::VideoRoi {
+            x: 0.5,
+            y: 0.7,
+            width: 0.6,
+            height: 0.2,
+        };
+        assert!(validate_hardcoded_params(invalid_roi, Some(2.5)).is_err());
     }
 }

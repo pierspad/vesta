@@ -33,15 +33,15 @@ pub const OCR_MODELS: &[(&str, &str, &str, &str, &str)] = &[
         "paddleocr-v4-mobile-cjk",
         "PaddleOCR v4 Mobile (CJK)",
         "paddleocr-v4-mobile-cjk.onnx",
-        "https://huggingface.co/SWHL/RapidOCR/resolve/main/PP-OCRv4/ch_PP-OCRv4_rec_mobile_infer.onnx",
+        "https://huggingface.co/mpribadi/Docling-RapidOcr/resolve/main/onnx/PP-OCRv4/rec/ch_PP-OCRv4_rec_mobile.onnx",
         "~11 MB",
     ),
     (
         "paddleocr-v4-mobile-latin",
         "PaddleOCR v4 Mobile (Latin)",
         "paddleocr-v4-mobile-latin.onnx",
-        "https://huggingface.co/SWHL/RapidOCR/resolve/main/PP-OCRv4/en_PP-OCRv4_rec_infer.onnx",
-        "~10 MB",
+        "https://huggingface.co/mpribadi/Docling-RapidOcr/resolve/main/onnx/PP-OCRv4/rec/en_PP-OCRv4_rec_mobile.onnx",
+        "~8 MB",
     ),
 ];
 

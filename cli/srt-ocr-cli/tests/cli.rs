@@ -122,6 +122,8 @@ fn top_level_and_run_help_expose_subcommands_and_flags() {
         "--input",
         "--output",
         "--track",
+        "--roi",
+        "--fps",
         "--provider",
         "--model",
         "--api-key",
@@ -133,6 +135,12 @@ fn top_level_and_run_help_expose_subcommands_and_flags() {
         "--json",
     ] {
         assert!(run_text.contains(flag), "missing {flag} in:\n{run_text}");
+    }
+    for provider in ["local_ocr", "paddle"] {
+        assert!(
+            run_text.contains(provider),
+            "missing provider {provider} in:\n{run_text}"
+        );
     }
 }
 
@@ -340,19 +348,16 @@ fn rejects_identical_input_and_output_files() {
     assert_eq!(std::fs::read(&same).unwrap(), b"stub media");
 }
 
-#[test]
-fn end_to_end_json_ocr_against_loopback_vision_endpoint() {
+fn spawn_vision_mock_server(
+    response_text: &'static str,
+) -> (std::net::SocketAddr, std::thread::JoinHandle<()>) {
     use std::io::{Read, Write};
     use std::net::TcpListener;
     use std::thread;
 
-    let dir = tempfile::tempdir().unwrap();
-    let mkv_path = create_single_cue_pgs_mkv(dir.path());
-    let out_srt = dir.path().join("out.srt");
-
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let addr = listener.local_addr().unwrap();
-    let server = thread::spawn(move || {
+    let handle = thread::spawn(move || {
         let (mut stream, _) = listener.accept().unwrap();
         let mut buf = Vec::new();
         let mut chunk = [0u8; 4096];
@@ -379,14 +384,288 @@ fn end_to_end_json_ocr_against_loopback_vision_endpoint() {
             assert!(n > 0);
             buf.extend_from_slice(&chunk[..n]);
         }
-        let body =
-            r#"{"choices":[{"message":{"role":"assistant","content":"Hello from OCR CLI"}}]}"#;
+        let body = format!(
+            r#"{{"choices":[{{"message":{{"role":"assistant","content":"{response_text}"}}}}]}}"#
+        );
         let http = format!(
             "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
             body.len()
         );
         stream.write_all(http.as_bytes()).unwrap();
     });
+    (addr, handle)
+}
+
+fn create_single_cue_burned_in_mkv(dir: &Path) -> PathBuf {
+    let mkv_path = dir.join("burned_in.mkv");
+    let vf = "drawbox=x=80:y=270:w=220:h=36:color=white@1.0:t=fill:enable='between(t,0.4,1.4)'";
+    let status = Command::new("ffmpeg")
+        .args([
+            "-nostdin",
+            "-v",
+            "error",
+            "-f",
+            "lavfi",
+            "-i",
+            "color=c=black:s=640x360:d=2.0:r=10",
+            "-vf",
+            vf,
+            "-c:v",
+            "libx264",
+            "-preset",
+            "ultrafast",
+            "-y",
+        ])
+        .arg(&mkv_path)
+        .status()
+        .expect("ffmpeg is required for srt-ocr-cli tests");
+    assert!(status.success());
+    mkv_path
+}
+
+fn assert_json_failure(args: &[&str], expected_error_substr: &str) {
+    let json_res = Command::new(env!("CARGO_BIN_EXE_srt-ocr"))
+        .args(args)
+        .output()
+        .unwrap();
+    assert_eq!(json_res.status.code(), Some(1));
+    assert!(json_res.stderr.is_empty());
+    let stdout = String::from_utf8(json_res.stdout).unwrap();
+    let lines: Vec<_> = stdout.lines().collect();
+    assert_eq!(lines.len(), 1, "unexpected JSON output: {stdout:?}");
+    let terminal: serde_json::Value = serde_json::from_str(lines[0]).unwrap();
+    assert_eq!(terminal["ok"], false);
+    assert_eq!(terminal["cancelled"], false);
+    let err = terminal["error"].as_str().unwrap();
+    assert!(
+        err.to_ascii_lowercase()
+            .contains(&expected_error_substr.to_ascii_lowercase()),
+        "expected {expected_error_substr:?} in {err:?}"
+    );
+}
+
+#[test]
+fn rejects_conflicting_track_and_roi_with_exit_code_2() {
+    let res = Command::new(env!("CARGO_BIN_EXE_srt-ocr"))
+        .args([
+            "run",
+            "--input",
+            "missing.mkv",
+            "--output",
+            "out.srt",
+            "--track",
+            "1",
+            "--roi",
+            "0.08,0.74,0.84,0.20",
+        ])
+        .output()
+        .unwrap();
+    assert_eq!(res.status.code(), Some(2));
+    assert!(
+        String::from_utf8_lossy(&res.stderr).contains("--roi"),
+        "unexpected stderr: {}",
+        String::from_utf8_lossy(&res.stderr)
+    );
+}
+
+#[test]
+fn rejects_missing_track_and_roi_in_text_and_json_modes() {
+    let text_res = Command::new(env!("CARGO_BIN_EXE_srt-ocr"))
+        .args(["run", "--input", "missing.mkv", "--output", "out.srt"])
+        .output()
+        .unwrap();
+    assert_eq!(text_res.status.code(), Some(1));
+    assert!(
+        String::from_utf8_lossy(&text_res.stderr).contains("Either --track or --roi"),
+        "unexpected stderr: {}",
+        String::from_utf8_lossy(&text_res.stderr)
+    );
+
+    assert_json_failure(
+        &[
+            "run",
+            "--input",
+            "missing.mkv",
+            "--output",
+            "out.srt",
+            "--json",
+        ],
+        "Either --track or --roi",
+    );
+}
+
+#[test]
+fn validates_roi_format_bounds_and_fps() {
+    for bad_roi in [
+        "0.08,0.74,0.84",
+        "0.08,0.74,0.84,0.20,0.1",
+        "0.08,abc,0.84,0.20",
+        "-0.1,0.74,0.84,0.20",
+        "0.6,0.74,0.5,0.20",
+        "0.08,0.74,0.01,0.20",
+        "NaN,0.74,0.5,0.20",
+    ] {
+        let text_res = Command::new(env!("CARGO_BIN_EXE_srt-ocr"))
+            .args([
+                "run",
+                "--input",
+                "missing.mkv",
+                "--output",
+                "out.srt",
+                "--roi",
+                bad_roi,
+            ])
+            .output()
+            .unwrap();
+        assert_eq!(
+            text_res.status.code(),
+            Some(1),
+            "expected exit 1 for roi={bad_roi}"
+        );
+        assert_json_failure(
+            &[
+                "run",
+                "--input",
+                "missing.mkv",
+                "--output",
+                "out.srt",
+                "--roi",
+                bad_roi,
+                "--json",
+            ],
+            "ROI",
+        );
+    }
+
+    for bad_fps in ["0.4", "15.1", "NaN"] {
+        let text_res = Command::new(env!("CARGO_BIN_EXE_srt-ocr"))
+            .args([
+                "run",
+                "--input",
+                "missing.mkv",
+                "--output",
+                "out.srt",
+                "--roi",
+                "0.08,0.74,0.84,0.20",
+                "--fps",
+                bad_fps,
+            ])
+            .output()
+            .unwrap();
+        assert_eq!(
+            text_res.status.code(),
+            Some(1),
+            "expected exit 1 for fps={bad_fps}"
+        );
+        assert_json_failure(
+            &[
+                "run",
+                "--input",
+                "missing.mkv",
+                "--output",
+                "out.srt",
+                "--roi",
+                "0.08,0.74,0.84,0.20",
+                "--fps",
+                bad_fps,
+                "--json",
+            ],
+            "--fps",
+        );
+    }
+}
+
+#[test]
+fn local_ocr_and_paddle_validate_models_without_requiring_keys() {
+    let cache = tempfile::tempdir().unwrap();
+    let dir = tempfile::tempdir().unwrap();
+    let input = dir.path().join("media.mkv");
+    let output = dir.path().join("out.srt");
+    std::fs::write(&input, b"stub media").unwrap();
+
+    for provider in ["paddle", "local_ocr"] {
+        // Unknown or path-traversal model fails validation cleanly without requiring API keys.
+        assert_json_failure(
+            &[
+                "run",
+                "--input",
+                input.to_str().unwrap(),
+                "--output",
+                output.to_str().unwrap(),
+                "--track",
+                "1",
+                "--provider",
+                provider,
+                "--model",
+                "unknown-ocr-model",
+                "--json",
+            ],
+            "Unknown OCR model",
+        );
+
+        // Default model resolves `llava` -> `paddleocr-v4-mobile-multi` and skips API key check,
+        // failing only because the ONNX model file is not yet downloaded in the cache dir.
+        let missing_default = Command::new(env!("CARGO_BIN_EXE_srt-ocr"))
+            .env("VESTA_OCR_CACHE_DIR", cache.path())
+            .args([
+                "run",
+                "--input",
+                input.to_str().unwrap(),
+                "--output",
+                output.to_str().unwrap(),
+                "--roi",
+                "0.08,0.74,0.84,0.20",
+                "--provider",
+                provider,
+                "--json",
+            ])
+            .output()
+            .unwrap();
+        assert_eq!(missing_default.status.code(), Some(1));
+        assert!(missing_default.stderr.is_empty());
+        let stdout = String::from_utf8(missing_default.stdout).unwrap();
+        let terminal: serde_json::Value =
+            serde_json::from_str(stdout.lines().last().unwrap()).unwrap();
+        let err = terminal["error"].as_str().unwrap();
+        assert!(err.contains("paddleocr-v4-mobile-multi"), "{err}");
+        assert!(err.contains("not downloaded"), "{err}");
+        assert!(!err.contains("--api-key"), "{err}");
+    }
+
+    // Explicit catalog model ID is preserved.
+    let explicit = Command::new(env!("CARGO_BIN_EXE_srt-ocr"))
+        .env("VESTA_OCR_CACHE_DIR", cache.path())
+        .args([
+            "run",
+            "--input",
+            input.to_str().unwrap(),
+            "--output",
+            output.to_str().unwrap(),
+            "--track",
+            "1",
+            "--provider",
+            "paddle",
+            "--model",
+            "paddleocr-v4-mobile-latin",
+            "--json",
+        ])
+        .output()
+        .unwrap();
+    assert_eq!(explicit.status.code(), Some(1));
+    let stdout = String::from_utf8(explicit.stdout).unwrap();
+    let terminal: serde_json::Value = serde_json::from_str(stdout.lines().last().unwrap()).unwrap();
+    let err = terminal["error"].as_str().unwrap();
+    assert!(err.contains("paddleocr-v4-mobile-latin"), "{err}");
+    assert!(err.contains("not downloaded"), "{err}");
+}
+
+#[test]
+fn end_to_end_json_ocr_against_loopback_vision_endpoint() {
+    let dir = tempfile::tempdir().unwrap();
+    let mkv_path = create_single_cue_pgs_mkv(dir.path());
+    let out_srt = dir.path().join("out.srt");
+
+    let (addr, server) = spawn_vision_mock_server("Hello from OCR CLI");
 
     let result = Command::new(env!("CARGO_BIN_EXE_srt-ocr"))
         .args([
@@ -431,6 +710,64 @@ fn end_to_end_json_ocr_against_loopback_vision_endpoint() {
 
     let srt_content = std::fs::read_to_string(&out_srt).unwrap();
     assert!(srt_content.contains("Hello from OCR CLI"), "{srt_content}");
+}
+
+#[test]
+fn end_to_end_json_roi_ocr_against_loopback_vision_endpoint() {
+    let dir = tempfile::tempdir().unwrap();
+    let mkv_path = create_single_cue_burned_in_mkv(dir.path());
+    let out_srt = dir.path().join("roi_out.srt");
+
+    let (addr, server) = spawn_vision_mock_server("Hardcoded OCR CLI line");
+
+    let result = Command::new(env!("CARGO_BIN_EXE_srt-ocr"))
+        .args([
+            "run",
+            "--input",
+            mkv_path.to_str().unwrap(),
+            "--output",
+            out_srt.to_str().unwrap(),
+            "--roi",
+            "0.05,0.65,0.90,0.30",
+            "--fps",
+            "5.0",
+            "--provider",
+            "custom",
+            "--model",
+            "vision-test",
+            "--api-url",
+            &format!("http://{addr}/v1"),
+            "--language",
+            "en",
+            "--json",
+        ])
+        .output()
+        .unwrap();
+
+    server.join().unwrap();
+    assert!(
+        result.status.success(),
+        "stderr={}\nstdout={}",
+        String::from_utf8_lossy(&result.stderr),
+        String::from_utf8_lossy(&result.stdout)
+    );
+    assert!(result.stderr.is_empty());
+
+    let stdout = String::from_utf8(result.stdout).unwrap();
+    let records: Vec<serde_json::Value> = stdout
+        .lines()
+        .map(|line| serde_json::from_str(line).unwrap())
+        .collect();
+    assert!(records.len() >= 2, "expected progress + terminal: {stdout}");
+    let terminal = records.last().unwrap();
+    assert_eq!(terminal["ok"], true);
+    assert_eq!(terminal["outcome"]["subtitle_count"], 1);
+
+    let srt_content = std::fs::read_to_string(&out_srt).unwrap();
+    assert!(
+        srt_content.contains("Hardcoded OCR CLI line"),
+        "{srt_content}"
+    );
 }
 
 #[cfg(unix)]

@@ -303,6 +303,8 @@ fn resolve_translation(
             if !matches!(
                 provider.as_str(),
                 "local"
+                    | "local_ocr"
+                    | "paddle"
                     | "custom"
                     | "openai"
                     | "google"
@@ -318,7 +320,20 @@ fn resolve_translation(
             if entry.model.trim().is_empty() || entry.model.chars().count() > 128 {
                 return Err("Translation model must contain 1 to 128 characters".into());
             }
-            let needs_key = !matches!(provider.as_str(), "local" | "custom");
+            let is_local_ocr = matches!(provider.as_str(), "local_ocr" | "paddle");
+            let model = if is_local_ocr {
+                let trimmed = entry.model.trim();
+                if srt_ocr::model::validate_model_id(trimmed).is_err() {
+                    return Err("Local OCR model must be a catalog OCR model ID".into());
+                }
+                trimmed.to_string()
+            } else {
+                entry.model
+            };
+            let needs_key = !matches!(
+                provider.as_str(),
+                "local" | "local_ocr" | "paddle" | "custom"
+            );
             let key = api_key(entry.api_key_env, needs_key, resolve_env)?;
             if provider == "custom"
                 && entry
@@ -333,7 +348,7 @@ fn resolve_translation(
             }
             entries.push(TierEntry {
                 provider,
-                model: entry.model,
+                model,
                 api_key: key,
                 api_url: entry.api_url,
                 rpm: entry.rpm,
@@ -580,5 +595,29 @@ mod tests {
             .err()
             .unwrap();
         assert!(!unknown.contains("sensitive-credential-looking-value"));
+    }
+
+    #[test]
+    fn local_ocr_and_paddle_profiles_allow_missing_api_key_and_validate_catalog_models() {
+        let config = parse(
+            r#"{"translation":{"profiles":{"offline":{"tiers":[[{"provider":"local_ocr","model":"paddleocr-v4-mobile-multi"}],[{"provider":"paddle","model":"paddleocr-v4-mobile-latin"}]]}}}}"#,
+        )
+        .unwrap();
+        let profile = config.translation_profile("offline").unwrap();
+        assert_eq!(profile.tiers[0][0].provider, "local_ocr");
+        assert_eq!(profile.tiers[0][0].model, "paddleocr-v4-mobile-multi");
+        assert!(profile.tiers[0][0].api_key.is_none());
+        assert_eq!(profile.tiers[1][0].provider, "paddle");
+        assert_eq!(profile.tiers[1][0].model, "paddleocr-v4-mobile-latin");
+        assert!(profile.tiers[1][0].api_key.is_none());
+
+        for bad_model in ["unknown-model", "../outside"] {
+            let err = parse(&format!(
+                r#"{{"translation":{{"profiles":{{"bad":{{"tiers":[[{{"provider":"paddle","model":"{bad_model}"}}]]}}}}}}}}"#
+            ))
+            .err()
+            .unwrap();
+            assert!(err.contains("catalog OCR model ID"), "{err}");
+        }
     }
 }

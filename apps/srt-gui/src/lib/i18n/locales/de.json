@@ -1390,5 +1390,17 @@
   "extract.ocrInProgress": "OCR wird ausgeführt ({{current}}/{{total}})…",
   "extract.ocrCancelled": "OCR abgebrochen.",
   "extract.ocrCancel": "OCR abbrechen",
-  "extract.ocrNoProvider": "Konfigurieren Sie vor der OCR-Ausführung einen LLM-Anbieter oder ein lokales Ollama in den Einstellungen."
+  "extract.ocrNoProvider": "Konfigurieren Sie vor der OCR-Ausführung einen LLM-Anbieter oder ein lokales Ollama in den Einstellungen.",
+  "extract.hardcodedTitle": "Eingebrannte Untertitel (ROI-OCR)",
+  "extract.hardcodedDesc": "Wählen Sie den Bereich im Videobild aus, in dem eingebrannte Untertitel erscheinen.",
+  "extract.hardcodedPreviewFrame": "Bild aktualisieren",
+  "extract.hardcodedPreviewOcr": "ROI-OCR-Vorschau",
+  "extract.hardcodedSave": "Bereich als SRT extrahieren",
+  "extract.hardcodedPresetBottom": "Unten",
+  "extract.hardcodedPresetTop": "Oben",
+  "extract.hardcodedFps": "Abtastrate (FPS)",
+  "setup.localOcr": "Lokale Offline-OCR",
+  "setup.localOcrDesc": "Laden Sie ein kompaktes PaddleOCR-Modell zur Offline-Erkennung von Bilduntertiteln herunter.",
+  "settings.ocrModelsTitle": "Offline-OCR-Modelle (PaddleOCR)",
+  "settings.ocrModelsDesc": "Führen Sie Bitmap- und eingebrannte Untertitel-OCR lokal ohne Cloud-LLM-Kosten aus."
 }

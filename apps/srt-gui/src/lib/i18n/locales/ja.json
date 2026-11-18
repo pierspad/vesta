@@ -1390,5 +1390,17 @@
   "extract.ocrInProgress": "OCR を実行中 ({{current}}/{{total}})…",
   "extract.ocrCancelled": "OCR をキャンセルしました。",
   "extract.ocrCancel": "OCR をキャンセル",
-  "extract.ocrNoProvider": "OCR を実行する前に、設定で LLM プロバイダーまたはローカルの Ollama を構成してください。"
+  "extract.ocrNoProvider": "OCR を実行する前に、設定で LLM プロバイダーまたはローカルの Ollama を構成してください。",
+  "extract.hardcodedTitle": "焼き込み字幕 (ROI OCR)",
+  "extract.hardcodedDesc": "動画フレーム内で焼き込み字幕が表示される領域を選択してください。",
+  "extract.hardcodedPreviewFrame": "フレームを更新",
+  "extract.hardcodedPreviewOcr": "ROI OCR をプレビュー",
+  "extract.hardcodedSave": "ROI を SRT に抽出",
+  "extract.hardcodedPresetBottom": "下部",
+  "extract.hardcodedPresetTop": "上部",
+  "extract.hardcodedFps": "サンプリングレート (FPS)",
+  "setup.localOcr": "ローカルオフライン OCR",
+  "setup.localOcrDesc": "オフラインの画像字幕認識用にコンパクトな PaddleOCR モデルをダウンロードします。",
+  "settings.ocrModelsTitle": "オフライン OCR モデル (PaddleOCR)",
+  "settings.ocrModelsDesc": "クラウド LLM の費用をかけずに、ビットマップや焼き込み字幕の OCR をローカルで実行します。"
 }

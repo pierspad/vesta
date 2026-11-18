@@ -24,7 +24,7 @@ adapts GUI requests to the workspace libraries and plugin runtime (`PluginsTab.s
 and `PluginRenderer.svelte`). The desktop process also owns
 loopback media streaming and opening exported files through system associations.
 
-Use **Extract subtitles** for text tracks embedded in MKV/MP4 containers, or to preview and OCR bitmap subtitle tracks (PGS, VobSub, DVB, XSUB) via your configured Vision LLM tiers (subject to the AI Kill Switch).
+Use **Extract subtitles** for text tracks embedded in MKV/MP4 containers, or to preview and OCR bitmap subtitle tracks (PGS, VobSub, DVB, XSUB) and burned-in video ROI regions (`#hardcoded-roi-panel`) via downloaded offline PaddleOCR v4 ONNX models (`ocrModelsStore`) and/or configured Vision LLM tiers (Vision LLM tiers respect the AI Kill Switch, while cached local OCR models keep offline OCR available).
 The onboarding wizard awaits durable persistence before reloading. Generation
 uses source snapshots directly in audio/snapshot-only exports and reports FFmpeg preparation progress for
 video clips. Export filenames open the saved file; the adjacent folder button
@@ -87,8 +87,8 @@ only after acceptance; denied cuts preserve the selection.
 
 **Experimental → Try without saving** reuses the first-run UI without persistence
 or downloads. **Restart setup** persists preferences and downloads selected
-resources. Quick Setup prepares Whisper Small, Silero VAD, missing FFmpeg/FFprobe
-and language fonts; Custom Setup lets the user choose the model or disable local
+resources. Quick Setup prepares Whisper Small, Silero VAD, PaddleOCR v4 Mobile (when offline OCR is selected), missing FFmpeg/FFprobe
+and language fonts; Custom Setup lets the user choose the model, manage offline OCR models, or disable local
 transcription. Both show download sizes, installation progress, retry failed
 downloads while reusing installed components, and offer a first activity after
 verification. The selected local model is also written into the transcription

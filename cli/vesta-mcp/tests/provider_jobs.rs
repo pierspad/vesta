@@ -327,6 +327,33 @@ async fn stdio_ocr_lists_embedded_tracks_and_runs_cancellable_vision_jobs() -> a
         )
         .await?;
         assert_eq!(bad_lang.is_error, Some(true));
+
+        for invalid_args in [
+            json!({
+                "input": mkv,
+                "profile_id": "vision-ocr"
+            }),
+            json!({
+                "input": mkv,
+                "track_index": track_index,
+                "roi": { "x": 0.08, "y": 0.74, "width": 0.84, "height": 0.20 },
+                "profile_id": "vision-ocr"
+            }),
+            json!({
+                "input": mkv,
+                "roi": { "x": -0.1, "y": 0.74, "width": 0.84, "height": 0.20 },
+                "profile_id": "vision-ocr"
+            }),
+            json!({
+                "input": mkv,
+                "roi": { "x": 0.08, "y": 0.74, "width": 0.84, "height": 0.20 },
+                "sample_fps": 20.0,
+                "profile_id": "vision-ocr"
+            }),
+        ] {
+            let rejected = call("ocr_subtitles", invalid_args).await?;
+            assert_eq!(rejected.is_error, Some(true));
+        }
         assert_eq!(std::fs::read_dir(output.path())?.count(), 0);
 
         let started = call(
@@ -400,6 +427,144 @@ async fn stdio_ocr_lists_embedded_tracks_and_runs_cancellable_vision_jobs() -> a
                 .join("ocr.srt")
                 .exists()
         );
+
+        client.cancel().await?;
+        anyhow::Ok(())
+    })
+    .await??;
+    Ok(())
+}
+
+fn create_burned_in_mkv(dir: &Path) -> std::path::PathBuf {
+    let mkv_path = dir.join("burned_in.mkv");
+    let vf = "drawbox=x=80:y=270:w=220:h=36:color=white@1.0:t=fill:enable='between(t,0.4,1.4)'";
+    let status = std::process::Command::new("ffmpeg")
+        .args([
+            "-nostdin",
+            "-v",
+            "error",
+            "-f",
+            "lavfi",
+            "-i",
+            "color=c=black:s=640x360:d=2.0:r=10",
+            "-vf",
+            vf,
+            "-c:v",
+            "libx264",
+            "-preset",
+            "ultrafast",
+            "-y",
+        ])
+        .arg(&mkv_path)
+        .status()
+        .expect("FFmpeg fixture creation failed");
+    assert!(status.success());
+    mkv_path
+}
+
+#[tokio::test]
+async fn stdio_ocr_supports_hardcoded_roi_and_local_ocr_profiles() -> anyhow::Result<()> {
+    tokio::time::timeout(Duration::from_secs(40), async {
+        let input = tempfile::tempdir()?;
+        let output = tempfile::tempdir()?;
+        let mkv = create_burned_in_mkv(input.path());
+        let srt = input.path().join("sample.srt");
+        std::fs::write(&srt, "1\n00:00:01,000 --> 00:00:02,000\nHello\n")?;
+
+        let (ocr_url, ocr_ready, ocr_release, ocr_server) = endpoint(
+            json!({"choices":[{"message":{"role":"assistant","content":"Hardcoded OCR via MCP"}}]}),
+        )
+        .await;
+
+        let config = input.path().join("providers.json");
+        std::fs::write(
+            &config,
+            json!({
+                "translation": {
+                    "profiles": {
+                        "vision-roi": {
+                            "tiers": [[{
+                                "provider": "custom",
+                                "model": "vision-test",
+                                "api_url": ocr_url,
+                                "rpm": 0
+                            }]]
+                        },
+                        "offline-paddle": {
+                            "tiers": [[{
+                                "provider": "paddle",
+                                "model": "paddleocr-v4-mobile-multi"
+                            }]]
+                        }
+                    }
+                }
+            })
+            .to_string(),
+        )?;
+
+        let mut command = tokio::process::Command::new(env!("CARGO_BIN_EXE_vesta-mcp"));
+        command
+            .arg("--read-root")
+            .arg(input.path())
+            .arg("--output-root")
+            .arg(output.path())
+            .arg("--provider-config")
+            .arg(&config);
+        let client = ().serve(TokioChildProcess::new(command)?).await?;
+        assert_eq!(client.list_all_tools().await?.len(), 12);
+
+        let call = |name: &'static str, args: Value| {
+            client.call_tool(
+                CallToolRequestParams::new(name).with_arguments(args.as_object().unwrap().clone()),
+            )
+        };
+
+        let bad_translate = call(
+            "translate_subtitles",
+            json!({
+                "input": srt,
+                "target_language": "it",
+                "profile_id": "offline-paddle"
+            }),
+        )
+        .await?;
+        assert_eq!(bad_translate.is_error, Some(true));
+
+        let started = call(
+            "ocr_subtitles",
+            json!({
+                "input": mkv,
+                "roi": { "x": 0.05, "y": 0.65, "width": 0.90, "height": 0.30 },
+                "sample_fps": 5.0,
+                "profile_id": "vision-roi",
+                "language": "en"
+            }),
+        )
+        .await?
+        .structured_content
+        .unwrap();
+        assert_eq!(started["operation"], "ocr");
+
+        ocr_ready.await?;
+        ocr_release.send(()).unwrap();
+        ocr_server.await?;
+
+        let job_id = started["job_id"].as_str().unwrap();
+        let finished = loop {
+            let state = call("get_job", json!({"job_id": job_id}))
+                .await?
+                .structured_content
+                .unwrap();
+            if state["status"] != "running" && state["status"] != "cancelling" {
+                break state;
+            }
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        };
+        assert_eq!(finished["status"], "succeeded", "{finished}");
+        assert_eq!(finished["result"]["subtitle_count"], 1);
+        let out_path = Path::new(finished["result"]["output_path"].as_str().unwrap());
+        assert!(out_path.starts_with(output.path()));
+        assert!(std::fs::read_to_string(out_path)?.contains("Hardcoded OCR via MCP"));
 
         client.cancel().await?;
         anyhow::Ok(())

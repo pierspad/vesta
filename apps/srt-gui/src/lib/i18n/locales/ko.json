@@ -1390,5 +1390,17 @@
   "extract.ocrInProgress": "OCR 실행 중 ({{current}}/{{total}})…",
   "extract.ocrCancelled": "OCR이 취소되었습니다.",
   "extract.ocrCancel": "OCR 취소",
-  "extract.ocrNoProvider": "OCR을 실행하기 전에 설정에서 LLM 제공업체 또는 로컬 Ollama를 구성하세요."
+  "extract.ocrNoProvider": "OCR을 실행하기 전에 설정에서 LLM 제공업체 또는 로컬 Ollama를 구성하세요.",
+  "extract.hardcodedTitle": "하드코딩된 자막 (ROI OCR)",
+  "extract.hardcodedDesc": "비디오 프레임에서 하드코딩된 자막이 표시되는 영역을 선택하세요.",
+  "extract.hardcodedPreviewFrame": "프레임 새로고침",
+  "extract.hardcodedPreviewOcr": "ROI OCR 미리보기",
+  "extract.hardcodedSave": "ROI를 SRT로 추출",
+  "extract.hardcodedPresetBottom": "하단",
+  "extract.hardcodedPresetTop": "상단",
+  "extract.hardcodedFps": "샘플링 속도 (FPS)",
+  "setup.localOcr": "로컬 오프라인 OCR",
+  "setup.localOcrDesc": "오프라인 이미지 자막 인식을 위해 경량 PaddleOCR 모델을 다운로드합니다.",
+  "settings.ocrModelsTitle": "오프라인 OCR 모델 (PaddleOCR)",
+  "settings.ocrModelsDesc": "클라우드 LLM 비용 없이 로컬에서 비트맵 및 하드코딩 자막 OCR을 실행합니다."
 }

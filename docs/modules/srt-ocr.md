@@ -1,19 +1,22 @@
-# srt-ocr — bitmap subtitle extraction and OCR
+# srt-ocr — bitmap and hardcoded subtitle OCR
 
 `lib/srt-ocr` extracts embedded bitmap subtitle tracks (`hdmv_pgs_subtitle` / PGS,
-`dvd_subtitle` / VobSub, `dvb_subtitle` / DVB, `xsub`) from media containers
-into RGBA/PNG cue images, recognizes their text through a pluggable
-`OcrBackend` (`VisionLlmBackend` powered by [`srt-translate`](srt-translate.md)
-in Phase 1), and atomically publishes standard `.srt` files.
+`dvd_subtitle` / VobSub, `dvb_subtitle` / DVB, `xsub`) and burned-in (hardcoded)
+video regions (`VideoRoi`) into RGBA/PNG cue images, recognizes their text
+through a pluggable `OcrBackend` (`LocalOcrBackend` with pure-Rust PaddleOCR v4
+ONNX inference, `VisionLlmBackend` powered by [`srt-translate`](srt-translate.md),
+and `CompositeOcrBackend` for tiered failover), and atomically publishes standard
+`.srt` files.
 
-**Library API** (see `lib/srt-ocr/src/lib.rs`, `src/bitmap.rs`, `src/vision.rs`, `src/pipeline.rs`, and `src/model.rs`)
+**Library API** (see `lib/srt-ocr/src/lib.rs`, `src/bitmap.rs`, `src/hardcoded.rs`, `src/local.rs`, `src/vision.rs`, `src/pipeline.rs`, and `src/model.rs`)
 
 - `bitmap::parse_pgs_sup(bytes, limit)` → `Result<Vec<BitmapSubtitleCue>>` (pure-Rust Blu-ray `.sup` decoder)
 - `bitmap::extract_bitmap_subtitles(ffmpeg, ffprobe, input, stream_index, limit, cancel)` → `Result<Vec<BitmapSubtitleCue>>`
-- `OcrBackend` trait + `VisionLlmBackend::new(&tiers)` / `VisionLlmBackend::with_diagnostics(&tiers, observer)`
-- `ocr_bitmap_track_to_srt(&config, callbacks, &cancel)` → `Result<OcrOutcome>`
-- `ocr_bitmap_track_with_backend(&config, backend, callbacks, &cancel)` → `Result<OcrOutcome>`
-- `preview_ocr_bitmap_track(&config, &cancel)` → `Result<String>` (recognizes up to `preview_limit`, default 15 cues, in memory)
+- `hardcoded::{VideoRoi, VideoFramePreview, extract_video_preview_frame, extract_hardcoded_subtitles}` (normalized `0.0..=1.0` video ROI cropping, preview PNG extraction, FFmpeg `fps` sampling, and `32x12` spatial IoU cue deduplication)
+- `local::LocalOcrBackend` (pure-Rust ONNX protobuf parser, SVTR_LCNet tensor runtime, horizontal line segmentation, and CTC greedy decoder; zero C/C++ shared library dependencies)
+- `OcrBackend` trait, `VisionLlmBackend`, `CompositeOcrBackend`, and `build_backend_from_tiers(&tiers)`
+- `ocr_bitmap_track_to_srt(&config, callbacks, &cancel)` / `ocr_bitmap_track_with_backend(...)` / `preview_ocr_bitmap_track(&config, &cancel)`
+- `ocr_hardcoded_to_srt(&config, callbacks, &cancel)` / `ocr_hardcoded_with_backend(...)` / `preview_ocr_hardcoded(&config, &cancel)`
 - `model::{list_models, model_file_path, download_model, uninstall_model, validate_model_id, get_models_dir}` (`OcrModelInfo`, `OCR_MODELS`, `~/.cache/vesta/ocr/`)
 
 ## Use as a binary
@@ -21,13 +24,15 @@ in Phase 1), and atomically publishes standard `.srt` files.
 ```bash
 cargo build --release -p srt-ocr-cli
 ./target/release/srt-ocr models
+./target/release/srt-ocr download paddleocr-v4-mobile-multi
 ./target/release/srt-ocr run --input movie.mkv --track 2 --output movie.en.srt --provider local --model llava
+./target/release/srt-ocr run --input movie.mp4 --roi 0.08,0.74,0.84,0.20 --fps 2.5 --output movie.hardcoded.srt --provider paddle
 ./target/release/srt-ocr run --input movie.mkv --track 2 --output movie.en.srt --provider google --model gemini-2.5-flash --api-key "$GEMINI_API_KEY"
 ```
 
 See the [CLI guide](../../cli/srt-ocr-cli/README.md) and
 [`docs/CLI.md`](../CLI.md#ocr-run-models-download-remove) for `--json` output,
-provider rules, and exit codes.
+provider rules, `--roi` / `--fps`, and exit codes.
 
 ## Use as a Rust dependency
 

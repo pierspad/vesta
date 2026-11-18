@@ -18,6 +18,7 @@ srt-ankiconnect = { path = "../../lib/srt-ankiconnect" }
 srt-autosync = { path = "../../lib/srt-autosync" }
 srt-extract = { path = "../../lib/srt-extract" }
 srt-flashcards = { path = "../../lib/srt-flashcards" }
+srt-ocr = { path = "../../lib/srt-ocr" }
 srt-refine = { path = "../../lib/srt-refine" }
 srt-sync = { path = "../../lib/srt-sync" }
 srt-transcribe = { path = "../../lib/srt-transcribe" }

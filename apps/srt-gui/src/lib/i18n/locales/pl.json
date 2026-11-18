@@ -1390,5 +1390,17 @@
   "extract.ocrInProgress": "Wykonywanie OCR ({{current}}/{{total}})…",
   "extract.ocrCancelled": "Anulowano OCR.",
   "extract.ocrCancel": "Anuluj OCR",
-  "extract.ocrNoProvider": "Skonfiguruj dostawcę LLM lub lokalną usługę Ollama w Ustawieniach przed uruchomieniem OCR."
+  "extract.ocrNoProvider": "Skonfiguruj dostawcę LLM lub lokalną usługę Ollama w Ustawieniach przed uruchomieniem OCR.",
+  "extract.hardcodedTitle": "Napisy wtopione w obraz (ROI OCR)",
+  "extract.hardcodedDesc": "Wybierz obszar klatki wideo, w którym pojawiają się napisy wtopione w obraz.",
+  "extract.hardcodedPreviewFrame": "Odśwież klatkę",
+  "extract.hardcodedPreviewOcr": "Podgląd ROI OCR",
+  "extract.hardcodedSave": "Wyodrębnij ROI do SRT",
+  "extract.hardcodedPresetBottom": "Dół",
+  "extract.hardcodedPresetTop": "Góra",
+  "extract.hardcodedFps": "Częstotliwość próbkowania (FPS)",
+  "setup.localOcr": "Lokalny OCR offline",
+  "setup.localOcrDesc": "Pobierz kompaktowy model PaddleOCR do rozpoznawania napisów obrazkowych offline.",
+  "settings.ocrModelsTitle": "Modele OCR offline (PaddleOCR)",
+  "settings.ocrModelsDesc": "Uruchamiaj OCR napisów bitmapowych i wtopionych lokalnie bez kosztów LLM w chmurze."
 }

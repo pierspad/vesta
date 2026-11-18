@@ -1390,5 +1390,17 @@
   "extract.ocrInProgress": "Выполняется OCR ({{current}}/{{total}})…",
   "extract.ocrCancelled": "OCR отменён.",
   "extract.ocrCancel": "Отменить OCR",
-  "extract.ocrNoProvider": "Настройте провайдера LLM или локальный Ollama в Настройках перед запуском OCR."
+  "extract.ocrNoProvider": "Настройте провайдера LLM или локальный Ollama в Настройках перед запуском OCR.",
+  "extract.hardcodedTitle": "Вшитые субтитры (ROI OCR)",
+  "extract.hardcodedDesc": "Выберите область видеокадра, в которой отображаются вшитые субтитры.",
+  "extract.hardcodedPreviewFrame": "Обновить кадр",
+  "extract.hardcodedPreviewOcr": "Предпросмотр ROI OCR",
+  "extract.hardcodedSave": "Извлечь ROI в SRT",
+  "extract.hardcodedPresetBottom": "Снизу",
+  "extract.hardcodedPresetTop": "Сверху",
+  "extract.hardcodedFps": "Частота выборки (FPS)",
+  "setup.localOcr": "Локальный офлайн-OCR",
+  "setup.localOcrDesc": "Загрузите компактную модель PaddleOCR для офлайн-распознавания графических субтитров.",
+  "settings.ocrModelsTitle": "Офлайн-модели OCR (PaddleOCR)",
+  "settings.ocrModelsDesc": "Выполняйте локальное распознавание растровых и вшитых субтитров без затрат на облачные LLM."
 }

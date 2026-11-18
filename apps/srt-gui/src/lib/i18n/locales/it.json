@@ -1390,5 +1390,17 @@
   "extract.ocrInProgress": "OCR in corso ({{current}}/{{total}})…",
   "extract.ocrCancelled": "OCR annullato.",
   "extract.ocrCancel": "Annulla OCR",
-  "extract.ocrNoProvider": "Configura un provider LLM o un'istanza Ollama locale in Impostazioni prima di avviare l'OCR."
+  "extract.ocrNoProvider": "Configura un provider LLM o un'istanza Ollama locale in Impostazioni prima di avviare l'OCR.",
+  "extract.hardcodedTitle": "Sottotitoli impressi (OCR ROI)",
+  "extract.hardcodedDesc": "Seleziona l'area del fotogramma video in cui compaiono i sottotitoli impressi.",
+  "extract.hardcodedPreviewFrame": "Aggiorna fotogramma",
+  "extract.hardcodedPreviewOcr": "Anteprima OCR ROI",
+  "extract.hardcodedSave": "Estrai ROI in SRT",
+  "extract.hardcodedPresetBottom": "Basso",
+  "extract.hardcodedPresetTop": "Alto",
+  "extract.hardcodedFps": "Frequenza di campionamento (FPS)",
+  "setup.localOcr": "OCR locale offline",
+  "setup.localOcrDesc": "Scarica un modello PaddleOCR compatto per il riconoscimento offline dei sottotitoli immagine.",
+  "settings.ocrModelsTitle": "Modelli OCR offline (PaddleOCR)",
+  "settings.ocrModelsDesc": "Esegui l'OCR locale per sottotitoli bitmap e impressi senza costi LLM cloud."
 }

@@ -1390,5 +1390,17 @@
   "extract.ocrInProgress": "Executando OCR ({{current}}/{{total}})…",
   "extract.ocrCancelled": "OCR cancelado.",
   "extract.ocrCancel": "Cancelar OCR",
-  "extract.ocrNoProvider": "Configure um provedor LLM ou Ollama local em Configurações antes de executar o OCR."
+  "extract.ocrNoProvider": "Configure um provedor LLM ou Ollama local em Configurações antes de executar o OCR.",
+  "extract.hardcodedTitle": "Legendas embutidas (OCR por ROI)",
+  "extract.hardcodedDesc": "Selecione a região onde as legendas embutidas aparecem no quadro do vídeo.",
+  "extract.hardcodedPreviewFrame": "Atualizar quadro",
+  "extract.hardcodedPreviewOcr": "Pré-visualizar OCR da ROI",
+  "extract.hardcodedSave": "Extrair ROI para SRT",
+  "extract.hardcodedPresetBottom": "Inferior",
+  "extract.hardcodedPresetTop": "Superior",
+  "extract.hardcodedFps": "Taxa de amostragem (FPS)",
+  "setup.localOcr": "OCR local offline",
+  "setup.localOcrDesc": "Baixe um modelo PaddleOCR compacto para reconhecimento offline de legendas em imagem.",
+  "settings.ocrModelsTitle": "Modelos OCR offline (PaddleOCR)",
+  "settings.ocrModelsDesc": "Execute OCR de legendas bitmap e embutidas localmente sem custos de LLM na nuvem."
 }

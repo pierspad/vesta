@@ -1390,5 +1390,17 @@
   "extract.ocrInProgress": "جارٍ تشغيل OCR ({{current}}/{{total}})…",
   "extract.ocrCancelled": "تم إلغاء OCR.",
   "extract.ocrCancel": "إلغاء OCR",
-  "extract.ocrNoProvider": "قم بتهيئة موفّر LLM أو Ollama محلي في الإعدادات قبل تشغيل OCR."
+  "extract.ocrNoProvider": "قم بتهيئة موفّر LLM أو Ollama محلي في الإعدادات قبل تشغيل OCR.",
+  "extract.hardcodedTitle": "الترجمة المدمجة في الفيديو (ROI OCR)",
+  "extract.hardcodedDesc": "حدد المنطقة التي تظهر فيها الترجمة المدمجة داخل إطار الفيديو.",
+  "extract.hardcodedPreviewFrame": "تحديث الإطار",
+  "extract.hardcodedPreviewOcr": "معاينة ROI OCR",
+  "extract.hardcodedSave": "استخراج المنطقة إلى SRT",
+  "extract.hardcodedPresetBottom": "الأسفل",
+  "extract.hardcodedPresetTop": "الأعلى",
+  "extract.hardcodedFps": "معدل أخذ العينات (FPS)",
+  "setup.localOcr": "التعرف الضوئي المحلي دون إنترنت",
+  "setup.localOcrDesc": "نزّل نموذج PaddleOCR خفيفًا للتعرف على ترجمات الصور دون اتصال بالإنترنت.",
+  "settings.ocrModelsTitle": "نماذج OCR المحلية (PaddleOCR)",
+  "settings.ocrModelsDesc": "تشغيل التعرف الضوئي للترجمات الصورية والمدمجة محليًا دون تكاليف نماذج السحابة."
 }

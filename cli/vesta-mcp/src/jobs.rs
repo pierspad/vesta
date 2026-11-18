@@ -50,6 +50,15 @@ struct State {
     shutting_down: bool,
 }
 
+/// Target source for an OCR job: either an embedded bitmap track or a burned-in video ROI.
+pub enum OcrTarget {
+    BitmapTrack(u32),
+    HardcodedRoi {
+        roi: srt_ocr::VideoRoi,
+        sample_fps: f64,
+    },
+}
+
 /// One processing job at a time, with bounded in-memory history and cooperative shutdown.
 #[derive(Clone, Default)]
 pub struct Jobs {
@@ -169,7 +178,7 @@ impl Jobs {
     pub fn start_ocr(
         &self,
         input: String,
-        track_index: u32,
+        target: OcrTarget,
         language: Option<String>,
         profile: crate::provider_config::TranslationProfile,
         paths: &Paths,
@@ -178,16 +187,8 @@ impl Jobs {
             if cancel.is_cancelled() {
                 return Err("OCR cancelled".into());
             }
-            let config = srt_ocr::OcrConfig {
-                input_path: std::path::PathBuf::from(input),
-                output_path: output.join("ocr.srt"),
-                track_index,
-                language,
-                tiers: profile.tiers,
-                preview_limit: None,
-                ffmpeg_path: "ffmpeg".into(),
-                ffprobe_path: "ffprobe".into(),
-            };
+            let input_path = std::path::PathBuf::from(input);
+            let output_path = output.join("ocr.srt");
             let callbacks = srt_ocr::OcrCallbacks {
                 on_progress: Some(Arc::new(move |event| {
                     if let Ok(value) = serde_json::to_value(event) {
@@ -196,9 +197,36 @@ impl Jobs {
                 })),
                 on_segment: None,
             };
-            let outcome = srt_ocr::ocr_bitmap_track_to_srt(&config, callbacks, &cancel)
-                .await
-                .map_err(|e| e.to_string())?;
+            let outcome = match target {
+                OcrTarget::BitmapTrack(track_index) => {
+                    let config = srt_ocr::OcrConfig {
+                        input_path,
+                        output_path,
+                        track_index,
+                        language,
+                        tiers: profile.tiers,
+                        preview_limit: None,
+                        ffmpeg_path: "ffmpeg".into(),
+                        ffprobe_path: "ffprobe".into(),
+                    };
+                    srt_ocr::ocr_bitmap_track_to_srt(&config, callbacks, &cancel).await
+                }
+                OcrTarget::HardcodedRoi { roi, sample_fps } => {
+                    let config = srt_ocr::HardcodedOcrConfig {
+                        input_path,
+                        output_path,
+                        roi,
+                        sample_fps,
+                        language,
+                        tiers: profile.tiers,
+                        preview_limit: None,
+                        ffmpeg_path: "ffmpeg".into(),
+                        ffprobe_path: "ffprobe".into(),
+                    };
+                    srt_ocr::ocr_hardcoded_to_srt(&config, callbacks, &cancel).await
+                }
+            }
+            .map_err(|e| e.to_string())?;
             Ok(serde_json::json!({
                 "output_path": outcome.output_path,
                 "subtitle_count": outcome.subtitle_count,

@@ -54,3 +54,6 @@ export class AsyncOperation {
 
 /** Whisper inference, model downloads and removal share a native resource. */
 export const localWhisperOperation = new AsyncOperation();
+
+/** Local OCR inference, model downloads and removal share a native resource. */
+export const localOcrOperation = new AsyncOperation();

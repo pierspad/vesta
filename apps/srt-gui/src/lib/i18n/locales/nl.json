@@ -1390,5 +1390,17 @@
   "extract.ocrInProgress": "OCR uitvoeren ({{current}}/{{total}})…",
   "extract.ocrCancelled": "OCR geannuleerd.",
   "extract.ocrCancel": "OCR annuleren",
-  "extract.ocrNoProvider": "Configureer een LLM-provider of lokale Ollama in Instellingen voordat u OCR uitvoert."
+  "extract.ocrNoProvider": "Configureer een LLM-provider of lokale Ollama in Instellingen voordat u OCR uitvoert.",
+  "extract.hardcodedTitle": "Ingebrande ondertitels (ROI-OCR)",
+  "extract.hardcodedDesc": "Selecteer het gebied in het videoframe waar de ingebrande ondertitels verschijnen.",
+  "extract.hardcodedPreviewFrame": "Frame vernieuwen",
+  "extract.hardcodedPreviewOcr": "ROI-OCR-voorbeeld",
+  "extract.hardcodedSave": "ROI naar SRT extraheren",
+  "extract.hardcodedPresetBottom": "Onder",
+  "extract.hardcodedPresetTop": "Boven",
+  "extract.hardcodedFps": "Bemonsteringsfrequentie (FPS)",
+  "setup.localOcr": "Lokale offline OCR",
+  "setup.localOcrDesc": "Download een compact PaddleOCR-model voor offline herkenning van afbeeldingsondertitels.",
+  "settings.ocrModelsTitle": "Offline OCR-modellen (PaddleOCR)",
+  "settings.ocrModelsDesc": "Voer OCR voor bitmap- en ingebrande ondertitels lokaal uit zonder cloud-LLM-kosten."
 }

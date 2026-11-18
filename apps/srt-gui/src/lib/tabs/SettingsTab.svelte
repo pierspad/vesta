@@ -12,6 +12,7 @@
   import { ankiTemplateStore } from "$lib/stores/ankiTemplateStore.svelte";
   import WhisperSettingsPanel from "$lib/panels/WhisperSettingsPanel.svelte";
   import { whisperModelsStore } from "$lib/stores/whisperModelsStore.svelte";
+  import { ocrModelsStore } from "$lib/stores/ocrModelsStore.svelte";
   import OverviewSettingsPanel from "$lib/panels/OverviewSettingsPanel.svelte";
   import DiagnosticsSettingsPanel from "$lib/panels/DiagnosticsSettingsPanel.svelte";
   import { cpuRamStore } from "$lib/stores/cpuRamStore.svelte";
@@ -311,6 +312,8 @@
     whisperModelsStore.defaultWhisperModel = vestaConfig.getItem("srt-default-whisper-model") || "base";
     whisperModelsStore.refreshModels().catch((e) => console.error("Could not list models:", e));
     void whisperModelsStore.refreshAddons();
+    ocrModelsStore.defaultOcrModel = vestaConfig.getItem("vesta-default-ocr-model") || "paddleocr-v4-mobile-multi";
+    ocrModelsStore.refreshModels().catch((e) => console.error("Could not list OCR models:", e));
 
     const handleKeydown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -331,6 +334,7 @@
 
     let activeListener = true;
     let unlistenProg: (() => void) | null = null;
+    let unlistenOcrProg: (() => void) | null = null;
     listen<{ stage: string; message: string; percentage: number }>("transcribe-progress", (event) => {
       const p = event.payload;
       if (p.stage !== "download" || (!whisperModelsStore.isDownloading && !whisperModelsStore.downloadingVadId)) return;
@@ -342,6 +346,13 @@
       }));
     }).then((fn) => { if (!activeListener) fn(); else unlistenProg = fn; }).catch(console.error);
 
+    listen<{ stage: string; message: string; percentage: number }>("ocr-progress", (event) => {
+      const p = event.payload;
+      if (p.stage !== "download" || !ocrModelsStore.isDownloading) return;
+      ocrModelsStore.progress = Math.round(p.percentage);
+      ocrModelsStore.progressMessage = p.message;
+    }).then((fn) => { if (!activeListener) fn(); else unlistenOcrProg = fn; }).catch(console.error);
+
     return () => {
       activeListener = false;
       window.removeEventListener("keydown", handleKeydown);
@@ -349,6 +360,7 @@
       window.removeEventListener("vesta-open-add-key-modal", handleOpenAddKeyModalEvent);
       window.removeEventListener(TIERS_UPDATED_EVENT, syncTiersFromStorage);
       if (unlistenProg) unlistenProg();
+      if (unlistenOcrProg) unlistenOcrProg();
     };
   });
 
@@ -555,7 +567,10 @@
     on:confirm={() => {
       if (showResetConfirm === "overview") resetOverviewSettings();
       else if (showResetConfirm === "llm") resetLlmSettings();
-      else if (showResetConfirm === "whisper") whisperModelsStore.resetAll();
+      else if (showResetConfirm === "whisper") {
+        whisperModelsStore.resetAll();
+        ocrModelsStore.resetAll();
+      }
       else if (showResetConfirm === "language") resetLanguageSettings();
       else if (showResetConfirm === "anki") {
         ankiTemplateStore.resetAll();

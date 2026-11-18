@@ -1390,5 +1390,17 @@
   "extract.ocrInProgress": "正在运行 OCR ({{current}}/{{total}})…",
   "extract.ocrCancelled": "OCR 已取消。",
   "extract.ocrCancel": "取消 OCR",
-  "extract.ocrNoProvider": "请在运行 OCR 前于“设置”中配置 LLM 提供商或本地 Ollama。"
+  "extract.ocrNoProvider": "请在运行 OCR 前于“设置”中配置 LLM 提供商或本地 Ollama。",
+  "extract.hardcodedTitle": "硬字幕识别 (ROI OCR)",
+  "extract.hardcodedDesc": "选择视频画面中内嵌硬字幕出现的区域。",
+  "extract.hardcodedPreviewFrame": "刷新画面",
+  "extract.hardcodedPreviewOcr": "预览 ROI OCR",
+  "extract.hardcodedSave": "提取 ROI 为 SRT",
+  "extract.hardcodedPresetBottom": "底部",
+  "extract.hardcodedPresetTop": "顶部",
+  "extract.hardcodedFps": "采样率 (FPS)",
+  "setup.localOcr": "本地离线 OCR",
+  "setup.localOcrDesc": "下载轻量级 PaddleOCR 模型以离线识别图像字幕。",
+  "settings.ocrModelsTitle": "离线 OCR 模型 (PaddleOCR)",
+  "settings.ocrModelsDesc": "无需云端 LLM 费用，在本地运行位图和硬字幕 OCR 识别。"
 }

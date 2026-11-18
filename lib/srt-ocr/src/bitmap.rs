@@ -394,7 +394,7 @@ fn parse_ods_segment(payload: &[u8], epoch: &mut EpochState) -> Result<()> {
     Ok(())
 }
 
-fn encode_rgba_png(rgba: &[u8], width: u32, height: u32) -> Result<Vec<u8>> {
+pub(crate) fn encode_rgba_png(rgba: &[u8], width: u32, height: u32) -> Result<Vec<u8>> {
     let mut png_bytes = Vec::new();
     {
         let mut encoder = png::Encoder::new(&mut png_bytes, width, height);
@@ -644,7 +644,7 @@ pub fn parse_pgs_sup(bytes: &[u8], limit: Option<usize>) -> Result<Vec<BitmapSub
     Ok(cues)
 }
 
-async fn run_cancellable_output(
+pub(crate) async fn run_cancellable_output(
     mut command: tokio::process::Command,
     timeout: Duration,
     cancel: Option<&CancellationToken>,
@@ -749,32 +749,29 @@ fn parse_ffprobe_packet_events(json_bytes: &[u8]) -> Result<Vec<SubtitlePacketEv
     Ok(grouped)
 }
 
-fn crop_png_to_rgba_cue(png_bytes: &[u8]) -> Result<Option<(Vec<u8>, u32, u32)>> {
-    if png_bytes.is_empty() {
-        return Ok(None);
-    }
-
+/// Decodes PNG bytes into tightly packed RGBA8 pixels (`width * height * 4`).
+pub(crate) fn decode_png_to_rgba(png_bytes: &[u8]) -> Result<(Vec<u8>, u32, u32)> {
     let mut decoder = png::Decoder::new(Cursor::new(png_bytes));
     decoder.set_transformations(
         png::Transformations::normalize_to_color8() | png::Transformations::ALPHA,
     );
     let mut reader = decoder
         .read_info()
-        .context("Failed to read rendered PNG header")?;
+        .context("Failed to read PNG image header")?;
     let buf_size = reader
         .output_buffer_size()
-        .context("Rendered PNG exceeds decoder buffer limits")?;
+        .context("PNG image exceeds decoder buffer limits")?;
     let mut buf = vec![0u8; buf_size];
     let info = reader
         .next_frame(&mut buf)
-        .context("Failed to decode rendered PNG frame")?;
+        .context("Failed to decode PNG frame")?;
     let frame = buf
         .get(..info.buffer_size())
         .context("Decoded PNG buffer smaller than expected")?;
     let width = info.width;
     let height = info.height;
     if width == 0 || height == 0 {
-        return Ok(None);
+        return Ok((Vec::new(), width, height));
     }
 
     let bpp = match info.color_type {
@@ -785,7 +782,47 @@ fn crop_png_to_rgba_cue(png_bytes: &[u8]) -> Result<Option<(Vec<u8>, u32, u32)>>
         other => bail!("Unexpected decoded PNG color type: {other:?}"),
     };
 
-    let mut rgba_full = Vec::with_capacity((width as usize) * (height as usize) * 4);
+    let pixel_count = (width as usize)
+        .checked_mul(height as usize)
+        .context("PNG dimensions overflow pixel count")?;
+    let mut rgba_full = Vec::with_capacity(pixel_count * 4);
+    for idx in 0..pixel_count {
+        let off = idx * bpp;
+        let px = match info.color_type {
+            png::ColorType::Rgba => {
+                let s = frame.get(off..off + 4).context("Truncated RGBA frame")?;
+                [s[0], s[1], s[2], s[3]]
+            }
+            png::ColorType::Rgb => {
+                let s = frame.get(off..off + 3).context("Truncated RGB frame")?;
+                [s[0], s[1], s[2], 255]
+            }
+            png::ColorType::GrayscaleAlpha => {
+                let s = frame.get(off..off + 2).context("Truncated GA frame")?;
+                [s[0], s[0], s[0], s[1]]
+            }
+            png::ColorType::Grayscale => {
+                let g = *frame.get(off).context("Truncated grayscale frame")?;
+                [g, g, g, 255]
+            }
+            other => bail!("Unexpected decoded PNG color type: {other:?}"),
+        };
+        rgba_full.extend_from_slice(&px);
+    }
+
+    Ok((rgba_full, width, height))
+}
+
+fn crop_png_to_rgba_cue(png_bytes: &[u8]) -> Result<Option<(Vec<u8>, u32, u32)>> {
+    if png_bytes.is_empty() {
+        return Ok(None);
+    }
+
+    let (rgba_full, width, height) = decode_png_to_rgba(png_bytes)?;
+    if width == 0 || height == 0 {
+        return Ok(None);
+    }
+
     let mut min_x = u32::MAX;
     let mut min_y = u32::MAX;
     let mut max_x = 0u32;
@@ -794,27 +831,10 @@ fn crop_png_to_rgba_cue(png_bytes: &[u8]) -> Result<Option<(Vec<u8>, u32, u32)>>
 
     for y in 0..height {
         for x in 0..width {
-            let off = ((y * width + x) as usize) * bpp;
-            let px = match info.color_type {
-                png::ColorType::Rgba => {
-                    let s = frame.get(off..off + 4).context("Truncated RGBA frame")?;
-                    [s[0], s[1], s[2], s[3]]
-                }
-                png::ColorType::Rgb => {
-                    let s = frame.get(off..off + 3).context("Truncated RGB frame")?;
-                    [s[0], s[1], s[2], 255]
-                }
-                png::ColorType::GrayscaleAlpha => {
-                    let s = frame.get(off..off + 2).context("Truncated GA frame")?;
-                    [s[0], s[0], s[0], s[1]]
-                }
-                png::ColorType::Grayscale => {
-                    let g = *frame.get(off).context("Truncated grayscale frame")?;
-                    [g, g, g, 255]
-                }
-                _ => unreachable!("checked above"),
-            };
-            rgba_full.extend_from_slice(&px);
+            let off = ((y * width + x) as usize) * 4;
+            let px = rgba_full
+                .get(off..off + 4)
+                .context("Truncated RGBA buffer")?;
             if px[3] > 0 && (px[0] > 8 || px[1] > 8 || px[2] > 8) {
                 min_x = min_x.min(x);
                 min_y = min_y.min(y);

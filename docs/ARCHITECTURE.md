@@ -17,7 +17,7 @@ Vesta is a modular Cargo workspace layered from foundational formats to GUI-agno
 │  • srt-transcribe   (Whisper & VAD transcription)──► cli/srt-transcribe-cli │
 │  • srt-autosync     (VAD speech auto-aligner)    ──► cli/srt-autosync-cli   │
 │  • srt-extract      (Media & subtitle extractor) ──► cli/srt-extract-cli    │
-│  • srt-ocr          (Bitmap subtitle OCR engine) ──► cli/srt-ocr-cli        │
+│  • srt-ocr          (Bitmap & ROI OCR engine)    ──► cli/srt-ocr-cli        │
 │  • srt-refine       (LLM deck annotation)       ──► cli/srt-refine-cli     │
 │  • srt-sync         (Anchor-based retiming)     ──► cli/srt-sync-cli       │
 │  • srt-ankiconnect  (AnkiConnect HTTP client)                               │
@@ -292,9 +292,13 @@ API keys are stored in this configuration file; it is not an encrypted keychain.
 
 Embedded subtitle discovery/extraction lives in `srt-extract::embedded` and uses
 FFprobe/FFmpeg. Text tracks convert directly to SRT; bitmap tracks (PGS, VobSub,
-DVB, XSUB) are extracted and converted via `srt-ocr` using the configured Vision LLM
-tiers (subject to the AI Kill Switch). The desktop Extract tab saves independent SRT
-files, keeping the existing workflows simple.
+DVB, XSUB) and burned-in video ROI regions (`VideoRoi` in `srt-ocr::hardcoded`)
+are extracted and converted via `srt-ocr` using offline pure-Rust PaddleOCR v4
+ONNX models (`LocalOcrBackend`) and/or configured Vision LLM tiers
+(`VisionLlmBackend` via `CompositeOcrBackend`; Vision LLM tiers remain subject
+to the AI Kill Switch, while downloaded local OCR models keep offline OCR
+available). The desktop Extract tab saves independent SRT files, keeping the
+existing workflows simple.
 
 Fresh per-episode APKG exports can be merged by `srt-flashcards::merge_apkg`.
 The frontend writes episodes to distinct directories; the merger remaps note/card

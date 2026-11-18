@@ -82,7 +82,7 @@ its directory arguments; a configured server then waits for an MCP client.
 | `generate_flashcards` | Start a TSV/APKG export and return a job ID immediately | New directory |
 | `translate_subtitles` | Start SRT translation using a named server profile | New directory; incremental checkpoints |
 | `transcribe_media` | Start local/cloud transcription using a named server profile | New directory; final SRT |
-| `ocr_subtitles` | Start bitmap subtitle OCR conversion to SRT using a named translation profile | New directory; final SRT |
+| `ocr_subtitles` | Start bitmap track (`track_index`) or hardcoded video ROI (`roi`) OCR conversion to SRT using a named translation/OCR profile | New directory; final SRT |
 | `get_job` | Read operation, progress, status, result and output paths | No |
 | `cancel_job` | Request cancellation; poll until a terminal status | May stop ongoing output |
 | `list_plugins` | List installed Vesta plugins with public metadata (`id`, `name`, `version`, `description`, `enabled`, `permissions`) | No |
@@ -257,7 +257,7 @@ publication begins can still complete successfully.
 
 Both `transcribe_media`, `translate_subtitles`, and `ocr_subtitles` return a job snapshot immediately. Use the same `get_job` and
 `cancel_job` as for flashcards. `operation` identifies `flashcards`, `translation`,
-`transcription`, or `ocr`. `list_embedded_subtitles` returns embedded stream metadata synchronously so you can pick `track_index` before calling `ocr_subtitles` (which writes `ocr.srt` using the configured Vision LLM tiers from a `translation` profile). Exactly **one processing job** may run at a time per server,
+`transcription`, or `ocr`. `list_embedded_subtitles` returns embedded stream metadata synchronously so you can pick `track_index` for embedded bitmap tracks before calling `ocr_subtitles`, or omit `track_index` and pass a normalized `roi` (`{x, y, width, height}` in `0.0..=1.0`) plus optional `sample_fps` (`0.5..=15.0`, default `2.5`) to OCR burned-in subtitles; `ocr_subtitles` writes `ocr.srt` using either offline `local_ocr`/`paddle` catalog models or Vision LLM tiers from the named `translation` profile (while `translate_subtitles` rejects profiles that only define local OCR entries). Exactly **one processing job** may run at a time per server,
 across all three kinds (`max_active_jobs = 1`). Job history is bounded to 64 session-local records.
 No existing user output is overwritten. Cancel, then poll for a terminal state;
 shutdown/disconnect cancels active work and waits for cleanup.

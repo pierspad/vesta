@@ -1390,5 +1390,17 @@
   "extract.ocrInProgress": "Running OCR ({{current}}/{{total}})…",
   "extract.ocrCancelled": "OCR cancelled.",
   "extract.ocrCancel": "Cancel OCR",
-  "extract.ocrNoProvider": "Configure an LLM provider or local Ollama in Settings before running OCR."
+  "extract.ocrNoProvider": "Configure an LLM provider or local Ollama in Settings before running OCR.",
+  "extract.hardcodedTitle": "Hardcoded subtitles (ROI OCR)",
+  "extract.hardcodedDesc": "Select the region where burned-in subtitles appear in the video frame.",
+  "extract.hardcodedPreviewFrame": "Refresh frame",
+  "extract.hardcodedPreviewOcr": "Preview ROI OCR",
+  "extract.hardcodedSave": "Extract ROI to SRT",
+  "extract.hardcodedPresetBottom": "Bottom",
+  "extract.hardcodedPresetTop": "Top",
+  "extract.hardcodedFps": "Sample rate (FPS)",
+  "setup.localOcr": "Local offline OCR",
+  "setup.localOcrDesc": "Download a compact PaddleOCR model for offline image subtitle recognition.",
+  "settings.ocrModelsTitle": "Offline OCR Models (PaddleOCR)",
+  "settings.ocrModelsDesc": "Run bitmap and hardcoded subtitle OCR locally without cloud LLM costs."
 }

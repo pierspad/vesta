@@ -4,7 +4,7 @@ mod paths;
 mod provider_config;
 mod requests;
 
-pub use jobs::{JobSnapshot, Jobs, Status};
+pub use jobs::{JobSnapshot, Jobs, OcrTarget, Status};
 pub use paths::Paths;
 pub use provider_config::{ProviderConfig, TranscriptionProfile, TranslationProfile};
 use requests::*;
@@ -193,10 +193,20 @@ impl VestaMcp {
         Parameters(request): Parameters<TranslateRequest>,
     ) -> Result<Json<JobSnapshot>, String> {
         validate_translation_language(&request.target_language)?;
-        let profile = self
+        let mut profile = self
             .providers
             .translation_profile(&request.profile_id)?
             .clone();
+        profile.tiers.iter_mut().for_each(|tier| {
+            tier.retain(|entry| !matches!(entry.provider.as_str(), "local_ocr" | "paddle"));
+        });
+        profile.tiers.retain(|tier| !tier.is_empty());
+        if profile.tiers.is_empty() {
+            return Err(
+                "Selected profile only provides local OCR and cannot be used for translation"
+                    .into(),
+            );
+        }
         let input = self.paths.input(request.input.as_ref(), true)?;
         if !std::path::Path::new(&input)
             .extension()
@@ -266,7 +276,7 @@ impl VestaMcp {
     }
 
     #[tool(
-        description = "Start background OCR conversion of a bitmap subtitle track to SRT using a server-configured profile. Returns a job ID immediately; poll get_job for progress and output path.",
+        description = "Start background OCR conversion of a bitmap subtitle track (`track_index`) or burned-in video ROI (`roi`) to SRT using a server-configured profile. Returns a job ID immediately; poll get_job for progress and output path.",
         annotations(
             read_only_hint = false,
             destructive_hint = false,
@@ -277,21 +287,18 @@ impl VestaMcp {
         &self,
         Parameters(request): Parameters<OcrSubtitlesRequest>,
     ) -> Result<Json<Value>, String> {
+        let target = parse_ocr_target(request.track_index, request.roi, request.sample_fps)?;
+        if let Some(ref lang) = request.language {
+            validate_translation_language(lang)?;
+        }
         let profile = self
             .providers
             .translation_profile(&request.profile_id)?
             .clone();
-        if let Some(ref lang) = request.language {
-            validate_translation_language(lang)?;
-        }
         let input = self.paths.input(Path::new(&request.input), false)?;
-        let snapshot = self.jobs.start_ocr(
-            input,
-            request.track_index,
-            request.language,
-            profile,
-            &self.paths,
-        )?;
+        let snapshot =
+            self.jobs
+                .start_ocr(input, target, request.language, profile, &self.paths)?;
         serde_json::to_value(snapshot)
             .map(Json)
             .map_err(|e| e.to_string())
@@ -593,6 +600,31 @@ fn validate_translation_language(language: &str) -> Result<(), String> {
         return Err("Target language must be a 2–64 character language code/name using letters, spaces and hyphens".into());
     }
     Ok(())
+}
+
+fn parse_ocr_target(
+    track_index: Option<u32>,
+    roi: Option<OcrRoiRequest>,
+    sample_fps: Option<f64>,
+) -> Result<OcrTarget, String> {
+    match (track_index, roi) {
+        (Some(index), None) => Ok(OcrTarget::BitmapTrack(index)),
+        (None, Some(roi_req)) => {
+            let roi = roi_req.into_video_roi()?;
+            let fps = sample_fps.unwrap_or(2.5);
+            if !fps.is_finite() || !(0.5..=15.0).contains(&fps) {
+                return Err(format!(
+                    "sample_fps must be finite and within 0.5..=15.0 (got {fps})"
+                ));
+            }
+            Ok(OcrTarget::HardcodedRoi {
+                roi,
+                sample_fps: fps,
+            })
+        }
+        (None, None) => Err("Either 'track_index' or 'roi' must be provided".into()),
+        (Some(_), Some(_)) => Err("Provide either 'track_index' or 'roi', not both".into()),
+    }
 }
 
 #[cfg(test)]

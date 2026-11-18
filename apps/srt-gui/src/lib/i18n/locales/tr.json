@@ -1390,5 +1390,17 @@
   "extract.ocrInProgress": "OCR çalıştırılıyor ({{current}}/{{total}})…",
   "extract.ocrCancelled": "OCR iptal edildi.",
   "extract.ocrCancel": "OCR'yi iptal et",
-  "extract.ocrNoProvider": "OCR'yi çalıştırmadan önce Ayarlar'da bir LLM sağlayıcısı veya yerel Ollama yapılandırın."
+  "extract.ocrNoProvider": "OCR'yi çalıştırmadan önce Ayarlar'da bir LLM sağlayıcısı veya yerel Ollama yapılandırın.",
+  "extract.hardcodedTitle": "Gömülü altyazılar (ROI OCR)",
+  "extract.hardcodedDesc": "Video karesinde gömülü altyazıların göründüğü bölgeyi seçin.",
+  "extract.hardcodedPreviewFrame": "Kareyi yenile",
+  "extract.hardcodedPreviewOcr": "ROI OCR önizleme",
+  "extract.hardcodedSave": "ROI'yi SRT olarak çıkar",
+  "extract.hardcodedPresetBottom": "Alt",
+  "extract.hardcodedPresetTop": "Üst",
+  "extract.hardcodedFps": "Örnekleme hızı (FPS)",
+  "setup.localOcr": "Yerel çevrimdışı OCR",
+  "setup.localOcrDesc": "Çevrimdışı görüntü altyazısı tanıma için kompakt bir PaddleOCR modeli indirin.",
+  "settings.ocrModelsTitle": "Çevrimdışı OCR Modelleri (PaddleOCR)",
+  "settings.ocrModelsDesc": "Bulut LLM maliyeti olmadan bitmap ve gömülü altyazı OCR işlemlerini yerel olarak çalıştırın."
 }

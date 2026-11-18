@@ -95,16 +95,44 @@ pub struct EmbeddedSubtitlesRequest {
     pub input: String,
 }
 
-/// Extract and OCR a bitmap subtitle track using a server-configured LLM profile.
+/// Normalized video region of interest (`0.0..=1.0`) for hardcoded subtitle OCR.
+#[derive(Clone, Copy, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct OcrRoiRequest {
+    pub x: f64,
+    pub y: f64,
+    pub width: f64,
+    pub height: f64,
+}
+
+impl OcrRoiRequest {
+    /// Converts into [`srt_ocr::VideoRoi`] and validates normalized coordinates.
+    pub fn into_video_roi(self) -> Result<srt_ocr::VideoRoi, String> {
+        let roi = srt_ocr::VideoRoi {
+            x: self.x,
+            y: self.y,
+            width: self.width,
+            height: self.height,
+        };
+        roi.validate().map_err(|e| e.to_string())?;
+        Ok(roi)
+    }
+}
+
+/// Extract and OCR a bitmap subtitle track or burned-in video ROI using a server-configured profile.
 /// Provider secrets are never accepted in tool arguments.
 #[derive(Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct OcrSubtitlesRequest {
     /// Absolute path to a media container within a configured read root.
     pub input: String,
-    /// Absolute FFprobe subtitle stream index from `list_embedded_subtitles`.
-    pub track_index: u32,
-    /// Name of a server-configured translation profile providing Vision LLM tiers.
+    /// Absolute FFprobe subtitle stream index from `list_embedded_subtitles` (mutually exclusive with `roi`).
+    pub track_index: Option<u32>,
+    /// Normalized video ROI (`0.0..=1.0`) for hardcoded/burned-in subtitles (mutually exclusive with `track_index`).
+    pub roi: Option<OcrRoiRequest>,
+    /// Frame sampling rate in FPS (`0.5..=15.0`, defaults to `2.5`) when `roi` is used.
+    pub sample_fps: Option<f64>,
+    /// Name of a server-configured translation/OCR profile providing Vision LLM or local OCR tiers.
     pub profile_id: String,
     /// Optional ISO language code or language name hint for OCR.
     pub language: Option<String>,

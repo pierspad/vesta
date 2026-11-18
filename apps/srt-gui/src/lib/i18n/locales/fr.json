@@ -1390,5 +1390,17 @@
   "extract.ocrInProgress": "OCR en cours ({{current}}/{{total}})…",
   "extract.ocrCancelled": "OCR annulée.",
   "extract.ocrCancel": "Annuler l'OCR",
-  "extract.ocrNoProvider": "Configurez un fournisseur LLM ou une instance Ollama locale dans Paramètres avant de lancer l'OCR."
+  "extract.ocrNoProvider": "Configurez un fournisseur LLM ou une instance Ollama locale dans Paramètres avant de lancer l'OCR.",
+  "extract.hardcodedTitle": "Sous-titres incrustés (OCR ROI)",
+  "extract.hardcodedDesc": "Sélectionnez la zone où les sous-titres incrustés apparaissent dans l'image vidéo.",
+  "extract.hardcodedPreviewFrame": "Actualiser l'image",
+  "extract.hardcodedPreviewOcr": "Aperçu OCR de la zone",
+  "extract.hardcodedSave": "Extraire la zone en SRT",
+  "extract.hardcodedPresetBottom": "Bas",
+  "extract.hardcodedPresetTop": "Haut",
+  "extract.hardcodedFps": "Fréquence d'échantillonnage (FPS)",
+  "setup.localOcr": "OCR locale hors ligne",
+  "setup.localOcrDesc": "Téléchargez un modèle PaddleOCR compact pour la reconnaissance hors ligne des sous-titres image.",
+  "settings.ocrModelsTitle": "Modèles OCR hors ligne (PaddleOCR)",
+  "settings.ocrModelsDesc": "Exécutez l'OCR des sous-titres bitmap et incrustés localement sans frais de LLM cloud."
 }

@@ -4,6 +4,7 @@ import { mount, tick, unmount } from "svelte";
 import type { Tier } from "$lib/config/translationTiers";
 import type { ApiKeyConfig } from "$lib/config/apiKeys";
 import { aiStore } from "$lib/stores/aiStore.svelte";
+import { DEFAULT_OCR_MODELS, ocrModelsStore } from "$lib/stores/ocrModelsStore.svelte";
 import ExtractTab from "./ExtractTab.svelte";
 
 const mocks = vi.hoisted(() => ({
@@ -47,6 +48,8 @@ afterEach(async () => {
   document.body.replaceChildren();
   aiStore.killSwitchActive = false;
   aiStore.isOcring = false;
+  ocrModelsStore.ocrModels = DEFAULT_OCR_MODELS.map((model) => ({ ...model }));
+  ocrModelsStore.defaultOcrModel = "paddleocr-v4-mobile-multi";
   if (originalShowModal) Object.defineProperty(HTMLDialogElement.prototype, "showModal", originalShowModal);
   else Reflect.deleteProperty(HTMLDialogElement.prototype, "showModal");
   vi.clearAllMocks();
@@ -273,4 +276,140 @@ it("renders OCR progress, cancels via ocr_cancel, and cleans up aiStore.isOcring
   expect(aiStore.isOcring).toBe(false);
   expect(aiStore.hasActiveAiProcess).toBe(false);
   expect(unlisten).toHaveBeenCalledOnce();
+});
+
+it("allows bitmap OCR using a downloaded local OCR model even when aiStore.killSwitchActive is true", async () => {
+  aiStore.killSwitchActive = true;
+  const track = { index: 2, codec: "hdmv_pgs_subtitle", language: "eng", title: "English PGS", text_based: false };
+  mocks.invoke.mockImplementation((command: string) => {
+    if (command === "ocr_list_models") {
+      return Promise.resolve([
+        { id: "paddleocr-v4-mobile-multi", name: "PaddleOCR v4 Mobile (Multilingual)", size: "~11 MB", downloaded: true },
+      ]);
+    }
+    if (command === "embedded_subtitle_tracks") return Promise.resolve([track]);
+    if (command === "ocr_embedded_subtitle") return Promise.resolve(undefined);
+    return Promise.resolve([]);
+  });
+  const target = document.createElement("div");
+  document.body.append(target);
+  mounted.push(mount(ExtractTab, { target, props: { active: true }, intro: false }));
+  await settle();
+  mocks.drop!(["/with-pgs.mkv"]);
+  await settle();
+
+  const previewButton = target.querySelector<HTMLButtonElement>('button[title="View subtitles"]');
+  const saveButton = target.querySelector<HTMLButtonElement>('button[aria-busy="false"]');
+  expect(previewButton).not.toBeNull();
+  expect(saveButton).not.toBeNull();
+  expect(previewButton!.disabled).toBe(false);
+  expect(saveButton!.disabled).toBe(false);
+
+  saveButton!.click();
+  await settle();
+  expect(mocks.invoke).toHaveBeenCalledWith("ocr_embedded_subtitle", {
+    path: "/with-pgs.mkv",
+    index: 2,
+    outputPath: "/out/with-pgs_en_2.srt",
+    language: "en",
+    tiers: [
+      [
+        {
+          provider: "local_ocr",
+          model: "paddleocr-v4-mobile-multi",
+          api_key: null,
+          api_url: null,
+          rpm: null,
+          max_requests: null,
+        },
+      ],
+    ],
+  });
+  expect(mocks.notify).toHaveBeenCalledWith("Saved: /out/with-pgs_en_2.srt", "success");
+});
+
+it("loads preview frame, previews ROI OCR, and runs hardcoded ROI extraction", async () => {
+  configureLlmTiers();
+  const target = await render();
+  mocks.invoke.mockImplementation((command: string) => {
+    if (command === "ocr_list_models") return Promise.resolve([]);
+    if (command === "embedded_subtitle_tracks") return Promise.resolve([]);
+    if (command === "ocr_video_preview_frame") {
+      return Promise.resolve({
+        data_url: "data:image/jpeg;base64,AA==",
+        width: 1280,
+        height: 720,
+        duration_ms: 120000,
+        time_ms: 30000,
+      });
+    }
+    if (command === "preview_ocr_hardcoded_subtitle") {
+      return Promise.resolve("1\n00:00:01,000 --> 00:00:03,000\nBurned subtitle");
+    }
+    if (command === "ocr_hardcoded_subtitle") return Promise.resolve(undefined);
+    return Promise.resolve([]);
+  });
+  mocks.drop!(["/film.mp4"]);
+  await settle();
+
+  const toggleButton = [...target.querySelectorAll<HTMLButtonElement>("button")].find((b) =>
+    b.textContent?.includes("Hardcoded subtitles (ROI OCR)"),
+  );
+  expect(toggleButton).toBeDefined();
+  toggleButton!.click();
+  await settle();
+
+  expect(mocks.invoke).toHaveBeenCalledWith("ocr_video_preview_frame", {
+    path: "/film.mp4",
+    timeMs: null,
+  });
+  const img = target.querySelector<HTMLImageElement>('img[alt="Hardcoded subtitles (ROI OCR)"]');
+  expect(img).not.toBeNull();
+  expect(img!.getAttribute("src")).toBe("data:image/jpeg;base64,AA==");
+  expect(target.querySelector('[data-testid="roi-overlay"]')).not.toBeNull();
+
+  const fpsSelect = target.querySelector<HTMLSelectElement>('select[aria-label="Sample rate (FPS)"]');
+  expect(fpsSelect).not.toBeNull();
+  fpsSelect!.value = "3";
+  fpsSelect!.dispatchEvent(new Event("change", { bubbles: true }));
+  await settle();
+
+  const previewRoiButton = [...target.querySelectorAll<HTMLButtonElement>("button")].find((b) =>
+    b.textContent?.includes("Preview ROI OCR"),
+  );
+  expect(previewRoiButton).toBeDefined();
+  previewRoiButton!.click();
+  await settle();
+
+  expect(mocks.invoke).toHaveBeenCalledWith("preview_ocr_hardcoded_subtitle", {
+    path: "/film.mp4",
+    roi: { x: 0.08, y: 0.74, width: 0.84, height: 0.2 },
+    sampleFps: 3,
+    language: null,
+    tiers: EXPECTED_TIERS,
+  });
+  const dialog = target.querySelector("dialog");
+  expect(dialog).not.toBeNull();
+  expect(dialog!.querySelector("textarea")?.value).toContain("Burned subtitle");
+
+  const closeDialogButton = dialog!.querySelector<HTMLButtonElement>("button.close-button");
+  closeDialogButton!.click();
+  await settle();
+
+  const extractRoiButton = [...target.querySelectorAll<HTMLButtonElement>("button")].find((b) =>
+    b.textContent?.includes("Extract ROI to SRT"),
+  );
+  expect(extractRoiButton).toBeDefined();
+  extractRoiButton!.click();
+  await settle();
+
+  expect(mocks.invoke).toHaveBeenCalledWith("ocr_hardcoded_subtitle", {
+    path: "/film.mp4",
+    outputPath: "/out/film_hardcoded.srt",
+    roi: { x: 0.08, y: 0.74, width: 0.84, height: 0.2 },
+    sampleFps: 3,
+    language: null,
+    tiers: EXPECTED_TIERS,
+  });
+  expect(mocks.notify).toHaveBeenCalledWith("Saved: /out/film_hardcoded.srt", "success");
 });

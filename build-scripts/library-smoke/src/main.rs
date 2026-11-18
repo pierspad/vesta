@@ -95,6 +95,15 @@ async fn main() -> anyhow::Result<()> {
     );
     assert_eq!(srt_refine::strip_html("<i>x</i>"), "x");
 
+    srt_ocr::model::validate_model_id("paddleocr-v4-mobile-multi")?;
+    srt_ocr::VideoRoi {
+        x: 0.1,
+        y: 0.7,
+        width: 0.8,
+        height: 0.2,
+    }
+    .validate()?;
+
     let _: HashMap<u32, Subtitle> = subtitles;
     let _: Timestamp = Timestamp { milliseconds: 0 };
     let _: srt_autosync::AutoSyncOutcome = srt_autosync::AutoSyncOutcome {
