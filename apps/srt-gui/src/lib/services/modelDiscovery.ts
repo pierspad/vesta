@@ -6,25 +6,25 @@ export interface DiscoveredModel {
 }
 
 export function extractModelsFromPayload(payload: unknown): DiscoveredModel[] {
-  const candidates: unknown[] = [];
+  const groups: unknown[][] = [];
 
   if (Array.isArray(payload)) {
-    candidates.push(...payload);
+    groups.push(payload);
   } else if (payload && typeof payload === "object") {
     const record = payload as Record<string, unknown>;
 
     if (Array.isArray(record.data)) {
-      candidates.push(...record.data);
+      groups.push(record.data);
     }
     if (Array.isArray(record.models)) {
-      candidates.push(...record.models);
+      groups.push(record.models);
     }
 
     const nestedData = record.data;
     if (nestedData && typeof nestedData === "object") {
       const nestedRecord = nestedData as Record<string, unknown>;
       if (Array.isArray(nestedRecord.models)) {
-        candidates.push(...nestedRecord.models);
+        groups.push(nestedRecord.models);
       }
     }
   }
@@ -32,33 +32,57 @@ export function extractModelsFromPayload(payload: unknown): DiscoveredModel[] {
   const seen = new Set<string>();
   const models: DiscoveredModel[] = [];
 
-  for (const candidate of candidates) {
-    let id = "";
-    let name = "";
+  for (const candidates of groups) {
+    for (const candidate of candidates) {
+      let id = "";
+      let name = "";
 
-    if (typeof candidate === "string") {
-      id = candidate.trim();
-      name = id;
-    } else if (candidate && typeof candidate === "object") {
-      const record = candidate as Record<string, unknown>;
-      const rawId = [record.id, record.name, record.model]
-        .find((value) => typeof value === "string" && value.trim().length > 0);
-      const rawName = [record.displayName, record.display_name, record.label, record.name, record.id]
-        .find((value) => typeof value === "string" && value.trim().length > 0);
+      if (typeof candidate === "string") {
+        id = candidate.trim();
+        name = id;
+      } else if (candidate && typeof candidate === "object") {
+        const record = candidate as Record<string, unknown>;
+        const rawId = [record.id, record.name, record.model]
+          .find((value) => typeof value === "string" && value.trim().length > 0);
+        const rawName = [record.displayName, record.display_name, record.label, record.name, record.id]
+          .find((value) => typeof value === "string" && value.trim().length > 0);
 
-      if (typeof rawId === "string") {
-        id = rawId.trim();
+        if (typeof rawId === "string") {
+          id = rawId.trim();
+        }
+        if (typeof rawName === "string") {
+          name = rawName.trim();
+        }
       }
-      if (typeof rawName === "string") {
-        name = rawName.trim();
-      }
+
+      if (!id || seen.has(id)) continue;
+      seen.add(id);
+      models.push({ id, name: name || id });
     }
-
-    if (!id || seen.has(id)) continue;
-    seen.add(id);
-    models.push({ id, name: name || id });
   }
 
+  return models;
+}
+
+/** Normalize Google's catalog for both settings discovery and managed-key probing. */
+export function extractGoogleModels(payload: unknown, requireCapability = false): DiscoveredModel[] {
+  const entries = payload && typeof payload === "object" ? (payload as Record<string, unknown>).models : undefined;
+  if (!Array.isArray(entries)) return [];
+  const seen = new Set<string>();
+  const models: DiscoveredModel[] = [];
+  for (const entry of entries) {
+    if (!entry || typeof entry !== "object") continue;
+    const record = entry as Record<string, unknown>;
+    const methods = record.supportedGenerationMethods;
+    if (Array.isArray(methods) ? !methods.includes("generateContent") : requireCapability) continue;
+    const rawId = [record.name, record.id].find(value => typeof value === "string" && value.trim());
+    if (typeof rawId !== "string") continue;
+    const id = rawId.trim().replace(/^models\//, "").trim();
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    const name = typeof record.displayName === "string" ? record.displayName.trim() : "";
+    models.push({ id, name: name || id });
+  }
   return models;
 }
 
@@ -151,20 +175,8 @@ export async function discoverModels(
       // Come sopra: `base` può essere l'apiUrl personalizzato dell'utente
       // per un proxy Gemini-compatible.
       allowCustomHost: true,
-    }, "google") as { models?: unknown[] } | null;
-    const arr = Array.isArray(data?.models) ? data.models : [];
-    const seen = new Set<string>();
-    const models: DiscoveredModel[] = [];
-    for (const entry of arr) {
-      if (!entry || typeof entry !== "object") continue;
-      const m = entry as Record<string, unknown>;
-      const methods = m.supportedGenerationMethods;
-      if (Array.isArray(methods) && !methods.includes("generateContent")) continue;
-      const id = String(m?.name || m?.id || "").replace(/^models\//, "").trim();
-      if (!id || seen.has(id)) continue;
-      seen.add(id);
-      models.push({ id, name: String(m?.displayName || id).trim() || id });
-    }
+    }, "google");
+    const models = extractGoogleModels(data);
     if (models.length === 0) throw new Error("No models found");
     return models;
   }

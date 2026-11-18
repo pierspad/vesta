@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { buildModelsUrl, discoverModels, extractModelsFromPayload } from "./modelDiscovery";
+import { buildModelsUrl, discoverModels, extractGoogleModels, extractModelsFromPayload } from "./modelDiscovery";
 import { fetch } from "./tauriHttp";
 vi.mock("./tauriHttp", () => ({ fetch: vi.fn() }));
 const mockedFetch = vi.mocked(fetch);
@@ -72,4 +72,33 @@ describe("model discovery", () => {
       }),
     );
   });
+});
+
+it("shares Google normalization without coercing malformed model identifiers", () => {
+  const payload = { models: [
+    null, 7, { name: 42 }, { id: {} },
+    { name: "models/", supportedGenerationMethods: ["generateContent"] },
+    { name: " models/valid ", displayName: " Valid ", supportedGenerationMethods: ["generateContent"] },
+    { id: "valid", supportedGenerationMethods: ["generateContent"] },
+    { name: "models/embed", supportedGenerationMethods: ["embedContent"] },
+    { name: "models/proxy-model" },
+  ] };
+  expect(extractGoogleModels(payload)).toEqual([{ id: "valid", name: "Valid" }, { id: "proxy-model", name: "proxy-model" }]);
+  expect(extractGoogleModels(payload, true)).toEqual([{ id: "valid", name: "Valid" }]);
+});
+
+it("normalizes large catalogs without exceeding JavaScript argument limits", () => {
+  expect(extractModelsFromPayload(Array(150000).fill("same"))).toEqual([{ id: "same", name: "same" }]);
+});
+
+it.each(["google", "anthropic"])("discovers later %s pages through the public service", async provider => {
+  mockedFetch.mockReset();
+  const google = provider === "google";
+  const record = (id: string) => google ? { name: `models/${id}`, supportedGenerationMethods: ["generateContent"] } : { id };
+  const field = google ? "models" : "data";
+  const first = { [field]: [record("first")], ...(google ? { nextPageToken: "cursor" } : { has_more: true, last_id: "cursor" }) };
+  const last = { [field]: [record("last")] };
+  mockedFetch.mockResolvedValueOnce({ ok: true, json: async () => first } as Awaited<ReturnType<typeof fetch>>)
+    .mockResolvedValueOnce({ ok: true, json: async () => last } as Awaited<ReturnType<typeof fetch>>);
+  expect((await discoverModels(provider, "key", "https://proxy.test/v1")).map(model => model.id)).toEqual(["first", "last"]);
 });

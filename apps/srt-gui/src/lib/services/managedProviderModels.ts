@@ -1,6 +1,6 @@
 import { fetch as tauriFetch } from "$lib/services/tauriHttp";
 import { fetchModelCatalog } from "$lib/services/modelCatalog";
-import { extractModelsFromPayload, type DiscoveredModel } from "$lib/services/modelDiscovery";
+import { extractGoogleModels, extractModelsFromPayload, type DiscoveredModel } from "$lib/services/modelDiscovery";
 
 /** Provider-specific discovery and accessibility probing, independent of tab state/cache. */
 export async function discoverManagedProviderModels(
@@ -21,30 +21,7 @@ export async function discoverManagedProviderModels(
 
   const data = await fetchModelCatalog(url, { headers }, family === "google" ? "google" : "none", fetch);
 
-  let models = extractModelsFromPayload(data);
-  if (models.length === 0) throw new Error("No models found dynamically");
-
-  // For Google, strip 'models/' prefix from the ID, use displayName if available,
-  // and filter to only show models that support text generation (generateContent)
-  if (family === "google") {
-    const rawModels = data && typeof data === "object"
-      ? (data as Record<string, unknown>).models : undefined;
-    if (Array.isArray(rawModels)) {
-      models = extractModelsFromPayload(rawModels.filter((model: unknown) => {
-        if (!model || typeof model !== "object") return false;
-        const methods = (model as Record<string, unknown>).supportedGenerationMethods;
-        return Array.isArray(methods) && methods.includes("generateContent");
-      }));
-    }
-    const seen = new Set<string>();
-    models = models.flatMap(({ id, name }) => {
-      const normalized = id.replace(/^models\//, "").trim();
-      if (!normalized || seen.has(normalized)) return [];
-      seen.add(normalized);
-      return [{ id: normalized, name: name === id ? normalized : name }];
-    });
-  }
-
+  let models = family === "google" ? extractGoogleModels(data, true) : extractModelsFromPayload(data);
   if (models.length === 0) throw new Error("No usable text generation models found");
 
   // For Google, probe each model with generateContent to check actual accessibility.
