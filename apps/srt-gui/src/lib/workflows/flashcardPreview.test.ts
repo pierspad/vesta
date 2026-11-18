@@ -51,7 +51,7 @@ it("surfaces a current preview failure to the tab", async () => {
   const deps = options();
   deps.load = vi.fn().mockRejectedValue(new Error("bad subtitles"));
   await new FlashcardPreviewController(deps).load();
-  expect(deps.setError).toHaveBeenLastCalledWith("Preview error: Error: bad subtitles");
+  expect(deps.setError).toHaveBeenLastCalledWith("bad subtitles");
 });
 
 it("disposal closes the owned preview and suppresses late logs and errors", async () => {

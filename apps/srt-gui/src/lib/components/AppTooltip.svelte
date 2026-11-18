@@ -58,10 +58,18 @@
     function leave(event: MouseEvent) {
       if (owner && !(event.relatedTarget instanceof Node && owner.contains(event.relatedTarget))) hide();
     }
+    function blur() {
+      const blurredOwner = owner;
+      if (!blurredOwner) return;
+      // Removing a focused control can dispatch focusout during a Svelte render.
+      queueMicrotask(() => {
+        if (owner === blurredOwner && !blurredOwner.contains(document.activeElement)) hide();
+      });
+    }
     document.addEventListener("mouseover", show);
     document.addEventListener("focusin", show);
     document.addEventListener("mouseout", leave);
-    document.addEventListener("focusout", hide);
+    document.addEventListener("focusout", blur);
     document.addEventListener("pointerdown", hide);
     document.addEventListener("keydown", hide);
     document.addEventListener("scroll", hide, true);
@@ -70,7 +78,7 @@
       document.removeEventListener("mouseover", show);
       document.removeEventListener("focusin", show);
       document.removeEventListener("mouseout", leave);
-      document.removeEventListener("focusout", hide);
+      document.removeEventListener("focusout", blur);
       document.removeEventListener("pointerdown", hide);
       document.removeEventListener("keydown", hide);
       document.removeEventListener("scroll", hide, true);

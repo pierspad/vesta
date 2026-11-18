@@ -1,7 +1,7 @@
 <script lang="ts">
   import { historyShortcutAction } from "$lib/utils/shortcuts";
   import { contextMenu as fitContextMenu } from "$lib/utils/contextMenu";
-  import { onDestroy } from "svelte";
+  import { onDestroy, onMount } from "svelte";
   import { writeClipboard } from "$lib/utils/clipboard";
   import { locale } from "$lib/i18n";
   import { uiMode } from "$lib/stores/uiModeStore.svelte";
@@ -27,6 +27,21 @@
   $effect(() => {
     const player = videoPlayerElement ?? audioPlayerElement;
     if (player) previewStore.attachPlayer(player);
+  });
+
+  onMount(() => {
+    const opener = document.activeElement;
+    const dialog = modalElement;
+    dialog?.focus({ preventScroll: true });
+
+    return () => {
+      queueMicrotask(() => {
+        if (
+          active && opener instanceof HTMLElement && opener.isConnected &&
+          !dialog?.isConnected && document.activeElement === document.body
+        ) opener.focus({ preventScroll: true });
+      });
+    };
   });
 
   onDestroy(() => {
@@ -89,6 +104,7 @@
   class="fixed inset-0 z-50 bg-black/70 flex items-center justify-start pl-6 md:pl-16 lg:pl-[8vw] p-6"
   role="dialog"
   aria-modal="true"
+  aria-labelledby="flashcards-preview-title"
   tabindex="-1"
   onclick={close}
   onkeydown={(e) => {
@@ -107,7 +123,7 @@
     <!-- Modal Header -->
     <div class="flex items-center justify-between p-4 border-b border-gray-800/80 bg-gray-900">
       <div class="flex items-center gap-3">
-        <h2 class="text-lg font-bold text-emerald-400 flex items-center gap-2">
+        <h2 id="flashcards-preview-title" class="text-lg font-bold text-emerald-400 flex items-center gap-2">
           <svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
           </svg>
@@ -129,7 +145,7 @@
             placeholder={t("flashcards.previewSearch")}
           />
         </div>
-        <button onclick={close} class="dialog-close-button text-gray-400 hover:text-white text-xl leading-none p-1 transition-colors">
+        <button onclick={close} aria-label={t("common.close")} class="dialog-close-button text-gray-400 hover:text-white text-xl leading-none p-1 transition-colors">
           ✕
         </button>
       </div>

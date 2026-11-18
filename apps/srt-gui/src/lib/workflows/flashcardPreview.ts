@@ -1,3 +1,4 @@
+import { errorMessage } from "$lib/utils/errorMessage";
 import type { buildFlashcardConfig } from "$lib/utils/flashcardConfig";
 import type { PreviewLine } from "$lib/stores/previewStore.svelte";
 
@@ -39,7 +40,7 @@ export class FlashcardPreviewController {
         );
       });
     } catch (error) {
-      if (!this.disposed) options.setError(`Preview error: ${error}`);
+      if (!this.disposed) options.setError(errorMessage(error));
     }
   }
 

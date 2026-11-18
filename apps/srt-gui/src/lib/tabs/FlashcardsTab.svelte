@@ -1346,7 +1346,10 @@
     buildConfig,
     load: (config, onLoaded) => previewStore.load(config, onLoaded),
     close: () => previewStore.close(),
-    setError: (message) => { generationStore.error = message; },
+    setError: (message) => {
+      generationStore.error = message;
+      if (message) snackbar.show(message, "error");
+    },
     missingRequirementsMessage: () => t("flashcards.requiredFieldsMissing"),
     addLog: (message, level) => generationStore.addLog(message, level),
   });
