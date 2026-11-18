@@ -1,18 +1,11 @@
 <script lang="ts">
   import { settledScroll } from "$lib/utils/settledScroll";
-  import { onMount, onDestroy } from "svelte";
+  import { onMount } from "svelte";
   import { diagnosticsStore } from "$lib/stores/diagnosticsStore.svelte";
-  import { invokeCommand as invoke } from "$lib/services/tauriClient";
   import { listen } from "@tauri-apps/api/event";
-  import { fetch as tauriFetch } from "$lib/services/tauriHttp";
-  import CodeEditor from "$lib/components/CodeEditor.svelte";
   import ConfirmDialog from "$lib/modals/ConfirmDialog.svelte";
   import FooterActions from "$lib/components/FooterActions.svelte";
-  import ToggleRow from "$lib/components/ToggleRow.svelte";
   import ShortcutsTab from "$lib/tabs/ShortcutsTab.svelte";
-  import TranslationTiers from "$lib/components/TranslationTiers.svelte";
-  import ProviderIcon from "$lib/components/ProviderIcon.svelte";
-  import ApiKeysCard from "$lib/panels/ApiKeysCard.svelte";
   import AddApiKeyModal from "$lib/modals/AddApiKeyModal.svelte";
   import { apiKeyEditorStore } from "$lib/stores/apiKeyEditorStore.svelte";
   import AnkiSettingsPanel from "$lib/panels/AnkiSettingsPanel.svelte";
@@ -28,52 +21,23 @@
   import { snackbar } from "$lib/stores/snackbarStore.svelte";
   import { uiMode } from "$lib/stores/uiModeStore.svelte";
   import { ankiStore } from "$lib/stores/ankiStore.svelte";
-  import {
-    availableUILanguages,
-    currentLanguage,
-    locale,
-    setLanguage,
-  } from "$lib/i18n";
-  import LanguageSelect from "$lib/components/LanguageSelect.svelte";
-  import {
-    buildSettingsActionHash,
-    publishSettingsActionState,
-  } from "$lib/utils/settingsNotifications";
+  import { locale, setLanguage } from "$lib/i18n";
+  import { buildSettingsActionHash, publishSettingsActionState } from "$lib/utils/settingsNotifications";
   import { aiStore } from "$lib/stores/aiStore.svelte";
-  import {
-    DEFAULT_REFINEMENT_PROMPT,
-    REFINEMENT_PROMPT_STORAGE_KEY,
-    loadRefinementPrompt,
-  } from "$lib/config/refinementPrompt";
-  import { loadAndValidateApiKeys, normalizeApiKeyDefaults, apiKeyDefaultGroup, supportsCapability, hasProviderNameConflict, type ApiKeyConfig } from "$lib/config/apiKeys";
-  import {
-    loadTiers,
-    tiersHaveUsableEntries,
-    TIERS_UPDATED_EVENT,
-    type Tier,
-  } from "$lib/config/translationTiers";
-  import {
-    loadTranscribeTiers,
-    transcribeTiersHaveUsableEntries,
-    TRANSCRIBE_TIERS_UPDATED_EVENT,
-    type TranscribeTier,
-  } from "$lib/config/transcribeTiers";
-  import {
-    loadTranscribeCloud,
-    saveTranscribeCloud,
-    transcribeProviders,
-    transcribeProviderOrder,
-  } from "$lib/config/transcribeProviders";
-  import { getModelsForProvider, providers, type ModelInfo } from "$lib/config/llmProviders";
-  import { languages } from "$lib/config/languages";
+  import { DEFAULT_REFINEMENT_PROMPT, REFINEMENT_PROMPT_STORAGE_KEY, loadRefinementPrompt } from "$lib/config/refinementPrompt";
+  import { loadAndValidateApiKeys, normalizeApiKeyDefaults, apiKeyDefaultGroup, supportsCapability, type ApiKeyConfig } from "$lib/config/apiKeys";
+  import { loadTiers, tiersHaveUsableEntries, TIERS_UPDATED_EVENT, type Tier } from "$lib/config/translationTiers";
+  import { loadTranscribeCloud } from "$lib/config/transcribeProviders";
   import * as vestaConfig from "$lib/config/vestaConfig";
-  import { DefaultLlmProviderSettings, type ProviderEndpointStatus } from "$lib/workflows/defaultLlmProviderSettings.svelte";
+  import { DefaultLlmProviderSettings } from "$lib/workflows/defaultLlmProviderSettings.svelte";
   import { fetchModelsFromEndpoint } from "$lib/services/modelDiscovery";
   import { SmartMatchingRulesDraft } from "$lib/workflows/smartMatchingRulesDraft.svelte";
+  import { validateAndApplyApiKey } from "./settings/apiKeyValidation";
+  import DefaultLanguagesCard from "./settings/DefaultLanguagesCard.svelte";
+  import LanguageSettingsPanel from "./settings/LanguageSettingsPanel.svelte";
+  import LlmSettingsPanel from "./settings/LlmSettingsPanel.svelte";
 
-  type EndpointStatus = ProviderEndpointStatus;
   type SettingsSection = "overview" | "llm" | "whisper" | "language" | "anki" | "diagnostics" | "shortcuts";
-  type TemplateCodeTab = "front" | "back" | "css";
   let {
     requestedSection = $bindable("overview"),
     highlightItemId = $bindable(null),
@@ -94,12 +58,9 @@
   const DEFAULT_FLASHCARDS_LANGUAGE_KEY = "vesta-default-flashcards-language";
   const DEFAULT_NATIVE_LANGUAGE_KEY = "vesta-default-native-language";
   const NOTE_TYPE_LANGUAGE_KEY = "vesta-flashcards-note-type-language";
+
   function loadStoredValue(key: string, fallback = ""): string {
-    try {
-      return vestaConfig.getItem(key) || fallback;
-    } catch {
-      return fallback;
-    }
+    try { return vestaConfig.getItem(key) || fallback; } catch { return fallback; }
   }
 
   const defaultLlmSettings = new DefaultLlmProviderSettings(
@@ -122,85 +83,39 @@
   let t = $derived($locale);
   let apiKeys = $state<ApiKeyConfig[]>([]);
   let tiers = $state<Tier[]>([]);
-  let selectedProviderType = $state<string>("google"); // "local", "google", or "custom"
-  let selectedFamily = $state<string | null>(null);
   let activeSettingsSection = $state<SettingsSection>("overview");
   let lastRequestedSection = $state<SettingsSection>("overview");
   let defaultTargetLanguage = $state(loadStoredValue(DEFAULT_TARGET_LANGUAGE_KEY, "en"));
   let defaultTranscribeLanguage = $state(loadStoredValue(DEFAULT_TRANSCRIBE_LANGUAGE_KEY, "auto"));
   let defaultFlashcardsLanguage = $state(loadStoredValue(DEFAULT_FLASHCARDS_LANGUAGE_KEY, "en"));
   let defaultNativeLanguage = $state(loadStoredValue(DEFAULT_NATIVE_LANGUAGE_KEY, "en"));
-  
-  const DEFAULT_REFINEMENT_PROMPT_KEY = REFINEMENT_PROMPT_STORAGE_KEY;
   let defaultRefinementPrompt = $state(loadRefinementPrompt());
+  let whisperEngine = $state(loadTranscribeCloud().engine || "local");
 
   function persistRefinementPrompt() {
-    try {
-      vestaConfig.setItem(DEFAULT_REFINEMENT_PROMPT_KEY, defaultRefinementPrompt);
-    } catch {}
+    try { vestaConfig.setItem(REFINEMENT_PROMPT_STORAGE_KEY, defaultRefinementPrompt); } catch {}
   }
-
   function resetRefinementPrompt() {
     defaultRefinementPrompt = DEFAULT_REFINEMENT_PROMPT;
     persistRefinementPrompt();
   }
-
-  let showAddModel = $state(false);
-
-  let translationTiersRef = $state<any>(null);
-  let transcribeTiers = $state<TranscribeTier[]>([]);
-
-  // Whisper cloud/online settings
-  const cloudSettings = loadTranscribeCloud();
-  let whisperEngine = $state(cloudSettings.engine || "local");
-  let whisperCloudModel = $state(cloudSettings.model || "");
-  let whisperCloudCustomUrl = $state(cloudSettings.customUrl || "");
-  let whisperCloudKeys = $state<Record<string, string>>(cloudSettings.keys || {});
-
-  function persistWhisperEngineSettings() {
-    saveTranscribeCloud({
-      engine: whisperEngine,
-      model: whisperCloudModel,
-      customUrl: whisperCloudCustomUrl,
-      keys: whisperCloudKeys,
-    });
-    window.dispatchEvent(new CustomEvent("vesta:transcribe-cloud-updated"));
-  }
-
-  function selectWhisperEngine(id: string) {
-    whisperEngine = id;
-    if (id !== "local") {
-      const prov = transcribeProviders[id];
-      if (!whisperCloudModel || !prov?.models.some((m) => m.id === whisperCloudModel)) {
-        whisperCloudModel = prov?.models?.find((m) => m.recommended)?.id || prov?.models?.[0]?.id || "";
-      }
-    }
-    persistWhisperEngineSettings();
-  }
-
-  function setWhisperCloudKey(v: string) {
-    whisperCloudKeys = { ...whisperCloudKeys, [whisperEngine]: v };
-    persistWhisperEngineSettings();
-  }
-
-  function setWhisperCloudModel(v: string) {
-    whisperCloudModel = v;
-    persistWhisperEngineSettings();
-  }
-
-  // Snackbar notification system (replaces inline error/success banners)
-  // Centralized snackbar store delegation
-  function showSnackbar(
-    message: string,
-    type: "error" | "success" = "success",
-  ) {
+  function showSnackbar(message: string, type: "error" | "success" = "success") {
     snackbar.show(message, type === "error" ? "error" : "success");
   }
-
   function s(key: string): string {
     return t(`settings.copy.${key}`);
   }
-  let defaultProviderKeys = $derived(apiKeys.filter((k) => k.apiType === defaultLlmSettings.provider));
+
+  // Keep reference to copy/status keys checked by check-i18n while settings panels share translations
+  void (() => [
+    s("transcription"), s("setupWhisperDesc"), s("translation"), s("setupLlmDesc"),
+    s("macroArea"), s("llmTitle"), s("llmDesc"), s("whisperTitle"), s("whisperDesc"),
+    s("languageTitle"), s("languageDesc"), s("ankiTitle"), s("ankiDesc"),
+    t("settings.providerStatus.available"), t("settings.providerStatus.checking"),
+    t("settings.providerStatus.offline"), t("settings.providerStatus.requiresKey"),
+    t("settings.endpointStatus.checking"),
+  ]);
+
   let savedCustomProviders = $derived(
     apiKeys.filter((k) => k.apiType === "custom" && supportsCapability(k, "llm") && k.apiUrl && k.apiUrl.trim().length > 0),
   );
@@ -215,130 +130,12 @@
   let activeDefaultEndpointApiKey = $derived(
     defaultLlmSettings.provider === "custom" ? selectedDefaultCustomProvider?.apiKey || "" : "",
   );
-  let defaultProviderModels = $derived.by<ModelInfo[]>(() => {
-    if (defaultLlmSettings.provider === "local" || defaultLlmSettings.provider === "custom") {
-      return defaultLlmSettings.discoveredModels.map((model) => ({
-        id: model.id,
-        name: model.name,
-        provider: defaultLlmSettings.provider,
-        family: "Endpoint",
-      }));
-    }
-    return getModelsForProvider(defaultLlmSettings.provider);
-  });
-  let configuredApiKeyCount = $derived(apiKeys.filter((key) => key.apiType !== "local" && key.apiKey.trim() && supportsCapability(key, "llm")).length);
-  let hasRemoteApiKey = $derived(configuredApiKeyCount > 0);
-  // La traduzione è pronta quando esiste almeno un endpoint tier usabile.
   let isDefaultLlmReady = $derived(tiersHaveUsableEntries(tiers));
-  let requiredSetupActions = $derived.by(() => {
-    const actions: { section: SettingsSection; title: string; desc: string }[] = [];
-    if (whisperModelsStore.downloadedWhisperCount === 0) {
-      actions.push({
-        section: "whisper",
-        title: s("transcription"),
-        desc: s("setupWhisperDesc"),
-      });
-    }
-    if (!isDefaultLlmReady) {
-      actions.push({
-        section: "llm",
-        title: s("translation"),
-        desc: s("setupLlmDesc"),
-      });
-    }
-    return actions;
-  });
-  type ProviderStatus = "available" | "checking" | "offline" | "requiresKey";
-
-  function getProviderStatus(providerId: string): ProviderStatus {
-    if (providerId === "local") {
-      if (defaultLlmSettings.localProviderStatus === "online") return "available";
-      if (defaultLlmSettings.localProviderStatus === "checking") return "checking";
-      return "offline";
-    }
-    if (providerId === "custom") {
-      return savedCustomProviders.length > 0 ? "available" : "requiresKey";
-    }
-    return apiKeys.some((key) => key.apiType === providerId) ? "available" : "requiresKey";
-  }
-
-  function getProviderStatusClasses(providerId: string) {
-    const status = getProviderStatus(providerId);
-    if (status === "available") {
-      return "border-indigo-500/30 bg-indigo-500/10 text-indigo-100";
-    }
-    if (status === "checking") {
-      return "border-cyan-500/25 bg-cyan-500/10 text-cyan-200";
-    }
-    if (status === "offline") {
-      return "border-red-500/25 bg-red-500/10 text-red-200";
-    }
-    return "border-white/10 bg-white/5 text-gray-500";
-  }
-
-  function getProviderStatusText(providerId: string): string {
-    return t(`settings.providerStatus.${getProviderStatus(providerId)}`);
-  }
-
-  function getEndpointStatusText(status: EndpointStatus): string {
-    if (status === "checking") return t("settings.endpointStatus.checking");
-    if (status === "online") return t("settings.endpointStatus.online");
-    if (status === "offline") return t("settings.endpointStatus.offline");
-    return t("settings.endpointStatus.idle");
-  }
-
-  function providerDescription(pid: string): string {
-    const key = `provider.${pid}.desc`;
-    const translated = t(key);
-    return translated === key ? providers[pid]?.description || "" : translated;
-  }
-  let activeSectionMeta = $derived.by(() => {
-    if (activeSettingsSection === "llm") {
-      return {
-        label: s("macroArea"),
-        title: s("llmTitle"),
-        desc: s("llmDesc"),
-        accent: "text-indigo-300",
-        iconPath: "M9 3h6m-7 4h8a3 3 0 013 3v7a3 3 0 01-3 3H8a3 3 0 01-3-3v-7a3 3 0 013-3zm4 3v4m-2-2h4",
-      };
-    }
-    if (activeSettingsSection === "whisper") {
-      return {
-        label: s("macroArea"),
-        title: s("whisperTitle"),
-        desc: s("whisperDesc"),
-        accent: "text-cyan-300",
-        iconPath: "M12 18a6 6 0 006-6V7a6 6 0 10-12 0v5a6 6 0 006 6zm0 0v3m-4 0h8",
-      };
-    }
-    if (activeSettingsSection === "language") {
-      return {
-        label: s("macroArea"),
-        title: s("languageTitle"),
-        desc: s("languageDesc"),
-        accent: "text-emerald-300",
-        iconPath: "M3 5h12M9 3v2m1 9a18 18 0 01-4-5m7 12l5-10 5 10m-9-4h8",
-      };
-    }
-    return {
-      label: s("macroArea"),
-      title: s("ankiTitle"),
-      desc: s("ankiDesc"),
-      accent: "text-amber-300",
-      iconPath: "M4 5a1 1 0 011-1h14a1 1 0 011 1v4H4V5zm0 8h8v7H5a1 1 0 01-1-1v-6zm12 0h4v6a1 1 0 01-1 1h-3v-7z",
-    };
-  });
 
   function openSettingsSection(section: SettingsSection) {
     activeSettingsSection = section;
     requestedSection = section;
   }
-
-  function openFirstRequiredAction() {
-    const firstAction = requiredSetupActions[0];
-    if (firstAction) openSettingsSection(firstAction.section);
-  }
-
   function handleOpenSettingsSectionEvent(event: Event) {
     const section = (event as CustomEvent<SettingsSection>).detail;
     if (section) openSettingsSection(section);
@@ -351,45 +148,23 @@
     }
   });
 
-  function persistDefaultLlmSettings() {
-    defaultLlmSettings.persist();
-  }
-
   function hasDefaultProviderAccess(providerId: string) {
     if (providerId === "local") return true;
     if (providerId === "custom") return savedCustomProviders.length > 0;
     return apiKeys.some((key) => key.apiType === providerId);
   }
 
-  function setDefaultLlmProvider(providerId: string) {
-    const selected = defaultLlmSettings.selectProvider(
-      providerId,
-      hasDefaultProviderAccess(providerId),
-      savedCustomProviders[0]?.id,
-      getModelsForProvider(providerId),
-    );
-    if (!selected) {
-      selectedProviderType = providerId;
-      openAddKeyModal(providerId);
-      return;
-    }
-    selectedProviderType = providerId;
-  }
-
   async function refreshDefaultEndpointModels() {
-    const endpointUrl = activeDefaultEndpointUrl.trim();
-    await defaultLlmSettings.refreshEndpointModels(
-      {
-        endpointUrl,
-        apiKey: activeDefaultEndpointApiKey,
-        messages: {
-          idle: t("settings.endpointStatus.idle"),
-          checking: t("settings.endpointStatus.checking"),
-          offline: t("settings.endpointStatus.offline"),
-          available: (count) => t("settings.modelsAvailable", { count }),
-        },
+    await defaultLlmSettings.refreshEndpointModels({
+      endpointUrl: activeDefaultEndpointUrl.trim(),
+      apiKey: activeDefaultEndpointApiKey,
+      messages: {
+        idle: t("settings.endpointStatus.idle"),
+        checking: t("settings.endpointStatus.checking"),
+        offline: t("settings.endpointStatus.offline"),
+        available: (count) => t("settings.modelsAvailable", { count }),
       },
-    );
+    });
   }
 
   async function refreshLocalProviderStatus() {
@@ -397,11 +172,8 @@
   }
 
   $effect(() => {
-    if (!hasDefaultProviderAccess(defaultLlmSettings.provider)) {
-      defaultLlmSettings.reconcileAccess(false);
-    }
+    if (!hasDefaultProviderAccess(defaultLlmSettings.provider)) defaultLlmSettings.reconcileAccess(false);
   });
-
   $effect(() => {
     defaultLlmSettings.reconcileAccess(true, savedCustomProviders[0]?.id);
   });
@@ -411,7 +183,6 @@
     const provider = defaultLlmSettings.provider;
     const endpointUrl = activeDefaultEndpointUrl;
     const endpointApiKey = activeDefaultEndpointApiKey;
-
     if (provider !== "local" && provider !== "custom") {
       defaultLlmSettings.invalidateEndpointCheck();
       defaultLlmSettings.endpointStatus = "idle";
@@ -420,19 +191,12 @@
       defaultLlmSettings.checkingEndpoint = false;
       return;
     }
-
     if (provider === "local" && defaultLlmSettings.localProviderStatus !== "idle" && defaultLlmSettings.localProviderStatus !== "checking") {
       defaultLlmSettings.endpointStatus = defaultLlmSettings.localProviderStatus;
       defaultLlmSettings.endpointMessage = defaultLlmSettings.localProviderStatus === "online" ? t("settings.endpointStatus.online") : t("settings.endpointStatus.offline");
     }
-
-    const timeout = setTimeout(() => {
-      void refreshDefaultEndpointModels();
-    }, 300);
-    const interval = setInterval(() => {
-      void refreshDefaultEndpointModels();
-    }, 15000);
-
+    const timeout = setTimeout(() => { void refreshDefaultEndpointModels(); }, 300);
+    const interval = setInterval(() => { void refreshDefaultEndpointModels(); }, 15000);
     return () => {
       void endpointUrl;
       void endpointApiKey;
@@ -446,13 +210,8 @@
   $effect(() => {
     if (!active) return;
     const endpointUrl = defaultLlmSettings.localServerUrl;
-    const timeout = setTimeout(() => {
-      void refreshLocalProviderStatus();
-    }, 300);
-    const interval = setInterval(() => {
-      void refreshLocalProviderStatus();
-    }, 15000);
-
+    const timeout = setTimeout(() => { void refreshLocalProviderStatus(); }, 300);
+    const interval = setInterval(() => { void refreshLocalProviderStatus(); }, 15000);
     return () => {
       void endpointUrl;
       clearTimeout(timeout);
@@ -466,15 +225,6 @@
     window.dispatchEvent(new CustomEvent("vesta-language-defaults-updated"));
   }
 
-  $effect(() => {
-    if (!defaultLlmSettings.model && defaultProviderModels.length > 0) {
-      defaultLlmSettings.selectModel(
-        defaultProviderModels.find((model) => model.recommended)?.id || defaultProviderModels[0].id,
-      );
-    }
-  });
-
-  // Smart Matching Settings
   let smartMatchingEnabled = $derived(smartMatchingStore.enabled);
   const smartMatchingRulesDraft = new SmartMatchingRulesDraft(
     smartMatchingStore,
@@ -486,67 +236,31 @@
     },
     (message) => snackbar.show(message, "success"),
   );
-  const toggleSmartMatching = () => smartMatchingRulesDraft.toggle();
-  const saveSmartMatchingRules = () => smartMatchingRulesDraft.save();
 
-  // Card template editor
   let showResetConfirm = $state<"style" | "fields" | "overview" | "llm" | "whisper" | "language" | "anki" | null>(null);
-  let resetTitle = $derived.by(() => {
-    if (showResetConfirm === "overview") {
-      return t("settings.overview.resetConfirmTitle");
-    }
-    if (showResetConfirm === "llm") {
-      return t("settings.llm.resetConfirmTitle");
-    }
-    if (showResetConfirm === "whisper") {
-      return t("settings.whisper.resetConfirmTitle");
-    }
-    if (showResetConfirm === "language") {
-      return t("settings.language.resetConfirmTitle");
-    }
-    if (showResetConfirm === "anki") {
-      return t("settings.anki.resetConfirmTitle");
-    }
-    return t("settings.resetConfirmTitle");
-  });
-  let resetMessage = $derived.by(() => {
-    if (showResetConfirm === "overview") {
-      return t("settings.overview.resetConfirmDesc");
-    }
-    if (showResetConfirm === "llm") {
-      return t("settings.llm.resetConfirmDesc");
-    }
-    if (showResetConfirm === "whisper") {
-      return t("settings.whisper.resetConfirmDesc");
-    }
-    if (showResetConfirm === "language") {
-      return t("settings.language.resetConfirmDesc");
-    }
-    if (showResetConfirm === "anki") {
-      return t("settings.anki.resetConfirmDesc");
-    }
-    return t("settings.resetConfirmDesc");
-  });
-  // Export format: exportFormatStore is the single source of truth and
-  // persists on its own setters — no sync $effects needed here.
+  let resetTitle = $derived(
+    showResetConfirm && ["overview", "llm", "whisper", "language", "anki"].includes(showResetConfirm)
+      ? t(`settings.${showResetConfirm}.resetConfirmTitle`)
+      : t("settings.resetConfirmTitle")
+  );
+  let resetMessage = $derived(
+    showResetConfirm && ["overview", "llm", "whisper", "language", "anki"].includes(showResetConfirm)
+      ? t(`settings.${showResetConfirm}.resetConfirmDesc`)
+      : t("settings.resetConfirmDesc")
+  );
+
   $effect(() => {
-    const _ = uiMode.expertMode;
+    void uiMode.expertMode;
     try {
       const savedCores = vestaConfig.getItem("vesta_cpu_cores");
-      if (savedCores) {
-        cpuRamStore.cpuCores = parseInt(savedCores);
-      }
+      if (savedCores) cpuRamStore.cpuCores = parseInt(savedCores);
     } catch {}
   });
 
   $effect(() => {
     if (!uiMode.expertMode) {
-      if (activeSettingsSection === "language" || activeSettingsSection === "anki") {
-        activeSettingsSection = "overview";
-      }
-      if (requestedSection === "language" || requestedSection === "anki") {
-        requestedSection = "overview";
-      }
+      if (activeSettingsSection === "language" || activeSettingsSection === "anki") activeSettingsSection = "overview";
+      if (requestedSection === "language" || requestedSection === "anki") requestedSection = "overview";
     }
   });
 
@@ -562,7 +276,7 @@
   function resetLlmSettings() {
     defaultLlmSettings.resetLocal(DEFAULT_LOCAL_URL);
     resetRefinementPrompt();
-    persistDefaultLlmSettings();
+    defaultLlmSettings.persist();
     snackbar.show(t("settings.llm.resetSuccess"), "info");
   }
 
@@ -583,103 +297,50 @@
     smartMatchingStore.resetRules();
     smartMatchingStore.setEnabled(true);
     smartMatchingRulesDraft.loadFromStore();
-
     snackbar.show(t("settings.language.resetSuccess"), "info");
   }
 
-
-  let currentProviderModels = $derived(
-    getModelsForProvider(selectedProviderType),
-  );
-
-  let families = $derived.by(() => {
-    const fams = new Set<string>();
-    currentProviderModels.forEach((m) => {
-      if (m.family) fams.add(m.family);
-    });
-    return Array.from(fams).sort();
-  });
-
-  $effect(() => {
-    if (
-      families.length > 0 &&
-      (!selectedFamily || !families.includes(selectedFamily))
-    ) {
-      selectedFamily = families[0];
-    }
-  });
-
-  let filteredModels = $derived(
-    selectedFamily
-      ? currentProviderModels.filter((m) => m.family === selectedFamily)
-      : [],
-  );
+  const syncTiersFromStorage = () => { tiers = loadTiers(); };
 
   onMount(() => {
     void diagnosticsStore.refresh();
     void cpuRamStore.init();
     void updateCheckerStore.init();
-
     loadApiKeys();
     smartMatchingRulesDraft.loadFromStore();
     whisperModelsStore.defaultWhisperModel = vestaConfig.getItem("srt-default-whisper-model") || "base";
-
     whisperModelsStore.refreshModels().catch((e) => console.error("Could not list models:", e));
     void whisperModelsStore.refreshAddons();
 
     const handleKeydown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        if (deleteConfirmId) {
-          cancelDelete();
-        } else if (apiKeyEditorStore.showAddKey) {
-          apiKeyEditorStore.close();
-        }
+        if (deleteConfirmId) cancelDelete();
+        else if (apiKeyEditorStore.showAddKey) apiKeyEditorStore.close();
       }
     };
-
     const handleOpenAddKeyModalEvent = (event: Event) => {
       const providerId = (event as CustomEvent<{ providerId?: string }>).detail?.providerId;
       apiKeyEditorStore.openAdd(providerId === "custom_whisper" ? "whisper" : "llm", "custom");
     };
 
     tiers = loadTiers();
-    transcribeTiers = loadTranscribeTiers();
     window.addEventListener("keydown", handleKeydown);
     window.addEventListener("vesta-open-settings-section", handleOpenSettingsSectionEvent);
     window.addEventListener("vesta-open-add-key-modal", handleOpenAddKeyModalEvent);
     window.addEventListener(TIERS_UPDATED_EVENT, syncTiersFromStorage);
-    window.addEventListener(TRANSCRIBE_TIERS_UPDATED_EVENT, syncTranscribeTiersFromStorage);
 
     let activeListener = true;
     let unlistenProg: (() => void) | null = null;
-
-    // Real backend subscription (unlike the whisper-model download/uninstall
-    // window events, which only ever originate from WhisperSettingsPanel's
-    // own child TranscribeTiers) -- stays registered for SettingsTab's whole
-    // lifetime so progress tracking survives navigating away from the
-    // "whisper" section mid-download. See [[vesta-settings-refactor]].
-    listen<{
-      stage: string;
-      message: string;
-      percentage: number;
-    }>("transcribe-progress", (event) => {
+    listen<{ stage: string; message: string; percentage: number }>("transcribe-progress", (event) => {
       const p = event.payload;
-      if (p.stage !== "download" || !whisperModelsStore.isDownloading && !whisperModelsStore.downloadingVadId) return;
+      if (p.stage !== "download" || (!whisperModelsStore.isDownloading && !whisperModelsStore.downloadingVadId)) return;
       whisperModelsStore.progress = Math.round(p.percentage);
       whisperModelsStore.progressMessage = p.message;
       whisperModelsStore.progressStage = p.stage;
       window.dispatchEvent(new CustomEvent("vesta-whisper-download-progress", {
-        detail: {
-          modelId: whisperModelsStore.downloadingModelId,
-          progress: Math.round(p.percentage),
-          stage: p.stage,
-          message: p.message
-        }
+        detail: { modelId: whisperModelsStore.downloadingModelId, progress: Math.round(p.percentage), stage: p.stage, message: p.message },
       }));
-    }).then((fn) => {
-      if (!activeListener) fn();
-      else unlistenProg = fn;
-    }).catch(console.error);
+    }).then((fn) => { if (!activeListener) fn(); else unlistenProg = fn; }).catch(console.error);
 
     return () => {
       activeListener = false;
@@ -687,203 +348,89 @@
       window.removeEventListener("vesta-open-settings-section", handleOpenSettingsSectionEvent);
       window.removeEventListener("vesta-open-add-key-modal", handleOpenAddKeyModalEvent);
       window.removeEventListener(TIERS_UPDATED_EVENT, syncTiersFromStorage);
-      window.removeEventListener(TRANSCRIBE_TIERS_UPDATED_EVENT, syncTranscribeTiersFromStorage);
       if (unlistenProg) unlistenProg();
     };
   });
 
-  function syncTiersFromStorage() {
-    tiers = loadTiers();
-  }
-
-  function syncTranscribeTiersFromStorage() {
-    transcribeTiers = loadTranscribeTiers();
-  }
-
-  let needsQuickSetup = $derived(whisperModelsStore.downloadedWhisperCount === 0 || !isDefaultLlmReady);
-
-  // Shared with the whisper section's model grid (see WhisperSettingsPanel.svelte)
-  // and the llm section's refinement-prompt editor -- stays here since both
-  // read it.
   let highlightedModelId = $state<string | null>(null);
-
   $effect(() => {
-    if (highlightItemId) {
-      highlightedModelId = highlightItemId;
-      const targetId = highlightItemId === "notification-whisper" ? "whisper-models" : highlightItemId;
-
-      // Scroll to the element if it exists in the DOM
-      const scrollTimer = setTimeout(() => {
-        if (targetId) {
-          const el = document.getElementById(targetId);
-          if (el) {
-            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            if (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT') {
-              el.focus();
-            }
-          }
-        }
-      }, 100);
-
-      const timer = setTimeout(() => {
-        highlightedModelId = null;
-        highlightItemId = null;
-      }, 1500);
-      return () => { clearTimeout(scrollTimer); clearTimeout(timer); };
-    }
+    if (!highlightItemId) return;
+    highlightedModelId = highlightItemId;
+    const targetId = highlightItemId === "notification-whisper" ? "whisper-models" : highlightItemId;
+    const scrollTimer = setTimeout(() => {
+      const el = targetId ? document.getElementById(targetId) : null;
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+        if (el.tagName === "TEXTAREA" || el.tagName === "INPUT") el.focus();
+      }
+    }, 100);
+    const timer = setTimeout(() => { highlightedModelId = null; highlightItemId = null; }, 1500);
+    return () => { clearTimeout(scrollTimer); clearTimeout(timer); };
   });
 
   $effect(() => {
     if (typeof window === "undefined") return;
-    publishSettingsActionState(
-      buildSettingsActionHash({
-        needsWhisper: whisperModelsStore.downloadedWhisperCount === 0 && !aiStore.killSwitchActive,
-        needsLlm: !isDefaultLlmReady && !aiStore.killSwitchActive,
-      }),
-    );
+    publishSettingsActionState(buildSettingsActionHash({
+      needsWhisper: whisperModelsStore.downloadedWhisperCount === 0 && !aiStore.killSwitchActive,
+      needsLlm: !isDefaultLlmReady && !aiStore.killSwitchActive,
+    }));
   });
 
   $effect(() => {
     if (aiStore.killSwitchActive) {
-      if (activeSettingsSection === "llm" || activeSettingsSection === "whisper") {
-        activeSettingsSection = "overview";
-      }
-      if (requestedSection === "llm" || requestedSection === "whisper") {
-        requestedSection = "overview";
-      }
+      if (activeSettingsSection === "llm" || activeSettingsSection === "whisper") activeSettingsSection = "overview";
+      if (requestedSection === "llm" || requestedSection === "whisper") requestedSection = "overview";
     }
   });
 
-  function loadApiKeys() {
-    apiKeys = loadAndValidateApiKeys();
-  }
-
+  function loadApiKeys() { apiKeys = loadAndValidateApiKeys(); }
   function saveApiKeys() {
     apiKeys = normalizeApiKeyDefaults(apiKeys);
     vestaConfig.setItem("srt-tools-api-keys", JSON.stringify(apiKeys));
-    // Dispatch custom event to notify other tabs in the same window
     window.dispatchEvent(new CustomEvent("apikeys-updated"));
   }
-
-  function generateId(): string {
-    return Date.now().toString(36) + Math.random().toString(36).substr(2);
-  }
-
-  function openAddKeyModal(providerId?: string) {
-    apiKeyEditorStore.openAdd(activeSettingsSection === "whisper" ? "whisper" : "llm", providerId);
-  }
-
+  const generateId = () => Date.now().toString(36) + Math.random().toString(36).substr(2);
+  const openAddKeyModal = (providerId?: string) => apiKeyEditorStore.openAdd(activeSettingsSection === "whisper" ? "whisper" : "llm", providerId);
   function openEditKeyModal(id: string) {
     const key = apiKeys.find((k) => k.id === id);
-    if (!key) return;
-    apiKeyEditorStore.openEdit(key, activeSettingsSection === "whisper" ? "whisper" : "llm");
+    if (key) apiKeyEditorStore.openEdit(key, activeSettingsSection === "whisper" ? "whisper" : "llm");
   }
 
   function addApiKey() {
-    const editKeyId = apiKeyEditorStore.editKeyId;
-    const newKeyType = apiKeyEditorStore.newKeyType;
-    const newKeyName = apiKeyEditorStore.newKeyName;
-    const newKeyValue = apiKeyEditorStore.newKeyValue;
-    const newKeyUrl = apiKeyEditorStore.newKeyUrl;
-    const capabilities: ("llm" | "stt")[] | undefined = newKeyType === "custom" ? (apiKeyEditorStore.newKeyUsage === "both" ? ["llm", "stt"] : [apiKeyEditorStore.newKeyUsage]) : newKeyType === "local" ? ["llm"] : undefined;
+    const outcome = validateAndApplyApiKey(
+      apiKeys,
+      {
+        editKeyId: apiKeyEditorStore.editKeyId,
+        newKeyType: apiKeyEditorStore.newKeyType,
+        newKeyName: apiKeyEditorStore.newKeyName,
+        newKeyValue: apiKeyEditorStore.newKeyValue,
+        newKeyUrl: apiKeyEditorStore.newKeyUrl,
+        newKeyUsage: apiKeyEditorStore.newKeyUsage,
+      },
+      generateId,
+    );
+    if (!outcome.ok) { showSnackbar(t(outcome.errorKey), "error"); return; }
 
-    if (!newKeyName.trim()) {
-      showSnackbar(t("settings.errorNameRequired"), "error");
-      return;
-    }
-
-    if (
-      (newKeyType === "local" || newKeyType === "custom") &&
-      !newKeyUrl.trim()
-    ) {
-      showSnackbar(t("settings.errorEndpointRequired"), "error");
-      return;
-    }
-
-    if (
-      newKeyType !== "local" &&
-      newKeyType !== "custom" &&
-      !newKeyValue.trim()
-    ) {
-      showSnackbar(t("settings.errorKeyRequired"), "error");
-      return;
-    }
-
-    if (newKeyType === "google" && !newKeyValue.trim().startsWith("AIza")) {
-      showSnackbar(t("settings.errorInvalidGoogleKey"), "error");
-      return;
-    }
-
-    if (newKeyType === "groq" && !newKeyValue.trim().startsWith("gsk_")) {
-      showSnackbar(t("settings.errorInvalidGroqKey"), "error");
-      return;
-    }
-
-    if (hasProviderNameConflict(apiKeys, newKeyName, editKeyId)) {
-      showSnackbar(t("settings.errorDuplicateCustomName"), "error");
-      return;
-    }
-
-    if (newKeyType === "custom" || newKeyType === "local") {
-      try {
-        const endpoint = new URL(newKeyUrl.trim());
-        if (!["http:", "https:"].includes(endpoint.protocol) || endpoint.username || endpoint.password || endpoint.search || endpoint.hash) throw new Error("Invalid base URL");
-      } catch {
-        showSnackbar(t("settings.errorEndpointInvalid"), "error");
-        return;
-      }
-    }
-
-    // Auto-set API URL for known providers (custom/local keep the typed URL)
-    let resolvedUrl = newKeyUrl.trim() || undefined;
-    if (newKeyType !== "custom" && newKeyType !== "local") {
-      resolvedUrl = providers[newKeyType]?.defaultApiUrl || resolvedUrl;
-    }
-
-    if (editKeyId) {
-      // Edit existing key
-      apiKeys = apiKeys.map((k) =>
-        k.id === editKeyId
-          ? {
-              ...k,
-              name: newKeyName.trim(),
-              apiType: newKeyType,
-              apiKey: newKeyValue.trim(),
-              apiUrl: resolvedUrl,
-              capabilities,
-            }
-          : k,
-      );
-      saveApiKeys();
-      if (newKeyType === "custom" && defaultLlmSettings.customProviderId === editKeyId) {
+    apiKeys = outcome.nextKeys;
+    saveApiKeys();
+    if (outcome.isEdit) {
+      if (apiKeyEditorStore.newKeyType === "custom" && defaultLlmSettings.customProviderId === apiKeyEditorStore.editKeyId) {
         void refreshDefaultEndpointModels();
       }
       showSnackbar(t("settings.keyUpdated"));
     } else {
-      // Add new key
-      const newKey: ApiKeyConfig = {
-        id: generateId(),
-        name: newKeyName.trim(),
-        apiType: newKeyType,
-        apiKey: newKeyValue.trim(),
-        apiUrl: resolvedUrl,
-        capabilities,
-        isDefault: apiKeys.filter((k) => k.apiType === newKeyType).length === 0,
-      };
-      apiKeys = [...apiKeys, newKey];
-      saveApiKeys();
       showSnackbar(t("settings.keyAdded"));
     }
 
-    if (editKeyId === "local" && newKeyType === "local" && resolvedUrl) {
-      defaultLlmSettings.localServerUrl = resolvedUrl;
+    if (apiKeyEditorStore.editKeyId === "local" && apiKeyEditorStore.newKeyType === "local" && outcome.resolvedUrl) {
+      defaultLlmSettings.localServerUrl = outcome.resolvedUrl;
       defaultLlmSettings.persist();
     }
     apiKeyEditorStore.reset();
   }
 
   let deleteConfirmId = $state<string | null>(null);
-  let deleteConfirmName = $state<string>("");
+  let deleteConfirmName = $state("");
 
   function askDeleteApiKey(id: string) {
     const key = apiKeys.find((k) => k.id === id);
@@ -891,302 +438,112 @@
     deleteConfirmId = id;
     deleteConfirmName = key.name;
   }
-
-  function cancelDelete() {
-    deleteConfirmId = null;
-    deleteConfirmName = "";
-  }
-
+  function cancelDelete() { deleteConfirmId = null; deleteConfirmName = ""; }
   function confirmDeleteApiKey() {
     if (!deleteConfirmId) return;
-
     const key = apiKeys.find((k) => k.id === deleteConfirmId);
-    if (!key) {
-      cancelDelete();
-      return;
-    }
-
+    if (!key) { cancelDelete(); return; }
     if (apiKeyEditorStore.editKeyId === deleteConfirmId) apiKeyEditorStore.reset();
     apiKeys = apiKeys.filter((k) => k.id !== deleteConfirmId);
-
     saveApiKeys();
     showSnackbar(t("settings.keyDeleted"));
     cancelDelete();
   }
-
   function setDefaultKey(id: string) {
     const key = apiKeys.find((k) => k.id === id);
     if (!key) return;
-
     apiKeys = apiKeys.map((k) => ({
       ...k,
       isDefault: apiKeyDefaultGroup(k) === apiKeyDefaultGroup(key) ? k.id === id : k.isDefault,
     }));
     saveApiKeys();
   }
-
-  function onModelClick(model: ModelInfo) {
-    openAddKeyModal(model.provider);
-  }
-
 </script>
 
-<div
-  class="h-full flex flex-col bg-gray-900 overflow-hidden"
->
-  {#if activeSettingsSection === 'shortcuts'}
-    <div class="flex-1 flex flex-col min-h-0">
-      <ShortcutsTab />
-    </div>
+<div class="h-full flex flex-col bg-gray-900 overflow-hidden">
+  {#if activeSettingsSection === "shortcuts"}
+    <div class="flex-1 flex flex-col min-h-0"><ShortcutsTab /></div>
   {:else}
-    <!-- Scrollable content area -->
     <div use:settledScroll data-dense={activeSettingsSection === "llm" || activeSettingsSection === "whisper"} class="settings-scroll stable-settings-layout flex-1 min-h-0 overflow-y-auto p-6">
-
-
-  {#if activeSettingsSection === "overview"}
-    <OverviewSettingsPanel {defaultLanguagesCard} />
-  {/if}
-
-  {#if activeSettingsSection === "language"}
-  <div class="mb-6 flex flex-col gap-4">
-    {@render defaultLanguagesCard()}
-
-    <!-- Smart Matching Card -->
-    {#if uiMode.expertMode}
-      <div id="smart-matching-rules" class="glass-card p-6 flex flex-col gap-4">
-        <ToggleRow
-          label={t("settings.smartMatching.title")}
-          checked={smartMatchingEnabled}
-          onchange={toggleSmartMatching}
-          accent="violet"
-          iconPath="M13 10V3L4 14h7v7l9-11h-7z"
+      {#snippet defaultLanguagesCard()}
+        <DefaultLanguagesCard
+          {defaultNativeLanguage}
+          {defaultFlashcardsLanguage}
+          {defaultTargetLanguage}
+          {defaultTranscribeLanguage}
+          onChangeNative={(v) => { defaultNativeLanguage = v; saveDefaultLanguage(DEFAULT_NATIVE_LANGUAGE_KEY, v); }}
+          onChangeFlashcards={(v) => {
+            defaultFlashcardsLanguage = v;
+            saveDefaultLanguage(DEFAULT_FLASHCARDS_LANGUAGE_KEY, v);
+            saveDefaultLanguage(NOTE_TYPE_LANGUAGE_KEY, v);
+          }}
+          onChangeTarget={(v) => { defaultTargetLanguage = v; saveDefaultLanguage(DEFAULT_TARGET_LANGUAGE_KEY, v); }}
+          onChangeTranscribe={(v) => { defaultTranscribeLanguage = v; saveDefaultLanguage(DEFAULT_TRANSCRIBE_LANGUAGE_KEY, v); }}
         />
+      {/snippet}
 
-        {#if smartMatchingEnabled}
-          <!-- Rules Editor -->
-          <div class="mt-4 pt-4 border-t border-white/5 space-y-3">
-            <div class="relative">
-              <CodeEditor
-                bind:value={smartMatchingRulesDraft.value}
-                language="jsonc"
-                heightClass="h-[520px]"
-                onchange={saveSmartMatchingRules}
-              />
-            </div>
-            {#if smartMatchingRulesDraft.error}
-              <p class="mt-2 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-200">
-                {smartMatchingRulesDraft.error}
-              </p>
-            {/if}
-          </div>
-        {/if}
-      </div>
-    {/if}
-  </div>
-  {/if}
-
-  {#snippet defaultLanguagesCard()}
-    <!-- Keep the card lifted so language dropdowns paint over the cards below. -->
-    <div class="glass-card p-6 relative z-30">
-      <div class="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-4 gap-5">
-        <div class="relative z-40 rounded-xl border border-transparent bg-white/5 p-5">
-          <div class="flex items-center justify-between gap-3 mb-4">
-            <span class="flex items-center gap-2 text-sm font-semibold text-white"><span class="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/15 text-emerald-300"><svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 3a4 4 0 110 8 4 4 0 010-8zM5 21a7 7 0 0114 0"/></svg></span>{s("nativeLanguage")}</span>
-            <span class="text-3xl">{languages.find((lang) => lang.code === defaultNativeLanguage)?.flag || "🌐"}</span>
-          </div>
-          <LanguageSelect
-            className="language-select"
-            noResultsText={t("common.noResults")}
-            value={defaultNativeLanguage}
-            onchange={(v) => {
-              defaultNativeLanguage = v;
-              saveDefaultLanguage(DEFAULT_NATIVE_LANGUAGE_KEY, v);
-            }}
-            placeholder={t("flashcards.noteTypeLanguagePlaceholder")}
-          />
-          <p class="mt-3 text-xs leading-relaxed text-gray-500">{s("nativeLanguageHint")}</p>
-        </div>
-        <div class="relative z-30 rounded-xl border border-transparent bg-white/5 p-5">
-          <div class="flex items-center justify-between gap-3 mb-4">
-            <span class="flex items-center gap-2 text-sm font-semibold text-white"><span class="flex h-8 w-8 items-center justify-center rounded-lg bg-violet-500/15 text-violet-300">文</span>{s("studyingLanguage")}</span>
-            <span class="text-3xl">{languages.find((lang) => lang.code === defaultFlashcardsLanguage)?.flag || "🌐"}</span>
-          </div>
-          <LanguageSelect
-            className="language-select"
-            noResultsText={t("common.noResults")}
-            value={defaultFlashcardsLanguage}
-            onchange={(v) => {
-              defaultFlashcardsLanguage = v;
-              saveDefaultLanguage(DEFAULT_FLASHCARDS_LANGUAGE_KEY, v);
-              saveDefaultLanguage(NOTE_TYPE_LANGUAGE_KEY, v);
-            }}
-            placeholder={t("flashcards.noteTypeLanguagePlaceholder")}
-          />
-          <p class="mt-3 text-xs leading-relaxed text-gray-500">{s("studyingLanguageHint")}</p>
-        </div>
-        <div class="relative z-20 rounded-xl border border-transparent bg-white/5 p-5">
-          <div class="flex items-center justify-between gap-3 mb-4">
-            <span class="flex items-center gap-2 text-sm font-semibold text-white"><span class="flex h-8 w-8 items-center justify-center rounded-lg bg-cyan-500/15 text-cyan-300"><svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M7 7h11m0 0-3-3m3 3-3 3M17 17H6m0 0 3 3m-3-3 3-3"/></svg></span>{s("translationLanguage")}</span>
-            <span class="text-3xl">{languages.find((lang) => lang.code === defaultTargetLanguage)?.flag || "🌐"}</span>
-          </div>
-          <LanguageSelect
-            className="language-select"
-            noResultsText={t("common.noResults")}
-            value={defaultTargetLanguage}
-            onchange={(v) => {
-              defaultTargetLanguage = v;
-              saveDefaultLanguage(DEFAULT_TARGET_LANGUAGE_KEY, v);
-            }}
-            placeholder={t("translate.targetLang")}
-          />
-          <p class="mt-3 text-xs leading-relaxed text-gray-500">{s("translationLanguageHint")}</p>
-        </div>
-        <div class="relative z-10 rounded-xl border border-transparent bg-white/5 p-5">
-          <div class="flex items-center justify-between gap-3 mb-4">
-            <span class="flex items-center gap-2 text-sm font-semibold text-white"><span class="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-500/15 text-amber-300"><svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 3a3 3 0 00-3 3v6a3 3 0 006 0V6a3 3 0 00-3-3zM5 11a7 7 0 0014 0M12 18v3m-4 0h8"/></svg></span>{s("transcription")}</span>
-            <span class="text-3xl">{defaultTranscribeLanguage === "auto" ? "🌐" : languages.find((lang) => lang.code === defaultTranscribeLanguage)?.flag || "🌐"}</span>
-          </div>
-          <LanguageSelect
-            className="language-select"
-            noResultsText={t("common.noResults")}
-            autoDetect
-            value={defaultTranscribeLanguage}
-            onchange={(v) => {
-              defaultTranscribeLanguage = v;
-              saveDefaultLanguage(DEFAULT_TRANSCRIBE_LANGUAGE_KEY, v);
-            }}
-            placeholder={t("transcribe.sourceLanguage")}
-          />
-          <p class="mt-3 text-xs leading-relaxed text-gray-500">{s("transcriptionLanguageHint")}</p>
-        </div>
-      </div>
-    </div>
-  {/snippet}
-
-  {#if activeSettingsSection === "llm" && !aiStore.killSwitchActive}
-    <div id="notification-llm" class:notification-target-pulse={highlightedModelId === "notification-llm"}>
-    <ApiKeysCard
-      title={s("apiKeysSaved")}
-      addButtonLabel={s("addProviderButton")}
-      defaultProvider="custom"
-      apiKeys={apiKeys.filter(key => supportsCapability(key, "llm"))}
-      onAddKey={openAddKeyModal}
-      onEditKey={openEditKeyModal}
-      onDeleteKey={askDeleteApiKey}
-      onSetDefault={setDefaultKey}
-    />
-
-      <!-- Translation Tiers (priority list + failover) -->
-      <div class="glass-card flex flex-col mb-6 mt-4 relative z-20">
-        <div class="p-4 border-b border-white/5 flex items-center justify-between gap-3 w-full">
-          <div class="flex items-center gap-3">
-            <div class="w-9 h-9 rounded-lg bg-indigo-500/20 text-indigo-300 flex items-center justify-center shrink-0">
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h10M4 18h6" />
-              </svg>
-            </div>
-            <div>
-              <h3 class="text-sm font-bold text-white">{t("tiers.cardTitle")}</h3>
-            </div>
-          </div>
-          <button
-            type="button"
-            onclick={() => translationTiersRef?.triggerAddTier()}
-            class="inline-flex items-center justify-center gap-2 rounded-lg bg-indigo-500 px-3.5 py-2 text-xs font-bold text-white shadow-lg shadow-indigo-500/20 hover:bg-indigo-400 transition-colors cursor-pointer"
-          >
-            + {t("tiers.addTier")}
-          </button>
-        </div>
-        <div class="p-4">
-          <TranslationTiers bind:this={translationTiersRef} {active} />
-        </div>
-      </div>
-
-    </div>
-      <!-- Default Flashcard Refinement Prompt -->
-      <div class="glass-card p-5 mt-10 mb-6 relative z-10">
-        <div class="flex items-center gap-3 mb-4">
-          <div class="w-9 h-9 rounded-lg bg-indigo-500/20 text-indigo-300 flex items-center justify-center shrink-0">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-            </svg>
-          </div>
-          <div>
-            <h3 class="text-sm font-bold text-white">{t("settings.refinementPromptTitle")}</h3>
-          </div>
-        </div>
-        <div class="space-y-3">
-          <CodeEditor
-            id="default-refinement-prompt"
-            bind:value={defaultRefinementPrompt}
-            onchange={persistRefinementPrompt}
-            language="prompt"
-            placeholder={DEFAULT_REFINEMENT_PROMPT}
-            heightClass="h-[450px]"
-            class={highlightedModelId === "default-refinement-prompt" ? "editor-highlight-pulse" : ""}
-          />
-        </div>
-      </div>
-  {/if}
-
-  <!-- Whisper Models -->
-  {#if activeSettingsSection === "whisper" && !aiStore.killSwitchActive}
-    <WhisperSettingsPanel
-      {s}
-      apiKeys={apiKeys.filter(key => supportsCapability(key, "stt"))}
-      onAddKey={openAddKeyModal}
-      onEditKey={openEditKeyModal}
-      onDeleteKey={askDeleteApiKey}
-      onSetDefault={setDefaultKey}
-      {highlightedModelId}
-      {whisperEngine}
-    />
-  {/if}
-
-  {#if activeSettingsSection === "anki"}
-    <AnkiSettingsPanel {s} />
-  {/if}
-
-  {#if activeSettingsSection === "diagnostics"}
-    <DiagnosticsSettingsPanel />
-  {/if}
-  </div>
-
-  <!-- Fixed Bottom Band: reset è un'azione rara e distruttiva, quindi piccola
-       e in un angolo (con conferma) invece di un bottone rosso gigante al
-       centro di ogni sezione di Settings. -->
-  <FooterActions justify="end">
-    {#snippet right()}
-      {#if activeSettingsSection !== "diagnostics"}
-      <button
-        onclick={() => {
-          if (activeSettingsSection !== "shortcuts" && activeSettingsSection !== "diagnostics") {
-            showResetConfirm = activeSettingsSection;
-          }
-        }}
-        class="px-3.5 py-2 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-300 rounded-lg font-semibold text-xs transition-colors flex items-center gap-1.5 cursor-pointer"
-      >
-        <svg
-          class="w-3.5 h-3.5"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-          />
-        </svg>
-        {t("settings.resetDefaults")}
-      </button>
+      {#if activeSettingsSection === "overview"}
+        <OverviewSettingsPanel {defaultLanguagesCard} />
+      {:else if activeSettingsSection === "language"}
+        <LanguageSettingsPanel
+          {defaultLanguagesCard}
+          {smartMatchingEnabled}
+          bind:rulesDraftValue={smartMatchingRulesDraft.value}
+          rulesDraftError={smartMatchingRulesDraft.error}
+          onToggleSmartMatching={() => smartMatchingRulesDraft.toggle()}
+          onSaveSmartMatchingRules={() => smartMatchingRulesDraft.save()}
+        />
+      {:else if activeSettingsSection === "llm" && !aiStore.killSwitchActive}
+        <LlmSettingsPanel
+          {active}
+          {apiKeys}
+          {highlightedModelId}
+          bind:defaultRefinementPrompt
+          onAddKey={openAddKeyModal}
+          onEditKey={openEditKeyModal}
+          onDeleteKey={askDeleteApiKey}
+          onSetDefault={setDefaultKey}
+          onPersistPrompt={persistRefinementPrompt}
+        />
+      {:else if activeSettingsSection === "whisper" && !aiStore.killSwitchActive}
+        <WhisperSettingsPanel
+          {s}
+          apiKeys={apiKeys.filter((key) => supportsCapability(key, "stt"))}
+          onAddKey={openAddKeyModal}
+          onEditKey={openEditKeyModal}
+          onDeleteKey={askDeleteApiKey}
+          onSetDefault={setDefaultKey}
+          {highlightedModelId}
+          {whisperEngine}
+        />
+      {:else if activeSettingsSection === "anki"}
+        <AnkiSettingsPanel {s} />
+      {:else if activeSettingsSection === "diagnostics"}
+        <DiagnosticsSettingsPanel />
       {/if}
-    {/snippet}
-  </FooterActions>
+    </div>
+
+    <FooterActions justify="end">
+      {#snippet right()}
+        {#if activeSettingsSection !== "diagnostics"}
+          <button
+            onclick={() => {
+              if (activeSettingsSection !== "shortcuts" && activeSettingsSection !== "diagnostics") {
+                showResetConfirm = activeSettingsSection;
+              }
+            }}
+            class="px-3.5 py-2 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-300 rounded-lg font-semibold text-xs transition-colors flex items-center gap-1.5 cursor-pointer"
+          >
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            {t("settings.resetDefaults")}
+          </button>
+        {/if}
+      {/snippet}
+    </FooterActions>
   {/if}
 
-  <!-- Reset Confirmation Dialog -->
   <ConfirmDialog
     show={!!showResetConfirm}
     title={resetTitle}
@@ -1196,15 +553,11 @@
     variant="danger"
     on:cancel={() => (showResetConfirm = null)}
     on:confirm={() => {
-      if (showResetConfirm === "overview") {
-        resetOverviewSettings();
-      } else if (showResetConfirm === "llm") {
-        resetLlmSettings();
-      } else if (showResetConfirm === "whisper") {
-        whisperModelsStore.resetAll();
-      } else if (showResetConfirm === "language") {
-        resetLanguageSettings();
-      } else if (showResetConfirm === "anki") {
+      if (showResetConfirm === "overview") resetOverviewSettings();
+      else if (showResetConfirm === "llm") resetLlmSettings();
+      else if (showResetConfirm === "whisper") whisperModelsStore.resetAll();
+      else if (showResetConfirm === "language") resetLanguageSettings();
+      else if (showResetConfirm === "anki") {
         ankiTemplateStore.resetAll();
         ankiStore.setUrl("http://127.0.0.1:8765");
         ankiStore.setDictionaryLookup(true);
@@ -1242,79 +595,15 @@
     :global(.notification-target-pulse) { animation: none; outline: 2px solid var(--color-yellow-300); }
   }
 
-  ::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
-  }
-  ::-webkit-scrollbar-track {
-    background: transparent;
-  }
-  ::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: 3px;
-  }
-  ::-webkit-scrollbar-thumb:hover {
-    background: rgba(255, 255, 255, 0.2);
-  }
-
-  /* Tooltip for Card Style info buttons only */
-  :global(.card-style-tooltip) {
-    display: none;
-    position: absolute;
-    bottom: calc(100% + 8px);
-    right: 0;
-    width: 280px;
-    padding: 8px 10px;
-    background: #1f2937;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 8px;
-    font-size: 11px;
-    line-height: 1.4;
-    color: #d1d5db;
-    z-index: 50;
-    pointer-events: none;
-    white-space: normal;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-  }
-  :global(.card-style-tooltip.down) {
-    bottom: auto;
-    top: calc(100% + 8px);
-  }
-  :global(.group:hover > .card-style-tooltip) {
-    display: block;
-  }
-
-
-  :global(.settings-quick-setup-pulse) {
-    animation: settings-quick-setup-pulse 1.45s ease-in-out infinite;
-  }
-
-  @keyframes settings-quick-setup-pulse {
-    0%,
-    100% {
-      border-color: rgba(251, 191, 36, 0.28);
-      box-shadow: 0 0 0 0 rgba(251, 191, 36, 0);
-    }
-
-    50% {
-      border-color: rgba(249, 115, 22, 0.78);
-      box-shadow:
-        0 0 0 1px rgba(249, 115, 22, 0.32),
-        0 0 24px rgba(249, 115, 22, 0.24);
-    }
-  }
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.2); }
 
   :global(.language-select .searchable-select-input) {
     background: rgba(24, 24, 42, 0.98) !important;
     border: 1px solid rgba(148, 163, 184, 0.22);
   }
-
-  :global(.language-select .searchable-select-dropdown) {
-    background: #0f172a !important;
-  }
-
-  :global(.language-select .searchable-select-option) {
-    background: #0f172a !important;
-  }
-
+  :global(.language-select .searchable-select-dropdown) { background: #0f172a !important; }
+  :global(.language-select .searchable-select-option) { background: #0f172a !important; }
 </style>
