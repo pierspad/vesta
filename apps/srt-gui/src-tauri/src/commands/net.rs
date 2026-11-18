@@ -129,6 +129,27 @@ fn default_timeout_ms() -> u64 {
     15_000
 }
 
+// This IPC endpoint serves text metadata, not model or release asset downloads.
+const MAX_RESPONSE_BYTES: usize = 8 * 1024 * 1024;
+
+async fn bounded_response_text(mut response: reqwest::Response) -> Result<String, String> {
+    let too_large = || format!("HTTP response exceeds the {MAX_RESPONSE_BYTES}-byte limit");
+    if response
+        .content_length()
+        .is_some_and(|size| size > MAX_RESPONSE_BYTES as u64)
+    {
+        return Err(too_large());
+    }
+    let mut bytes = Vec::new();
+    while let Some(chunk) = response.chunk().await.map_err(|e| e.to_string())? {
+        if chunk.len() > MAX_RESPONSE_BYTES - bytes.len() {
+            return Err(too_large());
+        }
+        bytes.extend_from_slice(&chunk);
+    }
+    Ok(String::from_utf8_lossy(&bytes).into_owned())
+}
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct HttpFetchResponse {
@@ -184,7 +205,7 @@ pub async fn http_fetch(req: HttpFetchRequest) -> Result<HttpFetchResponse, Stri
             )
         })
         .collect();
-    let body = response.text().await.map_err(|e| e.to_string())?;
+    let body = bounded_response_text(response).await?;
 
     Ok(HttpFetchResponse {
         status,
@@ -197,6 +218,88 @@ pub async fn http_fetch(req: HttpFetchRequest) -> Result<HttpFetchResponse, Stri
 #[cfg(test)]
 mod tests {
     use super::*;
+    async fn local_response(header: String, body: Vec<u8>) -> reqwest::Response {
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let address = listener.local_addr().unwrap();
+        tokio::spawn(async move {
+            let (mut stream, _) = listener.accept().await.unwrap();
+            let mut request = [0u8; 4096];
+            let _ = stream.read(&mut request).await;
+            if stream.write_all(header.as_bytes()).await.is_ok() {
+                let _ = stream.write_all(&body).await;
+            }
+        });
+        reqwest::Client::new()
+            .get(format!("http://{address}"))
+            .timeout(Duration::from_secs(5))
+            .send()
+            .await
+            .unwrap()
+    }
+
+    #[tokio::test]
+    async fn bounds_fixed_length_chunked_and_close_delimited_responses() {
+        let size = MAX_RESPONSE_BYTES;
+        let response = local_response(
+            format!("HTTP/1.1 200 OK\r\nContent-Length: {}\r\n\r\n", size + 1),
+            Vec::new(),
+        )
+        .await;
+        assert!(
+            bounded_response_text(response)
+                .await
+                .unwrap_err()
+                .contains("exceeds")
+        );
+
+        for chunked in [false, true] {
+            let body = vec![b'x'; size + 1];
+            let (header, body) = if chunked {
+                let mut encoded = format!("{:x}\r\n", body.len()).into_bytes();
+                encoded.extend(body);
+                encoded.extend(b"\r\n0\r\n\r\n");
+                (
+                    "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n",
+                    encoded,
+                )
+            } else {
+                ("HTTP/1.1 200 OK\r\nConnection: close\r\n\r\n", body)
+            };
+            let response = local_response(header.into(), body).await;
+            assert!(
+                bounded_response_text(response)
+                    .await
+                    .unwrap_err()
+                    .contains("exceeds")
+            );
+        }
+
+        let response = local_response(
+            format!("HTTP/1.1 200 OK\r\nContent-Length: {size}\r\n\r\n"),
+            vec![b'x'; size],
+        )
+        .await;
+        assert_eq!(bounded_response_text(response).await.unwrap().len(), size);
+    }
+
+    #[tokio::test]
+    async fn preserves_utf8_text_and_reports_truncated_transport() {
+        let text = "日本語 café";
+        let response = local_response(
+            format!("HTTP/1.1 200 OK\r\nContent-Length: {}\r\n\r\n", text.len()),
+            text.as_bytes().to_vec(),
+        )
+        .await;
+        assert_eq!(bounded_response_text(response).await.unwrap(), text);
+        let response = local_response(
+            "HTTP/1.1 200 OK\r\nContent-Length: 100\r\n\r\n".into(),
+            b"short".to_vec(),
+        )
+        .await;
+        assert!(bounded_response_text(response).await.is_err());
+    }
+
     #[test]
     fn permits_loopback_and_lan_hosts_but_not_arbitrary_public_hosts() {
         for host in [

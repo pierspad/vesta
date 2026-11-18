@@ -186,6 +186,8 @@ failures for retry; mounted tab state remains owned by App's persistent containe
 The desktop UI never executes FFmpeg, Whisper or SQLite directly. Provider
 discovery, readiness checks and update metadata can use the frontend HTTP adapter
 (`tauriHttp.ts`); translation/transcription/annotation execution uses Rust engines.
+The metadata HTTP adapter limits response bodies to 8 MiB while streaming,
+including responses without a declared length.
 Svelte invokes typed Tauri commands; those commands translate persisted/UI
 configuration into library structs, hold cancellation state, and forward
 progress events. Domain behavior stays in `lib/`, so the same pipeline is used
