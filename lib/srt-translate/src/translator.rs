@@ -371,6 +371,44 @@ impl Translator {
         }
     }
 
+    async fn request_with_retries(
+        &self,
+        provider: &'static str,
+        request: impl Fn() -> reqwest::RequestBuilder,
+    ) -> Result<(reqwest::StatusCode, String)> {
+        const MAX_RETRIES: u32 = 3;
+        for attempt in 0..=MAX_RETRIES {
+            let response = request()
+                .send()
+                .await
+                .map_err(reqwest::Error::without_url)
+                .with_context(|| format!("{provider} API transport failed"))?;
+            let status = response.status();
+            let retry_after = response
+                .headers()
+                .get(reqwest::header::RETRY_AFTER)
+                .and_then(|value| value.to_str().ok())
+                .map(str::to_owned);
+            let text = response
+                .text()
+                .await
+                .map_err(reqwest::Error::without_url)
+                .with_context(|| format!("{provider} API response read failed"))?;
+            if let Some(delay) =
+                retry_backoff(status, &text, retry_after.as_deref(), attempt, MAX_RETRIES)
+            {
+                self.report_retry(status, attempt, MAX_RETRIES, delay);
+                sleep(delay).await;
+                continue;
+            }
+            if !status.is_success() {
+                return Err(provider_error(provider, status.as_u16(), &text).into());
+            }
+            return Ok((status, text));
+        }
+        unreachable!("the final attempt returns a response or an error")
+    }
+
     async fn call_google_api(&self, prompt: &str) -> Result<String> {
         #[derive(Serialize)]
         struct Part {
@@ -415,69 +453,42 @@ impl Translator {
             generation_config: GenerationConfig { temperature: 0.3 },
         };
 
-        const MAX_RETRIES: u32 = 3;
+        let (status, response_text) = self
+            .request_with_retries("Google", || {
+                self.client
+                    .post(&url)
+                    .header("x-goog-api-key", api_key)
+                    .header("Content-Type", "application/json")
+                    .json(&request)
+            })
+            .await?;
 
-        for attempt in 0..=MAX_RETRIES {
-            let http_response = self
-                .client
-                .post(&url)
-                .header("x-goog-api-key", api_key)
-                .header("Content-Type", "application/json")
-                .json(&request)
-                .send()
-                .await
-                .map_err(reqwest::Error::without_url)
-                .context("Google API transport failed")?;
+        let response: GeminiResponse =
+            serde_json::from_str(&response_text).map_err(|_| ProviderError {
+                provider: "Google",
+                status: status.as_u16(),
+                kind: ProviderFailureKind::InvalidResponse,
+            })?;
 
-            let status = http_response.status();
-            let response_text = http_response
-                .text()
-                .await
-                .map_err(reqwest::Error::without_url)
-                .context("Google API response read failed")?;
-
-            if let Some(delay) = retry_backoff(status, &response_text, attempt, MAX_RETRIES) {
-                self.report_retry(status, attempt, MAX_RETRIES, delay);
-                sleep(delay).await;
-                continue;
-            }
-
-            if !status.is_success() {
-                return Err(provider_error("Google", status.as_u16(), &response_text).into());
-            }
-
-            let response: GeminiResponse =
-                serde_json::from_str(&response_text).map_err(|_| ProviderError {
+        if let Some(ref error) = response.error {
+            if error.code == Some(429) {
+                return Err(ProviderError {
                     provider: "Google",
                     status: status.as_u16(),
-                    kind: ProviderFailureKind::InvalidResponse,
-                })?;
-
-            if let Some(ref error) = response.error {
-                if error.code == Some(429) {
-                    return Err(ProviderError {
-                        provider: "Google",
-                        status: status.as_u16(),
-                        kind: ProviderFailureKind::RateLimit,
-                    }
-                    .into());
+                    kind: ProviderFailureKind::RateLimit,
                 }
-                return Err(provider_error(
-                    "Google",
-                    status.as_u16(),
-                    error.message.as_deref().unwrap_or(""),
-                )
                 .into());
             }
-
-            let text = extract_gemini_text(response, status.as_u16())?;
-            return Ok(text);
+            return Err(provider_error(
+                "Google",
+                status.as_u16(),
+                error.message.as_deref().unwrap_or(""),
+            )
+            .into());
         }
 
-        anyhow::bail!(
-            "Google API rate limit exceeded after {} retries",
-            MAX_RETRIES
-        )
+        let text = extract_gemini_text(response, status.as_u16())?;
+        Ok(text)
     }
 
     async fn call_openai_api(&self, prompt: &str) -> Result<String> {
@@ -505,83 +516,56 @@ impl Translator {
 
         let request = build_openai_request(&self.config.model, prompt);
 
-        const MAX_RETRIES: u32 = 3;
+        let (status, response_text) = self
+            .request_with_retries("OpenAI-compatible", || {
+                let mut builder = self.client.post(&url).json(&request);
+                if let Some(api_key) = &self.config.api_key {
+                    builder = builder.bearer_auth(api_key);
+                }
+                if self.config.api_type == ApiType::OpenRouter {
+                    builder = builder
+                        .header("HTTP-Referer", "https://srt-tools.app")
+                        .header("X-Title", "SRT Tools");
+                }
+                builder
+            })
+            .await?;
 
-        for attempt in 0..=MAX_RETRIES {
-            let mut req_builder = self.client.post(&url).json(&request);
+        let response: ResponseWithError =
+            serde_json::from_str(&response_text).map_err(|_| ProviderError {
+                provider: "OpenAI-compatible",
+                status: status.as_u16(),
+                kind: ProviderFailureKind::InvalidResponse,
+            })?;
 
-            if let Some(api_key) = &self.config.api_key {
-                req_builder = req_builder.header("Authorization", format!("Bearer {}", api_key));
-            }
+        if let Some(ref api_error) = response.error {
+            let error_msg = api_error
+                .message
+                .as_deref()
+                .or(api_error.error.as_deref())
+                .unwrap_or("Unknown API error");
+            return Err(provider_error("OpenAI-compatible", status.as_u16(), error_msg).into());
+        }
 
-            if self.config.api_type == ApiType::OpenRouter {
-                req_builder = req_builder
-                    .header("HTTP-Referer", "https://srt-tools.app")
-                    .header("X-Title", "SRT Tools");
-            }
+        let choices = response.choices.ok_or_else(|| ProviderError {
+            provider: "OpenAI-compatible",
+            status: status.as_u16(),
+            kind: ProviderFailureKind::EmptyResponse,
+        })?;
 
-            let http_response = req_builder
-                .send()
-                .await
-                .map_err(reqwest::Error::without_url)
-                .context("OpenAI-compatible API transport failed")?;
-            let status = http_response.status();
-            let response_text = http_response
-                .text()
-                .await
-                .map_err(reqwest::Error::without_url)
-                .context("OpenAI-compatible API response read failed")?;
-
-            if let Some(delay) = retry_backoff(status, &response_text, attempt, MAX_RETRIES) {
-                self.report_retry(status, attempt, MAX_RETRIES, delay);
-                sleep(delay).await;
-                continue;
-            }
-
-            if !status.is_success() {
-                return Err(
-                    provider_error("OpenAI-compatible", status.as_u16(), &response_text).into(),
-                );
-            }
-
-            let response: ResponseWithError =
-                serde_json::from_str(&response_text).map_err(|_| ProviderError {
-                    provider: "OpenAI-compatible",
-                    status: status.as_u16(),
-                    kind: ProviderFailureKind::InvalidResponse,
-                })?;
-
-            if let Some(ref api_error) = response.error {
-                let error_msg = api_error
-                    .message
-                    .as_deref()
-                    .or(api_error.error.as_deref())
-                    .unwrap_or("Unknown API error");
-                return Err(provider_error("OpenAI-compatible", status.as_u16(), error_msg).into());
-            }
-
-            let choices = response.choices.ok_or_else(|| ProviderError {
+        let text = choices
+            .first()
+            .map(|c| c.message.content.trim().to_string())
+            .unwrap_or_default();
+        if text.trim_matches('"').trim().is_empty() {
+            return Err(ProviderError {
                 provider: "OpenAI-compatible",
                 status: status.as_u16(),
                 kind: ProviderFailureKind::EmptyResponse,
-            })?;
-
-            let text = choices
-                .first()
-                .map(|c| c.message.content.trim().to_string())
-                .unwrap_or_default();
-            if text.trim_matches('"').trim().is_empty() {
-                return Err(ProviderError {
-                    provider: "OpenAI-compatible",
-                    status: status.as_u16(),
-                    kind: ProviderFailureKind::EmptyResponse,
-                }
-                .into());
             }
-            return Ok(text);
+            .into());
         }
-
-        anyhow::bail!("API rate limit exceeded after {} retries", MAX_RETRIES)
+        Ok(text)
     }
 
     async fn call_anthropic_api(&self, prompt: &str) -> Result<String> {
@@ -596,63 +580,47 @@ impl Translator {
         let url = format!("{}/messages", self.config.base_url.trim_end_matches('/'));
         let request = build_anthropic_request(&self.config.model, prompt);
 
-        const MAX_RETRIES: u32 = 3;
+        let (status, response_text) = self
+            .request_with_retries("Anthropic", || {
+                self.client
+                    .post(&url)
+                    .header("x-api-key", api_key)
+                    .header("anthropic-version", "2023-06-01")
+                    .header("Content-Type", "application/json")
+                    .json(&request)
+            })
+            .await?;
 
-        for attempt in 0..=MAX_RETRIES {
-            let http_response = self
-                .client
-                .post(&url)
-                .header("x-api-key", api_key)
-                .header("anthropic-version", "2023-06-01")
-                .header("Content-Type", "application/json")
-                .json(&request)
-                .send()
-                .await
-                .map_err(reqwest::Error::without_url)
-                .context("Anthropic API transport failed")?;
+        let response: AnthropicResponse =
+            serde_json::from_str(&response_text).map_err(|_| ProviderError {
+                provider: "Anthropic",
+                status: status.as_u16(),
+                kind: ProviderFailureKind::InvalidResponse,
+            })?;
 
-            let status = http_response.status();
-            let response_text = http_response
-                .text()
-                .await
-                .map_err(reqwest::Error::without_url)
-                .context("Anthropic API response read failed")?;
-
-            if let Some(delay) = retry_backoff(status, &response_text, attempt, MAX_RETRIES) {
-                self.report_retry(status, attempt, MAX_RETRIES, delay);
-                sleep(delay).await;
-                continue;
-            }
-
-            if !status.is_success() {
-                return Err(provider_error("Anthropic", status.as_u16(), &response_text).into());
-            }
-
-            let response: AnthropicResponse =
-                serde_json::from_str(&response_text).map_err(|_| ProviderError {
-                    provider: "Anthropic",
-                    status: status.as_u16(),
-                    kind: ProviderFailureKind::InvalidResponse,
-                })?;
-
-            return extract_anthropic_text(response, status.as_u16()).map_err(Into::into);
-        }
-
-        anyhow::bail!(
-            "Anthropic API rate limit exceeded after {} retries",
-            MAX_RETRIES
-        )
+        extract_anthropic_text(response, status.as_u16()).map_err(Into::into)
     }
 }
 
 fn retry_backoff(
     status: reqwest::StatusCode,
     body: &str,
+    retry_after: Option<&str>,
     attempt: u32,
     max_retries: u32,
 ) -> Option<Duration> {
     if attempt >= max_retries {
         return None;
+    }
+    if status == reqwest::StatusCode::TOO_MANY_REQUESTS && permanent_quota_error(body) {
+        return None;
+    }
+    if (status == reqwest::StatusCode::TOO_MANY_REQUESTS || status.is_server_error())
+        && let Some(delay) =
+            retry_after.and_then(|value| parse_retry_after(value, std::time::SystemTime::now()))
+    {
+        // Fail over rather than retrying before a provider's longer deadline.
+        return (delay <= Duration::from_secs(120)).then_some(delay);
     }
     if status == reqwest::StatusCode::TOO_MANY_REQUESTS {
         let delay = parse_retry_delay(body);
@@ -663,6 +631,40 @@ fn retry_backoff(
         return Some(delay);
     }
     None
+}
+
+fn permanent_quota_error(body: &str) -> bool {
+    let Ok(value) = serde_json::from_str::<serde_json::Value>(body) else {
+        return false;
+    };
+    ["/error/code", "/error/type", "/error/details/error_code"]
+        .into_iter()
+        .any(|path| {
+            matches!(
+                value.pointer(path).and_then(serde_json::Value::as_str),
+                Some(
+                    "insufficient_quota"
+                        | "credit_balance_exhausted"
+                        | "organization_spend_limit_exceeded"
+                        | "project_spend_limit_exceeded"
+                        | "organization_usage_limit_exceeded"
+                        | "enforced_spend_limit_reached"
+                )
+            )
+        })
+}
+
+fn parse_retry_after(value: &str, now: std::time::SystemTime) -> Option<Duration> {
+    let value = value.trim();
+    let delay = if !value.is_empty() && value.bytes().all(|byte| byte.is_ascii_digit()) {
+        Duration::from_secs(value.parse().ok()?)
+    } else {
+        httpdate::parse_http_date(value)
+            .ok()?
+            .duration_since(now)
+            .unwrap_or_default()
+    };
+    Some(delay.max(Duration::from_secs(1)))
 }
 
 fn parse_retry_delay(response_body: &str) -> Duration {
@@ -807,6 +809,86 @@ fn try_legacy_parsing(text: &str, expected_count: usize) -> Option<HashMap<u32, 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn permanent_billing_errors_do_not_schedule_retries() {
+        use reqwest::StatusCode;
+        for body in [
+            r#"{"error":{"code":"credit_balance_exhausted"}}"#,
+            r#"{"error":{"type":"insufficient_quota"}}"#,
+            r#"{"error":{"code":"organization_spend_limit_exceeded"}}"#,
+            r#"{"error":{"code":"project_spend_limit_exceeded"}}"#,
+            r#"{"error":{"code":"organization_usage_limit_exceeded"}}"#,
+            r#"{"error":{"details":{"error_code":"enforced_spend_limit_reached"}}}"#,
+        ] {
+            assert_eq!(
+                retry_backoff(StatusCode::TOO_MANY_REQUESTS, body, Some("1"), 0, 3),
+                None
+            );
+        }
+        assert!(
+            retry_backoff(
+                StatusCode::TOO_MANY_REQUESTS,
+                r#"{"error":{"type":"rate_limit_error"}}"#,
+                None,
+                0,
+                3
+            )
+            .is_some()
+        );
+    }
+
+    #[test]
+    fn retry_after_headers_take_precedence_and_do_not_force_early_retries() {
+        use reqwest::StatusCode;
+        assert_eq!(
+            retry_backoff(
+                StatusCode::TOO_MANY_REQUESTS,
+                "retry in 60s",
+                Some("2"),
+                0,
+                3
+            ),
+            Some(Duration::from_secs(2))
+        );
+        assert_eq!(
+            retry_backoff(StatusCode::SERVICE_UNAVAILABLE, "", Some("0"), 0, 3),
+            Some(Duration::from_secs(1))
+        );
+        assert_eq!(
+            retry_backoff(StatusCode::TOO_MANY_REQUESTS, "", Some("600"), 0, 3),
+            None
+        );
+        assert_eq!(
+            retry_backoff(StatusCode::UNAUTHORIZED, "", Some("2"), 0, 3),
+            None
+        );
+        assert_eq!(
+            retry_backoff(StatusCode::TOO_MANY_REQUESTS, "", Some("2"), 3, 3),
+            None
+        );
+        assert_eq!(
+            retry_backoff(
+                StatusCode::TOO_MANY_REQUESTS,
+                "retry in 2s",
+                Some("invalid"),
+                0,
+                3
+            ),
+            Some(Duration::from_secs(4))
+        );
+        let now = std::time::UNIX_EPOCH + Duration::from_secs(1_000_000);
+        let future = httpdate::fmt_http_date(now + Duration::from_secs(30));
+        let past = httpdate::fmt_http_date(now - Duration::from_secs(30));
+        assert_eq!(
+            parse_retry_after(&future, now),
+            Some(Duration::from_secs(30))
+        );
+        assert_eq!(parse_retry_after(&past, now), Some(Duration::from_secs(1)));
+        for invalid in ["", "-1", "NaN", "inf", "1.5"] {
+            assert_eq!(parse_retry_after(invalid, now), None);
+        }
+    }
 
     #[test]
     fn fallible_constructor_keeps_translator_configuration() {

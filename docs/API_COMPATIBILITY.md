@@ -25,3 +25,12 @@ publishing an incomplete list.
 | **Local Whisper** | Native `whisper.cpp` inference via `whisper-rs` with GGML model weights and Silero VAD (`ggml-silero-v6.2.0.bin`). | [ggml-org/whisper.cpp](https://github.com/ggml-org/whisper.cpp) |
 
 Custom OpenAI-compatible endpoints (`custom`, `custom_whisper`) accept user-supplied base URLs and optional API keys. To verify documentation and model-discovery URLs against live endpoints, run `python3 build-scripts/check_provider_links.py`.
+
+Translation, annotation and refinement share the Rust translator's HTTP retry
+path. It honors `Retry-After` delta-seconds and HTTP dates for 429/5xx responses;
+waits longer than the 120-second retry budget return an error for failover
+instead of sending an early retry. Known billing/spend-limit error codes return
+immediately. Ordinary transient failures retain the bounded retry count,
+redacted errors and optional diagnostics. See [Groq rate-limit headers](https://console.groq.com/docs/rate-limits),
+[OpenAI error codes](https://developers.openai.com/api/docs/guides/error-codes)
+and [Claude rate limits](https://platform.claude.com/docs/en/api/rate-limits).

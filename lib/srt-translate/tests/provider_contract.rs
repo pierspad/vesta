@@ -3,10 +3,22 @@ use srt_translate::{ProviderError, ProviderFailureKind, TranslationDiagnostic};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 async fn server(responses: Vec<(u16, String)>) -> (String, tokio::task::JoinHandle<()>) {
+    server_with_headers(
+        responses
+            .into_iter()
+            .map(|(status, body)| (status, body, ""))
+            .collect(),
+    )
+    .await
+}
+
+async fn server_with_headers(
+    responses: Vec<(u16, String, &'static str)>,
+) -> (String, tokio::task::JoinHandle<()>) {
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let url = format!("http://{}/v1", listener.local_addr().unwrap());
     let task = tokio::spawn(async move {
-        for (status, body) in responses {
+        for (status, body, headers) in responses {
             let (mut stream, _) =
                 tokio::time::timeout(std::time::Duration::from_secs(10), listener.accept())
                     .await
@@ -14,7 +26,7 @@ async fn server(responses: Vec<(u16, String)>) -> (String, tokio::task::JoinHand
                     .unwrap();
             let mut bytes = [0; 8192];
             assert!(stream.read(&mut bytes).await.unwrap() > 0);
-            stream.write_all(format!("HTTP/1.1 {status} Response\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}", body.len()).as_bytes()).await.unwrap();
+            stream.write_all(format!("HTTP/1.1 {status} Response\r\nContent-Length: {}\r\nConnection: close\r\n{headers}\r\n{body}", body.len()).as_bytes()).await.unwrap();
         }
     });
     (url, task)
@@ -204,4 +216,66 @@ async fn batch_rejects_empty_text_and_duplicate_ids_without_echoing_text() {
         assert!(!error.to_string().contains("PRIVATE"));
         task.await.unwrap();
     }
+}
+
+#[tokio::test]
+async fn all_translation_protocols_honor_retry_after_headers() {
+    for (kind, body) in [
+        (
+            ApiType::Local,
+            r#"{"choices":[{"message":{"role":"assistant","content":"Recovered"}}]}"#,
+        ),
+        (
+            ApiType::Google,
+            r#"{"candidates":[{"content":{"parts":[{"text":"Recovered"}]}}]}"#,
+        ),
+        (
+            ApiType::Anthropic,
+            r#"{"content":[{"type":"text","text":"Recovered"}]}"#,
+        ),
+    ] {
+        let (url, task) = server_with_headers(vec![
+            (429, "retry in 99s".into(), "Retry-After: 0\r\n"),
+            (200, body.into(), ""),
+        ])
+        .await;
+        let events = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+        let received = events.clone();
+        let client = translator(url, kind)
+            .with_diagnostics(move |event| received.lock().unwrap().push(event));
+        let result = tokio::time::timeout(
+            std::time::Duration::from_secs(5),
+            client.generate_response("prompt"),
+        )
+        .await;
+        task.abort();
+        assert_eq!(result.unwrap().unwrap(), "Recovered");
+        assert_eq!(events.lock().unwrap()[0].retry_in_ms, 1000);
+    }
+}
+
+#[tokio::test]
+async fn exhausted_credits_return_immediately_without_retry_events() {
+    let (url, task) = server(vec![(
+        429,
+        r#"{"error":{"code":"credit_balance_exhausted"}}"#.into(),
+    )])
+    .await;
+    let events = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+    let received = events.clone();
+    let client = translator(url, ApiType::Local)
+        .with_diagnostics(move |event| received.lock().unwrap().push(event));
+    let error = tokio::time::timeout(
+        std::time::Duration::from_secs(2),
+        client.generate_response("prompt"),
+    )
+    .await
+    .unwrap()
+    .unwrap_err();
+    assert_eq!(
+        error.downcast_ref::<ProviderError>().unwrap().kind,
+        ProviderFailureKind::RateLimit
+    );
+    assert!(events.lock().unwrap().is_empty());
+    task.await.unwrap();
 }
