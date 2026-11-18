@@ -5,6 +5,23 @@ use std::time::{Duration, Instant};
 
 static PREPARING: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
+// Drain the complete pipe, retaining only the diagnostic tail.
+const STDERR_LIMIT: usize = 64 * 1024;
+
+fn read_stderr_tail(mut reader: impl Read) -> std::io::Result<Vec<u8>> {
+    let mut tail = Vec::new();
+    let mut buffer = [0u8; 8192];
+    loop {
+        let count = reader.read(&mut buffer)?;
+        if count == 0 {
+            return Ok(tail);
+        }
+        let excess = (tail.len() + count).saturating_sub(STDERR_LIMIT);
+        tail.drain(..excess);
+        tail.extend_from_slice(&buffer[..count]);
+    }
+}
+
 fn run_ffmpeg(command: &mut Command) -> anyhow::Result<Output> {
     #[cfg(windows)]
     {
@@ -15,11 +32,8 @@ fn run_ffmpeg(command: &mut Command) -> anyhow::Result<Output> {
         .stdout(Stdio::null())
         .stderr(Stdio::piped())
         .spawn()?;
-    let mut stderr = child.stderr.take().unwrap();
-    let reader = std::thread::spawn(move || {
-        let mut bytes = Vec::new();
-        stderr.read_to_end(&mut bytes).map(|_| bytes)
-    });
+    let stderr = child.stderr.take().unwrap();
+    let reader = std::thread::spawn(move || read_stderr_tail(stderr));
     let started = Instant::now();
     let status = loop {
         if let Some(status) = child.try_wait()? {
@@ -150,6 +164,21 @@ pub fn transcode_for_playback(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn stderr_is_fully_drained_but_only_the_tail_is_retained() {
+        let bytes: Vec<u8> = (0..STDERR_LIMIT * 3 + 123)
+            .map(|i| (i % 251) as u8)
+            .collect();
+        let mut reader = std::io::Cursor::new(&bytes);
+        let tail = read_stderr_tail(&mut reader).unwrap();
+        assert_eq!(reader.position() as usize, bytes.len());
+        assert_eq!(tail, bytes[bytes.len() - STDERR_LIMIT..]);
+        assert_eq!(
+            read_stderr_tail(&b"short error"[..]).unwrap(),
+            b"short error"
+        );
+    }
 
     #[test]
     fn native_formats_are_recognised() {
