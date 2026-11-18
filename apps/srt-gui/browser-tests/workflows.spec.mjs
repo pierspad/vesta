@@ -183,3 +183,119 @@ test("Extract previews and runs OCR on a bitmap PGS track", async ({ page }) => 
   await expect(trackCard.getByLabel("Already downloaded")).toBeVisible();
   await expect(page.getByRole("status").filter({ hasText: "Saved: /downloads/movie_en_2.srt" })).toBeVisible();
 });
+
+test("Extract previews and runs hardcoded ROI OCR on video frames", async ({ page }) => {
+  await page.getByRole("button", { name: "Extract subtitles", exact: true }).click();
+  await chooseFile(page, "/fixtures/movie.mkv", page.getByRole("button", { name: "Browse", exact: true }).first());
+
+  const roiPanel = page.locator("#hardcoded-roi-panel");
+  await expect(roiPanel).toBeVisible();
+  await roiPanel.getByRole("button", { name: /Hardcoded subtitles \(ROI OCR\)/ }).click();
+  await expect.poll(() => callsFor(page, "ocr_video_preview_frame")).toHaveLength(1);
+
+  await roiPanel.getByRole("button", { name: "Preview ROI OCR", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: /Hardcoded subtitles/ });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.locator("textarea")).toHaveValue(/Hardcoded subtitle line 1/);
+  await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
+  await expect(dialog).toBeHidden();
+
+  await roiPanel.getByRole("button", { name: "Extract ROI to SRT", exact: true }).click();
+  await expect.poll(() => callsFor(page, "ocr_hardcoded_subtitle")).toMatchObject([{
+    path: "/fixtures/movie.mkv",
+    outputPath: "/downloads/movie_hardcoded.srt",
+    roi: { x: 0.08, y: 0.74, width: 0.84, height: 0.2 },
+    sampleFps: 2.5,
+  }]);
+  await expect(page.getByRole("status").filter({ hasText: "Saved: /downloads/movie_hardcoded.srt" })).toBeVisible();
+});
+
+test("Refine loads cards, annotates manually and with AI, and saves changes", async ({ page }) => {
+  await page.getByRole("button", { name: "Annotate", exact: true }).click();
+  await chooseFile(page, "/fixtures/deck.tsv", page.getByRole("button", { name: "Browse flashcard file", exact: true }));
+  await expect.poll(() => callsFor(page, "refine_load_file")).toEqual([{ path: "/fixtures/deck.tsv" }]);
+
+  const notes = page.locator("#card-notes");
+  await expect(notes).toBeVisible();
+  await notes.fill("Manual draft note");
+  await notes.blur();
+  await expect(notes).toHaveValue("Manual draft note");
+
+  await page.getByRole("button", { name: "Annotate with AI", exact: true }).click();
+  await expect.poll(() => callsFor(page, "refine_card_llm_tiered")).toHaveLength(1);
+  await expect(notes).toHaveValue("Grammar note from AI");
+
+  await page.getByRole("button", { name: /Overwrite TSV/ }).click();
+  await expect.poll(() => callsFor(page, "refine_save_file")).toEqual([{
+    inputPath: "/fixtures/deck.tsv",
+    outputPath: "/fixtures/deck.tsv",
+    updates: [
+      { id: "card-1", notes: "Grammar note from AI" },
+      { id: "card-2", notes: "Existing note" },
+    ],
+  }]);
+});
+
+test("Plugins inspects, installs, opens, dispatches actions, and uninstalls a plugin", async ({ page }) => {
+  await page.getByRole("button", { name: "Plugins", exact: true }).click();
+  await page.getByPlaceholder("https://github.com/owner/repository").fill("https://github.com/vesta/demo-plugin");
+  await page.getByRole("button", { name: "Install Plugin", exact: true }).click();
+
+  const dialog = page.locator("dialog");
+  await expect(dialog).toBeVisible();
+  await expect(dialog).toContainText("Demo Study Plugin");
+  await dialog.getByRole("button", { name: "Confirm & Install", exact: true }).click();
+  await expect.poll(() => callsFor(page, "plugin_install")).toEqual([{
+    url: "https://github.com/vesta/demo-plugin",
+    gitRef: undefined,
+  }]);
+  await expect(dialog).toBeHidden();
+
+  await page.getByRole("button", { name: "Open", exact: true }).click();
+  await expect(page.getByText("Demo Study Workspace", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Run Check", exact: true }).click();
+  await expect.poll(() => callsFor(page, "plugin_dispatch_event")).toHaveLength(1);
+  await expect(page.getByText("Plugin action completed: 2 items verified.", { exact: true })).toBeVisible();
+
+  await page.getByRole("button", { name: "Back", exact: true }).click();
+  await page.getByRole("button", { name: "Uninstall plugin", exact: true }).click();
+  await page.getByRole("button", { name: "Delete", exact: true }).click();
+  await expect.poll(() => callsFor(page, "plugin_uninstall")).toEqual([{ id: "com.vesta.demo-plugin" }]);
+});
+
+test("Settings runs diagnostics, downloads offline OCR model, and toggles AI Kill Switch", async ({ page }) => {
+  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await page.getByRole("button", { name: "Diagnostics", exact: true }).click();
+
+  await expect(page.getByText("libx264", { exact: true })).toBeVisible();
+  await expect(page.getByRole("alert")).toHaveCount(0);
+
+  await page.getByRole("button", { name: "Record", exact: true }).click();
+  await expect.poll(() => callsFor(page, "support_log_start")).toHaveLength(1);
+  await expect(page.locator("#support-log-path")).toHaveValue("/exports/vesta-support.jsonl");
+  await page.getByRole("button", { name: "Stop recording", exact: true }).click();
+  await expect.poll(() => callsFor(page, "support_log_stop")).toHaveLength(1);
+
+  await page.getByRole("button", { name: "STT", exact: true }).click();
+  const ocrSection = page.locator("#ocr-models");
+  await expect(ocrSection).toBeVisible();
+  await expect(ocrSection).toContainText("0/3");
+  await ocrSection.getByRole("radio", { name: /PaddleOCR v4 Mobile \(Latin\)/ }).click();
+  await expect.poll(() => callsFor(page, "ocr_download_model")).toEqual([{ modelId: "paddleocr-v4-mobile-latin" }]);
+  await expect(ocrSection).toContainText("1/3");
+
+  const killSwitch = page.getByRole("switch", { name: "AI Kill Switch", exact: true });
+  await killSwitch.click();
+  await expect(killSwitch).toHaveAttribute("aria-checked", "true");
+  await expect(page.getByRole("button", { name: "LLM", exact: true })).toBeHidden();
+  await expect(page.getByRole("button", { name: "STT", exact: true })).toBeHidden();
+
+  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Translate", exact: true })).toBeHidden();
+  await expect(page.getByRole("button", { name: "Transcribe", exact: true })).toBeHidden();
+
+  await killSwitch.click();
+  await expect(killSwitch).toHaveAttribute("aria-checked", "false");
+  await expect(page.getByRole("button", { name: "Translate", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Transcribe", exact: true })).toBeVisible();
+});

@@ -42,6 +42,54 @@ let subtitleTracks = [
   },
 ];
 const savedSubtitleOutputs = new Set();
+const downloadedOcrModels = new Set();
+const OCR_CATALOG = [
+  { id: "paddleocr-v4-mobile-multi", name: "PaddleOCR v4 Mobile (Multilingual)", size: "~11 MB" },
+  { id: "paddleocr-v4-mobile-cjk", name: "PaddleOCR v4 Mobile (CJK)", size: "~11 MB" },
+  { id: "paddleocr-v4-mobile-latin", name: "PaddleOCR v4 Mobile (Latin)", size: "~8 MB" },
+];
+let supportLogRecording = false;
+let supportLogPath = null;
+let installedPlugins = [];
+let demoPluginCheckRan = false;
+let refineCards = [
+  { id: "card-1", expression: "こんにちは", meaning: "Hello", notes: "" },
+  { id: "card-2", expression: "ありがとう", meaning: "Thank you", notes: "Existing note" },
+];
+const DEMO_PLUGIN_MANIFEST = {
+  id: "com.vesta.demo-plugin",
+  name: "Demo Study Plugin",
+  version: "1.0.0",
+  apiVersion: 1,
+  description: "Fixture plugin for Playwright E2E coverage",
+  author: "Vesta Fixture",
+  entry: { command: ["python3", "main.py"] },
+  permissions: ["downloads", "network"],
+  tab: { title: "Demo Study" },
+  settings: [{ id: "apiEndpoint", label: "Endpoint", type: "text", defaultValue: "https://example.invalid" }],
+};
+function demoPluginView() {
+  return {
+    root: {
+      type: "column",
+      gap: 12,
+      children: [
+        { type: "heading", text: "Demo Study Workspace", level: 2 },
+        {
+          type: "text",
+          id: "plugin-status-text",
+          text: demoPluginCheckRan ? "Plugin action completed: 2 items verified." : "Ready to inspect workspace.",
+        },
+        {
+          type: "button",
+          id: "run_check",
+          label: "Run Check",
+          variant: "primary",
+        },
+      ],
+    },
+  };
+}
 
 const syncStatus = () => ({
   is_loaded: true, srt_path: subtitle, video_path: syncMedia,
@@ -65,6 +113,10 @@ mockIPC((command, args) => {
       return { ...preferences, "srt-tools-ui-language": language };
     case "config_set":
       preferences[args.key] = args.value;
+      return null;
+    case "config_replace_all":
+      for (const k of Object.keys(preferences)) delete preferences[k];
+      Object.assign(preferences, args.entries || {});
       return null;
     case "read_subtitle_file":
       return `1\n00:00:01,000 --> 00:00:02,000\n${args.path.endsWith("reference.srt") ? "Reference subtitle" : text}\n`;
@@ -143,10 +195,80 @@ mockIPC((command, args) => {
         total: 1,
       }).then(() => null);
     }
+    case "ocr_list_models":
+      return OCR_CATALOG.map((model) => ({ ...model, downloaded: downloadedOcrModels.has(model.id) }));
+    case "ocr_download_model": {
+      downloadedOcrModels.add(args.modelId);
+      return emit("ocr-progress", {
+        stage: "download",
+        message: `Downloaded ${args.modelId}`,
+        percentage: 100,
+        current: 1,
+        total: 1,
+      }).then(() => true);
+    }
+    case "ocr_uninstall_model":
+      return downloadedOcrModels.delete(args.modelId);
+    case "ocr_video_preview_frame":
+      return {
+        data_url: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
+        width: 1920,
+        height: 1080,
+        duration_ms: 120000,
+        time_ms: args.timeMs ?? 10000,
+      };
+    case "preview_ocr_hardcoded_subtitle":
+      return emit("ocr-progress", {
+        stage: "ocr",
+        message: "Previewing hardcoded ROI",
+        percentage: 100,
+        current: 2,
+        total: 2,
+      }).then(() => "1\n00:00:01,000 --> 00:00:03,500\nHardcoded subtitle line 1\n\n2\n00:00:04,000 --> 00:00:06,500\nHardcoded subtitle line 2\n");
+    case "ocr_hardcoded_subtitle": {
+      const filename = String(args.outputPath ?? "").split(/[\\/]/).pop();
+      if (filename) savedSubtitleOutputs.add(filename);
+      return emit("ocr-progress", {
+        stage: "done",
+        message: "Hardcoded OCR completed",
+        percentage: 100,
+        current: 2,
+        total: 2,
+      }).then(() => null);
+    }
     case "ocr_cancel":
       return true;
+    case "get_system_diagnostics":
+      return {
+        os: "linux",
+        arch: "x86_64",
+        compute_backend: "cpu",
+        gpu_compiled: false,
+        gpu_device: null,
+        ffmpeg_available: true,
+        video_encoder: "libx264",
+        hardware_video_encoder: false,
+        gstreamer_available: true,
+        gstreamer_h264: true,
+        gstreamer_h265: true,
+      };
+    case "support_log_status":
+      return { path: supportLogPath, recording: supportLogRecording };
+    case "support_log_start":
+      supportLogRecording = true;
+      supportLogPath = supportLogPath || "/exports/vesta-support.jsonl";
+      return supportLogPath;
+    case "support_log_stop":
+      supportLogRecording = false;
+      return null;
+    case "support_log_append":
+      return null;
+    case "support_log_export":
+      return args.destination || "/exports/vesta-support.jsonl";
+    case "setup_media_status":
+      return { ready: true, download_bytes: null };
     case "transcribe_addons_status":
-      return { vad_models: [] };
+      return { vad_models: [{ id: "v6.2.0", size: "~0.9 MB", downloaded: true }, { id: "webrtc", size: "", downloaded: true }], gpu_supported: false };
     case "plugin:dialog|open":
       if (args.options.directory) return output;
       if (nextFile) {
@@ -166,6 +288,66 @@ mockIPC((command, args) => {
     case "flashcard_check_dir_exists":
       return true;
     case "plugin_list":
+      return installedPlugins;
+    case "plugin_inspect":
+      return {
+        manifest: DEMO_PLUGIN_MANIFEST,
+        source: { originalUrl: args.url, gitCloneUrl: args.url, gitRef: args.gitRef || "main" },
+        readme: "# Demo Study Plugin",
+      };
+    case "plugin_install": {
+      const installed = {
+        id: DEMO_PLUGIN_MANIFEST.id,
+        name: DEMO_PLUGIN_MANIFEST.name,
+        version: DEMO_PLUGIN_MANIFEST.version,
+        description: DEMO_PLUGIN_MANIFEST.description,
+        author: DEMO_PLUGIN_MANIFEST.author,
+        enabled: true,
+        sourceUrl: args.url,
+        sourceRef: args.gitRef || "main",
+        installedAt: "2026-11-18T12:00:00Z",
+        manifest: DEMO_PLUGIN_MANIFEST,
+        settings: { apiEndpoint: "https://example.invalid" },
+      };
+      installedPlugins = [...installedPlugins.filter((p) => p.id !== installed.id), installed];
+      demoPluginCheckRan = false;
+      return installed;
+    }
+    case "plugin_enable":
+      installedPlugins = installedPlugins.map((p) => (p.id === args.id ? { ...p, enabled: true } : p));
+      return null;
+    case "plugin_disable":
+      installedPlugins = installedPlugins.map((p) => (p.id === args.id ? { ...p, enabled: false } : p));
+      return null;
+    case "plugin_uninstall":
+      installedPlugins = installedPlugins.filter((p) => p.id !== args.id);
+      return null;
+    case "plugin_update":
+      return installedPlugins.find((p) => p.id === args.id) ?? null;
+    case "plugin_get_settings":
+      return installedPlugins.find((p) => p.id === args.id)?.settings ?? {};
+    case "plugin_save_settings":
+      installedPlugins = installedPlugins.map((p) => (p.id === args.id ? { ...p, settings: { ...args.settings } } : p));
+      return null;
+    case "plugin_render":
+      return demoPluginView();
+    case "plugin_dispatch_event":
+      if (args.event?.widgetId === "run_check") demoPluginCheckRan = true;
+      return demoPluginView();
+    case "refine_load_file":
+      return refineCards.map((c) => ({ ...c }));
+    case "refine_card_llm_tiered":
+      return "Grammar note from AI";
+    case "refine_cards_llm_tiered":
+      return (args.cards || []).map((c) => ({ id: c.id, notes: "Grammar note from AI" }));
+    case "refine_cancel":
+      return true;
+    case "refine_save_file":
+      for (const upd of args.updates || []) {
+        const card = refineCards.find((c) => c.id === upd.id);
+        if (card) card.notes = upd.notes;
+      }
+      return true;
     case "ankiconnect_deck_names":
     case "flashcard_list_fonts":
       return [];

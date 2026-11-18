@@ -44,7 +44,10 @@ Set `VESTA_TEST_CHROMIUM` to an absolute executable path to use an existing Chro
 Playwright starts a local Vite server and loads the app with synthetic Tauri responses.
 Run only the browser suite with `npm run test:browser` from `apps/srt-gui`.
 It covers narrow and RTL layout, Flashcards export, synchronization and alignment history,
-translation errors and cancellation, transcription model selection and cancellation, and shortcut persistence.
+translation errors and cancellation, transcription model selection and cancellation,
+embedded bitmap PGS OCR and hardcoded video ROI OCR preview/save, Refine deck annotation,
+declarative plugin installation/render/event/uninstall, Settings Diagnostics and support log recording,
+offline OCR model download, AI Kill Switch enforcement, and shortcut persistence.
 The browser suite compares invoked command names and top-level payload keys with registered Rust commands.
 The separate Browser regressions workflow runs on relevant pull requests.
 The suite saves screenshots and retains failure traces under
@@ -200,7 +203,7 @@ Automated unit and mocked-IPC tests do not certify native OS dialogs, file assoc
 
 1. **First-run setup and persistence**: Complete onboarding, restart twice, and verify that language, media, and export defaults persist. Verify that unreadable or corrupt configuration files surface an error instead of silently resetting user data (see [`SETUP_TESTING.md`](SETUP_TESTING.md)).
 2. **Flashcard export and Anki import**: Generate audio + snapshots, TSV, APKG, video clips, and a multi-episode merged APKG. Import into Anki and verify audio/video playback, snapshots, and word lookup links.
-3. **Embedded subtitle extraction**: List and extract embedded text tracks with language/title metadata; confirm bitmap tracks (PGS/VobSub) are marked as requiring OCR.
+3. **Embedded and hardcoded subtitle extraction**: List and extract embedded text tracks with language/title metadata; preview and extract bitmap tracks (PGS/VobSub) and hardcoded video ROI regions using both local PaddleOCR v4 ONNX models and Vision LLM tiers (verifying offline OCR still works with the AI Kill Switch enabled).
 4. **Media preview and sync**: Preview audio and video containers (verifying 16 kHz mono PCM WAV preparation and cache reuse), test byte-range seeking, run manual anchor retiming with undo/redo, and run Whisper-assisted Auto-Sync.
 5. **Local and cloud transcription**: Run local Whisper on CPU and GPU (verifying CPU fallback when GPU is disabled or unavailable), test interrupted model downloads, and test cloud STT providers with cancellation.
 6. **Translation and deck annotation**: Run multi-tier LLM translation and `.apkg`/`.tsv` refinement, testing rate-limit failover, checkpoint resume, and cancellation.
