@@ -1,62 +1,41 @@
 <script lang="ts">
-  import { localShortcutAction } from "$lib/utils/shortcuts";
-  import { isInputActive } from "$lib/utils/keyboardFocus";
-  import { contextMenu as fitContextMenu } from "$lib/utils/contextMenu";
   import { FlashcardAudioSelection } from "$lib/workflows/flashcardAudioSelection.svelte";
   import { RequirementFeedback } from "$lib/utils/requirementFeedback.svelte";
-  import { defaultOutputDirectory } from "$lib/utils/defaultOutputDirectory";
   import { expandFlashcardFiles } from "$lib/workflows/flashcardFileDiscovery";
   import { runFlashcardSeries } from "$lib/workflows/flashcardSeries";
   import { FlashcardPreviewController } from "$lib/workflows/flashcardPreview";
-  import { audioOverrideKeys, snapshotOverrideKeys, videoOverrideKeys, mediaSettingChanged, episodeMediaDiff } from "$lib/utils/episodeMediaSettings";
   import { invokeCommand as invoke } from "$lib/services/tauriClient";
-  import { listen } from "@tauri-apps/api/event";
   import { guardedOpen } from "$lib/utils/dialogGuard";
   import { setupWebviewDragDrop } from "$lib/utils/dragDrop";
-  import { resolveEpisodeNoteType, detectSubtitleLanguage } from "$lib/utils/episodeNoteType";
+  import { resolveEpisodeNoteType } from "$lib/utils/episodeNoteType";
   import { onDestroy, onMount, untrack } from "svelte";
-  import { currentLanguage, locale } from "$lib/i18n";
-  import { getFileName, inferLanguageFromPath } from "$lib/utils/models";
-  import { getLanguageSearchTerms, languages } from "$lib/config/languages";
+  import { locale } from "$lib/i18n";
+  import { getFileName } from "$lib/utils/models";
   import {
     type EpisodeEntry,
     VIDEO_EXTENSIONS,
     AUDIO_EXTENSIONS,
-    classifySubtitles,
     mergeSeriesDroppedFiles,
-    autoMatchFiles,
     isSubtitleFile,
     isMediaFile,
     detectMediaType,
     pickBestAudioTrackIndex,
-    deriveDeckNameFromFile,
   } from "$lib/utils/seriesFileMatching";
   import {
-    CARD_TEMPLATES_UPDATED_EVENT,
-    NOTE_TYPES_UPDATED_EVENT,
-    NOTE_TYPE_FIELD_ORDER,
     listNoteTypes,
-    findNoteTypeById,
     loadLastUsedNoteTypeId,
     saveActiveNoteTypeId,
     ACTIVE_NOTE_TYPE_CHANGED_EVENT,
     type NoteTypeDef,
-    type FieldKey,
   } from "$lib/types/noteTypes";
-  import PathPreviewModal from "$lib/modals/PathPreviewModal.svelte";
-  import { buildFlashcardConfig } from "$lib/utils/flashcardConfig";
-  import SearchableSelect from "$lib/components/SearchableSelect.svelte";
-  import CodeEditor from "$lib/components/CodeEditor.svelte";
   import { snackbar, createSnackbarNotifier } from "$lib/stores/snackbarStore.svelte";
   import { smartMatchingStore } from "$lib/stores/smartMatchingStore.svelte";
   import { uiMode } from "$lib/stores/uiModeStore.svelte";
   import { ankiStore } from "$lib/stores/ankiStore.svelte";
   import { fontStore } from "$lib/stores/fontStore.svelte";
-  import EmptyState from "$lib/components/EmptyState.svelte";
   import FlashcardsPreviewModal from "$lib/modals/FlashcardsPreviewModal.svelte";
   import { previewStore } from "$lib/stores/previewStore.svelte";
   import type { EpisodeMediaOverrides, AudioTrackInfo, EpisodeMediaOverrideKey } from "$lib/types/flashcardMediaTypes";
-  import { formatAudioTrackLabel } from "$lib/types/flashcardMediaTypes";
   import {
     loadMediaSettings,
     saveMediaSettings,
@@ -65,11 +44,9 @@
   import type { CardFilterSettings } from "$lib/types/flashcardFilterTypes";
   import CardFiltersPanel from "$lib/panels/CardFiltersPanel.svelte";
   import { episodeMediaEditorStore } from "$lib/stores/episodeMediaEditorStore.svelte";
-  import EpisodeMediaSettingsModal from "$lib/modals/EpisodeMediaSettingsModal.svelte";
   import AudioClipsPanel from "$lib/panels/AudioClipsPanel.svelte";
   import SnapshotsPanel from "$lib/panels/SnapshotsPanel.svelte";
   import VideoClipsPanel from "$lib/panels/VideoClipsPanel.svelte";
-  import EpisodeContextMenu from "$lib/components/EpisodeContextMenu.svelte";
   import FilesOutputPanel from "$lib/panels/FilesOutputPanel.svelte";
   import { generationStore, SERIES_OUTPUT_MODE_KEY } from "$lib/stores/generationStore.svelte";
   import FlashcardsWorkspace from "./flashcards/FlashcardsWorkspace.svelte";
@@ -80,9 +57,43 @@
   import * as vestaConfig from "$lib/config/vestaConfig";
   import { errorMessage } from "$lib/utils/errorMessage";
   import { pickEpisodeFile } from "$lib/workflows/episodeFilePicker";
-  import MatchDiagnosticsModal from "$lib/modals/MatchDiagnosticsModal.svelte";
-  import EpisodeEditorModal, { type EpisodeFileField } from "./flashcards/EpisodeEditorModal.svelte";
+  import { type EpisodeFileField } from "./flashcards/EpisodeEditorModal.svelte";
   import FlashcardsFooterBar, { type GenerationRequirement } from "./flashcards/FlashcardsFooterBar.svelte";
+  import FlashcardsBanners from "./flashcards/FlashcardsBanners.svelte";
+  import FlashcardsOverlays from "./flashcards/FlashcardsOverlays.svelte";
+  import { handleFlashcardsKeydown } from "./flashcards/flashcardsKeyboard";
+  import {
+    buildFlashcardNoteTypeOptions,
+    type CardFilterTracker,
+    computeBottomContextMenuPos,
+    enforceCardFilterCoherence,
+    isEpisodeFileCompatible,
+    mergePluginHandoffEpisode,
+    normalizeSelectedPaths,
+  } from "./flashcards/flashcardsHelpers";
+  import {
+    OUTPUT_DIR_KEY,
+    buildFirstEpisodeFlashcardConfig,
+    loadInitialFlashcardsOutputDir,
+    loadInitialFlashcardsCpuCores,
+    maybeAutoImportApkgToAnki,
+    setupFlashcardsWindowSubscriptions,
+    subscribeFlashcardProgressEvents,
+  } from "./flashcards/flashcardsRunner";
+  import {
+    buildEpisodeMediaOverrideDiffFor,
+    clearEpisodesMediaOverrides,
+    detectEpisodeLanguageCached,
+    isEpisodeMediaOverrideChanged,
+    isFontBannerDismissedPref,
+    loadDefaultLanguagePref,
+    mergeEditedEpisodeIntoList,
+    persistFontBannerDismissal,
+    removeEpisodeInList,
+    swapAllEpisodesSubsInList,
+    swapEpisodeSubsInList,
+    updateEpisodesMediaOverrides,
+  } from "./flashcards/flashcardsEpisodes";
 
   interface Props {
     active?: boolean;
@@ -114,7 +125,6 @@
     error => generationStore.addLog(`${t("flashcards.audioTracksError")}: ${errorMessage(error)}`, "warning"),
   );
 
-  const OUTPUT_DIR_KEY = "vesta-last-output-dir";
   const DEFAULT_FLASHCARDS_LANGUAGE_KEY = "vesta-default-flashcards-language";
   const DEFAULT_NATIVE_LANGUAGE_KEY = "vesta-default-native-language";
   const DEFAULT_TARGET_LANGUAGE_KEY = "vesta-default-target-language";
@@ -130,24 +140,7 @@
 
   function openBottomContextMenu(event: MouseEvent, section: "overview" | "anki") {
     event.preventDefault();
-    let x = event.clientX;
-    let y = event.clientY - 52;
-
-    const target = event.currentTarget as HTMLElement | null;
-    if (target && typeof target.getBoundingClientRect === "function") {
-      const rect = target.getBoundingClientRect();
-      // Position the menu just above the button top edge.
-      // The single-item menu height is ~42px. To have a 6px gap, we subtract 48px.
-      y = rect.top - 48;
-      // Align left of the menu with the left of the button
-      x = rect.left;
-    }
-
-    bottomContextMenu = {
-      x: Math.min(x, window.innerWidth - 220),
-      y: Math.max(0, y),
-      section
-    };
+    bottomContextMenu = computeBottomContextMenuPos(event, section);
   }
 
   function closeBottomContextMenu() {
@@ -165,38 +158,19 @@
   let dismissedFontBannerLang = $state<string | null>(null);
   const showSnackbar = createSnackbarNotifier();
 
-  function loadDefaultLanguage(key: string, fallback = ""): string {
-    try {
-      return vestaConfig.getItem(key) || fallback;
-    } catch {
-      return fallback;
-    }
-  }
-
   function getStudiedLanguagePreference(): string {
     const episode = episodes.find(ep => ep.targetSubsPath);
-    return (episode ? getEpisodeNoteType(episode).language : "") || noteTypeLanguage || loadDefaultLanguage(DEFAULT_FLASHCARDS_LANGUAGE_KEY);
+    return (episode ? getEpisodeNoteType(episode).language : "") || noteTypeLanguage || loadDefaultLanguagePref(DEFAULT_FLASHCARDS_LANGUAGE_KEY);
   }
 
   function isFontBannerDismissed(lang: string): boolean {
-    if (!lang) return true;
-    if (dismissedFontBannerLang === lang) return true;
-    try {
-      return vestaConfig.getItem(`vesta-font-banner-dismissed-${lang}`) === "1";
-    } catch {
-      return false;
-    }
+    return isFontBannerDismissedPref(lang, dismissedFontBannerLang);
   }
 
   function dismissFontBanner(lang: string, permanent: boolean = false) {
     dismissedFontBannerLang = lang;
-    if (permanent && lang) {
-      try {
-        vestaConfig.setItem(`vesta-font-banner-dismissed-${lang}`, "1");
-        showSnackbar(t("flashcards.dontShowAgain"));
-      } catch {
-        /* ignore */
-      }
+    if (permanent && persistFontBannerDismissal(lang)) {
+      showSnackbar(t("flashcards.dontShowAgain"));
     }
   }
 
@@ -205,56 +179,32 @@
 
   function getNativeLanguagePreference(): string {
     return (
-      loadDefaultLanguage(DEFAULT_NATIVE_LANGUAGE_KEY) ||
-      loadDefaultLanguage(DEFAULT_TARGET_LANGUAGE_KEY, "it")
+      loadDefaultLanguagePref(DEFAULT_NATIVE_LANGUAGE_KEY) ||
+      loadDefaultLanguagePref(DEFAULT_TARGET_LANGUAGE_KEY, "it")
     );
   }
 
-  function getGenericMediaSettings(): Required<EpisodeMediaOverrides> {
-    return mediaSettings;
-  }
-
   function getEpisodeMediaSettings(ep: EpisodeEntry): Required<EpisodeMediaOverrides> {
-    return {
-      ...getGenericMediaSettings(),
-      ...(ep.mediaOverrides || {}),
-    };
-  }
-
-  function mediaOverrideValueChanged(key: EpisodeMediaOverrideKey): boolean {
-    const overrides = episodeMediaEditorStore.overrides;
-    const episode = episodeMediaEditorStore.episode;
-    if (!overrides) return false;
-    const genericSettings = getGenericMediaSettings();
-
-    const autoTrack = key === "audioTrackIndex" && episode && genericSettings.audioTrackIndex === null
-      ? pickBestAudioTrackIndex(episodeMediaEditorStore.audioTracks, getPreferredAudioLanguageCodeForEpisode(episode))
-      : undefined;
-    return mediaSettingChanged(key, overrides, genericSettings, autoTrack);
+    return { ...mediaSettings, ...(ep.mediaOverrides || {}) };
   }
 
   function mediaOverrideClass(key: EpisodeMediaOverrideKey): string {
-    return mediaOverrideValueChanged(key) ? "media-override-glow" : "";
-  }
-
-  function buildEpisodeMediaOverrideDiff(settings: Required<EpisodeMediaOverrides>): EpisodeMediaOverrides {
     const episode = episodeMediaEditorStore.episode;
-    const defaults = getGenericMediaSettings();
-    const autoTrack = episode && defaults.audioTrackIndex === null
-      ? pickBestAudioTrackIndex(episodeMediaEditorStore.audioTracks, getPreferredAudioLanguageCodeForEpisode(episode))
-      : undefined;
-    return episodeMediaDiff(settings, defaults, autoTrack);
+    return isEpisodeMediaOverrideChanged(
+      key,
+      episodeMediaEditorStore.overrides,
+      episode,
+      mediaSettings,
+      episodeMediaEditorStore.audioTracks,
+      episode ? getPreferredAudioLanguageCodeForEpisode(episode) : "",
+    )
+      ? "media-override-glow"
+      : "";
   }
 
   function getPreferredAudioLanguageCodeForEpisode(ep: Pick<EpisodeEntry, "targetSubsPath" | "noteTypeId" | "detectedLanguage">): string {
     return getEpisodeNoteType(ep).language || noteTypeLanguage;
   }
-
-  // Le euristiche pure di parsing/matching (regex su filename, classificazione
-  // target/native, aggregazione per episodio) vivono in seriesFileMatching.ts,
-  // testabili senza montare questo componente. Qui restano solo wrapper sottili
-  // che passano stato reattivo (regole di smart-matching, preferenze lingua,
-  // `episodes`) alle funzioni pure e assegnano il risultato allo stato.
 
   function mergeSeriesDroppedFilesIntoEpisodes(subtitleFiles: string[], mediaFiles: string[]) {
     episodes = mergeSeriesDroppedFiles(
@@ -267,17 +217,6 @@
     );
   }
 
-  // Non ancora cablato a nessun call site nella UI (lo era già prima di
-  // questo refactor) — lasciato perché `mergeSeriesDroppedFilesIntoEpisodes`
-  // copre oggi il flusso reale di drag&drop/serie. Segnalato, non rimosso.
-  function autoMatchFilesIntoEpisodes(
-    targetFiles: string[],
-    nativeFiles: string[],
-    mediaFiles: string[],
-  ) {
-    episodes = autoMatchFiles(targetFiles, nativeFiles, mediaFiles, smartMatchingRules.episodeRegexes, smartMatchingRules);
-  }
-
   function expandSeriesFilesWithSmartMatches(subtitleFiles: string[], mediaFiles: string[]) {
     return expandFlashcardFiles(subtitleFiles, mediaFiles, {
       enabled: smartFileMatchingEnabled,
@@ -286,14 +225,6 @@
       nativeLanguage: getNativeLanguagePreference(),
       invoke,
     });
-  }
-
-  // Normalize open() return: may be string | string[] | null
-  function normalizeSelected(selected: unknown): string[] {
-    if (!selected) return [];
-    if (typeof selected === "string") return [selected];
-    if (Array.isArray(selected)) return selected.filter((s): s is string => typeof s === "string" && s.length > 0);
-    return [];
   }
 
   async function addSeriesMultipleFiles() {
@@ -307,7 +238,7 @@
           },
         ],
       });
-      const selected = normalizeSelected(raw);
+      const selected = normalizeSelectedPaths(raw);
       if (selected.length > 0) {
         await handleFileDrop(selected);
       }
@@ -319,9 +250,7 @@
 
 
   function removeEpisode(idx: number) {
-    episodes = episodes
-      .filter((_, i) => i !== idx)
-      .map((e, i) => ({ ...e, id: i + 1 }));
+    episodes = removeEpisodeInList(episodes, idx);
     closeEpisodeContextMenu();
   }
 
@@ -412,27 +341,7 @@
 
   function syncEpisodeEditor() {
     if (editingEpisodeIndex === null || !editingEpisode) return;
-    const updatedEpisode: EpisodeEntry = {
-      id: editingEpisode.id,
-      targetSubsPath: editingEpisode.targetSubsPath,
-      nativeSubsPath: editingEpisode.nativeSubsPath,
-      mediaPath: editingEpisode.mediaPath,
-      mediaType: editingEpisode.mediaPath
-        ? detectMediaType(getFileName(editingEpisode.mediaPath))
-        : "none",
-      mediaOverrides: editingEpisode.mediaPath ? editingEpisode.mediaOverrides : undefined,
-      matching: editingEpisode.matching,
-      noteTypeId: editingEpisode.noteTypeId,
-      detectedLanguage: episodes[editingEpisodeIndex]?.targetSubsPath === editingEpisode.targetSubsPath ? editingEpisode.detectedLanguage : undefined,
-    };
-    episodes = episodes.map((episode, idx) =>
-      idx === editingEpisodeIndex
-        ? {
-            ...updatedEpisode,
-            id: episode.id,
-          }
-        : episode,
-    );
+    episodes = mergeEditedEpisodeIntoList(episodes, editingEpisodeIndex, editingEpisode);
   }
 
   function revertEpisodeEditor() {
@@ -450,16 +359,15 @@
     const idx = episodeMediaEditorStore.episodeIndex;
     const overrides = episodeMediaEditorStore.overrides;
     if (idx === null || !overrides) return;
-    const mediaOverrides = buildEpisodeMediaOverrideDiff(overrides);
-    episodes = episodes.map((episode, i) =>
-      i === idx
-        ? {
-            ...episode,
-            mediaOverrides: Object.keys(mediaOverrides).length > 0 ? mediaOverrides : undefined,
-            noteTypeId: mediaNoteTypeId === "default" ? undefined : mediaNoteTypeId,
-          }
-        : episode,
+    const episode = episodeMediaEditorStore.episode;
+    const mediaOverrides = buildEpisodeMediaOverrideDiffFor(
+      overrides,
+      episode,
+      mediaSettings,
+      episodeMediaEditorStore.audioTracks,
+      episode ? getPreferredAudioLanguageCodeForEpisode(episode) : "",
     );
+    episodes = updateEpisodesMediaOverrides(episodes, idx, mediaOverrides, mediaNoteTypeId);
     if (mediaNoteTypeId !== "default" && mediaNoteTypeId !== initialMediaNoteTypeId) saveActiveNoteTypeId(mediaNoteTypeId);
     closeEpisodeMediaSettings();
   }
@@ -467,15 +375,7 @@
   function resetEpisodeMediaSettings() {
     const idx = episodeMediaEditorStore.episodeIndex;
     if (idx === null) return;
-    episodes = episodes.map((episode, i) =>
-      i === idx
-        ? {
-            ...episode,
-            mediaOverrides: undefined,
-            noteTypeId: undefined,
-          }
-        : episode,
-    );
+    episodes = clearEpisodesMediaOverrides(episodes, idx);
     closeEpisodeMediaSettings();
   }
 
@@ -494,13 +394,6 @@
     } catch (e) {
       generationStore.error = `${t("flashcards.errorSelectingFile")}: ${errorMessage(e)}`;
     }
-  }
-
-  function isEpisodeFileCompatible(field: EpisodeFileField, path: string) {
-    const type = detectMediaType(getFileName(path));
-    return field === "mediaPath"
-      ? type === "video" || type === "audio"
-      : /\.(srt|ass|ssa|vtt)$/i.test(path);
   }
 
   function replaceEpisodeFileFromDrop(paths: string[], position?: { x: number; y: number }): boolean {
@@ -546,25 +439,11 @@
   }
 
   function swapEpisodeSubs(idx: number) {
-    const ep = episodes[idx];
-    if (!ep) return;
-    const temp = ep.targetSubsPath;
-    ep.targetSubsPath = ep.nativeSubsPath;
-    ep.nativeSubsPath = temp;
-    ep.detectedLanguage = undefined;
-    episodes = [...episodes];
+    episodes = swapEpisodeSubsInList(episodes, idx);
   }
 
   function swapAllEpisodesSubs() {
-    episodes = episodes.map((ep) => {
-      const temp = ep.targetSubsPath;
-      return {
-        ...ep,
-        targetSubsPath: ep.nativeSubsPath,
-        nativeSubsPath: temp,
-        detectedLanguage: undefined
-      };
-    });
+    episodes = swapAllEpisodesSubsInList(episodes);
   }
 
   let hasMedia = $derived(episodes.some((ep) => ep.mediaType !== "none"));
@@ -643,57 +522,15 @@
     continuationChars: ",、→",
   });
 
-  let prevMinChars: number | undefined = undefined;
-  let prevMaxChars: number | undefined = undefined;
-  let prevMinDuration: number | undefined = undefined;
-  let prevMaxDuration: number | undefined = undefined;
+  const cardFilterTracker: CardFilterTracker = {
+    prevMinChars: undefined,
+    prevMaxChars: undefined,
+    prevMinDuration: undefined,
+    prevMaxDuration: undefined,
+  };
 
   $effect(() => {
-    // Keep within absolute bounds
-    if (cardFilters.minChars < 1) cardFilters.minChars = 1;
-    if (cardFilters.minChars > 2000) cardFilters.minChars = 2000;
-    if (cardFilters.maxChars < 1) cardFilters.maxChars = 1;
-    if (cardFilters.maxChars > 2000) cardFilters.maxChars = 2000;
-
-    if (cardFilters.minDurationMs < 0) cardFilters.minDurationMs = 0;
-    if (cardFilters.minDurationMs > 120000) cardFilters.minDurationMs = 120000;
-    if (cardFilters.maxDurationMs < 0) cardFilters.maxDurationMs = 0;
-    if (cardFilters.maxDurationMs > 120000) cardFilters.maxDurationMs = 120000;
-
-    // Initialize trackers on first run
-    if (prevMinChars === undefined) prevMinChars = cardFilters.minChars;
-    if (prevMaxChars === undefined) prevMaxChars = cardFilters.maxChars;
-    if (prevMinDuration === undefined) prevMinDuration = cardFilters.minDurationMs;
-    if (prevMaxDuration === undefined) prevMaxDuration = cardFilters.maxDurationMs;
-
-    // Enforce min <= max coherence based on which one was modified
-    if (cardFilters.minChars !== prevMinChars) {
-      if (cardFilters.minChars > cardFilters.maxChars) {
-        cardFilters.maxChars = cardFilters.minChars;
-      }
-      prevMinChars = cardFilters.minChars;
-      prevMaxChars = cardFilters.maxChars;
-    } else if (cardFilters.maxChars !== prevMaxChars) {
-      if (cardFilters.maxChars < cardFilters.minChars) {
-        cardFilters.minChars = cardFilters.maxChars;
-      }
-      prevMinChars = cardFilters.minChars;
-      prevMaxChars = cardFilters.maxChars;
-    }
-
-    if (cardFilters.minDurationMs !== prevMinDuration) {
-      if (cardFilters.minDurationMs > cardFilters.maxDurationMs) {
-        cardFilters.maxDurationMs = cardFilters.minDurationMs;
-      }
-      prevMinDuration = cardFilters.minDurationMs;
-      prevMaxDuration = cardFilters.maxDurationMs;
-    } else if (cardFilters.maxDurationMs !== prevMaxDuration) {
-      if (cardFilters.maxDurationMs < cardFilters.minDurationMs) {
-        cardFilters.minDurationMs = cardFilters.maxDurationMs;
-      }
-      prevMinDuration = cardFilters.minDurationMs;
-      prevMaxDuration = cardFilters.maxDurationMs;
-    }
+    enforceCardFilterCoherence(cardFilters, cardFilterTracker);
   });
 
   // One effect for the whole blob: every media setting now survives a restart,
@@ -755,15 +592,9 @@
   }
 
   function detectEpisodeLanguage(path: string): Promise<string | null> {
-    if (!path || inferLanguageFromPath(path)) return Promise.resolve(null);
-    const pending = languageRequests.get(path);
-    if (pending) return pending;
-    const request = invoke<Array<{text: string}>>("flashcard_parse_subtitles", { path })
-      .then(cues => detectSubtitleLanguage((cues || []).slice(0, 160).map(cue => cue.text).join("\n")))
-      .catch(() => null)
-      .then(language => { subtitleLanguages[path] = language; return language; });
-    languageRequests.set(path, request);
-    return request;
+    return detectEpisodeLanguageCached(path, languageRequests, (resolvedPath, language) => {
+      subtitleLanguages[resolvedPath] = language;
+    });
   }
 
   $effect(() => {
@@ -789,43 +620,8 @@
   });
 
   let noteTypeOptions = $derived(
-    [{ value: "default", label: `${t("flashcards.automaticNoteType")} · ${automaticEpisodeNoteType.name}`, displayLabel: automaticEpisodeNoteType.name, icon: languages.find((language) => language.code === automaticEpisodeNoteType.language)?.flag || '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" class="w-4 h-4"><path stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M4 9V4h5m6 0h5v5M4 15v5h5m6 0h5v-5M8 12h8m-4-4v8" /></svg>' }, ...[...noteTypeList].filter((nt) => nt.id !== "default").sort((a, b) => Number(a.predefined) - Number(b.predefined) || a.name.localeCompare(b.name)).map((nt) => ({
-      group: t(nt.predefined ? "settings.anki.builtinTemplates" : "settings.anki.customTemplates"),
-      value: nt.id,
-      label: nt.name,
-      searchTerms: [nt.name, getLanguageSearchTerms(nt.language)]
-        .filter(Boolean)
-        .join(" "),
-      icon: languages.find((l) => l.code === nt.language)?.flag ?? "🃏",
-    }))],
+    buildFlashcardNoteTypeOptions(noteTypeList, automaticEpisodeNoteType, t),
   );
-
-  let activeFieldKeys = $derived(
-    NOTE_TYPE_FIELD_ORDER.filter((k) => activeNoteType.included[k]),
-  );
-
-  function fieldChipLabel(key: FieldKey): string {
-    switch (key) {
-      case "expression":
-        return `🗣️ ${t("flashcards.subs1")}`;
-      case "meaning":
-        return `💬 ${t("flashcards.subs2")}`;
-      case "audio":
-        return `🔊 ${t("flashcards.audioField")}`;
-      case "snapshot":
-        return `📸 ${t("flashcards.snapshotField")}`;
-      case "video":
-        return `🎬 ${t("flashcards.videoField")}`;
-      case "tags":
-        return `🏷️ ${t("flashcards.tagField")}`;
-      case "sequenceMarker":
-        return `🔢 ${t("flashcards.sequenceField")}`;
-      case "reading":
-        return `📖 ${t("flashcards.readingField")}`;
-      case "notes":
-        return `📝 ${t("flashcards.notesField")}`;
-    }
-  }
 
   function selectNoteType(id: string) {
     if (episodes.length === 1) setEpisodeNoteType(0, id);
@@ -837,7 +633,6 @@
   // generationStore now — see generationStore.svelte.ts.
 
   let ffmpegAvailable = $state<boolean | null>(null);
-  let isDownloadingFFmpeg = $state(false);
 
   let previewMediaPath = $derived.by(() => {
     if (episodes.length > 0) {
@@ -880,10 +675,7 @@
       };
     }
   });
-  let removeTemplateListener: (() => void) | null = null;
-  let removeNoteTypesListener: (() => void) | null = null;
-  let removeLanguageDefaultsListener: (() => void) | null = null;
-  let removeLayoutObserver: (() => void) | null = null;
+  let removeWindowSubscriptions: (() => void) | null = null;
   let isDraggingOver = $state(false);
   let hasLoggedDragOver = false;
 
@@ -988,32 +780,11 @@
   let lastAppliedHandoffNonce = 0;
 
   function applyPluginHandoff(handoff: { videoPath: string; subtitlePath: string }) {
-    const subtitlePath = handoff.subtitlePath.trim();
-    const mediaCandidate = handoff.videoPath.trim();
-    const detectedType = mediaCandidate ? detectMediaType(getFileName(mediaCandidate)) : "none";
-    const hasValidMedia = Boolean(mediaCandidate && detectedType !== "none");
-    if (!subtitlePath && !hasValidMedia) return;
     if (generationStore.isBusy) return;
+    const merged = mergePluginHandoffEpisode(episodes, handoff);
+    if (!merged) return;
 
-    const existing = episodes[0];
-
-    const nextTargetSubsPath = subtitlePath || existing?.targetSubsPath || "";
-    const targetSubsChanged = nextTargetSubsPath !== (existing?.targetSubsPath ?? "");
-    const preserveExistingMedia = !targetSubsChanged && !mediaCandidate;
-    const nextMediaPath = hasValidMedia
-      ? mediaCandidate
-      : preserveExistingMedia
-        ? (existing?.mediaPath || "")
-        : "";
-    const nextMediaType: EpisodeEntry["mediaType"] = hasValidMedia
-      ? detectedType
-      : preserveExistingMedia
-        ? (existing?.mediaType ?? "none")
-        : "none";
-
-    const mediaChanged = nextMediaPath !== (existing?.mediaPath ?? "");
-
-    if (mediaChanged || targetSubsChanged) {
+    if (merged.mediaOrTargetChanged) {
       previewStore.close();
       if (editingEpisodeIndex === 0) closeEpisodeEditor();
       if (episodeMediaEditorStore.episodeIndex === 0) closeEpisodeMediaSettings();
@@ -1023,27 +794,17 @@
       }
     }
 
-    const updatedEpisode: EpisodeEntry = {
-      id: existing?.id ?? 1,
-      targetSubsPath: nextTargetSubsPath,
-      nativeSubsPath: mediaChanged ? "" : (existing?.nativeSubsPath ?? ""),
-      mediaPath: nextMediaPath,
-      mediaType: nextMediaType,
-      mediaOverrides: mediaChanged ? undefined : existing?.mediaOverrides,
-      noteTypeId: existing?.noteTypeId,
-      detectedLanguage: targetSubsChanged ? undefined : existing?.detectedLanguage,
-      matching: mediaChanged ? undefined : existing?.matching,
-    };
+    episodes = merged.nextEpisodes;
 
-    if (episodes.length === 0) {
-      episodes = [updatedEpisode];
-    } else {
-      episodes = episodes.map((ep, idx) => (idx === 0 ? updatedEpisode : ep));
-    }
-
-    if (!mediaChanged && nextMediaType === "video" && nextMediaPath && !audioSelection.loading && audioSelection.tracks.length === 0) {
-      loadedAudioMedia = nextMediaPath;
-      void audioSelection.load(nextMediaPath);
+    if (
+      !merged.mediaChanged &&
+      merged.nextMediaType === "video" &&
+      merged.nextMediaPath &&
+      !audioSelection.loading &&
+      audioSelection.tracks.length === 0
+    ) {
+      loadedAudioMedia = merged.nextMediaPath;
+      void audioSelection.load(merged.nextMediaPath);
     }
   }
 
@@ -1110,91 +871,16 @@
 
   onMount(async () => {
     refreshNoteTypes();
+    removeWindowSubscriptions = setupFlashcardsWindowSubscriptions({
+      defaultLanguageKey: DEFAULT_FLASHCARDS_LANGUAGE_KEY,
+      getLayoutHost: () => layoutHostEl,
+      onNoteTypesChanged: refreshNoteTypes,
+      onLanguageDefaultChanged: (code) => { noteTypeLanguage = code; },
+      onLayoutWidthChanged: (width) => { layoutWidth = width; },
+    });
 
-    const handleCardTemplatesUpdated = () => {
-      refreshNoteTypes();
-    };
-    const handleNoteTypesUpdated = () => {
-      refreshNoteTypes();
-    };
-    window.addEventListener(NOTE_TYPES_UPDATED_EVENT, handleNoteTypesUpdated);
-    removeNoteTypesListener = () =>
-      window.removeEventListener(NOTE_TYPES_UPDATED_EVENT, handleNoteTypesUpdated);
-    const handleLanguageDefaultsUpdated = () => {
-      try {
-        const defaultNoteTypeLanguage = vestaConfig.getItem(DEFAULT_FLASHCARDS_LANGUAGE_KEY);
-        if (
-          defaultNoteTypeLanguage &&
-          languages.some((l) => l.code === defaultNoteTypeLanguage)
-        ) {
-          noteTypeLanguage = defaultNoteTypeLanguage;
-        }
-      } catch {}
-    };
-
-    const updateLayoutWidth = () => {
-      const hostWidth = layoutHostEl?.getBoundingClientRect().width;
-      layoutWidth = hostWidth && hostWidth > 0 ? Math.round(hostWidth) : window.innerWidth;
-    };
-
-    const resizeObserver =
-      typeof ResizeObserver !== "undefined"
-        ? new ResizeObserver(() => updateLayoutWidth())
-        : null;
-
-    if (resizeObserver && layoutHostEl) {
-      resizeObserver.observe(layoutHostEl);
-    }
-
-    const handleResize = () => updateLayoutWidth();
-    window.addEventListener("resize", handleResize);
-    updateLayoutWidth();
-
-    removeLayoutObserver = () => {
-      window.removeEventListener("resize", handleResize);
-      if (resizeObserver) {
-        resizeObserver.disconnect();
-      }
-    };
-
-    window.addEventListener(
-      CARD_TEMPLATES_UPDATED_EVENT,
-      handleCardTemplatesUpdated,
-    );
-    removeTemplateListener = () =>
-      window.removeEventListener(
-        CARD_TEMPLATES_UPDATED_EVENT,
-        handleCardTemplatesUpdated,
-      );
-    window.addEventListener(
-      "vesta-language-defaults-updated",
-      handleLanguageDefaultsUpdated,
-    );
-    removeLanguageDefaultsListener = () =>
-      window.removeEventListener(
-        "vesta-language-defaults-updated",
-        handleLanguageDefaultsUpdated,
-      );
-
-    noteTypeLanguage = loadDefaultLanguage(DEFAULT_FLASHCARDS_LANGUAGE_KEY);
-
-    try {
-      const savedDir = vestaConfig.getItem(OUTPUT_DIR_KEY);
-      if (savedDir) {
-        const exists = await invoke<boolean>("flashcard_check_dir_exists", {
-          path: savedDir,
-        });
-        if (exists) {
-          outputDir = savedDir;
-        } else {
-          vestaConfig.removeItem(OUTPUT_DIR_KEY);
-        }
-      }
-    } catch {}
-
-    if (!outputDir) {
-      try { outputDir = await defaultOutputDirectory(); } catch {}
-    }
+    noteTypeLanguage = loadDefaultLanguagePref(DEFAULT_FLASHCARDS_LANGUAGE_KEY);
+    outputDir = await loadInitialFlashcardsOutputDir();
 
     try {
       ffmpegAvailable = await invoke<boolean>("flashcard_check_deps");
@@ -1202,24 +888,7 @@
       ffmpegAvailable = false;
     }
 
-    try {
-      generationStore.systemCpuCount = await invoke<number>("flashcard_get_cpu_count");
-      const startupMaxCores = Math.max(2, generationStore.systemCpuCount - 1);
-      const savedCores = vestaConfig.getItem("vesta_cpu_cores");
-      if (savedCores) {
-        generationStore.cpuCores = parseInt(savedCores);
-      } else {
-        generationStore.cpuCores = startupMaxCores;
-      }
-    } catch {
-      generationStore.systemCpuCount = 4;
-      const savedCores = vestaConfig.getItem("vesta_cpu_cores");
-      if (savedCores) {
-        generationStore.cpuCores = parseInt(savedCores);
-      } else {
-        generationStore.cpuCores = Math.max(2, generationStore.systemCpuCount - 1);
-      }
-    }
+    await loadInitialFlashcardsCpuCores();
 
     // This async onMount can resume after its component has been destroyed.
     // Keep the progress subscription's late-resolution guard consistent with
@@ -1229,38 +898,16 @@
       window.addEventListener("vesta-ffmpeg-updated", handleFfmpegUpdated);
     }
 
-    // OS-level file drag and drop is handled dynamically via $effect
-
-    listen<{
-      stage: string;
-      message: string;
-      current: number;
-      total: number;
-      percentage: number;
-      params: Record<string, string>;
-    }>("flashcard-progress", (event) => {
-      if (!generationStore.isBusy || cancelRequested) return;
-      const p = event.payload;
-      const translated = t(p.message, p.params || {});
-
-      if (seriesTotalEpisodes > 0) {
-        generationStore.progress = Math.round(((seriesCurrentEpisode - 1) * 100 / seriesTotalEpisodes) + (p.percentage / seriesTotalEpisodes));
-        generationStore.progressMessage = `[Ep. ${seriesCurrentEpisode}/${seriesTotalEpisodes}] ${translated}`;
-      } else {
-        generationStore.progress = Math.round(p.percentage);
-        generationStore.progressMessage = translated;
-      }
-
-      generationStore.progressStage = p.stage;
-      generationStore.phaseProgress = p.stage === "optimizing" && p.params?.percent
-        ? Number(p.params.percent) : null;
-      if (p.stage !== "done") {
-        generationStore.addLog(generationStore.progressMessage, "progress", undefined, p.message);
-      }
-    }).then((fn) => {
-      if (!activeListener) fn();
-      else unlisten = fn;
-    }).catch(console.error);
+    subscribeFlashcardProgressEvents({
+      isActive: () => activeListener,
+      isCancelled: () => cancelRequested,
+      getSeriesProgress: () => ({ current: seriesCurrentEpisode, total: seriesTotalEpisodes }),
+      translate: (key, params) => t(key, params),
+    })
+      .then((fn) => {
+        unlisten = fn;
+      })
+      .catch(console.error);
   });
 
   onDestroy(() => {
@@ -1269,73 +916,25 @@
     activeListener = false;
     window.removeEventListener("vesta-cpu-cores-changed", handleCpuCoresChanged);
     window.removeEventListener("vesta-ffmpeg-updated", handleFfmpegUpdated);
-    if (unlisten) unlisten();
-    if (removeTemplateListener) removeTemplateListener();
-    if (removeNoteTypesListener) removeNoteTypesListener();
-    if (removeLanguageDefaultsListener) removeLanguageDefaultsListener();
-    if (removeLayoutObserver) removeLayoutObserver();
+    unlisten?.();
+    removeWindowSubscriptions?.();
     requirementFeedback.clear();
   });
 
-  // ─── AnkiConnect auto-import ─────────────────────────────────────────────
-  // If Anki (with the AnkiConnect add-on) is running, push the freshly
-  // generated .apkg straight into the collection instead of leaving the
-  // user to import it by hand from the Experimental tab. Reuses the same
-  // AnkiConnect URL configured there; silently no-ops when Anki isn't
-  // reachable — the .apkg stays on disk either way.
   async function maybeAutoImportToAnki(apkgPath: string) {
-    const url = ankiStore.url;
-    if (!(await ankiStore.checkConnection(true))) {
-      if (generationStore.exportFormat === "anki") {
-        const fallbackUpper = generationStore.fallbackFormat.toUpperCase();
-        const msg = t("flashcards.ankiNotRunningFallback", { format: fallbackUpper });
-        generationStore.addLog(`ℹ ${msg}`, "info");
-        snackbar.show(msg, "info");
-      }
-      return;
-    }
-
-    try {
-      await invoke("ankiconnect_import_package", { path: apkgPath, url });
-      generationStore.addLog(t("flashcards.ankiAutoImportSuccess"), "success");
-      snackbar.show(t("flashcards.ankiAutoImportSuccess"), "success");
-    } catch (e) {
-      generationStore.addLog(`${t("flashcards.ankiAutoImportFailed")}: ${errorMessage(e)}`, "warning");
-    }
+    await maybeAutoImportApkgToAnki(apkgPath, t);
   }
 
-  // addLog/clearLogs now live on generationStore (generationStore.svelte.ts).
-
   function buildConfig() {
-    const ep = episodes[0];
-    const tPath = ep?.targetSubsPath || "";
-    const nPath = ep?.nativeSubsPath || null;
-    const vPath = ep?.mediaType === "video" ? ep.mediaPath : null;
-    const aPath = ep?.mediaType === "audio" ? ep.mediaPath : null;
-
-    return buildFlashcardConfig({
-      targetSubsPath: tPath,
-      nativeSubsPath: nPath,
-      videoPath: vPath,
-      audioPath: aPath,
+    return buildFirstEpisodeFlashcardConfig({
+      ep: episodes[0],
       outputDir,
       cardFilters,
-      media: mediaSettings,
-      generateAudio: mediaSettings.generateAudio,
-      generateSnapshots: mediaSettings.generateSnapshots,
-      generateVideoClips: mediaSettings.generateVideoClips,
-      audioTrackIndex: mediaSettings.audioTrackIndex,
+      mediaSettings,
       videoHwAccel,
-      deckName: ep ? deriveDeckNameFromFile(ep) : "",
-      episodeNumber: 1,
-      exportFormat: generationStore.effectiveExportFormat,
-      noteType: ep ? getEpisodeNoteType(ep) : activeNoteType,
-      automaticNoteType: false,
-      cpuCores: generationStore.effectiveCpuCores,
+      activeNoteType,
+      getEpisodeNoteType,
       targetLanguage: getStudiedLanguagePreference(),
-      dictionaryLookup: ankiStore.dictionaryLookup,
-      autoCardFont: ankiStore.autoCardFont,
-      embedCardFont: ankiStore.embedCardFont,
     });
   }
 
@@ -1433,59 +1032,24 @@
   }
 
   function handleGlobalKeydown(e: KeyboardEvent) {
-    if (!active || e.defaultPrevented || e.isComposing) return;
-    if (bottomContextMenu && e.key.toLowerCase() === "escape") {
-      closeBottomContextMenu();
-      e.preventDefault();
-      return;
-    }
-    if (episodeContextMenu) {
-      if (
-        document.activeElement?.tagName === "INPUT" ||
-        document.activeElement?.tagName === "TEXTAREA"
-      )
-        return;
-
-      const key = e.key.toLowerCase();
-      if (key === "escape") {
-        closeEpisodeContextMenu();
-        e.preventDefault();
-        return;
-      }
-      if (key === "e") {
-        void editContextEpisode();
-        closeEpisodeContextMenu();
-        e.preventDefault();
-        return;
-      }
-      if (key === "s") {
-        const contextEpisode = episodes[episodeContextMenu.idx];
-        if (contextEpisode?.mediaPath) {
-          openEpisodeMediaSettings(episodeContextMenu.idx);
-        }
-        closeEpisodeContextMenu();
-        e.preventDefault();
-        return;
-      }
-      if (key === "d" || key === "delete") {
-        removeEpisode(episodeContextMenu.idx);
-        closeEpisodeContextMenu();
-        e.preventDefault();
-        return;
-      }
-    }
-    if (episodeContextMenu || bottomContextMenu || previewStore.visible || isInputActive()) return;
-    const action = localShortcutAction(e, "flashcards");
-    if (action === "generateFlashcards" && canRunFlashcards && !generationStore.isBusy && !previewStore.loading) {
-      e.preventDefault();
-      void startGeneration();
-    } else if (action === "cancelGeneration" && generationStore.isBusy) {
-      e.preventDefault();
-      void cancelGeneration();
-    } else if (action === "previewCards" && canRunFlashcards && !generationStore.isBusy && !previewStore.loading) {
-      e.preventDefault();
-      void loadPreview();
-    }
+    handleFlashcardsKeydown(e, {
+      active,
+      bottomContextMenuOpen: !!bottomContextMenu,
+      episodeContextMenuIdx: episodeContextMenu?.idx ?? null,
+      episodeHasMedia: episodeContextMenu ? Boolean(episodes[episodeContextMenu.idx]?.mediaPath) : false,
+      previewVisible: previewStore.visible,
+      canRunFlashcards,
+      isBusy: generationStore.isBusy,
+      isPreviewLoading: previewStore.loading,
+      onCloseBottomMenu: closeBottomContextMenu,
+      onCloseEpisodeMenu: closeEpisodeContextMenu,
+      onEditContextEpisode: () => { void editContextEpisode(); },
+      onOpenEpisodeMediaSettings: openEpisodeMediaSettings,
+      onRemoveEpisode: removeEpisode,
+      onStartGeneration: () => { void startGeneration(); },
+      onCancelGeneration: () => { void cancelGeneration(); },
+      onLoadPreview: () => { void loadPreview(); },
+    });
   }
 </script>
 
@@ -1535,114 +1099,15 @@
       </div>
     </div>
   {/if}
-  {#if ffmpegAvailable === false}
-    <div
-      class="mb-4 p-3 bg-white/[0.03] border border-white/10 rounded-lg flex items-center gap-3"
-    >
-      <svg
-        class="w-5 h-5 text-cyan-400 flex-shrink-0"
-        fill="none"
-        stroke="currentColor"
-        viewBox="0 0 24 24"
-      >
-        <path
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          stroke-width="2"
-          d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"
-        />
-      </svg>
-      <p class="text-gray-200 text-sm flex-1">
-        {t("flashcards.ffmpegMissing")}
-      </p>
-      <button
-        type="button"
-        disabled={isDownloadingFFmpeg}
-        onclick={async () => {
-          isDownloadingFFmpeg = true;
-          try {
-            await invoke("flashcard_download_ffmpeg");
-            ffmpegAvailable = await invoke<boolean>("flashcard_check_deps");
-            window.dispatchEvent(new CustomEvent("vesta-ffmpeg-updated"));
-          } catch (e) {
-            generationStore.error = `${t("flashcards.ffmpegDownloadFailed")}: ${errorMessage(e)}`;
-          } finally {
-            isDownloadingFFmpeg = false;
-          }
-        }}
-        class="flex-shrink-0 px-3 py-1.5 rounded-lg bg-cyan-500/10 border border-cyan-500/30 text-gray-200 text-xs font-semibold hover:bg-cyan-500/20 transition-colors flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
-      >
-        {#if isDownloadingFFmpeg}
-          <svg class="animate-spin w-3.5 h-3.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-          {t("flashcards.downloading")}
-        {:else}
-          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
-          {t("flashcards.downloadAuto")}
-        {/if}
-      </button>
-    </div>
-  {/if}
-
-  {#if hasAnyFiles && ankiStore.autoCardFont}
-    {@const proactiveLang = getStudiedLanguagePreference()}
-    {@const proactiveFont = fontStore.getFontForLanguage(proactiveLang)}
-    {#if ankiStore.autoCardFont && ankiStore.embedCardFont && proactiveFont && !proactiveFont.downloaded && !isFontBannerDismissed(proactiveLang)}
-      {@const isThisDownloading = fontStore.downloadingFontId === proactiveFont.id}
-      <div class="mb-4 p-3.5 bg-cyan-500/10 border border-cyan-500/30 rounded-xl flex flex-col md:flex-row md:items-center justify-between gap-3 animate-fade-in shadow-lg shadow-black/20">
-        <div class="flex items-start md:items-center gap-3 min-w-0">
-          <div class="w-9 h-9 rounded-lg bg-cyan-500/20 text-cyan-300 flex items-center justify-center shrink-0 mt-0.5 md:mt-0">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10" />
-            </svg>
-          </div>
-          <div class="min-w-0">
-            <p class="text-xs font-bold text-cyan-200">
-              {t("flashcards.fontSuggestionTitle")} {proactiveFont.language_name}
-            </p>
-            <p class="text-[11px] text-gray-300 mt-0.5 leading-relaxed">
-              {t("flashcards.fontSuggestionDesc")} ({proactiveFont.approx_size}) {t("flashcards.fontSuggestionDescEnd")} {t("flashcards.fontSuggestionDescLight")}
-            </p>
-          </div>
-        </div>
-        <div class="flex items-center gap-2 shrink-0 self-end md:self-center">
-          <button
-            type="button"
-            disabled={fontStore.isDownloading}
-            onclick={() => fontStore.downloadFont(proactiveFont.id)}
-            class="px-3 py-1.5 rounded-lg bg-cyan-500/20 border border-cyan-500/40 text-cyan-200 text-xs font-semibold hover:bg-cyan-500/30 transition-colors flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
-          >
-            {#if isThisDownloading}
-              <svg class="animate-spin w-3.5 h-3.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-              <span>{fontStore.downloadProgress}%</span>
-            {:else}
-              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-              </svg>
-              <span>{t("settings.download")} ({proactiveFont.approx_size})</span>
-            {/if}
-          </button>
-          <button
-            type="button"
-            onclick={() => dismissFontBanner(proactiveLang, true)}
-            class="px-2.5 py-1.5 rounded-lg border border-white/10 bg-white/5 text-gray-300 text-xs font-medium hover:bg-white/10 hover:text-white transition-colors"
-            title={t("flashcards.dontShowAgain")}
-          >
-            <span>{t("flashcards.dontShowAgain")}</span>
-          </button>
-          <button
-            type="button"
-            onclick={() => dismissFontBanner(proactiveLang, false)}
-            class="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 transition-colors"
-            title={t("common.close")}
-          >
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-      </div>
-    {/if}
-  {/if}
+  <FlashcardsBanners
+    {ffmpegAvailable}
+    {hasAnyFiles}
+    {proactiveLang}
+    {proactiveFont}
+    {isFontBannerDismissed}
+    onFfmpegInstalled={(ok) => (ffmpegAvailable = ok)}
+    onDismissFontBanner={dismissFontBanner}
+  />
 
   {#if previewStore.visible}
     <FlashcardsPreviewModal mediaPath={previewMediaPath} mediaType={previewMediaType} nativeSubsPath={episodes[0]?.nativeSubsPath || "" } {active} />
@@ -1717,113 +1182,48 @@
     </FlashcardsWorkspace>
   </div>
 
-  {#if episodeContextMenu}
-    <EpisodeContextMenu
-      x={episodeContextMenu.x}
-      y={episodeContextMenu.y}
-      hasMedia={Boolean(episodes[episodeContextMenu.idx]?.mediaPath)}
-      onInspectMatch={() => { const context = episodeContextMenu!; inspectedMatch = episodes[context.idx]; inspectedMatchPath = context.field ? inspectedMatch[context.field] : ""; closeEpisodeContextMenu(); }}
-      onEdit={editContextEpisode}
-      onMediaSettings={() => openEpisodeMediaSettings(episodeContextMenu!.idx)}
-      canPreviewAudio={mediaSettings.generateAudio}
-      onPreviewAudio={() => previewEpisodeAudio(episodeContextMenu!.idx)}
-      onRemove={() => removeEpisode(episodeContextMenu!.idx)}
-      onClose={closeEpisodeContextMenu}
-    />
-  {/if}
-
-  {#if bottomContextMenu}
-    <!-- svelte-ignore a11y_no_static_element_interactions -->
-    <div
-      class="fixed inset-0 z-50"
-      onclick={closeBottomContextMenu}
-      oncontextmenu={(e) => {
-        e.preventDefault();
-        closeBottomContextMenu();
-      }}
-      onkeydown={(e) => {
-        if (e.key === "Escape") closeBottomContextMenu();
-      }}
-      role="presentation"
-      tabindex="-1"
-    >
-      <div
-        use:fitContextMenu={{ x: bottomContextMenu.x, y: bottomContextMenu.y, close: closeBottomContextMenu }}
-      class="vesta-context-menu animate-fade-in"
-
-      >
-        <button
-          type="button"
-          class="vesta-context-menu-item"
-          onclick={() => {
-            onGoToSettings?.(bottomContextMenu!.section);
-            closeBottomContextMenu();
-          }}
-        >
-          <span class="inline-flex items-center gap-2">
-            <svg class="h-4 w-4 text-sky-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-            {t("translate.goToSettings")}
-          </span>
-          <kbd>{t("keys.middleClick")}</kbd>
-        </button>
-      </div>
-    </div>
-  {/if}
-
-  {#if inspectedMatch}
-    <MatchDiagnosticsModal episode={inspectedMatch} focusedPath={inspectedMatchPath} onclose={() => inspectedMatch = null}
-      onrules={() => { inspectedMatch = null; onGoToSettings?.("language", "smart-matching-rules"); }} />
-  {/if}
-  {#if editingEpisode}
-    <EpisodeEditorModal
-      {editingEpisode}
-      {noteTypeOptions}
-      {getEpisodeNoteType}
-      episodeIndex={editingEpisodeIndex ?? undefined}
-      onNoteTypeChange={(_index, id) => { if (editingEpisode) { editingEpisode.noteTypeId = id === "default" ? undefined : id; syncEpisodeEditor(); } }}
-      onlyField={editingEpisodeField}
-      {activeNoteType}
-      {dropMediaHint}
-      {dropSubtitleHint}
-      onClose={closeEpisodeEditor}
-      onRevert={revertEpisodeEditor}
-      onSelectFile={selectEpisodeFile}
-      onClearField={clearEpisodeField}
-      onExpandField={(field) => (expandedPathField = field)}
-    />
-  {/if}
-
-  <EpisodeMediaSettingsModal {mediaOverrideClass} noteTypeDirty={mediaNoteTypeId !== initialMediaNoteTypeId} onSave={saveEpisodeMediaSettings} onReset={resetEpisodeMediaSettings}>
-    {#snippet noteTypeControl()}
-      <label class="mb-4 block space-y-2 text-sm text-gray-300">
-        <span>{t("settings.noteType")}</span>
-        <SearchableSelect options={noteTypeOptions.map(option => option.value === "default" && episodeMediaEditorStore.episode ? { ...option, label: `${t("flashcards.automaticNoteType")} · ${getEpisodeNoteType({ ...episodeMediaEditorStore.episode, noteTypeId: undefined }).name}`, displayLabel: getEpisodeNoteType({ ...episodeMediaEditorStore.episode, noteTypeId: undefined }).name } : option)} value={mediaNoteTypeId} onchange={(id) => mediaNoteTypeId = id} ariaLabel={t("settings.noteType")} placeholder={t("settings.noteType")} noResultsText={t("common.noResults")} />
-      </label>
-    {/snippet}
-  </EpisodeMediaSettingsModal>
-
-  <PathPreviewModal
-    isOpen={!!expandedPathField}
-    title={expandedPathField === "targetSubs"
-      || expandedPathField === "targetSubsPath"
-      ? t("flashcards.targetLangSubs")
-      : expandedPathField === "output"
-        ? t("flashcards.outputDir")
-        : expandedPathField === "nativeSubs"
-          || expandedPathField === "nativeSubsPath"
-          ? t("flashcards.nativeLangSubs")
-          : t("flashcards.mediaFile")}
-    value={expandedPathField === "targetSubs" || expandedPathField === "targetSubsPath"
-      ? editingEpisode?.targetSubsPath || episodes[0]?.targetSubsPath || ""
-      : expandedPathField === "output"
-        ? outputDir
-        : expandedPathField === "nativeSubs" || expandedPathField === "nativeSubsPath"
-          ? editingEpisode?.nativeSubsPath || episodes[0]?.nativeSubsPath || ""
-          : editingEpisode?.mediaPath || episodes[0]?.mediaPath || ""}
-    onclose={() => (expandedPathField = null)}
+  <FlashcardsOverlays
+    {episodes}
+    {outputDir}
+    {episodeContextMenu}
+    {bottomContextMenu}
+    {inspectedMatch}
+    {inspectedMatchPath}
+    {editingEpisode}
+    {editingEpisodeIndex}
+    {editingEpisodeField}
+    {expandedPathField}
+    {noteTypeOptions}
+    {activeNoteType}
+    {dropMediaHint}
+    {dropSubtitleHint}
+    generateAudio={mediaSettings.generateAudio}
+    bind:mediaNoteTypeId
+    {initialMediaNoteTypeId}
+    {getEpisodeNoteType}
+    {mediaOverrideClass}
+    onCloseEpisodeContextMenu={closeEpisodeContextMenu}
+    onInspectMatch={(ep, path) => { inspectedMatch = ep; inspectedMatchPath = path; }}
+    onCloseInspectMatch={() => (inspectedMatch = null)}
+    onEditContextEpisode={editContextEpisode}
+    onOpenEpisodeMediaSettings={openEpisodeMediaSettings}
+    onPreviewEpisodeAudio={previewEpisodeAudio}
+    onRemoveEpisode={removeEpisode}
+    onCloseBottomContextMenu={closeBottomContextMenu}
+    {onGoToSettings}
+    onUpdateEditingNoteType={(id) => {
+      if (editingEpisode) {
+        editingEpisode.noteTypeId = id === "default" ? undefined : id;
+        syncEpisodeEditor();
+      }
+    }}
+    onCloseEpisodeEditor={closeEpisodeEditor}
+    onRevertEpisodeEditor={revertEpisodeEditor}
+    onSelectEpisodeFile={selectEpisodeFile}
+    onClearEpisodeField={clearEpisodeField}
+    onExpandPathField={(field) => (expandedPathField = field)}
+    onSaveEpisodeMediaSettings={saveEpisodeMediaSettings}
+    onResetEpisodeMediaSettings={resetEpisodeMediaSettings}
   />
   </div>
 
