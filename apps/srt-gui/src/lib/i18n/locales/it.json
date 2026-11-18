@@ -1382,5 +1382,6 @@
   "tiers.budgetTooltip": "Numero massimo di richieste consentite per questo tier prima del failover",
   "tiers.batchSizeTooltip": "Numero di righe di sottotitoli inviate in un singolo prompt all'LLM",
   "speech.priorityChain": "Catena di priorità predefinita",
-  "speech.externalHint": "Lo STT esterno invia audio al servizio scelto e può avere costi. La sincronizzazione richiede timestamp reali."
+  "speech.externalHint": "Lo STT esterno invia audio al servizio scelto e può avere costi. La sincronizzazione richiede timestamp reali.",
+  "common.configCorruptRecovered": "La configurazione danneggiata è stata ripristinata ai valori predefiniti. Backup salvato in: {{path}}"
 }

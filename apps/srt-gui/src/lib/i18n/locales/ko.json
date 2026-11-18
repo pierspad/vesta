@@ -1382,5 +1382,6 @@
   "tiers.budgetTooltip": "다음 계층으로 넘어가기 전 허용되는 최대 요청 수",
   "tiers.batchSizeTooltip": "단일 프롬프트에서 전송되는 자막 줄 수",
   "speech.priorityChain": "기본 우선순위 체인",
-  "speech.externalHint": "외부 STT는 선택한 서비스로 오디오를 전송하며 요금이 발생할 수 있습니다. 동기화에는 실제 타임스탬프가 필요합니다."
+  "speech.externalHint": "외부 STT는 선택한 서비스로 오디오를 전송하며 요금이 발생할 수 있습니다. 동기화에는 실제 타임스탬프가 필요합니다.",
+  "common.configCorruptRecovered": "손상된 구성을 기본값으로 초기화했습니다. 백업 저장 위치: {{path}}"
 }

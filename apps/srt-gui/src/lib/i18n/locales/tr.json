@@ -1382,5 +1382,6 @@
   "tiers.budgetTooltip": "Devir öncesinde bu katman için izin verilen maksimum istek",
   "tiers.batchSizeTooltip": "Tek bir istekte gönderilen altyazı satırı sayısı",
   "speech.priorityChain": "Varsayılan öncelik zinciri",
-  "speech.externalHint": "Harici STT, sesi seçilen hizmete gönderir ve ücretli olabilir. Eşzamanlama gerçek zaman damgaları gerektirir."
+  "speech.externalHint": "Harici STT, sesi seçilen hizmete gönderir ve ücretli olabilir. Eşzamanlama gerçek zaman damgaları gerektirir.",
+  "common.configCorruptRecovered": "Bozuk yapılandırma varsayılan değerlere sıfırlandı. Yedek şuraya kaydedildi: {{path}}"
 }

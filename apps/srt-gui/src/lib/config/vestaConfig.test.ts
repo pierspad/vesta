@@ -59,3 +59,74 @@ it("keeps preferences when installation reset fails", async () => {
   await expect(config.resetInstallation()).rejects.toThrow("cache locked");
   expect(config.getItem("preference")).toBe("keep");
 });
+
+it("retries incomplete localStorage migration on next startup until atomic write succeeds", async () => {
+  vi.resetModules();
+  const mockInvoke = vi.fn();
+  vi.doMock("$lib/services/tauriClient", () => ({ invokeCommand: mockInvoke }));
+  vi.stubGlobal("localStorage", {
+    length: 2,
+    key: (index: number) => (index === 0 ? "api-key" : index === 1 ? "language" : null),
+    getItem: (key: string) => (key === "api-key" ? "secret" : key === "language" ? "it" : null),
+    clear: vi.fn(),
+  });
+
+  try {
+    mockInvoke
+      .mockResolvedValueOnce({ entries: {}, recovered_backup_path: null })
+      .mockRejectedValueOnce(new Error("transient disk failure"));
+
+    const firstBoot = await import("./vestaConfig");
+    await firstBoot.hydrate();
+
+    expect(firstBoot.getItem("api-key")).toBe("secret");
+    expect(firstBoot.getItem("language")).toBe("it");
+    expect(firstBoot.exportSnapshot()).not.toHaveProperty("__vesta_config_migrated_from_local_storage__");
+
+    vi.resetModules();
+    vi.doMock("$lib/services/tauriClient", () => ({ invokeCommand: mockInvoke }));
+    mockInvoke
+      .mockResolvedValueOnce({ entries: { language: "fr" }, recovered_backup_path: null })
+      .mockResolvedValueOnce(undefined);
+
+    const secondBoot = await import("./vestaConfig");
+    await secondBoot.hydrate();
+
+    expect(secondBoot.getItem("api-key")).toBe("secret");
+    expect(secondBoot.getItem("language")).toBe("fr");
+    expect(mockInvoke).toHaveBeenLastCalledWith("config_replace_all", {
+      values: {
+        language: "fr",
+        "api-key": "secret",
+        __vesta_config_migrated_from_local_storage__: "true",
+      },
+    });
+  } finally {
+    vi.doUnmock("$lib/services/tauriClient");
+    vi.unstubAllGlobals();
+  }
+});
+
+it("records and consumes recovered backup paths without treating recovery as a fresh install", async () => {
+  vi.resetModules();
+  const mockInvoke = vi.fn().mockResolvedValueOnce({
+    entries: {},
+    recovered_backup_path: "/home/user/.config/vesta/vesta_config.json.corrupt.123",
+  });
+  vi.doMock("$lib/services/tauriClient", () => ({ invokeCommand: mockInvoke }));
+  vi.stubGlobal("localStorage", { length: 0, key: () => null, getItem: () => null, clear: vi.fn() });
+
+  try {
+    const freshModule = await import("./vestaConfig");
+    await freshModule.hydrate();
+
+    expect(freshModule.isNewInstallation()).toBe(false);
+    expect(freshModule.consumeRecoveredBackupPath()).toBe(
+      "/home/user/.config/vesta/vesta_config.json.corrupt.123",
+    );
+    expect(freshModule.consumeRecoveredBackupPath()).toBeNull();
+  } finally {
+    vi.doUnmock("$lib/services/tauriClient");
+    vi.unstubAllGlobals();
+  }
+});

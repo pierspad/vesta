@@ -276,12 +276,15 @@ For module-specific documentation and integration examples, see [`docs/modules/`
 ## Configuration, embedded subtitles, and output files
 
 `vestaConfig.ts` hydrates a string-keyed cache before dynamically importing the
-Svelte app/stores. Mutations are serialized over IPC. Setup awaits a durable snapshot via `replaceAll()`
-before reloading: an in-memory flag is insufficient to mark onboarding complete.
-Rust serializes disk access under `ConfigState`, writes a unique temporary file,
-syncs it, and publishes it atomically. Invalid/unreadable configuration is surfaced
-instead of silently replaced by defaults. API keys are stored in this configuration
-file; it is not an encrypted keychain.
+Svelte app/stores, atomically migrating legacy `localStorage` entries together
+with the completion flag via `replaceAll()`. Mutations are serialized over IPC.
+Setup awaits a durable snapshot via `replaceAll()` before reloading: an in-memory
+flag is insufficient to mark onboarding complete. Rust serializes disk access under
+`ConfigState`, writes a unique temporary file, syncs it, and publishes it atomically.
+Corrupted JSON is quarantined to a `.corrupt.<timestamp>` backup (blocking reset
+if the backup cannot be preserved) and surfaced to the user with the backup path;
+unreadable configuration fails startup instead of being silently replaced by defaults.
+API keys are stored in this configuration file; it is not an encrypted keychain.
 
 Embedded subtitle discovery/extraction lives in `srt-extract::embedded` and uses
 FFprobe/FFmpeg. Only text tracks are converted; PGS/VobSub need OCR. The desktop

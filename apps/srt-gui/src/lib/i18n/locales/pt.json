@@ -1382,5 +1382,6 @@
   "tiers.budgetTooltip": "Limite de requisições para este nível antes do failover",
   "tiers.batchSizeTooltip": "Número de linhas de legenda enviadas em uma única requisição",
   "speech.priorityChain": "Ordem de prioridade predefinida",
-  "speech.externalHint": "O STT externo envia áudio ao serviço escolhido e pode gerar custos. A sincronização exige marcações de tempo reais."
+  "speech.externalHint": "O STT externo envia áudio ao serviço escolhido e pode gerar custos. A sincronização exige marcações de tempo reais.",
+  "common.configCorruptRecovered": "A configuração corrompida foi redefinida para os padrões. Cópia de segurança salva em: {{path}}"
 }

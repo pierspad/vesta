@@ -16,16 +16,23 @@ vi.mock("$lib/i18n", async () => {
   const { writable } = await import("svelte/store");
   return { locale: writable((key: string) => key) };
 });
-vi.mock("$lib/config/vestaConfig", () => ({
+const vestaConfigMock = vi.hoisted(() => ({
   getItem: () => null,
   removeItem: vi.fn(),
   setItem: vi.fn(),
   flush: vi.fn(),
   isNewInstallation: () => false,
+  consumeRecoveredBackupPath: vi.fn<() => string | null>(() => null),
 }));
+const snackbarMock = vi.hoisted(() => ({
+  message: null,
+  show: vi.fn(),
+}));
+
+vi.mock("$lib/config/vestaConfig", () => vestaConfigMock);
 vi.mock("$lib/stores/ankiStore.svelte", () => ({ ankiStore: { checkConnection: vi.fn() } }));
 vi.mock("$lib/stores/aiStore.svelte", () => ({ aiStore: { killSwitchActive: false } }));
-vi.mock("$lib/stores/snackbarStore.svelte", () => ({ snackbar: { message: null } }));
+vi.mock("$lib/stores/snackbarStore.svelte", () => ({ snackbar: snackbarMock }));
 vi.mock("$lib/components/Sidebar.svelte", () => import("./fixtures/AppTestSidebar.svelte"));
 vi.mock("$lib/components/ShortcutOverlay.svelte", () => import("./fixtures/AppTestStub.svelte"));
 vi.mock("$lib/components/AppContextMenu.svelte", () => import("./fixtures/AppTestStub.svelte"));
@@ -64,6 +71,8 @@ afterEach(async () => {
   nativeWindow.setMinSize.mockReset().mockResolvedValue(undefined);
   nativeWindow.setSize.mockReset().mockResolvedValue(undefined);
   nativeWindow.onResized.mockReset().mockResolvedValue(() => {});
+  vestaConfigMock.consumeRecoveredBackupPath.mockReset().mockReturnValue(null);
+  snackbarMock.show.mockReset();
 });
 
 it("keeps loaded tabs mounted across navigation and updates their active prop", async () => {
@@ -178,4 +187,10 @@ it("switches to Extract and Plugins with Alt+Shift+E and Alt+Shift+P", async () 
 
   expect(extractWrapper.classList.contains("hidden")).toBe(false);
   expect(pluginsWrapper.classList.contains("hidden")).toBe(true);
+});
+
+it("surfaces a sticky notification when corrupted configuration was backed up on startup", async () => {
+  vestaConfigMock.consumeRecoveredBackupPath.mockReturnValueOnce("/cfg/vesta_config.json.corrupt.999");
+  await render();
+  expect(snackbarMock.show).toHaveBeenCalledWith("common.configCorruptRecovered", "error", 0);
 });

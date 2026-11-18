@@ -363,6 +363,10 @@
 
   // Enforce minimum window size at runtime (Linux WMs may ignore config)
   onMount(() => {
+    const recoveredBackupPath = vestaConfig.consumeRecoveredBackupPath();
+    if (recoveredBackupPath) {
+      snackbar.show(t("common.configCorruptRecovered", { path: recoveredBackupPath }), "error", 0);
+    }
     void pluginsStore.init();
     const appWindow = getCurrentWindow();
     const stopPreloading = preloadTabs<BuiltinTab>(["settings", "translate", "sync", "transcribe", "refine", "align", "experimental", "plugins"], ensureTabLoaded, (callback) => {

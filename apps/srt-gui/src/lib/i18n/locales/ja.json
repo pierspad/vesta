@@ -1382,5 +1382,6 @@
   "tiers.budgetTooltip": "フェイルオーバー前にこの階層で許可される最大リクエスト数",
   "tiers.batchSizeTooltip": "1回のリクエストで送信される字幕の行数",
   "speech.priorityChain": "既定の優先順位",
-  "speech.externalHint": "外部STTは選択したサービスに音声を送信し、料金が発生する場合があります。同期には実際のタイムスタンプが必要です。"
+  "speech.externalHint": "外部STTは選択したサービスに音声を送信し、料金が発生する場合があります。同期には実際のタイムスタンプが必要です。",
+  "common.configCorruptRecovered": "破損した設定をデフォルトにリセットしました。バックアップの保存先: {{path}}"
 }

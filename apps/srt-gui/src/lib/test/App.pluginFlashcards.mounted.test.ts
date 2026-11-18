@@ -27,6 +27,7 @@ vi.mock("$lib/config/vestaConfig", () => ({
   setItem: vi.fn(),
   flush: vi.fn(),
   isNewInstallation: () => false,
+  consumeRecoveredBackupPath: () => null,
 }));
 vi.mock("$lib/stores/ankiStore.svelte", () => ({
   ankiStore: {

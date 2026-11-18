@@ -1382,5 +1382,6 @@
   "tiers.budgetTooltip": "Límite de solicitudes para este nivel antes de la conmutación",
   "tiers.batchSizeTooltip": "Número de líneas de subtítulos enviadas en una sola solicitud",
   "speech.priorityChain": "Cadena de prioridad predeterminada",
-  "speech.externalHint": "El STT externo envía audio al servicio elegido y puede generar costes. La sincronización requiere marcas de tiempo reales."
+  "speech.externalHint": "El STT externo envía audio al servicio elegido y puede generar costes. La sincronización requiere marcas de tiempo reales.",
+  "common.configCorruptRecovered": "La configuración dañada se restableció a los valores predeterminados. Copia de seguridad guardada en: {{path}}"
 }

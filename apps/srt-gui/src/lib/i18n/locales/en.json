@@ -1382,5 +1382,6 @@
   "tiers.budgetTooltip": "Maximum requests allowed for this tier before falling over",
   "tiers.batchSizeTooltip": "Number of subtitle lines sent in a single LLM prompt",
   "speech.priorityChain": "Default priority chain",
-  "speech.externalHint": "External STT sends audio to the selected endpoint and may incur charges. Sync requires real timestamps."
+  "speech.externalHint": "External STT sends audio to the selected endpoint and may incur charges. Sync requires real timestamps.",
+  "common.configCorruptRecovered": "Corrupted configuration was reset to defaults. A backup was saved to: {{path}}"
 }
