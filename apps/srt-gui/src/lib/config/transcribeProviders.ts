@@ -43,6 +43,7 @@ export const transcribeProviders: Record<string, TranscribeProviderInfo> = {
     apiKeyUrl: "https://platform.openai.com/api-keys",
     keyPlaceholder: "sk-...",
     models: [
+      { id: "gpt-transcribe", name: "GPT Transcribe (timing per chunk)" },
       { id: "whisper-1", name: "Whisper-1 (con timestamp)", recommended: true },
       { id: "gpt-4o-mini-transcribe", name: "GPT-4o mini transcribe (timing per chunk)" },
       { id: "gpt-4o-transcribe", name: "GPT-4o transcribe (timing per chunk)" },

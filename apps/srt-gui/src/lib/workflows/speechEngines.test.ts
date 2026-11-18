@@ -25,3 +25,9 @@ describe("speech engine availability", () => {
     expect(availableSpeechEngines(tiers, [], [{ ...keys[0], capabilities: ["llm"] }], true)).toEqual([]);
   });
 });
+
+it.each(["gpt-transcribe", "gpt-transcribe-2026-08-26"])("keeps %s out of synchronization while allowing transcription", model => {
+  const entry = { ...textOnly, model };
+  expect(availableSpeechEngines([{ id: "tier", entries: [entry] }], [], keys, true)).toEqual([]);
+  expect(availableSpeechEngines([{ id: "tier", entries: [entry] }], [], keys, false)).toEqual([entry]);
+});

@@ -12,7 +12,7 @@ publishing an incomplete list.
 
 | Integration | Endpoint & Protocol Contract | Reference Documentation |
 | --- | --- | --- |
-| **OpenAI Transcription** | `POST /v1/audio/transcriptions` (multipart). Whisper models request `verbose_json` with segment/word timestamps; GPT transcription models (`gpt-4o-transcribe`, `gpt-4o-mini-transcribe`) request `json` without Whisper-only timestamp flags. | [OpenAI Audio Transcriptions](https://developers.openai.com/api/reference/resources/audio/subresources/transcriptions/methods/create) |
+| **OpenAI Transcription** | `POST /v1/audio/transcriptions` (multipart). Whisper models request `verbose_json` with timestamps. `gpt-transcribe` uses default JSON and plural `languages[]`, without Whisper-only parameters. Legacy GPT-4o transcription models request `json`. Text-only models are excluded from synchronization. | [OpenAI Audio Transcriptions](https://developers.openai.com/api/reference/resources/audio/subresources/transcriptions/methods/create) |
 | **Groq Speech-to-Text** | OpenAI-compatible `POST /openai/v1/audio/transcriptions` (`whisper-large-v3`, `whisper-large-v3-turbo`). | [Groq Speech-to-Text](https://console.groq.com/docs/speech-to-text) |
 | **Deepgram Speech-to-Text** | `POST /v1/listen` with pre-recorded audio payload and utterance/word timing parameters. | [Deepgram Pre-recorded Audio](https://developers.deepgram.com/reference/speech-to-text/listen-pre-recorded) |
 | **AssemblyAI Speech-to-Text** | `POST /v2/upload` followed by `POST /v2/transcript` creation and status polling with `speech_models` selection. | [AssemblyAI Transcripts API](https://www.assemblyai.com/docs/pre-recorded-audio/api-reference/transcripts/submit) |
@@ -41,3 +41,12 @@ value. Claude requests keep API version
 `2023-06-01` for existing integrations: adopting `2026-10-21` globally would remove
 sampling controls even for older models. See [OpenAI migration guidance](https://developers.openai.com/api/docs/guides/latest-model)
 and [Claude version migration](https://platform.claude.com/docs/en/api/migration-2026-10-21).
+
+The 2026-11-18 review checked official provider documentation and unauthenticated
+model discovery, without uploading user audio or running paid inference.
+OpenAI's legacy `whisper-1` and GPT-4o transcription models remain available but
+are scheduled for retirement on 2027-02-26. Existing timestamp/translation flows
+retain them for compatibility; `gpt-transcribe` is an additional text-only
+transcription option, not a replacement for timestamp-based alignment or audio
+translation. See [file transcription](https://developers.openai.com/api/docs/guides/speech-to-text)
+and [deprecations](https://developers.openai.com/api/docs/deprecations).

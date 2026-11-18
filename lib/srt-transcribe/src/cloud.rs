@@ -108,7 +108,10 @@ async fn openai_compatible(
     file_name: &str,
     require_timestamps: bool,
 ) -> Result<Vec<TranscribedSegment>> {
-    let json_only = cfg.provider.eq_ignore_ascii_case("openai") && cfg.model.starts_with("gpt-4o-");
+    let current_openai = cfg.provider.eq_ignore_ascii_case("openai")
+        && (cfg.model == "gpt-transcribe" || cfg.model.starts_with("gpt-transcribe-"));
+    let json_only = current_openai
+        || (cfg.provider.eq_ignore_ascii_case("openai") && cfg.model.starts_with("gpt-4o-"));
     anyhow::ensure!(
         !require_timestamps || !json_only,
         "This STT model does not provide timestamps required for synchronization"
@@ -133,11 +136,13 @@ async fn openai_compatible(
 
     let mut form = reqwest::multipart::Form::new()
         .text("model", compatible_audio_model(cfg))
-        .text(
+        .part("file", part);
+    if !current_openai {
+        form = form.text(
             "response_format",
             if json_only { "json" } else { "verbose_json" },
-        )
-        .part("file", part);
+        );
+    }
 
     if !json_only && !cfg.translate_to_english {
         form = form.text("timestamp_granularities[]", "segment");
@@ -146,7 +151,14 @@ async fn openai_compatible(
     if !cfg.translate_to_english
         && let Some(lang) = cfg.language.as_ref().filter(|l| l.as_str() != "auto")
     {
-        form = form.text("language", lang.clone());
+        form = form.text(
+            if current_openai {
+                "languages[]"
+            } else {
+                "language"
+            },
+            lang.clone(),
+        );
     }
 
     let request = client.post(&endpoint);
@@ -664,11 +676,17 @@ mod tests {
 
     #[tokio::test]
     async fn alignment_rejects_text_only_models_before_upload() {
-        let cfg = config("openai", "http://127.0.0.1:1".into(), "gpt-4o-transcribe");
-        let error = transcribe_timed_chunk(&default_client(), &cfg, wav())
-            .await
-            .unwrap_err();
-        assert!(error.to_string().contains("does not provide timestamps"));
+        for model in [
+            "gpt-4o-transcribe",
+            "gpt-transcribe",
+            "gpt-transcribe-2026-08-26",
+        ] {
+            let cfg = config("openai", "http://127.0.0.1:1".into(), model);
+            let error = transcribe_timed_chunk(&default_client(), &cfg, wav())
+                .await
+                .unwrap_err();
+            assert!(error.to_string().contains("does not provide timestamps"));
+        }
     }
 
     #[tokio::test]
@@ -692,6 +710,33 @@ mod tests {
         );
         assert!(request.contains("name=\"response_format\"\r\n\r\njson"));
         assert!(!request.contains("timestamp_granularities"));
+    }
+
+    #[tokio::test]
+    async fn current_openai_transcription_uses_languages_and_its_default_json_format() {
+        let (url, server) = mock_server(vec![(
+            200,
+            r#"{"text":"Ciao","languages":[{"code":"it"}]}"#.into(),
+        )]);
+        let mut cfg = config("openai", url, "gpt-transcribe");
+        cfg.language = Some("it".into());
+        let segments = transcribe_chunk(&default_client(), &cfg, wav(), "audio.wav")
+            .await
+            .unwrap();
+        assert_eq!(segments[0].end_ms, 1000);
+        assert_eq!(segments[0].text, "Ciao");
+        let request = &server.join().unwrap()[0];
+        assert!(request.starts_with("POST /audio/transcriptions "));
+        assert!(request.contains("name=\"languages[]\"\r\n\r\nit"));
+        assert!(!request.contains("name=\"language\""));
+        assert!(!request.contains("response_format"));
+        assert!(!request.contains("timestamp_granularities"));
+        cfg.api_url = Some("http://127.0.0.1:1".into());
+        cfg.translate_to_english = true;
+        let error = transcribe_chunk(&default_client(), &cfg, wav(), "audio.wav")
+            .await
+            .unwrap_err();
+        assert!(error.to_string().contains("requires whisper-1"));
     }
 
     #[tokio::test]

@@ -5,7 +5,9 @@ import { isLocalTranscribeProvider, isTranscribeEndpointReady } from "$lib/workf
 
 /** Custom endpoints are validated for real timestamps by the native backend. */
 export function supportsSyncTimestamps(entry: TranscribeTierEntry): boolean {
-  return !(entry.provider === "openai" && entry.model.startsWith("gpt-4o-"));
+  return !(entry.provider === "openai" && (
+    entry.model.startsWith("gpt-4o-") || entry.model === "gpt-transcribe" || entry.model.startsWith("gpt-transcribe-")
+  ));
 }
 
 export function availableSpeechEngines(tiers: TranscribeTier[], models: WhisperModel[], keys: ApiKeyConfig[], sync: boolean): TranscribeTierEntry[] {
