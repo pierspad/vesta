@@ -99,7 +99,7 @@ pub fn transcode_for_playback(
     let hash = stable_path_hash(&source.to_string_lossy());
     let output_path = cache_dir.join(format!("{hash}.wav"));
 
-    if std::fs::metadata(&output_path).is_ok_and(|m| m.len() > 0) {
+    if std::fs::metadata(&output_path).is_ok_and(|m| m.is_file() && m.len() > 0) {
         let source_modified = std::fs::metadata(source).and_then(|m| m.modified()).ok();
         let cache_modified = std::fs::metadata(&output_path)
             .and_then(|m| m.modified())
@@ -112,7 +112,11 @@ pub fn transcode_for_playback(
     }
 
     // PCM avoids lossy encoding work and needs no optional compressed-audio decoder.
-    let temporary_path = cache_dir.join(format!("{hash}.partial.wav"));
+    let temporary_path = tempfile::Builder::new()
+        .prefix(".vesta-preview-")
+        .suffix(".wav")
+        .tempfile_in(cache_dir)?
+        .into_temp_path();
     let output = run_ffmpeg(
         Command::new(ffmpeg_cmd)
             .args(["-nostdin", "-loglevel", "error", "-y", "-i"])
@@ -131,26 +135,20 @@ pub fn transcode_for_playback(
                 "1",
             ])
             .arg(&temporary_path),
-    );
-    let output = match output {
-        Ok(output) => output,
-        Err(error) => {
-            let _ = std::fs::remove_file(&temporary_path);
-            return Err(error);
-        }
-    };
+    )?;
     if !output.status.success() {
-        let _ = std::fs::remove_file(&temporary_path);
         anyhow::bail!(
             "ffmpeg audio preparation failed: {}",
             String::from_utf8_lossy(&output.stderr)
         );
     }
 
-    if output_path.exists() {
-        std::fs::remove_file(&output_path)?;
-    }
-    std::fs::rename(&temporary_path, &output_path)?;
+    anyhow::ensure!(
+        std::fs::metadata(&temporary_path)?.len() > 0,
+        "FFmpeg audio preparation produced an empty preview"
+    );
+    // Replace in one filesystem operation; failed publication preserves the old cache.
+    temporary_path.persist(&output_path).map_err(|e| e.error)?;
 
     eprintln!(
         "[sync] Transcoded '{}' -> '{}'",
@@ -250,7 +248,11 @@ mod tests {
         std::fs::write(cache.join(format!("{hash}.wav")), "").unwrap();
         let output = transcode_for_playback(&source, &cache, fake.to_str().unwrap()).unwrap();
         assert_eq!(std::fs::read_to_string(&output).unwrap(), "OggScomplete");
-        assert!(!cache.join(format!("{hash}.partial.wav")).exists());
+        assert_eq!(
+            std::fs::read_to_string(cache.join(format!("{hash}.partial.wav"))).unwrap(),
+            "incomplete"
+        );
+        assert_eq!(std::fs::read_dir(&cache).unwrap().count(), 2);
         let cached = transcode_for_playback(&source, &cache, "missing-ffmpeg").unwrap();
         assert_eq!(output, cached);
         std::fs::remove_dir_all(&folder).unwrap();
@@ -272,6 +274,67 @@ mod tests {
         let cache = directory.path().join("cache");
         assert!(transcode_for_playback(&source, &cache, fake.to_str().unwrap()).is_err());
         assert_eq!(std::fs::read_dir(cache).unwrap().count(), 0);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn failed_and_empty_refreshes_preserve_old_cache_and_clean_temporary_files() {
+        use std::os::unix::fs::PermissionsExt;
+        for script in ["exit 1", "for arg do out=\"$arg\"; done; : > \"$out\""] {
+            let directory = tempfile::tempdir().unwrap();
+            let source = directory.path().join("clip.mp4");
+            std::fs::write(&source, "source").unwrap();
+            let cache = directory.path().join("cache");
+            std::fs::create_dir(&cache).unwrap();
+            let output = cache.join(format!(
+                "{}.wav",
+                stable_path_hash(&source.to_string_lossy())
+            ));
+            std::fs::write(&output, "previous complete preview").unwrap();
+            let old = std::time::SystemTime::now() - Duration::from_secs(60);
+            std::fs::File::open(&output)
+                .unwrap()
+                .set_times(std::fs::FileTimes::new().set_modified(old))
+                .unwrap();
+            let fake = directory.path().join("ffmpeg");
+            std::fs::write(&fake, format!("#!/bin/sh\n{script}\n")).unwrap();
+            std::fs::set_permissions(&fake, std::fs::Permissions::from_mode(0o700)).unwrap();
+            assert!(transcode_for_playback(&source, &cache, fake.to_str().unwrap()).is_err());
+            assert_eq!(
+                std::fs::read_to_string(output).unwrap(),
+                "previous complete preview"
+            );
+            assert_eq!(std::fs::read_dir(cache).unwrap().count(), 1);
+        }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn failed_publication_cleans_temporary_file_without_removing_destination() {
+        use std::os::unix::fs::PermissionsExt;
+        let directory = tempfile::tempdir().unwrap();
+        let source = directory.path().join("clip.mp4");
+        std::fs::write(&source, "source").unwrap();
+        let cache = directory.path().join("cache");
+        let output = cache.join(format!(
+            "{}.wav",
+            stable_path_hash(&source.to_string_lossy())
+        ));
+        std::fs::create_dir_all(&output).unwrap();
+        std::fs::write(output.join("keep"), "untouched").unwrap();
+        let fake = directory.path().join("ffmpeg");
+        std::fs::write(
+            &fake,
+            "#!/bin/sh\nfor arg do out=\"$arg\"; done\nprintf complete > \"$out\"\n",
+        )
+        .unwrap();
+        std::fs::set_permissions(&fake, std::fs::Permissions::from_mode(0o700)).unwrap();
+        assert!(transcode_for_playback(&source, &cache, fake.to_str().unwrap()).is_err());
+        assert_eq!(
+            std::fs::read_to_string(output.join("keep")).unwrap(),
+            "untouched"
+        );
+        assert_eq!(std::fs::read_dir(cache).unwrap().count(), 1);
     }
 
     #[test]

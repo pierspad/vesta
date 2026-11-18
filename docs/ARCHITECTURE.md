@@ -329,10 +329,12 @@ AssemblyAI jobs may continue after local cancellation. See [QUALITY](QUALITY.md)
 MKV or MP4) are prepared by `srt-sync::playback`: reuse a fresh nonempty cache
 entry (`cache_modified >= source_modified`), or transcode the audio stream via
 FFmpeg into uncompressed 16 kHz mono PCM WAV (`pcm_s16le`, `{hash}.wav`) via an
-atomic `.partial.wav` sibling. This preview policy avoids video decoding and
+atomically published unique temporary sibling. This preview policy avoids video decoding and
 compressed-audio encoding overhead, and does not change flashcard export
 settings. A process-local mutex serializes preparation requests; temporary files
-become cache entries only after a successful FFmpeg run. Each FFmpeg child has a
+become cache entries only after a successful FFmpeg run with nonempty output.
+Failed conversion or publication cleans the temporary file and preserves the
+previous cache entry. Each FFmpeg child has a
 five-minute timeout. This path has no caller cancellation token.
 
 The loopback media server authenticates requests with a session token and supports
