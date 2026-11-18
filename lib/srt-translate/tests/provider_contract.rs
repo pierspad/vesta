@@ -279,3 +279,81 @@ async fn exhausted_credits_return_immediately_without_retry_events() {
     assert!(events.lock().unwrap().is_empty());
     task.await.unwrap();
 }
+
+#[tokio::test]
+async fn redirects_preserve_same_origin_requests_but_never_forward_credentials_elsewhere() {
+    for kind in [ApiType::Local, ApiType::Google, ApiType::Anthropic] {
+        let destination = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let target = destination.local_addr().unwrap();
+        let location = format!("http://{target}/stolen");
+        let origin = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let url = format!("http://{}/v1", origin.local_addr().unwrap());
+        let first = tokio::spawn(async move {
+            let (mut stream, _) = origin.accept().await.unwrap();
+            let mut bytes = [0; 8192];
+            stream.read(&mut bytes).await.unwrap();
+            stream
+                .write_all(
+                    format!(
+                        "HTTP/1.1 307 Redirect\r\nLocation: {location}\r\nContent-Length: 0\r\n\r\n"
+                    )
+                    .as_bytes(),
+                )
+                .await
+                .unwrap();
+        });
+        assert!(
+            tokio::time::timeout(
+                std::time::Duration::from_secs(2),
+                translator(url, kind).generate_response("private prompt")
+            )
+            .await
+            .expect("cross-origin redirect must not be followed")
+            .is_err()
+        );
+        first.await.unwrap();
+        assert!(
+            tokio::time::timeout(std::time::Duration::from_millis(100), destination.accept())
+                .await
+                .is_err()
+        );
+    }
+
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let url = format!("http://{}/v1", listener.local_addr().unwrap());
+    let task = tokio::spawn(async move {
+        let (mut stream, _) = listener.accept().await.unwrap();
+        let mut bytes = [0; 8192];
+        stream.read(&mut bytes).await.unwrap();
+        stream.write_all(b"HTTP/1.1 307 Redirect\r\nLocation: /v1/final\r\nContent-Length: 0\r\nConnection: close\r\n\r\n").await.unwrap();
+        drop(stream);
+        let (mut stream, _) = listener.accept().await.unwrap();
+        let size = stream.read(&mut bytes).await.unwrap();
+        let request = String::from_utf8_lossy(&bytes[..size]);
+        assert!(request.starts_with("POST /v1/final "));
+        assert!(
+            request
+                .to_lowercase()
+                .contains("authorization: bearer private-key")
+        );
+        let body = r#"{"choices":[{"message":{"role":"assistant","content":"same origin"}}]}"#;
+        stream
+            .write_all(
+                format!(
+                    "HTTP/1.1 200 OK\r\nContent-Length: {}\r\n\r\n{body}",
+                    body.len()
+                )
+                .as_bytes(),
+            )
+            .await
+            .unwrap();
+    });
+    assert_eq!(
+        translator(url, ApiType::Local)
+            .generate_response("prompt")
+            .await
+            .unwrap(),
+        "same origin"
+    );
+    task.await.unwrap();
+}

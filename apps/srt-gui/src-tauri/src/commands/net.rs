@@ -4,29 +4,25 @@ use std::time::Duration;
 use reqwest::redirect::Policy;
 use serde::{Deserialize, Serialize};
 
-static CLIENT_NO_REDIRECT: LazyLock<reqwest::Client> = LazyLock::new(|| {
-    reqwest::Client::builder()
-        .redirect(Policy::none())
-        .build()
-        .unwrap_or_default()
-});
+static CLIENT_NO_REDIRECT: LazyLock<Result<reqwest::Client, reqwest::Error>> =
+    LazyLock::new(|| reqwest::Client::builder().redirect(Policy::none()).build());
 
-static CLIENT_FOLLOW_CUSTOM: LazyLock<reqwest::Client> = LazyLock::new(|| {
-    reqwest::Client::builder()
-        .redirect(Policy::custom(|attempt| {
-            if attempt.previous().len() >= 10 {
-                attempt.error("Too many redirects")
-            } else if matches!(attempt.url().scheme(), "http" | "https") {
-                attempt.follow()
-            } else {
-                attempt.error("Redirect host not allowed")
-            }
-        }))
-        .build()
-        .unwrap_or_default()
-});
+static CLIENT_FOLLOW_CUSTOM: LazyLock<Result<reqwest::Client, reqwest::Error>> =
+    LazyLock::new(|| {
+        reqwest::Client::builder()
+            .redirect(Policy::custom(|attempt| {
+                if attempt.previous().len() >= 10 {
+                    attempt.error("Too many redirects")
+                } else if matches!(attempt.url().scheme(), "http" | "https") {
+                    attempt.follow()
+                } else {
+                    attempt.error("Redirect host not allowed")
+                }
+            }))
+            .build()
+    });
 
-static CLIENT_FOLLOW: LazyLock<reqwest::Client> = LazyLock::new(|| {
+static CLIENT_FOLLOW: LazyLock<Result<reqwest::Client, reqwest::Error>> = LazyLock::new(|| {
     reqwest::Client::builder()
         .redirect(Policy::custom(|attempt| {
             if attempt.previous().len() >= 10 {
@@ -40,17 +36,48 @@ static CLIENT_FOLLOW: LazyLock<reqwest::Client> = LazyLock::new(|| {
             }
         }))
         .build()
-        .unwrap_or_default()
 });
 
-fn get_client(follow_redirects: bool, allow_custom_host: bool) -> &'static reqwest::Client {
-    if !follow_redirects {
+fn api_redirect_policy() -> reqwest::redirect::Policy {
+    reqwest::redirect::Policy::custom(|attempt| {
+        if attempt.previous().len() >= 10 {
+            attempt.error("Too many API redirects")
+        } else if attempt
+            .previous()
+            .first()
+            .is_some_and(|original| original.origin() == attempt.url().origin())
+        {
+            attempt.follow()
+        } else {
+            attempt.stop()
+        }
+    })
+}
+
+static CLIENT_FOLLOW_AUTHENTICATED: LazyLock<Result<reqwest::Client, reqwest::Error>> =
+    LazyLock::new(|| {
+        reqwest::Client::builder()
+            .redirect(api_redirect_policy())
+            .build()
+    });
+
+fn get_client(
+    follow_redirects: bool,
+    allow_custom_host: bool,
+    authenticated: bool,
+) -> Result<&'static reqwest::Client, String> {
+    let client = if !follow_redirects {
         &CLIENT_NO_REDIRECT
+    } else if authenticated {
+        &CLIENT_FOLLOW_AUTHENTICATED
     } else if allow_custom_host {
         &CLIENT_FOLLOW_CUSTOM
     } else {
         &CLIENT_FOLLOW
-    }
+    };
+    client
+        .as_ref()
+        .map_err(|_| "Failed to configure HTTP client".into())
 }
 
 const ALLOWED_HOSTS: &[&str] = &[
@@ -174,7 +201,15 @@ pub async fn http_fetch(req: HttpFetchRequest) -> Result<HttpFetchResponse, Stri
     }
 
     let follow_redirects = req.redirect != "manual";
-    let client = get_client(follow_redirects, req.allow_custom_host);
+    let authenticated = !url.username().is_empty()
+        || url.password().is_some()
+        || req.headers.iter().any(|(name, _)| {
+            !matches!(
+                name.to_ascii_lowercase().as_str(),
+                "accept" | "accept-language" | "content-type" | "user-agent"
+            )
+        });
+    let client = get_client(follow_redirects, req.allow_custom_host, authenticated)?;
 
     let method = req
         .method
@@ -298,6 +333,43 @@ mod tests {
         )
         .await;
         assert!(bounded_response_text(response).await.is_err());
+    }
+
+    #[tokio::test]
+    async fn authenticated_metadata_redirects_do_not_forward_custom_keys_to_another_origin() {
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+        let destination = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let target = destination.local_addr().unwrap();
+        let origin = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let address = origin.local_addr().unwrap();
+        let task = tokio::spawn(async move {
+            for _ in 0..2 {
+                let (mut stream, _) = origin.accept().await.unwrap();
+                let mut bytes = [0u8; 4096];
+                stream.read(&mut bytes).await.unwrap();
+                stream.write_all(format!("HTTP/1.1 307 Redirect\r\nLocation: http://{target}/models\r\nContent-Length: 0\r\n\r\n").as_bytes()).await.unwrap();
+            }
+        });
+        for name in ["x-goog-api-key", "x-custom-secret"] {
+            let response = http_fetch(HttpFetchRequest {
+                url: format!("http://{address}/models"),
+                method: "GET".into(),
+                headers: vec![(name.into(), "private-key".into())],
+                body: None,
+                redirect: "follow".into(),
+                timeout_ms: 2000,
+                allow_custom_host: true,
+            })
+            .await
+            .unwrap();
+            assert_eq!(response.status, 307);
+        }
+        task.await.unwrap();
+        assert!(
+            tokio::time::timeout(Duration::from_millis(100), destination.accept())
+                .await
+                .is_err()
+        );
     }
 
     #[test]

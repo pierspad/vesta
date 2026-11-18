@@ -271,10 +271,27 @@ pub(crate) fn extract_anthropic_text(
     Ok(trimmed.to_string())
 }
 
+fn api_redirect_policy() -> reqwest::redirect::Policy {
+    reqwest::redirect::Policy::custom(|attempt| {
+        if attempt.previous().len() >= 10 {
+            attempt.error("Too many API redirects")
+        } else if attempt
+            .previous()
+            .first()
+            .is_some_and(|original| original.origin() == attempt.url().origin())
+        {
+            attempt.follow()
+        } else {
+            attempt.stop()
+        }
+    })
+}
+
 impl Translator {
     /// Builds a translator and reports HTTP client configuration errors.
     pub fn try_new(config: TranslatorConfig) -> Result<Self, reqwest::Error> {
         let client = reqwest::Client::builder()
+            .redirect(api_redirect_policy())
             .connect_timeout(Duration::from_secs(10))
             .timeout(Duration::from_secs(120))
             .build()?;
@@ -296,7 +313,10 @@ impl Translator {
                 );
                 Self {
                     config,
-                    client: reqwest::Client::new(),
+                    client: reqwest::Client::builder()
+                        .redirect(api_redirect_policy())
+                        .build()
+                        .expect("Failed to initialize default translation HTTP client"),
                     diagnostics: None,
                 }
             }

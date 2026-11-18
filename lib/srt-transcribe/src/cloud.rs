@@ -30,9 +30,26 @@ impl CloudConfig {
     }
 }
 
+fn api_redirect_policy() -> reqwest::redirect::Policy {
+    reqwest::redirect::Policy::custom(|attempt| {
+        if attempt.previous().len() >= 10 {
+            attempt.error("Too many API redirects")
+        } else if attempt
+            .previous()
+            .first()
+            .is_some_and(|original| original.origin() == attempt.url().origin())
+        {
+            attempt.follow()
+        } else {
+            attempt.stop()
+        }
+    })
+}
+
 /// Builds the cloud HTTP client and returns configuration errors to the caller.
 pub fn try_default_client() -> Result<reqwest::Client, reqwest::Error> {
     reqwest::Client::builder()
+        .redirect(api_redirect_policy())
         .timeout(std::time::Duration::from_secs(900))
         .build()
 }
@@ -41,7 +58,8 @@ pub fn try_default_client() -> Result<reqwest::Client, reqwest::Error> {
 pub fn default_client() -> reqwest::Client {
     try_default_client().unwrap_or_else(|error| {
         eprintln!("Warning: could not configure cloud HTTP client timeout ({error}); using reqwest defaults");
-        reqwest::Client::new()
+        reqwest::Client::builder().redirect(api_redirect_policy()).build()
+            .expect("Failed to initialize default cloud HTTP client")
     })
 }
 
@@ -634,6 +652,39 @@ mod tests {
             writer.finalize().unwrap();
         }
         cursor.into_inner()
+    }
+
+    #[tokio::test]
+    async fn cloud_clients_do_not_forward_uploads_or_keys_across_origins() {
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+        let destination = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let target = destination.local_addr().unwrap();
+        let origin = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let address = origin.local_addr().unwrap();
+        let task = tokio::spawn(async move {
+            let (mut stream, _) = origin.accept().await.unwrap();
+            let mut bytes = [0u8; 4096];
+            stream.read(&mut bytes).await.unwrap();
+            stream.write_all(format!("HTTP/1.1 307 Redirect\r\nLocation: http://{target}/upload\r\nContent-Length: 0\r\n\r\n").as_bytes()).await.unwrap();
+        });
+        let response = tokio::time::timeout(
+            std::time::Duration::from_secs(2),
+            default_client()
+                .post(format!("http://{address}/upload"))
+                .header("x-api-key", "private-key")
+                .body("private audio")
+                .send(),
+        )
+        .await
+        .expect("cross-origin redirect must not be followed")
+        .unwrap();
+        assert_eq!(response.status(), reqwest::StatusCode::TEMPORARY_REDIRECT);
+        task.await.unwrap();
+        assert!(
+            tokio::time::timeout(std::time::Duration::from_millis(100), destination.accept())
+                .await
+                .is_err()
+        );
     }
 
     #[tokio::test]

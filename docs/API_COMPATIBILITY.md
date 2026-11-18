@@ -57,3 +57,11 @@ Unavailable static DeepSeek V4.1 and old Nemotron entries were removed; saved
 user selections are not migrated. The fallback catalogs also include current
 Gemini 4, GPT-6.2 Sol and Claude 5.5 choices. Live account discovery remains
 authoritative; new catalog entries do not change existing saved model choices.
+
+Built-in inference clients follow redirects only within the original origin
+(scheme, host and port). This keeps prompts, audio and nonstandard API-key
+headers off redirected third-party hosts. The metadata adapter applies the same
+rule to requests carrying credentials or custom headers, while unauthenticated
+update discovery retains its existing redirect policy. API endpoints must point
+to the intended provider or proxy directly. Public cloud functions accepting a
+caller-supplied HTTP client retain that client's chosen policy.
