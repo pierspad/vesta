@@ -195,8 +195,50 @@ pub async fn generate(
 }
 
 #[cfg(test)]
-mod worker_count_tests {
-    use super::resolve_worker_count_for;
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn cancellation_before_publication_leaves_existing_exports_intact() {
+        let fixture = tempfile::tempdir().unwrap();
+        let subtitle = fixture.path().join("input.srt");
+        std::fs::write(
+            &subtitle,
+            "1\n00:00:00,000 --> 00:00:02,000\nSynthetic dialogue.\n",
+        )
+        .unwrap();
+
+        for format in ["apkg", "tsv"] {
+            let output = fixture.path().join(format);
+            std::fs::create_dir(&output).unwrap();
+            let existing = output.join(format!("Fixture.{format}"));
+            std::fs::write(&existing, b"previous export").unwrap();
+            let config = FlashcardConfig {
+                target_subs_path: subtitle.to_string_lossy().into_owned(),
+                output_dir: output.to_string_lossy().into_owned(),
+                deck_name: "Fixture".into(),
+                export_format: Some(format.into()),
+                generate_audio: false,
+                generate_snapshots: false,
+                generate_video_clips: false,
+                ..FlashcardConfig::default()
+            };
+            let cancel = CancellationToken::new();
+            let result = generate(config, MediaTools::default(), cancel.clone(), &|event| {
+                if event.stage == "tsv" {
+                    cancel.cancel();
+                }
+            })
+            .await
+            .unwrap();
+
+            assert_eq!(result.message, "Cancelled by user", "{format}");
+            assert!(!result.success);
+            assert!(result.apkg_path.is_none() && result.tsv_path.is_none());
+            assert_eq!(std::fs::read(existing).unwrap(), b"previous export");
+            assert_eq!(std::fs::read_dir(output).unwrap().count(), 1);
+        }
+    }
 
     #[test]
     fn defaults_reserve_one_core_but_explicit_counts_use_the_machine() {
