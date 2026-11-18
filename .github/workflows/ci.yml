@@ -32,6 +32,7 @@ jobs:
         with:
           python-version: "3.11"
       - run: python3 build-scripts/test_release_workflows.py
+      - run: python3 build-scripts/test_ci_apt.py
       - run: python3 build-scripts/test_tauri_versions.py
       - run: python3 build-scripts/check_tauri_versions.py
       - run: python3 build-scripts/check_doc_contracts.py
@@ -77,6 +78,9 @@ jobs:
       - uses: swatinem/rust-cache@v2
         with:
           shared-key: "headless-cpu"
+      - name: Configure bounded Ubuntu package setup
+        run: bash build-scripts/setup_ci_apt.sh
+
       - name: Install native engine build tools and media fixtures runtime
         run: |
           sudo apt-get update
@@ -134,6 +138,9 @@ jobs:
         with:
           workspaces: '. -> target'
           shared-key: "v1-sccache-ci-desktop"
+
+      - name: Configure bounded Ubuntu package setup
+        run: bash build-scripts/setup_ci_apt.sh
 
       - name: Install system dependencies
         run: |
