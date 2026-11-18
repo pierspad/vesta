@@ -17,9 +17,11 @@
     "tauri": "tauri",
     "test:dev-css": "node scripts/check-dev-css.mjs",
     "test:merge": "node --test scripts/deepmerge.test.mjs",
-    "test:glob": "node --test scripts/picomatch.test.mjs"
+    "test:glob": "node --test scripts/picomatch.test.mjs",
+    "test:browser": "playwright test"
   },
   "devDependencies": {
+    "@playwright/test": "^1.65.1",
     "@sveltejs/vite-plugin-svelte": "^7.1.2",
     "@tailwindcss/vite": "4.3.3",
     "@tauri-apps/api": "2.12.4",

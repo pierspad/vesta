@@ -26,6 +26,23 @@ Publication in CI waits for the successful push workflow on the exact release co
 
 ---
 
+### Flashcards in Chromium
+
+Run the browser regression suite from the repository root after installing the frontend dependencies:
+
+```bash
+cd apps/srt-gui
+npx playwright install chromium
+npm run test:browser
+```
+
+Set `VESTA_TEST_CHROMIUM` to an absolute executable path to use an existing Chromium installation.
+Playwright starts a local Vite server and loads the app with synthetic Tauri responses.
+The suite exercises file selection, preview and retry, export progress and result, and cancellation.
+It saves preview and export screenshots and retains failure traces under
+`apps/srt-gui/node_modules/.cache/vesta-browser-tests/`.
+Run the synthetic FFmpeg/APKG smoke test to validate real media and packages.
+
 ### Support logs
 
 **Settings → Diagnostics** shows the last 200 support events from the current
