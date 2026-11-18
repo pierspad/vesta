@@ -39,7 +39,7 @@ export class SupportLogStore {
   }
 
   private async connect() {
-    const events = ["flashcard-progress", "translate-progress", "translate-complete", "transcribe-progress", "transcribe-complete", "refine-progress", "sync-auto-progress", "sync-auto-complete", "provider-retry", "plugin:notify", "plugin:progress", "font-download-progress", "update-download-progress"];
+    const events = ["flashcard-progress", "translate-progress", "translate-complete", "transcribe-progress", "transcribe-complete", "refine-progress", "sync-auto-progress", "sync-auto-complete", "ocr-progress", "provider-retry", "plugin:notify", "plugin:progress", "font-download-progress", "update-download-progress"];
     await Promise.all(events.map(async name => {
       try {
         await listen<Record<string, unknown> | number>(name, event => {
@@ -63,9 +63,11 @@ export class SupportLogStore {
       } catch (error) { this.error = safeLogValue(error); }
     }));
     try {
-      const status = await invoke<{ path: string | null; recording: boolean }>("support_log_status");
-      this.path = status.path;
-      if (status.recording) this.startWriter();
+      const status = await invoke<{ path: string | null; recording: boolean } | null>("support_log_status");
+      if (status) {
+        this.path = status.path;
+        if (status.recording) this.startWriter();
+      }
     } catch (error) { this.error = safeLogValue(error); }
   }
 
