@@ -548,6 +548,34 @@ fn validate_translation_language(language: &str) -> Result<(), String> {
 mod request_tests {
     use super::*;
     #[test]
+    fn rejects_out_of_scope_files_and_extreme_worker_counts() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().join("read");
+        std::fs::create_dir(&root).unwrap();
+        let outside = dir.path().join("outside.srt");
+        std::fs::write(&outside, b"fixture").unwrap();
+        let paths = Paths::new(vec![root.clone()], dir.path().to_path_buf()).unwrap();
+        assert!(
+            paths
+                .input(&root.join("..").join("outside.srt"), true)
+                .is_err()
+        );
+
+        let target = root.join("input.srt");
+        std::fs::write(&target, b"fixture").unwrap();
+        for workers in [0, usize::MAX] {
+            let request: GenerateRequest = serde_json::from_value(json!({
+                "target": target, "deck": "Fixture", "format": "apkg", "workers": workers
+            }))
+            .unwrap();
+            assert_eq!(
+                request.config(&paths).unwrap_err(),
+                "Workers must be from 1 to 64"
+            );
+        }
+    }
+
+    #[test]
     fn language_fields_accept_their_documented_formats() {
         for language in ["it", "en-US", "Brazilian Portuguese", "português"] {
             assert!(validate_translation_language(language).is_ok());

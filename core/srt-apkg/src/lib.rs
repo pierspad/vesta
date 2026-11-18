@@ -1,3 +1,8 @@
+#![cfg_attr(
+    not(test),
+    deny(clippy::unwrap_used, clippy::expect_used, clippy::panic)
+)]
+
 //! Minimal helpers for reading and writing Anki `.apkg` ZIP archives.
 //!
 //! `.apkg` files are plain ZIP archives. This crate provides two functions
@@ -274,6 +279,42 @@ fn finish_zip<W: Write + Seek>(zip: zip::ZipWriter<W>) -> Result<(), String> {
 mod tests {
     use super::*;
     use std::io::Write;
+
+    #[test]
+    fn malformed_archives_do_not_publish_output() {
+        let dir = tempfile::tempdir().unwrap();
+        let archive = dir.path().join("input.apkg");
+        let output = dir.path().join("output");
+        fs::create_dir(&output).unwrap();
+        for bytes in [b"".as_slice(), b"PK\x03\x04", b"not UTF-8: \xff"] {
+            fs::write(&archive, bytes).unwrap();
+            assert!(unzip_to(&archive, &output).is_err());
+            assert!(
+                extract_file_from_zip(&archive, "collection.anki2", &output.join("collection"))
+                    .is_err()
+            );
+            assert_eq!(fs::read_dir(&output).unwrap().count(), 0);
+        }
+    }
+
+    #[test]
+    fn extraction_skips_members_outside_the_destination() {
+        let dir = tempfile::tempdir().unwrap();
+        let archive = dir.path().join("input.apkg");
+        let output = dir.path().join("output");
+        let sentinel = dir.path().join("existing");
+        fs::write(&sentinel, b"keep").unwrap();
+        let mut writer = zip::ZipWriter::new(fs::File::create(&archive).unwrap());
+        writer
+            .start_file("../existing", zip::write::SimpleFileOptions::default())
+            .unwrap();
+        writer.write_all(b"replace").unwrap();
+        writer.finish().unwrap();
+
+        unzip_to(&archive, &output).unwrap();
+        assert_eq!(fs::read(&sentinel).unwrap(), b"keep");
+        assert_eq!(fs::read_dir(&output).unwrap().count(), 0);
+    }
 
     #[test]
     fn test_is_media_extension() {

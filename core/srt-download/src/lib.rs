@@ -1,3 +1,8 @@
+#![cfg_attr(
+    not(test),
+    deny(clippy::unwrap_used, clippy::expect_used, clippy::panic)
+)]
+
 //! Download mechanics, independent from font/model catalogs and desktop events.
 use anyhow::{Context, Result};
 use futures::StreamExt;

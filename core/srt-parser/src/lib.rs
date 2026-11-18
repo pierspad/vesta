@@ -1,3 +1,8 @@
+#![cfg_attr(
+    not(test),
+    deny(clippy::unwrap_used, clippy::expect_used, clippy::panic)
+)]
+
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -247,14 +252,12 @@ impl SrtParser {
     /// If the gap between the actual cue count and `max_id` exceeds [`Self::MAX_NORMALIZE_GAP`]
     /// or if ID `0` is present (since normalized IDs are 1-based), the map is left unchanged.
     pub fn normalize_subtitles(subtitles: &mut HashMap<u32, Subtitle>) {
-        if subtitles.is_empty() {
-            return;
-        }
-
         let mut existing_ids: Vec<u32> = subtitles.keys().copied().collect();
         existing_ids.sort_unstable();
 
-        let max_id = *existing_ids.last().unwrap();
+        let Some(&max_id) = existing_ids.last() else {
+            return;
+        };
         // ID zero cannot be represented by the 1-based placeholder sequence.
         // Leave the input untouched instead of underflowing while estimating gaps.
         if existing_ids[0] == 0 {
@@ -291,7 +294,7 @@ impl SrtParser {
                 let next_start = subtitles
                     .get(&next_id)
                     .map(|s| s.start.milliseconds)
-                    .unwrap_or(prev_end + 1000);
+                    .unwrap_or_else(|| prev_end.saturating_add(1000));
                 for id in curr_id + 1..next_id {
                     placeholders.push((id, prev_end, next_start));
                 }
@@ -338,6 +341,30 @@ impl SrtParser {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn hostile_subtitle_inputs_have_bounded_results() {
+        for input in [
+            "1",
+            "4294967296\n00:00:00,000 --> 00:00:01,000",
+            "1\n4294967296:00:00,000 --> 00:00:01,000",
+        ] {
+            assert!(SrtParser::parse_string(input).is_err(), "{input}");
+        }
+
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("legacy.srt");
+        std::fs::write(
+            &path,
+            b"4294967295\n00:00:00,000 --> 00:00:01,000\ncaf\xe9\n",
+        )
+        .unwrap();
+        let mut subtitles = SrtParser::parse_file(&path).unwrap();
+        SrtParser::normalize_subtitles(&mut subtitles);
+        assert_eq!(subtitles.len(), 1);
+        assert_eq!(subtitles[&u32::MAX].text, "café");
+    }
+
     use std::fs;
 
     #[test]
@@ -449,6 +476,18 @@ Come stai?"#;
         assert!(Timestamp::from_srt_string("00:60:00,000").is_err());
         assert!(Timestamp::from_srt_string("00:00:60,000").is_err());
         assert!(Timestamp::from_srt_string("00:00:00,1000").is_err());
+    }
+
+    #[test]
+    fn normalizing_an_extreme_previous_end_does_not_overflow() {
+        let mut subtitles = SrtParser::parse_string(
+            "1\n00:00:00,000 --> 00:00:01,000\nOne\n\n3\n00:00:02,000 --> 00:00:03,000\nThree",
+        )
+        .unwrap();
+        subtitles.get_mut(&1).unwrap().end.milliseconds = u64::MAX;
+        SrtParser::normalize_subtitles(&mut subtitles);
+        assert_eq!(subtitles[&2].start.milliseconds, u64::MAX);
+        assert_eq!(subtitles[&2].end.milliseconds, 2000);
     }
 
     #[test]
