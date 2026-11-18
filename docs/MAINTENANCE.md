@@ -36,6 +36,19 @@ The comparative suite, report generators, fixtures, and documentation in `benchm
 
 Pre-release validation requires installed smoke checks as detailed in QUALITY: Anki desktop integration, webview codecs, persistence, cooperative cancellation, authenticated providers, installers, and physical GPU hardware. Re-run lockfile advisory checks periodically; distinguish security vulnerabilities from maintenance notices or GTK/Tauri chain unsoundness without blindly adding ignores.
 
+## Build-time glob matching
+
+`apps/srt-gui/vendor/picomatch` is a temporary MIT-licensed 4.0.7 fork for
+GHSA-fc5q-39xc-vjpf. A single repeated branch containing an unbounded wildcard
+uses upstream's existing risky-extglob literalization policy. Ordinary file
+patterns, escaped stars and character classes retain their behavior. The
+upstream recursion-protection opt-out remains an opt-out. All build-tool
+consumers resolve the local override; `npm run test:glob` checks resolution,
+normal glob semantics and adversarial inputs in a timeout-bounded child process.
+There is no fixed npm release as of 2026-11-18. Replace the fork with an upstream
+fix when available. Audit cannot inspect this local source; it is not an
+advisory suppression. See the [upstream advisory](https://github.com/advisories/GHSA-fc5q-39xc-vjpf).
+
 ## Transitive Desktop Dependencies
 
 Tauri 2.12 relies on GTK3 / GLib 0.18 bindings. The official fix for [RUSTSEC-2024-0429](https://rustsec.org/advisories/RUSTSEC-2024-0429) is in GLib 0.20+, which does not directly replace the types required by GTK3. The advisory concerns `VariantStrIter`: it is neither suppressed nor considered resolved simply because Vesta code does not invoke that iterator directly. A local vendored copy with backports incurs its own testing and maintenance burden; cargo audit advisories may continue flagging the crate version even with a source patch.
