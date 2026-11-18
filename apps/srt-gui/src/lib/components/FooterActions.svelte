@@ -29,18 +29,18 @@
   } as const;
 </script>
 
-<div class="{wrap ? 'min-h-[92px] flex-wrap py-3' : 'h-[92px]'} border-t border-white/10 bg-gray-900 flex items-center {justifyClass[justify]} gap-4 px-6 shrink-0 z-40 relative">
+<div data-footer-actions class="{wrap ? 'min-h-[92px] flex-wrap py-3' : 'h-[92px]'} border-t border-white/10 bg-gray-900 flex items-center {justifyClass[justify]} gap-4 px-6 shrink-0 z-40 relative">
   {#if background}
     {@render background()}
   {/if}
   {#if center}
-    <div class="flex items-center gap-4 justify-start flex-1">
+    <div class="footer-group flex items-center gap-4 justify-start flex-1">
       {#if left}{@render left()}{/if}
     </div>
-    <div class="flex items-center justify-center flex-1">
+    <div class="footer-group flex items-center justify-center flex-1">
       {@render center()}
     </div>
-    <div class="flex items-center gap-4 justify-end flex-1">
+    <div class="footer-group flex items-center gap-4 justify-end flex-1">
       {#if right}{@render right()}{/if}
     </div>
   {:else}
@@ -52,3 +52,23 @@
     {/if}
   {/if}
 </div>
+
+
+<style>
+  @media (max-width: 960px) {
+    [data-footer-actions] {
+      height: auto;
+      min-height: 92px;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      padding: 0.5rem;
+    }
+
+    .footer-group {
+      flex: 1 1 auto;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      max-inline-size: 100%;
+    }
+  }
+</style>

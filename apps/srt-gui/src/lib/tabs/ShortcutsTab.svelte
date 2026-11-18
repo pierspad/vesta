@@ -583,13 +583,13 @@
                     {/if}
                   </div>
                 {:else}
-                  <input
-                    type="text"
-                    readonly
-                    placeholder={isListeningForSearchKeys ? labels.pressKeys : labels.keysPlaceholder}
-                    class="w-full h-8 py-0 bg-transparent border-0 text-xs focus:outline-none cursor-pointer select-none pointer-events-none
-                      {isListeningForSearchKeys ? 'placeholder-indigo-400 font-medium animate-pulse' : 'placeholder-gray-500'}"
-                  />
+                  <button
+                    type="button"
+                    class="w-full h-8 py-0 bg-transparent border-0 text-xs text-start cursor-pointer select-none
+                      {isListeningForSearchKeys ? 'text-indigo-400 font-medium animate-pulse' : 'text-gray-500'}"
+                  >
+                    {isListeningForSearchKeys ? labels.pressKeys : labels.keysPlaceholder}
+                  </button>
                 {/if}
               </div>
               {#if searchKeys.length > 0 || isListeningForSearchKeys}

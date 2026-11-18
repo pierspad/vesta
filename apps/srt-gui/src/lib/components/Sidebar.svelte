@@ -145,18 +145,18 @@
   });
 </script>
 
-<aside class="{collapsed ? 'w-20' : 'w-[18rem]'} bg-gray-900 border-r border-white/10 flex shrink-0 flex-col transition-[width] duration-200 ease-out relative will-change-[width]">
+<aside class="{collapsed ? 'w-20' : 'w-[18rem]'} bg-gray-900 border-e border-white/10 flex shrink-0 flex-col transition-[width] duration-200 ease-out relative will-change-[width]">
   <button
     onclick={onToggleCollapse}
-    class="absolute -right-3 top-6 w-6 h-6 bg-gray-800 border border-white/20 rounded-full flex items-center justify-center text-gray-400 hover:text-white hover:bg-gray-700 transition-all z-10 shadow-lg"
+    class="absolute -end-3 top-6 w-6 h-6 bg-gray-800 border border-white/20 rounded-full flex items-center justify-center text-gray-400 hover:text-white hover:bg-gray-700 transition-all z-10 shadow-lg"
     aria-label={collapsed ? t("nav.expandSidebar") : t("nav.collapseSidebar")}
   >
-    <svg class="w-3 h-3 transition-transform {collapsed ? 'rotate-180' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <svg class="w-3 h-3 transition-transform rtl:-scale-x-100 {collapsed ? 'rotate-180' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
     </svg>
   </button>
 
-  <div class="h-[89px] min-h-[89px] max-h-[89px] border-b border-white/10 flex items-center shrink-0 {collapsed ? 'justify-center px-2' : 'pl-[32px] pr-4'}">
+  <div class="h-[89px] min-h-[89px] max-h-[89px] border-b border-white/10 flex items-center shrink-0 {collapsed ? 'justify-center px-2' : 'ps-[32px] pe-4'}">
     {#if activeTab === "settings"}
       <button
         onclick={() => {

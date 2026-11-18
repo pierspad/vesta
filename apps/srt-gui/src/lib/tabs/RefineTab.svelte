@@ -1170,7 +1170,7 @@
   <!-- Fixed Bottom Band with Action Buttons -->
   <FooterActions>
     {#snippet left()}
-      <div class="flex flex-1 min-w-0 items-center gap-3">
+      <div class="flex flex-1 min-w-0 items-center gap-3 max-[960px]:basis-full">
       <div class="relative group shrink-0">
         <button
           onclick={overwriteOriginalFile}
@@ -1201,7 +1201,7 @@
       </div>
     {/snippet}
     {#snippet right()}
-      <div class="flex shrink-0 items-center gap-2">
+      <div class="flex max-w-full flex-wrap items-center gap-2">
       <div class="relative group">
         <button
           onclick={() => saveNewFileWithExtension("apkg")}

@@ -1314,8 +1314,6 @@
   <!-- Fixed Bottom Band with Action Buttons -->
   <FooterActions>
     {#snippet left()}
-      <div class="flex gap-1">
-      </div>
       <div class="relative group">
         <button
           onclick={loadSession}
@@ -1331,7 +1329,7 @@
         </div>
       </div>
 
-      <div class="w-56 max-w-full min-w-0">
+      <div class="w-40 min-[961px]:w-56 max-w-full min-w-0">
         <SpeechEngineSelector purpose="sync" compact
           disabled={!active || autoSyncStore.isAutoSyncing || localWhisperOperation.busy}
           onresolve={(entry) => { selectedEngine = entry; }}

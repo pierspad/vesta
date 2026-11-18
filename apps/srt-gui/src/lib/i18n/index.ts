@@ -91,6 +91,10 @@ function getInitialLanguage(): string {
 export const currentLanguage = writable<string>(getInitialLanguage());
 
 currentLanguage.subscribe((lang) => {
+  if (typeof document !== "undefined") {
+    document.documentElement.lang = lang;
+    document.documentElement.dir = lang === "ar" ? "rtl" : "ltr";
+  }
   vestaConfig.setItem(STORAGE_KEY, lang);
 });
 
