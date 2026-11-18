@@ -291,7 +291,7 @@ async fn redirects_preserve_same_origin_requests_but_never_forward_credentials_e
         let first = tokio::spawn(async move {
             let (mut stream, _) = origin.accept().await.unwrap();
             let mut bytes = [0; 8192];
-            stream.read(&mut bytes).await.unwrap();
+            assert!(stream.read(&mut bytes).await.unwrap() > 0);
             stream
                 .write_all(
                     format!(
@@ -324,7 +324,7 @@ async fn redirects_preserve_same_origin_requests_but_never_forward_credentials_e
     let task = tokio::spawn(async move {
         let (mut stream, _) = listener.accept().await.unwrap();
         let mut bytes = [0; 8192];
-        stream.read(&mut bytes).await.unwrap();
+        assert!(stream.read(&mut bytes).await.unwrap() > 0);
         stream.write_all(b"HTTP/1.1 307 Redirect\r\nLocation: /v1/final\r\nContent-Length: 0\r\nConnection: close\r\n\r\n").await.unwrap();
         drop(stream);
         let (mut stream, _) = listener.accept().await.unwrap();

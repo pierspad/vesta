@@ -346,7 +346,7 @@ mod tests {
             for _ in 0..2 {
                 let (mut stream, _) = origin.accept().await.unwrap();
                 let mut bytes = [0u8; 4096];
-                stream.read(&mut bytes).await.unwrap();
+                assert!(stream.read(&mut bytes).await.unwrap() > 0);
                 stream.write_all(format!("HTTP/1.1 307 Redirect\r\nLocation: http://{target}/models\r\nContent-Length: 0\r\n\r\n").as_bytes()).await.unwrap();
             }
         });

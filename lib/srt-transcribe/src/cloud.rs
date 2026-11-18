@@ -664,7 +664,7 @@ mod tests {
         let task = tokio::spawn(async move {
             let (mut stream, _) = origin.accept().await.unwrap();
             let mut bytes = [0u8; 4096];
-            stream.read(&mut bytes).await.unwrap();
+            assert!(stream.read(&mut bytes).await.unwrap() > 0);
             stream.write_all(format!("HTTP/1.1 307 Redirect\r\nLocation: http://{target}/upload\r\nContent-Length: 0\r\n\r\n").as_bytes()).await.unwrap();
         });
         let response = tokio::time::timeout(
