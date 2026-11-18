@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use srt_translate::{ApiType, Translator, TranslatorConfig, provider_defaults};
+use srt_translate::{Translator, TranslatorConfig, provider_defaults};
 
 mod cards;
 pub use cards::{analyze_tsv_columns, load_cards, save_cards};
@@ -49,13 +49,22 @@ fn resolve_llm_config(config: RefineLlmConfig) -> Result<TranslatorConfig, Strin
     let provider = config.api_type.to_lowercase();
     if !matches!(
         provider.as_str(),
-        "local" | "custom" | "google" | "gemini" | "groq" | "openrouter"
+        "local"
+            | "custom"
+            | "openai"
+            | "google"
+            | "gemini"
+            | "groq"
+            | "openrouter"
+            | "mistral"
+            | "nvidia"
+            | "anthropic"
     ) {
         return Err(format!("Unsupported API provider: {}", config.api_type));
     }
     let (api_type, default_url, _, default_model) = provider_defaults(&provider);
     let api_key = config.api_key.filter(|key| !key.trim().is_empty());
-    if api_type != ApiType::Local && api_key.is_none() {
+    if !srt_translate::provider_allows_missing_key(&provider) && api_key.is_none() {
         return Err("Missing API key".to_string());
     }
     Ok(TranslatorConfig {
@@ -100,7 +109,18 @@ mod config_tests {
 
     #[test]
     fn legacy_configuration_uses_shared_defaults_and_preserves_overrides() {
-        for provider in ["google", "gemini", "groq", "openrouter", "local", "custom"] {
+        for provider in [
+            "google",
+            "gemini",
+            "groq",
+            "openrouter",
+            "local",
+            "custom",
+            "openai",
+            "mistral",
+            "nvidia",
+            "anthropic",
+        ] {
             let config = resolve_llm_config(RefineLlmConfig {
                 api_type: provider.into(),
                 api_key: Some("key".into()),
@@ -113,6 +133,17 @@ mod config_tests {
             assert_eq!(config.base_url, url);
             assert_eq!(config.model, model);
         }
+        for unsupported in ["github", "unsupported"] {
+            let err = resolve_llm_config(RefineLlmConfig {
+                api_type: unsupported.into(),
+                api_key: Some("key".into()),
+                api_url: None,
+                model: None,
+            })
+            .err()
+            .unwrap();
+            assert_eq!(err, format!("Unsupported API provider: {unsupported}"));
+        }
         let custom = resolve_llm_config(RefineLlmConfig {
             api_type: "custom".into(),
             api_key: Some("  ".into()),
@@ -123,7 +154,16 @@ mod config_tests {
         assert!(custom.api_key.is_none());
         assert_eq!(custom.base_url, "http://localhost:8080/v1");
         assert_eq!(custom.model, "custom-model");
-        for provider in ["google", "groq", "openrouter", "unsupported"] {
+        for provider in [
+            "google",
+            "groq",
+            "openrouter",
+            "openai",
+            "mistral",
+            "nvidia",
+            "anthropic",
+            "unsupported",
+        ] {
             assert!(
                 resolve_llm_config(RefineLlmConfig {
                     api_type: provider.into(),
@@ -131,7 +171,8 @@ mod config_tests {
                     api_url: None,
                     model: None,
                 })
-                .is_err()
+                .is_err(),
+                "Provider {provider} should fail without API key or when unsupported"
             );
         }
     }

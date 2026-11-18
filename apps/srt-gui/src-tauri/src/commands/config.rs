@@ -28,6 +28,14 @@ impl Default for ConfigState {
     }
 }
 
+/// Configuration snapshot returned when loading `vesta_config.json`, including
+/// the backup path if a corrupted file had to be quarantined and reset.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct ConfigLoadResult {
+    pub entries: HashMap<String, String>,
+    pub recovered_backup_path: Option<String>,
+}
+
 fn config_dir() -> PathBuf {
     dirs::config_dir()
         .unwrap_or_else(std::env::temp_dir)
@@ -38,14 +46,31 @@ fn config_file() -> PathBuf {
     config_dir().join("vesta_config.json")
 }
 
-fn read_from_disk() -> Result<HashMap<String, String>, String> {
+fn read_from_disk() -> Result<ConfigLoadResult, String> {
     read_config_file(&config_file())
 }
 
-fn read_config_file(path: &std::path::Path) -> Result<HashMap<String, String>, String> {
+fn next_corrupt_backup_path(path: &std::path::Path, file_name: &str, ts: u64) -> PathBuf {
+    let initial = path.with_file_name(format!("{file_name}.corrupt.{ts}"));
+    if !initial.exists() {
+        return initial;
+    }
+    for suffix in 1.. {
+        let candidate = path.with_file_name(format!("{file_name}.corrupt.{ts}.{suffix}"));
+        if !candidate.exists() {
+            return candidate;
+        }
+    }
+    initial
+}
+
+fn read_config_file(path: &std::path::Path) -> Result<ConfigLoadResult, String> {
     match fs::read_to_string(path) {
         Ok(raw) => match serde_json::from_str(&raw) {
-            Ok(map) => Ok(map),
+            Ok(entries) => Ok(ConfigLoadResult {
+                entries,
+                recovered_backup_path: None,
+            }),
             Err(e) => {
                 eprintln!(
                     "Warning: Corrupted configuration file at {}: {e}. Backing up and resetting.",
@@ -59,18 +84,24 @@ fn read_config_file(path: &std::path::Path) -> Result<HashMap<String, String>, S
                     .file_name()
                     .and_then(|n| n.to_str())
                     .unwrap_or("vesta_config.json");
-                let corrupt_filename = format!("{file_name}.corrupt.{ts}");
-                let backup_path = path.with_file_name(corrupt_filename);
-                if let Err(backup_err) = fs::rename(path, &backup_path) {
-                    eprintln!(
-                        "Warning: Failed to rename corrupted config file to {}: {backup_err}",
+                let backup_path = next_corrupt_backup_path(path, file_name, ts);
+                fs::rename(path, &backup_path).map_err(|backup_err| {
+                    format!(
+                        "Corrupted configuration at {} could not be backed up to {}: {backup_err}",
+                        path.display(),
                         backup_path.display()
-                    );
-                }
-                Ok(HashMap::new())
+                    )
+                })?;
+                Ok(ConfigLoadResult {
+                    entries: HashMap::new(),
+                    recovered_backup_path: Some(backup_path.to_string_lossy().into_owned()),
+                })
             }
         },
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(HashMap::new()),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(ConfigLoadResult {
+            entries: HashMap::new(),
+            recovered_backup_path: None,
+        }),
         Err(e) => Err(format!("Failed to read configuration: {e}")),
     }
 }
@@ -104,10 +135,11 @@ fn write_config_file(path: &std::path::Path, map: &HashMap<String, String>) -> R
 /// to the frontend. Called once at startup before mounting the app to hydrate
 /// the in-memory TypeScript cache.
 #[tauri::command]
-pub fn config_load_all(state: State<'_, ConfigState>) -> Result<HashMap<String, String>, String> {
+pub fn config_load_all(state: State<'_, ConfigState>) -> Result<ConfigLoadResult, String> {
     let mut guard = state.0.lock().map_err(|e| e.to_string())?;
-    *guard = read_from_disk()?;
-    Ok(guard.clone())
+    let loaded = read_from_disk()?;
+    *guard = loaded.entries.clone();
+    Ok(loaded)
 }
 
 #[tauri::command]
@@ -187,7 +219,13 @@ mod tests {
             ("language".into(), "it".into()),
         ]);
         write_config_file(&path, &values).unwrap();
-        assert_eq!(read_config_file(&path).unwrap(), values);
+        assert_eq!(
+            read_config_file(&path).unwrap(),
+            ConfigLoadResult {
+                entries: values,
+                recovered_backup_path: None,
+            }
+        );
         assert_eq!(fs::read_dir(path.parent().unwrap()).unwrap().count(), 1);
         #[cfg(unix)]
         {
@@ -196,7 +234,12 @@ mod tests {
         }
         fs::write(&path, "broken json").unwrap();
         let recovered = read_config_file(&path).unwrap();
-        assert!(recovered.is_empty());
+        assert!(recovered.entries.is_empty());
+        let backup_path = recovered
+            .recovered_backup_path
+            .expect("corrupted config must report backup path");
+        assert!(PathBuf::from(&backup_path).exists());
+        assert_eq!(fs::read_to_string(&backup_path).unwrap(), "broken json");
         let parent_entries: Vec<_> = fs::read_dir(path.parent().unwrap())
             .unwrap()
             .map(|e| e.unwrap().file_name().to_string_lossy().to_string())
@@ -206,6 +249,35 @@ mod tests {
                 .iter()
                 .any(|name| name.starts_with("settings.json.corrupt."))
         );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn corrupted_config_aborts_reset_when_backup_cannot_be_created() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let directory = tempfile::tempdir().unwrap();
+        let parent = directory.path().join("locked");
+        fs::create_dir_all(&parent).unwrap();
+        let path = parent.join("settings.json");
+        fs::write(&path, "broken json with api key").unwrap();
+
+        fs::set_permissions(&parent, fs::Permissions::from_mode(0o555)).unwrap();
+        let probe = parent.join("write_probe");
+        let enforced_readonly = fs::write(&probe, b"").is_err();
+        let _ = fs::remove_file(&probe);
+
+        let result = read_config_file(&path);
+        fs::set_permissions(&parent, fs::Permissions::from_mode(0o755)).unwrap();
+
+        if enforced_readonly {
+            let error = result.expect_err("reset must fail when backup cannot be written");
+            assert!(error.contains("could not be backed up"), "{error}");
+            assert_eq!(
+                fs::read_to_string(&path).unwrap(),
+                "broken json with api key"
+            );
+        }
     }
 }
 

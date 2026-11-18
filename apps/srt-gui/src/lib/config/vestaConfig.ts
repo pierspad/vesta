@@ -32,25 +32,58 @@ export async function flush(): Promise<void> {
   await persist("config_replace_all", { values: exportSnapshot() });
 }
 
+type ConfigLoadResult = {
+  entries: Record<string, string>;
+  recovered_backup_path: string | null;
+};
+
 let hydrated = false;
 let newInstallation = false;
+let recoveredBackupPath: string | null = null;
+
+function parseLoadResult(raw: ConfigLoadResult | Record<string, string>): ConfigLoadResult {
+  if (
+    raw &&
+    typeof raw === "object" &&
+    "entries" in raw &&
+    typeof raw.entries === "object" &&
+    raw.entries !== null &&
+    "recovered_backup_path" in raw
+  ) {
+    return {
+      entries: raw.entries as Record<string, string>,
+      recovered_backup_path:
+        typeof raw.recovered_backup_path === "string" ? raw.recovered_backup_path : null,
+    };
+  }
+  return { entries: raw as Record<string, string>, recovered_backup_path: null };
+}
 
 /** Deve essere chiamata (e attesa) una sola volta, prima del mount di App. */
 export async function hydrate(): Promise<void> {
   if (hydrated) return;
   try {
-    const all = await invokeCommand<Record<string, string>>("config_load_all");
-    for (const [key, value] of Object.entries(all)) {
+    const raw = await invokeCommand<ConfigLoadResult | Record<string, string>>("config_load_all");
+    const { entries, recovered_backup_path } = parseLoadResult(raw);
+    for (const [key, value] of Object.entries(entries)) {
       cache.set(key, value);
     }
+    recoveredBackupPath = recovered_backup_path;
     const hasLegacyPreferences = typeof localStorage !== "undefined" && localStorage.length > 0;
-    newInstallation = Object.keys(all).length === 0 && !hasLegacyPreferences;
+    newInstallation = Object.keys(entries).length === 0 && !hasLegacyPreferences && !recoveredBackupPath;
   } catch (e) {
     console.error("[vestaConfig] impossibile leggere vesta_config.json", e);
     throw e;
   }
-  migrateFromLocalStorage();
+  await migrateFromLocalStorage();
   hydrated = true;
+}
+
+/** Return and clear any backup path created when recovering from a corrupted config file. */
+export function consumeRecoveredBackupPath(): string | null {
+  const path = recoveredBackupPath;
+  recoveredBackupPath = null;
+  return path;
 }
 
 /** True only when neither the durable store nor the legacy webview store had preferences at startup. */
@@ -61,29 +94,40 @@ export function isNewInstallation(): boolean {
 // Migrazione una tantum: le installazioni esistenti hanno le impostazioni in
 // localStorage. Le importiamo nel config store di Rust al primo avvio dopo
 // l'aggiornamento, così nessuno perde chiavi API o note types. Diventa un
-// no-op non appena il flag è salvato.
+// no-op non appena il flag è salvato atomicamente insieme ai valori importati.
 const MIGRATION_FLAG_KEY = "__vesta_config_migrated_from_local_storage__";
 
-function migrateFromLocalStorage(): void {
+async function migrateFromLocalStorage(): Promise<void> {
   if (typeof localStorage === "undefined") return;
   if (cache.get(MIGRATION_FLAG_KEY) === "true") return;
 
+  const staged = new Map(cache);
   for (let i = 0; i < localStorage.length; i++) {
     const key = localStorage.key(i);
     if (!key || key === MIGRATION_FLAG_KEY) continue;
     const value = localStorage.getItem(key);
-    if (value !== null && !cache.has(key)) {
-      cache.set(key, value);
-      void persist("config_set", { key, value }).catch((e) =>
-        console.error(`[vestaConfig] migrazione fallita per "${key}"`, e),
-      );
+    if (value !== null && !staged.has(key)) {
+      staged.set(key, value);
     }
   }
+  staged.set(MIGRATION_FLAG_KEY, "true");
 
-  cache.set(MIGRATION_FLAG_KEY, "true");
-  void persist("config_set", { key: MIGRATION_FLAG_KEY, value: "true" }).catch((e) =>
-    console.error("[vestaConfig] impossibile salvare il flag di migrazione", e),
-  );
+  try {
+    await persist("config_replace_all", { values: Object.fromEntries(staged.entries()) });
+    cache.clear();
+    for (const [key, value] of staged.entries()) {
+      cache.set(key, value);
+    }
+  } catch (e) {
+    console.error("[vestaConfig] migrazione da localStorage fallita", e);
+    // Keep migrated preferences available in-memory for this session, but leave
+    // the completion flag unset so the next launch retries atomic persistence.
+    for (const [key, value] of staged.entries()) {
+      if (key !== MIGRATION_FLAG_KEY && !cache.has(key)) {
+        cache.set(key, value);
+      }
+    }
+  }
 }
 
 export function getItem(key: string): string | null {
@@ -126,6 +170,7 @@ export async function replaceAll(values: Record<string, string>): Promise<void> 
 export async function resetInstallation(): Promise<void> {
   await persist("config_reset_installation", {});
   cache.clear();
+  recoveredBackupPath = null;
   if (typeof localStorage !== "undefined") localStorage.clear();
   if (typeof sessionStorage !== "undefined") sessionStorage.clear();
 }

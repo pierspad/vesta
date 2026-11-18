@@ -33,54 +33,59 @@ export async function discoverManagedProviderModels(
   // For Google, strip 'models/' prefix from the ID, use displayName if available,
   // and filter to only show models that support text generation (generateContent)
   if (family === "google") {
-    if (data && typeof data === "object" && Array.isArray((data as any).models)) {
-      models = (data as any).models
-        .filter((m: any) => {
-          // Only show models that support generateContent (text generation)
-          const methods: string[] = m.supportedGenerationMethods || [];
-          return methods.includes("generateContent");
-        })
-        .map((m: any) => {
-           const id = m.name?.replace("models/", "") || m.id;
-           const name = m.displayName || id;
-           return { id, name };
-        });
-    } else {
-         models = models.map(m => {
-             const id = m.id.replace("models/", "");
-             return { id, name: m.name.replace("models/", "") };
-         });
+    const rawModels = data && typeof data === "object"
+      ? (data as Record<string, unknown>).models : undefined;
+    if (Array.isArray(rawModels)) {
+      models = extractModelsFromPayload(rawModels.filter((model: unknown) => {
+        if (!model || typeof model !== "object") return false;
+        const methods = (model as Record<string, unknown>).supportedGenerationMethods;
+        return Array.isArray(methods) && methods.includes("generateContent");
+      }));
     }
+    const seen = new Set<string>();
+    models = models.flatMap(({ id, name }) => {
+      const normalized = id.replace(/^models\//, "").trim();
+      if (!normalized || seen.has(normalized)) return [];
+      seen.add(normalized);
+      return [{ id: normalized, name: name === id ? normalized : name }];
+    });
   }
 
   if (models.length === 0) throw new Error("No usable text generation models found");
 
   // For Google, probe each model with generateContent to check actual accessibility.
   if (family === "google") {
-    const probeResults = await Promise.allSettled(
-      models.map(async (m) => {
-        const probeUrl = `https://generativelanguage.googleapis.com/v1beta/models/${m.id}:generateContent`;
-        const probeResp = await fetch(probeUrl, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "x-goog-api-key": apiKey,
-          },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: "hi" }] }],
-            generationConfig: { maxOutputTokens: 1 },
-          }),
-          timeoutMs: 8000,
-        });
-        if (!probeResp.ok) {
-          throw new Error(`HTTP ${probeResp.status}`);
+    // Bound the request burst and preserve catalog order despite out-of-order replies.
+    const accessible = new Set<number>();
+    let nextIndex = 0;
+    const probeNext = async () => {
+      while (nextIndex < models.length) {
+        const index = nextIndex++;
+        const model = models[index];
+        try {
+          const probeResp = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model.id)}:generateContent`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "x-goog-api-key": apiKey,
+              },
+              body: JSON.stringify({
+                contents: [{ parts: [{ text: "hi" }] }],
+                generationConfig: { maxOutputTokens: 1 },
+              }),
+              timeoutMs: 8000,
+            },
+          );
+          if (probeResp.ok) accessible.add(index);
+        } catch {
+          // A failed probe must not stop discovery of the remaining models.
         }
-        return m;
-      })
-    );
-    const accessibleModels = probeResults
-      .filter((r): r is PromiseFulfilledResult<{ id: string; name: string }> => r.status === "fulfilled")
-      .map((r) => r.value);
+      }
+    };
+    await Promise.all(Array.from({ length: Math.min(4, models.length) }, probeNext));
+    const accessibleModels = models.filter((_, index) => accessible.has(index));
     if (accessibleModels.length > 0) {
       models = accessibleModels;
     }

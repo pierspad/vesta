@@ -310,8 +310,8 @@ fn resolve_translation(
                     | "groq"
                     | "openrouter"
                     | "mistral"
-                    | "github"
                     | "nvidia"
+                    | "anthropic"
             ) {
                 return Err("Unsupported translation provider".into());
             }
@@ -460,6 +460,41 @@ mod tests {
             Some("top-secret-value")
         );
         assert_eq!(profile.tiers[0][0].provider, "google");
+    }
+
+    #[test]
+    fn resolves_anthropic_translation_profile_and_requires_api_key_env() {
+        let config = parse(
+            r#"{"translation":{"profiles":{"claude":{"tiers":[[{"provider":"anthropic","model":"claude-haiku-4-5","api_key_env":"TEST_KEY"}]]}}}}"#,
+        )
+        .unwrap();
+        let profile = config.translation_profile("claude").unwrap();
+        assert_eq!(profile.tiers[0][0].provider, "anthropic");
+        assert_eq!(profile.tiers[0][0].model, "claude-haiku-4-5");
+        assert_eq!(
+            profile.tiers[0][0].api_key.as_deref(),
+            Some("top-secret-value")
+        );
+
+        let missing_key = parse(
+            r#"{"translation":{"profiles":{"claude":{"tiers":[[{"provider":"anthropic","model":"claude-haiku-4-5"}]]}}}}"#,
+        );
+        assert!(
+            missing_key
+                .err()
+                .unwrap()
+                .contains("requires an api_key_env reference")
+        );
+    }
+
+    #[test]
+    fn rejects_discontinued_github_translation_provider() {
+        let error = parse(
+            r#"{"translation":{"profiles":{"legacy":{"tiers":[[{"provider":"github","model":"openai/gpt-4o-mini","api_key_env":"TEST_KEY"}]]}}}}"#,
+        )
+        .err()
+        .unwrap();
+        assert_eq!(error, "Unsupported translation provider");
     }
 
     #[test]

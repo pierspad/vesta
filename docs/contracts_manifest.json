@@ -3,12 +3,12 @@
   "description": "Structural contract hashes for Vesta macro-areas and micro-areas. Run `python3 build-scripts/check_doc_contracts.py --update` after updating affected documentation.",
   "macro_areas": {
     "tauri_ipc": {
-      "hash": "c8fbf17c90eea2b9",
+      "hash": "ef1e703b9832bdb3",
       "defined_count": 96,
       "registered_count": 96,
       "groups": {
         "auto_sync": "1ddf2385d7490a26",
-        "config": "ecd92b726176c286",
+        "config": "e64b09924b1a5799",
         "experimental": "d07d248dff0f5be4",
         "extract": "6d426a4520fe1d9b",
         "flashcards": "8aff156515d1091a",
@@ -429,7 +429,7 @@
       }
     },
     "plugin_sdk": {
-      "hash": "be2a217445d04d08",
+      "hash": "dded1d26cab45181",
       "widget_types": [
         "button",
         "checkbox",
@@ -559,7 +559,6 @@
         "readme",
         "repository",
         "settings",
-        "shared_credentials",
         "tab",
         "version"
       ],
@@ -570,7 +569,7 @@
       ]
     },
     "rust_libraries": {
-      "hash": "cadea78a836ed6ed",
+      "hash": "9431b3d316529e45",
       "crates": {
         "srt-ankiconnect": {
           "path": "lib/srt-ankiconnect",
@@ -739,9 +738,9 @@
             "src/prompts.rs": "5205d526257af099",
             "src/rate_limiter.rs": "61e94a71c3e6ef0e",
             "src/scheduler.rs": "0e6fdadc5739c7d1",
-            "src/translator.rs": "e843905a93b11d01"
+            "src/translator.rs": "bbaab1da35ef07ab"
           },
-          "hash": "66b717df15b6e108",
+          "hash": "fce817a51ae9005f",
           "docs": [
             "lib/srt-translate/README.md",
             "docs/modules/srt-translate.md",

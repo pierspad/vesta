@@ -13,6 +13,7 @@
     type PathInputWidget,
   } from "$lib/services/pluginClient";
   import { currentLanguage, locale } from "$lib/i18n";
+  import { pluginsStore } from "$lib/stores/pluginsStore.svelte";
   import { snackbar } from "$lib/stores/snackbarStore.svelte";
   import { invokeCommand } from "$lib/services/tauriClient";
   import { uiMode } from "$lib/stores/uiModeStore.svelte";
@@ -41,6 +42,7 @@
   }: Props = $props();
 
   let t = $derived($locale);
+  let activeProgress = $derived(pluginsStore.getProgress(pluginId));
 
   let currentScreen = $state(untrack(() => screen));
   let previousScreens = $state<string[]>([]);
@@ -1156,20 +1158,7 @@
       </div>
 
     {:else if node.type === "progress"}
-      <div class="w-full flex flex-col gap-1.5">
-        {#if node.label}
-          <div class="flex justify-between text-xs text-gray-400">
-            <span>{node.label}</span>
-            <span>{Math.round(((node.value ?? 0) / (node.max ?? 100)) * 100)}%</span>
-          </div>
-        {/if}
-        <div class="w-full h-2 rounded-full bg-white/10 overflow-hidden">
-          <div
-            class="h-full bg-indigo-500 rounded-full transition-all duration-200"
-            style="width: {Math.min(100, Math.max(0, ((node.value ?? 0) / (node.max ?? 100)) * 100))}%"
-          ></div>
-        </div>
-      </div>
+      {@render progressBar(node.value ?? 0, node.max ?? 100, node.label ?? "")}
 
     {:else if node.type === "fileOutput"}
       <div class="flex items-center justify-between p-3 rounded-xl border border-white/10 bg-white/[0.03] gap-3 w-full">
@@ -1275,6 +1264,34 @@
   {/if}
 {/snippet}
 
+{#snippet progressBar(value: number, max = 100, label = "", showHeaderWithoutLabel = false, progressId?: string)}
+  {@const safeMax = max > 0 ? max : 100}
+  {@const ratio = Math.min(100, Math.max(0, (value / safeMax) * 100))}
+  {@const percent = Math.round(ratio)}
+  <div
+    class="w-full flex flex-col gap-1.5"
+    role="progressbar"
+    aria-valuenow={percent}
+    aria-valuemin={0}
+    aria-valuemax={100}
+    aria-label={label || progressId || undefined}
+    data-plugin-progress={progressId}
+  >
+    {#if label || showHeaderWithoutLabel}
+      <div class="flex justify-between text-xs text-gray-400">
+        <span>{label}</span>
+        <span>{percent}%</span>
+      </div>
+    {/if}
+    <div class="w-full h-2 rounded-full bg-white/10 overflow-hidden">
+      <div
+        class="h-full bg-indigo-500 rounded-full transition-all duration-200"
+        style="width: {ratio}%"
+      ></div>
+    </div>
+  </div>
+{/snippet}
+
 {#snippet actions()}
   {#each headerButtons(uiRoot) as button (button.id)}
     {@render renderNode(button, true)}
@@ -1284,6 +1301,13 @@
 <div bind:this={renderer} class="w-full h-full flex flex-col">
   {@render header?.(actions, () => { void goBack(); }, loading || actionLoading !== null)}
   <div class="plugin-renderer w-full flex-1 min-h-0 flex flex-col p-6 overflow-y-auto">
+    {#if activeProgress.length > 0}
+      <div class="mb-4 flex flex-col gap-2 shrink-0" data-testid="plugin-active-progress">
+        {#each activeProgress as entry (entry.id)}
+          {@render progressBar(entry.value, 100, entry.label, true, entry.id)}
+        {/each}
+      </div>
+    {/if}
     {#if loading && !uiRoot}
       <div class="flex-1 flex flex-col items-center justify-center gap-3 text-sm text-gray-400">
         <div class="skeleton w-48 h-6 rounded-lg"></div>

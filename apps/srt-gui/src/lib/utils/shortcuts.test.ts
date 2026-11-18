@@ -17,6 +17,7 @@ vi.mock("$lib/config/vestaConfig", () => ({
 import {
   defaultShortcuts,
   getShortcuts,
+  isReservedShortcut,
   localShortcutAction,
   saveShortcutOverride,
   resetShortcuts,
@@ -44,6 +45,17 @@ describe("shortcuts", () => {
         expect(s.defaultKey.length).toBeGreaterThan(0);
         expect(s.action.length).toBeGreaterThan(0);
       }
+    });
+
+    it("registers global reserved shortcuts for Extract and Plugins tabs", () => {
+      expect(defaultShortcuts).toEqual(
+        expect.arrayContaining([
+          { id: "tab-extract", action: "switchToExtract", description: "shortcuts.action.goToExtract", defaultKey: "Alt+Shift+E", category: "global" },
+          { id: "tab-plugins", action: "switchToPlugins", description: "shortcuts.action.goToPlugins", defaultKey: "Alt+Shift+P", category: "global" },
+        ]),
+      );
+      expect(isReservedShortcut("Alt+Shift+E")).toBe(true);
+      expect(isReservedShortcut("Alt+Shift+P")).toBe(true);
     });
   });
 

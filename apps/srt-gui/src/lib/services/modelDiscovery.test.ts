@@ -28,4 +28,48 @@ describe("model discovery", () => {
     mockedFetch.mockResolvedValue({ ok: false, status: 401 } as Awaited<ReturnType<typeof fetch>>);
     await expect(discoverModels("openai", "bad", "https://api.openai.com/v1")).rejects.toThrow("HTTP 401");
   });
+  it("discovers Anthropic models with x-api-key, anthropic-version, and display_name", async () => {
+    mockedFetch.mockResolvedValue({
+      ok: true,
+      text: async () => JSON.stringify({
+        data: [
+          { id: "claude-sonnet-4-6", display_name: "Claude Sonnet 4.6" },
+          { id: "claude-haiku-4-5", display_name: "Claude Haiku 4.5" },
+        ],
+      }),
+    } as Awaited<ReturnType<typeof fetch>>);
+
+    const models = await discoverModels("anthropic", " sk-ant-test ", "https://api.anthropic.com");
+    expect(mockedFetch).toHaveBeenCalledWith(
+      "https://api.anthropic.com/v1/models",
+      {
+        method: "GET",
+        headers: {
+          Accept: "application/json",
+          "x-api-key": "sk-ant-test",
+          "anthropic-version": "2023-06-01",
+        },
+        timeoutMs: 8000,
+        allowCustomHost: true,
+      },
+    );
+    expect(models).toEqual([
+      { id: "claude-sonnet-4-6", name: "Claude Sonnet 4.6" },
+      { id: "claude-haiku-4-5", name: "Claude Haiku 4.5" },
+    ]);
+  });
+  it("normalizes Anthropic /v1 base URL and handles HTTP errors", async () => {
+    mockedFetch.mockResolvedValue({ ok: false, status: 403 } as Awaited<ReturnType<typeof fetch>>);
+    await expect(discoverModels("anthropic", "bad-key", "https://api.anthropic.com/v1/"))
+      .rejects.toThrow("HTTP 403");
+    expect(mockedFetch).toHaveBeenCalledWith(
+      "https://api.anthropic.com/v1/models",
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          "x-api-key": "bad-key",
+          "anthropic-version": "2023-06-01",
+        }),
+      }),
+    );
+  });
 });

@@ -71,8 +71,6 @@
   import { fetchModelsFromEndpoint } from "$lib/services/modelDiscovery";
   import { SmartMatchingRulesDraft } from "$lib/workflows/smartMatchingRulesDraft.svelte";
 
-  const allProviderIds = ["local", "google", "groq", "openai", "deepgram", "assemblyai", "openrouter", "mistral", "github", "nvidia", "custom"];
-  const apiKeyProviderIds = ["google", "groq", "openai", "deepgram", "assemblyai", "openrouter", "mistral", "github", "nvidia", "custom"];
   type EndpointStatus = ProviderEndpointStatus;
   type SettingsSection = "overview" | "llm" | "whisper" | "language" | "anki" | "diagnostics" | "shortcuts";
   type TemplateCodeTab = "front" | "back" | "css";

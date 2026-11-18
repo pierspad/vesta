@@ -43,7 +43,7 @@ export function extractModelsFromPayload(payload: unknown): DiscoveredModel[] {
       const record = candidate as Record<string, unknown>;
       const rawId = [record.id, record.name, record.model]
         .find((value) => typeof value === "string" && value.trim().length > 0);
-      const rawName = [record.displayName, record.label, record.name, record.id]
+      const rawName = [record.displayName, record.display_name, record.label, record.name, record.id]
         .find((value) => typeof value === "string" && value.trim().length > 0);
 
       if (typeof rawId === "string") {
@@ -84,6 +84,51 @@ export function buildModelsUrl(baseUrl: string) {
   return url.endsWith("/v1") ? `${url}/models` : `${url}/v1/models`;
 }
 
+async function parseJsonResponse(
+  resp: Awaited<ReturnType<typeof tauriFetch>>,
+): Promise<unknown> {
+  if (typeof resp.text === "function") {
+    const responseText = await resp.text();
+    if (responseText.trim().length === 0) return null;
+    try {
+      return JSON.parse(responseText);
+    } catch {
+      throw new Error("Invalid JSON response");
+    }
+  }
+  if (typeof resp.json === "function") {
+    try {
+      return await resp.json();
+    } catch {
+      throw new Error("Invalid JSON response");
+    }
+  }
+  return null;
+}
+
+async function fetchModelsWithHeaders(
+  url: string,
+  headers: Record<string, string>,
+  timeoutMs: number,
+): Promise<DiscoveredModel[]> {
+  const resp = await tauriFetch(url, {
+    method: "GET",
+    headers,
+    timeoutMs,
+    // `url` è sempre derivato dall'endpoint configurato dall'utente (provider
+    // local/custom o apiUrl personalizzato di una key), non un host cablato:
+    // la whitelist statica non si applica.
+    allowCustomHost: true,
+  });
+
+  if (!resp.ok) throw Object.assign(new Error(`HTTP ${resp.status}`), { status: resp.status });
+
+  const data = await parseJsonResponse(resp);
+  const models = extractModelsFromPayload(data);
+  if (models.length === 0) throw new Error("No models found");
+  return models;
+}
+
 export async function fetchModelsFromEndpoint(
   baseUrl: string,
   apiKey = "",
@@ -99,36 +144,13 @@ export async function fetchModelsFromEndpoint(
     headers.Authorization = `Bearer ${apiKey.trim()}`;
   }
 
-  const resp = await tauriFetch(url, {
-    method: "GET",
-    headers,
-    timeoutMs,
-    // baseUrl è sempre un endpoint configurato dall'utente (provider
-    // local/custom o apiUrl personalizzato di una key), non un host
-    // cablato: la whitelist statica non si applica.
-    allowCustomHost: true,
-  });
-
-  if (!resp.ok) throw Object.assign(new Error(`HTTP ${resp.status}`), { status: resp.status });
-
-  const responseText = await resp.text();
-  let data: unknown = null;
-  if (responseText.trim().length > 0) {
-    try {
-      data = JSON.parse(responseText);
-    } catch {
-      throw new Error("Invalid JSON response");
-    }
-  }
-
-  const models = extractModelsFromPayload(data);
-  if (models.length === 0) throw new Error("No models found");
-  return models;
+  return fetchModelsWithHeaders(url, headers, timeoutMs);
 }
 
 /**
  * Scopre i modelli disponibili per un provider, gestendo le differenze di API:
  *  - Google Gemini: GET {base}/models con x-goog-api-key, filtra a generateContent, rimuove "models/".
+ *  - Anthropic Claude: GET {base}/models con x-api-key e anthropic-version.
  *  - Tutto il resto (OpenAI-compatible): GET {base}/models con Bearer.
  *
  * Pensata per essere chiamata a runtime così che nuovi modelli compaiano senza
@@ -170,6 +192,20 @@ export async function discoverModels(
     }
     if (models.length === 0) throw new Error("No models found");
     return models;
+  }
+
+  if (p === "anthropic") {
+    const base = (apiUrl || "https://api.anthropic.com/v1").trim().replace(/\/+$/, "");
+    const url = buildModelsUrl(base || "https://api.anthropic.com/v1");
+    return fetchModelsWithHeaders(
+      url,
+      {
+        Accept: "application/json",
+        "x-api-key": apiKey.trim(),
+        "anthropic-version": "2023-06-01",
+      },
+      timeoutMs,
+    );
   }
 
   // OpenAI-compatible (groq, openrouter, mistral, github, nvidia, local, custom).

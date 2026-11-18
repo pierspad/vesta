@@ -134,7 +134,7 @@
       })
       .catch(() => {
         appVersion = "vesta";
-        appVersionNum = "v0.15.1";
+        appVersionNum = "v0.31.1";
         appLicense = "GPL-3.0";
       });
 

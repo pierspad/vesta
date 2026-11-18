@@ -1,3 +1,7 @@
+<script module lang="ts">
+  let nextSelectId = 0;
+</script>
+
 <script lang="ts">
   import { onDestroy, onMount, tick } from "svelte";
   import ProviderIcon from "$lib/components/ProviderIcon.svelte";
@@ -42,6 +46,10 @@
     ariaLabel,
   }: Props = $props();
 
+  const uid = `searchable-select-${++nextSelectId}`;
+  const listboxId = `${uid}-listbox`;
+  const optionId = (index: number) => `${uid}-option-${index}`;
+
   let isOpen = $state(false);
   let searchQuery = $state("");
   let highlightedIndex = $state(0);
@@ -84,6 +92,10 @@
       return labelMatch || searchMatch;
     });
   });
+
+  let activeDescendantId = $derived(
+    isOpen && filteredOptions[highlightedIndex] ? optionId(highlightedIndex) : undefined,
+  );
 
   $effect(() => {
     if (filteredOptions.length > 0) {
@@ -261,6 +273,11 @@
     <input
       bind:this={inputElement}
       type="text"
+      role="combobox"
+      aria-autocomplete="list"
+      aria-expanded={isOpen}
+      aria-controls={isOpen ? listboxId : undefined}
+      aria-activedescendant={activeDescendantId}
       aria-label={ariaLabel ?? placeholder}
       class:compact
       value={displayValue}
@@ -278,6 +295,7 @@
       type="button"
       aria-label={ariaLabel ?? placeholder}
       aria-expanded={isOpen}
+      aria-controls={isOpen ? listboxId : undefined}
       {disabled}
       onpointerdown={(event) => event.preventDefault()}
       onclick={() => {
@@ -294,6 +312,7 @@
         : ''}"
     >
       <svg
+        aria-hidden="true"
         class="w-4 h-4"
         fill="none"
         stroke="currentColor"
@@ -313,12 +332,15 @@
     <div
       bind:this={dropdownElement}
       use:placeMenu
+      id={listboxId}
+      role="listbox"
+      aria-label={ariaLabel ?? placeholder}
       class="searchable-select-dropdown"
       class:opens-up={placement === "up"}
       style="background: var(--control-menu-bg, var(--surface)); backdrop-filter: none; -webkit-backdrop-filter: none"
     >
       {#if filteredOptions.length === 0}
-        <div class="px-4 py-3 text-gray-500 text-sm text-center">
+        <div class="px-4 py-3 text-gray-500 text-sm text-center" role="status">
           {noResultsText}
         </div>
       {:else}
@@ -328,6 +350,10 @@
           {/if}
           <button
             type="button"
+            id={optionId(index)}
+            role="option"
+            aria-selected={option.value === value}
+            tabindex="-1"
             data-index={index}
             onclick={() => selectOption(option)}
             onmouseenter={() => (highlightedIndex = index)}
@@ -352,6 +378,7 @@
             <span>{option.label}</span>
             {#if option.value === value}
               <svg
+                aria-hidden="true"
                 class="w-4 h-4 ml-auto shrink-0 text-indigo-400"
                 fill="none"
                 stroke="currentColor"

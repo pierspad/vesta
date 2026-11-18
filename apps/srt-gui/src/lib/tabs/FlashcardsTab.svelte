@@ -87,9 +87,10 @@
   interface Props {
     active?: boolean;
     onGoToSettings?: (section?: "overview" | "llm" | "whisper" | "language" | "anki" | "shortcuts", highlightItemId?: string) => void;
+    pluginHandoff?: { nonce: number; videoPath: string; subtitlePath: string } | null;
   }
 
-  let { active = true, onGoToSettings }: Props = $props();
+  let { active = true, onGoToSettings, pluginHandoff = null }: Props = $props();
 
   // The tab stays mounted while hidden; its preview dialog is visibility-bound
   // and should not keep keyboard or playback ownership in the background.
@@ -982,6 +983,76 @@
     if (firstMedia === loadedAudioMedia) return;
     loadedAudioMedia = firstMedia;
     untrack(() => { void audioSelection.load(firstMedia || ""); });
+  });
+
+  let lastAppliedHandoffNonce = 0;
+
+  function applyPluginHandoff(handoff: { videoPath: string; subtitlePath: string }) {
+    const subtitlePath = handoff.subtitlePath.trim();
+    const mediaCandidate = handoff.videoPath.trim();
+    const detectedType = mediaCandidate ? detectMediaType(getFileName(mediaCandidate)) : "none";
+    const hasValidMedia = Boolean(mediaCandidate && detectedType !== "none");
+    if (!subtitlePath && !hasValidMedia) return;
+    if (generationStore.isBusy) return;
+
+    const existing = episodes[0];
+
+    const nextTargetSubsPath = subtitlePath || existing?.targetSubsPath || "";
+    const targetSubsChanged = nextTargetSubsPath !== (existing?.targetSubsPath ?? "");
+    const preserveExistingMedia = !targetSubsChanged && !mediaCandidate;
+    const nextMediaPath = hasValidMedia
+      ? mediaCandidate
+      : preserveExistingMedia
+        ? (existing?.mediaPath || "")
+        : "";
+    const nextMediaType: EpisodeEntry["mediaType"] = hasValidMedia
+      ? detectedType
+      : preserveExistingMedia
+        ? (existing?.mediaType ?? "none")
+        : "none";
+
+    const mediaChanged = nextMediaPath !== (existing?.mediaPath ?? "");
+
+    if (mediaChanged || targetSubsChanged) {
+      previewStore.close();
+      if (editingEpisodeIndex === 0) closeEpisodeEditor();
+      if (episodeMediaEditorStore.episodeIndex === 0) closeEpisodeMediaSettings();
+      if (generationStore.result) {
+        generationStore.result = null;
+        generationStore.error = null;
+      }
+    }
+
+    const updatedEpisode: EpisodeEntry = {
+      id: existing?.id ?? 1,
+      targetSubsPath: nextTargetSubsPath,
+      nativeSubsPath: mediaChanged ? "" : (existing?.nativeSubsPath ?? ""),
+      mediaPath: nextMediaPath,
+      mediaType: nextMediaType,
+      mediaOverrides: mediaChanged ? undefined : existing?.mediaOverrides,
+      noteTypeId: existing?.noteTypeId,
+      detectedLanguage: targetSubsChanged ? undefined : existing?.detectedLanguage,
+      matching: mediaChanged ? undefined : existing?.matching,
+    };
+
+    if (episodes.length === 0) {
+      episodes = [updatedEpisode];
+    } else {
+      episodes = episodes.map((ep, idx) => (idx === 0 ? updatedEpisode : ep));
+    }
+
+    if (!mediaChanged && nextMediaType === "video" && nextMediaPath && !audioSelection.loading && audioSelection.tracks.length === 0) {
+      loadedAudioMedia = nextMediaPath;
+      void audioSelection.load(nextMediaPath);
+    }
+  }
+
+  $effect(() => {
+    const handoff = pluginHandoff;
+    if (!handoff || handoff.nonce === lastAppliedHandoffNonce) return;
+    if (generationStore.isBusy) return;
+    lastAppliedHandoffNonce = handoff.nonce;
+    untrack(() => applyPluginHandoff(handoff));
   });
 
   // ─── File Drag-and-Drop Handler ───────────────────────────────────────────

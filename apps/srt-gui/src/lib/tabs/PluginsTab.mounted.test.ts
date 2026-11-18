@@ -77,7 +77,6 @@ beforeEach(() => {
         readme: "# Demo Readme\nDetailed information about Demo Plugin.",
         entry: { command: ["python3", "main.py"] },
         permissions: ["network", "filesystem:downloads"],
-        sharedCredentials: [{ id: "tmdb_api_key", label: "TMDB API Key" }],
         tab: { title: "Demo Tab", icon: "film" },
         settings: [
           {

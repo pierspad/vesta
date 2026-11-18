@@ -1,6 +1,6 @@
 [package]
 name = "srt-sync"
-version = "0.31.1"
+version = "0.32.0-dev.2"
 edition.workspace = true
 rust-version.workspace = true
 authors = ["Pierpaolo Spadafora <pierpaolospadafora@proton.me>"]
@@ -15,10 +15,8 @@ srt-parser = { workspace = true }
 anyhow.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+tempfile.workspace = true
 
 [lib]
 name = "srt_sync"
 path = "src/lib.rs"
-
-[dev-dependencies]
-tempfile.workspace = true

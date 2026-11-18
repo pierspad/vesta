@@ -52,3 +52,57 @@ it("toggles an open select closed with its arrow button", async () => {
  toggle.click(); await tick();
  expect(document.querySelector(".searchable-select-dropdown")).not.toBeNull();
 });
+
+it("exposes combobox, listbox, option, and active-descendant semantics for screen readers", async () => {
+ const target = document.createElement("div"); document.body.append(target);
+ const onchange = vi.fn();
+ instances.push(mount(SearchableSelect, {
+  target,
+  props: {
+   options: [
+    { value: "llm", label: "LLM" },
+    { value: "stt", label: "STT" },
+    { value: "ocr", label: "OCR" },
+   ],
+   value: "llm",
+   onchange,
+   ariaLabel: "Engine",
+  },
+ }));
+ await tick();
+
+ const input = target.querySelector("input")!;
+ expect(input.getAttribute("role")).toBe("combobox");
+ expect(input.getAttribute("aria-autocomplete")).toBe("list");
+ expect(input.getAttribute("aria-expanded")).toBe("false");
+ expect(input.getAttribute("aria-controls")).toBeNull();
+ expect(input.getAttribute("aria-activedescendant")).toBeNull();
+
+ input.focus();
+ await tick();
+
+ const listbox = target.querySelector<HTMLElement>('[role="listbox"]')!;
+ expect(listbox).not.toBeNull();
+ expect(input.getAttribute("aria-expanded")).toBe("true");
+ expect(input.getAttribute("aria-controls")).toBe(listbox.id);
+
+ const options = [...listbox.querySelectorAll<HTMLElement>('[role="option"]')];
+ expect(options).toHaveLength(3);
+ expect(options[0].getAttribute("aria-selected")).toBe("true");
+ expect(options[1].getAttribute("aria-selected")).toBe("false");
+ expect(input.getAttribute("aria-activedescendant")).toBe(options[0].id);
+
+ input.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
+ await tick();
+ expect(input.getAttribute("aria-activedescendant")).toBe(options[1].id);
+
+ input.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowUp", bubbles: true }));
+ await tick();
+ expect(input.getAttribute("aria-activedescendant")).toBe(options[0].id);
+
+ input.value = "nomatch";
+ input.dispatchEvent(new Event("input", { bubbles: true }));
+ await tick();
+ expect(listbox.querySelectorAll('[role="option"]')).toHaveLength(0);
+ expect(input.getAttribute("aria-activedescendant")).toBeNull();
+});

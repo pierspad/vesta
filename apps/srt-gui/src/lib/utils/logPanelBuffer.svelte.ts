@@ -12,6 +12,8 @@ import type { LogEntry } from "$lib/panels/LogPanel.svelte";
  * of appending, which is a different enough concern to keep separate. See
  * [[vesta-gui-lib-reorg]].
  */
+export const MAX_WORKFLOW_LOGS = 500;
+
 export function createLogPanelBuffer() {
   let logs = $state<LogEntry[]>([]);
   let logIdCounter = 0;
@@ -23,7 +25,7 @@ export function createLogPanelBuffer() {
       minute: "2-digit",
       second: "2-digit",
     });
-    logs = [...logs, { id: ++logIdCounter, timestamp, message, type }];
+    logs = [...logs.slice(-(MAX_WORKFLOW_LOGS - 1)), { id: ++logIdCounter, timestamp, message, type }];
   }
 
   function clearLogs() {

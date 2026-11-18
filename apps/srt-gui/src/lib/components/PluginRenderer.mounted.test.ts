@@ -4,6 +4,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import PluginRenderer from "./PluginRenderer.svelte";
 import PluginHeaderHarness from "$lib/test/fixtures/PluginHeaderHarness.svelte";
 import type { WidgetNode } from "$lib/services/pluginClient";
+import { pluginsStore } from "$lib/stores/pluginsStore.svelte";
 import { uiMode } from "$lib/stores/uiModeStore.svelte";
 
 const mockDispatch = vi.fn();
@@ -36,6 +37,8 @@ beforeEach(() => {
 
 afterEach(async () => {
   for (const component of components.splice(0)) await unmount(component);
+  pluginsStore.clearProgress("test-plugin");
+  pluginsStore.clearProgress("other-plugin");
   document.body.replaceChildren();
 });
 
@@ -857,4 +860,60 @@ it("applies explicit credential resets alongside a replacement tree without over
   await tick();
   expect(target.querySelector<HTMLInputElement>("#widget-key")?.value).toBe("");
   expect(target.querySelector<HTMLInputElement>("#widget-name")?.value).toBe("unsaved edit");
+});
+
+it("renders active plugin:progress indicators for its pluginId and clears them at 100%", async () => {
+  const target = document.body.appendChild(document.createElement("div"));
+  const root: WidgetNode = {
+    type: "column",
+    children: [{ type: "text", text: "Plugin body" }],
+  };
+
+  pluginsStore.updateProgress({
+    pluginId: "test-plugin",
+    id: "sync-job",
+    value: 35,
+    label: "Fetching subtitles",
+  });
+  pluginsStore.updateProgress({
+    pluginId: "other-plugin",
+    id: "other-job",
+    value: 80,
+    label: "Should not appear",
+  });
+
+  components.push(
+    mount(PluginRenderer, {
+      target,
+      props: { pluginId: "test-plugin", initialRoot: root },
+    })
+  );
+  await tick();
+
+  const bar = target.querySelector<HTMLElement>('[data-plugin-progress="sync-job"]');
+  expect(bar).not.toBeNull();
+  expect(bar?.getAttribute("aria-valuenow")).toBe("35");
+  expect(bar?.textContent).toContain("Fetching subtitles");
+  expect(bar?.textContent).toContain("35%");
+  expect(target.textContent).not.toContain("Should not appear");
+
+  pluginsStore.updateProgress({
+    pluginId: "test-plugin",
+    id: "sync-job",
+    value: 72,
+    label: "Parsing lines",
+  });
+  await tick();
+  expect(bar?.getAttribute("aria-valuenow")).toBe("72");
+  expect(bar?.textContent).toContain("Parsing lines");
+  expect(bar?.textContent).toContain("72%");
+
+  pluginsStore.updateProgress({
+    pluginId: "test-plugin",
+    id: "sync-job",
+    value: 100,
+    label: "Done",
+  });
+  await tick();
+  expect(target.querySelector('[data-testid="plugin-active-progress"]')).toBeNull();
 });

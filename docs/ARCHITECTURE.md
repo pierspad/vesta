@@ -98,7 +98,7 @@ Failover Orchestrator (Tier 0 ─► Tier 1 ─► Tier 2 ─► ...)
         │ Dispatches requests in round-robin across active endpoints in the current Tier.
         │ Automatically fails over to the next tier if quota/RPM/rate-limits are exhausted.
         ▼
-LLM Providers (Google Gemini, Groq, OpenAI, Mistral, OpenRouter, NVIDIA NIM, Ollama / Local)
+LLM Providers (Google Gemini, Anthropic Claude, Groq, OpenAI, Mistral, OpenRouter, NVIDIA NIM, Ollama / Local)
         │
         ▼
 Translation & Refine Engine
@@ -186,6 +186,8 @@ failures for retry; mounted tab state remains owned by App's persistent containe
 The desktop UI never executes FFmpeg, Whisper or SQLite directly. Provider
 discovery, readiness checks and update metadata can use the frontend HTTP adapter
 (`tauriHttp.ts`); translation/transcription/annotation execution uses Rust engines.
+The metadata HTTP adapter limits response bodies to 8 MiB while streaming,
+including responses without a declared length.
 Svelte invokes typed Tauri commands; those commands translate persisted/UI
 configuration into library structs, hold cancellation state, and forward
 progress events. Domain behavior stays in `lib/`, so the same pipeline is used
@@ -276,12 +278,15 @@ For module-specific documentation and integration examples, see [`docs/modules/`
 ## Configuration, embedded subtitles, and output files
 
 `vestaConfig.ts` hydrates a string-keyed cache before dynamically importing the
-Svelte app/stores. Mutations are serialized over IPC. Setup awaits a durable snapshot via `replaceAll()`
-before reloading: an in-memory flag is insufficient to mark onboarding complete.
-Rust serializes disk access under `ConfigState`, writes a unique temporary file,
-syncs it, and publishes it atomically. Invalid/unreadable configuration is surfaced
-instead of silently replaced by defaults. API keys are stored in this configuration
-file; it is not an encrypted keychain.
+Svelte app/stores, atomically migrating legacy `localStorage` entries together
+with the completion flag via `replaceAll()`. Mutations are serialized over IPC.
+Setup awaits a durable snapshot via `replaceAll()` before reloading: an in-memory
+flag is insufficient to mark onboarding complete. Rust serializes disk access under
+`ConfigState`, writes a unique temporary file, syncs it, and publishes it atomically.
+Corrupted JSON is quarantined to a `.corrupt.<timestamp>` backup (blocking reset
+if the backup cannot be preserved) and surfaced to the user with the backup path;
+unreadable configuration fails startup instead of being silently replaced by defaults.
+API keys are stored in this configuration file; it is not an encrypted keychain.
 
 Embedded subtitle discovery/extraction lives in `srt-extract::embedded` and uses
 FFprobe/FFmpeg. Only text tracks are converted; PGS/VobSub need OCR. The desktop
@@ -324,10 +329,13 @@ AssemblyAI jobs may continue after local cancellation. See [QUALITY](QUALITY.md)
 MKV or MP4) are prepared by `srt-sync::playback`: reuse a fresh nonempty cache
 entry (`cache_modified >= source_modified`), or transcode the audio stream via
 FFmpeg into uncompressed 16 kHz mono PCM WAV (`pcm_s16le`, `{hash}.wav`) via an
-atomic `.partial.wav` sibling. This preview policy avoids video decoding and
+atomically published unique temporary sibling. This preview policy avoids video decoding and
 compressed-audio encoding overhead, and does not change flashcard export
-settings. A process-local mutex serializes preparation requests; temporary files
-become cache entries only after a successful FFmpeg run. Each FFmpeg child has a
+settings. Fresh cache hits bypass the preparation lock. A process-local mutex
+serializes conversions and rechecks the cache after acquisition; temporary files
+become cache entries only after a successful FFmpeg run with nonempty output.
+Failed conversion or publication cleans the temporary file and preserves the
+previous cache entry. Each FFmpeg child has a
 five-minute timeout. This path has no caller cancellation token.
 
 The loopback media server authenticates requests with a session token and supports

@@ -51,17 +51,17 @@ pub fn provider_defaults(provider: &str) -> (ApiType, &'static str, u32, &'stati
             30,
             "mistral-small-latest",
         ),
-        "github" => (
-            ApiType::Local,
-            "https://models.github.ai/inference",
-            10,
-            "openai/gpt-4o-mini",
-        ),
         "nvidia" => (
             ApiType::Local,
             "https://integrate.api.nvidia.com/v1",
             40,
             "deepseek-ai/deepseek-v4.1-flash",
+        ),
+        "anthropic" => (
+            ApiType::Anthropic,
+            "https://api.anthropic.com/v1",
+            20,
+            "claude-haiku-4-5",
         ),
 
         _ => (ApiType::Local, "http://localhost:11434/v1", 0, "llama3.2"),
@@ -179,11 +179,19 @@ mod tests {
         assert_eq!(rpm, 30);
         assert_eq!(model, "openai/gpt-oss-20b");
 
-        let (api_type, url, rpm, model) = provider_defaults("unknown_local");
-        assert_eq!(api_type, ApiType::Local);
-        assert_eq!(url, "http://localhost:11434/v1");
-        assert_eq!(rpm, 0);
-        assert_eq!(model, "llama3.2");
+        let (api_type, url, rpm, model) = provider_defaults("anthropic");
+        assert_eq!(api_type, ApiType::Anthropic);
+        assert_eq!(url, "https://api.anthropic.com/v1");
+        assert_eq!(rpm, 20);
+        assert_eq!(model, "claude-haiku-4-5");
+
+        for unknown in ["unknown_local", "github"] {
+            let (api_type, url, rpm, model) = provider_defaults(unknown);
+            assert_eq!(api_type, ApiType::Local);
+            assert_eq!(url, "http://localhost:11434/v1");
+            assert_eq!(rpm, 0);
+            assert_eq!(model, "llama3.2");
+        }
     }
 
     #[test]
@@ -193,6 +201,7 @@ mod tests {
         assert!(provider_allows_missing_key("custom"));
         assert!(!provider_allows_missing_key("google"));
         assert!(!provider_allows_missing_key("openai"));
+        assert!(!provider_allows_missing_key("anthropic"));
     }
 
     #[test]

@@ -16,6 +16,7 @@ describe("apiKeyEditorStore", () => {
     it("defines valid catalogs for LLM and Whisper providers", () => {
       expect(llmProviderIds).toContain("google");
       expect(llmProviderIds).toContain("openai");
+      expect(llmProviderIds).toContain("anthropic");
       expect(llmProviderIds).toContain("groq");
       expect(llmProviderIds).not.toContain("github");
 
@@ -26,6 +27,7 @@ describe("apiKeyEditorStore", () => {
     });
 
     it("has valid HTTPS URL endpoints for all listed providers", () => {
+      expect(llmApiKeyUrls.anthropic.startsWith("https://")).toBe(true);
       for (const [provider, url] of Object.entries(llmApiKeyUrls)) {
         expect(url.startsWith("https://")).toBe(true);
         expect(provider.length).toBeGreaterThan(0);
