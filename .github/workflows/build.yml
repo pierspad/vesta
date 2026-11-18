@@ -91,7 +91,9 @@ jobs:
             cmake \
             pkg-config \
             libssl-dev \
-            libclang-dev
+            libclang-dev \
+            clang \
+            mold
 
       # Vulkan SDK (LunarG): headers, loader, and glslc required by ggml-vulkan
       # to compile shaders for whisper.cpp's `vulkan` feature.

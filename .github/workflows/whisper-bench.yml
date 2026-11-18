@@ -104,7 +104,9 @@ jobs:
             cmake \
             pkg-config \
             libssl-dev \
-            libclang-dev
+            libclang-dev \
+            clang \
+            mold
 
       - name: Install Vulkan SDK (Linux)
         if: runner.os == 'Linux'
@@ -219,7 +221,7 @@ jobs:
         if: steps.gate.outputs.skip != 'true' && runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake pkg-config libssl-dev libclang-dev
+          sudo apt-get install -y cmake pkg-config libssl-dev libclang-dev clang mold
 
       - name: Install CUDA toolkit
         if: steps.gate.outputs.skip != 'true' && matrix.gpu == 'cuda'

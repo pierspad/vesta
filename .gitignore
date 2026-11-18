@@ -34,6 +34,7 @@ Thumbs.db
 .env
 *.key
 config.toml 
+!.cargo/config.toml
 
 # subs2srs is vendored as source under
 # benchmarking_against_subs2srs/subs2srs_source_code/ (GPLv3, kept whole

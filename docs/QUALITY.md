@@ -22,6 +22,8 @@ python3 build-scripts/quality_check.py --desktop --smoke
 | `cargo clippy --locked --workspace --all-targets -- -D warnings` | Strict lint gate across all workspace targets. |
 | `cargo test --locked --workspace` | Full workspace Rust test suite (including `vesta` and `whisper-bench`). |
 
+During daily iteration on Linux `x86_64`, [`.cargo/config.toml`](../.cargo/config.toml) routes linking through `clang` + `mold` (install `clang` and `mold` locally) and you can keep compile/link loops fast with targeted crate tests (for example `cargo test --locked -p srt-parser -p srt-apkg`), reserving full `--desktop` / `vulkan` builds for final verification gates and CI.
+
 Publication in CI waits for the successful push workflow on the exact release commit, including workspace tests and strict Clippy; a missing, failed, or skipped run blocks `semantic-release`. `python3 build-scripts/test_release_workflows.py` validates release queueing, platform prerequisites, and tag/version agreement.
 
 ---
