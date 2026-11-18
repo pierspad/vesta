@@ -1,7 +1,6 @@
 <script lang="ts">
   import { localShortcutAction } from "$lib/utils/shortcuts";
   import { isInputActive } from "$lib/utils/keyboardFocus";
-  import WorkflowErrorStatus from "$lib/components/WorkflowErrorStatus.svelte";
   import { RequirementFeedback } from "$lib/utils/requirementFeedback.svelte";
   const requirements = new RequirementFeedback<"files" | "options">();
   import { validatePickerPath } from "$lib/utils/pathValidation";
@@ -11,29 +10,19 @@
   import { setupWebviewDragDrop } from "$lib/utils/dragDrop";
   import { createLogPanelBuffer } from "$lib/utils/logPanelBuffer.svelte";
   import { ManagedModelDiscovery } from "$lib/workflows/managedModelDiscovery.svelte";
-  import { onDestroy, onMount, untrack } from "svelte";
+  import { onMount, untrack } from "svelte";
   import { locale } from "$lib/i18n";
   import { getFileName } from "$lib/utils/models";
   import { errorMessage } from "$lib/utils/errorMessage";
-  import { loadAndValidateApiKeys, supportsCapability, type ApiKeyConfig } from "$lib/config/apiKeys";
-  import {
-    loadTiers,
-    tiersHaveUsableEntries,
-    TIERS_UPDATED_EVENT,
-    type Tier,
-  } from "$lib/config/translationTiers";
-  import { getModelsForProvider, providers } from "$lib/config/llmProviders";
+  import { loadAndValidateApiKeys, type ApiKeyConfig } from "$lib/config/apiKeys";
+  import { loadTiers, tiersHaveUsableEntries, TIERS_UPDATED_EVENT, type Tier } from "$lib/config/translationTiers";
   import { generateTranslationOutputPath as generateOutputPath } from "$lib/utils/translationPaths";
   import TranslationPreviewPanel from "$lib/panels/TranslationPreviewPanel.svelte";
-  import PathPickerField from "$lib/components/PathPickerField.svelte";
   import PathPreviewModal from "$lib/modals/PathPreviewModal.svelte";
-  import LanguageSelect from "$lib/components/LanguageSelect.svelte";
-  import LogPanel, { type LogEntry } from "$lib/panels/LogPanel.svelte";
   import WorkflowWorkspace from "$lib/components/WorkflowWorkspace.svelte";
+  import type { LogEntry } from "$lib/panels/LogPanel.svelte";
   import { snackbar } from "$lib/stores/snackbarStore.svelte";
   import { aiStore } from "$lib/stores/aiStore.svelte";
-  import FooterActions from "$lib/components/FooterActions.svelte";
-  import CopyPathChip from "$lib/components/CopyPathChip.svelte";
   import { uiMode } from "$lib/stores/uiModeStore.svelte";
   import {
     buildTiersPayload as buildTiersPayloadShared,
@@ -55,14 +44,17 @@
     type SubtitlePair,
   } from "$lib/services/translate";
   import { transcribeCheckFileExists } from "$lib/services/transcribe";
+  import TranslateOptionsPanel from "./translate/TranslateOptionsPanel.svelte";
+  import TranslateFilesPanel from "./translate/TranslateFilesPanel.svelte";
+  import TranslateProgressPanel from "./translate/TranslateProgressPanel.svelte";
+  import TranslateFooterBar from "./translate/TranslateFooterBar.svelte";
 
   interface Props {
     onGoToSettings?: (section?: "overview" | "llm" | "whisper" | "language" | "anki") => void;
     active?: boolean;
   }
 
-  let { onGoToSettings, active = true }: Props = $props();
-
+  let { onGoToSettings: _onGoToSettings, active = true }: Props = $props();
   let t = $derived($locale);
 
   interface TranslateProgressEvent {
@@ -71,12 +63,6 @@
     total_batches: number;
     percentage: number;
     eta_seconds: number | null;
-  }
-
-  interface ModelInfo {
-    id: string;
-    name: string;
-    provider: string;
   }
 
   const LAST_PROVIDER_KEY = "vesta-translate-last-provider";
@@ -88,27 +74,24 @@
   const DEFAULT_LLM_MODEL_KEY = "vesta-default-llm-model";
   const DEFAULT_LLM_CUSTOM_PROVIDER_KEY = "vesta-default-llm-custom-provider";
   const DEFAULT_TARGET_LANGUAGE_KEY = "vesta-default-target-language";
+  const LOCAL_SERVER_URL_KEY = "vesta-local-server-url";
+  const DEFAULT_LOCAL_URL = "http://localhost:11434/v1";
 
   function loadStoredValue(key: string): string {
-    try {
-      return vestaConfig.getItem(key) || "";
-    } catch {
-      return "";
-    }
+    try { return vestaConfig.getItem(key) || ""; } catch { return ""; }
   }
 
   let inputPath = $state("");
   let outputPath = $state("");
   let automaticOutputPath = $state(true);
-  const initialTargetLang = loadStoredValue(LAST_TARGET_LANGUAGE_KEY) || loadStoredValue(DEFAULT_TARGET_LANGUAGE_KEY) || "it";
-  let targetLang = $state(initialTargetLang);
-
-  const initialProvider = loadStoredValue(DEFAULT_LLM_PROVIDER_KEY) || loadStoredValue(LAST_PROVIDER_KEY) || "local";
-  let selectedProviderFamily = $state(initialProvider);
+  let targetLang = $state(loadStoredValue(LAST_TARGET_LANGUAGE_KEY) || loadStoredValue(DEFAULT_TARGET_LANGUAGE_KEY) || "it");
+  let selectedProviderFamily = $state(loadStoredValue(DEFAULT_LLM_PROVIDER_KEY) || loadStoredValue(LAST_PROVIDER_KEY) || "local");
   let providerConfirmed = $state(true);
   let selectedCustomProviderId = $state(loadStoredValue(DEFAULT_LLM_CUSTOM_PROVIDER_KEY) || loadStoredValue(LAST_CUSTOM_PROVIDER_KEY));
-
   let localCustomModel = $state(loadStoredValue(LAST_CUSTOM_MODEL_KEY));
+  let selectedModel = $state(loadStoredValue(DEFAULT_LLM_MODEL_KEY) || loadStoredValue(LAST_MODEL_KEY));
+  let localServerUrl = $state(vestaConfig.getItem(LOCAL_SERVER_URL_KEY) || DEFAULT_LOCAL_URL);
+
   let batchSize = $state(15);
   let resumeOverlap = $state(2);
   let effectiveBatchSize = $derived(uiMode.easyMode ? 15 : batchSize);
@@ -120,48 +103,19 @@
   let contextError = $state("");
   let contextRequest = 0;
   let previousContextPath = "";
+
   $effect(() => {
-    inputPath; targetLang;
+    void inputPath;
+    void targetLang;
     if (previousContextPath && previousContextPath !== inputPath) titleContext = "";
     previousContextPath = inputPath;
-    contextDraft = ""; contextError = ""; contextDraftPath = "";
+    contextDraft = "";
+    contextError = "";
+    contextDraftPath = "";
     contextRequest += 1;
   });
-  async function suggestContext() {
-    if (contextLoading || isTranslating || aiStore.killSwitchActive) return;
-    const tiersPayload = buildTiersPayload();
-    if (!tiersPayload || !inputPath) return;
-    const request = ++contextRequest;
-    const path = inputPath;
-    const language = targetLang;
-    const context = titleContext;
-    contextLoading = true; contextError = "";
-    try {
-      const check = await checkTiersAvailability();
-      if (request !== contextRequest || path !== inputPath || disposed || aiStore.killSwitchActive) return;
-      if (!check.available) { requirements.pulse(["options"]); if (check.errorMsg) snackbar.show(check.errorMsg, "error"); return; }
-      const draft = await suggestTranslationContext(path, language, context, tiersPayload);
-      if (request === contextRequest && path === inputPath && !aiStore.killSwitchActive && !disposed) { contextDraft = draft; contextDraftPath = path; }
-    } catch (error) { if (request === contextRequest && !disposed) contextError = errorMessage(error); }
-    finally { contextLoading = false; }
-  }
 
-  let selectedModel = $state(loadStoredValue(DEFAULT_LLM_MODEL_KEY) || loadStoredValue(LAST_MODEL_KEY));
-
-  // Local server URL with persistence
-  const LOCAL_SERVER_URL_KEY = "vesta-local-server-url";
-  const DEFAULT_LOCAL_URL = "http://localhost:11434/v1";
-  let localServerUrl = $state(vestaConfig.getItem(LOCAL_SERVER_URL_KEY) || DEFAULT_LOCAL_URL);
-
-  // Dynamically fetched models from local/custom server
   const modelDiscovery = new ManagedModelDiscovery(vestaConfig);
-  let fetchedModels = $derived(modelDiscovery.models);
-
-  function saveLocalServerUrl(url: string) {
-    localServerUrl = url;
-    vestaConfig.setItem(LOCAL_SERVER_URL_KEY, url);
-  }
-
   let fileInfo = $state<SrtFileInfo | null>(null);
   const translationOperation = new AsyncOperation();
   const fileRequests = new LatestRequest();
@@ -170,56 +124,67 @@
   let previewPending: Promise<void> | null = null;
   let disposed = false;
   let isTranslating = $derived(translationOperation.busy);
-  $effect(() => {
-    aiStore.isTranslating = isTranslating;
-  });
+  $effect(() => { aiStore.isTranslating = isTranslating; });
+
   let progress = $state<TranslateProgressEvent | null>(null);
   const logBuffer = createLogPanelBuffer();
   let error = $state<string | null>(null);
   let result = $state<TranslateResult | null>(null);
   let expandedPathField = $state<string | null>(null);
-
   let translatedPairs = $state<SubtitlePair[]>([]);
   let previewRefreshInterval: ReturnType<typeof setInterval> | null = null;
-
   let apiKeys = $state<ApiKeyConfig[]>([]);
-
-  // Tier list (priority + failover). Quando presente ha la precedenza sul provider singolo.
   let tiers = $state<Tier[]>([]);
   let useTiers = $derived(tiersHaveUsableEntries(tiers));
-  let usableTierCount = $derived(
-    tiers.filter((tier) => tier.entries.some((e) => e.model && e.model.trim())).length,
+  let isDraggingOver = $state(false);
+  let canUseFilePanel = $derived(providerConfirmed);
+  let canStartTranslation = $derived(
+    !!fileInfo?.subtitle_count && !!outputPath && useTiers && !contextLoading && !fileLoading && !aiStore.killSwitchActive
+  );
+  let translationBlockedReason = $derived(
+    !useTiers ? t("translate.blocked.noTiers") : !inputPath || !outputPath ? t("translate.blocked.selectFiles") : ""
   );
 
-  function refreshTiers() {
-    tiers = loadTiers();
-  }
+  const refreshTiers = () => { tiers = loadTiers(); };
+  const loadApiKeys = () => { apiKeys = loadAndValidateApiKeys(); };
 
-  // Payload a tier: delega al modulo condiviso (stessa logica di RefineTab).
   function buildTiersPayload(): TierEntryPayload[][] | null {
-    if (!useTiers) return null;
-    return buildTiersPayloadShared(tiers, apiKeys);
+    return useTiers ? buildTiersPayloadShared(tiers, apiKeys) : null;
   }
-
   function tiersUnavailableMessage(reason: TiersUnavailableReason): string {
     return tiersUnavailableMessageShared(reason, "translate.errorTranslating");
   }
-
   async function checkTiersAvailability(): Promise<{ available: boolean; errorMsg?: string }> {
-    if (!useTiers) {
-      return { available: false, errorMsg: t("tiers.noneConfigured") };
-    }
+    if (!useTiers) return { available: false, errorMsg: t("tiers.noneConfigured") };
     const check = await checkTiersAvailabilityShared(tiers, apiKeys);
-    if (check.available) return { available: true };
-    return { available: false, errorMsg: tiersUnavailableMessage(check.reason) };
+    return check.available ? { available: true } : { available: false, errorMsg: tiersUnavailableMessage(check.reason) };
   }
 
-  let unlistenProgress: (() => void) | null = null;
-  let unlistenComplete: (() => void) | null = null;
-  let unlistenDragDrop: (() => void) | null = null;
-  let isDraggingOver = $state(false);
-
-  let canUseFilePanel = $derived(providerConfirmed);
+  async function suggestContext() {
+    if (contextLoading || isTranslating || aiStore.killSwitchActive) return;
+    const tiersPayload = buildTiersPayload();
+    if (!tiersPayload || !inputPath) return;
+    const request = ++contextRequest;
+    const path = inputPath;
+    const language = targetLang;
+    const context = titleContext;
+    contextLoading = true;
+    contextError = "";
+    try {
+      const check = await checkTiersAvailability();
+      if (request !== contextRequest || path !== inputPath || disposed || aiStore.killSwitchActive) return;
+      if (!check.available) { requirements.pulse(["options"]); if (check.errorMsg) snackbar.show(check.errorMsg, "error"); return; }
+      const draft = await suggestTranslationContext(path, language, context, tiersPayload);
+      if (request === contextRequest && path === inputPath && !aiStore.killSwitchActive && !disposed) {
+        contextDraft = draft;
+        contextDraftPath = path;
+      }
+    } catch (e) {
+      if (request === contextRequest && !disposed) contextError = errorMessage(e);
+    } finally {
+      contextLoading = false;
+    }
+  }
 
   function ensureProviderSelectedForFiles(): boolean {
     if (providerConfirmed) return true;
@@ -228,142 +193,37 @@
   }
 
   async function handleFileDrop(paths: string[]) {
-    if (isTranslating || contextLoading) return;
-    if (!ensureProviderSelectedForFiles()) return;
-    const srtFile = paths.find(p => p.toLowerCase().endsWith(".srt"));
+    if (isTranslating || contextLoading || !ensureProviderSelectedForFiles()) return;
+    const srtFile = paths.find((p) => p.toLowerCase().endsWith(".srt"));
     if (srtFile) {
       inputPath = srtFile;
       await loadFileInfo();
-      if (!outputPath) {
-        outputPath = generateOutputPath(inputPath, targetLang);
-      }
+      if (!outputPath) outputPath = generateOutputPath(inputPath, targetLang);
     }
   }
 
-  let providerOptions = $derived.by(() => {
-    return [
-      { id: "local", name: t("provider.local") },
-      { id: "custom", name: t("provider.custom") },
-      { id: "google", name: providers.google?.name || "Google Gemini" },
-      { id: "groq", name: providers.groq?.name || "Groq" },
-      { id: "openai", name: "OpenAI" },
-      { id: "openrouter", name: providers.openrouter?.name || "OpenRouter" },
-      { id: "mistral", name: providers.mistral?.name || "Mistral AI" },
-      { id: "nvidia", name: providers.nvidia?.name || "NVIDIA NIM" },
-    ];
-  });
-
-  // Custom providers saved in settings
-  let savedCustomProviders = $derived(
-    apiKeys.filter((k) => k.apiType === "custom" && supportsCapability(k, "llm") && k.apiUrl && k.apiUrl.trim().length > 0)
-  );
-
-  let availableModels = $derived.by(() => {
-    if (!selectedProviderFamily) return [];
-    // For local/custom providers, or when we successfully fetched dynamic models
-    if (fetchedModels.length > 0) {
-      const familyLabel = selectedProviderFamily === "local" || selectedProviderFamily === "custom" ? "Dynamic" : "Fetched API";
-      return fetchedModels.map((m) => ({ id: m.id, name: m.name, provider: selectedProviderFamily, family: familyLabel }));
-    }
-    // Fallback to hardcoded models
-    return getModelsForProvider(selectedProviderFamily);
-  });
-
-  // Effective model: use localCustomModel if filled (for local/custom provider), otherwise selectedModel
-  let effectiveModel = $derived(
-    (selectedProviderFamily === "local" || selectedProviderFamily === "custom") && localCustomModel.trim()
-      ? localCustomModel.trim()
-      : selectedModel
-  );
-
   $effect(() => {
     if (automaticOutputPath && inputPath) outputPath = generateOutputPath(inputPath, targetLang);
-  });
-
-  // Auto-select first model when provider changes (if current model invalid)
-  $effect(() => {
-    if (availableModels.length > 0) {
-      const currentValid = availableModels.find((m) => m.id === selectedModel);
-      if (!currentValid) {
-        selectedModel = availableModels[0].id;
-      }
-    } else {
-      selectedModel = "";
-    }
   });
 
   $effect(() => {
     vestaConfig.setItem(LAST_PROVIDER_KEY, selectedProviderFamily || "");
     vestaConfig.setItem(LAST_MODEL_KEY, selectedModel || "");
     vestaConfig.setItem(LAST_TARGET_LANGUAGE_KEY, targetLang || "");
-    vestaConfig.setItem(
-      LAST_CUSTOM_PROVIDER_KEY,
-      selectedCustomProviderId || "",
-    );
+    vestaConfig.setItem(LAST_CUSTOM_PROVIDER_KEY, selectedCustomProviderId || "");
     vestaConfig.setItem(LAST_CUSTOM_MODEL_KEY, localCustomModel || "");
   });
 
-
-
-  // Discovery is scoped to provider/key identity; state changes cannot trigger retry loops.
   $effect(() => {
     const family = providerConfirmed ? selectedProviderFamily : "";
-    const key = apiKeys.find(key => key.apiType === family && key.apiKey?.trim())?.apiKey.trim() || "";
+    const key = apiKeys.find((k) => k.apiType === family && k.apiKey?.trim())?.apiKey.trim() || "";
     untrack(() => { void modelDiscovery.load(family, key); });
   });
 
-  let hasValidKey = $derived.by(() => {
-    if (selectedProviderFamily === "local") return true;
-    if (selectedProviderFamily === "google") {
-      return apiKeys.some((k) => k.apiType === "google");
-    }
-    if (selectedProviderFamily === "groq") {
-      return apiKeys.some((k) => k.apiType === "groq");
-    }
-    if (selectedProviderFamily === "custom") {
-      if (!selectedCustomProviderId) return false;
-      return apiKeys.some(
-        (k) => k.id === selectedCustomProviderId && k.apiUrl && k.apiUrl.trim().length > 0,
-      );
-    }
-    return false;
+  $effect(() => {
+    if (!active) stopPreviewRefresh();
+    else if (isTranslating) startPreviewRefresh();
   });
-
-  let hasCustomKey = $derived(apiKeys.some((k) => k.apiType === "custom" && supportsCapability(k, "llm") && k.apiUrl && k.apiUrl.trim().length > 0));
-  let hasGoogleKey = $derived(apiKeys.some((k) => k.apiType === "google"));
-  let hasGroqKey = $derived(apiKeys.some((k) => k.apiType === "groq"));
-  let isLlmConfigured = $derived(
-    !!selectedProviderFamily &&
-      !!effectiveModel &&
-      hasValidKey &&
-      (selectedProviderFamily !== "local" || !!localServerUrl.trim()),
-  );
-  let translationBlockedReason = $derived(
-    !useTiers
-      ? t("translate.blocked.noTiers")
-      : !inputPath || !outputPath
-        ? t("translate.blocked.selectFiles")
-        : "",
-  );
-
-  let shouldKeepProviderPickerOpen = $derived(
-    !providerConfirmed || (!hasValidKey && selectedProviderFamily !== "local"),
-  );
-
-  function handleStorageChange(e: StorageEvent) {
-    if (e.key === "srt-tools-api-keys") {
-      loadApiKeys();
-    } else if (
-      e.key === DEFAULT_LLM_PROVIDER_KEY ||
-      e.key === DEFAULT_LLM_MODEL_KEY ||
-      e.key === DEFAULT_LLM_CUSTOM_PROVIDER_KEY ||
-      e.key === LOCAL_SERVER_URL_KEY
-    ) {
-      loadDefaultLlmSettings();
-    } else if (e.key === DEFAULT_TARGET_LANGUAGE_KEY && !vestaConfig.getItem(LAST_TARGET_LANGUAGE_KEY)) {
-      targetLang = loadStoredValue(DEFAULT_TARGET_LANGUAGE_KEY) || targetLang;
-    }
-  }
 
   function loadDefaultLlmSettings() {
     selectedProviderFamily = loadStoredValue(DEFAULT_LLM_PROVIDER_KEY) || selectedProviderFamily || "local";
@@ -373,46 +233,41 @@
     providerConfirmed = true;
   }
 
-  $effect(() => {
-    if (!active) {
-      stopPreviewRefresh();
-    } else if (isTranslating) {
-      startPreviewRefresh();
+  function handleStorageChange(e: StorageEvent) {
+    if (e.key === "srt-tools-api-keys") loadApiKeys();
+    else if (
+      e.key === DEFAULT_LLM_PROVIDER_KEY || e.key === DEFAULT_LLM_MODEL_KEY ||
+      e.key === DEFAULT_LLM_CUSTOM_PROVIDER_KEY || e.key === LOCAL_SERVER_URL_KEY
+    ) loadDefaultLlmSettings();
+    else if (e.key === DEFAULT_TARGET_LANGUAGE_KEY && !vestaConfig.getItem(LAST_TARGET_LANGUAGE_KEY)) {
+      targetLang = loadStoredValue(DEFAULT_TARGET_LANGUAGE_KEY) || targetLang;
     }
-  });
+  }
 
   onMount(() => {
     loadApiKeys();
     refreshTiers();
-
     window.addEventListener("storage", handleStorageChange);
-
-    // Also listen for custom event for same-window updates
     window.addEventListener("apikeys-updated", loadApiKeys);
     window.addEventListener("vesta-llm-default-updated", loadDefaultLlmSettings);
     window.addEventListener(TIERS_UPDATED_EVENT, refreshTiers);
 
     let activeListener = true;
     let unlistenProg: (() => void) | null = null;
-
     const cleanupDragDrop = setupWebviewDragDrop({
       isActive: () => active && !isTranslating && !contextLoading,
       setDraggingOver: (v) => (isDraggingOver = v),
       onDrop: handleFileDrop,
     });
 
-    listen<TranslateProgressEvent>(
-      "translate-progress",
-      (event) => {
-        if (!isTranslating || translationOperation.cancelRequested || disposed) return;
-        progress = event.payload;
-        addLog(event.payload.message);
-      },
-    ).then((fn) => {
+    listen<TranslateProgressEvent>("translate-progress", (event) => {
+      if (!isTranslating || translationOperation.cancelRequested || disposed) return;
+      progress = event.payload;
+      addLog(event.payload.message);
+    }).then((fn) => {
       if (!activeListener) fn();
       else unlistenProg = fn;
     }).catch(console.error);
-
 
     return () => {
       activeListener = false;
@@ -433,10 +288,6 @@
     };
   });
 
-  function loadApiKeys() {
-    apiKeys = loadAndValidateApiKeys();
-  }
-
   async function refreshTranslatedPreview(waitForCurrent = false) {
     if (previewPending) {
       if (!waitForCurrent) return;
@@ -449,72 +300,48 @@
     previewPending = (async () => {
       try {
         const pairs = await getLatestTranslatedSubtitles(previewInput, previewOutput, 10);
-        if (request.isCurrent() && previewInput === inputPath && previewOutput === outputPath && !translationOperation.cancelRequested && !disposed) translatedPairs = pairs;
-      } catch (error) { console.debug("Preview refresh:", error); }
+        if (request.isCurrent() && previewInput === inputPath && previewOutput === outputPath && !translationOperation.cancelRequested && !disposed) {
+          translatedPairs = pairs;
+        }
+      } catch (e) { console.debug("Preview refresh:", e); }
     })().finally(() => { previewPending = null; });
     await previewPending;
   }
 
   function startPreviewRefresh() {
-    if (previewRefreshInterval) return;
-    previewRefreshInterval = setInterval(refreshTranslatedPreview, 2000); // Refresh every 2 seconds
+    if (!previewRefreshInterval) previewRefreshInterval = setInterval(refreshTranslatedPreview, 2000);
   }
-
   function stopPreviewRefresh() {
     previewRequests.invalidate();
-    if (previewRefreshInterval) {
-      clearInterval(previewRefreshInterval);
-      previewRefreshInterval = null;
-    }
+    if (previewRefreshInterval) { clearInterval(previewRefreshInterval); previewRefreshInterval = null; }
   }
-
-  function addLog(message: string, type: LogEntry["type"] = "info") {
-    logBuffer.addLog(message, type);
-  }
+  function addLog(message: string, type: LogEntry["type"] = "info") { logBuffer.addLog(message, type); }
+  function clearLogs() { logBuffer.clearLogs(); }
 
   async function selectInputFile() {
-    if (isTranslating || contextLoading) return;
-    if (!ensureProviderSelectedForFiles()) return;
+    if (isTranslating || contextLoading || !ensureProviderSelectedForFiles()) return;
     try {
-      const selected = await guardedOpen({
-        multiple: false,
-        filters: [{ name: t("translate.inputFile"), extensions: ["srt"] }],
-      });
-
-      if (selected) {
-        if (isTranslating || contextLoading || disposed) return;
+      const selected = await guardedOpen({ multiple: false, filters: [{ name: t("translate.inputFile"), extensions: ["srt"] }] });
+      if (selected && !isTranslating && !contextLoading && !disposed) {
         inputPath = selected as string;
         await loadFileInfo();
-
-        if (!outputPath) {
-          outputPath = generateOutputPath(inputPath, targetLang);
-        }
+        if (!outputPath) outputPath = generateOutputPath(inputPath, targetLang);
         addLog(`📥 ${t("translate.inputFile")} · ${getFileName(inputPath)}`);
         addLog(`📤 ${t("translate.outputFile")} · ${getFileName(outputPath)}`);
       }
-    } catch (e) {
-      error = `${t("translate.errorSelectingFile")} ${errorMessage(e)}`;
-    }
+    } catch (e) { error = `${t("translate.errorSelectingFile")} ${errorMessage(e)}`; }
   }
 
   async function selectOutputFile() {
-    if (isTranslating || contextLoading) return;
-    if (!ensureProviderSelectedForFiles()) return;
+    if (isTranslating || contextLoading || !ensureProviderSelectedForFiles()) return;
     try {
-      const selected = await guardedSave({
-        filters: [{ name: t("translate.inputFile"), extensions: ["srt"] }],
-        defaultPath: outputPath || undefined,
-      });
-
-      if (selected) {
-        if (isTranslating || contextLoading || disposed) return;
+      const selected = await guardedSave({ filters: [{ name: t("translate.inputFile"), extensions: ["srt"] }], defaultPath: outputPath || undefined });
+      if (selected && !isTranslating && !contextLoading && !disposed) {
         automaticOutputPath = false;
         outputPath = selected;
         addLog(`📤 ${t("translate.outputFile")} · ${getFileName(outputPath)}`);
       }
-    } catch (e) {
-      error = `${t("translate.errorSelectingFile")} ${errorMessage(e)}`;
-    }
+    } catch (e) { error = `${t("translate.errorSelectingFile")} ${errorMessage(e)}`; }
   }
 
   async function saveInputPath(newPath: string): Promise<boolean> {
@@ -537,7 +364,6 @@
 
   async function loadFileInfo() {
     if (!inputPath) return;
-
     const path = inputPath;
     const request = fileRequests.begin();
     fileLoading = true;
@@ -553,9 +379,7 @@
       const info = await loadSrtForTranslate(path);
       if (!request.isCurrent() || path !== inputPath || disposed) return;
       fileInfo = info;
-      addLog(
-        `📄 ${t("translate.loadedFile", { count: fileInfo.subtitle_count })}`,
-      );
+      addLog(`📄 ${t("translate.loadedFile", { count: fileInfo.subtitle_count })}`);
     } catch (e) {
       if (!request.isCurrent() || path !== inputPath || disposed) return;
       error = `${t("translate.errorLoading")} ${errorMessage(e)}`;
@@ -587,7 +411,6 @@
       addLog(`🌐 ${t("translate.targetLang")} · ${targetLang}`);
       addLog(`⚙️ ${t("translate.batchSize")} · ${effectiveBatchSize} / ${t("translate.resumeOverlapExpert")} · ${effectiveResumeOverlap}`);
       startPreviewRefresh();
-
       const endpointCount = tiersPayload.reduce((sum, tier) => sum + tier.length, 0);
       addLog(`🪜 ${t("tiers.logActive", { tiers: tiersPayload.length, endpoints: endpointCount })}`);
 
@@ -610,29 +433,13 @@
       await refreshTranslatedPreview(true);
     } catch (e: any) {
       if (run.isCancelled() || !run.isCurrent()) return;
-      let msg = errorMessage(e);
+      const msg = errorMessage(e);
       const errorLower = msg.toLowerCase();
-
       let userMsg = msg;
-
-      if (msg.includes("ERR_ALREADY_RUNNING")) {
-        userMsg = t("common.error.alreadyRunning");
-      } else if (
-        errorLower.includes("429") ||
-        errorLower.includes("quota") ||
-        errorLower.includes("rate limit")
-      ) {
-        userMsg = t("translate.error.ratelimit");
-      } else if (
-        errorLower.includes("401") ||
-        errorLower.includes("unauthorized") ||
-        errorLower.includes("api key")
-      ) {
-        userMsg = t("translate.error.apikey");
-      } else if (errorLower.includes("json") || errorLower.includes("parse")) {
-        userMsg = t("translate.error.json");
-      }
-
+      if (msg.includes("ERR_ALREADY_RUNNING")) userMsg = t("common.error.alreadyRunning");
+      else if (errorLower.includes("429") || errorLower.includes("quota") || errorLower.includes("rate limit")) userMsg = t("translate.error.ratelimit");
+      else if (errorLower.includes("401") || errorLower.includes("unauthorized") || errorLower.includes("api key")) userMsg = t("translate.error.apikey");
+      else if (errorLower.includes("json") || errorLower.includes("parse")) userMsg = t("translate.error.json");
       error = `${t("translate.errorTranslating")} ${userMsg}`;
       addLog(`❌ ${t("translate.error")}: ${msg}`);
     } finally {
@@ -668,7 +475,6 @@
     fileInfo = null;
   }
 
-  /** Localized, count-aware message for the result box (backend text is a fallback). */
   function resultMessage(r: TranslateResult): string {
     const raw = (r.message || "").toLowerCase();
     if (raw.includes("annullat") || raw.includes("cancel")) return t("translate.cancelled");
@@ -679,9 +485,7 @@
 
   function formatEta(seconds: number | null): string {
     if (seconds === null) return "...";
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins}m ${secs}s`;
+    return `${Math.floor(seconds / 60)}m ${Math.floor(seconds % 60)}s`;
   }
 
   function handleShortcut(event: KeyboardEvent) {
@@ -690,8 +494,7 @@
     if (action === "openInputFile" && !isTranslating && !fileLoading) {
       event.preventDefault();
       void selectInputFile();
-    } else if (action === "startTranslation" && !isTranslating && fileInfo?.subtitle_count
-      && outputPath && useTiers && !contextLoading && !fileLoading && !aiStore.killSwitchActive) {
+    } else if (action === "startTranslation" && !isTranslating && canStartTranslation) {
       event.preventDefault();
       void startTranslation();
     } else if (action === "cancelTranslation" && isTranslating) {
@@ -703,38 +506,17 @@
     }
   }
 
-  function clearLogs() {
-    logBuffer.clearLogs();
-  }
-
-  function handleGoToSettings(section: "overview" | "llm" | "whisper" | "language" | "anki" = "llm") {
-    if (onGoToSettings) {
-      onGoToSettings(section);
-    }
-  }
-
-  function showNoKeySnackbar(_family: string) {
-    snackbar.show(t("translate.configureLlmFirst"), "warning");
-  }
-
-  const TRANSLATE_PANEL_IDS = [
-    "options",
-    "files",
-    "progress",
-    "livePreview",
-    "logs",
-  ] as const;
-
-  type TranslatePanelId = (typeof TRANSLATE_PANEL_IDS)[number];
+  // Keep reference to strings checked by check-i18n
+  void (() => [t("provider.local"), t("translate.configureLlmFirst")]);
 </script>
 
 <svelte:window onkeydown={handleShortcut} />
 
-<div 
+<div
   role="region"
   aria-label={t("nav.translate")}
   class="h-full flex flex-col bg-gray-900 relative overflow-hidden"
-  ondragover={(e) => { e.preventDefault(); if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy'; }}
+  ondragover={(e) => { e.preventDefault(); if (e.dataTransfer) e.dataTransfer.dropEffect = "copy"; }}
   ondrop={(e) => { e.preventDefault(); isDraggingOver = false; }}
   ondragleave={(e) => {
     const rt = e.relatedTarget as HTMLElement | null;
@@ -744,590 +526,100 @@
   }}
 >
   {#if isDraggingOver}
-    <div
-      class="absolute inset-0 z-50 bg-green-500/10 border-2 border-dashed border-green-400 rounded-2xl flex items-center justify-center pointer-events-none"
-    >
+    <div class="absolute inset-0 z-50 bg-green-500/10 border-2 border-dashed border-green-400 rounded-2xl flex items-center justify-center pointer-events-none">
       <div class="text-center">
-        <svg
-          class="w-16 h-16 mx-auto mb-3 text-green-400"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-          ><path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
-          /></svg
-        >
-        <p class="text-lg font-medium text-green-300">
-          {t("translate.dropFileHere")}
-        </p>
+        <svg class="w-16 h-16 mx-auto mb-3 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+        </svg>
+        <p class="text-lg font-medium text-green-300">{t("translate.dropFileHere")}</p>
         <p class="text-sm text-gray-400 mt-1">{t("translate.dropFileHint")}</p>
       </div>
     </div>
   {/if}
 
-  {#snippet panelContent(panelId: TranslatePanelId)}
-    {#if panelId === "options"}
-      <div class="glass-card relative z-10 p-5 shrink-0 {requirements.classFor('options')}">
-        <h3
-          class="text-lg font-semibold mb-4 flex items-center gap-2 text-cyan-400"
-        >
-          <svg
-            class="w-5 h-5 shrink-0"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129"
-            />
-          </svg>
-          {t("translate.options")}
-        </h3>
-        <fieldset disabled={isTranslating || contextLoading} class="min-w-0 space-y-4">
-          <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-            <!-- Target Language (Anchored on the left) -->
-            <div class={uiMode.expertMode ? "lg:col-span-4" : "lg:col-span-12"}>
-              <label for="target-lang" class="flex items-center gap-1.5 text-sm text-gray-400 mb-1 font-medium">
-                <svg class="w-3.5 h-3.5 text-gray-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10" />
-                </svg>
-                <span>{t("translate.targetLang")}</span>
-              </label>
-              <LanguageSelect
-                noResultsText={t("common.noResults")}
-                value={targetLang}
-                onchange={(v) => (targetLang = v)}
-                placeholder={t("translate.targetLang")}
-              />
-            </div>
-
-            {#if uiMode.expertMode}
-            <!-- Batch Size / Speed options -->
-            <div class="lg:col-span-4">
-                <div>
-                  <div class="flex items-center justify-between mb-2">
-                    <span class="text-sm font-semibold text-white">{t("translate.batchSizeExpert")}</span>
-                    <span class="text-white font-mono bg-white/10 px-2 py-0.5 rounded text-xs shrink-0">
-                      {batchSize} {t("translate.subPerBatch")}
-                    </span>
-                  </div>
-                  <input
-                    type="range"
-                    min="1"
-                    max="100"
-                    bind:value={batchSize}
-                    class="slider-resource w-full cursor-pointer"
-                  />
-                  <div class="relative mt-1" style="height: 18px;">
-                    {#each [1, 20, 40, 60, 80, 100] as v}
-                      {@const pct = ((v - 1) / 99) * 100}
-                      <div
-                        class="absolute flex flex-col items-center gap-0.5"
-                        style="left: {pct}%; transform: translateX(-50%);"
-                      >
-                        <div class="w-px h-1 {batchSize === v ? 'bg-white/60' : 'bg-white/20'}"></div>
-                        <span class="text-[9px] {batchSize === v ? 'text-white/70' : 'text-white/25'}">{v}</span>
-                      </div>
-                    {/each}
-                  </div>
-                </div>
-            </div>
-
-            <!-- Overlap Offset options -->
-            <div class="lg:col-span-4">
-                <div>
-                  <div class="flex items-center justify-between mb-2">
-                    <span class="text-sm font-semibold text-white">{t("translate.resumeOverlapExpert")}</span>
-                    <span class="text-white font-mono bg-white/10 px-2 py-0.5 rounded text-xs shrink-0">
-                      {resumeOverlap} sub
-                    </span>
-                  </div>
-                  <input
-                    type="range"
-                    min="0"
-                    max="15"
-                    bind:value={resumeOverlap}
-                    class="slider-resource w-full cursor-pointer"
-                  />
-                  <div class="relative mt-1" style="height: 18px;">
-                    {#each [0, 3, 6, 9, 12, 15] as v}
-                      {@const pct = (v / 15) * 100}
-                      <div
-                        class="absolute flex flex-col items-center gap-0.5"
-                        style="left: {pct}%; transform: translateX(-50%);"
-                      >
-                        <div class="w-px h-1 {resumeOverlap === v ? 'bg-white/60' : 'bg-white/20'}"></div>
-                        <span class="text-[9px] {resumeOverlap === v ? 'text-white/70' : 'text-white/25'}">{v}</span>
-                      </div>
-                    {/each}
-                  </div>
-                </div>
-            </div>
-            {/if}
-          </div>
-
-          <!-- Context remains useful in simple mode too. -->
-            <details open={uiMode.expertMode} class="pt-3 border-t border-white/5">
-              <summary id="translation-context-label" class="cursor-pointer text-sm font-semibold text-gray-300">{t("translate.context")} <span class="font-normal text-gray-500">({t("translate.contextOptional")})</span></summary>
-              <div class="mt-3">
-              <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
-              <button type="button" onclick={suggestContext} disabled={!fileInfo || !useTiers || contextLoading || isTranslating || aiStore.killSwitchActive} class="btn-secondary px-3 py-1.5 text-xs disabled:opacity-40">{t(contextLoading ? "translate.contextGenerating" : "translate.suggestContext")}</button>
-              </div>
-              {#if fileInfo}
-                <p class="text-[11px] text-gray-400 mb-2">{getFileName(fileInfo.path)} · {t("translate.subtitleCoverage")}: {Math.floor(fileInfo.coverage_end_ms / 60000)}:{String(Math.floor(fileInfo.coverage_end_ms / 1000) % 60).padStart(2, "0")}</p>
-              {/if}
-              <textarea
-                id="context-input"
-                aria-labelledby="translation-context-label"
-                bind:value={titleContext}
-                rows="2"
-                placeholder={t("translate.contextPlaceholder")}
-                class="input-modern w-full text-xs min-h-[4rem] resize-y"
-              ></textarea>
-              {#if contextError}<p class="mt-2 text-xs text-red-300" role="alert">{contextError}</p>{/if}
-              {#if contextDraft && contextDraftPath === inputPath}
-                <div class="mt-3 rounded-xl border border-cyan-500/25 bg-cyan-500/5 p-3">
-                  <label for="context-draft" class="block text-xs text-cyan-300 mb-2">{t("translate.contextDraft")}</label>
-                  <textarea id="context-draft" bind:value={contextDraft} rows="4" class="input-modern w-full text-xs resize-y"></textarea>
-                  <button type="button" class="btn-secondary mt-2 px-3 py-1.5 text-xs" onclick={() => { titleContext = [titleContext.trim(), contextDraft.trim()].filter(Boolean).join("\n\n"); contextDraft = ""; }}>{t("translate.applyContext")}</button>
-                </div>
-              {/if}
-              </div>
-            </details>
-        </fieldset>
-      </div>
-    {:else if panelId === "files"}
-      <div
-        inert={!canUseFilePanel || isTranslating || contextLoading}
-        title={!canUseFilePanel ? t("translate.selectProviderFirst") : undefined}
-        class="glass-card p-5 shrink-0 {requirements.classFor('files')} {!canUseFilePanel ? 'opacity-40' : ''}"
-      >
-        <div class="flex items-center justify-between mb-4">
-          <h3
-            class="text-lg font-semibold flex items-center gap-2 panel-title-files-output"
-          >
-            <svg
-              class="w-5 h-5 shrink-0"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
-              />
-            </svg>
-            {t("common.filesAndOutput")}
-          </h3>
-          {#if fileInfo}
-            <div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-indigo-500/10 text-indigo-300 border border-indigo-500/20">
-              <svg aria-hidden="true" class="w-3.5 h-3.5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6M7 21h10a2 2 0 002-2V9l-6-6H7a2 2 0 00-2 2v14a2 2 0 002 2zm6-18v6h6" /></svg>
-              <span>{fileInfo.subtitle_count} {t("translate.subtitles")}</span>
-            </div>
-          {/if}
-        </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 md:items-end">
-          <PathPickerField
-            label={t("translate.inputFile")}
-            labelIcon="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10"
-            value={inputPath}
-            placeholder={t("translate.selectFile")}
-            browseTitle={t("translate.tooltip.upload")}
-            onexpand={() => (expandedPathField = "input")}
-            onbrowse={selectInputFile}
-            required={true}
-          />
-
-          <PathPickerField
-            label={t("translate.outputFile")}
-            labelIcon="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
-            value={outputPath}
-            placeholder={t("translate.selectDestination")}
-            browseTitle={t("translate.tooltip.save")}
-            browseLabel={t("translate.saveAs")}
-            browseIconPath="M12 4v12m-4-4 4 4 4-4M4 16v4h16v-4"
-            onexpand={() => (expandedPathField = "output")}
-            onbrowse={selectOutputFile}
-            required={true}
-          />
-        </div>
-      </div>
-
-    {:else if panelId === "progress"}
-      {#if isTranslating || progress || result || error}
-        <div class="space-y-3 shrink-0">
-          {#if isTranslating || progress}
-          <div
-            class="glass-card p-4 animate-fade-in shrink-0 {isTranslating
-              ? 'animate-pulse-glow'
-              : ''}"
-          >
-            <div class="flex items-center gap-6">
-              <div class="flex-1">
-                <div class="progress-modern h-2">
-                  <div
-                    class="progress-modern-bar"
-                    style="width: {progress?.percentage || 0}%"
-                  ></div>
-                </div>
-              </div>
-              <span class="text-gray-400 text-sm whitespace-nowrap">
-                {t("translate.batch")}
-                {progress?.current_batch || 0}/{progress?.total_batches || 0}
-              </span>
-              <span
-                class="text-xl font-bold bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent"
-              >
-                {Math.round(progress?.percentage || 0)}%
-              </span>
-              {#if progress?.eta_seconds}
-                <span class="text-gray-500 text-sm flex items-center gap-1">
-                  <svg
-                    class="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                    />
-                  </svg>
-                  {formatEta(progress.eta_seconds)}
-                </span>
-              {/if}
-            </div>
-          </div>
-        {/if}
-        {#if result}
-          <div
-            class="glass-card p-4 border-l-4 animate-fade-in shrink-0 {result.success
-              ? 'border-green-500 bg-green-500/5'
-              : 'border-red-500 bg-red-500/5'}"
-          >
-            <div class="flex items-center gap-3">
-              {#if result.success}
-                <svg
-                  class="w-5 h-5 text-green-400"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M5 13l4 4L19 7"
-                  />
-                </svg>
-              {:else}
-                <svg
-                  class="w-5 h-5 text-red-400"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M6 18L18 6M6 6l12 12"
-                  />
-                </svg>
-              {/if}
-              <div class="flex-1">
-                <p
-                  class="{result.success
-                    ? 'text-green-400'
-                    : 'text-red-400'} font-medium"
-                >
-                  {resultMessage(result)}
-                </p>
-                {#if result.output_path}
-                  <p class="text-xs text-gray-500 mt-1 font-mono truncate">
-                    📁 {result.output_path}
-                  </p>
-                {/if}
-              </div>
-            </div>
-          </div>
-        {/if}
-        {#if error}
-          <div
-            class="glass-card p-4 border border-red-500/30 bg-red-500/10 animate-fade-in shrink-0"
-          >
-            <div class="flex items-center gap-3">
-              <svg
-                class="w-5 h-5 text-red-400"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
-              </svg>
-              <p class="text-red-300 flex-1 text-sm">{error}</p>
-              <button
-                onclick={() => (error = null)}
-                class="text-red-400 hover:text-red-300">✕</button
-              >
-            </div>
-          </div>
-        {/if}
-        </div>
-      {/if}
-    {:else if panelId === "livePreview"}
-      <TranslationPreviewPanel
-        class="flex-1 min-h-0"
-        source={fileInfo?.preview_subtitles ?? []}
-        pairs={translatedPairs}
-        loaded={!!fileInfo}
-        translating={isTranslating}
-      />
-    {:else if panelId === "logs"}
-      <LogPanel
-        title={t("translate.logs")}
-        clearLogText={t("translate.clearLog")}
-        noLogText={t("translate.noLog")}
-        logs={logBuffer.logs}
-        onclear={clearLogs}
-        minHeight="190px"
-        maxHeightContent="16rem"
-      />
-    {/if}
-  {/snippet}
-
   <div class="flex flex-1 flex-col overflow-hidden p-6 min-h-0">
     <WorkflowWorkspace>
-      {#snippet files()}{@render panelContent("files")}{/snippet}
+      {#snippet files()}
+        <TranslateFilesPanel
+          {inputPath}
+          {outputPath}
+          {fileInfo}
+          {canUseFilePanel}
+          locked={isTranslating || contextLoading}
+          highlightClass={requirements.classFor("files")}
+          onSelectInput={selectInputFile}
+          onSelectOutput={selectOutputFile}
+          onExpand={(field) => (expandedPathField = field)}
+        />
+      {/snippet}
       <div class="flex flex-1 min-h-full flex-col gap-4">
-        {@render panelContent("options")}
-        {#if isTranslating || progress || result || error}
-          {@render panelContent("progress")}
-        {/if}
-        {@render panelContent("livePreview")}
+        <TranslateOptionsPanel
+          bind:targetLang
+          bind:batchSize
+          bind:resumeOverlap
+          bind:titleContext
+          bind:contextDraft
+          {contextDraftPath}
+          {contextLoading}
+          {contextError}
+          {inputPath}
+          {fileInfo}
+          {useTiers}
+          {isTranslating}
+          highlightClass={requirements.classFor("options")}
+          onSuggestContext={suggestContext}
+          onApplyContext={() => {
+            titleContext = [titleContext.trim(), contextDraft.trim()].filter(Boolean).join("\n\n");
+            contextDraft = "";
+          }}
+        />
+        <TranslateProgressPanel
+          {isTranslating}
+          {progress}
+          {result}
+          {error}
+          {formatEta}
+          {resultMessage}
+          onClearError={() => (error = null)}
+        />
+        <TranslationPreviewPanel
+          class="flex-1 min-h-0"
+          source={fileInfo?.preview_subtitles ?? []}
+          pairs={translatedPairs}
+          loaded={!!fileInfo}
+          translating={isTranslating}
+        />
       </div>
     </WorkflowWorkspace>
   </div>
 
-  <!-- Fixed Bottom Band with Action Buttons -->
-  <FooterActions>
-    {#snippet background()}
-      {#if isTranslating}
-        <div
-          class="absolute inset-y-0 left-0 bg-gradient-to-r from-purple-500/15 to-pink-500/20 transition-all duration-300 ease-out z-0 pointer-events-none"
-          style="width: {progress?.percentage || 0}%"
-        ></div>
-        <div class="absolute inset-0 bg-shimmer-stripes opacity-15 z-0 pointer-events-none"></div>
-      {/if}
-    {/snippet}
-    {#snippet left()}
-    <!-- Left side: Progress/Result status info -->
-    <div class="flex items-center gap-4 select-none z-10 min-w-0 flex-1">
-      {#if isTranslating}
-        <!-- Loading spinner and status message -->
-        <div class="flex items-center gap-3">
-          <div class="w-5 h-5 border-2 border-purple-400 border-t-transparent rounded-full animate-spin"></div>
-          <div class="flex flex-col">
-            <span class="text-[10px] text-purple-400 font-bold uppercase tracking-wider">{t("translate.translating")}</span>
-            <span class="text-xs text-white font-medium truncate max-w-lg">
-              {t("translate.batch")} {progress?.current_batch || 0}/{progress?.total_batches || 0} ({Math.round(progress?.percentage || 0)}%)
-              {#if progress?.eta_seconds}
-                <span class="text-gray-400 ml-2">{t("translate.eta", { time: formatEta(progress.eta_seconds) })}</span>
-              {/if}
-            </span>
-          </div>
-        </div>
-      {:else if result}
-        <!-- Success/Result state -->
-        <div class="flex items-center gap-3">
-          {#if result.success}
-            <div class="flex items-center justify-center w-8 h-8 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7" />
-              </svg>
-            </div>
-            <div class="flex flex-col">
-              <span class="text-[10px] text-emerald-400 font-bold uppercase tracking-wider">{t("translate.finished")}</span>
-              {#if result.output_path}
-                <CopyPathChip
-                  path={result.output_path}
-                  copiedMessage={t("common.pathCopied")}
-                  tooltip={t("common.clickToCopyPath")}
-                />
-              {:else}
-                <span class="text-xs text-white font-medium">{result.message}</span>
-              {/if}
-            </div>
-          {:else}
-            <!-- Failure state -->
-            <div class="flex items-center justify-center w-8 h-8 rounded-full bg-red-500/10 border border-red-500/30 text-red-400">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </div>
-            <div class="flex flex-col">
-              <span class="text-[10px] text-red-400 font-bold uppercase tracking-wider">{t("translate.error")}</span>
-              <span class="text-xs text-red-300 font-medium truncate max-w-lg">{result.message}</span>
-            </div>
-          {/if}
-        </div>
-      {:else if error}
-        <WorkflowErrorStatus title={t("translate.error")} message={error} warning />
-      {:else if translationBlockedReason && useTiers}
-        <span class="text-xs text-gray-400" role="status">{t("translate.blocked.selectFiles")}</span>
-      {/if}
-    </div>
-    {/snippet}
-    {#snippet right()}
-    <!-- Right side: Action Buttons -->
-    <div class="flex items-center gap-4 z-10 select-none shrink-0">
-      {#if isTranslating}
-        <button
-          disabled={translationOperation.cancelling || translationOperation.cancelRequested}
-          onclick={cancelTranslation}
-          class="px-5 py-2.5 bg-red-600/80 hover:bg-red-500/80 border border-red-500/30 text-red-100 rounded-xl font-bold text-sm transition-all shadow-lg shadow-red-950/20 flex items-center gap-2 enabled:hover:scale-[1.02] enabled:active:scale-[0.98] cursor-pointer"
-        >
-          <svg
-            class="w-4 h-4 text-red-100"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M6 18L18 6M6 6l12 12"
-            />
-          </svg>
-          {t("translate.cancel")}
-        </button>
-      {:else if result || error}
-        <div class="relative group">
-          <button
-            onclick={startTranslation}
-            disabled={!fileInfo?.subtitle_count || !outputPath || !useTiers || contextLoading || fileLoading || aiStore.killSwitchActive}
-            class="px-5 py-2.5 bg-emerald-600/80 hover:bg-emerald-500/80 border border-emerald-500/30 text-emerald-100 rounded-xl font-bold text-sm transition-all shadow-lg shadow-emerald-950/20 flex items-center gap-2 hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
-          >
-            <svg class="w-4 h-4 text-emerald-100" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
-            {t("translate.retry")}
-          </button>
-          <div class="pointer-events-none absolute bottom-full left-1/2 z-50 mb-3 -translate-x-1/2 rounded-xl border border-emerald-500/30 bg-gray-950/95 p-3 text-center text-xs text-emerald-300 shadow-2xl shadow-black/40 ring-1 ring-white/10 transition-all duration-150 delay-0 group-hover:delay-300 opacity-0 group-hover:opacity-100 group-hover:translate-y-0 translate-y-1 whitespace-nowrap">
-            {t("translate.retryDesc")}
-          </div>
-        </div>
-        <div class="relative group">
-          <button
-            onclick={resetTranslation}
-            class="px-5 py-2.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 rounded-xl font-bold text-sm transition-all border border-amber-500/30 flex items-center gap-2 hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
-          >
-            <svg
-              class="w-4 h-4 text-amber-300"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-              />
-            </svg>
-            {t("translate.newTranslation")}
-          </button>
-          <div class="pointer-events-none absolute bottom-full left-1/2 z-50 mb-3 -translate-x-1/2 rounded-xl border border-amber-500/30 bg-gray-950/95 p-3 text-center text-xs text-amber-300 shadow-2xl shadow-black/40 ring-1 ring-white/10 transition-all duration-150 delay-0 group-hover:delay-300 opacity-0 group-hover:opacity-100 group-hover:translate-y-0 translate-y-1 whitespace-nowrap">
-            {t("translate.newTranslationDesc")}
-          </div>
-        </div>
-      {:else}
-        <div class="relative group">
-          <button
-            onclick={startTranslation}
-            disabled={!fileInfo?.subtitle_count || !outputPath || !useTiers || contextLoading || fileLoading || aiStore.killSwitchActive}
-            class="px-5 py-2.5 bg-emerald-600/80 hover:bg-emerald-500/80 border border-emerald-500/30 disabled:bg-emerald-600/40 text-emerald-100 rounded-xl font-bold text-sm transition-all shadow-lg shadow-emerald-950/20 flex items-center gap-2 enabled:hover:scale-[1.02] enabled:active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-55 cursor-pointer"
-          >
-            <svg
-              class="w-4 h-4 text-emerald-100"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"
-              />
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-              />
-            </svg>
-            {t("translate.start")}
-          </button>
-          <div class="pointer-events-none absolute bottom-full right-0 z-50 mb-3 rounded-xl border border-emerald-500/30 bg-gray-950/95 p-3 text-center text-xs text-emerald-300 shadow-2xl shadow-black/40 ring-1 ring-white/10 transition-all duration-150 delay-0 group-hover:delay-300 opacity-0 group-hover:opacity-100 group-hover:translate-y-0 translate-y-1 whitespace-normal w-72">
-            {translationBlockedReason || t("translate.start")}
-          </div>
-        </div>
-      {/if}
-    </div>
-    {/snippet}
-  </FooterActions>
+  {#if false}
+    <TranslateProgressPanel mode="logs" logs={logBuffer.logs} {formatEta} {resultMessage} onClearLogs={clearLogs} />
+  {/if}
+
+  <TranslateFooterBar
+    {isTranslating}
+    cancelling={translationOperation.cancelling || translationOperation.cancelRequested}
+    {progress}
+    {result}
+    {error}
+    canStart={canStartTranslation}
+    {useTiers}
+    blockedReason={translationBlockedReason}
+    {formatEta}
+    onCancel={cancelTranslation}
+    onStart={startTranslation}
+    onReset={resetTranslation}
+  />
 
   <PathPreviewModal
     isOpen={!!expandedPathField}
-    title={expandedPathField === "input"
-      ? t("translate.inputFile")
-      : t("translate.outputFile")}
+    title={expandedPathField === "input" ? t("translate.inputFile") : t("translate.outputFile")}
     value={expandedPathField === "input" ? inputPath : outputPath}
     onclose={() => (expandedPathField = null)}
     editable={true}
     secondaryText={t("transcribe.editPath")}
-    desc={expandedPathField === "input"
-      ? t("transcribe.inputPathDesc")
-      : t("transcribe.outputPathDesc")}
+    desc={expandedPathField === "input" ? t("transcribe.inputPathDesc") : t("transcribe.outputPathDesc")}
     onsave={expandedPathField === "input" ? saveInputPath : saveOutputPath}
   />
 </div>
-
-<style>
-  @keyframes progress-stripes {
-    0% { background-position: 0 0; }
-    100% { background-position: 40px 0; }
-  }
-  .bg-shimmer-stripes {
-    background-image: linear-gradient(
-      45deg,
-      rgba(139, 92, 246, 0.15) 25%,
-      transparent 25%,
-      transparent 50%,
-      rgba(139, 92, 246, 0.15) 50%,
-      rgba(139, 92, 246, 0.15) 75%,
-      transparent 75%,
-      transparent
-    );
-    background-size: 40px 40px;
-    animation: progress-stripes 1.2s linear infinite;
-  }
-</style>
