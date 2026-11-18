@@ -1,3 +1,4 @@
+import { MAX_WORKFLOW_LOGS } from "$lib/utils/logPanelBuffer.svelte";
 import { AsyncOperation } from "$lib/utils/asyncControl.svelte";
 import { recordSupportEvent } from "$lib/utils/supportLog";
 import type { LogEntry } from "$lib/panels/LogPanel.svelte";
@@ -101,11 +102,11 @@ class GenerationStore {
 
     if (type === "progress" && progressKey) {
       this.lastProgressKey = progressKey;
-    } else if (type !== "progress") {
+    } else {
       this.lastProgressKey = null;
     }
 
-    this.logs = [...this.logs, { id: ++this.logIdCounter, timestamp, message, type, details }];
+    this.logs = [...this.logs.slice(-(MAX_WORKFLOW_LOGS - 1)), { id: ++this.logIdCounter, timestamp, message, type, details }];
   }
 
   clearLogs() {
