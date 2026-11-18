@@ -178,6 +178,7 @@
   }
 
   async function safePlayAudio(source: string): Promise<boolean> {
+    if (!active) return false;
     return playSyncMediaElement(audioElement, {
       source,
       hasAudio,
@@ -271,6 +272,7 @@
     isNavigating = true;
     try {
       const sub = await invoke<SubtitleInfo>("sync_get_subtitle", { id });
+      if (!active) return;
       wizardSubtitle = sub;
       resetOffset();
       if (!wizardHistory.includes(id)) {
@@ -279,13 +281,16 @@
       seekToSubtitleStart(sub);
       if (updateList) {
         await loadSubtitlesAround(id);
+        if (!active) return;
       }
       if (scrollList) {
-        setTimeout(() => scrollToSubtitle(id), 50);
+        setTimeout(() => {
+          if (active) scrollToSubtitle(id);
+        }, 50);
       } else if (subtitleListElement) {
         subtitleListElement.closest(".glass-card")?.scrollIntoView({ block: "start" });
       }
-      if (autoplay) {
+      if (autoplay && active) {
         void safePlayAudio("goToCheckpoint");
       }
     } catch (e) {
@@ -666,6 +671,7 @@
   }
 
   function handleKeydown(e: KeyboardEvent) {
+    if (!active) return;
     handleSyncKeydown(e, {
       active,
       showResetModal,

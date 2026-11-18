@@ -1,6 +1,6 @@
 import { getLanguageSearchTerms, languages } from "$lib/config/languages";
 import type { CardFilterSettings } from "$lib/types/flashcardFilterTypes";
-import type { FieldKey, NoteTypeDef } from "$lib/types/noteTypes";
+import type { NoteTypeDef } from "$lib/types/noteTypes";
 import { getFileName } from "$lib/utils/models";
 import { detectMediaType, type EpisodeEntry } from "$lib/utils/seriesFileMatching";
 import type { EpisodeFileField } from "./EpisodeEditorModal.svelte";
@@ -46,32 +46,6 @@ export function buildFlashcardNoteTypeOptions(
         icon: languages.find((l) => l.code === nt.language)?.flag ?? "🃏",
       })),
   ];
-}
-
-export function getFieldChipLabel(
-  key: FieldKey,
-  t: (key: string, params?: Record<string, string | number>) => string,
-): string {
-  switch (key) {
-    case "expression":
-      return `🗣️ ${t("flashcards.subs1")}`;
-    case "meaning":
-      return `💬 ${t("flashcards.subs2")}`;
-    case "audio":
-      return `🔊 ${t("flashcards.audioField")}`;
-    case "snapshot":
-      return `📸 ${t("flashcards.snapshotField")}`;
-    case "video":
-      return `🎬 ${t("flashcards.videoField")}`;
-    case "tags":
-      return `🏷️ ${t("flashcards.tagField")}`;
-    case "sequenceMarker":
-      return `🔢 ${t("flashcards.sequenceField")}`;
-    case "reading":
-      return `📖 ${t("flashcards.readingField")}`;
-    case "notes":
-      return `📝 ${t("flashcards.notesField")}`;
-  }
 }
 
 export function enforceCardFilterCoherence(cardFilters: CardFilterSettings, tracker: CardFilterTracker): void {
