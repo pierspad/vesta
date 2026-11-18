@@ -343,3 +343,55 @@ fn generate_requires_output_argument() {
         "error: the following required arguments were not provided:\n  --output <OUTPUT>"
     ));
 }
+
+#[test]
+fn dueling_exports_ass_and_srt_files() {
+    let dir = tempfile::tempdir().unwrap();
+    let target = dir.path().join("target.srt");
+    let native = dir.path().join("native.srt");
+    let ass_out = dir.path().join("bilingual.ass");
+    let srt_out = dir.path().join("bilingual.srt");
+    subtitles(&target);
+    std::fs::write(&native, "1\n00:00:01,100 --> 00:00:01,900\nCiao!\n").unwrap();
+
+    let ass_run = run(&[
+        "dueling",
+        "--target",
+        target.to_str().unwrap(),
+        "--native",
+        native.to_str().unwrap(),
+        "--dueling-format",
+        "ass",
+        "--output",
+        ass_out.to_str().unwrap(),
+    ]);
+    assert!(
+        ass_run.status.success(),
+        "{}",
+        String::from_utf8_lossy(&ass_run.stderr)
+    );
+    let ass_text = std::fs::read_to_string(&ass_out).unwrap();
+    assert!(ass_text.contains("[V4+ Styles]"));
+    assert!(ass_text.contains("Dialogue: 0,0:00:01.00,0:00:02.00,Subs1,,0,0,0,,Hello there"));
+    assert!(ass_text.contains("Dialogue: 0,0:00:01.00,0:00:02.00,Subs2,,0,0,0,,Ciao!"));
+
+    let srt_run = run(&[
+        "dueling",
+        "--target",
+        target.to_str().unwrap(),
+        "--native",
+        native.to_str().unwrap(),
+        "--dueling-format",
+        "srt",
+        "--native-first",
+        "--output",
+        srt_out.to_str().unwrap(),
+    ]);
+    assert!(
+        srt_run.status.success(),
+        "{}",
+        String::from_utf8_lossy(&srt_run.stderr)
+    );
+    let srt_text = std::fs::read_to_string(&srt_out).unwrap();
+    assert!(srt_text.contains("00:00:01,000 --> 00:00:02,000\nCiao!\nHello there"));
+}

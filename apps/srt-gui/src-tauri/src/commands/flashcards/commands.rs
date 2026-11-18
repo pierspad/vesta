@@ -1,7 +1,7 @@
 use crate::state::{AppFlashcardState, OperationGuard};
 use srt_flashcards::{
-    AudioTrackInfo, FlashcardConfig, FlashcardProgressEvent, FlashcardResult, MediaTools,
-    PreviewLine,
+    AudioTrackInfo, DuelingExportOptions, DuelingResult, FlashcardConfig, FlashcardProgressEvent,
+    FlashcardResult, MediaTools, PreviewLine,
 };
 use tauri::{AppHandle, Emitter, Manager, State};
 
@@ -26,6 +26,16 @@ pub async fn flashcard_list_audio_tracks(
 #[tauri::command]
 pub async fn flashcard_preview(config: FlashcardConfig) -> Result<Vec<PreviewLine>, String> {
     srt_flashcards::preview(&config)
+}
+
+#[tauri::command]
+pub async fn flashcard_export_dueling(
+    config: FlashcardConfig,
+    options: DuelingExportOptions,
+) -> Result<DuelingResult, String> {
+    tokio::task::spawn_blocking(move || srt_flashcards::export_dueling_subtitles(&config, options))
+        .await
+        .map_err(|e| format!("Dueling subtitle export failed: {e}"))?
 }
 
 #[tauri::command]

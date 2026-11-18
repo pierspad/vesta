@@ -125,6 +125,11 @@ mockIPC((command, args) => {
       }
       return [subtitle, video];
     case "plugin:dialog|save":
+      if (nextFile) {
+        const selected = nextFile;
+        nextFile = null;
+        return selected;
+      }
       return "/exports/output.srt";
     case "flashcard_check_deps":
     case "flashcard_check_dir_exists":
@@ -156,13 +161,20 @@ mockIPC((command, args) => {
         start_ms: 500,
         end_ms: 1500,
         subs1_text: text,
-        subs2_text: null,
+        subs2_text: args.config?.native_subs_path ? "Reference subtitle" : null,
         active: true,
         leading_context: [],
         trailing_context: [],
       }];
+    case "flashcard_export_dueling":
+      return {
+        output_path: args.options?.output_path || "/exports/Episode01.dueling.ass",
+        format: args.options?.format || "ass",
+        line_count: 1,
+        matched_count: args.config?.native_subs_path ? 1 : 0,
+      };
     case "save_temp_subtitles":
-      return "/fixtures/preview-target.srt";
+      return args.useNative ? "/fixtures/preview-native.srt" : "/fixtures/preview-target.srt";
     case "flashcard_generate":
       return new Promise((resolve) => { finishExport = resolve; });
     case "flashcard_cancel":

@@ -1383,5 +1383,8 @@
   "tiers.batchSizeTooltip": "Aantal ondertitelregels in één prompt",
   "speech.priorityChain": "Standaard prioriteitsvolgorde",
   "speech.externalHint": "Externe STT stuurt audio naar de gekozen dienst en kan kosten veroorzaken. Synchronisatie vereist echte tijdstempels.",
-  "common.configCorruptRecovered": "Beschadigde configuratie is teruggezet naar standaardwaarden. Back-up opgeslagen in: {{path}}"
+  "common.configCorruptRecovered": "Beschadigde configuratie is teruggezet naar standaardwaarden. Back-up opgeslagen in: {{path}}",
+  "flashcards.exportDueling": "Dueling exporteren",
+  "flashcards.exportDuelingTitle": "Tweetalige ondertitels exporteren (.ass / .srt)",
+  "flashcards.duelingExported": "{{count}} tweetalige regels geëxporteerd naar {{file}}"
 }

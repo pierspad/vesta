@@ -77,3 +77,32 @@ test("cancels a running export without showing a package", async ({ page }) => {
   await expect(page.getByRole("button", { name: "New Generation", exact: true })).toBeVisible();
   await expect(outputAction(page)).toHaveCount(0);
 });
+
+test("exports bilingual dueling subtitles from preview", async ({ page }) => {
+  await page.evaluate(() => window.browserFixture.selectFile(["/fixtures/Episode01.en.srt"]));
+  await page.getByRole("button", { name: "Upload media" }).click();
+  await expect(page.getByRole("cell", { name: "Episode01.en.srt", exact: true })).toBeVisible();
+
+  await previewButton(page).click();
+  const dialog = page.getByRole("dialog", { name: "Preview Cards" });
+  await expect(dialog.getByText("Reference subtitle", { exact: true })).toBeVisible();
+
+  await page.evaluate(() => window.browserFixture.selectFile("/exports/Episode01.dueling.ass"));
+  await dialog.getByRole("button", { name: "Export Dueling", exact: true }).click();
+
+  await expect.poll(() => callsFor(page, "flashcard_export_dueling")).toMatchObject([{
+    args: {
+      config: {
+        target_subs_path: "/fixtures/preview-target.srt",
+        native_subs_path: "/fixtures/preview-native.srt",
+      },
+      options: {
+        format: "ass",
+        output_path: "/exports/Episode01.dueling.ass",
+        target_first: true,
+        include_unmatched: true,
+      },
+    },
+  }]);
+  await expect(page.getByText("Exported 1 bilingual lines to Episode01.dueling.ass")).toBeVisible();
+});

@@ -1383,5 +1383,8 @@
   "tiers.batchSizeTooltip": "在单个提示词中发送给 LLM 的字幕行数",
   "speech.priorityChain": "默认优先级链",
   "speech.externalHint": "外部语音识别会将音频发送至所选服务，并可能产生费用。同步需要真实的时间戳。",
-  "common.configCorruptRecovered": "已损坏的配置已重置为默认值。备份已保存至：{{path}}"
+  "common.configCorruptRecovered": "已损坏的配置已重置为默认值。备份已保存至：{{path}}",
+  "flashcards.exportDueling": "导出双语字幕",
+  "flashcards.exportDuelingTitle": "导出双语字幕文件 (.ass / .srt)",
+  "flashcards.duelingExported": "已导出 {{count}} 条双语字幕到 {{file}}"
 }

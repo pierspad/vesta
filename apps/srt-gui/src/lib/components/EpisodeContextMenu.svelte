@@ -7,14 +7,16 @@
     y: number;
     hasMedia: boolean;
     canPreviewAudio?: boolean;
+    canExportDueling?: boolean;
     onEdit: () => void;
     onInspectMatch?: () => void;
     onMediaSettings: () => void;
     onPreviewAudio?: () => void;
+    onExportDueling?: () => void;
     onRemove: () => void;
     onClose: () => void;
   }
-  let { x, y, hasMedia, canPreviewAudio = true, onEdit, onInspectMatch, onMediaSettings, onPreviewAudio, onRemove, onClose }: Props = $props();
+  let { x, y, hasMedia, canPreviewAudio = true, canExportDueling = false, onEdit, onInspectMatch, onMediaSettings, onPreviewAudio, onExportDueling, onRemove, onClose }: Props = $props();
 
   let t = $derived($locale);
 </script>
@@ -79,6 +81,21 @@
         <span class="inline-flex items-center gap-2">
           <svg class="h-4 w-4 text-cyan-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4 4M8 10.5h5m-2.5-2.5v5"/></svg>
           {t("matching.inspect")}
+        </span>
+      </button>
+    {/if}
+    {#if onExportDueling}
+      <button
+        type="button"
+        class="vesta-context-menu-item"
+        disabled={!canExportDueling}
+        onclick={onExportDueling}
+      >
+        <span class="inline-flex items-center gap-2">
+          <svg class="h-4 w-4 text-emerald-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+          {t("flashcards.exportDueling")}
         </span>
       </button>
     {/if}

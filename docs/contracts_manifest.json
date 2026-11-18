@@ -3,15 +3,15 @@
   "description": "Structural contract hashes for Vesta macro-areas and micro-areas. Run `python3 build-scripts/check_doc_contracts.py --update` after updating affected documentation.",
   "macro_areas": {
     "tauri_ipc": {
-      "hash": "ef1e703b9832bdb3",
-      "defined_count": 96,
-      "registered_count": 96,
+      "hash": "724beefb840890a7",
+      "defined_count": 97,
+      "registered_count": 97,
       "groups": {
         "auto_sync": "1ddf2385d7490a26",
         "config": "e64b09924b1a5799",
         "experimental": "d07d248dff0f5be4",
         "extract": "6d426a4520fe1d9b",
-        "flashcards": "8aff156515d1091a",
+        "flashcards": "9829f77ba3c867b9",
         "info": "16c26a50c4348e48",
         "main": "838097f6f9c01b6d",
         "net": "03f68af50294afd7",
@@ -67,7 +67,7 @@
       ]
     },
     "cli_adapters": {
-      "hash": "5f50820329abccde",
+      "hash": "6081b01cb80caa8b",
       "crates": {
         "srt-autosync-cli": {
           "hash": "1d2908a1939ffe04",
@@ -108,8 +108,9 @@
           ]
         },
         "srt-flashcards-cli": {
-          "hash": "fd81cdde3d9b9634",
+          "hash": "f56f894938bc39c3",
           "subcommands": [
+            "dueling",
             "generate",
             "info",
             "preview"
@@ -221,6 +222,22 @@
               "--video-audio-bitrate",
               "--video-bitrate",
               "--video-codec"
+            ],
+            "dueling": [
+              "--combine-sentences",
+              "--continuation-chars",
+              "--deck",
+              "--dueling-format",
+              "--native",
+              "--native-first",
+              "--only-cjk",
+              "--output",
+              "--remove-no-match",
+              "--shift-native",
+              "--shift-target",
+              "--span-end",
+              "--span-start",
+              "--target"
             ]
           },
           "flags": [
@@ -236,6 +253,7 @@
             "--continuation-chars",
             "--crop-bottom",
             "--deck",
+            "--dueling-format",
             "--episode",
             "--exclude-duplicates",
             "--exclude-words",
@@ -251,6 +269,7 @@
             "--min-chars",
             "--min-duration",
             "--native",
+            "--native-first",
             "--no-audio",
             "--no-optimize",
             "--no-snapshots",
@@ -569,7 +588,7 @@
       ]
     },
     "rust_libraries": {
-      "hash": "9431b3d316529e45",
+      "hash": "8813cd4ba5601eb8",
       "crates": {
         "srt-ankiconnect": {
           "path": "lib/srt-ankiconnect",
@@ -642,8 +661,9 @@
         },
         "srt-flashcards": {
           "path": "lib/srt-flashcards",
-          "symbol_count": 68,
+          "symbol_count": 74,
           "files": {
+            "src/dueling.rs": "aaa59f36ae4a84f5",
             "src/fonts.rs": "5d83fb6e92ecef9e",
             "src/generation/mod.rs": "e30b723054794bd9",
             "src/generation/publication.rs": "e9b151b82829423d",
@@ -654,7 +674,7 @@
             "src/snapshot_batch.rs": "936f03e2bbe071bc",
             "src/types.rs": "9d24f762935ffe9e"
           },
-          "hash": "00238b23286d6704",
+          "hash": "43f7996f2327c5d0",
           "docs": [
             "lib/srt-flashcards/README.md",
             "docs/modules/srt-flashcards.md",

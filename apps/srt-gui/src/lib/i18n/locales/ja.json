@@ -1383,5 +1383,8 @@
   "tiers.batchSizeTooltip": "1回のリクエストで送信される字幕の行数",
   "speech.priorityChain": "既定の優先順位",
   "speech.externalHint": "外部STTは選択したサービスに音声を送信し、料金が発生する場合があります。同期には実際のタイムスタンプが必要です。",
-  "common.configCorruptRecovered": "破損した設定をデフォルトにリセットしました。バックアップの保存先: {{path}}"
+  "common.configCorruptRecovered": "破損した設定をデフォルトにリセットしました。バックアップの保存先: {{path}}",
+  "flashcards.exportDueling": "対訳字幕を書き出し",
+  "flashcards.exportDuelingTitle": "2言語字幕ファイルを書き出す (.ass / .srt)",
+  "flashcards.duelingExported": "{{count}} 件の対訳行を {{file}} に書き出しました"
 }

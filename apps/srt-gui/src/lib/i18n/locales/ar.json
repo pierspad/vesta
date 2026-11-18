@@ -1383,5 +1383,8 @@
   "tiers.batchSizeTooltip": "عدد أسطر الترجمة المرسلة في موجه واحد",
   "speech.priorityChain": "ترتيب الأولوية الافتراضي",
   "speech.externalHint": "يرسل التعرف الخارجي على الكلام الصوت إلى الخدمة المختارة وقد تترتب عليه رسوم. تتطلب المزامنة طوابع زمنية حقيقية.",
-  "common.configCorruptRecovered": "تمت إعادة تعيين الإعدادات التالفة إلى القيم الافتراضية. تم حفظ نسخة احتياطية في: {{path}}"
+  "common.configCorruptRecovered": "تمت إعادة تعيين الإعدادات التالفة إلى القيم الافتراضية. تم حفظ نسخة احتياطية في: {{path}}",
+  "flashcards.exportDueling": "تصدير ثنائي اللغة",
+  "flashcards.exportDuelingTitle": "تصدير ترجمات ثنائية اللغة (.ass / .srt)",
+  "flashcards.duelingExported": "تم تصدير {{count}} سطرًا ثنائي اللغة إلى {{file}}"
 }

@@ -14,8 +14,9 @@ use std::sync::atomic::{AtomicI64, Ordering};
 use anyhow::{Context, Result};
 use clap::{Args, Parser, Subcommand};
 use srt_flashcards::{
-    AudioFormat, ContextConfig, FieldNamesConfig, FlashcardConfig, FlashcardProgressEvent,
-    MediaTools, OutputFields, SnapshotFormat, SubtitleFilters,
+    AudioFormat, ContextConfig, DuelingExportOptions, DuelingFormat, FieldNamesConfig,
+    FlashcardConfig, FlashcardProgressEvent, MediaTools, OutputFields, SnapshotFormat,
+    SubtitleFilters,
 };
 use tokio_util::sync::CancellationToken;
 
@@ -49,6 +50,57 @@ enum Command {
         after_help = "Example:\n  srt-flashcards preview -t target.srt --native native.srt --only-cjk\n\nPreview reads subtitle files only and never creates the --output directory (--output is optional for preview). Its CLI options are shared with generate; media/export options are ignored."
     )]
     Preview(GenerateArgs),
+    /// Export bilingual "dueling" subtitles (.ass or .srt) from matched subtitle tracks.
+    #[command(
+        after_help = "Examples:\n  srt-flashcards dueling -t target.srt --native native.srt -o episode.dueling.ass\n  srt-flashcards dueling -t target.srt --native native.srt --dueling-format srt -o episode.dueling.srt"
+    )]
+    Dueling(DuelingArgs),
+}
+
+#[derive(Args, Clone)]
+struct DuelingArgs {
+    /// Target-language subtitles (the language you are learning). Required.
+    #[arg(short, long)]
+    target: String,
+    /// Native-language subtitles matched by time overlap.
+    #[arg(short, long)]
+    native: Option<String>,
+    /// Output file path (defaults to `<target>.dueling.<ext>`).
+    #[arg(short, long)]
+    output: Option<String>,
+    /// Dueling subtitle format (`ass` or `srt`).
+    #[arg(long = "dueling-format", default_value = "ass", value_parser = ["ass", "srt"])]
+    dueling_format: String,
+    /// Deck or title used in ASS metadata and default filenames.
+    #[arg(short, long, default_value = "Vesta")]
+    deck: String,
+    /// Shift target-subtitle timestamps by N milliseconds.
+    #[arg(long, default_value_t = 0, allow_hyphen_values = true)]
+    shift_target: i64,
+    /// Shift native-subtitle timestamps by N milliseconds.
+    #[arg(long, default_value_t = 0, allow_hyphen_values = true)]
+    shift_native: i64,
+    /// Restrict to lines overlapping [span-start, span-end] (milliseconds).
+    #[arg(long)]
+    span_start: Option<i64>,
+    /// End of the optional time span in milliseconds.
+    #[arg(long)]
+    span_end: Option<i64>,
+    /// Merge consecutive lines into full sentences.
+    #[arg(long)]
+    combine_sentences: bool,
+    /// Characters that mark an unfinished sentence (for --combine-sentences).
+    #[arg(long, default_value = "")]
+    continuation_chars: String,
+    /// Keep only lines whose script is CJK.
+    #[arg(long)]
+    only_cjk: bool,
+    /// Drop lines that have no native-subtitle match.
+    #[arg(long)]
+    remove_no_match: bool,
+    /// Place native subtitles first (bottom in ASS / top line in SRT).
+    #[arg(long)]
+    native_first: bool,
 }
 
 #[derive(Args, Clone)]
@@ -361,6 +413,44 @@ async fn run(args: Vec<std::ffi::OsString>) -> Result<ExitCode> {
             println!("Total lines:   {}", lines.len());
             println!("Active lines:  {}", active);
             println!("With native:   {}", matched);
+        }
+
+        Command::Dueling(args) => {
+            let format = match args.dueling_format.as_str() {
+                "srt" => DuelingFormat::Srt,
+                _ => DuelingFormat::Ass,
+            };
+            let config = FlashcardConfig {
+                target_subs_path: args.target,
+                native_subs_path: args.native,
+                deck_name: args.deck,
+                time_shift_target_ms: args.shift_target,
+                time_shift_native_ms: args.shift_native,
+                span_start_ms: args.span_start,
+                span_end_ms: args.span_end,
+                combine_sentences: args.combine_sentences,
+                continuation_chars: args.continuation_chars,
+                filters: SubtitleFilters {
+                    only_cjk: args.only_cjk,
+                    remove_no_match: args.remove_no_match,
+                    ..SubtitleFilters::default()
+                },
+                ..FlashcardConfig::default()
+            };
+            let result = srt_flashcards::export_dueling_subtitles(
+                &config,
+                DuelingExportOptions {
+                    format,
+                    output_path: args.output,
+                    target_first: !args.native_first,
+                    include_unmatched: !args.remove_no_match,
+                },
+            )
+            .map_err(|e| anyhow::anyhow!(e))?;
+            println!(
+                "✅ Exported {} dueling lines ({} matched) to {}",
+                result.line_count, result.matched_count, result.output_path
+            );
         }
 
         Command::Generate(args) => {

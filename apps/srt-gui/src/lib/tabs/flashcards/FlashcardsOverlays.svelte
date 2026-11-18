@@ -39,6 +39,7 @@
     onEditContextEpisode: () => void;
     onOpenEpisodeMediaSettings: (idx: number) => void;
     onPreviewEpisodeAudio: (idx: number) => void;
+    onExportDuelingEpisode?: (idx: number) => void;
     onRemoveEpisode: (idx: number) => void;
     onCloseBottomContextMenu: () => void;
     onGoToSettings?: (section?: "overview" | "llm" | "whisper" | "language" | "anki" | "shortcuts", highlightItemId?: string) => void;
@@ -78,6 +79,7 @@
     onEditContextEpisode,
     onOpenEpisodeMediaSettings,
     onPreviewEpisodeAudio,
+    onExportDuelingEpisode,
     onRemoveEpisode,
     onCloseBottomContextMenu,
     onGoToSettings,
@@ -110,6 +112,12 @@
     onMediaSettings={() => onOpenEpisodeMediaSettings(episodeContextMenu!.idx)}
     canPreviewAudio={generateAudio}
     onPreviewAudio={() => onPreviewEpisodeAudio(episodeContextMenu!.idx)}
+    canExportDueling={Boolean(episodes[episodeContextMenu.idx]?.targetSubsPath && episodes[episodeContextMenu.idx]?.nativeSubsPath)}
+    onExportDueling={onExportDuelingEpisode ? () => {
+      const idx = episodeContextMenu!.idx;
+      onCloseEpisodeContextMenu();
+      onExportDuelingEpisode(idx);
+    } : undefined}
     onRemove={() => onRemoveEpisode(episodeContextMenu!.idx)}
     onClose={onCloseEpisodeContextMenu}
   />

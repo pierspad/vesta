@@ -293,6 +293,7 @@ fn main() -> std::process::ExitCode {
             sync_reset,
             sync_prepare_media_for_playback,
             flashcard_preview,
+            flashcard_export_dueling,
             flashcard_preview_audio,
             flashcard_preview_snapshot,
             flashcard_parse_subtitles,

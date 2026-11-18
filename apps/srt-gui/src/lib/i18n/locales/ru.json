@@ -1383,5 +1383,8 @@
   "tiers.batchSizeTooltip": "Количество строк субтитров, отправляемых в одном запросе",
   "speech.priorityChain": "Цепочка приоритетов по умолчанию",
   "speech.externalHint": "Внешний STT отправляет аудио выбранному сервису и может быть платным. Для синхронизации нужны настоящие временные метки.",
-  "common.configCorruptRecovered": "Повреждённая конфигурация сброшена к значениям по умолчанию. Резервная копия сохранена в: {{path}}"
+  "common.configCorruptRecovered": "Повреждённая конфигурация сброшена к значениям по умолчанию. Резервная копия сохранена в: {{path}}",
+  "flashcards.exportDueling": "Экспорт Dueling",
+  "flashcards.exportDuelingTitle": "Экспортировать двуязычные субтитры (.ass / .srt)",
+  "flashcards.duelingExported": "Экспортировано {{count}} двуязычных строк в {{file}}"
 }

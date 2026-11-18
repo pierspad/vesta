@@ -1383,5 +1383,8 @@
   "tiers.batchSizeTooltip": "Anzahl der Untertitelzeilen in einem einzelnen Prompt",
   "speech.priorityChain": "Standard-Prioritätsfolge",
   "speech.externalHint": "Externes STT sendet Audio an den gewählten Dienst und kann Kosten verursachen. Die Synchronisierung benötigt echte Zeitstempel.",
-  "common.configCorruptRecovered": "Beschädigte Konfiguration wurde auf Standardwerte zurückgesetzt. Sicherung gespeichert unter: {{path}}"
+  "common.configCorruptRecovered": "Beschädigte Konfiguration wurde auf Standardwerte zurückgesetzt. Sicherung gespeichert unter: {{path}}",
+  "flashcards.exportDueling": "Dueling exportieren",
+  "flashcards.exportDuelingTitle": "Zweisprachige Untertitel exportieren (.ass / .srt)",
+  "flashcards.duelingExported": "{{count}} zweisprachige Zeilen nach {{file}} exportiert"
 }

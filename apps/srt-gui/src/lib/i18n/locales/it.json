@@ -1383,5 +1383,8 @@
   "tiers.batchSizeTooltip": "Numero di righe di sottotitoli inviate in un singolo prompt all'LLM",
   "speech.priorityChain": "Catena di priorità predefinita",
   "speech.externalHint": "Lo STT esterno invia audio al servizio scelto e può avere costi. La sincronizzazione richiede timestamp reali.",
-  "common.configCorruptRecovered": "La configurazione danneggiata è stata ripristinata ai valori predefiniti. Backup salvato in: {{path}}"
+  "common.configCorruptRecovered": "La configurazione danneggiata è stata ripristinata ai valori predefiniti. Backup salvato in: {{path}}",
+  "flashcards.exportDueling": "Esporta Dueling",
+  "flashcards.exportDuelingTitle": "Esporta sottotitoli bilingue (.ass / .srt)",
+  "flashcards.duelingExported": "Esportate {{count}} righe bilingue in {{file}}"
 }

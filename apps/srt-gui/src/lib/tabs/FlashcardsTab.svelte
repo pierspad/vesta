@@ -5,7 +5,8 @@
   import { runFlashcardSeries } from "$lib/workflows/flashcardSeries";
   import { FlashcardPreviewController } from "$lib/workflows/flashcardPreview";
   import { invokeCommand as invoke } from "$lib/services/tauriClient";
-  import { guardedOpen } from "$lib/utils/dialogGuard";
+  import { guardedOpen, guardedSave } from "$lib/utils/dialogGuard";
+  import { join } from "@tauri-apps/api/path";
   import { setupWebviewDragDrop } from "$lib/utils/dragDrop";
   import { resolveEpisodeNoteType } from "$lib/utils/episodeNoteType";
   import { onDestroy, onMount, untrack } from "svelte";
@@ -15,6 +16,7 @@
     type EpisodeEntry,
     VIDEO_EXTENSIONS,
     AUDIO_EXTENSIONS,
+    deriveDeckNameFromFile,
     mergeSeriesDroppedFiles,
     isSubtitleFile,
     isMediaFile,
@@ -969,6 +971,68 @@
     await flashcardPreview.load();
   }
 
+  let exportingDueling = $state(false);
+
+  async function exportDuelingForEpisode(ep: EpisodeEntry | undefined, fromPreview = false) {
+    if (!ep?.targetSubsPath || !ep?.nativeSubsPath || exportingDueling) return;
+    const baseName = (deriveDeckNameFromFile(ep) || "dueling").replace(/[\\/:*?"<>|]/g, "_");
+    const defaultFilename = `${baseName}.dueling.ass`;
+    const defaultPath = outputDir ? await join(outputDir, defaultFilename) : defaultFilename;
+    const selected = await guardedSave({
+      defaultPath,
+      filters: [
+        { name: "ASS Subtitles", extensions: ["ass"] },
+        { name: "SRT Subtitles", extensions: ["srt"] },
+      ],
+    });
+    if (!selected) return;
+
+    const format = selected.toLowerCase().endsWith(".srt") ? "srt" : "ass";
+    const config = buildFirstEpisodeFlashcardConfig({
+      ep,
+      outputDir,
+      cardFilters: $state.snapshot(cardFilters),
+      mediaSettings: { ...$state.snapshot(mediaSettings), ...ep.mediaOverrides },
+      videoHwAccel,
+      activeNoteType,
+      getEpisodeNoteType,
+      targetLanguage: getStudiedLanguagePreference(),
+    });
+    if (fromPreview) {
+      await previewStore.applyOverrides(config);
+    }
+
+    exportingDueling = true;
+    try {
+      const result = await invoke<{
+        output_path: string;
+        format: "ass" | "srt";
+        line_count: number;
+        matched_count: number;
+      }>("flashcard_export_dueling", {
+        config,
+        options: {
+          format,
+          output_path: selected,
+          target_first: true,
+          include_unmatched: true,
+        },
+      });
+      const msg = t("flashcards.duelingExported", {
+        count: result.line_count,
+        file: getFileName(result.output_path),
+      });
+      generationStore.addLog(msg, "output", result.output_path);
+      snackbar.show(msg, "success");
+    } catch (e) {
+      const msg = errorMessage(e);
+      generationStore.error = msg;
+      snackbar.show(msg, "error");
+    } finally {
+      exportingDueling = false;
+    }
+  }
+
   let cancelRequested = false;
 
   async function startSeriesGeneration() {
@@ -1110,7 +1174,14 @@
   />
 
   {#if previewStore.visible}
-    <FlashcardsPreviewModal mediaPath={previewMediaPath} mediaType={previewMediaType} nativeSubsPath={episodes[0]?.nativeSubsPath || "" } {active} />
+    <FlashcardsPreviewModal
+      mediaPath={previewMediaPath}
+      mediaType={previewMediaType}
+      nativeSubsPath={episodes[0]?.nativeSubsPath || ""}
+      {active}
+      {exportingDueling}
+      onExportDueling={() => void exportDuelingForEpisode(episodes[0], true)}
+    />
   {/if}
 
   {#snippet panelContent(panelId: PanelId)}
@@ -1208,6 +1279,7 @@
     onEditContextEpisode={editContextEpisode}
     onOpenEpisodeMediaSettings={openEpisodeMediaSettings}
     onPreviewEpisodeAudio={previewEpisodeAudio}
+    onExportDuelingEpisode={(idx) => void exportDuelingForEpisode(episodes[idx], false)}
     onRemoveEpisode={removeEpisode}
     onCloseBottomContextMenu={closeBottomContextMenu}
     {onGoToSettings}

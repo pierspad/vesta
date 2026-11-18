@@ -23,6 +23,7 @@ worker pool.
 - `generate(config, tools, cancel_token, &on_progress)` — full pipeline run; `MediaTools::new("ffmpeg", "ffprobe")` specifies the media executables
 - `preview(config)` — parse/match/filter pipeline without extracting media
 - `build_matched_lines(config)` — deterministic parse → match → filter pipeline
+- `export_dueling_subtitles(config, options)` and `format_dueling_subtitles(lines, title, options)` — exports matched bilingual subtitles (`DuelingFormat::Ass` or `DuelingFormat::Srt`) using `DuelingExportOptions` and returning `DuelingResult`
 - `merge_apkg(paths, output)` — combines fresh Vesta `.apkg` exports into a single multi-episode package
 - `load_sub_file_info(path)`, `parse_subtitle_file(path)`, `list_audio_tracks(media_path, tools)` — multi-format subtitle inspection/parsing (`SRT`, `ASS`/`SSA`, `VTT`, `LRC`) and audio stream discovery
 - `media` module — `check_ffmpeg`, `detect_h264_encoder`, `optimize_video_source_with_progress`, `extract_preview_audio_clip`, `extract_preview_snapshot`
@@ -42,6 +43,7 @@ cargo build --release -p srt-flashcards-cli
 
 ./target/release/srt-flashcards info movie-en.srt
 ./target/release/srt-flashcards preview --target movie-en.srt --native movie-it.srt
+./target/release/srt-flashcards dueling --target movie-en.srt --native movie-it.srt --dueling-format ass --output movie.dueling.ass
 ```
 
 Run `srt-flashcards generate --help` for the full option list (filters,

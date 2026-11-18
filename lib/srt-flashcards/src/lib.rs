@@ -1,5 +1,10 @@
 use std::collections::{HashMap, HashSet};
 
+mod dueling;
+pub use dueling::{
+    DuelingExportOptions, DuelingFormat, DuelingResult, export_dueling_subtitles,
+    format_dueling_subtitles,
+};
 mod export_apkg;
 mod generation;
 pub use generation::generate;

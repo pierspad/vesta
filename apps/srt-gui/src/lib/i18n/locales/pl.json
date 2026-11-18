@@ -1383,5 +1383,8 @@
   "tiers.batchSizeTooltip": "Liczba linii napisów w jednym zapytaniu",
   "speech.priorityChain": "Domyślna kolejność priorytetów",
   "speech.externalHint": "Zewnętrzne STT wysyła dźwięk do wybranej usługi i może wiązać się z kosztami. Synchronizacja wymaga rzeczywistych znaczników czasu.",
-  "common.configCorruptRecovered": "Uszkodzona konfiguracja została przywrócona do wartości domyślnych. Kopia zapasowa zapisana w: {{path}}"
+  "common.configCorruptRecovered": "Uszkodzona konfiguracja została przywrócona do wartości domyślnych. Kopia zapasowa zapisana w: {{path}}",
+  "flashcards.exportDueling": "Eksportuj Dueling",
+  "flashcards.exportDuelingTitle": "Eksportuj napisy dwujęzyczne (.ass / .srt)",
+  "flashcards.duelingExported": "Wyeksportowano {{count}} dwujęzycznych linii do {{file}}"
 }
