@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { createEventDispatcher, onMount } from 'svelte';
+  import { createEventDispatcher, onMount, untrack } from 'svelte';
   import { locale } from '$lib/i18n';
 
   interface Props {
@@ -29,6 +29,49 @@
     cancel: void;
   }>();
 
+  let dialogCardElement = $state<HTMLDivElement | null>(null);
+  let cancelButtonElement = $state<HTMLButtonElement | null>(null);
+  let confirmButtonElement = $state<HTMLButtonElement | null>(null);
+  let previousFocus: HTMLElement | null = null;
+  let wasOpen = false;
+
+  function getFocusableButtons(): HTMLButtonElement[] {
+    return [cancelButtonElement, confirmButtonElement].filter(
+      (el): el is HTMLButtonElement => !!el && !el.disabled
+    );
+  }
+
+  function focusInitialControl() {
+    const preferCancel = untrack(() => variant === 'danger' || variant === 'warning');
+    const target = preferCancel
+      ? (cancelButtonElement ?? confirmButtonElement)
+      : (confirmButtonElement ?? cancelButtonElement);
+    target?.focus();
+  }
+
+  function restoreFocus() {
+    const target = previousFocus;
+    previousFocus = null;
+    if (target && target.isConnected && !dialogCardElement?.contains(target)) {
+      target.focus();
+    }
+  }
+
+  $effect(() => {
+    if (show && !wasOpen) {
+      wasOpen = true;
+      const active = document.activeElement;
+      previousFocus =
+        active instanceof HTMLElement && !dialogCardElement?.contains(active)
+          ? active
+          : null;
+      focusInitialControl();
+    } else if (!show && wasOpen) {
+      wasOpen = false;
+      restoreFocus();
+    }
+  });
+
   function handleCancel() {
     dispatch('cancel');
   }
@@ -43,13 +86,31 @@
       event.preventDefault();
       event.stopImmediatePropagation();
       handleCancel();
+    } else if (event.key === 'Tab') {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      const focusables = getFocusableButtons();
+      if (!focusables.length) return;
+      const activeIndex = focusables.indexOf(document.activeElement as HTMLButtonElement);
+      const nextIndex = event.shiftKey
+        ? (activeIndex <= 0 ? focusables.length - 1 : activeIndex - 1)
+        : (activeIndex === -1 || activeIndex >= focusables.length - 1 ? 0 : activeIndex + 1);
+      focusables[nextIndex]?.focus();
     } else if (event.key === 'Enter') {
       event.preventDefault();
       event.stopImmediatePropagation();
       if (!event.repeat) {
-        if ((event.target as HTMLElement)?.closest('.confirm-btn-cancel')) handleCancel();
+        const targetEl = event.target instanceof Element ? event.target : document.activeElement;
+        if (targetEl instanceof Element && targetEl.closest('.confirm-btn-cancel')) handleCancel();
         else handleConfirm();
       }
+    }
+  }
+
+  function handleFocusin(event: FocusEvent) {
+    if (!show || !dialogCardElement) return;
+    if (event.target instanceof Node && !dialogCardElement.contains(event.target)) {
+      focusInitialControl();
     }
   }
 
@@ -57,7 +118,15 @@
   // Enter must not also confirm a sync checkpoint while reset is in flight.
   onMount(() => {
     window.addEventListener('keydown', handleKeydown, { capture: true });
-    return () => window.removeEventListener('keydown', handleKeydown, { capture: true });
+    window.addEventListener('focusin', handleFocusin, { capture: true });
+    return () => {
+      window.removeEventListener('keydown', handleKeydown, { capture: true });
+      window.removeEventListener('focusin', handleFocusin, { capture: true });
+      if (wasOpen) {
+        wasOpen = false;
+        restoreFocus();
+      }
+    };
   });
 </script>
 
@@ -70,10 +139,11 @@
     role="dialog"
     aria-modal="true"
     aria-labelledby="confirm-modal-title"
+    aria-describedby="confirm-modal-message"
     tabindex="-1"
   >
     <!-- svelte-ignore a11y_no_static_element_interactions -->
-    <div class="confirm-modal-card" onclick={(e) => e.stopPropagation()} role="document">
+    <div bind:this={dialogCardElement} class="confirm-modal-card" onclick={(e) => e.stopPropagation()} role="document">
       <div class="confirm-modal-body">
         <div class="confirm-modal-icon-wrap {variant}">
           {#if variant === 'danger'}
@@ -100,14 +170,14 @@
         </div>
         <div class="confirm-modal-text">
           <h3 id="confirm-modal-title" class="text-base font-bold text-white leading-tight m-0">{title}</h3>
-          <p class="text-xs text-gray-400 leading-normal mt-1 m-0">{message}</p>
+          <p id="confirm-modal-message" class="text-xs text-gray-400 leading-normal mt-1 m-0">{message}</p>
         </div>
       </div>
       <div class="confirm-modal-actions flex justify-end gap-3">
-        <button class="confirm-btn-cancel px-4 py-2 rounded-lg text-xs font-semibold cursor-pointer border border-white/10 bg-white/5 text-gray-300 hover:bg-white/10 transition-colors" type="button" onclick={handleCancel}>
+        <button bind:this={cancelButtonElement} class="confirm-btn-cancel px-4 py-2 rounded-lg text-xs font-semibold cursor-pointer border border-white/10 bg-white/5 text-gray-300 hover:bg-white/10 transition-colors" type="button" onclick={handleCancel}>
           {effectiveCancelText}
         </button>
-        <button class="confirm-btn-action {variant} px-4 py-2 rounded-lg text-xs font-semibold cursor-pointer border-none text-white transition-colors" type="button" onclick={handleConfirm}>
+        <button bind:this={confirmButtonElement} class="confirm-btn-action {variant} px-4 py-2 rounded-lg text-xs font-semibold cursor-pointer border-none text-white transition-colors" type="button" onclick={handleConfirm}>
           {effectiveConfirmText}
         </button>
       </div>
@@ -192,6 +262,12 @@
     flex-direction: column;
     flex: 1;
     min-width: 0;
+  }
+
+  .confirm-btn-cancel:focus-visible,
+  .confirm-btn-action:focus-visible {
+    outline: 2px solid var(--control-focus-border, #818cf8);
+    outline-offset: 2px;
   }
 
   .confirm-btn-action.danger {
