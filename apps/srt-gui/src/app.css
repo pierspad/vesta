@@ -76,6 +76,32 @@ body,
   scrollbar-gutter: stable;
 }
 
+/* Long subtitle & card lists avoid GPU blur passes and skip off-screen layout/paint. */
+.perf-scroll-card {
+  background: rgb(29 37 53 / 0.96);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  box-shadow: none;
+}
+
+.subtitle-list-item {
+  content-visibility: auto;
+  contain: layout paint style;
+  contain-intrinsic-size: auto 72px;
+}
+
+.align-list-item {
+  content-visibility: auto;
+  contain: layout paint style;
+  contain-intrinsic-size: auto 136px;
+}
+
+.preview-table-row {
+  content-visibility: auto;
+  contain: style;
+  contain-intrinsic-size: auto 40px;
+}
+
 .panel-title-files-output {
   color: rgb(74 222 128);
 }

@@ -639,7 +639,7 @@
       {/snippet}
 
       <!-- Bottom Section: Editor Area (Single Unified Card) -->
-      <div class="glass-card p-5 flex-1 flex flex-col overflow-hidden">
+      <div class="glass-card perf-scroll-card p-5 flex-1 flex flex-col overflow-hidden">
         <!-- Pagination Top -->
         <div class="flex flex-col xl:flex-row xl:items-center xl:justify-between mb-4 gap-3 shrink-0">
           <div class="flex items-center gap-2 flex-wrap">
@@ -698,7 +698,7 @@
               (!!item.source && (!item.source.text || item.source.text.trim() === '')) ||
               (!!item.target && (!item.target.text || item.target.text.trim() === ''))
             )}
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 group min-w-0 rounded-xl p-1 transition-all {isMissingPair ? 'missing-pair-row' : ''}">
+            <div class="align-list-item grid grid-cols-1 lg:grid-cols-2 gap-4 group min-w-0 rounded-xl p-1 transition-all {isMissingPair ? 'missing-pair-row' : ''}">
 
               <!-- Target Side (Readonly) -->
               <div class="flex flex-col h-full rounded-lg border overflow-hidden relative bg-gray-900/40 min-w-0 {isMissingPair ? 'border-orange-500/50' : 'border-gray-800/70'}">

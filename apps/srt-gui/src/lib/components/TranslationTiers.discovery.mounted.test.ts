@@ -23,9 +23,9 @@ import TranslationTiers from "./TranslationTiers.svelte";
 let component: ReturnType<typeof mount> | undefined;
 beforeEach(() => vi.clearAllMocks());
 afterEach(async () => { if (component) await unmount(component); component = undefined; vi.useRealTimers(); document.body.replaceChildren(); });
-async function render() {
+async function render(active = true) {
   const intervalStartedAt = Date.now();
-  component = mount(TranslationTiers, { target: document.body });
+  component = mount(TranslationTiers, { target: document.body, props: { active } });
   await tick();
   return intervalStartedAt;
 }
@@ -68,4 +68,12 @@ it("does not publish a pending local response after component teardown", async (
   resolve([{ id: "late", name: "Late model" }]); await tick();
   expect(setup.saveCache).not.toHaveBeenCalled();
   expect(document.body.textContent).not.toContain("Late model");
+});
+
+it("does not poll local models while inactive", async () => {
+  vi.useFakeTimers(); setup.discover.mockResolvedValue([]);
+  await render(false);
+  await vi.waitFor(() => expect(setup.discover).toHaveBeenCalledOnce());
+  await vi.advanceTimersByTimeAsync(45_000);
+  expect(setup.discover).toHaveBeenCalledOnce();
 });

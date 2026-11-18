@@ -809,7 +809,7 @@
       <div class="grid grid-cols-1 md:grid-cols-12 gap-6 items-stretch flex-1 min-h-0">
 
         <!-- Left Column (5 cols): Flashcards List Panel -->
-        <div class="md:col-span-5 glass-card p-5 flex flex-col min-h-0 overflow-hidden">
+        <div class="md:col-span-5 glass-card perf-scroll-card p-5 flex flex-col min-h-0 overflow-hidden">
           <!-- Search Bar -->
           <div class="mb-3 flex shrink-0 items-center gap-2">
             <SearchInput
@@ -893,7 +893,7 @@
         </div>
 
         <!-- Right Column (7 cols): Refinement Panel -->
-        <div class="md:col-span-7 glass-card p-5 flex flex-col min-h-0 overflow-hidden">
+        <div class="md:col-span-7 glass-card perf-scroll-card p-5 flex flex-col min-h-0 overflow-hidden">
           {#snippet modeToggleSnippet()}
             {#if !aiStore.killSwitchActive}
               <div class="relative flex items-center p-1 bg-white/5 border border-white/10 rounded-xl w-[220px] ml-auto shrink-0 select-none">

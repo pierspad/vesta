@@ -2,6 +2,7 @@
 import { afterEach, expect, it, vi } from "vitest";
 import { mount, tick, unmount } from "svelte";
 import SyncTab from "./SyncTab.svelte";
+import SyncTabActiveHarness from "$lib/test/fixtures/SyncTabActiveHarness.svelte";
 import { whisperModelsStore } from "$lib/stores/whisperModelsStore.svelte";
 import { invokeCommand } from "$lib/services/tauriClient";
 
@@ -31,4 +32,23 @@ it("consumes model-update notifications without restarting discovery and release
   window.dispatchEvent(new CustomEvent("vesta-whisper-models-updated"));
   await tick();
   expect(invokeCommand).not.toHaveBeenCalled();
+});
+
+it("pauses active media playback when the tab becomes hidden", async () => {
+  vi.spyOn(whisperModelsStore, "refreshModels").mockResolvedValue();
+  const target = document.createElement("div");
+  document.body.append(target);
+  const component = mount(SyncTabActiveHarness, { target, intro: false });
+  try {
+    await tick();
+    const video = target.querySelector("video")!;
+    Object.defineProperty(video, "paused", { value: false, configurable: true });
+    const pauseSpy = vi.spyOn(video, "pause").mockImplementation(() => {});
+
+    target.querySelector<HTMLButtonElement>('[data-testid="deactivate-tab"]')!.click();
+    await tick();
+    expect(pauseSpy).toHaveBeenCalledOnce();
+  } finally {
+    await unmount(component);
+  }
 });

@@ -52,7 +52,7 @@
   let t = $derived($locale);
 </script>
 
-<div class="glass-card flex flex-col flex-1 min-h-0 min-w-0 overflow-hidden">
+<div class="glass-card perf-scroll-card flex flex-col flex-1 min-h-0 min-w-0 overflow-hidden">
   <!-- Header -->
   <div class="px-5 pt-5 pb-2 flex-shrink-0">
     <h3 class="text-lg font-semibold flex items-center gap-2 text-purple-400">
@@ -107,7 +107,7 @@
     bind:this={listElement}
   >
     {#each subtitles as sub (sub.id)}
-      <div class="relative min-w-0">
+      <div class="relative min-w-0 subtitle-list-item">
       <button
         onclick={() => onClickSub(sub)}
         ondblclick={() => onDblClickSub(sub)}

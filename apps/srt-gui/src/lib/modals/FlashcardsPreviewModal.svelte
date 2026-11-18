@@ -240,7 +240,7 @@
               <tbody>
                 {#each previewStore.paged as line, i}
                   <tr
-                    class="border-t border-gray-800/60 {line.active
+                    class="preview-table-row border-t border-gray-800/60 {line.active
                       ? 'bg-emerald-500/5 hover:bg-emerald-500/10'
                       : 'bg-red-500/5 opacity-60 hover:bg-red-500/10'} transition-colors"
                     onauxclick={(e) => {

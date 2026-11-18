@@ -47,6 +47,7 @@
     firstEpisodeMediaPath?: string | null;
     firstEpisodeSubsPath?: string | null;
     episodes?: EpisodeItem[];
+    active?: boolean;
     /** Called (in addition to updating settings.audioTrackIndex) whenever the
      * user manually picks a track, so the caller can stop auto-selecting it. */
     onTrackPicked: () => void;
@@ -61,6 +62,7 @@
     firstEpisodeMediaPath = null,
     firstEpisodeSubsPath = null,
     episodes = [],
+    active = true,
     onTrackPicked,
   }: Props = $props();
 
@@ -94,6 +96,12 @@
     if (request === previewRequest && selectedEpisodeIdx === index && currentMediaPath === requestedMedia && settings.generateAudio) await playPreview();
   }
   onDestroy(() => { previewRequest++; clearTimeout(glowTimer); });
+  $effect(() => {
+    if (!active) {
+      previewRequest++;
+      stopAudioPreview();
+    }
+  });
 
   let selectedEpisodeIdx = $state(0);
   let activeEpisode = $derived.by(() => {

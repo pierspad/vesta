@@ -1070,6 +1070,12 @@
     playSubtitleFromList(sub);
   }
 
+  $effect(() => {
+    if (!active && audioElement && !audioElement.paused) {
+      audioElement.pause();
+    }
+  });
+
   onMount(() => {
     syncDebug("mount", { active });
     window.addEventListener("keydown", handleKeydown);

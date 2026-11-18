@@ -1098,7 +1098,7 @@
           </button>
         </div>
         <div class="p-4">
-          <TranslationTiers bind:this={translationTiersRef} />
+          <TranslationTiers bind:this={translationTiersRef} {active} />
         </div>
       </div>
 

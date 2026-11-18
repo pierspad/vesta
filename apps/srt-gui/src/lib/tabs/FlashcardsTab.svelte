@@ -1674,6 +1674,7 @@
       <AudioClipsPanel
         bind:this={audioClipsPanel}
         bind:settings={mediaSettings}
+        {active}
         {hasAudio}
         mediaType={previewMediaType}
         audioTracks={audioSelection.tracks}

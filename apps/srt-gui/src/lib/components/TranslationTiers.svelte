@@ -22,6 +22,8 @@
   import * as vestaConfig from "$lib/config/vestaConfig";
   import { TranslationTierDiscovery } from "$lib/workflows/translationTierDiscovery.svelte";
 
+  let { active = true }: { active?: boolean } = $props();
+
   let t = $derived($locale);
 
   let tiers = $state<Tier[]>([]);
@@ -104,16 +106,9 @@
     ensureDefaultTier();
   }
 
-  let localCheckInterval: any = null;
-
-  onMount(() => {
-    tiers = loadTiers();
-    ensureDefaultTier();
-    refreshKeys();
-    window.addEventListener("apikeys-updated", refreshKeys);
-    window.addEventListener(TIERS_UPDATED_EVENT, syncTiers);
-
-    localCheckInterval = setInterval(() => {
+  $effect(() => {
+    if (!active) return;
+    const interval = setInterval(() => {
       for (const tier of tiers) {
         for (const e of tier.entries) {
           if (e.provider === "local") {
@@ -122,14 +117,20 @@
         }
       }
     }, 15000);
+    return () => clearInterval(interval);
+  });
+
+  onMount(() => {
+    tiers = loadTiers();
+    ensureDefaultTier();
+    refreshKeys();
+    window.addEventListener("apikeys-updated", refreshKeys);
+    window.addEventListener(TIERS_UPDATED_EVENT, syncTiers);
   });
 
   onDestroy(() => {
     window.removeEventListener("apikeys-updated", refreshKeys);
     window.removeEventListener(TIERS_UPDATED_EVENT, syncTiers);
-    if (localCheckInterval) {
-      clearInterval(localCheckInterval);
-    }
     discovery.dispose();
   });
 
