@@ -1,4 +1,5 @@
 import { fetch as tauriFetch } from "$lib/services/tauriHttp";
+import { fetchModelCatalog } from "$lib/services/modelCatalog";
 import { extractModelsFromPayload, type DiscoveredModel } from "$lib/services/modelDiscovery";
 
 /** Provider-specific discovery and accessibility probing, independent of tab state/cache. */
@@ -18,14 +19,7 @@ export async function discoverManagedProviderModels(
     headers["Authorization"] = `Bearer ${apiKey}`;
   }
 
-  const resp = await fetch(url, { method: "GET", headers });
-  if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-
-  const responseText = await resp.text();
-  let data: unknown = null;
-  if (responseText.trim().length > 0) {
-     data = JSON.parse(responseText);
-  }
+  const data = await fetchModelCatalog(url, { headers }, family === "google" ? "google" : "none", fetch);
 
   let models = extractModelsFromPayload(data);
   if (models.length === 0) throw new Error("No models found dynamically");

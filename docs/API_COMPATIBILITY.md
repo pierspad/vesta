@@ -4,6 +4,12 @@ This reference lists the public HTTP contracts and endpoint conventions used by 
 
 Account permissions, rate limits, regional availability, and model lifecycles are controlled by each provider. Where supported, Vesta queries the provider's model discovery endpoint at runtime and falls back to static catalog defaults on network or authentication errors.
 
+Model discovery follows Google `nextPageToken` / `pageToken` and Anthropic
+`has_more` / `last_id` / `after_id` cursors on the configured origin. A shared
+request deadline, cursor-cycle detection and catalog/page limits prevent an
+unbounded discovery run. Failed later pages reject discovery rather than
+publishing an incomplete list.
+
 | Integration | Endpoint & Protocol Contract | Reference Documentation |
 | --- | --- | --- |
 | **OpenAI Transcription** | `POST /v1/audio/transcriptions` (multipart). Whisper models request `verbose_json` with segment/word timestamps; GPT transcription models (`gpt-4o-transcribe`, `gpt-4o-mini-transcribe`) request `json` without Whisper-only timestamp flags. | [OpenAI Audio Transcriptions](https://developers.openai.com/api/reference/resources/audio/subresources/transcriptions/methods/create) |

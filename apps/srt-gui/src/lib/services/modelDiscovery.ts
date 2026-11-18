@@ -1,4 +1,4 @@
-import { fetch as tauriFetch } from "$lib/services/tauriHttp";
+import { fetchModelCatalog, type CatalogPagination } from "$lib/services/modelCatalog";
 
 export interface DiscoveredModel {
   id: string;
@@ -84,34 +84,13 @@ export function buildModelsUrl(baseUrl: string) {
   return url.endsWith("/v1") ? `${url}/models` : `${url}/v1/models`;
 }
 
-async function parseJsonResponse(
-  resp: Awaited<ReturnType<typeof tauriFetch>>,
-): Promise<unknown> {
-  if (typeof resp.text === "function") {
-    const responseText = await resp.text();
-    if (responseText.trim().length === 0) return null;
-    try {
-      return JSON.parse(responseText);
-    } catch {
-      throw new Error("Invalid JSON response");
-    }
-  }
-  if (typeof resp.json === "function") {
-    try {
-      return await resp.json();
-    } catch {
-      throw new Error("Invalid JSON response");
-    }
-  }
-  return null;
-}
-
 async function fetchModelsWithHeaders(
   url: string,
   headers: Record<string, string>,
   timeoutMs: number,
+  pagination: CatalogPagination = "none",
 ): Promise<DiscoveredModel[]> {
-  const resp = await tauriFetch(url, {
+  const data = await fetchModelCatalog(url, {
     method: "GET",
     headers,
     timeoutMs,
@@ -119,11 +98,7 @@ async function fetchModelsWithHeaders(
     // local/custom o apiUrl personalizzato di una key), non un host cablato:
     // la whitelist statica non si applica.
     allowCustomHost: true,
-  });
-
-  if (!resp.ok) throw Object.assign(new Error(`HTTP ${resp.status}`), { status: resp.status });
-
-  const data = await parseJsonResponse(resp);
+  }, pagination);
   const models = extractModelsFromPayload(data);
   if (models.length === 0) throw new Error("No models found");
   return models;
@@ -169,21 +144,21 @@ export async function discoverModels(
       .trim()
       .replace(/\/+$/, "");
     const url = `${base}/models`;
-    const resp = await tauriFetch(url, {
+    const data = await fetchModelCatalog(url, {
       method: "GET",
       headers: { Accept: "application/json", "x-goog-api-key": apiKey.trim() },
       timeoutMs,
       // Come sopra: `base` può essere l'apiUrl personalizzato dell'utente
       // per un proxy Gemini-compatible.
       allowCustomHost: true,
-    });
-    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-    const data = (await resp.json()) as { models?: any[] };
+    }, "google") as { models?: unknown[] } | null;
     const arr = Array.isArray(data?.models) ? data.models : [];
     const seen = new Set<string>();
     const models: DiscoveredModel[] = [];
-    for (const m of arr) {
-      const methods = m?.supportedGenerationMethods;
+    for (const entry of arr) {
+      if (!entry || typeof entry !== "object") continue;
+      const m = entry as Record<string, unknown>;
+      const methods = m.supportedGenerationMethods;
       if (Array.isArray(methods) && !methods.includes("generateContent")) continue;
       const id = String(m?.name || m?.id || "").replace(/^models\//, "").trim();
       if (!id || seen.has(id)) continue;
@@ -205,6 +180,7 @@ export async function discoverModels(
         "anthropic-version": "2023-06-01",
       },
       timeoutMs,
+      "anthropic",
     );
   }
 
