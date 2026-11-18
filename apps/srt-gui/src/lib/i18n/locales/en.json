@@ -1386,5 +1386,9 @@
   "common.configCorruptRecovered": "Corrupted configuration was reset to defaults. A backup was saved to: {{path}}",
   "flashcards.exportDueling": "Export Dueling",
   "flashcards.exportDuelingTitle": "Export bilingual subtitles (.ass / .srt)",
-  "flashcards.duelingExported": "Exported {{count}} bilingual lines to {{file}}"
+  "flashcards.duelingExported": "Exported {{count}} bilingual lines to {{file}}",
+  "extract.ocrInProgress": "Running OCR ({{current}}/{{total}})…",
+  "extract.ocrCancelled": "OCR cancelled.",
+  "extract.ocrCancel": "Cancel OCR",
+  "extract.ocrNoProvider": "Configure an LLM provider or local Ollama in Settings before running OCR."
 }

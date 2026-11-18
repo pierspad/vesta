@@ -40,7 +40,7 @@ class TestDocContracts(unittest.TestCase):
         checked_links, link_errors = cdc.verify_markdown_links()
         self.assertGreater(checked_links, 150)
         self.assertEqual(link_errors, [])
-        self.assertEqual(ctx["mcp"]["tool_count"], 10)
+        self.assertEqual(ctx["mcp"]["tool_count"], 12)
         self.assertEqual(len(ctx["plugins"]["widget_types"]), 23)
 
     def test_compare_manifests_detects_micro_and_macro_drift(self) -> None:

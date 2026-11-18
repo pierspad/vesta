@@ -1386,5 +1386,9 @@
   "common.configCorruptRecovered": "已损坏的配置已重置为默认值。备份已保存至：{{path}}",
   "flashcards.exportDueling": "导出双语字幕",
   "flashcards.exportDuelingTitle": "导出双语字幕文件 (.ass / .srt)",
-  "flashcards.duelingExported": "已导出 {{count}} 条双语字幕到 {{file}}"
+  "flashcards.duelingExported": "已导出 {{count}} 条双语字幕到 {{file}}",
+  "extract.ocrInProgress": "正在运行 OCR ({{current}}/{{total}})…",
+  "extract.ocrCancelled": "OCR 已取消。",
+  "extract.ocrCancel": "取消 OCR",
+  "extract.ocrNoProvider": "请在运行 OCR 前于“设置”中配置 LLM 提供商或本地 Ollama。"
 }

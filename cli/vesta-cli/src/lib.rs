@@ -18,6 +18,7 @@ fn command() -> Command {
         .subcommand(Command::new("autosync").about("Align subtitles to media (srt-autosync options)"))
         .subcommand(Command::new("refine").about("Inspect or annotate flashcard decks (srt-refine options)"))
         .subcommand(Command::new("extract").about("Inspect SRT files or list/extract embedded subtitle tracks (srt-extract options)"))
+        .subcommand(Command::new("ocr").about("Extract and OCR bitmap subtitle tracks to SRT (srt-ocr options)"))
 }
 
 /// Dispatch arguments to the existing command implementations without requiring
@@ -59,6 +60,7 @@ pub fn run_from(args: Vec<OsString>) -> ExitCode {
         "autosync" => "srt-autosync",
         "refine" => "srt-refine",
         "extract" => "srt-extract",
+        "ocr" => "srt-ocr",
         unknown => {
             let error = command().error(
                 ErrorKind::InvalidSubcommand,
@@ -87,6 +89,7 @@ pub fn run_from(args: Vec<OsString>) -> ExitCode {
                 ExitCode::FAILURE
             }
         },
+        "srt-ocr" => srt_ocr_cli::run_from(forwarded),
         _ => unreachable!("operation mapped above"),
     }
 }

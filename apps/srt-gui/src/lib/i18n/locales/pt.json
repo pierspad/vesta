@@ -1386,5 +1386,9 @@
   "common.configCorruptRecovered": "A configuração corrompida foi redefinida para os padrões. Cópia de segurança salva em: {{path}}",
   "flashcards.exportDueling": "Exportar Dueling",
   "flashcards.exportDuelingTitle": "Exportar legendas bilíngues (.ass / .srt)",
-  "flashcards.duelingExported": "{{count}} linhas bilíngues exportadas para {{file}}"
+  "flashcards.duelingExported": "{{count}} linhas bilíngues exportadas para {{file}}",
+  "extract.ocrInProgress": "Executando OCR ({{current}}/{{total}})…",
+  "extract.ocrCancelled": "OCR cancelado.",
+  "extract.ocrCancel": "Cancelar OCR",
+  "extract.ocrNoProvider": "Configure um provedor LLM ou Ollama local em Configurações antes de executar o OCR."
 }

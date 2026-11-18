@@ -15,7 +15,7 @@ use rmcp::{
     tool, tool_handler, tool_router,
 };
 use serde_json::{Value, json};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 #[derive(Clone)]
 pub struct VestaMcp {
@@ -244,6 +244,57 @@ impl VestaMcp {
         self.jobs
             .start_transcription(input, request.language, profile, &self.paths)
             .map(Json)
+    }
+
+    #[tool(
+        description = "List embedded subtitle streams in a media file, showing stream index, codec, language, title, and whether text extraction is supported or OCR is required.",
+        annotations(
+            read_only_hint = true,
+            destructive_hint = false,
+            open_world_hint = false
+        )
+    )]
+    async fn list_embedded_subtitles(
+        &self,
+        Parameters(request): Parameters<EmbeddedSubtitlesRequest>,
+    ) -> Result<Json<Value>, String> {
+        let input = self.paths.input(Path::new(&request.input), false)?;
+        let tracks = srt_extract::embedded::list_embedded_subtitles("ffprobe", Path::new(&input))
+            .await
+            .map_err(|e| e.to_string())?;
+        Ok(Json(json!({ "tracks": tracks })))
+    }
+
+    #[tool(
+        description = "Start background OCR conversion of a bitmap subtitle track to SRT using a server-configured profile. Returns a job ID immediately; poll get_job for progress and output path.",
+        annotations(
+            read_only_hint = false,
+            destructive_hint = false,
+            open_world_hint = true
+        )
+    )]
+    async fn ocr_subtitles(
+        &self,
+        Parameters(request): Parameters<OcrSubtitlesRequest>,
+    ) -> Result<Json<Value>, String> {
+        let profile = self
+            .providers
+            .translation_profile(&request.profile_id)?
+            .clone();
+        if let Some(ref lang) = request.language {
+            validate_translation_language(lang)?;
+        }
+        let input = self.paths.input(Path::new(&request.input), false)?;
+        let snapshot = self.jobs.start_ocr(
+            input,
+            request.track_index,
+            request.language,
+            profile,
+            &self.paths,
+        )?;
+        serde_json::to_value(snapshot)
+            .map(Json)
+            .map_err(|e| e.to_string())
     }
 
     #[tool(

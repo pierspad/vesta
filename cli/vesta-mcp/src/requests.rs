@@ -87,6 +87,29 @@ pub struct JobRequest {
     pub job_id: String,
 }
 
+/// List embedded subtitle tracks inside a media container within a configured read root.
+#[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct EmbeddedSubtitlesRequest {
+    /// Absolute path to a media container within a configured read root.
+    pub input: String,
+}
+
+/// Extract and OCR a bitmap subtitle track using a server-configured LLM profile.
+/// Provider secrets are never accepted in tool arguments.
+#[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct OcrSubtitlesRequest {
+    /// Absolute path to a media container within a configured read root.
+    pub input: String,
+    /// Absolute FFprobe subtitle stream index from `list_embedded_subtitles`.
+    pub track_index: u32,
+    /// Name of a server-configured translation profile providing Vision LLM tiers.
+    pub profile_id: String,
+    /// Optional ISO language code or language name hint for OCR.
+    pub language: Option<String>,
+}
+
 pub fn subtitle_config(
     paths: &Paths,
     target: &str,

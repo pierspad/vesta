@@ -121,6 +121,7 @@ operation_state!(TranslateState, AppTranslateState);
 operation_state!(FlashcardState, AppFlashcardState);
 operation_state!(TranscribeState, AppTranscribeState);
 operation_state!(RefineState, AppRefineState);
+operation_state!(OcrState, AppOcrState);
 
 #[cfg(test)]
 mod tests {

@@ -150,3 +150,36 @@ test("Settings shortcuts detect conflicts and persist a new binding", async ({ p
   await expect(action).toBeVisible();
   await expect(page.getByText("Generate flashcards", { exact: true })).toBeHidden();
 });
+
+test("Extract previews and runs OCR on a bitmap PGS track", async ({ page }) => {
+  await page.getByRole("button", { name: "Extract subtitles", exact: true }).click();
+  await chooseFile(page, "/fixtures/movie.mkv", page.getByRole("button", { name: "Browse", exact: true }).first());
+
+  const trackCard = page.getByRole("group", { name: "English" });
+  await expect(trackCard).toContainText("hdmv_pgs_subtitle");
+
+  await trackCard.getByRole("button", { name: /View subtitles/ }).click();
+  const dialog = page.getByRole("dialog", { name: /View subtitles/ });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.locator("textarea")).toHaveValue(/Synthetic OCR preview/);
+  await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
+  await expect(dialog).toBeHidden();
+
+  await trackCard.getByRole("button", { name: /Save SRT/ }).click();
+  await expect.poll(() => callsFor(page, "ocr_embedded_subtitle")).toEqual([{
+    path: "/fixtures/movie.mkv",
+    index: 2,
+    outputPath: "/downloads/movie_en_2.srt",
+    language: "en",
+    tiers: [[{
+      provider: "google",
+      model: "gemini-fixture",
+      api_key: "fixture-key",
+      api_url: "https://generativelanguage.googleapis.com/v1beta",
+      rpm: null,
+      max_requests: null,
+    }]],
+  }]);
+  await expect(trackCard.getByLabel("Already downloaded")).toBeVisible();
+  await expect(page.getByRole("status").filter({ hasText: "Saved: /downloads/movie_en_2.srt" })).toBeVisible();
+});

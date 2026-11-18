@@ -8,7 +8,7 @@ This index links to all actively maintained reference manuals and guides.
 | Guide | Description |
 | --- | --- |
 | [CLI and Coverage](CLI.md) | Commands, examples, safe usage, error handling, output formats, and differences from GUI/libraries. |
-| [MCP Server](MCP.md) | Local stdio server, 10 tools, allowed directory roots, provider profiles, and asynchronous job management. |
+| [MCP Server](MCP.md) | Local stdio server, 12 tools, allowed directory roots, provider profiles, and asynchronous job management. |
 | [Plugin Specification & SDK](PLUGINS.md) | Declarative JSON-RPC 2.0 plugin architecture, widget catalog, manifest schema, and Python SDK. |
 | [Setup and Installer Testing](SETUP_TESTING.md) | First-run setup checks, audio preparation, and installer update validation. |
 

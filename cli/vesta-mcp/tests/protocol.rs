@@ -14,7 +14,7 @@ async fn stdio_client_discovers_tools_previews_and_generates_a_deck() -> anyhow:
             .env_remove("DISPLAY").env_remove("WAYLAND_DISPLAY");
         let client = ().serve(TokioChildProcess::new(command)?).await?;
         let tools = client.list_all_tools().await?;
-        assert_eq!(tools.len(), 10);
+        assert_eq!(tools.len(), 12);
         for tool in &tools { assert!(tool.input_schema.contains_key("type")); }
         let call = |name: &'static str, args: Value| {
             client.call_tool(CallToolRequestParams::new(name).with_arguments(args.as_object().unwrap().clone()))
@@ -26,10 +26,16 @@ async fn stdio_client_discovers_tools_previews_and_generates_a_deck() -> anyhow:
         assert_eq!(settings["max_active_generations"], 1);
         assert_eq!(settings["translation_available"], false);
         assert_eq!(settings["transcription_available"], false);
-        for name in ["translate_subtitles", "transcribe_media"] {
-            let args = if name == "translate_subtitles" {
-                json!({"input": source, "profile_id": "missing", "target_language": "it"})
-            } else { json!({"input": source, "profile_id": "missing"}) };
+        for name in ["translate_subtitles", "transcribe_media", "ocr_subtitles"] {
+            let args = match name {
+                "translate_subtitles" => {
+                    json!({"input": source, "profile_id": "missing", "target_language": "it"})
+                }
+                "ocr_subtitles" => {
+                    json!({"input": source, "track_index": 1, "profile_id": "missing"})
+                }
+                _ => json!({"input": source, "profile_id": "missing"}),
+            };
             let rejected = call(name, args).await?;
             assert_eq!(rejected.is_error, Some(true));
         }
@@ -49,6 +55,7 @@ async fn stdio_client_discovers_tools_previews_and_generates_a_deck() -> anyhow:
         let forbidden = outside.path().join("secret.srt");
         std::fs::write(&forbidden, "private")?;
         assert_eq!(call("inspect_subtitles", json!({"path":forbidden})).await?.is_error, Some(true));
+        assert_eq!(call("list_embedded_subtitles", json!({"input":forbidden})).await?.is_error, Some(true));
         let invalid = call("generate_flashcards", json!({"target": source,"deck":"Invalid","format":"apkg","include_audio":true})).await?;
         assert_eq!(invalid.is_error, Some(true));
         assert_eq!(std::fs::read_dir(output.path())?.count(), 0);

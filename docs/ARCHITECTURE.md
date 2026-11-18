@@ -17,6 +17,7 @@ Vesta is a modular Cargo workspace layered from foundational formats to GUI-agno
 │  • srt-transcribe   (Whisper & VAD transcription)──► cli/srt-transcribe-cli │
 │  • srt-autosync     (VAD speech auto-aligner)    ──► cli/srt-autosync-cli   │
 │  • srt-extract      (Media & subtitle extractor) ──► cli/srt-extract-cli    │
+│  • srt-ocr          (Bitmap subtitle OCR engine) ──► cli/srt-ocr-cli        │
 │  • srt-refine       (LLM deck annotation)       ──► cli/srt-refine-cli     │
 │  • srt-sync         (Anchor-based retiming)     ──► cli/srt-sync-cli       │
 │  • srt-ankiconnect  (AnkiConnect HTTP client)                               │
@@ -40,8 +41,8 @@ cancellable resource downloads and atomic publication.
 | Layer | Crates | Responsibilities & Design Rules |
 |---|---|---|
 | **core** | `srt-parser`, `srt-apkg`, `srt-download` | Foundational primitives. Minimal external dependencies, zero knowledge of higher engines or GUI. Auto-charset detection via `chardetng` + `encoding_rs`, lossless timing arithmetic, direct ZIP/SQLite archive serialization, and cancellable atomic resource downloads. |
-| **lib** | `srt-flashcards`, `srt-translate`, `srt-transcribe`, `srt-autosync`, `srt-extract`, `srt-refine`, `srt-sync`, `srt-ankiconnect` | Self-contained domain engines. **Zero GUI/Tauri coupling**. Long-running tasks accept a `tokio_util::sync::CancellationToken` and report progress through callbacks. External tools and heavy dependencies (FFmpeg processes, `whisper-rs`, `rusqlite`, `reqwest`) are encapsulated here. |
-| **cli** | `srt-flashcards-cli`, `srt-translate-cli`, `srt-transcribe-cli`, `srt-autosync-cli`, `srt-extract-cli`, `srt-sync-cli`, `srt-refine-cli`, `vesta-cli`, `vesta-mcp` | Headless, terminal frontends powered by `clap`, plus the `vesta-cli` unified entry point and `vesta-mcp` stdio MCP server (10 tools). Thin wrappers over corresponding `lib/` engines. Suitable for server scripting, batch processing, CI pipelines, AI assistants, and benchmarking. |
+| **lib** | `srt-flashcards`, `srt-translate`, `srt-transcribe`, `srt-autosync`, `srt-extract`, `srt-ocr`, `srt-refine`, `srt-sync`, `srt-ankiconnect` | Self-contained domain engines. **Zero GUI/Tauri coupling**. Long-running tasks accept a `tokio_util::sync::CancellationToken` and report progress through callbacks. External tools and heavy dependencies (FFmpeg processes, `whisper-rs`, `rusqlite`, `reqwest`) are encapsulated here. |
+| **cli** | `srt-flashcards-cli`, `srt-translate-cli`, `srt-transcribe-cli`, `srt-autosync-cli`, `srt-extract-cli`, `srt-ocr-cli`, `srt-sync-cli`, `srt-refine-cli`, `vesta-cli`, `vesta-mcp` | Headless, terminal frontends powered by `clap`, plus the `vesta-cli` unified entry point and `vesta-mcp` stdio MCP server (12 tools). Thin wrappers over corresponding `lib/` engines. Suitable for server scripting, batch processing, CI pipelines, AI assistants, and benchmarking. |
 | **apps** | `apps/srt-gui` (`vesta`), `apps/whisper-bench` | Desktop composition roots. Svelte owns presentation/state; Tauri commands adapt IPC to `lib/` crates and own process-level services such as local media streaming, declarative plugin subprocess management (`src-tauri/src/plugins`), dialogs, and window integration. |
 
 ---
@@ -244,7 +245,7 @@ The AUR `PKGBUILD` declares these runtime dependencies.
 
 ## Headless CLI Tooling
 
-Every key engine can be built and run standalone without Tauri. In addition to individual standalone CLI binaries, Vesta provides `vesta-cli` as a unified entry point (`vesta-cli <operation>`) and `vesta-mcp` as a stdio Model Context Protocol (MCP) server exposing 10 tools for MCP clients:
+Every key engine can be built and run standalone without Tauri. In addition to individual standalone CLI binaries, Vesta provides `vesta-cli` as a unified entry point (`vesta-cli <operation>`) and `vesta-mcp` as a stdio Model Context Protocol (MCP) server exposing 12 tools for MCP clients:
 
 ```bash
 # Build the unified CLI and MCP server
@@ -257,6 +258,7 @@ cargo build --release -p srt-transcribe-cli
 cargo build --release -p srt-translate-cli
 cargo build --release -p srt-autosync-cli
 cargo build --release -p srt-extract-cli
+cargo build --release -p srt-ocr-cli
 cargo build --release -p srt-sync-cli
 cargo build --release -p srt-refine-cli
 
@@ -271,7 +273,7 @@ cargo build --release -p srt-refine-cli
   --snapshot-format webp
 ```
 
-The `vesta-mcp` server provides 10 discoverable tools (`get_configuration`, `inspect_subtitles`, `preview_flashcards`, `generate_flashcards`, `translate_subtitles`, `transcribe_media`, `get_job`, `cancel_job`, `list_plugins`, `call_plugin`) over stdio JSON-RPC without requiring GUI automation. See [`docs/MCP.md`](MCP.md) for complete details.
+The `vesta-mcp` server provides 12 discoverable tools (`get_configuration`, `inspect_subtitles`, `list_embedded_subtitles`, `preview_flashcards`, `generate_flashcards`, `translate_subtitles`, `transcribe_media`, `ocr_subtitles`, `get_job`, `cancel_job`, `list_plugins`, `call_plugin`) over stdio JSON-RPC without requiring GUI automation. See [`docs/MCP.md`](MCP.md) for complete details.
 
 For module-specific documentation and integration examples, see [`docs/modules/`](modules/README.md).
 
@@ -289,8 +291,10 @@ unreadable configuration fails startup instead of being silently replaced by def
 API keys are stored in this configuration file; it is not an encrypted keychain.
 
 Embedded subtitle discovery/extraction lives in `srt-extract::embedded` and uses
-FFprobe/FFmpeg. Only text tracks are converted; PGS/VobSub need OCR. The desktop
-Extract tab saves independent SRT files, keeping the existing workflows simple.
+FFprobe/FFmpeg. Text tracks convert directly to SRT; bitmap tracks (PGS, VobSub,
+DVB, XSUB) are extracted and converted via `srt-ocr` using the configured Vision LLM
+tiers (subject to the AI Kill Switch). The desktop Extract tab saves independent SRT
+files, keeping the existing workflows simple.
 
 Fresh per-episode APKG exports can be merged by `srt-flashcards::merge_apkg`.
 The frontend writes episodes to distinct directories; the merger remaps note/card

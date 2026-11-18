@@ -1386,5 +1386,9 @@
   "common.configCorruptRecovered": "손상된 구성을 기본값으로 초기화했습니다. 백업 저장 위치: {{path}}",
   "flashcards.exportDueling": "이중 자막 내보내기",
   "flashcards.exportDuelingTitle": "이중 언어 자막 파일 내보내기 (.ass / .srt)",
-  "flashcards.duelingExported": "{{count}}개의 이중 자막 줄을 {{file}}(으)로 내보냈습니다"
+  "flashcards.duelingExported": "{{count}}개의 이중 자막 줄을 {{file}}(으)로 내보냈습니다",
+  "extract.ocrInProgress": "OCR 실행 중 ({{current}}/{{total}})…",
+  "extract.ocrCancelled": "OCR이 취소되었습니다.",
+  "extract.ocrCancel": "OCR 취소",
+  "extract.ocrNoProvider": "OCR을 실행하기 전에 설정에서 LLM 제공업체 또는 로컬 Ollama를 구성하세요."
 }

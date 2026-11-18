@@ -42,6 +42,7 @@ srt-flashcards = { path = "./lib/srt-flashcards", version = "0.32.0" }
 srt-refine = { path = "./lib/srt-refine", version = "0.32.0" }
 srt-transcribe = { path = "./lib/srt-transcribe", version = "0.32.0" }
 srt-ankiconnect = { path = "./lib/srt-ankiconnect", version = "0.32.0" }
+srt-ocr = { path = "./lib/srt-ocr", version = "0.32.0" }
 
 [profile.dev]
 opt-level = 0

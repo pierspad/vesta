@@ -19,6 +19,7 @@ OpenAI-compatible API (OpenAI, Mistral, NVIDIA NIM, Ollama/local, custom).
 - `get_missing_or_incorrect_subtitle_ids(&original, &translated)` (replaces deprecated `verify_translation_completeness(&original, &translated)`)
 - `Translator::generate_response(prompt)` — raw single-prompt call (used by
   [srt-refine](srt-refine.md))
+- `Translator::generate_vision_response(prompt, image_base64, mime_type)` — multimodal prompt + image call across OpenAI-compatible, Gemini, and Anthropic endpoints (used by [srt-ocr](srt-ocr.md))
 - `ProviderError`, `ProviderFailureKind`, `TranslationCancelled` (`diagnostics` module)
 - Progress via a plain `Fn(TranslationProgress)` callback; cancellation via
   `CancellationToken`.

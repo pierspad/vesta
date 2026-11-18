@@ -1386,5 +1386,9 @@
   "common.configCorruptRecovered": "تمت إعادة تعيين الإعدادات التالفة إلى القيم الافتراضية. تم حفظ نسخة احتياطية في: {{path}}",
   "flashcards.exportDueling": "تصدير ثنائي اللغة",
   "flashcards.exportDuelingTitle": "تصدير ترجمات ثنائية اللغة (.ass / .srt)",
-  "flashcards.duelingExported": "تم تصدير {{count}} سطرًا ثنائي اللغة إلى {{file}}"
+  "flashcards.duelingExported": "تم تصدير {{count}} سطرًا ثنائي اللغة إلى {{file}}",
+  "extract.ocrInProgress": "جارٍ تشغيل OCR ({{current}}/{{total}})…",
+  "extract.ocrCancelled": "تم إلغاء OCR.",
+  "extract.ocrCancel": "إلغاء OCR",
+  "extract.ocrNoProvider": "قم بتهيئة موفّر LLM أو Ollama محلي في الإعدادات قبل تشغيل OCR."
 }

@@ -16,6 +16,7 @@ clap = { workspace = true }
 srt-autosync-cli = { path = "../srt-autosync-cli" }
 srt-extract-cli = { path = "../srt-extract-cli" }
 srt-flashcards-cli = { path = "../srt-flashcards-cli" }
+srt-ocr-cli = { path = "../srt-ocr-cli" }
 srt-refine-cli = { path = "../srt-refine-cli" }
 srt-sync-cli = { path = "../srt-sync-cli" }
 srt-transcribe-cli = { path = "../srt-transcribe-cli" }

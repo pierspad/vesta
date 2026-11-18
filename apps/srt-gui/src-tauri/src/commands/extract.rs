@@ -1,5 +1,9 @@
+use std::sync::Arc;
+
+use tauri::{AppHandle, Emitter, State};
+
 use super::media::{resolve_ffmpeg_path, resolve_ffprobe_path};
-use tauri::AppHandle;
+use crate::state::{AppOcrState, OperationGuard};
 
 #[tauri::command]
 pub async fn embedded_subtitle_tracks(
@@ -90,6 +94,144 @@ pub async fn existing_subtitle_outputs(
     Ok(existing)
 }
 
+async fn build_ocr_config(
+    app: &AppHandle,
+    path: String,
+    index: u32,
+    output_path: std::path::PathBuf,
+    language: Option<String>,
+    tiers: Vec<Vec<srt_translate::TierEntry>>,
+    preview_limit: Option<usize>,
+) -> srt_ocr::OcrConfig {
+    let ffprobe_path = resolve_ffprobe_path(Some(app)).await;
+    let ffmpeg_path = resolve_ffmpeg_path(Some(app)).await;
+    srt_ocr::OcrConfig {
+        input_path: std::path::PathBuf::from(path),
+        output_path,
+        track_index: index,
+        language,
+        tiers,
+        preview_limit,
+        ffmpeg_path,
+        ffprobe_path,
+    }
+}
+
+/// Runs bitmap subtitle extraction and Vision-LLM OCR, writing an `.srt` file.
+#[tauri::command]
+pub async fn ocr_embedded_subtitle(
+    app: AppHandle,
+    state: State<'_, AppOcrState>,
+    path: String,
+    index: u32,
+    output_path: String,
+    language: Option<String>,
+    tiers: Vec<Vec<srt_translate::TierEntry>>,
+) -> Result<(), String> {
+    let guard = OperationGuard::begin(&state, "ERR_ALREADY_RUNNING")?;
+    let config = build_ocr_config(
+        &app,
+        path,
+        index,
+        std::path::PathBuf::from(output_path),
+        language,
+        tiers,
+        None,
+    )
+    .await;
+    let app_progress = app.clone();
+    let callbacks = srt_ocr::OcrCallbacks {
+        on_progress: Some(Arc::new(move |progress: srt_ocr::OcrProgress| {
+            let _ = app_progress.emit("ocr-progress", progress);
+        })),
+        on_segment: None,
+    };
+    let cancel_token = guard.token();
+    srt_ocr::ocr_bitmap_track_to_srt(&config, callbacks, &cancel_token)
+        .await
+        .map(|_| ())
+        .map_err(|e| e.to_string())
+}
+
+/// Previews up to 15 bitmap subtitle cues via OCR without writing to disk.
+#[tauri::command]
+pub async fn preview_ocr_embedded_subtitle(
+    app: AppHandle,
+    state: State<'_, AppOcrState>,
+    path: String,
+    index: u32,
+    language: Option<String>,
+    tiers: Vec<Vec<srt_translate::TierEntry>>,
+) -> Result<String, String> {
+    let guard = OperationGuard::begin(&state, "ERR_ALREADY_RUNNING")?;
+    let config = build_ocr_config(
+        &app,
+        path,
+        index,
+        std::path::PathBuf::new(),
+        language,
+        tiers,
+        Some(15),
+    )
+    .await;
+    let cancel_token = guard.token();
+    srt_ocr::preview_ocr_bitmap_track(&config, &cancel_token)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// Cancels any active OCR extraction or model download operation.
+#[tauri::command]
+pub fn ocr_cancel(state: State<'_, AppOcrState>) -> Result<bool, String> {
+    let current = state.lock().map_err(|e| e.to_string())?;
+    Ok(current.operation.cancel())
+}
+
+/// Lists cataloged local OCR models and their installation status.
+#[tauri::command]
+pub async fn ocr_list_models() -> Result<Vec<srt_ocr::OcrModelInfo>, String> {
+    srt_ocr::model::list_models().map_err(|e| e.to_string())
+}
+
+/// Downloads a local OCR model while emitting progress on `ocr-progress`.
+#[tauri::command]
+pub async fn ocr_download_model(
+    app: AppHandle,
+    state: State<'_, AppOcrState>,
+    model_id: String,
+) -> Result<bool, String> {
+    let guard = OperationGuard::begin(&state, "ERR_ALREADY_RUNNING")?;
+    let cancel_token = guard.token();
+    let app_progress = app.clone();
+    let model_id_progress = model_id.clone();
+
+    srt_ocr::model::download_model(
+        &model_id,
+        move |pct| {
+            let _ = app_progress.emit(
+                "ocr-progress",
+                srt_ocr::OcrProgress {
+                    stage: "download".into(),
+                    message: format!("Downloading OCR model {model_id_progress} ({pct}%)..."),
+                    percentage: pct as f64,
+                    current: pct as usize,
+                    total: 100,
+                },
+            );
+        },
+        Some(&cancel_token),
+    )
+    .await
+    .map(|_| true)
+    .map_err(|e| e.to_string())
+}
+
+/// Uninstalls a cached local OCR model from disk.
+#[tauri::command]
+pub async fn ocr_uninstall_model(model_id: String) -> Result<bool, String> {
+    srt_ocr::model::uninstall_model(&model_id).map_err(|e| e.to_string())
+}
+
 #[cfg(test)]
 mod output_tests {
     use super::*;
@@ -127,5 +269,34 @@ mod output_tests {
             .unwrap()
             .is_empty()
         );
+    }
+}
+
+#[cfg(test)]
+mod ocr_tests {
+    use super::*;
+
+    #[test]
+    fn ocr_state_guard_rejects_overlap_and_cancels_on_drop() {
+        let state = AppOcrState::default();
+        let guard = OperationGuard::begin(&state, "ERR_ALREADY_RUNNING").unwrap();
+        let token = guard.token();
+        assert_eq!(
+            OperationGuard::begin(&state, "ERR_ALREADY_RUNNING")
+                .err()
+                .as_deref(),
+            Some("ERR_ALREADY_RUNNING")
+        );
+        assert!(state.lock().unwrap().operation.cancel());
+        assert!(token.is_cancelled());
+        drop(guard);
+        assert!(!state.lock().unwrap().operation.cancel());
+        assert!(OperationGuard::begin(&state, "ERR_ALREADY_RUNNING").is_ok());
+    }
+
+    #[tokio::test]
+    async fn ocr_list_models_returns_catalog() {
+        let models = ocr_list_models().await.unwrap();
+        assert_eq!(models.len(), srt_ocr::model::OCR_MODELS.len());
     }
 }

@@ -100,8 +100,8 @@ cargo test -p srt-parser -p srt-transcribe -p srt-flashcards
 ### Headless CLI and MCP Verification
 
 - **Headless CI job**: Compiles and tests all library and CLI crates without Node, Tauri system libraries, or GPU SDKs, verifying the default CPU dependency graph independently of desktop feature unification.
-- **CLI subprocess tests (`cargo test -p vesta-cli -p srt-flashcards-cli -p srt-translate-cli -p srt-transcribe-cli -p srt-extract-cli -p srt-sync-cli -p srt-autosync-cli -p srt-refine-cli`)**: Verify `--help` contracts, exit codes (`0` success, `1` runtime error, `2` usage error, `130` `SIGINT` cancellation), stdout/stderr separation, and preservation of existing output files on failure or `SIGINT`.
-- **MCP protocol tests (`cargo test --locked -p vesta-mcp`)**: Connect a real stdio MCP client (`rmcp`), discover all 10 tool schemas (`get_configuration`, `inspect_subtitles`, `preview_flashcards`, `generate_flashcards`, `translate_subtitles`, `transcribe_media`, `get_job`, `cancel_job`, `list_plugins`, `call_plugin`), and verify path-root isolation, job cancellation, and server-side credential isolation.
+- **CLI subprocess tests (`cargo test -p vesta-cli -p srt-flashcards-cli -p srt-translate-cli -p srt-transcribe-cli -p srt-extract-cli -p srt-ocr-cli -p srt-sync-cli -p srt-autosync-cli -p srt-refine-cli`)**: Verify `--help` contracts, exit codes (`0` success, `1` runtime error, `2` usage error, `130` `SIGINT` cancellation), stdout/stderr separation, and preservation of existing output files on failure or `SIGINT`.
+- **MCP protocol tests (`cargo test --locked -p vesta-mcp`)**: Connect a real stdio MCP client (`rmcp`), discover all 12 tool schemas (`get_configuration`, `inspect_subtitles`, `list_embedded_subtitles`, `preview_flashcards`, `generate_flashcards`, `translate_subtitles`, `transcribe_media`, `ocr_subtitles`, `get_job`, `cancel_job`, `list_plugins`, `call_plugin`), and verify path-root isolation, job cancellation, and server-side credential isolation.
 
 ### HTTP Contracts and Provider Links
 

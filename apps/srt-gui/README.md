@@ -24,7 +24,7 @@ adapts GUI requests to the workspace libraries and plugin runtime (`PluginsTab.s
 and `PluginRenderer.svelte`). The desktop process also owns
 loopback media streaming and opening exported files through system associations.
 
-Use **Extract subtitles** for text tracks embedded in MKV/MP4 containers.
+Use **Extract subtitles** for text tracks embedded in MKV/MP4 containers, or to preview and OCR bitmap subtitle tracks (PGS, VobSub, DVB, XSUB) via your configured Vision LLM tiers (subject to the AI Kill Switch).
 The onboarding wizard awaits durable persistence before reloading. Generation
 uses source snapshots directly in audio/snapshot-only exports and reports FFmpeg preparation progress for
 video clips. Export filenames open the saved file; the adjacent folder button

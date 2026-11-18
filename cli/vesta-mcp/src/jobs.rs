@@ -166,6 +166,46 @@ impl Jobs {
         )
     }
 
+    pub fn start_ocr(
+        &self,
+        input: String,
+        track_index: u32,
+        language: Option<String>,
+        profile: crate::provider_config::TranslationProfile,
+        paths: &Paths,
+    ) -> Result<JobSnapshot, String> {
+        self.start_work(paths, "ocr", move |output, cancel, progress| async move {
+            if cancel.is_cancelled() {
+                return Err("OCR cancelled".into());
+            }
+            let config = srt_ocr::OcrConfig {
+                input_path: std::path::PathBuf::from(input),
+                output_path: output.join("ocr.srt"),
+                track_index,
+                language,
+                tiers: profile.tiers,
+                preview_limit: None,
+                ffmpeg_path: "ffmpeg".into(),
+                ffprobe_path: "ffprobe".into(),
+            };
+            let callbacks = srt_ocr::OcrCallbacks {
+                on_progress: Some(Arc::new(move |event| {
+                    if let Ok(value) = serde_json::to_value(event) {
+                        progress(value);
+                    }
+                })),
+                on_segment: None,
+            };
+            let outcome = srt_ocr::ocr_bitmap_track_to_srt(&config, callbacks, &cancel)
+                .await
+                .map_err(|e| e.to_string())?;
+            Ok(serde_json::json!({
+                "output_path": outcome.output_path,
+                "subtitle_count": outcome.subtitle_count,
+            }))
+        })
+    }
+
     fn start_work<F, Fut>(
         &self,
         paths: &Paths,

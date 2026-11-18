@@ -1386,5 +1386,9 @@
   "common.configCorruptRecovered": "Beschadigde configuratie is teruggezet naar standaardwaarden. Back-up opgeslagen in: {{path}}",
   "flashcards.exportDueling": "Dueling exporteren",
   "flashcards.exportDuelingTitle": "Tweetalige ondertitels exporteren (.ass / .srt)",
-  "flashcards.duelingExported": "{{count}} tweetalige regels geëxporteerd naar {{file}}"
+  "flashcards.duelingExported": "{{count}} tweetalige regels geëxporteerd naar {{file}}",
+  "extract.ocrInProgress": "OCR uitvoeren ({{current}}/{{total}})…",
+  "extract.ocrCancelled": "OCR geannuleerd.",
+  "extract.ocrCancel": "OCR annuleren",
+  "extract.ocrNoProvider": "Configureer een LLM-provider of lokale Ollama in Instellingen voordat u OCR uitvoert."
 }

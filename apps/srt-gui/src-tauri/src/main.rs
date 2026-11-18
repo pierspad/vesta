@@ -83,8 +83,9 @@ use commands::transcribe::*;
 use commands::translate::*;
 use commands::updates::*;
 use state::{
-    AppFlashcardState, AppRefineState, AppSyncState, AppTranscribeState, AppTranslateState,
-    FlashcardState, RefineState, SyncState, TranscribeState, TranslateState,
+    AppFlashcardState, AppOcrState, AppRefineState, AppSyncState, AppTranscribeState,
+    AppTranslateState, FlashcardState, OcrState, RefineState, SyncState, TranscribeState,
+    TranslateState,
 };
 
 fn main() -> std::process::ExitCode {
@@ -146,6 +147,7 @@ fn main() -> std::process::ExitCode {
         .manage(Mutex::new(FlashcardState::default()) as AppFlashcardState)
         .manage(Mutex::new(TranscribeState::default()) as AppTranscribeState)
         .manage(Mutex::new(RefineState::default()) as AppRefineState)
+        .manage(Mutex::new(OcrState::default()) as AppOcrState)
         .manage(commands::config::ConfigState::default())
         .manage(commands::flashcards::preview::PreviewWorkspace::default())
         .manage(std::sync::Arc::new(plugins::PluginManager::new(
@@ -257,6 +259,12 @@ fn main() -> std::process::ExitCode {
             existing_subtitle_outputs,
             extract_embedded_subtitle,
             preview_embedded_subtitle,
+            ocr_embedded_subtitle,
+            preview_ocr_embedded_subtitle,
+            ocr_cancel,
+            ocr_list_models,
+            ocr_download_model,
+            ocr_uninstall_model,
             open_output_path,
             get_app_info,
             get_update_installation,

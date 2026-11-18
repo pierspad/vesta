@@ -4,15 +4,16 @@
   import { locale } from "$lib/i18n";
   import { languageFlagUrl } from "$lib/config/languages";
   import type { SubtitleLanguageGroup, SubtitleTrack } from "$lib/utils/subtitleTracks";
-  let { group, busy, downloadingIndex = null, selectedIndex, downloaded, onselect, ondownload, onpreview }: { group: SubtitleLanguageGroup; busy: boolean; downloadingIndex?: number | null; selectedIndex?: number; downloaded: number[]; onselect: (index: number) => void; ondownload: (track: SubtitleTrack) => void; onpreview: (track: SubtitleTrack) => void } = $props();
+  let { group, busy, downloadingIndex = null, selectedIndex, downloaded, canOcr = true, onselect, ondownload, onpreview }: { group: SubtitleLanguageGroup; busy: boolean; downloadingIndex?: number | null; selectedIndex?: number; downloaded: number[]; canOcr?: boolean; onselect: (index: number) => void; ondownload: (track: SubtitleTrack) => void; onpreview: (track: SubtitleTrack) => void } = $props();
   let t = $derived($locale);
   let track = $derived(group.tracks.find(track => track.index === selectedIndex) ?? group.tracks[0]);
+  const canAction = $derived(track.text_based || canOcr);
   let contextOpen = $state(false);
   let menuPosition = $state({ x: 0, y: 0 });
   $effect(() => { group.key; contextOpen = false; });
 </script>
 <div class="relative flex min-h-[108px] items-center gap-3 rounded-xl border border-white/10 bg-black/15 p-4 transition-colors hover:border-teal-400/30 hover:bg-teal-500/[0.06] focus-within:border-teal-400/40 focus-within:bg-teal-500/[0.08]"
-  ondblclick={() => { if (!busy && track.text_based) onpreview(track); }}
+  ondblclick={() => { if (!busy && canAction) onpreview(track); }}
   oncontextmenu={(event) => { event.preventDefault(); menuPosition = { x: event.clientX, y: event.clientY }; contextOpen = !contextOpen; }}
   role="group" aria-label={group.languageName}>
   <div class="min-w-0 flex-1">
@@ -29,10 +30,10 @@
     {#if track.languageConflict}<p class="mt-1 text-xs text-amber-300">{t("extract.languageConflict")} · {track.language}</p>{/if}
   </div>
   <div class="flex shrink-0 gap-2">
-    <button class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 text-gray-300 hover:bg-white/10 disabled:opacity-30" title={t("extract.preview")} aria-label={`${t("extract.preview")} · ${group.languageName} · #${track.index}`} disabled={busy || !track.text_based} onclick={() => onpreview(track)}>
+    <button class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 text-gray-300 hover:bg-white/10 disabled:opacity-30" title={t("extract.preview")} aria-label={`${t("extract.preview")} · ${group.languageName} · #${track.index}`} disabled={busy || !canAction} onclick={() => onpreview(track)}>
       <svg aria-hidden="true" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>
     </button>
-    <button class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-teal-500/20 bg-teal-500/10 text-teal-300 hover:bg-teal-500/25 disabled:cursor-not-allowed disabled:border-white/5 disabled:bg-white/5 disabled:text-gray-600" title={track.text_based ? t("extract.save") : t("extract.ocr")} aria-label={`${t("extract.save")} · ${group.languageName} · #${track.index}`} aria-busy={downloadingIndex === track.index} disabled={busy || downloadingIndex !== null || !track.text_based} onclick={() => ondownload(track)}>
+    <button class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-teal-500/20 bg-teal-500/10 text-teal-300 hover:bg-teal-500/25 disabled:cursor-not-allowed disabled:border-white/5 disabled:bg-white/5 disabled:text-gray-600" title={track.text_based ? t("extract.save") : t("extract.ocr")} aria-label={`${t("extract.save")} · ${group.languageName} · #${track.index}`} aria-busy={downloadingIndex === track.index} disabled={busy || downloadingIndex !== null || !canAction} onclick={() => ondownload(track)}>
       {#if downloadingIndex === track.index}
       <svg aria-hidden="true" class="h-5 w-5 animate-spin motion-reduce:animate-none" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2" opacity="0.25"/><path d="M12 3a9 9 0 0 1 9 9" stroke="currentColor" stroke-width="2"/></svg>
       {:else}
@@ -45,8 +46,8 @@
     <div class="fixed inset-0 z-[90]" onmousedown={() => contextOpen = false} oncontextmenu={(event) => { event.preventDefault(); event.stopPropagation(); contextOpen = false; }}>
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div use:fitContextMenu={{ ...menuPosition, close: () => contextOpen = false }} class="vesta-context-menu" onmousedown={(event) => event.stopPropagation()}>
-      <button role="menuitem" class="vesta-context-menu-item" disabled={busy || downloadingIndex !== null || !track.text_based} onclick={() => { contextOpen = false; ondownload(track); }}>{t("extract.save")}</button>
-      <button role="menuitem" class="rounded px-3 py-2 text-sm hover:bg-white/10 disabled:opacity-30" disabled={busy || !track.text_based} onclick={() => { contextOpen = false; onpreview(track); }}>{t("extract.preview")}</button>
+      <button role="menuitem" class="vesta-context-menu-item" disabled={busy || downloadingIndex !== null || !canAction} onclick={() => { contextOpen = false; ondownload(track); }}>{t("extract.save")}</button>
+      <button role="menuitem" class="rounded px-3 py-2 text-sm hover:bg-white/10 disabled:opacity-30" disabled={busy || !canAction} onclick={() => { contextOpen = false; onpreview(track); }}>{t("extract.preview")}</button>
       <button role="menuitem" class="rounded px-2 py-2 text-sm text-gray-400 hover:bg-white/10" onclick={() => contextOpen = false}>{t("common.cancel")}</button>
     </div>
     </div>

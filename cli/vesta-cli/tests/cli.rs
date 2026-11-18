@@ -22,6 +22,7 @@ fn top_level_help_lists_operations_and_no_arguments_show_help() {
             "autosync",
             "refine",
             "extract",
+            "ocr",
         ] {
             assert!(
                 stdout.contains(operation),
@@ -95,6 +96,7 @@ fn every_operation_exposes_help() {
         "autosync",
         "refine",
         "extract",
+        "ocr",
     ] {
         let result = run(&[operation, "--help"]);
         assert!(
@@ -144,5 +146,21 @@ fn help_subcommand_forwards_nested_help() {
         let output = run(args);
         assert!(output.status.success());
         assert!(String::from_utf8_lossy(&output.stdout).contains("Usage:"));
+    }
+}
+
+#[test]
+fn forwards_ocr_subcommand_help_and_options() {
+    let ocr_help = run(&["ocr", "--help"]);
+    assert!(ocr_help.status.success());
+    let ocr_text = String::from_utf8_lossy(&ocr_help.stdout);
+    assert!(ocr_text.contains("run"));
+    assert!(ocr_text.contains("models"));
+
+    let run_help = run(&["ocr", "run", "--help"]);
+    assert!(run_help.status.success());
+    let run_text = String::from_utf8_lossy(&run_help.stdout);
+    for flag in ["--track", "--provider", "--json"] {
+        assert!(run_text.contains(flag), "missing {flag} in:\n{run_text}");
     }
 }

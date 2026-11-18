@@ -52,8 +52,8 @@ The `embedded` module adds asynchronous FFprobe discovery and FFmpeg extraction:
 `list_embedded_subtitles(ffprobe, input)` returns global stream indices, codec,
 language, title, and text-conversion support. `extract_embedded_subtitle(ffmpeg,
 ffprobe, input, index, output)` writes an SRT atomically. ASS/SSA styling is lost;
-PGS/VobSub are explicitly unsupported without OCR. This API is used by the desktop
-Extract tab and the headless CLI. The CLI also formats external SRT files.
+bitmap tracks (PGS, VobSub, DVB, XSUB) are marked `text_based: false` and handled
+by [`srt-ocr`](srt-ocr.md). This API is used by the desktop Extract tab and the headless CLI. The CLI also formats external SRT files.
 
 ```bash
 srt-extract --input film.mkv --list-tracks

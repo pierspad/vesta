@@ -52,6 +52,7 @@ Transcription needs a supported native toolchain and system libraries for the se
 | `srt-ankiconnect` | Construct a public note value; no Anki server required |
 | `srt-autosync` | Construct public outcome type; model/audio work requires external assets |
 | `srt-extract` | Calculate stats and export JSON |
+| `srt-ocr` | Decode synthetic PGS bitmap cues and list OCR models |
 | `srt-flashcards` | Run deterministic subtitle preview |
 | `srt-refine` | Interpolate a prompt and strip HTML |
 | `srt-sync` | Add an anchor, map a subtitle, and sample the next index |

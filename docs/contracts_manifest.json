@@ -3,14 +3,14 @@
   "description": "Structural contract hashes for Vesta macro-areas and micro-areas. Run `python3 build-scripts/check_doc_contracts.py --update` after updating affected documentation.",
   "macro_areas": {
     "tauri_ipc": {
-      "hash": "724beefb840890a7",
-      "defined_count": 97,
-      "registered_count": 97,
+      "hash": "b1ce55ac3fa0dc8b",
+      "defined_count": 103,
+      "registered_count": 103,
       "groups": {
         "auto_sync": "1ddf2385d7490a26",
         "config": "e64b09924b1a5799",
         "experimental": "d07d248dff0f5be4",
-        "extract": "6d426a4520fe1d9b",
+        "extract": "7b2d1b73631ed267",
         "flashcards": "9829f77ba3c867b9",
         "info": "16c26a50c4348e48",
         "main": "838097f6f9c01b6d",
@@ -29,8 +29,8 @@
       ]
     },
     "mcp_server": {
-      "hash": "c8b2330d9060b473",
-      "tool_count": 10,
+      "hash": "652a4b457ff74fff",
+      "tool_count": 12,
       "tools": {
         "call_plugin": "aefeb191ab2dd457",
         "cancel_job": "55b0f0f34b0d35d1",
@@ -38,14 +38,18 @@
         "get_configuration": "8652107635db1501",
         "get_job": "bfb606b616f84e48",
         "inspect_subtitles": "3c87fb1b34678ed1",
+        "list_embedded_subtitles": "f507b98887110ea7",
         "list_plugins": "bb1b4d90058caf07",
+        "ocr_subtitles": "8c09aae12381660a",
         "preview_flashcards": "59610fa461f61c02",
         "transcribe_media": "1674ebe64dcbfd99",
         "translate_subtitles": "429f188dca35d539"
       },
       "schemas": {
+        "EmbeddedSubtitlesRequest": "efb44c87d5a9d5e3",
         "GenerateRequest": "a071da9be00d82e8",
         "JobRequest": "c69f275fd4c865a3",
+        "OcrSubtitlesRequest": "55459dc12b21ce05",
         "PluginCallRequest": "10d425505cb8b6d7",
         "PreviewRequest": "ada298a5316eacc4",
         "SubtitleRequest": "9d5ebc7ee13ef847",
@@ -67,7 +71,7 @@
       ]
     },
     "cli_adapters": {
-      "hash": "6081b01cb80caa8b",
+      "hash": "4e28718428b34194",
       "crates": {
         "srt-autosync-cli": {
           "hash": "1d2908a1939ffe04",
@@ -301,6 +305,53 @@
             "docs/modules/srt-flashcards.md"
           ]
         },
+        "srt-ocr-cli": {
+          "hash": "26e9207d052b0f84",
+          "subcommands": [
+            "download",
+            "models",
+            "remove",
+            "run"
+          ],
+          "subcommand_flags": {
+            "run": [
+              "--api-key",
+              "--api-url",
+              "--ffmpeg",
+              "--ffprobe",
+              "--input",
+              "--json",
+              "--language",
+              "--model",
+              "--output",
+              "--provider",
+              "--quiet",
+              "--track"
+            ],
+            "models": [],
+            "download": [],
+            "remove": []
+          },
+          "flags": [
+            "--api-key",
+            "--api-url",
+            "--ffmpeg",
+            "--ffprobe",
+            "--input",
+            "--json",
+            "--language",
+            "--model",
+            "--output",
+            "--provider",
+            "--quiet",
+            "--track"
+          ],
+          "docs": [
+            "docs/CLI.md",
+            "cli/srt-ocr-cli/README.md",
+            "docs/modules/srt-ocr.md"
+          ]
+        },
         "srt-refine-cli": {
           "hash": "9d48ec73b9c20ad1",
           "subcommands": [
@@ -425,11 +476,12 @@
           ]
         },
         "vesta-cli": {
-          "hash": "9cc409cbd1b74fd9",
+          "hash": "a1802ca3ea2dfa2e",
           "subcommands": [
             "autosync",
             "extract",
             "flashcards",
+            "ocr",
             "refine",
             "sync",
             "transcribe",
@@ -588,7 +640,7 @@
       ]
     },
     "rust_libraries": {
-      "hash": "8813cd4ba5601eb8",
+      "hash": "8c301a21cc1d6c59",
       "crates": {
         "srt-ankiconnect": {
           "path": "lib/srt-ankiconnect",
@@ -681,6 +733,24 @@
             "docs/modules/README.md"
           ]
         },
+        "srt-ocr": {
+          "path": "lib/srt-ocr",
+          "symbol_count": 29,
+          "files": {
+            "src/backend.rs": "2069b8258b898119",
+            "src/bitmap.rs": "624cbb425b66250a",
+            "src/lib.rs": "c71fd2f7afb9c90b",
+            "src/model.rs": "b591f002e2e724bf",
+            "src/pipeline.rs": "a2c4b4ae32e23a57",
+            "src/vision.rs": "697ef30798c8ff15"
+          },
+          "hash": "0c050071a29e834b",
+          "docs": [
+            "lib/srt-ocr/README.md",
+            "docs/modules/srt-ocr.md",
+            "docs/modules/README.md"
+          ]
+        },
         "srt-parser": {
           "path": "core/srt-parser",
           "symbol_count": 21,
@@ -749,7 +819,7 @@
         },
         "srt-translate": {
           "path": "lib/srt-translate",
-          "symbol_count": 53,
+          "symbol_count": 54,
           "files": {
             "src/diagnostics.rs": "96b19fdd79657f24",
             "src/language_info.rs": "057045e794c4f397",
@@ -758,9 +828,9 @@
             "src/prompts.rs": "5205d526257af099",
             "src/rate_limiter.rs": "61e94a71c3e6ef0e",
             "src/scheduler.rs": "0e6fdadc5739c7d1",
-            "src/translator.rs": "bbaab1da35ef07ab"
+            "src/translator.rs": "39b51256f8e34f8c"
           },
-          "hash": "fce817a51ae9005f",
+          "hash": "fe13a940ce17f26b",
           "docs": [
             "lib/srt-translate/README.md",
             "docs/modules/srt-translate.md",

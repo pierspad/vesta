@@ -1386,5 +1386,9 @@
   "common.configCorruptRecovered": "La configurazione danneggiata è stata ripristinata ai valori predefiniti. Backup salvato in: {{path}}",
   "flashcards.exportDueling": "Esporta Dueling",
   "flashcards.exportDuelingTitle": "Esporta sottotitoli bilingue (.ass / .srt)",
-  "flashcards.duelingExported": "Esportate {{count}} righe bilingue in {{file}}"
+  "flashcards.duelingExported": "Esportate {{count}} righe bilingue in {{file}}",
+  "extract.ocrInProgress": "OCR in corso ({{current}}/{{total}})…",
+  "extract.ocrCancelled": "OCR annullato.",
+  "extract.ocrCancel": "Annulla OCR",
+  "extract.ocrNoProvider": "Configura un provider LLM o un'istanza Ollama locale in Impostazioni prima di avviare l'OCR."
 }

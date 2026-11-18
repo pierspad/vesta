@@ -94,12 +94,13 @@ cargo build --release -p vesta-cli
 ./target/release/vesta-cli flashcards generate --help
 ```
 
-`vesta-cli` runs the same terminal commands as `vesta` without opening a window or depending on Tauri. These commands cover the seven main workflows, but do not expose every GUI option or public library API; they also use their own arguments/configuration rather than the GUI preferences. See the [command-by-command guide and coverage matrix](docs/CLI.md). On Windows, use `vesta-cli.exe` for terminal output; the desktop executable is built as a windowed application. A locally built executable stays in `target/release`; it is not added to `PATH` automatically. `cargo install --path cli/vesta-cli` installs the standalone command in Cargo's binary directory.
+`vesta-cli` runs the same terminal commands as `vesta` without opening a window or depending on Tauri. These commands cover the eight main workflows, but do not expose every GUI option or public library API; they also use their own arguments/configuration rather than the GUI preferences. See the [command-by-command guide and coverage matrix](docs/CLI.md). On Windows, use `vesta-cli.exe` for terminal output; the desktop executable is built as a windowed application. A locally built executable stays in `target/release`; it is not added to `PATH` automatically. `cargo install --path cli/vesta-cli` installs the standalone command in Cargo's binary directory.
 
 | Operation | Purpose | Existing standalone command |
 |---|---|---|
 | `flashcards` | Preview and generate TSV/APKG decks | `srt-flashcards` |
 | `extract` | Extract and convert subtitle tracks | `srt-extract` |
+| `ocr` | Extract and OCR bitmap subtitle tracks | `srt-ocr` |
 | `sync` | Retiming with explicit anchors | `srt-sync` |
 | `autosync` | Whisper-assisted alignment | `srt-autosync` |
 | `transcribe` | Local or cloud speech-to-text | `srt-transcribe` |
@@ -108,7 +109,7 @@ cargo build --release -p vesta-cli
 
 Each operation has `--help`; commands with further subcommands also expose their own help. Standalone `srt-*` binaries provide the same individual commands. Media operations require FFmpeg/FFprobe; transcription and auto-sync also need their configured model or provider. The [module guides](docs/modules/README.md) describe each library, command and build requirement.
 
-For assistant integration, the optional [MCP server](docs/MCP.md) is available as a separately built `vesta-mcp` executable. It exposes subtitle inspection, card previews, exports, translation, transcription, and installed plugins as structured tools and cancellable jobs over local stdio (10 tools total). Translation/transcription use explicitly configured server profiles; credentials stay server-side. It covers fewer workflows than the CLI; its advantage is tool/schema discovery and job control for MCP clients, rather than extra processing features.
+For assistant integration, the optional [MCP server](docs/MCP.md) is available as a separately built `vesta-mcp` executable. It exposes subtitle inspection, embedded track listing, card previews, exports, translation, transcription, bitmap OCR, and installed plugins as structured tools and cancellable jobs over local stdio (12 tools total). Translation/transcription/OCR use explicitly configured server profiles; credentials stay server-side. It covers fewer workflows than the CLI; its advantage is tool/schema discovery and job control for MCP clients, rather than extra processing features.
 
 ## Building from Source
 
@@ -129,9 +130,9 @@ For tests and release checks, see [CONTRIBUTING.md](CONTRIBUTING.md) and [the qu
 |---|---|
 | [Documentation index](docs/README.md) | Find maintained guides and review records. |
 | [CLI guide and coverage](docs/CLI.md) | Every command, correct usage, output contracts and differences from the GUI/libraries. |
-| [MCP integration](docs/MCP.md) | Local server setup, ten tools, provider profiles, jobs, file roots and current limits. |
+| [MCP integration](docs/MCP.md) | Local server setup, twelve tools, provider profiles, jobs, file roots and current limits. |
 | [Architecture](docs/ARCHITECTURE.md) | Engine boundaries, desktop integration and media lifecycle. |
-| [Modules](docs/modules/README.md) | All 11 engine/support crates, their CLIs and Rust APIs. |
+| [Modules](docs/modules/README.md) | All 12 engine/support crates, their CLIs and Rust APIs. |
 | [Library integration](docs/library-integration.md) | Downstream dependencies, Whisper patch, GPU features and smoke checks. |
 | [Provider compatibility](docs/API_COMPATIBILITY.md) | External provider HTTP contracts and endpoint references. |
 | [Quality](docs/QUALITY.md) | Automated checks and installed-app validation. |

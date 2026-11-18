@@ -1386,5 +1386,9 @@
   "common.configCorruptRecovered": "Uszkodzona konfiguracja została przywrócona do wartości domyślnych. Kopia zapasowa zapisana w: {{path}}",
   "flashcards.exportDueling": "Eksportuj Dueling",
   "flashcards.exportDuelingTitle": "Eksportuj napisy dwujęzyczne (.ass / .srt)",
-  "flashcards.duelingExported": "Wyeksportowano {{count}} dwujęzycznych linii do {{file}}"
+  "flashcards.duelingExported": "Wyeksportowano {{count}} dwujęzycznych linii do {{file}}",
+  "extract.ocrInProgress": "Wykonywanie OCR ({{current}}/{{total}})…",
+  "extract.ocrCancelled": "Anulowano OCR.",
+  "extract.ocrCancel": "Anuluj OCR",
+  "extract.ocrNoProvider": "Skonfiguruj dostawcę LLM lub lokalną usługę Ollama w Ustawieniach przed uruchomieniem OCR."
 }

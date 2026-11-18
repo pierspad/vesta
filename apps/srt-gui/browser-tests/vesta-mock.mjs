@@ -32,6 +32,16 @@ let undoneAnchor;
 let syncMedia = null;
 let finishTranscription;
 let finishTranslation;
+let subtitleTracks = [
+  {
+    index: 2,
+    codec: "hdmv_pgs_subtitle",
+    language: "eng",
+    title: "English PGS",
+    text_based: false,
+  },
+];
+const savedSubtitleOutputs = new Set();
 
 const syncStatus = () => ({
   is_loaded: true, srt_path: subtitle, video_path: syncMedia,
@@ -114,6 +124,27 @@ mockIPC((command, args) => {
       return [{ id: "base", name: "Base", downloaded: true }, { id: "small", name: "Small", downloaded: true }];
     case "plugin:path|resolve_directory":
       return "/downloads";
+    case "plugin:path|join":
+      return (args.paths ?? []).filter(Boolean).join("/").replace(/\/+/g, "/");
+    case "embedded_subtitle_tracks":
+      return subtitleTracks;
+    case "existing_subtitle_outputs":
+      return (args.names ?? []).filter((name) => savedSubtitleOutputs.has(name));
+    case "preview_ocr_embedded_subtitle":
+      return "1\n00:00:01,000 --> 00:00:02,000\nSynthetic OCR preview\n";
+    case "ocr_embedded_subtitle": {
+      const filename = String(args.outputPath ?? "").split(/[\\/]/).pop();
+      if (filename) savedSubtitleOutputs.add(filename);
+      return emit("ocr-progress", {
+        stage: "done",
+        message: "OCR completed",
+        percentage: 100,
+        current: 1,
+        total: 1,
+      }).then(() => null);
+    }
+    case "ocr_cancel":
+      return true;
     case "transcribe_addons_status":
       return { vad_models: [] };
     case "plugin:dialog|open":
@@ -188,6 +219,7 @@ mockIPC((command, args) => {
 window.browserFixture = {
   calls,
   selectFile: (path) => { nextFile = path; },
+  setSubtitleTracks: (tracks) => { subtitleTracks = tracks; },
   failMedia: (message) => { mediaError = message; },
   failTranscription: (message) => finishTranscription.reject(new Error(message)),
   completeTranscription: () => finishTranscription.resolve({

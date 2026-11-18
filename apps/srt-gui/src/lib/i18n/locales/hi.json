@@ -1386,5 +1386,9 @@
   "common.configCorruptRecovered": "खराब कॉन्फ़िगरेशन को डिफ़ॉल्ट पर रीसेट कर दिया गया। बैकअप यहाँ सहेजा गया: {{path}}",
   "flashcards.exportDueling": "द्विभाषी निर्यात",
   "flashcards.exportDuelingTitle": "द्विभाषी उपशीर्षक निर्यात करें (.ass / .srt)",
-  "flashcards.duelingExported": "{{count}} द्विभाषी पंक्तियाँ {{file}} में निर्यात की गईं"
+  "flashcards.duelingExported": "{{count}} द्विभाषी पंक्तियाँ {{file}} में निर्यात की गईं",
+  "extract.ocrInProgress": "OCR चल रहा है ({{current}}/{{total}})…",
+  "extract.ocrCancelled": "OCR रद्द किया गया।",
+  "extract.ocrCancel": "OCR रद्द करें",
+  "extract.ocrNoProvider": "OCR चलाने से पहले सेटिंग्स में एक LLM प्रदाता या स्थानीय Ollama कॉन्फ़िगर करें।"
 }

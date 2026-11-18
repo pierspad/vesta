@@ -17,7 +17,8 @@ CLI configuration is isolated from desktop preferences: commands do not read the
 | Workflow | CLI Flags & Subcommands | GUI / Library Capabilities Not Exposed via CLI Flags |
 |---|---|---|
 | Flashcards | Subtitle info, count-only preview, single-episode TSV/APKG generation; filters, context lines, codecs, dimensions, audio padding/gain/normalization, audio track index, and worker count | Interactive row selection/editing and media previews; multi-episode orchestration and APKG merge; custom note templates/field mapping; explicit video padding, font/language/dictionary, and hardware-encoder settings |
-| Extract | SRT reports (`json`, `stats`, `summary`, `debug`); embedded stream discovery (`--list-tracks`) and text-to-SRT track extraction (`--track`) | Embedded-track preview and existing-output discovery; bitmap subtitle tracks require external OCR |
+| Extract | SRT reports (`json`, `stats`, `summary`, `debug`); embedded stream discovery (`--list-tracks`) and text-to-SRT track extraction (`--track`) | Embedded-track preview and existing-output discovery; bitmap subtitle tracks use `ocr` |
+| OCR | Extract and OCR bitmap subtitle tracks (`run` with `--provider`, `--model`, `--track`, `--json`), local model catalog (`models`, `download`, `remove`) | Multi-tier provider failover and in-app bitmap subtitle preview |
 | Sync | Apply subtitle-ID/time anchor pairs (`--anchor ID:MS`) to an SRT file | Interactive playback, anchor sampling, session files, undo/redo stack, and side-by-side editing |
 | Auto-sync | Whisper sample analysis and automatic application of all suggested anchors | Interactive review or selective acceptance of suggested anchors |
 | Transcribe | Single local or cloud endpoint per run; model list/download/removal; default Silero VAD, beam-search quality, segmentation, and JSON-Lines progress | Multi-tier provider failover, remote model discovery, and per-run custom VAD variant or model directory selection |
@@ -60,6 +61,19 @@ vesta-cli extract --input episode.mkv --track 8 --output episode.en.srt
 - `--list-tracks` (requires `ffprobe`) prints embedded subtitle tracks as JSON with absolute stream indices.
 - `--track <INDEX>` (requires `ffmpeg`, `ffprobe`, and `--output`) extracts the specified text subtitle stream to SRT. `--list-tracks` and `--track` are mutually exclusive.
 - Output path must not resolve to the input file.
+
+### `ocr` (`run`, `models`, `download`, `remove`)
+
+```sh
+vesta-cli ocr models
+vesta-cli ocr run --input episode.mkv --track 2 --output episode.en.srt --provider local --model llava
+vesta-cli ocr run --input episode.mkv --track 2 --output episode.en.srt --provider google --model gemini-2.5-flash --api-key "$GEMINI_API_KEY" --json
+```
+
+- `run` extracts a bitmap subtitle track (`hdmv_pgs_subtitle`, `dvd_subtitle`, `dvb_subtitle`, `xsub`) by its absolute `--track` stream index from `extract --list-tracks` and runs Vision LLM OCR to produce `--output`.
+- `--provider local` (default) targets an OpenAI-compatible Vision endpoint (such as Ollama at `http://localhost:11434/v1`). Cloud providers require `--api-key`; `--provider custom` requires `--api-url`.
+- `models`, `download`, and `remove` manage the local OCR model cache (`~/.cache/vesta/ocr/`).
+- Output path must not resolve to `--input`. `--json` emits JSON-Lines `OcrProgress` updates and a terminal `{"ok":...}` record.
 
 ### `sync`
 
@@ -132,6 +146,7 @@ vesta-cli refine enrich --input deck.apkg --output deck.annotated.apkg --config 
 |---|---|---|
 | `flashcards` | Summary counts and output paths | Progress and errors (`-q, --quiet` hides progress) |
 | `extract` | Formatted SRT report or `--list-tracks` JSON (when `-o` is omitted) | Status messages and errors |
+| `ocr` | Final summary (or JSON-Lines stream with `--json`) | Progress and errors (`-q, --quiet` or `--json` hides progress) |
 | `sync` | Empty | Completion summary and errors |
 | `autosync` | Alignment summary | Progress and errors (`--quiet` hides progress) |
 | `transcribe` | Final output path, or JSON-Lines stream with `--json` | Progress and errors (`-q, --quiet` or `--json` hides progress) |

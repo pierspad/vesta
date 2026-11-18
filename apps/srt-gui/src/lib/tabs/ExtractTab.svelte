@@ -5,16 +5,22 @@
   import WorkflowWorkspace from "$lib/components/WorkflowWorkspace.svelte";
   import EmptyStatusLabel from "$lib/components/EmptyStatusLabel.svelte";
   import LoadingSpinner from "$lib/components/LoadingSpinner.svelte";
+  import ProgressFill from "$lib/components/ProgressFill.svelte";
   import { setupWebviewDragDrop } from "$lib/utils/dragDrop";
-  import { onMount, onDestroy } from "svelte";
+  import { onMount, onDestroy, untrack } from "svelte";
+  import { listen, type UnlistenFn } from "@tauri-apps/api/event";
   import { SubtitlePreviewSession } from "$lib/utils/subtitlePreviewSession";
   import { join } from "@tauri-apps/api/path";
   import { defaultOutputDirectory } from "$lib/utils/defaultOutputDirectory";
+  import { aiStore } from "$lib/stores/aiStore.svelte";
+  import { loadTiers } from "$lib/config/translationTiers";
+  import { loadAndValidateApiKeys } from "$lib/config/apiKeys";
+  import { buildTiersPayload, type TierEntryPayload } from "$lib/config/llmTiers";
   import { snackbar } from "$lib/stores/snackbarStore.svelte";
   import { invokeCommand as invoke } from "$lib/services/tauriClient";
   import { guardedOpen } from "$lib/utils/dialogGuard";
   import PathPickerField from "$lib/components/PathPickerField.svelte";
-  import { prepareSubtitleTracks, filterPreparedSubtitleTracks, subtitleOutputName, groupSubtitleTracks, SUBTITLE_PAGE_SIZE } from "$lib/utils/subtitleTracks";
+  import { prepareSubtitleTracks, filterPreparedSubtitleTracks, subtitleOutputName, groupSubtitleTracks, describeSubtitleTrack, SUBTITLE_PAGE_SIZE } from "$lib/utils/subtitleTracks";
   import SubtitlePreviewModal from "$lib/modals/SubtitlePreviewModal.svelte";
   import SubtitleTrackCard from "$lib/components/SubtitleTrackCard.svelte";
   import { locale, currentLanguage } from "$lib/i18n";
@@ -48,7 +54,7 @@
   let downloaded = $state<number[]>([]);
   let selections = $state<Record<string, number>>({});
   let previewGroups = $derived(groupSubtitleTracks(prepared, $currentLanguage));
-  let previewVariants = $derived(previewGroups.find(group => group.tracks.some(track => track.index === previewTrack?.index))?.tracks.filter(track => track.text_based) ?? []);
+  let previewVariants = $derived(previewGroups.find(group => group.tracks.some(track => track.index === previewTrack?.index))?.tracks.filter(track => track.text_based || !aiStore.killSwitchActive) ?? []);
   let previewPosition = $derived(previewVariants.findIndex(track => track.index === previewTrack?.index));
   onMount(() => {
     void defaultOutputDirectory().then(value => { if (!disposed && !outputDir) { outputDir = value; void refreshDownloaded(); } }).catch(e => { if (!disposed) error = errorMessage(e); });
@@ -61,7 +67,7 @@
     const request = downloadedRequests.begin();
     const directory = outputDir;
     const media = path;
-    const candidates = tracks.filter(track => track.text_based);
+    const candidates = tracks;
     if (!directory || !media) { downloaded = []; return; }
     try {
       const names = await invoke<string[]>("existing_subtitle_outputs", { directory, names: candidates.map(track => subtitleOutputName(media, track)) });
@@ -85,13 +91,38 @@
     if (group && previewTrack) selections = { ...selections, [group.key]: previewTrack.index };
     closePreview();
   }
+  interface OcrProgressPayload {
+    stage: string;
+    message: string;
+    percentage: number;
+    current: number;
+    total: number;
+  }
   let previewTrack = $state<Track | null>(null);
   let previewText = $state("");
   let previewError = $state("");
   let previewLoading = $state(false);
   let previewSession: SubtitlePreviewSession | null = null;
   let previewRequest = 0;
+  let ocrProgress = $state<{ percentage: number; current: number; total: number; message: string } | null>(null);
+  let ocrCancelling = $state(false);
+  const ocrPreviewCache = new Map<number, string>();
+  let ocrUnlisten: UnlistenFn | null = null;
+  let ownsOcr = false;
+  function ocrLanguageForTrack(track: Track): string | null {
+    return describeSubtitleTrack(track).code ?? (track.language && track.language !== "und" ? track.language : null);
+  }
+  function requireOcrTiers(): TierEntryPayload[][] | null {
+    const tiers = buildTiersPayload(loadTiers(), loadAndValidateApiKeys());
+    if (!tiers) {
+      error = t("extract.ocrNoProvider");
+      snackbar.show(error, "error");
+      return null;
+    }
+    return tiers;
+  }
   function closePreview() {
+    const cancelOcrPreview = Boolean(previewTrack && !previewTrack.text_based && previewLoading);
     previewRequest += 1;
     previewSession?.close();
     previewSession = null;
@@ -99,10 +130,105 @@
     previewText = "";
     previewError = "";
     previewLoading = false;
+    if (cancelOcrPreview) {
+      void invoke("ocr_cancel").catch(() => {});
+    }
   }
-  onDestroy(() => { disposed = true; downloadedRequests.invalidate(); closePreview(); });
+  async function cancelOcr() {
+    if (ocrCancelling || !aiStore.isOcring) return;
+    ocrCancelling = true;
+    try {
+      await invoke("ocr_cancel");
+    } catch (e) {
+      if (!disposed) {
+        ocrCancelling = false;
+        snackbar.show(errorMessage(e), "error");
+      }
+    }
+  }
+  $effect(() => {
+    if (aiStore.killSwitchActive && aiStore.isOcring) {
+      untrack(() => {
+        if (!ownsOcr) return;
+        if (previewTrack && !previewTrack.text_based && previewLoading) {
+          closePreview();
+        } else {
+          void cancelOcr();
+        }
+      });
+    }
+  });
+  onDestroy(() => {
+    disposed = true;
+    downloadedRequests.invalidate();
+    if (ocrUnlisten) {
+      try { ocrUnlisten(); } catch { /* ignore */ }
+      ocrUnlisten = null;
+    }
+    const wasPreviewOcring = Boolean(previewTrack && !previewTrack.text_based && previewLoading);
+    closePreview();
+    if (ownsOcr) {
+      if (!wasPreviewOcring) void invoke("ocr_cancel").catch(() => {});
+      ownsOcr = false;
+      aiStore.isOcring = false;
+    }
+    ocrPreviewCache.clear();
+  });
   async function preview(track: Track) {
-    if (busy || !track?.text_based) return;
+    if (busy || !track) return;
+    if (previewLoading && previewTrack && !previewTrack.text_based) return;
+    if (!track.text_based) {
+      if (aiStore.killSwitchActive || aiStore.isOcring) return;
+      const cached = ocrPreviewCache.get(track.index);
+      if (cached !== undefined) {
+        error = "";
+        previewRequest += 1;
+        previewTrack = track;
+        previewText = cached;
+        previewError = "";
+        previewLoading = false;
+        return;
+      }
+      const tiers = requireOcrTiers();
+      if (!tiers) return;
+      error = "";
+      const media = path;
+      const request = ++previewRequest;
+      previewTrack = track;
+      previewText = "";
+      previewError = "";
+      previewLoading = true;
+      ownsOcr = true;
+      aiStore.isOcring = true;
+      try {
+        const text = await invoke<string>("preview_ocr_embedded_subtitle", {
+          path: media,
+          index: track.index,
+          language: ocrLanguageForTrack(track),
+          tiers,
+        });
+        if (!disposed && request === previewRequest && path === media) {
+          ocrPreviewCache.set(track.index, text);
+          previewText = text;
+        }
+      } catch (e) {
+        if (!disposed && request === previewRequest) {
+          previewError = errorMessage(e);
+        }
+      } finally {
+        if (ownsOcr) {
+          ownsOcr = false;
+          aiStore.isOcring = false;
+        }
+        if (!disposed && request === previewRequest) {
+          previewLoading = false;
+        }
+        if (!disposed) {
+          ocrCancelling = false;
+        }
+      }
+      return;
+    }
     if (!previewSession) {
       const media = path;
       const variants = previewGroups.find(group => group.tracks.some(variant => variant.index === track.index))?.tracks.filter(variant => variant.text_based) ?? [track];
@@ -135,7 +261,7 @@
   async function loadMedia(selected: string, fromPicker = false) {
     if (disposed || (!fromPicker && busy) || downloadingIndex !== null) return;
     busy = true; error = ""; isDraggingOver = false;
-    closePreview(); selections = {}; downloaded = []; path = selected; tracks = []; tracksScanned = false; search = ""; page = 0;
+    closePreview(); ocrPreviewCache.clear(); selections = {}; downloaded = []; path = selected; tracks = []; tracksScanned = false; search = ""; page = 0;
     try {
       const loadedTracks = await invoke<Track[]>("embedded_subtitle_tracks", { path: selected });
       if (disposed) return;
@@ -147,8 +273,21 @@
   }
   async function extract(track: Track) {
     if (disposed || busy || downloadingIndex !== null) return;
+    let tiers: TierEntryPayload[][] | null = null;
+    if (!track.text_based) {
+      if (aiStore.killSwitchActive || aiStore.isOcring) return;
+      tiers = requireOcrTiers();
+      if (!tiers) return;
+    }
     error = "";
     downloadingIndex = track.index;
+    ocrProgress = null;
+    ocrCancelling = false;
+    let localUnlisten: UnlistenFn | null = null;
+    if (!track.text_based) {
+      ownsOcr = true;
+      aiStore.isOcring = true;
+    }
     try {
       if (!outputDir) {
         const directory = await defaultOutputDirectory();
@@ -157,13 +296,80 @@
       }
       const outputPath = await join(outputDir, subtitleOutputName(path, track));
       if (disposed) return;
-      await invoke("extract_embedded_subtitle", { path, index: track.index, outputPath });
-      if (disposed) return;
+      if (!track.text_based) {
+        const mediaPath = path;
+        try {
+          const unlistenFn = await listen<OcrProgressPayload>("ocr-progress", (event) => {
+            if (disposed || path !== mediaPath) return;
+            const payload = event?.payload;
+            if (!payload) return;
+            ocrProgress = {
+              percentage: payload.percentage,
+              current: payload.current,
+              total: payload.total,
+              message: payload.message,
+            };
+          });
+          if (typeof unlistenFn === "function") {
+            if (disposed) {
+              unlistenFn();
+            } else {
+              localUnlisten = unlistenFn;
+              ocrUnlisten = unlistenFn;
+            }
+          }
+        } catch {
+          // Ignore listener registration errors in mocked or non-Tauri environments.
+        }
+        if (disposed) return;
+        if (ocrCancelling) {
+          snackbar.show(t("extract.ocrCancelled"), "info");
+          return;
+        }
+        await invoke("ocr_embedded_subtitle", {
+          path,
+          index: track.index,
+          outputPath,
+          language: ocrLanguageForTrack(track),
+          tiers,
+        });
+        if (disposed) return;
+        if (ocrCancelling) {
+          snackbar.show(t("extract.ocrCancelled"), "info");
+          return;
+        }
+      } else {
+        await invoke("extract_embedded_subtitle", { path, index: track.index, outputPath });
+        if (disposed) return;
+      }
       await refreshDownloaded();
       if (disposed) return;
       snackbar.show(`${t("extract.saved")} ${outputPath}`, "success");
-    } catch (e) { if (!disposed) { error = errorMessage(e); snackbar.show(error, "error"); } }
-    finally { if (!disposed) downloadingIndex = null; }
+    } catch (e) {
+      if (!disposed) {
+        if (!track.text_based && (ocrCancelling || /cancel|annullat/i.test(errorMessage(e, "")))) {
+          snackbar.show(t("extract.ocrCancelled"), "info");
+        } else {
+          error = errorMessage(e);
+          snackbar.show(error, "error");
+        }
+      }
+    } finally {
+      if (localUnlisten) {
+        try { localUnlisten(); } catch { /* ignore */ }
+        if (ocrUnlisten === localUnlisten) ocrUnlisten = null;
+        localUnlisten = null;
+      }
+      if (ownsOcr) {
+        ownsOcr = false;
+        aiStore.isOcring = false;
+      }
+      if (!disposed) {
+        downloadingIndex = null;
+        ocrProgress = null;
+        ocrCancelling = false;
+      }
+    }
   }
 
 </script>
@@ -178,17 +384,45 @@
     <div class="grid grid-cols-1 gap-4 md:grid-cols-2 md:items-end">
     <PathPickerField labelIcon="M15 10l5-3v10l-5-3M4 5h9a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z" label={t("flashcards.mediaFile")} value={path} placeholder={t("extract.choose")}
       browseTitle={t("flashcards.browse")} browseLabel={t("flashcards.browse")} onbrowse={chooseMedia}
-      disabled={busy || downloadingIndex !== null} onclear={() => { closePreview(); selections = {}; downloaded = []; previewTrack = null; path = ""; tracks = []; tracksScanned = false; error = ""; search = ""; page = 0; }} />
+      disabled={busy || downloadingIndex !== null} onclear={() => { closePreview(); ocrPreviewCache.clear(); selections = {}; downloaded = []; previewTrack = null; path = ""; tracks = []; tracksScanned = false; error = ""; search = ""; page = 0; }} />
     <PathPickerField label={t("flashcards.outputDir")} labelIcon="M3 7v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-6l-2-2H5a2 2 0 0 0-2 2Z" value={outputDir} placeholder={t("flashcards.outputDir")} browseTitle={t("flashcards.browse")} browseLabel={t("flashcards.browse")} onbrowse={chooseOutput} disabled={busy || downloadingIndex !== null} />
     </div>
   </div>
   {/snippet}
   <div class="glass-card p-5">
     <div role="status" aria-live="polite">
-    {#if error || busy}
-      <div class="mb-3 flex min-h-5 items-center text-sm">
-      {#if error}<span class="text-red-300">{error}</span>
-      {:else if busy}<span class="inline-flex" aria-label={t("extract.working")}><LoadingSpinner /></span>{/if}
+    {#if error || busy || (downloadingIndex !== null && (ocrProgress || ocrCancelling || aiStore.isOcring))}
+      <div class="mb-3 flex flex-col gap-2 text-sm">
+        {#if error}
+          <div class="flex min-h-5 items-center"><span class="text-red-300">{error}</span></div>
+        {:else if busy}
+          <div class="flex min-h-5 items-center"><span class="inline-flex" aria-label={t("extract.working")}><LoadingSpinner /></span></div>
+        {/if}
+        {#if downloadingIndex !== null && (ocrProgress || ocrCancelling || aiStore.isOcring)}
+          <div class="relative flex items-center justify-between gap-3 overflow-hidden rounded-lg border border-cyan-400/20 bg-cyan-500/5 px-3 py-2">
+            <ProgressFill value={ocrProgress?.percentage ?? 0} />
+            <div class="relative z-10 flex min-w-0 items-center gap-2 text-xs text-cyan-200">
+              <span class="truncate font-medium">
+                {#if ocrProgress && ocrProgress.total > 0}
+                  {t("extract.ocrInProgress", { current: ocrProgress.current, total: ocrProgress.total })}
+                {:else}
+                  {t("extract.working")}
+                {/if}
+              </span>
+              {#if ocrProgress?.message}
+                <span class="truncate text-cyan-300/80">· {ocrProgress.message}</span>
+              {/if}
+            </div>
+            <button
+              type="button"
+              class="relative z-10 shrink-0 rounded-md border border-red-400/30 bg-red-500/15 px-2.5 py-1 text-xs font-medium text-red-200 transition-colors hover:bg-red-500/25 disabled:cursor-not-allowed disabled:opacity-50"
+              disabled={ocrCancelling}
+              onclick={cancelOcr}
+            >
+              {ocrCancelling ? t("refine.btn.stopping") : t("extract.ocrCancel")}
+            </button>
+          </div>
+        {/if}
       </div>
     {/if}
     </div>
@@ -213,7 +447,7 @@
           <EmptyStatusLabel message={t("media.noMediaLoaded")} />
         {/if}
         {#each visible as group (group.key)}
-          <SubtitleTrackCard {group} {busy} {downloaded} {downloadingIndex} selectedIndex={selections[group.key]} onselect={(index) => selections = { ...selections, [group.key]: index }} ondownload={extract} onpreview={preview} />
+          <SubtitleTrackCard {group} {busy} {downloaded} {downloadingIndex} selectedIndex={selections[group.key]} canOcr={!aiStore.killSwitchActive} onselect={(index) => selections = { ...selections, [group.key]: index }} ondownload={extract} onpreview={preview} />
         {/each}
         {#if visible.length === 0}
           {#each Array(SUBTITLE_PAGE_SIZE) as _, index (index)}

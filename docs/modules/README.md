@@ -16,6 +16,7 @@ as a standalone binary or as a Rust dependency — without dragging in the GUI.
 | [srt-download](srt-download.md) | Cancellable atomic font/model downloads | `core/srt-download` | — | HTTP endpoint |
 | [srt-apkg](srt-apkg.md) | Anki package (`.apkg`) archive generator & reader | `core/srt-apkg` | — | — |
 | [srt-extract](srt-extract.md) | Convert parsed subtitle data; discover/extract embedded text tracks | `lib/srt-extract` | `srt-extract` | FFmpeg/ffprobe for embedded tracks |
+| [srt-ocr](srt-ocr.md) | Extract and OCR bitmap subtitle tracks (PGS, VobSub, DVB, XSUB) | `lib/srt-ocr` | `srt-ocr` | FFmpeg/ffprobe + Vision LLM / model endpoint |
 | [srt-translate](srt-translate.md) | LLM subtitle translation with tiered failover | `lib/srt-translate` | `srt-translate` | HTTP APIs or local endpoint |
 | [srt-sync](srt-sync.md) | Anchor-based subtitle re-timing engine | `lib/srt-sync` | `srt-sync` | — |
 | [srt-autosync](srt-autosync.md) | Automatic alignment via Whisper/VAD anchors | `lib/srt-autosync` | `srt-autosync` | FFmpeg + Whisper model |
@@ -29,13 +30,13 @@ for process boundaries, data flow, and acceleration policy.
 
 ## Unified command
 
-Run `vesta --help` with the desktop installation, or build `cargo build --release -p vesta-cli` for a terminal-only executable without Tauri. Both dispatch the seven operations to the same CLI implementations; for example, `vesta-cli flashcards generate --help`. Run `vesta` without arguments to open the desktop interface. On Windows, use the standalone `vesta-cli.exe` for terminal output.
+Run `vesta --help` with the desktop installation, or build `cargo build --release -p vesta-cli` for a terminal-only executable without Tauri. Both dispatch the eight operations to the same CLI implementations; for example, `vesta-cli flashcards generate --help`. Run `vesta` without arguments to open the desktop interface. On Windows, use the standalone `vesta-cli.exe` for terminal output.
 
 See the [command-line guide](../CLI.md) for the unified and standalone command interfaces.
 
 ## MCP integration
 
-The optional `vesta-mcp` server lets compatible assistants inspect subtitles, preview cards, start/cancel TSV/APKG, translation, and transcription jobs, and query or invoke installed Vesta plugins (10 tools total) through the same Rust engines. Translation and transcription require named server-side provider profiles. It uses local stdio and explicitly configured file roots. See [the MCP guide](../MCP.md) for setup, tool parameters and limits.
+The optional `vesta-mcp` server lets compatible assistants inspect subtitles, list embedded tracks, preview cards, start/cancel TSV/APKG, translation, transcription, and OCR jobs, and query or invoke installed Vesta plugins (12 tools total) through the same Rust engines. Translation, transcription, and OCR require named server-side provider profiles. It uses local stdio and explicitly configured file roots. See [the MCP guide](../MCP.md) for setup, tool parameters and limits.
 
 ## Two ways to reuse a module
 

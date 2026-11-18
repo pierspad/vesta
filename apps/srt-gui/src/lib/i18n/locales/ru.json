@@ -1386,5 +1386,9 @@
   "common.configCorruptRecovered": "Повреждённая конфигурация сброшена к значениям по умолчанию. Резервная копия сохранена в: {{path}}",
   "flashcards.exportDueling": "Экспорт Dueling",
   "flashcards.exportDuelingTitle": "Экспортировать двуязычные субтитры (.ass / .srt)",
-  "flashcards.duelingExported": "Экспортировано {{count}} двуязычных строк в {{file}}"
+  "flashcards.duelingExported": "Экспортировано {{count}} двуязычных строк в {{file}}",
+  "extract.ocrInProgress": "Выполняется OCR ({{current}}/{{total}})…",
+  "extract.ocrCancelled": "OCR отменён.",
+  "extract.ocrCancel": "Отменить OCR",
+  "extract.ocrNoProvider": "Настройте провайдера LLM или локальный Ollama в Настройках перед запуском OCR."
 }

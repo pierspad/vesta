@@ -1386,5 +1386,9 @@
   "common.configCorruptRecovered": "Bozuk yapılandırma varsayılan değerlere sıfırlandı. Yedek şuraya kaydedildi: {{path}}",
   "flashcards.exportDueling": "Dueling Dışa Aktar",
   "flashcards.exportDuelingTitle": "İki dilli altyazıları dışa aktar (.ass / .srt)",
-  "flashcards.duelingExported": "{{count}} iki dilli satır {{file}} dosyasına aktarıldı"
+  "flashcards.duelingExported": "{{count}} iki dilli satır {{file}} dosyasına aktarıldı",
+  "extract.ocrInProgress": "OCR çalıştırılıyor ({{current}}/{{total}})…",
+  "extract.ocrCancelled": "OCR iptal edildi.",
+  "extract.ocrCancel": "OCR'yi iptal et",
+  "extract.ocrNoProvider": "OCR'yi çalıştırmadan önce Ayarlar'da bir LLM sağlayıcısı veya yerel Ollama yapılandırın."
 }

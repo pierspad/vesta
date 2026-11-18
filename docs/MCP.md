@@ -22,8 +22,8 @@ over a single structured stdio protocol.
 
 | Interface | Best fit | Current coverage |
 |---|---|---|
-| `vesta-cli` / `vesta <operation>` | Shell scripts and terminal users | Seven processing workflows; see the [CLI coverage matrix](CLI.md). |
-| `vesta-mcp` | MCP clients discovering structured tools and tracking export jobs | Subtitle inspection, paged card previews, TSV/APKG exports, translation, transcription, and installed plugins (10 tools). |
+| `vesta-cli` / `vesta <operation>` | Shell scripts and terminal users | Eight processing workflows; see the [CLI coverage matrix](CLI.md). |
+| `vesta-mcp` | MCP clients discovering structured tools and tracking export jobs | Subtitle inspection, embedded track listing, paged card previews, TSV/APKG exports, translation, transcription, bitmap OCR, and installed plugins (12 tools). |
 | Rust libraries | Applications that need APIs/options not exposed by an adapter | All public engine APIs; caller owns orchestration, configuration and lifecycle. |
 
 The client starts a local subprocess for its connection. That process uses local
@@ -77,10 +77,12 @@ its directory arguments; a configured server then waits for an MCP client.
 |---|---|---|
 | `get_configuration` | Read allowed roots and server limits | No |
 | `inspect_subtitles` | Read format, line count, duration, actors and sample text | No |
+| `list_embedded_subtitles` | List embedded text and bitmap subtitle tracks in a media container | No |
 | `preview_flashcards` | Match target/native subtitles and return a page of preview rows | No |
 | `generate_flashcards` | Start a TSV/APKG export and return a job ID immediately | New directory |
 | `translate_subtitles` | Start SRT translation using a named server profile | New directory; incremental checkpoints |
 | `transcribe_media` | Start local/cloud transcription using a named server profile | New directory; final SRT |
+| `ocr_subtitles` | Start bitmap subtitle OCR conversion to SRT using a named translation profile | New directory; final SRT |
 | `get_job` | Read operation, progress, status, result and output paths | No |
 | `cancel_job` | Request cancellation; poll until a terminal status | May stop ongoing output |
 | `list_plugins` | List installed Vesta plugins with public metadata (`id`, `name`, `version`, `description`, `enabled`, `permissions`) | No |
@@ -253,9 +255,9 @@ returns the engine's actual SRT path: local autodetection may add a language
 suffix. Transcription publishes only after success; a late cancellation after
 publication begins can still complete successfully.
 
-Both tools return a job snapshot immediately. Use the same `get_job` and
-`cancel_job` as for flashcards. `operation` identifies `flashcards`, `translation`
-or `transcription`. Exactly **one processing job** may run at a time per server,
+Both `transcribe_media`, `translate_subtitles`, and `ocr_subtitles` return a job snapshot immediately. Use the same `get_job` and
+`cancel_job` as for flashcards. `operation` identifies `flashcards`, `translation`,
+`transcription`, or `ocr`. `list_embedded_subtitles` returns embedded stream metadata synchronously so you can pick `track_index` before calling `ocr_subtitles` (which writes `ocr.srt` using the configured Vision LLM tiers from a `translation` profile). Exactly **one processing job** may run at a time per server,
 across all three kinds (`max_active_jobs = 1`). Job history is bounded to 64 session-local records.
 No existing user output is overwritten. Cancel, then poll for a terminal state;
 shutdown/disconnect cancels active work and waits for cleanup.
@@ -274,8 +276,8 @@ cargo clippy --locked -p vesta-mcp --all-targets -- -D warnings
 ```
 
 Tests connect an MCP SDK client to the standalone server over stdio, discover
-all ten tool schemas, inspect/preview subtitles, generate TSV/APKG exports,
-translate via loopback HTTP, transcribe an FFmpeg audio fixture through a
+all twelve tool schemas, inspect/preview subtitles, list embedded tracks, generate TSV/APKG exports,
+translate and OCR via loopback HTTP, transcribe an FFmpeg audio fixture through a
 stub provider, query the plugin registry, and verify cancellation, incomplete translation, disabled profiles,
 credential handling, shutdown and path boundaries. Client-specific
 configuration and hardware/media combinations still need their normal

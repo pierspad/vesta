@@ -226,6 +226,7 @@ def extract_cli_contracts() -> Dict[str, Any]:
         "srt-translate-cli",
         "srt-autosync-cli",
         "srt-extract-cli",
+        "srt-ocr-cli",
         "srt-sync-cli",
         "srt-refine-cli",
     ]

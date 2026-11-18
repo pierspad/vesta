@@ -7,12 +7,14 @@ class AiStore {
   isTranscribing = $state(false);
   autoRefining = $state(false);
   isSingleRefining = $state(false);
+  isOcring = $state(false);
 
   hasActiveAiProcess = $derived(
     this.isTranslating ||
     this.isTranscribing ||
     this.autoRefining ||
     this.isSingleRefining ||
+    this.isOcring ||
     (localWhisperOperation.busy && (localWhisperOperation.activeAction === "transcription" || localWhisperOperation.activeAction === "autosync"))
   );
 

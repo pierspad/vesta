@@ -140,10 +140,35 @@ pub(crate) struct OpenAiMessage {
     pub content: String,
 }
 
+#[derive(Serialize, Clone, Debug, PartialEq)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub(crate) enum OpenAiContentPart {
+    Text { text: String },
+    ImageUrl { image_url: OpenAiImageUrl },
+}
+
+#[derive(Serialize, Clone, Debug, PartialEq)]
+pub(crate) struct OpenAiImageUrl {
+    pub url: String,
+}
+
+#[derive(Serialize, Clone, Debug, PartialEq)]
+#[serde(untagged)]
+pub(crate) enum OpenAiRequestContent {
+    Text(String),
+    Parts(Vec<OpenAiContentPart>),
+}
+
+#[derive(Serialize, Clone, Debug, PartialEq)]
+pub(crate) struct OpenAiRequestMessage {
+    pub role: String,
+    pub content: OpenAiRequestContent,
+}
+
 #[derive(Serialize, Debug)]
 pub(crate) struct OpenAiRequest {
     pub model: String,
-    pub messages: Vec<OpenAiMessage>,
+    pub messages: Vec<OpenAiRequestMessage>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub temperature: Option<f32>,
 }
@@ -165,26 +190,121 @@ pub(crate) fn supports_custom_temperature(model: &str) -> bool {
     !(modern_gpt || name.starts_with("o1") || name.starts_with("o3") || name.starts_with("o4"))
 }
 
-pub(crate) fn build_openai_request(model: &str, prompt: &str) -> OpenAiRequest {
+pub(crate) fn build_openai_request_with_image(
+    model: &str,
+    prompt: &str,
+    image: Option<(&str, &str)>,
+) -> OpenAiRequest {
     let temperature = if supports_custom_temperature(model) {
         Some(0.3)
     } else {
         None
     };
+    let content = match image {
+        Some((b64, mime)) => OpenAiRequestContent::Parts(vec![
+            OpenAiContentPart::Text {
+                text: prompt.to_string(),
+            },
+            OpenAiContentPart::ImageUrl {
+                image_url: OpenAiImageUrl {
+                    url: format!("data:{mime};base64,{b64}"),
+                },
+            },
+        ]),
+        None => OpenAiRequestContent::Text(prompt.to_string()),
+    };
     OpenAiRequest {
         model: model.to_string(),
-        messages: vec![OpenAiMessage {
+        messages: vec![OpenAiRequestMessage {
             role: "user".to_string(),
-            content: prompt.to_string(),
+            content,
         }],
         temperature,
     }
 }
 
+#[cfg_attr(not(test), allow(dead_code))]
+pub(crate) fn build_openai_request(model: &str, prompt: &str) -> OpenAiRequest {
+    build_openai_request_with_image(model, prompt, None)
+}
+
+#[derive(Serialize, Debug)]
+pub(crate) struct GeminiInlineData {
+    pub mime_type: String,
+    pub data: String,
+}
+
+#[derive(Serialize, Debug)]
+#[serde(untagged)]
+pub(crate) enum GeminiRequestPart {
+    Text { text: String },
+    InlineData { inline_data: GeminiInlineData },
+}
+
+#[derive(Serialize, Debug)]
+pub(crate) struct GeminiRequestContent {
+    pub parts: Vec<GeminiRequestPart>,
+}
+
+#[derive(Serialize, Debug)]
+pub(crate) struct GeminiGenerationConfig {
+    pub temperature: f32,
+}
+
+#[derive(Serialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct GeminiRequest {
+    pub contents: Vec<GeminiRequestContent>,
+    pub generation_config: GeminiGenerationConfig,
+}
+
+pub(crate) fn build_gemini_request_with_image(
+    prompt: &str,
+    image: Option<(&str, &str)>,
+) -> GeminiRequest {
+    let mut parts = vec![GeminiRequestPart::Text {
+        text: prompt.to_string(),
+    }];
+    if let Some((b64, mime)) = image {
+        parts.push(GeminiRequestPart::InlineData {
+            inline_data: GeminiInlineData {
+                mime_type: mime.to_string(),
+                data: b64.to_string(),
+            },
+        });
+    }
+    GeminiRequest {
+        contents: vec![GeminiRequestContent { parts }],
+        generation_config: GeminiGenerationConfig { temperature: 0.3 },
+    }
+}
+
+#[derive(Serialize, Debug)]
+pub(crate) struct AnthropicImageSource {
+    #[serde(rename = "type")]
+    pub source_type: &'static str,
+    pub media_type: String,
+    pub data: String,
+}
+
+#[derive(Serialize, Debug)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub(crate) enum AnthropicContentPart {
+    Image { source: AnthropicImageSource },
+    Text { text: String },
+}
+
+#[derive(Serialize, Debug)]
+#[serde(untagged)]
+pub(crate) enum AnthropicMessageContent {
+    Text(String),
+    Parts(Vec<AnthropicContentPart>),
+}
+
 #[derive(Serialize, Debug)]
 pub(crate) struct AnthropicMessage {
     pub role: String,
-    pub content: String,
+    pub content: AnthropicMessageContent,
 }
 
 #[derive(Serialize, Debug)]
@@ -229,16 +349,40 @@ fn supports_anthropic_temperature(model: &str) -> bool {
     major < 4 || (major == 4 && minor < 7)
 }
 
-pub(crate) fn build_anthropic_request(model: &str, prompt: &str) -> AnthropicRequest {
+pub(crate) fn build_anthropic_request_with_image(
+    model: &str,
+    prompt: &str,
+    image: Option<(&str, &str)>,
+) -> AnthropicRequest {
+    let content = match image {
+        Some((b64, mime)) => AnthropicMessageContent::Parts(vec![
+            AnthropicContentPart::Image {
+                source: AnthropicImageSource {
+                    source_type: "base64",
+                    media_type: mime.to_string(),
+                    data: b64.to_string(),
+                },
+            },
+            AnthropicContentPart::Text {
+                text: prompt.to_string(),
+            },
+        ]),
+        None => AnthropicMessageContent::Text(prompt.to_string()),
+    };
     AnthropicRequest {
         model: model.to_string(),
         max_tokens: 4096,
         temperature: supports_anthropic_temperature(model).then_some(0.3),
         messages: vec![AnthropicMessage {
             role: "user".to_string(),
-            content: prompt.to_string(),
+            content,
         }],
     }
+}
+
+#[cfg_attr(not(test), allow(dead_code))]
+pub(crate) fn build_anthropic_request(model: &str, prompt: &str) -> AnthropicRequest {
+    build_anthropic_request_with_image(model, prompt, None)
 }
 
 pub(crate) fn extract_anthropic_text(
@@ -406,11 +550,38 @@ impl Translator {
     }
 
     pub async fn generate_response(&self, prompt: &str) -> Result<String> {
+        self.generate_response_with_image(prompt, None).await
+    }
+
+    /// Sends a multimodal prompt with a base64-encoded image to the configured provider.
+    pub async fn generate_vision_response(
+        &self,
+        prompt: &str,
+        image_base64: &str,
+        mime_type: &str,
+    ) -> Result<String> {
+        anyhow::ensure!(
+            !image_base64.trim().is_empty(),
+            "Image base64 payload must not be empty"
+        );
+        anyhow::ensure!(
+            !mime_type.trim().is_empty(),
+            "Image MIME type must not be empty"
+        );
+        self.generate_response_with_image(prompt, Some((image_base64, mime_type)))
+            .await
+    }
+
+    async fn generate_response_with_image(
+        &self,
+        prompt: &str,
+        image: Option<(&str, &str)>,
+    ) -> Result<String> {
         match self.config.api_type {
-            ApiType::Google => self.call_google_api(prompt).await,
-            ApiType::Anthropic => self.call_anthropic_api(prompt).await,
+            ApiType::Google => self.call_google_api_with_image(prompt, image).await,
+            ApiType::Anthropic => self.call_anthropic_api_with_image(prompt, image).await,
             ApiType::Local | ApiType::OpenRouter | ApiType::Groq => {
-                self.call_openai_api(prompt).await
+                self.call_openai_api_with_image(prompt, image).await
             }
         }
     }
@@ -453,29 +624,11 @@ impl Translator {
         unreachable!("the final attempt returns a response or an error")
     }
 
-    async fn call_google_api(&self, prompt: &str) -> Result<String> {
-        #[derive(Serialize)]
-        struct Part {
-            text: String,
-        }
-
-        #[derive(Serialize)]
-        struct Content {
-            parts: Vec<Part>,
-        }
-
-        #[derive(Serialize)]
-        struct GenerationConfig {
-            temperature: f32,
-        }
-
-        #[derive(Serialize)]
-        #[serde(rename_all = "camelCase")]
-        struct GeminiRequest {
-            contents: Vec<Content>,
-            generation_config: GenerationConfig,
-        }
-
+    async fn call_google_api_with_image(
+        &self,
+        prompt: &str,
+        image: Option<(&str, &str)>,
+    ) -> Result<String> {
         let api_key = self
             .config
             .api_key
@@ -488,14 +641,7 @@ impl Translator {
             self.config.model
         );
 
-        let request = GeminiRequest {
-            contents: vec![Content {
-                parts: vec![Part {
-                    text: prompt.to_string(),
-                }],
-            }],
-            generation_config: GenerationConfig { temperature: 0.3 },
-        };
+        let request = build_gemini_request_with_image(prompt, image);
 
         let (status, response_text) = self
             .request_with_retries("Google", || {
@@ -535,7 +681,11 @@ impl Translator {
         Ok(text)
     }
 
-    async fn call_openai_api(&self, prompt: &str) -> Result<String> {
+    async fn call_openai_api_with_image(
+        &self,
+        prompt: &str,
+        image: Option<(&str, &str)>,
+    ) -> Result<String> {
         #[derive(Deserialize)]
         struct Choice {
             message: OpenAiMessage,
@@ -558,7 +708,7 @@ impl Translator {
             self.config.base_url.trim_end_matches('/')
         );
 
-        let request = build_openai_request(&self.config.model, prompt);
+        let request = build_openai_request_with_image(&self.config.model, prompt, image);
 
         let (status, response_text) = self
             .request_with_retries("OpenAI-compatible", || {
@@ -612,7 +762,11 @@ impl Translator {
         Ok(text)
     }
 
-    async fn call_anthropic_api(&self, prompt: &str) -> Result<String> {
+    async fn call_anthropic_api_with_image(
+        &self,
+        prompt: &str,
+        image: Option<(&str, &str)>,
+    ) -> Result<String> {
         let api_key = self
             .config
             .api_key
@@ -622,7 +776,7 @@ impl Translator {
             .ok_or_else(|| anyhow::anyhow!("Anthropic API key is required"))?;
 
         let url = format!("{}/messages", self.config.base_url.trim_end_matches('/'));
-        let request = build_anthropic_request(&self.config.model, prompt);
+        let request = build_anthropic_request_with_image(&self.config.model, prompt, image);
 
         let (status, response_text) = self
             .request_with_retries("Anthropic", || {
@@ -1264,5 +1418,236 @@ Hope this helps!
         assert_eq!(body_json["max_tokens"], 4096);
         assert_eq!(body_json["messages"][0]["role"], "user");
         assert_eq!(body_json["messages"][0]["content"], "Hello world");
+    }
+
+    #[test]
+    fn test_vision_request_payloads_match_provider_contracts() {
+        let openai = build_openai_request_with_image(
+            "gpt-4o-mini",
+            "Read subtitle",
+            Some(("AAAA", "image/png")),
+        );
+        let openai_json = serde_json::to_value(&openai).unwrap();
+        assert_eq!(openai_json["model"], "gpt-4o-mini");
+        assert!((openai_json["temperature"].as_f64().unwrap() - 0.3).abs() < 1e-6);
+        assert_eq!(
+            openai_json["messages"],
+            serde_json::json!([{
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": "Read subtitle"},
+                    {"type": "image_url", "image_url": {"url": "data:image/png;base64,AAAA"}}
+                ]
+            }])
+        );
+
+        let openai_reasoning = build_openai_request_with_image(
+            "o3-mini",
+            "Read subtitle",
+            Some(("AAAA", "image/png")),
+        );
+        let reasoning_json = serde_json::to_value(&openai_reasoning).unwrap();
+        assert!(reasoning_json.get("temperature").is_none());
+
+        let gemini = build_gemini_request_with_image("Read subtitle", Some(("BBBB", "image/png")));
+        let gemini_json = serde_json::to_value(&gemini).unwrap();
+        assert!(
+            (gemini_json["generationConfig"]["temperature"]
+                .as_f64()
+                .unwrap()
+                - 0.3)
+                .abs()
+                < 1e-6
+        );
+        assert_eq!(
+            gemini_json["contents"],
+            serde_json::json!([{
+                "parts": [
+                    {"text": "Read subtitle"},
+                    {"inline_data": {"mime_type": "image/png", "data": "BBBB"}}
+                ]
+            }])
+        );
+
+        let anthropic = build_anthropic_request_with_image(
+            "claude-haiku-4-5",
+            "Read subtitle",
+            Some(("CCCC", "image/png")),
+        );
+        let anthropic_json = serde_json::to_value(&anthropic).unwrap();
+        assert_eq!(anthropic_json["model"], "claude-haiku-4-5");
+        assert_eq!(anthropic_json["max_tokens"], 4096);
+        assert!((anthropic_json["temperature"].as_f64().unwrap() - 0.3).abs() < 1e-6);
+        assert_eq!(
+            anthropic_json["messages"],
+            serde_json::json!([{
+                "role": "user",
+                "content": [
+                    {"type": "image", "source": {"type": "base64", "media_type": "image/png", "data": "CCCC"}},
+                    {"type": "text", "text": "Read subtitle"}
+                ]
+            }])
+        );
+
+        let anthropic_new = build_anthropic_request_with_image(
+            "claude-opus-4-7",
+            "Read subtitle",
+            Some(("CCCC", "image/png")),
+        );
+        let anthropic_new_json = serde_json::to_value(&anthropic_new).unwrap();
+        assert!(anthropic_new_json.get("temperature").is_none());
+    }
+
+    async fn spawn_single_response_mock_server(
+        response_body: &'static str,
+    ) -> (
+        std::net::SocketAddr,
+        tokio::task::JoinHandle<(String, String)>,
+    ) {
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        let handle = tokio::spawn(async move {
+            let (mut stream, _) = tokio::time::timeout(Duration::from_secs(5), listener.accept())
+                .await
+                .unwrap()
+                .unwrap();
+
+            let mut buf = Vec::new();
+            let mut chunk = [0u8; 4096];
+            let header_end = loop {
+                let n = stream.read(&mut chunk).await.unwrap();
+                assert!(n > 0, "unexpected EOF reading request");
+                buf.extend_from_slice(&chunk[..n]);
+                if let Some(pos) = buf.windows(4).position(|w| w == b"\r\n\r\n") {
+                    break pos + 4;
+                }
+            };
+            let headers_str = String::from_utf8_lossy(&buf[..header_end]).to_string();
+            let content_length = headers_str
+                .lines()
+                .find_map(|line| {
+                    let (name, val) = line.split_once(':')?;
+                    name.trim()
+                        .eq_ignore_ascii_case("content-length")
+                        .then(|| val.trim().parse::<usize>().ok())?
+                })
+                .unwrap_or(0);
+            while buf.len() < header_end + content_length {
+                let n = stream.read(&mut chunk).await.unwrap();
+                assert!(n > 0, "unexpected EOF reading request body");
+                buf.extend_from_slice(&chunk[..n]);
+            }
+            let body_str =
+                String::from_utf8_lossy(&buf[header_end..header_end + content_length]).to_string();
+
+            let http_resp = format!(
+                "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                response_body.len(),
+                response_body
+            );
+            stream.write_all(http_resp.as_bytes()).await.unwrap();
+            (headers_str, body_str)
+        });
+        (addr, handle)
+    }
+
+    #[tokio::test]
+    async fn test_generate_vision_response_end_to_end_all_providers() {
+        // 1. OpenAI-compatible (Local / OpenRouter / Groq)
+        let (openai_addr, openai_srv) = spawn_single_response_mock_server(
+            r#"{"choices":[{"message":{"role":"assistant","content":"Hello\nWorld"}}]}"#,
+        )
+        .await;
+        let openai_translator = Translator::new(TranslatorConfig {
+            base_url: format!("http://{openai_addr}/v1"),
+            model: "gpt-4o-mini".to_string(),
+            api_key: Some("openai-key".to_string()),
+            api_type: ApiType::OpenRouter,
+        });
+        let openai_out = openai_translator
+            .generate_vision_response("Extract text", "QUFBQQ==", "image/png")
+            .await
+            .unwrap();
+        assert_eq!(openai_out, "Hello\nWorld");
+        let (headers, body) = openai_srv.await.unwrap();
+        assert!(headers.starts_with("POST /v1/chat/completions HTTP/"));
+        assert!(
+            headers
+                .to_ascii_lowercase()
+                .contains("authorization: bearer openai-key\r\n")
+        );
+        let body_json: serde_json::Value = serde_json::from_str(&body).unwrap();
+        assert_eq!(
+            body_json["messages"][0]["content"][1]["image_url"]["url"],
+            "data:image/png;base64,QUFBQQ=="
+        );
+
+        // 2. Google Gemini
+        let (google_addr, google_srv) = spawn_single_response_mock_server(
+            r#"{"candidates":[{"content":{"parts":[{"text":"Ciao mondo"}]},"finishReason":"STOP"}]}"#,
+        )
+        .await;
+        let google_translator = Translator::new(TranslatorConfig {
+            base_url: format!("http://{google_addr}/v1beta"),
+            model: "gemini-2.5-flash".to_string(),
+            api_key: Some("gemini-key".to_string()),
+            api_type: ApiType::Google,
+        });
+        let google_out = google_translator
+            .generate_vision_response("Extract text", "QkJCQg==", "image/png")
+            .await
+            .unwrap();
+        assert_eq!(google_out, "Ciao mondo");
+        let (headers, body) = google_srv.await.unwrap();
+        assert!(headers.starts_with("POST /v1beta/models/gemini-2.5-flash:generateContent HTTP/"));
+        assert!(
+            headers
+                .to_ascii_lowercase()
+                .contains("x-goog-api-key: gemini-key\r\n")
+        );
+        let body_json: serde_json::Value = serde_json::from_str(&body).unwrap();
+        assert_eq!(
+            body_json["contents"][0]["parts"][1]["inline_data"]["mime_type"],
+            "image/png"
+        );
+        assert_eq!(
+            body_json["contents"][0]["parts"][1]["inline_data"]["data"],
+            "QkJCQg=="
+        );
+
+        // 3. Anthropic
+        let (anthropic_addr, anthropic_srv) =
+            spawn_single_response_mock_server(r#"{"content":[{"type":"text","text":"Bonjour"}]}"#)
+                .await;
+        let anthropic_translator = Translator::new(TranslatorConfig {
+            base_url: format!("http://{anthropic_addr}/v1"),
+            model: "claude-haiku-4-5".to_string(),
+            api_key: Some("anthropic-key".to_string()),
+            api_type: ApiType::Anthropic,
+        });
+        let anthropic_out = anthropic_translator
+            .generate_vision_response("Extract text", "Q0NDQw==", "image/png")
+            .await
+            .unwrap();
+        assert_eq!(anthropic_out, "Bonjour");
+        let (headers, body) = anthropic_srv.await.unwrap();
+        assert!(headers.starts_with("POST /v1/messages HTTP/"));
+        assert!(
+            headers
+                .to_ascii_lowercase()
+                .contains("x-api-key: anthropic-key\r\n")
+        );
+        let body_json: serde_json::Value = serde_json::from_str(&body).unwrap();
+        assert_eq!(body_json["messages"][0]["content"][0]["type"], "image");
+        assert_eq!(
+            body_json["messages"][0]["content"][0]["source"]["data"],
+            "Q0NDQw=="
+        );
+        assert_eq!(
+            body_json["messages"][0]["content"][1]["text"],
+            "Extract text"
+        );
     }
 }
