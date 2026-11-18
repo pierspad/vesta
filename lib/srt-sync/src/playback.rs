@@ -83,6 +83,18 @@ fn stable_path_hash(input: &str) -> String {
     format!("{hash:016x}")
 }
 
+fn has_fresh_cache(source: &Path, output: &Path) -> bool {
+    let Ok(cached) = std::fs::metadata(output) else {
+        return false;
+    };
+    if !cached.is_file() || cached.len() == 0 {
+        return false;
+    }
+    let source_modified = std::fs::metadata(source).and_then(|m| m.modified()).ok();
+    let cache_modified = cached.modified().ok();
+    matches!((source_modified, cache_modified), (Some(source), Some(cache)) if cache >= source)
+}
+
 pub fn transcode_for_playback(
     source: &Path,
     cache_dir: &Path,
@@ -92,23 +104,19 @@ pub fn transcode_for_playback(
         return Ok(source.to_path_buf());
     }
 
+    let hash = stable_path_hash(&source.to_string_lossy());
+    let output_path = cache_dir.join(format!("{hash}.wav"));
+    // Published cache entries are complete: readers need not wait for unrelated conversions.
+    if has_fresh_cache(source, &output_path) {
+        return Ok(output_path);
+    }
+
     let _guard = PREPARING.lock().unwrap_or_else(|e| e.into_inner());
     std::fs::create_dir_all(cache_dir)
         .map_err(|e| anyhow::anyhow!("Cannot create cache dir: {e}"))?;
-
-    let hash = stable_path_hash(&source.to_string_lossy());
-    let output_path = cache_dir.join(format!("{hash}.wav"));
-
-    if std::fs::metadata(&output_path).is_ok_and(|m| m.is_file() && m.len() > 0) {
-        let source_modified = std::fs::metadata(source).and_then(|m| m.modified()).ok();
-        let cache_modified = std::fs::metadata(&output_path)
-            .and_then(|m| m.modified())
-            .ok();
-        if let (Some(src_time), Some(cache_time)) = (source_modified, cache_modified)
-            && cache_time >= src_time
-        {
-            return Ok(output_path);
-        }
+    // Another caller may have filled this cache while we waited for the lock.
+    if has_fresh_cache(source, &output_path) {
+        return Ok(output_path);
     }
 
     // PCM avoids lossy encoding work and needs no optional compressed-audio decoder.
@@ -335,6 +343,40 @@ mod tests {
             "untouched"
         );
         assert_eq!(std::fs::read_dir(cache).unwrap().count(), 1);
+    }
+
+    #[test]
+    fn fresh_cache_does_not_wait_for_an_unrelated_conversion() {
+        let directory = tempfile::tempdir().unwrap();
+        let source = directory.path().join("clip.mp4");
+        std::fs::write(&source, "source").unwrap();
+        let old = std::time::SystemTime::now() - Duration::from_secs(60);
+        std::fs::File::open(&source)
+            .unwrap()
+            .set_times(std::fs::FileTimes::new().set_modified(old))
+            .unwrap();
+        let cache = directory.path().join("cache");
+        std::fs::create_dir(&cache).unwrap();
+        let output = cache.join(format!(
+            "{}.wav",
+            stable_path_hash(&source.to_string_lossy())
+        ));
+        std::fs::write(&output, "cached preview").unwrap();
+        let guard = PREPARING.lock().unwrap_or_else(|e| e.into_inner());
+        let (send, receive) = std::sync::mpsc::channel();
+        let worker = std::thread::spawn(move || {
+            send.send(transcode_for_playback(&source, &cache, "missing-ffmpeg"))
+                .unwrap();
+        });
+        let result = receive.recv_timeout(Duration::from_secs(2));
+        drop(guard);
+        worker.join().unwrap();
+        assert_eq!(
+            result
+                .expect("cache hit waited for conversion lock")
+                .unwrap(),
+            output
+        );
     }
 
     #[test]

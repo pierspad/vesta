@@ -331,7 +331,8 @@ entry (`cache_modified >= source_modified`), or transcode the audio stream via
 FFmpeg into uncompressed 16 kHz mono PCM WAV (`pcm_s16le`, `{hash}.wav`) via an
 atomically published unique temporary sibling. This preview policy avoids video decoding and
 compressed-audio encoding overhead, and does not change flashcard export
-settings. A process-local mutex serializes preparation requests; temporary files
+settings. Fresh cache hits bypass the preparation lock. A process-local mutex
+serializes conversions and rechecks the cache after acquisition; temporary files
 become cache entries only after a successful FFmpeg run with nonempty output.
 Failed conversion or publication cleans the temporary file and preserves the
 previous cache entry. Each FFmpeg child has a
