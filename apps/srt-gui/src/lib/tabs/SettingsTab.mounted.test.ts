@@ -124,4 +124,9 @@ it("renders the dedicated ITT section with ITT tiers and offline OCR models and 
   await tick(); await tick();
   expect(ittTarget.querySelector("#itt-tiers")).not.toBeNull();
   expect(ittTarget.querySelector("#ocr-models")).not.toBeNull();
+  expect(ittTarget.querySelector("#itt-endpoints")?.textContent).toContain("Local ITT server");
+  const removeTierBtn = ittTarget.querySelector<HTMLButtonElement>('#itt-tiers button[aria-label="Remove tier"]');
+  expect(removeTierBtn?.disabled).toBe(true);
+  expect(ittTarget.textContent).not.toContain("Run bitmap and hardcoded subtitle OCR locally without cloud LLM costs.");
+  expect(ittTarget.textContent).not.toContain("Configure local OpenAI-compatible Vision servers or cloud ITT endpoints for image subtitle OCR.");
 });

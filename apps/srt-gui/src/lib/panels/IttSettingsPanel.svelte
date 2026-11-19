@@ -60,7 +60,6 @@
         </div>
         <div>
           <h3 class="text-sm font-bold text-white">{t("settings.ittTiersTitle")}</h3>
-          <p class="text-xs text-gray-400 mt-0.5">{t("settings.ittTiersDesc")}</p>
         </div>
       </div>
       <button
@@ -79,7 +78,9 @@
         loadTiersFn={loadIttTiers}
         saveTiersFn={saveIttTiers}
         updatedEvent={ITT_TIERS_UPDATED_EVENT}
-        autoCreateDefault={false}
+        autoCreateDefault={true}
+        defaultEntryProvider="custom"
+        defaultEntryApiKeyId="local_itt_server"
       />
     </div>
   </div>
@@ -95,7 +96,6 @@
     </div>
     <div class="flex-1">
       <h3 class="text-sm font-bold text-white">{t("settings.ocrModelsTitle")}</h3>
-      <p class="text-xs text-gray-400 mt-0.5">{t("settings.ocrModelsDesc")}</p>
     </div>
   </div>
 

@@ -2,7 +2,7 @@
   import { writeClipboard } from "$lib/utils/clipboard";
   import { locale } from "$lib/i18n";
   import ProviderIcon from "$lib/components/ProviderIcon.svelte";
-  import type { ApiKeyConfig } from "$lib/config/apiKeys";
+  import { isBuiltinEndpointId, type ApiKeyConfig } from "$lib/config/apiKeys";
 
   interface Props {
     title: string;
@@ -259,12 +259,12 @@
             <button
               onclick={(event) => {
                 event.stopPropagation();
-                if (!["local", "local_stt_server"].includes(key.id)) onDeleteKey(key.id);
+                if (!isBuiltinEndpointId(key.id)) onDeleteKey(key.id);
               }}
               class="icon-action-danger"
               type="button"
               aria-label={t("settings.delete")}
-              disabled={["local", "local_stt_server"].includes(key.id)}
+              disabled={isBuiltinEndpointId(key.id)}
               title={t("settings.delete")}
             >
               <svg

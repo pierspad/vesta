@@ -30,6 +30,8 @@
     moveUpLabel: string;
     moveDownLabel: string;
     removeTierLabel: string;
+    /** Minimum number of tiers that must remain; disables remove when `tiers.length <= minTiers`. */
+    minTiers?: number;
     /** Corpo di un tier (lista entry + bottone "aggiungi endpoint"): specifico della feature. */
     tierBody: Snippet<[tier: T, tierIndex: number]>;
   }
@@ -45,6 +47,7 @@
     moveUpLabel,
     moveDownLabel,
     removeTierLabel,
+    minTiers = 0,
     tierBody,
   }: Props = $props();
 
@@ -136,6 +139,7 @@
               <button
                 type="button"
                 onclick={() => onRemoveTier(tierIndex)}
+                disabled={tiers.length <= minTiers}
                 title={removeTierLabel}
                 class="icon-action-danger"
                 aria-label={removeTierLabel}

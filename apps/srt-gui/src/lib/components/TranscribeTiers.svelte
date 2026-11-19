@@ -133,6 +133,7 @@
   }
 
   function removeTier(index: number) {
+    if (tiers.length <= 1) return;
     tiers = tiers.filter((_, i) => i !== index);
     persist();
   }
@@ -306,6 +307,7 @@
   moveUpLabel={t("tiers.moveUp")}
   moveDownLabel={t("tiers.moveDown")}
   removeTierLabel={t("tiers.removeTier")}
+  minTiers={1}
   onMoveTier={moveTier}
   onRemoveTier={removeTier}
   warning={noKeysWarning}

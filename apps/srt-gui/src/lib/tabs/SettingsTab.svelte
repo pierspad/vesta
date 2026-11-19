@@ -28,7 +28,7 @@
   import { buildSettingsActionHash, publishSettingsActionState } from "$lib/utils/settingsNotifications";
   import { aiStore } from "$lib/stores/aiStore.svelte";
   import { DEFAULT_REFINEMENT_PROMPT, REFINEMENT_PROMPT_STORAGE_KEY, loadRefinementPrompt } from "$lib/config/refinementPrompt";
-  import { loadAndValidateApiKeys, normalizeApiKeyDefaults, apiKeyDefaultGroup, supportsCapability, type ApiKeyConfig } from "$lib/config/apiKeys";
+  import { isBuiltinEndpointId, loadAndValidateApiKeys, normalizeApiKeyDefaults, apiKeyDefaultGroup, supportsCapability, type ApiKeyConfig } from "$lib/config/apiKeys";
   import { loadTiers, tiersHaveUsableEntries, TIERS_UPDATED_EVENT, type Tier } from "$lib/config/translationTiers";
   import { loadTranscribeCloud } from "$lib/config/transcribeProviders";
   import * as vestaConfig from "$lib/config/vestaConfig";
@@ -454,7 +454,7 @@
 
   function askDeleteApiKey(id: string) {
     const key = apiKeys.find((k) => k.id === id);
-    if (!key || ["local", "local_stt_server"].includes(id)) return;
+    if (!key || isBuiltinEndpointId(id)) return;
     deleteConfirmId = id;
     deleteConfirmName = key.name;
   }

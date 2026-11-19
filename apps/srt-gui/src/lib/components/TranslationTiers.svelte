@@ -29,6 +29,8 @@
     saveTiersFn = saveTiers,
     updatedEvent = TIERS_UPDATED_EVENT,
     autoCreateDefault = true,
+    defaultEntryProvider = "local",
+    defaultEntryApiKeyId = "",
   }: {
     active?: boolean;
     capability?: "llm" | "itt";
@@ -36,6 +38,8 @@
     saveTiersFn?: (tiers: Tier[]) => void;
     updatedEvent?: string;
     autoCreateDefault?: boolean;
+    defaultEntryProvider?: TierEntry["provider"];
+    defaultEntryApiKeyId?: string;
   } = $props();
 
   let t = $derived($locale);
@@ -105,8 +109,8 @@
           entries: [
             {
               id: newTierEntryId(),
-              provider: "local",
-              apiKeyId: "",
+              provider: defaultEntryProvider,
+              apiKeyId: defaultEntryApiKeyId,
               model: "",
             },
           ],
@@ -161,6 +165,7 @@
   }
 
   function removeTier(index: number) {
+    if (autoCreateDefault && tiers.length <= 1) return;
     tiers = tiers.filter((_, i) => i !== index);
     persist();
   }
@@ -179,8 +184,11 @@
   }
 
   function addEntry(tierIndex: number) {
-    const firstKey = apiKeys.find((k) => k.apiType !== "custom") || apiKeys[0];
-    const provider = (firstKey?.apiType as TierEntry["provider"]) || "google";
+    const capableKeys = apiKeys.filter((k) => supportsCapability(k, capability));
+    const firstKey = capableKeys.find((k) => k.id === defaultEntryApiKeyId)
+      || capableKeys.find((k) => k.apiType !== "custom")
+      || capableKeys[0];
+    const provider = (firstKey?.apiType as TierEntry["provider"]) || defaultEntryProvider;
     const entry: TierEntry = {
       id: newTierEntryId(),
       provider,
@@ -346,6 +354,7 @@
   moveUpLabel={t("tiers.moveUp")}
   moveDownLabel={t("tiers.moveDown")}
   removeTierLabel={t("tiers.removeTier")}
+  minTiers={autoCreateDefault ? 1 : 0}
   onMoveTier={moveTier}
   onRemoveTier={removeTier}
   warning={noKeysWarning}
@@ -366,7 +375,7 @@
                   <div class="flex items-center justify-between gap-2 border-b border-white/5 pb-2.5">
                     <div class="flex items-center gap-2">
                       <ProviderIcon provider={entry.provider} size="w-5.5 h-5.5" glyph="w-3 h-3" rounded="rounded-md" />
-                      <span class="text-xs font-semibold text-gray-200">{providers[entry.provider]?.name || entry.provider}</span>
+                      <span class="text-xs font-semibold text-gray-200">{entry.provider === "custom" ? (apiKeys.find((k) => k.id === entry.apiKeyId)?.name || providers[entry.provider]?.name || entry.provider) : (providers[entry.provider]?.name || entry.provider)}</span>
                       {#if entry.provider === "local" && localOffline}
                         <span class="flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20 text-[9px] font-bold capitalize">
                           <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>

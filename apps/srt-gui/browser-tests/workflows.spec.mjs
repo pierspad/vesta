@@ -376,9 +376,18 @@ test("First-run setup suggests an OCR model and jumps back from review items", a
   await expect(dialog.getByRole("radio", { name: /PaddleOCR v4 Mobile \(CJK\)/ })).toContainText("Suggested");
 });
 
-test("Settings ITT configures a custom OpenAI-compatible endpoint prioritized by Extract OCR", async ({ page }) => {
+test("Settings ITT has fixed Local ITT server and non-removable default tier prioritized by Extract OCR", async ({ page }) => {
   await page.getByRole("button", { name: "Settings", exact: true }).click();
   await page.getByRole("button", { name: "ITT", exact: true }).click();
+
+  const ittEndpoints = page.locator("#itt-endpoints");
+  await expect(ittEndpoints).toContainText("Local ITT server");
+  const removeBuiltinBtn = ittEndpoints.getByRole("button", { name: "Delete", exact: true });
+  await expect(removeBuiltinBtn).toBeDisabled();
+
+  const tierCard = page.locator("#itt-tiers");
+  await expect(tierCard).toContainText("Local ITT server");
+  await expect(tierCard.getByRole("button", { name: "Remove tier", exact: true })).toBeDisabled();
 
   await page.getByRole("button", { name: "Add configuration", exact: true }).click();
   const modal = page.getByRole("dialog");
@@ -388,9 +397,6 @@ test("Settings ITT configures a custom OpenAI-compatible endpoint prioritized by
   await modal.getByRole("button", { name: "Save", exact: true }).click();
   await expect(modal).toBeHidden();
 
-  await page.getByRole("button", { name: "+ Add tier", exact: true }).click();
-  await page.locator("#itt-tiers").getByRole("button", { name: "+ Add endpoint", exact: true }).click();
-  const tierCard = page.locator("#itt-tiers");
   const providerSelect = tierCard.getByRole("combobox").first();
   await providerSelect.click();
   await page.getByRole("option", { name: /Local Vision ITT/ }).click();

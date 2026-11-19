@@ -47,5 +47,6 @@ it("discards retired github keys on load while preserving valid keys and builtin
  expect(loaded.find(k=>k.id==="or-1")?.apiType).toBe("openrouter");
  expect(loaded.find(k=>k.id==="local")?.apiType).toBe("local");
  expect(loaded.find(k=>k.id==="local_stt_server")?.apiType).toBe("custom");
+ expect(loaded.find(k=>k.id==="local_itt_server")?.apiType).toBe("custom");
  config.removeItem("srt-tools-api-keys");
 });

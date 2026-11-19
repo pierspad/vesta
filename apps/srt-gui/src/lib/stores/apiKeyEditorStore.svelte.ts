@@ -1,4 +1,4 @@
-import { supportsCapability, type ApiCapability, type ApiKeyConfig } from "$lib/config/apiKeys";
+import { isBuiltinEndpointId, supportsCapability, type ApiCapability, type ApiKeyConfig } from "$lib/config/apiKeys";
 import { providers } from "$lib/config/llmProviders";
 
 export type EndpointUsageChoice = "llm" | "stt" | "itt" | "both" | "llm_itt" | "all";
@@ -96,7 +96,7 @@ class ApiKeyEditorStore {
     }
     this.newKeyValue = "";
     this.newKeyUrl = this.newKeyType === "local" ? providers.local.defaultApiUrl || "" : "";
-    if (this.newKeyType === "local") this.newKeyUsage = "llm_itt";
+    if (this.newKeyType === "local") this.newKeyUsage = context === "itt" ? "itt" : "llm";
     if (this.newKeyType === "custom") this.newKeyName = "";
     this.showAddKey = true;
   }
@@ -115,14 +115,14 @@ class ApiKeyEditorStore {
 
   selectProvider(pid: string) {
     if (this.editKeyId) return;
-    if ((this.editKeyId === "local" && pid !== "local") || (this.editKeyId === "local_stt_server" && pid !== "custom")) return;
+    if (isBuiltinEndpointId(this.editKeyId) && ((this.editKeyId === "local" && pid !== "local") || (this.editKeyId !== "local" && pid !== "custom"))) return;
     const isCustom = pid === "custom";
     const prov = providers[pid];
     this.newKeyType = pid as ApiKeyConfig["apiType"];
     this.newKeyName = isCustom ? "" : pid === "openai" ? "OpenAI" : prov?.name || pid;
     this.newKeyUrl = isCustom ? "" : prov?.defaultApiUrl || "";
     this.newKeyValue = "";
-    if (pid === "local") this.newKeyUsage = "llm_itt";
+    if (pid === "local") this.newKeyUsage = this.modalContext === "itt" ? "itt" : "llm";
     else if (isCustom) this.newKeyUsage = this.modalContext === "whisper" ? "stt" : this.modalContext === "itt" ? "itt" : "llm";
   }
 

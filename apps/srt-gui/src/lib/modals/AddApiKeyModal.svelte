@@ -3,7 +3,7 @@
   import { locale } from "$lib/i18n";
   import { snackbar } from "$lib/stores/snackbarStore.svelte";
   import SearchableSelect from "$lib/components/SearchableSelect.svelte";
-  import { hasProviderNameConflict, loadAndValidateApiKeys } from "$lib/config/apiKeys";
+  import { hasProviderNameConflict, isBuiltinEndpointId, loadAndValidateApiKeys } from "$lib/config/apiKeys";
   import ProviderIcon from "$lib/components/ProviderIcon.svelte";
   import { providers } from "$lib/config/llmProviders";
   import { transcribeProviders } from "$lib/config/transcribeProviders";
@@ -37,7 +37,7 @@
 
   let t = $derived($locale);
   let store = apiKeyEditorStore;
-  let canDelete = $derived(!!onDelete && !!store.editKeyId && !["local", "local_stt_server"].includes(store.editKeyId));
+  let canDelete = $derived(!!onDelete && !!store.editKeyId && !isBuiltinEndpointId(store.editKeyId));
   let duplicateName = $derived(hasProviderNameConflict(loadAndValidateApiKeys(), store.newKeyName, store.editKeyId));
 
   function copyToClipboard(text: string) {
@@ -95,7 +95,7 @@
               {@const isCustom = pid === "custom"}
               <button
                 type="button"
-                disabled={(store.editKeyId === "local" && pid !== "local") || (store.editKeyId === "local_stt_server" && pid !== "custom")}
+                disabled={isBuiltinEndpointId(store.editKeyId) && ((store.editKeyId === "local" && pid !== "local") || (store.editKeyId !== "local" && pid !== "custom"))}
                 onclick={() => store.selectProvider(pid)}
                 class="flex items-center gap-2.5 p-2.5 rounded-lg transition-all duration-200 border text-left disabled:opacity-35 disabled:cursor-not-allowed
                   {store.newKeyType === pid

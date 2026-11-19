@@ -98,10 +98,18 @@ export function supportsCapability(key: ApiKeyConfig, capability: ApiCapability)
   return ["local", "google", "groq", "openai", "anthropic", "openrouter", "mistral", "nvidia", "custom"].includes(key.apiType);
 }
 
+export const BUILTIN_ENDPOINT_IDS = ["local", "local_stt_server", "local_itt_server"] as const;
+
+/** Returns true when `id` identifies a non-deletable built-in local endpoint. */
+export function isBuiltinEndpointId(id: string | null | undefined): boolean {
+  return Boolean(id && (BUILTIN_ENDPOINT_IDS as readonly string[]).includes(id));
+}
+
 function withBuiltinEndpoints(keys: ApiKeyConfig[]): ApiKeyConfig[] {
   const defaults: ApiKeyConfig[] = [
-    {id: "local", name: "Local LLM", apiType: "local", apiKey: "", apiUrl: vestaConfig.getItem("vesta-local-server-url") || "http://localhost:11434/v1", capabilities: ["llm", "itt"]},
+    {id: "local", name: "Local LLM", apiType: "local", apiKey: "", apiUrl: vestaConfig.getItem("vesta-local-server-url") || "http://localhost:11434/v1", capabilities: ["llm"]},
     {id: "local_stt_server", name: "Local STT server", apiType: "custom", apiKey: "", apiUrl: "http://localhost:8000/v1", capabilities: ["stt"]},
+    {id: "local_itt_server", name: "Local ITT server", apiType: "custom", apiKey: "", apiUrl: "http://localhost:11434/v1", capabilities: ["itt"]},
   ];
   return normalizeApiKeyDefaults([...defaults.filter(item => !keys.some(key => key.id === item.id)), ...keys]);
 }
