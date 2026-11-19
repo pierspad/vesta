@@ -2541,7 +2541,11 @@ fn erf_approx(x: f32) -> f32 {
     sign * y
 }
 
-fn eval_node(node: &ParsedNode, values: &HashMap<String, TensorValue>) -> Result<Vec<TensorValue>> {
+fn eval_node(
+    node: &ParsedNode,
+    values: &HashMap<String, TensorValue>,
+    initializers: &HashMap<String, TensorValue>,
+) -> Result<Vec<TensorValue>> {
     let get_in = |idx: usize| -> Result<&TensorValue> {
         let name = node
             .inputs
@@ -2550,6 +2554,7 @@ fn eval_node(node: &ParsedNode, values: &HashMap<String, TensorValue>) -> Result
             .with_context(|| format!("Node '{}' missing required input {idx}", node.op_type))?;
         values
             .get(name)
+            .or_else(|| initializers.get(name))
             .with_context(|| format!("Missing tensor '{name}' for node '{}'", node.op_type))
     };
     let get_opt = |idx: usize| -> Result<Option<&TensorValue>> {
@@ -2558,6 +2563,7 @@ fn eval_node(node: &ParsedNode, values: &HashMap<String, TensorValue>) -> Result
         };
         let val = values
             .get(name)
+            .or_else(|| initializers.get(name))
             .with_context(|| format!("Missing optional tensor '{name}' for '{}'", node.op_type))?;
         Ok(Some(val))
     };
@@ -2742,14 +2748,14 @@ fn run_graph(
     input: TensorValue,
     cancel: &CancellationToken,
 ) -> Result<TensorValue> {
-    let mut values = model.initializers.clone();
+    let mut values: HashMap<String, TensorValue> = HashMap::with_capacity(model.nodes.len() + 1);
     values.insert(model.input_name.clone(), input);
 
     for (idx, node) in model.nodes.iter().enumerate() {
         if idx.is_multiple_of(16) && cancel.is_cancelled() {
             bail!("OCR cancelled by user");
         }
-        let outputs = eval_node(node, &values)?;
+        let outputs = eval_node(node, &values, &model.initializers)?;
         for (out_name, out_val) in node.outputs.iter().zip(outputs) {
             if !out_name.is_empty() {
                 values.insert(out_name.clone(), out_val);
@@ -2764,6 +2770,7 @@ fn run_graph(
 
     values
         .remove(&model.output_name)
+        .or_else(|| model.initializers.get(&model.output_name).cloned())
         .with_context(|| format!("Graph did not produce output '{}'", model.output_name))
 }
 
