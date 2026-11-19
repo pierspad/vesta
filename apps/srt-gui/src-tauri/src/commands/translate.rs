@@ -348,7 +348,7 @@ pub async fn cancel_translation(state: State<'_, AppTranslateState>) -> Result<b
     Ok(true)
 }
 
-/// Rappresenta una coppia di sottotitoli (originale e tradotto)
+/// Represents a subtitle pair (original and translated).
 #[derive(Debug, Clone, Serialize)]
 pub struct SubtitlePair {
     pub id: u32,
@@ -356,7 +356,7 @@ pub struct SubtitlePair {
     pub translated: String,
 }
 
-/// Legge gli ultimi N sottotitoli dal file di input e output
+/// Reads the latest N subtitles from the input and output files.
 #[tauri::command]
 pub async fn get_latest_translated_subtitles(
     input_path: String,
@@ -367,7 +367,7 @@ pub async fn get_latest_translated_subtitles(
         latest_translated_subtitles(preview_cache(), &input_path, &output_path, count)
     })
     .await
-    .map_err(|error| format!("Errore nella preparazione dell'anteprima: {error}"))?
+    .map_err(|error| format!("Failed to prepare preview: {error}"))?
 }
 
 // The command has no owning application state; one process-wide slot prevents

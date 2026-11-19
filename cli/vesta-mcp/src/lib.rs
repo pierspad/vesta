@@ -383,6 +383,7 @@ impl VestaMcp {
         &self,
         Parameters(req): Parameters<PluginCallRequest>,
     ) -> Result<Json<Value>, String> {
+        validate_plugin_id(&req.plugin_id)?;
         let dir = self.resolve_plugins_dir();
         let registry_path = dir.join("plugins.json");
         if !registry_path.exists() {
@@ -422,6 +423,7 @@ impl VestaMcp {
             command.args(&cmd_args[1..]);
         }
         command
+            .kill_on_drop(true)
             .current_dir(&plugin_dir)
             .stdin(std::process::Stdio::piped())
             .stdout(std::process::Stdio::piped())
@@ -433,140 +435,202 @@ impl VestaMcp {
         let mut child = command
             .spawn()
             .map_err(|e| format!("Failed to spawn plugin process: {e}"))?;
-        let mut stdin = child.stdin.take().ok_or("Failed to capture stdin")?;
-        let stdout = child.stdout.take().ok_or("Failed to capture stdout")?;
 
-        use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
-        let mut reader = BufReader::new(stdout).lines();
+        let result = run_plugin_rpc_session(&mut child, &req, &plugin, &data_dir).await;
+        let _ = child.kill().await;
+        let _ = child.wait().await;
+        result.map(Json)
+    }
+}
 
-        let init_req = json!({
-            "jsonrpc": "2.0",
-            "id": 1,
-            "method": "initialize",
-            "params": {
-                "apiVersion": 1,
-                "dataDir": data_dir.to_string_lossy(),
-                "locale": "en",
-                "expertMode": req.expert_mode.unwrap_or(false),
-                "settings": plugin.get("settings").cloned().unwrap_or(json!({}))
+const MAX_PLUGIN_RPC_LINE_BYTES: usize = 4 * 1024 * 1024;
+
+fn validate_plugin_id(id: &str) -> Result<(), String> {
+    if id.is_empty()
+        || id.len() > 128
+        || !id
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_')
+    {
+        return Err(format!("Invalid plugin_id '{id}'"));
+    }
+    Ok(())
+}
+
+async fn read_bounded_rpc_line<R: tokio::io::AsyncBufRead + Unpin>(
+    reader: &mut R,
+    max_bytes: usize,
+) -> Result<Option<String>, String> {
+    use tokio::io::AsyncBufReadExt;
+    let mut buf = Vec::new();
+    loop {
+        let available = reader.fill_buf().await.map_err(|e| e.to_string())?;
+        if available.is_empty() {
+            return if buf.is_empty() {
+                Ok(None)
+            } else {
+                String::from_utf8(buf).map(Some).map_err(|e| e.to_string())
+            };
+        }
+        let newline_pos = available.iter().position(|&b| b == b'\n');
+        let take_len = newline_pos.map_or(available.len(), |pos| pos + 1);
+        if buf.len().saturating_add(take_len) > max_bytes {
+            return Err(format!(
+                "Plugin RPC response line exceeded {max_bytes} byte limit"
+            ));
+        }
+        buf.extend_from_slice(&available[..take_len]);
+        reader.consume(take_len);
+        if newline_pos.is_some() {
+            while matches!(buf.last(), Some(b'\n' | b'\r')) {
+                buf.pop();
             }
-        });
-        let init_line = serde_json::to_string(&init_req).map_err(|e| e.to_string())? + "\n";
-        stdin
-            .write_all(init_line.as_bytes())
-            .await
-            .map_err(|e| e.to_string())?;
-        stdin.flush().await.map_err(|e| e.to_string())?;
-        let _ = reader.next_line().await;
+            return String::from_utf8(buf).map(Some).map_err(|e| e.to_string());
+        }
+    }
+}
 
-        let method = if req.widget_id.is_some() {
-            "event"
-        } else {
-            "render"
-        };
+async fn run_plugin_rpc_session(
+    child: &mut tokio::process::Child,
+    req: &PluginCallRequest,
+    plugin: &Value,
+    data_dir: &Path,
+) -> Result<Value, String> {
+    use tokio::io::{AsyncWriteExt, BufReader};
 
-        let screen_name = req.screen.as_deref().unwrap_or("main").to_string();
-        let snapshot_values = req.values.clone().unwrap_or(json!({}));
+    let mut stdin = child.stdin.take().ok_or("Failed to capture stdin")?;
+    let stdout = child.stdout.take().ok_or("Failed to capture stdout")?;
+    let mut reader = BufReader::new(stdout);
 
-        let params = if method == "render" {
-            json!({
-                "screen": screen_name,
-                "params": snapshot_values,
-                "locale": "en",
-                "expertMode": req.expert_mode.unwrap_or(false)
-            })
-        } else {
-            json!({
-                "screen": screen_name,
-                "widgetId": req.widget_id.as_deref().unwrap_or(""),
-                "type": req.event_type.as_deref().unwrap_or("click"),
-                "values": snapshot_values,
-                "locale": "en",
-                "expertMode": req.expert_mode.unwrap_or(false)
-            })
-        };
+    let init_req = json!({
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "initialize",
+        "params": {
+            "apiVersion": 1,
+            "dataDir": data_dir.to_string_lossy(),
+            "locale": "en",
+            "expertMode": req.expert_mode.unwrap_or(false),
+            "settings": plugin.get("settings").cloned().unwrap_or(json!({}))
+        }
+    });
+    let init_line = serde_json::to_string(&init_req).map_err(|e| e.to_string())? + "\n";
+    stdin
+        .write_all(init_line.as_bytes())
+        .await
+        .map_err(|e| e.to_string())?;
+    stdin.flush().await.map_err(|e| e.to_string())?;
+    let init_reply = tokio::time::timeout(
+        std::time::Duration::from_secs(10),
+        read_bounded_rpc_line(&mut reader, MAX_PLUGIN_RPC_LINE_BYTES),
+    )
+    .await
+    .map_err(|_| "Plugin initialize timed out after 10s".to_string())??
+    .ok_or_else(|| "Plugin process closed stdout during initialize".to_string())?;
+    let _init_val: Value = serde_json::from_str(&init_reply).map_err(|e| e.to_string())?;
 
-        let call_req = json!({
-            "jsonrpc": "2.0",
-            "id": 2,
-            "method": method,
-            "params": params
-        });
+    let method = if req.widget_id.is_some() {
+        "event"
+    } else {
+        "render"
+    };
 
-        let call_line = serde_json::to_string(&call_req).map_err(|e| e.to_string())? + "\n";
-        stdin
-            .write_all(call_line.as_bytes())
-            .await
-            .map_err(|e| e.to_string())?;
-        stdin.flush().await.map_err(|e| e.to_string())?;
+    let screen_name = req.screen.as_deref().unwrap_or("main").to_string();
+    let snapshot_values = req.values.clone().unwrap_or(json!({}));
 
-        let response_line = tokio::time::timeout(std::time::Duration::from_secs(30), async {
-            loop {
-                let line = reader
-                    .next_line()
-                    .await
-                    .map_err(|e| e.to_string())?
-                    .ok_or_else(|| "Plugin process closed stdout".to_string())?;
-                if let Ok(val) = serde_json::from_str::<Value>(&line) {
-                    if let Some(req_method) = val.get("method").and_then(|v| v.as_str())
-                        && let Some(req_id) = val.get("id")
-                        && !req_id.is_null()
-                    {
-                        let reply = if req_method == "ui.getValues" {
-                            let req_screen = val
-                                .get("params")
-                                .and_then(|p| p.get("screen"))
-                                .and_then(|s| s.as_str())
-                                .unwrap_or("main");
-                            let vals = if req_screen == screen_name {
-                                snapshot_values.clone()
-                            } else {
-                                json!({})
-                            };
-                            json!({
-                                "jsonrpc": "2.0",
-                                "id": req_id,
-                                "result": { "values": vals }
-                            })
+    let params = if method == "render" {
+        json!({
+            "screen": screen_name,
+            "params": snapshot_values,
+            "locale": "en",
+            "expertMode": req.expert_mode.unwrap_or(false)
+        })
+    } else {
+        json!({
+            "screen": screen_name,
+            "widgetId": req.widget_id.as_deref().unwrap_or(""),
+            "type": req.event_type.as_deref().unwrap_or("click"),
+            "values": snapshot_values,
+            "locale": "en",
+            "expertMode": req.expert_mode.unwrap_or(false)
+        })
+    };
+
+    let call_req = json!({
+        "jsonrpc": "2.0",
+        "id": 2,
+        "method": method,
+        "params": params
+    });
+
+    let call_line = serde_json::to_string(&call_req).map_err(|e| e.to_string())? + "\n";
+    stdin
+        .write_all(call_line.as_bytes())
+        .await
+        .map_err(|e| e.to_string())?;
+    stdin.flush().await.map_err(|e| e.to_string())?;
+
+    let response_line = tokio::time::timeout(std::time::Duration::from_secs(30), async {
+        loop {
+            let line = read_bounded_rpc_line(&mut reader, MAX_PLUGIN_RPC_LINE_BYTES)
+                .await?
+                .ok_or_else(|| "Plugin process closed stdout".to_string())?;
+            if let Ok(val) = serde_json::from_str::<Value>(&line) {
+                if let Some(req_method) = val.get("method").and_then(|v| v.as_str())
+                    && let Some(req_id) = val.get("id")
+                    && !req_id.is_null()
+                {
+                    let reply = if req_method == "ui.getValues" {
+                        let req_screen = val
+                            .get("params")
+                            .and_then(|p| p.get("screen"))
+                            .and_then(|s| s.as_str())
+                            .unwrap_or("main");
+                        let vals = if req_screen == screen_name {
+                            snapshot_values.clone()
                         } else {
-                            json!({
-                                "jsonrpc": "2.0",
-                                "id": req_id,
-                                "error": {
-                                    "code": -32601,
-                                    "message": format!("Unsupported host RPC method: {req_method}")
-                                }
-                            })
+                            json!({})
                         };
-                        let reply_line =
-                            serde_json::to_string(&reply).map_err(|e| e.to_string())? + "\n";
-                        stdin
-                            .write_all(reply_line.as_bytes())
-                            .await
-                            .map_err(|e| e.to_string())?;
-                        stdin.flush().await.map_err(|e| e.to_string())?;
-                        continue;
-                    }
-                    if val.get("id").and_then(|v| v.as_u64()) == Some(2)
-                        && val.get("method").is_none()
-                    {
-                        break Ok::<String, String>(line);
-                    }
+                        json!({
+                            "jsonrpc": "2.0",
+                            "id": req_id,
+                            "result": { "values": vals }
+                        })
+                    } else {
+                        json!({
+                            "jsonrpc": "2.0",
+                            "id": req_id,
+                            "error": {
+                                "code": -32601,
+                                "message": format!("Unsupported host RPC method: {req_method}")
+                            }
+                        })
+                    };
+                    let reply_line =
+                        serde_json::to_string(&reply).map_err(|e| e.to_string())? + "\n";
+                    stdin
+                        .write_all(reply_line.as_bytes())
+                        .await
+                        .map_err(|e| e.to_string())?;
+                    stdin.flush().await.map_err(|e| e.to_string())?;
+                    continue;
+                }
+                if val.get("id").and_then(|v| v.as_u64()) == Some(2) && val.get("method").is_none()
+                {
+                    break Ok::<String, String>(line);
                 }
             }
-        })
-        .await
-        .map_err(|_| "Plugin RPC call timed out after 30s".to_string())??;
-        let resp: Value = serde_json::from_str(&response_line).map_err(|e| e.to_string())?;
-
-        let _ = child.kill().await;
-
-        if let Some(err) = resp.get("error") {
-            return Err(format!("Plugin RPC error: {err}"));
         }
+    })
+    .await
+    .map_err(|_| "Plugin RPC call timed out after 30s".to_string())??;
+    let resp: Value = serde_json::from_str(&response_line).map_err(|e| e.to_string())?;
 
-        Ok(Json(resp.get("result").cloned().unwrap_or(json!({}))))
+    if let Some(err) = resp.get("error") {
+        return Err(format!("Plugin RPC error: {err}"));
     }
+
+    Ok(resp.get("result").cloned().unwrap_or(json!({})))
 }
 
 #[tool_handler(router = self.tool_router)]
@@ -843,5 +907,35 @@ assert any(r.get("id") == 3 and r.get("result") == {"status": "ok"} for r in res
             .status()
             .unwrap();
         assert!(status.success());
+    }
+
+    #[tokio::test]
+    async fn call_plugin_rejects_traversal_and_invalid_ids() {
+        let dir = tempfile::tempdir().unwrap();
+        let mcp = VestaMcp::with_plugins_dir(
+            Paths::new(vec![dir.path().to_path_buf()], dir.path().to_path_buf()).unwrap(),
+            ProviderConfig::default(),
+            Some(dir.path().to_path_buf()),
+        );
+        for bad_id in ["../evil", "nested/id", "", "bad id", "-leading-ok-no"] {
+            if bad_id.starts_with('-') {
+                assert!(validate_plugin_id(bad_id).is_ok());
+                continue;
+            }
+            let Err(err) = mcp
+                .call_plugin(Parameters(PluginCallRequest {
+                    plugin_id: bad_id.to_string(),
+                    screen: None,
+                    widget_id: None,
+                    event_type: None,
+                    values: None,
+                    expert_mode: None,
+                }))
+                .await
+            else {
+                panic!("expected invalid plugin_id error for {bad_id:?}");
+            };
+            assert!(err.contains("Invalid plugin_id"), "id={bad_id}, err={err}");
+        }
     }
 }

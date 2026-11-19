@@ -19,12 +19,36 @@
 
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
+use std::sync::LazyLock;
+use std::time::Duration;
 
 use futures::StreamExt;
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
 use tauri::{AppHandle, Manager};
 use tokio::io::{AsyncBufReadExt, BufReader};
+
+static WORKER_HTTP_CLIENT: LazyLock<Result<reqwest::Client, String>> = LazyLock::new(|| {
+    reqwest::Client::builder()
+        .connect_timeout(Duration::from_secs(15))
+        .build()
+        .map_err(|e| format!("Failed to initialize HTTP client: {e}"))
+});
+
+fn http_client() -> Result<&'static reqwest::Client, String> {
+    WORKER_HTTP_CLIENT.as_ref().map_err(Clone::clone)
+}
+
+fn parse_sha256_checksum(text: &str) -> Result<String, String> {
+    let token = text
+        .split_whitespace()
+        .next()
+        .ok_or_else(|| "Published SHA-256 checksum file is empty".to_string())?;
+    if token.len() != 64 || !token.bytes().all(|b| b.is_ascii_hexdigit()) {
+        return Err(format!("Malformed published SHA-256 checksum '{token}'"));
+    }
+    Ok(token.to_ascii_lowercase())
+}
 
 use srt_transcribe::pipeline::{ProgressUpdate, TranscriptionConfig, TranscriptionOutcome};
 
@@ -105,40 +129,39 @@ pub async fn ensure_worker(
     if dest.exists() {
         return Ok(dest);
     }
-    std::fs::create_dir_all(dest.parent().unwrap()).map_err(|e| e.to_string())?;
+    let parent = dest
+        .parent()
+        .ok_or_else(|| "Invalid worker cache path".to_string())?;
+    std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
 
     let asset = asset_name(backend_id);
     let bin_url = format!("{RELEASE_BASE}/{asset}");
     let sha_url = format!("{bin_url}.sha256");
 
     log(format!("Downloading {backend_id} worker ({asset})..."));
-    let expected_sha = fetch_text(&sha_url)
-        .await
-        .ok()
-        .and_then(|s| s.split_whitespace().next().map(str::to_string));
+    let sha_text = fetch_text(&sha_url).await.map_err(|e| {
+        format!("Failed to fetch mandatory SHA-256 checksum for {backend_id} worker: {e}")
+    })?;
+    let expected = parse_sha256_checksum(&sha_text)?;
 
     let bytes = download_with_progress(&bin_url, log).await?;
 
-    if let Some(expected) = &expected_sha {
-        let mut hasher = Sha256::new();
-        hasher.update(&bytes);
-        // `finalize()`'s output type doesn't implement `LowerHex` in the
-        // resolved sha2/crypto-common version, so hex-encode by hand.
-        let actual = hasher
-            .finalize()
-            .iter()
-            .map(|b| format!("{b:02x}"))
-            .collect::<String>();
-        if &actual != expected {
-            return Err(format!(
-                "Checksum mismatch for {asset}: expected {expected}, got {actual}. \
-                 The download may be corrupt or the release incomplete — try again."
-            ));
-        }
-        log("Checksum OK.".to_string());
-    } else {
-        log("No published checksum for this asset, skipping verification.".to_string());
+    let mut hasher = Sha256::new();
+    hasher.update(&bytes);
+    // `finalize()`'s output type doesn't implement `LowerHex` in the
+    // resolved sha2/crypto-common version, so hex-encode by hand.
+    let actual = hasher
+        .finalize()
+        .iter()
+        .map(|b| format!("{b:02x}"))
+        .collect::<String>();
+    if actual != expected {
+        return Err(format!(
+            "Checksum mismatch for {asset}: expected {expected}, got {actual}. \
+             The download may be corrupt or the release incomplete — try again."
+        ));
     }
+    log("Checksum OK.".to_string());
 
     let tmp = dest.with_extension("part");
     std::fs::write(&tmp, &bytes).map_err(|e| e.to_string())?;
@@ -157,7 +180,10 @@ pub async fn ensure_worker(
 }
 
 async fn fetch_text(url: &str) -> Result<String, String> {
-    reqwest::get(url)
+    http_client()?
+        .get(url)
+        .timeout(Duration::from_secs(30))
+        .send()
         .await
         .map_err(|e| e.to_string())?
         .error_for_status()
@@ -168,7 +194,10 @@ async fn fetch_text(url: &str) -> Result<String, String> {
 }
 
 async fn download_with_progress(url: &str, log: &impl Fn(String)) -> Result<Vec<u8>, String> {
-    let response = reqwest::get(url)
+    let response = http_client()?
+        .get(url)
+        .timeout(Duration::from_secs(300))
+        .send()
         .await
         .map_err(|e| format!("Failed to reach {url}: {e}"))?
         .error_for_status()
@@ -242,7 +271,10 @@ pub async fn run_worker_variant(
     let mut child = cmd
         .spawn()
         .map_err(|e| format!("Failed to launch worker {}: {e}", worker_path.display()))?;
-    let stdout = child.stdout.take().expect("piped stdout");
+    let stdout = child
+        .stdout
+        .take()
+        .ok_or_else(|| "Failed to capture worker stdout pipe".to_string())?;
     let mut lines = BufReader::new(stdout).lines();
 
     let mut final_result: Option<Result<TranscriptionOutcome, String>> = None;
@@ -317,5 +349,18 @@ mod tests {
                 .unwrap_err()
                 .contains("read worker output")
         );
+    }
+
+    #[test]
+    fn parse_sha256_checksum_enforces_valid_64_hex_digest() {
+        let valid = "ABCDEF0123456789abcdef0123456789ABCDEF0123456789abcdef0123456789  worker-bin";
+        assert_eq!(
+            parse_sha256_checksum(valid).unwrap(),
+            "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789"
+        );
+        assert!(parse_sha256_checksum("").is_err());
+        assert!(parse_sha256_checksum("not-hex").is_err());
+        assert!(parse_sha256_checksum(&"a".repeat(63)).is_err());
+        assert!(parse_sha256_checksum(&format!("{}z", "a".repeat(63))).is_err());
     }
 }

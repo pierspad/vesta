@@ -13,7 +13,12 @@ static CLIENT_FOLLOW_CUSTOM: LazyLock<Result<reqwest::Client, reqwest::Error>> =
             .redirect(Policy::custom(|attempt| {
                 if attempt.previous().len() >= 10 {
                     attempt.error("Too many redirects")
-                } else if matches!(attempt.url().scheme(), "http" | "https") {
+                } else if matches!(attempt.url().scheme(), "http" | "https")
+                    && !redirect_crosses_into_local_network(
+                        attempt.previous().first(),
+                        attempt.url(),
+                    )
+                {
                     attempt.follow()
                 } else {
                     attempt.error("Redirect host not allowed")
@@ -29,6 +34,7 @@ static CLIENT_FOLLOW: LazyLock<Result<reqwest::Client, reqwest::Error>> = LazyLo
                 attempt.error("Too many redirects")
             } else if matches!(attempt.url().scheme(), "http" | "https")
                 && attempt.url().host_str().is_some_and(is_host_allowed)
+                && !redirect_crosses_into_local_network(attempt.previous().first(), attempt.url())
             {
                 attempt.follow()
             } else {
@@ -110,13 +116,41 @@ fn is_host_allowed(host: &str) -> bool {
 
 fn is_private_lan_ip(ip: &std::net::IpAddr) -> bool {
     match ip {
-        std::net::IpAddr::V4(v4) => v4.is_private() || v4.is_link_local(),
+        std::net::IpAddr::V4(v4) => v4.is_private(),
         std::net::IpAddr::V6(v6) => {
-            // fc00::/7 (ULA) and fe80::/10 (link-local).
+            // fc00::/7 (ULA); explicitly exclude link-local fe80::/10 metadata range.
             let seg0 = v6.segments()[0];
-            (0xfc00..=0xfdff).contains(&seg0) || (seg0 & 0xffc0) == 0xfe80
+            (0xfc00..=0xfdff).contains(&seg0)
         }
     }
+}
+
+fn is_local_or_private_host(host: &str) -> bool {
+    let trimmed = host.trim_matches(['[', ']']);
+    if trimmed.eq_ignore_ascii_case("localhost") || trimmed.ends_with(".local") {
+        return true;
+    }
+    if let Ok(ip) = trimmed.parse::<std::net::IpAddr>() {
+        let is_link_local = match ip {
+            std::net::IpAddr::V4(v4) => v4.is_link_local(),
+            std::net::IpAddr::V6(v6) => (v6.segments()[0] & 0xffc0) == 0xfe80,
+        };
+        return ip.is_loopback() || ip.is_unspecified() || is_link_local || is_private_lan_ip(&ip);
+    }
+    false
+}
+
+fn redirect_crosses_into_local_network(
+    initial_url: Option<&reqwest::Url>,
+    next_url: &reqwest::Url,
+) -> bool {
+    let Some(initial_host) = initial_url.and_then(|u| u.host_str()) else {
+        return false;
+    };
+    let Some(next_host) = next_url.host_str() else {
+        return true;
+    };
+    !is_local_or_private_host(initial_host) && is_local_or_private_host(next_host)
 }
 
 pub type HeaderPairs = Vec<(String, String)>;
@@ -404,5 +438,37 @@ mod tests {
     fn allows_deepgram_and_assemblyai_hosts() {
         assert!(is_host_allowed("api.deepgram.com"));
         assert!(is_host_allowed("api.assemblyai.com"));
+    }
+
+    #[test]
+    fn blocks_link_local_metadata_ips_and_cross_boundary_redirects() {
+        for blocked in ["169.254.169.254", "169.254.0.1", "[fe80::1]"] {
+            assert!(!is_host_allowed(blocked), "{blocked} must be blocked");
+        }
+        let public_origin = reqwest::Url::parse("https://api.openai.com/v1/models").unwrap();
+        let local_target = reqwest::Url::parse("http://127.0.0.1:8080/secret").unwrap();
+        let lan_target = reqwest::Url::parse("http://192.168.1.1/admin").unwrap();
+        let meta_target = reqwest::Url::parse("http://169.254.169.254/latest").unwrap();
+        let public_target = reqwest::Url::parse("https://openrouter.ai/api/v1").unwrap();
+        assert!(redirect_crosses_into_local_network(
+            Some(&public_origin),
+            &local_target
+        ));
+        assert!(redirect_crosses_into_local_network(
+            Some(&public_origin),
+            &lan_target
+        ));
+        assert!(redirect_crosses_into_local_network(
+            Some(&public_origin),
+            &meta_target
+        ));
+        assert!(!redirect_crosses_into_local_network(
+            Some(&public_origin),
+            &public_target
+        ));
+        assert!(!redirect_crosses_into_local_network(
+            Some(&local_target),
+            &local_target
+        ));
     }
 }

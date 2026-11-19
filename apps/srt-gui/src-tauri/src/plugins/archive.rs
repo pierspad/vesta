@@ -23,7 +23,7 @@ const EXCLUDED_NAMES: &[&str] = &[
     "target",
 ];
 
-/// Downloads archive bytes via HTTP with a 30s timeout.
+/// Streams archive bytes via HTTP with a 45s timeout and an upper bound of `MAX_ARCHIVE_BYTES`.
 pub async fn download_archive(url: &str) -> Result<Vec<u8>, String> {
     let client = reqwest::Client::builder()
         .connect_timeout(Duration::from_secs(15))
@@ -32,7 +32,7 @@ pub async fn download_archive(url: &str) -> Result<Vec<u8>, String> {
         .build()
         .map_err(|e| format!("Failed to create HTTP client: {e}"))?;
 
-    let response = client
+    let mut response = client
         .get(url)
         .send()
         .await
@@ -46,20 +46,61 @@ pub async fn download_archive(url: &str) -> Result<Vec<u8>, String> {
         ));
     }
 
-    let bytes = response
-        .bytes()
+    if let Some(content_len) = response.content_length()
+        && content_len > MAX_ARCHIVE_BYTES
+    {
+        return Err(format!(
+            "Archive size ({content_len} bytes) exceeds safety limit ({MAX_ARCHIVE_BYTES} bytes)"
+        ));
+    }
+
+    let mut bytes = Vec::new();
+    while let Some(chunk) = response
+        .chunk()
         .await
-        .map_err(|e| format!("Failed to read archive body: {e}"))?;
+        .map_err(|e| format!("Failed to read archive chunk: {e}"))?
+    {
+        let next_len = bytes
+            .len()
+            .checked_add(chunk.len())
+            .filter(|&n| n as u64 <= MAX_ARCHIVE_BYTES)
+            .ok_or_else(|| {
+                format!("Archive download exceeds safety limit ({MAX_ARCHIVE_BYTES} bytes)")
+            })?;
+        bytes.reserve(next_len - bytes.len());
+        bytes.extend_from_slice(&chunk);
+    }
 
     if bytes.is_empty() {
         return Err("Downloaded archive is empty".to_string());
     }
 
-    Ok(bytes.to_vec())
+    Ok(bytes)
+}
+
+fn validate_git_clone_args(git_url: &str, git_ref: &str) -> Result<(), String> {
+    if git_ref.is_empty()
+        || git_ref.starts_with('-')
+        || git_ref.contains("..")
+        || git_ref.chars().any(|c| c.is_whitespace() || c.is_control())
+    {
+        return Err(format!("Invalid git ref '{git_ref}'"));
+    }
+    if git_url.starts_with('-')
+        || (!git_url.starts_with("https://") && !git_url.starts_with("http://"))
+        || git_url.chars().any(|c| c.is_whitespace() || c.is_control())
+    {
+        return Err(format!(
+            "Unsupported or invalid git repository URL '{git_url}'"
+        ));
+    }
+    Ok(())
 }
 
 /// Fallback: clones the git repository with `--depth 1` into the destination directory.
 pub fn git_clone_fallback(git_url: &str, git_ref: &str, dest_dir: &Path) -> Result<(), String> {
+    validate_git_clone_args(git_url, git_ref)?;
+
     if dest_dir.exists() {
         let _ = fs::remove_dir_all(dest_dir);
     }
@@ -72,7 +113,7 @@ pub fn git_clone_fallback(git_url: &str, git_ref: &str, dest_dir: &Path) -> Resu
         cmd.arg("--branch").arg(git_ref);
     }
 
-    cmd.arg(git_url).arg(dest_dir);
+    cmd.arg("--").arg(git_url).arg(dest_dir);
 
     let output = cmd
         .output()
@@ -132,6 +173,10 @@ pub fn extract_archive(bytes: &[u8], dest_dir: &Path) -> Result<(), String> {
 }
 
 fn extract_tar_gz(bytes: &[u8], dest_dir: &Path) -> Result<(), String> {
+    extract_tar_gz_with_limit(bytes, dest_dir, MAX_ARCHIVE_BYTES)
+}
+
+fn extract_tar_gz_with_limit(bytes: &[u8], dest_dir: &Path, max_bytes: u64) -> Result<(), String> {
     let gz = GzDecoder::new(bytes);
     let mut archive = tar::Archive::new(gz);
 
@@ -206,12 +251,14 @@ fn extract_tar_gz(bytes: &[u8], dest_dir: &Path) -> Result<(), String> {
             fs::create_dir_all(&target_path).map_err(|e| {
                 format!("Failed to create directory {}: {e}", target_path.display())
             })?;
-        } else {
-            let size = entry.header().size().unwrap_or(0);
-            total_unpacked_bytes += size;
-            if total_unpacked_bytes > MAX_ARCHIVE_BYTES {
+        } else if entry_type.is_file() {
+            let header_size = entry.header().size().unwrap_or(0);
+            if total_unpacked_bytes
+                .checked_add(header_size)
+                .is_none_or(|n| n > max_bytes)
+            {
                 return Err(format!(
-                    "Archive extracted size exceeds safety limit ({MAX_ARCHIVE_BYTES} bytes)"
+                    "Archive extracted size exceeds safety limit ({max_bytes} bytes)"
                 ));
             }
 
@@ -220,9 +267,32 @@ fn extract_tar_gz(bytes: &[u8], dest_dir: &Path) -> Result<(), String> {
                     format!("Failed to create parent dir {}: {e}", parent.display())
                 })?;
             }
-            entry
-                .unpack(&target_path)
+            let remaining = max_bytes.saturating_sub(total_unpacked_bytes);
+            let mut outfile = fs::File::create(&target_path).map_err(|e| {
+                format!(
+                    "Failed to create target file {}: {e}",
+                    target_path.display()
+                )
+            })?;
+            let mut limited = std::io::Read::take(&mut entry, remaining.saturating_add(1));
+            let written = std::io::copy(&mut limited, &mut outfile)
                 .map_err(|e| format!("Failed to extract file {}: {e}", target_path.display()))?;
+            if written > remaining {
+                return Err(format!(
+                    "Archive extracted size exceeds safety limit ({max_bytes} bytes)"
+                ));
+            }
+            total_unpacked_bytes = total_unpacked_bytes
+                .checked_add(written)
+                .filter(|&n| n <= max_bytes)
+                .ok_or_else(|| {
+                    format!("Archive extracted size exceeds safety limit ({max_bytes} bytes)")
+                })?;
+            #[cfg(unix)]
+            if let Ok(mode) = entry.header().mode() {
+                use std::os::unix::fs::PermissionsExt;
+                let _ = fs::set_permissions(&target_path, fs::Permissions::from_mode(mode & 0o777));
+            }
         }
     }
 
@@ -230,12 +300,16 @@ fn extract_tar_gz(bytes: &[u8], dest_dir: &Path) -> Result<(), String> {
 }
 
 fn extract_zip(bytes: &[u8], dest_dir: &Path) -> Result<(), String> {
+    extract_zip_with_limit(bytes, dest_dir, MAX_ARCHIVE_BYTES)
+}
+
+fn extract_zip_with_limit(bytes: &[u8], dest_dir: &Path, max_bytes: u64) -> Result<(), String> {
     let cursor = Cursor::new(bytes);
     let mut archive =
         zip::ZipArchive::new(cursor).map_err(|e| format!("Failed to read zip archive: {e}"))?;
 
     let mut paths: Vec<PathBuf> = Vec::new();
-    let mut total_unpacked_bytes: u64 = 0;
+    let mut declared_bytes: u64 = 0;
 
     for i in 0..archive.len() {
         let file = archive
@@ -249,12 +323,12 @@ fn extract_zip(bytes: &[u8], dest_dir: &Path) -> Result<(), String> {
             return Err("Zip archive contains unsupported symlink entry".to_string());
         }
 
-        total_unpacked_bytes += file.size();
-        if total_unpacked_bytes > MAX_ARCHIVE_BYTES {
-            return Err(format!(
-                "Archive extracted size exceeds safety limit ({MAX_ARCHIVE_BYTES} bytes)"
-            ));
-        }
+        declared_bytes = declared_bytes
+            .checked_add(file.size())
+            .filter(|&n| n <= max_bytes)
+            .ok_or_else(|| {
+                format!("Archive extracted size exceeds safety limit ({max_bytes} bytes)")
+            })?;
 
         let enclosed = file
             .enclosed_name()
@@ -263,6 +337,7 @@ fn extract_zip(bytes: &[u8], dest_dir: &Path) -> Result<(), String> {
     }
 
     let prefix_to_strip = detect_common_prefix(&paths);
+    let mut actual_unpacked_bytes: u64 = 0;
 
     for i in 0..archive.len() {
         let mut file = archive
@@ -298,14 +373,27 @@ fn extract_zip(bytes: &[u8], dest_dir: &Path) -> Result<(), String> {
                     format!("Failed to create parent dir {}: {e}", parent.display())
                 })?;
             }
+            let remaining = max_bytes.saturating_sub(actual_unpacked_bytes);
             let mut outfile = fs::File::create(&target_path).map_err(|e| {
                 format!(
                     "Failed to create target file {}: {e}",
                     target_path.display()
                 )
             })?;
-            std::io::copy(&mut file, &mut outfile)
+            let mut limited = std::io::Read::take(&mut file, remaining.saturating_add(1));
+            let written = std::io::copy(&mut limited, &mut outfile)
                 .map_err(|e| format!("Failed to write file {}: {e}", target_path.display()))?;
+            if written > remaining {
+                return Err(format!(
+                    "Archive extracted size exceeds safety limit ({max_bytes} bytes)"
+                ));
+            }
+            actual_unpacked_bytes = actual_unpacked_bytes
+                .checked_add(written)
+                .filter(|&n| n <= max_bytes)
+                .ok_or_else(|| {
+                    format!("Archive extracted size exceeds safety limit ({max_bytes} bytes)")
+                })?;
         }
     }
 
@@ -396,11 +484,7 @@ pub fn load_manifest_from_dir(dir: &Path) -> Result<PluginManifest, String> {
             if readme_path.is_file()
                 && let Ok(readme_content) = fs::read_to_string(&readme_path)
             {
-                let truncated = if readme_content.len() > 128 * 1024 {
-                    format!("{}...\n\n*(Truncated)*", &readme_content[..128 * 1024])
-                } else {
-                    readme_content
-                };
+                let truncated = truncate_readme(readme_content, 128 * 1024);
                 manifest.readme = Some(truncated);
                 break;
             }
@@ -502,6 +586,17 @@ pub async fn fetch_and_extract_plugin(
     git_clone_fallback(&source.git_clone_url, &source.git_ref, dest_dir)?;
 
     load_manifest_from_dir(dest_dir)
+}
+
+fn truncate_readme(content: String, max_bytes: usize) -> String {
+    if content.len() <= max_bytes {
+        return content;
+    }
+    let mut end = max_bytes;
+    while end > 0 && !content.is_char_boundary(end) {
+        end -= 1;
+    }
+    format!("{}...\n\n*(Truncated)*", &content[..end])
 }
 
 #[cfg(test)]
@@ -672,5 +767,95 @@ mod tests {
             manifest.readme.as_deref(),
             Some("# Readme Plugin\nDetailed docs here.")
         );
+    }
+
+    #[test]
+    fn test_multibyte_utf8_readme_truncates_on_char_boundary() {
+        let temp = tempfile::tempdir().unwrap();
+        let manifest_content = r#"{
+            "id": "utf8-readme-plugin",
+            "name": "UTF8 Readme Plugin",
+            "version": "1.0.0",
+            "apiVersion": 1,
+            "entry": { "command": ["python3", "main.py"] }
+        }"#;
+        fs::write(temp.path().join("vesta-plugin.json"), manifest_content).unwrap();
+        // 3-byte CJK chars ("あ") starting at offset 1 so byte 131072 falls mid-character.
+        let mut readme = String::from("a");
+        readme.push_str(&"あ".repeat(45_000));
+        assert!(readme.len() > 128 * 1024);
+        assert!(!readme.is_char_boundary(128 * 1024));
+        fs::write(temp.path().join("README.md"), &readme).unwrap();
+
+        let manifest = load_manifest_from_dir(temp.path()).expect("multibyte README should load");
+        let loaded = manifest.readme.expect("readme missing");
+        assert!(loaded.ends_with("...\n\n*(Truncated)*"));
+    }
+
+    #[test]
+    fn test_git_clone_fallback_rejects_option_injection_and_bad_schemes() {
+        let temp = tempfile::tempdir().unwrap();
+        let err = git_clone_fallback(
+            "https://github.com/org/repo.git",
+            "--upload-pack=sh",
+            temp.path(),
+        )
+        .unwrap_err();
+        assert!(err.contains("Invalid git ref"), "{err}");
+
+        let err_ref = git_clone_fallback("https://github.com/org/repo.git", "../main", temp.path())
+            .unwrap_err();
+        assert!(err_ref.contains("Invalid git ref"), "{err_ref}");
+
+        for bad_url in [
+            "-oProxyCommand=id",
+            "file:///etc/passwd",
+            "ssh://git@example.com/repo.git",
+        ] {
+            let err_url = git_clone_fallback(bad_url, "HEAD", temp.path()).unwrap_err();
+            assert!(
+                err_url.contains("Unsupported or invalid git repository URL"),
+                "{err_url}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_extract_zip_rejects_oversized_payload_against_limit() {
+        use std::io::Write;
+        let mut zip_buf = Vec::new();
+        {
+            let cursor = Cursor::new(&mut zip_buf);
+            let mut writer = zip::ZipWriter::new(cursor);
+            writer
+                .start_file::<_, ()>("big.txt", zip::write::FileOptions::default())
+                .unwrap();
+            writer.write_all(&vec![b'A'; 4096]).unwrap();
+            writer.finish().unwrap();
+        }
+        let dest = tempfile::tempdir().unwrap();
+        let err = extract_zip_with_limit(&zip_buf, dest.path(), 1024).unwrap_err();
+        assert!(err.contains("exceeds safety limit"), "{err}");
+    }
+
+    #[test]
+    fn test_extract_tar_gz_rejects_oversized_payload_against_limit() {
+        let mut tar_bytes = Vec::new();
+        {
+            let enc = flate2::write::GzEncoder::new(&mut tar_bytes, flate2::Compression::default());
+            let mut builder = tar::Builder::new(enc);
+            let data = vec![b'B'; 4096];
+            let mut header = tar::Header::new_gnu();
+            header.set_size(data.len() as u64);
+            header.set_mode(0o644);
+            header.set_cksum();
+            builder
+                .append_data(&mut header, "big.bin", &data[..])
+                .unwrap();
+            builder.into_inner().unwrap().finish().unwrap();
+        }
+        let dest = tempfile::tempdir().unwrap();
+        let err = extract_tar_gz_with_limit(&tar_bytes, dest.path(), 1024).unwrap_err();
+        assert!(err.contains("exceeds safety limit"), "{err}");
     }
 }

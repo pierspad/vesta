@@ -379,11 +379,33 @@ impl PluginManager {
 
     /// Uninstalls a plugin, stopping any active process, deleting its files and registry entry.
     pub async fn uninstall(&self, id: &str) -> Result<(), String> {
+        if !is_valid_plugin_id(id) {
+            return Err(format!("Invalid plugin id '{id}'"));
+        }
+
+        {
+            let reg = self.registry.lock().await;
+            if reg.get(id).is_none() {
+                return Err(format!("Plugin '{id}' is not installed"));
+            }
+        }
+
         self.runtime.stop_plugin(id).await;
 
-        let plugin_dir = self.plugins_dir().join(id);
-        if plugin_dir.exists() {
-            let _ = fs::remove_dir_all(plugin_dir);
+        let plugins_root = self.plugins_dir();
+        let plugin_dir = plugins_root.join(id);
+        if fs::symlink_metadata(&plugin_dir).is_ok() {
+            let canon_root = fs::canonicalize(&plugins_root)
+                .map_err(|e| format!("Failed to resolve plugins directory: {e}"))?;
+            let canon_dir = fs::canonicalize(&plugin_dir)
+                .map_err(|e| format!("Failed to resolve plugin directory: {e}"))?;
+            if !canon_dir.starts_with(&canon_root) || canon_dir == canon_root {
+                return Err(format!(
+                    "Refusing to delete path outside plugins directory for '{id}'"
+                ));
+            }
+            fs::remove_dir_all(&canon_dir)
+                .map_err(|e| format!("Failed to delete plugin files: {e}"))?;
         }
 
         let mut reg = self.registry.lock().await;
@@ -543,6 +565,14 @@ impl PluginManager {
 
         Ok(res)
     }
+}
+
+fn is_valid_plugin_id(id: &str) -> bool {
+    !id.is_empty()
+        && id.len() <= 128
+        && id
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_')
 }
 
 #[cfg(test)]
@@ -728,5 +758,21 @@ mod tests {
                 empty_dir.path().display()
             )
         );
+    }
+
+    #[tokio::test]
+    async fn test_uninstall_rejects_traversal_and_unregistered_ids() {
+        let base = tempfile::tempdir().unwrap();
+        let pm = PluginManager::new(base.path().to_path_buf());
+        let sentinel = base.path().join("sentinel.txt");
+        fs::write(&sentinel, "keep").unwrap();
+
+        for bad_id in ["..", "../escape", "nested/id", ""] {
+            let err = pm.uninstall(bad_id).await.unwrap_err();
+            assert!(err.contains("Invalid plugin id"), "id={bad_id}, err={err}");
+        }
+        let err = pm.uninstall("not-installed-plugin").await.unwrap_err();
+        assert!(err.contains("is not installed"), "err={err}");
+        assert!(sentinel.exists(), "sentinel file must remain untouched");
     }
 }
