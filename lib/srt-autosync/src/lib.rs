@@ -328,12 +328,24 @@ pub fn calculate_sample_positions(
     subtitles: &[SubtitleLine],
     existing_anchors: &[ExistingAnchor],
 ) -> Vec<f64> {
+    if !duration_sec.is_finite()
+        || duration_sec <= 0.0
+        || !segment_duration.is_finite()
+        || segment_duration <= 0.0
+        || num_samples == 0
+    {
+        return Vec::new();
+    }
+
+    let mut sorted_subs = subtitles.to_vec();
+    sorted_subs.sort_by_key(|s| s.start_ms);
+
     if !existing_anchors.is_empty() {
         let guided = calculate_guided_sample_positions(
             duration_sec,
             segment_duration,
             num_samples,
-            subtitles,
+            &sorted_subs,
             existing_anchors,
         );
         if !guided.is_empty() {
@@ -341,7 +353,12 @@ pub fn calculate_sample_positions(
         }
     }
 
-    calculate_unconstrained_sample_positions(duration_sec, segment_duration, num_samples, subtitles)
+    calculate_unconstrained_sample_positions(
+        duration_sec,
+        segment_duration,
+        num_samples,
+        &sorted_subs,
+    )
 }
 
 /// Sample audio segments specifically in large unanchored spans between or outside existing anchors.
@@ -357,7 +374,7 @@ fn calculate_guided_sample_positions(
         .iter()
         .map(|a| a.target_time_ms as f64 / 1000.0)
         .collect();
-    anchor_targets.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    anchor_targets.sort_by(f64::total_cmp);
 
     // Define unanchored spans across the timeline
     let mut spans = Vec::new();
@@ -441,7 +458,7 @@ fn calculate_guided_sample_positions(
         }
     }
 
-    positions.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    positions.sort_by(f64::total_cmp);
     positions.dedup_by(|a, b| (*a - *b).abs() < segment_duration * 0.7);
 
     // Keep at least 10s separation from existing manual anchors
@@ -505,7 +522,7 @@ fn calculate_unconstrained_sample_positions(
         positions.push(0.0);
     }
 
-    positions.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    positions.sort_by(f64::total_cmp);
     positions.dedup_by(|a, b| (*a - *b).abs() < segment_duration * 0.7);
     positions
 }
@@ -582,6 +599,8 @@ pub async fn run_auto_sync_with_cloud(
     if cloud.is_none() && !config.model_path.exists() {
         anyhow::bail!("Whisper model not found at {}", config.model_path.display());
     }
+    let mut subtitles = subtitles;
+    subtitles.sort_by_key(|s| s.start_ms);
 
     let ffmpeg_ok = tokio::process::Command::new(&config.ffmpeg_cmd)
         .arg("-version")
@@ -1170,6 +1189,27 @@ mod tests {
         let chosen =
             select_dialogue_dense_subtitle(&subtitles, near_idx, 100_000, 10_000, 20_000).unwrap();
         assert_eq!(chosen.id, 3);
+    }
+
+    #[test]
+    fn calculate_sample_positions_handles_unsorted_input_and_invalid_durations() {
+        let sorted: Vec<SubtitleLine> = (0..25)
+            .map(|i| SubtitleLine {
+                id: i + 1,
+                start_ms: (15 + i as i64 * 25) * 1000,
+                text: format!("Subtitle dialogue cue {i} with enough words"),
+            })
+            .collect();
+        let mut reversed = sorted.clone();
+        reversed.reverse();
+
+        let expected = calculate_sample_positions(900.0, 20.0, 8, &sorted, &[]);
+        let actual = calculate_sample_positions(900.0, 20.0, 8, &reversed, &[]);
+        assert_eq!(actual, expected);
+
+        assert!(calculate_sample_positions(f64::NAN, 20.0, 8, &sorted, &[]).is_empty());
+        assert!(calculate_sample_positions(0.0, 20.0, 8, &sorted, &[]).is_empty());
+        assert!(calculate_sample_positions(900.0, 0.0, 8, &sorted, &[]).is_empty());
     }
 }
 

@@ -71,12 +71,28 @@ fn append_field(tsv: &mut String, first: &mut bool, val: &str) {
     *first = false;
 }
 
+#[inline]
+fn sanitize_tsv_tag(deck_name: &str) -> String {
+    deck_name
+        .chars()
+        .map(|c| match c {
+            '\t' | '\r' | '\n' => ' ',
+            _ => c,
+        })
+        .collect()
+}
+
+#[inline]
+fn media_exists_for_tsv(dir: &str, filename: &str) -> bool {
+    dir.is_empty() || std::path::Path::new(dir).join(filename).is_file()
+}
+
 pub(crate) fn generate_tsv(
     lines: &[MatchedLine],
     config: &FlashcardConfig,
-    _audio_dir: &str,
-    _snapshot_dir: &str,
-    _video_dir: &str,
+    audio_dir: &str,
+    snapshot_dir: &str,
+    video_dir: &str,
 ) -> String {
     let active_count = lines.iter().filter(|l| l.active).count();
     let mut tsv = String::with_capacity(active_count * 200);
@@ -126,11 +142,15 @@ pub(crate) fn generate_tsv(
                     ep,
                     seq_num,
                 );
-                if !first {
-                    tsv.push('\t');
+                if media_exists_for_tsv(audio_dir, &filename) {
+                    if !first {
+                        tsv.push('\t');
+                    }
+                    let _ = write!(tsv, "[sound:{filename}]");
+                    first = false;
+                } else {
+                    append_field(&mut tsv, &mut first, "");
                 }
-                let _ = write!(tsv, "[sound:{filename}]");
-                first = false;
             } else {
                 append_field(&mut tsv, &mut first, "");
             }
@@ -144,11 +164,15 @@ pub(crate) fn generate_tsv(
                     ep,
                     seq_num,
                 );
-                if !first {
-                    tsv.push('\t');
+                if media_exists_for_tsv(snapshot_dir, &filename) {
+                    if !first {
+                        tsv.push('\t');
+                    }
+                    let _ = write!(tsv, "<img src=\"{filename}\">");
+                    first = false;
+                } else {
+                    append_field(&mut tsv, &mut first, "");
                 }
-                let _ = write!(tsv, "<img src=\"{filename}\">");
-                first = false;
             } else {
                 append_field(&mut tsv, &mut first, "");
             }
@@ -158,11 +182,15 @@ pub(crate) fn generate_tsv(
             if config.generate_video_clips {
                 let filename =
                     media_filename(MediaKind::Video(video_ext), &sanitized_deck, ep, seq_num);
-                if !first {
-                    tsv.push('\t');
+                if media_exists_for_tsv(video_dir, &filename) {
+                    if !first {
+                        tsv.push('\t');
+                    }
+                    let _ = write!(tsv, "[sound:{filename}]");
+                    first = false;
+                } else {
+                    append_field(&mut tsv, &mut first, "");
                 }
-                let _ = write!(tsv, "[sound:{filename}]");
-                first = false;
             } else {
                 append_field(&mut tsv, &mut first, "");
             }
@@ -172,7 +200,8 @@ pub(crate) fn generate_tsv(
             if !first {
                 tsv.push('\t');
             }
-            let _ = write!(tsv, "{}_{ep:03}", config.deck_name);
+            let safe_deck = sanitize_tsv_tag(&config.deck_name);
+            let _ = write!(tsv, "{safe_deck}_{ep:03}");
             first = false;
         }
 
@@ -316,5 +345,40 @@ mod tests {
         assert!(rendered.contains("<span class=\"ctx\">Prev line</span><br>"));
         assert!(rendered.contains("Main line<br>with break")); // tab replaced by space
         assert!(rendered.contains("<br><span class=\"ctx\">Next line</span>"));
+    }
+
+    #[test]
+    fn tsv_omits_orphan_media_tags_when_staging_files_absent_and_sanitizes_tag() {
+        let staging = tempfile::tempdir().unwrap();
+        let media_dir = staging.path().to_string_lossy().to_string();
+        let lines = vec![line_with_context(1, "Ciao", Vec::new(), Vec::new())];
+        let mut config = FlashcardConfig {
+            deck_name: "My\tDeck\nLine".to_string(),
+            episode_number: 2,
+            generate_audio: true,
+            generate_snapshots: true,
+            generate_video_clips: true,
+            ..Default::default()
+        };
+        config.output_fields.include_audio = true;
+        config.output_fields.include_snapshot = true;
+        config.output_fields.include_video = true;
+
+        // No files in media_dir -> no [sound:...] or <img ...> tags emitted
+        let tsv_empty = generate_tsv(&lines, &config, &media_dir, &media_dir, &media_dir);
+        let row = tsv_empty.trim_end_matches('\n');
+        assert_eq!(tsv_empty.lines().count(), 1);
+        assert!(!row.contains("[sound:"));
+        assert!(!row.contains("<img "));
+        assert!(row.contains("My Deck Line_002"));
+
+        // Create only audio clip -> only audio tag emitted
+        let sanitized = sanitize_filename(&config.deck_name);
+        let audio_file = media_filename(MediaKind::Audio(config.audio_format), &sanitized, 2, 1);
+        std::fs::write(staging.path().join(&audio_file), b"fake").unwrap();
+
+        let tsv_with_audio = generate_tsv(&lines, &config, &media_dir, &media_dir, &media_dir);
+        assert!(tsv_with_audio.contains(&format!("[sound:{audio_file}]")));
+        assert!(!tsv_with_audio.contains("<img "));
     }
 }

@@ -88,9 +88,15 @@ pub fn merge_apkg(paths: &[PathBuf], output: &Path) -> Result<()> {
                         let mut b = value.clone();
                         if let Some(a) = a.as_object_mut() {
                             a.remove("mod");
+                            if column == "models" {
+                                a.remove("did");
+                            }
                         }
                         if let Some(b) = b.as_object_mut() {
                             b.remove("mod");
+                            if column == "models" {
+                                b.remove("did");
+                            }
                         }
                         if a != b {
                             bail!("Conflicting {column} definition: {id}");
@@ -263,5 +269,110 @@ mod tests {
             "unexpected error: {err}"
         );
         assert!(!output.exists());
+    }
+
+    fn make_test_apkg_with_model_and_deck(
+        path: &Path,
+        deck_id: i64,
+        deck_name: &str,
+        model_id: i64,
+        note_id: i64,
+        card_id: i64,
+        flds: &str,
+    ) {
+        let work = tempfile::tempdir().unwrap();
+        let db_path = work.path().join("collection.anki2");
+        let conn = rusqlite::Connection::open(&db_path).unwrap();
+        let models = serde_json::json!({
+            model_id.to_string(): {
+                "id": model_id,
+                "name": "Vesta Card",
+                "did": deck_id,
+                "mod": deck_id,
+                "flds": [{"name": "Front"}, {"name": "Back"}]
+            }
+        })
+        .to_string();
+        let decks = serde_json::json!({
+            deck_id.to_string(): { "id": deck_id, "name": deck_name }
+        })
+        .to_string();
+        conn.execute_batch(
+            "CREATE TABLE col (id INTEGER PRIMARY KEY, models TEXT, decks TEXT, dconf TEXT);
+             CREATE TABLE notes (id INTEGER PRIMARY KEY, guid TEXT, mid INTEGER, mod INTEGER, usn INTEGER, tags TEXT, flds TEXT, sfld TEXT, csum INTEGER, flags INTEGER, data TEXT);
+             CREATE TABLE cards (id INTEGER PRIMARY KEY, nid INTEGER, did INTEGER, ord INTEGER, mod INTEGER, usn INTEGER, type INTEGER, queue INTEGER, due INTEGER, ivl INTEGER, factor INTEGER, reps INTEGER, lapses INTEGER, left INTEGER, odue INTEGER, odid INTEGER, flags INTEGER, data TEXT);
+             CREATE TABLE revlog (id INTEGER PRIMARY KEY);",
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO col VALUES (1, ?1, ?2, '{}')",
+            rusqlite::params![models, decks],
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO notes VALUES (?1, ?2, ?3, 0, -1, '', ?4, ?4, 0, 0, '')",
+            rusqlite::params![note_id, format!("guid_{note_id}"), model_id, flds],
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO cards VALUES (?1, ?2, ?3, 0, 0, -1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, '')",
+            rusqlite::params![card_id, note_id, deck_id],
+        )
+        .unwrap();
+        drop(conn);
+
+        let mut file = std::fs::File::create(path).unwrap();
+        let mut zip = zip::ZipWriter::new(&mut file);
+        let opt = zip::write::SimpleFileOptions::default();
+        zip.start_file("collection.anki2", opt).unwrap();
+        std::io::copy(&mut std::fs::File::open(&db_path).unwrap(), &mut zip).unwrap();
+        zip.start_file("media", opt).unwrap();
+        zip.write_all(b"{}").unwrap();
+        zip.finish().unwrap();
+    }
+
+    #[test]
+    fn merge_apkg_allows_shared_note_type_across_distinct_decks() {
+        let dir = tempfile::tempdir().unwrap();
+        let pkg1 = dir.path().join("ep1.apkg");
+        let pkg2 = dir.path().join("ep2.apkg");
+        let output = dir.path().join("merged.apkg");
+
+        make_test_apkg_with_model_and_deck(
+            &pkg1,
+            1001,
+            "Episode 1",
+            424242,
+            10001,
+            20001,
+            "hello\x1fworld",
+        );
+        make_test_apkg_with_model_and_deck(
+            &pkg2,
+            1002,
+            "Episode 2",
+            424242,
+            10002,
+            20002,
+            "foo\x1fbar",
+        );
+
+        merge_apkg(&[pkg1, pkg2], &output).unwrap();
+        assert!(output.exists());
+
+        let extract_dir = dir.path().join("extracted");
+        std::fs::create_dir_all(&extract_dir).unwrap();
+        let mut archive = zip::ZipArchive::new(std::fs::File::open(&output).unwrap()).unwrap();
+        let db_out = extract_dir.join("collection.anki2");
+        std::io::copy(
+            &mut archive.by_name("collection.anki2").unwrap(),
+            &mut std::fs::File::create(&db_out).unwrap(),
+        )
+        .unwrap();
+        let conn = rusqlite::Connection::open(&db_out).unwrap();
+        let card_count: i64 = conn
+            .query_row("SELECT COUNT(*) FROM cards", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(card_count, 2);
     }
 }

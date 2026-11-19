@@ -35,7 +35,7 @@
     </div>
   {:else}
     <div bind:this={scrollContainer} class="space-y-2 pr-1">
-      {#each segments as segment}
+      {#each segments as segment, idx (`${segment.start_ms}-${segment.end_ms}-${idx}`)}
         <div class="p-2.5 rounded-lg bg-white/[0.02] border border-white/5 flex gap-3 text-xs hover:bg-white/5 transition-colors">
           <span class="font-mono text-indigo-300 shrink-0 select-none">
             {formatSubtitleTime(segment.start_ms)} → {formatSubtitleTime(segment.end_ms)}

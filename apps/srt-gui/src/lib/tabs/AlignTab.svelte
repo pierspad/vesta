@@ -3,9 +3,8 @@
   import { SnapshotHistory } from "$lib/workflows/snapshotHistory";
   import EmptyStatusLabel from "$lib/components/EmptyStatusLabel.svelte";
   import { invokeCommand as invoke } from "$lib/services/tauriClient";
-  import { listen } from '@tauri-apps/api/event';
   import { writeTextFile } from '@tauri-apps/plugin-fs';
-  import { onDestroy, onMount } from 'svelte';
+  import { onMount } from 'svelte';
   import { guardedOpen, guardedSave } from '$lib/utils/dialogGuard';
   import { setupWebviewDragDrop } from '$lib/utils/dragDrop';
   import { locale } from '$lib/i18n';
@@ -383,7 +382,7 @@
       const suggested = await invoke<string | null>("sync_suggest_companion_subtitle_for_srt", {
         srtPath: targetSrtPath,
       });
-      if (!suggested || suggested === targetSrtPath) return;
+      if (sourcePath || !suggested || suggested === targetSrtPath) return;
       await loadSource(suggested);
     } catch {
       // Best-effort suggestion only.
@@ -396,7 +395,7 @@
       const suggested = await invoke<string | null>("sync_suggest_companion_subtitle_for_srt", {
         srtPath: sourceSrtPath,
       });
-      if (!suggested || suggested === sourceSrtPath) return;
+      if (targetPath || !suggested || suggested === sourceSrtPath) return;
       await loadTarget(suggested);
     } catch {
       // Best-effort suggestion only.
@@ -461,6 +460,7 @@
   }
 
   async function saveSource() {
+    if (sourceSubs.length === 0) return;
     try {
       const defaultPath = sourcePath.replace('.srt', '_aligned.srt');
       const savePath = await guardedSave({

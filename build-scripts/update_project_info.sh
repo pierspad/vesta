@@ -167,17 +167,17 @@ done < <(find "$PROJECT_ROOT/core" "$PROJECT_ROOT/lib" "$PROJECT_ROOT/cli" -mind
 # ===========================================================
 # 9. Frontend Svelte Fallbacks (Sidebar.svelte, SettingsTab.svelte)
 # ===========================================================
-SIDEBAR_SVELTE="$PROJECT_ROOT/apps/srt-gui/src/lib/Sidebar.svelte"
+SIDEBAR_SVELTE="$PROJECT_ROOT/apps/srt-gui/src/lib/components/Sidebar.svelte"
 if [ -f "$SIDEBAR_SVELTE" ]; then
-    # Aggiorna fallback versione in Sidebar.svelte
+    # Update fallback version in Sidebar.svelte
     sed -i "s/appVersionNum = \"v[^\"]*\"/appVersionNum = \"v${VERSION}\"/g" "$SIDEBAR_SVELTE"
     sed -i "s/appVersionNum || \"v[^\"]*\"/appVersionNum || \"v${VERSION}\"/g" "$SIDEBAR_SVELTE"
     update_file "$SIDEBAR_SVELTE" "fallback version"
 fi
 
-SETTINGS_TAB_SVELTE="$PROJECT_ROOT/apps/srt-gui/src/lib/SettingsTab.svelte"
+SETTINGS_TAB_SVELTE="$PROJECT_ROOT/apps/srt-gui/src/lib/tabs/SettingsTab.svelte"
 if [ -f "$SETTINGS_TAB_SVELTE" ]; then
-    # Aggiorna fallback versione in SettingsTab.svelte
+    # Update fallback version in SettingsTab.svelte
     sed -i "s/appVersionNum = \"v[^\"]*\"/appVersionNum = \"v${VERSION}\"/g" "$SETTINGS_TAB_SVELTE"
     update_file "$SETTINGS_TAB_SVELTE" "fallback version"
 fi

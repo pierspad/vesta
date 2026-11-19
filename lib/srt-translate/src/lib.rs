@@ -533,21 +533,17 @@ where
     let (skip_batches, start_idx) = if output_path.exists() {
         match SrtParser::parse_file(output_path) {
             Ok(existing) => {
-                let existing_count = existing.len();
-                if existing_count > 0 {
-                    *translated.lock().await = existing.clone();
-                    let missing =
-                        get_missing_or_incorrect_subtitle_ids(&subtitles_map, &existing).len();
-                    if missing == 0 {
-                        let calc_start_idx = existing_count.saturating_sub(resume_overlap);
-                        (calc_start_idx / batch_size, calc_start_idx)
-                    } else if missing <= batch_size * 2 {
-                        (0, sorted.len())
-                    } else {
-                        (0, 0)
-                    }
-                } else {
+                if existing.is_empty() {
                     (0, 0)
+                } else {
+                    *translated.lock().await = existing.clone();
+                    compute_resume_position(
+                        &sorted,
+                        &subtitles_map,
+                        &existing,
+                        batch_size,
+                        resume_overlap,
+                    )
                 }
             }
             Err(_) => (0, 0),
@@ -938,9 +934,128 @@ async fn save_translation_checkpoint(
     .context("Translation checkpoint worker failed")?
 }
 
+fn compute_resume_position(
+    sorted: &[(u32, Subtitle)],
+    subtitles_map: &HashMap<u32, Subtitle>,
+    existing: &HashMap<u32, Subtitle>,
+    batch_size: usize,
+    resume_overlap: usize,
+) -> (usize, usize) {
+    if existing.is_empty() || batch_size == 0 {
+        return (0, 0);
+    }
+    let missing_total = get_missing_or_incorrect_subtitle_ids(subtitles_map, existing).len();
+    if missing_total == 0 || missing_total <= batch_size * 2 {
+        return (0, sorted.len());
+    }
+    let prefix_len = existing.len().min(sorted.len());
+    let prefix_map: HashMap<u32, Subtitle> = sorted[..prefix_len].iter().cloned().collect();
+    let missing_in_prefix = get_missing_or_incorrect_subtitle_ids(&prefix_map, existing).len();
+    if missing_in_prefix == 0 {
+        let calc_start_idx = prefix_len.saturating_sub(resume_overlap);
+        (calc_start_idx / batch_size, calc_start_idx)
+    } else {
+        (0, 0)
+    }
+}
+
 #[cfg(test)]
 mod checkpoint_tests {
     use super::*;
+
+    fn make_sub(id: u32, text: &str) -> Subtitle {
+        Subtitle {
+            id,
+            start: srt_parser::Timestamp {
+                milliseconds: id as u64 * 1000,
+            },
+            end: srt_parser::Timestamp {
+                milliseconds: id as u64 * 1000 + 500,
+            },
+            text: text.to_string(),
+        }
+    }
+
+    #[test]
+    fn compute_resume_position_handles_complete_partial_and_corrupt_checkpoints() {
+        let sorted: Vec<(u32, Subtitle)> = (1..=30)
+            .map(|id| (id, make_sub(id, &format!("Source {id}"))))
+            .collect();
+        let subtitles_map: HashMap<u32, Subtitle> = sorted.iter().cloned().collect();
+        let batch_size = 5;
+        let resume_overlap = 2;
+
+        // 1. Empty existing -> restart from beginning
+        assert_eq!(
+            compute_resume_position(
+                &sorted,
+                &subtitles_map,
+                &HashMap::new(),
+                batch_size,
+                resume_overlap
+            ),
+            (0, 0)
+        );
+
+        // 2. Complete checkpoint -> skip all batches
+        let full_existing: HashMap<u32, Subtitle> = (1..=30)
+            .map(|id| (id, make_sub(id, &format!("Trad {id}"))))
+            .collect();
+        assert_eq!(
+            compute_resume_position(
+                &sorted,
+                &subtitles_map,
+                &full_existing,
+                batch_size,
+                resume_overlap
+            ),
+            (0, 30)
+        );
+
+        // 3. Small scattered gaps (<= batch_size * 2) -> defer to per-cue repair
+        let mut mostly_done = full_existing.clone();
+        mostly_done.remove(&3);
+        mostly_done.remove(&17);
+        assert_eq!(
+            compute_resume_position(
+                &sorted,
+                &subtitles_map,
+                &mostly_done,
+                batch_size,
+                resume_overlap
+            ),
+            (0, 30)
+        );
+
+        // 4. Clean 50% prefix (15 of 30 done, > batch_size * 2 remaining) -> resume at prefix_len - overlap
+        let half_existing: HashMap<u32, Subtitle> = (1..=15)
+            .map(|id| (id, make_sub(id, &format!("Trad {id}"))))
+            .collect();
+        assert_eq!(
+            compute_resume_position(
+                &sorted,
+                &subtitles_map,
+                &half_existing,
+                batch_size,
+                resume_overlap
+            ),
+            ((15 - 2) / 5, 13)
+        );
+
+        // 5. Prefix with missing cue inside prefix -> restart from 0
+        let mut broken_prefix = half_existing;
+        broken_prefix.insert(1, make_sub(1, ""));
+        assert_eq!(
+            compute_resume_position(
+                &sorted,
+                &subtitles_map,
+                &broken_prefix,
+                batch_size,
+                resume_overlap
+            ),
+            (0, 0)
+        );
+    }
 
     #[tokio::test(flavor = "current_thread")]
     async fn concurrent_checkpoints_preserve_all_completed_batches() {

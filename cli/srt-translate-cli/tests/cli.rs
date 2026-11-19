@@ -166,7 +166,11 @@ fn ctrl_c_cancels_translation_with_130_and_keeps_last_checkpoint() {
     let configuration = dir.path().join("config.toml");
     let handshake = dir.path().join("request.started");
     let before = subtitle("Old translation");
-    std::fs::write(&input, subtitle("Hello")).unwrap();
+    std::fs::write(
+        &input,
+        "1\n00:00:01,000 --> 00:00:02,000\nHello\n\n2\n00:00:03,000 --> 00:00:04,000\nWorld\n\n3\n00:00:05,000 --> 00:00:06,000\nThird\n\n4\n00:00:07,000 --> 00:00:08,000\nFourth\n",
+    )
+    .unwrap();
     std::fs::write(&output, &before).unwrap();
 
     let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();

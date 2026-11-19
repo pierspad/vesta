@@ -1,5 +1,14 @@
 use crate::language_info::get_language_info;
 
+fn resolve_target_name<'a>(target_lang: &'a str, info_name: &'a str) -> &'a str {
+    let trimmed = target_lang.trim();
+    if info_name == "the target language" && !trimmed.is_empty() {
+        trimmed
+    } else {
+        info_name
+    }
+}
+
 pub fn build_single_translation_prompt(
     text: &str,
     target_lang: &str,
@@ -15,6 +24,7 @@ pub fn build_single_translation_prompt(
     };
 
     let lang_info = get_language_info(target_lang);
+    let target_name = resolve_target_name(target_lang, lang_info.full_name);
 
     format!(
         "You are a professional subtitle translator specializing in film and TV content.
@@ -43,7 +53,7 @@ Original subtitle text:
 {}
 
 Translation:",
-        lang_info.full_name, lang_info.examples, context_info, text
+        target_name, lang_info.examples, context_info, text
     )
 }
 
@@ -68,6 +78,7 @@ pub fn build_batch_translation_prompt(
     };
 
     let lang_info = get_language_info(target_lang);
+    let target_name = resolve_target_name(target_lang, lang_info.full_name);
 
     format!(
         r#"You are a professional subtitle translator specializing in film and TV content.
@@ -102,7 +113,7 @@ Input subtitles:
 {}
 
 Return ONLY the JSON array:"#,
-        lang_info.full_name, lang_info.examples, context_info, input_str
+        target_name, lang_info.examples, context_info, input_str
     )
 }
 
@@ -128,6 +139,7 @@ pub fn build_context_enhanced_translation_prompt(
     };
 
     let lang_info = get_language_info(target_lang);
+    let target_name = resolve_target_name(target_lang, lang_info.full_name);
 
     format!(
         "You are a professional subtitle translator specializing in film and TV content.
@@ -160,7 +172,7 @@ Original subtitle text to translate:
 {}
 
 Translation:",
-        lang_info.full_name, title_info, surrounding_info, lang_info.examples, text
+        target_name, title_info, surrounding_info, lang_info.examples, text
     )
 }
 
@@ -190,5 +202,18 @@ mod tests {
         assert!(prompt.contains("\"text\": \"First line\""));
         assert!(prompt.contains("JSON array"));
         assert!(prompt.contains("every input id exactly once"));
+    }
+
+    #[test]
+    fn test_prompts_preserve_custom_and_normalized_target_languages() {
+        let swahili = build_single_translation_prompt("Hello", "Swahili", None);
+        assert!(swahili.contains("translate the following subtitle text to Swahili"));
+        assert!(!swahili.contains("to the target language"));
+
+        let korean = build_batch_translation_prompt(&[(1, "Hi".to_string())], "ko", None);
+        assert!(korean.contains("translate the following subtitle texts to Korean"));
+
+        let repair = build_context_enhanced_translation_prompt("Hi", "Italian", None, None);
+        assert!(repair.contains("translate the following subtitle text to Italian"));
     }
 }

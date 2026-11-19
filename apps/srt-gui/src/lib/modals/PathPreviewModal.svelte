@@ -84,7 +84,7 @@
     <div
       class="bg-gray-900 border border-gray-700 rounded-xl w-full max-w-2xl p-5 animate-fade-in"
       onclick={(e) => e.stopPropagation()}
-      onkeydown={(e) => e.stopPropagation()}
+      onkeydown={(e) => { if (e.key !== "Escape") e.stopPropagation(); }}
     >
       <div class="flex items-center justify-between mb-3">
         <h3 class="text-sm font-semibold text-gray-300">{title}</h3>

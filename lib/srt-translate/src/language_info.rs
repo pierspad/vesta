@@ -4,8 +4,9 @@ pub struct LanguageInfo {
 }
 
 pub fn get_language_info(lang_code: &str) -> LanguageInfo {
-    let (full_name, examples) = match lang_code {
-        "it" => (
+    let normalized = lang_code.trim().to_ascii_lowercase();
+    let (full_name, examples) = match normalized.as_str() {
+        "it" | "italian" => (
             "Italian",
             r#"Examples of high-quality subtitle translations to Italian:
 
@@ -25,7 +26,7 @@ pub fn get_language_info(lang_code: &str) -> LanguageInfo {
                 "#,
         ),
 
-        "es" => (
+        "es" | "spanish" => (
             "Spanish",
             r#"Examples of high-quality subtitle translations to Spanish:
 
@@ -45,7 +46,7 @@ pub fn get_language_info(lang_code: &str) -> LanguageInfo {
                 "#,
         ),
 
-        "fr" => (
+        "fr" | "french" => (
             "French",
             r#"Examples of high-quality subtitle translations to French:
 
@@ -65,7 +66,7 @@ pub fn get_language_info(lang_code: &str) -> LanguageInfo {
                 "#,
         ),
 
-        "de" => (
+        "de" | "german" => (
             "German",
             r#"Examples of high-quality subtitle translations to German:
 
@@ -85,7 +86,7 @@ pub fn get_language_info(lang_code: &str) -> LanguageInfo {
                 "#,
         ),
 
-        "en" => (
+        "en" | "english" => (
             "English",
             r#"Examples of high-quality subtitle translations to English:
 
@@ -105,7 +106,7 @@ pub fn get_language_info(lang_code: &str) -> LanguageInfo {
                 "#,
         ),
 
-        "pt" => (
+        "pt" | "portuguese" | "pt-br" => (
             "Portuguese",
             r#"Examples of high-quality subtitle translations to Portuguese:
 
@@ -125,7 +126,7 @@ pub fn get_language_info(lang_code: &str) -> LanguageInfo {
                 "#,
         ),
 
-        "ru" => (
+        "ru" | "russian" => (
             "Russian",
             r#"Examples of high-quality subtitle translations to Russian:
 
@@ -145,7 +146,7 @@ pub fn get_language_info(lang_code: &str) -> LanguageInfo {
                 "#,
         ),
 
-        "ja" => (
+        "ja" | "japanese" => (
             "Japanese",
             r#"Examples of high-quality subtitle translations to Japanese:
 
@@ -165,7 +166,7 @@ pub fn get_language_info(lang_code: &str) -> LanguageInfo {
                 "#,
         ),
 
-        "zh" => (
+        "zh" | "chinese" | "zh-cn" | "zh-tw" => (
             "Chinese (Simplified)",
             r#"Examples of high-quality subtitle translations to Chinese (Simplified):
 
@@ -185,7 +186,7 @@ pub fn get_language_info(lang_code: &str) -> LanguageInfo {
                 "#,
         ),
 
-        "ar" => (
+        "ar" | "arabic" => (
             "Arabic",
             r#"Examples of high-quality subtitle translations to Arabic:
 
@@ -205,11 +206,147 @@ pub fn get_language_info(lang_code: &str) -> LanguageInfo {
                 "#,
         ),
 
+        "ko" | "korean" => (
+            "Korean",
+            r#"Examples of high-quality subtitle translations to Korean:
+
+                English: "I can't believe this is happening."
+                Korean: "이런 일이 벌어지다니 믿을 수 없어."
+
+                English: "What are you doing here?"
+                Korean: "여기서 뭐 하는 거야?"
+
+                English: "Let's get out of here,
+                before it's too late."
+                Korean: "늦기 전에
+                여기서 나가자."
+
+                English: "I'm through doing that shit."
+                Korean: "그딴 짓은 이제 지긋지긋해."
+                "#,
+        ),
+
+        "nl" | "dutch" => (
+            "Dutch",
+            r#"Examples of high-quality subtitle translations to Dutch:
+
+                English: "I can't believe this is happening."
+                Dutch: "Ik kan niet geloven dat dit gebeurt."
+
+                English: "What are you doing here?"
+                Dutch: "Wat doe je hier?"
+
+                English: "Let's get out of here,
+                before it's too late."
+                Dutch: "Laten we hier weggaan,
+                voordat het te laat is."
+
+                English: "I'm through doing that shit."
+                Dutch: "Ik ben klaar met die rotzooi."
+                "#,
+        ),
+
+        "pl" | "polish" => (
+            "Polish",
+            r#"Examples of high-quality subtitle translations to Polish:
+
+                English: "I can't believe this is happening."
+                Polish: "Nie mogę uwierzyć, że to się dzieje."
+
+                English: "What are you doing here?"
+                Polish: "Co tu robisz?"
+
+                English: "Let's get out of here,
+                before it's too late."
+                Polish: "Wynikajmy stąd,
+                zanim będzie za późno."
+
+                English: "I'm through doing that shit."
+                Polish: "Mam dość tego gówna."
+                "#,
+        ),
+
+        "tr" | "turkish" => (
+            "Turkish",
+            r#"Examples of high-quality subtitle translations to Turkish:
+
+                English: "I can't believe this is happening."
+                Turkish: "Bunun olduğuna inanamıyorum."
+
+                English: "What are you doing here?"
+                Turkish: "Burada ne yapıyorsun?"
+
+                English: "Let's get out of here,
+                before it's too late."
+                Turkish: "Çok geç olmadan
+                buradan gidelim."
+
+                English: "I'm through doing that shit."
+                Turkish: "Bu saçmalıktan bıktım artık."
+                "#,
+        ),
+
+        "hi" | "hindi" => (
+            "Hindi",
+            r#"Examples of high-quality subtitle translations to Hindi:
+
+                English: "I can't believe this is happening."
+                Hindi: "मुझे यकीन नहीं हो रहा कि यह हो रहा है।"
+
+                English: "What are you doing here?"
+                Hindi: "तुम यहाँ क्या कर रहे हो?"
+
+                English: "Let's get out of here,
+                before it's too late."
+                Hindi: "इससे पहले कि बहुत देर हो जाए,
+                यहाँ से निकल चलते हैं।"
+
+                English: "I'm through doing that shit."
+                Hindi: "मैं इस बकवास से तंग आ चुका हूँ।"
+                "#,
+        ),
+
         _ => ("the target language", ""),
     };
 
     LanguageInfo {
         full_name,
         examples,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn resolves_case_insensitive_codes_full_names_and_all_locales() {
+        for (input, expected) in [
+            ("IT", "Italian"),
+            (" Italian ", "Italian"),
+            ("es", "Spanish"),
+            ("French", "French"),
+            ("DE", "German"),
+            ("English", "English"),
+            ("pt-br", "Portuguese"),
+            ("Russian", "Russian"),
+            ("ja", "Japanese"),
+            ("zh-cn", "Chinese (Simplified)"),
+            ("ar", "Arabic"),
+            ("ko", "Korean"),
+            ("Korean", "Korean"),
+            ("nl", "Dutch"),
+            ("pl", "Polish"),
+            ("tr", "Turkish"),
+            ("hi", "Hindi"),
+        ] {
+            let info = get_language_info(input);
+            assert_eq!(info.full_name, expected, "input={input}");
+            assert!(!info.examples.is_empty(), "missing examples for {input}");
+        }
+        assert_eq!(
+            get_language_info("klingon").full_name,
+            "the target language"
+        );
     }
 }

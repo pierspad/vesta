@@ -182,7 +182,9 @@
     } catch (e) {
       if (request === contextRequest && !disposed) contextError = errorMessage(e);
     } finally {
-      contextLoading = false;
+      if (request === contextRequest) {
+        contextLoading = false;
+      }
     }
   }
 
