@@ -53,6 +53,7 @@ const OCR_CATALOG = [
 let supportLogRecording = false;
 let supportLogPath = null;
 let installedPlugins = [];
+const downloadedFonts = new Set(["noto-sans-jp"]);
 let demoPluginCheckRan = false;
 let refineCards = [
   { id: "card-1", expression: "こんにちは", meaning: "Hello", notes: "" },
@@ -112,14 +113,41 @@ mockIPC((command, args) => {
   calls.push({ command, args });
   switch (command) {
     case "config_load_all":
-      return { ...preferences, "srt-tools-ui-language": language, ...(forceSetup ? { "vesta-first-run-force": "true" } : {}) };
+      return {
+        entries: {
+          ...preferences,
+          "srt-tools-ui-language": language,
+          ...(forceSetup ? { "vesta-first-run-force": "true" } : {}),
+        },
+        recovered_backup_path: null,
+      };
     case "config_set":
       preferences[args.key] = args.value;
       return null;
+    case "config_remove":
+      delete preferences[args.key];
+      return null;
     case "config_replace_all":
       for (const k of Object.keys(preferences)) delete preferences[k];
-      Object.assign(preferences, args.entries || {});
+      Object.assign(preferences, args.values || {});
       return null;
+    case "config_reset_installation":
+      for (const k of Object.keys(preferences)) delete preferences[k];
+      window.__onMockResetInstallation?.();
+      return null;
+    case "get_app_info":
+      return { version: "0.34.0", name: "Vesta", license: "GPL-3.0-only" };
+    case "get_update_installation":
+      return { channel: "tarball", os: "linux", arch: "x86_64" };
+    case "install_release_update":
+      return null;
+    case "http_fetch":
+      return {
+        status: 200,
+        url: args.req?.url || "https://example.invalid",
+        headers: [["content-type", "application/json"]],
+        body: JSON.stringify({ tag_name: "v0.34.0", data: [], models: [] }),
+      };
     case "read_subtitle_file":
       return `1\n00:00:01,000 --> 00:00:02,000\n${args.path.endsWith("reference.srt") ? "Reference subtitle" : text}\n`;
     case "sync_load_srt":
@@ -157,25 +185,86 @@ mockIPC((command, args) => {
       anchor = undoneAnchor;
       undoneAnchor = null;
       return syncStatus();
+    case "sync_auto_sync":
+      anchor = {
+        subtitle_id: 1,
+        original_time_ms: 1000,
+        corrected_time_ms: 1500,
+        offset_ms: 500,
+        is_manual: false,
+      };
+      undoneAnchor = null;
+      return {
+        success: true,
+        cancelled: false,
+        anchors_created: 1,
+        segments_analyzed: 4,
+        message: "Created 1 anchor",
+      };
+    case "sync_cancel_auto_sync":
+      return null;
+    case "sync_load_session":
+      return syncStatus();
+    case "sync_reset":
+      anchor = null;
+      undoneAnchor = null;
+      syncMedia = null;
+      return {
+        is_loaded: false,
+        srt_path: null,
+        video_path: null,
+        total_subtitles: 0,
+        anchor_count: 0,
+        checked_count: 0,
+        completion_percentage: 0,
+        average_offset_ms: 0,
+        suggested_next_id: null,
+        can_undo: false,
+        can_redo: false,
+      };
+    case "sync_save_file":
+      return args.outputPath || "/exports/synced.srt";
+    case "sync_save_session":
+      return args.sessionPath || "/exports/sync-session.vestasync";
+    case "sync_suggest_companion_subtitle_for_srt":
+    case "sync_suggest_media_for_srt":
+      return null;
+    case "sync_suggest_subtitles_for_media":
+      return { target: null, native: null };
     case "load_srt_for_translate":
       return { path: args.path, subtitle_count: 1, coverage_end_ms: 2000, automatic_context: "", preview_subtitles: [{ id: 1, text }], first_subtitle: text, last_subtitle: text };
+    case "suggest_translation_context":
+      return "Conversational drama dialogue context.";
     case "get_latest_translated_subtitles":
       return [];
     case "start_translation":
       return new Promise((resolve, reject) => { finishTranslation = { resolve, reject }; });
     case "cancel_translation":
-      finishTranslation.resolve({ success: false, message: "Cancelled", output_path: null, translated_count: 0 });
-      return null;
+      finishTranslation?.resolve({ success: false, message: "Cancelled", output_path: null, translated_count: 0 });
+      return true;
     case "transcribe_start":
       return new Promise((resolve, reject) => { finishTranscription = { resolve, reject }; });
     case "transcribe_cancel":
-      finishTranscription.reject(new Error("Cancelled"));
+      finishTranscription?.reject(new Error("Cancelled"));
       return null;
+    case "transcribe_check_backends":
+      return {
+        ffmpeg: true,
+        whisper_cpp: true,
+        python_whisper: false,
+        whisper_binary: "whisper-rs (native)",
+        any_whisper: true,
+      };
     case "transcribe_check_file_exists":
     case "transcribe_path_exists":
       return true;
     case "transcribe_list_models":
       return [{ id: "base", name: "Base", downloaded: true }, { id: "small", name: "Small", downloaded: true }];
+    case "transcribe_download_model":
+    case "transcribe_uninstall_model":
+    case "transcribe_download_vad":
+    case "transcribe_uninstall_vad":
+      return true;
     case "plugin:path|resolve_directory":
       return "/downloads";
     case "plugin:path|join":
@@ -184,6 +273,15 @@ mockIPC((command, args) => {
       return subtitleTracks;
     case "existing_subtitle_outputs":
       return (args.names ?? []).filter((name) => savedSubtitleOutputs.has(name));
+    case "preview_embedded_subtitle":
+      return "1\n00:00:01,000 --> 00:00:02,000\nEmbedded text track preview\n";
+    case "extract_embedded_subtitle": {
+      const filename = String(args.outputPath ?? "").split(/[\\/]/).pop();
+      if (filename) savedSubtitleOutputs.add(filename);
+      return null;
+    }
+    case "open_output_path":
+      return null;
     case "preview_ocr_embedded_subtitle":
       return "1\n00:00:01,000 --> 00:00:02,000\nSynthetic OCR preview\n";
     case "ocr_embedded_subtitle": {
@@ -340,8 +438,31 @@ mockIPC((command, args) => {
       return refineCards.map((c) => ({ ...c }));
     case "refine_card_llm_tiered":
       return "Grammar note from AI";
-    case "refine_cards_llm_tiered":
-      return (args.cards || []).map((c) => ({ id: c.id, notes: "Grammar note from AI" }));
+    case "refine_cards_llm_tiered": {
+      const cards = Array.isArray(args.cards) ? args.cards : refineCards;
+      const runId = args.runId ?? args.run_id ?? 1;
+      const total = cards.length;
+      return Promise.all(
+        cards.map((c, idx) =>
+          emit("refine-progress", {
+            runId,
+            event: {
+              type: "cardDone",
+              id: c.id,
+              notes: "Grammar note from AI",
+              done: idx + 1,
+              total,
+            },
+          }),
+        ),
+      ).then(() => ({
+        done: total,
+        failed: 0,
+        remaining: 0,
+        poolExhausted: false,
+        cancelled: false,
+      }));
+    }
     case "refine_cancel":
       return true;
     case "refine_save_file":
@@ -350,11 +471,33 @@ mockIPC((command, args) => {
         if (card) card.notes = upd.notes;
       }
       return true;
+    case "ankiconnect_ping":
+      return 6;
+    case "ankiconnect_import_package":
+      return true;
     case "ankiconnect_deck_names":
-    case "flashcard_list_fonts":
       return [];
+    case "flashcard_list_fonts":
+      return [{
+        id: "noto-sans-jp",
+        name: "Noto Sans JP",
+        language_name: "Japanese",
+        target_languages: ["ja", "jpn"],
+        filename: "_NotoSansJP.ttf",
+        approx_size: "~11 MB",
+        downloaded: downloadedFonts.has("noto-sans-jp"),
+      }];
+    case "flashcard_download_font":
+      if (args.fontId) downloadedFonts.add(args.fontId);
+      return true;
+    case "flashcard_delete_font":
+      return downloadedFonts.delete(args.fontId);
+    case "flashcard_download_ffmpeg":
+      return true;
     case "flashcard_get_cpu_count":
       return 4;
+    case "flashcard_get_total_memory_mb":
+      return 16384;
     case "flashcard_list_audio_tracks":
       return [{ index: 0, language: "ja", title: "Japanese", codec: "aac" }];
     case "flashcard_media_duration":
@@ -375,12 +518,20 @@ mockIPC((command, args) => {
         index: 0,
         start_ms: 500,
         end_ms: 1500,
+        duration_ms: 1000,
         subs1_text: text,
         subs2_text: args.config?.native_subs_path ? "Reference subtitle" : null,
+        actor: null,
         active: true,
         leading_context: [],
         trailing_context: [],
       }];
+    case "flashcard_preview_audio":
+      return "/exports/preview-audio.mp3";
+    case "flashcard_preview_snapshot":
+      return "/exports/preview-snapshot.jpg";
+    case "flashcard_merge_apkg":
+      return args.outputPath || "/exports/merged.apkg";
     case "flashcard_export_dueling":
       return {
         output_path: args.options?.output_path || "/exports/Episode01.dueling.ass",
@@ -393,7 +544,17 @@ mockIPC((command, args) => {
     case "flashcard_generate":
       return new Promise((resolve) => { finishExport = resolve; });
     case "flashcard_cancel":
-      finishExport({ success: false, message: "Cancelled by user" });
+      finishExport?.({
+        success: false,
+        message: "Cancelled by user",
+        cards_generated: 0,
+        audio_clips: 0,
+        snapshots: 0,
+        video_clips: 0,
+        tsv_path: null,
+        apkg_path: null,
+        output_size_bytes: 0,
+      });
       return true;
     default:
       return null;
@@ -410,6 +571,9 @@ window.browserFixture = {
     success: true, message: "Transcription completed: 1 segment", subtitle_count: 1, output_path: "/exports/output.srt",
   }),
   failTranslation: (message) => finishTranslation.reject(new Error(message)),
+  completeTranslation: () => finishTranslation.resolve({
+    success: true, message: "Translation completed: 1 subtitle", output_path: "/exports/translated.srt", translated_count: 1,
+  }),
   failPreview: (message) => { previewError = message; },
   progress: () => emit("flashcard-progress", {
     percentage: 40,
@@ -421,12 +585,14 @@ window.browserFixture = {
   }),
   complete: () => finishExport({
     success: true,
+    message: "Generated 1 cards (1 audio, 1 snapshots, 0 video clips)",
     cards_generated: 1,
     audio_clips: 1,
     snapshots: 1,
     video_clips: 0,
     tsv_path: null,
     apkg_path: output + "/Episode01.apkg",
+    output_size_bytes: 4096,
   }),
 };
 
