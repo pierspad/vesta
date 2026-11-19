@@ -18,7 +18,7 @@ const DEFAULT_OCR_MODEL_KEY = "vesta-default-ocr-model";
 export const DEFAULT_OCR_MODELS: OcrModel[] = [
   { id: "paddleocr-v4-mobile-multi", name: "PaddleOCR v4 Mobile (Multilingual)", size: "~11 MB", downloaded: false },
   { id: "paddleocr-v4-mobile-cjk", name: "PaddleOCR v4 Mobile (CJK)", size: "~11 MB", downloaded: false },
-  { id: "paddleocr-v4-mobile-latin", name: "PaddleOCR v4 Mobile (Latin)", size: "~10 MB", downloaded: false },
+  { id: "paddleocr-v4-mobile-latin", name: "PaddleOCR v4 Mobile (Latin)", size: "~8 MB", downloaded: false },
 ];
 
 function showSnackbar(message: string, type: "error" | "success" = "success") {
@@ -144,6 +144,11 @@ export class OcrModelsStore {
       : (this.ocrModels.find((m) => m.downloaded)?.id ?? DEFAULT_OCR_MODEL_ID);
     this.defaultOcrModel = nextId;
     vestaConfig.setItem(DEFAULT_OCR_MODEL_KEY, nextId);
+  }
+
+  reinit() {
+    this.defaultOcrModel = vestaConfig.getItem(DEFAULT_OCR_MODEL_KEY) || DEFAULT_OCR_MODEL_ID;
+    void this.refreshModels();
   }
 }
 

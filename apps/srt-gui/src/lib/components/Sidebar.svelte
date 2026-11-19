@@ -5,6 +5,7 @@
   import { onMount } from "svelte";
   import fireplaceIcon from "../../assets/fireplace.svg";
   import authorAvatar from "../../assets/avatar.png";
+  import packageJson from "../../../package.json";
   import { locale } from "$lib/i18n";
   import { aiStore } from "$lib/stores/aiStore.svelte";
   import { uiMode } from "$lib/stores/uiModeStore.svelte";
@@ -134,7 +135,7 @@
       })
       .catch(() => {
         appVersion = "vesta";
-        appVersionNum = "v0.31.1";
+        appVersionNum = `v${packageJson.version}`;
         appLicense = "GPL-3.0";
       });
 

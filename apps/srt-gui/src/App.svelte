@@ -12,6 +12,7 @@
   import { ankiStore } from "$lib/stores/ankiStore.svelte";
   import { exportFormatStore } from "$lib/stores/exportFormatStore.svelte";
   import { whisperModelsStore } from "$lib/stores/whisperModelsStore.svelte";
+  import { ocrModelsStore } from "$lib/stores/ocrModelsStore.svelte";
   import ShortcutOverlay from "$lib/components/ShortcutOverlay.svelte";
   import Sidebar from "$lib/components/Sidebar.svelte";
   import AppContextMenu from "$lib/components/AppContextMenu.svelte";
@@ -89,6 +90,7 @@
     ankiStore.reinit();
     exportFormatStore.reinit();
     whisperModelsStore.reinit();
+    ocrModelsStore.reinit();
     changeTab(destination);
   }
   const initialPreference = (() => {

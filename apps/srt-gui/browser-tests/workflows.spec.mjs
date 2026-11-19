@@ -211,9 +211,18 @@ test("Extract previews and runs hardcoded ROI OCR on video frames", async ({ pag
   await expect(page.getByLabel("W (%)")).toHaveValue("96");
   await page.getByRole("button", { name: "Bottom", exact: true }).click();
   await expect(page.getByLabel("W (%)")).toHaveValue("84");
+  await page.getByRole("button", { name: "Center", exact: true }).click();
+  await expect(page.getByLabel("X (%)")).toHaveValue("8");
+
+  await page.getByRole("button", { name: "5s" }).last().click();
+  await expect.poll(() => callsFor(page, "ocr_video_preview_frame")).toHaveLength(2);
 
   await page.getByRole("combobox", { name: "Sample rate (FPS)" }).click();
   await page.getByRole("option", { name: "3 FPS", exact: true }).click();
+
+  await page.getByRole("combobox", { name: "Language" }).click();
+  await page.getByRole("combobox", { name: "Language" }).fill("Japanese");
+  await page.getByRole("option", { name: /日本語/ }).click();
 
   await footer.getByRole("button", { name: "Preview ROI OCR", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: /Hardcoded subtitles/ });
@@ -228,7 +237,7 @@ test("Extract previews and runs hardcoded ROI OCR on video frames", async ({ pag
     outputPath: "/downloads/movie_hardcoded.srt",
     roi: { x: 0.08, y: 0.74, width: 0.84, height: 0.2 },
     sampleFps: 3,
-    language: null,
+    language: "ja",
   }]);
   await expect(page.getByRole("status").filter({ hasText: "Saved: /downloads/movie_hardcoded.srt" })).toBeVisible();
 });
@@ -354,4 +363,52 @@ test("First-run setup suggests an OCR model and jumps back from review items", a
   await dialog.getByRole("button", { name: "Continue", exact: true }).click();
   await dialog.getByRole("button", { name: /MP3/ }).click();
   await expect(dialog.getByText("Audio format", { exact: true })).toBeVisible();
+
+  await dialog.getByRole("button", { name: "Back", exact: true }).click();
+  await expect(dialog.getByText("Your native language", { exact: true })).toBeVisible();
+  const studyBox = dialog.getByRole("combobox").nth(1);
+  await studyBox.click();
+  await studyBox.fill("Japanese");
+  await page.getByRole("option", { name: /日本語/ }).click();
+
+  await dialog.getByRole("button", { name: "Continue", exact: true }).click();
+  await dialog.getByRole("button", { name: "Continue", exact: true }).click();
+  await expect(dialog.getByRole("radio", { name: /PaddleOCR v4 Mobile \(CJK\)/ })).toContainText("Suggested");
+});
+
+test("Settings ITT configures a custom OpenAI-compatible endpoint prioritized by Extract OCR", async ({ page }) => {
+  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await page.getByRole("button", { name: "ITT", exact: true }).click();
+
+  await page.getByRole("button", { name: "Add configuration", exact: true }).click();
+  const modal = page.getByRole("dialog");
+  await expect(modal).toBeVisible();
+  await modal.getByLabel(/Configuration Name/).fill("Local Vision ITT");
+  await modal.getByLabel(/API Endpoint/).fill("http://127.0.0.1:11434/v1");
+  await modal.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(modal).toBeHidden();
+
+  await page.getByRole("button", { name: "+ Add tier", exact: true }).click();
+  await page.locator("#itt-tiers").getByRole("button", { name: "+ Add endpoint", exact: true }).click();
+  const tierCard = page.locator("#itt-tiers");
+  const providerSelect = tierCard.getByRole("combobox").first();
+  await providerSelect.click();
+  await page.getByRole("option", { name: /Local Vision ITT/ }).click();
+  await tierCard.getByPlaceholder("exact model id (e.g. vendor/model-name)").fill("qwen2.5vl:7b");
+
+  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await page.getByRole("button", { name: "Extract subtitles", exact: true }).click();
+  await chooseFile(page, "/fixtures/movie.mkv", page.getByRole("button", { name: "Browse", exact: true }).first());
+
+  const trackCard = page.getByRole("group", { name: "English" });
+  await trackCard.getByRole("button", { name: /Save SRT/ }).click();
+  await expect.poll(() => callsFor(page, "ocr_embedded_subtitle")).toMatchObject([{
+    path: "/fixtures/movie.mkv",
+    tiers: [[{
+      provider: "custom",
+      model: "qwen2.5vl:7b",
+      api_key: null,
+      api_url: "http://127.0.0.1:11434/v1",
+    }]],
+  }]);
 });

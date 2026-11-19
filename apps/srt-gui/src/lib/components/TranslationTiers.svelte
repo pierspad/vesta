@@ -446,7 +446,7 @@
                     </div>
                   </div>
 
-                  {#if customModeIds.has(entry.id) || (isCustomModel(entry) && Boolean(entry.model) && (entry.provider !== "local" || entryModels(entry).length > 0))}
+                  {#if customModeIds.has(entry.id) || (isCustomModel(entry) && (entry.provider === "custom" || Boolean(entry.model)) && (entry.provider !== "local" || entryModels(entry).length > 0))}
                     <input
                       type="text"
                       value={entry.model}
