@@ -30,7 +30,7 @@ CLI configuration is isolated from desktop preferences: commands do not read the
 
 Timestamps, anchor targets, duration filters, and time shifts are expressed in milliseconds unless noted otherwise (`--max-gap` uses seconds). Pass negative numbers using `=` syntax (for example, `--shift-target=-500`).
 
-### `flashcards` (`info`, `preview`, `generate`)
+### `flashcards` (`info`, `preview`, `generate`, `dueling`)
 
 ```sh
 vesta-cli flashcards info episode-ja.srt

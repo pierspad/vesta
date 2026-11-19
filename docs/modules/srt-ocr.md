@@ -14,7 +14,7 @@ and `CompositeOcrBackend` for tiered failover), and atomically publishes standar
 - `bitmap::extract_bitmap_subtitles(ffmpeg, ffprobe, input, stream_index, limit, cancel)` → `Result<Vec<BitmapSubtitleCue>>`
 - `hardcoded::{VideoRoi, VideoFramePreview, extract_video_preview_frame, extract_hardcoded_subtitles}` (normalized `0.0..=1.0` video ROI cropping, preview PNG extraction, FFmpeg `fps` sampling, and `32x12` spatial IoU cue deduplication)
 - `local::LocalOcrBackend` (pure-Rust ONNX protobuf parser, SVTR_LCNet tensor runtime, horizontal line segmentation, and CTC greedy decoder; zero C/C++ shared library dependencies)
-- `OcrBackend` trait, `VisionLlmBackend`, `CompositeOcrBackend`, and `build_backend_from_tiers(&tiers)`
+- `OcrBackend` trait, `VisionLlmBackend`, `CompositeOcrBackend`, and `build_backend_from_tiers(&tiers, diagnostics)`
 - `ocr_bitmap_track_to_srt(&config, callbacks, &cancel)` / `ocr_bitmap_track_with_backend(...)` / `preview_ocr_bitmap_track(&config, &cancel)`
 - `ocr_hardcoded_to_srt(&config, callbacks, &cancel)` / `ocr_hardcoded_with_backend(...)` / `preview_ocr_hardcoded(&config, &cancel)`
 - `model::{list_models, model_file_path, download_model, uninstall_model, validate_model_id, get_models_dir}` (`OcrModelInfo`, `OCR_MODELS`, `~/.cache/vesta/ocr/`)

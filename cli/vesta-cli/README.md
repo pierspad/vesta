@@ -1,6 +1,6 @@
 # Vesta CLI
 
-One headless entry point for Vesta's seven existing command-line workflows.
+One headless entry point for Vesta's eight existing command-line workflows.
 It calls their Rust implementations directly and does not depend on Tauri.
 
 ```sh
@@ -10,7 +10,7 @@ vesta-cli flashcards generate --help
 vesta-cli translate --help
 ```
 
-Operations: `flashcards`, `extract`, `sync`, `autosync`, `transcribe`,
+Operations: `flashcards`, `extract`, `ocr`, `sync`, `autosync`, `transcribe`,
 `translate`, `refine`. Each exposes its full options with `--help`.
 Standalone `srt-*` executables provide the same individual commands.
 

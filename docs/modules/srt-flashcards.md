@@ -25,7 +25,7 @@ worker pool.
 - `build_matched_lines(config)` — deterministic parse → match → filter pipeline
 - `export_dueling_subtitles(config, options)` and `format_dueling_subtitles(lines, title, options)` — exports matched bilingual subtitles (`DuelingFormat::Ass` or `DuelingFormat::Srt`) using `DuelingExportOptions` and returning `DuelingResult`
 - `merge_apkg(paths, output)` — combines fresh Vesta `.apkg` exports into a single multi-episode package
-- `load_sub_file_info(path)`, `parse_subtitle_file(path)`, `list_audio_tracks(media_path, tools)` — multi-format subtitle inspection/parsing (`SRT`, `ASS`/`SSA`, `VTT`, `LRC`) and audio stream discovery
+- `load_sub_file_info(path)`, `parse_subtitle_file(path)`, `list_audio_tracks(media_path, ffprobe_cmd)` — multi-format subtitle inspection/parsing (`SRT`, `ASS`/`SSA`, `VTT`, plus `.lrc` routed through `parse_srt`) and audio stream discovery
 - `media` module — `check_ffmpeg`, `detect_h264_encoder`, `optimize_video_source_with_progress`, `extract_preview_audio_clip`, `extract_preview_snapshot`
 - `fonts` module — language-aware Google Noto font catalog (`FONT_CATALOG`, `list_fonts`, `font_status`, `download_font`, `delete_font`, `font_stack_for`)
 
@@ -96,7 +96,7 @@ Prefer the Cargo Git dependency above. When vendoring into another workspace,
 include `lib/srt-flashcards/`, `core/srt-parser/`, and `core/srt-download/`,
 and preserve workspace metadata and dependencies (`rusqlite` with bundled SQLite,
 `zip`, `sha1_smol`, `tokio`, `tokio-util`, `serde`, `serde_json`, `tempfile`,
-`reqwest`, `futures`, `anyhow`); see [`docs/library-integration.md`](../library-integration.md).
+`reqwest`, `futures`, `anyhow`, `dirs`); see [`docs/library-integration.md`](../library-integration.md).
 FFmpeg/ffprobe are runtime requirements passed in via `MediaTools`.
 
 With `video_hw_accel = "auto"` (the default), the engine runs a real FFmpeg

@@ -22,7 +22,7 @@ primitives to a complete, GUI-agnostic **media → SRT pipeline**
   `whisper.cpp`'s standalone VAD API (`vad_speech_spans_ms`) and transcribes only
   detected speech spans with timestamps mapped back to the original timeline),
   plus `text_similarity` and `normalize_text` (`NormalizedText`)
-- `cloud` — chunked uploads (`transcribe_cloud`, `transcribe_timed_chunk`) to
+- `cloud` — chunked uploads (`transcribe_chunk`, `transcribe_timed_chunk`) to
   Groq, OpenAI, Deepgram, AssemblyAI, and custom OpenAI-compatible endpoints
 - `pipeline` — full orchestration: model verification/download → WAV conversion →
   local or cloud transcription (`run_local`, `run_cloud`) → segment post-processing

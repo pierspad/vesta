@@ -45,3 +45,10 @@ All 15 locale catalogs in `apps/srt-gui/src/lib/i18n/locales/` (`ar`, `de`, `en`
 - `python3 docs/examples/plugin-hello/vesta_plugin.py init <dir> --id <id> --name "<Name>"` — Scaffold a new plugin.
 - `python3 docs/examples/plugin-hello/vesta_plugin.py validate <dir>` — Validate `vesta-plugin.json`.
 - `python3 docs/examples/plugin-hello/vesta_plugin.py test <dir>` — Run a headless stdio JSON-RPC smoke test (`initialize` -> `render` -> widget tree validation -> `shutdown`).
+
+## Feature Scorecard & Continuous Audit
+
+Vesta tracks feature coverage (GUI, CLI, MCP, Docs, Unit Tests, Playwright, Smoke), reliability controls, performance opportunities, and verified bugs across 12 areas in [`scorecard/*.toml`](scorecard/features.toml):
+- [`docs/SCORECARD.md`](docs/SCORECARD.md) — Auto-generated dashboard (`python3 build-scripts/generate_scorecard.py`, validated by `quality_check.py`).
+- [`docs/AUDIT_LOG.md`](docs/AUDIT_LOG.md) — Chronological audit wave history and prioritized **Wave 2 Resume Guide**.
+- After fixing a tracked bug (`AUDIT-*`), optimizing (`PERF-*`), or adding tests/docs/MCP coverage, update the corresponding `scorecard/*.toml` entry and run `python3 build-scripts/generate_scorecard.py` and `python3 build-scripts/test_scorecard.py`.

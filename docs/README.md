@@ -32,3 +32,8 @@ This index links to all actively maintained reference manuals and guides.
 | [Benchmark Report](BENCHMARK_REPORT.md) | Context and published performance measurements. |
 
 A passing build or green test suite does not certify installers, real GPUs, Anki connectivity, or remote providers. Automated checks and real-world verifications are distinguished in [QUALITY](QUALITY.md).
+
+## Feature Scorecard & Audit Tracking
+
+- [Feature Scorecard & Audit Dashboard](SCORECARD.md) — Auto-generated coverage matrix across all 12 app areas, live metrics, reliability controls, and backlog (`python3 build-scripts/generate_scorecard.py`)
+- [Audit Log](AUDIT_LOG.md) — Chronological audit waves, swarm verification summary, and Wave 2 resume guide

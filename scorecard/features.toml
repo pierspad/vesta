@@ -1,0 +1,813 @@
+schema_version = 1
+last_updated = "2026-11-19"
+audit_wave = "wave-1-complete"
+
+# Coverage legend for surface / verification fields:
+#   "yes"     -> fully implemented / verified in this surface or suite
+#   "partial" -> partially implemented / tested / documented
+#   "no"      -> missing
+#   "na"      -> not applicable to this feature
+#
+# audit_status legend:
+#   "verified"     -> audited and clean (or all critical/high issues resolved)
+#   "partial"      -> audited with non-blocking medium/low improvements or gaps
+#   "issues_found" -> audited with open critical/high bugs, panics, or security defects
+#   "unaudited"    -> not yet audited
+
+# ==============================================================================
+# 1. FLASHCARDS (core Pipeline, APKG/TSV, Media, Dueling)
+# ==============================================================================
+
+[[item]]
+id = "FC-01"
+area = "flashcards"
+feature = "Single-episode flashcard generation (TSV & APKG)"
+gui = "yes"
+cli = "yes"
+mcp = "yes"
+docs = "yes"
+unit_tests = "yes"
+playwright = "yes"
+smoke = "yes"
+audit_status = "issues_found"
+last_audited = "2026-11-19"
+notes = "lib/srt-flashcards + FlashcardsTab + srt-flashcards-cli + generate_flashcards MCP. Wave 1 fixed #10.4 orphan TSV tags & #10.15 docs; open HIGH bugs: #10.2 note_id/guid collisions >1000 cards, #10.5 uncancellable per-card ffmpeg."
+
+[[item]]
+id = "FC-02"
+area = "flashcards"
+feature = "Batch / series flashcard processing & per-episode media overrides"
+gui = "yes"
+cli = "no"
+mcp = "no"
+docs = "yes"
+unit_tests = "yes"
+playwright = "partial"
+smoke = "no"
+audit_status = "partial"
+last_audited = "2026-11-19"
+notes = "EpisodeTable + EpisodeMediaSettingsModal + flashcard_series_match; CLI/MCP target single episodes only. Series matching unit-tested via flashcardSeries.test.ts and EpisodeMediaSettingsModal.mounted.test.ts; docs synced in Wave 1."
+
+[[item]]
+id = "FC-03"
+area = "flashcards"
+feature = "Merge multiple .apkg decks into a unified deck"
+gui = "yes"
+cli = "no"
+mcp = "no"
+docs = "yes"
+unit_tests = "yes"
+playwright = "no"
+smoke = "no"
+audit_status = "partial"
+last_audited = "2026-11-19"
+notes = "lib/srt-flashcards/src/merge_apkg.rs + IPC flashcard_merge_apkg. Wave 1 fixed #10.1 model did mismatch + unit test; #10.13 SQLite id range/ZIP bomb hardening deferred to Wave 2."
+
+[[item]]
+id = "FC-04"
+area = "flashcards"
+feature = "Live card preview & on-demand audio/snapshot preview"
+gui = "yes"
+cli = "partial"
+mcp = "yes"
+docs = "yes"
+unit_tests = "yes"
+playwright = "yes"
+smoke = "no"
+audit_status = "partial"
+last_audited = "2026-11-19"
+notes = "flashcard_preview, flashcard_preview_audio, flashcard_preview_snapshot + preview_flashcards MCP. Wave 1 fixed #15.6 mock schema and added audio/snapshot preview Playwright test in extended-workflows.spec.mjs."
+
+[[item]]
+id = "FC-05"
+area = "flashcards"
+feature = "Subtitle filtering, sentence combining & smart bilingual matching"
+gui = "yes"
+cli = "yes"
+mcp = "partial"
+docs = "yes"
+unit_tests = "yes"
+playwright = "partial"
+smoke = "yes"
+audit_status = "partial"
+last_audited = "2026-11-19"
+notes = "CardFiltersPanel + smartMatchingStore + filters.rs/matcher.rs. Open MEDIUM #10.12: exclude_styled runs after ASS strip, combine_sentences drops secondary subs, consecutive repeat check only checks IDs."
+
+[[item]]
+id = "FC-06"
+area = "flashcards"
+feature = "Bilingual dueling subtitle export (.ass / .srt)"
+gui = "yes"
+cli = "yes"
+mcp = "no"
+docs = "yes"
+unit_tests = "yes"
+playwright = "yes"
+smoke = "no"
+audit_status = "partial"
+last_audited = "2026-11-19"
+notes = "ExportDueling IPC + srt-flashcards-cli dueling. Wave 1 fixed #15.14 CLI/README docs; missing from vesta-mcp (#8.22) and relative target path bug (#10.14) remain for Wave 2."
+
+[[item]]
+id = "FC-07"
+area = "flashcards"
+feature = "Dictionary lookup & auto/embedded Anki card fonts"
+gui = "yes"
+cli = "no"
+mcp = "no"
+docs = "yes"
+unit_tests = "partial"
+playwright = "partial"
+smoke = "no"
+audit_status = "partial"
+last_audited = "2026-11-19"
+notes = "fontStore + flashcard_download_font / flashcard_delete_font exercised in Playwright settings-and-modals.spec.mjs (Wave 1); dictionary CLI (#8.22) remains for Wave 2."
+
+[[item]]
+id = "FC-08"
+area = "flashcards"
+feature = "Hardware video encoding, padding, resolution & audio track selection"
+gui = "yes"
+cli = "partial"
+mcp = "no"
+docs = "yes"
+unit_tests = "partial"
+playwright = "yes"
+smoke = "partial"
+audit_status = "issues_found"
+last_audited = "2026-11-19"
+notes = "Open HIGH #10.3: optimize_video drops non-primary audio tracks, breaking -map 0:a:{track_index} when audio_track_index >= 1; #10.14 extract_video_clip odd dimensions fail H.264."
+
+# ==============================================================================
+# 2. EXTRACT & OCR
+# ==============================================================================
+
+[[item]]
+id = "EX-01"
+area = "extract"
+feature = "Subtitle parsing & inspection (SRT, ASS/SSA, VTT, LRC)"
+gui = "yes"
+cli = "yes"
+mcp = "yes"
+docs = "yes"
+unit_tests = "yes"
+playwright = "yes"
+smoke = "yes"
+audit_status = "partial"
+last_audited = "2026-11-19"
+notes = "core/srt-parser + srt-extract + inspect_subtitles MCP. Wave 1 fixed #10.15 docs; open MEDIUM #10.10 unchecked u64->i64 / end<start & #10.11 SRT trailing coordinates remain for Wave 2."
+
+[[item]]
+id = "EX-02"
+area = "extract"
+feature = "Embedded subtitle track listing & text stream extraction"
+gui = "yes"
+cli = "yes"
+mcp = "partial"
+docs = "yes"
+unit_tests = "yes"
+playwright = "yes"
+smoke = "no"
+audit_status = "partial"
+last_audited = "2026-11-19"
+notes = "list_embedded_subtitles in GUI/CLI/MCP; extract_embedded_subtitle in GUI/CLI (missing in MCP #8.22). Wave 1 added Playwright E2E test in extended-workflows.spec.mjs; open MEDIUM #10.7 NamedTempFile lock remains for Wave 2."
+
+[[item]]
+id = "EX-03"
+area = "extract"
+feature = "Bitmap subtitle extraction & OCR (PGS, VobSub, DVB, XSUB)"
+gui = "yes"
+cli = "yes"
+mcp = "yes"
+docs = "yes"
+unit_tests = "partial"
+playwright = "partial"
+smoke = "no"
+audit_status = "partial"
+last_audited = "2026-11-19"
+notes = "lib/srt-ocr/src/bitmap.rs. Open HIGH PERF #12.5 spawns sequential ffmpeg per cue + forces 1280:720 scaling; missing multi-cue RLE unit tests (#12.26)."
+
+[[item]]
+id = "EX-04"
+area = "extract"
+feature = "Hardcoded video subtitle ROI detection & crop preview"
+gui = "yes"
+cli = "yes"
+mcp = "partial"
+docs = "yes"
+unit_tests = "yes"
+playwright = "partial"
+smoke = "no"
+audit_status = "partial"
+last_audited = "2026-11-19"
+notes = "lib/srt-ocr/src/hardcoded.rs + ExtractTab. Open MEDIUM #12.16 assumes frame 0 = 0ms & leaks stderr_task; #12.17 decodes PNG sync in async loop."
+
+[[item]]
+id = "EX-05"
+area = "extract"
+feature = "Hybrid local ONNX / Cloud Vision OCR & model management"
+gui = "yes"
+cli = "yes"
+mcp = "yes"
+docs = "yes"
+unit_tests = "partial"
+playwright = "partial"
+smoke = "no"
+audit_status = "partial"
+last_audited = "2026-11-19"
+notes = "Wave 1 fixed HIGH PERF-002 (borrowed &model.initializers in local.rs) + #15.13 vesta-cli/README & srt-ocr.md docs; #12.15 broadcast scalar rank, #12.16 0-byte check, and ocrModelsStore tests remain for Wave 2."
+
+# ==============================================================================
+# 3. TRANSCRIBE
+# ==============================================================================
+
+[[item]]
+id = "TR-01"
+area = "transcribe"
+feature = "Cloud speech-to-text providers & word timestamps"
+gui = "yes"
+cli = "yes"
+mcp = "yes"
+docs = "yes"
+unit_tests = "yes"
+playwright = "yes"
+smoke = "no"
+audit_status = "issues_found"
+last_audited = "2026-11-19"
+notes = "Docs synced in Wave 1 (#12.25). Open HIGH #12.3: wordless Deepgram/AssemblyAI responses emit synthetic 0..0 timestamps breaking autosync; #12.12 poll timeout underflow; #12.13 case-sensitive Custom provider check."
+
+[[item]]
+id = "TR-02"
+area = "transcribe"
+feature = "Local Whisper inference backends & whisper-bench harness"
+gui = "yes"
+cli = "yes"
+mcp = "yes"
+docs = "yes"
+unit_tests = "yes"
+playwright = "partial"
+smoke = "no"
+audit_status = "partial"
+last_audited = "2026-11-19"
+notes = "apps/whisper-bench + transcribe_check_backends. Wave 1 fixed HIGH SECURITY #8.10 (fail-closed SHA-256 + timeouts + unit test); TranscribeTab mounted test (#14.15) remains for Wave 2."
+
+[[item]]
+id = "TR-03"
+area = "transcribe"
+feature = "Silero VAD speech segmentation & audio chunking"
+gui = "yes"
+cli = "yes"
+mcp = "yes"
+docs = "yes"
+unit_tests = "partial"
+playwright = "no"
+smoke = "no"
+audit_status = "partial"
+last_audited = "2026-11-19"
+notes = "lib/srt-transcribe/src/transcribe.rs. Open MEDIUM #12.14 Silero VAD ignores cancel_token & unchecked usize cast; #12.26 missing vad_speech_spans unit tests."
+
+[[item]]
+id = "TR-04"
+area = "transcribe"
+feature = "Whisper model & VAD download / uninstall lifecycle"
+gui = "yes"
+cli = "yes"
+mcp = "no"
+docs = "yes"
+unit_tests = "partial"
+playwright = "partial"
+smoke = "no"
+audit_status = "partial"
+last_audited = "2026-11-19"
+notes = "commands/transcribe.rs + whisperModelsStore exercised via Settings STT panel & Transcribe flows in Playwright; #8.14 uninstall OperationGuard & #8.18 CLI Ctrl-C remain for Wave 2."
+
+# ==============================================================================
+# 4. TRANSLATE
+# ==============================================================================
+
+[[item]]
+id = "TL-01"
+area = "translate"
+feature = "Tiered multi-provider LLM batch subtitle translation"
+gui = "yes"
+cli = "yes"
+mcp = "yes"
+docs = "yes"
+unit_tests = "yes"
+playwright = "yes"
+smoke = "no"
+audit_status = "partial"
+last_audited = "2026-11-19"
+notes = "lib/srt-translate + TranslateTab + translate_subtitles MCP. Open MEDIUM #12.7/.8/.9 parsing/quote bugs; TranslateTab lacks mounted test (#14.15)."
+
+[[item]]
+id = "TL-02"
+area = "translate"
+feature = "Translation checkpoint resume & missing-cue repair"
+gui = "yes"
+cli = "yes"
+mcp = "yes"
+docs = "yes"
+unit_tests = "yes"
+playwright = "no"
+smoke = "no"
+audit_status = "partial"
+last_audited = "2026-11-19"
+notes = "Wave 1 fixed HIGH #12.1 (compute_resume_position partial/completed resume + 5 unit tests) & srt-translate.md docs; repair_missing_tiered test (#12.26) remains for Wave 2."
+
+[[item]]
+id = "TL-03"
+area = "translate"
+feature = "Translation context suggestion & language prompt specialization"
+gui = "yes"
+cli = "yes"
+mcp = "yes"
+docs = "yes"
+unit_tests = "yes"
+playwright = "yes"
+smoke = "no"
+audit_status = "partial"
+last_audited = "2026-11-19"
+notes = "Wave 1 fixed #12.2 language_info normalization (15+ languages + unit tests), #14.5 contextLoading race, and added Playwright context test in extended-workflows.spec.mjs; #8.13 OperationGuard remains for Wave 2."
+
+[[item]]
+id = "TL-04"
+area = "translate"
+feature = "Translation cancellation, path preview & CLI failure exit codes"
+gui = "yes"
+cli = "yes"
+mcp = "yes"
+docs = "yes"
+unit_tests = "yes"
+playwright = "yes"
+smoke = "no"
+audit_status = "partial"
+last_audited = "2026-11-19"
+notes = "Wave 1 fixed #14.7 PathPreviewModal Escape propagation & #15.5 cancel_translation mock + added Playwright tests in extended-workflows.spec.mjs; #8.16 CLI exit code & #8.21 cancel bool remain for Wave 2."
+
+# ==============================================================================
+# 5. SYNC & ALIGN
+# ==============================================================================
+
+[[item]]
+id = "SY-01"
+area = "sync"
+feature = "Manual subtitle time shift, speed scaling & anchor interpolation"
+gui = "yes"
+cli = "yes"
+mcp = "no"
+docs = "yes"
+unit_tests = "yes"
+playwright = "yes"
+smoke = "no"
+audit_status = "partial"
+last_audited = "2026-11-19"
+notes = "lib/srt-sync + SyncTab (50 Rust tests). Wave 1 updated docs/modules/srt-sync.md (#12.25); #12.18 outlier propagation, #12.23 end<start clamp, and MCP parity (#8.22) remain for Wave 2."
+
+[[item]]
+id = "SY-02"
+area = "sync"
+feature = "Sync session persistence, autosave, file export & reset"
+gui = "yes"
+cli = "no"
+mcp = "no"
+docs = "yes"
+unit_tests = "partial"
+playwright = "yes"
+smoke = "no"
+audit_status = "partial"
+last_audited = "2026-11-19"
+notes = "Wave 1 exercised sync_save_file, sync_save_session, sync_load_session, sync_reset in Playwright extended-workflows.spec.mjs."
+
+[[item]]
+id = "SY-03"
+area = "sync"
+feature = "Dual-subtitle Align tab & companion subtitle suggestion"
+gui = "yes"
+cli = "no"
+mcp = "no"
+docs = "yes"
+unit_tests = "yes"
+playwright = "partial"
+smoke = "no"
+audit_status = "partial"
+last_audited = "2026-11-19"
+notes = "Wave 1 fixed #14.3 companion selection race, #14.4 empty alignSave, and #14.20 dead imports in AlignTab.svelte; #14.18 custom SRT parser deduplication remains for Wave 2."
+
+# ==============================================================================
+# 6. AUTOSYNC
+# ==============================================================================
+
+[[item]]
+id = "AS-01"
+area = "autosync"
+feature = "Voice-overlap auto-sync & consensus anchor estimation"
+gui = "yes"
+cli = "yes"
+mcp = "no"
+docs = "yes"
+unit_tests = "yes"
+playwright = "yes"
+smoke = "no"
+audit_status = "partial"
+last_audited = "2026-11-19"
+notes = "Wave 1 fixed HIGH #12.4 unsorted subtitles + NaN/total_cmp part of #12.20 + unit test, synced srt-autosync.md, and added Auto-Sync Playwright test; matching.rs & #12.21/#12.22 remain for Wave 2."
+
+[[item]]
+id = "AS-02"
+area = "autosync"
+feature = "Cloud-transcribe guided auto-sync alignment"
+gui = "yes"
+cli = "yes"
+mcp = "no"
+docs = "yes"
+unit_tests = "yes"
+playwright = "no"
+smoke = "no"
+audit_status = "partial"
+last_audited = "2026-11-19"
+notes = "Docs synced in Wave 1 (#12.25). Open #12.3 (wordless cloud timestamps 0..0) & #12.19 (single invalid segment aborts whole cloud autosync run) + MCP parity (#8.22) remain for Wave 2."
+
+[[item]]
+id = "AS-03"
+area = "autosync"
+feature = "Auto-sync cancellation, progress overlay & quality assessment"
+gui = "yes"
+cli = "yes"
+mcp = "no"
+docs = "yes"
+unit_tests = "yes"
+playwright = "partial"
+smoke = "no"
+audit_status = "partial"
+last_audited = "2026-11-19"
+notes = "Wave 1 added sync_auto_sync Playwright test in extended-workflows.spec.mjs; autoSyncStore unit tests (#14.17) remain for Wave 2."
+
+# ==============================================================================
+# 7. REFINE & ANKICONNECT
+# ==============================================================================
+
+[[item]]
+id = "RF-01"
+area = "refine"
+feature = "Tiered LLM flashcard deck annotation (.apkg & .tsv)"
+gui = "yes"
+cli = "yes"
+mcp = "no"
+docs = "yes"
+unit_tests = "yes"
+playwright = "yes"
+smoke = "no"
+audit_status = "partial"
+last_audited = "2026-11-19"
+notes = "Wave 1 fixed #15.2 mock schema + srt-refine.md docs and added Playwright tiered refine E2E test; #12.10 blank api_url/model & #12.11 TSV/APKG escaping remain for Wave 2."
+
+[[item]]
+id = "RF-02"
+area = "refine"
+feature = "Manual card search, editing & per-card notes history"
+gui = "yes"
+cli = "no"
+mcp = "no"
+docs = "yes"
+unit_tests = "yes"
+playwright = "yes"
+smoke = "no"
+audit_status = "partial"
+last_audited = "2026-11-19"
+notes = "RefineTab.history.mounted.test.ts + refineCardSearch.test.ts + refineNotesHistory.test.ts + workflows.spec.mjs. RefineTab overall mount beyond history lacks test (#14.15)."
+
+[[item]]
+id = "RF-03"
+area = "refine"
+feature = "AnkiConnect connectivity ping & live .apkg import"
+gui = "yes"
+cli = "yes"
+mcp = "no"
+docs = "yes"
+unit_tests = "partial"
+playwright = "partial"
+smoke = "no"
+audit_status = "partial"
+last_audited = "2026-11-19"
+notes = "Wave 1 added ankiconnect_ping Playwright check in settings-and-modals.spec.mjs; #10.8 15s timeout on import_package & #10.19 unit tests remain for Wave 2."
+
+[[item]]
+id = "RF-04"
+area = "refine"
+feature = "Refine run cancellation, lock safety & summary diagnostics"
+gui = "yes"
+cli = "yes"
+mcp = "no"
+docs = "yes"
+unit_tests = "yes"
+playwright = "partial"
+smoke = "no"
+audit_status = "partial"
+last_audited = "2026-11-19"
+notes = "Open LOW #8.23 cli/srt-refine-cli/src/lib.rs:223 annotation lock .expect() panics on poisoned mutex; refineAutoRun tested via refineAutoRun.test.ts."
+
+# ==============================================================================
+# 8. PLUGINS & EXPERIMENTAL
+# ==============================================================================
+
+[[item]]
+id = "PL-01"
+area = "plugins"
+feature = "Plugin registry, archive/git install, README inspect & uninstall"
+gui = "yes"
+cli = "no"
+mcp = "no"
+docs = "yes"
+unit_tests = "yes"
+playwright = "yes"
+smoke = "yes"
+audit_status = "verified"
+last_audited = "2026-11-19"
+notes = "Wave 1 fixed and unit-tested all #8.1 (uninstall traversal), #8.4 (UTF-8 README slice), #8.5 (archive download/decompression caps), and #8.6 (git clone arg injection); Playwright lifecycle spec passing."
+
+[[item]]
+id = "PL-02"
+area = "plugins"
+feature = "Stdio JSON-RPC plugin host runtime & child lifecycle"
+gui = "yes"
+cli = "no"
+mcp = "yes"
+docs = "yes"
+unit_tests = "partial"
+playwright = "yes"
+smoke = "yes"
+audit_status = "issues_found"
+last_audited = "2026-11-19"
+notes = "Open HIGH #8.7 full env inheritance, unbounded line reads, no kill_on_drop, lock held across 10s initialize; #8.8 vesta-mcp call_plugin lacks id check, init timeout & kill_on_drop."
+
+[[item]]
+id = "PL-03"
+area = "plugins"
+feature = "Host widget tree SDK (23 PluginRenderer widgets & vesta_plugin.py)"
+gui = "yes"
+cli = "yes"
+mcp = "partial"
+docs = "yes"
+unit_tests = "yes"
+playwright = "yes"
+smoke = "yes"
+audit_status = "partial"
+last_audited = "2026-11-19"
+notes = "Verified by check_doc_contracts.py (23/23 widget parity) + PluginRenderer.mounted.test.ts + vesta_plugin.py test. Open MEDIUM #14.6 unsafe navigator.clipboard; #14.9 raw <select>."
+
+[[item]]
+id = "PL-04"
+area = "plugins"
+feature = "Experimental plugins workspace & Playwright smoke integration"
+gui = "yes"
+cli = "no"
+mcp = "no"
+docs = "yes"
+unit_tests = "yes"
+playwright = "yes"
+smoke = "no"
+audit_status = "partial"
+last_audited = "2026-11-19"
+notes = "ExperimentalTab.mounted.test.ts + workflows.spec.mjs. Open LOW #14.19 ExperimentalTab lacks active prop & uses hardcoded Tailwind palette colors."
+
+# ==============================================================================
+# 9. GUI, SETTINGS, I18N & UX INFRASTRUCTURE
+# ==============================================================================
+
+[[item]]
+id = "GS-01"
+area = "gui_settings_i18n"
+feature = "Persistent vesta_config.json, backup recovery & installation reset"
+gui = "yes"
+cli = "no"
+mcp = "yes"
+docs = "yes"
+unit_tests = "yes"
+playwright = "yes"
+smoke = "no"
+audit_status = "partial"
+last_audited = "2026-11-19"
+notes = "Wave 1 fixed #15.1 config_replace_all & #15.8 config_load_all mock schemas and added config_reset_installation Playwright E2E test; #8.11 sync disk I/O remains for Wave 2."
+
+[[item]]
+id = "GS-02"
+area = "gui_settings_i18n"
+feature = "API keys, custom endpoints & LLM/ITT tier configuration"
+gui = "yes"
+cli = "partial"
+mcp = "partial"
+docs = "yes"
+unit_tests = "yes"
+playwright = "partial"
+smoke = "no"
+audit_status = "partial"
+last_audited = "2026-11-19"
+notes = "28 uncommitted user files actively refactoring this area (apiKeys.ts, SettingsTab.svelte, apiKeyEditorStore, IttSettingsPanel, etc. -- preserved untouched). Known LOW #14.8 noted for Wave 2."
+
+[[item]]
+id = "GS-03"
+area = "gui_settings_i18n"
+feature = "15-locale i18n parity, RTL (ar) layout & responsive UI"
+gui = "yes"
+cli = "no"
+mcp = "no"
+docs = "yes"
+unit_tests = "yes"
+playwright = "yes"
+smoke = "no"
+audit_status = "partial"
+last_audited = "2026-11-19"
+notes = "check-i18n.sh enforces 15 locales against en.json; Wave 1 extended Playwright responsive/RTL tests to Settings, Shortcuts & Plugins in en/de/ar. #14.10 palette & #14.11 physical RTL classes remain for Wave 2."
+
+[[item]]
+id = "GS-04"
+area = "gui_settings_i18n"
+feature = "Keyboard shortcuts customization, overlay & modal accessibility"
+gui = "yes"
+cli = "no"
+mcp = "no"
+docs = "yes"
+unit_tests = "partial"
+playwright = "yes"
+smoke = "no"
+audit_status = "issues_found"
+last_audited = "2026-11-19"
+notes = "Wave 1 added ShortcutOverlay keyboard & shortcuts Playwright tests in settings-and-modals.spec.mjs; #14.1 ShortcutsTab listener leak, #14.12 modal focus traps, and ShortcutsTab mounted test remain for Wave 2."
+
+[[item]]
+id = "GS-05"
+area = "gui_settings_i18n"
+feature = "First-run setup wizard, auto-updater & CPU/RAM monitor"
+gui = "yes"
+cli = "no"
+mcp = "no"
+docs = "yes"
+unit_tests = "partial"
+playwright = "yes"
+smoke = "no"
+audit_status = "partial"
+last_audited = "2026-11-19"
+notes = "Wave 1 added get_app_info & ExperimentalTab First-run setup preview Playwright assertions in settings-and-modals.spec.mjs; #8.19 updater URL validation & cpuRamStore test remain for Wave 2."
+
+[[item]]
+id = "GS-06"
+area = "gui_settings_i18n"
+feature = "AI kill switch, support log redaction & notification inbox"
+gui = "yes"
+cli = "no"
+mcp = "no"
+docs = "yes"
+unit_tests = "partial"
+playwright = "partial"
+smoke = "no"
+audit_status = "issues_found"
+last_audited = "2026-11-19"
+notes = "Wave 1 added NotificationInbox & AI Kill Switch Playwright coverage in settings-and-modals.spec.mjs; HIGH #14.2 kill switch disabled while busy & aiStore unit tests remain for Wave 2."
+
+# ==============================================================================
+# 10. MEDIA STREAMING, NETWORKING & SYSTEM TOOLS
+# ==============================================================================
+
+[[item]]
+id = "MS-01"
+area = "media_security"
+feature = "Local media HTTP server & stream:// custom URI protocol"
+gui = "yes"
+cli = "na"
+mcp = "na"
+docs = "partial"
+unit_tests = "no"
+playwright = "no"
+smoke = "no"
+audit_status = "issues_found"
+last_audited = "2026-11-19"
+notes = "Open HIGH SECURITY #8.2 unauthenticated arbitrary file read on stream://localhost/; #8.3 weak UNIX_EPOCH+RandomState token, permissive CORS Any, unallowlisted ServeFile path; #8.12 server bind .unwrap()."
+
+[[item]]
+id = "MS-02"
+area = "media_security"
+feature = "Sandboxed HTTP proxy fetch & redirect/SSRF guard (http_fetch)"
+gui = "yes"
+cli = "na"
+mcp = "na"
+docs = "partial"
+unit_tests = "yes"
+playwright = "no"
+smoke = "no"
+audit_status = "verified"
+last_audited = "2026-11-19"
+notes = "Wave 1 fixed #8.9 SSRF in commands/net.rs: link-local metadata ranges (169.254.0.0/16, fe80::/10) blocked and cross-boundary redirects forbidden + unit test."
+
+[[item]]
+id = "MS-03"
+area = "media_security"
+feature = "FFmpeg / ffprobe discovery, bundling & auto-download"
+gui = "yes"
+cli = "yes"
+mcp = "yes"
+docs = "yes"
+unit_tests = "yes"
+playwright = "yes"
+smoke = "yes"
+audit_status = "partial"
+last_audited = "2026-11-19"
+notes = "core/srt-download + flashcard_download_ffmpeg. Open MEDIUM #10.16 creates fresh reqwest::Client per download_to; flashcard_download_ffmpeg unmocked in baseline Playwright."
+
+# ==============================================================================
+# 11. CLI & MCP INTERFACES
+# ==============================================================================
+
+[[item]]
+id = "CM-01"
+area = "cli_mcp"
+feature = "Unified vesta-cli (8 workflows) & 8 standalone engine CLIs"
+gui = "na"
+cli = "yes"
+mcp = "na"
+docs = "yes"
+unit_tests = "yes"
+playwright = "na"
+smoke = "yes"
+audit_status = "partial"
+last_audited = "2026-11-19"
+notes = "10 CLI crates total. Wave 1 fixed #15.12-.14 CLI/README/.cursorrules doc drift; #8.16 exit codes, #8.17 TOML env expansion, #8.18 Ctrl-C, and #8.22 flashcards CLI flags remain for Wave 2."
+
+[[item]]
+id = "CM-02"
+area = "cli_mcp"
+feature = "vesta-mcp stdio Model Context Protocol server (12 tools)"
+gui = "na"
+cli = "na"
+mcp = "yes"
+docs = "yes"
+unit_tests = "yes"
+playwright = "na"
+smoke = "no"
+audit_status = "partial"
+last_audited = "2026-11-19"
+notes = "28 vesta-mcp tests + docs/MCP.md verified by contract check. Wave 1 fixed HIGH #8.8 (call_plugin traversal/timeout/bounds/kill_on_drop) & #15.11 .cursorrules drift; #8.22 missing 6 core engine tools remains for Wave 2."
+
+# ==============================================================================
+# 12. QUALITY GATES, DOCS CONTRACTS & CI
+# ==============================================================================
+
+[[item]]
+id = "QC-01"
+area = "quality_ci"
+feature = "Contract & manifest drift verification (check_doc_contracts.py)"
+gui = "na"
+cli = "yes"
+mcp = "na"
+docs = "yes"
+unit_tests = "yes"
+playwright = "na"
+smoke = "yes"
+audit_status = "partial"
+last_audited = "2026-11-19"
+notes = "Checks 106 IPC cmds, 12 MCP tools, 9 CLI crates, 23 plugin widgets, 12 library APIs, 225 MD links. Open #12.25 module doc parameter/type prose drift in 6 docs/modules/*.md files; #15.10 update_project_info.sh wrong Svelte paths."
+
+[[item]]
+id = "QC-02"
+area = "quality_ci"
+feature = "Workspace dependency boundaries (check_library_integration.py)"
+gui = "na"
+cli = "yes"
+mcp = "na"
+docs = "yes"
+unit_tests = "yes"
+playwright = "na"
+smoke = "yes"
+audit_status = "partial"
+last_audited = "2026-11-19"
+notes = "Verifies core/lib crate DAG isolation without Tauri/GUI deps. Open MEDIUM #15.16 not yet wired into quality_check.py."
+
+[[item]]
+id = "QC-03"
+area = "quality_ci"
+feature = "15-locale i18n parity & template hygiene gate (check-i18n.sh)"
+gui = "yes"
+cli = "yes"
+mcp = "na"
+docs = "yes"
+unit_tests = "yes"
+playwright = "no"
+smoke = "yes"
+audit_status = "verified"
+last_audited = "2026-11-19"
+notes = "Enforces key parity, placeholder tokens, unused keys, and translation completeness across 15 locales in apps/srt-gui/src/lib/i18n/locales/."
+
+[[item]]
+id = "QC-04"
+area = "quality_ci"
+feature = "Pre-release quality gate (quality_check.py), Playwright E2E & CI"
+gui = "yes"
+cli = "yes"
+mcp = "na"
+docs = "yes"
+unit_tests = "yes"
+playwright = "yes"
+smoke = "yes"
+audit_status = "partial"
+last_audited = "2026-11-19"
+notes = "Wave 1 fixed #15.1-#15.8 (106/106 IPCs mocked in vesta-mock.mjs, 30/30 Playwright E2E passing) & wired generate_scorecard.py into quality_check.py; #15.9, #15.16-#15.18 remain for Wave 2."

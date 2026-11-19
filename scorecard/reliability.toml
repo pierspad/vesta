@@ -1,0 +1,98 @@
+schema_version = 1
+last_updated = "2026-11-19"
+audit_wave = "wave-1-complete"
+
+# status legend:
+#   "pass"    -> verified control active and complete
+#   "partial" -> control exists but has documented Stage-1 exceptions/gaps
+#   "fail"    -> critical/high control gap open
+
+[[item]]
+id = "REL-01"
+area = "media_security"
+control = "Local media HTTP & stream:// authentication and canonical path allowlisting"
+status = "fail"
+target = "apps/srt-gui/src-tauri/src/{main.rs,media_stream.rs}"
+evidence = "Static audit #8.2, #8.3"
+notes = "stream:// has no token/allowlist; HTTP server uses non-CSPRNG token, non-constant-time comparison, CorsLayer::Any, and unallowlisted ServeFile."
+
+[[item]]
+id = "REL-02"
+area = "plugins"
+control = "Plugin install/uninstall path traversal, archive bomb & git arg injection guards"
+status = "pass"
+target = "apps/srt-gui/src-tauri/src/plugins/{mod.rs,archive.rs,url.rs}"
+evidence = "Static audit #8.1, #8.4, #8.5, #8.6"
+notes = "Wave 1 fixed #8.1, #8.4, #8.5, #8.6: plugins/mod.rs validates plugin IDs + canonical path containment; archive.rs enforces UTF-8 boundary truncation, streaming download/decompression caps, and git arg validation (verified via cargo test -p vesta --lib)."
+
+[[item]]
+id = "REL-03"
+area = "plugins"
+control = "Plugin & MCP subprocess isolation, bounded I/O, timeouts & kill_on_drop"
+status = "fail"
+target = "apps/srt-gui/src-tauri/src/plugins/runtime.rs, cli/vesta-mcp/src/lib.rs"
+evidence = "Static audit #8.7, #8.8"
+notes = "Wave 1 fixed #8.8 in cli/vesta-mcp/src/lib.rs (validate_plugin_id, kill_on_drop, bounded RPC lines, 10s init timeout); GUI runtime.rs (#8.7 env scoping, bounded lines, mutex-across-await) remains for Wave 2."
+
+[[item]]
+id = "REL-04"
+area = "media_security"
+control = "Network proxy SSRF protection (metadata IPs & cross-origin redirects)"
+status = "pass"
+target = "apps/srt-gui/src-tauri/src/commands/net.rs"
+evidence = "Static audit #8.9"
+notes = "Wave 1 fixed #8.9 in commands/net.rs: link-local metadata IPs (169.254.0.0/16, fe80::/10) blocked and CLIENT_FOLLOW / CLIENT_FOLLOW_CUSTOM forbid cross-boundary public-to-local/private redirects (verified via cargo test -p vesta --lib)."
+
+[[item]]
+id = "REL-05"
+area = "transcribe"
+control = "Downloaded worker binary integrity verification (fail-closed SHA-256) & HTTP timeouts"
+status = "pass"
+target = "apps/whisper-bench/src-tauri/src/workers.rs"
+evidence = "Static audit #8.10"
+notes = "Wave 1 fixed #8.10 in apps/whisper-bench/src-tauri/src/workers.rs: fail-closed SHA-256 checksum verification + shared timeout HTTP client + panic removal (verified via cargo test -p whisper-bench)."
+
+[[item]]
+id = "REL-06"
+area = "flashcards"
+control = "APKG/ZIP extraction bounds, collision-safe IDs & delimiter sanitization"
+status = "partial"
+target = "core/srt-apkg/src/lib.rs, lib/srt-flashcards/src/{export_apkg.rs,export_tsv.rs,merge_apkg.rs}"
+evidence = "Static audit #10.1, #10.2, #10.9, #10.13"
+notes = "Wave 1 fixed #10.1 (merge_apkg strips did), #10.4 (export_tsv omits orphan media tags), and partial #10.9 (TSV deck_name tag sanitized); #10.2 ID collisions, #10.13 core/srt-apkg ZIP bounds, and APKG \\x1f escaping remain for Wave 2."
+
+[[item]]
+id = "REL-07"
+area = "flashcards"
+control = "FFmpeg subprocess timeouts, process reaping & cancellation responsiveness"
+status = "partial"
+target = "lib/srt-flashcards/src/media.rs, lib/srt-extract/src/embedded.rs"
+evidence = "Static audit #10.5, #10.6, #10.7"
+notes = "Per-card run_ffmpeg awaits without timeout/select+kill+wait; video probe/encoder detect ignore cancel; embedded extraction passes open NamedTempFile path."
+
+[[item]]
+id = "REL-08"
+area = "translate"
+control = "Checkpoint resume integrity, NaN-free numeric math & panic-free Rust production paths"
+status = "partial"
+target = "lib/srt-translate/src/lib.rs, lib/srt-autosync/src/lib.rs, cli/srt-refine-cli/src/lib.rs"
+evidence = "Static audit #12.1, #12.20, #8.23"
+notes = "Wave 1 fixed #12.1 (translate partial resume), partial #12.20 (autosync total_cmp/NaN guards), and workers.rs unwraps (#8.23); matching.rs arithmetic (#12.20) & srt-refine-cli lock poison remain for Wave 2."
+
+[[item]]
+id = "REL-09"
+area = "gui_settings_i18n"
+control = "Frontend async race guards, modal keyboard safety & AI kill switch reachability"
+status = "partial"
+target = "apps/srt-gui/src/lib/{tabs,stores,modals}/"
+evidence = "Static audit #14.1, #14.2, #14.3, #14.4, #14.5, #14.7, #14.12"
+notes = "Wave 1 fixed #14.3/#14.4/#14.20 (AlignTab race & empty save), #14.5 (TranslateTab contextLoading race), and #14.7 (PathPreviewModal Escape); #14.1 ShortcutsTab listener leak, #14.2 kill switch reachability & #14.12 focus traps remain for Wave 2."
+
+[[item]]
+id = "REL-10"
+area = "quality_ci"
+control = "Backend/Frontend IPC, Mock schema, Docs, Integration & i18n automated verification"
+status = "partial"
+target = "build-scripts/, apps/srt-gui/browser-tests/vesta-mock.mjs"
+evidence = "Baseline contract run + audit #15.1-#15.9, #15.16-#15.18"
+notes = "Wave 1 fixed #15.1-#15.8 (106/106 IPCs mocked in vesta-mock.mjs + 30/30 Playwright passing) and #15.10-#15.15 doc/script drift; #15.9, #15.16-#15.18 remain for Wave 2."

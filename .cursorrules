@@ -70,13 +70,14 @@ vesta/
 │  ├─ srt-transcribe/                   # Local Whisper (whisper-rs) + Silero/WebRTC VAD + cloud STT
 │  ├─ srt-autosync/                     # VAD + Whisper speech auto-alignment
 │  ├─ srt-extract/                      # Media & subtitle track extractor
+│  ├─ srt-ocr/                          # Bitmap & hardcoded ROI subtitle OCR
 │  ├─ srt-refine/                       # LLM deck annotation & enrichment
 │  ├─ srt-sync/                         # Anchor-based retiming engine & undo history
 │  └─ srt-ankiconnect/                  # AnkiConnect HTTP client
 ├─ cli/                                 # Headless CLIs + stdio MCP server
 │  ├─ vesta-cli/                        # Unified CLI dispatcher
-│  ├─ vesta-mcp/                        # Local stdio MCP server (rmcp, 10 tools)
-│  └─ srt-*-cli/                        # 7 per-engine CLIs
+│  ├─ vesta-mcp/                        # Local stdio MCP server (rmcp, 12 tools)
+│  └─ srt-*-cli/                        # 8 per-engine CLIs
 ├─ apps/
 │  ├─ srt-gui/                          # Tauri v2 + Svelte 5 desktop app (`vesta`, Vite port 5175)
 │  │  ├─ package.json                   # frontend deps & scripts (`check`, `test`, `check:patterns`, `check:i18n`, `test:dev-css`)
@@ -213,7 +214,7 @@ Many Svelte 5 stores (`aiStore`, `ankiStore`, `uiMode`, `i18n`, …) are module-
 ## 13. Headless Engines, MCP, Plugin SDK & Contract Enforcement
 
 - **Pure domain crates**: `core/*` and `lib/*` accept `CancellationToken` + progress/diagnostic callbacks and never import Tauri or initialize global loggers.
-- **MCP server (`cli/vesta-mcp`)**: Uses `rmcp` over stdio exposing the documented tools (`get_configuration`, `inspect_subtitles`, `preview_flashcards`, `generate_flashcards`, `translate_subtitles`, `transcribe_media`, `get_job`, `cancel_job`, `list_plugins`, `call_plugin`) with path-root and credential isolation.
+- **MCP server (`cli/vesta-mcp`)**: Uses `rmcp` over stdio exposing the 12 documented tools (`get_configuration`, `inspect_subtitles`, `preview_flashcards`, `generate_flashcards`, `translate_subtitles`, `transcribe_media`, `list_embedded_subtitles`, `ocr_subtitles`, `get_job`, `cancel_job`, `list_plugins`, `call_plugin`) with path-root and credential isolation.
 - **Declarative Plugin SDK**: Subprocess JSON-RPC stdio plugins rendered by `PluginRenderer.svelte` and validated with `docs/examples/plugin-hello/vesta_plugin.py` (`init`, `validate`, `test`).
 - **Contract verification (`build-scripts/check_doc_contracts.py`)**: Keep `docs/contracts_manifest.json` and `docs/**/*.md` synchronized whenever modifying:
   1. Tauri IPC commands (`apps/srt-gui/src-tauri/src/main.rs` / `commands/`)

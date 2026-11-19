@@ -16,7 +16,7 @@ OpenAI-compatible API (OpenAI, Mistral, NVIDIA NIM, Ollama/local, custom).
   per-provider defaults for base URL, RPM and model live here)
 - `translate_subtitles_tiered_cancellable(pool, subs, target_lang, batch_size,
   overlap, title_context, output_path, on_progress, cancel_token)`
-- `get_missing_or_incorrect_subtitle_ids(&original, &translated)` (replaces deprecated `verify_translation_completeness(&original, &translated)`)
+- `get_missing_or_incorrect_subtitle_ids(&original, &translated)` (replaces deprecated `get_missing_subtitle_ids(&original, &translated)`)
 - `Translator::generate_response(prompt)` — raw single-prompt call (used by
   [srt-refine](srt-refine.md))
 - `Translator::generate_vision_response(prompt, image_base64, mime_type)` — multimodal prompt + image call across OpenAI-compatible, Gemini, and Anthropic endpoints (used by [srt-ocr](srt-ocr.md))

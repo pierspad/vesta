@@ -26,6 +26,10 @@ srt-flashcards generate \
 # Generate a self-contained .apkg with seven requested media workers
 srt-flashcards generate -t Detour-en.srt -n Detour-it.srt \
   -v "Detour(1945).mp4" -o out -f apkg -d Detour -j 7
+
+# Export bilingual dueling subtitles (.ass or .srt)
+srt-flashcards dueling -t Detour-en.srt --native Detour-it.srt \
+  --dueling-format ass -o Detour.dueling.ass
 ```
 
 ## Key options

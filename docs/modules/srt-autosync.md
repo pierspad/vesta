@@ -6,7 +6,7 @@ the engine behind Vesta's "Auto Sync" button. The algorithm:
 1. sample dialogue-dense positions across the media (20 s segments in quick mode, 35 s segments in precise mode; scaled up to 16–32 samples when GPU acceleration is active);
 2. extract each audio stream (`-vn -sn -dn`) to 16 kHz mono WAV via FFmpeg, skipping silent windows;
 3. transcribe every sample with a single reused `WhisperState` (`transcribe_full_with_state`, word timestamps on, WebRTC VAD pre-filtering, `no_context`, `single_temperature`, `suppress_nst`, and `split_on_word`) or a configured cloud STT endpoint;
-4. fuzzy-match transcribed text against nearby subtitle lines (default `max_offset_secs = 120.0`, or a ±15 s guided radius when manual anchors are provided) and refine speech onset via full-phrase or unique 2–4 word prefix token timestamps;
+4. fuzzy-match transcribed text against nearby subtitle lines (default `max_offset_secs = Some(120)`, or a ±15 s guided radius when manual anchors are provided) and refine speech onset via full-phrase or unique 2–4 word prefix token timestamps;
 5. keep only matches agreeing with the dominant global offset (density-based
    consensus verification);
 6. dedupe per subtitle and space anchors apart across the timeline.
@@ -60,7 +60,7 @@ async fn main() -> anyhow::Result<()> {
         .collect();
 
     let mut config = AutoSyncConfig::new(
-        "movie.mp4",
+        "movie.mp4".to_string(),
         srt_transcribe::model::model_file_path("base")?,
     );
     config.language = Some("en".into());

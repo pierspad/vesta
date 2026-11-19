@@ -9,7 +9,7 @@ deck back without losing media or scheduling data.
 
 - TSV column classification heuristics (`analyze_tsv_columns`: skips `[sound:…]`/`<img …>` media
   columns and sequence markers to identify expression/meaning/notes columns);
-- APKG round-trip: unzip → read `collection.anki2` / `collection.anki21` (SQLite) → map fields by
+- APKG round-trip: unzip → read `collection.anki2` (SQLite) → map fields by
   Anki model names (Expression/Front/Target…, Meaning/Back/Native…,
   Notes/Note/Comment…) → update `notes.flds`, `mod`, and `usn` → re-zip while preserving media and scheduling;
 - prompt interpolation (`interpolate_prompt`: `{{expression}}`, `{{meaning}}`, `{{notes}}`) and
@@ -22,8 +22,8 @@ deck back without losing media or scheduling data.
 - `save_cards(input_path, output_path, updates)` — TSV→TSV, APKG→TSV,
   APKG→APKG (atomic note update inside the archive)
 - `refine_card_llm(&card, prompt, RefineLlmConfig)` → single-card notes text
-- `refine_cards_tiered(cards, config, pool, on_event, token)` → `(Vec<RefineUpdate>, RefineRunSummary)` (`Result<(Vec<RefineUpdate>, RefineRunSummary), String>` is returned by higher-level callers after pool construction)
-- `analyze_tsv_columns(path)`, `interpolate_prompt(template, &card)`, `strip_html(input)`
+- `refine_cards_tiered(cards, config, pool, on_event, token)` → `Result<RefineRunSummary, String>` (delivers per-card `RefineUpdate` items through `on_event`)
+- `analyze_tsv_columns(rows)`, `interpolate_prompt(template, &card)`, `strip_html(input)`
 
 Errors are user-presentable `String`s, mirroring `srt-flashcards`.
 
