@@ -1,6 +1,6 @@
 [package]
 name = "srt-ocr"
-version = "0.34.1"
+version = "0.35.0-dev.1"
 edition.workspace = true
 rust-version.workspace = true
 authors = ["Pierpaolo Spadafora <pierpaolospadafora@proton.me>"]
