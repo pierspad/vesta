@@ -295,10 +295,11 @@ FFprobe/FFmpeg. Text tracks convert directly to SRT; bitmap tracks (PGS, VobSub,
 DVB, XSUB) and burned-in video ROI regions (`VideoRoi` in `srt-ocr::hardcoded`)
 are extracted and converted via `srt-ocr` using offline pure-Rust PaddleOCR v4
 ONNX models (`LocalOcrBackend`) and/or configured Vision LLM tiers
-(`VisionLlmBackend` via `CompositeOcrBackend`; Vision LLM tiers remain subject
-to the AI Kill Switch, while downloaded local OCR models keep offline OCR
-available). The desktop Extract tab saves independent SRT files, keeping the
-existing workflows simple.
+(`VisionLlmBackend` via `CompositeOcrBackend`, preferring dedicated ITT tiers in
+Settings → ITT (`vesta-itt-tiers`) before falling back to LLM tiers; Vision
+LLM tiers remain subject to the AI Kill Switch, while downloaded local OCR
+models keep offline OCR available). The desktop Extract tab saves independent
+SRT files, keeping the existing workflows simple.
 
 Fresh per-episode APKG exports can be merged by `srt-flashcards::merge_apkg`.
 The frontend writes episodes to distinct directories; the merger remaps note/card

@@ -1402,5 +1402,17 @@
   "setup.localOcr": "OCR locale hors ligne",
   "setup.localOcrDesc": "Téléchargez un modèle PaddleOCR compact pour la reconnaissance hors ligne des sous-titres image.",
   "settings.ocrModelsTitle": "Modèles OCR hors ligne (PaddleOCR)",
-  "settings.ocrModelsDesc": "Exécutez l'OCR des sous-titres bitmap et incrustés localement sans frais de LLM cloud."
+  "settings.ocrModelsDesc": "Exécutez l'OCR des sous-titres bitmap et incrustés localement sans frais de LLM cloud.",
+  "setup.suggested": "Suggéré",
+  "settings.section.itt": "ITT",
+  "settings.ittTiersTitle": "Chaîne de priorité ITT",
+  "settings.ittTiersDesc": "Configurez des serveurs Vision locaux compatibles OpenAI ou des points de terminaison ITT cloud pour l'OCR des sous-titres image.",
+  "settings.itt.resetConfirmTitle": "Réinitialiser les paramètres ITT ?",
+  "settings.itt.resetConfirmDesc": "Cela réinitialise le modèle OCR local par défaut et efface les niveaux ITT personnalisés.",
+  "extract.modeEmbedded": "Intégrés",
+  "extract.modeHardcoded": "Incrustés",
+  "extract.hardcodedPresetFull": "Plein cadre",
+  "extract.hardcodedCenter": "Centrer",
+  "extract.hardcodedLanguage": "Langue",
+  "extract.hardcodedVideoRequired": "L'OCR des sous-titres incrustés nécessite un fichier vidéo."
 }

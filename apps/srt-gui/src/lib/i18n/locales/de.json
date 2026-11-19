@@ -1402,5 +1402,17 @@
   "setup.localOcr": "Lokale Offline-OCR",
   "setup.localOcrDesc": "Laden Sie ein kompaktes PaddleOCR-Modell zur Offline-Erkennung von Bilduntertiteln herunter.",
   "settings.ocrModelsTitle": "Offline-OCR-Modelle (PaddleOCR)",
-  "settings.ocrModelsDesc": "Führen Sie Bitmap- und eingebrannte Untertitel-OCR lokal ohne Cloud-LLM-Kosten aus."
+  "settings.ocrModelsDesc": "Führen Sie Bitmap- und eingebrannte Untertitel-OCR lokal ohne Cloud-LLM-Kosten aus.",
+  "setup.suggested": "Empfohlen",
+  "settings.section.itt": "ITT",
+  "settings.ittTiersTitle": "ITT-Prioritätskette",
+  "settings.ittTiersDesc": "Konfigurieren Sie lokale OpenAI-kompatible Vision-Server oder Cloud-ITT-Endpunkte für Bild-Untertitel-OCR.",
+  "settings.itt.resetConfirmTitle": "ITT-Einstellungen zurücksetzen?",
+  "settings.itt.resetConfirmDesc": "Dies setzt das lokale Standard-OCR-Modell zurück und löscht benutzerdefinierte ITT-Stufen.",
+  "extract.modeEmbedded": "Eingebettet",
+  "extract.modeHardcoded": "Eingebrannt",
+  "extract.hardcodedPresetFull": "Vollbild",
+  "extract.hardcodedCenter": "Zentrieren",
+  "extract.hardcodedLanguage": "Sprache",
+  "extract.hardcodedVideoRequired": "Die OCR für eingebrannte Untertitel erfordert eine Videodatei."
 }

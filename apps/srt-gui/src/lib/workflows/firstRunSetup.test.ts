@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { buildSetupPlan, installSetupPlan, resolveSetupChoices, setupTierPreferences, type SetupChoices, type SetupResources } from "./firstRunSetup";
+import { buildSetupPlan, installSetupPlan, resolveSetupChoices, setupTierPreferences, suggestedOcrModelForLanguage, type SetupChoices, type SetupResources } from "./firstRunSetup";
 const choices: SetupChoices = { mode: "quick", wantsTranscription: false, whisperModel: "large", useVad: false, vadChoice: "custom", nativeLanguage: "ja", studyLanguage: "ja" };
 const resources: SetupResources = {
  models: ["small", "medium", "large"].map(id => ({ id, name: id, size: "~500 MB", speed: "", downloaded: false })),
@@ -60,5 +60,14 @@ describe("first run setup", () => {
   ]);
   const quickWithOcrFlag = buildSetupPlan({ ...choices, mode: "quick", wantsOcr: true }, { ...resources, ocrModels });
   expect(quickWithOcrFlag.some(task => task.kind === "ocr")).toBe(false);
+ });
+ it("suggests the right local OCR model based on study language", () => {
+  expect(suggestedOcrModelForLanguage("ja")).toBe("paddleocr-v4-mobile-cjk");
+  expect(suggestedOcrModelForLanguage("zh-tw")).toBe("paddleocr-v4-mobile-cjk");
+  expect(suggestedOcrModelForLanguage("ko")).toBe("paddleocr-v4-mobile-cjk");
+  expect(suggestedOcrModelForLanguage("it")).toBe("paddleocr-v4-mobile-latin");
+  expect(suggestedOcrModelForLanguage("en")).toBe("paddleocr-v4-mobile-latin");
+  expect(suggestedOcrModelForLanguage("ru")).toBe("paddleocr-v4-mobile-multi");
+  expect(suggestedOcrModelForLanguage("ar")).toBe("paddleocr-v4-mobile-multi");
  });
 });

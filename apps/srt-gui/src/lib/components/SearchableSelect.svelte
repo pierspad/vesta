@@ -28,6 +28,7 @@
     placement?: "up" | "down";
     compact?: boolean;
     portal?: boolean;
+    searchable?: boolean;
     ariaLabel?: string;
   }
 
@@ -43,6 +44,7 @@
     placement = "down",
     compact = false,
     portal = false,
+    searchable = true,
     ariaLabel,
   }: Props = $props();
 
@@ -76,7 +78,7 @@
   }
 
   let displayValue = $derived.by(() => {
-    if (isOpen) return searchQuery;
+    if (isOpen && searchable) return searchQuery;
     if (!selectedOption) return "";
     return iconMarkup(selectedOption.icon)
       ? (selectedOption.displayLabel ?? selectedOption.label)
@@ -84,7 +86,7 @@
   });
 
   let filteredOptions = $derived.by(() => {
-    if (!searchQuery.trim()) return options;
+    if (!searchable || !searchQuery.trim()) return options;
     const query = searchQuery.toLowerCase().trim();
     return options.filter((opt) => {
       const labelMatch = opt.label.toLowerCase().includes(query);
@@ -136,7 +138,7 @@
   }
 
   function handleInput(e: Event) {
-    if (disabled) return;
+    if (disabled || !searchable) return;
     const target = e.target as HTMLInputElement;
     searchQuery = target.value;
     isOpen = true;
@@ -286,8 +288,9 @@
       onblur={handleBlur}
       onkeydown={handleKeydown}
       {placeholder}
+      readonly={!searchable}
       disabled={disabled}
-      class="searchable-select-input w-full disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-white/[0.02]"
+      class="searchable-select-input w-full disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-white/[0.02] {!searchable ? 'cursor-pointer select-none' : ''}"
       style:padding-left={(selectedOption?.provider || (selectedOption?.icon && iconMarkup(selectedOption.icon))) && !isOpen ? "38px" : ""}
       autocomplete="off"
     />

@@ -1,5 +1,5 @@
 <script lang="ts">
-  type SettingsSection = "overview" | "llm" | "whisper" | "language" | "anki" | "shortcuts";
+  type SettingsSection = "overview" | "llm" | "whisper" | "itt" | "language" | "anki" | "shortcuts";
 
   interface Props {
     label: string;

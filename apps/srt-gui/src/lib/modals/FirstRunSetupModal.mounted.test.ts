@@ -8,6 +8,14 @@ vi.mock("$lib/stores/whisperModelsStore.svelte", () => ({ whisperModelsStore: {
   whisperModels: [{ id: "small", name: "Small", size: "500 MB", downloaded: false }],
   vadModels: [], vadSelection: { customPath: null },
 } }));
+vi.mock("$lib/stores/ocrModelsStore.svelte", () => ({ ocrModelsStore: {
+  ocrModels: [
+    { id: "paddleocr-v4-mobile-multi", name: "PaddleOCR v4 Mobile (Multilingual)", size: "~11 MB", downloaded: false },
+    { id: "paddleocr-v4-mobile-cjk", name: "PaddleOCR v4 Mobile (CJK)", size: "~11 MB", downloaded: false },
+    { id: "paddleocr-v4-mobile-latin", name: "PaddleOCR v4 Mobile (Latin)", size: "~8 MB", downloaded: false },
+  ],
+  defaultOcrModel: "paddleocr-v4-mobile-multi",
+} }));
 const mounted: ReturnType<typeof mount>[] = [];
 afterEach(async () => {
   for (const component of mounted.splice(0)) await unmount(component);
@@ -57,4 +65,25 @@ it("keeps the custom configuration and a concise component review", async () => 
   expect(target.textContent).toContain("Sizes are approximate");
   expect(target.querySelectorAll(".review-preferences dt svg")).toHaveLength(3);
   expect(target.querySelectorAll(".review-preferences dd")[0].textContent).toContain("🇬🇧");
+});
+
+it("highlights a suggested OCR model and lets review items jump back to their setup step", async () => {
+  const target = await render();
+  await click(target, "Custom setup");
+  await click(target, "Continue");
+  await click(target, "Continue");
+  const latinCard = [...target.querySelectorAll("button[role='radio']")].find((b) =>
+    b.textContent?.includes("PaddleOCR v4 Mobile (Latin)"),
+  );
+  expect(latinCard?.textContent).toContain("Suggested");
+
+  await click(target, "Continue");
+  expect(target.textContent).toContain("Review what will be installed");
+
+  await click(target, "Whisper Small");
+  expect(target.textContent).toContain("Local transcription");
+
+  await click(target, "Continue");
+  await click(target, "English");
+  expect(target.textContent).toContain("Your native language");
 });

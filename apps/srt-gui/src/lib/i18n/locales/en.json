@@ -1402,5 +1402,17 @@
   "setup.localOcr": "Local offline OCR",
   "setup.localOcrDesc": "Download a compact PaddleOCR model for offline image subtitle recognition.",
   "settings.ocrModelsTitle": "Offline OCR Models (PaddleOCR)",
-  "settings.ocrModelsDesc": "Run bitmap and hardcoded subtitle OCR locally without cloud LLM costs."
+  "settings.ocrModelsDesc": "Run bitmap and hardcoded subtitle OCR locally without cloud LLM costs.",
+  "setup.suggested": "Suggested",
+  "settings.section.itt": "ITT",
+  "settings.ittTiersTitle": "ITT Priority Chain",
+  "settings.ittTiersDesc": "Configure local OpenAI-compatible Vision servers or cloud ITT endpoints for image subtitle OCR.",
+  "settings.itt.resetConfirmTitle": "Reset ITT settings?",
+  "settings.itt.resetConfirmDesc": "This resets the default local OCR model and clears custom ITT tiers.",
+  "extract.modeEmbedded": "Embedded",
+  "extract.modeHardcoded": "Hardcoded",
+  "extract.hardcodedPresetFull": "Full frame",
+  "extract.hardcodedCenter": "Center",
+  "extract.hardcodedLanguage": "Language",
+  "extract.hardcodedVideoRequired": "Hardcoded subtitle OCR requires a video file."
 }

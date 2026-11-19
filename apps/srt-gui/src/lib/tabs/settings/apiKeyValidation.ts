@@ -1,5 +1,6 @@
 import { providers } from "$lib/config/llmProviders";
-import { hasProviderNameConflict, type ApiKeyConfig } from "$lib/config/apiKeys";
+import { hasProviderNameConflict, type ApiCapability, type ApiKeyConfig } from "$lib/config/apiKeys";
+import { usageChoiceToCapabilities, type EndpointUsageChoice } from "$lib/stores/apiKeyEditorStore.svelte";
 
 export interface ApiKeyDraftInput {
   editKeyId: string | null;
@@ -7,7 +8,7 @@ export interface ApiKeyDraftInput {
   newKeyName: string;
   newKeyValue: string;
   newKeyUrl: string;
-  newKeyUsage: "llm" | "stt" | "both";
+  newKeyUsage: EndpointUsageChoice;
 }
 
 export type ApiKeyValidationResult =
@@ -20,12 +21,10 @@ export function validateAndApplyApiKey(
   generateId: () => string,
 ): ApiKeyValidationResult {
   const { editKeyId, newKeyType, newKeyName, newKeyValue, newKeyUrl, newKeyUsage } = draft;
-  const capabilities: ("llm" | "stt")[] | undefined =
-    newKeyType === "custom"
-      ? (newKeyUsage === "both" ? ["llm", "stt"] : [newKeyUsage])
-      : newKeyType === "local"
-        ? ["llm"]
-        : undefined;
+  const capabilities: ApiCapability[] | undefined =
+    newKeyType === "custom" || newKeyType === "local"
+      ? usageChoiceToCapabilities(newKeyUsage)
+      : undefined;
 
   if (!newKeyName.trim()) return { ok: false, errorKey: "settings.errorNameRequired" };
   if ((newKeyType === "local" || newKeyType === "custom") && !newKeyUrl.trim()) {

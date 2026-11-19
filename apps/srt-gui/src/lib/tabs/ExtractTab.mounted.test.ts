@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
   notify: vi.fn(),
   listen: vi.fn(),
   loadTiers: vi.fn<() => Tier[]>(),
+  loadIttTiers: vi.fn<() => Tier[]>(),
   loadAndValidateApiKeys: vi.fn<() => ApiKeyConfig[]>(),
   drop: null as null | ((paths: string[]) => void),
 }));
@@ -23,6 +24,7 @@ vi.mock("$lib/utils/dragDrop", () => ({ setupWebviewDragDrop: vi.fn(options => {
 vi.mock("@tauri-apps/api/path", () => ({ join: vi.fn(async (...parts) => parts.join("/")) }));
 vi.mock("@tauri-apps/api/event", () => ({ listen: mocks.listen }));
 vi.mock("$lib/config/translationTiers", () => ({ loadTiers: mocks.loadTiers }));
+vi.mock("$lib/config/ittTiers", () => ({ loadIttTiers: mocks.loadIttTiers }));
 vi.mock("$lib/config/apiKeys", async (importOriginal) => {
   const actual = await importOriginal<typeof import("$lib/config/apiKeys")>();
   return { ...actual, loadAndValidateApiKeys: mocks.loadAndValidateApiKeys };
@@ -33,6 +35,7 @@ const mounted: ReturnType<typeof mount>[] = [];
 
 beforeEach(() => {
   mocks.loadTiers.mockReturnValue([]);
+  mocks.loadIttTiers.mockReturnValue([]);
   mocks.loadAndValidateApiKeys.mockReturnValue([]);
   mocks.listen.mockResolvedValue(() => {});
   aiStore.killSwitchActive = false;
@@ -352,11 +355,11 @@ it("loads preview frame, previews ROI OCR, and runs hardcoded ROI extraction", a
   mocks.drop!(["/film.mp4"]);
   await settle();
 
-  const toggleButton = [...target.querySelectorAll<HTMLButtonElement>("button")].find((b) =>
-    b.textContent?.includes("Hardcoded subtitles (ROI OCR)"),
+  const hardcodedSwitch = [...target.querySelectorAll<HTMLButtonElement>('button[role="tab"]')].find((b) =>
+    b.textContent?.includes("Hardcoded"),
   );
-  expect(toggleButton).toBeDefined();
-  toggleButton!.click();
+  expect(hardcodedSwitch).toBeDefined();
+  hardcodedSwitch!.click();
   await settle();
 
   expect(mocks.invoke).toHaveBeenCalledWith("ocr_video_preview_frame", {
@@ -367,11 +370,17 @@ it("loads preview frame, previews ROI OCR, and runs hardcoded ROI extraction", a
   expect(img).not.toBeNull();
   expect(img!.getAttribute("src")).toBe("data:image/jpeg;base64,AA==");
   expect(target.querySelector('[data-testid="roi-overlay"]')).not.toBeNull();
+  expect(target.querySelectorAll('[data-testid="roi-overlay"] button')).toHaveLength(8);
 
-  const fpsSelect = target.querySelector<HTMLSelectElement>('select[aria-label="Sample rate (FPS)"]');
-  expect(fpsSelect).not.toBeNull();
-  fpsSelect!.value = "3";
-  fpsSelect!.dispatchEvent(new Event("change", { bubbles: true }));
+  const fpsInput = target.querySelector<HTMLInputElement>('input[aria-label="Sample rate (FPS)"]');
+  expect(fpsInput).not.toBeNull();
+  fpsInput!.focus();
+  await settle();
+  const fpsOption3 = [...document.body.querySelectorAll<HTMLButtonElement>(".searchable-select-option")].find(
+    (opt) => opt.textContent?.trim() === "3 FPS",
+  );
+  expect(fpsOption3).toBeDefined();
+  fpsOption3!.click();
   await settle();
 
   const previewRoiButton = [...target.querySelectorAll<HTMLButtonElement>("button")].find((b) =>
@@ -412,4 +421,50 @@ it("loads preview frame, previews ROI OCR, and runs hardcoded ROI extraction", a
     tiers: EXPECTED_TIERS,
   });
   expect(mocks.notify).toHaveBeenCalledWith("Saved: /out/film_hardcoded.srt", "success");
+});
+
+it("prefers dedicated ITT tiers over translation LLM tiers when configured", async () => {
+  configureLlmTiers();
+  mocks.loadIttTiers.mockReturnValue([
+    {
+      id: "itt-tier-1",
+      entries: [{ id: "itt-entry-1", provider: "custom", apiKeyId: "local-itt", model: "qwen2.5vl:7b" }],
+    },
+  ]);
+  mocks.loadAndValidateApiKeys.mockReturnValue([
+    { id: "key-1", name: "Google", apiType: "google", apiKey: "AIza-test-key", capabilities: ["llm"] },
+    { id: "local-itt", name: "Local ITT", apiType: "custom", apiKey: "", apiUrl: "http://localhost:11434/v1", capabilities: ["itt"] },
+  ]);
+  const target = await render();
+  const track = { index: 2, codec: "hdmv_pgs_subtitle", language: "eng", title: "English PGS", text_based: false };
+  mocks.invoke.mockImplementation((command: string) => {
+    if (command === "embedded_subtitle_tracks") return Promise.resolve([track]);
+    if (command === "ocr_embedded_subtitle") return Promise.resolve(undefined);
+    return Promise.resolve([]);
+  });
+  mocks.drop!(["/with-pgs.mkv"]);
+  await settle();
+
+  const saveButton = target.querySelector<HTMLButtonElement>('button[aria-busy="false"]');
+  saveButton!.click();
+  await settle();
+
+  expect(mocks.invoke).toHaveBeenCalledWith("ocr_embedded_subtitle", {
+    path: "/with-pgs.mkv",
+    index: 2,
+    outputPath: "/out/with-pgs_en_2.srt",
+    language: "en",
+    tiers: [
+      [
+        {
+          provider: "custom",
+          model: "qwen2.5vl:7b",
+          api_key: null,
+          api_url: "http://localhost:11434/v1",
+          rpm: null,
+          max_requests: null,
+        },
+      ],
+    ],
+  });
 });

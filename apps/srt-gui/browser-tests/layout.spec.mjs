@@ -17,7 +17,7 @@ for (const { language, width, height } of scenarios) {
     await expect(page.locator("html")).toHaveAttribute("lang", language);
     await expect(page.locator("html")).toHaveAttribute("dir", language === "ar" ? "rtl" : "ltr");
 
-    for (const tab of ["flashcards", "sync", "revision", "refine", "translate", "transcribe"]) {
+    for (const tab of ["flashcards", "sync", "revision", "refine", "translate", "transcribe", "extract"]) {
       await test.step(tab, async () => {
         await page.getByRole("navigation").getByRole("button", { name: messages[`nav.${tab}`], exact: true }).click();
         const footer = page.locator("[data-footer-actions]:visible");

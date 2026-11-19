@@ -1402,5 +1402,17 @@
   "setup.localOcr": "Yerel çevrimdışı OCR",
   "setup.localOcrDesc": "Çevrimdışı görüntü altyazısı tanıma için kompakt bir PaddleOCR modeli indirin.",
   "settings.ocrModelsTitle": "Çevrimdışı OCR Modelleri (PaddleOCR)",
-  "settings.ocrModelsDesc": "Bulut LLM maliyeti olmadan bitmap ve gömülü altyazı OCR işlemlerini yerel olarak çalıştırın."
+  "settings.ocrModelsDesc": "Bulut LLM maliyeti olmadan bitmap ve gömülü altyazı OCR işlemlerini yerel olarak çalıştırın.",
+  "setup.suggested": "Önerilen",
+  "settings.section.itt": "ITT",
+  "settings.ittTiersTitle": "ITT Öncelik Zinciri",
+  "settings.ittTiersDesc": "Görüntü altyazısı OCR için OpenAI uyumlu yerel Vision sunucuları veya bulut ITT uç noktaları yapılandırın.",
+  "settings.itt.resetConfirmTitle": "ITT ayarları sıfırlansın mı?",
+  "settings.itt.resetConfirmDesc": "Bu işlem varsayılan yerel OCR modelini sıfırlar ve özel ITT katmanlarını temizler.",
+  "extract.modeEmbedded": "Gömülü",
+  "extract.modeHardcoded": "Gömülü (video)",
+  "extract.hardcodedPresetFull": "Tam kare",
+  "extract.hardcodedCenter": "Ortala",
+  "extract.hardcodedLanguage": "Dil",
+  "extract.hardcodedVideoRequired": "Videoya gömülü altyazı OCR için bir video dosyası gerekir."
 }

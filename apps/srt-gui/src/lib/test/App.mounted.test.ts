@@ -166,7 +166,7 @@ it("switches to Extract and Plugins with Alt+Shift+E and Alt+Shift+P", async () 
   expect(extractEvent.defaultPrevented).toBe(true);
   await tick();
 
-  const extractWrapper = tabStubWrapper("1")!;
+  const extractWrapper = tabStubWrapper("2")!;
   expect(extractWrapper).toBeDefined();
   expect(extractWrapper.classList.contains("hidden")).toBe(false);
   expect(flashcardsProbe.getAttribute("data-active")).toBe("false");

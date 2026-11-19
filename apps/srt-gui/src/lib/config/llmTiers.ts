@@ -34,6 +34,7 @@ export interface TierEntryPayload {
 export function buildTiersPayload(
   tiers: Tier[],
   apiKeys: ApiKeyConfig[],
+  capability: "llm" | "itt" = "llm",
 ): TierEntryPayload[][] | null {
   const out: TierEntryPayload[][] = [];
   for (const tier of tiers) {
@@ -41,7 +42,7 @@ export function buildTiersPayload(
     for (const e of tier.entries) {
       if (!e.model || !e.model.trim()) continue;
       const key = apiKeys.find((k) => k.id === e.apiKeyId) || (e.provider === "local" ? apiKeys.find(k => k.id === "local") : undefined);
-      if (key?.capabilities && !supportsCapability(key, "llm")) continue;
+      if (key?.capabilities && !supportsCapability(key, capability)) continue;
       const provider = e.provider || key?.apiType || "google";
       const apiKeyVal = key?.apiKey?.trim() || null;
       const apiUrl = key?.apiUrl?.trim() || providers[provider]?.defaultApiUrl || null;

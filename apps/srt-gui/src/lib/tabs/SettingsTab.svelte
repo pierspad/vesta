@@ -11,8 +11,10 @@
   import AnkiSettingsPanel from "$lib/panels/AnkiSettingsPanel.svelte";
   import { ankiTemplateStore } from "$lib/stores/ankiTemplateStore.svelte";
   import WhisperSettingsPanel from "$lib/panels/WhisperSettingsPanel.svelte";
+  import IttSettingsPanel from "$lib/panels/IttSettingsPanel.svelte";
   import { whisperModelsStore } from "$lib/stores/whisperModelsStore.svelte";
   import { ocrModelsStore } from "$lib/stores/ocrModelsStore.svelte";
+  import { saveIttTiers } from "$lib/config/ittTiers";
   import OverviewSettingsPanel from "$lib/panels/OverviewSettingsPanel.svelte";
   import DiagnosticsSettingsPanel from "$lib/panels/DiagnosticsSettingsPanel.svelte";
   import { cpuRamStore } from "$lib/stores/cpuRamStore.svelte";
@@ -38,7 +40,7 @@
   import LanguageSettingsPanel from "./settings/LanguageSettingsPanel.svelte";
   import LlmSettingsPanel from "./settings/LlmSettingsPanel.svelte";
 
-  type SettingsSection = "overview" | "llm" | "whisper" | "language" | "anki" | "diagnostics" | "shortcuts";
+  type SettingsSection = "overview" | "llm" | "whisper" | "itt" | "language" | "anki" | "diagnostics" | "shortcuts";
   let {
     requestedSection = $bindable("overview"),
     highlightItemId = $bindable(null),
@@ -238,14 +240,14 @@
     (message) => snackbar.show(message, "success"),
   );
 
-  let showResetConfirm = $state<"style" | "fields" | "overview" | "llm" | "whisper" | "language" | "anki" | null>(null);
+  let showResetConfirm = $state<"style" | "fields" | "overview" | "llm" | "whisper" | "itt" | "language" | "anki" | null>(null);
   let resetTitle = $derived(
-    showResetConfirm && ["overview", "llm", "whisper", "language", "anki"].includes(showResetConfirm)
+    showResetConfirm && ["overview", "llm", "whisper", "itt", "language", "anki"].includes(showResetConfirm)
       ? t(`settings.${showResetConfirm}.resetConfirmTitle`)
       : t("settings.resetConfirmTitle")
   );
   let resetMessage = $derived(
-    showResetConfirm && ["overview", "llm", "whisper", "language", "anki"].includes(showResetConfirm)
+    showResetConfirm && ["overview", "llm", "whisper", "itt", "language", "anki"].includes(showResetConfirm)
       ? t(`settings.${showResetConfirm}.resetConfirmDesc`)
       : t("settings.resetConfirmDesc")
   );
@@ -322,8 +324,10 @@
       }
     };
     const handleOpenAddKeyModalEvent = (event: Event) => {
-      const providerId = (event as CustomEvent<{ providerId?: string }>).detail?.providerId;
-      apiKeyEditorStore.openAdd(providerId === "custom_whisper" ? "whisper" : "llm", "custom");
+      const detail = (event as CustomEvent<{ providerId?: string; context?: "llm" | "whisper" | "itt" }>).detail;
+      const providerId = detail?.providerId;
+      const context = detail?.context ?? (providerId === "custom_whisper" ? "whisper" : activeSettingsSection === "itt" ? "itt" : "llm");
+      apiKeyEditorStore.openAdd(context, providerId === "custom_whisper" ? "whisper" : providerId);
     };
 
     tiers = loadTiers();
@@ -402,10 +406,14 @@
     window.dispatchEvent(new CustomEvent("apikeys-updated"));
   }
   const generateId = () => Date.now().toString(36) + Math.random().toString(36).substr(2);
-  const openAddKeyModal = (providerId?: string) => apiKeyEditorStore.openAdd(activeSettingsSection === "whisper" ? "whisper" : "llm", providerId);
+  const openAddKeyModal = (providerId?: string) => {
+    const context = activeSettingsSection === "whisper" ? "whisper" : activeSettingsSection === "itt" ? "itt" : "llm";
+    apiKeyEditorStore.openAdd(context, providerId);
+  };
   function openEditKeyModal(id: string) {
     const key = apiKeys.find((k) => k.id === id);
-    if (key) apiKeyEditorStore.openEdit(key, activeSettingsSection === "whisper" ? "whisper" : "llm");
+    const context = activeSettingsSection === "whisper" ? "whisper" : activeSettingsSection === "itt" ? "itt" : "llm";
+    if (key) apiKeyEditorStore.openEdit(key, context);
   }
 
   function addApiKey() {
@@ -476,7 +484,7 @@
   {#if activeSettingsSection === "shortcuts"}
     <div class="flex-1 flex flex-col min-h-0"><ShortcutsTab /></div>
   {:else}
-    <div use:settledScroll data-dense={activeSettingsSection === "llm" || activeSettingsSection === "whisper"} class="settings-scroll stable-settings-layout flex-1 min-h-0 overflow-y-auto p-6">
+    <div use:settledScroll data-dense={activeSettingsSection === "llm" || activeSettingsSection === "whisper" || activeSettingsSection === "itt"} class="settings-scroll stable-settings-layout flex-1 min-h-0 overflow-y-auto p-6">
       {#snippet defaultLanguagesCard()}
         <DefaultLanguagesCard
           {defaultNativeLanguage}
@@ -528,6 +536,17 @@
           {highlightedModelId}
           {whisperEngine}
         />
+      {:else if activeSettingsSection === "itt"}
+        <IttSettingsPanel
+          {active}
+          {s}
+          apiKeys={apiKeys.filter((key) => supportsCapability(key, "itt"))}
+          onAddKey={openAddKeyModal}
+          onEditKey={openEditKeyModal}
+          onDeleteKey={askDeleteApiKey}
+          onSetDefault={setDefaultKey}
+          {highlightedModelId}
+        />
       {:else if activeSettingsSection === "anki"}
         <AnkiSettingsPanel {s} />
       {:else if activeSettingsSection === "diagnostics"}
@@ -569,7 +588,10 @@
       else if (showResetConfirm === "llm") resetLlmSettings();
       else if (showResetConfirm === "whisper") {
         whisperModelsStore.resetAll();
+      }
+      else if (showResetConfirm === "itt") {
         ocrModelsStore.resetAll();
+        saveIttTiers([]);
       }
       else if (showResetConfirm === "language") resetLanguageSettings();
       else if (showResetConfirm === "anki") {

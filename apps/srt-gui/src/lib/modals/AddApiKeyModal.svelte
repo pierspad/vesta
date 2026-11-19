@@ -15,6 +15,7 @@
     llmDocUrls,
     whisperApiKeyUrls,
     whisperDocUrls,
+    type EndpointUsageChoice,
   } from "$lib/stores/apiKeyEditorStore.svelte";
 
   interface Props {
@@ -25,10 +26,13 @@
   let { onSave, onDelete }: Props = $props();
 
   const usageIcon = (path: string) => `<svg class="w-5 h-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${path}" /></svg>`;
-  const usageOptions = [
+  const usageOptions: { value: EndpointUsageChoice; label: string; icon: string }[] = [
     { value: "llm", label: "LLM", icon: usageIcon("M4 4h16v12H9l-5 4V4zm4 4h8m-8 4h5") },
     { value: "stt", label: "STT", icon: usageIcon("M9 5a3 3 0 016 0v6a3 3 0 01-6 0V5zm-3 6a6 6 0 0012 0m-6 6v4m-3 0h6") },
+    { value: "itt", label: "ITT", icon: usageIcon("M3 5a2 2 0 012-2h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V5zm4 10h10M7 11h6m-4-4h.01") },
     { value: "both", label: "LLM + STT", icon: usageIcon("M3 4h12v9H8l-5 4V4zm4 4h4m7 3a2 2 0 014 0v4a2 2 0 01-4 0v-4zm-2 4a4 4 0 008 0m-4 4v3m-2 0h4") },
+    { value: "llm_itt", label: "LLM + ITT", icon: usageIcon("M4 5h16v14H4zM8 9h8M8 13h5") },
+    { value: "all", label: "LLM + STT + ITT", icon: usageIcon("M4 6h16M4 12h16M4 18h16") },
   ];
 
   let t = $derived($locale);
@@ -132,13 +136,13 @@
           {#if duplicateName}
             <p role="alert" class="text-xs text-amber-300">{t("settings.errorDuplicateCustomName")}</p>
           {/if}
-          {#if store.newKeyType === "custom"}
+          {#if store.newKeyType === "custom" || store.newKeyType === "local"}
             <div>
               <span class="flex items-center gap-2 text-xs font-semibold text-gray-400 mb-1.5">{t("settings.endpointCapabilities")}</span>
               <SearchableSelect
-                options={usageOptions}
+                options={store.newKeyType === "local" ? usageOptions.filter((opt) => opt.value === "llm" || opt.value === "itt" || opt.value === "llm_itt") : usageOptions}
                 value={store.newKeyUsage}
-                onchange={(value) => { if (value === "llm" || value === "stt" || value === "both") store.newKeyUsage = value; }}
+                onchange={(value) => { if (value === "llm" || value === "stt" || value === "itt" || value === "both" || value === "llm_itt" || value === "all") store.newKeyUsage = value; }}
                 placement="down"
                 portal={true}
                 placeholder={t("settings.endpointCapabilities")}

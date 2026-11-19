@@ -82,6 +82,7 @@ SAME_AS_ENGLISH_ALLOWED_KEYS = {
     "settings.providerStatus.offline",
     "settings.section.overview",
     "settings.section.whisper",
+    "settings.section.itt",
     "shortcuts.action.offsetUp",
     "sync.audioFormats",
     "sync.offset",

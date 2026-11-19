@@ -1402,5 +1402,17 @@
   "setup.localOcr": "Локальный офлайн-OCR",
   "setup.localOcrDesc": "Загрузите компактную модель PaddleOCR для офлайн-распознавания графических субтитров.",
   "settings.ocrModelsTitle": "Офлайн-модели OCR (PaddleOCR)",
-  "settings.ocrModelsDesc": "Выполняйте локальное распознавание растровых и вшитых субтитров без затрат на облачные LLM."
+  "settings.ocrModelsDesc": "Выполняйте локальное распознавание растровых и вшитых субтитров без затрат на облачные LLM.",
+  "setup.suggested": "Рекомендуется",
+  "settings.section.itt": "ITT",
+  "settings.ittTiersTitle": "Цепочка приоритетов ITT",
+  "settings.ittTiersDesc": "Настройте локальные OpenAI-совместимые Vision-серверы или облачные конечные точки ITT для OCR графических субтитров.",
+  "settings.itt.resetConfirmTitle": "Сбросить настройки ITT?",
+  "settings.itt.resetConfirmDesc": "Это сбросит локальную модель OCR по умолчанию и очистит пользовательские уровни ITT.",
+  "extract.modeEmbedded": "Встроенные",
+  "extract.modeHardcoded": "Вшитые",
+  "extract.hardcodedPresetFull": "Весь кадр",
+  "extract.hardcodedCenter": "По центру",
+  "extract.hardcodedLanguage": "Язык",
+  "extract.hardcodedVideoRequired": "Для OCR вшитых субтитров требуется видеофайл."
 }

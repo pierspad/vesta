@@ -1402,5 +1402,17 @@
   "setup.localOcr": "Lokale offline OCR",
   "setup.localOcrDesc": "Download een compact PaddleOCR-model voor offline herkenning van afbeeldingsondertitels.",
   "settings.ocrModelsTitle": "Offline OCR-modellen (PaddleOCR)",
-  "settings.ocrModelsDesc": "Voer OCR voor bitmap- en ingebrande ondertitels lokaal uit zonder cloud-LLM-kosten."
+  "settings.ocrModelsDesc": "Voer OCR voor bitmap- en ingebrande ondertitels lokaal uit zonder cloud-LLM-kosten.",
+  "setup.suggested": "Aanbevolen",
+  "settings.section.itt": "ITT",
+  "settings.ittTiersTitle": "ITT-prioriteitsketen",
+  "settings.ittTiersDesc": "Configureer lokale OpenAI-compatibele Vision-servers of cloud-ITT-eindpunten voor OCR van afbeeldingsondertitels.",
+  "settings.itt.resetConfirmTitle": "ITT-instellingen resetten?",
+  "settings.itt.resetConfirmDesc": "Dit herstelt het standaard lokale OCR-model en wist aangepaste ITT-lagen.",
+  "extract.modeEmbedded": "Ingesloten",
+  "extract.modeHardcoded": "Ingebrand",
+  "extract.hardcodedPresetFull": "Volledig beeld",
+  "extract.hardcodedCenter": "Centreren",
+  "extract.hardcodedLanguage": "Taal",
+  "extract.hardcodedVideoRequired": "OCR voor ingebrande ondertitels vereist een videobestand."
 }

@@ -21,13 +21,15 @@ export type ApiProviderId =
   | "openai"
   | "anthropic";
 
+export type ApiCapability = "llm" | "stt" | "itt";
+
 export interface ApiKeyConfig {
   id: string;
   name: string;
   apiType: ApiProviderId;
   apiKey: string;
   apiUrl?: string;
-  capabilities?: ("llm" | "stt")[];
+  capabilities?: ApiCapability[];
   modelName?: string;  // Nome modello preferito
   isDefault?: boolean;
   isValid?: boolean;
@@ -88,16 +90,17 @@ export function loadAndValidateApiKeys(): ApiKeyConfig[] {
 }
 
 /** Provider support is explicit; sharing credentials does not imply API compatibility. */
-export function supportsCapability(key: ApiKeyConfig, capability: "llm" | "stt"): boolean {
+export function supportsCapability(key: ApiKeyConfig, capability: ApiCapability): boolean {
   if (key.capabilities) return key.capabilities.includes(capability);
-  return capability === "stt"
-    ? ["groq", "openai", "deepgram", "assemblyai", "custom_whisper", "local_whisper"].includes(key.apiType)
-    : ["local", "google", "groq", "openai", "anthropic", "openrouter", "mistral", "nvidia", "custom"].includes(key.apiType);
+  if (capability === "stt") {
+    return ["groq", "openai", "deepgram", "assemblyai", "custom_whisper", "local_whisper"].includes(key.apiType);
+  }
+  return ["local", "google", "groq", "openai", "anthropic", "openrouter", "mistral", "nvidia", "custom"].includes(key.apiType);
 }
 
 function withBuiltinEndpoints(keys: ApiKeyConfig[]): ApiKeyConfig[] {
   const defaults: ApiKeyConfig[] = [
-    {id: "local", name: "Local LLM", apiType: "local", apiKey: "", apiUrl: vestaConfig.getItem("vesta-local-server-url") || "http://localhost:11434/v1", capabilities: ["llm"]},
+    {id: "local", name: "Local LLM", apiType: "local", apiKey: "", apiUrl: vestaConfig.getItem("vesta-local-server-url") || "http://localhost:11434/v1", capabilities: ["llm", "itt"]},
     {id: "local_stt_server", name: "Local STT server", apiType: "custom", apiKey: "", apiUrl: "http://localhost:8000/v1", capabilities: ["stt"]},
   ];
   return normalizeApiKeyDefaults([...defaults.filter(item => !keys.some(key => key.id === item.id)), ...keys]);
@@ -113,7 +116,7 @@ export function hasProviderNameConflict(keys: ApiKeyConfig[], name: string, edit
 /** Custom speech-only endpoints do not compete with text-only configurations. */
 export function apiKeyDefaultGroup(key: ApiKeyConfig): string {
   return key.apiType === "custom" || key.apiType === "custom_whisper"
-    ? `${key.apiType}:${(["llm", "stt"] as const).filter(capability => supportsCapability(key, capability)).join("+")}`
+    ? `${key.apiType}:${(["llm", "stt", "itt"] as const).filter(capability => supportsCapability(key, capability)).join("+")}`
     : key.apiType;
 }
 

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { listen } from "@tauri-apps/api/event";
-  import { buildSetupPlan, installSetupPlan, resolveSetupChoices, setupTierPreferences, type SetupResources, type SetupTaskStatus, type SetupDestination } from "$lib/workflows/firstRunSetup";
+  import { buildSetupPlan, installSetupPlan, resolveSetupChoices, setupTierPreferences, suggestedOcrModelForLanguage, type SetupResources, type SetupTask, type SetupTaskStatus, type SetupDestination } from "$lib/workflows/firstRunSetup";
   import { loadSetupResources, installSetupResource } from "$lib/services/setup";
   import { saveVadSelection } from "$lib/config/vadSelection";
   import { onMount } from "svelte";
@@ -33,8 +33,16 @@
   let vadChoice = $state<"silero" | "custom">("silero");
   let whisperModel = $state("small");
   let wantsOcr = $state(false);
-  let ocrModel = $state("paddleocr-v4-mobile-multi");
+  let ocrModel = $state(suggestedOcrModelForLanguage("en"));
+  let ocrModelManuallyChosen = $state(false);
+  let suggestedOcrModel = $derived(suggestedOcrModelForLanguage(studyLanguage));
   let installing = $state(false);
+
+  function reviewTaskTargetStep(kind: SetupTask["kind"]): "languages" | "transcription" | null {
+    if (kind === "whisper" || kind === "vad" || kind === "ocr") return "transcription";
+    if (kind === "font") return "languages";
+    return null;
+  }
   let installError = $state("");
   let setupRevision = $state(0);
   $effect(() => { const selected = uiLanguage; void loadLanguage(selected).then((ok) => { if (ok && uiLanguage === selected) { if (!preview) currentLanguage.set(selected); setupRevision += 1; } }); });
@@ -176,8 +184,8 @@
   }
 </script>
 
-<div class="fixed inset-0 z-[100] flex items-center justify-center overflow-hidden bg-black/80 p-6" role="dialog" aria-modal="true">
-  <div class="flex h-[720px] max-h-[calc(100vh-3rem)] w-full max-w-5xl flex-col overflow-visible rounded-2xl border border-indigo-400/30 bg-gray-900 p-7 shadow-2xl">
+<div class="fixed inset-0 z-[100] flex items-center justify-center overflow-hidden bg-black/80 p-4" role="dialog" aria-modal="true">
+  <div class="flex h-[830px] max-h-[calc(100vh-2rem)] w-full max-w-5xl flex-col overflow-visible rounded-2xl border border-indigo-400/30 bg-gray-900 p-7 shadow-2xl">
     <div class="flex items-start justify-between gap-5">
       <div><p class="text-xs font-bold uppercase tracking-[0.2em] text-indigo-300">Vesta</p><h1 class="mt-2 text-2xl font-bold text-white">{setupT("setup.setUpYourExperience")}</h1></div>
       {#if preview}<button type="button" class="btn-secondary px-4 py-2" onclick={onClose}>{setupT("common.close")}</button>{/if}
@@ -203,7 +211,7 @@
         <div class="flex min-h-0 flex-1 items-center">
           <div inert={installing} class="mx-auto grid w-full max-w-3xl grid-cols-1 gap-4 sm:grid-cols-2">
             <SetupLanguageField kind="native" title={setupT("setup.yourNativeLanguage")} description={setupT("setup.interfaceTranslationsAndReferences")} value={nativeLanguage} onchange={(value) => { nativeLanguage = value; uiLanguage = resolveUiLanguage(value); }} />
-            <SetupLanguageField kind="study" title={setupT("setup.studyLanguage")} description={setupT("setup.flashcardsAndTranscription")} value={studyLanguage} onchange={(value) => studyLanguage = value} />
+            <SetupLanguageField kind="study" title={setupT("setup.studyLanguage")} description={setupT("setup.flashcardsAndTranscription")} value={studyLanguage} onchange={(value) => { studyLanguage = value; if (!ocrModelManuallyChosen) ocrModel = suggestedOcrModelForLanguage(value); }} />
           </div>
         </div>
         {#if installError}<p class="mb-4 text-sm text-[var(--danger)]" role="alert">{installError}</p>{/if}
@@ -237,16 +245,16 @@
       </div>
     {:else if step === "transcription"}
       <div class="flex h-full flex-col">
-        <div class="min-h-0 flex-1 overflow-y-auto py-4">
-        <div class="w-full rounded-xl border border-white/10 bg-white/[0.03] p-5"><div class="flex items-center justify-between gap-6"><div><p class="font-semibold text-white">{setupT("setup.localTranscription")}</p><p class="mt-1 text-xs text-gray-400">{setupT("setup.runWhisperOnThisDeviceExistingModelsWillNotBeDownloadedAgain")}</p></div><button aria-label={setupT("setup.toggleLocalTranscription")} aria-pressed={wantsTranscription} class="group flex h-10 min-w-24 shrink-0 items-center justify-between gap-2 rounded-full border px-2.5 transition-colors {wantsTranscription ? 'border-indigo-400/50 bg-indigo-500 text-white' : 'border-white/10 bg-gray-700 text-gray-300 hover:bg-gray-600'}" onclick={() => wantsTranscription = !wantsTranscription}><span class="pl-1 text-[10px] font-bold uppercase tracking-wider">{wantsTranscription ? setupT('common.on') : setupT('common.off')}</span><span class="relative h-6 w-11 rounded-full bg-black/25"><span class="absolute top-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-all {wantsTranscription ? 'left-5.5' : 'left-0.5'}"></span></span></button></div>
-          <div class="mt-5 {wantsTranscription ? '' : 'pointer-events-none opacity-45'}"><p class="mb-2 text-xs font-semibold text-gray-300">{setupT("settings.whisper.modelLabel")}</p><WhisperModelSelector models={whisperModelsStore.whisperModels} value={whisperModel} disabled={!wantsTranscription} onselect={(model) => whisperModel = model.id} /></div>
-          <div class="mt-4 grid grid-cols-2 gap-3 {wantsTranscription ? '' : 'pointer-events-none opacity-45'}">
-            <button disabled={!wantsTranscription} class="rounded-xl border p-4 text-left {useVad && vadChoice === 'silero' ? 'border-emerald-400/40 bg-emerald-500/10' : 'border-white/10 bg-white/[0.03]'}" onclick={() => { useVad = true; vadChoice = 'silero'; }}><p class="flex items-center gap-2 text-sm font-semibold text-white"><svg class="h-4 w-4 text-emerald-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4 12h3l2-5 4 10 2-5h5"/></svg>Silero Voice Activity Detection 6.2.0</p><p class="mt-1 text-[11px] {sileroDownloaded ? 'text-emerald-400' : 'text-gray-400'}">{sileroDownloaded ? (setupT("setup.downloadedReady")) : (setupT("setup.willDownloadWhenSetupFinishes"))}</p></button>
-            <button disabled={!wantsTranscription} class="rounded-xl border p-4 text-left {useVad && vadChoice === 'custom' ? 'border-sky-400/40 bg-sky-500/10' : 'border-white/10 bg-white/[0.03]'}" onclick={async () => { await whisperModelsStore.pickCustomVad(); if (whisperModelsStore.vadCustomValid) { useVad = true; vadChoice = 'custom'; } }}><p class="flex items-center gap-2 text-sm font-semibold text-white"><svg class="h-4 w-4 text-sky-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 16V4m0 0-4 4m4-4 4 4M5 15v4h14v-4"/></svg>{setupT("setup.customVoiceActivityDetectionModel")}</p><p class="mt-1 truncate text-[11px] text-gray-400">{whisperModelsStore.vadSelection.customPath ?? (setupT("setup.loadABinFile"))}</p></button>
+        <div class="min-h-0 flex-1 overflow-y-auto py-3">
+        <div class="w-full rounded-xl border border-white/10 bg-white/[0.03] p-4"><div class="flex items-center justify-between gap-6"><div><p class="font-semibold text-white">{setupT("setup.localTranscription")}</p><p class="mt-1 text-xs text-gray-400">{setupT("setup.runWhisperOnThisDeviceExistingModelsWillNotBeDownloadedAgain")}</p></div><button aria-label={setupT("setup.toggleLocalTranscription")} aria-pressed={wantsTranscription} class="group flex h-10 min-w-24 shrink-0 items-center justify-between gap-2 rounded-full border px-2.5 transition-colors {wantsTranscription ? 'border-indigo-400/50 bg-indigo-500 text-white' : 'border-white/10 bg-gray-700 text-gray-300 hover:bg-gray-600'}" onclick={() => wantsTranscription = !wantsTranscription}><span class="pl-1 text-[10px] font-bold uppercase tracking-wider">{wantsTranscription ? setupT('common.on') : setupT('common.off')}</span><span class="relative h-6 w-11 rounded-full bg-black/25"><span class="absolute top-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-all {wantsTranscription ? 'left-5.5' : 'left-0.5'}"></span></span></button></div>
+          <div class="mt-4 {wantsTranscription ? '' : 'pointer-events-none opacity-45'}"><p class="mb-2 text-xs font-semibold text-gray-300">{setupT("settings.whisper.modelLabel")}</p><WhisperModelSelector models={whisperModelsStore.whisperModels} value={whisperModel} disabled={!wantsTranscription} onselect={(model) => whisperModel = model.id} /></div>
+          <div class="mt-3 grid grid-cols-2 gap-3 {wantsTranscription ? '' : 'pointer-events-none opacity-45'}">
+            <button disabled={!wantsTranscription} class="rounded-xl border p-3.5 text-left {useVad && vadChoice === 'silero' ? 'border-emerald-400/40 bg-emerald-500/10' : 'border-white/10 bg-white/[0.03]'}" onclick={() => { useVad = true; vadChoice = 'silero'; }}><p class="flex items-center gap-2 text-sm font-semibold text-white"><svg class="h-4 w-4 text-emerald-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4 12h3l2-5 4 10 2-5h5"/></svg>Silero Voice Activity Detection 6.2.0</p><p class="mt-1 text-[11px] {sileroDownloaded ? 'text-emerald-400' : 'text-gray-400'}">{sileroDownloaded ? (setupT("setup.downloadedReady")) : (setupT("setup.willDownloadWhenSetupFinishes"))}</p></button>
+            <button disabled={!wantsTranscription} class="rounded-xl border p-3.5 text-left {useVad && vadChoice === 'custom' ? 'border-sky-400/40 bg-sky-500/10' : 'border-white/10 bg-white/[0.03]'}" onclick={async () => { await whisperModelsStore.pickCustomVad(); if (whisperModelsStore.vadCustomValid) { useVad = true; vadChoice = 'custom'; } }}><p class="flex items-center gap-2 text-sm font-semibold text-white"><svg class="h-4 w-4 text-sky-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 16V4m0 0-4 4m4-4 4 4M5 15v4h14v-4"/></svg>{setupT("setup.customVoiceActivityDetectionModel")}</p><p class="mt-1 truncate text-[11px] text-gray-400">{whisperModelsStore.vadSelection.customPath ?? (setupT("setup.loadABinFile"))}</p></button>
           </div>
-          <button disabled={!wantsTranscription} aria-pressed={!useVad} class="mt-3 text-xs text-gray-400 hover:text-white disabled:opacity-50" onclick={() => useVad = !useVad}>{useVad ? setupT("setup.disableVad") : setupT("setup.enableVad")}</button>
+          <button disabled={!wantsTranscription} aria-pressed={!useVad} class="mt-2.5 text-xs text-gray-400 hover:text-white disabled:opacity-50" onclick={() => useVad = !useVad}>{useVad ? setupT("setup.disableVad") : setupT("setup.enableVad")}</button>
         </div>
-        <div class="mt-4 w-full rounded-xl border border-white/10 bg-white/[0.03] p-5">
+        <div class="mt-3 w-full rounded-xl border border-white/10 bg-white/[0.03] p-4">
           <div class="flex items-center justify-between gap-6">
             <div>
               <p class="font-semibold text-white">{setupT("setup.localOcr")}</p>
@@ -254,10 +262,16 @@
             </div>
             <button aria-label={setupT("setup.localOcr")} aria-pressed={wantsOcr} class="group flex h-10 min-w-24 shrink-0 items-center justify-between gap-2 rounded-full border px-2.5 transition-colors {wantsOcr ? 'border-cyan-400/50 bg-cyan-500 text-white' : 'border-white/10 bg-gray-700 text-gray-300 hover:bg-gray-600'}" onclick={() => wantsOcr = !wantsOcr}><span class="pl-1 text-[10px] font-bold uppercase tracking-wider">{wantsOcr ? setupT('common.on') : setupT('common.off')}</span><span class="relative h-6 w-11 rounded-full bg-black/25"><span class="absolute top-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-all {wantsOcr ? 'left-5.5' : 'left-0.5'}"></span></span></button>
           </div>
-          <div class="mt-4 grid grid-cols-1 gap-2.5 sm:grid-cols-3 {wantsOcr ? '' : 'pointer-events-none opacity-45'}" role="radiogroup" aria-label={setupT("setup.localOcr")}>
+          <div class="mt-3 grid grid-cols-1 gap-2.5 sm:grid-cols-3 {wantsOcr ? '' : 'pointer-events-none opacity-45'}" role="radiogroup" aria-label={setupT("setup.localOcr")}>
             {#each ocrModelsStore.ocrModels as model (model.id)}
-              <button type="button" role="radio" aria-checked={ocrModel === model.id} disabled={!wantsOcr} onclick={() => ocrModel = model.id} class="rounded-xl border p-3 text-left transition-colors {ocrModel === model.id ? 'border-cyan-400/60 bg-cyan-500/15 text-white' : 'border-white/10 bg-white/[0.035] text-gray-300 hover:border-white/20 hover:bg-white/[0.07]'}">
-                <p class="truncate text-xs font-bold">{model.name}</p>
+              {@const isSuggested = model.id === suggestedOcrModel}
+              <button type="button" role="radio" aria-checked={ocrModel === model.id} disabled={!wantsOcr} onclick={() => { ocrModel = model.id; ocrModelManuallyChosen = true; }} class="rounded-xl border p-3 text-left transition-colors {ocrModel === model.id ? 'border-cyan-400/60 bg-cyan-500/15 text-white' : 'border-white/10 bg-white/[0.035] text-gray-300 hover:border-white/20 hover:bg-white/[0.07]'}">
+                <div class="flex items-start justify-between gap-2">
+                  <p class="truncate text-xs font-bold">{model.name}</p>
+                  {#if isSuggested}
+                    <span class="shrink-0 rounded-full border border-emerald-400/35 bg-emerald-500/20 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-emerald-300">{setupT("setup.suggested")}</span>
+                  {/if}
+                </div>
                 <p class="mt-1 text-[10px] text-gray-400">{model.size}</p>
                 <p class="mt-1 text-[10px] {model.downloaded ? 'text-emerald-400' : 'text-amber-300/80'}">{model.downloaded ? setupT("setup.downloadedReady") : setupT("setup.willDownloadWhenSetupFinishes")}</p>
               </button>
@@ -275,9 +289,9 @@
           {#if step === "installing"}<p class="mt-2 text-sm text-gray-400">{setupT("setup.installDescription")}</p>{/if}
           {#if step === "review" && mode === "custom"}
             <dl class="review-preferences">
-              <div><dt><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a4 4 0 1 0 0 8 4 4 0 0 0 0-8M5 21a7 7 0 0 1 14 0"/></svg>{setupT("setup.yourNativeLanguage")}</dt><dd><span class="language-badge"><span aria-hidden="true">{languages.find(language => language.code === nativeLanguage)?.flag ?? ""}</span> {languages.find(language => language.code === nativeLanguage)?.name ?? nativeLanguage}</span></dd></div>
-              <div><dt><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 6 9-3 9 3-9 3-9-3m3 2v8l6 3 6-3V8m3-2v9"/></svg>{setupT("setup.studyLanguage")}</dt><dd><span class="language-badge"><span aria-hidden="true">{languages.find(language => language.code === studyLanguage)?.flag ?? ""}</span> {languages.find(language => language.code === studyLanguage)?.name ?? studyLanguage}</span></dd></div>
-              <div><dt><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18V5l10-2v13M9 9l10-2M9 18a3 2 0 1 1-3-2 3 2 0 0 1 3 2m10-2a3 2 0 1 1-3-2 3 2 0 0 1 3 2"/></svg>{setupT("setup.audioFormat")}</dt><dd>{compactAudio ? "Opus · 64 kb/s" : "MP3 · 128 kb/s"} · {exportFormat === "anki" ? "AnkiConnect" : exportFormat.toUpperCase()}</dd></div>
+              <div><dt><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a4 4 0 1 0 0 8 4 4 0 0 0 0-8M5 21a7 7 0 0 1 14 0"/></svg>{setupT("setup.yourNativeLanguage")}</dt><dd><button type="button" class="language-badge cursor-pointer transition-colors hover:border-indigo-400/50 hover:bg-indigo-500/15" onclick={() => step = "languages"}><span aria-hidden="true">{languages.find(language => language.code === nativeLanguage)?.flag ?? ""}</span> {languages.find(language => language.code === nativeLanguage)?.name ?? nativeLanguage}</button></dd></div>
+              <div><dt><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 6 9-3 9 3-9 3-9-3m3 2v8l6 3 6-3V8m3-2v9"/></svg>{setupT("setup.studyLanguage")}</dt><dd><button type="button" class="language-badge cursor-pointer transition-colors hover:border-indigo-400/50 hover:bg-indigo-500/15" onclick={() => step = "languages"}><span aria-hidden="true">{languages.find(language => language.code === studyLanguage)?.flag ?? ""}</span> {languages.find(language => language.code === studyLanguage)?.name ?? studyLanguage}</button></dd></div>
+              <div><dt><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18V5l10-2v13M9 9l10-2M9 18a3 2 0 1 1-3-2 3 2 0 0 1 3 2m10-2a3 2 0 1 1-3-2 3 2 0 0 1 3 2"/></svg>{setupT("setup.audioFormat")}</dt><dd><button type="button" class="inline-flex items-center gap-1.5 rounded-lg border border-transparent px-2 py-1 -mx-2 -my-1 text-left cursor-pointer transition-colors hover:border-indigo-400/40 hover:bg-indigo-500/10" onclick={() => step = "export"}>{compactAudio ? "Opus · 64 kb/s" : "MP3 · 128 kb/s"} · {exportFormat === "anki" ? "AnkiConnect" : exportFormat.toUpperCase()}</button></dd></div>
             </dl>
           {/if}
           {#if discoveryError && step === "review"}
@@ -286,21 +300,45 @@
           {/if}
           <ul class="mt-5 space-y-2">
             {#each displayedPlan as task (task.id)}
-              <li class="flex items-center justify-between gap-4 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3">
-                <div class="flex min-w-0 items-center gap-3">
-                  <span class="component-icon" aria-hidden="true">
-                    <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
-                      {#if task.kind === "media"}<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m10 9 5 3-5 3zM7 5v14M17 5v14"/>
-                      {:else if task.kind === "whisper"}<rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10v2a7 7 0 0 0 14 0v-2M12 19v3m-4 0h8"/>
-                      {:else if task.kind === "vad"}<path d="M2 12h4l3-7 6 14 3-7h4"/>
-                      {:else if task.kind === "ocr"}<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9h10M7 13h6M7 17h4"/>
-                      {:else}<path d="m4 20 7-16h2l7 16M7 14h10"/>{/if}
-                    </svg>
-                  </span>
-                  <div class="min-w-0"><p class="text-sm font-semibold text-white">{task.name}</p><p class="mt-1 text-xs text-gray-400">{task.installed ? setupT("setup.alreadyInstalled") : task.size || setupT("setup.sizeUnavailable")}</p></div></div>
-                <span class="shrink-0 text-xs {taskStatuses[task.id] === 'failed' ? 'text-red-300' : task.installed || taskStatuses[task.id] === 'ready' ? 'text-emerald-300' : 'text-indigo-300'}">
-                  {setupT(task.installed || taskStatuses[task.id] === "ready" ? "setup.componentReady" : taskStatuses[task.id] === "failed" ? "setup.componentFailed" : taskStatuses[task.id] === "installing" ? "setup.componentInstalling" : "setup.componentPending")}
-                </span>
+              {@const targetStep = step === "review" ? reviewTaskTargetStep(task.kind) : null}
+              <li class="rounded-xl border border-white/10 bg-white/[0.03] transition-colors {targetStep ? 'hover:border-indigo-400/40 hover:bg-white/[0.06]' : ''}">
+                {#if targetStep}
+                  <button type="button" class="flex w-full items-center justify-between gap-4 px-4 py-3 text-left cursor-pointer" onclick={() => step = targetStep}>
+                    <div class="flex min-w-0 items-center gap-3">
+                      <span class="component-icon" aria-hidden="true">
+                        <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+                          {#if task.kind === "whisper"}<rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10v2a7 7 0 0 0 14 0v-2M12 19v3m-4 0h8"/>
+                          {:else if task.kind === "vad"}<path d="M2 12h4l3-7 6 14 3-7h4"/>
+                          {:else if task.kind === "ocr"}<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9h10M7 13h6M7 17h4"/>
+                          {:else}<path d="m4 20 7-16h2l7 16M7 14h10"/>{/if}
+                        </svg>
+                      </span>
+                      <div class="min-w-0"><p class="text-sm font-semibold text-white">{task.name}</p><p class="mt-1 text-xs text-gray-400">{task.installed ? setupT("setup.alreadyInstalled") : task.size || setupT("setup.sizeUnavailable")}</p></div>
+                    </div>
+                    <span class="flex shrink-0 items-center gap-2 text-xs {taskStatuses[task.id] === 'failed' ? 'text-red-300' : task.installed || taskStatuses[task.id] === 'ready' ? 'text-emerald-300' : 'text-indigo-300'}">
+                      {setupT(task.installed || taskStatuses[task.id] === "ready" ? "setup.componentReady" : taskStatuses[task.id] === "failed" ? "setup.componentFailed" : taskStatuses[task.id] === "installing" ? "setup.componentInstalling" : "setup.componentPending")}
+                      <svg class="h-3.5 w-3.5 text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m9 6 6 6-6 6"/></svg>
+                    </span>
+                  </button>
+                {:else}
+                  <div class="flex items-center justify-between gap-4 px-4 py-3">
+                    <div class="flex min-w-0 items-center gap-3">
+                      <span class="component-icon" aria-hidden="true">
+                        <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+                          {#if task.kind === "media"}<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m10 9 5 3-5 3zM7 5v14M17 5v14"/>
+                          {:else if task.kind === "whisper"}<rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10v2a7 7 0 0 0 14 0v-2M12 19v3m-4 0h8"/>
+                          {:else if task.kind === "vad"}<path d="M2 12h4l3-7 6 14 3-7h4"/>
+                          {:else if task.kind === "ocr"}<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9h10M7 13h6M7 17h4"/>
+                          {:else}<path d="m4 20 7-16h2l7 16M7 14h10"/>{/if}
+                        </svg>
+                      </span>
+                      <div class="min-w-0"><p class="text-sm font-semibold text-white">{task.name}</p><p class="mt-1 text-xs text-gray-400">{task.installed ? setupT("setup.alreadyInstalled") : task.size || setupT("setup.sizeUnavailable")}</p></div>
+                    </div>
+                    <span class="shrink-0 text-xs {taskStatuses[task.id] === 'failed' ? 'text-red-300' : task.installed || taskStatuses[task.id] === 'ready' ? 'text-emerald-300' : 'text-indigo-300'}">
+                      {setupT(task.installed || taskStatuses[task.id] === "ready" ? "setup.componentReady" : taskStatuses[task.id] === "failed" ? "setup.componentFailed" : taskStatuses[task.id] === "installing" ? "setup.componentInstalling" : "setup.componentPending")}
+                    </span>
+                  </div>
+                {/if}
               </li>
             {/each}
           </ul>

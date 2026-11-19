@@ -105,7 +105,7 @@
 
   let userPreference = $state<"collapsed" | "expanded" | null>(initialPreference);
   let sidebarCollapsed = $state(initialPreference === "collapsed");
-  let requestedSettingsSection = $state<"overview" | "llm" | "whisper" | "language" | "anki" | "diagnostics" | "shortcuts">(openWhisperAfterSetup ? "whisper" : "overview");
+  let requestedSettingsSection = $state<"overview" | "llm" | "whisper" | "itt" | "language" | "anki" | "diagnostics" | "shortcuts">(openWhisperAfterSetup ? "whisper" : "overview");
   let highlightItemId = $state<string | null>(null);
   let lastActiveMainTab = $state<Exclude<AppTab, "settings">>(initialTab === "settings" ? "flashcards" : initialTab);
   let flashcardsHandoffNonce = 0;
@@ -254,13 +254,14 @@
     }
   }
 
-  function getSettingsSectionForDigit(digit: number, isKillSwitchOn: boolean): "overview" | "llm" | "whisper" | "language" | "anki" | "shortcuts" | null {
+  function getSettingsSectionForDigit(digit: number, isKillSwitchOn: boolean): "overview" | "llm" | "whisper" | "itt" | "language" | "anki" | "shortcuts" | null {
     if (isKillSwitchOn) {
       switch (digit) {
         case 1: return "overview";
-        case 2: return "language";
-        case 3: return "anki";
-        case 4: return "shortcuts";
+        case 2: return "itt";
+        case 3: return "language";
+        case 4: return "anki";
+        case 5: return "shortcuts";
         default: return null;
       }
     } else {
@@ -268,9 +269,9 @@
         case 1: return "overview";
         case 2: return "llm";
         case 3: return "whisper";
-        case 4: return "language";
-        case 5: return "anki";
-        case 6: return "shortcuts";
+        case 4: return "itt";
+        case 5: return "language";
+        case 6: return "anki";
         default: return null;
       }
     }
@@ -483,7 +484,7 @@
     {/if}
     {#if loadedTabs.extract}
       {@const ExtractTab = loadedTabs.extract}
-      <div class="absolute inset-0" class:hidden={activeTab !== "extract"}><ExtractTab active={activeTab === "extract"} /></div>
+      <div class="absolute inset-0" class:hidden={activeTab !== "extract"}><ExtractTab onGoToSettings={goToSettings} active={activeTab === "extract"} /></div>
     {/if}
     {#if loadedTabs.experimental}
       {@const ExperimentalTab = loadedTabs.experimental}

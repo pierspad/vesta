@@ -1402,5 +1402,17 @@
   "setup.localOcr": "Lokalny OCR offline",
   "setup.localOcrDesc": "Pobierz kompaktowy model PaddleOCR do rozpoznawania napisów obrazkowych offline.",
   "settings.ocrModelsTitle": "Modele OCR offline (PaddleOCR)",
-  "settings.ocrModelsDesc": "Uruchamiaj OCR napisów bitmapowych i wtopionych lokalnie bez kosztów LLM w chmurze."
+  "settings.ocrModelsDesc": "Uruchamiaj OCR napisów bitmapowych i wtopionych lokalnie bez kosztów LLM w chmurze.",
+  "setup.suggested": "Sugerowany",
+  "settings.section.itt": "ITT",
+  "settings.ittTiersTitle": "Łańcuch priorytetów ITT",
+  "settings.ittTiersDesc": "Skonfiguruj lokalne serwery Vision zgodne z OpenAI lub chmurowe punkty końcowe ITT do OCR napisów obrazkowych.",
+  "settings.itt.resetConfirmTitle": "Zresetować ustawienia ITT?",
+  "settings.itt.resetConfirmDesc": "Spowoduje to zresetowanie domyślnego lokalnego modelu OCR i wyczyszczenie niestandardowych poziomów ITT.",
+  "extract.modeEmbedded": "Osadzone",
+  "extract.modeHardcoded": "Wtopione",
+  "extract.hardcodedPresetFull": "Pełna klatka",
+  "extract.hardcodedCenter": "Wyśrodkuj",
+  "extract.hardcodedLanguage": "Język",
+  "extract.hardcodedVideoRequired": "OCR napisów wtopionych wymaga pliku wideo."
 }

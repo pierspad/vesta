@@ -1402,5 +1402,17 @@
   "setup.localOcr": "OCR locale offline",
   "setup.localOcrDesc": "Scarica un modello PaddleOCR compatto per il riconoscimento offline dei sottotitoli immagine.",
   "settings.ocrModelsTitle": "Modelli OCR offline (PaddleOCR)",
-  "settings.ocrModelsDesc": "Esegui l'OCR locale per sottotitoli bitmap e impressi senza costi LLM cloud."
+  "settings.ocrModelsDesc": "Esegui l'OCR locale per sottotitoli bitmap e impressi senza costi LLM cloud.",
+  "setup.suggested": "Consigliato",
+  "settings.section.itt": "ITT",
+  "settings.ittTiersTitle": "Catena di priorità ITT",
+  "settings.ittTiersDesc": "Configura server Vision locali compatibili con OpenAI o endpoint ITT cloud per l'OCR dei sottotitoli immagine.",
+  "settings.itt.resetConfirmTitle": "Ripristinare le impostazioni ITT?",
+  "settings.itt.resetConfirmDesc": "Ripristina il modello OCR locale predefinito e cancella i tier ITT personalizzati.",
+  "extract.modeEmbedded": "Integrati",
+  "extract.modeHardcoded": "Impressi",
+  "extract.hardcodedPresetFull": "Intero",
+  "extract.hardcodedCenter": "Centra",
+  "extract.hardcodedLanguage": "Lingua",
+  "extract.hardcodedVideoRequired": "L'OCR dei sottotitoli impressi richiede un file video."
 }

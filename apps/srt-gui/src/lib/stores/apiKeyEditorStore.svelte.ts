@@ -1,5 +1,26 @@
-import { supportsCapability, type ApiKeyConfig } from "$lib/config/apiKeys";
+import { supportsCapability, type ApiCapability, type ApiKeyConfig } from "$lib/config/apiKeys";
 import { providers } from "$lib/config/llmProviders";
+
+export type EndpointUsageChoice = "llm" | "stt" | "itt" | "both" | "llm_itt" | "all";
+
+export function capabilitiesToUsageChoice(key: ApiKeyConfig): EndpointUsageChoice {
+  const hasLlm = supportsCapability(key, "llm");
+  const hasStt = supportsCapability(key, "stt");
+  const hasItt = supportsCapability(key, "itt");
+  if (hasLlm && hasStt && hasItt) return "all";
+  if (hasLlm && hasStt) return "both";
+  if (hasLlm && hasItt) return "llm_itt";
+  if (hasStt) return "stt";
+  if (hasItt) return "itt";
+  return "llm";
+}
+
+export function usageChoiceToCapabilities(choice: EndpointUsageChoice): ApiCapability[] {
+  if (choice === "all") return ["llm", "stt", "itt"];
+  if (choice === "both") return ["llm", "stt"];
+  if (choice === "llm_itt") return ["llm", "itt"];
+  return [choice];
+}
 
 /** Provider catalogs + doc/signup links for the add/edit API key modal.
  * Static data, only ever consumed by the api-key-editing feature (the
@@ -51,20 +72,20 @@ export const whisperDocUrls: Record<string, string> = {
 class ApiKeyEditorStore {
   showAddKey = $state(false);
   editKeyId = $state<string | null>(null);
-  modalContext = $state<"llm" | "whisper">("llm");
+  modalContext = $state<"llm" | "whisper" | "itt">("llm");
   newKeyType = $state<ApiKeyConfig["apiType"]>("google");
   newKeyName = $state("");
   newKeyValue = $state("");
   newKeyUrl = $state("");
-  newKeyUsage = $state<"llm" | "stt" | "both">("llm");
+  newKeyUsage = $state<EndpointUsageChoice>("llm");
   showNewKeyPassword = $state(false);
 
-  openAdd(context: "llm" | "whisper", providerId?: string) {
+  openAdd(context: "llm" | "whisper" | "itt", providerId?: string) {
     this.editKeyId = null;
     this.modalContext = context;
-    this.newKeyUsage = context === "whisper" ? "stt" : "llm";
+    this.newKeyUsage = context === "whisper" ? "stt" : context === "itt" ? "itt" : "llm";
     const allowedIds = context === "whisper" ? whisperProviderIds : llmProviderIds;
-    const defaultProviderId = context === "whisper" ? "groq" : "google";
+    const defaultProviderId = context === "whisper" ? "groq" : context === "itt" ? "custom" : "google";
 
     const normalizedProviderId =
       providerId && allowedIds.includes(providerId) ? providerId : defaultProviderId;
@@ -75,15 +96,16 @@ class ApiKeyEditorStore {
     }
     this.newKeyValue = "";
     this.newKeyUrl = this.newKeyType === "local" ? providers.local.defaultApiUrl || "" : "";
+    if (this.newKeyType === "local") this.newKeyUsage = "llm_itt";
     if (this.newKeyType === "custom") this.newKeyName = "";
     this.showAddKey = true;
   }
 
-  openEdit(key: ApiKeyConfig, context: "llm" | "whisper") {
+  openEdit(key: ApiKeyConfig, context: "llm" | "whisper" | "itt") {
     this.editKeyId = key.id;
     this.modalContext = context;
     this.newKeyType = key.apiType === "custom_whisper" ? "custom" : key.apiType;
-    this.newKeyUsage = supportsCapability(key, "llm") && supportsCapability(key, "stt") ? "both" : supportsCapability(key, "stt") ? "stt" : "llm";
+    this.newKeyUsage = capabilitiesToUsageChoice(key);
     this.newKeyName = key.name;
     this.newKeyValue = key.apiKey;
     this.newKeyUrl = key.apiUrl || "";
@@ -100,6 +122,8 @@ class ApiKeyEditorStore {
     this.newKeyName = isCustom ? "" : pid === "openai" ? "OpenAI" : prov?.name || pid;
     this.newKeyUrl = isCustom ? "" : prov?.defaultApiUrl || "";
     this.newKeyValue = "";
+    if (pid === "local") this.newKeyUsage = "llm_itt";
+    else if (isCustom) this.newKeyUsage = this.modalContext === "whisper" ? "stt" : this.modalContext === "itt" ? "itt" : "llm";
   }
 
   close() {

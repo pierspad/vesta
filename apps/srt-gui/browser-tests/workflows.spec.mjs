@@ -188,24 +188,47 @@ test("Extract previews and runs hardcoded ROI OCR on video frames", async ({ pag
   await page.getByRole("button", { name: "Extract subtitles", exact: true }).click();
   await chooseFile(page, "/fixtures/movie.mkv", page.getByRole("button", { name: "Browse", exact: true }).first());
 
-  const roiPanel = page.locator("#hardcoded-roi-panel");
-  await expect(roiPanel).toBeVisible();
-  await roiPanel.getByRole("button", { name: /Hardcoded subtitles \(ROI OCR\)/ }).click();
+  const footer = page.locator("[data-footer-actions]:visible");
+  await footer.getByRole("tab", { name: "Hardcoded", exact: true }).click();
   await expect.poll(() => callsFor(page, "ocr_video_preview_frame")).toHaveLength(1);
 
-  await roiPanel.getByRole("button", { name: "Preview ROI OCR", exact: true }).click();
+  const roiOverlay = page.getByTestId("roi-overlay");
+  await expect(roiOverlay).toBeVisible();
+  await expect(roiOverlay.locator("button")).toHaveCount(8);
+
+  const seHandle = roiOverlay.getByRole("button", { name: /\(SE\)/ });
+  const seBox = await seHandle.boundingBox();
+  expect(seBox).not.toBeNull();
+  const beforeWidth = Number(await page.getByLabel("W (%)").inputValue());
+  await page.mouse.move(seBox.x + seBox.width / 2, seBox.y + seBox.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(seBox.x - 40, seBox.y - 10, { steps: 4 });
+  await page.mouse.up();
+  const afterWidth = Number(await page.getByLabel("W (%)").inputValue());
+  expect(afterWidth).toBeLessThan(beforeWidth);
+
+  await page.getByRole("button", { name: "Full frame", exact: true }).click();
+  await expect(page.getByLabel("W (%)")).toHaveValue("96");
+  await page.getByRole("button", { name: "Bottom", exact: true }).click();
+  await expect(page.getByLabel("W (%)")).toHaveValue("84");
+
+  await page.getByRole("combobox", { name: "Sample rate (FPS)" }).click();
+  await page.getByRole("option", { name: "3 FPS", exact: true }).click();
+
+  await footer.getByRole("button", { name: "Preview ROI OCR", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: /Hardcoded subtitles/ });
   await expect(dialog).toBeVisible();
   await expect(dialog.locator("textarea")).toHaveValue(/Hardcoded subtitle line 1/);
   await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
   await expect(dialog).toBeHidden();
 
-  await roiPanel.getByRole("button", { name: "Extract ROI to SRT", exact: true }).click();
+  await footer.getByRole("button", { name: "Extract ROI to SRT", exact: true }).click();
   await expect.poll(() => callsFor(page, "ocr_hardcoded_subtitle")).toMatchObject([{
     path: "/fixtures/movie.mkv",
     outputPath: "/downloads/movie_hardcoded.srt",
     roi: { x: 0.08, y: 0.74, width: 0.84, height: 0.2 },
-    sampleFps: 2.5,
+    sampleFps: 3,
+    language: null,
   }]);
   await expect(page.getByRole("status").filter({ hasText: "Saved: /downloads/movie_hardcoded.srt" })).toBeVisible();
 });
@@ -277,6 +300,10 @@ test("Settings runs diagnostics, downloads offline OCR model, and toggles AI Kil
   await expect.poll(() => callsFor(page, "support_log_stop")).toHaveLength(1);
 
   await page.getByRole("button", { name: "STT", exact: true }).click();
+  await expect(page.locator("#ocr-models")).toHaveCount(0);
+
+  await page.getByRole("button", { name: "ITT", exact: true }).click();
+  await expect(page.locator("#itt-tiers")).toBeVisible();
   const ocrSection = page.locator("#ocr-models");
   await expect(ocrSection).toBeVisible();
   await expect(ocrSection).toContainText("0/3");
@@ -289,6 +316,9 @@ test("Settings runs diagnostics, downloads offline OCR model, and toggles AI Kil
   await expect(killSwitch).toHaveAttribute("aria-checked", "true");
   await expect(page.getByRole("button", { name: "LLM", exact: true })).toBeHidden();
   await expect(page.getByRole("button", { name: "STT", exact: true })).toBeHidden();
+  await expect(page.getByRole("button", { name: "ITT", exact: true })).toBeVisible();
+  await expect(page.locator("#itt-tiers")).toHaveCount(0);
+  await expect(ocrSection).toBeVisible();
 
   await page.getByRole("button", { name: "Settings", exact: true }).click();
   await expect(page.getByRole("button", { name: "Translate", exact: true })).toBeHidden();
@@ -298,4 +328,30 @@ test("Settings runs diagnostics, downloads offline OCR model, and toggles AI Kil
   await expect(killSwitch).toHaveAttribute("aria-checked", "false");
   await expect(page.getByRole("button", { name: "Translate", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Transcribe", exact: true })).toBeVisible();
+});
+
+test("First-run setup suggests an OCR model and jumps back from review items", async ({ page }) => {
+  await page.goto("/browser-tests/harness.html?setup=true");
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toBeVisible();
+
+  await dialog.getByRole("button", { name: /Custom setup/ }).click();
+  await dialog.getByRole("button", { name: "Continue", exact: true }).click();
+  await dialog.getByRole("button", { name: "Continue", exact: true }).click();
+
+  const latinOcrCard = dialog.getByRole("radio", { name: /PaddleOCR v4 Mobile \(Latin\)/ });
+  await expect(latinOcrCard).toContainText("Suggested");
+  const box = await latinOcrCard.boundingBox();
+  const dialogBox = await dialog.locator("> div").boundingBox();
+  expect(box && dialogBox && box.y + box.height <= dialogBox.y + dialogBox.height).toBe(true);
+
+  await dialog.getByRole("button", { name: "Continue", exact: true }).click();
+  await expect(dialog.getByText("Review what will be installed", { exact: true })).toBeVisible();
+
+  await dialog.getByRole("button", { name: /Whisper Small/ }).click();
+  await expect(dialog.getByText("Local transcription", { exact: true })).toBeVisible();
+
+  await dialog.getByRole("button", { name: "Continue", exact: true }).click();
+  await dialog.getByRole("button", { name: /MP3/ }).click();
+  await expect(dialog.getByText("Audio format", { exact: true })).toBeVisible();
 });

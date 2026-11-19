@@ -22,7 +22,9 @@ const preferences = {
   ]),
   "vesta-translate-tiers": JSON.stringify([{ id: "fixture", entries: [{ provider: "google", model: "gemini-fixture", apiKeyId: "fixture" }] }]),
 };
-const language = new URLSearchParams(location.search).get("language") ?? "en";
+const params = new URLSearchParams(location.search);
+const language = params.get("language") ?? "en";
+const forceSetup = params.get("setup") === "true";
 let finishExport;
 let previewError;
 let nextFile;
@@ -110,7 +112,7 @@ mockIPC((command, args) => {
   calls.push({ command, args });
   switch (command) {
     case "config_load_all":
-      return { ...preferences, "srt-tools-ui-language": language };
+      return { ...preferences, "srt-tools-ui-language": language, ...(forceSetup ? { "vesta-first-run-force": "true" } : {}) };
     case "config_set":
       preferences[args.key] = args.value;
       return null;
@@ -211,7 +213,7 @@ mockIPC((command, args) => {
       return downloadedOcrModels.delete(args.modelId);
     case "ocr_video_preview_frame":
       return {
-        data_url: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
+        data_url: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='640' height='360'%3E%3Crect width='640' height='360' fill='%23111827'/%3E%3C/svg%3E",
         width: 1920,
         height: 1080,
         duration_ms: 120000,

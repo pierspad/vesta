@@ -75,3 +75,17 @@ export async function installSetupPlan(plan: SetupTask[], install: (task: SetupT
 export function setupTierPreferences(model: string, wantsTranscription: boolean): string {
   return JSON.stringify(wantsTranscription ? [{ id: "setup-local", entries: [{ id: "setup-whisper", provider: "local", apiKeyId: "", model }] }] : []);
 }
+
+const CJK_OCR_LANGUAGES = new Set(["zh", "zh-tw", "ja", "ko"]);
+const LATIN_OCR_LANGUAGES = new Set([
+  "ca", "cs", "da", "de", "en", "es", "fi", "fr", "hu", "id", "is", "it",
+  "ms", "nl", "no", "pl", "pt", "pt-br", "ro", "sv", "tr", "vi",
+]);
+
+/** Recommends the best local PaddleOCR model for a given study language code. */
+export function suggestedOcrModelForLanguage(languageCode: string): string {
+  const normalized = normalizeLanguageCode(languageCode) || languageCode.trim().toLowerCase();
+  if (CJK_OCR_LANGUAGES.has(normalized)) return "paddleocr-v4-mobile-cjk";
+  if (LATIN_OCR_LANGUAGES.has(normalized)) return "paddleocr-v4-mobile-latin";
+  return "paddleocr-v4-mobile-multi";
+}

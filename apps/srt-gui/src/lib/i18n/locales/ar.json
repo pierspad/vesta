@@ -1402,5 +1402,17 @@
   "setup.localOcr": "التعرف الضوئي المحلي دون إنترنت",
   "setup.localOcrDesc": "نزّل نموذج PaddleOCR خفيفًا للتعرف على ترجمات الصور دون اتصال بالإنترنت.",
   "settings.ocrModelsTitle": "نماذج OCR المحلية (PaddleOCR)",
-  "settings.ocrModelsDesc": "تشغيل التعرف الضوئي للترجمات الصورية والمدمجة محليًا دون تكاليف نماذج السحابة."
+  "settings.ocrModelsDesc": "تشغيل التعرف الضوئي للترجمات الصورية والمدمجة محليًا دون تكاليف نماذج السحابة.",
+  "setup.suggested": "مقترح",
+  "settings.section.itt": "ITT",
+  "settings.ittTiersTitle": "سلسلة أولوية ITT",
+  "settings.ittTiersDesc": "قم بتكوين خوادم Vision المحلية المتوافقة مع OpenAI أو نقاط نهاية ITT السحابية للتعرف الضوئي على ترجمات الصور.",
+  "settings.itt.resetConfirmTitle": "إعادة تعيين إعدادات ITT؟",
+  "settings.itt.resetConfirmDesc": "سيؤدي هذا إلى إعادة تعيين نموذج OCR المحلي الافتراضي ومسح مستويات ITT المخصصة.",
+  "extract.modeEmbedded": "مضمنة",
+  "extract.modeHardcoded": "مدمجة في الفيديو",
+  "extract.hardcodedPresetFull": "الإطار الكامل",
+  "extract.hardcodedCenter": "توسيط",
+  "extract.hardcodedLanguage": "اللغة",
+  "extract.hardcodedVideoRequired": "يتطلب التعرف الضوئي على الترجمات المدمجة ملف فيديو."
 }

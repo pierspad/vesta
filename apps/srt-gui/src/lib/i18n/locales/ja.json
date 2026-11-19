@@ -1402,5 +1402,17 @@
   "setup.localOcr": "ローカルオフライン OCR",
   "setup.localOcrDesc": "オフラインの画像字幕認識用にコンパクトな PaddleOCR モデルをダウンロードします。",
   "settings.ocrModelsTitle": "オフライン OCR モデル (PaddleOCR)",
-  "settings.ocrModelsDesc": "クラウド LLM の費用をかけずに、ビットマップや焼き込み字幕の OCR をローカルで実行します。"
+  "settings.ocrModelsDesc": "クラウド LLM の費用をかけずに、ビットマップや焼き込み字幕の OCR をローカルで実行します。",
+  "setup.suggested": "推奨",
+  "settings.section.itt": "ITT",
+  "settings.ittTiersTitle": "ITT 優先チェーン",
+  "settings.ittTiersDesc": "画像字幕 OCR 用に OpenAI 互換のローカル Vision サーバーまたはクラウド ITT エンドポイントを設定します。",
+  "settings.itt.resetConfirmTitle": "ITT 設定をリセットしますか？",
+  "settings.itt.resetConfirmDesc": "これにより、デフォルトのローカル OCR モデルがリセットされ、カスタム ITT ティアが消去されます。",
+  "extract.modeEmbedded": "埋め込み",
+  "extract.modeHardcoded": "焼き込み",
+  "extract.hardcodedPresetFull": "全画面",
+  "extract.hardcodedCenter": "中央揃え",
+  "extract.hardcodedLanguage": "言語",
+  "extract.hardcodedVideoRequired": "焼き込み字幕の OCR には動画ファイルが必要です。"
 }

@@ -27,7 +27,7 @@
     onTabPreload?: (tab: string) => void;
     collapsed?: boolean;
     onToggleCollapse?: () => void;
-    settingsSection?: "overview" | "llm" | "whisper" | "language" | "anki" | "diagnostics" | "shortcuts";
+    settingsSection?: "overview" | "llm" | "whisper" | "itt" | "language" | "anki" | "diagnostics" | "shortcuts";
     lastActiveMainTab?: string;
   }
 
@@ -276,6 +276,25 @@
           {/if}
         </button>
       {/if}
+
+      <button
+        class="w-full flex gap-3.5 items-center {collapsed ? 'px-2 justify-center' : 'px-3.5'} h-[60px] rounded-xl transition-all duration-100 ease-out border border-transparent cursor-pointer {settingsSection === 'itt'
+          ? 'bg-gradient-to-r from-violet-600 to-violet-700 text-white shadow-lg shadow-violet-500/22 border-violet-500/30 bg-clip-padding'
+          : 'text-gray-400 hover:bg-violet-500/10 hover:text-violet-400 hover:border-violet-500/20'}"
+        onclick={() => settingsSection = "itt"}
+        title={collapsed ? t("settings.section.itt") : undefined}
+      >
+        <div class="w-9 h-9 rounded-xl {settingsSection === 'itt' ? 'bg-white/20' : 'bg-white/5'} flex items-center justify-center flex-shrink-0 relative transition-all duration-100 ease-out border border-white/5">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V5zm4 10h10M7 11h6m-4-4h.01" />
+          </svg>
+        </div>
+        {#if !collapsed}
+          <div class="text-left flex-1 min-w-0 leading-tight">
+            <span class="block text-[15px] font-semibold">{t("settings.section.itt")}</span>
+          </div>
+        {/if}
+      </button>
 
       {#if uiMode.expertMode}
         <button

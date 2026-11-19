@@ -110,3 +110,18 @@ it.each(["llm", "whisper"] as const)("highlights the notification target in %s f
     vi.useRealTimers();
   }
 });
+
+it("renders the dedicated ITT section with ITT tiers and offline OCR models and keeps OCR separated from STT", async () => {
+  const target = document.createElement("div");
+  document.body.append(target);
+  mounted.push(mount(SettingsTab, { target, props: { requestedSection: "whisper" } }));
+  await tick(); await tick();
+  expect(target.querySelector("#ocr-models")).toBeNull();
+
+  const ittTarget = document.createElement("div");
+  document.body.append(ittTarget);
+  mounted.push(mount(SettingsTab, { target: ittTarget, props: { requestedSection: "itt" } }));
+  await tick(); await tick();
+  expect(ittTarget.querySelector("#itt-tiers")).not.toBeNull();
+  expect(ittTarget.querySelector("#ocr-models")).not.toBeNull();
+});

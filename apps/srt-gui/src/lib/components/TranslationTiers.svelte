@@ -22,7 +22,21 @@
   import * as vestaConfig from "$lib/config/vestaConfig";
   import { TranslationTierDiscovery } from "$lib/workflows/translationTierDiscovery.svelte";
 
-  let { active = true }: { active?: boolean } = $props();
+  let {
+    active = true,
+    capability = "llm",
+    loadTiersFn = loadTiers,
+    saveTiersFn = saveTiers,
+    updatedEvent = TIERS_UPDATED_EVENT,
+    autoCreateDefault = true,
+  }: {
+    active?: boolean;
+    capability?: "llm" | "itt";
+    loadTiersFn?: () => Tier[];
+    saveTiersFn?: (tiers: Tier[]) => void;
+    updatedEvent?: string;
+    autoCreateDefault?: boolean;
+  } = $props();
 
   let t = $derived($locale);
 
@@ -43,7 +57,7 @@
   }
 
   function persist() {
-    saveTiers(tiers);
+    saveTiersFn(tiers);
   }
 
   // ─── Model auto-discovery ─────────────────────────────────────────────────────
@@ -83,6 +97,7 @@
   });
 
   function ensureDefaultTier() {
+    if (!autoCreateDefault) return;
     if (tiers.length === 0) {
       tiers = [
         {
@@ -102,7 +117,7 @@
   }
 
   function syncTiers() {
-    tiers = loadTiers();
+    tiers = loadTiersFn();
     ensureDefaultTier();
   }
 
@@ -121,16 +136,16 @@
   });
 
   onMount(() => {
-    tiers = loadTiers();
+    tiers = loadTiersFn();
     ensureDefaultTier();
     refreshKeys();
     window.addEventListener("apikeys-updated", refreshKeys);
-    window.addEventListener(TIERS_UPDATED_EVENT, syncTiers);
+    window.addEventListener(updatedEvent, syncTiers);
   });
 
   onDestroy(() => {
     window.removeEventListener("apikeys-updated", refreshKeys);
-    window.removeEventListener(TIERS_UPDATED_EVENT, syncTiers);
+    window.removeEventListener(updatedEvent, syncTiers);
     discovery.dispose();
   });
 
@@ -190,7 +205,7 @@
   // Aggiorna l'API key di una entry e riallinea provider + modello.
   function onKeyChange(tierIndex: number, entryIndex: number, keyId: string) {
     if (keyId === "__add_provider__") {
-      window.dispatchEvent(new CustomEvent("vesta-open-add-key-modal", { detail: { providerId: "custom" } }));
+      window.dispatchEvent(new CustomEvent("vesta-open-add-key-modal", { detail: { providerId: "custom", context: capability } }));
       return;
     }
     const key = apiKeys.find((k) => k.id === keyId);
@@ -381,7 +396,7 @@
                         {entry.provider === "local" ? (t("translate.provider")) : (t("tiers.apiKey"))}
                       </span>
                       <SearchableSelect
-                        options={[...apiKeys.filter((k) => supportsCapability(k, "llm")).map((key) => ({ value: key.id, label: keyLabel(key), provider: key.apiType })), { value: "__add_provider__", label: `＋ ${t("tiers.addProvider")}` }]}
+                        options={[...apiKeys.filter((k) => supportsCapability(k, capability)).map((key) => ({ value: key.id, label: keyLabel(key), provider: key.apiType })), { value: "__add_provider__", label: `＋ ${t("tiers.addProvider")}` }]}
                         value={entry.apiKeyId || (entry.provider === "local" ? "local" : "")}
                         onchange={(val) => onKeyChange(tierIndex, entryIndex, val)}
                         placeholder={t("tiers.noKeysOption")}

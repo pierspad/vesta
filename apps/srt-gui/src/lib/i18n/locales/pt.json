@@ -1402,5 +1402,17 @@
   "setup.localOcr": "OCR local offline",
   "setup.localOcrDesc": "Baixe um modelo PaddleOCR compacto para reconhecimento offline de legendas em imagem.",
   "settings.ocrModelsTitle": "Modelos OCR offline (PaddleOCR)",
-  "settings.ocrModelsDesc": "Execute OCR de legendas bitmap e embutidas localmente sem custos de LLM na nuvem."
+  "settings.ocrModelsDesc": "Execute OCR de legendas bitmap e embutidas localmente sem custos de LLM na nuvem.",
+  "setup.suggested": "Sugerido",
+  "settings.section.itt": "ITT",
+  "settings.ittTiersTitle": "Cadeia de prioridade ITT",
+  "settings.ittTiersDesc": "Configure servidores Vision locais compatíveis com OpenAI ou endpoints ITT na nuvem para OCR de legendas em imagem.",
+  "settings.itt.resetConfirmTitle": "Redefinir configurações de ITT?",
+  "settings.itt.resetConfirmDesc": "Isso redefine o modelo OCR local padrão e limpa os níveis ITT personalizados.",
+  "extract.modeEmbedded": "Integrados",
+  "extract.modeHardcoded": "Fixos no vídeo",
+  "extract.hardcodedPresetFull": "Quadro inteiro",
+  "extract.hardcodedCenter": "Centralizar",
+  "extract.hardcodedLanguage": "Idioma",
+  "extract.hardcodedVideoRequired": "O OCR de legendas fixas requer um arquivo de vídeo."
 }

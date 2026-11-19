@@ -4,6 +4,9 @@
   const frameRequests = new LatestRequest();
   let disposed = false;
   import WorkflowWorkspace from "$lib/components/WorkflowWorkspace.svelte";
+  import FooterActions from "$lib/components/FooterActions.svelte";
+  import SearchableSelect from "$lib/components/SearchableSelect.svelte";
+  import SettingsJumpButton from "$lib/components/SettingsJumpButton.svelte";
   import EmptyStatusLabel from "$lib/components/EmptyStatusLabel.svelte";
   import LoadingSpinner from "$lib/components/LoadingSpinner.svelte";
   import ProgressFill from "$lib/components/ProgressFill.svelte";
@@ -17,8 +20,11 @@
   import { ocrModelsStore } from "$lib/stores/ocrModelsStore.svelte";
   import { ocrHardcodedSubtitle, ocrVideoPreviewFrame, previewOcrHardcodedSubtitle, type VideoFramePreview, type VideoRoi } from "$lib/services/ocr";
   import { loadTiers } from "$lib/config/translationTiers";
+  import { loadIttTiers } from "$lib/config/ittTiers";
   import { loadAndValidateApiKeys } from "$lib/config/apiKeys";
   import { buildTiersPayload, type TierEntryPayload } from "$lib/config/llmTiers";
+  import { languages as allLanguages, getLanguageSearchTerms } from "$lib/config/languages";
+  import * as vestaConfig from "$lib/config/vestaConfig";
   import { snackbar } from "$lib/stores/snackbarStore.svelte";
   import { invokeCommand as invoke } from "$lib/services/tauriClient";
   import { guardedOpen } from "$lib/utils/dialogGuard";
@@ -28,7 +34,10 @@
   import SubtitleTrackCard from "$lib/components/SubtitleTrackCard.svelte";
   import { locale, currentLanguage } from "$lib/i18n";
   import { errorMessage } from "$lib/utils/errorMessage";
-  let { active = false }: { active?: boolean } = $props();
+  let { active = false, onGoToSettings }: {
+    active?: boolean;
+    onGoToSettings?: (section?: "overview" | "llm" | "whisper" | "itt" | "language" | "anki" | "shortcuts", highlightItemId?: string) => void;
+  } = $props();
   let isDraggingOver = $state(false);
   $effect(() => {
     if (!active) { isDraggingOver = false; return; }
@@ -125,15 +134,56 @@
 
   const ROI_PRESET_BOTTOM: VideoRoi = { x: 0.08, y: 0.74, width: 0.84, height: 0.20 };
   const ROI_PRESET_TOP: VideoRoi = { x: 0.08, y: 0.05, width: 0.84, height: 0.20 };
-  let showHardcodedOcr = $state(false);
+  const ROI_PRESET_FULL: VideoRoi = { x: 0.02, y: 0.02, width: 0.96, height: 0.96 };
+  const MIN_ROI_SIZE = 0.04;
+  type RoiResizeHandle = "n" | "s" | "e" | "w" | "nw" | "ne" | "sw" | "se";
+  const ROI_HANDLES: { handle: RoiResizeHandle; className: string }[] = [
+    { handle: "nw", className: "-left-1.5 -top-1.5 h-3 w-3 rounded-full border-2 cursor-nwse-resize" },
+    { handle: "ne", className: "-right-1.5 -top-1.5 h-3 w-3 rounded-full border-2 cursor-nesw-resize" },
+    { handle: "sw", className: "-bottom-1.5 -left-1.5 h-3 w-3 rounded-full border-2 cursor-nesw-resize" },
+    { handle: "se", className: "-bottom-1.5 -right-1.5 h-3 w-3 rounded-full border-2 cursor-nwse-resize" },
+    { handle: "n", className: "-top-1 left-1/2 h-2 w-8 -translate-x-1/2 rounded-full border cursor-ns-resize" },
+    { handle: "s", className: "-bottom-1 left-1/2 h-2 w-8 -translate-x-1/2 rounded-full border cursor-ns-resize" },
+    { handle: "w", className: "-left-1 top-1/2 h-8 w-2 -translate-y-1/2 rounded-full border cursor-ew-resize" },
+    { handle: "e", className: "-right-1 top-1/2 h-8 w-2 -translate-y-1/2 rounded-full border cursor-ew-resize" },
+  ];
+
+  let extractMode = $state<"embedded" | "hardcoded">("embedded");
   let roi = $state<VideoRoi>({ ...ROI_PRESET_BOTTOM });
   let sampleFps = $state(2.5);
+  let hardcodedLanguage = $state(vestaConfig.getItem("vesta-default-transcribe-language") || "auto");
   let framePreview = $state<VideoFramePreview | null>(null);
   let frameTimeMs = $state<number | null>(null);
   let loadingFrame = $state(false);
   let extractingHardcoded = $state(false);
   let roiContainerEl = $state<HTMLDivElement | null>(null);
-  let roiDragState = $state<{ mode: "move" | "draw"; startX: number; startY: number; originRoi: VideoRoi } | null>(null);
+  let roiDragState = $state<{
+    mode: "move" | "draw" | "resize";
+    handle?: RoiResizeHandle;
+    startX: number;
+    startY: number;
+    originRoi: VideoRoi;
+  } | null>(null);
+
+  const fpsOptions = [
+    { value: "1", label: "1 FPS" },
+    { value: "1.5", label: "1.5 FPS" },
+    { value: "2", label: "2 FPS" },
+    { value: "2.5", label: "2.5 FPS" },
+    { value: "3", label: "3 FPS" },
+    { value: "4", label: "4 FPS" },
+    { value: "5", label: "5 FPS" },
+  ];
+
+  let hardcodedLanguageOptions = $derived([
+    { value: "auto", label: t("transcribe.autoDetect"), icon: "🌐" },
+    ...allLanguages.map((lang) => ({
+      value: lang.code,
+      label: lang.name,
+      icon: lang.flag,
+      searchTerms: getLanguageSearchTerms(lang.code),
+    })),
+  ]);
 
   function ocrLanguageForTrack(track: Track): string | null {
     return describeSubtitleTrack(track).code ?? (track.language && track.language !== "und" ? track.language : null);
@@ -163,9 +213,11 @@
       snackbar.show(error, "error");
       return null;
     }
-    const llmTiers = buildTiersPayload(loadTiers(), loadAndValidateApiKeys());
-    if (llmTiers && localEntry) return [...llmTiers, [localEntry]];
-    if (llmTiers) return llmTiers;
+    const keys = loadAndValidateApiKeys();
+    const ittTiers = buildTiersPayload(loadIttTiers(), keys, "itt");
+    const visionTiers = ittTiers ?? buildTiersPayload(loadTiers(), keys, "llm");
+    if (visionTiers && localEntry) return [...visionTiers, [localEntry]];
+    if (visionTiers) return visionTiers;
     if (localEntry) return [[localEntry]];
     error = t("extract.ocrNoProvider");
     snackbar.show(error, "error");
@@ -214,6 +266,7 @@
   });
   onDestroy(() => {
     disposed = true;
+    stopRoiWindowListeners();
     downloadedRequests.invalidate();
     frameRequests.invalidate();
     if (ocrUnlisten) {
@@ -347,7 +400,6 @@
     tracksScanned = false;
     search = "";
     page = 0;
-    showHardcodedOcr = false;
     framePreview = null;
     frameTimeMs = null;
     loadingFrame = false;
@@ -417,6 +469,9 @@
       tracks = loadedTracks;
       tracksScanned = true;
       await refreshDownloaded();
+      if (!disposed && extractMode === "hardcoded" && /\.(mkv|mp4|m4v|avi|mov|webm|ts)$/i.test(selected)) {
+        void loadPreviewFrame();
+      }
     } catch (e) { if (!disposed) error = errorMessage(e); }
     finally { if (!disposed) busy = false; }
   }
@@ -490,8 +545,12 @@
     return Math.max(0, Math.min(1, value));
   }
 
-  function setRoiPreset(preset: "bottom" | "top") {
-    roi = preset === "bottom" ? { ...ROI_PRESET_BOTTOM } : { ...ROI_PRESET_TOP };
+  function setRoiPreset(preset: "bottom" | "top" | "full") {
+    roi = preset === "bottom" ? { ...ROI_PRESET_BOTTOM } : preset === "top" ? { ...ROI_PRESET_TOP } : { ...ROI_PRESET_FULL };
+  }
+
+  function centerRoiHorizontally() {
+    roi = { ...roi, x: roundRoiValue(clamp01((1 - roi.width) / 2)) };
   }
 
   function updateRoiPercent(field: keyof VideoRoi, percent: number) {
@@ -522,7 +581,37 @@
     };
   }
 
+  function startRoiWindowListeners() {
+    if (typeof window === "undefined") return;
+    window.addEventListener("pointermove", handleRoiPointerMove);
+    window.addEventListener("pointerup", handleRoiPointerUp);
+    window.addEventListener("pointercancel", handleRoiPointerUp);
+  }
+
+  function stopRoiWindowListeners() {
+    if (typeof window === "undefined") return;
+    window.removeEventListener("pointermove", handleRoiPointerMove);
+    window.removeEventListener("pointerup", handleRoiPointerUp);
+    window.removeEventListener("pointercancel", handleRoiPointerUp);
+  }
+
+  function handleRoiResizeDown(e: PointerEvent, handle: RoiResizeHandle) {
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+    e.stopPropagation();
+    const coords = normalizedPointerCoords(e);
+    if (!coords) return;
+    roiDragState = {
+      mode: "resize",
+      handle,
+      startX: coords.nx,
+      startY: coords.ny,
+      originRoi: { ...roi },
+    };
+    startRoiWindowListeners();
+  }
+
   function handleRoiPointerDown(e: PointerEvent) {
+    if (e.pointerType === "mouse" && e.button !== 0) return;
     const coords = normalizedPointerCoords(e);
     if (!coords) return;
     const inside =
@@ -536,7 +625,7 @@
       startY: coords.ny,
       originRoi: { ...roi },
     };
-    (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+    startRoiWindowListeners();
   }
 
   function handleRoiPointerMove(e: PointerEvent) {
@@ -549,11 +638,28 @@
       const x = Math.max(0, Math.min(1 - roiDragState.originRoi.width, roiDragState.originRoi.x + dx));
       const y = Math.max(0, Math.min(1 - roiDragState.originRoi.height, roiDragState.originRoi.y + dy));
       roi = { ...roiDragState.originRoi, x: roundRoiValue(x), y: roundRoiValue(y) };
+    } else if (roiDragState.mode === "resize" && roiDragState.handle) {
+      const orig = roiDragState.originRoi;
+      let left = orig.x;
+      let top = orig.y;
+      let right = orig.x + orig.width;
+      let bottom = orig.y + orig.height;
+      const h = roiDragState.handle;
+      if (h.includes("w")) left = clamp01(Math.min(coords.nx, right - MIN_ROI_SIZE));
+      if (h.includes("e")) right = clamp01(Math.max(coords.nx, left + MIN_ROI_SIZE));
+      if (h.includes("n")) top = clamp01(Math.min(coords.ny, bottom - MIN_ROI_SIZE));
+      if (h.includes("s")) bottom = clamp01(Math.max(coords.ny, top + MIN_ROI_SIZE));
+      roi = {
+        x: roundRoiValue(left),
+        y: roundRoiValue(top),
+        width: roundRoiValue(right - left),
+        height: roundRoiValue(bottom - top),
+      };
     } else {
       const x = Math.min(roiDragState.startX, coords.nx);
       const y = Math.min(roiDragState.startY, coords.ny);
-      const width = Math.max(0.04, Math.min(1 - x, Math.abs(coords.nx - roiDragState.startX)));
-      const height = Math.max(0.04, Math.min(1 - y, Math.abs(coords.ny - roiDragState.startY)));
+      const width = Math.max(MIN_ROI_SIZE, Math.min(1 - x, Math.abs(coords.nx - roiDragState.startX)));
+      const height = Math.max(MIN_ROI_SIZE, Math.min(1 - y, Math.abs(coords.ny - roiDragState.startY)));
       roi = {
         x: roundRoiValue(x),
         y: roundRoiValue(y),
@@ -565,6 +671,7 @@
 
   function handleRoiPointerUp() {
     roiDragState = null;
+    stopRoiWindowListeners();
   }
 
   function formatTimestamp(ms: number): string {
@@ -606,11 +713,24 @@
     }
   }
 
-  function toggleHardcodedPanel() {
-    showHardcodedOcr = !showHardcodedOcr;
-    if (showHardcodedOcr && framePreview === null && !loadingFrame) {
+  function setExtractMode(mode: "embedded" | "hardcoded") {
+    extractMode = mode;
+    if (mode === "hardcoded" && isVideoMedia && framePreview === null && !loadingFrame) {
       void loadPreviewFrame();
     }
+  }
+
+  function seekPreviewFrame(deltaMs: number) {
+    if (!framePreview || loadingFrame || !path) return;
+    const base = frameTimeMs ?? framePreview.time_ms;
+    const max = framePreview.duration_ms > 0 ? framePreview.duration_ms : base + deltaMs;
+    const target = Math.max(0, Math.min(max, base + deltaMs));
+    frameTimeMs = target;
+    void loadPreviewFrame(target);
+  }
+
+  function effectiveHardcodedLanguage(): string | null {
+    return hardcodedLanguage && hardcodedLanguage !== "auto" ? hardcodedLanguage : null;
   }
 
   async function previewHardcoded() {
@@ -622,7 +742,7 @@
         path: media,
         roi: { ...roi },
         sampleFps,
-        language: null,
+        language: effectiveHardcodedLanguage(),
         tiers,
       }),
     );
@@ -656,7 +776,7 @@
         outputPath,
         roi: { ...roi },
         sampleFps,
-        language: null,
+        language: effectiveHardcodedLanguage(),
         tiers,
       });
       if (disposed) return;
@@ -679,239 +799,365 @@
   }
 
 </script>
-<div class="h-full min-h-0 flex flex-col overflow-hidden bg-gray-900 p-6 text-gray-100">
-  <WorkflowWorkspace>
-  {#snippet files()}
-  <div class="glass-card p-5" class:ring-2={isDraggingOver} class:ring-teal-400={isDraggingOver}>
-    <h3 class="mb-4 text-lg font-semibold panel-title-files-output flex items-center gap-2">
-      <svg aria-hidden="true" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
-      {t("common.filesAndOutput")}
-    </h3>
-    <div class="grid grid-cols-1 gap-4 md:grid-cols-2 md:items-end">
-    <PathPickerField labelIcon="M15 10l5-3v10l-5-3M4 5h9a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z" label={t("flashcards.mediaFile")} value={path} placeholder={t("extract.choose")}
-      browseTitle={t("flashcards.browse")} browseLabel={t("flashcards.browse")} onbrowse={chooseMedia}
-      disabled={busy || downloadingIndex !== null || extractingHardcoded} onclear={() => { resetMediaState(); path = ""; error = ""; }} />
-    <PathPickerField label={t("flashcards.outputDir")} labelIcon="M3 7v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-6l-2-2H5a2 2 0 0 0-2 2Z" value={outputDir} placeholder={t("flashcards.outputDir")} browseTitle={t("flashcards.browse")} browseLabel={t("flashcards.browse")} onbrowse={chooseOutput} disabled={busy || downloadingIndex !== null || extractingHardcoded} />
-    </div>
-  </div>
-  {/snippet}
-  <div class="glass-card p-5">
-    <div role="status" aria-live="polite">
-    {#if error || busy || ((downloadingIndex !== null || extractingHardcoded) && (ocrProgress || ocrCancelling || aiStore.isOcring))}
-      <div class="mb-3 flex flex-col gap-2 text-sm">
-        {#if error}
-          <div class="flex min-h-5 items-center"><span class="text-red-300">{error}</span></div>
-        {:else if busy}
-          <div class="flex min-h-5 items-center"><span class="inline-flex" aria-label={t("extract.working")}><LoadingSpinner /></span></div>
-        {/if}
-        {#if (downloadingIndex !== null || extractingHardcoded) && (ocrProgress || ocrCancelling || aiStore.isOcring)}
-          <div class="relative flex items-center justify-between gap-3 overflow-hidden rounded-lg border border-cyan-400/20 bg-cyan-500/5 px-3 py-2">
-            <ProgressFill value={ocrProgress?.percentage ?? 0} />
-            <div class="relative z-10 flex min-w-0 items-center gap-2 text-xs text-cyan-200">
-              <span class="truncate font-medium">
-                {#if ocrProgress && ocrProgress.total > 0}
-                  {t("extract.ocrInProgress", { current: ocrProgress.current, total: ocrProgress.total })}
-                {:else}
-                  {t("extract.working")}
-                {/if}
-              </span>
-              {#if ocrProgress?.message}
-                <span class="truncate text-cyan-300/80">· {ocrProgress.message}</span>
-              {/if}
-            </div>
-            <button
-              type="button"
-              class="relative z-10 shrink-0 rounded-md border border-red-400/30 bg-red-500/15 px-2.5 py-1 text-xs font-medium text-red-200 transition-colors hover:bg-red-500/25 disabled:cursor-not-allowed disabled:opacity-50"
-              disabled={ocrCancelling}
-              onclick={cancelOcr}
-            >
-              {ocrCancelling ? t("refine.btn.stopping") : t("extract.ocrCancel")}
-            </button>
-          </div>
-        {/if}
-      </div>
-    {/if}
-    </div>
-      <div class="flex flex-wrap items-center justify-between gap-3">
-        <div class="relative w-full sm:w-80">
-          <svg aria-hidden="true" class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="10.5" cy="10.5" r="6.5" /><path d="m16 16 4 4" /></svg>
-        <input disabled={busy || tracks.length === 0} type="search" value={search} oninput={(event) => { search = event.currentTarget.value; page = 0; }} aria-label={t("extract.search")} placeholder={t("extract.search")} class="w-full rounded-lg border border-white/10 bg-black/30 pl-10 pr-4 py-2.5 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 disabled:opacity-50" />
-        </div>
-        <div class="flex flex-wrap items-center gap-3">
-          <span class="mr-2 text-xs text-gray-400">{groups.length} · {filtered.length} / {tracks.length}</span>
-          <button class="btn-secondary inline-flex items-center gap-1.5 px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-30" disabled={busy || tracks.length === 0 || page === 0} onclick={() => page -= 1}>
-            <svg aria-hidden="true" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 6-6 6 6 6" /></svg>{t("extract.previous")}
-          </button>
-          <span class="min-w-10 text-center text-xs text-gray-400" aria-live="polite">{page + 1} / {pageCount}</span>
-          <button class="btn-secondary inline-flex items-center gap-1.5 px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-30" disabled={busy || tracks.length === 0 || page + 1 >= pageCount} onclick={() => page += 1}>
-            {t("extract.next")}<svg aria-hidden="true" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 6 6 6-6 6" /></svg>
-          </button>
+<div class="h-full flex flex-col bg-gray-900 overflow-hidden">
+  <div class="flex flex-1 flex-col overflow-hidden p-6 min-h-0 text-gray-100">
+    <WorkflowWorkspace>
+      {#snippet files()}
+      <div class="glass-card p-5" class:ring-2={isDraggingOver} class:ring-teal-400={isDraggingOver}>
+        <h3 class="mb-4 text-lg font-semibold panel-title-files-output flex items-center gap-2">
+          <svg aria-hidden="true" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
+          {t("common.filesAndOutput")}
+        </h3>
+        <div class="grid grid-cols-1 gap-4 md:grid-cols-2 md:items-end">
+        <PathPickerField labelIcon="M15 10l5-3v10l-5-3M4 5h9a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z" label={t("flashcards.mediaFile")} value={path} placeholder={t("extract.choose")}
+          browseTitle={t("flashcards.browse")} browseLabel={t("flashcards.browse")} onbrowse={chooseMedia}
+          disabled={busy || downloadingIndex !== null || extractingHardcoded} onclear={() => { resetMediaState(); path = ""; error = ""; }} />
+        <PathPickerField label={t("flashcards.outputDir")} labelIcon="M3 7v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-6l-2-2H5a2 2 0 0 0-2 2Z" value={outputDir} placeholder={t("flashcards.outputDir")} browseTitle={t("flashcards.browse")} browseLabel={t("flashcards.browse")} onbrowse={chooseOutput} disabled={busy || downloadingIndex !== null || extractingHardcoded} />
         </div>
       </div>
-      <div class="relative mt-4 grid min-h-[588px] grid-cols-1 lg:grid-cols-2 content-start gap-3" aria-busy={busy}>
-        {#if !path && !busy}
-          <EmptyStatusLabel message={t("media.noMediaLoaded")} />
-        {/if}
-        {#each visible as group (group.key)}
-          <SubtitleTrackCard {group} busy={busy || extractingHardcoded} {downloaded} {downloadingIndex} selectedIndex={selections[group.key]} {canOcr} onselect={(index) => selections = { ...selections, [group.key]: index }} ondownload={extract} onpreview={preview} />
-        {/each}
-        {#if visible.length === 0}
-          {#each Array(SUBTITLE_PAGE_SIZE) as _, index (index)}
-            <div aria-hidden="true" class="flex min-h-[108px] items-center justify-between rounded-xl border border-white/5 bg-black/10 p-4 {busy ? 'animate-pulse motion-reduce:animate-none' : ''}">
-              <div class="space-y-2"><div class="h-3 w-36 rounded bg-white/5"></div><div class="h-2 w-24 rounded bg-white/[0.03]"></div></div>
-              <div class="h-10 w-10 rounded-lg border border-white/5"></div>
-            </div>
-          {/each}
-        {/if}
-        {#if tracksScanned && tracks.length === 0}
-          <div class="pointer-events-none absolute inset-0 flex items-center justify-center p-4" role="status" aria-live="polite">
-            <span class="rounded-xl border border-red-400/25 bg-gray-900/95 px-5 py-3 text-center text-sm font-semibold text-red-300 shadow-lg">{t("extract.empty")}</span>
-          </div>
-        {/if}
-      </div>
-      {#if tracks.length > 0 && filtered.length === 0}<p class="mt-4 text-sm text-gray-400" role="status">{t("extract.noMatches")}</p>{/if}
+      {/snippet}
 
-  </div>
-
-  {#if isVideoMedia}
-    <div id="hardcoded-roi-panel" class="glass-card p-5 mt-4">
-      <button
-        type="button"
-        class="flex w-full items-center justify-between gap-3 text-left cursor-pointer"
-        aria-expanded={showHardcodedOcr}
-        onclick={toggleHardcodedPanel}
-      >
-        <div class="min-w-0">
-          <h3 class="text-base font-semibold text-white">{t("extract.hardcodedTitle")}</h3>
-          <p class="mt-0.5 text-xs text-gray-400">{t("extract.hardcodedDesc")}</p>
-        </div>
-        <svg aria-hidden="true" class="h-5 w-5 shrink-0 text-gray-400 transition-transform duration-200 {showHardcodedOcr ? 'rotate-180' : ''}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="m6 9 6 6 6-6" />
-        </svg>
-      </button>
-
-      {#if showHardcodedOcr}
-        <div class="mt-4 space-y-4 border-t border-white/10 pt-4">
-          <div class="flex flex-wrap items-center justify-between gap-3">
-            <div class="flex flex-wrap items-center gap-2">
-              <button type="button" class="btn-secondary px-3 py-1.5 text-xs" onclick={() => setRoiPreset("bottom")}>{t("extract.hardcodedPresetBottom")}</button>
-              <button type="button" class="btn-secondary px-3 py-1.5 text-xs" onclick={() => setRoiPreset("top")}>{t("extract.hardcodedPresetTop")}</button>
-              <button type="button" class="btn-secondary inline-flex items-center gap-1.5 px-3 py-1.5 text-xs disabled:opacity-50" disabled={loadingFrame || !path} onclick={() => void loadPreviewFrame(frameTimeMs ?? framePreview?.time_ms ?? null)}>
-                <svg aria-hidden="true" class="h-3.5 w-3.5 {loadingFrame ? 'animate-spin' : ''}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
-                {t("extract.hardcodedPreviewFrame")}
-              </button>
-            </div>
-            <label class="flex items-center gap-2 text-xs text-gray-300">
-              <span>{t("extract.hardcodedFps")}</span>
-              <select
-                aria-label={t("extract.hardcodedFps")}
-                class="rounded-lg border border-white/10 bg-black/40 px-2.5 py-1.5 text-xs text-white outline-none focus:border-cyan-400"
-                value={String(sampleFps)}
-                onchange={(e) => { sampleFps = Number(e.currentTarget.value); }}
-              >
-                <option value="2">2</option>
-                <option value="2.5">2.5</option>
-                <option value="3">3</option>
-                <option value="4">4</option>
-              </select>
-            </label>
-          </div>
-
-          <!-- svelte-ignore a11y_no_static_element_interactions -->
-          <div
-            bind:this={roiContainerEl}
-            class="relative mx-auto w-full max-w-3xl overflow-hidden rounded-xl border border-white/15 bg-black/50 select-none touch-none cursor-crosshair"
-            onpointerdown={handleRoiPointerDown}
-            onpointermove={handleRoiPointerMove}
-            onpointerup={handleRoiPointerUp}
-            onpointercancel={handleRoiPointerUp}
-          >
-            {#if framePreview?.data_url}
-              <img
-                src={framePreview.data_url}
-                alt={t("extract.hardcodedTitle")}
-                class="block w-full h-auto pointer-events-none select-none"
-                draggable="false"
-              />
-            {:else}
-              <div class="flex aspect-video w-full items-center justify-center text-xs text-gray-400">
-                {#if loadingFrame}
-                  <LoadingSpinner />
-                {:else}
-                  {t("extract.hardcodedDesc")}
+      <div class="glass-card p-5">
+        <div role="status" aria-live="polite">
+        {#if error || busy || ((downloadingIndex !== null || extractingHardcoded) && (ocrProgress || ocrCancelling || aiStore.isOcring))}
+          <div class="mb-3 flex flex-col gap-2 text-sm">
+            {#if error}
+              <div class="flex flex-wrap items-center justify-between gap-2 min-h-5">
+                <span class="text-red-300">{error}</span>
+                {#if onGoToSettings && error === t("extract.ocrNoProvider")}
+                  <SettingsJumpButton label={t("settings.section.itt")} section="itt" onjump={onGoToSettings} variant="cyan" />
                 {/if}
               </div>
+            {:else if busy}
+              <div class="flex min-h-5 items-center"><span class="inline-flex" aria-label={t("extract.working")}><LoadingSpinner /></span></div>
             {/if}
-            <div
-              data-testid="roi-overlay"
-              class="pointer-events-none absolute border-2 border-cyan-400 bg-cyan-400/15 shadow-[0_0_0_9999px_rgba(0,0,0,0.45)]"
-              style:left={`${(roi.x * 100).toFixed(2)}%`}
-              style:top={`${(roi.y * 100).toFixed(2)}%`}
-              style:width={`${(roi.width * 100).toFixed(2)}%`}
-              style:height={`${(roi.height * 100).toFixed(2)}%`}
-            ></div>
+            {#if (downloadingIndex !== null || extractingHardcoded) && (ocrProgress || ocrCancelling || aiStore.isOcring)}
+              <div class="relative flex items-center justify-between gap-3 overflow-hidden rounded-lg border border-cyan-400/20 bg-cyan-500/5 px-3 py-2">
+                <ProgressFill value={ocrProgress?.percentage ?? 0} />
+                <div class="relative z-10 flex min-w-0 items-center gap-2 text-xs text-cyan-200">
+                  <span class="truncate font-medium">
+                    {#if ocrProgress && ocrProgress.total > 0}
+                      {t("extract.ocrInProgress", { current: ocrProgress.current, total: ocrProgress.total })}
+                    {:else}
+                      {t("extract.working")}
+                    {/if}
+                  </span>
+                  {#if ocrProgress?.message}
+                    <span class="truncate text-cyan-300/80">· {ocrProgress.message}</span>
+                  {/if}
+                </div>
+                <button
+                  type="button"
+                  class="relative z-10 inline-flex shrink-0 items-center gap-1.5 rounded-md border border-red-400/35 bg-red-500/20 px-2.5 py-1 text-xs font-medium text-red-200 transition-colors hover:bg-red-500/30 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
+                  disabled={ocrCancelling}
+                  onclick={cancelOcr}
+                >
+                  <svg aria-hidden="true" class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="6" width="12" height="12" rx="1.5" /></svg>
+                  {ocrCancelling ? t("refine.btn.stopping") : t("extract.ocrCancel")}
+                </button>
+              </div>
+            {/if}
           </div>
+        {/if}
+        </div>
 
-          {#if framePreview && framePreview.duration_ms > 0}
-            <div class="mx-auto flex w-full max-w-3xl items-center gap-3">
-              <span class="w-14 shrink-0 text-right font-mono text-xs text-gray-400">{formatTimestamp(frameTimeMs ?? framePreview.time_ms)}</span>
-              <input
-                type="range"
-                aria-label={t("extract.hardcodedPreviewFrame")}
-                min="0"
-                max={framePreview.duration_ms}
-                step="500"
-                value={frameTimeMs ?? framePreview.time_ms}
-                oninput={(e) => { frameTimeMs = Number(e.currentTarget.value); }}
-                onchange={() => void loadPreviewFrame(frameTimeMs)}
-                class="h-1.5 flex-1 cursor-pointer accent-cyan-400"
-              />
-              <span class="w-14 shrink-0 font-mono text-xs text-gray-500">{formatTimestamp(framePreview.duration_ms)}</span>
+        {#if extractMode === "embedded"}
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <div class="relative w-full sm:w-80">
+              <svg aria-hidden="true" class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="10.5" cy="10.5" r="6.5" /><path d="m16 16 4 4" /></svg>
+            <input disabled={busy || tracks.length === 0} type="search" value={search} oninput={(event) => { search = event.currentTarget.value; page = 0; }} aria-label={t("extract.search")} placeholder={t("extract.search")} class="w-full rounded-lg border border-white/10 bg-black/30 pl-10 pr-4 py-2.5 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 disabled:opacity-50" />
             </div>
+            <div class="flex flex-wrap items-center gap-3">
+              <span class="mr-2 text-xs text-gray-400">{groups.length} · {filtered.length} / {tracks.length}</span>
+              <button class="btn-secondary inline-flex items-center gap-1.5 px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-30" disabled={busy || tracks.length === 0 || page === 0} onclick={() => page -= 1}>
+                <svg aria-hidden="true" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 6-6 6 6 6" /></svg>{t("extract.previous")}
+              </button>
+              <span class="min-w-10 text-center text-xs text-gray-400" aria-live="polite">{page + 1} / {pageCount}</span>
+              <button class="btn-secondary inline-flex items-center gap-1.5 px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-30" disabled={busy || tracks.length === 0 || page + 1 >= pageCount} onclick={() => page += 1}>
+                {t("extract.next")}<svg aria-hidden="true" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 6 6 6-6 6" /></svg>
+              </button>
+            </div>
+          </div>
+          <div class="relative mt-4 grid min-h-[520px] grid-cols-1 lg:grid-cols-2 content-start gap-3" aria-busy={busy}>
+            {#if !path && !busy}
+              <EmptyStatusLabel message={t("media.noMediaLoaded")} />
+            {/if}
+            {#each visible as group (group.key)}
+              <SubtitleTrackCard {group} busy={busy || extractingHardcoded} {downloaded} {downloadingIndex} selectedIndex={selections[group.key]} {canOcr} onselect={(index) => selections = { ...selections, [group.key]: index }} ondownload={extract} onpreview={preview} />
+            {/each}
+            {#if visible.length === 0}
+              {#each Array(SUBTITLE_PAGE_SIZE) as _, index (index)}
+                <div aria-hidden="true" class="flex min-h-[108px] items-center justify-between rounded-xl border border-white/5 bg-black/10 p-4 {busy ? 'animate-pulse motion-reduce:animate-none' : ''}">
+                  <div class="space-y-2"><div class="h-3 w-36 rounded bg-white/5"></div><div class="h-2 w-24 rounded bg-white/[0.03]"></div></div>
+                  <div class="h-10 w-10 rounded-lg border border-white/5"></div>
+                </div>
+              {/each}
+            {/if}
+            {#if tracksScanned && tracks.length === 0}
+              <div class="pointer-events-none absolute inset-0 flex items-center justify-center p-4" role="status" aria-live="polite">
+                <span class="rounded-xl border border-red-400/25 bg-gray-900/95 px-5 py-3 text-center text-sm font-semibold text-red-300 shadow-lg">{t("extract.empty")}</span>
+              </div>
+            {/if}
+          </div>
+          {#if tracks.length > 0 && filtered.length === 0}<p class="mt-4 text-sm text-gray-400" role="status">{t("extract.noMatches")}</p>{/if}
+        {:else}
+          <div id="hardcoded-roi-panel" class="space-y-4">
+            <div class="flex flex-wrap items-start justify-between gap-3">
+              <div class="min-w-0">
+                <h3 class="text-base font-semibold text-white">{t("extract.hardcodedTitle")}</h3>
+                <p class="mt-0.5 text-xs text-gray-400">{t("extract.hardcodedDesc")}</p>
+              </div>
+              {#if framePreview}
+                <span class="rounded-lg border border-cyan-400/25 bg-cyan-500/10 px-2.5 py-1 font-mono text-[11px] text-cyan-200">
+                  ~{Math.max(1, Math.round(roi.width * framePreview.width))} × {Math.max(1, Math.round(roi.height * framePreview.height))} px
+                </span>
+              {/if}
+            </div>
+
+            {#if !path}
+              <div class="relative flex aspect-video max-h-[360px] w-full items-center justify-center rounded-xl border border-white/10 bg-black/30">
+                <EmptyStatusLabel message={t("media.noMediaLoaded")} />
+              </div>
+            {:else if !isVideoMedia}
+              <div class="flex min-h-[220px] items-center justify-center rounded-xl border border-amber-400/20 bg-amber-500/5 p-6 text-center text-sm text-amber-200">
+                {t("extract.hardcodedVideoRequired")}
+              </div>
+            {:else}
+              <div class="flex flex-wrap items-center justify-between gap-3">
+                <div class="flex flex-wrap items-center gap-2">
+                  <button type="button" class="inline-flex items-center gap-1.5 rounded-lg border border-sky-400/30 bg-sky-500/15 px-3 py-1.5 text-xs font-semibold text-sky-200 transition-colors hover:bg-sky-500/25 cursor-pointer" onclick={() => setRoiPreset("bottom")}>
+                    <svg aria-hidden="true" class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 16h10"/></svg>
+                    {t("extract.hardcodedPresetBottom")}
+                  </button>
+                  <button type="button" class="inline-flex items-center gap-1.5 rounded-lg border border-violet-400/30 bg-violet-500/15 px-3 py-1.5 text-xs font-semibold text-violet-200 transition-colors hover:bg-violet-500/25 cursor-pointer" onclick={() => setRoiPreset("top")}>
+                    <svg aria-hidden="true" class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 8h10"/></svg>
+                    {t("extract.hardcodedPresetTop")}
+                  </button>
+                  <button type="button" class="inline-flex items-center gap-1.5 rounded-lg border border-amber-400/30 bg-amber-500/15 px-3 py-1.5 text-xs font-semibold text-amber-200 transition-colors hover:bg-amber-500/25 cursor-pointer" onclick={() => setRoiPreset("full")}>
+                    <svg aria-hidden="true" class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
+                    {t("extract.hardcodedPresetFull")}
+                  </button>
+                  <button type="button" class="inline-flex items-center gap-1.5 rounded-lg border border-cyan-400/30 bg-cyan-500/15 px-3 py-1.5 text-xs font-semibold text-cyan-200 transition-colors hover:bg-cyan-500/25 cursor-pointer" onclick={centerRoiHorizontally}>
+                    <svg aria-hidden="true" class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v18M5 8l4 4-4 4M19 8l-4 4 4 4"/></svg>
+                    {t("extract.hardcodedCenter")}
+                  </button>
+                  <button type="button" class="inline-flex items-center gap-1.5 rounded-lg border border-emerald-400/30 bg-emerald-500/15 px-3 py-1.5 text-xs font-semibold text-emerald-200 transition-colors hover:bg-emerald-500/25 disabled:opacity-50 cursor-pointer" disabled={loadingFrame || !path} onclick={() => void loadPreviewFrame(frameTimeMs ?? framePreview?.time_ms ?? null)}>
+                    <svg aria-hidden="true" class="h-3.5 w-3.5 {loadingFrame ? 'animate-spin' : ''}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                    {t("extract.hardcodedPreviewFrame")}
+                  </button>
+                </div>
+                <div class="flex flex-wrap items-center gap-3">
+                  <div class="flex items-center gap-2 text-xs text-gray-300">
+                    <span>{t("extract.hardcodedLanguage")}</span>
+                    <div class="w-44 compact-select">
+                      <SearchableSelect
+                        options={hardcodedLanguageOptions}
+                        value={hardcodedLanguage}
+                        onchange={(val) => { hardcodedLanguage = val; }}
+                        compact={true}
+                        portal={true}
+                        ariaLabel={t("extract.hardcodedLanguage")}
+                        noResultsText={t("common.noResults")}
+                      />
+                    </div>
+                  </div>
+                  <div class="flex items-center gap-2 text-xs text-gray-300">
+                    <span>{t("extract.hardcodedFps")}</span>
+                    <div class="w-28 compact-select">
+                      <SearchableSelect
+                        options={fpsOptions}
+                        value={String(sampleFps)}
+                        onchange={(val) => { sampleFps = Number(val); }}
+                        compact={true}
+                        portal={true}
+                        searchable={false}
+                        ariaLabel={t("extract.hardcodedFps")}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- svelte-ignore a11y_no_static_element_interactions -->
+              <div
+                bind:this={roiContainerEl}
+                class="relative mx-auto overflow-hidden rounded-xl border border-white/15 bg-black/50 select-none touch-none cursor-crosshair {framePreview?.data_url ? 'w-fit max-w-3xl' : 'w-full max-w-3xl'}"
+                onpointerdown={handleRoiPointerDown}
+              >
+                {#if framePreview?.data_url}
+                  <img
+                    src={framePreview.data_url}
+                    alt={t("extract.hardcodedTitle")}
+                    class="block max-h-[380px] w-auto max-w-full pointer-events-none select-none"
+                    draggable="false"
+                  />
+                {:else}
+                  <div class="flex aspect-video max-h-[380px] w-full items-center justify-center text-xs text-gray-400">
+                    {#if loadingFrame}
+                      <LoadingSpinner />
+                    {:else}
+                      {t("extract.hardcodedDesc")}
+                    {/if}
+                  </div>
+                {/if}
+                <div
+                  data-testid="roi-overlay"
+                  class="pointer-events-none absolute border-2 border-cyan-400 bg-cyan-400/15 shadow-[0_0_0_9999px_rgba(0,0,0,0.45)]"
+                  style:left={`${(roi.x * 100).toFixed(2)}%`}
+                  style:top={`${(roi.y * 100).toFixed(2)}%`}
+                  style:width={`${(roi.width * 100).toFixed(2)}%`}
+                  style:height={`${(roi.height * 100).toFixed(2)}%`}
+                >
+                  {#each ROI_HANDLES as item (item.handle)}
+                    <button
+                      type="button"
+                      aria-label={`${t("extract.hardcodedTitle")} (${item.handle.toUpperCase()})`}
+                      class="pointer-events-auto absolute border-gray-950 bg-cyan-300 {item.className}"
+                      onpointerdown={(e) => handleRoiResizeDown(e, item.handle)}
+                    ></button>
+                  {/each}
+                </div>
+              </div>
+
+              {#if framePreview && framePreview.duration_ms > 0}
+                <div class="mx-auto flex w-full max-w-3xl items-center gap-2.5">
+                  <button type="button" class="inline-flex items-center gap-1 rounded-lg border border-emerald-400/25 bg-emerald-500/10 px-2 py-1 text-[11px] font-semibold text-emerald-200 hover:bg-emerald-500/20 disabled:opacity-40 cursor-pointer" disabled={loadingFrame} onclick={() => seekPreviewFrame(-5000)} title="-5s">
+                    <svg aria-hidden="true" class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m11 17-5-5 5-5M18 17l-5-5 5-5"/></svg>
+                    5s
+                  </button>
+                  <span class="w-14 shrink-0 text-right font-mono text-xs text-gray-400">{formatTimestamp(frameTimeMs ?? framePreview.time_ms)}</span>
+                  <input
+                    type="range"
+                    aria-label={t("extract.hardcodedPreviewFrame")}
+                    min="0"
+                    max={framePreview.duration_ms}
+                    step="500"
+                    value={frameTimeMs ?? framePreview.time_ms}
+                    oninput={(e) => { frameTimeMs = Number(e.currentTarget.value); }}
+                    onchange={() => void loadPreviewFrame(frameTimeMs)}
+                    class="h-1.5 flex-1 cursor-pointer accent-cyan-400"
+                  />
+                  <span class="w-14 shrink-0 font-mono text-xs text-gray-500">{formatTimestamp(framePreview.duration_ms)}</span>
+                  <button type="button" class="inline-flex items-center gap-1 rounded-lg border border-emerald-400/25 bg-emerald-500/10 px-2 py-1 text-[11px] font-semibold text-emerald-200 hover:bg-emerald-500/20 disabled:opacity-40 cursor-pointer" disabled={loadingFrame} onclick={() => seekPreviewFrame(5000)} title="+5s">
+                    5s
+                    <svg aria-hidden="true" class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 17 5-5-5-5M13 17l5-5-5-5"/></svg>
+                  </button>
+                </div>
+              {/if}
+
+              <div class="mx-auto grid w-full max-w-3xl grid-cols-2 gap-3 sm:grid-cols-4">
+                <label class="flex flex-col gap-1 text-[11px] text-gray-400">
+                  <span>X (%)</span>
+                  <input type="number" min="0" max="98" step="1" aria-label="X (%)" value={Math.round(roi.x * 100)} oninput={(e) => updateRoiPercent("x", Number(e.currentTarget.value))} class="rounded-lg border border-white/10 bg-black/30 px-2.5 py-1.5 text-xs text-white outline-none focus:border-cyan-400" />
+                </label>
+                <label class="flex flex-col gap-1 text-[11px] text-gray-400">
+                  <span>Y (%)</span>
+                  <input type="number" min="0" max="98" step="1" aria-label="Y (%)" value={Math.round(roi.y * 100)} oninput={(e) => updateRoiPercent("y", Number(e.currentTarget.value))} class="rounded-lg border border-white/10 bg-black/30 px-2.5 py-1.5 text-xs text-white outline-none focus:border-cyan-400" />
+                </label>
+                <label class="flex flex-col gap-1 text-[11px] text-gray-400">
+                  <span>W (%)</span>
+                  <input type="number" min="2" max="100" step="1" aria-label="W (%)" value={Math.round(roi.width * 100)} oninput={(e) => updateRoiPercent("width", Number(e.currentTarget.value))} class="rounded-lg border border-white/10 bg-black/30 px-2.5 py-1.5 text-xs text-white outline-none focus:border-cyan-400" />
+                </label>
+                <label class="flex flex-col gap-1 text-[11px] text-gray-400">
+                  <span>H (%)</span>
+                  <input type="number" min="2" max="100" step="1" aria-label="H (%)" value={Math.round(roi.height * 100)} oninput={(e) => updateRoiPercent("height", Number(e.currentTarget.value))} class="rounded-lg border border-white/10 bg-black/30 px-2.5 py-1.5 text-xs text-white outline-none focus:border-cyan-400" />
+                </label>
+              </div>
+            {/if}
+          </div>
+        {/if}
+      </div>
+    </WorkflowWorkspace>
+  </div>
+
+  <FooterActions>
+    {#snippet left()}
+      <div class="relative grid grid-cols-2 rounded-xl border border-white/10 bg-black/30 p-1 select-none" role="tablist" aria-label={t("nav.extract")}>
+        <span
+          aria-hidden="true"
+          class="absolute bottom-1 top-1 left-1 w-[calc(50%-4px)] rounded-lg border transition-transform duration-200 ease-out {extractMode === 'embedded' ? 'translate-x-0 border-teal-400/40 bg-teal-500/20' : 'translate-x-[calc(100%+4px)] border-cyan-400/40 bg-cyan-500/20'}"
+        ></span>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={extractMode === "embedded"}
+          onclick={() => setExtractMode("embedded")}
+          class="relative z-10 inline-flex items-center justify-center gap-2 px-4 py-2 text-xs font-semibold transition-colors cursor-pointer {extractMode === 'embedded' ? 'text-teal-100' : 'text-gray-400 hover:text-gray-200'}"
+        >
+          <svg aria-hidden="true" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 13h4m3 0h3M7 16h10"/></svg>
+          {t("extract.modeEmbedded")}
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={extractMode === "hardcoded"}
+          onclick={() => setExtractMode("hardcoded")}
+          class="relative z-10 inline-flex items-center justify-center gap-2 px-4 py-2 text-xs font-semibold transition-colors cursor-pointer {extractMode === 'hardcoded' ? 'text-cyan-100' : 'text-gray-400 hover:text-gray-200'}"
+        >
+          <svg aria-hidden="true" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 8V5a1 1 0 011-1h3M16 4h3a1 1 0 011 1v3M4 16v3a1 1 0 001 1h3m9 0h3a1 1 0 001-1v-3"/><path d="M8 14h8M9 10h6"/></svg>
+          {t("extract.modeHardcoded")}
+        </button>
+      </div>
+    {/snippet}
+
+    {#snippet right()}
+      {#if (downloadingIndex !== null || extractingHardcoded) && (ocrProgress || ocrCancelling || aiStore.isOcring)}
+        <div class="flex items-center gap-3">
+          {#if ocrProgress && ocrProgress.total > 0}
+            <span class="text-xs font-medium text-cyan-200">{t("extract.ocrInProgress", { current: ocrProgress.current, total: ocrProgress.total })}</span>
+          {:else}
+            <span class="text-xs font-medium text-cyan-200">{t("extract.working")}</span>
           {/if}
-
-          <div class="mx-auto grid w-full max-w-3xl grid-cols-2 gap-3 sm:grid-cols-4">
-            <label class="flex flex-col gap-1 text-[11px] text-gray-400">
-              <span>X (%)</span>
-              <input type="number" min="0" max="98" step="1" aria-label="X (%)" value={Math.round(roi.x * 100)} oninput={(e) => updateRoiPercent("x", Number(e.currentTarget.value))} class="rounded-lg border border-white/10 bg-black/30 px-2.5 py-1.5 text-xs text-white outline-none focus:border-cyan-400" />
-            </label>
-            <label class="flex flex-col gap-1 text-[11px] text-gray-400">
-              <span>Y (%)</span>
-              <input type="number" min="0" max="98" step="1" aria-label="Y (%)" value={Math.round(roi.y * 100)} oninput={(e) => updateRoiPercent("y", Number(e.currentTarget.value))} class="rounded-lg border border-white/10 bg-black/30 px-2.5 py-1.5 text-xs text-white outline-none focus:border-cyan-400" />
-            </label>
-            <label class="flex flex-col gap-1 text-[11px] text-gray-400">
-              <span>W (%)</span>
-              <input type="number" min="2" max="100" step="1" aria-label="W (%)" value={Math.round(roi.width * 100)} oninput={(e) => updateRoiPercent("width", Number(e.currentTarget.value))} class="rounded-lg border border-white/10 bg-black/30 px-2.5 py-1.5 text-xs text-white outline-none focus:border-cyan-400" />
-            </label>
-            <label class="flex flex-col gap-1 text-[11px] text-gray-400">
-              <span>H (%)</span>
-              <input type="number" min="2" max="100" step="1" aria-label="H (%)" value={Math.round(roi.height * 100)} oninput={(e) => updateRoiPercent("height", Number(e.currentTarget.value))} class="rounded-lg border border-white/10 bg-black/30 px-2.5 py-1.5 text-xs text-white outline-none focus:border-cyan-400" />
-            </label>
-          </div>
-
-          <div class="mx-auto flex w-full max-w-3xl flex-wrap items-center justify-end gap-2">
+          <button
+            type="button"
+            class="inline-flex items-center gap-1.5 rounded-xl border border-red-400/35 bg-red-500/20 px-4 py-2.5 text-xs font-semibold text-red-200 transition-colors hover:bg-red-500/30 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
+            disabled={ocrCancelling}
+            onclick={cancelOcr}
+          >
+            <svg aria-hidden="true" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="6" width="12" height="12" rx="1.5" /></svg>
+            {ocrCancelling ? t("refine.btn.stopping") : t("extract.ocrCancel")}
+          </button>
+        </div>
+      {:else if extractMode === "hardcoded"}
+        <div class="flex flex-wrap items-center gap-2.5">
+          <button
+            type="button"
+            class="inline-flex items-center gap-2 rounded-xl border border-indigo-400/35 bg-indigo-500/20 px-4 py-2.5 text-xs font-semibold text-indigo-200 transition-colors hover:bg-indigo-500/30 disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
+            disabled={busy || extractingHardcoded || downloadingIndex !== null || !isVideoMedia || !canOcr || aiStore.isOcring}
+            onclick={() => void previewHardcoded()}
+          >
+            <svg aria-hidden="true" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6Z"/><circle cx="12" cy="12" r="2.5"/></svg>
+            {t("extract.hardcodedPreviewOcr")}
+          </button>
+          <button
+            type="button"
+            class="inline-flex items-center gap-2 rounded-xl border border-teal-400/40 bg-teal-500/25 px-4 py-2.5 text-xs font-semibold text-teal-100 shadow-lg shadow-teal-500/15 transition-colors hover:bg-teal-500/35 disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
+            disabled={busy || extractingHardcoded || downloadingIndex !== null || !isVideoMedia || !canOcr || aiStore.isOcring}
+            onclick={() => void extractHardcoded()}
+          >
+            <svg aria-hidden="true" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 4v12m0 0-4-4m4 4 4-4M4 17v2a1 1 0 001 1h14a1 1 0 001-1v-2"/></svg>
+            {t("extract.hardcodedSave")}
+          </button>
+        </div>
+      {:else}
+        <div class="flex items-center gap-3">
+          {#if !canOcr && onGoToSettings}
+            <SettingsJumpButton label={t("settings.section.itt")} section="itt" onjump={onGoToSettings} variant="amber" />
+          {/if}
+          {#if tracksScanned && tracks.length === 0 && isVideoMedia}
             <button
               type="button"
-              class="btn-secondary px-4 py-2 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-40"
-              disabled={busy || extractingHardcoded || downloadingIndex !== null || !canOcr || aiStore.isOcring}
-              onclick={() => void previewHardcoded()}
+              onclick={() => setExtractMode("hardcoded")}
+              class="inline-flex items-center gap-2 rounded-xl border border-cyan-400/35 bg-cyan-500/20 px-4 py-2.5 text-xs font-semibold text-cyan-200 transition-colors hover:bg-cyan-500/30 cursor-pointer"
             >
-              {t("extract.hardcodedPreviewOcr")}
+              <svg aria-hidden="true" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 8V5a1 1 0 011-1h3M16 4h3a1 1 0 011 1v3M4 16v3a1 1 0 001 1h3m9 0h3a1 1 0 001-1v-3"/><path d="M8 14h8M9 10h6"/></svg>
+              {t("extract.modeHardcoded")}
             </button>
-            <button
-              type="button"
-              class="rounded-lg border border-teal-500/30 bg-teal-500/20 px-4 py-2 text-xs font-semibold text-teal-200 transition-colors hover:bg-teal-500/30 disabled:cursor-not-allowed disabled:opacity-40"
-              disabled={busy || extractingHardcoded || downloadingIndex !== null || !canOcr || aiStore.isOcring}
-              onclick={() => void extractHardcoded()}
-            >
-              {t("extract.hardcodedSave")}
-            </button>
-          </div>
+          {/if}
         </div>
       {/if}
-    </div>
-  {/if}
-  </WorkflowWorkspace>
+    {/snippet}
+  </FooterActions>
 </div>
 
 {#if previewOpen}
