@@ -1,6 +1,6 @@
 [package]
 name = "vesta-flashcards-cli"
-version = "0.35.0-dev.2"
+version = "1.0.0-dev.1"
 edition.workspace = true
 rust-version.workspace = true
 description = "Headless command-line front-end for the vesta-flashcards engine (subs → Anki TSV/APKG)."

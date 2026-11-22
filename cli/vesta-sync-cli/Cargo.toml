@@ -1,6 +1,6 @@
 [package]
 name = "vesta-sync-cli"
-version = "0.35.0-dev.2"
+version = "1.0.0-dev.1"
 edition.workspace = true
 rust-version.workspace = true
 description = "Headless manual subtitle retiming using the Vesta sync engine"
