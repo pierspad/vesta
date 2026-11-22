@@ -52,3 +52,11 @@ Vesta tracks feature coverage (GUI, CLI, MCP, Docs, Unit Tests, Playwright, Smok
 - [`docs/SCORECARD.md`](docs/SCORECARD.md) — Auto-generated dashboard (`python3 build-scripts/generate_scorecard.py`, validated by `quality_check.py`).
 - [`docs/AUDIT_LOG.md`](docs/AUDIT_LOG.md) — Chronological audit wave history and prioritized **Wave 2 Resume Guide**.
 - After fixing a tracked bug (`AUDIT-*`), optimizing (`PERF-*`), or adding tests/docs/MCP coverage, update the corresponding `scorecard/*.toml` entry and run `python3 build-scripts/generate_scorecard.py` and `python3 build-scripts/test_scorecard.py`.
+
+## Build Artifacts & Disk Hygiene
+
+Cargo does not automatically garbage-collect stale hashes in `target/` across toolchain updates, feature/flag changes, or multiple binaries, which can cause `target/debug` to grow past 100+ GB over time.
+
+- **Avoid extra target directories**: Do not set custom `CARGO_TARGET_DIR` locations or leave behind git worktrees/temp clones containing Rust `target/` builds (note: `build-scripts/check_library_integration.py` reuses `target/integration`). If a task creates an isolated worktree or temporary target directory, delete its `target/` before finishing.
+- **Avoid unnecessary `cargo clean`**: Do not run `cargo clean` mid-task unless diagnosing a build issue, as rebuilding `whisper-rs-sys` and Tauri dependencies from scratch is slow.
+- **Keep `target/` bounded**: Periodically check `du -sh target` (and `target/integration`). If `target/` exceeds ~40 GiB, prune stale artifacts before wrapping up via `python3 build-scripts/quality_check.py --prune-target` (or `python3 build-scripts/quality_check.py --prune-only` without running the full suite), `cargo sweep -t 7` (if installed), or removing stale `target/debug/incremental` and `target/integration` directories.
