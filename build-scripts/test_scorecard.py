@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import pathlib
+import re
 import shutil
 import tempfile
 import unittest
@@ -37,7 +38,8 @@ class ScorecardTests(unittest.TestCase):
             root = pathlib.Path(tmp)
             shutil.copytree(REPO_ROOT / "scorecard", root / "scorecard")
             bugs_path = root / "scorecard/bugs.toml"
-            text = bugs_path.read_text(encoding="utf-8").replace('status = "open"', 'status = "fixed"', 1)
+            text = bugs_path.read_text(encoding="utf-8")
+            text = re.sub(r'resolution = "[^"]+"', 'resolution = ""', text, count=1)
             bugs_path.write_text(text, encoding="utf-8")
             _, errors = load_and_validate(root)
             self.assertTrue(any("requires non-empty 'resolution'" in e for e in errors), errors)
@@ -47,7 +49,7 @@ class ScorecardTests(unittest.TestCase):
         self.assertEqual(errors, [])
         metrics = compute_metrics(REPO_ROOT)
         self.assertEqual(metrics.workspace_crates, 24)
-        self.assertEqual(metrics.ipc_total, 106)
+        self.assertEqual(metrics.ipc_total, 108)
         self.assertEqual(metrics.mcp_tools, 12)
         self.assertEqual(metrics.plugin_widgets, 23)
         self.assertEqual(metrics.locales, 15)

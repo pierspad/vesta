@@ -99,5 +99,12 @@ class GitHookTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("personal hook", hook.read_text())
 
+    def test_pre_push_uses_locked_and_excludes_desktop_without_webkit(self):
+        self.run_cmd("bash", "-n", "build-scripts/pre-push")
+        text = (self.root / "build-scripts/pre-push").read_text(encoding="utf-8")
+        self.assertIn("--locked --workspace", text)
+        self.assertIn("webkit2gtk-4.1", text)
+        self.assertIn("--exclude vesta --exclude whisper-bench", text)
+
 if __name__ == "__main__":
     unittest.main()

@@ -37,6 +37,10 @@ jobs:
       - run: python3 build-scripts/check_tauri_versions.py
       - run: python3 build-scripts/check_doc_contracts.py
       - run: python3 build-scripts/test_doc_contracts.py
+      - run: python3 build-scripts/browser_ipc_contract.py --check
+      - run: python3 build-scripts/test_browser_ipc_contract.py
+      - run: python3 build-scripts/generate_scorecard.py --check
+      - run: python3 build-scripts/test_scorecard.py
 
   security:
     name: Dependency security advisories
@@ -264,3 +268,28 @@ jobs:
       - name: Frontend production build
         working-directory: ${{ env.TAURI_APP_DIR }}
         run: npm run build
+
+  browser:
+    name: Browser (Playwright)
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: apps/srt-gui/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: ${{ env.TAURI_APP_DIR }}
+        run: npm ci
+
+      - name: Install Playwright Chromium
+        working-directory: ${{ env.TAURI_APP_DIR }}
+        run: npx playwright install --with-deps chromium
+
+      - name: Run Playwright browser tests
+        working-directory: ${{ env.TAURI_APP_DIR }}
+        run: npm run test:browser

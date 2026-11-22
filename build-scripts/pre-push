@@ -55,16 +55,22 @@ if ! cargo fmt --all --check; then
   exit 1
 fi
 
+CARGO_SCOPE_ARGS=(--locked --workspace)
+if [ "$(uname -s)" = "Linux" ] && command -v pkg-config >/dev/null 2>&1 && ! pkg-config --exists webkit2gtk-4.1 2>/dev/null; then
+  echo "ℹ️  webkit2gtk-4.1 not found; excluding desktop Tauri crates (vesta, whisper-bench) from local clippy/test."
+  CARGO_SCOPE_ARGS+=(--exclude vesta --exclude whisper-bench)
+fi
+
 # 6. Check Rust clippy lints
 echo "  [6/7] Running cargo clippy..."
-if ! cargo clippy --workspace --all-targets -- -D warnings; then
+if ! cargo clippy "${CARGO_SCOPE_ARGS[@]}" --all-targets -- -D warnings; then
   echo "❌ Error: Clippy lints failed. Fix clippy warnings. Push aborted." >&2
   exit 1
 fi
 
 # 7. Run the Rust test suite (same scope as CI's "test" job)
 echo "  [7/7] Running cargo test..."
-if ! cargo test --workspace; then
+if ! cargo test "${CARGO_SCOPE_ARGS[@]}"; then
   echo "❌ Error: Test suite failed. Push aborted." >&2
   exit 1
 fi

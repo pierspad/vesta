@@ -16,12 +16,18 @@ def main():
     args = parser.parse_args()
     rust = ['cargo', 'test', '--locked', '--workspace', '--exclude', 'whisper-bench']
     if not args.desktop: rust += ['--exclude', 'vesta']
+    clippy = ['cargo', 'clippy', '--locked', '--workspace', '--all-targets', '--exclude', 'whisper-bench']
+    if not args.desktop: clippy += ['--exclude', 'vesta']
+    clippy += ['--', '-D', 'warnings']
     commands = [(ROOT, ['python3', 'build-scripts/test_release_workflows.py']),
                 (ROOT, ['python3', 'build-scripts/test_ci_apt.py']),
                 (ROOT, ['python3', 'build-scripts/check_tauri_versions.py']),
                 (ROOT, ['python3', 'build-scripts/test_tauri_versions.py']),
                 (ROOT, ['python3', 'build-scripts/check_doc_contracts.py']),
                 (ROOT, ['python3', 'build-scripts/test_doc_contracts.py']),
+                (ROOT, ['python3', 'build-scripts/browser_ipc_contract.py', '--check']),
+                (ROOT, ['python3', 'build-scripts/test_browser_ipc_contract.py']),
+                (ROOT, ['python3', 'build-scripts/check_library_integration.py']),
                 (ROOT, ['python3', 'build-scripts/generate_scorecard.py', '--check']),
                 (ROOT, ['python3', 'build-scripts/test_scorecard.py']),
                 (ROOT / 'apps/srt-gui', ['npm', 'run', 'check']),
@@ -30,6 +36,8 @@ def main():
                 (ROOT / 'apps/srt-gui', ['npm', 'run', 'check:i18n']),
                 (ROOT / 'apps/srt-gui', ['python3', 'scripts/check_missing_translations.py', '--fail-on-issues', '--output', str(Path(tempfile.gettempdir()) / 'vesta-quality-i18n.json')]),
                 (ROOT / 'apps/srt-gui', ['npm', 'run', 'build']),
+                (ROOT, ['cargo', 'fmt', '--all', '--check']),
+                (ROOT, clippy),
                 (ROOT, rust), (ROOT, ['bash', 'build-scripts/check_internal_crate_versions.sh'])]
     if args.browser:
         commands.append((ROOT / 'apps/srt-gui', ['npm', 'run', 'test:browser']))
